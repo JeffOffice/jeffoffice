@@ -1588,6 +1588,7 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
     }
     m_package = package;
     m_mainPart = main;
+    prepareSheetList();
     const QVector<Relationship> strings = package.relationshipsOfType(main, QStringLiteral("/sharedStrings"));
     for (const Relationship &rel : strings) {
         if (rel.external || !package.hasPart(rel.target)) continue;
@@ -1648,7 +1649,83 @@ bool Workbook::openStream(const QByteArray &stream, bool hasMacros, QString *err
     }
     m_sharedInFile = m_shared.strings.size();
     m_formatsInFile = m_styles.formats.size();
+    prepareSheetList();
     return true;
+}
+
+// The list of sheets as the file has it is also the list as it is now: the names are the file's, and the tabs are in the file's order.
+void Workbook::prepareSheetList()
+{
+    m_info.order.clear();
+    for (int i = 0; i < m_info.sheets.size(); ++i) {
+        m_info.sheets[i].fileName = m_info.sheets[i].name;
+        m_info.order.append(i);
+    }
+}
+
+int Workbook::addSheetEntry(const QString &name, SheetState state)
+{
+    SheetEntry e;
+    e.name = name;
+    e.state = state;
+    e.isNew = true;
+    int id = 0;
+    for (const SheetEntry &s : m_info.sheets) id = std::max(id, s.sheetId);
+    e.sheetId = id + 1;
+    m_info.sheets.append(e);
+    return int(m_info.sheets.size() - 1);
+}
+
+void Workbook::removeLastSheetEntry()
+{
+    if (m_info.sheets.isEmpty()) return;
+    const int last = int(m_info.sheets.size() - 1);
+    m_info.order.removeAll(last);
+    m_info.sheets.removeLast();
+}
+
+void Workbook::setSheetName(int sheet, const QString &name)
+{
+    if (sheet >= 0 && sheet < m_info.sheets.size()) m_info.sheets[sheet].name = name;
+}
+
+void Workbook::setSheetState(int sheet, SheetState state)
+{
+    if (sheet >= 0 && sheet < m_info.sheets.size()) m_info.sheets[sheet].state = state;
+}
+
+void Workbook::setSheetDeleted(int sheet, bool deleted)
+{
+    if (sheet >= 0 && sheet < m_info.sheets.size()) m_info.sheets[sheet].deleted = deleted;
+}
+
+namespace {
+
+QString numberedPart(const QString &pattern, int n) { return pattern.arg(n); }
+
+} // namespace
+
+void Workbook::planSheetPart(int sheet)
+{
+    if (sheet < 0 || sheet >= m_info.sheets.size() || !m_info.sheets[sheet].part.isEmpty()) return;
+    QSet<QString> taken;
+    for (const SheetEntry &e : m_info.sheets) taken.insert(e.part.toLower());
+    for (const QString &p : m_package.partNames()) taken.insert(p.toLower());
+    int n = 1;
+    while (taken.contains(numberedPart(QStringLiteral("/xl/worksheets/sheet%1.xml"), n).toLower())) ++n;
+    m_info.sheets[sheet].part = numberedPart(QStringLiteral("/xl/worksheets/sheet%1.xml"), n);
+    QSet<QString> ids;
+    for (const Relationship &r : m_package.relationships(m_mainPart)) ids.insert(r.id.toLower());
+    for (const SheetEntry &e : m_info.sheets) ids.insert(e.relId.toLower());
+    int k = 1;
+    if (isBinary()) {
+        // (the package made from a workbook of the older form numbers its sheets, then the styles and the strings)
+        int original = 0;
+        while (original < m_info.sheets.size() && !m_info.sheets[original].isNew) ++original;
+        k = original + 3;
+    }
+    while (ids.contains(QStringLiteral("rid%1").arg(k))) ++k;
+    m_info.sheets[sheet].relId = QStringLiteral("rId%1").arg(k);
 }
 
 namespace {

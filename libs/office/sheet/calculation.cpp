@@ -695,6 +695,272 @@ bool Calculation::load()
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
+// the sheets
+
+// Registers the formulas of a sheet that is there (its cells are in place): a node for each, and the cells of its arrays and data tables marked as load() does.
+void Calculation::registerSheet(int si)
+{
+    Sheet &s = m_sheets[size_t(si)];
+    SheetState &st = m_state[size_t(si)];
+    st.nodeOf.assign(size_t(s.formulas.size()), kNone);
+    st.plain.resize(size_t(s.formulaTexts.size()));
+    st.array.resize(size_t(s.formulaTexts.size()));
+    quint32 rows = 0, cols = 0;
+    std::vector<quint32> masters;
+    s.cells.forEach([&](const Cell &c) {
+        if (c.type != CellType::Empty || c.hasFormula()) {
+            rows = std::max(rows, c.row + 1);
+            cols = std::max(cols, quint32(c.col) + 1);
+        }
+        if (!c.hasFormula() || c.formula < 0 || c.formula >= s.formulas.size()) return;
+        const quint32 id = addNode(si, c, c.formula);
+        if (m_nodes[id].flags & Array) masters.push_back(id);
+    });
+    m_rows[size_t(si)] = rows;
+    m_cols[size_t(si)] = cols;
+    for (size_t fi = 0; fi < st.nodeOf.size(); ++fi) {
+        if (st.nodeOf[fi] == kNone || m_nodes[st.nodeOf[fi]].kept != 'D') continue;
+        const qint32 range = s.formulas[qint32(fi)].range;
+        if (range < 0 || range >= s.ranges.size() || !s.ranges[range].valid || s.ranges[range].cellCount() > kMaxArrayCellsMarked) continue;
+        const CellRange r = s.ranges[range];
+        for (quint32 row = r.row1; row <= r.row2; ++row)
+            for (quint32 col = r.col1; col <= r.col2; ++col)
+                if (Cell *c = s.cells.findMutable(row, col)) c->flags |= Tainted;
+    }
+}
+
+int Calculation::addSheet(const QString &name, int copyOf)
+{
+    abandonNow();
+    const int index = int(m_sheets.size());
+    Sheet content;
+    if (copyOf >= 0 && copyOf < index) {
+        content = m_sheets[size_t(copyOf)];
+        content.view.tabSelected = false;
+        content.partial = false;
+    }
+    m_sheets.push_back(std::move(content));
+    m_rows.push_back(0);
+    m_cols.push_back(0);
+    m_subtotalTexts.emplace_back();
+    m_state.emplace_back();
+    forgetRuleIndex();
+    if (!name.isEmpty()) m_byName.insert(name.toCaseFolded(), index);
+    registerSheet(index);
+    if (!m_running) beginRecalculation();
+    return index;
+}
+
+void Calculation::removeLastSheet()
+{
+    abandonNow();
+    if (m_sheets.empty()) return;
+    const int last = int(m_sheets.size()) - 1;
+    for (quint32 id = 0; id < quint32(m_nodes.size()); ++id)
+        if (!(m_nodes[id].flags & Dead) && m_nodes[id].sheet == last) dropNode(id);
+    for (auto it = m_byName.begin(); it != m_byName.end();) {
+        if (it.value() == last) it = m_byName.erase(it);
+        else ++it;
+    }
+    m_sheets.pop_back();
+    m_rows.pop_back();
+    m_cols.pop_back();
+    if (!m_subtotalTexts.empty()) m_subtotalTexts.pop_back();
+    m_state.pop_back();
+    forgetRuleIndex();
+}
+
+void Calculation::setSheetNames(int sheet, const QString &oldName, const QString &newName)
+{
+    if (!oldName.isEmpty()) {
+        const auto it = m_byName.find(oldName.toCaseFolded());
+        if (it != m_byName.end() && it.value() == sheet) m_byName.erase(it);
+    }
+    if (!newName.isEmpty()) m_byName.insert(newName.toCaseFolded(), sheet);
+}
+
+qint64 Calculation::SheetRewrite::bytes() const
+{
+    qint64 n = qint64(rewritten.size()) * qint64(sizeof(EditRecord::Place));
+    for (const Text &t : texts) n += qint64(t.before.size()) * 2 + 24;
+    for (const auto &p : names) n += qint64(p.first.size() + p.second.size()) * 2;
+    return n;
+}
+
+// A formula text changed in place (the cells that have it have the new one): what is remembered of the characters, and the programs made of them, are let go.
+void Calculation::setSlotText(int sheet, qint32 slot, const QString &text)
+{
+    Sheet &s = m_sheets[size_t(sheet)];
+    SheetState &st = m_state[size_t(sheet)];
+    const auto at = st.internOf.find(s.formulaTexts[slot]);
+    if (at != st.internOf.end() && *at == slot) st.internOf.erase(at);
+    s.formulaTexts[slot] = text;
+    if (!st.internOf.contains(text) && st.textsCounted) st.internOf.insert(text, slot);
+    if (size_t(slot) < st.plain.size()) st.plain[size_t(slot)] = Compiled();
+    if (size_t(slot) < st.array.size()) st.array[size_t(slot)] = Compiled();
+    forgetTextFacts(sheet, slot);
+}
+
+// A formula's node made again from the cell (its text changed): it is read again for what it reads, and worked out.
+void Calculation::readdNode(quint32 id)
+{
+    if (m_nodes[id].flags & Dead) return;
+    const int sheet = m_nodes[id].sheet;
+    Sheet &s = m_sheets[size_t(sheet)];
+    Cell *c = s.cells.findMutable(m_nodes[id].row, m_nodes[id].col);
+    if (!c || !c->hasFormula() || c->formula < 0 || c->formula >= s.formulas.size()) return;
+    const qint32 formula = c->formula;
+    dropNode(id);
+    const quint32 now = addNode(sheet, *c, formula);
+    queueDependents(areaOf(m_nodes[now]));
+}
+
+bool Calculation::hasThreeDReferences() const
+{
+    if (!m_threeD.empty()) return true;
+    for (auto it = m_names.constBegin(); it != m_names.constEnd(); ++it)
+        if (formulaHasThreeD(it.value(), true)) return true;
+    return false;
+}
+
+bool Calculation::rewriteSheetReferences(const QString &oldName, const QString &newName, SheetRewrite *record)
+{
+    if (hasThreeDReferences()) return false;
+    abandonNow();
+    BulkEdit bulk(this);
+    auto rewrite = [&](const QString &text, bool definedName, bool *changed) {
+        return newName.isEmpty() ? deleteSheetInFormula(text, oldName, changed, definedName) : renameSheetInFormula(text, oldName, newName, changed, definedName);
+    };
+    std::vector<quint32> again;
+    for (int si = 0; si < int(m_sheets.size()); ++si) {
+        Sheet &s = m_sheets[size_t(si)];
+        SheetState &st = m_state[size_t(si)];
+        std::vector<char> changedSlot(size_t(s.formulaTexts.size()), 0);
+        bool any = false;
+        for (qint32 slot = 0; slot < s.formulaTexts.size(); ++slot) {
+            const QString text = s.formulaTexts[slot];
+            if (text.isEmpty()) continue;
+            bool changed = false;
+            const QString now = rewrite(text, false, &changed);
+            if (!changed) continue;
+            record->texts.push_back({si, slot, text});
+            setSlotText(si, slot, now);
+            changedSlot[size_t(slot)] = 1;
+            any = true;
+        }
+        if (any) {
+            for (qint32 fi = 0; fi < s.formulas.size(); ++fi) {
+                const Formula &f = s.formulas[fi];
+                if (f.text < 0 || size_t(f.text) >= changedSlot.size() || !changedSlot[size_t(f.text)]) continue;
+                if (size_t(fi) >= st.nodeOf.size() || st.nodeOf[size_t(fi)] == kNone) continue;
+                const quint32 id = st.nodeOf[size_t(fi)];
+                const Cell *c = s.cells.find(m_nodes[id].row, m_nodes[id].col);
+                record->rewritten.push_back({si, m_nodes[id].row, m_nodes[id].col, c && (c->flags & DataTable)});
+                again.push_back(id);
+            }
+        }
+        // the rules of validation and of conditional formatting: their formulas
+        bool rulesChanged = false;
+        QVector<Validation> validations = s.validations;
+        for (Validation &v : validations) {
+            bool c1 = false, c2 = false;
+            v.formula1 = rewrite(v.formula1, false, &c1);
+            v.formula2 = rewrite(v.formula2, false, &c2);
+            rulesChanged = rulesChanged || c1 || c2;
+        }
+        if (rulesChanged) {
+            record->validations.push_back({si, s.validations});
+            s.validations = validations;
+            forgetRuleIndex();
+        }
+        bool cfChanged = false;
+        QVector<CondRule> rules = s.conditionalFormats;
+        for (CondRule &r : rules) {
+            bool c1 = false, c2 = false;
+            r.formula1 = rewrite(r.formula1, false, &c1);
+            r.formula2 = rewrite(r.formula2, false, &c2);
+            cfChanged = cfChanged || c1 || c2;
+            for (CondValue &v : r.values)
+                if (v.type == CondValue::Type::Formula) {
+                    bool cv = false;
+                    v.value = rewrite(v.value, false, &cv);
+                    cfChanged = cfChanged || cv;
+                }
+        }
+        if (cfChanged) {
+            record->conditionalFormats.push_back({si, s.conditionalFormats});
+            s.conditionalFormats = rules;
+        }
+    }
+    bool namesChanged = false;
+    for (auto it = m_names.begin(); it != m_names.end(); ++it) {
+        bool changed = false;
+        const QString now = rewrite(it.value(), true, &changed);
+        if (!changed) continue;
+        record->names.push_back({it.key(), it.value()});
+        it.value() = now;
+        namesChanged = true;
+    }
+    if (namesChanged) {
+        m_nameTraits.clear();
+        for (SheetState &state : m_state) {
+            for (Compiled &slot : state.plain) slot.tried = false;
+            for (Compiled &slot : state.array) slot.tried = false;
+        }
+        for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
+            const Node &n = m_nodes[id];
+            if ((n.flags & Dead) || !(n.flags & Told)) continue;
+            again.push_back(id);
+        }
+    }
+    std::sort(again.begin(), again.end());
+    again.erase(std::unique(again.begin(), again.end()), again.end());
+    for (const quint32 id : again) readdNode(id);
+    if (!m_running) beginRecalculation();
+    return true;
+}
+
+void Calculation::undoSheetRewrite(const SheetRewrite &record)
+{
+    abandonNow();
+    BulkEdit bulk(this);
+    std::vector<quint32> again;
+    for (auto it = record.texts.rbegin(); it != record.texts.rend(); ++it) setSlotText(it->sheet, it->slot, it->before);
+    for (const auto &entry : record.validations)
+        if (entry.first >= 0 && entry.first < int(m_sheets.size())) {
+            m_sheets[size_t(entry.first)].validations = entry.second;
+            forgetRuleIndex();
+        }
+    for (const auto &entry : record.conditionalFormats)
+        if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].conditionalFormats = entry.second;
+    bool namesChanged = false;
+    for (const auto &entry : record.names) {
+        m_names[entry.first] = entry.second;
+        namesChanged = true;
+    }
+    for (const EditRecord::Place &p : record.rewritten) {
+        const quint32 id = nodeAt(p.sheet, p.row, p.col);
+        if (id != kNone) again.push_back(id);
+    }
+    if (namesChanged) {
+        m_nameTraits.clear();
+        for (SheetState &state : m_state) {
+            for (Compiled &slot : state.plain) slot.tried = false;
+            for (Compiled &slot : state.array) slot.tried = false;
+        }
+        for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
+            const Node &n = m_nodes[id];
+            if ((n.flags & Dead) || !(n.flags & Told)) continue;
+            again.push_back(id);
+        }
+    }
+    std::sort(again.begin(), again.end());
+    again.erase(std::unique(again.begin(), again.end()), again.end());
+    for (const quint32 id : again) readdNode(id);
+    if (!m_running) beginRecalculation();
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
 // recalculation
 
 void Calculation::markDirty(quint32 id, std::vector<CellArea> *changed)

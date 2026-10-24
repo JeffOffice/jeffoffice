@@ -121,7 +121,10 @@ enum class SheetState { Visible, Hidden, VeryHidden };
 enum class SheetKind { Worksheet, Chartsheet, Dialogsheet, Macrosheet };
 
 struct SheetEntry {
-    QString name;
+    QString name;                 // the name now (a person may have renamed the sheet; empty for a sheet that was deleted)
+    QString fileName;             // the name the package's workbook part has for it (what the files' formulas say, until the next save)
+    bool deleted = false;         // a sheet a person deleted: it keeps its place, and is not in the order of the tabs
+    bool isNew = false;           // a sheet a person added: it has no part in the package yet
     int sheetId = 0;
     SheetState state = SheetState::Visible;
     QString relId;        // the workbook's relationship to the sheet's part
@@ -137,7 +140,8 @@ struct DefinedName {
 };
 
 struct WorkbookInfo {
-    QVector<SheetEntry> sheets;   // in the order the workbook has them
+    QVector<SheetEntry> sheets;   // by place: the order the file has them in, then those a person added (a sheet's place never changes)
+    QVector<int> order;           // the places of the sheets in the order of the tabs (those deleted are not in it)
     QVector<DefinedName> definedNames;
     DateSystem dateSystem = DateSystem::Date1900;
     CalcMode calcMode = CalcMode::Auto;
@@ -276,6 +280,17 @@ public:
         savedTo(package, c);
     }
 
+    // ---- the sheets as a person changes them (see apps/crunch/core/editsession.h). A sheet's place never changes: one added is given the next place, and one deleted keeps its own, marked.
+    // What the file has stays in `fileName` and `part` until a save. The window's thread only, with the worker held back.
+    int addSheetEntry(const QString &name, SheetState state = SheetState::Visible);
+    void removeLastSheetEntry();   // (Undo of adding one)
+    void setSheetName(int sheet, const QString &name);
+    void setSheetState(int sheet, SheetState state);
+    void setSheetDeleted(int sheet, bool deleted);
+    void setSheetOrder(const QVector<int> &order) { m_info.order = order; }
+    // The part, relationship, and sheet number the package would have for a new sheet (names none that the package, or another new sheet, has), chosen once and kept.
+    void planSheetPart(int sheet);
+
     // ---- tables (see sheet/tables.h): read from the package when first asked for
     const QVector<Table> &tables() const;
     // The table whose header row holds the cell, and the place of its column in the table; -1 if the cell is no table's header.
@@ -294,6 +309,7 @@ public:
 
 private:
     bool openStream(const QByteArray &stream, bool hasMacros, QString *error, const Limits &limits);
+    void prepareSheetList();
     Package m_package;
     std::shared_ptr<const XlsBook> m_xls;
     QString m_mainPart, m_sharedPart, m_stylesPart;

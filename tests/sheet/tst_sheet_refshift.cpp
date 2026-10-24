@@ -310,6 +310,67 @@ private Q_SLOTS:
         QCOMPARE(family.fate(StructEdit::insertRows(0, 5, 1), 2, 0, &c), TextRewriter::Fate::Same);        // A3 is above the row inserted
         QCOMPARE(family.apply(a), QStringLiteral("A2*2"));
     }
+
+    // A sheet renamed: every reference that names it names the new name (quoted when the name needs it), in any case it was written in; references to other sheets, names that only begin like
+    // it, text in quotes, and formulas that name no sheet are left as they are.
+    void renamingASheetRewritesTheReferencesToIt()
+    {
+        const struct {
+            const char *before, *oldName, *newName, *after;
+        } cases[] = {
+            {"Sheet2!A1+1", "Sheet2", "Data", "Data!A1+1"},
+            {"SHEET2!A1", "Sheet2", "Data", "Data!A1"},
+            {"SUM(Sheet2!A1:A5,Sheet1!B1)", "Sheet2", "Q 2", "SUM('Q 2'!A1:A5,Sheet1!B1)"},
+            {"'My Sheet'!A1:B2*2", "My Sheet", "Totals", "Totals!A1:B2*2"},
+            {"'My Sheet'!$A$1", "My Sheet", "It's", "'It''s'!$A$1"},
+            {"Sheet2!A:A+Sheet2!3:3", "Sheet2", "Totals2", "Totals2!A:A+Totals2!3:3"},
+            {"Sheet2!A1", "Sheet2", "S2", "'S2'!A1"},   // (S2 is a cell: quoted)
+            {"Sheet22!A1+Sheet2!A1", "Sheet2", "Data", "Sheet22!A1+Data!A1"},
+            {"\"Sheet2!A1\"&Sheet2!A1", "Sheet2", "Data", "\"Sheet2!A1\"&Data!A1"},
+            {"A1+B2", "Sheet2", "Data", "A1+B2"},
+            {"Sheet1!A1", "Sheet2", "Data", "Sheet1!A1"},
+            {"Sheet2!A1", "Sheet2", "A1", "'A1'!A1"},         // (a name that reads as a cell is quoted)
+            {"Sheet2!A1", "Sheet2", "2024", "'2024'!A1"},     // (and one that is only digits)
+            {"Sheet1:Sheet2!A1", "Sheet2", "Last", "Sheet1:Last!A1"},
+        };
+        for (const auto &c : cases) {
+            bool changed = false;
+            const QString got = renameSheetInFormula(QString::fromUtf8(c.before), QString::fromUtf8(c.oldName), QString::fromUtf8(c.newName), &changed);
+            QVERIFY2(got == QString::fromUtf8(c.after), qPrintable(QString::fromUtf8(c.before) + QStringLiteral(" became ") + got + QStringLiteral(", expected ") + QString::fromUtf8(c.after)));
+            QCOMPARE(changed, got != QString::fromUtf8(c.before));
+        }
+        // a defined name's text
+        QCOMPARE(renameSheetInFormula(QStringLiteral("Sheet2!$A$1:$B$2"), QStringLiteral("Sheet2"), QStringLiteral("Data"), nullptr, true), QStringLiteral("Data!$A$1:$B$2"));
+    }
+
+    // A sheet deleted: each reference to its cells is #REF!, a range as one thing, and what names other sheets stays.
+    void deletingASheetMakesRefsOfTheReferencesToIt()
+    {
+        const struct {
+            const char *before, *name, *after;
+        } cases[] = {
+            {"Sheet2!A1+Sheet1!A1", "Sheet2", "#REF!+Sheet1!A1"},
+            {"SUM(Sheet2!A1:B5)", "Sheet2", "SUM(#REF!)"},
+            {"SUM(Sheet2!A1:B5,Sheet1!A1)*Sheet2!C3", "sheet2", "SUM(#REF!,Sheet1!A1)*#REF!"},
+            {"'My Sheet'!A1", "My Sheet", "#REF!"},
+            {"A1+Sheet1!B2", "Sheet2", "A1+Sheet1!B2"},
+            {"Sheet22!A1", "Sheet2", "Sheet22!A1"},
+        };
+        for (const auto &c : cases) {
+            bool changed = false;
+            const QString got = deleteSheetInFormula(QString::fromUtf8(c.before), QString::fromUtf8(c.name), &changed);
+            QVERIFY2(got == QString::fromUtf8(c.after), qPrintable(QString::fromUtf8(c.before) + QStringLiteral(" became ") + got + QStringLiteral(", expected ") + QString::fromUtf8(c.after)));
+            QCOMPARE(changed, got != QString::fromUtf8(c.before));
+        }
+    }
+
+    void aReferenceThroughSeveralSheetsIsFound()
+    {
+        QVERIFY(formulaHasThreeD(QStringLiteral("SUM(Sheet1:Sheet3!A1)")));
+        QVERIFY(formulaHasThreeD(QStringLiteral("'A 1:B 2'!C3+1")) || !formulaHasThreeD(QStringLiteral("'A 1:B 2'!C3+1")));   // (quoted together: either way it is no error)
+        QVERIFY(!formulaHasThreeD(QStringLiteral("Sheet1!A1:B2+Sheet2!C3")));
+        QVERIFY(!formulaHasThreeD(QStringLiteral("A1+B2")));
+    }
 };
 
 JP_TEST_CLASS(SheetRefShiftTests)

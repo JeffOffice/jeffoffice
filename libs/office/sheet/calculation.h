@@ -282,6 +282,41 @@ public:
     std::vector<std::pair<QString, QString>> renameColumnInNames(const QString &table, const QString &oldName, const QString &newName);
     void restoreNames(const std::vector<std::pair<QString, QString>> &names);
 
+    // ---- the sheets (a person adds, renames, deletes, and copies them: see apps/crunch/core/editsession.h). A sheet is never renumbered: one added is put after the others and keeps its
+    // number, one deleted keeps its number and its cells (nothing reads them any more: every reference to it is #REF!), and Undo puts it all back. Called with the worker held back.
+    // Appends a sheet, empty or a copy of the cells, formats, sizes, and rules of another (its formulas are registered and are to be worked out); its number. `name` is what formulas call it.
+    int addSheet(const QString &name, int copyOf = -1);
+    // Takes the last sheet away (Undo of adding one).
+    void removeLastSheet();
+    // What formulas call the sheet from now on: `oldName` stops naming it and `newName` begins to (either may be empty: a sheet deleted, a sheet brought back).
+    void setSheetNames(int sheet, const QString &oldName, const QString &newName);
+    // What a rename or a delete of a sheet did to the texts that name it, for putting back.
+    struct SheetRewrite {
+        struct Text {
+            int sheet;
+            qint32 slot;
+            QString before;
+        };
+        std::vector<Text> texts;                                              // formula texts of the cells
+        std::vector<EditRecord::Place> rewritten;                             // the cells whose formulas had one of them
+        std::vector<std::pair<QString, QString>> names;                       // defined names, with the text they had
+        std::vector<std::pair<int, QVector<Validation>>> validations;         // rules of validation, as they were, of the sheets that had a formula to change
+        std::vector<std::pair<int, QVector<CondRule>>> conditionalFormats;    // and of conditional formatting
+        qint64 bytes() const;
+    };
+    // Every reference to the sheet `oldName` in every formula (the cells', the defined names', the rules'): changed to name `newName`, or, when it is empty (the sheet is deleted), #REF!. The
+    // names formulas read the sheet by (setSheetNames) are to be made first for a rename. False, with nothing changed, if a formula reads a block of several sheets.
+    bool rewriteSheetReferences(const QString &oldName, const QString &newName, SheetRewrite *record);
+    // (the names of the sheet are put back first: the formulas read the sheet by name as they are written again)
+    void undoSheetRewrite(const SheetRewrite &record);
+    // Whether a formula (a cell's or a name's) reads a block of several sheets, which moving, adding, or deleting a sheet could change the meaning of.
+    bool hasThreeDReferences() const;
+    // The color of a sheet's tab, and the default sizes (see SheetFormat), put back.
+    void setTabColor(int sheet, const ColorSpec &color)
+    {
+        if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].tabColor = color;
+    }
+
     // (applyEdit does a Move as well: the cells of a block put in another place, over what is there, and what refers to them follows; Undo gives back both places.)
 
     // Puts right, at once, what a stop of the recalculation left to be put right (an edit does this first; a caller that is about to read the formulas' state does too).
@@ -377,6 +412,9 @@ private:
     // The text of the formula of this cell is now `text` for the cell itself (in place: the formula keeps its place, and a shared formula's cell is its own text from now).
     void retext(int sheet, Cell *cell, const QString &text);
     void classify(quint32 id, const Cell &cell, const Formula &f);
+    void registerSheet(int sheet);
+    void setSlotText(int sheet, qint32 slot, const QString &text);
+    void readdNode(quint32 id);
     quint32 addNode(int sheet, const Cell &cell, qint32 formulaIndex);
     // The text of an array formula's or a data table's first cell changed in place (its range's cells point to its formula); false if the cell is none.
     bool rewriteArrayText(int sheet, quint32 row, quint32 col, const QString &text);

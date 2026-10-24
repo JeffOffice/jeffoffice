@@ -721,6 +721,84 @@ QString adjustRuleFormula(const QString &formula, int ownSheet, const QStringLis
     return text;
 }
 
+namespace {
+
+// The name(s) a reference writes in front of its cells: one sheet, or the first and last of a block of sheets.
+QString prefixOfSheets(const QString &first, const QString &last)
+{
+    if (last.isEmpty() || last == first) return sheetPrefix(first);
+    const QString both = sheetPrefix(first + QLatin1Char(':') + last);   // (quoted together, as a block is: 'Q 1:Q 2'!)
+    const QString a = sheetPrefix(first), b = sheetPrefix(last);
+    if (!a.startsWith(QLatin1Char('\'')) && !b.startsWith(QLatin1Char('\''))) return first + QLatin1Char(':') + last + QLatin1Char('!');
+    return both;
+}
+
+bool sameSheet(const QString &a, const QString &b) { return a.compare(b, Qt::CaseInsensitive) == 0; }
+
+} // namespace
+
+QString renameSheetInFormula(const QString &formula, const QString &oldName, const QString &newName, bool *changed, bool definedName)
+{
+    if (changed) *changed = false;
+    if (!formula.contains(QLatin1Char('!'))) return formula;
+    jp::calc::ParseOptions po;
+    po.definedName = definedName;
+    std::vector<jp::calc::ReferenceAt> refs;
+    if (!jp::calc::findReferences(formula, po, &refs) || refs.empty()) return formula;
+    QString out;
+    int at = 0;
+    bool any = false;
+    for (const jp::calc::ReferenceAt &r : refs) {
+        if (r.sheet1.isEmpty()) continue;
+        const bool first = sameSheet(r.sheet1, oldName), last = !r.sheet2.isEmpty() && sameSheet(r.sheet2, oldName);
+        if (!first && !last) continue;
+        out += formula.mid(at, r.start - at);
+        out += prefixOfSheets(first ? newName : r.sheet1, r.sheet2.isEmpty() ? QString() : last ? newName : r.sheet2);
+        at = r.body;
+        any = true;
+    }
+    if (!any) return formula;
+    out += formula.mid(at);
+    if (changed) *changed = true;
+    return out;
+}
+
+QString deleteSheetInFormula(const QString &formula, const QString &name, bool *changed, bool definedName)
+{
+    if (changed) *changed = false;
+    if (!formula.contains(QLatin1Char('!'))) return formula;
+    jp::calc::ParseOptions po;
+    po.definedName = definedName;
+    std::vector<jp::calc::ReferenceAt> refs;
+    if (!jp::calc::findReferences(formula, po, &refs) || refs.empty()) return formula;
+    QString out;
+    int at = 0;
+    bool any = false;
+    for (const jp::calc::ReferenceAt &r : refs) {
+        if (r.sheet1.isEmpty() || !(sameSheet(r.sheet1, name) || (!r.sheet2.isEmpty() && sameSheet(r.sheet2, name)))) continue;
+        out += formula.mid(at, r.start - at);
+        out += QStringLiteral("#REF!");
+        at = r.end;
+        any = true;
+    }
+    if (!any) return formula;
+    out += formula.mid(at);
+    if (changed) *changed = true;
+    return out;
+}
+
+bool formulaHasThreeD(const QString &formula, bool definedName)
+{
+    if (!formula.contains(QLatin1Char('!')) || !formula.contains(QLatin1Char(':'))) return false;
+    jp::calc::ParseOptions po;
+    po.definedName = definedName;
+    std::vector<jp::calc::ReferenceAt> refs;
+    if (!jp::calc::findReferences(formula, po, &refs)) return false;
+    for (const jp::calc::ReferenceAt &r : refs)
+        if (!r.sheet2.isEmpty() && !sameSheet(r.sheet1, r.sheet2)) return true;
+    return false;
+}
+
 QString offsetFormula(const QString &formula, qint32 dRow, qint32 dCol, bool *changed)
 {
     if (changed) *changed = false;
