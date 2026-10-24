@@ -24,6 +24,7 @@ namespace jp::office::sheet {
 using jp::calc::DateSystem;
 
 class XlsBook;
+class ForeignBook;
 
 // What the files control, bounded. Each is at least ten times what any real
 // workbook has; the most found in the 8,371 public workbooks used for tuning
@@ -79,6 +80,9 @@ constexpr qint64 kMaxFormulaWork = 100000000;
 // Defined names in a workbook (3,295 found), and the characters of all their names and what they stand for (a name stands for 4,553 characters at the most).
 constexpr qint64 kMaxDefinedNames = 100000;
 constexpr qint64 kMaxDefinedNameChars = 20000000;
+// The bytes of the content of an OpenDocument spreadsheet (its sheets are in one part, which is held whole once it is inflated, so that each sheet is read from its own piece of it).
+// No real file comes near it; 768 MB is ten times what the largest public sheet's XML comes to.
+constexpr qint64 kMaxOdsContentBytes = qint64(768) << 20;
 // Runs of formatting inside the strings of a workbook, all together (the runs of the strings are kept only when asked for, or for a workbook of the older binary form; past this the strings
 // are kept without their runs).
 constexpr qint64 kMaxRichRuns = 5000000;
@@ -112,6 +116,7 @@ struct Limits {
     // does not draw them needs.
     bool richText = false;
     qint64 richRuns = kMaxRichRuns;
+    qint64 odsContentBytes = kMaxOdsContentBytes;
 };
 
 enum class CalcMode { Auto, AutoNoTable, Manual };
@@ -200,6 +205,10 @@ public:
     bool openBinary(const QByteArray &file, QString *error = nullptr, const Limits &limits = Limits());
     // Whether the workbook was read from the older binary form, and what such a file holds that is not read (charts, pictures, ...), in words.
     bool isBinary() const { return bool(m_xls); }
+    // Whether it was read from a file that has no package of XML parts to put changes in, and so is saved as an .xlsx written from what was read: the older binary form, an
+    // OpenDocument spreadsheet (.ods, .fods), or a file of delimited values (.csv). convertedKind() says which (".xls", ".ods", ".csv"); empty for any other.
+    bool isConverted() const { return m_xls || m_foreign; }
+    QString convertedKind() const;
     QStringList skippedFeatures() const;
     const WorkbookInfo &info() const { return m_info; }
     const SharedStrings &sharedStrings() const { return m_shared; }
@@ -255,8 +264,12 @@ public:
 
 private:
     bool openStream(const QByteArray &stream, bool hasMacros, QString *error, const Limits &limits);
+    bool openOpenDocument(const QByteArray &file, bool flat, QString *error, const Limits &limits);
+    bool openDelimited(const QByteArray &file, const QString &path, QString *error, const Limits &limits);
+    void nameBaseParts();
     Package m_package;
     std::shared_ptr<const XlsBook> m_xls;
+    std::shared_ptr<const ForeignBook> m_foreign;
     QString m_mainPart, m_sharedPart, m_stylesPart;
     qint64 m_sharedInFile = 0, m_formatsInFile = 0;
     QStringList m_sharedAdded;

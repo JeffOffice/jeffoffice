@@ -308,7 +308,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     // A workbook read from the older binary form has no package yet: the first save writes one from what was read (xlsxbase.h), and the changes are put in that.
     Package baseFile;
     const Package *base = &book.package();
-    if (!base->isLazy() && book.isBinary()) {
+    if (!base->isLazy() && book.isConverted()) {
         QByteArray bytes;
         if (!writeBaseXlsx(book, &bytes, &why, cancel)) return fail(why);
         if (!baseFile.readLazy(bytes, &why)) return fail(why);

@@ -8,6 +8,8 @@
 #include "io/zipindex.h"
 #include "office/xmlstream.h"
 #include "io/cfb.h"
+#include "sheet/csv.h"
+#include "sheet/ods.h"
 #include "sheet/xls.h"
 #include "sheet/xlsxbase.h"
 
@@ -1368,6 +1370,12 @@ bool Workbook::openStream(const QByteArray &stream, bool hasMacros, QString *err
         return false;
     }
     m_xls = xls;
+    nameBaseParts();
+    return true;
+}
+
+void Workbook::nameBaseParts()
+{
     // The workbook is saved as a package of XML parts that is written from what was read (see xlsxbase.h): its parts are named from the start, with the strings and cell formats it was
     // read with already in the file, so that what an edit adds goes after them.
     m_mainPart = baseMainPart();
@@ -1379,7 +1387,6 @@ bool Workbook::openStream(const QByteArray &stream, bool hasMacros, QString *err
     }
     m_sharedInFile = m_shared.strings.size();
     m_formatsInFile = m_styles.formats.size();
-    return true;
 }
 
 namespace {
@@ -1458,7 +1465,7 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
         if (error) *error = tooLargeMessage();
         return false;
     }
-    const QByteArray head = file.read(1024);
+    const QByteArray head = file.read(16384);
     file.close();
     // (a stream with no container: the forms before BIFF5, and a bare BIFF8 or BIFF5 stream, begin with the record of the start of a workbook)
     const bool raw = head.size() >= 4 && quint8(head[0]) == 0x09 && (quint8(head[1]) == 0x00 || quint8(head[1]) == 0x02 || quint8(head[1]) == 0x04 || quint8(head[1]) == 0x08);
@@ -1478,7 +1485,15 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
         if (!readWholeFile(path, &whole, error, limits.fileBytes)) return false;
         return openStream(whole, false, error, limits);
     }
-    if (!head.startsWith("PK")) {
+    const bool zip = head.startsWith("PK");
+    if (!zip) {
+        // (an OpenDocument spreadsheet in its flat XML form, or a text file of delimited values by its name)
+        const bool flat = looksLikeFlatOpenDocument(head);
+        if (flat || isDelimitedName(path)) {
+            QByteArray text;
+            if (!readWholeFile(path, &text, error, limits.fileBytes)) return false;
+            return flat ? openOpenDocument(text, true, error, limits) : openDelimited(text, path, error, limits);
+        }
         const QString kind = plainKindOfText(head);
         if (!kind.isEmpty()) {
             if (error) *error = kind;
@@ -1487,12 +1502,15 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
     }
     QByteArray bytes;
     if (!readWholeFile(path, &bytes, error, limits.fileBytes)) return false;
+    if (zip && looksLikeOpenDocumentZip(bytes)) return openOpenDocument(bytes, false, error, limits);
     Package package;
     if (!package.readLazy(bytes, error)) return false;
     return open(package, error, limits);
 }
 
-QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() : QStringList(); }
+QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() : m_foreign ? m_foreign->skipped() : QStringList(); }
+
+QString Workbook::convertedKind() const { return m_xls ? QStringLiteral(".xls") : m_foreign ? m_foreign->kind() : QString(); }
 
 // ---- changes
 
@@ -1606,6 +1624,7 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
         return false;
     }
     if (m_xls) return m_xls->readSheet(index, m_limits, progress, out);
+    if (m_foreign) return m_foreign->readSheet(index, m_limits, progress, stopAfterRow, screenRows, out);
     const SheetEntry &entry = m_info.sheets[index];
     // A sheet of a chart has no cells, nor has one the file names with no part to hold it (a module of macros that is listed as a sheet has no relationship).
     if (entry.kind == SheetKind::Chartsheet || entry.relId.isEmpty()) return true;

@@ -624,7 +624,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         if (error) *error = why;
         return false;
     };
-    if (!book.isBinary()) return fail(say("The workbook is not one that was read from the older file format."));
+    if (!book.isConverted()) return fail(say("The workbook is not one that was read from a file of another form."));
     const WorkbookInfo &info = book.info();
     ZipWriter zip;
     // [Content_Types].xml and the relationships

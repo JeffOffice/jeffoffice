@@ -190,6 +190,7 @@ qt_add_executable(sheettests
   tests/sheet/sheethelpers.cpp
   tests/sheet/calchelpers.cpp
   tests/sheet/xlshelpers.cpp
+  tests/sheet/odshelpers.cpp
   tests/sheet/tst_grid_axis.cpp
   tests/sheet/tst_grid_cells.cpp
   tests/sheet/tst_grid_layout.cpp
@@ -225,7 +226,12 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_xls.cpp
   tests/sheet/tst_sheet_xlssave.cpp
   tests/sheet/tst_sheet_xlsformula.cpp
-  tests/sheet/tst_sheet_xlshostile.cpp)
+  tests/sheet/tst_sheet_xlshostile.cpp
+  tests/sheet/tst_sheet_ods.cpp
+  tests/sheet/tst_sheet_odsformula.cpp
+  tests/sheet/tst_sheet_odshostile.cpp
+  tests/sheet/tst_sheet_csv.cpp
+  tests/sheet/tst_sheet_csvhostile.cpp)
 target_link_libraries(sheettests PRIVATE jo_shell Qt6::Test)
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME sheettests COMMAND sheettests)

@@ -12,7 +12,7 @@ namespace jp {
 
 bool CrunchWindow::savesAsANewFile() const
 {
-    return m_loaded && m_loaded->book && m_loaded->book->isBinary() && !m_loaded->book->package().isLazy();
+    return m_loaded && m_loaded->book && m_loaded->book->isConverted() && !m_loaded->book->package().isLazy();
 }
 
 QString CrunchWindow::pathToSave()

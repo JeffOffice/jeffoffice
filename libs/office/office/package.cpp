@@ -283,6 +283,8 @@ struct Package::Lazy {
 
 bool Package::readLazy(const QByteArray &zip, QString *error, qint64 maxInflated) { return load(zip, error, true, maxInflated, true); }
 
+bool Package::readLazyOpenDocument(const QByteArray &zip, QString *error, qint64 maxInflated) { return load(zip, error, false, maxInflated, true); }
+
 bool Package::readLazyFile(const QString &path, QString *error)
 {
     QByteArray bytes;
