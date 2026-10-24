@@ -60,7 +60,7 @@ public:
     static constexpr qint64 kSliceCells = 20000;          // the cells of a slice
     static constexpr qint64 kMaxStatCells = 2000000;      // the cells that the figures of a sheet's rules are held for, all together
     static constexpr qint64 kMaxIndexedRanges = 200000;   // the ranges of a sheet's rules that are looked at, all together (the rules after that are not shown)
-    static constexpr qint64 kPaintWork = 2000000;         // the steps of rules' formulas that a paint (or a slice) works out; the cells left over are done in the paints after it
+    static constexpr qint64 kPaintWork = 100000;          // the steps of rules' formulas that a paint (or a slice) works out; the cells left over are done in the paints after it
     static constexpr qint64 kTestWork = 100000;           // the steps one formula may take for one cell
 
     // The limits of a sheet's rules, as a test sets them smaller to see a limit reached (`setLimits` for each, a limit of 0 or less is left as it is).

@@ -31,6 +31,8 @@
 #include <QSignalSpy>
 #include <QTextDocument>
 
+#include "../localepin.h"
+
 using namespace jp;
 using namespace crunchtest;
 
@@ -152,6 +154,7 @@ private Q_SLOTS:
     // After the load every formula is worked out again: the totals the file stored as 0 are the sums, and the formula bar shows the formula.
     void formulasAreCalculatedAfterTheLoad()
     {
+        const PinnedLocale english;   // (the amounts are written the way the United States writes them)
         Folder folder;
         Window win;
         QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));
@@ -309,6 +312,7 @@ private Q_SLOTS:
     // Copy puts what the selected cells show on the clipboard, as text with tabs and lines.
     void copyPutsTheSelectionOnTheClipboardAsText()
     {
+        const PinnedLocale english;   // (the amounts are written the way the United States writes them)
         Folder folder;
         Window win;
         QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));
@@ -320,6 +324,7 @@ private Q_SLOTS:
     // The view commands: gridlines, headings, the formula bar, show formulas, zoom, and freezing panes.
     void theViewCommandsChangeTheView()
     {
+        const PinnedLocale english;   // (the amounts are written the way the United States writes them)
         Folder folder;
         Window win;
         QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));

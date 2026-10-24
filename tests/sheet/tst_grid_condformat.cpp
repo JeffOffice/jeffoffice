@@ -2,6 +2,7 @@
 // below average, duplicates and unique values, text, dates, blanks, errors, color scales, data bars, icon sets), the order of their priority and stop-if-true, that what a rule needs of
 // all its cells is worked out once and again only when a value in its cells changes, the formula of a rule that reads another sheet, and the look and the text a cell gets. Every sheet is
 // built here, and the day the rules of dates read is given.
+#include "../localepin.h"
 #include "core/fonts.h"
 #include "sheethelpers.h"
 
@@ -640,6 +641,7 @@ private Q_SLOTS:
     // The cells that a sheet's rules keep figures for are limited for the sheet, not for each rule: a rule whose figures would go past the limit shows nothing, and says why once.
     void theFiguresOfASheetAreHeldForAtMostALimit()
     {
+        const PinnedLocale english;   // (the limit is written with the marks of a language)
         Book b;
         for (int i = 0; i < 600; ++i)
             for (int c = 0; c < 3; ++c) b.sheet.cells.add(Book::numberCell(quint32(i), quint32(c), double((i * 7 + c) % 50)));
