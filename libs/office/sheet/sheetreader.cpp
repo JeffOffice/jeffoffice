@@ -12,6 +12,7 @@
 #include "sheet/ods.h"
 #include "sheet/xls.h"
 #include "sheet/xlsxbase.h"
+#include "sheet/pagesetup.h"
 
 #include <QCoreApplication>
 #include <QFile>
@@ -1168,6 +1169,9 @@ bool SheetReader::read(QIODevice *in)
     int depth = 0, phonetic = 0;
     bool rootSeen = false, inData = false, inRow = false, inCell = false, inFormula = false, inValue = false, inInline = false, inText = false, inMerge = false;
     bool inSheetPr = false, inViews = false, inCols = false, inView = false, inValidations = false, inRule = false;
+    bool inHeaderFooter = false;
+    int inBreaks = 0;              // 1 while the row breaks are read, 2 for the column breaks
+    QString *hfText = nullptr;     // the header or footer text being read
     QString *ruleText = nullptr;   // the formula of the rule being read, while its text is collected
     Validation rule;
     bool ok = true;
@@ -1204,6 +1208,19 @@ bool SheetReader::read(QIODevice *in)
                     m_sheet.isProtected = parseBool(attribute(r, "sheet").toString());
                 } else if (isElement(r, "sheetPr")) {
                     inSheetPr = true;
+                } else if (isElement(r, "pageSetup")) {
+                    readPageSetupAttributes(r.attributes(), &m_sheet.page);
+                } else if (isElement(r, "pageMargins")) {
+                    readPageMarginsAttributes(r.attributes(), &m_sheet.page);
+                } else if (isElement(r, "printOptions")) {
+                    readPrintOptionsAttributes(r.attributes(), &m_sheet.page);
+                } else if (isElement(r, "headerFooter")) {
+                    readHeaderFooterAttributes(r.attributes(), &m_sheet.page);
+                    inHeaderFooter = true;
+                } else if (isElement(r, "rowBreaks")) {
+                    inBreaks = 1;
+                } else if (isElement(r, "colBreaks")) {
+                    inBreaks = 2;
                 } else if (isElement(r, "sheetViews")) {
                     inViews = true;
                 } else if (isElement(r, "cols")) {
@@ -1227,6 +1244,13 @@ bool SheetReader::read(QIODevice *in)
                 ok = startColumns(r);
             } else if (depth == 3 && inSheetPr && isElement(r, "tabColor")) {
                 m_sheet.tabColor = colorOf(r);
+            } else if (depth == 3 && inSheetPr && isElement(r, "pageSetUpPr")) {
+                readFitToPageAttributes(r.attributes(), &m_sheet.page);
+            } else if (depth == 3 && inHeaderFooter) {
+                hfText = headerFooterText(&m_sheet.page, r.name());
+                if (hfText) hfText->clear();
+            } else if (depth == 3 && inBreaks && isElement(r, "brk")) {
+                readBreakAttributes(r.attributes(), inBreaks == 1, &m_sheet.page);
             } else if (depth == 3 && inViews && isElement(r, "sheetView")) {
                 inView = true;
                 startView(r);
@@ -1286,13 +1310,20 @@ bool SheetReader::read(QIODevice *in)
             } else if (depth == 3 && inView) {
                 inView = false;
                 endView();
+            } else if (depth == 3 && hfText) {
+                hfText = nullptr;
             } else if (depth == 2) {
                 inData = inMerge = inSheetPr = inViews = inCols = inValidations = false;
+                inHeaderFooter = false;
+                inBreaks = 0;
             }
             --depth;
             break;
         case QXmlStreamReader::Characters:
-            if (ruleText) {
+            if (hfText) {
+                const qsizetype room = kMaxHeaderFooterChars - hfText->size();
+                if (room > 0) *hfText += r.text().left(room);
+            } else if (ruleText) {
                 if (ruleText->size() < m_limits.formulaChars) *ruleText += r.text();
             } else if (inFormula) {
                 m_formula += r.text();
@@ -1748,6 +1779,17 @@ void Workbook::savedTo(const Package &package, int strings, int numberFormats, i
     for (int i = 0; i < m_sharedAdded.size(); ++i) m_sharedAddedAt.insert(m_sharedAdded[i], qint32(m_sharedInFile + i));
 }
 
+// The print area and the titles that the names of the workbook give the sheet.
+static void applyPrintNames(const WorkbookInfo &info, int index, Sheet *out)
+{
+    const QString &sheetName = info.sheets[index].name;
+    for (const DefinedName &n : info.definedNames) {
+        if (n.localSheet != index) continue;
+        if (n.name.compare(QLatin1String("_xlnm.Print_Area"), Qt::CaseInsensitive) == 0) readPrintAreaText(n.ref, sheetName, &out->page);
+        else if (n.name.compare(QLatin1String("_xlnm.Print_Titles"), Qt::CaseInsensitive) == 0) readPrintTitlesText(n.ref, sheetName, &out->page);
+    }
+}
+
 bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows) const
 {
     *out = Sheet();
@@ -1755,8 +1797,11 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
         out->error = QCoreApplication::translate("Sheet", "There is no such sheet.");
         return false;
     }
-    if (m_xls) return m_xls->readSheet(index, m_limits, progress, out);
-    if (m_foreign) return m_foreign->readSheet(index, m_limits, progress, stopAfterRow, screenRows, out);
+    if (m_xls || m_foreign) {
+        const bool ok = m_xls ? m_xls->readSheet(index, m_limits, progress, out) : m_foreign->readSheet(index, m_limits, progress, stopAfterRow, screenRows, out);
+        applyPrintNames(m_info, index, out);
+        return ok;
+    }
     const SheetEntry &entry = m_info.sheets[index];
     // A sheet of a chart has no cells, nor has one the file names with no part to hold it (a module of macros that is listed as a sheet has no relationship).
     if (entry.kind == SheetKind::Chartsheet || entry.relId.isEmpty()) return true;
@@ -1775,7 +1820,9 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
     options.progress = progress;
     options.stopAfterRow = stopAfterRow;
     options.screenRows = screenRows;
-    return readSheetPart(device.get(), options, out);
+    const bool ok = readSheetPart(device.get(), options, out);
+    applyPrintNames(m_info, index, out);
+    return ok;
 }
 
 } // namespace jp::office::sheet

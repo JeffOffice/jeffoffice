@@ -5,6 +5,7 @@
 // The shared strings of a workbook are one list that every sheet refers to.
 
 #include "sheet/cellref.h"
+#include "sheet/pagesetup.h"
 #include "sheet/styles.h"
 
 #include <QHash>
@@ -382,6 +383,7 @@ struct Sheet {
     QVector<Validation> validations;  // the rules for what may be put in cells
     SheetFormat format;
     SheetView view;
+    PageSetup page;                   // how it prints: the paper, margins, header and footer, breaks, and the print area and titles (see sheet/pagesetup.h)
     ColorSpec tabColor;               // the color of the sheet's tab
     bool isProtected = false;         // the sheet is protected (sheetProtection): its locked cells can't be changed
     bool partial = false;             // the read was stopped at a row asked for (ReadOptions::stopAfterRow): the cells of the rows after it, and what follows the cells (the merged ranges), are not here
