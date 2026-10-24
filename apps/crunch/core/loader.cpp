@@ -170,9 +170,18 @@ WorkbookLoader::Hold::~Hold()
 
 bool WorkbookLoader::canHold() const { return m_result && m_state && m_result->calc && !m_state->cancel.load() && m_state->serving.load(); }
 
+void WorkbookLoader::refuseHolds(int count)
+{
+    if (m_state) m_state->refuse = count;
+}
+
 std::unique_ptr<WorkbookLoader::Hold> WorkbookLoader::hold()
 {
     if (!m_result || !m_state || !m_result->calc || m_state->cancel.load() || !m_state->serving.load()) return nullptr;
+    if (m_state->refuse.load() > 0) {
+        --m_state->refuse;
+        return nullptr;
+    }
     return std::unique_ptr<Hold>(new Hold(m_state, m_result->calc.get()));
 }
 

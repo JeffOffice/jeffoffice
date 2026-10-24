@@ -295,6 +295,41 @@ private Q_SLOTS:
         for (QMenu *m : e.win.w.findChildren<QMenu *>(QStringLiteral("listMenu"))) m->close();
     }
 
+    // An entry typed under a rule is always checked: if the worker cannot be held for a moment the check waits for it, and if it can never be held the entry is refused with a plain message
+    // (it is never taken unchecked).
+    void anEntryIsNeverTakenUncheckedWhenTheWorkerCannotBeHeld()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rulesBook()));
+        crunch::EditSession *s = e.win.w.session();
+        auto &loader = e.win.w.workbookLoader();
+        const QString before = e.win.w.session()->editText(0, 1, 0);
+        // a moment without the worker: the check waits, and an entry the rule forbids is refused as it would be
+        loader.refuseHolds(3);
+        crunch::EditSession::Outcome o = s->type(0, 1, 0, QStringLiteral("11"));   // (A2: whole numbers from 1 to 10)
+        QVERIFY(!o.ok);
+        QVERIFY2(o.rule, qPrintable(o.problem));
+        QCOMPARE(s->editText(0, 1, 0), before);
+        loader.refuseHolds(3);
+        o = s->type(0, 1, 0, QStringLiteral("7"));                                   // and one it allows is taken
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        QCOMPARE(s->editText(0, 1, 0), QStringLiteral("7"));
+        // a worker that is never to be held: the entry is not taken, and the person is told why
+        loader.refuseHolds(1000000);
+        o = s->type(0, 1, 0, QStringLiteral("11"));
+        QVERIFY(!o.ok);
+        QVERIFY(!o.rule);
+        QVERIFY2(!o.problem.isEmpty() && o.problem.contains(QLatin1String("check")), qPrintable(o.problem));
+        QCOMPARE(s->editText(0, 1, 0), QStringLiteral("7"));
+        o = s->type(0, 1, 0, QStringLiteral("8"));                                   // (even one the rule would allow: it could not be known)
+        QVERIFY(!o.ok);
+        QCOMPARE(s->editText(0, 1, 0), QStringLiteral("7"));
+        loader.refuseHolds(0);
+        o = s->type(0, 1, 0, QStringLiteral("8"));
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        QCOMPARE(s->editText(0, 1, 0), QStringLiteral("8"));
+    }
+
     // A list is offered from a button on the cell: the button is at the right edge, a click (or Alt+Down) opens the choices, and the one chosen is entered; a cell with no list has no button.
     void aListHasAButtonOnTheCell()
     {

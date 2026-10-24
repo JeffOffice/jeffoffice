@@ -126,6 +126,8 @@ public:
     std::unique_ptr<Hold> hold();
     // Whether hold() would give one.
     bool canHold() const;
+    // For tests: the next `count` calls of hold() give null, as when the worker is not serving for a moment (a large count: for as long as the test wants).
+    void refuseHolds(int count);
     // How many holds have been taken (for tests: a read that needs the worker held back says so by taking one).
     qint64 holdsTaken() const;
     // How many changes have been made (holds let go with a change, and requests to work everything out again): a last batch whose epoch is this many has all of them worked out.
@@ -165,6 +167,7 @@ private:
         std::atomic<bool> halt{false};        // the calculation's flag to stop: set while it is stopped (stopCalc) or a hold is wanted (holds)
         std::atomic<qint64> changes{0};       // changes made (see changesMade)
         std::atomic<qint64> holdsMade{0};     // holds taken (see holdsTaken)
+        std::atomic<int> refuse{0};           // holds to refuse (see refuseHolds)
         std::atomic<int> structure{0};        // times cells were moved (see structureGeneration)
         std::atomic<bool> urgent{false};      // a change was made: the first values it makes go to the window as soon as they are there
         void updateHalt() { halt.store(stopCalc.load() || holds.load() > 0 || cancel.load()); }

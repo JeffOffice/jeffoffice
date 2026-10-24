@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
+#include <QThread>
 #include <QUndoCommand>
 
 #include <algorithm>
@@ -18,6 +19,8 @@ using jp::calc::Value;
 using jp::grid::ValueStore;
 
 namespace {
+
+constexpr int kHoldWaitMs = 1000;   // how long an entry typed under a rule waits for the worker to be held, at most
 
 bool sameMeaning(const Calculation::CellContent &a, const Calculation::CellContent &b)
 {
@@ -378,7 +381,16 @@ EditSession::Outcome EditSession::checkRule(int sheet, quint32 row, quint32 col,
     {
         // (the rule is worked out with the worker held back: it reads the cells through the calculation, which the worker is working in)
         std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
-        if (!hold) return out;
+        // (an entry is never taken unchecked: if the worker is not to be held for the moment, wait for it a little)
+        for (int waited = 0; !hold && waited < kHoldWaitMs; waited += 10) {
+            QThread::msleep(10);
+            hold = m_loader->hold();
+        }
+        if (!hold) {
+            out.ok = false;
+            out.problem = tr("JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.");
+            return out;
+        }
         if (hold->calculation()->entryAllowed(sheet, row, col, *rule, value, typed)) return out;
     }
     out.ok = false;
