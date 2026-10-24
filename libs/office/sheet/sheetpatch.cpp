@@ -273,6 +273,24 @@ private:
         }
     }
 
+    // The closing tag of an element that begins (its open tag ends) at `from`, the first that is a tag: one inside a comment or a CDATA section is not. The plain search is exact unless
+    // a comment or a CDATA section begins before the tag it found, and then the tags are walked (the pieces the sections hold are passed over). `at` is where the tag begins.
+    bool closeOfElement(const QByteArray &closeTag, QByteArrayView local, qsizetype from, qsizetype *at)
+    {
+        if (!find(closeTag, from, at)) return false;
+        if (QByteArrayView(m_buf).mid(from, *at - from).indexOf("<!") < 0) return true;
+        qsizetype pos = from;
+        Tag t;
+        for (;;) {
+            if (!nextTag(pos, &t)) return false;
+            pos = t.end;
+            if (t.closing && t.local == local) {
+                *at = t.start;
+                return true;
+            }
+        }
+    }
+
     bool cancelled() const { return m_cancel && m_cancel->load(std::memory_order_relaxed); }
 
     // ---- the part before the rows
@@ -385,8 +403,11 @@ private:
             if (!selfClosing) {
                 const QByteArray closeTag = "</" + m_prefix + "row>";
                 qsizetype close = 0;
-                if (!find(closeTag, rowEnd, &close)) return fail(m_failed ? tr("The sheet's part is damaged.") : tr("The sheet's cells are cut short."));
-                rowEnd = close + closeTag.size();
+                if (!closeOfElement(closeTag, "row", rowEnd, &close)) return fail(m_failed ? tr("The sheet's part is damaged.") : tr("The sheet's cells are cut short."));
+                // (the end of the closing tag: it may have a space before its ">")
+                Tag closing;
+                if (!nextTag(close, &closing) || closing.start != close) return fail(tr("The sheet's cells are cut short."));
+                rowEnd = closing.end;
             }
             if (!slow) {
                 m_cur = rowEnd;
@@ -459,8 +480,22 @@ private:
                 // the cell: its bytes, and where it is
                 qsizetype cellEnd = t.end;
                 if (!t.selfClosing) {
+                    // (the first closing tag of the cell that is a tag: a "</c>" in a CDATA section or a comment in it is not)
                     const QByteArray closeTag = "</" + m_prefix + "c>";
-                    const qsizetype close = row.indexOf(closeTag, t.end);
+                    qsizetype close = row.indexOf(closeTag, t.end);
+                    if (close >= 0 && QByteArrayView(row).mid(t.end, close - t.end).indexOf("<!") >= 0) {
+                        close = -1;
+                        qsizetype at = t.end;
+                        Tag inner;
+                        while (xmlscan::nextTag(row, at, &inner)) {
+                            at = inner.end;
+                            if (inner.closing && inner.local == "c") {
+                                close = inner.start;
+                                cellEnd = inner.end - closeTag.size();   // (kept as the end below)
+                                break;
+                            }
+                        }
+                    }
                     if (close < 0) return fail(tr("The sheet's cells are cut short."));
                     cellEnd = close + closeTag.size();
                 }

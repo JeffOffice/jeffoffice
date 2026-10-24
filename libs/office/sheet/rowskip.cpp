@@ -196,6 +196,11 @@ bool RowSkipDevice::nextRow()
                     return true;
                 }
             }
+            // (a comment or a CDATA section before the "</row>" that was found may hold it: not a tag, and the plain search can't say where the row ends: left to the parser)
+            if (QByteArrayView(m_buf).sliced(tagEnd, close - tagEnd).indexOf("<!") >= 0) {
+                passRest();
+                return true;
+            }
             rowEnd = close + 6;
         }
         const qint64 row = rowIndex;

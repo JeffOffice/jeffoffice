@@ -467,6 +467,45 @@ private Q_SLOTS:
         QVERIFY(out == expected);
     }
 
+    // A closing tag that is not a tag (inside a CDATA section or a comment, in a cell or between cells) does not end the cell or the row: the edits to the cells after it are made, and
+    // what is in the section is kept as it was.
+    void aClosingTagInACdataSectionOrACommentDoesNotHideTheRestOfTheRow()
+    {
+        const QByteArray rows = "<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t><![CDATA[x</c>y]]></t></is></c><!-- </c> and </row> --><c r=\"B1\"><v>2</v></c><c r=\"C1\"><v>3</v></c></row>"
+                                "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t><![CDATA[</row><row r=\"9\">]]></t></is></c><c r=\"B2\"><v>5</v></c></row>"
+                                "<row r=\"3\"><c r=\"A3\"><v>1</v></c><!--</row>--></row>"
+                                "<row r=\"4\"><c r=\"A4\"><v>1</v></c></row>";
+        const QByteArray xml = worksheet(QString::fromLatin1(rows));
+        QString why;
+        bool ok = false;
+        const QByteArray out = patch(xml, changesOf({number(0, 1, 20), number(0, 2, 30), number(1, 1, 50), number(2, 0, 7), number(3, 0, 9)}), true, &why, &ok);
+        QVERIFY2(ok, qPrintable(why));
+        QByteArray expected = xml;
+        auto swap = [&](const QByteArray &from, const QByteArray &to) {
+            const qsizetype at = expected.indexOf(from);
+            QVERIFY2(at >= 0, from.constData());
+            expected.replace(at, from.size(), to);
+        };
+        // (a comment between the cells of a row that is written again is not kept; what is inside a cell is)
+        swap("<!-- </c> and </row> -->", "");
+        swap("<!--</row>-->", "");
+        swap("<c r=\"B1\"><v>2</v></c>", "<c r=\"B1\"><v>20</v></c>");
+        swap("<c r=\"C1\"><v>3</v></c>", "<c r=\"C1\"><v>30</v></c>");
+        swap("<c r=\"B2\"><v>5</v></c>", "<c r=\"B2\"><v>50</v></c>");
+        swap("<c r=\"A3\"><v>1</v></c>", "<c r=\"A3\"><v>7</v></c>");
+        swap("<c r=\"A4\"><v>1</v></c>", "<c r=\"A4\"><v>9</v></c>");
+        QVERIFY2(out == expected, qPrintable(QString::fromLatin1(out)));
+        // and the sheet reads back with the edits and the text of the sections
+        Sheet sheet;
+        QVERIFY2(readSheetXml(out, &sheet), qPrintable(sheet.error));
+        SharedStrings none;
+        QCOMPARE(show(sheet, none, QStringLiteral("B1")), QStringLiteral("n:20"));
+        QCOMPARE(show(sheet, none, QStringLiteral("C1")), QStringLiteral("n:30"));
+        QCOMPARE(show(sheet, none, QStringLiteral("A1")), QStringLiteral("i:x</c>y"));
+        QCOMPARE(show(sheet, none, QStringLiteral("B2")), QStringLiteral("n:50"));
+        QCOMPARE(show(sheet, none, QStringLiteral("A2")), QStringLiteral("i:</row><row r=\"9\">"));
+    }
+
     // A part that is cut off, or has no cells part, is refused with a message, not written half.
     void aSheetThatCannotBePatchedIsRefused()
     {

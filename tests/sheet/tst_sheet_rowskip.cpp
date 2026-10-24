@@ -221,6 +221,25 @@ private Q_SLOTS:
         }
     }
 
+    // A CDATA section or a comment that holds "</row>" in a row above the view is not the end of the row: the sheet is the one the parser makes from every row, not a torn one.
+    void aClosingTagInASectionOfARowIsNotTheEndOfTheRow()
+    {
+        const Spec spec{3000, QStringLiteral("<sheetViews><sheetView topLeftCell=\"A2001\" workbookViewId=\"0\"/></sheetViews>")};
+        QByteArray xml = makeSheet(spec);
+        const QByteArray openTag = "<row r=\"5\" spans=\"1:4\">";
+        QVERIFY(xml.contains(openTag));
+        xml.replace(openTag, openTag + "<c r=\"Z5\" t=\"inlineStr\"><is><t><![CDATA[</row><row r=\"3\"><c r=\"A3\"><v>7</v></c>]]></t></is></c><!-- </row> -->");
+        const QByteArray other = "<row r=\"2103\" spans=\"1:4\">";
+        QVERIFY(xml.contains(other));
+        xml.replace(other, other + "<!-- </row> --><c r=\"Z2103\"><v>1</v></c>");
+        Sheet fast, slow;
+        const bool ok1 = readWith(xml, true, 300, &fast), ok2 = readWith(xml, false, 300, &slow);
+        QVERIFY2(ok1 && ok2, qPrintable(fast.error + QLatin1String(" / ") + slow.error));
+        QCOMPARE(describe(fast), describe(slow));
+        QVERIFY(at(fast, QStringLiteral("Z2103")) != nullptr);
+        QVERIFY(at(fast, QStringLiteral("A2001")) != nullptr);
+    }
+
     // Rows larger than what the device reads at a time, above the view and in it, with a shared formula's first cell far into one: the same sheet.
     void rowsLargerThanAReadAreHandled()
     {
