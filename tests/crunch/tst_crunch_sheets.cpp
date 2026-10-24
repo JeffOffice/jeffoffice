@@ -25,12 +25,50 @@ QString row(int n, const QString &cells) { return QStringLiteral("<row r=\"%1\">
 //   Sheet1: A1 = 1, B1 = Sheet2!A1 + 1, C1 = SUM(Sheet2!A1:A2)
 //   Sheet2: A1 = 10, A2 = Sheet1!A1 * 2
 //   Sheet3: A1 = 7, C1 = Sheet1!A1 + Sheet3!A1
-QByteArray sheetsBook(const QStringList &names = QStringList())
+QByteArray sheetsBook(const QStringList &names = QStringList(), const QString &definedNames = QString(), const QString &bookViews = QString())
 {
     const QByteArray one = worksheet(row(1, cell(QStringLiteral("A1"), QStringLiteral("1")) + formula(QStringLiteral("B1"), QStringLiteral("Sheet2!A1+1")) + formula(QStringLiteral("C1"), QStringLiteral("SUM(Sheet2!A1:A2)"))));
     const QByteArray two = worksheet(row(1, cell(QStringLiteral("A1"), QStringLiteral("10"))) + row(2, formula(QStringLiteral("A2"), QStringLiteral("Sheet1!A1*2"))));
     const QByteArray three = worksheet(row(1, cell(QStringLiteral("A1"), QStringLiteral("7")) + formula(QStringLiteral("C1"), QStringLiteral("Sheet1!A1+Sheet3!A1"))));
-    return buildXlsx({one, two, three}, QByteArray(), QString(), QString(), QByteArray(), names);
+    return buildXlsx({one, two, three}, QByteArray(), QString(), QString(), QByteArray(), names, definedNames, QByteArray(), bookViews);
+}
+
+// A saved workbook, read again.
+struct Saved {
+    Package package;
+    Workbook book;
+    bool open(const QString &path)
+    {
+        QString why;
+        return package.readLazyFile(path, &why) && book.open(package, &why);
+    }
+    QStringList names() const
+    {
+        QStringList out;
+        for (const SheetEntry &e : book.info().sheets) out << e.name;
+        return out;
+    }
+    QString formula(int sheet, const QString &ref) const
+    {
+        Sheet s;
+        if (!book.readSheet(sheet, &s)) return QStringLiteral("unreadable");
+        const Cell *c = at(s, ref);
+        return c ? s.formulaText(*c) : QStringLiteral("-");
+    }
+    QString shown(int sheet, const QString &ref) const
+    {
+        Sheet s;
+        if (!book.readSheet(sheet, &s)) return QStringLiteral("unreadable");
+        return show(s, book.sharedStrings(), ref);
+    }
+};
+
+bool saveNow(EditWindow &e)
+{
+    if (!e.settle()) return false;
+    QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+    if (!e.win.w.save()) return false;
+    return saved.wait(20000) && saved.last().value(1).toBool();
 }
 
 QString valueOf(EditWindow &e, int sheet, const QString &ref)
@@ -293,6 +331,138 @@ private Q_SLOTS:
         }
         QCOMPARE(e.win.w.undoStack()->count(), steps);
         QVERIFY(s->setSheetHidden(1, true).ok);   // (hiding and colors do not change what a formula reads)
+    }
+
+    // The file saved after sheets were added, renamed, moved, hidden, and colored: its list of sheets (in the order of the tabs, by the names they have, hidden ones marked), the formulas that
+    // name a renamed sheet, a new sheet with what was put in it, the names that belong to one sheet at their places, and the tab that is open where it is now.
+    void theSavedFileHasTheSheetsAsTheyAre()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetsBook(QStringList(), QStringLiteral("<definedName name=\"Everywhere\">Sheet2!$A$1:$A$2</definedName><definedName name=\"Local\" localSheetId=\"2\">Sheet3!$A$1</definedName>"),
+                                  QStringLiteral("<workbookView activeTab=\"2\" firstSheet=\"1\"/>"))));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        QVERIFY(s->renameSheet(1, QStringLiteral("Data 2024")).ok);
+        int made = -1;
+        QVERIFY(s->insertSheet(1, QStringLiteral("Totals"), &made).ok);
+        QCOMPARE(made, 3);
+        QVERIFY(s->type(3, 0, 0, QStringLiteral("5")).ok);
+        QVERIFY(s->type(3, 1, 0, QStringLiteral("=A1+'Data 2024'!A1")).ok);
+        QVERIFY(s->type(0, 4, 0, QStringLiteral("=Totals!A2*2")).ok);
+        QVERIFY(s->moveSheet(2, 0).ok);            // Sheet3 first
+        QVERIFY(s->setSheetHidden(0, true).ok);    // Sheet1 hidden
+        QVERIFY(s->setTabColor(1, ColorSpec::fromRgb(0xC00000)).ok);
+        QVERIFY(saveNow(e));
+        Saved f;
+        QVERIFY(f.open(e.path));
+        // the places of the sheets in the new file are the order of the tabs
+        QCOMPARE(f.names(), QStringList({QStringLiteral("Sheet3"), QStringLiteral("Sheet1"), QStringLiteral("Totals"), QStringLiteral("Data 2024")}));
+        QCOMPARE(f.book.info().sheets[1].state, SheetState::Hidden);
+        QCOMPARE(f.book.info().sheets[0].state, SheetState::Visible);
+        // what names the renamed sheet follows it, in the cells, the names, and the new sheet
+        QCOMPARE(f.formula(1, QStringLiteral("B1")), QStringLiteral("'Data 2024'!A1+1"));
+        QCOMPARE(f.formula(1, QStringLiteral("C1")), QStringLiteral("SUM('Data 2024'!A1:A2)"));
+        QCOMPARE(f.formula(0, QStringLiteral("C1")), QStringLiteral("Sheet1!A1+Sheet3!A1"));
+        QCOMPARE(f.formula(1, QStringLiteral("A5")), QStringLiteral("Totals!A2*2"));
+        QCOMPARE(f.shown(2, QStringLiteral("A1")), QStringLiteral("n:5"));
+        QCOMPARE(f.formula(2, QStringLiteral("A2")), QStringLiteral("A1+'Data 2024'!A1"));
+        QCOMPARE(f.shown(2, QStringLiteral("A2")), QStringLiteral("n:15"));
+        QCOMPARE(f.shown(1, QStringLiteral("A5")), QStringLiteral("n:30"));
+        QCOMPARE(f.shown(1, QStringLiteral("B1")), QStringLiteral("n:11"));
+        // the names of the workbook: the one for all sheets follows the sheet's new name, the one for a sheet has that sheet's new place
+        const QByteArray workbook = f.package.part(f.book.mainPart());
+        QVERIFY2(workbook.contains(">'Data 2024'!$A$1:$A$2</definedName>") || workbook.contains(">&apos;Data 2024&apos;!$A$1:$A$2</definedName>"), workbook.constData());
+        QVERIFY2(workbook.contains("localSheetId=\"0\""), workbook.constData());
+        QVERIFY(!workbook.contains("localSheetId=\"2\""));
+        // the sheet that was open (the third, Sheet3) is the first now
+        QCOMPARE(f.book.info().activeTab, 0);
+        // the file read back by the window: the same
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QCOMPARE(second.w.shownSheets().size(), 3);   // (Sheet1 is hidden)
+        QVERIFY(second.w.calculation()->sheet(3).tabColor == ColorSpec::fromRgb(0xC00000));   // (the color of "Data 2024", which is last now)
+        QVERIFY(!second.w.calculation()->sheet(0).tabColor.isSet());
+        // the new sheet has a part of its own, named in the content types and the relationships
+        const SheetEntry &made2 = f.book.info().sheets[2];
+        QVERIFY(!made2.part.isEmpty() && f.package.hasPart(made2.part));
+        QVERIFY(f.package.contentType(made2.part).contains(QStringLiteral("worksheet")));
+        QVERIFY(!f.package.relationship(f.book.mainPart(), made2.relId).id.isEmpty());
+        // after the save Undo does not go back over what the file has made of the sheets (adding, renaming, and moving them), but over what a save can take back: the color and hiding
+        QVERIFY(s->canUndo());
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Tab Color"));
+        e.win.w.undoStack()->undo();
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Hide Sheet"));
+        e.win.w.undoStack()->undo();
+        QVERIFY(!s->canUndo());
+        e.win.w.undoStack()->redo();
+        e.win.w.undoStack()->redo();
+        // a change after the save is put in as any other
+        QVERIFY(s->type(3, 2, 0, QStringLiteral("8")).ok);
+        QVERIFY(saveNow(e));
+        Saved g;
+        QVERIFY(g.open(e.path));
+        QCOMPARE(g.shown(2, QStringLiteral("A3")), QStringLiteral("n:8"));
+        QCOMPARE(g.names(), f.names());
+    }
+
+    // A sheet deleted is not in the saved file (nor are the parts only it had), what read it has #REF!, and the names that were its own are gone with it.
+    void aDeletedSheetIsNotInTheSavedFile()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetsBook(QStringList(), QStringLiteral("<definedName name=\"Here\" localSheetId=\"1\">Sheet2!$A$1</definedName><definedName name=\"There\" localSheetId=\"2\">Sheet3!$A$1</definedName>"))));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        const QString part = e.win.w.loaded()->book->info().sheets[1].part;
+        QVERIFY(!part.isEmpty());
+        QVERIFY(s->deleteSheet(1).ok);
+        QVERIFY(saveNow(e));
+        Saved f;
+        QVERIFY(f.open(e.path));
+        QCOMPARE(f.names(), QStringList({QStringLiteral("Sheet1"), QStringLiteral("Sheet3")}));
+        QVERIFY(!f.package.hasPart(part));
+        QCOMPARE(f.formula(0, QStringLiteral("B1")), QStringLiteral("#REF!+1"));
+        QCOMPARE(f.formula(0, QStringLiteral("C1")), QStringLiteral("SUM(#REF!)"));
+        QCOMPARE(f.formula(1, QStringLiteral("C1")), QStringLiteral("Sheet1!A1+Sheet3!A1"));
+        const QByteArray workbook = f.package.part(f.book.mainPart());
+        QVERIFY2(!workbook.contains("name=\"Here\""), workbook.constData());
+        QVERIFY2(workbook.contains("name=\"There\"") && workbook.contains("localSheetId=\"1\""), workbook.constData());
+        QVERIFY(!f.package.relationshipsOfType(f.book.mainPart(), QStringLiteral("/worksheet")).isEmpty());
+        QCOMPARE(f.package.relationshipsOfType(f.book.mainPart(), QStringLiteral("/worksheet")).size(), 2);
+        // the window reads it
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QCOMPARE(second.w.shownSheets().size(), 2);
+    }
+
+    // A copy is saved whole: its cells and formulas (with the results the window had worked out), its sizes, and its place.
+    void aCopyIsSavedWithItsCellsAndFormulas()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetsBook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        crunch::EditSession::SizeChange by;
+        by.setSize = true;
+        by.size = 30;
+        QVERIFY(s->resizeColumns(1, 0, 0, by, QStringLiteral("Changing column width")).ok);
+        QVERIFY(s->copySheet(1, -1, QStringLiteral("Second copy")).ok);
+        QVERIFY(e.settle());
+        QVERIFY(saveNow(e));
+        Saved f;
+        QVERIFY(f.open(e.path));
+        QCOMPARE(f.names(), QStringList({QStringLiteral("Sheet1"), QStringLiteral("Sheet2"), QStringLiteral("Sheet3"), QStringLiteral("Second copy")}));
+        QCOMPARE(f.shown(3, QStringLiteral("A1")), QStringLiteral("n:10"));
+        QCOMPARE(f.formula(3, QStringLiteral("A2")), QStringLiteral("Sheet1!A1*2"));
+        QCOMPARE(f.shown(3, QStringLiteral("A2")), QStringLiteral("n:2"));
+        Sheet copy;
+        QVERIFY(f.book.readSheet(3, &copy));
+        QVERIFY(!copy.columns.isEmpty());
+        QCOMPARE(copy.columns.first().width, 30.0);
+        // the file read again has the sheet in the window
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QCOMPARE(second.w.shownSheets().size(), 4);
+        QCOMPARE(second.w.session()->valueAt(3, 1, 0).debug(), QStringLiteral("n:2"));
     }
 };
 

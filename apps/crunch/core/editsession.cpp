@@ -1,5 +1,7 @@
 #include "core/editsession.h"
 
+#include "sheet/xlsxbase.h"
+
 #include "grid/text.h"
 #include "sheet/cellref.h"
 
@@ -817,9 +819,11 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     bool resultMissing = false;
     std::vector<quint64> touchedInOrder(m_touched.begin(), m_touched.end());
     std::sort(touchedInOrder.begin(), touchedInOrder.end());
-    for (const quint64 key : touchedInOrder) {
-        const int sheet = int(key >> 40);
-        const quint32 row = quint32((key >> 16) & 0xFFFFFF), col = quint32(key & 0xFFFF);
+    // (a sheet that was added is made whole from the model, and one that was deleted is not in the file: the marks of their cells are not what is put in)
+    const WorkbookInfo &listed = book.info();
+    auto written = [&](int sheet) { return sheet >= 0 && sheet < listed.sheets.size() && !listed.sheets[sheet].deleted && !listed.sheets[sheet].isNew; };
+    auto addCell = [&](int sheet, quint32 row, quint32 col) {
+        const quint64 key = keyOf(sheet, row, col);
         const Calculation::CellContent c = calc->content(sheet, row, col);
         SavedCell cell;
         cell.row = row;
@@ -846,6 +850,50 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             }
         }
         changes.sheets[sheet].cells.push_back(cell);
+    };
+    for (const quint64 key : touchedInOrder) {
+        const int sheet = int(key >> 40);
+        if (!written(sheet)) continue;
+        addCell(sheet, quint32((key >> 16) & 0xFFFFFF), quint32(key & 0xFFFF));
+    }
+    // the sheets a person added: every cell, and what the sheet has besides
+    bool newSheets = false;
+    if (m_sheetsListed) {
+        changes.sheetsChanged = true;
+        changes.sheetOps = m_sheetOps;
+        for (int sheet = 0; sheet < listed.sheets.size(); ++sheet) {
+            if (listed.sheets[sheet].deleted || !listed.sheets[sheet].isNew) continue;
+            book.planSheetPart(sheet);
+            newSheets = true;
+            const Sheet &model = calc->sheet(sheet);
+            changes.sheets[sheet];   // (made, though the sheet is empty)
+            model.cells.forEach([&](const Cell &c) { addCell(sheet, c.row, c.col); });
+            SheetChanges &sc = changes.sheets[sheet];
+            sc.skeleton = newSheetSkeleton(model);
+            sc.replaceColumns = true;
+            for (const ColumnSpan &c : calc->columnRuns(sheet, 0, kMaxColumns - 1)) sc.columns.push_back(c);
+            if (calc->mergeCountOf(sheet) == qint64(calc->mergesOf(sheet).size())) {
+                sc.replaceMerges = true;
+                for (const CellRange &m : calc->mergesOf(sheet)) sc.merges.push_back(m);
+            }
+            for (const RowSpec &spec : calc->rowSpecsIn(sheet, 0, kMaxRows - 1)) {
+                RowProps p;
+                p.row = spec.row;
+                p.height = spec.height;
+                p.hidden = spec.hidden;
+                p.customHeight = spec.customHeight;
+                p.styleKnown = true;
+                p.customFormat = spec.customFormat;
+                p.style = spec.style;
+                sc.rows.push_back(p);
+            }
+        }
+        for (const int sheet : m_tabColorsChanged) {
+            if (!written(sheet)) continue;
+            SheetChanges &sc = changes.sheets[sheet];
+            sc.replaceTabColor = true;
+            sc.tabColor = calc->sheet(sheet).tabColor;
+        }
     }
     // the runs of columns of the sheets whose columns were sized or inserted or deleted, as the sheet has them now; and the sizes of the rows a step changed
     {
@@ -854,6 +902,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         for (const StructEdit &e : m_edits)
             if (e.kind == StructEdit::Kind::InsertColumns || e.kind == StructEdit::Kind::DeleteColumns) sheets.insert(e.sheet);
         for (const int sheet : sheets) {
+            if (!written(sheet)) continue;
             SheetChanges &sc = changes.sheets[sheet];
             sc.replaceColumns = true;
             quint32 next = 0;   // (where the last run ended; a run that overlaps one before it keeps what that one left)
@@ -866,11 +915,13 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         }
     }
     for (const int sheet : m_formatsChanged) {
+        if (!written(sheet)) continue;
         SheetChanges &sc = changes.sheets[sheet];
         sc.replaceFormat = true;
         sc.format = calc->sheetFormatOf(sheet);
     }
     for (const int sheet : m_mergesChanged) {
+        if (!written(sheet)) continue;
         // (only when all the sheet's merged ranges are held: past the limit the file's are left as they are)
         if (calc->mergeCountOf(sheet) != qint64(calc->mergesOf(sheet).size())) continue;
         SheetChanges &sc = changes.sheets[sheet];
@@ -879,6 +930,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     }
     for (const quint64 key : m_rowsResized) {
         const int sheet = int(key >> 40);
+        if (!written(sheet)) continue;
         const quint32 row = quint32((key >> 16) & 0xFFFFFF);
         const std::vector<jp::office::sheet::RowSpec> specs = calc->rowSpecsIn(sheet, row, row);
         RowProps p;
@@ -899,6 +951,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     for (const auto &[key, v] : m_results) {
         if (m_touched.count(key)) continue;
         const int sheet = int(key >> 40);
+        if (!written(sheet)) continue;
         SavedResult r;
         r.row = quint32((key >> 16) & 0xFFFFFF);
         r.col = quint16(key & 0xFFFF);
@@ -935,7 +988,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     out->styles = int(changes.newStyles.size());
     // The other program is asked to work every formula out again when this program could not: a formula it keeps apart that may read what changed, a result it did not get to, or a
     // formula it gave no result.
-    changes.fullCalcOnLoad = (!m_touched.empty() || !m_results.empty()) && (calc->isDirty() || resultMissing || calc->keptCount() > 0);
+    changes.fullCalcOnLoad = (!m_touched.empty() || !m_results.empty() || newSheets) && (calc->isDirty() || resultMissing || calc->keptCount() > 0);
     return true;
 }
 
