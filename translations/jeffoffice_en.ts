@@ -178,6 +178,13 @@
         </translation>
     </message>
     <message numerus="yes">
+        <source>%n name(s) the program could not convert, which are left out</source>
+        <translation>
+            <numerusform>%n name the program could not convert, which is left out</numerusform>
+            <numerusform>%n names the program could not convert, which are left out</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
         <source>%n formula(s) the program could not convert, which keep the value the file stored</source>
         <translation>
             <numerusform>%n formula the program could not convert, which keeps the value the file stored</numerusform>

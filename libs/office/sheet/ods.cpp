@@ -711,6 +711,7 @@ struct OdsBook::Impl {
     QSet<quint32> dateXf;                // the cell formats that show a date or a time
     QHash<QString, QString> renames;     // the sheets whose names were changed to be valid in the .xlsx form, by the name the document gave
     int renamedSheets = 0;
+    int droppedNames = 0;                // the names whose expression could not be converted: they are left out
     mutable QMutex lock;                       // (the count below is set by whatever thread reads a sheet)
     mutable QVector<qint64> unconverted;       // by sheet: the formulas that could not be converted, when the sheet has been read whole (else -1)
     int maxDigitWidth = 7;
@@ -948,7 +949,10 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     for (const NamedItem &n : std::as_const(m.found.names)) {
         bool ok = false;
         const QString ref = n.isRange ? odfRangeToText(n.text, &ok, &m.renames) : odfFormulaToText(n.text, &ok, &m.renames);
-        if (!ok) continue;
+        if (!ok) {
+            ++m.droppedNames;
+            continue;
+        }
         DefinedName d;
         d.name = n.name;
         d.ref = ref;
@@ -1750,6 +1754,8 @@ QStringList OdsBook::changed() const
     QStringList out;
     if (m->renamedSheets > 0)
         out << QCoreApplication::translate("jp::office::sheet::Ods", "%n sheet name(s), made valid for an .xlsx file", nullptr, m->renamedSheets);
+    if (m->droppedNames > 0)
+        out << QCoreApplication::translate("jp::office::sheet::Ods", "%n name(s) the program could not convert, which are left out", nullptr, m->droppedNames);
     qint64 formulas = 0;
     {
         QMutexLocker locker(&m->lock);

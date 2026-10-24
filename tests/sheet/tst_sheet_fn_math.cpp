@@ -228,6 +228,15 @@ private Q_SLOTS:
             {"_xlfn.FLOOR.MATH(6.7)", "n:6"},
         };
         CHECK_EVALS(cases, Grid(), Settings());
+        // over a range, in a formula that works on arrays, as ROUND does
+        const E arrays[] = {
+            {"SUMPRODUCT(ROUND(A1:A3/2,0))", "n:4"},
+            {"SUMPRODUCT(_xlfn.CEILING.MATH(A1:A3,2))", "n:8"},
+            {"SUMPRODUCT(IFERROR(_xlfn.CEILING.MATH(A1:A3,2),0))", "n:8"},
+            {"SUMPRODUCT(_xlfn.FLOOR.MATH(A1:A3,2))", "n:4"},
+            {"SUMPRODUCT(_xlfn.CEILING.MATH(B1:B3/7))", "n:10"},
+        };
+        CHECK_EVALS(arrays, sample(), Settings());
     }
 
     void powersLogarithmsAndSigns()

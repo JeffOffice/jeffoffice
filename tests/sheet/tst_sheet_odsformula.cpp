@@ -29,6 +29,18 @@ private Q_SLOTS:
         QCOMPARE(convert(QStringLiteral("of:=#N/A")), QStringLiteral("#N/A"));
     }
 
+    // A range from a cell to what a function gives (the last row a column has): the operator is kept between the reference and the call.
+    void aRangeMayEndInAFunction()
+    {
+        bool ok = false;
+        QCOMPARE(convert(QStringLiteral("of:=[$Tickets.$A$2]:INDEX([$Tickets.$A$1:.$A$1048576];LAST_ROW)"), &ok), QStringLiteral("Tickets!$A$2:INDEX(Tickets!$A$1:$A$1048576,LAST_ROW)"));
+        QVERIFY(ok);
+        QCOMPARE(convert(QStringLiteral("of:=(2^53-1)*2^(1024-53)"), &ok), QStringLiteral("(2^53-1)*2^(1024-53)"));
+        QVERIFY(ok);
+        QCOMPARE(convert(QStringLiteral("of:=MATCH(INF;[$Tickets.$A$1:.$A$1048576])"), &ok), QStringLiteral("MATCH(INF,Tickets!$A$1:$A$1048576)"));
+        QVERIFY(ok);
+    }
+
     // The sheet is before a dot, perhaps in quotes (a name that needs them keeps them); the second end of a range may leave the sheet out; two sheets are a range through them.
     void referencesToOtherSheetsKeepTheirSheet()
     {

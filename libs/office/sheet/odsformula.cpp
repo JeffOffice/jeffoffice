@@ -237,6 +237,10 @@ public:
                 closeUnion();
                 m_out += c;
                 ++m_i;
+            } else if (c == QLatin1Char(':')) {
+                // the range operator between two operands outside brackets, as in [.A2]:INDEX(...): the same operator, kept as it is
+                m_out += c;
+                ++m_i;
             } else {
                 return false;
             }

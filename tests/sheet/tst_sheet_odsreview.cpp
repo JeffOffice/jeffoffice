@@ -273,6 +273,14 @@ private Q_SLOTS:
         // (read again, a sheet is counted once)
         QVERIFY(failed.readSheet(0, &s));
         QVERIFY(!failed.changedFeatures().filter(QStringLiteral("2 formula")).isEmpty());
+        // names that could not be converted are left out, and the notice says how many
+        const QString badNames = QStringLiteral("<table:named-expressions><table:named-expression table:name=\"Far\" table:base-cell-address=\"$S.$A$1\" table:expression=\"[ 'file:///x.ods'#$S.A1]\"/>"
+                                                "<table:named-expression table:name=\"Fine\" table:base-cell-address=\"$S.$A$1\" table:expression=\"[$S.A1]*2\"/></table:named-expressions>");
+        Workbook withNames;
+        QVERIFY2(openIt(simple(table(QStringLiteral("S"), row(floatCell(1))) + badNames), &withNames, &why), qPrintable(why));
+        QCOMPARE(withNames.info().definedNames.size(), 1);
+        const QStringList namesChanged = withNames.changedFeatures();
+        QVERIFY2(!namesChanged.filter(QStringLiteral("1 name")).isEmpty(), qPrintable(namesChanged.join(QLatin1Char('|'))));
         // merged cells in every copy of a repeated row
         const QString merged = row(stringCell(QStringLiteral("m"), QStringLiteral("table:number-columns-spanned=\"2\"")) + QStringLiteral("<table:covered-table-cell/>") + floatCell(1), QStringLiteral("table:number-rows-repeated=\"3\""));
         Workbook rep;
