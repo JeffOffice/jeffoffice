@@ -904,6 +904,16 @@ int editBench(const QString &pathIn, int edits, int rows, int cols, int readers)
     out() << "edits repainted within 16 ms: " << QString::number(withinCpu * 100, 'f', 1) << "% by the processor time, " << QString::number(within * 100, 'f', 1) << "% by the wall (the bar: 99%)\n";
     Q_UNUSED(dependentsMax);
     structureBench(w, sheet);
+    // and on the sheet with the most cells, if it is not the one in view (a workbook of several: the window is brought to it)
+    int biggest = sheet;
+    for (int i = 0; i < calc->sheetCount(); ++i)
+        if (calc->sheet(i).cells.cellCount() > calc->sheet(biggest).cells.cellCount()) biggest = i;
+    if (biggest != sheet && calc->sheet(biggest).cells.cellCount() > 4 * calc->sheet(sheet).cells.cellCount()) {
+        out() << "the sheet with the most cells: " << w.calculation()->sheet(biggest).cells.cellCount() << " cells\n";
+        w.setActiveSheet(biggest);
+        QCoreApplication::processEvents();
+        structureBench(w, biggest);
+    }
     return 0;
 }
 

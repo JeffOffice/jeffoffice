@@ -12,6 +12,7 @@
 #include <QVector>
 
 #include <algorithm>
+#include <functional>
 #include <map>
 #include <vector>
 
@@ -232,6 +233,12 @@ public:
         flush();
         m_last = nullptr;
     }
+    // Rows inserted (`delta` > 0: the cells from row `first` on move down by it; those that would go to row `limit` or past it are removed) or deleted (`delta` < 0: the cells of the
+    // rows [first, first - delta) are removed, those after move up); and columns the same way. Cells that move in a block of cells all at once, in one pass, without taking them out one by
+    // one (the cost is the cells from `first` on, a few nanoseconds each, for rows; every cell for columns). `formulaMoved(before, after)` is told of each cell with a formula (and each
+    // that is an array's) that moves. Gives the number of cells that moved; those removed are given to `removed`, as they were.
+    qint64 shiftRows(quint32 first, qint64 delta, quint32 limit, const std::function<void(const Cell &before, const Cell &after)> &formulaMoved, std::vector<Cell> *removed);
+    qint64 shiftColumns(quint32 first, qint64 delta, quint32 limit, const std::function<void(const Cell &before, const Cell &after)> &formulaMoved, std::vector<Cell> *removed);
     // Puts the blocks that were added to out of order in order (the cells that were put in again by reshuffle).
     void reorder();
     int blockCount() const { return int(m_blocks.size()); }

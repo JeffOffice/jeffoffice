@@ -806,7 +806,7 @@ private Q_SLOTS:
         QCOMPARE(win.w.formulaBar()->text(), QStringLiteral("1"));
     }
 
-    // The Help says nothing that this build cannot do (it cannot change the width of a column, or type in a cell).
+    // The Help says nothing that this build cannot do (it cannot yet sort or filter, print, paint a format with the painter, or insert a chart).
     void theHelpPromisesNothingTheBuildCannotDo()
     {
         QDirIterator it(QStringLiteral(JC_SOURCE_DIR "/resources/help/en/crunch"), QStringList{QStringLiteral("*.md")}, QDir::Files);
@@ -816,7 +816,7 @@ private Q_SLOTS:
             QVERIFY(f.open(QIODevice::ReadOnly));
             const QString text = QString::fromUtf8(f.readAll());
             ++files;
-            for (const QString &phrase : {QStringLiteral("make the column wider"), QStringLiteral("widen the column"), QStringLiteral("drag the edge"), QStringLiteral("double-click the edge")})
+            for (const QString &phrase : {QStringLiteral("format painter"), QStringLiteral("print preview"), QStringLiteral("sort ascending"), QStringLiteral("autofilter"), QStringLiteral("insert a chart")})
                 QVERIFY2(!text.contains(phrase, Qt::CaseInsensitive), qPrintable(f.fileName() + QStringLiteral(" says: ") + phrase));
         }
         QVERIFY(files >= 7);

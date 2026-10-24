@@ -673,6 +673,25 @@ private Q_SLOTS:
         QCOMPARE(second.w.session()->editText(0, 4, 0), QStringLiteral("7"));
     }
 
+    // A sheet that has a PivotTable is not changed by inserting or deleting (the table sits where the file says it is): the person is told.
+    void aSheetWithAPivotTableIsNotMoved()
+    {
+        QByteArray book = sheetOf({"A1=1", "A2=2"});
+        book = withParts(book, {{QStringLiteral("xl/pivotTables/pivotTable1.xml"), QByteArray("<pivotTableDefinition/>"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml"), 0, QStringLiteral("rIdP"),
+                                 QStringLiteral("pivotTable"), QStringLiteral("../pivotTables/pivotTable1.xml")}});
+        EditWindow e;
+        QVERIFY(e.open(book));
+        e.view()->selectRows(0, 0);
+        e.win.told.clear();
+        e.win.w.act(QStringLiteral("cells.insert"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("PivotTable")), qPrintable(e.win.told.join('|')));
+        // typing is as ever
+        e.select(QStringLiteral("C3"));
+        e.enter(QStringLiteral("5"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+    }
+
     // Results worked out before cells moved name them by where they were; they are put where the cells are now (and dropped with the cells that are gone).
     void resultsMadeBeforeTheCellsMovedAreMovedToo()
     {

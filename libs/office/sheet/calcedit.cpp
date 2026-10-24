@@ -239,40 +239,24 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     // ---- the cells move; the nodes of the formulas among them go with them
     std::vector<Cell> removed;
     SheetState &st = m_state[size_t(e.sheet)];
-    auto onMoved = [&](const Cell &before, const Cell &after) {
-        ++rec->cellsMoved;
-        if (after.hasFormula() || (after.flags & ArrayMember)) rec->movedFormulas.push_back({before.row, quint32(before.col), after.row, quint32(after.col)});
+    // (a formula that moves has its node told where it is, and the window's value for it is moved)
+    auto onFormulaMoved = [&](const Cell &before, const Cell &after) {
+        rec->movedFormulas.push_back({before.row, quint32(before.col), after.row, quint32(after.col)});
         if (!after.hasFormula() || after.formula < 0 || size_t(after.formula) >= st.nodeOf.size()) return;
         const quint32 id = st.nodeOf[size_t(after.formula)];
         if (id == kNone) return;
         m_nodes[id].row = after.row;
         m_nodes[id].col = after.col;
     };
+    auto onMoved = [&](const Cell &before, const Cell &after) {
+        ++rec->cellsMoved;
+        if (after.hasFormula() || (after.flags & ArrayMember)) onFormulaMoved(before, after);
+    };
     switch (e.kind) {
-    case K::InsertRows:
-        S.cells.reshuffle(e.first, [&](const Cell &c) { return c.row >= e.first; }, [&](Cell *c) { c->row += count; return c->row < kGridRows; }, onMoved, &removed);
-        break;
-    case K::DeleteRows:
-        S.cells.reshuffle(e.first, [&](const Cell &c) { return c.row >= e.first; }, [&](Cell *c) {
-            if (c->row < e.first + count) return false;
-            c->row -= count;
-            return true;
-        }, onMoved, &removed);
-        break;
-    case K::InsertColumns:
-        S.cells.reshuffle(0, [&](const Cell &c) { return c.col >= e.first; }, [&](Cell *c) {
-            const quint32 col = quint32(c->col) + count;
-            c->col = quint16(std::min<quint32>(col, 0xFFFF));
-            return col < kGridCols;
-        }, onMoved, &removed);
-        break;
-    case K::DeleteColumns:
-        S.cells.reshuffle(0, [&](const Cell &c) { return c.col >= e.first; }, [&](Cell *c) {
-            if (c->col < e.first + count) return false;
-            c->col = quint16(c->col - count);
-            return true;
-        }, onMoved, &removed);
-        break;
+    case K::InsertRows: rec->cellsMoved = S.cells.shiftRows(e.first, qint64(count), kGridRows, onFormulaMoved, &removed); break;
+    case K::DeleteRows: rec->cellsMoved = S.cells.shiftRows(e.first, -qint64(count), kGridRows, onFormulaMoved, &removed); break;
+    case K::InsertColumns: rec->cellsMoved = S.cells.shiftColumns(e.first, qint64(count), kGridCols, onFormulaMoved, &removed); break;
+    case K::DeleteColumns: rec->cellsMoved = S.cells.shiftColumns(e.first, -qint64(count), kGridCols, onFormulaMoved, &removed); break;
     case K::InsertCellsDown:
         S.cells.reshuffle(e.row1, [&](const Cell &c) { return c.row >= e.row1 && c.col >= e.col1 && c.col <= e.col2; }, [&](Cell *c) { c->row += count; return c->row < kGridRows; }, onMoved, &removed);
         break;

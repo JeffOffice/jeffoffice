@@ -33,6 +33,14 @@ bool EditSession::canMove(const StructEdit &edit, QString *why) const
     if (!canEdit(why) || !canEditSheet(edit.sheet, why)) return false;
     if (edit.kind == StructEdit::Kind::Move && !canEditSheet(edit.toSheet, why)) return false;
     if (!m_book->calc->canApply(edit, why)) return false;
+    // a PivotTable sits on the cells of its sheet, where the file says: not moved (the file would have it where it was)
+    for (const int sheet : {edit.sheet, edit.kind == StructEdit::Kind::Move ? edit.toSheet : edit.sheet}) {
+        const QString part = m_book->book->info().sheets.value(sheet).part;
+        if (!part.isEmpty() && !m_book->book->package().relationshipsOfType(part, QStringLiteral("/pivotTable")).isEmpty()) {
+            if (why) *why = tr("This sheet has a PivotTable, which JeffCrunch can't move yet. Insert or delete on a sheet that has none.");
+            return false;
+        }
+    }
     return m_book->book->tablesAllow(edit, why);
 }
 
