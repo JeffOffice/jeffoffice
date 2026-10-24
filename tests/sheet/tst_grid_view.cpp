@@ -294,6 +294,39 @@ private Q_SLOTS:
         QCOMPARE(b.view->rangeName(), QStringLiteral("A1:A5"));
     }
 
+    // The selection is settled where the person leaves it: at the click, at the end of a drag (not while the drag goes on), and at a key that moves it. (The Format Painter acts on it.)
+    void theSelectionIsSettledWhenThePersonLeavesIt()
+    {
+        Book b;
+        for (quint32 r = 0; r < 20; ++r)
+            for (quint32 c = 0; c < 10; ++c) b.number(r, c, r + c);
+        b.show();
+        QSignalSpy settled(b.view.get(), &GridView::selectionSettled), changed(b.view.get(), &GridView::selectionChanged);
+        QTest::mouseClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, b.centerOf(3, 2));
+        QCOMPARE(settled.count(), 1);
+        QCOMPARE(b.view->selectionName(), QStringLiteral("C4"));
+        // a drag: changed as it goes, settled once at the end
+        settled.clear();
+        changed.clear();
+        QTest::mousePress(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, b.centerOf(1, 1));
+        QMouseEvent move(QEvent::MouseMove, QPointF(b.centerOf(3, 3)), QPointF(b.view->viewport()->mapToGlobal(b.centerOf(3, 3))), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(b.view->viewport(), &move);
+        QVERIFY(changed.count() >= 2);
+        QCOMPARE(settled.count(), 0);
+        QTest::mouseRelease(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, b.centerOf(3, 3));
+        QCOMPARE(settled.count(), 1);
+        QCOMPARE(b.view->rangeName(), QStringLiteral("B2:D4"));
+        // a click on the cell that is the selection already still settles it
+        settled.clear();
+        QTest::mouseClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, b.centerOf(1, 1));
+        QTest::mouseClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, b.centerOf(1, 1));
+        QCOMPARE(settled.count(), 2);
+        // a key
+        settled.clear();
+        QTest::keyClick(b.view.get(), Qt::Key_Down);
+        QCOMPARE(settled.count(), 1);
+    }
+
     // A click selects the cell, a shift-click extends, a drag extends as it goes; the headers select whole rows and columns, and the corner everything.
     void theMouseSelectsCellsHeadersAndTheCorner()
     {

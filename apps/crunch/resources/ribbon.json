@@ -16,9 +16,15 @@
           "name": "Clipboard",
           "keytip": "ZC",
           "items": [
-            {"large": "edit.paste", "keytip": "V", "split": true, "menu": ["edit.paste", "paste.formulas", "paste.values", "paste.formats", "paste.transpose", "-", "paste.special"]},
+            {
+              "large": "edit.paste",
+              "keytip": "V",
+              "split": true,
+              "menu": ["edit.paste", "paste.formulas", "paste.values", "paste.formats", "paste.transpose", "-", "paste.special"]
+            },
             {"small": "edit.cut", "keytip": "X"},
-            {"small": "edit.copy", "keytip": "C"}
+            {"small": "edit.copy", "keytip": "C"},
+            {"small": "fmt.painter", "keytip": "FP"}
           ]
         },
         {
@@ -26,47 +32,73 @@
           "keytip": "ZF",
           "items": [
             {"row": [
-              {"icon": "fmt.bold", "keytip": "1"},
-              {"icon": "fmt.italic", "keytip": "2"},
-              {"icon": "fmt.underline", "keytip": "3"},
-              {"icon": "fmt.strike", "keytip": "4"}
+              {"widget": "fontCombo", "keytip": "FF"},
+              {"widget": "sizeCombo", "keytip": "FS"},
+              {"icon": "fmt.growFont", "keytip": "FG"},
+              {"icon": "fmt.shrinkFont", "keytip": "FK"}
             ]},
             {"row": [
-              {"icon": "fmt.fillColor", "keytip": "H"},
-              {"icon": "fmt.fontColor", "keytip": "FC"}
+              {"icon": "fmt.bold", "keytip": "1"},
+              {"icon": "fmt.italic", "keytip": "2"},
+              {"icon": "fmt.underline", "keytip": "3", "split": true, "menu": ["fmt.underline.single", "fmt.underline.double"]},
+              {"icon": "fmt.strike", "keytip": "4"},
+              {"icon": {"id": "ribbon.borders", "text": "Borders", "icon": "grid-2x2"}, "keytip": "B", "menu": "@borders"},
+              {"widget": "fillColor", "keytip": "H"},
+              {"widget": "fontColor", "keytip": "FC"}
             ]}
-          ]
+          ],
+          "launcher": "font",
+          "launcherTip": "Format Cells",
+          "launcherKeytip": "FN"
         },
         {
           "name": "Alignment",
           "keytip": "ZA",
           "items": [
             {"row": [
-              {"icon": "fmt.alignLeft", "keytip": "AL"},
-              {"icon": "fmt.alignCenter", "keytip": "AC"},
-              {"icon": "fmt.alignRight", "keytip": "AR"}
+              {"icon": "fmt.alignTop", "keytip": "AT"},
+              {"icon": "fmt.alignMiddle", "keytip": "AM"},
+              {"icon": "fmt.alignBottom", "keytip": "AB"},
+              {"icon": {"id": "ribbon.orientation", "text": "Orientation", "icon": "rotate-ccw"}, "keytip": "FQ", "menu": "@orientation"}
             ]},
             {"row": [
+              {"icon": "fmt.alignLeft", "keytip": "AL"},
+              {"icon": "fmt.alignCenter", "keytip": "AC"},
+              {"icon": "fmt.alignRight", "keytip": "AR"},
               {"icon": "fmt.indentDec", "keytip": "AO"},
               {"icon": "fmt.indentInc", "keytip": "AN"}
             ]},
             {"small": "fmt.wrap", "keytip": "W"},
-            {"small": "fmt.merge", "keytip": "M"}
-          ]
+            {"small": "fmt.merge", "keytip": "M", "split": true, "menu": ["fmt.merge.center", "fmt.merge.across", "fmt.merge.cells", "fmt.merge.unmerge"]}
+          ],
+          "launcher": "alignment",
+          "launcherTip": "Format Cells",
+          "launcherKeytip": "FA"
         },
         {
           "name": "Number",
           "keytip": "ZN",
           "items": [
             {"row": [
-              {"icon": "fmt.currency", "keytip": "AA"},
-              {"icon": "fmt.percent", "keytip": "P"},
-              {"icon": "fmt.comma", "keytip": "K"}
+              {"widget": "numberFormat", "keytip": "N"}
             ]},
             {"row": [
+              {"icon": "fmt.currency", "keytip": "AA", "split": true, "menu": ["fmt.currency", "fmt.numberGeneral", "fmt.numberDialog"]},
+              {"icon": "fmt.percent", "keytip": "P"},
+              {"icon": "fmt.comma", "keytip": "K"},
               {"icon": "fmt.decimalInc", "keytip": "0"},
               {"icon": "fmt.decimalDec", "keytip": "9"}
             ]}
+          ],
+          "launcher": "number",
+          "launcherTip": "Format Cells",
+          "launcherKeytip": "FM"
+        },
+        {
+          "name": "Styles",
+          "keytip": "ZY",
+          "items": [
+            {"large": {"id": "ribbon.cellStyles", "text": "Cell Styles", "icon": "palette"}, "keytip": "J", "menu": "@cellStyles"}
           ]
         },
         {
@@ -75,16 +107,37 @@
           "items": [
             {"large": "cells.insert", "keytip": "I", "split": true, "menu": ["cells.insert.cells", "cells.insert.rows", "cells.insert.columns"]},
             {"large": "cells.delete", "keytip": "D", "split": true, "menu": ["cells.delete.cells", "cells.delete.rows", "cells.delete.columns"]},
-            {"large": "cells.format", "keytip": "O", "menu": ["format.rowHeight", "format.fitRow", "format.columnWidth", "format.fitColumn", "-", "format.hideRows", "format.hideColumns", "format.unhideRows", "format.unhideColumns"]}
+            {
+              "large": "cells.format",
+              "keytip": "O",
+              "menu": [
+                "format.rowHeight",
+                "format.fitRow",
+                "format.columnWidth",
+                "format.fitColumn",
+                "-",
+                "format.hideRows",
+                "format.hideColumns",
+                "format.unhideRows",
+                "format.unhideColumns",
+                "-",
+                "format.cells"
+              ]
+            }
           ]
         },
         {
           "name": "Editing",
           "keytip": "ZE",
           "items": [
-            {"small": "edit.autosum", "keytip": "U", "split": true, "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min"]},
+            {
+              "small": "edit.autosum",
+              "keytip": "U",
+              "split": true,
+              "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min"]
+            },
             {"small": "edit.fill", "keytip": "FI", "split": true, "menu": ["fill.down", "fill.right", "fill.up", "fill.left", "-", "fill.series"]},
-            {"small": "edit.clear", "keytip": "E"},
+            {"small": "edit.clear", "keytip": "E", "split": true, "menu": ["edit.clear.all", "edit.clear.formats", "edit.clear.contents"]},
             {"large": "edit.sort", "keytip": "SS"},
             {"large": "edit.find", "keytip": "FD"}
           ]
@@ -143,7 +196,12 @@
           "keytip": "ZU",
           "items": [
             {"large": "formulas.insertFunction", "keytip": "F"},
-            {"large": "edit.autosum", "keytip": "U", "split": true, "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min"]}
+            {
+              "large": "edit.autosum",
+              "keytip": "U",
+              "split": true,
+              "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min"]
+            }
           ]
         },
         {

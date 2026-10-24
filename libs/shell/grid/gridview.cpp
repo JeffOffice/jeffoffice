@@ -465,6 +465,7 @@ void GridView::setSelectionInternal(const Selection &s, bool keepActiveInView)
     viewport()->update(mirror(dirty));
     Q_EMIT selectionChanged();
     startStats();
+    if (m_drag == Drag::None) Q_EMIT selectionSettled();
 }
 
 QString GridView::selectionName() const
@@ -769,16 +770,16 @@ void GridView::mousePressEvent(QMouseEvent *e)
     }
     switch (h.kind) {
     case Hit::Kind::Cell:
+        m_drag = Drag::Cells;   // (before the selection is set: it is settled when the button is let go)
         setSelectionInternal(shift ? nav.extendTo(m_selection, h.row, h.col) : nav.click(h.row, h.col), false);
-        m_drag = Drag::Cells;
         break;
     case Hit::Kind::RowHeader:
-        setSelectionInternal(shift ? nav.extendRows(m_selection, h.row) : nav.selectRows(h.row, h.row), false);
         m_drag = Drag::Rows;
+        setSelectionInternal(shift ? nav.extendRows(m_selection, h.row) : nav.selectRows(h.row, h.row), false);
         break;
     case Hit::Kind::ColumnHeader:
-        setSelectionInternal(shift ? nav.extendColumns(m_selection, h.col) : nav.selectColumns(h.col, h.col), false);
         m_drag = Drag::Columns;
+        setSelectionInternal(shift ? nav.extendColumns(m_selection, h.col) : nav.selectColumns(h.col, h.col), false);
         break;
     case Hit::Kind::Corner: setSelectionInternal(nav.selectAll(m_selection), false); break;
     case Hit::Kind::None: break;
@@ -842,6 +843,7 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
         return;
     }
     const bool fill = m_drag == Drag::Fill;
+    const bool selecting = m_drag == Drag::Cells || m_drag == Drag::Rows || m_drag == Drag::Columns;
     const GridRange source = m_fillSource, extent = m_fillExtent;
     const bool ctrl = m_fillCtrl || (e && (e->modifiers() & Qt::ControlModifier));
     m_drag = Drag::None;
@@ -850,6 +852,7 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
         viewport()->update();
         if (!(extent == source)) Q_EMIT fillRequested(source, extent, ctrl);
     }
+    if (selecting) Q_EMIT selectionSettled();
 }
 
 QRect GridView::fillHandleRect() const { return mirror(fillHandleRectInLayout()); }

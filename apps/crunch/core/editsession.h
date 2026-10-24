@@ -268,6 +268,8 @@ public:
     Outcome mergeCells(int sheet, const jp::office::sheet::CellRange &range, MergeKind kind, bool discard = false);
     // Gives the cells a named style (its place among the style formats: see Workbook::styleNamed), which sets their fonts, fills, borders, number format, alignment, and protection.
     Outcome applyStyle(int sheet, const jp::office::sheet::CellRange &range, quint32 style, const QString &text);
+    // The same by the style's name: a style the workbook has, or a built-in one it is given now. Not ok if there is no such style, or the file has no place to keep one.
+    Outcome applyStyleNamed(int sheet, const jp::office::sheet::CellRange &range, const QString &name, const QString &text);
 
     // The worker's results, as they reach the window (before the window's store has them: the store's value is the engine's before it): kept for saving, those that the engine changed and that
     // differ from what the file holds.

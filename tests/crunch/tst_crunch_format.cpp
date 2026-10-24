@@ -456,6 +456,30 @@ private Q_SLOTS:
         QCOMPARE(rangeName(rules[1].ranges[0]), QStringLiteral("B2:B6"));
         QVERIFY(second.w.view()->sheet().conditional().at(5, 0).scale == QRgb(0xFF0000FF));
     }
+
+    // The sheet with its rules drawn (JC_SCREENSHOT_COND names a file to keep the picture in): the color scale, the cells over three, the bars, and the icons are on the screen.
+    void conditionalFormatsAreOnTheScreen()
+    {
+        EditWindow e;
+        QVERIFY(e.open(ruledBook()));
+        e.win.w.resize(900, 420);
+        e.view()->setZoom(1.5);
+        QApplication::processEvents();
+        const QImage shot = e.win.w.grab().toImage();
+        QVERIFY(!shot.isNull());
+        const QPoint origin = e.view()->viewport()->mapTo(&e.win.w, QPoint(0, 0));
+        auto at = [&](int row, int col, double fx, double fy) {
+            const QRect r = e.view()->cellRect(row, col);
+            return QColor(shot.pixel(origin.x() + r.left() + int(r.width() * fx), origin.y() + r.top() + int(r.height() * fy)));
+        };
+        QCOMPARE(at(0, 0, 0.5, 0.2).rgb(), QRgb(0xFFFF0000));      // the lowest of the scale: red
+        QCOMPARE(at(4, 0, 0.5, 0.2).rgb(), QRgb(0xFF0000FF));      // the highest: blue
+        QCOMPARE(at(3, 1, 0.9, 0.15).rgb(), QRgb(0xFFFFC7CE));     // 4 is over 3: the fill of the format
+        QVERIFY(at(2, 1, 0.9, 0.15).rgb() == QRgb(0xFFFFFFFF));     // 3 is not
+        QVERIFY(at(4, 2, 0.5, 0.5).rgb() != QRgb(0xFFFFFFFF));      // the longest bar
+        const QString out = qEnvironmentVariable("JC_SCREENSHOT_COND");
+        if (!out.isEmpty()) QVERIFY(shot.save(out));
+    }
 };
 
 JP_TEST_CLASS(CrunchFormatTests)

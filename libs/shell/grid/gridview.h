@@ -144,6 +144,8 @@ public:
 
 Q_SIGNALS:
     void selectionChanged();
+    // The selection is where the person left it: a key moved it, or the button was let go after a click or a drag (during a drag it is only changed).
+    void selectionSettled();
     void zoomChanged(double zoom);
     void statsChanged(const QString &text);
     void contextMenuRequested(const QPoint &globalPos);

@@ -84,7 +84,7 @@ private Q_SLOTS:
         QCOMPARE(w.styleNamed(QStringLiteral("Good")), good);
         QCOMPARE(w.addedStyles().size(), 1);
         QCOMPARE(w.addedStyles()[0].name.builtin, 26);
-        const CellFormat &sf = w.styles().styleXfs[good];
+        const CellFormat sf = w.styles().styleXfs[good];   // (a copy: the list grows below)
         QVERIFY(w.styles().fills[int(sf.fill)].fg == ColorSpec::fromRgb(0xC6EFCE));
         QVERIFY(w.styles().fonts[int(sf.font)].color == ColorSpec::fromRgb(0x006100));
         QCOMPARE(w.styles().fonts[int(sf.font)].name, QStringLiteral("Calibri"));   // (the workbook's own face and size)

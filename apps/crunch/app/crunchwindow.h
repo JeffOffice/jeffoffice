@@ -5,6 +5,9 @@
 
 #include "app/appwindow.h"
 #include "app/celleditor.h"
+#include "app/formatdialog.h"
+#include "app/widgets.h"
+#include "core/color.h"
 #include "core/editsession.h"
 #include "core/loader.h"
 #include "grid/gridview.h"
@@ -24,6 +27,7 @@ class QThread;
 class QUndoStack;
 class QLabel;
 class QLineEdit;
+class QMenu;
 class QSlider;
 
 namespace jp {
@@ -120,6 +124,16 @@ public:
     // And Paste Special: how to paste. A dialog unless this stands in for it (tests); false gives it up.
     void setPasteAsker(const std::function<bool(crunch::EditSession::PasteOptions *)> &asker) { m_pasteOptionsAsker = asker; }
     void setChangedAsker(const std::function<ChangedAnswer(const QString &name)> &asker) { m_changedAsker = asker; }
+    // What Format Cells asks: given the format of the cell with the cursor, what the person changed (a dialog unless this stands in for it: tests); false gives it up.
+    void setFormatAsker(const std::function<bool(const FormatCellsDialog::Input &, FormatCellsDialog::Result *)> &asker) { m_formatAsker = asker; }
+    // What is asked before a step that throws something away (merging cells that hold values): the title and the sentence; true goes on. A message box unless this stands in for it (tests).
+    void setConfirmAsker(const std::function<bool(const QString &title, const QString &text)> &asker) { m_confirmAsker = asker; }
+    // The Format Painter: whether it is waiting for cells to paint, and whether it stays on after painting (a double click).
+    bool formatPainterActive() const { return m_painter.mode != PainterMode::Off; }
+    bool formatPainterLocked() const { return m_painter.mode == PainterMode::Locked; }
+    // The format the dialog starts from (the cell with the cursor), and the dialog's changes made.
+    FormatCellsDialog::Input formatInput() const;
+    bool applyFormatResult(const FormatCellsDialog::Result &result);
     // Where Save As writes: asked of a file dialog, unless this stands in for it (tests): the name it starts with, and the filter; an empty path gives it up.
     void setSavePicker(const std::function<QString(const QString &start, const QString &filter)> &picker) { m_savePicker = picker; }
     // What a short message to the person is shown with: a message box, unless this stands in for it (tests): the title and the sentence.
@@ -277,6 +291,53 @@ private:
     void widenForCells(int sheet, const jp::office::sheet::CellRange &cells);
     QString htmlOfClip(const crunch::ClipData &clip) const;
     void freezeAtSelection();
+    // formatting (crunchwindow_format.cpp): the commands of the Home tab and the Format Cells dialog
+    enum class PainterMode { Off, Once, Locked };
+    void createFormatActions();
+    void formatRibbonParts(RibbonParts &parts);
+    void updateFormatState();
+    bool formatSelection(const jp::office::sheet::FormatChange &change, const QString &text);
+    FormatView viewOfActiveCell() const;
+    void toggleFont(int what);
+    void setFontSize(double size);
+    void growFont(int steps);
+    void chooseFillColor(const ColorRef &c);
+    void chooseFontColor(const ColorRef &c);
+    void alignCommand(int kind);
+    void indentCommand(int delta);
+    void orientationCommand(int degrees);
+    void numberFormatCommand(int kind);
+    void decimalsCommand(int delta);
+    void borderCommand(int kind);
+    void mergeCommand(crunch::EditSession::MergeKind kind);
+    void clearCommand(int what);
+    void applyCellStyle(const QString &name);
+    void formatPainterCommand();
+    void paintFormats();
+    void cancelFormatPainter();
+    void formatCellsDialog(int tab);
+    bool confirm(const QString &title, const QString &text);
+    ColorScheme workbookColors() const;
+    jp::office::sheet::ColorSpec colorSpecOf(const ColorRef &c) const;
+    QMenu *buildBordersMenu(QWidget *owner);
+    QMenu *buildStylesMenu(QWidget *owner);
+    QMenu *buildOrientationMenu(QWidget *owner);
+    std::function<bool(const FormatCellsDialog::Input &, FormatCellsDialog::Result *)> m_formatAsker;
+    std::function<bool(const QString &, const QString &)> m_confirmAsker;
+    QList<QPointer<FontCombo>> m_fontCombos;
+    QList<QPointer<SizeCombo>> m_sizeCombos;
+    QPointer<ColorButton> m_fillButton, m_fontColorButton;
+    QPointer<QComboBox> m_numberBox;
+    QStringList m_formatActions;                // the commands that format cells (enabled when the workbook can be changed)
+    jp::office::sheet::BorderStyle m_lineStyle = jp::office::sheet::BorderStyle::Thin;
+    jp::office::sheet::ColorSpec m_lineColor;   // the color of the lines the border commands draw (none: automatic)
+    int m_lastBorder = 0;                       // the border command the button of the Borders menu repeats
+    struct Painter {
+        PainterMode mode = PainterMode::Off;
+        crunch::ClipData clip;
+        QElapsedTimer started;
+    } m_painter;
+    bool m_formatting = false;                   // a formatting command is working (the state of the buttons is not read back into it)
     void notice(const QString &title, const QString &text, bool warning = true);
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);

@@ -227,6 +227,34 @@ EditSession::Outcome EditSession::applyStyle(int sheet, const CellRange &range, 
     return formatCells(sheet, range, c, text);
 }
 
+EditSession::Outcome EditSession::applyStyleNamed(int sheet, const CellRange &range, const QString &name, const QString &text)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    qint32 place = -1;
+    {
+        // (the style is made with the worker held back: it reads the workbook's styles)
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) {
+            out.ok = false;
+            out.problem = tr("The workbook is busy. Try again in a moment.");
+            return out;
+        }
+        place = m_book->book->styleNamed(name);
+    }
+    if (place < 0) {
+        out.ok = false;
+        out.problem = tr("This workbook has no place to keep the style \"%1\".").arg(name);
+        return out;
+    }
+    return applyStyle(sheet, range, quint32(place), text);
+}
+
 EditSession::Outcome EditSession::clearFormats(int sheet, const CellRange &range)
 {
     return restyleRange(sheet, range, nullptr, tr("Clearing formats"));
