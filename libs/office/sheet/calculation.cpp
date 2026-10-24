@@ -1433,6 +1433,17 @@ char Calculation::keptClass(int sheet, quint32 row, quint32 col) const
     return id != kNone ? m_nodes[id].kept : 0;
 }
 
+void Calculation::forEachFormulaText(const std::function<void(int, quint32, quint32, const QString &)> &f) const
+{
+    for (int si = 0; si < int(m_sheets.size()); ++si) {
+        const Sheet &s = m_sheets[size_t(si)];
+        s.cells.forEach([&](const Cell &c) {
+            if (!c.hasFormula() || (c.flags & (ArrayMember | ArrayFormula | DataTable))) return;
+            f(si, c.row, c.col, s.formulaText(c));
+        });
+    }
+}
+
 void Calculation::forEachFormula(const std::function<void(const FormulaCell &)> &f) const
 {
     for (int si = 0; si < int(m_sheets.size()); ++si) {

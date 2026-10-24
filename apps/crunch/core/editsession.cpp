@@ -61,13 +61,17 @@ SavedValue savedValue(const Value &v, qint32 sharedString)
 // One step of the undo stack: cells put in the state they come to, and back.
 class ChangeCells : public QUndoCommand {
 public:
-    ChangeCells(EditSession *session, std::vector<CellChange> changes, const QString &text) : QUndoCommand(text), m_session(session), m_changes(std::move(changes)) {}
-    void redo() override { m_session->apply(&m_changes, true); }
-    void undo() override { m_session->apply(&m_changes, false); }
+    ChangeCells(EditSession *session, std::vector<CellChange> changes, const QString &text, std::vector<TableRename> renames = {})
+        : QUndoCommand(text), m_session(session), m_changes(std::move(changes)), m_renames(std::move(renames))
+    {
+    }
+    void redo() override { m_session->apply(&m_changes, true, &m_renames); }
+    void undo() override { m_session->apply(&m_changes, false, &m_renames); }
 
 private:
     EditSession *m_session;
     std::vector<CellChange> m_changes;
+    std::vector<TableRename> m_renames;
 };
 
 EditSession::EditSession(WorkbookLoader *loader, const std::shared_ptr<LoadedBook> &book, ValueStore *values, QObject *parent)
@@ -183,6 +187,10 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
         out.problem = why;
         return out;
     }
+    // a cell of a table's header row names a column
+    int column = -1;
+    const int table = m_book->book->tableHeaderAt(sheet, row, col, &column);
+    if (table >= 0) return typeInHeader(sheet, row, col, table, column, typed);
     const Calculation *calc = m_book->calc.get();
     const Calculation::CellContent before = calc->content(sheet, row, col);
     const QString code = m_book->book->styles().formatCode(before.style, m_locale);
@@ -231,6 +239,77 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
     return out;
 }
 
+EditSession::Outcome EditSession::typeInHeader(int sheet, quint32 row, quint32 col, int table, int column, const QString &typed)
+{
+    Outcome out;
+    const Table &t = m_book->book->tables()[table];
+    bool tooLong = false;
+    const QString name = uniqueColumnName(typed, t.columns, column, &tooLong);
+    if (name.isEmpty()) {
+        out.ok = false;
+        out.problem = tooLong ? tr("A column's name can have up to 255 characters. Shorten it, and try again.")
+                              : tr("The first row of a table holds the names of its columns, so a cell there needs a name. Type one.");
+        return out;
+    }
+    const QString oldName = t.columns[column];
+    const Calculation::CellContent before = m_book->calc->content(sheet, row, col);
+    if (name == oldName && before.value == Value::text(name)) return out;   // (nothing to change)
+    std::vector<CellChange> changes;
+    CellChange ch;
+    ch.sheet = sheet;
+    ch.row = row;
+    ch.col = quint16(col);
+    ch.before = before;
+    ch.after = before;
+    ch.after.exists = true;
+    ch.after.isFormula = false;
+    ch.after.formula.clear();
+    ch.after.value = Value::text(name);
+    ch.after.sharedString = -1;
+    ch.textToShare = !m_book->book->sharedStringsPart().isEmpty();
+    changes.push_back(std::move(ch));
+    // the formulas that name the column follow
+    if (name != oldName) {
+        bool tooMany = false;
+        {
+            std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+            if (!hold) {
+                out.ok = false;
+                out.problem = tr("The workbook is busy. Try again in a moment.");
+                return out;
+            }
+            const Calculation *calc = hold->calculation();
+            calc->forEachFormulaText([&](int s, quint32 r, quint32 c, const QString &text) {
+                if (tooMany || !text.contains(QLatin1Char('['))) return;
+                const bool inside = s == t.sheet && r >= t.row1 + quint32(t.headerRows) && r <= t.row2 && c >= t.col1 && c <= t.col2;
+                const QString renamed = renameColumnInFormula(text, t.name, oldName, name, inside);
+                if (renamed == text) return;
+                if (qint64(changes.size()) >= kMaxCellsPerEdit) {
+                    tooMany = true;
+                    return;
+                }
+                CellChange f;
+                f.sheet = s;
+                f.row = r;
+                f.col = quint16(c);
+                f.before = calc->content(s, r, c);
+                f.after = f.before;
+                f.after.formula = renamed;
+                changes.push_back(std::move(f));
+            });
+        }
+        if (tooMany) {
+            out.ok = false;
+            out.problem = tr("More formulas than JeffCrunch changes at once (%1) use this column's name.").arg(QLocale().toString(kMaxCellsPerEdit));
+            return out;
+        }
+    }
+    std::vector<TableRename> renames;
+    if (name != oldName) renames.push_back({table, column, oldName, name});
+    m_undo.push(new ChangeCells(this, std::move(changes), tr("Typing in %1").arg(cellName(row, col)), std::move(renames)));
+    return out;
+}
+
 EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2)
 {
     Outcome out;
@@ -243,7 +322,7 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
     const Calculation *calc = m_book->calc.get();
     const Sheet &s = calc->sheet(sheet);
     std::vector<CellChange> changes;
-    bool tooMany = false, array = false, locked = false;
+    bool tooMany = false, array = false, locked = false, header = false;
     s.cells.forEachInRange(quint32(row1), quint32(col1), quint32(row2), quint32(col2), [&](const Cell &c) {
         const Calculation::CellContent before = calc->content(sheet, c.row, c.col);
         if (!before.editable) {
@@ -251,6 +330,10 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
             return false;
         }
         if (!before.isFormula && before.value.isEmpty()) return true;   // (only a format: it stays)
+        if (m_book->book->tableHeaderAt(sheet, c.row, c.col, nullptr) >= 0) {
+            header = true;
+            return false;
+        }
         if (isLocked(sheet, before.style)) {
             locked = true;
             return false;
@@ -283,6 +366,11 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
         out.problem = lockedMessage();
         return out;
     }
+    if (header) {
+        out.ok = false;
+        out.problem = tr("The first row of a table holds the names of its columns, so it can't be cleared. Select the cells below it, or type another name.");
+        return out;
+    }
     if (tooMany) {
         out.ok = false;
         out.problem = tr("That is more cells than JeffCrunch clears at once (%1). Select fewer cells.").arg(QLocale().toString(kMaxCellsPerEdit));
@@ -295,7 +383,7 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
     return out;
 }
 
-bool EditSession::apply(std::vector<CellChange> *changes, bool forward)
+bool EditSession::apply(std::vector<CellChange> *changes, bool forward, const std::vector<TableRename> *renames)
 {
     QElapsedTimer waited;
     waited.start();
@@ -333,6 +421,8 @@ bool EditSession::apply(std::vector<CellChange> *changes, bool forward)
             formulas.push_back(it);
         }
     }
+    if (renames)
+        for (const TableRename &r : *renames) book.setTableColumnName(r.table, r.column, forward ? r.after : r.before);
     if (m_holdHook) m_holdHook(calc, true);
     hold->changed();
     hold.reset();   // (the worker has the model again, and works out what these changes make)
@@ -450,6 +540,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         changes.newSharedStrings = book.addedSharedStrings();
         changes.sharedStringsBefore = book.sharedStringsInFile();
     }
+    changes.replacedParts = book.changedTableParts();
     out->strings = int(changes.newSharedStrings.size());
     if (hasStyles) {
         for (const Workbook::AddedNumberFormat &f : book.addedNumberFormats()) changes.newNumberFormats.append({f.id, f.code});

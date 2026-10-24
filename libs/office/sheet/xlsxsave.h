@@ -72,6 +72,8 @@ struct SaveChanges {
     QVector<NumberFormat> newNumberFormats;
     QVector<CellFormatAdded> newCellFormats;
     qint64 cellFormatsBefore = 0;
+    // Parts to be written anew whole, by the part's name (the table parts whose columns were renamed).
+    std::map<QString, QByteArray> replacedParts;
     // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
     bool fullCalcOnLoad = false;
 };

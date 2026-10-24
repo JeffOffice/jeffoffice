@@ -353,6 +353,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
         if (!patchStyles(xml, changes, &patched, &why)) return fail(why);
         replaced.insert(index, patched);
     }
+    // ---- the table parts whose columns were renamed
+    for (const auto &[part, data] : changes.replacedParts) {
+        const int index = entryOfPart(part);
+        if (index < 0) return fail(tr("A table that changed has no part in the file."));
+        replaced.insert(index, data);
+    }
     // ---- the calculation chain: left out when a cell changed (it may name a cell that no longer holds a formula)
     if (anyCellChanged) {
         const QVector<Relationship> chains = package.relationshipsOfType(book.mainPart(), QStringLiteral("/calcChain"));

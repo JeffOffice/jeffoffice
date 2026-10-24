@@ -40,6 +40,13 @@ struct CellChange {
     QString formatCode;
 };
 
+// A table's column renamed by a step (its header cell is one of the step's cells): the table by its place in the workbook's tables, the column by its place in the table.
+struct TableRename {
+    int table = 0;
+    int column = 0;
+    QString before, after;
+};
+
 class EditSession : public QObject {
     Q_OBJECT
 public:
@@ -119,7 +126,9 @@ Q_SIGNALS:
 private:
     friend class ChangeCells;
     // Makes the changes (forward: to `after`; else back to `before`) with the worker held back. False if the worker could not be held.
-    bool apply(std::vector<CellChange> *changes, bool forward);
+    bool apply(std::vector<CellChange> *changes, bool forward, const std::vector<TableRename> *renames = nullptr);
+    // A text typed in a cell of a table's header row: the column is renamed (the formulas that name it follow, and the table's part when the workbook is saved).
+    Outcome typeInHeader(int sheet, quint32 row, quint32 col, int table, int column, const QString &typed);
     jp::office::sheet::EntryOptions entryOptions(int sheet, bool textFormat) const;
     // Whether a cell of that format on the sheet can't be changed: the sheet is protected and the cell is locked.
     bool isLocked(int sheet, quint32 style) const;

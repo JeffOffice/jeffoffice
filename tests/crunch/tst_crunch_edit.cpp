@@ -566,6 +566,95 @@ private Q_SLOTS:
         }
     }
 
+    // A table's header row holds the names of its columns, and the file is valid only while the table's part has the same names: typing in a header cell renames the column in the part and in
+    // the formulas that name it (Undo and Redo too, and a save has them). A name another column has gets a number; an empty name, and clearing a header, are refused.
+    void typingInATableHeaderRenamesTheColumn()
+    {
+        const QString header = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Region</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>Q1</t></is></c><c r=\"C1\" t=\"inlineStr\"><is><t>Total</t></is></c>"
+                                              "<c r=\"E1\"><f>SUM(Sales[Q1])</f><v>5</v></c></row>"
+                                              "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>East</t></is></c><c r=\"B2\"><v>5</v></c><c r=\"C2\"><f>Sales[[#This Row],[Q1]]*2</f><v>10</v></c>"
+                                              "<c r=\"E2\"><f>Other[Q1]</f><v>1</v></c><c r=\"E3\"><f>[@Q1]</f><v>2</v></c></row>");
+        const QString table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:C2\">"
+                                             "<autoFilter ref=\"A1:C2\"/><tableColumns count=\"3\"><tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/>"
+                                             "<tableColumn id=\"3\" name=\"Total\"><calculatedColumnFormula>Sales[[#This Row],[Q1]]*2</calculatedColumnFormula></tableColumn></tableColumns></table>");
+        const QByteArray book = withTables(buildXlsx({worksheet(header)}), {table});
+        auto partOf = [](const QString &path, const QString &name) {
+            QFile f(path);
+            f.open(QIODevice::ReadOnly);
+            QMap<QString, QByteArray> parts;
+            jp::readZip(f.readAll(), parts);
+            return QString::fromUtf8(parts.value(name));
+        };
+        EditWindow e;
+        QVERIFY(e.open(book));
+        auto saveNow = [&] {
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY(saved.wait(20000));
+        };
+        // an empty name, and a header that is cleared: refused, with a message
+        e.select(QStringLiteral("B1"));
+        e.win.told.clear();
+        QVERIFY(!e.win.w.session()->type(0, 0, 1, QString()).ok);
+        QVERIFY(!e.win.w.session()->type(0, 0, 1, QStringLiteral("   ")).ok);
+        QVERIFY(!e.win.w.session()->clear(0, 0, 0, 0, 2).ok);
+        e.view()->selectRange(0, 1, 0, 1);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY2(e.win.told.join(QLatin1Char(' ')).contains(QLatin1String("column")), qPrintable(e.win.told.join(QLatin1Char(' '))));
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        QCOMPARE(e.shownAt(QStringLiteral("B1")), QStringLiteral("Q1"));
+        // a name
+        e.select(QStringLiteral("B1"));
+        e.enter(QStringLiteral("First quarter"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("B1")), QStringLiteral("First quarter"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        saveNow();
+        QCOMPARE(savedCell(e.path, QStringLiteral("B1")), QStringLiteral("i:First quarter"));
+        QCOMPARE(savedFormula(e.path, QStringLiteral("C2")), QStringLiteral("Sales[[#This Row],[First quarter]]*2"));
+        QCOMPARE(savedFormula(e.path, QStringLiteral("E1")), QStringLiteral("SUM(Sales[First quarter])"));
+        QCOMPARE(savedFormula(e.path, QStringLiteral("E2")), QStringLiteral("Other[Q1]"));                // (another table's)
+        QCOMPARE(savedCell(e.path, QStringLiteral("E1")), QStringLiteral("n:5"));                         // (what is not worked out keeps its result)
+        const QString part = partOf(e.path, QStringLiteral("xl/tables/table1.xml"));
+        QVERIFY2(part.contains(QLatin1String("<tableColumn id=\"2\" name=\"First quarter\"/>")), qPrintable(part));
+        QVERIFY2(part.contains(QLatin1String("<calculatedColumnFormula>Sales[[#This Row],[First quarter]]*2</calculatedColumnFormula>")), qPrintable(part));
+        // the name another column has: a number after it. Undo and Redo go back and forth with the part.
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("total"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QStringLiteral("total2"));
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QStringLiteral("Region"));
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("Area"));
+        QVERIFY(e.settle());
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();                                               // (the first rename is undone too)
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("B1")), QStringLiteral("Q1"));
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("B1")), QStringLiteral("First quarter"));
+        e.select(QStringLiteral("G9"));
+        e.enter(QStringLiteral("1"));
+        QVERIFY(e.settle());
+        saveNow();
+        QVERIFY(partOf(e.path, QStringLiteral("xl/tables/table1.xml")).contains(QLatin1String("name=\"First quarter\"")));
+        // a number typed in a header is the column's name, as text
+        e.select(QStringLiteral("C1"));
+        e.enter(QStringLiteral("2025"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("s:2025"));
+        saveNow();
+        QVERIFY(partOf(e.path, QStringLiteral("xl/tables/table1.xml")).contains(QLatin1String("name=\"2025\"")));
+        // undo all the way, with a save of something else: the part is the file's own again
+        for (int i = 0; i < 4; ++i) e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("B1")), QStringLiteral("Q1"));
+        QCOMPARE(e.shownAt(QStringLiteral("C1")), QStringLiteral("Total"));
+    }
+
     // ---- what depends on a cell
 
     // What reads a cell is worked out again by the worker, and the results come back in batches; the window says it is calculating, and says Ready when they are all there. The thread

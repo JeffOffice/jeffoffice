@@ -166,6 +166,9 @@ public:
         const jp::calc::Program *program;             // null for a formula with no text, or that did not parse; held as long as the calculation is
     };
     void forEachFormula(const std::function<void(const FormulaCell &)> &f) const;
+    // Every cell that holds a formula of its own (not a cell of an array or a data table), with the formula as the file writes it: for what must look at every formula (a column of a table
+    // renamed). Called with the worker held back.
+    void forEachFormulaText(const std::function<void(int sheet, quint32 row, quint32 col, const QString &formula)> &f) const;
 
 private:
     enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3, Suspended = 4 };   // (Suspended: worked out, found to wait only for formulas on the way to it or in its own group)

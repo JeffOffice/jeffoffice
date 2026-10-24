@@ -8,6 +8,7 @@
 #include "office/package.h"
 #include "calc/dates.h"
 #include "sheet/sheetmodel.h"
+#include "sheet/tables.h"
 #include "sheet/styles.h"
 
 #include <QIODevice>
@@ -15,6 +16,7 @@
 #include <QVector>
 
 #include <functional>
+#include <map>
 
 namespace jp::office::sheet {
 
@@ -218,6 +220,15 @@ public:
     // The file has been written with the first `strings`, `numberFormats`, and `cellFormats` of what was added: the package is the new file's, and those are in it.
     void savedTo(const Package &package, int strings, int numberFormats, int cellFormats);
 
+    // ---- tables (see sheet/tables.h): read from the package when first asked for
+    const QVector<Table> &tables() const;
+    // The table whose header row holds the cell, and the place of its column in the table; -1 if the cell is no table's header.
+    int tableHeaderAt(int sheet, quint32 row, quint32 col, int *column) const;
+    // Names a column (an edit, or its undoing); the table's part is written with the names when the workbook is saved.
+    void setTableColumnName(int table, int column, const QString &name);
+    // The table parts whose names are not the file's, as they would be written, by the part's name.
+    std::map<QString, QByteArray> changedTableParts() const;
+
 private:
     Package m_package;
     QString m_mainPart, m_sharedPart, m_stylesPart;
@@ -232,6 +243,8 @@ private:
     Styles m_styles;
     QString m_stylesError;
     Limits m_limits;
+    mutable QVector<Table> m_tables;
+    mutable bool m_tablesRead = false;
 };
 
 } // namespace jp::office::sheet

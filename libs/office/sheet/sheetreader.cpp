@@ -1327,9 +1327,54 @@ quint32 Workbook::formatWithNumberFormat(quint32 base, int numFmtId)
     return quint32(m_styles.formats.size() - 1);
 }
 
+const QVector<Table> &Workbook::tables() const
+{
+    if (!m_tablesRead) {
+        m_tables = readTables(m_package, m_info);
+        m_tablesRead = true;
+    }
+    return m_tables;
+}
+
+int Workbook::tableHeaderAt(int sheet, quint32 row, quint32 col, int *column) const
+{
+    const QVector<Table> &all = tables();
+    for (int i = 0; i < all.size(); ++i) {
+        const Table &t = all[i];
+        if (t.sheet != sheet || t.headerRows < 1 || row != t.row1 || col < t.col1 || col > t.col2) continue;
+        const int place = int(col - t.col1);
+        if (place >= t.columns.size()) continue;
+        if (column) *column = place;
+        return i;
+    }
+    return -1;
+}
+
+void Workbook::setTableColumnName(int table, int column, const QString &name)
+{
+    tables();
+    if (table < 0 || table >= m_tables.size() || column < 0 || column >= m_tables[table].columns.size()) return;
+    m_tables[table].columns[column] = name;
+}
+
+std::map<QString, QByteArray> Workbook::changedTableParts() const
+{
+    std::map<QString, QByteArray> out;
+    if (!m_tablesRead) return out;
+    for (const Table &t : m_tables) {
+        if (t.columns == t.fileColumns) continue;
+        QByteArray renamed;
+        if (renameTableXml(m_package.part(t.part), t.fileColumns, t.columns, t.name, &renamed)) out[t.part] = renamed;
+    }
+    return out;
+}
+
 void Workbook::savedTo(const Package &package, int strings, int numberFormats, int cellFormats)
 {
     m_package = package;
+    // (the tables are read again from the file just written, which has the names they have now)
+    m_tablesRead = false;
+    m_tables.clear();
     m_sharedInFile += strings;
     m_formatsInFile += cellFormats;
     m_sharedAdded = m_sharedAdded.mid(strings);
