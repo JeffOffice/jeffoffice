@@ -305,6 +305,7 @@ public:
         for (const RowProps &p : changes.rows) rowFor(p.row).props = &p;
         if (changes.replaceColumns) m_columns = &changes.columns;
         if (changes.replaceMerges) m_merges = &changes.merges;
+        if (changes.setPage) m_page = &changes.page;
         for (RowEdits &r : m_rows) {
             std::stable_sort(r.items.begin(), r.items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
             // (one item for a cell: a changed cell stands over a result)
@@ -450,6 +451,7 @@ private:
         QByteArray before = m_buf.left(dataStart);
         if (dimStart >= 0 && !m_cells.empty()) before = withDimension(before, dimStart, dimEnd);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
+        if (m_page) before = patchFitToPageHead(before, *m_page);
         put(before);
         m_written = m_cur = dataStart;
         if (selfClosed) {
@@ -799,8 +801,8 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges) {
-            // (what follows the cells is held whole to change its merged ranges)
+        if (m_merges || m_page) {
+            // (what follows the cells is held whole to change its merged ranges and its page setup)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
             }
@@ -808,8 +810,14 @@ private:
             m_cur = m_written;
             const QByteArray rest = m_buf.mid(m_written);
             Tag close;
-            if (xmlscan::nextTag(rest, 0, &close) && close.closing && close.local == "sheetData") put(rest.left(close.end) + tailWithMerges(rest.mid(close.end), *m_merges, m_prefix));
-            else put(rest);
+            if (xmlscan::nextTag(rest, 0, &close) && close.closing && close.local == "sheetData") {
+                QByteArray tail = rest.mid(close.end);
+                if (m_merges) tail = tailWithMerges(tail, *m_merges, m_prefix);
+                if (m_page) tail = patchPageSetupTail(tail, *m_page, m_prefix);
+                put(rest.left(close.end) + tail);
+            } else {
+                put(rest);
+            }
             m_buf.clear();
             m_cur = m_written = 0;
             return true;
@@ -843,6 +851,7 @@ private:
     quint32 m_sharedUntil = 0;
     const std::vector<ColumnSpan> *m_columns = nullptr;
     const std::vector<CellRange> *m_merges = nullptr;
+    const PageSetup *m_page = nullptr;
 };
 
 } // namespace

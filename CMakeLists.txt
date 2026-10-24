@@ -221,6 +221,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_numfmt.cpp
   tests/sheet/tst_sheet_package.cpp
   tests/sheet/tst_sheet_pagesetup.cpp
+  tests/sheet/tst_sheet_pagesave.cpp
   tests/sheet/tst_sheet_headerfooter.cpp
   tests/sheet/tst_sheet_parser.cpp
   tests/sheet/tst_sheet_recalc.cpp
@@ -233,6 +234,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_validate.cpp
   tests/sheet/tst_sheet_workbook.cpp
   tests/sheet/tst_sheet_xls.cpp
+  tests/sheet/tst_sheet_xlsprint.cpp
   tests/sheet/tst_sheet_xlssave.cpp
   tests/sheet/tst_sheet_xlsformula.cpp
   tests/sheet/tst_sheet_xlshostile.cpp

@@ -605,12 +605,16 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
         }
     }
     // ---- the workbook part: the names follow the cells, and the other program is asked to work the formulas out again when it is to
-    if (changes.fullCalcOnLoad || moves) {
+    if (changes.fullCalcOnLoad || moves || !changes.printNames.empty()) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
             bool changed = false;
             if (moves && moveWorkbookPart(xml, ctx, &patched, &changed) && changed) xml = patched;
+            if (!changes.printNames.empty() && patchPrintNames(xml, changes.printNames, &patched) && patched != xml) {
+                xml = patched;
+                changed = true;
+            }
             if (changes.fullCalcOnLoad && setFullCalcOnLoad(xml, &patched)) {
                 xml = patched;
                 changed = true;

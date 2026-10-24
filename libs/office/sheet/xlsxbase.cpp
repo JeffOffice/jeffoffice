@@ -1,6 +1,7 @@
 // The file a workbook of the older binary form is saved as: see xlsxbase.h.
 
 #include "sheet/xlsxbase.h"
+#include "sheet/pagesetupxml.h"
 
 #include "io/zip.h"
 #include "sheet/xmlscan.h"
@@ -394,8 +395,8 @@ public:
         const SheetView &v = m_sheet.view;
         m_out += kXmlHead;
         m_out += QByteArray("<worksheet xmlns=\"") + kMainNs + "\" xmlns:r=\"" + kRelNs + "\">";
-        const QByteArray tab = colorElement("tabColor", m_sheet.tabColor);
-        if (!tab.isEmpty()) m_out += "<sheetPr>" + tab + "</sheetPr>";
+        const QByteArray tab = colorElement("tabColor", m_sheet.tabColor), fit = fitToPageXml(m_sheet.page, QByteArray());
+        if (!tab.isEmpty() || !fit.isEmpty()) m_out += "<sheetPr>" + tab + fit + "</sheetPr>";
         if (m_sheet.dimension.valid) m_out += "<dimension" + attr("ref", rangeName(m_sheet.dimension).toLatin1()) + "/>";
         // how the sheet was left on the screen
         QByteArray view = "<sheetView";
@@ -447,6 +448,7 @@ public:
             for (const CellRange &r : m_sheet.merges) merges += "<mergeCell" + attr("ref", rangeName(r).toLatin1()) + "/>";
             m_out += merges + "</mergeCells>";
         }
+        m_out += pageSetupElementsXml(m_sheet.page, QByteArray());
         m_out += "</worksheet>";
         m_out.flush();
         return !m_stopped;
