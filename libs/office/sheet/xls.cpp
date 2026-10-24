@@ -464,6 +464,30 @@ private:
 
     QString text(const char *p, int n) const { return xlsBytesToText(m_codepage, p, n); }
 
+    // The old form has 256 columns, so "MU1" or "ZR2" may be a name there; in the sheets of the new form (and so here) it is a cell. The program that opens such a workbook puts an
+    // underscore in front of a name that reads as a cell (A1 or R1C1 style) so that no formula that uses the name is changed into one that uses the cell.
+    static QString nameAsTheNewFormHasIt(const QString &name)
+    {
+        quint32 row, col;
+        bool cell = parseCellRef(name, &row, &col) && !name.contains(QLatin1Char('$'));
+        if (!cell && !name.isEmpty() && (name[0] == QLatin1Char('R') || name[0] == QLatin1Char('r'))) {
+            // R, R1, RC, R1C1: a row, a column, or both, by number
+            int i = 1;
+            while (i < name.size() && name[i].isDigit()) ++i;
+            if (i == name.size()) cell = true;
+            else if (name[i] == QLatin1Char('C') || name[i] == QLatin1Char('c')) {
+                ++i;
+                while (i < name.size() && name[i].isDigit()) ++i;
+                cell = i == name.size();
+            }
+        } else if (!cell && name.size() >= 1 && (name[0] == QLatin1Char('C') || name[0] == QLatin1Char('c'))) {
+            int i = 1;
+            while (i < name.size() && name[i].isDigit()) ++i;
+            cell = i == name.size();
+        }
+        return cell ? QLatin1Char('_') + name : name;
+    }
+
     // A string of BIFF8 (a count of one or two bytes, then a byte that says one byte or two for each character) or of BIFF5 (a count and the bytes).
     QString readString(Bytes &b, int countBytes)
     {
@@ -897,7 +921,8 @@ private:
     std::shared_ptr<const XlsBook> finish(bool hasMacros, WorkbookInfo *info, SharedStrings *shared, Styles *styles)
     {
         // the names, now that the sheets, books, and names they refer to are known
-        for (const RawName &n : std::as_const(m_rawNames)) {
+        for (RawName &n : m_rawNames) {
+            n.text = nameAsTheNewFormHasIt(n.text);
             XlsNameInfo ni;
             ni.text = n.text;
             ni.localSheet = n.localSheet;

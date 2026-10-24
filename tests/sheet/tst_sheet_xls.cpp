@@ -341,6 +341,25 @@ private Q_SLOTS:
         QVERIFY(!names[0].hidden);
         QCOMPARE(names[4].ref, QStringLiteral("'Sheet 2'!$F$6"));
         QCOMPARE(names[5].ref, QStringLiteral("'Sheet1:Sheet 2'!$A$1:$B$2"));
+        // The old form has 256 columns: a name there may read as a cell in the new form (MU1 is a cell in column MU), and then it has an underscore in front of it, in the list of names
+        // and in the formulas that use it, so that a formula that is shared by cells in a column does not move it as it moves a reference.
+        Book d;
+        d.after(name(QStringLiteral("MU1"), tRef(3, 7, false, false)) + name(QStringLiteral("R1C1"), tInt(1)) + name(QStringLiteral("Rate"), tInt(2)) + name(QStringLiteral("C"), tInt(3))
+                + name(QStringLiteral("Row"), tInt(4)) + name(QStringLiteral("A1"), tInt(5)));
+        d.sheet(QStringLiteral("S"), number(0, 0, 1) + formulaExp(0, 1, 0, 1, 0) + shrfmla(0, 1, 1, 1, tName(1) + tRefN(0, -1) + tOp(0x05)) + formulaExp(1, 1, 0, 1, 0));
+        Workbook wd;
+        QVERIFY2(openBook(d, &wd, &why), qPrintable(why));
+        QCOMPARE(wd.info().definedNames.size(), 6);
+        QCOMPARE(wd.info().definedNames[0].name, QStringLiteral("_MU1"));
+        QCOMPARE(wd.info().definedNames[1].name, QStringLiteral("_R1C1"));
+        QCOMPARE(wd.info().definedNames[2].name, QStringLiteral("Rate"));
+        QCOMPARE(wd.info().definedNames[3].name, QStringLiteral("_C"));
+        QCOMPARE(wd.info().definedNames[4].name, QStringLiteral("Row"));
+        QCOMPARE(wd.info().definedNames[5].name, QStringLiteral("_A1"));
+        Sheet sd;
+        QVERIFY(wd.readSheet(0, &sd));
+        QCOMPARE(sd.formulaText(*sheettest::at(sd, QStringLiteral("B1"))), QStringLiteral("_MU1*A1"));
+        QCOMPARE(sd.formulaText(*sheettest::at(sd, QStringLiteral("B2"))), QStringLiteral("_MU1*A2"));   // (the name stays where it is: not MU2)
         // A name a formula uses is written as the name; one that belongs to another sheet with that sheet in front of it.
         Book c;
         c.after(name(QStringLiteral("Mine"), tRef(0, 0, false, false)) + name(QStringLiteral("Theirs"), tRef(1, 1, false, false), 2));

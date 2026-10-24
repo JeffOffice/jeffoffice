@@ -114,7 +114,7 @@ QString normalizeFormula(const QString &f)
             continue;
         }
         if (sheetQuoted) {
-            out += c;
+            out += c.toUpper();   // (the name of a sheet is of no case)
             if (c == QLatin1Char('\'')) {
                 if (i + 1 < f.size() && f[i + 1] == QLatin1Char('\'')) out += f[++i];
                 else sheetQuoted = false;
