@@ -1,4 +1,5 @@
 #include "sheet/sheetreader.h"
+#include "sheet/builtinstyles.h"
 
 #include "calc/numfmt.h"
 #include "sheet/rowskip.h"
@@ -1810,7 +1811,7 @@ quint64 hashOf(const CellFormat &f)
     return h;
 }
 
-constexpr qint64 kMaxFontsMade = 100000, kMaxFillsMade = 100000, kMaxBordersMade = 100000;
+constexpr qint64 kMaxFontsMade = 100000, kMaxFillsMade = 100000, kMaxBordersMade = 100000, kMaxStylesMade = 100000;
 
 } // namespace
 
@@ -1941,6 +1942,36 @@ quint32 Workbook::formatWith(quint32 base, const FormatChange &c)
     if (c.formulaHidden) f.formulaHidden = *c.formulaHidden;
     if (f == m_styles.formats[int(base)]) return base;
     return findOrAddFormat(base, f);
+}
+
+qint32 Workbook::styleNamed(const QString &name)
+{
+    for (const CellStyleName &n : m_styles.cellStyles)
+        if (n.name.compare(name, Qt::CaseInsensitive) == 0) return n.xfId < quint32(m_styles.styleXfs.size()) ? qint32(n.xfId) : -1;
+    // (a built-in style the workbook does not have is made, if the file can be given one: it has the lists the styles go in, and room)
+    BuiltinStyle def;
+    if (!builtinStyle(name, &def) || m_styles.styleXfs.isEmpty() || m_styles.cellStyles.isEmpty() || m_styles.styleXfs.size() >= kMaxStylesMade) return -1;
+    FontSpec font = m_styles.font(0);
+    if (!def.fontName.isEmpty()) font.name = def.fontName;
+    if (!def.scheme.isEmpty()) font.scheme = def.scheme;
+    if (def.size > 0) font.size = def.size;
+    if (def.bold) font.bold = true;
+    if (def.italic) font.italic = true;
+    if (def.underline != Underline::None) font.underline = def.underline;
+    if (def.fontColor.isSet()) font.color = def.fontColor;
+    CellFormat f;
+    f.numFmtId = def.numFmtId;
+    f.font = fontPlace(font);
+    f.fill = fillPlace(def.fill);
+    f.border = borderPlace(def.border);
+    m_styles.styleXfs.append(f);
+    CellStyleName n;
+    n.name = def.name;
+    n.builtin = def.builtinId;
+    n.xfId = quint32(m_styles.styleXfs.size() - 1);
+    m_styles.cellStyles.append(n);
+    m_stylesAdded.append({f, n});
+    return qint32(n.xfId);
 }
 
 const QVector<Table> &Workbook::tables() const
