@@ -182,6 +182,39 @@ public:
             }
         }
     }
+    // Moves cells about, for rows and columns inserted and deleted and cells shifted: every cell for which `affected(cell)` is true (those of the blocks from the one of row
+    // `firstRow` on are looked at, and no others) is taken out; `map(cell)` changes the cell to what it is after (its place), and gives false for one that is gone (it is given to
+    // `removed`, as it was); `moved(before, after)` is told of each that stays; they are put in again, and the blocks are put in order. The cost is that of the cells taken out.
+    template <class Affected, class Map, class Moved>
+    void reshuffle(quint32 firstRow, Affected affected, Map map, Moved moved, std::vector<Cell> *removed)
+    {
+        std::vector<Cell> moving;
+        for (auto it = m_blocks.lower_bound(firstRow / kBlockRows); it != m_blocks.end();) {
+            std::vector<Cell> &cells = it->second.cells;
+            size_t keep = 0;
+            for (size_t i = 0; i < cells.size(); ++i) {
+                if (affected(cells[i])) moving.push_back(cells[i]);
+                else cells[keep++] = cells[i];
+            }
+            cells.resize(keep);
+            if (cells.empty()) it = m_blocks.erase(it);
+            else ++it;
+        }
+        m_last = nullptr;
+        m_count -= qint64(moving.size());
+        for (const Cell &before : moving) {
+            Cell after = before;
+            if (!map(&after)) {
+                if (removed) removed->push_back(before);
+                continue;
+            }
+            moved(before, after);
+            add(after);
+        }
+        reorder();
+    }
+    // Puts the blocks that were added to out of order in order (the cells that were put in again by reshuffle).
+    void reorder();
     int blockCount() const { return int(m_blocks.size()); }
     // What the cells take, in bytes, as the blocks hold them.
     qint64 memoryBytes() const;

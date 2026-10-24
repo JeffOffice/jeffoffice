@@ -216,6 +216,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_refshift.cpp
   tests/sheet/tst_sheet_rowskip.cpp
   tests/sheet/tst_sheet_save.cpp
+  tests/sheet/tst_sheet_structure.cpp
   tests/sheet/tst_sheet_tables.cpp
   tests/sheet/tst_sheet_workbook.cpp)
 target_link_libraries(sheettests PRIVATE jo_shell Qt6::Test)

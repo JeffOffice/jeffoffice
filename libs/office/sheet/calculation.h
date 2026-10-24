@@ -15,6 +15,7 @@
 #include "calc/graph.h"
 #include "calc/refs.h"
 #include "sheet/recalc.h"
+#include "sheet/refshift.h"
 
 #include <QHash>
 
@@ -132,6 +133,46 @@ public:
     CellContent content(int sheet, quint32 row, quint32 col) const;
     // Puts the content in the cell (the cell taken away if it does not exist): its constant or formula, then its format. False if the cell cannot be changed, or the formula is no formula.
     bool put(int sheet, quint32 row, quint32 col, const CellContent &content, Marking marking = Marking::Now);
+    // ---- structure: rows, columns, and cells inserted and deleted (see sheet/refshift.h). The cells move, every formula of every sheet that reads cells that moved is written again with
+    // its references following them (and the defined names too), a reference to deleted cells is #REF!, and what must be worked out again is marked. Not for a Move (a cut and paste,
+    // which is done cell by cell).
+    struct EditRecord {
+        StructEdit edit;
+        int sheet = -1;
+        // cells deleted, as they were, at the places they were
+        struct GoneCell {
+            int sheet;
+            quint32 row, col;
+            CellContent content;
+        };
+        std::vector<GoneCell> gone;
+        // formula cells whose text changed: where each was before the edit, and what it read
+        struct FormulaWas {
+            int sheet;
+            quint32 row, col;
+            QString text;
+            bool hasStored;
+            jp::calc::Value stored;
+        };
+        std::vector<FormulaWas> was;
+        // the sheet's other structures, as they were
+        QVector<CellRange> ranges, merges;
+        qint64 mergeCount = 0;
+        QVector<ColumnSpan> columns;
+        QVector<RowSpec> rowSpecs;
+        quint32 extentRows = 0, extentCols = 0, rowsSeen = 0, colsSeen = 0;
+        // defined names whose text changed, with the text they had (by the key the source keeps them by)
+        std::vector<std::pair<QString, QString>> names;
+        qint64 cellsMoved = 0, formulasRewritten = 0;
+    };
+    // Whether the edit can be made; if not, why, in a sentence for the person (it would cut through an array formula or a data table, push cells off the sheet, or the sheet is protected).
+    bool canApply(const StructEdit &edit, QString *why) const;
+    // Makes the edit and says what is needed to undo it. False, with nothing changed, if it can't be made. `moved` is the number of cells shifted and `rewritten` the formulas written again
+    // (in the record).
+    bool applyEdit(const StructEdit &edit, EditRecord *record);
+    // Puts back what the edit changed (the record is the last applyEdit's).
+    bool undoEdit(const EditRecord &record);
+
     // Puts right, at once, what a stop of the recalculation left to be put right (an edit does this first; a caller that is about to read the formulas' state does too).
     void settle() { abandonNow(); }
 
@@ -202,6 +243,8 @@ private:
     Compiled &compiled(int sheet, qint32 text, bool array);
     void classify(quint32 id, const Cell &cell, const Formula &f);
     quint32 addNode(int sheet, const Cell &cell, qint32 formulaIndex);
+    // The text of an array formula's or a data table's first cell changed in place (its range's cells point to its formula); false if the cell is none.
+    bool rewriteArrayText(int sheet, quint32 row, quint32 col, const QString &text);
     void registerNode(quint32 id, const std::vector<jp::calc::CellArea> *told);
     jp::calc::Value nodeValue(const Node &n, quint32 id) const;
     void storeResult(Node &n, quint32 id, const jp::calc::Value &v, bool publish = true);

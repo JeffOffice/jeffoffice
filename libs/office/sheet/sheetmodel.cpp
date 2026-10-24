@@ -66,6 +66,17 @@ void CellStore::finish()
     m_last = nullptr;
 }
 
+void CellStore::reorder()
+{
+    for (auto &entry : m_blocks) {
+        Block &block = entry.second;
+        if (block.ordered) continue;
+        std::stable_sort(block.cells.begin(), block.cells.end(), before);
+        block.ordered = true;
+    }
+    m_last = nullptr;
+}
+
 const Cell *CellStore::find(quint32 row, quint32 col) const
 {
     const auto block = m_blocks.find(row / kBlockRows);
