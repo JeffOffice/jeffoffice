@@ -15,8 +15,6 @@ namespace jp::office::sheet {
 
 namespace {
 
-QString translate(const char *text) { return QCoreApplication::translate("Sheet", text); }
-
 // A number written as a formula does: the fewest digits (15 to 17) that read back as the same number.
 QString numberText(double v)
 {
@@ -198,7 +196,7 @@ struct XlsFormulaTree::Impl {
     {
         XlsFormulaResult res;
         if (!why.isEmpty() || root < 0) {
-            res.why = why.isEmpty() ? translate("A formula's tokens do not make one value.") : why;
+            res.why = why.isEmpty() ? QCoreApplication::translate("Sheet", "A formula's tokens do not make one value.") : why;
             return res;
         }
         quint32 base[2] = {baseRow, baseCol};
@@ -257,7 +255,7 @@ struct XlsFormulaTree::Impl {
                 }
             }
             if (out.size() > maxChars) {
-                res.why = translate("A formula has a token this program does not read.");
+                res.why = QCoreApplication::translate("Sheet", "A formula has a token this program does not read.");
                 res.outside = false;
                 return res;
             }
@@ -275,7 +273,7 @@ XlsFormulaResult XlsFormulaTree::render(quint32 baseRow, quint32 baseCol) const
 {
     if (!d) {
         XlsFormulaResult r;
-        r.why = translate("A formula's tokens do not make one value.");
+        r.why = QCoreApplication::translate("Sheet", "A formula's tokens do not make one value.");
         return r;
     }
     return d->render(baseRow, baseCol);
@@ -302,7 +300,7 @@ public:
         impl->baseCol = m_opt.baseCol;
         const QString why = walk();
         if (!why.isEmpty()) impl->why = why;
-        else if (m_stack.size() != 1) impl->why = translate("A formula's tokens do not make one value.");
+        else if (m_stack.size() != 1) impl->why = QCoreApplication::translate("Sheet", "A formula's tokens do not make one value.");
         else impl->root = m_stack.last();
         impl->nodes = std::move(m_nodes);
         impl->kids = std::move(m_kids);
@@ -321,7 +319,7 @@ private:
     qint64 m_chars = 0;
     QVector<int> m_ordinals5;   // BIFF5: for each record of the list of external sheets, the number of the other book it names (0 for this workbook's own)
 
-    QString bad() const { return translate("A formula has a token this program does not read."); }
+    QString bad() const { return QCoreApplication::translate("Sheet", "A formula has a token this program does not read."); }
 
     // A node made, with the characters it will write counted against the bound; -1 when past it.
     qint32 make(Node n, qint64 chars)
@@ -542,7 +540,7 @@ private:
             if (ptg < 0x20) {
                 switch (ptg) {
                 case 0x01:
-                case 0x02: return translate("A formula is one that other cells share, and is read where they are.");
+                case 0x02: return QCoreApplication::translate("Sheet", "A formula is one that other cells share, and is read where they are.");
                 case 0x15: {
                     qint32 a;
                     Node n;
@@ -897,7 +895,7 @@ XlsFormulaResult xlsFormulaText(const XlsContext &context, const QByteArray &rgc
     const XlsFormulaTree tree = xlsParseFormula(context, rgce, extra, options);
     if (!tree.ok()) {
         XlsFormulaResult r;
-        r.why = tree.why().isEmpty() ? translate("A formula's tokens do not make one value.") : tree.why();
+        r.why = tree.why().isEmpty() ? QCoreApplication::translate("Sheet", "A formula's tokens do not make one value.") : tree.why();
         return r;
     }
     return tree.render(options.baseRow, options.baseCol);
