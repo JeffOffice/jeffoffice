@@ -445,6 +445,13 @@ private Q_SLOTS:
         QVERIFY(tall.reads(0, 1234, 2));
         QVERIFY(!tall.reads(0, 1234, 9));
         QVERIFY2(tall.probes() <= 8, qPrintable(QString::number(tall.probes())));
+        // a cell inside the hull that no block holds (the rows' blocks alternate between two groups of columns): it is found not read without going back over every block above it
+        QVector<ChartBlock> apart;
+        for (quint32 r = 0; r < 2000; ++r) apart.push_back(ChartBlock{0, CellRange{r, r % 2 ? 10u : 0u, r, r % 2 ? 13u : 3u, true}});
+        const ChartReadIndex spread(apart);
+        QVERIFY(!spread.reads(0, 1234, 5));
+        QVERIFY(spread.reads(0, 1234, 2) && spread.reads(0, 1235, 12));
+        QVERIFY2(spread.probes() <= 12, qPrintable(QString::number(spread.probes())));
         // a chart of many series that each read hundreds of areas: its reads are cut at the limit, and the index still covers what was cut
         FakeCells f = FakeCells::regional();
         QStringList areas;
