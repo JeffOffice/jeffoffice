@@ -41,6 +41,16 @@ QByteArray buildXlsx(const QVector<QByteArray> &sheets, const QByteArray &shared
                      const QList<int> &hidden = QList<int>());
 // The workbook with tables added to its first sheet: each entry is the XML of a table part (numbered from 1), with the relationship and the content type a table has.
 QByteArray withTables(const QByteArray &xlsx, const QStringList &tableXml);
+// A part added to a workbook: its name in the package (no leading slash), its bytes and content type, and, if it is related to a sheet (the first is 0), the relationship's id and type
+// (the end of its URI: "drawing", "comments", "vmlDrawing") and its target as the sheet's part names it ("../drawings/drawing1.xml").
+struct ExtraPart {
+    QString name;
+    QByteArray data;
+    QString contentType;
+    int sheet = -1;
+    QString relId, relType, relTarget;
+};
+QByteArray withParts(const QByteArray &xlsx, const QVector<ExtraPart> &parts);
 // A styles part: the inside of numFmts (the numFmt elements), then the inside of cellXfs (the xf elements), and the rest of the stylesheet after them.
 QByteArray stylesXml(const QString &numFmts, const QString &cellXfs, const QString &after = QString());
 

@@ -94,6 +94,34 @@ QString show(const Sheet &sheet, const SharedStrings &shared, const QString &ref
     return {};
 }
 
+QByteArray withParts(const QByteArray &xlsx, const QVector<ExtraPart> &add)
+{
+    QMap<QString, QByteArray> parts;
+    jp::readZip(xlsx, parts);
+    QMap<int, QString> rels;
+    QString overrides;
+    for (const ExtraPart &p : add) {
+        parts[p.name] = p.data;
+        if (!p.contentType.isEmpty()) overrides += QStringLiteral("<Override PartName=\"/%1\" ContentType=\"%2\"/>").arg(p.name, p.contentType);
+        if (p.sheet >= 0)
+            rels[p.sheet] += QStringLiteral("<Relationship Id=\"%1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/%2\" Target=\"%3\"/>").arg(p.relId, p.relType, p.relTarget);
+    }
+    for (auto it = rels.begin(); it != rels.end(); ++it) {
+        const QString name = QStringLiteral("xl/worksheets/_rels/sheet%1.xml.rels").arg(it.key() + 1);
+        QByteArray existing = parts.value(name);
+        const QString inside = it.value();
+        if (existing.isEmpty()) existing = ("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" + inside + "</Relationships>").toUtf8();
+        else existing.replace("</Relationships>", (inside + "</Relationships>").toUtf8());
+        parts[name] = existing;
+    }
+    QByteArray types = parts.value(QStringLiteral("[Content_Types].xml"));
+    types.replace("</Types>", overrides.toUtf8() + "</Types>");
+    parts[QStringLiteral("[Content_Types].xml")] = types;
+    jp::ZipWriter z;
+    for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+    return z.finish();
+}
+
 } // namespace sheettest
 
 namespace sheettest {

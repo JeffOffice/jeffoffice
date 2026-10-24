@@ -44,6 +44,8 @@ public:
     QString definedName(int sheet, const QString &name) const override;
     bool isSubtotal(int sheet, quint32 row, quint32 col) const override;
 
+    // The defined names by "<sheet>|<NAME>" (the sheet counted from 0, or -1), and what each stands for (for the yardstick of saving).
+    const QHash<QString, QString> &definedNameTexts() const { return m_names; }
     const Sheet &sheet(int i) const { return m_sheets[size_t(i)]; }
     const SharedStrings &shared() const { return m_book.sharedStrings(); }
     jp::calc::Value valueOf(const Sheet &sheet, const Cell &cell) const;

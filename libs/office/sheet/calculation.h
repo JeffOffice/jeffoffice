@@ -15,12 +15,16 @@
 #include "calc/graph.h"
 #include "calc/refs.h"
 #include "sheet/recalc.h"
+#include "sheet/refshift.h"
 
 #include <QHash>
 
 #include <atomic>
 #include <memory>
+#include <unordered_set>
 #include <vector>
+
+class QThread;
 
 namespace jp::office::sheet {
 
@@ -29,6 +33,8 @@ namespace jp::office::sheet {
 constexpr qint64 kMaxRecalcWork = 1000000000;
 // A cell of an array that a formula builds takes the time of a few steps (the cells alive at once, at the peak of an evaluation, are counted this many steps each, besides the steps).
 constexpr qint64 kArrayCellSteps = 5;
+// An array formula's range larger than this is not made members of (no real one is).
+constexpr qint64 kMaxArrayCellsMarked = 1000000;
 constexpr qint64 kMaxHeldBytes = qint64(512) << 20;
 
 struct CalcOptions {
@@ -124,6 +130,9 @@ public:
         // that an edit undone does not turn the result into #NAME?.
         bool hasStored = false;
         jp::calc::Value stored;
+        // The first cell of an array formula: the cells it covers (valid), else not valid. A data table's first cell is marked with `dataTable`.
+        CellRange arrayRange;
+        bool dataTable = false;
         bool operator==(const CellContent &o) const
         {
             return exists == o.exists && isFormula == o.isFormula && formula == o.formula && value == o.value && sharedString == o.sharedString && style == o.style;
@@ -132,11 +141,152 @@ public:
     CellContent content(int sheet, quint32 row, quint32 col) const;
     // Puts the content in the cell (the cell taken away if it does not exist): its constant or formula, then its format. False if the cell cannot be changed, or the formula is no formula.
     bool put(int sheet, quint32 row, quint32 col, const CellContent &content, Marking marking = Marking::Now);
+    // ---- structure: rows, columns, and cells inserted and deleted (see sheet/refshift.h). The cells move, every formula of every sheet that reads cells that moved is written again with
+    // its references following them (and the defined names too), a reference to deleted cells is #REF!, and what must be worked out again is marked. Not for a Move (a cut and paste,
+    // which is done cell by cell).
+    struct EditRecord {
+        StructEdit edit;
+        int sheet = -1;
+        // cells deleted, as they were, at the places they were
+        struct GoneCell {
+            int sheet;
+            quint32 row, col;
+            CellContent content;
+            quint32 kind = 0;   // the cell's own flags that make it an array formula or a data table (put back as one, not as a formula)
+            qint32 range = -1;  // and the index of its range in the sheet's list
+        };
+        std::vector<GoneCell> gone;
+        // formula cells whose text changed: where each was before the edit, and what it read
+        struct FormulaWas {
+            int sheet;
+            quint32 row, col;
+            QString text;
+            bool hasStored;
+            jp::calc::Value stored;
+        };
+        std::vector<FormulaWas> was;
+        // formulas of a shared family that were written again alike (one text for all of them, kept shared): the text they had (for the first cell the family was written for), and where
+        // each was before the edit
+        struct RewrittenGroup {
+            int sheet;
+            QString oldText;
+            std::vector<std::pair<quint32, quint32>> cells;
+        };
+        std::vector<RewrittenGroup> groups;
+        // the sheet's other structures, as they were
+        QVector<CellRange> ranges, merges;
+        qint64 mergeCount = 0;
+        QVector<ColumnSpan> columns;
+        QVector<RowSpec> rowSpecs;
+        quint32 extentRows = 0, extentCols = 0, rowsSeen = 0, colsSeen = 0;
+        // defined names whose text changed, with the text they had (by the key the source keeps them by)
+        std::vector<std::pair<QString, QString>> names;
+        qint64 cellsMoved = 0, formulasRewritten = 0;
+        // the rules of validation of the sheets they changed in, as they were
+        std::vector<std::pair<int, QVector<Validation>>> validations;
+        // a Move: the merged ranges of the sheet it went to, as they were (the first sheet's are in `merges`)
+        QVector<CellRange> toMerges;
+        qint64 toMergeCount = 0;
+        // where the formulas that were written again are now (after the edit), for what saving must write whole
+        struct Place {
+            int sheet;
+            quint32 row, col;
+            bool dataTable;   // the first cell of a data table (the file's own formula is moved with it)
+        };
+        std::vector<Place> rewritten;
+        // the formulas among the cells that moved, from where to where (the values the window holds for them follow); for a Move on to the sheet `toSheet`
+        struct MovedFormula {
+            quint32 fromRow, fromCol, toRow, toCol;
+        };
+        std::vector<MovedFormula> movedFormulas;
+        // a Move that carries whole arrays: the arrays it took apart (the place each had in the sheet's list of ranges, and the range), and the arrays it made where they went (and whether
+        // the place in the list was added, not one a taken array left free)
+        struct ArraySlot {
+            int sheet;
+            qint32 slot;
+            CellRange range;
+            bool added = false;
+        };
+        std::vector<ArraySlot> arraysTaken, arraysMade;
+    };
+    // Whether the edit can be made; if not, why, in a sentence for the person (it would cut through an array formula or a data table, push cells off the sheet, or the sheet is protected).
+    bool canApply(const StructEdit &edit, QString *why) const;
+    // About how many bytes the record that undoes the edit would hold (the cells it deletes or writes over, whole, and the formulas it writes again), worked out without doing it: it
+    // stops counting past `stopAt`, and says that much.
+    qint64 estimateUndoBytes(const StructEdit &edit, qint64 stopAt) const;
+    // Makes the edit and says what is needed to undo it. False, with nothing changed, if it can't be made. `moved` is the number of cells shifted and `rewritten` the formulas written again
+    // (in the record).
+    bool applyEdit(const StructEdit &edit, EditRecord *record);
+    // Puts back what the edit changed (the record is the last applyEdit's).
+    bool undoEdit(const EditRecord &record, EditRecord *done = nullptr);   // `done`, if given, is told what undoing moved and removed (as applyEdit's record is)
+
+    // ---- the widths of columns and the heights of rows (the sheet's own, which the file gives and a person changes). Called with the worker held back.
+    // The runs of columns [first, last] has widths or hidden or formats for, cut to that range, in order; the rows in it that are not as the default, in order.
+    std::vector<ColumnSpan> columnRuns(int sheet, quint32 first, quint32 last) const;
+    std::vector<RowSpec> rowSpecsIn(int sheet, quint32 first, quint32 last) const;
+    // The merged ranges of a sheet (and how many it has, which may be more than are kept), and putting them back.
+    QVector<CellRange> mergesOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].merges : QVector<CellRange>(); }
+    qint64 mergeCountOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].mergeCount : 0; }
+    void setMerges(int sheet, const QVector<CellRange> &merges, qint64 count)
+    {
+        if (sheet < 0 || sheet >= int(m_sheets.size())) return;
+        m_sheets[size_t(sheet)].merges = merges;
+        m_sheets[size_t(sheet)].mergeCount = count;
+    }
+    // Puts these in their place (what the range had is let go of first): for making a change and for undoing it.
+    void setColumnRuns(int sheet, quint32 first, quint32 last, const std::vector<ColumnSpan> &runs);
+    void setRowSpecs(int sheet, quint32 first, quint32 last, const std::vector<RowSpec> &specs);
+
+    // ---- the rules of validation (see sheet/sheetmodel.h): the rule for a cell (the first that names it), whether an entry is allowed by it (`typed` is the text as typed; the rule's
+    // formulas are worked out with the entry in the cell), and the choices a list offers.
+    // (Window thread only: the index it finds the rule with is made when first asked and held without a lock; a debug build checks that one thread asks.)
+    const Validation *validationAt(int sheet, quint32 row, quint32 col) const;
+    bool entryAllowed(int sheet, quint32 row, quint32 col, const Validation &rule, const jp::calc::Value &entry, const QString &typed) const;
+    QStringList listChoices(int sheet, quint32 row, quint32 col, const Validation &rule) const;
+    // How many times an entry was worked out against a rule of validation (for tests: what is not typed is not held to a rule).
+    // Many cells changed one after another (Undo of a step, a paste, a cut): what is waiting to be worked out is put right once, before the first, not at each.
+    class BulkEdit {
+    public:
+        explicit BulkEdit(Calculation *c) : m_c(c)
+        {
+            m_c->abandonNow();
+            ++m_c->m_bulk;
+        }
+        ~BulkEdit() { --m_c->m_bulk; }
+        BulkEdit(const BulkEdit &) = delete;
+        BulkEdit &operator=(const BulkEdit &) = delete;
+
+    private:
+        Calculation *m_c;
+    };
+    // For tests: how many entries of the lists of what waits were put right (it grows with the edits, not with the edits and what waits).
+    qint64 abandonWork() const { return m_abandonWork; }
+    qint64 ruleEvaluations() const { return m_ruleEvaluations; }
+    // For tests: the texts and formulas of a sheet that are in use, and the programs worked out for them (what edits made and let go of must not grow what is held).
+    qint64 formulaTextsInUse(int sheet) const;
+    qint64 formulaEntriesInUse(int sheet) const;
+    qint64 programsHeld(int sheet) const;
+    qint64 threeDFormulasHeld() const { return qint64(m_threeD.size()); }   // (the formulas over a block of several sheets that are kept apart: it is those that there are)
+    // And how many ranges were looked at to find the rules of cells (for tests: it does not grow with the number of rules).
+    qint64 ruleLookupWork() const { return m_ruleLookupWork; }
+
+    // A column of a table renamed: the defined names that name it follow. Gives the texts the names had (by the key the calculation keeps them by), for putting back with restoreNames.
+    std::vector<std::pair<QString, QString>> renameColumnInNames(const QString &table, const QString &oldName, const QString &newName);
+    void restoreNames(const std::vector<std::pair<QString, QString>> &names);
+
+    // (applyEdit does a Move as well: the cells of a block put in another place, over what is there, and what refers to them follows; Undo gives back both places.)
+
     // Puts right, at once, what a stop of the recalculation left to be put right (an edit does this first; a caller that is about to read the formulas' state does too).
     void settle() { abandonNow(); }
 
     // About the formulas.
     qint64 formulaCount() const { return m_formulaCount; }
+    // The things edits of rows, columns, and cells have looked at (the formulas the graph named and those told where they read, the cells moved, the formulas written again): a test
+    // counts it to see that an edit costs what moves and what refers to it, not the sheet.
+    qint64 editWork() const { return m_editWork; }
+    // For tests: whether an edit of rows is told to the graph at once (what every formula reads is moved where the cells are, and the formulas whose text is only moved are not told again), or
+    // each formula that was written again tells it what it reads.
+    static void setGraphShifts(bool on);
     // Formulas the engine cannot work out and keeps apart (they keep the result the file stored); it walks the formulas, so it is for the times it is needed (a save).
     qint64 keptCount() const;
     qint64 untrackedCount() const { return m_untracked; }      // formulas the graph was too full to hold
@@ -172,7 +322,7 @@ public:
 
 private:
     enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3, Suspended = 4 };   // (Suspended: worked out, found to wait only for formulas on the way to it or in its own group)
-    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048, Worked = 4096 };
+    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048, Worked = 4096, ThreeD = 8192 };
     enum : quint8 { KindEmpty = 0, KindNumber, KindText, KindBool, KindError, KindArray };
     struct Node {
         double number = 0;
@@ -194,14 +344,48 @@ private:
         bool usesNames = false, dynamic = false, reaches = false, changesByItself = false, iterative = false;
         std::vector<qint32> bound;
     };
+    static constexpr qint32 kFreeFormula = -2;   // the text of a formula's place that is free to be used again
     struct SheetState {
         std::vector<quint32> nodeOf;          // by the formula's place in Sheet::formulas
         std::vector<Compiled> plain, array;   // by the formula's text
+        // The texts and formulas that edits make are kept once and let go of when nothing has them: how many formulas have each text (made when an edit first needs it: textsCounted),
+        // the texts the edits made by their characters, and the places of the texts and formulas that are free to be used again.
+        std::vector<quint32> textRefs;
+        bool textsCounted = false;
+        QHash<QString, qint32> internOf;
+        std::vector<qint32> freeTexts, freeFormulas;
     };
 
     Compiled &compiled(int sheet, qint32 text, bool array);
+    // Texts and formulas, shared and let go of (see SheetState): the place of a text (a new one, or the one an edit made before with the same characters; it counts one more formula
+    // for it), a formula's place made with a text it keeps a hold of, a text that one formula less has, and a formula that is not any cell's now.
+    void countTexts(int sheet);
+    qint32 internText(int sheet, const QString &text);
+    void holdText(int sheet, qint32 text);
+    void forgetTextFacts(int sheet, qint32 text);
+    void releaseText(int sheet, qint32 text);
+    qint32 allocFormula(int sheet, const Formula &f);
+    void releaseFormula(int sheet, qint32 formula);
+    // The text of the formula of this cell is now `text` for the cell itself (in place: the formula keeps its place, and a shared formula's cell is its own text from now).
+    void retext(int sheet, Cell *cell, const QString &text);
     void classify(quint32 id, const Cell &cell, const Formula &f);
     quint32 addNode(int sheet, const Cell &cell, qint32 formulaIndex);
+    // The text of an array formula's or a data table's first cell changed in place (its range's cells point to its formula); false if the cell is none.
+    bool rewriteArrayText(int sheet, quint32 row, quint32 col, const QString &text);
+    // An array formula's cells made ordinary ones (the range at `slot` of the sheet's list is no longer valid), to be cleared or written over; made an array again at a place: the formula cell
+    // there becomes its first cell over `range`, in the place `slot` of the list if it is free (else a new one, whose number is given back), with the others its members.
+    void dissolveArray(int sheet, qint32 slot);
+    qint32 makeArray(int sheet, quint32 row, quint32 col, const CellRange &range, qint32 slot, bool *added);
+    void markArrayMembers(int sheet, quint32 row, quint32 col);
+    void nameTextsChanged();
+    void adjustValidations(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
+    // A cell that is deleted or written over, as it is, for Undo to put back (an array formula or a data table is put back as one: see putBackKinds).
+    EditRecord::GoneCell goneCell(int sheet, const Cell &c) const;
+    void putBackKinds(const EditRecord &record);
+    jp::calc::Value ruleFormula(const Validation &rule, const QString &text, int sheet, quint32 row, quint32 col, const jp::calc::CellSource &source, bool asArray) const;
+    bool canMoveCells(const StructEdit &edit, QString *why) const;
+    bool applyMove(const StructEdit &edit, EditRecord *record);
+    bool undoMove(const EditRecord &record, EditRecord *done);
     void registerNode(quint32 id, const std::vector<jp::calc::CellArea> *told);
     jp::calc::Value nodeValue(const Node &n, quint32 id) const;
     void storeResult(Node &n, quint32 id, const jp::calc::Value &v, bool publish = true);
@@ -226,6 +410,8 @@ private:
     // it at once, for an edit.
     void abandon();
     void abandonNow();
+    int m_bulk = 0;   // (more than 0: many edits are being made one after another, and what is waiting was put right before the first)
+    qint64 m_abandonWork = 0;
     void dropNode(quint32 id);
     void useExtent(int sheet, quint32 row, quint32 col);
     jp::calc::Value runFormula(quint32 id, qint64 *work);
@@ -237,16 +423,25 @@ private:
     std::function<void()> m_visitHook;
     const std::atomic<bool> *m_cancel = nullptr;
     ResultSink m_sink;
+    struct RuleIndex;
+    mutable std::vector<std::shared_ptr<RuleIndex>> m_ruleIndex;   // by sheet: where the rules of validation are (made when first asked, and again after the rules change); the window's thread only
+    mutable QThread *m_ruleThread = nullptr;                       // the thread that asked (a debug build checks that it is the only one)
+    void forgetRuleIndex() { m_ruleIndex.clear(); m_ruleThread = nullptr; }
+    mutable qint64 m_ruleEvaluations = 0, m_ruleLookupWork = 0;
     std::unique_ptr<jp::calc::DependencyGraph> m_graph;
     jp::calc::Evaluator m_evaluator;
     jp::calc::EvalContext m_ctx;
     std::vector<Node> m_nodes;
     std::vector<SheetState> m_state;
     std::vector<quint32> m_freeNodes;
+    qint64 m_editWork = 0;
+    std::vector<quint32> m_special;   // formulas that are told where they read (names, INDIRECT, ...) or kept apart: an edit that moves cells looks at these as well as at what the graph names (may hold gone and repeated ones)
+    void specialNodes(std::vector<quint32> *out);
     QVector<QString> m_texts;
     std::vector<qint32> m_freeTexts;
     QHash<quint32, jp::calc::Value> m_arrays;
     jp::calc::NameTraitsCache m_nameTraits;   // what each defined name calls (by its scope and name)
+    std::unordered_set<quint32> m_threeD;     // formulas that read a block of several sheets (a node on it has ThreeD); one leaves it when its formula goes or reads no more than one sheet
     std::vector<quint32> m_always;            // formulas worked out in every recalculation, each once (a node on it has AlwaysListed); those that are not, or are gone, are left out at the next
     void listAlways(quint32 id);
     std::vector<quint32> m_dirty;             // formulas to start from, and where in it the recalculation is

@@ -143,16 +143,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         const QSignalBlocker block(m_zoomSlider);
         m_zoomSlider->setValue(int(std::lround(std::log(z) / std::log(1.05))));
     });
-    connect(m_view, &grid::GridView::contextMenuRequested, this, [this](const QPoint &globalPos) {
-        // the commands of a right click: copying works now, and the others are dimmed until they come
-        auto *menu = new QMenu(this);
-        menu->setAttribute(Qt::WA_DeleteOnClose);
-        menu->setObjectName(QStringLiteral("cellMenu"));
-        for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) menu->addAction(act(QString::fromLatin1(id)));
-        menu->addSeparator();
-        menu->addAction(act("edit.selectAll"));
-        menu->popup(globalPos);
-    });
+    connect(m_view, &grid::GridView::contextMenuRequested, this, [this](const QPoint &globalPos) { showContextMenu(globalPos); });
     connect(&m_loader, &crunch::WorkbookLoader::firstScreen, this, &CrunchWindow::onFirstScreen);
     connect(&m_loader, &crunch::WorkbookLoader::progress, this, &CrunchWindow::onProgress);
     connect(&m_loader, &crunch::WorkbookLoader::finished, this, &CrunchWindow::onFinished);
@@ -336,7 +327,6 @@ void CrunchWindow::createActions()
         Editor stand;
         optionsDialog(this, &stand, {});
     });
-    mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [this] { copySelection(); });
     mk("edit.selectAll", tr("Select All"), "", QKeySequence(), [this] { m_view->selectAll(); });
     // ---- view
     mk("view.gridlines", tr("Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("view.gridlines")->isChecked()); }, true)->setChecked(true);
@@ -366,6 +356,9 @@ void CrunchWindow::createActions()
     // ---- help
     mk("help.show", tr("Help"), "circle-help", QKeySequence::HelpContents, [this] { showHelp(helpContext()); });
     connect(m_ribbon, &Ribbon::helpClicked, this, [this] { act("help.show")->trigger(); });
+    createOpsActions();
+    createCellsActions();
+    createClipboardActions();
     createDisabledActions();
 }
 
@@ -376,61 +369,20 @@ void CrunchWindow::createDisabledActions()
         const char *id, *text, *icon;
     };
     static const Command commands[] = {
-        {"edit.cut", QT_TR_NOOP("Cut"), "scissors"}, {"edit.paste", QT_TR_NOOP("Paste"), "clipboard-paste"},
-        {"edit.fill", QT_TR_NOOP("Fill"), "arrow-down-to-line"}, {"edit.clear", QT_TR_NOOP("Clear"), "eraser"},
-        {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"}, {"edit.find", QT_TR_NOOP("Find and Select"), "search"}, {"edit.autosum", QT_TR_NOOP("AutoSum"), "sigma"},
+        {"edit.clear", QT_TR_NOOP("Clear"), "eraser"},
+        {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"}, {"edit.find", QT_TR_NOOP("Find and Select"), "search"},
         {"fmt.bold", QT_TR_NOOP("Bold"), "bold"}, {"fmt.italic", QT_TR_NOOP("Italic"), "italic"}, {"fmt.underline", QT_TR_NOOP("Underline"), "underline"},
         {"fmt.strike", QT_TR_NOOP("Strikethrough"), "strikethrough"}, {"fmt.fillColor", QT_TR_NOOP("Fill Color"), "paint-bucket"}, {"fmt.fontColor", QT_TR_NOOP("Font Color"), "baseline"},
         {"fmt.alignLeft", QT_TR_NOOP("Align Left"), "align-left"}, {"fmt.alignCenter", QT_TR_NOOP("Center"), "align-center"}, {"fmt.alignRight", QT_TR_NOOP("Align Right"), "align-right"},
         {"fmt.wrap", QT_TR_NOOP("Wrap Text"), "wrap-text"}, {"fmt.merge", QT_TR_NOOP("Merge and Center"), "table-cells-merge"}, {"fmt.indentInc", QT_TR_NOOP("Increase Indent"), "indent-increase"},
         {"fmt.indentDec", QT_TR_NOOP("Decrease Indent"), "indent-decrease"}, {"fmt.currency", QT_TR_NOOP("Currency"), "dollar-sign"}, {"fmt.percent", QT_TR_NOOP("Percent"), "percent"},
         {"fmt.comma", QT_TR_NOOP("Comma Style"), "hash"}, {"fmt.decimalInc", QT_TR_NOOP("Increase Decimal"), "arrow-up-0-1"}, {"fmt.decimalDec", QT_TR_NOOP("Decrease Decimal"), "arrow-down-1-0"},
-        {"cells.insert", QT_TR_NOOP("Insert"), "square-plus"}, {"cells.delete", QT_TR_NOOP("Delete"), "square-minus"}, {"cells.format", QT_TR_NOOP("Format"), "table-properties"},
         {"insert.table", QT_TR_NOOP("Table"), "table"}, {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
         {"insert.chart", QT_TR_NOOP("Chart"), "chart-column"}, {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
         {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"}, {"formulas.insertFunction", QT_TR_NOOP("Insert Function"), "square-function"},
         {"formulas.names", QT_TR_NOOP("Name Manager"), "variable"}, {"formulas.options", QT_TR_NOOP("Calculation Options"), "settings-2"},
     };
     for (const Command &c : commands) mk(QString::fromLatin1(c.id), QCoreApplication::translate("jp::CrunchWindow", c.text), c.icon, QKeySequence(), nullptr, false, false);
-}
-
-void CrunchWindow::copySelection()
-{
-    m_copy = m_view->copyWalk();
-    if (!m_copy) {
-        QApplication::clipboard()->clear();
-        return;
-    }
-    if (m_copy->tooMany()) {
-        m_copy.reset();
-        notice(tr("Copy"), tr("That is more than a million cells, which JeffCrunch doesn't copy as text. Select fewer cells."), false);
-        return;
-    }
-    // (a large selection is turned to text a few milliseconds at a time, and put on the clipboard when it is all text)
-    setStatus(tr("Copying…"));
-    m_copyTimer.start(0);
-}
-
-void CrunchWindow::copyStep()
-{
-    if (!m_copy) return;
-    QElapsedTimer t;
-    t.start();
-    bool done = false;
-    while (!done && t.elapsed() < 4) done = m_copy->step(20000);
-    if (!done) {
-        m_copyTimer.start(0);
-        return;
-    }
-    if (m_copy->tooLarge()) {
-        m_copy.reset();
-        notice(tr("Copy"), tr("That is more text than JeffCrunch copies at once. Select fewer cells."), false);
-        if (!m_calculating && !m_loading) setStatus(tr("Ready"));
-        return;
-    }
-    QApplication::clipboard()->setText(m_copy->text());
-    m_copy.reset();
-    if (!m_calculating && !m_loading) setStatus(tr("Ready"));
 }
 
 void CrunchWindow::freezeAtSelection()
@@ -454,6 +406,7 @@ void CrunchWindow::notice(const QString &title, const QString &text, bool warnin
 
 void CrunchWindow::updateBars()
 {
+    updateDropDown();
     if (!m_nameBox->hasFocus()) m_nameBox->setText(m_view->selectionName());
     if (m_edit.active) return;   // (the formula bar holds what is being typed)
     // The formula bar takes about 20 milliseconds to be given 32,000 characters, whenever the cursor moves on to a cell that has them: it is given a part of a long text (with "…"

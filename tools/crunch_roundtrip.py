@@ -24,7 +24,9 @@ LIMIT_SECONDS = 300
 MEMORY = "6G"
 
 HEADER = ("path\texit\tseconds\tpeak MB\tparts\tparts the same\tuntouched read back the same\tuntouched differences\tedited cell\tformulas that depend on it\tresults that changed\t"
-          "unexpected differences\tparts not meant to change\tof them the same\tcell right\tedit differences\tuntouched ms\tedit ms")
+          "unexpected differences\tparts not meant to change\tof them the same\tcell right\tedit differences\tuntouched ms\tedit ms\t"
+          "script steps made\tscript steps refused\tscript cells compared\tscript cells right\tscript parts not meant to change\tof them the same\tscript differences\tscript ms\t"
+          "script other things compared\tscript other things right")
 
 
 class SetupFailed(Exception):
@@ -114,9 +116,18 @@ def main():
     parts_same = sum(int(r[5]) for r in done)
     edit_parts = sum(int(r[12]) for r in done)
     edit_parts_same = sum(int(r[13]) for r in done)
+    # the edit script (a row and a column inserted and deleted, a paste, a fill): the cells read back right, and the parts that were not meant to change
+    scripted = [r for r in done if len(r) > 25 and r[18].isdigit() and (int(r[18]) + int(r[19])) > 0]
+    script_cells = sum(int(r[20]) for r in scripted)
+    script_right = sum(int(r[21]) for r in scripted)
+    script_parts = sum(int(r[22]) for r in scripted)
+    script_parts_same = sum(int(r[23]) for r in scripted)
+    script_other = sum(int(r[26]) for r in scripted if len(r) > 27 and r[26].isdigit())
+    script_other_right = sum(int(r[27]) for r in scripted if len(r) > 27 and r[27].isdigit())
+    script_ok = [r for r in scripted if int(r[20]) > 0 and int(r[21]) >= 0.995 * int(r[20]) and r[22] == r[23] and not r[24]]
     kinds = collections.Counter()
     for r in done:
-        for field in (r[7], r[15]):
+        for field in (r[7], r[15], r[24] if len(r) > 24 else ""):
             for kind in [k.strip() for k in field.split(";") if k.strip()]:
                 kinds[kind] += 1
     with open(os.path.join(out_dir, "problems.txt"), "w", encoding="utf-8", errors="surrogateescape") as f:
@@ -130,6 +141,10 @@ def main():
         print("with one cell edited, read back right (the cell is what was typed, what depends on it has its new result, nothing else differs): %d of %d (%.2f%%)" % (len(edit_ok), len(done), 100.0 * len(edit_ok) / len(done)))
         print("parts not meant to change, and the same: %d of %d (%.4f%%)" % (edit_parts_same, edit_parts, 100.0 * edit_parts_same / max(1, edit_parts)))
         print("both: %d of %d (%.2f%%)" % (len(both), len(done), 100.0 * len(both) / len(done)))
+        if scripted:
+            print("with an edit script (a row and a column inserted and deleted, a paste, a fill) saved and read back: %d of %d workbooks have 99.5%% of their cells right, with nothing else differing (%.2f%%); cells right: %d of %d (%.4f%%); "
+                  "parts not meant to change, and the same: %d of %d; defined names, rules of validation, tables, conditional formats, hyperlinks, and chart series right: %d of %d (%.4f%%)"
+                  % (len(script_ok), len(scripted), 100.0 * len(script_ok) / len(scripted), script_right, script_cells, 100.0 * script_right / max(1, script_cells), script_parts_same, script_parts, script_other_right, script_other, 100.0 * script_other_right / max(1, script_other)))
         deps = sum(int(r[9]) for r in done if r[9].isdigit())
         changed = sum(int(r[10]) for r in done if r[10].isdigit())
         print("formulas that read the edited cell: %d; formulas whose result changed: %d; unexpected differences: %d" % (deps, changed, sum(int(r[11]) for r in done if r[11].isdigit())))

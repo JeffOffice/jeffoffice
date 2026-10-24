@@ -2,6 +2,7 @@
 
 #include "sheet/sheetreader.h"
 
+#include <QCoreApplication>
 #include <QRegularExpression>
 #include <QXmlStreamReader>
 
@@ -234,7 +235,7 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
             QXmlStreamReader r(bytes);
             QString displayName, name;
             QString ref;
-            int headerRows = 1;
+            int headerRows = 1, totalsRows = 0;
             while (!r.atEnd()) {
                 if (r.readNext() != QXmlStreamReader::StartElement) continue;
                 if (isTableElement(r, "table")) {
@@ -244,6 +245,7 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
                     ref = nameOf(a, "ref");
                     const QString hr = nameOf(a, "headerRowCount");
                     if (!hr.isEmpty()) headerRows = hr.toInt();
+                    totalsRows = nameOf(a, "totalsRowCount").toInt() > 0 ? 1 : 0;
                 } else if (isTableElement(r, "tableColumn")) {
                     if (t.columns.size() < kMaxTableColumns) t.columns.append(nameOf(r.attributes(), "name"));
                 }
@@ -256,7 +258,12 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
             t.col1 = range.col1;
             t.row2 = range.row2;
             t.col2 = range.col2;
+            t.fileRow1 = range.row1;
+            t.fileCol1 = range.col1;
+            t.fileRow2 = range.row2;
+            t.fileCol2 = range.col2;
             t.headerRows = headerRows > 0 ? 1 : 0;
+            t.totalsRows = t.fileTotalsRows = totalsRows;
             t.fileColumns = t.columns;
             tables.append(t);
         }
@@ -264,7 +271,135 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
     return tables;
 }
 
-bool renameTableXml(const QByteArray &xml, const QStringList &fileNames, const QStringList &names, const QString &table, QByteArray *out)
+TableFate tableAfter(const StructEdit &e, const Table &t, CellRange *out, QString *why, int *totalsRows)
+{
+    if (totalsRows) *totalsRows = t.totalsRows;
+    using K = StructEdit::Kind;
+    out->valid = true;
+    out->row1 = t.row1;
+    out->col1 = t.col1;
+    out->row2 = t.row2;
+    out->col2 = t.col2;
+    if (e.kind == StructEdit::Kind::Move) {
+        // cells put into a table or taken out of it would change what the table is: not done (they can be copied)
+        const bool fromHere = e.sheet == t.sheet && !(t.row2 < e.row1 || t.row1 > e.row2 || t.col2 < e.col1 || t.col1 > e.col2);
+        const quint32 toRow2 = e.toRow + (e.row2 - e.row1), toCol2 = e.toCol + (e.col2 - e.col1);
+        const bool toHere = e.toSheet == t.sheet && !(t.row2 < e.toRow || t.row1 > toRow2 || t.col2 < e.toCol || t.col1 > toCol2);
+        if (fromHere || toHere) {
+            if (why) *why = QCoreApplication::translate("jp::office::sheet::Tables", "Cells can't be moved into or out of a table. Copy them, or change the table's cells where they are.");
+            return TableFate::Refused;
+        }
+        return TableFate::Same;
+    }
+    if (e.sheet != t.sheet) return TableFate::Same;
+    auto refuse = [&](const QString &text) {
+        if (why) *why = text;
+        return TableFate::Refused;
+    };
+    const QString inside = QCoreApplication::translate("jp::office::sheet::Tables", "That would cut through a table. Turn the table into a plain range first, or change cells outside it.");
+    const QString header = QCoreApplication::translate("jp::office::sheet::Tables", "That would remove a table, or the row of its column names. Select the rows below the names, or delete the table's cells another way.");
+    const quint32 f = e.first, c = e.count;
+    switch (e.kind) {
+    case K::InsertRows:
+        if (f <= t.row1) {
+            out->row1 += c;
+            out->row2 += c;
+            return TableFate::Moved;
+        }
+        if (f <= t.row2) {
+            out->row2 += c;
+            return TableFate::Moved;
+        }
+        return TableFate::Same;
+    case K::DeleteRows: {
+        const quint32 last = f + c - 1;
+        if (f > t.row2) return TableFate::Same;
+        if (last < t.row1) {
+            out->row1 -= c;
+            out->row2 -= c;
+            return TableFate::Moved;
+        }
+        if (f <= t.row1 && last >= t.row2) return refuse(header);
+        if (t.headerRows > 0 && f <= t.row1) return refuse(header);
+        const quint32 above = t.row1 > f ? std::min(t.row1, f + c) - f : 0;
+        const quint32 overlap = std::min(last, t.row2) - std::max(f, t.row1) + 1;
+        out->row1 = t.row1 - above;
+        out->row2 = t.row2 - above - overlap;
+        // the row of totals is the last row: when its row is deleted the table has none (and keeps its data)
+        const int totals = t.totalsRows && !(f <= t.row2 && last >= t.row2) ? 1 : 0;
+        if (totalsRows) *totalsRows = totals;
+        // a table keeps a row of data
+        const qint64 rowsLeft = qint64(out->row2) - out->row1 + 1;
+        if (rowsLeft - t.headerRows - totals < 1) return refuse(QCoreApplication::translate("jp::office::sheet::Tables", "That would remove all of a table's rows of data. Select some of them, or change cells outside the table."));
+        return TableFate::Moved;
+    }
+    case K::InsertColumns:
+        if (f <= t.col1) {
+            out->col1 += c;
+            out->col2 += c;
+            return TableFate::Moved;
+        }
+        if (f <= t.col2) return refuse(inside);
+        return TableFate::Same;
+    case K::DeleteColumns: {
+        const quint32 last = f + c - 1;
+        if (f > t.col2) return TableFate::Same;
+        if (last < t.col1) {
+            out->col1 -= c;
+            out->col2 -= c;
+            return TableFate::Moved;
+        }
+        return refuse(inside);
+    }
+    case K::InsertCellsDown:
+    case K::DeleteCellsUp: {
+        const bool columnsMeet = !(t.col2 < e.col1 || t.col1 > e.col2);
+        if (!columnsMeet) return TableFate::Same;
+        const quint32 n = e.row2 - e.row1 + 1;
+        if (e.kind == K::InsertCellsDown) {
+            if (t.row2 < e.row1) return TableFate::Same;
+            if (t.col1 >= e.col1 && t.col2 <= e.col2 && t.row1 >= e.row1) {
+                out->row1 += n;
+                out->row2 += n;
+                return TableFate::Moved;
+            }
+            return refuse(inside);
+        }
+        if (t.row2 < e.row1) return TableFate::Same;
+        if (t.col1 >= e.col1 && t.col2 <= e.col2 && t.row1 > e.row2) {
+            out->row1 -= n;
+            out->row2 -= n;
+            return TableFate::Moved;
+        }
+        return refuse(inside);
+    }
+    case K::InsertCellsRight:
+    case K::DeleteCellsLeft: {
+        const bool rowsMeet = !(t.row2 < e.row1 || t.row1 > e.row2);
+        if (!rowsMeet) return TableFate::Same;
+        const quint32 n = e.col2 - e.col1 + 1;
+        if (e.kind == K::InsertCellsRight) {
+            if (t.col2 < e.col1) return TableFate::Same;
+            if (t.row1 >= e.row1 && t.row2 <= e.row2 && t.col1 >= e.col1) {
+                out->col1 += n;
+                out->col2 += n;
+                return TableFate::Moved;
+            }
+            return refuse(inside);
+        }
+        if (t.col2 < e.col1) return TableFate::Same;
+        if (t.row1 >= e.row1 && t.row2 <= e.row2 && t.col1 > e.col2) {
+            out->col1 -= n;
+            out->col2 -= n;
+            return TableFate::Moved;
+        }
+        return refuse(inside);
+    }
+    default: return TableFate::Same;
+    }
+}
+
+bool renameTableXml(const QByteArray &xml, const QStringList &fileNames, const QStringList &names, const QString &table, QByteArray *out, const CellRange *range, const int *totalsRows)
 {
     const QString text = QString::fromUtf8(xml);
     if (!text.contains(QLatin1String("<table"))) return false;
@@ -317,6 +452,44 @@ bool renameTableXml(const QByteArray &xml, const QStringList &fileNames, const Q
         at = m.capturedEnd();
     }
     final += result.mid(at);
+    if (totalsRows && *totalsRows == 0) {
+        // no row of totals now: the count goes, and what the columns say about their totals
+        static const QRegularExpression tableOpen(QStringLiteral("<(?:\\w+:)?table\\b[^>]*>")), countAttribute(QStringLiteral("\\stotalsRowCount=\"[^\"]*\""));
+        static const QRegularExpression columnAttributes(QStringLiteral("\\stotalsRow(?:Function|Label)=\"[^\"]*\""));
+        static const QRegularExpression formulaElement2(QStringLiteral("<(?:\\w+:)?totalsRowFormula\\b[^>]*/>|<(?:\\w+:)?totalsRowFormula\\b[^>]*>.*?</(?:\\w+:)?totalsRowFormula>"), QRegularExpression::DotMatchesEverythingOption);
+        const QRegularExpressionMatch om = tableOpen.match(final);
+        if (om.hasMatch() && countAttribute.match(om.captured()).hasMatch()) {
+            QString opened = om.captured();
+            opened.remove(countAttribute);
+            final.replace(om.capturedStart(), om.capturedLength(), opened);
+            final.remove(columnAttributes);
+            final.remove(formulaElement2);
+        }
+    }
+    if (range && range->valid) {
+        // the cells the table covers: its ref, and its filter's (which leaves out a row of totals)
+        static const QRegularExpression tableTag(QStringLiteral("<(?:\\w+:)?table\\b[^>]*>")), filterTag(QStringLiteral("<(?:\\w+:)?autoFilter\\b[^>]*>")), refAttribute(QStringLiteral("(\\sref=\")([^\"]*)(\")"));
+        static const QRegularExpression totals(QStringLiteral("\\stotalsRowCount=\"([1-9]\\d*)\""));
+        const QRegularExpressionMatch tm = tableTag.match(final);
+        if (tm.hasMatch()) {
+            QString tag = tm.captured();
+            const QRegularExpressionMatch rm = refAttribute.match(tag);
+            if (rm.hasMatch()) tag.replace(rm.capturedStart(2), rm.capturedLength(2), rangeName(*range));
+            final.replace(tm.capturedStart(), tm.capturedLength(), tag);
+            const bool hasTotals = totals.match(tm.captured()).hasMatch();
+            const QRegularExpressionMatch fm = filterTag.match(final, tm.capturedStart() + tag.size());
+            if (fm.hasMatch()) {
+                CellRange filter = *range;
+                if (hasTotals && filter.row2 > filter.row1) --filter.row2;
+                QString ftag = fm.captured();
+                const QRegularExpressionMatch frm = refAttribute.match(ftag);
+                if (frm.hasMatch()) {
+                    ftag.replace(frm.capturedStart(2), frm.capturedLength(2), rangeName(filter));
+                    final.replace(fm.capturedStart(), fm.capturedLength(), ftag);
+                }
+            }
+        }
+    }
     *out = final.toUtf8();
     return true;
 }

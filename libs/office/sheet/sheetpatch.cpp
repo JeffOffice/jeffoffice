@@ -96,7 +96,7 @@ QByteArray cellXml(const QByteArray &prefix, const SavedCell &c, bool hasShared)
     if (c.isFormula) {
         QString f = c.formula;
         if (f.startsWith(QLatin1Char('='))) f.remove(0, 1);
-        out += "<" + prefix + "f>" + xmlscan::escapeText(f) + "</" + prefix + "f>";
+        out += "<" + prefix + "f" + (c.arrayRef.isEmpty() ? QByteArray() : " t=\"array\" ref=\"" + c.arrayRef.toLatin1() + "\"") + ">" + xmlscan::escapeText(f) + "</" + prefix + "f>";
         if (c.hasResult) out += v.content;
     } else {
         out += v.content;
@@ -154,7 +154,139 @@ struct Item {
 struct RowEdits {
     quint32 row = 0;
     std::vector<Item> items;   // sorted by column
+    const RowProps *props = nullptr;   // its height or that it is hidden, changed
 };
+
+// Sets an attribute in a tag's bytes (a start tag): its value replaced, or the attribute put in before the end of the tag.
+void setAttr(QByteArray *tag, const char *name, const QByteArray &value)
+{
+    qsizetype vs = 0, ve = 0;
+    if (xmlscan::attributeValue(*tag, name, &vs, &ve)) {
+        tag->replace(vs, ve - vs, value);
+        return;
+    }
+    qsizetype at = tag->size() - 1;   // the ">"
+    if (at > 0 && (*tag)[at - 1] == '/') --at;
+    tag->insert(at, QByteArray(" ") + name + "=\"" + value + "\"");
+}
+
+bool isSpaceByte(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
+
+// Takes an attribute, and the white space before it, out of a tag's bytes.
+void dropAttr(QByteArray *tag, const char *name)
+{
+    qsizetype vs = 0, ve = 0;
+    if (!xmlscan::attributeValue(*tag, name, &vs, &ve)) return;
+    qsizetype n = vs - 2;
+    while (n >= 0 && isSpaceByte((*tag)[n])) --n;
+    if (n >= 0 && (*tag)[n] == '=') --n;
+    while (n >= 0 && isSpaceByte((*tag)[n])) --n;
+    qsizetype nameStart = n;
+    while (nameStart > 0 && !isSpaceByte((*tag)[nameStart - 1])) --nameStart;
+    qsizetype a = nameStart;
+    while (a > 0 && isSpaceByte((*tag)[a - 1])) --a;
+    tag->remove(a, ve + 1 - a);
+}
+
+void setFlag(QByteArray *tag, const char *name, bool on)
+{
+    if (on) setAttr(tag, name, "1");
+    else dropAttr(tag, name);
+}
+
+void applyRowProps(QByteArray *tag, const RowProps &p)
+{
+    if (p.height >= 0) setAttr(tag, "ht", numberText(p.height));
+    setFlag(tag, "customHeight", p.customHeight && p.height >= 0);
+    setFlag(tag, "hidden", p.hidden);
+}
+
+// The columns' element of a sheet's head (the bytes before sheetData) made from the runs of columns the sheet has: in place of the file's, or before sheetData if the file has none.
+QByteArray columnsFromRuns(const QByteArray &head, const std::vector<ColumnSpan> &runs, const QByteArray &defaultPrefix)
+{
+    qsizetype colsStart = -1, colsEnd = -1;
+    QByteArray prefix = defaultPrefix;
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(head, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "cols") continue;
+        colsStart = t.start;
+        colsEnd = t.end;
+        prefix = QByteArray(xmlscan::prefixOf(t.name));
+        if (!t.selfClosing) {
+            Tag inner;
+            qsizetype p = t.end;
+            while (xmlscan::nextTag(head, p, &inner)) {
+                p = inner.end;
+                if (inner.closing && inner.local == "cols") {
+                    colsEnd = inner.end;
+                    break;
+                }
+            }
+        }
+        break;
+    }
+    QByteArray out;
+    if (!runs.empty()) {
+        out = "<" + prefix + "cols>";
+        for (const ColumnSpan &c : runs) {
+            QByteArray tag = "<" + prefix + "col min=\"" + QByteArray::number(c.first + 1) + "\" max=\"" + QByteArray::number(c.last + 1) + "\"";
+            if (c.width >= 0) tag += " width=\"" + numberText(c.width) + "\"";
+            if (c.style != 0) tag += " style=\"" + QByteArray::number(c.style) + "\"";
+            if (c.hidden) tag += " hidden=\"1\"";
+            if (c.bestFit) tag += " bestFit=\"1\"";
+            if (c.customWidth) tag += " customWidth=\"1\"";
+            if (c.phonetic) tag += " phonetic=\"1\"";
+            if (c.outline > 0) tag += " outlineLevel=\"" + QByteArray::number(int(c.outline)) + "\"";
+            if (c.collapsed) tag += " collapsed=\"1\"";
+            out += tag + "/>";
+        }
+        out += "</" + prefix + "cols>";
+    }
+    if (colsStart >= 0) return head.left(colsStart) + out + head.mid(colsEnd);
+    return head + out;
+}
+
+// What follows a sheet's cells (from after "</sheetData>" to the end) with its merged ranges made from `merges`: in place of the element the file has, or where the format puts it.
+QByteArray tailWithMerges(const QByteArray &after, const std::vector<CellRange> &merges, const QByteArray &prefix)
+{
+    QByteArray generated;
+    if (!merges.empty()) {
+        generated = "<" + prefix + "mergeCells count=\"" + QByteArray::number(qulonglong(merges.size())) + "\">";
+        for (const CellRange &m : merges) generated += "<" + prefix + "mergeCell ref=\"" + rangeName(m).toLatin1() + "\"/>";
+        generated += "</" + prefix + "mergeCells>";
+    }
+    static const QList<QByteArray> later = {"phoneticPr", "conditionalFormatting", "dataValidations", "hyperlinks", "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks",
+                                            "customProperties", "cellWatches", "ignoredErrors", "smartTags", "drawing", "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects",
+                                            "controls", "webPublishItems", "tableParts", "extLst"};
+    Tag t;
+    qsizetype pos = 0, existingStart = -1, existingEnd = -1, insertAt = -1;
+    int depth = 0;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (insertAt < 0) insertAt = t.start;   // </worksheet>
+                break;
+            }
+            if (depth == 0 && existingStart >= 0 && existingEnd < 0 && t.local == "mergeCells") existingEnd = t.end;
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == "mergeCells" && existingStart < 0) {
+                existingStart = t.start;
+                if (t.selfClosing) existingEnd = t.end;
+            } else if (insertAt < 0 && later.contains(QByteArray(t.local))) {
+                insertAt = t.start;
+            }
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    if (existingStart >= 0 && existingEnd >= 0) return after.left(existingStart) + generated + after.mid(existingEnd);
+    if (generated.isEmpty() || insertAt < 0) return after;
+    return after.left(insertAt) + generated + after.mid(insertAt);
+}
 
 class Patcher {
 public:
@@ -170,6 +302,9 @@ public:
             RowEdits &r = rowFor(c.row);
             r.items.push_back({c.col, nullptr, &c});
         }
+        for (const RowProps &p : changes.rows) rowFor(p.row).props = &p;
+        if (changes.replaceColumns) m_columns = &changes.columns;
+        if (changes.replaceMerges) m_merges = &changes.merges;
         for (RowEdits &r : m_rows) {
             std::stable_sort(r.items.begin(), r.items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
             // (one item for a cell: a changed cell stands over a result)
@@ -299,7 +434,7 @@ private:
         Tag t;
         qsizetype dimStart = -1, dimEnd = -1;
         for (;;) {
-            if (!nextTag(pos, &t)) return fail(m_failed ? QCoreApplication::translate("jp::office::sheet::Save", "The sheet's part is damaged.") : QCoreApplication::translate("jp::office::sheet::Save", "The sheet has no cells part (sheetData)."));
+            if (!nextTag(pos, &t)) return fail(m_failed ? QCoreApplication::translate("jp::office::sheet::Save", "The sheet's part is damaged.") : QCoreApplication::translate("jp::office::sheet::Save", "The sheet's file has no place for cells in it, so it can't be saved."));
             pos = t.end;
             if (t.closing) continue;
             if (t.local == "dimension" && dimStart < 0) {
@@ -314,6 +449,7 @@ private:
         const qsizetype dataEnd = t.end;
         QByteArray before = m_buf.left(dataStart);
         if (dimStart >= 0 && !m_cells.empty()) before = withDimension(before, dimStart, dimEnd);
+        if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
         put(before);
         m_written = m_cur = dataStart;
         if (selfClosed) {
@@ -429,8 +565,10 @@ private:
             QByteArray cells;
             for (const Item &it : m_rows[i].items)
                 if (it.cell) cells += cellXml(m_prefix, *it.cell, m_hasShared);
-            if (cells.isEmpty()) continue;
-            out += "<" + m_prefix + "row r=\"" + QByteArray::number(qulonglong(m_rows[i].row) + 1) + "\">" + cells + "</" + m_prefix + "row>";
+            if (cells.isEmpty() && !m_rows[i].props) continue;
+            QByteArray open = "<" + m_prefix + "row r=\"" + QByteArray::number(qulonglong(m_rows[i].row) + 1) + "\">";
+            if (m_rows[i].props) applyRowProps(&open, *m_rows[i].props);
+            out += open + cells + "</" + m_prefix + "row>";
         }
         put(out);
         return true;
@@ -535,6 +673,7 @@ private:
         writeNewUntil(0xFFFFFFFFu, true);
         // the row's tag, its spans widened to the cells put in
         QByteArray openTag = row.left(open.end);
+        if (edits && edits->props) applyRowProps(&openTag, *edits->props);
         if (open.selfClosing) {
             openTag.chop(2);
             while (!openTag.isEmpty() && (openTag.back() == ' ' || openTag.back() == '\t' || openTag.back() == '\n' || openTag.back() == '\r')) openTag.chop(1);
@@ -660,6 +799,21 @@ private:
     // ---- what follows the rows
     bool tail()
     {
+        if (m_merges) {
+            // (what follows the cells is held whole to change its merged ranges)
+            while (fill()) {
+                if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
+            }
+            if (m_failed) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The sheet's part is damaged."));
+            m_cur = m_written;
+            const QByteArray rest = m_buf.mid(m_written);
+            Tag close;
+            if (xmlscan::nextTag(rest, 0, &close) && close.closing && close.local == "sheetData") put(rest.left(close.end) + tailWithMerges(rest.mid(close.end), *m_merges, m_prefix));
+            else put(rest);
+            m_buf.clear();
+            m_cur = m_written = 0;
+            return true;
+        }
         for (;;) {
             m_cur = m_buf.size();
             flushPending();
@@ -687,6 +841,8 @@ private:
     QByteArray m_prefix;
     QHash<QByteArray, SharedMaster> m_dropped;
     quint32 m_sharedUntil = 0;
+    const std::vector<ColumnSpan> *m_columns = nullptr;
+    const std::vector<CellRange> *m_merges = nullptr;
 };
 
 } // namespace

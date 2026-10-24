@@ -10,6 +10,7 @@
 // on: nothing here reads the workbook's cells.
 
 #include "office/package.h"
+#include "sheet/refshift.h"
 #include "sheet/sheetreader.h"
 
 #include <QByteArray>
@@ -40,6 +41,7 @@ struct SavedCell {
     bool isFormula = false;
     QString formula;            // as the file writes it, with no "=" in front
     bool hasResult = true;      // a formula's result is known (else the cell has the formula and no value)
+    QString arrayRef;           // the first cell of an array formula: the cells it covers ("C3:C5"), else empty
 };
 
 // The result of a formula that the person did not change, worked out again after a change to what it reads.
@@ -49,10 +51,32 @@ struct SavedResult {
     SavedValue value;
 };
 
+// And the height of a row, or that it is hidden.
+struct RowProps {
+    quint32 row = 0;
+    double height = -1;         // points; -1: the file's stays
+    bool hidden = false;
+    bool customHeight = false;
+};
+
 struct SheetChanges {
     std::vector<SavedCell> cells;       // sorted by row, then column
     std::vector<SavedResult> results;   // sorted the same way
-    bool empty() const { return cells.empty() && results.empty(); }
+    // The runs of columns the sheet has now (their widths, whether they are hidden, and what else the file says of them), when the file's `cols` is to be written from them: columns
+    // inserted or deleted or sized by a person. Sorted, none twice.
+    bool replaceColumns = false;
+    std::vector<ColumnSpan> columns;
+    // And the merged ranges, when a paste or a cut and paste changed them.
+    bool replaceMerges = false;
+    std::vector<CellRange> merges;
+    std::vector<RowProps> rows;         // sorted by row
+    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && rows.empty(); }
+};
+
+// A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
+struct ColumnRename {
+    QString table, oldName, newName;
+    bool operator==(const ColumnRename &o) const { return table == o.table && oldName == o.oldName && newName == o.newName; }
 };
 
 struct SaveChanges {
@@ -74,6 +98,11 @@ struct SaveChanges {
     qint64 cellFormatsBefore = 0;
     // Parts to be written anew whole, by the part's name (the table parts whose columns were renamed).
     std::map<QString, QByteArray> replacedParts;
+    // Rows, columns, and cells inserted and deleted since the file was read, in the order they were made. Every part of the file that has cells in it, or names them, is changed by them
+    // (see structsave.h) before the cells above are put in, which are in the places the edits leave.
+    std::vector<StructEdit> edits;
+    // And the columns of tables renamed since, in order.
+    std::vector<ColumnRename> renames;
     // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
     bool fullCalcOnLoad = false;
 };

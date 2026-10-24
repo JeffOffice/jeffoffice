@@ -65,6 +65,8 @@ public:
     // The loader that reads the workbook and works it out (a test holds its worker back to make what it checks independent of speed).
     crunch::WorkbookLoader &workbookLoader() { return m_loader; }
     bool isCalculating() const { return m_calculating; }
+    // A copy or cut is still being turned to text (a large selection is done a few milliseconds at a time); the clipboard has it when this is false.
+    bool isCopying() const { return m_copy != nullptr; }
     // ---- editing
     // The entry in progress (typed over a cell, or in it, or in the formula bar) is finished: the cell takes it (one step of Undo), and the selection goes the way the key says. False,
     // with the reason shown, and the entry still there, if the cell can't take it (a formula that is not one).
@@ -90,6 +92,33 @@ public:
     // What is asked when the file to be saved over was changed by another program since it was read: save a copy instead (Save As), write over it, or give the save up. The name is the
     // file's. A message box with the three, unless this stands in for it (tests).
     enum class ChangedAnswer { SaveCopy, Overwrite, Cancel };
+    // What Fill > Series asks for: the way the series goes, its kind, the unit of a date series, the step, and where to stop; a message dialog unless this stands in for it (tests).
+    struct SeriesRequest {
+        bool inRows = false;
+        crunch::EditSession::FillOptions options;
+    };
+    void setSeriesAsker(const std::function<bool(SeriesRequest *)> &asker) { m_seriesAsker = asker; }
+    // What Insert and Delete ask when cells are selected (not whole rows or columns): how the cells after the block move, or that the whole rows or columns go. A dialog unless this stands in
+    // for it (tests); false gives it up.
+    struct ShiftRequest {
+        bool inserting = true;
+        enum class Way { Right, Down, Left, Up, Rows, Columns } way = Way::Down;
+    };
+    void setShiftAsker(const std::function<bool(ShiftRequest *)> &asker) { m_shiftAsker = asker; }
+    // What Column Width and Row Height ask for: the size (the width a person is shown, in characters of the default font's widest digit; the height in points), with the one it has now. A dialog
+    // unless this stands in for it (tests); false gives it up.
+    struct SizeRequest {
+        bool column = true;
+        double value = 0;
+    };
+    void setSizeAsker(const std::function<bool(SizeRequest *)> &asker) { m_sizeAsker = asker; }
+    // What is asked when a value does not fit the rule of validation of its cell and the rule is a warning or only tells: the rule's title, its message, and its style (Validation::Style, 1
+    // warning, 2 information); true goes on. A message box unless this stands in for it (tests). A rule that stops is only told (through the notifier).
+    // For tests: what asks whether to go on with a step that Undo cannot hold (its text), standing in for the question.
+    void setBigStepAsker(const std::function<bool(const QString &text)> &asker) { m_bigStepAsker = asker; }
+    void setRuleAsker(const std::function<bool(const QString &title, const QString &text, int style)> &asker) { m_ruleAsker = asker; }
+    // And Paste Special: how to paste. A dialog unless this stands in for it (tests); false gives it up.
+    void setPasteAsker(const std::function<bool(crunch::EditSession::PasteOptions *)> &asker) { m_pasteOptionsAsker = asker; }
     void setChangedAsker(const std::function<ChangedAnswer(const QString &name)> &asker) { m_changedAsker = asker; }
     // Where Save As writes: asked of a file dialog, unless this stands in for it (tests): the name it starts with, and the filter; an empty path gives it up.
     void setSavePicker(const std::function<QString(const QString &start, const QString &filter)> &picker) { m_savePicker = picker; }
@@ -174,6 +203,50 @@ private:
     void onFinished(bool ok, const QString &message);
     void onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch);
     bool stopCalculation();   // true if a save that was waiting for the calculation was cancelled
+    // the commands on a block of cells (crunchwindow_ops.cpp)
+    void createOpsActions();
+    QStringList m_opsActions;   // the commands that work when a workbook is open and nothing is being saved
+    void autoSum(const QString &function);
+    void fillSelection(crunch::EditSession::FillDirection direction);
+    void fillDragged(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
+    void fillSeriesDialog();
+    // inserting and deleting rows, columns, and cells (crunchwindow_cells.cpp)
+    void createCellsActions();
+    void insertCommand();
+    void deleteCommand();
+    void insertLines(bool rows);
+    void deleteLines(bool rows);
+    void insertOrDeleteCells(bool inserting);
+    bool askShift(ShiftRequest *request);
+    void onCellsMoved(const jp::office::sheet::StructEdit &edit);
+    void showContextMenu(const QPoint &globalPos);
+    jp::office::sheet::CellRange selectedRange() const;
+    std::function<bool(ShiftRequest *)> m_shiftAsker;
+    std::function<bool(SizeRequest *)> m_sizeAsker;
+    std::function<bool(const QString &, const QString &, int)> m_ruleAsker;
+    std::function<bool(const QString &)> m_bigStepAsker;
+    // Does an edit that moves cells with the window saying it is working (the wait cursor, and the status), and, if the step is too big for Undo to hold, asks first.
+    crunch::EditSession::Outcome doStructural(const std::function<crunch::EditSession::Outcome()> &edit);
+    bool askAboutRule(const crunch::EditSession::Outcome &outcome);
+    // the list a rule offers on the cell with the cursor (crunchwindow_cells.cpp)
+    void updateDropDown();
+    void showChoices();
+    // what Paste Special asks for: the options (a dialog unless this stands in for it: tests); false gives it up
+    std::function<bool(crunch::EditSession::PasteOptions *)> m_pasteOptionsAsker;
+    crunch::ClipData m_clip, m_pendingClip;   // the last copy or cut made here that the clipboard still holds, and the one being made
+    jp::grid::GridRange m_pendingBorder{-1, -1, -1, -1};
+    QString m_pendingHtml;
+    bool m_settingClipboard = false;
+    // the width of columns and the height of rows
+    void onSizesChanged(int sheet);
+    void resizeDragged(bool column, qint64 index, int size);
+    void fitDragged(bool column, qint64 index);
+    void setSizeDialog(bool column);
+    void fitSelection(bool column);
+    void hideSelection(bool column, bool hide);
+    void widenForEntry(int sheet, quint32 row, quint32 col);
+    // the columns (rows) a command on sizes is for: those of the selection
+    void selectedLines(bool column, quint32 *first, quint32 *last) const;
     // editing
     void createEditing();
     void beginEdit(const QString &initial, CellEditor::Mode mode, bool fromBar);
@@ -197,8 +270,20 @@ private:
     bool savesAsANewFile() const;
     void setStatus(const QString &text);
     void goToName();
+    // the clipboard (crunchwindow_clip.cpp)
+    void createClipboardActions();
     void copySelection();
+    void cutSelection();
+    void copyOrCut(bool cut);
     void copyStep();
+    void publishClipboard(const QString &text);
+    void pasteClipboard(const crunch::EditSession::PasteOptions &options);
+    void pasteSpecial();
+    void onClipboardChanged();
+    void forgetClip();
+    void cancelCut();
+    void widenForCells(int sheet, const jp::office::sheet::CellRange &cells);
+    QString htmlOfClip(const crunch::ClipData &clip) const;
     void freezeAtSelection();
     void notice(const QString &title, const QString &text, bool warning = true);
     QString helpContext() const;
@@ -256,6 +341,7 @@ private:
     QPointer<QObject> m_csvRun;   // a .csv being written
     std::function<Answer(const QString &, const QString &)> m_asker;
     std::function<ChangedAnswer(const QString &)> m_changedAsker;
+    std::function<bool(SeriesRequest *)> m_seriesAsker;
     std::function<QString(const QString &, const QString &)> m_savePicker;
     QString m_pickedFilter;
     // Whether the file at the window's path is not what was read (or last written): another program changed it.

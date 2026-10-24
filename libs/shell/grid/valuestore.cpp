@@ -118,6 +118,60 @@ void ValueStore::apply(const std::vector<Item> &items)
     }
 }
 
+bool ValueStore::erase(int sheet, quint32 row, quint32 col)
+{
+    if (sheet < 0 || size_t(sheet) >= m_sheets.size() || !m_sheets[size_t(sheet)] || col > 0xFFFF) return false;
+    Table &t = *m_sheets[size_t(sheet)];
+    const quint64 key = keyOf(row, col);
+    const quint64 h = mix(key);
+    Chunk &c = t.chunks[size_t(h >> (64 - kChunkBits))];
+    if (c.slots.empty()) return false;
+    const size_t mask = c.slots.size() - 1;
+    size_t i = size_t(h) & mask;
+    while (c.slots[i].key != key) {
+        if (c.slots[i].key == kEmptyKey) return false;
+        i = (i + 1) & mask;
+    }
+    if (c.slots[i].text >= 0) {
+        m_texts[size_t(c.slots[i].text)] = QString();
+        m_freeTexts.push_back(c.slots[i].text);
+    }
+    // (the places after it that were put there because it was in the way are moved up: no mark is left in the table)
+    size_t hole = i;
+    for (size_t j = (i + 1) & mask; c.slots[j].key != kEmptyKey; j = (j + 1) & mask) {
+        const size_t ideal = size_t(mix(c.slots[j].key)) & mask;
+        const bool between = hole <= j ? (ideal > hole && ideal <= j) : (ideal > hole || ideal <= j);
+        if (between) continue;
+        c.slots[hole] = c.slots[j];
+        hole = j;
+    }
+    c.slots[hole] = Slot();
+    --c.used;
+    --m_count;
+    return true;
+}
+
+void ValueStore::erase(int sheet, const std::vector<std::pair<quint32, quint32>> &cells)
+{
+    for (const auto &cell : cells) erase(sheet, cell.first, cell.second);
+}
+
+void ValueStore::relocate(int sheet, const std::vector<Move> &moves)
+{
+    // each value is taken up before any is put down (a cell may move to where another was)
+    std::vector<Item> items;
+    items.reserve(moves.size());
+    for (const Move &m : moves) {
+        Item it;
+        it.sheet = sheet;
+        it.row = m.toRow;
+        it.col = m.toCol;
+        if (find(sheet, m.fromRow, m.fromCol, &it.value)) items.push_back(std::move(it));
+    }
+    for (const Move &m : moves) erase(sheet, m.fromRow, m.fromCol);
+    apply(items);
+}
+
 bool ValueStore::find(int sheet, quint32 row, quint32 col, jp::calc::Value *out) const
 {
     using jp::calc::Value;

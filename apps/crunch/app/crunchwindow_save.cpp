@@ -175,11 +175,13 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
     if (ok) {
         office::Package package;
         QString why;
+        int forgotten = 0;   // the steps of Undo this save made it give up
         if (!package.readLazy(bytes, &why)) {
             // (the file is written; this program cannot read what it wrote: it keeps the old base, and says so)
             notice(tr("Save"), tr("%1 saved \"%2\", but could not read it back: %3").arg(appInfo().name, QFileInfo(path).fileName(), why));
         } else {
             m_session->saved(*snapshot, package);
+            forgotten = m_session->stepsForgottenBySave();
         }
         if (!crunch::sameFile(path, m_path)) {
             m_path = path;
@@ -187,7 +189,9 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
         }
         Settings::get().addRecentFile(path);
         telemetry::count(QStringLiteral("file.save.") + crunch::fileKind(path));
-        setStatus(tr("Saved %1").arg(QFileInfo(path).fileName()));
+        // (a save is the point after which what it saved of rows, columns, or cells deleted is not given back by Undo: that is said)
+        if (forgotten > 0) setStatus(tr("Saved %1. Rows, columns, and cells deleted before this save can't be undone now, nor can what you did before that.").arg(QFileInfo(path).fileName()));
+        else setStatus(tr("Saved %1").arg(QFileInfo(path).fileName()));
     } else {
         m_closeAfterSave = false;
         notice(tr("Save"), tr("%1 couldn't save \"%2\".\n%3\nThe file that was there is as it was.").arg(appInfo().name, QFileInfo(path).fileName(), message));

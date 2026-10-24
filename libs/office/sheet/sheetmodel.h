@@ -12,6 +12,7 @@
 #include <QVector>
 
 #include <algorithm>
+#include <functional>
 #include <map>
 #include <vector>
 
@@ -182,6 +183,64 @@ public:
             }
         }
     }
+    // Moves cells about, for rows and columns inserted and deleted and cells shifted: every cell for which `affected(cell)` is true (those of the blocks from the one of row
+    // `firstRow` on are looked at, and no others) is taken out; `map(cell)` changes the cell to what it is after (its place), and gives false for one that is gone (it is given to
+    // `removed`, as it was); `moved(before, after)` is told of each that stays; they are put in again, and the blocks are put in order. The cost is that of the cells taken out.
+    template <class Affected, class Map, class Moved>
+    void reshuffle(quint32 firstRow, Affected affected, Map map, Moved moved, std::vector<Cell> *removed)
+    {
+        std::vector<Cell> moving;
+        for (auto it = m_blocks.lower_bound(firstRow / kBlockRows); it != m_blocks.end();) {
+            std::vector<Cell> &cells = it->second.cells;
+            size_t keep = 0;
+            for (size_t i = 0; i < cells.size(); ++i) {
+                if (affected(cells[i])) moving.push_back(cells[i]);
+                else cells[keep++] = cells[i];
+            }
+            cells.resize(keep);
+            if (cells.empty()) it = m_blocks.erase(it);
+            else ++it;
+        }
+        m_last = nullptr;
+        m_count -= qint64(moving.size());
+        // (the cells come in order of row and column, and a shift keeps that order: they are put into the blocks they come to a run at a time, and each run is merged with what the block
+        // kept, which costs the cells of the block and not a sort of them)
+        std::vector<Cell> run;
+        quint32 runKey = 0;
+        auto flush = [&]() {
+            if (run.empty()) return;
+            auto less = [](const Cell &a, const Cell &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; };
+            if (!std::is_sorted(run.begin(), run.end(), less)) std::sort(run.begin(), run.end(), less);
+            Block &block = m_blocks[runKey];
+            const size_t mid = block.cells.size();
+            block.cells.insert(block.cells.end(), run.begin(), run.end());
+            if (mid > 0 && less(block.cells[mid], block.cells[mid - 1])) std::inplace_merge(block.cells.begin(), block.cells.begin() + std::ptrdiff_t(mid), block.cells.end(), less);
+            m_count += qint64(run.size());
+            run.clear();
+        };
+        for (const Cell &before : moving) {
+            Cell after = before;
+            if (!map(&after)) {
+                if (removed) removed->push_back(before);
+                continue;
+            }
+            moved(before, after);
+            const quint32 key = after.row / kBlockRows;
+            if (!run.empty() && key != runKey) flush();
+            runKey = key;
+            run.push_back(after);
+        }
+        flush();
+        m_last = nullptr;
+    }
+    // Rows inserted (`delta` > 0: the cells from row `first` on move down by it; those that would go to row `limit` or past it are removed) or deleted (`delta` < 0: the cells of the
+    // rows [first, first - delta) are removed, those after move up); and columns the same way. Cells that move in a block of cells all at once, in one pass, without taking them out one by
+    // one (the cost is the cells from `first` on, a few nanoseconds each, for rows; every cell for columns). `formulaMoved(before, after)` is told of each cell with a formula (and each
+    // that is an array's) that moves. Gives the number of cells that moved; those removed are given to `removed`, as they were.
+    qint64 shiftRows(quint32 first, qint64 delta, quint32 limit, const std::function<void(const Cell &before, const Cell &after)> &formulaMoved, std::vector<Cell> *removed);
+    qint64 shiftColumns(quint32 first, qint64 delta, quint32 limit, const std::function<void(const Cell &before, const Cell &after)> &formulaMoved, std::vector<Cell> *removed);
+    // Puts the blocks that were added to out of order in order (the cells that were put in again by reshuffle).
+    void reorder();
     int blockCount() const { return int(m_blocks.size()); }
     // What the cells take, in bytes, as the blocks hold them.
     qint64 memoryBytes() const;
@@ -254,6 +313,8 @@ struct ColumnSpan {
     bool hidden = false;
     bool customWidth = false;
     quint32 style = 0;             // the place of a cell format; 0 for none
+    quint8 outline = 0;            // the outline level
+    bool collapsed = false, bestFit = false, phonetic = false;   // and the rest of what a `col` element says, for writing it again
 };
 
 // What the file says about a row that is not as the sheet's default: its height in points (-1 for none), whether it is hidden, and the cell format (when the row
@@ -291,6 +352,20 @@ struct SheetView {
     quint32 activeRow = 0, activeCol = 0;      // the cell the sheet was left on
 };
 
+// A rule for what may be put in cells (a `dataValidation` element): the kind of value, how it is compared, what happens when it is not allowed, and the messages.
+struct Validation {
+    enum class Type : quint8 { Any, Whole, Decimal, List, Date, Time, TextLength, Custom } type = Type::Any;
+    enum class Style : quint8 { Stop, Warning, Information } style = Style::Stop;
+    enum class Compare : quint8 { Between, NotBetween, Equal, NotEqual, Greater, Less, GreaterEqual, LessEqual } compare = Compare::Between;
+    bool allowBlank = false;
+    bool dropDown = true;          // a list is offered from a button on the cell (the file's showDropDown="1" turns it off)
+    bool showError = false;        // the file asks for an alert when a value is not allowed (else it lets it in)
+    bool showInput = false;
+    QString errorTitle, error, promptTitle, prompt;
+    QVector<CellRange> ranges;     // the cells it is for (sqref)
+    QString formula1, formula2;    // as the file writes them (the limits, the choices, or the formula), relative to the first cell of the first range
+};
+
 struct Sheet {
     CellStore cells;
     QVector<QString> texts;           // inline strings and the texts of formula results
@@ -304,6 +379,7 @@ struct Sheet {
     QVector<CellRange> merges;        // the merged ranges read (as many as the limit allows), in the order of the file
     QVector<ColumnSpan> columns;      // in the order of the file
     QVector<RowSpec> rowSpecs;        // the rows that are not as the default, in the order of the file
+    QVector<Validation> validations;  // the rules for what may be put in cells
     SheetFormat format;
     SheetView view;
     ColorSpec tabColor;               // the color of the sheet's tab
