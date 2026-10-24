@@ -282,9 +282,38 @@ private Q_SLOTS:
             {"DAYS360(\"x\",DATE(2011,1,1))", "e:#VALUE!"},
             {"YEARFRAC(DATE(2011,1,1),DATE(2011,4,30))", "n:0.330555555555556"},
             {"YEARFRAC(DATE(2011,1,1),DATE(2011,4,30),4)", "n:0.330555555555556"},
-            {"YEARFRAC(DATE(2011,1,29),DATE(2011,3,31),0)", "n:0.172222222222222"},
+            {"YEARFRAC(DATE(2011,1,29),DATE(2011,3,31),0)", "n:0.169444444444444"},      // 61 days: the 31st at the end is the 30th, whatever the start day
         };
         CHECK_EVALS(cases, Grid(), Settings());
+    }
+
+    // YEARFRAC of the United States' 30/360 (basis 0, the one left out) is not DAYS360: a 31st at the end is the 30th whatever the day of the start (DAYS360 keeps it
+    // when the start is before the 30th). A workbook of the practice set stored 359/360 for January 1 to December 31, 2002 (dates 35795 and 36159 of its 1904 system).
+    void yearFractionOfThirtyDayMonthsMakesAnEndOnThe31stThe30th()
+    {
+        Settings system1904;
+        system1904.system = DateSystem::Date1904;
+        const E cases[] = {
+            {"YEARFRAC(DATE(2002,1,1),DATE(2002,12,31))", "n:0.997222222222222"},
+            {"YEARFRAC(DATE(2002,1,1),DATE(2002,12,31),0)", "n:0.997222222222222"},
+            {"YEARFRAC(DATE(2002,12,31),DATE(2002,1,1))", "n:0.997222222222222"},           // the dates in either order
+            {"YEARFRAC(DATE(2011,1,1),DATE(2011,5,31))", "n:0.413888888888889"},            // 149 days
+            {"YEARFRAC(DATE(2011,1,31),DATE(2011,3,31))", "n:0.166666666666667"},           // 60 days, as before
+            {"YEARFRAC(DATE(2011,1,30),DATE(2011,3,31))", "n:0.166666666666667"},
+            {"YEARFRAC(DATE(2011,1,15),DATE(2011,3,30))", "n:0.208333333333333"},
+            {"YEARFRAC(DATE(2011,3,31),DATE(2011,5,1))", "n:0.0861111111111111"},           // the 31st at the start is the 30th: 31 days
+            {"YEARFRAC(DATE(2002,1,1),DATE(2002,12,31),4)", "n:0.997222222222222"},         // the european rule is the same here
+            {"YEARFRAC(DATE(2002,1,1),DATE(2002,12,31),2)", "n:1.01111111111111"},          // 364 days of 360
+            {"YEARFRAC(DATE(2002,1,1),DATE(2002,12,31),3)", "n:0.997260273972603"},         // 364 of 365
+            {"YEARFRAC(DATE(2002,1,1),DATE(2002,12,31),1)", "n:0.997260273972603"},
+            {"DAYS360(DATE(2002,1,1),DATE(2002,12,31))", "n:360"},                           // and DAYS360 is not changed
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+        const E cases1904[] = {
+            {"YEARFRAC(35795,36159)", "n:0.997222222222222"},
+            {"YEARFRAC(35795,36159,0)", "n:0.997222222222222"},
+        };
+        CHECK_EVALS(cases1904, Grid(), system1904);
     }
 
     // YEARFRAC by actual days over actual years: the length of the year is that of the one the span is in; of a span of a year or less that holds a February 29, 366; of a

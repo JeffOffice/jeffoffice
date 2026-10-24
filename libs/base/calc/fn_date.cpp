@@ -382,7 +382,9 @@ bool lastDayOfFebruary(int y, int m, int d, DateSystem sys) { return m == 2 && d
 // Days between two dates counting 30 days to a month. The United States' rule (NASD), as the standard states it: if both dates are the last day of February, the end date
 // is the 30th; if the start date is the 31st or the last day of February, it is the 30th; if the end date is the 31st and the start date is now the 30th, the end date is the
 // 30th. The european rule: a 31st is the 30th, at the start and at the end.
-double days360(int y1, int m1, int d1, int y2, int m2, int d2, bool european, DateSystem sys)
+// With `fraction` (YEARFRAC of basis 0) the rule differs in one place, found in the files: a 31st at the end is the 30th whatever the start (a workbook stores 359/360
+// for January 1 to December 31, where DAYS360 counts 360).
+double days360(int y1, int m1, int d1, int y2, int m2, int d2, bool european, DateSystem sys, bool fraction = false)
 {
     if (european) {
         if (d1 == 31) d1 = 30;
@@ -391,7 +393,7 @@ double days360(int y1, int m1, int d1, int y2, int m2, int d2, bool european, Da
         const bool startFebruary = lastDayOfFebruary(y1, m1, d1, sys), endFebruary = lastDayOfFebruary(y2, m2, d2, sys);
         if (startFebruary && endFebruary) d2 = 30;
         if (startFebruary || d1 == 31) d1 = 30;
-        if (d2 == 31 && d1 == 30) d2 = 30;
+        if (d2 == 31 && (d1 == 30 || fraction)) d2 = 30;
     }
     return double((y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1));
 }
@@ -418,7 +420,7 @@ Value fnYearFrac(Call &c)
     int y1, m1, d1, y2, m2, d2;
     if (!dateOf(a, sys, &y1, &m1, &d1) || !dateOf(b, sys, &y2, &m2, &d2)) return c.error(ErrorKind::Num);
     switch (int(std::trunc(basis))) {
-    case 0: return Value::number(days360(y1, m1, d1, y2, m2, d2, false, sys) / 360.0);
+    case 0: return Value::number(days360(y1, m1, d1, y2, m2, d2, false, sys, true) / 360.0);
     case 4: return Value::number(days360(y1, m1, d1, y2, m2, d2, true, sys) / 360.0);
     case 2: return Value::number((b - a) / 360.0);
     case 3: return Value::number((b - a) / 365.0);
