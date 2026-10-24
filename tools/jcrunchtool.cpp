@@ -10,6 +10,8 @@
 //                                                tools/crunch_xls_compare.py runs it over a list and sums it up)
 //   jcrunchtool xls-fuzz <file.xls> [count=500] [seed=1] [seconds=60]   the workbook damaged in a few places, `count` times, and each copy opened, read, and (some) worked out, as a sweep for crashes
 //                                                and hangs of the reader of the old binary form (see jcrunchtool_xlsfuzz.cpp)
+//   jcrunchtool xls-save-check <file.xls>   the workbook written as the XML form, read back, and compared with itself, and written again with one cell changed (see jcrunchtool_xlssave.cpp;
+//                                                tools/crunch_xls_savecheck.py runs it over a list)
 //   jcrunchtool dump <file.xlsx|file.xls> [sheet=1] [max=100]   the first cells of a sheet (counting from 1), one to a line: address, type, value, and formula
 //   jcrunchtool scan <keys.txt> <out-dir> [jobs]   runs `info` on each workbook listed (one path to a line), each in a child process that has 120 seconds and 4 GB,
 //                                                  and writes <out-dir>/books.tsv: path, exit, seconds, peak MB, sheets, cells, formula cells, stored results, and
@@ -681,6 +683,7 @@ int usage()
              "       jcrunchtool names <file.xlsx|file.xls>\n"
              "       jcrunchtool compare-one <ours.xls> <theirs.xlsx>\n"
              "       jcrunchtool xls-fuzz <file.xls> [count=500] [seed=1] [seconds=60]\n"
+             "       jcrunchtool xls-save-check <file.xls>\n"
              "       jcrunchtool functions\n"
              "       jcrunchtool eval <file.xlsx|file.xls> <sheet> <cell> <formula>\n"
              "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n"
@@ -698,6 +701,7 @@ int usage()
 namespace jp::crunchtool {
 int compareMain(const QStringList &args);   // (jcrunchtool_compare.cpp)
 int xlsFuzzMain(const QStringList &args);   // (jcrunchtool_xlsfuzz.cpp)
+int xlsSaveCheckMain(const QStringList &args);   // (jcrunchtool_xlssave.cpp)
 }
 
 int main(int argc, char **argv)
@@ -729,6 +733,10 @@ int main(int argc, char **argv)
     if (args.size() == 3 && args[0] == QLatin1String("compare-one")) return jp::crunchtool::compareMain(args.mid(1));
     if (args.size() >= 2 && args.size() <= 5 && args[0] == QLatin1String("xls-fuzz")) {
         const int code = jp::crunchtool::xlsFuzzMain(args.mid(1));
+        if (code >= 0) return code;
+    }
+    if (args.size() == 2 && args[0] == QLatin1String("xls-save-check")) {
+        const int code = jp::crunchtool::xlsSaveCheckMain(args.mid(1));
         if (code >= 0) return code;
     }
     if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("dump")) return dump(args[1], args.value(2, QStringLiteral("1")).toInt(), args.value(3, QStringLiteral("100")).toLongLong());
