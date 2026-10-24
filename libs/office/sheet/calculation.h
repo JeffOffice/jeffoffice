@@ -167,6 +167,9 @@ public:
         // defined names whose text changed, with the text they had (by the key the source keeps them by)
         std::vector<std::pair<QString, QString>> names;
         qint64 cellsMoved = 0, formulasRewritten = 0;
+        // a Move: the merged ranges of the sheet it went to, as they were (the first sheet's are in `merges`)
+        QVector<CellRange> toMerges;
+        qint64 toMergeCount = 0;
         // where the formulas that were written again are now (after the edit), for what saving must write whole
         struct Place {
             int sheet;
@@ -186,9 +189,24 @@ public:
     // The runs of columns [first, last] has widths or hidden or formats for, cut to that range, in order; the rows in it that are not as the default, in order.
     std::vector<ColumnSpan> columnRuns(int sheet, quint32 first, quint32 last) const;
     std::vector<RowSpec> rowSpecsIn(int sheet, quint32 first, quint32 last) const;
+    // The merged ranges of a sheet (and how many it has, which may be more than are kept), and putting them back.
+    QVector<CellRange> mergesOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].merges : QVector<CellRange>(); }
+    qint64 mergeCountOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].mergeCount : 0; }
+    void setMerges(int sheet, const QVector<CellRange> &merges, qint64 count)
+    {
+        if (sheet < 0 || sheet >= int(m_sheets.size())) return;
+        m_sheets[size_t(sheet)].merges = merges;
+        m_sheets[size_t(sheet)].mergeCount = count;
+    }
     // Puts these in their place (what the range had is let go of first): for making a change and for undoing it.
     void setColumnRuns(int sheet, quint32 first, quint32 last, const std::vector<ColumnSpan> &runs);
     void setRowSpecs(int sheet, quint32 first, quint32 last, const std::vector<RowSpec> &specs);
+
+    // A column of a table renamed: the defined names that name it follow. Gives the texts the names had (by the key the calculation keeps them by), for putting back with restoreNames.
+    std::vector<std::pair<QString, QString>> renameColumnInNames(const QString &table, const QString &oldName, const QString &newName);
+    void restoreNames(const std::vector<std::pair<QString, QString>> &names);
+
+    // (applyEdit does a Move as well: the cells of a block put in another place, over what is there, and what refers to them follows; Undo gives back both places.)
 
     // Puts right, at once, what a stop of the recalculation left to be put right (an edit does this first; a caller that is about to read the formulas' state does too).
     void settle() { abandonNow(); }
@@ -262,6 +280,10 @@ private:
     quint32 addNode(int sheet, const Cell &cell, qint32 formulaIndex);
     // The text of an array formula's or a data table's first cell changed in place (its range's cells point to its formula); false if the cell is none.
     bool rewriteArrayText(int sheet, quint32 row, quint32 col, const QString &text);
+    void nameTextsChanged();
+    bool canMoveCells(const StructEdit &edit, QString *why) const;
+    bool applyMove(const StructEdit &edit, EditRecord *record);
+    bool undoMove(const EditRecord &record);
     void registerNode(quint32 id, const std::vector<jp::calc::CellArea> *told);
     jp::calc::Value nodeValue(const Node &n, quint32 id) const;
     void storeResult(Node &n, quint32 id, const jp::calc::Value &v, bool publish = true);

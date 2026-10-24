@@ -93,6 +93,15 @@ QString differences(const office::sheet::Calculation *a, const office::sheet::Ca
     return out.join(QStringLiteral("; "));
 }
 
+QString savedSheetText(const QString &path)
+{
+    QFile f(path);
+    f.open(QIODevice::ReadOnly);
+    QMap<QString, QByteArray> parts;
+    jp::readZip(f.readAll(), parts);
+    return QString::fromUtf8(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")));
+}
+
 QString formulaOf(EditWindow &e, const QString &ref)
 {
     quint32 r = 0, c = 0;
@@ -368,7 +377,7 @@ private Q_SLOTS:
     // the file always means what the window showed.
     void randomEditsSaveWhatTheWindowShows()
     {
-        int moves = 0, refused = 0;
+        int moves = 0, refused = 0, pastes = 0, cuts = 0;
         // (CRUNCH_SEED=n runs only that seed, and says what it does)
         const quint32 only = qEnvironmentVariableIntValue("CRUNCH_SEED");
         const quint32 seeds = qEnvironmentVariableIsSet("CRUNCH_SEEDS") ? qEnvironmentVariableIntValue("CRUNCH_SEEDS") : 40;
@@ -386,7 +395,7 @@ private Q_SLOTS:
                 block.row2 = at + count - 1;
                 block.col1 = quint32(rng.bounded(5));
                 block.col2 = block.col1 + quint32(rng.bounded(2));
-                const int which = rng.bounded(14);
+                const int which = rng.bounded(17);
                 if (only) qInfo() << "step" << step << "which" << which << "sheet" << sheet << "at" << at << "count" << count << "block" << rangeName(block);
                 switch (which) {
                 case 0: (void((s->insertRows(sheet, at, count)).ok ? ++moves : ++refused)); break;
@@ -417,6 +426,36 @@ private Q_SLOTS:
                     s->resizeRows(sheet, at, at + rng.bounded(3), by, QStringLiteral("h"));
                     break;
                 }
+                case 14: {
+                    crunch::EditSession::PasteOptions o;
+                    o.what = crunch::EditSession::PasteOptions::What(rng.bounded(4));
+                    o.transpose = rng.bounded(4) == 0;
+                    o.skipBlanks = rng.bounded(4) == 0;
+                    if (rng.bounded(5) == 0) o.operation = crunch::EditSession::PasteOptions::Operation(1 + rng.bounded(4));
+                    office::sheet::CellRange at1;
+                    at1.valid = true;
+                    at1.row1 = at1.row2 = quint32(rng.bounded(10));
+                    at1.col1 = at1.col2 = quint32(rng.bounded(6));
+                    (void((s->paste(sheet, at1, s->copyCells(sheet, block, false), o)).ok ? ++pastes : ++refused));
+                    break;
+                }
+                case 15: {
+                    const int toSheet = rng.bounded(3) == 0 ? 1 - sheet : sheet;
+                    const quint32 toRow = quint32(rng.bounded(10)), toCol = quint32(rng.bounded(6));
+                    const auto outcome = s->moveCells(sheet, block, toSheet, toRow, toCol);
+                    if (only) qInfo() << "  move to" << toSheet << cellName(toRow, toCol) << outcome.ok << outcome.problem;
+                    (void(outcome.ok ? ++cuts : ++refused));
+                    break;
+                }
+                case 16: {
+                    office::sheet::CellRange at1;
+                    at1.valid = true;
+                    at1.row1 = at1.row2 = quint32(rng.bounded(10));
+                    at1.col1 = at1.col2 = quint32(rng.bounded(6));
+                    QVector<QStringList> table{{QStringLiteral("7"), QStringLiteral("x"), QStringLiteral("=A1+1")}, {QStringLiteral("2024-03-04"), QString(), QStringLiteral("3.5")}};
+                    (void((s->pasteText(sheet, at1, table, crunch::EditSession::PasteOptions())).ok ? ++pastes : ++refused));
+                    break;
+                }
                 case 13: s->type(sheet, quint32(rng.bounded(10)), 0, QStringLiteral("123456789012345")); break;
                 case 9: s->type(sheet, quint32(rng.bounded(10)), quint32(rng.bounded(6)), QStringLiteral("=Sheet1!A%1+Sheet2!A1").arg(1 + rng.bounded(6))); break;
                 default:
@@ -440,7 +479,7 @@ private Q_SLOTS:
             }
             QVERIFY2(diff.isEmpty(), qPrintable(QStringLiteral("seed %1: %2").arg(seed).arg(diff)));
         }
-        QVERIFY2(only || moves > 25 && refused < moves, qPrintable(QStringLiteral("%1 moves, %2 refused").arg(moves).arg(refused)));
+        QVERIFY2(only || (moves > 25 && refused < moves + pastes + cuts && (seeds < 20 || (pastes > seeds / 2 && cuts > seeds / 4))), qPrintable(QStringLiteral("%1 inserts and deletes, %2 pastes, %3 cuts, %4 refused").arg(moves).arg(pastes).arg(cuts).arg(refused)));
     }
 
     // Tables: rows inserted inside one make it longer, rows or columns before it move it, the header row and the columns can't be cut through; the saved part has its place.
@@ -508,6 +547,56 @@ private Q_SLOTS:
         QVERIFY(s->canUndo());
         e.win.w.act(QStringLiteral("edit.undo"))->trigger();                    // (the other window has the keys now)
         QVERIFY(!s->canUndo());
+    }
+
+    // A table column renamed in its header: the formulas of cells, the defined names, the rules of validation and of conditional formats, and charts that name it follow, in the
+    // model and in the saved file; Undo (even after a save) puts the old name back everywhere.
+    void aRenamedColumnFollowsInNamesRulesAndCharts()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Region</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>Q1</t></is></c><c r=\"E1\"><f>SUM(Sales[Q1])</f><v>3</v></c><c r=\"F1\"><f>Q1Total*2</f><v>6</v></c></row>"
+                                            "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>East</t></is></c><c r=\"B2\"><v>1</v></c></row>"
+                                            "<row r=\"3\"><c r=\"A3\" t=\"inlineStr\"><is><t>West</t></is></c><c r=\"B3\"><v>2</v></c></row>");
+        const QString after = QStringLiteral("<conditionalFormatting sqref=\"B2:B3\"><cfRule type=\"expression\" priority=\"1\"><formula>Sales[Q1]&gt;1</formula></cfRule></conditionalFormatting>"
+                                             "<dataValidations count=\"1\"><dataValidation type=\"custom\" sqref=\"B2:B3\"><formula1>Sales[Q1]&lt;10</formula1></dataValidation></dataValidations>");
+        const QString table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:B3\">"
+                                             "<autoFilter ref=\"A1:B3\"/><tableColumns count=\"2\"><tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/></tableColumns></table>");
+        const QByteArray chart = "<?xml version=\"1.0\"?><c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart><c:plotArea><c:barChart><c:ser><c:val><c:numRef><c:f>Sales[Q1]</c:f></c:numRef></c:val></c:ser></c:barChart></c:plotArea></c:chart></c:chartSpace>";
+        QByteArray book = buildXlsx({worksheet(rows, after)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QStringLiteral("<definedName name=\"Q1Total\">SUM(Sales[Q1])</definedName>"));
+        book = withTables(book, {table});
+        book = withParts(book, {{QStringLiteral("xl/charts/chart1.xml"), chart, QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"), -1, QString(), QString(), QString()}});
+        EditWindow e;
+        QVERIFY(e.open(book));
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("n:6"));
+        auto saveAndRead = [&](const QString &part) {
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            const bool modified = e.win.w.isModified();
+            const bool started = e.win.w.save();
+            if (started && modified) saved.wait(20000);
+            QFile f(e.path);
+            f.open(QIODevice::ReadOnly);
+            QMap<QString, QByteArray> parts;
+            jp::readZip(f.readAll(), parts);
+            return QString::fromUtf8(parts.value(part));
+        };
+        QVERIFY(s->type(0, 0, 1, QStringLiteral("Quarter")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(formulaOf(e, QStringLiteral("E1")), QStringLiteral("=SUM(Sales[Quarter])"));
+        QCOMPARE(e.win.w.calculation()->definedName(0, QStringLiteral("Q1Total")), QStringLiteral("SUM(Sales[Quarter])"));
+        QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("n:6"));
+        QVERIFY2(saveAndRead(QStringLiteral("xl/workbook.xml")).contains(QStringLiteral(">SUM(Sales[Quarter])</definedName>")), "names");
+        const QString sheet = savedSheetText(e.path);
+        QVERIFY2(sheet.contains(QStringLiteral("<formula>Sales[Quarter]&gt;1</formula>")) && sheet.contains(QStringLiteral("<formula1>Sales[Quarter]&lt;10</formula1>")), qPrintable(sheet));
+        QVERIFY(saveAndRead(QStringLiteral("xl/charts/chart1.xml")).contains(QStringLiteral("<c:f>Sales[Quarter]</c:f>")));
+        // Undo after the save puts the old name back in the file the next save makes
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.calculation()->definedName(0, QStringLiteral("Q1Total")), QStringLiteral("SUM(Sales[Q1])"));
+        QVERIFY(saveAndRead(QStringLiteral("xl/workbook.xml")).contains(QStringLiteral(">SUM(Sales[Q1])</definedName>")));
+        const QString again = savedSheetText(e.path);
+        QVERIFY2(again.contains(QStringLiteral("<formula>Sales[Q1]&gt;1</formula>")) && again.contains(QStringLiteral("<formula1>Sales[Q1]&lt;10</formula1>")), qPrintable(again));
+        QVERIFY(saveAndRead(QStringLiteral("xl/charts/chart1.xml")).contains(QStringLiteral("<c:f>Sales[Q1]</c:f>")));
+        QCOMPARE(formulaOf(e, QStringLiteral("E1")), QStringLiteral("=SUM(Sales[Q1])"));
     }
 
     // After a save, Undo does not go back over the rows, columns, and cells moved before it (the file has them), but goes on over what came after; Redo of what was undone works.

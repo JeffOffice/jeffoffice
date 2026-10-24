@@ -14,6 +14,7 @@ namespace jp::office::sheet {
 
 struct MoveContext {
     std::vector<StructEdit> edits;
+    std::vector<ColumnRename> renames;   // columns of tables renamed (the formulas that name them follow)
     QStringList sheetNames;   // the workbook's, in order
 };
 

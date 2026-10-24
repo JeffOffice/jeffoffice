@@ -151,6 +151,8 @@ Q_SIGNALS:
     void clearRequested();
     // The fill handle was dragged and let go: the block it began from, the block with the cells it reached, and whether Ctrl was held (a copy, not a series).
     void fillRequested(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
+    // Esc took away the dashed border of the cells that were copied or cut.
+    void copyBorderCleared();
     // The border of a column (row) was dragged and let go: which, and the size it was given, in the grid's units at 100% (0 hides it).
     void resizeRequested(bool column, qint64 index, int size);
     // A double click on the border at the end of a column (row): fit it to what it holds.

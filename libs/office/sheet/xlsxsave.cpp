@@ -348,8 +348,9 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     // ---- rows, columns, and cells inserted and deleted: the sheets they move cells on are renumbered, and any sheet (and chart, drawing, note, name, ...) that refers to cells follows
     MoveContext ctx;
     ctx.edits = changes.edits;
+    ctx.renames = changes.renames;
     for (const SheetEntry &se : book.info().sheets) ctx.sheetNames << se.name;
-    const bool moves = !ctx.edits.empty();
+    const bool moves = !ctx.edits.empty() || !ctx.renames.empty();
     QSet<int> moveSheets;   // the sheets (by their place) whose part is made by the mover
     if (moves) {
         anyCellChanged = true;

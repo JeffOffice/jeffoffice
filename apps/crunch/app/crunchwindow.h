@@ -104,6 +104,8 @@ public:
         double value = 0;
     };
     void setSizeAsker(const std::function<bool(SizeRequest *)> &asker) { m_sizeAsker = asker; }
+    // And Paste Special: how to paste. A dialog unless this stands in for it (tests); false gives it up.
+    void setPasteAsker(const std::function<bool(crunch::EditSession::PasteOptions *)> &asker) { m_pasteOptionsAsker = asker; }
     void setChangedAsker(const std::function<ChangedAnswer(const QString &name)> &asker) { m_changedAsker = asker; }
     // Where Save As writes: asked of a file dialog, unless this stands in for it (tests): the name it starts with, and the filter; an empty path gives it up.
     void setSavePicker(const std::function<QString(const QString &start, const QString &filter)> &picker) { m_savePicker = picker; }
@@ -204,6 +206,12 @@ private:
     jp::office::sheet::CellRange selectedRange() const;
     std::function<bool(ShiftRequest *)> m_shiftAsker;
     std::function<bool(SizeRequest *)> m_sizeAsker;
+    // what Paste Special asks for: the options (a dialog unless this stands in for it: tests); false gives it up
+    std::function<bool(crunch::EditSession::PasteOptions *)> m_pasteOptionsAsker;
+    crunch::ClipData m_clip, m_pendingClip;   // the last copy or cut made here that the clipboard still holds, and the one being made
+    jp::grid::GridRange m_pendingBorder{-1, -1, -1, -1};
+    QString m_pendingHtml;
+    bool m_settingClipboard = false;
     // the width of columns and the height of rows
     void onSizesChanged(int sheet);
     void resizeDragged(bool column, qint64 index, int size);
@@ -231,8 +239,19 @@ private:
     QString saveKind() const;
     void setStatus(const QString &text);
     void goToName();
+    // the clipboard (crunchwindow_clip.cpp)
+    void createClipboardActions();
     void copySelection();
+    void cutSelection();
+    void copyOrCut(bool cut);
     void copyStep();
+    void publishClipboard(const QString &text);
+    void pasteClipboard(const crunch::EditSession::PasteOptions &options);
+    void pasteSpecial();
+    void onClipboardChanged();
+    void forgetClip();
+    void widenForCells(int sheet, const jp::office::sheet::CellRange &cells);
+    QString htmlOfClip(const crunch::ClipData &clip) const;
     void freezeAtSelection();
     void notice(const QString &title, const QString &text, bool warning = true);
     QString helpContext() const;

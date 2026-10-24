@@ -30,6 +30,7 @@ qint64 StructChange::bytes() const
 bool EditSession::canMove(const StructEdit &edit, QString *why) const
 {
     if (!canEdit(why) || !canEditSheet(edit.sheet, why)) return false;
+    if (edit.kind == StructEdit::Kind::Move && !canEditSheet(edit.toSheet, why)) return false;
     if (!m_book->calc->canApply(edit, why)) return false;
     return m_book->book->tablesAllow(edit, why);
 }
@@ -193,10 +194,13 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
         sc->engineGone.clear();
         sc->fileGone.clear();
         sc->touchedAdded.clear();
-        followSet(&m_touched, edit, &sc->touchedGone);
-        followMap(&m_results, edit, &sc->resultsGone);
-        followMap(&m_engineAtStart, edit, &sc->engineGone);
-        followMap(&m_fileResults, edit, &sc->fileGone);
+        // (the marks of a Move stay where they are: they say what differs from the file at a place, and the file's cells do not move with the cells)
+        if (edit.kind != K::Move) {
+            followSet(&m_touched, edit, &sc->touchedGone);
+            followMap(&m_results, edit, &sc->resultsGone);
+            followMap(&m_engineAtStart, edit, &sc->engineGone);
+            followMap(&m_fileResults, edit, &sc->fileGone);
+        }
         sc->columnsGone.clear();
         sc->rowsGone.clear();
         followLines(&m_columnsResized, edit, true, &sc->columnsGone);
@@ -222,16 +226,29 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
                 return true;
             });
         }
+        if (edit.kind == K::Move) {
+            // the places of the block and of what it went over are written whole: those that held cells, and the cells now in the new place
+            for (const Calculation::EditRecord::GoneCell &g : sc->record.gone) mark(keyOf(g.sheet, g.row, g.col));
+            const quint32 toRow2 = edit.toRow + (edit.row2 - edit.row1), toCol2 = edit.toCol + (edit.col2 - edit.col1);
+            calc->sheet(edit.toSheet).cells.forEachInRange(edit.toRow, edit.toCol, toRow2, toCol2, [&](const Cell &c) {
+                mark(keyOf(edit.toSheet, c.row, c.col));
+                return true;
+            });
+            m_mergesChanged.insert(edit.sheet);
+            m_mergesChanged.insert(edit.toSheet);
+        }
         m_edits.push_back(edit);
     } else {
         // (the state before the undo is the one after the edit was done: nothing was done to the cells since)
         for (const quint64 key : sc->touchedAdded) m_touched.erase(key);
         sc->touchedAdded.clear();
         const StructEdit back = edit.inverse();
-        followSet(&m_touched, back, nullptr);
-        followMap(&m_results, back, nullptr);
-        followMap(&m_engineAtStart, back, nullptr);
-        followMap(&m_fileResults, back, nullptr);
+        if (edit.kind != K::Move) {
+            followSet(&m_touched, back, nullptr);
+            followMap(&m_results, back, nullptr);
+            followMap(&m_engineAtStart, back, nullptr);
+            followMap(&m_fileResults, back, nullptr);
+        }
         followLines(&m_columnsResized, back, true, nullptr);
         followLines(&m_rowsResized, back, false, nullptr);
         for (const quint64 key : sc->columnsGone) m_columnsResized.insert(key);
@@ -273,8 +290,13 @@ bool EditSession::applyStructure(Step *step, bool forward)
     // the values the window holds follow the cells
     m_values->remap(now.sheet, [&](quint32 *row, quint32 *col) {
         int s = now.sheet;
-        return adjustCell(now, &s, row, col) != RefFate::Gone;
+        const RefFate fate = adjustCell(now, &s, row, col);
+        return fate != RefFate::Gone && s == now.sheet;   // (the values of formulas moved to another sheet are worked out there)
     });
+    if (now.kind == StructEdit::Kind::Move && now.toSheet != now.sheet) {
+        const quint32 toRow2 = now.toRow + (now.row2 - now.row1), toCol2 = now.toCol + (now.col2 - now.col1);
+        m_values->remap(now.toSheet, [&](quint32 *row, quint32 *col) { return !(*row >= now.toRow && *row <= toRow2 && *col >= now.toCol && *col <= toCol2); });
+    }
     m_log.push_back(now);
     hold->structureChanged();
     if (m_holdHook) m_holdHook(calc, true);

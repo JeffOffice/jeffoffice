@@ -951,6 +951,11 @@ void GridView::keyPressEvent(QKeyEvent *e)
         m_jump.reset();
         if (e->key() == Qt::Key_Escape) return;
     }
+    if (e->key() == Qt::Key_Escape && hasCopyBorder()) {
+        clearCopyBorder();
+        Q_EMIT copyBorderCleared();
+        return;
+    }
     Navigator nav(&m_sheet.layout(), m_nav.get());
     auto go = [&](const Selection &s) { setSelectionInternal(s); };
     // a character that prints starts an entry

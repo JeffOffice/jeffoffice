@@ -248,6 +248,46 @@ QByteArray columnsFromRuns(const QByteArray &head, const std::vector<ColumnSpan>
     return head + out;
 }
 
+// What follows a sheet's cells (from after "</sheetData>" to the end) with its merged ranges made from `merges`: in place of the element the file has, or where the format puts it.
+QByteArray tailWithMerges(const QByteArray &after, const std::vector<CellRange> &merges, const QByteArray &prefix)
+{
+    QByteArray generated;
+    if (!merges.empty()) {
+        generated = "<" + prefix + "mergeCells count=\"" + QByteArray::number(qulonglong(merges.size())) + "\">";
+        for (const CellRange &m : merges) generated += "<" + prefix + "mergeCell ref=\"" + rangeName(m).toLatin1() + "\"/>";
+        generated += "</" + prefix + "mergeCells>";
+    }
+    static const QList<QByteArray> later = {"phoneticPr", "conditionalFormatting", "dataValidations", "hyperlinks", "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks",
+                                            "customProperties", "cellWatches", "ignoredErrors", "smartTags", "drawing", "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects",
+                                            "controls", "webPublishItems", "tableParts", "extLst"};
+    Tag t;
+    qsizetype pos = 0, existingStart = -1, existingEnd = -1, insertAt = -1;
+    int depth = 0;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (insertAt < 0) insertAt = t.start;   // </worksheet>
+                break;
+            }
+            if (depth == 0 && existingStart >= 0 && existingEnd < 0 && t.local == "mergeCells") existingEnd = t.end;
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == "mergeCells" && existingStart < 0) {
+                existingStart = t.start;
+                if (t.selfClosing) existingEnd = t.end;
+            } else if (insertAt < 0 && later.contains(QByteArray(t.local))) {
+                insertAt = t.start;
+            }
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    if (existingStart >= 0 && existingEnd >= 0) return after.left(existingStart) + generated + after.mid(existingEnd);
+    if (generated.isEmpty() || insertAt < 0) return after;
+    return after.left(insertAt) + generated + after.mid(insertAt);
+}
+
 class Patcher {
 public:
     Patcher(QIODevice *in, PartSink *out, const SheetChanges &changes, bool hasShared, const std::atomic<bool> *cancel) : m_in(in), m_out(out), m_hasShared(hasShared), m_cancel(cancel)
@@ -264,6 +304,7 @@ public:
         }
         for (const RowProps &p : changes.rows) rowFor(p.row).props = &p;
         if (changes.replaceColumns) m_columns = &changes.columns;
+        if (changes.replaceMerges) m_merges = &changes.merges;
         for (RowEdits &r : m_rows) {
             std::stable_sort(r.items.begin(), r.items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
             // (one item for a cell: a changed cell stands over a result)
@@ -758,6 +799,21 @@ private:
     // ---- what follows the rows
     bool tail()
     {
+        if (m_merges) {
+            // (what follows the cells is held whole to change its merged ranges)
+            while (fill()) {
+                if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
+            }
+            if (m_failed) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The sheet's part is damaged."));
+            m_cur = m_written;
+            const QByteArray rest = m_buf.mid(m_written);
+            Tag close;
+            if (xmlscan::nextTag(rest, 0, &close) && close.closing && close.local == "sheetData") put(rest.left(close.end) + tailWithMerges(rest.mid(close.end), *m_merges, m_prefix));
+            else put(rest);
+            m_buf.clear();
+            m_cur = m_written = 0;
+            return true;
+        }
         for (;;) {
             m_cur = m_buf.size();
             flushPending();
@@ -786,6 +842,7 @@ private:
     QHash<QByteArray, SharedMaster> m_dropped;
     quint32 m_sharedUntil = 0;
     const std::vector<ColumnSpan> *m_columns = nullptr;
+    const std::vector<CellRange> *m_merges = nullptr;
 };
 
 } // namespace

@@ -1,6 +1,7 @@
 // Rows, columns, and cells inserted and deleted in a calculation: the cells move, and every formula that reads cells that moved is written again with its references following them.
 // See Calculation::applyEdit.
 #include "sheet/calculation.h"
+#include "sheet/tables.h"
 
 #include <QCoreApplication>
 
@@ -79,7 +80,8 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
         return false;
     };
     if (e.sheet < 0 || e.sheet >= int(m_sheets.size())) return refuse(say("There is no such sheet."));
-    if (e.kind == K::Move || e.kind == K::Offset) return refuse(say("That is not done by inserting or deleting."));
+    if (e.kind == K::Move) return canMoveCells(e, why);
+    if (e.kind == K::Offset) return refuse(say("That is not done by inserting or deleting."));
     const Sheet &s = m_sheets[size_t(e.sheet)];
     if (m_untracked > 0) return refuse(say("This workbook has too many formulas for JeffCrunch to follow when rows, columns, or cells are inserted or deleted."));
     if (s.isProtected) return refuse(say("This sheet is protected, so rows, columns, and cells can't be inserted or deleted. Take the protection off in the program that put it on."));
@@ -142,6 +144,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
 {
     using K = StructEdit::Kind;
     if (!canApply(e, nullptr)) return false;
+    if (e.kind == K::Move) return applyMove(e, rec);
     abandonNow();
     *rec = EditRecord();
     rec->edit = e;
@@ -415,6 +418,7 @@ bool Calculation::rewriteArrayText(int sheet, quint32 row, quint32 col, const QS
 
 bool Calculation::undoEdit(const EditRecord &rec)
 {
+    if (rec.edit.kind == StructEdit::Kind::Move) return undoMove(rec);
     EditRecord throwaway;
     if (!applyEdit(rec.edit.inverse(), &throwaway)) return false;
     Sheet &S = m_sheets[size_t(rec.sheet)];
@@ -462,6 +466,51 @@ bool Calculation::undoEdit(const EditRecord &rec)
     }
     if (!m_running) beginRecalculation();
     return true;
+}
+
+// What uses a defined name reads it again, and is worked out again.
+void Calculation::nameTextsChanged()
+{
+    m_nameTraits.clear();
+    for (SheetState &state : m_state) {
+        for (Compiled &slot : state.plain) slot.tried = false;
+        for (Compiled &slot : state.array) slot.tried = false;
+    }
+    for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
+        const Node &n = m_nodes[id];
+        if ((n.flags & Dead) || !(n.flags & Told)) continue;
+        Sheet &sn = m_sheets[size_t(n.sheet)];
+        Cell *c = sn.cells.findMutable(n.row, n.col);
+        if (!c || !c->hasFormula()) continue;
+        const int sheet = n.sheet;
+        const qint32 formula = c->formula;
+        dropNode(id);
+        addNode(sheet, *c, formula);
+    }
+    if (!m_running) beginRecalculation();
+}
+
+std::vector<std::pair<QString, QString>> Calculation::renameColumnInNames(const QString &table, const QString &oldName, const QString &newName)
+{
+    std::vector<std::pair<QString, QString>> was;
+    abandonNow();
+    for (auto it = m_names.begin(); it != m_names.end(); ++it) {
+        if (!it.value().contains(QLatin1Char('['))) continue;
+        const QString now = renameColumnInFormula(it.value(), table, oldName, newName, false);
+        if (now == it.value()) continue;
+        was.push_back({it.key(), it.value()});
+        it.value() = now;
+    }
+    if (!was.empty()) nameTextsChanged();
+    return was;
+}
+
+void Calculation::restoreNames(const std::vector<std::pair<QString, QString>> &names)
+{
+    if (names.empty()) return;
+    abandonNow();
+    for (const auto &entry : names) m_names[entry.first] = entry.second;
+    nameTextsChanged();
 }
 
 std::vector<ColumnSpan> Calculation::columnRuns(int sheet, quint32 first, quint32 last) const

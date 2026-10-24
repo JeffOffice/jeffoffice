@@ -8,6 +8,7 @@
 #include <QUndoCommand>
 
 #include <algorithm>
+#include <atomic>
 
 namespace jp::crunch {
 
@@ -96,6 +97,7 @@ public:
         qint64 n = 0;
         for (const CellChange &c : m_step.cells) n += qint64(sizeof(c)) + contentBytes(c.before) + contentBytes(c.after) + qint64(c.formatCode.size()) * 2;
         for (const TableRename &r : m_step.renames) n += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
+        for (const MergeEdit &m : m_step.merges) n += qint64(sizeof(m)) + qint64(m.before.size() + m.after.size()) * qint64(sizeof(jp::office::sheet::CellRange));
         for (const SizeEdit &e : m_step.sizes)
             n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
         if (m_step.structure) n += m_step.structure->bytes();
@@ -119,8 +121,17 @@ private:
     bool m_forgotten = false;
 };
 
+namespace {
+// Every session has a name of its own on the clipboard.
+qint64 nextToken()
+{
+    static std::atomic<qint64> next{1};
+    return next++;
+}
+} // namespace
+
 EditSession::EditSession(WorkbookLoader *loader, const std::shared_ptr<LoadedBook> &book, ValueStore *values, QObject *parent)
-    : QObject(parent), m_loader(loader), m_book(book), m_values(values), m_locale(QLocale()), m_today(QDate::currentDate())
+    : QObject(parent), m_loader(loader), m_book(book), m_values(values), m_locale(QLocale()), m_today(QDate::currentDate()), m_token(nextToken())
 {
     m_undo.setUndoLimit(kUndoSteps);
     connect(&m_undo, &QUndoStack::cleanChanged, this, [this](bool clean) { cleanChanged(clean); });
@@ -172,6 +183,7 @@ void EditSession::cleanChanged(bool clean)
     m_results.clear();
     m_columnsResized.clear();
     m_rowsResized.clear();
+    m_mergesChanged.clear();
 }
 
 void EditSession::calculationFinished()
@@ -537,8 +549,25 @@ bool EditSession::apply(Step *step, bool forward)
             formulas.push_back(it);
         }
     }
-    for (const TableRename &r : step->renames) book.setTableColumnName(r.table, r.column, forward ? r.after : r.before);
+    for (TableRename &r : step->renames) {
+        book.setTableColumnName(r.table, r.column, forward ? r.after : r.before);
+        // the defined names that name the column follow, and the file's other parts that do are told at a save
+        const QString table = r.table >= 0 && r.table < book.tables().size() ? book.tables()[r.table].name : QString();
+        const jp::office::sheet::ColumnRename was{table, r.before, r.after}, back{table, r.after, r.before};
+        if (forward) {
+            r.names = calc->renameColumnInNames(table, r.before, r.after);
+            m_renames.push_back(was);
+        } else {
+            calc->restoreNames(r.names);
+            if (!m_renames.empty() && m_renames.back() == was) m_renames.pop_back();
+            else m_renames.push_back(back);
+        }
+    }
     applySizes(step, forward, calc);
+    for (const MergeEdit &m : step->merges) {
+        calc->setMerges(m.sheet, forward ? m.after : m.before, forward ? m.countAfter : m.countBefore);
+        m_mergesChanged.insert(m.sheet);
+    }
     if (m_holdHook) m_holdHook(calc, true);
     if (!step->cells.empty() || !step->renames.empty()) hold->changed();
     hold.reset();   // (the worker has the model again, and works out what these changes make)
@@ -547,6 +576,7 @@ bool EditSession::apply(Step *step, bool forward)
     if (!formulas.empty()) m_values->apply(formulas);
     for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
     for (const SizeEdit &e : step->sizes) Q_EMIT sizesChanged(e.sheet);
+    for (const MergeEdit &m : step->merges) Q_EMIT sizesChanged(m.sheet);
     return true;
 }
 
@@ -706,6 +736,13 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             }
         }
     }
+    for (const int sheet : m_mergesChanged) {
+        // (only when all the sheet's merged ranges are held: past the limit the file's are left as they are)
+        if (calc->mergeCountOf(sheet) != qint64(calc->mergesOf(sheet).size())) continue;
+        SheetChanges &sc = changes.sheets[sheet];
+        sc.replaceMerges = true;
+        for (const jp::office::sheet::CellRange &m : calc->mergesOf(sheet)) sc.merges.push_back(m);
+    }
     for (const quint64 key : m_rowsResized) {
         const int sheet = int(key >> 40);
         const quint32 row = quint32((key >> 16) & 0xFFFFFF);
@@ -734,6 +771,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     }
     changes.replacedParts = book.changedTableParts();
     changes.edits = m_edits;
+    changes.renames = m_renames;
     out->strings = int(changes.newSharedStrings.size());
     if (hasStyles) {
         for (const Workbook::AddedNumberFormat &f : book.addedNumberFormats()) changes.newNumberFormats.append({f.id, f.code});
@@ -756,8 +794,10 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_touched.clear();
     m_columnsResized.clear();
     m_rowsResized.clear();
+    m_mergesChanged.clear();
     m_engineAtStart.clear();
     m_edits.clear();
+    m_renames.clear();
     forgetMovesInFile();
     // what differs from the file is what differs from the file just written
     for (auto it = m_results.begin(); it != m_results.end();) {

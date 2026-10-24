@@ -2,6 +2,7 @@
 #include "sheet/structsave.h"
 
 #include "sheet/cellref.h"
+#include "sheet/tables.h"
 #include "sheet/xmlscan.h"
 
 #include <QCoreApplication>
@@ -106,6 +107,8 @@ QString adjustAll(const QString &formula, int ownSheet, const MoveContext &c, bo
 {
     QString f = formula;
     for (const StructEdit &e : c.edits) f = adjustFormula(f, ownSheet, c.sheetNames, e, nullptr, definedName);
+    if (f.contains(QLatin1Char('[')))
+        for (const ColumnRename &r : c.renames) f = renameColumnInFormula(f, r.table, r.oldName, r.newName, false);
     return f;
 }
 

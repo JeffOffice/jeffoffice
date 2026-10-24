@@ -66,8 +66,17 @@ struct SheetChanges {
     // inserted or deleted or sized by a person. Sorted, none twice.
     bool replaceColumns = false;
     std::vector<ColumnSpan> columns;
+    // And the merged ranges, when a paste or a cut and paste changed them.
+    bool replaceMerges = false;
+    std::vector<CellRange> merges;
     std::vector<RowProps> rows;         // sorted by row
-    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && rows.empty(); }
+    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && rows.empty(); }
+};
+
+// A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
+struct ColumnRename {
+    QString table, oldName, newName;
+    bool operator==(const ColumnRename &o) const { return table == o.table && oldName == o.oldName && newName == o.newName; }
 };
 
 struct SaveChanges {
@@ -92,6 +101,8 @@ struct SaveChanges {
     // Rows, columns, and cells inserted and deleted since the file was read, in the order they were made. Every part of the file that has cells in it, or names them, is changed by them
     // (see structsave.h) before the cells above are put in, which are in the places the edits leave.
     std::vector<StructEdit> edits;
+    // And the columns of tables renamed since, in order.
+    std::vector<ColumnRename> renames;
     // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
     bool fullCalcOnLoad = false;
 };

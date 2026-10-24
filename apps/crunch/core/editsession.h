@@ -7,6 +7,7 @@
 // of the formulas that depend (they are worked out again), so the memory it takes is what the edits changed. A cell typed into is one step. The session also keeps what saving needs: the
 // cells that changed, and the formulas whose result is not what the file has (known from the batches the worker sends).
 
+#include "core/clipdata.h"
 #include "core/loader.h"
 #include "grid/valuestore.h"
 #include "sheet/entry.h"
@@ -47,6 +48,7 @@ struct TableRename {
     int table = 0;
     int column = 0;
     QString before, after;
+    std::vector<std::pair<QString, QString>> names;   // the defined names that named the column, as they were (made when the step is first done)
 };
 
 // The width of columns or the height of rows changed by a step: the runs of columns (the specs of rows) in a range as they were and as they are.
@@ -56,6 +58,13 @@ struct SizeEdit {
     quint32 first = 0, last = 0;   // the columns or rows
     std::vector<jp::office::sheet::ColumnSpan> columnsBefore, columnsAfter;
     std::vector<jp::office::sheet::RowSpec> rowsBefore, rowsAfter;
+};
+
+// The merged ranges of a sheet changed by a step (a paste with merges, cells moved): as they were and as they are.
+struct MergeEdit {
+    int sheet = 0;
+    QVector<jp::office::sheet::CellRange> before, after;
+    qint64 countBefore = 0, countAfter = 0;
 };
 
 // Rows, columns, or cells inserted or deleted by a step: the edit, what the model needs to undo it (made when it is first done), and the marks the session keeps by cell that it moved.
@@ -75,8 +84,9 @@ struct Step {
     std::vector<CellChange> cells;
     std::vector<TableRename> renames;
     std::vector<SizeEdit> sizes;
+    std::vector<MergeEdit> merges;
     std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
-    bool empty() const { return cells.empty() && renames.empty() && sizes.empty() && !structure; }
+    bool empty() const { return cells.empty() && renames.empty() && sizes.empty() && merges.empty() && !structure; }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -123,6 +133,7 @@ public:
         bool ok = true;
         QString problem;      // a sentence for the person, when not ok
         int problemAt = -1;   // and the character of what was typed it is about, or -1
+        jp::office::sheet::CellRange range;   // for a paste: the cells it covered
     };
     // Types text into a cell, as the person typed it: a number, a percent, a date, TRUE, a formula, or text; the cell takes the format the entry asks for if it has none of its own. The
     // change is one step on the undo stack. Not ok, and nothing changed, if the text is a formula that is not one, or is too long, or the cell cannot be changed.
@@ -180,6 +191,28 @@ public:
     // were; `moveToNow` puts the places in it where the cells are now.
     int generation() const { return int(m_log.size()); }
     void moveToNow(std::vector<jp::grid::ValueStore::Item> *items, int generation) const;
+
+    // ---- the clipboard
+    // What a paste puts: everything the cells have (All), their formulas or values, their values (a formula's result), or their formats; an operation made with the cells already there (the
+    // numbers of the copy added to them, ...); the cells that are empty in the copy left alone; the block turned over (rows become columns).
+    struct PasteOptions {
+        enum class What { All, Formulas, Values, Formats } what = What::All;
+        enum class Operation { None, Add, Subtract, Multiply, Divide } operation = Operation::None;
+        bool skipBlanks = false;
+        bool transpose = false;
+    };
+    // This workbook's name for the clipboard: a copy made here carries it.
+    qint64 token() const { return m_token; }
+    // The cells of a range as the clipboard holds them (the block less the rows and columns past the last the sheet has cells in; invalid, with no cells, past kMaxCellsPerEdit). Reads the
+    // sheet, holds nothing.
+    ClipData copyCells(int sheet, const jp::office::sheet::CellRange &range, bool cut) const;
+    // Pastes at the first cell of `target` (or, if `target` is a whole number of times the block, over all of it): one step. Not ok, and nothing changed, if a cell it would change is part of
+    // an array or a table's header or locked, or there are too many.
+    Outcome paste(int sheet, const jp::office::sheet::CellRange &target, const ClipData &clip, const PasteOptions &options);
+    // The same for texts in a table (from another program), entered as if typed.
+    Outcome pasteText(int sheet, const jp::office::sheet::CellRange &target, const QVector<QStringList> &table, const PasteOptions &options);
+    // Cut and paste: the cells of the block go to the other place over what is there, and what refers to them follows. One step.
+    Outcome moveCells(int sheet, const jp::office::sheet::CellRange &source, int toSheet, quint32 toRow, quint32 toCol);
 
     // The width of columns and the height of rows: one step. A `SizeChange` sets the size (the width in characters of the widest digit, with the padding; the height in points), hides or
     // shows, or both; `custom` says that a person set the size (a fit to the contents is not custom, and a column that is not custom is widened to fit a number typed in it).
@@ -253,6 +286,15 @@ private:
     bool widenLastStep(int index, int sheet, quint32 col, double width);
     Outcome resize(const SizeEdit &edit, const QString &text);
     Outcome structure(const jp::office::sheet::StructEdit &edit, const QString &text);
+    // The changes a paste makes: the block (`blockRows` by `blockCols`) is put at the first cell of `target`, or over all of it when it is a whole number of times the block. `make` is
+    // asked for the change at each place of the block, and says false, with the problem, if the paste can't be made. `merges` are those of the block (from its first cell), put with it.
+    struct PasteSpot {
+        quint32 row, col;      // the cell the change is for
+        quint32 dRow, dCol;    // and its place in the block
+    };
+    using PasteMaker = std::function<bool(const PasteSpot &spot, CellChange *change, Outcome *problem)>;
+    Outcome pasteChanges(int sheet, const jp::office::sheet::CellRange &target, quint32 blockRows, quint32 blockCols, const PasteMaker &make, const std::vector<jp::office::sheet::CellRange> &merges,
+                         bool withMerges, const QString &text);
     // The marks kept by cell follow an edit (forward) or its undoing: `edit` is what was done to the cells.
     void followEdit(const jp::office::sheet::StructEdit &edit, StructChange *change, bool forward);
     // Forgets the steps up to the last one that moved cells (a save has put it in the file, and Undo would have to take it out of the file).
@@ -288,9 +330,12 @@ private:
     std::set<quint64> m_touched;           // cells changed by the person (written whole), by sheet, row, column
     std::map<quint64, jp::calc::Value> m_results;      // formulas whose value is not the file's
     std::map<quint64, jp::calc::Value> m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
+    qint64 m_token;
+    std::set<int> m_mergesChanged;   // the sheets whose merged ranges a step changed since the file was read or saved
     std::set<quint64> m_columnsResized, m_rowsResized;   // the columns and rows (by sheet and place) whose size a step changed since the file was read or saved
     std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
+    std::vector<jp::office::sheet::ColumnRename> m_renames;   // and the table columns renamed, for the names, validations, rules, and charts that name them
     std::map<quint64, jp::calc::Value> m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)
 };
 

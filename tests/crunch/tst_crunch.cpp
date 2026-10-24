@@ -261,7 +261,7 @@ private Q_SLOTS:
         }
     }
 
-    // A right click on the grid opens a menu of the commands for cells: copy works, cut and paste are dimmed.
+    // A right click on the grid opens a menu of the commands for cells: cut, copy, paste, inserting and deleting work once the workbook is open.
     void aRightClickOpensTheCellMenu()
     {
         Folder folder;
@@ -276,8 +276,8 @@ private Q_SLOTS:
             if (a->isSeparator()) continue;
             (a->isEnabled() ? enabled : dimmed) << a->objectName();
         }
-        QCOMPARE(enabled, (QStringList{"edit.copy", "cells.insert.cells", "cells.delete.cells", "edit.selectAll"}));
-        QCOMPARE(dimmed, (QStringList{"edit.cut", "edit.paste"}));
+        QCOMPARE(enabled, (QStringList{"edit.cut", "edit.copy", "edit.paste", "paste.special", "cells.insert.cells", "cells.delete.cells", "edit.selectAll"}));
+        QVERIFY(dimmed.isEmpty());
         menu->close();
     }
 

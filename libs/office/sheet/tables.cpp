@@ -277,6 +277,17 @@ TableFate tableAfter(const StructEdit &e, const Table &t, CellRange *out, QStrin
     out->col1 = t.col1;
     out->row2 = t.row2;
     out->col2 = t.col2;
+    if (e.kind == StructEdit::Kind::Move) {
+        // cells put into a table or taken out of it would change what the table is: not done (they can be copied)
+        const bool fromHere = e.sheet == t.sheet && !(t.row2 < e.row1 || t.row1 > e.row2 || t.col2 < e.col1 || t.col1 > e.col2);
+        const quint32 toRow2 = e.toRow + (e.row2 - e.row1), toCol2 = e.toCol + (e.col2 - e.col1);
+        const bool toHere = e.toSheet == t.sheet && !(t.row2 < e.toRow || t.row1 > toRow2 || t.col2 < e.toCol || t.col1 > toCol2);
+        if (fromHere || toHere) {
+            if (why) *why = QCoreApplication::translate("jp::office::sheet::Tables", "Cells can't be moved into or out of a table. Copy them, or change the table's cells where they are.");
+            return TableFate::Refused;
+        }
+        return TableFate::Same;
+    }
     if (e.sheet != t.sheet) return TableFate::Same;
     auto refuse = [&](const QString &text) {
         if (why) *why = text;

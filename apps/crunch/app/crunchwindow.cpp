@@ -320,7 +320,6 @@ void CrunchWindow::createActions()
         Editor stand;
         optionsDialog(this, &stand, {});
     });
-    mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [this] { copySelection(); });
     mk("edit.selectAll", tr("Select All"), "", QKeySequence(), [this] { m_view->selectAll(); });
     // ---- view
     mk("view.gridlines", tr("Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("view.gridlines")->isChecked()); }, true)->setChecked(true);
@@ -352,6 +351,7 @@ void CrunchWindow::createActions()
     connect(m_ribbon, &Ribbon::helpClicked, this, [this] { act("help.show")->trigger(); });
     createOpsActions();
     createCellsActions();
+    createClipboardActions();
     createDisabledActions();
 }
 
@@ -362,8 +362,7 @@ void CrunchWindow::createDisabledActions()
         const char *id, *text, *icon;
     };
     static const Command commands[] = {
-        {"edit.cut", QT_TR_NOOP("Cut"), "scissors"}, {"edit.paste", QT_TR_NOOP("Paste"), "clipboard-paste"},
-        {"edit.clear", QT_TR_NOOP("Clear"), "eraser"},
+                {"edit.clear", QT_TR_NOOP("Clear"), "eraser"},
         {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"}, {"edit.find", QT_TR_NOOP("Find and Select"), "search"},
         {"fmt.bold", QT_TR_NOOP("Bold"), "bold"}, {"fmt.italic", QT_TR_NOOP("Italic"), "italic"}, {"fmt.underline", QT_TR_NOOP("Underline"), "underline"},
         {"fmt.strike", QT_TR_NOOP("Strikethrough"), "strikethrough"}, {"fmt.fillColor", QT_TR_NOOP("Fill Color"), "paint-bucket"}, {"fmt.fontColor", QT_TR_NOOP("Font Color"), "baseline"},
@@ -378,45 +377,6 @@ void CrunchWindow::createDisabledActions()
         {"formulas.names", QT_TR_NOOP("Name Manager"), "variable"}, {"formulas.options", QT_TR_NOOP("Calculation Options"), "settings-2"},
     };
     for (const Command &c : commands) mk(QString::fromLatin1(c.id), QCoreApplication::translate("jp::CrunchWindow", c.text), c.icon, QKeySequence(), nullptr, false, false);
-}
-
-void CrunchWindow::copySelection()
-{
-    m_copy = m_view->copyWalk();
-    if (!m_copy) {
-        QApplication::clipboard()->clear();
-        return;
-    }
-    if (m_copy->tooMany()) {
-        m_copy.reset();
-        notice(tr("Copy"), tr("That is more than a million cells, which JeffCrunch doesn't copy as text. Select fewer cells."), false);
-        return;
-    }
-    // (a large selection is turned to text a few milliseconds at a time, and put on the clipboard when it is all text)
-    setStatus(tr("Copying…"));
-    m_copyTimer.start(0);
-}
-
-void CrunchWindow::copyStep()
-{
-    if (!m_copy) return;
-    QElapsedTimer t;
-    t.start();
-    bool done = false;
-    while (!done && t.elapsed() < 4) done = m_copy->step(20000);
-    if (!done) {
-        m_copyTimer.start(0);
-        return;
-    }
-    if (m_copy->tooLarge()) {
-        m_copy.reset();
-        notice(tr("Copy"), tr("That is more text than JeffCrunch copies at once. Select fewer cells."), false);
-        if (!m_calculating && !m_loading) setStatus(tr("Ready"));
-        return;
-    }
-    QApplication::clipboard()->setText(m_copy->text());
-    m_copy.reset();
-    if (!m_calculating && !m_loading) setStatus(tr("Ready"));
 }
 
 void CrunchWindow::freezeAtSelection()

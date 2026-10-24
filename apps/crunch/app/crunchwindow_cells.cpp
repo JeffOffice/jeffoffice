@@ -314,13 +314,11 @@ void CrunchWindow::hideSelection(bool column, bool hide)
 // A number just typed in a column that has the width it began with widens the column to show it.
 void CrunchWindow::widenForEntry(int sheet, quint32 row, quint32 col)
 {
-    if (sheet != m_sheet || !m_session) return;
-    const grid::Cell *cell = m_view->sheet().cellAt(row, col);
-    if (!cell || cell->hasFormula() || !m_view->sheet().valueOf(*cell).isNumber()) return;
-    const int mdw = std::max(1, m_view->sheet().looks().maxDigitWidth());
-    const double need = m_view->sheet().fitWidthOfCell(row, col);
-    if (need <= 0 || need * mdw <= m_view->sheet().columnWidth(col) + 0.5) return;
-    m_session->widenColumnWithEntry(sheet, col, need);
+    CellRange one;
+    one.valid = true;
+    one.row1 = one.row2 = row;
+    one.col1 = one.col2 = col;
+    widenForCells(sheet, one);
 }
 
 void CrunchWindow::showContextMenu(const QPoint &globalPos)
@@ -329,6 +327,7 @@ void CrunchWindow::showContextMenu(const QPoint &globalPos)
     menu->setAttribute(Qt::WA_DeleteOnClose);
     menu->setObjectName(QStringLiteral("cellMenu"));
     for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) menu->addAction(act(QString::fromLatin1(id)));
+    menu->addAction(act("paste.special"));
     menu->addSeparator();
     const grid::Selection::Whole whole = m_view->selection().whole;
     if (whole == grid::Selection::Whole::Rows) {
