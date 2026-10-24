@@ -112,6 +112,22 @@ QString adjustAll(const QString &formula, int ownSheet, const MoveContext &c, bo
     return f;
 }
 
+// The formula of a rule (a conditional format, a validation) after the edits, as the rule's first range (the first of `sqref`) goes through them: it is written for that range's first cell.
+QString adjustRuleAll(const QString &formula, int ownSheet, const MoveContext &c, const QString &sqref)
+{
+    CellRange first;
+    const QString firstText = sqref.section(QLatin1Char(' '), 0, 0);
+    if (!parseRangeRef(firstText, &first)) first = CellRange();
+    QString f = formula;
+    for (const StructEdit &e : c.edits) {
+        f = adjustRuleFormula(f, ownSheet, c.sheetNames, e, first);
+        if (first.valid && !adjustRange(e, ownSheet, &first)) first = CellRange();
+    }
+    if (f.contains(QLatin1Char('[')))
+        for (const ColumnRename &r : c.renames) f = renameColumnInFormula(f, r.table, r.oldName, r.newName, false);
+    return f;
+}
+
 QString adjustSqrefAll(const QString &sqref, int sheet, const MoveContext &c)
 {
     QString s = sqref;
@@ -404,7 +420,7 @@ QByteArray movedTop(const QByteArray &xml, const Elem &e, const MoveContext &c, 
         if (found && now.isEmpty()) return QByteArray();
         if (found && now != sqref) setAttribute(&open, "sqref", xmlscan::escapeAttribute(now));
         QByteArray rest = whole.mid(e.open.end - e.open.start);
-        rest = rewriteElementText(rest, "formula", [&](const QString &f) { return adjustAll(f, sheet, c); });
+        rest = rewriteElementText(rest, "formula", [&](const QString &f) { return adjustRuleAll(f, sheet, c, sqref); });
         return open + rest;
     }
     if (name == "dataValidations") {
@@ -416,8 +432,8 @@ QByteArray movedTop(const QByteArray &xml, const Elem &e, const MoveContext &c, 
             if (found && now.isEmpty()) return QByteArray();
             if (found && now != sqref) setAttribute(&open, "sqref", xmlscan::escapeAttribute(now));
             QByteArray rest = x.mid(v.open.end, v.end - v.open.end);
-            rest = rewriteElementText(rest, "formula1", [&](const QString &f) { return adjustAll(f, sheet, c); });
-            rest = rewriteElementText(rest, "formula2", [&](const QString &f) { return adjustAll(f, sheet, c); });
+            rest = rewriteElementText(rest, "formula1", [&](const QString &f) { return adjustRuleAll(f, sheet, c, sqref); });
+            rest = rewriteElementText(rest, "formula2", [&](const QString &f) { return adjustRuleAll(f, sheet, c, sqref); });
             return open + rest;
         }, "count");
     }
@@ -602,7 +618,7 @@ private:
         qsizetype pos = 0;
         Tag t;
         for (;;) {
-            if (!nextTag(pos, &t)) return fail(m_failed ? damaged() : QCoreApplication::translate("jp::office::sheet::Save", "The sheet has no cells part (sheetData)."));
+            if (!nextTag(pos, &t)) return fail(m_failed ? damaged() : QCoreApplication::translate("jp::office::sheet::Save", "The sheet's file has no place for cells in it, so it can't be saved."));
             pos = t.end;
             if (t.closing) continue;
             if (t.local == "sheetData") break;
@@ -1093,22 +1109,92 @@ quint32 movedPoint(const MoveContext &c, int sheet, bool rows, quint32 v)
 
 bool moveDrawingPart(const QByteArray &xml, const MoveContext &ctx, int sheet, QByteArray *out, bool *changed)
 {
-    // <xdr:from><xdr:col>1</xdr:col><xdr:colOff/><xdr:row>2</xdr:row><xdr:rowOff/></xdr:from> and the same in <xdr:to>
-    QByteArray result = xml;
-    for (const char *which : {"col", "row"}) {
-        const bool rows = which[0] == 'r' && which[1] == 'o';
-        result = rewriteElementText(result, which, [&](const QString &text) {
-            bool ok = false;
-            const quint32 v = text.toUInt(&ok);
-            return ok ? QString::number(movedPoint(ctx, sheet, rows, v)) : text;
-        });
+    // Each anchor: <xdr:twoCellAnchor editAs="oneCell"><xdr:from><xdr:col>1</xdr:col><xdr:colOff/><xdr:row>2</xdr:row><xdr:rowOff/></xdr:from><xdr:to>...</xdr:to>...</xdr:twoCellAnchor>.
+    // It moves and sizes with the cells (editAs "twoCell", the usual), moves and keeps its size ("oneCell": both ends move as far as the first), or stays where it is ("absolute").
+    static const QRegularExpression anchorRe(QStringLiteral("<(?:\\w+:)?(?:twoCellAnchor|oneCellAnchor)\\b.*?</(?:\\w+:)?(?:twoCellAnchor|oneCellAnchor)>"), QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression openRe(QStringLiteral("^<(?:\\w+:)?(twoCellAnchor|oneCellAnchor)\\b[^>]*>")), editAsRe(QStringLiteral("\\seditAs=\"(\\w+)\""));
+    static const QRegularExpression fromRe(QStringLiteral("<(?:\\w+:)?from>.*?</(?:\\w+:)?from>"), QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression toRe(QStringLiteral("<(?:\\w+:)?to>.*?</(?:\\w+:)?to>"), QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression colRe(QStringLiteral("(<(?:\\w+:)?col>)(\\d+)(</(?:\\w+:)?col>)")), rowRe(QStringLiteral("(<(?:\\w+:)?row>)(\\d+)(</(?:\\w+:)?row>)"));
+    const QString text = QString::fromUtf8(xml);
+    QString result;
+    int at = 0;
+    // a block's column and row numbers changed by `change(rows, value)`
+    auto remap = [&](const QString &block, const std::function<quint32(bool, quint32)> &change) {
+        QString out = block;
+        for (int pass = 0; pass < 2; ++pass) {
+            const QRegularExpression &re = pass == 0 ? colRe : rowRe;
+            QString next;
+            int pos = 0;
+            QRegularExpressionMatchIterator it = re.globalMatch(out);
+            while (it.hasNext()) {
+                const QRegularExpressionMatch m = it.next();
+                next += out.mid(pos, m.capturedStart() - pos) + m.captured(1) + QString::number(change(pass == 1, m.captured(2).toUInt())) + m.captured(3);
+                pos = m.capturedEnd();
+            }
+            out = next + out.mid(pos);
+        }
+        return out;
+    };
+    auto numberOf = [&](const QString &block, bool rows) {
+        const QRegularExpressionMatch m = (rows ? rowRe : colRe).match(block);
+        return m.hasMatch() ? qint64(m.captured(2).toUInt()) : qint64(-1);
+    };
+    QRegularExpressionMatchIterator it = anchorRe.globalMatch(text);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        QString anchor = m.captured();
+        const QRegularExpressionMatch open = openRe.match(anchor);
+        const QRegularExpressionMatch editAs = open.hasMatch() ? editAsRe.match(open.captured()) : QRegularExpressionMatch();
+        const QString how = editAs.hasMatch() ? editAs.captured(1) : QStringLiteral("twoCell");
+        const bool two = open.hasMatch() && open.captured(1) == QLatin1String("twoCellAnchor");
+        if (two && how == QLatin1String("absolute")) continue;
+        const QRegularExpressionMatch from = fromRe.match(anchor), to = toRe.match(anchor);
+        if (!from.hasMatch()) continue;
+        QString now = anchor;
+        if (two && how == QLatin1String("oneCell") && to.hasMatch()) {
+            const qint64 row0 = numberOf(from.captured(), true), col0 = numberOf(from.captured(), false);
+            const QString newFrom = remap(from.captured(), [&](bool rows, quint32 v) { return movedPoint(ctx, sheet, rows, v); });
+            const qint64 dRow = numberOf(newFrom, true) - row0, dCol = numberOf(newFrom, false) - col0;
+            const QString newTo = remap(to.captured(), [&](bool rows, quint32 v) { return quint32(std::max<qint64>(0, qint64(v) + (rows ? dRow : dCol))); });
+            // (the later block first, so that the places of the earlier one hold)
+            if (to.capturedStart() > from.capturedStart()) {
+                now.replace(to.capturedStart(), to.capturedLength(), newTo);
+                now.replace(from.capturedStart(), from.capturedLength(), newFrom);
+            } else {
+                now.replace(from.capturedStart(), from.capturedLength(), newFrom);
+                now.replace(to.capturedStart(), to.capturedLength(), newTo);
+            }
+        } else {
+            QString mapped = anchor;
+            const auto change = [&](bool rows, quint32 v) { return movedPoint(ctx, sheet, rows, v); };
+            // (the `from` and the `to` of the anchor; the later block first)
+            QVector<QRegularExpressionMatch> blocks;
+            blocks.append(from);
+            if (to.hasMatch()) blocks.append(to);
+            std::sort(blocks.begin(), blocks.end(), [](const QRegularExpressionMatch &a, const QRegularExpressionMatch &b) { return a.capturedStart() > b.capturedStart(); });
+            for (const QRegularExpressionMatch &b : blocks) mapped.replace(b.capturedStart(), b.capturedLength(), remap(b.captured(), change));
+            now = mapped;
+        }
+        if (now == anchor) continue;
+        result += text.mid(at, m.capturedStart() - at) + now;
+        at = m.capturedEnd();
     }
-    *out = result;
-    *changed = result != xml;
+    if (at == 0 && result.isEmpty()) {
+        *out = xml;
+        *changed = false;
+        return true;
+    }
+    result += text.mid(at);
+    *out = result.toUtf8();
+    *changed = *out != xml;
     return true;
 }
 
-bool moveCommentsPart(const QByteArray &xml, const MoveContext &ctx, int sheet, QByteArray *out, bool *changed)
+namespace {
+
+// The elements (of that local name) whose `ref` is a cell of the sheet: the cell goes where the edits take it, and an element on a deleted cell goes.
+bool moveElementsByRef(const QByteArray &xml, const MoveContext &ctx, int sheet, QByteArrayView element, QByteArray *out, bool *changed)
 {
     QByteArray result;
     qsizetype copied = 0, pos = 0;
@@ -1117,7 +1203,7 @@ bool moveCommentsPart(const QByteArray &xml, const MoveContext &ctx, int sheet, 
     // the comments that are on deleted cells go
     while (xmlscan::nextTag(xml, pos, &t)) {
         pos = t.end;
-        if (t.closing || t.local != "comment") continue;
+        if (t.closing || t.local != element) continue;
         Elem e;
         if (!elementOf(xml, t, &e)) break;
         pos = e.end;
@@ -1145,6 +1231,40 @@ bool moveCommentsPart(const QByteArray &xml, const MoveContext &ctx, int sheet, 
     result += xml.mid(copied);
     *out = result;
     *changed = true;
+    return true;
+}
+
+} // namespace
+
+bool moveCommentsPart(const QByteArray &xml, const MoveContext &ctx, int sheet, QByteArray *out, bool *changed) { return moveElementsByRef(xml, ctx, sheet, "comment", out, changed); }
+
+bool moveThreadedCommentsPart(const QByteArray &xml, const MoveContext &ctx, int sheet, QByteArray *out, bool *changed) { return moveElementsByRef(xml, ctx, sheet, "threadedComment", out, changed); }
+
+bool moveControlPart(const QByteArray &xml, const MoveContext &ctx, int sheet, QByteArray *out, bool *changed)
+{
+    // <formControlPr objectType="Drop" fmlaLink="$A$5" fmlaRange="Sheet1!$A$1:$A$5"/>: the cell a control sets and the range it lists (and the text box it reads) are references
+    Tag t;
+    qsizetype pos = 0;
+    *out = xml;
+    *changed = false;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "formControlPr") continue;
+        QByteArray tag = xml.mid(t.start, t.end - t.start);
+        const QByteArray before = tag;
+        for (const char *name : {"fmlaLink", "fmlaRange", "fmlaTxbx"}) {
+            bool has = false;
+            const QString value = attributeText(tag, name, &has);
+            if (!has) continue;
+            const QString now = adjustAll(value, sheet, ctx);
+            if (now != value) setAttribute(&tag, name, xmlscan::escapeAttribute(now));
+        }
+        if (tag != before) {
+            *out = xml.left(t.start) + tag + xml.mid(t.end);
+            *changed = true;
+        }
+        break;
+    }
     return true;
 }
 

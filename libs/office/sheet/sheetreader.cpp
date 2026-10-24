@@ -1636,12 +1636,14 @@ std::vector<TablePlace> Workbook::moveTables(const StructEdit &edit)
     for (int i = 0; i < m_tables.size(); ++i) {
         Table &t = m_tables[i];
         CellRange where;
-        if (tableAfter(edit, t, &where, nullptr) != TableFate::Moved) continue;
-        before.push_back({i, t.row1, t.col1, t.row2, t.col2});
+        int totals = t.totalsRows;
+        if (tableAfter(edit, t, &where, nullptr, &totals) != TableFate::Moved) continue;
+        before.push_back({i, t.row1, t.col1, t.row2, t.col2, t.totalsRows});
         t.row1 = where.row1;
         t.col1 = where.col1;
         t.row2 = where.row2;
         t.col2 = where.col2;
+        t.totalsRows = totals;
     }
     return before;
 }
@@ -1656,6 +1658,7 @@ void Workbook::putTablesBack(const std::vector<TablePlace> &places)
         t.col1 = p.col1;
         t.row2 = p.row2;
         t.col2 = p.col2;
+        t.totalsRows = p.totalsRows;
     }
 }
 
@@ -1664,7 +1667,7 @@ std::map<QString, QByteArray> Workbook::changedTableParts() const
     std::map<QString, QByteArray> out;
     if (!m_tablesRead) return out;
     for (const Table &t : m_tables) {
-        const bool moved = t.row1 != t.fileRow1 || t.col1 != t.fileCol1 || t.row2 != t.fileRow2 || t.col2 != t.fileCol2;
+        const bool moved = t.row1 != t.fileRow1 || t.col1 != t.fileCol1 || t.row2 != t.fileRow2 || t.col2 != t.fileCol2 || t.totalsRows != t.fileTotalsRows;
         if (t.columns == t.fileColumns && !moved) continue;
         QByteArray renamed;
         CellRange now;
@@ -1673,7 +1676,7 @@ std::map<QString, QByteArray> Workbook::changedTableParts() const
         now.col1 = t.col1;
         now.row2 = t.row2;
         now.col2 = t.col2;
-        if (renameTableXml(m_package.part(t.part), t.fileColumns, t.columns, t.name, &renamed, moved ? &now : nullptr)) out[t.part] = renamed;
+        if (renameTableXml(m_package.part(t.part), t.fileColumns, t.columns, t.name, &renamed, moved ? &now : nullptr, moved ? &t.totalsRows : nullptr)) out[t.part] = renamed;
     }
     return out;
 }

@@ -38,7 +38,7 @@ void copyRange(EditWindow &e, const QString &range, const char *action = "edit.c
     e.view()->selectRange(r.row1, r.col1, r.row2, r.col2);
     e.win.w.act(QString::fromLatin1(action))->trigger();
     QTRY_VERIFY(!e.win.w.isCalculating());
-    QTest::qWait(30);   // (a copy is turned to text a few milliseconds at a time)
+    QTRY_VERIFY(!e.win.w.isCopying());   // (a copy is turned to text a few milliseconds at a time, and is on the clipboard when it is done)
 }
 
 void paste(EditWindow &e, const QString &at, const char *action = "edit.paste")
@@ -147,7 +147,8 @@ private Q_SLOTS:
         QCOMPARE(formulaOf(e, QStringLiteral("D1")), QStringLiteral("=SUM(E4:E5)"));
         QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:6"));
         QCOMPARE(formulaOf(e, QStringLiteral("E1")), QStringLiteral("=A3"));  // (it did not read the cells)
-        QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("n:2"));     // (F1 read E5, which is now a 2)
+        QCOMPARE(formulaOf(e, QStringLiteral("F1")), QStringLiteral("=#REF!"));   // (F1 read E5, which was written over: it has no cell to read, as in the programs people know)
+        QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("e:#REF!"));
         QVERIFY(!e.view()->hasCopyBorder());
         QVERIFY(!QApplication::clipboard()->mimeData() || !QApplication::clipboard()->mimeData()->hasFormat(QLatin1String(crunch::kClipMime)));
         QCOMPARE(e.selected(), QStringLiteral("E4"));

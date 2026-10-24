@@ -54,7 +54,7 @@ private Q_SLOTS:
             {"SUM(A:A)+SUM(A:C)", "SUM(A:A)+SUM(A:C)"},
             {"SUM(5:6)+SUM(3:5)+SUM(1:3)", "SUM(6:7)+SUM(3:6)+SUM(1:3)"},
             {"\"A5\"&A5&LOG10(A5)", "\"A5\"&A6&LOG10(A6)"},
-            {"SUM(Sheet1:Sheet2!A5)", "SUM(Sheet1:Sheet2!A6)"},
+            {"SUM(Sheet1:Sheet2!A5)", "SUM(Sheet1:Sheet2!A5)"},   // (through several sheets: the same cells on each, so an edit to one does not change it)
             {"IF(A5>1,A6,B9)", "IF(A6>1,A7,B10)"},
             {"A5:A5", "A6:A6"},
             {"1+2", "1+2"},

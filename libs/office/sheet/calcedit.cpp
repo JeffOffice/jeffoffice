@@ -248,7 +248,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         default: r1 = e.row1; r2 = e.row2; c1 = e.col1; c2 = e.col2; break;
         }
         S.cells.forEachInRange(r1, c1, r2, c2, [&](const Cell &c) {
-            rec->gone.push_back({e.sheet, c.row, c.col, content(e.sheet, c.row, c.col)});
+            rec->gone.push_back(goneCell(e.sheet, c));
             return true;
         });
     }
@@ -308,7 +308,8 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     }
 
     // ---- the sheet's other structures
-    for (CellRange &r : S.ranges) adjustRange(e, e.sheet, &r);
+    for (CellRange &r : S.ranges)
+        if (!adjustRange(e, e.sheet, &r)) r.valid = false;   // (the range of an array formula or a data table of one cell that was deleted: its place in the list stays, for Undo)
     {
         QVector<CellRange> kept;
         for (CellRange r : S.merges)
@@ -450,6 +451,37 @@ bool Calculation::rewriteArrayText(int sheet, quint32 row, quint32 col, const QS
     return true;
 }
 
+Calculation::EditRecord::GoneCell Calculation::goneCell(int sheet, const Cell &c) const
+{
+    EditRecord::GoneCell g{sheet, c.row, c.col, content(sheet, c.row, c.col)};
+    if ((c.flags & (ArrayFormula | DataTable)) && c.hasFormula() && c.formula >= 0) {
+        const Sheet &s = m_sheets[size_t(sheet)];
+        if (size_t(c.formula) < size_t(s.formulas.size())) {
+            g.kind = quint32(c.flags & (ArrayFormula | DataTable));
+            g.range = s.formulas[c.formula].range;
+        }
+    }
+    return g;
+}
+
+// The cells that were put back as formulas are made what they were: an array formula or a data table (of one cell: those of more cells are not deleted or written over), with the range
+// it had. The ranges of the sheet are as they were when this is called.
+void Calculation::putBackKinds(const EditRecord &rec)
+{
+    for (const EditRecord::GoneCell &g : rec.gone) {
+        if (!g.kind || g.range < 0 || g.sheet < 0 || g.sheet >= int(m_sheets.size())) continue;
+        Sheet &s = m_sheets[size_t(g.sheet)];
+        Cell *c = s.cells.findMutable(g.row, g.col);
+        if (!c || !c->hasFormula() || c->formula < 0 || g.range >= s.ranges.size()) continue;
+        c->flags |= quint8(g.kind);
+        s.formulas[c->formula].range = g.range;
+        const quint32 id = nodeAt(g.sheet, g.row, g.col);
+        if (id != kNone) dropNode(id);
+        const quint32 now = addNode(g.sheet, *c, c->formula);
+        queueDependents(areaOf(m_nodes[now]));
+    }
+}
+
 bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
 {
     if (rec.edit.kind == StructEdit::Kind::Move) return undoMove(rec, done);
@@ -467,6 +499,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
     for (const auto &entry : rec.validations)
         if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].validations = entry.second;
     S.ranges = rec.ranges;
+    putBackKinds(rec);
     S.merges = rec.merges;
     S.mergeCount = rec.mergeCount;
     S.columns = rec.columns;
@@ -565,8 +598,9 @@ void Calculation::adjustValidations(const StructEdit &e, const QStringList &name
                 if (adjustRange(e, si, &r)) ranges.append(r);
             v.ranges = ranges;
             bool a = false, b = false;
-            v.formula1 = adjustFormula(v.formula1, si, names, e, &a);
-            v.formula2 = adjustFormula(v.formula2, si, names, e, &b);
+            const CellRange first = was.ranges.isEmpty() ? CellRange() : was.ranges.first();   // (the formulas are written for its first cell)
+            v.formula1 = adjustRuleFormula(v.formula1, si, names, e, first, &a);
+            v.formula2 = adjustRuleFormula(v.formula2, si, names, e, first, &b);
             if (a || b || !(ranges == was.ranges)) changed = true;
             if (!v.ranges.isEmpty()) now.append(v);
         }

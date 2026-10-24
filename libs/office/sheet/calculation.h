@@ -147,6 +147,8 @@ public:
             int sheet;
             quint32 row, col;
             CellContent content;
+            quint32 kind = 0;   // the cell's own flags that make it an array formula or a data table (put back as one, not as a formula)
+            qint32 range = -1;  // and the index of its range in the sheet's list
         };
         std::vector<GoneCell> gone;
         // formula cells whose text changed: where each was before the edit, and what it read
@@ -299,6 +301,9 @@ private:
     bool rewriteArrayText(int sheet, quint32 row, quint32 col, const QString &text);
     void nameTextsChanged();
     void adjustValidations(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
+    // A cell that is deleted or written over, as it is, for Undo to put back (an array formula or a data table is put back as one: see putBackKinds).
+    EditRecord::GoneCell goneCell(int sheet, const Cell &c) const;
+    void putBackKinds(const EditRecord &record);
     jp::calc::Value ruleFormula(const Validation &rule, const QString &text, int sheet, quint32 row, quint32 col, const jp::calc::CellSource &source, bool asArray) const;
     bool canMoveCells(const StructEdit &edit, QString *why) const;
     bool applyMove(const StructEdit &edit, EditRecord *record);

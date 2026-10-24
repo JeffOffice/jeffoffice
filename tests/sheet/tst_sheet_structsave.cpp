@@ -92,6 +92,129 @@ private Q_SLOTS:
         QVERIFY(s.report.calcChainDropped || true);
     }
 
+    // The formulas of a rule (a conditional format, a validation) are written for the first cell of its range, in the file too: the first row of the range deleted, or rows inserted above
+    // it, and what it reads follows its first cell, not the cells it names.
+    void aRulesRelativeFormulasAreWrittenForTheirNewFirstCell()
+    {
+        QString rows;
+        for (int r = 1; r <= 10; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        const QString after = QStringLiteral("<conditionalFormatting sqref=\"B2:B10\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$A2&gt;5</formula></cfRule></conditionalFormatting>"
+                                             "<dataValidations count=\"1\"><dataValidation type=\"custom\" allowBlank=\"1\" showErrorMessage=\"1\" sqref=\"B2:B10\"><formula1>ISNUMBER($A2)</formula1></dataValidation></dataValidations>");
+        const QByteArray book = buildXlsx({worksheet(rows, after)});
+        {
+            const Saved s = saveWith(book, {StructEdit::deleteRows(0, 1, 1)});
+            QVERIFY2(s.error.isEmpty(), qPrintable(s.error));
+            const QString sheet = text(s, QStringLiteral("xl/worksheets/sheet1.xml"));
+            QVERIFY2(sheet.contains(QStringLiteral("sqref=\"B2:B9\"><cfRule")), qPrintable(sheet));
+            QVERIFY2(sheet.contains(QStringLiteral("<formula>$A2&gt;5</formula>")), qPrintable(sheet));
+            QVERIFY2(sheet.contains(QStringLiteral("<formula1>ISNUMBER($A2)</formula1>")), qPrintable(sheet));
+            QVERIFY(!sheet.contains(QStringLiteral("#REF!")));
+        }
+        {
+            const Saved s = saveWith(book, {StructEdit::insertRows(0, 1, 2)});
+            const QString sheet = text(s, QStringLiteral("xl/worksheets/sheet1.xml"));
+            QVERIFY2(sheet.contains(QStringLiteral("sqref=\"B4:B12\"><cfRule")), qPrintable(sheet));
+            QVERIFY2(sheet.contains(QStringLiteral("<formula>$A4&gt;5</formula>")), qPrintable(sheet));
+            QVERIFY2(sheet.contains(QStringLiteral("<formula1>ISNUMBER($A4)</formula1>")), qPrintable(sheet));
+        }
+        {
+            // two edits in turn: the first row deleted twice
+            const Saved s = saveWith(book, {StructEdit::deleteRows(0, 1, 1), StructEdit::deleteRows(0, 1, 1)});
+            const QString sheet = text(s, QStringLiteral("xl/worksheets/sheet1.xml"));
+            QVERIFY2(sheet.contains(QStringLiteral("sqref=\"B2:B8\"><cfRule")), qPrintable(sheet));
+            QVERIFY2(sheet.contains(QStringLiteral("<formula1>ISNUMBER($A2)</formula1>")), qPrintable(sheet));
+        }
+        {
+            // a row the formula reads, above the range: it follows the cell
+            const Saved s = saveWith(book, {StructEdit::deleteRows(0, 0, 1)});
+            const QString sheet = text(s, QStringLiteral("xl/worksheets/sheet1.xml"));
+            QVERIFY2(sheet.contains(QStringLiteral("sqref=\"B1:B9\"><cfRule")), qPrintable(sheet));
+            QVERIFY2(sheet.contains(QStringLiteral("<formula1>ISNUMBER($A1)</formula1>")), qPrintable(sheet));
+        }
+    }
+
+    // Threaded comments (the part a thread's cell is named in), the links of form controls (a check box that sets a cell, a list that reads a range), and the anchors of drawings follow the
+    // rows; an anchor that does not move with cells (editAs "absolute") stays where it is, and one that moves and does not size ("oneCell") keeps its size.
+    void threadedCommentsControlsAndAnchorsFollowTheRows()
+    {
+        const QByteArray threads = "<?xml version=\"1.0\"?><ThreadedComments xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\">"
+                                   "<threadedComment ref=\"A1\" dT=\"2024-01-01T00:00:00.00\" personId=\"{P}\" id=\"{1}\"><text>first</text></threadedComment>"
+                                   "<threadedComment ref=\"A3\" dT=\"2024-01-01T00:00:00.00\" personId=\"{P}\" id=\"{2}\"><text>on three</text></threadedComment>"
+                                   "<threadedComment ref=\"A3\" dT=\"2024-01-01T00:00:00.00\" personId=\"{P}\" id=\"{3}\" parentId=\"{2}\"><text>reply</text></threadedComment></ThreadedComments>";
+        const QByteArray control = "<?xml version=\"1.0\"?><formControlPr xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" objectType=\"Drop\" fmlaLink=\"$A$5\" fmlaRange=\"Sheet1!$A$1:$A$5\"/>";
+        const QByteArray drawing = "<?xml version=\"1.0\"?><xdr:wsDr xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\">"
+                                   "<xdr:twoCellAnchor><xdr:from><xdr:col>1</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>2</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>4</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>6</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to></xdr:twoCellAnchor>"
+                                   "<xdr:twoCellAnchor editAs=\"oneCell\"><xdr:from><xdr:col>1</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>2</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>4</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>6</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to></xdr:twoCellAnchor>"
+                                   "<xdr:twoCellAnchor editAs=\"absolute\"><xdr:from><xdr:col>1</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>2</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>4</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>6</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to></xdr:twoCellAnchor></xdr:wsDr>";
+        QVector<ExtraPart> parts;
+        parts.append({QStringLiteral("xl/threadedComments/threadedComment1.xml"), threads, QStringLiteral("application/vnd.ms-excel.threadedcomments+xml"), 0, QStringLiteral("rIdT"), QStringLiteral("threadedComment"), QStringLiteral("../threadedComments/threadedComment1.xml")});
+        parts.append({QStringLiteral("xl/ctrlProps/ctrlProp1.xml"), control, QStringLiteral("application/vnd.ms-excel.controlproperties+xml"), 0, QStringLiteral("rIdK"), QStringLiteral("ctrlProp"), QStringLiteral("../ctrlProps/ctrlProp1.xml")});
+        parts.append({QStringLiteral("xl/drawings/drawing2.xml"), drawing, QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"), 1, QStringLiteral("rIdD2"), QStringLiteral("drawing"), QStringLiteral("../drawings/drawing2.xml")});
+        const QByteArray book = withParts(richBook(), parts);
+        // (the drawing of the second sheet is made the sheet's by its own element)
+        QMap<QString, QByteArray> zipParts;
+        jp::readZip(book, zipParts);
+        zipParts[QStringLiteral("xl/worksheets/sheet2.xml")].replace("</worksheet>", "<drawing r:id=\"rIdD2\"/></worksheet>");
+        jp::ZipWriter z;
+        for (auto it = zipParts.begin(); it != zipParts.end(); ++it) z.add(it.key(), it.value(), true);
+        const QByteArray withDrawing = z.finish();
+        {
+            const Saved s = saveWith(withDrawing, {StructEdit::insertRows(0, 0, 2)});   // two rows above everything, on Sheet1
+            QVERIFY2(s.error.isEmpty(), qPrintable(s.error));
+            const QString t = text(s, QStringLiteral("xl/threadedComments/threadedComment1.xml"));
+            QVERIFY2(t.contains(QStringLiteral("ref=\"A3\"")) && t.contains(QStringLiteral("ref=\"A5\"")) && !t.contains(QStringLiteral("ref=\"A1\"")), qPrintable(t));
+            const QString c = text(s, QStringLiteral("xl/ctrlProps/ctrlProp1.xml"));
+            QVERIFY2(c.contains(QStringLiteral("fmlaLink=\"$A$7\"")) && c.contains(QStringLiteral("fmlaRange=\"Sheet1!$A$3:$A$7\"")), qPrintable(c));
+        }
+        {
+            const Saved s = saveWith(withDrawing, {StructEdit::deleteRows(0, 2, 1)});   // A3's row: its threads go
+            const QString t = text(s, QStringLiteral("xl/threadedComments/threadedComment1.xml"));
+            QVERIFY2(!t.contains(QStringLiteral("on three")) && !t.contains(QStringLiteral("reply")) && t.contains(QStringLiteral("first")) && t.contains(QStringLiteral("ref=\"A1\"")), qPrintable(t));
+            QVERIFY(t.contains(QStringLiteral("</ThreadedComments>")));
+            const QString c = text(s, QStringLiteral("xl/ctrlProps/ctrlProp1.xml"));
+            QVERIFY2(c.contains(QStringLiteral("fmlaLink=\"$A$4\"")) && c.contains(QStringLiteral("fmlaRange=\"Sheet1!$A$1:$A$4\"")), qPrintable(c));
+        }
+        {
+            // the anchors of a drawing on Sheet2, for rows inserted on Sheet2 (the sheet the drawing is on): above them, and inside the span of them
+            const Saved above = saveWith(withDrawing, {StructEdit::insertRows(1, 0, 2)});
+            const QString d = text(above, QStringLiteral("xl/drawings/drawing2.xml"));
+            const QStringList anchors = d.split(QStringLiteral("</xdr:twoCellAnchor>"));
+            QVERIFY2(anchors.size() == 4, qPrintable(d));
+            QVERIFY2(anchors[0].contains(QStringLiteral("<xdr:row>4</xdr:row>")) && anchors[0].contains(QStringLiteral("<xdr:row>8</xdr:row>")), qPrintable(anchors[0]));   // moves and sizes with cells
+            QVERIFY2(anchors[1].contains(QStringLiteral("<xdr:row>4</xdr:row>")) && anchors[1].contains(QStringLiteral("<xdr:row>8</xdr:row>")), qPrintable(anchors[1]));   // moves, keeps its size
+            QVERIFY2(anchors[2].contains(QStringLiteral("<xdr:row>2</xdr:row>")) && anchors[2].contains(QStringLiteral("<xdr:row>6</xdr:row>")), qPrintable(anchors[2]));   // does not move
+            const Saved inside = saveWith(withDrawing, {StructEdit::insertRows(1, 4, 3)});
+            const QStringList in = text(inside, QStringLiteral("xl/drawings/drawing2.xml")).split(QStringLiteral("</xdr:twoCellAnchor>"));
+            QVERIFY2(in[0].contains(QStringLiteral("<xdr:row>2</xdr:row>")) && in[0].contains(QStringLiteral("<xdr:row>9</xdr:row>")), qPrintable(in[0]));   // longer
+            QVERIFY2(in[1].contains(QStringLiteral("<xdr:row>2</xdr:row>")) && in[1].contains(QStringLiteral("<xdr:row>6</xdr:row>")), qPrintable(in[1]));   // the same size
+            QVERIFY2(in[2].contains(QStringLiteral("<xdr:row>2</xdr:row>")) && in[2].contains(QStringLiteral("<xdr:row>6</xdr:row>")), qPrintable(in[2]));
+        }
+    }
+
+    // A defined name with references that are not fixed (relative to the cell it is used in) keeps the offsets it has when rows or columns are inserted; the parts that are fixed with "$"
+    // follow the cells.
+    void relativeDefinedNamesKeepTheirOffsets()
+    {
+        QString rows;
+        for (int r = 1; r <= 5; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        const QByteArray book = buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(),
+                                          QStringLiteral("<definedName name=\"Rel\">Sheet1!A2</definedName><definedName name=\"Abs\">Sheet1!$A$2</definedName><definedName name=\"ColFixed\">Sheet1!$A2</definedName><definedName name=\"RowFixed\">Sheet1!A$2</definedName>"));
+        {
+            const QString w = text(saveWith(book, {StructEdit::insertRows(0, 0, 1)}), QStringLiteral("xl/workbook.xml"));
+            QVERIFY2(w.contains(QStringLiteral(">Sheet1!A2</definedName>")), qPrintable(w));
+            QVERIFY(w.contains(QStringLiteral(">Sheet1!$A$3</definedName>")));
+            QVERIFY(w.contains(QStringLiteral(">Sheet1!$A2</definedName>")));
+            QVERIFY(w.contains(QStringLiteral(">Sheet1!A$3</definedName>")));
+        }
+        {
+            const QString w = text(saveWith(book, {StructEdit::insertColumns(0, 0, 1)}), QStringLiteral("xl/workbook.xml"));
+            QVERIFY2(w.contains(QStringLiteral(">Sheet1!A2</definedName>")), qPrintable(w));
+            QVERIFY(w.contains(QStringLiteral(">Sheet1!$B$2</definedName>")));
+            QVERIFY(w.contains(QStringLiteral(">Sheet1!$B2</definedName>")));
+            QVERIFY(w.contains(QStringLiteral(">Sheet1!A$2</definedName>")));
+        }
+    }
+
     // Rows deleted: their cells go, merges and ranges shrink or go, and a note on a deleted cell goes with it.
     void rowsDeletedTakeWhatIsInThemAway()
     {

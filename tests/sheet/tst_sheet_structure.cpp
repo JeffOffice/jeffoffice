@@ -28,6 +28,8 @@ QByteArray sheetXml(const QStringList &specs)
         QString xml;
         if (value.startsWith(QLatin1Char('='))) {
             xml = QStringLiteral("<c r=\"%1\"><f>%2</f><v>0</v></c>").arg(ref, value.mid(1).toHtmlEscaped());
+        } else if (value.startsWith(QLatin1Char('{'))) {   // ("D5={SUM(A1:A3*B1:B3)": a formula of one cell, entered as an array)
+            xml = QStringLiteral("<c r=\"%1\"><f t=\"array\" ref=\"%1\">%2</f><v>0</v></c>").arg(ref, value.mid(1).toHtmlEscaped());
         } else {
             bool number = false;
             value.toDouble(&number);
@@ -103,7 +105,8 @@ struct Book {
     void finish() { while (!calc->recalculate().finished) {} }
     bool apply(const StructEdit &e, Calculation::EditRecord *rec)
     {
-        const bool ok = calc->applyEdit(e, rec);
+        Calculation::EditRecord local;
+        const bool ok = calc->applyEdit(e, rec ? rec : &local);
         finish();
         return ok;
     }
@@ -356,6 +359,250 @@ private Q_SLOTS:
         QVERIFY(b.calc->undoEdit(gone));
         b.finish();
         QCOMPARE(b.formula("C3"), QStringLiteral("_xll.NOPE(A2)"));
+    }
+
+    // The formulas of a rule of validation are written for the first cell of its range: when that cell is deleted, the first cell left is the one they are written for, so the references
+    // the formula has that are not fixed follow it (the first row deleted does not make ISNUMBER($A2) read a cell that is gone).
+    void aRulesRelativeReferencesAreWrittenForItsNewFirstCell()
+    {
+        QStringList cells;
+        for (int r = 1; r <= 10; ++r) cells << QStringLiteral("A%1=%1").arg(r);
+        const QString rule = QStringLiteral("<dataValidations count=\"1\"><dataValidation type=\"custom\" allowBlank=\"1\" showErrorMessage=\"1\" sqref=\"B2:B10\"><formula1>ISNUMBER($A2)</formula1></dataValidation></dataValidations>");
+        {
+            Book b;
+            QVERIFY(b.open({cells}, rule));
+            QVERIFY(b.apply(StructEdit::deleteRows(0, 1, 1), nullptr));   // the first row of the range
+            const Validation &v = b.calc->sheet(0).validations.first();
+            QCOMPARE(rangeName(v.ranges.first()), QStringLiteral("B2:B9"));
+            QCOMPARE(v.formula1, QStringLiteral("ISNUMBER($A2)"));
+            QVERIFY(b.calc->entryAllowed(0, 1, 1, v, jp::calc::Value::number(7), QStringLiteral("7")));
+        }
+        {
+            Book b;
+            QVERIFY(b.open({cells}, rule));
+            QVERIFY(b.apply(StructEdit::deleteRows(0, 0, 3), nullptr));   // two rows above it and its first
+            QCOMPARE(b.calc->sheet(0).validations.first().formula1, QStringLiteral("ISNUMBER($A1)"));
+            QCOMPARE(rangeName(b.calc->sheet(0).validations.first().ranges.first()), QStringLiteral("B1:B7"));
+        }
+        {
+            Book b;
+            QVERIFY(b.open({cells}, rule));
+            QVERIFY(b.apply(StructEdit::insertRows(0, 1, 2), nullptr));   // above its first row: it moves down with the cells it reads
+            QCOMPARE(b.calc->sheet(0).validations.first().formula1, QStringLiteral("ISNUMBER($A4)"));
+            QCOMPARE(rangeName(b.calc->sheet(0).validations.first().ranges.first()), QStringLiteral("B4:B12"));
+        }
+        {
+            // a column deleted that the formula reads from the left of the range; and the first column of a rule on two columns, with a formula that reads the cell it is written for
+            Book b;
+            QVERIFY(b.open({cells}, QStringLiteral("<dataValidations count=\"1\"><dataValidation type=\"custom\" sqref=\"C2:D5\"><formula1>C2&gt;5</formula1></dataValidation></dataValidations>")));
+            QVERIFY(b.apply(StructEdit::deleteColumns(0, 2, 1), nullptr));   // C, the first column of the range
+            QCOMPARE(b.calc->sheet(0).validations.first().formula1, QStringLiteral("C2>5"));   // (it reads its own cell, as it did: D is C now)
+            QCOMPARE(rangeName(b.calc->sheet(0).validations.first().ranges.first()), QStringLiteral("C2:C5"));
+            QVERIFY(b.apply(StructEdit::deleteColumns(0, 0, 1), nullptr));   // A, which is left of the range
+            QCOMPARE(b.calc->sheet(0).validations.first().formula1, QStringLiteral("B2>5"));
+        }
+        {
+            Book b;
+            QVERIFY(b.open({cells}, QStringLiteral("<dataValidations count=\"1\"><dataValidation type=\"custom\" sqref=\"C2:D5\"><formula1>A2&gt;B2</formula1></dataValidation></dataValidations>")));
+            QVERIFY(b.apply(StructEdit::deleteColumns(0, 0, 1), nullptr));   // A, which the formula reads
+            QCOMPARE(b.calc->sheet(0).validations.first().formula1, QStringLiteral("#REF!>A2"));
+        }
+    }
+
+    // A one-cell array formula whose row is deleted is put back by Undo as an array formula (a plain formula would not be one): the range the file writes, the cell not editable alone, and no
+    // range left over where the cell was.
+    void aOneCellArrayFormulaDeletedAndUndoneIsAnArrayAgain()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2", "A3=3", "B1=4", "B2=5", "B3=6", "D5={SUM(A1:A3*B1:B3)", "D6=9"}}));
+        QCOMPARE(b.at("D5"), QStringLiteral("n:32"));
+        Calculation::EditRecord rec;
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 4, 1), &rec));
+        // D5 holds what was in D6, a number that is not an array's; the one-cell range is gone with its cell
+        QCOMPARE(b.at("D5"), QStringLiteral("n:9"));
+        QVERIFY(!b.calc->content(0, 4, 3).arrayRange.valid);
+        int live = 0;
+        for (const CellRange &r : b.calc->sheet(0).ranges) live += r.valid ? 1 : 0;
+        QCOMPARE(live, 0);
+        QVERIFY(b.calc->setValue(0, 4, 3, Value::number(11)));   // (the cell is an ordinary one: it can be changed)
+        QVERIFY(b.calc->setValue(0, 4, 3, Value::number(9)));
+        QVERIFY(b.calc->undoEdit(rec));
+        b.finish();
+        const Calculation::CellContent c = b.calc->content(0, 4, 3);
+        QVERIFY(c.isFormula);
+        QVERIFY2(c.arrayRange.valid, "the array is a plain formula again");
+        QCOMPARE(rangeName(c.arrayRange), QStringLiteral("D5"));
+        QVERIFY(!c.editable);
+        QCOMPARE(b.at("D5"), QStringLiteral("n:32"));
+        const Cell *cell = b.calc->sheet(0).cells.find(4, 3);
+        QVERIFY(cell && (cell->flags & ArrayFormula));
+        QCOMPARE(b.at("D6"), QStringLiteral("n:9"));
+    }
+
+    // A cut to another sheet: a reference to cells that stay names the sheet the formula came from; one to cells that go with it follows them.
+    void aCutToAnotherSheetKeepsTheCellsItReads()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1==B2*2+C1", "B2=7", "C1=1"}, {"B2=100", "C1=1000"}}));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:15"));
+        CellRange block;
+        block.valid = true;
+        block.row1 = block.row2 = 0;
+        block.col1 = block.col2 = 0;
+        Calculation::EditRecord rec;
+        QVERIFY(b.apply(StructEdit::move(0, block, 1, 0, 0), &rec));   // A1 alone, to Sheet2
+        QCOMPARE(b.formula("A1", 1), QStringLiteral("Sheet1!B2*2+Sheet1!C1"));
+        QCOMPARE(b.at("A1", 1), QStringLiteral("n:15"));
+        QVERIFY(b.calc->undoEdit(rec));
+        b.finish();
+        QCOMPARE(b.formula("A1"), QStringLiteral("B2*2+C1"));
+        // the cells it reads go with it: B2 and C1 are in the block, so the formula reads them where they are now
+        block.row1 = 0;
+        block.row2 = 1;
+        block.col1 = 0;
+        block.col2 = 2;
+        QVERIFY(b.apply(StructEdit::move(0, block, 1, 4, 4), &rec));   // A1:C2, to Sheet2!E5
+        QCOMPARE(b.formula("E5", 1), QStringLiteral("F6*2+G5"));
+        QCOMPARE(b.at("E5", 1), QStringLiteral("n:15"));
+    }
+
+    // A cut pasted over cells that other formulas read makes their references #REF!, as the programs people know do; a range that only partly covers the cells written over stays as it is.
+    void aCutOverCellsThatAreReadMakesTheirReferencesGone()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "B1=2", "C1==B1+10", "D1==SUM(B1:B3)", "B3=5", "D2==A1+1"}}));
+        CellRange a1;
+        a1.valid = true;
+        a1.row1 = a1.row2 = 0;
+        a1.col1 = a1.col2 = 0;
+        Calculation::EditRecord rec;
+        QVERIFY(b.apply(StructEdit::move(0, a1, 0, 0, 1), &rec));   // A1 onto B1
+        QCOMPARE(b.formula("C1"), QStringLiteral("#REF!+10"));
+        QCOMPARE(b.at("C1"), QStringLiteral("e:#REF!"));
+        QCOMPARE(b.formula("D1"), QStringLiteral("SUM(B1:B3)"));   // (a range only partly covered)
+        QCOMPARE(b.formula("D2"), QStringLiteral("B1+1"));         // (the cell that moved is followed)
+        QCOMPARE(b.at("D2"), QStringLiteral("n:2"));
+        QVERIFY(b.calc->undoEdit(rec));
+        b.finish();
+        QCOMPARE(b.formula("C1"), QStringLiteral("B1+10"));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:12"));
+        QCOMPARE(b.formula("D2"), QStringLiteral("A1+1"));
+        // the block and the cells written over overlap: what is read in both goes with the block
+        CellRange two;
+        two.valid = true;
+        two.row1 = two.row2 = 0;
+        two.col1 = 0;
+        two.col2 = 1;
+        QVERIFY(b.apply(StructEdit::move(0, two, 0, 0, 1), &rec));   // A1:B1 onto B1:C1
+        QCOMPARE(b.formula("D2"), QStringLiteral("B1+1"));   // A1 is now B1
+        QCOMPARE(b.at("C1"), QStringLiteral("n:2"));         // (C1 was written over by the cell that was B1)
+    }
+
+    // Part of a merged range is not cut or written over (the whole merged cell, or none of it).
+    void aCutThroughMergedCellsIsRefused()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "C5=2"}}, QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A1:B1\"/></mergeCells>")));
+        CellRange block;
+        block.valid = true;
+        block.row1 = block.row2 = 0;
+        block.col1 = block.col2 = 0;   // A1, the first cell of A1:B1
+        QString why;
+        QVERIFY(!b.calc->canApply(StructEdit::move(0, block, 0, 6, 6), &why));
+        QVERIFY2(why.contains(QLatin1String("merged")), qPrintable(why));
+        block.col2 = 1;   // the whole merged cell
+        QVERIFY(b.calc->canApply(StructEdit::move(0, block, 0, 6, 6), &why));
+        // written over only in part
+        CellRange c5;
+        c5.valid = true;
+        c5.row1 = c5.row2 = 4;
+        c5.col1 = c5.col2 = 2;
+        QVERIFY(!b.calc->canApply(StructEdit::move(0, c5, 0, 0, 1), &why));   // C5 onto B1
+        QVERIFY2(why.contains(QLatin1String("merged")), qPrintable(why));
+        QVERIFY(b.calc->canApply(StructEdit::move(0, c5, 0, 8, 8), &why));
+    }
+
+    // A reference through several sheets (Sheet1:Sheet3!A5) names the same cell on every sheet: rows inserted or deleted on one sheet of them do not change it, as in the programs people
+    // know; one to a single sheet follows the edit.
+    void aReferenceThroughSeveralSheetsIsLeftWhenOneOfThemIsEdited()
+    {
+        const QStringList names = {QStringLiteral("Sheet1"), QStringLiteral("Sheet2"), QStringLiteral("Sheet3")};
+        bool changed = true;
+        QCOMPARE(adjustFormula(QStringLiteral("SUM(Sheet1:Sheet3!A5)"), 0, names, StructEdit::insertRows(1, 2, 3), &changed), QStringLiteral("SUM(Sheet1:Sheet3!A5)"));
+        QVERIFY(!changed);
+        QCOMPARE(adjustFormula(QStringLiteral("SUM(Sheet1:Sheet3!A5)"), 0, names, StructEdit::deleteRows(0, 4, 1)), QStringLiteral("SUM(Sheet1:Sheet3!A5)"));
+        QCOMPARE(adjustFormula(QStringLiteral("SUM(Sheet2!A5)+Sheet1:Sheet3!A5"), 0, names, StructEdit::insertRows(1, 2, 3)), QStringLiteral("SUM(Sheet2!A8)+Sheet1:Sheet3!A5"));
+        // the same through the cells of a workbook
+        Book b;
+        QVERIFY(b.open({{"A1==SUM(Sheet1:Sheet3!A5)", "A5=1"}, {"A5=10"}, {"A5=100"}}));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:111"));
+        QVERIFY(b.apply(StructEdit::insertRows(1, 2, 3), nullptr));
+        QCOMPARE(b.formula("A1"), QStringLiteral("SUM(Sheet1:Sheet3!A5)"));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:101"));   // (Sheet2's A5 is the cell that moved down)
+    }
+
+    // A table with a row of totals: the totals row stays the last row, and deleting its sheet row takes the totals away (the table keeps its data); a table is not left with no data row.
+    void aTablesTotalsRowStaysLastAndGoesWhenItsRowIsDeleted()
+    {
+        Table t;
+        t.sheet = 0;
+        t.row1 = 2;
+        t.col1 = 1;
+        t.row2 = 7;
+        t.col2 = 3;   // B3:D8, header on row 3, data on rows 4 to 7, totals on row 8
+        t.headerRows = 1;
+        t.totalsRows = 1;
+        auto fate = [&](const StructEdit &e, QString *place = nullptr, int *totals = nullptr) {
+            CellRange where;
+            QString why;
+            int tr = -1;
+            const TableFate f = tableAfter(e, t, &where, &why, &tr);
+            if (place) *place = f == TableFate::Refused ? why : rangeName(where);
+            if (totals) *totals = tr;
+            return f;
+        };
+        QString place;
+        int totals = -1;
+        QCOMPARE(fate(StructEdit::insertRows(0, 7, 3), &place, &totals), TableFate::Moved);   // at the totals row: the new rows go above it
+        QCOMPARE(place, QStringLiteral("B3:D11"));
+        QCOMPARE(totals, 1);
+        QCOMPARE(fate(StructEdit::insertRows(0, 8, 3)), TableFate::Same);                       // below the totals
+        QCOMPARE(fate(StructEdit::deleteRows(0, 7, 1), &place, &totals), TableFate::Moved);     // the totals row: the table keeps its data
+        QCOMPARE(place, QStringLiteral("B3:D7"));
+        QCOMPARE(totals, 0);
+        QCOMPARE(fate(StructEdit::deleteRows(0, 6, 2), &place, &totals), TableFate::Moved);     // the last data row and the totals
+        QCOMPARE(place, QStringLiteral("B3:D6"));
+        QCOMPARE(totals, 0);
+        QCOMPARE(fate(StructEdit::deleteRows(0, 6, 1), &place, &totals), TableFate::Moved);     // the last data row: the totals row is still last
+        QCOMPARE(place, QStringLiteral("B3:D7"));
+        QCOMPARE(totals, 1);
+        QCOMPARE(fate(StructEdit::deleteRows(0, 0, 1), &place, &totals), TableFate::Moved);     // above it
+        QCOMPARE(place, QStringLiteral("B2:D7"));
+        QCOMPARE(totals, 1);
+        QCOMPARE(fate(StructEdit::deleteRows(0, 3, 4), &place), TableFate::Refused);            // all the data rows: the header and the totals would be all that is left
+        QVERIFY2(place.contains(QStringLiteral("data")), qPrintable(place));
+        QCOMPARE(fate(StructEdit::deleteRows(0, 3, 5)), TableFate::Refused);
+        t.totalsRows = 0;   // without totals: the same rule for the data rows
+        t.row2 = 6;
+        QCOMPARE(fate(StructEdit::deleteRows(0, 3, 4)), TableFate::Refused);
+        QCOMPARE(fate(StructEdit::deleteRows(0, 4, 3), &place), TableFate::Moved);              // one data row is left
+        QCOMPARE(place, QStringLiteral("B3:D4"));
+    }
+
+    // A defined name with references that are not fixed keeps its offsets when rows or columns are inserted (it is read from the cell it is used in), and the fixed parts follow the cells.
+    void aRelativeDefinedNameKeepsItsOffsets()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2", "A3=3"}}, QString(),
+                       QStringLiteral("<definedName name=\"Rel\">Sheet1!A2</definedName><definedName name=\"Abs\">Sheet1!$A$2</definedName><definedName name=\"ColFixed\">Sheet1!$A2</definedName>")));
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 2), nullptr));
+        QCOMPARE(b.calc->definedName(0, QStringLiteral("Rel")), QStringLiteral("Sheet1!A2"));
+        QCOMPARE(b.calc->definedName(0, QStringLiteral("Abs")), QStringLiteral("Sheet1!$A$4"));
+        QCOMPARE(b.calc->definedName(0, QStringLiteral("ColFixed")), QStringLiteral("Sheet1!$A2"));
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 1), nullptr));
+        QCOMPARE(b.calc->definedName(0, QStringLiteral("Rel")), QStringLiteral("Sheet1!A2"));
+        QCOMPARE(b.calc->definedName(0, QStringLiteral("Abs")), QStringLiteral("Sheet1!$B$4"));
+        QCOMPARE(b.calc->definedName(0, QStringLiteral("ColFixed")), QStringLiteral("Sheet1!$B2"));
     }
 
     // A data table reads its input cells: deleting one is refused (the file cannot say it is gone), and a row or column inserted or deleted elsewhere moves the table's reference with the cell.

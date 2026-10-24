@@ -34,5 +34,8 @@ bool moveDrawingPart(const QByteArray &xml, const MoveContext &ctx, int sheet, Q
 // The notes of `sheet`: the comments part, and the drawing that draws them.
 bool moveCommentsPart(const QByteArray &xml, const MoveContext &ctx, int sheet, QByteArray *out, bool *changed);
 bool moveNotesDrawing(const QByteArray &vml, const MoveContext &ctx, int sheet, QByteArray *out, bool *changed);
+// The threads of comments of `sheet` (the part names the cell of each), and the properties of a form control (the cell it sets, the range it lists).
+bool moveThreadedCommentsPart(const QByteArray &xml, const MoveContext &ctx, int sheet, QByteArray *out, bool *changed);
+bool moveControlPart(const QByteArray &xml, const MoveContext &ctx, int sheet, QByteArray *out, bool *changed);
 
 } // namespace jp::office::sheet

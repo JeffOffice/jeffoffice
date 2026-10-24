@@ -38,9 +38,15 @@ bool Calculation::canMoveCells(const StructEdit &e, QString *why) const
     const quint32 toRow2 = e.toRow + quint32(rows) - 1, toCol2 = e.toCol + quint32(cols) - 1;
     const QString array = say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "Cells of an array formula or a data table can't be moved, or written over."));
     for (const CellRange &r : from.ranges)
-        if (r.cellCount() > 1 && meets(r, e.row1, e.col1, e.row2, e.col2)) return refuse(array);
+        if (meets(r, e.row1, e.col1, e.row2, e.col2)) return refuse(array);
     for (const CellRange &r : to.ranges)
         if (r.cellCount() > 1 && meets(r, e.toRow, e.toCol, toRow2, toCol2)) return refuse(array);
+    // merged cells go whole or not at all, and are not written over in part
+    const QString merged = say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "Part of a merged cell can't be moved or written over. Select the whole merged cell, or none of it."));
+    for (const CellRange &r : from.merges)
+        if (meets(r, e.row1, e.col1, e.row2, e.col2) && !(r.row1 >= e.row1 && r.row2 <= e.row2 && r.col1 >= e.col1 && r.col2 <= e.col2)) return refuse(merged);
+    for (const CellRange &r : to.merges)
+        if (meets(r, e.toRow, e.toCol, toRow2, toCol2) && !(r.row1 >= e.toRow && r.row2 <= toRow2 && r.col1 >= e.toCol && r.col2 <= toCol2)) return refuse(merged);
     return true;
 }
 
@@ -75,6 +81,16 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     area.col2 = e.col2;
     std::vector<quint32> candidates;
     m_graph->dependentsOfArea(area, &candidates);
+    {
+        // (and those that read the cells that are written over: a reference to them has no cell to name)
+        CellArea written = area;
+        written.sheet1 = written.sheet2 = e.toSheet;
+        written.row1 = e.toRow;
+        written.row2 = e.toRow + rows - 1;
+        written.col1 = e.toCol;
+        written.col2 = e.toCol + cols - 1;
+        m_graph->dependentsOfArea(written, &candidates);
+    }
     specialNodes(&candidates);
     std::sort(candidates.begin(), candidates.end());
     candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
@@ -91,10 +107,10 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         m.row = c.row;
         m.col = c.col;
         m.content = content(e.sheet, c.row, c.col);
-        rec->gone.push_back({e.sheet, c.row, c.col, m.content});
+        rec->gone.push_back(goneCell(e.sheet, c));
         if (m.content.isFormula) {
             bool changed = false;
-            const QString now = adjustFormula(m.content.formula, e.sheet, names, e, &changed);
+            const QString now = adjustMovedFormula(m.content.formula, names, e, &changed);
             if (changed) m.content.formula = now;
         }
         moving.push_back(std::move(m));
@@ -102,7 +118,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     });
     D.cells.forEachInRange(e.toRow, e.toCol, toRow2, toCol2, [&](const Cell &c) {
         if (inSource(e.toSheet, c.row, c.col)) return true;   // (already counted: it is one of the block's)
-        rec->gone.push_back({e.toSheet, c.row, c.col, content(e.toSheet, c.row, c.col)});
+        rec->gone.push_back(goneCell(e.toSheet, c));
         overwritten.push_back({c.row, c.col});
         return true;
     });
@@ -276,6 +292,7 @@ bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
     clearRange(e.toSheet, e.toRow, e.toCol, toRow2, toCol2);
     clearRange(e.sheet, e.row1, e.col1, e.row2, e.col2);
     for (const EditRecord::GoneCell &g : rec.gone) put(g.sheet, g.row, g.col, g.content, Marking::Later);
+    putBackKinds(rec);
     for (const EditRecord::FormulaWas &w : rec.was) {
         const Value *stored = w.hasStored ? &w.stored : nullptr;
         if (rewriteArrayText(w.sheet, w.row, w.col, w.text)) continue;

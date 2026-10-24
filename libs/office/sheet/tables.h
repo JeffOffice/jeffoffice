@@ -26,6 +26,8 @@ struct Table {
     quint32 row1 = 0, col1 = 0, row2 = 0, col2 = 0;   // the cells it covers, the header row first (when it has one)
     quint32 fileRow1 = 0, fileCol1 = 0, fileRow2 = 0, fileCol2 = 0;   // and as the file has them
     int headerRows = 1;             // 1, or 0 for a table with no header row
+    int totalsRows = 0;             // 1 when the last row of the table is its row of totals, else 0 (the file's totalsRowCount, as it is now)
+    int fileTotalsRows = 0;         // and as the file has it
     QStringList columns;            // the names of its columns as they are now
     QStringList fileColumns;        // and as the file has them
 };
@@ -33,12 +35,13 @@ struct Table {
 // Where a table is after rows, columns, or cells are inserted or deleted: Same, Moved (the whole table, or the data rows it has more or fewer of; `out` is where it is), or Refused (the edit
 // would cut through the table's columns or remove its header row or all of it; `why` says so in a sentence). A table on another sheet is Same.
 enum class TableFate : quint8 { Same, Moved, Refused };
-TableFate tableAfter(const StructEdit &edit, const Table &table, CellRange *out, QString *why);
+TableFate tableAfter(const StructEdit &edit, const Table &table, CellRange *out, QString *why, int *totalsRows = nullptr);
 
 // A table's place in the sheet, for putting it back.
 struct TablePlace {
     int table = 0;
     quint32 row1 = 0, col1 = 0, row2 = 0, col2 = 0;
+    int totalsRows = 0;
 };
 
 // The tables of the workbook, in the order of the sheets and of each sheet's relationships. Tables whose part can't be read are left out (and a table with no columns).
@@ -50,8 +53,9 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info);
 QString renameColumnInFormula(const QString &formula, const QString &table, const QString &oldName, const QString &newName, bool insideTable);
 
 // A table part with its columns named `names` (where they differ from `fileNames`, the names it has now), and the formulas it holds for its columns (calculatedColumnFormula and
-// totalsRowFormula) following the renames; with a `range`, the cells it covers (its ref, and its filter's) are those. False if the part is not a table's.
-bool renameTableXml(const QByteArray &xml, const QStringList &fileNames, const QStringList &names, const QString &table, QByteArray *out, const CellRange *range = nullptr);
+// totalsRowFormula) following the renames; with a `range`, the cells it covers (its ref, and its filter's) are those; with `totalsRows` 0 a part that has a row of totals loses it (the count,
+// and what its columns say about it). False if the part is not a table's.
+bool renameTableXml(const QByteArray &xml, const QStringList &fileNames, const QStringList &names, const QString &table, QByteArray *out, const CellRange *range = nullptr, const int *totalsRows = nullptr);
 
 // What a header cell's new text makes of the name of a column: the text as typed (no spaces at its ends), and one that another column of the table has (without regard to capitals)
 // is given a number after it, as the programs people know do ("Total" is "Total2" when there is a "Total"). Empty if there is no name to be made (nothing typed, or past the 255 characters

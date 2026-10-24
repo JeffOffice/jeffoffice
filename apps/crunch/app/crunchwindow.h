@@ -65,6 +65,8 @@ public:
     // The loader that reads the workbook and works it out (a test holds its worker back to make what it checks independent of speed).
     crunch::WorkbookLoader &workbookLoader() { return m_loader; }
     bool isCalculating() const { return m_calculating; }
+    // A copy or cut is still being turned to text (a large selection is done a few milliseconds at a time); the clipboard has it when this is false.
+    bool isCopying() const { return m_copy != nullptr; }
     // ---- editing
     // The entry in progress (typed over a cell, or in it, or in the formula bar) is finished: the cell takes it (one step of Undo), and the selection goes the way the key says. False,
     // with the reason shown, and the entry still there, if the cell can't take it (a formula that is not one).

@@ -401,6 +401,10 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
                 if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveDrawingPart(x, ctx, sheet, o, c); });
             for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/comments")))
                 if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveCommentsPart(x, ctx, sheet, o, c); });
+            for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/threadedComment")))
+                if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveThreadedCommentsPart(x, ctx, sheet, o, c); });
+            for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/ctrlProp")))
+                if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveControlPart(x, ctx, sheet, o, c); });
             for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/vmlDrawing")))
                 if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveNotesDrawing(x, ctx, sheet, o, c); });
         }

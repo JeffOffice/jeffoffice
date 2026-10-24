@@ -434,7 +434,7 @@ private:
         Tag t;
         qsizetype dimStart = -1, dimEnd = -1;
         for (;;) {
-            if (!nextTag(pos, &t)) return fail(m_failed ? QCoreApplication::translate("jp::office::sheet::Save", "The sheet's part is damaged.") : QCoreApplication::translate("jp::office::sheet::Save", "The sheet has no cells part (sheetData)."));
+            if (!nextTag(pos, &t)) return fail(m_failed ? QCoreApplication::translate("jp::office::sheet::Save", "The sheet's part is damaged.") : QCoreApplication::translate("jp::office::sheet::Save", "The sheet's file has no place for cells in it, so it can't be saved."));
             pos = t.end;
             if (t.closing) continue;
             if (t.local == "dimension" && dimStart < 0) {

@@ -7,6 +7,8 @@
 #include "grid/gridview.h"
 
 #include <QAction>
+#include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QKeySequence>
 #include <QTest>
@@ -79,8 +81,29 @@ struct EditWindow {
         if (text.size() > 1) QTest::keyClicks(win.w.cellEditor(), text.mid(1));
     }
     void key(Qt::Key k, Qt::KeyboardModifiers m = Qt::NoModifier) { QTest::keyClick(win.w.cellEditor(), k, m); }
-    // Waits until the worker has worked out what the edits made.
-    bool settle() { return QTest::qWaitFor([&] { return !win.w.isCalculating(); }, 20000); }
+    // Waits until the worker has worked out what the edits made. The window says it is calculating only for what its own commands did; an edit made through the session() does not set
+    // that, so the worker itself is asked: it is idle with nothing left to work out (seen with it held), and what it sent is taken. (Not a pause: a worker that has not yet woken to
+    // an edit is idle too, but the edit has left formulas for it to work out.)
+    bool settle()
+    {
+        if (!QTest::qWaitFor([&] { return !win.w.isCalculating(); }, 20000)) return false;
+        auto &loader = win.w.workbookLoader();
+        if (!loader.result()) return true;
+        QElapsedTimer waited;
+        waited.start();
+        for (;;) {
+            QTest::qWait(1);   // (the batches that are on their way are taken)
+            bool done = false;
+            if (loader.result()->calcIdle.load()) {
+                auto hold = loader.hold();
+                done = !hold || !hold->calculation()->isDirty();
+            }
+            if (done) break;
+            if (waited.elapsed() > 20000) return false;
+        }
+        QCoreApplication::processEvents();
+        return true;
+    }
     void enter(const QString &text)
     {
         type(text);

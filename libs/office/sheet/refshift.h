@@ -27,6 +27,8 @@ struct StructEdit {
     quint32 toRow = 0, toCol = 0;
     // Offset: how far a copied formula is from where it was written (only parts without "$" move).
     qint32 dRow = 0, dCol = 0;
+    // Move, for the formulas of the cells that move: what they read that is written over by the move is still read (it is the formulas of other cells that read it that have #REF!).
+    bool keepsWhatIsWrittenOver = false;
 
     static StructEdit insertRows(int sheet, quint32 first, quint32 count);
     static StructEdit deleteRows(int sheet, quint32 first, quint32 count);
@@ -77,6 +79,16 @@ void setFastRowEdits(bool on);
 // `sheetNames` the names of the workbook's sheets in order. A reference to a sheet that is not in the list (another workbook) is left as it is. `changed`, if given, says whether the text
 // is not the one given. `definedName` is for the text of a defined name.
 QString adjustFormula(const QString &formula, int ownSheet, const QStringList &sheetNames, const StructEdit &edit, bool *changed = nullptr, bool definedName = false);
+// The formula of a cell that a cut moves (a Move edit): the references to cells that move with it follow them, and when the cell goes to another sheet the references to cells that stay
+// name the sheet it came from (the formula reads what it read), the others the sheet it is on now.
+QString adjustMovedFormula(const QString &formula, const QStringList &sheetNames, const StructEdit &move, bool *changed = nullptr);
+
+// The formula of a rule (a validation, a conditional format) after the edit. Such a formula is written for the first cell of the rule's first range (`firstRange`, as it was before the
+// edit): a reference in it that is not fixed with "$" is to the cell that far from that one. After the edit it is written for the first cell that is left of the range, so it is read as
+// written for the cell that is there now (the one that was the first cell left), and what it names follows its cells: ISNUMBER($A2) for B2:B10 is ISNUMBER($A2) for B2:B9 when row 2 is
+// deleted, not ISNUMBER(#REF!). `ownSheet` is the sheet the rule is on.
+QString adjustRuleFormula(const QString &formula, int ownSheet, const QStringList &sheetNames, const StructEdit &edit, const CellRange &firstRange, bool *changed = nullptr);
+
 // The text of a formula for the cell that is `dRow` rows and `dCol` columns from the cell it was written for, as a copy of it has it (what Fill and Paste give); references without "$" move,
 // those that would go off the grid are #REF!.
 QString offsetFormula(const QString &formula, qint32 dRow, qint32 dCol, bool *changed = nullptr);

@@ -174,9 +174,16 @@ RefFate adjustBlock(const StructEdit &e, const Block &in, Block *out)
         return b.col1 == in.col1 && b.col2 == in.col2 ? RefFate::Same : RefFate::Moved;
     }
     case K::Move: {
+        if (in.wholeColumns || in.wholeRows) return RefFate::Same;
+        const bool inSource = in.sheet == e.sheet && in.row1 >= e.row1 && in.row2 <= e.row2 && in.col1 >= e.col1 && in.col2 <= e.col2;
+        if (!inSource) {
+            // cells written over by the cells that arrive: a reference to them (whole inside them, and not to cells that go with the block) has no cell to name, as in the programs people
+            // know; one that reaches beyond them keeps its cells
+            const quint32 toRow2 = e.toRow + (e.row2 - e.row1), toCol2 = e.toCol + (e.col2 - e.col1);
+            if (!e.keepsWhatIsWrittenOver && in.sheet == e.toSheet && in.row1 >= e.toRow && in.row2 <= toRow2 && in.col1 >= e.toCol && in.col2 <= toCol2) return RefFate::Gone;
+            return RefFate::Same;
+        }
         // a reference whole inside the block that moves goes with it
-        if (in.sheet != e.sheet || in.wholeColumns || in.wholeRows) return RefFate::Same;
-        if (in.row1 < e.row1 || in.row2 > e.row2 || in.col1 < e.col1 || in.col2 > e.col2) return RefFate::Same;
         const qint64 dRow = qint64(e.toRow) - e.row1, dCol = qint64(e.toCol) - e.col1;
         if (dRow == 0 && dCol == 0 && e.toSheet == e.sheet) return RefFate::Same;
         Block b = in;
@@ -450,9 +457,9 @@ QString adjustFormula(const QString &formula, int ownSheet, const QStringList &s
             if (first < 0 || last < 0) continue;   // (another workbook, or a sheet this does not have)
         }
         if (first > last) std::swap(first, last);
-        // a reference through several sheets is changed when the edit is to one of them
-        if (edit.sheet < first || edit.sheet > last) continue;
-        const int target = edit.sheet;
+        // a reference through several sheets names the same cells on each of them: an edit to one of them does not change it, as in the programs people know
+        if (first != last) continue;
+        const int target = first;
         Block in;
         in.sheet = target;
         in.row1 = r.ref.row1;
@@ -461,6 +468,16 @@ QString adjustFormula(const QString &formula, int ownSheet, const QStringList &s
         in.col2 = r.ref.col2;
         in.wholeColumns = r.ref.flags & jp::calc::kRefWholeCols;
         in.wholeRows = r.ref.flags & jp::calc::kRefWholeRows;
+        if (definedName) {
+            // a name's reference that is not fixed (no "$" on its rows, say) is read from the cell the name is used in, and keeps its offset when rows (or columns) are inserted or
+            // deleted; the fixed parts follow the cells
+            using K = StructEdit::Kind;
+            const bool rowEdit = edit.kind == K::InsertRows || edit.kind == K::DeleteRows || edit.kind == K::InsertCellsDown || edit.kind == K::DeleteCellsUp;
+            const bool columnEdit = edit.kind == K::InsertColumns || edit.kind == K::DeleteColumns || edit.kind == K::InsertCellsRight || edit.kind == K::DeleteCellsLeft;
+            const quint8 f = r.ref.flags;
+            if (rowEdit && !(f & (jp::calc::kRefRow1Abs | jp::calc::kRefRow2Abs))) continue;
+            if (columnEdit && !(f & (jp::calc::kRefCol1Abs | jp::calc::kRefCol2Abs))) continue;
+        }
         Block moved;
         const RefFate fate = adjustBlock(edit, in, &moved);
         if (fate == RefFate::Same) continue;
@@ -487,6 +504,75 @@ QString adjustFormula(const QString &formula, int ownSheet, const QStringList &s
     out += formula.mid(at);
     if (changed) *changed = true;
     return out;
+}
+
+QString adjustMovedFormula(const QString &formula, const QStringList &sheetNames, const StructEdit &move, bool *changed)
+{
+    StructEdit own = move;
+    own.keepsWhatIsWrittenOver = true;
+    if (move.kind != StructEdit::Kind::Move || move.toSheet == move.sheet || move.sheet < 0 || move.sheet >= sheetNames.size() || move.toSheet < 0 || move.toSheet >= sheetNames.size())
+        return adjustFormula(formula, move.sheet, sheetNames, own, changed);
+    jp::calc::ParseOptions po;
+    std::vector<jp::calc::ReferenceAt> refs;
+    QString text = formula;
+    bool namesDestination = false;
+    if (jp::calc::findReferences(formula, po, &refs) && !refs.empty()) {
+        // (references that name no sheet and are not to cells that go with the block are to the sheet it came from: they say so)
+        const QString prefix = sheetPrefix(sheetNames[move.sheet]);
+        QString out;
+        int at = 0;
+        for (const jp::calc::ReferenceAt &r : refs) {
+            if (!r.sheet1.isEmpty()) {
+                if (sheetIndexOf(sheetNames, r.sheet1) == move.toSheet || (!r.sheet2.isEmpty() && sheetIndexOf(sheetNames, r.sheet2) == move.toSheet)) namesDestination = true;
+                continue;
+            }
+            const bool whole = r.ref.flags & (jp::calc::kRefWholeCols | jp::calc::kRefWholeRows);
+            if (!whole && r.ref.row1 >= move.row1 && r.ref.row2 <= move.row2 && r.ref.col1 >= move.col1 && r.ref.col2 <= move.col2) continue;   // (it goes with the cells)
+            out += formula.mid(at, r.body - at) + prefix;
+            at = r.body;
+        }
+        out += formula.mid(at);
+        text = out;
+    }
+    QString moved = adjustFormula(text, move.sheet, sheetNames, own);
+    if (!namesDestination) {
+        // (the references to cells that went with the block name the sheet they went to, which is the formula's own now: they need not say so)
+        refs.clear();
+        if (jp::calc::findReferences(moved, po, &refs) && !refs.empty()) {
+            QString out;
+            int at = 0;
+            for (const jp::calc::ReferenceAt &r : refs) {
+                if (r.sheet1.isEmpty() || !r.sheet2.isEmpty() || sheetIndexOf(sheetNames, r.sheet1) != move.toSheet) continue;
+                out += moved.mid(at, r.start - at);
+                at = r.body;
+            }
+            out += moved.mid(at);
+            moved = out;
+        }
+    }
+    if (changed) *changed = moved != formula;
+    return moved;
+}
+
+QString adjustRuleFormula(const QString &formula, int ownSheet, const QStringList &sheetNames, const StructEdit &edit, const CellRange &firstRange, bool *changed)
+{
+    qint32 dRow = 0, dCol = 0;
+    if (firstRange.valid && edit.sheet == ownSheet && edit.kind != StructEdit::Kind::Move && edit.kind != StructEdit::Kind::Offset) {
+        CellRange now = firstRange;
+        if (adjustRange(edit, ownSheet, &now)) {
+            // (where the cell that is the first now was before: the edit undone, for the cell)
+            int sheet = ownSheet;
+            quint32 row = now.row1, col = now.col1;
+            if (adjustCell(edit.inverse(), &sheet, &row, &col) != RefFate::Gone) {
+                dRow = qint32(row) - qint32(firstRange.row1);
+                dCol = qint32(col) - qint32(firstRange.col1);
+            }
+        }
+    }
+    QString text = dRow || dCol ? offsetFormula(formula, dRow, dCol) : formula;
+    text = adjustFormula(text, ownSheet, sheetNames, edit);
+    if (changed) *changed = text != formula;
+    return text;
 }
 
 QString offsetFormula(const QString &formula, qint32 dRow, qint32 dCol, bool *changed)

@@ -98,19 +98,7 @@ QString differences(const office::sheet::Calculation *a, const office::sheet::Ca
 QString storeDiffers(EditWindow &e)
 {
     // (the edits were made through the session, not the window's keys: the worker is waited for here)
-    // (not by a pause: the worker is idle and has nothing left to work out, seen with it held, and what it sent is taken. A worker that has not yet woken to an edit is idle too, but the
-    // edit has left formulas for it to work out)
-    auto &loader = e.win.w.workbookLoader();
-    QElapsedTimer waited;
-    waited.start();
-    for (;;) {
-        QTest::qWait(1);   // (the batches that are on their way are taken)
-        bool done = false;
-        if (loader.result()->calcIdle.load())
-            if (auto hold = loader.hold()) done = !hold->calculation()->isDirty();
-        if (done || waited.elapsed() > 20000) break;
-    }
-    QCoreApplication::processEvents();
+    if (!e.settle()) return QStringLiteral("the worker did not finish");
     const office::sheet::Calculation *calc = e.win.w.calculation();
     for (int s = 0; s < calc->sheetCount(); ++s) {
         bool circular = false;
@@ -517,6 +505,32 @@ private Q_SLOTS:
             QVERIFY2(diff.isEmpty(), qPrintable(QStringLiteral("seed %1: %2").arg(seed).arg(diff)));
         }
         QVERIFY2(only || (moves > 25 && refused < moves + pastes + cuts && (seeds < 20 || (pastes > seeds / 2 && cuts > seeds / 4))), qPrintable(QStringLiteral("%1 inserts and deletes, %2 pastes, %3 cuts, %4 refused").arg(moves).arg(pastes).arg(cuts).arg(refused)));
+    }
+
+    // A one-cell array formula whose row is deleted, with the delete undone and the file saved: the file has the array again, as the window has it.
+    void aOneCellArrayDeletedAndUndoneIsSavedAsAnArray()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row><row r=\"3\"><c r=\"A3\"><v>3</v></c></row>"
+                                            "<row r=\"5\"><c r=\"D5\"><f t=\"array\" ref=\"D5\">SUM(A1:A3*2)</f><v>12</v></c></row><row r=\"6\"><c r=\"D6\"><v>9</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->deleteRows(0, 4, 1).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("D5")), QStringLiteral("n:9"));
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("D5")), QStringLiteral("n:12"));
+        QVERIFY(!s->canEditCell(0, 4, 3));   // (a cell of an array is not edited alone: it is an array again)
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("5"));        // (something to save)
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        const QString sheet = savedSheetText(e.path);
+        QVERIFY2(sheet.contains(QStringLiteral("<f t=\"array\" ref=\"D5\">SUM(A1:A3*2)</f>")), qPrintable(sheet));
+        QVERIFY2(sheet.contains(QStringLiteral("<c r=\"D6\"><v>9</v></c>")), qPrintable(sheet));
     }
 
     // Tables: rows inserted inside one make it longer, rows or columns before it move it, the header row and the columns can't be cut through; the saved part has its place.
