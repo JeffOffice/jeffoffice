@@ -595,7 +595,7 @@ private Q_SLOTS:
         QCOMPARE(o->chartNow(0, 0).plots[0].series[0].values, (QVector<double>{10, 30}));
     }
 
-    // Rows inserted move the objects in place: the pictures made stay (no object is made again, no picture drawn again), and the object picked is still the one picked.
+    // Rows inserted, and rows made taller, move the objects in place: the pictures made stay (no object is made again, no picture drawn again), and the object picked is still the one picked.
     void insertingRowsMovesTheObjectsInPlace()
     {
         EditWindow e;
@@ -604,6 +604,12 @@ private Q_SLOTS:
         crunch::SheetObjects *o = e.win.w.objects();
         o->layer()->prepareAll();
         const grid::GridLayout &L = e.view()->sheet().layout();
+        // (what the window does after an edit is queued: it is let run before anything is looked at)
+        auto letRun = [] {
+            QCoreApplication::processEvents();
+            QCoreApplication::sendPostedEvents(nullptr, 0);
+            QCoreApplication::processEvents();
+        };
         // the picture is picked
         QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, L.rangeRect(6, 0, 8, 1).center());
         QCOMPARE(o->layer()->selectedId(), 1);
@@ -611,30 +617,71 @@ private Q_SLOTS:
         const jp::grid::ObjectLayer::Stats before = o->layer()->stats();
         const int made = o->objectsMade();
         const qint64 charts = o->chartsDrawn();
+        const qint64 held = o->layer()->cacheBytes();
+        QVERIFY(held > 0);
         const int top = o->layer()->deviceRect(1, grid::Pane::Body).top();
         // below every object, between them, and above them: the objects below move, none is made or drawn again, and the one picked stays picked
         QVERIFY(e.win.w.session()->insertRows(0, 30, 2).ok);
         QVERIFY(e.win.w.session()->insertRows(0, 14, 2).ok);
+        letRun();
         QCOMPARE(o->layer()->deviceRect(1, grid::Pane::Body).top(), top);
+        QCOMPARE(o->layer()->selectedId(), 1);
         QVERIFY(e.win.w.session()->insertRows(0, 0, 3).ok);
+        letRun();
         QCOMPARE(o->layer()->deviceRect(1, grid::Pane::Body).top(), L.cellRect(9, 0).top());
         QCOMPARE(o->layer()->selectedId(), 1);
-        pressUndo(e.view());
-        pressUndo(e.view());
-        pressRedo(e.view());
+        // a row made taller, under no object
+        crunch::EditSession::SizeChange tall;
+        tall.setSize = true;
+        tall.size = 60;
+        QVERIFY(e.win.w.session()->resizeRows(0, 40, 40, tall, QStringLiteral("Taller")).ok);
+        letRun();
         QCOMPARE(o->layer()->selectedId(), 1);
+        QCOMPARE(o->layer()->cacheBytes(), held);
         o->layer()->prepareAll();
         QTRY_COMPARE(o->layer()->pendingRenders(), 0);
         QCOMPARE(o->objectsMade(), made);
         QCOMPARE(o->chartsDrawn(), charts);
         QCOMPARE(o->layer()->stats().renders, before.renders);
-        // a row inserted inside the cells the chart reads is another set of numbers (a blank between): the chart is drawn again, and from them
-        QVERIFY(e.win.w.session()->insertRows(0, 2, 1).ok);
+        QCOMPARE(o->layer()->cacheBytes(), held);
+        // Undo and Redo of them keep the one picked, too
+        pressUndo(e.view());
+        pressUndo(e.view());
+        letRun();
+        QCOMPARE(o->layer()->selectedId(), 1);
+        QCOMPARE(o->layer()->deviceRect(1, grid::Pane::Body).top(), top);   // (back where it was: the rows above it are as they were)
+        pressRedo(e.view());
+        letRun();
+        QCOMPARE(o->layer()->selectedId(), 1);
+        QCOMPARE(o->objectsMade(), made);
+    }
+
+    // A chart is drawn again when what it reads is not what it was drawn from, wherever it is: a row inserted among its cells (so there is a blank between) does it, though the chart only
+    // moves down; a row inserted above them (they all move together) does not.
+    void aChartIsDrawnAgainOnlyWhenItsNumbersChange()
+    {
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(twoCell(4, 8, 11, 18, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales")))), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series))})));
+        QTRY_VERIFY(shown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        QTRY_COMPARE(o->layer()->pendingRenders(), 0);
+        const qint64 first = o->chartsDrawn();
+        QVERIFY(first > 0);
+        const int height = o->layer()->deviceRect(0, grid::Pane::Body).height();
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 1).ok);
         QVERIFY(e.settle());
+        o->layer()->prepareAll();
+        QTRY_COMPARE(o->layer()->pendingRenders(), 0);
+        QCOMPARE(o->chartsDrawn(), first);   // (the same three numbers, a row lower)
+        QVERIFY(e.win.w.session()->insertRows(0, 3, 1).ok);   // (inside B3:B5, now where they are)
+        QVERIFY(e.settle());
+        QCOMPARE(o->layer()->deviceRect(0, grid::Pane::Body).height(), height);   // (the chart is below them: it moves, and is as large)
         QCOMPARE(o->chartNow(0, 0).plots[0].series[0].values.size(), 4);
         o->layer()->prepareAll();
         QTRY_COMPARE(o->layer()->pendingRenders(), 0);
-        QVERIFY(o->chartsDrawn() > charts);
+        QVERIFY(o->chartsDrawn() > first);
     }
 
     // Each edit of rows is worked into the objects once, however many came before it (a hundred insertions are not a hundred times the work of the last), and Undo goes back over all.

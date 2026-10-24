@@ -560,10 +560,12 @@ void SheetObjects::sizesChanged(int sheet)
 {
     Q_UNUSED(sheet);
     if (m_cells) m_cells->sizesChanged();
-    // (a chart that leaves out what is hidden is drawn again; the others come out the same)
-    if (m_shown >= 0 && size_t(m_shown) < m_sheets.size())
+    // (a chart that leaves out what is hidden is drawn again if what is hidden changed what it reads; the others come out the same)
+    if (m_shown >= 0 && size_t(m_shown) < m_sheets.size()) {
+        qint64 budget = kMaxMovedChartCells;
         for (const std::shared_ptr<Object> &o : m_sheets[size_t(m_shown)].objects)
-            if (o->chart && o->chart->plotVisibleOnly) m_layer.invalidate(o->id);
+            if (o->chart && o->chart->plotVisibleOnly && chartDataChanged(m_shown, *o, &budget)) m_layer.invalidate(o->id);
+    }
     m_layer.layoutChanged();
 }
 
