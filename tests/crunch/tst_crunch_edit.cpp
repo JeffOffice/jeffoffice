@@ -1058,6 +1058,56 @@ private Q_SLOTS:
         QCOMPARE(savedCell(e.path, QStringLiteral("B1")), QStringLiteral("n:89"));
     }
 
+    // The steps of Undo hold at most a number of bytes (what the cells held, as they were and as they are): past it the oldest steps are forgotten (they stay in the list, empty, and Undo
+    // goes back to the oldest that is kept); the newest step is kept whatever its size. A step that was forgotten is counted off, so a long session does not grow.
+    void undoHoldsAtMostItsBytesAndForgetsTheOldestSteps()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        crunch::EditSession *session = e.win.w.session();
+        QCOMPARE(session->undoByteLimit(), crunch::kUndoBytes);
+        session->setUndoByteLimit(1 << 20);
+        const QString big(30000, QLatin1Char('x'));
+        for (int i = 0; i < 100; ++i) QVERIFY(session->type(0, quint32(10 + i), 5, big + QString::number(i)).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), 100);
+        QVERIFY2(session->undoBytes() <= (1 << 20), qPrintable(QString::number(session->undoBytes())));
+        QVERIFY(session->undoBytes() > (1 << 19));
+        int undone = 0;
+        while (session->canUndo()) {
+            QVERIFY(e.win.w.act(QStringLiteral("edit.undo"))->isEnabled());
+            e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+            QVERIFY(++undone < 200);
+        }
+        QVERIFY2(undone >= 12 && undone <= 17, qPrintable(QString::number(undone)));
+        QVERIFY(!e.win.w.act(QStringLiteral("edit.undo"))->isEnabled());
+        QVERIFY(e.win.w.act(QStringLiteral("edit.redo"))->isEnabled());
+        // the newest steps are undone, the older ones are as they were typed
+        for (int i = 0; i < 100; ++i) QCOMPARE(session->editText(0, quint32(10 + i), 5).isEmpty(), i >= 100 - undone);
+        // Redo goes forward through those, and Undo again
+        for (int i = 0; i < undone; ++i) e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QVERIFY(!session->editText(0, 109, 5).isEmpty());
+        QVERIFY(session->canUndo());
+        // the size of what is held does not grow with the steps: a thousand steps more
+        for (int i = 0; i < 1000; ++i) QVERIFY(session->type(0, quint32(200 + i % 50), 6, big + QString::number(i)).ok);
+        QVERIFY2(session->undoBytes() <= (1 << 20), qPrintable(QString::number(session->undoBytes())));
+        QCOMPARE(e.win.w.undoStack()->count(), crunch::kUndoSteps);
+        // a step by itself larger than the limit is kept (the newest one is never forgotten), and undone
+        session->setUndoByteLimit(10);
+        QVERIFY(session->type(0, 300, 7, big).ok);
+        QVERIFY(session->canUndo());
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(session->editText(0, 300, 7).isEmpty());
+        QVERIFY(!session->canUndo());
+        // saving still writes everything typed, those whose steps are forgotten too
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(60000));
+        QCOMPARE(saved.first().at(1).toBool(), true);
+        const QString first = savedCell(e.path, QStringLiteral("F11"));
+        QVERIFY2(first.size() == 2 + 30000 + 1 && (first.startsWith(QLatin1String("i:xxxx")) || first.startsWith(QLatin1String("s:xxxx"))), qPrintable(first.left(20)));
+    }
+
     // Undo keeps what changed, not the workbook: a step holds the cells it changed, as they were and as they are; the stack holds at most its limit of steps.
     void undoHoldsWhatChangedAndNoMore()
     {

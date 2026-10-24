@@ -59,19 +59,51 @@ SavedValue savedValue(const Value &v, qint32 sharedString)
 } // namespace
 
 // One step of the undo stack: cells put in the state they come to, and back.
+// About how many bytes a cell's content takes in a step: the structure, and the texts in it.
+qint64 contentBytes(const Calculation::CellContent &c)
+{
+    qint64 n = qint64(sizeof(c)) + qint64(c.formula.size()) * 2;
+    if (c.value.isText()) n += qint64(c.value.text().size()) * 2;
+    if (c.hasStored && c.stored.isText()) n += qint64(c.stored.text().size()) * 2;
+    return n;
+}
+
 class ChangeCells : public QUndoCommand {
 public:
-    ChangeCells(EditSession *session, std::vector<CellChange> changes, const QString &text, std::vector<TableRename> renames = {})
-        : QUndoCommand(text), m_session(session), m_changes(std::move(changes)), m_renames(std::move(renames))
+    ChangeCells(EditSession *session, std::vector<CellChange> changes, const QString &text, const std::shared_ptr<qint64> &total, std::vector<TableRename> renames = {})
+        : QUndoCommand(text), m_session(session), m_changes(std::move(changes)), m_renames(std::move(renames)), m_total(total)
     {
+        for (const CellChange &c : m_changes) m_bytes += qint64(sizeof(c)) + contentBytes(c.before) + contentBytes(c.after) + qint64(c.formatCode.size()) * 2;
+        for (const TableRename &r : m_renames) m_bytes += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
+        *m_total += m_bytes;
     }
-    void redo() override { m_session->apply(&m_changes, true, &m_renames); }
-    void undo() override { m_session->apply(&m_changes, false, &m_renames); }
+    ~ChangeCells() override { *m_total -= m_bytes; }
+    void redo() override
+    {
+        if (!m_forgotten) m_session->apply(&m_changes, true, &m_renames);
+    }
+    void undo() override
+    {
+        if (!m_forgotten) m_session->apply(&m_changes, false, &m_renames);
+    }
+    bool forgotten() const { return m_forgotten; }
+    // Lets go of what the step holds: it can't be undone (nor done again) any more.
+    void forget()
+    {
+        std::vector<CellChange>().swap(m_changes);
+        std::vector<TableRename>().swap(m_renames);
+        *m_total -= m_bytes;
+        m_bytes = 0;
+        m_forgotten = true;
+    }
 
 private:
     EditSession *m_session;
     std::vector<CellChange> m_changes;
     std::vector<TableRename> m_renames;
+    std::shared_ptr<qint64> m_total;
+    qint64 m_bytes = 0;
+    bool m_forgotten = false;
 };
 
 EditSession::EditSession(WorkbookLoader *loader, const std::shared_ptr<LoadedBook> &book, ValueStore *values, QObject *parent)
@@ -85,6 +117,28 @@ EditSession::~EditSession()
 {
     // (the stack tells the session as its steps go when it is destroyed, after the members it would use: it is let go of first)
     m_undo.disconnect(this);
+}
+
+int EditSession::firstHeldStep() const
+{
+    int i = 0;
+    while (i < m_undo.count() && static_cast<const ChangeCells *>(m_undo.command(i))->forgotten()) ++i;
+    return i;
+}
+
+bool EditSession::canUndo() const { return m_undo.canUndo() && m_undo.index() > firstHeldStep(); }
+
+void EditSession::setUndoByteLimit(qint64 bytes)
+{
+    m_undoByteLimit = std::max<qint64>(0, bytes);
+    trimUndo();
+}
+
+void EditSession::trimUndo()
+{
+    // the oldest steps first; the newest that is done is never forgotten, nor are those that were undone (they come after it, and are not the oldest)
+    for (int i = firstHeldStep(); *m_undoBytes > m_undoByteLimit && i < m_undo.index() - 1; ++i)
+        const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)))->forget();
 }
 
 void EditSession::cleanChanged(bool clean)
@@ -253,7 +307,8 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
     if (sameMeaning(ch.before, ch.after) && ch.formatCode.isEmpty()) return out;   // (nothing to change)
     std::vector<CellChange> changes;
     changes.push_back(std::move(ch));
-    m_undo.push(new ChangeCells(this, std::move(changes), tr("Typing in %1").arg(cellName(row, col))));
+    m_undo.push(new ChangeCells(this, std::move(changes), tr("Typing in %1").arg(cellName(row, col)), m_undoBytes));
+    trimUndo();
     return out;
 }
 
@@ -324,7 +379,8 @@ EditSession::Outcome EditSession::typeInHeader(int sheet, quint32 row, quint32 c
     }
     std::vector<TableRename> renames;
     if (name != oldName) renames.push_back({table, column, oldName, name});
-    m_undo.push(new ChangeCells(this, std::move(changes), tr("Typing in %1").arg(cellName(row, col)), std::move(renames)));
+    m_undo.push(new ChangeCells(this, std::move(changes), tr("Typing in %1").arg(cellName(row, col)), m_undoBytes, std::move(renames)));
+    trimUndo();
     return out;
 }
 
@@ -397,7 +453,8 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
     if (changes.empty()) return out;
     const QString what = changes.size() == 1 ? tr("Clearing %1").arg(cellName(changes[0].row, changes[0].col))
                                              : QCoreApplication::translate("jp::crunch::EditSession", "Clearing %n cell(s)", nullptr, int(changes.size()));
-    m_undo.push(new ChangeCells(this, std::move(changes), what));
+    m_undo.push(new ChangeCells(this, std::move(changes), what, m_undoBytes));
+    trimUndo();
     return out;
 }
 

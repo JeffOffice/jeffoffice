@@ -28,6 +28,8 @@ namespace jp::crunch {
 constexpr qint64 kMaxCellsPerEdit = 100000;
 // The steps Undo goes back (each a command of the stack).
 constexpr int kUndoSteps = 1000;
+// The most memory the steps hold, by an estimate of the bytes of the cells in them (as they were and as they are): past it the oldest steps are forgotten, the newest never.
+constexpr qint64 kUndoBytes = 128 << 20;
 
 struct CellChange {
     int sheet = 0;
@@ -59,6 +61,12 @@ public:
     QLocale locale() const { return m_locale; }
 
     QUndoStack *undoStack() { return &m_undo; }
+    // Whether there is a step to undo that is still held (the oldest steps may have been forgotten: see kUndoBytes).
+    bool canUndo() const;
+    // The bytes the steps hold, and the most they may (a test sets it).
+    qint64 undoBytes() const { return *m_undoBytes; }
+    qint64 undoByteLimit() const { return m_undoByteLimit; }
+    void setUndoByteLimit(qint64 bytes);
 
     // Whether the workbook can be changed now: it is read whole (the worker is ready), no sheet was left in part, and no save is going on; else why not.
     bool canEdit(QString *why = nullptr) const;
@@ -138,11 +146,16 @@ private:
     QString lockedMessage() const;
     bool storedEquals(int sheet, quint32 row, quint32 col, const jp::calc::Value &value) const;
     void cleanChanged(bool clean);
+    // The steps past the byte limit, oldest first, are forgotten (never the newest that is done).
+    void trimUndo();
+    int firstHeldStep() const;
 
     WorkbookLoader *m_loader;
     std::shared_ptr<LoadedBook> m_book;
     jp::grid::ValueStore *m_values;
     QUndoStack m_undo;
+    std::shared_ptr<qint64> m_undoBytes = std::make_shared<qint64>(0);   // (shared with the steps, which count themselves off as they go, whenever that is)
+    qint64 m_undoByteLimit = kUndoBytes;
     QLocale m_locale;
     QDate m_today;
     bool m_busy = false;

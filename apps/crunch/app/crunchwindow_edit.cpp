@@ -25,6 +25,7 @@ void CrunchWindow::createEditing()
     QUndoStack *u = m_session->undoStack();
     connect(u, &QUndoStack::canUndoChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::canRedoChanged, this, &CrunchWindow::updateEditActions);
+    connect(u, &QUndoStack::indexChanged, this, &CrunchWindow::updateEditActions);   // (the oldest steps may be forgotten: Undo ends before them)
     connect(u, &QUndoStack::undoTextChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::redoTextChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::cleanChanged, this, [this](bool clean) {
@@ -39,9 +40,9 @@ void CrunchWindow::updateEditActions()
 {
     QUndoStack *u = undoStack();
     const bool open = m_session && !m_saving;
-    act("edit.undo")->setEnabled(open && u->canUndo());
+    act("edit.undo")->setEnabled(open && m_session->canUndo());
     act("edit.redo")->setEnabled(open && u->canRedo());
-    act("edit.undo")->setToolTip(u && u->canUndo() ? tr("Undo %1 (%2)").arg(u->undoText(), QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)) : tr("Undo"));
+    act("edit.undo")->setToolTip(u && m_session->canUndo() ? tr("Undo %1 (%2)").arg(u->undoText(), QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)) : tr("Undo"));
     act("edit.redo")->setToolTip(u && u->canRedo() ? tr("Redo %1 (%2)").arg(u->redoText(), QKeySequence(QKeySequence::Redo).toString(QKeySequence::NativeText)) : tr("Redo"));
     const bool canSave = open && m_loaded && m_loaded->problem.isEmpty();
     act("file.save")->setEnabled(canSave);
@@ -216,7 +217,7 @@ void CrunchWindow::undoRedo(bool redo)
 {
     QUndoStack *u = undoStack();
     if (!u || m_edit.active || m_saving) return;
-    if (redo ? !u->canRedo() : !u->canUndo()) return;
+    if (redo ? !u->canRedo() : !m_session->canUndo()) return;
     const qint64 before = m_loader.changesMade();
     const QString what = redo ? u->redoText() : u->undoText();
     m_undoing = true;
