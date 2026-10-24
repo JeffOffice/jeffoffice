@@ -647,6 +647,21 @@ private Q_SLOTS:
         QCOMPARE(b.at("B30"), QStringLiteral("n:64"));   // (the cell that was in row 32: three rows came in above it and five went)
     }
 
+    // What is found of a formula's text is kept by the text's place, and a place is used again for another text when the first is let go of: a formula that was a SUBTOTAL and is written
+    // over with a SUM is a SUM to the SUBTOTAL that reads it (it was counted as a SUBTOTAL, and left out, by the place's old text).
+    void aPlaceUsedAgainForAnotherTextForgetsWhatWasFoundOfTheFirst()
+    {
+        Book b;
+        QVERIFY(b.open({{"B1=1", "B2=2", "A2=5", "C1==SUBTOTAL(9,A1:A3)"}}));
+        QVERIFY(b.calc->setFormula(0, 0, 0, QStringLiteral("SUBTOTAL(9,B1:B2)")));
+        b.finish();
+        QCOMPARE(b.at("C1"), QStringLiteral("n:5"));   // (A1 is a SUBTOTAL: left out of the other's)
+        QVERIFY(b.calc->setFormula(0, 0, 0, QStringLiteral("SUM(B1:B2)")));   // the place of the first text is for this one
+        b.finish();
+        QCOMPARE(b.at("A1"), QStringLiteral("n:3"));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:8"));   // (and A1 is a SUM now: counted)
+    }
+
     // Formulas that are typed, written over, and cleared do not leave their texts and places behind.
     void typedFormulasDoNotPileUp()
     {

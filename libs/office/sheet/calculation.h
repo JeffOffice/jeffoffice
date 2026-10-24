@@ -326,6 +326,7 @@ private:
     void countTexts(int sheet);
     qint32 internText(int sheet, const QString &text);
     void holdText(int sheet, qint32 text);
+    void forgetTextFacts(int sheet, qint32 text);
     void releaseText(int sheet, qint32 text);
     qint32 allocFormula(int sheet, const Formula &f);
     void releaseFormula(int sheet, qint32 formula);

@@ -142,6 +142,7 @@ qint32 Calculation::internText(int sheet, const QString &text)
     }
     if (size_t(index) < st.plain.size()) st.plain[size_t(index)] = Compiled();
     if (size_t(index) < st.array.size()) st.array[size_t(index)] = Compiled();
+    forgetTextFacts(sheet, index);
     st.internOf.insert(text, index);
     return index;
 }
@@ -167,7 +168,14 @@ void Calculation::releaseText(int sheet, qint32 text)
     s.formulaTexts[text] = QString();
     if (size_t(text) < st.plain.size()) st.plain[size_t(text)] = Compiled();
     if (size_t(text) < st.array.size()) st.array[size_t(text)] = Compiled();
+    forgetTextFacts(sheet, text);
     st.freeTexts.push_back(text);
+}
+
+void Calculation::forgetTextFacts(int sheet, qint32 text)
+{
+    // (what was found of a text is kept by its place, which is for another text now)
+    if (size_t(sheet) < m_subtotalTexts.size() && size_t(text) < m_subtotalTexts[size_t(sheet)].size()) m_subtotalTexts[size_t(sheet)][size_t(text)] = -1;
 }
 
 qint32 Calculation::allocFormula(int sheet, const Formula &f)

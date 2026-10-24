@@ -41,6 +41,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QThread>
@@ -272,6 +273,7 @@ bool sameShown(const jp::calc::Value &a, const jp::calc::Value &b)
 struct ScriptResult {
     int done = 0, refused = 0;
     qint64 compared = 0, right = 0;
+    qint64 otherCompared = 0, otherRight = 0;   // the defined names, rules of validation, tables, conditional formats, hyperlinks, and chart series
     int parts = 0, partsSame = 0;
     double ms = 0;
     Report differences;
@@ -333,6 +335,135 @@ void compareModels(const Calculation *live, const Calculation *saved, ScriptResu
         ++r->compared;
         if (ma == mb) ++r->right;
         else r->differences.add(QStringLiteral("merged ranges differ"));
+    }
+}
+
+// ---- what the file holds besides the cells: names, validations, tables (the model is the check), and conditional formats, hyperlinks, and chart series (the file as it was, with the edits made
+// to it by the same rules, is the check)
+
+QString unescapeXml(QString s)
+{
+    s.replace(QStringLiteral("&lt;"), QStringLiteral("<")).replace(QStringLiteral("&gt;"), QStringLiteral(">")).replace(QStringLiteral("&quot;"), QStringLiteral("\"")).replace(QStringLiteral("&apos;"), QStringLiteral("'")).replace(QStringLiteral("&amp;"), QStringLiteral("&"));
+    return s;
+}
+
+// The text of an attribute of a tag ("" if it has none).
+QString attributeOf(const QString &tag, const QString &name)
+{
+    const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("\\s%1=\"([^\"]*)\"").arg(name)).match(tag);
+    return m.hasMatch() ? unescapeXml(m.captured(1)) : QString();
+}
+
+// "sqref \t formula \t formula" for each conditional format of a sheet's part, and "ref \t location" for each hyperlink.
+QStringList conditionalFormatsOf(const QString &xml)
+{
+    QStringList out;
+    static const QRegularExpression block(QStringLiteral("<conditionalFormatting\\b([^>]*)>(.*?)</conditionalFormatting>"), QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression formula(QStringLiteral("<formula>(.*?)</formula>"), QRegularExpression::DotMatchesEverythingOption);
+    QRegularExpressionMatchIterator it = block.globalMatch(xml);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        QStringList parts{attributeOf(m.captured(1), QStringLiteral("sqref"))};
+        QRegularExpressionMatchIterator f = formula.globalMatch(m.captured(2));
+        while (f.hasNext()) parts << unescapeXml(f.next().captured(1));
+        out << parts.join(QLatin1Char('\t'));
+    }
+    return out;
+}
+
+QStringList hyperlinksOf(const QString &xml)
+{
+    QStringList out;
+    static const QRegularExpression link(QStringLiteral("<hyperlink\\b([^>]*)>"));
+    QRegularExpressionMatchIterator it = link.globalMatch(xml);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        out << attributeOf(m.captured(1), QStringLiteral("ref")) + QLatin1Char('\t') + attributeOf(m.captured(1), QStringLiteral("location"));
+    }
+    return out;
+}
+
+QStringList chartSeriesOf(const QString &xml)
+{
+    QStringList out;
+    static const QRegularExpression f(QStringLiteral("<c:f>(.*?)</c:f>"), QRegularExpression::DotMatchesEverythingOption);
+    QRegularExpressionMatchIterator it = f.globalMatch(xml);
+    while (it.hasNext()) out << unescapeXml(it.next().captured(1));
+    return out;
+}
+
+void compareOthers(const Read &before, const Read &after, const Workbook &liveBook, const Calculation *live, const Calculation *saved, const std::vector<StructEdit> &edits, ScriptResult *r)
+{
+    auto note = [&](bool same, const char *what) {
+        ++r->otherCompared;
+        if (same) ++r->otherRight;
+        else r->differences.add(QString::fromLatin1(what));
+    };
+    QStringList names;
+    for (const SheetEntry &se : before.book.info().sheets) names << se.name;
+    // the defined names (print areas among them), by the model
+    {
+        const QHash<QString, QString> &a = live->definedNameTexts(), &b = saved->definedNameTexts();
+        note(a.size() == b.size(), "the number of defined names differs");
+        for (auto it = a.constBegin(); it != a.constEnd(); ++it) note(b.value(it.key()) == it.value(), "a defined name differs");
+    }
+    // the rules of validation, by the model
+    for (int s = 0; s < live->sheetCount() && s < saved->sheetCount(); ++s) {
+        const QVector<Validation> &a = live->sheet(s).validations, &b = saved->sheet(s).validations;
+        note(a.size() == b.size(), "the number of rules of validation differs");
+        for (int i = 0; i < std::min(a.size(), b.size()); ++i)
+            note(a[i].ranges == b[i].ranges && a[i].type == b[i].type && a[i].formula1 == b[i].formula1 && a[i].formula2 == b[i].formula2, "a rule of validation differs");
+    }
+    // the tables, by the model
+    {
+        const QVector<Table> &a = liveBook.tables(), &b = after.book.tables();
+        note(a.size() == b.size(), "the number of tables differs");
+        for (int i = 0; i < std::min(a.size(), b.size()); ++i)
+            note(a[i].row1 == b[i].row1 && a[i].col1 == b[i].col1 && a[i].row2 == b[i].row2 && a[i].col2 == b[i].col2 && a[i].totalsRows == b[i].totalsRows && a[i].columns == b[i].columns, "a table differs");
+    }
+    // the conditional formats and hyperlinks of each sheet, and the series of each chart: the file as it was, with the edits made to it, against the file saved
+    for (int s = 0; s < before.book.info().sheets.size(); ++s) {
+        const SheetEntry &entry = before.book.info().sheets[s];
+        if (entry.kind != SheetKind::Worksheet || entry.part.isEmpty()) continue;
+        const QString was = QString::fromUtf8(before.package.part(entry.part)), now = QString::fromUtf8(after.package.part(entry.part));
+        QStringList expected;
+        for (const QString &rule : conditionalFormatsOf(was)) {
+            QStringList parts = rule.split(QLatin1Char('\t'));
+            QString sqref = parts.takeFirst();
+            CellRange first;
+            if (!parseRangeRef(sqref.section(QLatin1Char(' '), 0, 0), &first)) first = CellRange();
+            for (const StructEdit &e : edits) {
+                for (QString &f : parts) f = adjustRuleFormula(f, s, names, e, first);
+                if (first.valid && !adjustRange(e, s, &first)) first = CellRange();
+                if (!sqref.isEmpty()) sqref = adjustSqref(sqref, e, s);
+            }
+            if (!sqref.isEmpty()) expected << (QStringList{sqref} + parts).join(QLatin1Char('\t'));
+        }
+        QStringList got = conditionalFormatsOf(now);
+        std::sort(expected.begin(), expected.end());
+        std::sort(got.begin(), got.end());
+        note(expected == got, "a conditional format differs");
+        expected.clear();
+        for (const QString &link : hyperlinksOf(was)) {
+            QString ref = link.section(QLatin1Char('\t'), 0, 0), location = link.section(QLatin1Char('\t'), 1);
+            for (const StructEdit &e : edits) {
+                if (!ref.isEmpty()) ref = adjustSqref(ref, e, s);
+                if (!location.isEmpty()) location = adjustFormula(location, s, names, e);
+            }
+            if (!ref.isEmpty()) expected << ref + QLatin1Char('\t') + location;
+        }
+        got = hyperlinksOf(now);
+        std::sort(expected.begin(), expected.end());
+        std::sort(got.begin(), got.end());
+        note(expected == got, "a hyperlink differs");
+    }
+    static const QRegularExpression chartPart(QStringLiteral("/charts/chart\\d*\\.xml$"));
+    for (const QString &part : before.package.partNames()) {
+        if (!chartPart.match(part).hasMatch()) continue;
+        QStringList expected = chartSeriesOf(QString::fromUtf8(before.package.part(part)));
+        for (QString &f : expected)
+            for (const StructEdit &e : edits) f = adjustFormula(f, 0, names, e);
+        note(expected == chartSeriesOf(QString::fromUtf8(after.package.part(part))), "a chart's series differ");
     }
 }
 
@@ -416,6 +547,10 @@ void runScript(Opened &w, const QByteArray &original, ScriptResult *r)
     }
     while (!saved.recalculate().finished) {}
     compareModels(calc, &saved, r);
+    {
+        const Read orig(original);
+        if (orig.ok) compareOthers(orig, after, *w.loader.result()->book, calc, &saved, snap.changes.edits, r);
+    }
     r->ms = double(timer.nsecsElapsed()) / 1e6;
 }
 
@@ -665,7 +800,8 @@ int roundtripOne(const QString &path)
     out() << path << '\t' << exit << '\t' << fixed(double(total.nsecsElapsed()) / 1e9) << '\t' << fixed(peakMegabytes()) << '\t' << partsTotal << '\t' << partsSame << '\t' << (cellsOk ? 1 : 0) << '\t'
           << untouched.differences.join(QLatin1String("; ")) << '\t' << cellName_ << '\t' << dependents << '\t' << resultsChanged << '\t' << unexpected << '\t' << editParts << '\t' << editPartsSame << '\t'
           << (cellRight ? 1 : 0) << '\t' << edited.differences.join(QLatin1String("; ")) << '\t' << fixed(untouchedMs) << '\t' << fixed(editMs) << '\t' << script.done << '\t' << script.refused << '\t'
-          << script.compared << '\t' << script.right << '\t' << script.parts << '\t' << script.partsSame << '\t' << script.differences.differences.join(QLatin1String("; ")) << '\t' << fixed(script.ms) << "\n";
+          << script.compared << '\t' << script.right << '\t' << script.parts << '\t' << script.partsSame << '\t' << script.differences.differences.join(QLatin1String("; ")) << '\t' << fixed(script.ms) << '\t'
+          << script.otherCompared << '\t' << script.otherRight << "\n";
     out().flush();
     return exit;
 }
