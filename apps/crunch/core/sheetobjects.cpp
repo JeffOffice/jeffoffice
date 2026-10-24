@@ -492,6 +492,30 @@ Chart SheetObjects::chartNow(int sheet, int objectId)
     return Chart();
 }
 
+void SheetObjects::chartRefCounts(int sheet, int objectId, int *refs, int *found)
+{
+    *refs = *found = 0;
+    if (!m_cells) return;
+    for (const std::shared_ptr<Object> &o : sheetState(sheet).objects) {
+        if (o->id != objectId || !o->chart) continue;
+        auto count = [&](const QString &ref) {
+            if (ref.isEmpty()) return;
+            ++*refs;
+            QVector<ChartBlock> blocks;
+            if (chartBlocks(ref, sheet, *m_cells, &blocks)) ++*found;
+        };
+        for (const ChartPlot &plot : o->chart->plots)
+            for (const ChartSeries &s : plot.series) {
+                count(s.nameRef);
+                count(s.categoryRef);
+                count(s.valueRef);
+                count(s.xRef);
+            }
+        count(o->chart->title.ref);
+        return;
+    }
+}
+
 QVector<ChartBlock> SheetObjects::chartReads(int sheet, int objectId)
 {
     if (!m_cells) return {};

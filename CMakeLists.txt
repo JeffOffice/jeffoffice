@@ -527,7 +527,7 @@ target_compile_definitions(jcrunchtool PRIVATE JCRUNCH_TOOLS_DIR="${CMAKE_SOURCE
 set_target_properties(jcrunchtool PROPERTIES WIN32_EXECUTABLE OFF)
 if(JP_BUILD_CRUNCH)
   # Its grid commands (how fast a workbook is on the screen, and a sweep of a list of workbooks through the grid model) use the window's parts.
-  target_sources(jcrunchtool PRIVATE tools/jcrunchtool_grid.cpp tools/jcrunchtool_edit.cpp)
+  target_sources(jcrunchtool PRIVATE tools/jcrunchtool_grid.cpp tools/jcrunchtool_edit.cpp tools/jcrunchtool_drawings.cpp)
   target_link_libraries(jcrunchtool PRIVATE jccore)
   target_compile_definitions(jcrunchtool PRIVATE JC_GRID=1)
 endif()
