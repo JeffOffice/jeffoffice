@@ -2,7 +2,10 @@
   "fileKeytip": "F",
   "quickAccess": [
     {"cmd": "file.open", "keytip": "1"},
-    {"cmd": "edit.copy", "keytip": "2"}
+    {"cmd": "file.save", "keytip": "2"},
+    {"cmd": "edit.undo", "keytip": "3"},
+    {"cmd": "edit.redo", "keytip": "4"},
+    {"cmd": "edit.copy", "keytip": "5"}
   ],
   "tabs": [
     {

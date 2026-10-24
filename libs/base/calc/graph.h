@@ -15,6 +15,7 @@
 
 #include <QtGlobal>
 
+#include <atomic>
 #include <memory>
 #include <vector>
 
@@ -38,8 +39,10 @@ public:
     void clearPrecedents(Node node);
 
     // The formulas that read the cell, or a cell of the block (one sheet), added to `out`: one may come more than once if it reads the cell in more than one way.
-    void dependentsOfCell(qint32 sheet, quint32 row, quint32 col, std::vector<Node> *out) const;
-    void dependentsOfArea(const CellArea &area, std::vector<Node> *out) const;
+    // With `stop`, the flag is looked at as the answer is made (every few thousand formulas found: a cell that two hundred thousand formulas read is one query of that many): if it is set the query
+    // ends there, false is returned, and `out` holds some of the answer. True when all of it was found.
+    bool dependentsOfCell(qint32 sheet, quint32 row, quint32 col, std::vector<Node> *out, const std::atomic<bool> *stop = nullptr) const;
+    bool dependentsOfArea(const CellArea &area, std::vector<Node> *out, const std::atomic<bool> *stop = nullptr) const;
 
     // What the graph holds: the entries the formulas' latest reads take (a block is one for each node of the tree it is put in), and the bytes it takes.
     qint64 entryCount() const;

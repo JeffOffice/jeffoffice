@@ -17,4 +17,4 @@ Click **Show Formulas** on the **Formulas** tab, or press **Ctrl+`** (on a Mac, 
 
 ## Changing formulas
 
-Typing in cells and changing formulas come in a later version. Right now JeffCrunch shows formulas, and the formula bar is for reading.
+To change a formula, select its cell, press **F2**, edit it, and press **Enter**. You can also edit it in the formula bar. When you change a cell, the formulas that depend on it are worked out again in the background. See [Type in cells](edit-cells).

@@ -1665,6 +1665,65 @@ QString builtinFormatCode(int id)
     }
 }
 
+QString shortDateFormatCode(const QLocale &locale)
+{
+    const QString pattern = locale.dateFormat(QLocale::ShortFormat);
+    QString out;
+    bool day = false, month = false, year = false;
+    for (int i = 0; i < pattern.size();) {
+        const QChar c = pattern[i];
+        if (c == QLatin1Char('\'')) {
+            // a text in quotes (a doubled quote is one inside)
+            int j = i + 1;
+            QString text;
+            while (j < pattern.size()) {
+                if (pattern[j] == QLatin1Char('\'')) {
+                    if (j + 1 < pattern.size() && pattern[j + 1] == QLatin1Char('\'')) {
+                        text += QLatin1Char('\'');
+                        j += 2;
+                        continue;
+                    }
+                    break;
+                }
+                text += pattern[j++];
+            }
+            for (const QChar t : text) out += QLatin1Char('\\') + QString(t);
+            i = j + 1;
+            continue;
+        }
+        if (c == QLatin1Char('d') || c == QLatin1Char('M') || c == QLatin1Char('y')) {
+            int n = 1;
+            while (i + n < pattern.size() && pattern[i + n] == c) ++n;
+            if (c == QLatin1Char('d')) {
+                out += QString(QLatin1Char('d')).repeated(std::min(n, 4));
+                day = true;
+            } else if (c == QLatin1Char('M')) {
+                out += QString(QLatin1Char('m')).repeated(std::min(n, 4));
+                month = true;
+            } else {
+                out += QStringLiteral("yyyy");
+                year = true;
+            }
+            i += n;
+            continue;
+        }
+        // a separator: those a code takes as they are, and any other character (a letter, a dot, a mark that sets the direction of text) with a backslash
+        if (c == QLatin1Char('/') || c == QLatin1Char(' ') || c == QLatin1Char('-') || c == QLatin1Char(':')) out += c;
+        else out += QLatin1Char('\\') + QString(c);
+        ++i;
+    }
+    // (a locale whose short date has not the three, or a code that is no date: the United States' form)
+    if (!day || !month || !year || !NumberFormat(out).isValid() || NumberFormat(out).kind() != FormatKind::Date) return QStringLiteral("m/d/yyyy");
+    return out;
+}
+
+QString builtinFormatCode(int id, const QLocale &locale)
+{
+    if (id == 14) return shortDateFormatCode(locale);
+    if (id == 22) return shortDateFormatCode(locale) + QStringLiteral(" h:mm");
+    return builtinFormatCode(id);
+}
+
 namespace {
 
 // The digits of a number rounded to `decimals`, with the groups of three if asked: the text FIXED and DOLLAR make of a number.

@@ -174,6 +174,8 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
         if (m_options.keepApart) n.flags |= NodeTainted;
         keepStored(n, kept);
         n.state = Done;
+        // A formula with a function the engine lacks keeps the result the file stored until something it reads changes: then it has #NAME?. It is told to the graph, so that an edit finds it.
+        if (kept == 'U') registerNode(id, nullptr);
         return;
     }
     if (always) {
@@ -549,6 +551,16 @@ void Calculation::markDirty(quint32 id, std::vector<CellArea> *changed)
     changed->push_back(areaOf(n));
 }
 
+// A formula with a function the engine lacks, found to read a cell that has changed: its result is #NAME? from now (what the file stored is no longer right, and the engine can't say what is), and
+// what reads it is to be worked out again. One that has the error already is left (nothing it gives has changed).
+void Calculation::giveName(quint32 id, std::vector<CellArea> *changed)
+{
+    Node &n = m_nodes[id];
+    if (n.kind == KindError && int(n.number) == int(ErrorKind::Name)) return;
+    storeResult(n, id, Value::error(ErrorKind::Name));
+    changed->push_back(areaOf(n));
+}
+
 void Calculation::markDependents(std::vector<CellArea> *changed)
 {
     std::vector<quint32> found;
@@ -559,8 +571,13 @@ void Calculation::markDependents(std::vector<CellArea> *changed)
         if (a.single()) m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &found);
         else m_graph->dependentsOfArea(a, &found);
         for (const quint32 id : found) {
-            const Node &n = m_nodes[id];
-            if ((n.flags & (Dead | Kept)) || n.state != Done) continue;
+            Node &n = m_nodes[id];
+            if (n.flags & Dead) continue;
+            if ((n.flags & Kept) && n.kept == 'U' && n.state == Done) {
+                giveName(id, changed);
+                continue;
+            }
+            if ((n.flags & Kept) || n.state != Done) continue;
             markDirty(id, changed);
         }
     }
@@ -603,8 +620,13 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         while (j.foundAt < j.found.size()) {
             if (!ck.next()) return false;
             const quint32 id = j.found[j.foundAt++];
-            const Node &n = m_nodes[id];
-            if ((n.flags & (Dead | Kept)) || n.state != Done) continue;
+            Node &n = m_nodes[id];
+            if (n.flags & Dead) continue;
+            if ((n.flags & Kept) && n.kept == 'U' && n.state == Done) {
+                giveName(id, &j.changed);
+                continue;
+            }
+            if ((n.flags & Kept) || n.state != Done) continue;
             markDirty(id, &j.changed);
         }
         if (j.changed.empty()) break;
@@ -613,9 +635,16 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         j.changed.pop_back();
         j.found.clear();
         j.foundAt = 0;
-        if (a.single()) m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &j.found);
-        else m_graph->dependentsOfArea(a, &j.found);
-        ck.next(j.found.size());   // (what the graph gave: a cell that very many formulas read is one query of that many, which is as small as the step can be made)
+        // (a stop ends the search where it is: it is made again, whole, when the calculation goes on; a cell that two hundred thousand formulas read is a search that long)
+        const bool whole = a.single() ? m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &j.found, m_ctx.cancel) : m_graph->dependentsOfArea(a, &j.found, m_ctx.cancel);
+        if (!whole) {
+            j.found.clear();
+            j.changed.push_back(a);
+            return false;
+        }
+        // (what the graph gave: a cell that very many formulas read is one query of that many, which is as small as the step can be made. The slice may be over after it: the formulas it found are
+        // marked by the next, from where they are kept. The answer of this call is not to be dropped: it is the one place in the loop where a chunk ends, when the areas found have none.)
+        if (!ck.next(j.found.size())) return false;
     }
     ck.finish();
     m_dirtyCursor = 0;
@@ -653,6 +682,12 @@ void Calculation::abandon()
     if (!m_running && m_stack.empty() && m_job.phase == GroupJob::None && !m_refuse.active) return;
     // what is waiting or queued is to be worked out again, with what was not yet started: the lists of them are taken in hand (which costs nothing), and put right a chunk at a time
     // by stepAbandon, in the calls that follow; the formulas of a group that was being closed or woken, and not yet given back to the stack, are to be worked out again too
+    // (a stop that was already in hand, and not yet put right, is finished first: its lists are the only record of formulas marked to be worked out that no other list holds, and taking
+    // these in hand over it would lose them)
+    if (m_abandon.active) {
+        qint64 spent = 0;
+        stepAbandon([] { return false; }, &spent);
+    }
     AbandonJob &a = m_abandon;
     a = AbandonJob();
     a.active = true;
@@ -1005,6 +1040,8 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
     // The slice is over when its time is, or when the work it was given is done: the steps that go a chunk at a time add what they do to `spent`, as a formula's steps are added to it, so
     // that a slice with a work budget is as bounded as one with a time (and a test can count it).
     const std::function<bool()> timeUp = [&] {
+        // (a stop asked for ends the step at its next chunk: a window that wants the calculation for an edit waits for a chunk, and not for the rest of the slice)
+        if (stopped()) return true;
         if (budget > 0 && spent >= budget) return true;
         return timeBudgetMicros > 0 && std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started).count() >= timeBudgetMicros;
     };
@@ -1164,7 +1201,13 @@ void Calculation::dropNode(quint32 id)
     m_freeNodes.push_back(id);
 }
 
-bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v)
+void Calculation::queueDependents(const CellArea &area)
+{
+    if (!m_running) beginRecalculation();
+    m_begin.changed.push_back(area);
+}
+
+bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, Marking marking, qint32 sharedString)
 {
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows || v.isArray()) return false;
     Sheet &s = m_sheets[size_t(sheet)];
@@ -1185,30 +1228,43 @@ bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v)
     case Value::Kind::Bool: c.type = CellType::Bool; c.number = v.boolean() ? 1 : 0; break;
     case Value::Kind::Error: c.type = CellType::Error; c.number = double(int(v.errorKind())); break;
     case Value::Kind::Text:
-        if (c.type == CellType::InlineString && c.textIndex() >= 0 && c.textIndex() < s.texts.size()) {
-            s.texts[c.textIndex()] = v.text();
+        if (sharedString >= 0 && sharedString < m_book.sharedStrings().strings.size()) {
+            c.type = CellType::SharedString;
+            c.number = double(sharedString);
         } else {
-            s.texts.append(v.text());
-            c.number = double(s.texts.size() - 1);
+            if (c.type == CellType::InlineString && c.textIndex() >= 0 && c.textIndex() < s.texts.size()) {
+                s.texts[c.textIndex()] = v.text();
+            } else {
+                s.texts.append(v.text());
+                c.number = double(s.texts.size() - 1);
+            }
+            c.type = CellType::InlineString;
         }
-        c.type = CellType::InlineString;
         break;
     default: c.type = CellType::Empty; c.number = 0; break;
     }
     if (c.type == CellType::Empty && c.style == 0) s.cells.erase(row, col);
     else s.cells.set(c);
-    if (c.type != CellType::Empty) useExtent(sheet, row, col);
-    std::vector<CellArea> changed;
+    if (c.type != CellType::Empty) {
+        useExtent(sheet, row, col);
+        s.extentRows = std::max(s.extentRows, row + 1);
+        s.extentCols = std::max<quint32>(s.extentCols, col + 1);
+    }
     CellArea a;
     a.sheet1 = a.sheet2 = sheet;
     a.row1 = a.row2 = row;
     a.col1 = a.col2 = col;
+    if (marking == Marking::Later) {
+        queueDependents(a);
+        return true;
+    }
+    std::vector<CellArea> changed;
     changed.push_back(a);
     markDependents(&changed);
     return true;
 }
 
-bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString &formula)
+bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString &formula, Marking marking, const Value *stored)
 {
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return false;
     ParseOptions po;
@@ -1231,17 +1287,118 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
     c.formula = qint32(s.formulas.size() - 1);
     c.type = CellType::Empty;
     c.number = 0;
+    if (stored) {
+        switch (stored->kind()) {
+        case Value::Kind::Number: c.type = CellType::Number; c.number = stored->number(); break;
+        case Value::Kind::Bool: c.type = CellType::Bool; c.number = stored->boolean() ? 1 : 0; break;
+        case Value::Kind::Error: c.type = CellType::Error; c.number = double(int(stored->errorKind())); break;
+        case Value::Kind::Text:
+            s.texts.append(stored->text());
+            c.type = CellType::FormulaString;
+            c.number = double(s.texts.size() - 1);
+            break;
+        default: break;
+        }
+    }
     s.cells.set(c);
     useExtent(sheet, row, col);
+    s.extentRows = std::max(s.extentRows, row + 1);
+    s.extentCols = std::max<quint32>(s.extentCols, col + 1);
     const quint32 id = addNode(sheet, c, c.formula);
+    const CellArea a = areaOf(m_nodes[id]);
+    // a formula typed with a function the engine lacks has no result to keep: it has #NAME?, which the recalculation gives it
+    const bool needsName = m_nodes[id].kept == 'U' && !c.hasResult();
+    if (marking == Marking::Later) {
+        queueDependents(a);
+        if (needsName) m_begin.found.push_back(id);
+        return true;
+    }
     std::vector<CellArea> changed;
-    changed.push_back(areaOf(m_nodes[id]));
+    changed.push_back(a);
+    if (needsName) giveName(id, &changed);
     markDependents(&changed);
     return true;
 }
 
+bool Calculation::setStyle(int sheet, quint32 row, quint32 col, quint32 style)
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return false;
+    Sheet &s = m_sheets[size_t(sheet)];
+    Cell *found = s.cells.findMutable(row, col);
+    if (!found) {
+        if (style == 0) return true;
+        Cell c;
+        c.row = row;
+        c.col = quint16(col);
+        c.style = style;
+        s.cells.set(c);
+    } else if (found->style != style) {
+        found->style = style;
+        if (found->type == CellType::Empty && !found->hasFormula() && style == 0) s.cells.erase(row, col);
+    }
+    if (style != 0) {
+        s.extentRows = std::max(s.extentRows, row + 1);
+        s.extentCols = std::max<quint32>(s.extentCols, col + 1);
+    }
+    return true;
+}
+
+Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 col) const
+{
+    CellContent out;
+    if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return out;
+    const Sheet &s = m_sheets[size_t(sheet)];
+    const Cell *c = s.cells.find(row, col);
+    if (!c) return out;
+    out.exists = true;
+    out.style = c->style;
+    if (c->flags & (ArrayMember | ArrayFormula | DataTable)) out.editable = false;
+    if (c->hasFormula()) {
+        out.isFormula = true;
+        out.formula = s.formulaText(*c);
+        const quint32 id = nodeAt(sheet, row, col);
+        if (id != kNone && (m_nodes[id].flags & Kept)) {
+            out.hasStored = true;
+            out.stored = nodeValue(m_nodes[id], id);
+        }
+        return out;
+    }
+    switch (c->type) {
+    case CellType::Empty: break;
+    case CellType::Number:
+    case CellType::Date: out.value = Value::number(c->number); break;
+    case CellType::SharedString:
+        out.value = Value::text(m_book.sharedStrings().at(c->textIndex()));
+        out.sharedString = c->textIndex();
+        break;
+    case CellType::InlineString:
+    case CellType::FormulaString: out.value = Value::text(s.texts.value(c->textIndex())); break;
+    case CellType::Bool: out.value = Value::boolean(c->number != 0); break;
+    case CellType::Error: out.value = Value::error(ErrorKind(std::max(0, std::min(int(ErrorKind::Unknown), int(c->number))))); break;
+    }
+    return out;
+}
+
+bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c, Marking marking)
+{
+    if (!c.exists) {
+        if (!setValue(sheet, row, col, Value(), marking)) return false;
+        return setStyle(sheet, row, col, 0);
+    }
+    const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr) : setValue(sheet, row, col, c.value, marking, c.sharedString);
+    return ok && setStyle(sheet, row, col, c.style);
+}
+
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // about the formulas
+
+qint64 Calculation::keptCount() const
+{
+    qint64 n = 0;
+    for (const Node &node : m_nodes)
+        if (!(node.flags & Dead) && (node.flags & Kept)) ++n;
+    return n;
+}
 
 quint32 Calculation::nodeAt(int sheet, quint32 row, quint32 col) const
 {
@@ -1274,6 +1431,17 @@ char Calculation::keptClass(int sheet, quint32 row, quint32 col) const
 {
     const quint32 id = nodeAt(sheet, row, col);
     return id != kNone ? m_nodes[id].kept : 0;
+}
+
+void Calculation::forEachFormulaText(const std::function<void(int, quint32, quint32, const QString &)> &f) const
+{
+    for (int si = 0; si < int(m_sheets.size()); ++si) {
+        const Sheet &s = m_sheets[size_t(si)];
+        s.cells.forEach([&](const Cell &c) {
+            if (!c.hasFormula() || (c.flags & (ArrayMember | ArrayFormula | DataTable))) return;
+            f(si, c.row, c.col, s.formulaText(c));
+        });
+    }
 }
 
 void Calculation::forEachFormula(const std::function<void(const FormulaCell &)> &f) const

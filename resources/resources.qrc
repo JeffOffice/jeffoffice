@@ -1643,6 +1643,7 @@
     <file alias="en/color-schemes.md">help/en/color-schemes.md</file>
     <file alias="en/create.md">help/en/create.md</file>
     <file alias="en/crunch/context.json">help/en/crunch/context.json</file>
+    <file alias="en/crunch/edit-cells.md">help/en/crunch/edit-cells.md</file>
     <file alias="en/crunch/formulas.md">help/en/crunch/formulas.md</file>
     <file alias="en/crunch/index.md">help/en/crunch/index.md</file>
     <file alias="en/crunch/keyboard.md">help/en/crunch/keyboard.md</file>
@@ -1731,8 +1732,8 @@
     <file alias="en/write/context.json">help/en/write/context.json</file>
     <file alias="en/write/find-replace.md">help/en/write/find-replace.md</file>
     <file alias="en/write/font.md">help/en/write/font.md</file>
-    <file alias="en/write/headers-footers.md">help/en/write/headers-footers.md</file>
     <file alias="en/write/footnotes-endnotes.md">help/en/write/footnotes-endnotes.md</file>
+    <file alias="en/write/headers-footers.md">help/en/write/headers-footers.md</file>
     <file alias="en/write/index.md">help/en/write/index.md</file>
     <file alias="en/write/keyboard.md">help/en/write/keyboard.md</file>
     <file alias="en/write/open-save.md">help/en/write/open-save.md</file>

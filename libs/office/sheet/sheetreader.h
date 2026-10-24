@@ -8,6 +8,7 @@
 #include "office/package.h"
 #include "calc/dates.h"
 #include "sheet/sheetmodel.h"
+#include "sheet/tables.h"
 #include "sheet/styles.h"
 
 #include <QIODevice>
@@ -15,6 +16,7 @@
 #include <QVector>
 
 #include <functional>
+#include <map>
 
 namespace jp::office::sheet {
 
@@ -150,6 +152,9 @@ struct ReadOptions {
     // of the sheet, which a view that was scrolled far has left behind; the cells of the rows between are not kept, but their heights are). A sheet whose view comes after its cells,
     // or says nothing, begins at its first row.
     qint64 screenRows = 0;
+    // With screenRows: the rows above the view are cut down before the parser sees them (see rowskip.h), which is far faster for a sheet saved scrolled far down; false gives every row to the
+    // parser (what a test compares the result with).
+    bool skipRows = true;
     DateSystem dateSystem = DateSystem::Date1900;   // for the cells of type "d", written as dates
     // Called after every 4,096 cells, with how many have been read; false
     // stops the read (the sheet's error says it was stopped).
@@ -185,15 +190,61 @@ public:
     // `screenRows` reads what the view shows, from where it begins (ReadOptions::screenRows).
     bool readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress = nullptr, qint64 stopAfterRow = -1, qint64 screenRows = 0) const;
     const Package &package() const { return m_package; }
+    // The parts the workbook is made of (empty for one it has not): its own, the shared strings, and the styles.
+    QString mainPart() const { return m_mainPart; }
+    QString sharedStringsPart() const { return m_sharedPart; }
+    QString stylesPart() const { return m_stylesPart; }
+    // The number of strings in the shared strings part and of cell formats in the styles part when the workbook was opened (or last saved): what is added to either afterwards goes at the end.
+    qint64 sharedStringsInFile() const { return m_sharedInFile; }
+    qint64 cellFormatsInFile() const { return m_formatsInFile; }
+
+    // ---- changes (the window's, once a person edits). They only add: a place already given is never moved.
+    // The place of a shared string that holds the text, added at the end if it is not among those added since the file was read.
+    qint32 addSharedString(const QString &text);
+    // The id of a number format with the code (the built-in one, or one the file has, or a new one), and the place of the cell format that is the cell format `base` with that number
+    // format (the one it is already, or one made).
+    int numberFormatId(const QString &code);
+    quint32 formatWithNumberFormat(quint32 base, int numFmtId);
+    // The additions since the file was read or saved, for saving them: the strings, the number formats (id and code), and the cell formats (the one each is a copy of, and its number format).
+    QStringList addedSharedStrings() const { return m_sharedAdded; }
+    struct AddedNumberFormat {
+        int id;
+        QString code;
+    };
+    struct AddedCellFormat {
+        quint32 base;
+        int numFmtId;
+    };
+    QVector<AddedNumberFormat> addedNumberFormats() const { return m_numFmtsAdded; }
+    QVector<AddedCellFormat> addedCellFormats() const { return m_formatsAdded; }
+    // The file has been written with the first `strings`, `numberFormats`, and `cellFormats` of what was added: the package is the new file's, and those are in it.
+    void savedTo(const Package &package, int strings, int numberFormats, int cellFormats);
+
+    // ---- tables (see sheet/tables.h): read from the package when first asked for
+    const QVector<Table> &tables() const;
+    // The table whose header row holds the cell, and the place of its column in the table; -1 if the cell is no table's header.
+    int tableHeaderAt(int sheet, quint32 row, quint32 col, int *column) const;
+    // Names a column (an edit, or its undoing); the table's part is written with the names when the workbook is saved.
+    void setTableColumnName(int table, int column, const QString &name);
+    // The table parts whose names are not the file's, as they would be written, by the part's name.
+    std::map<QString, QByteArray> changedTableParts() const;
 
 private:
     Package m_package;
+    QString m_mainPart, m_sharedPart, m_stylesPart;
+    qint64 m_sharedInFile = 0, m_formatsInFile = 0;
+    QStringList m_sharedAdded;
+    QHash<QString, qint32> m_sharedAddedAt;
+    QVector<AddedNumberFormat> m_numFmtsAdded;
+    QVector<AddedCellFormat> m_formatsAdded;
     WorkbookInfo m_info;
     SharedStrings m_shared;
     QString m_sharedError;
     Styles m_styles;
     QString m_stylesError;
     Limits m_limits;
+    mutable QVector<Table> m_tables;
+    mutable bool m_tablesRead = false;
 };
 
 } // namespace jp::office::sheet

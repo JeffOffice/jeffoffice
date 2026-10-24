@@ -2,6 +2,7 @@
 
 #include "calc/functions.h"
 
+#include <QCoreApplication>
 #include <QHash>
 
 #include <algorithm>
@@ -14,6 +15,8 @@ namespace {
 
 constexpr int kMaxWordChars = 1000;
 
+// (What is wrong with a formula is told to the person who typed it, in plain words, and QCoreApplication::translate gives it in the language of the program; the context is written out
+// in each call so that lupdate finds the text.)
 // ---- the pieces of the text
 
 enum class T : quint8 { End, Number, Text, Bool, Error, Ref, Name, Func, Table, External, Op, LParen, RParen, LBrace, RBrace, Comma, Semi };
@@ -61,7 +64,7 @@ public:
 
     bool run()
     {
-        if (n > kMaxFormulaChars) return fail(0, QStringLiteral("The formula is longer than any real one."));
+        if (n > kMaxFormulaChars) return fail(0, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
         if (!lex()) return false;
         if (!expression()) return false;
         if (opt.definedName) {
@@ -71,13 +74,13 @@ public:
                 emit(Op::Union);
             }
         }
-        if (peek().kind != T::End) return fail(peek().pos, QStringLiteral("Unexpected %1.").arg(describe(peek())));
+        if (peek().kind != T::End) return fail(peek().pos, leftOver(peek()));
         // the last operation of the formula, if it is a sum or a difference that was not in parentheses
         if (!prog.code.empty() && lastGroupEnd != int(prog.code.size())) {
             Instr &last = prog.code.back();
             if (last.op == Op::Add || last.op == Op::Sub) last.flags |= kInstrFinal;
         }
-        if (prog.code.size() > size_t(kMaxFormulaInstructions)) return fail(n, QStringLiteral("The formula is longer than any real one."));
+        if (prog.code.size() > size_t(kMaxFormulaInstructions)) return fail(n, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
         return true;
     }
 
@@ -332,7 +335,7 @@ private:
         quint32 ra = 0, ca = 0, rb = 0, cb = 0;
         bool raa = true, caa = true, rba = true, cba = true;
         if (!resolve(r1, opt.row, true, &ra, &raa) || !resolve(c1, opt.col, false, &ca, &caa) || !resolve(r2, opt.row, true, &rb, &rba) || !resolve(c2, opt.col, false, &cb, &cba)) {
-            fail(i, QStringLiteral("The reference is outside the grid."));
+            fail(i, QCoreApplication::translate("jp::calc::Formula", "That reference is outside the sheet. The last column is XFD, and the last row is 1,048,576."));
             return false;
         }
         const bool wholeRows = !c1.has && !c2.has, wholeCols = !r1.has && !r2.has;
@@ -439,10 +442,10 @@ private:
         if (!error.isEmpty()) return false;
         if (s[i] == QLatin1Char('\'') || s[i] == QLatin1Char('[') || !(isIdent(s[i]) )) return false;
         const int w = wordEnd(i);
-        if (w - i > kMaxWordChars) return fail(i, QStringLiteral("The name is longer than any real one.")), false;
+        if (w - i > kMaxWordChars) return fail(i, QCoreApplication::translate("jp::calc::Formula", "A name in the formula is too long.")), false;
         if (w < n && s[w] == QLatin1Char('[')) {
             const int close = bracketsEnd(w);
-            if (close < 0) return fail(w, QStringLiteral("The brackets are never closed.")), false;
+            if (close < 0) return fail(w, QCoreApplication::translate("jp::calc::Formula", "A [ is never closed. Add a ] after it.")), false;
             t->kind = T::Table;
             *end = close;
             return true;
@@ -482,24 +485,24 @@ private:
             if (c == QLatin1Char('"')) {
                 QString text;
                 const int e = quotedEnd(i, &text);
-                if (e < 0) return fail(i, QStringLiteral("The text in quotes is never closed."));
+                if (e < 0) return fail(i, QCoreApplication::translate("jp::calc::Formula", "A text begins with a quote (\") that is never closed. Add the closing quote."));
                 t.kind = T::Text;
                 t.text = text;
-                if (!push(t, i, e)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                if (!push(t, i, e)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                 continue;
             }
             if (c == QLatin1Char('\'')) {
                 QString name;
                 const int e = quotedEnd(i, &name);
-                if (e < 0) return fail(i, QStringLiteral("The name in quotes is never closed."));
-                if (e >= n || s[e] != QLatin1Char('!')) return fail(i, QStringLiteral("A sheet's name in quotes must be followed by \"!\"."));
+                if (e < 0) return fail(i, QCoreApplication::translate("jp::calc::Formula", "A sheet's name begins with an apostrophe (') that is never closed. Add the closing apostrophe."));
+                if (e >= n || s[e] != QLatin1Char('!')) return fail(i, QCoreApplication::translate("jp::calc::Formula", "A sheet's name in apostrophes must be followed by an exclamation mark and a cell, as in 'My Sheet'!A1."));
                 if (name.contains(QLatin1Char('['))) {
                     int end;
                     Token body;
-                    if (!lexBody(e + 1, &body, &end, -1, -1)) return fail(e + 1, QStringLiteral("There is no reference after the sheet."));
+                    if (!lexBody(e + 1, &body, &end, -1, -1)) return fail(e + 1, QCoreApplication::translate("jp::calc::Formula", "A sheet's name must be followed by a cell or a range, as in Sheet1!A1."));
                     t.kind = T::External;
                     t.text = s.mid(i, end - i);
-                    if (!push(t, i, end)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                    if (!push(t, i, end)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                     continue;
                 }
                 int s1 = -1, s2 = -1;
@@ -511,13 +514,13 @@ private:
                     s1 = internSheet(name);
                 }
                 int end;
-                if (!lexBody(e + 1, &t, &end, s1, s2)) return error.isEmpty() ? fail(e + 1, QStringLiteral("There is no reference after the sheet.")) : false;
-                if (!push(t, i, end)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                if (!lexBody(e + 1, &t, &end, s1, s2)) return error.isEmpty() ? fail(e + 1, QCoreApplication::translate("jp::calc::Formula", "A sheet's name must be followed by a cell or a range, as in Sheet1!A1.")) : false;
+                if (!push(t, i, end)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                 continue;
             }
             if (c == QLatin1Char('[')) {
                 const int close = bracketsEnd(i);
-                if (close < 0) return fail(i, QStringLiteral("The brackets are never closed."));
+                if (close < 0) return fail(i, QCoreApplication::translate("jp::calc::Formula", "A [ is never closed. Add a ] after it."));
                 // [1]Sheet1!A1 or [1]!Name: another workbook; else the columns of a table with no name before them ([@Col])
                 bool digits = close - i > 2;
                 for (int k = i + 1; k < close - 1; ++k)
@@ -529,31 +532,31 @@ private:
                         // [1]!'a name in quotes', and [0]!Function(...) of an add-in or a macro of another workbook
                         if (w + 1 < n && s[w + 1] == QLatin1Char('\'')) {
                             const int e = quotedEnd(w + 1, nullptr);
-                            if (e < 0) return fail(w + 1, QStringLiteral("The name in quotes is never closed."));
+                            if (e < 0) return fail(w + 1, QCoreApplication::translate("jp::calc::Formula", "A sheet's name begins with an apostrophe (') that is never closed. Add the closing apostrophe."));
                             t.kind = T::External;
                             t.text = s.mid(i, e - i);
-                            if (!push(t, i, e)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                            if (!push(t, i, e)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                             continue;
                         }
                         const int fe = wordEnd(w + 1);
                         if (fe > w + 1 && fe < n && s[fe] == QLatin1Char('(')) {
                             t.kind = T::Func;
                             t.text = s.mid(i, fe - i);
-                            if (!push(t, i, fe)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                            if (!push(t, i, fe)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                             continue;
                         }
                         int end;
                         Token body;
-                        if (!lexBody(w + 1, &body, &end, -1, -1)) return error.isEmpty() ? fail(w + 1, QStringLiteral("There is no reference after the sheet.")) : false;
+                        if (!lexBody(w + 1, &body, &end, -1, -1)) return error.isEmpty() ? fail(w + 1, QCoreApplication::translate("jp::calc::Formula", "A sheet's name must be followed by a cell or a range, as in Sheet1!A1.")) : false;
                         t.kind = T::External;
                         t.text = s.mid(i, end - i);
-                        if (!push(t, i, end)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                        if (!push(t, i, end)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                         continue;
                     }
                 }
                 t.kind = T::Table;
                 t.text = s.mid(i, close - i);
-                if (!push(t, i, close)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                if (!push(t, i, close)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                 continue;
             }
             if (c == QLatin1Char('#')) {
@@ -563,7 +566,7 @@ private:
                 if (ok) {
                     t.kind = T::Error;
                     t.error = e;
-                    if (!push(t, i, end)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                    if (!push(t, i, end)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                     continue;
                 }
                 if (afterOperand()) {
@@ -572,7 +575,7 @@ private:
                     push(t, i, i + 1);
                     continue;
                 }
-                return fail(i, QStringLiteral("\"#\" does not start an error."));
+                return fail(i, QCoreApplication::translate("jp::calc::Formula", "A # starts an error such as #N/A. This one is not an error."));
             }
             if (isDigit(c) || (c == QLatin1Char('.') && i + 1 < n && isDigit(s[i + 1])) || (c == QLatin1Char('$') && i + 1 < n && isDigit(s[i + 1]))) {
                 RefLit ref;
@@ -580,10 +583,10 @@ private:
                 if (!opt.r1c1 && cellsAt(i, &end, &ref)) {
                     t.kind = T::Ref;
                     t.ref = ref;
-                    if (!push(t, i, end)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                    if (!push(t, i, end)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                     continue;
                 }
-                if (c == QLatin1Char('$')) return fail(i, QStringLiteral("\"$\" is not part of a reference."));
+                if (c == QLatin1Char('$')) return fail(i, QCoreApplication::translate("jp::calc::Formula", "A $ belongs in a cell reference, as in $A$1."));
                 int j = i;
                 while (j < n && isDigit(s[j])) ++j;
                 if (j < n && s[j] == QLatin1Char('.')) {
@@ -598,20 +601,20 @@ private:
                         j = k;
                     }
                 }
-                if (j < n && (isIdent(s[j]) || s[j] == QLatin1Char('$'))) return fail(i, QStringLiteral("A number cannot go on into a word."));
+                if (j < n && (isIdent(s[j]) || s[j] == QLatin1Char('$'))) return fail(i, QCoreApplication::translate("jp::calc::Formula", "A number can't run into letters. Put a mark between them, such as an operator."));
                 bool ok = false;
                 const double v = QStringView(s).mid(i, j - i).toDouble(&ok);
-                if (!ok || !std::isfinite(v)) return fail(i, QStringLiteral("The number is not valid."));
+                if (!ok || !std::isfinite(v)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "This number is not valid."));
                 t.kind = T::Number;
                 t.num = v;
-                if (!push(t, i, j)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                if (!push(t, i, j)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                 continue;
             }
             if (c == QLatin1Char('$') || c.isLetter() || c == QLatin1Char('_') || c == QLatin1Char('\\')) {
                 // a sheet's name before "!" (or two before it for sheets one through the other)
                 if (c != QLatin1Char('$')) {
                     const int w = wordEnd(i);
-                    if (w - i > kMaxWordChars) return fail(i, QStringLiteral("The name is longer than any real one."));
+                    if (w - i > kMaxWordChars) return fail(i, QCoreApplication::translate("jp::calc::Formula", "A name in the formula is too long."));
                     int bang = -1, s1 = -1, s2 = -1;
                     if (w < n && s[w] == QLatin1Char('!')) {
                         bang = w;
@@ -626,8 +629,8 @@ private:
                     }
                     if (bang >= 0) {
                         int end;
-                        if (!lexBody(bang + 1, &t, &end, s1, s2)) return error.isEmpty() ? fail(bang + 1, QStringLiteral("There is no reference after the sheet.")) : false;
-                        if (!push(t, i, end)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                        if (!lexBody(bang + 1, &t, &end, s1, s2)) return error.isEmpty() ? fail(bang + 1, QCoreApplication::translate("jp::calc::Formula", "A sheet's name must be followed by a cell or a range, as in Sheet1!A1.")) : false;
+                        if (!push(t, i, end)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                         continue;
                     }
                 }
@@ -636,23 +639,23 @@ private:
                 if (opt.r1c1 ? r1c1RefAt(i, &end, &ref) : cellsAt(i, &end, &ref)) {
                     t.kind = T::Ref;
                     t.ref = ref;
-                    if (!push(t, i, end)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                    if (!push(t, i, end)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                     continue;
                 }
                 if (!error.isEmpty()) return false;
-                if (c == QLatin1Char('$')) return fail(i, QStringLiteral("\"$\" is not part of a reference."));
+                if (c == QLatin1Char('$')) return fail(i, QCoreApplication::translate("jp::calc::Formula", "A $ belongs in a cell reference, as in $A$1."));
                 const int w = wordEnd(i);
-                if (w - i > kMaxWordChars) return fail(i, QStringLiteral("The name is longer than any real one."));
+                if (w - i > kMaxWordChars) return fail(i, QCoreApplication::translate("jp::calc::Formula", "A name in the formula is too long."));
                 const QString word = s.mid(i, w - i);
                 if (w < n && s[w] == QLatin1Char('(')) {
                     t.kind = T::Func;
                     t.text = word;
                 } else if (w < n && s[w] == QLatin1Char('[')) {
                     const int close = bracketsEnd(w);
-                    if (close < 0) return fail(w, QStringLiteral("The brackets are never closed."));
+                    if (close < 0) return fail(w, QCoreApplication::translate("jp::calc::Formula", "A [ is never closed. Add a ] after it."));
                     t.kind = T::Table;
                     t.text = s.mid(i, close - i);
-                    if (!push(t, i, close)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                    if (!push(t, i, close)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                     continue;
                 } else if (word.compare(QLatin1String("TRUE"), Qt::CaseInsensitive) == 0 || word.compare(QLatin1String("FALSE"), Qt::CaseInsensitive) == 0) {
                     t.kind = T::Bool;
@@ -661,7 +664,7 @@ private:
                     t.kind = T::Name;
                     t.text = word;
                 }
-                if (!push(t, i, w)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+                if (!push(t, i, w)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
                 continue;
             }
             // operators and punctuation
@@ -684,9 +687,9 @@ private:
             case '}': t.kind = T::RBrace; break;
             case ',': t.kind = T::Comma; break;
             case ';': t.kind = T::Semi; break;
-            default: return fail(i, QStringLiteral("The character \"%1\" is not part of a formula.").arg(c));
+            default: return fail(i, QCoreApplication::translate("jp::calc::Formula", "The character \"%1\" can't be in a formula.").arg(c));
             }
-            if (!push(t, i, i + len)) return fail(i, QStringLiteral("The formula is longer than any real one."));
+            if (!push(t, i, i + len)) return fail(i, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
         }
         Token end;
         end.kind = T::End;
@@ -703,18 +706,28 @@ private:
     {
         if (p + 1 < toks.size()) ++p;
     }
-    static QString describe(const Token &t)
+    // What is wrong where a value or a reference is needed and `t` is what was found.
+    static QString missingValue(const Token &t)
     {
         switch (t.kind) {
-        case T::End: return QStringLiteral("end of the formula");
-        case T::RParen: return QStringLiteral("\")\"");
-        case T::LParen: return QStringLiteral("\"(\"");
-        case T::Comma: return QStringLiteral("\",\"");
-        case T::Semi: return QStringLiteral("\";\"");
-        case T::RBrace: return QStringLiteral("\"}\"");
-        case T::LBrace: return QStringLiteral("\"{\"");
-        case T::Op: return QStringLiteral("operator");
-        default: return QStringLiteral("token");
+        case T::End: return QCoreApplication::translate("jp::calc::Formula", "The formula ends where a value is needed. Type the rest of it.");
+        case T::RParen: return QCoreApplication::translate("jp::calc::Formula", "There's a ) where a value is needed. A value is missing before it.");
+        case T::Comma: return QCoreApplication::translate("jp::calc::Formula", "There's a comma where a value is needed. A value is missing before it.");
+        case T::Semi: return QCoreApplication::translate("jp::calc::Formula", "There's a semicolon where a value is needed. A value is missing before it.");
+        case T::RBrace: return QCoreApplication::translate("jp::calc::Formula", "There's a } where a value is needed. A value is missing before it.");
+        case T::Op: return QCoreApplication::translate("jp::calc::Formula", "An operator is where a value is needed. A value is missing before it.");
+        default: return QCoreApplication::translate("jp::calc::Formula", "A value is needed here.");
+        }
+    }
+    // What is wrong where a complete formula was read and `t` is what is left over.
+    static QString leftOver(const Token &t)
+    {
+        switch (t.kind) {
+        case T::RParen: return QCoreApplication::translate("jp::calc::Formula", "There's a ) without a matching (.");
+        case T::RBrace: return QCoreApplication::translate("jp::calc::Formula", "There's a } without a matching {.");
+        case T::Comma: return QCoreApplication::translate("jp::calc::Formula", "There's a comma outside the arguments of a function.");
+        case T::Semi: return QCoreApplication::translate("jp::calc::Formula", "There's a semicolon outside a list between { and }.");
+        default: return QCoreApplication::translate("jp::calc::Formula", "An operator is missing here, between two values: put one, such as + or &, before this.");
         }
     }
 
@@ -722,7 +735,7 @@ private:
     {
         const bool computes = (op >= Op::Add && op <= Op::Ge) || op == Op::Neg || op == Op::Percent || op == Op::Call;
         if (arrayMode() && computes) flags |= kInstrArray;
-        if (out->size() >= size_t(kMaxFormulaInstructions)) return fail(toks[std::min(p, toks.size() - 1)].pos, QStringLiteral("The formula is longer than any real one."));
+        if (out->size() >= size_t(kMaxFormulaInstructions)) return fail(toks[std::min(p, toks.size() - 1)].pos, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
         Instr in;
         in.op = op;
         in.flags = flags;
@@ -736,7 +749,7 @@ private:
 
     bool enter()
     {
-        if (++depth > kMaxFormulaDepth) return fail(peek().pos, QStringLiteral("The formula is nested deeper than any real one."));
+        if (++depth > kMaxFormulaDepth) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "The formula has too many brackets inside one another."));
         return true;
     }
 
@@ -793,7 +806,7 @@ private:
         while (peek().kind == T::Op && (peek().op == '-' || peek().op == '+' || peek().op == '@')) {
             prefix.push_back(peek().op);
             advance();
-            if (prefix.size() > size_t(kMaxFormulaInstructions)) return fail(peek().pos, QStringLiteral("The formula is longer than any real one."));
+            if (prefix.size() > size_t(kMaxFormulaInstructions)) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
         }
         if (!intersect()) return false;
         for (size_t k = prefix.size(); k-- > 0;) {
@@ -864,7 +877,7 @@ private:
             return spill();
         case T::Name:
             advance();
-            if (t.sheetPlus1 > 65534) return fail(t.pos, QStringLiteral("Too many sheets are named."));
+            if (t.sheetPlus1 > 65534) return fail(t.pos, QCoreApplication::translate("jp::calc::Formula", "The formula names more sheets than JeffCrunch can read."));
             if (!emit(Op::PushName, addText(t.text), quint16(t.sheetPlus1))) return false;
             return spill();
         case T::Table:
@@ -889,7 +902,7 @@ private:
                 if (!expression()) return false;
                 if (!emit(Op::Union)) return false;
             }
-            if (peek().kind != T::RParen) return fail(peek().pos, QStringLiteral("Expected \")\" but found %1.").arg(describe(peek())));
+            if (peek().kind != T::RParen) return fail(peek().pos, peek().kind == T::End ? QCoreApplication::translate("jp::calc::Formula", "A ( is never closed. Add a ) at the end.") : QCoreApplication::translate("jp::calc::Formula", "A ) is missing here: the ( before it is not closed."));
             advance();
             --depth;
             lastGroupEnd = out == &prog.code ? int(out->size()) : -1;
@@ -898,7 +911,7 @@ private:
         case T::LBrace:
             return arrayConstant();
         default:
-            return fail(t.pos, QStringLiteral("Unexpected %1.").arg(describe(t)));
+            return fail(t.pos, missingValue(t));
         }
     }
 
@@ -924,7 +937,7 @@ private:
             if (peek().kind == T::Op && (peek().op == '-' || peek().op == '+')) {
                 negative = peek().op == '-';
                 advance();
-                if (peek().kind != T::Number) return fail(peek().pos, QStringLiteral("An array constant holds only numbers, texts, TRUE and FALSE, and errors."));
+                if (peek().kind != T::Number) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "Between { and } there can only be numbers, texts, TRUE, FALSE, and errors."));
             }
             const Token t = peek();
             Value v;
@@ -933,25 +946,25 @@ private:
             case T::Text: v = Value::text(t.text); break;
             case T::Bool: v = Value::boolean(t.num != 0); break;
             case T::Error: v = Value::error(t.error); break;
-            default: return fail(t.pos, QStringLiteral("An array constant holds only numbers, texts, TRUE and FALSE, and errors."));
+            default: return fail(t.pos, QCoreApplication::translate("jp::calc::Formula", "Between { and } there can only be numbers, texts, TRUE, FALSE, and errors."));
             }
             advance();
             rows.back().push_back(v);
-            if (qint64(rows.size()) * qint64(rows.front().size()) > kMaxArrayConstantCells) return fail(t.pos, QStringLiteral("The array constant is larger than any real one."));
+            if (qint64(rows.size()) * qint64(rows.front().size()) > kMaxArrayConstantCells) return fail(t.pos, QCoreApplication::translate("jp::calc::Formula", "The list between { and } is too large."));
             if (peek().kind == T::Comma) {
                 advance();
             } else if (peek().kind == T::Semi) {
                 advance();
-                if (rows.back().size() != rows.front().size()) return fail(peek().pos, QStringLiteral("The rows of an array constant must be of one length."));
+                if (rows.back().size() != rows.front().size()) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "Each row between { and } must have the same number of values."));
                 rows.emplace_back();
             } else if (peek().kind == T::RBrace) {
                 advance();
                 break;
             } else {
-                return fail(peek().pos, QStringLiteral("Expected \",\", \";\", or \"}\" in the array constant."));
+                return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "A comma, a semicolon, or a } is missing in the list between { and }."));
             }
         }
-        if (rows.back().size() != rows.front().size()) return fail(peek().pos, QStringLiteral("The rows of an array constant must be of one length."));
+        if (rows.back().size() != rows.front().size()) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "Each row between { and } must have the same number of values."));
         --depth;
         Value a = Value::array(int(rows.size()), int(rows.front().size()));
         for (size_t r = 0; r < rows.size(); ++r)
@@ -987,9 +1000,9 @@ private:
         if (name == QLatin1String("SINGLE") && !fn) {
             // the form in which a newer file writes "@"
             bool missing;
-            if (peek().kind == T::RParen) return fail(t.pos, QStringLiteral("SINGLE needs an argument."));
-            if (!argument('r', &missing) || missing) return missing ? fail(peek().pos, QStringLiteral("SINGLE needs an argument.")) : false;
-            if (peek().kind != T::RParen) return fail(peek().pos, QStringLiteral("Expected \")\"."));
+            if (peek().kind == T::RParen) return fail(t.pos, QCoreApplication::translate("jp::calc::Formula", "SINGLE needs a cell or a range in parentheses."));
+            if (!argument('r', &missing) || missing) return missing ? fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "SINGLE needs a cell or a range in parentheses.")) : false;
+            if (peek().kind != T::RParen) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "A ) is missing after the argument."));
             advance();
             --depth;
             return emit(Op::Single);
@@ -1000,7 +1013,7 @@ private:
         int count = 0;
         if (peek().kind != T::RParen) {
             for (;;) {
-                if (count >= kMaxFormulaArgs) return fail(peek().pos, QStringLiteral("The call has more arguments than any real one."));
+                if (count >= kMaxFormulaArgs) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "This function has more arguments than JeffCrunch can read."));
                 const char cls = fn ? paramClass(*fn, count) : 'r';
                 bool missing = false;
                 if (lazy) {
@@ -1045,14 +1058,14 @@ private:
                 break;
             }
         }
-        if (peek().kind != T::RParen) return fail(peek().pos, QStringLiteral("Expected \",\" or \")\" but found %1.").arg(describe(peek())));
+        if (peek().kind != T::RParen) return fail(peek().pos, peek().kind == T::End ? QCoreApplication::translate("jp::calc::Formula", "A ( is never closed. Add a ) at the end.") : QCoreApplication::translate("jp::calc::Formula", "A comma or a ) is missing here, after the argument."));
         advance();
         --depth;
         if (!fn) {
             if (!prog.unknownFunctions.contains(name)) prog.unknownFunctions.append(name);
             return emit(Op::Call, -(addText(name) + 1), quint16(count));
         }
-        if (count < int(fn->minArgs) || (fn->maxArgs != 255 && count > int(fn->maxArgs))) return fail(t.pos, QStringLiteral("%1 does not take %2 arguments.").arg(name).arg(count));
+        if (count < int(fn->minArgs) || (fn->maxArgs != 255 && count > int(fn->maxArgs))) return fail(t.pos, QCoreApplication::translate("jp::calc::Formula", "%1 can't take the number of arguments given (%2). Check how many it takes.").arg(name).arg(count));
         if (fn->flags & kFnVolatile) prog.isVolatile = true;
         bool seen = false;
         for (auto &c : prog.calls)
@@ -1076,7 +1089,7 @@ private:
             for (const auto &part : parts) sum += qint64(part.size());
             return sum;
         }();
-        if (total + qint64(out->size()) + qint64(parts.size()) * 2 + 4 > kMaxFormulaInstructions) return fail(peek().pos, QStringLiteral("The formula is longer than any real one."));
+        if (total + qint64(out->size()) + qint64(parts.size()) * 2 + 4 > kMaxFormulaInstructions) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "The formula is too long."));
         if (name == QLatin1String("IF")) {
             if (parts.size() == 2) {
                 Instr no;
@@ -1278,7 +1291,7 @@ ParseResult parseFormula(const QString &text, const ParseOptions &options)
     program->arrayFormula = options.arrayFormula;
     Parser parser(text, options, program.get());
     if (!parser.run()) {
-        result.error = parser.error.isEmpty() ? QStringLiteral("Not a formula.") : parser.error;
+        result.error = parser.error.isEmpty() ? QCoreApplication::translate("jp::calc::Formula", "This is not a formula.") : parser.error;
         result.errorPos = parser.errorPos;
         return result;
     }

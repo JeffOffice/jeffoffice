@@ -95,3 +95,33 @@ QString show(const Sheet &sheet, const SharedStrings &shared, const QString &ref
 }
 
 } // namespace sheettest
+
+namespace sheettest {
+
+QByteArray withTables(const QByteArray &xlsx, const QStringList &tableXml)
+{
+    QMap<QString, QByteArray> parts;
+    jp::readZip(xlsx, parts);
+    QString rels = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">");
+    QString overrides, tableParts;
+    for (int i = 0; i < tableXml.size(); ++i) {
+        const int n = i + 1;
+        parts[QStringLiteral("xl/tables/table%1.xml").arg(n)] = tableXml[i].toUtf8();
+        rels += QStringLiteral("<Relationship Id=\"rIdT%1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/table\" Target=\"../tables/table%1.xml\"/>").arg(n);
+        overrides += QStringLiteral("<Override PartName=\"/xl/tables/table%1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml\"/>").arg(n);
+        tableParts += QStringLiteral("<tablePart r:id=\"rIdT%1\"/>").arg(n);
+    }
+    rels += QStringLiteral("</Relationships>");
+    parts[QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")] = rels.toUtf8();
+    QByteArray types = parts.value(QStringLiteral("[Content_Types].xml"));
+    types.replace("</Types>", overrides.toUtf8() + "</Types>");
+    parts[QStringLiteral("[Content_Types].xml")] = types;
+    QByteArray sheet = parts.value(QStringLiteral("xl/worksheets/sheet1.xml"));
+    sheet.replace("</worksheet>", QStringLiteral("<tableParts count=\"%1\">%2</tableParts></worksheet>").arg(tableXml.size()).arg(tableParts).toUtf8());
+    parts[QStringLiteral("xl/worksheets/sheet1.xml")] = sheet;
+    jp::ZipWriter z;
+    for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+    return z.finish();
+}
+
+} // namespace sheettest

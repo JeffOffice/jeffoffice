@@ -295,6 +295,15 @@ bool Package::readLazyFile(const QString &path, QString *error)
 
 bool Package::isLazy() const { return bool(m_lazy); }
 
+QByteArray Package::fileBytes() const { return m_lazy ? m_lazy->zip : QByteArray(); }
+
+QString Package::entryName(const QString &partName) const
+{
+    if (!m_lazy) return {};
+    const auto found = m_lazy->entries.constFind(m_names.value(nameKey(partName)));
+    return found == m_lazy->entries.cend() ? QString() : found->name;
+}
+
 int Package::skippedCount() const { return m_skipped; }
 
 bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxInflated, bool lazy)

@@ -91,6 +91,10 @@ public:
     bool readLazy(const QByteArray &zip, QString *error = nullptr, qint64 maxInflated = kLazyMaxInflated);
     bool readLazyFile(const QString &path, QString *error = nullptr);
     bool isLazy() const;
+    // For a lazy package: the file's bytes (shared, not copied), and the name the file gives the entry of a part (as the ZIP directory spells it, without the slash a part name
+    // starts with, perhaps); empty for a part it does not have. Saving copies the entries of the parts that did not change from these bytes as they are.
+    QByteArray fileBytes() const;
+    QString entryName(const QString &partName) const;
 
     // How many parts and relationships the last read left out as unusable.
     int skippedCount() const;

@@ -108,16 +108,21 @@ QString displayFormula(const QString &formula)
             continue;
         }
         if (c == QLatin1Char('_') && (i == 0 || !identChar(formula.at(i - 1)))) {
-            int skip = 0;
-            for (const char *prefix : kPrefixes) {
-                const int len = int(strlen(prefix));
-                if (formula.mid(i, len).compare(QLatin1String(prefix), Qt::CaseInsensitive) == 0) {
-                    skip = len;
-                    break;
+            // (one or more: a function only a sheet has is _xlfn._xlws.FILTER)
+            int skipped = 0;
+            for (bool found = true; found;) {
+                found = false;
+                for (const char *prefix : kPrefixes) {
+                    const int len = int(strlen(prefix));
+                    if (formula.mid(i + skipped, len).compare(QLatin1String(prefix), Qt::CaseInsensitive) == 0) {
+                        skipped += len;
+                        found = true;
+                        break;
+                    }
                 }
             }
-            if (skip) {
-                i += skip;
+            if (skipped) {
+                i += skipped;
                 continue;
             }
         }

@@ -1,5 +1,8 @@
 #include "sheet/sheetreader.h"
 
+#include "calc/numfmt.h"
+#include "sheet/rowskip.h"
+
 #include "office/theme.h"
 #include "office/xml.h"
 #include "io/zipindex.h"
@@ -342,6 +345,9 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 f.indent = quint8(std::lround(boundedNumber(attribute(r, "indent"), 0, 255, 0)));
                 const double turn = boundedNumber(attribute(r, "textRotation"), 0, 255, 0);
                 f.rotation = quint8(turn == 255 ? 255 : turn <= 180 ? std::lround(turn) : 0);
+            } else if (depth == 4 && where == Where::CellXfs && isElement(r, "protection") && !out->formats.isEmpty()) {
+                const QStringView locked = attribute(r, "locked");
+                out->formats.last().locked = locked.isEmpty() ? true : parseBool(locked.toString());
             } else if (depth == 3 && where == Where::Fonts && isElement(r, "font")) {
                 if (out->fonts.size() >= limits.fonts) return fail(translate("The file has more fonts than any real file has."));
                 out->fonts.append(FontSpec());
@@ -1077,6 +1083,8 @@ bool SheetReader::read(QIODevice *in)
                     parseRangeRef(attribute(r, "ref"), &m_sheet.dimension);
                 } else if (isElement(r, "mergeCells")) {
                     inMerge = true;
+                } else if (isElement(r, "sheetProtection")) {
+                    m_sheet.isProtected = parseBool(attribute(r, "sheet").toString());
                 } else if (isElement(r, "sheetPr")) {
                     inSheetPr = true;
                 } else if (isElement(r, "sheetViews")) {
@@ -1191,6 +1199,14 @@ bool readSheetPart(QIODevice *in, const ReadOptions &options, Sheet *out)
 {
     *out = Sheet();
     SheetReader reader(options, out);
+    // The first screen of a sheet that was left scrolled down: the rows above the view are cut down before the parser sees them.
+    if (options.screenRows > 0 && options.skipRows) {
+        RowSkipDevice skip(in, options);
+        const bool ok = reader.read(&skip);
+        // (a failure of the part's own stream is the part's)
+        if (!ok && out->error.isEmpty() && !in->errorString().isEmpty()) out->error = in->errorString();
+        return ok;
+    }
     return reader.read(in);
 }
 
@@ -1228,11 +1244,14 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         else if (rel.type.endsWith(QLatin1String("acrosheet"))) e.kind = SheetKind::Macrosheet;
     }
     m_package = package;
+    m_mainPart = main;
     const QVector<Relationship> strings = package.relationshipsOfType(main, QStringLiteral("/sharedStrings"));
     for (const Relationship &rel : strings) {
         if (rel.external || !package.hasPart(rel.target)) continue;
         const auto device = package.openPart(rel.target);
         readSharedStrings(device.get(), limits, &m_shared, &m_sharedError);
+        m_sharedPart = rel.target;
+        m_sharedInFile = m_shared.strings.size();
         break;
     }
     // The styles: a part that is damaged keeps the formats read before the damage (stylesError says what it was) and the workbook open.
@@ -1241,6 +1260,8 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         if (rel.external || !package.hasPart(rel.target)) continue;
         const auto device = package.openPart(rel.target);
         readStyles(device.get(), limits, &m_styles, &m_stylesError);
+        m_stylesPart = rel.target;
+        m_formatsInFile = m_styles.formats.size();
         break;
     }
     // The theme: the colors the styles name by place. A part that is missing or can't be read leaves the usual ones.
@@ -1257,6 +1278,110 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         break;
     }
     return true;
+}
+
+// ---- changes
+
+qint32 Workbook::addSharedString(const QString &text)
+{
+    const auto found = m_sharedAddedAt.constFind(text);
+    if (found != m_sharedAddedAt.constEnd()) return found.value();
+    const qint32 at = qint32(m_shared.strings.size());
+    m_shared.strings.append(text);
+    m_shared.chars += text.size();
+    m_sharedAdded.append(text);
+    m_sharedAddedAt.insert(text, at);
+    return at;
+}
+
+int Workbook::numberFormatId(const QString &code)
+{
+    for (int id = 0; id <= 58; ++id)
+        if (jp::calc::builtinFormatCode(id) == code) return id;
+    int highest = 163;
+    for (auto it = m_styles.numFmts.constBegin(); it != m_styles.numFmts.constEnd(); ++it) {
+        if (it.value() == code) return it.key();
+        highest = std::max(highest, it.key());
+    }
+    const int id = highest + 1;
+    m_styles.numFmts.insert(id, code);
+    m_styles.chars += code.size();
+    m_numFmtsAdded.append({id, code});
+    return id;
+}
+
+quint32 Workbook::formatWithNumberFormat(quint32 base, int numFmtId)
+{
+    if (m_styles.formats.isEmpty()) return base;
+    if (base >= quint32(m_styles.formats.size())) base = 0;
+    if (m_styles.formats[int(base)].numFmtId == numFmtId) return base;
+    // (one made before for the same cell format and number format stands for it)
+    for (int i = 0; i < m_formatsAdded.size(); ++i)
+        if (m_formatsAdded[i].base == base && m_formatsAdded[i].numFmtId == numFmtId) return quint32(m_formatsInFile + i);
+    if (m_styles.formats.size() >= kMaxCellXfs) return base;
+    CellFormat f = m_styles.formats[int(base)];
+    f.numFmtId = numFmtId;
+    m_styles.formats.append(f);
+    m_styles.cellXfs.append(numFmtId);
+    m_formatsAdded.append({base, numFmtId});
+    return quint32(m_styles.formats.size() - 1);
+}
+
+const QVector<Table> &Workbook::tables() const
+{
+    if (!m_tablesRead) {
+        m_tables = readTables(m_package, m_info);
+        m_tablesRead = true;
+    }
+    return m_tables;
+}
+
+int Workbook::tableHeaderAt(int sheet, quint32 row, quint32 col, int *column) const
+{
+    const QVector<Table> &all = tables();
+    for (int i = 0; i < all.size(); ++i) {
+        const Table &t = all[i];
+        if (t.sheet != sheet || t.headerRows < 1 || row != t.row1 || col < t.col1 || col > t.col2) continue;
+        const int place = int(col - t.col1);
+        if (place >= t.columns.size()) continue;
+        if (column) *column = place;
+        return i;
+    }
+    return -1;
+}
+
+void Workbook::setTableColumnName(int table, int column, const QString &name)
+{
+    tables();
+    if (table < 0 || table >= m_tables.size() || column < 0 || column >= m_tables[table].columns.size()) return;
+    m_tables[table].columns[column] = name;
+}
+
+std::map<QString, QByteArray> Workbook::changedTableParts() const
+{
+    std::map<QString, QByteArray> out;
+    if (!m_tablesRead) return out;
+    for (const Table &t : m_tables) {
+        if (t.columns == t.fileColumns) continue;
+        QByteArray renamed;
+        if (renameTableXml(m_package.part(t.part), t.fileColumns, t.columns, t.name, &renamed)) out[t.part] = renamed;
+    }
+    return out;
+}
+
+void Workbook::savedTo(const Package &package, int strings, int numberFormats, int cellFormats)
+{
+    m_package = package;
+    // (the tables are read again from the file just written, which has the names they have now)
+    m_tablesRead = false;
+    m_tables.clear();
+    m_sharedInFile += strings;
+    m_formatsInFile += cellFormats;
+    m_sharedAdded = m_sharedAdded.mid(strings);
+    m_numFmtsAdded = m_numFmtsAdded.mid(numberFormats);
+    m_formatsAdded = m_formatsAdded.mid(cellFormats);
+    m_sharedAddedAt.clear();
+    for (int i = 0; i < m_sharedAdded.size(); ++i) m_sharedAddedAt.insert(m_sharedAdded[i], qint32(m_sharedInFile + i));
 }
 
 bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows) const

@@ -12,7 +12,8 @@
 // people may search for instead of the title's), then the text. Links to other
 // topics are relative: [Link text boxes](linked-text). The "index" topic is the
 // table of contents. "<!-- shortcuts -->" in a topic becomes a table of every
-// command's keyboard shortcut, made from the commands themselves.
+// command's keyboard shortcut, made from the commands themselves. "{key:Undo}" in a topic is the keys of that standard command on this computer (Ctrl+Z, or the Mac's own): Open, Save,
+// SaveAs, Close, Undo, Redo, Cut, Copy, Paste, SelectAll, Find, Print, New (as QKeySequence names them); several are joined with "or".
 
 #include <QDialog>
 #include <QHash>

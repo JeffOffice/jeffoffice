@@ -1,7 +1,7 @@
-# Open workbooks
-<!-- keywords: open, file, workbook, xlsx, xlsm, recent, pinned, drag, drop, loading, large, big, save, not saved, macros -->
+# Open and save workbooks
+<!-- keywords: open, save, save as, file, workbook, xlsx, xlsm, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain -->
 
-To open a workbook, press **Ctrl+O**, or click **File** and then **Open**, and choose **Browse**. You can also drag a workbook from your file manager onto the window.
+To open a workbook, press **{key:Open}**, or click **File** and then **Open**, and choose **Browse**. You can also drag a workbook from your file manager onto the window. A workbook that is already open in a window is not opened a second time: that window comes to the front.
 
 JeffCrunch opens **.xlsx** workbooks and **.xlsm** workbooks (those that hold macros). It does not run macros, and it keeps them untouched.
 
@@ -17,4 +17,16 @@ The **Open** page of the File screen lists the workbooks you opened lately. Righ
 
 ## Saving
 
-JeffCrunch does not save workbooks yet, and it never changes the file you opened. Saving comes in a later version.
+Press **{key:Save}**, or click **File** and then **Save**, to save your changes into the workbook you opened. To keep the original and make a new file, click **File** and then **Save As**, and choose a name. A workbook with macros is saved as a **.xlsm** file, and one without as a **.xlsx** file.
+
+JeffCrunch saves only what you changed. Everything else in the file, such as the other sheets, the charts, the pictures, the macros, and the settings that JeffCrunch does not show, is copied as it was, byte for byte. In a sheet you changed, only the cells you changed are written again, along with the formulas that depend on them, which get their new values. If you changed no cell, the file is left alone.
+
+If another program changed the file after you opened it, JeffCrunch does not save over it without asking, because that would lose the other program's changes. It asks whether to **Save a Copy**, to **Overwrite** the file, or to **Cancel**.
+
+The new file is written next to the old one first, and it takes the old one's place only when it is complete. If anything goes wrong, you see a message, and the file that was there is as it was.
+
+If the formulas are still being worked out when you save, JeffCrunch waits until they are, so the file holds their results. If you press **Esc** to stop the calculation meanwhile, the save is cancelled, and the status bar says so; save again when you want to. JeffCrunch leaves one thing out of the file: the list of the order in which a program last worked the formulas out (the calculation chain). A program that opens the workbook next makes it again. If JeffCrunch could not work out some formula, or you stopped the calculation, the file asks that program to work every formula out again when it opens the workbook.
+
+## Closing with changes
+
+If you close a workbook that has changes that are not saved, JeffCrunch asks whether to **Save** them, to **Don't Save** them, or to **Cancel** and go on working. An asterisk (*) in the window's title shows that there are changes not saved.
