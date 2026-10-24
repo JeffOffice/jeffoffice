@@ -360,8 +360,7 @@ std::function<QImage()> SheetObjects::prepareChart(int sheet, Object &o, const R
     setChartRefs(chart.get(), o.refs);
     if (m_cells) {
         applyChartCells(chart.get(), sheet, *m_cells);
-        bool cut = false;
-        o.reads = ChartReadIndex(jp::office::sheet::chartReads(*chart, sheet, *m_cells, &cut), cut);
+        o.reads = ChartReadIndex(jp::office::sheet::chartReads(*chart, sheet, *m_cells));
         o.drawnKey = dataKey(*chart);
         ++m_chartsDrawn;
     }

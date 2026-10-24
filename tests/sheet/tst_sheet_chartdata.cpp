@@ -438,21 +438,48 @@ private Q_SLOTS:
         QVERIFY(hits > 1000);
         QVERIFY(!index.readsSheet(3));
         QVERIFY(index.readsSheet(0) && index.hull(0).valid);
-        // two thousand blocks of one row each, one under another: a cell is found in a few probes
+        // two thousand blocks of one row each, one under another: a cell is found in a few probes (the depth of a tree of two thousand is eleven)
+        auto probesFor = [](const ChartReadIndex &index, int sheet, quint32 row, quint32 col, bool *answer) {
+            const qint64 before = index.probes();
+            *answer = index.reads(sheet, row, col);
+            return index.probes() - before;
+        };
+        const qint64 kMostProbes = 44;
+        bool answer = false;
         QVector<ChartBlock> stack;
         for (quint32 r = 0; r < 2000; ++r) stack.push_back(ChartBlock{0, CellRange{r, 0, r, 3, true}});
         const ChartReadIndex tall(stack);
-        QVERIFY(tall.reads(0, 1234, 2));
+        QVERIFY2(probesFor(tall, 0, 1234, 2, &answer) <= kMostProbes && answer, "a block of its row");
         QVERIFY(!tall.reads(0, 1234, 9));
-        QVERIFY2(tall.probes() <= 8, qPrintable(QString::number(tall.probes())));
         // a cell inside the hull that no block holds (the rows' blocks alternate between two groups of columns): it is found not read without going back over every block above it
         QVector<ChartBlock> apart;
         for (quint32 r = 0; r < 2000; ++r) apart.push_back(ChartBlock{0, CellRange{r, r % 2 ? 10u : 0u, r, r % 2 ? 13u : 3u, true}});
         const ChartReadIndex spread(apart);
-        QVERIFY(!spread.reads(0, 1234, 5));
-        QVERIFY(spread.reads(0, 1234, 2) && spread.reads(0, 1235, 12));
-        QVERIFY2(spread.probes() <= 12, qPrintable(QString::number(spread.probes())));
-        // a chart of many series that each read hundreds of areas: its reads are cut at the limit, and the index still covers what was cut
+        QVERIFY2(probesFor(spread, 0, 1234, 5, &answer) <= kMostProbes && !answer, "no block of the cell");
+        QVERIFY(probesFor(spread, 0, 1234, 2, &answer) <= kMostProbes && answer);
+        QVERIFY(probesFor(spread, 0, 1235, 12, &answer) <= kMostProbes && answer);
+        // a long block among them: one that runs the length of the sheet (a whole column) does not make every cell a walk over the blocks that begin above it
+        QVector<ChartBlock> withColumn = stack;
+        withColumn.push_front(ChartBlock{0, CellRange{0, 5, 1048575, 5, true}});
+        const ChartReadIndex longOne(withColumn);
+        QVERIFY2(probesFor(longOne, 0, 1234, 2, &answer) <= kMostProbes && answer, "a block of its row, past a whole column");
+        QVERIFY2(probesFor(longOne, 0, 1234, 4, &answer) <= kMostProbes && !answer, "in the hull, in no block");
+        QVERIFY2(probesFor(longOne, 0, 999999, 5, &answer) <= kMostProbes && answer, "the whole column's");
+        QVERIFY2(probesFor(longOne, 0, 999999, 4, &answer) <= kMostProbes && !answer, "beside the whole column");
+        // and two thousand of them, side by side: each whole column is one place among the columns
+        QVector<ChartBlock> columns;
+        for (quint32 c = 0; c < 2000; ++c) columns.push_back(ChartBlock{0, CellRange{0, c, 1048575, c, true}});
+        const ChartReadIndex wide(columns);
+        QVERIFY2(probesFor(wide, 0, 777777, 1500, &answer) <= kMostProbes && answer, "a column of two thousand");
+        QVERIFY2(probesFor(wide, 0, 777777, 1999, &answer) <= kMostProbes && answer, "the last of them");
+        QVERIFY2(probesFor(wide, 0, 777777, 2000, &answer) <= kMostProbes && !answer, "past them");
+        // and the same with whole rows
+        QVector<ChartBlock> rowsOfSheet;
+        for (quint32 r = 0; r < 2000; ++r) rowsOfSheet.push_back(ChartBlock{0, CellRange{r, 0, r, 16383, true}});
+        const ChartReadIndex whole(rowsOfSheet);
+        QVERIFY2(probesFor(whole, 0, 1500, 9000, &answer) <= kMostProbes && answer, "a row of two thousand");
+        QVERIFY2(probesFor(whole, 0, 2500, 9000, &answer) <= kMostProbes && !answer, "below them");
+        // a chart of many series that each read hundreds of areas: its reads are cut at the limit, and what is past it is held in the hull of that on its sheet (one block more)
         FakeCells f = FakeCells::regional();
         QStringList areas;
         for (int i = 0; i < 300; ++i) areas << QStringLiteral("Sheet1!$B$%1").arg(2 + i % 3);
@@ -463,8 +490,76 @@ private Q_SLOTS:
         bool cut = false;
         const QVector<ChartBlock> reads = chartReads(c, 0, f, &cut);
         QVERIFY(cut);
-        QCOMPARE(int(reads.size()), kMaxChartReadBlocks);
-        QVERIFY(ChartReadIndex(reads, cut).reads(0, 3, 1));
+        QCOMPARE(int(reads.size()), kMaxChartReadBlocks + 1);
+        QVERIFY(ChartReadIndex(reads).reads(0, 3, 1));
+    }
+
+    // A chart cut at the limit of blocks it is followed by still follows every cell it reads: what is past the limit is held in one block for each sheet, the hull of those past it, so a cell
+    // of a sheet that only the blocks past the limit read is still read (the chart is drawn again for it), and a cell in the hull that the blocks past the limit do not read is too (the
+    // chart is drawn again for a cell it does not read, never for fewer than it does). A cell outside all of that is not.
+    void aCutChartStillFollowsEveryCellItReads()
+    {
+        FakeCells f = FakeCells::regional();
+        f.sheets.push_back(FakeCells::Sheet{QStringLiteral("Other"), {}, {}, {}, {}, {}});
+        auto areasOf = [](int first, int last) {
+            QStringList areas;
+            for (int row = first; row <= last; ++row) areas << QStringLiteral("B%1").arg(row);
+            return QStringLiteral("(") + areas.join(QLatin1Char(',')) + QStringLiteral(")");   // (a reference is at most 4,096 characters: some 700 areas)
+        };
+        // areas of the chart's own sheet in four series (rows 1 to 2,000: the limit of blocks kept as they are), then two series that are past it (rows 3,001 to 3,400, and 3,601 to 4,000),
+        // then the name of a last series that is of the other sheet
+        QVector<SeriesSpec> series;
+        for (const QPair<int, int> &rows : {QPair<int, int>{1, 600}, {601, 1200}, {1201, 1800}, {1801, 2000}, {3001, 3400}, {3601, 4000}})
+            series.push_back(SeriesSpec{QString(), QString(), areasOf(rows.first, rows.second), QStringLiteral("s"), {}, {1}, QString()});
+        series.push_back(SeriesSpec{QStringLiteral("Other!$D$7"), QString(), QString(), QStringLiteral("d"), {}, {1}, QString()});
+        const Chart c = readIt(chartPart(QStringLiteral("lineChart"), series));
+        bool cut = false;
+        const QVector<ChartBlock> reads = chartReads(c, 0, f, &cut);
+        QVERIFY(cut);
+        QCOMPARE(int(reads.size()), kMaxChartReadBlocks + 2);   // (the limit, and a block for each of the two sheets that has blocks past it)
+        const ChartReadIndex index(reads);
+        QVERIFY(index.reads(0, 0, 1));          // (kept as it is)
+        QVERIFY(index.reads(0, 1999, 1));
+        QVERIFY(index.reads(0, 3100, 1));       // (past the limit, read)
+        QVERIFY(index.reads(0, 3999, 1));
+        QVERIFY(index.reads(0, 3500, 1));       // (past the limit, in the hull of what is past it, but not read: the chart is drawn again for it)
+        QVERIFY(!index.reads(0, 2500, 1));      // (outside everything: between the blocks kept and the hull)
+        QVERIFY(!index.reads(0, 3500, 3));      // (another column)
+        QVERIFY(index.readsSheet(1));           // (the sheet that only a block past the limit reads)
+        QVERIFY(index.reads(1, 6, 3));
+        QVERIFY(!index.reads(1, 7, 3));
+        QVERIFY(!index.reads(2, 6, 3));
+        // a chart that is not cut says so: nothing is held in a hull
+        bool small = true;
+        QCOMPARE(int(chartReads(readIt(chartPart(QStringLiteral("barChart"), eastWest())), 0, f, &small).size()), 6);
+        QVERIFY(!small);
+    }
+
+    // A name of the chart's own sheet, with no sheet in front of it, is the name of the sheet the chart is on: a chart on the second sheet reads the second sheet's "Local", not the first's,
+    // in what it reads and in the cells it is watched by.
+    void anUnqualifiedSheetLocalNameIsOfTheChartsOwnSheet()
+    {
+        FakeCells f = FakeCells::regional();
+        f.sheets.push_back(FakeCells::Sheet{QStringLiteral("Second"), {}, {}, {}, {}, {}});
+        for (int i = 0; i < 3; ++i) f.set(1, QStringLiteral("B%1").arg(i + 2), Value::number(100 * (i + 1)));
+        f.sheets[0].names.insert(QStringLiteral("LOCAL"), QStringLiteral("Sheet1!$B$2:$B$4"));
+        f.sheets[1].names.insert(QStringLiteral("LOCAL"), QStringLiteral("Second!$B$2:$B$4"));
+        const QVector<SeriesSpec> series = {SeriesSpec{QString(), QString(), QStringLiteral("Local"), QStringLiteral("S"), {}, {1, 2, 3}, QString()}};
+        QVector<ChartBlock> blocks;
+        QVERIFY(chartBlocks(QStringLiteral("Local"), 1, f, &blocks));
+        QCOMPARE(blocksText(blocks), QStringLiteral("1:B2:B4"));
+        QVERIFY(chartBlocks(QStringLiteral("Local"), 0, f, &blocks));
+        QCOMPARE(blocksText(blocks), QStringLiteral("0:B2:B4"));
+        Chart onSecond = readIt(chartPart(QStringLiteral("barChart"), series));
+        applyChartCells(&onSecond, 1, f);
+        QCOMPARE(onSecond.plots[0].series[0].values, (QVector<double>{100, 200, 300}));
+        Chart onFirst = readIt(chartPart(QStringLiteral("barChart"), series));
+        applyChartCells(&onFirst, 0, f);
+        QCOMPARE(onFirst.plots[0].series[0].values, (QVector<double>{10, 20, 30}));
+        // the cells it is watched by are the second sheet's
+        QCOMPARE(chartReads(onSecond, 1, f).value(0).sheet, 1);
+        QVERIFY(ChartReadIndex(chartReads(onSecond, 1, f)).reads(1, 2, 1));
+        QVERIFY(!ChartReadIndex(chartReads(onSecond, 1, f)).reads(0, 2, 1));
     }
 
     // Numbers as categories (dates) are shown through the category axis's own format when it is not linked to the source's, else as the source shows them: in the part, and from the cells.

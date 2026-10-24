@@ -77,33 +77,44 @@ struct ChartRefData {
 bool readChartRef(const QString &ref, int ownSheet, const ChartCells &cells, int maxCells, ChartRefData *out, bool wantText = true);
 
 // Every block the chart reads (its series' names, categories, and values, and its linked titles), for deciding whether a change to the cells is one it draws. Blocks of a reference that
-// does not resolve are left out. At most kMaxChartReadBlocks are given (`cut`, if given, says there were more: the rest are not in the list).
+// does not resolve are left out. At most kMaxChartReadBlocks are given as they are; past them the blocks are held, for each sheet, in one block that is the hull of what is past the limit (`cut`,
+// if given, says that was done: the chart is then drawn again for some cells it does not read, never for fewer than it does).
 QVector<ChartBlock> chartReads(const Chart &chart, int ownSheet, const ChartCells &cells, bool *cut = nullptr);
 
-// Which cells a chart reads, found without going over its blocks: they are kept by sheet, sorted by their first row with the largest last row so far, so that whether a cell is read
-// costs the blocks that hold it (and a few more), and the smallest block of each sheet that holds them all is a first test. A chart cut at the limit above is read as that smallest block.
+// Which cells a chart reads, found without going over its blocks: the blocks of each sheet are kept in two balanced trees, one by rows (for the blocks that are wider than they are tall) and one
+// by columns (the others: a whole column is a block of every row), each node holding the farthest any block in its stretch reaches, so that whether a cell is read costs the depth of the
+// trees and the blocks that hold the cell's row (or column), however long or tall the blocks are. The smallest block of each sheet that holds them all is a first test. A chart that read more
+// blocks than kMaxChartReadBlocks has one more block of each sheet that is the hull of those past the limit (see chartReads), so none of what it reads goes unfollowed.
 class ChartReadIndex {
 public:
     ChartReadIndex() = default;
-    explicit ChartReadIndex(const QVector<ChartBlock> &blocks, bool cut = false);
+    explicit ChartReadIndex(const QVector<ChartBlock> &blocks);
     bool isEmpty() const { return m_sheets.empty(); }
     // Whether the chart reads the cell.
     bool reads(int sheet, quint32 row, quint32 col) const;
     // Whether the chart reads a cell of the sheet at all, and the smallest block of the sheet's cells that holds every cell it reads.
     bool readsSheet(int sheet) const { return find(sheet) != nullptr; }
     CellRange hull(int sheet) const;
-    // The blocks it was made from (sorted by sheet and first row).
+    // The blocks it was made from.
     int blockCount() const { return m_count; }
-    // Blocks looked at by reads() so far (a test counts them).
+    // Places of the trees looked at by reads() so far (a test counts them).
     qint64 probes() const { return m_probes; }
 
 private:
+    // A balanced tree held in a sorted list (the middle of each stretch is its root): the blocks by where they begin along one direction, and for each stretch's middle the farthest end
+    // along that direction of any block in the stretch.
+    struct Tree {
+        bool byRow = true;
+        std::vector<CellRange> blocks;
+        std::vector<quint32> reach;
+        void build(std::vector<CellRange> list, bool rows);
+        quint32 fill(size_t lo, size_t hi);
+        bool stab(size_t lo, size_t hi, quint32 along, quint32 across, qint64 *probes) const;
+    };
     struct Sheet {
         int sheet = 0;
         CellRange hull;
-        bool coarse = false;
-        std::vector<CellRange> blocks;        // by first row
-        std::vector<quint32> maxLastRow;      // the largest last row of the blocks up to this one
+        Tree byRow, byColumn;
     };
     const Sheet *find(int sheet) const;
     std::vector<Sheet> m_sheets;

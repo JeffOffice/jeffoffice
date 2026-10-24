@@ -243,27 +243,30 @@ bool textOf(const QString &ref, int ownSheet, const ChartCells &cells, int *budg
 QVector<ChartBlock> chartReads(const Chart &chart, int ownSheet, const ChartCells &cells, bool *cut)
 {
     QVector<ChartBlock> out;
+    QHash<int, int> overflow;   // by sheet, the place in `out` of the block that holds what is past the limit
     bool over = false;
     auto add = [&](const QString &ref) {
         if (ref.isEmpty()) return;
         QVector<ChartBlock> blocks;
         chartBlocks(ref, ownSheet, cells, &blocks);
         for (const ChartBlock &b : std::as_const(blocks)) {
-            if (out.size() >= kMaxChartReadBlocks) {
-                // (the rest are held in the hull of the last: a block is added only as far as the limit, and the cut is said)
-                over = true;
-                // keep the hull of everything past the limit on the sheet by widening the last block of that sheet, or adding nothing when there is none
-                for (int i = out.size() - 1; i >= 0; --i)
-                    if (out[i].sheet == b.sheet) {
-                        out[i].range.row1 = std::min(out[i].range.row1, b.range.row1);
-                        out[i].range.col1 = std::min(out[i].range.col1, b.range.col1);
-                        out[i].range.row2 = std::max(out[i].range.row2, b.range.row2);
-                        out[i].range.col2 = std::max(out[i].range.col2, b.range.col2);
-                        break;
-                    }
+            if (out.size() < kMaxChartReadBlocks) {
+                out.push_back(b);
                 continue;
             }
-            out.push_back(b);
+            // past the limit a block is held in the hull of those past it on its sheet (one block for each sheet, and the sheets are few): what it reads is still followed
+            over = true;
+            const auto it = overflow.find(b.sheet);
+            if (it == overflow.end()) {
+                overflow.insert(b.sheet, int(out.size()));
+                out.push_back(b);
+                continue;
+            }
+            CellRange &r = out[it.value()].range;
+            r.row1 = std::min(r.row1, b.range.row1);
+            r.col1 = std::min(r.col1, b.range.col1);
+            r.row2 = std::max(r.row2, b.range.row2);
+            r.col2 = std::max(r.col2, b.range.col2);
         }
     };
     for (const ChartPlot &plot : chart.plots)
@@ -279,27 +282,67 @@ QVector<ChartBlock> chartReads(const Chart &chart, int ownSheet, const ChartCell
     return out;
 }
 
-ChartReadIndex::ChartReadIndex(const QVector<ChartBlock> &blocks, bool cut)
+void ChartReadIndex::Tree::build(std::vector<CellRange> list, bool rows)
 {
-    Q_UNUSED(cut);
+    byRow = rows;
+    blocks = std::move(list);
+    std::stable_sort(blocks.begin(), blocks.end(), [rows](const CellRange &a, const CellRange &b) { return rows ? a.row1 < b.row1 : a.col1 < b.col1; });
+    reach.assign(blocks.size(), 0);
+    fill(0, blocks.size());
+}
+
+quint32 ChartReadIndex::Tree::fill(size_t lo, size_t hi)
+{
+    if (lo >= hi) return 0;
+    const size_t mid = lo + (hi - lo) / 2;
+    quint32 far = byRow ? blocks[mid].row2 : blocks[mid].col2;
+    far = std::max(far, fill(lo, mid));
+    far = std::max(far, fill(mid + 1, hi));
+    reach[mid] = far;
+    return far;
+}
+
+bool ChartReadIndex::Tree::stab(size_t lo, size_t hi, quint32 along, quint32 across, qint64 *probes) const
+{
+    while (lo < hi) {
+        const size_t mid = lo + (hi - lo) / 2;
+        if (reach[mid] < along) return false;   // nothing in this stretch reaches as far
+        ++*probes;
+        if (stab(lo, mid, along, across, probes)) return true;
+        const CellRange &b = blocks[mid];
+        if ((byRow ? b.row1 : b.col1) > along) return false;   // this one and all after it begin past the place
+        if ((byRow ? b.row2 : b.col2) >= along && (byRow ? (across >= b.col1 && across <= b.col2) : (across >= b.row1 && across <= b.row2))) return true;
+        lo = mid + 1;
+    }
+    return false;
+}
+
+ChartReadIndex::ChartReadIndex(const QVector<ChartBlock> &blocks)
+{
     std::vector<ChartBlock> sorted(blocks.begin(), blocks.end());
-    std::stable_sort(sorted.begin(), sorted.end(), [](const ChartBlock &a, const ChartBlock &b) { return a.sheet != b.sheet ? a.sheet < b.sheet : a.range.row1 < b.range.row1; });
-    for (const ChartBlock &b : sorted) {
-        if (m_sheets.empty() || m_sheets.back().sheet != b.sheet) {
-            Sheet s;
-            s.sheet = b.sheet;
-            s.hull = b.range;
-            s.hull.valid = true;
-            m_sheets.push_back(s);
+    std::stable_sort(sorted.begin(), sorted.end(), [](const ChartBlock &a, const ChartBlock &b) { return a.sheet < b.sheet; });
+    for (size_t from = 0; from < sorted.size();) {
+        size_t to = from;
+        while (to < sorted.size() && sorted[to].sheet == sorted[from].sheet) ++to;
+        Sheet s;
+        s.sheet = sorted[from].sheet;
+        s.hull = sorted[from].range;
+        s.hull.valid = true;
+        std::vector<CellRange> rows, columns;
+        for (size_t i = from; i < to; ++i) {
+            const CellRange &r = sorted[i].range;
+            s.hull.row1 = std::min(s.hull.row1, r.row1);
+            s.hull.col1 = std::min(s.hull.col1, r.col1);
+            s.hull.row2 = std::max(s.hull.row2, r.row2);
+            s.hull.col2 = std::max(s.hull.col2, r.col2);
+            // (a block is kept in the tree of the direction it is shorter in: a whole column among small blocks is one place among the columns, not a reach down all the rows)
+            (qint64(r.row2) - r.row1 >= qint64(r.col2) - r.col1 ? columns : rows).push_back(r);
+            ++m_count;
         }
-        Sheet &s = m_sheets.back();
-        s.hull.row1 = std::min(s.hull.row1, b.range.row1);
-        s.hull.col1 = std::min(s.hull.col1, b.range.col1);
-        s.hull.row2 = std::max(s.hull.row2, b.range.row2);
-        s.hull.col2 = std::max(s.hull.col2, b.range.col2);
-        s.blocks.push_back(b.range);
-        s.maxLastRow.push_back(std::max(s.maxLastRow.empty() ? 0u : s.maxLastRow.back(), b.range.row2));
-        ++m_count;
+        s.byRow.build(std::move(rows), true);
+        s.byColumn.build(std::move(columns), false);
+        m_sheets.push_back(std::move(s));
+        from = to;
     }
 }
 
@@ -319,15 +362,7 @@ bool ChartReadIndex::reads(int sheet, quint32 row, quint32 col) const
 {
     const Sheet *s = find(sheet);
     if (!s || !s->hull.contains(row, col)) return false;
-    // the blocks that begin at or above the row, back from the last of them for as long as one of the blocks up to there reaches the row
-    auto it = std::upper_bound(s->blocks.begin(), s->blocks.end(), row, [](quint32 r, const CellRange &b) { return r < b.row1; });
-    for (size_t i = size_t(it - s->blocks.begin()); i-- > 0;) {
-        if (s->maxLastRow[i] < row) break;
-        ++m_probes;
-        const CellRange &b = s->blocks[i];
-        if (row <= b.row2 && col >= b.col1 && col <= b.col2) return true;
-    }
-    return false;
+    return s->byRow.stab(0, s->byRow.blocks.size(), row, col, &m_probes) || s->byColumn.stab(0, s->byColumn.blocks.size(), col, row, &m_probes);
 }
 
 namespace {
