@@ -106,6 +106,250 @@ private Q_SLOTS:
         CHECK_EVALS(cases, g, Settings());
     }
 
+    // The halving stops at a cell equal to the value and takes the last of the equal cells that follow it (a run), instead of going on to cells after it that are less:
+    // in a file of the practice workbooks, VLOOKUP(37104, ...) over 36251, 36951, 37104, 37012, 37377, ... gave the row of 37104, not the row of 37012 that the
+    // halving met after it (12 cells, and no cell of the 4,176 other lookups of data out of order told otherwise).
+    void approximateModeStopsAtACellEqualToTheValue()
+    {
+        Grid g;
+        g.column("A1", {1, 2, 20, 10, 15});            // 20 is met first, and 10 and 15 are less than it
+        g.column("B1", {QString("a"), QString("b"), QString("c"), QString("d"), QString("e")});
+        g.column("C1", {1, 5, 20, 20, 30});            // in order, with equal cells
+        g.column("D1", {20, 20, 20, 5, 20});           // the run of equal cells ends at the first cell that is not equal
+        g.column("E1", {5, 9, 7, 8, 6});               // for MATCH -1
+        g.column("F1", {QString("a"), QString("z"), QString("m"), QString("b"), QString("c")});
+        g.column("H1", {1, 2, 3, 4, 5});
+        g.column("I1", {QString("a"), QString("b"), QString("c"), QString("d"), QString("e")});
+        const E cases[] = {
+            {"VLOOKUP(20,A1:B5,2)", "s:c"},
+            {"VLOOKUP(20,A1:B5,2,TRUE)", "s:c"},
+            {"MATCH(20,A1:A5,1)", "n:3"},
+            {"MATCH(20,A1:A5)", "n:3"},
+            {"LOOKUP(20,A1:A5,B1:B5)", "s:c"},
+            {"LOOKUP(20,A1:A5)", "n:20"},
+            {"HLOOKUP(20,{1,2,20,10,15;\"a\",\"b\",\"c\",\"d\",\"e\"},2)", "s:c"},
+            {"VLOOKUP(20,{1,\"a\";2,\"b\";20,\"c\";10,\"d\";15,\"e\"},2)", "s:c"},
+            // equal cells in order: the last of them (the search reaches the first at the middle and goes on to the next)
+            {"MATCH(20,C1:C5,1)", "n:4"},
+            {"VLOOKUP(20,C1:D5,2)", "n:5"},       // (the second of the cells of 20 in C is in row 4, where D holds 5)
+            // the run is cut where a cell that is not equal comes
+            {"MATCH(20,D1:D5,1)", "n:3"},
+            // descending: the smallest cell not less than the value, stopping at an equal one
+            {"MATCH(7,E1:E5,-1)", "n:3"},
+            {"MATCH(50,{50,40,30,20,10},-1)", "n:1"},
+            {"MATCH(30,{50,40,30,30,10},-1)", "n:4"},
+            // text
+            {"MATCH(\"m\",F1:F5,1)", "n:3"},
+            {"VLOOKUP(\"M\",F1:F5,1)", "s:m"},
+            // a value that is not met keeps the rule of the last cell not after it
+            {"MATCH(12,A1:A5,1)", "n:2"},       // (20 is greater, then 1 and 2 are not: the 10 and the 15 are not met)
+            {"MATCH(3,H1:H5,1)", "n:3"},
+            {"MATCH(3.5,H1:H5,1)", "n:3"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
+    // Cells at the end of the range that hold nothing, and cells that are errors or another kind than the value, are passed over: the range of the lookup is the cells
+    // that can be compared (215 cells of the practice workbooks: a table of 21 rows and one empty, looked up by a value past the last, gave the last row, not the empty one).
+    void emptyCellsAndOtherKindsAreNotMet()
+    {
+        Grid g;
+        g.column("A1", {1, 5, 9, QString(), QString()});
+        g.column("B1", {QString("one"), QString("five"), QString("nine"), QString(), QString()});
+        g.column("D1", {QString("hdr"), 1, 5, 9, QString("total")});
+        g.column("E1", {QString("h"), QString("a"), QString("b"), QString("c"), QString("t")});
+        g.e("G1", ErrorKind::NA).n("G2", 1).e("G3", ErrorKind::Div0).n("G4", 3).e("G5", ErrorKind::NA);
+        const E cases[] = {
+            {"MATCH(100,A1:A5,1)", "n:3"},
+            {"VLOOKUP(100,A1:B5,2)", "s:nine"},
+            {"VLOOKUP(6,A1:B5,2)", "s:five"},
+            {"VLOOKUP(0,A1:B5,2)", "e:#N/A"},
+            {"MATCH(100,A1:A8,1)", "n:3"},                      // empty cells past the data
+            {"MATCH(7,D1:D5,1)", "n:3"},                        // a heading before, a total after
+            {"VLOOKUP(7,D1:E5,2)", "s:b"},
+            {"VLOOKUP(100,D1:E5,2)", "s:c"},
+            {"MATCH(\"zzz\",D1:D5,1)", "n:5"},                  // the last text: numbers before it are another kind
+            {"MATCH(\"a\",D1:D5,1)", "e:#N/A"},                 // "a" is before "hdr", and the only text before it is none
+            {"MATCH(2,G1:G5,1)", "n:2"},                        // errors passed over
+            {"MATCH(9.99E+307,G1:G5)", "n:4"},
+            {"LOOKUP(2,1/(G1:G5>0),G1:G5)", "n:3"},
+            {"MATCH(TRUE,D1:D5,1)", "e:#N/A"},                  // no logical value among the cells
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
+    // The end of a run of equal cells is found by doubling and halving, not by looking at each cell (a lookup of a date in a sorted column of a hundred thousand
+    // rows with one date each of a thousand times must not take the steps of the rows).
+    void aLongRunOfEqualCellsCostsNoMoreThanItsLogarithm()
+    {
+        Grid g;
+        QVariantList values;
+        for (int i = 0; i < 40000; ++i) values << (i < 10 ? 1 : (i < 39990 ? 5 : 9));
+        g.column("A1", values);
+        const E cases[] = {
+            {"MATCH(5,A1:A40000,1)", "n:39990"},
+            {"MATCH(5,A1:A40000,-1)", "n:39990"},
+            {"LOOKUP(5,A1:A40000)", "n:5"},
+            {"VLOOKUP(5,A1:A40000,1)", "n:5"},
+        };
+        for (const auto &c : cases) {
+            const Outcome o = evOutcome(QString::fromUtf8(c.formula), g);
+            QVERIFY2(o.text == QString::fromUtf8(c.value), qPrintable(QString::fromUtf8(c.formula) + QStringLiteral(" gave ") + o.text));
+            QVERIFY2(o.work < 400, qPrintable(QString::fromUtf8(c.formula) + QStringLiteral(" took ") + QString::number(o.work) + QStringLiteral(" steps")));
+        }
+    }
+
+    // A value of more than 255 characters is a #VALUE! in VLOOKUP, HLOOKUP, and MATCH, whatever the mode, whether or not it has a wildcard in it; one of 255 is looked up.
+    void aTextValueOfMoreThan255CharactersIsAValueError()
+    {
+        Grid g;
+        g.column("A1", {QString(255, QLatin1Char('a')), QString("b")});
+        g.column("B1", {1, 2});
+        const E cases[] = {
+            {"VLOOKUP(REPT(\"a\",255),A1:B2,2,FALSE)", "n:1"},
+            {"VLOOKUP(REPT(\"a\",256),A1:B2,2,FALSE)", "e:#VALUE!"},
+            {"VLOOKUP(REPT(\"a\",256),A1:B2,2)", "e:#VALUE!"},
+            {"VLOOKUP(REPT(\"a\",256),A1:B2,2,TRUE)", "e:#VALUE!"},
+            {"VLOOKUP(REPT(\"a\",255)&\"*\",A1:B2,2,FALSE)", "e:#VALUE!"},
+            {"HLOOKUP(REPT(\"a\",256),A1:B2,2,FALSE)", "e:#VALUE!"},
+            {"HLOOKUP(REPT(\"a\",256),A1:B2,2)", "e:#VALUE!"},
+            {"MATCH(REPT(\"a\",256),A1:A2,0)", "e:#VALUE!"},
+            {"MATCH(REPT(\"a\",256),A1:A2,1)", "e:#VALUE!"},
+            {"MATCH(REPT(\"a\",256),A1:A2)", "e:#VALUE!"},
+            {"MATCH(REPT(\"a\",255),A1:A2,0)", "n:1"},
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
+    // A letter with an accent sorts with its letter (after the plain one when the rest is the same), not after z: e, é, f, z is in order. The accent is a difference
+    // in a lookup for an exact match (é is not e), as the case is not.
+    void lettersWithAccentsSortNextToTheirLetters()
+    {
+        const QString eAcute(QChar(0xE9)), capEAcute(QChar(0xC9)), oCirc(QChar(0xF4)), aDiaer(QChar(0xE4));
+        Grid g;
+        g.column("A1", {QStringLiteral("e"), eAcute, QStringLiteral("f"), QStringLiteral("z")});
+        g.column("B1", {1, 2, 3, 4});
+        g.column("D1", {QStringLiteral("cote"), QStringLiteral("cot") + eAcute, QStringLiteral("c") + oCirc + QStringLiteral("te"), QStringLiteral("c") + oCirc + QStringLiteral("t") + eAcute});
+        g.column("F1", {QStringLiteral("a"), aDiaer + QStringLiteral("b"), QStringLiteral("ac")});
+        const auto q = [&](const QString &s) { return QStringLiteral("\"") + s + QStringLiteral("\""); };
+        struct C {
+            QString formula, value;
+        };
+        const C cases[] = {
+            {QStringLiteral("MATCH(\"f\",A1:A4,1)"), QStringLiteral("n:3")},
+            {QStringLiteral("MATCH(\"e\",A1:A4,1)"), QStringLiteral("n:1")},
+            {QStringLiteral("MATCH(") + q(eAcute) + QStringLiteral(",A1:A4,1)"), QStringLiteral("n:2")},
+            {QStringLiteral("MATCH(") + q(capEAcute) + QStringLiteral(",A1:A4,1)"), QStringLiteral("n:2")},
+            {QStringLiteral("MATCH(\"ez\",A1:A4,1)"), QStringLiteral("n:2")},                    // after é: the letters first, then the accents
+            {QStringLiteral("VLOOKUP(\"g\",A1:B4,2)"), QStringLiteral("n:3")},
+            {QStringLiteral("MATCH(") + q(eAcute) + QStringLiteral(",A1:A4,0)"), QStringLiteral("n:2")},
+            {QStringLiteral("MATCH(") + q(capEAcute) + QStringLiteral(",A1:A4,0)"), QStringLiteral("n:2")},    // the case is not a difference
+            {QStringLiteral("MATCH(\"e\",{") + q(eAcute) + QStringLiteral("},0)"), QStringLiteral("e:#N/A")},  // the accent is
+            {QStringLiteral("MATCH(") + q(eAcute) + QStringLiteral(",{\"e\"},0)"), QStringLiteral("e:#N/A")},
+            // the first accent that differs decides, after the letters: cote, coté, côte, côté
+            {QStringLiteral("MATCH(") + q(QStringLiteral("cot") + eAcute) + QStringLiteral(",D1:D4,1)"), QStringLiteral("n:2")},
+            {QStringLiteral("MATCH(") + q(QStringLiteral("c") + oCirc + QStringLiteral("te")) + QStringLiteral(",D1:D4,1)"), QStringLiteral("n:3")},
+            {QStringLiteral("MATCH(") + q(QStringLiteral("c") + oCirc + QStringLiteral("t") + eAcute) + QStringLiteral(",D1:D4,1)"), QStringLiteral("n:4")},
+            // the letters decide before the accents: a, äb, ac
+            {QStringLiteral("MATCH(\"ac\",F1:F3,1)"), QStringLiteral("n:3")},
+            {QStringLiteral("MATCH(") + q(aDiaer + QStringLiteral("b")) + QStringLiteral(",F1:F3,1)"), QStringLiteral("n:2")},
+            // the same order for the operators
+            {q(eAcute) + QStringLiteral("<\"f\""), QStringLiteral("b:1")},
+            {q(eAcute) + QStringLiteral(">\"e\""), QStringLiteral("b:1")},
+            {q(eAcute) + QStringLiteral(">\"z\""), QStringLiteral("b:0")},
+            {q(aDiaer + QStringLiteral("b")) + QStringLiteral(">\"ac\""), QStringLiteral("b:0")},
+            {q(eAcute) + QStringLiteral("=") + q(capEAcute), QStringLiteral("b:1")},
+            {q(eAcute) + QStringLiteral("=\"e\""), QStringLiteral("b:0")},
+            // e and the combining accent that follows it are the é that is one character
+            {QStringLiteral("\"e") + QString(QChar(0x301)) + QStringLiteral("\"=") + q(eAcute), QStringLiteral("b:1")},
+            {QStringLiteral("MATCH(") + q(QStringLiteral("e") + QString(QChar(0x301))) + QStringLiteral(",A1:A4,0)"), QStringLiteral("n:2")},
+        };
+        for (const C &c : cases) {
+            const QString got = ev(c.formula, g, Settings());
+            QVERIFY2(got == c.value, qPrintable(c.formula + QStringLiteral(" gave [") + got + QStringLiteral("], expected [") + c.value + QLatin1Char(']')));
+        }
+    }
+
+    // What the arguments may be, and what a lookup gives back for the cell it finds. In the practice workbooks: the first of equal cells in 3,116 exact lookups, a
+    // difference of case only in 2,653, an empty cell found (0, or "" joined to text) in 65,701, an error cell found in 1,573, and a "" looked up in cells that hold "" in 328.
+    void argumentsAndWhatIsFound()
+    {
+        Grid g = sample();
+        g.column("S1", {QString("k1"), QString("k2"), QString("k3"), QString("k4"), QString("k5")});
+        g.column("T1", {QString("v1"), QString(), QString(), 5});   // (T2 is empty)
+        g.e("T3", ErrorKind::Div0).s("T5", QString());              // and T5 holds a text of no characters
+        g.column("V1", {1, 2, 2, 3});
+        g.column("W1", {QString("p"), QString("q"), QString("r"), QString("s")});
+        const E cases[] = {
+            // the column number: cut toward zero, a text read as a number, true as 1; under 1 is #VALUE!, past the table #REF!
+            {"VLOOKUP(\"b\",A1:C4,2.9,FALSE)", "n:2"},
+            {"VLOOKUP(\"b\",A1:C4,\"2\",FALSE)", "n:2"},
+            {"VLOOKUP(\"b\",A1:C4,TRUE,FALSE)", "s:b"},
+            {"VLOOKUP(\"b\",A1:C4,0.5,FALSE)", "e:#VALUE!"},
+            {"VLOOKUP(\"b\",A1:C4,-1,FALSE)", "e:#VALUE!"},
+            {"VLOOKUP(\"b\",A1:C4,Z9,FALSE)", "e:#VALUE!"},
+            {"VLOOKUP(\"b\",A1:C4,\"a\",FALSE)", "e:#VALUE!"},
+            {"VLOOKUP(\"b\",A1:C4,4,FALSE)", "e:#REF!"},
+            {"VLOOKUP(\"zz\",A1:C4,4,FALSE)", "e:#REF!"},       // (the column is looked at before the value is found)
+            {"HLOOKUP(\"c\",N1:Q2,2.5,FALSE)", "n:3"},
+            // the last argument: a number is true unless it is 0, a text must be TRUE or FALSE, an empty cell is false
+            {"VLOOKUP(25,E1:F5,2,2)", "s:twenty"},
+            {"VLOOKUP(25,E1:F5,2,-1)", "s:twenty"},
+            {"VLOOKUP(25,E1:F5,2,0)", "e:#N/A"},
+            {"VLOOKUP(25,E1:F5,2,\"TRUE\")", "s:twenty"},
+            {"VLOOKUP(25,E1:F5,2,\"false\")", "e:#N/A"},
+            {"VLOOKUP(25,E1:F5,2,\"abc\")", "e:#VALUE!"},
+            {"VLOOKUP(25,E1:F5,2,Z9)", "e:#N/A"},
+            {"VLOOKUP(25,E1:F5,2)", "s:twenty"},
+            // a table of one column or one row
+            {"VLOOKUP(2,V1:V4,1,FALSE)", "n:2"},
+            {"VLOOKUP(2,V1:V4,2,FALSE)", "e:#REF!"},
+            {"HLOOKUP(\"c\",N1:Q1,1,FALSE)", "s:c"},
+            {"VLOOKUP(2,V:W,2,FALSE)", "s:q"},
+            {"MATCH(3,V:V,1)", "n:4"},
+            // the first of equal cells, whatever the case
+            {"VLOOKUP(2,V1:W4,2,FALSE)", "s:q"},
+            {"MATCH(2,V1:V4,0)", "n:2"},
+            {"MATCH(\"K2\",S1:S5,0)", "n:2"},
+            // kinds: a number is not the same text, a text not the same number, a truth value neither
+            {"MATCH(5,{\"5\",5},0)", "n:2"},
+            {"MATCH(\"5\",{5,\"5\"},0)", "n:2"},
+            {"MATCH(1,{TRUE,1},0)", "n:2"},
+            {"MATCH(TRUE,{1,TRUE},0)", "n:2"},
+            {"MATCH(\"\",{\"\",\"a\"},0)", "n:1"},               // "" is a text
+            {"MATCH(\"\",T1:T5,0)", "n:5"},                      // T2 is empty, and an empty cell is not "" (T5 is)
+            // wildcards in a text looked up for an exact match, not in the other mode, not in a number
+            {"MATCH(\"k?\",S1:S5,0)", "n:1"},
+            {"MATCH(\"*5\",S1:S5,0)", "n:5"},
+            {"MATCH(\"k~?\",{\"k?\",\"k1\"},0)", "n:1"},
+            {"MATCH(\"c*\",{\"b\",\"cat\",\"d\"},1)", "n:1"},      // (plain text in this mode: "c*" is before "cat")
+            {"VLOOKUP(\"c*\",H1:I4,2,TRUE)", "n:2"},
+            {"MATCH(1*5,{\"5*\",5},0)", "n:2"},
+            // an error looked up is the result; an error cell is never found
+            {"VLOOKUP(#DIV/0!,T1:T5,1,FALSE)", "e:#DIV/0!"},
+            {"MATCH(#N/A,{#N/A,1},0)", "e:#N/A"},
+            {"MATCH(1,{#N/A,1},0)", "n:2"},
+            // what is found: an empty cell is 0 as a result and "" joined to text; an error cell is its error; a formula that is "" is ""
+            {"VLOOKUP(\"k2\",S1:T5,2,FALSE)", "n:0"},
+            {"VLOOKUP(\"k2\",S1:T5,2,FALSE)&\"|\"", "s:|"},
+            {"VLOOKUP(\"k2\",S1:T5,2,FALSE)+1", "n:1"},
+            {"VLOOKUP(\"k3\",S1:T5,2,FALSE)", "e:#DIV/0!"},
+            {"VLOOKUP(\"k5\",S1:T5,2,FALSE)", "s:"},
+            {"VLOOKUP(\"k4\",S1:T5,2,FALSE)", "n:5"},
+            // around the result
+            {"IF(ISNA(VLOOKUP(\"zz\",A1:C4,2,FALSE)),\"none\",VLOOKUP(\"zz\",A1:C4,2,FALSE))", "s:none"},
+            {"IF(ISNA(VLOOKUP(\"c\",A1:C4,3,FALSE)),\"none\",VLOOKUP(\"c\",A1:C4,3,FALSE))", "s:z"},
+            {"IF(ISNA(VLOOKUP(\"k3\",S1:T5,2,FALSE)),\"none\",VLOOKUP(\"k3\",S1:T5,2,FALSE))", "e:#DIV/0!"},
+            {"IF(ISNA(VLOOKUP(\"k2\",S1:T5,2,FALSE)),\"none\",VLOOKUP(\"k2\",S1:T5,2,FALSE))", "n:0"},
+            {"ISNA(VLOOKUP(\"k3\",S1:T5,2,FALSE))", "b:0"},
+            {"ISERROR(VLOOKUP(\"k3\",S1:T5,2,FALSE))", "b:1"},
+            {"IFERROR(VLOOKUP(\"zz\",A1:C4,3,FALSE),\"none\")", "s:none"},
+            {"ISNA(MATCH(\"zz\",A1:A4,0))", "b:1"},
+            {"ISNA(VLOOKUP(\"zz\",A1:C4,9,FALSE))", "b:0"},      // (#REF!, not #N/A)
+        };
+        CHECK_EVALS(cases, g, Settings());
+    }
+
     void matchInItsThreeModes()
     {
         const Grid g = sample();
