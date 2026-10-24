@@ -101,6 +101,23 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
         }
         if (hit) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "That would change part of an array formula or a data table, which can't be done.")));
     }
+    // a data table reads its input cells (its text names them, TABLE(A1) or TABLE(A1,B1)): the file has no way to say that one was deleted, so that is not done
+    if (deletes(e)) {
+        QStringList names;
+        for (const quint32 id : m_special) {
+            const Node &n = m_nodes[id];
+            if ((n.flags & Dead) || n.sheet != e.sheet || n.kept != 'D') continue;
+            const Cell *c = s.cells.find(n.row, n.col);
+            if (!c || !c->hasFormula()) continue;
+            if (names.isEmpty())
+                for (const SheetEntry &se : m_book.info().sheets) names << se.name;
+            const QString was = s.formulaText(*c);
+            bool changed = false;
+            const QString now = adjustFormula(was, n.sheet, names, e, &changed);
+            if (changed && now.contains(QLatin1String("#REF!")) && !was.contains(QLatin1String("#REF!")))
+                return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "That would delete a cell that a data table reads, which can't be done.")));
+        }
+    }
     // cells would be pushed off the edge of the sheet
     if (!deletes(e)) {
         const bool rows = e.kind == K::InsertRows || e.kind == K::InsertCellsDown;
@@ -398,9 +415,19 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
             ++rec->formulasRewritten;
             rec->rewritten.push_back({sheet, c->row, c->col, bool(c->flags & DataTable)});
         }
+        const bool wasKeptForItsFunction = (n0.flags & Kept) && n0.kept == 'U';
+        const Value resultItHad = wasKeptForItsFunction ? nodeValue(n0, r.id) : Value();
         dropNode(r.id);
         const quint32 id = addNode(sheet, *c, c->formula);
         queueDependents(areaOf(m_nodes[id]));
+        if (wasKeptForItsFunction && (m_nodes[id].flags & Kept) && m_nodes[id].kept == 'U') {
+            // (a formula kept apart for a function the engine lacks has the result it had, #NAME? if something it read changed; and #NAME? when a cell it read is deleted)
+            storeResult(m_nodes[id], id, resultItHad, false);
+            if (r.now.contains(QLatin1String("#REF!")) && !r.was.contains(QLatin1String("#REF!"))) {
+                std::vector<CellArea> given;
+                giveName(id, &given);
+            }
+        }
     }
     // what reads cells that moved in or out of a range it reads (a text that is as it was, a whole column, or a block shifted inside a range) has its value again
     queueDependents(region);

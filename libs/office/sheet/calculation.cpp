@@ -329,8 +329,8 @@ void Calculation::storeResult(Node &n, quint32 id, const Value &given, bool publ
         if (v.isArray()) {
             for (int i = 0; i < v.rows(); ++i)
                 for (int j = 0; j < v.cols(); ++j) m_sink(n.sheet, n.row + quint32(i), quint32(n.col) + quint32(j), v.at(i, j));
-        } else if ((n.flags & Array)) {
-            // (an array formula whose result is no array, an error or a single value, shows it in every cell of its range)
+        } else if ((n.flags & Array) && !(n.flags & Kept)) {
+            // (an array formula whose result is no array, an error or a single value, shows it in every cell of its range; the cells of one that is kept apart are the file's, not its)
             const CellArea a = areaOf(n);
             if (a.rows() * a.cols() > 1 && a.rows() * a.cols() <= kMaxArrayCellsMarked) {
                 for (qint64 i = 0; i < a.rows(); ++i)

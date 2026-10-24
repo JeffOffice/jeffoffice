@@ -281,6 +281,16 @@ struct ScriptResult {
 // The model the window has, made again from the bytes of the file saved: the cells are compared one by one.
 void compareModels(const Calculation *live, const Calculation *saved, ScriptResult *r)
 {
+    // (JC_ROUNDTRIP_SHOW=1 writes the first cells that differ to the error output, with the two values)
+    static const bool show = qEnvironmentVariableIntValue("JC_ROUNDTRIP_SHOW") != 0;
+    int shown = 0;
+    auto say = [&](int s, quint32 row, quint32 col, const char *what, const Calculation::CellContent &x, const Calculation::CellContent &y) {
+        if (!show || shown++ >= 25) return;
+        auto text = [](const jp::calc::Value &v) {
+            return v.isNumber() ? QString::number(v.number(), 'g', 17) : v.isText() ? QLatin1Char('"') + v.text() + QLatin1Char('"') : v.isBool() ? QString::number(v.boolean()) : v.isError() ? QStringLiteral("error ") + QString::number(int(v.errorKind())) : QStringLiteral("(empty)");
+        };
+        qWarning().noquote() << "differs:" << what << "sheet" << s << cellName(row, col) << "live" << x.formula << text(x.value) << "saved" << y.formula << text(y.value);
+    };
     auto empty = [](const Calculation::CellContent &c) { return !c.exists || (!c.isFormula && c.value.isEmpty() && c.style == 0); };
     bool circular = false;
     for (int s = 0; s < live->sheetCount() && !circular; ++s)
@@ -297,11 +307,16 @@ void compareModels(const Calculation *live, const Calculation *saved, ScriptResu
             // (a cell of an array holds the result the file had, which is no part of what it means: what it shows is compared)
             const bool member = !x.editable && !x.isFormula;
             if (empty(x) != empty(y) || x.isFormula != y.isFormula || x.formula != y.formula || (!member && !sameShown(x.value, y.value)) || x.style != y.style) {
+                say(s, row, col, "content", x, y);
                 r->differences.add(empty(x) != empty(y) ? QStringLiteral("a cell is there or not") : x.isFormula != y.isFormula || x.formula != y.formula ? QStringLiteral("a formula differs")
                                    : x.style != y.style ? QStringLiteral("a format differs") : QStringLiteral("a value differs"));
                 return;
             }
             if (!circular && !sameShown(live->cell(s, row, col), saved->cell(s, row, col))) {
+                Calculation::CellContent a = x, b = y;
+                a.value = live->cell(s, row, col);
+                b.value = saved->cell(s, row, col);
+                say(s, row, col, "result", a, b);
                 r->differences.add(QStringLiteral("a result differs"));
                 return;
             }
@@ -371,6 +386,11 @@ void runScript(Opened &w, const QByteArray &original, ScriptResult *r)
     if (!saveXlsx(*w.loader.result()->book, snap.changes, &bytes, &why, &report)) {
         r->differences.add(QStringLiteral("save failed: ") + why);
         return;
+    }
+    const QString keepAs = qEnvironmentVariable("JC_ROUNDTRIP_KEEP_SCRIPT");   // (a file to keep the workbook saved after the script in, for a look at it)
+    if (!keepAs.isEmpty()) {
+        QFile kept(keepAs);
+        if (kept.open(QIODevice::WriteOnly)) kept.write(bytes);
     }
     const QMap<QString, QByteArray> a = rawEntries(original), b = rawEntries(bytes);
     QSet<QString> changed;
@@ -533,7 +553,7 @@ int roundtripOne(const QString &path)
             w.session->setLocale(QLocale::c());
             w.trackChanges = true;
             w.beginEdit();
-            const crunch::EditSession::Outcome o = w.session->type(sheet, row, col, typedText);
+            const crunch::EditSession::Outcome o = w.session->type(sheet, row, col, typedText, false);   // (the yardstick is for saving: a rule of validation does not stand in its way)
             if (!o.ok) {
                 edited.add(QStringLiteral("edit refused: ") + o.problem);
             } else if (!w.settle()) {

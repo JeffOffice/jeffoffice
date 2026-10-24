@@ -335,6 +335,50 @@ private Q_SLOTS:
         QVERIFY2(why.contains(QLatin1String("protected")), qPrintable(why));
     }
 
+    // A formula kept apart for a function the engine lacks has the result the file stored until something it reads changes: then it has #NAME?, and so it has when a cell it read is
+    // deleted (its text has #REF! in it, and nothing it reads changes any more, so it is given at once); Undo gives back its text.
+    void aFormulaKeptApartForItsFunctionKeepsItsResultUnlessACellItReadsIsDeleted()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row><row r=\"3\"><c r=\"C3\"><f>_xll.NOPE(A2)</f><v>7</v></c></row>");
+        Book b;
+        QVERIFY(b.openXml(worksheet(rows)));
+        QCOMPARE(b.at("C3"), QStringLiteral("n:7"));
+        Calculation::EditRecord up, gone;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &up));   // the cell it reads is A3 now (it moved, which is a change of what it reads: #NAME?)
+        QCOMPARE(b.formula("C4"), QStringLiteral("_xll.NOPE(A3)"));
+        QCOMPARE(b.at("C4"), QStringLiteral("e:#NAME?"));
+        QVERIFY(b.calc->undoEdit(up));
+        b.finish();
+        QCOMPARE(b.formula("C3"), QStringLiteral("_xll.NOPE(A2)"));
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 1, 1), &gone));   // A2 is deleted
+        QCOMPARE(b.formula("C2"), QStringLiteral("_xll.NOPE(#REF!)"));
+        QCOMPARE(b.at("C2"), QStringLiteral("e:#NAME?"));
+        QVERIFY(b.calc->undoEdit(gone));
+        b.finish();
+        QCOMPARE(b.formula("C3"), QStringLiteral("_xll.NOPE(A2)"));
+    }
+
+    // A data table reads its input cells: deleting one is refused (the file cannot say it is gone), and a row or column inserted or deleted elsewhere moves the table's reference with the cell.
+    void aDataTablesInputCellIsNotDeleted()
+    {
+        const QString rows = QStringLiteral("<row r=\"2\"><c r=\"B2\"><v>1</v></c><c r=\"D2\"><f t=\"dataTable\" ref=\"D2:D3\" r1=\"B2\"/><v>5</v></c></row><row r=\"3\"><c r=\"D3\"><v>6</v></c></row>");
+        Book b;
+        QVERIFY(b.openXml(worksheet(rows)));
+        QString why;
+        QVERIFY(!b.calc->canApply(StructEdit::deleteRows(0, 1, 1), &why));   // row 2 holds B2
+        QVERIFY2(why.contains(QLatin1String("data table")), qPrintable(why));
+        QVERIFY(!b.calc->canApply(StructEdit::deleteColumns(0, 0, 3), &why));   // columns A to C hold it
+        Calculation::EditRecord none;
+        QVERIFY(!b.calc->applyEdit(StructEdit::deleteColumns(0, 1, 1), &none));
+        QCOMPARE(b.calc->content(0, 1, 1).value.number(), 1.0);              // (nothing changed)
+        // a row above the cell, and a column beside it, are fine: the table's text follows the cell
+        QVERIFY(b.calc->canApply(StructEdit::deleteRows(0, 0, 1), &why));
+        QVERIFY(b.calc->canApply(StructEdit::deleteColumns(0, 0, 1), &why));
+        Calculation::EditRecord rec;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 2), &rec));
+        QCOMPARE(b.calc->content(0, 3, 3).formula, QStringLiteral("TABLE(B4)"));
+    }
+
     // Where a table is after rows, columns, and cells are inserted and deleted around it: it moves, grows, and shrinks with its rows, and is not cut through.
     void aTableMovesGrowsShrinksOrRefusesTheEdit()
     {
