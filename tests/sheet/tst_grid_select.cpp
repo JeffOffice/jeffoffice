@@ -11,6 +11,7 @@
 #include <functional>
 #include <set>
 
+#include "../localepin.h"
 #include "../testrunner.h"
 
 using namespace jp::grid;
@@ -464,6 +465,7 @@ private Q_SLOTS:
     // The cells that hold something, the numbers among them, and their sum, average, smallest, and largest; hidden rows and columns are left out.
     void aRangeIsCountedAndAddedUp()
     {
+        const PinnedLocale english;
         Sheet sheet;
         auto num = [&](quint32 r, quint32 c, double v) {
             Cell x;

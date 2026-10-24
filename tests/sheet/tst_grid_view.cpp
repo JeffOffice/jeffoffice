@@ -2,6 +2,7 @@
 // million rows, Home and End, the page keys, Tab and Enter, clicks, drags, the headers), the address and text of the cell with the cursor, the numbers of the selection, copying
 // it as text, and zoom. The window is offscreen; every sheet is made here.
 #include "sheethelpers.h"
+#include "../localepin.h"
 
 #include "grid/gridview.h"
 
@@ -368,6 +369,7 @@ private Q_SLOTS:
     // The numbers of the selection reach the status bar when added up (not for one cell), and a whole column is added up as far as its used rows.
     void theNumbersOfTheSelectionAreToldWhenAddedUp()
     {
+        const PinnedLocale english;
         Book b;
         for (quint32 r = 0; r < 4; ++r)
             for (quint32 c = 0; c < 2; ++c) b.number(r, c, r * 2.0 + c + 1);
