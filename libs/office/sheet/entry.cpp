@@ -17,8 +17,6 @@ namespace jp::office::sheet {
 
 namespace {
 
-QString tr(const char *text) { return QCoreApplication::translate("jp::office::sheet::Entry", text); }
-
 bool isDigit(QChar c) { return c.unicode() >= '0' && c.unicode() <= '9'; }
 
 bool isSpaceLike(QChar c) { return c.isSpace() || c.unicode() == 0x202F || c.unicode() == 0x00A0; }
@@ -497,26 +495,27 @@ bool readDateTime(const QString &typed, const EntryOptions &o, double *value, QS
 
 namespace {
 
-// The functions that the file format has with the prefix _xlfn. in front: those added after its first release (a fixed list of the format's, whether or not this program has them: a
-// formula that names one this program lacks is kept as the file has it).
+// The functions that the file format has with the prefix _xlfn. in front: those added after its first release, to Excel 2010 and later (a fixed list of the format's, whether or not
+// this program has them: a formula that names one this program lacks is kept as the file has it). Sorted; FILTER and SORT, which only a sheet has, are written _xlfn._xlws.
+const char *const kPrefixedFunctions[] = {
+    "ACOT", "ACOTH", "AGGREGATE", "ARABIC", "ARRAYTOTEXT", "BASE", "BETA.DIST", "BETA.INV", "BINOM.DIST", "BINOM.DIST.RANGE", "BINOM.INV", "BITAND", "BITLSHIFT", "BITOR", "BITRSHIFT",
+    "BITXOR", "BYCOL", "BYROW", "CEILING.MATH", "CEILING.PRECISE", "CHISQ.DIST", "CHISQ.DIST.RT", "CHISQ.INV", "CHISQ.INV.RT", "CHISQ.TEST", "CHOOSECOLS", "CHOOSEROWS", "COMBINA",
+    "CONCAT", "CONFIDENCE.NORM", "CONFIDENCE.T", "COT", "COTH", "COVARIANCE.P", "COVARIANCE.S", "CSC", "CSCH", "DAYS", "DBCS", "DECIMAL", "DETECTLANGUAGE", "DROP", "ENCODEURL",
+    "ERF.PRECISE", "ERFC.PRECISE", "EXPAND", "EXPON.DIST", "F.DIST", "F.DIST.RT", "F.INV", "F.INV.RT", "F.TEST", "FIELDVALUE", "FILTER", "FILTERXML", "FLOOR.MATH", "FLOOR.PRECISE",
+    "FORECAST.ETS", "FORECAST.ETS.CONFINT", "FORECAST.ETS.SEASONALITY", "FORECAST.ETS.STAT", "FORECAST.LINEAR", "FORMULATEXT", "GAMMA", "GAMMA.DIST", "GAMMA.INV", "GAMMALN.PRECISE",
+    "GAUSS", "GROUPBY", "HSTACK", "HYPGEOM.DIST", "IFNA", "IFS", "IMAGE", "IMCOSH", "IMCOT", "IMCSC", "IMCSCH", "IMSEC", "IMSECH", "IMSINH", "IMTAN", "ISFORMULA", "ISO.CEILING",
+    "ISOMITTED", "ISOWEEKNUM", "LAMBDA", "LET", "LOGNORM.DIST", "LOGNORM.INV", "MAKEARRAY", "MAP", "MAXIFS", "MINIFS", "MODE.MULT", "MODE.SNGL", "MUNIT", "NEGBINOM.DIST",
+    "NETWORKDAYS.INTL", "NORM.DIST", "NORM.INV", "NORM.S.DIST", "NORM.S.INV", "NUMBERVALUE", "PDURATION", "PERCENTILE.EXC", "PERCENTILE.INC", "PERCENTOF", "PERCENTRANK.EXC",
+    "PERCENTRANK.INC", "PERMUTATIONA", "PHI", "PIVOTBY", "POISSON.DIST", "QUARTILE.EXC", "QUARTILE.INC", "QUERYSTRING", "RANDARRAY", "RANK.AVG", "RANK.EQ", "REDUCE", "REGEXEXTRACT",
+    "REGEXREPLACE", "REGEXTEST", "RRI", "SCAN", "SEC", "SECH", "SEQUENCE", "SHEET", "SHEETS", "SINGLE", "SKEW.P", "SORT", "SORTBY", "STDEV.P", "STDEV.S", "STOCKHISTORY", "SWITCH",
+    "T.DIST", "T.DIST.2T", "T.DIST.RT", "T.INV", "T.INV.2T", "T.TEST", "TAKE", "TEXTAFTER", "TEXTBEFORE", "TEXTJOIN", "TEXTSPLIT", "TOCOL", "TOROW", "TRANSLATE", "TRIMRANGE",
+    "UNICHAR", "UNICODE", "UNIQUE", "VALUETOTEXT", "VAR.P", "VAR.S", "VSTACK", "WEBSERVICE", "WEIBULL.DIST", "WORKDAY.INTL", "WRAPCOLS", "WRAPROWS", "XLOOKUP", "XMATCH", "XOR", "Z.TEST"};
+
 bool needsFilePrefix(const QString &upperName)
 {
     static const QSet<QString> names = [] {
-        static const char *const list[] = {
-            "ACOT", "ACOTH", "AGGREGATE", "ARABIC", "ARRAYTOTEXT", "BASE", "BETA.DIST", "BETA.INV", "BINOM.DIST", "BINOM.DIST.RANGE", "BINOM.INV", "BITAND", "BITLSHIFT", "BITOR", "BITRSHIFT",
-            "BITXOR", "BYCOL", "BYROW", "CEILING.MATH", "CEILING.PRECISE", "CHISQ.DIST", "CHISQ.DIST.RT", "CHISQ.INV", "CHISQ.INV.RT", "CHISQ.TEST", "CHOOSECOLS", "CHOOSEROWS", "COMBINA",
-            "CONCAT", "CONFIDENCE.NORM", "CONFIDENCE.T", "COT", "COTH", "COVARIANCE.P", "COVARIANCE.S", "CSC", "CSCH", "DAYS", "DECIMAL", "DROP", "ENCODEURL", "ERF.PRECISE", "ERFC.PRECISE",
-            "EXPAND", "EXPON.DIST", "F.DIST", "F.DIST.RT", "F.INV", "F.INV.RT", "F.TEST", "FILTER", "FILTERXML", "FLOOR.MATH", "FLOOR.PRECISE", "FORECAST.ETS", "FORECAST.ETS.CONFINT",
-            "FORECAST.ETS.SEASONALITY", "FORECAST.ETS.STAT", "FORECAST.LINEAR", "FORMULATEXT", "GAMMA", "GAMMA.DIST", "GAMMA.INV", "GAMMALN.PRECISE", "GAUSS", "GROUPBY", "HSTACK",
-            "HYPGEOM.DIST", "IFNA", "IFS", "IMAGE", "IMCOSH", "IMCOT", "IMCSC", "IMCSCH", "IMSEC", "IMSECH", "IMSINH", "IMTAN", "ISFORMULA", "ISOMITTED", "ISOWEEKNUM", "LAMBDA", "LET",
-            "LOGNORM.DIST", "LOGNORM.INV", "MAKEARRAY", "MAP", "MAXIFS", "MINIFS", "MODE.MULT", "MODE.SNGL", "MUNIT", "NEGBINOM.DIST", "NETWORKDAYS.INTL", "NORM.DIST", "NORM.INV",
-            "NORM.S.DIST", "NORM.S.INV", "NUMBERVALUE", "PDURATION", "PERCENTILE.EXC", "PERCENTILE.INC", "PERCENTOF", "PERCENTRANK.EXC", "PERCENTRANK.INC", "PERMUTATIONA", "PHI", "PIVOTBY",
-            "POISSON.DIST", "QUARTILE.EXC", "QUARTILE.INC", "QUERYSTRING", "RANDARRAY", "RANK.AVG", "RANK.EQ", "REDUCE", "REGEXEXTRACT", "REGEXREPLACE", "REGEXTEST", "RRI", "SCAN", "SEC",
-            "SECH", "SEQUENCE", "SHEET", "SHEETS", "SINGLE", "SKEW.P", "SORT", "SORTBY", "STDEV.P", "STDEV.S", "SWITCH", "T.DIST", "T.DIST.2T", "T.DIST.RT", "T.INV", "T.INV.2T", "T.TEST",
-            "TAKE", "TEXTAFTER", "TEXTBEFORE", "TEXTJOIN", "TEXTSPLIT", "TOCOL", "TOROW", "TRIMRANGE", "UNICHAR", "UNICODE", "UNIQUE", "VALUETOTEXT", "VAR.P", "VAR.S", "VSTACK", "WEBSERVICE",
-            "WEIBULL.DIST", "WORKDAY.INTL", "WRAPCOLS", "WRAPROWS", "XLOOKUP", "XMATCH", "XOR", "Z.TEST"};
         QSet<QString> set;
-        for (const char *name : list) set.insert(QLatin1String(name));
+        for (const char *name : kPrefixedFunctions) set.insert(QLatin1String(name));
         return set;
     }();
     return names.contains(upperName);
@@ -641,6 +640,16 @@ QString markParameters(const QString &s, const QStringList &scope)
 }
 
 } // namespace
+
+const QStringList &prefixedFunctionNames()
+{
+    static const QStringList names = [] {
+        QStringList list;
+        for (const char *name : kPrefixedFunctions) list.append(QLatin1String(name));
+        return list;
+    }();
+    return names;
+}
 
 QString toFileFormula(const QString &typed)
 {
@@ -834,7 +843,7 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
     const bool signStart = typed.size() > 1 && (typed.front() == QLatin1Char('+') || typed.front() == QLatin1Char('-'));
     auto formula = [&](const QString &text) {
         if (text.size() > kMaxFormulaTypedChars)
-            return tooLong(kMaxFormulaTypedChars, tr("A formula can hold up to %1 characters, and this one has %2. Shorten it, and try again."));
+            return tooLong(kMaxFormulaTypedChars, QCoreApplication::translate("jp::office::sheet::Entry", "A formula can hold up to %1 characters, and this one has %2. Shorten it, and try again."));
         jp::calc::ParseOptions po;
         const QString fileText = formulaFromLocale(text, options.locale);
         const jp::calc::ParseResult p = jp::calc::parseFormula(fileText, po);
@@ -842,8 +851,8 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
             r.ok = false;
             r.problemAt = p.errorPos + (typed.startsWith(QLatin1Char('=')) ? 1 : 0);
             // (what is wrong, and where: the character counted from 1, as the person counts them, "=" too)
-            r.problem = tr("The formula can't be read. %1").arg(p.error) + QLatin1Char(' ')
-                        + (r.problemAt >= typed.size() ? tr("Look at the end of what you typed.") : tr("Look at character %1.").arg(r.problemAt + 1));
+            r.problem = QCoreApplication::translate("jp::office::sheet::Entry", "The formula can't be read. %1").arg(p.error) + QLatin1Char(' ')
+                        + (r.problemAt >= typed.size() ? QCoreApplication::translate("jp::office::sheet::Entry", "Look at the end of what you typed.") : QCoreApplication::translate("jp::office::sheet::Entry", "Look at character %1.").arg(r.problemAt + 1));
             return r;
         }
         r.entry.kind = Entry::Kind::Formula;
@@ -853,12 +862,12 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
     if (typed.front() == QLatin1Char('=') && typed.size() > 1) return formula(typed.mid(1));
     if (typed == QLatin1String("=")) {
         r.ok = false;
-        r.problem = tr("A formula needs something after the \"=\".");
+        r.problem = QCoreApplication::translate("jp::office::sheet::Entry", "A formula needs something after the \"=\".");
         r.problemAt = 1;
         return r;
     }
     if (options.textFormat) {
-        if (typed.size() > kMaxCellChars) return tooLong(kMaxCellChars, tr("A cell can hold up to %1 characters, and this text has %2. Shorten it, or split it between cells."));
+        if (typed.size() > kMaxCellChars) return tooLong(kMaxCellChars, QCoreApplication::translate("jp::office::sheet::Entry", "A cell can hold up to %1 characters, and this text has %2. Shorten it, or split it between cells."));
         r.entry.kind = Entry::Kind::Text;
         r.entry.text = typed.front() == QLatin1Char('\'') && typed.size() > 1 ? typed.mid(1) : typed;
         return r;
@@ -866,12 +875,12 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
     // text that is kept as text: an apostrophe in front
     if (typed.front() == QLatin1Char('\'') && typed.size() > 1) {
         const QString rest = typed.mid(1);
-        if (rest.size() > kMaxCellChars) return tooLong(kMaxCellChars, tr("A cell can hold up to %1 characters, and this text has %2. Shorten it, or split it between cells."));
+        if (rest.size() > kMaxCellChars) return tooLong(kMaxCellChars, QCoreApplication::translate("jp::office::sheet::Entry", "A cell can hold up to %1 characters, and this text has %2. Shorten it, or split it between cells."));
         r.entry.kind = Entry::Kind::Text;
         r.entry.text = rest;
         return r;
     }
-    if (typed.size() > kMaxCellChars) return tooLong(kMaxCellChars, tr("A cell can hold up to %1 characters, and this text has %2. Shorten it, or split it between cells."));
+    if (typed.size() > kMaxCellChars) return tooLong(kMaxCellChars, QCoreApplication::translate("jp::office::sheet::Entry", "A cell can hold up to %1 characters, and this text has %2. Shorten it, or split it between cells."));
     // a long text is not a number, a date, or a time
     if (typed.size() <= 64) {
         double v = 0;

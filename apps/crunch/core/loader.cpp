@@ -22,7 +22,6 @@ using namespace jp::office;
 using namespace jp::office::sheet;
 
 namespace {
-QString tr(const char *text) { return QCoreApplication::translate("jp::crunch::Loader", text); }
 }
 
 int firstSheetToShow(const WorkbookInfo &info)
@@ -178,7 +177,7 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     out->book = book;
     const int shownSheet = firstSheetToShow(book->info());
     if (shownSheet < 0) {
-        *why = tr("The workbook has no sheets.");
+        *why = QCoreApplication::translate("jp::crunch::Loader", "The workbook has no sheets.");
         return false;
     }
     // the rows the sheet's view shows (and its frozen rows), from where it begins: not the first rows of the sheet, which it may be scrolled far from
@@ -216,7 +215,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     calc->setProgress(nullptr);
     calc->setCancel(nullptr);
     if (cancelled()) return false;
-    if (!whole) out->problem = tr("Some of the workbook could not be read whole: %1.").arg(calc->notWhole().join(QStringLiteral(", ")));
+    if (!whole) out->problem = QCoreApplication::translate("jp::crunch::Loader", "Some of the workbook could not be read whole: %1.").arg(calc->notWhole().join(QStringLiteral(", ")));
     // the grid's geometry of each sheet
     out->geometry.assign(size_t(out->book->info().sheets.size()), nullptr);
     for (int i = 0; i < out->book->info().sheets.size(); ++i) {

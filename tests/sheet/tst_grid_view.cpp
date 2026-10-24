@@ -98,6 +98,13 @@ public:
 };
 
 void key(GridView &v, int k, Qt::KeyboardModifiers m = Qt::NoModifier) { QTest::keyClick(&v, Qt::Key(k), m); }
+// The keys of a standard command on this computer (Cmd+A, or Ctrl+A): the first the platform gives.
+void pressStandard(GridView &v, QKeySequence::StandardKey command)
+{
+    const QKeySequence keys(command);
+    const QKeyCombination k = keys[0];
+    QTest::keyClick(&v, k.key(), k.keyboardModifiers());
+}
 
 } // namespace
 
@@ -238,7 +245,7 @@ private Q_SLOTS:
         key(*b.view, Qt::Key_Home, Qt::ControlModifier);
         key(*b.view, Qt::Key_Space, Qt::ShiftModifier);
         QCOMPARE(b.view->rangeName(), QStringLiteral("1:1"));
-        key(*b.view, Qt::Key_A, Qt::ControlModifier);
+        pressStandard(*b.view, QKeySequence::SelectAll);
         QVERIFY(b.view->selection().whole == Selection::Whole::All);
         // at the edges nothing moves
         key(*b.view, Qt::Key_Home, Qt::ControlModifier);
@@ -330,7 +337,7 @@ private Q_SLOTS:
         key(*b.view, Qt::Key_Home, Qt::ControlModifier);
         key(*b.view, Qt::Key_Space, Qt::ControlModifier);
         QTRY_COMPARE(b.view->statsText(), QStringLiteral("Average: 4    Count: 4    Sum: 16"));
-        key(*b.view, Qt::Key_A, Qt::ControlModifier);
+        pressStandard(*b.view, QKeySequence::SelectAll);
         QTRY_COMPARE(b.view->statsText(), QStringLiteral("Average: 4.5    Count: 8    Sum: 36"));
     }
 
@@ -394,7 +401,7 @@ private Q_SLOTS:
         Book big;
         big.number(1500, 1500, 1);
         big.show();
-        key(*big.view, Qt::Key_A, Qt::ControlModifier);
+        pressStandard(*big.view, QKeySequence::SelectAll);
         QCOMPARE(big.view->selectionAsText(&tooMany), QString());
         QVERIFY(tooMany);
     }

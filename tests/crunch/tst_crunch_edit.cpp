@@ -100,13 +100,16 @@ struct EditWindow {
     }
 };
 
-// The keys that redo on this computer (Ctrl+Y on Windows, Cmd+Shift+Z on a Mac, Ctrl+Shift+Z or Ctrl+Y on Linux): the first the platform gives.
-void pressRedo(QWidget *w)
+// The keys of a standard command on this computer (Cmd+Z on a Mac, Ctrl+Z elsewhere; redo is Ctrl+Y on Windows, Cmd+Shift+Z on a Mac, Ctrl+Shift+Z or Ctrl+Y on Linux): the first the
+// platform gives.
+void pressStandard(QWidget *w, QKeySequence::StandardKey command)
 {
-    const QKeySequence redo(QKeySequence::Redo);
-    const QKeyCombination k = redo[0];
+    const QKeySequence keys(command);
+    const QKeyCombination k = keys[0];
     QTest::keyClick(w, k.key(), k.keyboardModifiers());
 }
+void pressUndo(QWidget *w) { pressStandard(w, QKeySequence::Undo); }
+void pressRedo(QWidget *w) { pressStandard(w, QKeySequence::Redo); }
 
 } // namespace
 
@@ -415,7 +418,8 @@ private Q_SLOTS:
     {
         const QLocale de(QLocale::German, QLocale::Germany);
         struct Restore {
-            ~Restore() { QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates)); }
+            QLocale before = QLocale();   // (the default locale that was there, not one this assumes)
+            ~Restore() { QLocale::setDefault(before); }
         } restore;
         QLocale::setDefault(de);
         EditWindow e;
@@ -473,7 +477,8 @@ private Q_SLOTS:
                               {QLocale(QLocale::German, QLocale::Germany), QStringLiteral("4.3.2025"), QStringLiteral("04.03.2025")},
                               {QLocale(QLocale::Japanese, QLocale::Japan), QStringLiteral("2025/3/4"), QStringLiteral("2025/03/04")}};
         struct Restore {
-            ~Restore() { QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates)); }
+            QLocale before = QLocale();   // (the default locale that was there, not one this assumes)
+            ~Restore() { QLocale::setDefault(before); }
         } restore;
         for (const Case &c : cases) {
             const QString name = c.locale.name();
@@ -988,16 +993,16 @@ private Q_SLOTS:
         QVERIFY(undo->isEnabled());
         QVERIFY(!redo->isEnabled());
         QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:60"));    // A1 50 + A2 10
-        QTest::keyClick(&e.win.w, Qt::Key_Z, Qt::ControlModifier);            // undo "25%"
+        pressUndo(&e.win.w);            // undo "25%"
         QVERIFY(redo->isEnabled());
         QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("-"));
         QCOMPARE(e.selected(), QStringLiteral("F1"));                          // (the cell it changed is shown)
-        QTest::keyClick(&e.win.w, Qt::Key_Z, Qt::ControlModifier);            // 7 over the date
+        pressUndo(&e.win.w);            // 7 over the date
         QCOMPARE(e.valueAt(QStringLiteral("D2")), QStringLiteral("n:45293"));
         QCOMPARE(e.shownAt(QStringLiteral("D2")), QStringLiteral("1/2/2024"));
-        QTest::keyClick(&e.win.w, Qt::Key_Z, Qt::ControlModifier);            // the text over the formula
+        pressUndo(&e.win.w);            // the text over the formula
         QCOMPARE(e.win.w.formulaBar()->text(), QStringLiteral("=A1*2"));
-        QTest::keyClick(&e.win.w, Qt::Key_Z, Qt::ControlModifier);            // 50 over 1
+        pressUndo(&e.win.w);            // 50 over 1
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
         QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:2"));
@@ -1018,7 +1023,7 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("D2")), QStringLiteral("n:7"));
         QVERIFY(!redo->isEnabled());
         // a new edit after an undo drops what could have been redone
-        QTest::keyClick(&e.win.w, Qt::Key_Z, Qt::ControlModifier);
+        pressUndo(&e.win.w);
         QVERIFY(redo->isEnabled());
         e.select(QStringLiteral("H1"));
         e.enter(QStringLiteral("1"));
@@ -1589,9 +1594,8 @@ private Q_SLOTS:
     // was waiting for that save asks again.
     void escCancelsASaveThatWaitsForTheCalculation()
     {
-        const int n = 20000;
+        const int n = 2000;
         QString rows;
-        rows.reserve(n * 90);
         for (int r = 1; r <= n; ++r)
             rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2+$D$1</f><v>-1</v></c>%2</row>").arg(r).arg(r == 1 ? QStringLiteral("<c r=\"D1\"><v>0</v></c>") : QString());
         const QByteArray book = buildXlsx({worksheet(rows)});
@@ -1602,8 +1606,11 @@ private Q_SLOTS:
             e.win.w.setAsker([&](const QString &, const QString &) { return ++asked == 1 ? CrunchWindow::Answer::Save : CrunchWindow::Answer::Cancel; });
             e.win.w.setAttribute(Qt::WA_DeleteOnClose, false);
             e.select(QStringLiteral("D1"));
-            e.win.w.setWorkerPace(3000);
             e.enter(QStringLiteral("1"));
+            // The worker is held back from here to the end of what is checked, so that the calculation is going whatever the speed of the machine: it can neither be done before the save is
+            // asked for nor finish while Esc is pressed. (The window is told it is calculating when the edit is made, and no batch is looked at while no event is handled.)
+            std::unique_ptr<crunch::WorkbookLoader::Hold> held = e.win.w.workbookLoader().hold();
+            QVERIFY(held);
             QVERIFY(e.win.w.isCalculating());
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             if (closing) {
@@ -1619,9 +1626,9 @@ private Q_SLOTS:
             QVERIFY2(e.win.w.statusText().contains(QLatin1String("save"), Qt::CaseInsensitive), qPrintable(e.win.w.statusText()));
             QCOMPARE(asked, closing ? 2 : 0);                    // (the close that was waiting asks again, and the answer to that is Cancel)
             QVERIFY(e.win.w.isVisible());
+            held.reset();
             QTRY_VERIFY(e.win.w.loaded()->calcIdle.load());
             // something finishes a calculation: the save that was cancelled does not happen
-            e.win.w.setWorkerPace(0);
             e.select(QStringLiteral("D1"));
             e.enter(QStringLiteral("2"));
             QVERIFY(e.settle());

@@ -23,7 +23,6 @@ using xmlscan::Tag;
 
 constexpr qsizetype kChunk = 1 << 20;
 
-QString tr(const char *text) { return QCoreApplication::translate("jp::office::sheet::Save", text); }
 
 // ---- a cell, as the file writes it
 
@@ -300,7 +299,7 @@ private:
         Tag t;
         qsizetype dimStart = -1, dimEnd = -1;
         for (;;) {
-            if (!nextTag(pos, &t)) return fail(m_failed ? tr("The sheet's part is damaged.") : tr("The sheet has no cells part (sheetData)."));
+            if (!nextTag(pos, &t)) return fail(m_failed ? QCoreApplication::translate("jp::office::sheet::Save", "The sheet's part is damaged.") : QCoreApplication::translate("jp::office::sheet::Save", "The sheet has no cells part (sheetData)."));
             pos = t.end;
             if (t.closing) continue;
             if (t.local == "dimension" && dimStart < 0) {
@@ -362,11 +361,11 @@ private:
         quint32 lastRow = 0;   // the row number (from 1) of the last row element
         size_t next = 0;       // the first of the changed rows not yet written
         for (;;) {
-            if (cancelled()) return fail(tr("The save was stopped."));
+            if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
             if (m_cur - m_written > kChunk) flushPending();
             compact();
             Tag t;
-            if (!nextTag(m_cur, &t)) return fail(m_failed ? tr("The sheet's part is damaged.") : tr("The sheet's cells are cut short."));
+            if (!nextTag(m_cur, &t)) return fail(m_failed ? QCoreApplication::translate("jp::office::sheet::Save", "The sheet's part is damaged.") : QCoreApplication::translate("jp::office::sheet::Save", "The sheet's cells are cut short."));
             if (t.closing) {
                 if (t.local == "sheetData") {
                     m_cur = t.start;
@@ -374,9 +373,9 @@ private:
                     m_afterData = true;
                     return true;
                 }
-                return fail(tr("The sheet's cells are not in the form this program changes."));
+                return fail(QCoreApplication::translate("jp::office::sheet::Save", "The sheet's cells are not in the form this program changes."));
             }
-            if (t.local != "row") return fail(tr("The sheet's cells are not in the form this program changes."));
+            if (t.local != "row") return fail(QCoreApplication::translate("jp::office::sheet::Save", "The sheet's cells are not in the form this program changes."));
             // the row's number
             const QByteArray tagBytes = m_buf.mid(t.start, t.end - t.start);
             bool haveR = false;
@@ -403,10 +402,10 @@ private:
             if (!selfClosing) {
                 const QByteArray closeTag = "</" + m_prefix + "row>";
                 qsizetype close = 0;
-                if (!closeOfElement(closeTag, "row", rowEnd, &close)) return fail(m_failed ? tr("The sheet's part is damaged.") : tr("The sheet's cells are cut short."));
+                if (!closeOfElement(closeTag, "row", rowEnd, &close)) return fail(m_failed ? QCoreApplication::translate("jp::office::sheet::Save", "The sheet's part is damaged.") : QCoreApplication::translate("jp::office::sheet::Save", "The sheet's cells are cut short."));
                 // (the end of the closing tag: it may have a space before its ">")
                 Tag closing;
-                if (!nextTag(close, &closing) || closing.start != close) return fail(tr("The sheet's cells are cut short."));
+                if (!nextTag(close, &closing) || closing.start != close) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The sheet's cells are cut short."));
                 rowEnd = closing.end;
             }
             if (!slow) {
@@ -441,7 +440,7 @@ private:
     bool rewriteRow(const QByteArray &row, quint32 rowIdx, const RowEdits *edits, QByteArray *out)
     {
         Tag open;
-        if (!xmlscan::nextTag(row, 0, &open)) return fail(tr("The sheet's cells are cut short."));
+        if (!xmlscan::nextTag(row, 0, &open)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The sheet's cells are cut short."));
         QByteArray body;
         QByteArray rest;
         quint32 minCol = 0xFFFFFFFFu, maxCol = 0;
@@ -496,7 +495,7 @@ private:
                             }
                         }
                     }
-                    if (close < 0) return fail(tr("The sheet's cells are cut short."));
+                    if (close < 0) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The sheet's cells are cut short."));
                     cellEnd = close + closeTag.size();
                 }
                 const QByteArray cell = row.mid(t.start, cellEnd - t.start);
@@ -666,10 +665,10 @@ private:
             flushPending();
             m_buf.clear();
             m_cur = m_written = 0;
-            if (cancelled()) return fail(tr("The save was stopped."));
+            if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
             if (!fill()) break;
         }
-        if (m_failed) return fail(tr("The sheet's part is damaged."));
+        if (m_failed) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The sheet's part is damaged."));
         return true;
     }
 
@@ -698,7 +697,7 @@ bool patchSheet(QIODevice *in, PartSink *out, const SheetChanges &changes, bool 
     QString why;
     Patcher p(in, out, changes, hasSharedStrings, cancel);
     if (p.run(&why)) return true;
-    if (error) *error = why.isEmpty() ? tr("The sheet could not be saved.") : why;
+    if (error) *error = why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "The sheet could not be saved.") : why;
     return false;
 }
 

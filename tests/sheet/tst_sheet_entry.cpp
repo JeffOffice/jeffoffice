@@ -3,11 +3,15 @@
 #include "sheethelpers.h"
 
 #include "grid/text.h"
+#include "calc/functions.h"
 #include "calc/numfmt.h"
 #include "sheet/entry.h"
 #include "sheet/styles.h"
 
 #include <QCoreApplication>
+#include <QSet>
+
+#include <algorithm>
 #include <QTranslator>
 
 namespace {
@@ -283,6 +287,60 @@ private Q_SLOTS:
         // read back for a person, they are as typed (with the names of functions in capitals)
         for (const QString &typed : {"XLOOKUP(A1,B:B,C:C)", "LET(x,1,y,x+1,x+y)", "MAP(A1:A3,LAMBDA(v,v*2))", "FILTER(A1:A9,B1:B9>1)", "SUM(UNIQUE(A1:A9))"})
             QCOMPARE(jp::grid::displayFormula(toFileFormula(typed)), typed);
+    }
+
+    // The whole list, one by one: every function the format prefixes is written with its prefix (in any case, and with a space before the bracket), and read back for a person without
+    // it; the list is sorted, has no name twice, and has every function this program knows that the format prefixes, and every function of Excel 2010 and later that the plan
+    // (docs/features/jeffcrunch.md) names; none of the first release's functions is on it.
+    void theWholeListOfPrefixedFunctionsIsChecked()
+    {
+        const QStringList &all = prefixedFunctionNames();
+        QVERIFY2(all.size() > 160, qPrintable(QString::number(all.size())));
+        QVERIFY(std::is_sorted(all.begin(), all.end()));
+        QCOMPARE(QSet<QString>(all.begin(), all.end()).size(), all.size());
+        for (const QString &name : all) {
+            const QString prefix = name == QLatin1String("FILTER") || name == QLatin1String("SORT") ? QStringLiteral("_xlfn._xlws.") : QStringLiteral("_xlfn.");
+            QCOMPARE(toFileFormula(name.toLower() + QLatin1String("(A1)")), prefix + name + QLatin1String("(A1)"));
+            QCOMPARE(toFileFormula(name + QLatin1String(" (A1)")), prefix + name + QLatin1String(" (A1)"));   // (one argument: LET and LAMBDA name no parameter)
+            QCOMPARE(jp::grid::displayFormula(prefix + name + QLatin1String("(A1)")), name + QLatin1String("(A1)"));
+            QCOMPARE(toFileFormula(prefix + name + QLatin1String("(A1)")), prefix + name + QLatin1String("(A1)"));   // (already as a file has it)
+        }
+        // what this program has of them is all on the list
+        int future = 0;
+        for (int i = 0; i < jp::calc::functionCount(); ++i) {
+            const jp::calc::FunctionInfo &f = jp::calc::functionAt(i);
+            if (!(f.flags & jp::calc::kFnFuture)) continue;
+            ++future;
+            QVERIFY2(all.contains(QString::fromLatin1(f.name)), f.name);
+        }
+        QVERIFY(future > 5);
+        // the functions of Excel 2010 and later that the plan names
+        static const char *const newer[] = {
+            "ACOT", "ACOTH", "AGGREGATE", "ARABIC", "ARRAYTOTEXT", "BASE", "BETA.DIST", "BETA.INV", "BINOM.DIST", "BINOM.DIST.RANGE", "BINOM.INV", "BYCOL", "BYROW", "CEILING.MATH",
+            "CEILING.PRECISE", "CHISQ.DIST", "CHISQ.DIST.RT", "CHISQ.INV", "CHISQ.INV.RT", "CHISQ.TEST", "CHOOSECOLS", "CHOOSEROWS", "COMBINA", "CONCAT", "CONFIDENCE.NORM",
+            "CONFIDENCE.T", "COT", "COTH", "COVARIANCE.P", "COVARIANCE.S", "CSC", "CSCH", "DAYS", "DBCS", "DECIMAL", "DETECTLANGUAGE", "DROP", "ENCODEURL", "EXPAND", "EXPON.DIST",
+            "F.DIST", "F.DIST.RT", "F.INV", "F.INV.RT", "F.TEST", "FIELDVALUE", "FILTER", "FILTERXML", "FLOOR.MATH", "FLOOR.PRECISE", "FORECAST.ETS", "FORECAST.ETS.CONFINT",
+            "FORECAST.ETS.SEASONALITY", "FORECAST.ETS.STAT", "FORECAST.LINEAR", "FORMULATEXT", "GAMMA", "GAMMA.DIST", "GAMMA.INV", "GAMMALN.PRECISE", "GAUSS", "GROUPBY", "HSTACK",
+            "HYPGEOM.DIST", "IFNA", "IFS", "IMAGE", "ISFORMULA", "ISO.CEILING", "ISOMITTED", "ISOWEEKNUM", "LAMBDA", "LET", "LOGNORM.DIST", "LOGNORM.INV", "MAKEARRAY", "MAP",
+            "MAXIFS", "MINIFS", "MODE.MULT", "MODE.SNGL", "MUNIT", "NEGBINOM.DIST", "NETWORKDAYS.INTL", "NORM.DIST", "NORM.INV", "NORM.S.DIST", "NORM.S.INV", "NUMBERVALUE",
+            "PDURATION", "PERCENTILE.EXC", "PERCENTILE.INC", "PERCENTOF", "PERCENTRANK.EXC", "PERCENTRANK.INC", "PERMUTATIONA", "PHI", "PIVOTBY", "POISSON.DIST", "QUARTILE.EXC",
+            "QUARTILE.INC", "RANDARRAY", "RANK.AVG", "RANK.EQ", "REDUCE", "REGEXEXTRACT", "REGEXREPLACE", "REGEXTEST", "RRI", "SCAN", "SEC", "SECH", "SEQUENCE", "SHEET", "SHEETS",
+            "SKEW.P", "SORT", "SORTBY", "STDEV.P", "STDEV.S", "STOCKHISTORY", "SWITCH", "T.DIST", "T.DIST.2T", "T.DIST.RT", "T.INV", "T.INV.2T", "T.TEST", "TAKE", "TEXTAFTER",
+            "TEXTBEFORE", "TEXTJOIN", "TEXTSPLIT", "TOCOL", "TOROW", "TRANSLATE", "TRIMRANGE", "UNICHAR", "UNICODE", "UNIQUE", "VALUETOTEXT", "VAR.P", "VAR.S", "VSTACK",
+            "WEBSERVICE", "WEIBULL.DIST", "WORKDAY.INTL", "WRAPCOLS", "WRAPROWS", "XLOOKUP", "XMATCH", "XOR", "Z.TEST"
+};
+        for (const char *name : newer) QVERIFY2(all.contains(QLatin1String(name)), name);
+        // and those of the first release (and the double-byte forms, which are older too) are not prefixed
+        static const char *const classic[] = {
+            "ASC", "AVERAGEIFS", "BAHTTEXT", "BIN2DEC", "CEILING", "CELL", "CONCATENATE", "CONFIDENCE", "CONVERT", "COUNTIFS", "COVAR", "CUBEVALUE", "DEC2HEX", "ERF", "FINDB",
+            "FLOOR", "FORECAST", "GETPIVOTDATA", "HYPERLINK", "IF", "IFERROR", "IMSUM", "INDEX", "INFO", "ISBLANK", "ISERROR", "LEFTB", "LENB", "LINEST", "MATCH", "MIDB", "MMULT",
+            "MODE", "NETWORKDAYS", "NORMDIST", "NOW", "PERCENTILE", "PHONETIC", "QUARTILE", "RANK", "REPLACEB", "RIGHTB", "RTD", "SEARCHB", "STDEV", "SUM", "SUMIFS", "SUMPRODUCT",
+            "TDIST", "TEXT", "VAR", "VLOOKUP", "WORKDAY", "YEARFRAC"
+};
+        for (const char *name : classic) {
+            QVERIFY2(!all.contains(QLatin1String(name)), name);
+            QVERIFY2(!toFileFormula(QString::fromLatin1(name).toLower() + QLatin1String("(A1)")).contains(QLatin1String("_xl")), name);
+        }
     }
 
     // The built-in date formats 14 and 22 are the system's short date: a date typed in a locale is read in its order and shown in the same order (a date typed as 4 March in a locale of

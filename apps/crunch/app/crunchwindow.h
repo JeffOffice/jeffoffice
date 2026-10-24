@@ -58,6 +58,8 @@ public:
     // reason shown, if the file can't be read at all.
     bool openFile(const QString &path);
     bool isLoading() const { return m_loading; }
+    // The loader that reads the workbook and works it out (a test holds its worker back to make what it checks independent of speed).
+    crunch::WorkbookLoader &workbookLoader() { return m_loader; }
     bool isCalculating() const { return m_calculating; }
     // ---- editing
     // The entry in progress (typed over a cell, or in it, or in the formula bar) is finished: the cell takes it (one step of Undo), and the selection goes the way the key says. False,

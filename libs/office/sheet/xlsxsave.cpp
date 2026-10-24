@@ -21,7 +21,6 @@ namespace {
 
 using xmlscan::Tag;
 
-QString tr(const char *text) { return QCoreApplication::translate("jp::office::sheet::Save", text); }
 
 bool isSpace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
 
@@ -92,7 +91,7 @@ bool patchSharedStrings(const QByteArray &xml, const QStringList &added, QByteAr
 {
     Tag root;
     if (!findStart(xml, "sst", &root)) {
-        if (error) *error = tr("The shared strings part is not in the form this program changes.");
+        if (error) *error = QCoreApplication::translate("jp::office::sheet::Save", "The shared strings part is not in the form this program changes.");
         return false;
     }
     const QByteArray p(xmlscan::prefixOf(root.name));
@@ -113,7 +112,7 @@ bool patchSharedStrings(const QByteArray &xml, const QStringList &added, QByteAr
     const QByteArray closeTag = "</" + p + "sst>";
     const qsizetype close = xml.lastIndexOf(closeTag);
     if (close < root.end) {
-        if (error) *error = tr("The shared strings part is not in the form this program changes.");
+        if (error) *error = QCoreApplication::translate("jp::office::sheet::Save", "The shared strings part is not in the form this program changes.");
         return false;
     }
     *out = xml.left(root.start) + rootTag + xml.mid(root.end, close - root.end) + items + xml.mid(close);
@@ -125,7 +124,7 @@ bool patchSharedStrings(const QByteArray &xml, const QStringList &added, QByteAr
 bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *out, QString *error)
 {
     auto bad = [&] {
-        if (error) *error = tr("The styles part is not in the form this program changes.");
+        if (error) *error = QCoreApplication::translate("jp::office::sheet::Save", "The styles part is not in the form this program changes.");
         return false;
     };
     Tag root;
@@ -305,10 +304,10 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
         return false;
     };
     const Package &package = book.package();
-    if (!package.isLazy()) return fail(tr("The workbook was not opened from a file this program can save over."));
+    if (!package.isLazy()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook was not opened from a file this program can save over."));
     const QByteArray bytes = package.fileBytes();
     QVector<ZipEntry> directory;
-    if (!readZipDirectory(bytes, &directory)) return fail(tr("The file this workbook was opened from is damaged."));
+    if (!readZipDirectory(bytes, &directory)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file this workbook was opened from is damaged."));
     QHash<QString, int> entryAt;   // by the plain name, the first entry of it
     for (int i = 0; i < directory.size(); ++i) {
         const QString key = plain(directory[i].name);
@@ -329,9 +328,9 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     bool anyCellChanged = false;
     for (const auto &[sheet, sc] : changes.sheets) {
         if (sc.empty()) continue;
-        if (sheet < 0 || sheet >= book.info().sheets.size()) return fail(tr("A change is to a sheet the workbook does not have."));
+        if (sheet < 0 || sheet >= book.info().sheets.size()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A change is to a sheet the workbook does not have."));
         const int index = entryOfPart(book.info().sheets[sheet].part);
-        if (index < 0) return fail(tr("A sheet that changed has no part in the file."));
+        if (index < 0) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A sheet that changed has no part in the file."));
         sheetOfEntry.insert(index, sheet);
         if (!sc.cells.empty()) anyCellChanged = true;
         rep.cellsChanged += qint64(sc.cells.size());
@@ -341,7 +340,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     if (!changes.newSharedStrings.isEmpty()) {
         const int index = entryOfPart(book.sharedStringsPart());
         QByteArray xml, patched;
-        if (index < 0 || !inflate(index, &xml)) return fail(tr("The shared strings part is not in the file."));
+        if (index < 0 || !inflate(index, &xml)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The shared strings part is not in the file."));
         if (!patchSharedStrings(xml, changes.newSharedStrings, &patched, &why)) return fail(why);
         replaced.insert(index, patched);
     }
@@ -349,14 +348,14 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty()) {
         const int index = entryOfPart(book.stylesPart());
         QByteArray xml, patched;
-        if (index < 0 || !inflate(index, &xml)) return fail(tr("The styles part is not in the file."));
+        if (index < 0 || !inflate(index, &xml)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The styles part is not in the file."));
         if (!patchStyles(xml, changes, &patched, &why)) return fail(why);
         replaced.insert(index, patched);
     }
     // ---- the table parts whose columns were renamed
     for (const auto &[part, data] : changes.replacedParts) {
         const int index = entryOfPart(part);
-        if (index < 0) return fail(tr("A table that changed has no part in the file."));
+        if (index < 0) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A table that changed has no part in the file."));
         replaced.insert(index, data);
     }
     // ---- the calculation chain: left out when a cell changed (it may name a cell that no longer holds a formula)
@@ -400,7 +399,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     const bool hasShared = !book.sharedStringsPart().isEmpty();
     for (int i = 0; i < directory.size(); ++i) {
         const ZipEntry &e = directory[i];
-        if (cancel && cancel->load()) return fail(tr("The save was stopped."));
+        if (cancel && cancel->load()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
         const QString key = plain(e.name);
         if (entryAt.value(key) != i && written.contains(key)) continue;   // (of two entries of one name the first stands)
         if (dropped.contains(i)) continue;
@@ -415,14 +414,14 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             ZipEntryDevice device(bytes, e);
             if (!device.open(QIODevice::ReadOnly) || !patchSheet(&device, &sink, changes.sheets.at(sheet), hasShared, &why, cancel)) {
                 zip.endStream();
-                return fail(why.isEmpty() ? tr("A sheet of the file could not be read to be saved.") : why);
+                return fail(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "A sheet of the file could not be read to be saved.") : why);
             }
             zip.endStream();
             rep.changedParts << e.name;
             ++rep.partsChanged;
             ++rep.sheetsRewritten;
         } else {
-            if (e.dataAt < 0 || e.dataAt + e.csize > bytes.size()) return fail(tr("The file this workbook was opened from is damaged."));
+            if (e.dataAt < 0 || e.dataAt + e.csize > bytes.size()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file this workbook was opened from is damaged."));
             zip.addRaw(e.name, e.method, e.crc, quint32(e.csize), quint32(e.usize), bytes.constData() + e.dataAt);
             ++rep.partsCopied;
         }
@@ -436,11 +435,11 @@ bool writeFileAtomically(const QString &path, const QByteArray &bytes, QString *
     QSaveFile file(path);
     file.setDirectWriteFallback(false);
     if (!file.open(QIODevice::WriteOnly)) {
-        if (error) *error = tr("The file couldn't be written: %1").arg(file.errorString());
+        if (error) *error = QCoreApplication::translate("jp::office::sheet::Save", "The file couldn't be written: %1").arg(file.errorString());
         return false;
     }
     if (file.write(bytes) != bytes.size() || !file.commit()) {
-        if (error) *error = tr("The file couldn't be written: %1").arg(file.errorString());
+        if (error) *error = QCoreApplication::translate("jp::office::sheet::Save", "The file couldn't be written: %1").arg(file.errorString());
         return false;
     }
     return true;
