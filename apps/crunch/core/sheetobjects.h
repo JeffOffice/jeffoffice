@@ -88,7 +88,7 @@ public:
     QVector<jp::office::sheet::ChartBlock> chartReads(int sheet, int objectId);
     // How many references of a chart (its series' names, categories, and values, and its linked titles) there are, and how many of them name cells that can be found (the rest are drawn
     // from the numbers the part stores). Needs the cells.
-    void chartRefCounts(int sheet, int objectId, int *refs, int *found);
+    void chartRefCounts(int sheet, int objectId, int *refs, int *found, QStringList *missed = nullptr);
     // How many charts have been drawn from the cells, and how many objects were made (counted for tests).
     qint64 chartsDrawn() const { return m_chartsDrawn; }
 

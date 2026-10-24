@@ -492,7 +492,7 @@ Chart SheetObjects::chartNow(int sheet, int objectId)
     return Chart();
 }
 
-void SheetObjects::chartRefCounts(int sheet, int objectId, int *refs, int *found)
+void SheetObjects::chartRefCounts(int sheet, int objectId, int *refs, int *found, QStringList *missed)
 {
     *refs = *found = 0;
     if (!m_cells) return;
@@ -503,6 +503,7 @@ void SheetObjects::chartRefCounts(int sheet, int objectId, int *refs, int *found
             ++*refs;
             QVector<ChartBlock> blocks;
             if (chartBlocks(ref, sheet, *m_cells, &blocks)) ++*found;
+            else if (missed) *missed << ref;
         };
         for (const ChartPlot &plot : o->chart->plots)
             for (const ChartSeries &s : plot.series) {
