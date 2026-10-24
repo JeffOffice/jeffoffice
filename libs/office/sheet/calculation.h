@@ -176,8 +176,14 @@ public:
         struct Place {
             int sheet;
             quint32 row, col;
+            bool dataTable;   // the first cell of a data table (the file's own formula is moved with it)
         };
         std::vector<Place> rewritten;
+        // the formulas among the cells that moved, from where to where (the values the window holds for them follow); for a Move on to the sheet `toSheet`
+        struct MovedFormula {
+            quint32 fromRow, fromCol, toRow, toCol;
+        };
+        std::vector<MovedFormula> movedFormulas;
     };
     // Whether the edit can be made; if not, why, in a sentence for the person (it would cut through an array formula or a data table, push cells off the sheet, or the sheet is protected).
     bool canApply(const StructEdit &edit, QString *why) const;
@@ -185,7 +191,7 @@ public:
     // (in the record).
     bool applyEdit(const StructEdit &edit, EditRecord *record);
     // Puts back what the edit changed (the record is the last applyEdit's).
-    bool undoEdit(const EditRecord &record);
+    bool undoEdit(const EditRecord &record, EditRecord *done = nullptr);   // `done`, if given, is told what undoing moved and removed (as applyEdit's record is)
 
     // ---- the widths of columns and the heights of rows (the sheet's own, which the file gives and a person changes). Called with the worker held back.
     // The runs of columns [first, last] has widths or hidden or formats for, cut to that range, in order; the rows in it that are not as the default, in order.
@@ -221,6 +227,9 @@ public:
 
     // About the formulas.
     qint64 formulaCount() const { return m_formulaCount; }
+    // The things edits of rows, columns, and cells have looked at (the formulas the graph named and those told where they read, the cells moved, the formulas written again): a test
+    // counts it to see that an edit costs what moves and what refers to it, not the sheet.
+    qint64 editWork() const { return m_editWork; }
     // Formulas the engine cannot work out and keeps apart (they keep the result the file stored); it walks the formulas, so it is for the times it is needed (a save).
     qint64 keptCount() const;
     qint64 untrackedCount() const { return m_untracked; }      // formulas the graph was too full to hold
@@ -293,7 +302,7 @@ private:
     jp::calc::Value ruleFormula(const Validation &rule, const QString &text, int sheet, quint32 row, quint32 col, const jp::calc::CellSource &source, bool asArray) const;
     bool canMoveCells(const StructEdit &edit, QString *why) const;
     bool applyMove(const StructEdit &edit, EditRecord *record);
-    bool undoMove(const EditRecord &record);
+    bool undoMove(const EditRecord &record, EditRecord *done);
     void registerNode(quint32 id, const std::vector<jp::calc::CellArea> *told);
     jp::calc::Value nodeValue(const Node &n, quint32 id) const;
     void storeResult(Node &n, quint32 id, const jp::calc::Value &v, bool publish = true);
@@ -335,6 +344,9 @@ private:
     std::vector<Node> m_nodes;
     std::vector<SheetState> m_state;
     std::vector<quint32> m_freeNodes;
+    qint64 m_editWork = 0;
+    std::vector<quint32> m_special;   // formulas that are told where they read (names, INDIRECT, ...) or kept apart: an edit that moves cells looks at these as well as at what the graph names (may hold gone and repeated ones)
+    void specialNodes(std::vector<quint32> *out);
     QVector<QString> m_texts;
     std::vector<qint32> m_freeTexts;
     QHash<quint32, jp::calc::Value> m_arrays;

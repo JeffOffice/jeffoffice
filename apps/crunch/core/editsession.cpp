@@ -711,7 +711,9 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     const bool hasShared = !book.sharedStringsPart().isEmpty();
     const bool hasStyles = !book.stylesPart().isEmpty();
     bool resultMissing = false;
-    for (const quint64 key : m_touched) {
+    std::vector<quint64> touchedInOrder(m_touched.begin(), m_touched.end());
+    std::sort(touchedInOrder.begin(), touchedInOrder.end());
+    for (const quint64 key : touchedInOrder) {
         const int sheet = int(key >> 40);
         const quint32 row = quint32((key >> 16) & 0xFFFFFF), col = quint32(key & 0xFFFF);
         const Calculation::CellContent c = calc->content(sheet, row, col);

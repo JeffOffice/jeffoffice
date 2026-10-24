@@ -202,6 +202,21 @@ public:
         }
         m_last = nullptr;
         m_count -= qint64(moving.size());
+        // (the cells come in order of row and column, and a shift keeps that order: they are put into the blocks they come to a run at a time, and each run is merged with what the block
+        // kept, which costs the cells of the block and not a sort of them)
+        std::vector<Cell> run;
+        quint32 runKey = 0;
+        auto flush = [&]() {
+            if (run.empty()) return;
+            auto less = [](const Cell &a, const Cell &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; };
+            if (!std::is_sorted(run.begin(), run.end(), less)) std::sort(run.begin(), run.end(), less);
+            Block &block = m_blocks[runKey];
+            const size_t mid = block.cells.size();
+            block.cells.insert(block.cells.end(), run.begin(), run.end());
+            if (mid > 0 && less(block.cells[mid], block.cells[mid - 1])) std::inplace_merge(block.cells.begin(), block.cells.begin() + std::ptrdiff_t(mid), block.cells.end(), less);
+            m_count += qint64(run.size());
+            run.clear();
+        };
         for (const Cell &before : moving) {
             Cell after = before;
             if (!map(&after)) {
@@ -209,9 +224,13 @@ public:
                 continue;
             }
             moved(before, after);
-            add(after);
+            const quint32 key = after.row / kBlockRows;
+            if (!run.empty() && key != runKey) flush();
+            runKey = key;
+            run.push_back(after);
         }
-        reorder();
+        flush();
+        m_last = nullptr;
     }
     // Puts the blocks that were added to out of order in order (the cells that were put in again by reshuffle).
     void reorder();

@@ -5,6 +5,10 @@
 
 #include "sheet/refshift.h"
 
+#include "calc/formula.h"
+
+#include <QRandomGenerator>
+
 namespace {
 
 const QStringList kNames{QStringLiteral("Sheet1"), QStringLiteral("Sheet2"), QStringLiteral("My Sheet")};
@@ -217,6 +221,37 @@ private Q_SLOTS:
             if (e.kind == StructEdit::Kind::DeleteRows) continue;   // (what is deleted is not given back by the references)
             QCOMPARE(back, before);
         }
+    }
+
+    // The common case is made without reading the formula as one (for sheets of many formulas): it must give what the full reading gives, for every kind of text, including those it
+    // leaves to the full reading.
+    void theFastWayForRowsGivesWhatTheFullReadingGives()
+    {
+        static const QStringList pieces = {"A1", "$A$1", "B$12:C34", "LOG10(A1)", "ATAN2(1,2)", "1E5", "2.5", "A1:A5", "R1C1", "Sheet2!A1", "'My Sheet'!B2", "\"A1\"", "name", "Tax2023", "TRUE",
+                                           "3:5", "A:A", "$A:$C", "a1", "XFD1048576", "ZZZ9", "ABCD1", "1", "B2", "C10", "D100", "$E7", "F$8", "AA3", "AB20:AC30", "IF(A5>1,B6,C7)", "Table1[Col]",
+                                           "#REF!", "Sheet1!B5", "{1,2}", "\xC3\xA9" "t1", "SUM(A1:A9)", "MAX(B2:B40,C3)", "(A7+B8)*2", "-A12", "A1%", "SUM(Sheet2!A1:A3)", "10", "7"};
+        static const QStringList joins = {"+", "-", "*", "/", "&", ">", "=", "<>", ","};
+        QRandomGenerator rng(20260);
+        int fastDecided = 0;
+        for (int round = 0; round < 8000; ++round) {
+            QString f;
+            const int count = 1 + int(rng.bounded(5));
+            for (int k = 0; k < count; ++k) f += (k ? joins[int(rng.bounded(joins.size()))] : QString()) + QString::fromUtf8(pieces[int(rng.bounded(pieces.size()))].toUtf8());
+            if (rng.bounded(4) == 0) f = QStringLiteral("SUM(") + f + QLatin1Char(')');
+            StructEdit e = rng.bounded(2) ? StructEdit::insertRows(rng.bounded(3) == 0 ? 1 : 0, quint32(rng.bounded(40)), 1 + quint32(rng.bounded(3)))
+                                          : StructEdit::deleteRows(rng.bounded(3) == 0 ? 1 : 0, quint32(rng.bounded(40)), 1 + quint32(rng.bounded(3)));
+            const int own = int(rng.bounded(2));
+            if (!jp::calc::parseFormula(f).ok()) continue;   // (a text that is no formula is left as it is by the full reading, and not meant to be)
+            bool changedFast = false, changedFull = false;
+            setFastRowEdits(true);
+            const QString fast = adjustFormula(f, own, kNames, e, &changedFast);
+            setFastRowEdits(false);
+            const QString full = adjustFormula(f, own, kNames, e, &changedFull);
+            setFastRowEdits(true);
+            QVERIFY2(fast == full && changedFast == changedFull, qPrintable(QStringLiteral("%1 -> %2 against %3").arg(f, fast, full)));
+            if (fast != f) ++fastDecided;
+        }
+        QVERIFY(fastDecided > 500);
     }
 };
 

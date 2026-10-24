@@ -75,11 +75,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     area.col2 = e.col2;
     std::vector<quint32> candidates;
     m_graph->dependentsOfArea(area, &candidates);
-    for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
-        const Node &n = m_nodes[id];
-        if (n.flags & Dead) continue;
-        if ((n.flags & Told) || ((n.flags & Kept) && n.kept != 'U')) candidates.push_back(id);
-    }
+    specialNodes(&candidates);
     std::sort(candidates.begin(), candidates.end());
     candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
 
@@ -141,7 +137,10 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     };
     for (const Moving &m : moving) clear(e.sheet, m.row, m.col);
     for (const auto &p : overwritten) clear(e.toSheet, p.first, p.second);
-    for (const Moving &m : moving) put(e.toSheet, quint32(qint64(m.row) + dRow), quint32(qint64(m.col) + dCol), m.content, Marking::Later);
+    for (const Moving &m : moving) {
+        put(e.toSheet, quint32(qint64(m.row) + dRow), quint32(qint64(m.col) + dCol), m.content, Marking::Later);
+        if (m.content.isFormula) rec->movedFormulas.push_back({m.row, m.col, quint32(qint64(m.row) + dRow), quint32(qint64(m.col) + dCol)});
+    }
 
     // ---- merged ranges
     {
@@ -231,7 +230,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
                 c->formula = qint32(sn.formulas.size() - 1);
             }
             ++rec->formulasRewritten;
-            rec->rewritten.push_back({sheet, c->row, c->col});
+            rec->rewritten.push_back({sheet, c->row, c->col, bool(c->flags & DataTable)});
         }
         dropNode(r.id);
         const quint32 id = addNode(sheet, *c, c->formula);
@@ -250,9 +249,16 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     return true;
 }
 
-bool Calculation::undoMove(const EditRecord &rec)
+bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
 {
     const StructEdit &e = rec.edit;
+    if (done) {
+        // (what undoing took away: the cells in both places, and what was put back is worked out afresh)
+        *done = EditRecord();
+        done->edit = e.inverse();
+        for (const EditRecord::GoneCell &g : rec.gone) done->gone.push_back({g.sheet, g.row, g.col, CellContent()});
+        for (const EditRecord::MovedFormula &m : rec.movedFormulas) done->gone.push_back({e.toSheet, m.toRow, m.toCol, CellContent()});
+    }
     abandonNow();
     const quint32 rows = e.row2 - e.row1 + 1, cols = e.col2 - e.col1 + 1;
     const quint32 toRow2 = e.toRow + rows - 1, toCol2 = e.toCol + cols - 1;

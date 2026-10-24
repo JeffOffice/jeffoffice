@@ -8,6 +8,10 @@
 //                                           for the untouched save: parts, parts the same, cells the same (1 or 0), differences; for the edit: the cell, formulas that depend on it, formulas whose
 //                                           result changed, differences that are unexpected, parts not meant to change, of them the same, whether the cell is right, differences; and the
 //                                           milliseconds each took.
+//                                           (3) then an edit script on the same open workbook (a row inserted, a column inserted, a block pasted below the cells, a fill, a row deleted, a column
+//                                           deleted: those the workbook allows), saved and read back, and compared with the model the window has: every cell (what it holds, its format, and
+//                                           what it shows), the merged ranges, and the parts that were not meant to change; the fields after the edit's: the steps made and refused, the cells
+//                                           compared and right, the differences, the parts not meant to change and the same, and the milliseconds.
 //   jcrunchtool roundtrip <keys.txt> <out-dir> [jobs]   runs roundtrip-one on each workbook listed, each in a child process that has 300 seconds and 6 GB, and writes <out-dir>/roundtrip.tsv; prints the
 //                                           summary (tools/crunch_roundtrip.py does the work)
 //   jcrunchtool edit-bench <file.xlsx> [edits=200]   opens the workbook in the model of the window and makes that many edits, each in a cell a few rows apart, as a person typing; for each, the
@@ -256,6 +260,145 @@ struct Read {
 
 QString fixed(double v) { return QString::number(v, 'f', 1); }
 
+// ---- the edit script of the yardstick
+
+bool sameShown(const jp::calc::Value &a, const jp::calc::Value &b)
+{
+    if (a.isNumber() && b.isNumber()) return jp::calc::sameTo15Digits(a.number(), b.number());
+    if ((a.isEmpty() && b.isNumber() && b.number() == 0) || (b.isEmpty() && a.isNumber() && a.number() == 0)) return true;
+    return a == b;
+}
+
+struct ScriptResult {
+    int done = 0, refused = 0;
+    qint64 compared = 0, right = 0;
+    int parts = 0, partsSame = 0;
+    double ms = 0;
+    Report differences;
+    bool ran = false;
+};
+
+// The model the window has, made again from the bytes of the file saved: the cells are compared one by one.
+void compareModels(const Calculation *live, const Calculation *saved, ScriptResult *r)
+{
+    auto empty = [](const Calculation::CellContent &c) { return !c.exists || (!c.isFormula && c.value.isEmpty() && c.style == 0); };
+    bool circular = false;
+    for (int s = 0; s < live->sheetCount() && !circular; ++s)
+        live->sheet(s).cells.forEach([&](const Cell &c) { circular = circular || live->isCircular(s, c.row, c.col); });
+    if (live->sheetCount() != saved->sheetCount()) {
+        r->differences.add(QStringLiteral("sheets"));
+        return;
+    }
+    for (int s = 0; s < live->sheetCount(); ++s) {
+        auto at = [&](quint32 row, quint32 col) {
+            const Calculation::CellContent x = live->content(s, row, col), y = saved->content(s, row, col);
+            if (empty(x) && empty(y)) return;
+            ++r->compared;
+            // (a cell of an array holds the result the file had, which is no part of what it means: what it shows is compared)
+            const bool member = !x.editable && !x.isFormula;
+            if (empty(x) != empty(y) || x.isFormula != y.isFormula || x.formula != y.formula || (!member && !sameShown(x.value, y.value)) || x.style != y.style) {
+                r->differences.add(empty(x) != empty(y) ? QStringLiteral("a cell is there or not") : x.isFormula != y.isFormula || x.formula != y.formula ? QStringLiteral("a formula differs")
+                                   : x.style != y.style ? QStringLiteral("a format differs") : QStringLiteral("a value differs"));
+                return;
+            }
+            if (!circular && !sameShown(live->cell(s, row, col), saved->cell(s, row, col))) {
+                r->differences.add(QStringLiteral("a result differs"));
+                return;
+            }
+            ++r->right;
+        };
+        live->sheet(s).cells.forEach([&](const Cell &c) { at(c.row, c.col); });
+        saved->sheet(s).cells.forEach([&](const Cell &c) {
+            if (!live->sheet(s).cells.find(c.row, c.col)) at(c.row, c.col);
+        });
+        QVector<CellRange> ma = live->mergesOf(s), mb = saved->mergesOf(s);
+        auto less = [](const CellRange &p, const CellRange &q) { return p.row1 != q.row1 ? p.row1 < q.row1 : p.col1 < q.col1; };
+        std::sort(ma.begin(), ma.end(), less);
+        std::sort(mb.begin(), mb.end(), less);
+        ++r->compared;
+        if (ma == mb) ++r->right;
+        else r->differences.add(QStringLiteral("merged ranges differ"));
+    }
+}
+
+// An edit script on the open workbook, saved and read back.
+void runScript(Opened &w, const QByteArray &original, ScriptResult *r)
+{
+    QElapsedTimer timer;
+    timer.start();
+    crunch::EditSession *session = w.session.get();
+    Calculation *calc = w.loader.result()->calc.get();
+    const WorkbookInfo &info = w.loader.result()->book->info();
+    int sheet = -1;
+    for (int si = 0; si < int(info.sheets.size()) && sheet < 0; ++si)
+        if (info.sheets[si].kind == SheetKind::Worksheet && calc->sheet(si).cells.cellCount() > 0 && !calc->sheet(si).isProtected) sheet = si;
+    if (sheet < 0) return;
+    r->ran = true;
+    const quint32 rows = std::max<quint32>(2, calc->sheet(sheet).extentRows), cols = std::max<quint32>(2, calc->sheet(sheet).extentCols);
+    auto step = [&](const crunch::EditSession::Outcome &o) {
+        if (o.ok) ++r->done;
+        else ++r->refused;
+        w.settle();
+    };
+    auto block = [&](quint32 r1, quint32 c1, quint32 r2, quint32 c2) {
+        CellRange b;
+        b.valid = true;
+        b.row1 = r1;
+        b.col1 = c1;
+        b.row2 = r2;
+        b.col2 = c2;
+        return b;
+    };
+    step(session->insertRows(sheet, rows / 2, 1));
+    step(session->insertColumns(sheet, cols / 2, 1));
+    const quint32 r2 = std::min<quint32>(rows - 1, 4), c2 = std::min<quint32>(cols - 1, 4);
+    // a block copied from the top left and pasted below the cells; the first number of it filled down
+    crunch::ClipData clip = session->copyCells(sheet, block(0, 0, r2, c2), false);
+    const quint32 below = std::min<quint32>(calc->sheet(sheet).extentRows + 2, kMaxRows - 20);
+    if (clip.valid()) step(session->paste(sheet, block(below, 0, below, 0), clip, crunch::EditSession::PasteOptions()));
+    step(session->fill(sheet, block(below, 0, below, 0), crunch::EditSession::FillDirection::Down, 3));
+    step(session->deleteRows(sheet, std::max<quint32>(1, rows / 3), 1));
+    step(session->deleteColumns(sheet, std::max<quint32>(1, cols / 3), 1));
+    // saved, and read again
+    crunch::EditSession::Snapshot snap;
+    QByteArray bytes;
+    QString why;
+    SaveReport report;
+    if (!session->takeSnapshot(&snap, &why)) {
+        r->differences.add(QStringLiteral("snapshot: ") + why);
+        return;
+    }
+    if (!saveXlsx(*w.loader.result()->book, snap.changes, &bytes, &why, &report)) {
+        r->differences.add(QStringLiteral("save failed: ") + why);
+        return;
+    }
+    const QMap<QString, QByteArray> a = rawEntries(original), b = rawEntries(bytes);
+    QSet<QString> changed;
+    for (const QString &n : report.changedParts) changed.insert(n);
+    for (auto it = a.constBegin(); it != a.constEnd(); ++it) {
+        if (changed.contains(it.key()) || it.key().endsWith(QLatin1String("calcChain.xml"))) continue;
+        ++r->parts;
+        if (b.contains(it.key()) && b.value(it.key()) == it.value()) ++r->partsSame;
+        else r->differences.add(QStringLiteral("a part that was not meant to change differs"));
+    }
+    Read after(bytes);
+    if (!after.ok) {
+        r->differences.add(QStringLiteral("the saved file does not open: ") + after.why);
+        return;
+    }
+    CalcOptions options;
+    options.keepApart = true;
+    options.workOutWhatHasNoResult = true;
+    Calculation saved(after.book, options);
+    if (!saved.load()) {
+        r->differences.add(QStringLiteral("the saved file does not load"));
+        return;
+    }
+    while (!saved.recalculate().finished) {}
+    compareModels(calc, &saved, r);
+    r->ms = double(timer.nsecsElapsed()) / 1e6;
+}
+
 int roundtripOne(const QString &path)
 {
     QElapsedTimer total;
@@ -487,11 +630,22 @@ int roundtripOne(const QString &path)
         }
         editMs = double(t2.nsecsElapsed()) / 1e6;
     }
+    ScriptResult script;
+    if (exit == 0) {
+        const qint64 cells = [&] {
+            qint64 n = 0;
+            for (int si = 0; si < int(w.loader.result()->book->info().sheets.size()); ++si) n += w.loader.result()->calc->sheet(si).cells.cellCount();
+            return n;
+        }();
+        if (cells <= 6000000) runScript(w, original, &script);
+        else script.differences.add(QStringLiteral("the script is not run on a workbook of more than 6,000,000 cells"));
+    }
     if (!qEnvironmentVariableIsEmpty("JC_ROUNDTRIP_KEEP") && !cellRight) err() << "the edited cell is not right: " << cellName_ << "\n";
     const bool cellsOk = cellsSame && untouched.differences.isEmpty() && partsSame == partsTotal;
     out() << path << '\t' << exit << '\t' << fixed(double(total.nsecsElapsed()) / 1e9) << '\t' << fixed(peakMegabytes()) << '\t' << partsTotal << '\t' << partsSame << '\t' << (cellsOk ? 1 : 0) << '\t'
           << untouched.differences.join(QLatin1String("; ")) << '\t' << cellName_ << '\t' << dependents << '\t' << resultsChanged << '\t' << unexpected << '\t' << editParts << '\t' << editPartsSame << '\t'
-          << (cellRight ? 1 : 0) << '\t' << edited.differences.join(QLatin1String("; ")) << '\t' << fixed(untouchedMs) << '\t' << fixed(editMs) << "\n";
+          << (cellRight ? 1 : 0) << '\t' << edited.differences.join(QLatin1String("; ")) << '\t' << fixed(untouchedMs) << '\t' << fixed(editMs) << '\t' << script.done << '\t' << script.refused << '\t'
+          << script.compared << '\t' << script.right << '\t' << script.parts << '\t' << script.partsSame << '\t' << script.differences.differences.join(QLatin1String("; ")) << '\t' << fixed(script.ms) << "\n";
     out().flush();
     return exit;
 }
@@ -547,6 +701,80 @@ void printStat(const char *what, const std::vector<double> &v)
 {
     out() << "  " << what << ": middle " << QString::number(percentile(v, 0.5), 'f', 3) << " ms, 95th " << QString::number(percentile(v, 0.95), 'f', 3) << " ms, 99th " << QString::number(percentile(v, 0.99), 'f', 3)
           << " ms, longest " << QString::number(percentile(v, 1.0), 'f', 3) << " ms\n";
+}
+
+// Rows and columns inserted and deleted near the top, in the middle, and at the end of the cells, and a block of 100,000 cells pasted: for each, what the window's thread takes (its own processor
+// time) from the call to the sheet drawn again (the sheet's picture is made again from the cells, and the values the window holds are moved), the worker's processor time for what must be
+// worked out again, and the wall until it has.
+void structureBench(CrunchWindow &w, int sheet)
+{
+    crunch::EditSession *session = w.session();
+    const Calculation *calc = w.calculation();
+    grid::GridView *v = w.view();
+    if (!session || !calc) return;
+    qint64 lastEpoch = -1;
+    QObject::connect(&w.workbookLoader(), &crunch::WorkbookLoader::calcBatch, &w, [&](const std::shared_ptr<crunch::CalcBatch> &b) {
+        if (b->last && !b->stopped) lastEpoch = b->epoch;
+    });
+    const quint32 usedRows = std::max<quint32>(20, calc->sheet(sheet).extentRows), usedCols = std::max<quint32>(2, calc->sheet(sheet).extentCols);
+    std::vector<double> cpu, wallv;
+    auto timed = [&](const QString &what, const std::function<crunch::EditSession::Outcome()> &fn) {
+        const qint64 workerBefore = w.workerCpuMicros();
+        QElapsedTimer wall;
+        wall.start();
+        const qint64 c0 = jp::threadCpuMicros();
+        const crunch::EditSession::Outcome o = fn();
+        v->viewport()->repaint();
+        const qint64 c1 = jp::threadCpuMicros();
+        const double wallMs = double(wall.nsecsElapsed()) / 1e6;
+        QElapsedTimer waiting;
+        waiting.start();
+        while ((lastEpoch < w.workbookLoader().changesMade()) && waiting.elapsed() < 120000) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+        const double settleMs = double(wall.nsecsElapsed()) / 1e6;
+        out() << "  " << what << (o.ok ? QString() : QStringLiteral(" (refused: %1)").arg(o.problem)) << ": the window's thread " << QString::number(double(c1 - c0) / 1000.0, 'f', 3) << " ms by its processor time, "
+              << QString::number(wallMs, 'f', 3) << " ms by the wall; the worker " << QString::number(double(w.workerCpuMicros() - workerBefore) / 1000.0, 'f', 3) << " ms of processor time, all worked out by "
+              << QString::number(settleMs, 'f', 1) << " ms\n";
+        if (o.ok) {
+            cpu.push_back(double(c1 - c0) / 1000.0);
+            wallv.push_back(wallMs);
+        }
+    };
+    out() << "rows, columns, and cells inserted and deleted, and a block pasted (the sheet has " << usedRows << " rows by " << usedCols << " columns used):\n";
+    for (const quint32 row : {quint32(5), usedRows / 2, usedRows - 5}) {
+        timed(QStringLiteral("insert a row at row %1").arg(row + 1), [&] { return session->insertRows(sheet, row, 1); });
+        timed(QStringLiteral("delete a row at row %1").arg(row + 1), [&] { return session->deleteRows(sheet, row, 1); });
+    }
+    timed(QStringLiteral("insert a column at column 3"), [&] { return session->insertColumns(sheet, 2, 1); });
+    timed(QStringLiteral("delete a column at column 3"), [&] { return session->deleteColumns(sheet, 2, 1); });
+    {
+        CellRange block;
+        block.valid = true;
+        block.col1 = 0;
+        block.col2 = std::min<quint32>(usedCols, 20) - 1;
+        block.row1 = 0;
+        block.row2 = std::min<quint32>(usedRows, quint32(100000 / (block.col2 + 1))) - 1;
+        crunch::ClipData clip;
+        QElapsedTimer copyTime;
+        copyTime.start();
+        const qint64 k0 = jp::threadCpuMicros();
+        clip = session->copyCells(sheet, block, false);
+        out() << "  copy " << block.cellCount() << " cells: the window's thread " << QString::number(double(jp::threadCpuMicros() - k0) / 1000.0, 'f', 3) << " ms by its processor time ("
+              << clip.cells.size() << " cells held)\n";
+        CellRange target;
+        target.valid = true;
+        target.row1 = target.row2 = usedRows + 10;
+        target.col1 = target.col2 = 0;
+        timed(QStringLiteral("paste %1 cells").arg(clip.cells.size()), [&] { return session->paste(sheet, target, clip, crunch::EditSession::PasteOptions()); });
+        timed(QStringLiteral("undo the paste"), [&] {
+            w.undoStack()->undo();
+            return crunch::EditSession::Outcome();
+        });
+    }
+    if (!cpu.empty()) {
+        const double within = double(std::count_if(cpu.begin(), cpu.end(), [](double x) { return x <= 16.0; })) / double(cpu.size());
+        out() << "inserts, deletes, and pastes within 16 ms by the processor time: " << QString::number(within * 100, 'f', 1) << "% of " << cpu.size() << "\n";
+    }
+    Q_UNUSED(wallv);
 }
 
 // Edits in the window: each is a number typed over a cell that is on the screen, as a person types it, and finished with Enter. What is measured is what a person waits for: from the Enter key to
@@ -675,6 +903,7 @@ int editBench(const QString &pathIn, int edits, int rows, int cols, int readers)
     const double withinCpu = double(std::count_if(totalCpu.begin(), totalCpu.end(), [](double x) { return x <= 16.0; })) / double(totalCpu.size());
     out() << "edits repainted within 16 ms: " << QString::number(withinCpu * 100, 'f', 1) << "% by the processor time, " << QString::number(within * 100, 'f', 1) << "% by the wall (the bar: 99%)\n";
     Q_UNUSED(dependentsMax);
+    structureBench(w, sheet);
     return 0;
 }
 

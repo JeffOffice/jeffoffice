@@ -419,8 +419,21 @@ private Q_SLOTS:
         Book b;
         QVERIFY(b.openXml(worksheet(rows)));
         const qint64 queried = b.calc->graph().queryWork();
+        // an edit at the end of the sheet moves nothing and refers to nothing: it looks at next to nothing, though the sheet has a hundred thousand formulas and cells
+        {
+            const qint64 work = b.calc->editWork();
+            Calculation::EditRecord end;
+            QVERIFY(b.apply(StructEdit::insertRows(0, 100500, 1), &end));
+            QCOMPARE(end.cellsMoved, qint64(0));
+            QCOMPARE(end.formulasRewritten, qint64(0));
+            QVERIFY2(b.calc->editWork() - work < 100, qPrintable(QString::number(b.calc->editWork() - work)));
+            QVERIFY(b.calc->graph().queryWork() - queried < 2000);
+            QVERIFY(b.apply(StructEdit::insertRows(0, 100500, 1).inverse(), &end));
+        }
+        const qint64 workBefore = b.calc->editWork();
         Calculation::EditRecord rec;
         QVERIFY(b.apply(StructEdit::insertRows(0, 50000, 1), &rec));               // a row at 50,001
+        QVERIFY2(b.calc->editWork() - workBefore < qint64(n - 50000) * 2 + 100, qPrintable(QString::number(b.calc->editWork() - workBefore)));   // (the cells that moved, and the one formula)
         QCOMPARE(rec.cellsMoved, qint64(n - 50000));
         QCOMPARE(rec.formulasRewritten, qint64(1));                                 // (C1 reads A99999: B1 reads rows 1 to 100, and B2 reads A50000, which is above)
         QVERIFY2(b.calc->graph().queryWork() - queried < 5000, qPrintable(QString::number(b.calc->graph().queryWork() - queried)));

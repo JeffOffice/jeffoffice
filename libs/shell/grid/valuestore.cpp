@@ -118,46 +118,58 @@ void ValueStore::apply(const std::vector<Item> &items)
     }
 }
 
-qint64 ValueStore::remap(int sheet, const std::function<bool(quint32 *row, quint32 *col)> &where)
+bool ValueStore::erase(int sheet, quint32 row, quint32 col)
 {
-    using jp::calc::Value;
-    if (sheet < 0 || size_t(sheet) >= m_sheets.size() || !m_sheets[size_t(sheet)]) return 0;
+    if (sheet < 0 || size_t(sheet) >= m_sheets.size() || !m_sheets[size_t(sheet)] || col > 0xFFFF) return false;
     Table &t = *m_sheets[size_t(sheet)];
-    std::vector<Item> all;
-    qint64 changed = 0;
-    for (const Chunk &c : t.chunks)
-        for (const Slot &s : c.slots) {
-            if (s.key == kEmptyKey) continue;
-            Item it;
-            it.sheet = sheet;
-            it.row = quint32(s.key >> 16);
-            it.col = quint32(s.key & 0xFFFF);
-            quint32 row = it.row, col = it.col;
-            const bool keep = where(&row, &col);
-            if (!keep || row != it.row || col != it.col) ++changed;
-            if (!keep) continue;
-            it.row = row;
-            it.col = col;
-            switch (Value::Kind(s.kind)) {
-            case Value::Kind::Number: it.value = Value::number(s.number); break;
-            case Value::Kind::Bool: it.value = Value::boolean(s.number != 0); break;
-            case Value::Kind::Error: it.value = Value::error(jp::calc::ErrorKind(s.error)); break;
-            case Value::Kind::Text: it.value = Value::text(m_texts[size_t(s.text)]); break;
-            default: break;
-            }
-            all.push_back(std::move(it));
-        }
-    if (changed == 0) return 0;
-    for (const Chunk &c : t.chunks)
-        for (const Slot &s : c.slots)
-            if (s.key != kEmptyKey && s.text >= 0) {
-                m_texts[size_t(s.text)] = QString();
-                m_freeTexts.push_back(s.text);
-            }
-    for (const Chunk &c : t.chunks) m_count -= qint64(c.used);
-    m_sheets[size_t(sheet)].reset();
-    apply(all);
-    return changed;
+    const quint64 key = keyOf(row, col);
+    const quint64 h = mix(key);
+    Chunk &c = t.chunks[size_t(h >> (64 - kChunkBits))];
+    if (c.slots.empty()) return false;
+    const size_t mask = c.slots.size() - 1;
+    size_t i = size_t(h) & mask;
+    while (c.slots[i].key != key) {
+        if (c.slots[i].key == kEmptyKey) return false;
+        i = (i + 1) & mask;
+    }
+    if (c.slots[i].text >= 0) {
+        m_texts[size_t(c.slots[i].text)] = QString();
+        m_freeTexts.push_back(c.slots[i].text);
+    }
+    // (the places after it that were put there because it was in the way are moved up: no mark is left in the table)
+    size_t hole = i;
+    for (size_t j = (i + 1) & mask; c.slots[j].key != kEmptyKey; j = (j + 1) & mask) {
+        const size_t ideal = size_t(mix(c.slots[j].key)) & mask;
+        const bool between = hole <= j ? (ideal > hole && ideal <= j) : (ideal > hole || ideal <= j);
+        if (between) continue;
+        c.slots[hole] = c.slots[j];
+        hole = j;
+    }
+    c.slots[hole] = Slot();
+    --c.used;
+    --m_count;
+    return true;
+}
+
+void ValueStore::erase(int sheet, const std::vector<std::pair<quint32, quint32>> &cells)
+{
+    for (const auto &cell : cells) erase(sheet, cell.first, cell.second);
+}
+
+void ValueStore::relocate(int sheet, const std::vector<Move> &moves)
+{
+    // each value is taken up before any is put down (a cell may move to where another was)
+    std::vector<Item> items;
+    items.reserve(moves.size());
+    for (const Move &m : moves) {
+        Item it;
+        it.sheet = sheet;
+        it.row = m.toRow;
+        it.col = m.toCol;
+        if (find(sheet, m.fromRow, m.fromCol, &it.value)) items.push_back(std::move(it));
+    }
+    for (const Move &m : moves) erase(sheet, m.fromRow, m.fromCol);
+    apply(items);
 }
 
 bool ValueStore::find(int sheet, quint32 row, quint32 col, jp::calc::Value *out) const

@@ -21,6 +21,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <unordered_set>
 #include <vector>
 
 namespace jp::crunch {
@@ -336,7 +337,7 @@ private:
     std::function<void(jp::office::sheet::Calculation *, bool)> m_holdHook;
     qint64 m_longestHoldWait = 0, m_lastHoldWait = 0;
     bool m_tracking = false;               // an edit has been made: results are compared with the file's
-    std::set<quint64> m_touched;           // cells changed by the person (written whole), by sheet, row, column
+    std::unordered_set<quint64> m_touched;           // cells changed by the person (written whole), by sheet, row, column
     std::map<quint64, jp::calc::Value> m_results;      // formulas whose value is not the file's
     std::map<quint64, jp::calc::Value> m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
     qint64 m_token;

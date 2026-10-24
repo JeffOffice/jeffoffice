@@ -140,6 +140,26 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
     return true;
 }
 
+// The formulas that are told where they read or are kept apart (not those with a function the engine lacks, which the graph holds), added to `out`.
+void Calculation::specialNodes(std::vector<quint32> *out)
+{
+    // (the list is made smaller when most of it is gone or repeated)
+    if (m_special.size() > size_t(m_formulaCount) * 2 + 4096) {
+        std::sort(m_special.begin(), m_special.end());
+        m_special.erase(std::unique(m_special.begin(), m_special.end()), m_special.end());
+        size_t keep = 0;
+        for (const quint32 id : m_special) {
+            const Node &n = m_nodes[id];
+            if (!(n.flags & Dead) && ((n.flags & Told) || ((n.flags & Kept) && n.kept != 'U'))) m_special[keep++] = id;
+        }
+        m_special.resize(keep);
+    }
+    for (const quint32 id : m_special) {
+        const Node &n = m_nodes[id];
+        if (!(n.flags & Dead) && ((n.flags & Told) || ((n.flags & Kept) && n.kept != 'U'))) out->push_back(id);
+    }
+}
+
 bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
 {
     using K = StructEdit::Kind;
@@ -166,13 +186,10 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     const CellArea region = affectedArea(e);
     std::vector<quint32> candidates;
     m_graph->dependentsOfArea(region, &candidates);
-    for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
-        const Node &n = m_nodes[id];
-        if (n.flags & Dead) continue;
-        if ((n.flags & Told) || ((n.flags & Kept) && n.kept != 'U')) candidates.push_back(id);
-    }
+    specialNodes(&candidates);
     std::sort(candidates.begin(), candidates.end());
     candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
+    m_editWork += qint64(candidates.size()) + qint64(m_special.size());
     struct Rewrite {
         quint32 id;
         QString was, now;
@@ -222,8 +239,9 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     // ---- the cells move; the nodes of the formulas among them go with them
     std::vector<Cell> removed;
     SheetState &st = m_state[size_t(e.sheet)];
-    auto onMoved = [&](const Cell &, const Cell &after) {
+    auto onMoved = [&](const Cell &before, const Cell &after) {
         ++rec->cellsMoved;
+        if (after.hasFormula() || (after.flags & ArrayMember)) rec->movedFormulas.push_back({before.row, quint32(before.col), after.row, quint32(after.col)});
         if (!after.hasFormula() || after.formula < 0 || size_t(after.formula) >= st.nodeOf.size()) return;
         const quint32 id = st.nodeOf[size_t(after.formula)];
         if (id == kNone) return;
@@ -335,6 +353,8 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         m_cols[size_t(e.sheet)] = seen;
     }
 
+    m_editWork += rec->cellsMoved + qint64(rec->gone.size());
+
     // ---- the rules of validation
     adjustValidations(e, names, rec);
 
@@ -392,7 +412,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
                 c->formula = qint32(sn.formulas.size() - 1);
             }
             ++rec->formulasRewritten;
-            rec->rewritten.push_back({sheet, c->row, c->col});
+            rec->rewritten.push_back({sheet, c->row, c->col, bool(c->flags & DataTable)});
         }
         dropNode(r.id);
         const quint32 id = addNode(sheet, *c, c->formula);
@@ -419,10 +439,11 @@ bool Calculation::rewriteArrayText(int sheet, quint32 row, quint32 col, const QS
     return true;
 }
 
-bool Calculation::undoEdit(const EditRecord &rec)
+bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
 {
-    if (rec.edit.kind == StructEdit::Kind::Move) return undoMove(rec);
-    EditRecord throwaway;
+    if (rec.edit.kind == StructEdit::Kind::Move) return undoMove(rec, done);
+    EditRecord local;
+    EditRecord &throwaway = done ? *done : local;
     if (!applyEdit(rec.edit.inverse(), &throwaway)) return false;
     Sheet &S = m_sheets[size_t(rec.sheet)];
     // the cells that were deleted are put back, and the formulas that were written again have the text they had

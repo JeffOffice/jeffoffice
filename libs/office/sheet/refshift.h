@@ -69,6 +69,10 @@ bool adjustRange(const StructEdit &edit, int sheet, CellRange *range);
 // A list of ranges as a file writes it ("A1:B2 D4 F6:F9"): what is left of them after the edit, "" if all are gone.
 QString adjustSqref(const QString &sqref, const StructEdit &edit, int sheet);
 
+// For tests: whether adjustFormula makes the common case (a formula of plain cell references, numbers, and operators, for rows inserted or deleted) without reading it as a formula; the
+// result is the same either way (a test compares them).
+void setFastRowEdits(bool on);
+
 // A formula as a file stores it (no "=" in front) with its references changed for the edit. `ownSheet` is the sheet the formula is on (a reference with no sheet names it), and
 // `sheetNames` the names of the workbook's sheets in order. A reference to a sheet that is not in the list (another workbook) is left as it is. `changed`, if given, says whether the text
 // is not the one given. `definedName` is for the text of a defined name.

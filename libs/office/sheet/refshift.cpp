@@ -5,6 +5,7 @@
 #include <QRegularExpression>
 
 #include <algorithm>
+#include <atomic>
 
 namespace jp::office::sheet {
 
@@ -317,10 +318,123 @@ QString sheetPrefix(const QString &name)
 
 } // namespace
 
+namespace {
+
+std::atomic<bool> g_fastRows{true};
+
+bool isUpper(QChar c) { return c.unicode() >= 'A' && c.unicode() <= 'Z'; }
+bool isWordChar(QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('.'); }
+
+// Rows inserted or deleted, in a formula that is only plain references to the cells of its own sheet (A1, $B$2, A1:C9), numbers, operators, brackets, and calls: the row numbers are
+// changed where they stand. False (nothing decided) for anything else, or for a reference a deleted row holds, which the full reading handles.
+bool fastRowEdit(const QString &f, const StructEdit &e, QString *out, bool *changed)
+{
+    const bool inserting = e.kind == StructEdit::Kind::InsertRows;
+    const int n = int(f.size());
+    QString result;
+    int copied = 0;
+    bool any = false;
+    int i = 0;
+    while (i < n) {
+        const QChar c = f[i];
+        const ushort u = c.unicode();
+        if (u == '\'' || u == '"' || u == '!' || u == '[' || u == ']' || u == '#' || u == '{' || u == '}' || u == '_' || u == '\\' || u == '@' || u > 126) return false;
+        if (c.isDigit()) {
+            // a number (1, 2.5, 1E5): or the row numbers of a range of rows (3:5), which the full reading handles
+            if (i > 0 && f[i - 1] == QLatin1Char(':')) return false;
+            int j = i;
+            while (j < n && (f[j].isDigit() || f[j] == QLatin1Char('.'))) ++j;
+            if (j < n && (f[j] == QLatin1Char('E') || f[j] == QLatin1Char('e'))) {
+                ++j;
+                if (j < n && (f[j] == QLatin1Char('+') || f[j] == QLatin1Char('-'))) ++j;
+                while (j < n && f[j].isDigit()) ++j;
+            }
+            if (j < n && f[j] == QLatin1Char(':')) return false;
+            if (j < n && isWordChar(f[j])) return false;
+            i = j;
+            continue;
+        }
+        if (!(c.isLetter() || u == '$')) {
+            ++i;
+            continue;
+        }
+        // a word, or a reference
+        const int start = i;
+        int j = i;
+        const bool dollar1 = f[j] == QLatin1Char('$');
+        if (dollar1) ++j;
+        const int letters = j;
+        while (j < n && f[j].isLetter()) ++j;
+        const int letterCount = j - letters;
+        bool dollar2 = false;
+        if (j < n && f[j] == QLatin1Char('$')) {
+            dollar2 = true;
+            ++j;
+        }
+        const int digits = j;
+        while (j < n && f[j].isDigit()) ++j;
+        const int digitCount = j - digits;
+        const bool cellShaped = letterCount >= 1 && letterCount <= 3 && digitCount >= 1 && digitCount <= 7 && (!dollar1 || letters == start + 1);
+        const bool endsWord = j >= n || !isWordChar(f[j]);
+        const bool startsWord = start == 0 || !isWordChar(f[start - 1]);
+        if (cellShaped && endsWord && startsWord && !(j < n && f[j] == QLatin1Char('('))) {
+            for (int k = letters; k < letters + letterCount; ++k)
+                if (!isUpper(f[k])) return false;
+            // (a column past XFD is a name)
+            qint64 col = 0;
+            for (int k = letters; k < letters + letterCount; ++k) col = col * 26 + (f[k].unicode() - 'A' + 1);
+            if (col <= qint64(kGridCols)) {
+                const qint64 row0 = f.mid(digits, digitCount).toLongLong() - 1;
+                if (row0 >= 0 && row0 < qint64(kGridRows)) {
+                    qint64 now = row0;
+                    if (inserting) {
+                        if (row0 >= qint64(e.first)) now = row0 + e.count;
+                    } else if (row0 >= qint64(e.first) + e.count) {
+                        now = row0 - e.count;
+                    } else if (row0 >= qint64(e.first)) {
+                        return false;   // (in the rows deleted)
+                    }
+                    if (now >= qint64(kGridRows)) return false;
+                    if (now != row0) {
+                        result += f.mid(copied, digits - copied) + QString::number(now + 1);
+                        copied = digits + digitCount;
+                        any = true;
+                    }
+                }
+                i = j;
+                continue;
+            }
+        }
+        // a word: a name, a function, TRUE, a column (A:C is left to the full reading)
+        while (j < n && isWordChar(f[j])) ++j;
+        if (start > 0 && f[start - 1] == QLatin1Char(':')) return false;
+        if (j < n && f[j] == QLatin1Char(':')) return false;
+        i = std::max(j, i + 1);
+    }
+    *changed = any;
+    if (any) *out = result + f.mid(copied);
+    return true;
+}
+
+} // namespace
+
+void setFastRowEdits(bool on) { g_fastRows = on; }
+
 QString adjustFormula(const QString &formula, int ownSheet, const QStringList &sheetNames, const StructEdit &edit, bool *changed, bool definedName)
 {
     if (changed) *changed = false;
     if (edit.kind == StructEdit::Kind::Offset) return offsetFormula(formula, edit.dRow, edit.dCol, changed);
+    if (g_fastRows.load(std::memory_order_relaxed) && !definedName && (edit.kind == StructEdit::Kind::InsertRows || edit.kind == StructEdit::Kind::DeleteRows)) {
+        if (edit.sheet != ownSheet && !formula.contains(QLatin1Char('!')) && !formula.contains(QLatin1Char('['))) return formula;   // (its own sheet's cells are not the edit's)
+        QString now;
+        bool did = false;
+        if (fastRowEdit(formula, edit, &now, &did)) {
+            if (edit.sheet != ownSheet) return formula;
+            if (!did) return formula;
+            if (changed) *changed = true;
+            return now;
+        }
+    }
     jp::calc::ParseOptions po;
     po.definedName = definedName;
     std::vector<jp::calc::ReferenceAt> refs;

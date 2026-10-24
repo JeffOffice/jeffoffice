@@ -34,6 +34,13 @@ On a Mac, the **Command** key (⌘) does what **Ctrl** does in the tables below,
 | Delete | Clear the selected cells |
 | {key:Undo}, {key:Redo} | Undo, redo |
 | {key:Save} | Save |
+| {key:Cut}, {key:Copy}, {key:Paste} | Cut, copy, paste (Esc takes away the border of the cells copied) |
+| Ctrl+Alt+V | Paste Special |
+| Ctrl and the plus key, Ctrl and the minus key | Insert, delete (rows or columns if whole ones are selected) |
+| Ctrl+D, Ctrl+R | Fill down, fill right |
+| Alt and the equals sign | AutoSum |
+| Ctrl+0, Ctrl+9 | Hide the columns, hide the rows |
+| Alt+Down | Open the list of a cell that has one |
 
 ## Commands
 

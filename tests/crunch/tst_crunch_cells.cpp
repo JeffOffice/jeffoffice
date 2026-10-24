@@ -12,6 +12,7 @@
 #include "grid/gridview.h"
 
 #include <QAction>
+#include <QElapsedTimer>
 #include <QRandomGenerator>
 #include <QRegularExpression>
 #include <QApplication>
@@ -91,6 +92,33 @@ QString differences(const office::sheet::Calculation *a, const office::sheet::Ca
             if (a->definedName(s, name) != b->definedName(s, name)) out << QStringLiteral("name %1: %2 against %3").arg(name, a->definedName(s, name), b->definedName(s, name));
     }
     return out.join(QStringLiteral("; "));
+}
+
+// What the window holds for the formulas (its store) against what the calculation has: the grid shows the first. Empty if they agree.
+QString storeDiffers(EditWindow &e)
+{
+    // (the edits were made through the session, not the window's keys: the worker is waited for here)
+    auto &loader = e.win.w.workbookLoader();
+    QTest::qWait(1);
+    QElapsedTimer waited;
+    waited.start();
+    while (!loader.result()->calcIdle.load() && waited.elapsed() < 20000) QTest::qWait(2);
+    QTest::qWait(5);
+    const office::sheet::Calculation *calc = e.win.w.calculation();
+    for (int s = 0; s < calc->sheetCount(); ++s) {
+        bool circular = false;
+        calc->sheet(s).cells.forEach([&](const office::sheet::Cell &c) { circular = circular || calc->isCircular(s, c.row, c.col); });
+        if (circular) continue;
+        QString problem;
+        calc->sheet(s).cells.forEach([&](const office::sheet::Cell &c) {
+            if (!problem.isEmpty() || !(c.hasFormula() || (c.flags & office::sheet::ArrayMember))) return;
+            calc::Value held;
+            if (e.win.w.values().find(s, c.row, c.col, &held) && !sameValue(held, calc->cell(s, c.row, c.col)))
+                problem = QStringLiteral("%1!%2 shows %3 and is %4").arg(s).arg(cellName(c.row, c.col), held.debug(), calc->cell(s, c.row, c.col).debug());
+        });
+        if (!problem.isEmpty()) return problem;
+    }
+    return QString();
 }
 
 QString savedSheetText(const QString &path)
@@ -463,6 +491,8 @@ private Q_SLOTS:
                     break;
                 }
                 QVERIFY(e.settle());
+                const QString stale = storeDiffers(e);
+                QVERIFY2(stale.isEmpty(), qPrintable(QStringLiteral("seed %1 step %2: %3").arg(seed).arg(step).arg(stale)));
             }
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             const bool modified = e.win.w.isModified();

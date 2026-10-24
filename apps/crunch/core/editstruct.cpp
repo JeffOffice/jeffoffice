@@ -5,6 +5,7 @@
 #include <QElapsedTimer>
 
 #include <algorithm>
+#include <map>
 
 namespace jp::crunch {
 
@@ -103,7 +104,8 @@ bool mayMove(const StructEdit &e, quint64 key)
 }
 
 // The marks of cells (a set) after the edit; the keys of those that are gone are given back.
-void followSet(std::set<quint64> *marks, const StructEdit &e, std::vector<quint64> *gone)
+template <class Set>
+void followSet(Set *marks, const StructEdit &e, std::vector<quint64> *gone)
 {
     std::vector<quint64> moved;
     for (auto it = marks->begin(); it != marks->end();) {
@@ -210,9 +212,9 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
         };
         // the formulas that were written again are written whole when the file is made (what they read moved)
         const Calculation *calc = m_book->calc.get();
+        m_touched.reserve(m_touched.size() + sc->record.rewritten.size());
         for (const Calculation::EditRecord::Place &p : sc->record.rewritten) {
-            const Calculation::CellContent c = calc->content(p.sheet, p.row, p.col);
-            if (c.dataTable) continue;   // (the file's own formula is moved with its cell)
+            if (p.dataTable) continue;   // (the file's own formula is moved with its cell)
             mark(keyOf(p.sheet, p.row, p.col));
         }
         // cells moved one by one, across the rows or columns of the file's sheet, are written whole where they are now
@@ -275,27 +277,31 @@ bool EditSession::applyStructure(Step *step, bool forward)
     Workbook &book = *m_book->book;
     if (m_holdHook) m_holdHook(calc, false);
     bool ok;
+    Calculation::EditRecord undone;   // what undoing did to the cells (the record of the edit it made)
     if (forward) {
         sc.record = Calculation::EditRecord();
         ok = calc->applyEdit(sc.edit, &sc.record);
         if (ok) sc.tables = book.moveTables(sc.edit);
     } else {
-        ok = calc->undoEdit(sc.record);
+        ok = calc->undoEdit(sc.record, &undone);
         if (ok) book.putTablesBack(sc.tables);
     }
     if (!ok) return false;
     sc.done = forward;
     const StructEdit now = forward ? sc.edit : sc.edit.inverse();   // what was done to the cells
     followEdit(sc.edit, &sc, forward);
-    // the values the window holds follow the cells
-    m_values->remap(now.sheet, [&](quint32 *row, quint32 *col) {
-        int s = now.sheet;
-        const RefFate fate = adjustCell(now, &s, row, col);
-        return fate != RefFate::Gone && s == now.sheet;   // (the values of formulas moved to another sheet are worked out there)
-    });
-    if (now.kind == StructEdit::Kind::Move && now.toSheet != now.sheet) {
-        const quint32 toRow2 = now.toRow + (now.row2 - now.row1), toCol2 = now.toCol + (now.col2 - now.col1);
-        m_values->remap(now.toSheet, [&](quint32 *row, quint32 *col) { return !(*row >= now.toRow && *row <= toRow2 && *col >= now.toCol && *col <= toCol2); });
+    // the values the window holds follow the cells: those of cells that are gone are let go of, and those of formulas that moved (with their cells) go with them
+    {
+        const Calculation::EditRecord &done = forward ? sc.record : undone;
+        std::map<int, std::vector<std::pair<quint32, quint32>>> gone;
+        for (const Calculation::EditRecord::GoneCell &g : done.gone) gone[g.sheet].emplace_back(g.row, g.col);
+        for (const auto &entry : gone) m_values->erase(entry.first, entry.second);
+        if (now.kind != StructEdit::Kind::Move && !done.movedFormulas.empty()) {
+            std::vector<ValueStore::Move> moves;
+            moves.reserve(done.movedFormulas.size());
+            for (const Calculation::EditRecord::MovedFormula &m : done.movedFormulas) moves.push_back({m.fromRow, m.fromCol, m.toRow, m.toCol});
+            m_values->relocate(now.sheet, moves);
+        }
     }
     m_log.push_back(now);
     hold->structureChanged();
