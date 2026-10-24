@@ -409,6 +409,26 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
                 if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveNotesDrawing(x, ctx, sheet, o, c); });
         }
     }
+    // ---- the objects of drawings that were deleted, and the caches of the charts whose cells changed (on what the moves above made of the parts)
+    auto partBytes = [&](const QString &part, QByteArray *xml) {
+        const int index = entryOfPart(part);
+        if (index < 0) return -1;
+        if (replaced.contains(index)) *xml = replaced.value(index);
+        else if (!inflate(index, xml)) return -1;
+        return index;
+    };
+    for (const auto &[part, ordinals] : changes.removedObjects) {
+        QByteArray xml, now;
+        bool changed = false;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && removeDrawingObjects(xml, ordinals, &now, &changed) && changed) replaced.insert(index, now);
+    }
+    for (const auto &[part, caches] : changes.chartCaches) {
+        QByteArray xml, now;
+        bool changed = false;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && refreshChartCaches(xml, caches, &now, &changed) && changed) replaced.insert(index, now);
+    }
     // ---- the shared strings
     if (!changes.newSharedStrings.isEmpty()) {
         const int index = entryOfPart(book.sharedStringsPart());

@@ -2,8 +2,11 @@
 // a connector), a chart sheet's drawing, and the hostile forms. Every workbook is built in memory.
 #include "drawinghelpers.h"
 
+#include "office/xml.h"
 #include "sheet/chartdata.h"
 #include "sheet/drawing.h"
+#include "sheet/drawingsave.h"
+#include "sheet/xlsxsave.h"
 #include "sheet/structsave.h"
 
 #include <QRandomGenerator>
@@ -330,4 +333,197 @@ private Q_SLOTS:
 };
 
 JP_TEST_CLASS(SheetDrawingTests)
+
+// What saving does with drawings and charts: a deleted object is taken out of its drawing part, and the cache of a chart whose cells changed is made again; nothing else of a part, and no
+// other part, is touched.
+class SheetDrawingSaveTests : public QObject {
+    Q_OBJECT
+
+    static QString namesOf(const QByteArray &drawing, const Package &package)
+    {
+        Q_UNUSED(package);
+        QDomDocument doc;
+        parseXml(drawing, &doc);
+        QStringList names;
+        const QDomNodeList all = doc.elementsByTagName(QStringLiteral("cNvPr"));
+        for (int i = 0; i < all.size(); ++i) names << all.at(i).toElement().attribute(QStringLiteral("name"));
+        return names.join(QLatin1Char(','));
+    }
+    static ChartRefData numbers(const QVector<double> &values, const QVector<bool> &blank = QVector<bool>())
+    {
+        ChartRefData d;
+        for (int i = 0; i < values.size(); ++i) {
+            ChartPoint p;
+            p.empty = i < blank.size() && blank[i];
+            p.isNumber = !p.empty;
+            p.number = values[i];
+            p.text = QString::number(values[i]);
+            d.points.push_back(p);
+        }
+        return d;
+    }
+    static ChartRefData texts(const QStringList &items)
+    {
+        ChartRefData d;
+        for (const QString &t : items) {
+            ChartPoint p;
+            p.empty = t.isEmpty();
+            p.text = t;
+            d.points.push_back(p);
+        }
+        return d;
+    }
+
+private Q_SLOTS:
+    // Objects are taken out by their place among the children of the root: a plain anchor, one wrapped for older programs, and one that closes itself; the rest is as it was to the byte.
+    void deletedObjectsAreTakenOutOfTheDrawing()
+    {
+        const QString wrapped = QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"a14\">%1</mc:Choice><mc:Fallback/></mc:AlternateContent>")
+                                    .arg(twoCell(0, 0, 2, 2, shapeElement(4, QStringLiteral("Third"))));
+        const QByteArray drawing = drawingPart(twoCell(0, 0, 1, 1, shapeElement(2, QStringLiteral("First"))) + QStringLiteral("\n  ") + twoCell(1, 1, 2, 2, shapeElement(3, QStringLiteral("Second"))) + wrapped
+                                               + QStringLiteral("<xdr:note/>") + twoCell(2, 2, 3, 3, shapeElement(5, QStringLiteral("Fifth"))));
+        Package p;
+        QByteArray out;
+        bool changed = true;
+        QVERIFY(removeDrawingObjects(drawing, {}, &out, &changed));
+        QVERIFY(!changed);
+        QCOMPARE(out, drawing);
+        QVERIFY(removeDrawingObjects(drawing, {1, 3}, &out, &changed));
+        QVERIFY(changed);
+        QCOMPARE(namesOf(out, p), QStringLiteral("First,Third,Fifth"));
+        QVERIFY(removeDrawingObjects(drawing, {2}, &out, &changed));   // the wrapper goes whole
+        QCOMPARE(namesOf(out, p), QStringLiteral("First,Second,Fifth"));
+        QVERIFY(removeDrawingObjects(drawing, {0, 1, 2, 3, 4}, &out, &changed));
+        QCOMPARE(namesOf(out, p), QString());
+        QVERIFY(out.contains("wsDr"));
+        QVERIFY(removeDrawingObjects(drawing, {9, 99}, &out, &changed));   // (places the part does not have)
+        QVERIFY(!changed);
+        QCOMPARE(out, drawing);
+        // what is left is as written: the bytes before the first and after the last object are the same
+        QVERIFY(removeDrawingObjects(drawing, {4}, &out, &changed));
+        QVERIFY(out.startsWith(drawing.left(drawing.indexOf("<xdr:twoCellAnchor", drawing.indexOf("Second")) + 10)));
+        QVERIFY(out.endsWith("</xdr:wsDr>"));
+        // a part with no root, and one whose root closes itself
+        QVERIFY(!removeDrawingObjects(QByteArray("not xml"), {0}, &out, &changed));
+        QVERIFY(removeDrawingObjects(QByteArray("<xdr:wsDr xmlns:xdr=\"x\"/>"), {0}, &out, &changed));
+        QVERIFY(!changed);
+    }
+
+    // A cache is made again where the cells differ from it, with the format code and the prefix the part has; one that holds what the cells hold, and a reference that is not asked for, stay as they are.
+    void chartCachesAreMadeAgainWhereTheyDiffer()
+    {
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()},
+                                            SeriesSpec{QStringLiteral("Sheet1!$C$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$C$2:$C$4"), QStringLiteral("West"), {"Q1", "Q2", "Q3"}, {5, 10, 15}, QString()}};
+        QByteArray part = chartPart(QStringLiteral("barChart"), series);
+        part.replace("<c:formatCode>General</c:formatCode>", "<c:formatCode>0.0</c:formatCode>");
+        QByteArray out;
+        bool changed = true;
+        // the same as the cache: nothing changes, to the byte
+        ChartCaches same;
+        same[QStringLiteral("Sheet1!$B$2:$B$4")] = numbers({10, 20, 30});
+        same[QStringLiteral("Sheet1!$A$2:$A$4")] = texts({"Q1", "Q2", "Q3"});
+        same[QStringLiteral("Sheet1!$B$1")] = texts({"East"});
+        QVERIFY(refreshChartCaches(part, same, &out, &changed));
+        QVERIFY(!changed);
+        QCOMPARE(out, part);
+        // different: the number, a text, and a name
+        ChartCaches now;
+        now[QStringLiteral("Sheet1!$B$2:$B$4")] = numbers({10, 99.5, 30.25});
+        now[QStringLiteral("Sheet1!$A$2:$A$4")] = texts({"Q1", "Second & more", "Q3"});
+        now[QStringLiteral("Sheet1!$B$1")] = texts({"Eastern"});
+        QVERIFY(refreshChartCaches(part, now, &out, &changed));
+        QVERIFY(changed);
+        Chart c;
+        QString why;
+        Theme theme;
+        QVERIFY2(readChart(out, theme, ColorMap(), &c, &why), qPrintable(why));
+        QCOMPARE(c.plots[0].series[0].values, (QVector<double>{10, 99.5, 30.25}));
+        QCOMPARE(c.plots[0].series[0].categories, (QStringList{"Q1", "Second & more", "Q3"}));
+        QCOMPARE(c.plots[0].series[0].name, QStringLiteral("Eastern"));
+        QCOMPARE(c.plots[0].series[0].format, QStringLiteral("0.0"));            // (the format code stays)
+        QCOMPARE(c.plots[0].series[1].values, (QVector<double>{5, 10, 15}));     // (the other series is not asked for: as it was)
+        QCOMPARE(c.plots[0].series[1].name, QStringLiteral("West"));
+        // the part is the old one with only the caches of the references asked for replaced (the second series reads the same categories, so they are made again for it too): the rest is as it was
+        const qsizetype west = part.indexOf("<c:val><c:numRef><c:f>Sheet1!$C$2");
+        QVERIFY(west > 0);
+        QVERIFY(out.endsWith(part.mid(west)));
+        // a blank cell has no point, the count is the cells'; a longer range has more places
+        ChartCaches blanks;
+        blanks[QStringLiteral("Sheet1!$C$2:$C$4")] = numbers({5, 0, 15, 7}, {false, true, false, false});
+        QVERIFY(refreshChartCaches(part, blanks, &out, &changed));
+        QVERIFY(changed);
+        QVERIFY(out.contains("<c:ptCount val=\"4\"/><c:pt idx=\"0\"><c:v>5</c:v></c:pt><c:pt idx=\"2\"><c:v>15</c:v></c:pt><c:pt idx=\"3\"><c:v>7</c:v></c:pt>"));
+        QVERIFY(readChart(out, theme, ColorMap(), &c, &why));
+        QVERIFY(std::isnan(c.plots[0].series[1].values.value(1)));
+        // numbers equal to 15 digits are the cache's
+        ChartCaches near;
+        near[QStringLiteral("Sheet1!$B$2:$B$4")] = numbers({10.000000000000002, 20, 30});
+        QVERIFY(refreshChartCaches(part, near, &out, &changed));
+        QVERIFY(!changed);
+        // a reference that has no cache is given one, and a reference of several levels, a literal, and a reference that is not in the part are not touched
+        QByteArray bare = part;
+        bare.replace("<c:numCache><c:formatCode>0.0</c:formatCode><c:ptCount val=\"3\"/><c:pt idx=\"0\"><c:v>10</c:v></c:pt><c:pt idx=\"1\"><c:v>20</c:v></c:pt><c:pt idx=\"2\"><c:v>30</c:v></c:pt></c:numCache>", "");
+        QVERIFY(bare != part);
+        ChartCaches fill;
+        fill[QStringLiteral("Sheet1!$B$2:$B$4")] = numbers({1, 2, 3});
+        fill[QStringLiteral("Elsewhere!$A$1")] = numbers({1});
+        QVERIFY(refreshChartCaches(bare, fill, &out, &changed));
+        QVERIFY(changed);
+        QVERIFY(readChart(out, theme, ColorMap(), &c, &why));
+        QCOMPARE(c.plots[0].series[0].values, (QVector<double>{1, 2, 3}));
+        QByteArray multi = part;
+        multi.replace("<c:strRef><c:f>Sheet1!$A$2:$A$4</c:f>", "<c:multiLvlStrRef><c:f>Sheet1!$A$2:$A$4</c:f>");
+        multi.replace("</c:strCache></c:strRef></c:cat>", "</c:strCache></c:multiLvlStrRef></c:cat>");
+        ChartCaches levels;
+        levels[QStringLiteral("Sheet1!$A$2:$A$4")] = texts({"x", "y", "z"});
+        QVERIFY(refreshChartCaches(multi, levels, &out, &changed));
+        QVERIFY(!changed);
+        QCOMPARE(out, multi);
+        // a text with markup characters is escaped
+        ChartCaches odd;
+        odd[QStringLiteral("Sheet1!$B$1")] = texts({"A <b> & \"c\""});
+        QVERIFY(refreshChartCaches(part, odd, &out, &changed));
+        QVERIFY(readChart(out, theme, ColorMap(), &c, &why));
+        QCOMPARE(c.plots[0].series[0].name, QStringLiteral("A <b> & \"c\""));
+    }
+
+    // A save with both: the drawing part has no deleted object, the chart part the new numbers, and every other part of the file is the old file's to the byte.
+    void aSaveWritesBothAndCopiesTheRest()
+    {
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+        const QString anchors = twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"))) + twoCell(0, 6, 2, 9, pictureElement(3, QStringLiteral("rIdP"))) + twoCell(0, 10, 2, 12, shapeElement(4, QStringLiteral("Box")));
+        const QByteArray xlsx = bookWithDrawing({dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series)), imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))});
+        Package p;
+        QString why;
+        QVERIFY(p.readLazy(xlsx, &why));
+        Workbook b;
+        QVERIFY2(b.open(p, &why), qPrintable(why));
+        SaveChanges changes;
+        changes.removedObjects[QStringLiteral("/xl/drawings/drawing1.xml")] = {1};
+        changes.chartCaches[QStringLiteral("/xl/charts/chart1.xml")][QStringLiteral("Sheet1!$B$2:$B$4")] = numbers({10, 20, 77});
+        QByteArray saved;
+        SaveReport report;
+        QVERIFY2(saveXlsx(b, changes, &saved, &why, &report), qPrintable(why));
+        Package q;
+        QVERIFY2(q.readLazy(saved, &why), qPrintable(why));
+        QCOMPARE(namesOf(q.part(QStringLiteral("/xl/drawings/drawing1.xml")), q), QStringLiteral("Chart,Box"));
+        Chart c;
+        Theme theme;
+        QVERIFY(readChart(q.part(QStringLiteral("/xl/charts/chart1.xml")), theme, ColorMap(), &c, &why));
+        QCOMPARE(c.plots[0].series[0].values, (QVector<double>{10, 20, 77}));
+        QCOMPARE(report.partsChanged, 2);
+        for (const QString &name : p.partNames()) {
+            if (name == QLatin1String("/xl/drawings/drawing1.xml") || name == QLatin1String("/xl/charts/chart1.xml")) continue;
+            QVERIFY2(q.part(name) == p.part(name), qPrintable(name));
+        }
+        // and nothing asked for changes nothing
+        SaveChanges nothing;
+        QByteArray same;
+        SaveReport r2;
+        QVERIFY(saveXlsx(b, nothing, &same, &why, &r2));
+        QCOMPARE(r2.partsChanged, 0);
+    }
+};
+
+JP_TEST_CLASS(SheetDrawingSaveTests)
 #include "tst_sheet_drawing.moc"

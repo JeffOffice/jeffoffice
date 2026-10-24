@@ -10,6 +10,7 @@
 // on: nothing here reads the workbook's cells.
 
 #include "office/package.h"
+#include "sheet/drawingsave.h"
 #include "sheet/refshift.h"
 #include "sheet/sheetreader.h"
 
@@ -103,6 +104,11 @@ struct SaveChanges {
     std::vector<StructEdit> edits;
     // And the columns of tables renamed since, in order.
     std::vector<ColumnRename> renames;
+    // Chart parts whose caches (the numbers and texts a chart stores for the cells it reads) are made again, by the part's name: for each reference as the part writes it (its c:f), what
+    // the cells hold now. A cache that holds that already is left alone (drawingsave.h).
+    std::map<QString, ChartCaches> chartCaches;
+    // Drawing objects a person deleted: for each drawing part (by its name), the places of their elements among the children of the part's root (DrawingObject::ordinal).
+    std::map<QString, std::vector<int>> removedObjects;
     // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
     bool fullCalcOnLoad = false;
 };
