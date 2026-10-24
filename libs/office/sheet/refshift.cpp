@@ -470,6 +470,7 @@ QString adjustFormula(const QString &formula, int ownSheet, const QStringList &s
         in.col2 = r.ref.col2;
         in.wholeColumns = r.ref.flags & jp::calc::kRefWholeCols;
         in.wholeRows = r.ref.flags & jp::calc::kRefWholeRows;
+        bool keepRow1 = false, keepRow2 = false, keepCol1 = false, keepCol2 = false;
         if (definedName) {
             // a name's reference that is not fixed (no "$" on its rows, say) is read from the cell the name is used in, and keeps its offset when rows (or columns) are inserted or
             // deleted; the fixed parts follow the cells
@@ -477,11 +478,26 @@ QString adjustFormula(const QString &formula, int ownSheet, const QStringList &s
             const bool rowEdit = edit.kind == K::InsertRows || edit.kind == K::DeleteRows || edit.kind == K::InsertCellsDown || edit.kind == K::DeleteCellsUp;
             const bool columnEdit = edit.kind == K::InsertColumns || edit.kind == K::DeleteColumns || edit.kind == K::InsertCellsRight || edit.kind == K::DeleteCellsLeft;
             const quint8 f = r.ref.flags;
-            if (rowEdit && !(f & (jp::calc::kRefRow1Abs | jp::calc::kRefRow2Abs))) continue;
-            if (columnEdit && !(f & (jp::calc::kRefCol1Abs | jp::calc::kRefCol2Abs))) continue;
+            const bool area = (f & jp::calc::kRefArea) || r.ref.row1 != r.ref.row2 || r.ref.col1 != r.ref.col2;
+            // (which ends of the edited axis are read from the cell: a fixed end follows the cells, a relative one keeps its offset)
+            auto fixedEnds = [&](quint8 first, quint8 second, bool *keepFirst, bool *keepSecond) {
+                const bool a = f & first, b = area ? bool(f & second) : a;
+                *keepFirst = !a;
+                *keepSecond = !b;
+                return a || b;
+            };
+            if (rowEdit && !fixedEnds(jp::calc::kRefRow1Abs, jp::calc::kRefRow2Abs, &keepRow1, &keepRow2)) continue;
+            if (columnEdit && !fixedEnds(jp::calc::kRefCol1Abs, jp::calc::kRefCol2Abs, &keepCol1, &keepCol2)) continue;
         }
         Block moved;
-        const RefFate fate = adjustBlock(edit, in, &moved);
+        RefFate fate = adjustBlock(edit, in, &moved);
+        if (fate == RefFate::Moved) {
+            if (keepRow1) moved.row1 = in.row1;
+            if (keepRow2) moved.row2 = in.row2;
+            if (keepCol1) moved.col1 = in.col1;
+            if (keepCol2) moved.col2 = in.col2;
+            if (moved.sheet == in.sheet && moved.row1 == in.row1 && moved.row2 == in.row2 && moved.col1 == in.col1 && moved.col2 == in.col2) fate = RefFate::Same;
+        }
         if (fate == RefFate::Same) continue;
         any = true;
         // a reference to cells that moved to another sheet names that sheet now (one through several sheets stays as it is)

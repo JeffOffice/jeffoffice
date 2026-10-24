@@ -719,6 +719,22 @@ private Q_SLOTS:
         QCOMPARE(b.calc->definedName(0, QStringLiteral("ColFixed")), QStringLiteral("Sheet1!$B2"));
     }
 
+    // A name's reference with one end fixed ($ on its row): that end follows the cells like a cell reference, and the other end, which is read from the cell the name is used in, keeps its offset.
+    void aNameWithOneFixedEndMovesOnlyThatEnd()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2", "A3=3", "A4=4"}}, QString(),
+                       QStringLiteral("<definedName name=\"First\">Sheet1!A$1:A3</definedName><definedName name=\"Second\">Sheet1!A1:A$3</definedName><definedName name=\"Both\">Sheet1!A$1:A$3</definedName>")));
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), nullptr));
+        QCOMPARE(b.calc->definedName(0, QStringLiteral("First")), QStringLiteral("Sheet1!A$2:A3"));    // (the fixed end moved down with its cell; the other did not)
+        QCOMPARE(b.calc->definedName(0, QStringLiteral("Second")), QStringLiteral("Sheet1!A1:A$4"));
+        QCOMPARE(b.calc->definedName(0, QStringLiteral("Both")), QStringLiteral("Sheet1!A$2:A$4"));
+        QVERIFY(b.apply(StructEdit::insertRows(0, 3, 1), nullptr));                                        // a row in the middle
+        QCOMPARE(b.calc->definedName(0, QStringLiteral("First")), QStringLiteral("Sheet1!A$2:A3"));    // (its fixed end is above the new row)
+        QCOMPARE(b.calc->definedName(0, QStringLiteral("Second")), QStringLiteral("Sheet1!A1:A$5"));
+        QCOMPARE(b.calc->definedName(0, QStringLiteral("Both")), QStringLiteral("Sheet1!A$2:A$5"));
+    }
+
     // A data table reads its input cells: deleting one is refused (the file cannot say it is gone), and a row or column inserted or deleted elsewhere moves the table's reference with the cell.
     void aDataTablesInputCellIsNotDeleted()
     {
