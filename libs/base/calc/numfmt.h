@@ -32,6 +32,7 @@
 #include "calc/dates.h"
 
 #include <QChar>
+#include <QLocale>
 #include <QString>
 #include <QVector>
 
@@ -100,6 +101,12 @@ private:
 // The code of a built-in format id ("" for an id with none: 23 to 26, and 59 and up). Id 14 is the short date and 22 the short date and time, as the
 // system shows them in the United States ("m/d/yyyy", "m/d/yyyy h:mm").
 QString builtinFormatCode(int id);
+// The code of the short date of a locale, as the system writes it (its order of day, month, and year, its separators, a year of four digits): what the file format's built-in format 14
+// means, "m/d/yyyy" in the United States.
+QString shortDateFormatCode(const QLocale &locale);
+// The code of a built-in format as a person sees it in a locale: the format of the file (builtinFormatCode) except that 14 is the locale's short date and 22 that and the time (h:mm),
+// which is what the file format defines them as (the system's short date).
+QString builtinFormatCode(int id, const QLocale &locale);
 
 // The RGB (0xRRGGBB) of a palette color 1 to 56 as the number formats name them; 0 for any other number.
 quint32 formatColorRgb(int color);

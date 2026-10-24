@@ -99,13 +99,46 @@ public:
     // worked out again the value it had.
     jp::calc::Value shown(int sheet, quint32 row, quint32 col) const;
 
-    // Edits. Each marks what depends on the cell; the values change at the next recalculation. False, with nothing changed, if the cell is off the sheet or the text no formula.
-    bool setValue(int sheet, quint32 row, quint32 col, const jp::calc::Value &value);   // an empty value empties the cell
-    bool setFormula(int sheet, quint32 row, quint32 col, const QString &formula);        // as the file writes it, with no "=" in front
+    // Edits. Each marks what depends on the cell, and the values change at the next recalculation. False, with nothing changed, if the cell is off the sheet, is a cell of an array or a data
+    // table (which is not changed alone), or the text is no formula. With Marking::Later the marking is left to the recalculation (the formulas that read the cell are looked for, a chunk
+    // at a time, by its first slices): the edit itself then costs what moving the cell in its block of rows does, whatever number of formulas read it. A window that edits on its own thread
+    // and calculates on another takes Later.
+    enum class Marking { Now, Later };
+    bool setValue(int sheet, quint32 row, quint32 col, const jp::calc::Value &value, Marking marking = Marking::Now, qint32 sharedString = -1);   // an empty value empties the cell
+    // `sharedString`: for a text, its place in the workbook's shared strings if it is there (the cell then refers to it, and no text is kept in the sheet).
+    // `stored`, if given, is the result the cell has until the formula is worked out (for a formula the engine keeps apart, which it does not work out).
+    bool setFormula(int sheet, quint32 row, quint32 col, const QString &formula, Marking marking = Marking::Now, const jp::calc::Value *stored = nullptr);   // as the file writes it, with no "=" in front
     bool clearCell(int sheet, quint32 row, quint32 col) { return setValue(sheet, row, col, jp::calc::Value()); }
+    // The format of the cell (the place of a cell format): a cell that holds nothing and has the first format is taken away. No formula reads a cell's format, so nothing is marked.
+    bool setStyle(int sheet, quint32 row, quint32 col, quint32 style);
+    // What a cell holds, whole, so that an edit can be undone: see put(). A cell that is not there is `exists` false.
+    struct CellContent {
+        bool exists = false;
+        bool editable = true;          // false for a cell of an array or a data table
+        bool isFormula = false;
+        QString formula;               // as the file writes it (for a shared formula, as it reads in this cell)
+        jp::calc::Value value;         // a constant's value (empty for a formula)
+        qint32 sharedString = -1;      // a text in the shared strings: its place
+        quint32 style = 0;
+        // A formula the engine keeps apart (a function it lacks): the result it shows, which is the one the file stored until something it reads changes. Put back with the formula, so
+        // that an edit undone does not turn the result into #NAME?.
+        bool hasStored = false;
+        jp::calc::Value stored;
+        bool operator==(const CellContent &o) const
+        {
+            return exists == o.exists && isFormula == o.isFormula && formula == o.formula && value == o.value && sharedString == o.sharedString && style == o.style;
+        }
+    };
+    CellContent content(int sheet, quint32 row, quint32 col) const;
+    // Puts the content in the cell (the cell taken away if it does not exist): its constant or formula, then its format. False if the cell cannot be changed, or the formula is no formula.
+    bool put(int sheet, quint32 row, quint32 col, const CellContent &content, Marking marking = Marking::Now);
+    // Puts right, at once, what a stop of the recalculation left to be put right (an edit does this first; a caller that is about to read the formulas' state does too).
+    void settle() { abandonNow(); }
 
     // About the formulas.
     qint64 formulaCount() const { return m_formulaCount; }
+    // Formulas the engine cannot work out and keeps apart (they keep the result the file stored); it walks the formulas, so it is for the times it is needed (a save).
+    qint64 keptCount() const;
     qint64 untrackedCount() const { return m_untracked; }      // formulas the graph was too full to hold
     qint64 textSlotBytes() const;   // what the strings in the slots that hold the formulas' texts take, the free slots' too (a free slot holds none)
     qint64 heldBytes() const { return m_heldBytes; }   // what the texts and arrays that formulas gave take (the bound: CalcOptions::maxHeldBytes)
@@ -133,6 +166,9 @@ public:
         const jp::calc::Program *program;             // null for a formula with no text, or that did not parse; held as long as the calculation is
     };
     void forEachFormula(const std::function<void(const FormulaCell &)> &f) const;
+    // Every cell that holds a formula of its own (not a cell of an array or a data table), with the formula as the file writes it: for what must look at every formula (a column of a table
+    // renamed). Called with the worker held back.
+    void forEachFormulaText(const std::function<void(int sheet, quint32 row, quint32 col, const QString &formula)> &f) const;
 
 private:
     enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3, Suspended = 4 };   // (Suspended: worked out, found to wait only for formulas on the way to it or in its own group)
@@ -173,6 +209,8 @@ private:
     bool formulaValue(int sheet, const Cell &c, jp::calc::Value *out) const;
     jp::calc::CellArea areaOf(const Node &n) const;
     void markDependents(std::vector<jp::calc::CellArea> *changed);
+    void queueDependents(const jp::calc::CellArea &area);
+    void giveName(quint32 id, std::vector<jp::calc::CellArea> *changed);
     void markDirty(quint32 id, std::vector<jp::calc::CellArea> *changed);
     void beginRecalculation();
     // The parts of a recalculation that are done in slices of the time they are given: each does some of its work, and says whether it is all done. `timeUp` is asked every

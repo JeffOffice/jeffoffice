@@ -25,6 +25,14 @@ CrunchFileScreen::CrunchFileScreen(CrunchWindow *win) : FileScreen(win), m_win(w
     addSection(tr("Start"));
     addPage(QStringLiteral("open"), QStringLiteral("folder-open"), tr("Open"));
     addSection(tr("This workbook"));
+    addCommand(QStringLiteral("save"), QStringLiteral("save"), tr("Save"), [this] {
+        if (m_win->act("file.save")->isEnabled()) m_win->act("file.save")->trigger();
+        Q_EMIT closeRequested();
+    });
+    addCommand(QStringLiteral("saveAs"), QStringLiteral("save"), tr("Save As"), [this] {
+        Q_EMIT closeRequested();
+        if (m_win->act("file.saveAs")->isEnabled()) m_win->act("file.saveAs")->trigger();
+    });
     addCommand(QStringLiteral("close"), QStringLiteral("circle-x"), tr("Close"), [this] { m_win->act("file.close")->trigger(); Q_EMIT closeRequested(); });
     addSection(appInfo().name);
     addCommand(QStringLiteral("options"), QStringLiteral("settings"), tr("Options"), [this] { m_win->act("file.options")->trigger(); });
@@ -147,7 +155,7 @@ QWidget *CrunchFileScreen::buildAbout()
     name->setFont(nf);
     iv->addWidget(name);
     iv->addWidget(mutedLabel(tr("Version %1 · Built with Qt %2").arg(QStringLiteral(JP_VERSION), QString::fromLatin1(qVersion())), id));
-    auto *tag = new QLabel(tr("Free, open-source spreadsheets for Windows, macOS, and Linux. This is an early Preview: it shows workbooks but doesn't change them yet."), id);
+    auto *tag = new QLabel(tr("Free, open-source spreadsheets for Windows, macOS, and Linux. This is an early Preview: you can type into cells, undo, and save; formatting, copying and pasting, and more are still to come."), id);
     tag->setWordWrap(true);
     fitHeight(tag);
     iv->addWidget(tag);

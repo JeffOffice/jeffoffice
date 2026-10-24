@@ -11,6 +11,7 @@
 #include "core/threadtime.h"
 
 #include <algorithm>
+#include <chrono>
 #include <functional>
 #include <mutex>
 #include <vector>
@@ -21,7 +22,6 @@ using namespace jp::office;
 using namespace jp::office::sheet;
 
 namespace {
-QString tr(const char *text) { return QCoreApplication::translate("jp::crunch::Loader", text); }
 }
 
 int firstSheetToShow(const WorkbookInfo &info)
@@ -78,13 +78,18 @@ void WorkbookLoader::cancel()
     if (m_state) {
         m_state->cancel = true;
         m_state->stopCalc = true;
+        m_state->halt = true;
+        m_state->wake.notify_all();
     }
     m_thread.reset();   // (the janitor keeps it until it is over)
 }
 
 void WorkbookLoader::stopCalculation()
 {
-    if (m_state) m_state->stopCalc = true;
+    if (!m_state) return;
+    m_state->stopCalc = true;
+    m_state->updateHalt();
+    m_state->wake.notify_all();
 }
 
 void WorkbookLoader::setPace(int micros)
@@ -119,17 +124,45 @@ void WorkbookLoader::start(const QString &path)
 
 bool WorkbookLoader::recalculate()
 {
-    if (!m_result || !m_state || !m_result->calc || m_state->cancel.load()) return false;
+    if (!m_result || !m_state || !m_result->calc || m_state->cancel.load() || !m_state->serving.load()) return false;
     m_state->stopCalc = false;
+    m_state->updateHalt();
     m_state->redo = true;
-    // (a worker that is still calculating takes it at its next slice; one that has just finished, or has finished, does not, and a new one is begun for it)
-    if (!m_state->calcActive.load() && m_state->redo.exchange(false)) {
-        const std::shared_ptr<LoadedBook> result = m_result;
-        const std::shared_ptr<State> state = m_state;
-        const QPointer<WorkbookLoader> self(this);
-        startThread([result, state, self] { calculate(result, state, self, true); });
-    }
+    m_state->urgent = true;
+    ++m_state->changes;
+    m_state->wake.notify_all();
     return true;
+}
+
+qint64 WorkbookLoader::changesMade() const { return m_state ? m_state->changes.load() : 0; }
+
+WorkbookLoader::Hold::Hold(std::shared_ptr<State> state, jp::office::sheet::Calculation *calc) : m_state(std::move(state)), m_calc(calc)
+{
+    ++m_state->holds;
+    m_state->updateHalt();
+    m_state->model.lock();
+}
+
+WorkbookLoader::Hold::~Hold()
+{
+    if (m_changed) {
+        ++m_state->changes;
+        m_state->urgent = true;
+        // an edit made after a stop (Esc) is worked out: the stop was of the calculation that was going
+        m_state->stopCalc = false;
+    }
+    --m_state->holds;
+    m_state->updateHalt();
+    m_state->model.unlock();
+    m_state->wake.notify_all();
+}
+
+bool WorkbookLoader::canHold() const { return m_result && m_state && m_result->calc && !m_state->cancel.load() && m_state->serving.load(); }
+
+std::unique_ptr<WorkbookLoader::Hold> WorkbookLoader::hold()
+{
+    if (!m_result || !m_state || !m_result->calc || m_state->cancel.load() || !m_state->serving.load()) return nullptr;
+    return std::unique_ptr<Hold>(new Hold(m_state, m_result->calc.get()));
 }
 
 bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why)
@@ -143,7 +176,7 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     out->notRead = book->skippedFeatures();
     const int shownSheet = firstSheetToShow(book->info());
     if (shownSheet < 0) {
-        *why = tr("The workbook has no sheets.");
+        *why = QCoreApplication::translate("jp::crunch::Loader", "The workbook has no sheets.");
         return false;
     }
     // the rows the sheet's view shows (and its frozen rows), from where it begins: not the first rows of the sheet, which it may be scrolled far from
@@ -181,7 +214,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     calc->setProgress(nullptr);
     calc->setCancel(nullptr);
     if (cancelled()) return false;
-    if (!whole) out->problem = tr("Some of the workbook could not be read whole: %1.").arg(calc->notWhole().join(QStringLiteral(", ")));
+    if (!whole) out->problem = QCoreApplication::translate("jp::crunch::Loader", "Some of the workbook could not be read whole: %1.").arg(calc->notWhole().join(QStringLiteral(", ")));
     // the grid's geometry of each sheet
     out->geometry.assign(size_t(out->book->info().sheets.size()), nullptr);
     for (int i = 0; i < out->book->info().sheets.size(); ++i) {
@@ -200,7 +233,9 @@ QString fileKind(const QString &path)
     return kinds.contains(ending) ? ending : QStringLiteral("other");
 }
 
-void WorkbookLoader::calculate(const std::shared_ptr<LoadedBook> &result, const std::shared_ptr<State> &state, const QPointer<WorkbookLoader> &self, bool invalidateFirst)
+// The worker, once the workbook is read whole: it works the formulas out for the window, a slice at a time, and tells it the values in batches; when there is nothing to work out it waits,
+// and works out what the window changes (a hold let go with a change) and what F9 asks for, until it is cancelled.
+void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std::shared_ptr<State> &state, const QPointer<WorkbookLoader> &self)
 {
     Calculation *calc = result->calc.get();
     if (!calc) return;
@@ -212,64 +247,97 @@ void WorkbookLoader::calculate(const std::shared_ptr<LoadedBook> &result, const 
             --state->pending;
         }, Qt::QueuedConnection);
     };
-    state->calcActive = true;
     result->calcThread = quintptr(QThread::currentThreadId());
-    bool again = invalidateFirst;
+    std::vector<jp::grid::ValueStore::Item> items;
+    calc->setCancel(&state->halt);
+    calc->setResultSink([&items](int sheet, quint32 row, quint32 col, const jp::calc::Value &v) {
+        jp::grid::ValueStore::Item it;
+        it.sheet = sheet;
+        it.row = row;
+        it.col = col;
+        it.value = v;
+        items.push_back(std::move(it));
+    });
+    QElapsedTimer sinceSent;
+    sinceSent.start();
+    std::unique_lock<std::mutex> lock(state->model);
+    // (the values are sent without the model: sending can wait for the window to take what it has)
+    auto flush = [&](bool last, bool stopped, qint64 epoch) {
+        const qint64 total = std::max<qint64>(1, calc->formulaCount());
+        const qint64 dirty = calc->dirtyCount();
+        lock.unlock();
+        auto batch = std::make_shared<CalcBatch>();
+        batch->items.swap(items);
+        batch->percent = last && !stopped ? 100 : int(std::max<qint64>(0, 100 - 100 * dirty / total));
+        batch->last = last;
+        batch->stopped = stopped;
+        batch->epoch = epoch;
+        batch->workerCpuMicros = jp::threadCpuMicros();
+        sendBatch(batch);
+        sinceSent.restart();
+        state->urgent = false;
+        // (the window is given time to take what it has: a worker that is far ahead of it only makes more for it to hold)
+        while (!last && state->pending.load() >= kMaxBatchesWaiting && !state->stopCalc.load() && !state->cancel.load() && state->holds.load() == 0) QThread::usleep(500);
+    };
+    bool first = true;   // (the first pass is made even when nothing is to be worked out, so that the window is told it is over)
     for (;;) {
-        std::vector<jp::grid::ValueStore::Item> items;
-        calc->setCancel(&state->stopCalc);
-        calc->setResultSink([&items](int sheet, quint32 row, quint32 col, const jp::calc::Value &v) {
-            jp::grid::ValueStore::Item it;
-            it.sheet = sheet;
-            it.row = row;
-            it.col = col;
-            it.value = v;
-            items.push_back(std::move(it));
-        });
-        if (again) calc->invalidateAll();
-        again = false;
-        QElapsedTimer sinceSent;
-        sinceSent.start();
-        auto flush = [&](bool last, bool stopped) {
-            auto batch = std::make_shared<CalcBatch>();
-            batch->items.swap(items);
-            const qint64 total = std::max<qint64>(1, calc->formulaCount());
-            batch->percent = last && !stopped ? 100 : int(std::max<qint64>(0, 100 - 100 * calc->dirtyCount() / total));
-            batch->last = last;
-            batch->stopped = stopped;
-            batch->workerCpuMicros = jp::threadCpuMicros();
-            sendBatch(batch);
-            sinceSent.restart();
-            // (the window is given time to take what it has: a worker that is far ahead of it only makes more for it to hold)
-            while (!last && state->pending.load() >= kMaxBatchesWaiting && !state->stopCalc.load()) QThread::usleep(500);
-        };
+        // wait for something to work out (the wait ends at least every so often, in case a request came between looking and waiting)
+        if (!first) {
+            result->calcIdle = true;
+            state->wake.wait_for(lock, std::chrono::milliseconds(50), [&] { return state->cancel.load() || state->redo.load() || (!state->stopCalc.load() && calc->isDirty()); });
+        }
+        if (state->cancel.load()) break;
+        if (state->redo.exchange(false)) calc->invalidateAll();
+        if (!first && (state->stopCalc.load() || !calc->isDirty())) continue;
+        first = false;
+        result->calcIdle = false;
         bool stopped = false;
+        qint64 epoch = 0;
         for (;;) {
             const Calculation::Progress p = calc->recalculate(0, nullptr, kSliceMicros);
-            if (const int pace = state->pace.load()) QThread::usleep(pace);
-            if (p.cancelled || state->stopCalc.load()) {
-                stopped = true;
-                break;
+            if (p.cancelled) {
+                if (state->stopCalc.load() || state->cancel.load()) {
+                    stopped = true;
+                    break;
+                }
+                // a hold is wanted: what the stop left to put right is put right, the model is let go, and taken again when the window has done
+                calc->settle();
+                lock.unlock();
+                while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);
+                lock.lock();
+                continue;
             }
             if (state->redo.exchange(false)) {
                 calc->invalidateAll();
                 continue;
             }
-            if (p.finished) break;
-            if (items.size() >= size_t(kBatchValues) || sinceSent.elapsed() >= kBatchMillis) flush(false, false);
+            if (p.finished) {
+                epoch = state->changes.load();
+                break;
+            }
+            // between slices: what has been worked out is sent when there is enough of it (or the first of an edit is there), and the model is let go for a moment
+            const bool send = items.size() >= size_t(kBatchValues) || sinceSent.elapsed() >= kBatchMillis || (state->urgent.load() && !items.empty());
+            if (send) {
+                flush(false, false, 0);
+            } else {
+                lock.unlock();
+            }
+            if (const int pace = state->pace.load()) QThread::usleep(pace);
+            while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);
+            lock.lock();
+            if (state->stopCalc.load() || state->cancel.load()) {
+                stopped = true;
+                break;
+            }
         }
-        calc->setResultSink(nullptr);
-        calc->setCancel(nullptr);
-        flush(true, stopped);
-        state->calcActive = false;
-        // (asked to work everything out again as it ended: it does, on this worker)
-        if (!stopped && state->redo.exchange(false) && !state->cancel.load()) {
-            state->calcActive = true;
-            again = true;
-            continue;
-        }
-        break;
+        if (state->cancel.load()) break;
+        flush(true, stopped, epoch);
+        result->calcIdle = true;
+        while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);
+        lock.lock();
     }
+    calc->setResultSink(nullptr);
+    calc->setCancel(nullptr);
 }
 
 void WorkbookLoader::run(const QString &path, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self)
@@ -294,10 +362,10 @@ void WorkbookLoader::run(const QString &path, std::shared_ptr<LoadedBook> result
     if (cancelled()) return;
     send([self] { if (self) Q_EMIT self->firstScreen(); });
     if (!loadWhole(result.get(), cancelled, [&](int sheet, qint64 cells) { send([self, sheet, cells] { if (self) Q_EMIT self->progress(sheet, cells); }); }, &state->cancel, &state->pace)) return;
-    state->calcActive = true;   // (a request to work everything out again, from here on, is for this worker to take)
+    state->serving = true;
     send([self] { if (self) Q_EMIT self->finished(true, QString()); });
-    // and the formulas are worked out, here, as the window shows what it has
-    calculate(result, state, self, false);
+    // and the formulas are worked out, here, as the window shows what it has; then the worker stays, to work out what the window changes
+    serve(result, state, self);
 }
 
 } // namespace jp::crunch

@@ -39,6 +39,8 @@ QByteArray buildXlsx(const QVector<QByteArray> &sheets, const QByteArray &shared
                      const QString &calcPr = QString(), const QByteArray &styles = QByteArray(), const QStringList &names = QStringList(),
                      const QString &definedNames = QString(), const QByteArray &theme = QByteArray(), const QString &bookViews = QString(),
                      const QList<int> &hidden = QList<int>());
+// The workbook with tables added to its first sheet: each entry is the XML of a table part (numbered from 1), with the relationship and the content type a table has.
+QByteArray withTables(const QByteArray &xlsx, const QStringList &tableXml);
 // A styles part: the inside of numFmts (the numFmt elements), then the inside of cellXfs (the xf elements), and the rest of the stylesheet after them.
 QByteArray stylesXml(const QString &numFmts, const QString &cellXfs, const QString &after = QString());
 

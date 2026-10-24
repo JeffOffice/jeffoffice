@@ -45,6 +45,7 @@ GridView::GridView(QWidget *parent) : QAbstractScrollArea(parent)
 {
     setObjectName(QStringLiteral("gridView"));
     setFocusPolicy(Qt::StrongFocus);
+    setAttribute(Qt::WA_InputMethodEnabled, true);
     setFrameShape(QFrame::NoFrame);
     viewport()->setAttribute(Qt::WA_OpaquePaintEvent);
     viewport()->setBackgroundRole(QPalette::Window);
@@ -628,6 +629,19 @@ void GridView::resizeEvent(QResizeEvent *e)
     layoutChanged();
 }
 
+// What an input method (for Chinese, Japanese, and Korean, or accents made of two keys) finishes writing starts an entry in the cell; what it is still composing is not shown here.
+void GridView::inputMethodEvent(QInputMethodEvent *e)
+{
+    if (!e->commitString().isEmpty()) Q_EMIT typingStarted(e->commitString());
+    e->accept();
+}
+
+QVariant GridView::inputMethodQuery(Qt::InputMethodQuery query) const
+{
+    if (query == Qt::ImEnabled) return true;
+    return QAbstractScrollArea::inputMethodQuery(query);
+}
+
 void GridView::focusInEvent(QFocusEvent *e)
 {
     QAbstractScrollArea::focusInEvent(e);
@@ -671,6 +685,7 @@ void GridView::dragTo(const QPoint &pos)
 
 void GridView::mousePressEvent(QMouseEvent *e)
 {
+    if (e->button() == Qt::LeftButton && m_clickGuard && !m_clickGuard()) return;
     setFocus(Qt::MouseFocusReason);
     m_jump.reset();
     const GridLayout &L = m_sheet.layout();
@@ -715,6 +730,49 @@ void GridView::mouseReleaseEvent(QMouseEvent *)
     m_autoScroll.stop();
 }
 
+void GridView::mouseDoubleClickEvent(QMouseEvent *e)
+{
+    if (e->button() != Qt::LeftButton) return;
+    const Hit h = m_sheet.layout().hit(e->pos());
+    if (h.kind == Hit::Kind::Cell) Q_EMIT editRequested();
+}
+
+QRect GridView::cellRect(qint64 row, qint64 col) const
+{
+    const GridLayout &L = m_sheet.layout();
+    GridRange r{row, col, row, col};
+    const int m = row >= 0 && col >= 0 ? L.merges.at(quint32(row), quint32(col)) : -1;
+    if (m >= 0) {
+        const jp::office::sheet::CellRange &range = L.merges.range(m);
+        r = GridRange{qint64(range.row1), qint64(range.col1), qint64(range.row2), qint64(range.col2)};
+    }
+    for (Pane p : {Pane::Corner, Pane::Top, Pane::Left, Pane::Body}) {
+        const PaneView v = L.pane(p);
+        if (v.isEmpty() || row < v.firstRow || row > v.lastRow || col < v.firstCol || col > v.lastCol) continue;
+        const QRect rect = L.rangeRectIn(p, r.row1, r.col1, r.row2, r.col2);
+        return rect & v.rect;
+    }
+    return QRect();
+}
+
+void GridView::moveAfterEnter(bool up)
+{
+    Navigator nav(&m_sheet.layout(), m_nav.get());
+    setSelectionInternal(nav.enter(m_selection, up));
+}
+
+void GridView::moveAfterTab(bool back)
+{
+    Navigator nav(&m_sheet.layout(), m_nav.get());
+    setSelectionInternal(nav.tab(m_selection, back));
+}
+
+void GridView::moveAfterArrow(int dRow, int dCol)
+{
+    Navigator nav(&m_sheet.layout(), m_nav.get());
+    setSelectionInternal(nav.move(m_selection, dRow, dCol, false));
+}
+
 void GridView::wheelEvent(QWheelEvent *e)
 {
     if (e->modifiers() & Qt::ControlModifier) {
@@ -738,6 +796,15 @@ void GridView::wheelEvent(QWheelEvent *e)
 
 // ---- the keys
 
+bool GridView::keyBeginsAnEntry(Qt::KeyboardModifiers m, const QString &text, bool macKeyboard)
+{
+    const bool ctrl = m & Qt::ControlModifier, alt = m & Qt::AltModifier, meta = m & Qt::MetaModifier;
+    // (on a Mac, Qt gives Cmd as Control and Ctrl as Meta, and Option alone gives the characters of the layout's second level: é, @, a bracket; Cmd or Ctrl with anything is a shortcut.
+    // Elsewhere AltGr arrives as Ctrl and Alt together, and Alt alone is a shortcut)
+    const bool characterKey = macKeyboard ? !ctrl && !meta : ((ctrl && alt && !meta) || (!ctrl && !alt && !meta));
+    return characterKey && !text.isEmpty() && text.front().isPrint();
+}
+
 void GridView::keyPressEvent(QKeyEvent *e)
 {
     const bool shift = e->modifiers() & Qt::ShiftModifier, ctrl = e->modifiers() & Qt::ControlModifier;
@@ -749,6 +816,35 @@ void GridView::keyPressEvent(QKeyEvent *e)
     }
     Navigator nav(&m_sheet.layout(), m_nav.get());
     auto go = [&](const Selection &s) { setSelectionInternal(s); };
+    // a character that prints starts an entry
+    auto typed = [&]() {
+#ifdef Q_OS_MACOS
+        constexpr bool kMacKeyboard = true;
+#else
+        constexpr bool kMacKeyboard = false;
+#endif
+        if (!keyBeginsAnEntry(e->modifiers(), e->text(), kMacKeyboard)) return false;
+        Q_EMIT typingStarted(e->text());
+        e->accept();
+        return true;
+    };
+    if (plain && !ctrl) {
+        if (e->key() == Qt::Key_F2 && !shift) {
+            Q_EMIT editRequested();
+            e->accept();
+            return;
+        }
+        if (e->key() == Qt::Key_Delete) {
+            Q_EMIT clearRequested();
+            e->accept();
+            return;
+        }
+        if (e->key() == Qt::Key_Backspace) {
+            Q_EMIT typingStarted(QString());
+            e->accept();
+            return;
+        }
+    }
     int dRow = 0, dCol = 0;
     switch (e->key()) {
     case Qt::Key_Left: dCol = -1; break;
@@ -788,13 +884,15 @@ void GridView::keyPressEvent(QKeyEvent *e)
     case Qt::Key_Space:
         if (ctrl) go(nav.selectWholeColumns(m_selection));
         else if (shift) go(nav.selectWholeRows(m_selection));
-        else QAbstractScrollArea::keyPressEvent(e);
+        else if (!typed()) QAbstractScrollArea::keyPressEvent(e);
         return;
     case Qt::Key_A:
         if (ctrl) go(nav.selectAll(m_selection));
-        else QAbstractScrollArea::keyPressEvent(e);
+        else if (!typed()) QAbstractScrollArea::keyPressEvent(e);
         return;
-    default: QAbstractScrollArea::keyPressEvent(e); return;
+    default:
+        if (!typed()) QAbstractScrollArea::keyPressEvent(e);
+        return;
     }
     e->accept();
 }

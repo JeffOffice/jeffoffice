@@ -11,9 +11,11 @@
 #include "grid/textwalk.h"
 
 #include <QAbstractScrollArea>
+#include <QInputMethodEvent>
 #include <QElapsedTimer>
 #include <QTimer>
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -22,6 +24,10 @@ namespace jp::grid {
 class GridView : public QAbstractScrollArea {
     Q_OBJECT
 public:
+    // Whether a key with these modifiers and this text begins an entry in the cell: one that prints, and is not a shortcut. Ctrl (and Cmd on a Mac) with a character is a shortcut. AltGr,
+    // which gives the characters some keyboards have on their letters, arrives as Ctrl and Alt together (Windows); on a Mac, Option gives them, and Cmd with Option is a shortcut.
+    // `macKeyboard` says which of the two the keys are of (the platform's, as the grid asks it).
+    static bool keyBeginsAnEntry(Qt::KeyboardModifiers modifiers, const QString &text, bool macKeyboard);
     explicit GridView(QWidget *parent = nullptr);
     ~GridView() override;
 
@@ -112,12 +118,27 @@ public:
     // True while a walk for the edge of the data or the numbers of a selection is going on.
     bool busy() const { return m_jump || m_statsWalk; }
 
+    // ---- for a window that edits
+    // Where a cell is in the view, in the viewport's pixels (a merged range's whole rectangle for a cell in one); empty if the cell is scrolled out of sight.
+    QRect cellRect(qint64 row, qint64 col) const;
+    // The moves that follow an entry, as the keys make them: Enter and Shift+Enter (down and up, through the cells of a selection), Tab and Shift+Tab (right and left), and an arrow.
+    void moveAfterEnter(bool up);
+    void moveAfterTab(bool back);
+    void moveAfterArrow(int dRow, int dCol);
+    // A hook asked before a click changes the selection: false, and the click is ignored (the window finishes an entry first, and does not go on when it can't).
+    void setClickGuard(std::function<bool()> guard) { m_clickGuard = std::move(guard); }
+
 Q_SIGNALS:
     void selectionChanged();
     void zoomChanged(double zoom);
     void statsChanged(const QString &text);
     void contextMenuRequested(const QPoint &globalPos);
     void viewChanged();   // the scroll, frozen panes, or what is shown changed
+    // Keys that start an entry: a character that prints (with no Ctrl or Alt) is typed into the cell with the cursor in place of what it holds, and Backspace starts an entry with
+    // nothing; F2 and a double click on a cell edit what it holds; Delete clears the selection.
+    void typingStarted(const QString &text);
+    void editRequested();
+    void clearRequested();
 
 protected:
     void paintEvent(QPaintEvent *e) override;
@@ -125,9 +146,12 @@ protected:
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
+    void mouseDoubleClickEvent(QMouseEvent *e) override;
     void wheelEvent(QWheelEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
     bool focusNextPrevChild(bool) override { return false; }
+    void inputMethodEvent(QInputMethodEvent *e) override;
+    QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
     void focusInEvent(QFocusEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;
     void scrollContentsBy(int, int) override {}
@@ -172,6 +196,7 @@ private:
     qint64 m_lastScrollX = 0, m_lastScrollY = 0;
     std::vector<double> m_paintTimes, m_paintCpuTimes;
     qint64 m_blits = 0, m_fullScrolls = 0;
+    std::function<bool()> m_clickGuard;
 };
 
 } // namespace jp::grid

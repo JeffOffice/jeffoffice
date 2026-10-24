@@ -69,13 +69,15 @@ void finishRun(Run &run)
 
 // Calls f(item) for each interval of the half [l, r) of the run that meets [qlo, qhi]; the number of middles looked at is added to `work`.
 template <class F>
-void search(const Run &run, size_t l, size_t r, quint32 qlo, quint32 qhi, F &f, qint64 &work)
+void search(const Run &run, size_t l, size_t r, quint32 qlo, quint32 qhi, F &f, qint64 &work, const bool *abort)
 {
     while (l < r) {
+        if (abort && *abort) return;
         const size_t mid = l + (r - l) / 2;
         ++work;
         if (run.maxHi[mid] < qlo) return;
-        search(run, l, mid, qlo, qhi, f, work);
+        search(run, l, mid, qlo, qhi, f, work, abort);
+        if (abort && *abort) return;
         const Item &it = run.items[mid];
         if (it.lo > qhi) return;
         if (it.hi >= qlo) f(it);
@@ -106,14 +108,17 @@ public:
 
     // Calls f(item) for each interval that meets [lo, hi], and adds what it looked at to `work`.
     template <class F>
-    void overlap(quint32 lo, quint32 hi, F &&f, qint64 &work) const
+    void overlap(quint32 lo, quint32 hi, F &&f, qint64 &work, const bool *abort = nullptr) const
     {
         work += 1 + qint64(m_buffer.size());
-        for (const Item &it : m_buffer)
+        for (const Item &it : m_buffer) {
+            if (abort && *abort) return;
             if (it.lo <= hi && it.hi >= lo) f(it);
+        }
         for (const Run &run : m_runs) {
+            if (abort && *abort) return;
             ++work;
-            search(run, 0, run.items.size(), lo, hi, f, work);
+            search(run, 0, run.items.size(), lo, hi, f, work, abort);
         }
     }
 
@@ -422,35 +427,43 @@ void DependencyGraph::clearPrecedents(Node node)
     if (++r.gen == 0) r.gen = 1;
 }
 
-void DependencyGraph::dependentsOfCell(qint32 sheet, quint32 row, quint32 col, std::vector<Node> *out) const
+bool DependencyGraph::dependentsOfCell(qint32 sheet, quint32 row, quint32 col, std::vector<Node> *out, const std::atomic<bool> *stop) const
 {
     const Impl &g = *d;
-    if (sheet < 0 || size_t(sheet) >= g.sheets.size() || col >= kColumns) return;
+    if (sheet < 0 || size_t(sheet) >= g.sheets.size() || col >= kColumns) return true;
     const SheetIndex &sh = g.sheets[size_t(sheet)];
     qint64 &work = g.queryWork;
+    bool aborted = false;
+    qint64 found = 0;
     auto report = [&](const Item &it) {
         ++work;
         if (g.ctx.live(it)) out->push_back(it.node);
+        if (stop && (++found & 4095) == 0 && stop->load(std::memory_order_relaxed)) aborted = true;
     };
-    for (int level = 0; level < kLevels; ++level) {
+    for (int level = 0; level < kLevels && !aborted; ++level) {
         if (!(sh.levels & (quint32(1) << level))) continue;
         ++work;
-        const auto found = sh.nodes.find(nodeKey(level, col >> level));
-        if (found != sh.nodes.end()) found->second.overlap(row, row, report, work);
+        const auto node = sh.nodes.find(nodeKey(level, col >> level));
+        if (node != sh.nodes.end()) node->second.overlap(row, row, report, work, stop ? &aborted : nullptr);
     }
+    return !aborted;
 }
 
-void DependencyGraph::dependentsOfArea(const CellArea &area, std::vector<Node> *out) const
+bool DependencyGraph::dependentsOfArea(const CellArea &area, std::vector<Node> *out, const std::atomic<bool> *stop) const
 {
     const Impl &g = *d;
-    if (area.col1 >= kColumns || area.col1 > area.col2 || area.row1 > area.row2) return;
+    if (area.col1 >= kColumns || area.col1 > area.col2 || area.row1 > area.row2) return true;
     const quint32 col2 = std::min<quint32>(area.col2, kColumns - 1);
     qint64 &work = g.queryWork;
+    bool aborted = false;
+    qint64 found = 0;
     auto report = [&](const Item &it) {
         ++work;
         if (g.ctx.live(it)) out->push_back(it.node);
+        if (stop && (++found & 4095) == 0 && stop->load(std::memory_order_relaxed)) aborted = true;
     };
-    for (qint32 sheet = std::max<qint32>(0, area.sheet1); sheet <= area.sheet2 && size_t(sheet) < g.sheets.size(); ++sheet) {
+    const bool* const abortFlag = stop ? &aborted : nullptr;
+    for (qint32 sheet = std::max<qint32>(0, area.sheet1); sheet <= area.sheet2 && size_t(sheet) < g.sheets.size() && !aborted; ++sheet) {
         const SheetIndex &sh = g.sheets[size_t(sheet)];
         // the nodes whose columns meet the block's: for each level, those from the one that holds its first column to the one that holds its last
         qint64 lookups = 0;
@@ -459,21 +472,23 @@ void DependencyGraph::dependentsOfArea(const CellArea &area, std::vector<Node> *
         if (lookups <= qint64(sh.nodes.size())) {
             for (int level = 0; level < kLevels; ++level) {
                 if (!(sh.levels & (quint32(1) << level))) continue;
-                for (quint32 index = area.col1 >> level; index <= (col2 >> level); ++index) {
+                for (quint32 index = area.col1 >> level; index <= (col2 >> level) && !aborted; ++index) {
                     ++work;
                     const auto found = sh.nodes.find(nodeKey(level, index));
-                    if (found != sh.nodes.end()) found->second.overlap(area.row1, area.row2, report, work);
+                    if (found != sh.nodes.end()) found->second.overlap(area.row1, area.row2, report, work, abortFlag);
                 }
             }
         } else {
             for (const auto &node : sh.nodes) {
+                if (aborted) break;
                 ++work;
                 const quint32 level = node.first >> 16, index = node.first & 0xFFFF;
                 if (((index + 1) << level) <= area.col1 || (index << level) > col2) continue;
-                node.second.overlap(area.row1, area.row2, report, work);
+                node.second.overlap(area.row1, area.row2, report, work, abortFlag);
             }
         }
     }
+    return !aborted;
 }
 
 qint64 DependencyGraph::entryCount() const { return d->live; }

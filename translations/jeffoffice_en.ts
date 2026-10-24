@@ -159,6 +159,16 @@
     </message>
 </context>
 <context>
+    <name>jp::crunch::EditSession</name>
+    <message numerus="yes">
+        <source>Clearing %n cell(s)</source>
+        <translation>
+            <numerusform>Clearing %n cell</numerusform>
+            <numerusform>Clearing %n cells</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::office::wml</name>
     <message numerus="yes">
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>

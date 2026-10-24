@@ -178,16 +178,42 @@ Value fnDdb(Call &c)
     return numberResult(decliningBalance(cost, salvage, life, period, factor));
 }
 
+// The depreciation in period `period` of the declining balance at `rate`: the balance before it times the rate, or what is left down to the salvage if that would take
+// the balance under it.
+double decliningStep(double cost, double salvage, double rate, double period)
+{
+    double before;
+    if (rate >= 1) {
+        rate = 1;
+        before = period == 1 ? cost : 0;
+    } else {
+        before = cost * std::pow(1 - rate, period - 1);
+    }
+    const double after = cost * std::pow(1 - rate, period);
+    const double d = after < salvage ? before - salvage : before * rate;
+    return d < 0 ? 0 : d;
+}
+
 // The depreciation of the stretch of the asset's life from `start` to `end`, in periods: the declining balance in each period (or, once the straight line over what is left of
 // the life gives more, the straight line), and of a period the stretch begins or ends in, the part the stretch covers. The amounts of the periods are those from the first
-// period of the life whatever the stretch, so that stretches that make up a longer one make up its amount.
+// period of the life whatever the stretch, so that stretches that make up a longer one make up its amount, with one exception that the files show: when the start is inside a
+// period, the part of the first period before it (as long as the start is past the whole periods) is taken off the cost at the rate of that period, and the life, the start,
+// and the end move back by that part, so that the periods from the start on are whole again, with the rate of the declining balance (factor / life) as it was.
 double variableBalance(double cost, double salvage, double life, double start, double end, double factor, bool noSwitch)
 {
+    const double rate = factor / life;
+    const double part = start - std::floor(start);
+    if (part > 1e-12) {
+        cost -= decliningStep(cost, salvage, rate, 1) * part;
+        life -= part;
+        start -= part;
+        end -= part;
+    }
     double total = 0, left = cost - salvage, line = 0;
     bool straight = false;
     const qint64 last = qint64(std::ceil(end));
     for (qint64 i = 1; i <= last; ++i) {
-        const double declining = decliningBalance(cost, salvage, life, double(i), factor);
+        const double declining = decliningStep(cost, salvage, rate, double(i));
         double term = declining;
         if (!noSwitch) {
             if (!straight) {

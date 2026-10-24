@@ -8,6 +8,8 @@
 
 #include <QtEndian>
 
+#include <cstring>
+
 namespace jp {
 
 quint32 crc32(const QByteArray &data)
@@ -90,8 +92,116 @@ void ZipWriter::add(const QString &name, const QByteArray &data, bool compress)
     m_entries << e;
 }
 
+void ZipWriter::addRaw(const QString &name, quint16 method, quint32 crc, quint32 csize, quint32 usize, const char *bytes)
+{
+    const QByteArray n = name.toUtf8();
+    Entry e{name, crc, usize, csize, method, quint32(m_out.size())};
+    put32(m_out, 0x04034b50);
+    put16(m_out, 20);
+    put16(m_out, 0x0800);
+    put16(m_out, e.method);
+    put16(m_out, 0); put16(m_out, 0x21);
+    put32(m_out, e.crc);
+    put32(m_out, e.csize);
+    put32(m_out, e.size);
+    put16(m_out, quint16(n.size()));
+    put16(m_out, 0);
+    m_out.append(n);
+    m_out.append(bytes, qsizetype(csize));
+    m_entries << e;
+}
+
+// A streamed entry: where its header is (the sizes and CRC are put in it at the end), what is counted so far, and the deflater.
+struct ZipWriter::Stream {
+    qsizetype headerAt = 0;
+    QString name;
+    bool deflated = false;
+    quint32 crc = 0;
+    quint64 usize = 0;
+    z_stream z{};
+};
+
+ZipWriter::~ZipWriter()
+{
+    if (m_stream) {
+        if (m_stream->deflated) deflateEnd(&m_stream->z);
+        delete m_stream;
+    }
+}
+
+void ZipWriter::beginStream(const QString &name, bool compress)
+{
+    if (m_stream) endStream();
+    m_stream = new Stream;
+    m_stream->name = name;
+    m_stream->headerAt = m_out.size();
+    m_stream->crc = quint32(::crc32(0L, Z_NULL, 0));
+    const QByteArray n = name.toUtf8();
+    put32(m_out, 0x04034b50);
+    put16(m_out, 20);
+    put16(m_out, 0x0800);
+    m_stream->deflated = compress && deflateInit2(&m_stream->z, 6, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY) == Z_OK;
+    put16(m_out, m_stream->deflated ? 8 : 0);
+    put16(m_out, 0); put16(m_out, 0x21);
+    put32(m_out, 0); put32(m_out, 0); put32(m_out, 0);   // (the CRC and sizes: put in when the entry ends)
+    put16(m_out, quint16(n.size()));
+    put16(m_out, 0);
+    m_out.append(n);
+}
+
+void ZipWriter::write(const char *data, qsizetype size)
+{
+    if (!m_stream || size <= 0) return;
+    Stream &s = *m_stream;
+    s.crc = quint32(::crc32(uLong(s.crc), reinterpret_cast<const Bytef *>(data), uInt(size)));
+    s.usize += quint64(size);
+    if (!s.deflated) {
+        m_out.append(data, size);
+        return;
+    }
+    s.z.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(data));
+    s.z.avail_in = uInt(size);
+    char buffer[1 << 16];
+    do {
+        s.z.next_out = reinterpret_cast<Bytef *>(buffer);
+        s.z.avail_out = sizeof buffer;
+        ::deflate(&s.z, Z_NO_FLUSH);
+        m_out.append(buffer, qsizetype(sizeof buffer - s.z.avail_out));
+    } while (s.z.avail_out == 0);
+}
+
+void ZipWriter::endStream()
+{
+    if (!m_stream) return;
+    Stream &s = *m_stream;
+    const qsizetype dataAt = s.headerAt + 30 + s.name.toUtf8().size();
+    if (s.deflated) {
+        char buffer[1 << 16];
+        int r;
+        do {
+            s.z.next_in = nullptr;
+            s.z.avail_in = 0;
+            s.z.next_out = reinterpret_cast<Bytef *>(buffer);
+            s.z.avail_out = sizeof buffer;
+            r = ::deflate(&s.z, Z_FINISH);
+            m_out.append(buffer, qsizetype(sizeof buffer - s.z.avail_out));
+        } while (r != Z_STREAM_END && r == Z_OK);
+        deflateEnd(&s.z);
+    }
+    const quint32 csize = quint32(m_out.size() - dataAt), usize = quint32(s.usize);
+    char fields[12];
+    qToLittleEndian(s.crc, fields);
+    qToLittleEndian(csize, fields + 4);
+    qToLittleEndian(usize, fields + 8);
+    std::memcpy(m_out.data() + s.headerAt + 14, fields, 12);
+    m_entries << Entry{s.name, s.crc, usize, csize, quint16(s.deflated ? 8 : 0), quint32(s.headerAt)};
+    delete m_stream;
+    m_stream = nullptr;
+}
+
 QByteArray ZipWriter::finish()
 {
+    if (m_stream) endStream();
     const quint32 cdStart = quint32(m_out.size());
     for (const auto &e : m_entries) {
         const QByteArray n = e.name.toUtf8();

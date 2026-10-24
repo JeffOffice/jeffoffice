@@ -1,8 +1,11 @@
 #pragma once
 // JeffCrunch's main window: the ribbon, the name box and formula bar, the grid, the sheet tabs, and the status bar, with the File screen over them. It opens a workbook on a
-// worker (WorkbookLoader), shows the first rows at once, and when the whole workbook is read works its formulas out a few milliseconds at a time. It shows; it does not edit yet.
+// worker (WorkbookLoader), shows the first rows at once, and when the whole workbook is read works its formulas out a few milliseconds at a time. A person types into cells (over the
+// cell, in it with F2 or a double click, or in the formula bar), clears them with Delete, undoes and redoes, and saves the workbook as it was read with only what changed put in.
 
 #include "app/appwindow.h"
+#include "app/celleditor.h"
+#include "core/editsession.h"
 #include "core/loader.h"
 #include "grid/gridview.h"
 #include "grid/valuestore.h"
@@ -10,12 +13,15 @@
 #include <QElapsedTimer>
 #include <QHash>
 #include <QKeySequence>
+#include <QPointer>
 #include <QTimer>
 #include <atomic>
 #include <functional>
 #include <memory>
 
 class QDockWidget;
+class QThread;
+class QUndoStack;
 class QLabel;
 class QLineEdit;
 class QSlider;
@@ -57,7 +63,35 @@ public:
     QString pathToSave();
     // Stands in for the question about the new name (tests): given the path the workbook came from, it answers the name, or an empty string for a person who cancels.
     void setSaveNameAsker(const std::function<QString(const QString &openedPath)> &asker) { m_saveNameAsker = asker; }
+    // The loader that reads the workbook and works it out (a test holds its worker back to make what it checks independent of speed).
+    crunch::WorkbookLoader &workbookLoader() { return m_loader; }
     bool isCalculating() const { return m_calculating; }
+    // ---- editing
+    // The entry in progress (typed over a cell, or in it, or in the formula bar) is finished: the cell takes it (one step of Undo), and the selection goes the way the key says. False,
+    // with the reason shown, and the entry still there, if the cell can't take it (a formula that is not one).
+    bool isEditing() const { return m_edit.active; }
+    CellEditor *cellEditor() const { return m_cellEditor; }
+    crunch::EditSession *session() const { return m_session.get(); }
+    QUndoStack *undoStack() const;
+    bool commitEdit(CellEditor::Way way = CellEditor::Way::Stay);
+    void cancelEdit();
+
+    // ---- saving
+    // Saves the workbook where it was read from (the file is made whole in a place of its own, and then put where the old one is), or, with a path, there. The work is done on a thread of its own;
+    // `saved` says when it is over. False if it did not begin (nothing to save, or the reason is shown).
+    bool save();
+    bool saveAs(const QString &path);
+    bool isModified() const { return m_session && m_session->isModified(); }
+    bool isSaving() const { return m_saving; }
+    // What the person is asked when the window is closed with changes that are not saved: Save, Don't Save, or Cancel (a message box, unless this stands in for it: tests).
+    enum class Answer { Save, Discard, Cancel };
+    void setAsker(const std::function<Answer(const QString &title, const QString &text)> &asker) { m_asker = asker; }
+    // What is asked when the file to be saved over was changed by another program since it was read: save a copy instead (Save As), write over it, or give the save up. The name is the
+    // file's. A message box with the three, unless this stands in for it (tests).
+    enum class ChangedAnswer { SaveCopy, Overwrite, Cancel };
+    void setChangedAsker(const std::function<ChangedAnswer(const QString &name)> &asker) { m_changedAsker = asker; }
+    // Where Save As writes: asked of a file dialog, unless this stands in for it (tests): the name it starts with, and the filter; an empty path gives it up.
+    void setSavePicker(const std::function<QString(const QString &start, const QString &filter)> &picker) { m_savePicker = picker; }
     // What a short message to the person is shown with: a message box, unless this stands in for it (tests): the title and the sentence.
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
 
@@ -74,6 +108,8 @@ public:
     // The longest time (the thread's own, in microseconds) the window has spent in taking one batch of values from the calculation: what the calculation costs the window's thread.
     qint64 longestBatchMicros() const { return m_longestBatchMicros; }
     qint64 batchesTaken() const { return m_batches; }
+    // The worker thread's own processor time since it began, as the last batch said (microseconds).
+    qint64 workerCpuMicros() const { return m_workerCpuMicros; }
     // The most values one batch had (what taking a batch costs the window is in proportion to it, whatever the machine's speed).
     qint64 longestBatchItems() const { return m_longestBatchItems; }
     // For tests: slows the worker (see WorkbookLoader::setPace).
@@ -95,12 +131,16 @@ public:
     crunch::SheetTabBar *sheetTabs() const { return m_tabs; }
 
 Q_SIGNALS:
+    // The workbook was saved (to the path), or could not be.
+    void saved(const QString &path, bool ok);
     // The first rows are on the screen.
     void firstScreenShown();
     // The workbook is read whole (or could not be opened).
     void loadFinished(bool ok);
     // Every formula has its value.
     void calculationFinished();
+    // The window was asked to open a file it has open (or another window was), and has been brought to the front.
+    void broughtForward();
 
 protected:
     void closeEvent(QCloseEvent *e) override;
@@ -128,7 +168,22 @@ private:
     void onProgress(int sheet, qint64 cells);
     void onFinished(bool ok, const QString &message);
     void onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch);
-    void stopCalculation();
+    bool stopCalculation();   // true if a save that was waiting for the calculation was cancelled
+    // editing
+    void createEditing();
+    void beginEdit(const QString &initial, CellEditor::Mode mode, bool fromBar);
+    void placeEditor();
+    void finishEdit(CellEditor::Way way);
+    void onCellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells);
+    void clearSelection();
+    void undoRedo(bool redo);
+    void updateEditActions();
+    bool editingAllowed();
+    // saving
+    bool startSave(const QString &path);
+    void onSaved(bool ok, const QString &message, const QString &path, const QByteArray &bytes, const std::shared_ptr<crunch::EditSession::Snapshot> &snapshot);
+    bool askAboutChanges();
+    QString saveKind() const;
     void setStatus(const QString &text);
     void goToName();
     void copySelection();
@@ -169,9 +224,31 @@ private:
     QTimer m_copyTimer;
     // the values the calculation (on the worker) has told
     jp::grid::ValueStore m_values;
-    qint64 m_longestBatchMicros = 0, m_batches = 0, m_longestBatchItems = 0;
+    qint64 m_longestBatchMicros = 0, m_batches = 0, m_longestBatchItems = 0, m_workerCpuMicros = 0;
     std::function<void(const QString &, const QString &)> m_notifier;
     QString m_loadProblem;
+    // editing
+    std::unique_ptr<crunch::EditSession> m_session;
+    CellEditor *m_cellEditor = nullptr;
+    struct EditState {
+        bool active = false;
+        int sheet = 0;
+        quint32 row = 0, col = 0;
+        QString original;      // what the formula bar showed before (Esc puts it back)
+    } m_edit;
+    bool m_syncingEditors = false, m_undoing = false, m_finishing = false;
+    qint64 m_tabOriginCol = -1, m_tabRow = -1;   // where a run of Tabs began (Enter then goes back to that column)
+    // saving
+    bool m_saving = false, m_closeAfterSave = false, m_closing = false;
+    QPointer<QThread> m_saveThread;
+    QString m_saveAfterCalculation;
+    std::function<Answer(const QString &, const QString &)> m_asker;
+    std::function<ChangedAnswer(const QString &)> m_changedAsker;
+    std::function<QString(const QString &, const QString &)> m_savePicker;
+    // Whether the file at the window's path is not what was read (or last written): another program changed it.
+    bool fileChangedOnDisk() const;
+    // The window that has the file open (or is reading it), if any.
+    static CrunchWindow *windowWith(const QString &path);
     QString m_formulaFull;    // what the cell with the cursor holds, whole (the formula bar shows a part of a long text until it has the focus)
 };
 

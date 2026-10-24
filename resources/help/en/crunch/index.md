@@ -6,7 +6,8 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 ## Getting started
 
 - [Welcome to JeffCrunch](start)
-- [Open workbooks](open-save)
+- [Open and save workbooks](open-save)
+- [Type in cells](edit-cells)
 
 ## Look at a workbook
 

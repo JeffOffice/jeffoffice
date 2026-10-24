@@ -14,12 +14,12 @@ Styles::Styles()
     for (int i = 0; i < kThemeColors; ++i) theme[i] = usual[i];
 }
 
-QString Styles::formatCode(quint32 xf) const
+QString Styles::formatCode(quint32 xf, const QLocale &locale) const
 {
     const qint32 id = numFmtId(xf);
     const auto it = numFmts.constFind(id);
     if (it != numFmts.constEnd()) return it.value();
-    const QString builtin = jp::calc::builtinFormatCode(id);
+    const QString builtin = jp::calc::builtinFormatCode(id, locale);
     return builtin.isEmpty() ? QStringLiteral("General") : builtin;
 }
 

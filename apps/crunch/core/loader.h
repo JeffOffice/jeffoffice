@@ -3,7 +3,7 @@
 // rows of the sheet that was open, which the window shows at once (the first screen); then it reads every sheet whole and puts the formulas in the calculation, and goes on to work
 // them out, on the same thread, telling the window each batch of values as it has them (the window puts them in its ValueStore, a few thousand at a time). Nothing of the calculation
 // is done on the window's thread, so no formula of any size holds the window up. The window shows the first rows while the rest is read, and stops the worker when it is closed or
-// asked for another file.
+// asked for another file. The worker stays when the formulas are worked out: it waits, and works out what the window changes (see WorkbookLoader::hold).
 
 #include "grid/gridsheet.h"
 #include "grid/valuestore.h"
@@ -16,8 +16,10 @@
 #include <QStringList>
 
 #include <atomic>
+#include <condition_variable>
 #include <functional>
 #include <memory>
+#include <mutex>
 
 class QThread;
 
@@ -40,6 +42,7 @@ struct LoadedBook {
     std::atomic<qint64> cellsRead{0};                       // cells of the sheets read so far (set by the worker as it reads, and read by anyone)
     std::atomic<bool> workerEnded{false};                   // the worker has gone: it will touch nothing of this again
     std::atomic<quintptr> calcThread{0};                    // the thread that worked the formulas out (QThread::currentThreadId), 0 if none has: a test checks it is not the window's
+    std::atomic<bool> calcIdle{false};                      // the worker has nothing to work out and waits (it stays, to work out what the window changes); false while it works
 };
 
 // What the calculation has worked out since the last batch: the values (which the window puts in its store), how far it has come, and whether it is the last.
@@ -48,6 +51,7 @@ struct CalcBatch {
     int percent = 0;               // of the formulas, worked out
     bool last = false;             // the calculation is over (finished, or stopped)
     bool stopped = false;          // ... because it was stopped
+    qint64 epoch = 0;              // for a last batch: how many changes the window had made when the calculation finished (WorkbookLoader::changesMade): all of them are worked out
     qint64 workerCpuMicros = 0;    // the worker thread's processor time since it began
 };
 
@@ -77,6 +81,7 @@ QString fileKind(const QString &path);
 
 class WorkbookLoader : public QObject {
     Q_OBJECT
+    struct State;
 public:
     explicit WorkbookLoader(QObject *parent = nullptr);
     ~WorkbookLoader() override;
@@ -88,8 +93,37 @@ public:
     bool isRunning() const;
     // Stops the calculation only (what it has worked out is told; the rest keeps what the file stored); calculationStopped is then the last batch's `stopped`.
     void stopCalculation();
-    // Works every formula out again, on the worker that is calculating, or on one begun for it; false if there is nothing to work out (no workbook read whole).
+    // Works every formula out again, on the worker; false if there is nothing to work out (no workbook read whole).
     bool recalculate();
+
+    // ---- changing the cells, on the window's thread
+    // The calculation and the cells are the worker's while it works the formulas out; the window reads the cells directly to draw them (reading beside the worker is no
+    // trouble), so a change to them is made by the window with the worker held back: it leaves the formula it is on (the evaluator looks at a flag as it takes its steps, so that is
+    // a few microseconds, or the one search for the readers of a cell, which is a millisecond or so for a cell that two hundred thousand formulas read) and waits until the hold is
+    // let go. The hold is for the change only; the work it makes (finding what reads the cells, working it out) is the worker's, and its results come back in batches like any.
+    class Hold {
+    public:
+        ~Hold();
+        Hold(const Hold &) = delete;
+        Hold &operator=(const Hold &) = delete;
+        // The calculation, for the window to change cells in.
+        jp::office::sheet::Calculation *calculation() const { return m_calc; }
+        // Cells were changed: the worker works out what that makes when the hold is let go, and sends the first of it at once.
+        void changed() { m_changed = true; }
+
+    private:
+        friend class WorkbookLoader;
+        Hold(std::shared_ptr<State> state, jp::office::sheet::Calculation *calc);
+        std::shared_ptr<State> m_state;
+        jp::office::sheet::Calculation *m_calc;
+        bool m_changed = false;
+    };
+    // Holds the worker back and gives the calculation; null if the workbook is not open whole yet (or the worker is gone).
+    std::unique_ptr<Hold> hold();
+    // Whether hold() would give one.
+    bool canHold() const;
+    // How many changes have been made (holds let go with a change, and requests to work everything out again): a last batch whose epoch is this many has all of them worked out.
+    qint64 changesMade() const;
     // For tests: how long the worker waits (in microseconds) at each step of its work (every 4,096 cells read, and between slices of the calculation), so that a test can do what it does
     // while the worker is at work. 0 is no wait.
     void setPace(int micros);
@@ -116,10 +150,17 @@ private:
         std::atomic<bool> redo{false};        // work every formula out again at the next slice
         std::atomic<int> pending{0};          // batches sent and not yet taken
         std::atomic<int> pace{0};
-        std::atomic<bool> calcActive{false};  // a worker is calculating (or about to): a request to work everything out again is its to take
+        std::atomic<bool> serving{false};     // the workbook is read whole and the worker is ready to work formulas out for the window
+        std::mutex model;                     // the worker has it while it works formulas out (a slice at a time); the window has it while it changes cells
+        std::condition_variable wake;         // the worker waits on it (with `model`) for something to work out
+        std::atomic<int> holds{0};            // the window wants the model: the worker lets go of it at once and keeps off it
+        std::atomic<bool> halt{false};        // the calculation's flag to stop: set while it is stopped (stopCalc) or a hold is wanted (holds)
+        std::atomic<qint64> changes{0};       // changes made (see changesMade)
+        std::atomic<bool> urgent{false};      // a change was made: the first values it makes go to the window as soon as they are there
+        void updateHalt() { halt.store(stopCalc.load() || holds.load() > 0 || cancel.load()); }
     };
     static void run(const QString &path, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self);
-    static void calculate(const std::shared_ptr<LoadedBook> &result, const std::shared_ptr<State> &state, const QPointer<WorkbookLoader> &self, bool invalidateFirst);
+    static void serve(const std::shared_ptr<LoadedBook> &result, const std::shared_ptr<State> &state, const QPointer<WorkbookLoader> &self);
     void startThread(std::function<void()> work);
     std::shared_ptr<QThread> m_thread;
     std::shared_ptr<LoadedBook> m_result;
