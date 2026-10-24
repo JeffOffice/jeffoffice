@@ -220,12 +220,12 @@ void CrunchWindow::moveCopyCommand()
         if (!m_moveCopyAsker(&request)) return;
     } else {
         QDialog dialog(this);
-        dialog.setWindowTitle(tr("Move or Copy"));
+        dialog.setWindowTitle(tr("Move or Copy Sheets"));
         auto *layout = new QVBoxLayout(&dialog);
         QStringList names;
         for (const int s : request.sheets) names << info.sheets[s].name;
-        layout->addWidget(new QLabel(tr("Move or copy: %1").arg(names.join(QStringLiteral(", ")))));
-        auto *label = new QLabel(tr("&Before sheet:"));
+        layout->addWidget(new QLabel(tr("Sheets chosen: %1").arg(names.join(QStringLiteral(", ")))));
+        auto *label = new QLabel(tr("&Put the sheets in front of:"));
         layout->addWidget(label);
         auto *list = new QListWidget;
         list->setObjectName(QStringLiteral("beforeSheet"));
@@ -235,11 +235,11 @@ void CrunchWindow::moveCopyCommand()
                 auto *item = new QListWidgetItem(info.sheets[place].name + (info.sheets[place].state == SheetState::Visible ? QString() : tr(" (hidden)")), list);
                 item->setData(Qt::UserRole, place);
             }
-        auto *end = new QListWidgetItem(tr("(move to end)"), list);
+        auto *end = new QListWidgetItem(tr("(after the last sheet)"), list);
         end->setData(Qt::UserRole, -1);
         list->setCurrentItem(end);
         layout->addWidget(list);
-        auto *copy = new QCheckBox(tr("Create a &copy"));
+        auto *copy = new QCheckBox(tr("&Copy them, and leave the originals where they are"));
         copy->setObjectName(QStringLiteral("makeCopy"));
         layout->addWidget(copy);
         auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);

@@ -352,7 +352,7 @@ private Q_SLOTS:
         // the others hold numbers: asked first, and nothing changed
         crunch::EditSession::Outcome o = s->mergeCells(0, rangeOf(QStringLiteral("A1:B2")), K::Merge);
         QVERIFY(!o.ok && o.confirm);
-        QVERIFY(o.problem.contains(QStringLiteral("upper-left")));
+        QVERIFY(o.problem.contains(QStringLiteral("top left")));
         QCOMPARE(e.win.w.undoStack()->count(), 0);
         QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:2"));
         o = s->mergeCells(0, rangeOf(QStringLiteral("A1:B2")), K::Merge, true);

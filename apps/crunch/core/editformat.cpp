@@ -505,7 +505,7 @@ EditSession::Outcome EditSession::mergeCells(int sheet, const CellRange &range, 
     if (needAsk && !discard) {
         out.ok = false;
         out.confirm = true;
-        out.problem = tr("Merging cells keeps only the value in the upper-left cell, and empties the others. Merge anyway?");
+        out.problem = tr("When cells are joined into one, only what the cell at the top left holds is kept, and what the others hold is lost. Join them anyway?");
         return out;
     }
     MergeEdit m;

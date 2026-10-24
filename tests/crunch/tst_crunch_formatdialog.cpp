@@ -51,6 +51,54 @@ class CrunchFormatDialogTests : public QObject {
 private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
 
+    // The words of the dialog are the program's own: none of the descriptions, notes, sample text, and names of choices is a sentence or a name that another program's dialog uses. Every
+    // piece of text on every tab (the descriptions of all twelve number categories among them) is checked for the wording the review found copied.
+    void theWordsOfTheDialogAreOurOwn()
+    {
+        const QStringList copied = {QStringLiteral("general display of numbers"),     QStringLiteral("specialized formatting"),        QStringLiteral("used for general monetary"),
+                                    QStringLiteral("serial numbers as"),              QStringLiteral("multiply the cell value"),        QStringLiteral("exponential notation"),
+                                    QStringLiteral("treated as text even when"),      QStringLiteral("tracking list and database"),     QStringLiteral("existing codes as a starting point"),
+                                    QStringLiteral("no specific number format"),      QStringLiteral("no effect until you protect"),    QStringLiteral("(indent)"),
+                                    QStringLiteral("center across selection"),        QStringLiteral("aabbccyyzz"),                     QStringLiteral("reverse diagonal stripe"),
+                                    QStringLiteral("diagonal crosshatch"),            QStringLiteral("% gray"),                         QStringLiteral("line up the currency symbols")};
+        const QString contextWord = QStringLiteral("context");
+        FormatCellsDialog d(inputFor());
+        QStringList seen;
+        auto collect = [&] {
+            for (QLabel *l : d.findChildren<QLabel *>()) seen << l->text();
+            for (QCheckBox *c : d.findChildren<QCheckBox *>()) seen << c->text();
+            for (QComboBox *c : d.findChildren<QComboBox *>())
+                for (int i = 0; i < c->count(); ++i) seen << c->itemText(i);
+            for (QListWidget *l : d.findChildren<QListWidget *>())
+                for (int i = 0; i < l->count(); ++i) seen << l->item(i)->text();
+        };
+        QListWidget *categories = control<QListWidget>(d, "numberCategory");
+        QVERIFY(categories && categories->count() == 12);
+        for (int row = 0; row < categories->count(); ++row) {
+            categories->setCurrentRow(row);
+            collect();
+        }
+        QCOMPARE(seen.size() > 100, true);
+        int descriptions = 0;
+        for (const QString &text : seen) {
+            const QString lower = text.toLower();
+            for (const QString &phrase : copied) QVERIFY2(!lower.contains(phrase), qPrintable(text));
+            QVERIFY2(lower != contextWord, qPrintable(text));
+            if (text.size() > 40) ++descriptions;
+        }
+        QVERIFY(descriptions >= 12);   // (the twelve descriptions are there to be checked)
+        // each category has a description of its own
+        QSet<QString> distinct;
+        for (int row = 0; row < categories->count(); ++row) {
+            categories->setCurrentRow(row);
+            QString text;
+            for (QLabel *l : d.findChildren<QLabel *>())
+                if (l->wordWrap() && l->isVisibleTo(&d) && l->text().size() > 30 && !l->text().contains(QLatin1String("sheet that is protected"))) text += l->text() + QLatin1Char('|');
+            distinct.insert(text);
+        }
+        QVERIFY2(distinct.size() >= 10, qPrintable(QString::number(distinct.size())));
+    }
+
     // The dialog begins with the format it was given on every tab, and a dialog that is accepted untouched gives back nothing to change.
     void anUntouchedDialogChangesNothing()
     {

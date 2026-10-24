@@ -36,7 +36,7 @@ Select cells that look the way you want, click **Format Painter** (the brush in 
 Press **Ctrl+1** (on a Mac, **Command+1**) or use **Home > Format > Format Cells**. The small arrow at the corner of the Font, Alignment, and Number groups opens it on that tab. It has six tabs:
 
 - **Number**: see [Number formats and your language](number-formats).
-- **Alignment**: horizontal and vertical placement (including **Fill**, which repeats the text across the cell, **Justify**, and **Center Across Selection**, which centers over the empty cells beside it without merging them), indent, **Wrap text**, **Shrink to fit**, **Merge cells**, the **Orientation** in degrees from 90 up to 90 down or the letters one under another, and the **Text direction** (by context, left to right, or right to left).
+- **Alignment**: horizontal and vertical placement (including **Repeat to fill**, which repeats the text across the cell, **Justify**, **Spread evenly**, and **Center over the selected cells**, which centers over the empty cells beside it without merging them), indent, **Wrap text**, **Shrink to fit**, **Merge cells**, the **Orientation** in degrees from 90 up to 90 down or the letters one under another, and the **Text direction** (by the text, left to right, or right to left).
 - **Font**: typeface, style, size, underline (single, double, and the two accounting kinds), color, strikethrough, superscript, and subscript, with a preview.
 - **Border**: pick a line style and color, then click the edges (or the presets **None**, **Outline**, and **Inside**) to put that line on them or take it away.
 - **Fill**: the background color, a pattern and its color, with a sample.
@@ -46,7 +46,7 @@ The window changes only what you changed. Open it on cells that differ, and a bo
 
 ## Whole columns and rows
 
-Select whole columns (or whole rows) and a format is set for the column itself, so cells you type later in an empty part of it have the same look. Any other block can be up to 100,000 cells. A sheet that is protected in the file can't be formatted; take the protection off in the program that put it on.
+Select whole columns (or whole rows) and a format is set for the column itself, so cells you type later in an empty part of it have the same look. Any other block can be up to 2,000,000 cells, and **Clear Formats** works on as many. A workbook holds up to 64,000 different cell formats (a limit of the file format that other programs keep to); past that, JeffCrunch says so and changes nothing. A sheet that is protected in the file can't be formatted; take the protection off in the program that put it on.
 
 ## What is kept
 

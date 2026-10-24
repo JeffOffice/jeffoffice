@@ -350,18 +350,18 @@ QString descriptionOf(NumberCategory c)
 {
     const char *ctx = "jp::FormatCellsDialog";
     switch (c) {
-    case NumberCategory::General: return QCoreApplication::translate(ctx, "General cells have no specific number format.");
-    case NumberCategory::Number: return QCoreApplication::translate(ctx, "Number is used for general display of numbers. Currency and Accounting offer specialized formatting for monetary value.");
-    case NumberCategory::Currency: return QCoreApplication::translate(ctx, "Currency formats are used for general monetary values. Use Accounting formats to align decimal points in a column.");
-    case NumberCategory::Accounting: return QCoreApplication::translate(ctx, "Accounting formats line up the currency symbols and decimal points in a column.");
-    case NumberCategory::Date: return QCoreApplication::translate(ctx, "Date formats display date and time serial numbers as date values.");
-    case NumberCategory::Time: return QCoreApplication::translate(ctx, "Time formats display date and time serial numbers as time values.");
-    case NumberCategory::Percentage: return QCoreApplication::translate(ctx, "Percentage formats multiply the cell value by 100 and display the result with a percent symbol.");
-    case NumberCategory::Fraction: return QCoreApplication::translate(ctx, "Fraction formats display the number as a fraction.");
-    case NumberCategory::Scientific: return QCoreApplication::translate(ctx, "Scientific formats display the number in exponential notation.");
-    case NumberCategory::Text: return QCoreApplication::translate(ctx, "Text format cells are treated as text even when a number is in the cell. The cell is displayed exactly as entered.");
-    case NumberCategory::Special: return QCoreApplication::translate(ctx, "Special formats are useful for tracking list and database values.");
-    case NumberCategory::Custom: return QCoreApplication::translate(ctx, "Type the number format code, using one of the existing codes as a starting point.");
+    case NumberCategory::General: return QCoreApplication::translate(ctx, "A cell with no number format shows what it holds as it is, with as many digits as fit.");
+    case NumberCategory::Number: return QCoreApplication::translate(ctx, "A number is shown with the digits after the point that you choose, with or without a mark between the thousands, and with the way you want negative numbers to look.");
+    case NumberCategory::Currency: return QCoreApplication::translate(ctx, "An amount of money, shown with a currency symbol beside it. Use Accounting to line the amounts up down a column.");
+    case NumberCategory::Accounting: return QCoreApplication::translate(ctx, "Money with the currency symbols and the decimal points lined up down a column, so that the amounts are easy to compare.");
+    case NumberCategory::Date: return QCoreApplication::translate(ctx, "A number that counts days is shown as a date, in the order and with the names you pick.");
+    case NumberCategory::Time: return QCoreApplication::translate(ctx, "The part of a day that a number holds is shown as a time of day.");
+    case NumberCategory::Percentage: return QCoreApplication::translate(ctx, "The number is multiplied by 100 and shown with a percent sign: 0.25 is shown as 25%.");
+    case NumberCategory::Fraction: return QCoreApplication::translate(ctx, "The number is shown as a fraction, such as 3/4, rounded to the size you pick.");
+    case NumberCategory::Scientific: return QCoreApplication::translate(ctx, "The number is shown as a short number times a power of ten: 1500 is shown as 1.50E+03.");
+    case NumberCategory::Text: return QCoreApplication::translate(ctx, "What is typed in the cell is kept as text, even if it is made of digits, and is shown exactly as it was typed: 00123 keeps its zeros.");
+    case NumberCategory::Special: return QCoreApplication::translate(ctx, "Shapes for numbers that are not amounts, such as ZIP codes and phone numbers.");
+    case NumberCategory::Custom: return QCoreApplication::translate(ctx, "Write your own code for how a number is shown, or pick one from the list and change it.");
     }
     return QString();
 }
@@ -531,7 +531,7 @@ void FormatCellsDialog::buildAlignment(QWidget *page)
     auto *form = new QFormLayout(text);
     m_horizontal = new QComboBox(text);
     m_horizontal->setObjectName(QStringLiteral("horizontal"));
-    m_horizontal->addItems({tr("General"), tr("Left (Indent)"), tr("Center"), tr("Right (Indent)"), tr("Fill"), tr("Justify"), tr("Center Across Selection"), tr("Distributed (Indent)")});
+    m_horizontal->addItems({tr("General"), tr("Left"), tr("Center"), tr("Right"), tr("Repeat to fill"), tr("Justify"), tr("Center over the selected cells"), tr("Spread evenly")});
     for (int i = 0; i < 8; ++i)
         if (kHorizontal[i] == v.horizontal) m_horizontal->setCurrentIndex(i);
     form->addRow(tr("&Horizontal:"), m_horizontal);
@@ -580,7 +580,7 @@ void FormatCellsDialog::buildAlignment(QWidget *page)
     auto *dl = new QFormLayout(dir);
     m_direction = new QComboBox(dir);
     m_direction->setObjectName(QStringLiteral("direction"));
-    m_direction->addItems({tr("Context"), tr("Left-to-Right"), tr("Right-to-Left")});
+    m_direction->addItems({tr("By the text"), tr("Left to right"), tr("Right to left")});
     m_direction->setCurrentIndex(std::max(0, std::min(2, v.readingOrder)));
     dl->addRow(tr("Text &direction:"), m_direction);
     layout->addWidget(dir);
@@ -658,7 +658,7 @@ void FormatCellsDialog::buildFont(QWidget *page)
     layout->addWidget(effects);
     auto *preview = new QGroupBox(tr("Preview"), page);
     auto *pl = new QVBoxLayout(preview);
-    m_fontPreview = new QLabel(tr("AaBbCcYyZz"), preview);
+    m_fontPreview = new QLabel(tr("Sample text 0123"), preview);
     m_fontPreview->setObjectName(QStringLiteral("fontPreview"));
     m_fontPreview->setAlignment(Qt::AlignCenter);
     m_fontPreview->setMinimumHeight(44);
@@ -871,10 +871,25 @@ void FormatCellsDialog::buildFill(QWidget *page)
     form->addRow(tr("P&attern Color:"), m_patternColor);
     m_patternStyle = new QComboBox(page);
     m_patternStyle->setObjectName(QStringLiteral("patternStyle"));
-    const QStringList names = {tr("None"),          tr("Solid"),           tr("50% gray"),       tr("75% gray"),       tr("25% gray"),         tr("Horizontal stripe"), tr("Vertical stripe"),
-                               tr("Reverse diagonal stripe"), tr("Diagonal stripe"), tr("Diagonal crosshatch"), tr("Thick diagonal crosshatch"), tr("Thin horizontal stripe"),
-                               tr("Thin vertical stripe"), tr("Thin reverse diagonal stripe"), tr("Thin diagonal stripe"), tr("Thin horizontal crosshatch"), tr("Thin diagonal crosshatch"),
-                               tr("12.5% gray"),       tr("6.25% gray")};
+    const QStringList names = {tr("No pattern"),
+                               tr("All one color"),
+                               tr("Dots, half covered"),
+                               tr("Dots, mostly covered"),
+                               tr("Dots, a quarter covered"),
+                               tr("Wide horizontal lines"),
+                               tr("Wide vertical lines"),
+                               tr("Wide lines sloping down to the right"),
+                               tr("Wide lines sloping up to the right"),
+                               tr("Wide grid"),
+                               tr("Wide crossed diagonal lines"),
+                               tr("Fine horizontal lines"),
+                               tr("Fine vertical lines"),
+                               tr("Fine lines sloping down to the right"),
+                               tr("Fine lines sloping up to the right"),
+                               tr("Fine grid"),
+                               tr("Fine crossed diagonal lines"),
+                               tr("Dots, one in eight"),
+                               tr("Dots, one in sixteen")};
     m_patternStyle->addItems(names);
     for (int i = 0; i < int(sizeof(kPatterns) / sizeof(kPatterns[0])); ++i)
         if (kPatterns[i] == v.pattern) m_patternStyle->setCurrentIndex(i);
@@ -958,7 +973,7 @@ void FormatCellsDialog::buildProtection(QWidget *page)
     m_hidden->setChecked(v.formulaHidden);
     layout->addWidget(m_locked);
     layout->addWidget(m_hidden);
-    auto *note = new QLabel(tr("Locking cells or hiding formulas has no effect until you protect the worksheet."), page);
+    auto *note = new QLabel(tr("These matter only on a sheet that is protected: there, a locked cell can't be changed and a hidden formula is not shown. A sheet that is not protected treats every cell alike."), page);
     note->setWordWrap(true);
     layout->addWidget(note);
     layout->addStretch(1);
