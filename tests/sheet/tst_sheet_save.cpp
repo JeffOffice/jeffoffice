@@ -538,6 +538,87 @@ private Q_SLOTS:
         QCOMPARE(read.strings, QVector<QString>({"one", "two", "three & <four>", " five "}));
     }
 
+    // Strings with runs of formatting are the old file's bytes in the new one: a change to an unrelated cell leaves the shared strings part as it was (the same compressed bytes), and one
+    // that adds a string leaves every <si> of the file as it was, with the new one after them. (This documents what saving does; it held before the test was written.)
+    void richTextStringsAreTheOldBytesInTheSavedFile()
+    {
+        const QStringList items = {
+            QStringLiteral("<r><rPr><b/><sz val=\"11\"/><rFont val=\"Calibri\"/></rPr><t>bold</t></r><r><t xml:space=\"preserve\"> and plain</t></r>"),
+            QStringLiteral("<t>plain</t>"),
+            QStringLiteral("<r><rPr><i/><color rgb=\"FFFF0000\"/></rPr><t>red </t></r><r><rPr><u/></rPr><t>under</t></r><rPh sb=\"0\" eb=\"1\"><t>x</t></rPh><phoneticPr fontId=\"1\"/>")};
+        const QByteArray bytes = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"s\"><v>0</v></c><c r=\"B1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\" t=\"s\"><v>2</v></c></row>"))},
+                                          sharedStringsXml(items));
+        auto o = open(bytes);
+        QVERIFY2(o->ok, qPrintable(o->why));
+        const QByteArray stringsBefore = entries(bytes).value(QStringLiteral("xl/sharedStrings.xml"));
+        QString why;
+        // an unrelated number changes: the part is copied as it is
+        {
+            SaveChanges changes;
+            changes.sheets[0] = changesOf({number(0, 1, 7)});
+            QByteArray out;
+            SaveReport report;
+            QVERIFY2(saveXlsx(o->book, changes, &out, &why, &report), qPrintable(why));
+            QCOMPARE(entries(out).value(QStringLiteral("xl/sharedStrings.xml")), stringsBefore);
+            QCOMPARE(rawEntries(out).value(QStringLiteral("xl/sharedStrings.xml")), rawEntries(bytes).value(QStringLiteral("xl/sharedStrings.xml")));
+            QVERIFY(!report.changedParts.contains(QStringLiteral("xl/sharedStrings.xml")));
+        }
+        // a string is added: the ones there are, each from <si> to </si>, are in the new part as they were, in the same order, and the new one follows them
+        {
+            SaveChanges changes;
+            changes.sheets[0] = changesOf({text(3, 0, QStringLiteral("typed"), 3)});
+            changes.newSharedStrings = {QStringLiteral("typed")};
+            changes.sharedStringsBefore = 3;
+            QByteArray out;
+            QVERIFY2(saveXlsx(o->book, changes, &out, &why), qPrintable(why));
+            const QByteArray after = entries(out).value(QStringLiteral("xl/sharedStrings.xml"));
+            QByteArray expected;
+            for (const QString &item : items) expected += "<si>" + item.toUtf8() + "</si>";
+            QVERIFY2(after.contains(expected + "<si><t>typed</t></si></sst>"), after.constData());
+            QCOMPARE(after.count("<si>"), 4);
+            // read again with the runs asked for, the formatting is where it was
+            auto again = std::make_unique<Opened>();
+            again->bytes = out;
+            Limits withRuns;
+            withRuns.richText = true;
+            QVERIFY2(again->package.readLazy(again->bytes, &why) && again->book.open(again->package, &why, withRuns), qPrintable(why));
+            const SharedStrings &sh = again->book.sharedStrings();
+            QCOMPARE(sh.strings, QVector<QString>({"bold and plain", "plain", "red under", "typed"}));
+            QCOMPARE(sh.rich.size(), 2);
+            QCOMPARE(sh.rich.value(0).size(), 2);
+            QCOMPARE(sh.rich.value(2).size(), 2);
+            QVERIFY(sh.richFonts[int(sh.rich.value(0)[0].font)].bold);
+        }
+    }
+
+    // An inline string with runs of formatting that is not changed survives byte for byte in a row where another cell is (this documents what saving does too).
+    void anUnchangedInlineStringWithRunsSurvivesInAnEditedRow()
+    {
+        const QString inlineCell = QStringLiteral("<c r=\"A1\" t=\"inlineStr\"><is><r><rPr><b/></rPr><t>bold</t></r><r><t xml:space=\"preserve\"> plain</t></r></is></c>");
+        const QString otherInline = QStringLiteral("<c r=\"C1\" s=\"0\" t=\"inlineStr\"><is><t>x</t></is></c>");
+        const QString rows = QStringLiteral("<row r=\"1\" spans=\"1:3\">") + inlineCell + QStringLiteral("<c r=\"B1\"><v>1</v></c>") + otherInline + QStringLiteral("</row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row>");
+        const QByteArray bytes = buildXlsx({worksheet(rows)});
+        auto o = open(bytes);
+        QVERIFY2(o->ok, qPrintable(o->why));
+        SaveChanges changes;
+        changes.sheets[0] = changesOf({number(0, 1, 9)});
+        QByteArray out;
+        QString why;
+        QVERIFY2(saveXlsx(o->book, changes, &out, &why), qPrintable(why));
+        const QByteArray sheet = entries(out).value(QStringLiteral("xl/worksheets/sheet1.xml"));
+        QVERIFY2(sheet.contains(inlineCell.toUtf8()), sheet.constData());
+        QVERIFY2(sheet.contains(otherInline.toUtf8()), sheet.constData());
+        QVERIFY2(sheet.contains("<c r=\"B1\"><v>9</v></c>"), sheet.constData());
+        QVERIFY(sheet.contains("<c r=\"A2\"><v>2</v></c>"));
+        // read again, the text of the inline string is its runs one after another
+        auto again = open(out);
+        QVERIFY2(again->ok, qPrintable(again->why));
+        Sheet read;
+        QVERIFY(again->book.readSheet(0, &read));
+        QCOMPARE(show(read, again->book.sharedStrings(), QStringLiteral("A1")), QStringLiteral("i:bold plain"));
+        QCOMPARE(show(read, again->book.sharedStrings(), QStringLiteral("B1")), QStringLiteral("n:9"));
+    }
+
     void stylesGetNewFormatsAtTheEnd()
     {
         const QByteArray xml = stylesXml(QStringLiteral("<numFmt numFmtId=\"164\" formatCode=\"0.0&quot; kg&quot;\"/>"),

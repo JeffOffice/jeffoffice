@@ -349,6 +349,33 @@ private Q_SLOTS:
         QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A1"))), QStringLiteral("One!A1+1"));   // (the list of the second sheet is its own)
     }
 
+    // BIFF5's list of external sheets and names in a sheet is read with the records that continue it, as the workbook's own list is: an entry whose bytes go on in a CONTINUE record is one
+    // entry.
+    void biff5ListsInASheetMayContinue()
+    {
+        const QByteArray sheetName = QByteArray("\x03Longer_sheet_name", 18);
+        const QByteArray sheetRec = W().u8(int(sheetName.size())).raw(sheetName).bytes();
+        const QByteArray nameRec = W().u16(0).u32(0).str5(QStringLiteral("MYFUNCTION")).bytes();
+        // the first six bytes of each record in it, the rest in a CONTINUE record
+        const QByteArray lists = externCount5(2) + rec(0x0017, sheetRec.left(6)) + rec(0x003C, sheetRec.mid(6)) + rec(0x0017, W().u8(4).raw(QByteArray("\x03Two", 4)).bytes())
+            + rec(0x0023, nameRec.left(10)) + rec(0x003C, nameRec.mid(10));
+        QByteArray cells = lists;
+        cells += formulaNumber(0, 0, tRef3d5(1, 0, 0, 4, 2) + tInt(2) + tOp(0x05), 0);          // =Longer_sheet_name!C5*2
+        cells += formulaNumber(1, 0, tRef3d5(2, 0, 0, 0, 0) + tInt(1) + tOp(0x03), 0);          // =Two!A1+1, the entry after the one that continues
+        cells += formulaNumber(2, 0, tNameX5(1, 1) + tInt(1) + tFuncVar(255, 2, 0x40), 0);       // =MYFUNCTION(1)
+        Book b(5);
+        b.sheet(QStringLiteral("One"), cells).sheet(QStringLiteral("Two"), QByteArray());
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(s.stats.unreadFormulas, qint64(0));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A1"))), QStringLiteral("Longer_sheet_name!C5*2"));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A2"))), QStringLiteral("Two!A1+1"));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A3"))), QStringLiteral("MYFUNCTION(1)"));
+    }
+
     // A formula that many cells share is read once, whatever the number of cells, and is read in work in proportion to its length: a chain of parentheses is no worse than a chain of
     // sums. The work is counted (in the sheet's statistics), not timed.
     void aSharedFormulaIsReadOnceForAllItsCells()

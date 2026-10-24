@@ -5,7 +5,9 @@
 #include "io/zip.h"
 #include "sheet/xlsxsave.h"
 
+#include <QHash>
 #include <QSet>
+#include <QXmlStreamReader>
 
 #include <atomic>
 #include <limits>
@@ -28,7 +30,10 @@ Book richBook()
     b.globals(xf(first));
     XfSpec styleXf;
     styleXf.style = true;
-    for (int i = 1; i < 15; ++i) b.globals(xf(styleXf));
+    XfSpec commaXf;   // place 3: the style the comma format is
+    commaXf.style = true;
+    commaXf.format = 4;
+    for (int i = 1; i < 15; ++i) b.globals(xf(i == 3 ? commaXf : styleXf));
     XfSpec def;
     def.format = 10;
     b.globals(xf(def));
@@ -58,7 +63,7 @@ Book richBook()
     heading.style = true;
     heading.font = 6;
     b.globals(xf(heading));
-    b.globals(styleBuiltin(0, 0) + styleNamed(18, QStringLiteral("Heading & <1>")));
+    b.globals(styleBuiltin(0, 0) + styleBuiltin(3, 3) + styleNamed(18, QStringLiteral("Heading & <1>")));
     b.globals(palette({0x112233, 0xAABBCC}));
     // (the first text has two runs, the second font 6 above, bold and italic and struck out; the last has runs in the middle of its second line)
     b.after(sst({QStringLiteral("alpha"), QStringLiteral("  padded  "), QStringLiteral("a & b <c> \"d\""), QStringLiteral("Привет, мир"), QStringLiteral("line\nbreak")}, 0, {}, {{1, 6, 3, 0}, {}, {}, {0, 6, 6, 0}, {5, 6}}));
@@ -156,6 +161,36 @@ QString differences(const Workbook &a, const Sheet &x, const Workbook &b, const 
     return out.join(QStringLiteral("; "));
 }
 
+// The entries of a styles part that tie a cell format to a named style: the style formats (cellStyleXfs), the cell formats (cellXfs), and the names (cellStyles), each as its attributes.
+struct StyleTies {
+    QVector<QHash<QString, QString>> styleXfs, cellXfs, names;
+};
+
+StyleTies styleTies(const QByteArray &xml)
+{
+    StyleTies out;
+    QXmlStreamReader r(xml);
+    int where = 0;   // 1 cellStyleXfs, 2 cellXfs, 3 cellStyles
+    while (!r.atEnd()) {
+        const auto token = r.readNext();
+        if (token == QXmlStreamReader::StartElement) {
+            const QString name = r.name().toString();
+            if (name == QLatin1String("cellStyleXfs")) where = 1;
+            else if (name == QLatin1String("cellXfs")) where = 2;
+            else if (name == QLatin1String("cellStyles")) where = 3;
+            else if ((name == QLatin1String("xf") && (where == 1 || where == 2)) || (name == QLatin1String("cellStyle") && where == 3)) {
+                QHash<QString, QString> a;
+                for (const QXmlStreamAttribute &at : r.attributes()) a.insert(at.name().toString(), at.value().toString());
+                (where == 1 ? out.styleXfs : where == 2 ? out.cellXfs : out.names).append(a);
+            }
+        } else if (token == QXmlStreamReader::EndElement) {
+            const QString name = r.name().toString();
+            if (name == QLatin1String("cellStyleXfs") || name == QLatin1String("cellXfs") || name == QLatin1String("cellStyles")) where = 0;
+        }
+    }
+    return out;
+}
+
 bool sameFont(const FontSpec &a, const FontSpec &b)
 {
     return a.name == b.name && a.size == b.size && a.bold == b.bold && a.italic == b.italic && a.strike == b.strike && a.underline == b.underline && a.vertAlign == b.vertAlign && sameColor(a.color, b.color);
@@ -248,10 +283,7 @@ private Q_SLOTS:
         QCOMPARE(t.resolve(c8, 0), quint32(0x112233));
         c8.index = 12;
         QCOMPARE(t.resolve(c8, 0), s.resolve(c8, 0));
-        // the named styles are in the styles part
-        const QByteArray styles = pkg.part(back.stylesPart());
-        QVERIFY2(styles.contains("Heading &amp; &lt;1&gt;"), styles.constData());
-        QVERIFY(styles.contains("<cellStyles"));
+        // the named styles are in the styles part, as it is checked in the test of them
         // each sheet
         for (int i = 0; i < wb.info().sheets.size(); ++i) {
             Sheet x, y;
@@ -424,6 +456,73 @@ private Q_SLOTS:
         Workbook back;
         QVERIFY2(back.open(pkg, &why), qPrintable(why));
         QCOMPARE(back.info().sheets.size(), 1);
+    }
+
+    // The named styles are written as cell styles: each with its name, the built-in ones with their number, and the number of the style format that holds its look; every style format has
+    // a name, and a cell format follows the style format of the style it follows (the default one when it follows an unnamed one). A cell that uses a format that follows a named style
+    // still does after the file is read again.
+    void namedStylesAreWrittenAsCellStyles()
+    {
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(richBook(), &wb, &why), qPrintable(why));
+        QByteArray bytes;
+        QVERIFY2(saveXlsx(wb, SaveChanges(), &bytes, &why), qPrintable(why));
+        Package pkg;
+        QVERIFY2(pkg.readLazy(bytes, &why), qPrintable(why));
+        Workbook back;
+        QVERIFY2(back.open(pkg, &why), qPrintable(why));
+        const StyleTies t = styleTies(pkg.part(back.stylesPart()));
+        const Styles &st = wb.styles();
+        QCOMPARE(t.cellXfs.size(), st.formats.size());
+        QCOMPARE(t.names.size(), 3);
+        // each name, the built-in number it has, and the style format it names: the format the style has in the workbook
+        auto nameOf = [&](const QString &name) -> QHash<QString, QString> {
+            for (const QHash<QString, QString> &n : t.names)
+                if (n.value(QStringLiteral("name")) == name) return n;
+            return {};
+        };
+        struct Expect {
+            QString name;
+            QString builtin;
+            int format;   // the place of the format the style has in the workbook
+        };
+        const Expect expected[] = {{QStringLiteral("Normal"), QStringLiteral("0"), 15}, {QStringLiteral("Comma"), QStringLiteral("3"), 3}, {QStringLiteral("Heading & <1>"), QString(), 18}};
+        QSet<int> named;
+        for (const Expect &e : expected) {
+            const QHash<QString, QString> n = nameOf(e.name);
+            QVERIFY2(!n.isEmpty(), qPrintable(e.name));
+            QCOMPARE(n.value(QStringLiteral("builtinId")), e.builtin);
+            bool ok = false;
+            const int at = n.value(QStringLiteral("xfId")).toInt(&ok);
+            QVERIFY2(ok && at >= 0 && at < t.styleXfs.size(), qPrintable(e.name));
+            named.insert(at);
+            const CellFormat &f = st.formats[e.format];
+            QCOMPARE(t.styleXfs[at].value(QStringLiteral("numFmtId")).toInt(), int(f.numFmtId));
+            QCOMPARE(t.styleXfs[at].value(QStringLiteral("fontId")).toUInt(), f.font);
+        }
+        // every style format is named by one name (the other program expects as many names as style formats)
+        QCOMPARE(named.size(), 3);
+        QCOMPARE(t.styleXfs.size(), 3);
+        // a cell format follows a style format that has a name, and the one of the style it follows: the heading, the default one for a cell format that follows the first (normal) style
+        const int heading = nameOf(QStringLiteral("Heading & <1>")).value(QStringLiteral("xfId")).toInt();
+        const int normal = nameOf(QStringLiteral("Normal")).value(QStringLiteral("xfId")).toInt();
+        for (int i = 0; i < t.cellXfs.size(); ++i) {
+            bool ok = false;
+            const int at = t.cellXfs[i].value(QStringLiteral("xfId")).toInt(&ok);
+            QVERIFY2(ok && named.contains(at), qPrintable(QStringLiteral("cell format %1").arg(i)));
+        }
+        QCOMPARE(t.cellXfs[16].value(QStringLiteral("xfId")).toInt(), heading);   // (the format of the first cell below follows the heading)
+        QCOMPARE(t.cellXfs[17].value(QStringLiteral("xfId")).toInt(), normal);
+        QCOMPARE(t.cellXfs[0].value(QStringLiteral("xfId")).toInt(), normal);
+        // the cell that uses it is in the same format as before, and so follows the heading
+        Sheet s;
+        QVERIFY(back.readSheet(0, &s));
+        const Cell *a1 = sheettest::at(s, QStringLiteral("A1"));
+        QVERIFY(a1);
+        QCOMPARE(a1->style, quint32(16));
+        QCOMPARE(t.cellXfs[int(a1->style)].value(QStringLiteral("xfId")).toInt(), heading);
+        QCOMPARE(back.styles().format(a1->style).font, st.format(16).font);
     }
 
     // Bold and plain text in one cell survive the save: the written strings part has the two runs (the bold one with its font), the text is the same, and read again with the runs

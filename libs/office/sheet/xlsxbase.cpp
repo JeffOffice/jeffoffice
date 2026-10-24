@@ -214,46 +214,43 @@ QByteArray stylesPart(const Styles &st, qsizetype formatCount, const QSet<int> &
     o += "<borders" + attr("count", num(borders.size())) + ">";
     for (const BorderSpec &b : std::as_const(borders)) o += borderElement(b);
     o += "</borders>";
-    // the formats of the named styles, then the cell formats (one for each the workbook has, in its order, so that a cell's place is the same here)
+    // The style formats, one for each named style (in the order of the names; a style format with no name is not kept, and a cell format that follows one follows the Normal style), then
+    // the cell formats (one for each the workbook has, in its order, so that a cell's place is the same here). Every style format is named by one name.
     QVector<CellFormat> formats = st.formats.mid(0, formatCount);
     if (formats.isEmpty()) formats.append(CellFormat());
-    QHash<quint32, int> styleAt;
-    QVector<quint32> styleFormats;
-    for (int i = 0; i < formats.size(); ++i)
-        if (formats[i].isStyle) {
-            styleAt.insert(quint32(i), int(styleFormats.size()));
-            styleFormats.append(quint32(i));
-        }
-    o += "<cellStyleXfs" + attr("count", num(std::max<qsizetype>(1, styleFormats.size()))) + ">";
-    if (styleFormats.isEmpty()) o += xfElement(CellFormat(), 0, false);
-    for (const quint32 i : std::as_const(styleFormats)) o += xfElement(formats[int(i)], 0, false);
-    o += "</cellStyleXfs>";
+    QVector<quint32> styleFormats;   // the place of each style's format in `formats`
+    QHash<quint32, int> styleAt;     // the first style that has the format
+    QByteArray named;
+    QSet<QString> seen;
+    int normal = 0;
+    for (const NamedStyle &ns : st.namedStyles) {
+        if (ns.format >= quint32(formats.size()) || ns.name.isEmpty() || seen.contains(ns.name.toLower())) continue;
+        seen.insert(ns.name.toLower());
+        const int at = int(styleFormats.size());
+        styleFormats.append(ns.format);
+        if (!styleAt.contains(ns.format)) styleAt.insert(ns.format, at);
+        if (ns.builtin == 0) normal = at;
+        named += "<cellStyle" + attrText("name", ns.name) + attr("xfId", num(at));
+        if (ns.builtin >= 0) named += attr("builtinId", num(ns.builtin));
+        named += "/>";
+    }
+    if (styleFormats.isEmpty()) {   // (a file has a Normal style)
+        named = "<cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/>";
+        o += "<cellStyleXfs count=\"1\">" + xfElement(CellFormat(), 0, false) + "</cellStyleXfs>";
+    } else {
+        o += "<cellStyleXfs" + attr("count", num(styleFormats.size())) + ">";
+        for (const quint32 f : std::as_const(styleFormats)) o += xfElement(formats[int(f)], 0, false);
+        o += "</cellStyleXfs>";
+    }
     o += "<cellXfs" + attr("count", num(formats.size())) + ">";
     for (int i = 0; i < formats.size(); ++i) {
-        int parent = 0;
-        if (formats[i].isStyle) parent = styleAt.value(quint32(i), 0);
-        else if (formats[i].parent != CellFormat::kNoParent) parent = styleAt.value(formats[i].parent, 0);
+        int parent = normal;
+        if (formats[i].isStyle && styleAt.contains(quint32(i))) parent = styleAt.value(quint32(i));
+        else if (formats[i].parent != CellFormat::kNoParent && styleAt.contains(formats[i].parent)) parent = styleAt.value(formats[i].parent);
         o += xfElement(formats[i], parent, true);
     }
     o += "</cellXfs>";
-    // the named styles (a file has a Normal one)
-    QByteArray named;
-    int namedCount = 0;
-    QSet<QString> seen;
-    for (const NamedStyle &ns : st.namedStyles) {
-        const auto at = styleAt.constFind(ns.format);
-        if (at == styleAt.cend() || ns.name.isEmpty() || seen.contains(ns.name.toLower())) continue;
-        seen.insert(ns.name.toLower());
-        named += "<cellStyle" + attrText("name", ns.name) + attr("xfId", num(at.value()));
-        if (ns.builtin >= 0) named += attr("builtinId", num(ns.builtin));
-        named += "/>";
-        ++namedCount;
-    }
-    if (namedCount == 0) {
-        named = "<cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/>";
-        namedCount = 1;
-    }
-    o += "<cellStyles" + attr("count", num(namedCount)) + ">" + named + "</cellStyles>";
+    o += "<cellStyles" + attr("count", num(std::max<qsizetype>(1, styleFormats.size()))) + ">" + named + "</cellStyles>";
     o += "<dxfs count=\"0\"/>";
     if (!st.indexed.isEmpty()) {
         o += "<colors><indexedColors>";

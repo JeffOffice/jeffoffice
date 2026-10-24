@@ -1524,16 +1524,21 @@ private:
             return true;
         case kExternSheet:
             if (!m_b8 && m_ownCx) {
-                const int n = b.u8();
-                const char *p = b.take(n);
+                // (an entry may go on in the records that follow it, as the workbook's own list does)
+                const Logical lg = joined(m_d, sc, r, true);
+                Bytes jb(lg.data, 0, lg.data.size());
+                const int n = jb.u8();
+                const char *p = jb.take(n);
                 m_ownCx->externSheet5.append(p ? QByteArray(p, n) : QByteArray());
             }
             return true;
         case kExternName:
             if (!m_b8 && m_ownCx) {
-                b.skip(6);
-                const int n = b.u8();
-                const char *p = b.take(n);
+                const Logical lg = joined(m_d, sc, r, true);
+                Bytes jb(lg.data, 0, lg.data.size());
+                jb.skip(6);
+                const int n = jb.u8();
+                const char *p = jb.take(n);
                 m_ownCx->externNames5.append(p ? text(p, n) : QString());
             }
             return true;
