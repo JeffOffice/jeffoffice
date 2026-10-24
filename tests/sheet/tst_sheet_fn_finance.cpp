@@ -193,6 +193,43 @@ private Q_SLOTS:
         CHECK_EVALS(cases, Grid(), Settings());
     }
 
+    // The loan and savings functions are worked out in the order the files show, to their last digits. PV is made in double arithmetic with the power made as the ^
+    // operator makes it, and (power - 1) / rate worked out before it is multiplied by the payment; NPV divides each value by the power of 1 + rate (a double) and adds the
+    // quotients, as doubles, from the last to the first. Each expected value is the result a workbook of the practice set stored with the formula, to 15 digits (a
+    // difference in the 16th and 17th is not seen here): the same worked out in the widest type, or in another order, differs in the 14th or 15th digit in 68 cells
+    // of PV and 123 of NPV.
+    void presentValuesAreWorkedOutInTheOrderOfTheFiles()
+    {
+        const E cases[] = {
+            {"-PV(0.057/12,30,339/30,,0)", "n:315.257709516189"},
+            {"-PV(0.0545/12,30,339/30,,0)", "n:316.249885806128"},
+            {"-PV(0.052000000000000005/12,30,339/30,,0)", "n:317.246412835253"},
+            {"-PV(0.059500000000000004/12,30,339/30,,0)", "n:314.26986184396"},
+            {"-PV(0.062/12,30,339/30,,0)", "n:313.286320791819"},
+            {"-PV(0.0645/12,30,339/30,,0)", "n:312.307064485212"},
+            {"PV(0.057/2,40,-0.35)", "n:8.2899809681198"},
+            {"PV(0.0545/2,40,-0.35)", "n:8.46220653613245"},
+            {"PV(0.052000000000000005/2,40,-0.35)", "n:8.63983757654465"},
+            {"PV(0.059500000000000004/2,40,-0.35)", "n:8.12296493652326"},
+            {"PV(0.062/2,40,-0.35)", "n:7.96097038706455"},
+            {"PV(0.0645/2,40,-0.35)", "n:7.80381680633254"},
+            // a payment at the start of the periods, a future value, and the rate 0
+            {"ROUND(PV(0.08/12,240,500,0,1),6)", "n:-60175.660157"},
+            {"PV(0,10,-100,-50)", "n:1050"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+    }
+
+    void netPresentValuesAreWorkedOutInTheOrderOfTheFiles()
+    {
+        const E cases[] = {
+            {"NPV(0.14,{2971.5999999999999,10608.611999999999,10290.353640000001,10187.450103600002,10187.450103600002,11024.27636211,11244.761889352201,11694.552364926289,12162.334459523341,12648.827837904277,8769.8539676136334,9559.1408246988613,10419.463498921759,11357.215213824717,12379.36458306894,40480.522186635426,38456.496077303651,36533.671273438464,34706.987709766538,32971.63832427821})-74290", "n:2873.4637848007"},
+            {"NPV(0.11,{0,0,0,0,0,0,0,0,0,0,0,20278.583448167043,20231.594449314605,20064.72572973022,20354.978254486396,20133.805406542218,20111.242048039556})", "n:27118.1236441402"},
+            {"NPV(0.09,{4160.6237265749805,4281.5267153076838,4225.3346116552439,4551.4995605436834,-8748.4574836101965,-10168.2499490586,-11242.348250328605,-10234.906857368949,-13158.936656617258,-17353.046990676015,-74729.634758884422,-165696.72772564122,-171987.28986387292,-169789.95196906009,-174953.57723573316,-225888.96993078798,-296591.66444099892,-307925.24552010681,-318511.75590712193,-307060.29120875947})", "n:-572770.015812095"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+    }
+
     void presentValuesAndDepreciation()
     {
         Grid g;
