@@ -111,6 +111,13 @@ private:
     mutable qint64 m_probes = 0;
 };
 
+// Every reference of the chart in a fixed order (each series' name, categories, values, and x values, then the chart's title and its axes' titles; an empty text for one it has not), and
+// the same given back: what a chart keeps of where it reads, apart from the rest of the model.
+QStringList chartRefs(const Chart &chart);
+void setChartRefs(Chart *chart, const QStringList &refs);
+// One reference after the edits (the same text, if they do not change it); `ownSheet` as for moveChartRefs.
+QString movedChartRef(const QString &ref, const QStringList &sheetNames, const std::vector<StructEdit> &edits, int ownSheet = 0);
+
 // The chart's references after the edits that insert and delete rows and columns, as saving rewrites the chart part's (so a chart follows its cells when they move): each reference of
 // each series and linked title. `sheetNames` are the workbook's, in order.
 // `ownSheet` is the sheet the chart is on: a reference with no sheet in it, and a name of that sheet, are its.

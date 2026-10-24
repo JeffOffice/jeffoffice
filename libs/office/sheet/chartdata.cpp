@@ -341,6 +341,33 @@ QString movedRef(const QString &ref, const QStringList &sheetNames, const std::v
 
 } // namespace
 
+QStringList chartRefs(const Chart &chart)
+{
+    QStringList out;
+    for (const ChartPlot &plot : chart.plots)
+        for (const ChartSeries &s : plot.series) out << s.nameRef << s.categoryRef << s.valueRef << s.xRef;
+    out << chart.title.ref;
+    for (const ChartAxis &a : chart.axes) out << a.title.ref;
+    return out;
+}
+
+void setChartRefs(Chart *chart, const QStringList &refs)
+{
+    int at = 0;
+    auto next = [&]() { return at < refs.size() ? refs[at++] : (++at, QString()); };
+    for (ChartPlot &plot : chart->plots)
+        for (ChartSeries &s : plot.series) {
+            s.nameRef = next();
+            s.categoryRef = next();
+            s.valueRef = next();
+            s.xRef = next();
+        }
+    chart->title.ref = next();
+    for (ChartAxis &a : chart->axes) a.title.ref = next();
+}
+
+QString movedChartRef(const QString &ref, const QStringList &sheetNames, const std::vector<StructEdit> &edits, int ownSheet) { return ref.isEmpty() ? ref : movedRef(ref, sheetNames, edits, ownSheet); }
+
 void moveChartRefs(Chart *chart, const QStringList &sheetNames, const std::vector<StructEdit> &edits, int ownSheet)
 {
     if (edits.empty()) return;
