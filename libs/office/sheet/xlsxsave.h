@@ -51,10 +51,23 @@ struct SavedResult {
     SavedValue value;
 };
 
+// And the height of a row, or that it is hidden.
+struct RowProps {
+    quint32 row = 0;
+    double height = -1;         // points; -1: the file's stays
+    bool hidden = false;
+    bool customHeight = false;
+};
+
 struct SheetChanges {
     std::vector<SavedCell> cells;       // sorted by row, then column
     std::vector<SavedResult> results;   // sorted the same way
-    bool empty() const { return cells.empty() && results.empty(); }
+    // The runs of columns the sheet has now (their widths, whether they are hidden, and what else the file says of them), when the file's `cols` is to be written from them: columns
+    // inserted or deleted or sized by a person. Sorted, none twice.
+    bool replaceColumns = false;
+    std::vector<ColumnSpan> columns;
+    std::vector<RowProps> rows;         // sorted by row
+    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && rows.empty(); }
 };
 
 struct SaveChanges {

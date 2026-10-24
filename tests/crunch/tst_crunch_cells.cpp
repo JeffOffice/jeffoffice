@@ -70,6 +70,23 @@ QString differences(const office::sheet::Calculation *a, const office::sheet::Ca
             for (const auto &r : mb) y << rangeName(r);
             out << QStringLiteral("merges %1 against %2").arg(x.join(' '), y.join(' '));
         }
+        // the widths of columns and the heights of rows
+        for (quint32 i = 0; i < 24; ++i) {
+            const auto x = a->columnRuns(s, i, i), y = b->columnRuns(s, i, i);
+            const double wx = x.empty() ? -1 : x.front().width, wy = y.empty() ? -1 : y.front().width;
+            const bool hx = !x.empty() && x.front().hidden, hy = !y.empty() && y.front().hidden;
+            if (std::abs(wx - wy) > 0.01 || hx != hy) out << QStringLiteral("column %1 of sheet %2 is %3%4 against %5%6").arg(i).arg(s).arg(wx).arg(hx ? " hidden" : "").arg(wy).arg(hy ? " hidden" : "");
+        }
+        for (quint32 i = 0; i < 40; ++i) {
+            const auto x = a->rowSpecsIn(s, i, i), y = b->rowSpecsIn(s, i, i);
+            // (a row with the sheet's own height is no different from one with none: the file does not keep it)
+            const double normal = a->sheet(s).format.defaultRowHeight;
+            double hx = x.empty() ? -1 : x.front().height, hy = y.empty() ? -1 : y.front().height;
+            if (std::abs(hx - normal) < 0.001) hx = -1;
+            if (std::abs(hy - normal) < 0.001) hy = -1;
+            const bool vx = !x.empty() && x.front().hidden, vy = !y.empty() && y.front().hidden;
+            if (std::abs(hx - hy) > 0.01 || vx != vy) out << QStringLiteral("row %1 of sheet %2 is %3%4 against %5%6").arg(i).arg(s).arg(hx).arg(vx ? " hidden" : "").arg(hy).arg(vy ? " hidden" : "");
+        }
         for (const QString &name : names)
             if (a->definedName(s, name) != b->definedName(s, name)) out << QStringLiteral("name %1: %2 against %3").arg(name, a->definedName(s, name), b->definedName(s, name));
     }
@@ -369,7 +386,7 @@ private Q_SLOTS:
                 block.row2 = at + count - 1;
                 block.col1 = quint32(rng.bounded(5));
                 block.col2 = block.col1 + quint32(rng.bounded(2));
-                const int which = rng.bounded(11);
+                const int which = rng.bounded(14);
                 if (only) qInfo() << "step" << step << "which" << which << "sheet" << sheet << "at" << at << "count" << count << "block" << rangeName(block);
                 switch (which) {
                 case 0: (void((s->insertRows(sheet, at, count)).ok ? ++moves : ++refused)); break;
@@ -381,6 +398,26 @@ private Q_SLOTS:
                 case 6: (void((s->insertCells(sheet, block, false)).ok ? ++moves : ++refused)); break;
                 case 7: (void((s->deleteCells(sheet, block, false)).ok ? ++moves : ++refused)); break;
                 case 8: s->type(sheet, quint32(rng.bounded(10)), quint32(rng.bounded(6)), QString::number(rng.bounded(100))); break;
+                case 11: {
+                    crunch::EditSession::SizeChange by;
+                    by.setSize = true;
+                    by.size = 4 + rng.bounded(30);
+                    s->resizeColumns(sheet, at % 8, at % 8 + rng.bounded(3), by, QStringLiteral("w"));
+                    break;
+                }
+                case 12: {
+                    crunch::EditSession::SizeChange by;
+                    if (rng.bounded(2)) {
+                        by.setSize = true;
+                        by.size = 10 + rng.bounded(40);
+                    } else {
+                        by.setHidden = true;
+                        by.hidden = rng.bounded(2);
+                    }
+                    s->resizeRows(sheet, at, at + rng.bounded(3), by, QStringLiteral("h"));
+                    break;
+                }
+                case 13: s->type(sheet, quint32(rng.bounded(10)), 0, QStringLiteral("123456789012345")); break;
                 case 9: s->type(sheet, quint32(rng.bounded(10)), quint32(rng.bounded(6)), QStringLiteral("=Sheet1!A%1+Sheet2!A1").arg(1 + rng.bounded(6))); break;
                 default:
                     if (s->canUndo()) pressUndo(&e.win.w);

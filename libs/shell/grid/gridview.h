@@ -133,6 +133,8 @@ public:
     void clearCopyBorder();
     bool hasCopyBorder() const { return m_copyBorder.row1 >= 0; }
     GridRange copyBorder() const { return m_copyBorder; }
+    // The border between two rows or columns under a point of the headers (a few pixels either side of it): whether it is a column's (its right edge), and which row or column it ends.
+    bool borderAt(const QPoint &p, bool *column, qint64 *index) const;
     // A hook asked before a click changes the selection: false, and the click is ignored (the window finishes an entry first, and does not go on when it can't).
     void setClickGuard(std::function<bool()> guard) { m_clickGuard = std::move(guard); }
 
@@ -149,6 +151,10 @@ Q_SIGNALS:
     void clearRequested();
     // The fill handle was dragged and let go: the block it began from, the block with the cells it reached, and whether Ctrl was held (a copy, not a series).
     void fillRequested(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
+    // The border of a column (row) was dragged and let go: which, and the size it was given, in the grid's units at 100% (0 hides it).
+    void resizeRequested(bool column, qint64 index, int size);
+    // A double click on the border at the end of a column (row): fit it to what it holds.
+    void fitRequested(bool column, qint64 index);
 
 protected:
     void paintEvent(QPaintEvent *e) override;
@@ -191,7 +197,10 @@ private:
     Selection m_selection;
     bool m_gridlines = true, m_headings = true;
     // the mouse
-    enum class Drag { None, Cells, Rows, Columns, Fill } m_drag = Drag::None;
+    enum class Drag { None, Cells, Rows, Columns, Fill, Resize } m_drag = Drag::None;
+    bool m_resizeColumn = false;
+    qint64 m_resizeIndex = -1;
+    int m_resizeFrom = 0, m_resizeEdge = 0, m_resizeSize0 = 0, m_resizeSize = 0;
     GridRange m_fillSource, m_fillExtent;
     bool m_fillCtrl = false;
     GridRange m_copyBorder{-1, -1, -1, -1};

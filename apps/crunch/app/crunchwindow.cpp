@@ -371,7 +371,7 @@ void CrunchWindow::createDisabledActions()
         {"fmt.wrap", QT_TR_NOOP("Wrap Text"), "wrap-text"}, {"fmt.merge", QT_TR_NOOP("Merge and Center"), "table-cells-merge"}, {"fmt.indentInc", QT_TR_NOOP("Increase Indent"), "indent-increase"},
         {"fmt.indentDec", QT_TR_NOOP("Decrease Indent"), "indent-decrease"}, {"fmt.currency", QT_TR_NOOP("Currency"), "dollar-sign"}, {"fmt.percent", QT_TR_NOOP("Percent"), "percent"},
         {"fmt.comma", QT_TR_NOOP("Comma Style"), "hash"}, {"fmt.decimalInc", QT_TR_NOOP("Increase Decimal"), "arrow-up-0-1"}, {"fmt.decimalDec", QT_TR_NOOP("Decrease Decimal"), "arrow-down-1-0"},
-        {"cells.format", QT_TR_NOOP("Format"), "table-properties"},
+        
         {"insert.table", QT_TR_NOOP("Table"), "table"}, {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
         {"insert.chart", QT_TR_NOOP("Chart"), "chart-column"}, {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
         {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"}, {"formulas.insertFunction", QT_TR_NOOP("Insert Function"), "square-function"},

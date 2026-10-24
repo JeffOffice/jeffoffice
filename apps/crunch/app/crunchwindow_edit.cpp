@@ -23,6 +23,7 @@ void CrunchWindow::createEditing()
     m_session = std::make_unique<crunch::EditSession>(&m_loader, m_loaded, &m_values, nullptr);
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
+    connect(m_session.get(), &crunch::EditSession::sizesChanged, this, &CrunchWindow::onSizesChanged);
     QUndoStack *u = m_session->undoStack();
     connect(u, &QUndoStack::canUndoChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::canRedoChanged, this, &CrunchWindow::updateEditActions);
@@ -147,6 +148,7 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
         return false;
     }
     if (m_loader.changesMade() != before) m_calculating = true;
+    widenForEntry(m_edit.sheet, m_edit.row, m_edit.col);
     finishEdit(way);
     return true;
 }

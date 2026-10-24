@@ -8,6 +8,8 @@
 #include <QButtonGroup>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
 #include <QMenu>
 #include <QRadioButton>
 #include <QVBoxLayout>
@@ -31,6 +33,20 @@ void CrunchWindow::createCellsActions()
     mk("cells.delete.columns", tr("Delete Sheet Columns"), "", QKeySequence(), [this] { deleteLines(false); });
     for (const char *id : {"cells.insert", "cells.insert.cells", "cells.insert.rows", "cells.insert.columns", "cells.delete", "cells.delete.cells", "cells.delete.rows", "cells.delete.columns"})
         m_opsActions << QString::fromLatin1(id);
+    // sizes
+    mk("cells.format", tr("Format"), "table-properties", QKeySequence(), [] {});
+    mk("format.rowHeight", tr("Row Height…"), "", QKeySequence(), [this] { setSizeDialog(false); });
+    mk("format.columnWidth", tr("Column Width…"), "", QKeySequence(), [this] { setSizeDialog(true); });
+    mk("format.fitRow", tr("AutoFit Row Height"), "", QKeySequence(), [this] { fitSelection(false); });
+    mk("format.fitColumn", tr("AutoFit Column Width"), "", QKeySequence(), [this] { fitSelection(true); });
+    mk("format.hideRows", tr("Hide Rows"), "", QKeySequence(Qt::CTRL | Qt::Key_9), [this] { hideSelection(false, true); });
+    mk("format.hideColumns", tr("Hide Columns"), "", QKeySequence(Qt::CTRL | Qt::Key_0), [this] { hideSelection(true, true); });
+    mk("format.unhideRows", tr("Unhide Rows"), "", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_ParenLeft), [this] { hideSelection(false, false); });
+    mk("format.unhideColumns", tr("Unhide Columns"), "", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_ParenRight), [this] { hideSelection(true, false); });
+    for (const char *id : {"cells.format", "format.rowHeight", "format.columnWidth", "format.fitRow", "format.fitColumn", "format.hideRows", "format.hideColumns", "format.unhideRows", "format.unhideColumns"})
+        m_opsActions << QString::fromLatin1(id);
+    connect(m_view, &grid::GridView::resizeRequested, this, [this](bool column, qint64 index, int size) { resizeDragged(column, index, size); });
+    connect(m_view, &grid::GridView::fitRequested, this, [this](bool column, qint64 index) { fitDragged(column, index); });
     updateEditActions();
 }
 
@@ -159,6 +175,154 @@ void CrunchWindow::onCellsMoved(const StructEdit &edit)
     updateBars();
 }
 
+// ---- the width of columns and the height of rows
+
+void CrunchWindow::selectedLines(bool column, quint32 *first, quint32 *last) const
+{
+    const grid::GridRange r = m_view->selection().range;
+    *first = quint32(std::max<qint64>(0, column ? r.col1 : r.row1));
+    *last = quint32(std::max<qint64>(0, column ? r.col2 : r.row2));
+}
+
+void CrunchWindow::onSizesChanged(int sheet)
+{
+    if (!m_loaded) return;
+    if (sheet >= 0 && size_t(sheet) < m_loaded->geometry.size()) m_loaded->geometry[size_t(sheet)].reset();
+    if (sheet == m_sheet) {
+        showSheet(m_sheet, true);
+        placeEditor();
+    }
+}
+
+// A border dragged: the whole selection of columns (rows) if the border is the end of one of them, else the one column (row).
+void CrunchWindow::resizeDragged(bool column, qint64 index, int size)
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return;
+    const grid::Selection &sel = m_view->selection();
+    quint32 first = quint32(index), last = quint32(index);
+    const bool whole = column ? (sel.whole == grid::Selection::Whole::Columns || sel.whole == grid::Selection::Whole::All) : (sel.whole == grid::Selection::Whole::Rows || sel.whole == grid::Selection::Whole::All);
+    if (whole && index >= (column ? sel.range.col1 : sel.range.row1) && index <= (column ? sel.range.col2 : sel.range.row2)) selectedLines(column, &first, &last);
+    crunch::EditSession::SizeChange by;
+    if (size <= 0) {
+        by.setHidden = true;
+        by.hidden = true;
+    } else {
+        by.setSize = true;
+        by.size = column ? grid::GridSheet::widthForPixels(size, m_view->sheet().looks().maxDigitWidth()) : grid::GridSheet::pointsForPixels(size);
+    }
+    const crunch::EditSession::Outcome o = column ? m_session->resizeColumns(m_sheet, first, last, by, size <= 0 ? tr("Hiding columns") : tr("Changing column width"))
+                                                   : m_session->resizeRows(m_sheet, first, last, by, size <= 0 ? tr("Hiding rows") : tr("Changing row height"));
+    if (!o.ok) notice(column ? tr("Column Width") : tr("Row Height"), o.problem);
+}
+
+void CrunchWindow::setSizeDialog(bool column)
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return;
+    quint32 first = 0, last = 0;
+    selectedLines(column, &first, &last);
+    const int mdw = m_view->sheet().looks().maxDigitWidth();
+    SizeRequest request;
+    request.column = column;
+    if (column) request.value = grid::GridSheet::shownWidth(m_view->sheet().columnWidth(first) / double(std::max(1, mdw)), mdw);
+    else request.value = grid::GridSheet::pointsForPixels(m_view->sheet().layout().rows.size(first));
+    if (m_sizeAsker) {
+        if (!m_sizeAsker(&request)) return;
+    } else {
+        QDialog dialog(this);
+        dialog.setWindowTitle(column ? tr("Column Width") : tr("Row Height"));
+        auto *form = new QFormLayout;
+        auto *layout = new QVBoxLayout(&dialog);
+        layout->addLayout(form);
+        auto *value = new QDoubleSpinBox;
+        value->setRange(0, column ? 255 : 409.5);
+        value->setDecimals(2);
+        value->setValue(request.value);
+        form->addRow(column ? tr("Column width") : tr("Row height"), value);
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        layout->addWidget(buttons);
+        connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        if (dialog.exec() != QDialog::Accepted) return;
+        request.value = value->value();
+    }
+    crunch::EditSession::SizeChange by;
+    if (request.value <= 0) {
+        by.setHidden = true;
+        by.hidden = true;
+    } else {
+        by.setSize = true;
+        by.size = column ? grid::GridSheet::widthOfShown(request.value, mdw) : request.value;
+        by.setHidden = true;   // (a size asked for shows what was hidden)
+        by.hidden = false;
+    }
+    const crunch::EditSession::Outcome o = column ? m_session->resizeColumns(m_sheet, first, last, by, request.value <= 0 ? tr("Hiding columns") : tr("Changing column width"))
+                                                   : m_session->resizeRows(m_sheet, first, last, by, request.value <= 0 ? tr("Hiding rows") : tr("Changing row height"));
+    if (!o.ok) notice(column ? tr("Column Width") : tr("Row Height"), o.problem);
+}
+
+// AutoFit: the columns (rows) of the selection each get the size that holds what is in them (one that holds nothing keeps its size).
+void CrunchWindow::fitSelection(bool column)
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return;
+    quint32 first = 0, last = 0;
+    selectedLines(column, &first, &last);
+    std::vector<std::pair<quint32, double>> sizes;
+    for (quint32 i = first; i <= last && sizes.size() < 20000; ++i) {
+        const double size = column ? m_view->sheet().fitWidth(i) : m_view->sheet().fitHeight(i);
+        if (size > 0) sizes.push_back({i, size});
+        if (i == 0xFFFFFFFFu) break;
+    }
+    if (sizes.empty()) return;
+    const crunch::EditSession::Outcome o = column ? m_session->fitColumns(m_sheet, sizes) : m_session->fitRows(m_sheet, sizes);
+    if (!o.ok) notice(column ? tr("Column Width") : tr("Row Height"), o.problem);
+}
+
+void CrunchWindow::fitDragged(bool column, qint64 index)
+{
+    // a border at the end of a column (row) of the selection fits all of the selection's; any other fits that one
+    const grid::Selection &sel = m_view->selection();
+    const bool whole = column ? (sel.whole == grid::Selection::Whole::Columns || sel.whole == grid::Selection::Whole::All) : (sel.whole == grid::Selection::Whole::Rows || sel.whole == grid::Selection::Whole::All);
+    if (!(whole && index >= (column ? sel.range.col1 : sel.range.row1) && index <= (column ? sel.range.col2 : sel.range.row2))) {
+        if (column) m_view->selectColumns(index, index);
+        else m_view->selectRows(index, index);
+    }
+    fitSelection(column);
+}
+
+void CrunchWindow::hideSelection(bool column, bool hide)
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return;
+    quint32 first = 0, last = 0;
+    selectedLines(column, &first, &last);
+    if (!hide) {
+        // the hidden ones around the selection show too: the unhiding is for what the selection covers and one more at each end
+        if (first > 0) --first;
+        if (last + 1 < (column ? jp::office::sheet::kMaxColumns : jp::office::sheet::kMaxRows)) ++last;
+    }
+    crunch::EditSession::SizeChange by;
+    by.setHidden = true;
+    by.hidden = hide;
+    const crunch::EditSession::Outcome o = column ? m_session->resizeColumns(m_sheet, first, last, by, hide ? tr("Hiding columns") : tr("Unhiding columns"))
+                                                   : m_session->resizeRows(m_sheet, first, last, by, hide ? tr("Hiding rows") : tr("Unhiding rows"));
+    if (!o.ok) notice(column ? tr("Columns") : tr("Rows"), o.problem);
+}
+
+// A number just typed in a column that has the width it began with widens the column to show it.
+void CrunchWindow::widenForEntry(int sheet, quint32 row, quint32 col)
+{
+    if (sheet != m_sheet || !m_session) return;
+    const grid::Cell *cell = m_view->sheet().cellAt(row, col);
+    if (!cell || cell->hasFormula() || !m_view->sheet().valueOf(*cell).isNumber()) return;
+    const int mdw = std::max(1, m_view->sheet().looks().maxDigitWidth());
+    const double need = m_view->sheet().fitWidthOfCell(row, col);
+    if (need <= 0 || need * mdw <= m_view->sheet().columnWidth(col) + 0.5) return;
+    m_session->widenColumnWithEntry(sheet, col, need);
+}
+
 void CrunchWindow::showContextMenu(const QPoint &globalPos)
 {
     auto *menu = new QMenu(this);
@@ -170,9 +334,19 @@ void CrunchWindow::showContextMenu(const QPoint &globalPos)
     if (whole == grid::Selection::Whole::Rows) {
         menu->addAction(act("cells.insert.rows"));
         menu->addAction(act("cells.delete.rows"));
+        menu->addSeparator();
+        menu->addAction(act("format.rowHeight"));
+        menu->addAction(act("format.fitRow"));
+        menu->addAction(act("format.hideRows"));
+        menu->addAction(act("format.unhideRows"));
     } else if (whole == grid::Selection::Whole::Columns) {
         menu->addAction(act("cells.insert.columns"));
         menu->addAction(act("cells.delete.columns"));
+        menu->addSeparator();
+        menu->addAction(act("format.columnWidth"));
+        menu->addAction(act("format.fitColumn"));
+        menu->addAction(act("format.hideColumns"));
+        menu->addAction(act("format.unhideColumns"));
     } else {
         menu->addAction(act("cells.insert.cells"));
         menu->addAction(act("cells.delete.cells"));

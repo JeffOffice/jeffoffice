@@ -464,4 +464,69 @@ bool Calculation::undoEdit(const EditRecord &rec)
     return true;
 }
 
+std::vector<ColumnSpan> Calculation::columnRuns(int sheet, quint32 first, quint32 last) const
+{
+    std::vector<ColumnSpan> out;
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return out;
+    for (const ColumnSpan &c : m_sheets[size_t(sheet)].columns) {
+        if (c.last < first || c.first > last) continue;
+        ColumnSpan cut = c;
+        cut.first = std::max(c.first, first);
+        cut.last = std::min(c.last, last);
+        out.push_back(cut);
+    }
+    std::sort(out.begin(), out.end(), [](const ColumnSpan &a, const ColumnSpan &b) { return a.first < b.first; });
+    return out;
+}
+
+std::vector<RowSpec> Calculation::rowSpecsIn(int sheet, quint32 first, quint32 last) const
+{
+    std::vector<RowSpec> out;
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return out;
+    for (const RowSpec &r : m_sheets[size_t(sheet)].rowSpecs)
+        if (r.row >= first && r.row <= last) out.push_back(r);
+    std::sort(out.begin(), out.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
+    return out;
+}
+
+void Calculation::setColumnRuns(int sheet, quint32 first, quint32 last, const std::vector<ColumnSpan> &runs)
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return;
+    Sheet &S = m_sheets[size_t(sheet)];
+    QVector<ColumnSpan> now;
+    now.reserve(S.columns.size() + int(runs.size()) + 2);
+    for (const ColumnSpan &c : S.columns) {
+        if (c.last < first || c.first > last) {
+            now.append(c);
+            continue;
+        }
+        if (c.first < first) {
+            ColumnSpan left = c;
+            left.last = first - 1;
+            now.append(left);
+        }
+        if (c.last > last) {
+            ColumnSpan right = c;
+            right.first = last + 1;
+            now.append(right);
+        }
+    }
+    for (const ColumnSpan &c : runs) now.append(c);
+    std::stable_sort(now.begin(), now.end(), [](const ColumnSpan &a, const ColumnSpan &b) { return a.first < b.first; });
+    S.columns = now;
+}
+
+void Calculation::setRowSpecs(int sheet, quint32 first, quint32 last, const std::vector<RowSpec> &specs)
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return;
+    Sheet &S = m_sheets[size_t(sheet)];
+    QVector<RowSpec> now;
+    now.reserve(S.rowSpecs.size() + int(specs.size()));
+    for (const RowSpec &r : S.rowSpecs)
+        if (r.row < first || r.row > last) now.append(r);
+    for (const RowSpec &r : specs) now.append(r);
+    std::stable_sort(now.begin(), now.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
+    S.rowSpecs = now;
+}
+
 } // namespace jp::office::sheet

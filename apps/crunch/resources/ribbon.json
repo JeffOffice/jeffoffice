@@ -73,9 +73,9 @@
           "name": "Cells",
           "keytip": "ZL",
           "items": [
-            {"large": "cells.insert", "keytip": "I"},
-            {"large": "cells.delete", "keytip": "D"},
-            {"large": "cells.format", "keytip": "O"}
+            {"large": "cells.insert", "keytip": "I", "split": true, "menu": ["cells.insert.cells", "cells.insert.rows", "cells.insert.columns"]},
+            {"large": "cells.delete", "keytip": "D", "split": true, "menu": ["cells.delete.cells", "cells.delete.rows", "cells.delete.columns"]},
+            {"large": "cells.format", "keytip": "O", "menu": ["format.rowHeight", "format.fitRow", "format.columnWidth", "format.fitColumn", "-", "format.hideRows", "format.hideColumns", "format.unhideRows", "format.unhideColumns"]}
           ]
         },
         {

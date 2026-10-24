@@ -49,6 +49,15 @@ struct TableRename {
     QString before, after;
 };
 
+// The width of columns or the height of rows changed by a step: the runs of columns (the specs of rows) in a range as they were and as they are.
+struct SizeEdit {
+    int sheet = 0;
+    bool columns = true;
+    quint32 first = 0, last = 0;   // the columns or rows
+    std::vector<jp::office::sheet::ColumnSpan> columnsBefore, columnsAfter;
+    std::vector<jp::office::sheet::RowSpec> rowsBefore, rowsAfter;
+};
+
 // Rows, columns, or cells inserted or deleted by a step: the edit, what the model needs to undo it (made when it is first done), and the marks the session keeps by cell that it moved.
 struct StructChange {
     bool done = false;                                                   // the cells are as the edit leaves them
@@ -57,6 +66,7 @@ struct StructChange {
     std::vector<jp::office::sheet::TablePlace> tables;                   // the tables it moved, where they were
     std::vector<quint64> touchedGone, touchedAdded;                     // cells marked as changed that it deleted, and those it marked
     std::vector<std::pair<quint64, jp::calc::Value>> resultsGone, engineGone, fileGone;   // the results kept by cell that it deleted
+    std::vector<quint64> columnsGone, rowsGone;                          // the columns and rows marked as resized that it deleted
     qint64 bytes() const;
 };
 
@@ -64,8 +74,9 @@ struct StructChange {
 struct Step {
     std::vector<CellChange> cells;
     std::vector<TableRename> renames;
+    std::vector<SizeEdit> sizes;
     std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
-    bool empty() const { return cells.empty() && renames.empty() && !structure; }
+    bool empty() const { return cells.empty() && renames.empty() && sizes.empty() && !structure; }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -170,6 +181,26 @@ public:
     int generation() const { return int(m_log.size()); }
     void moveToNow(std::vector<jp::grid::ValueStore::Item> *items, int generation) const;
 
+    // The width of columns and the height of rows: one step. A `SizeChange` sets the size (the width in characters of the widest digit, with the padding; the height in points), hides or
+    // shows, or both; `custom` says that a person set the size (a fit to the contents is not custom, and a column that is not custom is widened to fit a number typed in it).
+    struct SizeChange {
+        bool setSize = false;
+        double size = 0;
+        bool custom = true;
+        bool setHidden = false;
+        bool hidden = false;
+    };
+    Outcome resizeColumns(int sheet, quint32 first, quint32 last, const SizeChange &change, const QString &text);
+    Outcome resizeRows(int sheet, quint32 first, quint32 last, const SizeChange &change, const QString &text);
+    // Columns each given its width in one step (a fit to the contents of several): the column and the width.
+    Outcome fitColumns(int sheet, const std::vector<std::pair<quint32, double>> &widths);
+    Outcome fitRows(int sheet, const std::vector<std::pair<quint32, double>> &heights);
+    // A number typed in a column that has the width it began with widens it to hold it: the width is added to the step of the entry (the last on the stack, which must be an entry in
+    // that column); false if it was not.
+    bool widenColumnWithEntry(int sheet, quint32 col, double width);
+    // The most rows one resize changes.
+    static constexpr qint64 kMaxRowsPerResize = 100000;
+
     // The worker's results, as they reach the window (before the window's store has them: the store's value is the engine's before it): kept for saving, those that the engine changed and that
     // differ from what the file holds.
     void noteResults(const std::vector<jp::grid::ValueStore::Item> &items);
@@ -210,12 +241,17 @@ Q_SIGNALS:
     void cellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells);
     // Rows, columns, or cells were inserted or deleted (or put back by Undo: `edit` is what was done to the cells then); the window makes its picture of the sheet again.
     void cellsMoved(const jp::office::sheet::StructEdit &edit);
+    // The width of columns or the height of rows of a sheet changed (by a step, Undo, or Redo): the window makes its picture of the sheet again.
+    void sizesChanged(int sheet);
 
 private:
     friend class ChangeCells;
     // Makes the changes (forward: to `after`; else back to `before`) with the worker held back. False if the worker could not be held.
     bool apply(Step *step, bool forward);
     bool applyStructure(Step *step, bool forward);
+    void applySizes(Step *step, bool forward, jp::office::sheet::Calculation *calc);
+    bool widenLastStep(int index, int sheet, quint32 col, double width);
+    Outcome resize(const SizeEdit &edit, const QString &text);
     Outcome structure(const jp::office::sheet::StructEdit &edit, const QString &text);
     // The marks kept by cell follow an edit (forward) or its undoing: `edit` is what was done to the cells.
     void followEdit(const jp::office::sheet::StructEdit &edit, StructChange *change, bool forward);
@@ -252,6 +288,7 @@ private:
     std::set<quint64> m_touched;           // cells changed by the person (written whole), by sheet, row, column
     std::map<quint64, jp::calc::Value> m_results;      // formulas whose value is not the file's
     std::map<quint64, jp::calc::Value> m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
+    std::set<quint64> m_columnsResized, m_rowsResized;   // the columns and rows (by sheet and place) whose size a step changed since the file was read or saved
     std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
     std::map<quint64, jp::calc::Value> m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)

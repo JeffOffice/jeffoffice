@@ -97,6 +97,13 @@ public:
         enum class Way { Right, Down, Left, Up, Rows, Columns } way = Way::Down;
     };
     void setShiftAsker(const std::function<bool(ShiftRequest *)> &asker) { m_shiftAsker = asker; }
+    // What Column Width and Row Height ask for: the size (the width a person is shown, in characters of the default font's widest digit; the height in points), with the one it has now. A dialog
+    // unless this stands in for it (tests); false gives it up.
+    struct SizeRequest {
+        bool column = true;
+        double value = 0;
+    };
+    void setSizeAsker(const std::function<bool(SizeRequest *)> &asker) { m_sizeAsker = asker; }
     void setChangedAsker(const std::function<ChangedAnswer(const QString &name)> &asker) { m_changedAsker = asker; }
     // Where Save As writes: asked of a file dialog, unless this stands in for it (tests): the name it starts with, and the filter; an empty path gives it up.
     void setSavePicker(const std::function<QString(const QString &start, const QString &filter)> &picker) { m_savePicker = picker; }
@@ -196,6 +203,17 @@ private:
     void showContextMenu(const QPoint &globalPos);
     jp::office::sheet::CellRange selectedRange() const;
     std::function<bool(ShiftRequest *)> m_shiftAsker;
+    std::function<bool(SizeRequest *)> m_sizeAsker;
+    // the width of columns and the height of rows
+    void onSizesChanged(int sheet);
+    void resizeDragged(bool column, qint64 index, int size);
+    void fitDragged(bool column, qint64 index);
+    void setSizeDialog(bool column);
+    void fitSelection(bool column);
+    void hideSelection(bool column, bool hide);
+    void widenForEntry(int sheet, quint32 row, quint32 col);
+    // the columns (rows) a command on sizes is for: those of the selection
+    void selectedLines(bool column, quint32 *first, quint32 *last) const;
     // editing
     void createEditing();
     void beginEdit(const QString &initial, CellEditor::Mode mode, bool fromBar);

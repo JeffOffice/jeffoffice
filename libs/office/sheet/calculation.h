@@ -182,6 +182,14 @@ public:
     // Puts back what the edit changed (the record is the last applyEdit's).
     bool undoEdit(const EditRecord &record);
 
+    // ---- the widths of columns and the heights of rows (the sheet's own, which the file gives and a person changes). Called with the worker held back.
+    // The runs of columns [first, last] has widths or hidden or formats for, cut to that range, in order; the rows in it that are not as the default, in order.
+    std::vector<ColumnSpan> columnRuns(int sheet, quint32 first, quint32 last) const;
+    std::vector<RowSpec> rowSpecsIn(int sheet, quint32 first, quint32 last) const;
+    // Puts these in their place (what the range had is let go of first): for making a change and for undoing it.
+    void setColumnRuns(int sheet, quint32 first, quint32 last, const std::vector<ColumnSpan> &runs);
+    void setRowSpecs(int sheet, quint32 first, quint32 last, const std::vector<RowSpec> &specs);
+
     // Puts right, at once, what a stop of the recalculation left to be put right (an edit does this first; a caller that is about to read the formulas' state does too).
     void settle() { abandonNow(); }
 

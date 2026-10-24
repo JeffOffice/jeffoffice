@@ -82,6 +82,8 @@ EditSession::Outcome EditSession::deleteCells(int sheet, const CellRange &block,
 
 namespace {
 
+using K = StructEdit::Kind;
+
 // Where the key of a cell is after the edit: false if it is gone.
 bool movedKey(const StructEdit &e, quint64 key, quint64 *now)
 {
@@ -145,6 +147,41 @@ void followMap(std::map<quint64, Value> *results, const StructEdit &e, std::vect
     for (auto &entry : moved) (*results)[entry.first] = std::move(entry.second);
 }
 
+// The marks of resized columns (`columns`) or rows after the edit that inserts or deletes columns or rows: those deleted are given back.
+void followLines(std::set<quint64> *marks, const StructEdit &e, bool columns, std::vector<quint64> *gone)
+{
+    const bool applies = columns ? (e.kind == K::InsertColumns || e.kind == K::DeleteColumns) : (e.kind == K::InsertRows || e.kind == K::DeleteRows);
+    if (!applies) return;
+    std::vector<quint64> moved;
+    for (auto it = marks->begin(); it != marks->end();) {
+        const quint64 key = *it;
+        if (int(key >> 40) != e.sheet) {
+            ++it;
+            continue;
+        }
+        const quint32 at = columns ? quint32(key & 0xFFFF) : quint32((key >> 16) & 0xFFFFFF);
+        quint32 now = at;
+        bool alive = true;
+        if (e.kind == K::InsertColumns || e.kind == K::InsertRows) {
+            if (at >= e.first) now = at + e.count;
+            alive = now < (columns ? kMaxColumns : kMaxRows);
+        } else if (at >= e.first) {
+            if (at < e.first + e.count) alive = false;
+            else now = at - e.count;
+        }
+        if (!alive) {
+            if (gone) gone->push_back(key);
+            it = marks->erase(it);
+        } else if (now != at) {
+            moved.push_back(columns ? EditSession::keyOf(e.sheet, 0, now) : EditSession::keyOf(e.sheet, now, 0));
+            it = marks->erase(it);
+        } else {
+            ++it;
+        }
+    }
+    marks->insert(moved.begin(), moved.end());
+}
+
 } // namespace
 
 void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forward)
@@ -160,6 +197,10 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
         followMap(&m_results, edit, &sc->resultsGone);
         followMap(&m_engineAtStart, edit, &sc->engineGone);
         followMap(&m_fileResults, edit, &sc->fileGone);
+        sc->columnsGone.clear();
+        sc->rowsGone.clear();
+        followLines(&m_columnsResized, edit, true, &sc->columnsGone);
+        followLines(&m_rowsResized, edit, false, &sc->rowsGone);
         auto mark = [&](quint64 key) {
             if (m_touched.insert(key).second) sc->touchedAdded.push_back(key);
         };
@@ -191,6 +232,10 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
         followMap(&m_results, back, nullptr);
         followMap(&m_engineAtStart, back, nullptr);
         followMap(&m_fileResults, back, nullptr);
+        followLines(&m_columnsResized, back, true, nullptr);
+        followLines(&m_rowsResized, back, false, nullptr);
+        for (const quint64 key : sc->columnsGone) m_columnsResized.insert(key);
+        for (const quint64 key : sc->rowsGone) m_rowsResized.insert(key);
         for (const quint64 key : sc->touchedGone) m_touched.insert(key);
         for (auto &entry : sc->resultsGone) m_results[entry.first] = entry.second;
         for (auto &entry : sc->engineGone) m_engineAtStart[entry.first] = entry.second;

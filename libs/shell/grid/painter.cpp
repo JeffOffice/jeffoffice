@@ -93,6 +93,7 @@ public:
     const QRawFont &raw() const { return m_raw; }
     double ascent() const { return m_metrics.ascent(); }
     double descent() const { return m_metrics.descent(); }
+    double lineSpacing() const { return m_metrics.lineSpacing(); }
     // The glyphs and where each begins (from 0), and the width of the line; false if a letter of the line is not one of the simple ones.
     bool layout(const QString &text, QList<quint32> *glyphs, QList<QPointF> *positions, double *width) const
     {
@@ -153,6 +154,14 @@ public:
     double width(const QString &text, const CellLook &look) const override
     {
         if (text.isEmpty()) return 0;
+        return face(look)->width(text);
+    }
+    double lineHeight(const CellLook &look) const override { return face(look)->lineSpacing(); }
+    void reset() { m_faces.clear(); }
+
+private:
+    const GridPainter::GlyphFace *face(const CellLook &look) const
+    {
         const size_t id = look.fontId;
         if (id >= m_faces.size()) m_faces.resize(id + 1);
         std::unique_ptr<GridPainter::GlyphFace> &e = m_faces[id];
@@ -165,11 +174,8 @@ public:
             f.setHintingPreference(QFont::PreferNoHinting);
             e = std::make_unique<GridPainter::GlyphFace>(f);
         }
-        return e->width(text);
+        return e.get();
     }
-    void reset() { m_faces.clear(); }
-
-private:
     mutable std::vector<std::unique_ptr<GridPainter::GlyphFace>> m_faces;
 };
 
@@ -850,6 +856,14 @@ void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
     p->setRenderHint(QPainter::SmoothPixmapTransform, false);
     for (Pane which : {Pane::Body, Pane::Left, Pane::Top, Pane::Corner}) paintPane(p, which, clip, o);
     if (o.headers) paintHeaders(p, clip, o);
+    if (o.resizeGuide >= 0) {
+        // the border of a row or column being dragged: a dashed line across the cells
+        QPen pen(o.accent, 1, Qt::DashLine);
+        p->setPen(pen);
+        const QRect all = clip;
+        if (o.resizeGuideColumn) p->drawLine(o.resizeGuide, all.top(), o.resizeGuide, all.bottom());
+        else p->drawLine(all.left(), o.resizeGuide, all.right(), o.resizeGuide);
+    }
     p->restore();
     m_stats.textsMade = m_sheet->textsMade() - textsBefore;
     m_stats.looksMade = m_sheet->looks().made() - looksBefore;

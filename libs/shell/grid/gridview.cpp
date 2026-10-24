@@ -603,6 +603,10 @@ PaintOptions GridView::paintOptions() const
     o.fillPreview = m_drag == Drag::Fill && !(m_fillExtent == m_fillSource) ? &m_fillExtent : nullptr;
     o.copyRange = hasCopyBorder() ? &m_copyBorder : nullptr;
     o.copyPhase = m_copyPhase;
+    if (m_drag == Drag::Resize) {
+        o.resizeGuide = m_resizeEdge + int(std::lround((m_resizeSize - m_resizeSize0) * m_sheet.layout().zoom()));
+        o.resizeGuideColumn = m_resizeColumn;
+    }
     o.accent = uiAccent();
     o.headerBackground = uiPanel();
     o.headerText = uiText();
@@ -729,6 +733,20 @@ void GridView::mousePressEvent(QMouseEvent *e)
         return;
     }
     if (e->button() != Qt::LeftButton) return;
+    bool borderColumn = false;
+    qint64 borderIndex = -1;
+    if (borderAt(e->pos(), &borderColumn, &borderIndex)) {
+        const GridLayout &LL = m_sheet.layout();
+        m_drag = Drag::Resize;
+        m_resizeColumn = borderColumn;
+        m_resizeIndex = borderIndex;
+        m_resizeFrom = borderColumn ? e->pos().x() : e->pos().y();
+        m_resizeSize0 = m_resizeSize = borderColumn ? LL.cols.size(borderIndex) : LL.rows.size(borderIndex);
+        m_resizeEdge = borderColumn ? LL.xEdge(borderIndex + 1, borderIndex < LL.frozenCols()) : LL.yEdge(borderIndex + 1, borderIndex < LL.frozenRows());
+        m_lastMouse = e->pos();
+        viewport()->update();
+        return;
+    }
     if (fillHandleRect().contains(e->pos())) {
         m_drag = Drag::Fill;
         m_fillSource = m_fillExtent = m_selection.range;
@@ -758,12 +776,55 @@ void GridView::mousePressEvent(QMouseEvent *e)
 void GridView::mouseMoveEvent(QMouseEvent *e)
 {
     m_lastMouse = e->pos();
-    if (e->buttons() & Qt::LeftButton) dragTo(e->pos());
+    if (m_drag == Drag::Resize) {
+        const int at = m_resizeColumn ? e->pos().x() : e->pos().y();
+        m_resizeSize = std::clamp(m_resizeSize0 + int(std::lround((at - m_resizeFrom) / m_sheet.layout().zoom())), 0, Axis::kMaxSize);
+        viewport()->update();
+        return;
+    }
+    if (e->buttons() & Qt::LeftButton) {
+        dragTo(e->pos());
+        return;
+    }
+    bool column = false;
+    qint64 index = -1;
+    if (borderAt(e->pos(), &column, &index)) viewport()->setCursor(column ? Qt::SplitHCursor : Qt::SplitVCursor);
     else viewport()->setCursor(fillHandleRect().contains(e->pos()) ? Qt::CrossCursor : Qt::ArrowCursor);
+}
+
+bool GridView::borderAt(const QPoint &p, bool *column, qint64 *index) const
+{
+    if (!m_headings) return false;
+    const GridLayout &L = m_sheet.layout();
+    constexpr int kGrab = 4;
+    const bool inColumns = p.y() >= 0 && p.y() < L.headerHeight() && p.x() >= L.headerWidth();
+    const bool inRows = p.x() >= 0 && p.x() < L.headerWidth() && p.y() >= L.headerHeight();
+    if (!inColumns && !inRows) return false;
+    // the columns (rows) a few pixels either side of the point: the one whose end is near it
+    for (const int d : {0, -kGrab, kGrab}) {
+        const QPoint q = inColumns ? QPoint(p.x() + d, p.y()) : QPoint(p.x(), p.y() + d);
+        const Hit h = L.hit(q);
+        const qint64 at = inColumns ? (h.kind == Hit::Kind::ColumnHeader ? h.col : -1) : (h.kind == Hit::Kind::RowHeader ? h.row : -1);
+        if (at < 0) continue;
+        const int edge = inColumns ? L.xEdge(at + 1, at < L.frozenCols()) : L.yEdge(at + 1, at < L.frozenRows());
+        const int here = inColumns ? p.x() : p.y();
+        if (std::abs(here - edge) <= kGrab) {
+            *column = inColumns;
+            *index = at;
+            return true;
+        }
+    }
+    return false;
 }
 
 void GridView::mouseReleaseEvent(QMouseEvent *e)
 {
+    if (m_drag == Drag::Resize) {
+        m_drag = Drag::None;
+        viewport()->update();
+        if (m_resizeSize != m_resizeSize0) Q_EMIT resizeRequested(m_resizeColumn, m_resizeIndex, m_resizeSize);
+        return;
+    }
     const bool fill = m_drag == Drag::Fill;
     const GridRange source = m_fillSource, extent = m_fillExtent;
     const bool ctrl = m_fillCtrl || (e && (e->modifiers() & Qt::ControlModifier));
@@ -802,6 +863,13 @@ void GridView::clearCopyBorder()
 void GridView::mouseDoubleClickEvent(QMouseEvent *e)
 {
     if (e->button() != Qt::LeftButton) return;
+    bool column = false;
+    qint64 index = -1;
+    if (borderAt(e->pos(), &column, &index)) {
+        m_drag = Drag::None;
+        Q_EMIT fitRequested(column, index);
+        return;
+    }
     const Hit h = m_sheet.layout().hit(e->pos());
     if (h.kind == Hit::Kind::Cell) Q_EMIT editRequested();
 }

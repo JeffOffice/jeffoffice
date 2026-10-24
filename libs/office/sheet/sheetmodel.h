@@ -272,6 +272,8 @@ struct ColumnSpan {
     bool hidden = false;
     bool customWidth = false;
     quint32 style = 0;             // the place of a cell format; 0 for none
+    quint8 outline = 0;            // the outline level
+    bool collapsed = false, bestFit = false, phonetic = false;   // and the rest of what a `col` element says, for writing it again
 };
 
 // What the file says about a row that is not as the sheet's default: its height in points (-1 for none), whether it is hidden, and the cell format (when the row

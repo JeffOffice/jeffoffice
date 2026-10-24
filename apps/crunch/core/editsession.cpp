@@ -87,6 +87,7 @@ public:
         recount();
     }
     bool forgotten() const { return m_forgotten; }
+    Step *step() { return &m_step; }
     // Whether the step inserted or deleted rows, columns, or cells.
     bool moves() const { return !m_forgotten && m_step.structure != nullptr; }
     // The bytes the step holds (what a move of cells keeps is known when it is done).
@@ -95,6 +96,8 @@ public:
         qint64 n = 0;
         for (const CellChange &c : m_step.cells) n += qint64(sizeof(c)) + contentBytes(c.before) + contentBytes(c.after) + qint64(c.formatCode.size()) * 2;
         for (const TableRename &r : m_step.renames) n += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
+        for (const SizeEdit &e : m_step.sizes)
+            n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
         if (m_step.structure) n += m_step.structure->bytes();
         *m_total += n - m_bytes;
         m_bytes = n;
@@ -167,6 +170,8 @@ void EditSession::cleanChanged(bool clean)
     // come, and they are compared with it (not with the values the store has, which are the edit's); it is let go when the worker has caught up (calculationFinished), or on a save.
     m_touched.clear();
     m_results.clear();
+    m_columnsResized.clear();
+    m_rowsResized.clear();
 }
 
 void EditSession::calculationFinished()
@@ -533,14 +538,58 @@ bool EditSession::apply(Step *step, bool forward)
         }
     }
     for (const TableRename &r : step->renames) book.setTableColumnName(r.table, r.column, forward ? r.after : r.before);
+    applySizes(step, forward, calc);
     if (m_holdHook) m_holdHook(calc, true);
-    hold->changed();
+    if (!step->cells.empty() || !step->renames.empty()) hold->changed();
     hold.reset();   // (the worker has the model again, and works out what these changes make)
     m_tracking = true;
     // a formula put in a cell has no value until the worker gives it one: it shows nothing, not the value of what was there
     if (!formulas.empty()) m_values->apply(formulas);
     for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
+    for (const SizeEdit &e : step->sizes) Q_EMIT sizesChanged(e.sheet);
     return true;
+}
+
+bool EditSession::widenLastStep(int index, int sheet, quint32 col, double width)
+{
+    auto *cmd = const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(index)));
+    if (cmd->forgotten() || cmd->step()->structure || cmd->step()->cells.empty() || col >= kMaxColumns) return false;
+    bool inColumn = false;
+    for (const CellChange &c : cmd->step()->cells) inColumn = inColumn || (c.sheet == sheet && c.col == col);
+    if (!inColumn) return false;
+    SizeEdit e;
+    e.sheet = sheet;
+    e.columns = true;
+    e.first = e.last = col;
+    e.columnsBefore = m_book->calc->columnRuns(sheet, col, col);
+    ColumnSpan c = e.columnsBefore.empty() ? ColumnSpan() : e.columnsBefore.front();
+    if (!e.columnsBefore.empty() && (c.customWidth || c.hidden || (c.width >= 0 && c.width >= width))) return false;   // (a width a person set stays, and a column wide enough is left)
+    c.first = c.last = col;
+    c.width = width;
+    c.customWidth = false;
+    e.columnsAfter.push_back(c);
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold) return false;
+    hold->calculation()->setColumnRuns(sheet, col, col, e.columnsAfter);
+    hold.reset();
+    m_columnsResized.insert(keyOf(sheet, 0, col));
+    cmd->step()->sizes.push_back(e);
+    cmd->recount();
+    Q_EMIT sizesChanged(sheet);
+    return true;
+}
+
+void EditSession::applySizes(Step *step, bool forward, Calculation *calc)
+{
+    for (const SizeEdit &e : step->sizes) {
+        if (e.columns) {
+            calc->setColumnRuns(e.sheet, e.first, e.last, forward ? e.columnsAfter : e.columnsBefore);
+            for (quint32 c = e.first; c <= e.last; ++c) m_columnsResized.insert(keyOf(e.sheet, 0, c));
+        } else {
+            calc->setRowSpecs(e.sheet, e.first, e.last, forward ? e.rowsAfter : e.rowsBefore);
+            for (quint32 r = e.first; r <= e.last; ++r) m_rowsResized.insert(keyOf(e.sheet, r, 0));
+        }
+    }
 }
 
 bool EditSession::storedEquals(int sheet, quint32 row, quint32 col, const Value &value) const
@@ -639,6 +688,36 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         }
         changes.sheets[sheet].cells.push_back(cell);
     }
+    // the runs of columns of the sheets whose columns were sized or inserted or deleted, as the sheet has them now; and the sizes of the rows a step changed
+    {
+        std::set<int> sheets;
+        for (const quint64 key : m_columnsResized) sheets.insert(int(key >> 40));
+        for (const StructEdit &e : m_edits)
+            if (e.kind == StructEdit::Kind::InsertColumns || e.kind == StructEdit::Kind::DeleteColumns) sheets.insert(e.sheet);
+        for (const int sheet : sheets) {
+            SheetChanges &sc = changes.sheets[sheet];
+            sc.replaceColumns = true;
+            quint32 next = 0;   // (where the last run ended; a run that overlaps one before it keeps what that one left)
+            for (jp::office::sheet::ColumnSpan c : calc->columnRuns(sheet, 0, kMaxColumns - 1)) {
+                c.first = std::max(c.first, next);
+                if (c.first > c.last) continue;
+                next = c.last + 1;
+                sc.columns.push_back(c);
+            }
+        }
+    }
+    for (const quint64 key : m_rowsResized) {
+        const int sheet = int(key >> 40);
+        const quint32 row = quint32((key >> 16) & 0xFFFFFF);
+        const std::vector<jp::office::sheet::RowSpec> specs = calc->rowSpecsIn(sheet, row, row);
+        if (specs.empty()) continue;
+        RowProps p;
+        p.row = row;
+        p.height = specs.front().height;
+        p.hidden = specs.front().hidden;
+        p.customHeight = specs.front().customHeight;
+        changes.sheets[sheet].rows.push_back(p);
+    }
     for (const auto &[key, v] : m_results) {
         if (m_touched.count(key)) continue;
         const int sheet = int(key >> 40);
@@ -675,6 +754,8 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     for (const auto &[key, v] : snapshot.results) m_fileResults[key] = v;
     for (const auto &[key, v] : snapshot.touchedResults) m_fileResults[key] = v;
     m_touched.clear();
+    m_columnsResized.clear();
+    m_rowsResized.clear();
     m_engineAtStart.clear();
     m_edits.clear();
     forgetMovesInFile();
