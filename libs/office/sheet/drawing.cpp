@@ -85,6 +85,8 @@ bool readObject(const QDomElement &anchor, const Package &package, const QString
         o->description = attr(cNvPr, QStringLiteral("descr")).left(1024);
         o->id = parseInt(attr(cNvPr, QStringLiteral("id")), 0);
         o->hidden = parseBool(attr(cNvPr, QStringLiteral("hidden")));
+        const QString prints = attr(childByLocal(anchor, "clientData"), QStringLiteral("fPrintsWithSheet"));
+        o->prints = prints.isEmpty() || parseBool(prints);
         return true;
     }
     return false;
