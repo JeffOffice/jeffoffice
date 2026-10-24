@@ -274,9 +274,11 @@ QByteArray xf5(const XfSpec &s)
     w.u16(s.font).u16(s.format).u16(s.style ? 4 : 0);
     w.u8((s.halign & 7) | (s.wrap ? 8 : 0) | (s.valign << 4));
     w.u8(0);
-    w.u32(quint32(s.pattern) | (quint32(s.fore & 0x1F) << 6) | (quint32(s.back & 0x1F) << 11) | (quint32(s.borders[3]) << 16) | (quint32(s.borderColors[3] & 0x1F) << 19));
-    w.u32(quint32(s.borders[2]) | (quint32(s.borderColors[2] & 0x1F) << 3) | (quint32(s.borders[0]) << 8) | (quint32(s.borderColors[0] & 0x1F) << 11)
-          | (quint32(s.borders[1]) << 16) | (quint32(s.borderColors[1] & 0x1F) << 19));
+    // the fill and the bottom border: the colors of the fill, its pattern, then the bottom border's style and color
+    w.u32(quint32(s.fore & 0x7F) | (quint32(s.back & 0x7F) << 7) | (quint32(s.pattern & 0x3F) << 16) | (quint32(s.borders[3] & 7) << 22) | (quint32(s.borderColors[3] & 0x7F) << 25));
+    // the other borders: the styles of top, left, and right, then their colors
+    w.u32(quint32(s.borders[2] & 7) | (quint32(s.borders[0] & 7) << 3) | (quint32(s.borders[1] & 7) << 6) | (quint32(s.borderColors[2] & 0x7F) << 9)
+          | (quint32(s.borderColors[0] & 0x7F) << 16) | (quint32(s.borderColors[1] & 0x7F) << 23));
     return rec(0x00E0, w);
 }
 

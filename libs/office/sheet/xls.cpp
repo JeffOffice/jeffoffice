@@ -550,17 +550,18 @@ private:
             x.valign = (align >> 4) & 7;
             const int o = orient & 3;
             x.rotation = o == 1 ? 255 : o == 2 ? 90 : o == 3 ? 180 : 0;
-            x.pattern = area & 0x3F;
-            x.fore = (area >> 6) & 0x1F;
-            x.back = (area >> 11) & 0x1F;
-            x.bottom = (area >> 16) & 7;
-            x.colorBottom = (area >> 19) & 0x1F;
+            // (the colors are 7 bits, as in BIFF8; the bottom border is with the fill)
+            x.fore = area & 0x7F;
+            x.back = (area >> 7) & 0x7F;
+            x.pattern = (area >> 16) & 0x3F;
+            x.bottom = (area >> 22) & 7;
+            x.colorBottom = (area >> 25) & 0x7F;
             x.top = border & 7;
-            x.colorTop = (border >> 3) & 0x1F;
-            x.left = (border >> 8) & 7;
-            x.colorLeft = (border >> 11) & 0x1F;
-            x.right = (border >> 16) & 7;
-            x.colorRight = (border >> 19) & 0x1F;
+            x.left = (border >> 3) & 7;
+            x.right = (border >> 6) & 7;
+            x.colorTop = (border >> 9) & 0x7F;
+            x.colorLeft = (border >> 16) & 0x7F;
+            x.colorRight = (border >> 23) & 0x7F;
         }
         m_xfs.append(x);
         return true;

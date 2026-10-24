@@ -529,6 +529,16 @@ private Q_SLOTS:
         b.sheet(QStringLiteral("Chart1"), QByteArray(), 0, 2);
         XfSpec fmt;
         fmt.format = 164;
+        fmt.pattern = 1;
+        fmt.fore = 22;
+        fmt.borders[0] = 2;    // left medium
+        fmt.borders[1] = 5;    // right thick
+        fmt.borders[2] = 1;    // top thin
+        fmt.borders[3] = 6;    // bottom double
+        fmt.borderColors[0] = 10;
+        fmt.borderColors[1] = 11;
+        fmt.borderColors[2] = 12;
+        fmt.borderColors[3] = 13;
         b.globals(xf5(fmt));
         Workbook wb;
         QString why;
@@ -542,6 +552,16 @@ private Q_SLOTS:
         QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A3"))), QStringLiteral("D16384+1"));
         QCOMPARE(wb.styles().formatCode(16), QStringLiteral("0.0\"x\""));
         QCOMPARE(rangeName(s.dimension), QStringLiteral("A1:C3"));
+        // the fill and the borders, where the form of BIFF5 keeps them (laid out from files written by the programs of the time)
+        const CellFormat &cf = wb.styles().format(16);
+        QVERIFY(wb.styles().fill(cf.fill).pattern == PatternKind::Solid);
+        QCOMPARE(int(wb.styles().fill(cf.fill).fg.index), 22);
+        const BorderSpec &bd = wb.styles().border(cf.border);
+        QVERIFY(bd.left.style == BorderStyle::Medium && bd.right.style == BorderStyle::Thick && bd.top.style == BorderStyle::Thin && bd.bottom.style == BorderStyle::Double);
+        QCOMPARE(int(bd.left.color.index), 10);
+        QCOMPARE(int(bd.right.color.index), 11);
+        QCOMPARE(int(bd.top.color.index), 12);
+        QCOMPARE(int(bd.bottom.color.index), 13);
     }
 
     // What cannot be opened is refused with a message: a workbook that asks for a password, one of a form older than BIFF5, a compound file that holds no workbook, and a file that
