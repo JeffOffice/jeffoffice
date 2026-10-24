@@ -256,7 +256,7 @@ QByteArray font(const QString &name, double points, int weight, bool italic, boo
 QByteArray xf(const XfSpec &s)
 {
     W w;
-    w.u16(s.font).u16(s.format).u16(s.style ? 4 : 0);
+    w.u16(s.font).u16(s.format).u16((s.locked ? 1 : 0) | (s.style ? 4 : 0) | ((s.style ? 0xFFF : s.parent) << 4));
     w.u8((s.halign & 7) | (s.wrap ? 8 : 0) | (s.valign << 4));
     w.u8(s.rotation);
     w.u8((s.indent & 15) | (s.shrink ? 16 : 0));
@@ -271,7 +271,7 @@ QByteArray xf(const XfSpec &s)
 QByteArray xf5(const XfSpec &s)
 {
     W w;
-    w.u16(s.font).u16(s.format).u16(s.style ? 4 : 0);
+    w.u16(s.font).u16(s.format).u16((s.locked ? 1 : 0) | (s.style ? 4 : 0) | ((s.style ? 0xFFF : s.parent) << 4));
     w.u8((s.halign & 7) | (s.wrap ? 8 : 0) | (s.valign << 4));
     w.u8(0);
     // the fill and the bottom border: the colors of the fill, its pattern, then the bottom border's style and color
@@ -288,6 +288,15 @@ QByteArray format(int id, const QString &code, int biff)
     w.u16(id);
     return rec(0x041E, biff >= 8 ? w.str8(code, 2) : w.str5(code, 1));
 }
+
+QByteArray styleBuiltin(int xf, int builtin, int level) { return rec(0x0293, W().u16(0x8000 | xf).u8(builtin).u8(level)); }
+QByteArray styleNamed(int xf, const QString &name, int biff)
+{
+    W w;
+    w.u16(xf);
+    return rec(0x0293, biff >= 8 ? w.str8(name, 2) : w.str5(name, 1));
+}
+QByteArray protect(bool on) { return rec(0x0012, W().u16(on ? 1 : 0)); }
 
 QByteArray palette(const QList<quint32> &colors)
 {

@@ -37,6 +37,8 @@ enum : quint16 {
     kFormat = 0x041E,      // (BIFF4 writes it with the same number: a number for no index, and the format is the one in its place)
     kFormat3 = 0x001E,
     kXf = 0x00E0,
+    kStyle = 0x0293,
+    kProtect = 0x0012,
     kXf3 = 0x0243,
     kXf4 = 0x0443,
     kPalette = 0x0092,
@@ -269,6 +271,15 @@ struct RawXf {
     bool diagUp = false, diagDown = false;
     quint8 pattern = 0;
     quint16 fore = 64, back = 65;
+    quint16 parent = 0xFFF;   // the style format it follows (0xFFF: none)
+    bool locked = true;
+};
+
+struct RawStyle {
+    quint16 xf = 0;
+    qint32 builtin = -1;
+    int level = 0;
+    QString name;
 };
 
 ColorSpec indexedColor(int icv)
@@ -398,6 +409,9 @@ public:
                 if (!readXf(r)) return fail(translate("The workbook has more cell formats than any real file has."));
                 break;
             case kPalette: readPalette(r); break;
+            case kStyle:
+                if (!readStyle(r)) return fail(translate("The workbook has more styles than any real file has."));
+                break;
             case kBoundSheet:
                 if (!readBoundSheet(r)) return fail(translate("The workbook has more sheets than any real file has."));
                 break;
@@ -462,6 +476,7 @@ private:
     qint64 m_formatChars = 0;
     int m_formatsSeen = 0;
     QVector<RawXf> m_xfs;
+    QVector<RawStyle> m_styleRecs;
     QVector<quint32> m_palette;   // from place 8
     SharedStrings m_sst;
     QVector<SheetEntry> m_sheets;
@@ -607,6 +622,8 @@ private:
             x.format = b.u8();
             const quint16 type = b.u16();
             x.style = type & 4;
+            x.locked = type & 1;
+            x.parent = type >> 4;
             const quint8 align = b.u8();
             b.skip(1);
             const quint16 area = b.u16();
@@ -634,6 +651,8 @@ private:
         x.format = b.u16();
         const quint16 type = b.u16();
         x.style = type & 4;
+        x.locked = type & 1;
+        x.parent = type >> 4;
         if (m_biff >= 8) {
             const quint8 align = b.u8();
             x.rotation = b.u8();
@@ -687,6 +706,23 @@ private:
             x.colorRight = (border >> 23) & 0x7F;
         }
         m_xfs.append(x);
+        return true;
+    }
+
+    bool readStyle(const Rec &r)
+    {
+        if (m_styleRecs.size() >= m_lim.cellXfs) return false;
+        Bytes b(m_d, r.pos, r.pos + r.len);
+        RawStyle st;
+        const quint16 first = b.u16();
+        st.xf = first & 0x0FFF;
+        if (first & 0x8000) {
+            st.builtin = b.u8();
+            st.level = b.u8();
+        } else {
+            st.name = readString(b, m_biff >= 8 ? 2 : 1).left(kMaxFontNameChars);
+        }
+        if (!b.bad() || !st.name.isEmpty()) m_styleRecs.append(st);
         return true;
     }
 
@@ -1060,9 +1096,28 @@ private:
                 }
                 f.border = quint32(it.value());
             }
+            f.locked = x.locked;
+            f.isStyle = x.style;
+            f.parent = x.parent < count ? mapXf(x.parent, count) : CellFormat::kNoParent;
             const quint32 at = mapXf(quint32(i), count);
             st->formats[int(at)] = f;
             st->cellXfs[int(at)] = f.numFmtId;
+        }
+        for (const RawStyle &rs : std::as_const(m_styleRecs)) {
+            if (rs.xf >= count) continue;
+            NamedStyle ns;
+            ns.format = mapXf(rs.xf, count);
+            ns.builtin = rs.builtin;
+            if (rs.builtin >= 0) {
+                static const char *const names[] = {"Normal", nullptr, nullptr, "Comma", "Currency", "Percent", "Comma [0]", "Currency [0]", "Hyperlink", "Followed Hyperlink"};
+                if (rs.builtin == 1) ns.name = QStringLiteral("RowLevel_%1").arg(rs.level + 1);
+                else if (rs.builtin == 2) ns.name = QStringLiteral("ColLevel_%1").arg(rs.level + 1);
+                else if (rs.builtin < 10) ns.name = QString::fromLatin1(names[rs.builtin]);
+                else ns.name = QStringLiteral("Style%1").arg(rs.builtin);
+            } else {
+                ns.name = rs.name;
+            }
+            st->namedStyles.append(ns);
         }
         if (!m_palette.isEmpty()) {
             st->indexed.clear();
@@ -1494,6 +1549,11 @@ private:
             if (height > 0) m_format.defaultRowHeight = (height & 0x7FFF) / 20.0;
             m_format.zeroHeight = grbit & 2;
             m_format.customHeight = grbit & 1;
+            return true;
+        }
+        case kProtect: {
+            const quint16 on = b.u16();
+            if (!b.bad() && on == 1) m_s.isProtected = true;
             return true;
         }
         case kMergedCells: {

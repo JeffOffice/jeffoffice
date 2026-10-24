@@ -112,11 +112,17 @@ struct XfSpec {
     int borderColors[4] = {64, 64, 64, 64};
     int pattern = 0, fore = 64, back = 65;
     bool style = false;
+    int parent = 0;          // the style format a cell format follows (0xFFF for a style format: none)
+    bool locked = true;
 };
 QByteArray xf(const XfSpec &s = XfSpec());
 // The same cell format as BIFF5 writes it (16 bytes).
 QByteArray xf5(const XfSpec &s = XfSpec());
 QByteArray format(int id, const QString &code, int biff = 8);
+// A named style: a built-in one (by its number) or one with a name, and the cell format that holds its look.
+QByteArray styleBuiltin(int xf, int builtin, int level = 0xFF);
+QByteArray styleNamed(int xf, const QString &name, int biff = 8);
+QByteArray protect(bool on);
 QByteArray palette(const QList<quint32> &colors);   // 0xRRGGBB, from the place 8
 QByteArray boundSheet(quint32 offset, const QString &name, int state = 0, int type = 0, int biff = 8);
 // The strings of a workbook as a shared string table; `splitAt`, if above 0, ends the first record after that many bytes of the table (the rest follows in CONTINUE

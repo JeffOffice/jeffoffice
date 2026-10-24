@@ -589,6 +589,66 @@ private Q_SLOTS:
         QCOMPARE(int(sheettest::at(s, QStringLiteral("C1"))->style), 16);
     }
 
+    // The named cell styles are kept (with the format that holds each one's look, and the style a cell format follows), and so is whether a cell is locked and whether a sheet is
+    // protected: what a workbook saved as .xlsx needs to keep them.
+    void namedStylesLockedCellsAndProtectedSheetsAreKept()
+    {
+        Book b;
+        XfSpec comma;
+        comma.style = true;
+        comma.format = 4;
+        XfSpec cell;
+        cell.parent = 16;
+        cell.format = 4;
+        XfSpec heading;
+        heading.style = true;
+        heading.font = 1;
+        XfSpec headed;
+        headed.parent = 18;
+        XfSpec open;
+        open.locked = false;
+        b.globals(xf(comma) + xf(cell) + xf(heading) + xf(headed) + xf(open));   // 16 to 20
+        b.globals(styleBuiltin(0, 0) + styleBuiltin(16, 3) + styleNamed(18, QStringLiteral("Heading 4")));
+        b.sheet(QStringLiteral("Locked"), protect(true) + number(0, 0, 1, 17)).sheet(QStringLiteral("Free"), number(0, 0, 1, 20));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        const Styles &st = wb.styles();
+        QCOMPARE(st.namedStyles.size(), 3);
+        QCOMPARE(st.namedStyles[0].name, QStringLiteral("Normal"));
+        QCOMPARE(int(st.namedStyles[0].builtin), 0);
+        QCOMPARE(int(st.namedStyles[0].format), 15);    // (the file's first cell format is the 16th place here)
+        QCOMPARE(st.namedStyles[1].name, QStringLiteral("Comma"));
+        QCOMPARE(int(st.namedStyles[1].builtin), 3);
+        QCOMPARE(int(st.namedStyles[1].format), 16);
+        QCOMPARE(st.namedStyles[2].name, QStringLiteral("Heading 4"));
+        QCOMPARE(int(st.namedStyles[2].builtin), -1);
+        QCOMPARE(int(st.namedStyles[2].format), 18);
+        QVERIFY(st.format(16).isStyle && st.format(18).isStyle && st.format(15).isStyle);
+        QVERIFY(!st.format(17).isStyle && !st.format(0).isStyle);
+        QCOMPARE(st.format(17).parent, quint32(16));
+        QCOMPARE(st.format(19).parent, quint32(18));
+        QCOMPARE(st.format(0).parent, quint32(15));      // (the default cell format follows the file's first, which is at place 15)
+        QCOMPARE(st.format(16).parent, CellFormat::kNoParent);
+        QVERIFY(st.format(17).locked);
+        QVERIFY(!st.format(20).locked);
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QVERIFY(s.isProtected);
+        QVERIFY(wb.readSheet(1, &s));
+        QVERIFY(!s.isProtected);
+        // BIFF5 keeps the name of a style in a byte of length
+        Book five(5);
+        five.globals(xf5(comma) + styleBuiltin(16, 4) + styleNamed(16, QStringLiteral("My style"), 5));
+        five.sheet(QStringLiteral("S"), QByteArray());
+        Workbook w5;
+        QVERIFY2(openBook(five, &w5, &why), qPrintable(why));
+        QCOMPARE(w5.styles().namedStyles.size(), 2);
+        QCOMPARE(w5.styles().namedStyles[0].name, QStringLiteral("Currency"));
+        QCOMPARE(w5.styles().namedStyles[1].name, QStringLiteral("My style"));
+        QCOMPARE(int(w5.styles().namedStyles[1].builtin), -1);
+    }
+
     // What the file says about the shape of a sheet: widths and hidden columns, row heights and hidden rows, the defaults, merged ranges, and how the sheet was left on
     // the screen (frozen panes, zoom, the cell it was left on).
     void theLayoutOfASheetIsRead()

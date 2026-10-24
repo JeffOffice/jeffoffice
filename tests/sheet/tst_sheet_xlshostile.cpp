@@ -28,19 +28,37 @@ Book fullBook()
     return b;
 }
 
-// Reads whatever there is, as a window would: opens, reads every sheet, asks for every formula and string, and works the formulas out.
-void useAll(const QByteArray &bytes, const Limits &limits = Limits(), bool calculate = true)
+// Reads whatever there is, as a window would (opens, reads every sheet, asks for every formula and string, and works the formulas out), and checks what must hold of every file,
+// whatever is in it: it is refused with a reason, or opened with every count within its limit and every cell inside the old form's sheet, and a sheet that was not read whole says why.
+// Gives what does not hold, in words; empty if all does.
+QString useAll(const QByteArray &bytes, const Limits &limits = Limits(), bool calculate = true)
 {
     Workbook wb;
     QString why;
-    if (!wb.openBinary(bytes, &why, limits)) return;
-    for (int s = 0; s < wb.info().sheets.size(); ++s) {
+    if (!wb.openBinary(bytes, &why, limits)) return why.isEmpty() ? QStringLiteral("refused with no reason") : QString();
+    const WorkbookInfo &info = wb.info();
+    if (info.sheets.size() > limits.sheets) return QStringLiteral("more sheets than the limit");
+    if (info.sheets.isEmpty()) return QStringLiteral("opened with no sheets");
+    if (info.definedNames.size() > limits.definedNames) return QStringLiteral("more names than the limit");
+    if (wb.sharedStrings().strings.size() > limits.sharedStrings || wb.sharedStrings().chars > limits.sharedStringChars) return QStringLiteral("more strings than the limit");
+    if (wb.styles().fonts.size() > limits.fonts + 1 || wb.styles().formats.size() > limits.cellXfs || wb.styles().numFmts.size() > limits.numFmts) return QStringLiteral("more styles than the limit");
+    for (int s = 0; s < info.sheets.size(); ++s) {
         Sheet sheet;
-        wb.readSheet(s, &sheet);
+        const bool whole = wb.readSheet(s, &sheet);
+        if (whole != sheet.error.isEmpty()) return QStringLiteral("a sheet's error and its verdict disagree");
+        if (sheet.cells.cellCount() > limits.cellsPerSheet) return QStringLiteral("more cells than the limit");
+        if (sheet.mergeCount > limits.merges || sheet.columns.size() > limits.columnSpans || sheet.rowSpecs.size() > limits.rowSpecs) return QStringLiteral("more merges, columns, or rows than the limit");
+        if (sheet.stats.formulaWork > limits.formulaWork + 4096 * 64) return QStringLiteral("more formula work than the limit");
+        QString problem;
         sheet.cells.forEach([&](const Cell &c) {
-            if (c.hasFormula()) (void)sheet.formulaText(c);
+            if (!problem.isEmpty()) return;
+            if (c.row > 65535 || c.col > 255) problem = QStringLiteral("a cell outside the old form's sheet");
+            else if (c.hasFormula() && (c.formula < 0 || c.formula >= sheet.formulas.size())) problem = QStringLiteral("a formula cell with no formula");
+            else if (c.hasFormula() && sheet.formulas[c.formula].text >= sheet.formulaTexts.size()) problem = QStringLiteral("a formula whose text is not there");
+            else if (c.hasFormula()) (void)sheet.formulaText(c);
             (void)sheet.text(c, wb.sharedStrings());
         });
+        if (!problem.isEmpty()) return problem;
     }
     if (calculate) {
         jp::office::sheet::CalcOptions options;
@@ -49,6 +67,7 @@ void useAll(const QByteArray &bytes, const Limits &limits = Limits(), bool calcu
         calc.load();
         calc.recalculate(5000000);
     }
+    return QString();
 }
 
 } // namespace
@@ -76,10 +95,22 @@ private Q_SLOTS:
     void aFileCutOffAnywhereIsReadOrRefused()
     {
         const QByteArray stream = fullBook().stream();
-        for (qsizetype n = 0; n <= stream.size(); n += 3) useAll(stream.left(n));
+        for (qsizetype n = 0; n <= stream.size(); n += 3) {
+            const QString problem = useAll(stream.left(n));
+            QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("the stream cut after %1 bytes: %2").arg(n).arg(problem)));
+        }
         const QByteArray file = fullBook().file();
-        for (qsizetype n = 0; n < file.size(); n += 61) useAll(file.left(n), Limits(), false);
-        QVERIFY(true);
+        for (qsizetype n = 0; n < file.size(); n += 61) {
+            const QString problem = useAll(file.left(n), Limits(), false);
+            QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("the file cut after %1 bytes: %2").arg(n).arg(problem)));
+        }
+        // (whole, it is read whole)
+        QVERIFY(useAll(stream).isEmpty());
+        Workbook wb;
+        QVERIFY(openBook(fullBook(), &wb));
+        Sheet sheet;
+        QVERIFY(wb.readSheet(0, &sheet));
+        QVERIFY(sheet.error.isEmpty());
     }
 
     // Every byte of the stream changed, one at a time, to a few values that matter (0, 1, 0x7F, 0x80, 0xFF).
@@ -90,10 +121,10 @@ private Q_SLOTS:
             for (int v : {0x00, 0x01, 0x7F, 0x80, 0xFF}) {
                 QByteArray copy = stream;
                 copy[i] = char(v);
-                useAll(copy, Limits(), i % 7 == 0);
+                const QString problem = useAll(copy, Limits(), i % 7 == 0);
+                QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("byte %1 made 0x%2: %3").arg(i).arg(v, 2, 16, QLatin1Char('0')).arg(problem)));
             }
         }
-        QVERIFY(true);
     }
 
     // Random damage, with a fixed seed: bytes changed, pieces taken out, repeated, and moved, the record lengths set to extremes.
@@ -120,9 +151,9 @@ private Q_SLOTS:
                 }
                 if (copy.isEmpty()) copy = stream;
             }
-            useAll(copy, Limits(), round % 4 == 0);
+            const QString problem = useAll(copy, Limits(), round % 4 == 0);
+            QVERIFY2(problem.isEmpty(), qPrintable(QStringLiteral("round %1: %2").arg(round).arg(problem)));
         }
-        QVERIFY(true);
     }
 
     // A string table that claims four billion strings and holds three, and one whose strings claim more characters than there are bytes.
@@ -364,8 +395,11 @@ private Q_SLOTS:
         jp::office::sheet::Calculation calc(wb, options);
         QVERIFY(calc.load());
         calc.recalculate();
-        QVERIFY(calc.cell(0, 1, 0).isNumber() || calc.cell(0, 1, 0).isError());
-        QVERIFY(true);
+        QCOMPARE(calc.cell(0, 1, 0).debug(), QStringLiteral("n:1501"));   // (the cell added to itself's neighbors: 1,501 times 1)
+        QCOMPARE(calc.cell(0, 2, 0).debug(), QStringLiteral("n:0"));      // (calls nested two thousand deep: past the engine's bound, so the result the file stored stays)
+        QCOMPARE(calc.cell(0, 3, 0).debug(), QStringLiteral("n:0"));      // (a number in eight thousand parentheses: the same)
+        QCOMPARE(calc.cell(0, 4, 0).debug(), QStringLiteral("n:0"));      // (a name that stands for itself: kept apart, with the result the file stored)
+        QVERIFY(!calc.isDirty());
     }
 };
 
