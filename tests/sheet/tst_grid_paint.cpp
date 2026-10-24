@@ -1176,6 +1176,33 @@ private Q_SLOTS:
         QVERIFY(rightInk.isValid() && rightInk.right() >= 50);
     }
 
+    // What the rules keep of the cells is bounded, and is let go of when it is full. A paint that fills it must still draw each cell as the rules say: what a paint holds is its own, so the
+    // rules letting go of theirs in the middle of it cannot show in a cell.
+    void aPaintThatFillsWhatTheRulesKeepDrawsAsOneThatDoesNot()
+    {
+        auto make = [](bool fillTheCache) {
+            auto f = std::make_unique<Fixture>();
+            for (quint32 i = 0; i < 20; ++i) f->number(i, 0, double(i * i));
+            CondRule scale;
+            scale.type = CondRule::Type::ColorScale;
+            scale.ranges = {mergeOf(0, 0, 9999, 25)};
+            scale.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+            scale.colors = {ColorSpec::fromRgb(0xFF0000), ColorSpec::fromRgb(0x0000FF)};
+            scale.priority = 1;
+            f->sheet.conditionalFormats = {scale};
+            f->build();
+            if (fillTheCache)
+                for (quint32 row = 100; row < 100 + 7688; ++row)
+                    for (quint32 col = 0; col < 26; ++col) f->grid.conditional().at(row, col);   // (199,888 cells asked about: what is kept is all but full)
+            return f;
+        };
+        const QImage clean = make(false)->render();
+        const QImage full = make(true)->render();
+        QCOMPARE(full, clean);
+        QCOMPARE(px(clean, 3, 3), QRgb(0xFFFF0000));   // (the cell of the lowest)
+        QCOMPARE(px(clean, 3, 19 * 20 + 3), QRgb(0xFF0000FF));   // (the cell of the highest)
+    }
+
     // The rules are asked about the cells that are drawn, not about the million rows of the sheet.
     void aBigSheetIsAskedAboutWhatIsDrawn()
     {

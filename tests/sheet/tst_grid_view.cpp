@@ -625,6 +625,81 @@ private Q_SLOTS:
         QCOMPARE(b.view->selection().range.col1, qint64(5));
         QCOMPARE(b.view->selection().range.col2, qint64(7));
     }
+
+    // A limit that stops a rule of conditional formatting is said by the view, once, in a sentence for the status bar (the rule is not passed over in silence).
+    void aLimitThatStopsARuleIsSaidOnce()
+    {
+        Book b;
+        for (quint32 i = 0; i < 2000; ++i) b.number(i, 0, double(i));
+        CondRule rule;
+        rule.type = CondRule::Type::Expression;
+        CellRange where;
+        where.valid = true;
+        where.row1 = 0;
+        where.row2 = 4;
+        where.col1 = where.col2 = 1;
+        rule.ranges.append(where);
+        rule.formula1 = QStringLiteral("SUMPRODUCT(--($A$1:$A$2000>A1))>5");
+        rule.priority = 1;
+        b.sheet.conditionalFormats.append(rule);
+        b.sheet.cells.finish();
+        auto view = std::make_unique<GridView>();
+        view->resize(640, 420);
+        GridData d;
+        d.styles = &b.styles;
+        d.strings = &b.strings;
+        d.sheet = &b.sheet;
+        view->setData(d);
+        CondFormats::Limits limits;
+        limits.testWork = 500;
+        view->sheet().conditional().setLimits(limits);
+        QSignalSpy said(view.get(), &GridView::noticeRaised);
+        view->show();
+        QVERIFY(QTest::qWaitForWindowExposed(view.get()));
+        QTRY_COMPARE(said.count(), 1);
+        QVERIFY2(said.first().first().toString().contains(QStringLiteral("formula")), qPrintable(said.first().first().toString()));
+        view->viewport()->repaint();
+        QCOMPARE(said.count(), 1);
+    }
+
+    // The figures of a rule over a hundred and fifty thousand cells are made in the slices the view gives them, between paints, and the cells are drawn again when they are ready.
+    void theFiguresOfABigRuleAreMadeBetweenPaints()
+    {
+        Book b;
+        for (quint32 i = 0; i < 150000; ++i) b.number(i, 0, double(i));
+        CondRule rule;
+        rule.type = CondRule::Type::Top10;
+        rule.rank = 1;
+        CellRange where;
+        where.valid = true;
+        where.row1 = 0;
+        where.row2 = 149999;
+        where.col1 = where.col2 = 0;
+        rule.ranges.append(where);
+        rule.priority = 1;
+        DifferentialFormat dxf;
+        dxf.bold = true;
+        b.styles.dxfs.append(dxf);
+        rule.dxf = 0;
+        b.sheet.conditionalFormats.append(rule);
+        b.sheet.cells.finish();
+        auto view = std::make_unique<GridView>();
+        view->resize(640, 420);
+        GridData d;
+        d.styles = &b.styles;
+        d.strings = &b.strings;
+        d.sheet = &b.sheet;
+        view->setData(d);
+        // (more than the first look at the cells takes is left to do: the cell shows nothing yet, and the view has work to do)
+        QVERIFY(!view->sheet().conditional().at(149999, 0).any);
+        QVERIFY(view->sheet().conditional().wantsMore());
+        QCOMPARE(view->sheet().conditional().passes(), qint64(0));
+        view->show();
+        QVERIFY(QTest::qWaitForWindowExposed(view.get()));
+        QTRY_VERIFY(!view->sheet().conditional().wantsMore());
+        QCOMPARE(view->sheet().conditional().passes(), qint64(1));
+        QVERIFY(view->sheet().conditional().at(149999, 0).any);
+    }
 };
 
 JP_TEST_CLASS(GridViewTests)

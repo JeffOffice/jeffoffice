@@ -4,11 +4,15 @@
 
 #include "sheet/cellref.h"
 
+#include <QCoreApplication>
 #include <QDate>
+#include <QElapsedTimer>
 #include <QHash>
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <tuple>
 
 namespace jp::grid {
 
@@ -31,7 +35,6 @@ int iconSetCount(const QString &name)
 
 namespace {
 
-constexpr qint64 kMaxCellsPerRule = 4000000;   // the cells one pass over a rule's ranges looks at, at the most
 constexpr size_t kMaxCached = 200000;          // results kept of the cells that were drawn
 
 QRgb opaque(quint32 rgb) { return 0xFF000000u | (rgb & 0xFFFFFF); }
@@ -112,21 +115,25 @@ bool numberOf(const Value &v, double *out)
     return std::isfinite(*out);
 }
 
-QString keyOf(const Value &v)
-{
-    if (v.isNumber()) return QLatin1String("n") + jp::calc::numberToText(v.number());
-    if (v.isText()) return QLatin1String("t") + v.text().toLower();
-    if (v.isBool()) return v.boolean() ? QStringLiteral("bT") : QStringLiteral("bF");
-    if (v.isError()) return QLatin1String("e") + jp::calc::errorKindText(v.errorKind());
-    return QString();
-}
 
-double percentile(const std::vector<double> &sorted, double p)
+// A value as a 64-bit key that is the same for values that count as the same (a number to the digits it is shown to, a text without regard to capitals), and never 0 (0 is "no key"): what
+// the rules of duplicate and unique values count by.
+quint64 valueKey(const Value &v)
 {
-    if (sorted.empty()) return 0;
-    const double at = std::max(0.0, std::min(1.0, p)) * double(sorted.size() - 1);
-    const size_t lo = size_t(std::floor(at)), hi = size_t(std::ceil(at));
-    return sorted[lo] + (sorted[hi] - sorted[lo]) * (at - double(lo));
+    auto mix = [](quint64 kind, quint64 x) {
+        quint64 h = (kind + 0x9E3779B97F4A7C15ull) ^ (x + 0x9E3779B97F4A7C15ull + (kind << 6));
+        h ^= h >> 33;
+        h *= 0xFF51AFD7ED558CCDull;
+        h ^= h >> 33;
+        h *= 0xC4CEB9FE1A85EC53ull;
+        h ^= h >> 33;
+        return h ? h : 1;
+    };
+    if (v.isNumber()) return mix(1, quint64(qHash(jp::calc::numberToText(v.number()))));
+    if (v.isText()) return mix(2, quint64(qHash(v.text().toLower())));
+    if (v.isBool()) return mix(3, v.boolean() ? 1 : 0);
+    if (v.isError()) return mix(4, quint64(int(v.errorKind())));
+    return 0;
 }
 
 QRgb mix(QRgb a, QRgb b, double t)
@@ -135,20 +142,221 @@ QRgb mix(QRgb a, QRgb b, double t)
     return 0xFF000000u | (quint32(channel(16)) << 16) | (quint32(channel(8)) << 8) | quint32(channel(0));
 }
 
+constexpr double kNoNumber = std::numeric_limits<double>::quiet_NaN();
+
+// What is kept of a cell for the figures of a set of ranges: where it is, its number (not a number: NaN), and the key of its value.
+struct StatCell {
+    quint64 id = 0;           // (row << 16) | column
+    double num = kNoNumber;
+    quint64 key = 0;
+};
+
+QString noticeText(int which, const CondFormats::Limits &limits)
+{
+    using M = QCoreApplication;
+    switch (which) {
+    case 0: return M::translate("jp::grid::CondFormats", "Some conditional formats cover more cells than JeffCrunch works out for one sheet at a time (%1), so those are not shown.").arg(QLocale().toString(limits.statCells));
+    case 1: return M::translate("jp::grid::CondFormats", "This sheet has more conditional formats than JeffCrunch shows (%1 ranges): the ones after them are not shown.").arg(QLocale().toString(limits.ranges));
+    case 2: return M::translate("jp::grid::CondFormats", "A conditional format has a formula that took more work than JeffCrunch allows for one cell, so that format is not shown where this happens.");
+    case 3: return M::translate("jp::grid::CondFormats", "Conditional formats are shown for the first %1 cells of each part of the screen only.").arg(QLocale().toString(qint64(60000)));
+    }
+    return QString();
+}
+
 } // namespace
+
+// ---- the index of the ranges of the rules: a tree of rectangles (packed by sorting, tile by tile), so that the rules that have a cell are found without looking at them all
+
+struct CondFormats::Index {
+    struct Entry {
+        quint32 r1, r2, c1, c2;
+        int rule;
+    };
+    struct Node {
+        quint32 r1, r2, c1, c2;
+        quint32 first, count;   // its entries (a leaf), or its children among `kids`
+        bool leaf;
+    };
+    std::vector<Entry> entries;
+    std::vector<Node> nodes;
+    std::vector<quint32> kids;
+    int root = -1;
+
+    static constexpr size_t kFan = 16;
+
+    void build()
+    {
+        nodes.clear();
+        kids.clear();
+        root = -1;
+        const size_t n = entries.size();
+        if (n == 0) return;
+        const size_t leaves = (n + kFan - 1) / kFan;
+        const size_t slices = size_t(std::ceil(std::sqrt(double(leaves))));
+        std::sort(entries.begin(), entries.end(), [](const Entry &a, const Entry &b) { return quint64(a.r1) + a.r2 < quint64(b.r1) + b.r2; });
+        const size_t sliceSize = slices * kFan;
+        for (size_t from = 0; from < n; from += sliceSize) {
+            const size_t to = std::min(n, from + sliceSize);
+            std::sort(entries.begin() + qptrdiff(from), entries.begin() + qptrdiff(to), [](const Entry &a, const Entry &b) { return quint64(a.c1) + a.c2 < quint64(b.c1) + b.c2; });
+        }
+        std::vector<quint32> level;
+        for (size_t from = 0; from < n; from += kFan) {
+            const size_t to = std::min(n, from + kFan);
+            Node node{entries[from].r1, entries[from].r2, entries[from].c1, entries[from].c2, quint32(from), quint32(to - from), true};
+            for (size_t i = from; i < to; ++i) {
+                node.r1 = std::min(node.r1, entries[i].r1);
+                node.r2 = std::max(node.r2, entries[i].r2);
+                node.c1 = std::min(node.c1, entries[i].c1);
+                node.c2 = std::max(node.c2, entries[i].c2);
+            }
+            level.push_back(quint32(nodes.size()));
+            nodes.push_back(node);
+        }
+        while (level.size() > 1) {
+            const size_t m = level.size();
+            const size_t parents = (m + kFan - 1) / kFan;
+            const size_t cuts = size_t(std::ceil(std::sqrt(double(parents))));
+            std::sort(level.begin(), level.end(), [&](quint32 a, quint32 b) { return quint64(nodes[a].r1) + nodes[a].r2 < quint64(nodes[b].r1) + nodes[b].r2; });
+            const size_t cutSize = cuts * kFan;
+            for (size_t from = 0; from < m; from += cutSize) {
+                const size_t to = std::min(m, from + cutSize);
+                std::sort(level.begin() + qptrdiff(from), level.begin() + qptrdiff(to), [&](quint32 a, quint32 b) { return quint64(nodes[a].c1) + nodes[a].c2 < quint64(nodes[b].c1) + nodes[b].c2; });
+            }
+            std::vector<quint32> up;
+            for (size_t from = 0; from < m; from += kFan) {
+                const size_t to = std::min(m, from + kFan);
+                Node node{nodes[level[from]].r1, nodes[level[from]].r2, nodes[level[from]].c1, nodes[level[from]].c2, quint32(kids.size()), quint32(to - from), false};
+                for (size_t i = from; i < to; ++i) {
+                    const Node &c = nodes[level[i]];
+                    node.r1 = std::min(node.r1, c.r1);
+                    node.r2 = std::max(node.r2, c.r2);
+                    node.c1 = std::min(node.c1, c.c1);
+                    node.c2 = std::max(node.c2, c.c2);
+                    kids.push_back(level[i]);
+                }
+                up.push_back(quint32(nodes.size()));
+                nodes.push_back(node);
+            }
+            level = std::move(up);
+        }
+        root = int(level.front());
+    }
+
+    // Calls f(rule) for each entry that holds the cell (a rule may be called more than once); f gives false to stop.
+    template <class F>
+    void query(quint32 row, quint32 col, F f, qint64 *steps) const
+    {
+        if (root < 0) return;
+        std::vector<quint32> stack;
+        stack.push_back(quint32(root));
+        while (!stack.empty()) {
+            const Node &node = nodes[stack.back()];
+            stack.pop_back();
+            ++*steps;
+            if (row < node.r1 || row > node.r2 || col < node.c1 || col > node.c2) continue;
+            if (node.leaf) {
+                for (quint32 i = node.first; i < node.first + node.count; ++i) {
+                    const Entry &e = entries[i];
+                    ++*steps;
+                    if (row >= e.r1 && row <= e.r2 && col >= e.c1 && col <= e.c2 && !f(e.rule)) return;
+                }
+            } else {
+                for (quint32 i = node.first; i < node.first + node.count; ++i) stack.push_back(kids[i]);
+            }
+        }
+    }
+};
+
+// What is worked out for a set of ranges, once, however many rules have them: the cells that are there (sorted by place) with their numbers and the keys of their values, the number of
+// times each value is there, and the sum, the lowest, and the highest of the numbers. Made in slices, and kept up to date a cell at a time.
+struct CondFormats::RangeStats {
+    enum class Stage : quint8 { Scan, Count, Done, Refused };
+    std::vector<CellRange> ranges;
+    bool needCounts = false;
+    Stage stage = Stage::Scan;
+    // where the scan is: the range, and the last cell taken in it
+    size_t rangeAt = 0;
+    bool haveLast = false;
+    quint64 lastId = 0;
+    bool staleBuild = false;   // a value changed while the figures were being made: they are made again from the beginning when they are
+    std::vector<StatCell> cells;
+    std::unordered_map<quint64, quint32> counts;
+    size_t countAt = 0;
+    qint64 numbers = 0;
+    long double sum = 0, sumSquares = 0;
+    double lo = 0, hi = 0;
+    bool extremaStale = false;
+    quint64 version = 1;      // raised by each change of the figures: what a rule made of them is made again when it is not of this
+    quint64 changeSerial = 0; // the last change that was told to these (a set several rules have is told once)
+
+    void clearData()
+    {
+        cells.clear();
+        cells.shrink_to_fit();
+        counts.clear();
+        countAt = 0;
+        numbers = 0;
+        sum = sumSquares = 0;
+        lo = hi = 0;
+        extremaStale = false;
+        rangeAt = 0;
+        haveLast = false;
+        staleBuild = false;
+    }
+    void addNumber(double x)
+    {
+        if (numbers == 0) lo = hi = x;
+        else {
+            lo = std::min(lo, x);
+            hi = std::max(hi, x);
+        }
+        ++numbers;
+        sum += x;
+        sumSquares += (long double)x * x;
+    }
+    void removeNumber(double x)
+    {
+        --numbers;
+        sum -= x;
+        sumSquares -= (long double)x * x;
+        if (numbers <= 0) {
+            numbers = 0;
+            sum = sumSquares = 0;
+            lo = hi = 0;
+            extremaStale = false;
+        } else if (x <= lo || x >= hi) {
+            extremaStale = true;
+        }
+    }
+    void settleExtrema()
+    {
+        if (!extremaStale) return;
+        extremaStale = false;
+        bool first = true;
+        for (const StatCell &c : cells) {
+            if (std::isnan(c.num)) continue;
+            if (first) lo = hi = c.num;
+            else {
+                lo = std::min(lo, c.num);
+                hi = std::max(hi, c.num);
+            }
+            first = false;
+        }
+    }
+};
 
 // What a rule works out once and keeps.
 struct CondFormats::RuleState {
-    bool compiled = false, statsReady = false;
+    bool compiled = false, never = false;
     std::shared_ptr<const jp::calc::Program> test;   // the test of a rule that has one, written for the first cell of its first range
     std::vector<std::shared_ptr<const jp::calc::Program>> valuePrograms;   // the formulas of the values of a scale, bar, or icon set
     quint32 firstRow = 0, firstCol = 0;
-    // statistics
+    RangeStats *stats = nullptr;   // the figures of its cells (a rule of statistics)
+    quint64 derivedFrom = 0;       // the version of the figures `points` and the rest were made from
     bool haveNumbers = false;
     double lo = 0, hi = 0, average = 0, deviation = 0;
-    double threshold = 0, upper = 0;           // top and bottom: the value a cell has to reach; average: the two limits
+    double threshold = 0;                      // top and bottom: the value a cell has to reach; average: the limit
     std::vector<double> points;                // a scale: the values of its stops; an icon set: the values the icons change at; a bar: the lowest and highest
-    std::unordered_map<QString, int> counts;   // the times a value is there (duplicates and unique values)
 };
 
 namespace {
@@ -196,9 +404,16 @@ void CondFormats::reset()
 {
     if (!m_todayFixed) m_today = std::floor(jp::calc::clockSerial(jp::calc::DateSystem::Date1900));
     m_states.clear();
+    m_stats.clear();
+    m_index.reset();
     m_cache.clear();
     m_stale = false;
     m_formats.clear();
+    m_statCells = 0;
+    m_building = false;
+    m_incomplete = false;
+    m_noticesGiven = 0;
+    m_noticesWanted = 0;
 }
 
 bool CondFormats::any() const
@@ -210,40 +425,96 @@ bool CondFormats::any() const
 void CondFormats::valuesChanged()
 {
     m_stale = true;
-    for (auto &st : m_states)
-        if (st) st->statsReady = false;
+    // (every figure is made again, one set after another, in slices)
+    for (auto &entry : m_stats) {
+        RangeStats &rs = *entry.second;
+        if (rs.stage == RangeStats::Stage::Refused) continue;
+        m_statCells -= qint64(rs.cells.size());
+        rs.clearData();
+        rs.stage = RangeStats::Stage::Scan;
+        ++rs.version;
+        m_building = true;
+    }
 }
 
 void CondFormats::valueChanged(quint32 row, quint32 col)
 {
     const jp::office::sheet::Sheet *s = m_owner->data().sheet;
-    if (!s) return;
+    if (!s || s->conditionalFormats.isEmpty()) return;
     m_stale = true;
-    for (size_t i = 0; i < m_states.size() && i < size_t(s->conditionalFormats.size()); ++i) {
-        if (!m_states[i] || !m_states[i]->statsReady) continue;
-        for (const CellRange &r : s->conditionalFormats[int(i)].ranges)
-            if (r.contains(row, col)) {
-                m_states[i]->statsReady = false;
-                break;
-            }
+    if (m_stats.empty()) return;
+    static quint64 serial = 0;
+    ++serial;
+    std::vector<int> rules;
+    rulesAt(row, col, &rules);
+    for (const int rule : rules) {
+        if (size_t(rule) >= m_states.size() || !m_states[size_t(rule)] || !m_states[size_t(rule)]->stats) continue;
+        RangeStats *rs = m_states[size_t(rule)]->stats;
+        if (rs->changeSerial == serial || rs->stage == RangeStats::Stage::Refused) continue;
+        rs->changeSerial = serial;
+        if (rs->stage == RangeStats::Stage::Done) applyChange(rs, row, col);
+        else rs->staleBuild = true;
     }
 }
 
-bool CondFormats::covers(quint32 row, quint32 col) const
+// One cell's figures made again from what the cell holds now: the number, the key, and the sums and counts (and the lowest and highest, when the cell was one of them) changed by it.
+void CondFormats::applyChange(RangeStats *rs, quint32 row, quint32 col) const
 {
-    const jp::office::sheet::Sheet *s = m_owner->data().sheet;
-    if (!s) return false;
-    for (const CondRule &r : s->conditionalFormats)
-        for (const CellRange &range : r.ranges)
-            if (range.contains(row, col)) return true;
-    return false;
+    const jp::office::sheet::Sheet *sheet = m_owner->data().sheet;
+    const quint64 id = (quint64(row) << 16) | col;
+    auto at = std::lower_bound(rs->cells.begin(), rs->cells.end(), id, [](const StatCell &c, quint64 v) { return c.id < v; });
+    const bool had = at != rs->cells.end() && at->id == id;
+    const Cell *cell = sheet->cells.find(row, col);
+    if (had) {
+        if (!std::isnan(at->num)) rs->removeNumber(at->num);
+        if (at->key) {
+            const auto found = rs->counts.find(at->key);
+            if (found != rs->counts.end() && --found->second == 0) rs->counts.erase(found);
+        }
+    }
+    if (!cell) {
+        if (had) {
+            rs->cells.erase(at);
+            --m_statCells;
+        }
+    } else {
+        const Value v = m_owner->valueOf(*cell);
+        StatCell now;
+        now.id = id;
+        double x = 0;
+        if (numberOf(v, &x)) {
+            now.num = x;
+            rs->addNumber(x);
+        }
+        if (rs->needCounts) {
+            now.key = valueKey(v);
+            if (now.key) ++rs->counts[now.key];
+        }
+        if (had) {
+            *at = now;
+        } else {
+            rs->cells.insert(at, now);
+            ++m_statCells;
+        }
+    }
+    ++rs->version;
+    ++m_incremental;
 }
 
-CondFormats::RuleState &CondFormats::state(size_t rule) const
+void CondFormats::noteLimit(Limit which) const { m_noticesWanted |= 1u << unsigned(which); }
+
+void CondFormats::reportTruncated() const { noteLimit(Limit::Truncated); }
+
+QString CondFormats::takeNotice() const
 {
-    if (m_states.size() <= rule) m_states.resize(rule + 1);
-    if (!m_states[rule]) m_states[rule] = std::make_unique<RuleState>();
-    return *m_states[rule];
+    for (unsigned bit = 0; bit < 4; ++bit) {
+        const unsigned mask = 1u << bit;
+        if ((m_noticesWanted & mask) && !(m_noticesGiven & mask)) {
+            m_noticesGiven |= mask;
+            return noticeText(int(bit), m_limits);
+        }
+    }
+    return QString();
 }
 
 QString CondFormats::iconSetName(int rule) const
@@ -270,10 +541,326 @@ int CondFormats::formatIndexOf(const DifferentialFormat &merged) const
     return int(m_formats.size() - 1);
 }
 
-// The figures of a rule over all its cells, and the programs of its formulas.
-void CondFormats::prepare(size_t rule) const
+CondFormats::RuleState &CondFormats::state(size_t rule) const
 {
+    if (m_states.size() <= rule) m_states.resize(rule + 1);
+    if (!m_states[rule]) m_states[rule] = std::make_unique<RuleState>();
+    return *m_states[rule];
+}
+
+// ---- the index
+
+const CondFormats::Index &CondFormats::index() const
+{
+    if (m_index) return *m_index;
+    m_index = std::make_unique<Index>();
+    const jp::office::sheet::Sheet *sheet = m_owner->data().sheet;
+    if (!sheet) return *m_index;
+    // (the rules in the order of their priority, and as many of their ranges as the limit allows: a rule that would go past it is not shown, nor are the rules after it)
+    for (int i = 0; i < sheet->conditionalFormats.size(); ++i) {
+        const CondRule &r = sheet->conditionalFormats[i];
+        if (qint64(m_index->entries.size()) + r.ranges.size() > m_limits.ranges) {
+            noteLimit(Limit::Ranges);
+            break;
+        }
+        for (const CellRange &range : r.ranges)
+            if (range.valid) m_index->entries.push_back({range.row1, range.row2, range.col1, range.col2, i});
+    }
+    m_index->build();
+    return *m_index;
+}
+
+bool CondFormats::covers(quint32 row, quint32 col) const
+{
+    if (!any()) return false;
+    bool found = false;
+    index().query(row, col, [&](int) {
+        found = true;
+        return false;
+    }, &m_indexSteps);
+    return found;
+}
+
+void CondFormats::rulesAt(quint32 row, quint32 col, std::vector<int> *out) const
+{
+    out->clear();
+    index().query(row, col, [&](int rule) {
+        out->push_back(rule);
+        return true;
+    }, &m_indexSteps);
+    if (out->size() > 1) {
+        std::sort(out->begin(), out->end());
+        out->erase(std::unique(out->begin(), out->end()), out->end());
+    }
+}
+
+// ---- the figures of a set of cells
+
+// The figures of the cells of a rule: found among those made for the same ranges (a rule that has the same cells as another uses them), or begun.
+CondFormats::RangeStats *CondFormats::statsFor(size_t rule) const
+{
+    const CondRule &r = m_owner->data().sheet->conditionalFormats[int(rule)];
+    std::vector<CellRange> key;
+    for (const CellRange &range : r.ranges)
+        if (range.valid) key.push_back(range);
+    std::sort(key.begin(), key.end(), [](const CellRange &a, const CellRange &b) {
+        return std::tie(a.row1, a.col1, a.row2, a.col2) < std::tie(b.row1, b.col1, b.row2, b.col2);
+    });
+    key.erase(std::unique(key.begin(), key.end()), key.end());
+    const bool counting = r.type == CondRule::Type::UniqueValues || r.type == CondRule::Type::DuplicateValues;
+    const auto found = m_stats.find(key);
+    if (found != m_stats.end()) {
+        RangeStats *rs = found->second.get();
+        if (counting && !rs->needCounts && rs->stage != RangeStats::Stage::Refused) {
+            // (the keys of the values were not kept: the cells are gone through again)
+            m_statCells -= qint64(rs->cells.size());
+            rs->clearData();
+            rs->needCounts = true;
+            rs->stage = RangeStats::Stage::Scan;
+            ++rs->version;
+            m_building = true;
+        }
+        return rs;
+    }
+    auto made = std::make_unique<RangeStats>();
+    made->ranges = key;
+    made->needCounts = counting;
+    RangeStats *rs = made.get();
+    m_stats.emplace(std::move(key), std::move(made));
+    m_building = true;
+    return rs;
+}
+
+// Goes on with the figures of a set of cells for about `budget` cells: the cells are taken range by range, in order of row and column (where it stopped is kept), then the keys of the
+// values are counted; when it is done the figures are ready. A set that would take the sheet's cells held for figures past the limit is given up.
+void CondFormats::advance(RangeStats *rs, qint64 budget) const
+{
+    using Stage = RangeStats::Stage;
+    const jp::office::sheet::Sheet *sheet = m_owner->data().sheet;
+    if (!sheet) return;
+    if (rs->stage == Stage::Scan) {
+        qint64 taken = 0;
+        while (rs->rangeAt < rs->ranges.size() && taken < budget) {
+            const CellRange &r = rs->ranges[rs->rangeAt];
+            const quint32 startRow = rs->haveLast ? quint32(rs->lastId >> 16) : r.row1;
+            bool stopped = false;
+            sheet->cells.forEachInRange(startRow, r.col1, r.row2, r.col2, [&](const Cell &c) {
+                const quint64 id = (quint64(c.row) << 16) | c.col;
+                if (rs->haveLast && id <= rs->lastId) return true;
+                if (taken >= budget) {
+                    stopped = true;
+                    return false;
+                }
+                ++taken;
+                const Value v = m_owner->valueOf(c);
+                StatCell sc;
+                sc.id = id;
+                double x = 0;
+                if (numberOf(v, &x)) {
+                    sc.num = x;
+                    rs->addNumber(x);
+                }
+                if (rs->needCounts) sc.key = valueKey(v);
+                rs->cells.push_back(sc);
+                rs->lastId = id;
+                rs->haveLast = true;
+                return true;
+            });
+            if (m_statCells + qint64(rs->cells.size()) > m_limits.statCells) {
+                // (more cells than the sheet's rules may hold figures for: this set is given up, and its rules show nothing)
+                rs->clearData();
+                rs->stage = Stage::Refused;
+                noteLimit(Limit::StatCells);
+                return;
+            }
+            if (stopped) break;
+            ++rs->rangeAt;
+            rs->haveLast = false;
+        }
+        if (rs->rangeAt < rs->ranges.size()) return;
+        if (rs->staleBuild) {
+            // (a value changed while the cells were being taken: the figures are made again from the beginning)
+            rs->clearData();
+            return;
+        }
+        // several ranges may name a cell twice, or give the cells out of order: the cells are put in order of place, each once, and the figures made again from them
+        bool ordered = true;
+        for (size_t i = 1; i < rs->cells.size() && ordered; ++i) ordered = rs->cells[i - 1].id < rs->cells[i].id;
+        if (!ordered) {
+            std::sort(rs->cells.begin(), rs->cells.end(), [](const StatCell &a, const StatCell &b) { return a.id < b.id; });
+            rs->cells.erase(std::unique(rs->cells.begin(), rs->cells.end(), [](const StatCell &a, const StatCell &b) { return a.id == b.id; }), rs->cells.end());
+            rs->numbers = 0;
+            rs->sum = rs->sumSquares = 0;
+            rs->lo = rs->hi = 0;
+            for (const StatCell &c : rs->cells)
+                if (!std::isnan(c.num)) rs->addNumber(c.num);
+        }
+        m_statCells += qint64(rs->cells.size());
+        rs->stage = rs->needCounts ? Stage::Count : Stage::Done;
+        rs->countAt = 0;
+        if (rs->stage == Stage::Done) {
+            ++m_passes;
+            ++rs->version;
+        }
+    }
+    if (rs->stage == Stage::Count) {
+        qint64 counted = 0;
+        while (rs->countAt < rs->cells.size() && counted < budget) {
+            const quint64 key = rs->cells[rs->countAt++].key;
+            if (key) ++rs->counts[key];
+            ++counted;
+        }
+        if (rs->countAt >= rs->cells.size()) {
+            rs->stage = Stage::Done;
+            ++m_passes;
+            ++rs->version;
+        }
+    }
+}
+
+bool CondFormats::step(qint64 budgetMicros)
+{
+    using Stage = RangeStats::Stage;
+    QElapsedTimer clock;
+    clock.start();
+    m_paintWork = 0;      // (the paint that follows has its steps again)
+    m_incomplete = false;
+    bool more = false;
+    for (auto &entry : m_stats) {
+        RangeStats &rs = *entry.second;
+        while (rs.stage == Stage::Scan || rs.stage == Stage::Count) {
+            advance(&rs, m_limits.sliceCells);
+            if (rs.stage != Stage::Done && rs.stage != Stage::Refused && clock.nsecsElapsed() >= budgetMicros * 1000) {
+                more = true;
+                break;
+            }
+        }
+        if (more) break;
+    }
+    m_building = more;
+    for (auto &entry : m_stats)
+        if (entry.second->stage == Stage::Scan || entry.second->stage == Stage::Count) m_building = true;
+    return m_building;
+}
+
+void CondFormats::settle()
+{
+    using Stage = RangeStats::Stage;
+    m_unlimited = true;
+    const jp::office::sheet::Sheet *sheet = m_owner->data().sheet;
+    if (sheet)
+        for (size_t i = 0; i < size_t(sheet->conditionalFormats.size()); ++i) prepare(i);
+    for (auto &entry : m_stats) {
+        RangeStats &rs = *entry.second;
+        while (rs.stage == Stage::Scan || rs.stage == Stage::Count) advance(&rs, std::numeric_limits<qint64>::max() / 4);
+    }
+    m_building = false;
+    m_incomplete = false;
+    m_paintWork = 0;
+}
+
+// What a rule's figures are made into: the lowest and highest, the average and the spread, the value a cell has to reach for the highest or lowest, and the values the stops of a scale or
+// the icons of a set stand for.
+void CondFormats::derive(size_t rule) const
+{
+    using T = CondRule::Type;
     RuleState &st = state(rule);
+    RangeStats *rs = st.stats;
+    const CondRule &r = m_owner->data().sheet->conditionalFormats[int(rule)];
+    rs->settleExtrema();
+    st.points.clear();
+    st.haveNumbers = rs->numbers > 0;
+    if (!st.haveNumbers) return;
+    st.lo = rs->lo;
+    st.hi = rs->hi;
+    st.average = double(rs->sum / (long double)rs->numbers);
+    st.deviation = 0;
+    if (rs->numbers > 1) {
+        const long double mean = rs->sum / (long double)rs->numbers;
+        long double variance = (rs->sumSquares - (long double)rs->numbers * mean * mean) / (long double)(rs->numbers - 1);
+        if (variance < 0) variance = 0;
+        st.deviation = double(std::sqrt(double(variance)));
+    }
+    // the numbers in order, as far as a rule needs them (the k-th of them is found without sorting them all)
+    std::vector<double> numbers;
+    auto numbersNow = [&]() -> std::vector<double> & {
+        if (numbers.empty()) {
+            numbers.reserve(size_t(rs->numbers));
+            for (const StatCell &c : rs->cells)
+                if (!std::isnan(c.num)) numbers.push_back(c.num);
+        }
+        return numbers;
+    };
+    auto kth = [&](size_t k) {
+        std::vector<double> &v = numbersNow();
+        std::nth_element(v.begin(), v.begin() + qptrdiff(k), v.end());
+        return v[k];
+    };
+    auto percentileOf = [&](double p) {
+        const size_t count = size_t(rs->numbers);
+        const double at = std::max(0.0, std::min(1.0, p)) * double(count - 1);
+        const size_t lo = size_t(std::floor(at)), hi = size_t(std::ceil(at));
+        const double a = kth(lo), b = hi == lo ? a : kth(hi);
+        return a + (b - a) * (at - double(lo));
+    };
+    auto resolve = [&](int valueIndex) -> double {
+        using V = CondValue::Type;
+        const CondValue &v = r.values[valueIndex];
+        switch (v.type) {
+        case V::Min: return st.lo;
+        case V::Max: return st.hi;
+        case V::AutoMin: return std::min(0.0, st.lo);
+        case V::AutoMax: return std::max(0.0, st.hi);
+        case V::Number: return v.value.toDouble();
+        case V::Percent: return st.lo + (st.hi - st.lo) * v.value.toDouble() / 100.0;
+        case V::Percentile: return percentileOf(v.value.toDouble() / 100.0);
+        case V::Formula: {
+            if (size_t(valueIndex) >= st.valuePrograms.size() || !st.valuePrograms[size_t(valueIndex)]) return 0;
+            GridCells cells(m_owner);
+            jp::calc::EvalContext ctx;
+            ctx.source = &cells;
+            ctx.sheet = m_owner->data().sheetIndex;
+            ctx.row = st.firstRow;
+            ctx.col = st.firstCol;
+            ctx.dateSystem = m_owner->data().dateSystem;
+            ctx.now = m_today;
+            m_evaluator.setWorkLimit(m_limits.testWork);
+            const Value x = m_evaluator.evaluate(*st.valuePrograms[size_t(valueIndex)], ctx);
+            if (m_evaluator.status() == jp::calc::EvalStatus::TooMuchWork) noteLimit(Limit::FormulaWork);
+            return x.isNumber() ? x.number() : 0;
+        }
+        }
+        return 0;
+    };
+    if (r.type == T::Top10) {
+        const size_t count = size_t(rs->numbers);
+        size_t k = r.percent ? std::max<size_t>(1, size_t(std::floor(double(count) * r.rank / 100.0))) : size_t(std::max(1, r.rank));
+        k = std::min(k, count);
+        st.threshold = r.bottom ? kth(k - 1) : kth(count - k);
+    } else if (r.type == T::AboveAverage) {
+        const double spread = r.stdDev * st.deviation;
+        st.threshold = r.above ? st.average + spread : st.average - spread;
+    } else if (r.type == T::ColorScale || r.type == T::IconSet) {
+        for (int i = 0; i < r.values.size(); ++i) st.points.push_back(resolve(i));
+    } else if (r.type == T::DataBar) {
+        // (the lowest and highest of a bar: its first two values, or the lowest and highest the cells have)
+        const CondValue low = r.values.size() > 0 ? r.values[0] : CondValue{CondValue::Type::Min, QString(), true};
+        const CondValue high = r.values.size() > 1 ? r.values[1] : CondValue{CondValue::Type::Max, QString(), true};
+        auto point = [&](const CondValue &v, int index) {
+            if (index < r.values.size()) return resolve(index);
+            return v.type == CondValue::Type::Min ? st.lo : st.hi;
+        };
+        st.points.push_back(point(low, 0));
+        st.points.push_back(point(high, 1));
+    }
+}
+
+// Whether a rule can be worked out for a cell now: it has no figures to wait for, or they are ready (made as far as a few thousand cells at once, the rest in slices).
+CondFormats::Ready CondFormats::prepare(size_t rule) const
+{
+    using Stage = RangeStats::Stage;
+    RuleState &st = state(rule);
+    if (st.never) return Ready::Never;
     const jp::office::sheet::Sheet &sheet = *m_owner->data().sheet;
     const CondRule &r = sheet.conditionalFormats[int(rule)];
     if (!st.compiled) {
@@ -288,105 +875,29 @@ void CondFormats::prepare(size_t rule) const
             st.valuePrograms.push_back(p);
         }
     }
-    if (st.statsReady || !isStatisticsRule(r.type)) return;
-    st.statsReady = true;
-    st.haveNumbers = false;
-    st.counts.clear();
-    st.points.clear();
-    std::vector<double> numbers;
-    ++m_passes;
-    qint64 seen = 0;
-    const bool counting = r.type == CondRule::Type::UniqueValues || r.type == CondRule::Type::DuplicateValues;
-    for (const CellRange &range : r.ranges) {
-        if (seen > kMaxCellsPerRule) break;
-        sheet.cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](const Cell &c) {
-            if (++seen > kMaxCellsPerRule) return false;
-            const Value v = m_owner->valueOf(c);
-            if (counting) {
-                const QString key = keyOf(v);
-                if (!key.isEmpty()) ++st.counts[key];
-                return true;
-            }
-            double x = 0;
-            if (numberOf(v, &x)) numbers.push_back(x);
-            return true;
-        });
+    if (!isStatisticsRule(r.type)) return Ready::Yes;
+    if (!st.stats) st.stats = statsFor(rule);
+    RangeStats *rs = st.stats;
+    if (rs->stage == Stage::Refused) {
+        st.never = true;
+        return Ready::Never;
     }
-    if (counting || numbers.empty()) return;
-    st.haveNumbers = true;
-    double sum = 0;
-    st.lo = st.hi = numbers.front();
-    for (const double x : numbers) {
-        sum += x;
-        st.lo = std::min(st.lo, x);
-        st.hi = std::max(st.hi, x);
+    if (rs->stage != Stage::Done) {
+        advance(rs, m_unlimited ? std::numeric_limits<qint64>::max() / 4 : m_limits.syncCells);
+        if (rs->stage == Stage::Refused) {
+            st.never = true;
+            return Ready::Never;
+        }
+        if (rs->stage != Stage::Done) {
+            m_building = true;
+            return Ready::Pending;
+        }
     }
-    st.average = sum / double(numbers.size());
-    if (numbers.size() > 1) {
-        double squares = 0;
-        for (const double x : numbers) squares += (x - st.average) * (x - st.average);
-        st.deviation = std::sqrt(squares / double(numbers.size() - 1));
+    if (st.derivedFrom != rs->version) {
+        derive(rule);
+        st.derivedFrom = rs->version;
     }
-    using T = CondRule::Type;
-    std::vector<double> sorted;
-    const bool needSorted = r.type == T::Top10 || [&] {
-        for (const CondValue &v : r.values)
-            if (v.type == CondValue::Type::Percentile) return true;
-        return false;
-    }();
-    if (needSorted) {
-        sorted = numbers;
-        std::sort(sorted.begin(), sorted.end());
-    }
-    if (r.type == T::Top10) {
-        const size_t count = sorted.size();
-        size_t k = r.percent ? std::max<size_t>(1, size_t(std::floor(double(count) * r.rank / 100.0))) : size_t(std::max(1, r.rank));
-        k = std::min(k, count);
-        st.threshold = r.bottom ? sorted[k - 1] : sorted[count - k];
-    } else if (r.type == T::AboveAverage) {
-        const double spread = r.stdDev * st.deviation;
-        st.threshold = r.above ? st.average + spread : st.average - spread;
-    } else if (r.type == T::ColorScale || r.type == T::IconSet) {
-        for (size_t i = 0; i < r.values.size(); ++i) st.points.push_back(resolve(r.values[int(i)], st, sorted, st.lo, st.hi, rule));
-    } else if (r.type == T::DataBar) {
-        const CondValue low = r.values.size() > 0 ? r.values[0] : CondValue{CondValue::Type::Min, QString(), true};
-        const CondValue high = r.values.size() > 1 ? r.values[1] : CondValue{CondValue::Type::Max, QString(), true};
-        st.points.push_back(resolve(low, st, sorted, st.lo, st.hi, rule));
-        st.points.push_back(resolve(high, st, sorted, st.lo, st.hi, rule));
-    }
-}
-
-double CondFormats::resolve(const CondValue &v, RuleState &st, const std::vector<double> &sorted, double lo, double hi, size_t rule) const
-{
-    using T = CondValue::Type;
-    switch (v.type) {
-    case T::Min: return lo;
-    case T::Max: return hi;
-    case T::AutoMin: return std::min(0.0, lo);
-    case T::AutoMax: return std::max(0.0, hi);
-    case T::Number: return v.value.toDouble();
-    case T::Percent: return lo + (hi - lo) * v.value.toDouble() / 100.0;
-    case T::Percentile: return percentile(sorted, v.value.toDouble() / 100.0);
-    case T::Formula: {
-        // its program is the one made for the value at the same place in the rule
-        const CondRule &r = m_owner->data().sheet->conditionalFormats[int(rule)];
-        for (int i = 0; i < r.values.size(); ++i)
-            if (&r.values[i] == &v && size_t(i) < st.valuePrograms.size() && st.valuePrograms[size_t(i)]) {
-                GridCells cells(m_owner);
-                jp::calc::EvalContext ctx;
-                ctx.source = &cells;
-                ctx.sheet = m_owner->data().sheetIndex;
-                ctx.row = st.firstRow;
-                ctx.col = st.firstCol;
-                ctx.dateSystem = m_owner->data().dateSystem;
-                ctx.now = m_today;
-                const Value x = m_evaluator.evaluate(*st.valuePrograms[size_t(i)], ctx);
-                return x.isNumber() ? x.number() : 0;
-            }
-        return 0;
-    }
-    }
-    return 0;
+    return Ready::Yes;
 }
 
 bool CondFormats::testOf(size_t rule, quint32 row, quint32 col) const
@@ -403,28 +914,39 @@ bool CondFormats::testOf(size_t rule, quint32 row, quint32 col) const
     ctx.shiftCols = int(qint64(col) - qint64(st.firstCol));
     ctx.dateSystem = m_owner->data().dateSystem;
     ctx.now = m_today;
-    m_evaluator.setWorkLimit(100000);
+    m_evaluator.setWorkLimit(m_limits.testWork);
     ++m_tests;
     const Value v = m_evaluator.evaluate(*st.test, ctx);
+    m_paintWork += std::max<qint64>(1, m_evaluator.work());
+    if (m_evaluator.status() == jp::calc::EvalStatus::TooMuchWork) noteLimit(Limit::FormulaWork);   // (the rule did not hold here for want of room: said once)
     if (v.isBool()) return v.boolean();
     if (v.isNumber()) return v.number() != 0;
     return false;
 }
 
-const CondCell &CondFormats::at(quint32 row, quint32 col) const
+CondCell CondFormats::at(quint32 row, quint32 col) const
 {
     if (m_stale) {
         m_cache.clear();
         m_stale = false;
     }
+    if (!covers(row, col)) return CondCell();   // (a cell no rule has costs one look at the index, and nothing is kept for it)
     const quint64 key = (quint64(row) << 16) | col;
     const auto found = m_cache.find(key);
     if (found != m_cache.end()) return found->second;
-    if (m_cache.size() >= kMaxCached) m_cache.clear();
-    return m_cache.emplace(key, compute(row, col)).first->second;
+    bool incomplete = false;
+    const CondCell cell = compute(row, col, &incomplete);
+    if (incomplete) {
+        // (a rule of the cell has figures that are not ready, or the paint has used its steps: what is known now is shown, nothing is kept, and the cell is asked about again)
+        m_incomplete = true;
+        return cell;
+    }
+    if (m_cache.size() >= kMaxCached) m_cache.clear();   // (what callers hold is theirs: values)
+    m_cache.emplace(key, cell);
+    return cell;
 }
 
-CondCell CondFormats::compute(quint32 row, quint32 col) const
+CondCell CondFormats::compute(quint32 row, quint32 col, bool *incomplete) const
 {
     using T = CondRule::Type;
     CondCell out;
@@ -435,16 +957,17 @@ CondCell CondFormats::compute(quint32 row, quint32 col) const
     const Cell *cell = sheet->cells.find(row, col);
     const Value value = cell ? m_owner->valueOf(*cell) : Value();
     const jp::office::sheet::Styles *styles = m_owner->data().styles;
-    for (size_t i = 0; i < size_t(sheet->conditionalFormats.size()); ++i) {
+    std::vector<int> rules;
+    rulesAt(row, col, &rules);
+    for (const int ruleIndex : rules) {
+        const size_t i = size_t(ruleIndex);
         const CondRule &r = sheet->conditionalFormats[int(i)];
-        bool inside = false;
-        for (const CellRange &range : r.ranges)
-            if (range.contains(row, col)) {
-                inside = true;
-                break;
-            }
-        if (!inside) continue;
-        prepare(i);
+        const Ready ready = prepare(i);
+        if (ready == Ready::Never) continue;
+        if (ready == Ready::Pending) {
+            *incomplete = true;
+            continue;
+        }
         RuleState &st = state(i);
         bool applies = false;
         double x = 0;
@@ -551,13 +1074,21 @@ CondCell CondFormats::compute(quint32 row, quint32 col) const
             break;
         case T::UniqueValues:
         case T::DuplicateValues: {
-            const QString key = keyOf(value);
-            if (key.isEmpty()) break;
-            const int times = st.counts.count(key) ? st.counts.at(key) : 0;
+            const quint64 key = valueKey(value);
+            if (!key) break;
+            const auto found = st.stats->counts.find(key);
+            const quint32 times = found == st.stats->counts.end() ? 0 : found->second;
             applies = r.type == T::DuplicateValues ? times > 1 : times == 1;
             break;
         }
-        default: applies = testOf(i, row, col); break;
+        default:
+            // (a rule's formula: a paint has only so many steps to spend on them, and the cells left are done in the paints after it)
+            if (!m_unlimited && m_paintWork >= m_limits.paintWork) {
+                *incomplete = true;
+                continue;
+            }
+            applies = testOf(i, row, col);
+            break;
         }
         if (!applies) continue;
         const bool formatting = r.type != T::ColorScale && r.type != T::DataBar && r.type != T::IconSet;

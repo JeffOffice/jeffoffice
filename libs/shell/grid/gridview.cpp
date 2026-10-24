@@ -51,6 +51,8 @@ GridView::GridView(QWidget *parent) : QAbstractScrollArea(parent)
     viewport()->setBackgroundRole(QPalette::Window);
     m_painter = std::make_unique<GridPainter>(&m_sheet);
     m_nav = std::make_unique<Nav>(&m_sheet);
+    m_conditionalTimer.setSingleShot(true);
+    connect(&m_conditionalTimer, &QTimer::timeout, this, [this] { conditionalWork(); });
     connect(horizontalScrollBar(), &QScrollBar::valueChanged, this, [this](int) {
         if (!m_syncingBars) scrollTo(horizontalScrollBar()->value(), m_sheet.layout().scrollY());
     });
@@ -645,6 +647,26 @@ void GridView::paintEvent(QPaintEvent *e)
         m_paintTimes.push_back(double(t.nsecsElapsed()) / 1e6);
         m_paintCpuTimes.push_back(double(jp::threadCpuMicros() - cpu0) / 1e3);
     }
+    afterPaint();
+}
+
+// What the rules of conditional formatting left after a paint is done in slices between the paints, and what stopped one altogether is said once.
+void GridView::afterPaint()
+{
+    const CondFormats &rules = m_sheet.conditional();
+    if (rules.wantsMore() && !m_conditionalTimer.isActive()) m_conditionalTimer.start(0);
+    const QString notice = rules.takeNotice();
+    if (!notice.isEmpty()) Q_EMIT noticeRaised(notice);
+}
+
+void GridView::conditionalWork()
+{
+    CondFormats &rules = m_sheet.conditional();
+    const bool more = rules.step(3000);
+    // (what was shown plain while the figures were not ready is made again, and drawn again)
+    m_sheet.invalidateLooks();
+    viewport()->update();
+    if (more) m_conditionalTimer.start(0);
 }
 
 void GridView::resizeEvent(QResizeEvent *e)

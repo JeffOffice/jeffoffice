@@ -144,7 +144,7 @@ struct Book {
     }
     static double todayNumber() { return double(QDate(1899, 12, 30).daysTo(QDate(2026, 10, 24))); }
     static double serial(int y, int m, int d) { return double(QDate(1899, 12, 30).daysTo(QDate(y, m, d))); }
-    const CondCell &at(const QString &ref) const
+    CondCell at(const QString &ref) const
     {
         quint32 row = 0, col = 0;
         parseCellRef(ref, &row, &col);
@@ -520,8 +520,8 @@ private Q_SLOTS:
         QVERIFY(c.at(QStringLiteral("A3")).hideValue);
     }
 
-    // What a rule needs of all its cells is worked out once and kept: asking for every cell of a rule over a thousand cells makes one pass over them, and a value changing in them makes
-    // the next ask pass again, one that changes outside them does not.
+    // What a rule needs of all its cells is worked out once and kept: asking for every cell of a rule over a thousand cells makes one pass over them, and a value changing in them changes
+    // the figures by that one cell (no pass again), one that changes outside them changes nothing.
     void figuresAreWorkedOutOnceAndAgainWhenAValueChanges()
     {
         Book b;
@@ -538,14 +538,16 @@ private Q_SLOTS:
         b.grid.invalidateText(0, 2);
         b.at(QStringLiteral("A1000"));
         QCOMPARE(b.grid.conditional().passes(), qint64(1));
-        // a value inside changes (the highest is no longer): the figures are made again
+        QCOMPARE(b.grid.conditional().incrementalChanges(), qint64(0));
+        // a value inside changes (the highest is no longer): the figures follow that cell, and are not made again
         quint32 row = 0, col = 0;
         parseCellRef(QStringLiteral("A1000"), &row, &col);
         const_cast<Cell *>(b.sheet.cells.find(row, col))->number = 5;
         b.grid.invalidateText(row, col);
         QVERIFY(!b.at(QStringLiteral("A1000")).any);
         QVERIFY(b.at(QStringLiteral("A999")).any);
-        QCOMPARE(b.grid.conditional().passes(), qint64(2));
+        QCOMPARE(b.grid.conditional().passes(), qint64(1));
+        QCOMPARE(b.grid.conditional().incrementalChanges(), qint64(1));
     }
 
     // A rule whose formula reads another sheet sees that sheet's cells.
@@ -597,7 +599,7 @@ private Q_SLOTS:
         QCOMPARE(b.grid.textOf(*b.sheet.cells.find(0, 0)), QStringLiteral("0.5"));
     }
 
-    // The cost: a sheet of a hundred thousand rows with a rule over all of them asks about the cells it is asked about only, and makes the figures once.
+    // The cost: a sheet of a hundred thousand rows with two rules over all of them asks about the cells it is asked about only, and makes the figures once for both.
     void aBigSheetIsWorkedOutForWhatIsAskedAbout()
     {
         Book b;
@@ -610,8 +612,214 @@ private Q_SLOTS:
         b.sheet.conditionalFormats.last().colors = {rgb(0xFF0000), rgb(0x00FF00)};
         b.build();
         for (quint32 row = 50000; row < 50040; ++row) b.grid.conditional().at(row, 0);
-        QCOMPARE(b.grid.conditional().passes(), qint64(2));   // (one pass for each rule)
+        QCOMPARE(b.grid.conditional().passes(), qint64(1));   // (the two rules have the same cells: one pass is theirs both)
         QCOMPARE(b.grid.conditional().tests(), qint64(0));
+    }
+
+    // ---- the limits of what a sheet's rules cost (hostile workbooks)
+
+    // Sixty rules of duplicate values over the same cells have one count between them, not sixty: one pass, and the cells held once.
+    void rulesOverTheSameCellsShareTheirFigures()
+    {
+        Book b;
+        for (int i = 0; i < 20000; ++i) b.sheet.cells.add(Book::numberCell(quint32(i), 0, double(i % 1000)));
+        const int d = b.dxfBoldItalic(true, false);
+        for (int i = 0; i < 60; ++i) b.rule(CondRule::Type::DuplicateValues, QStringLiteral("A1:A20000"), d);
+        b.build();
+        for (int i = 0; i < 60; ++i) QVERIFY(b.at(QStringLiteral("A%1").arg(1 + i)).any);
+        QCOMPARE(b.grid.conditional().passes(), qint64(1));
+        QCOMPARE(b.grid.conditional().statCells(), qint64(20000));
+        // a count is kept for what a rule of unique values needs too, and the rules still tell the cells apart
+        b.rule(CondRule::Type::UniqueValues, QStringLiteral("A1:A20000"), d);
+        b.sheet.conditionalFormats.last().priority = 1000;
+        b.grid.resetConditional();
+        QVERIFY(b.at(QStringLiteral("A1")).any);
+        QCOMPARE(b.grid.conditional().passes(), qint64(2));   // (one more: the same cells, for the sixty-one rules)
+    }
+
+    // The cells that a sheet's rules keep figures for are limited for the sheet, not for each rule: a rule whose figures would go past the limit shows nothing, and says why once.
+    void theFiguresOfASheetAreHeldForAtMostALimit()
+    {
+        Book b;
+        for (int i = 0; i < 600; ++i)
+            for (int c = 0; c < 3; ++c) b.sheet.cells.add(Book::numberCell(quint32(i), quint32(c), double((i * 7 + c) % 50)));
+        const int d = b.dxfBoldItalic(true, false);
+        b.rule(CondRule::Type::DuplicateValues, QStringLiteral("A1:A600"), d);
+        b.rule(CondRule::Type::DuplicateValues, QStringLiteral("B1:B600"), d);
+        b.rule(CondRule::Type::DuplicateValues, QStringLiteral("C1:C600"), d);
+        b.build();
+        CondFormats::Limits limits;
+        limits.statCells = 1300;
+        b.grid.conditional().setLimits(limits);
+        QVERIFY(b.at(QStringLiteral("A1")).any);
+        QVERIFY(b.at(QStringLiteral("B1")).any);
+        QVERIFY(!b.at(QStringLiteral("C1")).any);   // (the third set would be 1,800 cells in all)
+        QVERIFY(b.grid.conditional().statCells() <= 1300);
+        const QString said = b.grid.conditional().takeNotice();
+        QVERIFY2(said.contains(QStringLiteral("1,300")) || said.contains(QStringLiteral("1300")), qPrintable(said));
+        QVERIFY(b.grid.conditional().takeNotice().isEmpty());   // (once)
+    }
+
+    // A pass over a lot of cells is not one turn of the program: the cells show nothing until the figures are made, which is done a slice at a time, and the ones asked for after it are right.
+    void aBigPassIsMadeInSlicesAndTheCellsShowNothingUntilItIsDone()
+    {
+        Book b;
+        for (int i = 0; i < 5000; ++i) b.sheet.cells.add(Book::numberCell(quint32(i), 0, double(i)));
+        CondRule &top = b.rule(CondRule::Type::Top10, QStringLiteral("A1:A5000"), b.dxfBoldItalic(true, false));
+        top.rank = 3;
+        b.build();
+        CondFormats::Limits limits;
+        limits.syncCells = 1000;
+        limits.sliceCells = 500;
+        b.grid.conditional().setLimits(limits);
+        QVERIFY(!b.at(QStringLiteral("A5000")).any);   // (the figures are not made: the cell shows nothing yet)
+        QVERIFY(b.grid.conditional().wantsMore());
+        QCOMPARE(b.grid.conditional().passes(), qint64(0));
+        int steps = 0;
+        while (b.grid.conditional().step(1)) ++steps;
+        QVERIFY2(steps >= 6, qPrintable(QString::number(steps)));   // (5,000 cells in slices of 500, the first 1,000 of them taken at the first ask)
+        QVERIFY(!b.grid.conditional().wantsMore());
+        QCOMPARE(b.grid.conditional().passes(), qint64(1));
+        QVERIFY(b.at(QStringLiteral("A5000")).any && b.at(QStringLiteral("A4998")).any && !b.at(QStringLiteral("A4997")).any);
+    }
+
+    // A value that changes changes the figures of the rules that have it by that one cell: the counts of a rule of duplicates, and the lowest and highest of a scale, with no pass over the cells.
+    void aChangedValueChangesTheFiguresByThatCell()
+    {
+        Book b;
+        for (int i = 0; i < 50000; ++i) b.sheet.cells.add(Book::numberCell(quint32(i), 0, double(i)));   // (none twice)
+        const int d = b.dxfBoldItalic(true, false);
+        b.rule(CondRule::Type::DuplicateValues, QStringLiteral("A1:A50000"), d);
+        CondRule &scale = b.rule(CondRule::Type::ColorScale, QStringLiteral("A1:A50000"));
+        scale.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+        scale.colors = {rgb(0xFF0000), rgb(0x00FF00)};
+        b.build();
+        QVERIFY(b.at(QStringLiteral("A10")).hasScale);
+        QVERIFY(b.formatAt(QStringLiteral("A10")).isEmpty());   // (not a duplicate)
+        QCOMPARE(b.at(QStringLiteral("A1")).scale, QRgb(0xFFFF0000));   // (the lowest: the red end)
+        QCOMPARE(b.grid.conditional().passes(), qint64(1));
+        // A10 becomes what A20 has
+        const_cast<Cell *>(b.sheet.cells.find(9, 0))->number = 19;
+        b.grid.invalidateText(9, 0);
+        QCOMPARE(b.grid.conditional().incrementalChanges(), qint64(1));
+        QCOMPARE(b.grid.conditional().passes(), qint64(1));
+        QVERIFY(!b.formatAt(QStringLiteral("A10")).isEmpty() && !b.formatAt(QStringLiteral("A20")).isEmpty());
+        // the highest is brought down below all of them: the lowest of the scale is that, the highest the next, and the cell that was the lowest is in the middle
+        const_cast<Cell *>(b.sheet.cells.find(49999, 0))->number = -50000;
+        b.grid.invalidateText(49999, 0);
+        QCOMPARE(b.grid.conditional().passes(), qint64(1));
+        QCOMPARE(b.grid.conditional().incrementalChanges(), qint64(2));
+        QCOMPARE(b.at(QStringLiteral("A49999")).scale, QRgb(0xFF00FF00));   // (49,998 is the highest now: the green end)
+        const QRgb middle = b.at(QStringLiteral("A1")).scale;
+        QVERIFY2(((middle >> 16) & 0xFF) > 100 && ((middle >> 16) & 0xFF) < 160 && ((middle >> 8) & 0xFF) > 100 && ((middle >> 8) & 0xFF) < 160, qPrintable(QString::number(middle, 16)));
+    }
+
+    // The rules are found through an index of their ranges: a cell costs what the rules that have it cost, not all of them.
+    void rulesAreFoundThroughAnIndexOfTheirRanges()
+    {
+        Book b;
+        for (quint32 r = 0; r < 400; ++r) {
+            CondRule rule;
+            rule.type = CondRule::Type::CellIs;
+            rule.op = CondRule::Operator::GreaterThan;
+            rule.formula1 = QStringLiteral("0");
+            rule.priority = int(r) + 1;
+            for (quint32 c = 0; c < 250; ++c) {
+                CellRange one;
+                one.valid = true;
+                one.row1 = one.row2 = r;
+                one.col1 = one.col2 = c;
+                rule.ranges.append(one);
+            }
+            b.sheet.conditionalFormats.append(rule);
+        }
+        b.build();
+        b.grid.conditional().reset();
+        qint64 before = b.grid.conditional().indexSteps();
+        QVERIFY(b.grid.conditional().covers(5, 7));
+        QVERIFY(b.grid.conditional().covers(399, 249));
+        QVERIFY(!b.grid.conditional().covers(5, 300));
+        QVERIFY(!b.grid.conditional().covers(400, 0));
+        const qint64 built = b.grid.conditional().indexSteps();
+        for (int i = 0; i < 1000; ++i) b.grid.conditional().covers(quint32(i % 400), quint32((i * 7) % 250));
+        // (a hundred thousand ranges: looking at each for each of a thousand cells would be a hundred million)
+        QVERIFY2(b.grid.conditional().indexSteps() - built < 1000 * 400, qPrintable(QString::number(b.grid.conditional().indexSteps() - built)));
+        Q_UNUSED(before);
+    }
+
+    // The ranges of a sheet's rules that are looked at are limited, and the rules past the limit are not shown, with a sentence that says so, once.
+    void theRangesOfASheetAreLookedAtForAtMostALimit()
+    {
+        Book b;
+        b.num(QStringLiteral("A1"), 5);
+        for (int r = 0; r < 10; ++r) {
+            CondRule rule;
+            rule.type = CondRule::Type::CellIs;
+            rule.op = CondRule::Operator::GreaterThan;
+            rule.formula1 = QStringLiteral("0");
+            rule.dxf = b.dxfBoldItalic(true, false);
+            rule.priority = r + 1;
+            for (int k = 0; k < 20; ++k) rule.ranges.append(range(QStringLiteral("A%1").arg(r * 20 + k + 1)));
+            b.sheet.conditionalFormats.append(rule);
+        }
+        b.build();
+        CondFormats::Limits limits;
+        limits.ranges = 50;
+        b.grid.conditional().setLimits(limits);
+        QVERIFY(b.at(QStringLiteral("A1")).any);          // (the first rule is among the first two)
+        QVERIFY(!b.grid.conditional().covers(0 + 100, 0));   // (the sixth rule's cells: past the limit)
+        const QString said = b.grid.conditional().takeNotice();
+        QVERIFY2(said.contains(QStringLiteral("50")), qPrintable(said));
+        QVERIFY(b.grid.conditional().takeNotice().isEmpty());
+    }
+
+    // What a rule's formula costs is spread over the paints: a paint works out as many as the steps it has allow, the cells left plain are asked about again, and after a few paints
+    // they all have what a paint with no limit would give them.
+    void aRulesFormulaIsWorkedOutOverSeveralPaints()
+    {
+        Book b;
+        for (int i = 0; i < 300; ++i) b.sheet.cells.add(Book::numberCell(quint32(i), 0, double(i)));
+        CondRule &r = b.rule(CondRule::Type::Expression, QStringLiteral("B1:B100"), b.dxfBoldItalic(true, false));
+        r.formula1 = QStringLiteral("SUM($A$1:$A$300)>44000+ROW()");
+        b.build();
+        CondFormats::Limits limits;
+        limits.paintWork = 2000;
+        b.grid.conditional().setLimits(limits);
+        int rounds = 0;
+        QVector<bool> got(100, false);
+        for (; rounds < 100; ++rounds) {
+            b.grid.conditional().beginPaint();
+            for (int i = 0; i < 100; ++i) got[i] = got[i] || b.at(QStringLiteral("B%1").arg(i + 1)).any;
+            if (!b.grid.conditional().wantsMore()) break;
+            b.grid.conditional().step(1000);
+        }
+        QVERIFY2(rounds >= 2 && rounds < 100, qPrintable(QString::number(rounds)));
+        // SUM(A1:A300) = 44850: the rule holds for the rows under 850
+        for (int i = 0; i < 100; ++i) QVERIFY(got[i]);
+        QVERIFY(b.grid.conditional().tests() >= 100);
+    }
+
+    // A rule whose formula needs more steps than one cell may take does not hold there, and the person is told once that a limit stopped it.
+    void aFormulaPastItsLimitIsSaidOnce()
+    {
+        Book b;
+        for (int i = 0; i < 2000; ++i) b.sheet.cells.add(Book::numberCell(quint32(i), 0, double(i)));
+        CondRule &r = b.rule(CondRule::Type::Expression, QStringLiteral("B1:B5"), b.dxfBoldItalic(true, false));
+        r.formula1 = QStringLiteral("SUMPRODUCT(--($A$1:$A$2000>A1))>5");
+        b.build();
+        CondFormats::Limits limits;
+        limits.testWork = 500;
+        b.grid.conditional().setLimits(limits);
+        QVERIFY(!b.at(QStringLiteral("B1")).any);
+        const QString said = b.grid.conditional().takeNotice();
+        QVERIFY2(said.contains(QStringLiteral("formula")), qPrintable(said));
+        QVERIFY(b.at(QStringLiteral("B2")).any == false);
+        QVERIFY(b.grid.conditional().takeNotice().isEmpty());
+        // with room for it, the rule holds
+        limits.testWork = 1000000;
+        b.grid.conditional().setLimits(limits);
+        QVERIFY(b.at(QStringLiteral("B1")).any);
+        QVERIFY(b.grid.conditional().takeNotice().isEmpty());
     }
 };
 

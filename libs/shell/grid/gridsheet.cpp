@@ -254,7 +254,7 @@ void GridSheet::setToday(double serial) const
 const CellLook &GridSheet::lookOf(quint32 row, quint32 col, quint32 style) const
 {
     if (!m_cond.any()) return m_looks.look(style);
-    const CondCell &c = m_cond.at(row, col);
+    const CondCell c = m_cond.at(row, col);
     if (c.format < 0) return m_looks.look(style);
     return m_looks.derived(style, c.format, m_cond.format(c.format));
 }

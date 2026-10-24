@@ -399,7 +399,7 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(ruledBook()));
         grid::GridSheet &g = e.view()->sheet();
-        auto at = [&](const QString &ref) -> const grid::CondCell & {
+        auto at = [&](const QString &ref) -> grid::CondCell {
             quint32 r = 0, c = 0;
             parseCellRef(ref, &r, &c);
             return g.conditional().at(r, c);
@@ -525,6 +525,23 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("format.defaultWidth"))->trigger();
         QCOMPARE(e.win.w.undoStack()->count(), steps);
         QVERIFY(!e.win.told.isEmpty());
+    }
+
+    // A limit that stops a conditional format is said in the status bar, once: the rules past the limit on the ranges that are looked at are not shown, and the window says so.
+    void aLimitOnConditionalFormatsIsSaidInTheStatusBar()
+    {
+        EditWindow e;
+        QVERIFY(e.open(ruledBook()));
+        grid::CondFormats::Limits limits;
+        limits.ranges = 2;
+        QSignalSpy said(e.view(), &grid::GridView::noticeRaised);
+        e.view()->sheet().conditional().setLimits(limits);
+        e.view()->viewport()->repaint();
+        QApplication::processEvents();
+        QVERIFY2(e.win.w.statusText().contains(QStringLiteral("more conditional formats than JeffCrunch shows")), qPrintable(e.win.w.statusText()));
+        e.view()->viewport()->repaint();
+        QApplication::processEvents();
+        QCOMPARE(said.count(), 1);   // (once)
     }
 
     // The sheet with its rules drawn (JC_SCREENSHOT_COND names a file to keep the picture in): the color scale, the cells over three, the bars, and the icons are on the screen.

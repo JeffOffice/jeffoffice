@@ -656,7 +656,8 @@ struct GridPainter::PaneWork {
     std::vector<Span> rows, cols;
     std::vector<const Cell *> cells;           // rows by columns, those beside the ones drawn included
     std::vector<const CellLook *> looks;       // the same, null for the plain look
-    std::vector<const CondCell *> cond;        // the same, what the rules of conditional formatting do to the cell (null for nothing; empty when the sheet has no rules)
+    std::vector<qint32> cond;                  // the same, what the rules of conditional formatting do to the cell: a place in `condCells` + 1 (0 for nothing; empty when the sheet has no rules)
+    std::vector<CondCell> condCells;           // what the rules did, held here by value (what the rules keep may be let go of while the paint goes on)
     std::vector<char> covered;                 // under a merged range
     std::vector<const Cell *> leftCandidate, rightCandidate;   // by row: the nearest cell with something in it outside the columns drawn, on each side
     size_t C = 0;
@@ -779,7 +780,7 @@ marked:
     bool anyFill = false, anyBorder = false, anyBar = false, anyIcon = false;
     const LookTable &looks = m_sheet->looks();
     const bool ruled = m_sheet->hasConditionalFormats();
-    if (ruled) w.cond.assign(R * C, nullptr);
+    if (ruled) w.cond.assign(R * C, 0);
     for (size_t i = 0; i < R; ++i)
         for (size_t j = 0; j < C; ++j) {
             const Cell *c = w.cells[i * C + j];
@@ -790,9 +791,10 @@ marked:
                 const quint32 row = quint32(w.rows[i].index), col = quint32(w.cols[j].index);
                 if (m_sheet->conditional().covers(row, col)) {
                     ++m_stats.condCells;
-                    const CondCell &cc = m_sheet->conditional().at(row, col);
+                    const CondCell cc = m_sheet->conditional().at(row, col);
                     if (cc.any) {
-                        w.cond[i * C + j] = &cc;
+                        w.condCells.push_back(cc);
+                        w.cond[i * C + j] = qint32(w.condCells.size());
                         anyBar = anyBar || cc.hasBar;
                         anyIcon = anyIcon || cc.icon >= 0;
                         anyFill = anyFill || cc.hasScale;
@@ -807,6 +809,7 @@ marked:
                 }
             } else if (ruled && m_stats.condCells >= kMaxCondCells) {
                 m_stats.truncated = true;
+                m_sheet->conditional().reportTruncated();
             }
             if (xf == 0) continue;
             const CellLook &look = looks.look(xf);
@@ -815,7 +818,7 @@ marked:
             anyBorder = anyBorder || look.hasBorder();
         }
     // (what a cell shows of the rules besides its look: a color scale's fill, a data bar, an icon)
-    auto condOf = [&](size_t i, size_t j) -> const CondCell * { return w.cond.empty() ? nullptr : w.cond[i * C + j]; };
+    auto condOf = [&](size_t i, size_t j) -> const CondCell * { return w.cond.empty() || w.cond[i * C + j] == 0 ? nullptr : &w.condCells[size_t(w.cond[i * C + j] - 1)]; };   // (the cells are all taken above: nothing is added to them from here)
     auto iconOf = [&](const CondCell &cc, const CellLook &look, const Span &rs, int *size, QString *name, int *count) {
         *name = m_sheet->conditional().iconSetName(cc.iconSet);
         *count = iconSetCount(*name);
@@ -965,9 +968,13 @@ marked:
         ++m_stats.mergesDrawn;
         const Cell *anchor = m_sheet->cellAt(m.row1, m.col1);
         const quint32 xf = anchor ? anchor->style : m_sheet->styleOf(m.row1, m.col1, nullptr);
-        const CondCell *anchorCond = ruled && m_sheet->conditional().covers(m.row1, m.col1) && m_stats.condCells < kMaxCondCells ? &m_sheet->conditional().at(m.row1, m.col1) : nullptr;
-        if (anchorCond) ++m_stats.condCells;
-        if (anchorCond && !anchorCond->any) anchorCond = nullptr;
+        CondCell anchorCondValue;
+        const CondCell *anchorCond = nullptr;
+        if (ruled && m_sheet->conditional().covers(m.row1, m.col1) && m_stats.condCells < kMaxCondCells) {
+            anchorCondValue = m_sheet->conditional().at(m.row1, m.col1);
+            ++m_stats.condCells;
+            if (anchorCondValue.any) anchorCond = &anchorCondValue;
+        }
         const CellLook &look = m_sheet->lookOf(m.row1, m.col1, xf);
         if (anchorCond && anchorCond->hasScale) p->fillRect(rect.adjusted(0, 0, o.gridlines ? -1 : 0, o.gridlines ? -1 : 0), QColor::fromRgba(anchorCond->scale));
         else if (look.hasFill()) drawFill(p, rect, look, o);
@@ -1167,6 +1174,7 @@ void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOption
 void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
 {
     m_stats = PaintStats();
+    m_sheet->conditional().beginPaint();   // (the steps this paint may spend on the rules' formulas)
     if (!m_sheet->data().sheet) {
         p->fillRect(clip, o.backdrop);   // (no sheet to show)
         return;

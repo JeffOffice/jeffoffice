@@ -136,6 +136,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         placeEditor();
     });
     connect(m_view, &grid::GridView::statsChanged, this, [this](const QString &text) { m_stats->setText(text); });
+    connect(m_view, &grid::GridView::noticeRaised, this, [this](const QString &text) { setStatus(text); });   // (a limit that stopped a conditional format: said in the status bar)
     connect(m_view, &grid::GridView::zoomChanged, this, [this](double z) {
         placeEditor();
         m_zoomLabel->setText(QStringLiteral("%1%").arg(std::lround(z * 100)));

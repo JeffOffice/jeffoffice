@@ -150,6 +150,8 @@ Q_SIGNALS:
     void statsChanged(const QString &text);
     void contextMenuRequested(const QPoint &globalPos);
     void viewChanged();   // the scroll, frozen panes, or what is shown changed
+    // Something the rules of conditional formatting could not do for want of room (a limit): a sentence for the status bar, said once.
+    void noticeRaised(const QString &text);
     // Keys that start an entry: a character that prints (with no Ctrl or Alt) is typed into the cell with the cursor in place of what it holds, and Backspace starts an entry with
     // nothing; F2 and a double click on a cell edit what it holds; Delete clears the selection.
     void typingStarted(const QString &text);
@@ -246,6 +248,9 @@ private:
     bool m_syncingBars = false;
     qint64 m_lastScrollX = 0, m_lastScrollY = 0;
     std::vector<double> m_paintTimes, m_paintCpuTimes;
+    QTimer m_conditionalTimer;   // the work of the rules of conditional formatting that a paint left (figures to make, formulas to work out for more cells), done a slice at a time
+    void conditionalWork();
+    void afterPaint();
     qint64 m_blits = 0, m_fullScrolls = 0;
     std::function<bool()> m_clickGuard;
 };
