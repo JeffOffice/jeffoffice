@@ -1657,10 +1657,24 @@ bool Workbook::openStream(const QByteArray &stream, bool hasMacros, QString *err
 void Workbook::prepareSheetList()
 {
     m_info.order.clear();
+    m_info.fileOrder.clear();
     for (int i = 0; i < m_info.sheets.size(); ++i) {
         m_info.sheets[i].fileName = m_info.sheets[i].name;
         m_info.order.append(i);
+        m_info.fileOrder.append(i);
     }
+}
+
+int Workbook::activeTabNow() const
+{
+    const int place = m_info.activeTab >= 0 && m_info.activeTab < m_info.fileOrder.size() ? m_info.fileOrder[m_info.activeTab] : -1;
+    if (place >= 0 && place < m_info.sheets.size() && !m_info.sheets[place].deleted && m_info.sheets[place].state == SheetState::Visible) {
+        const int at = int(m_info.order.indexOf(place));
+        if (at >= 0) return at;
+    }
+    for (int i = 0; i < m_info.order.size(); ++i)
+        if (m_info.sheets[m_info.order[i]].state == SheetState::Visible) return i;
+    return 0;
 }
 
 int Workbook::addSheetEntry(const QString &name, SheetState state)
@@ -2195,6 +2209,23 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
     m_stylesAdded = m_stylesAdded.mid(counts.styles);
     m_sharedAddedAt.clear();
     for (int i = 0; i < m_sharedAdded.size(); ++i) m_sharedAddedAt.insert(m_sharedAdded[i], qint32(m_sharedInFile + i));
+    // The sheets: the file has them as they are now (in the order of the tabs, by the names they have); one deleted is not in it.
+    {
+        const int active = activeTabNow();
+        for (SheetEntry &e : m_info.sheets) {
+            if (e.deleted) {
+                e.part.clear();
+                e.relId.clear();
+                e.fileName.clear();
+                continue;
+            }
+            e.isNew = false;
+            e.fileName = e.name;
+        }
+        m_info.fileOrder = m_info.order;
+        m_info.activeTab = active;
+        m_info.firstSheet = 0;
+    }
 }
 
 bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows) const

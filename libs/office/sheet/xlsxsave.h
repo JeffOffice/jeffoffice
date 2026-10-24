@@ -175,6 +175,9 @@ bool patchSheet(QIODevice *in, PartSink *out, const SheetChanges &changes, bool 
 bool patchSharedStrings(const QByteArray &xml, const QStringList &added, QByteArray *out, QString *error = nullptr);
 // The styles part with the number formats and cell formats added.
 bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *out, QString *error = nullptr);
+// The workbook part with its list of sheets made from the workbook's own (names, shown or hidden, the order of the tabs, those added and deleted), the names that belong to a sheet
+// following it, and the open tab where it is now.
+bool patchWorkbookSheets(const QByteArray &xml, const Workbook &book, QByteArray *out, QString *error = nullptr);
 // [Content_Types].xml without the Override of a part, and a relationships part without the link of a type (whose Type ends with the given words); false (nothing changed) if there is none.
 bool removeContentTypeOverride(const QByteArray &xml, const QString &partName, QByteArray *out);
 bool removeRelationshipOfType(const QByteArray &xml, const QString &typeSuffix, QByteArray *out);

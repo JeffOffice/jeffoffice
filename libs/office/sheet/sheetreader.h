@@ -142,6 +142,7 @@ struct DefinedName {
 struct WorkbookInfo {
     QVector<SheetEntry> sheets;   // by place: the order the file has them in, then those a person added (a sheet's place never changes)
     QVector<int> order;           // the places of the sheets in the order of the tabs (those deleted are not in it)
+    QVector<int> fileOrder;       // the places of the sheets in the order the package's workbook part has them (what `activeTab` and the `localSheet` of the file's names count by, until a save)
     QVector<DefinedName> definedNames;
     DateSystem dateSystem = DateSystem::Date1900;
     CalcMode calcMode = CalcMode::Auto;
@@ -288,6 +289,8 @@ public:
     void setSheetState(int sheet, SheetState state);
     void setSheetDeleted(int sheet, bool deleted);
     void setSheetOrder(const QVector<int> &order) { m_info.order = order; }
+    // The tab that is open in the file, by its place in the order the tabs are in now: where the sheet the file says is open is (or, if it was deleted or is hidden, the first that is shown).
+    int activeTabNow() const;
     // The part, relationship, and sheet number the package would have for a new sheet (names none that the package, or another new sheet, has), chosen once and kept.
     void planSheetPart(int sheet);
 

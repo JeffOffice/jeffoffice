@@ -103,13 +103,23 @@ bool followCell(const MoveContext &c, int sheet, quint32 *row, quint32 *col)
     return true;
 }
 
+// What names a sheet that was renamed or deleted, after the edits.
+QString followSheetOps(QString f, const MoveContext &c, bool definedName)
+{
+    for (const SheetOp &op : c.sheetOps) {
+        if (op.kind == SheetOp::Kind::Rename) f = renameSheetInFormula(f, op.name, op.newName, nullptr, definedName);
+        else f = deleteSheetInFormula(f, op.name, nullptr, definedName);
+    }
+    return f;
+}
+
 QString adjustAll(const QString &formula, int ownSheet, const MoveContext &c, bool definedName = false)
 {
     QString f = formula;
     for (const StructEdit &e : c.edits) f = adjustFormula(f, ownSheet, c.sheetNames, e, nullptr, definedName);
     if (f.contains(QLatin1Char('[')))
         for (const ColumnRename &r : c.renames) f = renameColumnInFormula(f, r.table, r.oldName, r.newName, false);
-    return f;
+    return followSheetOps(f, c, definedName);
 }
 
 // The formula of a rule (a conditional format, a validation) after the edits, as the rule's first range (the first of `sqref`) goes through them: it is written for that range's first cell.
@@ -125,7 +135,7 @@ QString adjustRuleAll(const QString &formula, int ownSheet, const MoveContext &c
     }
     if (f.contains(QLatin1Char('[')))
         for (const ColumnRename &r : c.renames) f = renameColumnInFormula(f, r.table, r.oldName, r.newName, false);
-    return f;
+    return followSheetOps(f, c, false);
 }
 
 QString adjustSqrefAll(const QString &sqref, int sheet, const MoveContext &c)
@@ -1067,9 +1077,14 @@ bool movePivotCachePart(const QByteArray &xml, const MoveContext &ctx, QByteArra
             if (ctx.sheetNames[i].compare(sheetName, Qt::CaseInsensitive) == 0) sheet = i;
         if (sheet < 0) continue;
         const QString was = ref;
-        if (!adjustRangeAll(ctx, sheet, &ref, false)) continue;
-        if (ref == was) continue;
+        if (!adjustRangeAll(ctx, sheet, &ref, false)) ref = was;
+        // (a sheet renamed: the cache names it as it is called now)
+        QString nowSheet = sheetName;
+        for (const SheetOp &op : ctx.sheetOps)
+            if (op.kind == SheetOp::Kind::Rename && op.name.compare(nowSheet, Qt::CaseInsensitive) == 0) nowSheet = op.newName;
+        if (ref == was && nowSheet == sheetName) continue;
         setAttribute(&tag, "ref", ref.toLatin1());
+        if (nowSheet != sheetName) setAttribute(&tag, "sheet", xmlscan::escapeAttribute(nowSheet));
         result += xml.mid(copied, t.start - copied) + tag;
         copied = t.end;
     }

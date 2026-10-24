@@ -3,6 +3,7 @@
 // loses its formula. See xlsxsave.h.
 
 #include "sheet/cellref.h"
+#include "sheet/xlsxbase.h"
 #include "sheet/xlsxsave.h"
 #include "sheet/xmlscan.h"
 
@@ -288,6 +289,61 @@ QByteArray formatFromChange(const QByteArray &head, const SheetFormat &f, const 
     return head.left(at) + tag + head.mid(at);
 }
 
+// The head of a sheet with the color of its tab made: the file's `tabColor` replaced (or taken out, for no color), or one put first in `sheetPr` (which is made, first in the sheet, if the
+// file has none).
+QByteArray tabColorFromChange(const QByteArray &head, const ColorSpec &color, const QByteArray &defaultPrefix)
+{
+    Tag t;
+    qsizetype pos = 0, rootEnd = -1, sheetPrStart = -1, sheetPrEnd = -1, closeStart = -1, closeEnd = -1, tabStart = -1, tabEnd = -1;
+    bool sheetPrSelf = false;
+    QByteArray prefix = defaultPrefix;
+    int depth = 0;
+    while (xmlscan::nextTag(head, pos, &t)) {
+        pos = t.end;
+        if (rootEnd < 0 && !t.closing) {
+            rootEnd = t.end;
+            prefix = QByteArray(xmlscan::prefixOf(t.name));
+            if (t.selfClosing) break;
+            continue;
+        }
+        if (t.closing) {
+            --depth;
+            if (sheetPrStart >= 0 && closeStart < 0 && t.local == "sheetPr") {
+                closeStart = t.start;
+                closeEnd = t.end;
+            }
+            continue;
+        }
+        if (t.local == "sheetPr" && sheetPrStart < 0) {
+            sheetPrStart = t.start;
+            sheetPrEnd = t.end;
+            sheetPrSelf = t.selfClosing;
+        } else if (t.local == "tabColor" && sheetPrStart >= 0 && closeStart < 0 && tabStart < 0) {
+            tabStart = t.start;
+            tabEnd = t.end;
+        }
+        if (!t.selfClosing) ++depth;
+        if (t.local == "sheetData") break;
+    }
+    if (rootEnd < 0) return head;
+    QByteArray element = colorXml("tabColor", color);
+    if (!element.isEmpty() && !prefix.isEmpty()) element.replace("<tabColor", "<" + prefix + "tabColor");
+    if (sheetPrStart < 0) {
+        if (element.isEmpty()) return head;
+        return head.left(rootEnd) + "<" + prefix + "sheetPr>" + element + "</" + prefix + "sheetPr>" + head.mid(rootEnd);
+    }
+    if (sheetPrSelf) {
+        if (element.isEmpty()) return head;
+        QByteArray open = head.mid(sheetPrStart, sheetPrEnd - sheetPrStart);
+        open.chop(2);
+        while (!open.isEmpty() && isSpaceByte(open.back())) open.chop(1);
+        return head.left(sheetPrStart) + open + ">" + element + "</" + prefix + "sheetPr>" + head.mid(sheetPrEnd);
+    }
+    if (tabStart >= 0) return head.left(tabStart) + element + head.mid(tabEnd);
+    if (element.isEmpty()) return head;
+    return head.left(sheetPrEnd) + element + head.mid(sheetPrEnd);
+}
+
 // What follows a sheet's cells (from after "</sheetData>" to the end) with its merged ranges made from `merges`: in place of the element the file has, or where the format puts it.
 QByteArray tailWithMerges(const QByteArray &after, const std::vector<CellRange> &merges, const QByteArray &prefix)
 {
@@ -346,6 +402,7 @@ public:
         if (changes.replaceColumns) m_columns = &changes.columns;
         if (changes.replaceMerges) m_merges = &changes.merges;
         if (changes.replaceFormat) m_format = &changes.format;
+        if (changes.replaceTabColor) m_tabColor = &changes.tabColor;
         for (RowEdits &r : m_rows) {
             std::stable_sort(r.items.begin(), r.items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
             // (one item for a cell: a changed cell stands over a result)
@@ -490,6 +547,7 @@ private:
         const qsizetype dataEnd = t.end;
         QByteArray before = m_buf.left(dataStart);
         if (dimStart >= 0 && !m_cells.empty()) before = withDimension(before, dimStart, dimEnd);
+        if (m_tabColor) before = tabColorFromChange(before, *m_tabColor, m_prefix);
         if (m_format) before = formatFromChange(before, *m_format, m_prefix);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
         put(before);
@@ -504,6 +562,7 @@ private:
             if (!newRowsFrom(0, 0xFFFFFFFFu)) return false;
             put("</" + m_prefix + "sheetData>");
             m_afterData = true;
+            m_dataClosed = true;
         } else {
             m_cur = dataEnd;
         }
@@ -850,7 +909,8 @@ private:
             m_cur = m_written;
             const QByteArray rest = m_buf.mid(m_written);
             Tag close;
-            if (xmlscan::nextTag(rest, 0, &close) && close.closing && close.local == "sheetData") put(rest.left(close.end) + tailWithMerges(rest.mid(close.end), *m_merges, m_prefix));
+            if (m_dataClosed) put(tailWithMerges(rest, *m_merges, m_prefix));   // (an empty sheetData was given its closing tag with its rows: what is left follows it)
+            else if (xmlscan::nextTag(rest, 0, &close) && close.closing && close.local == "sheetData") put(rest.left(close.end) + tailWithMerges(rest.mid(close.end), *m_merges, m_prefix));
             else put(rest);
             m_buf.clear();
             m_cur = m_written = 0;
@@ -879,13 +939,14 @@ private:
     QByteArray m_buf;
     qsizetype m_written = 0;   // [0, m_written) has been written, or dropped
     qsizetype m_cur = 0;       // [m_written, m_cur) is passed on as it is, and not yet written
-    bool m_eof = false, m_failed = false, m_afterData = false;
+    bool m_eof = false, m_failed = false, m_afterData = false, m_dataClosed = false;
     QByteArray m_prefix;
     QHash<QByteArray, SharedMaster> m_dropped;
     quint32 m_sharedUntil = 0;
     const std::vector<ColumnSpan> *m_columns = nullptr;
     const std::vector<CellRange> *m_merges = nullptr;
     const SheetFormat *m_format = nullptr;
+    const ColorSpec *m_tabColor = nullptr;
 };
 
 } // namespace

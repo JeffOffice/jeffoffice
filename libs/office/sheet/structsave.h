@@ -16,6 +16,7 @@ struct MoveContext {
     std::vector<StructEdit> edits;
     std::vector<ColumnRename> renames;   // columns of tables renamed (the formulas that name them follow)
     QStringList sheetNames;   // the workbook's, in order
+    std::vector<SheetOp> sheetOps;       // sheets renamed or deleted, in the order made, after the edits above (what names a sheet follows them)
 };
 
 // Whether an edit of the list moves cells on the sheet (inserted or deleted rows or columns, cells shifted).

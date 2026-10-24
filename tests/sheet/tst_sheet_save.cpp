@@ -3,6 +3,7 @@
 #include "sheethelpers.h"
 
 #include "io/zipindex.h"
+#include "sheet/xlsxbase.h"
 #include "sheet/xlsxsave.h"
 #include "sheet/xmlscan.h"
 
@@ -697,6 +698,268 @@ private Q_SLOTS:
         none.cells.push_back(number(0, 0, 5));
         out = patch(with, none);
         QVERIFY(out.contains("<sheetFormatPr baseColWidth=\"10\" defaultColWidth=\"9.5\" defaultRowHeight=\"15\" outlineLevelRow=\"1\"/>"));
+    }
+
+    // The color of a tab: the file's element replaced, one put first in the file's sheetPr (or made, in a self-closing one or none), and none taking the element away; what else is in
+    // sheetPr stays.
+    void theTabColorIsPutInTheSheetsHead()
+    {
+        auto sheetWith = [](const QString &head) { return QByteArray("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">" + head.toUtf8() + "<sheetData/></worksheet>"); };
+        SheetChanges c;
+        c.replaceTabColor = true;
+        c.tabColor = ColorSpec::fromRgb(0xC00000);
+        bool ok = false;
+        QString why;
+        QByteArray out = patch(sheetWith(QStringLiteral("<sheetPr><tabColor rgb=\"FF00FF00\"/><pageSetUpPr fitToPage=\"1\"/></sheetPr>")), c, true, &why, &ok);
+        QVERIFY2(ok, qPrintable(why));
+        QVERIFY2(out.contains("<sheetPr><tabColor rgb=\"FFC00000\"/><pageSetUpPr fitToPage=\"1\"/></sheetPr>"), out.constData());
+        out = patch(sheetWith(QStringLiteral("<sheetPr><pageSetUpPr fitToPage=\"1\"/></sheetPr>")), c, true, &why, &ok);
+        QVERIFY2(ok && out.contains("<sheetPr><tabColor rgb=\"FFC00000\"/><pageSetUpPr fitToPage=\"1\"/></sheetPr>"), out.constData());
+        out = patch(sheetWith(QStringLiteral("<sheetPr/>")), c, true, &why, &ok);
+        QVERIFY2(ok && out.contains("<sheetPr><tabColor rgb=\"FFC00000\"/></sheetPr>"), out.constData());
+        out = patch(sheetWith(QStringLiteral("<dimension ref=\"A1\"/>")), c, true, &why, &ok);
+        QVERIFY2(ok && out.contains("xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetPr><tabColor rgb=\"FFC00000\"/></sheetPr><dimension"), out.constData());
+        // a theme color, and none
+        c.tabColor.kind = ColorSpec::Kind::Theme;
+        c.tabColor.index = 4;
+        c.tabColor.tint = 0.5;
+        out = patch(sheetWith(QStringLiteral("<sheetPr><tabColor rgb=\"FF00FF00\"/></sheetPr>")), c, true, &why, &ok);
+        QVERIFY2(ok && out.contains("<tabColor theme=\"4\" tint=\"0.5\"/>"), out.constData());
+        c.tabColor = ColorSpec();
+        out = patch(sheetWith(QStringLiteral("<sheetPr><tabColor rgb=\"FF00FF00\"/><pageSetUpPr fitToPage=\"1\"/></sheetPr>")), c, true, &why, &ok);
+        QVERIFY2(ok && !out.contains("tabColor") && out.contains("<pageSetUpPr fitToPage=\"1\"/>"), out.constData());
+        out = patch(sheetWith(QStringLiteral("<dimension ref=\"A1\"/>")), c, true, &why, &ok);
+        QVERIFY2(ok && !out.contains("sheetPr"), out.constData());
+    }
+
+    // The rules of conditional formatting and validation a sheet has, written for a sheet that is made whole, read again: each kind of rule comes back with what it says.
+    void rulesAreWrittenAsTheFileHasThem()
+    {
+        Sheet sheet;
+        auto range = [](const char *ref) {
+            CellRange r;
+            parseRangeRef(QString::fromLatin1(ref), &r);
+            return r;
+        };
+        QVector<CondRule> rules;
+        {
+            CondRule r;
+            r.type = CondRule::Type::CellIs;
+            r.op = CondRule::Operator::Between;
+            r.formula1 = QStringLiteral("5");
+            r.formula2 = QStringLiteral("9");
+            r.dxf = 2;
+            r.priority = 3;
+            r.stopIfTrue = true;
+            r.ranges = {range("A1:A10"), range("C3")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::ColorScale;
+            r.priority = 1;
+            r.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Percentile, QStringLiteral("50"), true}, {CondValue::Type::Max, QString(), true}};
+            r.colors = {ColorSpec::fromRgb(0xF8696B), ColorSpec::fromRgb(0xFFEB84), ColorSpec::fromRgb(0x63BE7B)};
+            r.ranges = {range("B1:B10")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::DataBar;
+            r.priority = 2;
+            r.showValue = false;
+            r.minLength = 5;
+            r.maxLength = 80;
+            r.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+            r.colors = {ColorSpec::fromRgb(0x638EC6)};
+            r.ranges = {range("D1:D10")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::IconSet;
+            r.priority = 4;
+            r.iconSet = QStringLiteral("3Arrows");
+            r.reverse = true;
+            r.values = {{CondValue::Type::Percent, QStringLiteral("0"), true}, {CondValue::Type::Percent, QStringLiteral("33"), true}, {CondValue::Type::Number, QStringLiteral("7"), false}};
+            r.ranges = {range("E1:E10")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::Top10;
+            r.priority = 5;
+            r.rank = 3;
+            r.percent = true;
+            r.bottom = true;
+            r.dxf = 1;
+            r.ranges = {range("F1:F9")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::ContainsText;
+            r.priority = 6;
+            r.text = QStringLiteral("ab\"c");
+            r.dxf = 0;
+            r.ranges = {range("G2:G9")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::AboveAverage;
+            r.priority = 7;
+            r.above = false;
+            r.equalAverage = true;
+            r.stdDev = 2;
+            r.ranges = {range("H1:H5")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::Expression;
+            r.priority = 8;
+            r.formula1 = QStringLiteral("MOD(ROW(),2)=0");
+            r.dxf = 0;
+            r.ranges = {range("I1:I9")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::TimePeriod;
+            r.priority = 9;
+            r.timePeriod = QStringLiteral("lastWeek");
+            r.ranges = {range("J1:J9")};
+            rules.append(r);
+        }
+        QVector<Validation> checks;
+        {
+            Validation v;
+            v.type = Validation::Type::List;
+            v.formula1 = QStringLiteral("\"a,b,c\"");
+            v.dropDown = false;
+            v.showError = true;
+            v.showInput = true;
+            v.errorTitle = QStringLiteral("No");
+            v.error = QStringLiteral("Pick <one>");
+            v.promptTitle = QStringLiteral("Hint");
+            v.prompt = QStringLiteral("a, b, or c");
+            v.allowBlank = true;
+            v.ranges = {range("K1:K9")};
+            checks.append(v);
+            Validation w;
+            w.type = Validation::Type::Whole;
+            w.compare = Validation::Compare::GreaterEqual;
+            w.style = Validation::Style::Warning;
+            w.showError = true;
+            w.formula1 = QStringLiteral("0");
+            w.ranges = {range("L1:L9")};
+            checks.append(w);
+        }
+        const QByteArray after = conditionalFormatsXml(rules) + validationsXml(checks);
+        Sheet read;
+        QVERIFY(readSheetXml(worksheet(QString(), QString::fromUtf8(after)), &read));
+        QCOMPARE(read.conditionalFormats.size(), rules.size());
+        // (the sheet reads them by priority)
+        QVector<CondRule> byPriority = rules;
+        std::sort(byPriority.begin(), byPriority.end(), [](const CondRule &a, const CondRule &b) { return a.priority < b.priority; });
+        for (int i = 0; i < byPriority.size(); ++i) {
+            const CondRule &want = byPriority[i], &got = read.conditionalFormats[i];
+            QVERIFY2(got.type == want.type, qPrintable(QString::number(i)));
+            QCOMPARE(got.priority, want.priority);
+            QCOMPARE(got.dxf, want.dxf);
+            QCOMPARE(got.stopIfTrue, want.stopIfTrue);
+            QCOMPARE(got.ranges.size(), want.ranges.size());
+            QVERIFY(got.ranges[0] == want.ranges[0]);
+            QCOMPARE(got.values.size(), want.values.size());
+            for (int k = 0; k < want.values.size(); ++k) {
+                QVERIFY(got.values[k].type == want.values[k].type);
+                QCOMPARE(got.values[k].value, want.values[k].value);
+            }
+            QVERIFY(got.colors == want.colors);
+            if (want.type == CondRule::Type::CellIs) {
+                QVERIFY(got.op == want.op);
+                QCOMPARE(got.formula1, want.formula1);
+                QCOMPARE(got.formula2, want.formula2);
+            }
+            if (want.type == CondRule::Type::Expression) QCOMPARE(got.formula1, want.formula1);
+            if (want.type == CondRule::Type::DataBar) {
+                QCOMPARE(got.showValue, want.showValue);
+                QCOMPARE(got.minLength, want.minLength);
+                QCOMPARE(got.maxLength, want.maxLength);
+            }
+            if (want.type == CondRule::Type::IconSet) {
+                QCOMPARE(got.iconSet, want.iconSet);
+                QCOMPARE(got.reverse, want.reverse);
+                QVERIFY(got.values[2].gte == want.values[2].gte);
+            }
+            if (want.type == CondRule::Type::Top10) {
+                QCOMPARE(got.rank, want.rank);
+                QCOMPARE(got.percent, want.percent);
+                QCOMPARE(got.bottom, want.bottom);
+            }
+            if (want.type == CondRule::Type::ContainsText) QCOMPARE(got.text, want.text);
+            if (want.type == CondRule::Type::AboveAverage) {
+                QCOMPARE(got.above, want.above);
+                QCOMPARE(got.equalAverage, want.equalAverage);
+                QCOMPARE(got.stdDev, want.stdDev);
+            }
+            if (want.type == CondRule::Type::TimePeriod) QCOMPARE(got.timePeriod, want.timePeriod);
+        }
+        QCOMPARE(read.validations.size(), 2);
+        const Validation &v = read.validations[0], &w = read.validations[1];
+        QVERIFY(v.type == Validation::Type::List && !v.dropDown && v.showError && v.showInput && v.allowBlank);
+        QCOMPARE(v.formula1, QStringLiteral("\"a,b,c\""));
+        QCOMPARE(v.error, QStringLiteral("Pick <one>"));
+        QCOMPARE(v.promptTitle, QStringLiteral("Hint"));
+        QVERIFY(w.type == Validation::Type::Whole && w.compare == Validation::Compare::GreaterEqual && w.style == Validation::Style::Warning);
+        // a rule with no cells is not written
+        CondRule none;
+        none.type = CondRule::Type::Expression;
+        none.formula1 = QStringLiteral("TRUE");
+        QCOMPARE(conditionalFormatsXml({none}), QByteArray());
+        QCOMPARE(validationsXml({}), QByteArray());
+    }
+
+    // A sheet made whole: the skeleton has the view, the default sizes, the tab color, and the rules round an empty sheetData, and the changes put the cells in.
+    void aNewSheetIsTheSkeletonWithItsCellsPutIn()
+    {
+        Sheet sheet;
+        sheet.tabColor = ColorSpec::fromRgb(0x00B050);
+        sheet.view.frozen = true;
+        sheet.view.frozenRows = 1;
+        sheet.view.paneRow = 1;
+        sheet.view.zoom = 150;
+        sheet.view.showGridLines = false;
+        sheet.format.defaultRowHeight = 18;
+        sheet.format.customHeight = true;
+        const QByteArray skeleton = newSheetSkeleton(sheet);
+        SheetChanges c;
+        c.cells.push_back(number(0, 0, 7));
+        c.replaceColumns = true;
+        ColumnSpan col;
+        col.first = col.last = 1;
+        col.width = 20;
+        col.customWidth = true;
+        c.columns.push_back(col);
+        CellRange merged;
+        parseRangeRef(QStringLiteral("A3:B4"), &merged);
+        c.replaceMerges = true;
+        c.merges.push_back(merged);
+        bool ok = false;
+        QString why;
+        const QByteArray out = patch(skeleton, c, true, &why, &ok);
+        QVERIFY2(ok, qPrintable(why));
+        Sheet read;
+        QVERIFY2(readSheetXml(out, &read), out.constData());
+        QVERIFY(read.tabColor == ColorSpec::fromRgb(0x00B050));
+        QVERIFY(read.view.frozen && read.view.frozenRows == 1 && read.view.zoom == 150 && !read.view.showGridLines);
+        QCOMPARE(read.format.defaultRowHeight, 18.0);
+        QVERIFY(read.format.customHeight);
+        QCOMPARE(read.cells.cellCount(), qint64(1));
+        QCOMPARE(read.columns.size(), 1);
+        QCOMPARE(read.columns[0].width, 20.0);
+        QCOMPARE(read.merges.size(), 1);
     }
 
     // Fonts, fills, borders, and cell formats that a person's formatting made are put at the ends of their lists, each cell format a copy of the one it was made from with the places of its

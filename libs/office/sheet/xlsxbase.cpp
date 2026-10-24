@@ -267,8 +267,9 @@ QByteArray stylesPart(const Styles &st, qsizetype formatCount, const QSet<int> &
 
 // ---- the workbook
 
-QByteArray workbookPart(const WorkbookInfo &info)
+QByteArray workbookPart(const WorkbookInfo &fileInfo)
 {
+    const WorkbookInfo &info = fileInfo;
     QByteArray o = kXmlHead;
     o += QByteArray("<workbook xmlns=\"") + kMainNs + "\" xmlns:r=\"" + kRelNs + "\">";
     if (info.dateSystem == DateSystem::Date1904) o += "<workbookPr date1904=\"1\"/>";
@@ -630,7 +631,19 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         return false;
     };
     if (!book.isBinary()) return fail(say("The workbook is not one that was read from the older file format."));
-    const WorkbookInfo &info = book.info();
+    // The file is made of the sheets that were read, as they were read (by the names they had, whether or not a person has since renamed, deleted, or moved them: the changes are put in
+    // this file after, as in any other).
+    WorkbookInfo info = book.info();
+    {
+        QVector<SheetEntry> read;
+        for (SheetEntry e : info.sheets) {
+            if (e.isNew) continue;
+            if (!e.fileName.isEmpty()) e.name = e.fileName;
+            e.deleted = false;
+            read.append(e);
+        }
+        info.sheets = read;
+    }
     ZipWriter zip;
     // [Content_Types].xml and the relationships
     {
@@ -679,6 +692,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
 }
 
 
+QByteArray colorXml(const char *name, const ColorSpec &c) { return colorElement(name, c); }
 QByteArray fontXml(const FontSpec &f) { return fontElement(f); }
 QByteArray fillXml(const FillSpec &f) { return fillElement(f); }
 QByteArray borderXml(const BorderSpec &b) { return borderElement(b); }

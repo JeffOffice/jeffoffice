@@ -503,9 +503,187 @@ bool setFullCalcOnLoad(const QByteArray &xml, QByteArray *out)
     return true;
 }
 
+// ---- the workbook's list of sheets
+
+namespace {
+
+void dropAttribute(QByteArray *tag, const char *name)
+{
+    qsizetype vs = 0, ve = 0;
+    if (!xmlscan::attributeValue(*tag, name, &vs, &ve)) return;
+    qsizetype n = vs - 2;
+    while (n >= 0 && isSpace((*tag)[n])) --n;
+    if (n >= 0 && (*tag)[n] == '=') --n;
+    while (n >= 0 && isSpace((*tag)[n])) --n;
+    qsizetype nameStart = n;
+    while (nameStart > 0 && !isSpace((*tag)[nameStart - 1])) --nameStart;
+    qsizetype a = nameStart;
+    while (a > 0 && isSpace((*tag)[a - 1])) --a;
+    tag->remove(a, ve + 1 - a);
+}
+
+// The name and value of the attribute of a sheet element that names its relationship (it ends in ":id": "r:id").
+bool relationshipAttribute(const QByteArray &tag, QByteArray *name, QString *value)
+{
+    static const QRegularExpression re(QStringLiteral("\\s([A-Za-z0-9_]+:id)\\s*=\\s*\"([^\"]*)\""));
+    const QRegularExpressionMatch m = re.match(QString::fromLatin1(tag));
+    if (!m.hasMatch()) return false;
+    *name = m.captured(1).toLatin1();
+    *value = m.captured(2);
+    return true;
+}
+
+} // namespace
+
+// The workbook part with its list of sheets made from the workbook's own (the names they have now, whether each is shown, and the order of the tabs; a sheet that was deleted is out, and
+// one that was added is in, with the sheet number and relationship the workbook planned for it); the names that belong to one sheet follow it to its place in the list, or go with it; and
+// the sheet that is open is the one the file said, where it is now.
+bool patchWorkbookSheets(const QByteArray &xml, const Workbook &book, QByteArray *out, QString *error)
+{
+    auto bad = [&] {
+        if (error) *error = QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes.");
+        return false;
+    };
+    const WorkbookInfo &info = book.info();
+    Tag open, close;
+    if (!findStart(xml, "sheets", &open) || open.selfClosing || !findEnd(xml, open, &close)) return bad();
+    const QByteArray p(xmlscan::prefixOf(open.name));
+    // the sheet elements the file has, by their relationships
+    QHash<QString, QByteArray> byRel;
+    QByteArray relAttribute = "r:id";
+    {
+        Tag t;
+        qsizetype pos = open.end;
+        while (xmlscan::nextTag(xml, pos, &t) && t.start < close.start) {
+            pos = t.end;
+            if (t.closing || t.local != "sheet") continue;
+            const QByteArray tag = xml.mid(t.start, t.end - t.start);
+            QByteArray name;
+            QString id;
+            if (!relationshipAttribute(tag, &name, &id)) continue;
+            relAttribute = name;
+            byRel.insert(id, tag);
+        }
+    }
+    QByteArray sheets;
+    for (const int place : info.order) {
+        const SheetEntry &e = info.sheets[place];
+        QByteArray tag;
+        if (!e.isNew && byRel.contains(e.relId)) {
+            tag = byRel.value(e.relId);
+        } else if (e.isNew && !e.relId.isEmpty()) {
+            tag = "<" + p + "sheet name=\"x\" sheetId=\"" + QByteArray::number(e.sheetId) + "\" " + relAttribute + "=\"" + e.relId.toUtf8() + "\"/>";
+        } else {
+            return bad();
+        }
+        setAttribute(&tag, "name", xmlscan::escapeAttribute(e.name));
+        if (e.state == SheetState::Hidden) setAttribute(&tag, "state", "hidden");
+        else if (e.state == SheetState::VeryHidden) setAttribute(&tag, "state", "veryHidden");
+        else dropAttribute(&tag, "state");
+        sheets += tag;
+    }
+    QByteArray result = xml.left(open.end) + sheets + xml.mid(close.start);
+    // the namespace the relationships' attribute is in must be declared (a new sheet's element names it)
+    {
+        const QByteArray prefix = relAttribute.left(relAttribute.indexOf(':'));
+        Tag root;
+        if (!prefix.isEmpty() && xmlscan::nextTag(result, 0, &root) && !result.mid(root.start, root.end - root.start).contains("xmlns:" + prefix + "=")) {
+            QByteArray rootTag = result.mid(root.start, root.end - root.start);
+            setAttribute(&rootTag, ("xmlns:" + prefix).constData(), "http://schemas.openxmlformats.org/officeDocument/2006/relationships");
+            result = result.left(root.start) + rootTag + result.mid(root.end);
+        }
+    }
+    // the names that belong to one sheet: by the place of the sheet in the list (or gone with it)
+    {
+        QByteArray rewritten;
+        qsizetype copied = 0, pos = 0;
+        Tag t;
+        while (xmlscan::nextTag(result, pos, &t)) {
+            pos = t.end;
+            if (t.closing || t.local != "definedName") continue;
+            QByteArray tag = result.mid(t.start, t.end - t.start);
+            qsizetype vs = 0, ve = 0;
+            if (!xmlscan::attributeValue(tag, "localSheetId", &vs, &ve)) continue;
+            const int was = tag.mid(vs, ve - vs).toInt();
+            const int place = was >= 0 && was < info.fileOrder.size() ? info.fileOrder[was] : -1;
+            const int now = place >= 0 && place < info.sheets.size() && !info.sheets[place].deleted ? int(info.order.indexOf(place)) : -1;
+            qsizetype end = t.end;
+            if (!t.selfClosing) {
+                Tag closeName;
+                if (!findEnd(result, t, &closeName)) return bad();
+                end = closeName.end;
+            }
+            if (now < 0) {
+                rewritten += result.mid(copied, t.start - copied);
+                copied = end;
+                pos = end;
+                continue;
+            }
+            if (now == was) continue;
+            setAttribute(&tag, "localSheetId", QByteArray::number(now));
+            rewritten += result.mid(copied, t.start - copied) + tag;
+            copied = t.end;
+        }
+        rewritten += result.mid(copied);
+        result = rewritten;
+    }
+    // the sheet that is open
+    {
+        Tag view;
+        if (findStart(result, "workbookView", &view)) {
+            QByteArray tag = result.mid(view.start, view.end - view.start);
+            const int active = book.activeTabNow();
+            qsizetype a = 0, b = 0;
+            if (active != 0 || xmlscan::attributeValue(tag, "activeTab", &a, &b)) setAttribute(&tag, "activeTab", QByteArray::number(active));
+            if (xmlscan::attributeValue(tag, "firstSheet", &a, &b)) setAttribute(&tag, "firstSheet", "0");
+            result = result.left(view.start) + tag + result.mid(view.end);
+        }
+    }
+    *out = result;
+    return true;
+}
+
 // ---- the whole file
 
 namespace {
+
+// A relationship of the part's relationships taken out by its Id; false (nothing changed) if there is none.
+bool removeRelationshipById(const QByteArray &xml, const QString &id, QByteArray *out)
+{
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "Relationship") continue;
+        bool found = false;
+        const QByteArrayView value = xmlscan::attribute(QByteArrayView(xml).sliced(t.start, t.end - t.start), "Id", &found);
+        if (!found || xmlscan::unescape(value) != id) continue;
+        qsizetype from = t.start;
+        while (from > 0 && isSpace(xml[from - 1])) --from;
+        *out = xml.left(from) + xml.mid(t.end);
+        return true;
+    }
+    return false;
+}
+
+// A relationship made, at the end of the part's list; an Override of [Content_Types].xml the same.
+bool appendBefore(const QByteArray &xml, const char *container, const QByteArray &element, QByteArray *out)
+{
+    Tag open, close;
+    if (!findStart(xml, container, &open) || open.selfClosing || !findEnd(xml, open, &close)) return false;
+    const QByteArray p(xmlscan::prefixOf(open.name));
+    QByteArray e = element;
+    e.replace("<", "<" + p);
+    *out = xml.left(close.start) + e + xml.mid(close.start);
+    return true;
+}
+
+// Where a part's own relationships are kept: "/xl/worksheets/sheet2.xml" has "/xl/worksheets/_rels/sheet2.xml.rels".
+QString relationshipsPartOf(const QString &part)
+{
+    const int slash = int(part.lastIndexOf(QLatin1Char('/')));
+    return (slash < 0 ? QString() : part.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? part : part.mid(slash + 1)) + QStringLiteral(".rels");
+}
 
 class ZipSink : public PartSink {
 public:
@@ -568,6 +746,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     for (const auto &[sheet, sc] : changes.sheets) {
         if (sc.empty()) continue;
         if (sheet < 0 || sheet >= book.info().sheets.size()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A change is to a sheet the workbook does not have."));
+        if (book.info().sheets[sheet].deleted) continue;   // (it is not in the file)
+        if (book.info().sheets[sheet].isNew) {
+            // (a sheet that was added is made whole: see below)
+            if (!sc.cells.empty()) anyCellChanged = true;
+            continue;
+        }
         const int index = entryOfPart(book.info().sheets[sheet].part);
         if (index < 0) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A sheet that changed has no part in the file."));
         sheetOfEntry.insert(index, sheet);
@@ -579,13 +763,15 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     MoveContext ctx;
     ctx.edits = changes.edits;
     ctx.renames = changes.renames;
-    for (const SheetEntry &se : book.info().sheets) ctx.sheetNames << se.name;
-    const bool moves = !ctx.edits.empty() || !ctx.renames.empty();
+    // (the file's own names: the edits to rows and columns say which sheet by its place, and the file has not been told of the renames yet)
+    for (const SheetEntry &se : book.info().sheets) ctx.sheetNames << (se.isNew ? QString() : se.fileName);
+    ctx.sheetOps = changes.sheetOps;
+    const bool moves = !ctx.edits.empty() || !ctx.renames.empty() || !ctx.sheetOps.empty();
     QSet<int> moveSheets;   // the sheets (by their place) whose part is made by the mover
     if (moves) {
         anyCellChanged = true;
         for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet) {
-            if (book.info().sheets[sheet].kind != SheetKind::Worksheet) continue;
+            if (book.info().sheets[sheet].kind != SheetKind::Worksheet || book.info().sheets[sheet].deleted || book.info().sheets[sheet].isNew) continue;
             const int index = entryOfPart(book.info().sheets[sheet].part);
             if (index < 0) continue;
             if (cancel && cancel->load()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -615,7 +801,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             else if (cachePart.match(part).hasMatch()) replacePart(part, [&](const QByteArray &x, QByteArray *o, bool *c) { return movePivotCachePart(x, ctx, o, c); });
         }
         for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet) {
-            if (book.info().sheets[sheet].kind != SheetKind::Worksheet) continue;
+            if (book.info().sheets[sheet].kind != SheetKind::Worksheet || book.info().sheets[sheet].deleted || book.info().sheets[sheet].isNew) continue;
             const QString sheetPart = book.info().sheets[sheet].part;
             for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/drawing")))
                 if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveDrawingPart(x, ctx, sheet, o, c); });
@@ -678,13 +864,112 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             }
         }
     }
+    // ---- the sheets: added (made whole, below), deleted (their parts, and what only they use, are left out), renamed, moved, hidden, and shown
+    struct NewSheet {
+        int sheet;
+        QString part;
+    };
+    std::vector<NewSheet> newSheets;
+    if (changes.sheetsChanged) {
+        const WorkbookInfo &info = book.info();
+        // the parts that go with the sheets deleted: those they have and the rest of the workbook does not
+        QHash<QString, QString> gone;   // by the plain name
+        {
+            QHash<QString, QString> roots;
+            for (const SheetEntry &e : info.sheets)
+                if (e.deleted && !e.isNew && !e.part.isEmpty()) roots.insert(plain(e.part), e.part);
+            if (!roots.isEmpty()) {
+                QSet<QString> kept;
+                std::vector<QString> stack{QStringLiteral("/")};
+                while (!stack.empty()) {
+                    const QString source = stack.back();
+                    stack.pop_back();
+                    for (const Relationship &r : package.relationships(source)) {
+                        if (r.external) continue;
+                        const QString key = plain(r.target);
+                        if (roots.contains(key) || kept.contains(key)) continue;
+                        kept.insert(key);
+                        stack.push_back(r.target);
+                    }
+                }
+                gone = roots;
+                std::vector<QString> work;
+                for (const QString &part : roots) work.push_back(part);
+                while (!work.empty()) {
+                    const QString source = work.back();
+                    work.pop_back();
+                    for (const Relationship &r : package.relationships(source)) {
+                        if (r.external) continue;
+                        const QString key = plain(r.target);
+                        if (kept.contains(key) || gone.contains(key)) continue;
+                        gone.insert(key, r.target);
+                        work.push_back(r.target);
+                    }
+                }
+            }
+        }
+        const QString mainEntryName = package.entryName(book.mainPart());
+        const int slash = mainEntryName.lastIndexOf(QLatin1Char('/'));
+        const QString relsName = (slash < 0 ? QString() : mainEntryName.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? mainEntryName : mainEntryName.mid(slash + 1)) + QStringLiteral(".rels");
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        const int relsEntry = entryAt.value(plain(relsName), -1);
+        if (typesEntry < 0 || relsEntry < 0) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the file."));
+        QByteArray types, rels;
+        if (replaced.contains(typesEntry)) types = replaced.value(typesEntry);
+        else if (!inflate(typesEntry, &types)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the file."));
+        if (replaced.contains(relsEntry)) rels = replaced.value(relsEntry);
+        else if (!inflate(relsEntry, &rels)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the file."));
+        for (auto it = gone.cbegin(); it != gone.cend(); ++it) {
+            const QString &part = it.value();
+            QByteArray t2;
+            if (removeContentTypeOverride(types, part, &t2)) types = t2;
+            const int entry = entryOfPart(part);
+            if (entry >= 0) dropped.insert(entry);
+            const int relsOfPart = entryAt.value(plain(relationshipsPartOf(package.entryName(part).isEmpty() ? part : QStringLiteral("/") + package.entryName(part))), -1);
+            if (relsOfPart >= 0) dropped.insert(relsOfPart);
+        }
+        for (const SheetEntry &e : info.sheets) {
+            if (e.deleted && !e.isNew && !e.relId.isEmpty()) {
+                QByteArray r2;
+                if (removeRelationshipById(rels, e.relId, &r2)) rels = r2;
+            }
+        }
+        QString mainDir = book.mainPart().left(book.mainPart().lastIndexOf(QLatin1Char('/')) + 1);
+        for (int sheet = 0; sheet < info.sheets.size(); ++sheet) {
+            const SheetEntry &e = info.sheets[sheet];
+            if (!e.isNew || e.deleted || e.part.isEmpty() || e.relId.isEmpty()) continue;
+            QByteArray t2, r2;
+            if (!appendBefore(types, "Types", "<Override PartName=\"" + xmlscan::escapeAttribute(e.part) + "\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>", &t2))
+                return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the form this program changes."));
+            types = t2;
+            const QString target = e.part.startsWith(mainDir, Qt::CaseInsensitive) ? e.part.mid(mainDir.size()) : e.part;
+            if (!appendBefore(rels, "Relationships",
+                              "<Relationship Id=\"" + xmlscan::escapeAttribute(e.relId) + "\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"" + xmlscan::escapeAttribute(target) + "\"/>", &r2))
+                return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the form this program changes."));
+            rels = r2;
+            newSheets.push_back({sheet, e.part});
+        }
+        replaced.insert(typesEntry, types);
+        replaced.insert(relsEntry, rels);
+        anyCellChanged = true;
+    }
     // ---- the workbook part: the names follow the cells, and the other program is asked to work the formulas out again when it is to
-    if (changes.fullCalcOnLoad || moves) {
+    if (changes.fullCalcOnLoad || moves || changes.sheetsChanged) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
             bool changed = false;
             if (moves && moveWorkbookPart(xml, ctx, &patched, &changed) && changed) xml = patched;
+            if (changes.sheetsChanged) {
+                if (!patchWorkbookSheets(xml, book, &patched, &why)) return fail(why);
+                xml = patched;
+                changed = true;
+            }
             if (changes.fullCalcOnLoad && setFullCalcOnLoad(xml, &patched)) {
                 xml = patched;
                 changed = true;
@@ -741,6 +1026,25 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             zip.addRaw(e.name, e.method, e.crc, quint32(e.csize), quint32(e.usize), bytes.constData() + e.dataAt);
             ++rep.partsCopied;
         }
+    }
+    // the sheets that were added, made whole: the skeleton with their cells, sizes, and merged ranges put in
+    for (const NewSheet &n : newSheets) {
+        if (cancel && cancel->load()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
+        const auto found = changes.sheets.find(n.sheet);
+        SheetChanges sc;
+        if (found != changes.sheets.end()) sc = found->second;
+        QByteArray skeleton = sc.skeleton;
+        if (skeleton.isEmpty())
+            skeleton = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData/></worksheet>";
+        QBuffer in(&skeleton);
+        in.open(QIODevice::ReadOnly);
+        zip.beginStream(n.part.startsWith(QLatin1Char('/')) ? n.part.mid(1) : n.part, true);
+        const bool ok = patchSheet(&in, &sink, sc, hasShared, &why, cancel);
+        zip.endStream();
+        if (!ok) return fail(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "A sheet that was added could not be made.") : why);
+        rep.changedParts << n.part;
+        ++rep.partsChanged;
+        ++rep.sheetsRewritten;
     }
     *out = zip.finish();
     return true;
