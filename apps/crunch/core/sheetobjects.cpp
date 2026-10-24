@@ -19,12 +19,38 @@ using jp::grid::RenderRequest;
 
 namespace {
 
+// What the numbers and words a chart is drawn from come to (never 0).
+quint64 dataKey(const jp::office::Chart &c)
+{
+    quint64 h = 1469598103934665603ull;
+    auto mix = [&h](quint64 v) { h = (h ^ v) * 1099511628211ull; };
+    auto text = [&](const QString &t) { mix(quint64(qHash(t, 7))); mix(quint64(t.size())); };
+    text(c.title.text);
+    for (const jp::office::ChartAxis &a : c.axes) text(a.title.text);
+    for (const jp::office::ChartPlot &plot : c.plots)
+        for (const jp::office::ChartSeries &s : plot.series) {
+            text(s.name);
+            mix(quint64(s.categories.size()));
+            for (const QString &t : s.categories) text(t);
+            mix(quint64(s.values.size()));
+            for (const double v : s.values) mix(quint64(qHash(v, 11)));
+            mix(quint64(s.categoryNumbers.size()));
+            for (const double v : s.categoryNumbers) mix(quint64(qHash(v, 13)));
+            mix(quint64(s.xValues.size()));
+            for (const double v : s.xValues) mix(quint64(qHash(v, 17)));
+        }
+    return h | 1;
+}
+
 // What the drawing code may keep for the whole workbook, as a presentation's import may (the sample workbooks' largest drawing holds 1,889 shapes, 313 texts, and 75 pictures).
 constexpr qint64 kBudgetObjects = kMaxWorkbookObjects, kBudgetStories = 30000, kBudgetParagraphs = 300000, kBudgetRuns = 500000, kBudgetLetters = 20000000;
 // A chart part, once inflated, is read only if it is no larger than this (the largest real one is 1.8 MB).
 constexpr qint64 kMaxChartPartBytes = qint64(32) << 20;
 // A sheet's chart parts' references are read for saving from at most this many parts.
 constexpr int kMaxChartParts = 20000;
+// When rows or columns are inserted or deleted, the charts on the screen are looked at to see whether they would be drawn from other numbers: at most this many points are read for it in all
+// (past it, a chart is drawn again without looking).
+constexpr qint64 kMaxMovedChartCells = 400000;
 
 // How far a stroke reaches beyond the edge of the box, in the grid's units at 100% (points are 4/3 of them).
 double strokeReach(const Item &item, int depth)
@@ -229,6 +255,7 @@ void SheetObjects::list(int sheet, Sheet &s)
 
 void SheetObjects::replay(int sheet, Object &o)
 {
+    m_editSteps += qint64(m_applied.size());
     o.anchor = o.base;
     if (!m_applied.empty()) o.anchor = movedAnchor(o.base, sheet, m_applied);
     if (!o.refs.isEmpty() || !o.baseRefs.isEmpty()) {
@@ -240,6 +267,7 @@ void SheetObjects::replay(int sheet, Object &o)
 
 void SheetObjects::applyEdit(int sheet, Object &o, const StructEdit &edit)
 {
+    ++m_editSteps;
     const std::vector<StructEdit> one = {edit};
     o.anchor = movedAnchor(o.anchor, sheet, one);
     if (o.refs.isEmpty()) return;
@@ -327,6 +355,7 @@ std::function<QImage()> SheetObjects::prepareChart(int sheet, Object &o, const R
         applyChartCells(chart.get(), sheet, *m_cells);
         bool cut = false;
         o.reads = ChartReadIndex(jp::office::sheet::chartReads(*chart, sheet, *m_cells, &cut), cut);
+        o.drawnKey = dataKey(*chart);
         ++m_chartsDrawn;
     }
     const double side = kChartMaxSide;
@@ -501,12 +530,30 @@ void SheetObjects::cellsMoved()
         for (size_t i = 0; i < m_sheets.size(); ++i)
             for (const std::shared_ptr<Object> &o : m_sheets[i].objects) replay(int(i), *o);
     }
-    if (m_shown >= 0 && size_t(m_shown) < m_sheets.size())
+    if (m_shown >= 0 && size_t(m_shown) < m_sheets.size()) {
+        // the objects are where the edits put them, as they were made (a picture is drawn again only if its size is not the one it has); a chart is drawn again if what it reads is not what it
+        // was drawn from (a chart whose cells only moved with it is the same picture)
+        qint64 budget = kMaxMovedChartCells;
         for (const std::shared_ptr<Object> &o : m_sheets[size_t(m_shown)].objects) {
             m_layer.setAnchor(o->id, o->anchor);
-            if (o->chart) m_layer.invalidate(o->id);
+            if (o->chart && chartDataChanged(m_shown, *o, &budget)) m_layer.invalidate(o->id);
         }
+    }
     m_layer.layoutChanged();
+}
+
+bool SheetObjects::chartDataChanged(int sheet, Object &o, qint64 *budget)
+{
+    if (!m_cells || o.drawnKey == 0) return false;   // (never drawn from the cells: it is drawn from them when it is first wanted)
+    if (*budget <= 0) return true;
+    Chart c = *o.chart;
+    setChartRefs(&c, o.refs);
+    applyChartCells(&c, sheet, *m_cells);
+    qint64 points = 1;
+    for (const ChartPlot &plot : std::as_const(c.plots))
+        for (const ChartSeries &s : plot.series) points += s.values.size() + s.categories.size();
+    *budget -= points;
+    return dataKey(c) != o.drawnKey;
 }
 
 void SheetObjects::sizesChanged(int sheet)

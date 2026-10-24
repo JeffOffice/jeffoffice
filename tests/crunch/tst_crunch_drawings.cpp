@@ -62,6 +62,32 @@ QByteArray hugePng()
     return QByteArray("\x89PNG\r\n\x1a\n", 8) + chunk("IHDR", ihdr) + chunk("IEND", QByteArray());
 }
 
+// The data sheet, then a chart sheet "Chart1": a page that holds one chart of Sheet1!B2:B4 and no cells. The chart part has no fill of its own (the page behind it is the sheet's).
+QByteArray bookWithChartSheet()
+{
+    const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+    QByteArray chart = chartPart(QStringLiteral("barChart"), series);
+    chart.replace("</c:chart>", "</c:chart><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>");
+    QMap<QString, QByteArray> parts;
+    jp::readZip(buildXlsx({dataSheet()}), parts);
+    const QString relNs = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships");
+    parts[QStringLiteral("xl/workbook.xml")].replace("</sheets>", "<sheet name=\"Chart1\" sheetId=\"9\" r:id=\"rIdCS1\"/></sheets>");
+    parts[QStringLiteral("xl/_rels/workbook.xml.rels")].replace("</Relationships>", QStringLiteral("<Relationship Id=\"rIdCS1\" Type=\"%1/chartsheet\" Target=\"chartsheets/sheet1.xml\"/></Relationships>").arg(relNs).toUtf8());
+    parts[QStringLiteral("[Content_Types].xml")].replace("</Types>", "<Override PartName=\"/xl/chartsheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.chartsheet+xml\"/>"
+                                                                      "<Override PartName=\"/xl/drawings/drawing1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawing+xml\"/>"
+                                                                      "<Override PartName=\"/xl/charts/chart1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/></Types>");
+    parts[QStringLiteral("xl/chartsheets/sheet1.xml")] = QStringLiteral("<?xml version=\"1.0\"?><chartsheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"%1\"><drawing r:id=\"rIdD\"/></chartsheet>").arg(relNs).toUtf8();
+    parts[QStringLiteral("xl/chartsheets/_rels/sheet1.xml.rels")] = QStringLiteral("<?xml version=\"1.0\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                                                                                  "<Relationship Id=\"rIdD\" Type=\"%1/drawing\" Target=\"../drawings/drawing1.xml\"/></Relationships>").arg(relNs).toUtf8();
+    parts[QStringLiteral("xl/drawings/drawing1.xml")] = drawingPart(absolute(0, 0, 9525 * 640, 9525 * 480, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Page"))));
+    parts[QStringLiteral("xl/drawings/_rels/drawing1.xml.rels")] = QStringLiteral("<?xml version=\"1.0\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                                                                                  "<Relationship Id=\"rIdC\" Type=\"%1/chart\" Target=\"../charts/chart1.xml\"/></Relationships>").arg(relNs).toUtf8();
+    parts[QStringLiteral("xl/charts/chart1.xml")] = chart;
+    jp::ZipWriter z;
+    for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+    return z.finish();
+}
+
 } // namespace
 
 class CrunchDrawingTests : public QObject {
@@ -80,10 +106,44 @@ class CrunchDrawingTests : public QObject {
         return img.pixel(qRound(x * r), qRound(y * r));
     }
     static QRgb at(const QImage &img, const QPoint &p) { return at(img, p.x(), p.y()); }
-    static bool shown(EditWindow &e, int count)
+    static bool shown(EditWindow &e, int count, int sheet = 0)
     {
         crunch::SheetObjects *o = e.win.w.objects();
-        return o && o->shownSheet() == 0 && o->layer()->count() == count;
+        return o && o->shownSheet() == sheet && o->layer()->count() == count;
+    }
+    // The anchor the saved drawing has for the object of this name: its first row and its last row (a one-cell anchor has the one), and the anchor's editAs.
+    struct SavedAnchor {
+        bool found = false;
+        QString editAs, kind;
+        int fromRow = -1, toRow = -1;
+    };
+    static SavedAnchor savedAnchor(const QString &path, const QString &name)
+    {
+        SavedAnchor out;
+        office::Package p;
+        QString why;
+        if (!p.readLazyFile(path, &why)) return out;
+        QDomDocument doc;
+        if (!office::parseXml(p.part(QStringLiteral("/xl/drawings/drawing1.xml")), &doc)) return out;
+        const QDomNodeList all = doc.elementsByTagName(QStringLiteral("cNvPr"));
+        for (int i = 0; i < all.size(); ++i) {
+            if (all.at(i).toElement().attribute(QStringLiteral("name")) != name) continue;
+            QDomElement anchor = all.at(i).parentNode().toElement();
+            while (!anchor.isNull() && !anchor.localName().endsWith(QLatin1String("Anchor"))) anchor = anchor.parentNode().toElement();
+            if (anchor.isNull()) return out;
+            out.found = true;
+            out.kind = anchor.localName();
+            out.editAs = anchor.attribute(QStringLiteral("editAs"));
+            auto rowOf = [&](const char *tag) {
+                for (QDomElement c = anchor.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+                    if (c.localName() == QLatin1String(tag)) return c.firstChildElement(QStringLiteral("row")).text().toInt();
+                return -1;
+            };
+            out.fromRow = rowOf("from");
+            out.toRow = out.kind == QLatin1String("twoCellAnchor") ? rowOf("to") : out.fromRow;
+            return out;
+        }
+        return out;
     }
 
 private Q_SLOTS:
@@ -370,6 +430,285 @@ private Q_SLOTS:
             QCOMPARE(int(c.plots[0].series[0].values.size()), 4);   // (the column read as far as the sheet's cells go)
             QVERIFY(e.win.w.objects()->layer()->cacheBytes() <= jp::grid::ObjectLayer::kCacheBytes);
         }
+    }
+
+    // A chart sheet is a chart and nothing else: no cell cursor, no typing into a cell or the formula bar, no heading or gridlines; the page is white behind a chart with no fill of its own.
+    void aChartSheetIsOnlyAChart()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithChartSheet()));
+        QCOMPARE(e.win.w.shownSheets(), (QVector<int>{0, 1}));
+        QVERIFY(e.view()->cellsEnabled());
+        e.win.w.setActiveSheet(1);
+        QTRY_VERIFY(shown(e, 1, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(o->isChartSheet(1));
+        QVERIFY(!e.view()->cellsEnabled());
+        QVERIFY(e.win.w.formulaBar()->isReadOnly());
+        QVERIFY(!e.win.w.nameBox()->isEnabled());
+        o->layer()->prepareAll();
+        const QImage img = shot(e);
+        // a white page, the chart's ink on it, and no cell cursor or heading
+        QCOMPARE(at(img, 2, 2), QColor(Qt::white).rgb());
+        QSet<QRgb> colors;
+        const QRect box = o->layer()->deviceRect(0, grid::Pane::Body);
+        QVERIFY(!box.isEmpty());
+        for (int y = box.top(); y < box.bottom(); y += 3)
+            for (int x = box.left(); x < box.right(); x += 3) colors.insert(at(img, x, y));
+        QVERIFY2(colors.size() >= 4, qPrintable(QString::number(colors.size())));
+        QVERIFY(!e.view()->showHeadings());
+        // nothing a person types or clicks starts an entry or changes a cell
+        const QString before = e.selected();
+        QTest::keyClick(e.view(), Qt::Key_X);
+        QVERIFY(!e.win.w.cellEditor()->isVisible());
+        QTest::keyClick(e.win.w.formulaBar(), Qt::Key_Y);
+        QVERIFY(e.win.w.formulaBar()->text().isEmpty());
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(box.center()));
+        QCOMPARE(e.selected(), before);
+        QVERIFY(!e.win.w.isModified());
+        // the first sheet has its cells and its bars again
+        e.win.w.setActiveSheet(0);
+        QVERIFY(e.view()->cellsEnabled());
+        QVERIFY(!e.win.w.formulaBar()->isReadOnly());
+        QVERIFY(e.win.w.nameBox()->isEnabled());
+        QTRY_VERIFY(shown(e, 0, 0));
+    }
+
+    // A part that several anchors name is read once, and a chart drawn again for its cells is not read from its part again.
+    void aChartPartIsReadOnce()
+    {
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+        QString anchors;
+        for (int i = 0; i < 6; ++i) anchors += twoCell(4 + i, 1, 6 + i, 8, chartFrame(2 + i, QStringLiteral("rIdC"), QStringLiteral("Sales")));
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series))})));
+        QTRY_VERIFY(shown(e, 6));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        QCOMPARE(o->chartPartsRead(), 1);
+        e.select(QStringLiteral("B3"));
+        e.enter(QStringLiteral("55"));
+        QVERIFY(e.settle());
+        o->layer()->prepareAll();
+        QCOMPARE(o->chartNow(0, 3).plots[0].series[0].values, (QVector<double>{10, 55, 30}));
+        QCOMPARE(o->chartPartsRead(), 1);
+    }
+
+    // Saving looks for the charts in the parts of the file: a sheet that was never shown has its chart's numbers made again, and its drawing is not read, nor an object of it made.
+    void savingDoesNotBuildTheSheetsNeverShown()
+    {
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet(), dataSheet()}, drawingPart(twoCell(1, 1, 8, 12, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales")))),
+                                       {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series))}, QStringList(), QString(), QByteArray(), 1)));
+        crunch::SheetObjects *o = e.win.w.objects();
+        QTRY_VERIFY(o->listed(0));
+        e.select(QStringLiteral("B3"));
+        e.enter(QStringLiteral("55"));
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        QVERIFY(!o->listed(1));
+        QCOMPARE(o->objectsMade(), 0);
+        QCOMPARE(o->chartPartsRead(), 0);
+        office::Package after;
+        QString why;
+        QVERIFY2(after.readLazyFile(e.path, &why), qPrintable(why));
+        office::Chart chart;
+        QVERIFY(office::readChart(after.part(QStringLiteral("/xl/charts/chart1.xml")), office::defaultTheme(), office::ColorMap(), &chart, &why));
+        QCOMPARE(chart.plots[0].series[0].values, (QVector<double>{10, 55, 30}));
+    }
+
+    // A shape that keeps its size when cells are resized (editAs "oneCell") does: a row inserted inside its span does not make it taller, and a taller row under it does not either; and the
+    // anchor saved is the one that gives it the size it has.
+    void anObjectThatKeepsItsSizeKeepsItAndIsSavedSo()
+    {
+        {
+            EditWindow e;
+            QVERIFY(e.open(drawingBook()));
+            QTRY_VERIFY(shown(e, 5));
+            crunch::SheetObjects *o = e.win.w.objects();
+            o->layer()->prepareAll();
+            const QRect box = o->layer()->deviceRect(2, grid::Pane::Body);
+            QCOMPARE(savedAnchor(e.path, QStringLiteral("Box")).toRow, 12);
+            QVERIFY(e.win.w.session()->insertRows(0, 11, 1).ok);   // (inside its two rows)
+            const QRect now = o->layer()->deviceRect(2, grid::Pane::Body);
+            QCOMPARE(now.height(), box.height());
+            QCOMPARE(now.top(), box.top());
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY(saved.wait(20000));
+            const SavedAnchor a = savedAnchor(e.path, QStringLiteral("Box"));
+            QVERIFY(a.found);
+            QCOMPARE(a.fromRow, 10);
+            QCOMPARE(a.toRow, 12);   // (as tall as before: not 13)
+            QCOMPARE(a.editAs, QStringLiteral("oneCell"));
+            // a taller row under it: it keeps its height, and the file says where that ends
+            crunch::EditSession::SizeChange tall;
+            tall.setSize = true;
+            tall.size = 60;   // (points)
+            QVERIFY(e.win.w.session()->resizeRows(0, 10, 10, tall, QStringLiteral("Taller")).ok);
+            QCOMPARE(o->layer()->deviceRect(2, grid::Pane::Body).height(), box.height());
+            saved.clear();
+            QVERIFY(e.win.w.save());
+            QVERIFY(saved.wait(20000));
+            const SavedAnchor b = savedAnchor(e.path, QStringLiteral("Box"));
+            QVERIFY(b.found);
+            QCOMPARE(b.fromRow, 10);
+            QVERIFY2(b.toRow < 12, qPrintable(QString::number(b.toRow)));   // (a row of 80 pixels holds most of its 40)
+            QCOMPARE(b.editAs, QStringLiteral("oneCell"));
+        }
+        {
+            // an object that is not told to keep its size grows with the rows inserted inside it (the chart, over rows 1 to 13)
+            EditWindow e;
+            QVERIFY(e.open(drawingBook()));
+            QTRY_VERIFY(shown(e, 5));
+            crunch::SheetObjects *o = e.win.w.objects();
+            o->layer()->prepareAll();
+            const int height = o->layer()->deviceRect(0, grid::Pane::Body).height();
+            QVERIFY(e.win.w.session()->insertRows(0, 5, 2).ok);
+            QCOMPARE(o->layer()->deviceRect(0, grid::Pane::Body).height(), height + 2 * e.view()->sheet().layout().cellRect(5, 0).height());
+        }
+    }
+
+    // A hidden row stays hidden from the chart when rows are inserted above it: the chart reads the rows it read, and still leaves the hidden one out.
+    void aHiddenRowStaysLeftOutWhenRowsAreInserted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(drawingBook()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        crunch::EditSession::SizeChange hide;
+        hide.setHidden = true;
+        hide.hidden = true;
+        QVERIFY(e.win.w.session()->resizeRows(0, 2, 2, hide, QStringLiteral("Hide")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(o->chartNow(0, 0).plots[0].series[0].values, (QVector<double>{10, 30}));
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 2).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(o->chartNow(0, 0).plots[0].series[0].values, (QVector<double>{10, 30}));
+        QCOMPARE(o->chartNow(0, 0).plots[0].series[0].categories, (QStringList{"Q1", "Q3"}));
+        // and the same when the hidden row's place is deleted along with the rows above it, and undone
+        pressUndo(e.view());
+        QVERIFY(e.settle());
+        QCOMPARE(o->chartNow(0, 0).plots[0].series[0].values, (QVector<double>{10, 30}));
+    }
+
+    // Rows inserted move the objects in place: the pictures made stay (no object is made again, no picture drawn again), and the object picked is still the one picked.
+    void insertingRowsMovesTheObjectsInPlace()
+    {
+        EditWindow e;
+        QVERIFY(e.open(drawingBook()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        // the picture is picked
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, L.rangeRect(6, 0, 8, 1).center());
+        QCOMPARE(o->layer()->selectedId(), 1);
+        QTRY_COMPARE(o->layer()->pendingRenders(), 0);
+        const jp::grid::ObjectLayer::Stats before = o->layer()->stats();
+        const int made = o->objectsMade();
+        const qint64 charts = o->chartsDrawn();
+        const int top = o->layer()->deviceRect(1, grid::Pane::Body).top();
+        // below every object, between them, and above them: the objects below move, none is made or drawn again, and the one picked stays picked
+        QVERIFY(e.win.w.session()->insertRows(0, 30, 2).ok);
+        QVERIFY(e.win.w.session()->insertRows(0, 14, 2).ok);
+        QCOMPARE(o->layer()->deviceRect(1, grid::Pane::Body).top(), top);
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 3).ok);
+        QCOMPARE(o->layer()->deviceRect(1, grid::Pane::Body).top(), L.cellRect(9, 0).top());
+        QCOMPARE(o->layer()->selectedId(), 1);
+        pressUndo(e.view());
+        pressUndo(e.view());
+        pressRedo(e.view());
+        QCOMPARE(o->layer()->selectedId(), 1);
+        o->layer()->prepareAll();
+        QTRY_COMPARE(o->layer()->pendingRenders(), 0);
+        QCOMPARE(o->objectsMade(), made);
+        QCOMPARE(o->chartsDrawn(), charts);
+        QCOMPARE(o->layer()->stats().renders, before.renders);
+        // a row inserted inside the cells the chart reads is another set of numbers (a blank between): the chart is drawn again, and from them
+        QVERIFY(e.win.w.session()->insertRows(0, 2, 1).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(o->chartNow(0, 0).plots[0].series[0].values.size(), 4);
+        o->layer()->prepareAll();
+        QTRY_COMPARE(o->layer()->pendingRenders(), 0);
+        QVERIFY(o->chartsDrawn() > charts);
+    }
+
+    // Each edit of rows is worked into the objects once, however many came before it (a hundred insertions are not a hundred times the work of the last), and Undo goes back over all.
+    void manyEditsAreWorkedInOneAtATime()
+    {
+        EditWindow e;
+        QVERIFY(e.open(drawingBook()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        const qint64 before = o->editSteps();
+        for (int i = 0; i < 40; ++i) QVERIFY(e.win.w.session()->insertRows(0, 20 + quint32(i), 1).ok);
+        QCOMPARE(o->editSteps() - before, qint64(40 * 5));   // (five objects, each given each edit once)
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        o->layer()->prepareAll();
+        QCOMPARE(o->layer()->deviceRect(1, grid::Pane::Body).top(), L.cellRect(6, 0).top());
+        pressUndo(e.view());
+        QCOMPARE(o->layer()->deviceRect(2, grid::Pane::Body).top(), L.cellRect(10, 0).top());
+        // (an Undo is worked out from the objects as they were: each of the edits left, for each object)
+        QCOMPARE(o->editSteps() - before, qint64(40 * 5 + 5 * 39));
+    }
+
+    // A read that is told to have failed after the first screen was shown (the loader says so only before it, today, but the window must not depend on that) leaves no object over the
+    // blank grid it goes back to, and no cell cursor missing.
+    void aFailureAfterTheFirstScreenLeavesNoObjects()
+    {
+        EditWindow e;
+        QVERIFY(e.open(drawingBook()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, e.view()->sheet().layout().rangeRect(6, 0, 8, 1).center());
+        QCOMPARE(o->layer()->selectedId(), 1);
+        Q_EMIT e.win.w.workbookLoader().finished(false, QStringLiteral("The file ends too soon."));
+        QCOMPARE(o->layer()->count(), 0);
+        QCOMPARE(o->layer()->selectedId(), -1);
+        QCOMPARE(o->shownSheet(), -1);
+        QVERIFY(e.view()->cellsEnabled());
+        QCOMPARE(e.win.told.size(), 1);
+        QVERIFY2(e.win.told[0].contains(QLatin1String("ends too soon")), qPrintable(e.win.told[0]));
+        shot(e);
+        QVERIFY(!e.win.w.hasWorkbook());
+    }
+
+    // Two objects the file keeps in one element (a wrapper with two shapes in it) are not taken away one at a time: Delete says why, and both stay.
+    void objectsKeptTogetherAreNotDeletedApart() 
+    {
+        const QString wrapped = QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"a14\">%1%2</mc:Choice><mc:Fallback/></mc:AlternateContent>")
+                                    .arg(twoCell(0, 2, 2, 4, shapeElement(2, QStringLiteral("Left"), QStringLiteral("rect"), QString(), QStringLiteral("CC3333"))),
+                                         twoCell(3, 2, 5, 4, shapeElement(3, QStringLiteral("Right"), QStringLiteral("rect"), QString(), QStringLiteral("33CC33"))));
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(twoCell(0, 8, 2, 10, shapeElement(4, QStringLiteral("Alone"))) + wrapped), {})));
+        QTRY_VERIFY(shown(e, 3));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        QString why;
+        QVERIFY(o->canDelete(0, 0, &why));   // (the one that is alone)
+        QVERIFY(!o->canDelete(0, 1, &why));
+        QVERIFY2(why.contains(QLatin1String("together")), qPrintable(why));
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, L.rangeRect(2, 0, 3, 1).center());
+        QCOMPARE(o->layer()->selectedId(), 1);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QCOMPARE(e.win.told.size(), 1);
+        QVERIFY2(e.win.told[0].contains(QLatin1String("together")), qPrintable(e.win.told[0]));
+        QVERIFY(!o->isDeleted(0, 1));
+        QVERIFY(!o->isDeleted(0, 2));
+        QVERIFY(!e.win.w.isModified());
+        QCOMPARE(o->layer()->count(), 3);
+        // the one that is alone is taken away as before
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, L.rangeRect(8, 0, 9, 1).center());
+        QCOMPARE(o->layer()->selectedId(), 0);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(o->isDeleted(0, 0));
+        QCOMPARE(e.win.told.size(), 1);
     }
 };
 

@@ -106,6 +106,8 @@ public:
     qint64 chartsDrawn() const { return m_chartsDrawn; }
     int objectsMade() const { return m_objectsMade; }
     int chartPartsRead() const { return m_chartPartsRead; }
+    // How many edits of rows and columns have been worked into objects (one for each object and edit; an Undo works the edits since the file's again, for each object).
+    qint64 editSteps() const { return m_editSteps; }
     // Whether the sheet's drawing has been read (listed), and how many pictures the drawing code left out for their size or kept (what it holds of them is the file's bytes, never decoded here).
     bool listed(int sheet) const { return sheet >= 0 && size_t(sheet) < m_sheets.size() && m_sheets[size_t(sheet)].listed; }
     int imagesLeftOut() const { return m_doc->imagesLeftOut; }
@@ -132,6 +134,7 @@ private:
         std::shared_ptr<const jp::office::Chart> chart;   // a chart as read from its part, shared by the objects of that part
         QStringList baseRefs, refs;                    // its references as the file has them, and now
         jp::office::sheet::ChartReadIndex reads;       // the cells it read when last given to the worker
+        quint64 drawnKey = 0;                          // what the numbers and words it was last given to draw come to (0: it has not been given)
         bool deleted = false;                          // taken away by a person (not yet saved)
     };
     struct Sheet {
@@ -157,6 +160,8 @@ private:
     QStringList sheetNames() const;
     // The references the chart parts of the package read, by part (read once; a save makes them stale).
     const QStringList &partRefs(const QString &part);
+    // Whether the chart, with the references it has now, would be drawn from other numbers and words than it was last given (`budget` is what is left to read for the answer: past it, yes).
+    bool chartDataChanged(int sheet, Object &o, qint64 *budget);
     jp::office::sheet::DrawingAnchor twoCellFor(const Object &o, const jp::grid::Axis &rows, const jp::grid::Axis &cols) const;
 
     std::shared_ptr<jp::office::sheet::Workbook> m_book;
@@ -181,6 +186,7 @@ private:
     int m_objectsMade = 0;
     int m_chartPartsRead = 0;
     qint64 m_chartsDrawn = 0;
+    qint64 m_editSteps = 0;
 };
 
 } // namespace jp::crunch
