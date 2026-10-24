@@ -8,6 +8,7 @@
 // sheet can hold, so that an anchor far outside the sheet is a place far outside it and nothing more.
 
 #include "office/package.h"
+#include "sheet/refshift.h"
 
 #include <QDomDocument>
 #include <QDomElement>
@@ -15,6 +16,7 @@
 #include <QVector>
 
 #include <memory>
+#include <vector>
 
 namespace jp::office::sheet {
 
@@ -65,6 +67,11 @@ struct SheetDrawing {
     int skipped = 0;                       // anchors that hold nothing that is read (a form control, an ink stroke, a table or slicer)
     QString problem;                       // what is wrong with the part, if it could not be read
 };
+
+// The anchor after the edits that insert and delete rows and columns of its sheet (`sheet`, counted from 0), moved as saving moves the drawing part: a two-cell anchor moves and sizes
+// with the cells (each end is where its cell went), unless it says editAs "oneCell" (the first end moves, the second keeps its distance from it) or "absolute" (it stays); a one-cell
+// anchor moves; an absolute one stays.
+DrawingAnchor movedAnchor(const DrawingAnchor &anchor, int sheet, const std::vector<StructEdit> &edits);
 
 // The name of a sheet's drawing part, by the sheet part's relationships; empty if the sheet has none (or the part is not in the package).
 QString drawingPartOf(const Package &package, const QString &sheetPart);

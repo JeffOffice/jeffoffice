@@ -240,6 +240,29 @@ QVector<ChartBlock> chartReads(const Chart &chart, int ownSheet, const ChartCell
     return out;
 }
 
+namespace {
+
+QString movedRef(const QString &ref, const QStringList &sheetNames, const std::vector<StructEdit> &edits)
+{
+    QString f = ref;
+    for (const StructEdit &e : edits) f = adjustFormula(f, 0, sheetNames, e, nullptr, true);
+    return f;
+}
+
+} // namespace
+
+void moveChartRefs(Chart *chart, const QStringList &sheetNames, const std::vector<StructEdit> &edits)
+{
+    if (edits.empty()) return;
+    for (ChartPlot &plot : chart->plots)
+        for (ChartSeries &s : plot.series)
+            for (QString *ref : {&s.nameRef, &s.categoryRef, &s.valueRef, &s.xRef})
+                if (!ref->isEmpty()) *ref = movedRef(*ref, sheetNames, edits);
+    if (!chart->title.ref.isEmpty()) chart->title.ref = movedRef(chart->title.ref, sheetNames, edits);
+    for (ChartAxis &a : chart->axes)
+        if (!a.title.ref.isEmpty()) a.title.ref = movedRef(a.title.ref, sheetNames, edits);
+}
+
 int applyChartCells(Chart *chart, int ownSheet, const ChartCells &cells)
 {
     int budget = kMaxChartCells;

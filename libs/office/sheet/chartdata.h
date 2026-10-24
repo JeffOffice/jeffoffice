@@ -11,9 +11,13 @@
 #include "calc/value.h"
 #include "office/chart.h"
 #include "sheet/cellref.h"
+#include "sheet/refshift.h"
 
 #include <QString>
+#include <QStringList>
 #include <QVector>
+
+#include <vector>
 
 namespace jp::office::sheet {
 
@@ -70,6 +74,10 @@ bool readChartRef(const QString &ref, int ownSheet, const ChartCells &cells, int
 // Every block the chart reads (its series' names, categories, and values, and its linked titles), for deciding whether a change to the cells is one it draws. Blocks of a reference that
 // does not resolve are left out.
 QVector<ChartBlock> chartReads(const Chart &chart, int ownSheet, const ChartCells &cells);
+
+// The chart's references after the edits that insert and delete rows and columns, as saving rewrites the chart part's (so a chart follows its cells when they move): each reference of
+// each series and linked title. `sheetNames` are the workbook's, in order.
+void moveChartRefs(Chart *chart, const QStringList &sheetNames, const std::vector<StructEdit> &edits);
 
 // Puts the cells' contents in the chart: for each series that has the reference, its name, categories (or a scatter's x values), and values, without the points of hidden rows and
 // columns when the chart leaves them out (plotVisibleOnly); a point of an empty cell is a blank (NaN) and a text is 0. Linked titles take their cells' text. Returns the number of

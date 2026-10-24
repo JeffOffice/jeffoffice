@@ -119,6 +119,50 @@ DrawingAnchor readAnchor(const QDomElement &a)
 
 } // namespace
 
+namespace {
+
+// A row or column (from 0) after the edits to the rows or columns of the sheet: a place at or after an inserted row moves with it, one in rows that are deleted goes to their start.
+quint32 movedPoint(const std::vector<StructEdit> &edits, int sheet, bool rows, quint32 v)
+{
+    using K = StructEdit::Kind;
+    for (const StructEdit &e : edits) {
+        if (e.sheet != sheet) continue;
+        if (rows && e.kind == K::InsertRows) {
+            if (v >= e.first) v += e.count;
+        } else if (rows && e.kind == K::DeleteRows) {
+            if (v >= e.first + e.count) v -= e.count;
+            else if (v > e.first) v = e.first;
+        } else if (!rows && e.kind == K::InsertColumns) {
+            if (v >= e.first) v += e.count;
+        } else if (!rows && e.kind == K::DeleteColumns) {
+            if (v >= e.first + e.count) v -= e.count;
+            else if (v > e.first) v = e.first;
+        }
+    }
+    return v;
+}
+
+} // namespace
+
+DrawingAnchor movedAnchor(const DrawingAnchor &a, int sheet, const std::vector<StructEdit> &edits)
+{
+    DrawingAnchor out = a;
+    if (a.kind == AnchorKind::Absolute || a.editAs == AnchorKind::Absolute) return out;
+    out.from.col = movedPoint(edits, sheet, false, a.from.col);
+    out.from.row = movedPoint(edits, sheet, true, a.from.row);
+    if (a.kind != AnchorKind::TwoCell) return out;
+    if (a.editAs == AnchorKind::OneCell) {
+        // (both ends move as far as the first)
+        const qint64 dCol = qint64(out.from.col) - a.from.col, dRow = qint64(out.from.row) - a.from.row;
+        out.to.col = quint32(std::max<qint64>(0, qint64(a.to.col) + dCol));
+        out.to.row = quint32(std::max<qint64>(0, qint64(a.to.row) + dRow));
+        return out;
+    }
+    out.to.col = movedPoint(edits, sheet, false, a.to.col);
+    out.to.row = movedPoint(edits, sheet, true, a.to.row);
+    return out;
+}
+
 QString drawingPartOf(const Package &package, const QString &sheetPart)
 {
     if (sheetPart.isEmpty()) return QString();

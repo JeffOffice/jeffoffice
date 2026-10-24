@@ -2,7 +2,11 @@
 // a connector), a chart sheet's drawing, and the hostile forms. Every workbook is built in memory.
 #include "drawinghelpers.h"
 
+#include "sheet/chartdata.h"
 #include "sheet/drawing.h"
+#include "sheet/structsave.h"
+
+#include <QRandomGenerator>
 
 using namespace drawtest;
 
@@ -234,6 +238,94 @@ private Q_SLOTS:
         SheetDrawing ok;
         QVERIFY2(readDrawing(o.package, o.drawingPart, &ok, &why), qPrintable(why));
         QCOMPARE(ok.objects.size(), 1);
+    }
+
+    // The anchors move on the screen as saving moves them in the file: for any run of inserted and deleted rows and columns, the anchor movedAnchor gives is the one the saved drawing part has.
+    void anchorsMoveAsSavingMovesThem()
+    {
+        QString anchors;
+        const QString kinds[] = {QString(), QStringLiteral("oneCell"), QStringLiteral("absolute"), QStringLiteral("twoCell")};
+        for (int i = 0; i < 24; ++i)
+            anchors += twoCell(i % 7, (i * 3) % 11, i % 7 + 1 + i % 3, (i * 3) % 11 + 1 + i % 4, shapeElement(2 + i, QStringLiteral("S")), kinds[i % 4], i, i * 2, i * 3, i * 4);
+        anchors += oneCell(2, 6, 952500, 476250, shapeElement(40, QStringLiteral("One"))) + absolute(100000, 200000, 300000, 400000, shapeElement(41, QStringLiteral("Abs")));
+        const QByteArray original = drawingPart(anchors);
+        Opened o;
+        QString why;
+        QVERIFY2(open(&o, bookWithDrawing({dataSheet()}, original, {}), &why), qPrintable(why));
+        SheetDrawing before;
+        QVERIFY2(readDrawing(o.package, o.drawingPart, &before, &why), qPrintable(why));
+        QRandomGenerator rng(12345);
+        for (int seed = 0; seed < 60; ++seed) {
+            MoveContext ctx;
+            ctx.sheetNames = {QStringLiteral("Sheet1"), QStringLiteral("Sheet2")};
+            const int n = 1 + int(rng.bounded(5));
+            for (int k = 0; k < n; ++k) {
+                const int sheet = rng.bounded(4) == 0 ? 1 : 0;
+                const quint32 first = rng.bounded(12), count = 1 + rng.bounded(3);
+                switch (rng.bounded(4)) {
+                case 0: ctx.edits.push_back(StructEdit::insertRows(sheet, first, count)); break;
+                case 1: ctx.edits.push_back(StructEdit::deleteRows(sheet, first, count)); break;
+                case 2: ctx.edits.push_back(StructEdit::insertColumns(sheet, first, count)); break;
+                default: ctx.edits.push_back(StructEdit::deleteColumns(sheet, first, count)); break;
+                }
+            }
+            QByteArray moved;
+            bool changed = false;
+            QVERIFY(moveDrawingPart(original, ctx, 0, &moved, &changed));
+            QVector<ExtraPart> none;
+            Opened after;
+            QVERIFY2(open(&after, bookWithDrawing({dataSheet()}, moved, {}), &why), qPrintable(why));
+            SheetDrawing now;
+            QVERIFY2(readDrawing(after.package, after.drawingPart, &now, &why), qPrintable(why));
+            QCOMPARE(now.objects.size(), before.objects.size());
+            for (int i = 0; i < before.objects.size(); ++i) {
+                const DrawingAnchor want = now.objects[i].anchor, got = movedAnchor(before.objects[i].anchor, 0, ctx.edits);
+                QVERIFY2(got.from.col == want.from.col && got.from.row == want.from.row && got.from.colOff == want.from.colOff && got.from.rowOff == want.from.rowOff, qPrintable(QStringLiteral("seed %1 anchor %2 from").arg(seed).arg(i)));
+                if (want.kind == AnchorKind::TwoCell) QVERIFY2(got.to.col == want.to.col && got.to.row == want.to.row, qPrintable(QStringLiteral("seed %1 anchor %2 to").arg(seed).arg(i)));
+                QVERIFY(got.kind == want.kind && got.editAs == want.editAs && got.x == want.x && got.cx == want.cx);
+            }
+        }
+    }
+
+    // A chart's references move as saving moves them in the chart part.
+    void chartReferencesMoveAsSavingMovesThem()
+    {
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$9"), QStringLiteral("Sheet1!$B$2:$B$9"), QStringLiteral("n"), {"a"}, {1}, QString()},
+                                            SeriesSpec{QStringLiteral("Sheet2!$B$1"), QStringLiteral("Sheet2!$A$2:$A$9"), QStringLiteral("(Sheet1!$C$2:$C$4,Sheet2!$C$6:$C$9)"), QStringLiteral("m"), {"a"}, {1}, QString()}};
+        const QByteArray part = chartPart(QStringLiteral("lineChart"), series);
+        Chart base;
+        Theme theme;
+        QString why;
+        QVERIFY(readChart(part, theme, ColorMap(), &base, &why));
+        QRandomGenerator rng(777);
+        for (int seed = 0; seed < 80; ++seed) {
+            MoveContext ctx;
+            ctx.sheetNames = {QStringLiteral("Sheet1"), QStringLiteral("Sheet2")};
+            const int n = 1 + int(rng.bounded(4));
+            for (int k = 0; k < n; ++k) {
+                const int sheet = int(rng.bounded(2));
+                const quint32 first = rng.bounded(11), count = 1 + rng.bounded(3);
+                switch (rng.bounded(4)) {
+                case 0: ctx.edits.push_back(StructEdit::insertRows(sheet, first, count)); break;
+                case 1: ctx.edits.push_back(StructEdit::deleteRows(sheet, first, count)); break;
+                case 2: ctx.edits.push_back(StructEdit::insertColumns(sheet, first, count)); break;
+                default: ctx.edits.push_back(StructEdit::deleteColumns(sheet, first, count)); break;
+                }
+            }
+            QByteArray moved;
+            bool changed = false;
+            QVERIFY(moveChartPart(part, ctx, &moved, &changed));
+            Chart saved;
+            QVERIFY(readChart(moved, theme, ColorMap(), &saved, &why));
+            Chart live = base;
+            moveChartRefs(&live, ctx.sheetNames, ctx.edits);
+            for (int i = 0; i < 2; ++i) {
+                const ChartSeries &want = saved.plots[0].series[i], &got = live.plots[0].series[i];
+                QCOMPARE(got.nameRef, want.nameRef);
+                QCOMPARE(got.categoryRef, want.categoryRef);
+                QCOMPARE(got.valueRef, want.valueRef);
+            }
+        }
     }
 };
 
