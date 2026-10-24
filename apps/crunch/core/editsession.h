@@ -29,6 +29,8 @@ namespace jp::crunch {
 
 // The most cells a Delete (or any one edit) changes: past it the edit is refused, with a message, so that it never holds the worker, or the window, for long.
 constexpr qint64 kMaxCellsPerEdit = 100000;
+// The most cells a formatting command changes the format of at once (a whole column of a sheet that is full of cells, or a block), a step of them being 20 bytes each.
+constexpr qint64 kMaxStyledCells = 2000000;
 // The steps Undo goes back (each a command of the stack).
 constexpr int kUndoSteps = 1000;
 // The most memory the steps hold, by an estimate of the bytes of the cells in them (as they were and as they are): past it the oldest steps are forgotten, the newest never.
@@ -105,16 +107,25 @@ struct StructChange {
     int savedGen = 0;                                                    // how many saves had been made when it was done (an Undo after a later save is made against the saved file)
 };
 
+// A cell whose cell format a step changed, and nothing else of it (a formatting command's: it is what a format given to a million cells holds, so it is small): where it is, and the
+// formats it had and has.
+struct StyleCell {
+    qint32 sheet = 0;
+    quint32 row = 0, col = 0;
+    quint32 before = 0, after = 0;
+};
+
 // What one step of the undo stack changes: cells (as they were and as they are), and whatever goes with them.
 struct Step {
     std::vector<CellChange> cells;
+    std::vector<StyleCell> styles;
     std::vector<TableRename> renames;
     std::vector<SizeEdit> sizes;
     std::vector<MergeEdit> merges;
     std::vector<FormatEdit> formats;
     std::vector<SheetEdit> sheets;
     std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
-    bool empty() const { return cells.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && sheets.empty() && !structure; }
+    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && sheets.empty() && !structure; }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -388,7 +399,7 @@ private:
     // and rows of the range get their own formats.
     struct RestyleTarget {
         quint32 row = 0, col = 0;
-        std::shared_ptr<const jp::office::sheet::FormatChange> change;   // the change, or none to clear the formats
+        const jp::office::sheet::FormatChange *change = nullptr;   // the change (the caller holds it until the call is over), or none to clear the formats
     };
     using SizeBuilder = std::function<void(jp::office::sheet::Workbook &, const jp::office::sheet::Calculation &, Step *)>;
     Outcome restyle(int sheet, const std::vector<RestyleTarget> &targets, const QString &text, const SizeBuilder &sizes = nullptr);
@@ -446,6 +457,8 @@ private:
     qint64 m_token;
     std::set<int> m_formatsChanged;  // the sheets whose default sizes a step changed since the file was read or saved
     bool m_sheetsListed = false;                          // a step changed the list of sheets since the file was read or saved
+    std::set<int> m_sheetsRestyled;                       // the sheets a step gave the format of very many cells (drawn again whole)
+    std::set<int> m_statesChanged;                        // the sheets a step hid or showed
     std::set<int> m_tabColorsChanged;                     // the sheets whose tab color a step changed
     std::vector<jp::office::sheet::SheetOp> m_sheetOps;   // renames and deletes of sheets since the file was read or saved that are done (not undone), for the file
     bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);

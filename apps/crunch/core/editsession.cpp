@@ -123,6 +123,7 @@ public:
     {
         qint64 n = 0;
         for (const CellChange &c : m_step.cells) n += qint64(sizeof(c)) + contentBytes(c.before) + contentBytes(c.after) + qint64(c.formatCode.size()) * 2;
+        n += qint64(m_step.styles.size()) * qint64(sizeof(StyleCell));
         for (const TableRename &r : m_step.renames) n += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
         for (const MergeEdit &m : m_step.merges) n += qint64(sizeof(m)) + qint64(m.before.size() + m.after.size()) * qint64(sizeof(jp::office::sheet::CellRange));
         for (const SheetEdit &e : m_step.sheets) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.orderBefore.size() + e.orderAfter.size()) * qint64(sizeof(int));
@@ -691,6 +692,24 @@ bool EditSession::apply(Step *step, bool forward)
         }
     }
     for (TableRename &r : step->renames) {
+    {
+        // the cells whose format alone changed: told one by one, or, when there are very many, as the whole sheet being drawn again
+        const bool many = step->styles.size() > 20000;
+        std::set<int> sheetsStyled;
+        for (const StyleCell &sc : step->styles) {
+            calc->setStyle(sc.sheet, sc.row, sc.col, forward ? sc.after : sc.before);
+            m_touched.insert(keyOf(sc.sheet, sc.row, sc.col));
+            sheetsStyled.insert(sc.sheet);
+            if (many) continue;
+            ValueStore::Item styled;
+            styled.sheet = sc.sheet;
+            styled.row = sc.row;
+            styled.col = sc.col;
+            cells[sc.sheet].push_back(styled);
+        }
+        if (many)
+            for (const int sheet : sheetsStyled) m_sheetsRestyled.insert(sheet);
+    }
         book.setTableColumnName(r.table, r.column, forward ? r.after : r.before);
         // the defined names that name the column follow, and the file's other parts that do are told at a save
         const QString table = r.table >= 0 && r.table < book.tables().size() ? book.tables()[r.table].name : QString();
@@ -727,6 +746,8 @@ bool EditSession::apply(Step *step, bool forward)
     for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
     for (const SizeEdit &e : step->sizes) Q_EMIT sizesChanged(e.sheet);
     for (const MergeEdit &m : step->merges) Q_EMIT sizesChanged(m.sheet);
+    for (const int sheet : m_sheetsRestyled) Q_EMIT sizesChanged(sheet);
+    m_sheetsRestyled.clear();
     for (const FormatEdit &f : step->formats) Q_EMIT sizesChanged(f.sheet);
     if (!step->sheets.empty()) Q_EMIT sheetsChanged();
     return true;

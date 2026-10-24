@@ -17,6 +17,7 @@
 #include <QSet>
 #include <QXmlStreamReader>
 #include <algorithm>
+#include <cstring>
 #include <cmath>
 
 namespace jp::office::sheet {
@@ -1908,33 +1909,118 @@ constexpr qint64 kMaxFontsMade = 100000, kMaxFillsMade = 100000, kMaxBordersMade
 
 quint32 Workbook::fontPlace(const FontSpec &font)
 {
-    for (int i = 0; i < m_styles.fonts.size(); ++i)
-        if (m_styles.fonts[i] == font) return quint32(i);
-    if (m_styles.fonts.size() >= kMaxFontsMade) return 0;
+namespace {
+
+quint64 mixed(quint64 h, quint64 v) { return (h ^ v) * 1099511628211ull; }
+
+quint64 hashOf(const ColorSpec &c)
+{
+    quint64 h = mixed(1469598103934665603ull, quint64(c.kind));
+    switch (c.kind) {
+    case ColorSpec::Kind::Rgb: return mixed(h, c.rgb);
+    case ColorSpec::Kind::Theme: {
+        const double tint = c.tint == 0 ? 0.0 : c.tint;   // (-0 and 0 are equal)
+        quint64 bits = 0;
+        std::memcpy(&bits, &tint, sizeof(bits));
+        return mixed(mixed(h, quint64(quint32(c.index))), bits);
+    }
+    case ColorSpec::Kind::Indexed: return mixed(h, quint64(quint32(c.index)));
+    default: return h;
+    }
+}
+
+quint64 hashOf(const FontSpec &f)
+{
+    quint64 h = mixed(1469598103934665603ull, quint64(qHash(f.name)));
+    quint64 bits = 0;
+    const double size = f.size == 0 ? 0.0 : f.size;
+    std::memcpy(&bits, &size, sizeof(bits));
+    h = mixed(h, bits);
+    h = mixed(h, quint64(f.bold) | quint64(f.italic) << 1 | quint64(f.strike) << 2 | quint64(f.underline) << 8 | quint64(f.vertAlign) << 16);
+    h = mixed(h, hashOf(f.color));
+    h = mixed(h, quint64(quint32(f.family)) | quint64(quint32(f.charset)) << 32);
+    return mixed(h, quint64(qHash(f.scheme)));
+}
+
+quint64 hashOf(const FillSpec &f)
+{
+    quint64 h = mixed(1469598103934665603ull, quint64(f.pattern) | quint64(f.gradient) << 8);
+    return mixed(mixed(h, hashOf(f.fg)), hashOf(f.bg));
+}
+
+quint64 hashOf(const BorderSide &s)
+{
+    quint64 h = mixed(1469598103934665603ull, quint64(s.style));
+    return s.style == BorderStyle::None ? h : mixed(h, hashOf(s.color));   // (a side with no line has no color that matters)
+}
+
+quint64 hashOf(const BorderSpec &b)
+{
+    quint64 h = mixed(1469598103934665603ull, quint64(b.diagonalUp) | quint64(b.diagonalDown) << 1);
+    for (const BorderSide *s : {&b.left, &b.right, &b.top, &b.bottom, &b.diagonal}) h = mixed(h, hashOf(*s));
+    return h;
+}
+
+// The place of the first of the list's items that is equal to `item` (found by its hash; the index is made from the list when first needed), or -1.
+template <class T>
+int firstEqual(const QVector<T> &list, std::unordered_multimap<quint64, quint32> *index, bool *made, const T &item, qint64 *compared)
+{
+    if (!*made) {
+        index->clear();
+        index->reserve(size_t(list.size()) * 2);
+        for (int i = 0; i < list.size(); ++i) index->emplace(hashOf(list[i]), quint32(i));
+        *made = true;
+    }
+    const auto range = index->equal_range(hashOf(item));
+    quint32 found = 0xFFFFFFFFu;
+    for (auto it = range.first; it != range.second; ++it) {
+        ++*compared;
+        if (list[int(it->second)] == item && it->second < found) found = it->second;
+    }
+    return found == 0xFFFFFFFFu ? -1 : int(found);
+}
+
+} // namespace
+
+    const int found = firstEqual(m_styles.fonts, &m_fontIndex, &m_fontIndexMade, font, &m_placeComparisons);
+    if (found >= 0) return quint32(found);
+    if (m_styles.fonts.size() >= kMaxFontsMade) {
+        m_formatLimitHit = true;
+        return 0;
+    }
     m_styles.fonts.append(font);
     m_fontsAdded.append(font);
     return quint32(m_styles.fonts.size() - 1);
 }
+    m_fontIndex.emplace(hashOf(font), quint32(m_styles.fonts.size() - 1));
 
 quint32 Workbook::fillPlace(const FillSpec &fill)
 {
-    for (int i = 0; i < m_styles.fills.size(); ++i)
-        if (m_styles.fills[i] == fill) return quint32(i);
-    if (m_styles.fills.size() >= kMaxFillsMade) return 0;
+    const int found = firstEqual(m_styles.fills, &m_fillIndex, &m_fillIndexMade, fill, &m_placeComparisons);
+    if (found >= 0) return quint32(found);
+    if (m_styles.fills.size() >= kMaxFillsMade) {
+        m_formatLimitHit = true;
+        return 0;
+    }
     m_styles.fills.append(fill);
     m_fillsAdded.append(fill);
     return quint32(m_styles.fills.size() - 1);
 }
+    m_fillIndex.emplace(hashOf(fill), quint32(m_styles.fills.size() - 1));
 
 quint32 Workbook::borderPlace(const BorderSpec &border)
 {
-    for (int i = 0; i < m_styles.borders.size(); ++i)
-        if (m_styles.borders[i] == border) return quint32(i);
-    if (m_styles.borders.size() >= kMaxBordersMade) return 0;
+    const int found = firstEqual(m_styles.borders, &m_borderIndex, &m_borderIndexMade, border, &m_placeComparisons);
+    if (found >= 0) return quint32(found);
+    if (m_styles.borders.size() >= kMaxBordersMade) {
+        m_formatLimitHit = true;
+        return 0;
+    }
     m_styles.borders.append(border);
     m_bordersAdded.append(border);
     return quint32(m_styles.borders.size() - 1);
 }
+    m_borderIndex.emplace(hashOf(border), quint32(m_styles.borders.size() - 1));
 
 quint32 Workbook::findOrAddFormat(quint32 base, const CellFormat &format)
 {
@@ -1950,7 +2036,10 @@ quint32 Workbook::findOrAddFormat(quint32 base, const CellFormat &format)
     for (auto it = range.first; it != range.second; ++it)
         if (m_styles.formats[int(it->second)] == format && it->second < found) found = it->second;
     if (found != 0xFFFFFFFFu) return found;
-    if (m_styles.formats.size() >= kMaxCellXfs) return base;
+    if (m_styles.formats.size() >= kMaxCellFormatsWritten) {
+        m_formatLimitHit = true;
+        return base;
+    }
     m_styles.formats.append(format);
     m_styles.cellXfs.append(format.numFmtId);
     m_formatsAdded.append({base, format});

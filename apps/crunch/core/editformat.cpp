@@ -65,6 +65,7 @@ EditSession::Outcome EditSession::restyle(int sheet, const std::vector<RestyleTa
         }
         Calculation *calc = hold->calculation();
         Workbook &book = *m_book->book;
+        book.clearFormatLimit();
         quint32 row1 = targets.empty() ? 0 : targets.front().row, row2 = row1, col1 = targets.empty() ? 0 : targets.front().col, col2 = col1;
         for (const RestyleTarget &t : targets) {
             row1 = std::min(row1, t.row);
@@ -74,6 +75,7 @@ EditSession::Outcome EditSession::restyle(int sheet, const std::vector<RestyleTa
         }
         const Implicit implicitStyles = implicitOf(*calc, sheet, row1, row2, col1, col2);
         std::map<std::pair<quint32, const FormatChange *>, quint32> made;
+        step.styles.reserve(targets.size());
         for (const RestyleTarget &t : targets) {
             const Calculation::CellContent before = calc->content(sheet, t.row, t.col);
             const quint32 base = before.exists ? before.style : implicitStyles.at(t.row, t.col);
@@ -84,25 +86,30 @@ EditSession::Outcome EditSession::restyle(int sheet, const std::vector<RestyleTa
             }
             quint32 style = 0;
             if (t.change) {
-                const auto key = std::make_pair(base, t.change.get());
+                const auto key = std::make_pair(base, t.change);
                 const auto found = made.find(key);
                 if (found != made.end()) style = found->second;
                 else made[key] = style = book.formatWith(base, *t.change);
             }
             if (style == base) continue;
             if (!before.exists && style == 0) continue;
-            CellChange ch;
+            StyleCell ch;
             ch.sheet = sheet;
             ch.row = t.row;
-            ch.col = quint16(t.col);
-            ch.before = before;
-            ch.after = before;
-            ch.after.exists = true;
-            ch.after.style = style;
-            ch.styleOnly = true;
-            step.cells.push_back(std::move(ch));
+            ch.col = t.col;
+            ch.before = before.exists ? before.style : 0;
+            ch.after = style;
+            step.styles.push_back(ch);
         }
         if (sizes) sizes(book, *calc, &step);
+        if (book.formatLimitHit()) {
+            // (a format that could not be made would have been left out of the step without a word)
+            out.ok = false;
+            out.problem = tr("This workbook has as many different formats as a workbook can hold (%1 cell formats). Give the cells a format the workbook already has, or clear the formats of some cells, and try again.")
+                              .arg(QLocale().toString(jp::office::sheet::kMaxCellFormatsWritten));
+            book.clearFormatLimit();
+            return out;
+        }
     }
     if (step.empty()) return out;
     pushStep(std::move(step), text);
@@ -130,35 +137,41 @@ EditSession::Outcome EditSession::restyleRange(int sheet, const CellRange &range
     std::vector<RestyleTarget> targets;
     if (!wholeColumns && !wholeRows) {
         const qint64 count = (qint64(range.row2) - range.row1 + 1) * (qint64(range.col2) - range.col1 + 1);
-        if (count > kMaxCellsPerEdit && change) {
+        if (count > kMaxStyledCells && change) {
             out.ok = false;
-            out.problem = tr("That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.").arg(QLocale().toString(kMaxCellsPerEdit));
+            out.problem = tr("That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.").arg(QLocale().toString(kMaxStyledCells));
             return out;
         }
         if (change) {
             targets.reserve(size_t(count));
             for (quint32 r = range.row1; r <= range.row2; ++r)
-                for (quint32 c = range.col1; c <= range.col2; ++c) targets.push_back({r, c, change});
+                for (quint32 c = range.col1; c <= range.col2; ++c) targets.push_back({r, c, change.get()});
         } else {
+            // (the cells that are there: one that is not has no format of its own to clear)
             qint64 seen = 0;
             calc->sheet(sheet).cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](const Cell &cell) {
-                if (++seen > kMaxCellsPerEdit) return false;
+                if (++seen > kMaxStyledCells) return false;
                 targets.push_back({cell.row, cell.col, nullptr});
                 return true;
             });
+            if (seen > kMaxStyledCells) {
+                out.ok = false;
+                out.problem = tr("That is more cells than JeffCrunch clears the formats of at once (%1). Select fewer cells.").arg(QLocale().toString(kMaxStyledCells));
+                return out;
+            }
         }
         return restyle(sheet, targets, text);
     }
     // whole columns or rows: the cells that have formats of their own are changed, and the columns' (rows') own format is
     qint64 seen = 0;
     calc->sheet(sheet).cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](const Cell &cell) {
-        if (++seen > kMaxCellsPerEdit) return false;
-        if (cell.style != 0 || change) targets.push_back({cell.row, cell.col, change});
+        if (++seen > kMaxStyledCells) return false;
+        if (cell.style != 0 || change) targets.push_back({cell.row, cell.col, change.get()});
         return true;
     });
-    if (seen > kMaxCellsPerEdit) {
+    if (seen > kMaxStyledCells) {
         out.ok = false;
-        out.problem = tr("That is more cells than JeffCrunch formats at once (%1). Select fewer columns or rows.").arg(QLocale().toString(kMaxCellsPerEdit));
+        out.problem = tr("That is more cells than JeffCrunch formats at once (%1). Select fewer columns or rows.").arg(QLocale().toString(kMaxStyledCells));
         return out;
     }
     if (wholeRows && qint64(range.row2) - range.row1 + 1 > kMaxRowsPerResize) {
@@ -319,7 +332,7 @@ EditSession::Outcome EditSession::setBorders(int sheet, const CellRange &range, 
         }
     std::vector<RestyleTarget> targets;
     targets.reserve(changes.size());
-    for (const auto &[place, change] : changes) targets.push_back({place.first, place.second, change});
+    for (const auto &[place, change] : changes) targets.push_back({place.first, place.second, change.get()});
     Outcome result = restyle(sheet, targets, text);
     result.range = range;
     return result;
@@ -507,7 +520,7 @@ EditSession::Outcome EditSession::mergeCells(int sheet, const CellRange &range, 
         auto change = std::make_shared<FormatChange>();
         change->horizontal = HAlign::Center;
         std::vector<RestyleTarget> targets;
-        for (const CellRange &b : blocks) targets.push_back({b.row1, b.col1, change});
+        for (const CellRange &b : blocks) targets.push_back({b.row1, b.col1, change.get()});
         // (the format is made first, then the contents and the merges go in the same step)
         std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
         if (!hold) return refuse(tr("The workbook is busy. Try again in a moment."));

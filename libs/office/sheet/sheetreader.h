@@ -63,6 +63,8 @@ constexpr qint64 kMaxSharedStringChars = 50000000;
 // (a code is 233 characters at the most, and 4,096 are read).
 constexpr qint64 kMaxNumFmts = 100000;
 constexpr qint64 kMaxCellXfs = 1000000;
+// The most cell formats the program adds to a workbook (a person's formatting makes them): the format's own practical limit, which the programs that open a workbook keep to.
+constexpr qint64 kMaxCellFormatsWritten = 64000;
 constexpr qint64 kMaxNumFmtChars = 4000000;
 // Fonts, fills, and borders in the styles (cell formats have their own limit above). A font's name is 31 characters at the most in the format; 255 are kept, so that a styles part
 // of a hundred thousand fonts each with a name of a million characters holds no more than the 4 GB budget says (the fonts take 50 MB at the most).
@@ -239,6 +241,12 @@ public:
     // The place of the cell format that is `base` with the change: one of the workbook's that is exactly that (a cell format is never made twice), else a new one at the end, with the
     // font, fill, and border it needs found among the workbook's or added. `base` itself when the change changes nothing (or the workbook can take no more cell formats).
     quint32 formatWith(quint32 base, const FormatChange &change);
+    // Whether a format (a cell format, a font, a fill, or a border) was wanted since `clearFormatLimit` that the workbook could take no more of: the caller then says so, and does not go
+    // on with what it was doing with `base`.
+    bool formatLimitHit() const { return m_formatLimitHit; }
+    void clearFormatLimit() { m_formatLimitHit = false; }
+    // How many fonts, fills, and borders were compared with another to find a place for one (found by a hash, it is a few for each, not as many as the workbook has).
+    qint64 placeComparisons() const { return m_placeComparisons; }
     // The place of the style format a named style has (by its name), made when the workbook does not have it and it is one of the built-in styles (see builtinStyleNames); -1 if there is none.
     qint32 styleNamed(const QString &name);
     // The additions since the file was read or saved, for saving them: the strings, the number formats (id and code), and the cell formats (the one each is a copy of, and its number format).
@@ -332,6 +340,10 @@ private:
     quint32 fillPlace(const FillSpec &fill);
     quint32 borderPlace(const BorderSpec &border);
     quint32 findOrAddFormat(quint32 base, const CellFormat &format);
+    std::unordered_multimap<quint64, quint32> m_fontIndex, m_fillIndex, m_borderIndex;   // the fonts, fills, and borders by a hash of what they are (made when first needed)
+    bool m_fontIndexMade = false, m_fillIndexMade = false, m_borderIndexMade = false;
+    bool m_formatLimitHit = false;
+    qint64 m_placeComparisons = 0;
     WorkbookInfo m_info;
     SharedStrings m_shared;
     QString m_sharedError;
