@@ -211,13 +211,22 @@ void CrunchWindow::setActiveSheet(int sheetIndex)
 // ---- the calculation, on the worker
 
 // Esc: the worker stops (what it has worked out is told, and is shown; the rest keeps the result the file stored).
-void CrunchWindow::stopCalculation()
+bool CrunchWindow::stopCalculation()
 {
     m_loader.stopCalculation();
-    if (m_calculating) {
+    // a save that was waiting for the calculation is not made later, when something else finishes one: it is given up, and the person is told
+    const bool saveWaiting = !m_saveAfterCalculation.isNull();
+    m_saveAfterCalculation.clear();
+    if (m_calculating || saveWaiting) {
         m_calculating = false;
-        setStatus(tr("Ready"));
+        setStatus(saveWaiting ? tr("The calculation was stopped, so the save was cancelled. Save again when you want to.") : tr("Ready"));
     }
+    // (a close that was waiting for that save asks again)
+    if (saveWaiting && m_closeAfterSave) {
+        m_closeAfterSave = false;
+        close();
+    }
+    return saveWaiting;
 }
 
 // A batch of what the calculation has worked out: put in the store, and what of it is on the screen is drawn again.

@@ -554,8 +554,7 @@ void CrunchWindow::dropEvent(QDropEvent *e)
 void CrunchWindow::keyPressEvent(QKeyEvent *e)
 {
     if (e->key() == Qt::Key_Escape && m_calculating && !m_fileScreen->isVisible()) {
-        stopCalculation();
-        setStatus(tr("Calculation stopped"));
+        if (!stopCalculation()) setStatus(tr("Calculation stopped"));   // (a save that was waiting says it was cancelled)
         e->accept();
         return;
     }

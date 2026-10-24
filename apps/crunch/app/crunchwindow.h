@@ -153,7 +153,7 @@ private:
     void onProgress(int sheet, qint64 cells);
     void onFinished(bool ok, const QString &message);
     void onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch);
-    void stopCalculation();
+    bool stopCalculation();   // true if a save that was waiting for the calculation was cancelled
     // editing
     void createEditing();
     void beginEdit(const QString &initial, CellEditor::Mode mode, bool fromBar);

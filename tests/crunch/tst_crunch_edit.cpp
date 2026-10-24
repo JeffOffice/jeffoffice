@@ -1137,6 +1137,53 @@ private Q_SLOTS:
         QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("B%1").arg(n)), QStringLiteral("n:%1").arg(2 * n + 1));
     }
 
+    // Esc while a save waits for the calculation stops the calculation and cancels the save, and says so; the save does not happen later when something finishes a calculation. A close that
+    // was waiting for that save asks again.
+    void escCancelsASaveThatWaitsForTheCalculation()
+    {
+        const int n = 20000;
+        QString rows;
+        rows.reserve(n * 90);
+        for (int r = 1; r <= n; ++r)
+            rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2+$D$1</f><v>-1</v></c>%2</row>").arg(r).arg(r == 1 ? QStringLiteral("<c r=\"D1\"><v>0</v></c>") : QString());
+        const QByteArray book = buildXlsx({worksheet(rows)});
+        for (const bool closing : {false, true}) {
+            EditWindow e;
+            QVERIFY(e.open(book, QStringLiteral("book.xlsx")));
+            int asked = 0;
+            e.win.w.setAsker([&](const QString &, const QString &) { return ++asked == 1 ? CrunchWindow::Answer::Save : CrunchWindow::Answer::Cancel; });
+            e.win.w.setAttribute(Qt::WA_DeleteOnClose, false);
+            e.select(QStringLiteral("D1"));
+            e.win.w.setWorkerPace(3000);
+            e.enter(QStringLiteral("1"));
+            QVERIFY(e.win.w.isCalculating());
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            if (closing) {
+                e.win.w.close();                                  // (the question is answered with Save: the save waits for the calculation)
+                QCOMPARE(asked, 1);
+            } else {
+                QVERIFY(e.win.w.save());
+            }
+            QVERIFY(e.win.w.isCalculating());
+            QVERIFY(e.win.w.statusText().contains(QLatin1String("calculation")));
+            QTest::keyClick(&e.win.w, Qt::Key_Escape);
+            QVERIFY(!e.win.w.isCalculating());
+            QVERIFY2(e.win.w.statusText().contains(QLatin1String("save"), Qt::CaseInsensitive), qPrintable(e.win.w.statusText()));
+            QCOMPARE(asked, closing ? 2 : 0);                    // (the close that was waiting asks again, and the answer to that is Cancel)
+            QVERIFY(e.win.w.isVisible());
+            QTRY_VERIFY(e.win.w.loaded()->calcIdle.load());
+            // something finishes a calculation: the save that was cancelled does not happen
+            e.win.w.setWorkerPace(0);
+            e.select(QStringLiteral("D1"));
+            e.enter(QStringLiteral("2"));
+            QVERIFY(e.settle());
+            QCOMPARE(saved.count(), 0);
+            QVERIFY(e.win.w.isModified());
+            QVERIFY(e.win.w.isVisible());
+            QVERIFY(!e.win.w.isSaving());
+        }
+    }
+
     // The first cell of a shared formula typed over, and the workbook saved: the cells that shared its formula keep theirs (each written out), with the results the worker gave them.
     void aSharedFormulaSurvivesItsFirstCellBeingTypedOver()
     {
