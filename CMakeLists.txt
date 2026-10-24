@@ -193,6 +193,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_grid_axis.cpp
   tests/sheet/tst_grid_cells.cpp
   tests/sheet/tst_grid_layout.cpp
+  tests/sheet/tst_grid_objects.cpp
   tests/sheet/tst_grid_paint.cpp
   tests/sheet/tst_grid_select.cpp
   tests/sheet/tst_grid_view.cpp

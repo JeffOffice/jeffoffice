@@ -150,6 +150,7 @@ void GridView::layoutChanged()
     updateHeaderWidth();
     m_sheet.layout().setViewport(viewport()->size());
     updateScrollBars();
+    if (m_overlay) m_overlay->layoutChanged();
     viewport()->update();
     Q_EMIT viewChanged();
 }
@@ -632,6 +633,7 @@ void GridView::paintEvent(QPaintEvent *e)
     const qint64 cpu0 = jp::threadCpuMicros();
     QPainter p(viewport());
     m_painter->paint(&p, e->rect(), paintOptions());
+    paintOverlay(&p, e->rect());
     p.end();
     if (m_paintTimes.size() < 100000) {
         m_paintTimes.push_back(double(t.nsecsElapsed()) / 1e6);
@@ -720,6 +722,7 @@ void GridView::mousePressEvent(QMouseEvent *e)
 {
     if (e->button() == Qt::LeftButton && m_clickGuard && !m_clickGuard()) return;
     setFocus(Qt::MouseFocusReason);
+    if (overlayPress(e)) return;
     m_jump.reset();
     const GridLayout &L = m_sheet.layout();
     const Hit h = L.hit(e->pos());
@@ -968,6 +971,10 @@ bool GridView::keyBeginsAnEntry(Qt::KeyboardModifiers m, const QString &text, bo
 
 void GridView::keyPressEvent(QKeyEvent *e)
 {
+    if (m_overlay && m_overlay->key(e)) {
+        e->accept();
+        return;
+    }
     const bool shift = e->modifiers() & Qt::ShiftModifier, ctrl = e->modifiers() & Qt::ControlModifier;
     const bool plain = !(e->modifiers() & (Qt::AltModifier | Qt::MetaModifier));
     if (m_jump) {
