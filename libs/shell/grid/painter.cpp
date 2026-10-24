@@ -685,7 +685,9 @@ marked:
             }
         }
     }
+    if (o.copyRange) paintDashedRange(p, which, area, *o.copyRange, o.accent, o.copyPhase, false);
     paintSelection(p, which, area, o);
+    if (o.fillPreview) paintDashedRange(p, which, area, *o.fillPreview, QColor(0x44, 0x44, 0x44), 0, false);
     p->setClipping(false);
 }
 
@@ -715,6 +717,39 @@ void GridPainter::paintSelection(QPainter *p, Pane which, const QRect &area, con
     p->fillRect(QRect(range.left(), range.bottom() - 1, range.width(), 2), o.accent);
     p->fillRect(QRect(range.left(), range.top(), 2, range.height()), o.accent);
     p->fillRect(QRect(range.right() - 1, range.top(), 2, range.height()), o.accent);
+    // the fill handle: a square on the corner of the range, drawn in the part that has that corner
+    if (o.fillHandle && s.whole == Selection::Whole::None) {
+        const QRect corner = L.rangeRectIn(which, s.range.row2, s.range.col2, s.range.row2, s.range.col2);
+        if (!corner.isEmpty() && corner.intersects(area)) {
+            const QRect square(corner.right() - 3, corner.bottom() - 3, 7, 7);
+            p->fillRect(square, QColor(Qt::white));
+            p->fillRect(square.adjusted(1, 1, -1, -1), o.accent);
+        }
+    }
+}
+
+// A dashed border round a range of cells, in a pane: the cells that were copied (the dashes move as `phase` does), or where a fill would go.
+void GridPainter::paintDashedRange(QPainter *p, Pane which, const QRect &area, const GridRange &r, const QColor &color, int phase, bool outside)
+{
+    const GridLayout &L = m_sheet->layout();
+    const QRect range = L.rangeRectIn(which, r.row1, r.col1, r.row2, r.col2);
+    if (range.isEmpty() || !range.intersects(area)) return;
+    QPen pen(color, 1, Qt::CustomDashLine);
+    pen.setDashPattern({4, 3});
+    pen.setDashOffset(phase);
+    p->save();
+    p->setClipRect(area);
+    p->setPen(pen);
+    p->setBrush(Qt::NoBrush);
+    QRect line = range.adjusted(0, 0, -1, -1);
+    if (outside) line.adjust(-1, -1, 1, 1);
+    p->drawRect(line);
+    QPen white(QColor(Qt::white), 1, Qt::CustomDashLine);
+    white.setDashPattern({3, 4});
+    white.setDashOffset(phase + 4);
+    p->setPen(white);
+    p->drawRect(line);
+    p->restore();
 }
 
 void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOptions &o)

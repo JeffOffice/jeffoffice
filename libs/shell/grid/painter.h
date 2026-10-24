@@ -28,6 +28,10 @@ struct PaintOptions {
     bool gridlines = true;
     bool headers = true;
     const Selection *selection = nullptr;
+    bool fillHandle = false;                               // a small square at the corner of the selection to drag to fill
+    const GridRange *fillPreview = nullptr;                // where a fill that is being dragged would go: a dashed border
+    const GridRange *copyRange = nullptr;                  // the cells that were copied or cut: a dashed border that moves
+    int copyPhase = 0;                                     // where the dashes of it are (its animation step)
     QColor gridColor = QColor(0xD4, 0xD4, 0xD4);
     QColor backdrop = QColor(0xE6, 0xE6, 0xE6);            // beyond the last row and column
     QColor paper = QColor(Qt::white);                      // the cells with no fill
@@ -94,6 +98,7 @@ private:
     void paintPane(QPainter *p, Pane which, const QRect &clip, const PaintOptions &o);
     void paintHeaders(QPainter *p, const QRect &clip, const PaintOptions &o);
     void paintSelection(QPainter *p, Pane which, const QRect &area, const PaintOptions &o);
+    void paintDashedRange(QPainter *p, Pane which, const QRect &area, const GridRange &r, const QColor &color, int phase, bool outside);
     void drawFill(QPainter *p, const QRect &rect, const CellLook &look, const PaintOptions &o);
     void drawEdge(QPainter *p, const LineLook &line, int x, int y, int length, bool vertical, const QRect &clip);
     void drawText(QPainter *p, const QRect &cell, const QRect &box, const QRect &area, const CellLook &look, const Shown &shown, const PaintOptions &o);

@@ -39,6 +39,67 @@ QByteArray numbersBook()
     return buildXlsx({worksheet(rows)});
 }
 
+CellRange rangeOf(const QString &ref)
+{
+    CellRange r;
+    parseRangeRef(ref, &r);
+    return r;
+}
+
+// A sheet from the cells' texts: "A1=1" a number, "B2=text", "C3==A1*2" a formula, "D4=@2024-01-15" a date (with the date format, style 1), "E5=%0.25" a number with the percent format
+// (style 2). The cells come in any order.
+QByteArray sheetOf(const QStringList &specs)
+{
+    struct Item {
+        quint32 row, col;
+        QString xml;
+    };
+    QVector<Item> items;
+    for (const QString &spec : specs) {
+        const int eq = int(spec.indexOf(QLatin1Char('=')));
+        const QString ref = spec.left(eq), value = spec.mid(eq + 1);
+        quint32 row = 0, col = 0;
+        parseCellRef(ref, &row, &col);
+        QString xml;
+        if (value.startsWith(QLatin1Char('='))) {
+            xml = QStringLiteral("<c r=\"%1\"><f>%2</f><v>0</v></c>").arg(ref, value.mid(1).toHtmlEscaped());
+        } else if (value.startsWith(QLatin1Char('@'))) {
+            const QDate d = QDate::fromString(value.mid(1), Qt::ISODate);
+            double serial = 0;
+            jp::calc::dateToSerial(d.year(), d.month(), d.day(), jp::calc::DateSystem::Date1900, &serial);
+            xml = QStringLiteral("<c r=\"%1\" s=\"1\"><v>%2</v></c>").arg(ref).arg(serial, 0, 'f', 0);
+        } else if (value.startsWith(QLatin1Char('%'))) {
+            xml = QStringLiteral("<c r=\"%1\" s=\"2\"><v>%2</v></c>").arg(ref, value.mid(1));
+        } else {
+            bool number = false;
+            value.toDouble(&number);
+            xml = number ? QStringLiteral("<c r=\"%1\"><v>%2</v></c>").arg(ref, value)
+                         : QStringLiteral("<c r=\"%1\" t=\"inlineStr\"><is><t>%2</t></is></c>").arg(ref, value.toHtmlEscaped());
+        }
+        items.append({row, col, xml});
+    }
+    std::sort(items.begin(), items.end(), [](const Item &a, const Item &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; });
+    QString rows;
+    for (int i = 0; i < items.size();) {
+        const quint32 row = items[i].row;
+        rows += QStringLiteral("<row r=\"%1\">").arg(row + 1);
+        for (; i < items.size() && items[i].row == row; ++i) rows += items[i].xml;
+        rows += QStringLiteral("</row>");
+    }
+    const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"14\" applyNumberFormat=\"1\"/><xf numFmtId=\"9\" applyNumberFormat=\"1\"/>"));
+    return buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), styles);
+}
+
+// What the cells of a range show, in order of row and then column, joined with "|".
+QString shown(EditWindow &e, const QString &range)
+{
+    const CellRange r = rangeOf(range);
+    QStringList out;
+    for (quint32 row = r.row1; row <= r.row2; ++row)
+        for (quint32 col = r.col1; col <= r.col2; ++col) out << e.shownAt(cellName(row, col));
+    return out.join(QLatin1Char('|'));
+}
+
 } // namespace
 
 class CrunchOpsTests : public QObject {
@@ -55,6 +116,298 @@ private Q_SLOTS:
         setAppInfo(crunchAppInfo());
         initCore();
         QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+    }
+
+    // ---- fill
+
+    // The cells past a block go on as the block does: numbers by their step (a trend through several), a single number copied, text that ends in a number counting up (with its zeros),
+    // the names of weekdays and months in turn (in their capitals), and a formula with its references moved; up and left go the other way.
+    void fillGoesOnAsTheBlockDoes()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "C1=5", "C2=3", "D1=7", "E1=Item 1", "E2=Item 2", "F1=Item 009", "G1=Mon", "G2=Tue", "H1=january", "I1=Dec", "J1=x", "K1==A1*2+$A$1+B$1", "L1=1", "L2=2",
+                                 "L3=4", "M1=MONDAY", "N1=Sat", "N2=Sun", "O1=1.5", "O2=2", "A10=3", "A11=4", "P20=1", "Q20=2", "R1=@2024-01-15", "R2=@2024-02-15", "S1=@2024-03-01", "S2=@2025-03-01",
+                                 "T1=@2024-03-01", "U1=%0.5"})));
+        using Dir = crunch::EditSession::FillDirection;
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        auto fill = [&](const QString &ref, Dir d, quint32 n) {
+            const crunch::EditSession::Outcome o = s->fill(0, rangeOf(ref), d, n);
+            QVERIFY2(o.ok, qPrintable(o.problem));
+        };
+        fill(QStringLiteral("A1:A2"), Dir::Down, 3);
+        QCOMPARE(shown(e, QStringLiteral("A1:A5")), QStringLiteral("1|2|3|4|5"));
+        fill(QStringLiteral("C1:C2"), Dir::Down, 3);
+        QCOMPARE(shown(e, QStringLiteral("C1:C5")), QStringLiteral("5|3|1|-1|-3"));
+        fill(QStringLiteral("D1"), Dir::Down, 2);
+        QCOMPARE(shown(e, QStringLiteral("D1:D3")), QStringLiteral("7|7|7"));                                  // (a single number is copied)
+        fill(QStringLiteral("E1:E2"), Dir::Down, 2);
+        QCOMPARE(shown(e, QStringLiteral("E1:E4")), QStringLiteral("Item 1|Item 2|Item 3|Item 4"));
+        fill(QStringLiteral("F1"), Dir::Down, 2);
+        QCOMPARE(shown(e, QStringLiteral("F1:F3")), QStringLiteral("Item 009|Item 010|Item 011"));
+        fill(QStringLiteral("G1:G2"), Dir::Down, 3);
+        QCOMPARE(shown(e, QStringLiteral("G1:G5")), QStringLiteral("Mon|Tue|Wed|Thu|Fri"));
+        fill(QStringLiteral("H1"), Dir::Down, 2);
+        QCOMPARE(shown(e, QStringLiteral("H1:H3")), QStringLiteral("january|february|march"));
+        fill(QStringLiteral("I1"), Dir::Down, 2);
+        QCOMPARE(shown(e, QStringLiteral("I1:I3")), QStringLiteral("Dec|Jan|Feb"));
+        fill(QStringLiteral("J1"), Dir::Down, 2);
+        QCOMPARE(shown(e, QStringLiteral("J1:J3")), QStringLiteral("x|x|x"));
+        fill(QStringLiteral("K1"), Dir::Down, 2);
+        QCOMPARE(s->editText(0, 1, 10), QStringLiteral("=A2*2+$A$1+B$1"));
+        QCOMPARE(s->editText(0, 2, 10), QStringLiteral("=A3*2+$A$1+B$1"));
+        fill(QStringLiteral("L1:L3"), Dir::Down, 1);                                                         // 1, 2, 4: the trend through them
+        QCOMPARE(s->editText(0, 3, 11), QStringLiteral("5.33333333333333"));
+        fill(QStringLiteral("M1"), Dir::Down, 1);
+        QCOMPARE(shown(e, QStringLiteral("M1:M2")), QStringLiteral("MONDAY|TUESDAY"));
+        fill(QStringLiteral("N1:N2"), Dir::Down, 2);
+        QCOMPARE(shown(e, QStringLiteral("N1:N4")), QStringLiteral("Sat|Sun|Mon|Tue"));
+        fill(QStringLiteral("O1:O2"), Dir::Down, 2);
+        QCOMPARE(shown(e, QStringLiteral("O1:O4")), QStringLiteral("1.5|2|2.5|3"));
+        fill(QStringLiteral("A10:A11"), Dir::Up, 2);                                                         // up goes the other way
+        QCOMPARE(shown(e, QStringLiteral("A8:A11")), QStringLiteral("1|2|3|4"));
+        fill(QStringLiteral("P20:Q20"), Dir::Right, 2);
+        QCOMPARE(shown(e, QStringLiteral("P20:S20")), QStringLiteral("1|2|3|4"));
+        fill(QStringLiteral("Q20:P20"), Dir::Left, 1);                                                       // (the block P20:Q20 again: left of it)
+        QCOMPARE(shown(e, QStringLiteral("O20:P20")), QStringLiteral("0|1"));                                  // (1 and 2 going left: 0)
+        // dates: months, years, and a single date by days
+        fill(QStringLiteral("R1:R2"), Dir::Down, 2);
+        QCOMPARE(shown(e, QStringLiteral("R1:R4")), QStringLiteral("1/15/2024|2/15/2024|3/15/2024|4/15/2024"));
+        fill(QStringLiteral("S1:S2"), Dir::Down, 1);
+        QCOMPARE(shown(e, QStringLiteral("S3")), QStringLiteral("3/1/2026"));
+        fill(QStringLiteral("T1"), Dir::Down, 2);
+        QCOMPARE(shown(e, QStringLiteral("T1:T3")), QStringLiteral("3/1/2024|3/2/2024|3/3/2024"));
+        // formats follow the cells
+        fill(QStringLiteral("U1"), Dir::Down, 1);
+        QCOMPARE(shown(e, QStringLiteral("U1:U2")), QStringLiteral("50%|50%"));
+        // one step each
+        QCOMPARE(e.win.w.undoStack()->count(), 21);
+        pressUndo(&e.win.w);
+        QCOMPARE(shown(e, QStringLiteral("U2")), QString());
+    }
+
+    // The names of weekdays and months go in turn in the person's language (the locale is set here), and the English ones too.
+    void fillNamesInTheUsersLanguage()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Montag", "B1=Januar", "C1=Mon", "D1=Dezember"})));
+        using Dir = crunch::EditSession::FillDirection;
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(QLocale(QLocale::German, QLocale::Germany));
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("A1")), Dir::Down, 2).ok);
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("Montag|Dienstag|Mittwoch"));
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("B1")), Dir::Down, 2).ok);
+        QCOMPARE(shown(e, QStringLiteral("B1:B3")), QStringLiteral("Januar|Februar|M\u00e4rz"));
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("C1")), Dir::Down, 2).ok);
+        QCOMPARE(shown(e, QStringLiteral("C1:C3")), QStringLiteral("Mon|Tue|Wed"));
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("D1")), Dir::Down, 1).ok);
+        QCOMPARE(shown(e, QStringLiteral("D1:D2")), QStringLiteral("Dezember|Januar"));
+        s->setLocale(QLocale(QLocale::French, QLocale::France));
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("A3")), Dir::Down, 1).ok);          // (a German name in a French locale: not a name there; copied)
+        QCOMPARE(shown(e, QStringLiteral("A3:A4")), QStringLiteral("Mittwoch|Mittwoch"));
+    }
+
+    // Ctrl+D and Ctrl+R copy the first row (column) of the selection over the rest, and a single cell takes what is above (left of) it; one step each; the keys are the platform's.
+    void controlDAndControlRFillWhatIsSelected()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=5", "B1=6", "A2=x"})));
+        QAction *down = e.win.w.act(QStringLiteral("fill.down")), *right = e.win.w.act(QStringLiteral("fill.right"));
+        QVERIFY(down && right && down->isEnabled() && right->isEnabled());
+        QCOMPARE(down->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::Key_D).toString(QKeySequence::NativeText));
+        QCOMPARE(right->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::Key_R).toString(QKeySequence::NativeText));
+        e.view()->selectRange(0, 0, 3, 1);                                      // A1:B4
+        const QKeyCombination d = down->shortcut()[0];
+        QTest::keyClick(e.view(), d.key(), d.keyboardModifiers());
+        QCOMPARE(shown(e, QStringLiteral("A1:B4")), QStringLiteral("5|6|5|6|5|6|5|6"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        e.select(QStringLiteral("D1"));                                          // a single cell takes the one above it (here none: nothing)
+        down->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        e.select(QStringLiteral("A6"));
+        down->trigger();                                                         // (A5 is empty: A6 is emptied of nothing)
+        e.select(QStringLiteral("A5"));
+        down->trigger();                                                         // A5 takes A4's 5
+        QCOMPARE(shown(e, QStringLiteral("A5")), QStringLiteral("5"));
+        e.view()->selectRange(0, 0, 0, 3);                                       // A1:D1
+        const QKeyCombination r = right->shortcut()[0];
+        QTest::keyClick(e.view(), r.key(), r.keyboardModifiers());
+        QCOMPARE(shown(e, QStringLiteral("A1:D1")), QStringLiteral("5|5|5|5"));
+        e.select(QStringLiteral("E2"));                                          // a single cell takes the one to its left (D2: empty)
+        right->trigger();
+        QCOMPARE(shown(e, QStringLiteral("D2:E2")), QStringLiteral("|"));
+        pressUndo(&e.win.w);
+        QCOMPARE(shown(e, QStringLiteral("A1:D1")), QStringLiteral("5|6||"));
+        // up and left copy from the last row and column
+        e.view()->selectRange(5, 0, 7, 0);                                       // A6:A8
+        e.win.w.act(QStringLiteral("fill.up"))->trigger();
+        QCOMPARE(shown(e, QStringLiteral("A6:A8")), QStringLiteral("||"));
+        e.select(QStringLiteral("B8"));
+        e.win.w.act(QStringLiteral("fill.left"))->trigger();
+        QCOMPARE(shown(e, QStringLiteral("A8:B8")), QStringLiteral("|"));
+    }
+
+    // The fill handle: a small square at the corner of the selection; dragging it along a column (a row) and letting go fills the series the block makes, or a copy with Ctrl; the
+    // selection is then the block and what was filled.
+    void theFillHandleFillsASeries()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "C1=Item 1", "E1=10", "E2=20"})));
+        e.win.w.resize(1100, 640);
+        e.view()->selectRange(0, 0, 1, 0);                                       // A1:A2
+        QRect handle = e.view()->fillHandleRect();
+        QVERIFY(!handle.isEmpty());
+        QSignalSpy requested(e.view(), &grid::GridView::fillRequested);
+        auto drag = [&](const QString &to, Qt::KeyboardModifiers modifiers) {
+            QRect h = e.view()->fillHandleRect();
+            QTest::mousePress(e.view()->viewport(), Qt::LeftButton, modifiers, h.center());
+            quint32 row = 0, col = 0;
+            parseCellRef(to, &row, &col);
+            const QPoint at = e.view()->cellRect(row, col).center();
+            QMouseEvent move(QEvent::MouseMove, QPointF(at), QPointF(e.view()->viewport()->mapToGlobal(at)), Qt::NoButton, Qt::LeftButton, modifiers);
+            QApplication::sendEvent(e.view()->viewport(), &move);
+            QTest::mouseRelease(e.view()->viewport(), Qt::LeftButton, modifiers, at);
+        };
+        drag(QStringLiteral("A5"), Qt::NoModifier);
+        QCOMPARE(requested.count(), 1);
+        QCOMPARE(shown(e, QStringLiteral("A1:A5")), QStringLiteral("1|2|3|4|5"));
+        QCOMPARE(e.view()->rangeName(), QStringLiteral("A1:A5"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        // a single text that ends in a number counts up; with Ctrl it is copied
+        e.select(QStringLiteral("C1"));
+        drag(QStringLiteral("C3"), Qt::NoModifier);
+        QCOMPARE(shown(e, QStringLiteral("C1:C3")), QStringLiteral("Item 1|Item 2|Item 3"));
+        e.select(QStringLiteral("C1"));
+        drag(QStringLiteral("D1"), Qt::NoModifier);                              // (to the right: along the row)
+        QCOMPARE(shown(e, QStringLiteral("C1:D1")), QStringLiteral("Item 1|Item 2"));
+        e.view()->selectRange(0, 4, 1, 4);                                       // E1:E2
+        drag(QStringLiteral("E4"), Qt::ControlModifier);
+        QCOMPARE(shown(e, QStringLiteral("E1:E4")), QStringLiteral("10|20|10|20"));
+        // a drag that does not leave the block asks for nothing; a selection of whole columns has no handle
+        const int count = requested.count();
+        e.select(QStringLiteral("H1"));
+        drag(QStringLiteral("H1"), Qt::NoModifier);
+        QCOMPARE(requested.count(), count);
+        e.view()->selectColumns(0, 1);
+        QVERIFY(e.view()->fillHandleRect().isEmpty());
+    }
+
+    // Fill > Series asks how the series goes (kind, step, stop, unit) and fills the selection from its first row (column).
+    void fillSeriesDialogFillsTheSelection()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "C1=2", "D2=@2024-03-01"})));
+        using Kind = crunch::EditSession::FillKind;
+        CrunchWindow::SeriesRequest wanted;
+        int asked = 0;
+        e.win.w.setSeriesAsker([&](CrunchWindow::SeriesRequest *r) {
+            ++asked;
+            const bool inRows = r->inRows;
+            *r = wanted;
+            r->inRows = inRows;
+            return true;
+        });
+        wanted.options.kind = Kind::Linear;
+        wanted.options.hasStep = true;
+        wanted.options.step = 2;
+        e.view()->selectRange(0, 0, 4, 0);                                       // A1:A5
+        e.win.w.act(QStringLiteral("fill.series"))->trigger();
+        QCOMPARE(asked, 1);
+        QCOMPARE(shown(e, QStringLiteral("A1:A5")), QStringLiteral("1|3|5|7|9"));
+        wanted.options.kind = Kind::Growth;
+        wanted.options.step = 3;
+        e.view()->selectRange(0, 2, 0, 5);                                       // C1:F1 (a row: the series is in rows)
+        e.win.w.act(QStringLiteral("fill.series"))->trigger();
+        QCOMPARE(shown(e, QStringLiteral("C1:F1")), QStringLiteral("2|6|18|54"));
+        wanted = CrunchWindow::SeriesRequest();
+        wanted.options.kind = Kind::Date;
+        wanted.options.unit = crunch::EditSession::DateUnit::Month;
+        e.view()->selectRange(1, 3, 3, 3);                                       // D2:D4
+        e.win.w.act(QStringLiteral("fill.series"))->trigger();
+        QCOMPARE(shown(e, QStringLiteral("D2:D4")), QStringLiteral("3/1/2024|4/1/2024|5/1/2024"));
+        // one cell selected: nothing to fill, and it says so
+        const int steps = e.win.w.undoStack()->count();
+        e.select(QStringLiteral("A9"));
+        e.win.w.act(QStringLiteral("fill.series"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QVERIFY(!e.win.told.isEmpty());
+    }
+
+    // The options of Fill Series: a single number counting up (or by a step), growth, a stop value, dates by weekdays and months (clamped to the month's end), and a copy.
+    void fillSeriesOptions()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=7", "B1=2", "B2=4", "C1=1", "C2=2", "D1=@2024-03-01", "E1=@2024-01-31", "F1=1", "F2=2", "G1=10"})));
+        using Dir = crunch::EditSession::FillDirection;
+        using Kind = crunch::EditSession::FillKind;
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        crunch::EditSession::FillOptions linear;
+        linear.kind = Kind::Linear;
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("A1")), Dir::Down, 2, linear).ok);
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("7|8|9"));
+        crunch::EditSession::FillOptions stepped = linear;
+        stepped.hasStep = true;
+        stepped.step = 5;
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("G1")), Dir::Down, 2, stepped).ok);
+        QCOMPARE(shown(e, QStringLiteral("G1:G3")), QStringLiteral("10|15|20"));
+        crunch::EditSession::FillOptions growth;
+        growth.kind = Kind::Growth;
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("B1:B2")), Dir::Down, 2, growth).ok);
+        QCOMPARE(shown(e, QStringLiteral("B1:B4")), QStringLiteral("2|4|8|16"));
+        crunch::EditSession::FillOptions stop = linear;
+        stop.hasStop = true;
+        stop.stop = 5;
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("C1:C2")), Dir::Down, 10, stop).ok);
+        QCOMPARE(shown(e, QStringLiteral("C1:C7")), QStringLiteral("1|2|3|4|5||"));                          // (it stops at the stop value)
+        crunch::EditSession::FillOptions weekdays;
+        weekdays.kind = Kind::Date;
+        weekdays.unit = crunch::EditSession::DateUnit::Weekday;
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("D1")), Dir::Down, 3, weekdays).ok);                       // a Friday: then Monday, Tuesday, Wednesday
+        QCOMPARE(shown(e, QStringLiteral("D1:D4")), QStringLiteral("3/1/2024|3/4/2024|3/5/2024|3/6/2024"));
+        crunch::EditSession::FillOptions months;
+        months.kind = Kind::Date;
+        months.unit = crunch::EditSession::DateUnit::Month;
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("E1")), Dir::Down, 2, months).ok);
+        QCOMPARE(shown(e, QStringLiteral("E1:E3")), QStringLiteral("1/31/2024|2/29/2024|3/31/2024"));
+        crunch::EditSession::FillOptions copy;
+        copy.kind = Kind::Copy;
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("F1:F2")), Dir::Down, 3, copy).ok);
+        QCOMPARE(shown(e, QStringLiteral("F1:F5")), QStringLiteral("1|2|1|2|1"));
+    }
+
+    // A fill that would change a cell that can't be changed (a locked cell of a protected sheet, a table's header) changes nothing and says why; a fill past the edge of the sheet stops
+    // at it.
+    void fillRefusesWhatCannotBeChanged()
+    {
+        using Dir = crunch::EditSession::FillDirection;
+        {
+            EditWindow e;
+            const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"0\" applyProtection=\"1\"><protection locked=\"0\"/></xf>"));
+            const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\" s=\"1\"><v>2</v></c></row><row r=\"2\"><c r=\"B2\" s=\"1\"/></row>");
+            QVERIFY(e.open(buildXlsx({worksheet(rows, QStringLiteral("<sheetProtection sheet=\"1\"/>"))}, QByteArray(), QString(), QString(), styles)));
+            crunch::EditSession *s = e.win.w.session();
+            const crunch::EditSession::Outcome locked = s->fill(0, rangeOf(QStringLiteral("A1")), Dir::Down, 2);   // A2 is a locked cell
+            QVERIFY(!locked.ok);
+            QVERIFY2(locked.problem.contains(QLatin1String("protected")), qPrintable(locked.problem));
+            QCOMPARE(e.win.w.undoStack()->count(), 0);
+            QVERIFY(s->fill(0, rangeOf(QStringLiteral("B1")), Dir::Down, 1).ok);                                   // B2 is not locked
+            QCOMPARE(e.win.w.undoStack()->count(), 1);
+            // the edge of the sheet: nothing past it
+            QVERIFY(s->fill(0, rangeOf(QStringLiteral("B1048576")), Dir::Down, 5).ok);
+            QCOMPARE(e.win.w.undoStack()->count(), 1);
+        }
+        {
+            EditWindow e;
+            const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Region</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>Q1</t></is></c></row><row r=\"3\"><c r=\"B3\"><v>1</v></c></row>");
+            const QString table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"T\" displayName=\"T\" ref=\"A1:B3\">"
+                                                 "<tableColumns count=\"2\"><tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/></tableColumns></table>");
+            QVERIFY(e.open(withTables(buildXlsx({worksheet(rows)}), {table})));
+            const crunch::EditSession::Outcome o = e.win.w.session()->fill(0, rangeOf(QStringLiteral("B3")), Dir::Up, 2);   // up to B1, a header
+            QVERIFY(!o.ok);
+            QVERIFY2(o.problem.contains(QLatin1String("names of its columns")), qPrintable(o.problem));
+            QCOMPARE(e.win.w.undoStack()->count(), 0);
+        }
     }
 
     // ---- AutoSum

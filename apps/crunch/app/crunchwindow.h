@@ -84,6 +84,12 @@ public:
     // What is asked when the file to be saved over was changed by another program since it was read: save a copy instead (Save As), write over it, or give the save up. The name is the
     // file's. A message box with the three, unless this stands in for it (tests).
     enum class ChangedAnswer { SaveCopy, Overwrite, Cancel };
+    // What Fill > Series asks for: the way the series goes, its kind, the unit of a date series, the step, and where to stop; a message dialog unless this stands in for it (tests).
+    struct SeriesRequest {
+        bool inRows = false;
+        crunch::EditSession::FillOptions options;
+    };
+    void setSeriesAsker(const std::function<bool(SeriesRequest *)> &asker) { m_seriesAsker = asker; }
     void setChangedAsker(const std::function<ChangedAnswer(const QString &name)> &asker) { m_changedAsker = asker; }
     // Where Save As writes: asked of a file dialog, unless this stands in for it (tests): the name it starts with, and the filter; an empty path gives it up.
     void setSavePicker(const std::function<QString(const QString &start, const QString &filter)> &picker) { m_savePicker = picker; }
@@ -168,6 +174,9 @@ private:
     void createOpsActions();
     QStringList m_opsActions;   // the commands that work when a workbook is open and nothing is being saved
     void autoSum(const QString &function);
+    void fillSelection(crunch::EditSession::FillDirection direction);
+    void fillDragged(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
+    void fillSeriesDialog();
     // editing
     void createEditing();
     void beginEdit(const QString &initial, CellEditor::Mode mode, bool fromBar);
@@ -242,6 +251,7 @@ private:
     QString m_saveAfterCalculation;
     std::function<Answer(const QString &, const QString &)> m_asker;
     std::function<ChangedAnswer(const QString &)> m_changedAsker;
+    std::function<bool(SeriesRequest *)> m_seriesAsker;
     std::function<QString(const QString &, const QString &)> m_savePicker;
     // Whether the file at the window's path is not what was read (or last written): another program changed it.
     bool fileChangedOnDisk() const;

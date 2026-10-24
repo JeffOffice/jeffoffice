@@ -117,6 +117,26 @@ public:
     };
     AutoSumResult autoSum(int sheet, const jp::office::sheet::CellRange &selection, const QString &function);
 
+    // Fill: the cells past a block, in a direction, given what the block holds (the fill handle and Fill Series), or a copy of it (Ctrl+D, Ctrl+R). Each line of the block (a column
+    // for down and up, a row for right and left) is taken by itself: numbers go on by their step (a trend through them when there are several), dates by days, weekdays, months, or
+    // years, the names of weekdays and months (the locale's or English) in turn, and a text that ends in a number counts up; anything else is copied over and over. A formula is
+    // copied with its references moved; every cell takes the format of the cell it follows. With `Auto` a single number is copied, and with `Linear` it counts up.
+    enum class FillDirection { Down, Right, Up, Left };
+    enum class FillKind { Auto, Copy, Linear, Growth, Date };
+    enum class DateUnit { Day, Weekday, Month, Year };
+    struct FillOptions {
+        FillKind kind = FillKind::Auto;
+        DateUnit unit = DateUnit::Day;
+        bool hasStep = false;
+        double step = 1;
+        bool hasStop = false;
+        double stop = 0;
+    };
+    // Fills `count` cells past `source` in the direction (one step); nothing changed and the problem told if a cell there can't be changed.
+    Outcome fill(int sheet, const jp::office::sheet::CellRange &source, FillDirection direction, quint32 count, const FillOptions &options);
+    Outcome fill(int sheet, const jp::office::sheet::CellRange &source, FillDirection direction, quint32 count);   // (as the fill handle: Auto)
+
+
 
     // The worker's results, as they reach the window (before the window's store has them: the store's value is the engine's before it): kept for saving, those that the engine changed and that
     // differ from what the file holds.

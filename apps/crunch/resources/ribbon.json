@@ -83,7 +83,7 @@
           "keytip": "ZE",
           "items": [
             {"small": "edit.autosum", "keytip": "U", "split": true, "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min"]},
-            {"small": "edit.fill", "keytip": "FI"},
+            {"small": "edit.fill", "keytip": "FI", "split": true, "menu": ["fill.down", "fill.right", "fill.up", "fill.left", "-", "fill.series"]},
             {"small": "edit.clear", "keytip": "E"},
             {"large": "edit.sort", "keytip": "SS"},
             {"large": "edit.find", "keytip": "FD"}

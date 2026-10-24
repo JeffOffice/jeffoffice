@@ -125,6 +125,14 @@ public:
     void moveAfterEnter(bool up);
     void moveAfterTab(bool back);
     void moveAfterArrow(int dRow, int dCol);
+    // The fill handle: the small square at the corner of a selection of cells, in the viewport's pixels (empty when there is none to drag). Dragging it over cells (along one row or one
+    // column) and letting go asks for a fill: the block it began from, and the block with the cells it reached.
+    QRect fillHandleRect() const;
+    // The cells that were copied or cut have a dashed border that moves; none to show with an empty range (clearCopyBorder).
+    void setCopyBorder(const GridRange &range);
+    void clearCopyBorder();
+    bool hasCopyBorder() const { return m_copyBorder.row1 >= 0; }
+    GridRange copyBorder() const { return m_copyBorder; }
     // A hook asked before a click changes the selection: false, and the click is ignored (the window finishes an entry first, and does not go on when it can't).
     void setClickGuard(std::function<bool()> guard) { m_clickGuard = std::move(guard); }
 
@@ -139,6 +147,8 @@ Q_SIGNALS:
     void typingStarted(const QString &text);
     void editRequested();
     void clearRequested();
+    // The fill handle was dragged and let go: the block it began from, the block with the cells it reached, and whether Ctrl was held (a copy, not a series).
+    void fillRequested(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
 
 protected:
     void paintEvent(QPaintEvent *e) override;
@@ -181,7 +191,12 @@ private:
     Selection m_selection;
     bool m_gridlines = true, m_headings = true;
     // the mouse
-    enum class Drag { None, Cells, Rows, Columns } m_drag = Drag::None;
+    enum class Drag { None, Cells, Rows, Columns, Fill } m_drag = Drag::None;
+    GridRange m_fillSource, m_fillExtent;
+    bool m_fillCtrl = false;
+    GridRange m_copyBorder{-1, -1, -1, -1};
+    int m_copyPhase = 0;
+    QTimer m_copyTimer;
     QTimer m_autoScroll;
     QPoint m_lastMouse;
     // walks done between events

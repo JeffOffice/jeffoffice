@@ -371,7 +371,7 @@ void CrunchWindow::createDisabledActions()
     };
     static const Command commands[] = {
         {"edit.cut", QT_TR_NOOP("Cut"), "scissors"}, {"edit.paste", QT_TR_NOOP("Paste"), "clipboard-paste"},
-        {"edit.fill", QT_TR_NOOP("Fill"), "arrow-down-to-line"}, {"edit.clear", QT_TR_NOOP("Clear"), "eraser"},
+        {"edit.clear", QT_TR_NOOP("Clear"), "eraser"},
         {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"}, {"edit.find", QT_TR_NOOP("Find and Select"), "search"},
         {"fmt.bold", QT_TR_NOOP("Bold"), "bold"}, {"fmt.italic", QT_TR_NOOP("Italic"), "italic"}, {"fmt.underline", QT_TR_NOOP("Underline"), "underline"},
         {"fmt.strike", QT_TR_NOOP("Strikethrough"), "strikethrough"}, {"fmt.fillColor", QT_TR_NOOP("Fill Color"), "paint-bucket"}, {"fmt.fontColor", QT_TR_NOOP("Font Color"), "baseline"},
