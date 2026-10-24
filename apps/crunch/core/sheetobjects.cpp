@@ -1,5 +1,6 @@
 #include "core/sheetobjects.h"
 
+#include "grid/gridsheet.h"
 #include "office/theme.h"
 #include "office/xml.h"
 
@@ -22,6 +23,8 @@ namespace {
 constexpr qint64 kBudgetObjects = kMaxWorkbookObjects, kBudgetStories = 30000, kBudgetParagraphs = 300000, kBudgetRuns = 500000, kBudgetLetters = 20000000;
 // A chart part, once inflated, is read only if it is no larger than this (the largest real one is 1.8 MB).
 constexpr qint64 kMaxChartPartBytes = qint64(32) << 20;
+// A sheet's chart parts' references are read for saving from at most this many parts.
+constexpr int kMaxChartParts = 20000;
 
 // How far a stroke reaches beyond the edge of the box, in the grid's units at 100% (points are 4/3 of them).
 double strokeReach(const Item &item, int depth)
@@ -42,6 +45,34 @@ bool hasLine(const Item &item, int depth)
     return false;
 }
 
+bool sameEdit(const StructEdit &a, const StructEdit &b)
+{
+    return a.kind == b.kind && a.sheet == b.sheet && a.first == b.first && a.count == b.count && a.row1 == b.row1 && a.col1 == b.col1 && a.row2 == b.row2 && a.col2 == b.col2 && a.toSheet == b.toSheet &&
+           a.toRow == b.toRow && a.toCol == b.toCol && a.dRow == b.dRow && a.dCol == b.dCol;
+}
+
+// A chart made into a picture: this runs on a worker, and touches nothing but what it is given.
+QImage drawChart(const Chart &chart, const QSizeF &points, const RenderRequest &q)
+{
+    const QByteArray svg = chartSvg(chart, points);
+    QSvgRenderer renderer(svg);
+    if (!renderer.isValid()) return QImage();
+    QImage img(q.pixels, QImage::Format_ARGB32_Premultiplied);
+    img.fill(Qt::transparent);
+    QPainter p(&img);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setRenderHint(QPainter::TextAntialiasing);
+    renderer.render(&p, q.inner);
+    return img;
+}
+
+QImage nothing(const RenderRequest &q)
+{
+    QImage img(q.pixels, QImage::Format_ARGB32_Premultiplied);
+    img.fill(Qt::transparent);
+    return img;
+}
+
 } // namespace
 
 SheetObjects::SheetObjects(QObject *parent) : QObject(parent), m_doc(std::make_unique<jp::Document>()) {}
@@ -59,7 +90,20 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
     m_source = nullptr;
     m_values = nullptr;
     m_sheets.clear();
-    if (m_book) m_sheets.resize(size_t(m_book->info().sheets.size()));
+    m_applied.clear();
+    m_partRefs.clear();
+    m_chartSheet.clear();
+    if (m_book) {
+        m_sheets.resize(size_t(m_book->info().sheets.size()));
+        // the sheet each chart is on, by the drawing of the sheet (its relationships only: no part is read)
+        const Package &package = m_book->package();
+        for (int sheet = 0; sheet < m_book->info().sheets.size(); ++sheet) {
+            const QString drawing = drawingPartOf(package, m_book->info().sheets[sheet].part);
+            if (drawing.isEmpty()) continue;
+            for (const Relationship &r : package.relationshipsOfType(drawing, QStringLiteral("/chart")))
+                if (!r.external) m_chartSheet.insert(r.target.toLower(), sheet);
+        }
+    }
     m_doc = std::make_unique<jp::Document>();
     m_layoutCache.clear();
     m_images.clear();
@@ -67,6 +111,7 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
     m_contextRead = false;
     m_shown = -1;
     m_objectsMade = 0;
+    m_chartPartsRead = 0;
 }
 
 void SheetObjects::setCells(const WorkbookSource *source, const jp::grid::ValueStore *values)
@@ -123,70 +168,15 @@ void SheetObjects::readContext()
 SheetObjects::Sheet &SheetObjects::sheetState(int sheet)
 {
     static Sheet none;
-    if (sheet < 0 || size_t(sheet) >= m_sheets.size()) return none;
+    if (sheet < 0 || size_t(sheet) >= m_sheets.size() || !m_book) return none;
     Sheet &s = m_sheets[size_t(sheet)];
-    if (!s.built) build(sheet, s);
+    if (!s.listed) list(sheet, s);
     return s;
 }
 
-std::shared_ptr<SheetObjects::Object> SheetObjects::buildObject(Sheet &s, const DrawingObject &d, const DrawingContext &ctx)
+void SheetObjects::list(int sheet, Sheet &s)
 {
-    auto o = std::make_shared<Object>();
-    o->id = d.index;
-    o->meta = d;
-    o->base = o->anchor = d.anchor;
-    DrawingCounts &c = s.counts;
-    auto leaveOut = [&](const QString &why) {
-        ++c.leftOut;
-        c.why << why;
-    };
-    switch (d.kind) {
-    case ObjectKind::Chart: ++c.charts; break;
-    case ObjectKind::Picture: ++c.pictures; break;
-    case ObjectKind::Shape: ++c.shapes; break;
-    case ObjectKind::Group: ++c.groups; break;
-    case ObjectKind::Connector: ++c.connectors; break;
-    case ObjectKind::Other: break;
-    }
-    if (d.hidden) {
-        ++c.hidden;
-        return o;
-    }
-    if (m_objectsMade >= kMaxWorkbookObjects) {
-        leaveOut(tr("more objects than the %1 a workbook may show").arg(kMaxWorkbookObjects));
-        return o;
-    }
-    if (d.kind == ObjectKind::Chart) {
-        if (m_book->package().partSize(d.chartPart) > kMaxChartPartBytes) {
-            leaveOut(tr("a chart part that is too large (%1)").arg(d.name));
-            return o;
-        }
-        auto chart = std::make_shared<Chart>();
-        QString why;
-        if (!readChart(m_book->package().part(d.chartPart), m_theme, ColorMap(), chart.get(), &why)) {
-            leaveOut(tr("a chart that could not be read (%1)").arg(why));
-            return o;
-        }
-        o->baseChart = chart;
-        o->chart = std::make_shared<Chart>(*chart);
-        o->made = true;
-    } else {
-        o->item = readShape(d.element, ctx);
-        if (!o->item) {
-            leaveOut(d.kind == ObjectKind::Group ? tr("a group with nothing in it that is drawn") : tr("a shape or picture that could not be read"));
-            return o;
-        }
-        o->made = true;
-    }
-    ++m_objectsMade;
-    ++c.shown;
-    return o;
-}
-
-void SheetObjects::build(int sheet, Sheet &s)
-{
-    s.built = true;
-    if (!m_book) return;
+    s.listed = true;
     readContext();
     const SheetEntry &entry = m_book->info().sheets[sheet];
     s.chartSheet = entry.kind == SheetKind::Chartsheet;
@@ -197,11 +187,13 @@ void SheetObjects::build(int sheet, Sheet &s)
         s.counts.why << tr("a drawing that could not be read (%1)").arg(why);
         return;
     }
-    s.counts.anchors = s.drawing.anchorsInPart;
-    s.counts.skipped = s.drawing.skipped;
-    s.counts.truncated = s.drawing.truncated;
-    if (s.drawing.truncated) s.counts.why << tr("more than %1 objects in a drawing; the rest are left out").arg(kMaxDrawingAnchors);
-    DrawingContext ctx;
+    DrawingCounts &c = s.counts;
+    c.anchors = s.drawing.anchorsInPart;
+    c.skipped = s.drawing.skipped;
+    c.truncated = s.drawing.truncated;
+    if (s.drawing.truncated) c.why << tr("more than %1 objects in a drawing; the rest are left out").arg(kMaxDrawingAnchors);
+    s.context = std::make_shared<DrawingContext>();
+    DrawingContext &ctx = *s.context;
     ctx.package = &m_book->package();
     ctx.part = s.drawingPart;
     ctx.theme = m_theme;
@@ -213,70 +205,138 @@ void SheetObjects::build(int sheet, Sheet &s)
     ctx.addMedia = [this](const QByteArray &bytes, const QString &type, const QString &extension) { return m_doc->addMedia(bytes, type, extension); };
     ctx.newStory = [this] { return m_doc->createStory(); };
     ctx.storyDoc = [this](const QString &id) { return m_doc->storyDoc(id); };
-    for (const DrawingObject &d : std::as_const(s.drawing.objects)) s.objects.push_back(buildObject(s, d, ctx));
-    applyEdits(sheet, s);
+    for (const DrawingObject &d : std::as_const(s.drawing.objects)) {
+        switch (d.kind) {
+        case ObjectKind::Chart: ++c.charts; break;
+        case ObjectKind::Picture: ++c.pictures; break;
+        case ObjectKind::Shape: ++c.shapes; break;
+        case ObjectKind::Group: ++c.groups; break;
+        case ObjectKind::Connector: ++c.connectors; break;
+        case ObjectKind::Other: break;
+        }
+        if (d.hidden) {
+            ++c.hidden;
+            continue;
+        }
+        auto o = std::make_shared<Object>();
+        o->id = d.index;
+        o->meta = d;
+        o->fileAnchor = o->base = o->anchor = d.anchor;
+        replay(sheet, *o);
+        s.objects.push_back(std::move(o));
+    }
 }
 
-void SheetObjects::applyEdits(int sheet, Sheet &s)
+void SheetObjects::replay(int sheet, Object &o)
 {
-    if (!m_edits) return;
-    const std::vector<StructEdit> edits = m_edits();
+    o.anchor = o.base;
+    if (!m_applied.empty()) o.anchor = movedAnchor(o.base, sheet, m_applied);
+    if (!o.refs.isEmpty() || !o.baseRefs.isEmpty()) {
+        const QStringList names = sheetNames();
+        o.refs = o.baseRefs;
+        for (QString &ref : o.refs) ref = movedChartRef(ref, names, m_applied, sheet);
+    }
+}
+
+void SheetObjects::applyEdit(int sheet, Object &o, const StructEdit &edit)
+{
+    const std::vector<StructEdit> one = {edit};
+    o.anchor = movedAnchor(o.anchor, sheet, one);
+    if (o.refs.isEmpty()) return;
     const QStringList names = sheetNames();
-    for (const std::shared_ptr<Object> &o : s.objects) {
-        o->anchor = movedAnchor(o->base, sheet, edits);
-        if (o->baseChart) {
-            o->chart = std::make_shared<Chart>(*o->baseChart);
-            moveChartRefs(o->chart.get(), names, edits);
-        }
-    }
+    for (QString &ref : o.refs) ref = movedChartRef(ref, names, one, sheet);
 }
 
-DrawingCounts SheetObjects::counts(int sheet) { return sheetState(sheet).counts; }
-
-void SheetObjects::remember(Object &o, const Chart &drawn)
+void SheetObjects::ensureBuilt(int sheet, Object &o)
 {
-    o.reads.clear();
-    o.hull.clear();
-    if (!m_cells) return;
-    o.reads = jp::office::sheet::chartReads(drawn, 0, *m_cells);
-    for (const ChartBlock &b : std::as_const(o.reads)) {
-        jp::office::sheet::CellRange &h = o.hull[b.sheet];
-        if (!h.valid) {
-            h = b.range;
-            h.valid = true;
-        } else {
-            h.row1 = std::min(h.row1, b.range.row1);
-            h.col1 = std::min(h.col1, b.range.col1);
-            h.row2 = std::max(h.row2, b.range.row2);
-            h.col2 = std::max(h.col2, b.range.col2);
-        }
+    if (o.built) return;
+    o.built = true;
+    Sheet &s = m_sheets[size_t(sheet)];
+    auto leaveOut = [&](const QString &why) {
+        ++s.counts.leftOut;
+        s.counts.why << why;
+    };
+    if (m_objectsMade >= kMaxWorkbookObjects) {
+        leaveOut(tr("more objects than the %1 a workbook may show").arg(kMaxWorkbookObjects));
+        return;
     }
+    if (o.meta.kind == ObjectKind::Chart) {
+        const QString part = o.meta.chartPart;
+        std::shared_ptr<const Chart> chart = s.parsed.value(part);
+        if (!chart) {
+            if (s.failedParts.contains(part)) {
+                leaveOut(s.failedParts.value(part));
+                return;
+            }
+            // (a part is read once, however many anchors name it)
+            QString why;
+            if (m_book->package().partSize(part) > kMaxChartPartBytes) {
+                why = tr("a chart part that is too large (%1)").arg(o.meta.name);
+            } else {
+                auto parsed = std::make_shared<Chart>();
+                ++m_chartPartsRead;
+                QString error;
+                if (readChart(m_book->package().part(part), m_theme, ColorMap(), parsed.get(), &error)) {
+                    chart = parsed;
+                    s.parsed.insert(part, chart);
+                } else {
+                    why = tr("a chart that could not be read (%1)").arg(error);
+                }
+            }
+            if (!chart) {
+                s.failedParts.insert(part, why);
+                leaveOut(why);
+                return;
+            }
+        }
+        o.chart = chart;
+        o.baseRefs = chartRefs(*chart);
+        o.refs = o.baseRefs;
+        const QStringList names = sheetNames();
+        if (!m_applied.empty())
+            for (QString &ref : o.refs) ref = movedChartRef(ref, names, m_applied, sheet);
+        o.made = true;
+    } else {
+        o.item = readShape(o.meta.element, *s.context);
+        if (!o.item) {
+            leaveOut(o.meta.kind == ObjectKind::Group ? tr("a group with nothing in it that is drawn") : tr("a shape or picture that could not be read"));
+            return;
+        }
+        o.made = true;
+    }
+    ++m_objectsMade;
+    ++s.counts.shown;
 }
 
-QImage SheetObjects::renderChart(int sheet, Object &o, const RenderRequest &q)
+DrawingCounts SheetObjects::counts(int sheet)
 {
-    Chart c = *o.chart;
+    Sheet &s = sheetState(sheet);
+    for (const std::shared_ptr<Object> &o : s.objects) ensureBuilt(sheet, *o);
+    s.counts.why.removeDuplicates();
+    return s.counts;
+}
+
+std::function<QImage()> SheetObjects::prepareChart(int sheet, Object &o, const RenderRequest &q)
+{
+    ensureBuilt(sheet, o);
+    if (!o.chart) return {};
+    // what the picture needs is taken here (the cells it reads are the window's); the picture is made from that alone
+    auto chart = std::make_shared<Chart>(*o.chart);
+    setChartRefs(chart.get(), o.refs);
     if (m_cells) {
-        applyChartCells(&c, sheet, *m_cells);
-        remember(o, c);
+        applyChartCells(chart.get(), sheet, *m_cells);
+        bool cut = false;
+        o.reads = ChartReadIndex(jp::office::sheet::chartReads(*chart, sheet, *m_cells, &cut), cut);
         ++m_chartsDrawn;
     }
     const double side = kChartMaxSide;
     const QSizeF points(std::clamp(q.units.width() * 0.75, 1.0, side), std::clamp(q.units.height() * 0.75, 1.0, side));
-    const QByteArray svg = chartSvg(c, points);
-    QSvgRenderer renderer(svg);
-    if (!renderer.isValid()) return QImage();
-    QImage img(q.pixels, QImage::Format_ARGB32_Premultiplied);
-    img.fill(Qt::transparent);
-    QPainter p(&img);
-    p.setRenderHint(QPainter::Antialiasing);
-    p.setRenderHint(QPainter::TextAntialiasing);
-    renderer.render(&p, q.inner);
-    return img;
+    return [chart, points, q] { return drawChart(*chart, points, q); };
 }
 
 QImage SheetObjects::renderItem(Object &o, const RenderRequest &q)
 {
+    if (!o.item) return nothing(q);
     QImage img(q.pixels, QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);
     const QRectF b = o.item->bounds();
@@ -307,13 +367,24 @@ LayerObject SheetObjects::layerObject(int sheet, const std::shared_ptr<Object> &
     l.anchor = o->anchor;
     l.kind = o->meta.kind;
     l.name = o->meta.name;
-    if (o->item) {
-        l.thin = o->meta.kind == ObjectKind::Connector || hasLine(*o->item, 0);
-        l.margin = strokeReach(*o->item, 0);
-        l.render = [this, o](const RenderRequest &q) { return renderItem(*o, q); };
-    } else {
-        l.render = [this, sheet, o](const RenderRequest &q) { return renderChart(sheet, *o, q); };
-    }
+    l.thin = o->meta.kind == ObjectKind::Connector;
+    l.margin = 4;   // (until the object is made and says)
+    l.hitInk = o->meta.kind != ObjectKind::Picture && o->meta.kind != ObjectKind::Chart;
+    const bool chart = o->meta.kind == ObjectKind::Chart;
+    if (chart) l.prepare = [this, sheet, o](const RenderRequest &q) { return prepareChart(sheet, *o, q); };
+    else l.render = [this, o](const RenderRequest &q) { return renderItem(*o, q); };
+    // the object is made when a picture of it is first wanted: what is left of it to draw, and its margin, are known then
+    l.settle = [this, sheet, o, chart](LayerObject *lo) {
+        ensureBuilt(sheet, *o);
+        if (!o->made) {
+            lo->render = nullptr;
+            lo->prepare = nullptr;
+            return;
+        }
+        if (chart) return;
+        lo->thin = o->meta.kind == ObjectKind::Connector || hasLine(*o->item, 0);
+        lo->margin = strokeReach(*o->item, 0);
+    };
     return l;
 }
 
@@ -321,13 +392,58 @@ void SheetObjects::show(int sheet)
 {
     Sheet &s = sheetState(sheet);
     std::vector<LayerObject> objects;
-    for (const std::shared_ptr<Object> &o : s.objects)
-        if (o->made) objects.push_back(layerObject(sheet, o));
+    objects.reserve(s.objects.size());
+    for (const std::shared_ptr<Object> &o : s.objects) objects.push_back(layerObject(sheet, o));
     m_shown = sheet;
     m_layer.setObjects(std::move(objects));
     for (const std::shared_ptr<Object> &o : s.objects)
         if (o->deleted) m_layer.setDeleted(o->id, true);
     m_layer.setFillsView(s.chartSheet);
+    // (a workbook that is whole has the sheet's rows and columns as the file gives them: the objects that keep their size are measured now)
+    if (m_cells) geometryKnown(sheet);
+}
+
+void SheetObjects::geometryKnown(int sheet)
+{
+    if (sheet != m_shown || !m_applied.empty()) return;
+    Sheet &s = sheetState(sheet);
+    for (const std::shared_ptr<Object> &o : s.objects) {
+        if (o->frozen || o->anchor.kind != AnchorKind::TwoCell || o->meta.anchor.editAs == AnchorKind::TwoCell) continue;
+        bool ok = false;
+        const jp::grid::ObjectBox b = m_layer.boxNow(o->id, &ok);
+        if (!ok) continue;
+        DrawingAnchor f = o->anchor;
+        const qint64 emu = kEmuPerPixel;
+        if (o->meta.anchor.editAs == AnchorKind::OneCell) {
+            f.kind = AnchorKind::OneCell;
+            f.cx = qint64(std::llround(b.w * double(emu)));
+            f.cy = qint64(std::llround(b.h * double(emu)));
+        } else {
+            f.kind = AnchorKind::Absolute;
+            f.x = qint64(std::llround(b.x * double(emu)));
+            f.y = qint64(std::llround(b.y * double(emu)));
+            f.cx = qint64(std::llround(b.w * double(emu)));
+            f.cy = qint64(std::llround(b.h * double(emu)));
+        }
+        o->base = o->anchor = f;
+        o->frozen = true;
+        m_layer.setAnchor(o->id, f);
+    }
+}
+
+bool SheetObjects::canDelete(int sheet, int id, QString *why)
+{
+    Sheet &s = sheetState(sheet);
+    int ordinal = -1;
+    for (const std::shared_ptr<Object> &o : s.objects)
+        if (o->id == id) ordinal = o->meta.ordinal;
+    if (ordinal < 0) return true;
+    int same = 0;
+    for (const DrawingObject &d : std::as_const(s.drawing.objects))
+        if (d.ordinal == ordinal) ++same;
+    if (same <= 1) return true;
+    if (why) *why = tr("The file stores this object together with %n other(s), so they can't be deleted one at a time.", nullptr, same - 1);
+    return false;
 }
 
 void SheetObjects::setDeleted(int sheet, int id, bool deleted)
@@ -354,36 +470,43 @@ void SheetObjects::cellsChanged(const std::vector<jp::grid::ValueStore::Item> &c
     for (size_t i = 0; i < m_sheets.size(); ++i) {
         Sheet &s = m_sheets[i];
         for (const std::shared_ptr<Object> &o : s.objects) {
-            if (!o->chart || o->hull.isEmpty()) continue;
+            if (!o->chart || o->reads.isEmpty()) continue;
             bool hit = false;
-            for (const jp::grid::ValueStore::Item &c : cells) {
-                const auto hull = o->hull.constFind(c.sheet);
-                if (hull == o->hull.constEnd() || !hull->contains(c.row, c.col)) continue;
-                for (const ChartBlock &b : std::as_const(o->reads))
-                    if (b.sheet == c.sheet && b.range.contains(c.row, c.col)) {
-                        hit = true;
-                        break;
-                    }
-                if (hit) break;
-            }
-            if (hit && int(i) == m_shown) m_layer.invalidate(o->id);
-            else if (hit) o->hull.clear();   // (drawn from the cells again when its sheet is shown)
+            for (const jp::grid::ValueStore::Item &c : cells)
+                if (o->reads.reads(c.sheet, c.row, c.col)) {
+                    hit = true;
+                    break;
+                }
+            if (!hit) continue;
+            if (int(i) == m_shown) m_layer.invalidate(o->id);
+            else o->reads = ChartReadIndex();   // (drawn from the cells again when its sheet is shown)
         }
     }
 }
 
 void SheetObjects::cellsMoved()
 {
-    for (size_t i = 0; i < m_sheets.size(); ++i) {
-        Sheet &s = m_sheets[i];
-        if (!s.built) continue;
-        applyEdits(int(i), s);
-        if (int(i) != m_shown) continue;
-        for (const std::shared_ptr<Object> &o : s.objects) {
+    if (!m_edits) return;
+    const std::vector<StructEdit> &edits = m_edits();
+    if (m_cells) m_cells->sizesChanged();   // (a hidden row moves with the rows inserted or deleted above it)
+    const bool oneMore = edits.size() == m_applied.size() + 1 && (m_applied.empty() || sameEdit(edits[edits.size() - 2], m_applied.back()));
+    if (oneMore) {
+        // the edit that is new is worked in
+        for (size_t i = 0; i < m_sheets.size(); ++i)
+            for (const std::shared_ptr<Object> &o : m_sheets[i].objects) applyEdit(int(i), *o, edits.back());
+        m_applied.push_back(edits.back());
+    } else {
+        // an Undo (or anything else that is not one more): they are worked out again from what the objects were
+        m_applied = edits;
+        for (size_t i = 0; i < m_sheets.size(); ++i)
+            for (const std::shared_ptr<Object> &o : m_sheets[i].objects) replay(int(i), *o);
+    }
+    if (m_shown >= 0 && size_t(m_shown) < m_sheets.size())
+        for (const std::shared_ptr<Object> &o : m_sheets[size_t(m_shown)].objects) {
             m_layer.setAnchor(o->id, o->anchor);
             if (o->chart) m_layer.invalidate(o->id);
         }
-    }
+    m_layer.layoutChanged();
 }
 
 void SheetObjects::sizesChanged(int sheet)
@@ -391,8 +514,9 @@ void SheetObjects::sizesChanged(int sheet)
     Q_UNUSED(sheet);
     if (m_cells) m_cells->sizesChanged();
     // (a chart that leaves out what is hidden is drawn again; the others come out the same)
-    for (const std::shared_ptr<Object> &o : sheetState(m_shown).objects)
-        if (o->chart && o->chart->plotVisibleOnly) m_layer.invalidate(o->id);
+    if (m_shown >= 0 && size_t(m_shown) < m_sheets.size())
+        for (const std::shared_ptr<Object> &o : m_sheets[size_t(m_shown)].objects)
+            if (o->chart && o->chart->plotVisibleOnly) m_layer.invalidate(o->id);
     m_layer.layoutChanged();
 }
 
@@ -408,60 +532,96 @@ bool changedIn(const Cells &cells, const jp::office::sheet::CellRange &r)
     return false;
 }
 
+bool nearly(const AnchorPoint &a, const AnchorPoint &b)
+{
+    return a.col == b.col && a.row == b.row && std::llabs(a.colOff - b.colOff) <= kEmuPerPixel / 2 && std::llabs(a.rowOff - b.rowOff) <= kEmuPerPixel / 2;
+}
+
 } // namespace
+
+const QStringList &SheetObjects::partRefs(const QString &part)
+{
+    auto it = m_partRefs.find(part);
+    if (it == m_partRefs.end()) it = m_partRefs.insert(part, chartPartRefs(m_book->package().part(part)));
+    return it.value();
+}
+
+DrawingAnchor SheetObjects::twoCellFor(const Object &o, const jp::grid::Axis &rows, const jp::grid::Axis &cols) const
+{
+    const jp::grid::ObjectBox b = jp::grid::anchorBox(o.anchor, rows, cols);
+    DrawingAnchor a = o.meta.anchor;
+    a.kind = AnchorKind::TwoCell;
+    a.x = a.y = a.cx = a.cy = 0;
+    a.from = o.anchor.kind == AnchorKind::OneCell ? o.anchor.from : jp::grid::anchorPointAt(rows, cols, b.x, b.y);
+    a.to = jp::grid::anchorPointAt(rows, cols, b.x + b.w, b.y + b.h);
+    return a;
+}
 
 void SheetObjects::addToSave(SaveChanges *changes)
 {
     if (!m_book) return;
     const QStringList names = sheetNames();
+    const std::vector<StructEdit> none;
+    const std::vector<StructEdit> &edits = m_edits ? m_edits() : none;
+    QSet<QString> deletedParts, aliveParts;
     for (size_t i = 0; i < m_sheets.size(); ++i) {
-        Sheet &s = sheetState(int(i));
-        if (s.drawingPart.isEmpty()) continue;
+        Sheet &s = m_sheets[i];
+        if (!s.listed || s.drawingPart.isEmpty()) continue;
+        std::shared_ptr<jp::grid::GridGeometry> geometry;
         for (const std::shared_ptr<Object> &o : s.objects) {
             if (o->deleted) {
                 changes->removedObjects[s.drawingPart].push_back(o->meta.ordinal);
+                if (!o->meta.chartPart.isEmpty()) deletedParts.insert(o->meta.chartPart.toLower());
                 continue;
             }
-            if (!o->chart || !m_cells || o->meta.chartPart.isEmpty()) continue;
-            // the references whose cells changed, or that moved: their caches are made again
-            struct Ref {
-                const QString *now, *was;
-            };
-            std::vector<Ref> refs;
-            const Chart &now = *o->chart, &was = *o->baseChart;
-            for (size_t p = 0; p < now.plots.size() && p < was.plots.size(); ++p)
-                for (size_t k = 0; k < now.plots[p].series.size() && k < was.plots[p].series.size(); ++k) {
-                    const ChartSeries &a = now.plots[p].series[k], &b = was.plots[p].series[k];
-                    refs.push_back({&a.nameRef, &b.nameRef});
-                    refs.push_back({&a.categoryRef, &b.categoryRef});
-                    refs.push_back({&a.valueRef, &b.valueRef});
-                    refs.push_back({&a.xRef, &b.xRef});
+            if (!o->meta.chartPart.isEmpty()) aliveParts.insert(o->meta.chartPart.toLower());
+            // what the file will have for the object: the anchor as the cells' edits leave it, or, for one that keeps its size, as its size and place now give it
+            const DrawingAnchor inFile = movedAnchor(o->fileAnchor, int(i), edits);
+            o->savedAnchor = inFile;
+            if (o->frozen && m_source) {
+                if (!geometry) geometry = jp::grid::GridSheet::makeGeometry(m_source->sheet(int(i)), m_book->styles());
+                const DrawingAnchor want = twoCellFor(*o, geometry->layout.rows, geometry->layout.cols);
+                if (!nearly(want.from, inFile.from) || !nearly(want.to, inFile.to)) {
+                    changes->anchors[s.drawingPart][o->meta.ordinal] = want;
+                    o->savedAnchor = want;
                 }
-            refs.push_back({&now.title.ref, &was.title.ref});
-            for (size_t k = 0; k < now.axes.size() && k < was.axes.size(); ++k) refs.push_back({&now.axes[k].title.ref, &was.axes[k].title.ref});
-            for (const Ref &r : refs) {
-                if (r.now->isEmpty()) continue;
-                bool dirty = *r.now != *r.was;
-                QVector<ChartBlock> blocks;
-                if (!chartBlocks(*r.now, int(i), *m_cells, &blocks)) continue;
-                for (const ChartBlock &b : std::as_const(blocks)) {
-                    const auto sheetChanges = changes->sheets.find(b.sheet);
-                    if (dirty || sheetChanges == changes->sheets.end()) continue;
-                    dirty = changedIn(sheetChanges->second.cells, b.range) || changedIn(sheetChanges->second.results, b.range);
-                }
-                if (!dirty) continue;
-                ChartRefData data;
-                if (readChartRef(*r.now, int(i), *m_cells, kMaxChartSeriesCells, &data)) changes->chartCaches[o->meta.chartPart][*r.now] = data;
             }
         }
     }
-    Q_UNUSED(names);
+    // the caches of the charts whose cells changed or whose references moved, found in the parts of the file: a sheet that was never shown is not read for it
+    if (!m_cells) return;
+    int partsLooked = 0;
+    static const QRegularExpression chartPartRe(QStringLiteral("/charts/chart\\d*\\.xml$"), QRegularExpression::CaseInsensitiveOption);
+    for (const QString &part : m_book->package().partNames()) {
+        if (!chartPartRe.match(part).hasMatch() || ++partsLooked > kMaxChartParts) continue;
+        const QString key = part.toLower();
+        if (deletedParts.contains(key) && !aliveParts.contains(key)) continue;
+        const int own = m_chartSheet.value(key, -1);
+        for (const QString &ref : partRefs(part)) {
+            const QString moved = movedChartRef(ref, names, edits, std::max(own, 0));
+            bool dirty = moved != ref;
+            QVector<ChartBlock> blocks;
+            if (!chartBlocks(moved, own, *m_cells, &blocks)) continue;
+            for (const ChartBlock &b : std::as_const(blocks)) {
+                const auto sheetChanges = changes->sheets.find(b.sheet);
+                if (dirty || sheetChanges == changes->sheets.end()) continue;
+                dirty = changedIn(sheetChanges->second.cells, b.range) || changedIn(sheetChanges->second.results, b.range);
+            }
+            if (!dirty) continue;
+            ChartRefData data;
+            if (readChartRef(moved, own, *m_cells, kMaxChartSeriesCells, &data)) changes->chartCaches[part][moved] = data;
+        }
+    }
 }
 
 void SheetObjects::saved()
 {
+    m_partRefs.clear();   // (the parts are the new file's: their references are the moved ones)
+    m_applied.clear();
     for (size_t i = 0; i < m_sheets.size(); ++i) {
         Sheet &s = m_sheets[i];
+        s.parsed.clear();
+        s.failedParts.clear();
         // the objects that were taken away are not in the file: they are let go, and the places of the elements after them are one less each
         std::vector<int> removed;
         for (const std::shared_ptr<Object> &o : s.objects)
@@ -472,7 +632,8 @@ void SheetObjects::saved()
             if (o->deleted) continue;
             o->meta.ordinal -= int(std::lower_bound(removed.begin(), removed.end(), o->meta.ordinal) - removed.begin());
             o->base = o->anchor;
-            if (o->chart) o->baseChart = std::make_shared<Chart>(*o->chart);
+            o->fileAnchor = o->savedAnchor;   // (what addToSave said the file has)
+            o->baseRefs = o->refs;
             kept.push_back(o);
         }
         const bool changed = kept.size() != s.objects.size();
@@ -484,8 +645,11 @@ void SheetObjects::saved()
 Chart SheetObjects::chartNow(int sheet, int objectId)
 {
     for (const std::shared_ptr<Object> &o : sheetState(sheet).objects)
-        if (o->id == objectId && o->chart) {
+        if (o->id == objectId) {
+            ensureBuilt(sheet, *o);
+            if (!o->chart) return Chart();
             Chart c = *o->chart;
+            setChartRefs(&c, o->refs);
             if (m_cells) applyChartCells(&c, sheet, *m_cells);
             return c;
         }
@@ -497,22 +661,15 @@ void SheetObjects::chartRefCounts(int sheet, int objectId, int *refs, int *found
     *refs = *found = 0;
     if (!m_cells) return;
     for (const std::shared_ptr<Object> &o : sheetState(sheet).objects) {
-        if (o->id != objectId || !o->chart) continue;
-        auto count = [&](const QString &ref) {
-            if (ref.isEmpty()) return;
+        if (o->id != objectId) continue;
+        ensureBuilt(sheet, *o);
+        for (const QString &ref : std::as_const(o->refs)) {
+            if (ref.isEmpty()) continue;
             ++*refs;
             QVector<ChartBlock> blocks;
             if (chartBlocks(ref, sheet, *m_cells, &blocks)) ++*found;
             else if (missed) *missed << ref;
-        };
-        for (const ChartPlot &plot : o->chart->plots)
-            for (const ChartSeries &s : plot.series) {
-                count(s.nameRef);
-                count(s.categoryRef);
-                count(s.valueRef);
-                count(s.xRef);
-            }
-        count(o->chart->title.ref);
+        }
         return;
     }
 }
@@ -521,8 +678,21 @@ QVector<ChartBlock> SheetObjects::chartReads(int sheet, int objectId)
 {
     if (!m_cells) return {};
     for (const std::shared_ptr<Object> &o : sheetState(sheet).objects)
-        if (o->id == objectId && o->chart) return jp::office::sheet::chartReads(*o->chart, sheet, *m_cells);
+        if (o->id == objectId) {
+            ensureBuilt(sheet, *o);
+            if (!o->chart) return {};
+            Chart c = *o->chart;
+            setChartRefs(&c, o->refs);
+            return jp::office::sheet::chartReads(c, sheet, *m_cells);
+        }
     return {};
+}
+
+DrawingAnchor SheetObjects::anchorOf(int sheet, int objectId)
+{
+    for (const std::shared_ptr<Object> &o : sheetState(sheet).objects)
+        if (o->id == objectId) return o->anchor;
+    return DrawingAnchor();
 }
 
 } // namespace jp::crunch

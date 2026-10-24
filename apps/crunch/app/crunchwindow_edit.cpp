@@ -79,6 +79,7 @@ bool CrunchWindow::editingAllowed()
 void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool fromBar)
 {
     if (m_edit.active) return;
+    if (m_objects && m_objects->isChartSheet(m_sheet)) return;   // (a chart sheet has no cells to type in)
     if (!editingAllowed()) return;
     const grid::Selection &sel = m_view->selection();
     const int sheet = m_sheet;

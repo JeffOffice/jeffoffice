@@ -103,6 +103,8 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
         m_path.clear();
         m_session.reset();
         m_loaded.reset();
+        if (m_objects) m_objects->open(nullptr);   // (nothing opened: no object is left over the blank grid)
+        m_view->setCellsEnabled(true);
         showBlank();
         fillTabs();
         setStatus(tr("Ready"));

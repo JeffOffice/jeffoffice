@@ -22,7 +22,10 @@ void CrunchWindow::openObjects()
 {
     if (!m_objects || !m_loaded) return;
     m_objects->open(m_loaded->book);
-    m_objects->setEditsSource([this] { return m_session ? m_session->structureEdits() : std::vector<jp::office::sheet::StructEdit>(); });
+    m_objects->setEditsSource([this]() -> const std::vector<jp::office::sheet::StructEdit> & {
+        static const std::vector<jp::office::sheet::StructEdit> none;
+        return m_session ? m_session->structureEdits() : none;
+    });
 }
 
 // The sheet is in the grid: a chart sheet has no cells to see (no headings or gridlines), and its objects are made a moment later, between events, so that the first screen is not held
@@ -30,9 +33,25 @@ void CrunchWindow::openObjects()
 void CrunchWindow::prepareObjects(int sheet)
 {
     if (!m_objects || !m_loaded || !m_loaded->book) return;
-    if (m_objects->isChartSheet(sheet)) {
+    const bool chartSheet = m_objects->isChartSheet(sheet);
+    if (chartSheet) {
+        // (a chart sheet is a chart: no cells, no cursor, no typing, no formula bar)
         m_view->setShowHeadings(false);
         m_view->setShowGridlines(false);
+    }
+    m_view->setCellsEnabled(!chartSheet);
+    m_formulaBar->setReadOnly(chartSheet);
+    m_nameBox->setEnabled(!chartSheet);
+    if (chartSheet) {
+        m_formulaBar->clear();
+        m_nameBox->clear();
+    }
+    if (m_objects->shownSheet() == sheet) {
+        // the objects of the sheet are in the layer (the sheet was made again, by an edit that moved cells or by being read whole): they stay, with their pictures and the one picked, and are
+        // placed again on the rows and columns it has now
+        m_objects->layer()->layoutChanged();
+        if (m_haveCalc) m_objects->geometryKnown(sheet);
+        return;
     }
     const quint64 token = ++m_objectsToken;
     QMetaObject::invokeMethod(
@@ -64,6 +83,11 @@ void CrunchWindow::connectObjects()
 void CrunchWindow::deleteObject(int id)
 {
     if (!m_session || m_edit.active || m_saving) return;
+    QString why;
+    if (m_objects && !m_objects->canDelete(m_sheet, id, &why)) {
+        notice(tr("Delete"), why);
+        return;
+    }
     const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Object"));
     if (!o.ok) notice(tr("Delete"), o.problem);
 }

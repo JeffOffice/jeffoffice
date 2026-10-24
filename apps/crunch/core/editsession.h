@@ -262,7 +262,7 @@ public:
     Outcome deleteObject(int sheet, int id, const QString &text);
 
     // The edits that insert or delete rows, columns, or cells since the file was read or saved that are done (not undone), in order: what the objects over the cells are moved by.
-    std::vector<jp::office::sheet::StructEdit> structureEdits() const { return m_edits; }
+    const std::vector<jp::office::sheet::StructEdit> &structureEdits() const { return m_edits; }
 
     // The worker's results, as they reach the window (before the window's store has them: the store's value is the engine's before it): kept for saving, those that the engine changed and that
     // differ from what the file holds.

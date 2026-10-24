@@ -3,6 +3,7 @@
 #include "../sheet/drawinghelpers.h"
 #include "editwindow.h"
 
+#include "core/fonts.h"
 #include "core/sheetobjects.h"
 #include "office/chart.h"
 #include "office/package.h"
@@ -72,6 +73,13 @@ class CrunchDrawingTests : public QObject {
         e.view()->viewport()->repaint();
         return e.view()->viewport()->grab().toImage();
     }
+    // The color at a logical point of a grabbed picture (a picture of a screen with a device pixel ratio above 1 has more pixels than the widget has points).
+    static QRgb at(const QImage &img, int x, int y)
+    {
+        const qreal r = img.devicePixelRatio();
+        return img.pixel(qRound(x * r), qRound(y * r));
+    }
+    static QRgb at(const QImage &img, const QPoint &p) { return at(img, p.x(), p.y()); }
     static bool shown(EditWindow &e, int count)
     {
         crunch::SheetObjects *o = e.win.w.objects();
@@ -79,6 +87,8 @@ class CrunchDrawingTests : public QObject {
     }
 
 private Q_SLOTS:
+    void initTestCase() { jp::initCore(); }
+
     // The objects of the sheet in view are made between events after it is shown, put where their anchors say, over the cells.
     void objectsAreShownOverTheCells()
     {
@@ -99,16 +109,16 @@ private Q_SLOTS:
         // the picture: red where the anchor puts it (A7 to B9, rows 6 to 8), the shape blue (A11 to B12)
         const grid::GridLayout &L = e.view()->sheet().layout();
         const QRect pic = L.rangeRect(6, 0, 8, 1), box = L.rangeRect(10, 0, 11, 1), chart = L.rangeRect(1, 4, 12, 10), group = L.rangeRect(14, 3, 15, 5);
-        QCOMPARE(img.pixel(pic.center()), QColor(Qt::red).rgb());
-        QCOMPARE(img.pixel(box.left() + 6, box.top() + 6), QColor(0x33, 0x66, 0xCC).rgb());
-        QVERIFY(img.pixel(box.left() - 2, box.center().y()) != QColor(0x33, 0x66, 0xCC).rgb());
-        QCOMPARE(img.pixel(group.left() + 6, group.top() + 6), QColor(0x00, 0xAA, 0x00).rgb());
+        QCOMPARE(at(img, pic.center()), QColor(Qt::red).rgb());
+        QCOMPARE(at(img, box.left() + 6, box.top() + 6), QColor(0x33, 0x66, 0xCC).rgb());
+        QVERIFY(at(img, box.left() - 2, box.center().y()) != QColor(0x33, 0x66, 0xCC).rgb());
+        QCOMPARE(at(img, group.left() + 6, group.top() + 6), QColor(0x00, 0xAA, 0x00).rgb());
         // the chart: a picture with more than the grid's white and gray in it, inside its anchor and not outside
         QSet<QRgb> colors;
         for (int y = chart.top(); y < chart.bottom(); y += 3)
-            for (int x = chart.left(); x < chart.right(); x += 3) colors.insert(img.pixel(x, y));
+            for (int x = chart.left(); x < chart.right(); x += 3) colors.insert(at(img, x, y));
         QVERIFY2(colors.size() >= 4, qPrintable(QString::number(colors.size())));
-        QCOMPARE(img.pixel(chart.right() + 4, chart.center().y()), img.pixel(chart.right() + 8, chart.center().y()));   // (the plain cells beside it)
+        QCOMPARE(at(img, chart.right() + 4, chart.center().y()), at(img, chart.right() + 8, chart.center().y()));   // (the plain cells beside it)
         // a click on the picture picks it; a click on a cell lets it go and moves the cursor
         QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, pic.center());
         QCOMPARE(o->layer()->selectedId(), 1);
@@ -233,12 +243,12 @@ private Q_SLOTS:
         QVERIFY(o->isDeleted(0, 1));
         QVERIFY(e.win.w.isModified());
         QCOMPARE(o->layer()->selectedId(), -1);
-        QVERIFY(shot(e).pixel(pic.center()) != QColor(Qt::red).rgb());
+        QVERIFY(at(shot(e), pic.center()) != QColor(Qt::red).rgb());
         pressUndo(e.view());
         QVERIFY(!o->isDeleted(0, 1));
         QVERIFY(!e.win.w.isModified());
         o->layer()->prepareAll();
-        QCOMPARE(shot(e).pixel(pic.center()), QColor(Qt::red).rgb());
+        QCOMPARE(at(shot(e), pic.center()), QColor(Qt::red).rgb());
         pressRedo(e.view());
         QVERIFY(o->isDeleted(0, 1));
         // a cell the chart reads is typed over too
@@ -262,8 +272,10 @@ private Q_SLOTS:
         QVERIFY(office::readChart(after.part(QStringLiteral("/xl/charts/chart1.xml")), office::defaultTheme(), office::ColorMap(), &chart, &why));
         QCOMPARE(chart.plots[0].series[0].values, (QVector<double>{10, 55, 30}));   // (the cache says what the cells hold: the file stored 10, 20, 30)
         QCOMPARE(chart.plots[0].series[0].name, QStringLiteral("East"));
+        // (the deleted picture's own part is gone with it)
+        QVERIFY(!after.hasPart(QStringLiteral("/xl/media/image1.png")));
         for (const QString &name : before.partNames()) {
-            if (name == QLatin1String("/xl/drawings/drawing1.xml") || name == QLatin1String("/xl/charts/chart1.xml") || name.contains(QLatin1String("/worksheets/")) || name == QLatin1String("/xl/workbook.xml")) continue;
+            if (name == QLatin1String("/xl/drawings/drawing1.xml") || name == QLatin1String("/xl/charts/chart1.xml") || name.contains(QLatin1String("/worksheets/")) || name == QLatin1String("/xl/workbook.xml") || name == QLatin1String("/xl/media/image1.png")) continue;
             QVERIFY2(after.part(name) == before.part(name), qPrintable(name));
         }
         // the objects are as the file has them: four
@@ -302,14 +314,21 @@ private Q_SLOTS:
             QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(many), {})));
             QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0 && e.win.w.objects()->layer()->count() > 0);
             crunch::SheetObjects *o = e.win.w.objects();
-            const crunch::DrawingCounts c = o->counts(0);
+            // the sheet is listed, and an object is made when a picture of it is wanted: not the ten thousand, but those on and near the screen
+            QCOMPARE(o->layer()->count(), jp::office::sheet::kMaxDrawingAnchors);
+            QTRY_VERIFY(!o->layer()->busy());
+            QVERIFY2(o->objectsMade() < jp::office::sheet::kMaxDrawingAnchors / 2, qPrintable(QString::number(o->objectsMade())));
+            const qint64 renders = o->layer()->stats().renders;
+            shot(e);   // (a paint of the window makes nothing)
+            QCOMPARE(o->layer()->stats().renders, renders);
+            QCOMPARE(o->layer()->stats().paintRenders, qint64(0));
+            QVERIFY(o->layer()->cacheBytes() <= jp::grid::ObjectLayer::kCacheBytes);
+            const crunch::DrawingCounts c = o->counts(0);   // (this one makes them all)
             QCOMPARE(c.anchors, jp::office::sheet::kMaxDrawingAnchors + 2000);
             QVERIFY(c.truncated);
             QCOMPARE(c.shapes, jp::office::sheet::kMaxDrawingAnchors);
             QVERIFY(!c.why.isEmpty());
-            const qint64 renders = o->layer()->stats().renders;
-            shot(e);   // (a paint of the window: at most what the layer lets one make, in each of its parts)
-            QVERIFY2(o->layer()->stats().renders - renders <= 4 * jp::grid::ObjectLayer::kMaxRendersPerPaint * 2, qPrintable(QString::number(o->layer()->stats().renders - renders)));
+            QCOMPARE(o->objectsMade(), jp::office::sheet::kMaxDrawingAnchors);
         }
         {
             QString nest = shapeElement(9, QStringLiteral("Core"));
@@ -329,8 +348,11 @@ private Q_SLOTS:
             QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {drawtest::DrawingTarget{QStringLiteral("rIdP"), QStringLiteral("xl/media/image1.png"), hugePng(), QStringLiteral("image/png"), QStringLiteral("image")}})));
             QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
             e.win.w.objects()->layer()->prepareAll();
-            shot(e);   // (the picture is not decoded: nothing of its size is made)
+            shot(e);
+            // the picture says it has ten billion pixels and holds none: no byte of one is decoded (counted in the bytes the drawing code holds decoded), and what the layer holds is the shape's
             QVERIFY(e.win.w.objects()->counts(0).pictures == 1);
+            QCOMPARE(e.win.w.objects()->imageBytesDecoded(), qint64(0));
+            QVERIFY(e.win.w.objects()->layer()->cacheBytes() < (qint64(1) << 20));
         }
         {
             // thirty series that read whole columns of a sheet that holds a few cells, and objects at the far corner
@@ -346,6 +368,7 @@ private Q_SLOTS:
             const jp::office::Chart c = e.win.w.objects()->chartNow(0, 0);
             QCOMPARE(int(c.plots[0].series.size()), 30);
             QCOMPARE(int(c.plots[0].series[0].values.size()), 4);   // (the column read as far as the sheet's cells go)
+            QVERIFY(e.win.w.objects()->layer()->cacheBytes() <= jp::grid::ObjectLayer::kCacheBytes);
         }
     }
 };

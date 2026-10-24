@@ -1,14 +1,16 @@
 #pragma once
 // The charts, pictures, and shapes of a workbook's sheets, as the window shows them (see libs/shell/grid/objectlayer.h for how they are put over the cells). A sheet's drawing is
-// read when the sheet is first shown: each chart through libs/office/office/chart.h, each picture, shape, text box, group, and connector through the drawing code the presentations
-// use (libs/office/office/drawingml.h), so a drawing looks here as it does there; nothing is drawn a second way. A chart is drawn from the cells it reads, as they are now
-// (libs/office/sheet/chartdata.h), and is drawn again when one of them changes; before the workbook is whole, and for what it cannot resolve, from the numbers the chart part stores.
+// listed when the sheet is first shown (its anchors only: where each object is and what kind it is), and each object is made when a picture of it is first wanted: each chart through
+// libs/office/office/chart.h, each picture, shape, text box, group, and connector through the drawing code the presentations use (libs/office/office/drawingml.h), so a drawing looks here
+// as it does there; nothing is drawn a second way. A sheet of ten thousand shapes costs the shapes on its screen. A chart is drawn from the cells it reads, as they are now
+// (libs/office/sheet/chartdata.h), and is drawn again when one of them changes: what it needs is taken on the window's thread, and the picture is made on a worker; before the workbook is
+// whole, and for what it cannot resolve, the chart has the numbers its part stores.
 //
-// Nothing here changes the file: the drawing parts and chart parts stay as they were read, and saving writes them as they were (moved with the cells, and with the caches of a chart
-// refreshed where its cells' values changed: libs/office/sheet/xlsxsave.h).
+// Nothing here changes the file: the drawing parts and chart parts stay as they were read, and saving writes them as they were (moved with the cells, the caches of a chart refreshed where
+// its cells' values changed, and an object that was deleted taken out with what only it used: libs/office/sheet/xlsxsave.h and drawingsave.h).
 //
 // Bounded: the objects of all the workbook's drawings (kMaxWorkbookObjects), the anchors of a drawing, the shapes, texts, and paragraphs one workbook may keep (the budget of the drawing
-// code), the points and series a chart keeps, and the pictures and renders of the layer.
+// code), the points and series a chart keeps, the cells a chart is watched by, and the pictures and renders of the layer.
 
 #include "core/document.h"
 #include "grid/chartcells.h"
@@ -19,8 +21,8 @@
 #include "render/renderer.h"
 #include "sheet/chartdata.h"
 #include "sheet/drawing.h"
-#include "sheet/xlsxsave.h"
 #include "sheet/sheetreader.h"
+#include "sheet/xlsxsave.h"
 
 #include <QObject>
 #include <QString>
@@ -48,36 +50,45 @@ struct DrawingCounts {
 class SheetObjects : public QObject {
     Q_OBJECT
 public:
+    // Where the structure edits that were made since the file was read or saved are kept (rows and columns inserted or deleted), in the order they were made.
+    using EditsSource = std::function<const std::vector<jp::office::sheet::StructEdit> &()>;
+
     explicit SheetObjects(QObject *parent = nullptr);
     ~SheetObjects() override;
 
-    // The workbook whose drawings are shown. Everything is forgotten.
+    // The workbook whose drawings are shown (none: nothing is). Everything is forgotten.
     void open(const std::shared_ptr<jp::office::sheet::Workbook> &book);
     // The workbook is whole: charts read its cells (`source` has the sheets, `values` the results worked out). Until then, and for what cannot be resolved, a chart has its stored numbers.
     void setCells(const jp::office::sheet::WorkbookSource *source, const jp::grid::ValueStore *values);
-    // Where the structure edits that were made since the file was read or saved are kept (rows and columns inserted or deleted), asked for when objects are made or moved.
-    void setEditsSource(std::function<std::vector<jp::office::sheet::StructEdit>()> edits) { m_edits = std::move(edits); }
+    void setEditsSource(EditsSource edits) { m_edits = std::move(edits); }
 
     jp::grid::ObjectLayer *layer() { return &m_layer; }
-    // Puts the sheet's objects in the layer (reading the sheet's drawing if that has not been done).
+    // Puts the sheet's objects in the layer (listing the sheet's drawing if that has not been done); the objects are made as their pictures are wanted.
     void show(int sheet);
     int shownSheet() const { return m_shown; }
-    // What the sheet's drawing holds (reads it if need be).
+    // The rows and columns of the sheet in view are as the file has them, whole (the first rows were swapped for the sheet read whole): an object that keeps its size when cells are resized
+    // (editAs "oneCell" or "absolute") is measured now, so that it keeps what the file gave it.
+    void geometryKnown(int sheet);
+    // What the sheet's drawing holds (every object is made for it).
     DrawingCounts counts(int sheet);
     bool isChartSheet(int sheet) const;
+    // Whether the object can be taken away: not when the file stores it with another (in one element), which would go with it; if not, why.
+    bool canDelete(int sheet, int id, QString *why = nullptr);
 
     // ---- changes
     // Cells were changed (typed, calculated, or put back by Undo): a chart that reads one is drawn again.
     void cellsChanged(const std::vector<jp::grid::ValueStore::Item> &cells);
-    // Rows or columns were inserted or deleted (or that was undone): the objects, and the charts' references, are where those edits put them.
+    // Rows or columns were inserted or deleted (or that was undone): the objects, and the charts' references, are where those edits put them. Only the edit that is new is worked in,
+    // unless the list of edits is not the one before with one more at its end (an Undo): the objects are then worked out again from what they were.
     void cellsMoved();
     // The sizes of rows or columns of the sheet changed (a hidden row is left out of a chart): charts are drawn again.
     void sizesChanged(int sheet);
     // An object is taken away (a person deleted it) or brought back (undone); the layer is told if its sheet is shown.
     void setDeleted(int sheet, int id, bool deleted);
     bool isDeleted(int sheet, int id);
-    // What saving needs of the objects, put in the changes the file is made from: the objects taken away, and the caches of the charts whose cells changed or whose references moved
-    // (those the changes already hold are the cells that changed). Every sheet's drawing is read for it.
+    // What saving needs of the objects, put in the changes the file is made from: the objects taken away, the anchors of those that keep their size when cells are resized, and the caches
+    // of the charts whose cells changed or whose references moved (the cells that changed are those the changes already hold). Charts are found in the parts of the file, so a sheet
+    // that was never shown is not read for it.
     void addToSave(jp::office::sheet::SaveChanges *changes);
     // The file was saved: what it holds is what the objects are now (the edits made so far are in it, and the objects taken away are not).
     void saved();
@@ -89,48 +100,74 @@ public:
     // How many references of a chart (its series' names, categories, and values, and its linked titles) there are, and how many of them name cells that can be found (the rest are drawn
     // from the numbers the part stores). Needs the cells.
     void chartRefCounts(int sheet, int objectId, int *refs, int *found, QStringList *missed = nullptr);
-    // How many charts have been drawn from the cells, and how many objects were made (counted for tests).
+    // The anchor an object has now (as the screen places it).
+    jp::office::sheet::DrawingAnchor anchorOf(int sheet, int objectId);
+    // How many charts have been given to the worker, objects have been made, and parts of charts have been read (counted for tests).
     qint64 chartsDrawn() const { return m_chartsDrawn; }
+    int objectsMade() const { return m_objectsMade; }
+    int chartPartsRead() const { return m_chartPartsRead; }
+    // Whether the sheet's drawing has been read (listed), and how many pictures the drawing code left out for their size or kept (what it holds of them is the file's bytes, never decoded here).
+    bool listed(int sheet) const { return sheet >= 0 && size_t(sheet) < m_sheets.size() && m_sheets[size_t(sheet)].listed; }
+    int imagesLeftOut() const { return m_doc->imagesLeftOut; }
+    int imagesKept() const { return int(m_doc->images.size()); }
+    // The bytes of the pictures decoded and held now (a picture is decoded when it is drawn, and never past what the image limits allow).
+    qint64 imageBytesDecoded() const
+    {
+        qint64 n = 0;
+        for (auto it = m_doc->images.cbegin(); it != m_doc->images.cend(); ++it) n += it->cache.sizeInBytes();
+        return n;
+    }
 
 private:
     struct Object {
         int id = 0;
         jp::office::sheet::DrawingObject meta;
-        jp::office::sheet::DrawingAnchor base;     // as the file has it (now)
-        jp::office::sheet::DrawingAnchor anchor;   // with the edits made since
-        jp::ItemPtr item;                          // a picture, shape, group, or connector
-        std::shared_ptr<jp::office::Chart> baseChart;   // a chart as read from the file (now)
-        std::shared_ptr<jp::office::Chart> chart;       // with the edits made since
-        QVector<jp::office::sheet::ChartBlock> reads;   // what it read when it was last drawn
-        QHash<int, jp::office::sheet::CellRange> hull;  // and the smallest block of each sheet that holds those
-        bool made = false;                         // can be drawn
-        bool deleted = false;                      // taken away by a person (not yet saved)
+        jp::office::sheet::DrawingAnchor fileAnchor;   // as the file has it (as it was read, or last saved)
+        jp::office::sheet::DrawingAnchor base;         // as drawn before the edits since (an object that keeps its size, as one-cell or absolute)
+        jp::office::sheet::DrawingAnchor anchor;       // with the edits made since
+        jp::office::sheet::DrawingAnchor savedAnchor;  // what the file being written has
+        bool frozen = false;                           // `base` is the size-keeping form
+        bool built = false, made = false;
+        jp::ItemPtr item;                              // a picture, shape, group, or connector
+        std::shared_ptr<const jp::office::Chart> chart;   // a chart as read from its part, shared by the objects of that part
+        QStringList baseRefs, refs;                    // its references as the file has them, and now
+        jp::office::sheet::ChartReadIndex reads;       // the cells it read when last given to the worker
+        bool deleted = false;                          // taken away by a person (not yet saved)
     };
     struct Sheet {
-        bool built = false;
+        bool listed = false;
         bool chartSheet = false;
         QString drawingPart;
         jp::office::sheet::SheetDrawing drawing;
-        std::vector<std::shared_ptr<Object>> objects;
+        std::vector<std::shared_ptr<Object>> objects;  // those that are not hidden, in the order of the file
+        std::shared_ptr<jp::office::DrawingContext> context;
+        QHash<QString, std::shared_ptr<const jp::office::Chart>> parsed;   // the charts read, by part (the part is read once, whatever number of anchors name it)
+        QHash<QString, QString> failedParts;           // chart parts that could not be read, and why
         DrawingCounts counts;
     };
     Sheet &sheetState(int sheet);
-    void build(int sheet, Sheet &s);
-    std::shared_ptr<Object> buildObject(Sheet &s, const jp::office::sheet::DrawingObject &d, const jp::office::DrawingContext &ctx);
+    void list(int sheet, Sheet &s);
+    void ensureBuilt(int sheet, Object &o);
     void readContext();
-    QImage renderChart(int sheet, Object &o, const jp::grid::RenderRequest &q);
+    std::function<QImage()> prepareChart(int sheet, Object &o, const jp::grid::RenderRequest &q);
     QImage renderItem(Object &o, const jp::grid::RenderRequest &q);
-    void remember(Object &o, const jp::office::Chart &drawn);
     jp::grid::LayerObject layerObject(int sheet, const std::shared_ptr<Object> &o);
-    void applyEdits(int sheet, Sheet &s);
+    void applyEdit(int sheet, Object &o, const jp::office::sheet::StructEdit &edit);
+    void replay(int sheet, Object &o);
     QStringList sheetNames() const;
+    // The references the chart parts of the package read, by part (read once; a save makes them stale).
+    const QStringList &partRefs(const QString &part);
+    jp::office::sheet::DrawingAnchor twoCellFor(const Object &o, const jp::grid::Axis &rows, const jp::grid::Axis &cols) const;
 
     std::shared_ptr<jp::office::sheet::Workbook> m_book;
     const jp::office::sheet::WorkbookSource *m_source = nullptr;
     const jp::grid::ValueStore *m_values = nullptr;
     std::unique_ptr<jp::grid::WorkbookChartCells> m_cells;
-    std::function<std::vector<jp::office::sheet::StructEdit>()> m_edits;
+    EditsSource m_edits;
+    std::vector<jp::office::sheet::StructEdit> m_applied;   // the edits the objects have had worked in
     std::vector<Sheet> m_sheets;
+    QHash<QString, int> m_chartSheet;                        // the sheet each chart part is on (by the drawing of the sheet), lower case
+    QHash<QString, QStringList> m_partRefs;
     jp::grid::ObjectLayer m_layer;
     std::unique_ptr<jp::Document> m_doc;
     jp::LayoutCache m_layoutCache;
@@ -142,6 +179,7 @@ private:
     bool m_contextRead = false;
     int m_shown = -1;
     int m_objectsMade = 0;
+    int m_chartPartsRead = 0;
     qint64 m_chartsDrawn = 0;
 };
 
