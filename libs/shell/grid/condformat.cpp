@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 #include <tuple>
 
@@ -129,7 +130,16 @@ quint64 valueKey(const Value &v)
         h ^= h >> 33;
         return h ? h : 1;
     };
-    if (v.isNumber()) return mix(1, quint64(qHash(jp::calc::numberToText(v.number()))));
+    if (v.isNumber()) {
+        // (the digits it is shown to: the first fifteen, the way General shows a number; written by the C library, which is a good deal quicker than the text a cell shows)
+        double x = v.number();
+        if (x == 0) x = 0;   // (minus zero is zero)
+        char digits[40];
+        const int n = std::snprintf(digits, sizeof digits, "%.14e", x);
+        quint64 h = 14695981039346656037ull;
+        for (int i = 0; i < n; ++i) h = (h ^ quint8(digits[i])) * 1099511628211ull;
+        return mix(1, h);
+    }
     if (v.isText()) return mix(2, quint64(qHash(v.text().toLower())));
     if (v.isBool()) return mix(3, v.boolean() ? 1 : 0);
     if (v.isError()) return mix(4, quint64(int(v.errorKind())));
@@ -633,11 +643,19 @@ CondFormats::RangeStats *CondFormats::statsFor(size_t rule) const
 
 // Goes on with the figures of a set of cells for about `budget` cells: the cells are taken range by range, in order of row and column (where it stopped is kept), then the keys of the
 // values are counted; when it is done the figures are ready. A set that would take the sheet's cells held for figures past the limit is given up.
-void CondFormats::advance(RangeStats *rs, qint64 budget) const
+qint64 CondFormats::advance(RangeStats *rs, qint64 budget) const
+{
+    const qint64 gone = advanceCells(rs, budget);
+    m_figureCells += gone;
+    return gone;
+}
+
+qint64 CondFormats::advanceCells(RangeStats *rs, qint64 budget) const
 {
     using Stage = RangeStats::Stage;
     const jp::office::sheet::Sheet *sheet = m_owner->data().sheet;
-    if (!sheet) return;
+    if (!sheet) return 0;
+    qint64 worked = 0;   // the cells gone through, for whoever counts them
     if (rs->stage == Stage::Scan) {
         qint64 taken = 0;
         while (rs->rangeAt < rs->ranges.size() && taken < budget) {
@@ -671,17 +689,17 @@ void CondFormats::advance(RangeStats *rs, qint64 budget) const
                 rs->clearData();
                 rs->stage = Stage::Refused;
                 noteLimit(Limit::StatCells);
-                return;
+                return taken;
             }
             if (stopped) break;
             ++rs->rangeAt;
             rs->haveLast = false;
         }
-        if (rs->rangeAt < rs->ranges.size()) return;
+        if (rs->rangeAt < rs->ranges.size()) return taken;
         if (rs->staleBuild) {
             // (a value changed while the cells were being taken: the figures are made again from the beginning)
             rs->clearData();
-            return;
+            return taken;
         }
         // several ranges may name a cell twice, or give the cells out of order: the cells are put in order of place, each once, and the figures made again from them
         bool ordered = true;
@@ -695,9 +713,11 @@ void CondFormats::advance(RangeStats *rs, qint64 budget) const
             for (const StatCell &c : rs->cells)
                 if (!std::isnan(c.num)) rs->addNumber(c.num);
         }
+        worked = taken;
         m_statCells += qint64(rs->cells.size());
         rs->stage = rs->needCounts ? Stage::Count : Stage::Done;
         rs->countAt = 0;
+        if (rs->needCounts) rs->counts.reserve(rs->cells.size());   // (the table is made once, not grown by doubling in the middle of a slice)
         if (rs->stage == Stage::Done) {
             ++m_passes;
             ++rs->version;
@@ -710,12 +730,14 @@ void CondFormats::advance(RangeStats *rs, qint64 budget) const
             if (key) ++rs->counts[key];
             ++counted;
         }
+        worked += counted;
         if (rs->countAt >= rs->cells.size()) {
             rs->stage = Stage::Done;
             ++m_passes;
             ++rs->version;
         }
     }
+    return worked;
 }
 
 bool CondFormats::step(qint64 budgetMicros)
@@ -724,6 +746,7 @@ bool CondFormats::step(qint64 budgetMicros)
     QElapsedTimer clock;
     clock.start();
     m_paintWork = 0;      // (the paint that follows has its steps again)
+    m_syncUsed = 0;
     m_incomplete = false;
     bool more = false;
     for (auto &entry : m_stats) {
@@ -883,7 +906,9 @@ CondFormats::Ready CondFormats::prepare(size_t rule) const
         return Ready::Never;
     }
     if (rs->stage != Stage::Done) {
-        advance(rs, m_unlimited ? std::numeric_limits<qint64>::max() / 4 : m_limits.syncCells);
+        // (the cells a paint goes through for figures are counted for the paint, all its rules and cells together; when they are used up the figures wait for the slices between paints)
+        const qint64 allowed = m_unlimited ? std::numeric_limits<qint64>::max() / 4 : std::max<qint64>(0, m_limits.syncCells - m_syncUsed);
+        if (allowed > 0) m_syncUsed += advance(rs, allowed);
         if (rs->stage == Stage::Refused) {
             st.never = true;
             return Ready::Never;

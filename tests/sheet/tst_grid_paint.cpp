@@ -1221,6 +1221,7 @@ private Q_SLOTS:
         for (quint32 i = 0; i < 100000; i += 1000) f.number(i, 1, double(i));
         f.sheet.conditionalFormats = {bar, scale};
         f.build();
+        f.grid.conditional().settle();   // (the figures of a big sheet are made in slices between paints, not in the paint)
         f.render();
         QVERIFY2(f.painter->stats().condCells <= 40, qPrintable(QString::number(f.painter->stats().condCells)));   // (20 rows of two columns)
         QVERIFY(f.painter->stats().bars == 20);

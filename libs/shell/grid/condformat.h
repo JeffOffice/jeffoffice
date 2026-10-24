@@ -56,8 +56,8 @@ int iconSetCount(const QString &name);
 class CondFormats {
 public:
     // The limits (see the notices below for what each says when it stops something).
-    static constexpr qint64 kSyncCells = 100000;          // the cells of a pass that are looked at as the cells are drawn; a bigger pass goes on in slices
-    static constexpr qint64 kSliceCells = 20000;          // the cells of a slice
+    static constexpr qint64 kSyncCells = 4000;            // the cells of figures that one paint goes through as the cells are drawn, all rules together; what is left goes on in slices
+    static constexpr qint64 kSliceCells = 4000;           // the cells of a slice
     static constexpr qint64 kMaxStatCells = 2000000;      // the cells that the figures of a sheet's rules are held for, all together
     static constexpr qint64 kMaxIndexedRanges = 200000;   // the ranges of a sheet's rules that are looked at, all together (the rules after that are not shown)
     static constexpr qint64 kPaintWork = 100000;          // the steps of rules' formulas that a paint (or a slice) works out; the cells left over are done in the paints after it
@@ -106,7 +106,11 @@ public:
 
     // ---- work that is not done at once
     // A paint is about to begin: it has the steps of rules' formulas that `kPaintWork` says.
-    void beginPaint() const { m_paintWork = 0; }
+    void beginPaint() const
+    {
+        m_paintWork = 0;
+        m_syncUsed = 0;
+    }
     // Whether something is left to do: figures being made, or cells left plain for want of the steps a paint has.
     bool wantsMore() const { return m_building || m_incomplete; }
     // Makes figures for about `budgetMicros` microseconds (and gives the next paint its steps); true if there is more to do after.
@@ -126,6 +130,8 @@ public:
     qint64 incrementalChanges() const { return m_incremental; }
     // The rectangles of the index and the entries in them that were looked at to find the rules of cells.
     qint64 indexSteps() const { return m_indexSteps; }
+    // The cells gone through for figures, in all (a cell is gone through again for the counts of values, so a pass over n cells that counts is 2n).
+    qint64 figureCells() const { return m_figureCells; }
 
 private:
     struct RuleState;
@@ -145,7 +151,8 @@ private:
     Ready prepare(size_t rule) const;
     void derive(size_t rule) const;
     RangeStats *statsFor(size_t rule) const;
-    void advance(RangeStats *stats, qint64 cells) const;
+    qint64 advance(RangeStats *stats, qint64 cells) const;
+    qint64 advanceCells(RangeStats *stats, qint64 cells) const;
     void applyChange(RangeStats *stats, quint32 row, quint32 col) const;
     const Index &index() const;
     void rulesAt(quint32 row, quint32 col, std::vector<int> *out) const;
@@ -160,9 +167,10 @@ private:
     mutable std::unordered_map<quint64, CondCell> m_cache;
     mutable bool m_stale = false;   // the results kept are of values that have changed: let go when next asked for (clearing a big table for each of a batch of values would cost more than they do)
     mutable std::deque<jp::office::sheet::DifferentialFormat> m_formats;
-    mutable qint64 m_tests = 0, m_passes = 0, m_statCells = 0, m_incremental = 0, m_indexSteps = 0;
+    mutable qint64 m_tests = 0, m_passes = 0, m_statCells = 0, m_incremental = 0, m_indexSteps = 0, m_figureCells = 0;
     Limits m_limits;
     mutable qint64 m_paintWork = 0;
+    mutable qint64 m_syncUsed = 0;   // the cells of figures that this paint has gone through, all rules together (kSyncCells is for the paint, not for each rule or each cell)
     mutable bool m_building = false, m_incomplete = false, m_unlimited = false;
     mutable unsigned m_noticesGiven = 0, m_noticesWanted = 0;   // by Limit
     mutable std::vector<int> m_scratch;

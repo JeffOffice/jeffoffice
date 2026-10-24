@@ -613,11 +613,42 @@ private Q_SLOTS:
         b.sheet.conditionalFormats.last().colors = {rgb(0xFF0000), rgb(0x00FF00)};
         b.build();
         for (quint32 row = 50000; row < 50040; ++row) b.grid.conditional().at(row, 0);
+        QCOMPARE(b.grid.conditional().passes(), qint64(0));   // (a paint goes through only so many cells for figures: the rest waits for the slices)
+        b.grid.conditional().settle();
+        for (quint32 row = 50000; row < 50040; ++row) b.grid.conditional().at(row, 0);
         QCOMPARE(b.grid.conditional().passes(), qint64(1));   // (the two rules have the same cells: one pass is theirs both)
         QCOMPARE(b.grid.conditional().tests(), qint64(0));
     }
 
     // ---- the limits of what a sheet's rules cost (hostile workbooks)
+
+    // The cells a paint goes through for figures are counted for the paint, all its rules and all its cells together (each of sixty rules, and each of eight hundred cells, went through its own
+    // share before, and a paint took as long as a hundred times that): a paint goes through the number the limit says, and the slices between paints do the rest.
+    void aPaintGoesThroughOnlyAsManyCellsAsTheLimitSays()
+    {
+        Book b;
+        for (int i = 0; i < 100000; ++i) b.sheet.cells.add(Book::numberCell(quint32(i), 0, double(i % 5000)));
+        const int d = b.dxfBoldItalic(true, false);
+        for (int i = 0; i < 60; ++i) b.rule(CondRule::Type::DuplicateValues, QStringLiteral("A1:A100000"), d);
+        b.build();
+        CondFormats::Limits limits;
+        limits.syncCells = 3000;
+        limits.sliceCells = 3000;
+        b.grid.conditional().setLimits(limits);
+        b.grid.conditional().beginPaint();
+        for (quint32 row = 0; row < 800; ++row) b.grid.conditional().at(row, 0);
+        QVERIFY2(b.grid.conditional().figureCells() <= 3000, qPrintable(QString::number(b.grid.conditional().figureCells())));
+        QVERIFY(b.grid.conditional().figureCells() > 0);
+        QVERIFY(b.grid.conditional().wantsMore());                 // (the cells wait: plain until the figures are made)
+        QCOMPARE(b.at(QStringLiteral("A5")).any, false);
+        // each slice goes through its own cells, and when they are all through the cells show
+        int slices = 0;
+        while (b.grid.conditional().step(1) && slices < 1000) ++slices;   // (a slice of one microsecond goes through one slice of cells)
+        QVERIFY(slices > 0);
+        b.grid.conditional().beginPaint();
+        QVERIFY(b.at(QStringLiteral("A5")).any);                   // (5 is in the column 20 times)
+        QCOMPARE(b.grid.conditional().passes(), qint64(1));
+    }
 
     // Sixty rules of duplicate values over the same cells have one count between them, not sixty: one pass, and the cells held once.
     void rulesOverTheSameCellsShareTheirFigures()
@@ -627,6 +658,7 @@ private Q_SLOTS:
         const int d = b.dxfBoldItalic(true, false);
         for (int i = 0; i < 60; ++i) b.rule(CondRule::Type::DuplicateValues, QStringLiteral("A1:A20000"), d);
         b.build();
+        b.grid.conditional().settle();
         for (int i = 0; i < 60; ++i) QVERIFY(b.at(QStringLiteral("A%1").arg(1 + i)).any);
         QCOMPARE(b.grid.conditional().passes(), qint64(1));
         QCOMPARE(b.grid.conditional().statCells(), qint64(20000));
@@ -634,6 +666,7 @@ private Q_SLOTS:
         b.rule(CondRule::Type::UniqueValues, QStringLiteral("A1:A20000"), d);
         b.sheet.conditionalFormats.last().priority = 1000;
         b.grid.resetConditional();
+        b.grid.conditional().settle();
         QVERIFY(b.at(QStringLiteral("A1")).any);
         QCOMPARE(b.grid.conditional().passes(), qint64(2));   // (one more: the same cells, for the sixty-one rules)
     }
@@ -696,6 +729,7 @@ private Q_SLOTS:
         scale.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
         scale.colors = {rgb(0xFF0000), rgb(0x00FF00)};
         b.build();
+        b.grid.conditional().settle();
         QVERIFY(b.at(QStringLiteral("A10")).hasScale);
         QVERIFY(b.formatAt(QStringLiteral("A10")).isEmpty());   // (not a duplicate)
         QCOMPARE(b.at(QStringLiteral("A1")).scale, QRgb(0xFFFF0000));   // (the lowest: the red end)
