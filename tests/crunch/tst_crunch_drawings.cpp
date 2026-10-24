@@ -574,38 +574,47 @@ private Q_SLOTS:
         QVERIFY(w.isModified());
     }
 
-    // Two objects use one picture: deleting one leaves the picture, its relationship, and its entry of the content types; deleting the other takes them.
+    // Two objects use one picture, by one relationship or by two: deleting one leaves the picture, the relationship the other uses, and the picture's entry of the content types; deleting the
+    // other takes them. (With two relationships to the picture the deleted object's own goes, and the picture stays because the other still goes to it.)
     void aPictureTwoObjectsUseStaysUntilBothAreGone()
     {
-        const QString anchors = twoCell(0, 6, 2, 9, pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("First"))) + twoCell(4, 6, 6, 9, pictureElement(4, QStringLiteral("rIdP"), QStringLiteral("Second")))
-                                + twoCell(0, 11, 2, 13, shapeElement(5, QStringLiteral("Box")));
-        EditWindow e;
-        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))})));
-        QTRY_VERIFY(shown(e, 3));
-        crunch::SheetObjects *o = e.win.w.objects();
-        auto save = [&]() -> bool {
-            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-            return e.win.w.save() && saved.wait(20000);
-        };
-        const QString rels = QStringLiteral("xl/drawings/_rels/drawing1.xml.rels");
-        QVERIFY(e.win.w.session()->deleteObject(0, 0, QStringLiteral("Delete Object")).ok);
-        QVERIFY(save());
-        QMap<QString, QByteArray> parts = savedParts(e.path);
-        QVERIFY2(parts.contains(QStringLiteral("xl/media/image1.png")), "the picture the other uses stays");
-        QVERIFY(hasRelationship(parts, rels, QStringLiteral("rIdP")));
-        QVERIFY(hasOverride(parts, QStringLiteral("/xl/media/image1.png")));
-        QCOMPARE(o->layer()->count(), 2);
-        QVERIFY(e.win.w.session()->deleteObject(0, 1, QStringLiteral("Delete Object")).ok);
-        QVERIFY(save());
-        parts = savedParts(e.path);
-        QVERIFY2(!parts.contains(QStringLiteral("xl/media/image1.png")), "the last that used it is gone, and the picture");
-        QVERIFY(!hasRelationship(parts, rels, QStringLiteral("rIdP")));
-        QVERIFY(!hasOverride(parts, QStringLiteral("/xl/media/image1.png")));
-        QCOMPARE(o->layer()->count(), 1);   // (the shape)
-        // the file opens with the one object
-        Window second;
-        QVERIFY(second.open(e.copyOfFile()));
-        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 1);
+        for (const bool oneRelationship : {true, false}) {
+            const QString secondId = oneRelationship ? QStringLiteral("rIdP") : QStringLiteral("rIdQ");
+            const QString anchors = twoCell(0, 6, 2, 9, pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("First"))) + twoCell(4, 6, 6, 9, pictureElement(4, secondId, QStringLiteral("Second")))
+                                    + twoCell(0, 11, 2, 13, shapeElement(5, QStringLiteral("Box")));
+            QVector<DrawingTarget> targets = {imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))};
+            if (!oneRelationship) targets.push_back(DrawingTarget{QStringLiteral("rIdQ"), QStringLiteral("xl/media/image1.png"), pngBytes(8, 4, Qt::red), QString(), QStringLiteral("image")});
+            EditWindow e;
+            QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), targets)));
+            QTRY_VERIFY(shown(e, 3));
+            crunch::SheetObjects *o = e.win.w.objects();
+            auto save = [&]() -> bool {
+                QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+                return e.win.w.save() && saved.wait(20000);
+            };
+            const QString rels = QStringLiteral("xl/drawings/_rels/drawing1.xml.rels");
+            QVERIFY(hasRelationship(savedParts(e.path), rels, QStringLiteral("rIdP")));
+            QVERIFY(e.win.w.session()->deleteObject(0, 0, QStringLiteral("Delete Object")).ok);
+            QVERIFY(save());
+            QMap<QString, QByteArray> parts = savedParts(e.path);
+            QVERIFY2(parts.contains(QStringLiteral("xl/media/image1.png")), "the picture the other uses stays");
+            QVERIFY(hasRelationship(parts, rels, secondId));
+            QCOMPARE(hasRelationship(parts, rels, QStringLiteral("rIdP")), oneRelationship);   // (the one the deleted object had, if the other does not use it)
+            QVERIFY(hasOverride(parts, QStringLiteral("/xl/media/image1.png")));
+            QCOMPARE(o->layer()->count(), 2);
+            QVERIFY(e.win.w.session()->deleteObject(0, 1, QStringLiteral("Delete Object")).ok);
+            QVERIFY(save());
+            parts = savedParts(e.path);
+            QVERIFY2(!parts.contains(QStringLiteral("xl/media/image1.png")), "the last that used it is gone, and the picture");
+            QVERIFY(!hasRelationship(parts, rels, QStringLiteral("rIdP")));
+            QVERIFY(!hasRelationship(parts, rels, QStringLiteral("rIdQ")));
+            QVERIFY(!hasOverride(parts, QStringLiteral("/xl/media/image1.png")));
+            QCOMPARE(o->layer()->count(), 1);   // (the shape)
+            // the file opens with the one object
+            Window second;
+            QVERIFY(second.open(e.copyOfFile()));
+            QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 1);
+        }
     }
 
     // An object anchored at a place of the sheet (an absolute anchor) keeps its place and size when rows and columns are inserted and resized, saved and opened again: on the screen,
