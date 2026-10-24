@@ -25,7 +25,8 @@ These follow the cells too: formulas on every sheet, names (such as print areas 
 
 ## What can't be done
 
-- Cells can't be inserted or deleted through part of an **array formula** or a data table. Move them whole, or leave them alone.
+- Cells can't be inserted or deleted through part of an **array formula** or a data table. Move them whole, or leave them alone. A cell that a data table reads for its input can't be deleted either.
+- A sheet that has a **PivotTable** on it can't have rows, columns, or cells inserted or deleted, or cells cut and moved, yet. Do it on a sheet that has none.
 - A **table** can't be cut across: you can't insert a column inside it, and you can't delete its header row or all of its rows. Insert or delete rows inside it, or change the cells around it.
 - A **protected sheet** can't have rows, columns, or cells inserted or deleted. Take the protection off in the program that put it on.
 - Cells at the end of the sheet that hold something can't be pushed off the edge. Delete them first.
