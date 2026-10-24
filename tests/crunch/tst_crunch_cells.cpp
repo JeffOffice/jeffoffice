@@ -720,10 +720,20 @@ private Q_SLOTS:
         QVERIFY(second.open(e.copyOfFile()));
         QCOMPARE(second.w.session()->editText(0, 2, 1), QStringLiteral("Quarter"));
         QCOMPARE(differences(e.win.w.calculation(), second.w.calculation(), {}), QString());
-        // Undo goes back as far as the last move saved: over the renaming, which came after it
+        // Undo goes back over the renaming, and then over the rows inserted before the table, which are in the saved file: the edit that undoes them is made against it
         QVERIFY(s->canUndo());
         e.win.w.act(QStringLiteral("edit.undo"))->trigger();                    // (the other window has the keys now)
-        QVERIFY(!s->canUndo());
+        QVERIFY(e.settle());
+        QCOMPARE(formulaOf(e, QStringLiteral("E3")), QStringLiteral("=SUM(Sales[Q1])"));
+        QVERIFY(s->canUndo());
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(e.settle());
+        saveNow();
+        QCOMPARE(tableRef(e.path), QStringLiteral("A1:C5|A1:C5"));
+        Window third;
+        QVERIFY(third.open(e.copyOfFile()));
+        QCOMPARE(third.w.session()->editText(0, 0, 1), QStringLiteral("Q1"));
+        QCOMPARE(differences(e.win.w.calculation(), third.w.calculation(), {}), QString());
     }
 
     // A table column renamed in its header: the formulas of cells, the defined names, the rules of validation and of conditional formats, and charts that name it follow, in the
@@ -776,32 +786,33 @@ private Q_SLOTS:
         QCOMPARE(formulaOf(e, QStringLiteral("E1")), QStringLiteral("=SUM(Sales[Q1])"));
     }
 
-    // After a save, Undo does not go back over the rows, columns, and cells moved before it (the file has them), but goes on over what came after; Redo of what was undone works.
-    void undoAfterASaveStopsAtTheLastMoveSaved()
+    // After a save, Undo does not go back over a delete of rows, columns, or cells made before it (the file has lost what was in them), but goes on over what came after; Redo of what was
+    // undone works.
+    void undoAfterASaveStopsAtTheLastDeleteSaved()
     {
         EditWindow e;
         QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "B1==A3"})));
         crunch::EditSession *s = e.win.w.session();
-        QVERIFY(s->insertRows(0, 1, 1).ok);                                      // 1: a move, saved below
+        QVERIFY(s->deleteRows(0, 1, 1).ok);                                      // 1: a delete, saved below
         QVERIFY(s->type(0, 0, 0, QStringLiteral("10")).ok);                      // 2: typing
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.settle());
         QVERIFY(e.win.w.save());
         QVERIFY(saved.wait(20000));
-        QVERIFY(s->deleteRows(0, 0, 1).ok);                                      // 3: a move after the save
+        QVERIFY(s->deleteRows(0, 0, 1).ok);                                      // 3: a delete after the save
         QVERIFY(s->type(0, 4, 0, QStringLiteral("7")).ok);                       // 4
         QVERIFY(e.settle());
         QVERIFY(s->canUndo());
         pressUndo(&e.win.w);                                                     // 4 undone
         pressUndo(&e.win.w);                                                     // 3 undone
         QVERIFY(e.settle());
-        QCOMPARE(formulaOf(e, QStringLiteral("B1")), QStringLiteral("=A4"));
+        QCOMPARE(formulaOf(e, QStringLiteral("B1")), QStringLiteral("=A2"));
         QVERIFY(!e.win.w.isModified());
-        QVERIFY(s->canUndo());                                                   // the typing (2) came after the move (1) and can be undone
+        QVERIFY(s->canUndo());                                                   // the typing (2) came after the delete (1) and can be undone
         pressUndo(&e.win.w);
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
-        QVERIFY(!s->canUndo());                                                  // the move (1) is in the file
+        QVERIFY(!s->canUndo());                                                  // the delete (1) is in the file
         pressUndo(&e.win.w);
         QCOMPARE(e.win.w.undoStack()->index(), 1);
         pressRedo(&e.win.w);
@@ -816,7 +827,7 @@ private Q_SLOTS:
         QVERIFY(second.open(e.copyOfFile()));
         QCOMPARE(differences(e.win.w.calculation(), second.w.calculation(), {}), QString());
         QCOMPARE(second.w.session()->editText(0, 0, 1), QString());             // (B1 was in the row that was deleted)
-        QCOMPARE(second.w.session()->editText(0, 2, 0), QStringLiteral("3"));
+        QCOMPARE(second.w.session()->editText(0, 0, 0), QStringLiteral("3"));
         QCOMPARE(second.w.session()->editText(0, 4, 0), QStringLiteral("7"));
     }
 
