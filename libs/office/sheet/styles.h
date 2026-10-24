@@ -4,6 +4,7 @@
 // color is often named, not given: "theme 4, a little lighter", "indexed 10"). Reading never looks at a cell: a cell's `style` is the place of its cell format.
 
 #include <QHash>
+#include <QLocale>
 #include <QString>
 #include <QVector>
 
@@ -85,8 +86,9 @@ struct Styles {
 
     // The id of the number format of a cell format (0, General, for one the file doesn't have).
     qint32 numFmtId(quint32 xf) const { return xf < quint32(cellXfs.size()) ? cellXfs[int(xf)] : 0; }
-    // Its code: the file's own for an id it defines, else the built-in one of that id (calc/numfmt.h), else "General".
-    QString formatCode(quint32 xf) const;
+    // Its code: the file's own for an id it defines, else the built-in one of that id (calc/numfmt.h), else "General". The built-in dates 14 and 22 are the system's short date: they
+    // are in the order of the locale given (the person's, by default).
+    QString formatCode(quint32 xf, const QLocale &locale = QLocale()) const;
 
     // What is there for a cell format, a font, a fill, or a border by its place: the first of each (the default look) for a place the file doesn't have.
     const CellFormat &format(quint32 xf) const;

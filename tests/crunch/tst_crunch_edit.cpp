@@ -355,6 +355,42 @@ private Q_SLOTS:
 
     // ---- what is typed becomes
 
+    // A date typed in a locale is read in its order and shown, in the cell, in F2, and in the formula bar, in the same order: the built-in date format the cell is given is the system's short
+    // date, so a date typed as 4 March in a locale of day, month, year is not shown as 3/4/2025.
+    void aTypedDateIsShownInTheOrderItWasTypedIn()
+    {
+        struct Case {
+            QLocale locale;
+            QString typed, shown;
+        };
+        const Case cases[] = {{QLocale(QLocale::English, QLocale::UnitedStates), QStringLiteral("3/4/2025"), QStringLiteral("3/4/2025")},
+                              {QLocale(QLocale::English, QLocale::UnitedKingdom), QStringLiteral("4/3/2025"), QStringLiteral("04/03/2025")},
+                              {QLocale(QLocale::German, QLocale::Germany), QStringLiteral("4.3.2025"), QStringLiteral("04.03.2025")},
+                              {QLocale(QLocale::Japanese, QLocale::Japan), QStringLiteral("2025/3/4"), QStringLiteral("2025/03/04")}};
+        struct Restore {
+            ~Restore() { QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates)); }
+        } restore;
+        for (const Case &c : cases) {
+            const QString name = c.locale.name();
+            QLocale::setDefault(c.locale);
+            EditWindow e;
+            QVERIFY(e.open(editBook()));
+            e.win.w.session()->setLocale(c.locale);
+            e.select(QStringLiteral("F1"));
+            e.enter(c.typed);
+            QVERIFY(e.settle());
+            QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("n:45720"));        // 4 March 2025, as typed
+            QVERIFY2(e.shownAt(QStringLiteral("F1")) == c.shown, qPrintable(name + QLatin1String(" shows ") + e.shownAt(QStringLiteral("F1"))));
+            e.select(QStringLiteral("F1"));
+            QCOMPARE(e.win.w.formulaBar()->text(), c.shown);
+            QTest::keyClick(e.view(), Qt::Key_F2);
+            QCOMPARE(e.win.w.cellEditor()->text(), c.shown);
+            e.key(Qt::Key_Return);                                                          // (put in again as it is: nothing changes)
+            QCOMPARE(e.win.w.undoStack()->count(), 1);
+            QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("n:45720"));
+        }
+    }
+
     void typedNumbersGetTheFormatThatShowsThemAsTyped()
     {
         EditWindow e;

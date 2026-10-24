@@ -138,7 +138,7 @@ QString EditSession::formatCodeOf(int sheet, quint32 row, quint32 col) const
 {
     if (!m_book || !m_book->calc || !m_book->book) return QStringLiteral("General");
     const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
-    return m_book->book->styles().formatCode(c.style);
+    return m_book->book->styles().formatCode(c.style, m_locale);
 }
 
 EntryOptions EditSession::entryOptions(int, bool textFormat) const
@@ -157,7 +157,7 @@ QString EditSession::editText(int sheet, quint32 row, quint32 col) const
     const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
     if (!c.exists) return {};
     if (c.isFormula) return QLatin1Char('=') + jp::grid::displayFormula(c.formula);
-    const QString code = m_book->book->styles().formatCode(c.style);
+    const QString code = m_book->book->styles().formatCode(c.style, m_locale);
     return editTextOfValue(c.value, code, entryOptions(sheet, code == QLatin1String("@")));
 }
 
@@ -172,7 +172,7 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
     }
     const Calculation *calc = m_book->calc.get();
     const Calculation::CellContent before = calc->content(sheet, row, col);
-    const QString code = m_book->book->styles().formatCode(before.style);
+    const QString code = m_book->book->styles().formatCode(before.style, m_locale);
     const EntryResult r = readEntry(typed, entryOptions(sheet, code == QLatin1String("@")));
     if (!r.ok) {
         out.ok = false;

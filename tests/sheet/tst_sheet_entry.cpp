@@ -3,7 +3,9 @@
 #include "sheethelpers.h"
 
 #include "grid/text.h"
+#include "calc/numfmt.h"
 #include "sheet/entry.h"
+#include "sheet/styles.h"
 
 namespace {
 
@@ -278,6 +280,50 @@ private Q_SLOTS:
         // read back for a person, they are as typed (with the names of functions in capitals)
         for (const QString &typed : {"XLOOKUP(A1,B:B,C:C)", "LET(x,1,y,x+1,x+y)", "MAP(A1:A3,LAMBDA(v,v*2))", "FILTER(A1:A9,B1:B9>1)", "SUM(UNIQUE(A1:A9))"})
             QCOMPARE(jp::grid::displayFormula(toFileFormula(typed)), typed);
+    }
+
+    // The built-in date formats 14 and 22 are the system's short date: a date typed in a locale is read in its order and shown in the same order (a date typed as 4 March in a locale of
+    // day, month, year is not shown as 3/4/2025), and the text F2 gives back reads as the same date.
+    void theBuiltInDateFormatsShowInTheOrderOfTheLocale()
+    {
+        struct Case {
+            QLocale locale;
+            QString typed, shown, code;
+        };
+        const Case cases[] = {{en, QStringLiteral("3/4/2025"), QStringLiteral("3/4/2025"), QStringLiteral("m/d/yyyy")},
+                              {gb, QStringLiteral("4/3/2025"), QStringLiteral("04/03/2025"), QStringLiteral("dd/mm/yyyy")},
+                              {de, QStringLiteral("4.3.2025"), QStringLiteral("04.03.2025"), QStringLiteral("dd\\.mm\\.yyyy")},
+                              {fr, QStringLiteral("4/3/2025"), QStringLiteral("04/03/2025"), QStringLiteral("dd/mm/yyyy")},
+                              {ja, QStringLiteral("2025/3/4"), QStringLiteral("2025/03/04"), QStringLiteral("yyyy/mm/dd")}};
+        for (const Case &c : cases) {
+            const QString name = c.locale.name();
+            const EntryOptions o = options(c.locale);
+            const EntryResult r = readEntry(c.typed, o);
+            QVERIFY2(r.ok && r.entry.kind == Entry::Kind::Number, qPrintable(name));
+            QCOMPARE(r.entry.number, serial(2025, 3, 4));
+            QCOMPARE(r.entry.formatCode, QStringLiteral("m/d/yyyy"));   // (the file's built-in 14, which the file has as the system's)
+            QCOMPARE(jp::calc::shortDateFormatCode(c.locale), c.code);
+            QCOMPARE(jp::calc::builtinFormatCode(14, c.locale), c.code);
+            const jp::calc::NumberFormat f14(jp::calc::builtinFormatCode(14, c.locale)), f22(jp::calc::builtinFormatCode(22, c.locale));
+            QVERIFY2(f14.isValid() && f22.isValid(), qPrintable(name));
+            QCOMPARE(f14.format(r.entry.number, DateSystem::Date1900).text, c.shown);
+            QCOMPARE(f22.format(r.entry.number + 0.5, DateSystem::Date1900).text, c.shown + QStringLiteral(" 12:00"));
+            // F2: what the cell shows as an entry reads as the same date
+            const QString edit = editTextOfValue(Value::number(r.entry.number), jp::calc::builtinFormatCode(14, c.locale), o);
+            const EntryResult again = readEntry(edit, o);
+            QVERIFY2(again.ok && again.entry.kind == Entry::Kind::Number && again.entry.number == r.entry.number, qPrintable(name + QLatin1String(": ") + edit));
+            // and the format of a cell is the code of the locale
+            Styles styles;
+            styles.cellXfs = {14, 22, 15};
+            QCOMPARE(styles.formatCode(0, c.locale), c.code);
+            QCOMPARE(styles.formatCode(1, c.locale), c.code + QStringLiteral(" h:mm"));
+            QCOMPARE(styles.formatCode(2, c.locale), jp::calc::builtinFormatCode(15));   // (the others are the same everywhere)
+        }
+        // the code is a date for every locale the system has, and a locale whose short date has not a day, a month, and a year has the United States'
+        for (const QLocale &l : QLocale::matchingLocales(QLocale::AnyLanguage, QLocale::AnyScript, QLocale::AnyCountry)) {
+            const jp::calc::NumberFormat f(jp::calc::shortDateFormatCode(l));
+            QVERIFY2(f.isValid() && f.kind() == jp::calc::FormatKind::Date, qPrintable(l.name()));
+        }
     }
 
     void limits()
