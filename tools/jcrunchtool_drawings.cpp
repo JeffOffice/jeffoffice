@@ -279,7 +279,18 @@ int drawingsBench(int charts, int shapes)
         loop.quit();
     });
     QTimer::singleShot(120000, &loop, &QEventLoop::quit);
+    // how long the window's thread is away from its event loop, as a tick of every few milliseconds shows (from opening the file to the objects being shown)
+    QElapsedTimer sinceTick;
+    qint64 longestTurn = 0;
+    QTimer tick;
+    tick.setInterval(5);
+    QObject::connect(&tick, &QTimer::timeout, &loop, [&] {
+        longestTurn = std::max<qint64>(longestTurn, sinceTick.nsecsElapsed());
+        sinceTick.restart();
+    });
     if (!w.openFile(path)) return 1;
+    sinceTick.start();
+    tick.start();
     loop.exec();
     if (!done) {
         err() << "grid-drawings-bench: the workbook was not read in 120 seconds\n";
@@ -291,10 +302,12 @@ int drawingsBench(int charts, int shapes)
     // (a large drawing is parsed on a worker: its objects are in the layer when it is done)
     while ((objects->shownSheet() != 0 || layer->count() == 0) && clock.nsecsElapsed() < qint64(60) * 1000000000) spinFor(5);
     const double shownMs = double(clock.nsecsElapsed()) / 1e6;
+    tick.stop();
+    longestTurn = std::max<qint64>(longestTurn, sinceTick.nsecsElapsed());
     layer->prepareAll();
     const double madeMs = double(clock.nsecsElapsed()) / 1e6;
     out() << "  the workbook is read and calculated by " << QString::number(loadMs, 'f', 0) << " ms, its " << layer->count() << " objects are shown by " << QString::number(shownMs, 'f', 0) << " ms, the ones on the screen are made by "
-          << QString::number(madeMs, 'f', 0) << " ms\n";
+          << QString::number(madeMs, 'f', 0) << " ms; in that time the window's thread was away from its event loop at most " << QString::number(double(longestTurn) / 1e6, 'f', 1) << " ms at a time\n";
     spinFor(100);
     grid::GridView *v = w.view();
     // scrolling by wheel steps of three rows, with an idle moment after each (a person's wheel gives the program some between its events)
