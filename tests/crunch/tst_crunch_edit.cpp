@@ -511,6 +511,61 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->count(), 2);   // (the typing and the clearing, both undone and there to redo)
     }
 
+    // On a protected sheet the locked cells (all of them, unless the format says it is not) refuse typing, F2, the formula bar, and Delete, with a plain message and no step; the cells
+    // that are not locked take them.
+    void aProtectedSheetsLockedCellsRefuseEdits()
+    {
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"0\" applyProtection=\"1\"><protection locked=\"0\"/></xf>"));
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\" s=\"1\"><v>2</v></c><c r=\"C1\"><f>A1+B1</f><v>3</v></c></row>"
+                                            "<row r=\"2\"><c r=\"A2\" s=\"1\"><v>20</v></c><c r=\"B2\"><v>30</v></c></row>");
+        for (const bool isProtected : {true, false}) {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows, isProtected ? QStringLiteral("<sheetProtection sheet=\"1\" objects=\"1\" scenarios=\"1\"/>") : QString())}, QByteArray(), QString(), QString(), styles)));
+            auto told = [&] { return e.win.told.join(QLatin1Char('\n')); };
+            // typing over a locked cell
+            e.select(QStringLiteral("A1"));
+            QTest::keyClick(e.view(), Qt::Key_5);
+            if (isProtected) {
+                QVERIFY(!e.win.w.isEditing());
+                QVERIFY2(told().contains(QLatin1String("protected")) && told().contains(QLatin1String("locked")), qPrintable(told()));
+                QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+                QCOMPARE(e.win.w.undoStack()->count(), 0);
+                // F2, and the formula bar
+                e.win.told.clear();
+                QTest::keyClick(e.view(), Qt::Key_F2);
+                QVERIFY(!e.win.w.isEditing());
+                QVERIFY(told().contains(QLatin1String("protected")));
+                // Delete over the locked cells: nothing is cleared (not even the cells that are not locked in the same range)
+                e.win.told.clear();
+                e.view()->selectRange(0, 0, 1, 1);
+                QTest::keyClick(e.view(), Qt::Key_Delete);
+                QVERIFY(told().contains(QLatin1String("protected")));
+                for (const char *ref : {"A1", "B1", "A2", "B2"}) QVERIFY2(e.valueAt(QString::fromLatin1(ref)) != QStringLiteral("-"), ref);
+                QCOMPARE(e.win.w.undoStack()->count(), 0);
+                QVERIFY(!e.win.w.isModified());
+                // the session says no too
+                QVERIFY(!e.win.w.session()->type(0, 0, 0, QStringLiteral("9")).ok);
+                QVERIFY(!e.win.w.session()->clear(0, 0, 0, 1, 1).ok);
+                QVERIFY(!e.win.w.session()->canEditCell(0, 1, 1));
+            } else {
+                QVERIFY(e.win.w.isEditing());
+                e.key(Qt::Key_Escape);
+            }
+            // the cells that are not locked take edits
+            e.win.told.clear();
+            e.select(QStringLiteral("B1"));
+            e.enter(QStringLiteral("7"));
+            QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:7"));
+            e.view()->selectRange(1, 0, 1, 0);
+            QTest::keyClick(e.view(), Qt::Key_Delete);
+            QCOMPARE(e.valueAt(QStringLiteral("A2")), QStringLiteral("-"));
+            QVERIFY(e.settle());
+            QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:8"));      // (what depends on it follows)
+            QCOMPARE(e.win.w.undoStack()->count(), 2);
+            QVERIFY2(e.win.told.isEmpty(), qPrintable(told()));
+        }
+    }
+
     // ---- what depends on a cell
 
     // What reads a cell is worked out again by the worker, and the results come back in batches; the window says it is calculating, and says Ready when they are all there. The thread

@@ -130,8 +130,21 @@ bool EditSession::canEditCell(int sheet, quint32 row, quint32 col, QString *why)
     };
     if (!canEditSheet(sheet, why)) return false;
     if (row >= kMaxRows || col >= kMaxColumns) return refuse(tr("That cell is outside the sheet."));
-    if (!m_book->calc->content(sheet, row, col).editable) return refuse(tr("You can't change part of an array or a data table."));
+    const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
+    if (!c.editable) return refuse(tr("You can't change part of an array or a data table."));
+    if (isLocked(sheet, c.style)) return refuse(lockedMessage());
     return true;
+}
+
+bool EditSession::isLocked(int sheet, quint32 style) const
+{
+    if (!m_book || !m_book->calc || !m_book->book || sheet < 0 || sheet >= m_book->calc->sheetCount()) return false;
+    return m_book->calc->sheet(sheet).isProtected && m_book->book->styles().format(style).locked;
+}
+
+QString EditSession::lockedMessage() const
+{
+    return tr("This sheet is protected, and the cell is locked, so it can't be changed. To change it, take the protection off in the program that put it on.");
 }
 
 QString EditSession::formatCodeOf(int sheet, quint32 row, quint32 col) const
@@ -230,7 +243,7 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
     const Calculation *calc = m_book->calc.get();
     const Sheet &s = calc->sheet(sheet);
     std::vector<CellChange> changes;
-    bool tooMany = false, array = false;
+    bool tooMany = false, array = false, locked = false;
     s.cells.forEachInRange(quint32(row1), quint32(col1), quint32(row2), quint32(col2), [&](const Cell &c) {
         const Calculation::CellContent before = calc->content(sheet, c.row, c.col);
         if (!before.editable) {
@@ -238,6 +251,10 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
             return false;
         }
         if (!before.isFormula && before.value.isEmpty()) return true;   // (only a format: it stays)
+        if (isLocked(sheet, before.style)) {
+            locked = true;
+            return false;
+        }
         if (qint64(changes.size()) >= kMaxCellsPerEdit) {
             tooMany = true;
             return false;
@@ -259,6 +276,11 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
     if (array) {
         out.ok = false;
         out.problem = tr("You can't change part of an array or a data table.");
+        return out;
+    }
+    if (locked) {
+        out.ok = false;
+        out.problem = lockedMessage();
         return out;
     }
     if (tooMany) {

@@ -121,6 +121,9 @@ private:
     // Makes the changes (forward: to `after`; else back to `before`) with the worker held back. False if the worker could not be held.
     bool apply(std::vector<CellChange> *changes, bool forward);
     jp::office::sheet::EntryOptions entryOptions(int sheet, bool textFormat) const;
+    // Whether a cell of that format on the sheet can't be changed: the sheet is protected and the cell is locked.
+    bool isLocked(int sheet, quint32 style) const;
+    QString lockedMessage() const;
     bool storedEquals(int sheet, quint32 row, quint32 col, const jp::calc::Value &value) const;
     void cleanChanged(bool clean);
 

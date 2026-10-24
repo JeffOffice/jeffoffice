@@ -66,6 +66,7 @@ struct CellFormat {
     bool wrap = false, shrink = false;
     quint8 indent = 0;
     quint8 rotation = 0;             // 0 to 90 turns the text up, 91 to 180 down (that many less 90), 255 sets it upright one letter under another
+    bool locked = true;              // the cell is locked: on a protected sheet it can't be changed (every cell is, unless its format says it is not)
 };
 
 // The colors of the theme in the order the styles name them by number: light 1, dark 1, light 2, dark 2, accent 1 to 6, hyperlink, followed hyperlink.

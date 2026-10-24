@@ -345,6 +345,9 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 f.indent = quint8(std::lround(boundedNumber(attribute(r, "indent"), 0, 255, 0)));
                 const double turn = boundedNumber(attribute(r, "textRotation"), 0, 255, 0);
                 f.rotation = quint8(turn == 255 ? 255 : turn <= 180 ? std::lround(turn) : 0);
+            } else if (depth == 4 && where == Where::CellXfs && isElement(r, "protection") && !out->formats.isEmpty()) {
+                const QStringView locked = attribute(r, "locked");
+                out->formats.last().locked = locked.isEmpty() ? true : parseBool(locked.toString());
             } else if (depth == 3 && where == Where::Fonts && isElement(r, "font")) {
                 if (out->fonts.size() >= limits.fonts) return fail(translate("The file has more fonts than any real file has."));
                 out->fonts.append(FontSpec());
@@ -1080,6 +1083,8 @@ bool SheetReader::read(QIODevice *in)
                     parseRangeRef(attribute(r, "ref"), &m_sheet.dimension);
                 } else if (isElement(r, "mergeCells")) {
                     inMerge = true;
+                } else if (isElement(r, "sheetProtection")) {
+                    m_sheet.isProtected = parseBool(attribute(r, "sheet").toString());
                 } else if (isElement(r, "sheetPr")) {
                     inSheetPr = true;
                 } else if (isElement(r, "sheetViews")) {
