@@ -52,6 +52,16 @@ struct PrintJobOptions {
     int maxPages = kMaxJobPages;
 };
 
+// What the Print screen holds: the job's choices, and what is to be done with its pages.
+struct PrintChoices {
+    PrintJobOptions job;
+    QString pageRange;          // "1-3, 5"; empty for all
+    int copies = 1;
+    bool collate = true;
+    QString printer;            // the printer's name; empty for the default
+    bool toFile = false;        // a PDF file, not a printer
+};
+
 // What a job reads of a workbook.
 class PrintSource {
 public:

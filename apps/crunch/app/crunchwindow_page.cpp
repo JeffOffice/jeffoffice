@@ -207,6 +207,14 @@ void CrunchWindow::connectPageSetup()
 {
     connect(m_session.get(), &crunch::EditSession::pageSetupChanged, this, [this](int sheet) {
         if (sheet == m_sheet) updatePageActions();
+        if (m_breaksArmed) m_breaksTimer.start();
+    });
+    // the lines where the pages begin follow the cells (the sizes, the rows and columns inserted, and what is typed are what the pages are cut by)
+    connect(m_session.get(), &crunch::EditSession::sizesChanged, this, [this] {
+        if (m_breaksArmed) m_breaksTimer.start();
+    });
+    connect(m_session.get(), &crunch::EditSession::cellsMoved, this, [this] {
+        if (m_breaksArmed) m_breaksTimer.start();
     });
     connect(m_session->undoStack(), &QUndoStack::indexChanged, this, [this] { updatePageActions(); });
     updatePageActions();
@@ -249,6 +257,7 @@ void CrunchWindow::updatePageActions()
         m_scaleBox->setEnabled(open && !fit);
     }
     m_updatingPage = false;
+    if (m_breaksArmed) m_breaksTimer.start();
 }
 
 void CrunchWindow::changePage(const QString &text, const std::function<void(PageSetup *)> &change)

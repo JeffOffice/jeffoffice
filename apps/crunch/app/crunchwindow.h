@@ -21,6 +21,7 @@
 
 class QComboBox;
 class QDockWidget;
+class QPrinter;
 class QSpinBox;
 class QThread;
 class QUndoStack;
@@ -38,6 +39,7 @@ class Ribbon;
 struct RibbonParts;
 namespace crunch {
 class PrintJob;
+struct PrintChoices;
 struct PrintJobOptions;
 class SheetObjects;
 class SheetTabBar;
@@ -170,6 +172,21 @@ public:
     std::unique_ptr<crunch::PrintJob> makePrintJob(crunch::PrintJobOptions options, QString *why = nullptr);
     // Puts the job's pages (all, or those of the range text) in a PDF file; the work is done here, with the wait cursor. False, with the reason, if it could not be done.
     bool exportPdfTo(const QString &path, crunch::PrintJobOptions options, const QString &pageRange = QString(), QString *why = nullptr);
+    // File > Export: asks for a name and puts the sheet in view (or every sheet that is shown) in a PDF file. True when the file is made; false, with the reason shown, if it is not or the
+    // person gives it up.
+    bool exportPdf(bool wholeWorkbook);
+    // Prints what the choices say, to the printer or into a PDF file the person names (what asks for the name is the Save As picker). True when it was done; false, with the reason shown.
+    bool printWith(const crunch::PrintChoices &choices);
+    // What the Print screen has chosen (kept while the window is, so the screen comes back as it was left).
+    crunch::PrintChoices &printChoices() { return *m_printChoices; }
+    // The printer the Print screen's dialog sets up and the pages go to (made when first asked for).
+    QPrinter &printer();
+    // For tests: given the printer before the pages are sent (to give it a file, say).
+    void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
+    // The lines on the sheet in view where its pages begin follow the sheet as it is now (View > Page Breaks turns them off). They are worked out when the Print screen is shown or something
+    // is printed, and kept up to date until the window is closed.
+    void armPageBreaks();
+    void updatePageBreaks();
 
     // ---- the File screen, Help
     void showFileScreen(const QString &page = QString());
@@ -318,6 +335,11 @@ private:
     // Changes how the sheet in view prints: one step of Undo named `text`; what is wrong is told.
     void changePage(const QString &text, const std::function<void(jp::office::sheet::PageSetup *)> &change);
     std::function<bool(PageSetupRequest *)> m_pageSetupAsker;
+    std::function<void(QPrinter &)> m_printerPreparer;
+    std::unique_ptr<crunch::PrintChoices> m_printChoices;
+    std::unique_ptr<QPrinter> m_printer;
+    bool m_breaksArmed = false;
+    QTimer m_breaksTimer;
     QStringList m_pageActions;
     bool m_updatingPage = false;
     QComboBox *m_fitWidthBox = nullptr, *m_fitHeightBox = nullptr;

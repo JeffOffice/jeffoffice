@@ -214,7 +214,8 @@
           "items": [
             {"small": "view.gridlines", "keytip": "SG"},
             {"small": "view.headings", "keytip": "SH"},
-            {"small": "view.formulaBar", "keytip": "SF"}
+            {"small": "view.formulaBar", "keytip": "SF"},
+            {"small": "view.pageBreaks", "keytip": "SB"}
           ]
         },
         {

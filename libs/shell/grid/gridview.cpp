@@ -633,12 +633,58 @@ void GridView::paintEvent(QPaintEvent *e)
     const qint64 cpu0 = jp::threadCpuMicros();
     QPainter p(viewport());
     m_painter->paint(&p, e->rect(), paintOptions());
+    paintPageBreaks(&p, e->rect());
     paintOverlay(&p, e->rect());
     p.end();
     if (m_paintTimes.size() < 100000) {
         m_paintTimes.push_back(double(t.nsecsElapsed()) / 1e6);
         m_paintCpuTimes.push_back(double(jp::threadCpuMicros() - cpu0) / 1e3);
     }
+}
+
+void GridView::setPageBreaks(std::vector<PageBreakLine> rows, std::vector<PageBreakLine> cols)
+{
+    auto order = [](const PageBreakLine &a, const PageBreakLine &b) { return a.before < b.before; };
+    std::stable_sort(rows.begin(), rows.end(), order);
+    std::stable_sort(cols.begin(), cols.end(), order);
+    m_breakRows = std::move(rows);
+    m_breakCols = std::move(cols);
+    viewport()->update();
+}
+
+// The lines are found by the rows and columns each part of the grid shows, so a sheet with a hundred thousand of them costs the few on the screen.
+void GridView::paintPageBreaks(QPainter *p, const QRect &clip)
+{
+    if (m_breakRows.empty() && m_breakCols.empty()) return;
+    const GridLayout &L = m_sheet.layout();
+    const QColor ink = uiDark() ? QColor(0x7F, 0xA8, 0xFF) : QColor(0x1F, 0x3F, 0xA8);
+    p->save();
+    p->setRenderHint(QPainter::Antialiasing, false);
+    for (const Pane pane : {Pane::Body, Pane::Left, Pane::Top, Pane::Corner}) {
+        const PaneView pv = L.pane(pane);
+        const QRect area = pv.rect & clip;
+        if (pv.isEmpty() || area.isEmpty()) continue;
+        const bool fr = pane == Pane::Corner || pane == Pane::Top, fc = pane == Pane::Corner || pane == Pane::Left;
+        p->setClipRect(area);
+        auto draw = [&](const PageBreakLine &line, bool horizontal) {
+            QPen pen(ink, line.manual ? 2 : 1, line.manual ? Qt::SolidLine : Qt::DashLine);
+            pen.setCosmetic(true);
+            p->setPen(pen);
+            if (horizontal) {
+                const int y = L.yEdge(line.before, fr), x0 = L.xEdge(line.from, fc), x1 = L.xEdge(line.to + 1, fc);
+                p->drawLine(x0, y, x1, y);
+            } else {
+                const int x = L.xEdge(line.before, fc), y0 = L.yEdge(line.from, fr), y1 = L.yEdge(line.to + 1, fr);
+                p->drawLine(x, y0, x, y1);
+            }
+        };
+        auto first = [](const std::vector<PageBreakLine> &v, qint64 at) {
+            return std::lower_bound(v.begin(), v.end(), at, [](const PageBreakLine &l, qint64 value) { return l.before < value; });
+        };
+        for (auto it = first(m_breakRows, pv.firstRow); it != m_breakRows.end() && it->before <= pv.lastRow + 1; ++it) draw(*it, true);
+        for (auto it = first(m_breakCols, pv.firstCol); it != m_breakCols.end() && it->before <= pv.lastCol + 1; ++it) draw(*it, false);
+    }
+    p->restore();
 }
 
 void GridView::resizeEvent(QResizeEvent *e)

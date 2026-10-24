@@ -22,6 +22,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QPrinter>
+#include <QScrollArea>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSpinBox>
@@ -805,6 +807,153 @@ private Q_SLOTS:
         const int steps = w.undoStack()->count();
         w.act(QStringLiteral("pagesetup.dialog"))->trigger();
         QCOMPARE(w.undoStack()->count(), steps);
+    }
+
+    // ---- the Print screen, Export, and the page breaks on the screen
+
+    // File > Print shows the pages one at a time, with the choices beside them: the page label, the arrows, the picture, and a message when something needs saying.
+    void thePrintScreenShowsThePagesAndFollowsTheChoices()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        w.act(QStringLiteral("file.print"))->trigger();
+        QPushButton *print = w.findChild<QPushButton *>(QStringLiteral("printButton"));
+        QVERIFY(print && print->isVisible());
+        QLabel *page = w.findChild<QLabel *>(QStringLiteral("printPage"));
+        QVERIFY(page);
+        QTRY_COMPARE(page->text(), QStringLiteral("Page 1 of 3"));
+        QLabel *preview = w.findChild<QLabel *>(QStringLiteral("printPreview"));
+        QTRY_VERIFY(!preview->pixmap(Qt::ReturnByValue).isNull());
+        QToolButton *next = w.findChild<QToolButton *>(QStringLiteral("printNext")), *previous = w.findChild<QToolButton *>(QStringLiteral("printPrevious"));
+        QVERIFY(!previous->isEnabled());
+        QVERIFY(next->isEnabled());
+        next->click();
+        QCOMPARE(page->text(), QStringLiteral("Page 2 of 3"));
+        next->click();
+        QVERIFY(!next->isEnabled());
+        previous->click();
+        QCOMPARE(page->text(), QStringLiteral("Page 2 of 3"));
+        // a choice makes the job again: wide paper cuts the sheet into more pages, and the scaling into one
+        QComboBox *orientation = w.findChild<QComboBox *>(QStringLiteral("printOrientation")), *scaling = w.findChild<QComboBox *>(QStringLiteral("printScaling"));
+        orientation->setCurrentIndex(orientation->findData(int(PageOrientation::Landscape)));
+        QCOMPARE(page->text(), QStringLiteral("Page 1 of 4"));
+        scaling->setCurrentIndex(scaling->findData(int(crunch::PrintScaling::FitSheet)));
+        QCOMPARE(page->text(), QStringLiteral("Page 1 of 1"));
+        QVERIFY(!next->isEnabled());
+        QVERIFY(w.findChild<QLabel *>(QStringLiteral("printNotes"))->text().contains(QStringLiteral("small")));   // (shrunk to a few percent: the letters are small)
+        QCOMPARE(w.printChoices().job.scaling, crunch::PrintScaling::FitSheet);
+        // the choices are there when the screen is shown again
+        w.hideFileScreen();
+        w.act(QStringLiteral("file.print"))->trigger();
+        QCOMPARE(w.findChild<QComboBox *>(QStringLiteral("printScaling"))->currentData().toInt(), int(crunch::PrintScaling::FitSheet));
+        // the pages to print: a range names some of them, and one that is not a page turns Print off
+        scaling = w.findChild<QComboBox *>(QStringLiteral("printScaling"));
+        scaling->setCurrentIndex(0);
+        QLineEdit *range = w.findChild<QLineEdit *>(QStringLiteral("printRange"));
+        range->setText(QStringLiteral("2-3"));
+        QCOMPARE(w.findChild<QLabel *>(QStringLiteral("printPage"))->text(), QStringLiteral("Page 2 of 4"));
+        range->setText(QStringLiteral("99"));
+        QVERIFY(!w.findChild<QPushButton *>(QStringLiteral("printButton"))->isEnabled());
+        range->setText(QString());
+        QVERIFY(w.findChild<QPushButton *>(QStringLiteral("printButton"))->isEnabled());
+    }
+
+    // Print sends the pages to a PDF file the person names (the printer entry "Save as PDF"), and the screen closes; a file name that cannot be written is told.
+    void printToAFileMakesThePdfAndClosesTheScreen()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        const QString target = e.folder.dir.filePath(QStringLiteral("printed.pdf"));
+        w.setSavePicker([&](const QString &, const QString &) { return target; });
+        w.act(QStringLiteral("file.print"))->trigger();
+        QComboBox *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        printer->setCurrentIndex(printer->count() - 1);   // (the last is "Save as PDF")
+        QCOMPARE(printer->currentText(), QStringLiteral("Save as PDF"));
+        w.findChild<QLineEdit *>(QStringLiteral("printRange"))->setText(QStringLiteral("1-2"));
+        w.findChild<QPushButton *>(QStringLiteral("printButton"))->click();
+        QFile f(target);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray pdf = f.readAll();
+        QVERIFY(pdf.startsWith("%PDF-"));
+        int pages = 0;
+        for (qsizetype at = pdf.indexOf("/Type /Page"); at >= 0; at = pdf.indexOf("/Type /Page", at + 1))
+            if (at + 11 >= pdf.size() || pdf[at + 11] != 's') ++pages;
+        QCOMPARE(pages, 2);
+        QVERIFY(!w.findChild<QPushButton *>(QStringLiteral("printButton"))->isVisible());   // (the screen is closed)
+    }
+
+    // The printer the pages go to is a QPrinter the window keeps: pages sent to one that writes a file are the pages of the job, with the copies the choices ask for.
+    void pagesGoToAPrinterObject()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        const QString target = e.folder.dir.filePath(QStringLiteral("viaprinter.pdf"));
+        w.setPrinterPreparer([&](QPrinter &p) {
+            p.setOutputFormat(QPrinter::PdfFormat);
+            p.setOutputFileName(target);
+        });
+        crunch::PrintChoices c;
+        c.copies = 1;
+        c.pageRange = QStringLiteral("2");
+        QVERIFY(w.printWith(c));
+        QFile f(target);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QVERIFY(f.readAll().startsWith("%PDF-"));
+        // a range that is not a page is told and nothing is sent
+        c.pageRange = QStringLiteral("40");
+        QVERIFY(!w.printWith(c));
+        QVERIFY(!e.win.told.isEmpty());
+        QVERIFY(e.win.told.last().contains(QStringLiteral("not pages")));
+    }
+
+    // Export to PDF asks for a name and writes the sheet in view, or every sheet that is shown.
+    void exportToPdfWritesTheSheetOrTheWorkbook()
+    {
+        EditWindow e;
+        QVERIFY(e.open(budgetWorkbook()));
+        CrunchWindow &w = e.win.w;
+        const QString one = e.folder.dir.filePath(QStringLiteral("one.pdf")), all = e.folder.dir.filePath(QStringLiteral("all"));
+        QString answer = one;
+        w.setSavePicker([&](const QString &, const QString &filter) {
+            Q_UNUSED(filter);
+            return answer;
+        });
+        QVERIFY(w.exportPdf(false));
+        QVERIFY(QFileInfo::exists(one));
+        answer = all;   // (no ending: .pdf is added)
+        QVERIFY(w.exportPdf(true));
+        QVERIFY(QFileInfo::exists(all + QStringLiteral(".pdf")));
+        QVERIFY(QFileInfo(all + QStringLiteral(".pdf")).size() > QFileInfo(one).size());
+        answer.clear();   // (the person gives it up)
+        QVERIFY(!w.exportPdf(false));
+        // the File screen's Export page has the two commands
+        w.showFileScreen(QStringLiteral("export"));
+        QVERIFY(w.findChild<QAbstractButton *>(QStringLiteral("exportSheetPdf")));
+        QVERIFY(w.findChild<QAbstractButton *>(QStringLiteral("exportBookPdf")));
+    }
+
+    // After the Print screen is shown the sheet shows where its pages begin (dashed for a break the program found, solid for one set), follows the sheet, and View > Page Breaks turns it off.
+    void thePageBreaksShowOnTheSheetAfterAPreview()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(!e.view()->hasPageBreaks());
+        w.act(QStringLiteral("file.print"))->trigger();
+        w.hideFileScreen();
+        QTRY_VERIFY(e.view()->hasPageBreaks());
+        // a break set by hand is added to the lines
+        e.view()->selectCell(30, 0);
+        w.act(QStringLiteral("breaks.insert"))->trigger();
+        QTest::qWait(250);
+        QVERIFY(e.view()->hasPageBreaks());
+        w.act(QStringLiteral("view.pageBreaks"))->trigger();   // (off)
+        QTRY_VERIFY(!e.view()->hasPageBreaks());
+        w.act(QStringLiteral("view.pageBreaks"))->trigger();
+        QTRY_VERIFY(e.view()->hasPageBreaks());
     }
 
     // Rows inserted and the print area changed, then saved: the file has the area as the window shows it.

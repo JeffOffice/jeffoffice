@@ -1,5 +1,5 @@
 #pragma once
-// JeffCrunch's File screen: Open (with the workbooks opened lately), Close, Options, and About, on the frame every app's File screen shares.
+// JeffCrunch's File screen: Open (with the workbooks opened lately), Print (with a preview of the pages), Export to PDF, Close, Options, and About, on the frame every app's File screen shares.
 
 #include "app/filescreen.h"
 
@@ -15,6 +15,8 @@ public:
 private:
     QWidget *buildPage(const QString &key);
     QWidget *buildOpen();
+    QWidget *buildPrint();    // (crunchprintpage.cpp)
+    QWidget *buildExport();
     QWidget *buildAbout();
     CrunchWindow *m_win;
 };

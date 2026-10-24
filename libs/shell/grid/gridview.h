@@ -140,6 +140,15 @@ public:
     void setDropDownCell(qint64 row, qint64 col);
     QRect dropDownRect() const;       // the button, in the viewport's pixels (empty when the cell is out of sight or too narrow)
     QRect dropDownCellRect() const;   // and the cell it is on
+    // Lines where the pages of a printed sheet begin: a horizontal line above row `before` across the columns `from` to `to` (a row break), or a vertical line left of column `before`
+    // across the rows `from` to `to`; a break a person set is drawn solid and one the program worked out dashed. Each list is in order of `before`. Drawn over the cells, clipped to
+    // what shows; none of it is the sheet's.
+    struct PageBreakLine {
+        qint64 before = 0, from = 0, to = 0;
+        bool manual = false;
+    };
+    void setPageBreaks(std::vector<PageBreakLine> rows, std::vector<PageBreakLine> cols);
+    bool hasPageBreaks() const { return !m_breakRows.empty() || !m_breakCols.empty(); }
     // Something drawn over the cells (the objects of a sheet) that also takes the clicks that land on it and the keys while it has something picked. Not owned: the owner takes it away
     // (setOverlay(nullptr)) before it is destroyed.
     void setOverlay(GridOverlay *overlay);
@@ -207,6 +216,7 @@ private:
     void dragTo(const QPoint &p);
     PaintOptions paintOptions() const;
     void paintOverlay(QPainter *painter, const QRect &clip);
+    void paintPageBreaks(QPainter *painter, const QRect &clip);
     bool overlayPress(QMouseEvent *e);
     QRect bodyScrollRect(bool vertical) const;
 
@@ -243,6 +253,7 @@ private:
     std::function<bool()> m_clickGuard;
     GridOverlay *m_overlay = nullptr;
     bool m_cellsEnabled = true;
+    std::vector<PageBreakLine> m_breakRows, m_breakCols;
 };
 
 } // namespace jp::grid

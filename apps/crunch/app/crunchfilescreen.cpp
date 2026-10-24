@@ -33,6 +33,8 @@ CrunchFileScreen::CrunchFileScreen(CrunchWindow *win) : FileScreen(win), m_win(w
         Q_EMIT closeRequested();
         if (m_win->act("file.saveAs")->isEnabled()) m_win->act("file.saveAs")->trigger();
     });
+    addPage(QStringLiteral("print"), QStringLiteral("printer"), tr("Print"));
+    addPage(QStringLiteral("export"), QStringLiteral("file-output"), tr("Export"));
     addCommand(QStringLiteral("close"), QStringLiteral("circle-x"), tr("Close"), [this] { m_win->act("file.close")->trigger(); Q_EMIT closeRequested(); });
     addSection(appInfo().name);
     addCommand(QStringLiteral("options"), QStringLiteral("settings"), tr("Options"), [this] { m_win->act("file.options")->trigger(); });
@@ -43,6 +45,8 @@ CrunchFileScreen::CrunchFileScreen(CrunchWindow *win) : FileScreen(win), m_win(w
 QWidget *CrunchFileScreen::buildPage(const QString &key)
 {
     if (key == "open") return buildOpen();
+    if (key == "print") return buildPrint();
+    if (key == "export") return buildExport();
     if (key == "about") return buildAbout();
     return nullptr;
 }
