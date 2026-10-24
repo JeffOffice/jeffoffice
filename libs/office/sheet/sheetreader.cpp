@@ -363,7 +363,9 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
         if (error) *error = why;
         return false;
     };
-    enum class Where { Other, NumFmts, CellXfs, StyleXfs, CellStyles, Fonts, Fills, Borders, Colors };
+    enum class Where { Other, NumFmts, CellXfs, StyleXfs, CellStyles, Fonts, Fills, Borders, Colors, Dxfs };
+    enum class DxfPart { None, Font, Fill, Border } dxfPart = DxfPart::None;
+    BorderSide *dxfSide = nullptr;
     Where where = Where::Other;
     int depth = 0;
     qint64 numFmtElements = 0;
@@ -389,6 +391,7 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                         : isElement(r, "fills")   ? Where::Fills
                         : isElement(r, "borders") ? Where::Borders
                         : isElement(r, "colors")  ? Where::Colors
+                        : isElement(r, "dxfs")    ? Where::Dxfs
                                                   : Where::Other;
             } else if (depth == 3 && where == Where::NumFmts && isElement(r, "numFmt")) {
                 if (++numFmtElements > limits.numFmts) return fail(QCoreApplication::translate("Sheet", "The file has more number formats than any real file has."));
@@ -503,6 +506,54 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 if (side) side->style = borderStyleOf(attribute(r, "style"));
             } else if (depth == 5 && where == Where::Borders && side && isElement(r, "color")) {
                 side->color = colorOf(r);
+            } else if (depth == 3 && where == Where::Dxfs && isElement(r, "dxf")) {
+                if (out->dxfs.size() < 100000) out->dxfs.append(DifferentialFormat());
+                dxfPart = DxfPart::None;
+                dxfSide = nullptr;
+            } else if (where == Where::Dxfs && !out->dxfs.isEmpty() && depth >= 4) {
+                DifferentialFormat &d = out->dxfs.last();
+                if (depth == 4) {
+                    dxfPart = isElement(r, "font") ? DxfPart::Font : isElement(r, "fill") ? DxfPart::Fill : isElement(r, "border") ? DxfPart::Border : DxfPart::None;
+                    dxfSide = nullptr;
+                    if (isElement(r, "numFmt")) {
+                        const QString code = attribute(r, "formatCode").toString();
+                        if (!code.isEmpty()) d.numberFormat = code;
+                        else {
+                            bool ok = false;
+                            const int id = attribute(r, "numFmtId").toInt(&ok);
+                            if (ok) d.numberFormat = out->numFmts.value(id, jp::calc::builtinFormatCode(id));
+                        }
+                    } else if (dxfPart == DxfPart::Border) {
+                        d.hasBorder = true;
+                        d.border.diagonalUp = parseBool(attribute(r, "diagonalUp").toString());
+                        d.border.diagonalDown = parseBool(attribute(r, "diagonalDown").toString());
+                    } else if (dxfPart == DxfPart::Fill) {
+                        d.hasFill = true;
+                    }
+                } else if (dxfPart == DxfPart::Font && depth == 5) {
+                    if (isElement(r, "b")) d.bold = flagOf(r);
+                    else if (isElement(r, "i")) d.italic = flagOf(r);
+                    else if (isElement(r, "strike")) d.strike = flagOf(r);
+                    else if (isElement(r, "color")) d.fontColor = colorOf(r);
+                    else if (isElement(r, "u")) {
+                        const QStringView v = attribute(r, "val");
+                        d.underline = v == QLatin1String("none") ? Underline::None : v == QLatin1String("double") ? Underline::Double
+                                      : v == QLatin1String("singleAccounting") ? Underline::SingleAccounting : v == QLatin1String("doubleAccounting") ? Underline::DoubleAccounting : Underline::Single;
+                    }
+                } else if (dxfPart == DxfPart::Fill && depth == 5 && isElement(r, "patternFill")) {
+                    d.fill.pattern = patternOf(attribute(r, "patternType"));
+                    if (attribute(r, "patternType").isEmpty()) d.fill.pattern = PatternKind::Solid;   // (a differential fill with no type is a solid one)
+                } else if (dxfPart == DxfPart::Fill && depth == 6) {
+                    if (isElement(r, "fgColor")) d.fill.fg = colorOf(r);
+                    else if (isElement(r, "bgColor")) d.fill.bg = colorOf(r);
+                } else if (dxfPart == DxfPart::Border && depth == 5) {
+                    BorderSpec &b = d.border;
+                    dxfSide = isElement(r, "left") || isElement(r, "start") ? &b.left : isElement(r, "right") || isElement(r, "end") ? &b.right : isElement(r, "top") ? &b.top
+                              : isElement(r, "bottom") ? &b.bottom : isElement(r, "diagonal") ? &b.diagonal : nullptr;
+                    if (dxfSide) dxfSide->style = borderStyleOf(attribute(r, "style"));
+                } else if (dxfPart == DxfPart::Border && depth == 6 && dxfSide && isElement(r, "color")) {
+                    dxfSide->color = colorOf(r);
+                }
             } else if (depth == 3 && where == Where::Colors) {
                 inIndexed = isElement(r, "indexedColors");
             } else if (depth == 4 && where == Where::Colors && inIndexed && isElement(r, "rgbColor")) {
@@ -668,6 +719,7 @@ private:
     // a run of columns, a row kept as not the default, and a merged range (each rounded up from what the structure holds)
     static constexpr qint64 kColumnSpanBytes = 48, kRowSpecBytes = 48, kMergeBytes = 32;
     static constexpr qsizetype kMaxValidations = 20000;
+    static constexpr qsizetype kMaxCondRules = 50000;
     static qint64 stringBytes(qint64 chars) { return kSlotBytes + std::max<qint64>(32, (24 + 2 * chars + 2 + 8 + 15) / 16 * 16); }
     bool startRow(const QXmlStreamReader &r);
     bool startColumns(const QXmlStreamReader &r);
@@ -677,6 +729,7 @@ private:
     void endView();
     bool startMerge(const QXmlStreamReader &r);
     Validation readRule(const QXmlStreamReader &r) const;
+    CondRule readCondRule(const QXmlStreamReader &r) const;
     bool startCell(const QXmlStreamReader &r);
     bool startFormula(const QXmlStreamReader &r);
     bool endFormula();
@@ -824,6 +877,38 @@ Validation SheetReader::readRule(const QXmlStreamReader &r) const
         if (parseRangeRef(part, &range) && v.ranges.size() < 64) v.ranges.append(range);
     }
     return v;
+}
+
+CondRule SheetReader::readCondRule(const QXmlStreamReader &r) const
+{
+    CondRule c;
+    static const QHash<QString, CondRule::Type> types = {
+        {QStringLiteral("cellIs"), CondRule::Type::CellIs}, {QStringLiteral("expression"), CondRule::Type::Expression}, {QStringLiteral("colorScale"), CondRule::Type::ColorScale},
+        {QStringLiteral("dataBar"), CondRule::Type::DataBar}, {QStringLiteral("iconSet"), CondRule::Type::IconSet}, {QStringLiteral("top10"), CondRule::Type::Top10},
+        {QStringLiteral("uniqueValues"), CondRule::Type::UniqueValues}, {QStringLiteral("duplicateValues"), CondRule::Type::DuplicateValues}, {QStringLiteral("containsText"), CondRule::Type::ContainsText},
+        {QStringLiteral("notContainsText"), CondRule::Type::NotContainsText}, {QStringLiteral("beginsWith"), CondRule::Type::BeginsWith}, {QStringLiteral("endsWith"), CondRule::Type::EndsWith},
+        {QStringLiteral("containsBlanks"), CondRule::Type::ContainsBlanks}, {QStringLiteral("notContainsBlanks"), CondRule::Type::NotContainsBlanks}, {QStringLiteral("containsErrors"), CondRule::Type::ContainsErrors},
+        {QStringLiteral("notContainsErrors"), CondRule::Type::NotContainsErrors}, {QStringLiteral("timePeriod"), CondRule::Type::TimePeriod}, {QStringLiteral("aboveAverage"), CondRule::Type::AboveAverage}};
+    c.type = types.value(attribute(r, "type").toString(), CondRule::Type::Expression);
+    static const QStringList ops = {QStringLiteral("lessThan"), QStringLiteral("lessThanOrEqual"), QStringLiteral("equal"), QStringLiteral("notEqual"), QStringLiteral("greaterThanOrEqual"),
+                                    QStringLiteral("greaterThan"), QStringLiteral("between"), QStringLiteral("notBetween")};
+    const int o = int(ops.indexOf(attribute(r, "operator").toString()));
+    c.op = o >= 0 ? CondRule::Operator(o) : CondRule::Operator::Equal;
+    bool ok = false;
+    c.priority = attribute(r, "priority").toInt(&ok);
+    if (!ok) c.priority = 1 << 20;
+    c.dxf = attribute(r, "dxfId").isEmpty() ? -1 : attribute(r, "dxfId").toInt(&ok);
+    if (!ok) c.dxf = -1;
+    c.stopIfTrue = parseBool(attribute(r, "stopIfTrue").toString());
+    c.text = attribute(r, "text").left(255).toString();
+    c.timePeriod = attribute(r, "timePeriod").left(20).toString();
+    c.rank = int(std::lround(boundedNumber(attribute(r, "rank"), 1, 1000, 10)));
+    c.percent = parseBool(attribute(r, "percent").toString());
+    c.bottom = parseBool(attribute(r, "bottom").toString());
+    c.above = attribute(r, "aboveAverage").isEmpty() ? true : parseBool(attribute(r, "aboveAverage").toString());
+    c.equalAverage = parseBool(attribute(r, "equalAverage").toString());
+    c.stdDev = int(std::lround(boundedNumber(attribute(r, "stdDev"), 0, 3, 0)));
+    return c;
 }
 
 bool SheetReader::startColumns(const QXmlStreamReader &r)
@@ -1194,6 +1279,16 @@ bool SheetReader::read(QIODevice *in)
     int depth = 0, phonetic = 0;
     bool rootSeen = false, inData = false, inRow = false, inCell = false, inFormula = false, inValue = false, inInline = false, inText = false, inMerge = false;
     bool inSheetPr = false, inViews = false, inCols = false, inView = false, inValidations = false, inRule = false;
+    // conditional formatting: the ranges of the element being read, the rule, where its formula text goes, and (in the extension list) the data bars' extra attributes by their ids
+    bool inCond = false, inCondRule = false, inExtension = false;
+    QVector<CellRange> condRanges;
+    CondRule condRule;
+    QString *condText = nullptr;
+    int condFormulas = 0;
+    QHash<QString, CondRule> extensionBars;   // by id: only what the extension adds to a data bar
+    QString extensionBarId;
+    CondRule extensionBar;
+    bool inExtensionBar = false;
     QString *ruleText = nullptr;   // the formula of the rule being read, while its text is collected
     Validation rule;
     bool ok = true;
@@ -1226,6 +1321,15 @@ bool SheetReader::read(QIODevice *in)
                     inMerge = true;
                 } else if (isElement(r, "dataValidations")) {
                     inValidations = true;
+                } else if (isElement(r, "conditionalFormatting")) {
+                    inCond = true;
+                    condRanges.clear();
+                    for (const QString &part : attribute(r, "sqref").toString().split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+                        CellRange range;
+                        if (condRanges.size() < 1000 && parseRangeRef(part, &range)) condRanges.append(range);
+                    }
+                } else if (isElement(r, "extLst")) {
+                    inExtension = true;
                 } else if (isElement(r, "sheetProtection")) {
                     m_sheet.isProtected = parseBool(attribute(r, "sheet").toString());
                 } else if (isElement(r, "sheetPr")) {
@@ -1249,6 +1353,58 @@ bool SheetReader::read(QIODevice *in)
                 rule = readRule(r);
             } else if (depth == 4 && inRule && (isElement(r, "formula1") || isElement(r, "formula2"))) {
                 ruleText = isElement(r, "formula1") ? &rule.formula1 : &rule.formula2;
+            } else if (depth == 3 && inCond && isElement(r, "cfRule")) {
+                inCondRule = true;
+                condFormulas = 0;
+                condRule = readCondRule(r);
+                condRule.ranges = condRanges;
+            } else if (inCondRule && depth == 4) {
+                if (isElement(r, "formula")) condText = condFormulas++ == 0 ? &condRule.formula1 : &condRule.formula2;
+                else if (isElement(r, "colorScale")) condRule.type = CondRule::Type::ColorScale;
+                else if (isElement(r, "dataBar")) {
+                    condRule.type = CondRule::Type::DataBar;
+                    condRule.minLength = int(std::lround(boundedNumber(attribute(r, "minLength"), 0, 100, 10)));
+                    condRule.maxLength = int(std::lround(boundedNumber(attribute(r, "maxLength"), 0, 100, 90)));
+                    if (!attribute(r, "showValue").isEmpty()) condRule.showValue = parseBool(attribute(r, "showValue").toString());
+                } else if (isElement(r, "iconSet")) {
+                    condRule.type = CondRule::Type::IconSet;
+                    condRule.iconSet = attribute(r, "iconSet").isEmpty() ? QStringLiteral("3TrafficLights1") : attribute(r, "iconSet").left(40).toString();
+                    if (!attribute(r, "showValue").isEmpty()) condRule.showValue = parseBool(attribute(r, "showValue").toString());
+                    condRule.reverse = parseBool(attribute(r, "reverse").toString());
+                }
+            } else if (inCondRule && depth == 5) {
+                if (isElement(r, "cfvo") && condRule.values.size() < 8) {
+                    CondValue v;
+                    const QStringView type = attribute(r, "type");
+                    v.type = type == QLatin1String("percent") ? CondValue::Type::Percent : type == QLatin1String("max") ? CondValue::Type::Max : type == QLatin1String("min") ? CondValue::Type::Min
+                             : type == QLatin1String("formula") ? CondValue::Type::Formula : type == QLatin1String("percentile") ? CondValue::Type::Percentile : type == QLatin1String("autoMin") ? CondValue::Type::AutoMin
+                             : type == QLatin1String("autoMax") ? CondValue::Type::AutoMax : CondValue::Type::Number;
+                    v.value = attribute(r, "val").left(1000).toString();
+                    v.gte = attribute(r, "gte").isEmpty() ? true : parseBool(attribute(r, "gte").toString());
+                    condRule.values.append(v);
+                } else if (isElement(r, "color") && condRule.colors.size() < 8) {
+                    condRule.colors.append(colorOf(r));
+                }
+            } else if (inExtension && depth == 6 && isElement(r, "cfRule") && attribute(r, "type") == QLatin1String("dataBar")) {
+                extensionBarId = attribute(r, "id").toString();
+                extensionBar = CondRule();
+                inExtensionBar = !extensionBarId.isEmpty();
+            } else if (inExtensionBar && depth == 7 && isElement(r, "dataBar")) {
+                extensionBar.minLength = int(std::lround(boundedNumber(attribute(r, "minLength"), 0, 100, 10)));
+                extensionBar.maxLength = int(std::lround(boundedNumber(attribute(r, "maxLength"), 0, 100, 90)));
+                extensionBar.gradient = attribute(r, "gradient").isEmpty() ? true : parseBool(attribute(r, "gradient").toString());
+                extensionBar.border = parseBool(attribute(r, "border").toString());
+                extensionBar.negativeSameColor = parseBool(attribute(r, "negativeBarColorSameAsPositive").toString());
+                const QStringView axis = attribute(r, "axisPosition");
+                extensionBar.axis = axis == QLatin1String("middle") ? CondRule::Axis::Middle : axis == QLatin1String("none") ? CondRule::Axis::None : CondRule::Axis::Automatic;
+                extensionBar.rightToLeft = attribute(r, "direction") == QLatin1String("rightToLeft");
+            } else if (inExtensionBar && depth == 8) {
+                if (isElement(r, "negativeFillColor")) extensionBar.negativeColor = colorOf(r);
+                else if (isElement(r, "borderColor")) extensionBar.borderColor = colorOf(r);
+                else if (isElement(r, "negativeBorderColor")) extensionBar.negativeBorderColor = colorOf(r);
+                else if (isElement(r, "axisColor")) extensionBar.axisColor = colorOf(r);
+            } else if (inCondRule && depth == 6 && isElement(r, "id")) {
+                condText = &condRule.extId;   // (the extension's x14:id of a data bar)
             } else if (depth == 3 && inCols && isElement(r, "col")) {
                 ok = startColumns(r);
             } else if (depth == 3 && inSheetPr && isElement(r, "tabColor")) {
@@ -1302,6 +1458,17 @@ bool SheetReader::read(QIODevice *in)
             } else if (depth == 4 && inCell) {
                 inCell = false;
                 ok = endCell();
+            } else if (condText && ((depth == 4 && inCondRule) || (depth == 6 && inCondRule))) {
+                condText = nullptr;
+            } else if (inExtensionBar && depth == 6 && isElement(r, "cfRule")) {
+                extensionBars.insert(extensionBarId, extensionBar);
+                inExtensionBar = false;
+            } else if (depth == 3 && inCondRule) {
+                inCondRule = false;
+                if (m_sheet.conditionalFormats.size() < kMaxCondRules) {
+                    if (condRule.type == CondRule::Type::DataBar && condRule.colors.isEmpty()) condRule.colors.append(ColorSpec::fromRgb(0x638EC6));
+                    m_sheet.conditionalFormats.append(condRule);
+                }
             } else if (depth == 4 && ruleText) {
                 ruleText = nullptr;
             } else if (depth == 3 && inRule) {
@@ -1313,12 +1480,14 @@ bool SheetReader::read(QIODevice *in)
                 inView = false;
                 endView();
             } else if (depth == 2) {
-                inData = inMerge = inSheetPr = inViews = inCols = inValidations = false;
+                inData = inMerge = inSheetPr = inViews = inCols = inValidations = inCond = inExtension = false;
             }
             --depth;
             break;
         case QXmlStreamReader::Characters:
-            if (ruleText) {
+            if (condText) {
+                if (condText->size() < m_limits.formulaChars) *condText += r.text();
+            } else if (ruleText) {
                 if (ruleText->size() < m_limits.formulaChars) *ruleText += r.text();
             } else if (inFormula) {
                 m_formula += r.text();
@@ -1340,6 +1509,24 @@ bool SheetReader::read(QIODevice *in)
         if (!why.isEmpty()) ok = fail(why);
         else if (!rootSeen) ok = fail(QCoreApplication::translate("Sheet", "The part is not a worksheet."));
     }
+    // a data bar takes what its extension says (the id ties them), and the rules are in the order of their priority
+    for (CondRule &c : m_sheet.conditionalFormats) {
+        if (c.type != CondRule::Type::DataBar || c.extId.trimmed().isEmpty()) continue;
+        const auto found = extensionBars.constFind(c.extId.trimmed());
+        if (found == extensionBars.constEnd()) continue;
+        c.minLength = found->minLength;
+        c.maxLength = found->maxLength;
+        c.gradient = found->gradient;
+        c.border = found->border;
+        c.negativeSameColor = found->negativeSameColor;
+        c.axis = found->axis;
+        c.rightToLeft = found->rightToLeft;
+        c.negativeColor = found->negativeColor;
+        c.borderColor = found->borderColor;
+        c.negativeBorderColor = found->negativeBorderColor;
+        c.axisColor = found->axisColor;
+    }
+    std::stable_sort(m_sheet.conditionalFormats.begin(), m_sheet.conditionalFormats.end(), [](const CondRule &a, const CondRule &b) { return a.priority < b.priority; });
     m_sheet.stats.xmlBytes = src.guard.bytesPassed();
     m_sheet.stats.largestToken = src.guard.largestToken();
     m_sheet.stats.largestRead = src.guard.largestRead();

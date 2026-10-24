@@ -184,6 +184,8 @@ public:
         qint64 cellsMoved = 0, formulasRewritten = 0;
         // the rules of validation of the sheets they changed in, as they were
         std::vector<std::pair<int, QVector<Validation>>> validations;
+        // and the rules of conditional formatting of the sheets they changed in
+        std::vector<std::pair<int, QVector<CondRule>>> conditionalFormats;
         // a Move: the merged ranges of the sheet it went to, as they were (the first sheet's are in `merges`)
         QVector<CellRange> toMerges;
         qint64 toMergeCount = 0;
@@ -379,6 +381,7 @@ private:
     void markArrayMembers(int sheet, quint32 row, quint32 col);
     void nameTextsChanged();
     void adjustValidations(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
+    void adjustConditionalFormats(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
     // A cell that is deleted or written over, as it is, for Undo to put back (an array formula or a data table is put back as one: see putBackKinds).
     EditRecord::GoneCell goneCell(int sheet, const Cell &c) const;
     void putBackKinds(const EditRecord &record);

@@ -174,6 +174,19 @@ struct FormatChange {
 // The colors of the theme in the order the styles name them by number: light 1, dark 1, light 2, dark 2, accent 1 to 6, hyperlink, followed hyperlink.
 constexpr int kThemeColors = 12;
 
+// A differential format (a `dxf`): what a rule of conditional formatting changes of a cell's look. Each part is set only if the format says it.
+struct DifferentialFormat {
+    std::optional<bool> bold, italic, strike;
+    std::optional<Underline> underline;
+    ColorSpec fontColor;
+    bool hasFill = false;
+    FillSpec fill;
+    bool hasBorder = false;
+    BorderSpec border;
+    std::optional<QString> numberFormat;   // the code
+    bool isEmpty() const { return !bold && !italic && !strike && !underline && !fontColor.isSet() && !hasFill && !hasBorder && !numberFormat; }
+};
+
 struct Styles {
     QHash<int, QString> numFmts;    // the formats the file defines, by id
     QVector<qint32> cellXfs;        // the format id of each cell format, in order
@@ -185,6 +198,7 @@ struct Styles {
     QVector<NamedStyle> namedStyles; // the named cell styles of a workbook of the older binary form (the XML form's are cellStyles)
     QVector<CellFormat> styleXfs;    // the formats of the named styles of the XML form (cellStyleXfs), in order
     QVector<CellStyleName> cellStyles; // and their names
+    QVector<DifferentialFormat> dxfs;  // the differential formats conditional formatting uses, by place
     QVector<quint32> indexed;       // the palette the file defines for indexed colors (0xRRGGBB); empty for the usual one
     quint32 theme[kThemeColors];    // the workbook's theme colors (0xRRGGBB), set when the workbook is opened; the usual ones until then
 
