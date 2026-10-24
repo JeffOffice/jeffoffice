@@ -81,6 +81,12 @@ struct StructChange {
     int savedGen = 0;                                                    // how many saves had been made when it was done (an Undo after a later save is made against the saved file)
 };
 
+// An object over the cells (a chart, picture, or shape) that a step took away: its sheet, and its number among that sheet's objects.
+struct ObjectEdit {
+    int sheet = 0;
+    int id = 0;
+};
+
 // What one step of the undo stack changes: cells (as they were and as they are), and whatever goes with them.
 struct Step {
     std::vector<CellChange> cells;
@@ -88,7 +94,8 @@ struct Step {
     std::vector<SizeEdit> sizes;
     std::vector<MergeEdit> merges;
     std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
-    bool empty() const { return cells.empty() && renames.empty() && sizes.empty() && merges.empty() && !structure; }
+    std::vector<ObjectEdit> objects;           // or objects over the cells taken away (done: they are gone; undone: they are back)
+    bool empty() const { return cells.empty() && renames.empty() && sizes.empty() && merges.empty() && !structure && objects.empty(); }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -248,6 +255,15 @@ public:
     // The most rows one resize changes.
     static constexpr qint64 kMaxRowsPerResize = 100000;
 
+    // An object over the cells is taken away (Delete with it picked): one step, which Undo gives back. Told to the hook (setObjectHook) when it is done, undone, and done again; the file is
+    // written without it. A step that took an object away is like one that deleted rows: Undo goes back as far as the last such step saved, no further.
+    using ObjectHook = std::function<void(int sheet, int id, bool deleted)>;
+    void setObjectHook(ObjectHook hook) { m_objectHook = std::move(hook); }
+    Outcome deleteObject(int sheet, int id, const QString &text);
+
+    // The edits that insert or delete rows, columns, or cells since the file was read or saved that are done (not undone), in order: what the objects over the cells are moved by.
+    const std::vector<jp::office::sheet::StructEdit> &structureEdits() const { return m_edits; }
+
     // The worker's results, as they reach the window (before the window's store has them: the store's value is the engine's before it): kept for saving, those that the engine changed and that
     // differ from what the file holds.
     void noteResults(const std::vector<jp::grid::ValueStore::Item> &items);
@@ -357,6 +373,7 @@ private:
     std::set<int> m_mergesChanged;   // the sheets whose merged ranges a step changed since the file was read or saved
     std::set<quint64> m_columnsResized, m_rowsResized;   // the columns and rows (by sheet and place) whose size a step changed since the file was read or saved
     std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)
+    ObjectHook m_objectHook;
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
     std::vector<jp::office::sheet::ColumnRename> m_renames;   // and the table columns renamed, for the names, validations, rules, and charts that name them
     bool m_bigStepAllowed = false;     // see allowNextBigStep

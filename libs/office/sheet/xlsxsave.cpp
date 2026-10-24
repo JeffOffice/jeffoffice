@@ -241,6 +241,36 @@ bool removeContentTypeOverride(const QByteArray &xml, const QString &partName, Q
     return false;
 }
 
+bool removeRelationshipsById(const QByteArray &xml, const QStringList &ids, QByteArray *out)
+{
+    Tag t;
+    qsizetype pos = 0, copied = 0;
+    QByteArray result;
+    bool any = false;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "Relationship") continue;
+        bool found = false;
+        const QByteArrayView id = xmlscan::attribute(QByteArrayView(xml).sliced(t.start, t.end - t.start), "Id", &found);
+        if (!found || !ids.contains(xmlscan::unescape(id))) continue;
+        qsizetype end = t.end;
+        if (!t.selfClosing) {
+            Tag close;
+            if (!xmlscan::nextTag(xml, t.end, &close) || !close.closing || close.local != "Relationship") continue;
+            end = close.end;
+        }
+        qsizetype from = t.start;
+        while (from > copied && isSpace(xml[from - 1])) --from;
+        result += xml.mid(copied, from - copied);
+        copied = end;
+        pos = end;
+        any = true;
+    }
+    if (!any) return false;
+    *out = result + xml.mid(copied);
+    return true;
+}
+
 bool removeRelationshipOfType(const QByteArray &xml, const QString &typeSuffix, QByteArray *out)
 {
     Tag t;
@@ -389,9 +419,16 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             if (!inflate(index, &xml) || !fn(xml, &now, &changed) || !changed) return;
             replaced.insert(index, now);
         };
+        // the sheet each chart is on (the drawing of a sheet names it): what a reference with no sheet in it, or a name of the sheet, means in it
+        QHash<QString, int> chartSheet;
+        for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet)
+            for (const Relationship &d : package.relationshipsOfType(book.info().sheets[sheet].part, QStringLiteral("/drawing")))
+                if (!d.external)
+                    for (const Relationship &c : package.relationshipsOfType(d.target, QStringLiteral("/chart")))
+                        if (!c.external) chartSheet.insert(c.target.toLower(), sheet);
         static const QRegularExpression chartPart(QStringLiteral("/charts/(chart|chartEx)\\d*\\.xml$")), cachePart(QStringLiteral("/pivotCacheDefinition\\d*\\.xml$"));
         for (const QString &part : package.partNames()) {
-            if (chartPart.match(part).hasMatch()) replacePart(part, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveChartPart(x, ctx, o, c); });
+            if (chartPart.match(part).hasMatch()) replacePart(part, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveChartPart(x, ctx, o, c, chartSheet.value(part.toLower(), 0)); });
             else if (cachePart.match(part).hasMatch()) replacePart(part, [&](const QByteArray &x, QByteArray *o, bool *c) { return movePivotCachePart(x, ctx, o, c); });
         }
         for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet) {
@@ -408,6 +445,114 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/vmlDrawing")))
                 if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveNotesDrawing(x, ctx, sheet, o, c); });
         }
+    }
+    // ---- the objects of drawings that were deleted, and the caches of the charts whose cells changed (on what the moves above made of the parts)
+    auto partBytes = [&](const QString &part, QByteArray *xml) {
+        const int index = entryOfPart(part);
+        if (index < 0) return -1;
+        if (replaced.contains(index)) *xml = replaced.value(index);
+        else if (!inflate(index, xml)) return -1;
+        return index;
+    };
+    for (const auto &[part, anchors] : changes.anchors) {
+        QByteArray xml, now;
+        bool changed = false;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && setDrawingAnchors(xml, anchors, &now, &changed) && changed) replaced.insert(index, now);
+    }
+    // (what the objects taken away relate to: the links of the drawing they alone used, and the parts nothing else relates to)
+    std::vector<std::pair<QString, QStringList>> released;
+    for (const auto &[part, ordinals] : changes.removedObjects) {
+        QByteArray xml, now;
+        bool changed = false;
+        QStringList ids;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && removeDrawingObjects(xml, ordinals, &now, &changed, &ids) && changed) {
+            replaced.insert(index, now);
+            // the ids the drawing still names are kept
+            for (const QString &id : namedRelationships(now)) ids.removeAll(id);
+            if (!ids.isEmpty()) released.emplace_back(part, ids);
+        }
+    }
+    if (!released.empty()) {
+        QHash<QString, QVector<QPair<QString, QString>>> into;   // by the part a relationship goes to (lower case): (the part it is from, its id), both lower case
+        auto addRelationships = [&](const QString &source) {
+            for (const Relationship &r : package.relationships(source))
+                if (!r.external) into[r.target.toLower()].append({source.toLower(), r.id});
+        };
+        addRelationships(QStringLiteral("/"));
+        for (const QString &name : package.partNames()) addRelationships(name);
+        QSet<QPair<QString, QString>> gone;   // relationships that are dropped: (the part they are from, the id)
+        QSet<QString> goneParts;              // parts that are dropped
+        for (const auto &[part, ids] : released)
+            for (const QString &id : ids) gone.insert({part.toLower(), id});
+        std::function<void(const QString &, int)> consider = [&](const QString &target, int depth) {
+            const QString key = target.toLower();
+            if (goneParts.contains(key) || depth > 8) return;
+            const auto &refs = into.value(key);
+            for (const auto &r : refs)
+                if (!gone.contains(r) && !goneParts.contains(r.first)) return;   // something that stays still relates to it
+            goneParts.insert(key);
+            for (const Relationship &r : package.relationships(target))
+                if (!r.external) {
+                    gone.insert({key, r.id});
+                    consider(r.target, depth + 1);
+                }
+        };
+        for (const auto &[part, ids] : released)
+            for (const QString &id : ids) {
+                const Relationship r = package.relationship(part, id);
+                if (!r.id.isEmpty() && !r.external) consider(r.target, 0);
+            }
+        auto relsEntryOf = [&](const QString &part) {
+            const QString name = package.entryName(part);
+            if (name.isEmpty()) return -1;
+            const int slash = name.lastIndexOf(QLatin1Char('/'));
+            return entryAt.value(plain((slash < 0 ? QString() : name.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? name : name.mid(slash + 1)) + QStringLiteral(".rels")), -1);
+        };
+        for (const auto &[part, ids] : released) {
+            QByteArray rels, now;
+            const int relsEntry = relsEntryOf(part);
+            if (relsEntry < 0) continue;
+            if (replaced.contains(relsEntry)) rels = replaced.value(relsEntry);
+            else if (!inflate(relsEntry, &rels)) continue;
+            if (removeRelationshipsById(rels, ids, &now)) replaced.insert(relsEntry, now);
+        }
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        for (const QString &key : std::as_const(goneParts)) {
+            // (the part by the name the package has for it)
+            QString name;
+            for (const QString &n : package.partNames())
+                if (n.toLower() == key) {
+                    name = n;
+                    break;
+                }
+            if (name.isEmpty()) continue;
+            const int entry = entryOfPart(name);
+            if (entry >= 0) dropped.insert(entry);
+            const int rels = relsEntryOf(name);
+            if (rels >= 0) {
+                dropped.insert(rels);
+                replaced.remove(rels);
+            }
+            QByteArray types, now;
+            if (typesEntry >= 0) {
+                if (replaced.contains(typesEntry)) types = replaced.value(typesEntry);
+                else inflate(typesEntry, &types);
+                if (!types.isEmpty() && removeContentTypeOverride(types, name, &now)) replaced.insert(typesEntry, now);
+            }
+        }
+    }
+    for (const auto &[part, caches] : changes.chartCaches) {
+        QByteArray xml, now;
+        bool changed = false;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && refreshChartCaches(xml, caches, &now, &changed) && changed) replaced.insert(index, now);
     }
     // ---- the shared strings
     if (!changes.newSharedStrings.isEmpty()) {
@@ -449,7 +594,8 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             const QString relsName = (slash < 0 ? QString() : mainEntryName.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? mainEntryName : mainEntryName.mid(slash + 1)) + QStringLiteral(".rels");
             const int relsEntry = entryAt.value(plain(relsName), -1);
             QByteArray types, rels, newTypes, newRels;
-            if (chainEntry >= 0 && typesEntry >= 0 && relsEntry >= 0 && inflate(typesEntry, &types) && inflate(relsEntry, &rels) && removeContentTypeOverride(types, part, &newTypes)
+            const bool haveTypes = typesEntry >= 0 && (replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types));
+            if (chainEntry >= 0 && haveTypes && relsEntry >= 0 && inflate(relsEntry, &rels) && removeContentTypeOverride(types, part, &newTypes)
                 && removeRelationshipOfType(rels, QStringLiteral("/calcChain"), &newRels)) {
                 replaced.insert(typesEntry, newTypes);
                 replaced.insert(relsEntry, newRels);

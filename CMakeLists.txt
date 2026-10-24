@@ -194,11 +194,14 @@ qt_add_executable(sheettests
   tests/sheet/tst_grid_axis.cpp
   tests/sheet/tst_grid_cells.cpp
   tests/sheet/tst_grid_layout.cpp
+  tests/sheet/tst_grid_objects.cpp
   tests/sheet/tst_grid_paint.cpp
   tests/sheet/tst_grid_select.cpp
   tests/sheet/tst_grid_view.cpp
   tests/sheet/tst_sheet_bounds.cpp
   tests/sheet/tst_sheet_calculation.cpp
+  tests/sheet/tst_sheet_chartdata.cpp
+  tests/sheet/tst_sheet_drawing.cpp
   tests/sheet/tst_sheet_cells.cpp
   tests/sheet/tst_sheet_edit.cpp
   tests/sheet/tst_sheet_entry.cpp
@@ -444,10 +447,13 @@ endif()
 target_link_libraries(jeffcrunch PRIVATE jccore)
 set_target_properties(jeffcrunch PROPERTIES OUTPUT_NAME JeffCrunch)
 # The tests of the window (the grid's own are in sheettests).
-qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/crunch/tst_crunch_xls.cpp tests/crunch/tst_crunch_convert.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp)
+qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/crunch/tst_crunch_xls.cpp tests/crunch/tst_crunch_convert.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp tests/crunch/tst_crunch_drawings.cpp)
 target_link_libraries(crunchtests PRIVATE jccore Qt6::Test)
 target_include_directories(crunchtests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 target_compile_definitions(crunchtests PRIVATE JC_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+# (a test runs the program itself, as it ends: the one this build makes, built before the tests are)
+add_dependencies(crunchtests jeffcrunch)
+target_compile_definitions(crunchtests PRIVATE JC_CRUNCH_EXE="$<TARGET_FILE:jeffcrunch>")
 set_target_properties(crunchtests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME crunchtests COMMAND crunchtests)
 set_tests_properties(crunchtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
@@ -532,7 +538,7 @@ target_compile_definitions(jcrunchtool PRIVATE JCRUNCH_TOOLS_DIR="${CMAKE_SOURCE
 set_target_properties(jcrunchtool PROPERTIES WIN32_EXECUTABLE OFF)
 if(JP_BUILD_CRUNCH)
   # Its grid commands (how fast a workbook is on the screen, and a sweep of a list of workbooks through the grid model) use the window's parts.
-  target_sources(jcrunchtool PRIVATE tools/jcrunchtool_grid.cpp tools/jcrunchtool_edit.cpp)
+  target_sources(jcrunchtool PRIVATE tools/jcrunchtool_grid.cpp tools/jcrunchtool_edit.cpp tools/jcrunchtool_drawings.cpp)
   target_link_libraries(jcrunchtool PRIVATE jccore)
   target_compile_definitions(jcrunchtool PRIVATE JC_GRID=1)
 endif()

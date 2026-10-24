@@ -83,6 +83,9 @@ public:
     // The place of a row's top (columns' left) edge on the screen, in the part the row (column) is in.
     int yOf(qint64 row) const;
     int xOf(qint64 col) const;
+    // The place on the screen of a place of the grid's (its units at 100%) in one direction, in the frozen part or the part that scrolls: where an object that lies over the cells is.
+    int screenXAt(qint64 logical, bool frozen) const { return screenX(logical, frozen); }
+    int screenYAt(qint64 logical, bool frozen) const { return screenY(logical, frozen); }
     // The edge where a column (row) begins, as the frozen part or the part that scrolls puts it; `col` may be count(), the end of the last. A row (column) ends where the next begins,
     // hidden ones between them having no size.
     int xEdge(qint64 col, bool frozen) const;

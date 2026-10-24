@@ -216,6 +216,7 @@ private:
 
     // ---- the pieces of a chart
     QVector<Entry> legendEntries() const;
+    QFont legendFont() const;
     QSizeF legendSize(const QVector<Entry> &entries, double available, QVector<int> *rowBreaks) const;
     void drawLegend(const QRectF &box, const QVector<Entry> &entries, const QVector<int> &rowBreaks);
     void drawKey(const Entry &e, const QRectF &key);
@@ -272,6 +273,13 @@ private:
     int m_separateLeft, m_markersLeft, m_labelsLeft;   // lines and markers that may still be drawn one by one, and labels on points that may still be drawn
     double m_strokeShare = 0;             // the length a series' line may have, in points
     mutable bool m_leftOut = false;
+
+    // What a plot the file fixes may take of the chart: the chart less the room a legend at a side takes (the whole chart when it has none or lays over the plot).
+    QRectF m_room;
+    // The plot the file fixes, as a rectangle of the chart, kept out of the legend's room.
+    QRectF manualPlot() const;
+    // A title of an axis: at `where` (its middle across, `vertical` of its height down from it), turned `usual` degrees unless the file turns it, or at the place its own layout gives it.
+    void drawAxisTitle(const ChartTitle &t, const QFont &font, const QColor &color, const QPointF &where, double vertical, double usual);
 
     // The plot with axes, once laid out.
     QRectF m_inner;
@@ -558,10 +566,13 @@ QVector<Entry> ChartPainter::legendEntries() const
     return out;
 }
 
+// The font the legend's names are measured in and drawn in (one place for both, so that a legend is as wide as what is drawn in it).
+QFont ChartPainter::legendFont() const { return fontOf(m_chart.legend.font, 10, false); }
+
 // The size of the legend, and where its rows break when it runs along the top or bottom.
 QSizeF ChartPainter::legendSize(const QVector<Entry> &entries, double available, QVector<int> *rowBreaks) const
 {
-    const QFont font = fontOf(m_chart.legend.font, 10, false);
+    const QFont font = legendFont();
     const double keyW = 7, gap = 4, between = 12, pad = 5, row = heightOf(font) + 1;
     const bool across = m_chart.legend.position == QLatin1String("t") || m_chart.legend.position == QLatin1String("b");
     double widest = 0, rowWidth = 0, widthSum = 0;
@@ -599,11 +610,18 @@ void ChartPainter::drawKey(const Entry &e, const QRectF &key)
 
 void ChartPainter::drawLegend(const QRectF &box, const QVector<Entry> &entries, const QVector<int> &rowBreaks)
 {
-    const QFont font = fontOf(m_chart.legend.font, 10, false);
+    const QFont font = legendFont();
     const QColor color = colorOf(m_chart.legend.font);
     const double keyW = 7, gap = 4, between = 12, pad = 5, row = heightOf(font) + 1;
     const bool across = m_chart.legend.position == QLatin1String("t") || m_chart.legend.position == QLatin1String("b");
     m_p->save();
+    // (the legend's own fill and line, when the file gives them: what lies under it does not show through)
+    if (m_chart.legend.fill.isValid()) m_p->fillRect(box, m_chart.legend.fill);
+    if (m_chart.legend.border.set && !m_chart.legend.border.none) {
+        m_p->setPen(penFor(m_chart.legend.border, lineColor(), 0.75));
+        m_p->setBrush(Qt::NoBrush);
+        m_p->drawRect(box);
+    }
     m_p->setPen(Qt::NoPen);
     if (!across) {
         double y = box.top() + pad - 1;
@@ -654,7 +672,7 @@ QString ChartPainter::labelText(const ChartPlot &plot, const ChartSeries &s, int
     }
     const double v = i < s.values.size() ? s.values[i] : kNaN;
     if (l.value && !std::isnan(v)) parts << formatChartNumber(v, l.format.isEmpty() ? s.format : l.format);
-    if (l.percent && total > 0 && !std::isnan(v)) parts << formatChartNumber(v / total, l.format.contains(QLatin1Char('%')) ? l.format : QStringLiteral("0%"));
+    if (l.percent && total > 0 && !std::isnan(v)) parts << formatChartNumber(std::fabs(v) / total, l.format.contains(QLatin1Char('%')) ? l.format : QStringLiteral("0%"));
     return parts.join(l.separator.isEmpty() ? QStringLiteral(", ") : writable(l.separator, kChartMaxLabel));
 }
 
@@ -699,15 +717,16 @@ void ChartPainter::paintPie(const QRectF &area)
     const QPointF center = area.center();
     for (int r = 0; r < rings; ++r) {
         const ChartSeries &s = plot.series[r];
+        // (a value below nothing is a slice of its size, as the common programs draw it)
         double total = 0;
         for (double v : s.values)
-            if (std::isfinite(v) && v > 0) total += v;
+            if (std::isfinite(v)) total += std::fabs(v);
         if (total <= 0) continue;
         const double outer = ring ? radius - r * (radius * (1 - plot.holeSize / 100.0) / rings) : radius;
         const double inner = ring ? outer - radius * (1 - plot.holeSize / 100.0) / rings : 0;
         double angle = plot.firstSliceAngle;   // degrees clockwise from twelve o'clock
         for (int i = 0; i < s.values.size(); ++i) {
-            const double v = s.values[i];
+            const double v = std::fabs(s.values[i]);
             if (!std::isfinite(v) || v <= 0) continue;
             const double sweep = v / total * 360;
             const double mid = (angle + sweep / 2) * kPi / 180;
@@ -1306,8 +1325,10 @@ void ChartPainter::paintAxes(const QRectF &outer)
 
     // ---- the plot's place: what the file fixes, else what is left of `outer` after the labels and titles
     const bool manual = c.plotManual;
-    const QRectF given = manual ? QRectF(c.plotX * m_size.width(), c.plotY * m_size.height(), c.plotW * m_size.width(), c.plotH * m_size.height()) : outer;
+    const QRectF given = manual ? manualPlot() : outer;
     const bool fixed = manual && c.plotInner;
+    // (the titles of the axes stand at the edge of what the plot and its labels may take: for a plot whose inner place is fixed, that is the chart's, not the plot's)
+    const QRectF frame = fixed ? outer : given;
     LabelFit fit;
     const bool valueAxisAtTop = (m_val->crosses == QLatin1String("max")) != m_catReversed;
     double leftSpace = 0, rightSpace = 0, topSpace = 0, bottomSpace = 0;
@@ -1532,20 +1553,43 @@ void ChartPainter::paintAxes(const QRectF &outer)
     m_p->restore();
 
     // ---- axis titles
-    auto turn = [](const ChartTitle &t, double usual) { return t.hasRotation ? t.rotation : usual; };
     if (catTitleH > 0) {
-        if (m_swap) drawText(m_cat->title.text, catTitleFont, catTitleColor, QPointF(given.left() + catTitleH / 2 - 2, m_inner.center().y()), 0.5, 0.5, turn(m_cat->title, -90));
-        else drawText(m_cat->title.text, catTitleFont, catTitleColor, QPointF(m_inner.center().x(), given.bottom() - 1), 0.5, 1.0, turn(m_cat->title, 0));
+        if (m_swap) drawAxisTitle(m_cat->title, catTitleFont, catTitleColor, QPointF(frame.left() + catTitleH / 2 - 2, m_inner.center().y()), 0.5, -90);
+        else drawAxisTitle(m_cat->title, catTitleFont, catTitleColor, QPointF(m_inner.center().x(), frame.bottom() - 1), 1.0, 0);
     }
     if (valTitleH > 0) {
-        if (m_swap) drawText(m_val->title.text, valTitleFont, valTitleColor, QPointF(m_inner.center().x(), valueAxisAtTop ? given.top() + 1 : given.bottom() - 1), 0.5, valueAxisAtTop ? 0.0 : 1.0, turn(m_val->title, 0));
-        else drawText(m_val->title.text, valTitleFont, valTitleColor, QPointF(given.left() + valTitleH / 2 - 2, m_inner.center().y()), 0.5, 0.5, turn(m_val->title, -90));
+        if (m_swap) drawAxisTitle(m_val->title, valTitleFont, valTitleColor, QPointF(m_inner.center().x(), valueAxisAtTop ? frame.top() + 1 : frame.bottom() - 1), valueAxisAtTop ? 0.0 : 1.0, 0);
+        else drawAxisTitle(m_val->title, valTitleFont, valTitleColor, QPointF(frame.left() + valTitleH / 2 - 2, m_inner.center().y()), 0.5, -90);
     }
-    if (secondTitleH > 0 && !m_swap)
-        drawText(m_val2->title.text, secondTitleFont, secondTitleColor, QPointF(given.right() - secondTitleH / 2 + 2, m_inner.center().y()), 0.5, 0.5, turn(m_val2->title, 90));
+    if (secondTitleH > 0 && !m_swap) drawAxisTitle(m_val2->title, secondTitleFont, secondTitleColor, QPointF(frame.right() - secondTitleH / 2 + 2, m_inner.center().y()), 0.5, 90);
 }
 
 // ---- the whole chart
+
+QRectF ChartPainter::manualPlot() const
+{
+    const Chart &c = m_chart;
+    const QRectF file(c.plotX * m_size.width(), c.plotY * m_size.height(), c.plotW * m_size.width(), c.plotH * m_size.height());
+    const QRectF kept = file.intersected(m_room);
+    return kept.width() >= 10 && kept.height() >= 10 ? kept : file;
+}
+
+void ChartPainter::drawAxisTitle(const ChartTitle &t, const QFont &font, const QColor &color, const QPointF &where, double vertical, double usual)
+{
+    const double angle = t.hasRotation ? t.rotation : usual;
+    if (!t.manual) {
+        drawText(t.text, font, color, where, 0.5, vertical, angle);
+        return;
+    }
+    // the file puts the title's box (as it is turned) at a corner of its own: the text is centered in that box
+    double w = 0;
+    const QStringList lines = writable(t.text, kMaxText).split(QLatin1Char('\n'));
+    for (const QString &line : lines) w = std::max(w, widthOf(font, line));
+    const double h = heightOf(font, int(lines.size()));
+    const double rad = angle * kPi / 180, cs = std::fabs(std::cos(rad)), sn = std::fabs(std::sin(rad));
+    const double boxW = w * cs + h * sn, boxH = w * sn + h * cs;
+    drawText(t.text, font, color, QPointF(t.x * m_size.width() + boxW / 2, t.y * m_size.height() + boxH / 2), 0.5, 0.5, angle);
+}
 
 void ChartPainter::paint()
 {
@@ -1568,16 +1612,22 @@ void ChartPainter::paint()
         QColor color;
         titleBlock(c.title, 18, &font, &color);
         const double h = heightOf(font, int(c.title.text.count(QLatin1Char('\n')) + 1));
-        drawText(c.title.text, font, color, QPointF(area.center().x(), area.top()), 0.5, 0, c.title.hasRotation ? c.title.rotation : 0);
+        // (across the top, or where the file puts its corner; the room it would take is kept either way, as the plot is laid out for it)
+        drawAxisTitle(c.title, font, color, QPointF(area.center().x(), area.top()), 0.0, 0);
         if (!c.title.overlay) area.setTop(area.top() + h + margin * 0.6);
     }
 
-    // The legend at its side.
+    // The legend: where the file puts it, else at its side (and the plot has what is left, unless the legend lies over it). It is drawn after the plot, so a column does not cover it.
+    QVector<Entry> legend;
+    QVector<int> legendBreaks;
+    QRectF legendBox;
+    m_room = full.adjusted(margin, margin, -margin, -margin);   // (the title does not take room from a plot the file fixes: the file put it where it is)
     if (c.legend.shown) {
-        const QVector<Entry> entries = legendEntries();
-        if (!entries.isEmpty()) {
-            QVector<int> breaks;
-            const QSizeF size = legendSize(entries, area.width(), &breaks);
+        legend = legendEntries();
+        if (!legend.isEmpty()) {
+            const double pad = 5;
+            const bool sized = c.legend.manual && c.legend.w > 0 && c.legend.h > 0;
+            const QSizeF size = legendSize(legend, sized ? c.legend.w * m_size.width() - 2 * pad : area.width(), &legendBreaks);
             const QString pos = c.legend.position;
             QRectF box;
             if (pos == QLatin1String("l")) box = QRectF(area.left(), area.center().y() - size.height() / 2, size.width(), size.height());
@@ -1585,21 +1635,34 @@ void ChartPainter::paint()
             else if (pos == QLatin1String("b")) box = QRectF(area.center().x() - size.width() / 2, area.bottom() - size.height(), size.width(), size.height());
             else if (pos == QLatin1String("tr")) box = QRectF(area.right() - size.width(), area.top(), size.width(), size.height());
             else box = QRectF(area.right() - size.width(), area.center().y() - size.height() / 2, size.width(), size.height());
-            drawLegend(box, entries, breaks);
-            if (!c.legend.overlay) {
+            const bool placed = c.legend.manual;
+            if (placed) {
+                // the file's place: its corner (or how far it is moved from its usual place), and its size if it says
+                const QPointF corner = c.legend.edge ? QPointF(c.legend.x * m_size.width(), c.legend.y * m_size.height())
+                                                     : box.topLeft() + QPointF(c.legend.x * m_size.width(), c.legend.y * m_size.height());
+                box = QRectF(corner, sized ? QSizeF(c.legend.w * m_size.width(), c.legend.h * m_size.height()) : box.size());
+            }
+            legendBox = box;
+            if (!c.legend.overlay && !placed) {
                 const double gap = margin * 0.6;
                 if (pos == QLatin1String("l")) area.setLeft(box.right() + gap);
                 else if (pos == QLatin1String("t")) area.setTop(box.bottom() + gap);
                 else if (pos == QLatin1String("b")) area.setBottom(box.top() - gap);
                 else area.setRight(box.left() - gap);
+                // (and a plot the file fixes keeps out of it as well)
+                if (pos == QLatin1String("l")) m_room.setLeft(area.left());
+                else if (pos == QLatin1String("t")) m_room.setTop(area.top());
+                else if (pos == QLatin1String("b")) m_room.setBottom(area.bottom());
+                else m_room.setRight(area.right());
             }
         }
     }
-    if (area.width() < 10 || area.height() < 10) return;
-    if (c.plots.isEmpty()) return;
-    const ChartType type = c.plots.first().type;
-    if (type == ChartType::Pie || type == ChartType::Doughnut) paintPie(c.plotManual ? QRectF(c.plotX * m_size.width(), c.plotY * m_size.height(), c.plotW * m_size.width(), c.plotH * m_size.height()) : area);
-    else paintAxes(area);
+    if (area.width() >= 10 && area.height() >= 10 && !c.plots.isEmpty()) {
+        const ChartType type = c.plots.first().type;
+        if (type == ChartType::Pie || type == ChartType::Doughnut) paintPie(c.plotManual ? manualPlot() : area);
+        else paintAxes(area);
+    }
+    if (!legend.isEmpty()) drawLegend(legendBox, legend, legendBreaks);
 }
 
 } // namespace

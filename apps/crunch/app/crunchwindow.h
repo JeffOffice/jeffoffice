@@ -34,6 +34,7 @@ class HelpWindow;
 class Ribbon;
 struct RibbonParts;
 namespace crunch {
+class SheetObjects;
 class SheetTabBar;
 }
 
@@ -73,6 +74,8 @@ public:
     bool isEditing() const { return m_edit.active; }
     CellEditor *cellEditor() const { return m_cellEditor; }
     crunch::EditSession *session() const { return m_session.get(); }
+    // The objects over the cells (null before the window is built).
+    crunch::SheetObjects *objects() const { return m_objects.get(); }
     QUndoStack *undoStack() const;
     bool commitEdit(CellEditor::Way way = CellEditor::Way::Stay);
     void cancelEdit();
@@ -288,6 +291,16 @@ private:
     void notice(const QString &title, const QString &text, bool warning = true);
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);
+
+    // the charts, pictures, and shapes over the cells (crunchwindow_drawings.cpp)
+    void setupObjects();
+    void openObjects();
+    void prepareObjects(int sheet);
+    void connectObjects();
+    void deleteObject(int id);
+    std::unique_ptr<crunch::SheetObjects> m_objects;
+    quint64 m_objectsToken = 0;
+    bool m_chartSheetShown = false;   // the sheet in view is a chart sheet: no command that works on cells is on
 
     grid::GridView *m_view = nullptr;
     Ribbon *m_ribbon = nullptr;

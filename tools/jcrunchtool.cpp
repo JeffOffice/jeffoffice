@@ -87,6 +87,7 @@ namespace jp::crunchtool {
 int gridMain(const QStringList &args);
 // The editing commands (tools/jcrunchtool_edit.cpp: roundtrip, edit-bench), the same.
 int editMain(const QStringList &args);
+int drawingsMain(const QStringList &args);   // (jcrunchtool_drawings.cpp)
 }
 #endif
 
@@ -694,7 +695,11 @@ int usage()
              "       jcrunchtool grid-one [--full] <file.xlsx|file.xls>\n"
              "       jcrunchtool grid-window <file.xlsx|file.xls>\n"
              "       jcrunchtool grid-bench [rows=100000] [cols=20]\n"
-             "       jcrunchtool grid-sweep <keys.txt> <out-dir> [jobs]\n";
+             "       jcrunchtool grid-sweep <keys.txt> <out-dir> [jobs]\n"
+             "       jcrunchtool grid-drawings-one [--live] <file.xlsx>\n"
+             "       jcrunchtool grid-drawings-shot <file.xlsx> <out.png> [sheet] [WxH]\n"
+             "       jcrunchtool grid-drawings-bench [charts=400] [shapes=0]\n"
+             "       jcrunchtool grid-drawings <keys.txt> <out-dir> [jobs]\n";
     return 2;
 }
 
@@ -723,6 +728,7 @@ int main(int argc, char **argv)
         ::jp::initCore();   // the program's own fonts, as JeffCrunch loads them
         int code = ::jp::crunchtool::gridMain(gui.arguments().mid(1));
         if (code < 0) code = ::jp::crunchtool::editMain(gui.arguments().mid(1));
+        if (code < 0) code = ::jp::crunchtool::drawingsMain(gui.arguments().mid(1));
         return code >= 0 ? code : usage();
     }
 #endif

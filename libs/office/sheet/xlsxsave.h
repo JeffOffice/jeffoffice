@@ -10,6 +10,7 @@
 // on: nothing here reads the workbook's cells.
 
 #include "office/package.h"
+#include "sheet/drawingsave.h"
 #include "sheet/refshift.h"
 #include "sheet/sheetreader.h"
 
@@ -103,6 +104,15 @@ struct SaveChanges {
     std::vector<StructEdit> edits;
     // And the columns of tables renamed since, in order.
     std::vector<ColumnRename> renames;
+    // Chart parts whose caches (the numbers and texts a chart stores for the cells it reads) are made again, by the part's name: for each reference as the part writes it (its c:f), what
+    // the cells hold now. A cache that holds that already is left alone (drawingsave.h).
+    std::map<QString, ChartCaches> chartCaches;
+    // Drawing objects a person deleted: for each drawing part (by its name), the places of their elements among the children of the part's root (DrawingObject::ordinal). What they leave
+    // unused (the relationships of the drawing, and the chart or picture parts nothing else in the package relates to, with their own relationships and types) goes with them.
+    std::map<QString, std::vector<int>> removedObjects;
+    // Two-cell anchors whose places are written again, by the drawing part and the place of the element (DrawingObject::ordinal): an object that keeps its size when cells are resized (editAs
+    // "oneCell" or "absolute") is where its size and place now put it. Applied before the objects are taken away (the places are the part's as it was).
+    std::map<QString, std::map<int, DrawingAnchor>> anchors;
     // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
     bool fullCalcOnLoad = false;
 };
@@ -140,6 +150,8 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
 // [Content_Types].xml without the Override of a part, and a relationships part without the link of a type (whose Type ends with the given words); false (nothing changed) if there is none.
 bool removeContentTypeOverride(const QByteArray &xml, const QString &partName, QByteArray *out);
 bool removeRelationshipOfType(const QByteArray &xml, const QString &typeSuffix, QByteArray *out);
+// A relationships part without the links with these ids; false (nothing changed) if there is none of them.
+bool removeRelationshipsById(const QByteArray &xml, const QStringList &ids, QByteArray *out);
 // The workbook part with fullCalcOnLoad="1" on its calcPr (made if there is none).
 bool setFullCalcOnLoad(const QByteArray &xml, QByteArray *out);
 
