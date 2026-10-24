@@ -52,6 +52,7 @@ private:
     QVector<Place> m_places;
     QStringList m_skipped;
     XlsContext m_cx;
+    QVector<FontSpec> m_fonts;   // the fonts as the model numbers them (and the file does), for the runs of formatting in the texts of cells
     qint64 m_sharedStringCount = 0;
     qsizetype m_xfCount = 0;   // the cell formats of the file (the places of the first and the 16th are exchanged: see mapXf)
 };

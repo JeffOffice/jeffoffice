@@ -148,6 +148,62 @@ private Q_SLOTS:
         QCOMPARE(wb.sharedStrings().strings.value(1), QStringLiteral("next"));
     }
 
+    // The runs of formatting in a text are kept: where each begins and the font it is in (a bold word in plain text). Characters before the first run are in the font of their cell, runs
+    // out of order are put in order, a place named twice has the last, a run past the end of the text is dropped, and one in a font the file lacks is in the font of the cell. BIFF5
+    // writes them with a text of the cell itself, in one byte each.
+    void richTextRunsAreKept()
+    {
+        Book b;
+        b.globals(font(QStringLiteral("Arial"), 10, 700));   // (the sixth read: the file's font 6)
+        b.sheet(QStringLiteral("S"), labelSst(0, 0, 0));
+        b.after(sst({QStringLiteral("bold and plain"), QStringLiteral("next"), QStringLiteral("late runs")}, 0, {}, {{0, 6, 5, 0}, {}, {5, 6, 2, 0, 5, 6, 99, 6, 7, 40}}));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        const SharedStrings &sh = wb.sharedStrings();
+        QCOMPARE(sh.strings.value(0), QStringLiteral("bold and plain"));
+        QCOMPARE(sh.rich.size(), 2);
+        QVERIFY(!sh.rich.contains(1));
+        const RichRuns r0 = sh.rich.value(0);
+        QCOMPARE(r0.size(), 2);
+        QCOMPARE(r0[0].start, quint32(0));
+        QVERIFY(r0[0].font < quint32(sh.richFonts.size()) && sh.richFonts[int(r0[0].font)].bold);
+        QCOMPARE(r0[1].start, quint32(5));
+        QVERIFY(r0[1].font < quint32(sh.richFonts.size()) && !sh.richFonts[int(r0[1].font)].bold);
+        const RichRuns r2 = sh.rich.value(2);
+        QCOMPARE(r2.size(), 4);
+        QCOMPARE(r2[0].start, quint32(0));
+        QCOMPARE(r2[0].font, RichRun::kCellFont);
+        QCOMPARE(r2[1].start, quint32(2));
+        QCOMPARE(r2[2].start, quint32(5));
+        QVERIFY(sh.richFonts[int(r2[2].font)].bold);
+        QCOMPARE(r2[3].start, quint32(7));
+        QCOMPARE(r2[3].font, RichRun::kCellFont);
+        // past the bound on runs, the strings are kept and their runs are not
+        Limits few;
+        few.richRuns = 3;
+        Workbook wf;
+        QVERIFY2(openBook(b, &wf, &why, few), qPrintable(why));
+        QCOMPARE(wf.sharedStrings().strings.value(2), QStringLiteral("late runs"));
+        QVERIFY(wf.sharedStrings().rich.contains(0) && !wf.sharedStrings().rich.contains(2));
+        // BIFF5
+        Book five(5);
+        five.globals(font(QStringLiteral("Arial"), 10, 700, false, false, 0, 0x7FFF, 0, 5));
+        five.sheet(QStringLiteral("S"), rstring(0, 0, QStringLiteral("bold and plain"), {{0, 6}, {5, 0}}) + label(1, 0, QStringLiteral("plain"), 15, 5));
+        Workbook w5;
+        QVERIFY2(openBook(five, &w5, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY(w5.readSheet(0, &s));
+        QCOMPARE(show(s, w5.sharedStrings(), QStringLiteral("A1")), QStringLiteral("i:bold and plain"));
+        const Cell *a1 = sheettest::at(s, QStringLiteral("A1"));
+        QVERIFY(a1 && s.richTexts.contains(a1->textIndex()));
+        const RichRuns runs = s.richTexts.value(a1->textIndex());
+        QCOMPARE(runs.size(), 2);
+        QVERIFY(s.richFonts[int(runs[0].font)].bold && !s.richFonts[int(runs[1].font)].bold);
+        QCOMPARE(runs[1].start, quint32(5));
+        QVERIFY(s.richTexts.size() == 1);   // (the plain text has none)
+    }
+
     // A formula cell has the result the file stored: a number, true or false, an error, a text that comes in the record after it (which may itself be continued), or the
     // empty text; a formula whose text record is missing has no result.
     void aFormulaKeepsItsStoredResult()
@@ -431,6 +487,31 @@ private Q_SLOTS:
         QVERIFY(!sheettest::at(s, QStringLiteral("C7"))->hasFormula());
         QCOMPARE(shown(wb, s, QStringLiteral("C7")), QStringLiteral("n:13"));
         QCOMPARE(s.formulaCells, qint64(2));
+    }
+
+    // A data table of one input reads which way: the input is the row input cell (TABLE(D3,)) or the column input cell (TABLE(,D3)), as the formula of a table is written; with two
+    // inputs they are the row input and then the column input.
+    void aDataTableOfOneInputKeepsWhichWayItReads()
+    {
+        QByteArray cells;
+        // B2:C3 reads its input from the row of D3; F2:G3 from the column of D3; I2:J3 from D3 (row) and E4 (column)
+        cells += formulaExp(1, 1, 1, 1, 10, 15, true) + tableRec(1, 2, 1, 2, 0x04, 2, 3, 0, 0) + formulaExp(1, 2, 1, 1, 11, 15, true) + formulaExp(2, 1, 1, 1, 12, 15, true) + formulaExp(2, 2, 1, 1, 13, 15, true);
+        cells += formulaExp(1, 5, 1, 5, 10, 15, true) + tableRec(1, 2, 5, 6, 0x00, 2, 3, 0, 0) + formulaExp(1, 6, 1, 5, 11, 15, true) + formulaExp(2, 5, 1, 5, 12, 15, true) + formulaExp(2, 6, 1, 5, 13, 15, true);
+        cells += formulaExp(1, 8, 1, 8, 10, 15, true) + tableRec(1, 2, 8, 9, 0x08, 2, 3, 3, 4) + formulaExp(1, 9, 1, 8, 11, 15, true) + formulaExp(2, 8, 1, 8, 12, 15, true) + formulaExp(2, 9, 1, 8, 13, 15, true);
+        Book b;
+        b.sheet(QStringLiteral("S"), cells);
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        auto text = [&](const QString &ref) {
+            const Cell *c = sheettest::at(s, ref);
+            return c && c->hasFormula() ? s.formulaText(*c) : QStringLiteral("none");
+        };
+        QCOMPARE(text(QStringLiteral("B2")), QStringLiteral("TABLE(D3,)"));
+        QCOMPARE(text(QStringLiteral("F2")), QStringLiteral("TABLE(,D3)"));
+        QCOMPARE(text(QStringLiteral("I2")), QStringLiteral("TABLE(D3,E4)"));
     }
 
     // Defined names: of the workbook and of a sheet, a built-in one (a print area), a hidden one, one that uses another, and a reference to a sheet of the workbook

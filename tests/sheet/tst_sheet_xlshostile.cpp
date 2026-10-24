@@ -15,7 +15,7 @@ Book fullBook()
     Book b;
     b.globals(format(164, QStringLiteral("0.000")) + font(QStringLiteral("Courier"), 12, 700) + xf() + palette({0x112233}));
     b.after(supbookInternal(2) + externSheet({{0, 0, 0}, {0, 1, 1}}) + name(QStringLiteral("Rate"), tRef3d(0, 0, 0, false, false)) + name(QStringLiteral("Twice"), tName(1) + tInt(2) + tOp(0x05))
-            + sst({QStringLiteral("one"), QString::fromUtf16(u"two 中"), QStringLiteral("three")}, 40));
+            + sst({QStringLiteral("one"), QString::fromUtf16(u"two 中"), QStringLiteral("three")}, 40, {}, {{0, 6, 2, 0}, {}, {1, 0, 4, 9}}));
     QByteArray one = dimensions(10, 6) + defColWidth(9) + colinfo(1, 2, 3000) + rowRec(2, 300, 0x40) + number(0, 0, 1.5) + rk(0, 1, 30) + mulrk(1, 0, {30, 34, 38}) + labelSst(2, 0, 1)
         + label(2, 1, QStringLiteral("abc")) + boolErr(3, 0, 1, false) + boolErr(3, 1, 7, true) + blank(4, 0, 16) + mulblank(4, 1, 3, 16);
     one += formulaNumber(5, 0, tRef(0, 0) + tRef(1, 0) + tOp(0x03), 7) + formulaSpecial(5, 1, tStr(QStringLiteral("x")), 0) + stringRec(QStringLiteral("x"));

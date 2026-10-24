@@ -60,7 +60,8 @@ Book richBook()
     b.globals(xf(heading));
     b.globals(styleBuiltin(0, 0) + styleNamed(18, QStringLiteral("Heading & <1>")));
     b.globals(palette({0x112233, 0xAABBCC}));
-    b.after(sst({QStringLiteral("alpha"), QStringLiteral("  padded  "), QStringLiteral("a & b <c> \"d\""), QStringLiteral("Привет, мир"), QStringLiteral("line\nbreak")}));
+    // (the first text has two runs, the second font 6 above, bold and italic and struck out; the last has runs in the middle of its second line)
+    b.after(sst({QStringLiteral("alpha"), QStringLiteral("  padded  "), QStringLiteral("a & b <c> \"d\""), QStringLiteral("Привет, мир"), QStringLiteral("line\nbreak")}, 0, {}, {{1, 6, 3, 0}, {}, {}, {0, 6, 6, 0}, {5, 6}}));
     b.after(name(QStringLiteral("Rate"), tRef3d(0, 0, 1)) + name(QStringLiteral("Local"), tRef3d(0, 1, 1), 1) + name(QStringLiteral("Quiet"), tRef3d(0, 2, 1), 0, -1, true));
     b.after(supbookInternal(2) + externSheet({{0, 0, 0}}));
     QByteArray cells = dimensions(12, 6) + defColWidth(10) + defaultRowHeight(0, 255);
@@ -79,6 +80,8 @@ Book richBook()
     cells += formulaExp(6, 2, 6, 2, 2) + arrayRec(6, 7, 2, 3, times) + formulaExp(6, 3, 6, 2, 4) + formulaExp(7, 2, 6, 2, 6) + formulaExp(7, 3, 6, 2, 8);
     cells += formulaExp(9, 1, 9, 1, 10, 15, true) + tableRec(9, 10, 1, 2, 0, 0, 0) + formulaExp(9, 2, 9, 1, 11, 15, true) + formulaExp(10, 1, 9, 1, 12, 15, true)
         + formulaExp(10, 2, 9, 1, 13, 15, true);
+    cells += formulaExp(9, 4, 9, 4, 10, 15, true) + tableRec(9, 10, 4, 5, 0x04, 0, 1, 0, 0) + formulaExp(9, 5, 9, 4, 11, 15, true) + formulaExp(10, 4, 9, 4, 12, 15, true) + formulaExp(10, 5, 9, 4, 13, 15, true);
+    cells += formulaExp(9, 7, 9, 7, 10, 15, true) + tableRec(9, 10, 7, 8, 0x00, 0, 1, 0, 0) + formulaExp(9, 8, 9, 7, 11, 15, true) + formulaExp(10, 7, 9, 7, 12, 15, true) + formulaExp(10, 8, 9, 7, 13, 15, true);
     cells += mergedCells({{0, 0, 4, 5}});
     cells += window2(0x02 | 0x04 | 0x08 | 0x10 | 0x200, 2, 1) + pane(2, 3, 5, 4, 0) + scl(3, 2) + selection(3, 1, 1);
     b.sheet(QStringLiteral("Data & <more>"), cells);
@@ -153,6 +156,27 @@ QString differences(const Workbook &a, const Sheet &x, const Workbook &b, const 
     return out.join(QStringLiteral("; "));
 }
 
+bool sameFont(const FontSpec &a, const FontSpec &b)
+{
+    return a.name == b.name && a.size == b.size && a.bold == b.bold && a.italic == b.italic && a.strike == b.strike && a.underline == b.underline && a.vertAlign == b.vertAlign && sameColor(a.color, b.color);
+}
+
+// The reasons the runs of formatting of two lists of strings differ, or an empty string if they are the same.
+QString sameRuns(const SharedStrings &a, const SharedStrings &b)
+{
+    if (a.rich.size() != b.rich.size()) return QStringLiteral("%1 strings with runs vs %2").arg(a.rich.size()).arg(b.rich.size());
+    for (auto it = a.rich.constBegin(); it != a.rich.constEnd(); ++it) {
+        const RichRuns y = b.rich.value(it.key());
+        if (it.value().size() != y.size()) return QStringLiteral("string %1: %2 runs vs %3").arg(it.key()).arg(it.value().size()).arg(y.size());
+        for (int i = 0; i < y.size(); ++i) {
+            const RichRun &p = it.value()[i], &q = y[i];
+            if (p.start != q.start || (p.font == RichRun::kCellFont) != (q.font == RichRun::kCellFont)) return QStringLiteral("string %1: run %2 begins elsewhere").arg(it.key()).arg(i);
+            if (p.font != RichRun::kCellFont && !sameFont(a.richFonts[int(p.font)], b.richFonts[int(q.font)])) return QStringLiteral("string %1: run %2 is in another font").arg(it.key()).arg(i);
+        }
+    }
+    return QString();
+}
+
 } // namespace
 
 class SheetXlsSaveTests : public QObject {
@@ -172,7 +196,9 @@ private Q_SLOTS:
         Package pkg;
         QVERIFY2(pkg.readLazy(bytes, &why), qPrintable(why));
         Workbook back;
-        QVERIFY2(back.open(pkg, &why), qPrintable(why));
+        Limits withRuns;
+        withRuns.richText = true;
+        QVERIFY2(back.open(pkg, &why, withRuns), qPrintable(why));
         QVERIFY2(back.sharedStringsError().isEmpty() && back.stylesError().isEmpty(), qPrintable(back.sharedStringsError() + back.stylesError()));
         // the workbook
         QCOMPARE(back.info().sheets.size(), wb.info().sheets.size());
@@ -190,6 +216,9 @@ private Q_SLOTS:
         QVERIFY(back.info().dateSystem == wb.info().dateSystem);
         // the strings, in the same places
         QCOMPARE(back.sharedStrings().strings, wb.sharedStrings().strings);
+        // the runs of formatting inside the strings: the same places, in the same fonts
+        QVERIFY2(sameRuns(wb.sharedStrings(), back.sharedStrings()).isEmpty(), qPrintable(sameRuns(wb.sharedStrings(), back.sharedStrings())));
+        QCOMPARE(back.sharedStrings().rich.size(), 3);
         // the styles, in the same places
         const Styles &s = wb.styles(), &t = back.styles();
         QCOMPARE(t.formats.size(), s.formats.size());
@@ -395,6 +424,94 @@ private Q_SLOTS:
         Workbook back;
         QVERIFY2(back.open(pkg, &why), qPrintable(why));
         QCOMPARE(back.info().sheets.size(), 1);
+    }
+
+    // Bold and plain text in one cell survive the save: the written strings part has the two runs (the bold one with its font), the text is the same, and read again with the runs
+    // asked for they are where they were. A text in a BIFF5 workbook, which is the cell's own, is written as a rich text of the cell.
+    void boldAndPlainTextInOneCellSurviveTheSave()
+    {
+        Book b;
+        b.globals(font(QStringLiteral("Arial"), 10, 700));   // (the file's font 6)
+        b.sheet(QStringLiteral("S"), labelSst(0, 0, 0) + labelSst(1, 0, 1));
+        b.after(sst({QStringLiteral("bold and plain"), QStringLiteral("only plain")}, 0, {}, {{0, 6, 4, 0}, {}}));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        QByteArray bytes;
+        QVERIFY2(saveXlsx(wb, SaveChanges(), &bytes, &why), qPrintable(why));
+        Package pkg;
+        QVERIFY2(pkg.readLazy(bytes, &why), qPrintable(why));
+        const QByteArray strings = pkg.part(QStringLiteral("/xl/sharedStrings.xml"));
+        QVERIFY2(strings.contains("<si><r><rPr><b/>"), strings.constData());
+        QVERIFY2(strings.contains(">bold</t></r>") && strings.contains("> and plain</t></r>"), strings.constData());
+        QVERIFY2(strings.contains("<si><t>only plain</t></si>"), strings.constData());
+        Workbook back;
+        Limits withRuns;
+        withRuns.richText = true;
+        QVERIFY2(back.open(pkg, &why, withRuns), qPrintable(why));
+        const SharedStrings &sh = back.sharedStrings();
+        QCOMPARE(sh.strings.value(0), QStringLiteral("bold and plain"));
+        QCOMPARE(sh.rich.size(), 1);
+        const RichRuns runs = sh.rich.value(0);
+        QCOMPARE(runs.size(), 2);
+        QCOMPARE(runs[0].start, quint32(0));
+        QVERIFY(sh.richFonts[int(runs[0].font)].bold);
+        QCOMPARE(runs[1].start, quint32(4));
+        QVERIFY(!sh.richFonts[int(runs[1].font)].bold);
+        // opened as it is by default, the strings are the same and no run is kept
+        Workbook plain;
+        QVERIFY2(plain.open(pkg, &why), qPrintable(why));
+        QCOMPARE(plain.sharedStrings().strings, sh.strings);
+        QVERIFY(plain.sharedStrings().rich.isEmpty());
+        // BIFF5
+        Book five(5);
+        five.globals(font(QStringLiteral("Arial"), 10, 700, false, false, 0, 0x7FFF, 0, 5));
+        five.sheet(QStringLiteral("S"), rstring(0, 0, QStringLiteral("bold and plain"), {{0, 6}, {4, 0}}));
+        Workbook w5;
+        QVERIFY2(openBook(five, &w5, &why), qPrintable(why));
+        QVERIFY2(saveXlsx(w5, SaveChanges(), &bytes, &why), qPrintable(why));
+        Package pkg5;
+        QVERIFY2(pkg5.readLazy(bytes, &why), qPrintable(why));
+        const QByteArray sheet = pkg5.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
+        QVERIFY2(sheet.contains("<is><r><rPr>") && sheet.contains("<b/>") && sheet.contains(">bold</t></r>") && sheet.contains("> and plain</t></r></is>"), sheet.constData());
+        Workbook back5;
+        QVERIFY2(back5.open(pkg5, &why), qPrintable(why));
+        Sheet s5;
+        QVERIFY(back5.readSheet(0, &s5));
+        QCOMPARE(show(s5, back5.sharedStrings(), QStringLiteral("A1")), QStringLiteral("i:bold and plain"));
+    }
+
+    // A table of one input is written as the way it reads (a row input has dtr, a column input has not) and reads back as it was, with two inputs as well.
+    void aDataTableKeepsWhichWayItReadsThroughTheSave()
+    {
+        Book b;
+        QByteArray cells;
+        cells += formulaExp(1, 1, 1, 1, 10, 15, true) + tableRec(1, 2, 1, 2, 0x04, 2, 3, 0, 0) + formulaExp(1, 2, 1, 1, 11, 15, true) + formulaExp(2, 1, 1, 1, 12, 15, true) + formulaExp(2, 2, 1, 1, 13, 15, true);
+        cells += formulaExp(1, 5, 1, 5, 10, 15, true) + tableRec(1, 2, 5, 6, 0x00, 2, 3, 0, 0) + formulaExp(1, 6, 1, 5, 11, 15, true) + formulaExp(2, 5, 1, 5, 12, 15, true) + formulaExp(2, 6, 1, 5, 13, 15, true);
+        cells += formulaExp(1, 8, 1, 8, 10, 15, true) + tableRec(1, 2, 8, 9, 0x08, 2, 3, 3, 4) + formulaExp(1, 9, 1, 8, 11, 15, true) + formulaExp(2, 8, 1, 8, 12, 15, true) + formulaExp(2, 9, 1, 8, 13, 15, true);
+        b.sheet(QStringLiteral("S"), cells);
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        QByteArray bytes;
+        QVERIFY2(saveXlsx(wb, SaveChanges(), &bytes, &why), qPrintable(why));
+        Package pkg;
+        QVERIFY2(pkg.readLazy(bytes, &why), qPrintable(why));
+        const QByteArray sheet = pkg.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
+        QVERIFY2(sheet.contains("<f t=\"dataTable\" ref=\"B2:C3\" dtr=\"1\" r1=\"D3\"/>"), sheet.constData());
+        QVERIFY2(sheet.contains("<f t=\"dataTable\" ref=\"F2:G3\" r1=\"D3\"/>"), sheet.constData());
+        QVERIFY2(sheet.contains("<f t=\"dataTable\" ref=\"I2:J3\" dt2D=\"1\" dtr=\"1\" r1=\"D3\" r2=\"E4\"/>"), sheet.constData());
+        Workbook back;
+        QVERIFY2(back.open(pkg, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY(back.readSheet(0, &s));
+        auto text = [&](const QString &ref) {
+            const Cell *c = sheettest::at(s, ref);
+            return c && c->hasFormula() ? s.formulaText(*c) : QStringLiteral("none");
+        };
+        QCOMPARE(text(QStringLiteral("B2")), QStringLiteral("TABLE(D3,)"));
+        QCOMPARE(text(QStringLiteral("F2")), QStringLiteral("TABLE(,D3)"));
+        QCOMPARE(text(QStringLiteral("I2")), QStringLiteral("TABLE(D3,E4)"));
     }
 
     // A number that is not one (the file's bytes can spell it) is written as an error: the XML form has no such number.

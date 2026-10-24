@@ -112,6 +112,12 @@ bool toNumber(const QString &text, double *value)
 
 // ---- the shared strings
 
+namespace {
+bool flagOf(const QXmlStreamReader &r);
+double boundedNumber(QStringView text, double low, double high, double fallback);
+ColorSpec colorOf(const QXmlStreamReader &r);
+} // namespace
+
 bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, QString *error)
 {
     *out = SharedStrings();
@@ -124,6 +130,24 @@ bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, 
     int depth = 0, phonetic = 0;
     bool inItem = false, inText = false, rootSeen = false;
     QString text;
+    // The runs of a rich string, when they are asked for: where each begins, and the font its properties name (the same font once among the strings).
+    const bool wantRuns = limits.richText;
+    RichRuns runs;
+    bool inRun = false, inProps = false, haveProps = false, anyOwnFont = false;
+    quint32 runStart = 0;
+    qint64 runCount = 0;
+    FontSpec runFont;
+    QHash<QByteArray, quint32> fontIds;
+    auto internFont = [&](const FontSpec &f) {
+        QByteArray key = f.name.toUtf8() + '|' + QByteArray::number(f.size) + '|' + char('0' + f.bold) + char('0' + f.italic) + char('0' + f.strike) + char('0' + int(f.underline)) + char('0' + f.vertAlign)
+            + '|' + QByteArray::number(int(f.color.kind)) + ',' + QByteArray::number(f.color.rgb) + ',' + QByteArray::number(f.color.index) + ',' + QByteArray::number(f.color.tint);
+        auto it = fontIds.constFind(key);
+        if (it == fontIds.cend()) {
+            out->richFonts.append(f);
+            it = fontIds.insert(key, quint32(out->richFonts.size() - 1));
+        }
+        return it.value();
+    };
     while (!r.atEnd()) {
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
@@ -137,20 +161,67 @@ bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, 
                 if (out->strings.size() >= limits.sharedStrings) return fail(translate("The file has more shared strings than any real file has."));
                 inItem = true;
                 text.clear();
+                runs.clear();
+                anyOwnFont = false;
             } else if (inItem && !phonetic) {
                 // The text of a string is its <t> and the <t> of its runs; the phonetic runs (rPh) are not text.
                 if (isElement(r, "rPh") || isElement(r, "phoneticPr")) phonetic = depth;
                 else if (isElement(r, "t") && (depth == 3 || depth == 4)) inText = true;
+                else if (wantRuns && depth == 3 && isElement(r, "r")) {
+                    inRun = true;
+                    haveProps = false;
+                    runFont = FontSpec();
+                    runStart = quint32(text.size());
+                } else if (wantRuns && inRun && depth == 4 && isElement(r, "rPr")) {
+                    inProps = true;
+                    haveProps = true;
+                } else if (wantRuns && inProps && depth == 5) {
+                    if (isElement(r, "b")) runFont.bold = flagOf(r);
+                    else if (isElement(r, "i")) runFont.italic = flagOf(r);
+                    else if (isElement(r, "strike")) runFont.strike = flagOf(r);
+                    else if (isElement(r, "sz")) runFont.size = boundedNumber(attribute(r, "val"), 1, 409.5, 11);
+                    else if (isElement(r, "rFont")) runFont.name = attribute(r, "val").left(kMaxFontNameChars).toString();
+                    else if (isElement(r, "color")) runFont.color = colorOf(r);
+                    else if (isElement(r, "u")) {
+                        const QStringView v = attribute(r, "val");
+                        runFont.underline = v == QLatin1String("none") ? Underline::None : v == QLatin1String("double") ? Underline::Double
+                                            : v == QLatin1String("singleAccounting") ? Underline::SingleAccounting : v == QLatin1String("doubleAccounting") ? Underline::DoubleAccounting : Underline::Single;
+                    } else if (isElement(r, "vertAlign")) {
+                        const QStringView v = attribute(r, "val");
+                        runFont.vertAlign = v == QLatin1String("superscript") ? 1 : v == QLatin1String("subscript") ? 2 : 0;
+                    }
+                }
             }
             break;
         case QXmlStreamReader::EndElement:
             if (phonetic == depth) phonetic = 0;
             if (inText && isElement(r, "t")) inText = false;
+            if (wantRuns && inProps && depth == 4) inProps = false;
+            if (wantRuns && inRun && depth == 3 && !phonetic) {
+                inRun = false;
+                if (haveProps) anyOwnFont = true;
+                if (runCount < limits.richRuns) {
+                    RichRun run;
+                    run.start = runStart;
+                    run.font = haveProps ? internFont(runFont) : RichRun::kCellFont;
+                    runs.append(run);
+                    ++runCount;
+                }
+            }
             if (depth == 2 && inItem) {
                 inItem = false;
+                // (the runs were counted in the text as written; where it has escapes, they are counted again in the text they stand for)
+                if (wantRuns && !runs.isEmpty() && text.contains(QLatin1String("_x"))) {
+                    for (RichRun &run : runs) {
+                        QString before = text.left(int(run.start));
+                        decodeEscapes(&before);
+                        run.start = quint32(before.size());
+                    }
+                }
                 decodeEscapes(&text);
                 out->chars += text.size();
                 if (out->chars > limits.sharedStringChars) return fail(translate("The shared strings have more characters than any real file has."));
+                if (wantRuns && anyOwnFont && !runs.isEmpty()) out->rich.insert(qint32(out->strings.size()), runs);
                 out->strings.append(text);
                 text.clear();
             }
@@ -613,6 +684,7 @@ private:
     CellRange m_ref;
     bool m_haveRef = false;
     QString m_r1, m_r2;
+    bool m_dtr = false;   // a table of one input: its input is a row input cell
     // shared formulas
     QHash<qint64, Master> m_masters;
     QHash<qint64, QVector<Pending>> m_pending;
@@ -874,6 +946,7 @@ bool SheetReader::startFormula(const QXmlStreamReader &r)
     if (m_kind == Table) {
         m_r1 = attribute(r, "r1").toString();
         m_r2 = attribute(r, "r2").toString();
+        m_dtr = parseBool(attribute(r, "dtr").toString());
     }
     m_formula.clear();
     return true;
@@ -889,7 +962,8 @@ bool SheetReader::endFormula()
     qint32 text = -1;
     if (m_kind == Table) {
         m_cell.flags |= DataTable;
-        m_formula = QStringLiteral("TABLE(") + m_r1 + (m_r2.isEmpty() ? QString() : QStringLiteral(",") + m_r2) + QLatin1Char(')');
+        // as the formula of a table is written: the row input cell, then the column input cell; a table of one input has the other empty
+        m_formula = QStringLiteral("TABLE(") + (!m_r2.isEmpty() ? m_r1 + QLatin1Char(',') + m_r2 : m_dtr ? m_r1 + QLatin1Char(',') : QLatin1Char(',') + m_r1) + QLatin1Char(')');
         if (!take(stringBytes(m_formula.size()))) return false;
         m_sheet.formulaTexts.append(m_formula);
         text = qint32(m_sheet.formulaTexts.size() - 1);

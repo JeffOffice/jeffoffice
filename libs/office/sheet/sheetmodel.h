@@ -207,11 +207,24 @@ struct Formula {
     qint32 range = -1;         // the place in Sheet::ranges of an array formula's cells or a data table's; -1 for none
 };
 
+// A run of the formatting inside a text: its characters, from `start` (counted in UTF-16 units) to where the next run begins, or to the end of the text, are in the font at `font`
+// among the fonts the strings keep (SharedStrings::richFonts, Sheet::richFonts); kCellFont is a run in the font of the cell the text is in.
+struct RichRun {
+    static constexpr quint32 kCellFont = 0xFFFFFFFFu;
+    quint32 start = 0;
+    quint32 font = kCellFont;
+};
+using RichRuns = QVector<RichRun>;
+
 // Every string the sheets of a workbook have in common, in order. The text of
 // a rich string is its runs one after another.
 struct SharedStrings {
     QVector<QString> strings;
     qint64 chars = 0;
+    // The runs of the strings that have more than one font (by the string's place), when they were asked for (Limits::richText) and always for a workbook of the older binary form, and
+    // the fonts the runs name. The first run of a string begins at 0.
+    QHash<qint32, RichRuns> rich;
+    QVector<FontSpec> richFonts;
     QString at(qint64 i) const { return i >= 0 && i < strings.size() ? strings[int(i)] : QString(); }
 };
 
@@ -281,6 +294,8 @@ struct SheetView {
 struct Sheet {
     CellStore cells;
     QVector<QString> texts;           // inline strings and the texts of formula results
+    QHash<qint32, RichRuns> richTexts;   // the runs of the inline strings that have more than one font (by the place in `texts`; only a workbook of the older binary form has them)
+    QVector<FontSpec> richFonts;         // the fonts the runs of `richTexts` name
     QVector<QString> formulaTexts;    // as written, and no "=" in front
     QVector<Formula> formulas;
     QVector<CellRange> ranges;        // the cells of array formulas and data tables

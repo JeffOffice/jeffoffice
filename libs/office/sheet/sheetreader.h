@@ -79,6 +79,9 @@ constexpr qint64 kMaxFormulaWork = 100000000;
 // Defined names in a workbook (3,295 found), and the characters of all their names and what they stand for (a name stands for 4,553 characters at the most).
 constexpr qint64 kMaxDefinedNames = 100000;
 constexpr qint64 kMaxDefinedNameChars = 20000000;
+// Runs of formatting inside the strings of a workbook, all together (the runs of the strings are kept only when asked for, or for a workbook of the older binary form; past this the strings
+// are kept without their runs).
+constexpr qint64 kMaxRichRuns = 5000000;
 
 struct Limits {
     // The bytes of a workbook file (the most the apps open for every kind: office/package.h); a larger file is refused before any of it is read.
@@ -105,6 +108,10 @@ struct Limits {
     qint64 merges = kMaxMerges;
     qint64 definedNames = kMaxDefinedNames;
     qint64 definedNameChars = kMaxDefinedNameChars;
+    // Keep the runs of formatting in the shared strings of a workbook of the XML form (SharedStrings::rich); off, they are read for their text only, which is all a program that
+    // does not draw them needs.
+    bool richText = false;
+    qint64 richRuns = kMaxRichRuns;
 };
 
 enum class CalcMode { Auto, AutoNoTable, Manual };

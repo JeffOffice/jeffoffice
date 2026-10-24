@@ -122,7 +122,9 @@ int xlsSaveCheckMain(const QStringList &args)
     const qint64 firstMs = timer.elapsed();
     Package package;
     Workbook back;
-    if (!package.readLazy(bytes, &why) || !back.open(package, &why)) {
+    Limits withRuns;
+    withRuns.richText = true;   // (the runs of formatting inside the strings are read, to be compared)
+    if (!package.readLazy(bytes, &why) || !back.open(package, &why, withRuns)) {
         line(QStringLiteral("the file written does not open: ") + why, bytes.size());
         return 3;
     }
@@ -131,6 +133,23 @@ int xlsSaveCheckMain(const QStringList &args)
     if (ia.sheets.size() != ib.sheets.size()) diffs.add(QStringLiteral("sheet count"));
     if (ia.definedNames.size() != ib.definedNames.size()) diffs.add(QStringLiteral("names"));
     if (book.sharedStrings().strings != back.sharedStrings().strings) diffs.add(QStringLiteral("shared strings"));
+    {   // the runs of formatting inside the strings: the same strings have them, begin in the same places, and are bold or not alike
+        const SharedStrings &sa = book.sharedStrings(), &sb = back.sharedStrings();
+        if (sa.rich.size() != sb.rich.size()) diffs.add(QStringLiteral("strings with runs"));
+        for (auto it = sa.rich.constBegin(); it != sa.rich.constEnd(); ++it) {
+            const RichRuns y = sb.rich.value(it.key());
+            bool same = it.value().size() == y.size();
+            for (int i = 0; same && i < y.size(); ++i) {
+                const RichRun &p = it.value()[i], &q = y[i];
+                same = p.start == q.start && (p.font == RichRun::kCellFont) == (q.font == RichRun::kCellFont)
+                    && (p.font == RichRun::kCellFont || (sa.richFonts[int(p.font)].bold == sb.richFonts[int(q.font)].bold && sa.richFonts[int(p.font)].italic == sb.richFonts[int(q.font)].italic));
+            }
+            if (!same) {
+                diffs.add(QStringLiteral("runs"));
+                break;
+            }
+        }
+    }
     // (a workbook with no cell formats at all is written with the one every file has)
     if (book.styles().formats.size() != back.styles().formats.size() && !book.styles().formats.isEmpty()) diffs.add(QStringLiteral("cell formats"));
     for (auto it = book.styles().numFmts.constBegin(); it != book.styles().numFmts.constEnd(); ++it)

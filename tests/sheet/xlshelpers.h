@@ -71,6 +71,8 @@ QByteArray rk(int row, int col, quint32 rkValue, int xf = 15);
 QByteArray mulrk(int row, int colFirst, const QList<quint32> &values, int xf = 15);
 QByteArray labelSst(int row, int col, int index, int xf = 15);
 QByteArray label(int row, int col, const QString &s, int xf = 15, int biff = 8);
+// A BIFF5 text with runs of formatting (each {first character, font}): the cell record of a text whose characters are in more than one font.
+QByteArray rstring(int row, int col, const QString &s, const QList<QList<int>> &runs, int xf = 15);
 QByteArray blank(int row, int col, int xf = 15);
 QByteArray mulblank(int row, int colFirst, int count, int xf = 15);
 QByteArray boolErr(int row, int col, int value, bool isError, int xf = 15);
@@ -127,7 +129,7 @@ QByteArray palette(const QList<quint32> &colors);   // 0xRRGGBB, from the place 
 QByteArray boundSheet(quint32 offset, const QString &name, int state = 0, int type = 0, int biff = 8);
 // The strings of a workbook as a shared string table; `splitAt`, if above 0, ends the first record after that many bytes of the table (the rest follows in CONTINUE
 // records, each at most `splitAt` more bytes long), so that a string is cut where the test wants it.
-QByteArray sst(const QStringList &strings, int splitAt = 0, const QList<int> &richRuns = QList<int>());
+QByteArray sst(const QStringList &strings, int splitAt = 0, const QList<int> &richRuns = QList<int>(), const QList<QList<int>> &runSpecs = QList<QList<int>>());
 QByteArray supbookInternal(int sheets);
 QByteArray supbookExternal(const QString &url, const QStringList &sheets);
 QByteArray supbookAddIn();

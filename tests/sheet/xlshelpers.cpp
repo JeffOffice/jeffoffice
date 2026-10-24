@@ -163,6 +163,16 @@ QByteArray label(int row, int col, const QString &s, int xf, int biff)
     w.u16(row).u16(col).u16(xf);
     return rec(0x0204, biff >= 8 ? w.str8(s, 2) : w.str5(s, 2));
 }
+QByteArray rstring(int row, int col, const QString &s, const QList<QList<int>> &runs, int xf)
+{
+    W w;
+    w.u16(row).u16(col).u16(xf).u16(int(s.size()));
+    QByteArray body = w.bytes();
+    body += s.toLatin1();
+    body += W().u8(int(runs.size())).bytes();
+    for (const QList<int> &r : runs) body += W().u8(r[0]).u8(r[1]).bytes();
+    return rec(0x00D6, body);
+}
 QByteArray blank(int row, int col, int xf) { return rec(0x0201, W().u16(row).u16(col).u16(xf)); }
 QByteArray mulblank(int row, int colFirst, int count, int xf)
 {
@@ -314,8 +324,10 @@ QByteArray boundSheet(quint32 offset, const QString &name, int state, int type, 
     return rec(0x0085, w.u16(state | (type << 8)).str5(name));
 }
 
-QByteArray sst(const QStringList &strings, int splitAt, const QList<int> &richRuns)
+QByteArray sst(const QStringList &strings, int splitAt, const QList<int> &richRuns, const QList<QList<int>> &runSpecs)
 {
+    // (the runs of string i: its count, and when given, the pairs {first character, font} to write)
+    auto runCount = [&](int i) { return i < runSpecs.size() && !runSpecs[i].isEmpty() ? int(runSpecs[i].size() / 2) : i < richRuns.size() ? richRuns[i] : 0; };
     // the table, whole, with the places where each string's characters begin and end (for cutting it)
     QByteArray body;
     for (int i = 0; i < strings.size(); ++i) {
@@ -323,7 +335,7 @@ QByteArray sst(const QStringList &strings, int splitAt, const QList<int> &richRu
         bool wide = false;
         for (QChar c : s)
             if (c.unicode() > 0xFF) wide = true;
-        const int runs = i < richRuns.size() ? richRuns[i] : 0;
+        const int runs = runCount(i);
         W w;
         w.u16(int(s.size())).u8((wide ? 1 : 0) | (runs ? 8 : 0));
         if (runs) w.u16(runs);
@@ -333,7 +345,10 @@ QByteArray sst(const QStringList &strings, int splitAt, const QList<int> &richRu
         } else {
             body += s.toLatin1();
         }
-        for (int r = 0; r < runs; ++r) body += W().u16(r).u16(0).bytes();
+        for (int r = 0; r < runs; ++r) {
+            if (i < runSpecs.size() && !runSpecs[i].isEmpty()) body += W().u16(runSpecs[i][r * 2]).u16(runSpecs[i][r * 2 + 1]).bytes();
+            else body += W().u16(r).u16(0).bytes();
+        }
     }
     const QByteArray head = W().u32(quint32(strings.size())).u32(quint32(strings.size()));
     if (splitAt <= 0) return rec(0x00FC, head + body);
@@ -355,7 +370,7 @@ QByteArray sst(const QStringList &strings, int splitAt, const QList<int> &richRu
         bool wide = false;
         for (QChar c : s)
             if (c.unicode() > 0xFF) wide = true;
-        const int runs = i < richRuns.size() ? richRuns[i] : 0;
+        const int runs = runCount(i);
         at += 3 + (runs ? 2 : 0);
         const qsizetype chars = wide ? s.size() * 2 : s.size();
         spans.append({at, at + chars, wide});

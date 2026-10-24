@@ -337,7 +337,46 @@ QByteArray textElement(const char *name, const QString &text)
     return QByteArray("<") + name + (keep ? " xml:space=\"preserve\"" : "") + ">" + escapeText(text) + "</" + name + ">";
 }
 
-// The two inputs of a data table, from its text "TABLE(A1,B2)".
+// The properties of a run of text in a font, in the order a program writes them.
+QByteArray runProperties(const FontSpec &f)
+{
+    QByteArray e = "<rPr>";
+    if (f.bold) e += "<b/>";
+    if (f.italic) e += "<i/>";
+    if (f.strike) e += "<strike/>";
+    switch (f.underline) {
+    case Underline::Single: e += "<u/>"; break;
+    case Underline::Double: e += "<u val=\"double\"/>"; break;
+    case Underline::SingleAccounting: e += "<u val=\"singleAccounting\"/>"; break;
+    case Underline::DoubleAccounting: e += "<u val=\"doubleAccounting\"/>"; break;
+    default: break;
+    }
+    if (f.vertAlign == 1) e += "<vertAlign val=\"superscript\"/>";
+    else if (f.vertAlign == 2) e += "<vertAlign val=\"subscript\"/>";
+    e += "<sz val=\"" + real(f.size) + "\"/>";
+    e += colorElement("color", f.color);
+    e += "<rFont val=\"" + attributeValue(f.name.isEmpty() ? QStringLiteral("Arial") : f.name) + "\"/>";
+    return e + "</rPr>";
+}
+
+// The inside of a string with runs of formatting: a run for each, with the font it is in (one in the font of its cell has no properties), and the characters before the first run, if
+// there are any, in a run of the cell's font.
+QByteArray richRuns(const QString &text, const RichRuns &runs, const QVector<FontSpec> &fonts)
+{
+    QByteArray out;
+    for (int i = 0; i < runs.size(); ++i) {
+        const qsizetype from = std::min<qsizetype>(runs[i].start, text.size());
+        const qsizetype to = i + 1 < runs.size() ? std::min<qsizetype>(runs[i + 1].start, text.size()) : text.size();
+        if (i == 0 && from > 0) out += "<r>" + textElement("t", text.left(from)) + "</r>";
+        if (to <= from) continue;
+        out += "<r>";
+        if (runs[i].font < quint32(fonts.size())) out += runProperties(fonts[int(runs[i].font)]);
+        out += textElement("t", text.mid(from, to - from)) + "</r>";
+    }
+    return out.isEmpty() ? textElement("t", text) : out;
+}
+
+// The two inputs of a data table, from its text "TABLE(A1,B2)": the row input cell and the column input cell, either of which is empty for a table of one input.
 void tableInputs(const QString &text, QString *r1, QString *r2)
 {
     r1->clear();
@@ -470,11 +509,11 @@ private:
                 QString r1, r2;
                 tableInputs(text, &r1, &r2);
                 const CellRange range = m_sheet.formulaRange(c);
-                if (!r1.isEmpty() && range.valid) {
+                if ((!r1.isEmpty() || !r2.isEmpty()) && range.valid) {
                     f = "<f t=\"dataTable\"" + attr("ref", rangeName(range).toLatin1());
-                    if (!r2.isEmpty()) f += attr("dt2D", "1") + attr("dtr", "1");
-                    f += attr("r1", r1.toLatin1());
-                    if (!r2.isEmpty()) f += attr("r2", r2.toLatin1());
+                    if (!r1.isEmpty() && !r2.isEmpty()) f += attr("dt2D", "1") + attr("dtr", "1") + attr("r1", r1.toLatin1()) + attr("r2", r2.toLatin1());
+                    else if (!r1.isEmpty()) f += attr("dtr", "1") + attr("r1", r1.toLatin1());   // (one input, a row input cell)
+                    else f += attr("r1", r2.toLatin1());                                          // (one input, a column input cell)
                     f += "/>";
                 }
             } else if (!text.isEmpty()) {
@@ -505,7 +544,13 @@ private:
             v = "<v>" + num(c.textIndex()) + "</v>";
             ++*m_stringRefs;
             break;
-        case CellType::InlineString: e += attr("t", "inlineStr"); v = "<is>" + textElement("t", m_sheet.text(c, m_book.sharedStrings())) + "</is>"; break;
+        case CellType::InlineString: {
+            e += attr("t", "inlineStr");
+            const QString text = m_sheet.text(c, m_book.sharedStrings());
+            const auto runs = m_sheet.richTexts.constFind(c.textIndex());
+            v = "<is>" + (runs != m_sheet.richTexts.cend() ? richRuns(text, runs.value(), m_sheet.richFonts) : textElement("t", text)) + "</is>";
+            break;
+        }
         case CellType::FormulaString: e += attr("t", "str"); v = textElement("v", m_sheet.text(c, m_book.sharedStrings())); break;
         default: break;
         }
@@ -567,7 +612,10 @@ QByteArray sharedStringsPart(const SharedStrings &shared, qsizetype count, qint6
     QByteArray o = kXmlHead;
     o.reserve(qsizetype(shared.chars * 2 + count * 24 + 256));
     o += QByteArray("<sst xmlns=\"") + kMainNs + "\"" + attr("count", num(std::max<qint64>(references, count))) + attr("uniqueCount", num(count)) + ">";
-    for (qsizetype i = 0; i < count && i < shared.strings.size(); ++i) o += "<si>" + textElement("t", shared.strings[int(i)]) + "</si>";
+    for (qsizetype i = 0; i < count && i < shared.strings.size(); ++i) {
+        const auto runs = shared.rich.constFind(qint32(i));
+        o += "<si>" + (runs != shared.rich.cend() ? richRuns(shared.strings[int(i)], runs.value(), shared.richFonts) : textElement("t", shared.strings[int(i)])) + "</si>";
+    }
     return o + "</sst>";
 }
 

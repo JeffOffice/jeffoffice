@@ -260,6 +260,36 @@ quint32 mapXf(quint32 xf, qsizetype count)
     return xf;
 }
 
+// The runs of formatting of a text as the file gives them (the character each begins at and the number of the font), put in order and made into the model's: in order of the
+// character, a place named twice with the last font, none past the end of the text, the characters before the first run in the font of their cell, and a font the file lacks
+// meaning the font of the cell. `fonts` are the fonts in the numbers the file uses; the fonts the runs name are put once each in `used` (`ids` says where). Empty if no run has a font
+// of its own.
+using RawRuns = QVector<QPair<quint32, quint32>>;
+RichRuns settleRuns(RawRuns raw, qsizetype length, const QVector<FontSpec> &fonts, QVector<FontSpec> *used, QHash<quint32, quint32> *ids)
+{
+    std::stable_sort(raw.begin(), raw.end(), [](const QPair<quint32, quint32> &a, const QPair<quint32, quint32> &b) { return a.first < b.first; });
+    RichRuns out;
+    bool any = false;
+    for (int i = 0; i < raw.size(); ++i) {
+        if (qsizetype(raw[i].first) >= length) break;
+        if (i + 1 < raw.size() && raw[i + 1].first == raw[i].first) continue;   // (named again: the last stands)
+        RichRun run;
+        run.start = raw[i].first;
+        if (raw[i].second < quint32(fonts.size())) {
+            auto it = ids->constFind(raw[i].second);
+            if (it == ids->cend()) {
+                used->append(fonts[int(raw[i].second)]);
+                it = ids->insert(raw[i].second, quint32(used->size() - 1));
+            }
+            run.font = it.value();
+            any = true;
+        }
+        if (out.isEmpty() && run.start > 0) out.append(RichRun());
+        out.append(run);
+    }
+    return any ? out : RichRuns();
+}
+
 struct RawXf {
     quint16 font = 0, format = 0;
     bool style = false;
@@ -479,6 +509,8 @@ private:
     QVector<RawStyle> m_styleRecs;
     QVector<quint32> m_palette;   // from place 8
     SharedStrings m_sst;
+    QHash<qint32, RawRuns> m_sstRuns;   // the runs of formatting of the strings that have any, as the file gives them (settled once all the fonts are read)
+    qint64 m_runCount = 0;
     QVector<SheetEntry> m_sheets;
     QVector<XlsBook::Place> m_places;
     QVector<RawName> m_rawNames;
@@ -788,7 +820,21 @@ private:
                 // (damaged: what came before stays)
                 break;
             }
-            c.skip(qint64(runs) * 4 + ext);
+            // the runs of formatting: where each begins and its font (the strings are kept without them past the bound)
+            if (runs > 0 && m_runCount + runs <= m_lim.richRuns && c.left() >= qsizetype(runs) * 4) {
+                RawRuns list;
+                list.reserve(runs);
+                for (int k = 0; k < runs; ++k) {
+                    const quint32 at = c.u16();
+                    const quint32 font = c.u16();
+                    list.append({at, font});
+                }
+                m_runCount += runs;
+                m_sstRuns.insert(qint32(m_sst.strings.size()), list);
+            } else {
+                c.skip(qint64(runs) * 4);
+            }
+            c.skip(ext);
             m_sst.chars += s.size();
             if (m_sst.chars > m_lim.sharedStringChars) return false;
             m_sst.strings.append(s);
@@ -1003,6 +1049,13 @@ private:
         }
         *shared = m_sst;
         buildStyles(styles);
+        {   // the runs of formatting inside the strings, with the fonts they name (the numbers the file uses are the model's)
+            QHash<quint32, quint32> ids;
+            for (auto it = m_sstRuns.constBegin(); it != m_sstRuns.constEnd(); ++it) {
+                const RichRuns runs = settleRuns(it.value(), shared->strings.value(it.key()).size(), styles->fonts, &shared->richFonts, &ids);
+                if (!runs.isEmpty()) shared->rich.insert(it.key(), runs);
+            }
+        }
 
         auto book = std::shared_ptr<XlsBook>(new XlsBook());
         book->m_data = m_d;
@@ -1010,6 +1063,7 @@ private:
         book->m_codepage = m_codepage;
         book->m_places = m_places;
         book->m_cx = m_cx;
+        book->m_fonts = styles->fonts;
         book->m_sharedStringCount = m_sst.strings.size();
         book->m_xfCount = m_xfs.size();
         if (m_charts) book->m_skipped << translate("charts");
@@ -1249,6 +1303,8 @@ private:
     Sheet &m_s;
     bool m_b8;
     qint64 m_cells = 0;
+    qint64 m_runs = 0;                       // runs of formatting in the texts of cells, kept
+    QHash<quint32, quint32> m_runFontIds;    // the place in Sheet::richFonts of each font a run names, by the font's number in the file
     qint64 m_work = 0;
     qint64 m_held = 0;
     qint64 m_outside = 0;
@@ -1411,6 +1467,21 @@ private:
                 const int n = b.u16();
                 const char *p = b.take(n);
                 if (p) s = text(p, n);
+                // BIFF5's text with runs of formatting: their number, then the character each begins at and its font, a byte each
+                if (!m_b8 && r.id == kRString && p && !b.bad()) {
+                    const int runs = b.u8();
+                    RawRuns list;
+                    for (int k = 0; k < runs && !b.bad() && m_runs + k < m_lim.richRuns; ++k) {
+                        const quint32 at = b.u8();
+                        const quint32 font = b.u8();
+                        if (!b.bad()) list.append({at, font});
+                    }
+                    if (!list.isEmpty()) {
+                        m_runs += list.size();
+                        const RichRuns settled = settleRuns(list, s.size(), m_book.m_fonts, &m_s.richFonts, &m_runFontIds);
+                        if (!settled.isEmpty()) m_s.richTexts.insert(qint32(m_s.texts.size()), settled);
+                    }
+                }
             }
             Cell c = makeCell(row, col, xf);
             return addText(c, s, CellType::InlineString);
@@ -1824,9 +1895,12 @@ private:
         const quint16 grbit = b.u16();
         const quint16 r1 = b.u16(), c1 = b.u16(), r2 = b.u16(), c2 = b.u16();
         if (b.bad() || !def.range.valid) return true;
-        const bool twoInputs = grbit & 0x08;
-        QString text = QStringLiteral("TABLE(") + cellName(r1, c1);
-        if (twoInputs) text += QLatin1Char(',') + cellName(r2, c2);
+        // as the formula of a table is written: its row input cell, then its column input cell; a table of one input has the other empty
+        const bool twoInputs = grbit & 0x08, rowInput = grbit & 0x04;
+        QString text = QStringLiteral("TABLE(");
+        if (twoInputs) text += cellName(r1, c1) + QLatin1Char(',') + cellName(r2, c2);
+        else if (rowInput) text += cellName(r1, c1) + QLatin1Char(',');
+        else text += QLatin1Char(',') + cellName(r1, c1);
         text += QLatin1Char(')');
         m_s.formulaTexts.append(text);
         def.text = qint32(m_s.formulaTexts.size() - 1);
