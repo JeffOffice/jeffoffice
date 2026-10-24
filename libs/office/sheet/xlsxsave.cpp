@@ -1048,12 +1048,35 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
         QByteArray skeleton = sc.skeleton;
         if (skeleton.isEmpty())
             skeleton = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData/></worksheet>";
+        // a copy takes what the sheet it was copied from has that the program keeps no model of (protection, filter, links, page setup, breaks), moved by the edits made to rows and columns
+        QByteArray linkRelationships;
+        if (!sc.copyFromPart.isEmpty()) {
+            const auto source = package.openPart(sc.copyFromPart);
+            SheetExtras extras;
+            QString carryWhy;
+            if (!source || !readSheetExtras(source.get(), &extras, &carryWhy))
+                return fail(carryWhy.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "The sheet that was copied could not be read again.") : carryWhy);
+            MoveContext copyCtx = ctx;
+            copyCtx.edits = sc.copyEdits;
+            copyCtx.edits.insert(copyCtx.edits.end(), ctx.edits.begin(), ctx.edits.end());
+            if (!moveSheetExtras(&extras, copyCtx, n.sheet, &carryWhy, cancel)) return fail(carryWhy);
+            skeleton = skeletonWithExtras(skeleton, extras, sc.isProtected);
+            linkRelationships = hyperlinkRelationshipsXml(package.relationships(sc.copyFromPart));
+        } else if (sc.isProtected) {
+            skeleton = skeletonWithExtras(skeleton, SheetExtras(), true);
+        }
         QBuffer in(&skeleton);
         in.open(QIODevice::ReadOnly);
         zip.beginStream(n.part.startsWith(QLatin1Char('/')) ? n.part.mid(1) : n.part, true);
         const bool ok = patchSheet(&in, &sink, sc, hasShared, &why, cancel);
         zip.endStream();
         if (!ok) return fail(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "A sheet that was added could not be made.") : why);
+        if (!linkRelationships.isEmpty()) {
+            // (the copy's links to places outside the workbook: its own relationships, with the ids the links name)
+            QString relsOfNew = relationshipsPartOf(n.part);
+            if (relsOfNew.startsWith(QLatin1Char('/'))) relsOfNew.remove(0, 1);
+            zip.add(relsOfNew, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" + linkRelationships + "</Relationships>", true);
+        }
         rep.changedParts << n.part;
         ++rep.partsChanged;
         ++rep.sheetsRewritten;

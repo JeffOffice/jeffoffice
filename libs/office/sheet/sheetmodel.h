@@ -326,6 +326,8 @@ struct RowSpec {
     bool customHeight = false;
     bool customFormat = false;
     quint32 style = 0;
+    quint8 outline = 0;            // the outline level (0 to 7)
+    bool collapsed = false;        // the row's group is collapsed (the row that follows the group says so)
 };
 
 // `sheetFormatPr`: the sizes of rows and columns that have none of their own.
@@ -335,6 +337,8 @@ struct SheetFormat {
     int baseColWidth = 8;           // characters of the default font's widest digit, with no padding
     bool zeroHeight = false;        // the rows that have no row element are hidden
     bool customHeight = false;
+    quint8 outlineLevelRow = 0;     // the deepest outline levels of the rows and of the columns (what the buttons of the outline show)
+    quint8 outlineLevelCol = 0;
 };
 
 // `sheetView`: how the sheet was left on the screen.
@@ -424,6 +428,7 @@ struct Sheet {
     SheetView view;
     ColorSpec tabColor;               // the color of the sheet's tab
     bool isProtected = false;         // the sheet is protected (sheetProtection): its locked cells can't be changed
+    QStringList notKept;              // what the sheet's file has that the program neither shows nor writes into a copy of the sheet, in words (sparklines, say)
     bool partial = false;             // the read was stopped at a row asked for (ReadOptions::stopAfterRow): the cells of the rows after it, and what follows the cells (the merged ranges), are not here
     quint32 extentRows = 0;           // the rows and columns the cells reach: the most of a cell that holds a value or a formula or has a format of its own (a style other than the first)
     quint32 extentCols = 0;

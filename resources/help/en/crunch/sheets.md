@@ -8,7 +8,7 @@ A workbook is made of **sheets**, and the **tabs** at the bottom of the window a
 - Click the **+** button after the last tab to add a sheet at the end.
 - Press **Shift+F11**, or use **Home > Insert > Insert Sheet**, to add a sheet in front of the one you are looking at.
 
-The new sheet is empty, has the next free name (Sheet4, Sheet5, and so on), and opens at once.
+The new sheet is empty, has the next free name (Sheet4, Sheet5, and so on), and opens at once. A workbook can have up to 1,000 sheets; past that, JeffCrunch says so and adds none, because a file with more is not one it opens.
 
 ## Rename a sheet
 
@@ -27,11 +27,11 @@ A workbook always keeps at least one sheet that is shown.
 ## Move or copy a sheet
 
 - **Drag** a tab to a new place to move the sheet.
-- Or use **Home > Format > Move or Copy Sheet**. Choose the sheet it should go in front of (or **move to end**), and check **Create a copy** to copy it instead of moving it. A copy is named like **Budget (2)** and opens.
+- Or use **Home > Format > Move or Copy Sheet**. Choose the sheet the chosen sheet should go in front of (or **(after the last sheet)**), and check **Copy them, and leave the originals where they are** to copy it instead of moving it. A copy is named like **Budget (2)** and opens.
 
 Formulas keep reading the sheets they read, wherever the sheets are. A copy has the same cells, formulas, formats, and sizes as the sheet it came from. A reference with no sheet name (such as **A1**) reads the copy's own cell; a reference that names a sheet (such as **Sheet1!A1**) still names that sheet, even if it is the sheet the copy came from.
 
-A copy does not have the pictures, charts, and notes of the original, because JeffCrunch does not show those yet; it tells you so when this happens. A sheet that has a table on it can't be copied or deleted yet.
+A copy also has the original's protection, filter, links, page setup and page breaks, the groups of rows and columns, and the look of its data bars; links follow the rows you inserted or deleted, in the original before the copy and in the copy after it. It does not have the pictures, charts, notes, PivotTables, sparklines, or the names that belong to the original alone, because JeffCrunch does not copy those yet; it tells you which when this happens. A sheet that has a table on it can't be copied or deleted yet.
 
 ## Hide and show a sheet
 

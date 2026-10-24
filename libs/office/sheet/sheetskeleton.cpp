@@ -103,12 +103,46 @@ QByteArray colorsXml(const QVector<ColorSpec> &colors)
     return out;
 }
 
+const char *kX14 = "http://schemas.microsoft.com/office/spreadsheetml/2009/9/main";
+const char *kXm = "http://schemas.microsoft.com/office/excel/2006/main";
+
+// Whether a data bar looks other than the plain one a file without an extension has (a gradient fill, no border, the axis where the values say, bars that run to the right, and the usual
+// lengths): only then does the file need the extension that says how.
+bool needsExtension(const CondRule &r)
+{
+    return !r.gradient || r.border || r.negativeSameColor || r.rightToLeft || r.axis != CondRule::Axis::Automatic || r.negativeColor.isSet() || r.borderColor.isSet() || r.negativeBorderColor.isSet()
+        || r.axisColor.isSet() || r.minLength != 10 || r.maxLength != 90;
+}
+
+QByteArray extensionId(int n) { return QByteArray("{00000000-0000-4000-8000-") + QByteArray::number(n, 16).rightJustified(12, '0').toUpper() + "}"; }
+
+// The extension's value of a data bar's end (`x14:cfvo`): the number or formula is a child, not an attribute.
+QByteArray x14Value(const CondValue &v)
+{
+    const char *type = "num";
+    switch (v.type) {
+    case CondValue::Type::Number: type = "num"; break;
+    case CondValue::Type::Percent: type = "percent"; break;
+    case CondValue::Type::Max: type = "max"; break;
+    case CondValue::Type::AutoMax: type = "autoMax"; break;
+    case CondValue::Type::Min: type = "min"; break;
+    case CondValue::Type::AutoMin: type = "autoMin"; break;
+    case CondValue::Type::Formula: type = "formula"; break;
+    case CondValue::Type::Percentile: type = "percentile"; break;
+    }
+    QByteArray e = QByteArray("<x14:cfvo") + attr("type", type);
+    const bool hasValue = v.type == CondValue::Type::Number || v.type == CondValue::Type::Percent || v.type == CondValue::Type::Formula || v.type == CondValue::Type::Percentile;
+    return hasValue ? e + "><xm:f>" + escapeText(v.value) + "</xm:f></x14:cfvo>" : e + "/>";
+}
+
 } // namespace
 
-QByteArray conditionalFormatsXml(const QVector<CondRule> &rules)
+QByteArray conditionalFormatsXml(const QVector<CondRule> &rules, QByteArray *extensions)
 {
     using T = CondRule::Type;
     QByteArray out;
+    QByteArray extended;   // the data bars' extensions, one `x14:conditionalFormatting` for each
+    int extensionCount = 0;
     for (const CondRule &r : rules) {
         if (r.ranges.isEmpty()) continue;
         const QByteArray where = sqref(r.ranges);
@@ -194,6 +228,27 @@ QByteArray conditionalFormatsXml(const QVector<CondRule> &rules)
             children += "<dataBar" + attr("minLength", num(r.minLength)) + attr("maxLength", num(r.maxLength)) + (r.showValue ? QByteArray() : attr("showValue", "0")) + ">";
             for (const CondValue &v : r.values) children += cfvo(v);
             children += colorsXml(r.colors.isEmpty() ? QVector<ColorSpec>{ColorSpec::fromRgb(0x638EC6)} : QVector<ColorSpec>{r.colors.first()}) + "</dataBar>";
+            if (extensions && needsExtension(r)) {
+                // (the look a data bar has besides its color: the extension that ties to the rule by an id says how it is filled, bordered, and where its axis is)
+                const QByteArray id = extensionId(++extensionCount);
+                children += QByteArray("<extLst><ext xmlns:x14=\"") + kX14 + "\" uri=\"{B025F937-C7B1-47D3-B67F-A62EFF666E3E}\"><x14:id>" + id + "</x14:id></ext></extLst>";
+                QByteArray bar = QByteArray("<x14:cfRule type=\"dataBar\" id=\"") + id + "\"><x14:dataBar" + attr("minLength", num(r.minLength)) + attr("maxLength", num(r.maxLength));
+                bar += attr("gradient", r.gradient ? "1" : "0");
+                if (r.border) bar += attr("border", "1");
+                if (r.negativeSameColor) bar += attr("negativeBarColorSameAsPositive", "1");
+                if (r.axis == CondRule::Axis::Middle) bar += attr("axisPosition", "middle");
+                else if (r.axis == CondRule::Axis::None) bar += attr("axisPosition", "none");
+                if (r.rightToLeft) bar += attr("direction", "rightToLeft");
+                if (!r.showValue) bar += attr("showValue", "0");
+                bar += ">";
+                for (const CondValue &v : r.values) bar += x14Value(v);
+                if (r.borderColor.isSet()) bar += colorXml("x14:borderColor", r.borderColor);
+                if (r.negativeColor.isSet()) bar += colorXml("x14:negativeFillColor", r.negativeColor);
+                if (r.negativeBorderColor.isSet()) bar += colorXml("x14:negativeBorderColor", r.negativeBorderColor);
+                if (r.axisColor.isSet()) bar += colorXml("x14:axisColor", r.axisColor);
+                bar += "</x14:dataBar></x14:cfRule>";
+                extended += QByteArray("<x14:conditionalFormatting xmlns:xm=\"") + kXm + "\">" + bar + "<xm:sqref>" + where + "</xm:sqref></x14:conditionalFormatting>";
+            }
             break;
         case T::IconSet: {
             children += "<iconSet" + textAttr("iconSet", r.iconSet) + (r.reverse ? attr("reverse", "1") : QByteArray()) + (r.showValue ? QByteArray() : attr("showValue", "0")) + ">";
@@ -209,6 +264,10 @@ QByteArray conditionalFormatsXml(const QVector<CondRule> &rules)
         }
         out += "<conditionalFormatting" + attr("sqref", where) + ">" + rule + (children.isEmpty() ? QByteArray("/>") : ">" + children + "</cfRule>") + "</conditionalFormatting>";
     }
+    if (extensions)
+        *extensions = extended.isEmpty() ? QByteArray()
+                                         : QByteArray("<extLst><ext xmlns:x14=\"") + kX14 + "\" uri=\"{78C0D931-6437-407d-A8EE-F0AAD7539E65}\"><x14:conditionalFormattings>" + extended
+                                               + "</x14:conditionalFormattings></ext></extLst>";
     return out;
 }
 
@@ -297,10 +356,14 @@ QByteArray newSheetSkeleton(const Sheet &sheet)
     fmt += attr("defaultRowHeight", real(f.defaultRowHeight));
     if (f.customHeight) fmt += attr("customHeight", "1");
     if (f.zeroHeight) fmt += attr("zeroHeight", "1");
+    if (f.outlineLevelRow > 0) fmt += attr("outlineLevelRow", num(f.outlineLevelRow));
+    if (f.outlineLevelCol > 0) fmt += attr("outlineLevelCol", num(f.outlineLevelCol));
     o += fmt + "/><sheetData/>";
-    o += conditionalFormatsXml(sheet.conditionalFormats);
+    QByteArray extensions;
+    o += conditionalFormatsXml(sheet.conditionalFormats, &extensions);
     o += validationsXml(sheet.validations);
     o += "<pageMargins left=\"0.7\" right=\"0.7\" top=\"0.75\" bottom=\"0.75\" header=\"0.3\" footer=\"0.3\"/>";
+    o += extensions;
     o += "</worksheet>";
     return o;
 }

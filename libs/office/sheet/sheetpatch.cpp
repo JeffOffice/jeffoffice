@@ -205,6 +205,11 @@ void applyRowProps(QByteArray *tag, const RowProps &p)
         else dropAttr(tag, "s");
         setFlag(tag, "customFormat", p.customFormat && p.style != 0);
     }
+    if (p.outlineKnown) {
+        if (p.outline > 0) setAttr(tag, "outlineLevel", QByteArray::number(int(p.outline)));
+        else dropAttr(tag, "outlineLevel");
+        setFlag(tag, "collapsed", p.collapsed);
+    }
 }
 
 // The columns' element of a sheet's head (the bytes before sheetData) made from the runs of columns the sheet has: in place of the file's, or before sheetData if the file has none.

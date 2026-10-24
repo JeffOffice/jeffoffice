@@ -135,6 +135,50 @@ bool sheetCapReached(const jp::office::sheet::Workbook &book, QString *why)
 
 } // namespace
 
+const EditSession::CopyPoint *EditSession::copyPointOf(int sheet) const
+{
+    for (const CopyPoint &c : m_copies)
+        if (c.sheet == sheet) return &c;
+    return nullptr;
+}
+
+// What a copy of the sheet does not have, in a sentence for the person (empty if the copy has all of it): the pictures, charts, notes, and the like that the sheet's part is related to, the
+// extensions of its file that the program keeps no model of, and the names that belong to the sheet alone.
+QString EditSession::notCopiedNote(int sheet) const
+{
+    const Workbook &book = *m_book->book;
+    QStringList left;
+    auto add = [&left](const QString &what) {
+        if (!left.contains(what)) left << what;
+    };
+    const QString part = book.info().sheets[sheet].part;
+    if (!part.isEmpty()) {
+        struct Kind {
+            const char *type;
+            QString what;
+        };
+        const Kind kinds[] = {{"/drawing", tr("pictures and charts")}, {"/image", tr("pictures and charts")}, {"/comments", tr("notes")}, {"/vmlDrawing", tr("notes")},
+                              {"/legacyDrawing", tr("notes")}, {"/threadedComment", tr("notes")}, {"/pivotTable", tr("PivotTables")}, {"/queryTable", tr("connections to outside data")},
+                              {"/ctrlProp", tr("form controls")}, {"/control", tr("form controls")}, {"/oleObject", tr("embedded objects")}, {"/package", tr("embedded objects")},
+                              {"/slicer", tr("slicers")}, {"/timeline", tr("slicers")}};
+        for (const Kind &k : kinds)
+            if (!book.package().relationshipsOfType(part, QString::fromLatin1(k.type)).isEmpty()) add(k.what);
+    }
+    for (const QString &id : m_book->calc->sheet(sheet).notKept) {
+        if (id == QLatin1String("sparklines")) add(tr("sparklines"));
+        else if (id == QLatin1String("validationLists")) add(tr("drop-down lists that read other sheets"));
+        else if (id == QLatin1String("extendedRules")) add(tr("rules of conditional formatting that read other sheets or use icons of their own"));
+        else add(tr("some extra features"));
+    }
+    for (const DefinedName &n : book.info().definedNames)
+        if (n.localSheet == sheet) {
+            add(tr("names that belong to the sheet alone (a print area, say)"));
+            break;
+        }
+    if (left.isEmpty()) return QString();
+    return tr("The copy does not have the %1: those are not copied yet.").arg(QLocale().createSeparatedList(left));
+}
+
 EditSession::Outcome EditSession::insertSheet(int before, const QString &name, int *made)
 {
     Outcome out;
@@ -187,15 +231,8 @@ EditSession::Outcome EditSession::copySheet(int sheet, int before, const QString
         out.problem = why;
         return out;
     }
-    // what a copy leaves behind: pictures, charts, and notes (the sheet's drawing and comments parts)
-    const QString part = book.info().sheets[sheet].part;
-    if (!part.isEmpty()) {
-        for (const QString &type : {QStringLiteral("/drawing"), QStringLiteral("/comments"), QStringLiteral("/vmlDrawing"), QStringLiteral("/legacyDrawing"), QStringLiteral("/threadedComment")})
-            if (!book.package().relationshipsOfType(part, type).isEmpty()) {
-                out.problem = tr("The pictures, charts, and notes on the sheet are not copied: JeffCrunch does not show them yet.");
-                break;
-            }
-    }
+    // what a copy leaves behind: said, with the copy made
+    out.problem = notCopiedNote(sheet);
     SheetEdit e;
     e.kind = SheetEdit::Kind::Copy;
     e.sheet = m_book->calc->sheetCount();
@@ -383,12 +420,14 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                 const int made = calc->addSheet(e.nameAfter, e.kind == SheetEdit::Kind::Copy ? e.copyOf : -1);
                 const int entry = book.addSheetEntry(e.nameAfter);
                 if (made != e.sheet || entry != e.sheet) return false;
+                if (e.kind == SheetEdit::Kind::Copy) m_copies.push_back({made, e.copyOf, m_edits.size()});
                 if (m_book->geometry.size() < size_t(made) + 1) m_book->geometry.resize(size_t(made) + 1);
                 book.setSheetOrder(e.orderAfter);
             } else {
                 if (calc->sheetCount() != e.sheet + 1) return false;   // (the sheet added is the last: what was done after it was undone first)
                 calc->removeLastSheet();
                 book.removeLastSheetEntry();
+                if (!m_copies.empty() && m_copies.back().sheet == e.sheet) m_copies.pop_back();
                 forgetSheet(e.sheet);
                 if (m_book->geometry.size() > size_t(e.sheet)) m_book->geometry.resize(size_t(e.sheet));
                 book.setSheetOrder(e.orderBefore);

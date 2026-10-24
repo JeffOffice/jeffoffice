@@ -222,6 +222,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_recalc.cpp
   tests/sheet/tst_sheet_refshift.cpp
   tests/sheet/tst_sheet_rowskip.cpp
+  tests/sheet/tst_sheet_carry.cpp
   tests/sheet/tst_sheet_save.cpp
   tests/sheet/tst_sheet_sheets.cpp
   tests/sheet/tst_sheet_structure.cpp

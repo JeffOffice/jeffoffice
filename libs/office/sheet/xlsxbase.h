@@ -35,8 +35,9 @@ QByteArray colorXml(const char *name, const ColorSpec &color);
 // The XML a sheet that a person added begins as: its view, default sizes, and tab color, an empty sheetData, and the rules of conditional formatting and validation it has (its cells, rows,
 // columns, and merged ranges are put in by the changes: see SheetChanges::skeleton).
 QByteArray newSheetSkeleton(const Sheet &sheet);
-// The conditionalFormatting and dataValidations elements of the rules, as the file writes them.
-QByteArray conditionalFormatsXml(const QVector<CondRule> &rules);
+// The conditionalFormatting and dataValidations elements of the rules, as the file writes them. With `extensions`, the data bars that look other than the plain one are written with their
+// extension too: the list of extensions (which ends the sheet) is put there, empty if there is none.
+QByteArray conditionalFormatsXml(const QVector<CondRule> &rules, QByteArray *extensions = nullptr);
 QByteArray validationsXml(const QVector<Validation> &rules);
 
 } // namespace jp::office::sheet

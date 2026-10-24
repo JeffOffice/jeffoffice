@@ -842,9 +842,11 @@ bool SheetReader::startRow(const QXmlStreamReader &r)
     bool styleOk = false;
     const uint style = attribute(r, "s").toUInt(&styleOk);
     spec.style = styleOk && spec.customFormat ? style : 0;
+    spec.outline = quint8(std::clamp(attribute(r, "outlineLevel").toInt(), 0, 7));
+    spec.collapsed = parseBool(attribute(r, "collapsed").toString());
     const bool otherHeight = spec.height >= 0 && std::abs(spec.height - m_sheet.format.defaultRowHeight) > 0.001;
     // (a sheet that hides the rows it does not list needs to know which it lists)
-    if (spec.hidden || spec.customFormat || otherHeight || m_sheet.format.zeroHeight) {
+    if (spec.hidden || spec.customFormat || otherHeight || m_sheet.format.zeroHeight || spec.outline > 0 || spec.collapsed) {
         if (m_sheet.stats.rowSpecs >= m_limits.rowSpecs) return fail(QCoreApplication::translate("Sheet", "The sheet has more rows with their own height or format than any real file has."));
         if (!take(kRowSpecBytes)) return false;
         ++m_sheet.stats.rowSpecs;
@@ -1308,6 +1310,15 @@ bool SheetReader::read(QIODevice *in)
             ok = fail(QCoreApplication::translate("Sheet", "The XML has a DOCTYPE, which is not allowed."));
             break;
         case QXmlStreamReader::StartElement:
+            // (what the extensions hold that the program does not keep: a copy of the sheet is told, so that it can say what it leaves out. A data bar's extension is read into the rule.)
+            if (inExtension && depth == 3) {
+                const QString kind = r.name().toString();
+                const char *note = kind == QLatin1String("sparklineGroups") ? "sparklines" : kind == QLatin1String("dataValidations") ? "validationLists"
+                                   : kind == QLatin1String("conditionalFormattings") ? nullptr : "otherExtensions";
+                if (note && !m_sheet.notKept.contains(QLatin1String(note))) m_sheet.notKept.append(QLatin1String(note));
+            } else if (inExtension && depth == 5 && isElement(r, "cfRule") && attribute(r, "type") != QLatin1String("dataBar")) {
+                if (!m_sheet.notKept.contains(QLatin1String("extendedRules"))) m_sheet.notKept.append(QLatin1String("extendedRules"));
+            }
             if (++depth > kMaxXmlDepth) {
                 ok = fail(QCoreApplication::translate("Sheet", "The XML is nested too deeply."));
             } else if (depth == 1) {
@@ -1347,6 +1358,8 @@ bool SheetReader::read(QIODevice *in)
                     f.baseColWidth = int(std::lround(boundedNumber(attribute(r, "baseColWidth"), 0, 255, 8)));
                     f.zeroHeight = parseBool(attribute(r, "zeroHeight").toString());
                     f.customHeight = parseBool(attribute(r, "customHeight").toString());
+                    f.outlineLevelRow = quint8(std::clamp(attribute(r, "outlineLevelRow").toInt(), 0, 7));
+                    f.outlineLevelCol = quint8(std::clamp(attribute(r, "outlineLevelCol").toInt(), 0, 7));
                 }
             } else if (depth == 3 && inMerge && isElement(r, "mergeCell")) {
                 ok = startMerge(r);
@@ -1909,8 +1922,6 @@ constexpr qint64 kMaxFontsMade = 100000, kMaxFillsMade = 100000, kMaxBordersMade
 
 } // namespace
 
-quint32 Workbook::fontPlace(const FontSpec &font)
-{
 namespace {
 
 quint64 mixed(quint64 h, quint64 v) { return (h ^ v) * 1099511628211ull; }
@@ -1984,6 +1995,8 @@ int firstEqual(const QVector<T> &list, std::unordered_multimap<quint64, quint32>
 
 } // namespace
 
+quint32 Workbook::fontPlace(const FontSpec &font)
+{
     const int found = firstEqual(m_styles.fonts, &m_fontIndex, &m_fontIndexMade, font, &m_placeComparisons);
     if (found >= 0) return quint32(found);
     if (m_styles.fonts.size() >= kMaxFontsMade) {
@@ -1992,9 +2005,9 @@ int firstEqual(const QVector<T> &list, std::unordered_multimap<quint64, quint32>
     }
     m_styles.fonts.append(font);
     m_fontsAdded.append(font);
+    m_fontIndex.emplace(hashOf(font), quint32(m_styles.fonts.size() - 1));
     return quint32(m_styles.fonts.size() - 1);
 }
-    m_fontIndex.emplace(hashOf(font), quint32(m_styles.fonts.size() - 1));
 
 quint32 Workbook::fillPlace(const FillSpec &fill)
 {
@@ -2006,9 +2019,9 @@ quint32 Workbook::fillPlace(const FillSpec &fill)
     }
     m_styles.fills.append(fill);
     m_fillsAdded.append(fill);
+    m_fillIndex.emplace(hashOf(fill), quint32(m_styles.fills.size() - 1));
     return quint32(m_styles.fills.size() - 1);
 }
-    m_fillIndex.emplace(hashOf(fill), quint32(m_styles.fills.size() - 1));
 
 quint32 Workbook::borderPlace(const BorderSpec &border)
 {
@@ -2020,9 +2033,9 @@ quint32 Workbook::borderPlace(const BorderSpec &border)
     }
     m_styles.borders.append(border);
     m_bordersAdded.append(border);
+    m_borderIndex.emplace(hashOf(border), quint32(m_styles.borders.size() - 1));
     return quint32(m_styles.borders.size() - 1);
 }
-    m_borderIndex.emplace(hashOf(border), quint32(m_styles.borders.size() - 1));
 
 quint32 Workbook::findOrAddFormat(quint32 base, const CellFormat &format)
 {

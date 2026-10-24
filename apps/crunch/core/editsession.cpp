@@ -263,6 +263,7 @@ void EditSession::cleanChanged(bool clean)
     m_statesChanged.clear();
     m_tabColorsChanged.clear();
     m_sheetOps.clear();
+    m_copies.clear();
 }
 
 void EditSession::calculationFinished()
@@ -916,6 +917,43 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             model.cells.forEach([&](const Cell &c) { addCell(sheet, c.row, c.col); });
             SheetChanges &sc = changes.sheets[sheet];
             sc.skeleton = newSheetSkeleton(model);
+            sc.isProtected = model.isProtected;
+            if (const CopyPoint *copy = copyPointOf(sheet)) {
+                // a copy: its file begins as the file of the sheet it was copied from (the first sheet of the chain of copies that has a part), moved by the edits to rows and columns made to
+                // the cells it came from before the copy, each as an edit to the copy
+                struct Span {
+                    int sheet;
+                    size_t from, to;
+                };
+                std::vector<Span> spans;
+                int source = copy->source;
+                size_t to = copy->edits;
+                for (;;) {
+                    const CopyPoint *earlier = copyPointOf(source);
+                    spans.push_back({source, earlier ? earlier->edits : 0, to});
+                    if (!earlier) break;
+                    to = earlier->edits;
+                    source = earlier->source;
+                }
+                if (source >= 0 && source < listed.sheets.size() && !listed.sheets[source].isNew && !listed.sheets[source].part.isEmpty()) {
+                    sc.copyFromPart = listed.sheets[source].part;
+                    for (auto span = spans.rbegin(); span != spans.rend(); ++span)
+                        for (size_t i = span->from; i < span->to && i < m_edits.size(); ++i) {
+                            StructEdit edit = m_edits[i];
+                            if (edit.kind == StructEdit::Kind::Offset) continue;
+                            bool touches = false;
+                            if (edit.sheet == span->sheet) {
+                                edit.sheet = sheet;
+                                touches = true;
+                            }
+                            if (edit.kind == StructEdit::Kind::Move && edit.toSheet == span->sheet) {
+                                edit.toSheet = sheet;
+                                touches = true;
+                            }
+                            if (touches) sc.copyEdits.push_back(edit);
+                        }
+                }
+            }
             sc.replaceColumns = true;
             for (const ColumnSpan &c : calc->columnRuns(sheet, 0, kMaxColumns - 1)) sc.columns.push_back(c);
             if (calc->mergeCountOf(sheet) == qint64(calc->mergesOf(sheet).size())) {
@@ -931,6 +969,9 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
                 p.styleKnown = true;
                 p.customFormat = spec.customFormat;
                 p.style = spec.style;
+                p.outlineKnown = true;
+                p.outline = spec.outline;
+                p.collapsed = spec.collapsed;
                 sc.rows.push_back(p);
             }
         }
@@ -1076,6 +1117,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_statesChanged.clear();
     m_tabColorsChanged.clear();
     m_sheetOps.clear();
+    m_copies.clear();
     m_engineAtStart.clear();
     m_edits.clear();
     m_renames.clear();

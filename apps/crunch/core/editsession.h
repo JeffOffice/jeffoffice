@@ -297,8 +297,8 @@ public:
     QString newSheetName() const;
     QString copyName(int sheet) const;
     // A new sheet, or a copy of one, put before the sheet `before` in the order (-1: at the end); `made` is its place. `name` empty is the name given by newSheetName (copyName for a copy).
-    // A copy has the cells, formats, sizes, merged ranges, and rules of the sheet; what the sheet has of tables is not copied (a sheet with a table can't be copied), and its pictures, charts,
-    // and notes are not (the outcome's `problem` says so, with `ok` true).
+    // A copy has the cells, formats, sizes, merged ranges, and rules of the sheet, and what its file says of its protection, filter, links, page setup, page breaks, outline, and the look of
+    // its data bars; a sheet with a table can't be copied. What is left out (pictures, charts, notes, and the like) is said by the outcome's `problem`, with `ok` true.
     Outcome insertSheet(int before, const QString &name, int *made = nullptr);
     Outcome copySheet(int sheet, int before, const QString &name, int *made = nullptr);
     // Deletes a sheet (the last that is shown, or one that has a table, can't be); the sheet and everything in it are kept for Undo.
@@ -461,6 +461,15 @@ private:
     std::set<int> m_statesChanged;                        // the sheets a step hid or showed
     std::set<int> m_tabColorsChanged;                     // the sheets whose tab color a step changed
     std::vector<jp::office::sheet::SheetOp> m_sheetOps;   // renames and deletes of sheets since the file was read or saved that are done (not undone), for the file
+    // The sheets copied since the file was read or saved that are done (not undone): the copy, the sheet it is a copy of, and how many edits to rows and columns (m_edits) there were then.
+    // The copy's file begins as the file of the sheet, with the edits made to it before the copy (the copy's own cells come from the model).
+    struct CopyPoint {
+        int sheet = 0, source = 0;
+        size_t edits = 0;
+    };
+    std::vector<CopyPoint> m_copies;
+    const CopyPoint *copyPointOf(int sheet) const;
+    QString notCopiedNote(int sheet) const;
     bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);
     Outcome pushSheetEdit(SheetEdit edit, const QString &text);
     bool sheetStepsRefused(QString *why);

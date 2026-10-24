@@ -60,6 +60,9 @@ struct RowProps {
     bool styleKnown = false;    // `style` and `customFormat` are the row's own format (else the file's stays)
     bool customFormat = false;
     quint32 style = 0;
+    bool outlineKnown = false;  // `outline` and `collapsed` are the row's own (else the file's stay)
+    quint8 outline = 0;
+    bool collapsed = false;
 };
 
 struct SheetChanges {
@@ -83,7 +86,13 @@ struct SheetChanges {
     int tabSelected = -1;
     // For a sheet a person added: the XML it begins as (its view, default sizes, rules, and no cells: the cells, sizes of rows and columns, and merged ranges above are put in it).
     QByteArray skeleton;
-    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && skeleton.isEmpty() && rows.empty(); }
+    // For a sheet a person copied: the part of the sheet it was copied from (in the file as it was read or last saved), and the edits to rows and columns made to the cells it was copied from
+    // before the copy, as the copy's own (its place is `sheet` of the edit). What the copied sheet's file has that the program keeps no model of (its protection, filter, links, page setup, and
+    // breaks) is taken from that part and put in, following the edits.
+    QString copyFromPart;
+    std::vector<StructEdit> copyEdits;
+    bool isProtected = false;           // for a sheet a person added: it is protected (a copy of a protected sheet has the protection the sheet had)
+    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty(); }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
