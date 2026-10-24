@@ -55,6 +55,27 @@ QByteArray formatBook()
     return buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), styles);
 }
 
+// A workbook whose sheet has rules of conditional formatting:
+//         A (color scale)   B (over 3, a fill)   C (data bar)   D (icon set)
+//   1     10                1                    10             10
+//   2     20                2                    20             20
+//   3     30                3                    30             30
+//   4     40                4                    40             40
+//   5     50                5                    50             50
+QByteArray ruledBook()
+{
+    const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/>"),
+                                        QStringLiteral("<dxfs count=\"1\"><dxf><font><b/><color rgb=\"FF9C0006\"/></font><fill><patternFill><bgColor rgb=\"FFFFC7CE\"/></patternFill></fill></dxf></dxfs>"));
+    QString rows;
+    for (int r = 1; r <= 5; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%2</v></c><c r=\"B%1\"><v>%1</v></c><c r=\"C%1\"><v>%2</v></c><c r=\"D%1\"><v>%2</v></c></row>").arg(r).arg(r * 10);
+    const QString after = QStringLiteral(
+        "<conditionalFormatting sqref=\"A1:A5\"><cfRule type=\"colorScale\" priority=\"1\"><colorScale><cfvo type=\"min\"/><cfvo type=\"max\"/><color rgb=\"FFFF0000\"/><color rgb=\"FF0000FF\"/></colorScale></cfRule></conditionalFormatting>"
+        "<conditionalFormatting sqref=\"B1:B5\"><cfRule type=\"cellIs\" dxfId=\"0\" priority=\"2\" operator=\"greaterThan\"><formula>3</formula></cfRule></conditionalFormatting>"
+        "<conditionalFormatting sqref=\"C1:C5\"><cfRule type=\"dataBar\" priority=\"3\"><dataBar><cfvo type=\"min\"/><cfvo type=\"max\"/><color rgb=\"FF638EC6\"/></dataBar></cfRule></conditionalFormatting>"
+        "<conditionalFormatting sqref=\"D1:D5\"><cfRule type=\"iconSet\" priority=\"4\"><iconSet iconSet=\"3TrafficLights1\"><cfvo type=\"percent\" val=\"0\"/><cfvo type=\"percent\" val=\"33\"/><cfvo type=\"percent\" val=\"67\"/></iconSet></cfRule></conditionalFormatting>");
+    return buildXlsx({worksheet(rows, after)}, QByteArray(), QString(), QString(), styles);
+}
+
 CellRange columns(quint32 first, quint32 last) { return CellRange{0, first, 1048575, last, true}; }
 CellRange rows(quint32 first, quint32 last) { return CellRange{first, 0, last, 16383, true}; }
 
@@ -369,6 +390,71 @@ private Q_SLOTS:
         o = s->mergeCells(0, rangeOf(QStringLiteral("A1:A3")), K::Merge, true);
         QVERIFY(o.ok);
         for (const CellRange &m : e.win.w.calculation()->mergesOf(0)) QVERIFY(m.row1 != m.row2 ? (m.col1 == 0 && m.col2 == 0) : m.col1 > 0);
+    }
+
+    // Conditional formats are shown from the file: the color scale, the fill of a rule, the bar, and the icon; they are worked out again when a value changes (the lowest and highest move) and
+    // come back with Undo; rows put in above the cells move the rules with them; and they are in the file saved after all that.
+    void conditionalFormatsAreShownFollowTheEditsAndAreSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(ruledBook()));
+        grid::GridSheet &g = e.view()->sheet();
+        auto at = [&](const QString &ref) -> const grid::CondCell & {
+            quint32 r = 0, c = 0;
+            parseCellRef(ref, &r, &c);
+            return g.conditional().at(r, c);
+        };
+        auto look = [&](const QString &ref) -> const grid::CellLook & {
+            quint32 r = 0, c = 0;
+            parseCellRef(ref, &r, &c);
+            return g.lookOf(r, c, g.cellAt(r, c) ? g.cellAt(r, c)->style : 0);
+        };
+        QVERIFY(g.hasConditionalFormats());
+        QCOMPARE(at(QStringLiteral("A1")).scale, QRgb(0xFFFF0000));
+        QCOMPARE(at(QStringLiteral("A5")).scale, QRgb(0xFF0000FF));
+        const QRgb quarter = at(QStringLiteral("A2")).scale;   // 20 is a quarter of the way from 10 to 50
+        QVERIFY(!look(QStringLiteral("B3")).hasFill());
+        QVERIFY(look(QStringLiteral("B4")).hasFill() && look(QStringLiteral("B4")).fg == QRgb(0xFFFFC7CE) && look(QStringLiteral("B4")).bold);
+        QCOMPARE(look(QStringLiteral("B4")).textColor, QRgb(0xFF9C0006));
+        QVERIFY(at(QStringLiteral("C3")).hasBar);
+        QCOMPARE(at(QStringLiteral("D1")).icon, 0);
+        QCOMPARE(at(QStringLiteral("D3")).icon, 1);
+        QCOMPARE(at(QStringLiteral("D5")).icon, 2);
+        // the highest value is typed over: the figures are worked out again, and what is shown is another
+        e.select(QStringLiteral("A5"));
+        e.enter(QStringLiteral("100"));
+        QVERIFY(e.settle());
+        QVERIFY(at(QStringLiteral("A2")).scale != quarter);
+        QVERIFY(at(QStringLiteral("C5")).bar.to > 0.89);
+        e.select(QStringLiteral("C5"));
+        e.enter(QStringLiteral("1000"));
+        QVERIFY(e.settle());
+        QVERIFY(at(QStringLiteral("C4")).bar.to < 0.2);   // (40 against 10 to 1000)
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QVERIFY(at(QStringLiteral("C4")).bar.to > 0.7);
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(at(QStringLiteral("A2")).scale, quarter);
+        // a row put in above: the rules cover the cells where they have gone (A2:A6), and the new row has none
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 1).ok);
+        QVERIFY(e.settle());
+        QVERIFY(!at(QStringLiteral("A1")).any);
+        QCOMPARE(at(QStringLiteral("A2")).scale, QRgb(0xFFFF0000));
+        QCOMPARE(at(QStringLiteral("A6")).scale, QRgb(0xFF0000FF));
+        QVERIFY(look(QStringLiteral("B5")).hasFill() && !look(QStringLiteral("B4")).hasFill());
+        QCOMPARE(g.conditional().iconSetName(g.conditional().at(5, 3).iconSet), QStringLiteral("3TrafficLights1"));
+        // saved, and the file has the rules where they are
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const QVector<CondRule> &rules = second.w.calculation()->sheet(0).conditionalFormats;
+        QCOMPARE(rules.size(), 4);
+        QCOMPARE(rangeName(rules[0].ranges[0]), QStringLiteral("A2:A6"));
+        QCOMPARE(rangeName(rules[1].ranges[0]), QStringLiteral("B2:B6"));
+        QVERIFY(second.w.view()->sheet().conditional().at(5, 0).scale == QRgb(0xFF0000FF));
     }
 };
 

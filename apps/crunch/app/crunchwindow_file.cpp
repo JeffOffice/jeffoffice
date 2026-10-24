@@ -171,6 +171,12 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
     d.sheetIndex = sheetIndex;
     if (m_haveCalc && m_loaded->calc) {   // (the worker puts the calculation there while it reads: not looked at before the read is over)
         d.sheet = &m_loaded->calc->sheet(sheetIndex);
+        // (the other sheets and the names of all: the rules of conditional formatting have formulas that read them)
+        const int count = std::min<int>(m_loaded->calc->sheetCount(), int(m_loaded->book->info().sheets.size()));
+        for (int i = 0; i < count; ++i) {
+            d.sheets.push_back(&m_loaded->calc->sheet(i));
+            d.sheetNames.append(m_loaded->book->info().sheets[i].name);
+        }
         d.values = &m_values;
         if (size_t(sheetIndex) < m_loaded->geometry.size()) d.geometry = m_loaded->geometry[size_t(sheetIndex)];
     } else if (m_loaded->preview && sheetIndex == m_loaded->previewSheet) {

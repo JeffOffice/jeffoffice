@@ -4,7 +4,9 @@
 
 #include <QGlyphRun>
 #include <QImage>
+#include <QLinearGradient>
 #include <QPixmap>
+#include <QPolygonF>
 #include <QRawFont>
 
 #include <algorithm>
@@ -315,6 +317,175 @@ void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int 
     }
 }
 
+void GridPainter::drawBar(QPainter *p, const QRect &cell, const CondBar &bar, bool gridlines)
+{
+    const QRect inner = cell.adjusted(2, 2, -2 - (gridlines ? 1 : 0), -2 - (gridlines ? 1 : 0));
+    if (inner.width() < 2 || inner.height() < 2) return;
+    const int x0 = inner.left() + int(std::lround(bar.from * inner.width())), x1 = inner.left() + int(std::lround(bar.to * inner.width()));
+    const QRect r(std::min(x0, x1), inner.top(), std::max(1, std::abs(x1 - x0)), inner.height());
+    ++m_stats.bars;
+    if (bar.gradient) {
+        // solid at the end that is at the axis, and lighter at the far end
+        QLinearGradient g(bar.negative ? r.right() + 1 : r.left(), 0, bar.negative ? r.left() : r.right() + 1, 0);
+        g.setColorAt(0, QColor::fromRgba(bar.fill));
+        g.setColorAt(1, QColor::fromRgba(bar.fillEnd));
+        p->fillRect(r, g);
+    } else {
+        p->fillRect(r, QColor::fromRgba(bar.fill));
+    }
+    if (bar.hasBorder) {
+        p->setPen(QColor::fromRgba(bar.border));
+        p->setBrush(Qt::NoBrush);
+        p->drawRect(r.adjusted(0, 0, -1, -1));
+    }
+    if (bar.hasAxis) {
+        const int ax = inner.left() + int(std::lround(bar.axisAt * inner.width()));
+        p->fillRect(QRect(ax, inner.top() - 1, 1, inner.height() + 2), QColor::fromRgba(bar.axis));
+    }
+}
+
+// An icon of a set, in a square of `size` pixels at the left of the cell and in the middle of its height.
+void GridPainter::drawIcon(QPainter *p, const QRect &cell, const QString &set, int index, int count, int size)
+{
+    ++m_stats.icons;
+    const QRectF box(cell.left() + 2, cell.top() + (cell.height() - size) / 2.0, size, size);
+    const QColor green(0x2E, 0xA0, 0x4F), yellow(0xE8, 0xB4, 0x1C), red(0xD6, 0x3E, 0x3E), gray(0x76, 0x76, 0x76), black(0x20, 0x20, 0x20), gold(0xE3, 0xA8, 0x0E);
+    const bool gray3 = set.contains(QLatin1String("Gray"));
+    p->save();
+    p->setRenderHint(QPainter::Antialiasing, true);
+    p->setPen(Qt::NoPen);
+    if (m_sheet->rightToLeft()) {
+        // (the grid is drawn mirrored; the icon is not a thing that reads, so it is turned back)
+        p->translate(box.center().x(), 0);
+        p->scale(-1, 1);
+        p->translate(-box.center().x(), 0);
+    }
+    const double cx = box.center().x(), cy = box.center().y(), h = box.width() / 2.0 - 0.5;
+    // three-color sets run from the lowest (red) up (green); the four- and five-icon ones through yellow between
+    auto colorAt = [&]() -> QColor {
+        if (set.startsWith(QLatin1String("4RedToBlack"))) return index == 0 ? black : index == 1 ? QColor(0x70, 0x70, 0x70) : index == 2 ? QColor(0xE9, 0x8A, 0x8A) : red;
+        if (set.startsWith(QLatin1String("4TrafficLights"))) return index == 0 ? black : index == 1 ? red : index == 2 ? yellow : green;
+        if (gray3) return gray;
+        if (count == 3) return index == 0 ? red : index == 1 ? yellow : green;
+        if (count == 4) return index == 0 ? red : index == 3 ? green : yellow;
+        return index == 0 ? red : index == count - 1 ? green : yellow;
+    };
+    const QColor c = colorAt();
+    p->setBrush(c);
+    if (set.contains(QLatin1String("Arrows"))) {
+        // an arrow turned by where in the set it is: down, down and across, across, up and across, up
+        const double turn = count == 3 ? (index - 1) * 90.0 : count == 4 ? (index - 1.5) * 60.0 : (index - 2) * 45.0;
+        p->translate(cx, cy);
+        p->rotate(-turn);   // 0 across to the right, positive up
+        QPolygonF arrow;
+        arrow << QPointF(h, 0) << QPointF(0, -h * 0.9) << QPointF(0, -h * 0.4) << QPointF(-h, -h * 0.4) << QPointF(-h, h * 0.4) << QPointF(0, h * 0.4) << QPointF(0, h * 0.9);
+        p->drawPolygon(arrow);
+    } else if (set.contains(QLatin1String("Triangles"))) {
+        QPolygonF t;
+        if (index == 1) t << QPointF(cx - h, cy - h * 0.2) << QPointF(cx + h, cy - h * 0.2) << QPointF(cx + h, cy + h * 0.2) << QPointF(cx - h, cy + h * 0.2);
+        else if (index == 2) t << QPointF(cx, cy - h) << QPointF(cx + h, cy + h) << QPointF(cx - h, cy + h);
+        else t << QPointF(cx - h, cy - h) << QPointF(cx + h, cy - h) << QPointF(cx, cy + h);
+        p->drawPolygon(t);
+    } else if (set.contains(QLatin1String("Flags"))) {
+        p->setBrush(black);
+        p->drawRect(QRectF(box.left() + 1, box.top() + 1, 1.5, box.height() - 2));
+        p->setBrush(c);
+        QPolygonF f;
+        f << QPointF(box.left() + 2.5, box.top() + 1) << QPointF(box.right() - 1, box.top() + 3.5) << QPointF(box.left() + 2.5, box.top() + 7);
+        p->drawPolygon(f);
+    } else if (set.contains(QLatin1String("Signs"))) {
+        if (index == 0) {
+            QPolygonF d;
+            d << QPointF(cx, cy - h) << QPointF(cx + h, cy) << QPointF(cx, cy + h) << QPointF(cx - h, cy);
+            p->drawPolygon(d);
+        } else if (index == 1) {
+            QPolygonF t;
+            t << QPointF(cx, cy - h) << QPointF(cx + h, cy + h) << QPointF(cx - h, cy + h);
+            p->drawPolygon(t);
+        } else {
+            p->drawEllipse(QPointF(cx, cy), h, h);
+        }
+    } else if (set.contains(QLatin1String("Symbols"))) {
+        const bool bare = set.contains(QLatin1String("Symbols2"));
+        if (!bare) p->drawEllipse(QPointF(cx, cy), h, h);
+        QPen pen(bare ? c : QColor(Qt::white), std::max(1.2, h * 0.28), Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+        p->setPen(pen);
+        p->setBrush(Qt::NoBrush);
+        const double a = h * 0.5;
+        if (index == 0) {
+            p->drawLine(QPointF(cx - a, cy - a), QPointF(cx + a, cy + a));
+            p->drawLine(QPointF(cx + a, cy - a), QPointF(cx - a, cy + a));
+        } else if (index == 1) {
+            p->drawLine(QPointF(cx, cy - a), QPointF(cx, cy + a * 0.2));
+            p->drawPoint(QPointF(cx, cy + a * 0.9));
+        } else {
+            QPolygonF tick;
+            tick << QPointF(cx - a, cy) << QPointF(cx - a * 0.2, cy + a * 0.8) << QPointF(cx + a, cy - a * 0.7);
+            p->drawPolyline(tick);
+        }
+    } else if (set.contains(QLatin1String("Stars"))) {
+        auto star = [&](bool full, bool half) {
+            QPolygonF st;
+            for (int k = 0; k < 10; ++k) {
+                const double angle = -3.14159265358979 / 2 + k * 3.14159265358979 / 5, radius = k % 2 ? h * 0.45 : h;
+                st << QPointF(cx + radius * std::cos(angle), cy + radius * std::sin(angle));
+            }
+            p->setPen(QPen(gold, 1));
+            p->setBrush(Qt::NoBrush);
+            p->drawPolygon(st);
+            p->setPen(Qt::NoPen);
+            p->setBrush(gold);
+            if (full) p->drawPolygon(st);
+            else if (half) {
+                p->save();
+                p->setClipRect(QRectF(box.left(), box.top(), box.width() / 2.0, box.height()));
+                p->drawPolygon(st);
+                p->restore();
+            }
+        };
+        star(index == 2, index == 1);
+    } else if (set.contains(QLatin1String("Rating"))) {
+        // bars of a signal that stand taller: the first `index + 1` are filled
+        const double bw = box.width() / (count * 2.0);
+        for (int k = 0; k < count; ++k) {
+            const double top = box.bottom() - box.height() * (k + 1) / count;
+            p->setBrush(k <= index ? black : QColor(0xC8, 0xC8, 0xC8));
+            p->drawRect(QRectF(box.left() + k * 2 * bw, top, bw * 1.4, box.bottom() - top));
+        }
+    } else if (set.contains(QLatin1String("Quarters"))) {
+        const QRectF circle(cx - h, cy - h, 2 * h, 2 * h);
+        p->setBrush(Qt::white);
+        p->setPen(QPen(black, 1));
+        p->drawEllipse(circle);
+        p->setPen(Qt::NoPen);
+        p->setBrush(black);
+        const int quarters = 4 - index;   // (the lowest is the fullest in the original; here the lowest is empty and the highest full)
+        Q_UNUSED(quarters);
+        if (index == count - 1) p->drawEllipse(circle);
+        else if (index > 0) p->drawPie(circle, 90 * 16, -index * 90 * 16);
+    } else if (set.contains(QLatin1String("Boxes"))) {
+        const QRectF square(cx - h, cy - h, 2 * h, 2 * h);
+        p->setBrush(Qt::white);
+        p->setPen(QPen(gray, 1));
+        p->drawRect(square);
+        p->setPen(Qt::NoPen);
+        p->setBrush(gray);
+        const double part = double(index) / double(count - 1);
+        p->drawRect(QRectF(square.left(), square.bottom() - square.height() * part, square.width(), square.height() * part));
+    } else {
+        // traffic lights (and any set that is not known): a disc, on a dark rounded square for the second kind
+        if (set.contains(QLatin1String("TrafficLights2"))) {
+            p->setBrush(QColor(0x40, 0x40, 0x40));
+            p->drawRoundedRect(box, 3, 3);
+            p->setBrush(c);
+            p->drawEllipse(QPointF(cx, cy), h * 0.65, h * 0.65);
+        } else {
+            p->drawEllipse(QPointF(cx, cy), h, h);
+        }
+    }
+    p->restore();
+}
+
 // The lines of an underline that is not the font's own: double, and the accounting kinds (which run the width of the cell). `x` and `width` are where the text is, `baseline` its baseline,
 // and `lineWidth` and `position` the font's; the lines are kept inside the cell's bottom.
 static void drawUnderlineLines(QPainter *p, Underline kind, const QRect &cell, const QRect &r, double x, double width, double baseline, double lineWidth, double position, bool gridlines, const QColor &ink)
@@ -354,7 +525,8 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
     if (font.pixelSize() < kMinFontPixels) return;
     const int pad = std::max(1, int(std::lround(kCellPadding * z))), indent = int(std::lround(look.indent * 9 * z));
     const bool left = sh.align != HAlign::Right && sh.align != HAlign::Center && sh.align != HAlign::CenterContinuous, right = sh.align == HAlign::Right;
-    QRect r = box.adjusted(pad + (left ? indent : 0), 1, -(pad + (right ? indent : 0)), -1);
+    // (the icon is at the left edge of the grid's cell, so on the screen's right in a sheet that reads right to left)
+    QRect r = box.adjusted(pad + (left ? indent + (m_drawingMirrored ? 0 : m_iconInset) : 0), 1, -(pad + (right ? indent + (m_drawingMirrored ? m_iconInset : 0) : (m_drawingMirrored ? m_iconInset : 0))), -1);
     if (r.width() <= 0 || r.height() <= 0) return;
     int flags = left ? Qt::AlignLeft : right ? Qt::AlignRight : Qt::AlignHCenter;
     flags |= look.vertical == VAlign::Top || look.vertical == VAlign::Justify || look.vertical == VAlign::Distributed ? Qt::AlignTop : look.vertical == VAlign::Center ? Qt::AlignVCenter : Qt::AlignBottom;
@@ -484,6 +656,7 @@ struct GridPainter::PaneWork {
     std::vector<Span> rows, cols;
     std::vector<const Cell *> cells;           // rows by columns, those beside the ones drawn included
     std::vector<const CellLook *> looks;       // the same, null for the plain look
+    std::vector<const CondCell *> cond;        // the same, what the rules of conditional formatting do to the cell (null for nothing; empty when the sheet has no rules)
     std::vector<char> covered;                 // under a merged range
     std::vector<const Cell *> leftCandidate, rightCandidate;   // by row: the nearest cell with something in it outside the columns drawn, on each side
     size_t C = 0;
@@ -603,19 +776,52 @@ void GridPainter::paintPane(QPainter *p, Pane which, const QRect &clip, const Pa
 marked:
     // ---- the looks, by cell (a cell with the first format, and no cell, has the plain look unless its row or column has a format)
     w.looks.assign(R * C, nullptr);
-    bool anyFill = false, anyBorder = false;
+    bool anyFill = false, anyBorder = false, anyBar = false, anyIcon = false;
     const LookTable &looks = m_sheet->looks();
+    const bool ruled = m_sheet->hasConditionalFormats();
+    if (ruled) w.cond.assign(R * C, nullptr);
     for (size_t i = 0; i < R; ++i)
         for (size_t j = 0; j < C; ++j) {
             const Cell *c = w.cells[i * C + j];
             quint32 xf = c ? c->style : 0;
             if (!c && wide && !w.rows[i].ring && !w.cols[j].ring) xf = m_sheet->styleOf(quint32(w.rows[i].index), quint32(w.cols[j].index), nullptr);
+            if (ruled && !w.rows[i].ring && !w.cols[j].ring && m_stats.condCells < kMaxCondCells) {
+                // what the rules do to the cell (asked of the cells drawn only, and for a bounded number of them in a paint)
+                const quint32 row = quint32(w.rows[i].index), col = quint32(w.cols[j].index);
+                if (m_sheet->conditional().covers(row, col)) {
+                    ++m_stats.condCells;
+                    const CondCell &cc = m_sheet->conditional().at(row, col);
+                    if (cc.any) {
+                        w.cond[i * C + j] = &cc;
+                        anyBar = anyBar || cc.hasBar;
+                        anyIcon = anyIcon || cc.icon >= 0;
+                        anyFill = anyFill || cc.hasScale;
+                        if (cc.format >= 0) {
+                            const CellLook &look = m_sheet->lookOf(row, col, xf);
+                            w.looks[i * C + j] = &look;
+                            anyFill = anyFill || look.hasFill();
+                            anyBorder = anyBorder || look.hasBorder();
+                            continue;
+                        }
+                    }
+                }
+            } else if (ruled && m_stats.condCells >= kMaxCondCells) {
+                m_stats.truncated = true;
+            }
             if (xf == 0) continue;
             const CellLook &look = looks.look(xf);
             w.looks[i * C + j] = &look;
             anyFill = anyFill || look.hasFill();
             anyBorder = anyBorder || look.hasBorder();
         }
+    // (what a cell shows of the rules besides its look: a color scale's fill, a data bar, an icon)
+    auto condOf = [&](size_t i, size_t j) -> const CondCell * { return w.cond.empty() ? nullptr : w.cond[i * C + j]; };
+    auto iconOf = [&](const CondCell &cc, const CellLook &look, const Span &rs, int *size, QString *name, int *count) {
+        *name = m_sheet->conditional().iconSetName(cc.iconSet);
+        *count = iconSetCount(*name);
+        const int font = fontFor(look, L.zoom()).pixelSize();
+        *size = std::max(6, std::min(rs.size - 4, font + 3));
+    };
     // ---- each row: fills, borders, text
     qint64 textBudget = kMaxTextRuns - m_stats.textRuns;
     // (a font too small to read is not drawn, so a cell in one has no text made for it)
@@ -642,12 +848,20 @@ marked:
     };
     for (size_t i = r0; i < r1; ++i) {
         const Span &rs = w.rows[i];
-        // fills
-        if (anyFill)
+        // fills (a color scale's color is the fill; data bars are drawn on it)
+        if (anyFill || anyBar)
             for (size_t j = c0; j < c1; ++j) {
+                if (!w.covered.empty() && w.covered[i * C + j]) continue;
                 const CellLook *look = w.looks[i * C + j];
-                if (!look || !look->hasFill() || (!w.covered.empty() && w.covered[i * C + j])) continue;
-                drawFill(p, QRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size), *look, o);
+                const CondCell *cc = condOf(i, j);
+                const QRect cellRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size);
+                if (cc && cc->hasScale) {
+                    p->fillRect(cellRect, QColor::fromRgba(cc->scale));
+                    ++m_stats.fills;
+                } else if (look && look->hasFill()) {
+                    drawFill(p, cellRect, *look, o);
+                }
+                if (cc && cc->hasBar) drawBar(p, cellRect, cc->bar, o.gridlines);
             }
         // borders: the lines between the cells of this row, and above it
         if (anyBorder) {
@@ -678,10 +892,18 @@ marked:
             const Cell *cell = w.cells[i * C + j];
             if (!cell || (!w.covered.empty() && w.covered[i * C + j])) continue;
             if (cell->type == CellType::Empty && !cell->hasFormula()) continue;
-            const CellLook &look = looks.look(cell->style);
+            const CondCell *cc = condOf(i, j);
+            const CellLook &look = w.looks[i * C + j] ? *w.looks[i * C + j] : looks.look(cell->style);
             if (tooSmall(look)) continue;   // (before the text is made, and its neighbors looked at: nothing of it would be drawn)
+            int iconSize = 0, iconCount = 0;
+            QString iconName;
+            if (cc && cc->icon >= 0) iconOf(*cc, look, rs, &iconSize, &iconName, &iconCount);
+            const bool icon = iconSize > 0 && iconCount > 0 && w.cols[j].size >= iconSize + 4;
+            if (icon) drawIcon(p, QRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size), iconName, std::min(cc->icon, iconCount - 1), iconCount, iconSize);
+            if (cc && cc->hideValue && (cc->hasBar || icon)) continue;   // (the rule says to show the bar or the icon and not the value)
             const Shown sh = m_sheet->shown(cell->row, cell->col, *cell);
             if (sh.kind == Kind::Empty && !sh.hashes) continue;
+            m_iconInset = icon ? iconSize + 4 : 0;
             const Spill sp = spillOfCell(*cell, look, sh, rs.index);
             QRect box(w.cols[j].start, rs.start, w.cols[j].size, rs.size);
             if (o.gridlines && sp.left + sp.right > 0) {
@@ -697,12 +919,13 @@ marked:
                 box = QRect(x0, rs.start, x1 - x0, rs.size);
             }
             drawText(p, QRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size), box, area, look, sh, o);
+            m_iconInset = 0;
             --textBudget;
         }
         if (textBudget <= 0 && !m_stats.truncated) m_stats.truncated = true;
         for (const Cell *cand : {w.leftCandidate[i], w.rightCandidate[i]}) {
             if (!cand || textBudget <= 0) continue;
-            const CellLook &look = looks.look(cand->style);
+            const CellLook &look = m_sheet->lookOf(cand->row, cand->col, cand->style);
             if (tooSmall(look)) continue;
             const Shown sh = m_sheet->shown(cand->row, cand->col, *cand);
             if (sh.kind != Kind::Text || sh.hashes) continue;
@@ -742,9 +965,14 @@ marked:
         ++m_stats.mergesDrawn;
         const Cell *anchor = m_sheet->cellAt(m.row1, m.col1);
         const quint32 xf = anchor ? anchor->style : m_sheet->styleOf(m.row1, m.col1, nullptr);
-        const CellLook &look = looks.look(xf);
-        if (look.hasFill()) drawFill(p, rect, look, o);
+        const CondCell *anchorCond = ruled && m_sheet->conditional().covers(m.row1, m.col1) && m_stats.condCells < kMaxCondCells ? &m_sheet->conditional().at(m.row1, m.col1) : nullptr;
+        if (anchorCond) ++m_stats.condCells;
+        if (anchorCond && !anchorCond->any) anchorCond = nullptr;
+        const CellLook &look = m_sheet->lookOf(m.row1, m.col1, xf);
+        if (anchorCond && anchorCond->hasScale) p->fillRect(rect.adjusted(0, 0, o.gridlines ? -1 : 0, o.gridlines ? -1 : 0), QColor::fromRgba(anchorCond->scale));
+        else if (look.hasFill()) drawFill(p, rect, look, o);
         else p->fillRect(rect.adjusted(0, 0, o.gridlines ? -1 : 0, o.gridlines ? -1 : 0), o.paper);
+        if (anchorCond && anchorCond->hasBar) drawBar(p, rect, anchorCond->bar, o.gridlines);
         if (look.hasBorder() || xf == 0) {
             auto lookOf = [&](quint32 r, quint32 c) -> const CellLook * {
                 const Cell *x = m_sheet->cellAt(r, c);
@@ -757,9 +985,21 @@ marked:
             drawEdge(p, heavier(bl ? &bl->bottom : nullptr, br ? &br->bottom : nullptr), rect.left(), rect.bottom() + 1, rect.width(), false, area);
         }
         if (anchor && textBudget > 0 && !tooSmall(look)) {
+            int iconSize = 0, iconCount = 0;
+            QString iconName;
+            if (anchorCond && anchorCond->icon >= 0) {
+                // (the icon is sized from the height of the first row of the range)
+                Span first;
+                first.size = std::max(1, std::min(rect.height(), int(std::lround(rowsAxis.size(m.row1) * L.zoom()))));
+                iconOf(*anchorCond, look, first, &iconSize, &iconName, &iconCount);
+            }
+            const bool icon = iconSize > 0 && iconCount > 0 && rect.width() >= iconSize + 4;
+            if (icon) drawIcon(p, rect, iconName, std::min(anchorCond->icon, iconCount - 1), iconCount, iconSize);
             const Shown sh = m_sheet->shown(anchor->row, anchor->col, *anchor);
-            if (sh.kind != Kind::Empty || sh.hashes) {
+            if ((sh.kind != Kind::Empty || sh.hashes) && !(anchorCond && anchorCond->hideValue && (anchorCond->hasBar || icon))) {
+                m_iconInset = icon ? iconSize + 4 : 0;
                 drawText(p, rect, rect, area, look, sh, o);
+                m_iconInset = 0;
                 --textBudget;
             }
         }

@@ -69,6 +69,11 @@ public:
     void setStyles(const jp::office::sheet::Styles *styles);
     // The look of a cell format (the plain look for one the file doesn't have), made when first asked for. The reference holds until trim().
     const CellLook &look(quint32 xf) const;
+    // The look of a cell format with the changes of a differential format (a rule of conditional formatting), made when first asked for and kept by the format and `key` (a number the caller
+    // gives the differential format, the same for the same one). The reference holds until trim() or setStyles().
+    const CellLook &derived(quint32 xf, int key, const jp::office::sheet::DifferentialFormat &changes) const;
+    // Lets the looks made with differential formats go (the keys they were made with are not the same any more).
+    void clearDerived() const { m_derived.clear(); }
     // Lets every look go if more than kMaxHeld are held; called where no reference is held (the start of drawing a screen).
     void trim() const;
     size_t held() const { return m_looks.size(); }
@@ -86,6 +91,8 @@ private:
     quint32 fontIdOf(quint32 fontIndex, const CellLook &look) const;
     const jp::office::sheet::Styles *m_styles = nullptr;
     mutable std::unordered_map<quint32, std::unique_ptr<CellLook>> m_looks;
+    mutable std::unordered_map<quint64, std::unique_ptr<CellLook>> m_derived;   // by the cell format and the differential format
+    quint32 fontIdOfSignature(const CellLook &look) const;
     mutable qint64 m_made = 0;
     mutable qint64 m_signaturesMade = 0;
     mutable std::unordered_map<std::string, quint32> m_fontIds;   // by the font's signature

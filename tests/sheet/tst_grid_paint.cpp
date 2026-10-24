@@ -1031,6 +1031,208 @@ private Q_SLOTS:
         QVERIFY(f.grid.shown(1, 0, *f.grid.cellAt(1, 0)).align == HAlign::Left);
         QVERIFY(f.grid.shown(2, 0, *f.grid.cellAt(2, 0)).align == HAlign::Left);
     }
+
+    // A color scale gives the cell its fill, a rule with a differential format changes the fill and the text color of the cells it holds, and the cells it does not hold stay as they were.
+    void colorScalesAndDifferentialFormatsAreDrawn()
+    {
+        Fixture f;
+        f.number(0, 0, 0);
+        f.number(1, 0, 100);
+        f.number(0, 1, 5);
+        f.number(1, 1, 50);
+        CondRule scale;
+        scale.type = CondRule::Type::ColorScale;
+        scale.ranges = {mergeOf(0, 0, 1, 0)};
+        scale.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+        scale.colors = {ColorSpec::fromRgb(0xFF0000), ColorSpec::fromRgb(0x0000FF)};
+        scale.priority = 1;
+        DifferentialFormat d;
+        d.hasFill = true;
+        d.fill.pattern = PatternKind::Solid;
+        d.fill.bg = ColorSpec::fromRgb(0xFFEB9C);
+        d.fontColor = ColorSpec::fromRgb(0xFF0000);
+        d.bold = true;
+        f.styles.dxfs.append(d);
+        CondRule over;
+        over.type = CondRule::Type::CellIs;
+        over.op = CondRule::Operator::GreaterThan;
+        over.formula1 = QStringLiteral("10");
+        over.dxf = 0;
+        over.ranges = {mergeOf(0, 1, 1, 1)};
+        over.priority = 2;
+        f.sheet.conditionalFormats = {scale, over};
+        f.build();
+        const QImage img = f.render();
+        QCOMPARE(px(img, 3, 3), QRgb(0xFFFF0000));         // the lowest: the first color, over the whole cell
+        QCOMPARE(px(img, 50, 16), QRgb(0xFFFF0000));
+        QCOMPARE(px(img, 3, 23), QRgb(0xFF0000FF));        // the highest: the last
+        QCOMPARE(px(img, 63, 39), QRgb(0xFF0000FF));       // (its gridline is covered, as a fill covers it)
+        QCOMPARE(px(img, 64 + 3, 3), kWhite);              // 5 is not over 10
+        QCOMPARE(px(img, 64 + 3, 23), QRgb(0xFFFFEB9C));   // 50 is: the fill of the differential format
+        // the text of the second is in the font color of the format (ink of that color, and not of the default black)
+        int reddish = 0, black = 0;
+        for (int y = 20; y < 40; ++y)
+            for (int x = 64; x < 128; ++x) {
+                const QRgb c = img.pixel(x, y);
+                if (qRed(c) > 200 && qGreen(c) < 90 && qBlue(c) < 90) ++reddish;
+                if (qRed(c) < 60 && qGreen(c) < 60 && qBlue(c) < 60) ++black;
+            }
+        QVERIFY(reddish > 5);
+        QCOMPARE(black, 0);
+    }
+
+    // A data bar is drawn inside the cell from the left, as long as its value is of the way from the lowest to the highest (between the shortest length and the longest), under the text,
+    // and the text is left out when the rule says so.
+    void dataBarsAreDrawnInTheCell()
+    {
+        auto make = [](bool showValue, bool gradient) {
+            auto f = std::make_unique<Fixture>();
+            f->number(0, 0, 0);
+            f->number(1, 0, 50);
+            f->number(2, 0, 100);
+            CondRule bar;
+            bar.type = CondRule::Type::DataBar;
+            bar.ranges = {mergeOf(0, 0, 2, 0)};
+            bar.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+            bar.colors = {ColorSpec::fromRgb(0x638EC6)};
+            bar.showValue = showValue;
+            bar.gradient = gradient;
+            f->sheet.conditionalFormats = {bar};
+            f->build();
+            return f;
+        };
+        auto f = make(true, false);
+        const QImage img = f->render();
+        const QRgb blue = QRgb(0xFF638EC6);
+        // the cell is 64 wide with a gridline, the bar is within 2 pixels of its sides: 59 wide; the lengths are 10, 50, and 90 percent of it
+        QCOMPARE(px(img, 4, 10), blue);
+        QCOMPARE(px(img, 3 + 6, 10), kWhite);                 // (the shortest bar is six pixels: 2 to 7)
+        QCOMPARE(px(img, 4, 20 + 10), blue);
+        QCOMPARE(px(img, 2 + 29, 20 + 3), blue);              // (the middle one reaches 2 + 30)
+        QCOMPARE(px(img, 2 + 31, 20 + 3), kWhite);
+        QCOMPARE(px(img, 2 + 52, 40 + 3), blue);              // (the longest, 53 pixels)
+        QCOMPARE(px(img, 2 + 55, 40 + 3), kWhite);
+        QCOMPARE(px(img, 10, 0), kWhite);                     // the bar has room above and below
+        QCOMPARE(px(img, 4, 1), kWhite);
+        QCOMPARE(px(img, 4, 18), kWhite);
+        QVERIFY(f->painter->stats().bars == 3);
+        // the value is drawn over it
+        QVERIFY(inkIn(img, QRect(0, 40, 64, 20)) > 5);
+        auto hidden = make(false, false);
+        const QImage without = hidden->render();
+        QCOMPARE(inkIn(without, QRect(0, 40, 64, 20)), 0);
+        QCOMPARE(px(without, 2 + 52, 40 + 3), blue);
+        // a gradient is solid at the left and lighter at the right
+        auto gradient = make(false, true);
+        const QImage g = gradient->render();
+        const QRgb left = px(g, 3, 40 + 8), right = px(g, 2 + 50, 40 + 8);
+        QVERIFY(qRed(left) <= qRed(blue) + 8);
+        QVERIFY(qRed(right) > qRed(blue) + 40);
+        QVERIFY(qRed(right) > qRed(left) + 30);
+    }
+
+    // An icon set puts an icon of the value's rank at the left of the cell, in its own colors, and text that begins at the left moves over to make room for it; with the rule saying to
+    // leave the value out, there is no text.
+    void iconsAreDrawnAtTheLeft()
+    {
+        auto make = [](bool showValue, HAlign align) {
+            auto f = std::make_unique<Fixture>();
+            CellFormat fmt;
+            fmt.horizontal = align;
+            const quint32 style = f->format(fmt);
+            const double values[] = {1, 5, 9, 5};
+            for (int i = 0; i < 4; ++i) f->number(quint32(i), i == 3 ? 1 : 0, values[i], style);
+            CondRule icons;
+            icons.type = CondRule::Type::IconSet;
+            icons.iconSet = QStringLiteral("3TrafficLights1");
+            icons.ranges = {mergeOf(0, 0, 2, 0)};
+            icons.values = {{CondValue::Type::Number, QStringLiteral("0"), true}, {CondValue::Type::Number, QStringLiteral("4"), true}, {CondValue::Type::Number, QStringLiteral("8"), true}};
+            icons.showValue = showValue;
+            f->sheet.conditionalFormats = {icons};
+            f->build();
+            return f;
+        };
+        auto f = make(true, HAlign::Left);
+        const QImage img = f->render();
+        // (a disc of 16 pixels from x = 2, in the middle of a row of 20: its middle is solid)
+        QCOMPARE(px(img, 10, 10), QRgb(0xFFD63E3E));
+        QCOMPARE(px(img, 10, 30), QRgb(0xFFE8B41C));
+        QCOMPARE(px(img, 10, 50), QRgb(0xFF2EA04F));
+        QCOMPARE(px(img, 1, 10), kWhite);
+        QVERIFY(f->painter->stats().icons == 3);
+        // the text of the first column is to the right of the icon; the same text in a cell no rule holds begins at the left
+        const QRect withIcon = inkBox(img, QRect(18, 22, 44, 16)), plain = inkBox(img, QRect(64, 62, 62, 16));
+        QVERIFY(withIcon.isValid() && plain.isValid());
+        QVERIFY2(withIcon.left() - 0 >= 18 + 2, qPrintable(QString::number(withIcon.left())));
+        QVERIFY2(withIcon.left() >= plain.left() - 64 + 14, qPrintable(QStringLiteral("%1 against %2").arg(withIcon.left()).arg(plain.left() - 64)));
+        // without the value
+        auto hidden = make(false, HAlign::Left);
+        const QImage without = hidden->render();
+        QCOMPARE(px(without, 10, 30), QRgb(0xFFE8B41C));
+        QCOMPARE(inkIn(without, QRect(18, 22, 44, 16)), 0);
+        // a number at the right stays at the right
+        auto right = make(true, HAlign::Right);
+        const QRect rightInk = inkBox(right->render(), QRect(18, 22, 44, 16));
+        QVERIFY(rightInk.isValid() && rightInk.right() >= 50);
+    }
+
+    // The rules are asked about the cells that are drawn, not about the million rows of the sheet.
+    void aBigSheetIsAskedAboutWhatIsDrawn()
+    {
+        Fixture f;
+        for (quint32 i = 0; i < 100000; ++i) f.number(i, 0, double((i * 7919) % 100003));
+        CondRule bar;
+        bar.type = CondRule::Type::DataBar;
+        bar.ranges = {mergeOf(0, 0, 99999, 0)};
+        bar.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+        bar.colors = {ColorSpec::fromRgb(0x638EC6)};
+        CondRule scale;
+        scale.type = CondRule::Type::ColorScale;
+        scale.ranges = {mergeOf(0, 1, 99999, 1)};
+        scale.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+        scale.colors = {ColorSpec::fromRgb(0xFF0000), ColorSpec::fromRgb(0x00FF00)};
+        for (quint32 i = 0; i < 100000; i += 1000) f.number(i, 1, double(i));
+        f.sheet.conditionalFormats = {bar, scale};
+        f.build();
+        f.render();
+        QVERIFY2(f.painter->stats().condCells <= 40, qPrintable(QString::number(f.painter->stats().condCells)));   // (20 rows of two columns)
+        QVERIFY(f.painter->stats().bars == 20);
+        QVERIFY(f.painter->stats().condCells > 0);
+    }
+
+    // In a sheet that reads right to left a bar is at the right of the cell (the screen's) and grows to the left, and an icon is at the right with the text moved over from it.
+    void barsAndIconsInARightToLeftSheet()
+    {
+        Fixture f;
+        f.sheet.view.rightToLeft = true;
+        f.number(0, 0, 0);
+        f.number(1, 0, 100);
+        f.number(2, 0, 9);
+        CondRule bar;
+        bar.type = CondRule::Type::DataBar;
+        bar.ranges = {mergeOf(0, 0, 1, 0)};
+        bar.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+        bar.colors = {ColorSpec::fromRgb(0x638EC6)};
+        bar.gradient = false;
+        bar.showValue = false;
+        CondRule icons;
+        icons.type = CondRule::Type::IconSet;
+        icons.iconSet = QStringLiteral("3TrafficLights1");
+        icons.ranges = {mergeOf(2, 0, 2, 0)};
+        icons.values = {{CondValue::Type::Number, QStringLiteral("0"), true}, {CondValue::Type::Number, QStringLiteral("4"), true}, {CondValue::Type::Number, QStringLiteral("8"), true}};
+        f.sheet.conditionalFormats = {bar, icons};
+        f.build();
+        const QImage img = f.render();
+        const int w = f.size.width();
+        // column A is at the right edge; the bar of the highest value (53 pixels) begins 2 pixels in from the right and is not at the cell's other side
+        QCOMPARE(px(img, w - 1 - 4, 20 + 10), QRgb(0xFF638EC6));
+        QCOMPARE(px(img, w - 1 - 53, 20 + 10), QRgb(0xFF638EC6));
+        QCOMPARE(px(img, w - 1 - 57, 20 + 10), kWhite);
+        // the icon is at the right too (its disc in the middle of its square), and the number is in the room left of it, not over it
+        QCOMPARE(px(img, w - 1 - 10, 40 + 10), QRgb(0xFF2EA04F));
+        QVERIFY(inkBox(img, QRect(w - 64, 42, 64 - 20, 16)).isValid());
+        QCOMPARE(inkIn(img, QRect(w - 1 - 17, 42, 16, 16)), 0);
+    }
 };
 
 JP_TEST_CLASS(GridPaintTests)

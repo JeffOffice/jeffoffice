@@ -191,6 +191,7 @@ qt_add_executable(sheettests
   tests/sheet/calchelpers.cpp
   tests/sheet/xlshelpers.cpp
   tests/sheet/tst_grid_axis.cpp
+  tests/sheet/tst_grid_condformat.cpp
   tests/sheet/tst_grid_cells.cpp
   tests/sheet/tst_grid_layout.cpp
   tests/sheet/tst_grid_paint.cpp

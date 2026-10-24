@@ -389,6 +389,12 @@ bool GridView::valuesChanged(int sheetIndex, const std::vector<ValueStore::Item>
             dirty += L.rangeRectIn(p.pane, it.row, p.view.firstCol, it.row, p.view.lastCol) & p.view.rect;
         }
     }
+    if (m_sheet.hasConditionalFormats() && !items.empty()) {
+        // (a rule of conditional formatting can make any cell look different when a value changes: the figures it keeps are let go, the texts are made again as they are drawn, and
+        // the whole of what is shown is drawn again)
+        m_sheet.invalidateTexts();
+        all = true;
+    }
     if (all) viewport()->update();
     else if (!dirty.isEmpty()) viewport()->update(mirror(dirty));
     if (inSelection) startStats();
