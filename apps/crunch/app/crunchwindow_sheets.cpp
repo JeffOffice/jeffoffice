@@ -194,7 +194,7 @@ void CrunchWindow::deleteSheetsCommand()
     }
     if (anyCells) {
         const QString text = sheets.size() == 1 ? tr("Delete the sheet \"%1\" and everything on it? Formulas that read it will show #REF!. You can undo this until the workbook is saved.").arg(info.sheets[sheets.first()].name)
-                                                : tr("Delete the %n selected sheets and everything on them? Formulas that read them will show #REF!. You can undo this until the workbook is saved.", nullptr, int(sheets.size()));
+                                                : tr("Delete the %1 selected sheets and everything on them? Formulas that read them will show #REF!. You can undo this until the workbook is saved.").arg(sheets.size());
         if (!confirm(tr("Delete Sheet"), text)) return;
     }
     QUndoStack *u = m_session->undoStack();
