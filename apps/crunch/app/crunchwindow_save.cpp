@@ -143,6 +143,7 @@ bool CrunchWindow::startSave(const QString &path)
         notice(tr("Save"), why);
         return false;
     }
+    if (m_objects) m_objects->addToSave(&snapshot->changes);
     m_saving = true;
     m_session->setBusy(true);
     updateEditActions();

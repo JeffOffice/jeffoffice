@@ -325,7 +325,27 @@ void SheetObjects::show(int sheet)
         if (o->made) objects.push_back(layerObject(sheet, o));
     m_shown = sheet;
     m_layer.setObjects(std::move(objects));
+    for (const std::shared_ptr<Object> &o : s.objects)
+        if (o->deleted) m_layer.setDeleted(o->id, true);
     m_layer.setFillsView(s.chartSheet);
+}
+
+void SheetObjects::setDeleted(int sheet, int id, bool deleted)
+{
+    Sheet &s = sheetState(sheet);
+    for (const std::shared_ptr<Object> &o : s.objects)
+        if (o->id == id) {
+            o->deleted = deleted;
+            if (sheet == m_shown) m_layer.setDeleted(id, deleted);
+            return;
+        }
+}
+
+bool SheetObjects::isDeleted(int sheet, int id)
+{
+    for (const std::shared_ptr<Object> &o : sheetState(sheet).objects)
+        if (o->id == id) return o->deleted;
+    return false;
 }
 
 void SheetObjects::cellsChanged(const std::vector<jp::grid::ValueStore::Item> &cells)
@@ -376,13 +396,89 @@ void SheetObjects::sizesChanged(int sheet)
     m_layer.layoutChanged();
 }
 
+namespace {
+
+// Whether a cell that changed is in the block (the cells are sorted by row, then column).
+template <class Cells>
+bool changedIn(const Cells &cells, const jp::office::sheet::CellRange &r)
+{
+    auto it = std::lower_bound(cells.begin(), cells.end(), r.row1, [](const auto &c, quint32 row) { return c.row < row; });
+    for (; it != cells.end() && it->row <= r.row2; ++it)
+        if (it->col >= r.col1 && it->col <= r.col2) return true;
+    return false;
+}
+
+} // namespace
+
+void SheetObjects::addToSave(SaveChanges *changes)
+{
+    if (!m_book) return;
+    const QStringList names = sheetNames();
+    for (size_t i = 0; i < m_sheets.size(); ++i) {
+        Sheet &s = sheetState(int(i));
+        if (s.drawingPart.isEmpty()) continue;
+        for (const std::shared_ptr<Object> &o : s.objects) {
+            if (o->deleted) {
+                changes->removedObjects[s.drawingPart].push_back(o->meta.ordinal);
+                continue;
+            }
+            if (!o->chart || !m_cells || o->meta.chartPart.isEmpty()) continue;
+            // the references whose cells changed, or that moved: their caches are made again
+            struct Ref {
+                const QString *now, *was;
+            };
+            std::vector<Ref> refs;
+            const Chart &now = *o->chart, &was = *o->baseChart;
+            for (size_t p = 0; p < now.plots.size() && p < was.plots.size(); ++p)
+                for (size_t k = 0; k < now.plots[p].series.size() && k < was.plots[p].series.size(); ++k) {
+                    const ChartSeries &a = now.plots[p].series[k], &b = was.plots[p].series[k];
+                    refs.push_back({&a.nameRef, &b.nameRef});
+                    refs.push_back({&a.categoryRef, &b.categoryRef});
+                    refs.push_back({&a.valueRef, &b.valueRef});
+                    refs.push_back({&a.xRef, &b.xRef});
+                }
+            refs.push_back({&now.title.ref, &was.title.ref});
+            for (size_t k = 0; k < now.axes.size() && k < was.axes.size(); ++k) refs.push_back({&now.axes[k].title.ref, &was.axes[k].title.ref});
+            for (const Ref &r : refs) {
+                if (r.now->isEmpty()) continue;
+                bool dirty = *r.now != *r.was;
+                QVector<ChartBlock> blocks;
+                if (!chartBlocks(*r.now, int(i), *m_cells, &blocks)) continue;
+                for (const ChartBlock &b : std::as_const(blocks)) {
+                    const auto sheetChanges = changes->sheets.find(b.sheet);
+                    if (dirty || sheetChanges == changes->sheets.end()) continue;
+                    dirty = changedIn(sheetChanges->second.cells, b.range) || changedIn(sheetChanges->second.results, b.range);
+                }
+                if (!dirty) continue;
+                ChartRefData data;
+                if (readChartRef(*r.now, int(i), *m_cells, kMaxChartSeriesCells, &data)) changes->chartCaches[o->meta.chartPart][*r.now] = data;
+            }
+        }
+    }
+    Q_UNUSED(names);
+}
+
 void SheetObjects::saved()
 {
-    for (size_t i = 0; i < m_sheets.size(); ++i)
-        for (const std::shared_ptr<Object> &o : m_sheets[i].objects) {
+    for (size_t i = 0; i < m_sheets.size(); ++i) {
+        Sheet &s = m_sheets[i];
+        // the objects that were taken away are not in the file: they are let go, and the places of the elements after them are one less each
+        std::vector<int> removed;
+        for (const std::shared_ptr<Object> &o : s.objects)
+            if (o->deleted) removed.push_back(o->meta.ordinal);
+        std::sort(removed.begin(), removed.end());
+        std::vector<std::shared_ptr<Object>> kept;
+        for (const std::shared_ptr<Object> &o : s.objects) {
+            if (o->deleted) continue;
+            o->meta.ordinal -= int(std::lower_bound(removed.begin(), removed.end(), o->meta.ordinal) - removed.begin());
             o->base = o->anchor;
             if (o->chart) o->baseChart = std::make_shared<Chart>(*o->chart);
+            kept.push_back(o);
         }
+        const bool changed = kept.size() != s.objects.size();
+        s.objects = std::move(kept);
+        if (changed && int(i) == m_shown) show(int(i));
+    }
 }
 
 Chart SheetObjects::chartNow(int sheet, int objectId)

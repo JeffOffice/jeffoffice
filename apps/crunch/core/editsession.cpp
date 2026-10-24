@@ -103,6 +103,7 @@ public:
     // Whether the step deleted rows, columns, or cells.
     bool deletes() const
     {
+        if (!m_forgotten && !m_step.objects.empty()) return true;   // (an object taken away is not in the saved file: an Undo of it could not give it back to the file)
         if (m_forgotten || !m_step.structure) return false;
         using K = jp::office::sheet::StructEdit::Kind;
         const K k = m_step.structure->edit.kind;
@@ -118,6 +119,7 @@ public:
         for (const SizeEdit &e : m_step.sizes)
             n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
         if (m_step.structure) n += m_step.structure->bytes();
+        n += qint64(m_step.objects.size()) * qint64(sizeof(ObjectEdit));
         *m_total += n - m_bytes;
         m_bytes = n;
     }
@@ -586,6 +588,10 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
 
 bool EditSession::apply(Step *step, bool forward)
 {
+    for (const ObjectEdit &o : step->objects)
+        if (m_objectHook) m_objectHook(o.sheet, o.id, forward);
+    // (a step of objects alone changes no cell: the worker is not held for it)
+    if (!step->objects.empty() && step->cells.empty() && step->renames.empty() && step->sizes.empty() && step->merges.empty() && !step->structure) return true;
     if (step->structure) return applyStructure(step, forward);
     QElapsedTimer waited;
     waited.start();

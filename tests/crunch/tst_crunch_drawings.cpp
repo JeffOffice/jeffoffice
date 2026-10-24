@@ -4,6 +4,10 @@
 #include "editwindow.h"
 
 #include "core/sheetobjects.h"
+#include "office/chart.h"
+#include "office/package.h"
+#include "office/theme.h"
+#include "office/xml.h"
 
 using namespace crunchtest;
 using namespace drawtest;
@@ -179,6 +183,83 @@ private Q_SLOTS:
         QVERIFY(o->layer()->deviceRect(1, grid::Pane::Body).isEmpty());
         pressUndo(e.view());
         QVERIFY(!o->layer()->deviceRect(1, grid::Pane::Body).isEmpty());
+    }
+
+    // Delete with an object picked takes it away as a step Undo gives back; it is saved without it, and with the numbers of a chart whose cells changed; what was not touched is the old
+    // file's to the byte.
+    void anObjectIsDeletedUndoneAndSaved()
+    {
+        EditWindow e;
+        const QByteArray original = drawingBook();
+        QVERIFY(e.open(original));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        const QRect pic = L.rangeRect(6, 0, 8, 1);
+        QVERIFY(!e.win.w.isModified());
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, pic.center());
+        QCOMPARE(o->layer()->selectedId(), 1);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(o->isDeleted(0, 1));
+        QVERIFY(e.win.w.isModified());
+        QCOMPARE(o->layer()->selectedId(), -1);
+        QVERIFY(shot(e).pixel(pic.center()) != QColor(Qt::red).rgb());
+        pressUndo(e.view());
+        QVERIFY(!o->isDeleted(0, 1));
+        QVERIFY(!e.win.w.isModified());
+        o->layer()->prepareAll();
+        QCOMPARE(shot(e).pixel(pic.center()), QColor(Qt::red).rgb());
+        pressRedo(e.view());
+        QVERIFY(o->isDeleted(0, 1));
+        // a cell the chart reads is typed over too
+        e.select(QStringLiteral("B3"));
+        e.enter(QStringLiteral("55"));
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        office::Package before, after;
+        QString why;
+        QVERIFY(before.readLazy(original, &why));
+        QVERIFY2(after.readLazyFile(e.path, &why), qPrintable(why));
+        QDomDocument drawing;
+        QVERIFY(office::parseXml(after.part(QStringLiteral("/xl/drawings/drawing1.xml")), &drawing));
+        QStringList names;
+        const QDomNodeList all = drawing.elementsByTagName(QStringLiteral("cNvPr"));
+        for (int i = 0; i < all.size(); ++i) names << all.at(i).toElement().attribute(QStringLiteral("name"));
+        QVERIFY2(!names.contains(QStringLiteral("Logo")) && names.contains(QStringLiteral("Sales")) && names.contains(QStringLiteral("Box")), qPrintable(names.join(QLatin1Char(','))));
+        office::Chart chart;
+        QVERIFY(office::readChart(after.part(QStringLiteral("/xl/charts/chart1.xml")), office::defaultTheme(), office::ColorMap(), &chart, &why));
+        QCOMPARE(chart.plots[0].series[0].values, (QVector<double>{10, 55, 30}));   // (the cache says what the cells hold: the file stored 10, 20, 30)
+        QCOMPARE(chart.plots[0].series[0].name, QStringLiteral("East"));
+        for (const QString &name : before.partNames()) {
+            if (name == QLatin1String("/xl/drawings/drawing1.xml") || name == QLatin1String("/xl/charts/chart1.xml") || name.contains(QLatin1String("/worksheets/")) || name == QLatin1String("/xl/workbook.xml")) continue;
+            QVERIFY2(after.part(name) == before.part(name), qPrintable(name));
+        }
+        // the objects are as the file has them: four
+        QCOMPARE(o->layer()->count(), 4);
+        // a chart whose cells did not change keeps its part as it was, whatever else is saved
+        e.select(QStringLiteral("C3"));
+        e.enter(QStringLiteral("77"));
+        QVERIFY(e.settle());
+        const QByteArray chartBefore = after.part(QStringLiteral("/xl/charts/chart1.xml"));
+        saved.clear();
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        office::Package third;
+        QVERIFY(third.readLazyFile(e.path, &why));
+        QCOMPARE(third.part(QStringLiteral("/xl/charts/chart1.xml")), chartBefore);
+        QCOMPARE(third.part(QStringLiteral("/xl/drawings/drawing1.xml")), after.part(QStringLiteral("/xl/drawings/drawing1.xml")));
+        // Undo goes back over the typing and no further: the object that was taken away is not in the file to be given back
+        pressUndo(e.view());
+        pressUndo(e.view());
+        QVERIFY(!e.win.w.session()->canUndo());
+        QCOMPARE(o->layer()->count(), 4);
+        // the file opens with four objects
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 4);
     }
 };
 

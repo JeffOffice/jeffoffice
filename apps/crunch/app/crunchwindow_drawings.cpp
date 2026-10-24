@@ -55,11 +55,17 @@ void CrunchWindow::connectObjects()
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, [this](int sheet) {
         if (m_objects) m_objects->sizesChanged(sheet);
     });
+    m_session->setObjectHook([this](int sheet, int id, bool deleted) {
+        if (m_objects) m_objects->setDeleted(sheet, id, deleted);
+    });
 }
 
+// Delete with an object picked: it is taken away, as a step Undo gives back.
 void CrunchWindow::deleteObject(int id)
 {
-    Q_UNUSED(id);
+    if (!m_session || m_edit.active || m_saving) return;
+    const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Object"));
+    if (!o.ok) notice(tr("Delete"), o.problem);
 }
 
 } // namespace jp

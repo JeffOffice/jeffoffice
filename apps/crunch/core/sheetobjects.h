@@ -19,6 +19,7 @@
 #include "render/renderer.h"
 #include "sheet/chartdata.h"
 #include "sheet/drawing.h"
+#include "sheet/xlsxsave.h"
 #include "sheet/sheetreader.h"
 
 #include <QObject>
@@ -72,7 +73,13 @@ public:
     void cellsMoved();
     // The sizes of rows or columns of the sheet changed (a hidden row is left out of a chart): charts are drawn again.
     void sizesChanged(int sheet);
-    // The file was saved: what it holds is what the objects are now (the edits made so far are in it).
+    // An object is taken away (a person deleted it) or brought back (undone); the layer is told if its sheet is shown.
+    void setDeleted(int sheet, int id, bool deleted);
+    bool isDeleted(int sheet, int id);
+    // What saving needs of the objects, put in the changes the file is made from: the objects taken away, and the caches of the charts whose cells changed or whose references moved
+    // (those the changes already hold are the cells that changed). Every sheet's drawing is read for it.
+    void addToSave(jp::office::sheet::SaveChanges *changes);
+    // The file was saved: what it holds is what the objects are now (the edits made so far are in it, and the objects taken away are not).
     void saved();
 
     // For tests and tools: the chart of an object as it is drawn now (the numbers the cells give), or an empty chart.
@@ -94,6 +101,7 @@ private:
         QVector<jp::office::sheet::ChartBlock> reads;   // what it read when it was last drawn
         QHash<int, jp::office::sheet::CellRange> hull;  // and the smallest block of each sheet that holds those
         bool made = false;                         // can be drawn
+        bool deleted = false;                      // taken away by a person (not yet saved)
     };
     struct Sheet {
         bool built = false;
