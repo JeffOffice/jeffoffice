@@ -305,7 +305,11 @@ bool EditSession::apply(std::vector<CellChange> *changes, bool forward)
         it.row = ch.row;
         it.col = ch.col;
         cells[ch.sheet].push_back(it);
-        if (c.isFormula) formulas.push_back(it);
+        if (c.isFormula) {
+            // (a formula the engine keeps apart has the result it had, which the worker does not tell: the cell shows it at once)
+            if (c.hasStored) it.value = c.stored;
+            formulas.push_back(it);
+        }
     }
     if (m_holdHook) m_holdHook(calc, true);
     hold->changed();

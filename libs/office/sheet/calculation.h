@@ -106,7 +106,8 @@ public:
     enum class Marking { Now, Later };
     bool setValue(int sheet, quint32 row, quint32 col, const jp::calc::Value &value, Marking marking = Marking::Now, qint32 sharedString = -1);   // an empty value empties the cell
     // `sharedString`: for a text, its place in the workbook's shared strings if it is there (the cell then refers to it, and no text is kept in the sheet).
-    bool setFormula(int sheet, quint32 row, quint32 col, const QString &formula, Marking marking = Marking::Now);   // as the file writes it, with no "=" in front
+    // `stored`, if given, is the result the cell has until the formula is worked out (for a formula the engine keeps apart, which it does not work out).
+    bool setFormula(int sheet, quint32 row, quint32 col, const QString &formula, Marking marking = Marking::Now, const jp::calc::Value *stored = nullptr);   // as the file writes it, with no "=" in front
     bool clearCell(int sheet, quint32 row, quint32 col) { return setValue(sheet, row, col, jp::calc::Value()); }
     // The format of the cell (the place of a cell format): a cell that holds nothing and has the first format is taken away. No formula reads a cell's format, so nothing is marked.
     bool setStyle(int sheet, quint32 row, quint32 col, quint32 style);
@@ -119,6 +120,10 @@ public:
         jp::calc::Value value;         // a constant's value (empty for a formula)
         qint32 sharedString = -1;      // a text in the shared strings: its place
         quint32 style = 0;
+        // A formula the engine keeps apart (a function it lacks): the result it shows, which is the one the file stored until something it reads changes. Put back with the formula, so
+        // that an edit undone does not turn the result into #NAME?.
+        bool hasStored = false;
+        jp::calc::Value stored;
         bool operator==(const CellContent &o) const
         {
             return exists == o.exists && isFormula == o.isFormula && formula == o.formula && value == o.value && sharedString == o.sharedString && style == o.style;

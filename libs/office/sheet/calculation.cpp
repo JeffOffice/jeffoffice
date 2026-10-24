@@ -1264,7 +1264,7 @@ bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, 
     return true;
 }
 
-bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString &formula, Marking marking)
+bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString &formula, Marking marking, const Value *stored)
 {
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return false;
     ParseOptions po;
@@ -1287,6 +1287,19 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
     c.formula = qint32(s.formulas.size() - 1);
     c.type = CellType::Empty;
     c.number = 0;
+    if (stored) {
+        switch (stored->kind()) {
+        case Value::Kind::Number: c.type = CellType::Number; c.number = stored->number(); break;
+        case Value::Kind::Bool: c.type = CellType::Bool; c.number = stored->boolean() ? 1 : 0; break;
+        case Value::Kind::Error: c.type = CellType::Error; c.number = double(int(stored->errorKind())); break;
+        case Value::Kind::Text:
+            s.texts.append(stored->text());
+            c.type = CellType::FormulaString;
+            c.number = double(s.texts.size() - 1);
+            break;
+        default: break;
+        }
+    }
     s.cells.set(c);
     useExtent(sheet, row, col);
     s.extentRows = std::max(s.extentRows, row + 1);
@@ -1343,6 +1356,11 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
     if (c->hasFormula()) {
         out.isFormula = true;
         out.formula = s.formulaText(*c);
+        const quint32 id = nodeAt(sheet, row, col);
+        if (id != kNone && (m_nodes[id].flags & Kept)) {
+            out.hasStored = true;
+            out.stored = nodeValue(m_nodes[id], id);
+        }
         return out;
     }
     switch (c->type) {
@@ -1367,7 +1385,7 @@ bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c,
         if (!setValue(sheet, row, col, Value(), marking)) return false;
         return setStyle(sheet, row, col, 0);
     }
-    const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking) : setValue(sheet, row, col, c.value, marking, c.sharedString);
+    const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr) : setValue(sheet, row, col, c.value, marking, c.sharedString);
     return ok && setStyle(sheet, row, col, c.style);
 }
 

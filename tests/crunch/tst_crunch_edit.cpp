@@ -741,6 +741,38 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->count(), 4);
     }
 
+    // Typing over a formula that has a function this program lacks, and Undo: the formula comes back with the result the file stored (not #NAME?), and the cell shows it at once.
+    void undoPutsBackTheStoredResultOfAFormulaWithAFunctionTheProgramLacks()
+    {
+        const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>_xlfn.IMAGE(\"x\")</f><v>88</v></c><c r=\"B1\"><f>A1+1</f><v>89</v></c></row>"))});
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:88"));
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:6"));
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:88"));   // (at once: the worker does not work it out)
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:88"));
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:89"));
+        QVERIFY(!e.win.w.isModified());
+        // and redo, undo again, then another change is saved with the formula and its result as the file had them
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("D5"));
+        e.enter(QStringLiteral("1"));
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        QCOMPARE(savedFormula(e.path, QStringLiteral("A1")), QStringLiteral("_xlfn.IMAGE(\"x\")"));
+        QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:88"));
+        QCOMPARE(savedCell(e.path, QStringLiteral("B1")), QStringLiteral("n:89"));
+    }
+
     // Undo keeps what changed, not the workbook: a step holds the cells it changed, as they were and as they are; the stack holds at most its limit of steps.
     void undoHoldsWhatChangedAndNoMore()
     {

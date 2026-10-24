@@ -164,6 +164,42 @@ private Q_SLOTS:
         QVERIFY(b.calc->graph().queryWork() >= queried + n - 1);
     }
 
+    // A formula with a function the engine lacks shows the result the file stored; what it is taken whole with (for undo) includes that result, so that it is put back with it and does not
+    // turn into #NAME?, which is what a formula typed with such a function has.
+    void aFormulaTheEngineKeepsApartIsPutBackWithItsStoredResult()
+    {
+        const QString cells = QStringLiteral("<c r=\"A1\"><f>_xlfn.IMAGE(\"x\")</f><v>88</v></c><c r=\"B1\"><f>A1+1</f><v>89</v></c><c r=\"C1\" t=\"str\"><f>_xlfn.IMAGE(\"y\")</f><v>stored text</v></c>"
+                                             "<c r=\"D1\"><f>C1&amp;\"!\"</f><v>stored text!</v></c>");
+        Book b;
+        CalcOptions options;
+        options.keepApart = true;
+        options.workOutWhatHasNoResult = true;
+        QString why;
+        QVERIFY(b.package.readLazy(buildXlsx({worksheet(rowXml(1, cells))}), &why) && b.book.open(b.package, &why));
+        b.calc.reset(new Calculation(b.book, options));
+        QVERIFY(b.calc->load());
+        b.finish();
+        QCOMPARE(b.at("A1"), QStringLiteral("n:88"));
+        const Calculation::CellContent a1 = b.content("A1"), c1 = b.content("C1");
+        QVERIFY(a1.isFormula && a1.hasStored && a1.stored == Value::number(88));
+        QVERIFY(c1.isFormula && c1.hasStored && c1.stored == Value::text(QStringLiteral("stored text")));
+        QVERIFY(!b.content("B1").hasStored);   // (a formula that is worked out has its result worked out again)
+        // typed over, and put back
+        QVERIFY(b.calc->put(0, 0, 0, Calculation::CellContent{true, true, false, QString(), Value::number(5), -1, 0}, Calculation::Marking::Later));
+        QVERIFY(b.calc->put(0, 0, 2, Calculation::CellContent{true, true, false, QString(), Value::number(6), -1, 0}, Calculation::Marking::Later));
+        b.finish();
+        QCOMPARE(b.at("B1"), QStringLiteral("n:6"));
+        QVERIFY(b.calc->put(0, 0, 0, a1, Calculation::Marking::Later));
+        QVERIFY(b.calc->put(0, 0, 2, c1, Calculation::Marking::Later));
+        b.finish();
+        QCOMPARE(b.at("A1"), QStringLiteral("n:88"));
+        QCOMPARE(b.at("C1"), QStringLiteral("s:stored text"));
+        QVERIFY(b.content("A1") == a1);
+        QCOMPARE(b.content("A1").stored, Value::number(88));
+        QCOMPARE(b.at("B1"), QStringLiteral("n:89"));
+        QCOMPARE(b.at("D1"), QStringLiteral("s:stored text!"));
+    }
+
     // A recalculation stopped while it marks what reads an edited cell, and then settled at once (what the window's hold does), has taken in hand what the stop found twice: the second
     // taking must not drop the first's list, or the formulas the first had marked stay marked and are never worked out (nothing that is worked out reads them, so nothing pulls them in).
     void aStopThatIsSettledAtOnceKeepsWhatTheFirstStopTookInHand()
