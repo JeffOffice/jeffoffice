@@ -4,6 +4,7 @@
 #include "../sheet/odshelpers.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "app/oldformat.h"
 #include "app/otherformats.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
@@ -304,6 +305,172 @@ private Q_SLOTS:
         QVERIFY(!o.w.exportCsv(o.folder.dir.filePath(QStringLiteral("no/such/folder/x.csv"))));
         QVERIFY2(o.told.last().contains(QLatin1String("couldn't save")), qPrintable(o.told.last()));
         QVERIFY(!o.w.isSaving());
+        // a file of that name that is there already is as it was when the folder cannot be written to
+        QVERIFY(QDir(o.folder.dir.path()).mkdir(QStringLiteral("locked")));
+        const QString locked = o.folder.dir.filePath(QStringLiteral("locked"));
+        QVERIFY(!o.folder.write(QStringLiteral("locked/there.csv"), "kept\n").isEmpty());
+        const QFile::Permissions before = QFile::permissions(locked);
+        QVERIFY(QFile::setPermissions(locked, QFile::ReadOwner | QFile::ExeOwner));
+        const bool refused = !QFileInfo(locked).isWritable();
+        struct Restore {
+            QString path;
+            QFile::Permissions was;
+            ~Restore() { QFile::setPermissions(path, was); }
+        } restore{locked, before};
+        if (!refused) QSKIP("this account can write to a folder that is read only");
+        o.told.clear();
+        QVERIFY(!o.w.exportCsv(o.folder.dir.filePath(QStringLiteral("locked/there.csv"))));
+        QVERIFY2(o.told.last().contains(QLatin1String("couldn't save")) && o.told.last().contains(QLatin1String("as it was")), qPrintable(o.told.last()));
+        QVERIFY(!o.w.isSaving());
+        QCOMPARE(o.folder.read(QStringLiteral("locked/there.csv")), QByteArray("kept\n"));
+    }
+
+    // The file a workbook was read from is never written, whatever it is called and however long the window has had it: a link to it is it, and after the first save (the window's file is then
+    // the .xlsx) it is still not written, by Save As to its name, to a link to it, or as a .csv.
+    void theOriginalIsGuardedByWhatItIsAndForTheWholeSession()
+    {
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        {
+            Win o;
+            QVERIFY(o.open(odsBook(), QStringLiteral("book.ods")));
+            const QString link = o.folder.dir.filePath(QStringLiteral("link.xlsx"));
+            if (!QFile::link(o.path, link) || !QFileInfo(link).isSymLink()) QSKIP("this system makes no symbolic links");
+            o.select(0, 0);
+            o.enter(QStringLiteral("10"));
+            QVERIFY(o.settle());
+            // a link to the original, offered as the copy's name: refused, and the original is as it was
+            o.answer = link;
+            QVERIFY(!o.w.save());
+            QVERIFY2(o.told.last().contains(QLatin1String("opened from")), qPrintable(o.told.last()));
+            QVERIFY(o.originalIsUntouched());
+            QVERIFY(!o.w.saveAs(link));
+            QVERIFY(o.originalIsUntouched());
+            // a first save under a name of its own; then the original is still not written, by its own name or by the link
+            o.answer = o.folder.dir.filePath(QStringLiteral("copy.xlsx"));
+            QSignalSpy saved(&o.w, &CrunchWindow::saved);
+            QVERIFY(o.w.save());
+            QVERIFY(saved.wait(20000));
+            QVERIFY(o.originalIsUntouched());
+            o.told.clear();
+            QVERIFY(!o.w.saveAs(link));
+            QVERIFY2(o.told.last().contains(QLatin1String("opened from")), qPrintable(o.told.last()));
+            QVERIFY(!o.w.saveAs(o.path));
+            QVERIFY(!o.w.exportCsv(o.path));
+            QVERIFY(o.originalIsUntouched());
+            QCOMPARE(saved.count(), 1);
+        }
+        {
+            Win o;
+            QVERIFY(o.open("a,b\n1,2\n", QStringLiteral("values.csv")));
+            const QString link = o.folder.dir.filePath(QStringLiteral("again.csv"));
+            if (!QFile::link(o.path, link) || !QFileInfo(link).isSymLink()) QSKIP("this system makes no symbolic links");
+            QSignalSpy exported(&o.w, &CrunchWindow::csvExported);
+            QVERIFY(!o.w.exportCsv(link));
+            QVERIFY(!o.w.saveAs(link));
+            QVERIFY(o.originalIsUntouched());
+            QCOMPARE(exported.count(), 0);
+            QVERIFY2(o.told.last().contains(QLatin1String("opened from")), qPrintable(o.told.last()));
+        }
+        // the same file under two spellings
+        QTemporaryDir dir;
+        QVERIFY(QFile(dir.filePath(QStringLiteral("x.ods"))).open(QIODevice::WriteOnly));
+        QVERIFY(crunch::sameFile(dir.filePath(QStringLiteral("x.ods")), dir.path() + QStringLiteral("/./x.ods")));
+        QVERIFY(crunch::sameFile(dir.filePath(QStringLiteral("x.ods")), dir.path() + QStringLiteral("/sub/../x.ods")));
+        QVERIFY(!crunch::sameFile(dir.filePath(QStringLiteral("x.ods")), dir.filePath(QStringLiteral("y.ods"))));
+        QVERIFY(!crunch::sameFile(QString(), QString()));
+        QVERIFY(!crunch::sameFile(dir.filePath(QStringLiteral("x.ods")), QString()));
+    }
+
+    // Exporting a .csv from the question asked when the window is closed with changes is the person's choice: the window closes when the file is written, and does not ask again. An
+    // export that fails leaves the window open, and does not leave the close waiting for the next export.
+    void exportingFromTheClosePromptClosesAndAFailedExportDoesNot()
+    {
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        {
+            Win o;
+            QVERIFY(o.open("a,b\n1,2\n", QStringLiteral("values.csv")));
+            o.select(0, 0);
+            o.enter(QStringLiteral("5"));
+            QVERIFY(o.settle());
+            int asked = 0;
+            o.w.setAsker([&](const QString &, const QString &) { return ++asked == 1 ? CrunchWindow::Answer::Save : CrunchWindow::Answer::Cancel; });
+            o.answer = o.folder.dir.filePath(QStringLiteral("values.csv.out.csv"));
+            QSignalSpy exported(&o.w, &CrunchWindow::csvExported);
+            o.w.close();
+            QVERIFY(exported.wait(20000));
+            QCOMPARE(exported.first().at(1).toBool(), true);
+            QTRY_VERIFY(!o.w.isVisible());
+            QCOMPARE(asked, 1);
+        }
+        {
+            Win o;
+            QVERIFY(o.open("a,b\n1,2\n", QStringLiteral("values.csv")));
+            o.select(0, 0);
+            o.enter(QStringLiteral("5"));
+            QVERIFY(o.settle());
+            int asked = 0;
+            o.w.setAsker([&](const QString &, const QString &) { return ++asked == 1 ? CrunchWindow::Answer::Save : CrunchWindow::Answer::Cancel; });
+            QVERIFY(QDir(o.folder.dir.path()).mkdir(QStringLiteral("out")));
+            o.answer = o.folder.dir.filePath(QStringLiteral("out/gone.csv"));
+            QSignalSpy exported(&o.w, &CrunchWindow::csvExported);
+            o.w.close();
+            QVERIFY(o.w.isSaving());
+            // (the folder goes while the file is written)
+            if (!QDir(o.folder.dir.path()).rename(QStringLiteral("out"), QStringLiteral("away"))) QSKIP("this system does not move a folder that has a file open in it");
+            QVERIFY(exported.wait(20000));
+            QCOMPARE(exported.first().at(1).toBool(), false);
+            QVERIFY(o.w.isVisible());
+            QVERIFY(o.w.isModified());
+            // a later export that works is only an export: the window stays
+            QSignalSpy again(&o.w, &CrunchWindow::csvExported);
+            QVERIFY(o.w.saveAs(o.folder.dir.filePath(QStringLiteral("good.csv"))));
+            QVERIFY(again.wait(20000));
+            QCOMPARE(again.first().at(1).toBool(), true);
+            QTest::qWait(100);
+            QVERIFY(o.w.isVisible());
+            QCOMPARE(asked, 1);
+        }
+    }
+
+    // An export from a sheet that was read only in part says so in the note; a name chosen with the .csv kind of file and no ending is a .csv.
+    void thePartOfASheetAndThePickedKindAreSaid()
+    {
+        const QString whole = crunch::csvExportNote(QStringLiteral("Data"), QLatin1Char(','), false);
+        const QString part = crunch::csvExportNote(QStringLiteral("Data"), QLatin1Char(','), true);
+        QVERIFY(!whole.contains(QLatin1String("only in part")));
+        QVERIFY2(part.contains(QLatin1String("only in part")) && part.startsWith(whole.left(20)), qPrintable(part));
+        QCOMPARE(crunch::withPickedEnding(QStringLiteral("/a/b/values"), crunch::csvFilter()), QStringLiteral("/a/b/values.csv"));
+        QCOMPARE(crunch::withPickedEnding(QStringLiteral("/a/b/values.txt"), crunch::csvFilter()), QStringLiteral("/a/b/values.txt"));
+        QCOMPARE(crunch::withPickedEnding(QStringLiteral("/a/b/values"), QStringLiteral("Workbooks (*.xlsx)")), QStringLiteral("/a/b/values"));
+        QCOMPARE(crunch::withPickedEnding(QString(), crunch::csvFilter()), QString());
+        // in the window: the kind picked and nothing typed after the name
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        Win o;
+        QVERIFY(o.open(odsBook(), QStringLiteral("book.ods")));
+        o.answer = o.folder.dir.filePath(QStringLiteral("typed"));
+        o.w.setPickedFilter(crunch::csvFilter());
+        QSignalSpy exported(&o.w, &CrunchWindow::csvExported);
+        QVERIFY(o.w.save());
+        QVERIFY(exported.wait(20000));
+        QCOMPARE(exported.first().at(0).toString(), o.folder.dir.filePath(QStringLiteral("typed.csv")));
+        QVERIFY(QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("typed.csv"))));
+        QVERIFY(!QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("typed.xlsx"))));
+    }
+
+    // What was changed to be kept (sheet names, formulas that could not be converted) is told with what is not read, when the file opens and when the copy is to be named.
+    void whatWasChangedIsToldWithWhatIsNotRead()
+    {
+        const QString text = crunch::saveAsExplanation(QStringLiteral("Plan.ods"), QStringLiteral(".ods"), {QStringLiteral("charts")}, {QStringLiteral("2 sheet names, made valid")});
+        QVERIFY2(text.contains(QLatin1String("charts")) && text.contains(QLatin1String("2 sheet names, made valid")), qPrintable(text));
+        const QString opened = crunch::notReadNotice({}, {QStringLiteral("3 formulas kept")});
+        QVERIFY2(opened.contains(QLatin1String("3 formulas kept")) && !opened.contains(QLatin1String("doesn't read")), qPrintable(opened));
+        QVERIFY(crunch::notReadNotice({}, {}).isEmpty());
+        // a document with sheet names the .xlsx form does not allow says so as it opens
+        const QString longName = QString(40, QLatin1Char('n'));
+        Win o;
+        QVERIFY(o.open(buildOds(contentXml(table(longName, row(floatCell(1))) + table(QStringLiteral("a:b"), row(floatCell(2))))), QStringLiteral("names.ods")));
+        QCOMPARE(o.told.size(), 1);
+        QVERIFY2(o.told.first().contains(QLatin1String("2 sheet name")), qPrintable(o.told.first()));
     }
 
     // The kinds the Open dialog lists, and the names.

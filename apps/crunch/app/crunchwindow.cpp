@@ -325,7 +325,7 @@ void CrunchWindow::createActions()
         const QString kind = saveKind();
         const QString start = m_path.isEmpty() ? displayName() + QLatin1Char('.') + kind : m_path;
         const QString filter = (kind == QLatin1String("xlsm") ? tr("Macro-enabled workbooks (*.xlsm)") : tr("Workbooks (*.xlsx)")) + QStringLiteral(";;") + crunch::csvFilter();
-        const QString p = m_savePicker ? m_savePicker(start, filter) : QFileDialog::getSaveFileName(this, tr("Save Workbook As"), start, filter);
+        const QString p = askForSavePath(tr("Save Workbook As"), start, filter);
         if (!p.isEmpty()) saveAs(p);
     }, false, false);
     mk("file.close", tr("Close"), "circle-x", QKeySequence::Close, [this] { close(); });

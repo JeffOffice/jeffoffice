@@ -111,6 +111,8 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     }
     m_loaded = m_loader.result();
     m_haveCalc = true;
+    // (a workbook read from a file of another form: that file is the one never written, whatever the workbook is saved as)
+    m_originalPath = m_loaded->book->isConverted() ? m_path : QString();
     createEditing();
     for (int i = 0; i < m_tabs->count(); ++i) m_tabs->setTabEnabled(i, true);
     // the stripes the sheets ask for, now that every sheet is read
@@ -130,7 +132,9 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     m_calculating = true;
     setStatus(tr("Calculating…"));
     if (!m_loadProblem.isEmpty()) notice(tr("Open"), m_loadProblem, true);
-    if (!m_loaded->notRead.isEmpty()) notice(tr("Open"), crunch::notReadNotice(m_loaded->notRead));
+    // (what had to be changed is known once every sheet is read: sheet names the .xlsx form does not allow, and formulas that could not be converted)
+    const QStringList changed = m_loaded->book->changedFeatures();
+    if (!m_loaded->notRead.isEmpty() || !changed.isEmpty()) notice(tr("Open"), crunch::notReadNotice(m_loaded->notRead, changed));
     Q_EMIT loadFinished(true);
 }
 

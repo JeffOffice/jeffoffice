@@ -21,12 +21,14 @@ bool CrunchWindow::exportCsv(const QString &path)
     if (!m_session || !m_loaded || !m_loaded->book || m_saving) return false;
     if (!commitEdit()) return false;
     if (m_loading || !m_haveCalc) {
+        m_closeAfterSave = false;
         notice(tr("Save"), tr("The workbook is still being read. Save it when the status bar says Ready."));
         return false;
     }
-    // the file the workbook was read from is never written
-    if (QFileInfo(path).absoluteFilePath() == QFileInfo(m_path).absoluteFilePath()) {
-        notice(tr("Save"), crunch::originalNotWrittenNotice(QFileInfo(m_path).fileName()));
+    // the file the workbook was read from is never written, and the values of a sheet are not written over the workbook's own file
+    if (isTheOriginal(path) || crunch::sameFile(path, m_path)) {
+        m_closeAfterSave = false;
+        notice(tr("Save"), crunch::originalNotWrittenNotice(QFileInfo(isTheOriginal(path) ? m_originalPath : m_path).fileName()));
         return false;
     }
     // the file has what the formulas are worth: a calculation that is going is waited for
@@ -37,13 +39,16 @@ bool CrunchWindow::exportCsv(const QString &path)
     }
     const QChar separator = crunch::csvSeparatorFor(QLocale());
     const QString sheetName = m_loaded->book->info().sheets.value(m_sheet).name;
-    notice(tr("Save"), crunch::csvExportNote(sheetName, separator), false);
+    // (a sheet that was read only in part is written in part: the person is told)
+    const bool partial = m_loaded->calc && m_loaded->calc->notWhole().contains(sheetName);
+    notice(tr("Save"), crunch::csvExportNote(sheetName, separator, partial), false);
     // the sheet in view, in a model of its own
     auto model = std::make_shared<grid::GridSheet>();
     model->setData(m_view->sheet().data());
     auto exporter = std::make_shared<crunch::CsvExport>(model.get(), separator);
     QString why;
     if (!exporter->begin(path, &why)) {
+        m_closeAfterSave = false;
         notice(tr("Save"), tr("%1 couldn't save \"%2\".\n%3\nThe file that was there is as it was.").arg(appInfo().name, QFileInfo(path).fileName(), why));
         return false;
     }
@@ -77,9 +82,14 @@ bool CrunchWindow::exportCsv(const QString &path)
             setStatus(tr("Ready"));
         }
         Q_EMIT csvExported(path, ok);
-        if (ok && m_closeAfterSave) {
+        // (the window was being closed: a .csv written from that question was the answer to it, and the window closes; one that failed leaves the window as it is, and the close is given up)
+        if (m_closeAfterSave) {
             m_closeAfterSave = false;
-            close();
+            if (ok) {
+                m_closing = true;
+                close();
+                m_closing = false;
+            }
         }
     });
     timer->start(0);

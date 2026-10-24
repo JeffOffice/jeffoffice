@@ -20,9 +20,15 @@ QChar csvSeparatorFor(const QLocale &locale);
 
 // What the person is told before being asked for a name, when the workbook was read from a file of `kind` (".xls", ".ods", ".fods", ".csv", ".tsv", ".txt"): what the file is, that the
 // workbook is saved as .xlsx under a new name, and that the file is not changed; and, if the file has parts the program does not read, that they will not be in the copy.
-QString saveAsExplanation(const QString &fileName, const QString &kind, const QStringList &notRead = QStringList());
+QString saveAsExplanation(const QString &fileName, const QString &kind, const QStringList &notRead = QStringList(), const QStringList &changed = QStringList());
 
 // What the person is told when a sheet is saved as a .csv: that it is the values of this sheet only, as the cells show them.
-QString csvExportNote(const QString &sheetName, QChar separator);
+QString csvExportNote(const QString &sheetName, QChar separator, bool partial = false);
+
+// Whether two paths are one file: the same place whatever the spelling (a link, a "." or a ".." in the name), also when one of them is not there yet (its folder is looked at). Empty is none.
+bool sameFile(const QString &a, const QString &b);
+
+// The name the person chose with the kind of file picked in the dialog: with the .csv kind and no ending typed, the name ends in .csv (a dialog that adds the ending itself leaves it as it is).
+QString withPickedEnding(const QString &chosen, const QString &pickedFilter);
 
 } // namespace jp::crunch

@@ -93,6 +93,8 @@ public:
     void setChangedAsker(const std::function<ChangedAnswer(const QString &name)> &asker) { m_changedAsker = asker; }
     // Where Save As writes: asked of a file dialog, unless this stands in for it (tests): the name it starts with, and the filter; an empty path gives it up.
     void setSavePicker(const std::function<QString(const QString &start, const QString &filter)> &picker) { m_savePicker = picker; }
+    // The kind of file the stand-in for the file dialog says was picked (what the dialog gives as its selected filter).
+    void setPickedFilter(const QString &filter) { m_pickedFilter = filter; }
     // What a short message to the person is shown with: a message box, unless this stands in for it (tests): the title and the sentence.
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
 
@@ -187,6 +189,10 @@ private:
     void onSaved(bool ok, const QString &message, const QString &path, const QByteArray &bytes, const std::shared_ptr<crunch::EditSession::Snapshot> &snapshot);
     bool askAboutChanges();
     QString saveKind() const;
+    // The name from the file dialog (or what stands in for it), with the ending the kind of file picked in it asks for.
+    QString askForSavePath(const QString &caption, const QString &start, const QString &filter);
+    // Whether `path` is the file this workbook was read from, if that was a file of another form (.xls, .ods, .csv, ...): that file is never written, for the whole session.
+    bool isTheOriginal(const QString &path) const;
     // Whether the workbook has no file of its own form to be saved over yet: it was read from the older binary form, and no .xlsx has been written from it.
     bool savesAsANewFile() const;
     void setStatus(const QString &text);
@@ -211,6 +217,7 @@ private:
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QString m_path;
+    QString m_originalPath;   // the file a converted workbook was read from, kept after the first save moves m_path to the .xlsx
     // the workbook, as it is read
     crunch::WorkbookLoader m_loader;
     std::shared_ptr<crunch::LoadedBook> m_loaded;
@@ -250,6 +257,7 @@ private:
     std::function<Answer(const QString &, const QString &)> m_asker;
     std::function<ChangedAnswer(const QString &)> m_changedAsker;
     std::function<QString(const QString &, const QString &)> m_savePicker;
+    QString m_pickedFilter;
     // Whether the file at the window's path is not what was read (or last written): another program changed it.
     bool fileChangedOnDisk() const;
     // The window that has the file open (or is reading it), if any.

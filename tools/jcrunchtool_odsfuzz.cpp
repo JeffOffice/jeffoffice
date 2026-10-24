@@ -4,12 +4,16 @@
 //                                                changed, a run set to 0 or 0xFF, the end cut off, a piece repeated, a number given an extreme value (repeat counts, spans, sizes),
 //                                                a tag taken out or repeated, a stretch wrapped in tags without end, a DOCTYPE put in, a line repeated, a quote or delimiter run put
 //                                                in. Each damaged copy is opened, every sheet read (and the first rows alone), every formula's text asked for, and (for one copy
-//                                                in three) the calculation loaded and worked out with the engine's own bounds. Prints how many opened, how many were refused, how
-//                                                many sheets stopped short, and the longest time one copy took. It stops, with what it has counted, when `seconds` have passed.
+//                                                in three) the calculation loaded and worked out with the engine's own bounds. A copy that opened is also saved as an .xlsx
+//                                                (the way the program saves a workbook read from another form of file) and that .xlsx is opened and read again. Prints how many
+//                                                opened, how many were refused, how many sheets stopped short, how many were saved and read again (and how many saved ones
+//                                                could not be read again, which is a defect), and the longest time one copy took. It stops, with what it has counted, when
+//                                                `seconds` have passed.
 
 #include "io/zip.h"
 #include "sheet/calculation.h"
 #include "sheet/sheetreader.h"
+#include "sheet/xlsxsave.h"
 
 #include <QElapsedTimer>
 #include <QFile>
@@ -155,7 +159,7 @@ int odsFuzzMain(const QStringList &args)
     // an .ods: its parts; any other file is its own text
     QMap<QString, QByteArray> parts;
     QStringList order;
-    const bool zipped = original.startsWith("PK") && jp::readZip(original, parts);
+    const bool zipped = original.startsWith(QByteArrayView("PK\x03\x04", 4)) && jp::readZip(original, parts);
     if (zipped) order = parts.keys();
     QTemporaryDir dir;
     const QString suffix = QFileInfo(path).suffix().toLower();
@@ -163,7 +167,7 @@ int odsFuzzMain(const QStringList &args)
     Rng rng(seed);
     QElapsedTimer total, each;
     total.start();
-    qint64 opened = 0, refused = 0, partial = 0, calculated = 0, ran = 0, longestMs = 0;
+    qint64 opened = 0, refused = 0, partial = 0, calculated = 0, ran = 0, longestMs = 0, saved = 0, notSaved = 0, readAgain = 0, lost = 0;
     for (int i = 0; i < count && total.elapsed() < qint64(seconds * 1000); ++i) {
         QByteArray bytes;
         if (zipped) {
@@ -207,6 +211,28 @@ int odsFuzzMain(const QStringList &args)
                 });
                 (void)book.styles().formatCode(sheet.cells.cellCount() ? 0 : 1);
             }
+            // saved as the program saves it, and read again
+            {
+                QByteArray xlsx;
+                QString problem;
+                if (!saveXlsx(book, SaveChanges(), &xlsx, &problem)) {
+                    ++notSaved;
+                } else {
+                    ++saved;
+                    jp::office::Package package;
+                    Workbook back;
+                    if (package.readLazy(xlsx, &problem) && back.open(package, &problem)) {
+                        ++readAgain;
+                        for (int s = 0; s < back.info().sheets.size() && s < 40; ++s) {
+                            Sheet sheet;
+                            (void)back.readSheet(s, &sheet);
+                        }
+                    } else {
+                        ++lost;
+                        out() << "!saved, but not read again\t" << path << "\tcopy " << i << "\t" << problem << "\n";
+                    }
+                }
+            }
             if (calc) {
                 CalcOptions options;
                 options.keepApart = true;
@@ -219,7 +245,7 @@ int odsFuzzMain(const QStringList &args)
         }
         longestMs = std::max<qint64>(longestMs, each.elapsed());
     }
-    out() << "convert-fuzz\t" << path << '\t' << ran << " copies\t" << opened << " opened\t" << refused << " refused\t" << partial << " sheets stopped short\t" << calculated << " calculated\t"
+    out() << "convert-fuzz\t" << path << '\t' << ran << " copies\t" << opened << " opened\t" << refused << " refused\t" << partial << " sheets stopped short\t" << calculated << " calculated\t" << saved << " saved\t" << notSaved << " not saved\t" << readAgain << " read again\t" << lost << " lost\t"
           << longestMs << " ms longest\n";
     return 0;
 }
