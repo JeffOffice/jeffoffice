@@ -30,6 +30,11 @@ void CrunchWindow::showBlank()
     d.strings = &m_emptyStrings;
     d.sheet = &m_emptySheet;
     m_view->setData(d);
+    // (a blank grid has cells: what a chart sheet had turned off is back)
+    m_chartSheetShown = false;
+    if (m_formulaBar) m_formulaBar->setReadOnly(false);
+    if (m_nameBox) m_nameBox->setEnabled(true);
+    if (!m_actions.isEmpty()) updateEditActions();
 }
 
 bool CrunchWindow::openFile(const QString &path)

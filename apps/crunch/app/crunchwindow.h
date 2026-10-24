@@ -290,6 +290,7 @@ private:
     void deleteObject(int id);
     std::unique_ptr<crunch::SheetObjects> m_objects;
     quint64 m_objectsToken = 0;
+    bool m_chartSheetShown = false;   // the sheet in view is a chart sheet: no command that works on cells is on
 
     grid::GridView *m_view = nullptr;
     Ribbon *m_ribbon = nullptr;

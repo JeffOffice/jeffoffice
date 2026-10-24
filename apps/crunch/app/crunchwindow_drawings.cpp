@@ -39,6 +39,8 @@ void CrunchWindow::prepareObjects(int sheet)
         m_view->setShowHeadings(false);
         m_view->setShowGridlines(false);
     }
+    m_chartSheetShown = chartSheet;
+    updateEditActions();
     m_view->setCellsEnabled(!chartSheet);
     m_formulaBar->setReadOnly(chartSheet);
     m_nameBox->setEnabled(!chartSheet);

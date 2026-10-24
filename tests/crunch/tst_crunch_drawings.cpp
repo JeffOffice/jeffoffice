@@ -11,8 +11,9 @@
 #include "office/xml.h"
 
 #include <QProcess>
+#include <QToolButton>
 #include <QThreadPool>
-#include <QStandardPaths>
+#include <QFileInfo>
 
 using namespace crunchtest;
 using namespace drawtest;
@@ -114,6 +115,23 @@ class CrunchDrawingTests : public QObject {
     {
         crunch::SheetObjects *o = e.win.w.objects();
         return o && o->shownSheet() == sheet && o->layer()->count() == count;
+    }
+    // The parts of a saved file, by name (the names as the zip has them, no leading slash): what the package holds, [Content_Types].xml and the relationships among them.
+    static QMap<QString, QByteArray> savedParts(const QString &path)
+    {
+        QMap<QString, QByteArray> parts;
+        QFile f(path);
+        if (f.open(QIODevice::ReadOnly)) jp::readZip(f.readAll(), parts);
+        return parts;
+    }
+    // Whether the relationships part holds a relationship with this id, and whether the content types hold an override for this part.
+    static bool hasRelationship(const QMap<QString, QByteArray> &parts, const QString &relsPart, const QString &id)
+    {
+        return parts.value(relsPart).contains(QStringLiteral("Id=\"%1\"").arg(id).toUtf8());
+    }
+    static bool hasOverride(const QMap<QString, QByteArray> &parts, const QString &partName)
+    {
+        return parts.value(QStringLiteral("[Content_Types].xml")).contains(QStringLiteral("PartName=\"%1\"").arg(partName).toUtf8());
     }
     // The anchor the saved drawing has for the object of this name: its first row and its last row (a one-cell anchor has the one), and the anchor's editAs.
     struct SavedAnchor {
@@ -337,8 +355,15 @@ private Q_SLOTS:
         QVERIFY(office::readChart(after.part(QStringLiteral("/xl/charts/chart1.xml")), office::defaultTheme(), office::ColorMap(), &chart, &why));
         QCOMPARE(chart.plots[0].series[0].values, (QVector<double>{10, 55, 30}));   // (the cache says what the cells hold: the file stored 10, 20, 30)
         QCOMPARE(chart.plots[0].series[0].name, QStringLiteral("East"));
-        // (the deleted picture's own part is gone with it)
+        // (the deleted picture's own part is gone with it, and its relationship, and its entry of the content types; the chart's, which is used, stays)
         QVERIFY(!after.hasPart(QStringLiteral("/xl/media/image1.png")));
+        const QMap<QString, QByteArray> parts = savedParts(e.path);
+        QVERIFY(!parts.contains(QStringLiteral("xl/media/image1.png")));
+        QVERIFY(hasRelationship(savedParts(e.copyOfFile()), QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"), QStringLiteral("rIdC")));
+        QVERIFY2(!hasRelationship(parts, QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"), QStringLiteral("rIdP")), "the picture's relationship is gone");
+        QVERIFY2(!hasOverride(parts, QStringLiteral("/xl/media/image1.png")), "the picture's entry of the content types is gone");
+        QVERIFY(hasOverride(parts, QStringLiteral("/xl/charts/chart1.xml")));
+        QVERIFY(hasOverride(parts, QStringLiteral("/xl/drawings/drawing1.xml")));
         for (const QString &name : before.partNames()) {
             if (name == QLatin1String("/xl/drawings/drawing1.xml") || name == QLatin1String("/xl/charts/chart1.xml") || name.contains(QLatin1String("/worksheets/")) || name == QLatin1String("/xl/workbook.xml") || name == QLatin1String("/xl/media/image1.png")) continue;
             QVERIFY2(after.part(name) == before.part(name), qPrintable(name));
@@ -445,6 +470,22 @@ private Q_SLOTS:
         QVERIFY(e.open(bookWithChartSheet()));
         QCOMPARE(e.win.w.shownSheets(), (QVector<int>{0, 1}));
         QVERIFY(e.view()->cellsEnabled());
+        // (the cell cursor on a sheet of cells: the color it is drawn in at the left edge of A1, and how much of it there is)
+        e.select(QStringLiteral("A1"));
+        const QRect a1 = e.view()->sheet().layout().cellRect(0, 0);
+        const QRect around = a1.adjusted(-3, -3, 3, 3);
+        auto count = [&](const QImage &img, QRgb color) {
+            int n = 0;
+            for (int y = around.top(); y <= around.bottom(); ++y)
+                for (int x = around.left(); x <= around.right(); ++x) n += at(img, x, y) == color;
+            return n;
+        };
+        const QImage cells = shot(e);
+        QRgb cursor = 0xFFFFFFFF;
+        for (int x = a1.left() - 1; x <= a1.left() + 2; ++x)
+            if (qGray(at(cells, x, a1.center().y())) < qGray(cursor)) cursor = at(cells, x, a1.center().y());
+        QVERIFY2(qGray(cursor) < 160, "the cursor is dark at the edge of the cell");
+        QVERIFY(count(cells, cursor) >= a1.height());
         e.win.w.setActiveSheet(1);
         QTRY_VERIFY(shown(e, 1, 1));
         crunch::SheetObjects *o = e.win.w.objects();
@@ -456,6 +497,7 @@ private Q_SLOTS:
         const QImage img = shot(e);
         // a white page, the chart's ink on it, and no cell cursor or heading
         QCOMPARE(at(img, 2, 2), QColor(Qt::white).rgb());
+        QCOMPARE(count(img, cursor), 0);   // (no cell cursor over the page, by its pixels)
         QSet<QRgb> colors;
         const QRect box = o->layer()->deviceRect(0, grid::Pane::Body);
         QVERIFY(!box.isEmpty());
@@ -478,6 +520,166 @@ private Q_SLOTS:
         QVERIFY(!e.win.w.formulaBar()->isReadOnly());
         QVERIFY(e.win.w.nameBox()->isEnabled());
         QTRY_VERIFY(shown(e, 0, 0));
+    }
+
+    // The commands that work on cells are off while a chart sheet is shown (they would act on cells nobody sees), by the commands themselves and on the ribbon's buttons, whatever is
+    // triggered (by the command, or by its keys) does nothing, and they are on again on a sheet of cells: those that were on before.
+    void aChartSheetTurnsOffEveryCommandOnCells()
+    {
+        const QStringList commands = {"cells.insert", "cells.insert.cells", "cells.insert.rows", "cells.insert.columns", "cells.delete", "cells.delete.cells", "cells.delete.rows", "cells.delete.columns",
+                                      "cells.format", "format.rowHeight", "format.columnWidth", "format.fitRow", "format.fitColumn", "format.hideRows", "format.hideColumns", "format.unhideRows",
+                                      "format.unhideColumns", "edit.cut", "edit.copy", "edit.paste", "paste.values", "paste.formulas", "paste.formats", "paste.transpose", "paste.special",
+                                      "fill.down", "fill.right", "fill.up", "fill.left", "fill.series", "edit.fill", "edit.autosum", "edit.autosum.sum", "edit.autosum.average",
+                                      "edit.autosum.count", "edit.autosum.max", "edit.autosum.min", "edit.selectAll", "edit.clear", "edit.sort", "edit.find", "view.formulas", "view.gridlines",
+                                      "view.headings", "view.freeze", "view.freezeRow", "view.freezeCol", "view.unfreeze"};
+        EditWindow e;
+        QVERIFY(e.open(bookWithChartSheet()));
+        CrunchWindow &w = e.win.w;
+        QStringList on;
+        for (const QString &id : commands) {
+            QVERIFY2(w.act(id), qPrintable(id));
+            if (w.act(id)->isEnabled()) on << id;
+        }
+        // (the ones that work are on, on a sheet of cells)
+        for (const char *id : {"cells.insert", "cells.delete", "cells.format", "edit.autosum", "edit.fill", "edit.cut", "edit.copy", "edit.paste", "fill.down", "format.rowHeight", "view.freeze"})
+            QVERIFY2(on.contains(QLatin1String(id)), id);
+        w.setActiveSheet(1);
+        QTRY_VERIFY(shown(e, 1, 1));
+        for (const QString &id : commands) QVERIFY2(!w.act(id)->isEnabled(), qPrintable(id));
+        // the buttons of the ribbon that carry them are off
+        int buttons = 0;
+        for (QToolButton *b : w.findChildren<QToolButton *>())
+            if (b->defaultAction() && commands.contains(b->defaultAction()->objectName())) {
+                ++buttons;
+                QVERIFY2(!b->isEnabled(), qPrintable(b->defaultAction()->objectName()));
+            }
+        QVERIFY2(buttons >= 8, qPrintable(QString::number(buttons)));
+        // triggering any of them, and pressing their keys, changes nothing: no step, no change of the file, no notice
+        const bool undoable = w.session()->canUndo();
+        for (const QString &id : commands) w.act(id)->trigger();
+        for (const Qt::Key key : {Qt::Key_Plus, Qt::Key_Minus, Qt::Key_9, Qt::Key_0, Qt::Key_C, Qt::Key_X, Qt::Key_V, Qt::Key_A, Qt::Key_D, Qt::Key_R})
+            QTest::keyClick(e.view(), key, Qt::ControlModifier);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QCOMPARE(w.session()->canUndo(), undoable);
+        QVERIFY(!w.isModified());
+        QVERIFY(e.win.told.isEmpty());
+        QVERIFY(!w.cellEditor()->isVisible());
+        // back on a sheet of cells: the ones that were on are on, the ones that were off (not yet available) are off
+        w.setActiveSheet(0);
+        QVERIFY(e.view()->cellsEnabled());
+        for (const QString &id : commands) QCOMPARE(w.act(id)->isEnabled(), on.contains(id));
+        // and a command works there again
+        e.select(QStringLiteral("B2"));
+        w.act("cells.insert.rows")->trigger();
+        QVERIFY(w.isModified());
+    }
+
+    // Two objects use one picture: deleting one leaves the picture, its relationship, and its entry of the content types; deleting the other takes them.
+    void aPictureTwoObjectsUseStaysUntilBothAreGone()
+    {
+        const QString anchors = twoCell(0, 6, 2, 9, pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("First"))) + twoCell(4, 6, 6, 9, pictureElement(4, QStringLiteral("rIdP"), QStringLiteral("Second")))
+                                + twoCell(0, 11, 2, 13, shapeElement(5, QStringLiteral("Box")));
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))})));
+        QTRY_VERIFY(shown(e, 3));
+        crunch::SheetObjects *o = e.win.w.objects();
+        auto save = [&]() -> bool {
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            return e.win.w.save() && saved.wait(20000);
+        };
+        const QString rels = QStringLiteral("xl/drawings/_rels/drawing1.xml.rels");
+        QVERIFY(e.win.w.session()->deleteObject(0, 0, QStringLiteral("Delete Object")).ok);
+        QVERIFY(save());
+        QMap<QString, QByteArray> parts = savedParts(e.path);
+        QVERIFY2(parts.contains(QStringLiteral("xl/media/image1.png")), "the picture the other uses stays");
+        QVERIFY(hasRelationship(parts, rels, QStringLiteral("rIdP")));
+        QVERIFY(hasOverride(parts, QStringLiteral("/xl/media/image1.png")));
+        QCOMPARE(o->layer()->count(), 2);
+        QVERIFY(e.win.w.session()->deleteObject(0, 1, QStringLiteral("Delete Object")).ok);
+        QVERIFY(save());
+        parts = savedParts(e.path);
+        QVERIFY2(!parts.contains(QStringLiteral("xl/media/image1.png")), "the last that used it is gone, and the picture");
+        QVERIFY(!hasRelationship(parts, rels, QStringLiteral("rIdP")));
+        QVERIFY(!hasOverride(parts, QStringLiteral("/xl/media/image1.png")));
+        QCOMPARE(o->layer()->count(), 1);   // (the shape)
+        // the file opens with the one object
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 1);
+    }
+
+    // An object anchored at a place of the sheet (an absolute anchor) keeps its place and size when rows and columns are inserted and resized, saved and opened again: on the screen,
+    // and in the file, where its anchor is as it was.
+    void anAbsoluteAnchorKeepsItsPlaceAndSize()
+    {
+        const qint64 emu = 9525;
+        const QString anchors = absolute(300 * emu, 100 * emu, 120 * emu, 60 * emu, shapeElement(2, QStringLiteral("Fixed"))) + twoCell(0, 8, 2, 10, shapeElement(3, QStringLiteral("Moving")));
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {})));
+        QTRY_VERIFY(shown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        const QRect fixed = o->layer()->deviceRect(0, grid::Pane::Body), moving = o->layer()->deviceRect(1, grid::Pane::Body);
+        QCOMPARE(fixed.size(), QSize(120, 60));
+        QCOMPARE(fixed.topLeft() - e.view()->sheet().layout().gridRect().topLeft(), QPoint(300, 100));
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 4).ok);
+        QVERIFY(e.win.w.session()->insertColumns(0, 0, 2).ok);
+        crunch::EditSession::SizeChange tall;
+        tall.setSize = true;
+        tall.size = 60;   // (points)
+        QVERIFY(e.win.w.session()->resizeRows(0, 2, 5, tall, QStringLiteral("Taller")).ok);
+        QVERIFY(e.win.w.session()->resizeColumns(0, 0, 3, tall, QStringLiteral("Wider")).ok);
+        QCOMPARE(o->layer()->deviceRect(0, grid::Pane::Body), fixed);        // (where it was, as large as it was)
+        QVERIFY(o->layer()->deviceRect(1, grid::Pane::Body) != moving);      // (the object of the cells moved)
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        // the file has the anchor as it was: an absolute one, the same place and size
+        office::Package p;
+        QString why;
+        QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
+        QDomDocument doc;
+        QVERIFY(office::parseXml(p.part(QStringLiteral("/xl/drawings/drawing1.xml")), &doc));
+        bool found = false;
+        const QDomNodeList absolutes = doc.elementsByTagName(QStringLiteral("absoluteAnchor"));
+        for (int i = 0; i < absolutes.size(); ++i) {
+            const QDomElement a = absolutes.at(i).toElement();
+            const QDomElement pos = a.firstChildElement(QStringLiteral("pos")), ext = a.firstChildElement(QStringLiteral("ext"));
+            if (a.elementsByTagName(QStringLiteral("cNvPr")).at(0).toElement().attribute(QStringLiteral("name")) != QLatin1String("Fixed")) continue;
+            found = true;
+            QCOMPARE(pos.attribute(QStringLiteral("x")).toLongLong(), 300 * emu);
+            QCOMPARE(pos.attribute(QStringLiteral("y")).toLongLong(), 100 * emu);
+            QCOMPARE(ext.attribute(QStringLiteral("cx")).toLongLong(), 120 * emu);
+            QCOMPARE(ext.attribute(QStringLiteral("cy")).toLongLong(), 60 * emu);
+        }
+        QVERIFY2(found, "the absolute anchor is still one");
+        // opened again, it is where it was
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 2);
+        second.w.objects()->layer()->prepareAll();
+        QCOMPARE(second.w.objects()->layer()->deviceRect(0, grid::Pane::Body).size(), fixed.size());
+        QCOMPARE(second.w.objects()->layer()->deviceRect(0, grid::Pane::Body).topLeft() - second.w.view()->sheet().layout().gridRect().topLeft(), QPoint(300, 100));
+    }
+
+    // A name of the sheet itself in a chart on the second sheet, with no sheet in front of it, is that sheet's name: the numbers of that sheet's cells, not those of the first sheet's name
+    // that has the same words.
+    void aSheetLocalNameInAChartOnTheSecondSheetIsThatSheets()
+    {
+        auto numbers = [](int scale) {
+            QString rows;
+            for (int i = 0; i < 3; ++i) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>Q%1</t></is></c><c r=\"B%1\"><v>%2</v></c></row>").arg(i + 2).arg((i + 1) * scale);
+            return worksheet(rows);
+        };
+        const QVector<SeriesSpec> series = {SeriesSpec{QString(), QString(), QStringLiteral("Local"), QStringLiteral("S"), {}, {1, 2, 3}, QString()}};
+        const QString names = QStringLiteral("<definedName name=\"Local\" localSheetId=\"0\">Sheet1!$B$2:$B$4</definedName><definedName name=\"Local\" localSheetId=\"1\">Sheet2!$B$2:$B$4</definedName>");
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({numbers(10), numbers(100)}, drawingPart(twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales")))),
+                                       {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series))}, QStringList(), names, QByteArray(), 1)));
+        crunch::SheetObjects *o = e.win.w.objects();
+        QCOMPARE(o->chartNow(1, 0).plots[0].series[0].values, (QVector<double>{100, 200, 300}));   // (the second sheet's own: not the first's 10, 20, 30)
+        QVERIFY(e.settle());
+        QCOMPARE(o->chartReads(1, 0).value(0).sheet, 1);
     }
 
     // A part that several anchors name is read once, and a chart drawn again for its cells is not read from its part again.
@@ -713,8 +915,9 @@ private Q_SLOTS:
     // for it for ever as it ended (the hang was in the end of the program, after the picture was written).
     void aScreenshotRunEndsWithItsWindowOpen()
     {
-        const QString exe = QStandardPaths::findExecutable(QStringLiteral("JeffCrunch"), {QCoreApplication::applicationDirPath()});
-        if (exe.isEmpty()) QSKIP("JeffCrunch is not built beside the tests");
+        // (the program this build makes: its path is the build's, and the tests are not built without it; a test that did not run for want of it would say nothing)
+        const QString exe = QStringLiteral(JC_CRUNCH_EXE);
+        QVERIFY2(QFileInfo::exists(exe), qPrintable(exe));
         Folder folder;
         const QString book = folder.write(QStringLiteral("book.xlsx"), drawingBook());
         const QString png = folder.dir.filePath(QStringLiteral("shot.png"));
