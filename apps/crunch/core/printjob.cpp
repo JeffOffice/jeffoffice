@@ -34,9 +34,11 @@ bool BookPrintSource::printable(int sheet) const
 {
     if (!m_book || !m_book->book || sheet < 0 || sheet >= sheetCount()) return false;
     const jp::office::sheet::SheetEntry &e = m_book->book->info().sheets[sheet];
-    if (e.kind != jp::office::sheet::SheetKind::Worksheet || e.state != jp::office::sheet::SheetState::Visible) return false;
+    if (e.kind != jp::office::sheet::SheetKind::Worksheet) return false;
     return m_book->calc ? true : (m_book->preview && sheet == m_book->previewSheet);
 }
+
+bool BookPrintSource::hidden(int sheet) const { return m_book->book->info().sheets.value(sheet).state != jp::office::sheet::SheetState::Visible; }
 
 GridData BookPrintSource::data(int sheet) const
 {
@@ -125,7 +127,7 @@ bool PrintJob::build(QString *why)
     QVector<int> sheets;
     if (m_options.what == PrintWhat::Workbook) {
         for (int i = 0; i < m_source->sheetCount(); ++i)
-            if (m_source->printable(i)) sheets << i;
+            if (m_source->printable(i) && !m_source->hidden(i)) sheets << i;
     } else if (m_source->printable(m_options.activeSheet)) {
         sheets << m_options.activeSheet;
     } else {

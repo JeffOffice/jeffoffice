@@ -58,8 +58,9 @@ public:
     virtual ~PrintSource() = default;
     virtual int sheetCount() const = 0;
     virtual QString sheetName(int sheet) const = 0;
-    // A sheet of cells that is shown (a hidden sheet, and a chart sheet, are not printed).
+    // A sheet of cells (a chart sheet is not printed), and whether it is hidden: the whole workbook leaves the hidden ones out.
     virtual bool printable(int sheet) const = 0;
+    virtual bool hidden(int sheet) const = 0;
     virtual jp::grid::GridData data(int sheet) const = 0;
     virtual jp::office::sheet::PageSetup page(int sheet) const = 0;
     virtual std::vector<jp::grid::LayerObject> objects(int sheet) = 0;
@@ -76,6 +77,7 @@ public:
     int sheetCount() const override;
     QString sheetName(int sheet) const override;
     bool printable(int sheet) const override;
+    bool hidden(int sheet) const override;
     jp::grid::GridData data(int sheet) const override;
     jp::office::sheet::PageSetup page(int sheet) const override;
     std::vector<jp::grid::LayerObject> objects(int sheet) override;

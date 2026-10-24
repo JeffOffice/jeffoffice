@@ -2,6 +2,7 @@
 // Undo), the page setup saved in the file and nothing else of it touched, and the pages the window prints. Every workbook is built here, in a temporary folder.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "app/pagesetupdialog.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
@@ -14,6 +15,16 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QLabel>
+#include <QLineEdit>
+#include <QPlainTextEdit>
+#include <QPushButton>
+#include <QRadioButton>
+#include <QSpinBox>
+#include <QTabWidget>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QUndoStack>
@@ -361,6 +372,204 @@ private Q_SLOTS:
             for (int x = 0; x < img.width() && !ink; ++x) ink = qGray(img.pixel(x, y)) < 100;
         QVERIFY(ink);
         QVERIFY(job->preview(50, 100).isNull());
+    }
+
+    // ---- the Page Setup dialog
+
+    // The dialog shows what the setup says, in four tabs; one that is not changed gives the setup back exactly, whatever it holds that the dialog does not show.
+    void theDialogShowsTheSetupAndGivesItBackUnchanged()
+    {
+        PageSetup p;
+        p.orientation = PageOrientation::Landscape;
+        p.paperSize = 9;
+        p.scale = 85;
+        p.margins = {0.5, 0.6, 0.7, 0.8, 0.333, 0.25};   // (more places than the boxes show: they come back as they were)
+        p.centerHorizontally = true;
+        p.gridLines = true;
+        p.comments = jp::office::sheet::PrintComments::AtEnd;
+        p.errors = jp::office::sheet::PrintErrors::Dash;
+        p.pageOrder = jp::office::sheet::PageOrder::OverThenDown;
+        p.headerFooter.oddHeader = QStringLiteral("&LMy &\"Arial,Bold\"title&R&D");
+        p.headerFooter.firstFooter = QStringLiteral("&Cfirst");
+        p.headerFooter.differentFirst = true;
+        p.paperWidth = 300;   // (a size of its own that the dialog does not show)
+        p = withArea(p, QStringLiteral("A1:D20"));
+        p.titles.hasRows = true;
+        p.titles.row1 = 0;
+        p.titles.row2 = 1;
+        jp::office::sheet::PageBreak br;
+        br.before = 10;
+        br.max = 16383;
+        p.rowBreaks.append(br);
+        PageSetupRequest request;
+        request.setup = p;
+        request.sheetName = QStringLiteral("Q3 Sales");
+        request.fileName = QStringLiteral("Budget.xlsx");
+        PageSetupDialog dialog(request);
+        QVERIFY(dialog.findChild<QRadioButton *>(QStringLiteral("psLandscape"))->isChecked());
+        QCOMPARE(dialog.findChild<QSpinBox *>(QStringLiteral("psScale"))->value(), 85);
+        QCOMPARE(dialog.findChild<QDoubleSpinBox *>(QStringLiteral("psMarginLeft"))->value(), 0.5);
+        QCOMPARE(dialog.findChild<QLineEdit *>(QStringLiteral("psArea"))->text(), QStringLiteral("A1:D20"));
+        QCOMPARE(dialog.findChild<QLineEdit *>(QStringLiteral("psTitleRows"))->text(), QStringLiteral("1:2"));
+        QVERIFY(dialog.findChild<QCheckBox *>(QStringLiteral("psGrid"))->isChecked());
+        QVERIFY(dialog.findChild<QRadioButton *>(QStringLiteral("psAcross"))->isChecked());
+        QCOMPARE(dialog.findChild<QComboBox *>(QStringLiteral("psPaper"))->currentText(), QStringLiteral("A4"));
+        QCOMPARE(dialog.tabs()->count(), 4);
+        QVERIFY(dialog.tabs()->tabText(2).contains(QStringLiteral("Header")));
+        dialog.accept();
+        QCOMPARE(dialog.result(), int(QDialog::Accepted));
+        QVERIFY(dialog.setup() == p);
+        // it opens on the tab asked for
+        request.tab = 3;
+        PageSetupDialog onSheet(request);
+        QCOMPARE(onSheet.tabs()->currentIndex(), 3);
+    }
+
+    // What the person changes goes back, and only that: the orientation, the scale or the pages to fit, the paper, the margins, centering, the print area and titles, the options, and the order.
+    void changesInTheDialogGoBack()
+    {
+        PageSetupRequest request;
+        request.setup = PageSetup();
+        request.sheetName = QStringLiteral("Data");
+        PageSetupDialog d(request);
+        d.findChild<QRadioButton *>(QStringLiteral("psLandscape"))->setChecked(true);
+        d.findChild<QRadioButton *>(QStringLiteral("psFitRadio"))->setChecked(true);
+        d.findChild<QSpinBox *>(QStringLiteral("psFitAcross"))->setValue(2);
+        d.findChild<QSpinBox *>(QStringLiteral("psFitDown"))->setValue(0);
+        d.findChild<QComboBox *>(QStringLiteral("psPaper"))->setCurrentIndex(d.findChild<QComboBox *>(QStringLiteral("psPaper"))->findData(9));
+        d.findChild<QCheckBox *>(QStringLiteral("psUseFirst"))->setChecked(true);
+        d.findChild<QSpinBox *>(QStringLiteral("psFirstNumber"))->setValue(5);
+        d.findChild<QDoubleSpinBox *>(QStringLiteral("psMarginTop"))->setValue(1.25);
+        d.findChild<QDoubleSpinBox *>(QStringLiteral("psMarginFooter"))->setValue(0.5);
+        d.findChild<QCheckBox *>(QStringLiteral("psCenterAcross"))->setChecked(true);
+        d.findChild<QCheckBox *>(QStringLiteral("psCenterDown"))->setChecked(true);
+        d.findChild<QLineEdit *>(QStringLiteral("psArea"))->setText(QStringLiteral("A1:D20, $F$1:$G$9"));
+        d.findChild<QLineEdit *>(QStringLiteral("psTitleRows"))->setText(QStringLiteral("$1:$3"));
+        d.findChild<QLineEdit *>(QStringLiteral("psTitleCols"))->setText(QStringLiteral("A"));
+        d.findChild<QCheckBox *>(QStringLiteral("psGrid"))->setChecked(true);
+        d.findChild<QCheckBox *>(QStringLiteral("psHeadings"))->setChecked(true);
+        d.findChild<QCheckBox *>(QStringLiteral("psBlackWhite"))->setChecked(true);
+        d.findChild<QCheckBox *>(QStringLiteral("psDraft"))->setChecked(true);
+        d.findChild<QComboBox *>(QStringLiteral("psNotes"))->setCurrentIndex(1);
+        d.findChild<QComboBox *>(QStringLiteral("psErrors"))->setCurrentIndex(3);
+        d.findChild<QRadioButton *>(QStringLiteral("psAcross"))->setChecked(true);
+        d.findChild<QCheckBox *>(QStringLiteral("psDifferentFirst"))->setChecked(true);
+        d.findChild<QCheckBox *>(QStringLiteral("psScaleWith"))->setChecked(false);
+        d.accept();
+        QCOMPARE(d.result(), int(QDialog::Accepted));
+        const PageSetup s = d.setup();
+        QVERIFY(s.orientation == PageOrientation::Landscape);
+        QVERIFY(s.fitToPage);
+        QCOMPARE(s.fitToWidth, 2);
+        QCOMPARE(s.fitToHeight, 0);
+        QCOMPARE(s.paperSize, 9);
+        QVERIFY(s.useFirstPageNumber);
+        QCOMPARE(s.firstPageNumber, 5);
+        QCOMPARE(s.margins.top, 1.25);
+        QCOMPARE(s.margins.footer, 0.5);
+        QCOMPARE(s.margins.left, 0.7);   // (as it was)
+        QVERIFY(s.centerHorizontally && s.centerVertically);
+        QCOMPARE(s.printArea.size(), 2);
+        QCOMPARE(areaOf(s), QStringLiteral("A1:D20 F1:G9"));
+        QVERIFY(s.titles.hasRows && s.titles.hasCols);
+        QCOMPARE(s.titles.row2, 2u);
+        QCOMPARE(s.titles.col1, 0u);
+        QCOMPARE(s.titles.col2, 0u);
+        QVERIFY(s.gridLines && s.headings && s.blackAndWhite && s.draft);
+        QVERIFY(s.comments == jp::office::sheet::PrintComments::AtEnd);
+        QVERIFY(s.errors == jp::office::sheet::PrintErrors::NA);
+        QVERIFY(s.pageOrder == jp::office::sheet::PageOrder::OverThenDown);
+        QVERIFY(s.headerFooter.differentFirst);
+        QVERIFY(!s.headerFooter.scaleWithDoc);
+        // the scale is used when the cells are not shrunk to fit
+        PageSetupDialog scaled(request);
+        scaled.findChild<QSpinBox *>(QStringLiteral("psScale"))->setValue(60);
+        QCOMPARE(scaled.setup().scale, 60);
+        QVERIFY(!scaled.setup().fitToPage);
+    }
+
+    // Margins in centimeters: the boxes show them so, and what is put in is kept as inches; an unchanged one is not rounded.
+    void marginsCanBeInCentimeters()
+    {
+        PageSetupRequest request;
+        request.setup.margins.left = 0.7;
+        request.metric = true;
+        PageSetupDialog d(request);
+        QCOMPARE(d.findChild<QDoubleSpinBox *>(QStringLiteral("psMarginLeft"))->value(), 1.78);
+        QVERIFY(d.setup().margins.left == 0.7);
+        d.findChild<QDoubleSpinBox *>(QStringLiteral("psMarginTop"))->setValue(2.54);
+        QCOMPARE(d.setup().margins.top, 1.0);
+    }
+
+    // A print area or titles that are not cells are refused where they are typed, with a reason; the dialog stays.
+    void aPrintAreaThatIsNotCellsIsRefused()
+    {
+        PageSetupRequest request;
+        PageSetupDialog d(request);
+        d.show();
+        d.findChild<QLineEdit *>(QStringLiteral("psArea"))->setText(QStringLiteral("A1:D20, banana"));
+        d.accept();
+        QVERIFY(d.result() != int(QDialog::Accepted));
+        QVERIFY(d.findChild<QLabel *>(QStringLiteral("psProblem"))->isVisible());
+        QVERIFY(d.findChild<QLabel *>(QStringLiteral("psProblem"))->text().contains(QStringLiteral("banana")));
+        QCOMPARE(d.tabs()->currentIndex(), 3);
+        d.findChild<QLineEdit *>(QStringLiteral("psArea"))->setText(QStringLiteral("A1:D20"));
+        d.findChild<QLineEdit *>(QStringLiteral("psTitleRows"))->setText(QStringLiteral("A:B"));
+        d.accept();
+        QVERIFY(d.result() != int(QDialog::Accepted));
+        d.findChild<QLineEdit *>(QStringLiteral("psTitleRows"))->setText(QStringLiteral("2"));
+        d.accept();
+        QCOMPARE(d.result(), int(QDialog::Accepted));
+        QCOMPARE(d.setup().titles.row1, 1u);
+        QCOMPARE(d.setup().titles.row2, 1u);
+    }
+
+    // The header and footer lists are made from the sheet's name, the file, the page, and the date; choosing one sets the text, and a text of its own is kept as it is.
+    void theHeaderAndFooterPresetsAreMadeFromTheSheet()
+    {
+        const auto presets = PageSetupDialog::headerFooterPresets(QStringLiteral("Q3 Sales"), QStringLiteral("Budget.xlsx"));
+        QVERIFY(presets.size() >= 6);
+        QCOMPARE(presets[0].second, QString());
+        bool sheetName = false, pageOf = false;
+        for (const auto &p : presets) {
+            sheetName = sheetName || p.first == QStringLiteral("Q3 Sales");
+            pageOf = pageOf || p.second == QStringLiteral("&CPage &P of &N");
+        }
+        QVERIFY(sheetName);
+        QVERIFY(pageOf);
+        PageSetupRequest request;
+        request.sheetName = QStringLiteral("Q3 Sales");
+        request.setup.headerFooter.oddFooter = QStringLiteral("&CMy own &P");
+        PageSetupDialog d(request);
+        QComboBox *header = d.findChild<QComboBox *>(QStringLiteral("psHeaderPreset")), *footer = d.findChild<QComboBox *>(QStringLiteral("psFooterPreset"));
+        QCOMPARE(header->currentIndex(), 0);
+        QCOMPARE(footer->currentData().toString(), QStringLiteral("&CMy own &P"));   // (a text of its own is an item of its own)
+        const int sheetItem = header->findData(QStringLiteral("&C&A"));
+        QVERIFY(sheetItem > 0);
+        Q_EMIT header->activated(sheetItem);
+        QCOMPARE(d.setup().headerFooter.oddHeader, QStringLiteral("&C&A"));
+        QCOMPARE(d.setup().headerFooter.oddFooter, QStringLiteral("&CMy own &P"));
+        QVERIFY(d.findChild<QLabel *>(QStringLiteral("psHeaderShown"))->text().contains(QStringLiteral("Q3 Sales")));
+        // the editor: the three boxes, the buttons that put things in, and a version for each kind of page
+        jp::office::sheet::HeaderFooter hf;
+        hf.differentFirst = true;
+        hf.oddHeader = QStringLiteral("&Lleft&Cmiddle");
+        HeaderFooterEditor editor(true, hf, QStringLiteral("Q3 Sales"), QStringLiteral("Budget.xlsx"));
+        QCOMPARE(editor.versionNames().size(), 2);
+        QCOMPARE(editor.box(0)->toPlainText(), QStringLiteral("left"));
+        QCOMPARE(editor.box(1)->toPlainText(), QStringLiteral("middle"));
+        editor.setInsertPart(2);
+        editor.findChild<QPushButton *>(QStringLiteral("hfPageNumber"))->click();
+        QVERIFY(editor.box(2)->toPlainText().contains(QStringLiteral("&P")));
+        editor.selectVersion(1);
+        editor.box(1)->setPlainText(QStringLiteral("only the first"));
+        const jp::office::sheet::HeaderFooter made = editor.texts();
+        QCOMPARE(made.oddHeader, QStringLiteral("&Lleft&Cmiddle&R&P"));
+        QCOMPARE(made.firstHeader, QStringLiteral("&Conly the first"));
+        // flags that make versions: odd and even
+        hf.differentOddEven = true;
+        HeaderFooterEditor three(false, hf, QStringLiteral("S"), QStringLiteral("f"));
+        QCOMPARE(three.versionNames().size(), 3);
     }
 
     // Rows inserted and the print area changed, then saved: the file has the area as the window shows it.
