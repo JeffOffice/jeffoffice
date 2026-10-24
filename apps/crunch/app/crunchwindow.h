@@ -52,6 +52,11 @@ public:
     // reason shown, if the file can't be read at all.
     bool openFile(const QString &path);
     bool isLoading() const { return m_loading; }
+    // The path a Save writes to: the file's own for a workbook of the XML form. For one read from the older binary form (.xls) it is a new name with the ending .xlsx, which the
+    // person is asked for after being told that is how workbooks are saved here; the file it was read from is never the answer. Empty if there is no workbook or the person cancels.
+    QString pathToSave();
+    // Stands in for the question about the new name (tests): given the path the workbook came from, it answers the name, or an empty string for a person who cancels.
+    void setSaveNameAsker(const std::function<QString(const QString &openedPath)> &asker) { m_saveNameAsker = asker; }
     bool isCalculating() const { return m_calculating; }
     // What a short message to the person is shown with: a message box, unless this stands in for it (tests): the title and the sentence.
     void setNotifier(const std::function<void(const QString &title, const QString &text)> &notifier) { m_notifier = notifier; }
@@ -146,6 +151,7 @@ private:
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QString m_path;
+    std::function<QString(const QString &)> m_saveNameAsker;
     // the workbook, as it is read
     crunch::WorkbookLoader m_loader;
     std::shared_ptr<crunch::LoadedBook> m_loaded;

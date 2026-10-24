@@ -420,7 +420,7 @@ endif()
 target_link_libraries(jeffcrunch PRIVATE jccore)
 set_target_properties(jeffcrunch PROPERTIES OUTPUT_NAME JeffCrunch)
 # The tests of the window (the grid's own are in sheettests).
-qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/sheet/sheethelpers.cpp)
+qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_xls.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp)
 target_link_libraries(crunchtests PRIVATE jccore Qt6::Test)
 target_include_directories(crunchtests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 target_compile_definitions(crunchtests PRIVATE JC_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
@@ -502,7 +502,7 @@ endif()
 set_target_properties(writetool PROPERTIES WIN32_EXECUTABLE OFF)
 
 # Developer tool for JeffCrunch's readers and its yardstick: what a workbook holds, and a table of that for a list of workbooks.
-qt_add_executable(jcrunchtool tools/jcrunchtool.cpp)
+qt_add_executable(jcrunchtool tools/jcrunchtool.cpp tools/jcrunchtool_compare.cpp)
 target_link_libraries(jcrunchtool PRIVATE jo_office)
 target_compile_definitions(jcrunchtool PRIVATE JCRUNCH_TOOLS_DIR="${CMAKE_SOURCE_DIR}/tools")
 set_target_properties(jcrunchtool PROPERTIES WIN32_EXECUTABLE OFF)

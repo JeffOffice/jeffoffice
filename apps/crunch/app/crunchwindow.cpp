@@ -238,7 +238,7 @@ void CrunchWindow::createActions()
     mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] { act("file.openDialog")->trigger(); });
     mk("file.openDialog", tr("Open Workbook…"), "folder-open", QKeySequence(), [this] {
         const QString p = QFileDialog::getOpenFileName(this, tr("Open Workbook"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                       tr("Workbooks (*.xlsx *.xlsm)") + QStringLiteral(";;") + tr("All Files (*)"));
+                                                       tr("Workbooks (*.xlsx *.xlsm *.xls)") + QStringLiteral(";;") + tr("All Files (*)"));
         if (p.isEmpty()) return;
         Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
         openFile(p);

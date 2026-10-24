@@ -39,6 +39,7 @@ enum : quint16 {
     kBoundSheet = 0x0085,
     kSst = 0x00FC,
     kSupBook = 0x01AE,
+    kExternCount = 0x0016,
     kExternSheet = 0x0017,
     kExternName = 0x0023,
     kName = 0x0018,
@@ -313,7 +314,7 @@ public:
         Rec r;
         if (!sc.next(&r)) return fail(translate("The file has no workbook in it."));
         if (r.id != kBof) {
-            if (r.id == 0x0009 || r.id == 0x0209 || r.id == 0x0409) return fail(translate("This is a workbook of Excel 2 to 4, a form older than this program reads."));
+            if (r.id == 0x0009 || r.id == 0x0209 || r.id == 0x0409) return fail(translate("This workbook is in a file format older than this program reads."));
             return fail(translate("The file has no workbook in it."));
         }
         {
@@ -322,7 +323,7 @@ public:
             const quint16 type = b.u16();
             if (vers >= 0x0600) m_biff = 8;
             else if (vers >= 0x0500) m_biff = 5;
-            else return fail(translate("This is a workbook of Excel 2 to 4, a form older than this program reads."));
+            else return fail(translate("This workbook is in a file format older than this program reads."));
             if (type != 0x0005) return fail(translate("The file has no workbook in it."));
         }
         m_cx.biff = m_biff;
@@ -687,10 +688,14 @@ private:
 
     void readExternName(const Rec &r)
     {
-        if (m_cx.supbooks.isEmpty()) return;
         Bytes b(m_d, r.pos, r.pos + r.len);
         b.skip(6);
         const QString name = readString(b, 1);
+        if (m_biff < 8) {
+            m_cx.externNames5 << name;
+            return;
+        }
+        if (m_cx.supbooks.isEmpty()) return;
         m_cx.supbooks.last().names << name;
     }
 
@@ -949,7 +954,7 @@ std::shared_ptr<const XlsBook> XlsBook::open(const QByteArray &stream, bool hasM
 class XlsSheetReader {
 public:
     XlsSheetReader(const XlsBook &book, int index, const Limits &limits, const std::function<bool(qint64)> &progress, Sheet *out)
-        : m_book(book), m_d(book.m_data), m_index(index), m_lim(limits), m_progress(progress), m_s(*out), m_b8(book.m_biff >= 8)
+        : m_book(book), m_cx(&book.m_cx), m_d(book.m_data), m_index(index), m_lim(limits), m_progress(progress), m_s(*out), m_b8(book.m_biff >= 8)
     {
     }
 
@@ -1046,6 +1051,8 @@ private:
     };
 
     const XlsBook &m_book;
+    const XlsContext *m_cx;                  // the workbook's, or (BIFF5 keeps the list of external sheets and names in each sheet) the sheet's own
+    std::unique_ptr<XlsContext> m_ownCx;
     const QByteArray &m_d;
     int m_index;
     const Limits &m_lim;
@@ -1067,6 +1074,8 @@ private:
     QHash<quint32, TableDef> m_tables;
     std::vector<Pending> m_pending;
     bool m_haveWidth = false;
+    quint32 m_lastFormulaRow = 0, m_lastFormulaCol = 0;   // the cell of the formula record before the one being read: the cell a shared formula, array, or data table is the record of
+    bool m_haveLastFormula = false;
     double m_standardWidth = 0;
     int m_wScale = 0, m_scl = 0;
 
@@ -1235,6 +1244,29 @@ private:
             }
             return addCell(c);
         }
+        case kExternCount:
+            if (!m_b8) {
+                m_ownCx = std::make_unique<XlsContext>(m_book.m_cx);
+                m_ownCx->externSheet5.clear();
+                m_ownCx->externNames5.clear();
+                m_cx = m_ownCx.get();
+            }
+            return true;
+        case kExternSheet:
+            if (!m_b8 && m_ownCx) {
+                const int n = b.u8();
+                const char *p = b.take(n);
+                m_ownCx->externSheet5.append(p ? QByteArray(p, n) : QByteArray());
+            }
+            return true;
+        case kExternName:
+            if (!m_b8 && m_ownCx) {
+                b.skip(6);
+                const int n = b.u8();
+                const char *p = b.take(n);
+                m_ownCx->externNames5.append(p ? text(p, n) : QString());
+            }
+            return true;
         case kFormula: return handleFormula(sc, r);
         case kString: {
             if (!m_holding) return true;
@@ -1402,6 +1434,9 @@ private:
         if (b.bad() || !res) return true;
         Cell c = makeCell(row, col, xf);
         c.flags |= HasFormula;
+        m_lastFormulaRow = row;
+        m_lastFormulaCol = col;
+        m_haveLastFormula = true;
         // the result
         bool wantString = false;
         quint8 rb[8];
@@ -1452,7 +1487,7 @@ private:
             opts.baseCol = col;
             opts.sheet = m_index;
             opts.maxChars = m_lim.formulaChars;
-            const XlsFormulaResult conv = xlsFormulaText(m_book.m_cx, rgce, extra, opts);
+            const XlsFormulaResult conv = xlsFormulaText(*m_cx, rgce, extra, opts);
             if (!conv.ok()) {
                 // (the result the file stored stays; the formula is not kept)
                 c.flags = 0;
@@ -1490,6 +1525,13 @@ private:
         return rg;
     }
 
+    // The cells that share a formula name the cell whose record it follows (not always the first of the range).
+    void registerShared(const SharedDef &def)
+    {
+        if (m_haveLastFormula && def.range.contains(m_lastFormulaRow, m_lastFormulaCol)) m_shared.insert(key(m_lastFormulaRow, m_lastFormulaCol), def);
+        if (!m_shared.contains(key(def.range.row1, def.range.col1))) m_shared.insert(key(def.range.row1, def.range.col1), def);
+    }
+
     bool handleShared(Scanner &sc, const Rec &r)
     {
         const Logical lg = joined(m_d, sc, r, true);
@@ -1509,15 +1551,15 @@ private:
         opts.maxChars = m_lim.formulaChars;
         opts.baseRow = def.range.row1;
         opts.baseCol = def.range.col1;
-        const XlsFormulaResult first = xlsFormulaText(m_book.m_cx, rgce, extra, opts);
+        const XlsFormulaResult first = xlsFormulaText(*m_cx, rgce, extra, opts);
         if (!first.ok()) {
             // none of its cells can have it
-            m_shared.insert(key(def.range.row1, def.range.col1), def);
+            registerShared(def);
             return true;
         }
         opts.baseRow = def.range.row2;
         opts.baseCol = def.range.col2;
-        const XlsFormulaResult last = xlsFormulaText(m_book.m_cx, rgce, extra, opts);
+        const XlsFormulaResult last = xlsFormulaText(*m_cx, rgce, extra, opts);
         def.expand = first.outside || !last.ok() || last.outside;
         if (def.expand) {
             def.rgce = rgce;
@@ -1530,7 +1572,7 @@ private:
         }
         ++m_s.stats.sharedFormulas;
         m_s.stats.largestSharedRange = std::max(m_s.stats.largestSharedRange, def.range.cellCount());
-        m_shared.insert(key(def.range.row1, def.range.col1), def);
+        registerShared(def);
         return true;
     }
 
@@ -1550,7 +1592,7 @@ private:
         opts.baseCol = def.range.col1;
         opts.sheet = m_index;
         opts.maxChars = m_lim.formulaChars;
-        const XlsFormulaResult conv = xlsFormulaText(m_book.m_cx, rgce, extra, opts);
+        const XlsFormulaResult conv = xlsFormulaText(*m_cx, rgce, extra, opts);
         if (conv.ok()) {
             m_s.stats.longestFormula = std::max<qint64>(m_s.stats.longestFormula, conv.text.size());
             m_s.stats.expandedFormulaChars += conv.text.size();
@@ -1560,7 +1602,8 @@ private:
             def.rangeIndex = qint32(m_s.ranges.size() - 1);
             m_held += conv.text.size() * 2 + 64;
         }
-        m_arrays.insert(key(def.range.row1, def.range.col1), def);
+        if (m_haveLastFormula && def.range.contains(m_lastFormulaRow, m_lastFormulaCol)) m_arrays.insert(key(m_lastFormulaRow, m_lastFormulaCol), def);
+        if (!m_arrays.contains(key(def.range.row1, def.range.col1))) m_arrays.insert(key(def.range.row1, def.range.col1), def);
         return true;
     }
 
@@ -1581,7 +1624,8 @@ private:
         m_s.ranges.append(def.range);
         def.rangeIndex = qint32(m_s.ranges.size() - 1);
         m_held += 160;
-        m_tables.insert(key(def.range.row1, def.range.col1), def);
+        if (m_haveLastFormula && def.range.contains(m_lastFormulaRow, m_lastFormulaCol)) m_tables.insert(key(m_lastFormulaRow, m_lastFormulaCol), def);
+        if (!m_tables.contains(key(def.range.row1, def.range.col1))) m_tables.insert(key(def.range.row1, def.range.col1), def);
         return true;
     }
 
@@ -1601,7 +1645,7 @@ private:
             const quint32 k = key(p.expRow, p.expCol);
             if (p.table) {
                 const auto it = m_tables.constFind(k);
-                if (it != m_tables.cend() && p.row == it->range.row1 && p.col == it->range.col1) {
+                if (it != m_tables.cend() && p.row == p.expRow && p.col == p.expCol) {
                     c->flags |= DataTable;
                     f.text = it->text;
                     f.range = it->rangeIndex;
@@ -1627,7 +1671,7 @@ private:
                     opts.maxChars = m_lim.formulaChars;
                     opts.baseRow = p.row;
                     opts.baseCol = p.col;
-                    const XlsFormulaResult conv = xlsFormulaText(m_book.m_cx, sh->rgce, sh->extra, opts);
+                    const XlsFormulaResult conv = xlsFormulaText(*m_cx, sh->rgce, sh->extra, opts);
                     if (conv.ok()) {
                         m_s.formulaTexts.append(conv.text);
                         f.text = qint32(m_s.formulaTexts.size() - 1);
@@ -1645,13 +1689,13 @@ private:
             }
             const auto ar = m_arrays.constFind(k);
             if (ar != m_arrays.cend() && ar->range.contains(p.row, p.col)) {
-                if (p.row == ar->range.row1 && p.col == ar->range.col1 && ar->text >= 0) {
+                if (p.row == p.expRow && p.col == p.expCol && ar->text >= 0) {
                     c->flags |= ArrayFormula;
                     f.text = ar->text;
                     f.range = ar->rangeIndex;
                 } else {
                     plain();
-                    if (ar->text < 0 && p.row == ar->range.row1 && p.col == ar->range.col1) ++m_s.stats.unreadFormulas;
+                    if (ar->text < 0 && p.row == p.expRow && p.col == p.expCol) ++m_s.stats.unreadFormulas;
                 }
                 continue;
             }

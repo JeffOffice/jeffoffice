@@ -1,5 +1,5 @@
 #pragma once
-// The text of bytes in a code page, for the old workbook format's text that is not Unicode (Excel 5 and 95 write every text in the workbook's code page).
+// The text of bytes in a code page, for the old workbook format's text that is not Unicode (BIFF5 writes every text in the workbook's code page).
 
 #include <QString>
 

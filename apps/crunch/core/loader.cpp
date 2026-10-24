@@ -137,11 +137,10 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     QElapsedTimer total;
     total.start();
     out->path = path;
-    Package package;
-    if (!package.readLazyFile(path, why)) return false;
     auto book = std::make_shared<Workbook>();
-    if (!book->open(package, why)) return false;
+    if (!book->openFile(path, why)) return false;   // (either kind: the package of XML parts, or the older binary form)
     out->book = book;
+    out->notRead = book->skippedFeatures();
     const int shownSheet = firstSheetToShow(book->info());
     if (shownSheet < 0) {
         *why = tr("The workbook has no sheets.");
@@ -196,7 +195,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
 
 QString fileKind(const QString &path)
 {
-    static const QStringList kinds = {QStringLiteral("xlsx"), QStringLiteral("xlsm")};
+    static const QStringList kinds = {QStringLiteral("xlsx"), QStringLiteral("xlsm"), QStringLiteral("xls")};
     const QString ending = QFileInfo(path).suffix().toLower();
     return kinds.contains(ending) ? ending : QStringLiteral("other");
 }

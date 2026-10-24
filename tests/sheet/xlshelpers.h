@@ -51,6 +51,10 @@ QByteArray tFunc(int index, int cls = 0x40);                    // a function wi
 QByteArray tFuncVar(int index, int argc, int cls = 0x40);       // a function with a count
 QByteArray tName(int index, int biff = 8, int cls = 0x20);      // a defined name (counted from 1)
 QByteArray tNameX(int ixti, int index);                         // a name of another book or an add-in function
+// BIFF5: a cell on a sheet named by a record of the external-sheet list of its sheet (counted from 1; below 0 is a sheet of this workbook, and then the first and last sheet
+// are given), and a name from the list of external names.
+QByteArray tRef3d5(int iw, int firstSheet, int lastSheet, int row, int col, bool rowRel = true, bool colRel = true);
+QByteArray tNameX5(int iw, int index);
 QByteArray tAttrSum();
 QByteArray tAttrIf(int jump);
 QByteArray tAttrGoto(int jump);
@@ -124,6 +128,8 @@ QByteArray supbookAddIn();
 QByteArray externName(const QString &name);
 QByteArray externSheet(const QList<QList<int>> &xti);   // each {supbook, first sheet, last sheet}
 QByteArray externSheet5(const QByteArray &encodedName);
+QByteArray externCount5(int n);
+QByteArray externName5(const QString &name);
 // A defined name (BIFF8): `builtin` is the number of a built-in name; `sheet` is 0 for the workbook and the sheet's number from 1 for a name of one sheet.
 QByteArray name(const QString &text, const QByteArray &rgce, int sheet = 0, int builtin = -1, bool hidden = false, const QByteArray &extra = QByteArray(), int biff = 8);
 

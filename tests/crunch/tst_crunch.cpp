@@ -630,7 +630,8 @@ private Q_SLOTS:
         QCOMPARE(crunch::fileKind(QStringLiteral("macros.xlsm")), QStringLiteral("xlsm"));
         QCOMPARE(crunch::fileKind(QStringLiteral("notes.private-client-smith")), QStringLiteral("other"));
         QCOMPARE(crunch::fileKind(QStringLiteral("no suffix")), QStringLiteral("other"));
-        QCOMPARE(crunch::fileKind(QStringLiteral("a.xls")), QStringLiteral("other"));
+        QCOMPARE(crunch::fileKind(QStringLiteral("a.xls")), QStringLiteral("xls"));
+        QCOMPARE(crunch::fileKind(QStringLiteral("a.xlsb")), QStringLiteral("other"));
     }
 
     // Formulas that read a lot (a whole column, tens of thousands of cells, a lookup, a conditional sum) are worked out, and show what they come to, not the result the file stored.

@@ -6,6 +6,8 @@
 //                                                range, formula characters expanded in a sheet, shared strings, their characters, sheets, bytes counted to hold the largest sheet). Exits 0 if all was read, 2 if it was opened
 //                                                but a sheet is only partly read, and 1 if it could not be opened.
 //   jcrunchtool names <file.xlsx|file.xls>                the defined names, one to a line (the sheet it belongs to, its name, and what it stands for), and what a binary workbook holds that is not read
+//   jcrunchtool compare-one <ours.xls> <theirs.xlsx>   a workbook of the old form read here, and the same workbook saved in the XML form by another program, cell by cell (see jcrunchtool_compare.cpp;
+//                                                tools/crunch_xls_compare.py runs it over a list and sums it up)
 //   jcrunchtool dump <file.xlsx|file.xls> [sheet=1] [max=100]   the first cells of a sheet (counting from 1), one to a line: address, type, value, and formula
 //   jcrunchtool scan <keys.txt> <out-dir> [jobs]   runs `info` on each workbook listed (one path to a line), each in a child process that has 120 seconds and 4 GB,
 //                                                  and writes <out-dir>/books.tsv: path, exit, seconds, peak MB, sheets, cells, formula cells, stored results, and
@@ -131,7 +133,7 @@ int info(const QString &path, bool tsv)
         err() << path << ": " << why << "\n";
         return 1;
     }
-    qint64 cells = 0, formulaCells = 0, storedResults = 0, valued = 0, worksheets = 0, merged = 0;
+    qint64 cells = 0, formulaCells = 0, storedResults = 0, valued = 0, worksheets = 0, merged = 0, unread = 0;
     QHash<QString, qint64> functions;
     QStringList problems;
     Largest largest;
@@ -145,6 +147,7 @@ int info(const QString &path, bool tsv)
         formulaCells += sheet.formulaCells;
         storedResults += sheet.storedResults;
         merged += sheet.mergeCount;
+        unread += sheet.stats.unreadFormulas;
         largest.take(sheet);
         // Each distinct text of a formula is looked at once, whatever number of cells have it.
         QVector<qint64> uses(sheet.formulaTexts.size(), 0);
@@ -168,7 +171,7 @@ int info(const QString &path, bool tsv)
         out() << worksheets << '\t' << cells << '\t' << formulaCells << '\t' << storedResults << '\t' << used.join(',') << '\t' << problems.join(QStringLiteral("; ")).replace('\t', ' ');
         // and the most any one thing came to, for choosing the limits
         for (qint64 n : {largest.cellsInSheet, largest.xmlBytes, largest.string, largest.formula, largest.sharedFormulas, largest.sharedRange, largest.expandedChars,
-                         qint64(book.sharedStrings().strings.size()), book.sharedStrings().chars, qint64(book.info().sheets.size()), largest.heldBytes})
+                         qint64(book.sharedStrings().strings.size()), book.sharedStrings().chars, qint64(book.info().sheets.size()), largest.heldBytes, unread})
             out() << '\t' << n;
         out() << "\n";
     } else {
@@ -177,6 +180,11 @@ int info(const QString &path, bool tsv)
               << " dates\n";
         out() << "cells:                 " << cells << " (" << valued << " with a value, " << merged << " merged ranges)\n";
         out() << "formula cells:         " << formulaCells << "\n";
+        if (book.isBinary()) {
+            out() << "formulas not read:     " << unread << " (the old form's formulas that could not be turned into text keep the result the file stored)\n";
+            const QStringList skipped = book.skippedFeatures();
+            if (!skipped.isEmpty()) out() << "not read:              " << skipped.join(QStringLiteral(", ")) << "\n";
+        }
         out() << "with a stored result:  " << storedResults << "\n";
         out() << "shared strings:        " << book.sharedStrings().strings.size() << " (" << book.sharedStrings().chars << " characters)\n";
         out() << "largest:               " << largest.cellsInSheet << " cells in a sheet, " << largest.xmlBytes << " bytes of XML, a string of " << largest.string << " characters, a formula of "
@@ -667,6 +675,7 @@ int usage()
              "       jcrunchtool recalc-one <file.xlsx|file.xls> [matches=3] [seconds=100]\n"
              "       jcrunchtool mutate <file.xlsx|file.xls> [count=3000] [seed=1] [seconds=60]\n"
              "       jcrunchtool names <file.xlsx|file.xls>\n"
+             "       jcrunchtool compare-one <ours.xls> <theirs.xlsx>\n"
              "       jcrunchtool functions\n"
              "       jcrunchtool eval <file.xlsx|file.xls> <sheet> <cell> <formula>\n"
              "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n"
@@ -680,6 +689,10 @@ int usage()
 }
 
 } // namespace
+
+namespace jp::crunchtool {
+int compareMain(const QStringList &args);   // (jcrunchtool_compare.cpp)
+}
 
 int main(int argc, char **argv)
 {
@@ -706,6 +719,7 @@ int main(int argc, char **argv)
         if (args.size() == (tsv ? 3 : 2)) return info(args.last(), tsv);
     }
     if (args.size() == 2 && args[0] == QLatin1String("names")) return names(args[1]);
+    if (args.size() == 3 && args[0] == QLatin1String("compare-one")) return jp::crunchtool::compareMain(args.mid(1));
     if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("dump")) return dump(args[1], args.value(2, QStringLiteral("1")).toInt(), args.value(3, QStringLiteral("100")).toLongLong());
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("scan")) return scan(args[1], args[2], args.value(3));
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("format")) return formatOne(args[1], args[2], args.value(3) == QLatin1String("1904"));

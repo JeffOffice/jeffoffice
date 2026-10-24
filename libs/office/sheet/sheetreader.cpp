@@ -1277,7 +1277,7 @@ bool Workbook::openStream(const QByteArray &stream, bool hasMacros, QString *err
 
 bool Workbook::openBinary(const QByteArray &file, QString *error, const Limits &limits)
 {
-    if (!startsCompoundFile(file)) return openStream(file, false, error, limits);   // (a stream with no container: the form before Excel 5, which says so)
+    if (!startsCompoundFile(file)) return openStream(file, false, error, limits);   // (a stream with no container: the forms before BIFF5, which says so)
     jp::cfb::File container;
     QString why;
     if (!jp::cfb::read(file, &container, &why)) {
@@ -1303,7 +1303,7 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
     }
     const QByteArray head = file.read(8);
     file.close();
-    // (a stream with no container: the forms before Excel 5, and a bare BIFF8 or BIFF5 stream, begin with the record of the start of a workbook)
+    // (a stream with no container: the forms before BIFF5, and a bare BIFF8 or BIFF5 stream, begin with the record of the start of a workbook)
     const bool raw = head.size() >= 4 && quint8(head[0]) == 0x09 && (quint8(head[1]) == 0x00 || quint8(head[1]) == 0x02 || quint8(head[1]) == 0x04 || quint8(head[1]) == 0x08);
     if (startsCompoundFile(head)) {
         QString why;

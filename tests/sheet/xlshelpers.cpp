@@ -100,6 +100,11 @@ QByteArray tName(int index, int biff, int cls)
     return biff >= 8 ? w.u16(0) : w.raw(QByteArray(12, '\0'));
 }
 QByteArray tNameX(int ixti, int index) { return W().u8(0x39).u16(ixti).u16(index).u16(0); }
+QByteArray tRef3d5(int iw, int firstSheet, int lastSheet, int row, int col, bool rowRel, bool colRel)
+{
+    return W().u8(0x3A).u16(iw).raw(QByteArray(8, '\0')).u16(firstSheet).u16(lastSheet).u16(row | (colRel ? 0x4000 : 0) | (rowRel ? 0x8000 : 0)).u8(col);
+}
+QByteArray tNameX5(int iw, int index) { return W().u8(0x39).u16(iw).raw(QByteArray(8, '\0')).u16(index).raw(QByteArray(12, '\0')); }
 QByteArray tAttrSum() { return W().u8(0x19).u8(0x10).u16(0); }
 QByteArray tAttrIf(int jump) { return W().u8(0x19).u8(0x02).u16(jump); }
 QByteArray tAttrGoto(int jump) { return W().u8(0x19).u8(0x08).u16(jump); }
@@ -382,6 +387,9 @@ QByteArray externSheet(const QList<QList<int>> &xti)
     return rec(0x0017, w);
 }
 QByteArray externSheet5(const QByteArray &encodedName) { return rec(0x0017, W().u8(int(encodedName.size())).raw(encodedName)); }
+
+QByteArray externCount5(int n) { return rec(0x0016, W().u16(n)); }
+QByteArray externName5(const QString &name) { return rec(0x0023, W().u16(0).u32(0).str5(name)); }
 
 QByteArray name(const QString &text, const QByteArray &rgce, int sheet, int builtin, bool hidden, const QByteArray &extra, int biff)
 {

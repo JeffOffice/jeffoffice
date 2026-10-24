@@ -176,7 +176,7 @@ public:
     // fatal: sharedStringsError() says, and the strings before the damage stay.
     bool open(const Package &package, QString *error = nullptr, const Limits &limits = Limits());
     // Opens a workbook file of either kind, told by its first bytes: the package of XML parts (.xlsx, .xlsm), or the older binary form (a compound file holding a
-    // workbook stream: Excel 5 to 2003). A package is read lazily, as readLazyFile does. False, with a message, if the file is neither, is damaged, or is encrypted.
+    // workbook stream: BIFF5 to BIFF8). A package is read lazily, as readLazyFile does. False, with a message, if the file is neither, is damaged, or is encrypted.
     bool openFile(const QString &path, QString *error = nullptr, const Limits &limits = Limits());
     // The same for the bytes of a whole binary workbook file.
     bool openBinary(const QByteArray &file, QString *error = nullptr, const Limits &limits = Limits());

@@ -1,5 +1,5 @@
-// Tests of the reader of the old binary workbook format (Excel 97 to 2003, and Excel 5 and 95): the sheets of a workbook, the cell records, the string table with its
-// continuations, formula results, shared formulas, arrays and data tables, defined names, the styles, the layout of a sheet, Excel 5's own forms, what is refused,
+// Tests of the reader of the old binary workbook format (BIFF8 and BIFF5): the sheets of a workbook, the cell records, the string table with its
+// continuations, formula results, shared formulas, arrays and data tables, defined names, the styles, the layout of a sheet, BIFF5's own forms, what is refused,
 // and what is not read. Every workbook is built in memory by xlshelpers.
 #include "xlshelpers.h"
 
@@ -219,6 +219,53 @@ private Q_SLOTS:
         QCOMPARE(f("E8"), QStringLiteral("D8"));
         QCOMPARE(f("G8"), QStringLiteral("F8"));
         QVERIFY(sheettest::at(s, QStringLiteral("F8"))->flags & SharedFormula);
+    }
+
+    // The record of a shared formula follows the first cell that uses it, which need not be the first cell of the range it covers; the cells that share it name that cell.
+    void aSharedFormulaIsNamedByTheCellItsRecordFollows()
+    {
+        QByteArray cells = number(1, 0, 1);
+        // B2 and C2 have formulas of their own; D2 is the first to use the shared one, which covers B2:D3
+        cells += formulaNumber(1, 1, tInt(1) + tInt(1) + tOp(0x03), 2) + formulaNumber(1, 2, tInt(2) + tInt(2) + tOp(0x03), 4);
+        const QByteArray plusOne = tRefN(0, -1) + tInt(1) + tOp(0x03);
+        cells += formulaExp(1, 3, 1, 3, 0) + shrfmla(1, 2, 1, 3, plusOne);
+        cells += formulaExp(2, 1, 1, 3, 0) + formulaExp(2, 2, 1, 3, 0) + formulaExp(2, 3, 1, 3, 0);
+        Book b;
+        b.sheet(QStringLiteral("S"), cells);
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(s.stats.unreadFormulas, qint64(0));
+        auto f = [&](const QString &ref) { return s.formulaText(*sheettest::at(s, ref)); };
+        QCOMPARE(f("B2"), QStringLiteral("1+1"));
+        QCOMPARE(f("D2"), QStringLiteral("C2+1"));
+        QCOMPARE(f("B3"), QStringLiteral("A3+1"));
+        QCOMPARE(f("C3"), QStringLiteral("B3+1"));
+        QCOMPARE(f("D3"), QStringLiteral("C3+1"));
+    }
+
+    // BIFF5 keeps the list of external sheets and names in each sheet, and names its own workbook's sheets with a number below 0.
+    void excel5ListsExternalSheetsAndNamesInEachSheet()
+    {
+        Book b(5);
+        QByteArray one = externCount5(1) + externSheet5(QByteArray("\x03Two", 4)) + externName5(QStringLiteral("MYFUNC"));
+        one += formulaNumber(0, 0, tRef3d5(1, 0, 0, 4, 2) + tInt(2) + tOp(0x05), 0);                                        // =Two!C5*2 by the sheet's own list
+        one += formulaNumber(1, 0, tRef3d5(-1, 1, 1, 0, 0, false, false) + tOp(0x13), 0);                                 // =-Two!$A$1, a sheet of this workbook named by number
+        one += formulaNumber(2, 0, tNameX5(1, 1) + tInt(1) + tFuncVar(255, 2, 0x40), 0);                                    // =MYFUNC(1)
+        b.sheet(QStringLiteral("One"), one).sheet(QStringLiteral("Two"), externCount5(1) + externSheet5(QByteArray("\x03One", 4)) + formulaNumber(0, 0, tRef3d5(1, 0, 0, 0, 0) + tInt(1) + tOp(0x03), 0));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(s.stats.unreadFormulas, qint64(0));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A1"))), QStringLiteral("Two!C5*2"));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A2"))), QStringLiteral("-Two!$A$1"));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A3"))), QStringLiteral("MYFUNC(1)"));
+        QVERIFY(wb.readSheet(1, &s));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A1"))), QStringLiteral("One!A1+1"));   // (the list of the second sheet is its own)
     }
 
     // An array formula is at the first cell of its range (with the range); the other cells of the range hold their results as values. A data table is at its first cell
@@ -467,8 +514,8 @@ private Q_SLOTS:
         QCOMPARE(s.view.zoom, 100);
     }
 
-    // Excel 5 and 95: text in the workbook's code page, 14-bit rows, the format records of its own, and sheets listed with their type in one word.
-    void theFormOfExcel5IsRead()
+    // BIFF5: text in the workbook's code page, 14-bit rows, the format records of its own, and sheets listed with their type in one word.
+    void theFormOfBiff5IsRead()
     {
         Book b(5);
         b.codepage(1251);
@@ -497,7 +544,7 @@ private Q_SLOTS:
         QCOMPARE(rangeName(s.dimension), QStringLiteral("A1:C3"));
     }
 
-    // What cannot be opened is refused with a message: a workbook that asks for a password, one of Excel 2 to 4, a compound file that holds no workbook, and a file that
+    // What cannot be opened is refused with a message: a workbook that asks for a password, one of a form older than BIFF5, a compound file that holds no workbook, and a file that
     // is not a workbook at all.
     void whatCannotBeOpenedIsRefusedInWords()
     {
@@ -509,10 +556,10 @@ private Q_SLOTS:
         QVERIFY(!openBook(locked, &wb, &why));
         QVERIFY2(why.contains(QLatin1String("encrypted")), qPrintable(why));
         QVERIFY(!wb.isBinary());
-        // a bare stream that begins as the form before Excel 5 did
+        // a bare stream that begins as the forms before BIFF5 did
         const QByteArray old = rec(0x0409, W().u16(0x0400).u16(0x10)) + rec(0x0203, W().u16(0).u16(0).raw(QByteArray(3, '\0')).f64(1)) + rec(0x000A);
         QVERIFY(!wb.openBinary(old, &why));
-        QVERIFY2(why.contains(QLatin1String("Excel 2 to 4")), qPrintable(why));
+        QVERIFY2(why.contains(QLatin1String("older")), qPrintable(why));
         // a compound file with other streams in it
         jp::cfb::File f;
         jp::cfb::Entry root;

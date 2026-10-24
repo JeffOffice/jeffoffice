@@ -1,5 +1,5 @@
 #pragma once
-// A workbook in the old binary format (BIFF8, Excel 97 to 2003, and BIFF5, Excel 5 and 95), read into the same model the XML reader fills: the sheets' names and
+// A workbook in the old binary format (BIFF8, the form of 1997 to 2003, and BIFF5, the form of 1993 to 1995), read into the same model the XML reader fills: the sheets' names and
 // states, the strings, the styles, the defined names, and each sheet's cells, formulas (turned back into text), merged ranges, sizes, and view. The stream of a
 // workbook is a string of records, each a number, a length, and that many bytes; a record that is too long for its length is continued in the records that follow it.
 // The sheets are found by their place in the stream and read one at a time when asked for, as the XML reader does. Every length and count a file gives is checked
@@ -34,7 +34,7 @@ public:
 
     // What the file holds that is not read, in words ("charts", "pictures and other drawing objects", ...), for the person to be told.
     QStringList skipped() const { return m_skipped; }
-    // 5 for Excel 5 and 95, 8 for Excel 97 and later.
+    // 5 for BIFF5, 8 for BIFF8.
     int version() const { return m_biff; }
 
 private:

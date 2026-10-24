@@ -219,7 +219,7 @@ private:
             return QString();
         }
         if (x.last != x.first && x.last >= 0) name += QLatin1Char(':') + nameAt(x.last);
-        return maybeQuoted(prefix + name) + QLatin1Char('!');
+        return (needsQuotes(name) ? quoted(prefix + name) : prefix + name) + QLatin1Char('!');
     }
 
     // The same for the form BIFF5 uses: the number of an external-sheet record (negative: sheets of this workbook), and the first and last sheet.
@@ -256,7 +256,8 @@ private:
             const QByteArray &e = m_cx.externSheet5[i];
             if (!e.isEmpty() && quint8(e[0]) != 0x03 && !(e.size() == 2 && quint8(e[0]) == 0x01)) ++ordinal;
         }
-        return maybeQuoted(QStringLiteral("[") + QString::number(ordinal) + QLatin1Char(']') + sheet) + QLatin1Char('!');
+        const QString book = QStringLiteral("[") + QString::number(ordinal) + QLatin1Char(']');
+        return (needsQuotes(sheet) ? quoted(book + sheet) : book + sheet) + QLatin1Char('!');
     }
 
     QString nameText(int index)
@@ -466,7 +467,8 @@ private:
                 QString text;
                 if (tab == 255) {
                     if (args.isEmpty()) return bad();
-                    text = args.takeFirst() + QLatin1Char('(') + args.join(QLatin1Char(',')) + QLatin1Char(')');
+                    const QString callee = args.takeFirst();   // (named first: the order the parts of one sum are worked out in is not set)
+                    text = callee + QLatin1Char('(') + args.join(QLatin1Char(',')) + QLatin1Char(')');
                 } else {
                     text = QString::fromLatin1(f.name) + QLatin1Char('(') + args.join(QLatin1Char(',')) + QLatin1Char(')');
                 }
@@ -563,7 +565,16 @@ private:
                 break;
             }
             case 0x39: {   // a name in another sheet or book, or an add-in function
-                if (!m_b8) return bad();
+                if (!m_b8) {
+                    // (a negative number is a name of this workbook; else an external name, counted in the order of their records)
+                    const int iw = qint16(m_in.u16());
+                    m_in.skip(8);
+                    const int index = m_in.u16();
+                    m_in.skip(12);
+                    const QString n = iw < 0 ? nameText(index) : index >= 1 && index <= m_cx.externNames5.size() ? m_cx.externNames5[index - 1] : QString();
+                    if (m_in.bad() || n.isEmpty() || !push(n)) return bad();
+                    break;
+                }
                 const int ixti = m_in.u16();
                 const int index = m_in.u16();
                 m_in.skip(2);

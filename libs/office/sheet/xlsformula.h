@@ -38,11 +38,12 @@ struct XlsNameInfo {
 
 // What a formula needs of the workbook around it.
 struct XlsContext {
-    int biff = 8;                                 // 8 for Excel 97 and later, 5 for Excel 5 and 95
+    int biff = 8;                                 // 8 for BIFF8, 5 for BIFF5
     QStringList sheetNames;                       // this workbook's sheets, in order
     QVector<XlsXti> xti;                          // BIFF8
     QVector<XlsSupBook> supbooks;
     QVector<QByteArray> externSheet5;             // BIFF5: the encoded names of the external-sheet records
+    QStringList externNames5;                     // BIFF5: the external names (add-in and macro functions, other books' names), in the order of their records
     QVector<XlsNameInfo> names;
     std::function<QString(const char *bytes, int count)> bytesToText;   // BIFF5 text, in the workbook's code page
 };
