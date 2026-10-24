@@ -682,6 +682,12 @@ void Calculation::abandon()
     if (!m_running && m_stack.empty() && m_job.phase == GroupJob::None && !m_refuse.active) return;
     // what is waiting or queued is to be worked out again, with what was not yet started: the lists of them are taken in hand (which costs nothing), and put right a chunk at a time
     // by stepAbandon, in the calls that follow; the formulas of a group that was being closed or woken, and not yet given back to the stack, are to be worked out again too
+    // (a stop that was already in hand, and not yet put right, is finished first: its lists are the only record of formulas marked to be worked out that no other list holds, and taking
+    // these in hand over it would lose them)
+    if (m_abandon.active) {
+        qint64 spent = 0;
+        stepAbandon([] { return false; }, &spent);
+    }
     AbandonJob &a = m_abandon;
     a = AbandonJob();
     a.active = true;

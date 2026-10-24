@@ -5,6 +5,7 @@
 
 #include "sheet/calculation.h"
 
+#include <atomic>
 #include <memory>
 
 namespace {
@@ -161,6 +162,47 @@ private Q_SLOTS:
         QCOMPARE(evaluated, qint64(n - 1));
         QCOMPARE(b.at("B20000"), QStringLiteral("n:20005"));
         QVERIFY(b.calc->graph().queryWork() >= queried + n - 1);
+    }
+
+    // A recalculation stopped while it marks what reads an edited cell, and then settled at once (what the window's hold does), has taken in hand what the stop found twice: the second
+    // taking must not drop the first's list, or the formulas the first had marked stay marked and are never worked out (nothing that is worked out reads them, so nothing pulls them in).
+    void aStopThatIsSettledAtOnceKeepsWhatTheFirstStopTookInHand()
+    {
+        const int n = 3000;
+        QString rows = rowXml(1, constant("A1", "1"));
+        for (int i = 1; i <= n; ++i) rows += rowXml(i + 1, cellXml(QStringLiteral("B%1").arg(i + 1), QStringLiteral("A$1*%1").arg(i)));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        b.finish();
+        QCOMPARE(b.at("B3001"), QStringLiteral("n:3000"));
+        std::atomic<bool> stop{false};
+        for (int round = 0; round < 6; ++round) {
+            QVERIFY(b.calc->setValue(0, 0, 0, Value::number(5 + round), Calculation::Marking::Later));
+            // part way through marking what reads A1 (some are marked, not all)
+            for (int slice = 0; slice < 2 + round % 2; ++slice) QVERIFY(!b.calc->recalculate(300).finished);
+            QVERIFY(b.calc->dirtyCount() > 0 && b.calc->dirtyCount() < n);
+            stop = true;
+            QVERIFY(b.calc->recalculate(0, &stop).cancelled);
+            b.calc->settle();
+            stop = false;
+            b.finish();
+            QCOMPARE(b.at("B2"), QStringLiteral("n:%1").arg(5 + round));
+            QCOMPARE(b.at("B100"), QStringLiteral("n:%1").arg((5 + round) * 99));
+            QCOMPARE(b.at("B3001"), QStringLiteral("n:%1").arg((5 + round) * 3000));
+        }
+        // the same where the settling comes with the next edit (every edit settles what is left): all that was marked is worked out
+        for (int round = 0; round < 6; ++round) {
+            QVERIFY(b.calc->setValue(0, 0, 0, Value::number(20 + round), Calculation::Marking::Later));
+            for (int slice = 0; slice < 2 + round % 2; ++slice) QVERIFY(!b.calc->recalculate(300).finished);
+            stop = true;
+            QVERIFY(b.calc->recalculate(0, &stop).cancelled);
+            stop = false;
+            QVERIFY(b.calc->setValue(0, 3, 5, Value::number(1), Calculation::Marking::Later));
+        }
+        b.finish();
+        QCOMPARE(b.at("B2"), QStringLiteral("n:25"));
+        QCOMPARE(b.at("B3001"), QStringLiteral("n:75000"));
+        QCOMPARE(b.calc->dirtyCount(), qint64(0));
     }
 
     // What a cell holds is taken whole and put back whole: a number, a text, a formula, a cell with only a format, one that is not there; the formulas that read it follow.
