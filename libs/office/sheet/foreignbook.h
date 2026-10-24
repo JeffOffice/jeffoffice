@@ -19,6 +19,8 @@ public:
     virtual bool readSheet(int index, const Limits &limits, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows, Sheet *out) const = 0;
     // What the file holds that is not read, in words ("charts", "pictures and other drawing objects", ...), for the person to be told.
     virtual QStringList skipped() const = 0;
+    // What was changed to fit the model, in words with counts ("3 sheet names", "12 formulas"): known in full once the sheets are read.
+    virtual QStringList changed() const { return QStringList(); }
     // The name of the kind of file, as the person is told it (".ods", ".csv").
     virtual QString kind() const = 0;
 };

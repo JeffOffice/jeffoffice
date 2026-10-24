@@ -1485,7 +1485,8 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
         if (!readWholeFile(path, &whole, error, limits.fileBytes)) return false;
         return openStream(whole, false, error, limits);
     }
-    const bool zip = head.startsWith("PK");
+    // (a package begins with the signature of its first entry, or of an empty package's end; text that merely begins with the letters PK is not one)
+    const bool zip = head.startsWith(QByteArrayView("PK\x03\x04", 4)) || head.startsWith(QByteArrayView("PK\x05\x06", 4)) || head.startsWith(QByteArrayView("PK\x07\x08", 4));
     if (!zip) {
         // (an OpenDocument spreadsheet in its flat XML form, or a text file of delimited values by its name)
         const bool flat = looksLikeFlatOpenDocument(head);
@@ -1509,6 +1510,8 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
 }
 
 QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() : m_foreign ? m_foreign->skipped() : QStringList(); }
+
+QStringList Workbook::changedFeatures() const { return m_foreign ? m_foreign->changed() : QStringList(); }
 
 QString Workbook::convertedKind() const { return m_xls ? QStringLiteral(".xls") : m_foreign ? m_foreign->kind() : QString(); }
 

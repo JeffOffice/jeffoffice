@@ -7,17 +7,24 @@
 //  - Names of functions the format spells with a prefix (COM.MICROSOFT.CEILING.MATH, ORG.OPENOFFICE.EASTERSUNDAY, LEGACY.NORMSDIST) lose it.
 // A formula that cannot be converted (another file's reference, text that is not a formula) gives false: the cell keeps the value the file stored, as a constant.
 
+#include <QHash>
 #include <QString>
 
 namespace jp::office::sheet {
 
 // `formula` as the attribute holds it (with its "of:" or "oooc:" namespace prefix and "=", or without either). The converted text, or an empty one and `ok` false.
-QString odfFormulaToText(const QString &formula, bool *ok = nullptr);
+// `sheetNames`, if given, is the sheets whose names were changed (the document's name to the new one): a reference to one is written with the new name.
+QString odfFormulaToText(const QString &formula, bool *ok = nullptr, const QHash<QString, QString> *sheetNames = nullptr);
 
 // A cell range as the attributes of a named range write it: "$Sheet1.$A$1:.$B$2" or "$'My Sheet'.A1" gives "Sheet1!$A$1:$B$2" or "'My Sheet'!A1". `ok` false if it is no range.
-QString odfRangeToText(const QString &address, bool *ok = nullptr);
+QString odfRangeToText(const QString &address, bool *ok = nullptr, const QHash<QString, QString> *sheetNames = nullptr);
 
 // A cell address without sheet ("B3", "$B$3") as a row and column (from 0); false if it is none.
 bool odfCellOf(const QString &text, quint32 *row, quint32 *col);
+
+// The name the standard gives a function that the model names `modelName` (ERROR.TYPE, FORMULATEXT as FORMULA, CEILING as COM.MICROSOFT.CEILING.XCL, a function the .xlsx form added
+// later with its COM.MICROSOFT. prefix), and the model's name for one the standard names: the two tables that odfFormulaToText reads function names by, one each way.
+QString odfFunctionName(const QString &modelName);
+QString modelFunctionName(const QString &odfName);
 
 } // namespace jp::office::sheet

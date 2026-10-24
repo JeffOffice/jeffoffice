@@ -34,7 +34,23 @@ QString quoted(const QString &name)
     return QLatin1Char('\'') + q + QLatin1Char('\'');
 }
 
-QString sheetPrefix(const QString &sheet) { return sheet.isEmpty() ? QString() : (needsQuotes(sheet) ? quoted(sheet) : sheet) + QLatin1Char('!'); }
+// The names of the sheets that were changed to be valid in the .xlsx form (by the name the document gave); a reference to one is written with the new name. Set for the length of one
+// conversion by the callers below.
+thread_local const QHash<QString, QString> *t_renames = nullptr;
+
+QString renamed(const QString &sheet)
+{
+    if (!t_renames) return sheet;
+    const auto it = t_renames->constFind(sheet);
+    return it == t_renames->constEnd() ? sheet : it.value();
+}
+
+QString sheetPrefix(const QString &sheet)
+{
+    if (sheet.isEmpty()) return QString();
+    const QString name = renamed(sheet);
+    return (needsQuotes(name) ? quoted(name) : name) + QLatin1Char('!');
+}
 
 // One end of a reference: [$]sheet.cell, with the sheet perhaps in quotes or left out (".A1").
 struct Part {
@@ -127,35 +143,34 @@ bool referenceText(const QString &inner, QString *out)
         return true;
     }
     // two sheets: a range through them (the same cells in each)
-    const QString names = a.sheet + QLatin1Char(':') + b.sheet;
-    const QString prefix = (needsQuotes(a.sheet) || needsQuotes(b.sheet) ? quoted(names) : names) + QLatin1Char('!');
+    const QString first = renamed(a.sheet), last = renamed(b.sheet);
+    const QString names = first + QLatin1Char(':') + last;
+    const QString prefix = (needsQuotes(first) || needsQuotes(last) ? quoted(names) : names) + QLatin1Char('!');
     *out = prefix + a.cell + (a.cell == b.cell ? QString() : QLatin1Char(':') + b.cell);
     return true;
 }
 
-// The names of functions that differ between the two formats (after the prefixes are taken off).
-QString renamedFunction(const QString &name)
-{
-    static const struct {
-        const char *odf;
-        const char *model;
-    } table[] = {{"FORMULA", "FORMULATEXT"}};
-    for (const auto &t : table)
-        if (name == QLatin1String(t.odf)) return QLatin1String(t.model);
-    return name;
-}
+// ---- the names of functions: the two tables, one each way
 
-QString functionName(const QString &written)
-{
-    QString name = written.toUpper();
-    static const char *const prefixes[] = {"COM.MICROSOFT.", "ORG.OPENOFFICE.", "ORG.LIBREOFFICE.", "LEGACY."};
-    for (const char *p : prefixes)
-        if (name.startsWith(QLatin1String(p))) {
-            name = name.mid(int(qstrlen(p)));
-            break;
-        }
-    return renamedFunction(name);
-}
+struct NamePair {
+    const char *odf;     // as the standard writes it
+    const char *model;   // as the .xlsx form writes it (without the prefix the newer ones carry)
+};
+
+// Names that are not the same in the two forms. The first of each pair that has the model's name twice is the name the model has back.
+const NamePair kNames[] = {
+    {"ERROR.TYPE", "ERROR.TYPE"},      {"ERRORTYPE", "ERROR.TYPE"},         // (the standard has the dot, an older form of it has none)
+    {"FORMULA", "FORMULATEXT"},        {"CEILING", "CEILING.MATH"},         {"FLOOR", "FLOOR.MATH"},        // (the standard's CEILING and FLOOR take a mode: the model's .MATH forms do)
+    {"CHISQDIST", "CHISQ.DIST"},       {"CHISQINV", "CHISQ.INV"},
+    {"LEGACY.CHIDIST", "CHIDIST"},     {"LEGACY.CHIINV", "CHIINV"},         {"LEGACY.FDIST", "FDIST"},      {"LEGACY.FINV", "FINV"},
+    {"LEGACY.NORMSDIST", "NORMSDIST"}, {"LEGACY.NORMSINV", "NORMSINV"},
+};
+
+const char *const kPrefixes[] = {"COM.MICROSOFT.", "ORG.OPENOFFICE.", "ORG.LIBREOFFICE."};
+// The add-ins of the standard's first form: COM.SUN.STAR.SHEET.ADDIN.ANALYSIS.GETEDATE is EDATE.
+const char *const kAddIns[] = {"COM.SUN.STAR.SHEET.ADDIN.ANALYSIS.GET", "COM.SUN.STAR.SHEET.ADDIN.DATEFUNCTIONS.GET", "COM.SUN.STAR.SHEET.ADDIN.FINANCIAL.GET"};
+
+QString functionName(const QString &written) { return modelFunctionName(written); }
 
 bool identStart(QChar c) { return c.isLetter() || c == QLatin1Char('_') || c == QLatin1Char('\\'); }
 bool identPart(QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('.') || c == QLatin1Char('\\'); }
@@ -390,8 +405,17 @@ private:
 
 } // namespace
 
-QString odfFormulaToText(const QString &formula, bool *ok)
+namespace {
+struct RenameScope {
+    explicit RenameScope(const QHash<QString, QString> *renames) : old(t_renames) { t_renames = renames; }
+    ~RenameScope() { t_renames = old; }
+    const QHash<QString, QString> *old;
+};
+} // namespace
+
+QString odfFormulaToText(const QString &formula, bool *ok, const QHash<QString, QString> *sheetNames)
 {
+    RenameScope scope(sheetNames);
     auto fail = [&]() {
         if (ok) *ok = false;
         return QString();
@@ -423,13 +447,44 @@ QString odfFormulaToText(const QString &formula, bool *ok)
     return out;
 }
 
-QString odfRangeToText(const QString &address, bool *ok)
+QString odfRangeToText(const QString &address, bool *ok, const QHash<QString, QString> *sheetNames)
 {
+    RenameScope scope(sheetNames);
     QString text;
     const QString a = address.trimmed();
     const bool good = !a.isEmpty() && referenceText(a, &text);
     if (ok) *ok = good;
     return good ? text : QString();
+}
+
+QString modelFunctionName(const QString &odfName)
+{
+    QString name = odfName.toUpper();
+    for (const char *add : kAddIns)
+        if (name.startsWith(QLatin1String(add))) return name.mid(int(qstrlen(add)));
+    // a name with a prefix of the standard's own is the name without it, and the Excel-compatible forms (CEILING.XCL) are the plain names
+    for (const NamePair &pair : kNames)
+        if (name == QLatin1String(pair.odf)) return QLatin1String(pair.model);
+    for (const char *p : kPrefixes)
+        if (name.startsWith(QLatin1String(p))) {
+            name = name.mid(int(qstrlen(p)));
+            if (name.endsWith(QLatin1String(".XCL"))) return name.chopped(4);
+            return name;
+        }
+    return name;
+}
+
+QString odfFunctionName(const QString &modelName)
+{
+    const QString name = modelName.toUpper();
+    // the Excel-compatible forms of the two that the standard's own forms differ from
+    if (name == QLatin1String("CEILING")) return QStringLiteral("COM.MICROSOFT.CEILING.XCL");
+    if (name == QLatin1String("FLOOR")) return QStringLiteral("COM.MICROSOFT.FLOOR.XCL");
+    for (const NamePair &pair : kNames)
+        if (name == QLatin1String(pair.model) && QLatin1String(pair.odf) != QLatin1String("ERRORTYPE")) return QLatin1String(pair.odf);
+    // a function the .xlsx form added after its first edition is written with a prefix in the standard's form
+    if (prefixedFunctionNames().contains(name)) return QStringLiteral("COM.MICROSOFT.") + name;
+    return name;
 }
 
 bool odfCellOf(const QString &text, quint32 *row, quint32 *col)

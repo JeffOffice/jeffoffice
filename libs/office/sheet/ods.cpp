@@ -12,6 +12,7 @@
 #include <QBuffer>
 #include <QDate>
 #include <QCoreApplication>
+#include <QMutex>
 #include <QRegularExpression>
 #include <QSet>
 #include <QXmlStreamReader>
@@ -23,8 +24,6 @@
 namespace jp::office::sheet {
 
 namespace {
-
-QString say(const char *text) { return QCoreApplication::translate("jp::office::sheet::Ods", text); }
 
 constexpr QLatin1String NS_TABLE("urn:oasis:names:tc:opendocument:xmlns:table:1.0");
 constexpr QLatin1String NS_OFFICE("urn:oasis:names:tc:opendocument:xmlns:office:1.0");
@@ -43,9 +42,6 @@ constexpr QLatin1String NS_LOEXT("urn:org:documentfoundation:names:experimental:
 // The most bytes of XML in one piece the parser is given (a text, a tag with its attributes): a document's consolidation of cells has been found with 11 MB in one attribute.
 constexpr qint64 kMaxOdsTokenBytes = qint64(64) << 20;
 
-// All the properties (attributes of the elements of style properties) of all the styles together (tens of thousands are found in real documents).
-constexpr qint64 kMaxOdsProperties = 4000000;
-
 const char kMimeSpreadsheet[] = "application/vnd.oasis.opendocument.spreadsheet";
 
 QString attr(const QXmlStreamAttributes &a, QLatin1String ns, QLatin1String name) { return a.value(ns, name).toString(); }
@@ -53,12 +49,12 @@ bool hasAttr(const QXmlStreamAttributes &a, QLatin1String ns, QLatin1String name
 
 QString guardMessage(const jp::office::XmlGuardDevice &guard)
 {
-    if (guard.crowded()) return say("An element of the XML has more attributes than any real file has.");
-    if (guard.tooLong()) return say("A piece of the XML (a text, a tag with its attributes, a comment) is longer than any real file has.");
-    if (guard.notUtf8()) return say("The XML is not UTF-8, which is the only form this program reads.");
-    if (guard.doctype()) return say("The XML has a DOCTYPE, which is not allowed.");
-    if (guard.malformed()) return say("The XML is damaged: it is not written as XML is.");
-    if (guard.sourceFailed()) return say("The file is damaged, or its parts come to more than this program reads.");
+    if (guard.crowded()) return QCoreApplication::translate("jp::office::sheet::Ods", "Part of the file has more settings on one item than any real file has, so it can't be read.");
+    if (guard.tooLong()) return QCoreApplication::translate("jp::office::sheet::Ods", "Part of the file is longer than any real file's, so it can't be read.");
+    if (guard.notUtf8()) return QCoreApplication::translate("jp::office::sheet::Ods", "The file is not written in a form this program can read.");
+    if (guard.doctype()) return QCoreApplication::translate("jp::office::sheet::Ods", "The file begins with instructions that this program does not allow, so it can't be read.");
+    if (guard.malformed()) return QCoreApplication::translate("jp::office::sheet::Ods", "The file is damaged: it is not written as a spreadsheet file should be.");
+    if (guard.sourceFailed()) return QCoreApplication::translate("jp::office::sheet::Ods", "The file is damaged, or its parts come to more than this program reads.");
     return QString();
 }
 
@@ -84,7 +80,7 @@ struct Found {
     QVector<NamedItem> names;
     QHash<QString, QHash<QString, QString>> sheetViews;   // by sheet name: the items of its view settings
     QHash<QString, QString> viewItems;                    // the view's own (ActiveTable, ShowGrid)
-    bool charts = false, drawings = false, comments = false, pivots = false, macros = false, conditional = false, validation = false;
+    bool charts = false, drawings = false, comments = false, pivots = false, macros = false, conditional = false, validation = false, hyperlinks = false;
     QString nullDate = QStringLiteral("1899-12-30");
     bool iterate = false;
 };
@@ -99,9 +95,11 @@ public:
         guard.open(QIODevice::ReadOnly);
         QXmlStreamReader xml(&guard);
         while (!xml.atEnd()) {
+            // (the person can stop the read of a document of millions of styles)
+            if ((++m_events & 1023) == 0 && m_limits.cancelled && m_limits.cancelled()) return fail(error, QCoreApplication::translate("jp::office::sheet::Ods", "The read was stopped."));
             switch (xml.readNext()) {
             case QXmlStreamReader::StartElement:
-                if (++m_depth > kMaxOdsDepth) return fail(error, say("The XML is nested more deeply than any real file's."));
+                if (++m_depth > kMaxOdsDepth) return fail(error, QCoreApplication::translate("jp::office::sheet::Ods", "The file has items inside items more deeply than any real file has."));
                 if (!start(xml, error)) return false;
                 break;
             case QXmlStreamReader::EndElement:
@@ -112,12 +110,12 @@ public:
                 if (m_capture && m_text.size() < 65536) m_text += xml.text();
                 break;
             case QXmlStreamReader::DTD:
-            case QXmlStreamReader::EntityReference: return fail(error, say("The XML has a DOCTYPE, which is not allowed."));
+            case QXmlStreamReader::EntityReference: return fail(error, QCoreApplication::translate("jp::office::sheet::Ods", "The file begins with instructions that this program does not allow, so it can't be read."));
             default: break;
             }
         }
         if (guard.refused()) return fail(error, guardMessage(guard));
-        if (xml.hasError()) return fail(error, say("The XML is damaged: %1").arg(xml.errorString()));
+        if (xml.hasError()) return fail(error, QCoreApplication::translate("jp::office::sheet::Ods", "The file is damaged."));
         return true;
     }
 
@@ -131,12 +129,17 @@ private:
     bool start(const QXmlStreamReader &x, QString *error)
     {
         const QStringView ns = x.namespaceUri(), name = x.name();
-        if (ns == NS_TEXT) return true;
+        if (ns == NS_TEXT) {
+            // (a link in a cell: the model has no place for the address, so what the cell shows is kept and the links are said to be left out)
+            if (name == QLatin1String("a") && m_spreadsheetDepth > 0) m_f.hyperlinks = true;
+            return true;
+        }
         const QXmlStreamAttributes a = x.attributes();
         if (ns == NS_TABLE) return startTable(x, a, name, error);
         if (ns == NS_STYLE) return startStyle(a, name, error);
         if (ns == NS_NUMBER) {
             startDataStyle(a, name);
+            if (m_overStyles) return fail(error, QCoreApplication::translate("jp::office::sheet::Ods", "The file has more styles than any real file has."));
             return true;
         }
         if (ns == NS_OFFICE) {
@@ -149,10 +152,8 @@ private:
         }
         if (ns == NS_DRAW) {
             if (name == QLatin1String("object") || name == QLatin1String("object-ole")) m_f.charts = true;
-            else if (name == QLatin1String("image") || name == QLatin1String("frame") || name == QLatin1String("custom-shape") || name == QLatin1String("rect") || name == QLatin1String("ellipse")
-                     || name == QLatin1String("line") || name == QLatin1String("polygon") || name == QLatin1String("polyline") || name == QLatin1String("path") || name == QLatin1String("g")
-                     || name == QLatin1String("control") || name == QLatin1String("caption") || name == QLatin1String("circle") || name == QLatin1String("connector"))
-                m_f.drawings = true;
+            else if (m_spreadsheetDepth > 0)
+                m_f.drawings = true;   // (any other drawing element inside the document: a line, a group, a form control, a connector, a shape)
             return true;
         }
         if (ns == NS_CONFIG) return startConfig(a, name);
@@ -169,7 +170,7 @@ private:
         if (name == QLatin1String("table-cell") || name == QLatin1String("table-row") || name == QLatin1String("covered-table-cell") || name == QLatin1String("table-column")) return true;
         if (name == QLatin1String("table")) {
             if (m_spreadsheetDepth == 0 || m_depth != m_spreadsheetDepth + 1) return true;
-            if (m_f.tables.size() >= m_limits.sheets) return fail(error, say("The workbook has more sheets than any real file has."));
+            if (m_f.tables.size() >= m_limits.sheets) return fail(error, QCoreApplication::translate("jp::office::sheet::Ods", "The workbook has more sheets than any real file has."));
             TableInfo t;
             t.name = attr(a, NS_TABLE, QLatin1String("name"));
             t.styleName = attr(a, NS_TABLE, QLatin1String("style-name"));
@@ -178,7 +179,7 @@ private:
             m_f.tables.append(t);
             m_inTable = true;
         } else if (name == QLatin1String("named-range") || name == QLatin1String("named-expression")) {
-            if (m_f.names.size() >= m_limits.definedNames) return fail(error, say("The workbook has more names than any real file has."));
+            if (m_f.names.size() >= m_limits.definedNames) return fail(error, QCoreApplication::translate("jp::office::sheet::Ods", "The workbook has more names than any real file has."));
             NamedItem n;
             n.name = attr(a, NS_TABLE, QLatin1String("name"));
             n.isRange = name == QLatin1String("named-range");
@@ -213,12 +214,15 @@ private:
         return QString();
     }
 
-    void addProperties(const QXmlStreamAttributes &a, const QString &prefix, ods::Props *props)
+    // False when the properties of all the styles are more than the limit.
+    bool addProperties(const QXmlStreamAttributes &a, const QString &prefix, ods::Props *props)
     {
         for (const QXmlStreamAttribute &at : a) {
-            if (props->size() > 4000 || ++m_properties > kMaxOdsProperties) break;
+            if (++m_properties > m_limits.odsProperties) return false;
+            if (props->size() > 4000) break;
             props->insert(prefix + QLatin1Char(':') + ods::canonicalName(at.namespaceUri().toString(), at.name().toString()), at.value().toString());
         }
+        return true;
     }
 
     bool startStyle(const QXmlStreamAttributes &a, QStringView name, QString *error)
@@ -231,7 +235,7 @@ private:
             m_style.dataStyle = attr(a, NS_STYLE, QLatin1String("data-style-name"));
             m_isDefaultStyle = name == QLatin1String("default-style");
             m_inStyle = true;
-            if (m_f.store.styleCount() >= kMaxOdsStyles) return fail(error, say("The file has more styles than any real file has."));
+            if (m_f.store.styleCount() >= m_limits.odsStyles) return fail(error, QCoreApplication::translate("jp::office::sheet::Ods", "The file has more styles than any real file has."));
             return true;
         }
         if (name == QLatin1String("font-face")) {
@@ -253,7 +257,7 @@ private:
             return true;
         }
         const QString prefix = propertyPrefix(name);
-        if (!prefix.isEmpty() && m_inStyle) addProperties(a, prefix, &m_style.props);
+        if (!prefix.isEmpty() && m_inStyle && !addProperties(a, prefix, &m_style.props)) return fail(error, QCoreApplication::translate("jp::office::sheet::Ods", "The file has more styles than any real file has."));
         return true;
     }
 
@@ -267,7 +271,8 @@ private:
             m_data.name = attr(a, NS_STYLE, QLatin1String("name"));
             m_data.kind = name.left(name.size() - 6).toString();
             m_data.truncateOnOverflow = attr(a, NS_NUMBER, QLatin1String("truncate-on-overflow")) != QLatin1String("false");
-            m_inData = ++m_dataStyles <= kMaxOdsStyles;
+            m_inData = true;
+            if (++m_dataStyles > m_limits.odsStyles) m_overStyles = true;
             return;
         }
         if (!m_inData || m_data.parts.size() > 1000) return;
@@ -456,6 +461,7 @@ private:
     Found &m_f;
     Limits m_limits;
     int m_depth = 0;
+    qint64 m_events = 0;
     int m_spreadsheetDepth = 0;
     int m_inScripts = 0;
     bool m_inTable = false;
@@ -466,6 +472,7 @@ private:
     bool m_inStyle = false, m_isDefaultStyle = false;
     qint64 m_properties = 0;   // all the properties of all the styles
     qint64 m_dataStyles = 0;
+    bool m_overStyles = false;
     // a data style being read
     ods::DataStyle m_data;
     bool m_inData = false, m_pendingText = false, m_pendingEmbedded = false;
@@ -578,6 +585,14 @@ bool skeletonOf(const QByteArray &data, QByteArrayView rootTag, const QVector<Ra
         const QByteArrayView value = xmlscan::attribute(rootTag, QByteArray("xmlns:") + prefix, &found);
         return found && QLatin1String(value.constData(), value.size()) == uri;
     };
+    // (the marks are looked for by the usual prefixes: a document that names these spaces otherwise, or names a space inside the document, is read whole)
+    const QByteArrayView rootView = rootTag;
+    const struct { const char *prefix; QLatin1String uri; } spaces[] = {{"draw", NS_DRAW}, {"office", NS_OFFICE}, {"text", NS_TEXT}, {"calcext", NS_CALCEXT}};
+    for (const auto &s : spaces) {
+        if (rootView.indexOf(QByteArrayView(s.uri.data(), s.uri.size())) >= 0 && !declares(s.prefix, s.uri)) return false;
+    }
+    const qsizetype afterRoot = (rootTag.constData() - data.constData()) + rootTag.size();
+    if (QByteArrayView(data).mid(afterRoot).indexOf(QByteArrayView("xmlns")) >= 0) return false;
     struct Mark {
         const char *needle;
         const char *element;
@@ -585,9 +600,8 @@ bool skeletonOf(const QByteArray &data, QByteArrayView rootTag, const QVector<Ra
         bool seen;
     };
     Mark marks[] = {{"<draw:object", "<draw:object/>", declares("draw", NS_DRAW), false},
-                    {"<draw:image", "<draw:image/>", declares("draw", NS_DRAW), false},
-                    {"<draw:frame", "<draw:frame/>", declares("draw", NS_DRAW), false},
-                    {"<draw:custom-shape", "<draw:custom-shape/>", declares("draw", NS_DRAW), false},
+                    {"<draw:", "<draw:image/>", declares("draw", NS_DRAW), false},   // (any other drawing element: it is reported as the others are)
+                    {"<text:a ", "<text:a/>", declares("text", NS_TEXT), false},
                     {"<office:annotation", "<office:annotation/>", declares("office", NS_OFFICE), false},
                     {"<table:data-pilot-table", "<table:data-pilot-table/>", true, false},
                     {"<table:content-validation", "<table:content-validation/>", true, false},
@@ -692,6 +706,13 @@ struct OdsBook::Impl {
     QHash<quint32, QString> nameOfXf;   // a style that has the format (any one)
     DateSystem dateSystem = DateSystem::Date1900;
     QDate nullDate = QDate(1899, 12, 30);
+    QDate epoch = QDate(1899, 12, 30);   // the day the model's numbers count from (1904-01-01 in the 1904 system)
+    double nullShift = 0;                // days to add to a number shown as a date, when the document counts from another null date
+    QSet<quint32> dateXf;                // the cell formats that show a date or a time
+    QHash<QString, QString> renames;     // the sheets whose names were changed to be valid in the .xlsx form, by the name the document gave
+    int renamedSheets = 0;
+    mutable QMutex lock;                       // (the count below is set by whatever thread reads a sheet)
+    mutable QVector<qint64> unconverted;       // by sheet: the formulas that could not be converted, when the sheet has been read whole (else -1)
     int maxDigitWidth = 7;
     Limits limits;
 };
@@ -741,6 +762,25 @@ int digitWidthOf(const FontSpec &f)
 
 } // namespace
 
+namespace {
+
+// A sheet's name as the .xlsx form allows it: at most 31 characters, none of [ ] : * ? / \, no apostrophe at either end, not empty, and not the name the form keeps ("History").
+QString validSheetName(const QString &original, int number)
+{
+    QString name = original;
+    for (QChar &c : name)
+        if (QStringLiteral("[]:*?/\\").contains(c) || c.unicode() < 32) c = QLatin1Char('_');
+    while (name.startsWith(QLatin1Char('\''))) name.remove(0, 1);
+    while (name.endsWith(QLatin1Char('\''))) name.chop(1);
+    name = name.left(31).trimmed();
+    while (name.endsWith(QLatin1Char('\''))) name.chop(1);
+    if (name.isEmpty()) name = QStringLiteral("Sheet%1").arg(number);
+    if (name.compare(QLatin1String("History"), Qt::CaseInsensitive) == 0) name += QLatin1Char('_');
+    return name;
+}
+
+} // namespace
+
 std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, const Limits &limits, WorkbookInfo *info, SharedStrings *shared, Styles *styles, QString *error)
 {
     auto fail = [&](const QString &message) -> std::shared_ptr<const OdsBook> {
@@ -758,22 +798,23 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     } else {
         QString why;
         if (!package.readLazyOpenDocument(file, &why)) return fail(why);
+        // (no part is read that is larger than the limit: the manifest and the type are small, the styles and the settings are capped as the content is)
+        for (const QString &name : {QStringLiteral("/META-INF/manifest.xml"), QStringLiteral("/mimetype"), QStringLiteral("/styles.xml"), QStringLiteral("/settings.xml"), QStringLiteral("/content.xml")})
+            if (package.partSize(name) > limits.odsContentBytes) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The spreadsheet is larger than this program reads."));
         // a document that is encrypted holds parts that are not XML
         const QByteArray manifest = package.part(QStringLiteral("/META-INF/manifest.xml"));
-        if (manifest.contains("encryption-data")) return fail(say("This spreadsheet is protected with a password. Open it in the program that made it, save a copy without the password, and open that."));
+        if (manifest.contains("encryption-data")) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "This spreadsheet is protected with a password. Open it in the program that made it, save a copy without the password, and open that."));
         const QByteArray mime = package.part(QStringLiteral("/mimetype")).trimmed();
-        if (mime.contains("vnd.sun.xml.calc")) return fail(say("This file is in the old OpenOffice.org spreadsheet form (.sxc), which this program does not open. Open it in the program that made it and save it as .ods or .xlsx."));
+        if (mime.contains("vnd.sun.xml.calc")) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "This file is in an old spreadsheet form (.sxc) that this program does not open. Open it in the program that made it and save it as .ods or .xlsx."));
         if (!mime.isEmpty() && mime != kMimeSpreadsheet && mime != QByteArray(kMimeSpreadsheet) + "-template") {
-            if (mime.contains("opendocument.text")) return fail(say("This file is an OpenDocument text document, not a spreadsheet."));
-            if (mime.contains("opendocument.presentation")) return fail(say("This file is an OpenDocument presentation, not a spreadsheet."));
-            if (mime.contains("opendocument.graphics")) return fail(say("This file is an OpenDocument drawing, not a spreadsheet."));
-            return fail(say("This file is an OpenDocument file, but not a spreadsheet."));
+            if (mime.contains("opendocument.text")) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "This file is an OpenDocument text document, not a spreadsheet."));
+            if (mime.contains("opendocument.presentation")) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "This file is an OpenDocument presentation, not a spreadsheet."));
+            if (mime.contains("opendocument.graphics")) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "This file is an OpenDocument drawing, not a spreadsheet."));
+            return fail(QCoreApplication::translate("jp::office::sheet::Ods", "This file is an OpenDocument file, but not a spreadsheet."));
         }
-        if (!package.hasPart(QStringLiteral("/content.xml"))) return fail(say("The file has no sheets in it."));
-        const qint64 size = package.partSize(QStringLiteral("/content.xml"));
-        if (size > limits.odsContentBytes) return fail(say("The spreadsheet is larger than this program reads."));
+        if (!package.hasPart(QStringLiteral("/content.xml"))) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file has no sheets in it."));
         m.content = package.part(QStringLiteral("/content.xml"));
-        if (m.content.isEmpty()) return fail(say("The file is damaged, or its parts come to more than this program reads."));
+        if (m.content.isEmpty()) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file is damaged, or its parts come to more than this program reads."));
         for (const QString &name : {QStringLiteral("/Scripts/"), QStringLiteral("/Basic/")}) {
             for (const QString &p : package.partNames())
                 if (p.startsWith(name)) {
@@ -791,17 +832,16 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     if (!flat) {
         for (const QString &name : {QStringLiteral("/styles.xml"), QStringLiteral("/settings.xml")}) {
             if (!package.hasPart(name)) continue;
-            const QByteArray bytes = package.part(name);
-            QBuffer buffer;
-            buffer.setData(bytes);
-            buffer.open(QIODevice::ReadOnly);
+            // (as a stream: the part is not held whole, and the read can be stopped while it goes)
+            const std::unique_ptr<QIODevice> stream = package.openPart(name);
+            if (!stream || !stream->isOpen()) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file is damaged, or its parts come to more than this program reads."));
             QString why;
-            if (!parser.parse(&buffer, &why)) return fail(why);
+            if (!parser.parse(stream.get(), &why)) return fail(why);
         }
     }
     // (the document's root, and the sheets: when the XML is written as the standard's own programs write it, each sheet is found by its tags and read by itself, when it is asked for)
     xmlscan::Tag root;
-    if (!xmlscan::nextTag(m.content, 0, &root) || root.closing || root.selfClosing) return fail(say("The file is damaged: it has no document in it."));
+    if (!xmlscan::nextTag(m.content, 0, &root) || root.closing || root.selfClosing) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file is damaged: it has no document in it."));
     {
         const QByteArrayView rootTag = QByteArrayView(m.content).mid(root.start, root.end - root.start);
         bool tableNs = false;
@@ -816,7 +856,7 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
         if (!parser.parse(&buffer, &why)) return fail(why);
         if (fast) m.slices = found;
     }
-    if (m.found.tables.isEmpty()) return fail(say("The file has no sheets in it."));
+    if (m.found.tables.isEmpty()) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file has no sheets in it."));
     // ---- where each sheet is
     {
         const QByteArray qname = m.found.tableQName.toUtf8();
@@ -825,7 +865,7 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
             m.slices = findElements(m.content, qname, &ok);
             if (!ok) m.slices.clear();
         }
-        if (m.slices.size() != m.found.tables.size()) return fail(say("The file is damaged: its sheets cannot be told apart."));
+        if (m.slices.size() != m.found.tables.size()) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file is damaged: its sheets cannot be told apart."));
         m.head = m.content.mid(root.start, root.end - root.start);
         m.tail = "</" + QByteArray(root.name.constData(), root.name.size()) + ">";
         // (the sheet's own name, as the element has it, must be the one the parser found)
@@ -834,7 +874,7 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
             const QByteArrayView tag = QByteArrayView(m.content).mid(m.slices[i].from, te - m.slices[i].from);
             bool found = false;
             const QByteArrayView name = xmlscan::attribute(tag, QByteArray(m.found.tableQName.left(m.found.tableQName.indexOf(QLatin1Char(':')) + 1).toUtf8() + "name"), &found);
-            if (found && xmlscan::unescape(name) != m.found.tables[i].name) return fail(say("The file is damaged: its sheets cannot be told apart."));
+            if (found && xmlscan::unescape(name) != m.found.tables[i].name) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file is damaged: its sheets cannot be told apart."));
         }
     }
     // ---- the workbook
@@ -856,15 +896,37 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     m.dateSystem = nullDate == QLatin1String("1904-01-01") ? DateSystem::Date1904 : DateSystem::Date1900;
     const QDate parsedNull = QDate::fromString(nullDate, QStringLiteral("yyyy-MM-dd"));
     if (parsedNull.isValid()) m.nullDate = parsedNull;
+    m.epoch = m.dateSystem == DateSystem::Date1904 ? QDate(1904, 1, 1) : QDate(1899, 12, 30);
+    m.nullShift = m.dateSystem == DateSystem::Date1904 ? 0 : double(m.nullDate.toJulianDay() - m.epoch.toJulianDay());
+    if (m.nullShift != 0) {
+        for (auto it = m.xfOf.cbegin(); it != m.xfOf.cend(); ++it) {
+            const QString kind = store.dataStyleKind(store.dataStyleOf(QStringLiteral("table-cell"), it.key()));
+            if (kind == QLatin1String("date") || kind == QLatin1String("time")) m.dateXf.insert(it.value());
+        }
+    }
     info->dateSystem = m.dateSystem;
     info->iterate = m.found.iterate;
+    QSet<QString> usedNames;
     for (int i = 0; i < m.found.tables.size(); ++i) {
         const TableInfo &t = m.found.tables[i];
         SheetEntry e;
-        e.name = t.name.isEmpty() ? QStringLiteral("Sheet%1").arg(i + 1) : t.name.left(kMaxSheetNameChars);
+        const QString original = t.name.isEmpty() ? QStringLiteral("Sheet%1").arg(i + 1) : t.name.left(kMaxSheetNameChars);
+        // (the name the .xlsx form allows, and different from the others in any case; the formulas and names that use the old one are written with the new)
+        QString valid = validSheetName(original, i + 1);
+        for (int n = 2; usedNames.contains(valid.toLower()); ++n) {
+            const QString suffix = QStringLiteral(" (%1)").arg(n);
+            valid = validSheetName(original, i + 1).left(31 - suffix.size()).trimmed() + suffix;
+        }
+        usedNames.insert(valid.toLower());
+        if (valid != original) {
+            m.renames.insert(original, valid);
+            ++m.renamedSheets;
+        }
+        e.name = valid;
         e.sheetId = i + 1;
+        m.unconverted.append(-1);
         SheetShape shape;
-        shape.name = e.name;
+        shape.name = original;   // (the settings of the sheet are kept by the name the document gave)
         shape.isProtected = t.isProtected;
         const ods::Props p = store.resolve(QStringLiteral("table"), t.styleName);
         if (p.value(QStringLiteral("table:table:display")) == QLatin1String("false")) e.state = SheetState::Hidden;
@@ -881,7 +943,7 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     // names
     for (const NamedItem &n : std::as_const(m.found.names)) {
         bool ok = false;
-        const QString ref = n.isRange ? odfRangeToText(n.text, &ok) : odfFormulaToText(n.text, &ok);
+        const QString ref = n.isRange ? odfRangeToText(n.text, &ok, &m.renames) : odfFormulaToText(n.text, &ok, &m.renames);
         if (!ok) continue;
         DefinedName d;
         d.name = n.name;
@@ -892,16 +954,17 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     // the sheet that was open
     const QString active = m.found.viewItems.value(QStringLiteral("ActiveTable"));
     for (int i = 0; i < info->sheets.size(); ++i)
-        if (info->sheets[i].name == active) info->activeTab = i;
+        if (m.shapes[i].name == active) info->activeTab = i;
     if (info->activeTab < info->sheets.size() && info->sheets[info->activeTab].state != SheetState::Visible) info->activeTab = 0;
     // what is not read
-    if (m.found.charts) book->m_skipped << say("charts");
-    if (m.found.drawings) book->m_skipped << say("pictures and other drawing objects");
-    if (m.found.pivots) book->m_skipped << say("pivot tables");
-    if (m.found.comments) book->m_skipped << say("comments");
-    if (m.found.macros) book->m_skipped << say("macros");
-    if (m.found.conditional) book->m_skipped << say("conditional formats");
-    if (m.found.validation) book->m_skipped << say("data validation");
+    if (m.found.charts) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "charts");
+    if (m.found.drawings) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "pictures and other drawing objects");
+    if (m.found.pivots) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "pivot tables");
+    if (m.found.comments) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "comments");
+    if (m.found.hyperlinks) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "hyperlinks");
+    if (m.found.macros) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "macros");
+    if (m.found.conditional) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "conditional formats");
+    if (m.found.validation) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "data validation");
     return book;
 }
 
@@ -963,7 +1026,7 @@ public:
         m_guard = &guard;
         bool ok = read();
         if (ok && guard.refused()) ok = fail(guardMessage(guard));
-        if (ok && !m_stopped && xml.hasError()) ok = fail(say("The XML is damaged: %1").arg(xml.errorString()));
+        if (ok && !m_stopped && xml.hasError()) ok = fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file is damaged."));
         finish();
         return ok && m_s.error.isEmpty();
     }
@@ -975,7 +1038,7 @@ private:
         return false;
     }
     // The document ends where it should not: the guard says why, if it ended it.
-    bool damaged() { return fail(m_guard && m_guard->refused() ? guardMessage(*m_guard) : say("The XML is damaged.")); }
+    bool damaged() { return fail(m_guard && m_guard->refused() ? guardMessage(*m_guard) : QCoreApplication::translate("jp::office::sheet::Ods", "The file is damaged.")); }
 
     static bool is(QStringView ns, QStringView name, QLatin1String wantNs, QLatin1String wantName) { return ns == wantNs && name == wantName; }
 
@@ -986,7 +1049,7 @@ private:
         while (depth > 0 && !m_xml->atEnd()) {
             switch (m_xml->readNext()) {
             case QXmlStreamReader::StartElement:
-                if (++depth + m_depth > kMaxOdsDepth) return fail(say("The XML is nested more deeply than any real file's."));
+                if (++depth + m_depth > kMaxOdsDepth) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file has items inside items more deeply than any real file has."));
                 break;
             case QXmlStreamReader::EndElement: --depth; break;
             default: break;
@@ -1006,9 +1069,9 @@ private:
                 --m_depth;
                 continue;
             }
-            if (t == QXmlStreamReader::DTD || t == QXmlStreamReader::EntityReference) return fail(say("The XML has a DOCTYPE, which is not allowed."));
+            if (t == QXmlStreamReader::DTD || t == QXmlStreamReader::EntityReference) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file begins with instructions that this program does not allow, so it can't be read."));
             if (t != QXmlStreamReader::StartElement) continue;
-            if (++m_depth > kMaxOdsDepth) return fail(say("The XML is nested more deeply than any real file's."));
+            if (++m_depth > kMaxOdsDepth) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file has items inside items more deeply than any real file has."));
             const QStringView ns = xml.namespaceUri(), name = xml.name();
             if (ns == NS_TABLE && name == QLatin1String("table") && !inTable) {
                 inTable = true;
@@ -1061,7 +1124,7 @@ private:
         const QString cell = attr(a, NS_TABLE, QLatin1String("default-cell-style-name"));
         run.xf = cell.isEmpty() ? m_m.xfOf.value(QString()) : m_m.xfOf.value(cell, m_m.xfOf.value(QString()));
         m_nextCol += run.count;
-        if (qint64(m_colRuns.size()) >= m_limits.columnSpans) return fail(say("The sheet has more columns defined than any real file has."));
+        if (qint64(m_colRuns.size()) >= m_limits.columnSpans) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The sheet has more columns defined than any real file has."));
         m_colRuns.push_back(run);
         return true;
     }
@@ -1101,7 +1164,7 @@ private:
                 break;
             }
             if (t != QXmlStreamReader::StartElement) continue;
-            if (++m_depth > kMaxOdsDepth) return fail(say("The XML is nested more deeply than any real file's."));
+            if (++m_depth > kMaxOdsDepth) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file has items inside items more deeply than any real file has."));
             const QStringView ns = xml.namespaceUri(), name = xml.name();
             if (ns == NS_TABLE && (name == QLatin1String("table-cell") || name == QLatin1String("covered-table-cell"))) {
                 Proto p;
@@ -1209,17 +1272,35 @@ private:
         int paragraphs = 0, depth = 0, skipDepth = 0;
         bool inParagraph = false, tooLong = false;
         int paragraphDepth = 0;
+        // (everything that stands for characters, spaces and tabs and breaks as well as text, goes through these: a text is never made longer than a string may be, so that a few
+        // kilobytes of `text:s` cannot stand for gigabytes)
+        auto appendText = [&](QStringView part) {
+            if (tooLong) return;
+            if (qint64(part.size()) > m_limits.stringChars - text.size()) {
+                tooLong = true;
+                return;
+            }
+            text += part;
+        };
+        auto appendFill = [&](QChar c, qint64 n) {
+            if (tooLong) return;
+            if (n > m_limits.stringChars - text.size()) {
+                tooLong = true;
+                return;
+            }
+            text += QString(int(n), c);
+        };
         for (;;) {
             if (xml.atEnd()) return damaged();
             const QXmlStreamReader::TokenType t = xml.readNext();
             if (t == QXmlStreamReader::StartElement) {
                 ++depth;
-                if (++m_depth > kMaxOdsDepth) return fail(say("The XML is nested more deeply than any real file's."));
+                if (++m_depth > kMaxOdsDepth) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file has items inside items more deeply than any real file has."));
                 if (skipDepth) continue;
                 const QStringView ns = xml.namespaceUri(), name = xml.name();
                 if (ns == NS_TEXT) {
                     if (name == QLatin1String("p") || name == QLatin1String("h")) {
-                        if (paragraphs++ > 0) text += QLatin1Char('\n');
+                        if (paragraphs++ > 0) appendFill(QLatin1Char('\n'), 1);
                         inParagraph = true;
                         paragraphDepth = depth;
                     } else if (name == QLatin1String("span")) {
@@ -1228,18 +1309,17 @@ private:
                     } else if (name == QLatin1String("s")) {
                         bool good = false;
                         const int n = attr(xml.attributes(), NS_TEXT, QLatin1String("c")).toInt(&good);
-                        text += QString(good ? std::max(1, std::min(n, 10000)) : 1, QLatin1Char(' '));
+                        appendFill(QLatin1Char(' '), good ? std::max(1, n) : 1);
                     } else if (name == QLatin1String("tab")) {
-                        text += QLatin1Char('\t');
+                        appendFill(QLatin1Char('\t'), 1);
                     } else if (name == QLatin1String("line-break")) {
-                        text += QLatin1Char('\n');
+                        appendFill(QLatin1Char('\n'), 1);
                     } else if (name == QLatin1String("note") || name == QLatin1String("note-body")) {
                         skipDepth = depth;
                     }
                 } else {
                     skipDepth = depth;   // (a note, a drawing, or anything else in the cell is not read)
                 }
-                if (text.size() > m_limits.stringChars) tooLong = true;
             } else if (t == QXmlStreamReader::EndElement) {
                 --m_depth;
                 if (depth == 0) break;
@@ -1256,14 +1336,14 @@ private:
                 --depth;
             } else if (t == QXmlStreamReader::Characters) {
                 if (!skipDepth && inParagraph && !tooLong) {
-                    text += xml.text();
-                    if (text.size() > m_limits.stringChars) tooLong = true;
+                    appendText(xml.text());
                 }
             } else if (t == QXmlStreamReader::DTD || t == QXmlStreamReader::EntityReference) {
-                return fail(say("The XML has a DOCTYPE, which is not allowed."));
+                return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file begins with instructions that this program does not allow, so it can't be read."));
             }
         }
-        if (tooLong) return fail(say("A text in this file is longer than any real file's."));
+        m_s.stats.longestString = std::max<qint64>(m_s.stats.longestString, text.size());
+        if (tooLong) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "A text in this file is longer than any real file's."));
         // ---- the value
         auto number = [&](const QString &v, double *x) {
             bool good = false;
@@ -1274,14 +1354,15 @@ private:
             p.type = CellType::Error;
             bool known = false;
             CellError e = errorFromText(text.trimmed(), &known);
-            if (!known) e = text.startsWith(QLatin1String("Err:50")) || text.startsWith(QLatin1String("Err:51")) ? CellError::Value : CellError::Value;
+            if (!known) e = CellError::Value;   // (an error the model does not name, such as another program's Err:509, is a #VALUE!)
             p.number = double(int(e));
         } else if (valueType == QLatin1String("float") || valueType == QLatin1String("percentage") || valueType == QLatin1String("currency")) {
             double v = 0;
             if (number(attr(a, NS_OFFICE, QLatin1String("value")), &v)) {
                 if (std::isfinite(v)) {
                     p.type = CellType::Number;
-                    p.number = v;
+                    // (a number shown as a date counts days from the document's null date: the model counts from its own, so the date is the same date)
+                    p.number = m_m.nullShift != 0 && m_m.dateXf.contains(p.xf) ? v + m_m.nullShift : v;
                 } else {
                     p.type = CellType::Error;
                     p.number = double(int(CellError::Num));
@@ -1289,7 +1370,7 @@ private:
             }
         } else if (valueType == QLatin1String("date")) {
             double serial = 0;
-            if (dateSerialFrom(attr(a, NS_OFFICE, QLatin1String("date-value")), m_m.nullDate, &serial)) {
+            if (dateSerialFrom(attr(a, NS_OFFICE, QLatin1String("date-value")), m_m.epoch, &serial)) {
                 p.type = CellType::Number;
                 p.number = serial;
             } else {
@@ -1311,15 +1392,17 @@ private:
         } else if (valueType == QLatin1String("string") || (valueType.isEmpty() && !text.isEmpty())) {
             p.type = CellType::InlineString;
             p.text = hasAttr(a, NS_OFFICE, QLatin1String("string-value")) ? attr(a, NS_OFFICE, QLatin1String("string-value")) : text;
+            if (p.text.size() > m_limits.stringChars) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "A text in this file is longer than any real file's."));
             if (p.text.isEmpty() && formula.isEmpty()) p.type = CellType::Empty;
             else if (!formula.isEmpty()) p.type = CellType::FormulaString;
             // (the runs of formatting inside the text, if it is the text of the cell)
             if (!hasAttr(a, NS_OFFICE, QLatin1String("string-value"))) p.spans = spans;
         }
+        if (p.text.size() > m_limits.stringChars) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "A text in this file is longer than any real file's."));
         // ---- the formula
         if (!formula.isEmpty()) {
             bool good = false;
-            const QString converted = odfFormulaToText(formula, &good);
+            const QString converted = odfFormulaToText(formula, &good, &m_m.renames);
             if (good && qint64(converted.size()) <= m_limits.formulaChars) {
                 p.hasFormula = true;
                 p.formula = converted;
@@ -1339,13 +1422,13 @@ private:
 
     bool add(Cell c, qint64 extra)
     {
-        if (++m_cells > m_limits.cellsPerSheet) return fail(say("The sheet has more cells than any real file has."));
+        if (++m_cells > m_limits.cellsPerSheet) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The sheet has more cells than any real file has."));
         m_held += 32 + extra;
-        if (m_held > m_limits.sheetBytes) return fail(say("The sheet is larger than any real file's."));
+        if (m_held > m_limits.sheetBytes) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The sheet is larger than any real file's."));
         m_s.cells.add(c);
         m_s.extentRows = std::max(m_s.extentRows, c.row + 1);
         m_s.extentCols = std::max(m_s.extentCols, quint32(c.col) + 1);
-        if (m_progress && m_cells % 4096 == 0 && !m_progress(m_cells)) return fail(say("The read was stopped."));
+        if (m_progress && m_cells % 4096 == 0 && !m_progress(m_cells)) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The read was stopped."));
         return true;
     }
 
@@ -1457,8 +1540,8 @@ private:
                 extra += 48;
             }
             if (!add(c, extra)) return false;
-            // a merged cell: once, for the first of its copies
-            if ((p.colSpan > 1 || p.rowSpan > 1) && k == 0 && rowCopy == 0 && !p.covered) {
+            // a merged cell: for each of its copies (the copies of a row, and the repeats in a row); the copies of a cell that spans more than one place are placed one span apart, so that none overlaps another
+            if ((p.colSpan > 1 || p.rowSpan > 1) && k % p.colSpan == 0 && rowCopy % p.rowSpan == 0 && !p.covered) {
                 CellRange r;
                 r.row1 = row;
                 r.col1 = col;
@@ -1530,7 +1613,7 @@ private:
                 if (!differs && !r.hidden && !(r.hasXf && r.xf != 0)) continue;
                 for (quint32 k = 0; k < r.count; ++k) {
                     if (qint64(m_s.rowSpecs.size()) >= m_limits.rowSpecs) {
-                        fail(say("The sheet has more rows set apart than any real file has."));
+                        fail(QCoreApplication::translate("jp::office::sheet::Ods", "The sheet has more rows set apart than any real file has."));
                         break;
                     }
                     RowSpec spec;
@@ -1644,12 +1727,34 @@ bool OdsBook::readSheet(int index, const Limits &limits, const std::function<boo
 {
     *out = Sheet();
     if (index < 0 || index >= m->slices.size()) {
-        out->error = say("There is no such sheet.");
+        out->error = QCoreApplication::translate("jp::office::sheet::Ods", "There is no such sheet.");
         return false;
     }
     out->format.defaultRowHeight = 15;
     SheetReader reader(*m, index, limits, progress, stopAfterRow, screenRows, out);
-    return reader.run();
+    const bool done = reader.run();
+    // (the formulas that could not be converted are known for a sheet that was read whole; a sheet read again is counted once)
+    if (done && !out->partial) {
+        QMutexLocker locker(&m->lock);
+        if (index < m->unconverted.size()) m->unconverted[index] = out->stats.unreadFormulas;
+    }
+    return done;
+}
+
+QStringList OdsBook::changed() const
+{
+    QStringList out;
+    if (m->renamedSheets > 0)
+        out << QCoreApplication::translate("jp::office::sheet::Ods", "%n sheet name(s), made valid for an .xlsx file", nullptr, m->renamedSheets);
+    qint64 formulas = 0;
+    {
+        QMutexLocker locker(&m->lock);
+        for (const qint64 n : std::as_const(m->unconverted))
+            if (n > 0) formulas += n;
+    }
+    if (formulas > 0)
+        out << QCoreApplication::translate("jp::office::sheet::Ods", "%n formula(s) the program could not convert, which keep the value the file stored", nullptr, int(std::min<qint64>(formulas, 1000000000)));
+    return out;
 }
 
 bool Workbook::openOpenDocument(const QByteArray &file, bool flat, QString *error, const Limits &limits)

@@ -84,6 +84,8 @@ public:
     bool hasStyle(const QString &family, const QString &name) const { return m_styles.contains(family + QLatin1Char('\n') + name); }
     // The data style of a cell style (its own or a parent's), by name; empty for none.
     QString dataStyleOf(const QString &family, const QString &name) const;
+    // The kind of a data style by name ("number", "percentage", "currency", "date", "time", "boolean", "text"); empty for one that is not there.
+    QString dataStyleKind(const QString &name) const { return m_data.value(name).kind; }
     // The number format code a data style stands for ("General" for one that is not there).
     QString dataStyleCode(const QString &name) const;
 

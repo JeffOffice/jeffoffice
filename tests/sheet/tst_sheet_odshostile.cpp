@@ -69,7 +69,7 @@ private Q_SLOTS:
         QVERIFY2(openIt(buildOds(contentXml(spans)), &wb, &why), qPrintable(why));
         Sheet s;
         QVERIFY(!wb.readSheet(0, &s));
-        QVERIFY2(s.error.contains(QLatin1String("nested")), qPrintable(s.error));
+        QVERIFY2(s.error.contains(QLatin1String("deeply")), qPrintable(s.error));
         QCOMPARE(shown(wb, s, QStringLiteral("A1")), QStringLiteral("n:1"));
         QVERIFY(wb.readSheet(1, &s));
         QCOMPARE(shown(wb, s, QStringLiteral("A1")), QStringLiteral("n:2"));
@@ -79,7 +79,7 @@ private Q_SLOTS:
         Workbook wb2;
         QVERIFY2(openIt(buildOds(contentXml(notes)), &wb2, &why), qPrintable(why));
         QVERIFY(!wb2.readSheet(0, &s));
-        QVERIFY2(s.error.contains(QLatin1String("nested")) || s.error.contains(QLatin1String("damaged")), qPrintable(s.error));
+        QVERIFY2(s.error.contains(QLatin1String("deeply")) || s.error.contains(QLatin1String("damaged")), qPrintable(s.error));
         // the same, in the flat form
         Workbook flat;
         QVERIFY2(openBytes(buildFods(spans), QStringLiteral("deep.fods"), &flat, &why), qPrintable(why));
@@ -103,7 +103,7 @@ private Q_SLOTS:
         Workbook wb;
         QString why;
         QVERIFY(!openIt(buildOds(content), &wb, &why));
-        QVERIFY2(why.contains(QLatin1String("DOCTYPE")), qPrintable(why));
+        QVERIFY2(why.contains(QLatin1String("instructions")), qPrintable(why));
         Workbook flat;
         QVERIFY(!openBytes(content, QStringLiteral("flat.fods"), &flat, &why));
     }
@@ -116,10 +116,16 @@ private Q_SLOTS:
         QVERIFY2(openIt(buildOds(contentXml(table(QStringLiteral("S"), columns(1) + row(cell(QStringLiteral("office:value-type=\"string\""), QStringLiteral("<text:p><text:s text:c=\"1000000000\"/>x</text:p>")))))), &wb, &why),
                  qPrintable(why));
         Sheet s;
-        QVERIFY(wb.readSheet(0, &s));
+        // (spaces are counted as the characters of a text are: a billion of them are more than a text may have, and nothing is made of them)
+        QVERIFY(!wb.readSheet(0, &s));
+        QVERIFY2(s.error.contains(QLatin1String("longer")), qPrintable(s.error));
+        Workbook some;
+        QVERIFY2(openIt(buildOds(contentXml(table(QStringLiteral("S"), columns(1) + row(cell(QStringLiteral("office:value-type=\"string\""), QStringLiteral("<text:p><text:s text:c=\"1000\"/>x</text:p>")))))), &some, &why),
+                 qPrintable(why));
+        QVERIFY(some.readSheet(0, &s));
         const Cell *c = at(s, QStringLiteral("A1"));
         QVERIFY(c);
-        QVERIFY(s.text(*c, wb.sharedStrings()).size() <= 10001);
+        QCOMPARE(s.text(*c, some.sharedStrings()), QString(1000, QLatin1Char(' ')) + QLatin1Char('x'));
         // a text of more characters than the limit says is refused with what came before it kept
         Limits limits;
         limits.stringChars = 1000;

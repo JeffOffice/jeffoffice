@@ -83,6 +83,11 @@ constexpr qint64 kMaxDefinedNameChars = 20000000;
 // The bytes of the content of an OpenDocument spreadsheet (its sheets are in one part, which is held whole once it is inflated, so that each sheet is read from its own piece of it).
 // No real file comes near it; 768 MB is ten times what the largest public sheet's XML comes to.
 constexpr qint64 kMaxOdsContentBytes = qint64(768) << 20;
+// Styles an OpenDocument spreadsheet defines (cell styles, and data styles for number formats), and the properties of all of them together. Real documents have thousands of styles
+// (the most found in the test files of the other program is under 1,000) and some tens of thousands of properties; a style costs about 4 KB while the formats are made, so 100,000
+// of them stay well inside the 4 GB a read may use.
+constexpr qint64 kMaxOdsStyles = 100000;
+constexpr qint64 kMaxOdsProperties = 1000000;
 // Runs of formatting inside the strings of a workbook, all together (the runs of the strings are kept only when asked for, or for a workbook of the older binary form; past this the strings
 // are kept without their runs).
 constexpr qint64 kMaxRichRuns = 5000000;
@@ -117,6 +122,10 @@ struct Limits {
     bool richText = false;
     qint64 richRuns = kMaxRichRuns;
     qint64 odsContentBytes = kMaxOdsContentBytes;
+    qint64 odsStyles = kMaxOdsStyles;
+    qint64 odsProperties = kMaxOdsProperties;
+    // Asked now and then while a file is read (a worker looks at its stop flag here): true stops the read, with the message that it was stopped. Optional.
+    std::function<bool()> cancelled;
 };
 
 enum class CalcMode { Auto, AutoNoTable, Manual };
@@ -210,6 +219,7 @@ public:
     bool isConverted() const { return m_xls || m_foreign; }
     QString convertedKind() const;
     QStringList skippedFeatures() const;
+    QStringList changedFeatures() const;
     const WorkbookInfo &info() const { return m_info; }
     const SharedStrings &sharedStrings() const { return m_shared; }
     QString sharedStringsError() const { return m_sharedError; }

@@ -556,7 +556,13 @@ bool StyleStore::buildCellFormats(const Limits &limits, Styles *styles, QHash<QS
     for (auto it = m_styles.cbegin(); it != m_styles.cend(); ++it)
         if (it->family == QLatin1String("table-cell")) names << it->name;
     std::sort(names.begin(), names.end());
+    qint64 made = 0;
     for (const QString &name : std::as_const(names)) {
+        // (the person can stop the read of a document of many styles)
+        if ((++made & 255) == 0 && limits.cancelled && limits.cancelled()) {
+            if (error) *error = QCoreApplication::translate("jp::office::sheet::Ods", "The read was stopped.");
+            return false;
+        }
         if (styles->formats.size() > limits.cellXfs) {
             if (error) *error = QCoreApplication::translate("jp::office::sheet::Ods", "The file has more cell formats than any real file has.");
             return false;
