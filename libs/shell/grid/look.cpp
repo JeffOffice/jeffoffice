@@ -129,6 +129,7 @@ CellLook LookTable::make(quint32 xf) const
     l.shrink = f.shrink;
     l.indent = f.indent;
     l.rotation = f.rotation;
+    l.readingOrder = f.readingOrder;
     l.format = jp::calc::NumberFormat(s.formatCode(xf));
     l.hasFormat = !l.format.isGeneral();
     return l;

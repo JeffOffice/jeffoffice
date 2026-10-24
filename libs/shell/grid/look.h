@@ -48,6 +48,7 @@ struct CellLook {
     bool wrap = false, shrink = false;
     int indent = 0;
     int rotation = 0;         // 0 to 90 up, 91 to 180 down (that less 90), 255 upright, one letter under another
+    int readingOrder = 0;     // the direction of the text: 0 by what the text is (and the sheet), 1 left to right, 2 right to left
     // the value's number format
     jp::calc::NumberFormat format;
     bool hasFormat = false;   // some format other than General

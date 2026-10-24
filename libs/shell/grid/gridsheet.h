@@ -75,6 +75,9 @@ public:
     void invalidateTexts() const;
     void invalidateText(quint32 row, quint32 col) const { m_texts.erase((quint64(row) << 16) | col); }
     // Shows the formula of a cell that has one in place of its value ("=SUM(A1:A3)", as text).
+    // The sheet reads right to left: column A is at the right, and what a cell's alignment says of the left and right is the screen's. (The `align` a cell shows is in the grid's own places,
+    // the way the layout puts the columns: a sheet that reads right to left has them mirrored for the screen, so a text aligned to its left has `align` right.)
+    bool rightToLeft() const { return m_rtl; }
     // The marks the person's language puts in numbers (the decimal mark, the grouping of digits): what a number cell shows and a copy gives. Plain ("." and ",") until set.
     void setNumberSymbols(const jp::calc::NumberSymbols &symbols);
     const jp::calc::NumberSymbols &numberSymbols() const { return m_symbols; }
@@ -120,6 +123,7 @@ private:
     mutable qint64 m_textsMade = 0;
     bool m_showFormulas = false;
     jp::calc::NumberSymbols m_symbols;
+    bool m_rtl = false;
     std::shared_ptr<const GridGeometry> m_geometry;   // what the sheet's file gave (the layout above begins as a copy of its layout, which shares its places and merges), and the cell formats of the rows and columns, held where they were made
 };
 

@@ -127,6 +127,7 @@ double GridSheet::fitHeight(quint32 row, qint64 limit) const
 void GridSheet::setData(const GridData &data)
 {
     m_data = data;
+    m_rtl = data.sheet && data.sheet->view.rightToLeft;
     m_looks.setStyles(data.styles);
     m_texts.clear();
     std::shared_ptr<const GridGeometry> g = data.geometry;
@@ -276,6 +277,36 @@ Shown GridSheet::shown(quint32 row, quint32 col, const Cell &cell) const
         s = showValue(jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(cell))), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
     else
         s = showValue(valueOf(cell), m_looks.look(cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
+    // Where it sits in the grid's places: a text with the general alignment begins on the side its direction says (a number is at the right, true, false, and errors in the middle), and in
+    // a sheet that reads right to left the places are mirrored for the screen, so left and right change.
+    {
+        const CellLook &look = m_looks.look(cell.style);
+        HAlign align = look.horizontal;
+        if (align == HAlign::General) {
+            if (s.kind == Kind::Text) {
+                bool rtl = m_rtl;
+                if (look.readingOrder == 1) rtl = false;
+                else if (look.readingOrder == 2) rtl = true;
+                else
+                    for (const QChar c : s.text) {
+                        const QChar::Direction d = c.direction();
+                        if (d == QChar::DirL) {
+                            rtl = false;
+                            break;
+                        }
+                        if (d == QChar::DirR || d == QChar::DirAL) {
+                            rtl = true;
+                            break;
+                        }
+                    }
+                align = rtl ? HAlign::Right : HAlign::Left;
+            } else {
+                align = s.align;
+            }
+        }
+        if (m_rtl) align = align == HAlign::Left ? HAlign::Right : align == HAlign::Right ? HAlign::Left : align;
+        s.align = align;
+    }
     if (m_texts.size() >= kMaxTexts) m_texts.clear();
     m_texts.emplace(key, s);
     return s;

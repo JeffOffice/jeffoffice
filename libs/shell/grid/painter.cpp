@@ -94,6 +94,8 @@ public:
     double ascent() const { return m_metrics.ascent(); }
     double descent() const { return m_metrics.descent(); }
     double lineSpacing() const { return m_metrics.lineSpacing(); }
+    double underlinePos() const { return m_metrics.underlinePos(); }
+    double lineWidth() const { return m_metrics.lineWidth(); }
     // The glyphs and where each begins (from 0), and the width of the line; false if a letter of the line is not one of the simple ones.
     bool layout(const QString &text, QList<quint32> *glyphs, QList<QPointF> *positions, double *width) const
     {
@@ -209,7 +211,7 @@ const QFont &GridPainter::fontFor(const CellLook &look, double scale)
         f.setBold(look.bold);
         f.setItalic(look.italic);
         f.setStrikeOut(look.strike);
-        f.setUnderline(look.underline != Underline::None);
+        f.setUnderline(look.underline == Underline::Single);   // (the other kinds are drawn as lines of their own: see drawText)
         f.setKerning(false);
         f.setStyleStrategy(QFont::PreferAntialias);
         f.setHintingPreference(QFont::PreferNoHinting);
@@ -313,9 +315,40 @@ void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int 
     }
 }
 
-void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, const QRect &area, const CellLook &look, const Shown &sh, const PaintOptions &)
+// The lines of an underline that is not the font's own: double, and the accounting kinds (which run the width of the cell). `x` and `width` are where the text is, `baseline` its baseline,
+// and `lineWidth` and `position` the font's; the lines are kept inside the cell's bottom.
+static void drawUnderlineLines(QPainter *p, Underline kind, const QRect &cell, const QRect &r, double x, double width, double baseline, double lineWidth, double position, bool gridlines, const QColor &ink)
+{
+    const bool accounting = kind == Underline::SingleAccounting || kind == Underline::DoubleAccounting;
+    const bool twice = kind == Underline::Double || kind == Underline::DoubleAccounting;
+    const int t = std::max(1, int(std::lround(lineWidth)));
+    int y = int(std::lround(baseline)) + std::max(1, int(std::lround(position)));
+    const int last = cell.bottom() - (gridlines ? 1 : 0);
+    const int lowest = y + (twice ? t + 1 + t : t) - 1;
+    if (lowest > last) y -= lowest - last;   // (a line the room under the text does not have is drawn higher, never past the cell)
+    const int left = accounting ? r.left() : int(std::lround(x)), w = accounting ? r.width() : int(std::lround(width));
+    p->fillRect(QRect(left, y, w, t), ink);
+    if (twice) p->fillRect(QRect(left, y + t + 1, w, t), ink);
+}
+
+void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, const QRect &area, const CellLook &look, const Shown &sh, const PaintOptions &o)
 {
     const GridLayout &L = m_sheet->layout();
+    if (m_sheet->rightToLeft() && !m_drawingMirrored) {
+        // (the grid is drawn mirrored for a sheet that reads right to left; the text is drawn as it reads, in the places the screen has: the rectangles are mirrored, and the left and the right
+        // of its alignment, which the grid keeps in its own places, are the screen's again)
+        const int width = L.viewport().width();
+        auto screen = [width](const QRect &r) { return QRect(width - r.right() - 1, r.top(), r.width(), r.height()); };
+        Shown onScreen = sh;
+        onScreen.align = sh.align == HAlign::Left ? HAlign::Right : sh.align == HAlign::Right ? HAlign::Left : sh.align;
+        p->save();
+        p->resetTransform();
+        m_drawingMirrored = true;
+        drawText(p, screen(cell), screen(box), screen(area), look, onScreen, o);
+        m_drawingMirrored = false;
+        p->restore();
+        return;
+    }
     const double z = L.zoom();
     QFont font = fontFor(look, z);
     if (font.pixelSize() < kMinFontPixels) return;
@@ -326,7 +359,7 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
     int flags = left ? Qt::AlignLeft : right ? Qt::AlignRight : Qt::AlignHCenter;
     flags |= look.vertical == VAlign::Top || look.vertical == VAlign::Justify || look.vertical == VAlign::Distributed ? Qt::AlignTop : look.vertical == VAlign::Center ? Qt::AlignVCenter : Qt::AlignBottom;
     QString text = sh.text;
-    const double deviceWidth = sh.width * z;
+    double deviceWidth = sh.width * z;
     bool clip = deviceWidth > r.width() || r.height() < font.pixelSize() + 2;
     if (look.shrink && !look.wrap && deviceWidth > r.width() && deviceWidth > 0) {
         font.setPixelSize(std::max(1, int(std::floor(font.pixelSize() * r.width() / deviceWidth))));
@@ -335,22 +368,34 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
     }
     if (look.wrap) {
         flags |= Qt::TextWordWrap;
+        if (look.horizontal == HAlign::Justify || look.horizontal == HAlign::Distributed) flags = (flags & ~Qt::AlignHorizontal_Mask) | Qt::AlignJustify;
         clip = true;
     } else {
         flags |= Qt::TextSingleLine;
     }
+    if (look.readingOrder == 2) flags |= Qt::TextForceRightToLeft;
     // "*x" in a number's format: the text is spread with x to fill the cell
     if (sh.kind == Kind::Number && sh.fillAt >= 0 && sh.fillAt <= text.size() && !sh.hashes) {
         const double charWidth = std::max(1.0, m_meter->width(QString(sh.fillChar), look) * z);
         const int n = int((r.width() - deviceWidth) / charWidth);
         if (n > 0) text = text.left(sh.fillAt) + QString(n, sh.fillChar) + text.mid(sh.fillAt);
     }
+    // fill alignment: the text is repeated to fill the width of the cell
+    if (look.horizontal == HAlign::Fill && !look.wrap && !sh.hashes && deviceWidth > 0 && !text.isEmpty() && look.rotation == 0) {
+        const int n = std::min(2000, int(r.width() / deviceWidth));
+        if (n > 1) {
+            text = text.repeated(n);
+            deviceWidth *= n;
+            clip = true;
+        }
+    }
     ++m_stats.textRuns;
     m_stats.textChars += text.size();
     if (sh.hashes) ++m_stats.hashed;
     const QRgb ink = sh.color ? sh.color : look.textColor;
+    const bool otherUnderline = look.underline == Underline::Double || look.underline == Underline::SingleAccounting || look.underline == Underline::DoubleAccounting;
     // A line of text with nothing special (not turned, not wrapped, not shrunk) is drawn from its baseline as a run of glyphs, where no layout of a box is needed.
-    if (look.rotation == 0 && !look.wrap && font.pixelSize() == fontFor(look, z).pixelSize()) {
+    if (look.rotation == 0 && !look.wrap && look.readingOrder != 2 && font.pixelSize() == fontFor(look, z).pixelSize()) {
         const size_t id = look.fontId;
         if (id >= m_faces.size()) m_faces.resize(id + 1);
         if (!m_faces[id]) m_faces[id] = std::make_unique<GlyphFace>(font);
@@ -366,43 +411,71 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
             run.setRawFont(face.raw());
             run.setGlyphIndexes(glyphs);
             run.setPositions(positions);
-            run.setUnderline(look.underline != Underline::None);
+            run.setUnderline(look.underline == Underline::Single);
             run.setStrikeOut(look.strike);
             if (clip) p->setClipRect(box & area);
             p->setPen(QColor::fromRgba(ink));
             p->drawGlyphRun(QPointF(std::round(x), std::round(y)), run);
+            if (otherUnderline) {
+                p->setClipRect(box & area);
+                drawUnderlineLines(p, look.underline, cell, r, std::round(x), w, std::round(y), face.lineWidth(), face.underlinePos(), o.gridlines, QColor::fromRgba(ink));
+                if (!clip) p->setClipRect(area);
+            }
             if (clip) p->setClipRect(area);
             return;
         }
     }
     p->setFont(font);
     p->setPen(QColor::fromRgba(ink));
+    const QFontMetricsF fm(font);
     if (look.rotation != 0 && look.rotation != 255) {
-        // turned: about the middle of the cell, in a box turned with it
+        // turned: the box the text turns in (as wide and as tall as the turned text is) is put in the cell where its alignment says, and the text is turned about the middle of it
         const int turn = look.rotation <= 90 ? look.rotation : -(look.rotation - 90);
+        const double rad = turn * 3.14159265358979323846 / 180.0;
+        const double tw = fm.horizontalAdvance(text), th = fm.height();
+        const double bw = std::abs(tw * std::cos(rad)) + th * std::abs(std::sin(rad)), bh = std::abs(tw * std::sin(rad)) + th * std::abs(std::cos(rad));
+        const double bx = sh.align == HAlign::Right ? r.right() + 1 - bw : sh.align == HAlign::Center || sh.align == HAlign::CenterContinuous ? r.left() + (r.width() - bw) / 2 : r.left();
+        const double by = look.vertical == VAlign::Top || look.vertical == VAlign::Justify || look.vertical == VAlign::Distributed ? r.top() : look.vertical == VAlign::Center ? r.top() + (r.height() - bh) / 2
+                                                                                                                                                  : r.bottom() + 1 - bh;
         p->save();
         p->setClipRect(cell & area);
-        p->translate(QPointF(cell.center()) + QPointF(0.5, 0.5));
+        p->translate(QPointF(bx + bw / 2, by + bh / 2));
         p->rotate(-turn);
-        const bool sideways = std::abs(turn) > 45;
-        const QRect turned(-(sideways ? cell.height() : cell.width()) / 2, -(sideways ? cell.width() : cell.height()) / 2, sideways ? cell.height() : cell.width(),
-                           sideways ? cell.width() : cell.height());
-        p->drawText(turned, Qt::AlignCenter | Qt::TextSingleLine | Qt::TextDontClip, text);
+        p->drawText(QRectF(-tw / 2 - 2, -th / 2, tw + 4, th), Qt::AlignCenter | Qt::TextSingleLine | Qt::TextDontClip, text);
+        if (otherUnderline) drawUnderlineLines(p, look.underline, QRect(-100000, -100000, 200000, 200000), QRect(int(-tw / 2), 0, int(tw), 1), -tw / 2, tw, -th / 2 + fm.ascent(), fm.lineWidth(), fm.underlinePos(), false, QColor::fromRgba(ink));
         p->restore();
         return;
     }
     if (look.rotation == 255) {
-        // upright, one letter under another
-        QString stacked;
-        for (QChar c : text) stacked += (stacked.isEmpty() ? QString() : QStringLiteral("\n")) + c;
+        // upright, one letter under another: the block of them is put where the alignment says
+        QStringList letters;
+        for (QChar c : text) letters << QString(c);
+        double widest = 0;
+        for (const QString &l : std::as_const(letters)) widest = std::max(widest, fm.horizontalAdvance(l));
+        const double bw = widest, bh = fm.lineSpacing() * double(letters.size());
+        const double bx = sh.align == HAlign::Right ? r.right() + 1 - bw : sh.align == HAlign::Center || sh.align == HAlign::CenterContinuous ? r.left() + (r.width() - bw) / 2 : r.left();
+        const double by = look.vertical == VAlign::Top || look.vertical == VAlign::Justify || look.vertical == VAlign::Distributed ? r.top() : look.vertical == VAlign::Center ? r.top() + (r.height() - bh) / 2
+                                                                                                                                                  : r.bottom() + 1 - bh;
         p->setClipRect(cell & area);
-        p->drawText(cell, Qt::AlignHCenter | Qt::AlignVCenter | Qt::TextDontClip, stacked);
+        p->drawText(QRectF(bx, by, bw + 1, bh), Qt::AlignHCenter | Qt::AlignTop | Qt::TextDontClip, letters.join(QLatin1Char('\n')));
         p->setClipRect(area);
         return;
     }
     if (clip) p->setClipRect(box & area);
+    if (otherUnderline && look.wrap) {
+        QFont underlined = font;
+        underlined.setUnderline(true);   // (a wrapped text with one of the other underlines has the font's: its lines are not each measured)
+        p->setFont(underlined);
+    }
     p->drawText(r, flags | (clip ? 0 : Qt::TextDontClip), text);
-    if (clip) p->setClipRect(area);
+    if (otherUnderline && !look.wrap) {
+        const double w = fm.horizontalAdvance(text), h = fm.height();
+        const double x = left ? r.left() : right ? r.right() + 1 - w : r.left() + (r.width() - w) / 2;
+        const double top = (flags & Qt::AlignTop) ? r.top() : (flags & Qt::AlignVCenter) ? r.top() + (r.height() - h) / 2 : r.bottom() + 1 - h;
+        p->setClipRect(box & area);
+        drawUnderlineLines(p, look.underline, cell, r, x, w, top + fm.ascent(), fm.lineWidth(), fm.underlinePos(), o.gridlines, QColor::fromRgba(ink));
+    }
+    if (clip || otherUnderline) p->setClipRect(area);
 }
 
 // ---- the parts of the grid
@@ -758,6 +831,20 @@ void GridPainter::paintDashedRange(QPainter *p, Pane which, const QRect &area, c
     p->restore();
 }
 
+void GridPainter::drawHeaderText(QPainter *p, const QRect &cell, const QString &text)
+{
+    if (!m_sheet->rightToLeft()) {
+        p->drawText(cell, Qt::AlignCenter | Qt::TextSingleLine, text);
+        return;
+    }
+    // (the text of a mirrored sheet is drawn as it reads, in the cell's place on the screen)
+    const int width = m_sheet->layout().viewport().width();
+    p->save();
+    p->resetTransform();
+    p->drawText(QRect(width - cell.right() - 1, cell.top(), cell.width(), cell.height()), Qt::AlignCenter | Qt::TextSingleLine, text);
+    p->restore();
+}
+
 void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOptions &o)
 {
     const GridLayout &L = m_sheet->layout();
@@ -799,7 +886,7 @@ void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOption
                 p->fillRect(QRect(a, hh - 1, b - a, 1), o.headerLine);
                 if (cell.width() >= 12) {
                     p->setPen(o.headerText);
-                    p->drawText(cell, Qt::AlignCenter | Qt::TextSingleLine, columnName(quint32(c)));
+                    drawHeaderText(p, cell, columnName(quint32(c)));
                 }
                 ++m_stats.headersDrawn;
                 ++drawn;
@@ -827,7 +914,7 @@ void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOption
                 p->fillRect(QRect(0, b - 1, hw, 1), o.headerLine);
                 if (cell.height() >= 10) {
                     p->setPen(o.headerText);
-                    p->drawText(cell, Qt::AlignCenter | Qt::TextSingleLine, QString::number(r + 1));
+                    drawHeaderText(p, cell, QString::number(r + 1));
                 }
                 ++m_stats.headersDrawn;
                 ++drawn;
@@ -854,6 +941,11 @@ void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
     p->save();
     p->setRenderHint(QPainter::Antialiasing, false);
     p->setRenderHint(QPainter::SmoothPixmapTransform, false);
+    // (a sheet that reads right to left is drawn as the layout has it and mirrored: column A is at the right edge; the text is drawn as it reads, see drawText)
+    if (m_sheet->rightToLeft()) {
+        p->translate(m_sheet->layout().viewport().width(), 0);
+        p->scale(-1, 1);
+    }
     for (Pane which : {Pane::Body, Pane::Left, Pane::Top, Pane::Corner}) paintPane(p, which, clip, o);
     if (o.headers) paintHeaders(p, clip, o);
     if (!o.dropDown.isEmpty() && o.dropDown.intersects(clip)) {

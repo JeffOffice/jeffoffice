@@ -105,6 +105,7 @@ private:
     void drawFill(QPainter *p, const QRect &rect, const CellLook &look, const PaintOptions &o);
     void drawEdge(QPainter *p, const LineLook &line, int x, int y, int length, bool vertical, const QRect &clip);
     void drawText(QPainter *p, const QRect &cell, const QRect &box, const QRect &area, const CellLook &look, const Shown &shown, const PaintOptions &o);
+    void drawHeaderText(QPainter *p, const QRect &cell, const QString &text);
     const QFont &fontFor(const CellLook &look, double scale);
     QBrush patternBrush(PatternKind kind, QRgb fg, QRgb bg);
 
@@ -116,6 +117,7 @@ private:
     double m_fontZoom = 0;
     QHash<quint64, QBrush> m_patterns;
     std::vector<std::unique_ptr<GlyphFace>> m_faces;          // by font id, at the zoom of the last paint
+    bool m_drawingMirrored = false;   // drawText is drawing a text of a sheet that reads right to left, on the screen's places
     int m_lastFontId = -1;      // what the painter was last given, so a run in the same font and color sets neither again
     double m_lastFontZoom = 0;
     QRgb m_lastInk = 0;

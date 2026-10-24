@@ -160,6 +160,19 @@ Spill spillOf(const Shown &shown, const CellLook &look, double cellWidth, const 
 {
     Spill sp;
     if (shown.kind != Kind::Text || shown.hashes || look.wrap || look.shrink || look.rotation != 0) return sp;
+    if (look.horizontal == HAlign::Fill) return sp;   // (a text that fills its cell goes no further)
+    if (shown.align == HAlign::CenterContinuous) {
+        // centered across the cell and the empty cells after it that are formatted so, whether or not it needs them
+        double gained = 0;
+        for (int step = 1; step <= kMaxSpill; ++step) {
+            const double w = neighbor(step);
+            if (w < 0) break;
+            gained += w;
+            sp.right = step;
+        }
+        sp.extra = gained;
+        return sp;
+    }
     const double need = shown.width + 2 * kCellPadding + indentPixels(look) - cellWidth;
     if (need <= 0) return sp;
     const bool both = shown.align == HAlign::Center || shown.align == HAlign::CenterContinuous;
