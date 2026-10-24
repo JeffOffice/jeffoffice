@@ -599,8 +599,8 @@ PaintOptions GridView::paintOptions() const
     PaintOptions o;
     o.gridlines = m_gridlines;
     o.headers = m_headings;
-    o.selection = &m_selection;
-    o.fillHandle = true;
+    o.selection = m_cellsEnabled ? &m_selection : nullptr;
+    o.fillHandle = m_cellsEnabled;
     o.fillPreview = m_drag == Drag::Fill && !(m_fillExtent == m_fillSource) ? &m_fillExtent : nullptr;
     o.copyRange = hasCopyBorder() ? &m_copyBorder : nullptr;
     o.copyPhase = m_copyPhase;
@@ -650,7 +650,7 @@ void GridView::resizeEvent(QResizeEvent *e)
 // What an input method (for Chinese, Japanese, and Korean, or accents made of two keys) finishes writing starts an entry in the cell; what it is still composing is not shown here.
 void GridView::inputMethodEvent(QInputMethodEvent *e)
 {
-    if (!e->commitString().isEmpty()) Q_EMIT typingStarted(e->commitString());
+    if (m_cellsEnabled && !e->commitString().isEmpty()) Q_EMIT typingStarted(e->commitString());
     e->accept();
 }
 
@@ -722,7 +722,7 @@ void GridView::mousePressEvent(QMouseEvent *e)
 {
     if (e->button() == Qt::LeftButton && m_clickGuard && !m_clickGuard()) return;
     setFocus(Qt::MouseFocusReason);
-    if (overlayPress(e)) return;
+    if (overlayPress(e) || !m_cellsEnabled) return;
     m_jump.reset();
     const GridLayout &L = m_sheet.layout();
     const Hit h = L.hit(e->pos());
@@ -889,7 +889,7 @@ void GridView::clearCopyBorder()
 
 void GridView::mouseDoubleClickEvent(QMouseEvent *e)
 {
-    if (e->button() != Qt::LeftButton) return;
+    if (e->button() != Qt::LeftButton || !m_cellsEnabled) return;
     bool column = false;
     qint64 index = -1;
     if (borderAt(e->pos(), &column, &index)) {
@@ -973,6 +973,10 @@ void GridView::keyPressEvent(QKeyEvent *e)
 {
     if (m_overlay && m_overlay->key(e)) {
         e->accept();
+        return;
+    }
+    if (!m_cellsEnabled) {
+        e->ignore();
         return;
     }
     const bool shift = e->modifiers() & Qt::ShiftModifier, ctrl = e->modifiers() & Qt::ControlModifier;

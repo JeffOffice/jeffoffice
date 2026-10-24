@@ -12,6 +12,10 @@
 #include <QSignalSpy>
 #include <QTest>
 
+#include <QSemaphore>
+#include <QThread>
+
+#include <atomic>
 #include <memory>
 
 using namespace jp::grid;
@@ -61,6 +65,7 @@ struct Painted {
     QVector<double> zooms;
     QVector<QSizeF> units;
     QVector<QRectF> inner;
+    QThread *thread = nullptr;
 };
 
 LayerObject colored(int id, const DrawingAnchor &anchor, QRgb color, Painted *log = nullptr)
@@ -84,28 +89,81 @@ LayerObject colored(int id, const DrawingAnchor &anchor, QRgb color, Painted *lo
 
 const QRgb kRed = 0xFFFF0000, kGreen = 0xFF00A000, kBlue = 0xFF0000FF, kWhite = 0xFFFFFFFF;
 
-// A layout of 400 by 300 pixels with no headers: rows 20 high, columns 64 wide.
+// What a chart made on a worker does, for the test to see: the thread it ran on, how many ran at once, and a gate to hold it until the test lets it go.
+struct Gate {
+    std::atomic<bool> blocked{false};
+    QSemaphore open;
+    std::atomic<int> started{0}, finished{0}, running{0}, mostRunning{0};
+    std::atomic<QThread *> thread{nullptr};
+};
+
+// An object whose picture is made in two parts, as a chart's is: the first on the window's thread (counted in `log`), the second, a job, on a worker.
+LayerObject madeOnAWorker(int id, const DrawingAnchor &anchor, QRgb color, Gate *gate = nullptr, Painted *log = nullptr)
+{
+    LayerObject o;
+    o.id = id;
+    o.anchor = anchor;
+    o.kind = jp::office::sheet::ObjectKind::Chart;
+    o.prepare = [color, gate, log](const RenderRequest &q) {
+        if (log) {
+            log->asked.append(q.pixels);
+            log->zooms.append(q.zoom);
+            log->units.append(q.units);
+            log->inner.append(q.inner);
+            log->thread = QThread::currentThread();
+        }
+        return std::function<QImage()>([color, gate, size = q.pixels] {
+            if (gate) {
+                gate->thread = QThread::currentThread();
+                ++gate->started;
+                const int now = ++gate->running;
+                int most = gate->mostRunning;
+                while (now > most && !gate->mostRunning.compare_exchange_weak(most, now)) {}
+                if (gate->blocked) gate->open.acquire();
+                --gate->running;
+            }
+            QImage img(size, QImage::Format_ARGB32_Premultiplied);
+            img.fill(color);
+            if (gate) ++gate->finished;
+            return img;
+        });
+    };
+    return o;
+}
+
+// A layout of 400 by 300 pixels (logical) with no headers: rows 20 high, columns 64 wide, drawn on a canvas of the device pixel ratio given (1 unless a test says).
 struct Scene {
     GridLayout layout;
     ObjectLayer objects;
-    QImage canvas{400, 300, QImage::Format_ARGB32_Premultiplied};
-    Scene()
+    QImage canvas;
+    double ratio;
+    explicit Scene(double dpr = 1.0, const QSize &viewport = QSize(400, 300)) : canvas(QSize(int(viewport.width() * dpr), int(viewport.height() * dpr)), QImage::Format_ARGB32_Premultiplied), ratio(dpr)
     {
+        canvas.setDevicePixelRatio(dpr);
         layout.setHeaders(false, 0, 0);
-        layout.setViewport(QSize(400, 300));
+        layout.setViewport(viewport);
         objects.attach(&layout);
     }
-    // Draws every part of the grid, as the view does, on a white canvas.
-    void draw()
+    // One paint of every part of the grid, as the view does, on a white canvas: it makes nothing.
+    void paint(QRgb background = kWhite)
     {
-        canvas.fill(kWhite);
+        canvas.fill(background);
         QPainter p(&canvas);
         for (const Pane pane : {Pane::Corner, Pane::Top, Pane::Left, Pane::Body}) {
             const QRect area = layout.pane(pane).rect;
             if (!area.isEmpty()) objects.paint(&p, layout, pane, area);
         }
     }
-    QRgb at(int x, int y) const { return canvas.pixel(x, y); }
+    // A paint, the pictures it asked for made (prepareAll), and a paint again.
+    void draw(bool settle = true)
+    {
+        paint();
+        if (!settle) return;
+        objects.prepareAll();
+        paint();
+    }
+    // The device pixel at a place of the window (in its logical units).
+    QRgb at(int x, int y) const { return canvas.pixel(int(std::lround(x * ratio)), int(std::lround(y * ratio))); }
 };
 
 } // namespace
@@ -278,27 +336,28 @@ private Q_SLOTS:
         QCOMPARE(s.at(128, 59), kWhite);
     }
 
-    // The pictures are made when they are needed: at most kMaxRendersPerPaint in a paint, the rest by prepareAll(), and a changed object once.
+    // A paint makes nothing: it draws what there is (an outline for the rest) and asks for the rest; prepareAll() makes what the screen needs, once, and an object whose cells change is made again once.
     void picturesAreMadeWhenNeededAndCounted()
     {
         Scene s;
         std::vector<LayerObject> objects;
         for (int i = 0; i < 20; ++i) objects.push_back(colored(i + 1, twoCell(i % 6, i % 14, i % 6 + 1, i % 14 + 1), kRed));
         s.objects.setObjects(objects);
-        s.draw();
-        QCOMPARE(s.objects.stats().renders, qint64(ObjectLayer::kMaxRendersPerPaint));
-        QCOMPARE(s.objects.stats().placeholders, qint64(20 - ObjectLayer::kMaxRendersPerPaint));
-        QCOMPARE(s.objects.pendingRenders(), 20 - ObjectLayer::kMaxRendersPerPaint);
+        s.draw(false);
+        QCOMPARE(s.objects.stats().renders, qint64(0));
+        QCOMPARE(s.objects.stats().paintRenders, qint64(0));
+        QCOMPARE(s.objects.stats().placeholders, qint64(20));
+        QCOMPARE(s.objects.pendingRenders(), 20);
         s.objects.prepareAll();
         QCOMPARE(s.objects.stats().renders, qint64(20));
         QCOMPARE(s.objects.pendingRenders(), 0);
-        s.draw();
+        s.paint();
         QCOMPARE(s.objects.stats().renders, qint64(20));
-        QCOMPARE(s.objects.stats().placeholders, qint64(20 - ObjectLayer::kMaxRendersPerPaint));
+        QCOMPARE(s.objects.stats().placeholders, qint64(20));
         // one object's cells change: its old picture is drawn, and one is made again
         s.objects.invalidate(7);
         QCOMPARE(s.objects.pendingRenders(), 1);
-        s.draw();
+        s.paint();
         QCOMPARE(s.objects.stats().renders, qint64(20));
         s.objects.prepareAll();
         QCOMPARE(s.objects.stats().renders, qint64(21));
@@ -309,43 +368,282 @@ private Q_SLOTS:
         // an object that is not on the screen is not made
         s.objects.setObjects({colored(1, twoCell(0, 500, 1, 502), kRed)});
         s.draw();
-        s.objects.prepareAll();
         QCOMPARE(s.objects.stats().renders, qint64(41));
         QCOMPARE(s.objects.pendingRenders(), 0);
     }
 
-    // The time between events makes the pictures a paint left: the layer's own timer, a step at a time.
-    void theTimerMakesWhatAPaintLeft()
+    // The time between events makes the pictures a paint asked for: the layer's own timer, a step at a time, and the window is told to draw what it made.
+    void theTimerMakesWhatAPaintAskedFor()
     {
         Scene s;
         std::vector<LayerObject> objects;
         for (int i = 0; i < 30; ++i) objects.push_back(colored(i + 1, twoCell(i % 6, i % 14, i % 6 + 1, i % 14 + 1), kRed));
         s.objects.setObjects(objects);
-        s.draw();
-        QSignalSpy repaint(&s.objects, &ObjectLayer::selectionChanged);   // (nothing to wait for in a signal: the repaint hook is the layer's way)
         int repaints = 0;
         s.objects.setRepaintHook([&repaints](const QRect &) { ++repaints; });
+        s.draw(false);
+        QCOMPARE(s.objects.stats().renders, qint64(0));
         QTRY_COMPARE(s.objects.pendingRenders(), 0);
         QVERIFY(repaints > 0);
         QCOMPARE(s.objects.stats().renders, qint64(30));
+        QCOMPARE(s.objects.stats().paintRenders, qint64(0));
     }
 
     // After the grid stops, the objects a screenful beyond the window are made too (a scroll shows them next), and those further are not.
     void theTimerMakesWhatTheNextScreenShows()
     {
         Scene s;
-        s.objects.setObjects({colored(1, twoCell(1, 2, 3, 4), kRed), colored(2, twoCell(1, 25, 3, 27), kGreen), colored(3, twoCell(1, 500, 3, 502), kBlue)});
+        Painted nearLog, farLog;
+        s.objects.setObjects({colored(1, twoCell(1, 2, 3, 4), kRed), colored(2, twoCell(1, 25, 3, 27), kGreen, &nearLog), colored(3, twoCell(1, 500, 3, 502), kBlue, &farLog)});
         s.draw();
         QCOMPARE(s.objects.stats().renders, qint64(1));
-        QTRY_COMPARE(s.objects.stats().renders, qint64(2));    // (the second is below the 300 pixels the window shows, within another screenful)
-        QCOMPARE(s.objects.pendingRenders(), 0);
-        // scrolled to it: its picture is there already
+        // (the second is below the 300 pixels the window shows, within another screenful: the layer makes it when the grid has stopped, and then has nothing in hand)
+        QTRY_VERIFY(nearLog.asked.size() == 1 && !s.objects.busy());
+        QCOMPARE(s.objects.stats().renders, qint64(2));
+        QCOMPARE(farLog.asked.size(), 0);   // (the third is never made while it is far off)
+        // scrolled to it: its picture is there already (no outline is drawn for it)
+        const qint64 outlines = s.objects.stats().placeholders;
         s.layout.setScroll(0, 460);
-        s.draw();
+        s.paint();
         QCOMPARE(s.at(64, 40), kGreen);
         QCOMPARE(s.objects.stats().renders, qint64(2));
-        QCOMPARE(s.objects.stats().placeholders, qint64(0));
-        QTRY_COMPARE(s.objects.stats().renders, qint64(2));
+        QCOMPARE(s.objects.stats().placeholders, outlines);
+        QTRY_VERIFY(!s.objects.busy());
+        QCOMPARE(farLog.asked.size(), 0);
+    }
+
+
+    // A chart's picture is made on a worker thread from what was taken on the window's thread, one chart at a time; a paint shows an outline until it is there, and makes nothing.
+    void chartsAreMadeOnAWorkerAndAPaintMakesNothing()
+    {
+        Scene s;
+        Gate gate;
+        Painted log;
+        std::vector<LayerObject> objects;
+        for (int i = 0; i < 8; ++i) objects.push_back(madeOnAWorker(i + 1, twoCell(i % 5, i * 2, i % 5 + 1, i * 2 + 2), kGreen, &gate, &log));
+        s.objects.setObjects(objects);
+        s.draw(false);
+        QCOMPARE(s.objects.stats().renders, qint64(0));
+        QCOMPARE(s.objects.stats().paintRenders, qint64(0));
+        QCOMPARE(s.objects.stats().jobs, qint64(0));
+        QCOMPARE(s.objects.stats().placeholders, qint64(8));
+        QCOMPARE(s.objects.pendingRenders(), 8);
+        s.objects.prepareAll();
+        QCOMPARE(s.objects.stats().jobs, qint64(8));
+        QCOMPARE(s.objects.stats().renders, qint64(8));
+        QCOMPARE(s.objects.pendingRenders(), 0);
+        QVERIFY(gate.thread != nullptr && gate.thread != QThread::currentThread());   // (the picture was made elsewhere)
+        QCOMPARE(log.thread, QThread::currentThread());                              // (and what it needed was taken here)
+        QVERIFY(gate.mostRunning <= ObjectLayer::kMaxJobs);
+        s.paint();
+        QCOMPARE(s.at(10, 10), kGreen);
+        QCOMPARE(s.objects.stats().renders, qint64(8));
+        // the same by the layer's own timer, with the window told of each
+        int repaints = 0;
+        s.objects.setRepaintHook([&repaints](const QRect &) { ++repaints; });
+        s.objects.invalidateAll();
+        QTRY_COMPARE(s.objects.pendingRenders(), 0);
+        QCOMPARE(s.objects.stats().renders, qint64(16));
+        QVERIFY(repaints >= 8);
+        QCOMPARE(s.objects.stats().paintRenders, qint64(0));
+    }
+
+    // Cells that change while a chart is being made make it again (the picture that comes is drawn, and another follows); objects given while a job runs are not given its picture.
+    void aChartMadeWhileItsCellsChangeIsMadeAgain()
+    {
+        Scene s;
+        Gate gate;
+        gate.blocked = true;
+        s.objects.setObjects({madeOnAWorker(1, twoCell(1, 2, 3, 5), kGreen, &gate)});
+        s.draw(false);
+        QTRY_COMPARE(gate.started.load(), 1);   // (the layer's step gave the job to the worker)
+        QVERIFY(s.objects.busy());
+        s.objects.invalidate(1);                // its cells change while it is being made
+        gate.blocked = false;
+        gate.open.release(4);
+        QTRY_VERIFY(!s.objects.busy() && s.objects.pendingRenders() == 0);
+        QCOMPARE(s.objects.stats().renders, qint64(2));
+        QCOMPARE(gate.finished.load(), 2);
+        // another set of objects is given while a job for the old one runs: its picture is not drawn for the new
+        while (gate.open.tryAcquire()) {}   // (no permit left over for the job to take)
+        gate.blocked = true;
+        s.objects.setObjects({madeOnAWorker(1, twoCell(1, 2, 3, 5), kGreen, &gate)});
+        s.draw(false);
+        QTRY_COMPARE(gate.started.load(), 3);
+        s.objects.setObjects({colored(7, twoCell(1, 2, 3, 5), kRed)});
+        gate.blocked = false;
+        gate.open.release(4);
+        QTRY_COMPARE(gate.finished.load(), 3);
+        QCoreApplication::processEvents();
+        s.draw();
+        QCOMPARE(s.at(64 + 10, 40 + 10), kRed);
+        QCOMPARE(s.objects.count(), 1);
+        QCOMPARE(s.objects.stats().renders, qint64(3));   // (the layer's counts are for good: two before, and the one picture of the new object; the job's was not heard)
+    }
+
+    // The limit on what is held is hard: 600 objects as large as the window cannot all be held at full size, so every picture is made smaller until those on the screen fit, and the bytes
+    // held never pass the budget.
+    void theBudgetIsHardForWhatIsOnTheScreen()
+    {
+        Scene s(1.0, QSize(1280, 800));
+        std::vector<LayerObject> many;
+        for (int i = 0; i < 600; ++i) many.push_back(colored(i + 1, absolute(0, 0, 1280, 800), kRed));
+        s.objects.setObjects(many);
+        s.draw(false);
+        s.objects.prepareAll();
+        QCOMPARE(s.objects.pendingRenders(), 0);
+        QVERIFY2(s.objects.cacheBytes() <= ObjectLayer::kCacheBytes, qPrintable(QString::number(s.objects.cacheBytes())));
+        QVERIFY(s.objects.shrink() < 1.0);
+        QVERIFY(s.objects.stats().shrunk > 0);
+        QCOMPARE(s.objects.stats().renders, qint64(600));
+        // (full size would have been 600 x 4 MB)
+        QVERIFY(s.objects.cacheBytes() < 600LL * 1280 * 800 * 4 / 8);
+        s.paint();
+        QCOMPARE(s.at(100, 100), kRed);   // (what is held is drawn, scaled up)
+        QCOMPARE(s.objects.stats().paintRenders, qint64(0));
+        // a window that moves over more such objects than fit still keeps the limit
+        for (int step = 1; step <= 2; ++step) {
+            s.layout.setZoom(1.0 + 0.5 * step);
+            s.objects.prepareAll();
+            QVERIFY(s.objects.cacheBytes() <= ObjectLayer::kCacheBytes);
+            QCOMPARE(s.objects.pendingRenders(), 0);
+        }
+    }
+
+    // A click picks a shape only where it has ink: a filled or stroked place (the shape with no fill passes the click to the cells under it); a picture or chart is picked anywhere in its box.
+    void onlyInkPicksAShape()
+    {
+        Scene s;
+        auto sparse = [](int id, const DrawingAnchor &a, jp::office::sheet::ObjectKind kind, bool ink) {
+            LayerObject o;
+            o.id = id;
+            o.anchor = a;
+            o.kind = kind;
+            o.hitInk = ink;
+            o.render = [](const RenderRequest &q) {
+                QImage img(q.pixels, QImage::Format_ARGB32_Premultiplied);
+                img.fill(Qt::transparent);
+                QPainter p(&img);
+                p.fillRect(QRectF(q.inner.center().x() - 20, q.inner.center().y() - 20, 40, 40), QColor(Qt::red));   // (a square in the middle, and nothing else)
+                return img;
+            };
+            return o;
+        };
+        s.objects.setObjects({sparse(1, twoCell(1, 2, 3, 6), jp::office::sheet::ObjectKind::Shape, true), sparse(2, twoCell(5, 2, 7, 6), jp::office::sheet::ObjectKind::Picture, false)});
+        s.draw();
+        QCOMPARE(s.at(64 + 64, 40 + 40), kRed);
+        QCOMPARE(s.objects.objectAt(QPoint(64 + 64, 40 + 40)), 1);          // on the ink
+        QCOMPARE(s.objects.objectAt(QPoint(64 + 64 + 18, 40 + 40 + 18)), 1);
+        QCOMPARE(s.objects.objectAt(QPoint(64 + 5, 40 + 5)), -1);           // in the box, on nothing: the cell under it
+        QCOMPARE(s.objects.objectAt(QPoint(64 + 64 + 30, 40 + 40)), -1);
+        QCOMPARE(s.objects.objectAt(QPoint(5 * 64 + 5, 40 + 5)), 2);         // a picture: anywhere in its box
+        QVERIFY(!s.objects.press(QPoint(64 + 5, 40 + 5), s.layout, Qt::NoModifier));   // the click goes to the cells
+        QCOMPARE(s.objects.selectedId(), -1);
+        QVERIFY(s.objects.press(QPoint(64 + 64, 40 + 40), s.layout, Qt::NoModifier));
+        QCOMPARE(s.objects.selectedId(), 1);
+        // an object with no picture yet is hit in its box
+        s.objects.invalidateAll();
+        s.objects.setObjects({sparse(1, twoCell(1, 2, 3, 6), jp::office::sheet::ObjectKind::Shape, true)});
+        QCOMPARE(s.objects.objectAt(QPoint(64 + 5, 40 + 5)), 1);
+    }
+
+    // The places in rows and columns that a position is in, the other way from an anchor's box: a box turned to anchor points and back is the same box.
+    void aPositionIsAPlaceInARowAndAColumn()
+    {
+        Axis rows(1000, 20), cols(100, 64);
+        rows.setSize(3, 50);
+        cols.setSize(2, 100);
+        rows.setSize(5, 0);
+        AnchorPoint p = anchorPointAt(rows, cols, 74, 45);
+        QCOMPARE(int(p.col), 1);
+        QCOMPARE(p.colOff, 10 * jp::office::sheet::kEmuPerPixel);
+        QCOMPARE(int(p.row), 2);
+        QCOMPARE(p.rowOff, 5 * jp::office::sheet::kEmuPerPixel);
+        p = anchorPointAt(rows, cols, 64 + 64 + 30, 20 * 3 + 50 + 20 + 1);   // (past the hidden row: the row after it)
+        QCOMPARE(int(p.col), 2);
+        QCOMPARE(p.colOff, 30 * jp::office::sheet::kEmuPerPixel);
+        QCOMPARE(int(p.row), 6);
+        // round trips
+        const DrawingAnchor a = twoCell(1, 2, 4, 9, px(10), px(5), px(30), px(15));
+        const ObjectBox box = anchorBox(a, rows, cols);
+        DrawingAnchor b;
+        b.kind = AnchorKind::TwoCell;
+        b.from = anchorPointAt(rows, cols, box.x, box.y);
+        b.to = anchorPointAt(rows, cols, box.x + box.w, box.y + box.h);
+        const ObjectBox again = anchorBox(b, rows, cols);
+        QVERIFY(std::abs(again.x - box.x) < 0.01 && std::abs(again.y - box.y) < 0.01 && std::abs(again.w - box.w) < 0.01 && std::abs(again.h - box.h) < 0.01);
+        // past the end of the sheet: the end of the last
+        p = anchorPointAt(rows, cols, 1e9, 1e9);
+        QCOMPARE(int(p.col), 99);
+        QCOMPARE(int(p.row), 999);
+        QCOMPARE(p.colOff, 64 * jp::office::sheet::kEmuPerPixel);
+        p = anchorPointAt(rows, cols, -50, -50);
+        QCOMPARE(int(p.col), 0);
+        QCOMPARE(p.colOff, qint64(0));
+    }
+
+    // Where an object was put is told after the rows and columns have changed, until it is put again: what an object that keeps its size is measured by just before the sizes change.
+    void theLastBoxIsWhereTheObjectWasBeforeTheSizesChanged()
+    {
+        Scene s;
+        s.objects.setObjects({colored(1, twoCell(1, 2, 3, 5), kRed)});
+        bool placed = true;
+        s.objects.lastBox(1, &placed);
+        QVERIFY(!placed);
+        s.draw();
+        ObjectBox b = s.objects.lastBox(1, &placed);
+        QVERIFY(placed);
+        QCOMPARE(b.y, 40.0);
+        QCOMPARE(b.w, 128.0);
+        s.layout.cols.setSize(1, 200);   // the column under it widens
+        s.objects.layoutChanged();
+        b = s.objects.lastBox(1, &placed);
+        QCOMPARE(b.w, 128.0);            // (as it was)
+        s.paint();
+        b = s.objects.lastBox(1, &placed);
+        QCOMPARE(b.w, 128.0 + 136.0);
+    }
+
+    // The pictures are made for the device's pixels: at a ratio of 2 they have twice the pixels, and are drawn in the same place.
+    void picturesAreMadeForTheDevicesPixels()
+    {
+        Scene s(2.0);
+        Painted log;
+        s.objects.setObjects({colored(1, twoCell(1, 2, 3, 5), kRed, &log)});
+        s.draw();
+        QCOMPARE(log.asked.value(0), QSize(256, 120));
+        QCOMPARE(log.units.value(0), QSizeF(128, 60));
+        QCOMPARE(s.at(64, 40), kRed);
+        QCOMPARE(s.at(64 + 127, 40 + 59), kRed);
+        QCOMPARE(s.at(64 + 128, 40), kWhite);
+        QCOMPARE(s.canvas.pixel(2 * 64 - 1, 2 * 40), kWhite);   // (a device pixel just left of it)
+        QCOMPARE(s.canvas.pixel(2 * 64, 2 * 40), kRed);
+        s.layout.setZoom(2.0);
+        s.draw();
+        QCOMPARE(log.asked.last(), QSize(512, 240));
+    }
+
+    // A chart sheet is a white page: what the chart does not paint is white, not the grid's cells or cursor behind it.
+    void aChartSheetIsAWhitePage()
+    {
+        Scene s;
+        LayerObject clear;
+        clear.id = 1;
+        clear.anchor = absolute(0, 0, 640, 480);
+        clear.render = [](const RenderRequest &q) {
+            QImage img(q.pixels, QImage::Format_ARGB32_Premultiplied);
+            img.fill(Qt::transparent);
+            QPainter p(&img);
+            p.fillRect(QRectF(10, 10, 20, 20), QColor(Qt::red));
+            return img;
+        };
+        s.objects.setObjects({clear});
+        s.objects.setFillsView(true);
+        s.draw();
+        s.paint(kBlue);   // (the cells behind it are blue)
+        QCOMPARE(s.at(100, 100), kWhite);
+        QCOMPARE(s.at(15, 15), kRed);
+        QCOMPARE(s.at(399, 299), kWhite);
     }
 
     // Bounds: a picture is at most kMaxImagePixels however large the object, and the pictures held stay within the budget as the window moves over many large ones.
@@ -376,7 +674,7 @@ private Q_SLOTS:
             s.draw();
             s.objects.prepareAll();
         }
-        QVERIFY2(s.objects.cacheBytes() <= ObjectLayer::kCacheBytes + 8 * 1000 * 1000 * 4, qPrintable(QString::number(s.objects.cacheBytes())));
+        QVERIFY2(s.objects.cacheBytes() <= ObjectLayer::kCacheBytes, qPrintable(QString::number(s.objects.cacheBytes())));
         QVERIFY(s.objects.stats().evicted > 0);
         // (the last one is still there to draw)
         s.layout.setScroll(0, 69 * 1000);
@@ -577,19 +875,21 @@ private Q_SLOTS:
         b.show();
         b.layer.prepareAll();
         const QRect r = b.view->sheet().layout().rangeRect(3, 2, 5, 3);
+        // (the picture of the window has the device's pixels, which may be more than the window's units: a place in the window is looked up in them)
+        auto pixel = [](const QImage &img, int x, int y) { return img.pixel(int(std::lround(x * img.devicePixelRatio())), int(std::lround(y * img.devicePixelRatio()))); };
         QImage shot = b.view->viewport()->grab().toImage();
-        QCOMPARE(shot.pixel(r.center()), kRed);
-        QVERIFY(shot.pixel(r.left() - 3, r.center().y()) != kRed);
+        QCOMPARE(pixel(shot, r.center().x(), r.center().y()), kRed);
+        QVERIFY(pixel(shot, r.left() - 3, r.center().y()) != kRed);
         // scrolled by a row: the object is a row up
         b.view->sheet().layout().setScroll(0, 20);
         b.view->viewport()->update();
         shot = b.view->viewport()->grab().toImage();
-        QCOMPARE(shot.pixel(r.center().x(), r.top() - 20 + 5), kRed);
-        QVERIFY(shot.pixel(r.center().x(), r.top() - 20 - 5) != kRed);
+        QCOMPARE(pixel(shot, r.center().x(), r.top() - 20 + 5), kRed);
+        QVERIFY(pixel(shot, r.center().x(), r.top() - 20 - 5) != kRed);
         // the layer takes away: the cells show
         b.view->setOverlay(nullptr);
         shot = b.view->viewport()->grab().toImage();
-        QVERIFY(shot.pixel(r.center().x(), r.top() - 20 + 5) != kRed);
+        QVERIFY(pixel(shot, r.center().x(), r.top() - 20 + 5) != kRed);
     }
 
     // A click on an object picks it and the cell cursor stays where it was; a click elsewhere goes to the cells; Delete goes to the layer's hook and not to the cells.
@@ -634,7 +934,7 @@ private Q_SLOTS:
         const QRect r = b.view->sheet().layout().rangeRect(3, 2, 5, 3);
         b.layer.prepareAll();
         const QImage shot = b.view->viewport()->grab().toImage();
-        QCOMPARE(shot.pixel(r.center()), kRed);
+        QCOMPARE(shot.pixel(int(std::lround(r.center().x() * shot.devicePixelRatio())), int(std::lround(r.center().y() * shot.devicePixelRatio()))), kRed);
         QVERIFY(r.top() >= 3 * 20 + 40);
     }
 };

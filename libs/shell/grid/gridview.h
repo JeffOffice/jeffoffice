@@ -144,6 +144,10 @@ public:
     // (setOverlay(nullptr)) before it is destroyed.
     void setOverlay(GridOverlay *overlay);
     GridOverlay *overlay() const { return m_overlay; }
+    // The cells can be acted on (the usual): when not (a chart sheet, which shows a chart and no cells) there is no cell cursor, and a click, a key, a double click, and an input method
+    // do nothing to the cells.
+    void setCellsEnabled(bool enabled);
+    bool cellsEnabled() const { return m_cellsEnabled; }
     // A hook asked before a click changes the selection: false, and the click is ignored (the window finishes an entry first, and does not go on when it can't).
     void setClickGuard(std::function<bool()> guard) { m_clickGuard = std::move(guard); }
 
@@ -238,6 +242,7 @@ private:
     qint64 m_blits = 0, m_fullScrolls = 0;
     std::function<bool()> m_clickGuard;
     GridOverlay *m_overlay = nullptr;
+    bool m_cellsEnabled = true;
 };
 
 } // namespace jp::grid

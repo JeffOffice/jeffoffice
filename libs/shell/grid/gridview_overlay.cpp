@@ -25,6 +25,13 @@ void GridView::setOverlay(GridOverlay *overlay)
     viewport()->update();
 }
 
+void GridView::setCellsEnabled(bool enabled)
+{
+    if (m_cellsEnabled == enabled) return;
+    m_cellsEnabled = enabled;
+    viewport()->update();
+}
+
 void GridView::paintOverlay(QPainter *painter, const QRect &clip)
 {
     if (!m_overlay) return;
