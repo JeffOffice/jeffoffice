@@ -129,9 +129,9 @@ private Q_SLOTS:
         QVERIFY(!big.readSheet(0, &s));
         QVERIFY(s.error.contains(QLatin1String("longer")));
         QCOMPARE(shown(big, s, QStringLiteral("A1")), QStringLiteral("n:1"));
-        // an attribute of 3 MB, larger than any piece of XML may be: the sheet that has it is refused when it is read
+        // an attribute of 70 MB, larger than any piece of XML may be: the sheet that has it is refused when it is read
         Workbook attr;
-        const QString huge = table(QStringLiteral("S"), columns(1) + row(floatCell(1)) + row(cell(QStringLiteral("office:value-type=\"string\" office:string-value=\"") + QString(3 << 20, QLatin1Char('b')) + QStringLiteral("\""))));
+        const QString huge = table(QStringLiteral("S"), columns(1) + row(floatCell(1)) + row(cell(QStringLiteral("office:value-type=\"string\" office:string-value=\"") + QString(70 << 20, QLatin1Char('b')) + QStringLiteral("\""))));
         QVERIFY2(openIt(buildOds(contentXml(huge)), &attr, &why), qPrintable(why));
         QVERIFY(!attr.readSheet(0, &s));
         QVERIFY2(s.error.contains(QLatin1String("longer")), qPrintable(s.error));

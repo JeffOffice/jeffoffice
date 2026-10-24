@@ -1,13 +1,12 @@
 #include "app/crunchwindow.h"
 
-#include "app/otherformats.h"
-
 #include "app/crunchfilescreen.h"
 #include "app/crunchinfo.h"
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/keytips.h"
 #include "app/optionsdialog.h"
+#include "app/otherformats.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"

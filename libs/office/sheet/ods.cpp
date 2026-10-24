@@ -40,6 +40,9 @@ constexpr QLatin1String NS_CALCEXT("urn:org:documentfoundation:names:experimenta
 constexpr QLatin1String NS_TABLEOOO("http://openoffice.org/2009/table");
 constexpr QLatin1String NS_LOEXT("urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0");
 
+// The most bytes of XML in one piece the parser is given (a text, a tag with its attributes): a document's consolidation of cells has been found with 11 MB in one attribute.
+constexpr qint64 kMaxOdsTokenBytes = qint64(64) << 20;
+
 // All the properties (attributes of the elements of style properties) of all the styles together (tens of thousands are found in real documents).
 constexpr qint64 kMaxOdsProperties = 4000000;
 
@@ -92,7 +95,7 @@ public:
 
     bool parse(QIODevice *device, QString *error)
     {
-        jp::office::XmlGuardDevice guard(device, kMaxXmlTokenBytes);
+        jp::office::XmlGuardDevice guard(device, kMaxOdsTokenBytes);
         guard.open(QIODevice::ReadOnly);
         QXmlStreamReader xml(&guard);
         while (!xml.atEnd()) {
@@ -750,22 +753,22 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     Impl &m = *book->m;
     m.limits = limits;
     Package package;
-    QStringList parts;   // the names of the parts that hold styles and settings, in the order they are read
     if (flat) {
         m.content = file;
     } else {
         QString why;
         if (!package.readLazyOpenDocument(file, &why)) return fail(why);
+        // a document that is encrypted holds parts that are not XML
+        const QByteArray manifest = package.part(QStringLiteral("/META-INF/manifest.xml"));
+        if (manifest.contains("encryption-data")) return fail(say("This spreadsheet is protected with a password. Open it in the program that made it, save a copy without the password, and open that."));
         const QByteArray mime = package.part(QStringLiteral("/mimetype")).trimmed();
+        if (mime.contains("vnd.sun.xml.calc")) return fail(say("This file is in the old OpenOffice.org spreadsheet form (.sxc), which this program does not open. Open it in the program that made it and save it as .ods or .xlsx."));
         if (!mime.isEmpty() && mime != kMimeSpreadsheet && mime != QByteArray(kMimeSpreadsheet) + "-template") {
             if (mime.contains("opendocument.text")) return fail(say("This file is an OpenDocument text document, not a spreadsheet."));
             if (mime.contains("opendocument.presentation")) return fail(say("This file is an OpenDocument presentation, not a spreadsheet."));
             if (mime.contains("opendocument.graphics")) return fail(say("This file is an OpenDocument drawing, not a spreadsheet."));
             return fail(say("This file is an OpenDocument file, but not a spreadsheet."));
         }
-        // a document that is encrypted holds parts that are not XML
-        const QByteArray manifest = package.part(QStringLiteral("/META-INF/manifest.xml"));
-        if (manifest.contains("encryption-data")) return fail(say("This spreadsheet is protected with a password. Open it in the program that made it, save a copy without the password, and open that."));
         if (!package.hasPart(QStringLiteral("/content.xml"))) return fail(say("The file has no sheets in it."));
         const qint64 size = package.partSize(QStringLiteral("/content.xml"));
         if (size > limits.odsContentBytes) return fail(say("The spreadsheet is larger than this program reads."));
@@ -953,7 +956,7 @@ public:
     {
         const Range range = m_m.slices[m_index];
         SliceDevice slice(m_m.head, QByteArrayView(m_m.content).mid(range.from, range.to - range.from), m_m.tail);
-        jp::office::XmlGuardDevice guard(&slice, kMaxXmlTokenBytes);
+        jp::office::XmlGuardDevice guard(&slice, kMaxOdsTokenBytes);
         guard.open(QIODevice::ReadOnly);
         QXmlStreamReader xml(&guard);
         m_xml = &xml;
@@ -1085,11 +1088,7 @@ private:
         const QString vis = attr(a, NS_TABLE, QLatin1String("visibility"));
         const bool hidden = vis == QLatin1String("collapse") || vis == QLatin1String("filter");
         const qint64 rowIndex = m_nextRow;
-        if (rowIndex >= qint64(kMaxRows)) {
-            // (a row past the last a sheet has: nothing in it is read, and nothing of it is said unless it holds something)
-            m_rowsPast = true;
-            return skipElementCounted();
-        }
+        if (rowIndex >= qint64(kMaxRows)) return skipElementCounted();   // (a row past the last a sheet has is not read)
         repeat = std::min<qint64>(repeat, qint64(kMaxRows) - rowIndex);
         // the cells of the row
         m_row.clear();
@@ -1628,7 +1627,7 @@ private:
     QXmlStreamReader *m_xml = nullptr;
     jp::office::XmlGuardDevice *m_guard = nullptr;
     qint64 m_stopAfter = -1;
-    bool m_stopped = false, m_rowsPast = false;
+    bool m_stopped = false;
     int m_depth = 0;
     quint32 m_nextCol = 0;
     qint64 m_nextRow = 0;

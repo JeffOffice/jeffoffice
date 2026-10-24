@@ -496,6 +496,17 @@ private Q_SLOTS:
         QVERIFY(none.skippedFeatures().isEmpty());
     }
 
+    // A piece of XML as large as 11 MB in one attribute (a consolidation of ranges, as a document of the test suite of the other program has) is no reason to refuse the document.
+    void aLongAttributeOutsideTheCellsIsNoHarm()
+    {
+        QString addresses;
+        for (int i = 0; i < 400000; ++i) addresses += QStringLiteral("$S.A1:.A2 ");
+        const QString tail = QStringLiteral("<table:consolidation table:function=\"sum\" table:source-cell-range-addresses=\"") + addresses + QStringLiteral("\" table:target-cell-address=\"$S.A1\"/>");
+        Workbook wb = open(simple(table(QStringLiteral("S"), row(floatCell(1))) + tail));
+        QVERIFY(wb.isConverted());
+        QCOMPARE(shown(wb, readSheet(wb), QStringLiteral("A1")), QStringLiteral("n:1"));
+    }
+
     // The flat XML form is the same document in one piece.
     void aFlatDocumentIsRead()
     {
@@ -567,6 +578,12 @@ private Q_SLOTS:
         open(buildOds(contentXml(table(QStringLiteral("S"), row(floatCell(1)))), QString(), QByteArray(), {}, QStringLiteral("application/vnd.oasis.opendocument.text")), &ok, &why);
         QVERIFY(!ok);
         QVERIFY2(why.contains(QLatin1String("text document")), qPrintable(why));
+        open(buildOds(contentXml(table(QStringLiteral("S"), row(floatCell(1)))), QString(), QByteArray(), {}, QStringLiteral("application/vnd.sun.xml.calc")), &ok, &why);
+        QVERIFY(!ok);
+        QVERIFY2(why.contains(QLatin1String(".sxc")), qPrintable(why));
+        open(buildOds(contentXml(table(QStringLiteral("S"), row(floatCell(1)))), QString(), QByteArray(), {}, QStringLiteral("application/vnd.sun.xml.calc"), encrypted), &ok, &why);
+        QVERIFY(!ok);
+        QVERIFY2(why.contains(QLatin1String("password")), qPrintable(why));   // (a password first)
         open(buildOds(contentXml(table(QStringLiteral("S"), row(floatCell(1)))), QString(), QByteArray(), {}, QStringLiteral("application/vnd.oasis.opendocument.presentation")), &ok, &why);
         QVERIFY(!ok);
         QVERIFY2(why.contains(QLatin1String("presentation")), qPrintable(why));

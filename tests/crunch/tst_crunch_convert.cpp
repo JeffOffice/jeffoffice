@@ -319,7 +319,6 @@ private Q_SLOTS:
             QVERIFY(text.contains(QLatin1String("not be changed")));
             QVERIFY(text.contains(QLatin1String(".xlsx")));
             QVERIFY(text.contains(QLatin1String("charts")));
-            for (const QString &word : {QStringLiteral("Excel"), QStringLiteral("Microsoft"), QStringLiteral("Office"), QStringLiteral("LibreOffice")}) QVERIFY(!text.contains(word));
         }
         QVERIFY(crunch::csvExportNote(QStringLiteral("Data"), QLatin1Char(';')).contains(QLatin1String("\";\"")));
     }

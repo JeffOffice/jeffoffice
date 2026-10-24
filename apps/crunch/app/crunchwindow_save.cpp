@@ -4,9 +4,8 @@
 
 #include "app/crunchwindow.h"
 
-#include "app/otherformats.h"
-
 #include "app/oldformat.h"
+#include "app/otherformats.h"
 #include "app/settings.h"
 #include "app/telemetry.h"
 #include "core/appinfo.h"
