@@ -6,6 +6,7 @@
 #include "app/icons.h"
 #include "app/keytips.h"
 #include "app/optionsdialog.h"
+#include "app/otherformats.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
@@ -298,7 +299,7 @@ void CrunchWindow::createActions()
     mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] { act("file.openDialog")->trigger(); });
     mk("file.openDialog", tr("Open Workbook…"), "folder-open", QKeySequence(), [this] {
         const QString p = QFileDialog::getOpenFileName(this, tr("Open Workbook"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                       tr("Workbooks (*.xlsx *.xlsm *.xls)") + QStringLiteral(";;") + tr("All Files (*)"));
+                                                       crunch::openFilter() + QStringLiteral(";;") + tr("All Files (*)"));
         if (p.isEmpty()) return;
         Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
         openFile(p);
@@ -314,8 +315,8 @@ void CrunchWindow::createActions()
         }
         const QString kind = saveKind();
         const QString start = m_path.isEmpty() ? displayName() + QLatin1Char('.') + kind : m_path;
-        const QString filter = kind == QLatin1String("xlsm") ? tr("Macro-enabled workbooks (*.xlsm)") : tr("Workbooks (*.xlsx)");
-        const QString p = m_savePicker ? m_savePicker(start, filter) : QFileDialog::getSaveFileName(this, tr("Save Workbook As"), start, filter);
+        const QString filter = (kind == QLatin1String("xlsm") ? tr("Macro-enabled workbooks (*.xlsm)") : tr("Workbooks (*.xlsx)")) + QStringLiteral(";;") + crunch::csvFilter();
+        const QString p = askForSavePath(tr("Save Workbook As"), start, filter);
         if (!p.isEmpty()) saveAs(p);
     }, false, false);
     mk("file.close", tr("Close"), "circle-x", QKeySequence::Close, [this] { close(); });

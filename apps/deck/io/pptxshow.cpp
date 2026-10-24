@@ -22,7 +22,6 @@ const QLatin1String kP14("http://schemas.microsoft.com/office/powerpoint/2010/ma
 const QLatin1String kLaserExt("{EC167BDD-8182-4AB7-AECC-EB403E3ABB37}");
 const QString kKeptKey = QStringLiteral("presPropsKept");
 
-QString say(const char *text) { return QCoreApplication::translate("PptxImport", text); }
 
 QDomElement pChild(const QDomElement &e, const char *name) { return office::child(e, P, QLatin1String(name)); }
 
@@ -129,9 +128,9 @@ void readCustomShows(const QDomElement &presentation, const QHash<QString, int> 
     }
     setCustomShows(doc, shows);
     if (notes) {
-        if (tooMany) *notes << say("Only the first %1 custom slide shows are read.").arg(kMaxCustomShows);
-        if (tooLong) *notes << say("A custom slide show lists more slides than JeffDeck reads; the rest are left out.");
-        if (unknownSlide) *notes << say("A custom slide show lists a slide that is not in the presentation; it is left out.");
+        if (tooMany) *notes << QCoreApplication::translate("PptxImport", "Only the first %1 custom slide shows are read.").arg(kMaxCustomShows);
+        if (tooLong) *notes << QCoreApplication::translate("PptxImport", "A custom slide show lists more slides than JeffDeck reads; the rest are left out.");
+        if (unknownSlide) *notes << QCoreApplication::translate("PptxImport", "A custom slide show lists a slide that is not in the presentation; it is left out.");
     }
 }
 
@@ -185,7 +184,7 @@ void readShowProperties(const QDomElement &presProps, const office::Theme &theme
                     settings.slides = ShowSettings::Slides::Custom;
                     settings.customShow = id;
                 } else if (notes) {
-                    *notes << say("The slide show was set to play a custom slide show that is not in the file, so it plays every slide.");
+                    *notes << QCoreApplication::translate("PptxImport", "The slide show was set to play a custom slide show that is not in the file, so it plays every slide.");
                 }
             }
             if (const QDomElement pen = pChild(c, "penClr"); !pen.isNull()) {
@@ -208,7 +207,7 @@ void readShowProperties(const QDomElement &presProps, const office::Theme &theme
     if (!showExt.isEmpty()) kept["showExt"] = showExt;
     if (kept.isEmpty()) doc.appData.remove(kKeptKey);
     else doc.appData[kKeptKey] = kept;
-    if (tooLarge && notes) *notes << say("The presentation's other slide show settings are too large to keep, so some are left out.");
+    if (tooLarge && notes) *notes << QCoreApplication::translate("PptxImport", "The presentation's other slide show settings are too large to keep, so some are left out.");
 }
 
 // ---- writing

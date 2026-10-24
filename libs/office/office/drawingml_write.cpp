@@ -23,8 +23,6 @@ using namespace dmlwrite;
 
 namespace {
 
-QString say(const char *text) { return QCoreApplication::translate("DrawingWriter", text); }
-
 void begin(QXmlStreamWriter &w, const char *name) { w.writeStartElement(QLatin1String(name)); }
 void attribute(QXmlStreamWriter &w, const char *name, const QString &value) { w.writeAttribute(QLatin1String(name), value); }
 void attribute(QXmlStreamWriter &w, const char *name, qint64 value) { w.writeAttribute(QLatin1String(name), QString::number(value)); }
@@ -653,7 +651,7 @@ void writeTextBox(QXmlStreamWriter &w, const TextItem &t, DrawingWriteContext &c
     const int id = takeId(ctx, t);
     begin(w, "p:sp");
     begin(w, "p:nvSpPr");
-    writeIdentity(w, t, id, ph.is ? say("Placeholder") : say("Text Box"), ctx);
+    writeIdentity(w, t, id, ph.is ? QCoreApplication::translate("DrawingWriter", "Placeholder") : QCoreApplication::translate("DrawingWriter", "Text Box"), ctx);
     begin(w, "p:cNvSpPr");
     if (!ph.is) attribute(w, "txBox", QStringLiteral("1"));
     writeLocks(w, "a:spLocks", t, ph.is, Item::lockAspectByDefault(t.type()));
@@ -701,7 +699,7 @@ void writeTextArt(QXmlStreamWriter &w, const TextArtItem &a, DrawingWriteContext
     const int id = takeId(ctx, a);
     begin(w, "p:sp");
     begin(w, "p:nvSpPr");
-    writeIdentity(w, a, id, say("Text Art"), ctx);
+    writeIdentity(w, a, id, QCoreApplication::translate("DrawingWriter", "Text Art"), ctx);
     leaf(w, "p:cNvSpPr");
     leaf(w, "p:nvPr");
     w.writeEndElement();
@@ -813,7 +811,7 @@ void writeForm(QXmlStreamWriter &w, const ShapeItem &s, DrawingWriteContext &ctx
     const QSizeF size = s.rect.size();
     begin(w, "p:sp");
     begin(w, "p:nvSpPr");
-    writeIdentity(w, s, id, ph.is ? say("Placeholder") : say("Shape"), ctx);
+    writeIdentity(w, s, id, ph.is ? QCoreApplication::translate("DrawingWriter", "Placeholder") : QCoreApplication::translate("DrawingWriter", "Shape"), ctx);
     begin(w, "p:cNvSpPr");
     writeLocks(w, "a:spLocks", s, ph.is, Item::lockAspectByDefault(s.type()));
     w.writeEndElement();
@@ -868,7 +866,7 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
         const int id = takeId(ctx, p);
         begin(w, "p:sp");
         begin(w, "p:nvSpPr");
-        writeIdentity(w, p, id, say("Picture Placeholder"), ctx);
+        writeIdentity(w, p, id, QCoreApplication::translate("DrawingWriter", "Picture Placeholder"), ctx);
         begin(w, "p:cNvSpPr");
         begin(w, "a:spLocks");
         attribute(w, "noGrp", QStringLiteral("1"));
@@ -891,14 +889,14 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
     }
     const QString rId = relatePicture(ctx, p.imageId);
     if (rId.isEmpty()) {
-        if (skipped) skipped->append(say("\"%1\": a picture that can't be read was left out.").arg(p.name.isEmpty() ? p.id : p.name));
+        if (skipped) skipped->append(QCoreApplication::translate("DrawingWriter", "\"%1\": a picture that can't be read was left out.").arg(p.name.isEmpty() ? p.id : p.name));
         return;
     }
     const int id = takeId(ctx, p);
     const MediaRelations media = relateMedia(ctx, p);
     begin(w, "p:pic");
     begin(w, "p:nvPicPr");
-    writeIdentity(w, p, id, say("Picture"), ctx, !media.link.isEmpty());
+    writeIdentity(w, p, id, QCoreApplication::translate("DrawingWriter", "Picture"), ctx, !media.link.isEmpty());
     begin(w, "p:cNvPicPr");
     writeLocks(w, "a:picLocks", p, false, Item::lockAspectByDefault(p.type()));
     w.writeEndElement();
@@ -1035,7 +1033,7 @@ void writeConnector(QXmlStreamWriter &w, const LineItem &l, DrawingWriteContext 
 
     begin(w, "p:cxnSp");
     begin(w, "p:nvCxnSpPr");
-    writeIdentity(w, l, id, say("Line"), ctx);
+    writeIdentity(w, l, id, QCoreApplication::translate("DrawingWriter", "Line"), ctx);
     begin(w, "p:cNvCxnSpPr");
     for (const auto &end : {qMakePair("a:stCxn", l.start), qMakePair("a:endCxn", l.end)}) {
         const auto target = ctx.shapeIds.constFind(end.second.id);
@@ -1066,7 +1064,7 @@ void writeConnector(QXmlStreamWriter &w, const LineItem &l, DrawingWriteContext 
 void writeGroup(QXmlStreamWriter &w, const GroupItem &g, DrawingWriteContext &ctx, QStringList *skipped)
 {
     if (g.children.empty()) {
-        if (skipped) skipped->append(say("\"%1\": a group with nothing in it was left out.").arg(g.name.isEmpty() ? g.id : g.name));
+        if (skipped) skipped->append(QCoreApplication::translate("DrawingWriter", "\"%1\": a group with nothing in it was left out.").arg(g.name.isEmpty() ? g.id : g.name));
         return;
     }
     // An arc read from a file is written as the one preset it is: its sector's fill and effects are the arc's.
@@ -1083,7 +1081,7 @@ void writeGroup(QXmlStreamWriter &w, const GroupItem &g, DrawingWriteContext &ct
     const int id = takeId(ctx, g);
     begin(w, "p:grpSp");
     begin(w, "p:nvGrpSpPr");
-    writeIdentity(w, g, id, say("Group"), ctx);
+    writeIdentity(w, g, id, QCoreApplication::translate("DrawingWriter", "Group"), ctx);
     leaf(w, "p:cNvGrpSpPr");
     leaf(w, "p:nvPr");
     w.writeEndElement();
@@ -1201,7 +1199,7 @@ bool hasCells(const TableItem &t)
 void writeTable(QXmlStreamWriter &w, const TableItem &t, DrawingWriteContext &ctx, QStringList *skipped)
 {
     if (!hasCells(t)) {
-        if (skipped) skipped->append(say("\"%1\": a table with no cells was left out.").arg(t.name.isEmpty() ? t.id : t.name));
+        if (skipped) skipped->append(QCoreApplication::translate("DrawingWriter", "\"%1\": a table with no cells was left out.").arg(t.name.isEmpty() ? t.id : t.name));
         return;
     }
     const int id = takeId(ctx, t);
@@ -1210,7 +1208,7 @@ void writeTable(QXmlStreamWriter &w, const TableItem &t, DrawingWriteContext &ct
     for (int r = 0; r < t.rows; ++r) height += std::max(0.0, t.rowH[r]);
     begin(w, "p:graphicFrame");
     begin(w, "p:nvGraphicFramePr");
-    writeIdentity(w, t, id, say("Table"), ctx);
+    writeIdentity(w, t, id, QCoreApplication::translate("DrawingWriter", "Table"), ctx);
     begin(w, "p:cNvGraphicFramePr");
     begin(w, "a:graphicFrameLocks");
     attribute(w, "noGrp", QStringLiteral("1"));

@@ -1,6 +1,6 @@
 // JeffCrunch entry point.
 //
-//   JeffCrunch [file ...]                open workbooks (.xlsx, .xlsm, .xls), or start with an empty window
+//   JeffCrunch [file ...]                open workbooks (.xlsx, .xlsm, .xls, .ods, .fods, .csv, .tsv, .txt), or start with an empty window
 //   JeffCrunch --screenshot <png> [--size WxH] [--zoom percent] [--sheet N] <file>
 //                                        open the workbook, wait until it is read and calculated, render the window to a PNG, and quit
 //                                        (works with QT_QPA_PLATFORM=offscreen)

@@ -27,8 +27,6 @@ namespace {
 using xmlscan::escapeAttribute;
 using xmlscan::escapeText;
 
-QString say(const char *text) { return QCoreApplication::translate("jp::office::sheet::Save", text); }
-
 const char kXmlHead[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
 const char kMainNs[] = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 const char kRelNs[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -624,7 +622,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         if (error) *error = why;
         return false;
     };
-    if (!book.isBinary()) return fail(say("The workbook is not one that was read from the older file format."));
+    if (!book.isConverted()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook is not one that was read from a file of another form."));
     const WorkbookInfo &info = book.info();
     ZipWriter zip;
     // [Content_Types].xml and the relationships
@@ -657,16 +655,16 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     // the sheets, one at a time
     qint64 references = 0;
     for (int i = 0; i < info.sheets.size(); ++i) {
-        if (cancel && cancel->load(std::memory_order_relaxed)) return fail(say("The save was stopped."));
+        if (cancel && cancel->load(std::memory_order_relaxed)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
         Sheet sheet;
-        if (!book.readSheet(i, &sheet)) return fail(sheet.error.isEmpty() ? say("A sheet of the workbook could not be read to be saved.") : sheet.error);
+        if (!book.readSheet(i, &sheet)) return fail(sheet.error.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "A sheet of the workbook could not be read to be saved.") : sheet.error);
         if (!sheet.error.isEmpty()) return fail(sheet.error);
         zip.beginStream(baseSheetPart(i).mid(1), true);
         Out sink(&zip);
         SheetWriter writer(book, sheet, &sink, cancel, &references);
         const bool ok = writer.write();
         zip.endStream();
-        if (!ok) return fail(say("The save was stopped."));
+        if (!ok) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
     }
     zip.add(QStringLiteral("xl/sharedStrings.xml"), sharedStringsPart(book.sharedStrings(), qsizetype(book.sharedStringsInFile()), references), true);
     *out = zip.finish();

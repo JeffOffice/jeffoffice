@@ -1077,7 +1077,7 @@ private Q_SLOTS:
         }
     }
 
-    // A web page or an XML spreadsheet that has an .xls name is said to be what it is, in plain words, and that this program cannot open that kind; other text gets the general
+    // A web page or a spreadsheet written as plain text that has an .xls name is said to be what it is, in plain words, and that this program cannot open that kind; other text gets the general
     // refusal.
     void aWebPageOrAnXmlSpreadsheetNamedXlsSaysWhatItIs()
     {
@@ -1098,11 +1098,11 @@ private Q_SLOTS:
         QCOMPARE(open("\n  <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\"><HTML><BODY></BODY></HTML>"), page);
         QCOMPARE(open("\xEF\xBB\xBF<?xml version=\"1.0\"?><HTML xmlns=\"http://www.w3.org/TR/REC-html40\"><BODY/></HTML>"), page);
         const QString xml = open("<?xml version=\"1.0\"?>\n<?mso-application progid=\"Excel.Sheet\"?>\n<Workbook xmlns=\"urn:schemas-x:office:spreadsheet\"><Worksheet/></Workbook>");
-        QVERIFY2(xml.contains(QLatin1String("XML spreadsheet")) && xml.contains(QLatin1String("can't open")), qPrintable(xml));
+        QVERIFY2(xml.contains(QLatin1String("written as plain text")) && xml.contains(QLatin1String("can't open")), qPrintable(xml));
         QVERIFY(xml != page);
         for (const QString &word : {QStringLiteral("Excel"), QStringLiteral("Microsoft")}) QVERIFY(!xml.contains(word) && !page.contains(word));
         const QString other = open("AMTMIS 10 11 12");
-        QVERIFY(!other.contains(QLatin1String("web page")) && !other.contains(QLatin1String("XML spreadsheet")));
+        QVERIFY(!other.contains(QLatin1String("web page")) && !other.contains(QLatin1String("written as plain text")));
         QVERIFY(other != QLatin1String("opened"));
     }
 

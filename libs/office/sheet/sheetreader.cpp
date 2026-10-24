@@ -8,6 +8,8 @@
 #include "io/zipindex.h"
 #include "office/xmlstream.h"
 #include "io/cfb.h"
+#include "sheet/csv.h"
+#include "sheet/ods.h"
 #include "sheet/xls.h"
 #include "sheet/xlsxbase.h"
 
@@ -66,11 +68,11 @@ struct XmlSource {
     // Why the reading stopped short, in words; empty if it didn't.
     QString problem() const
     {
-        if (guard.crowded()) return QCoreApplication::translate("Sheet", "An element of the XML has more attributes than any real file has.");
-        if (guard.tooLong()) return QCoreApplication::translate("Sheet", "A piece of the XML (a text, a tag with its attributes, a comment) is longer than any real file has.");
-        if (guard.notUtf8()) return QCoreApplication::translate("Sheet", "The XML is not UTF-8, which is the only form this program reads.");
-        if (guard.doctype()) return QCoreApplication::translate("Sheet", "The XML has a DOCTYPE, which is not allowed.");
-        if (guard.malformed()) return QCoreApplication::translate("Sheet", "The XML is damaged: it is not written as XML is.");
+        if (guard.crowded()) return QCoreApplication::translate("Sheet", "Part of the file has more settings on one item than any real file has, so it can't be read.");
+        if (guard.tooLong()) return QCoreApplication::translate("Sheet", "Part of the file is longer than any real file's, so it can't be read.");
+        if (guard.notUtf8()) return QCoreApplication::translate("Sheet", "The file is not written in a form this program can read.");
+        if (guard.doctype()) return QCoreApplication::translate("Sheet", "The file begins with instructions that this program does not allow, so it can't be read.");
+        if (guard.malformed()) return QCoreApplication::translate("Sheet", "The file is damaged: it is not written as a spreadsheet file should be.");
         if (guard.sourceFailed()) {
             if (const auto *entry = dynamic_cast<const jp::ZipEntryDevice *>(raw)) {
                 if (entry->failure() == jp::ZipFailure::TooLarge) return QCoreApplication::translate("Sheet", "The part is larger than any real file's part, so it is not read.");
@@ -78,7 +80,7 @@ struct XmlSource {
             }
             return QCoreApplication::translate("Sheet", "The part is damaged: its data or its checksum is wrong.");
         }
-        if (reader.hasError()) return QCoreApplication::translate("Sheet", "The XML is damaged: %1").arg(reader.errorString());
+        if (reader.hasError()) return QCoreApplication::translate("Sheet", "The file is damaged.");
         return {};
     }
 };
@@ -150,9 +152,9 @@ bool readSharedStrings(QIODevice *in, const Limits &limits, SharedStrings *out, 
     while (!r.atEnd()) {
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
-            return fail(QCoreApplication::translate("Sheet", "The XML has a DOCTYPE, which is not allowed."));
+            return fail(QCoreApplication::translate("Sheet", "The file begins with instructions that this program does not allow, so it can't be read."));
         case QXmlStreamReader::StartElement:
-            if (++depth > kMaxXmlDepth) return fail(QCoreApplication::translate("Sheet", "The XML is nested too deeply."));
+            if (++depth > kMaxXmlDepth) return fail(QCoreApplication::translate("Sheet", "The file has items inside items more deeply than any real file has."));
             if (depth == 1) {
                 if (!isElement(r, "sst")) return fail(QCoreApplication::translate("Sheet", "The part is not a list of shared strings."));
                 rootSeen = true;
@@ -374,9 +376,9 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
     while (!r.atEnd()) {
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
-            return fail(QCoreApplication::translate("Sheet", "The XML has a DOCTYPE, which is not allowed."));
+            return fail(QCoreApplication::translate("Sheet", "The file begins with instructions that this program does not allow, so it can't be read."));
         case QXmlStreamReader::StartElement:
-            if (++depth > kMaxXmlDepth) return fail(QCoreApplication::translate("Sheet", "The XML is nested too deeply."));
+            if (++depth > kMaxXmlDepth) return fail(QCoreApplication::translate("Sheet", "The file has items inside items more deeply than any real file has."));
             if (depth == 1) {
                 if (!isElement(r, "styleSheet")) return fail(QCoreApplication::translate("Sheet", "The part is not a list of styles."));
                 rootSeen = true;
@@ -520,9 +522,9 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
     while (!r.atEnd()) {
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
-            return fail(QCoreApplication::translate("Sheet", "The XML has a DOCTYPE, which is not allowed."));
+            return fail(QCoreApplication::translate("Sheet", "The file begins with instructions that this program does not allow, so it can't be read."));
         case QXmlStreamReader::StartElement:
-            if (++depth > kMaxXmlDepth) return fail(QCoreApplication::translate("Sheet", "The XML is nested too deeply."));
+            if (++depth > kMaxXmlDepth) return fail(QCoreApplication::translate("Sheet", "The file has items inside items more deeply than any real file has."));
             if (depth == 1) {
                 if (!isElement(r, "workbook")) return fail(QCoreApplication::translate("Sheet", "The part is not a workbook."));
                 rootSeen = true;
@@ -1180,11 +1182,11 @@ bool SheetReader::read(QIODevice *in)
         }
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
-            ok = fail(QCoreApplication::translate("Sheet", "The XML has a DOCTYPE, which is not allowed."));
+            ok = fail(QCoreApplication::translate("Sheet", "The file begins with instructions that this program does not allow, so it can't be read."));
             break;
         case QXmlStreamReader::StartElement:
             if (++depth > kMaxXmlDepth) {
-                ok = fail(QCoreApplication::translate("Sheet", "The XML is nested too deeply."));
+                ok = fail(QCoreApplication::translate("Sheet", "The file has items inside items more deeply than any real file has."));
             } else if (depth == 1) {
                 if (!(isElement(r, "worksheet") || isElement(r, "macrosheet") || isElement(r, "dialogsheet") || isElement(r, "chartsheet")))
                     ok = fail(QCoreApplication::translate("Sheet", "The part is not a worksheet."));
@@ -1417,6 +1419,12 @@ bool Workbook::openStream(const QByteArray &stream, bool hasMacros, QString *err
         return false;
     }
     m_xls = xls;
+    nameBaseParts();
+    return true;
+}
+
+void Workbook::nameBaseParts()
+{
     // The workbook is saved as a package of XML parts that is written from what was read (see xlsxbase.h): its parts are named from the start, with the strings and cell formats it was
     // read with already in the file, so that what an edit adds goes after them.
     m_mainPart = baseMainPart();
@@ -1428,7 +1436,6 @@ bool Workbook::openStream(const QByteArray &stream, bool hasMacros, QString *err
     }
     m_sharedInFile = m_shared.strings.size();
     m_formatsInFile = m_styles.formats.size();
-    return true;
 }
 
 namespace {
@@ -1455,7 +1462,7 @@ QString plainKindOfText(const QByteArray &bytes)
     if (head.startsWith("<html") || head.startsWith("<!doctype html") || head.contains("<html"))
         return QCoreApplication::translate("Sheet", "This file is a web page that was saved with an .xls name. This program can't open that kind of file yet.");
     if (head.contains("<workbook") && head.contains("spreadsheet"))
-        return QCoreApplication::translate("Sheet", "This file is an XML spreadsheet that was saved with an .xls name. This program can't open that kind of file yet.");
+        return QCoreApplication::translate("Sheet", "This file is a spreadsheet written as plain text and saved with an .xls name. This program can't open that kind of file yet.");
     return QString();
 }
 
@@ -1507,7 +1514,7 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
         if (error) *error = tooLargeMessage();
         return false;
     }
-    const QByteArray head = file.read(1024);
+    const QByteArray head = file.read(16384);
     file.close();
     // (a stream with no container: the forms before BIFF5, and a bare BIFF8 or BIFF5 stream, begin with the record of the start of a workbook)
     const bool raw = head.size() >= 4 && quint8(head[0]) == 0x09 && (quint8(head[1]) == 0x00 || quint8(head[1]) == 0x02 || quint8(head[1]) == 0x04 || quint8(head[1]) == 0x08);
@@ -1527,7 +1534,16 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
         if (!readWholeFile(path, &whole, error, limits.fileBytes)) return false;
         return openStream(whole, false, error, limits);
     }
-    if (!head.startsWith("PK")) {
+    // (a package begins with the signature of its first entry, or of an empty package's end; text that merely begins with the letters PK is not one)
+    const bool zip = head.startsWith(QByteArrayView("PK\x03\x04", 4)) || head.startsWith(QByteArrayView("PK\x05\x06", 4)) || head.startsWith(QByteArrayView("PK\x07\x08", 4));
+    if (!zip) {
+        // (an OpenDocument spreadsheet in its flat XML form, or a text file of delimited values by its name)
+        const bool flat = looksLikeFlatOpenDocument(head);
+        if (flat || isDelimitedName(path)) {
+            QByteArray text;
+            if (!readWholeFile(path, &text, error, limits.fileBytes)) return false;
+            return flat ? openOpenDocument(text, true, error, limits) : openDelimited(text, path, error, limits);
+        }
         const QString kind = plainKindOfText(head);
         if (!kind.isEmpty()) {
             if (error) *error = kind;
@@ -1536,12 +1552,17 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
     }
     QByteArray bytes;
     if (!readWholeFile(path, &bytes, error, limits.fileBytes)) return false;
+    if (zip && looksLikeOpenDocumentZip(bytes)) return openOpenDocument(bytes, false, error, limits);
     Package package;
     if (!package.readLazy(bytes, error)) return false;
     return open(package, error, limits);
 }
 
-QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() : QStringList(); }
+QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() : m_foreign ? m_foreign->skipped() : QStringList(); }
+
+QStringList Workbook::changedFeatures() const { return m_foreign ? m_foreign->changed() : QStringList(); }
+
+QString Workbook::convertedKind() const { return m_xls ? QStringLiteral(".xls") : m_foreign ? m_foreign->kind() : QString(); }
 
 // ---- changes
 
@@ -1735,6 +1756,7 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
         return false;
     }
     if (m_xls) return m_xls->readSheet(index, m_limits, progress, out);
+    if (m_foreign) return m_foreign->readSheet(index, m_limits, progress, stopAfterRow, screenRows, out);
     const SheetEntry &entry = m_info.sheets[index];
     // A sheet of a chart has no cells, nor has one the file names with no part to hold it (a module of macros that is listed as a sheet has no relationship).
     if (entry.kind == SheetKind::Chartsheet || entry.relId.isEmpty()) return true;

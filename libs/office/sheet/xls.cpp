@@ -20,8 +20,6 @@ namespace jp::office::sheet {
 
 namespace {
 
-QString translate(const char *text) { return QCoreApplication::translate("Sheet", text); }
-
 // The records the readers look for.
 enum : quint16 {
     kBof = 0x0809,
@@ -353,14 +351,14 @@ public:
         };
         Scanner sc(m_d, 0);
         Rec r;
-        if (!sc.next(&r)) return fail(translate("The file has no workbook in it."));
+        if (!sc.next(&r)) return fail(QCoreApplication::translate("Sheet", "The file has no workbook in it."));
         bool single = false;   // BIFF3 and BIFF4 write a workbook of one sheet as one stream: its globals and its cells together
-        if (!isBof(r.id)) return fail(translate("The file has no workbook in it."));
-        if (r.id == 0x0009) return fail(translate("This workbook is in a file format older than this program reads."));
+        if (!isBof(r.id)) return fail(QCoreApplication::translate("Sheet", "The file has no workbook in it."));
+        if (r.id == 0x0009) return fail(QCoreApplication::translate("Sheet", "This workbook is in a file format older than this program reads."));
         if (r.id == 0x0209 || r.id == 0x0409) {
             Bytes b(m_d, r.pos, r.pos + r.len);
             b.skip(2);
-            if (b.u16() != 0x0010) return fail(translate("The file has no workbook in it."));
+            if (b.u16() != 0x0010) return fail(QCoreApplication::translate("Sheet", "The file has no workbook in it."));
             m_biff = 4;
             single = true;
         } else {
@@ -369,8 +367,8 @@ public:
             const quint16 type = b.u16();
             if (vers >= 0x0600) m_biff = 8;
             else if (vers >= 0x0500) m_biff = 5;
-            else return fail(translate("This workbook is in a file format older than this program reads."));
-            if (type != 0x0005) return fail(translate("The file has no workbook in it."));
+            else return fail(QCoreApplication::translate("Sheet", "This workbook is in a file format older than this program reads."));
+            if (type != 0x0005) return fail(QCoreApplication::translate("Sheet", "The file has no workbook in it."));
         }
         m_cx.biff = m_biff;
         if (single) {
@@ -389,9 +387,9 @@ public:
         qint64 records = 0;
         int depth = 0;   // (the records of a chart, a sheet inside the sheet, are not the workbook's)
         while (!done && sc.next(&r)) {
-            if (++records > 50000000) return fail(translate("The workbook has more records than any real file has."));
+            if (++records > 50000000) return fail(QCoreApplication::translate("Sheet", "The workbook has more records than any real file has."));
             if (isBof(r.id)) {
-                if (++depth > kMaxSubstreamDepth) return fail(translate("A sheet is nested more deeply than any real file's."));
+                if (++depth > kMaxSubstreamDepth) return fail(QCoreApplication::translate("Sheet", "A sheet is nested more deeply than any real file's."));
                 continue;
             }
             if (depth > 0) {
@@ -400,7 +398,7 @@ public:
             }
             switch (r.id) {
             case kEof: done = true; break;
-            case kFilePass: return fail(translate("The workbook is encrypted, and this program can't open an encrypted workbook yet."));
+            case kFilePass: return fail(QCoreApplication::translate("Sheet", "The workbook is encrypted, and this program can't open an encrypted workbook yet."));
             case kCodepage: {
                 Bytes b(m_d, r.pos, r.pos + r.len);
                 m_codepage = b.u16();
@@ -425,29 +423,29 @@ public:
             case kFont:
             case kFont4:
                 if ((r.id == kFont4) == (m_biff >= 5)) break;
-                if (!readFont(r)) return fail(translate("The workbook has more fonts than any real file has."));
+                if (!readFont(r)) return fail(QCoreApplication::translate("Sheet", "The workbook has more fonts than any real file has."));
                 break;
             case kFormat:
             case kFormat3:
                 if (r.id == kFormat3 && m_biff >= 5) break;
-                if (!readFormat(r)) return fail(translate("The workbook has more number formats than any real file has."));
+                if (!readFormat(r)) return fail(QCoreApplication::translate("Sheet", "The workbook has more number formats than any real file has."));
                 break;
             case kXf:
             case kXf3:
             case kXf4:
                 if ((r.id == kXf) != (m_biff >= 5)) break;
-                if (!readXf(r)) return fail(translate("The workbook has more cell formats than any real file has."));
+                if (!readXf(r)) return fail(QCoreApplication::translate("Sheet", "The workbook has more cell formats than any real file has."));
                 break;
             case kPalette: readPalette(r); break;
             case kStyle:
-                if (!readStyle(r)) return fail(translate("The workbook has more styles than any real file has."));
+                if (!readStyle(r)) return fail(QCoreApplication::translate("Sheet", "The workbook has more styles than any real file has."));
                 break;
             case kBoundSheet:
-                if (!readBoundSheet(r)) return fail(translate("The workbook has more sheets than any real file has."));
+                if (!readBoundSheet(r)) return fail(QCoreApplication::translate("Sheet", "The workbook has more sheets than any real file has."));
                 break;
             case kSst: {
                 const Logical lg = joined(m_d, sc, r, true);
-                if (!readSst(lg)) return fail(translate("The workbook has more strings than any real file has."));
+                if (!readSst(lg)) return fail(QCoreApplication::translate("Sheet", "The workbook has more strings than any real file has."));
                 break;
             }
             case kSupBook: {
@@ -467,7 +465,7 @@ public:
             }
             case kName: {
                 const Logical lg = joined(m_d, sc, r, true);
-                if (!readName(lg)) return fail(translate("The workbook has more names than any real file has."));
+                if (!readName(lg)) return fail(QCoreApplication::translate("Sheet", "The workbook has more names than any real file has."));
                 break;
             }
             case kWindow1: {
@@ -483,7 +481,7 @@ public:
             default: break;
             }
         }
-        if (m_sheets.isEmpty()) return fail(translate("The workbook has no sheets."));
+        if (m_sheets.isEmpty()) return fail(QCoreApplication::translate("Sheet", "The workbook has no sheets."));
         // each sheet's data: where it begins, and where it ends (so that no two share any)
         if (!placeSheets()) return fail(m_placeProblem);
         return finish(hasMacros, info, shared, styles);
@@ -967,13 +965,13 @@ private:
             while (sc.next(&r)) {
                 budget -= 4 + r.len;
                 if (budget < 0) {
-                    m_placeProblem = translate("The workbook's sheets share data, which no real file's do.");
+                    m_placeProblem = QCoreApplication::translate("Sheet", "The workbook's sheets share data, which no real file's do.");
                     return false;
                 }
                 last = sc.offset();
                 if (isBof(r.id)) {
                     if (++depth > kMaxSubstreamDepth) {
-                        m_placeProblem = translate("A sheet is nested more deeply than any real file's.");
+                        m_placeProblem = QCoreApplication::translate("Sheet", "A sheet is nested more deeply than any real file's.");
                         return false;
                     }
                     Bytes b(m_d, r.pos + 2, r.pos + r.len);
@@ -1004,7 +1002,7 @@ private:
         std::sort(spans.begin(), spans.end(), [](const Span &a, const Span &b) { return a.begin < b.begin; });
         for (int i = 1; i < spans.size(); ++i)
             if (spans[i].begin < spans[i - 1].end) {
-                m_placeProblem = translate("Two sheets of the workbook share data, which no real file's do.");
+                m_placeProblem = QCoreApplication::translate("Sheet", "Two sheets of the workbook share data, which no real file's do.");
                 return false;
             }
         return true;
@@ -1066,14 +1064,14 @@ private:
         book->m_fonts = styles->fonts;
         book->m_sharedStringCount = m_sst.strings.size();
         book->m_xfCount = m_xfs.size();
-        if (m_charts) book->m_skipped << translate("charts");
-        if (m_drawings || m_drawingsInSheets) book->m_skipped << translate("pictures and other drawing objects");
-        if (m_pivots) book->m_skipped << translate("pivot tables");
-        if (m_comments) book->m_skipped << translate("comments");
-        if (hasMacros) book->m_skipped << translate("macros");
+        if (m_charts) book->m_skipped << QCoreApplication::translate("Sheet", "charts");
+        if (m_drawings || m_drawingsInSheets) book->m_skipped << QCoreApplication::translate("Sheet", "pictures and other drawing objects");
+        if (m_pivots) book->m_skipped << QCoreApplication::translate("Sheet", "pivot tables");
+        if (m_comments) book->m_skipped << QCoreApplication::translate("Sheet", "comments");
+        if (hasMacros) book->m_skipped << QCoreApplication::translate("Sheet", "macros");
         for (const SheetEntry &e : std::as_const(m_sheets))
             if (e.kind == SheetKind::Macrosheet && e.state != SheetState::VeryHidden) {
-                book->m_skipped << translate("macro sheets");
+                book->m_skipped << QCoreApplication::translate("Sheet", "macro sheets");
                 break;
             }
         return book;
@@ -1211,7 +1209,7 @@ public:
         Scanner sc(m_d, place.offset);
         Rec r;
         if (!sc.next(&r) || !isBof(r.id)) {
-            m_s.error = translate("The sheet's data is not where the workbook says it is.");
+            m_s.error = QCoreApplication::translate("Sheet", "The sheet's data is not where the workbook says it is.");
             m_s.cells.finish();
             return false;
         }
@@ -1220,7 +1218,7 @@ public:
         while (ok && sc.next(&r)) {
             if (depth > 0) {
                 if (isBof(r.id)) {
-                    if (++depth > kMaxSubstreamDepth) ok = fail(translate("The sheet is nested more deeply than any real file's."));
+                    if (++depth > kMaxSubstreamDepth) ok = fail(QCoreApplication::translate("Sheet", "The sheet is nested more deeply than any real file's."));
                 } else if (r.id == kEof) {
                     --depth;
                 }
@@ -1336,7 +1334,7 @@ private:
     {
         m_work += units;
         m_s.stats.formulaWork = m_work;
-        if (m_work > m_lim.formulaWork) return fail(translate("The formulas of the sheet are more work to read than any real file's."));
+        if (m_work > m_lim.formulaWork) return fail(QCoreApplication::translate("Sheet", "The formulas of the sheet are more work to read than any real file's."));
         return true;
     }
 
@@ -1351,13 +1349,13 @@ private:
             return true;
         }
         if (c.type == CellType::Empty && !c.hasFormula() && c.style == 0) return true;
-        if (++m_cells > m_lim.cellsPerSheet) return fail(translate("The sheet has more cells than any real file has."));
+        if (++m_cells > m_lim.cellsPerSheet) return fail(QCoreApplication::translate("Sheet", "The sheet has more cells than any real file has."));
         m_held += 32 + extraBytes;
-        if (m_held > m_lim.sheetBytes) return fail(translate("The sheet is larger than any real file's."));
+        if (m_held > m_lim.sheetBytes) return fail(QCoreApplication::translate("Sheet", "The sheet is larger than any real file's."));
         m_s.cells.add(c);
         m_s.extentRows = std::max(m_s.extentRows, c.row + 1);
         m_s.extentCols = std::max(m_s.extentCols, quint32(c.col) + 1);
-        if (m_progress && m_cells % 4096 == 0 && !m_progress(m_cells)) return fail(translate("The read was stopped."));
+        if (m_progress && m_cells % 4096 == 0 && !m_progress(m_cells)) return fail(QCoreApplication::translate("Sheet", "The read was stopped."));
         return true;
     }
 
@@ -1588,7 +1586,7 @@ private:
             spec.style = spec.customFormat ? style(xfField & 0x0FFF) : 0;
             const bool defaultHeight = (height & 0x8000) || std::abs(spec.height - m_format.defaultRowHeight) < 0.01;
             if (spec.hidden || spec.customFormat || spec.customHeight || !defaultHeight) {
-                if (m_s.rowSpecs.size() >= m_lim.rowSpecs) return fail(translate("The sheet has more rows with their own size than any real file has."));
+                if (m_s.rowSpecs.size() >= m_lim.rowSpecs) return fail(QCoreApplication::translate("Sheet", "The sheet has more rows with their own size than any real file has."));
                 if (defaultHeight) spec.height = -1;
                 m_s.rowSpecs.append(spec);
                 ++m_s.stats.rowSpecs;
@@ -1598,7 +1596,7 @@ private:
         case kColInfo: {
             const quint16 first = b.u16(), last = b.u16(), width = b.u16(), xf = b.u16(), grbit = b.u16();
             if (b.bad()) return true;
-            if (m_s.columns.size() >= m_lim.columnSpans) return fail(translate("The sheet has more column ranges than any real file has."));
+            if (m_s.columns.size() >= m_lim.columnSpans) return fail(QCoreApplication::translate("Sheet", "The sheet has more column ranges than any real file has."));
             ColumnSpan c;
             c.first = first;
             c.last = std::min<quint32>(last, kMaxColumns - 1);
@@ -1640,7 +1638,7 @@ private:
             const int n = b.u16();
             for (int i = 0; i < n && b.left() >= 8; ++i) {
                 const quint16 r1 = b.u16(), r2 = b.u16(), c1 = b.u16(), c2 = b.u16();
-                if (m_s.mergeCount >= m_lim.merges) return fail(translate("The sheet has more merged ranges than any real file has."));
+                if (m_s.mergeCount >= m_lim.merges) return fail(QCoreApplication::translate("Sheet", "The sheet has more merged ranges than any real file has."));
                 ++m_s.mergeCount;
                 CellRange range;
                 range.row1 = std::min(r1, r2);
@@ -1771,7 +1769,7 @@ private:
             opts.maxChars = m_lim.formulaChars;
             const XlsFormulaTree tree = xlsParseFormula(*m_cx, rgce, extra, opts);
             if (!charge(rgce.size() + 2 * tree.size())) return false;
-            const XlsFormulaResult conv = tree.ok() ? tree.render(row, col) : XlsFormulaResult{QString(), false, tree.why().isEmpty() ? translate("A formula has a token this program does not read.") : tree.why()};
+            const XlsFormulaResult conv = tree.ok() ? tree.render(row, col) : XlsFormulaResult{QString(), false, tree.why().isEmpty() ? QCoreApplication::translate("Sheet", "A formula has a token this program does not read.") : tree.why()};
             if (!conv.ok()) {
                 // (the result the file stored stays; the formula is not kept)
                 c.flags = 0;
@@ -1781,7 +1779,7 @@ private:
             } else {
                 m_s.stats.longestFormula = std::max<qint64>(m_s.stats.longestFormula, conv.text.size());
                 m_s.stats.expandedFormulaChars += conv.text.size();
-                if (m_s.stats.expandedFormulaChars > m_lim.expandedFormulaChars) return fail(translate("The formulas, all together, are longer than any real file has."));
+                if (m_s.stats.expandedFormulaChars > m_lim.expandedFormulaChars) return fail(QCoreApplication::translate("Sheet", "The formulas, all together, are longer than any real file has."));
                 m_s.formulaTexts.append(conv.text);
                 f.text = qint32(m_s.formulaTexts.size() - 1);
                 m_s.formulas.append(f);
@@ -1826,8 +1824,8 @@ private:
         b.skip(2);
         const int cce = b.u16();
         if (b.bad() || !def.range.valid || b.left() < cce) return true;
-        if (m_shared.size() >= m_lim.sharedFormulas) return fail(translate("The sheet has more shared formulas than any real file has."));
-        if (def.range.cellCount() > m_lim.sharedRangeCells) return fail(translate("A shared formula covers a range larger than any real file has."));
+        if (m_shared.size() >= m_lim.sharedFormulas) return fail(QCoreApplication::translate("Sheet", "The sheet has more shared formulas than any real file has."));
+        if (def.range.cellCount() > m_lim.sharedRangeCells) return fail(QCoreApplication::translate("Sheet", "A shared formula covers a range larger than any real file has."));
         const QByteArray rgce = lg.data.mid(b.at(), cce);
         const QByteArray extra = lg.data.mid(b.at() + cce);
         XlsFormulaOptions opts;
@@ -1923,7 +1921,7 @@ private:
         qint64 settled = 0;
         for (const Pending &p : m_pending) {
             // (the read can be stopped here as it can while the records are read)
-            if (m_progress && ++settled % 4096 == 0 && !m_progress(m_cells + settled)) return fail(translate("The read was stopped."));
+            if (m_progress && ++settled % 4096 == 0 && !m_progress(m_cells + settled)) return fail(QCoreApplication::translate("Sheet", "The read was stopped."));
             Cell *c = m_s.cells.findMutable(p.row, p.col);
             if (!c || c->formula != p.formula) continue;
             auto plain = [&]() {
@@ -1954,7 +1952,7 @@ private:
                     f.dRow = qint32(qint64(p.row) - sh->range.row1);
                     f.dCol = qint32(qint64(p.col) - sh->range.col1);
                     m_s.stats.expandedFormulaChars += m_s.formulaTexts[sh->text].size();
-                    if (m_s.stats.expandedFormulaChars > m_lim.expandedFormulaChars) return fail(translate("The formulas, all together, are longer than any real file has."));
+                    if (m_s.stats.expandedFormulaChars > m_lim.expandedFormulaChars) return fail(QCoreApplication::translate("Sheet", "The formulas, all together, are longer than any real file has."));
                 } else if (sh->expand) {
                     // (written for this cell from the tree the formula was read into once)
                     if (!charge(sh->tree.size())) return false;
@@ -1964,8 +1962,8 @@ private:
                         f.text = qint32(m_s.formulaTexts.size() - 1);
                         m_held += conv.text.size() * 2 + 48;
                         m_s.stats.expandedFormulaChars += conv.text.size();
-                        if (m_s.stats.expandedFormulaChars > m_lim.expandedFormulaChars) return fail(translate("The formulas, all together, are longer than any real file has."));
-                        if (m_held > m_lim.sheetBytes) return fail(translate("The sheet is larger than any real file's."));
+                        if (m_s.stats.expandedFormulaChars > m_lim.expandedFormulaChars) return fail(QCoreApplication::translate("Sheet", "The formulas, all together, are longer than any real file has."));
+                        if (m_held > m_lim.sheetBytes) return fail(QCoreApplication::translate("Sheet", "The sheet is larger than any real file's."));
                     } else {
                         plain();
                         ++m_s.stats.unreadFormulas;
@@ -2000,7 +1998,7 @@ bool XlsBook::readSheet(int index, const Limits &limits, const std::function<boo
 {
     *out = Sheet();
     if (index < 0 || index >= m_places.size()) {
-        out->error = translate("There is no such sheet.");
+        out->error = QCoreApplication::translate("Sheet", "There is no such sheet.");
         return false;
     }
     XlsSheetReader reader(*this, index, limits, progress, out);

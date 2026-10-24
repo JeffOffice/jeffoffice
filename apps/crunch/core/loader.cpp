@@ -191,7 +191,10 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     total.start();
     out->path = path;
     auto book = std::make_shared<Workbook>();
-    if (!book->openFile(path, why)) return false;   // (either kind: the package of XML parts, or the older binary form)
+    // (the read can be stopped while a large document's styles and settings are read, and while its sheets are)
+    Limits limits;
+    limits.cancelled = cancelled;
+    if (!book->openFile(path, why, limits)) return false;   // (any kind: the package of XML parts, the older binary form, or another format)
     out->book = book;
     out->notRead = book->skippedFeatures();
     const int shownSheet = firstSheetToShow(book->info());
@@ -248,7 +251,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
 
 QString fileKind(const QString &path)
 {
-    static const QStringList kinds = {QStringLiteral("xlsx"), QStringLiteral("xlsm"), QStringLiteral("xls")};
+    static const QStringList kinds = {QStringLiteral("xlsx"), QStringLiteral("xlsm"), QStringLiteral("xls"), QStringLiteral("ods"), QStringLiteral("fods"), QStringLiteral("csv"), QStringLiteral("tsv"), QStringLiteral("txt")};
     const QString ending = QFileInfo(path).suffix().toLower();
     return kinds.contains(ending) ? ending : QStringLiteral("other");
 }

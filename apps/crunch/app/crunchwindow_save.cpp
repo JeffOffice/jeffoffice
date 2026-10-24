@@ -5,6 +5,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/oldformat.h"
+#include "app/otherformats.h"
 #include "app/settings.h"
 #include "app/telemetry.h"
 #include "core/appinfo.h"
@@ -54,6 +55,7 @@ bool CrunchWindow::save()
 bool CrunchWindow::saveAs(const QString &pathIn)
 {
     if (!m_session || !m_loaded) return false;
+    if (crunch::isCsvName(pathIn)) return startSave(pathIn);
     QString path = pathIn;
     const QString kind = saveKind();
     const QString ending = QFileInfo(path).suffix().toLower();
@@ -89,13 +91,15 @@ bool CrunchWindow::fileChangedOnDisk() const
 bool CrunchWindow::startSave(const QString &path)
 {
     if (!m_session || m_saving) return false;
+    if (crunch::isCsvName(path)) return exportCsv(path);
     if (!commitEdit()) return false;
-    const bool samePath = QFileInfo(path).absoluteFilePath() == QFileInfo(m_path).absoluteFilePath();
-    // a workbook read from the older binary form is never written over the file it came from, whatever that file is called
-    if (samePath && savesAsANewFile()) {
-        notice(tr("Save"), crunch::originalNotWrittenNotice(QFileInfo(path).fileName()));
+    // a workbook read from a file of another form is never written over the file it came from, whatever that file is called, and for as long as the window has the workbook (after the first
+    // save the window's file is the .xlsx, and the original is still not its own)
+    if (isTheOriginal(path)) {
+        notice(tr("Save"), crunch::originalNotWrittenNotice(QFileInfo(m_originalPath).fileName()));
         return false;
     }
+    const bool samePath = crunch::sameFile(path, m_path);
     // nothing to save over the file it was read from
     if (samePath && !m_session->isModified()) {
         setStatus(tr("Nothing to save: %1 is as it was.").arg(QFileInfo(path).fileName()));
@@ -179,7 +183,7 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
             m_session->saved(*snapshot, package);
             forgotten = m_session->stepsForgottenBySave();
         }
-        if (QFileInfo(path).absoluteFilePath() != QFileInfo(m_path).absoluteFilePath()) {
+        if (!crunch::sameFile(path, m_path)) {
             m_path = path;
             updateTitle();
         }
@@ -205,6 +209,8 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
 bool CrunchWindow::askAboutChanges()
 {
     if (!m_session || (!m_session->isModified() && !m_saving)) return true;
+    // (the person chose to write the values of the sheet as a .csv from this question: that was the answer, and the window closes when it is written)
+    if (m_closing) return true;
     if (m_saving) {
         m_closeAfterSave = true;
         return false;

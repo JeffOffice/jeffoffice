@@ -26,6 +26,6 @@ QString saveAsExplanation(const QString &fileName, const QStringList &notRead = 
 QString originalNotWrittenNotice(const QString &fileName);
 
 // What the person is told when a workbook is opened that has parts JeffCrunch does not read yet (charts, pictures, ...); empty if there are none.
-QString notReadNotice(const QStringList &notRead);
+QString notReadNotice(const QStringList &notRead, const QStringList &changed = QStringList());
 
 } // namespace jp::crunch

@@ -37,7 +37,6 @@ constexpr int kMaxTableSide = 256, kMaxTableCells = 10000;
 constexpr qsizetype kMaxTableChars = 100000, kMaxFitChars = 50000, kMaxFitCellChars = 10000;
 constexpr double kMaxPoint = 1e6;
 
-QString say(const char *text) { return QCoreApplication::translate("OdpImport", text); }
 
 double position(double v) { return std::isfinite(v) ? std::clamp(v, -kMaxPoint, kMaxPoint) : 0.0; }
 double extent(double v) { return std::isfinite(v) ? std::clamp(v, 0.0, kMaxPoint) : 0.0; }
@@ -119,7 +118,7 @@ void Reader::readShapes(const QDomElement &parent, Scope &sc, ItemList &out, con
 {
     for (QDomElement c = parent.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
         if (sc.shapes >= kMaxShapes) {
-            if (!m_said.contains(QStringLiteral("shapes"))) note(say("A page holds more than 100,000 objects; the rest are left out."));
+            if (!m_said.contains(QStringLiteral("shapes"))) note(QCoreApplication::translate("OdpImport", "A page holds more than 100,000 objects; the rest are left out."));
             m_said.insert(QStringLiteral("shapes"));
             break;
         }
@@ -162,7 +161,7 @@ ItemPtr Reader::readShape(const QDomElement &e, Scope &sc, const QTransform &t)
     else if (tag == QLatin1String("draw:polyline") || tag == QLatin1String("draw:polygon") || tag == QLatin1String("draw:path")) it = readPathShape(e, sc, t);
     else if (tag == QLatin1String("draw:g")) it = readGroup(e, sc, t);
     else if (tag == QLatin1String("draw:control") || tag.startsWith(QLatin1String("dr3d:")) || tag == QLatin1String("draw:measure")) {
-        if (!m_said.contains(tag)) note(say("Some objects of a kind JeffDeck can't show were left out."));
+        if (!m_said.contains(tag)) note(QCoreApplication::translate("OdpImport", "Some objects of a kind JeffDeck can't show were left out."));
         m_said.insert(tag);
     }
     if (it) {
@@ -275,12 +274,12 @@ ItemPtr Reader::readFrame(const QDomElement &e, Scope &sc, const QTransform &par
     if (!table.isNull()) return readTableFrame(e, table, sc, parentTransform);
     if (!image.isNull()) return readPicture(e, image, sc, parentTransform);
     if (!plugin.isNull()) {
-        if (!m_said.contains(QStringLiteral("plugin"))) note(say("Movies, sounds, and other plug-in objects were left out."));
+        if (!m_said.contains(QStringLiteral("plugin"))) note(QCoreApplication::translate("OdpImport", "Movies, sounds, and other plug-in objects were left out."));
         m_said.insert(QStringLiteral("plugin"));
         return nullptr;
     }
     if (!object.isNull()) {
-        if (!m_said.contains(QStringLiteral("object"))) note(say("Embedded objects that have no picture in the file were left out."));
+        if (!m_said.contains(QStringLiteral("object"))) note(QCoreApplication::translate("OdpImport", "Embedded objects that have no picture in the file were left out."));
         m_said.insert(QStringLiteral("object"));
         return nullptr;
     }
@@ -376,8 +375,8 @@ ItemPtr Reader::readPicture(const QDomElement &frame, const QDomElement &imageEl
         const bool object = !kid(frame, "draw:object").isNull() || !kid(frame, "draw:object-ole").isNull();
         const QString key = object ? QStringLiteral("objectpicture") : QStringLiteral("picture");
         if (!m_said.contains(key))
-            note(object ? say("Embedded objects that are not charts were left out: the file keeps no picture of them that JeffDeck can show.")
-                        : say("Pictures that are not in the file, or that JeffDeck can't read, were left out."));
+            note(object ? QCoreApplication::translate("OdpImport", "Embedded objects that are not charts were left out: the file keeps no picture of them that JeffDeck can show.")
+                        : QCoreApplication::translate("OdpImport", "Pictures that are not in the file, or that JeffDeck can't read, were left out."));
         m_said.insert(key);
         return nullptr;
     }
@@ -506,18 +505,18 @@ ItemPtr Reader::readTableFrame(const QDomElement &frame, const QDomElement &tabl
     };
     Collect::run(tableEl, styles, &columns, &rows, &tooBig, 0);
     if (columns.isEmpty() || rows.isEmpty()) {
-        if (!m_said.contains(QStringLiteral("table"))) note(say("A table with no rows or no columns was left out."));
+        if (!m_said.contains(QStringLiteral("table"))) note(QCoreApplication::translate("OdpImport", "A table with no rows or no columns was left out."));
         m_said.insert(QStringLiteral("table"));
         return nullptr;
     }
     // A table of more cells than that is read as far as its rows go.
     if (columns.size() * rows.size() > kMaxTableCells) {
         rows.resize(std::max<qsizetype>(1, kMaxTableCells / columns.size()));
-        if (!m_said.contains(QStringLiteral("tablecells"))) note(say("Tables are read up to 10,000 cells."));
+        if (!m_said.contains(QStringLiteral("tablecells"))) note(QCoreApplication::translate("OdpImport", "Tables are read up to 10,000 cells."));
         m_said.insert(QStringLiteral("tablecells"));
     }
     if (tooBig && !m_said.contains(QStringLiteral("tablebig"))) {
-        note(say("Tables are read up to 256 rows and columns."));
+        note(QCoreApplication::translate("OdpImport", "Tables are read up to 256 rows and columns."));
         m_said.insert(QStringLiteral("tablebig"));
     }
 
@@ -659,7 +658,7 @@ ItemPtr Reader::readTableFrame(const QDomElement &frame, const QDomElement &tabl
         std::swap(above, here);
     }
     if (textCut && !m_said.contains(QStringLiteral("tabletext"))) {
-        note(say("A table holds more text than can be read; the rest is left out."));
+        note(QCoreApplication::translate("OdpImport", "A table holds more text than can be read; the rest is left out."));
         m_said.insert(QStringLiteral("tabletext"));
     }
     // A merged cell covers the ones its spans reach.
@@ -710,7 +709,7 @@ void Reader::fitRows(TableItem &t)
             const qsizetype chars = story->characterCount();
             if (chars > kMaxFitCellChars || (fitted += chars) > kMaxFitChars) {
                 spent = fitted > kMaxFitChars;
-                if (!m_said.contains(QStringLiteral("tablefit"))) note(say("The rows of a table with a great deal of text keep the heights the file gives them."));
+                if (!m_said.contains(QStringLiteral("tablefit"))) note(QCoreApplication::translate("OdpImport", "The rows of a table with a great deal of text keep the heights the file gives them."));
                 m_said.insert(QStringLiteral("tablefit"));
                 if (spent) break;
                 continue;

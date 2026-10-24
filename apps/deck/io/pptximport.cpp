@@ -83,7 +83,6 @@ constexpr qint64 kMaxDiagramSvgBytes = 256 << 20;
 // The extension that holds a shape's math (a14:m) in a shape's text, which a newer program writes with a picture of the shape beside it.
 const QLatin1String kA14("http://schemas.microsoft.com/office/drawing/2010/main");
 
-QString say(const char *text) { return QCoreApplication::translate("PptxImport", text); }
 
 QDomElement pChild(const QDomElement &e, const char *name) { return office::child(e, office::ns::P, QLatin1String(name)); }
 QDomElement aChild(const QDomElement &e, const char *name) { return office::child(e, office::ns::A, QLatin1String(name)); }
@@ -435,19 +434,19 @@ bool CommentReader::room()
         ++m_total;
         return true;
     }
-    if (!m_totalSaid) m_note(say("Only the first %1 comments and replies of the file are read.").arg(kMaxAllComments));
+    if (!m_totalSaid) m_note(QCoreApplication::translate("PptxImport", "Only the first %1 comments and replies of the file are read.").arg(kMaxAllComments));
     m_totalSaid = true;
     return false;
 }
 
 CommentReader::Person CommentReader::olderAuthor(qint64 id) const
 {
-    return m_older.contains(id) ? m_older.value(id) : Person{say("Unknown author"), QString()};
+    return m_older.contains(id) ? m_older.value(id) : Person{QCoreApplication::translate("PptxImport", "Unknown author"), QString()};
 }
 
 CommentReader::Person CommentReader::newerAuthor(const QString &id) const
 {
-    return m_newer.contains(id.toLower()) ? m_newer.value(id.toLower()) : Person{say("Unknown author"), QString()};
+    return m_newer.contains(id.toLower()) ? m_newer.value(id.toLower()) : Person{QCoreApplication::translate("PptxImport", "Unknown author"), QString()};
 }
 
 void CommentReader::loadAuthors()
@@ -465,7 +464,7 @@ void CommentReader::loadAuthors()
             int n = 0;
             for (const QDomElement &a : office::children(root, rootNs, QLatin1String(personName))) {
                 if (++n > kMaxCommentAuthors) {
-                    m_note(say("Only the first %1 comment authors are read.").arg(kMaxCommentAuthors));
+                    m_note(QCoreApplication::translate("PptxImport", "Only the first %1 comment authors are read.").arg(kMaxCommentAuthors));
                     break;
                 }
                 add(a, Person{office::attr(a, QStringLiteral("name")).left(256), office::attr(a, QStringLiteral("initials")).left(16)});
@@ -487,12 +486,12 @@ bool CommentReader::parse(const QString &part, int number, QDomDocument *dom, QD
 {
     QString why;
     const QByteArray xml = m_pkg.part(part);
-    if (xml.isEmpty()) why = say("the part is missing from the file");
+    if (xml.isEmpty()) why = QCoreApplication::translate("PptxImport", "the part is missing from the file");
     else if (office::parseXml(xml, dom, &why)) {
         *root = dom->documentElement();
         return true;
     }
-    m_note(number ? say("The comments of slide %1 can't be read: %2").arg(number).arg(why) : say("The comment authors can't be read: %1").arg(why));
+    m_note(number ? QCoreApplication::translate("PptxImport", "The comments of slide %1 can't be read: %2").arg(number).arg(why) : QCoreApplication::translate("PptxImport", "The comment authors can't be read: %1").arg(why));
     return false;
 }
 
@@ -508,7 +507,7 @@ void CommentReader::read(const QString &slidePart, int number, Page &page, const
         if (rel.external) continue;
         // The comments of one slide are the part of that slide: another that names it has none of its own.
         if (m_readParts.contains(rel.target.toLower())) {
-            m_note(say("The comments of slide %1 were left out: the part %2 is read once.").arg(number).arg(shortName(rel.target)));
+            m_note(QCoreApplication::translate("PptxImport", "The comments of slide %1 were left out: the part %2 is read once.").arg(number).arg(shortName(rel.target)));
             continue;
         }
         m_readParts.insert(rel.target.toLower());
@@ -517,7 +516,7 @@ void CommentReader::read(const QString &slidePart, int number, Page &page, const
         if (!parse(rel.target, number, &dom, &root)) continue;
         if (office::isElement(root, office::ns::P, QStringLiteral("cmLst"))) readOlder(root, &out, slide);
         else if (office::isElement(root, kP188, QStringLiteral("cmLst"))) readNewer(root, &out, page, slide);
-        else m_note(say("The comments of slide %1 can't be read: %2").arg(number).arg(say("the part is not what the file says it is")));
+        else m_note(QCoreApplication::translate("PptxImport", "The comments of slide %1 can't be read: %2").arg(number).arg(QCoreApplication::translate("PptxImport", "the part is not what the file says it is")));
     }
     deck::setComments(page, out);
 }
@@ -527,7 +526,7 @@ void CommentReader::readOlder(const QDomElement &root, QVector<deck::Comment> *o
     QVector<Raw> raws;
     for (const QDomElement &cm : office::children(root, office::ns::P, QStringLiteral("cm"))) {
         if (raws.size() >= kMaxComments) {
-            m_note(say("Only the first %1 comments of slide %2 are read.").arg(kMaxComments).arg(m_slide));
+            m_note(QCoreApplication::translate("PptxImport", "Only the first %1 comments of slide %2 are read.").arg(kMaxComments).arg(m_slide));
             break;
         }
         if (!room()) break;
@@ -603,7 +602,7 @@ void CommentReader::readOlder(const QDomElement &root, QVector<deck::Comment> *o
         if (parent[i] < 0) continue;
         deck::Comment &c = (*out)[place.value(rootOf(i), first)];
         if (c.replies.size() >= kMaxReplies) {
-            if (!saidReplies) m_note(say("Only the first %1 replies to a comment on slide %2 are read.").arg(kMaxReplies).arg(m_slide));
+            if (!saidReplies) m_note(QCoreApplication::translate("PptxImport", "Only the first %1 replies to a comment on slide %2 are read.").arg(kMaxReplies).arg(m_slide));
             saidReplies = true;
             continue;
         }
@@ -618,7 +617,7 @@ void CommentReader::readNewer(const QDomElement &root, QVector<deck::Comment> *o
     int count = 0;
     for (const QDomElement &cm : office::children(root, kP188, QStringLiteral("cm"))) {
         if (++count > kMaxComments) {
-            m_note(say("Only the first %1 comments of slide %2 are read.").arg(kMaxComments).arg(m_slide));
+            m_note(QCoreApplication::translate("PptxImport", "Only the first %1 comments of slide %2 are read.").arg(kMaxComments).arg(m_slide));
             break;
         }
         if (!room()) break;
@@ -656,7 +655,7 @@ void CommentReader::readNewer(const QDomElement &root, QVector<deck::Comment> *o
         bool saidReplies = false;
         for (const QDomElement &reply : office::children(office::child(cm, kP188, QStringLiteral("replyLst")), kP188, QStringLiteral("reply"))) {
             if (c.replies.size() >= kMaxReplies) {
-                if (!saidReplies) m_note(say("Only the first %1 replies to a comment on slide %2 are read.").arg(kMaxReplies).arg(m_slide));
+                if (!saidReplies) m_note(QCoreApplication::translate("PptxImport", "Only the first %1 replies to a comment on slide %2 are read.").arg(kMaxReplies).arg(m_slide));
                 saidReplies = true;
                 break;
             }
@@ -812,17 +811,17 @@ void Importer::note(const QString &text)
 void Importer::sayWhatRanOut()
 {
     using B = office::DrawingBudget;
-    if (m_budget.ranOut[B::Objects]) note(say("The file holds more than %1 objects in all; the rest are left out.").arg(kMaxObjects));
-    if (m_budget.ranOut[B::Stories]) note(say("The file holds more than %1 shapes with text in all; the text of the rest is left out.").arg(kMaxStories));
-    if (m_budget.ranOut[B::Cells]) note(say("The file holds more than %1 table cells in all; the tables past them are kept as written, not shown.").arg(kMaxCells));
-    if (m_budget.ranOut[B::Paragraphs]) note(say("The file holds more than %1 paragraphs of text in all; the rest are left out.").arg(kMaxParagraphs));
-    if (m_budget.ranOut[B::Runs]) note(say("The file holds more than %1 runs of text in all; the rest are left out.").arg(kMaxRuns));
-    if (m_budget.ranOut[B::Letters]) note(say("The file holds more than %1 letters of text in all; the rest are left out.").arg(kMaxLetters));
-    if (m_budget.longBody) note(say("Some text is longer than a text box is read to, so the rest of it is left out."));
+    if (m_budget.ranOut[B::Objects]) note(QCoreApplication::translate("PptxImport", "The file holds more than %1 objects in all; the rest are left out.").arg(kMaxObjects));
+    if (m_budget.ranOut[B::Stories]) note(QCoreApplication::translate("PptxImport", "The file holds more than %1 shapes with text in all; the text of the rest is left out.").arg(kMaxStories));
+    if (m_budget.ranOut[B::Cells]) note(QCoreApplication::translate("PptxImport", "The file holds more than %1 table cells in all; the tables past them are kept as written, not shown.").arg(kMaxCells));
+    if (m_budget.ranOut[B::Paragraphs]) note(QCoreApplication::translate("PptxImport", "The file holds more than %1 paragraphs of text in all; the rest are left out.").arg(kMaxParagraphs));
+    if (m_budget.ranOut[B::Runs]) note(QCoreApplication::translate("PptxImport", "The file holds more than %1 runs of text in all; the rest are left out.").arg(kMaxRuns));
+    if (m_budget.ranOut[B::Letters]) note(QCoreApplication::translate("PptxImport", "The file holds more than %1 letters of text in all; the rest are left out.").arg(kMaxLetters));
+    if (m_budget.longBody) note(QCoreApplication::translate("PptxImport", "Some text is longer than a text box is read to, so the rest of it is left out."));
     if (m_diagramsRanOut)
-        note(say("The file holds more than %1 diagrams, or diagrams that are drawn from more than %2 MB in all; the rest are kept as written, not shown.").arg(kMaxDiagrams).arg(kMaxDiagramSvgBytes >> 20));
+        note(QCoreApplication::translate("PptxImport", "The file holds more than %1 diagrams, or diagrams that are drawn from more than %2 MB in all; the rest are kept as written, not shown.").arg(kMaxDiagrams).arg(kMaxDiagramSvgBytes >> 20));
     if (m_pageFull)
-        note(say("A slide is read to %1 objects, %2 shapes with text, and %3 letters; some slides here hold more, and the rest of them is left out.")
+        note(QCoreApplication::translate("PptxImport", "A slide is read to %1 objects, %2 shapes with text, and %3 letters; some slides here hold more, and the rest of them is left out.")
                  .arg(kMaxPageObjects)
                  .arg(kMaxPageStories)
                  .arg(kMaxPageLetters));
@@ -832,13 +831,13 @@ bool Importer::parsePart(const QString &part, const QString &root, const char *r
 {
     const QByteArray xml = m_pkg.part(part);
     if (xml.isEmpty()) {
-        *why = say("the part is missing from the file");
+        *why = QCoreApplication::translate("PptxImport", "the part is missing from the file");
         return false;
     }
     if (!office::parseXml(xml, dom, why)) return false;
     *rootElement = dom->documentElement();
     if (!office::isElement(*rootElement, QLatin1String(rootNs), root)) {
-        *why = say("the part is not what the file says it is");
+        *why = QCoreApplication::translate("PptxImport", "the part is not what the file says it is");
         return false;
     }
     return true;
@@ -886,7 +885,7 @@ void Importer::readSize(const QDomElement &presentation)
             size = QSizeF(office::emuToPoints(cx), office::emuToPoints(cy));
             name = sizeNameOf(office::attr(sz, QStringLiteral("type")), cx, cy);
         } else {
-            note(say("The slide size in the file can't be used, so the slides are 13.333 by 7.5 inches."));
+            note(QCoreApplication::translate("PptxImport", "The slide size in the file can't be used, so the slides are 13.333 by 7.5 inches."));
         }
     }
     m_doc.setup.size = m_doc.setup.sheet = size;
@@ -947,7 +946,7 @@ void Importer::readShowSettings(const QDomElement &presentation, const QHash<QSt
         if (parsePart(rels[0].target, QStringLiteral("presentationPr"), "http://schemas.openxmlformats.org/presentationml/2006/main", &dom, &root, &why))
             readShowProperties(root, m_masters.empty() ? office::defaultTheme() : m_masters.front()->theme, [](const QDomElement &e) { return standaloneXml(e); }, m_doc, &notes);
         else
-            notes << say("The slide show settings can't be read (%1), so the defaults are used.").arg(why);
+            notes << QCoreApplication::translate("PptxImport", "The slide show settings can't be read (%1), so the defaults are used.").arg(why);
     }
     for (const QString &text : std::as_const(notes)) note(text);
 }
@@ -978,7 +977,7 @@ std::shared_ptr<const Importer::ThemeCtx> Importer::themeOf(const QString &part)
     t->theme = office::defaultTheme();
     const QByteArray bytes = m_pkg.part(part);
     if (bytes.size() > kMaxThemeBytes) {
-        t->why = say("it is larger than %1 KB").arg(kMaxThemeBytes >> 10);
+        t->why = QCoreApplication::translate("PptxImport", "it is larger than %1 KB").arg(kMaxThemeBytes >> 10);
     } else {
         QDomDocument &dom = newDom();
         office::Theme theme;
@@ -999,7 +998,7 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
     QDomElement root;
     QString why;
     if (!parsePart(part, QStringLiteral("sldMaster"), "http://schemas.openxmlformats.org/presentationml/2006/main", &dom, &root, &why)) {
-        note(say("The slide master %1 was left out: %2").arg(shortName(part), why));
+        note(QCoreApplication::translate("PptxImport", "The slide master %1 was left out: %2").arg(shortName(part), why));
         return nullptr;
     }
     auto m = std::make_unique<MasterCtx>();
@@ -1008,9 +1007,9 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
     const QVector<office::Relationship> themes = m_pkg.relationshipsOfType(part, QStringLiteral("/theme"));
     QString themeBase64;   // the theme part, as the master keeps it; empty if it has none that can be read
     if (themes.isEmpty() || themes[0].external) {
-        note(say("The slide master %1 has no theme, so JeffDeck's colors and fonts stand in.").arg(shortName(part)));
+        note(QCoreApplication::translate("PptxImport", "The slide master %1 has no theme, so JeffDeck's colors and fonts stand in.").arg(shortName(part)));
     } else if (const std::shared_ptr<const ThemeCtx> theme = themeOf(themes[0].target); !theme->ok) {
-        note(say("The theme of slide master %1 can't be read (%2), so JeffDeck's colors and fonts stand in.").arg(shortName(part), theme->why));
+        note(QCoreApplication::translate("PptxImport", "The theme of slide master %1 can't be read (%2), so JeffDeck's colors and fonts stand in.").arg(shortName(part), theme->why));
     } else {
         m->theme = theme->theme;
         m->formats = theme->formats;
@@ -1028,7 +1027,7 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
     page->id = QStringLiteral("SM%1").arg(n);
     const QDomElement cSld = pChild(root, "cSld");
     page->name = office::attr(cSld, QStringLiteral("name"));
-    if (page->name.isEmpty()) page->name = m->theme.name.isEmpty() ? say("Slide Master") : say("%1 Slide Master").arg(m->theme.name);
+    if (page->name.isEmpty()) page->name = m->theme.name.isEmpty() ? QCoreApplication::translate("PptxImport", "Slide Master") : QCoreApplication::translate("PptxImport", "%1 Slide Master").arg(m->theme.name);
     page->abbr = n == 1 ? QStringLiteral("SM") : QStringLiteral("SM%1").arg(n);
     page->props[QStringLiteral("kind")] = QStringLiteral("master");
     if (!office::parseBool(office::attr(root, QStringLiteral("preserve")), true)) page->props[QStringLiteral("preserve")] = false;
@@ -1052,7 +1051,7 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
     if (m_masters.size() == 1) {
         // The first master's theme is the presentation's.
         DeckTheme t = defaultTheme();
-        t.name = raw->theme.name.isEmpty() ? say("Theme") : raw->theme.name;
+        t.name = raw->theme.name.isEmpty() ? QCoreApplication::translate("PptxImport", "Theme") : raw->theme.name;
         for (int i = 0; i < 12; ++i) t.colors[i] = raw->theme.colors[i];
         if (!raw->theme.majorLatin.isEmpty()) t.headingFont = raw->theme.majorLatin;
         if (!raw->theme.minorLatin.isEmpty()) t.bodyFont = raw->theme.minorLatin;
@@ -1075,7 +1074,7 @@ Importer::LayoutCtx *Importer::readLayout(const QString &part, MasterCtx &master
     const QString key = part.toLower();
     if (m_layoutByPart.contains(key)) return m_layoutByPart.value(key);
     if (m_layoutCount >= kMaxLayouts) {
-        if (!m_layoutLimitSaid) note(say("Only the first %1 layouts are read.").arg(kMaxLayouts));
+        if (!m_layoutLimitSaid) note(QCoreApplication::translate("PptxImport", "Only the first %1 layouts are read.").arg(kMaxLayouts));
         m_layoutLimitSaid = true;
         return nullptr;
     }
@@ -1084,7 +1083,7 @@ Importer::LayoutCtx *Importer::readLayout(const QString &part, MasterCtx &master
     QDomElement root;
     QString why;
     if (!parsePart(part, QStringLiteral("sldLayout"), "http://schemas.openxmlformats.org/presentationml/2006/main", &dom, &root, &why)) {
-        note(say("The layout %1 was left out: %2").arg(shortName(part), why));
+        note(QCoreApplication::translate("PptxImport", "The layout %1 was left out: %2").arg(shortName(part), why));
         return nullptr;
     }
     // A layout stands on the master that lists it, unless its own link names another that was read.
@@ -1103,7 +1102,7 @@ Importer::LayoutCtx *Importer::readLayout(const QString &part, MasterCtx &master
     page->id = QStringLiteral("L%1").arg(n);
     const QDomElement cSld = pChild(root, "cSld");
     page->name = office::attr(cSld, QStringLiteral("name"));
-    if (page->name.isEmpty()) page->name = say("Layout %1").arg(n);
+    if (page->name.isEmpty()) page->name = QCoreApplication::translate("PptxImport", "Layout %1").arg(n);
     page->abbr = QString::number(n);
     page->baseId = base->page->id;
     page->showMasterItems = office::parseBool(office::attr(root, QStringLiteral("showMasterSp")), true);
@@ -1228,7 +1227,7 @@ QDomElement Importer::tableStyles()
     QString why;
     if (!parsePart(rels[0].target, QStringLiteral("tblStyleLst"), "http://schemas.openxmlformats.org/drawingml/2006/main", &dom, &m_tableStyles, &why)) {
         m_tableStyles = QDomElement();
-        note(say("The table styles of the presentation can't be read (%1), so its tables take the usual style.").arg(why));
+        note(QCoreApplication::translate("PptxImport", "The table styles of the presentation can't be read (%1), so its tables take the usual style.").arg(why));
     }
     return m_tableStyles;
 }
@@ -1353,7 +1352,7 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     pic->wrap.mode = Wrap::None;
     pic->imageId = drawn->imageId;
     pic->sourceId = frameNumber(frame);
-    if (drawn->coarser) note(say("The chart \"%1\" has more points than a picture of it can show, so its picture is drawn from some of them.").arg(pic->name));
+    if (drawn->coarser) note(QCoreApplication::translate("PptxImport", "The chart \"%1\" has more points than a picture of it can show, so its picture is drawn from some of them.").arg(pic->name));
     PhRef ph;
     if (placeholderOf(frame, &ph)) pic->role = roleOf(ph);
     sc.page->items.push_back(pic);
@@ -1370,7 +1369,7 @@ bool Importer::readFrameChart(const QDomElement &frame, Scope &sc)
     if (*kept)
         sc.charts.append(QJsonObject{{"item", pic->id}, {"main", rel.target}, {"frameXml", standaloneXml(frame)}, {"parts", **kept}});
     else
-        note(say("The parts behind the chart \"%1\" are too many or too large to keep, so it is saved as a picture of the chart.").arg(pic->name));
+        note(QCoreApplication::translate("PptxImport", "The parts behind the chart \"%1\" are too many or too large to keep, so it is saved as a picture of the chart.").arg(pic->name));
     return true;
 }
 
@@ -1469,7 +1468,7 @@ bool Importer::readFrameDiagram(const QDomElement &frame, Scope &sc)
         sc.charts.append(QJsonObject{{"item", pic->id}, {"kind", "diagram"}, {"frameXml", standaloneXml(frame)}, {"links", links}, {"parts", **kept},
                                      {"x", rect.x()}, {"y", rect.y()}, {"w", rect.width()}, {"h", rect.height()}, {"name", pic->name}, {"descr", pic->altText}});
     else
-        note(say("The parts behind the diagram \"%1\" are too many or too large to keep, so it is saved as a picture of the diagram.").arg(pic->name));
+        note(QCoreApplication::translate("PptxImport", "The parts behind the diagram \"%1\" are too many or too large to keep, so it is saved as a picture of the diagram.").arg(pic->name));
     return true;
 }
 
@@ -1635,7 +1634,7 @@ bool Importer::readSlide(int number, const QString &part)
     QDomElement root;
     QString why;
     if (!parsePart(part, QStringLiteral("sld"), "http://schemas.openxmlformats.org/presentationml/2006/main", &dom, &root, &why)) {
-        note(say("Slide %1 was left out: %2").arg(number).arg(why));
+        note(QCoreApplication::translate("PptxImport", "Slide %1 was left out: %2").arg(number).arg(why));
         return false;
     }
     // The layout it stands on, and through it the slide master. One that no
@@ -1710,7 +1709,7 @@ void Importer::readNotes(const QString &slidePart, Page &page, const MasterCtx &
     const QString part = rels[0].target;
     // A notes part belongs to one slide: another that names it has no notes of its own.
     if (m_notesParts.contains(part.toLower())) {
-        note(say("The notes of %1 were left out: the part %2 is read once.").arg(shortName(slidePart), shortName(part)));
+        note(QCoreApplication::translate("PptxImport", "The notes of %1 were left out: the part %2 is read once.").arg(shortName(slidePart), shortName(part)));
         return;
     }
     m_notesParts.insert(part.toLower());
@@ -1718,7 +1717,7 @@ void Importer::readNotes(const QString &slidePart, Page &page, const MasterCtx &
     QDomElement root;
     QString why;
     if (!parsePart(part, QStringLiteral("notes"), "http://schemas.openxmlformats.org/presentationml/2006/main", &dom, &root, &why)) {
-        note(say("The notes of %1 can't be read: %2").arg(shortName(slidePart), why));
+        note(QCoreApplication::translate("PptxImport", "The notes of %1 can't be read: %2").arg(shortName(slidePart), why));
         return;
     }
     // The text of the notes placeholder, in the notes master's style.
@@ -1765,7 +1764,7 @@ bool Importer::run(const QString &mainPart, QString *error)
     QDomElement root;
     QString why;
     if (!parsePart(mainPart, QStringLiteral("presentation"), "http://schemas.openxmlformats.org/presentationml/2006/main", &dom, &root, &why))
-        return fail(say("The file has no presentation in it: %1").arg(why));
+        return fail(QCoreApplication::translate("PptxImport", "The file has no presentation in it: %1").arg(why));
     m_doc.masters.clear();
     m_mainPart = mainPart;
     readSize(root);
@@ -1779,33 +1778,33 @@ bool Importer::run(const QString &mainPart, QString *error)
         if (rel.id.isEmpty() || rel.external) continue;
         // A master the presentation lists again is read once.
         if (m_masterByPart.contains(rel.target.toLower())) {
-            note(say("The slide master %1 is listed more than once; it is read once.").arg(shortName(rel.target)));
+            note(QCoreApplication::translate("PptxImport", "The slide master %1 is listed more than once; it is read once.").arg(shortName(rel.target)));
             continue;
         }
         if (m_masters.size() >= kMaxMasters) {
-            note(say("Only the first %1 slide masters are read.").arg(kMaxMasters));
+            note(QCoreApplication::translate("PptxImport", "Only the first %1 slide masters are read.").arg(kMaxMasters));
             break;
         }
         m_masterByPart.insert(rel.target.toLower(), readMaster(rel.target));
     }
-    if (m_masters.empty()) return fail(say("The presentation has no slide master that can be read.") + QLatin1Char('\n') + m_notes.join(QLatin1Char('\n')));
+    if (m_masters.empty()) return fail(QCoreApplication::translate("PptxImport", "The presentation has no slide master that can be read.") + QLatin1Char('\n') + m_notes.join(QLatin1Char('\n')));
 
     QHash<qint64, int> pageOfSlideId;
     QHash<QString, int> pageOfRel;   // for the custom shows, which name slides by relationship
     int number = 0;
     for (const QDomElement &id : office::children(pChild(root, "sldIdLst"), office::ns::P, QStringLiteral("sldId"))) {
         if (++number > kMaxSlides) {
-            note(say("Only the first %1 slides are read.").arg(kMaxSlides));
+            note(QCoreApplication::translate("PptxImport", "Only the first %1 slides are read.").arg(kMaxSlides));
             break;
         }
         const office::Relationship rel = m_pkg.relationship(mainPart, office::attrNs(id, office::ns::R, QStringLiteral("id")));
         if (rel.id.isEmpty() || rel.external) {
-            note(say("Slide %1 was left out: the file names no part for it.").arg(number));
+            note(QCoreApplication::translate("PptxImport", "Slide %1 was left out: the file names no part for it.").arg(number));
             continue;
         }
         // A slide the presentation lists again is read once.
         if (const int first = m_slideByPart.value(rel.target.toLower(), 0)) {
-            note(say("Slide %1 was left out: it is slide %2 listed again.").arg(number).arg(first));
+            note(QCoreApplication::translate("PptxImport", "Slide %1 was left out: it is slide %2 listed again.").arg(number).arg(first));
             continue;
         }
         m_slideByPart.insert(rel.target.toLower(), number);
@@ -1814,7 +1813,7 @@ bool Importer::run(const QString &mainPart, QString *error)
             pageOfRel.insert(rel.id, int(m_doc.pages.size()) - 1);
         }
     }
-    if (!ensureASlide(m_doc)) return fail(say("The presentation has no slides."));
+    if (!ensureASlide(m_doc)) return fail(QCoreApplication::translate("PptxImport", "The presentation has no slides."));
     readSections(root, pageOfSlideId);
     readShowSettings(root, pageOfRel);
     {
@@ -1827,7 +1826,7 @@ bool Importer::run(const QString &mainPart, QString *error)
     for (const QString &text : leftOutNotes(m_doc.imagesLeftOut, m_pkg.skippedCount())) note(text);
     if (error) {
         QStringList lines = m_notes;
-        if (m_extraNotes) lines << say("And %1 more.").arg(m_extraNotes);
+        if (m_extraNotes) lines << QCoreApplication::translate("PptxImport", "And %1 more.").arg(m_extraNotes);
         *error = lines.join(QLatin1Char('\n'));
     }
     return true;

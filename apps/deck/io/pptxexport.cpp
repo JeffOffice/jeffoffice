@@ -50,8 +50,6 @@ namespace jp::deck {
 
 namespace {
 
-QString say(const char *text) { return QCoreApplication::translate("PptxExport", text); }
-
 const QString kDeclaration = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n");
 const QString kNamespaces = QStringLiteral(
     " xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
@@ -731,11 +729,11 @@ QString Exporter::keptFrame(const QString &xml, const QString &where)
     QDomDocument dom;
     QString alone = withoutLinks(xml);
     if (!parsesAlone(alone, &dom)) {
-        note(say("%1: a table, chart, or other frame that can't be read was left out.").arg(where));
+        note(QCoreApplication::translate("PptxExport", "%1: a table, chart, or other frame that can't be read was left out.").arg(where));
         return QString();
     }
     if (refersToParts(dom.documentElement())) {
-        note(say("%1: a chart, embedded object, or other frame that refers to parts of the file that aren't kept was left out.").arg(where));
+        note(QCoreApplication::translate("PptxExport", "%1: a chart, embedded object, or other frame that refers to parts of the file that aren't kept was left out.").arg(where));
         return QString();
     }
     return alone;
@@ -767,23 +765,23 @@ QString Exporter::keptSlideXml(const Page &slide, const char *key, const QString
     if (xml.isEmpty()) return QString();
     QDomDocument dom;
     if (!parsesAlone(xml, &dom)) {
-        note(say("%1: the %2 can't be read and was left out.").arg(where, what));
+        note(QCoreApplication::translate("PptxExport", "%1: the %2 can't be read and was left out.").arg(where, what));
         return QString();
     }
     if (refersToParts(dom.documentElement())) {
-        note(say("%1: the %2 uses a sound or other part of the file that isn't kept, and was left out.").arg(where, what));
+        note(QCoreApplication::translate("PptxExport", "%1: the %2 uses a sound or other part of the file that isn't kept, and was left out.").arg(where, what));
         return QString();
     }
     static const QRegularExpression targets(QStringLiteral("\\bspid=\"(\\d+)\""));
     for (auto it = targets.globalMatch(xml); it.hasNext();) {
         // Shapes are numbered afresh in the file, but a frame keeps the number it had.
         if (!frameIds.contains(it.next().captured(1).toLongLong())) {
-            note(say("%1: the %2 aims at shapes by their numbers in the old file, and was left out.").arg(where, what));
+            note(QCoreApplication::translate("PptxExport", "%1: the %2 aims at shapes by their numbers in the old file, and was left out.").arg(where, what));
             return QString();
         }
     }
     if (!playsOnlyMedia(dom.documentElement(), mediaIds)) {
-        note(say("%1: the %2 plays a movie or sound that wasn't kept, and was left out.").arg(where, what));
+        note(QCoreApplication::translate("PptxExport", "%1: the %2 plays a movie or sound that wasn't kept, and was left out.").arg(where, what));
         return QString();
     }
     return xml;
@@ -883,7 +881,7 @@ QString Exporter::chartFrame(const QJsonObject &kept, const Item &item, const QS
     QDomDocument dom;
     const bool sound = parts.contains(main) && parsesAlone(frame, &dom) && office::isChartFrame(dom.documentElement()) && keptPartsAreWhole(parts);
     if (!sound) {
-        note(say("%1: a chart's parts can't be written, so it was left out.").arg(where));
+        note(QCoreApplication::translate("PptxExport", "%1: a chart's parts can't be written, so it was left out.").arg(where));
         return QString();
     }
     const QHash<QString, QString> names = keptNames(parts, QStringLiteral("/ppt/charts/"));
@@ -915,7 +913,7 @@ QString Exporter::diagramFrame(const QJsonObject &kept, const Item &item, const 
         if (l.value(QStringLiteral("type")).toString().endsWith(QLatin1String("/diagramData"))) dataPart = l.value(QStringLiteral("target")).toString();
     }
     if (!sound || dataPart.isEmpty()) {
-        note(say("%1: a diagram's parts can't be written, so it was left out.").arg(where));
+        note(QCoreApplication::translate("PptxExport", "%1: a diagram's parts can't be written, so it was left out.").arg(where));
         return QString();
     }
     const QHash<QString, QString> names = keptNames(parts, QStringLiteral("/ppt/diagrams/"), true);
@@ -983,7 +981,7 @@ QString Exporter::equationBlock(const QJsonObject &kept, const Item &item, offic
     }
     const QString image = item.type() == ItemType::Picture ? office::dmlwrite::relatePicture(ctx, static_cast<const PictureItem &>(item).imageId) : QString();
     if (dom.documentElement().isNull() || used.size() > 1 || (used.size() == 1 && image.isEmpty())) {
-        note(say("%1: an equation's picture can't be written, so it was left out.").arg(where));
+        note(QCoreApplication::translate("PptxExport", "%1: an equation's picture can't be written, so it was left out.").arg(where));
         return QString();
     }
     if (used.size() == 1) xml = withRenumberedLinks(xml, {{*used.begin(), image}});
@@ -1103,7 +1101,7 @@ QString Exporter::background(const PageBase &page, const QString &part, bool req
         if (c.isValid()) fill = QStringLiteral("<a:solidFill><a:srgbClr val=\"%1\"/></a:solidFill>").arg(hex(c)).toUtf8();
     }
     if (fill.isEmpty()) {
-        note(say("%1: the background can't be saved yet.").arg(where));
+        note(QCoreApplication::translate("PptxExport", "%1: the background can't be saved yet.").arg(where));
         return themed;
     }
     return QStringLiteral("<p:bg><p:bgPr>") + QString::fromUtf8(fill) + QStringLiteral("<a:effectLst/></p:bgPr></p:bg>");
@@ -1178,7 +1176,7 @@ void Exporter::writeMaster(int i)
 {
     MasterOut &master = m_masters[i];
     const MasterPage &page = *master.page;
-    const QString where = say("Slide master %1").arg(i + 1);
+    const QString where = QCoreApplication::translate("PptxExport", "Slide master %1").arg(i + 1);
     // Its links come first: the layouts it lists, and its theme.
     QString layoutIds;
     for (int l : std::as_const(master.layouts)) {
@@ -1201,7 +1199,7 @@ void Exporter::writeLayout(int i)
 {
     const LayoutOut &layout = m_layouts[i];
     const MasterPage &page = *layout.page;
-    const QString where = say("Layout \"%1\"").arg(page.name);
+    const QString where = QCoreApplication::translate("PptxExport", "Layout \"%1\"").arg(page.name);
     m_pkg.addRelationship(layout.part, kRelBase + QStringLiteral("slideMaster"), m_masters[layout.master].part);
     const QString type = page.props.value(QStringLiteral("type")).toString();
     const bool custom = !isLayoutType(type);
@@ -1221,7 +1219,7 @@ void Exporter::writeSlide(int i)
 {
     const Page &page = *m_doc.pages[i];
     const QString part = QStringLiteral("/ppt/slides/slide%1.xml").arg(i + 1);
-    const QString where = say("Slide %1").arg(i + 1);
+    const QString where = QCoreApplication::translate("PptxExport", "Slide %1").arg(i + 1);
     m_pkg.addRelationship(part, kRelBase + QStringLiteral("slideLayout"), m_layouts[m_slideLayout[i]].part);
     if (m_notesNumber[i]) m_pkg.addRelationship(part, kRelBase + QStringLiteral("notesSlide"), QStringLiteral("/ppt/notesSlides/notesSlide%1.xml").arg(m_notesNumber[i]));
 
@@ -1241,8 +1239,8 @@ void Exporter::writeSlide(int i)
     if (!readXml.isEmpty() && deck::transitionFromXml(readXml) == transition) {
         QDomDocument dom;
         if (parsesAlone(readXml, &dom) && refersToParts(dom.documentElement())) {
-            note(say("%1: the transition's sound isn't kept; the transition is saved without it.").arg(where));
-        } else if (const QString kept = keptSlideXml(page, "transitionXml", say("transition"), where, frameIds, mediaIds); !kept.isEmpty()) {
+            note(QCoreApplication::translate("PptxExport", "%1: the transition's sound isn't kept; the transition is saved without it.").arg(where));
+        } else if (const QString kept = keptSlideXml(page, "transitionXml", QCoreApplication::translate("PptxExport", "transition"), where, frameIds, mediaIds); !kept.isEmpty()) {
             transitionOut = kept;
         }
     }
@@ -1250,8 +1248,8 @@ void Exporter::writeSlide(int i)
     // The animation, but for the effects of shapes that are gone: the ones on the other shapes stay, as the animation pane writes them.
     int dropped = 0;
     const QString timing = deck::timingForSave(m_doc, page, [&](int shape) { return frameIds.contains(shape); }, &dropped);
-    if (dropped > 0) note(say("%1: animation effects of shapes that are gone were left out.").arg(where));
-    xml += keptSlideXml(page, "timingXml", say("animation"), where, frameIds, mediaIds, &timing);
+    if (dropped > 0) note(QCoreApplication::translate("PptxExport", "%1: animation effects of shapes that are gone were left out.").arg(where));
+    xml += keptSlideXml(page, "timingXml", QCoreApplication::translate("PptxExport", "animation"), where, frameIds, mediaIds, &timing);
     xml += QStringLiteral("</p:sld>");
     add(part, kTypeBase + QStringLiteral("slide+xml"), xml);
     writeComments(i, part);
@@ -1577,7 +1575,7 @@ QByteArray Exporter::run(QString *error)
     writeCommentAuthors();
 
     if (m_masters.size() + m_layouts.size() + 1 > size_t(kLastMasterId - kFirstMasterId)) {
-        if (error) *error = say("The presentation has more slide masters and layouts than a file can number.");
+        if (error) *error = QCoreApplication::translate("PptxExport", "The presentation has more slide masters and layouts than a file can number.");
         return QByteArray();
     }
     for (int i = 0; i < int(m_masters.size()); ++i) writeMaster(i);
@@ -1595,7 +1593,7 @@ QByteArray Exporter::run(QString *error)
 
     const QByteArray bytes = m_pkg.finish();
     if (bytes.isEmpty()) {
-        if (error) *error = say("The presentation file could not be put together.");
+        if (error) *error = QCoreApplication::translate("PptxExport", "The presentation file could not be put together.");
         return QByteArray();
     }
     if (m_callerSkipped) *m_callerSkipped += m_skipped;
@@ -1624,7 +1622,7 @@ bool savePresentationFile(const Document &doc, const QString &path, QString *err
     };
     const QByteArray bytes = exportPresentation(doc, error, skipped, kindOfFileName(path), embedFonts);
     if (bytes.isEmpty()) return false;
-    if (path.isEmpty()) return fail(say("There's no file name to save to."));
+    if (path.isEmpty()) return fail(QCoreApplication::translate("PptxExport", "There's no file name to save to."));
     // The old file stays whole until the new one is complete.
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly)) return fail(file.errorString());

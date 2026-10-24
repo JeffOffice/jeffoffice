@@ -15,8 +15,6 @@ namespace jp::deck::odpw {
 
 namespace {
 
-QString tr(const char *text) { return QCoreApplication::translate("OdpExport", text); }
-
 QString attrOf(const char *name, const QString &value) { return QLatin1Char(' ') + QLatin1String(name) + QStringLiteral("=\"") + esc(value) + QLatin1Char('"'); }
 
 // The opacity of a fill (share of one) from its transparency, as a percentage.
@@ -280,7 +278,7 @@ QString Exporter::effectAttrs(const Effects &fx)
         if (fx.shadow.size != 100) out += attrOf("jo:shadow-size", number(fx.shadow.size, 2));
     } else {
         out += QStringLiteral(" draw:shadow=\"hidden\"");
-        if (fx.shadow.on) sayOnce(QStringLiteral("innershadow"), tr("Inner shadows can't be saved in this kind of file."));
+        if (fx.shadow.on) sayOnce(QStringLiteral("innershadow"), QCoreApplication::translate("OdpExport", "Inner shadows can't be saved in this kind of file."));
     }
     if (fx.glow.on) {
         const QColor c = resolve(fx.glow.color);
@@ -290,7 +288,7 @@ QString Exporter::effectAttrs(const Effects &fx)
     // A reflection has no place in this kind of file: it is kept in an attribute of our own (transparency, size, distance, and blur).
     if (fx.reflection.on)
         out += attrOf("jo:reflection", QStringLiteral("%1 %2 %3 %4").arg(number(fx.reflection.transparency, 4), number(fx.reflection.size, 4), number(fx.reflection.distance, 3), number(fx.reflection.blur, 3)));
-    if (fx.bevel.type || fx.rot3d.x || fx.rot3d.y) sayOnce(QStringLiteral("bevel"), tr("Bevels and objects turned in space are saved flat."));
+    if (fx.bevel.type || fx.rot3d.x || fx.rot3d.y) sayOnce(QStringLiteral("bevel"), QCoreApplication::translate("OdpExport", "Bevels and objects turned in space are saved flat."));
     return out;
 }
 
