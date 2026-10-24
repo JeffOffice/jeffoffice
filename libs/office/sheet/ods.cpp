@@ -909,6 +909,7 @@ namespace {
 struct Proto {
     quint32 repeat = 1;
     quint32 xf = 0;
+    bool styled = false;   // the cell names a style of its own (else it has the look of the column it is in, which differs from one column to the next of a repeat)
     CellType type = CellType::Empty;
     double number = 0;
     QString text;
@@ -1152,6 +1153,7 @@ private:
             const quint32 count = std::min<quint32>(p->repeat, kMaxColumns - first);
             if (!p->hasValue() && p->colSpan <= 1 && p->rowSpan <= 1) {
                 // an empty cell has the look of its column unless it says otherwise; a run of them to the end of the row is the row's look
+                if (!p->styled) continue;
                 if (first + count >= kMaxColumns && count >= 64) {
                     if (!run.hasXf && p->xf != 0) {
                         run.hasXf = true;
@@ -1191,7 +1193,8 @@ private:
         p.repeat = quint32(std::min<qint64>(repeat, 1 << 20));
         const QString styleName = attr(a, NS_TABLE, QLatin1String("style-name"));
         const quint32 colDefault = m_colXf[int(std::min<quint32>(col, kMaxColumns - 1))];
-        p.xf = styleName.isEmpty() ? colDefault : m_m.xfOf.value(styleName, m_m.xfOf.value(QString()));
+        p.styled = !styleName.isEmpty();
+        p.xf = p.styled ? m_m.xfOf.value(styleName, m_m.xfOf.value(QString())) : colDefault;
         if (!covered) {
             const qint64 cs = attr(a, NS_TABLE, QLatin1String("number-columns-spanned")).toLongLong(), rs = attr(a, NS_TABLE, QLatin1String("number-rows-spanned")).toLongLong();
             p.colSpan = quint32(std::max<qint64>(1, std::min<qint64>(cs, kMaxColumns)));
@@ -1405,7 +1408,7 @@ private:
             Cell c;
             c.row = row;
             c.col = quint16(col + k);
-            c.style = p.xf;
+            c.style = p.styled ? p.xf : m_colXf[int(std::min<quint32>(col + k, kMaxColumns - 1))];
             qint64 extra = 0;
             switch (p.type) {
             case CellType::InlineString:

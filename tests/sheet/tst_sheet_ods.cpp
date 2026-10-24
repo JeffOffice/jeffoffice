@@ -337,6 +337,23 @@ private Q_SLOTS:
         QCOMPARE(s.columns[0].style, at(s, QStringLiteral("A1"))->style);
     }
 
+    // A repeated cell with no style of its own has the look of each column it covers, not of the first: columns with looks of their own and a row of empty cells that repeats across them
+    // make no cell, and a value that repeats takes the look of the column it is in.
+    void aRepeatedCellTakesTheLookOfEachColumn()
+    {
+        const QString styles = QStringLiteral("<style:style style:name=\"red\" style:family=\"table-cell\"><style:table-cell-properties fo:background-color=\"#ff0000\"/></style:style>"
+                                              "<style:style style:name=\"blue\" style:family=\"table-cell\"><style:table-cell-properties fo:background-color=\"#0000ff\"/></style:style>");
+        const QString cols = QStringLiteral("<table:table-column table:default-cell-style-name=\"red\"/><table:table-column table:default-cell-style-name=\"blue\"/>");
+        const QString r1 = row(emptyCell(QStringLiteral("table:number-columns-repeated=\"2\"")), QStringLiteral("table:number-rows-repeated=\"1000000\""));
+        const QString r2 = row(floatCell(5, QStringLiteral("table:number-columns-repeated=\"2\"")));
+        Workbook wb = open(simple(table(QStringLiteral("S"), cols + r1 + r2), styles));
+        const Sheet s = readSheet(wb);
+        QCOMPARE(s.cells.cellCount(), qint64(2));
+        const Styles &st = wb.styles();
+        QCOMPARE(st.fill(st.format(at(s, QStringLiteral("A1000001"))->style).fill).fg.rgb, 0xFF0000u);
+        QCOMPARE(st.fill(st.format(at(s, QStringLiteral("B1000001"))->style).fill).fg.rgb, 0x0000FFu);
+    }
+
     // Repeated cells, rows, and columns: they are made as many times as they are repeated, formulas move with the copy, and a row of cells with nothing is no cell however often it repeats.
     void repeatsAreExpandedWithinTheSheet()
     {

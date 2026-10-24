@@ -58,6 +58,16 @@ bool validUtf8(const char *p, qsizetype n)
     return true;
 }
 
+// How much of a file is looked at to tell whether it is UTF-8: the first 32 MB, not ending in the middle of a character (a file that is UTF-8 so far is UTF-8; checking a file of a
+// gigabyte to its end would take the time the first screen should not wait for).
+qsizetype utf8Sample(const QByteArray &bytes)
+{
+    qsizetype n = std::min<qsizetype>(bytes.size(), qsizetype(32) << 20);
+    if (n < bytes.size())
+        while (n > 0 && (quint8(bytes[n]) & 0xC0) == 0x80) --n;
+    return n;
+}
+
 QString decodeSample(const QByteArray &bytes, qsizetype from, qsizetype count, const CsvForm &form)
 {
     count = std::min<qsizetype>(count, bytes.size() - from);
@@ -159,11 +169,18 @@ bool allDigits(QStringView s)
     return true;
 }
 
-bool hasDigit(QStringView s)
+// Two numbers of one or two digits with a dash or a slash between (1-2, 3/4): a date the common program makes of them, but as often a range, a score, or a part number, and a date made of
+// a text cannot be made a text again.
+bool onlyTwoSmallNumbers(QStringView s)
 {
-    for (const QChar c : s)
-        if (c.isDigit()) return true;
-    return false;
+    s = s.trimmed();
+    if (s.size() < 3 || s.size() > 5) return false;
+    int separators = 0;
+    for (const QChar c : s) {
+        if (c == QLatin1Char('-') || c == QLatin1Char('/')) ++separators;
+        else if (!c.isDigit()) return false;
+    }
+    return separators == 1 && s.front().isDigit() && s.back().isDigit();
 }
 
 // A field that a number would damage: digits only, with a zero in front of more digits (007), or more than 15 of them (the 16th and later become zeros).
@@ -180,14 +197,6 @@ QString currencySignOf(const QLocale &l)
 {
     const QString c = l.currencySymbol(QLocale::CurrencySymbol);
     return c.isEmpty() ? QStringLiteral("$") : c;
-}
-
-bool currencyComesFirst(const QLocale &l)
-{
-    const QString sign = currencySignOf(l);
-    const QString probe = l.toCurrencyString(1.0, sign);
-    const int at = probe.indexOf(sign), digit = probe.indexOf(QLatin1Char('1'));
-    return at < 0 || digit < 0 || at < digit;
 }
 
 // Every number format code readEntry can ask for, in the person's locale (decimals up to 10: a typed number with more shows 10).
@@ -216,7 +225,7 @@ QStringList entryFormatCodes(const QLocale &locale)
 
 // The words (in lower case) that may stand in a number, a date, or a time as typed: the exponent, the markers of the morning and the afternoon, true and false, and the names of the
 // months (the person's language and English). A field with any other word in it is text, which spares the slow reading of a date or a number for the many texts of a file.
-QSet<QString> knownWordsOf(const QLocale &locale)
+QSet<QString> knownWordsOf(const QLocale &locale, QSet<QString> *months)
 {
     QSet<QString> words = {QStringLiteral("e"), QStringLiteral("am"), QStringLiteral("pm"), QStringLiteral("a"), QStringLiteral("p"), QStringLiteral("m"), QStringLiteral("true"),
                            QStringLiteral("false"), QStringLiteral("t")};
@@ -237,8 +246,11 @@ QSet<QString> knownWordsOf(const QLocale &locale)
         for (int m = 1; m <= 12; ++m)
             for (const QLocale::FormatType t : {QLocale::LongFormat, QLocale::ShortFormat}) {
                 const QString name = l->monthName(m, t).toLower();
+                const QSet<QString> before = words;
                 addWords(name);
                 if (name.size() >= 3) words.insert(name.left(3));
+                for (const QString &w : std::as_const(words))
+                    if (!before.contains(w)) months->insert(w);
             }
         addWords(l->amText());
         addWords(l->pmText());
@@ -450,9 +462,9 @@ private:
 
 class SheetSink : public Sink {
 public:
-    SheetSink(const QHash<QString, quint32> &formats, const QSet<QString> &words, const QLocale &locale, const Limits &limits, const std::function<bool(qint64)> &progress, qint64 stopAfterRow,
+    SheetSink(const QHash<QString, quint32> &formats, const QSet<QString> &words, const QSet<QString> &months, const QLocale &locale, const Limits &limits, const std::function<bool(qint64)> &progress, qint64 stopAfterRow,
               Sheet *out)
-        : m_formats(formats), m_words(words), m_limits(limits), m_progress(progress), m_stopAfter(stopAfterRow), m_s(*out)
+        : m_formats(formats), m_words(words), m_months(months), m_limits(limits), m_progress(progress), m_stopAfter(stopAfterRow), m_s(*out)
     {
         m_options.locale = locale;
         m_sign = currencySignOf(locale);
@@ -535,20 +547,26 @@ private:
             stripped.remove(m_sign);
             field = stripped;
         }
-        bool digit = false;
+        bool digit = false, wordAfterDigit = false;
         QString word;
         auto known = [&] { return word.isEmpty() || m_words.contains(word); };
+        // (a month's name joined to a number with nothing between, as a gene is named MARCH1, is no date; and a month's name is no word of the numbers: TRUE, FALSE, and an exponent are)
+        auto joined = [&](bool numberFollows) { return !word.isEmpty() && m_months.contains(word) && word.size() > 2 && (wordAfterDigit || numberFollows); };
+        QChar before;
         for (const QChar c : field) {
             if (c.isLetter()) {
+                if (word.isEmpty()) wordAfterDigit = before.isDigit();
                 word += c.toLower();
                 if (word.size() > 12) return false;
             } else {
-                if (!known()) return false;
+                if (!known() || joined(c.isDigit())) return false;
                 word.clear();
                 if (c.isDigit()) digit = true;
             }
+            before = c;
         }
-        if (!known()) return false;
+        if (!known() || joined(false)) return false;
+        if (onlyTwoSmallNumbers(field)) return false;
         // (TRUE and FALSE are words and no digit; any other value has a digit)
         return digit || m_words.contains(field.trimmed().toString().toLower());
     }
@@ -602,6 +620,7 @@ private:
 
     const QHash<QString, quint32> &m_formats;
     const QSet<QString> &m_words;
+    const QSet<QString> &m_months;
     QString m_sign;
     bool m_signHasLetters = false;
     Limits m_limits;
@@ -686,7 +705,7 @@ CsvForm detectCsvForm(const QByteArray &bytes, const QString &fileName, const QL
     } else if (bytes.startsWith("\xFE\xFF")) {
         form.encoding = CsvEncoding::Utf16Be;
         skip = 2;
-    } else if (validUtf8(bytes.constData(), bytes.size())) {
+    } else if (validUtf8(bytes.constData(), utf8Sample(bytes))) {
         form.encoding = CsvEncoding::Utf8;
     } else {
         form.encoding = CsvEncoding::Legacy;
@@ -718,7 +737,7 @@ std::shared_ptr<const CsvBook> CsvBook::open(const QByteArray &file, const QStri
     std::shared_ptr<CsvBook> book(new CsvBook);
     book->m_data = file;
     book->m_locale = locale;
-    book->m_words = knownWordsOf(locale);
+    book->m_words = knownWordsOf(locale, &book->m_months);
     book->m_form = detectCsvForm(file, fileName, locale);
     qint64 skip = book->m_form.encoding == CsvEncoding::Utf8Bom ? 3 : (book->m_form.encoding == CsvEncoding::Utf16Le || book->m_form.encoding == CsvEncoding::Utf16Be) ? 2 : 0;
     if (book->m_form.sepLine) {
@@ -790,7 +809,7 @@ bool CsvBook::readSheet(int index, const Limits &limits, const std::function<boo
     if (screenRows > 0 && (stopAfter < 0 || screenRows - 1 < stopAfter)) stopAfter = screenRows - 1;
     out->format.defaultRowHeight = 15;
     out->view.tabSelected = true;
-    SheetSink sink(m_formats, m_words, m_locale, limits, progress, stopAfter, out);
+    SheetSink sink(m_formats, m_words, m_months, m_locale, limits, progress, stopAfter, out);
     Scanner scanner(m_form.delimiter, &sink, kMaxFieldChars);
     bool whole = true;
     const qint64 total = m_data.size();

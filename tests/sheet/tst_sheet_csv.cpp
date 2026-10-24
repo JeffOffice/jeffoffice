@@ -161,6 +161,24 @@ private Q_SLOTS:
         }
     }
 
+    // Whether a file is UTF-8 is told from its first 32 MB (a file of a gigabyte is not read to its end for that): one that is UTF-8 so far is, and a byte that is not is found there.
+    void theEncodingIsToldFromTheFirstPart()
+    {
+        const QLocale english(QLocale::English, QLocale::UnitedStates);
+        QByteArray big(40 << 20, 'a');
+        for (qsizetype i = 15; i < big.size(); i += 16) big[i] = '\n';
+        QByteArray late = big;
+        late[late.size() - 5] = char(0xE9);
+        QCOMPARE(detectCsvForm(late, QStringLiteral("x.csv"), english).encoding, CsvEncoding::Utf8);
+        QByteArray early = big;
+        early[1000] = char(0xE9);
+        QCOMPARE(detectCsvForm(early, QStringLiteral("x.csv"), english).encoding, CsvEncoding::Legacy);
+        // (a character that straddles the end of the part looked at is not a bad byte)
+        QByteArray straddle = big;
+        straddle.replace((32 << 20) - 1, 2, "\xC3\xA9");
+        QCOMPARE(detectCsvForm(straddle, QStringLiteral("x.csv"), english).encoding, CsvEncoding::Utf8);
+    }
+
     // Fields in quotes hold the delimiter, quotes (written twice), and line breaks; a quote inside an unquoted field is a character; what follows a closing quote is kept.
     void quotedFieldsKeepTheirText()
     {
@@ -266,6 +284,29 @@ private Q_SLOTS:
         QCOMPARE(at1(wb, s, "H1"), QStringLiteral("n:0.5"));
         QCOMPARE(at1(wb, s, "I1"), QStringLiteral("n:10"));
         QCOMPARE(at1(wb, s, "J1"), QStringLiteral("i:00"));
+    }
+
+    // A text that only looks like a date stays text: two small numbers with a dash or a slash, a month's name joined to a number. Real dates are dates.
+    void textThatOnlyLooksLikeADateStaysText()
+    {
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openCsv("1-2,3/4,MARCH1,Sep2,12-25,March 1,3/15/2024,2024-03-15,1-2-2024,Mar-2024,May\n", &wb, &why), qPrintable(why));
+        const Sheet s = readSheet(wb);
+        QCOMPARE(at1(wb, s, "A1"), QStringLiteral("i:1-2"));
+        QCOMPARE(at1(wb, s, "B1"), QStringLiteral("i:3/4"));
+        QCOMPARE(at1(wb, s, "C1"), QStringLiteral("i:MARCH1"));
+        QCOMPARE(at1(wb, s, "D1"), QStringLiteral("i:Sep2"));
+        QCOMPARE(at1(wb, s, "E1"), QStringLiteral("i:12-25"));
+        QVERIFY2(at1(wb, s, "F1").startsWith(QLatin1String("n:")), qPrintable(at1(wb, s, "F1")));   // (March 1)
+        double march15 = 0;
+        QVERIFY(jp::calc::dateToSerial(2024, 3, 15, jp::calc::DateSystem::Date1900, &march15));
+        QCOMPARE(at1(wb, s, "G1"), QStringLiteral("n:") + QString::number(march15, 'g', 17));
+        QCOMPARE(at1(wb, s, "H1"), QStringLiteral("n:") + QString::number(march15, 'g', 17));
+        QVERIFY2(at1(wb, s, "I1").startsWith(QLatin1String("n:")), qPrintable(at1(wb, s, "I1")));
+        QVERIFY2(at1(wb, s, "J1").startsWith(QLatin1String("n:")), qPrintable(at1(wb, s, "J1")));   // (a month and a year)
+        QCOMPARE(at1(wb, s, "K1"), QStringLiteral("i:May"));
     }
 
     // A field that begins with = is a formula (kept with no result, which the window works out); one that is not a formula, a lone =, a sign and more, and an apostrophe are text.

@@ -7,8 +7,9 @@
 //  - fields in quotes may hold the delimiter, line breaks, and quotes (a quote written twice); a quote that is never closed makes the rest of the file one field;
 //  - each field is read as a person would type it into a cell, in the person's locale (read through readEntry, entry.h): a number (1.234,5 in German), a percent, an amount of money,
 //    a date or time, TRUE or FALSE, an error; a field that begins with "=" is a formula; anything else is text, as is a field that begins with an apostrophe (kept as it is).
-//    Two choices keep what a number would lose: a field of digits only that begins with a zero (a postal code, an identifier: 007) and one of more than 15 digits (a card or an
-//    account number) stay text, which the common spreadsheet program turns into a number and so drops the zeros and the digits after the 15th.
+//    Three choices keep what a number or a date would lose: a field of digits only that begins with a zero (a postal code, an identifier: 007) and one of more than 15 digits (a card or
+//    an account number) stay text, which the common spreadsheet program turns into a number and so drops the zeros and the digits after the 15th; and a text that only looks like a date
+//    stays text (two small numbers with a dash or slash, 1-2 or 3/4, and a month's name joined to a number, as the gene MARCH1 is named).
 // The sheet limits are enforced: what is past the last row or column of a sheet, a field longer than a cell holds, is not read, and the sheet says so (Sheet::error).
 // The file is read in pieces as it is scanned, so a file far larger than the memory its cells take is read in the memory its cells take, and the first rows can be had at once.
 
@@ -63,6 +64,7 @@ private:
     qint64 m_skip = 0;                  // bytes before the data: the byte order mark and the `sep=` line
     QHash<QString, quint32> m_formats;  // the cell format of each number format code a typed entry asks for
     QSet<QString> m_words;              // the words a number, a date, or a time may have in it
+    QSet<QString> m_months;             // of them, the names of the months
 };
 
 } // namespace jp::office::sheet

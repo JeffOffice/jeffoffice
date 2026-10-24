@@ -187,8 +187,8 @@ int info(const QString &path, bool tsv)
               << " dates\n";
         out() << "cells:                 " << cells << " (" << valued << " with a value, " << merged << " merged ranges)\n";
         out() << "formula cells:         " << formulaCells << "\n";
-        if (book.isBinary()) {
-            out() << "formulas not read:     " << unread << " (the old form's formulas that could not be turned into text keep the result the file stored)\n";
+        if (book.isConverted()) {
+            out() << "formulas not read:     " << unread << " (formulas of a file of another form that could not be turned into text keep the result the file stored)\n";
             const QStringList skipped = book.skippedFeatures();
             if (!skipped.isEmpty()) out() << "not read:              " << skipped.join(QStringLiteral(", ")) << "\n";
         }
