@@ -143,6 +143,10 @@ QString normalizeFormula(const QString &f)
     out.replace(QStringLiteral("TRUE()"), QStringLiteral("TRUE"));
     out.replace(QStringLiteral("FALSE()"), QStringLiteral("FALSE"));
     out.replace(QStringLiteral("NA()"), QStringLiteral("#N/A"));
+    // a name that reads as a cell has an underscore in front of it here, as the XML form has it; and an argument left out at the end is a zero in the other program's text
+    static const QRegularExpression cellLikeName(QStringLiteral("(?<![A-Z0-9_.])_([A-Z]{1,3}[0-9]+)(?![A-Z0-9_(!'])"));
+    out.replace(cellLikeName, QStringLiteral("\\1"));
+    out.replace(QStringLiteral(",)"), QStringLiteral(",0)"));
     // numbers: 1.0 and 1 are one
     static const QRegularExpression number(QStringLiteral("(?<![A-Za-z0-9_$.\\[!'])([0-9]+\\.?[0-9]*(?:E[+-]?[0-9]+)?)(?![A-Za-z0-9_(!'])"));
     QString result;
