@@ -451,6 +451,144 @@ private Q_SLOTS:
         QCOMPARE(touched("SUM(Far)"), (std::vector<CellArea>{blockArea(0, 4, 2, 5, 2)}));
         QCOMPARE(touched("5+1"), (std::vector<CellArea>{}));
     }
+    // Rows inserted or deleted on a sheet move what every formula reads there (a block that has a row put in it grows, one that has rows deleted loses them, what was in the rows deleted is
+    // read no more, a whole column stays one, and the other sheets are as they were): what reads a cell afterwards is what asking each formula gives, over many shifts one after another.
+    void shiftingRowsMovesWhatEveryFormulaReads()
+    {
+        QRandomGenerator rng(20261025);
+        DependencyGraph graph;
+        const int nodes = 800;
+        // what each formula reads, one cell, block, or run of cells by sheet (an area through several sheets is one for each, as the graph keeps it)
+        std::vector<std::vector<CellArea>> reads(static_cast<size_t>(nodes));
+        const quint32 limit = 1048576;
+        auto randomArea = [&]() {
+            CellArea a;
+            const int kind = int(rng.bounded(10));
+            a.sheet1 = a.sheet2 = int(rng.bounded(3));
+            a.row1 = rng.bounded(300);
+            a.col1 = rng.bounded(40);
+            a.row2 = a.row1;
+            a.col2 = a.col1;
+            if (kind >= 4 && kind < 7) {
+                a.row2 = a.row1 + rng.bounded(60);
+                a.col2 = a.col1 + rng.bounded(3);
+            } else if (kind == 7) {
+                a.row1 = 0;
+                a.row2 = limit - 1;   // a whole column
+                a.col2 = a.col1;
+            } else if (kind == 8) {
+                a.col1 = 0;
+                a.col2 = 16383;       // a whole row
+                a.row2 = a.row1;
+            } else if (kind == 9) {
+                a.sheet2 = std::min(2, a.sheet1 + 1 + int(rng.bounded(2)));
+                a.row2 = a.row1 + rng.bounded(5);
+                a.col2 = a.col1 + rng.bounded(5);
+            }
+            return a;
+        };
+        for (int node = 0; node < nodes; ++node) {
+            std::vector<CellArea> areas;
+            const int n = 1 + int(rng.bounded(4));
+            for (int i = 0; i < n; ++i) areas.push_back(randomArea());
+            QVERIFY(graph.setPrecedents(quint32(node), areas));
+            for (const CellArea &a : areas)
+                for (int sh = a.sheet1; sh <= a.sheet2; ++sh) {
+                    CellArea one = a;
+                    one.sheet1 = one.sheet2 = sh;
+                    reads[size_t(node)].push_back(one);
+                }
+        }
+        // the rule for an area on the sheet that is shifted, written out from what a person expects of references
+        auto shifted = [&](const CellArea &a, quint32 first, qint64 delta, CellArea *out) {
+            *out = a;
+            const quint32 count = quint32(delta < 0 ? -delta : delta), end = first + count;
+            if (a.row2 < first) return true;
+            const bool toTheEnd = a.row2 >= limit - 1;
+            if (toTheEnd && a.row1 == 0) return true;   // (a whole column is read as it was)
+            if (delta > 0) {
+                const quint64 lo = a.row1 >= first ? quint64(a.row1) + count : quint64(a.row1);
+                if (lo >= limit) return false;
+                quint64 hi = quint64(a.row2) + count;
+                if (toTheEnd || hi >= limit) hi = limit - 1;
+                out->row1 = quint32(lo);
+                out->row2 = quint32(hi);
+                return true;
+            }
+            if (a.row1 >= first && a.row2 < end) return false;
+            out->row1 = a.row1 < first ? a.row1 : (a.row1 < end ? first : a.row1 - count);
+            out->row2 = toTheEnd ? limit - 1 : (a.row2 < end ? first - 1 : a.row2 - count);
+            return true;
+        };
+        for (int round = 0; round < 25; ++round) {
+            const int sheet = int(rng.bounded(3));
+            const quint32 first = rng.bounded(6) == 0 ? 0 : rng.bounded(rng.bounded(5) ? 340 : 1048000);
+            const qint64 delta = rng.bounded(2) ? qint64(1 + rng.bounded(4)) : -qint64(1 + rng.bounded(4));
+            graph.shiftRows(sheet, first, delta, limit);
+            for (auto &list : reads) {
+                std::vector<CellArea> now;
+                for (const CellArea &a : list) {
+                    if (a.sheet1 != sheet) {
+                        now.push_back(a);
+                        continue;
+                    }
+                    CellArea moved;
+                    if (shifted(a, first, delta, &moved)) now.push_back(moved);
+                }
+                list = std::move(now);
+            }
+            for (int trial = 0; trial < 500; ++trial) {
+                const int sh = int(rng.bounded(3));
+                const quint32 row = rng.bounded(rng.bounded(4) ? 350 : 1048576), col = rng.bounded(rng.bounded(4) ? 45 : 16384);
+                std::vector<quint32> got;
+                graph.dependentsOfCell(sh, row, col, &got);
+                std::set<quint32> expected;
+                for (int n = 0; n < nodes; ++n)
+                    for (const CellArea &a : reads[size_t(n)])
+                        if (covers(a, sh, row, col)) expected.insert(quint32(n));
+                QVERIFY2(asSet(got) == expected, qPrintable(QStringLiteral("round %1: cell %2:%3:%4 after %5 rows at %6 on sheet %7 is read by %8 formulas, and by %9 in the check").arg(round).arg(sh).arg(row).arg(col).arg(delta).arg(first).arg(sheet).arg(asSet(got).size()).arg(expected.size())));
+            }
+            // a block, too
+            for (int trial = 0; trial < 60; ++trial) {
+                CellArea q = randomArea();
+                q.sheet2 = q.sheet1;
+                std::vector<quint32> got;
+                graph.dependentsOfArea(q, &got);
+                std::set<quint32> expected;
+                for (int n = 0; n < nodes; ++n)
+                    for (const CellArea &a : reads[size_t(n)])
+                        if (meets(a, q)) expected.insert(quint32(n));
+                QVERIFY2(asSet(got) == expected, qPrintable(QStringLiteral("round %1: a block is read by %2 formulas, and by %3 in the check").arg(round).arg(asSet(got).size()).arg(expected.size())));
+            }
+        }
+        // what the graph holds is not more than what is read
+        qint64 held = 0;
+        for (const auto &list : reads) held += qint64(list.size());
+        QVERIFY(graph.entryCount() >= 0);
+    }
+
+    // Rows put in above everything: the readers of the first row move down with it, and a whole column, which does not move, is still read at its first row. (They were in one run in an
+    // order by their first rows, which the whole column, left where it was, was not in any more, and a search then missed it.)
+    void aWholeColumnIsStillFoundAtItsFirstRowAfterRowsAreInsertedAbove()
+    {
+        DependencyGraph graph;
+        const quint32 whole = 70;
+        for (quint32 n = 0; n < 140; ++n) {
+            if (n == whole) QVERIFY(graph.setPrecedents(n, {blockArea(0, 0, 0, 1048575, 0)}));
+            else QVERIFY(graph.setPrecedents(n, {cellArea(0, 0, 0)}));
+        }
+        graph.shiftRows(0, 0, 2, 1048576);
+        std::vector<quint32> first, third;
+        graph.dependentsOfCell(0, 0, 0, &first);
+        QVERIFY(asSet(first) == std::set<quint32>{whole});
+        graph.dependentsOfCell(0, 2, 0, &third);
+        QCOMPARE(asSet(third).size(), size_t(140));
+        graph.shiftRows(0, 0, -2, 1048576);
+        first.clear();
+        graph.dependentsOfCell(0, 0, 0, &first);
+        QCOMPARE(asSet(first).size(), size_t(140));
+    }
+
 };
 
 JP_TEST_CLASS(SheetGraphTests)

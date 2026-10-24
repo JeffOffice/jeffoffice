@@ -366,6 +366,15 @@ void Calculation::registerNode(quint32 id, const std::vector<CellArea> *told)
     std::sort(m_areas.begin(), m_areas.end());
     m_areas.erase(std::unique(m_areas.begin(), m_areas.end()), m_areas.end());
     ++m_registrations;
+    // (a formula that reads a block of several sheets is not rewritten for a change to one of them, so the graph is told again what it reads when rows move on one)
+    bool threeD = false;
+    for (const CellArea &a : m_areas) threeD = threeD || a.sheet1 != a.sheet2;
+    if (threeD && !(n.flags & ThreeD)) {
+        n.flags |= ThreeD;
+        m_threeD.push_back(id);
+    } else if (!threeD) {
+        n.flags &= quint16(~ThreeD);
+    }
     const bool tracked = m_graph->setPrecedents(id, m_areas);
     m_toldHash[id] = tracked ? toldHash : 0;   // (a formula the graph refused is told again next time)
     if (!tracked) {

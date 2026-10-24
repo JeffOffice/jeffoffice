@@ -856,9 +856,24 @@ private Q_SLOTS:
 
     // What the edits do is what a calculation made again from the cells would give: after each of many random edits (rows, columns, and cells, inserted and deleted, on two sheets)
     // every value is what a whole new calculation of the same cells gives (the graph has not gone stale), and Undo of them all gives back the cells and formulas that were.
-    void randomEditsKeepTheGraphRightAndUndoesBack()
+    void randomEditsKeepTheGraphRightAndUndoesBack() { runRandomEdits(qEnvironmentVariableIsSet("STRUCT_SEEDS") ? quint32(qEnvironmentVariableIntValue("STRUCT_SEEDS")) : 24, false, true); }
+
+    // The same, with formulas that read through two sheets, by position, and everything in a column, and with numbers changed after each edit: what is changed reaches what reads it, so
+    // the graph is right after the edit (not only the values), whether the graph was told at once or by each formula.
+    void randomEditsAndValuesChangedAfterThemKeepTheGraphRight() { runRandomEdits(qEnvironmentVariableIsSet("STRUCT_SEEDS") ? quint32(qEnvironmentVariableIntValue("STRUCT_SEEDS")) : 80, true, false); }
+
+    void randomEditsAndValuesChangedAfterThemKeepTheGraphRightWithEachFormulaTellingIt()
     {
-        for (quint32 seed = 1; seed <= 24; ++seed) {
+        Calculation::setGraphShifts(false);
+        runRandomEdits(qEnvironmentVariableIsSet("STRUCT_SEEDS") ? quint32(qEnvironmentVariableIntValue("STRUCT_SEEDS")) : 40, true, false);
+        Calculation::setGraphShifts(true);
+    }
+
+private:
+    void runRandomEdits(quint32 seeds, bool valuesToo, bool undoThem)
+    {
+        const quint32 only = quint32(qEnvironmentVariableIntValue("STRUCT_SEED"));   // (one seed, and what it does)
+        for (quint32 seed = only ? only : 1; seed <= (only ? only : seeds); ++seed) {
             QRandomGenerator rng(seed);
             QStringList first, second;
             for (int r = 1; r <= 12; ++r)
@@ -867,11 +882,14 @@ private Q_SLOTS:
                     if (rng.bounded(5) == 0) continue;
                     if (c < 3 || rng.bounded(3) == 0) first << ref + QLatin1Char('=') + QString::number(rng.bounded(100));
                     else {
-                        const int kind = rng.bounded(5);
+                        const int kind = rng.bounded(10);
                         const int r1 = 1 + int(rng.bounded(12)), r2 = 1 + int(rng.bounded(12));
                         const QString a = QString(QLatin1Char(char('A' + rng.bounded(3)))) + QString::number(std::min(r1, r2)), z = QString(QLatin1Char(char('A' + rng.bounded(3)))) + QString::number(std::max(r1, r2));
                         const QString formula = kind == 0 ? QStringLiteral("SUM(%1:%2)").arg(a, z) : kind == 1 ? QStringLiteral("%1*2+Sheet2!A1").arg(a) : kind == 2 ? QStringLiteral("MAX(%1,%2)").arg(a, z)
-                                              : kind == 3 ? QStringLiteral("SUM(A:A)+%1").arg(a) : QStringLiteral("Sheet2!B%1+$%2").arg(1 + int(rng.bounded(6))).arg(a);
+                                              : kind == 3 ? QStringLiteral("SUM(A:A)+%1").arg(a) : kind == 5 ? QStringLiteral("SUM(Sheet1:Sheet2!A%1)+%2").arg(1 + int(rng.bounded(6))).arg(a)
+                                              : kind == 6 ? QStringLiteral("INDEX(A1:A12,%1)+%2").arg(1 + int(rng.bounded(8))).arg(a)
+                                              : kind == 7 ? QStringLiteral("INDIRECT(\"A%1\")+%2").arg(1 + int(rng.bounded(8))).arg(a) : kind == 8 ? QStringLiteral("OFFSET(A1,%1,0)+%2").arg(int(rng.bounded(8))).arg(a)
+                                              : QStringLiteral("Sheet2!B%1+$%2").arg(1 + int(rng.bounded(6))).arg(a);
                         first << ref + QStringLiteral("==") + formula;
                     }
                 }
@@ -914,6 +932,7 @@ private Q_SLOTS:
                 }
                 Calculation::EditRecord rec;
                 if (!b.calc->canApply(e, nullptr)) continue;
+                if (only) qInfo() << "step" << step << "kind" << int(e.kind) << "sheet" << e.sheet << "first" << e.first << "count" << e.count << "block" << e.row1 << e.col1 << e.row2 << e.col2;
                 QVERIFY(b.apply(e, &rec));
                 done.push_back(rec);
                 // every value is what a calculation made again from these cells gives
@@ -921,12 +940,41 @@ private Q_SLOTS:
                 b.calc->invalidateAll();
                 b.finish();
                 QCOMPARE(snapshot(true), incremental);
+                // and what is changed afterwards reaches what reads it (the graph is right after the edit, not only the values)
+                for (int k = 0; valuesToo && k < 3; ++k) {
+                    const int vs = int(rng.bounded(2));
+                    const quint32 vr = rng.bounded(14), vc = rng.bounded(3);
+                    if (only) qInfo() << "  set" << vs << vr << vc;
+                    QVERIFY(b.calc->setValue(vs, vr, vc, Value::number(rng.bounded(100))));
+                    b.finish();
+                    const QString afterValue = snapshot(true);
+                    b.calc->invalidateAll();
+                    b.finish();
+                    const QString whole = snapshot(true);
+                    if (whole != afterValue) {
+                        const QStringList x = afterValue.split(QLatin1Char('\n')), y = whole.split(QLatin1Char('\n'));
+                        QStringList differ;
+                        for (int i = 0; i < std::min(x.size(), y.size()); ++i)
+                            if (x[i] != y[i]) differ << x[i] + QStringLiteral("  ==>  ") + y[i];
+                        QFAIL(qPrintable(QStringLiteral("seed %1 step %2: after the edit and a value changed, %3 cells differ from a whole calculation: %4").arg(seed).arg(step).arg(differ.size()).arg(differ.mid(0, 4).join(QStringLiteral(" | ")))));
+                    }
+                }
             }
+            if (!undoThem) continue;
             for (size_t i = done.size(); i-- > 0;) {
                 QVERIFY(b.calc->undoEdit(done[i]));
                 b.finish();
             }
             QCOMPARE(snapshot(false), cellsAtStart);
+            // and what is changed after the undoes reaches what reads it (Undo left the graph right too)
+            for (int k = 0; k < 6; ++k) {
+                QVERIFY(b.calc->setValue(int(rng.bounded(2)), rng.bounded(14), rng.bounded(3), Value::number(rng.bounded(100))));
+                b.finish();
+                const QString afterValue = snapshot(true);
+                b.calc->invalidateAll();
+                b.finish();
+                QVERIFY2(snapshot(true) == afterValue, qPrintable(QStringLiteral("seed %1: after the undoes and a value changed, the values are not those of a whole calculation").arg(seed)));
+            }
         }
     }
 };

@@ -37,6 +37,11 @@ public:
     bool setPrecedents(Node node, const std::vector<CellArea> &areas);
     // The node reads nothing now.
     void clearPrecedents(Node node);
+    // Rows were inserted into `sheet` at `first` (`delta` more than 0: that many) or deleted from it (less than 0: that many): everything every formula reads on that sheet is where its
+    // cells are now (a block that has a row put in it grows, one that has rows deleted loses them, what was only in the rows deleted is read no more, and one to the end of the sheet,
+    // `limit` rows, still is). What a formula told is as it was told and the formulas are not asked: the cells that move are those that every formula that reads them is rewritten
+    // for, and a formula that reads several sheets (a block of more than one) is not rewritten for a change of one of them: the caller tells such a formula again.
+    void shiftRows(qint32 sheet, quint32 first, qint64 delta, quint32 limit);
 
     // The formulas that read the cell, or a cell of the block (one sheet), added to `out`: one may come more than once if it reads the cell in more than one way.
     // With `stop`, the flag is looked at as the answer is made (every few thousand formulas found: a cell that two hundred thousand formulas read is one query of that many): if it is set the query

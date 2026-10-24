@@ -19,6 +19,8 @@ namespace {
 
 QString say(const char *text) { return QCoreApplication::translate("jp::office::sheet::Calculation", text); }
 
+std::atomic<bool> g_graphShifts{true};
+
 // The cells whose reading is changed by the edit: those of the block the cells of it move in, and the block's reach (to the edge of the sheet).
 CellArea affectedArea(const StructEdit &e)
 {
@@ -215,6 +217,8 @@ void Calculation::specialNodes(std::vector<quint32> *out)
     }
 }
 
+void Calculation::setGraphShifts(bool on) { g_graphShifts = on; }
+
 bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
 {
     using K = StructEdit::Kind;
@@ -256,6 +260,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         qint32 newIndex = -1;   // its place, once it is made
         int record = -1;        // and where the group is in the record
         bool failed = false;    // the text could not be made: the cells are written one by one
+        bool hasGone = false;   // a reference of it is to cells that are deleted (it is #REF! now)
     };
     std::vector<Rewrite> rewrites;
     rewrites.reserve(candidates.size());
@@ -303,6 +308,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
                         g.sheet = n.sheet;
                         g.newText = rw->second.apply(key);
                         g.failed = g.newText.isEmpty();
+                        for (int k = 0; k < TextRewriter::kMaxRefs; ++k) g.hasGone = g.hasGone || key.v[k * 5] == 2;
                         groups.push_back(std::move(g));
                         groupKeys.push_back({n.sheet, f.text, key});
                         found = int(groups.size()) - 1;
@@ -401,6 +407,35 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         const quint32 id = st.nodeOf[size_t(c.formula)];
         if (id != kNone) dropNode(id);
         releaseFormula(e.sheet, c.formula);   // (nothing has the formula of a cell that is gone; Undo makes it again from the record)
+    }
+    // Rows inserted or deleted: what every formula reads on the sheet is where its cells are now, told to the graph at once; so a formula whose text is only moved with what it reads need
+    // not tell the graph again (it is worked out again, as every formula that was written again is).
+    const bool shiftedGraph = g_graphShifts.load(std::memory_order_relaxed) && (e.kind == K::InsertRows || e.kind == K::DeleteRows);
+    if (shiftedGraph) {
+        m_graph->shiftRows(e.sheet, e.first, e.kind == K::InsertRows ? qint64(count) : -qint64(count), kGridRows);
+        // (a formula that reads a block of several sheets is not rewritten for a change of one of them: it is made again, and tells the graph what it reads)
+        std::sort(m_threeD.begin(), m_threeD.end());
+        m_threeD.erase(std::unique(m_threeD.begin(), m_threeD.end()), m_threeD.end());
+        std::vector<quint32> again;
+        size_t keep = 0;
+        for (const quint32 id : m_threeD) {
+            const Node &n = m_nodes[id];
+            if ((n.flags & Dead) || !(n.flags & ThreeD)) continue;
+            m_threeD[keep++] = id;
+            again.push_back(id);
+        }
+        m_threeD.resize(keep);
+        for (const quint32 id : again) {
+            const Node &n = m_nodes[id];
+            Sheet &sn = m_sheets[size_t(n.sheet)];
+            Cell *c = sn.cells.findMutable(n.row, n.col);
+            if (!c || !c->hasFormula()) continue;
+            const int sheet = n.sheet;
+            const qint32 formula = c->formula;
+            dropNode(id);
+            const quint32 now = addNode(sheet, *c, formula);
+            queueDependents(areaOf(m_nodes[now]));
+        }
     }
 
     // ---- the sheet's other structures
@@ -519,6 +554,18 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
             ++rec->formulasRewritten;
             rec->rewritten.push_back({sheet, c->row, c->col, bool(c->flags & DataTable)});
         }
+        // A formula whose text only moved with what it reads (the graph has what it reads already) is worked out again in its place: its node stays, with its place in the graph. One that
+        // reads where it is told, is kept apart, is an array, reads several sheets, or has a reference that is gone is made again.
+        if (shiftedGraph && (r.group >= 0 || !r.now.isEmpty()) && !told && !(n0.flags & (Kept | Array | ThreeD)) && !(c->flags & (ArrayFormula | DataTable))
+            && (r.group >= 0 ? !groups[size_t(r.group)].hasGone : !(r.now.contains(QLatin1String("#REF!")) && !r.was.contains(QLatin1String("#REF!"))))) {
+            if (n0.state == Done) {
+                n0.state = Dirty;
+                ++m_notDone;
+                m_dirty.push_back(r.id);
+            }
+            queueDependents(areaOf(n0));
+            continue;
+        }
         const bool wasKeptForItsFunction = (n0.flags & Kept) && n0.kept == 'U';
         const Value resultItHad = wasKeptForItsFunction ? nodeValue(n0, r.id) : Value();
         dropNode(r.id);
@@ -601,6 +648,12 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
     for (const EditRecord::GoneCell &g : rec.gone) put(g.sheet, g.row, g.col, g.content, Marking::Later);
     for (const EditRecord::FormulaWas &w : rec.was) {
         const jp::calc::Value *stored = w.hasStored ? &w.stored : nullptr;
+        if (!w.hasStored && w.sheet >= 0 && w.sheet < int(m_sheets.size())) {
+            // (the inverse edit has most of them as they were: those that do are left alone)
+            const Sheet &sw = m_sheets[size_t(w.sheet)];
+            const Cell *c = sw.cells.find(w.row, w.col);
+            if (c && c->hasFormula() && !(c->flags & (ArrayFormula | DataTable)) && sw.formulaText(*c) == w.text) continue;
+        }
         if (rewriteArrayText(w.sheet, w.row, w.col, w.text)) continue;
         setFormula(w.sheet, w.row, w.col, w.text, Marking::Later, stored);
     }
