@@ -566,7 +566,8 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     if (!m_book || !m_book->book || !m_book->calc) return refuse(tr("There is no workbook to save."));
     if (!m_book->problem.isEmpty() || !m_book->book->sharedStringsError().isEmpty() || !m_book->book->stylesError().isEmpty())
         return refuse(tr("Some of this workbook could not be read whole, so JeffCrunch does not save it."));
-    if (!m_book->book->package().isLazy()) return refuse(tr("This workbook was not opened from a file JeffCrunch can save over."));
+    // (a workbook read from the older binary form has no package yet: the first save makes one)
+    if (!m_book->book->package().isLazy() && !m_book->book->isBinary()) return refuse(tr("This workbook was not opened from a file JeffCrunch can save over."));
     const Calculation *calc = m_book->calc.get();
     Workbook &book = *m_book->book;
     *out = Snapshot();

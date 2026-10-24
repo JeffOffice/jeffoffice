@@ -223,6 +223,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_tables.cpp
   tests/sheet/tst_sheet_workbook.cpp
   tests/sheet/tst_sheet_xls.cpp
+  tests/sheet/tst_sheet_xlssave.cpp
   tests/sheet/tst_sheet_xlsformula.cpp
   tests/sheet/tst_sheet_xlshostile.cpp)
 target_link_libraries(sheettests PRIVATE jo_shell Qt6::Test)

@@ -41,6 +41,12 @@ bool CrunchWindow::save()
         act("file.saveAs")->trigger();
         return false;
     }
+    // A workbook read from the older binary form is saved under a new name, as .xlsx: the person is told, and asked for the name (the file it came from is never written).
+    if (savesAsANewFile()) {
+        if (!commitEdit()) return false;
+        const QString path = pathToSave();
+        return !path.isEmpty() && saveAs(path);
+    }
     return startSave(m_path);
 }
 

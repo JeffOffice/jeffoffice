@@ -5,8 +5,6 @@
 #include <QString>
 #include <QStringList>
 
-class QWidget;
-
 namespace jp::crunch {
 
 // Whether the file's name ends as the older binary form's do (.xls, any case).
@@ -16,17 +14,15 @@ bool isOlderFormatName(const QString &path);
 // " (3)", and so on before the ending. Never the path it came from.
 QString suggestedSaveName(const QString &openedPath);
 
-// The name the person chose, with the ending a workbook of the new form has: .xlsx and .xlsm stay, .xls becomes .xlsx, and a name with any other ending (or none) has .xlsx added.
+// The name the person chose, with the ending a workbook of the new form has (what is saved from an old workbook has no macros, so it is never .xlsm): .xlsx stays, .xls and .xlsm
+// become .xlsx, and a name with any other ending (or none) has .xlsx added.
 QString withWorkbookEnding(const QString &chosen);
 
-// What the person is told before being asked for a name, in plain words.
-QString saveAsExplanation(const QString &fileName);
+// What the person is told before being asked for a name, in plain words: that the workbook is in an older file format, that it is saved as .xlsx under a new name, and that the file is
+// not changed; and, if the file has parts this program does not read (charts, macros, ...), that they will not be in the copy.
+QString saveAsExplanation(const QString &fileName, const QStringList &notRead = QStringList());
 
 // What the person is told when a workbook is opened that has parts JeffCrunch does not read yet (charts, pictures, ...); empty if there are none.
 QString notReadNotice(const QStringList &notRead);
-
-// Tells the person the explanation and asks for a name (a dialog for files, the .xlsx ending chosen, the name offered); the name with its ending, or an empty string if the person
-// cancels. `parent` is the window.
-QString askForSaveName(QWidget *parent, const QString &openedPath);
 
 } // namespace jp::crunch

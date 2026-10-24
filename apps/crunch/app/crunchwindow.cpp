@@ -315,6 +315,12 @@ void CrunchWindow::createActions()
     mk("file.save", tr("Save"), "save", QKeySequence::Save, [this] { save(); }, false, false);
     mk("file.saveAs", tr("Save As…"), "save", QKeySequence::SaveAs, [this] {
         if (!m_loaded || !m_session || m_saving || !commitEdit()) return;
+        // (a workbook read from the older binary form: the same question as Save, which tells the person it is saved as .xlsx)
+        if (savesAsANewFile()) {
+            const QString path = pathToSave();
+            if (!path.isEmpty()) saveAs(path);
+            return;
+        }
         const QString kind = saveKind();
         const QString start = m_path.isEmpty() ? displayName() + QLatin1Char('.') + kind : m_path;
         const QString filter = kind == QLatin1String("xlsm") ? tr("Macro-enabled workbooks (*.xlsm)") : tr("Workbooks (*.xlsx)");

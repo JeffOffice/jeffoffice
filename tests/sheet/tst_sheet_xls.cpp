@@ -565,6 +565,8 @@ private Q_SLOTS:
         QVERIFY(bd.right.style == BorderStyle::None);
         QCOMPARE(int(bd.left.color.index), 10);
         QCOMPARE(int(bd.top.color.index), 12);
+        // (the first two fills are the two every file starts with: none, and the pattern of gray 125)
+        QVERIFY(st.fills.size() >= 3 && st.fills[0].pattern == PatternKind::None && st.fills[1].pattern == PatternKind::Gray125);
         const FillSpec &fill = st.fill(cf.fill);
         QVERIFY(fill.pattern == PatternKind::Solid);
         QCOMPARE(int(fill.fg.index), 13);

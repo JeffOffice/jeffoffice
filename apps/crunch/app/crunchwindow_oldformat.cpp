@@ -1,22 +1,36 @@
-// What the window does for a workbook that came from the older binary file format (.xls): it is saved under a new name, as .xlsx.
+// What the window does for a workbook that came from the older binary file format (.xls): it is saved under a new name, as .xlsx, and the file it came from is never written to.
 
 #include "app/crunchwindow.h"
 
 #include "app/oldformat.h"
 #include "core/loader.h"
 
+#include <QFileDialog>
 #include <QFileInfo>
 
 namespace jp {
 
+bool CrunchWindow::savesAsANewFile() const
+{
+    return m_loaded && m_loaded->book && m_loaded->book->isBinary() && !m_loaded->book->package().isLazy();
+}
+
 QString CrunchWindow::pathToSave()
 {
     if (m_path.isEmpty() || !m_loaded || !m_loaded->book) return QString();
-    if (!m_loaded->book->isBinary() && !crunch::isOlderFormatName(m_path)) return m_path;
-    const QString name = m_saveNameAsker ? m_saveNameAsker(m_path) : crunch::askForSaveName(this, m_path);
-    // (whatever was answered, it ends as a workbook of the new form does, and is not the file the workbook was read from)
-    const QString path = crunch::withWorkbookEnding(name);
-    if (path.isEmpty() || QFileInfo(path).absoluteFilePath() == QFileInfo(m_path).absoluteFilePath()) return QString();
+    if (!savesAsANewFile()) return m_path;
+    // (the person is told first, in plain words, and then asked for the name: the file dialog starts with the old name and the ending .xlsx)
+    notice(tr("Save"), crunch::saveAsExplanation(QFileInfo(m_path).fileName(), m_loaded->book->skippedFeatures()), false);
+    const QString start = crunch::suggestedSaveName(m_path);
+    const QString filter = tr("Workbooks (*.xlsx)");
+    const QString chosen = m_savePicker ? m_savePicker(start, filter) : QFileDialog::getSaveFileName(this, tr("Save Workbook As"), start, filter);
+    if (chosen.isEmpty()) return QString();
+    // (whatever was answered, it ends as a workbook of the new form does, and it is not the file the workbook was read from)
+    const QString path = crunch::withWorkbookEnding(chosen);
+    if (QFileInfo(path).absoluteFilePath() == QFileInfo(m_path).absoluteFilePath() || QFileInfo(chosen).absoluteFilePath() == QFileInfo(m_path).absoluteFilePath()) {
+        notice(tr("Save"), tr("\"%1\" is the file this workbook was opened from, and it is not written to. Give the copy another name.").arg(QFileInfo(m_path).fileName()));
+        return QString();
+    }
     return path;
 }
 

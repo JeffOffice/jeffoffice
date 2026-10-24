@@ -12,9 +12,11 @@
 #include <QApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QTest>
 
 using namespace jp;
 
@@ -48,6 +50,82 @@ struct Folder {
         return path;
     }
 };
+
+// The keys of a standard command on this computer (Cmd+S on a Mac, Ctrl+S elsewhere), pressed in the window.
+void pressStandard(QWidget *w, QKeySequence::StandardKey command)
+{
+    const QKeySequence keys(command);
+    const QKeyCombination k = keys[0];
+    QTest::keyClick(w, k.key(), k.keyboardModifiers());
+}
+
+// A window with a workbook of the old form (or another) open from a folder of its own, a file dialog that answers what the test says and remembers what it was asked, and what was
+// said to the person.
+struct OldWindow {
+    Folder folder;
+    Window win;
+    QString path;
+    QByteArray original;
+    QString answer;
+    QStringList asked, filters;
+    OldWindow()
+    {
+        win.w.setSavePicker([this](const QString &start, const QString &filter) {
+            asked << start;
+            filters << filter;
+            return answer;
+        });
+        // (a question about a file another program changed is never asked of these: if it were, the test would wait for a person)
+        win.w.setChangedAsker([this](const QString &name) {
+            told << QStringLiteral("changed: ") + name;
+            return CrunchWindow::ChangedAnswer::Cancel;
+        });
+    }
+    QStringList &told = win.told;
+    bool open(const QByteArray &bytes, const QString &name = QStringLiteral("old.xls"))
+    {
+        original = bytes;
+        path = folder.write(name, bytes);
+        return win.open(path) && activate();
+    }
+    // The window is the active one, as shortcuts are looked for in the active window only.
+    bool activate()
+    {
+        win.w.activateWindow();
+        return QTest::qWaitForWindowActive(&win.w);
+    }
+    grid::GridView *view() { return win.w.view(); }
+    void select(quint32 row, quint32 col) { view()->selectCell(row, col); }
+    // Types into the selected cell as a person does: the first character at the grid, the rest into the cell's line, then Enter.
+    void enter(const QString &text)
+    {
+        QTest::keyClick(view(), text.at(0).toLatin1());
+        if (text.size() > 1) QTest::keyClicks(win.w.cellEditor(), text.mid(1));
+        QTest::keyClick(win.w.cellEditor(), Qt::Key_Return);
+    }
+    bool settle() { return QTest::qWaitFor([&] { return !win.w.isCalculating(); }, 20000); }
+    bool originalIsUntouched() const
+    {
+        QFile f(path);
+        return f.open(QIODevice::ReadOnly) && f.readAll() == original;
+    }
+    // A copy of a file written, under another name (a file that is open in a window is not opened in a second: the copy is).
+    QString copyOfSaved(const QString &name, const QString &copy)
+    {
+        QFile f(folder.dir.filePath(name));
+        if (!f.open(QIODevice::ReadOnly)) return QString();
+        return folder.write(copy, f.readAll());
+    }
+};
+
+// A workbook of the old form: A1 = 2, A2 = 3, A3 = SUM(A1:A2) (its stored result wrong on purpose), and the text "hello" in B1.
+QByteArray oldBook()
+{
+    xlstest::Book b;
+    b.after(xlstest::sst({QStringLiteral("hello")}));
+    b.sheet(QStringLiteral("S"), xlstest::number(0, 0, 2) + xlstest::labelSst(0, 1, 0) + xlstest::number(1, 0, 3) + xlstest::formulaNumber(2, 0, xlstest::tArea(0, 0, 1, 0) + xlstest::tFuncVar(4, 1, 0x40), 99));
+    return b.file();
+}
 
 } // namespace
 
@@ -116,46 +194,190 @@ private Q_SLOTS:
         QVERIFY2(win.told.first().contains(QLatin1String("encrypted")), qPrintable(win.told.first()));
     }
 
-    // Saving a workbook that came from an .xls file asks for a name with the ending .xlsx and never answers with the file it came from; one that came from the XML form is saved
-    // to its own path without a question.
-    void savingAnOldWorkbookAsksForANewName()
+    // Save (by the keys of the computer) on a workbook that came from an .xls file: the person is told in plain words that it is saved as .xlsx and asked for a name (offered with that
+    // ending, never the file it came from); the .xlsx is written with the edit, the .xls is as it was, and the next Save goes to the .xlsx with no question.
+    void saveAsksForAnXlsxNameAndNeverWritesTheOriginal()
     {
-        Folder folder;
-        Window win;
-        xlstest::Book b;
-        b.sheet(QStringLiteral("S"), xlstest::number(0, 0, 1));
-        const QString path = folder.write(QStringLiteral("old.xls"), b.file());
-        QVERIFY(win.open(path));
-        QStringList asked;
-        QString answer;
-        win.w.setSaveNameAsker([&](const QString &opened) {
-            asked << opened;
-            return answer;
+        OldWindow o;
+        QVERIFY(o.open(oldBook()));
+        o.select(0, 0);
+        o.enter(QStringLiteral("10"));
+        QVERIFY(o.settle());
+        QVERIFY(o.win.w.isModified());
+        o.answer = o.folder.dir.filePath(QStringLiteral("copy"));
+        QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
+        pressStandard(&o.win.w, QKeySequence::Save);
+        QVERIFY(saved.wait(20000));
+        QCOMPARE(o.asked, QStringList{o.folder.dir.filePath(QStringLiteral("old.xlsx"))});
+        QVERIFY2(o.filters.first().contains(QLatin1String("*.xlsx")) && !o.filters.first().contains(QLatin1String("*.xls)")), qPrintable(o.filters.first()));
+        QCOMPARE(saved.first().at(0).toString(), o.folder.dir.filePath(QStringLiteral("copy.xlsx")));
+        QCOMPARE(saved.first().at(1).toBool(), true);
+        QCOMPARE(o.told.size(), 1);
+        QVERIFY2(o.told.first().contains(QLatin1String("old.xls")) && o.told.first().contains(QLatin1String(".xlsx")) && o.told.first().contains(QLatin1String("not be changed")), qPrintable(o.told.first()));
+        QVERIFY(o.originalIsUntouched());
+        QCOMPARE(o.win.w.filePath(), o.folder.dir.filePath(QStringLiteral("copy.xlsx")));
+        QVERIFY(!o.win.w.isModified());
+        // the file written holds the edit, the cells that were not touched, and the formula with its result
+        {
+            Window second;
+            QVERIFY(second.open(o.copyOfSaved(QStringLiteral("copy.xlsx"), QStringLiteral("again1.xlsx"))));
+            grid::GridView *v = second.w.view();
+            QCOMPARE(second.w.shownSheets().size(), 1);
+            QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:10"));
+            QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(1, 0)).debug(), QStringLiteral("n:3"));
+            v->selectCell(2, 0);
+            QCOMPARE(v->activeCellText(), QStringLiteral("=SUM(A1:A2)"));
+            QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(2, 0)).debug(), QStringLiteral("n:13"));
+            QCOMPARE(v->sheet().textOf(*v->sheet().cellAt(0, 1)), QStringLiteral("hello"));
+        }
+        // the next edit is saved over the .xlsx, with no question and no explanation
+        QVERIFY(o.activate());   // (the window that read the file closed, and no window is the active one)
+        o.select(1, 0);
+        o.enter(QStringLiteral("20"));
+        QVERIFY(o.settle());
+        pressStandard(&o.win.w, QKeySequence::Save);
+        QTRY_COMPARE_WITH_TIMEOUT(saved.count(), 2, 20000);
+        QCOMPARE(saved.last().at(0).toString(), o.folder.dir.filePath(QStringLiteral("copy.xlsx")));
+        QCOMPARE(saved.last().at(1).toBool(), true);
+        QCOMPARE(o.asked.size(), 1);
+        QCOMPARE(o.told.size(), 1);
+        QVERIFY(o.originalIsUntouched());
+        {
+            Window third;
+            QVERIFY(third.open(o.copyOfSaved(QStringLiteral("copy.xlsx"), QStringLiteral("again2.xlsx"))));
+            grid::GridView *v = third.w.view();
+            QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:10"));
+            QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(1, 0)).debug(), QStringLiteral("n:20"));
+            QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(2, 0)).debug(), QStringLiteral("n:30"));
+        }
+    }
+
+    // Save with nothing changed still asks (the workbook has no .xlsx file yet), and a person who cancels the question writes nothing and is asked again next time.
+    void saveWithNothingChangedAsksAndACancelWritesNothing()
+    {
+        OldWindow o;
+        QVERIFY(o.open(oldBook()));
+        QVERIFY(!o.win.w.isModified());
+        o.answer = QString();   // (cancelled)
+        QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
+        QVERIFY(!o.win.w.save());
+        QCOMPARE(o.asked.size(), 1);
+        QCOMPARE(saved.count(), 0);
+        QCOMPARE(o.told.size(), 1);
+        QVERIFY(o.originalIsUntouched());
+        QVERIFY(!QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("old.xlsx"))));
+        QCOMPARE(o.win.w.filePath(), o.path);
+        // and the next Save asks, and tells, again
+        o.answer = o.folder.dir.filePath(QStringLiteral("now.xlsx"));
+        QVERIFY(o.win.w.save());
+        QVERIFY(saved.wait(20000));
+        QCOMPARE(o.asked.size(), 2);
+        QCOMPARE(o.told.size(), 2);
+        QVERIFY(QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("now.xlsx"))));
+        QVERIFY(o.originalIsUntouched());
+    }
+
+    // Save As on such a workbook is the same question; an .xls name typed is given the ending .xlsx, and the file is not the original.
+    void saveAsGivesTheNameTheEndingOfTheNewForm()
+    {
+        OldWindow o;
+        QVERIFY(o.open(oldBook()));
+        o.select(0, 0);
+        o.enter(QStringLiteral("11"));
+        QVERIFY(o.settle());
+        o.answer = o.folder.dir.filePath(QStringLiteral("renamed.xls"));
+        QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
+        o.win.w.act("file.saveAs")->trigger();
+        QVERIFY(saved.wait(20000));
+        QCOMPARE(saved.first().at(0).toString(), o.folder.dir.filePath(QStringLiteral("renamed.xlsx")));
+        QVERIFY(QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("renamed.xlsx"))));
+        QVERIFY(!QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("renamed.xls"))));
+        QVERIFY(o.originalIsUntouched());
+        QCOMPARE(o.asked.size(), 1);
+        QCOMPARE(o.told.size(), 1);
+        // (and the macro-enabled ending, which this workbook's file cannot have, becomes the plain one)
+        OldWindow p;
+        QVERIFY(p.open(oldBook()));
+        p.answer = p.folder.dir.filePath(QStringLiteral("macro.xlsm"));
+        QSignalSpy savedP(&p.win.w, &CrunchWindow::saved);
+        p.win.w.act("file.saveAs")->trigger();
+        QVERIFY(savedP.wait(20000));
+        QCOMPARE(savedP.first().at(0).toString(), p.folder.dir.filePath(QStringLiteral("macro.xlsx")));
+        QVERIFY(p.originalIsUntouched());
+    }
+
+    // Closing a window with changes asks the usual question about the .xls's changes; Save asks for the .xlsx name (a person who cancels that keeps the window open), then closes.
+    void theCloseQuestionSavesAnOldWorkbookAsXlsx()
+    {
+        OldWindow o;
+        QVERIFY(o.open(oldBook()));
+        o.win.w.setAttribute(Qt::WA_DeleteOnClose, false);
+        QStringList questions;
+        o.win.w.setAsker([&](const QString &, const QString &text) {
+            questions << text;
+            return CrunchWindow::Answer::Save;
         });
-        answer = folder.dir.filePath(QStringLiteral("copy"));
-        QCOMPARE(win.w.pathToSave(), folder.dir.filePath(QStringLiteral("copy.xlsx")));
-        QCOMPARE(asked, QStringList{path});
-        answer = folder.dir.filePath(QStringLiteral("copy.xls"));
-        QCOMPARE(win.w.pathToSave(), folder.dir.filePath(QStringLiteral("copy.xlsx")));
-        answer = path;   // (the file it came from: it is given the ending of the new form, and so is another file)
-        QCOMPARE(win.w.pathToSave(), folder.dir.filePath(QStringLiteral("old.xlsx")));
-        QVERIFY(win.w.pathToSave() != path);
-        answer = QString();   // (cancelled)
-        QCOMPARE(win.w.pathToSave(), QString());
-        // the file is untouched
-        QFile f(path);
-        QVERIFY(f.open(QIODevice::ReadOnly));
-        QCOMPARE(f.readAll(), b.file());
-        // a workbook of the XML form is saved where it is, with no question
-        Window other;
-        other.w.setSaveNameAsker([&](const QString &) {
-            asked << QStringLiteral("again");
-            return QString();
-        });
-        const int before = int(asked.size());
-        QVERIFY(other.open(folder.write(QStringLiteral("new.xlsx"), sheettest::buildXlsx({sheettest::worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>5</v></c></row>"))}))));
-        QCOMPARE(other.w.pathToSave(), folder.dir.filePath(QStringLiteral("new.xlsx")));
-        QCOMPARE(int(asked.size()), before);
+        o.select(0, 0);
+        o.enter(QStringLiteral("12"));
+        QVERIFY(o.settle());
+        // the name is not given: the window stays open, unsaved
+        o.answer = QString();
+        o.win.w.close();
+        QCOMPARE(questions.size(), 1);
+        QVERIFY2(questions.first().contains(QLatin1String("old.xls")), qPrintable(questions.first()));
+        QCOMPARE(o.asked.size(), 1);
+        QVERIFY(o.win.w.isVisible());
+        QVERIFY(o.win.w.isModified());
+        QVERIFY(o.originalIsUntouched());
+        // the name given: saved as .xlsx, then closed
+        o.answer = o.folder.dir.filePath(QStringLiteral("closing.xlsx"));
+        QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
+        o.win.w.close();
+        QVERIFY(saved.wait(20000));
+        QTRY_VERIFY(!o.win.w.isVisible());
+        QCOMPARE(questions.size(), 2);
+        QVERIFY(o.originalIsUntouched());
+        Window second;
+        QVERIFY(second.open(o.copyOfSaved(QStringLiteral("closing.xlsx"), QStringLiteral("again3.xlsx"))));
+        QCOMPARE(second.w.view()->sheet().valueOf(*second.w.view()->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:12"));
+    }
+
+    // A file of the old form that has an .xlsx name is the file it came from all the same: it is never written, whatever name the person gives it.
+    void aFileOfTheOldFormWithAnXlsxNameIsNotWrittenOver()
+    {
+        OldWindow o;
+        QVERIFY(o.open(oldBook(), QStringLiteral("disguised.xlsx")));
+        o.select(0, 0);
+        o.enter(QStringLiteral("13"));
+        QVERIFY(o.settle());
+        o.answer = o.path;
+        QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
+        QVERIFY(!o.win.w.save());
+        QCOMPARE(saved.count(), 0);
+        QVERIFY(o.originalIsUntouched());
+        QCOMPARE(o.told.size(), 2);   // (the explanation, then that the name is the file's own)
+        QVERIFY2(o.told.last().contains(QLatin1String("opened from")), qPrintable(o.told.last()));
+        o.answer = o.folder.dir.filePath(QStringLiteral("elsewhere.xlsx"));
+        QVERIFY(o.win.w.save());
+        QVERIFY(saved.wait(20000));
+        QVERIFY(o.originalIsUntouched());
+        QVERIFY(QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("elsewhere.xlsx"))));
+    }
+
+    // A workbook of the XML form is saved where it is with no question, and none of the above is said.
+    void aWorkbookOfTheXmlFormIsSavedWhereItIsWithoutAQuestion()
+    {
+        OldWindow o;
+        QVERIFY(o.open(sheettest::buildXlsx({sheettest::worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>5</v></c></row>"))}), QStringLiteral("new.xlsx")));
+        o.select(0, 0);
+        o.enter(QStringLiteral("6"));
+        QVERIFY(o.settle());
+        QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
+        pressStandard(&o.win.w, QKeySequence::Save);
+        QVERIFY(saved.wait(20000));
+        QCOMPARE(saved.first().at(0).toString(), o.path);
+        QVERIFY(o.asked.isEmpty());
+        QVERIFY(o.told.isEmpty());
         // a window with no workbook has nothing to save
         Window empty;
         QCOMPARE(empty.w.pathToSave(), QString());
@@ -180,7 +402,7 @@ private Q_SLOTS:
         QCOMPARE(crunch::withWorkbookEnding(QStringLiteral("/x/a")), QStringLiteral("/x/a.xlsx"));
         QCOMPARE(crunch::withWorkbookEnding(QStringLiteral("/x/a.xls")), QStringLiteral("/x/a.xlsx"));
         QCOMPARE(crunch::withWorkbookEnding(QStringLiteral("/x/a.XLSX")), QStringLiteral("/x/a.XLSX"));
-        QCOMPARE(crunch::withWorkbookEnding(QStringLiteral("/x/a.xlsm")), QStringLiteral("/x/a.xlsm"));
+        QCOMPARE(crunch::withWorkbookEnding(QStringLiteral("/x/a.xlsm")), QStringLiteral("/x/a.xlsx"));   // (what is saved from an old workbook has no macros)
         QCOMPARE(crunch::withWorkbookEnding(QStringLiteral("/x/a.v2")), QStringLiteral("/x/a.v2.xlsx"));
         QCOMPARE(crunch::withWorkbookEnding(QString()), QString());
     }
@@ -192,6 +414,9 @@ private Q_SLOTS:
         QVERIFY(text.contains(QLatin1String("Plan.xls")));
         QVERIFY(text.contains(QLatin1String(".xlsx")));
         QVERIFY(text.contains(QLatin1String("not be changed")));
+        QVERIFY(!text.contains(QLatin1String("macros")));
+        const QString withMacros = crunch::saveAsExplanation(QStringLiteral("Plan.xls"), {QStringLiteral("macros"), QStringLiteral("charts")});
+        QVERIFY2(withMacros.contains(QLatin1String("macros, charts")) && withMacros.contains(QLatin1String("will not be in")), qPrintable(withMacros));
         for (const QString &word : {QStringLiteral("Excel"), QStringLiteral("Microsoft"), QStringLiteral("Office")}) QVERIFY(!text.contains(word));  // (no other program is named)
         QVERIFY(crunch::notReadNotice({}).isEmpty());
         const QString notice = crunch::notReadNotice({QStringLiteral("charts"), QStringLiteral("comments")});

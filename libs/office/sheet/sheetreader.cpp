@@ -9,6 +9,7 @@
 #include "office/xmlstream.h"
 #include "io/cfb.h"
 #include "sheet/xls.h"
+#include "sheet/xlsxbase.h"
 
 #include <QCoreApplication>
 #include <QFile>
@@ -1293,6 +1294,17 @@ bool Workbook::openStream(const QByteArray &stream, bool hasMacros, QString *err
         return false;
     }
     m_xls = xls;
+    // The workbook is saved as a package of XML parts that is written from what was read (see xlsxbase.h): its parts are named from the start, with the strings and cell formats it was
+    // read with already in the file, so that what an edit adds goes after them.
+    m_mainPart = baseMainPart();
+    m_sharedPart = baseSharedStringsPart();
+    m_stylesPart = baseStylesPart();
+    for (int i = 0; i < m_info.sheets.size(); ++i) {
+        m_info.sheets[i].part = baseSheetPart(i);
+        m_info.sheets[i].relId = QStringLiteral("rId%1").arg(i + 1);
+    }
+    m_sharedInFile = m_shared.strings.size();
+    m_formatsInFile = m_styles.formats.size();
     return true;
 }
 

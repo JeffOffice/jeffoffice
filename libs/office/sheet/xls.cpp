@@ -1034,7 +1034,11 @@ private:
         st->fonts = m_fonts;
         if (st->fonts.size() > 4) st->fonts.insert(4, st->fonts[3]);
         QHash<QByteArray, int> fillIds, borderIds;
+        // (the two fills every file starts with: none, and the pattern of gray 125 that a program shows for none)
         st->fills.append(FillSpec());
+        FillSpec gray125;
+        gray125.pattern = PatternKind::Gray125;
+        st->fills.append(gray125);
         st->borders.append(BorderSpec());
         const qsizetype count = m_xfs.size();
         st->cellXfs.fill(0, int(count));

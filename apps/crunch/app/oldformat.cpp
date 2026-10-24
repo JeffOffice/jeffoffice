@@ -2,9 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
-#include <QFileDialog>
 #include <QFileInfo>
-#include <QMessageBox>
 
 namespace jp::crunch {
 
@@ -30,29 +28,24 @@ QString withWorkbookEnding(const QString &chosen)
     if (chosen.isEmpty()) return chosen;
     const QFileInfo info(chosen);
     const QString suffix = info.suffix().toLower();
-    if (suffix == QLatin1String("xlsx") || suffix == QLatin1String("xlsm")) return chosen;
+    if (suffix == QLatin1String("xlsx")) return chosen;
     if (suffix == QLatin1String("xls")) return chosen + QLatin1Char('x');
+    if (suffix == QLatin1String("xlsm")) return chosen.left(chosen.size() - 1) + QLatin1Char('x');
     return chosen + QLatin1String(".xlsx");
 }
 
-QString saveAsExplanation(const QString &fileName)
+QString saveAsExplanation(const QString &fileName, const QStringList &notRead)
 {
-    return tr("\"%1\" is in an older file format (.xls), and this program saves workbooks only as .xlsx. It will ask you for a new name to save a copy under. "
-              "The original file will not be changed.").arg(fileName);
+    QString text = tr("\"%1\" is in an older file format (.xls), and this program saves workbooks only as .xlsx. It will ask you for a new name to save a copy under. "
+                      "The original file will not be changed.").arg(fileName);
+    if (!notRead.isEmpty()) text += QLatin1Char(' ') + tr("These parts of the file will not be in the copy: %1.").arg(notRead.join(QStringLiteral(", ")));
+    return text;
 }
 
 QString notReadNotice(const QStringList &notRead)
 {
     if (notRead.isEmpty()) return QString();
     return tr("This workbook has parts this program doesn't read yet: %1. They are not shown, and a copy saved from here will not have them.").arg(notRead.join(QStringLiteral(", ")));
-}
-
-QString askForSaveName(QWidget *parent, const QString &openedPath)
-{
-    QMessageBox box(QMessageBox::Information, tr("Save As"), saveAsExplanation(QFileInfo(openedPath).fileName()), QMessageBox::Ok | QMessageBox::Cancel, parent);
-    if (box.exec() != QMessageBox::Ok) return QString();
-    const QString chosen = QFileDialog::getSaveFileName(parent, tr("Save Workbook As"), suggestedSaveName(openedPath), tr("Workbooks (*.xlsx)"));
-    return withWorkbookEnding(chosen);
 }
 
 } // namespace jp::crunch
