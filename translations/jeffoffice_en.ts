@@ -169,6 +169,23 @@
     </message>
 </context>
 <context>
+    <name>jp::office::sheet::Ods</name>
+    <message numerus="yes">
+        <source>%n sheet name(s), made valid for an .xlsx file</source>
+        <translation>
+            <numerusform>%n sheet name, made valid for an .xlsx file</numerusform>
+            <numerusform>%n sheet names, made valid for an .xlsx file</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n formula(s) the program could not convert, which keep the value the file stored</source>
+        <translation>
+            <numerusform>%n formula the program could not convert, which keeps the value the file stored</numerusform>
+            <numerusform>%n formulas the program could not convert, which keep the value the file stored</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::office::wml</name>
     <message numerus="yes">
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>
