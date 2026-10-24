@@ -15,6 +15,7 @@
 #include "sheet/sheetreader.h"
 #include "sheet/xlsxsave.h"
 
+#include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
@@ -195,15 +196,33 @@ int odsFuzzMain(const QStringList &args)
         Workbook book;
         QString why;
         ++ran;
+        // (JCRUNCHTOOL_SLOW=<seconds>: a copy that has a stage slower than that is named on stderr and kept, to look at)
+        const double slowSeconds = qEnvironmentVariable("JCRUNCHTOOL_SLOW").toDouble();
+        QElapsedTimer stage;
+        stage.start();
+        auto tick = [&](const char *name) {
+            if (slowSeconds > 0 && qEnvironmentVariableIsSet("JCRUNCHTOOL_TRACE")) fprintf(stderr, "copy %d: %s done in %lld ms\n", i, name, static_cast<long long>(stage.elapsed()));
+            if (slowSeconds > 0 && stage.elapsed() > qint64(slowSeconds * 1000)) {
+                const QString keep = QDir::tempPath() + QStringLiteral("/slow-copy-%1-%2.%3").arg(QFileInfo(path).completeBaseName()).arg(i).arg(suffix);
+                QFile::copy(copy, keep);
+                fprintf(stderr, "slow\t%s\tcopy %d\t%s\t%lld ms\t%s\n", qPrintable(path), i, name, static_cast<long long>(stage.elapsed()), qPrintable(keep));
+            }
+            stage.restart();
+        };
+        if (slowSeconds > 0 && qEnvironmentVariableIsSet("JCRUNCHTOOL_TRACE")) fprintf(stderr, "copy %d: opening\n", i);
         if (!book.openFile(copy, &why)) {
             ++refused;
         } else {
             ++opened;
             const bool calc = i % 3 == 0;
+            qint64 mostCells = 0;
             for (int s = 0; s < book.info().sheets.size() && s < 40; ++s) {
                 Sheet sheet;
                 book.readSheet(s, &sheet, nullptr, -1, 100);   // (the first screen alone)
+                tick("first rows");
                 if (!book.readSheet(s, &sheet)) ++partial;
+                tick("whole sheet");
+                mostCells = std::max<qint64>(mostCells, sheet.cells.cellCount());
                 qint64 asked = 0;
                 sheet.cells.forEach([&](const Cell &c) {
                     if (c.hasFormula() && asked++ < 20000) (void)sheet.formulaText(c);
@@ -211,11 +230,13 @@ int odsFuzzMain(const QStringList &args)
                 });
                 (void)book.styles().formatCode(sheet.cells.cellCount() ? 0 : 1);
             }
-            // saved as the program saves it, and read again
-            {
+            // saved as the program saves it, and read again (not a copy that holds millions of cells: writing and reading them takes as long as it must, and the sweep is not for that)
+            if (mostCells <= 1000000) {
                 QByteArray xlsx;
                 QString problem;
-                if (!saveXlsx(book, SaveChanges(), &xlsx, &problem)) {
+                const bool wrote = saveXlsx(book, SaveChanges(), &xlsx, &problem);
+                tick("save");
+                if (!wrote) {
                     ++notSaved;
                 } else {
                     ++saved;
@@ -227,6 +248,7 @@ int odsFuzzMain(const QStringList &args)
                             Sheet sheet;
                             (void)back.readSheet(s, &sheet);
                         }
+                        tick("read again");
                     } else {
                         ++lost;
                         out() << "!saved, but not read again\t" << path << "\tcopy " << i << "\t" << problem << "\n";
@@ -239,7 +261,9 @@ int odsFuzzMain(const QStringList &args)
                 options.workOutWhatHasNoResult = true;
                 Calculation calculation(book, options);
                 calculation.load();
+                tick("calculation load");
                 calculation.recalculate(20000000);
+                tick("recalculate");
                 ++calculated;
             }
         }

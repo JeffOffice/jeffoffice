@@ -772,7 +772,9 @@ QString validSheetName(const QString &original, int number)
         if (QStringLiteral("[]:*?/\\").contains(c) || c.unicode() < 32) c = QLatin1Char('_');
     while (name.startsWith(QLatin1Char('\''))) name.remove(0, 1);
     while (name.endsWith(QLatin1Char('\''))) name.chop(1);
-    name = name.left(31).trimmed();
+    name = name.left(31);
+    if (!name.isEmpty() && name.back().isHighSurrogate()) name.chop(1);   // (not in the middle of a letter written with two code units)
+    name = name.trimmed();
     while (name.endsWith(QLatin1Char('\''))) name.chop(1);
     if (name.isEmpty()) name = QStringLiteral("Sheet%1").arg(number);
     if (name.compare(QLatin1String("History"), Qt::CaseInsensitive) == 0) name += QLatin1Char('_');
@@ -915,7 +917,9 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
         QString valid = validSheetName(original, i + 1);
         for (int n = 2; usedNames.contains(valid.toLower()); ++n) {
             const QString suffix = QStringLiteral(" (%1)").arg(n);
-            valid = validSheetName(original, i + 1).left(31 - suffix.size()).trimmed() + suffix;
+            QString stem = validSheetName(original, i + 1).left(31 - suffix.size());
+            if (!stem.isEmpty() && stem.back().isHighSurrogate()) stem.chop(1);
+            valid = stem.trimmed() + suffix;
         }
         usedNames.insert(valid.toLower());
         if (valid != original) {
@@ -1752,8 +1756,10 @@ QStringList OdsBook::changed() const
         for (const qint64 n : std::as_const(m->unconverted))
             if (n > 0) formulas += n;
     }
+    // (the count is made before the message: the tool that gathers the messages for translation does not read a template argument inside the call)
+    const int count = int(std::min<qint64>(formulas, 1000000000));
     if (formulas > 0)
-        out << QCoreApplication::translate("jp::office::sheet::Ods", "%n formula(s) the program could not convert, which keep the value the file stored", nullptr, int(std::min<qint64>(formulas, 1000000000)));
+        out << QCoreApplication::translate("jp::office::sheet::Ods", "%n formula(s) the program could not convert, which keep the value the file stored", nullptr, count);
     return out;
 }
 

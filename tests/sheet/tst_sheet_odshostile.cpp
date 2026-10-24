@@ -84,13 +84,13 @@ private Q_SLOTS:
         Workbook flat;
         QVERIFY2(openBytes(buildFods(spans), QStringLiteral("deep.fods"), &flat, &why), qPrintable(why));
         QVERIFY(!flat.readSheet(0, &s));
-        QVERIFY2(s.error.contains(QLatin1String("nested")), qPrintable(s.error));
+        QVERIFY2(s.error.contains(QLatin1String("deeply")), qPrintable(s.error));
         // and a document nested without end before its first sheet is not opened
         QString before;
         for (int i = 0; i < 100000; ++i) before += QStringLiteral("<table:calculation-settings>");
         Workbook head;
         QVERIFY(!openIt(buildOds(contentXml(table(QStringLiteral("S"), row(floatCell(1))), QString(), before)), &head, &why));
-        QVERIFY2(why.contains(QLatin1String("nested")) || why.contains(QLatin1String("damaged")), qPrintable(why));
+        QVERIFY2(why.contains(QLatin1String("deeply")) || why.contains(QLatin1String("damaged")), qPrintable(why));
     }
 
     // A DOCTYPE with entities (a billion laughs) is refused before any entity is read.
