@@ -34,13 +34,17 @@ struct StyleDef {
 
 // One thing a data style shows, in order.
 struct DataPart {
-    enum Kind : quint8 { Number, Scientific, Fraction, Text, CurrencySymbol, Day, Month, Year, Era, DayOfWeek, WeekOfYear, Quarter, Hours, Minutes, Seconds, AmPm, TextContent, Boolean } kind = Text;
-    QString text;                 // for Text and CurrencySymbol
+    enum Kind : quint8 { Number, Scientific, Fraction, Text, CurrencySymbol, FillCharacter, Day, Month, Year, Era, DayOfWeek, WeekOfYear, Quarter, Hours, Minutes, Seconds, AmPm, TextContent, Boolean } kind = Text;
+    QString text;                 // for Text, CurrencySymbol, and FillCharacter
+    QChar blankWidth;             // Text: the first space of the text is as wide as this character (it stands for "_c")
     int decimals = 0;             // Number, Scientific; the digits of seconds
     int minDecimals = -1;         // Number: the decimals that are always shown (else all of `decimals`)
     int minInteger = 1;           // Number, Scientific, Fraction
     int minExponent = 1;          // Scientific
     int minNumerator = 1, minDenominator = 1, denominatorValue = 0;   // Fraction
+    bool hasDecimals = true;      // Number: the decimal places are given (else the digits that are needed are shown)
+    int maxBlank = 0;             // Number: how many of the leftmost integer digits show a space when they are zero
+    bool forcedExponentSign = true;   // Scientific: the exponent always has its sign
     bool grouping = false;        // Number
     int displayFactor = 1;        // Number: shown divided by this
     bool longStyle = false;       // Day, Month, Year, DayOfWeek, Hours, Minutes, Seconds: two digits, or the full name

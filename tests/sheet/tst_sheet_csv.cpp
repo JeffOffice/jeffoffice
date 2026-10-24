@@ -337,14 +337,17 @@ private Q_SLOTS:
         }
     }
 
-    // A file that is not text, or has nothing in it, is refused in words; a file with the name of a text file that is a workbook of another kind is that kind.
+    // A file that is not text is refused in words, and an empty one is an empty sheet; a file with the name of a text file that is a workbook of another kind is that kind.
     void whatIsNotTextIsRefused()
     {
         Workbook wb;
         QString why;
-        QVERIFY(!openCsv(QByteArray(), &wb, &why));
-        QVERIFY2(why.contains(QLatin1String("empty")), qPrintable(why));
-        QVERIFY(!openCsv("  \n\n  ", &wb, &why));
+        // (a file with nothing in it is a sheet with nothing in it, which is what it was saved from)
+        QVERIFY2(openCsv(QByteArray(), &wb, &why), qPrintable(why));
+        QCOMPARE(wb.info().sheets.size(), 1);
+        QCOMPARE(readSheet(wb).cells.cellCount(), qint64(0));
+        QVERIFY(openCsv("\n\n", &wb, &why));
+        QCOMPARE(readSheet(wb).cells.cellCount(), qint64(0));
         QVERIFY(!openCsv(QByteArray("a,b\0c,d\n", 8), &wb, &why));
         QVERIFY2(why.contains(QLatin1String("text file")), qPrintable(why));
         // an .xlsx with the name .csv

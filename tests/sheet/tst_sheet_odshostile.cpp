@@ -54,28 +54,43 @@ private Q_SLOTS:
         QVERIFY(s.rowSpecs.size() <= 1048576);
     }
 
-    // Nesting without end: the spans of a text a hundred thousand deep, and notes inside notes. The first pass reads every element, so a document nested past the bound is refused when it
-    // is opened, in words.
+    // Nesting without end: the spans of a text a hundred thousand deep, and notes inside notes. A sheet is read when it is asked for, so a sheet nested past the bound is refused then, in
+    // words, with the cells before it kept; the document opens, and its other sheets can be read.
     void nestingIsBounded()
     {
         QString deep;
         for (int i = 0; i < 100000; ++i) deep += QStringLiteral("<text:span>");
         deep += QStringLiteral("x");
         for (int i = 0; i < 100000; ++i) deep += QStringLiteral("</text:span>");
-        const QString spans = table(QStringLiteral("S"), columns(1) + row(cell(QStringLiteral("office:value-type=\"string\""), QStringLiteral("<text:p>") + deep + QStringLiteral("</text:p>"))));
+        const QString spans = table(QStringLiteral("S"), columns(1) + row(floatCell(1)) + row(cell(QStringLiteral("office:value-type=\"string\""), QStringLiteral("<text:p>") + deep + QStringLiteral("</text:p>"))))
+                              + table(QStringLiteral("T"), row(floatCell(2)));
         Workbook wb;
         QString why;
-        QVERIFY(!openIt(buildOds(contentXml(spans)), &wb, &why));
-        QVERIFY2(why.contains(QLatin1String("nested")), qPrintable(why));
+        QVERIFY2(openIt(buildOds(contentXml(spans)), &wb, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY(!wb.readSheet(0, &s));
+        QVERIFY2(s.error.contains(QLatin1String("nested")), qPrintable(s.error));
+        QCOMPARE(shown(wb, s, QStringLiteral("A1")), QStringLiteral("n:1"));
+        QVERIFY(wb.readSheet(1, &s));
+        QCOMPARE(shown(wb, s, QStringLiteral("A1")), QStringLiteral("n:2"));
         QString layers;
         for (int i = 0; i < 100000; ++i) layers += QStringLiteral("<office:annotation>");
         const QString notes = table(QStringLiteral("S"), columns(1) + row(cell(QString(), layers)));
-        QVERIFY(!openIt(buildOds(contentXml(notes)), &wb, &why));
-        QVERIFY2(why.contains(QLatin1String("nested")) || why.contains(QLatin1String("damaged")), qPrintable(why));
+        Workbook wb2;
+        QVERIFY2(openIt(buildOds(contentXml(notes)), &wb2, &why), qPrintable(why));
+        QVERIFY(!wb2.readSheet(0, &s));
+        QVERIFY2(s.error.contains(QLatin1String("nested")) || s.error.contains(QLatin1String("damaged")), qPrintable(s.error));
         // the same, in the flat form
         Workbook flat;
-        QVERIFY(!openBytes(buildFods(spans), QStringLiteral("deep.fods"), &flat, &why));
-        QVERIFY2(why.contains(QLatin1String("nested")), qPrintable(why));
+        QVERIFY2(openBytes(buildFods(spans), QStringLiteral("deep.fods"), &flat, &why), qPrintable(why));
+        QVERIFY(!flat.readSheet(0, &s));
+        QVERIFY2(s.error.contains(QLatin1String("nested")), qPrintable(s.error));
+        // and a document nested without end before its first sheet is not opened
+        QString before;
+        for (int i = 0; i < 100000; ++i) before += QStringLiteral("<table:calculation-settings>");
+        Workbook head;
+        QVERIFY(!openIt(buildOds(contentXml(table(QStringLiteral("S"), row(floatCell(1))), QString(), before)), &head, &why));
+        QVERIFY2(why.contains(QLatin1String("nested")) || why.contains(QLatin1String("damaged")), qPrintable(why));
     }
 
     // A DOCTYPE with entities (a billion laughs) is refused before any entity is read.
@@ -114,11 +129,13 @@ private Q_SLOTS:
         QVERIFY(!big.readSheet(0, &s));
         QVERIFY(s.error.contains(QLatin1String("longer")));
         QCOMPARE(shown(big, s, QStringLiteral("A1")), QStringLiteral("n:1"));
-        // an attribute of 3 MB
+        // an attribute of 3 MB, larger than any piece of XML may be: the sheet that has it is refused when it is read
         Workbook attr;
-        QVERIFY(!openIt(buildOds(contentXml(table(QStringLiteral("S"), columns(1) + row(cell(QStringLiteral("office:value-type=\"string\" office:string-value=\"") + QString(3 << 20, QLatin1Char('b')) + QStringLiteral("\"")))))),
-                        &attr, &why));
-        QVERIFY(!why.isEmpty());
+        const QString huge = table(QStringLiteral("S"), columns(1) + row(floatCell(1)) + row(cell(QStringLiteral("office:value-type=\"string\" office:string-value=\"") + QString(3 << 20, QLatin1Char('b')) + QStringLiteral("\""))));
+        QVERIFY2(openIt(buildOds(contentXml(huge)), &attr, &why), qPrintable(why));
+        QVERIFY(!attr.readSheet(0, &s));
+        QVERIFY2(s.error.contains(QLatin1String("longer")), qPrintable(s.error));
+        QCOMPARE(shown(attr, s, QStringLiteral("A1")), QStringLiteral("n:1"));
     }
 
     // Styles and sheets without end: more of them than the limits say are refused in words.
@@ -210,6 +227,23 @@ private Q_SLOTS:
         QCOMPARE(shown(wb, s, QStringLiteral("B1")), QStringLiteral("n:2"));
         QCOMPARE(s.formulaCells, qint64(0));
         QCOMPARE(s.stats.unreadFormulas, qint64(2));
+    }
+
+    // Cells whose repeats add up past what a number holds: the count stops at the edge of the sheet, and the cell after them is not wrapped round to the first column.
+    void repeatsThatAddUpPastANumberDoNotWrapRound()
+    {
+        QString cells;
+        for (int i = 0; i < 4200; ++i) cells += floatCell(1, QStringLiteral("table:number-columns-repeated=\"1048576\"")).replace(QLatin1String("office:value=\"1\""), QLatin1String("office:value=\"0\""));
+        cells += floatCell(7);
+        Workbook wb;
+        QString why;
+        Limits limits;
+        limits.cellsPerSheet = 1000000;
+        QVERIFY2(openIt(buildOds(contentXml(table(QStringLiteral("S"), row(cells)))), &wb, &why, limits), qPrintable(why));
+        Sheet s;
+        wb.readSheet(0, &s);
+        QCOMPARE(shown(wb, s, QStringLiteral("A1")), QStringLiteral("n:0"));   // (the first cell's, not the last one's)
+        QVERIFY(s.cells.cellCount() <= 16384);
     }
 
     // Many cells in one row, and a long row of covered cells: only the cells that are there are made.

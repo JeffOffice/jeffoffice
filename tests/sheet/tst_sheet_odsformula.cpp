@@ -119,6 +119,9 @@ private Q_SLOTS:
         ok = true;
         convert(QStringLiteral("of:=[.ZZZZ1]"), &ok);
         QVERIFY(!ok);
+        ok = true;
+        convert(QStringLiteral("of:=MULTIPLE.OPERATIONS([.E13];[.C25];[.D14])"), &ok);   // (the other format has no such function: the cell keeps its value)
+        QVERIFY(!ok);
     }
 
     // What is converted is a formula the engine reads.

@@ -14,7 +14,7 @@ QString namespaces()
         "xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:number=\"urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0\" "
         "xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\" xmlns:of=\"urn:oasis:names:tc:opendocument:xmlns:of:1.2\" "
         "xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\" xmlns:script=\"urn:oasis:names:tc:opendocument:xmlns:script:1.0\" "
-        "xmlns:calcext=\"urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0\" xmlns:tableooo=\"http://openoffice.org/2009/table\"");
+        "xmlns:calcext=\"urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0\" xmlns:tableooo=\"http://openoffice.org/2009/table\" xmlns:loext=\"urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0\"");
 }
 
 QString table(const QString &name, const QString &inner, const QString &attrs)

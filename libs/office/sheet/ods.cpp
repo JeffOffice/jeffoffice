@@ -10,6 +10,7 @@
 #include "sheet/xmlscan.h"
 
 #include <QBuffer>
+#include <QDate>
 #include <QCoreApplication>
 #include <QRegularExpression>
 #include <QSet>
@@ -37,6 +38,10 @@ constexpr QLatin1String NS_CONFIG("urn:oasis:names:tc:opendocument:xmlns:config:
 constexpr QLatin1String NS_SCRIPT("urn:oasis:names:tc:opendocument:xmlns:script:1.0");
 constexpr QLatin1String NS_CALCEXT("urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0");
 constexpr QLatin1String NS_TABLEOOO("http://openoffice.org/2009/table");
+constexpr QLatin1String NS_LOEXT("urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0");
+
+// All the properties (attributes of the elements of style properties) of all the styles together (tens of thousands are found in real documents).
+constexpr qint64 kMaxOdsProperties = 4000000;
 
 const char kMimeSpreadsheet[] = "application/vnd.oasis.opendocument.spreadsheet";
 
@@ -208,7 +213,7 @@ private:
     void addProperties(const QXmlStreamAttributes &a, const QString &prefix, ods::Props *props)
     {
         for (const QXmlStreamAttribute &at : a) {
-            if (props->size() > 4000) break;
+            if (props->size() > 4000 || ++m_properties > kMaxOdsProperties) break;
             props->insert(prefix + QLatin1Char(':') + ods::canonicalName(at.namespaceUri().toString(), at.name().toString()), at.value().toString());
         }
     }
@@ -259,7 +264,7 @@ private:
             m_data.name = attr(a, NS_STYLE, QLatin1String("name"));
             m_data.kind = name.left(name.size() - 6).toString();
             m_data.truncateOnOverflow = attr(a, NS_NUMBER, QLatin1String("truncate-on-overflow")) != QLatin1String("false");
-            m_inData = true;
+            m_inData = ++m_dataStyles <= kMaxOdsStyles;
             return;
         }
         if (!m_inData || m_data.parts.size() > 1000) return;
@@ -272,7 +277,11 @@ private:
         DataPart p;
         if (name == QLatin1String("number")) {
             p.kind = DataPart::Number;
+            p.hasDecimals = hasAttr(a, NS_NUMBER, QLatin1String("decimal-places"));
             p.decimals = integer("decimal-places", 0);
+            bool blankOk = false;
+            const int blank = attr(a, NS_LOEXT, QLatin1String("max-blank-integer-digits")).toInt(&blankOk);
+            p.maxBlank = blankOk ? std::max(0, std::min(blank, 30)) : 0;
             p.minDecimals = hasAttr(a, NS_NUMBER, QLatin1String("min-decimal-places")) ? integer("min-decimal-places", 0) : -1;
             p.minInteger = integer("min-integer-digits", 1);
             p.grouping = attr(a, NS_NUMBER, QLatin1String("grouping")) == QLatin1String("true");
@@ -284,14 +293,17 @@ private:
             p.decimals = integer("decimal-places", 0);
             p.minInteger = integer("min-integer-digits", 1);
             p.minExponent = integer("min-exponent-digits", 1);
+            p.forcedExponentSign = attr(a, NS_NUMBER, QLatin1String("forced-exponent-sign")) != QLatin1String("false");
         } else if (name == QLatin1String("fraction")) {
             p.kind = DataPart::Fraction;
             p.minInteger = integer("min-integer-digits", 0);
             p.minNumerator = integer("min-numerator-digits", 1);
             p.minDenominator = integer("min-denominator-digits", 1);
             p.denominatorValue = integer("denominator-value", 0);
-        } else if (name == QLatin1String("text") || name == QLatin1String("currency-symbol")) {
-            p.kind = name == QLatin1String("text") ? DataPart::Text : DataPart::CurrencySymbol;
+        } else if (name == QLatin1String("text") || name == QLatin1String("currency-symbol") || name == QLatin1String("fill-character")) {
+            p.kind = name == QLatin1String("text") ? DataPart::Text : name == QLatin1String("fill-character") ? DataPart::FillCharacter : DataPart::CurrencySymbol;
+            const QString blank = attr(a, NS_LOEXT, QLatin1String("blank-width-char"));
+            if (!blank.isEmpty()) p.blankWidth = blank[0];
             m_capture = true;
             m_text.clear();
             m_pendingText = true;
@@ -401,7 +413,7 @@ private:
                 m_inStyle = false;
             }
         } else if (ns == NS_NUMBER) {
-            if (m_pendingText && (name == QLatin1String("text") || name == QLatin1String("currency-symbol"))) {
+            if (m_pendingText && (name == QLatin1String("text") || name == QLatin1String("currency-symbol") || name == QLatin1String("fill-character"))) {
                 if (!m_data.parts.isEmpty()) m_data.parts.last().text = m_text;
                 m_pendingText = false;
                 m_capture = false;
@@ -416,7 +428,7 @@ private:
             if (name == QLatin1String("config-item")) {
                 if (m_inConfigItem) {
                     const QString sheet = configSheet();
-                    if (!sheet.isEmpty()) {
+                    if (!sheet.isEmpty() && (m_f.sheetViews.size() < 4000 || m_f.sheetViews.contains(sheet))) {
                         auto &items = m_f.sheetViews[sheet];
                         if (items.size() < 200) items.insert(m_configItem, m_text);
                     } else if (configInViewEntry() && m_f.viewItems.size() < 200) {
@@ -449,6 +461,8 @@ private:
     // a style being read
     ods::StyleDef m_style;
     bool m_inStyle = false, m_isDefaultStyle = false;
+    qint64 m_properties = 0;   // all the properties of all the styles
+    qint64 m_dataStyles = 0;
     // a data style being read
     ods::DataStyle m_data;
     bool m_inData = false, m_pendingText = false, m_pendingEmbedded = false;
@@ -518,6 +532,91 @@ QVector<Range> findElements(const QByteArray &data, const QByteArray &qname, boo
     return ranges;
 }
 
+// The sheets found by searching for their tags in the XML held whole, when it is written as the standard's own programs write it: `<table:table ` to `</table:table>`. A start tag
+// or an end tag in any other form (a line break after the name, a space in the end tag) is not found, and if that leaves the tags that are found not in pairs this gives false, so that the
+// whole document is read by the parser instead.
+bool findTablesFast(const QByteArray &data, QVector<Range> *ranges)
+{
+    const QByteArrayView view(data);
+    qsizetype pos = 0, rangeStart = 0;
+    int depth = 0;
+    qsizetype nextStart = -2, nextEnd = -2;
+    const QByteArrayView startNeedle("<table:table "), endNeedle("</table:table>");
+    for (;;) {
+        if (nextStart != -1 && nextStart < pos) nextStart = view.indexOf(startNeedle, pos);
+        if (nextEnd != -1 && nextEnd < pos) nextEnd = view.indexOf(endNeedle, pos);
+        if (nextStart < 0 && nextEnd < 0) break;
+        if (nextStart >= 0 && (nextEnd < 0 || nextStart < nextEnd)) {
+            const qsizetype te = xmlscan::tagEnd(view, nextStart);
+            if (te < 0) return false;
+            if (depth == 0) rangeStart = nextStart;
+            if (data[te - 2] == '/') {
+                if (depth == 0) ranges->append({rangeStart, te});
+            } else {
+                ++depth;
+            }
+            pos = te;
+        } else {
+            if (depth == 0) return false;
+            pos = nextEnd + endNeedle.size();
+            if (--depth == 0) ranges->append({rangeStart, pos});
+        }
+    }
+    return depth == 0;
+}
+
+// The document with every sheet cut down to its start tag and what the first pass needs of it: the names defined inside it and a mark for each thing the program does not read that it
+// holds (a drawing, a note, a pivot table, a validation, a conditional format). The first pass reads the styles and the head and tail of the document with the parser, and does not read
+// the million rows of a large sheet, which are read when the sheet is.
+bool skeletonOf(const QByteArray &data, QByteArrayView rootTag, const QVector<Range> &ranges, QByteArray *out)
+{
+    auto declares = [&](const char *prefix, QLatin1String uri) {
+        bool found = false;
+        const QByteArrayView value = xmlscan::attribute(rootTag, QByteArray("xmlns:") + prefix, &found);
+        return found && QLatin1String(value.constData(), value.size()) == uri;
+    };
+    struct Mark {
+        const char *needle;
+        const char *element;
+        bool usable;
+        bool seen;
+    };
+    Mark marks[] = {{"<draw:object", "<draw:object/>", declares("draw", NS_DRAW), false},
+                    {"<draw:image", "<draw:image/>", declares("draw", NS_DRAW), false},
+                    {"<draw:frame", "<draw:frame/>", declares("draw", NS_DRAW), false},
+                    {"<draw:custom-shape", "<draw:custom-shape/>", declares("draw", NS_DRAW), false},
+                    {"<office:annotation", "<office:annotation/>", declares("office", NS_OFFICE), false},
+                    {"<table:data-pilot-table", "<table:data-pilot-table/>", true, false},
+                    {"<table:content-validation", "<table:content-validation/>", true, false},
+                    {"<table:conditional-format", "<table:conditional-format/>", true, false},
+                    {"<calcext:conditional-format", "<calcext:conditional-format/>", declares("calcext", NS_CALCEXT), false}};
+    const QByteArrayView view(data);
+    qsizetype pos = 0;
+    out->reserve(data.size() / 16 + 1024);
+    for (const Range &r : ranges) {
+        out->append(data.constData() + pos, r.from - pos);
+        const qsizetype te = xmlscan::tagEnd(view, r.from);
+        out->append(data.constData() + r.from, te - r.from);
+        if (data[te - 2] != '/') {
+            const QByteArrayView inside = view.mid(te, r.to - te);
+            const qsizetype names = inside.indexOf(QByteArrayView("<table:named-expressions"));
+            if (names >= 0) {
+                const qsizetype endNames = inside.indexOf(QByteArrayView("</table:named-expressions>"), names);
+                if (endNames >= 0) out->append(inside.constData() + names, endNames + qsizetype(qstrlen("</table:named-expressions>")) - names);
+            }
+            for (Mark &m : marks)
+                if (m.usable && !m.seen && inside.indexOf(QByteArrayView(m.needle)) >= 0) {
+                    m.seen = true;
+                    out->append(m.element);
+                }
+            out->append("</table:table>");
+        }
+        pos = r.to;
+    }
+    out->append(data.constData() + pos, data.size() - pos);
+    return true;
+}
+
 // A device that gives three pieces of bytes one after another, with no copy: the root's start tag, one sheet's element, and the root's end tag.
 class SliceDevice : public QIODevice {
 public:
@@ -548,6 +647,21 @@ private:
     qint64 m_headAt = 0, m_bodyAt = 0, m_tailAt = 0;
 };
 
+// The day number of an ISO date or date and time (2024-03-15, 2024-03-15T10:30:00.5), counted from the document's null date: what the document means by the number, in whatever
+// calendar the date is in, so that its day 0 (1899-12-30) is 0.
+bool dateSerialFrom(const QString &text, const QDate &nullDate, double *serial)
+{
+    static const QRegularExpression re(QStringLiteral("^(-?[0-9]{4,6})-([0-9]{2})-([0-9]{2})(?:T([0-9]{2}):([0-9]{2}):([0-9]{2})(\\.[0-9]+)?)?(?:Z|[+-][0-9]{2}:[0-9]{2})?$"));
+    const QRegularExpressionMatch m = re.match(text.trimmed());
+    if (!m.hasMatch()) return false;
+    const QDate date(m.captured(1).toInt(), m.captured(2).toInt(), m.captured(3).toInt());
+    if (!date.isValid() || !nullDate.isValid()) return false;
+    double day = double(date.toJulianDay() - nullDate.toJulianDay());
+    if (m.hasCaptured(4)) day += (m.captured(4).toInt() * 3600.0 + m.captured(5).toInt() * 60.0 + m.captured(6).toDouble() + m.captured(7).toDouble()) / 86400.0;
+    *serial = day;
+    return true;
+}
+
 struct ColProps {
     double widthPt = -1;
 };
@@ -574,6 +688,7 @@ struct OdsBook::Impl {
     QHash<QString, quint32> xfOf;
     QHash<quint32, QString> nameOfXf;   // a style that has the format (any one)
     DateSystem dateSystem = DateSystem::Date1900;
+    QDate nullDate = QDate(1899, 12, 30);
     int maxDigitWidth = 7;
     Limits limits;
 };
@@ -681,22 +796,33 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
             if (!parser.parse(&buffer, &why)) return fail(why);
         }
     }
+    // (the document's root, and the sheets: when the XML is written as the standard's own programs write it, each sheet is found by its tags and read by itself, when it is asked for)
+    xmlscan::Tag root;
+    if (!xmlscan::nextTag(m.content, 0, &root) || root.closing || root.selfClosing) return fail(say("The file is damaged: it has no document in it."));
     {
+        const QByteArrayView rootTag = QByteArrayView(m.content).mid(root.start, root.end - root.start);
+        bool tableNs = false;
+        const QByteArrayView prefixTable = xmlscan::attribute(rootTag, "xmlns:table", &tableNs);
+        QVector<Range> found;
+        QByteArray skeleton;
+        const bool fast = tableNs && QLatin1String(prefixTable.constData(), prefixTable.size()) == NS_TABLE && findTablesFast(m.content, &found) && skeletonOf(m.content, rootTag, found, &skeleton);
         QBuffer buffer;
-        buffer.setData(m.content);
+        buffer.setData(fast ? skeleton : m.content);
         buffer.open(QIODevice::ReadOnly);
         QString why;
         if (!parser.parse(&buffer, &why)) return fail(why);
+        if (fast) m.slices = found;
     }
     if (m.found.tables.isEmpty()) return fail(say("The file has no sheets in it."));
     // ---- where each sheet is
     {
         const QByteArray qname = m.found.tableQName.toUtf8();
-        bool ok = false;
-        m.slices = findElements(m.content, qname, &ok);
-        if (!ok || m.slices.size() != m.found.tables.size()) return fail(say("The file is damaged: its sheets cannot be told apart."));
-        xmlscan::Tag root;
-        if (!xmlscan::nextTag(m.content, 0, &root) || root.closing) return fail(say("The file is damaged: it has no document in it."));
+        if (m.slices.isEmpty()) {
+            bool ok = false;
+            m.slices = findElements(m.content, qname, &ok);
+            if (!ok) m.slices.clear();
+        }
+        if (m.slices.size() != m.found.tables.size()) return fail(say("The file is damaged: its sheets cannot be told apart."));
         m.head = m.content.mid(root.start, root.end - root.start);
         m.tail = "</" + QByteArray(root.name.constData(), root.name.size()) + ">";
         // (the sheet's own name, as the element has it, must be the one the parser found)
@@ -725,6 +851,8 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     // the date system: the day the numbers count from
     const QString nullDate = m.found.nullDate.left(10);
     m.dateSystem = nullDate == QLatin1String("1904-01-01") ? DateSystem::Date1904 : DateSystem::Date1900;
+    const QDate parsedNull = QDate::fromString(nullDate, QStringLiteral("yyyy-MM-dd"));
+    if (parsedNull.isValid()) m.nullDate = parsedNull;
     info->dateSystem = m.dateSystem;
     info->iterate = m.found.iterate;
     for (int i = 0; i < m.found.tables.size(); ++i) {
@@ -828,6 +956,7 @@ public:
         guard.open(QIODevice::ReadOnly);
         QXmlStreamReader xml(&guard);
         m_xml = &xml;
+        m_guard = &guard;
         bool ok = read();
         if (ok && guard.refused()) ok = fail(guardMessage(guard));
         if (ok && !m_stopped && xml.hasError()) ok = fail(say("The XML is damaged: %1").arg(xml.errorString()));
@@ -841,6 +970,8 @@ private:
         if (m_s.error.isEmpty()) m_s.error = message;
         return false;
     }
+    // The document ends where it should not: the guard says why, if it ended it.
+    bool damaged() { return fail(m_guard && m_guard->refused() ? guardMessage(*m_guard) : say("The XML is damaged.")); }
 
     static bool is(QStringView ns, QStringView name, QLatin1String wantNs, QLatin1String wantName) { return ns == wantNs && name == wantName; }
 
@@ -963,7 +1094,7 @@ private:
         m_row.clear();
         quint32 col = 0;
         for (;;) {
-            if (xml.atEnd()) return fail(say("The XML is damaged."));
+            if (xml.atEnd()) return damaged();
             const QXmlStreamReader::TokenType t = xml.readNext();
             if (t == QXmlStreamReader::EndElement) {
                 --m_depth;
@@ -975,8 +1106,9 @@ private:
             if (ns == NS_TABLE && (name == QLatin1String("table-cell") || name == QLatin1String("covered-table-cell"))) {
                 Proto p;
                 if (!cell(name == QLatin1String("covered-table-cell"), col, &p)) return false;
-                col += p.repeat;
-                if (col - p.repeat < kMaxColumns) m_row.push_back(std::move(p));
+                const quint32 here = col;
+                col = quint32(std::min<quint64>(quint64(col) + p.repeat, quint64(kMaxColumns) + 1));   // (a row of more cells than a sheet has stops counting at its edge)
+                if (here < kMaxColumns) m_row.push_back(std::move(p));
             } else if (!skipElementCounted()) {
                 return false;
             }
@@ -1076,7 +1208,7 @@ private:
         bool inParagraph = false, tooLong = false;
         int paragraphDepth = 0;
         for (;;) {
-            if (xml.atEnd()) return fail(say("The XML is damaged."));
+            if (xml.atEnd()) return damaged();
             const QXmlStreamReader::TokenType t = xml.readNext();
             if (t == QXmlStreamReader::StartElement) {
                 ++depth;
@@ -1090,7 +1222,7 @@ private:
                         paragraphDepth = depth;
                     } else if (name == QLatin1String("span")) {
                         spanStack.append(attr(xml.attributes(), NS_TEXT, QLatin1String("style-name")));
-                        spans.append({text.size(), spanStack.last()});
+                        if (spans.size() < 100000) spans.append({text.size(), spanStack.last()});
                     } else if (name == QLatin1String("s")) {
                         bool good = false;
                         const int n = attr(xml.attributes(), NS_TEXT, QLatin1String("c")).toInt(&good);
@@ -1114,7 +1246,7 @@ private:
                 } else if (xml.namespaceUri() == NS_TEXT) {
                     if (xml.name() == QLatin1String("span") && !spanStack.isEmpty()) {
                         spanStack.removeLast();
-                        spans.append({text.size(), spanStack.isEmpty() ? QString() : spanStack.last()});
+                        if (spans.size() < 100000) spans.append({text.size(), spanStack.isEmpty() ? QString() : spanStack.last()});
                     } else if ((xml.name() == QLatin1String("p") || xml.name() == QLatin1String("h")) && depth == paragraphDepth) {
                         inParagraph = false;
                     }
@@ -1155,7 +1287,7 @@ private:
             }
         } else if (valueType == QLatin1String("date")) {
             double serial = 0;
-            if (jp::calc::parseIsoDate(attr(a, NS_OFFICE, QLatin1String("date-value")), m_m.dateSystem, &serial)) {
+            if (dateSerialFrom(attr(a, NS_OFFICE, QLatin1String("date-value")), m_m.nullDate, &serial)) {
                 p.type = CellType::Number;
                 p.number = serial;
             } else {
@@ -1491,6 +1623,7 @@ private:
     std::function<bool(qint64)> m_progress;
     Sheet &m_s;
     QXmlStreamReader *m_xml = nullptr;
+    jp::office::XmlGuardDevice *m_guard = nullptr;
     qint64 m_stopAfter = -1;
     bool m_stopped = false, m_rowsPast = false;
     int m_depth = 0;

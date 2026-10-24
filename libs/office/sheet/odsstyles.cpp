@@ -129,15 +129,23 @@ QString literal(const QString &text)
     return out;
 }
 
-QString integerDigits(int minInteger, bool grouping)
+// The digits before the point: `minInteger` of them are always shown, the leftmost `blank` of those as a space when they are zero ("?"), and with grouping a comma before every three.
+QString integerDigits(int minInteger, bool grouping, int blank = 0)
 {
     minInteger = std::max(0, std::min(minInteger, 30));
-    if (!grouping) return minInteger == 0 ? QStringLiteral("#") : zeros(minInteger);
-    if (minInteger <= 3) return QStringLiteral("#,") + QString(3 - minInteger, QLatin1Char('#')) + zeros(minInteger);
-    QString digits = zeros(minInteger), out;
-    for (int i = 0; i < digits.size(); ++i) {
-        if (i > 0 && (digits.size() - i) % 3 == 0) out += QLatin1Char(',');
-        out += digits[i];
+    blank = std::max(0, std::min(blank, minInteger));
+    auto digits = [&](int n) {
+        QString d;
+        for (int i = 0; i < n; ++i) d += i < blank ? QLatin1Char('?') : QLatin1Char('0');
+        return d;
+    };
+    if (!grouping) return minInteger == 0 ? QStringLiteral("#") : digits(minInteger);
+    if (minInteger <= 3) return QStringLiteral("#,") + QString(3 - minInteger, QLatin1Char('#')) + digits(minInteger);
+    const QString d = digits(minInteger);
+    QString out;
+    for (int i = 0; i < d.size(); ++i) {
+        if (i > 0 && (d.size() - i) % 3 == 0) out += QLatin1Char(',');
+        out += d[i];
     }
     return out;
 }
@@ -192,10 +200,15 @@ QString StyleStore::dataStyleCodeDepth(const QString &name, int depth) const
     for (const DataPart &p : ds.parts) {
         switch (p.kind) {
         case DataPart::Number: {
-            QString digits = integerDigits(p.minInteger, p.grouping);
-            if (p.decimals > 0) {
-                const int min = p.minDecimals >= 0 ? std::min(p.minDecimals, p.decimals) : p.decimals;
-                digits += QLatin1Char('.') + zeros(min) + QString(std::max(0, std::min(p.decimals, 40) - min), QLatin1Char('#'));
+            if (!p.hasDecimals && !p.grouping && p.maxBlank == 0 && p.minInteger <= 1 && p.displayFactor == 1) {
+                body += QStringLiteral("General");   // (the digits that are needed, which is what a cell with no format of its own shows)
+                break;
+            }
+            QString digits = integerDigits(p.minInteger, p.grouping, p.maxBlank);
+            const int places = p.hasDecimals ? p.decimals : 2;
+            if (places > 0) {
+                const int min = p.hasDecimals ? (p.minDecimals >= 0 ? std::min(p.minDecimals, places) : places) : 2;
+                digits += QLatin1Char('.') + zeros(min) + QString(std::max(0, std::min(places, 40) - min), QLatin1Char('#'));
             }
             for (int f = p.displayFactor; f >= 1000 && f % 1000 == 0; f /= 1000) digits += QLatin1Char(',');
             body += digits;
@@ -204,7 +217,7 @@ QString StyleStore::dataStyleCodeDepth(const QString &name, int depth) const
         case DataPart::Scientific: {
             QString digits = integerDigits(p.minInteger, false);
             if (p.decimals > 0) digits += QLatin1Char('.') + zeros(p.decimals);
-            body += digits + QStringLiteral("E+") + zeros(std::max(1, p.minExponent));
+            body += digits + (p.forcedExponentSign ? QStringLiteral("E+") : QStringLiteral("E-")) + zeros(std::max(1, p.minExponent));
             break;
         }
         case DataPart::Fraction: {
@@ -214,9 +227,22 @@ QString StyleStore::dataStyleCodeDepth(const QString &name, int depth) const
             body += whole + numerator + QLatin1Char('/') + denominator;
             break;
         }
-        case DataPart::Text:
-            if (percentage && p.text == QLatin1String("%")) body += QLatin1Char('%');
-            else body += literal(p.text);
+        case DataPart::Text: {
+            QString text = p.text;
+            // a space as wide as another character stands for the underscore and that character ("_("), the first space of the text
+            if (!p.blankWidth.isNull()) {
+                const int at = int(text.indexOf(QLatin1Char(' ')));
+                if (at >= 0) {
+                    body += literal(text.left(at)) + QLatin1Char('_') + p.blankWidth;
+                    text = text.mid(at + 1);
+                }
+            }
+            if (percentage && text == QLatin1String("%")) body += QLatin1Char('%');
+            else body += literal(text);
+            break;
+        }
+        case DataPart::FillCharacter:
+            if (!p.text.isEmpty()) body += QLatin1Char('*') + p.text.left(1);
             break;
         case DataPart::CurrencySymbol: body += p.text.isEmpty() ? QString() : QLatin1Char('"') + QString(p.text).replace(QLatin1Char('"'), QString()) + QLatin1Char('"'); break;
         case DataPart::Day: body += p.longStyle ? QStringLiteral("dd") : QStringLiteral("d"); anyDate = true; break;
@@ -253,17 +279,45 @@ QString StyleStore::dataStyleCodeDepth(const QString &name, int depth) const
     }
     Q_UNUSED(anyDate)
     if (ds.kind == QLatin1String("boolean")) return QStringLiteral("General");
-    if (body.isEmpty()) return QStringLiteral("General");
+    // (a style with nothing in it shows nothing: it is a section of a format that is left empty, such as the zeros of "0;-0;"; with no style to follow it is General)
+    if (body.isEmpty() && (depth > 0 || ds.maps.isEmpty())) return depth > 0 ? QString() : QStringLiteral("General");
     QString code = body;
     if (ds.color != 0xFFFFFFFF && colorName(ds.color)) code = QLatin1Char('[') + QLatin1String(colorName(ds.color)) + QLatin1Char(']') + code;
-    // the styles that take the values the conditions pick, each a section of its own
+    // the styles that take the values the conditions pick, each a section of its own: the usual three conditions (positive, negative, zero) are the format's own sections, in order, and
+    // the style itself is the last (the text); otherwise a section has its condition written in front
     if (!ds.maps.isEmpty() && depth == 0) {
-        QStringList sections;
+        struct Slot {
+            QString condition, op;
+            QString code;
+        };
+        QVector<Slot> slots;
         for (const DataStyle::Map &map : ds.maps) {
-            const QString condition = sectionCondition(map.condition);
-            if (condition.isEmpty()) continue;
-            sections << condition + dataStyleCodeDepth(map.applyStyle, depth + 1);
+            QString condition = map.condition;
+            condition.remove(QLatin1Char(' '));
+            Slot slot;
+            slot.condition = sectionCondition(map.condition);
+            if (slot.condition.isEmpty()) continue;
+            slot.op = condition.mid(int(qstrlen("value()")));
+            slot.code = dataStyleCodeDepth(map.applyStyle, depth + 1);
+            slots.append(slot);
         }
+        auto find = [&](const char *op, QString *out) {
+            for (const Slot &slot : std::as_const(slots))
+                if (slot.op == QLatin1String(op)) {
+                    *out = slot.code;
+                    return true;
+                }
+            return false;
+        };
+        QString pos, neg, zero, posZero;
+        const bool hasPos = find(">0", &pos), hasNeg = find("<0", &neg), hasZero = find("=0", &zero), hasPosZero = find(">=0", &posZero);
+        const bool textMain = ds.kind == QLatin1String("text");
+        if (slots.size() == 3 && hasPos && hasNeg && hasZero) return pos + QLatin1Char(';') + neg + QLatin1Char(';') + zero + (textMain ? QLatin1Char(';') + code : QString());
+        if (slots.size() == 1 && hasPosZero && !textMain) return posZero + QLatin1Char(';') + code;
+        if (slots.size() == 2 && hasPos && hasNeg && !textMain) return pos + QLatin1Char(';') + neg + QLatin1Char(';') + code;
+        if (slots.size() == 2 && hasPos && hasZero && !textMain) return pos + QLatin1Char(';') + code + QLatin1Char(';') + zero;
+        QStringList sections;
+        for (const Slot &slot : std::as_const(slots)) sections << slot.condition + slot.code;
         sections << code;
         if (sections.size() > 1 && sections.size() <= 3) return sections.join(QLatin1Char(';'));
     }

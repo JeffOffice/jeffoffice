@@ -139,7 +139,7 @@ QString renamedFunction(const QString &name)
     static const struct {
         const char *odf;
         const char *model;
-    } table[] = {{"FORMULA", "FORMULATEXT"}, {"MULTIPLE.OPERATIONS", "MULTIPLE.OPERATIONS"}};
+    } table[] = {{"FORMULA", "FORMULATEXT"}};
     for (const auto &t : table)
         if (name == QLatin1String(t.odf)) return QLatin1String(t.model);
     return name;
@@ -364,7 +364,8 @@ private:
         int k = j;
         while (k < n && m_f[k].isSpace()) ++k;
         if (k < n && m_f[k] == QLatin1Char('(')) {
-            // a function: the call is one operand, begun at its name
+            // a function: the call is one operand, begun at its name (the table of values for several inputs, which the other format has no function for, keeps its values as constants)
+            if (functionName(word) == QLatin1String("MULTIPLE.OPERATIONS")) return false;
             closeUnion();
             const qsizetype start = m_out.size();
             m_out += functionName(word) + QLatin1Char('(');

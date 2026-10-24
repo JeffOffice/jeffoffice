@@ -710,10 +710,6 @@ std::shared_ptr<const CsvBook> CsvBook::open(const QByteArray &file, const QStri
                                               Styles *styles, QString *error)
 {
     Q_UNUSED(limits)
-    if (file.trimmed().isEmpty()) {
-        if (error) *error = say("The file is empty.");
-        return nullptr;
-    }
     // (a zero byte in the first piece of a file that is not UTF-16: a binary file, not text)
     if (!file.startsWith("\xFF\xFE") && !file.startsWith("\xFE\xFF") && file.left(8192).contains('\0')) {
         if (error) *error = say("This file is not a text file of values separated by commas, semicolons, or tabs.");

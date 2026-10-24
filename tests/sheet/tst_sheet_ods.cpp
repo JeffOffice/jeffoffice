@@ -110,9 +110,14 @@ private Q_SLOTS:
         Workbook wb = open(simple(table(QStringLiteral("S"), columns(1) + row(cell(QStringLiteral("office:value-type=\"date\" office:date-value=\"1904-01-11\"")))), QString(), before));
         QVERIFY(wb.info().dateSystem == DateSystem::Date1904);
         QCOMPARE(shown(wb, readSheet(wb), QStringLiteral("A1")), QStringLiteral("n:10"));
-        Workbook plain = open(simple(table(QStringLiteral("S"), columns(1) + row(cell(QStringLiteral("office:value-type=\"date\" office:date-value=\"1900-03-01\""))))));
+        Workbook plain = open(simple(table(QStringLiteral("S"), columns(3) + row(cell(QStringLiteral("office:value-type=\"date\" office:date-value=\"1900-03-01\""))
+                                                                                  + cell(QStringLiteral("office:value-type=\"date\" office:date-value=\"1899-12-30\""))
+                                                                                  + cell(QStringLiteral("office:value-type=\"date\" office:date-value=\"2024-03-15T06:00:00\""))))));
         QVERIFY(plain.info().dateSystem == DateSystem::Date1900);
+        // (the numbers count the days from the document's null date, 1899-12-30: the first day of March 1900 is 61, and the null date itself is 0, not a text)
         QCOMPARE(shown(plain, readSheet(plain), QStringLiteral("A1")), QStringLiteral("n:61"));
+        QCOMPARE(shown(plain, readSheet(plain), QStringLiteral("B1")), QStringLiteral("n:0"));
+        QCOMPARE(shown(plain, readSheet(plain), QStringLiteral("C1")), QStringLiteral("n:45366.25"));
     }
 
     // Text: spaces, tabs, and line breaks are kept; paragraphs are lines; spans are text; a note or a drawing in the cell is not text.
@@ -213,10 +218,28 @@ private Q_SLOTS:
             "<number:number-style style:name=\"G1\"><number:number number:decimal-places=\"3\" number:min-decimal-places=\"1\" number:min-integer-digits=\"0\"/></number:number-style>"
             "<number:number-style style:name=\"R0\"><number:number number:decimal-places=\"2\" number:min-integer-digits=\"1\" number:grouping=\"true\"/></number:number-style>"
             "<number:number-style style:name=\"R1\"><style:text-properties fo:color=\"#ff0000\"/><number:text>-</number:text><number:number number:decimal-places=\"2\" number:min-integer-digits=\"1\" number:grouping=\"true\"/>"
-            "<style:map style:condition=\"value()&gt;=0\" style:apply-style-name=\"R0\"/></number:number-style>");
+            "<style:map style:condition=\"value()&gt;=0\" style:apply-style-name=\"R0\"/></number:number-style>"
+            // the accounting form: spaces as wide as a parenthesis, a fill, and the sections for positive, negative, zero, and text
+            "<number:number-style style:name=\"AP0\"><number:text loext:blank-width-char=\"(\"> $</number:text><number:fill-character> </number:fill-character><number:number number:decimal-places=\"2\" "
+            "number:min-decimal-places=\"2\" number:min-integer-digits=\"1\" number:grouping=\"true\"/><number:text loext:blank-width-char=\")\"> </number:text></number:number-style>"
+            "<number:number-style style:name=\"AP1\"><number:text loext:blank-width-char=\"(\"> $</number:text><number:fill-character> </number:fill-character><number:text>(</number:text><number:number "
+            "number:decimal-places=\"2\" number:min-decimal-places=\"2\" number:min-integer-digits=\"1\" number:grouping=\"true\"/><number:text>)</number:text></number:number-style>"
+            "<number:number-style style:name=\"AP2\"><number:text loext:blank-width-char=\"(\"> $</number:text><number:fill-character> </number:fill-character><number:text>-</number:text><number:number "
+            "number:decimal-places=\"0\" number:min-integer-digits=\"2\" loext:max-blank-integer-digits=\"2\"/><number:text loext:blank-width-char=\")\"> </number:text></number:number-style>"
+            "<number:text-style style:name=\"AC\"><number:text loext:blank-width-char=\"(\"> </number:text><number:text-content/><number:text loext:blank-width-char=\")\"> </number:text>"
+            "<style:map style:condition=\"value()&gt;0\" style:apply-style-name=\"AP0\"/><style:map style:condition=\"value()&lt;0\" style:apply-style-name=\"AP1\"/>"
+            "<style:map style:condition=\"value()=0\" style:apply-style-name=\"AP2\"/></number:text-style>"
+            // a format whose zeros show nothing: "0;-0;"
+            "<number:number-style style:name=\"ZP\"><number:number number:decimal-places=\"0\" number:min-integer-digits=\"1\"/></number:number-style>"
+            "<number:number-style style:name=\"ZN\"><number:text>-</number:text><number:number number:decimal-places=\"0\" number:min-integer-digits=\"1\"/></number:number-style>"
+            "<number:number-style style:name=\"ZZ\"/>"
+            "<number:number-style style:name=\"Z1\"><style:map style:condition=\"value()&gt;0\" style:apply-style-name=\"ZP\"/><style:map style:condition=\"value()&lt;0\" style:apply-style-name=\"ZN\"/>"
+            "<style:map style:condition=\"value()=0\" style:apply-style-name=\"ZZ\"/></number:number-style>"
+            "<number:number-style style:name=\"GN\"><number:number number:min-integer-digits=\"1\"/></number:number-style>"
+            "<number:number-style style:name=\"SN\"><number:scientific-number number:decimal-places=\"1\" number:min-integer-digits=\"1\" number:min-exponent-digits=\"2\" number:forced-exponent-sign=\"false\"/></number:number-style>");
         QString styles = data;
         QStringList codes = {QStringLiteral("N2"), QStringLiteral("P1"), QStringLiteral("C1"), QStringLiteral("D1"), QStringLiteral("D2"), QStringLiteral("T1"), QStringLiteral("T2"), QStringLiteral("T3"),
-                             QStringLiteral("X1"), QStringLiteral("S1"), QStringLiteral("F1"), QStringLiteral("K1"), QStringLiteral("G1"), QStringLiteral("R1")};
+                             QStringLiteral("X1"), QStringLiteral("S1"), QStringLiteral("F1"), QStringLiteral("K1"), QStringLiteral("G1"), QStringLiteral("R1"), QStringLiteral("AC"), QStringLiteral("GN"), QStringLiteral("SN"), QStringLiteral("Z1")};
         QString cells;
         for (int i = 0; i < codes.size(); ++i) {
             styles += QStringLiteral("<style:style style:name=\"ce%1\" style:family=\"table-cell\" style:data-style-name=\"%2\"/>").arg(i).arg(codes[i]);
@@ -226,10 +249,11 @@ private Q_SLOTS:
         const Sheet s = readSheet(wb);
         const QStringList expected = {QStringLiteral("#,##0.00"), QStringLiteral("0.0%"), QStringLiteral("\"$\"#,##0.00"), QStringLiteral("dd/mm/yyyy"), QStringLiteral("dddd\", \"mmmm d"),
                                       QStringLiteral("hh:mm:ss.0"), QStringLiteral("[h]:mm"), QStringLiteral("h:mm AM/PM"), QStringLiteral("@"), QStringLiteral("0.00E+00"), QStringLiteral("# ?/?"),
-                                      QStringLiteral("0.0,\"K\""), QStringLiteral("#.0##"), QStringLiteral("[>=0]#,##0.00;[Red]-#,##0.00")};
+                                      QStringLiteral("0.0,\"K\""), QStringLiteral("#.0##"), QStringLiteral("#,##0.00;[Red]-#,##0.00"),
+                                      QStringLiteral("_(\"$\"* #,##0.00_);_(\"$\"* \"(\"#,##0.00\")\";_(\"$\"* -??_);_(@_)"), QStringLiteral("General"), QStringLiteral("0.0E-00"), QStringLiteral("0;-0;")};
         for (int i = 0; i < expected.size(); ++i) {
             const Cell *c = at(s, cellName(0, quint32(i)));
-            QVERIFY(c);
+            QVERIFY2(c, qPrintable(QString::number(i) + QLatin1Char(' ') + s.error));
             QCOMPARE(wb.styles().formatCode(c->style), expected[i]);
         }
         // and the formats show a value as the code says
