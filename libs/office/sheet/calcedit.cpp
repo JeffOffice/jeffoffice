@@ -335,6 +335,9 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         m_cols[size_t(e.sheet)] = seen;
     }
 
+    // ---- the rules of validation
+    adjustValidations(e, names, rec);
+
     // ---- the defined names
     bool namesChanged = false;
     for (auto it = m_names.begin(); it != m_names.end(); ++it) {
@@ -429,6 +432,8 @@ bool Calculation::undoEdit(const EditRecord &rec)
         if (rewriteArrayText(w.sheet, w.row, w.col, w.text)) continue;
         setFormula(w.sheet, w.row, w.col, w.text, Marking::Later, stored);
     }
+    for (const auto &entry : rec.validations)
+        if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].validations = entry.second;
     S.ranges = rec.ranges;
     S.merges = rec.merges;
     S.mergeCount = rec.mergeCount;
@@ -511,6 +516,32 @@ void Calculation::restoreNames(const std::vector<std::pair<QString, QString>> &n
     abandonNow();
     for (const auto &entry : names) m_names[entry.first] = entry.second;
     nameTextsChanged();
+}
+
+// The rules of validation follow the edit: the cells they are for, and the cells their formulas name. The sheets whose rules changed are recorded as they were.
+void Calculation::adjustValidations(const StructEdit &e, const QStringList &names, EditRecord *rec)
+{
+    for (int si = 0; si < int(m_sheets.size()); ++si) {
+        Sheet &sheet = m_sheets[size_t(si)];
+        if (sheet.validations.isEmpty()) continue;
+        QVector<Validation> now;
+        bool changed = false;
+        for (Validation v : sheet.validations) {
+            Validation was = v;
+            QVector<CellRange> ranges;
+            for (CellRange r : v.ranges)
+                if (adjustRange(e, si, &r)) ranges.append(r);
+            v.ranges = ranges;
+            bool a = false, b = false;
+            v.formula1 = adjustFormula(v.formula1, si, names, e, &a);
+            v.formula2 = adjustFormula(v.formula2, si, names, e, &b);
+            if (a || b || !(ranges == was.ranges)) changed = true;
+            if (!v.ranges.isEmpty()) now.append(v);
+        }
+        if (!changed) continue;
+        rec->validations.push_back({si, sheet.validations});
+        sheet.validations = now;
+    }
 }
 
 std::vector<ColumnSpan> Calculation::columnRuns(int sheet, quint32 first, quint32 last) const

@@ -219,6 +219,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_structure.cpp
   tests/sheet/tst_sheet_structsave.cpp
   tests/sheet/tst_sheet_tables.cpp
+  tests/sheet/tst_sheet_validate.cpp
   tests/sheet/tst_sheet_workbook.cpp)
 target_link_libraries(sheettests PRIVATE jo_shell Qt6::Test)
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
@@ -426,7 +427,7 @@ endif()
 target_link_libraries(jeffcrunch PRIVATE jccore)
 set_target_properties(jeffcrunch PROPERTIES OUTPUT_NAME JeffCrunch)
 # The tests of the window (the grid's own are in sheettests).
-qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/sheet/sheethelpers.cpp)
+qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/sheet/sheethelpers.cpp)
 target_link_libraries(crunchtests PRIVATE jccore Qt6::Test)
 target_include_directories(crunchtests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 target_compile_definitions(crunchtests PRIVATE JC_SOURCE_DIR="${CMAKE_SOURCE_DIR}")

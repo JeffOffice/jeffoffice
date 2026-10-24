@@ -175,6 +175,9 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         (e.toSheet == e.sheet ? S : D).merges = inDest;
     }
 
+    // ---- the rules of validation
+    adjustValidations(e, names, rec);
+
     // ---- the defined names
     bool namesChanged = false;
     for (auto it = m_names.begin(); it != m_names.end(); ++it) {
@@ -272,6 +275,8 @@ bool Calculation::undoMove(const EditRecord &rec)
         if (rewriteArrayText(w.sheet, w.row, w.col, w.text)) continue;
         setFormula(w.sheet, w.row, w.col, w.text, Marking::Later, stored);
     }
+    for (const auto &entry : rec.validations)
+        if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].validations = entry.second;
     Sheet &S = m_sheets[size_t(e.sheet)];
     S.merges = rec.merges;
     S.mergeCount = rec.mergeCount;

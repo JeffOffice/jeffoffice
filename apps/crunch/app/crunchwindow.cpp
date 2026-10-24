@@ -400,6 +400,7 @@ void CrunchWindow::notice(const QString &title, const QString &text, bool warnin
 
 void CrunchWindow::updateBars()
 {
+    updateDropDown();
     if (!m_nameBox->hasFocus()) m_nameBox->setText(m_view->selectionName());
     if (m_edit.active) return;   // (the formula bar holds what is being typed)
     // The formula bar takes about 20 milliseconds to be given 32,000 characters, whenever the cursor moves on to a cell that has them: it is given a part of a long text (with "…"

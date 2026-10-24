@@ -603,6 +603,7 @@ PaintOptions GridView::paintOptions() const
     o.fillPreview = m_drag == Drag::Fill && !(m_fillExtent == m_fillSource) ? &m_fillExtent : nullptr;
     o.copyRange = hasCopyBorder() ? &m_copyBorder : nullptr;
     o.copyPhase = m_copyPhase;
+    o.dropDown = dropDownRect();
     if (m_drag == Drag::Resize) {
         o.resizeGuide = m_resizeEdge + int(std::lround((m_resizeSize - m_resizeSize0) * m_sheet.layout().zoom()));
         o.resizeGuideColumn = m_resizeColumn;
@@ -733,6 +734,10 @@ void GridView::mousePressEvent(QMouseEvent *e)
         return;
     }
     if (e->button() != Qt::LeftButton) return;
+    if (dropDownRect().contains(e->pos())) {
+        Q_EMIT dropDownRequested();
+        return;
+    }
     bool borderColumn = false;
     qint64 borderIndex = -1;
     if (borderAt(e->pos(), &borderColumn, &borderIndex)) {
@@ -844,6 +849,25 @@ QRect GridView::fillHandleRect() const
     return QRect(corner.right() - 4, corner.bottom() - 4, 9, 9);
 }
 
+void GridView::setDropDownCell(qint64 row, qint64 col)
+{
+    if (row == m_dropRow && col == m_dropCol) return;
+    m_dropRow = row;
+    m_dropCol = col;
+    viewport()->update();
+}
+
+QRect GridView::dropDownCellRect() const { return m_dropRow < 0 ? QRect() : cellRect(m_dropRow, m_dropCol); }
+
+QRect GridView::dropDownRect() const
+{
+    if (m_dropRow < 0 || m_dropRow != m_selection.activeRow || m_dropCol != m_selection.activeCol) return QRect();
+    const QRect cell = dropDownCellRect();
+    if (cell.isEmpty() || cell.width() < 30 || cell.height() < 12) return QRect();
+    const int size = std::min(cell.height() - 2, 17);
+    return QRect(cell.right() - size, cell.bottom() - size, size, size);
+}
+
 void GridView::setCopyBorder(const GridRange &range)
 {
     m_copyBorder = range;
@@ -950,6 +974,10 @@ void GridView::keyPressEvent(QKeyEvent *e)
         // any key ends a search for the edge that is still going
         m_jump.reset();
         if (e->key() == Qt::Key_Escape) return;
+    }
+    if (e->key() == Qt::Key_Down && (e->modifiers() & Qt::AltModifier) && !dropDownRect().isEmpty()) {
+        Q_EMIT dropDownRequested();
+        return;
     }
     if (e->key() == Qt::Key_Escape && hasCopyBorder()) {
         clearCopyBorder();

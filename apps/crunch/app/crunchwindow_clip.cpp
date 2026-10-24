@@ -263,36 +263,49 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
     if (!md) return;
     const CellRange target = selectedRange();
     const qint64 before = m_loader.changesMade();
-    crunch::EditSession::Outcome o;
     ClipData clip;
     using Options = crunch::EditSession::PasteOptions;
-    if (md->hasFormat(QLatin1String(crunch::kClipMime)) && ClipData::fromBytes(md->data(QLatin1String(crunch::kClipMime)), &clip) && clip.valid()) {
-        const bool plain = options.what == Options::What::All && options.operation == Options::Operation::None && !options.skipBlanks && !options.transpose;
+    const bool rich = md->hasFormat(QLatin1String(crunch::kClipMime)) && ClipData::fromBytes(md->data(QLatin1String(crunch::kClipMime)), &clip) && clip.valid();
+    QVector<QStringList> table;
+    if (!rich) {
+        if (md->hasText()) table = crunch::parseTabSeparated(md->text());
+        if (table.isEmpty() && md->hasHtml()) table = crunch::parseHtmlTable(md->html());
+        if (table.isEmpty()) return;
+    }
+    auto run = [&](const Options &opt) {
+        crunch::EditSession::Outcome result;
+        if (!rich) return m_session->pasteText(m_sheet, target, table, opt);
+        const bool plain = opt.what == Options::What::All && opt.operation == Options::Operation::None && !opt.skipBlanks && !opt.transpose;
         const bool mine = clip.token == m_session->token() && m_clip.valid() && clip.serial == m_clip.serial;
         if (clip.cut && mine && plain) {
             // a cut and paste moves the cells
-            o = m_session->moveCells(clip.sheet, clip.source, m_sheet, target.row1, target.col1);
-            if (o.ok) {
-                o.range = clip.source;
-                o.range.row2 = target.row1 + (clip.source.row2 - clip.source.row1);
-                o.range.col2 = target.col1 + (clip.source.col2 - clip.source.col1);
-                o.range.row1 = target.row1;
-                o.range.col1 = target.col1;
+            result = m_session->moveCells(clip.sheet, clip.source, m_sheet, target.row1, target.col1);
+            if (result.ok) {
+                result.range = clip.source;
+                result.range.row2 = target.row1 + (clip.source.row2 - clip.source.row1);
+                result.range.col2 = target.col1 + (clip.source.col2 - clip.source.col1);
+                result.range.row1 = target.row1;
+                result.range.col1 = target.col1;
                 m_settingClipboard = true;
                 QApplication::clipboard()->clear();
                 m_settingClipboard = false;
                 m_clip = ClipData();
                 m_view->clearCopyBorder();
             }
-        } else {
-            o = m_session->paste(m_sheet, target, clip, options);
+            return result;
         }
-    } else {
-        QVector<QStringList> table;
-        if (md->hasText()) table = crunch::parseTabSeparated(md->text());
-        if (table.isEmpty() && md->hasHtml()) table = crunch::parseHtmlTable(md->html());
-        if (table.isEmpty()) return;
-        o = m_session->pasteText(m_sheet, target, table, options);
+        return m_session->paste(m_sheet, target, clip, opt);
+    };
+    crunch::EditSession::Outcome o = run(options);
+    if (!o.ok && o.rule) {
+        // values the rules of the cells do not allow: the person is told, and may go on
+        if (askAboutRule(o)) {
+            Options again = options;
+            again.checkRules = false;
+            o = run(again);
+        } else {
+            return;
+        }
     }
     if (!o.ok) {
         notice(tr("Paste"), o.problem);

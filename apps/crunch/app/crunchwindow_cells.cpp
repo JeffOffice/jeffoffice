@@ -11,6 +11,7 @@
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QMenu>
+#include <QMessageBox>
 #include <QRadioButton>
 #include <QVBoxLayout>
 
@@ -45,6 +46,8 @@ void CrunchWindow::createCellsActions()
     mk("format.unhideColumns", tr("Unhide Columns"), "", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_ParenRight), [this] { hideSelection(true, false); });
     for (const char *id : {"cells.format", "format.rowHeight", "format.columnWidth", "format.fitRow", "format.fitColumn", "format.hideRows", "format.hideColumns", "format.unhideRows", "format.unhideColumns"})
         m_opsActions << QString::fromLatin1(id);
+    connect(m_view, &grid::GridView::dropDownRequested, this, [this] { showChoices(); });
+    connect(m_view, &grid::GridView::selectionChanged, this, [this] { updateDropDown(); });
     connect(m_view, &grid::GridView::resizeRequested, this, [this](bool column, qint64 index, int size) { resizeDragged(column, index, size); });
     connect(m_view, &grid::GridView::fitRequested, this, [this](bool column, qint64 index) { fitDragged(column, index); });
     updateEditActions();
@@ -173,6 +176,65 @@ void CrunchWindow::onCellsMoved(const StructEdit &edit)
         if (sheet >= 0 && size_t(sheet) < m_loaded->geometry.size()) m_loaded->geometry[size_t(sheet)].reset();   // (the one made ahead is of the sheet as it was)
     if (m_sheet == edit.sheet || (edit.kind == StructEdit::Kind::Move && m_sheet == edit.toSheet)) showSheet(m_sheet, true);
     updateBars();
+}
+
+// ---- rules of validation
+
+bool CrunchWindow::askAboutRule(const crunch::EditSession::Outcome &o)
+{
+    using Style = jp::office::sheet::Validation::Style;
+    if (o.ruleStyle == int(Style::Stop)) {
+        notice(o.ruleTitle, o.problem);
+        return false;
+    }
+    if (m_ruleAsker) return m_ruleAsker(o.ruleTitle, o.problem, o.ruleStyle);
+    QMessageBox box(o.ruleStyle == int(Style::Warning) ? QMessageBox::Warning : QMessageBox::Information, o.ruleTitle, o.problem,
+                    o.ruleStyle == int(Style::Warning) ? QMessageBox::Yes | QMessageBox::No : QMessageBox::Ok | QMessageBox::Cancel, this);
+    return box.exec() == (o.ruleStyle == int(Style::Warning) ? QMessageBox::Yes : QMessageBox::Ok);
+}
+
+// The cell with the cursor has a list to choose from: the button is on it.
+void CrunchWindow::updateDropDown()
+{
+    qint64 row = -1, col = -1;
+    if (m_session && m_haveCalc && m_loaded && m_loaded->calc && m_loaded->problem.isEmpty()) {
+        const grid::Selection &sel = m_view->selection();
+        const jp::office::sheet::Validation *rule = m_loaded->calc->validationAt(m_sheet, quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol)));
+        if (rule && rule->type == jp::office::sheet::Validation::Type::List && rule->dropDown) {
+            row = sel.activeRow;
+            col = sel.activeCol;
+        }
+    }
+    m_view->setDropDownCell(row, col);
+}
+
+// The choices of the list on the active cell, in a menu under it; the one chosen is entered.
+void CrunchWindow::showChoices()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed() || !m_loaded || !m_loaded->calc) return;
+    const grid::Selection &sel = m_view->selection();
+    const quint32 row = quint32(std::max<qint64>(0, sel.activeRow)), col = quint32(std::max<qint64>(0, sel.activeCol));
+    const jp::office::sheet::Validation *rule = m_loaded->calc->validationAt(m_sheet, row, col);
+    if (!rule || rule->type != jp::office::sheet::Validation::Type::List) return;
+    const QStringList choices = m_loaded->calc->listChoices(m_sheet, row, col, *rule);
+    auto *menu = new QMenu(this);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+    menu->setObjectName(QStringLiteral("listMenu"));
+    menu->setStyleSheet(QStringLiteral("QMenu { menu-scrollable: 1; }"));
+    for (const QString &choice : choices) {
+        QAction *a = menu->addAction(choice);
+        connect(a, &QAction::triggered, this, [this, row, col, choice] {
+            const qint64 before = m_loader.changesMade();
+            crunch::EditSession::Outcome o = m_session->type(m_sheet, row, col, choice);
+            if (!o.ok && o.rule && askAboutRule(o)) o = m_session->type(m_sheet, row, col, choice, false);
+            if (!o.ok && !o.rule) notice(tr("Edit"), o.problem);
+            if (m_loader.changesMade() != before) m_calculating = true;
+        });
+    }
+    if (choices.isEmpty()) menu->addAction(tr("(nothing to choose from)"))->setEnabled(false);
+    const QRect cell = m_view->dropDownCellRect();
+    menu->popup(m_view->viewport()->mapToGlobal(QPoint(cell.left(), cell.bottom() + 1)));
 }
 
 // ---- the width of columns and the height of rows

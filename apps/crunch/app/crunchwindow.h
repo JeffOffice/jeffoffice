@@ -104,6 +104,9 @@ public:
         double value = 0;
     };
     void setSizeAsker(const std::function<bool(SizeRequest *)> &asker) { m_sizeAsker = asker; }
+    // What is asked when a value does not fit the rule of validation of its cell and the rule is a warning or only tells: the rule's title, its message, and its style (Validation::Style, 1
+    // warning, 2 information); true goes on. A message box unless this stands in for it (tests). A rule that stops is only told (through the notifier).
+    void setRuleAsker(const std::function<bool(const QString &title, const QString &text, int style)> &asker) { m_ruleAsker = asker; }
     // And Paste Special: how to paste. A dialog unless this stands in for it (tests); false gives it up.
     void setPasteAsker(const std::function<bool(crunch::EditSession::PasteOptions *)> &asker) { m_pasteOptionsAsker = asker; }
     void setChangedAsker(const std::function<ChangedAnswer(const QString &name)> &asker) { m_changedAsker = asker; }
@@ -206,6 +209,11 @@ private:
     jp::office::sheet::CellRange selectedRange() const;
     std::function<bool(ShiftRequest *)> m_shiftAsker;
     std::function<bool(SizeRequest *)> m_sizeAsker;
+    std::function<bool(const QString &, const QString &, int)> m_ruleAsker;
+    bool askAboutRule(const crunch::EditSession::Outcome &outcome);
+    // the list a rule offers on the cell with the cursor (crunchwindow_cells.cpp)
+    void updateDropDown();
+    void showChoices();
     // what Paste Special asks for: the options (a dialog unless this stands in for it: tests); false gives it up
     std::function<bool(crunch::EditSession::PasteOptions *)> m_pasteOptionsAsker;
     crunch::ClipData m_clip, m_pendingClip;   // the last copy or cut made here that the clipboard still holds, and the one being made

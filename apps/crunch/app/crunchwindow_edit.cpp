@@ -138,7 +138,17 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
         return true;
     }
     const qint64 before = m_loader.changesMade();
-    const crunch::EditSession::Outcome o = m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text);
+    crunch::EditSession::Outcome o = m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text);
+    if (!o.ok && o.rule) {
+        // the rule for the cell does not allow it: a rule that stops is told, the others ask whether to go on
+        if (askAboutRule(o)) {
+            o = m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text, false);
+        } else {
+            QLineEdit *w = m_formulaBar->hasFocus() ? static_cast<QLineEdit *>(m_formulaBar) : static_cast<QLineEdit *>(m_cellEditor);
+            w->setFocus(Qt::OtherFocusReason);
+            return false;
+        }
+    }
     if (!o.ok) {
         // the entry stays as it was typed, with the cursor where the fault is
         QLineEdit *w = m_formulaBar->hasFocus() ? static_cast<QLineEdit *>(m_formulaBar) : static_cast<QLineEdit *>(m_cellEditor);

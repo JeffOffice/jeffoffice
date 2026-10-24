@@ -167,6 +167,8 @@ public:
         // defined names whose text changed, with the text they had (by the key the source keeps them by)
         std::vector<std::pair<QString, QString>> names;
         qint64 cellsMoved = 0, formulasRewritten = 0;
+        // the rules of validation of the sheets they changed in, as they were
+        std::vector<std::pair<int, QVector<Validation>>> validations;
         // a Move: the merged ranges of the sheet it went to, as they were (the first sheet's are in `merges`)
         QVector<CellRange> toMerges;
         qint64 toMergeCount = 0;
@@ -201,6 +203,12 @@ public:
     // Puts these in their place (what the range had is let go of first): for making a change and for undoing it.
     void setColumnRuns(int sheet, quint32 first, quint32 last, const std::vector<ColumnSpan> &runs);
     void setRowSpecs(int sheet, quint32 first, quint32 last, const std::vector<RowSpec> &specs);
+
+    // ---- the rules of validation (see sheet/sheetmodel.h): the rule for a cell (the first that names it), whether an entry is allowed by it (`typed` is the text as typed; the rule's
+    // formulas are worked out with the entry in the cell), and the choices a list offers.
+    const Validation *validationAt(int sheet, quint32 row, quint32 col) const;
+    bool entryAllowed(int sheet, quint32 row, quint32 col, const Validation &rule, const jp::calc::Value &entry, const QString &typed) const;
+    QStringList listChoices(int sheet, quint32 row, quint32 col, const Validation &rule) const;
 
     // A column of a table renamed: the defined names that name it follow. Gives the texts the names had (by the key the calculation keeps them by), for putting back with restoreNames.
     std::vector<std::pair<QString, QString>> renameColumnInNames(const QString &table, const QString &oldName, const QString &newName);
@@ -281,6 +289,8 @@ private:
     // The text of an array formula's or a data table's first cell changed in place (its range's cells point to its formula); false if the cell is none.
     bool rewriteArrayText(int sheet, quint32 row, quint32 col, const QString &text);
     void nameTextsChanged();
+    void adjustValidations(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
+    jp::calc::Value ruleFormula(const Validation &rule, const QString &text, int sheet, quint32 row, quint32 col, const jp::calc::CellSource &source, bool asArray) const;
     bool canMoveCells(const StructEdit &edit, QString *why) const;
     bool applyMove(const StructEdit &edit, EditRecord *record);
     bool undoMove(const EditRecord &record);

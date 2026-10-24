@@ -311,6 +311,20 @@ struct SheetView {
     quint32 activeRow = 0, activeCol = 0;      // the cell the sheet was left on
 };
 
+// A rule for what may be put in cells (a `dataValidation` element): the kind of value, how it is compared, what happens when it is not allowed, and the messages.
+struct Validation {
+    enum class Type : quint8 { Any, Whole, Decimal, List, Date, Time, TextLength, Custom } type = Type::Any;
+    enum class Style : quint8 { Stop, Warning, Information } style = Style::Stop;
+    enum class Compare : quint8 { Between, NotBetween, Equal, NotEqual, Greater, Less, GreaterEqual, LessEqual } compare = Compare::Between;
+    bool allowBlank = false;
+    bool dropDown = true;          // a list is offered from a button on the cell (the file's showDropDown="1" turns it off)
+    bool showError = false;        // the file asks for an alert when a value is not allowed (else it lets it in)
+    bool showInput = false;
+    QString errorTitle, error, promptTitle, prompt;
+    QVector<CellRange> ranges;     // the cells it is for (sqref)
+    QString formula1, formula2;    // as the file writes them (the limits, the choices, or the formula), relative to the first cell of the first range
+};
+
 struct Sheet {
     CellStore cells;
     QVector<QString> texts;           // inline strings and the texts of formula results
@@ -322,6 +336,7 @@ struct Sheet {
     QVector<CellRange> merges;        // the merged ranges read (as many as the limit allows), in the order of the file
     QVector<ColumnSpan> columns;      // in the order of the file
     QVector<RowSpec> rowSpecs;        // the rows that are not as the default, in the order of the file
+    QVector<Validation> validations;  // the rules for what may be put in cells
     SheetFormat format;
     SheetView view;
     ColorSpec tabColor;               // the color of the sheet's tab

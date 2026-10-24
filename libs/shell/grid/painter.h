@@ -32,6 +32,7 @@ struct PaintOptions {
     const GridRange *fillPreview = nullptr;                // where a fill that is being dragged would go: a dashed border
     const GridRange *copyRange = nullptr;                  // the cells that were copied or cut: a dashed border that moves
     int copyPhase = 0;                                     // where the dashes of it are (its animation step)
+    QRect dropDown;                                        // the button of a list on the cell with the cursor (empty for none)
     int resizeGuide = -1;                                  // where the border of a row or column being dragged is now (a place in the window), or -1
     bool resizeGuideColumn = true;                         // a column's border (a vertical line), else a row's
     QColor gridColor = QColor(0xD4, 0xD4, 0xD4);

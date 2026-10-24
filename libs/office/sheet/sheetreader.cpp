@@ -564,6 +564,7 @@ private:
     static constexpr qint64 kCellBytes = 32, kFormulaBytes = 24, kRangeBytes = 24, kMasterBytes = 48, kWaitingBytes = 128, kWaitingCellBytes = 16, kSlotBytes = 32;
     // a run of columns, a row kept as not the default, and a merged range (each rounded up from what the structure holds)
     static constexpr qint64 kColumnSpanBytes = 48, kRowSpecBytes = 48, kMergeBytes = 32;
+    static constexpr qsizetype kMaxValidations = 20000;
     static qint64 stringBytes(qint64 chars) { return kSlotBytes + std::max<qint64>(32, (24 + 2 * chars + 2 + 8 + 15) / 16 * 16); }
     bool startRow(const QXmlStreamReader &r);
     bool startColumns(const QXmlStreamReader &r);
@@ -572,6 +573,7 @@ private:
     void startSelection(const QXmlStreamReader &r);
     void endView();
     bool startMerge(const QXmlStreamReader &r);
+    Validation readRule(const QXmlStreamReader &r) const;
     bool startCell(const QXmlStreamReader &r);
     bool startFormula(const QXmlStreamReader &r);
     bool endFormula();
@@ -690,6 +692,34 @@ bool SheetReader::startRow(const QXmlStreamReader &r)
         m_sheet.rowSpecs.append(spec);
     }
     return true;
+}
+
+Validation SheetReader::readRule(const QXmlStreamReader &r) const
+{
+    Validation v;
+    const QString type = attribute(r, "type").toString();
+    static const QStringList types = {QStringLiteral("none"), QStringLiteral("whole"), QStringLiteral("decimal"), QStringLiteral("list"), QStringLiteral("date"), QStringLiteral("time"), QStringLiteral("textLength"), QStringLiteral("custom")};
+    const int t = int(types.indexOf(type));
+    v.type = t >= 0 ? Validation::Type(t) : Validation::Type::Any;
+    const QString style = attribute(r, "errorStyle").toString();
+    v.style = style == QLatin1String("warning") ? Validation::Style::Warning : style == QLatin1String("information") ? Validation::Style::Information : Validation::Style::Stop;
+    static const QStringList ops = {QStringLiteral("between"), QStringLiteral("notBetween"), QStringLiteral("equal"), QStringLiteral("notEqual"), QStringLiteral("greaterThan"), QStringLiteral("lessThan"),
+                                    QStringLiteral("greaterThanOrEqual"), QStringLiteral("lessThanOrEqual")};
+    const int o = int(ops.indexOf(attribute(r, "operator").toString()));
+    v.compare = o >= 0 ? Validation::Compare(o) : Validation::Compare::Between;
+    v.allowBlank = parseBool(attribute(r, "allowBlank").toString());
+    v.dropDown = !parseBool(attribute(r, "showDropDown").toString());
+    v.showError = parseBool(attribute(r, "showErrorMessage").toString());
+    v.showInput = parseBool(attribute(r, "showInputMessage").toString());
+    v.errorTitle = attribute(r, "errorTitle").toString().left(32);
+    v.error = attribute(r, "error").toString().left(255);
+    v.promptTitle = attribute(r, "promptTitle").toString().left(32);
+    v.prompt = attribute(r, "prompt").toString().left(255);
+    for (const QString &part : attribute(r, "sqref").toString().split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+        CellRange range;
+        if (parseRangeRef(part, &range) && v.ranges.size() < 64) v.ranges.append(range);
+    }
+    return v;
 }
 
 bool SheetReader::startColumns(const QXmlStreamReader &r)
@@ -1057,7 +1087,9 @@ bool SheetReader::read(QIODevice *in)
     QXmlStreamReader &r = src.reader;
     int depth = 0, phonetic = 0;
     bool rootSeen = false, inData = false, inRow = false, inCell = false, inFormula = false, inValue = false, inInline = false, inText = false, inMerge = false;
-    bool inSheetPr = false, inViews = false, inCols = false, inView = false;
+    bool inSheetPr = false, inViews = false, inCols = false, inView = false, inValidations = false, inRule = false;
+    QString *ruleText = nullptr;   // the formula of the rule being read, while its text is collected
+    Validation rule;
     bool ok = true;
     // Whoever asked to be told how far the read has come is told at least once for every so many bytes of the XML, so that a sheet of anything (merged ranges,
     // an extension list) and not only of cells can be stopped.
@@ -1086,6 +1118,8 @@ bool SheetReader::read(QIODevice *in)
                     parseRangeRef(attribute(r, "ref"), &m_sheet.dimension);
                 } else if (isElement(r, "mergeCells")) {
                     inMerge = true;
+                } else if (isElement(r, "dataValidations")) {
+                    inValidations = true;
                 } else if (isElement(r, "sheetProtection")) {
                     m_sheet.isProtected = parseBool(attribute(r, "sheet").toString());
                 } else if (isElement(r, "sheetPr")) {
@@ -1104,6 +1138,11 @@ bool SheetReader::read(QIODevice *in)
                 }
             } else if (depth == 3 && inMerge && isElement(r, "mergeCell")) {
                 ok = startMerge(r);
+            } else if (depth == 3 && inValidations && isElement(r, "dataValidation")) {
+                inRule = true;
+                rule = readRule(r);
+            } else if (depth == 4 && inRule && (isElement(r, "formula1") || isElement(r, "formula2"))) {
+                ruleText = isElement(r, "formula1") ? &rule.formula1 : &rule.formula2;
             } else if (depth == 3 && inCols && isElement(r, "col")) {
                 ok = startColumns(r);
             } else if (depth == 3 && inSheetPr && isElement(r, "tabColor")) {
@@ -1157,18 +1196,25 @@ bool SheetReader::read(QIODevice *in)
             } else if (depth == 4 && inCell) {
                 inCell = false;
                 ok = endCell();
+            } else if (depth == 4 && ruleText) {
+                ruleText = nullptr;
+            } else if (depth == 3 && inRule) {
+                inRule = false;
+                if (!rule.ranges.isEmpty() && m_sheet.validations.size() < kMaxValidations) m_sheet.validations.append(rule);
             } else if (depth == 3 && inRow) {
                 inRow = false;
             } else if (depth == 3 && inView) {
                 inView = false;
                 endView();
             } else if (depth == 2) {
-                inData = inMerge = inSheetPr = inViews = inCols = false;
+                inData = inMerge = inSheetPr = inViews = inCols = inValidations = false;
             }
             --depth;
             break;
         case QXmlStreamReader::Characters:
-            if (inFormula) {
+            if (ruleText) {
+                if (ruleText->size() < m_limits.formulaChars) *ruleText += r.text();
+            } else if (inFormula) {
                 m_formula += r.text();
                 if (m_formula.size() > m_limits.formulaChars) ok = fail(QCoreApplication::translate("Sheet", "A formula is longer than any real file has."));
             } else if (inValue) {

@@ -856,6 +856,19 @@ void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
     p->setRenderHint(QPainter::SmoothPixmapTransform, false);
     for (Pane which : {Pane::Body, Pane::Left, Pane::Top, Pane::Corner}) paintPane(p, which, clip, o);
     if (o.headers) paintHeaders(p, clip, o);
+    if (!o.dropDown.isEmpty() && o.dropDown.intersects(clip)) {
+        // a small button with an arrow
+        p->setPen(QPen(o.headerLine, 1));
+        p->setBrush(o.headerBackground);
+        p->drawRect(o.dropDown.adjusted(0, 0, -1, -1));
+        p->setPen(Qt::NoPen);
+        p->setBrush(o.headerText);
+        const QPoint c = o.dropDown.center();
+        const QPointF triangle[3] = {QPointF(c.x() - 4, c.y() - 2), QPointF(c.x() + 4, c.y() - 2), QPointF(c.x(), c.y() + 3)};
+        p->setRenderHint(QPainter::Antialiasing, true);
+        p->drawPolygon(triangle, 3);
+        p->setRenderHint(QPainter::Antialiasing, false);
+    }
     if (o.resizeGuide >= 0) {
         // the border of a row or column being dragged: a dashed line across the cells
         QPen pen(o.accent, 1, Qt::DashLine);

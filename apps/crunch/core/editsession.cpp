@@ -334,7 +334,26 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
     return true;
 }
 
-EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, const QString &typed)
+EditSession::Outcome EditSession::checkRule(int sheet, quint32 row, quint32 col, const Value &value, bool isFormula, const QString &typed) const
+{
+    Outcome out;
+    const Calculation *calc = m_book->calc.get();
+    const jp::office::sheet::Validation *rule = calc->validationAt(sheet, row, col);
+    // (an entry that is empty, or a formula, is not held to a rule, nor is any when the file asks for no alert)
+    if (!rule || rule->type == jp::office::sheet::Validation::Type::Any || !rule->showError || isFormula || value.isEmpty()) return out;
+    if (calc->entryAllowed(sheet, row, col, *rule, value, typed)) return out;
+    out.ok = false;
+    out.rule = true;
+    out.ruleStyle = int(rule->style);
+    out.ruleTitle = rule->errorTitle.isEmpty() ? tr("Invalid Entry") : rule->errorTitle;
+    if (!rule->error.isEmpty()) out.problem = rule->error;
+    else if (rule->style == jp::office::sheet::Validation::Style::Stop) out.problem = tr("That isn't allowed in this cell. Enter a value that fits the rule for the cell.");
+    else if (rule->style == jp::office::sheet::Validation::Style::Warning) out.problem = tr("That doesn't fit the rule for this cell. Do you want to keep it anyway?");
+    else out.problem = tr("That doesn't fit the rule for this cell.");
+    return out;
+}
+
+EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, const QString &typed, bool checkRule_)
 {
     Outcome out;
     QString why;
@@ -351,6 +370,10 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
     bool none = false;
     if (!typedChange(sheet, row, col, typed, &ch, &none, &out)) return out;
     if (none) return out;
+    if (checkRule_) {
+        const Outcome rule = checkRule(sheet, row, col, ch.after.value, ch.after.isFormula, typed.trimmed());
+        if (!rule.ok) return rule;
+    }
     Step step;
     step.cells.push_back(std::move(ch));
     pushStep(std::move(step), tr("Typing in %1").arg(cellName(row, col)));

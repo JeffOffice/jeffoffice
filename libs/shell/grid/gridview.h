@@ -135,6 +135,10 @@ public:
     GridRange copyBorder() const { return m_copyBorder; }
     // The border between two rows or columns under a point of the headers (a few pixels either side of it): whether it is a column's (its right edge), and which row or column it ends.
     bool borderAt(const QPoint &p, bool *column, qint64 *index) const;
+    // The cell with the cursor offers a list to choose from (a rule of validation): a small button at the right edge of it opens the list (dropDownRequested), as Alt+Down does. -1 for none.
+    void setDropDownCell(qint64 row, qint64 col);
+    QRect dropDownRect() const;       // the button, in the viewport's pixels (empty when the cell is out of sight or too narrow)
+    QRect dropDownCellRect() const;   // and the cell it is on
     // A hook asked before a click changes the selection: false, and the click is ignored (the window finishes an entry first, and does not go on when it can't).
     void setClickGuard(std::function<bool()> guard) { m_clickGuard = std::move(guard); }
 
@@ -151,6 +155,8 @@ Q_SIGNALS:
     void clearRequested();
     // The fill handle was dragged and let go: the block it began from, the block with the cells it reached, and whether Ctrl was held (a copy, not a series).
     void fillRequested(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
+    // The button of a list was clicked, or Alt+Down was pressed on a cell that has one.
+    void dropDownRequested();
     // Esc took away the dashed border of the cells that were copied or cut.
     void copyBorderCleared();
     // The border of a column (row) was dragged and let go: which, and the size it was given, in the grid's units at 100% (0 hides it).
@@ -203,6 +209,7 @@ private:
     bool m_resizeColumn = false;
     qint64 m_resizeIndex = -1;
     int m_resizeFrom = 0, m_resizeEdge = 0, m_resizeSize0 = 0, m_resizeSize = 0;
+    qint64 m_dropRow = -1, m_dropCol = -1;
     GridRange m_fillSource, m_fillExtent;
     bool m_fillCtrl = false;
     GridRange m_copyBorder{-1, -1, -1, -1};
