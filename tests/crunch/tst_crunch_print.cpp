@@ -1,5 +1,6 @@
 // Tests of printing in JeffCrunch's window: how a sheet prints as a step of Undo, the print area, titles, and breaks following rows and columns inserted and deleted (and coming back with
 // Undo), the page setup saved in the file and nothing else of it touched, and the pages the window prints. Every workbook is built here, in a temporary folder.
+#include "../sheet/drawinghelpers.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/pagesetupdialog.h"
@@ -954,6 +955,81 @@ private Q_SLOTS:
         QTRY_VERIFY(!e.view()->hasPageBreaks());
         w.act(QStringLiteral("view.pageBreaks"))->trigger();
         QTRY_VERIFY(e.view()->hasPageBreaks());
+    }
+
+    // The objects over the cells print where they are, at the page's scale, unless the file says an object stays off the paper; a draft leaves them all out.
+    void objectsPrintInPlaceUnlessTheyAreNotToBe()
+    {
+        QString rows;
+        for (int r = 1; r <= 3; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        QString red = drawtest::twoCell(3, 1, 6, 5, drawtest::shapeElement(2, QStringLiteral("Red"), QStringLiteral("rect"), QString(), QStringLiteral("FF0000")));
+        QString blue = drawtest::twoCell(3, 7, 6, 10, drawtest::shapeElement(3, QStringLiteral("Blue"), QStringLiteral("rect"), QString(), QStringLiteral("0000FF")));
+        blue.replace(QStringLiteral("<xdr:clientData/>"), QStringLiteral("<xdr:clientData fPrintsWithSheet=\"0\"/>"));
+        EditWindow e;
+        QVERIFY(e.open(drawtest::bookWithDrawing({worksheet(rows)}, drawtest::drawingPart(red + blue), {})));
+        CrunchWindow &w = e.win.w;
+        QString why;
+        std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY2(job, qPrintable(why));
+        QVERIFY(job->printOf(0)->areas[0].row2 >= 4);   // (the red shape reaches row 5: the block takes it in)
+        QVERIFY(job->printOf(0)->areas[0].col2 >= 5);
+        QImage img = job->preview(0, 612);   // (a pixel to the point)
+        auto at = [&](double x, double y) { return img.pixel(int(x), int(y)); };
+        // column D begins 3 x 48 points past the margin; row 2 is 15 points below the top margin
+        const QRgb inRed = at(50.4 + 3 * 48 + 8, 54 + 15 + 5);
+        QVERIFY2(qRed(inRed) > 200 && qGreen(inRed) < 60 && qBlue(inRed) < 60, qPrintable(QString::number(inRed, 16)));
+        const QRgb inBlue = at(50.4 + 3 * 48 + 8, 54 + 7 * 15 + 5);
+        QVERIFY2(qBlue(inBlue) > 200 ? qRed(inBlue) > 200 : true, qPrintable(QString::number(inBlue, 16)));   // (white: the shape stays off the paper)
+        QVERIFY(qRed(inBlue) > 200 && qGreen(inBlue) > 200 && qBlue(inBlue) > 200);
+        // at half scale the red shape is half the size
+        crunch::PrintJobOptions half;
+        half.scaling = crunch::PrintScaling::NoScaling;
+        PageSetup p = e.win.w.session()->pages().sheet(0);
+        p.scale = 50;
+        QVERIFY(e.win.w.session()->setPageSetup(0, p, QStringLiteral("Page")).ok);
+        job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+        img = job->preview(0, 612);
+        const QRgb halfRed = at(50.4 + 3 * 24 + 8, 54 + 7 + 3);
+        QVERIFY2(qRed(halfRed) > 200 && qGreen(halfRed) < 60, qPrintable(QString::number(halfRed, 16)));
+        // a draft prints no objects
+        p.draft = true;
+        QVERIFY(e.win.w.session()->setPageSetup(0, p, QStringLiteral("Page")).ok);
+        job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+        img = job->preview(0, 612);
+        const QRgb none = at(50.4 + 3 * 24 + 8, 54 + 7 + 3);
+        QVERIFY(qGreen(none) > 200);
+    }
+
+    // A job with more pages than it may have is cut short, and says so; a sheet with nothing on it says that; odd margins and scales still give pages.
+    void aJobThatNeedsTooManyPagesIsCutShort()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(2000, {})));
+        CrunchWindow &w = e.win.w;
+        crunch::PrintJobOptions options;
+        options.maxPages = 10;
+        QString why;
+        const std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(options, &why);
+        QVERIFY2(job, qPrintable(why));
+        QCOMPARE(job->pageCount(), 10);
+        QVERIFY(!job->messages().isEmpty());
+        QVERIFY(job->messages().first().contains(QStringLiteral("Only the first 10")));
+        // margins that leave no room, a scale far past the limits: still pages, none empty
+        crunch::EditSession *session = w.session();
+        PageSetup p = session->pages().sheet(0);
+        p.margins = {-5, 500, 500, -1, 900, 900};
+        p.scale = 5;
+        QVERIFY(session->setPageSetup(0, p, QStringLiteral("Page")).ok);
+        const std::unique_ptr<crunch::PrintJob> odd = w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY2(odd, qPrintable(why));
+        QVERIFY(odd->pageCount() >= 1);
+        QVERIFY(!odd->preview(0, 200).isNull());
+        // a sheet with nothing on it has nothing to print
+        EditWindow empty;
+        QVERIFY(empty.open(buildXlsx({worksheet(QString())})));
+        QString emptyWhy;
+        QVERIFY(!empty.win.w.makePrintJob(crunch::PrintJobOptions(), &emptyWhy));
+        QVERIFY(emptyWhy.contains(QStringLiteral("nothing to print")));
     }
 
     // Rows inserted and the print area changed, then saved: the file has the area as the window shows it.

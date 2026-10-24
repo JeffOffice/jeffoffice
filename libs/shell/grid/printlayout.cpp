@@ -144,13 +144,30 @@ std::vector<CellRange> blocksOf(const PrintRequest &q, const Axis &rows, const A
 {
     std::vector<CellRange> blocks;
     if (!q.sheet) return blocks;
+    // Whole rows (or whole columns) are printed as far as the sheet has anything: a print area of $1:$1048576 is not a million rows of paper.
+    bool usedKnown = false, anyUsed = false;
+    quint32 usedRow = 0, usedCol = 0;
+    auto wholeLines = [&](CellRange b, CellRange *out) {
+        const bool wholeColumns = b.row1 == 0 && qint64(b.row2) >= rows.count() - 1, wholeRows = b.col1 == 0 && qint64(b.col2) >= cols.count() - 1;
+        if (wholeColumns || wholeRows) {
+            if (!usedKnown) {
+                usedKnown = true;
+                anyUsed = usedExtent(q, rows, cols, &usedRow, &usedCol);
+            }
+            if (!anyUsed) return false;
+            if (wholeColumns) b.row2 = std::min(b.row2, usedRow);
+            if (wholeRows) b.col2 = std::min(b.col2, usedCol);
+        }
+        *out = b;
+        return true;
+    };
     if (q.onlySelection) {
-        const CellRange s = held(q.selection, rows, cols);
-        if (s.valid) blocks.push_back(s);
+        CellRange s = held(q.selection, rows, cols);
+        if (s.valid && wholeLines(s, &s)) blocks.push_back(s);
     } else if (q.setup.hasPrintArea() && !q.ignorePrintArea) {
         for (const CellRange &a : q.setup.printArea) {
-            const CellRange h = held(a, rows, cols);
-            if (h.valid) blocks.push_back(h);
+            CellRange h = held(a, rows, cols);
+            if (h.valid && wholeLines(h, &h)) blocks.push_back(h);
         }
     } else {
         quint32 lastRow = 0, lastCol = 0;

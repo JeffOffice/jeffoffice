@@ -385,7 +385,7 @@ private Q_SLOTS:
         p = f.run();
         QCOMPARE(p.pages.size(), size_t(1));
         QCOMPARE(p.pages[0].row1, qint64(4));
-        // a print area past the end of the sheet is held to it
+        // a print area of whole columns or whole rows is printed as far as the sheet has anything, not a million rows of paper
         Fixture g(9, 9);
         CellRange off;
         off.valid = true;
@@ -395,8 +395,36 @@ private Q_SLOTS:
         off.col2 = 0;
         g.request.setup.printArea = {off};
         p = g.run();
-        QCOMPARE(p.pages[0].row1, qint64(0));
-        QVERIFY(p.pages.size() > 100);   // (a whole column: a million rows)
+        QCOMPARE(p.pages.size(), size_t(1));
+        QCOMPARE(p.pages[0].row2, qint64(9));
+        QCOMPARE(p.pages[0].col2, qint64(0));
+        CellRange rowsOnly = off;
+        rowsOnly.row1 = 2;
+        rowsOnly.row2 = 3;
+        rowsOnly.col2 = 16383;
+        g.request.setup.printArea = {rowsOnly};
+        p = g.run();
+        QCOMPARE(p.pages.size(), size_t(1));
+        QCOMPARE(p.pages[0].col2, qint64(9));
+        QCOMPARE(p.pages[0].row1, qint64(2));
+        // the whole sheet: the cells it has
+        CellRange all = off;
+        all.col2 = 16383;
+        g.request.setup.printArea = {all};
+        p = g.run();
+        QCOMPARE(p.pages[0].row2, qint64(9));
+        QCOMPARE(p.pages[0].col2, qint64(9));
+        // and a sheet with nothing on it has nothing in a print area of whole lines
+        Fixture blank(0, 0);
+        blank.sheet = Sheet();
+        blank.sheet.cells.finish();
+        blank.request.setup.printArea = {all};
+        QVERIFY(blank.run().pages.empty());
+        // a block that only reaches far (not whole rows or columns) is printed as it is
+        CellRange far = off;
+        far.row1 = 5;
+        g.request.setup.printArea = {far};
+        QVERIFY(g.run().pages.size() > 100);
     }
 
     // What prints with no print area: the cells with something to show, the borders and fills that show, and the objects; not a number format alone.

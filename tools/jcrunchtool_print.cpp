@@ -1,5 +1,6 @@
 // The printing commands of jcrunchtool (docs/jeffcrunch.md): a workbook's pages as a PDF without a window, and where the pages are cut.
-//   jcrunchtool print-pdf <file> <out.pdf> [--sheet N]       the pages of sheet N (counted from 1), or of every sheet that is shown, in a PDF; one line: pages, sheets, milliseconds
+//   jcrunchtool print-pdf <file> <out.pdf> [--sheet N]       the pages of sheet N (counted from 1), or of every sheet that is shown, in a PDF; one line: pages, sheets, milliseconds, then a line
+//                                                            "S", the sheet, and its pages for each sheet that has pages
 //   jcrunchtool print-sheets <file> <out-dir> [N ...]        each of the sheets named (all the sheets of cells if none), alone, as <out-dir>/sheet-NN.pdf, and <out-dir>/cuts.tsv with one line
 //                                                            for each page: sheet, its name, the scale, the page's place, the rows and columns it holds, and its titles (what the scoring
 //                                                            of the pages against the reference pages compares); one line: sheets, pages, milliseconds
@@ -12,6 +13,7 @@
 
 #include <QDir>
 #include <QElapsedTimer>
+#include <QMap>
 #include <QFileInfo>
 #include <QTextStream>
 
@@ -114,12 +116,16 @@ int printPdf(const QString &path, const QString &target, int sheet)
         return 4;
     }
     int sheets = 0, last = -2;
-    for (int i = 0; i < job->pageCount(); ++i)
+    QMap<int, int> perSheet;
+    for (int i = 0; i < job->pageCount(); ++i) {
         if (job->sheetOf(i) != last) {
             last = job->sheetOf(i);
             ++sheets;
         }
+        ++perSheet[job->sheetOf(i)];
+    }
     out() << job->pageCount() << "\t" << sheets << "\t" << t.elapsed() << "\n";
+    for (auto it = perSheet.begin(); it != perSheet.end(); ++it) out() << "S\t" << it.key() + 1 << "\t" << it.value() << "\n";
     for (const QString &m : job->messages()) err() << m << "\n";
     return 0;
 }
