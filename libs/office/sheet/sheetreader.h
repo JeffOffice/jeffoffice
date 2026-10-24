@@ -16,12 +16,15 @@
 #include <QVector>
 
 #include <functional>
+#include <memory>
 #include <map>
 #include <vector>
 
 namespace jp::office::sheet {
 
 using jp::calc::DateSystem;
+
+class XlsBook;
 
 // What the files control, bounded. Each is at least ten times what any real
 // workbook has; the most found in the 8,371 public workbooks used for tuning
@@ -71,11 +74,20 @@ constexpr qint64 kMaxBorders = 100000;
 constexpr qint64 kMaxColumnSpans = 163840;
 constexpr qint64 kMaxRowSpecs = 2097152;
 constexpr qint64 kMaxMerges = 1000000;
+// The work reading formulas takes in one sheet of a workbook of the old binary form: the bytes of tokens read, the pieces of text made of them, and the pieces written for each cell
+// of a formula that cannot be shared (a unit for each; 3,000,000 found in the largest of the practice workbooks, its 190,000 formulas).
+constexpr qint64 kMaxFormulaWork = 100000000;
 // Defined names in a workbook (3,295 found), and the characters of all their names and what they stand for (a name stands for 4,553 characters at the most).
 constexpr qint64 kMaxDefinedNames = 100000;
 constexpr qint64 kMaxDefinedNameChars = 20000000;
+// Runs of formatting inside the strings of a workbook, all together (the runs of the strings are kept only when asked for, or for a workbook of the older binary form; past this the strings
+// are kept without their runs).
+constexpr qint64 kMaxRichRuns = 5000000;
 
 struct Limits {
+    // The bytes of a workbook file (the most the apps open for every kind: office/package.h); a larger file is refused before any of it is read.
+    qint64 fileBytes = kMaxOpenFileBytes;
+    qint64 formulaWork = kMaxFormulaWork;
     qint64 cellsPerSheet = kMaxCellsPerSheet;
     qint64 sheetBytes = kMaxSheetBytes;
     qint64 stringChars = kMaxStringChars;
@@ -97,6 +109,10 @@ struct Limits {
     qint64 merges = kMaxMerges;
     qint64 definedNames = kMaxDefinedNames;
     qint64 definedNameChars = kMaxDefinedNameChars;
+    // Keep the runs of formatting in the shared strings of a workbook of the XML form (SharedStrings::rich); off, they are read for their text only, which is all a program that
+    // does not draw them needs.
+    bool richText = false;
+    qint64 richRuns = kMaxRichRuns;
 };
 
 enum class CalcMode { Auto, AutoNoTable, Manual };
@@ -178,6 +194,14 @@ public:
     // or it can't be read. A shared strings part that is damaged is not
     // fatal: sharedStringsError() says, and the strings before the damage stay.
     bool open(const Package &package, QString *error = nullptr, const Limits &limits = Limits());
+    // Opens a workbook file of either kind, told by its first bytes: the package of XML parts (.xlsx, .xlsm), or the older binary form (a compound file holding a
+    // workbook stream: BIFF5 to BIFF8). A package is read lazily, as readLazyFile does. False, with a message, if the file is neither, is damaged, or is encrypted.
+    bool openFile(const QString &path, QString *error = nullptr, const Limits &limits = Limits());
+    // The same for the bytes of a whole binary workbook file.
+    bool openBinary(const QByteArray &file, QString *error = nullptr, const Limits &limits = Limits());
+    // Whether the workbook was read from the older binary form, and what such a file holds that is not read (charts, pictures, ...), in words.
+    bool isBinary() const { return bool(m_xls); }
+    QStringList skippedFeatures() const;
     const WorkbookInfo &info() const { return m_info; }
     const SharedStrings &sharedStrings() const { return m_shared; }
     QString sharedStringsError() const { return m_sharedError; }
@@ -236,7 +260,9 @@ public:
     std::map<QString, QByteArray> changedTableParts() const;
 
 private:
+    bool openStream(const QByteArray &stream, bool hasMacros, QString *error, const Limits &limits);
     Package m_package;
+    std::shared_ptr<const XlsBook> m_xls;
     QString m_mainPart, m_sharedPart, m_stylesPart;
     qint64 m_sharedInFile = 0, m_formatsInFile = 0;
     QStringList m_sharedAdded;

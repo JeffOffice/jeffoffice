@@ -5,6 +5,7 @@
 #include "io/zip.h"
 #include "io/zipindex.h"
 #include "sheet/structsave.h"
+#include "sheet/xlsxbase.h"
 #include "sheet/xmlscan.h"
 
 #include <QCoreApplication>
@@ -308,11 +309,21 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     SaveReport local;
     SaveReport &rep = report ? *report : local;
     rep = SaveReport();
-    auto fail = [&](const QString &why) {
-        if (error) *error = why;
+    QString why;
+    auto fail = [&](const QString &text) {
+        if (error) *error = text;
         return false;
     };
-    const Package &package = book.package();
+    // A workbook read from the older binary form has no package yet: the first save writes one from what was read (xlsxbase.h), and the changes are put in that.
+    Package baseFile;
+    const Package *base = &book.package();
+    if (!base->isLazy() && book.isBinary()) {
+        QByteArray bytes;
+        if (!writeBaseXlsx(book, &bytes, &why, cancel)) return fail(why);
+        if (!baseFile.readLazy(bytes, &why)) return fail(why);
+        base = &baseFile;
+    }
+    const Package &package = *base;
     if (!package.isLazy()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook was not opened from a file this program can save over."));
     const QByteArray bytes = package.fileBytes();
     QVector<ZipEntry> directory;
@@ -331,7 +342,6 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     QHash<int, QByteArray> replaced;   // entries written anew from bytes in memory
     QHash<int, int> sheetOfEntry;      // entries streamed through the sheet patcher: the sheet
     QSet<int> dropped;
-    QString why;
 
     // ---- the sheets
     bool anyCellChanged = false;

@@ -1,21 +1,28 @@
 // Command-line helper for JeffCrunch's readers and its yardstick (docs/jeffcrunch.md).
-//   jcrunchtool info [--tsv] <file.xlsx>         the workbook's sheets, cells, formula cells, and formula cells with a stored result, the functions the formulas
+//   jcrunchtool info [--tsv] <file.xlsx|file.xls>         the workbook's sheets, cells, formula cells, and formula cells with a stored result, the functions the formulas
 //                                                call with how often, and the time the read took; --tsv is that as one line of tab-separated fields (sheets, cells,
 //                                                formula cells, stored results, functions as NAME:count,..., problems, and the most that any one thing came to, for choosing limits:
 //                                                cells in a sheet, XML bytes of a sheet, longest string, longest formula, shared formulas in a sheet, cells of the largest shared
 //                                                range, formula characters expanded in a sheet, shared strings, their characters, sheets, bytes counted to hold the largest sheet). Exits 0 if all was read, 2 if it was opened
 //                                                but a sheet is only partly read, and 1 if it could not be opened.
-//   jcrunchtool dump <file.xlsx> [sheet=1] [max=100]   the first cells of a sheet (counting from 1), one to a line: address, type, value, and formula
+//   jcrunchtool names <file.xlsx|file.xls>                the defined names, one to a line (the sheet it belongs to, its name, and what it stands for), and what a binary workbook holds that is not read
+//   jcrunchtool compare-one <ours.xls> <theirs.xlsx>   a workbook of the old form read here, and the same workbook saved in the XML form by another program, cell by cell (see jcrunchtool_compare.cpp;
+//                                                tools/crunch_xls_compare.py runs it over a list and sums it up)
+//   jcrunchtool xls-fuzz <file.xls> [count=500] [seed=1] [seconds=60]   the workbook damaged in a few places, `count` times, and each copy opened, read, and (some) worked out, as a sweep for crashes
+//                                                and hangs of the reader of the old binary form (see jcrunchtool_xlsfuzz.cpp)
+//   jcrunchtool xls-save-check <file.xls>   the workbook written as the XML form, read back, and compared with itself, and written again with one cell changed (see jcrunchtool_xlssave.cpp;
+//                                                tools/crunch_xls_savecheck.py runs it over a list)
+//   jcrunchtool dump <file.xlsx|file.xls> [sheet=1] [max=100]   the first cells of a sheet (counting from 1), one to a line: address, type, value, and formula
 //   jcrunchtool scan <keys.txt> <out-dir> [jobs]   runs `info` on each workbook listed (one path to a line), each in a child process that has 120 seconds and 4 GB,
 //                                                  and writes <out-dir>/books.tsv: path, exit, seconds, peak MB, sheets, cells, formula cells, stored results, and
 //                                                  functions used. (tools/crunch_scan.py does the work; tools/crunch_summary.py <out-dir> sums the table up.)
 //   jcrunchtool format <code> <number> [1904]   a number in a format code, as the engine shows it: the text, then the color, where a fill goes, and "failed" if it can't be shown
-//   jcrunchtool formats-one <file.xlsx>          the number formats checked in one workbook: a line `case` for each formula that is TEXT, FIXED, or DOLLAR of
+//   jcrunchtool formats-one <file.xlsx|file.xls>          the number formats checked in one workbook: a line `case` for each formula that is TEXT, FIXED, or DOLLAR of
 //                                                a number (sheet!cell, function, value, code, the text the file stored, ours, 1 if they are the same), and a
 //                                                line `use` for each format code the cells use (the code, how many cells with a value, 1 if it parses)
 //   jcrunchtool formats <keys.txt> <out-dir> [jobs]   runs `formats-one` on each workbook listed under the same limits as `scan`, writes <out-dir>/formats.tsv
 //                                                  and codes.tsv, and prints the share of cases that match (tools/crunch_formats.py does the work)
-//   jcrunchtool recalc-one <file.xlsx> [matches=3] [seconds=100]   every formula cell worked out once, reading what it refers to from the values the file stored, and compared with the
+//   jcrunchtool recalc-one <file.xlsx|file.xls> [matches=3] [seconds=100]   every formula cell worked out once, reading what it refers to from the values the file stored, and compared with the
 //                                                result stored with it (15 digits for a number; text, true or false, and the kind of an error exactly). Lines: `row` for each cell
 //                                                that does not match (a few of each kind besides, and a few that match): sheet, cell, class (M match, X mismatch, U calls a function
 //                                                not in the registry, V volatile, E another workbook, T a table's columns, P not parsed, N no result stored, D data table, L past the
@@ -24,18 +31,18 @@
 //                                                how many; and `book`: the formula cells, the cells of each class in the order above, the volatile ones that were worked out and
 //                                                matched, whether the workbook calculates by hand, whether every sheet was read, and the seconds
 //   jcrunchtool functions                      the functions the formula engine has: name, fewest and most arguments, and v (volatile) or f (written with the prefix _xlfn.)
-//   jcrunchtool recalc-full-one <file.xlsx> [matches=3] [seconds=100]   every formula worked out from the constants (not from the results the file stored), in dependency order, and
+//   jcrunchtool recalc-full-one <file.xlsx|file.xls> [matches=3] [seconds=100]   every formula worked out from the constants (not from the results the file stored), in dependency order, and
 //                                                compared with its stored result; the formulas the engine cannot work out keep the stored result and mark what reads them (class Z);
 //                                                prints the cells that do not match, the functions, and a line for the workbook with the seconds and the peak memory
 //   jcrunchtool recalc-full <keys.txt> <out-dir> [jobs]   runs `recalc-full-one` on each workbook listed under the limits of `recalc`, writes <out-dir>/cells.tsv and books.tsv, and prints the
 //                                                summary: the cells and the share that match, the workbooks that match whole, how each of the commonest functions fared, the commonest
 //                                                mismatches, and the time and memory (tools/crunch_recalc_full.py does the work)
-//   jcrunchtool mutate <file.xlsx> [count=3000] [seed=1] [seconds=60]   the formulas of the workbook, each damaged in a few places (a character changed, taken out, or put in, a piece
+//   jcrunchtool mutate <file.xlsx|file.xls> [count=3000] [seed=1] [seconds=60]   the formulas of the workbook, each damaged in a few places (a character changed, taken out, or put in, a piece
 //                                                repeated or moved), some grown by repeating them as the arguments of a sum or the parts of a text up to the 32,768 characters a formula
 //                                                may have, and parsed and worked out against the workbook's cells with the engine's own bounds on steps and cells, as a sweep for crashes
 //                                                and hangs; then edits (values, texts, errors, cleared cells, the damaged formulas put in cells) to the calculation of the workbook,
 //                                                each followed by a recalculation, some in slices and some stopped; prints how many of each
-//   jcrunchtool eval <file.xlsx> <sheet> <cell> <formula>   the formula worked out as if it were in that cell of that sheet (a name, or a number counting from 1), reading the values the file stored:
+//   jcrunchtool eval <file.xlsx|file.xls> <sheet> <cell> <formula>   the formula worked out as if it were in that cell of that sheet (a name, or a number counting from 1), reading the values the file stored:
 //                                                the value, as `n:1.5`, `s:text`, `b:1`, `e:#N/A`, or `a:2x2[...]`
 //   jcrunchtool recalc <keys.txt> <out-dir> [jobs]   runs `recalc-one` on each workbook listed under the same limits as `scan`, writes <out-dir>/cells.tsv (workbook, sheet, cell, formula,
 //                                                  stored, ours, class: the cells that do not match, with a few that do) and books.tsv, and prints the summary: how many formula cells
@@ -126,18 +133,13 @@ int info(const QString &path, bool tsv)
 {
     QElapsedTimer timer;
     timer.start();
-    Package package;
     QString why;
-    if (!package.readLazyFile(path, &why)) {
-        err() << path << ": " << why << "\n";
-        return 1;
-    }
     Workbook book;
-    if (!book.open(package, &why)) {
+    if (!book.openFile(path, &why)) {
         err() << path << ": " << why << "\n";
         return 1;
     }
-    qint64 cells = 0, formulaCells = 0, storedResults = 0, valued = 0, worksheets = 0, merged = 0;
+    qint64 cells = 0, formulaCells = 0, storedResults = 0, valued = 0, worksheets = 0, merged = 0, unread = 0;
     QHash<QString, qint64> functions;
     QStringList problems;
     Largest largest;
@@ -151,6 +153,7 @@ int info(const QString &path, bool tsv)
         formulaCells += sheet.formulaCells;
         storedResults += sheet.storedResults;
         merged += sheet.mergeCount;
+        unread += sheet.stats.unreadFormulas;
         largest.take(sheet);
         // Each distinct text of a formula is looked at once, whatever number of cells have it.
         QVector<qint64> uses(sheet.formulaTexts.size(), 0);
@@ -174,7 +177,7 @@ int info(const QString &path, bool tsv)
         out() << worksheets << '\t' << cells << '\t' << formulaCells << '\t' << storedResults << '\t' << used.join(',') << '\t' << problems.join(QStringLiteral("; ")).replace('\t', ' ');
         // and the most any one thing came to, for choosing the limits
         for (qint64 n : {largest.cellsInSheet, largest.xmlBytes, largest.string, largest.formula, largest.sharedFormulas, largest.sharedRange, largest.expandedChars,
-                         qint64(book.sharedStrings().strings.size()), book.sharedStrings().chars, qint64(book.info().sheets.size()), largest.heldBytes})
+                         qint64(book.sharedStrings().strings.size()), book.sharedStrings().chars, qint64(book.info().sheets.size()), largest.heldBytes, unread})
             out() << '\t' << n;
         out() << "\n";
     } else {
@@ -183,6 +186,11 @@ int info(const QString &path, bool tsv)
               << " dates\n";
         out() << "cells:                 " << cells << " (" << valued << " with a value, " << merged << " merged ranges)\n";
         out() << "formula cells:         " << formulaCells << "\n";
+        if (book.isBinary()) {
+            out() << "formulas not read:     " << unread << " (the old form's formulas that could not be turned into text keep the result the file stored)\n";
+            const QStringList skipped = book.skippedFeatures();
+            if (!skipped.isEmpty()) out() << "not read:              " << skipped.join(QStringLiteral(", ")) << "\n";
+        }
         out() << "with a stored result:  " << storedResults << "\n";
         out() << "shared strings:        " << book.sharedStrings().strings.size() << " (" << book.sharedStrings().chars << " characters)\n";
         out() << "largest:               " << largest.cellsInSheet << " cells in a sheet, " << largest.xmlBytes << " bytes of XML, a string of " << largest.string << " characters, a formula of "
@@ -197,6 +205,20 @@ int info(const QString &path, bool tsv)
         for (const QString &p : problems) out() << "problem: " << p << "\n";
     }
     return problems.isEmpty() ? 0 : 2;
+}
+
+int names(const QString &path)
+{
+    QString why;
+    Workbook book;
+    if (!book.openFile(path, &why)) {
+        err() << path << ": " << why << "\n";
+        return 1;
+    }
+    for (const DefinedName &n : book.info().definedNames) out() << (n.localSheet >= 0 ? book.info().sheets.value(n.localSheet).name : QString()) << '\t' << n.name << '\t' << n.ref << (n.hidden ? "\thidden" : "") << "\n";
+    const QStringList skipped = book.skippedFeatures();
+    if (!skipped.isEmpty()) out() << "skipped: " << skipped.join(QStringLiteral(", ")) << "\n";
+    return 0;
 }
 
 const char *typeName(CellType t)
@@ -216,10 +238,9 @@ const char *typeName(CellType t)
 
 int dump(const QString &path, int sheetNumber, qint64 most)
 {
-    Package package;
     QString why;
     Workbook book;
-    if (!package.readLazyFile(path, &why) || !book.open(package, &why)) {
+    if (!book.openFile(path, &why)) {
         err() << path << ": " << why << "\n";
         return 1;
     }
@@ -269,14 +290,9 @@ QString escapeField(const QString &s)
 
 int formatsOne(const QString &path)
 {
-    Package package;
     QString why;
-    if (!package.readLazyFile(path, &why)) {
-        err() << path << ": " << why << "\n";
-        return 1;
-    }
     Workbook book;
-    if (!book.open(package, &why)) {
+    if (!book.openFile(path, &why)) {
         err() << path << ": " << why << "\n";
         return 1;
     }
@@ -304,14 +320,9 @@ int formatsOne(const QString &path)
 
 int recalcOne(const QString &path, int keepMatches, double seconds)
 {
-    Package package;
     QString why;
-    if (!package.readLazyFile(path, &why)) {
-        err() << path << ": " << why << "\n";
-        return 1;
-    }
     Workbook book;
-    if (!book.open(package, &why)) {
+    if (!book.openFile(path, &why)) {
         err() << path << ": " << why << "\n";
         return 1;
     }
@@ -343,14 +354,9 @@ int recalcOne(const QString &path, int keepMatches, double seconds)
 
 int recalcFullOne(const QString &path, int keepMatches, double seconds)
 {
-    Package package;
     QString why;
-    if (!package.readLazyFile(path, &why)) {
-        err() << path << ": " << why << "\n";
-        return 1;
-    }
     Workbook book;
-    if (!book.open(package, &why)) {
+    if (!book.openFile(path, &why)) {
         err() << path << ": " << why << "\n";
         return 1;
     }
@@ -386,10 +392,9 @@ int recalcFullOne(const QString &path, int keepMatches, double seconds)
 
 int mutate(const QString &path, int count, quint32 seed, double seconds)
 {
-    Package package;
     QString why;
     Workbook book;
-    if (!package.readLazyFile(path, &why) || !book.open(package, &why)) {
+    if (!book.openFile(path, &why)) {
         err() << path << ": " << why << "\n";
         return 1;
     }
@@ -540,10 +545,9 @@ int listFunctions()
 
 int evalFormula(const QString &path, const QString &sheetArg, const QString &cell, const QString &formula)
 {
-    Package package;
     QString why;
     Workbook book;
-    if (!package.readLazyFile(path, &why) || !book.open(package, &why)) {
+    if (!book.openFile(path, &why)) {
         err() << path << ": " << why << "\n";
         return 1;
     }
@@ -668,27 +672,37 @@ int scan(const QString &keys, const QString &outDir, const QString &jobs)
 
 int usage()
 {
-    err() << "usage: jcrunchtool info [--tsv] <file.xlsx>\n"
-             "       jcrunchtool dump <file.xlsx> [sheet=1] [max=100]\n"
+    err() << "usage: jcrunchtool info [--tsv] <file.xlsx|file.xls>\n"
+             "       jcrunchtool dump <file.xlsx|file.xls> [sheet=1] [max=100]\n"
              "       jcrunchtool scan <keys.txt> <out-dir> [jobs]\n"
              "       jcrunchtool format <code> <number> [1904]\n"
-             "       jcrunchtool formats-one <file.xlsx>\n"
+             "       jcrunchtool formats-one <file.xlsx|file.xls>\n"
              "       jcrunchtool formats <keys.txt> <out-dir> [jobs]\n"
-             "       jcrunchtool recalc-one <file.xlsx> [matches=3] [seconds=100]\n"
-             "       jcrunchtool mutate <file.xlsx> [count=3000] [seed=1] [seconds=60]\n"
+             "       jcrunchtool recalc-one <file.xlsx|file.xls> [matches=3] [seconds=100]\n"
+             "       jcrunchtool mutate <file.xlsx|file.xls> [count=3000] [seed=1] [seconds=60]\n"
+             "       jcrunchtool names <file.xlsx|file.xls>\n"
+             "       jcrunchtool compare-one <ours.xls> <theirs.xlsx>\n"
+             "       jcrunchtool xls-fuzz <file.xls> [count=500] [seed=1] [seconds=60]\n"
+             "       jcrunchtool xls-save-check <file.xls>\n"
              "       jcrunchtool functions\n"
-             "       jcrunchtool eval <file.xlsx> <sheet> <cell> <formula>\n"
+             "       jcrunchtool eval <file.xlsx|file.xls> <sheet> <cell> <formula>\n"
              "       jcrunchtool recalc <keys.txt> <out-dir> [jobs]\n"
-             "       jcrunchtool recalc-full-one <file.xlsx> [matches=3] [seconds=100]\n"
+             "       jcrunchtool recalc-full-one <file.xlsx|file.xls> [matches=3] [seconds=100]\n"
              "       jcrunchtool recalc-full <keys.txt> <out-dir> [jobs]\n"
-             "       jcrunchtool grid-one [--full] <file.xlsx>\n"
-             "       jcrunchtool grid-window <file.xlsx>\n"
+             "       jcrunchtool grid-one [--full] <file.xlsx|file.xls>\n"
+             "       jcrunchtool grid-window <file.xlsx|file.xls>\n"
              "       jcrunchtool grid-bench [rows=100000] [cols=20]\n"
              "       jcrunchtool grid-sweep <keys.txt> <out-dir> [jobs]\n";
     return 2;
 }
 
 } // namespace
+
+namespace jp::crunchtool {
+int compareMain(const QStringList &args);   // (jcrunchtool_compare.cpp)
+int xlsFuzzMain(const QStringList &args);   // (jcrunchtool_xlsfuzz.cpp)
+int xlsSaveCheckMain(const QStringList &args);   // (jcrunchtool_xlssave.cpp)
+}
 
 int main(int argc, char **argv)
 {
@@ -714,6 +728,16 @@ int main(int argc, char **argv)
     if (args.size() >= 2 && args[0] == QLatin1String("info")) {
         const bool tsv = args[1] == QLatin1String("--tsv");
         if (args.size() == (tsv ? 3 : 2)) return info(args.last(), tsv);
+    }
+    if (args.size() == 2 && args[0] == QLatin1String("names")) return names(args[1]);
+    if (args.size() == 3 && args[0] == QLatin1String("compare-one")) return jp::crunchtool::compareMain(args.mid(1));
+    if (args.size() >= 2 && args.size() <= 5 && args[0] == QLatin1String("xls-fuzz")) {
+        const int code = jp::crunchtool::xlsFuzzMain(args.mid(1));
+        if (code >= 0) return code;
+    }
+    if (args.size() == 2 && args[0] == QLatin1String("xls-save-check")) {
+        const int code = jp::crunchtool::xlsSaveCheckMain(args.mid(1));
+        if (code >= 0) return code;
     }
     if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("dump")) return dump(args[1], args.value(2, QStringLiteral("1")).toInt(), args.value(3, QStringLiteral("100")).toLongLong());
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("scan")) return scan(args[1], args[2], args.value(3));

@@ -376,7 +376,7 @@ private Q_SLOTS:
         QVERIFY(b.calc->canApply(StructEdit::deleteColumns(0, 0, 1), &why));
         Calculation::EditRecord rec;
         QVERIFY(b.apply(StructEdit::insertRows(0, 0, 2), &rec));
-        QCOMPARE(b.calc->content(0, 3, 3).formula, QStringLiteral("TABLE(B4)"));
+        QCOMPARE(b.calc->content(0, 3, 3).formula, QStringLiteral("TABLE(,B4)"));
     }
 
     // Where a table is after rows, columns, and cells are inserted and deleted around it: it moves, grows, and shrinks with its rows, and is not cut through.

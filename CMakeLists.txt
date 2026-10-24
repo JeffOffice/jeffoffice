@@ -46,6 +46,10 @@ jo_library(jo_text libs/text)
 target_link_libraries(jo_text PUBLIC jo_draw)
 jo_library(jo_office libs/office)
 target_link_libraries(jo_office PUBLIC jo_text Qt6::Xml)
+if(APPLE)
+  # (the code pages of the old workbook format that take two bytes a character are CoreFoundation's to convert)
+  target_link_libraries(jo_office PRIVATE "-framework CoreFoundation")
+endif()
 jo_library(jo_shell libs/shell)
 target_link_libraries(jo_shell PUBLIC jo_office)
 if(WIN32)
@@ -185,6 +189,7 @@ qt_add_executable(sheettests
   tests/testrunner.cpp
   tests/sheet/sheethelpers.cpp
   tests/sheet/calchelpers.cpp
+  tests/sheet/xlshelpers.cpp
   tests/sheet/tst_grid_axis.cpp
   tests/sheet/tst_grid_cells.cpp
   tests/sheet/tst_grid_layout.cpp
@@ -220,7 +225,11 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_structsave.cpp
   tests/sheet/tst_sheet_tables.cpp
   tests/sheet/tst_sheet_validate.cpp
-  tests/sheet/tst_sheet_workbook.cpp)
+  tests/sheet/tst_sheet_workbook.cpp
+  tests/sheet/tst_sheet_xls.cpp
+  tests/sheet/tst_sheet_xlssave.cpp
+  tests/sheet/tst_sheet_xlsformula.cpp
+  tests/sheet/tst_sheet_xlshostile.cpp)
 target_link_libraries(sheettests PRIVATE jo_shell Qt6::Test)
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME sheettests COMMAND sheettests)
@@ -427,7 +436,7 @@ endif()
 target_link_libraries(jeffcrunch PRIVATE jccore)
 set_target_properties(jeffcrunch PROPERTIES OUTPUT_NAME JeffCrunch)
 # The tests of the window (the grid's own are in sheettests).
-qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/sheet/sheethelpers.cpp)
+qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/crunch/tst_crunch_xls.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp)
 target_link_libraries(crunchtests PRIVATE jccore Qt6::Test)
 target_include_directories(crunchtests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 target_compile_definitions(crunchtests PRIVATE JC_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
@@ -509,7 +518,7 @@ endif()
 set_target_properties(writetool PROPERTIES WIN32_EXECUTABLE OFF)
 
 # Developer tool for JeffCrunch's readers and its yardstick: what a workbook holds, and a table of that for a list of workbooks.
-qt_add_executable(jcrunchtool tools/jcrunchtool.cpp)
+qt_add_executable(jcrunchtool tools/jcrunchtool.cpp tools/jcrunchtool_compare.cpp tools/jcrunchtool_xlsfuzz.cpp tools/jcrunchtool_xlssave.cpp)
 target_link_libraries(jcrunchtool PRIVATE jo_office)
 target_compile_definitions(jcrunchtool PRIVATE JCRUNCH_TOOLS_DIR="${CMAKE_SOURCE_DIR}/tools")
 set_target_properties(jcrunchtool PROPERTIES WIN32_EXECUTABLE OFF)
