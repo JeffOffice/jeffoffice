@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 
 namespace jp::office::sheet {
 
@@ -89,13 +90,49 @@ QString textOfValue(const Value &v)
 
 } // namespace
 
+// Where the rules of a sheet are, so that the rule for a cell is found without looking at every rule: the ranges are put in the blocks of 64 rows they cross (a range that crosses many
+// goes in a short list of its own). The rule that comes first in the file's order wins, as it did when every rule was looked at in turn.
+struct Calculation::RuleIndex {
+    struct Entry {
+        quint32 row1, row2, col1, col2;
+        int rule;
+    };
+    std::unordered_map<quint32, std::vector<Entry>> blocks;
+    std::vector<Entry> tall;
+    static constexpr quint32 kBlockRows = 64, kTallBlocks = 256;
+};
+
 const Validation *Calculation::validationAt(int sheet, quint32 row, quint32 col) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return nullptr;
-    for (const Validation &v : m_sheets[size_t(sheet)].validations)
-        for (const CellRange &r : v.ranges)
-            if (r.contains(row, col)) return &v;
-    return nullptr;
+    const QVector<Validation> &rules = m_sheets[size_t(sheet)].validations;
+    if (rules.isEmpty()) return nullptr;
+    if (m_ruleIndex.size() != m_sheets.size()) m_ruleIndex.assign(m_sheets.size(), nullptr);
+    std::shared_ptr<RuleIndex> &index = m_ruleIndex[size_t(sheet)];
+    if (!index) {
+        index = std::make_shared<RuleIndex>();
+        for (int i = 0; i < rules.size(); ++i)
+            for (const CellRange &r : rules[i].ranges) {
+                if (!r.valid) continue;
+                const RuleIndex::Entry entry{r.row1, r.row2, r.col1, r.col2, i};
+                const quint32 first = r.row1 / RuleIndex::kBlockRows, last = r.row2 / RuleIndex::kBlockRows;
+                if (last - first >= RuleIndex::kTallBlocks) {
+                    index->tall.push_back(entry);
+                    continue;
+                }
+                for (quint32 b = first; b <= last; ++b) index->blocks[b].push_back(entry);
+            }
+    }
+    int best = -1;
+    auto look = [&](const std::vector<RuleIndex::Entry> &list) {
+        m_ruleLookupWork += qint64(list.size());
+        for (const RuleIndex::Entry &e : list)
+            if ((best < 0 || e.rule < best) && row >= e.row1 && row <= e.row2 && col >= e.col1 && col <= e.col2) best = e.rule;
+    };
+    const auto at = index->blocks.find(row / RuleIndex::kBlockRows);
+    if (at != index->blocks.end()) look(at->second);
+    look(index->tall);
+    return best < 0 ? nullptr : &rules[best];
 }
 
 Value Calculation::ruleFormula(const Validation &rule, const QString &text, int sheet, quint32 row, quint32 col, const jp::calc::CellSource &source, bool asArray) const
@@ -150,6 +187,7 @@ bool Calculation::entryAllowed(int sheet, quint32 row, quint32 col, const Valida
 {
     using T = Validation::Type;
     using C = Validation::Compare;
+    ++m_ruleEvaluations;
     if (rule.type == T::Any) return true;
     if (entry.isEmpty()) return rule.allowBlank;
     if (rule.type == T::List) {

@@ -341,7 +341,12 @@ EditSession::Outcome EditSession::checkRule(int sheet, quint32 row, quint32 col,
     const jp::office::sheet::Validation *rule = calc->validationAt(sheet, row, col);
     // (an entry that is empty, or a formula, is not held to a rule, nor is any when the file asks for no alert)
     if (!rule || rule->type == jp::office::sheet::Validation::Type::Any || !rule->showError || isFormula || value.isEmpty()) return out;
-    if (calc->entryAllowed(sheet, row, col, *rule, value, typed)) return out;
+    {
+        // (the rule is worked out with the worker held back: it reads the cells through the calculation, which the worker is working in)
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) return out;
+        if (hold->calculation()->entryAllowed(sheet, row, col, *rule, value, typed)) return out;
+    }
     out.ok = false;
     out.rule = true;
     out.ruleStyle = int(rule->style);

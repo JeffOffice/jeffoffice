@@ -299,7 +299,10 @@ bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
         setFormula(w.sheet, w.row, w.col, w.text, Marking::Later, stored);
     }
     for (const auto &entry : rec.validations)
-        if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].validations = entry.second;
+        if (entry.first >= 0 && entry.first < int(m_sheets.size())) {
+            m_sheets[size_t(entry.first)].validations = entry.second;
+            m_ruleIndex.clear();
+        }
     Sheet &S = m_sheets[size_t(e.sheet)];
     S.merges = rec.merges;
     S.mergeCount = rec.mergeCount;

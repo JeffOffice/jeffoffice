@@ -15,6 +15,9 @@
 namespace jp::crunch {
 
 constexpr const char *kClipMime = "application/x-jeffcrunch-cells";
+// Most cells made from what another program puts on the clipboard as text or an HTML table (a span of columns counts for all its cells): what is past it is not read, and the paste says
+// that it is too much. A paste is at most a tenth of this.
+constexpr qint64 kMaxClipCells = 1000000;
 
 struct ClipCell {
     quint32 dRow = 0, dCol = 0;                          // from the block's first cell

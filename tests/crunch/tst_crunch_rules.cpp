@@ -217,8 +217,9 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("H2")), QStringLiteral("n:8"));
     }
 
-    // A pasted value is held to the rule as a typed one is: a stop refuses the paste, a warning asks once, the cells that fit are not asked about.
-    void pastedValuesAreChecked()
+    // Only what is typed is held to the rules, as in the programs people know: a pasted value (text from another program, cells copied here, a Paste Special) goes in as it is, and no
+    // rule is worked out for it (a paste of a hundred thousand cells under a rule that reads a million rows would not end).
+    void pastedValuesAreNotChecked()
     {
         EditWindow e;
         QVERIFY(e.open(rulesBook()));
@@ -232,37 +233,66 @@ private Q_SLOTS:
             md->setText(text);
             QApplication::clipboard()->setMimeData(md);
         };
-        // three numbers into A1:A3, one of them over the limit
+        const qint64 before = e.win.w.calculation()->ruleEvaluations();
+        // three numbers into A1:A3 (a rule of whole numbers from 1 to 10), one of them over the limit: it goes in
         put(QStringLiteral("4\n40\n6\n"));
         e.select(QStringLiteral("A1"));
         e.win.told.clear();
         e.win.w.act(QStringLiteral("edit.paste"))->trigger();
-        QCOMPARE(e.win.w.undoStack()->count(), 0);
-        QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("Whole numbers from 1 to 10 only.")), qPrintable(e.win.told.join('|')));
-        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("-"));
-        // numbers that fit
-        put(QStringLiteral("4\n5\n6\n"));
-        e.win.w.act(QStringLiteral("edit.paste"))->trigger();
         QVERIFY(e.settle());
-        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("4|5|6"));
-        // a warning: B1 over 0.5 asks, once, even for more cells
-        put(QStringLiteral("0.1\n"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("4|40|6"));
+        QVERIFY(e.win.told.isEmpty());
+        // a value over a warning's limit, and cells with no rule
+        put(QStringLiteral("0.9\n"));
         e.select(QStringLiteral("B1"));
         e.win.w.act(QStringLiteral("edit.paste"))->trigger();
-        QCOMPARE(asked.size(), 1);
-        QVERIFY(asked.last().startsWith(QStringLiteral("1|")));
-        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:0.1"));                  // (it said go on)
-        // cells the rules say nothing of are not held to anything
-        put(QStringLiteral("anything\n"));
-        e.select(QStringLiteral("K5"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:0.9"));
+        QVERIFY(asked.isEmpty());
+        // copied cells, and Paste Special, the same
+        e.view()->selectRange(0, 0, 0, 0);
+        e.win.w.act(QStringLiteral("edit.copy"))->trigger();
+        QTRY_VERIFY(!e.win.w.isCopying());
+        e.select(QStringLiteral("A5"));
         e.win.w.act(QStringLiteral("edit.paste"))->trigger();
-        QCOMPARE(asked.size(), 1);
-        QCOMPARE(e.valueAt(QStringLiteral("K5")), QStringLiteral("s:anything"));
-        // the paste can be told not to check
-        crunch::EditSession::PasteOptions o;
-        o.checkRules = false;
-        QVERIFY(e.win.w.session()->pasteText(0, rangeOf(QStringLiteral("A1")), {{QStringLiteral("99")}}, o).ok);
-        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:99"));
+        e.select(QStringLiteral("A6"));
+        e.win.w.act(QStringLiteral("paste.values"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A5")), QStringLiteral("n:4"));
+        QCOMPARE(e.win.w.calculation()->ruleEvaluations(), before);   // (no rule was worked out for any of it)
+        // what is typed still is
+        e.select(QStringLiteral("A1"));
+        e.win.told.clear();
+        e.enter(QStringLiteral("40"));
+        QVERIFY(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("Whole numbers from 1 to 10 only.")));
+        QCOMPARE(e.win.w.calculation()->ruleEvaluations(), before + 1);
+    }
+
+    // A rule is worked out with the worker held back (it reads the cells through the calculation, which the worker works in): the entry typed under a rule, and the list a button shows,
+    // each take the hold.
+    void aRuleIsWorkedOutWithTheWorkerHeld()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rulesBook()));
+        auto &loader = e.win.w.workbookLoader();
+        e.select(QStringLiteral("K1"));   // (no rule)
+        qint64 holds = loader.holdsTaken();
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        const qint64 plain = loader.holdsTaken() - holds;   // (the step's own)
+        e.select(QStringLiteral("A2"));   // (whole numbers from 1 to 10)
+        holds = loader.holdsTaken();
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        QCOMPARE(loader.holdsTaken() - holds, plain + 1);
+        // the choices of a list
+        e.select(QStringLiteral("C1"));
+        QVERIFY2(e.win.w.calculation()->validationAt(0, 0, 2) && e.win.w.calculation()->validationAt(0, 0, 2)->type == office::sheet::Validation::Type::List, "C1 holds a list in the book");
+        holds = loader.holdsTaken();
+        QTest::keyClick(e.view(), Qt::Key_Down, Qt::AltModifier);
+        QCOMPARE(loader.holdsTaken() - holds, qint64(1));
+        for (QMenu *m : e.win.w.findChildren<QMenu *>(QStringLiteral("listMenu"))) m->close();
     }
 
     // A list is offered from a button on the cell: the button is at the right edge, a click (or Alt+Down) opens the choices, and the one chosen is entered; a cell with no list has no button.

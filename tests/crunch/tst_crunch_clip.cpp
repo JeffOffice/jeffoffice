@@ -14,6 +14,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
+#include <QDataStream>
 #include <QMimeData>
 #include <QSettings>
 #include <QSignalSpy>
@@ -380,6 +381,72 @@ private Q_SLOTS:
     }
 
     // A copy shows its moving dashed border, and a fill being dragged shows where it will go: both are drawn in a window of a workbook that looks like a real one. The picture is saved when
+
+    // What a program puts on the clipboard is not believed: text and HTML make no more cells than there can be (a span of columns counts for all its cells), what this program's own form says
+    // of its sizes is held to the grid and to the bytes there are, and a paste does not make more merged cells than there can be.
+    void aHostileClipboardIsBounded()
+    {
+        // twenty thousand cells that each stand for 255: far more than the most
+        QString html = QStringLiteral("<table><tr>");
+        for (int i = 0; i < 20000; ++i) html += QStringLiteral("<td colspan=255></td>");
+        html += QStringLiteral("</tr></table>");
+        qint64 cells = 0;
+        for (const QStringList &row : crunch::parseHtmlTable(html)) cells += row.size();
+        QVERIFY2(cells <= crunch::kMaxClipCells && cells > 0, qPrintable(QString::number(cells)));
+        cells = 0;
+        for (const QStringList &row : crunch::parseTabSeparated(QString(2500000, QLatin1Char('\t')))) cells += row.size();
+        QVERIFY2(cells <= crunch::kMaxClipCells + 1, qPrintable(QString::number(cells)));
+        // a table of the usual size is read whole
+        QCOMPARE(crunch::parseHtmlTable(QStringLiteral("<table><tr><td>a</td><td colspan=2>b</td></tr><tr><td>c</td></tr></table>")), (QVector<QStringList>{{QStringLiteral("a"), QStringLiteral("b"), QString()}, {QStringLiteral("c")}}));
+        // the form of this program's own: a good one is read, and one that says more than the bytes hold, or more than the grid, or puts cells and merges outside the block, is not
+        auto bytesFor = [](quint32 rows, quint32 cols, quint32 count, qint64 grow, quint32 merges, quint32 cellRow, quint32 cellCol, const QVector<quint32> &merge) {
+            QByteArray b;
+            QDataStream s(&b, QIODevice::WriteOnly);
+            s.setVersion(QDataStream::Qt_6_0);
+            s << quint32(0x4A434C50) << quint32(1) << qint64(0) << qint64(0) << qint32(0) << quint32(0) << quint32(0) << quint32(rows - 1) << quint32(cols - 1) << rows << cols << false << count;
+            for (quint32 i = 0; i < std::min<quint32>(count, 1000); ++i)
+                s << cellRow << cellCol << true << false << QString() << quint32(0) << QString() << false << qint32(0) << qint32(0);
+            Q_UNUSED(grow);
+            s << merges;
+            for (quint32 i = 0; i < std::min<quint32>(merges, 1) && merge.size() == 4; ++i) s << merge[0] << merge[1] << merge[2] << merge[3];
+            return b;
+        };
+        crunch::ClipData d;
+        QVERIFY(crunch::ClipData::fromBytes(bytesFor(3, 3, 1, 0, 0, 1, 1, {}), &d));
+        QCOMPARE(d.cells.size(), size_t(1));
+        QVERIFY(!crunch::ClipData::fromBytes(bytesFor(3, 3, 4000000, 0, 0, 1, 1, {}), &d));      // says four million cells, holds one
+        QVERIFY(!crunch::ClipData::fromBytes(bytesFor(3, 3, 10, 0, 0, 1, 1, {}), &d));           // says ten, holds ten, in a block of nine: not more than the block has
+        QVERIFY(!crunch::ClipData::fromBytes(bytesFor(3, 3, 1, 0, 0, 3, 1, {}), &d));            // a cell below the block
+        QVERIFY(!crunch::ClipData::fromBytes(bytesFor(3, 3, 1, 0, 0, 1, 3, {}), &d));            // and one right of it
+        QVERIFY(!crunch::ClipData::fromBytes(bytesFor(2000000, 3, 1, 0, 0, 1, 1, {}), &d));      // more rows than the grid has
+        QVERIFY(!crunch::ClipData::fromBytes(bytesFor(3, 20000, 1, 0, 0, 1, 1, {}), &d));        // more columns
+        QVERIFY(!crunch::ClipData::fromBytes(bytesFor(0, 3, 0, 0, 0, 0, 0, {}), &d));            // no rows
+        QVERIFY(crunch::ClipData::fromBytes(bytesFor(3, 3, 1, 0, 1, 1, 1, {0, 0, 1, 1}), &d));   // a merged range inside the block
+        QVERIFY(!crunch::ClipData::fromBytes(bytesFor(3, 3, 1, 0, 1, 1, 1, {0, 0, 5, 1}), &d));  // one that is not
+        QVERIFY(!crunch::ClipData::fromBytes(bytesFor(3, 3, 1, 0, 1, 1, 1, {1, 1, 0, 0}), &d));  // one that is turned over
+        QVERIFY(!crunch::ClipData::fromBytes(bytesFor(3, 3, 1, 0, 3000000, 1, 1, {0, 0, 1, 1}), &d));   // says three million merged ranges, holds one
+        // merges and tiles: the same merged range a thousand times, pasted into two thousand tiles
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        crunch::ClipData clip;
+        clip.rows = 2;
+        clip.cols = 1;
+        clip.source.valid = true;
+        clip.source.row1 = clip.source.col1 = 0;
+        clip.source.row2 = 1;
+        clip.source.col2 = 0;
+        CellRange merge;
+        merge.valid = true;
+        merge.row1 = merge.col1 = 0;
+        merge.row2 = 1;
+        merge.col2 = 0;
+        clip.merges.assign(1000, merge);
+        crunch::EditSession::Outcome o = e.win.w.session()->paste(0, rangeOf(QStringLiteral("C1:C4000")), clip, crunch::EditSession::PasteOptions());
+        QVERIFY(!o.ok);
+        QVERIFY2(o.problem.contains(QStringLiteral("merged")), qPrintable(o.problem));
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+    }
+
     // JC_SCREENSHOT_CLIP names a file.
     void aCopyAndAFillBeingDraggedShowTheirBorders()
     {

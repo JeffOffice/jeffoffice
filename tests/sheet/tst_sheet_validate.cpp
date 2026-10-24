@@ -98,6 +98,32 @@ private Q_SLOTS:
         QVERIFY(r.allows("A2", Value::number(49)) && !r.allows("A2", Value::number(50)));
         QVERIFY(r.allows("A3", Value::number(499)) && !r.allows("A3", Value::number(500)));
     }
+    // The rule for a cell is found without looking at every rule: with thousands of rules the ranges looked at for a cell are a few (those in the same rows), a rule over a whole column
+    // is found, and of two rules over a cell the first of the file's order is the one.
+    void theRuleForACellIsFoundWithoutLookingAtEveryRule()
+    {
+        const int n = 4000;
+        QString rules = rule(QStringLiteral("whole"), QStringLiteral("between"), QStringLiteral("B1:B100"), QStringLiteral("1"), QStringLiteral("5"))                  // the first rule over B1:B100
+                        + rule(QStringLiteral("whole"), QStringLiteral("between"), QStringLiteral("B50:B60"), QStringLiteral("100"), QStringLiteral("200"));            // another over some of the same
+        for (int r = 1; r <= n; ++r) rules += rule(QStringLiteral("decimal"), QStringLiteral("greaterThan"), QStringLiteral("D%1").arg(r * 3), QStringLiteral("%1").arg(r));
+        rules += rule(QStringLiteral("whole"), QStringLiteral("equal"), QStringLiteral("F1:F1048576"), QStringLiteral("7"));
+        Rules r;
+        QVERIFY(r.open(QString(), rules));
+        QVERIFY(r.calc->validationAt(0, 55, 1));
+        QCOMPARE(r.calc->validationAt(0, 55, 1)->formula1, QStringLiteral("1"));   // (the first of the two)
+        QVERIFY(!r.calc->validationAt(0, 200, 1));
+        QCOMPARE(r.calc->validationAt(0, 2999, 3)->formula1, QStringLiteral("1000"));   // D3000
+        QVERIFY(!r.calc->validationAt(0, 3000, 3));                                    // D3001
+        QCOMPARE(r.calc->validationAt(0, 900000, 5)->formula1, QStringLiteral("7"));   // F900001, a rule over the whole column
+        QVERIFY(!r.calc->validationAt(0, 900000, 6));
+        QVERIFY(r.allows(QStringLiteral("B2"), Value::number(3)));
+        QVERIFY(!r.allows(QStringLiteral("B2"), Value::number(30)));
+        const qint64 before = r.calc->ruleLookupWork();
+        for (int row = 0; row < 12000; ++row) r.calc->validationAt(0, quint32(row), 3);
+        const qint64 work = r.calc->ruleLookupWork() - before;
+        QVERIFY2(work < 12000 * 30, qPrintable(QStringLiteral("%1 ranges looked at for 12,000 cells with %2 rules").arg(work).arg(n)));
+    }
+
 };
 
 JP_TEST_CLASS(SheetValidateTests)

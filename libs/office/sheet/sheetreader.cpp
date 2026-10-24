@@ -1599,6 +1599,37 @@ const QVector<Table> &Workbook::tables() const
     return m_tables;
 }
 
+QVector<CellRange> Workbook::pivotTablesOn(int sheet) const
+{
+    const auto cached = m_pivots.find(sheet);
+    if (cached != m_pivots.end()) return cached->second;
+    QVector<CellRange> out;
+    if (sheet >= 0 && sheet < m_info.sheets.size() && !m_info.sheets[sheet].part.isEmpty()) {
+        const QString sheetPart = m_info.sheets[sheet].part;
+        for (const Relationship &rel : m_package.relationshipsOfType(sheetPart, QStringLiteral("/pivotTable"))) {
+            if (rel.external) continue;
+            const QByteArray bytes = m_package.part(resolvePartName(sheetPart, rel.target));
+            CellRange range;
+            bool found = false;
+            QXmlStreamReader r(bytes);
+            while (!r.atEnd() && !found) {
+                if (r.readNext() != QXmlStreamReader::StartElement || r.name() != QLatin1String("location")) continue;
+                found = parseRangeRef(r.attributes().value(QLatin1String("ref")), &range);
+            }
+            if (!found) {
+                // (not readable: it is taken to be everywhere)
+                range.valid = true;
+                range.row1 = range.col1 = 0;
+                range.row2 = 1048575;
+                range.col2 = 16383;
+            }
+            out.append(range);
+        }
+    }
+    m_pivots[sheet] = out;
+    return out;
+}
+
 int Workbook::tableHeaderAt(int sheet, quint32 row, quint32 col, int *column) const
 {
     const QVector<Table> &all = tables();

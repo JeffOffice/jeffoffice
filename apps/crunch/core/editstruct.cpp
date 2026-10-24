@@ -33,11 +33,33 @@ bool EditSession::canMove(const StructEdit &edit, QString *why) const
     if (!canEdit(why) || !canEditSheet(edit.sheet, why)) return false;
     if (edit.kind == StructEdit::Kind::Move && !canEditSheet(edit.toSheet, why)) return false;
     if (!m_book->calc->canApply(edit, why)) return false;
-    // a PivotTable sits on the cells of its sheet, where the file says: not moved (the file would have it where it was)
-    for (const int sheet : {edit.sheet, edit.kind == StructEdit::Kind::Move ? edit.toSheet : edit.sheet}) {
-        const QString part = m_book->book->info().sheets.value(sheet).part;
-        if (!part.isEmpty() && !m_book->book->package().relationshipsOfType(part, QStringLiteral("/pivotTable")).isEmpty()) {
-            if (why) *why = tr("This sheet has a PivotTable, which JeffCrunch can't move yet. Insert or delete on a sheet that has none.");
+    // a pivot table sits on the cells of its sheet, where the file says: what would move it or cut through it is not done (the file would have it where it was); the rest of the sheet is
+    // edited as ever
+    using K = StructEdit::Kind;
+    auto touches = [&](int sheet, const CellRange &pivot) {
+        const quint32 f = edit.first;
+        switch (edit.kind) {
+        case K::InsertRows:
+        case K::DeleteRows: return sheet == edit.sheet && pivot.row2 >= f;
+        case K::InsertColumns:
+        case K::DeleteColumns: return sheet == edit.sheet && pivot.col2 >= f;
+        case K::InsertCellsDown:
+        case K::DeleteCellsUp: return sheet == edit.sheet && pivot.col2 >= edit.col1 && pivot.col1 <= edit.col2 && pivot.row2 >= edit.row1;
+        case K::InsertCellsRight:
+        case K::DeleteCellsLeft: return sheet == edit.sheet && pivot.row2 >= edit.row1 && pivot.row1 <= edit.row2 && pivot.col2 >= edit.col1;
+        case K::Move: {
+            const quint32 toRow2 = edit.toRow + (edit.row2 - edit.row1), toCol2 = edit.toCol + (edit.col2 - edit.col1);
+            const bool fromHere = sheet == edit.sheet && !(pivot.row2 < edit.row1 || pivot.row1 > edit.row2 || pivot.col2 < edit.col1 || pivot.col1 > edit.col2);
+            const bool toHere = sheet == edit.toSheet && !(pivot.row2 < edit.toRow || pivot.row1 > toRow2 || pivot.col2 < edit.toCol || pivot.col1 > toCol2);
+            return fromHere || toHere;
+        }
+        default: return false;
+        }
+    };
+    for (const int sheet : {edit.sheet, edit.kind == K::Move ? edit.toSheet : edit.sheet}) {
+        for (const CellRange &pivot : m_book->book->pivotTablesOn(sheet)) {
+            if (!touches(sheet, pivot)) continue;
+            if (why) *why = tr("That would move or change a pivot table, which JeffCrunch can't do yet. Change cells that are not part of it.");
             return false;
         }
     }

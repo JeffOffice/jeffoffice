@@ -694,23 +694,57 @@ private Q_SLOTS:
         QCOMPARE(second.w.session()->editText(0, 4, 0), QStringLiteral("7"));
     }
 
-    // A sheet that has a PivotTable is not changed by inserting or deleting (the table sits where the file says it is): the person is told.
-    void aSheetWithAPivotTableIsNotMoved()
+    // A pivot table sits on the cells of its sheet, where the file says: an edit that would move it or cut through it is refused (in plain words), and the rest of the sheet is edited as
+    // ever.
+    void aPivotTableIsNotMovedButTheRestOfItsSheetIs()
     {
         QByteArray book = sheetOf({"A1=1", "A2=2"});
-        book = withParts(book, {{QStringLiteral("xl/pivotTables/pivotTable1.xml"), QByteArray("<pivotTableDefinition/>"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml"), 0, QStringLiteral("rIdP"),
-                                 QStringLiteral("pivotTable"), QStringLiteral("../pivotTables/pivotTable1.xml")}});
+        book = withParts(book, {{QStringLiteral("xl/pivotTables/pivotTable1.xml"), QByteArray("<pivotTableDefinition name=\"p\"><location ref=\"B3:E8\" firstHeaderRow=\"1\" firstDataRow=\"2\" firstDataCol=\"1\"/></pivotTableDefinition>"),
+                                 QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml"), 0, QStringLiteral("rIdP"), QStringLiteral("pivotTable"), QStringLiteral("../pivotTables/pivotTable1.xml")}});
         EditWindow e;
         QVERIFY(e.open(book));
+        crunch::EditSession *s = e.win.w.session();
+        using office::sheet::StructEdit;
+        QString why;
+        // (B3:E8 is rows 3 to 8, columns B to E)
+        QVERIFY(s->canMove(StructEdit::insertRows(0, 10, 2), &why));     // below it
+        QVERIFY(s->canMove(StructEdit::deleteRows(0, 20, 1), &why));
+        QVERIFY(s->canMove(StructEdit::insertColumns(0, 6, 1), &why));   // right of it
+        QVERIFY(s->canMove(StructEdit::deleteColumns(0, 8, 1), &why));
+        QVERIFY(!s->canMove(StructEdit::insertRows(0, 5, 1), &why));     // inside it
+        QVERIFY2(why.contains(QStringLiteral("pivot table")) && !why.contains(QStringLiteral("PivotTable")), qPrintable(why));
+        QVERIFY(!s->canMove(StructEdit::insertRows(0, 0, 1), &why));     // above it: it would move
+        QVERIFY(!s->canMove(StructEdit::deleteRows(0, 0, 1), &why));
+        QVERIFY(!s->canMove(StructEdit::insertColumns(0, 0, 1), &why));
+        QVERIFY(!s->canMove(StructEdit::deleteColumns(0, 3, 1), &why));
+        CellRange block;
+        block.valid = true;
+        block.row1 = block.row2 = 9;
+        block.col1 = block.col2 = 6;   // G10
+        QVERIFY(s->canMove(StructEdit::move(0, block, 0, 10, 7), &why));     // elsewhere to elsewhere
+        QVERIFY(!s->canMove(StructEdit::move(0, block, 0, 4, 2), &why));     // onto it
+        block.row1 = block.row2 = 4;
+        block.col1 = block.col2 = 3;   // D5, in it
+        QVERIFY(!s->canMove(StructEdit::move(0, block, 0, 9, 9), &why));     // out of it
+        block.row1 = 0;
+        block.row2 = 1;
+        block.col1 = block.col2 = 6;   // G1:G2
+        QVERIFY(s->canMove(StructEdit::insertCellsDown(0, block), &why));    // columns it does not have
+        block.col1 = block.col2 = 3;   // D1:D2: the cells below in column D, which has the pivot table
+        QVERIFY(!s->canMove(StructEdit::insertCellsDown(0, block), &why));
+        // the window says it in words
         e.view()->selectRows(0, 0);
         e.win.told.clear();
         e.win.w.act(QStringLiteral("cells.insert"))->trigger();
         QCOMPARE(e.win.w.undoStack()->count(), 0);
-        QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("PivotTable")), qPrintable(e.win.told.join('|')));
+        QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("pivot table")), qPrintable(e.win.told.join('|')));
+        e.view()->selectRows(11, 11);
+        e.win.w.act(QStringLiteral("cells.insert"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
         // typing is as ever
         e.select(QStringLiteral("C3"));
         e.enter(QStringLiteral("5"));
-        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QCOMPARE(e.win.w.undoStack()->count(), 2);
     }
 
     // Results worked out before cells moved name them by where they were; they are put where the cells are now (and dropped with the cells that are gone).

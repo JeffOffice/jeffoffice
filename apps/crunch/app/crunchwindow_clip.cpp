@@ -297,16 +297,6 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
         return m_session->paste(m_sheet, target, clip, opt);
     };
     crunch::EditSession::Outcome o = run(options);
-    if (!o.ok && o.rule) {
-        // values the rules of the cells do not allow: the person is told, and may go on
-        if (askAboutRule(o)) {
-            Options again = options;
-            again.checkRules = false;
-            o = run(again);
-        } else {
-            return;
-        }
-    }
     if (!o.ok) {
         notice(tr("Paste"), o.problem);
         return;

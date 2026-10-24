@@ -96,7 +96,7 @@ ClipData EditSession::copyCells(int sheet, const CellRange &range, bool cut) con
 }
 
 EditSession::Outcome EditSession::pasteChanges(int sheet, const CellRange &target, quint32 blockRows, quint32 blockCols, const PasteMaker &make, const std::vector<CellRange> &merges, bool withMerges,
-                                               bool checkRules, const QString &text)
+                                               const QString &text)
 {
     Outcome out;
     QString why;
@@ -119,9 +119,7 @@ EditSession::Outcome EditSession::pasteChanges(int sheet, const CellRange &targe
         return refuse(tr("That is more cells than JeffCrunch pastes at once (%1). Paste into fewer.").arg(QLocale().toString(kMaxCellsPerEdit)));
     const Calculation *calc = m_book->calc.get();
     Step step;
-    Outcome rules;   // the first value a rule does not allow, and how many
-    qint64 notAllowed = 0;
-    int strictest = 2;
+    // (a pasted value is not held to the rules of validation, as in the programs people know: only what is typed is)
     for (quint32 tr_ = 0; tr_ < tilesRows; ++tr_)
         for (quint32 tc = 0; tc < tilesCols; ++tc)
             for (quint32 dr = 0; dr < blockRows; ++dr)
@@ -144,22 +142,10 @@ EditSession::Outcome EditSession::pasteChanges(int sheet, const CellRange &targe
                     if (isLocked(sheet, ch.before.style)) return refuse(lockedMessage());
                     if (m_book->book->tableHeaderAt(sheet, spot.row, spot.col, nullptr) >= 0)
                         return refuse(tr("The first row of a table holds the names of its columns, so cells can't be pasted over it. Paste below it, or change the names one by one."));
-                    if (checkRules) {
-                        const Outcome rule = checkRule(sheet, spot.row, spot.col, ch.after.value, ch.after.isFormula, QString());
-                        if (!rule.ok) {
-                            if (notAllowed == 0) rules = rule;
-                            ++notAllowed;
-                            strictest = std::min(strictest, rule.ruleStyle);
-                        }
-                    }
                     step.cells.push_back(std::move(ch));
                 }
-    if (notAllowed > 0) {
-        rules.ruleStyle = strictest;
-        rules.ruleCells = notAllowed;
-        if (notAllowed > 1) rules.problem += QLatin1String("\n\n") + tr("%1 cells do not fit their rules.").arg(QLocale().toString(notAllowed));
-        return rules;
-    }
+    if (withMerges && qint64(merges.size()) * qint64(tilesRows) * qint64(tilesCols) > jp::office::sheet::kMaxMerges)
+        return refuse(tr("That would make more merged cells than JeffCrunch makes at once. Paste into fewer cells."));
     if (withMerges && calc->mergeCountOf(sheet) == qint64(calc->mergesOf(sheet).size())) {
         MergeEdit m;
         m.sheet = sheet;
@@ -285,7 +271,7 @@ EditSession::Outcome EditSession::paste(int sheet, const CellRange &target, cons
         }
         merges.push_back(m);
     }
-    return pasteChanges(sheet, target, blockRows, blockCols, make, merges, o.what == What::All || o.what == What::Formats, o.checkRules, tr("Pasting"));
+    return pasteChanges(sheet, target, blockRows, blockCols, make, merges, o.what == What::All || o.what == What::Formats, tr("Pasting"));
 }
 
 EditSession::Outcome EditSession::pasteText(int sheet, const CellRange &target, const QVector<QStringList> &table, const PasteOptions &o)
@@ -337,7 +323,7 @@ EditSession::Outcome EditSession::pasteText(int sheet, const CellRange &target, 
         *ch = typed;
         return true;
     };
-    return pasteChanges(sheet, target, blockRows, blockCols, make, {}, false, o.checkRules, tr("Pasting"));
+    return pasteChanges(sheet, target, blockRows, blockCols, make, {}, false, tr("Pasting"));
 }
 
 EditSession::Outcome EditSession::moveCells(int sheet, const CellRange &source, int toSheet, quint32 toRow, quint32 toCol)

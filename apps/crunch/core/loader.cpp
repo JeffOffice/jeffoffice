@@ -136,6 +136,8 @@ bool WorkbookLoader::recalculate()
 
 qint64 WorkbookLoader::changesMade() const { return m_state ? m_state->changes.load() : 0; }
 
+qint64 WorkbookLoader::holdsTaken() const { return m_state ? m_state->holdsMade.load() : 0; }
+
 int WorkbookLoader::structureGeneration() const { return m_state ? m_state->structure.load() : 0; }
 
 void WorkbookLoader::Hold::structureChanged()
@@ -147,6 +149,7 @@ void WorkbookLoader::Hold::structureChanged()
 WorkbookLoader::Hold::Hold(std::shared_ptr<State> state, jp::office::sheet::Calculation *calc) : m_state(std::move(state)), m_calc(calc)
 {
     ++m_state->holds;
+    ++m_state->holdsMade;
     m_state->updateHalt();
     m_state->model.lock();
 }

@@ -82,6 +82,7 @@ QByteArray ClipData::toBytes() const
 
 bool ClipData::fromBytes(const QByteArray &bytes, ClipData *out)
 {
+    // (what the bytes say is not believed: the sizes are held to the grid and to the bytes there are, before anything is made from them)
     QDataStream s(bytes);
     s.setVersion(QDataStream::Qt_6_0);
     quint32 magic = 0, version = 0, count = 0;
@@ -92,22 +93,29 @@ bool ClipData::fromBytes(const QByteArray &bytes, ClipData *out)
     s >> d.token >> d.serial >> sheetIndex >> d.source.row1 >> d.source.col1 >> d.source.row2 >> d.source.col2 >> d.rows >> d.cols >> d.cut >> count;
     d.sheet = sheetIndex;
     d.source.valid = true;
-    if (s.status() != QDataStream::Ok || count > 4000000u) return false;
-    d.cells.reserve(count);
+    if (s.status() != QDataStream::Ok || sheetIndex < 0) return false;
+    if (d.rows == 0 || d.cols == 0 || d.rows > jp::calc::kGridRows || d.cols > jp::calc::kGridCols) return false;
+    if (d.source.row1 > d.source.row2 || d.source.col1 > d.source.col2 || d.source.row2 >= jp::calc::kGridRows || d.source.col2 >= jp::calc::kGridCols) return false;
+    // each cell takes at least this many bytes (its place, flags, an empty formula and format code, and two values), and there can be no more cells than the block has
+    constexpr qint64 kLeastCellBytes = 28, kLeastMergeBytes = 16;
+    const qint64 left = bytes.size() - s.device()->pos();
+    if (qint64(count) > left / kLeastCellBytes || qint64(count) > qint64(d.rows) * qint64(d.cols)) return false;
     for (quint32 i = 0; i < count; ++i) {
         ClipCell c;
         s >> c.dRow >> c.dCol >> c.content.exists >> c.content.isFormula >> c.content.formula >> c.content.style >> c.formatCode >> c.content.hasStored;
+        if (s.status() != QDataStream::Ok || c.dRow >= d.rows || c.dCol >= d.cols) return false;
         if (!readValue(s, &c.content.value) || !readValue(s, &c.shown)) return false;
         if (c.content.hasStored && !readValue(s, &c.content.stored)) return false;
         d.cells.push_back(std::move(c));
     }
     quint32 merges = 0;
     s >> merges;
-    if (s.status() != QDataStream::Ok || merges > 4000000u) return false;
+    if (s.status() != QDataStream::Ok || qint64(merges) > (bytes.size() - s.device()->pos()) / kLeastMergeBytes) return false;
     for (quint32 i = 0; i < merges; ++i) {
         CellRange m;
         s >> m.row1 >> m.col1 >> m.row2 >> m.col2;
         m.valid = true;
+        if (s.status() != QDataStream::Ok || m.row1 > m.row2 || m.col1 > m.col2 || m.row2 >= d.rows || m.col2 >= d.cols) return false;
         d.merges.push_back(m);
     }
     if (s.status() != QDataStream::Ok) return false;
@@ -121,8 +129,9 @@ QVector<QStringList> parseTabSeparated(const QString &text)
     QStringList row;
     QString field;
     bool quoted = false, any = false;
+    qint64 total = 0;   // the cells made so far: past the most there can be, the rest is not read
     const int n = int(text.size());
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < n && total < kMaxClipCells; ++i) {
         const QChar c = text[i];
         if (quoted) {
             if (c == QLatin1Char('"')) {
@@ -142,11 +151,13 @@ QVector<QStringList> parseTabSeparated(const QString &text)
             any = true;
         } else if (c == QLatin1Char('\t')) {
             row << field;
+            ++total;
             field.clear();
             any = true;
         } else if (c == QLatin1Char('\n') || c == QLatin1Char('\r')) {
             if (c == QLatin1Char('\r') && i + 1 < n && text[i + 1] == QLatin1Char('\n')) ++i;
             row << field;
+            ++total;
             rows.append(row);
             row.clear();
             field.clear();
@@ -204,11 +215,12 @@ QVector<QStringList> parseHtmlTable(const QString &html)
     const int end = int(html.indexOf(QStringLiteral("</table"), start.capturedStart(), Qt::CaseInsensitive));
     const QString body = html.mid(start.capturedStart(), end < 0 ? -1 : end - start.capturedStart());
     QRegularExpressionMatchIterator rit = rowRe.globalMatch(body);
-    while (rit.hasNext()) {
+    qint64 total = 0;   // the cells made, those that a span of columns stands for among them: past the most there can be, the rest is not read
+    while (rit.hasNext() && total < kMaxClipCells) {
         const QRegularExpressionMatch rm = rit.next();
         QStringList row;
         QRegularExpressionMatchIterator cit = cellRe.globalMatch(rm.captured(1));
-        while (cit.hasNext()) {
+        while (cit.hasNext() && total < kMaxClipCells) {
             const QRegularExpressionMatch cm = cit.next();
             QString text = cm.captured(3);
             text.replace(breakRe, QStringLiteral("\n"));
@@ -217,9 +229,13 @@ QVector<QStringList> parseHtmlTable(const QString &html)
             text.replace(QRegularExpression(QStringLiteral("[ \\t\\r\\n]+")), QStringLiteral(" "));
             text = text.trimmed();
             row << text;
+            ++total;
             const QRegularExpressionMatch sp = span.match(cm.captured(2));
-            if (sp.hasMatch())
-                for (int k = 1; k < std::min(sp.captured(1).toInt(), 256); ++k) row << QString();
+            if (sp.hasMatch()) {
+                const qint64 pad = std::min<qint64>(std::min(sp.captured(1).toInt(), 256) - 1, kMaxClipCells - total);   // (counted before they are made)
+                for (qint64 k = 0; k < pad; ++k) row << QString();
+                total += std::max<qint64>(0, pad);
+            }
         }
         if (!row.isEmpty()) rows.append(row);
     }

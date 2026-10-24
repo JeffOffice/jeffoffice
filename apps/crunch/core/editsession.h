@@ -136,11 +136,10 @@ public:
         int problemAt = -1;   // and the character of what was typed it is about, or -1
         jp::office::sheet::CellRange range;   // for a paste: the cells it covered
         // A rule of validation does not allow what was entered (`problem` is the rule's message, or one of ours): its style (Validation::Style: 0 stop, 1 warning, 2 information) and title. A
-        // stop is refused; for the others the person is asked, and the same is done again with the rule left out (`checkRules`). For a paste, `ruleCells` is how many cells it does not allow.
+        // stop is refused; for the others the person is asked, and the same is done again with the rule left out (`checkRule` false). Only what is typed is held to the rules: a paste is not.
         bool rule = false;
         int ruleStyle = 0;
         QString ruleTitle;
-        qint64 ruleCells = 0;
     };
     // Types text into a cell, as the person typed it: a number, a percent, a date, TRUE, a formula, or text; the cell takes the format the entry asks for if it has none of its own. The
     // change is one step on the undo stack. Not ok, and nothing changed, if the text is a formula that is not one, or is too long, or the cell cannot be changed.
@@ -207,7 +206,6 @@ public:
         enum class Operation { None, Add, Subtract, Multiply, Divide } operation = Operation::None;
         bool skipBlanks = false;
         bool transpose = false;
-        bool checkRules = true;   // the values are held to the rules of validation of the cells they go in
     };
     // This workbook's name for the clipboard: a copy made here carries it.
     qint64 token() const { return m_token; }
@@ -302,7 +300,7 @@ private:
     };
     using PasteMaker = std::function<bool(const PasteSpot &spot, CellChange *change, Outcome *problem)>;
     Outcome pasteChanges(int sheet, const jp::office::sheet::CellRange &target, quint32 blockRows, quint32 blockCols, const PasteMaker &make, const std::vector<jp::office::sheet::CellRange> &merges,
-                         bool withMerges, bool checkRules, const QString &text);
+                         bool withMerges, const QString &text);
     // Whether the rule of validation for a cell allows a value (not ok, with the rule's message, if not).
     Outcome checkRule(int sheet, quint32 row, quint32 col, const jp::calc::Value &value, bool isFormula, const QString &typed) const;
     // The marks kept by cell follow an edit (forward) or its undoing: `edit` is what was done to the cells.

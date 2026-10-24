@@ -217,6 +217,10 @@ public:
     const Validation *validationAt(int sheet, quint32 row, quint32 col) const;
     bool entryAllowed(int sheet, quint32 row, quint32 col, const Validation &rule, const jp::calc::Value &entry, const QString &typed) const;
     QStringList listChoices(int sheet, quint32 row, quint32 col, const Validation &rule) const;
+    // How many times an entry was worked out against a rule of validation (for tests: what is not typed is not held to a rule).
+    qint64 ruleEvaluations() const { return m_ruleEvaluations; }
+    // And how many ranges were looked at to find the rules of cells (for tests: it does not grow with the number of rules).
+    qint64 ruleLookupWork() const { return m_ruleLookupWork; }
 
     // A column of a table renamed: the defined names that name it follow. Gives the texts the names had (by the key the calculation keeps them by), for putting back with restoreNames.
     std::vector<std::pair<QString, QString>> renameColumnInNames(const QString &table, const QString &oldName, const QString &newName);
@@ -343,6 +347,9 @@ private:
     std::function<void()> m_visitHook;
     const std::atomic<bool> *m_cancel = nullptr;
     ResultSink m_sink;
+    struct RuleIndex;
+    mutable std::vector<std::shared_ptr<RuleIndex>> m_ruleIndex;   // by sheet: where the rules of validation are (made when first asked, and again after the rules change)
+    mutable qint64 m_ruleEvaluations = 0, m_ruleLookupWork = 0;
     std::unique_ptr<jp::calc::DependencyGraph> m_graph;
     jp::calc::Evaluator m_evaluator;
     jp::calc::EvalContext m_ctx;

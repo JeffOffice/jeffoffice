@@ -13,7 +13,7 @@ A pasted number that is too wide for a column that still has its first width wid
 
 ## Cut moves cells
 
-When you cut cells and paste them, the cells really move. Every formula that pointed at them points at them in their new place. Example: B1 has **=A1+A2**. Cut A1:A2 and paste at E4, and B1 becomes **=E4+E5**. Whatever was in the cells you pasted over is gone (**Undo** brings it back). The clipboard is emptied after a cut and paste.
+When you cut cells and paste them, the cells really move. Every formula that pointed at them points at them in their new place. Example: B1 has **=A1+A2**. Cut A1:A2 and paste at E4, and B1 becomes **=E4+E5**. Whatever was in the cells you pasted over is gone (**Undo** brings it back), and a formula that read one of those cells shows **#REF!**, because the cell it read is no longer there. If the cells you cut are only part of a merged cell, or you paste over only part of one, nothing is moved: select the whole merged cell. When you cut cells onto another sheet, the formulas keep reading the cells they read before (they say which sheet). The clipboard is emptied after a cut and paste.
 
 ## Paste Special
 

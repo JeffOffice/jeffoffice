@@ -217,7 +217,13 @@ void CrunchWindow::showChoices()
     const quint32 row = quint32(std::max<qint64>(0, sel.activeRow)), col = quint32(std::max<qint64>(0, sel.activeCol));
     const jp::office::sheet::Validation *rule = m_loaded->calc->validationAt(m_sheet, row, col);
     if (!rule || rule->type != jp::office::sheet::Validation::Type::List) return;
-    const QStringList choices = m_loaded->calc->listChoices(m_sheet, row, col, *rule);
+    QStringList choices;
+    {
+        // (the list is read through the calculation, with the worker held back)
+        std::unique_ptr<crunch::WorkbookLoader::Hold> hold = m_loader.hold();
+        if (!hold) return;
+        choices = hold->calculation()->listChoices(m_sheet, row, col, *rule);
+    }
     auto *menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
     menu->setObjectName(QStringLiteral("listMenu"));
