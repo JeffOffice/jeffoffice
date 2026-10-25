@@ -5,6 +5,7 @@
 // The shared strings of a workbook are one list that every sheet refers to.
 
 #include "sheet/cellref.h"
+#include "sheet/pagesetup.h"
 #include "sheet/styles.h"
 
 #include <QHash>
@@ -122,6 +123,82 @@ public:
     {
         for (const auto &block : m_blocks)
             for (const Cell &c : block.second.cells) f(c);
+    }
+    // Calls f(cell) for the cells of each row from its last cell backwards, until f gives true for one (then the next row up begins): for the last cell of each row that is of use,
+    // at the cost of the rows (and a search in a block for where each begins), not of every cell. Rows are visited from the last to the first.
+    template <class F>
+    void forEachRowTail(F f) const
+    {
+        std::ptrdiff_t guess = 1;
+        for (auto block = m_blocks.rbegin(); block != m_blocks.rend(); ++block) {
+            const std::vector<Cell> &cells = block->second.cells;
+            auto end = cells.end();
+            while (end != cells.begin()) {
+                const quint32 row = (end - 1)->row;
+                // (where the row begins: as far back as the last row had cells, if that is right, else a search)
+                auto first = end - std::min<std::ptrdiff_t>(guess, end - cells.begin());
+                if (!(first == cells.begin() || (first - 1)->row < row) || first->row != row)
+                    first = std::lower_bound(cells.begin(), end, row, [](const Cell &c, quint32 r) { return c.row < r; });
+                guess = std::max<std::ptrdiff_t>(1, end - first);
+                for (auto at = end; at != first;) {
+                    --at;
+                    if (f(*at)) break;
+                }
+                end = first;
+            }
+        }
+    }
+    // The same walk in slices: the place it has got to. Start with a fresh cursor; each call goes on from where the last stopped.
+    struct RowTailCursor {
+        bool started = false, done = false;
+        quint32 block = 0;           // the key of the block it is in
+        std::ptrdiff_t end = 0;      // the cells of that block before this place are still to be walked
+    };
+    // Walks on from the cursor as forEachRowTail does, adding to `*steps` one for each row and each cell it looks at, and stops after the row it is in once `*steps` has reached `limit`
+    // (so a slice takes at most a row's cells past it). True when every cell has been walked. A store changed between two calls is walked from what is there (never past it).
+    template <class F>
+    bool forEachRowTailSome(RowTailCursor *cur, qint64 limit, qint64 *steps, F f) const
+    {
+        if (cur->done) return true;
+        if (!cur->started) {
+            cur->started = true;
+            if (m_blocks.empty()) {
+                cur->done = true;
+                return true;
+            }
+            cur->block = m_blocks.rbegin()->first;
+            cur->end = std::ptrdiff_t(m_blocks.rbegin()->second.cells.size());
+        }
+        auto block = m_blocks.find(cur->block);
+        if (block == m_blocks.end()) {
+            cur->done = true;
+            return true;
+        }
+        while (*steps < limit) {
+            const std::vector<Cell> &cells = block->second.cells;
+            const std::ptrdiff_t end = std::min<std::ptrdiff_t>(cur->end, std::ptrdiff_t(cells.size()));
+            if (end <= 0) {
+                if (block == m_blocks.begin()) {
+                    cur->done = true;
+                    return true;
+                }
+                --block;
+                cur->block = block->first;
+                cur->end = std::ptrdiff_t(block->second.cells.size());
+                ++*steps;
+                continue;
+            }
+            const quint32 row = cells[size_t(end - 1)].row;
+            const auto first = std::lower_bound(cells.begin(), cells.begin() + end, row, [](const Cell &c, quint32 r) { return c.row < r; });
+            ++*steps;
+            for (auto at = cells.begin() + end; at != first;) {
+                --at;
+                ++*steps;
+                if (f(*at)) break;
+            }
+            cur->end = first - cells.begin();
+        }
+        return false;
     }
     // What a walk over a range did, counted as it did it: the cells it stepped over one by one (every move of the cursor along a row of a block is counted), and the
     // comparisons of its searches for the first cell of each row. A test counts them to see that a narrow range of a wide sheet costs what it holds.
@@ -426,6 +503,7 @@ struct Sheet {
     QVector<CondRule> conditionalFormats;   // the rules of conditional formatting, by priority
     SheetFormat format;
     SheetView view;
+    PageSetup page;                   // how it prints: the paper, margins, header and footer, breaks, and the print area and titles (see sheet/pagesetup.h)
     ColorSpec tabColor;               // the color of the sheet's tab
     bool isProtected = false;         // the sheet is protected (sheetProtection): its locked cells can't be changed
     QStringList notKept;              // what the sheet's file has that the program neither shows nor writes into a copy of the sheet, in words (sparklines, say)

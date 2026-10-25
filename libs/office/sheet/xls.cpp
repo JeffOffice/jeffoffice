@@ -3,6 +3,7 @@
 #include "sheet/cellref.h"
 #include "sheet/xlsbytes.h"
 #include "sheet/xlscodepage.h"
+#include "sheet/xlsprint.h"
 #include "sheet/xlsfunctions.h"
 
 #include <QCoreApplication>
@@ -1699,7 +1700,10 @@ private:
             m_haveSelection = true;
             return true;
         }
-        default: return true;
+        default:
+            // (the printing records: the page setup, the header and footer, the margins, and the breaks)
+            readXlsPrintRecord(r.id, m_d, r.pos, r.len, m_b8, [this](const char *p, int n) { return text(p, n); }, &m_s.page);
+            return true;
         }
     }
 

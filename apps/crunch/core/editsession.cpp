@@ -132,6 +132,7 @@ public:
             n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
         if (m_step.structure) n += m_step.structure->bytes();
         n += qint64(m_step.objects.size()) * qint64(sizeof(ObjectEdit));
+        for (const PageEdit &e : m_step.pages) n += qint64(sizeof(e)) + qint64(e.before.rowBreaks.size() + e.before.colBreaks.size() + e.after.rowBreaks.size() + e.after.colBreaks.size()) * 16 + qint64(e.before.printArea.size() + e.after.printArea.size()) * qint64(sizeof(jp::office::sheet::CellRange)) + qint64(e.before.headerFooter.oddHeader.size() + e.after.headerFooter.oddHeader.size()) * 2;
         *m_total += n - m_bytes;
         m_bytes = n;
     }
@@ -166,6 +167,7 @@ EditSession::EditSession(WorkbookLoader *loader, const std::shared_ptr<LoadedBoo
 {
     m_undo.setUndoLimit(kUndoSteps);
     connect(&m_undo, &QUndoStack::cleanChanged, this, [this](bool clean) { cleanChanged(clean); });
+    if (m_book && m_book->calc) m_pages.open(*m_book->calc);
 }
 
 EditSession::~EditSession()
@@ -646,8 +648,12 @@ bool EditSession::apply(Step *step, bool forward)
 {
     for (const ObjectEdit &o : step->objects)
         if (m_objectHook) m_objectHook(o.sheet, o.id, forward);
-    // (a step of objects alone changes no cell: the worker is not held for it)
-    if (!step->objects.empty() && step->cells.empty() && step->renames.empty() && step->sizes.empty() && step->merges.empty() && !step->structure) return true;
+    for (const PageEdit &e : step->pages) {
+        m_pages.set(e.sheet, forward ? e.after : e.before);
+        Q_EMIT pageSetupChanged(e.sheet);
+    }
+    // (a step of objects or of page setups alone changes no cell: the worker is not held for it)
+    if ((!step->objects.empty() || !step->pages.empty()) && step->cells.empty() && step->renames.empty() && step->sizes.empty() && step->merges.empty() && !step->structure) return true;
     if (step->structure) return applyStructure(step, forward);
     QElapsedTimer waited;
     waited.start();
@@ -1073,6 +1079,11 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         changes.sharedStringsBefore = book.sharedStringsInFile();
     }
     changes.replacedParts = book.changedTableParts();
+    {
+        QStringList names;
+        for (const jp::office::sheet::SheetEntry &se : book.info().sheets) names << (se.deleted ? QString() : se.name);
+        m_pages.addToSave(&changes, names, book.info().order);
+    }
     changes.edits = m_edits;
     changes.renames = m_renames;
     out->strings = int(changes.newSharedStrings.size());
@@ -1128,6 +1139,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_edits.clear();
     m_renames.clear();
     ++m_saveGen;
+    m_pages.saved();
     forgetDeletesInFile();
     // what differs from the file is what differs from the file just written
     for (auto it = m_results.begin(); it != m_results.end();) {

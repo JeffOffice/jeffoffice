@@ -90,6 +90,9 @@ public:
     QString textOf(const Cell &cell) const;
     // Forgets the texts (values or formats changed), or the text of one cell.
     void invalidateTexts() const;
+    // How a cell that holds an error is shown (a printed page can show it as it is, blank, as "--", or as #N/A).
+    enum class ErrorDisplay { Shown, Blank, Dash, NA };
+    void setErrorDisplay(ErrorDisplay mode);
     // Forgets the texts and what the rules of conditional formatting made of the cells, but not the figures they keep of all their cells (those are let go by `invalidateText` of a cell
     // that is among theirs): for values that changed, one by one, that a rule's formula may read.
     void invalidateLooks() const;
@@ -146,6 +149,7 @@ private:
     mutable std::unordered_map<quint64, Shown> m_texts;
     mutable qint64 m_textsMade = 0;
     bool m_showFormulas = false;
+    ErrorDisplay m_errors = ErrorDisplay::Shown;
     jp::calc::NumberSymbols m_symbols;
     bool m_rtl = false;
     mutable CondFormats m_cond{this};

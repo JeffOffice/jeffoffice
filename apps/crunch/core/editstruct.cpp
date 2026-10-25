@@ -379,6 +379,16 @@ bool EditSession::applyStructure(Step *step, bool forward)
     sc.done = forward;
     const StructEdit now = forward ? sc.edit : sc.edit.inverse();   // what was done to the cells
     followEdit(sc.edit, &sc, forward);
+    {
+        // the print area, the titles, and the breaks follow the cells (and come back with them)
+        QStringList names;
+        for (const jp::office::sheet::SheetEntry &se : book.info().sheets) names << se.name;
+        if (forward) m_pages.followEdit(sc.edit, names, &sc);
+        else m_pages.undoEdit(&sc);
+        std::set<int> sheets = {sc.edit.sheet};
+        if (sc.edit.kind == StructEdit::Kind::Move) sheets.insert(sc.edit.toSheet);
+        for (const int s : sheets) Q_EMIT pageSetupChanged(s);
+    }
     // the values the window holds follow the cells: those of cells that are gone are let go of, and those of formulas that moved (with their cells) go with them
     {
         const Calculation::EditRecord &done = forward ? sc.record : undone;

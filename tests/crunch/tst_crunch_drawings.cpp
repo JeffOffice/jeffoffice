@@ -4,6 +4,7 @@
 #include "editwindow.h"
 
 #include "core/fonts.h"
+#include "core/printjob.h"
 #include "core/sheetobjects.h"
 #include "office/chart.h"
 #include "office/package.h"
@@ -68,7 +69,7 @@ QByteArray hugePng()
 }
 
 // The data sheet, then a chart sheet "Chart1": a page that holds one chart of Sheet1!B2:B4 and no cells. The chart part has no fill of its own (the page behind it is the sheet's).
-QByteArray bookWithChartSheet()
+QByteArray bookWithChartSheet(const QString &chartSheetPrinting = QString())
 {
     const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
     QByteArray chart = chartPart(QStringLiteral("barChart"), series);
@@ -81,7 +82,7 @@ QByteArray bookWithChartSheet()
     parts[QStringLiteral("[Content_Types].xml")].replace("</Types>", "<Override PartName=\"/xl/chartsheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.chartsheet+xml\"/>"
                                                                       "<Override PartName=\"/xl/drawings/drawing1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawing+xml\"/>"
                                                                       "<Override PartName=\"/xl/charts/chart1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/></Types>");
-    parts[QStringLiteral("xl/chartsheets/sheet1.xml")] = QStringLiteral("<?xml version=\"1.0\"?><chartsheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"%1\"><drawing r:id=\"rIdD\"/></chartsheet>").arg(relNs).toUtf8();
+    parts[QStringLiteral("xl/chartsheets/sheet1.xml")] = QStringLiteral("<?xml version=\"1.0\"?><chartsheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"%1\">%2<drawing r:id=\"rIdD\"/></chartsheet>").arg(relNs, chartSheetPrinting).toUtf8();
     parts[QStringLiteral("xl/chartsheets/_rels/sheet1.xml.rels")] = QStringLiteral("<?xml version=\"1.0\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
                                                                                   "<Relationship Id=\"rIdD\" Type=\"%1/drawing\" Target=\"../drawings/drawing1.xml\"/></Relationships>").arg(relNs).toUtf8();
     parts[QStringLiteral("xl/drawings/drawing1.xml")] = drawingPart(absolute(0, 0, 9525 * 640, 9525 * 480, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Page"))));
@@ -1068,6 +1069,41 @@ private Q_SLOTS:
         const QImage img(png);
         QVERIFY(!img.isNull());
         QVERIFY(img.width() >= 700 && img.height() >= 500);
+    }
+
+    // A chart sheet prints as one page with its chart over the room the page has inside its margins (the page setup of the chart sheet is read: the paper, its turn, the margins), and
+    // the page after the cells' pages when the whole workbook is printed.
+    void aChartSheetPrintsAsOnePageWithItsChart()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithChartSheet(QStringLiteral("<pageMargins left=\"1\" right=\"1\" top=\"1\" bottom=\"1\" header=\"0.3\" footer=\"0.3\"/><pageSetup orientation=\"landscape\"/>"))));
+        CrunchWindow &w = e.win.w;
+        w.setActiveSheet(1);
+        QTRY_VERIFY(shown(e, 1, 1));
+        QString why;
+        std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY2(job, qPrintable(why));
+        QCOMPARE(job->pageCount(), 1);
+        QCOMPARE(job->pageSize(0), QSizeF(792, 612));   // (turned to landscape, as the chart sheet says)
+        QImage img = job->preview(0, 792);
+        // the chart's bars are inside the 72-point margins, and the margins are white
+        auto ink = [&](const QRect &r) {
+            int n = 0;
+            for (int y = r.top(); y < r.bottom(); ++y)
+                for (int x = r.left(); x < r.right(); ++x) n += qGray(img.pixel(x, y)) < 235;
+            return n;
+        };
+        QVERIFY(ink(QRect(72, 72, 648, 468)) > 500);
+        QCOMPARE(ink(QRect(0, 0, 792, 70)), 0);
+        QCOMPARE(ink(QRect(0, 0, 70, 612)), 0);
+        QCOMPARE(ink(QRect(722, 0, 70, 612)), 0);
+        // the whole workbook: the cells' pages, then this one
+        crunch::PrintJobOptions all;
+        all.what = crunch::PrintWhat::Workbook;
+        job = w.makePrintJob(all, &why);
+        QVERIFY2(job, qPrintable(why));
+        QCOMPARE(job->sheetOf(job->pageCount() - 1), 1);
+        QVERIFY(job->pageCount() >= 2);
     }
 
     // A drawing that is parsed on a worker, and asked about before it is done (the sheet's counts want it now): it is listed there and then, the worker's answer is let go, and the

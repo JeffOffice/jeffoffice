@@ -20,8 +20,9 @@ LineLook lineOf(const Styles &s, const jp::office::sheet::BorderSide &side)
     return l;
 }
 
-// How wide the widest digit of a family is, as a part of the em (what a column's width in characters is counted in).
-double digitFactor(const QString &family)
+} // namespace
+
+double digitWidthFactor(const QString &family)
 {
     const QString n = family.toLower();
     auto has = [&](const char *part) { return n.contains(QLatin1String(part)); };
@@ -34,8 +35,6 @@ double digitFactor(const QString &family)
     if (has("times") || has("liberation serif") || has("tinos")) return 0.5;
     return 0.55;
 }
-
-} // namespace
 
 LookTable::LookTable(const Styles *styles) : m_styles(styles) {}
 
@@ -118,7 +117,7 @@ int LookTable::maxDigitWidth() const
     if (!m_styles || m_styles->fonts.isEmpty()) return 7;
     const jp::office::sheet::FontSpec &f = m_styles->fonts[0];
     const double em = f.size * 96.0 / 72.0;
-    return int(std::min(64L, std::max(3L, std::lround(em * digitFactor(f.name)))));
+    return int(std::min(64L, std::max(3L, std::lround(em * digitWidthFactor(f.name)))));
 }
 
 const CellLook &LookTable::look(quint32 xf) const

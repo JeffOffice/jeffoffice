@@ -28,6 +28,12 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Cut, copy, and paste](clipboard)
 - [Fill cells and add them up](fill-sum)
 
+## Print
+
+- [Set up the pages](page-layout)
+- [The Page Setup dialog](page-setup)
+- [Print and make a PDF](printing)
+
 ## Work faster
 
 - [Use JeffCrunch with the keyboard](keyboard)

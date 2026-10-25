@@ -439,6 +439,7 @@ public:
         for (const RowProps &p : changes.rows) rowFor(p.row).props = &p;
         if (changes.replaceColumns) m_columns = &changes.columns;
         if (changes.replaceMerges) m_merges = &changes.merges;
+        if (changes.setPage) m_page = &changes.page;
         if (changes.replaceFormat) m_format = &changes.format;
         if (changes.replaceTabColor) m_tabColor = &changes.tabColor;
         m_tabSelected = changes.tabSelected;
@@ -590,6 +591,7 @@ private:
         if (m_tabSelected >= 0) before = tabSelectedFromChange(before, m_tabSelected != 0, m_prefix);
         if (m_format) before = formatFromChange(before, *m_format, m_prefix);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
+        if (m_page) before = patchFitToPageHead(before, *m_page);
         put(before);
         m_written = m_cur = dataStart;
         if (selfClosed) {
@@ -940,8 +942,8 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges) {
-            // (what follows the cells is held whole to change its merged ranges)
+        if (m_merges || m_page) {
+            // (what follows the cells is held whole to change its merged ranges and its page setup)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
             }
@@ -949,8 +951,13 @@ private:
             m_cur = m_written;
             const QByteArray rest = m_buf.mid(m_written);
             Tag close;
-            if (m_dataClosed) put(tailWithMerges(rest, *m_merges, m_prefix));   // (an empty sheetData was given its closing tag with its rows: what is left follows it)
-            else if (xmlscan::nextTag(rest, 0, &close) && close.closing && close.local == "sheetData") put(rest.left(close.end) + tailWithMerges(rest.mid(close.end), *m_merges, m_prefix));
+            auto tailOf = [&](const QByteArray &rest) {
+                QByteArray tail = m_merges ? tailWithMerges(rest, *m_merges, m_prefix) : rest;
+                if (m_page) tail = patchPageSetupTail(tail, *m_page, m_prefix);
+                return tail;
+            };
+            if (m_dataClosed) put(tailOf(rest));   // (an empty sheetData was given its closing tag with its rows: what is left follows it)
+            else if (xmlscan::nextTag(rest, 0, &close) && close.closing && close.local == "sheetData") put(rest.left(close.end) + tailOf(rest.mid(close.end)));
             else put(rest);
             m_buf.clear();
             m_cur = m_written = 0;
@@ -985,6 +992,7 @@ private:
     quint32 m_sharedUntil = 0;
     const std::vector<ColumnSpan> *m_columns = nullptr;
     const std::vector<CellRange> *m_merges = nullptr;
+    const PageSetup *m_page = nullptr;
     const SheetFormat *m_format = nullptr;
     const ColorSpec *m_tabColor = nullptr;
     int m_tabSelected = -1;

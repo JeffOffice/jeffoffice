@@ -242,7 +242,7 @@ QBrush GridPainter::patternBrush(PatternKind kind, QRgb fg, QRgb bg)
 
 void GridPainter::drawFill(QPainter *p, const QRect &rect, const CellLook &look, const PaintOptions &)
 {
-    if (look.pattern == PatternKind::None) return;
+    if (look.pattern == PatternKind::None || m_mono) return;
     ++m_stats.fills;
     if (look.pattern == PatternKind::Solid) {
         p->fillRect(rect, QColor::fromRgba(look.fg));
@@ -259,7 +259,7 @@ void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int 
 {
     if (line.style == BorderStyle::None || length <= 0) return;
     ++m_stats.borderSegments;
-    const QColor color = QColor::fromRgba(line.color);
+    const QColor color = m_mono ? QColor(Qt::black) : QColor::fromRgba(line.color);
     int thickness = 1;
     int first = -1;      // where its first pixel is, from the edge
     QList<qreal> dashes;
@@ -302,6 +302,22 @@ void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int 
     // a dashed line: dashes of the pattern's lengths along the edge, from the whole pattern that the part in the clip begins in
     int period = 0;
     for (qreal d : dashes) period += int(d);
+    if (m_strokedDashes) {
+        // (one stroke: the pen's pattern is in widths of the pen, and begins at the stroke's start, so it is moved on by what the clip cut off)
+        QPen pen(color, thickness, Qt::CustomDashLine, Qt::FlatCap);
+        QList<qreal> pattern;
+        for (qreal d : dashes) pattern.append(d / thickness);
+        pen.setDashPattern(pattern);
+        pen.setDashOffset(double(lo % period) / thickness);
+        ++m_stats.dashSteps;
+        p->save();
+        p->setPen(pen);
+        const double across0 = (vertical ? x : y) + first + thickness / 2.0;
+        if (vertical) p->drawLine(QPointF(across0, y + from), QPointF(across0, y + from + size));
+        else p->drawLine(QPointF(x + from, across0), QPointF(x + from + size, across0));
+        p->restore();
+        return;
+    }
     qint64 at = (lo / period) * period;
     size_t step = 0;
     while (at < hi) {
@@ -562,7 +578,7 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
     ++m_stats.textRuns;
     m_stats.textChars += text.size();
     if (sh.hashes) ++m_stats.hashed;
-    const QRgb ink = sh.color ? sh.color : look.textColor;
+    const QRgb ink = m_mono ? 0xFF000000u : sh.color ? sh.color : look.textColor;
     const bool otherUnderline = look.underline == Underline::Double || look.underline == Underline::SingleAccounting || look.underline == Underline::DoubleAccounting;
     // A line of text with nothing special (not turned, not wrapped, not shrunk) is drawn from its baseline as a run of glyphs, where no layout of a box is needed.
     if (look.rotation == 0 && !look.wrap && look.readingOrder != 2 && font.pixelSize() == fontFor(look).pixelSize()) {
@@ -880,7 +896,7 @@ marked:
                 if (here && here->diagonal.style != BorderStyle::None && (here->diagonalUp || here->diagonalDown)) {
                     p->save();
                     p->setClipRect(QRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size) & area);
-                    p->setPen(QColor::fromRgba(here->diagonal.color));
+                    p->setPen(m_mono ? QColor(Qt::black) : QColor::fromRgba(here->diagonal.color));
                     if (here->diagonalUp) p->drawLine(w.cols[j].start, rs.start + rs.size - 1, w.cols[j].start + w.cols[j].size - 1, rs.start);
                     if (here->diagonalDown) p->drawLine(w.cols[j].start, rs.start, w.cols[j].start + w.cols[j].size - 1, rs.start + rs.size - 1);
                     p->restore();
@@ -1172,6 +1188,8 @@ void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOption
 void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
 {
     m_stats = PaintStats();
+    m_mono = o.monochrome;
+    m_strokedDashes = o.strokedDashes;
     m_sheet->conditional().beginPaint();   // (the steps this paint may spend on the rules' formulas)
     struct EndOfPaint {   // (what the rules kept of the cells, if the paint filled it, is let go of when the paint is over, not in the middle of it)
         const CondFormats &rules;

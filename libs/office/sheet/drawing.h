@@ -54,6 +54,7 @@ struct DrawingObject {
     QString name, description;
     qint64 id = 0;
     bool hidden = false;
+    bool prints = true;            // the anchor does not say fPrintsWithSheet="0": the object is on the printed page
     QString chartPart;             // for a chart: the chart part's name
     QDomElement element;           // the object's element (xdr:sp, xdr:pic, xdr:grpSp, xdr:cxnSp, or the graphic frame); lives as long as the SheetDrawing's document
 };

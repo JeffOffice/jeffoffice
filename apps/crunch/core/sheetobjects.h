@@ -78,6 +78,9 @@ public:
     void geometryKnown(int sheet);
     // What the sheet's drawing holds (every object is made for it).
     DrawingCounts counts(int sheet);
+    // The objects of a sheet that print (not hidden, not taken away, and not set to stay off the paper), in the order they are drawn, each ready to be drawn when asked (see
+    // core/printobjects.h). The sheet's drawing is listed if it has not been.
+    std::vector<jp::grid::LayerObject> printObjects(int sheet);
     bool isChartSheet(int sheet) const;
     // Whether the object can be taken away: not when the file stores it with another (in one element), which would go with it; if not, why.
     bool canDelete(int sheet, int id, QString *why = nullptr);

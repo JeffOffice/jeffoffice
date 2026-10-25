@@ -60,6 +60,9 @@ struct CellLook {
     }
 };
 
+// How wide the widest digit of a font family is, as a part of its em (what a column's width in characters is counted in), for the families the grid knows and a middling one for the rest.
+double digitWidthFactor(const QString &family);
+
 class LookTable {
 public:
     // The most looks held when a screen begins; more than that are let go of then (a file may have a million cell formats, and a screen shows far fewer).

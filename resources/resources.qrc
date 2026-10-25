@@ -1655,6 +1655,9 @@
     <file alias="en/crunch/keyboard.md">help/en/crunch/keyboard.md</file>
     <file alias="en/crunch/number-formats.md">help/en/crunch/number-formats.md</file>
     <file alias="en/crunch/open-save.md">help/en/crunch/open-save.md</file>
+    <file alias="en/crunch/page-layout.md">help/en/crunch/page-layout.md</file>
+    <file alias="en/crunch/page-setup.md">help/en/crunch/page-setup.md</file>
+    <file alias="en/crunch/printing.md">help/en/crunch/printing.md</file>
     <file alias="en/crunch/rules.md">help/en/crunch/rules.md</file>
     <file alias="en/crunch/select-and-move.md">help/en/crunch/select-and-move.md</file>
     <file alias="en/crunch/sheets.md">help/en/crunch/sheets.md</file>
