@@ -73,6 +73,8 @@ Chart withSeries(const Chart &chart, const QVector<ChartSeries> &series, const Q
 // The chart with its rows and columns switched: where the series ran down columns they run along rows, and the other way. The cells are the same block (the names and categories the
 // series had stay the names and categories). Empty (`ok` false) if the series do not read one block that way.
 Chart switchedRowsColumns(const Chart &chart, const jp::office::Theme &theme, bool *ok);
+// The cells all the chart's series read as one reference ("Sheet1!$A$1:$D$8"): the smallest block that holds them; empty if they read none, or more than one sheet.
+QString chartDataRange(const Chart &chart);
 // Whether the chart's series run down columns of one block (false: along rows, or no block).
 bool seriesRunDownColumns(const Chart &chart);
 

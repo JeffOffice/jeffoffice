@@ -921,6 +921,34 @@ private Q_SLOTS:
         QVERIFY(jp::readZip(bookWithDrawing({dataSheet()}, drawingPart(anchors), {imageTarget(QStringLiteral("rIdP"), 1, pngBytes(8, 4, Qt::red))}), original));
         QCOMPARE(partsOf(e.path).value(QStringLiteral("xl/media/image1.png")), original.value(QStringLiteral("xl/media/image1.png")));
     }
+
+    // A chart put on, undone, and the file saved cannot be put on again by Redo (the file was written without it): Redo is given up and nothing breaks; an object taken away after
+    // the save, with its steps before it, can't be undone past the save either.
+    void redoOfAnAddedChartAfterASaveIsGivenUp()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:C4"));
+        e.select(QStringLiteral("H1"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        pressUndo(&e.win.w);
+        QVERIFY(e.win.w.undoStack()->canRedo());
+        QVERIFY(save(e));
+        pressRedo(&e.win.w);
+        QVERIFY(e.settle());
+        // the chart is not there (it is not in the file either), and the window is whole
+        QCOMPARE(int(e.win.w.objects()->idsOf(0).size()), 0);
+        QVERIFY(partsOf(e.path).value(QStringLiteral("xl/charts/chart1.xml")).isEmpty());
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Line));
+        QCOMPARE(int(e.win.w.objects()->idsOf(0).size()), 1);
+        QVERIFY(save(e));
+        QCOMPARE(savedCharts(e.path).size(), 1);
+    }
 };
 
 JP_TEST_CLASS(CrunchChartTests)
@@ -950,10 +978,10 @@ private Q_SLOTS:
         }, ChartKind::Pie);
         QCOMPARE(d.kind(), ChartKind::Pie);
         QCOMPARE(d.inRows(), -1);
-        // a small picture of each kind (they are listed once, at 64 wide), and the big one of the first kind picked
+        // a picture of each kind (they are listed once, drawn large and made small), and the big one of the first kind picked
         int small = 0;
         for (const QString &a : asked)
-            if (a.endsWith(QLatin1String("/64"))) ++small;
+            if (a.endsWith(QLatin1String("/256"))) ++small;
         QCOMPARE(small, int(chartKindEntries().size()));
         QVERIFY(asked.contains(QStringLiteral("%1/-1/360").arg(int(ChartKind::Pie))));
         QCOMPARE(d.previewShown().size(), QSize(360, 260));

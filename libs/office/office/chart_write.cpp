@@ -578,6 +578,8 @@ const QSet<QString> &modeled()
             "solidFill", "noFill", "ln", "srgbClr", "schemeClr", "sysClr", "prstClr", "lumMod", "lumOff", "alpha", "alphaMod", "alphaOff", "tint", "shade", "satMod", "satOff", "hueMod",
             "prstDash", "round", "miter", "bevel", "headEnd", "tailEnd", "effectLst", "latin", "ea", "cs", "sym", "bodyPr", "lstStyle", "p", "pPr", "defRPr", "r", "rPr", "t", "br", "fld",
             "endParaRPr", "normAutofit", "spAutoFit", "noAutofit",
+            // shadows and glows: looks that are not kept
+            "outerShdw", "innerShdw", "prstShdw", "glow", "softEdge", "reflection",
             // markup compatibility, around the style
             "AlternateContent", "Choice", "Fallback"};
         QSet<QString> s;

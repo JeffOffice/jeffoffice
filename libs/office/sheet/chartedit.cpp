@@ -401,6 +401,30 @@ bool parseOneArea(const QString &ref, QString *sheet, CellRange *range)
 
 } // namespace
 
+QString chartDataRange(const Chart &chart)
+{
+    QString sheet;
+    CellRange hull;
+    for (const ChartSeries &s : seriesOf(chart))
+        for (const QString &ref : {s.nameRef, s.categoryRef, s.valueRef, s.xRef}) {
+            if (ref.isEmpty()) continue;
+            QString name;
+            CellRange r;
+            if (!parseOneArea(ref, &name, &r)) return QString();
+            if (hull.valid) {
+                if (name.compare(sheet, Qt::CaseInsensitive) != 0) return QString();
+                hull.row1 = std::min(hull.row1, r.row1);
+                hull.col1 = std::min(hull.col1, r.col1);
+                hull.row2 = std::max(hull.row2, r.row2);
+                hull.col2 = std::max(hull.col2, r.col2);
+            } else {
+                sheet = name;
+                hull = r;
+            }
+        }
+    return hull.valid ? chartRef(sheet, hull) : QString();
+}
+
 bool seriesRunDownColumns(const Chart &chart)
 {
     const QVector<ChartSeries> all = seriesOf(chart);

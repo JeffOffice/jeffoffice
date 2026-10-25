@@ -290,6 +290,8 @@ private Q_SLOTS:
         QCOMPARE(s[0].nameRef, QStringLiteral("Sheet1!$B$1"));
         QCOMPARE(s[0].categoryRef, QStringLiteral("Sheet1!$A$2:$A$4"));
         QCOMPARE(s[1].valueRef, QStringLiteral("Sheet1!$C$2:$C$4"));
+        QCOMPARE(chartDataRange(c), QStringLiteral("Sheet1!$A$1:$C$4"));
+        QCOMPARE(chartDataRange(rows), QStringLiteral("Sheet1!$A$1:$C$4"));
         // series that read no block that way: refused
         Chart odd = columns();
         odd.plots[0].series[0].valueRef = QStringLiteral("Sheet1!$B$2:$C$4");
@@ -299,6 +301,7 @@ private Q_SLOTS:
         other.plots[0].series[1].valueRef = QStringLiteral("Sheet2!$C$2:$C$4");
         switchedRowsColumns(other, defaultTheme(), &ok);
         QVERIFY(!ok);
+        QVERIFY(chartDataRange(other).isEmpty());
         Chart literal = columns();
         literal.plots[0].series[1].valueRef.clear();
         switchedRowsColumns(literal, defaultTheme(), &ok);

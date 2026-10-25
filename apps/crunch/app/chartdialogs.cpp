@@ -57,12 +57,6 @@ QString chartKindName(ChartKind kind)
 
 namespace {
 
-QPixmap pixmapOf(const QImage &image, const QSize &box)
-{
-    if (image.isNull()) return QPixmap();
-    return QPixmap::fromImage(image);
-}
-
 // Kinds a series may be drawn as in a combination (bars across are not among them: they do not mix).
 const QVector<ChartKind> &comboKinds()
 {
@@ -88,8 +82,9 @@ InsertChartDialog::InsertChartDialog(const ChartPreviewFn &preview, ChartKind in
     for (const ChartKindEntry &e : chartKindEntries()) {
         auto *item = new QListWidgetItem(chartKindName(e.kind), m_list);
         item->setData(Qt::UserRole, int(e.kind));
-        const QImage thumb = preview ? preview(e.kind, -1, QSize(64, 44)) : QImage();
-        if (!thumb.isNull()) item->setIcon(QIcon(pixmapOf(thumb, QSize(64, 44))));
+        // (drawn large and made small: the words of a chart drawn at 64 pixels would be bigger than the chart)
+        const QImage thumb = preview ? preview(e.kind, -1, QSize(256, 176)) : QImage();
+        if (!thumb.isNull()) item->setIcon(QIcon(QPixmap::fromImage(thumb.scaled(QSize(64, 44), Qt::IgnoreAspectRatio, Qt::SmoothTransformation))));
     }
     m_big = new QLabel(this);
     m_big->setObjectName(QStringLiteral("chartPreview"));
@@ -274,6 +269,7 @@ SelectDataDialog::SelectDataDialog(const SelectDataRequest &request, QWidget *pa
         if (first.isEmpty()) first = s.valueRef;
     }
     m_categories->setText(m_series.isEmpty() ? QString() : (m_chart.type() == ChartType::Scatter ? m_series.first().xRef : m_series.first().categoryRef));
+    m_range->setText(chartDataRange(m_chart));
     const int blanksAt = m_blanks->findData(m_chart.blanksAs);
     m_blanks->setCurrentIndex(blanksAt < 0 ? 0 : blanksAt);
     m_hidden->setChecked(!m_chart.plotVisibleOnly);

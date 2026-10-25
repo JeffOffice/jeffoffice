@@ -139,8 +139,14 @@ int roundtrip(const QString &in, const QString &outPath)
         out() << in << "\t2\t" << before.size() << "\n";
         return 2;
     }
+    // (a file that is open in a window is not opened in a second: the copy is)
+    const QString copy = outPath + QStringLiteral(".again.xlsx");
+    QFile::remove(copy);
+    QFile::copy(outPath, copy);
     CrunchWindow second;
-    if (!openWindow(second, outPath)) {
+    const bool reopened = openWindow(second, copy);
+    QFile::remove(copy);
+    if (!reopened) {
         out() << in << "\t1\t" << before.size() << "\treopen\n";
         return 1;
     }
