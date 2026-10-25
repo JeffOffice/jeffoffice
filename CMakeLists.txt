@@ -142,6 +142,8 @@ qt_add_executable(jptests
   tests/pub/tst_pub_update.cpp
   tests/pub/tst_pub_window.cpp)
 target_link_libraries(jptests PRIVATE jpcore jp_libmspub Qt6::Test)
+# QAbstractFileEngineHandler (a private Qt header) counts the files a test makes Qt open.
+target_include_directories(jptests PRIVATE ${Qt6Core_PRIVATE_INCLUDE_DIRS})
 # libmspub's shape table, for checking its defaults against Publisher's.
 target_include_directories(jptests PRIVATE ${CMAKE_SOURCE_DIR}/third_party/libmspub/src ${CMAKE_SOURCE_DIR}/third_party/compat)
 target_compile_definitions(jptests PRIVATE JP_TEST_DATA="${CMAKE_SOURCE_DIR}/tests/data")

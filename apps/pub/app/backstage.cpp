@@ -51,6 +51,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QMenu>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -194,7 +195,7 @@ QWidget *Backstage::buildInfo()
     auto *dv = new QVBoxLayout(details);
     dv->setContentsMargins(18, 18, 18, 18);
     dv->setSpacing(10);
-    auto *thumb = new QLabel(details);
+    auto *thumb = plainLabel(new QLabel(details));
     thumb->setFixedSize(304, 210);
     thumb->setAlignment(Qt::AlignCenter);
     {
@@ -224,7 +225,7 @@ QWidget *Backstage::buildInfo()
     };
     for (int i = 0; i < facts.size(); ++i) {
         grid->addWidget(mutedLabel(facts[i].first, details), i, 0, Qt::AlignLeft | Qt::AlignTop);
-        auto *val = new QLabel(facts[i].second, details);
+        auto *val = plainLabel(new QLabel(facts[i].second, details));
         val->setWordWrap(true);
         val->setTextInteractionFlags(Qt::TextSelectableByMouse);
         grid->addWidget(val, i, 1);
@@ -523,7 +524,7 @@ QWidget *Backstage::buildNew(bool change)
             const auto known = m_thumbs.constFind(t.id);
             auto *it = new QListWidgetItem(known != m_thumbs.cend() ? *known : placeholder, t.name);
             it->setData(Qt::UserRole, "tpl:" + t.id);
-            it->setToolTip(t.description);
+            it->setToolTip(jp::plainToolTip(t.description));
             list->addItem(it);
             if (known == m_thumbs.cend()) *pending << qMakePair(it, &t);
         }

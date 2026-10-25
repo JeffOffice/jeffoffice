@@ -423,6 +423,7 @@ void describeForScreenReaders(QWidget *root)
             if (c->lineEdit()->accessibleName().isEmpty()) c->lineEdit()->setAccessibleName(c->accessibleName());
             if (c->lineEdit()->whatsThis().isEmpty()) {
                 const QString about = !c->whatsThis().isEmpty() ? c->whatsThis() : !c->accessibleDescription().isEmpty() ? c->accessibleDescription() : c->toolTip();
+                // plain: reviewed: the ribbon's own strings
                 c->lineEdit()->setWhatsThis(about);
                 c->lineEdit()->setAccessibleDescription(about);
             }
@@ -436,8 +437,10 @@ void describeForScreenReaders(QWidget *root)
         // A button showing a command copies the command's texts, again at
         // each change of it, so the command carries this one.
         if (auto *b = qobject_cast<QToolButton *>(w); b && b->defaultAction()) {
+            // plain: reviewed: the ribbon's own strings
             if (b->defaultAction()->whatsThis().isEmpty()) b->defaultAction()->setWhatsThis(about);
         } else {
+            // plain: reviewed: the ribbon's own strings
             w->setWhatsThis(about);
         }
     }

@@ -34,6 +34,7 @@
 #include <QTextDocument>
 #include <QTextDocumentFragment>
 #include <QXmlStreamReader>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -598,7 +599,7 @@ void mergeToEmailFiles(QWidget *parent, Editor *ed)
 {
     const Document &d = *ed->doc();
     if (d.merge.isEmpty()) {
-        QMessageBox::information(parent, QCoreApplication::translate("Import", "Merge to Email"), QCoreApplication::translate("Import", "Select a recipient list first."));
+        jp::plainInformation(parent, QCoreApplication::translate("Import", "Merge to Email"), QCoreApplication::translate("Import", "Select a recipient list first."));
         return;
     }
     QDialog dlg(parent);
@@ -648,7 +649,7 @@ void mergeToEmailFiles(QWidget *parent, Editor *ed)
         QFile f(QDir(dir).filePath(safe + ".eml"));
         if (f.open(QIODevice::WriteOnly)) { f.write(eml.toUtf8()); ++n; }
     }
-    QMessageBox::information(parent, QCoreApplication::translate("Import", "Merge to Email"), QCoreApplication::translate("Import", "Created %n email file(s) in %1.", nullptr, n).arg(dir));
+    jp::plainInformation(parent, QCoreApplication::translate("Import", "Merge to Email"), QCoreApplication::translate("Import", "Created %n email file(s) in %1.", nullptr, n).arg(dir));
 }
 
 std::unique_ptr<Document> loadAnyPublication(const QString &path, QString *error)
@@ -1112,7 +1113,7 @@ void compressPicturesDialog(QWidget *parent, Editor *ed)
             }
         }
     });
-    QMessageBox::information(parent, QCoreApplication::translate("Import", "Compress Pictures"), QCoreApplication::translate("Import", "Saved %1 KB.").arg(saved / 1024));
+    jp::plainInformation(parent, QCoreApplication::translate("Import", "Compress Pictures"), QCoreApplication::translate("Import", "Saved %1 KB.").arg(saved / 1024));
 }
 
 } // namespace jp

@@ -22,6 +22,7 @@
 #include <QStatusBar>
 #include <QToolButton>
 #include <cmath>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -194,7 +195,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
 void WriteWindow::buildStatusBar()
 {
     QStatusBar *sb = statusBar();
-    m_pageLabel = new QLabel(this);
+    m_pageLabel = plainLabel(new QLabel(this));
     m_pageLabel->setObjectName(QStringLiteral("pageNumber"));
     m_pageLabel->setMinimumWidth(110);
     sb->addWidget(m_pageLabel);
@@ -223,7 +224,7 @@ void WriteWindow::buildStatusBar()
     connect(m_zoomSlider, &QSlider::valueChanged, this, [this](int v) { m_view->setZoom(std::pow(1.05, v)); });
     sb->addPermanentWidget(m_zoomSlider);
     button("zoom.in");
-    m_zoomLabel = new QLabel(QStringLiteral("100%"));
+    m_zoomLabel = plainLabel(new QLabel(QStringLiteral("100%")));
     m_zoomLabel->setMinimumWidth(44);
     m_zoomLabel->setObjectName(QStringLiteral("zoomPercent"));
     sb->addPermanentWidget(m_zoomLabel);

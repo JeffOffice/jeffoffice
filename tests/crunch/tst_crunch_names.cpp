@@ -1,6 +1,8 @@
 // Tests of the defined names of a workbook as a person changes them through the edit session (one step of Undo each, the rules a name keeps, the formulas that use a name following it when it
 // is renamed, and what a save leaves of the file's own list of names), and of how the workbook calculates. The workbook is built here.
+#include "../plainprobe.h"
 #include "app/crunchwindow.h"
+#include "app/namesdialog.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
@@ -121,6 +123,28 @@ private Q_SLOTS:
         QCOMPARE(t.at(local).scope, 1);
         QCOMPARE(t.find(0, QStringLiteral("Local")), -1);   // (it belongs to the second sheet)
         QCOMPARE(s->nameValueOf(local), QStringLiteral("100"));
+    }
+
+    // A name's comment and text come from the file: the list's tips show them as the text they are, not as markup that names a picture.
+    void aNamesCommentIsShownInItsTipAsText()
+    {
+        EditWindow e;
+        QVERIFY(e.open(namesBook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        QVERIFY(plainprobe::probeSeesTheTrap());
+        int made = -1;
+        QVERIFY(s->defineName(draft(QStringLiteral("Trap"), QStringLiteral("=Sheet1!$C$1"), -1, plainprobe::hostile()), &made).ok);
+        NamesModel model(s);
+        int found = 0;
+        for (int row = 0; row < model.rowCount(); ++row) {
+            const QVariant tip = model.data(model.index(row, NamesModel::CommentColumn), Qt::ToolTipRole);
+            if (!tip.toString().contains(QStringLiteral("probe.invalid"))) continue;
+            ++found;
+            QVERIFY2(!plainprobe::readsAPicture(tip.toString()), qPrintable(tip.toString()));
+            QCOMPARE(model.data(model.index(row, NamesModel::CommentColumn), Qt::DisplayRole).toString(), plainprobe::hostile());   // (the list itself shows it as it is)
+        }
+        QCOMPARE(found, 1);
     }
 
     void aNameIsMadeChangedAndTakenAwayEachInOneStep()

@@ -15,6 +15,7 @@
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QUndoStack>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -71,8 +72,8 @@ void CrunchWindow::updateEditActions()
     const bool open = m_session && !m_saving;
     act("edit.undo")->setEnabled(open && m_session->canUndo());
     act("edit.redo")->setEnabled(open && u->canRedo());
-    act("edit.undo")->setToolTip(u && m_session->canUndo() ? tr("Undo %1 (%2)").arg(u->undoText(), QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)) : tr("Undo"));
-    act("edit.redo")->setToolTip(u && u->canRedo() ? tr("Redo %1 (%2)").arg(u->redoText(), QKeySequence(QKeySequence::Redo).toString(QKeySequence::NativeText)) : tr("Redo"));
+    act("edit.undo")->setToolTip(jp::plainToolTip(u && m_session->canUndo() ? tr("Undo %1 (%2)").arg(u->undoText(), QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)) : tr("Undo")));
+    act("edit.redo")->setToolTip(jp::plainToolTip(u && u->canRedo() ? tr("Redo %1 (%2)").arg(u->redoText(), QKeySequence(QKeySequence::Redo).toString(QKeySequence::NativeText)) : tr("Redo")));
     // (a chart sheet has no cells to work on: none of the commands that do is on while one is in view, and they are back on a sheet of cells)
     for (const QString &id : m_opsActions)
         if (QAction *a = act(id)) a->setEnabled(open && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown);

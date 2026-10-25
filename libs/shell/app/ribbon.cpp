@@ -265,6 +265,7 @@ void RibbonGroup::setLauncher(const std::function<void()> &fn, const QString &ti
         m_launcher->setIconSize(QSize(13, 13));
         m_launcher->setFixedSize(18, 15);
     }
+    // plain: reviewed: the ribbon's own strings
     m_launcher->setToolTip(tip.isEmpty() ? tr("%1 Settings").arg(m_title) : tip);
     m_launcher->setAccessibleName(m_launcher->toolTip() + QStringLiteral("…"));
     m_launcher->setAccessibleDescription(tr("Opens the %1 dialog").arg(m_launcher->toolTip()));
@@ -460,6 +461,7 @@ public:
         if (k == File) {
             setText(QCoreApplication::translate("Ribbon", "File"));
             setAccessibleDescription(QCoreApplication::translate("Ribbon", "Opens the File page: new, open, save, print, share, export, and options."));
+            // plain: reviewed: the control's own strings
             setWhatsThis(accessibleDescription());
         }
         connect(this, &QAbstractButton::clicked, this, [this] {
@@ -637,6 +639,7 @@ public:
         m_help = new HeaderButton(HeaderButton::Help, r, -1, this);
         m_help->setAccessibleName(QCoreApplication::translate("Ribbon", "Help"));
         m_help->setAccessibleDescription(QCoreApplication::translate("Ribbon", "Opens Help: how to do things in %1, and a search that finds commands too.").arg(appInfo().name));
+        // plain: reviewed: the ribbon's own strings
         m_help->setWhatsThis(m_help->accessibleDescription());
         m_help->setToolTip(QCoreApplication::translate("Ribbon", "Help (F1)"));
     }
@@ -680,6 +683,7 @@ public:
         for (HeaderButton *b : tabButtons) {
             const auto &t = m_r->m_tabs[b->tab()];
             b->setAccessibleDescription(t.group.isEmpty() ? QCoreApplication::translate("Ribbon", "Ribbon tab") : QCoreApplication::translate("Ribbon", "Ribbon tab, %1").arg(t.group));
+            // plain: reviewed: the ribbon's own strings
             b->setWhatsThis(b->accessibleDescription());   // Windows' screen readers read this one
             b->setVisible(t.visible);
             if (!t.visible) continue;
@@ -697,6 +701,7 @@ public:
         m_collapse->setAccessibleName(m_r->m_minimized ? QCoreApplication::translate("Ribbon", "Expand the Ribbon") : QCoreApplication::translate("Ribbon", "Collapse the Ribbon"));
         m_collapse->setAccessibleDescription(m_r->m_minimized ? QCoreApplication::translate("Ribbon", "Shows the ribbon's commands again.")
                                                               : QCoreApplication::translate("Ribbon", "Shows only the tab names, leaving more room for the page."));
+        // plain: reviewed: the ribbon's own strings
         m_collapse->setWhatsThis(m_collapse->accessibleDescription());
         m_collapse->update();
         m_file->update();

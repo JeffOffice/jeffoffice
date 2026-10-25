@@ -32,6 +32,7 @@
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -126,7 +127,7 @@ bool DeckWindow::saveTo(const QString &path)
     QString err;
     QStringList skipped;
     if (!deck::saveAnyPresentationFile(*doc, path, &err, &skipped, embedFontsOnSave())) {
-        QMessageBox::warning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        jp::plainWarning(this, tr("Save"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
     m_ed->setFilePath(path);
@@ -170,13 +171,13 @@ void DeckWindow::offerRecovery(bool askIfNone)
 {
     const QVector<recovery::Recovered> found = recovery::orphans();
     if (found.isEmpty()) {
-        if (askIfNone) QMessageBox::information(this, tr("Recover Unsaved Work"), tr("There's no unsaved work to recover."));
+        if (askIfNone) jp::plainInformation(this, tr("Recover Unsaved Work"), tr("There's no unsaved work to recover."));
         return;
     }
     QDialog dlg(this);
     dlg.setWindowTitle(tr("Recover Unsaved Work"));
     auto *v = new QVBoxLayout(&dlg);
-    auto *intro = new QLabel(tr("%1 didn't close normally, and saved copies of your unsaved work. Choose which to open; you can save each one where you like.").arg(appInfo().name), &dlg);
+    auto *intro = plainLabel(new QLabel(tr("%1 didn't close normally, and saved copies of your unsaved work. Choose which to open; you can save each one where you like.").arg(appInfo().name), &dlg));
     intro->setWordWrap(true);
     v->addWidget(intro);
     auto *list = new QListWidget(&dlg);
@@ -200,7 +201,7 @@ void DeckWindow::offerRecovery(bool askIfNone)
     int choice = 0;
     connect(open, &QPushButton::clicked, &dlg, [&] { choice = 1; dlg.accept(); });
     connect(del, &QPushButton::clicked, &dlg, [&] {
-        if (QMessageBox::question(&dlg, tr("Delete"), tr("Delete the checked copies? Their unsaved work can't be brought back.")) != QMessageBox::Yes)
+        if (jp::plainQuestion(&dlg, tr("Delete"), tr("Delete the checked copies? Their unsaved work can't be brought back.")) != QMessageBox::Yes)
             return;
         choice = 2;
         dlg.accept();
@@ -216,7 +217,7 @@ void DeckWindow::offerRecovery(bool askIfNone)
         }
         QString err;
         if (!openRecovered(r, &err))
-            QMessageBox::warning(this, tr("Recover Unsaved Work"), tr("%1 can't open the copy of \"%2\".\n%3").arg(appInfo().name, r.title, err));
+            jp::plainWarning(this, tr("Recover Unsaved Work"), tr("%1 can't open the copy of \"%2\".\n%3").arg(appInfo().name, r.title, err));
     }
 }
 

@@ -31,6 +31,7 @@
 #include <QStatusBar>
 #include <algorithm>
 #include <memory>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -715,7 +716,7 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
         spin->setSuffix(tr(" s"));
         spin->setKeyboardTracking(false);
         spin->setFixedWidth(84);
-        spin->setToolTip(tip);
+        spin->setToolTip(jp::plainToolTip(tip));
         spin->setAccessibleName(duration ? tr("Duration") : tr("Delay"));
         connect(spin, &QDoubleSpinBox::valueChanged, this, [st, duration](double v) {
             const int ms = qRound(v * 1000);

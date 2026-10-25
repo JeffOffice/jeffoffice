@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -242,13 +243,13 @@ void FormatCellsDialog::buildNumber(QWidget *page)
     auto *right = new QVBoxLayout();
     auto *sampleBox = new QGroupBox(tr("Sample"), page);
     auto *sampleLayout = new QVBoxLayout(sampleBox);
-    m_sample = new QLabel(page);
+    m_sample = plainLabel(new QLabel(page));
     m_sample->setObjectName(QStringLiteral("numberSample"));
     m_sample->setMinimumHeight(24);
     m_sample->setTextInteractionFlags(Qt::TextSelectableByMouse);
     sampleLayout->addWidget(m_sample);
     right->addWidget(sampleBox);
-    m_description = new QLabel(page);
+    m_description = plainLabel(new QLabel(page));
     m_description->setWordWrap(true);
     right->addWidget(m_description);
     // the options (each category shows the ones it has)
@@ -394,7 +395,7 @@ void FormatCellsDialog::categoryChanged(int row)
             const jp::calc::Formatted f = jp::calc::NumberFormat(t.code).format(m_in.sampleIsNumber ? m_in.sampleNumber : 0, m_in.dateSystem, 0, &symbols);
             m_types->addItem(f.failed || f.text.isEmpty() ? t.code : f.text);
             m_types->item(m_types->count() - 1)->setData(Qt::UserRole, t.code);
-            if (!t.label.isEmpty()) m_types->item(m_types->count() - 1)->setToolTip(t.label);
+            if (!t.label.isEmpty()) m_types->item(m_types->count() - 1)->setToolTip(jp::plainToolTip(t.label));
         }
         if (m_types->currentRow() < 0) m_types->setCurrentRow(0);
     }
@@ -729,7 +730,7 @@ void FormatCellsDialog::buildBorder(QWidget *page)
     m_lineStyles->setIconSize(QSize(72, 14));
     for (const BorderStyle s : kLineStyles) {
         auto *item = new QListWidgetItem(lineSwatch(s, Qt::black), lineStyleName(s), m_lineStyles);
-        item->setToolTip(lineStyleName(s));
+        item->setToolTip(jp::plainToolTip(lineStyleName(s)));
     }
     m_lineStyles->setCurrentRow(6);   // thin
     m_lineStyles->setMinimumHeight(190);

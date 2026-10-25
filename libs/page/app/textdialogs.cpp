@@ -44,6 +44,7 @@
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -174,7 +175,7 @@ void fontDialog(QWidget *p, Editor *ed)
     const QList<QCheckBox *> boxes{sup, sub, strike, smallcaps, allcaps, shadow, outline, emboss, engrave};
     for (int i = 0; i < boxes.size(); ++i) eg->addWidget(boxes[i], i / 3, i % 3);
     dlg.v->addWidget(effects);
-    auto *preview = new QLabel(forThisApp(QCoreApplication::translate("Dialogs", "JeffPub sample text")), &dlg.d);
+    auto *preview = plainLabel(new QLabel(forThisApp(QCoreApplication::translate("Dialogs", "JeffPub sample text")), &dlg.d));
     preview->setMinimumHeight(48);
     preview->setAlignment(Qt::AlignCenter);
     preview->setFrameShape(QFrame::StyledPanel);
@@ -562,7 +563,7 @@ QStringList recentSymbols() { return Settings::get().value(QStringLiteral("symbo
 bool insertSymbol(QWidget *p, Editor *ed, const QString &ch, const QString &font)
 {
     if (!ed->isEditingText()) {
-        QMessageBox::information(p, QCoreApplication::translate("Dialogs", "Symbol"), QCoreApplication::translate("Dialogs", "Click in a text box first."));
+        jp::plainInformation(p, QCoreApplication::translate("Dialogs", "Symbol"), QCoreApplication::translate("Dialogs", "Click in a text box first."));
         return false;
     }
     if (!font.isEmpty()) {
@@ -619,7 +620,7 @@ void symbolDialog(QWidget *p, Editor *ed)
     recent->setFixedHeight(36);
     recent->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     recent->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    auto *code = new QLabel(&dlg.d);
+    auto *code = plainLabel(new QLabel(&dlg.d));
     auto fill = [=] {
         const auto r = ranges[subset->currentIndex()].second;
         const int n = r.second - r.first + 1;
@@ -683,7 +684,7 @@ void symbolDialog(QWidget *p, Editor *ed)
 void dateTimeDialog(QWidget *p, Editor *ed)
 {
     if (!ed->isEditingText()) {
-        QMessageBox::information(p, QCoreApplication::translate("Dialogs", "Date and Time"), QCoreApplication::translate("Dialogs", "Click in a text box first."));
+        jp::plainInformation(p, QCoreApplication::translate("Dialogs", "Date and Time"), QCoreApplication::translate("Dialogs", "Click in a text box first."));
         return;
     }
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Date and Time"));
@@ -869,7 +870,7 @@ bool fillEffectsDialog(QWidget *p, Editor *ed, Fill &fill, const QString &title)
     auto *pt = new QWidget();
     auto *pv = new QVBoxLayout(pt);
     auto *pickPic = new QPushButton(QCoreApplication::translate("Dialogs", "Select Picture…"), pt);
-    auto *picLabel = new QLabel(pt);
+    auto *picLabel = plainLabel(new QLabel(pt));
     picLabel->setFixedSize(200, 140);
     picLabel->setFrameShape(QFrame::StyledPanel);
     auto *tile = new QCheckBox(QCoreApplication::translate("Dialogs", "Tile picture as texture"), pt);
@@ -1021,7 +1022,7 @@ void wordCountDialog(QWidget *p, Editor *ed)
     QString sel;
     if (ed->isEditingText() && ed->cursor().hasSelection())
         sel = QCoreApplication::translate("Dialogs", "<br><br><b>Selection</b><br>Words: %1").arg(ed->cursor().selectedText().split(QRegularExpression("\\s+"), Qt::SkipEmptyParts).size());
-    QMessageBox::information(p, QCoreApplication::translate("Dialogs", "Word Count"),
+    jp::plainInformation(p, QCoreApplication::translate("Dialogs", "Word Count"),
                              QCoreApplication::translate("Dialogs", "<b>Publication</b><br>Pages: %1<br>Words: %2<br>Characters (no spaces): %3<br>Characters (with spaces): %4"
                                                                     "<br>Paragraphs: %5<br>Text boxes: %6<br>Pictures: %7%8")
                                  .arg(d->pages.size()).arg(words).arg(charsNoSpace).arg(chars).arg(paras).arg(boxes).arg(pics).arg(sel));

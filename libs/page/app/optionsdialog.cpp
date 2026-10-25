@@ -21,6 +21,7 @@
 #include <QMessageBox>
 #include <QTabWidget>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -77,8 +78,8 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     const bool online = appInfo().online;
     auto *stats = new QCheckBox(QCoreApplication::translate("Dialogs", "Send anonymous usage statistics"), gen);
     stats->setObjectName(QStringLiteral("stats"));
-    stats->setToolTip(forThisApp(QCoreApplication::translate("Dialogs", "Once a day, and the day it's updated: JeffPub's version, your operating system and language, and how often each command is used. "
-                                                                       "Never your files, their names, or anything in them.")));
+    stats->setToolTip(jp::plainToolTip(forThisApp(QCoreApplication::translate("Dialogs", "Once a day, and the day it's updated: JeffPub's version, your operating system and language, and how often each command is used. "
+                                                                       "Never your files, their names, or anything in them."))));
     stats->setChecked(telemetry::enabled());
     gf->addRow(stats);
     auto *updates = new QCheckBox(forThisApp(QCoreApplication::translate("Dialogs", "Check for updates when JeffPub starts")), gen);
@@ -90,8 +91,8 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     beta->setObjectName(QStringLiteral("betaUpdates"));
     const QString betaAbout = QCoreApplication::translate("Dialogs", "Beta versions arrive before the regular ones and may have rough edges. "
                                                                     "Leave this off to get only the regular versions.");
-    beta->setToolTip(betaAbout);
-    beta->setWhatsThis(betaAbout);
+    beta->setToolTip(jp::plainToolTip(betaAbout));
+    beta->setWhatsThis(jp::plainToolTip(betaAbout));
     beta->setAccessibleDescription(betaAbout);
     beta->setChecked(Updater::betaChannel());
     gf->addRow(beta);
@@ -127,7 +128,7 @@ bool optionsDialog(QWidget *p, Editor *ed, const QVector<OptionsPage> &appPages)
     if (theme->currentIndex() != oldTheme) applyUiTheme(theme->currentIndex());   // the whole program changes now
     if (const QString lang = uiLang->currentData().toString(); lang != oldLang) {
         st.setValue("ui/language", lang);
-        QMessageBox::information(p, QCoreApplication::translate("Dialogs", "Display Language"), forThisApp(QCoreApplication::translate("Dialogs", "JeffPub shows its text in the new language the next time it starts.")));
+        jp::plainInformation(p, QCoreApplication::translate("Dialogs", "Display Language"), forThisApp(QCoreApplication::translate("Dialogs", "JeffPub shows its text in the new language the next time it starts.")));
     }
     st.setValue("proof/ignoreUpper", ignoreUpper->isChecked());
     st.setValue("proof/ignoreNumbers", ignoreNum->isChecked());

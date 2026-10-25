@@ -22,6 +22,7 @@
 #include <QTextBlock>
 #include <QTemporaryDir>
 #include <QTextDocument>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -51,7 +52,7 @@ static void saveEml(QWidget *parent, const QString &name, const QString &body)
     if (path.isEmpty()) return;
     QFile f(path);
     if (f.open(QIODevice::WriteOnly)) f.write(body.toUtf8());
-    QMessageBox::information(parent, QCoreApplication::translate("Sharing", "Email"), QCoreApplication::translate("Sharing", "Saved %1.\nOpen it in your email program, add recipients and send.").arg(QFileInfo(path).fileName()));
+    jp::plainInformation(parent, QCoreApplication::translate("Sharing", "Email"), QCoreApplication::translate("Sharing", "Saved %1.\nOpen it in your email program, add recipients and send.").arg(QFileInfo(path).fileName()));
 }
 
 void emailCurrentPage(QWidget *parent, Editor *ed)
@@ -172,10 +173,10 @@ void packAndGo(QWidget *parent, MainWindow *win, bool forPrinter)
         if (dir.isEmpty()) return;
         QString err;
         if (!packForPrinter(win, dir, &err)) {
-            QMessageBox::warning(parent, QCoreApplication::translate("Sharing", "Pack and Go"), err);
+            jp::plainWarning(parent, QCoreApplication::translate("Sharing", "Pack and Go"), err);
             return;
         }
-        QMessageBox::information(parent, QCoreApplication::translate("Sharing", "Pack and Go"), QCoreApplication::translate("Sharing", "Saved the PDF and publication for your printer in %1.").arg(dir));
+        jp::plainInformation(parent, QCoreApplication::translate("Sharing", "Pack and Go"), QCoreApplication::translate("Sharing", "Saved the PDF and publication for your printer in %1.").arg(dir));
         return;
     }
     const QString path = askSavePath(parent, QCoreApplication::translate("Sharing", "Save for Another Computer"), ed->displayName() + ".zip", QCoreApplication::translate("Sharing", "ZIP (*.zip)"));
@@ -183,10 +184,10 @@ void packAndGo(QWidget *parent, MainWindow *win, bool forPrinter)
     int fonts = 0;
     QString err;
     if (!packToZip(win, path, &fonts, &err)) {
-        QMessageBox::warning(parent, QCoreApplication::translate("Sharing", "Pack and Go"), err);
+        jp::plainWarning(parent, QCoreApplication::translate("Sharing", "Pack and Go"), err);
         return;
     }
-    QMessageBox::information(parent, QCoreApplication::translate("Sharing", "Pack and Go"), QCoreApplication::translate("Sharing", "Saved %1 with the publication and %n font file(s).", nullptr, fonts).arg(QFileInfo(path).fileName()));
+    jp::plainInformation(parent, QCoreApplication::translate("Sharing", "Pack and Go"), QCoreApplication::translate("Sharing", "Saved %1 with the publication and %n font file(s).", nullptr, fonts).arg(QFileInfo(path).fileName()));
 }
 
 void saveForPhotoPrinter(QWidget *parent, MainWindow *win)
@@ -204,7 +205,7 @@ void saveForPhotoPrinter(QWidget *parent, MainWindow *win)
         img.setDotsPerMeterY(11811);
         img.save(QDir(dir).filePath(QStringLiteral("%1-page%2.jpg").arg(ed->displayName()).arg(i + 1)), "JPG", 95);
     }
-    QMessageBox::information(parent, QCoreApplication::translate("Sharing", "Save for a Photo Printer"), QCoreApplication::translate("Sharing", "Saved %n picture(s) at 300 dpi.", nullptr, int(ed->doc()->pages.size())));
+    jp::plainInformation(parent, QCoreApplication::translate("Sharing", "Save for a Photo Printer"), QCoreApplication::translate("Sharing", "Saved %n picture(s) at 300 dpi.", nullptr, int(ed->doc()->pages.size())));
 }
 
 void saveAsTemplate(QWidget *parent, MainWindow *win)
@@ -216,8 +217,8 @@ void saveAsTemplate(QWidget *parent, MainWindow *win)
     QDir().mkpath(dir);
     QString err;
     if (savePublication(*win->editor()->doc(), dir + "/" + name.trimmed() + ".jpub", win->pageThumbnail(0, 256), &err, true))
-        QMessageBox::information(parent, QCoreApplication::translate("Sharing", "Save as Template"), QCoreApplication::translate("Sharing", "\"%1\" is now in File > New > My Templates.").arg(name.trimmed()));
-    else QMessageBox::warning(parent, QCoreApplication::translate("Sharing", "Save as Template"), err);
+        jp::plainInformation(parent, QCoreApplication::translate("Sharing", "Save as Template"), QCoreApplication::translate("Sharing", "\"%1\" is now in File > New > My Templates.").arg(name.trimmed()));
+    else jp::plainWarning(parent, QCoreApplication::translate("Sharing", "Save as Template"), err);
 }
 
 } // namespace jp

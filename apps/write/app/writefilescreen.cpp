@@ -33,6 +33,7 @@
 #include <QVBoxLayout>
 #include <cmath>
 #include <memory>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -479,7 +480,7 @@ QWidget *WriteFileScreen::buildAbout()
     ih->addWidget(badge, 0, Qt::AlignTop);
     auto *iv = new QVBoxLayout();
     iv->setSpacing(3);
-    auto *name = new QLabel(appInfo().name, id);
+    auto *name = plainLabel(new QLabel(appInfo().name, id));
     QFont nf = name->font();
     nf.setWeight(QFont::DemiBold);
     nf.setPointSizeF(nf.pointSizeF() * 1.35);
@@ -491,6 +492,7 @@ QWidget *WriteFileScreen::buildAbout()
     fitHeight(tag);
     iv->addWidget(tag);
     const QString repo = QStringLiteral("https://github.com/") + appInfo().repository;
+    // plain: reviewed: our own text and links, no file text
     auto *links = new QLabel(QStringLiteral("<a href=\"%1\">%2</a> &nbsp;·&nbsp; <a href=\"%1/releases\">%3</a> &nbsp;·&nbsp; <a href=\"%1/issues\">%4</a>")
                                  .arg(repo, tr("Source code"), tr("Downloads"), tr("Report a problem")),
                              id);

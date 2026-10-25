@@ -17,6 +17,7 @@
 #include <QPushButton>
 #include <QStandardPaths>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -34,7 +35,7 @@ ReusePane::ReusePane(QWidget *parent) : QWidget(parent), m_cache(std::make_uniqu
     browse->setObjectName(QStringLiteral("reuseBrowse"));
     browse->setToolTip(tr("Choose a presentation to take slides from"));
     connect(browse, &QPushButton::clicked, this, &ReusePane::browse);
-    m_status = new QLabel(tr("Browse for a presentation to take slides from."), this);
+    m_status = plainLabel(new QLabel(tr("Browse for a presentation to take slides from."), this));
     m_status->setObjectName(QStringLiteral("reuseStatus"));
     m_status->setWordWrap(true);
     m_list = new QListWidget(this);
@@ -101,7 +102,7 @@ bool ReusePane::open(const QString &path)
     }
     m_error.clear();
     m_status->setText(QFileInfo(path).fileName());
-    m_status->setToolTip(QDir::toNativeSeparators(path));
+    m_status->setToolTip(jp::plainToolTip(QDir::toNativeSeparators(path)));
     const QSizeF page = m_doc->pageSize();
     const QSize thumb(kThumbWidth, std::max(1, int(std::lround(kThumbWidth * page.height() / std::max(1.0, page.width())))));
     m_list->setIconSize(thumb);
@@ -111,7 +112,7 @@ bool ReusePane::open(const QString &path)
     for (int i = 0; i < m_doc->pages.size(); ++i) {
         const QString title = deck::slideTitle(*m_doc, i);
         auto *item = new QListWidgetItem(QIcon(blank), title.isEmpty() ? QString::number(i + 1) : QStringLiteral("%1  %2").arg(i + 1).arg(title), m_list);
-        item->setToolTip(title);
+        item->setToolTip(jp::plainToolTip(title));
         item->setData(Qt::AccessibleTextRole, title.isEmpty() ? tr("Slide %1").arg(i + 1) : tr("Slide %1, %2").arg(i + 1).arg(title));
     }
     if (m_list->count()) m_list->setCurrentRow(0);

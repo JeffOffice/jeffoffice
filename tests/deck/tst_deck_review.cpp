@@ -1,5 +1,8 @@
 // JeffDeck's tests of spelling, comments, the options, and telemetry.
+#include "../plainprobe.h"
 #include "deckhelpers.h"
+
+#include <QToolTip>
 
 class DeckReviewTests : public QObject {
     Q_OBJECT
@@ -635,6 +638,84 @@ private Q_SLOTS:
         w.act(QStringLiteral("comment.show"))->trigger();
         QVERIFY(w.commentsPane()->isHidden());
         QVERIFY(!w.canvas()->commentsShown());
+    }
+
+    // Text that came from a file (a slide's title, a tile's name, a comment and its author) that looks like markup naming a picture is shown as the text it is:
+    // no label, tip, or list item of the panes takes it for markup.
+    void hostileFileTextIsShownAsText()
+    {
+        using plainprobe::hostile;
+        using plainprobe::readsAPicture;
+        QVERIFY(plainprobe::probeSeesTheTrap());
+        const QString bad = hostile();
+        // The Reuse Slides pane: the slide's title is the item's tip, and the status line shows the file.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("hostile.pptx"));
+        {
+            auto src = deck::newPresentation();
+            auto *title = static_cast<TextItem *>(src->pages[0]->items[0].get());
+            QTextCursor(src->storyDoc(title->storyId)).insertText(bad);
+            QString err;
+            QVERIFY2(deck::savePresentationFile(*src, path, &err), qPrintable(err));
+        }
+        ReusePane reuse;
+        QVERIFY(reuse.open(path));
+        QVERIFY(reuse.slideCount() >= 1);
+        QVERIFY2(reuse.list()->item(0)->toolTip().contains(QStringLiteral("probe.invalid")), qPrintable(reuse.list()->item(0)->toolTip()));
+        QVERIFY2(!readsAPicture(reuse.list()->item(0)->toolTip()), qPrintable(reuse.list()->item(0)->toolTip()));
+        for (const QLabel *l : reuse.findChildren<QLabel *>()) QVERIFY2(!readsAPicture(l), qPrintable(l->text()));
+        // A tile's name (a theme's name comes from the file) is the tip that comes up over it.
+        {
+            PictureGrid g(60, 3, true);
+            g.setTiles({PictureGrid::Tile{bad, {}}});
+            g.setPictures([](int, int width, qreal) {
+                QImage img(width, width * 9 / 16, QImage::Format_RGB32);
+                img.fill(Qt::gray);
+                return img;
+            });
+            g.resize(g.sizeHint());
+            g.show();
+            QTest::mouseMove(&g, g.tileRect(0).center());
+            QTRY_VERIFY(QToolTip::text().contains(QStringLiteral("probe.invalid")));
+            QVERIFY2(!readsAPicture(QToolTip::text()), qPrintable(QToolTip::text()));
+            QToolTip::hideText();
+        }
+        // The Comments pane: the author, the comment, and a reply.
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        const deck::CommentAuthor odd{bad, bad};
+        const QString id = deck::addComment(*ed->doc()->pages[ed->currentPage()], odd, bad, QPointF(10, 10));
+        deck::addReply(*ed->doc()->pages[ed->currentPage()], id, odd, bad);
+        w.act(QStringLiteral("comment.show"))->trigger();
+        CommentsPane *pane = w.commentsPane();
+        pane->reload();
+        int shown = 0;
+        for (const QLabel *l : pane->findChildren<QLabel *>()) {
+            QVERIFY2(!readsAPicture(l), qPrintable(l->text()));
+            shown += l->text().contains(QStringLiteral("probe.invalid"));
+        }
+        QVERIFY(shown >= 2);   // the author and the comment are on the cards
+        for (const QToolButton *b : pane->findChildren<QToolButton *>()) QVERIFY2(!readsAPicture(b->toolTip()), qPrintable(b->toolTip()));
+        // The message box that says a file can't be opened shows its text, which can hold the file's name, as text.
+        const QString notAPresentation = dir.filePath(QStringLiteral("bad.pptx"));
+        QFile f(notAPresentation);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("not a presentation");
+        f.close();
+        bool plain = false, seen = false;
+        QTimer::singleShot(0, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                seen = true;
+                plain = box->textFormat() == Qt::PlainText && !readsAPicture(box);   // (the text names a file, whose name could be markup)
+                box->close();
+            }
+        });
+        w.openFile(notAPresentation);
+        QVERIFY(seen);
+        QVERIFY(plain);
     }
 
     // The Comments pane: New Comment opens a box to type in, Post makes the

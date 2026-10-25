@@ -15,6 +15,7 @@
 #include <QSplitter>
 #include <QStackedWidget>
 #include <cmath>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -52,7 +53,7 @@ void DeckWindow::createViewModeActions()
     view("view.master", tr("Slide Master"), "layout-template", View::Master);
     for (QAction *a : {view("view.notesPage", tr("Notes Page"), "notebook-text", View::Normal), view("view.reading", tr("Reading View"), "book-open", View::Normal)}) {
         a->setEnabled(false);
-        a->setToolTip(tr("%1 is coming.").arg(a->text()));
+        a->setToolTip(jp::plainToolTip(tr("%1 is coming.").arg(a->text())));
     }
 
     connect(m_sorter, &SlideSorter::openRequested, this, [this](int slide) {

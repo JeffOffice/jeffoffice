@@ -25,6 +25,7 @@
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <algorithm>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -109,28 +110,28 @@ bool DeckWindow::insertMedia(const QString &path, const QString &kind)
     Document *d = m_ed->doc();
     const int page = m_ed->currentPage();
     if (!m_ed->masterView().isEmpty() || page < 0 || page >= d->pages.size()) {
-        QMessageBox::information(this, title, tr("A movie or sound goes on a slide. Go to a slide (not a slide master or layout), and try again."));
+        jp::plainInformation(this, title, tr("A movie or sound goes on a slide. Go to a slide (not a slide master or layout), and try again."));
         return false;
     }
     if (found.isEmpty() || (!kind.isEmpty() && found != kind)) {
-        QMessageBox::warning(this, title, tr("%1 isn't a %2 file that %3 can put on a slide.").arg(name, audio ? tr("sound") : tr("movie"), appInfo().name));
+        jp::plainWarning(this, title, tr("%1 isn't a %2 file that %3 can put on a slide.").arg(name, audio ? tr("sound") : tr("movie"), appInfo().name));
         return false;
     }
     const bool video = found == QLatin1String("video");
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, title, tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, f.errorString()));
+        jp::plainWarning(this, title, tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, f.errorString()));
         return false;
     }
     // What the file says its size is can't be trusted (a pipe or a device says 0), so what is read is counted.
     QByteArray bytes;
     if (!deck::readMediaBytes(f, kMaxMediaBytes, &bytes)) {
-        QMessageBox::warning(this, title, tr("%1 is too large to keep in a presentation (the most is 1 GB).").arg(name));
+        jp::plainWarning(this, title, tr("%1 is too large to keep in a presentation (the most is 1 GB).").arg(name));
         return false;
     }
     f.close();
     if (!deck::mediaWouldFit(*d, bytes)) {
-        QMessageBox::warning(this, title, tr("%1 is too large to put in this presentation: with it, the file could not be opened again. All its pictures, movies, and sounds together may come to %2 GB.")
+        jp::plainWarning(this, title, tr("%1 is too large to put in this presentation: with it, the file could not be opened again. All its pictures, movies, and sounds together may come to %2 GB.")
                                               .arg(name, QString::number(double(deck::mediaByteLimit()) / (1024.0 * 1024.0 * 1024.0), 'f', 1)));
         return false;
     }
@@ -138,7 +139,7 @@ bool DeckWindow::insertMedia(const QString &path, const QString &kind)
     const MediaProbe probe = probeMedia(bytes, QFileInfo(path).suffix(), video);
     QGuiApplication::restoreOverrideCursor();
     if (!probe.error.isEmpty() && probe.duration <= 0 && probe.frame.isNull()) {
-        QMessageBox::warning(this, title, tr("%1 can't read \"%2\" as a %3, so it isn't put on the slide.").arg(appInfo().name, name, video ? tr("movie") : tr("sound")));
+        jp::plainWarning(this, title, tr("%1 can't read \"%2\" as a %3, so it isn't put on the slide.").arg(appInfo().name, name, video ? tr("movie") : tr("sound")));
         return false;
     }
     m_ed->endTextEdit();
@@ -224,7 +225,7 @@ void DeckWindow::addMediaParts(RibbonParts &parts)
                                    const std::function<void(deck::MediaPlay &, bool)> &write, bool videoOnly) {
         auto *box = new QCheckBox(text);
         box->setObjectName(QLatin1String(name));
-        box->setToolTip(tip);
+        box->setToolTip(jp::plainToolTip(tip));
         connect(box, &QCheckBox::toggled, this, [this, write, text](bool on) {
             editMedia(text.isEmpty() ? tr("Media Options") : text, [write, on](deck::MediaPlay &p) { write(p, on); });
         });

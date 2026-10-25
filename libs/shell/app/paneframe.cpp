@@ -10,6 +10,7 @@
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include <algorithm>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -139,7 +140,7 @@ void PaneSection::refreshHeader()
 {
     m_header->setAccessibleName(m_title);
     m_header->setAccessibleDescription(m_expanded ? tr("Expanded. Press Space to fold it up.") : tr("Folded. Press Space to open it."));
-    m_header->setToolTip(m_expanded ? tr("Fold up %1").arg(m_title) : tr("Open %1").arg(m_title));
+    m_header->setToolTip(jp::plainToolTip(m_expanded ? tr("Fold up %1").arg(m_title) : tr("Open %1").arg(m_title)));
     m_header->update();
 }
 
@@ -253,7 +254,7 @@ PanePage *PaneFrame::addPage(const QString &id, const QIcon &icon, const QString
     auto *tab = new TabButton(m_tabRow);
     tab->setObjectName(QStringLiteral("paneTab:") + id);
     tab->setIcon(icon);
-    tab->setToolTip(name);
+    tab->setToolTip(jp::plainToolTip(name));
     tab->setAccessibleName(name);
     tab->setAccessibleDescription(tr("Tab"));
     m_tabRow->layout()->addWidget(tab);

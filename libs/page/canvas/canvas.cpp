@@ -48,6 +48,7 @@ public:
         setCursor(Qt::SizeAllCursor);
         setAccessibleName(QCoreApplication::translate("Canvas", "Ruler zero point"));
         setAccessibleDescription(QCoreApplication::translate("Canvas", "Drag to move both rulers' zero point. Double-click to put it back at the page's corner."));
+        // plain: reviewed: the control's own strings
         setToolTip(accessibleDescription());
     }
 

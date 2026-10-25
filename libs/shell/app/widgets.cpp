@@ -34,6 +34,7 @@
 #include <QScreen>
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -109,7 +110,7 @@ ColorPopup::ColorPopup(const ColorScheme &s, bool allowNone, const QString &none
         v->addWidget(none);
     }
     auto label = [&](const QString &t) {
-        auto *l = new QLabel(t, this);
+        auto *l = plainLabel(new QLabel(t, this));
         QFont f = l->font();
         f.setBold(true);
         f.setPointSizeF(f.pointSizeF() * 0.9);
@@ -203,7 +204,7 @@ QWidget *colorGridWidget(const ColorScheme &scheme, const std::function<void(con
     };
     auto swatch = [&](const ColorRef &c) {
         auto *b = new Swatch(c.resolve(scheme), w);
-        b->setToolTip(c.kind() == ColorRef::Scheme ? c.displayName() : c.resolve(scheme).name(QColor::HexRgb).toUpper());
+        b->setToolTip(jp::plainToolTip(c.kind() == ColorRef::Scheme ? c.displayName() : c.resolve(scheme).name(QColor::HexRgb).toUpper()));
         b->setAccessibleName(b->toolTip());
         QObject::connect(b, &QToolButton::clicked, w, [c, picked] { picked(c); });
         return b;
@@ -232,7 +233,7 @@ QWidget *colorGridWidget(const ColorScheme &scheme, const std::function<void(con
 QWidget *ColorPopup::swatch(const ColorRef &c, const QColor &shown, const QString &tip)
 {
     auto *b = new Swatch(shown, this);
-    b->setToolTip(tip);
+    b->setToolTip(jp::plainToolTip(tip));
     b->setAccessibleName(tip);
     connect(b, &QToolButton::clicked, this, [this, c] {
         if (c.kind() == ColorRef::Rgb) addRecent(c.rgbValue());
@@ -264,6 +265,7 @@ void ColorPopup::showBelow(QWidget *anchor)
 ColorButton::ColorButton(const QString &iconName, const QString &text, bool allowNone, const QString &noneLabel, QWidget *parent)
     : QToolButton(parent), m_icon(iconName), m_allowNone(allowNone), m_noneLabel(noneLabel)
 {
+    // plain: reviewed: the control's own strings
     setToolTip(text);
     setAccessibleName(text);
     setAccessibleDescription(tr("Applies the color shown; Down arrow or F4 opens more colors."));
@@ -525,7 +527,7 @@ Gallery::Gallery(const QSize &itemSize, int visibleColumns, QWidget *parent) : Q
         b->setIconSize(QSize(12, 12));
         b->setAutoRaise(true);
         b->setFixedSize(20, std::max(18, (m_list->height() - 6) / 3));
-        b->setToolTip(tip);
+        b->setToolTip(jp::plainToolTip(tip));
         b->setAccessibleName(tip);
         b->setFocusPolicy(Qt::TabFocus);
         b->setCursor(Qt::PointingHandCursor);
@@ -547,7 +549,7 @@ void Gallery::setItems(const QVector<GalleryItem> &items)
     m_list->clear();
     for (const auto &g : items) {
         auto *it = new QListWidgetItem(g.icon, QString());
-        it->setToolTip(g.tip);
+        it->setToolTip(jp::plainToolTip(g.tip));
         it->setData(Qt::AccessibleTextRole, g.tip);
         it->setData(Qt::UserRole, g.id);
         it->setSizeHint(m_itemSize + QSize(14, 14));
@@ -672,7 +674,7 @@ QFrame *galleryPopup(const QVector<GalleryItem> &items, const QSize &itemSize, i
         }
         if (!list) newList();
         auto *it = new QListWidgetItem(g.icon, QString());
-        it->setToolTip(g.tip);
+        it->setToolTip(jp::plainToolTip(g.tip));
         it->setData(Qt::AccessibleTextRole, g.tip);
         it->setData(Qt::UserRole, g.id);
         list->addItem(it);
@@ -729,6 +731,7 @@ GalleryButton::GalleryButton(const QIcon &ic, const QString &text, const QSize &
     setText(text);
     setAccessibleName(text);
     setAccessibleDescription(tr("Opens a gallery to choose from: the arrow keys move in it, and Enter chooses."));
+    // plain: reviewed: the control's own strings
     setWhatsThis(accessibleDescription());
     setAutoRaise(true);
     setFocusPolicy(Qt::TabFocus);   // the keyboard reaches it; a click leaves the focus in the text
@@ -884,6 +887,7 @@ FontCombo::FontCombo(QWidget *parent) : QComboBox(parent)
 {
     setAccessibleName(tr("Font"));
     setAccessibleDescription(tr("Type or choose the font of the selected text."));
+    // plain: reviewed: the control's own strings
     setWhatsThis(accessibleDescription());
     setEditable(true);
     setInsertPolicy(QComboBox::NoInsert);
@@ -953,6 +957,7 @@ SizeCombo::SizeCombo(QWidget *parent) : QComboBox(parent)
 {
     setAccessibleName(tr("Font Size"));
     setAccessibleDescription(tr("Type or choose the size, in points, of the selected text."));
+    // plain: reviewed: the control's own strings
     setWhatsThis(accessibleDescription());
     setEditable(true);
     setInsertPolicy(QComboBox::NoInsert);
@@ -1106,7 +1111,7 @@ QColor colorsDialog(QWidget *parent, const QColor &current, const QString &title
         b->setFixedSize(22, 22);
         b->setAutoRaise(true);
         b->setCheckable(true);
-        b->setToolTip(c.name().toUpper());
+        b->setToolTip(jp::plainToolTip(c.name().toUpper()));
         b->setStyleSheet(QStringLiteral("QToolButton{background:%1;border:1px solid #888;} QToolButton:checked{border:2px solid palette(highlight);}").arg(c.name()));
         b->setProperty("jpColor", c);
         grid->addWidget(b, row, col);
@@ -1169,7 +1174,7 @@ QColor colorsDialog(QWidget *parent, const QColor &current, const QString &title
     clear->setSuffix(QStringLiteral("%"));
     bottom->addWidget(clear);
     bottom->addStretch(1);
-    auto *preview = new QLabel(&dlg);
+    auto *preview = plainLabel(new QLabel(&dlg));
     preview->setFixedSize(96, 48);
     bottom->addWidget(preview);
     v->addLayout(bottom);

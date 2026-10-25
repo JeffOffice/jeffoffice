@@ -18,6 +18,7 @@
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
 #include <cmath>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -100,10 +101,10 @@ QStringList pickIcons(QWidget *parent)
         auto *it = new QListWidgetItem(icon(name), QString(), list);
         it->setData(Qt::UserRole, name);
         it->setData(Qt::AccessibleTextRole, shownName(name));
-        it->setToolTip(tags.isEmpty() ? shownName(name) : shownName(name) + QStringLiteral(" (") + tags.join(QStringLiteral(", ")) + ')');
+        it->setToolTip(jp::plainToolTip(tags.isEmpty() ? shownName(name) : shownName(name) + QStringLiteral(" (") + tags.join(QStringLiteral(", ")) + ')'));
     }
     v->addWidget(list, 1);
-    auto *hint = new QLabel(&dlg);
+    auto *hint = plainLabel(new QLabel(&dlg));
     v->addWidget(hint);
     auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QPushButton *insert = bb->button(QDialogButtonBox::Ok);

@@ -20,6 +20,7 @@
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -127,7 +128,7 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     root->setSpacing(10);
 
     auto *top = new QHBoxLayout;
-    m_timerLabel = new QLabel(QStringLiteral("00:00"), this);
+    m_timerLabel = plainLabel(new QLabel(QStringLiteral("00:00"), this));
     m_timerLabel->setObjectName(QStringLiteral("timerLabel"));
     m_timerLabel->setAccessibleName(tr("Time since the slide show started"));
     QFont big = m_timerLabel->font();
@@ -136,7 +137,7 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     m_timerLabel->setFont(big);
     m_pause = button(QStringLiteral("pauseButton"), tr("Pause"));
     QAbstractButton *reset = button(QStringLiteral("resetButton"), tr("Reset"));
-    m_clock = new QLabel(this);
+    m_clock = plainLabel(new QLabel(this));
     m_clock->setObjectName(QStringLiteral("clockLabel"));
     m_clock->setAccessibleName(tr("Time of day"));
     m_clock->setFont(big);
@@ -210,7 +211,7 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     auto *bottom = new QHBoxLayout;
     QAbstractButton *previous = button(QStringLiteral("previousButton"), tr("Previous"));
     QAbstractButton *next = button(QStringLiteral("nextButton"), tr("Next"));
-    m_counter = new QLabel(this);
+    m_counter = plainLabel(new QLabel(this));
     m_counter->setObjectName(QStringLiteral("slideCounter"));
     m_counter->setAlignment(Qt::AlignCenter);
     m_counter->setMinimumWidth(140);

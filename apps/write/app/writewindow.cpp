@@ -35,6 +35,7 @@
 #include <QTextDocument>
 #include <cmath>
 #include <functional>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -116,7 +117,7 @@ QAction *WriteWindow::mk(const QString &id, const QString &text, const QString &
     if (!key.isEmpty()) {
         a->setShortcut(key);
         a->setShortcutContext(Qt::WindowShortcut);
-        a->setToolTip(tr("%1 (%2)").arg(QString(text).remove('&'), key.toString(QKeySequence::NativeText)));
+        a->setToolTip(jp::plainToolTip(tr("%1 (%2)").arg(QString(text).remove('&'), key.toString(QKeySequence::NativeText))));
         addAction(a);
     }
     a->setCheckable(checkable);
@@ -463,10 +464,10 @@ void WriteWindow::refreshUi()
         const QString full = tr("This document has the most notes JeffWrite can hold (%1), so no more can be added.").arg(QLocale().toString(write::kMostNoteStories));
         act("refs.footnote")->setEnabled(noteAllowed && footnoteRoom);
         act("refs.endnote")->setEnabled(noteAllowed && endnoteRoom);
-        act("refs.footnote")->setStatusTip(footnoteRoom ? QString() : full);
-        act("refs.endnote")->setStatusTip(endnoteRoom ? QString() : full);
-        act("refs.footnote")->setToolTip(footnoteRoom ? QString() : full);
-        act("refs.endnote")->setToolTip(endnoteRoom ? QString() : full);
+        act("refs.footnote")->setStatusTip(jp::plainToolTip(footnoteRoom ? QString() : full));
+        act("refs.endnote")->setStatusTip(jp::plainToolTip(endnoteRoom ? QString() : full));
+        act("refs.footnote")->setToolTip(jp::plainToolTip(footnoteRoom ? QString() : full));
+        act("refs.endnote")->setToolTip(jp::plainToolTip(endnoteRoom ? QString() : full));
         if (!footnoteRoom || !endnoteRoom) {
             if (!m_noteLimitShown) statusBar()->showMessage(full, 8000);
             m_noteLimitShown = true;
@@ -553,6 +554,7 @@ bool WriteWindow::maybeSave()
 {
     if (!isModified()) return true;
     QMessageBox box(QMessageBox::Question, appInfo().name, tr("Do you want to save changes to %1?").arg(displayName()), QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
+    box.setTextFormat(Qt::PlainText);
     box.setDefaultButton(QMessageBox::Save);
     box.button(QMessageBox::Discard)->setText(tr("Don't Save"));
     box.exec();

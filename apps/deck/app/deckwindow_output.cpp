@@ -36,6 +36,7 @@
 #include <QStatusBar>
 #include <QVBoxLayout>
 #include <functional>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -232,7 +233,7 @@ bool exportPdfCommand(DeckWindow *w, const PathChooser &chooser)
     const bool ok = deck::exportPdf(*w->editor()->doc(), path, options, &err);
     QApplication::restoreOverrideCursor();
     if (!ok) {
-        QMessageBox::warning(w, DeckWindow::tr("Export to PDF"),
+        jp::plainWarning(w, DeckWindow::tr("Export to PDF"),
                              DeckWindow::tr("%1 couldn't export \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
@@ -262,7 +263,7 @@ bool exportPictureCommand(DeckWindow *w, const PathChooser &chooser)
     bool ok = !img.isNull() && file.open(QIODevice::WriteOnly) && img.save(&file, jpeg ? "JPEG" : "PNG", jpeg ? 92 : -1) && file.commit();
     if (!ok) {
         const QString err = file.error() != QFileDevice::NoError ? file.errorString() : DeckWindow::tr("The picture can't be made.");
-        QMessageBox::warning(w, DeckWindow::tr("Export Slide as Picture"),
+        jp::plainWarning(w, DeckWindow::tr("Export Slide as Picture"),
                              DeckWindow::tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }

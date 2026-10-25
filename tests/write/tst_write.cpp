@@ -1,6 +1,7 @@
 // Tests of JeffWrite (apps/write): the document, editing it, the .docx it reads and writes, the page view, and the window.
 
 #include "core/fonts.h"
+#include "../plainprobe.h"
 #include "app/pagepaint.h"
 #include "app/pageview.h"
 #include "app/pageoutput.h"
@@ -3095,6 +3096,52 @@ private Q_SLOTS:
         w.findChild<SpellPane *>()->findChild<QPushButton *>(QStringLiteral("spellIgnoreAll"))->click();
         QVERIFY(w.findChild<SpellPane *>()->complete());
         QCOMPARE(w.view()->spelling()->misspellingAt(6), qMakePair(-1, -1));
+    }
+
+    // Text from a document that looks like markup naming a picture (around a word the spelling pane stops at, or the name of a file that can't be opened) is shown
+    // as the text it is: no label or message box takes it for markup.
+    void hostileDocumentTextIsShownAsText()
+    {
+        using plainprobe::readsAPicture;
+        QVERIFY(plainprobe::probeSeesTheTrap());
+        const SettingGuard asType(QStringLiteral("proof/asYouType"), true, true);
+        WriteWindow w;
+        w.setDocument(textDoc({QStringLiteral("zzlonely ") + plainprobe::hostile().toHtmlEscaped()}), QString());
+        w.show();
+        QTextCursor &start = w.view()->cursor();
+        start.setPosition(0);
+        w.view()->setCursor(start);
+        w.act("review.spelling")->trigger();
+        auto *pane = w.findChild<SpellPane *>();
+        QVERIFY(pane);
+        QCOMPARE(pane->word(), QStringLiteral("zzlonely"));
+        auto *wordLabel = pane->findChild<QLabel *>(QStringLiteral("spellWord"));
+        QVERIFY(wordLabel);
+        QCOMPARE(wordLabel->textFormat(), Qt::PlainText);
+        int around = 0;
+        for (const QLabel *l : pane->findChildren<QLabel *>()) {
+            QVERIFY2(!readsAPicture(l), qPrintable(l->text()));
+            around += l->text().contains(QStringLiteral("hostname"));
+        }
+        QVERIFY(around >= 1);   // the words around it are shown
+        // The box that says a file can't be opened.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile f(dir.filePath(QStringLiteral("bad.docx")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("not a document");
+        f.close();
+        bool seen = false, plain = false;
+        QTimer::singleShot(0, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                seen = true;
+                plain = box->textFormat() == Qt::PlainText && !readsAPicture(box);
+                box->close();
+            }
+        });
+        w.openFile(f.fileName());
+        QVERIFY(seen);
+        QVERIFY(plain);
     }
 
     void theSpellingPaneNeverHoldsTheWindowForAWholeDocument()

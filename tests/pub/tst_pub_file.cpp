@@ -1,6 +1,8 @@
 // JeffPub's tests of reading and writing .pub files, and templates.
+#include "../plainprobe.h"
 #include "pubhelpers.h"
 #include <libmspub/jp_hooks.h>
+#include <private/qabstractfileengine_p.h>
 
 // Rebuilds a .pub's drawing records (Escher/EscherStm) with the first
 // shape properties table (OPT) that `edit` changes: `edit` gets its body
@@ -726,6 +728,101 @@ private Q_SLOTS:
         d = ed->doc();
         change(QStringLiteral("bizcard-band"), &kept);
         QVERIFY(d->extra.empty());
+    }
+
+    // Text that came from a publication (the author in its properties, the text of a message about a file) that looks like markup naming a picture is shown as the
+    // text it is: no label takes it for markup, so nothing is read from the place it names.
+    void hostilePublicationTextIsShownAsText()
+    {
+        using plainprobe::readsAPicture;
+        QVERIFY(plainprobe::probeSeesTheTrap());
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        w.editor()->doc()->props.author = plainprobe::hostile();
+        w.showBackstage(QStringLiteral("info"));
+        QWidget *backstage = nullptr;
+        for (QWidget *c : w.findChildren<QWidget *>())
+            if (c->inherits("jp::Backstage")) backstage = c;
+        QVERIFY(backstage && backstage->isVisible());
+        int shown = 0;
+        for (const QLabel *l : backstage->findChildren<QLabel *>()) {
+            QVERIFY2(!readsAPicture(l), qPrintable(l->text()));
+            shown += l->text().contains(QStringLiteral("probe.invalid"));
+        }
+        QVERIFY(shown >= 1);   // the author is there
+        w.hideBackstage();
+        // The box that says a file can't be opened shows its text as text (it names the file).
+        const QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile f(dir.filePath(QStringLiteral("bad.jpub")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("not a publication");
+        f.close();
+        bool seen = false, plain = false;
+        QTimer::singleShot(0, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                seen = true;
+                plain = box->textFormat() == Qt::PlainText && !readsAPicture(box);
+                box->close();
+            }
+        });
+        w.openFile(f.fileName());
+        QVERIFY(seen);
+        QVERIFY(plain);
+    }
+
+    // A web page or Markdown file put into a text box can name a picture (on this computer or on another); the picture is never read, however the box is drawn.
+    void textFileImportNeverReadsThePicturesItNames()
+    {
+        struct Probe : QAbstractFileEngineHandler {
+            QStringList seen;
+            std::unique_ptr<QAbstractFileEngine> create(const QString &name) const override
+            {
+                if (name.contains(QStringLiteral("probe-trap")) || name.contains(QStringLiteral("probe.invalid"))) const_cast<Probe *>(this)->seen << name;
+                return nullptr;
+            }
+        } probe;
+        const QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString local = QUrl::fromLocalFile(dir.filePath(QStringLiteral("probe-trap.png"))).toString();
+        QImage(8, 8, QImage::Format_RGB32).save(dir.filePath(QStringLiteral("probe-trap.png")));
+        probe.seen.clear();   // (saving the picture is ours)
+        const QStringList pages = {
+            QStringLiteral("<html><body><p>Before <img src=\"%1\"> and <img src=\"\\\\probe.invalid\\share\\x.png\"> after.</p></body></html>").arg(local),
+            QStringLiteral("Before ![x](%1) and ![y](//probe.invalid/share/y.png) after.\n").arg(local)};
+        // The probe can see: a plain text document that is laid out does read them.
+        {
+            QTextDocument control;
+            control.setHtml(pages[0]);
+            control.setTextWidth(300);
+            QVERIFY(control.size().height() > 0);
+            QVERIFY(!probe.seen.isEmpty());
+            probe.seen.clear();
+        }
+        jp::MainWindow w;
+        w.resize(1200, 800);
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto doc = jp::findTemplate(QStringLiteral("flyer-announce"))->build(jp::TemplateOptions());
+        ed->setDocument(std::move(doc));
+        for (int k = 0; k < pages.size(); ++k) {
+            const QString path = dir.filePath(k == 0 ? QStringLiteral("page.html") : QStringLiteral("page.md"));
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(pages[k].toUtf8());
+            f.close();
+            for (const auto &it : ed->doc()->pages[0]->items)
+                if (it->role == QLatin1String("body")) {
+                    QTextDocument *story = ed->doc()->storyDoc(static_cast<jp::TextItem *>(it.get())->storyId);
+                    QVERIFY(jp::loadTextFileInto(story, path));
+                    QVERIFY(story->toPlainText().contains(QStringLiteral("Before")));
+                    break;
+                }
+            w.grab();   // draws the page
+            QApplication::processEvents();
+        }
+        QVERIFY2(probe.seen.isEmpty(), qPrintable(probe.seen.join(QLatin1Char('\n'))));
     }
 
     // The gallery Change Template opens is the New page's, in a mode of its

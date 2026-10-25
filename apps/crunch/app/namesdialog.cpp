@@ -153,14 +153,16 @@ QVariant NamesModel::data(const QModelIndex &index, int role) const
     const crunch::NameEntry &e = m_session->names().at(id);
     if (role == Qt::UserRole) return id;
     if (role != Qt::DisplayRole && role != Qt::ToolTipRole) return QVariant();
+    QString text;
     switch (index.column()) {
-    case NameColumn: return e.name;
-    case ValueColumn: return m_session->nameValueOf(id);   // (worked out for the rows that are drawn)
-    case RefersColumn: return m_session->nameTextOf(id);
-    case ScopeColumn: return scopeText(e);
-    case CommentColumn: return e.comment;
+    case NameColumn: text = e.name; break;
+    case ValueColumn: text = m_session->nameValueOf(id); break;   // (worked out for the rows that are drawn)
+    case RefersColumn: text = m_session->nameTextOf(id); break;
+    case ScopeColumn: text = scopeText(e); break;
+    case CommentColumn: text = e.comment; break;
     default: return QVariant();
     }
+    return role == Qt::ToolTipRole ? plainToolTip(text) : text;   // (a tooltip would read a name or a comment as markup)
 }
 
 QVariant NamesModel::headerData(int section, Qt::Orientation orientation, int role) const

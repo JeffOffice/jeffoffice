@@ -23,6 +23,7 @@
 #include <QVBoxLayout>
 #include <QWheelEvent>
 #include <cmath>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -209,7 +210,7 @@ void PictureGrid::mouseMoveEvent(QMouseEvent *e)
         m_hover = i;
         update();
     }
-    if (i >= 0) QToolTip::showText(e->globalPosition().toPoint(), m_tiles[i].name, this);
+    if (i >= 0) QToolTip::showText(e->globalPosition().toPoint(), jp::plainToolTip(m_tiles[i].name), this);
 }
 
 void PictureGrid::leaveEvent(QEvent *)
@@ -310,7 +311,7 @@ ThemeGallery::ThemeGallery(Editor *ed, QWidget *parent) : QFrame(parent), m_ed(e
         b->setIconSize(QSize(12, 12));
         b->setAutoRaise(true);
         b->setFixedSize(20, 20);
-        b->setToolTip(tip);
+        b->setToolTip(jp::plainToolTip(tip));
         b->setAccessibleName(tip);
         b->setFocusPolicy(Qt::TabFocus);
         b->setCursor(Qt::PointingHandCursor);
@@ -585,7 +586,7 @@ bool BackgroundStyles::event(QEvent *e)
     if (e->type() == QEvent::ToolTip) {
         const auto *he = static_cast<QHelpEvent *>(e);
         const int style = styleAt(he->pos());
-        if (style >= 0) QToolTip::showText(he->globalPos(), deck::backgroundStyleName(style), this);
+        if (style >= 0) QToolTip::showText(he->globalPos(), jp::plainToolTip(deck::backgroundStyleName(style)), this);
         else QToolTip::hideText();
         return true;
     }

@@ -31,6 +31,7 @@
 #include <QToolButton>
 #include <QUrlQuery>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 namespace help {
@@ -361,7 +362,7 @@ QToolButton *navButton(const QString &iconName, const QString &name, const QStri
     auto *b = new QToolButton(parent);
     b->setIcon(icon(iconName));
     b->setAutoRaise(true);
-    b->setToolTip(tip);
+    b->setToolTip(jp::plainToolTip(tip));
     b->setAccessibleName(name);
     b->setFocusPolicy(Qt::TabFocus);
     return b;
@@ -557,7 +558,7 @@ void HelpView::showResults(const QString &text)
             auto *it = new QListWidgetItem(f.a->icon(), on ? label : tr("%1, not available now").arg(label), m_results);
             it->setData(KindRole, kCommand);
             it->setData(IdRole, f.a->objectName());
-            it->setToolTip(f.a->toolTip());
+            it->setToolTip(jp::plainToolTip(f.a->toolTip()));
             if (!on) it->setFlags(it->flags() & ~Qt::ItemIsEnabled);
         }
     }

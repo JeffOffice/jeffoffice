@@ -7,6 +7,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -17,7 +18,7 @@ QString cardStyle()
 
 QLabel *heading(const QString &t, QWidget *parent, double scale)
 {
-    auto *l = new QLabel(t, parent);
+    auto *l = plainLabel(new QLabel(t, parent));
     QFont f = l->font();
     f.setPointSizeF(f.pointSizeF() * scale);
     f.setWeight(QFont::DemiBold);
@@ -140,19 +141,19 @@ static QWidget *suiteRow(QWidget *parent, const QString &name, const QString &le
     p.end();
     tile->setPixmap(pm);
     h->addWidget(tile);
-    auto *nameLabel = new QLabel(name, row);
+    auto *nameLabel = plainLabel(new QLabel(name, row));
     QFont nf = nameLabel->font();
     nf.setBold(true);
     nameLabel->setFont(nf);
     nameLabel->setFixedWidth(widths[0]);
     h->addWidget(nameLabel);
-    auto *whatLabel = new QLabel(what, row);
+    auto *whatLabel = plainLabel(new QLabel(what, row));
     // A narrow window clips this column, not the state; the stretches give it
     // all the room it can use before the spare goes to the end of the row.
     whatLabel->setMaximumWidth(widths[1]);
     whatLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     h->addWidget(whatLabel, 1000);
-    QLabel *stateLabel = muted ? mutedLabel(state, row) : new QLabel(state, row);
+    QLabel *stateLabel = muted ? mutedLabel(state, row) : plainLabel(new QLabel(state, row));
     stateLabel->setFixedWidth(widths[2]);
     h->addWidget(stateLabel);
     h->addStretch(1);
@@ -187,7 +188,7 @@ QWidget *suiteCard(QWidget *parent, const QWidget *screen)
     auto *suv = new QVBoxLayout(suite);
     suv->setContentsMargins(20, 16, 20, 16);
     suv->setSpacing(10);
-    auto *logo = new QLabel(suite);
+    auto *logo = plainLabel(new QLabel(suite));
     {
         const qreal dpr = screen->devicePixelRatioF();
         const QImage lockup(uiDark() ? QStringLiteral(":/brand/jeffoffice-lockup-on-dark.png") : QStringLiteral(":/brand/jeffoffice-lockup.png"));

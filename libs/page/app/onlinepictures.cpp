@@ -27,6 +27,7 @@
 #include <QUrlQuery>
 #include <QVBoxLayout>
 #include <algorithm>
+#include "app/plaintext.h"
 
 namespace jp {
 namespace online {
@@ -214,7 +215,7 @@ OnlinePicturesPane::OnlinePicturesPane(const Inserter &insert) : m_inserter(inse
     row->addWidget(m_query, 1);
     row->addWidget(go);
     v->addLayout(row);
-    m_status = new QLabel(this);
+    m_status = plainLabel(new QLabel(this));
     m_status->setWordWrap(true);
     v->addWidget(m_status);
     m_results = new QListWidget(this);
@@ -282,7 +283,7 @@ void OnlinePicturesPane::search(const QString &query)
         for (int i = 0; i < self->m_found.size(); ++i) {
             const online::Picture &p = self->m_found[i];
             auto *it = new QListWidgetItem(QFontMetrics(self->m_results->font()).elidedText(p.title, Qt::ElideRight, 116), self->m_results);
-            it->setToolTip(online::credit(p));
+            it->setToolTip(jp::plainToolTip(online::credit(p)));
             it->setData(Qt::AccessibleTextRole, online::credit(p));
             // Its small copy, when it comes.
             if (p.thumb.isEmpty()) continue;
@@ -311,6 +312,7 @@ void OnlinePicturesPane::showDetails()
     if (!p.license.isEmpty())
         html += QStringLiteral("<br>") + (p.licenseUrl.isEmpty() ? p.license.toHtmlEscaped() : QStringLiteral("<a href=\"%1\">%2</a>").arg(p.licenseUrl.toHtmlEscaped(), p.license.toHtmlEscaped()));
     if (p.page.isValid()) html += QStringLiteral("<br><a href=\"%1\">%2</a>").arg(p.page.toString().toHtmlEscaped(), tr("Its page in the library"));
+    // plain: reviewed: every piece of the library's text is escaped; links are https only
     m_details->setText(html);
     m_credit->setChecked(p.needsCredit);
 }

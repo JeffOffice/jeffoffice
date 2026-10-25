@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -75,7 +76,7 @@ ProtectSheetDialog::ProtectSheetDialog(const ProtectRequest &request, QWidget *p
     objects->setChecked(!request.settings.objects);
     layout->addWidget(objects);
     m_checks.insert(QStringLiteral("objects"), objects);
-    m_problem = new QLabel(this);
+    m_problem = plainLabel(new QLabel(this));
     m_problem->setObjectName(QStringLiteral("protectProblem"));
     m_problem->setWordWrap(true);
     layout->addWidget(m_problem);
@@ -137,7 +138,7 @@ ProtectWorkbookDialog::ProtectWorkbookDialog(const WorkbookProtectRequest &reque
     auto *warn = new QLabel(tr("A password can't be found again if it is forgotten. Keep it somewhere safe."), this);
     warn->setWordWrap(true);
     layout->addWidget(warn);
-    m_problem = new QLabel(this);
+    m_problem = plainLabel(new QLabel(this));
     m_problem->setObjectName(QStringLiteral("protectProblem"));
     m_problem->setWordWrap(true);
     layout->addWidget(m_problem);
