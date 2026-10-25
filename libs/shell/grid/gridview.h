@@ -141,6 +141,21 @@ public:
     QRect dropDownRect() const;       // the button, in the viewport's pixels (empty when the cell is out of sight or too narrow)
     QRect dropDownCellRect() const;   // and the cell it is on
     // Cells marked as what a search found (Go To Special): tinted over the cells, apart from the selection. An empty list takes the marks away.
+    // ---- notes (gridview_notes.cpp)
+    // A note that is shown all the time: the cell it is on, and its words (drawn in a box beside the cell, for those in view).
+    struct ShownNote {
+        qint64 row = 0, col = 0;
+        QString text;
+    };
+    // The cells that have notes (sorted by row, then column; each is `(row << 32) | col`): a small mark is drawn in the corner of each that is in view.
+    void setNoteCells(std::vector<quint64> sortedKeys);
+    size_t noteCellCount() const { return m_noteCells.size(); }
+    void setShownNotes(std::vector<ShownNote> notes);
+    // The cell the pointer is on (-1 for none), and the place a note about it is to appear (the cell's right edge, in the viewport's pixels).
+    qint64 hoverRow() const { return m_hoverRow; }
+    qint64 hoverCol() const { return m_hoverCol; }
+    QRect cellRectAt(qint64 row, qint64 col) const { return cellRect(row, col); }
+
     void setMarks(const std::vector<GridRange> &ranges);
     const std::vector<GridRange> &marks() const { return m_marks; }
     // Buttons on cells (the drop-downs of a filter's header row): one at the bottom right of each cell, drawn as a funnel when `filtered`, with an arrow up or down when the cells are sorted
@@ -202,6 +217,9 @@ Q_SIGNALS:
     void zoomChanged(double zoom);
     void statsChanged(const QString &text);
     void contextMenuRequested(const QPoint &globalPos);
+    // The pointer moved onto another cell (row and column -1 when it left the cells), and a cell was clicked (pressed and let go, without moving to another).
+    void hoverCellChanged(qint64 row, qint64 col);
+    void cellClicked(qint64 row, qint64 col, Qt::KeyboardModifiers modifiers);
     void viewChanged();   // the scroll, frozen panes, or what is shown changed
     // Something the rules of conditional formatting could not do for want of room (a limit): a sentence for the status bar, said once.
     void noticeRaised(const QString &text);
@@ -279,6 +297,8 @@ private:
     QRect dropDownRectInLayout() const;
     QRect headerButtonRectInLayout(qint64 row, qint64 col) const;
     void paintMarks(QPainter *painter, const QRect &clip);
+    void paintNotes(QPainter *painter, const QRect &clip);
+    void leaveEvent(QEvent *e) override;
     bool headerButtonPress(const QPoint &layoutPoint);
     bool borderAtInLayout(const QPoint &p, bool *column, qint64 *index) const;
     void paintOverlay(QPainter *painter, const QRect &clip);
@@ -307,6 +327,9 @@ private:
     int m_resizeFrom = 0, m_resizeEdge = 0, m_resizeSize0 = 0, m_resizeSize = 0;
     qint64 m_dropRow = -1, m_dropCol = -1;
     std::vector<GridRange> m_marks;
+    std::vector<quint64> m_noteCells;
+    std::vector<ShownNote> m_shownNotes;
+    qint64 m_hoverRow = -1, m_hoverCol = -1, m_pressRow = -1, m_pressCol = -1;
     std::vector<HeaderButton> m_headerButtons;
     GridRange m_fillSource, m_fillExtent;
     bool m_fillCtrl = false;

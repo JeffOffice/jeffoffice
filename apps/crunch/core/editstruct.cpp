@@ -388,9 +388,14 @@ bool EditSession::applyStructure(Step *step, bool forward)
         for (const jp::office::sheet::SheetEntry &se : book.info().sheets) names << se.name;
         if (forward) m_pages.followEdit(sc.edit, names, &sc);
         else m_pages.undoEdit(&sc);
+        if (forward) m_anchors.followEdit(sc.edit, names, &sc);
+        else m_anchors.undoEdit(&sc, sc.edit);
         std::set<int> sheets = {sc.edit.sheet};
         if (sc.edit.kind == StructEdit::Kind::Move) sheets.insert(sc.edit.toSheet);
-        for (const int s : sheets) Q_EMIT pageSetupChanged(s);
+        for (const int s : sheets) {
+            Q_EMIT pageSetupChanged(s);
+            Q_EMIT anchorsChanged(s);
+        }
     }
     // the values the window holds follow the cells: those of cells that are gone are let go of, and those of formulas that moved (with their cells) go with them
     {

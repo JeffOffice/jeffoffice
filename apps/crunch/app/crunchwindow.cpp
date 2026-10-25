@@ -96,6 +96,9 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     setMenuWidget(m_ribbon);
     buildCentral();
     m_printChoices = std::make_unique<crunch::PrintChoices>();
+    m_autoTimer.setSingleShot(true);
+    m_autoTimer.setInterval(0);
+    connect(&m_autoTimer, &QTimer::timeout, this, &CrunchWindow::stepAutoHeights);
     m_breaksTimer.setSingleShot(true);
     m_breaksTimer.setInterval(150);
     connect(&m_breaksTimer, &QTimer::timeout, this, &CrunchWindow::updatePageBreaks);
@@ -132,6 +135,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     });
     connect(m_view, &grid::GridView::clearRequested, this, &CrunchWindow::clearSelection);
     connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::placeEditor);
+    connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::scheduleAutoHeights);
     m_view->setClickGuard([this] { return commitEdit(CellEditor::Way::Stay); });
     connect(m_cellEditor, &CellEditor::finished, this, [this](CellEditor::Way way) { commitEdit(way); });
     connect(m_cellEditor, &CellEditor::cancelled, this, &CrunchWindow::cancelEdit);
@@ -340,6 +344,15 @@ void CrunchWindow::createActions()
         Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
         openFile(p);
     });
+    mk("file.openText", tr("Open Text File…"), "file-text", QKeySequence(), [this] {
+        const QString p = QFileDialog::getOpenFileName(this, tr("Open Text File"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
+                                                       tr("Text files (*.csv *.tsv *.txt)") + QStringLiteral(";;") + tr("All Files (*)"));
+        if (p.isEmpty()) return;
+        Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
+        m_forceTextPrompt = true;
+        openFile(p);
+        m_forceTextPrompt = false;
+    });
     mk("file.save", tr("Save"), "save", QKeySequence::Save, [this] { save(); }, false, false);
     mk("file.saveAs", tr("Save As…"), "save", QKeySequence::SaveAs, [this] {
         if (!m_loaded || !m_session || m_saving || !commitEdit()) return;
@@ -406,6 +419,8 @@ void CrunchWindow::createActions()
     createViewActions();
     createPageLayoutActions();
     createChartActions();
+    createNoteActions();
+    createProtectActions();
     createDisabledActions();
 }
 
@@ -418,7 +433,7 @@ void CrunchWindow::createDisabledActions()
     static const Command commands[] = {
         
         {"insert.table", QT_TR_NOOP("Table"), "table"}, {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
-        {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
+        {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"},
         {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"},
         {"formulas.names", QT_TR_NOOP("Name Manager"), "variable"}, {"formulas.options", QT_TR_NOOP("Calculation Options"), "settings-2"},
     };

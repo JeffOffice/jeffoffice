@@ -14,6 +14,13 @@ EditSession::Outcome EditSession::changeObjects(std::vector<ObjectEdit> edits, c
         out.problem = why;
         return out;
     }
+    // a protected sheet that does not let its objects be changed keeps them as they are
+    for (const ObjectEdit &e : edits)
+        if (!allows(e.sheet, Allow::Objects, &why)) {
+            out.ok = false;
+            out.problem = why;
+            return out;
+        }
     Step step;
     step.objects = std::move(edits);
     pushStep(std::move(step), text);

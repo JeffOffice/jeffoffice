@@ -79,9 +79,9 @@ EditSession::Outcome EditSession::restyle(int sheet, const std::vector<RestyleTa
         for (const RestyleTarget &t : targets) {
             const Calculation::CellContent before = calc->content(sheet, t.row, t.col);
             const quint32 base = before.exists ? before.style : implicitStyles.at(t.row, t.col);
-            if (isLocked(sheet, base)) {
+            if (QString notAllowed; !allows(sheet, Allow::FormatCells, &notAllowed)) {
                 out.ok = false;
-                out.problem = lockedMessage();
+                out.problem = notAllowed;
                 return out;
             }
             quint32 style = 0;
@@ -409,6 +409,11 @@ EditSession::Outcome EditSession::clearAll(int sheet, const CellRange &range)
             if (r.height >= 0 || r.hidden || r.customHeight) e.rowsAfter.push_back(r);
         }
         step.sizes.push_back(std::move(e));
+    }
+    // the notes and links on the cells go with them (a conversation of comments is shown and kept, not cleared)
+    if (QString notReady; canEditNotes(sheet, &notReady) && allows(sheet, Allow::Objects)) {
+        SideEdit side = notesAndLinksIn(sheet, range);
+        if (!side.empty()) step.sides.push_back(std::move(side));
     }
     if (step.empty()) return out;
     pushStep(std::move(step), tr("Clearing all"));

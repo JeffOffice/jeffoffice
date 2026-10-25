@@ -198,7 +198,21 @@ EditSession::EditSession(WorkbookLoader *loader, const std::shared_ptr<LoadedBoo
 {
     m_undo.setUndoLimit(kUndoSteps);
     connect(&m_undo, &QUndoStack::cleanChanged, this, [this](bool clean) { cleanChanged(clean); });
-    if (m_book && m_book->calc) m_pages.open(*m_book->calc);
+    if (m_book && m_book->calc) {
+        m_pages.open(*m_book->calc);
+        std::vector<std::vector<jp::office::sheet::LinkSpec>> links;
+        for (int i = 0; i < m_book->calc->sheetCount(); ++i) {
+            const auto &read = m_book->calc->sheet(i).links;
+            links.emplace_back(read.begin(), read.end());
+        }
+        auto notes = std::move(m_book->notes);
+        notes.resize(links.size());
+        m_anchors.open(std::move(notes), std::move(links));
+        for (size_t i = 0; i < m_book->notesTruncated.size(); ++i)
+            if (m_book->notesTruncated[i]) m_anchors.setTruncated(int(i), true);
+        for (int i = 0; i < m_book->calc->sheetCount(); ++i) m_fileProtection.push_back(m_book->calc->sheet(i).protection);
+        if (m_book->book) m_fileBookProtection = m_book->book->info().protection;
+    }
 }
 
 EditSession::~EditSession()
@@ -388,13 +402,25 @@ QString EditSession::editText(int sheet, quint32 row, quint32 col) const
     if (!m_book || !m_book->calc) return {};
     const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
     if (!c.exists) return {};
+    if (c.isFormula && formulaHidden(sheet, c.style)) return {};
     if (c.isFormula) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(c.formula), m_locale);
     const QString code = m_book->book->styles().formatCode(c.style, m_locale);
     return editTextOfValue(c.value, code, entryOptions(sheet, code == QLatin1String("@")));
 }
 
+// Whether the formula of a cell of that format is not shown: the sheet is protected and the cell's format hides its formula.
+bool EditSession::formulaHidden(int sheet, quint32 style) const
+{
+    if (!m_book || !m_book->calc || !m_book->book || sheet < 0 || sheet >= m_book->calc->sheetCount() || !m_book->calc->sheet(sheet).isProtected) return false;
+    return m_book->book->styles().format(style).formulaHidden;
+}
+
 QString EditSession::barText(int sheet, quint32 row, quint32 col, const QString &gridText) const
 {
+    if (m_book && m_book->calc && m_book->calc->sheetCount() > sheet && sheet >= 0 && m_book->calc->sheet(sheet).isProtected) {
+        const Calculation::CellContent hidden = m_book->calc->content(sheet, row, col);
+        if (hidden.isFormula && formulaHidden(sheet, hidden.style)) return QString();
+    }
     // (a locale that writes the decimal point as a point has nothing to change: what the grid gives is what is typed)
     if (!m_book || !m_book->calc || m_locale.decimalPoint() != QLatin1String(",")) return gridText;
     const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
@@ -448,6 +474,7 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
     case Entry::Kind::Text:
         ch.after.value = Value::text(e.text);
         ch.textToShare = !m_book->book->sharedStringsPart().isEmpty();
+        if (e.text.contains(QLatin1Char('\n')) && !m_book->book->styles().format(baseStyle).wrap) ch.wrapToSet = true;
         break;
     case Entry::Kind::Bool: ch.after.value = Value::boolean(e.number != 0); break;
     case Entry::Kind::Error: ch.after.value = Value::error(e.error); break;
@@ -457,7 +484,7 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
         break;
     }
     if (ch.after.value.isEmpty() && !ch.after.isFormula && (ch.after.style == 0 || !before.exists)) ch.after.exists = false;
-    *none = sameMeaning(ch.before, ch.after) && ch.formatCode.isEmpty();   // (nothing to change)
+    *none = sameMeaning(ch.before, ch.after) && ch.formatCode.isEmpty() && !ch.wrapToSet;   // (nothing to change)
     *out = std::move(ch);
     return true;
 }
@@ -695,8 +722,18 @@ bool EditSession::apply(Step *step, bool forward)
         m_pages.set(e.sheet, forward ? e.after : e.before);
         Q_EMIT pageSetupChanged(e.sheet);
     }
-    // (a step of objects or of page setups alone changes no cell: the worker is not held for it)
-    if ((!step->objects.empty() || !step->pages.empty()) && step->cells.empty() && step->renames.empty() && step->sizes.empty() && step->merges.empty() && !step->structure) return true;
+    for (const SideEdit &e : step->sides) {
+        m_anchors.apply(e, forward);
+        forgetNotes();
+        Q_EMIT anchorsChanged(e.sheet);
+    }
+    for (const ProtectEdit &e : step->protections) {
+        if (e.sheet < 0) m_book->book->setWorkbookProtection(forward ? e.bookAfter : e.bookBefore);
+        else m_book->calc->setProtection(e.sheet, forward ? e.sheetAfter : e.sheetBefore);
+        Q_EMIT protectionChanged(e.sheet);
+    }
+    // (a step of objects, of page setups, or of notes and links alone changes no cell: the worker is not held for it)
+    if ((!step->objects.empty() || !step->pages.empty() || !step->sides.empty() || !step->protections.empty()) && step->cells.empty() && step->renames.empty() && step->sizes.empty() && step->merges.empty() && !step->structure) return true;
     if (step->structure) return applyStructure(step, forward);
     QElapsedTimer waited;
     waited.start();
@@ -720,6 +757,12 @@ bool EditSession::apply(Step *step, bool forward)
                 if (!ch.formatCode.isEmpty()) {
                     ch.after.style = book.formatWithNumberFormat(ch.after.style, book.numberFormatId(ch.formatCode));
                     ch.formatCode.clear();
+                }
+                if (ch.wrapToSet) {
+                    jp::office::sheet::FormatChange wrap;
+                    wrap.wrap = true;
+                    ch.after.style = book.formatWith(ch.after.style, wrap);
+                    ch.wrapToSet = false;
                 }
             }
             const Calculation::CellContent &c = forward ? ch.after : ch.before;
@@ -830,6 +873,8 @@ bool EditSession::apply(Step *step, bool forward)
 void EditSession::applyPermute(jp::office::sheet::CellPermute &p, bool forward)
 {
     forgetNotes();
+    m_anchors.permute(p, forward);
+    Q_EMIT anchorsChanged(p.sheet);
     if (forward) {
         p.after = m_edits.size();
         m_permutes.push_back(p);
@@ -1216,6 +1261,22 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         QStringList names;
         for (const jp::office::sheet::SheetEntry &se : book.info().sheets) names << (se.deleted ? QString() : se.name);
         m_pages.addToSave(&changes, names, book.info().order);
+        m_anchors.addToSave(&changes);
+        // the protection of the sheets, and of the workbook, where it differs from the file's
+        for (int sheet = 0; sheet < listed.sheets.size(); ++sheet) {
+            if (listed.sheets[sheet].deleted || listed.sheets[sheet].kind != SheetKind::Worksheet || sheet >= calc->sheetCount()) continue;
+            const jp::office::sheet::SheetProtection &now = calc->sheet(sheet).protection;
+            const bool inFile = sheet < int(m_fileProtection.size()) && !listed.sheets[sheet].isNew;
+            if (inFile ? now != m_fileProtection[size_t(sheet)] : (listed.sheets[sheet].isNew && now.enabled)) {
+                SheetChanges &sc = changes.sheets[sheet];
+                sc.setProtection = true;
+                sc.protection = now;
+            }
+        }
+        if (book.info().protection != m_fileBookProtection) {
+            changes.setWorkbookProtection = true;
+            changes.workbookProtection = book.info().protection;
+        }
     }
     changes.edits = m_edits;
     changes.permutes = m_permutes;
@@ -1281,6 +1342,10 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_renames.clear();
     ++m_saveGen;
     m_pages.saved();
+    m_anchors.saved();
+    m_fileProtection.clear();
+    for (int i = 0; i < m_book->calc->sheetCount(); ++i) m_fileProtection.push_back(m_book->calc->sheet(i).protection);
+    m_fileBookProtection = m_book->book->info().protection;
     for (const auto &[sheet, rel] : snapshot.headerDrawings) m_pages.setHeaderDrawing(sheet, rel);
     forgetDeletesInFile();
     // what differs from the file is what differs from the file just written

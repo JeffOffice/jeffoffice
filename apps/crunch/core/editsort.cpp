@@ -138,6 +138,7 @@ std::shared_ptr<EditSession::SortPlan> EditSession::planSort(int sheet, const Ce
                 }
     }
     if (!bad.isEmpty()) return refuse(bad);
+    if (QString notAllowed; !allows(sheet, Allow::Sort, &notAllowed)) return refuse(notAllowed);   // (a protected sheet that does not allow sorting)
     for (quint32 row = plan->data.row1; row <= plan->data.row2; ++row)
         for (quint32 col = plan->data.col1; col <= plan->data.col2; ++col)
             if (m_book->book->tableHeaderAt(sheet, row, col, nullptr) >= 0)

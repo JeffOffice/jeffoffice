@@ -144,7 +144,7 @@ std::shared_ptr<EditSession::FilterPlan> EditSession::planFilter(int sheet, cons
         return std::shared_ptr<FilterPlan>();
     };
     QString reason;
-    if (!canEdit(&reason) || !canEditSheet(sheet, &reason)) return refuse(reason);
+    if (!canEdit(&reason) || !canEditSheet(sheet, &reason) || !allows(sheet, Allow::Filter, &reason)) return refuse(reason);
     auto plan = std::make_shared<FilterPlan>();
     plan->sheet = sheet;
     plan->after = after;

@@ -29,6 +29,8 @@ void CrunchWindow::createEditing()
     connect(m_session.get(), &crunch::EditSession::sheetsChanged, this, &CrunchWindow::onSheetsChanged);
     connectObjects();
     connectPageSetup();
+    connectAnchors();
+    connectProtection();
     connect(m_session.get(), &crunch::EditSession::stepFailed, this, [this](const QString &what) {
         notice(tr("Undo"), what);
         updateEditActions();
@@ -242,6 +244,7 @@ void CrunchWindow::cancelEdit()
 void CrunchWindow::onCellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells)
 {
     if (m_objects) m_objects->cellsChanged(cells);
+    noteRowsChanged(sheet, cells);
     if (sheet == m_sheet && m_view->valuesChanged(sheet, cells)) updateBars();
     if (m_undoing && !cells.empty()) {
         // Undo and Redo show the cell they changed

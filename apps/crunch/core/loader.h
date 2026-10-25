@@ -8,6 +8,7 @@
 #include "grid/gridsheet.h"
 #include "grid/valuestore.h"
 #include "sheet/calculation.h"
+#include "sheet/notes.h"
 #include "sheet/sheetreader.h"
 
 #include <QObject>
@@ -18,6 +19,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 
@@ -36,6 +38,9 @@ struct LoadedBook {
     // (made with them), and of every sheet by its place in the workbook (made with the whole read).
     std::shared_ptr<const jp::grid::GridGeometry> previewGeometry;
     std::vector<std::shared_ptr<const jp::grid::GridGeometry>> geometry;
+    // The notes of every sheet as the file has them (by cell), read with the sheets; the editing session takes them (an empty list for a workbook that is not from an .xlsx file).
+    std::vector<std::map<quint64, jp::office::sheet::NoteInfo>> notes;
+    std::vector<bool> notesTruncated;   // a sheet that has more notes than are read (jp::office::sheet::kMaxModelNotes): its notes are shown, not changed
     QString problem;                                        // what could not be read whole, in words ("" when all of it was)
     QStringList notRead;                                    // what a workbook of the older binary form has that is not read (charts, pictures, ...), in words
     qint64 firstScreenMs = 0, loadMs = 0;                   // how long each took
@@ -71,7 +76,7 @@ constexpr qint64 kFirstScreenRows = 1000;
 
 // The two steps of a read, as the worker does them (and a tool does them one after the other). `cancelled` is asked every few thousand cells: true stops it.
 // The first: opens the package and the workbook's own parts, and reads the first kFirstScreenRows rows of the sheet to show first. False, with a message, if the file can't be opened.
-bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why);
+bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv = nullptr);
 // The second: reads every sheet whole and registers the formulas in the calculation (out->calc). `progress` is told the sheet being read and the cells read of it. False if
 // stopped; what could not be read whole is in out->problem. `cancelFlag`, if given, is looked at as the formulas are registered too; `pace`, if given and above 0, is the microseconds
 // to wait at each step of the read (see WorkbookLoader::setPace).
@@ -88,7 +93,8 @@ public:
     explicit WorkbookLoader(QObject *parent = nullptr);
     ~WorkbookLoader() override;
     // Begins reading `path` (the one being read, if any, is stopped first).
-    void start(const QString &path);
+    // `csv`, if given, is what a person chose for a text file of values (how it is split into fields and columns); the file is detected without it.
+    void start(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv = nullptr);
     // Stops the read and the calculation; the signals of one that was stopped are not sent. It does not wait for the worker (which sees it within a few thousand cells, or in the
     // step of a formula it is taking); a worker that is still going when the program ends is waited for then.
     void cancel();
@@ -172,7 +178,7 @@ private:
         std::atomic<bool> urgent{false};      // a change was made: the first values it makes go to the window as soon as they are there
         void updateHalt() { halt.store(stopCalc.load() || holds.load() > 0 || cancel.load()); }
     };
-    static void run(const QString &path, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self);
+    static void run(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self);
     static void serve(const std::shared_ptr<LoadedBook> &result, const std::shared_ptr<State> &state, const QPointer<WorkbookLoader> &self);
     void startThread(std::function<void()> work, const std::shared_ptr<State> &state);
     // Everything the worker does stops (and it is woken to see so).

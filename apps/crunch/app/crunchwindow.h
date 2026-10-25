@@ -4,6 +4,7 @@
 // cell, in it with F2 or a double click, or in the formula bar), clears them with Delete, undoes and redoes, and saves the workbook as it was read with only what changed put in.
 
 #include "app/appwindow.h"
+#include "app/anchordialogs.h"
 #include "app/celleditor.h"
 #include "app/filterpopup.h"
 #include "app/finddialog.h"
@@ -30,7 +31,10 @@
 #include <QTimer>
 #include <atomic>
 #include <functional>
+#include <map>
 #include <memory>
+#include <set>
+#include <unordered_map>
 
 class QComboBox;
 class QDialog;
@@ -46,6 +50,7 @@ class QPlainTextEdit;
 class QSlider;
 class QVBoxLayout;
 class QToolButton;
+class QUrl;
 
 namespace jp {
 
@@ -108,6 +113,10 @@ public:
     bool isEditing() const { return m_edit.active; }
     CellEditor *cellEditor() const { return m_cellEditor; }
     crunch::EditSession *session() const { return m_session.get(); }
+    // What the notes and links ask through, and how an address is opened (a test gives its own: nothing is ever opened but by a click or a command).
+    AnchorHooks &anchorHooks();
+    // Whether opening a .csv, .tsv, or .txt file asks how it is read (the program turns it on; a window made for a test leaves it off, and the file is detected). Open Text File asks always.
+    void setPromptForText(bool on) { m_promptForText = on; }
     // The person's language: how numbers are typed and shown (the decimal mark, the grouping of digits, the order of a date). The window begins with the system's.
     void setLocale(const QLocale &locale);
     // The objects over the cells (null before the window is built).
@@ -813,6 +822,54 @@ private:
     bool fileChangedOnDisk() const;
     // The window that has the file open (or is reading it), if any.
     static CrunchWindow *windowWith(const QString &path);
+    // ---- notes and links (crunchwindow_notes.cpp)
+    void createNoteActions();
+    void connectAnchors();
+    void refreshAnchors();
+    void updateNoteActions();
+    void editNote();
+    void deleteSelectedNotes();
+    void toggleNoteShown();
+    void showAllNotes();
+    void goToNote(bool next);
+    void hoverCell(qint64 row, qint64 col);
+    void hideHoverTip();
+    void showHoverTip();
+    QString hoverTipText(bool *isNote) const;
+    void insertLink();
+    void removeSelectedLinks();
+    void followSelectedLink();
+    void followLinkAt(quint32 row, quint32 col);
+    void goToPlace(const QString &place);
+    void cellClicked(qint64 row, qint64 col, Qt::KeyboardModifiers modifiers);
+    bool openAddress(const QUrl &url);
+    // ---- opening a text file of values (crunchwindow_text.cpp)
+    bool askTextImport(const QString &path, std::shared_ptr<const jp::office::sheet::CsvImport> *chosen);
+    bool m_promptForText = false, m_forceTextPrompt = false;
+    // ---- automatic row heights (crunchwindow_autoheight.cpp)
+    void scheduleAutoHeights();
+    void stepAutoHeights();
+    void noteRowsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells);
+    void noteWidthsChanged(int sheet);
+    std::map<int, std::set<quint32>> m_autoDirty;                       // by sheet: the rows an edit changed, not measured yet
+    std::map<int, std::unordered_map<quint32, int>> m_autoSeen;         // by sheet: the rows measured, and the generation of the widths they were
+    std::map<int, int> m_autoGen;                                       // by sheet: how many times the widths changed
+    QTimer m_autoTimer;
+    bool m_applyingHeights = false;
+    // ---- protection (crunchwindow_protect.cpp)
+    void createProtectActions();
+    void connectProtection();
+    void updateProtectActions();
+    void protectSheet();
+    void protectWorkbook();
+    void guardSelection();
+    bool askPassword(const QString &what, const jp::office::sheet::PasswordHash &hash);
+    grid::Selection m_lastSelectable;
+    bool m_revertingSelection = false;
+    AnchorHooks m_anchorHooks;
+    QTimer m_hoverTimer;
+    QPointer<QWidget> m_notePopup;
+    bool m_hoverTipShown = false;
     QString m_formulaFull;    // what the cell with the cursor holds, whole (the formula bar shows a part of a long text until it has the focus)
 };
 

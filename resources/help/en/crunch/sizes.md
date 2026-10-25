@@ -30,3 +30,7 @@ Columns and rows that have no size of their own take the **standard** size: 8.43
 When you type or paste a number that does not fit its column, the column widens to show it, if the column still has the width it began with. A column whose width you set yourself keeps it, and a number that does not fit it shows as **#** marks until you widen the column. Typing and the widening are one step, so **Undo** takes back both.
 
 Every change is one step you can undo, and the file keeps the sizes. For a sense of scale: a column 8.43 characters wide is about 64 pixels, and a row 15 points high is 20 pixels, at 100% zoom.
+
+## Rows that grow with their text
+
+A row you have not given a height of your own follows what is in it. Turn on **Wrap Text** and the row grows to show every line; make the type larger, or type several lines in a cell (hold **Alt** and press **Enter** for a new line, which also turns on Wrap Text), and it grows to hold them. When the text goes, or the column is made wider, the row gets shorter again. A row whose height you set yourself, or hid, is left as it is. These changes follow from what is in the cells, so they are not steps of their own: Undo changes the cells, and the row follows. A very large sheet is measured only where you are looking, and a row is measured when you scroll to it.

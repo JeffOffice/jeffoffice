@@ -119,7 +119,7 @@ void WorkbookLoader::startThread(std::function<void()> work, const std::shared_p
     m_thread->start();
 }
 
-void WorkbookLoader::start(const QString &path)
+void WorkbookLoader::start(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv)
 {
     cancel();
     m_state = std::make_shared<State>();
@@ -129,7 +129,7 @@ void WorkbookLoader::start(const QString &path)
     const std::shared_ptr<LoadedBook> result = m_result;
     const std::shared_ptr<State> state = m_state;
     const QPointer<WorkbookLoader> self(this);
-    startThread([path, result, state, self] { run(path, result, state, self); }, state);
+    startThread([path, csv, result, state, self] { run(path, csv, result, state, self); }, state);
 }
 
 bool WorkbookLoader::recalculate()
@@ -195,7 +195,7 @@ std::unique_ptr<WorkbookLoader::Hold> WorkbookLoader::hold()
     return std::unique_ptr<Hold>(new Hold(m_state, m_result->calc.get()));
 }
 
-bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why)
+bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv)
 {
     QElapsedTimer total;
     total.start();
@@ -204,6 +204,7 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     // (the read can be stopped while a large document's styles and settings are read, and while its sheets are)
     Limits limits;
     limits.cancelled = cancelled;
+    limits.csv = csv;
     if (!book->openFile(path, why, limits)) return false;   // (any kind: the package of XML parts, the older binary form, or another format)
     out->book = book;
     out->notRead = book->skippedFeatures();
@@ -250,9 +251,16 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     if (!whole) out->problem = QCoreApplication::translate("jp::crunch::Loader", "Some of the workbook could not be read whole: %1.").arg(calc->notWhole().join(QStringLiteral(", ")));
     // the grid's geometry of each sheet
     out->geometry.assign(size_t(out->book->info().sheets.size()), nullptr);
+    out->notes.assign(size_t(out->book->info().sheets.size()), {});
+    out->notesTruncated.assign(size_t(out->book->info().sheets.size()), false);
     for (int i = 0; i < out->book->info().sheets.size(); ++i) {
         if (cancelled()) return false;
         if (out->book->info().sheets[i].kind != SheetKind::Chartsheet) out->geometry[size_t(i)] = jp::grid::GridSheet::makeGeometry(calc->sheet(i), out->book->styles());
+        if (out->book->info().sheets[i].kind == SheetKind::Worksheet) {
+            bool truncated = false;
+            out->notes[size_t(i)] = readSheetNoteInfos(*out->book, i, &truncated, jp::office::sheet::kMaxModelNotes);
+            out->notesTruncated[size_t(i)] = truncated;
+        }
     }
     out->calc = std::move(calc);
     out->loadMs = out->firstScreenMs + total.elapsed();
@@ -399,7 +407,7 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
     calc->setCancel(nullptr);
 }
 
-void WorkbookLoader::run(const QString &path, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self)
+void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self)
 {
     // A signal goes to the window only if the read has not been stopped (and the loader is still there), and is sent from the window's own thread.
     auto send = [state, self](const std::function<void()> &fn) {
@@ -414,7 +422,7 @@ void WorkbookLoader::run(const QString &path, std::shared_ptr<LoadedBook> result
         ~Done() { book->workerEnded = true; }
     } done{result};
     QString why;
-    if (!loadFirstScreen(path, result.get(), cancelled, &why)) {
+    if (!loadFirstScreen(path, result.get(), cancelled, &why, csv)) {
         send([self, why] { if (self) Q_EMIT self->finished(false, why); });
         return;
     }

@@ -67,7 +67,7 @@ private Q_SLOTS:
         QCOMPARE(w.ribbonErrors(), QString());
         QStringList tabs;
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
-        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Page Layout", "Formulas", "View", "Header and Footer", "Chart"}));
+        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Page Layout", "Formulas", "Review", "View", "Header and Footer", "Chart"}));
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffCrunch")));
         QVERIFY(w.windowTitle().startsWith(QLatin1String("Book")));
@@ -264,7 +264,7 @@ private Q_SLOTS:
         }
     }
 
-    // A right click on the grid opens a menu of the commands for cells: cut, copy, paste, inserting and deleting work once the workbook is open.
+    // A right click on the grid opens a menu of the commands for cells: cut, copy, paste, inserting, deleting, clearing, filtering and sorting, a note, a link, and Format Cells work once the workbook is open.
     void aRightClickOpensTheCellMenu()
     {
         Folder folder;
@@ -279,7 +279,8 @@ private Q_SLOTS:
             if (a->isSeparator()) continue;
             (a->isEnabled() ? enabled : dimmed) << a->objectName();
         }
-        QCOMPARE(enabled, (QStringList{"edit.cut", "edit.copy", "edit.paste", "paste.special", "cells.insert.cells", "cells.delete.cells", "edit.selectAll"}));
+        QCOMPARE(enabled, (QStringList{"edit.cut", "edit.copy", "edit.paste", "paste.special", "cells.insert.cells", "cells.delete.cells", "edit.clear.contents", "filter.toggle", QString() /* Sort, a menu of its own */, "notes.edit", "insert.link",
+                                       "format.cells", "edit.selectAll"}));
         QVERIFY(dimmed.isEmpty());
         menu->close();
     }

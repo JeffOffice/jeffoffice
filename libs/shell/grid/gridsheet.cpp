@@ -7,6 +7,11 @@
 
 namespace jp::grid {
 
+namespace {
+// The most characters of one cell's text that are measured for its height.
+constexpr int kMaxMeasuredChars = 4000;
+} // namespace
+
 using jp::office::sheet::CellType;
 using jp::office::sheet::ColumnSpan;
 using jp::office::sheet::kMaxColumns;
@@ -129,6 +134,62 @@ double GridSheet::fitHeight(quint32 row, qint64 limit) const
         return true;
     });
     return tallest > 0 ? pointsForPixels(int(std::ceil(tallest))) : 0;
+}
+
+// The lines a text takes in a room of that width when it wraps at the spaces (a word wider than the room breaks across lines), each paragraph (a line break in the text) on lines of its own.
+int GridSheet::wrappedLines(const QString &text, const CellLook &look, double room) const
+{
+    const double space = std::max(0.0, m_meter->width(QStringLiteral(" "), look));
+    int lines = 0;
+    for (const QString &paragraph : text.split(QLatin1Char('\n'))) {
+        int n = 1;
+        double used = 0;
+        for (const QStringView word : QStringView(paragraph).split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+            const double w = m_meter->width(word.toString(), look);
+            if (used > 0 && used + space + w <= room) {
+                used += space + w;
+            } else {
+                if (used > 0) ++n;
+                // a word wider than the room takes more than one line
+                const int across = std::max(1, int(std::ceil(w / room)));
+                n += across - 1;
+                used = across > 1 ? std::fmod(w, room) : w;
+                if (across > 1 && used <= 0) used = room;
+            }
+        }
+        lines += n;
+    }
+    return std::max(1, lines);
+}
+
+double GridSheet::autoHeight(quint32 row, qint64 limit) const
+{
+    if (!m_data.sheet) return 0;
+    const double standard = std::max(1.0, m_meter->lineHeight(m_looks.look(0)));
+    const double scale = std::max(1, m_layout.rows.defaultSize()) / standard;
+    double tallest = 0;
+    qint64 seen = 0;
+    m_data.sheet->cells.forEachInRange(row, 0, row, jp::office::sheet::kMaxColumns - 1, [&](const Cell &cell) {
+        if (++seen > limit) return false;
+        if (cell.type == jp::office::sheet::CellType::Empty && !cell.hasFormula()) return true;
+        if (m_layout.merges.at(cell.row, cell.col) >= 0) return true;
+        const CellLook &look = lookOf(cell.row, cell.col, cell.style);
+        const Shown s = showValue(valueOf(cell), look, m_data.dateSystem, columnWidth(cell.col), m_looks.maxDigitWidth(), *m_meter, &m_symbols);
+        if (s.kind == Kind::Empty) return true;
+        int lines = 1;
+        if (look.wrap) {
+            const QString text = textOf(cell);
+            const double room = std::max(1.0, textRoom(columnWidth(cell.col), look));
+            lines = wrappedLines(text.left(kMaxMeasuredChars), look, room);
+            // (what is past the characters that are measured is counted by the share of the text it is)
+            if (text.size() > kMaxMeasuredChars) lines = int(std::ceil(double(lines) * text.size() / kMaxMeasuredChars));
+            lines = std::min(lines, 409);   // (a row is at most 409 points high)
+        }
+        // (one line is the font's own row height, the one that a row of that font has; lines past the first are what the painter spaces them by, so that none is cut)
+        tallest = std::max(tallest, lines == 1 ? m_meter->lineHeight(look) * scale : lines * m_meter->lineHeight(look));
+        return true;
+    });
+    return tallest > 0 ? std::min(409.5, pointsForPixels(int(std::ceil(tallest - 0.01)))) : 0;
 }
 
 void GridSheet::setData(const GridData &data)

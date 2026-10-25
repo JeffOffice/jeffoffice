@@ -378,6 +378,8 @@ void CrunchWindow::showTabMenu(const QPoint &globalPos)
     unhide->setTitle(tr("Unhide Sheet"));
     unhide->setIcon(icon(QStringLiteral("eye")));
     menu->addMenu(unhide);
+    menu->addSeparator();
+    menu->addAction(act(QStringLiteral("protect.sheet")));
     menu->popup(globalPos);
 }
 
