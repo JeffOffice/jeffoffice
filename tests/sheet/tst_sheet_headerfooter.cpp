@@ -125,8 +125,13 @@ private Q_SLOTS:
         c.locale = QLocale(QLocale::English, QLocale::UnitedStates);
         QCOMPARE(hfFieldText(HfField::Page, c), QStringLiteral("3"));
         QCOMPARE(hfFieldText(HfField::Pages, c), QStringLiteral("12"));
-        QCOMPARE(hfFieldText(HfField::Date, c), c.locale.toString(c.now.date(), QLocale::ShortFormat));
+        // the date in the computer's short form with the year in full (as a printed date has it), and the time in its short form
+        QCOMPARE(hfFieldText(HfField::Date, c), QStringLiteral("10/24/2026"));
         QCOMPARE(hfFieldText(HfField::Time, c), c.locale.toString(c.now.time(), QLocale::ShortFormat));
+        QVERIFY(hfFieldText(HfField::Time, c).startsWith(QStringLiteral("2:05")));
+        c.locale = QLocale(QLocale::German, QLocale::Germany);
+        QCOMPARE(hfFieldText(HfField::Date, c), QStringLiteral("24.10.2026"));
+        c.locale = QLocale(QLocale::English, QLocale::UnitedStates);
         QCOMPARE(hfFieldText(HfField::File, c), QStringLiteral("Budget.xlsx"));
         QCOMPARE(hfFieldText(HfField::Path, c), QStringLiteral("/home/me/Documents/"));
         QCOMPARE(hfFieldText(HfField::Sheet, c), QStringLiteral("Q3"));

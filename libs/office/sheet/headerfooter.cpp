@@ -197,12 +197,24 @@ HfText parseHeaderFooter(const QString &code)
     return out;
 }
 
+namespace {
+
+// The date in the computer's short form, with the year in full (the short form of many locales has two digits; a printed date has four).
+QString shortDateText(const QLocale &locale, const QDate &date)
+{
+    QString format = locale.dateFormat(QLocale::ShortFormat);
+    if (!format.contains(QLatin1String("yyyy"))) format.replace(QLatin1String("yy"), QLatin1String("yyyy"));
+    return locale.toString(date, format);
+}
+
+} // namespace
+
 QString hfFieldText(HfField field, const HfContext &c)
 {
     switch (field) {
     case HfField::Page: return QString::number(c.page);
     case HfField::Pages: return QString::number(c.pages);
-    case HfField::Date: return c.locale.toString(c.now.date(), QLocale::ShortFormat);
+    case HfField::Date: return shortDateText(c.locale, c.now.date());
     case HfField::Time: return c.locale.toString(c.now.time(), QLocale::ShortFormat);
     case HfField::File: return c.file;
     case HfField::Path: return c.path;
