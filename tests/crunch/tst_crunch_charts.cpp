@@ -831,6 +831,77 @@ private Q_SLOTS:
         QCOMPARE(linked, 1);   // (the first chart's part is as it was; the copy's has no link)
     }
 
+
+    // The pictures pasted since the last save are held within a budget the save accepts: a paste past it is refused, with a message, and nothing is put on.
+    void pastedPicturesAreHeldWithinABudget()
+    {
+        const QString anchors = oneCell(1, 6, 952500, 476250, pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("Logo")));
+        const QByteArray png = pngBytes(8, 4, Qt::red);
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {imageTarget(QStringLiteral("rIdP"), 1, png)})));
+        QTRY_VERIFY(objectsShown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        crunch::SheetObjects::Limits limits = o->limits();
+        limits.maxBytes = png.size() * 2 + png.size() / 2;
+        o->setLimits(limits);
+        QGuiApplication::clipboard()->clear();
+        o->layer()->select(0);
+        e.win.w.act(QStringLiteral("edit.copy"))->trigger();
+        int pasted = 0;
+        for (int i = 0; i < 4; ++i) {
+            e.select(QStringLiteral("B20"));
+            const int before = int(o->idsOf(0).size());
+            e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+            if (int(o->idsOf(0).size()) == before) break;
+            ++pasted;
+        }
+        QCOMPARE(pasted, 2);
+        QVERIFY(o->pastedBytesHeld() <= limits.maxBytes);
+        QVERIFY2(e.win.told.last().contains(QLatin1String("pictures put in since the last save")), qPrintable(e.win.told.last()));
+        // taken away again (Undo), the picture makes room
+        pressUndo(&e.win.w);
+        QCOMPARE(o->pastedBytesHeld(), qint64(png.size()));
+        e.select(QStringLiteral("B20"));
+        e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(o->pastedBytesHeld(), qint64(png.size()) * 2);
+        QVERIFY(save(e));   // (what is pasted is saved: the save never fails for it)
+    }
+
+    // Cut takes a chart, picture, or shape away and puts it on the clipboard: pasted, it comes back; Undone, it is where it was.
+    void cutObjectsCanBePastedOrUndone()
+    {
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+        const QString anchors = twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales"))) + oneCell(1, 16, 952500, 476250, pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("Logo")))
+                                + twoCell(5, 20, 8, 24, shapeElement(4, QStringLiteral("Box")));
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series)), imageTarget(QStringLiteral("rIdP"), 2, pngBytes(8, 4, Qt::red))})));
+        QTRY_VERIFY(objectsShown(e, 3));
+        crunch::SheetObjects *o = e.win.w.objects();
+        const char *names[] = {"Sales", "Logo", "Box"};
+        for (int id = 0; id < 3; ++id) {
+            QGuiApplication::clipboard()->clear();
+            o->layer()->select(id);
+            e.win.w.act(QStringLiteral("edit.cut"))->trigger();
+            QVERIFY2(o->layer()->isDeleted(id), names[id]);
+            QCOMPARE(int(o->idsOf(0).size()), 2);
+            QVERIFY(QGuiApplication::clipboard()->mimeData()->hasFormat(QLatin1String("application/x-jeffcrunch-object")));
+            // pasted: it is on again, as another object
+            e.select(QStringLiteral("B30"));
+            e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+            QCOMPARE(int(o->idsOf(0).size()), 3);
+            const int pastedId = o->idsOf(0).back();
+            QVERIFY(!o->layer()->isDeleted(pastedId));
+            QCOMPARE(o->kindOf(0, pastedId), o->kindOf(0, id));
+            pressUndo(&e.win.w);   // the paste
+            QVERIFY(o->layer()->isDeleted(pastedId));
+            QCOMPARE(int(o->idsOf(0).size()), 2);
+            // Undo of the cut: where it was
+            pressUndo(&e.win.w);
+            QVERIFY2(!o->layer()->isDeleted(id), names[id]);
+            QCOMPARE(int(o->idsOf(0).size()), 3);
+        }
+    }
+
     // ---- the order
 
     void objectsAreBroughtForwardAndSentBackward()
@@ -1249,13 +1320,17 @@ private Q_SLOTS:
         pressRedo(&e.win.w);
         QCOMPARE(seriesCount(chartOf(e, last)), 1);
         QCOMPARE(o->chartPointsHeld(), each * 4);
-        // a change that would need more than there is, is refused as well
+        // a change that would need more than there is, is refused as well (by the change a person makes); one that needs no more numbers is not
         o->layer()->select(last);
-        limits.maxPoints = each * 4 - 1;
+        limits.maxPoints = each * 4 + each / 2;
         o->setLimits(limits);
-        QString why;
-        QVERIFY(!o->chartRoom(0, chartOf(e, last), -1, &why));
-        QVERIFY(o->chartRoom(0, chartOf(e, last), last, &why) || why.contains(QLatin1String("numbers")));
+        const int before = int(o->idsOf(0).size());
+        QVERIFY(!e.win.w.changePickedChart(QStringLiteral("Test"), [](Chart *c) { c->plots[0].series.push_back(c->plots[0].series[0]); }));
+        QVERIFY2(e.win.told.last().contains(QLatin1String("hold as many numbers")), qPrintable(e.win.told.last()));
+        QCOMPARE(int(o->idsOf(0).size()), before);
+        QCOMPARE(seriesCount(chartOf(e, last)), 1);
+        QCOMPARE(o->chartPointsHeld(), each * 4);
+        QVERIFY(e.win.w.changePickedChart(QStringLiteral("Test"), [](Chart *c) { c->title.present = true; c->title.automatic = false; c->title.text = QStringLiteral("T"); }));
         // Undo's bytes include the numbers a step holds
         limits.maxPoints = 100000;
         o->setLimits(limits);

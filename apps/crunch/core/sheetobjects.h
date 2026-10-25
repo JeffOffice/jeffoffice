@@ -121,12 +121,14 @@ public:
     struct Limits {
         int maxAdded = jp::office::sheet::kMaxAddedObjects;
         qint64 maxPoints = 400000;
+        qint64 maxBytes = jp::office::sheet::kMaxAddedBytes;   // the pictures pasted since the last save
     };
     void setLimits(const Limits &limits) { m_limits = limits; }
     const Limits &limits() const { return m_limits; }
     // The objects put there since the file was read or saved that are not taken away, and the points of the charts that are new or changed, in the whole workbook.
     int addedCount() const;
     qint64 chartPointsHeld() const;
+    qint64 pastedBytesHeld() const;
     // The points a chart reads or holds (the cells its references name, up to what a series may read, and the numbers it holds for what has no reference).
     qint64 pointsOf(int sheet, const jp::office::Chart &chart) const;
     // Whether a chart of this size may be held in the place of the object `replacing` (-1: as one more); if not, why.

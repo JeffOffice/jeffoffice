@@ -1089,13 +1089,27 @@ qint64 SheetObjects::pointsOf(int sheet, const Chart &chart) const
     return n;
 }
 
+qint64 SheetObjects::pastedBytesHeld() const
+{
+    qint64 n = 0;
+    for (const Sheet &s : m_sheets)
+        for (const std::shared_ptr<Object> &o : s.objects)
+            if (o->added && !o->deleted && !o->gone)
+                for (const jp::crunch::ClipMedia &m : o->pasteMedia) n += m.bytes.size();
+    return n;
+}
+
 bool SheetObjects::chartRoom(int sheet, const Chart &chart, int replacing, QString *why) const
 {
     qint64 held = chartPointsHeld();
+    const qint64 wanted = pointsOf(sheet, chart);
     if (replacing >= 0)
         for (const std::shared_ptr<Object> &o : m_sheets[size_t(sheet)].objects)
-            if (o->id == replacing && !o->deleted && o->chart && (o->added || o->chart != o->fileChart)) held -= o->points;
-    if (held + pointsOf(sheet, chart) > m_limits.maxPoints) {
+            if (o->id == replacing && !o->deleted && o->chart && (o->added || o->chart != o->fileChart)) {
+                if (wanted <= o->points) return true;   // (a change that adds no numbers needs no room)
+                held -= o->points;
+            }
+    if (held + wanted > m_limits.maxPoints) {
         if (why) *why = QCoreApplication::translate("jp::crunch::SheetObjects", "The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.").arg(QLocale().toString(m_limits.maxPoints));
         return false;
     }
@@ -1468,9 +1482,10 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     if (addedCount() >= m_limits.maxAdded)
         return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(QLocale().toString(m_limits.maxAdded)));
     if (m_objectsMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
-    qint64 held = 0;
-    for (const Object *o : {static_cast<const Object *>(nullptr)}) Q_UNUSED(o);
+    qint64 held = pastedBytesHeld();
     for (const jp::crunch::ClipMedia &m : clip.media) held += m.bytes.size();
+    if (held > m_limits.maxBytes)
+        return refuse(tr("The pictures put in since the last save are as many as JeffCrunch saves in one go (%1 MB). Save the workbook, and then paste more.").arg(QLocale().toString(m_limits.maxBytes >> 20)));
     knowShapeIds(sheet, s);
     // the element in a document of its own
     QByteArray wrapped = "<w xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"" + clip.namespaces + ">" + clip.elementXml + "</w>";

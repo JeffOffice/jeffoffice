@@ -326,6 +326,10 @@ bool CrunchWindow::changePickedChart(const QString &text, const std::function<vo
     }
     Chart chart = m_objects->chartNow(m_sheet, id);
     change(&chart);
+    if (!m_objects->chartRoom(m_sheet, chart, id, &why)) {
+        notice(text, why);
+        return false;
+    }
     crunch::ObjectEdit e;
     e.sheet = m_sheet;
     e.id = id;

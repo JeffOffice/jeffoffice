@@ -1,5 +1,5 @@
 # Charts, pictures, and shapes
-<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, select data, move, resize, picture, shape, object, series -->
+<!-- keywords: chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
