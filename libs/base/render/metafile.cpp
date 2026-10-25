@@ -18,6 +18,9 @@
 
 namespace jp {
 
+static thread_local double g_workPaid = 0;
+double Metafile::workPaidForTest() { return g_workPaid; }
+
 namespace {
 
 // What one play of a metafile may do, in units of about a microsecond of work on the computers it was measured on (a rectangle over the
@@ -219,6 +222,7 @@ private:
     // Takes work from what the metafile may do (see kMaxWork); false once it is spent, when the rest of it is not played.
     bool pay(double units)
     {
+        g_workPaid += units;
         m_work -= units;
         if (m_work < 0) m_spent = true;
         return !m_spent;

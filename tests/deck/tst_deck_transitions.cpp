@@ -1,6 +1,5 @@
 // JeffDeck's tests of slide transitions, morph, and the presenter view.
 #include "deckhelpers.h"
-#include "../timing.h"
 
 class DeckTransitionTests : public QObject {
     Q_OBJECT
@@ -1091,13 +1090,13 @@ private Q_SLOTS:
         for (int i = 0; i < kMorphMaxTextCharacters / 3 + 10; ++i) many += QStringLiteral("ab ");
         longer->pages[0]->items.push_back(morphText(*longer, "Line", many, QRectF(0, 0, 900, 500)));
         longer->pages[1]->items.push_back(morphText(*longer, "Line", many + QStringLiteral("cd"), QRectF(0, 0, 900, 500)));
-        std::unique_ptr<MorphFrames> overlong;
-        const qint64 overlongMs = bestNanoseconds([&] {
-            overlong = std::make_unique<MorphFrames>(longer.get(), 0, 1, QStringLiteral("words"), size, 1.0);
-            QVERIFY(!overlong->describe().join('\n').contains(QStringLiteral("move")));
-            QVERIFY(!overlong->frame(0.5).isNull());
-        }, 3, [&] { overlong.reset(); }) / 1000000;
-        QVERIFY2(overlongMs < 20000, qPrintable(QString::number(overlongMs)));
+        const MorphWork overlongBefore = morphWorkForTest();
+        auto overlong = std::make_unique<MorphFrames>(longer.get(), 0, 1, QStringLiteral("words"), size, 1.0);
+        QVERIFY(!overlong->describe().join('\n').contains(QStringLiteral("move")));
+        QVERIFY(!overlong->frame(0.5).isNull());
+        // Counted: the words are not cut into tokens or paired, and no picture of the text is painted for moving it.
+        QCOMPARE(morphWorkForTest().tokensMade, overlongBefore.tokensMade);
+        QCOMPARE(morphWorkForTest().textPicturesPainted, overlongBefore.textPicturesPainted);
     }
 
     // Objects the animations hide are not in the morph; a slide with more objects than a morph holds fades.
@@ -1130,16 +1129,14 @@ private Q_SLOTS:
             big->pages[0]->items.push_back(morphShape(QStringLiteral("S%1").arg(i), "rect", QRectF(i % 30 * 30, i / 30 * 15, 10, 10), QColor(255, 0, 0)));
             big->pages[1]->items.push_back(morphShape(QStringLiteral("S%1").arg(i), "rect", QRectF(i % 30 * 30, i / 30 * 15, 10, 10), QColor(0, 0, 255)));
         }
-        std::unique_ptr<MorphFrames> hostile;
-        QImage faded;
-        const qint64 hostileMs = bestNanoseconds([&] {
-            hostile = std::make_unique<MorphFrames>(big.get(), 0, 1, QStringLiteral("objects"), size, 1.0);
-            QVERIFY(!hostile->isUsable());
-            QVERIFY(hostile->plan().pairs.isEmpty());
-            faded = hostile->frame(0.5);
-        }, 3, [&] { hostile.reset(); }) / 1000000;
+        const MorphWork hostileBefore = morphWorkForTest();
+        auto hostile = std::make_unique<MorphFrames>(big.get(), 0, 1, QStringLiteral("objects"), size, 1.0);
+        QVERIFY(!hostile->isUsable());
+        QVERIFY(hostile->plan().pairs.isEmpty());
+        const QImage faded = hostile->frame(0.5);
         QVERIFY(morphColorIs(faded, 5, 5, QColor(128, 0, 128), 6));
-        QVERIFY2(hostileMs < 10000, qPrintable(QString::number(hostileMs)));
+        // Counted: a slide with more objects than a morph holds is not planned (the pairing of a thousand and more is not made).
+        QCOMPARE(morphWorkForTest().objectsPlanned, hostileBefore.objectsPlanned);
         // Slides that aren't there make no frame.
         MorphFrames none(d.get(), 0, 9, QStringLiteral("objects"), size, 1.0);
         QVERIFY(!none.isUsable());

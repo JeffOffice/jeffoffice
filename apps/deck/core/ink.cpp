@@ -17,6 +17,8 @@ double scaleFor(double pageWidth) { return pageWidth > 0 ? pageWidth / kInkSlide
 // Keeps the points of a stroke that matter, in one pass: from a point the run goes on while the points stay within `tolerance` of the line
 // through it and the point after it (and keep going the same way along it); the last such point is kept, and the next run starts there.
 // Each point is looked at about twice, however the stroke winds.
+thread_local qint64 g_pointsLooked = 0;
+
 QVector<QPointF> thinned(const QVector<QPointF> &points, double tolerance)
 {
     // The same point twice in a row adds nothing.
@@ -32,7 +34,7 @@ QVector<QPointF> thinned(const QVector<QPointF> &points, double tolerance)
         const double length = std::hypot(d.x(), d.y());
         double along = length;   // how far along the line the last point of the run is
         int j = i + 2;
-        for (; j < n; ++j) {
+        for (; j < n; ++j, ++g_pointsLooked) {
             const QPointF v = p[j] - a;
             const double across = std::abs(v.x() * d.y() - v.y() * d.x()) / length, ahead = (v.x() * d.x() + v.y() * d.y()) / length;
             // Off the line, or turned back along it.
@@ -46,6 +48,8 @@ QVector<QPointF> thinned(const QVector<QPointF> &points, double tolerance)
 }
 
 } // namespace
+
+qint64 inkPointsLookedAtForTest() { return g_pointsLooked; }
 
 double penWeightFor(double pageWidth) { return kPenWeight * scaleFor(pageWidth); }
 double highlighterWeightFor(double pageWidth) { return kHighlighterWeight * scaleFor(pageWidth); }

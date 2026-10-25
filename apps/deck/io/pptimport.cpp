@@ -1018,6 +1018,7 @@ private:
 public:
     qint64 persistRead() const { return m_persistRead; }
     qint64 shapesTaken() const { return kMaxTotalShapes - m_shapes.left; }
+    qint64 writersXmlBytes() const { return m_writersXmlBytes; }
     QString notesText() const
     {
         QStringList lines = m_notes;
@@ -1297,6 +1298,7 @@ static QVector<Pp9> pp9Entries(const QByteArray &d, const Rec &atom)
         if (special & 0x40) c.u16();
         if (special & 0x20) c.u32();
         if (!c.ok()) break;
+        ++g_work.pp9EntriesRead;
         entries << e;
     }
     return entries;
@@ -3066,6 +3068,7 @@ std::unique_ptr<Document> importBinaryPresentation(const QByteArray &bytes, QStr
     }
     g_work.persistRead = importer.persistRead();
     g_work.shapesTaken = importer.shapesTaken();
+    g_work.writersXmlBytes = importer.writersXmlBytes();
     if (!ok) {
         if (error) *error = why;
         return nullptr;

@@ -1424,11 +1424,14 @@ constexpr qint64 kInkPictureAt = 5000;
 // The pictures kept: each is as large as the slide's place on a screen.
 constexpr int kInkPictures = 4;
 
+thread_local qint64 g_inkPointsDrawn = 0;
+
 void drawStrokes(QPainter *p, const QVector<deck::InkStroke> &strokes, int from, int to)
 {
     p->setBrush(Qt::NoBrush);
     for (int i = from; i < to; ++i) {
         const deck::InkStroke &stroke = strokes[i];
+        g_inkPointsDrawn += stroke.points.size();
         QColor c = stroke.color;
         if (stroke.highlighter) c.setAlphaF(1 - deck::kHighlighterClearness);
         p->setPen(QPen(c, stroke.width, Qt::SolidLine, stroke.highlighter ? Qt::SquareCap : Qt::RoundCap, Qt::RoundJoin));
@@ -1436,6 +1439,8 @@ void drawStrokes(QPainter *p, const QVector<deck::InkStroke> &strokes, int from,
     }
 }
 } // namespace
+
+qint64 SlideShow::inkPointsDrawnForTest() { return g_inkPointsDrawn; }
 
 void SlideShow::paintInk(QPainter *p, int slide, const QRectF &at, bool laser) const
 {

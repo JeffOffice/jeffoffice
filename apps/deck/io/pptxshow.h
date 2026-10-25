@@ -54,4 +54,10 @@ QString customShowListXml(const Document &doc, const QStringList &slideRels);
 // The whole of presProps.xml's root element; `namespaces` are the xmlns attributes it carries.
 QString presentationPropertiesXml(const Document &doc, const QString &namespaces);
 
+// Counted since the program began on this thread, for tests of cost: the show properties read in full (the first only), and the slides that custom shows kept.
+struct ShowImportWork {
+    qint64 showPropertiesRead = 0, customShowEntriesKept = 0;
+};
+ShowImportWork showImportWorkForTest();
+
 } // namespace jp::deck
