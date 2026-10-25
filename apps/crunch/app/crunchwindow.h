@@ -233,6 +233,8 @@ public:
         qint64 most = 0;
     };
     PageBreakWork pageBreakWork() const { return m_breakStats; }
+    bool pageBreaksUnderWay() const { return bool(m_breakJob); }
+    void stepPageBreaksNow() { stepPageBreaks(); }
     static qint64 pageBreakSliceWork();
     // The lines for a sheet's pages: a row's line for each page that begins a band of rows, and a column's likewise (a break set by hand is marked, unless the sheet is fitted to pages).
     static void pageBreakLines(const jp::grid::SheetPrint &print, const jp::office::sheet::PageSetup &setup, std::vector<jp::grid::GridView::PageBreakLine> *rows,

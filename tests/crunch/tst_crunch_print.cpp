@@ -1296,6 +1296,63 @@ private Q_SLOTS:
         QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75}));
     }
 
+    // Undo and Redo of a typed cell are edits that drop the lines being worked out and bring new ones; read with no timer, the sheet's pages follow each step at once.
+    void undoAndRedoOfTypingMoveThePagesAtOnce()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        auto pages = [&] {
+            QString why;
+            const std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+            return job ? job->pageCount() : -1;
+        };
+        QCOMPARE(pages(), 3);
+        for (int i = 0; i < 20; ++i) {
+            QVERIFY(w.session()->type(0, 199, 0, QStringLiteral("x")).ok);
+            QCOMPARE(pages(), 5);
+            pressUndo(e.view());
+            QCOMPARE(pages(), 3);
+            pressRedo(e.view());
+            QCOMPARE(pages(), 5);
+            pressUndo(e.view());
+            QCOMPARE(pages(), 3);
+        }
+    }
+
+    // A job for the lines that is part way through (driven by hand here, no timer) is dropped by an edit, by Undo, and by Redo: a slice asked for after that does nothing, and no lines of the
+    // dropped job land; only the job begun after the edit gives lines, and one job is under way at a time.
+    void aDroppedLineJobNeverLandsItsLines()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1048576\"><c r=\"A1048576\"><v>1</v></c></row>"))})));
+        CrunchWindow &w = e.win.w;
+        w.armPageBreaks();
+        w.updatePageBreaks();
+        QVERIFY(w.pageBreaksUnderWay());   // (a million rows take many slices)
+        QVERIFY(!e.view()->hasPageBreaks());
+        w.stepPageBreaksNow();
+        QVERIFY(!e.view()->hasPageBreaks());
+        auto dropped = [&](const std::function<void()> &edit) {
+            QVERIFY(w.pageBreaksUnderWay());
+            edit();
+            QVERIFY(!w.pageBreaksUnderWay());
+            const int slices = w.pageBreakWork().slices;
+            for (int i = 0; i < 100; ++i) w.stepPageBreaksNow();   // (a slice from the dropped job, as a timer left over would give it)
+            QCOMPARE(w.pageBreakWork().slices, slices);
+            QVERIFY(!e.view()->hasPageBreaks());
+            w.updatePageBreaks();
+            QVERIFY(w.pageBreaksUnderWay());
+        };
+        dropped([&] { QVERIFY(w.session()->type(0, 5, 0, QStringLiteral("x")).ok); });
+        dropped([&] { pressUndo(e.view()); });
+        dropped([&] { pressRedo(e.view()); });
+        // the job begun last runs to its end, and its lines are the sheet's
+        for (int i = 0; i < 1000 && w.pageBreaksUnderWay(); ++i) w.stepPageBreaksNow();
+        QVERIFY(!w.pageBreaksUnderWay());
+        QVERIFY(e.view()->pageBreakRows().size() > 1000);
+    }
+
     // The lines where the pages begin on a sheet a million rows long are worked out in slices of counted work, one turn of the event loop each, and are the lines one pass makes. Each slice
     // stops soon after its limit, whatever the sheet; the window is free between them.
     void thePageBreakLinesOfAMillionRowsAreWorkedOutInSlices()
