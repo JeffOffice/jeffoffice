@@ -203,13 +203,16 @@ void GridView::paintBreakView(QPainter *p, const QRect &clip)
             if (page.row2 < pv.firstRow || page.row1 > pv.lastRow || page.col2 < pv.firstCol || page.col1 > pv.lastCol) continue;
             const QRect box = L.rangeRectIn(pane, page.row1, page.col1, page.row2, page.col2) & pv.rect;
             if (box.width() < 12 || box.height() < 20) continue;
-            // (a page of a few narrow columns is lettered over the shading beside it too)
+            // (a page of a few narrow columns is lettered over the shading beside it too, not further left than the part of the grid it is in)
             QFont f = p->font();
             f.setBold(true);
             f.setPixelSize(std::clamp(box.height() / 4, 12, 96));
             p->setFont(f);
-            const QRect wide = box.adjusted(-400, 0, 400, 0);
-            p->drawText(wide, Qt::AlignCenter | Qt::TextSingleLine, format.arg(page.number));
+            const QFontMetrics fm(f);
+            const QString label = format.arg(page.number);
+            const int w = fm.horizontalAdvance(label) + 4;
+            const int x = std::max(area.left() + 4, box.center().x() - w / 2);
+            p->drawText(QRect(x, box.center().y() - fm.height() / 2, w, fm.height()), Qt::AlignCenter | Qt::TextSingleLine, label);
         }
         // the edges of the blocks
         QPen edge(ink, 2);

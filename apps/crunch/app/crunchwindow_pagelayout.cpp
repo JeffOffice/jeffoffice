@@ -113,15 +113,15 @@ void CrunchWindow::createPageLayoutActions()
     struct Code {
         const char *id, *text, *icon, *code;
     };
-    static const Code codes[] = {{"hf.pageNumber", QT_TR_NOOP("Page Number"), "hash", "&P"}, {"hf.pageCount", QT_TR_NOOP("Number of Pages"), "files", "&N"},
-                                 {"hf.date", QT_TR_NOOP("Current Date"), "calendar", "&D"},  {"hf.time", QT_TR_NOOP("Current Time"), "clock", "&T"},
-                                 {"hf.filePath", QT_TR_NOOP("File Path"), "folder", "&Z"},   {"hf.fileName", QT_TR_NOOP("File Name"), "file-text", "&F"},
-                                 {"hf.sheetName", QT_TR_NOOP("Sheet Name"), "table-2", "&A"}};
+    static const Code codes[] = {{"hf.pageNumber", QT_TR_NOOP("This Page's Number"), "hash", "&P"}, {"hf.pageCount", QT_TR_NOOP("Pages in All"), "files", "&N"},
+                                 {"hf.date", QT_TR_NOOP("Date Printed"), "calendar", "&D"},  {"hf.time", QT_TR_NOOP("Time Printed"), "clock", "&T"},
+                                 {"hf.filePath", QT_TR_NOOP("Folder"), "folder", "&Z"},   {"hf.fileName", QT_TR_NOOP("Workbook File"), "file-text", "&F"},
+                                 {"hf.sheetName", QT_TR_NOOP("Sheet's Name"), "table-2", "&A"}};
     for (const Code &c : codes) {
         const QString code = QString::fromLatin1(c.code);
         mk(QString::fromLatin1(c.id), tr(c.text), QString::fromLatin1(c.icon), QKeySequence(), [this, code] { insertHeaderCode(code); });
     }
-    mk(QStringLiteral("hf.picture"), tr("Picture"), QStringLiteral("image"), QKeySequence(), [this] { insertHeaderPicture(); });
+    mk(QStringLiteral("hf.picture"), tr("Add Picture"), QStringLiteral("image"), QKeySequence(), [this] { insertHeaderPicture(); });
     auto flag = [this](const QString &id, const QString &text, const QString &undo, bool HeaderFooter::*member) {
         mk(id, text, QString(), QKeySequence(), [this, id, undo, member] {
             const bool on = act(id)->isChecked();
@@ -129,10 +129,10 @@ void CrunchWindow::createPageLayoutActions()
         }, true);
         m_opsActions << id;
     };
-    flag(QStringLiteral("hf.differentFirst"), tr("Different First Page"), tr("Header and footer of the first page"), &HeaderFooter::differentFirst);
-    flag(QStringLiteral("hf.differentOddEven"), tr("Different Odd and Even Pages"), tr("Header and footer of odd and even pages"), &HeaderFooter::differentOddEven);
-    flag(QStringLiteral("hf.scaleWithDoc"), tr("Scale with Document"), tr("Header and footer size"), &HeaderFooter::scaleWithDoc);
-    flag(QStringLiteral("hf.alignWithMargins"), tr("Align with Page Margins"), tr("Header and footer alignment"), &HeaderFooter::alignWithMargins);
+    flag(QStringLiteral("hf.differentFirst"), tr("First Page on Its Own"), tr("Header and footer of the first page"), &HeaderFooter::differentFirst);
+    flag(QStringLiteral("hf.differentOddEven"), tr("Odd and Even on Their Own"), tr("Header and footer of odd and even pages"), &HeaderFooter::differentOddEven);
+    flag(QStringLiteral("hf.scaleWithDoc"), tr("Grow with the Cells"), tr("Header and footer size"), &HeaderFooter::scaleWithDoc);
+    flag(QStringLiteral("hf.alignWithMargins"), tr("Line Up with Margins"), tr("Header and footer alignment"), &HeaderFooter::alignWithMargins);
 }
 
 // The view of the pages is made with the window, hidden until the view is chosen.
