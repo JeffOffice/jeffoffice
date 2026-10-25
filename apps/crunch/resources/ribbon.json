@@ -147,7 +147,7 @@
             {"small": "edit.fill", "keytip": "FI", "split": true, "menu": ["fill.down", "fill.right", "fill.up", "fill.left", "-", "fill.series"]},
             {"small": "edit.clear", "keytip": "E", "split": true, "menu": ["edit.clear.all", "edit.clear.formats", "edit.clear.contents"]},
             {"large": "edit.sort", "keytip": "SS"},
-            {"large": "edit.find", "keytip": "FD"}
+            {"large": "edit.find", "keytip": "FD", "split": true, "menu": ["find.find", "find.replace", "-", "find.goto", "find.gotoSpecial"]}
           ]
         }
       ]

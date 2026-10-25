@@ -11,6 +11,7 @@
 #include "core/loader.h"
 #include "grid/valuestore.h"
 #include "sheet/entry.h"
+#include "sheet/textmatch.h"
 #include "sheet/xlsxsave.h"
 
 #include <QLocale>
@@ -150,6 +151,9 @@ public:
     QLocale locale() const { return m_locale; }
 
     QUndoStack *undoStack() { return &m_undo; }
+    // The workbook and its calculation, to be read (on the window's thread, and not while an edit is being made).
+    const jp::office::sheet::Calculation *calculation() const { return m_book ? m_book->calc.get() : nullptr; }
+    const jp::office::sheet::Workbook *workbook() const { return m_book ? m_book->book.get() : nullptr; }
     // Whether there is a step to undo that is still held (the oldest steps may have been forgotten: see kUndoBytes).
     bool canUndo() const;
     // How many steps the last save made Undo forget (those up to a step that deleted rows, columns, or cells).
@@ -232,6 +236,22 @@ public:
     Outcome fill(int sheet, const jp::office::sheet::CellRange &source, FillDirection direction, quint32 count);   // (as the fill handle: Auto)
 
 
+
+    // ---- Find and Replace (editfind.cpp)
+    // What a cell shows, as text: its value through its number format (the person's marks for the decimal and the digits), a text as it is, TRUE and FALSE, an error's name; empty for no cell.
+    QString displayText(int sheet, quint32 row, quint32 col) const;
+    struct CellSpot {
+        int sheet = 0;
+        quint32 row = 0, col = 0;
+    };
+    struct ReplaceResult {
+        int cells = 0;          // cells that changed
+        int occurrences = 0;    // and the places in them
+    };
+    // Puts `with` in place of what matches the pattern in the text each of these cells holds (a formula with its "=", a constant as it is typed), and enters the new text as if typed: one
+    // step. Nothing is changed, and the reason is told, if a cell is part of an array, is locked on a protected sheet, is in a table's header row, would not be a formula any more, or
+    // there are more than kMaxCellsPerEdit.
+    Outcome replaceInCells(const std::vector<CellSpot> &cells, const jp::office::sheet::TextPattern &pattern, const QString &with, ReplaceResult *result = nullptr);
 
     // Inserts or deletes rows, columns, or cells: the cells after them move over (down, right, left, or up) and everything that refers to them follows (formulas on every sheet, defined
     // names, merged cells, tables, and, in the file, conditional formats, validations, hyperlinks, charts, print areas, and the rest); a reference to cells that are deleted becomes #REF!.

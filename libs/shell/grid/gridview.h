@@ -140,6 +140,20 @@ public:
     void setDropDownCell(qint64 row, qint64 col);
     QRect dropDownRect() const;       // the button, in the viewport's pixels (empty when the cell is out of sight or too narrow)
     QRect dropDownCellRect() const;   // and the cell it is on
+    // Cells marked as what a search found (Go To Special): tinted over the cells, apart from the selection. An empty list takes the marks away.
+    void setMarks(const std::vector<GridRange> &ranges);
+    const std::vector<GridRange> &marks() const { return m_marks; }
+    // Buttons on cells (the drop-downs of a filter's header row): one at the bottom right of each cell, drawn as a funnel when `filtered`, with an arrow up or down when the cells are sorted
+    // by it (`sort` 1 or -1). A click on one is told by headerButtonClicked instead of selecting the cell. At most kMaxHeaderButtons.
+    struct HeaderButton {
+        qint64 row = 0, col = 0;
+        bool filtered = false;
+        int sort = 0;
+    };
+    static constexpr size_t kMaxHeaderButtons = 16384;
+    void setHeaderButtons(std::vector<HeaderButton> buttons);
+    size_t headerButtonCount() const { return m_headerButtons.size(); }
+    QRect headerButtonRect(qint64 row, qint64 col) const;   // in the viewport's pixels; empty when the cell is out of sight or too small
     // Something drawn over the cells (the objects of a sheet) that also takes the clicks that land on it and the keys while it has something picked. Not owned: the owner takes it away
     // (setOverlay(nullptr)) before it is destroyed.
     void setOverlay(GridOverlay *overlay);
@@ -172,6 +186,8 @@ Q_SIGNALS:
     void dropDownRequested();
     // Esc took away the dashed border of the cells that were copied or cut.
     void copyBorderCleared();
+    // A button put on a cell (setHeaderButtons) was clicked.
+    void headerButtonClicked(qint64 row, qint64 col);
     // The border of a column (row) was dragged and let go: which, and the size it was given, in the grid's units at 100% (0 hides it).
     void resizeRequested(bool column, qint64 index, int size);
     // A double click on the border at the end of a column (row): fit it to what it holds.
@@ -225,6 +241,9 @@ private:
     QRect cellRectInLayout(qint64 row, qint64 col) const;
     QRect fillHandleRectInLayout() const;
     QRect dropDownRectInLayout() const;
+    QRect headerButtonRectInLayout(qint64 row, qint64 col) const;
+    void paintMarks(QPainter *painter, const QRect &clip);
+    bool headerButtonPress(const QPoint &layoutPoint);
     bool borderAtInLayout(const QPoint &p, bool *column, qint64 *index) const;
     void paintOverlay(QPainter *painter, const QRect &clip);
     bool overlayPress(QMouseEvent *e);
@@ -241,6 +260,8 @@ private:
     qint64 m_resizeIndex = -1;
     int m_resizeFrom = 0, m_resizeEdge = 0, m_resizeSize0 = 0, m_resizeSize = 0;
     qint64 m_dropRow = -1, m_dropCol = -1;
+    std::vector<GridRange> m_marks;
+    std::vector<HeaderButton> m_headerButtons;
     GridRange m_fillSource, m_fillExtent;
     bool m_fillCtrl = false;
     GridRange m_copyBorder{-1, -1, -1, -1};

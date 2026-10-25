@@ -374,6 +374,7 @@ void CrunchWindow::createActions()
     createOpsActions();
     createCellsActions();
     createClipboardActions();
+    createFindActions();
     createFormatActions();
     createSheetActions();
     createDisabledActions();
@@ -386,7 +387,7 @@ void CrunchWindow::createDisabledActions()
         const char *id, *text, *icon;
     };
     static const Command commands[] = {
-        {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"}, {"edit.find", QT_TR_NOOP("Find and Select"), "search"},
+        {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"},
         {"insert.table", QT_TR_NOOP("Table"), "table"}, {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
         {"insert.chart", QT_TR_NOOP("Chart"), "chart-column"}, {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
         {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"}, {"formulas.insertFunction", QT_TR_NOOP("Insert Function"), "square-function"},
@@ -434,24 +435,25 @@ void CrunchWindow::goToName()
 {
     if (!commitEdit()) return;
     const QString text = m_nameBox->text().trimmed();
-    static const QRegularExpression columns(QStringLiteral("^([A-Za-z]{1,3}):([A-Za-z]{1,3})$")), rows(QStringLiteral("^(\\d{1,7}):(\\d{1,7})$"));
-    jp::office::sheet::CellRange range;
     bool done = false;
-    if (const auto m = columns.match(text); m.hasMatch()) {
-        quint32 r = 0, c1 = 0, c2 = 0;
-        if (jp::office::sheet::parseCellRef(m.captured(1) + QLatin1Char('1'), &r, &c1) && jp::office::sheet::parseCellRef(m.captured(2) + QLatin1Char('1'), &r, &c2)) {
-            m_view->selectColumns(c1, c2);
+    if (m_session && m_loaded) {
+        // (an address, a cell of another sheet, whole columns or rows, or the name of a range)
+        const crunch::GoToTarget t = crunch::resolveGoTo(*m_session, text, m_sheet);
+        if (t.ok) {
+            if (t.sheet != m_sheet) setActiveSheet(t.sheet);
+            if (t.sheet == m_sheet) {
+                if (t.wholeRows) m_view->selectRows(t.range.row1, t.range.row2);
+                else if (t.wholeColumns) m_view->selectColumns(t.range.col1, t.range.col2);
+                else m_view->selectRange(t.range.row1, t.range.col1, t.range.row2, t.range.col2);
+                done = true;
+            }
+        }
+    } else {
+        jp::office::sheet::CellRange range;
+        if (jp::office::sheet::parseRangeRef(text, &range)) {
+            m_view->selectRange(range.row1, range.col1, range.row2, range.col2);
             done = true;
         }
-    } else if (const auto m2 = rows.match(text); m2.hasMatch()) {
-        const qint64 a = m2.captured(1).toLongLong() - 1, b = m2.captured(2).toLongLong() - 1;
-        if (a >= 0 && b >= 0 && a < qint64(jp::office::sheet::kMaxRows) && b < qint64(jp::office::sheet::kMaxRows)) {
-            m_view->selectRows(a, b);
-            done = true;
-        }
-    } else if (jp::office::sheet::parseRangeRef(text, &range)) {
-        m_view->selectRange(range.row1, range.col1, range.row2, range.col2);
-        done = true;
     }
     if (!done) setStatus(tr("\"%1\" is not an address JeffCrunch can go to.").arg(text));
     m_nameBox->setText(m_view->selectionName());
