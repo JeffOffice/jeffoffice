@@ -216,6 +216,41 @@ private Q_SLOTS:
         QVERIFY(!readIt(sheetWith(QStringLiteral("<autoFilter ref=\"nonsense\"><filterColumn colId=\"0\"><filters/></filterColumn></autoFilter>"))).autoFilter.valid());
     }
 
+    // ---- the hidden name a filter has in the workbook part
+    void theHiddenNameOfAFiltersRangeIsMadeChangedAndTakenAway()
+    {
+        const QByteArray plain = "<?xml version=\"1.0\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheets><sheet name=\"A\" sheetId=\"1\"/><sheet name=\"B\" sheetId=\"2\"/></sheets>"
+                                 "<calcPr calcId=\"1\"/></workbook>";
+        QByteArray out;
+        // made, where the format puts the list of names (before calcPr)
+        QVERIFY(patchFilterNames(plain, {{1, QStringLiteral("'B'!$A$1:$C$9")}}, &out));
+        QVERIFY(out.contains("<definedNames><definedName name=\"_xlnm._FilterDatabase\" localSheetId=\"1\" hidden=\"1\">'B'!$A$1:$C$9</definedName></definedNames><calcPr"));
+        // changed in place, and one more added to the list that is there; a name of the file's own is left alone
+        const QByteArray withNames = "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheets><sheet name=\"A\" sheetId=\"1\"/></sheets><definedNames>"
+                                     "<definedName name=\"Mine\">A!$A$1</definedName><definedName name=\"_xlnm._FilterDatabase\" localSheetId=\"0\" hidden=\"1\">A!$A$1:$B$2</definedName></definedNames></workbook>";
+        QByteArray second;
+        QVERIFY(patchFilterNames(withNames, {{0, QStringLiteral("'A'!$A$1:$B$5")}, {1, QStringLiteral("'B'!$A$1:$B$2")}}, &second));
+        QVERIFY(second.contains("<definedName name=\"Mine\">A!$A$1</definedName>"));
+        QVERIFY(second.contains("localSheetId=\"0\" hidden=\"1\">'A'!$A$1:$B$5</definedName>"));
+        QVERIFY(second.contains("localSheetId=\"1\" hidden=\"1\">'B'!$A$1:$B$2</definedName>"));
+        QVERIFY(!second.contains("A!$A$1:$B$2<"));
+        QCOMPARE(second.count("_xlnm._FilterDatabase"), 2);
+        // taken away
+        QByteArray third;
+        QVERIFY(patchFilterNames(second, {{0, QString()}}, &third));
+        QCOMPARE(third.count("_xlnm._FilterDatabase"), 1);
+        QVERIFY(third.contains("<definedName name=\"Mine\">"));
+        // nothing asked: nothing changed
+        QByteArray same;
+        QVERIFY(patchFilterNames(withNames, {}, &same));
+        QCOMPARE(same, withNames);
+        // an empty list of names is made whole
+        const QByteArray empty = "<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheets/><definedNames/></workbook>";
+        QByteArray filled;
+        QVERIFY(patchFilterNames(empty, {{0, QStringLiteral("'A'!$A$1:$B$2")}}, &filled));
+        QVERIFY(filled.contains("<definedNames><definedName"));
+    }
+
     // ---- the rules of validation the extension list holds
     void listsFromOtherSheetsAndTheirMessagesAreReadFromTheExtensionList()
     {

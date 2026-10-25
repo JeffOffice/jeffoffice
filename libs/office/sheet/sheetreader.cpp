@@ -1393,7 +1393,7 @@ bool SheetReader::read(QIODevice *in)
                 for (const QXmlStreamAttribute &a : r.attributes())
                     if (a.namespaceUri().isEmpty()) sortState += QStringLiteral(" %1=\"%2\"").arg(a.name().toString(), a.value().toString().toHtmlEscaped());
                 sortState += QLatin1Char('>');
-            } else if (inFilter && depth == 4 && !sortState.isEmpty() && isElement(r, "sortCondition")) {
+            } else if (inFilter && depth == 4 && !sortState.isEmpty() && sortState.size() < 65536 && isElement(r, "sortCondition")) {
                 sortState += QStringLiteral("<sortCondition");
                 for (const QXmlStreamAttribute &a : r.attributes())
                     if (a.namespaceUri().isEmpty()) sortState += QStringLiteral(" %1=\"%2\"").arg(a.name().toString(), a.value().toString().toHtmlEscaped());

@@ -213,5 +213,12 @@ bool removeRelationshipOfType(const QByteArray &xml, const QString &typeSuffix, 
 bool removeRelationshipsById(const QByteArray &xml, const QStringList &ids, QByteArray *out);
 // The workbook part with fullCalcOnLoad="1" on its calcPr (made if there is none).
 bool setFullCalcOnLoad(const QByteArray &xml, QByteArray *out);
+// The hidden name that other programs keep for the range of a sheet's filter (`_xlnm._FilterDatabase`, of the sheet at `localSheetId` in the workbook's list of sheets) made, changed, or taken
+// away: `range` is the range as a name writes it ("'Sheet1'!$A$1:$D$9"), or empty to take the name away.
+struct FilterName {
+    int localSheetId = 0;
+    QString range;
+};
+bool patchFilterNames(const QByteArray &xml, const std::vector<FilterName> &names, QByteArray *out, QString *error = nullptr);
 
 } // namespace jp::office::sheet

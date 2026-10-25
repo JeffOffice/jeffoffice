@@ -21,6 +21,16 @@ inline void saveShot(QWidget *w, const QString &name)
     w->grab().save(dir + QLatin1Char('/') + name + QStringLiteral(".png"));
 }
 
+// With JC_SHOT_DIR set, a copy of a file a test saved is kept there too (to be opened by another program).
+inline void keepFile(const QString &path, const QString &name)
+{
+    const QString dir = QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR"));
+    if (dir.isEmpty()) return;
+    QDir().mkpath(dir);
+    QFile::remove(dir + QLatin1Char('/') + name);
+    QFile::copy(path, dir + QLatin1Char('/') + name);
+}
+
 // The rows of a sheet from the cells' texts (see sheetOf); a spec may end with "~n" to give the cell the style n.
 inline QString rowsOfSpecs(const QStringList &specs, const QMap<int, QString> &rowAttrs = QMap<int, QString>())
 {

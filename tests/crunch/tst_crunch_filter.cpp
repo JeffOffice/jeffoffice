@@ -530,6 +530,7 @@ private Q_SLOTS:
         QVERIFY(filterWith(e, with(e, 1, custom(Op::Greater, QStringLiteral("10")))));
         QCOMPARE(shownRows(e), QStringLiteral("3 6 7 9").replace(QLatin1String("6 "), QString()));
         QVERIFY2(saveIt(e), "saved");
+        keepFile(e.path, QStringLiteral("filtered-values.xlsx"));
         QByteArray part;
         jp::office::sheet::Sheet saved = savedSheet(e.path, &part);
         QVERIFY(saved.autoFilter.valid());
@@ -539,6 +540,13 @@ private Q_SLOTS:
         QCOMPARE(saved.autoFilter.columns[0].column, quint32(1));
         QVERIFY(part.indexOf("</sheetData>") < part.indexOf("<autoFilter"));
         QVERIFY(part.contains("filterMode=\"1\""));
+        {
+            // other programs keep the filter's range as a hidden name too
+            jp::office::Package pk;
+            QVERIFY(pk.readLazyFile(e.path));
+            const QByteArray workbook = pk.part(pk.mainPart());
+            QVERIFY2(workbook.contains("<definedName name=\"_xlnm._FilterDatabase\" localSheetId=\"0\" hidden=\"1\">'Sheet1'!$A$1:$D$9</definedName>"), workbook.constData());
+        }
         // the rows are hidden in the file, and the file read again tells the filter's from the hand's
         QString hidden;
         for (const jp::office::sheet::RowSpec &r : saved.rowSpecs)
@@ -556,6 +564,11 @@ private Q_SLOTS:
         QVERIFY(!saved.autoFilter.valid());
         QVERIFY(!part.contains("autoFilter"));
         QVERIFY(!part.contains("filterMode"));
+        {
+            jp::office::Package pk;
+            QVERIFY(pk.readLazyFile(e.path));
+            QVERIFY(!pk.part(pk.mainPart()).contains("_FilterDatabase"));
+        }
         hidden.clear();
         for (const jp::office::sheet::RowSpec &r : saved.rowSpecs)
             if (r.hidden) hidden += QString::number(r.row + 1) + QLatin1Char(' ');
@@ -571,6 +584,7 @@ private Q_SLOTS:
         red.color = jp::office::sheet::ColorSpec::fromRgb(0xFF0000);
         QVERIFY(filterWith(e, with(e, 3, red)));
         QVERIFY2(saveIt(e), "saved");
+        keepFile(e.path, QStringLiteral("filtered-color.xlsx"));
         QByteArray part, styles;
         const jp::office::sheet::Sheet saved = savedSheet(e.path, &part, &styles);
         QVERIFY(saved.autoFilter.valid());

@@ -92,6 +92,30 @@
     </message>
 </context>
 <context>
+    <name>jp::CrunchWindow</name>
+    <message numerus="yes">
+        <source>%n cell(s)</source>
+        <translation>
+            <numerusform>%n cell</numerusform>
+            <numerusform>%n cells</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n range(s)</source>
+        <translation>
+            <numerusform>%n range</numerusform>
+            <numerusform>%n ranges</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n place(s)</source>
+        <translation>
+            <numerusform>%n place</numerusform>
+            <numerusform>%n places</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::DeckWindow</name>
     <message numerus="yes">
         <location filename="../../apps/deck/app/deckwindow_output.cpp" line="+179"/>
@@ -111,12 +135,42 @@
     </message>
 </context>
 <context>
+    <name>jp::FilterPopup</name>
+    <message numerus="yes">
+        <source>%n cell(s)</source>
+        <translation>
+            <numerusform>%n cell</numerusform>
+            <numerusform>%n cells</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>jp::FindDialog</name>
+    <message numerus="yes">
+        <source>%n cell(s) found.</source>
+        <translation>
+            <numerusform>%n cell found.</numerusform>
+            <numerusform>%n cells found.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::FindPane</name>
     <message numerus="yes">
         <source>JeffPub made %n replacement(s).</source>
         <translation>
             <numerusform>JeffPub made %n replacement.</numerusform>
             <numerusform>JeffPub made %n replacements.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>jp::InsertFunctionDialog</name>
+    <message numerus="yes">
+        <source>%n function(s)</source>
+        <translation>
+            <numerusform>%n function</numerusform>
+            <numerusform>%n functions</numerusform>
         </translation>
     </message>
 </context>
