@@ -169,6 +169,7 @@ qt_add_executable(officetests
   tests/office/dochelpers.cpp
   tests/office/tst_doc.cpp
   tests/office/tst_office_chart.cpp
+  tests/office/tst_office_chartwrite.cpp
   tests/office/tst_office_dmlfill.cpp
   tests/office/tst_office_dmlgeometry.cpp
   tests/office/tst_office_dmlshape.cpp
