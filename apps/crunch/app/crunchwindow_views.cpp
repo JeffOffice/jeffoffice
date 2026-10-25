@@ -11,6 +11,7 @@
 #include "sheet/pagesetup.h"
 
 #include <QAction>
+#include <QLocale>
 #include <QActionGroup>
 #include <QLabel>
 #include <QSlider>
@@ -71,13 +72,11 @@ void CrunchWindow::setViewKind(int kind)
         showViewKind(m_viewKind);
         return;
     }
-    if (m_viewKind == 0) m_normalZoom = m_view->zoom();
-    const int old = m_viewKind;
     showViewKind(kind);
-    // (the cells' zoom is the grid's; the pages have a zoom of their own, in the view of the pages)
+    // (the cells' zoom is the grid's, the sheet's own and kept with it: leaving a view puts it back; the pages have a zoom of their own)
     if (kind == 2) m_pageView->setZoom(1.0);
-    else if (old == 0) m_view->setZoom(kBreakViewZoom);
-    else if (kind == 0) m_view->setZoom(m_normalZoom);
+    else if (kind == 1) m_view->setZoom(kBreakViewZoom);
+    else m_view->setZoom(m_session->pages().normalZoom(m_sheet) / 100.0);
     m_session->setSheetView(m_sheet, kind, int(std::lround(viewZoom() * 100)));
     // the zoom shown at the bottom is the view's
     const double zoom = viewZoom();
@@ -130,6 +129,20 @@ void CrunchWindow::sendBreakPages(const crunch::PrintJob &job, const PageSetup &
 // A line where a page begins was dragged to `to` (-1: off the printed cells, to be taken away).
 void CrunchWindow::breakLineMoved(bool column, qint64 from, qint64 to)
 {
+    if (to >= 0 && m_session && m_sheet >= 0 && m_sheet < m_session->pages().sheetCount()) {
+        // (a full list takes no new break: the old one is not taken away to make room for a move that cannot be made)
+        const PageSetup &now = m_session->pages().sheet(m_sheet);
+        const QVector<PageBreak> &list = column ? now.colBreaks : now.rowBreaks;
+        bool haveTo = false, haveFrom = false;
+        for (const PageBreak &b : list) {
+            haveTo = haveTo || qint64(b.before) == to;
+            haveFrom = haveFrom || qint64(b.before) == from;
+        }
+        if (!haveTo && list.size() - (haveFrom ? 1 : 0) >= jp::office::sheet::kMaxPageBreaks) {
+            setStatus(tr("A sheet can have only %1 page breaks of each kind, so that break was left where it is.").arg(QLocale().toString(jp::office::sheet::kMaxPageBreaks)));
+            return;
+        }
+    }
     changePage(to < 0 ? tr("Remove page break") : tr("Move page break"), [=](PageSetup *s) {
         QVector<PageBreak> &list = column ? s->colBreaks : s->rowBreaks;
         for (qsizetype i = list.size(); i-- > 0;)

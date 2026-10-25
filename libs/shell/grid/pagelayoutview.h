@@ -36,6 +36,8 @@ public:
     virtual bool rangeRect(int page, const GridRange &range, QRectF *rect) = 0;
     // The first page that shows the cell, or -1.
     virtual int pageOfCell(qint64 row, qint64 col) = 0;
+    // Whether pictures on the pages are still being made (what is drawn lacks them; the view draws the pages again a little later).
+    virtual bool picturesPending() const { return false; }
 };
 
 class PageLayoutView : public QAbstractScrollArea {
@@ -77,6 +79,10 @@ public:
     int lastVisiblePage() const;
     // Whether a page is drawn and kept, and how many pages have been drawn since the view was made (counted, for tests).
     bool pageIsDrawn(int page) const { return m_cache.contains(page); }
+    // Whether the page's picture on the screen is made from what the source says now (a page that was drawn before a change stays until it is drawn again).
+    bool pageIsCurrent(int page) const { return m_cache.contains(page) && !m_stale.contains(page); }
+    // The pixels of pages kept drawn that make the view keep none of a page larger than this (it draws the exposed part of such a page each time; tests make it small).
+    void setCacheBudgetPixels(qint64 pixels);
     int pagesDrawn() const { return m_drawn; }
     int pagesKept() const { return int(m_cache.size()); }
     // Draws the pages in view that are not drawn yet, now (the timer does it a page a turn).
@@ -139,7 +145,9 @@ private:
     std::list<int> m_order;                    // pages in the cache, the one used last at the front
     qint64 m_cachedPixels = 0;
     int m_drawn = 0;
-    QTimer m_renderTimer;
+    QTimer m_renderTimer, m_pictureTimer;
+    QSet<int> m_drawnWithoutPictures;
+    qint64 m_budgetPixels = kCacheBudgetPixels;
     GridRange m_selection{0, 0, 0, 0};
     qint64 m_activeRow = -1, m_activeCol = -1;
     bool m_dragging = false;

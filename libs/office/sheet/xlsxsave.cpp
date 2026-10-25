@@ -709,6 +709,25 @@ bool removeRelationshipById(const QByteArray &xml, const QString &id, QByteArray
     return false;
 }
 
+// A relationship of the part's relationships made to name another target, by its Id; false (nothing changed) if there is none.
+bool retargetRelationshipById(const QByteArray &xml, const QString &id, const QString &target, QByteArray *out)
+{
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "Relationship") continue;
+        bool found = false;
+        const QByteArrayView value = xmlscan::attribute(QByteArrayView(xml).sliced(t.start, t.end - t.start), "Id", &found);
+        if (!found || xmlscan::unescape(value) != id) continue;
+        QByteArray tag = xml.mid(t.start, t.end - t.start);
+        setAttribute(&tag, "Target", xmlscan::escapeAttribute(target));
+        *out = xml.left(t.start) + tag + xml.mid(t.end);
+        return true;
+    }
+    return false;
+}
+
 // A relationship made, at the end of the part's list; an Override of [Content_Types].xml the same.
 bool appendBefore(const QByteArray &xml, const char *container, const QByteArray &element, QByteArray *out)
 {
@@ -800,6 +819,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         QString fileRel;                       // the relationship the file has from the sheet to the drawing (empty if none)
         QString relId;                         // the one the sheet names it by now
         bool newRel = false;
+        bool retarget = false;                 // the sheet's link is kept and made to name the drawing made for it (the one it had is shared with another sheet)
         QString vmlPart;
         bool newVml = false;
         QVector<HeaderPicture> pictures;
@@ -836,18 +856,32 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 }
             }
             if (w.remove && w.fileRel.isEmpty()) continue;   // (nothing in the file to take out)
+            // a drawing that another sheet (or its notes) names too is not changed for this one: it gets a drawing of its own, and the other keeps the one it has
+            bool shared = false;
+            if (!w.fileRel.isEmpty()) {
+                for (int other = 0; other < book.info().sheets.size() && !shared; ++other) {
+                    const SheetEntry &oe = book.info().sheets[other];
+                    if (other == sheet || oe.deleted || oe.isNew || oe.part.isEmpty()) continue;
+                    for (const Relationship &r : package.relationshipsOfType(oe.part, QStringLiteral("/vmlDrawing")))
+                        if (!r.external && r.target.compare(w.vmlPart, Qt::CaseInsensitive) == 0) shared = true;
+                }
+            }
             if (!takenFilled) {
                 for (const QString &n : package.partNames()) taken.insert(n.toLower());
                 takenFilled = true;
             }
             if (!w.remove) {
+                if (shared) {
+                    w.retarget = true;
+                    w.vmlPart.clear();
+                }
                 if (w.vmlPart.isEmpty()) {
                     w.newVml = true;
                     w.vmlPart = freePartName(QStringLiteral("/xl/drawings/vmlDrawing"), QStringLiteral(".vml"), taken);
                     taken.insert(w.vmlPart.toLower());
                 }
                 if (!w.fileRel.isEmpty()) {
-                    w.relId = w.fileRel;
+                    w.relId = w.fileRel;   // (a link kept, even when it is made to name another drawing)
                 } else {
                     QStringList used;
                     if (!se.isNew) {
@@ -1257,9 +1291,17 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 if (relsEntry >= 0) replaced.insert(relsEntry, vmlRels);
                 else newEntries.emplace_back(entryName(relationshipsPartOf(w.vmlPart)), vmlRels);
             }
-            if (!w.newRel) continue;
+            if (!w.newRel && !w.retarget) continue;
             // the sheet's link to the drawing
             const QString target = relativeTarget(se.part, w.vmlPart);
+            if (w.retarget) {
+                const int sheetRelsEntry = relsEntryFor(se.part);
+                QByteArray sheetRels, r2;
+                if (sheetRelsEntry < 0 || !(replaced.contains(sheetRelsEntry) ? (sheetRels = replaced.value(sheetRelsEntry), true) : inflate(sheetRelsEntry, &sheetRels))) return bad();
+                if (!retargetRelationshipById(sheetRels, w.relId, target, &r2)) return bad();
+                replaced.insert(sheetRelsEntry, r2);
+                continue;
+            }
             if (se.isNew) {
                 newSheetRels[w.sheet] += relationshipXml(w.relId, QStringLiteral("vmlDrawing"), target);
             } else {

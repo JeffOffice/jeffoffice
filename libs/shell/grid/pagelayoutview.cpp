@@ -30,6 +30,20 @@ PageLayoutView::PageLayoutView(QWidget *parent) : QAbstractScrollArea(parent)
     m_renderTimer.setSingleShot(true);
     m_renderTimer.setInterval(0);
     connect(&m_renderTimer, &QTimer::timeout, this, &PageLayoutView::renderStep);
+    m_pictureTimer.setSingleShot(true);
+    m_pictureTimer.setInterval(60);
+    connect(&m_pictureTimer, &QTimer::timeout, this, [this] {
+        // (pictures still being made: look again later; once they are, the pages drawn without them are drawn again, a page a turn)
+        if (m_source && m_source->picturesPending()) {
+            m_pictureTimer.start();
+            return;
+        }
+        for (const int page : std::as_const(m_drawnWithoutPictures))
+            if (m_cache.contains(page)) m_stale.insert(page);
+        m_drawnWithoutPictures.clear();
+        viewport()->update();
+        scheduleDraw();
+    });
     horizontalScrollBar()->setSingleStep(24);
     verticalScrollBar()->setSingleStep(40);
 }
@@ -42,13 +56,30 @@ void PageLayoutView::setSource(PageLayoutSource *source)
     sourceChanged();
 }
 
+void PageLayoutView::setCacheBudgetPixels(qint64 pixels)
+{
+    m_budgetPixels = std::max<qint64>(1, pixels);
+    contentsChanged();
+}
+
 void PageLayoutView::sourceChanged()
 {
-    m_stale.clear();
-    m_cache.clear();
-    m_order.clear();
-    m_cachedPixels = 0;
+    // (what was drawn stays on the screen until the page is drawn again: a page of the same size is kept, as it was, and is drawn again a page a turn; the rest go)
+    const std::vector<QSize> before = m_sizes;
     layoutPages();
+    for (auto it = m_cache.begin(); it != m_cache.end();) {
+        const int page = it.key();
+        if (size_t(page) < before.size() && size_t(page) < m_sizes.size() && before[size_t(page)] == m_sizes[size_t(page)]) {
+            m_stale.insert(page);
+            ++it;
+        } else {
+            m_cachedPixels -= qint64(it->width()) * it->height();
+            m_order.remove(page);
+            m_stale.remove(page);
+            it = m_cache.erase(it);
+        }
+    }
+    m_drawnWithoutPictures.clear();
     viewport()->update();
     scheduleDraw();
 }
@@ -69,6 +100,7 @@ void PageLayoutView::setZoom(double zoom)
     const int top = firstVisiblePage();
     const double into = top >= 0 && m_sizes.size() > size_t(top) ? double(verticalScrollBar()->value() - pageTop(top)) / std::max(1, pageHeightPx(top)) : 0;
     m_zoom = zoom;
+    m_drawnWithoutPictures.clear();
     m_stale.clear();
     m_cache.clear();
     m_order.clear();
@@ -258,7 +290,7 @@ void PageLayoutView::drawPage(int page)
     const QSize px = m_sizes[size_t(page)];
     const qreal dpr = devicePixelRatioF();
     const qint64 pixels = qint64(std::ceil(px.width() * dpr)) * qint64(std::ceil(px.height() * dpr));
-    if (pixels > kCacheBudgetPixels) return;   // (too large to keep: painted on the screen each time)
+    if (pixels > m_budgetPixels) return;   // (too large to keep: painted on the screen each time)
     QPixmap pm(int(std::ceil(px.width() * dpr)), int(std::ceil(px.height() * dpr)));
     pm.setDevicePixelRatio(dpr);
     pm.fill(Qt::white);
@@ -270,6 +302,10 @@ void PageLayoutView::drawPage(int page)
         m_source->paintPage(&p, page);
     }
     ++m_drawn;
+    if (m_source->picturesPending()) {
+        m_drawnWithoutPictures.insert(page);
+        m_pictureTimer.start();
+    }
     m_cache.insert(page, pm);
     m_order.push_front(page);
     m_cachedPixels += pixels;
@@ -279,7 +315,7 @@ void PageLayoutView::drawPage(int page)
 // The pages kept are those used last, within the budget (the page just drawn stays).
 void PageLayoutView::trim()
 {
-    while (m_cachedPixels > kCacheBudgetPixels && m_order.size() > 1) {
+    while (m_cachedPixels > m_budgetPixels && m_order.size() > 1) {
         const int old = m_order.back();
         m_order.pop_back();
         const QPixmap pm = m_cache.take(old);
@@ -336,10 +372,10 @@ void PageLayoutView::paintEvent(QPaintEvent *e)
             p.fillRect(r, Qt::white);
             missing = true;
             const qint64 pixels = qint64(std::ceil(r.width() * devicePixelRatioF())) * qint64(std::ceil(r.height() * devicePixelRatioF()));
-            if (pixels > kCacheBudgetPixels && m_source) {
-                // (a page too large to keep is drawn here, clipped to what shows of it)
+            if (pixels > m_budgetPixels && m_source) {
+                // (a page too large to keep is drawn here, only the part that is exposed)
                 p.save();
-                p.setClipRect(r & viewport()->rect());
+                p.setClipRect(r & viewport()->rect() & e->rect());
                 p.translate(r.topLeft());
                 p.scale(pixelsPerPoint(), pixelsPerPoint());
                 m_source->paintPage(&p, i);

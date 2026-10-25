@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <map>
+#include <unordered_map>
 #include <memory>
 
 namespace jp::grid {
@@ -56,6 +57,17 @@ public:
     // The header and footer alone (the margins of the paper).
     void paintHeaderFooter(QPainter *painter, const PaperBox &paper, const PageSetup &setup, const jp::office::sheet::HfContext &labels, bool firstOfSheet, double scale);
 
+    // Pictures in the header and footer are made on a worker while this is on (a page is drawn without one that is not ready yet, and picturesPending() says so); off, a picture not ready is made
+    // at once (a print or an export waits for its pictures).
+    void setAsyncPictures(bool on) { m_asyncPictures = on; }
+    // What the screen shows and the paper does not: the gridlines and the row and column headings (the headings in the margins, so that the cells keep their places).
+    void setScreenMarks(bool gridlines, bool headings)
+    {
+        m_screenGrid = gridlines;
+        m_screenHeadings = headings;
+    }
+    // How many times a page's place among the sheet's rows and columns was worked out (a page is worked out once, and again only for another page's turn between): counted, for tests.
+    qint64 layoutsWorkedOut() const { return m_layoutRuns; }
     GridPainter &gridPainter() { return *m_painter; }
     GridSheet &grid() { return *m_sheet; }
     // The grid's paint of the last page (counts of what it did).
@@ -63,6 +75,7 @@ public:
 
 private:
     PageMetrics layoutPage(const SheetPrint &print, const PageCut &page, const PageSetup &setup);
+    void paintScreenGridlines(QPainter *p, const GridLayout &layout, const QRect &area);
     void paintHeadings(QPainter *p, const GridLayout &layout, const PageCut &page, const PageMetrics &m, double scale);
     void paintHeaderFooterText(QPainter *p, const QString &code, const PaperBox &paper, const PageSetup &setup, const jp::office::sheet::HfContext &labels, bool header, double scale, bool first, bool even);
     QImage headerPicture(const jp::office::sheet::HeaderPicture &pic);
@@ -71,7 +84,12 @@ private:
     std::unique_ptr<GridPainter> m_painter;
     QFont m_base;
     QColor m_gridline = QColor(0x40, 0x40, 0x40);
-    std::map<std::pair<const void *, qsizetype>, QImage> m_pictures;
+    bool m_asyncPictures = false, m_screenGrid = false, m_screenHeadings = false;
+    // the metrics of the pages worked out (by the page's cut, which is as long-lived as the job), and the page the grid's layout is set for now
+    std::unordered_map<const PageCut *, PageMetrics> m_metrics;
+    const PageCut *m_applied = nullptr;
+    const SheetPrint *m_appliedPrint = nullptr;
+    qint64 m_layoutRuns = 0;
 };
 
 } // namespace jp::grid

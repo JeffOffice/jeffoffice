@@ -34,7 +34,9 @@ struct PageSetupRequest {
 
 // A picture's file read to be put in a header or footer: kept as the file has it, with the size it is drawn at (its pixels at 96 to the inch, the longest side held to two inches), a title from
 // the file's name, and no place yet. False, with the reason in plain words, when the file is not a PNG, JPEG, GIF, or BMP picture, is too large, or can't be read.
-bool loadHeaderPicture(const QString &path, jp::office::sheet::HeaderPicture *out, QString *problem);
+bool loadHeaderPicture(const QString &path, jp::office::sheet::HeaderPicture *out, QString *problem, double roomPoints = 0);
+// How tall a picture may be to fit the margin it goes in: the margin's room between the header's (footer's) distance from the edge and the cells, in points (at least 12).
+double headerPictureRoom(const jp::office::sheet::PageMargins &margins, bool header);
 
 // The text of a header or a footer for each version the setup keeps: edited in three boxes (left, center, and right), with buttons that put the page number, the date, and so on in.
 class HeaderFooterEditor : public QDialog {
@@ -51,6 +53,8 @@ public:
     void setInsertPart(int part) { m_focused = box(part); }
     // For tests: stands in for the file picker of the Picture button (it gives the picture's file name; empty is giving it up).
     void setPictureAsker(const std::function<QString()> &asker) { m_pictureAsker = asker; }
+    // How tall a picture put in may be, in points, so that it fits the margin (0: no limit): a picture is made to fit it, and can be made larger afterwards.
+    void setPictureRoom(double points) { m_room = points; }
     // What was said of the last picture that was refused (empty when it was taken).
     QString pictureProblem() const;
 
@@ -83,6 +87,7 @@ private:
     QLabel *m_pictureLabel = nullptr;
     QPushButton *m_addPicture = nullptr, *m_dropPicture = nullptr;
     std::function<QString()> m_pictureAsker;
+    double m_room = 0;
     bool m_loading = false;
 };
 

@@ -961,8 +961,14 @@ void SheetReader::startView(const QXmlStreamReader &r)
     v.rightToLeft = flag("rightToLeft", false);
     v.tabSelected = flag("tabSelected", false);
     v.zoom = int(std::lround(boundedZoom(attribute(r, "zoomScale"))));
+    {
+        bool present = false;
+        const QStringView normal = attribute(r, "zoomScaleNormal", &present);
+        v.normalZoom = present ? int(std::lround(boundedZoom(normal))) : 0;   // (the kind of view, below, says what none means)
+    }
     const QStringView kind = attribute(r, "view");
     v.kind = kind == QLatin1String("pageBreakPreview") ? SheetView::Kind::PageBreaks : kind == QLatin1String("pageLayout") ? SheetView::Kind::PageLayout : SheetView::Kind::Normal;
+    if (v.normalZoom == 0) v.normalZoom = v.kind == SheetView::Kind::Normal ? v.zoom : 100;
     quint32 row = 0, col = 0;
     if (parseCellRef(attribute(r, "topLeftCell"), &row, &col)) {
         v.topRow = row;
@@ -2354,6 +2360,13 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
 {
     const int strings = counts.strings, numberFormats = counts.numberFormats, cellFormats = counts.cellFormats;
     m_package = package;
+    // (the drawings of header pictures and their images are read again from the file just written)
+    {
+        QMutexLocker lock(&m_headerImages->mutex);
+        m_headerImages->drawings.clear();
+        m_headerImages->images.clear();
+        m_headerImages->bytes = 0;
+    }
     // (the tables are read again from the file just written, which has the names they have now)
     m_tablesRead = false;
     m_tables.clear();

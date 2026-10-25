@@ -3,7 +3,9 @@
 #include "hfpicturehelpers.h"
 
 #include "io/zipindex.h"
+#include "sheet/headerfooter.h"
 #include "sheet/pagesetup.h"
+#include "grid/hfpicturecache.h"
 #include "sheet/xlsxsave.h"
 
 using jp::office::sheet::HeaderPicture;
@@ -299,6 +301,171 @@ private Q_SLOTS:
         QCOMPARE(again.part(QStringLiteral("/xl/media/hfimage1.png")), red);
         QCOMPARE(sheet.page.headerFooter.pictures.size(), 1);
         QVERIFY(sheet.page.orientation == PageOrientation::Landscape);
+    }
+
+    // The ids of the forms of a page: the short forms (an F or an E after the two letters) and the long ones (FIRST and EVEN) are read alike, as the long ones, in any case; a text with no
+    // code for a picture drops the picture of either form.
+    void theFormsOfThePageAreReadInBothSpellings()
+    {
+        const QByteArray a = pngBytes(2, 2, Qt::red), b = pngBytes(3, 3, Qt::green), c = pngBytes(4, 4, Qt::blue), d = pngBytes(5, 5, Qt::yellow);
+        const QByteArray book = bookWithHeaderPictures(QStringLiteral("<oddHeader>&amp;C&amp;G</oddHeader>"),
+                                                       {hfShape(QStringLiteral("CH")), hfShape(QStringLiteral("CHFIRST"), QStringLiteral("rId2")), hfShape(QStringLiteral("chE"), QStringLiteral("rId3")), hfShape(QStringLiteral("LHf"), QStringLiteral("rId4"))},
+                                                       {a, b, c, d});
+        Sheet sheet;
+        Workbook wb;
+        Package package;
+        QVERIFY(readFirstSheet(book, &sheet, &wb, &package));
+        QCOMPARE(sheet.page.headerFooter.pictures.size(), 4);
+        QCOMPARE(sheet.page.headerFooter.pictures[1].place, QStringLiteral("CHFIRST"));
+        QCOMPARE(sheet.page.headerFooter.pictures[3].place, QStringLiteral("LHFIRST"));   // (the short form is read as the long one)
+        QCOMPARE(canonicalHeaderPlace(QStringLiteral("rhE")), QStringLiteral("RHEVEN"));
+        QCOMPARE(canonicalHeaderPlace(QStringLiteral("RHEVEN")), QStringLiteral("RHEVEN"));
+        QCOMPARE(canonicalHeaderPlace(QStringLiteral("CF")), QStringLiteral("CF"));
+        QCOMPARE(canonicalHeaderPlace(QStringLiteral("CFF")), QStringLiteral("CFFIRST"));
+        HeaderFooter hf = sheet.page.headerFooter;
+        QCOMPARE(hf.pictureFor(QLatin1Char('C'), true, true, false)->image, b);
+        // a text that names the picture of one form only keeps that one
+        hf.oddHeader = QStringLiteral("&C&G");
+        hf.firstHeader = QStringLiteral("&Cnothing");
+        hf.evenHeader = QStringLiteral("&L&G");
+        dropUnusedHeaderPictures(&hf);
+        QCOMPARE(hf.pictures.size(), 1);
+        QCOMPARE(hf.pictures[0].place, QStringLiteral("CH"));
+        hf = sheet.page.headerFooter;
+        hf.oddHeader = QStringLiteral("&C&G&LL&G");
+        hf.firstHeader = QStringLiteral("&C&G&L&G");
+        hf.evenHeader = QStringLiteral("&C&G");
+        dropUnusedHeaderPictures(&hf);
+        QCOMPARE(hf.pictures.size(), 4);
+    }
+
+    // A drawing two sheets share is read once for the workbook (and a save that looks again does not read it again); a drawing of many elements is read only as far as the most elements.
+    void aDrawingSharedBySheetsIsReadOnce()
+    {
+        const QByteArray png = pngBytes(2, 2, Qt::red);
+        const QByteArray book = bookWithSharedDrawing({hfShape(QStringLiteral("CH"))}, {png});
+        Package package;
+        Workbook wb;
+        QString why;
+        QVERIFY2(package.readLazy(book, &why) && wb.open(package, &why), qPrintable(why));
+        Sheet a, b, again;
+        QVERIFY(wb.readSheet(0, &a));
+        QVERIFY(wb.readSheet(1, &b));
+        QVERIFY(wb.readSheet(0, &again));
+        QCOMPARE(a.page.headerFooter.pictures.size(), 1);
+        QCOMPARE(b.page.headerFooter.pictures.size(), 1);
+        QCOMPARE(again.page.headerFooter.pictures.size(), 1);
+        QCOMPARE(wb.headerDrawingsRead(), 1);
+    }
+
+    // Elements of any kind are counted: in a drawing of thousands of them the shape after them is not reached.
+    void aDrawingOfManyElementsIsReadOnlyAsFar()
+    {
+        const QByteArray png = pngBytes(2, 2, Qt::red);
+        QString junk;
+        for (int i = 0; i < 6000; ++i) junk += QStringLiteral("<o:x/>");
+        QByteArray hostile = bookWithHeaderPictures(QStringLiteral("<oddHeader>&amp;C&amp;G</oddHeader>"), {hfShape(QStringLiteral("CH"))}, {png});
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(hostile, parts));
+        QByteArray vml = parts[QStringLiteral("xl/drawings/vmlDrawing1.vml")];
+        vml.replace("<v:shape ", junk.toUtf8() + "<v:shape ");
+        parts[QStringLiteral("xl/drawings/vmlDrawing1.vml")] = vml;
+        jp::ZipWriter z;
+        for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+        Sheet s;
+        Workbook w2;
+        Package p2;
+        QVERIFY(readFirstSheet(z.finish(), &s, &w2, &p2));
+        QVERIFY(s.page.headerFooter.pictures.isEmpty());
+    }
+
+    // A change of the pictures of one sheet that shares its drawing with another leaves the other's drawing, its link, and its pictures as they were: the changed sheet is given a drawing of its own.
+    void aSharedDrawingIsNotChangedForOneSheet()
+    {
+        const QByteArray red = pngBytes(8, 4, Qt::red), blue = pngBytes(4, 8, Qt::blue);
+        const QByteArray book = bookWithSharedDrawing({hfShape(QStringLiteral("CH"))}, {red});
+        Package package;
+        Workbook wb;
+        QString why;
+        QVERIFY2(package.readLazy(book, &why) && wb.open(package, &why), qPrintable(why));
+        Sheet first;
+        QVERIFY(wb.readSheet(0, &first));
+        SaveChanges changes;
+        changes.sheets[0].setPage = true;
+        changes.sheets[0].page = first.page;
+        changes.sheets[0].page.headerFooter.pictures[0].image = blue;
+        QByteArray saved;
+        SaveReport report;
+        QVERIFY2(saveXlsx(wb, changes, &saved, &why, &report), qPrintable(why));
+        Package again;
+        Workbook w2;
+        QVERIFY2(again.readLazy(saved, &why) && w2.open(again, &why), qPrintable(why));
+        Sheet a, b;
+        QVERIFY(w2.readSheet(0, &a));
+        QVERIFY(w2.readSheet(1, &b));
+        QCOMPARE(a.page.headerFooter.pictures.size(), 1);
+        QCOMPARE(a.page.headerFooter.pictures[0].image, blue);
+        QCOMPARE(b.page.headerFooter.pictures.size(), 1);
+        QCOMPARE(b.page.headerFooter.pictures[0].image, red);
+        const auto linkA = again.relationshipsOfType(w2.info().sheets[0].part, QStringLiteral("/vmlDrawing")), linkB = again.relationshipsOfType(w2.info().sheets[1].part, QStringLiteral("/vmlDrawing"));
+        QCOMPARE(linkA.size(), 1);
+        QCOMPARE(linkB.size(), 1);
+        QVERIFY(linkA[0].target != linkB[0].target);
+        QCOMPARE(linkB[0].target, QStringLiteral("/xl/drawings/vmlDrawing1.vml"));
+        QCOMPARE(again.part(linkB[0].target), package.part(QStringLiteral("/xl/drawings/vmlDrawing1.vml")));   // (the other sheet's drawing: the same bytes)
+        QCOMPARE(again.relationshipsOfType(linkB[0].target, QStringLiteral("/image")).size(), 1);
+        // and taking the pictures out of one leaves the other's
+        SaveChanges none;
+        none.sheets[1].setPage = true;
+        none.sheets[1].page = b.page;
+        none.sheets[1].page.headerFooter.pictures.clear();
+        QByteArray saved2;
+        QVERIFY2(saveXlsx(wb, none, &saved2, &why), qPrintable(why));
+        Package third;
+        Workbook w3;
+        QVERIFY2(third.readLazy(saved2, &why) && w3.open(third, &why), qPrintable(why));
+        Sheet c, d;
+        QVERIFY(w3.readSheet(0, &c));
+        QVERIFY(w3.readSheet(1, &d));
+        QCOMPARE(c.page.headerFooter.pictures.size(), 1);
+        QVERIFY(d.page.headerFooter.pictures.isEmpty());
+        QVERIFY(third.hasPart(QStringLiteral("/xl/drawings/vmlDrawing1.vml")));
+    }
+
+    // The decoded pictures are kept within a budget of bytes for the whole process, the one used last let go of first; a picture asked for with no waiting is made on a worker and the asker is told.
+    void decodedPicturesAreKeptWithinABudgetOfBytes()
+    {
+        using jp::grid::HeaderPictureCache;
+        HeaderPictureCache &cache = HeaderPictureCache::instance();
+        cache.clear();
+        const qint64 was = cache.budgetBytes();
+        QVector<QByteArray> pictures;
+        for (int i = 0; i < 6; ++i) pictures.append(pngBytes(100 + i, 100, QColor(10 * i, 0, 0)));   // (about 40 KB each decoded)
+        cache.setBudgetBytes(100000);
+        const int hereBefore = cache.decodesHere();
+        for (const QByteArray &p : pictures) QVERIFY(!cache.get(p, true, nullptr).isNull());
+        QCOMPARE(cache.decodesHere() - hereBefore, 6);
+        QVERIFY(cache.bytes() <= 100000 + 100 * 106 * 4);   // (within the budget, but for the picture just made)
+        QVERIFY(cache.count() < 6);
+        // the last is kept; the first is made again when asked for
+        const int mid = cache.decodesHere();
+        QVERIFY(!cache.get(pictures.last(), true, nullptr).isNull());
+        QCOMPARE(cache.decodesHere(), mid);
+        QVERIFY(!cache.get(pictures.first(), true, nullptr).isNull());
+        QCOMPARE(cache.decodesHere(), mid + 1);
+        // no waiting: nothing comes back, and the picture is made on a worker, not here
+        cache.clear();
+        const int here = cache.decodesHere();
+        bool pending = false;
+        QVERIFY(cache.get(pictures[2], false, &pending).isNull());
+        QVERIFY(pending);
+        cache.waitForWorkers();
+        QCOMPARE(cache.decodesHere(), here);
+        QCOMPARE(cache.pendingCount(), 0);
+        QVERIFY(!cache.get(pictures[2], false, &pending).isNull());
+        QVERIFY(!pending);
+        cache.setBudgetBytes(was);
+        cache.clear();
     }
 };
 

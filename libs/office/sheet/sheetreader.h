@@ -251,6 +251,8 @@ public:
     // The pictures of a sheet's headers and footers, read from the legacy drawing its `legacyDrawingHF` names (readSheet does this for a sheet that has one). Bounded: the shapes looked at, the
     // pictures kept, the bytes of one and of all those a workbook reads (an image shared by several sheets is read once).
     void readHeaderPictures(const QString &sheetPart, HeaderFooter *out) const;
+    // How many drawings of header pictures have been read (parsed) since the workbook was opened: a drawing that sheets share is read once.
+    int headerDrawingsRead() const { return m_headerImages->parses; }
     // The parts the workbook is made of (empty for one it has not): its own, the shared strings, and the styles.
     QString mainPart() const { return m_mainPart; }
     QString sharedStringsPart() const { return m_sharedPart; }
@@ -378,6 +380,8 @@ private:
         QMutex mutex;
         QHash<QString, QByteArray> images;
         qint64 bytes = 0;
+        QHash<QString, QVector<HeaderPicture>> drawings;   // by the drawing's part (lower case): what it was read as, once for the workbook
+        int parses = 0;
     };
     mutable std::shared_ptr<HeaderImages> m_headerImages = std::make_shared<HeaderImages>();
     bool m_formatLimitHit = false;

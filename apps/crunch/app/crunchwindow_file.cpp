@@ -196,8 +196,10 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
     } else {
         d.sheet = &m_emptySheet;
     }
+    m_showingSheet = true;
     m_view->setData(d, keepView);
     if (!keepView && m_views.contains(sheetIndex)) m_view->setViewState(m_views.value(sheetIndex));
+    m_showingSheet = false;
     m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
     // (the colors the buttons of the ribbon offer are the workbook's theme)
     if (m_fillButton) m_fillButton->setScheme(workbookColors());

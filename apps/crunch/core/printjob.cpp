@@ -1,5 +1,7 @@
 #include "core/printjob.h"
 
+#include "grid/hfpicturecache.h"
+
 #include "core/sheetobjects.h"
 
 #include <QCoreApplication>
@@ -387,6 +389,8 @@ PrintJob::Context &PrintJob::contextFor(int infoIndex)
                                                                                           : GridSheet::ErrorDisplay::Shown);
     c.painter = std::make_unique<PagePainter>(c.grid.get());
     c.painter->setBaseFont(m_source->baseFontFamily(), m_source->baseFontPoints());
+    c.painter->setAsyncPictures(m_asyncPictures);
+    c.painter->setScreenMarks(m_screenGrid, m_screenHeadings);
     if (!info.setup.draft) c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.geometry->layout.rows, info.cols);
     return c;
 }
@@ -423,7 +427,42 @@ bool PrintJob::paint(QPainter *painter, int page)
     jp::grid::PageObjects objects;
     if (c.objects && c.objects->count() > 0) objects = [&c, &cut](QPainter *p, const jp::grid::GridLayout &layout, const QRect &) { c.objects->paint(p, cut, layout.zoom()); };
     c.painter->paint(painter, info.print, cut, info.setup, labels, pg.index == 0, objects);
+    m_lastStats = c.painter->stats();
     return true;
+}
+
+void PrintJob::setAsyncPictures(bool on)
+{
+    m_asyncPictures = on;
+    for (Context &c : m_contexts)
+        if (c.painter) c.painter->setAsyncPictures(on);
+}
+
+void PrintJob::setScreenMarks(bool gridlines, bool headings)
+{
+    m_screenGrid = gridlines;
+    m_screenHeadings = headings;
+    for (Context &c : m_contexts)
+        if (c.painter) c.painter->setScreenMarks(gridlines, headings);
+}
+
+bool PrintJob::picturesPending() const { return jp::grid::HeaderPictureCache::instance().pendingCount() > 0; }
+
+void PrintJob::prefetchPictures()
+{
+    for (const SheetInfo &info : m_sheets)
+        for (const jp::office::sheet::HeaderPicture &p : info.setup.headerFooter.pictures) {
+            bool pending = false;
+            jp::grid::HeaderPictureCache::instance().get(p.image, false, &pending);
+        }
+}
+
+qint64 PrintJob::layoutsWorkedOut() const
+{
+    qint64 n = 0;
+    for (const Context &c : m_contexts)
+        if (c.painter) n += c.painter->layoutsWorkedOut();
+    return n;
 }
 
 bool PrintJob::cellRect(int page, qint64 row, qint64 col, QRectF *rect)

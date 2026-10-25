@@ -117,7 +117,8 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(m_view, &grid::GridView::breakMoveRequested, this, &CrunchWindow::breakLineMoved);
     connect(m_view, &grid::GridView::printEdgeRequested, this, &CrunchWindow::printEdgeMoved);
     connect(m_view, &grid::GridView::zoomChanged, this, [this](double z) {
-        if (m_viewKind != 0 && m_session && m_sheet >= 0) m_session->setSheetView(m_sheet, m_viewKind, int(std::lround(z * 100)));
+        // (the zoom of the cells is kept with the sheet: in the view of the cells it is the sheet's zoom, in the page breaks view the zoom of that view)
+        if (m_viewKind != 2 && !m_showingSheet && m_session && m_sheet >= 0) m_session->setSheetView(m_sheet, m_viewKind, int(std::lround(z * 100)));
     });
     connect(m_view, &grid::GridView::selectionChanged, this, [this] {
         if (!m_finishing) m_tabOriginCol = m_tabRow = -1;

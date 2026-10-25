@@ -243,11 +243,14 @@ public:
     // where they begin and the edges of the printed cells dragged), 2 the pages themselves. What the person chose for each sheet is kept with the workbook and saved.
     void setViewKind(int kind);
     int viewKind() const { return m_viewKind; }
+    // For tests: a line where a page begins is dragged from a row (column) to another, as the mouse would ask.
+    void moveBreakForTest(bool column, qint64 from, qint64 to) { breakLineMoved(column, from, to); }
     // For tests and the window: the view of the pages, and the strip of text being typed in a header or footer.
     grid::PageLayoutView *pageView() const { return m_pageView; }
     QPlainTextEdit *zoneEditor() const { return m_zoneEditor; }
     // The pages of the sheet in the Page Layout view have been laid out (a job is held for drawing them).
     bool pageLayoutReady() const { return bool(m_layoutPages); }
+    crunch::PrintJob *layoutJobForTest() const { return m_layoutJob.get(); }
     // The lines are worked out in slices of counted work, a turn of the event loop each; an edit, or a workbook opened over this one, drops what was begun.
     void schedulePageBreaks();
     void cancelPageBreaks();
@@ -486,7 +489,7 @@ private:
     void printEdgeMoved(int area, int side, qint64 to);
     void sendBreakPages(const crunch::PrintJob &job, const jp::office::sheet::PageSetup &setup);
     int m_viewKind = 0;
-    double m_normalZoom = 1.0;
+    bool m_showingSheet = false;   // a sheet is being given to the grid (its zoom is not the person's change)
 
     // the Page Layout view: the pages one below the other, with the header and footer in the margins to be typed in (crunchwindow_pagelayout.cpp)
     void createPageLayoutActions();

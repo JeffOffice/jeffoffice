@@ -150,6 +150,17 @@ public:
     const jp::office::sheet::PageSetup *setupOfPage(int page) const;
     bool isFirstOfSheet(int page) const;
 
+    // For a job a view of the pages draws from: pictures in headers and footers are made on workers (a page is drawn without those not ready, and picturesPending() says whether some are being made),
+    // and the screen's gridlines and headings are drawn (the paper never has them unless its setup says so). prefetchPictures() begins the pictures of the job's sheets.
+    void setAsyncPictures(bool on);
+    void setScreenMarks(bool gridlines, bool headings);
+    bool picturesPending() const;
+    void prefetchPictures();
+    // How many times the contexts worked out a page's place (counted, for tests).
+    qint64 layoutsWorkedOut() const;
+    // What the painter did for the page drawn last (cells looked at and the like): counted, for tests.
+    const jp::grid::PaintStats &lastPaintStats() const { return m_lastStats; }
+
     // Draws a page in points on the painter (its origin the paper's corner). Gives false if the page is not one.
     bool paint(QPainter *painter, int page);
     // The page as a picture of the width (its height follows), on white.
@@ -200,6 +211,8 @@ private:
     std::vector<Page> m_pages;
     QStringList m_messages;
     std::vector<Context> m_contexts;
+    bool m_asyncPictures = false, m_screenGrid = false, m_screenHeadings = false;
+    jp::grid::PaintStats m_lastStats;
     quint64 m_tick = 0;
     bool m_cancelled = false;
     QDateTime m_now;

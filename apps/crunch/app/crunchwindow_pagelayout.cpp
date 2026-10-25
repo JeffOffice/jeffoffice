@@ -86,6 +86,7 @@ public:
     bool cellAt(int page, const QPointF &point, qint64 *row, qint64 *col) override { return m_job->cellAt(page, point, row, col); }
     bool rangeRect(int page, const grid::GridRange &r, QRectF *rect) override { return m_job->rangeRect(page, r.row1, r.col1, r.row2, r.col2, rect); }
     int pageOfCell(qint64 row, qint64 col) override { return m_job->pageOfCell(m_sheet, row, col); }
+    bool picturesPending() const override { return m_job->picturesPending(); }
     crunch::PrintJob *job() const { return m_job.get(); }
 
 private:
@@ -121,6 +122,14 @@ void CrunchWindow::createPageLayoutActions()
         const QString code = QString::fromLatin1(c.code);
         mk(QString::fromLatin1(c.id), tr(c.text), QString::fromLatin1(c.icon), QKeySequence(), [this, code] { insertHeaderCode(code); });
     }
+    // the gridlines and headings the sheet shows are shown on the pages too (and not printed)
+    auto marks = [this] {
+        if (!m_layoutPages || !m_pageView) return;
+        static_cast<JobPages *>(m_layoutPages.get())->job()->setScreenMarks(act(QStringLiteral("view.gridlines"))->isChecked(), act(QStringLiteral("view.headings"))->isChecked());
+        m_pageView->contentsChanged();
+    };
+    connect(act(QStringLiteral("view.gridlines")), &QAction::toggled, this, marks);
+    connect(act(QStringLiteral("view.headings")), &QAction::toggled, this, marks);
     mk(QStringLiteral("hf.picture"), tr("Add Picture"), QStringLiteral("image"), QKeySequence(), [this] { insertHeaderPicture(); });
     auto flag = [this](const QString &id, const QString &text, const QString &undo, bool HeaderFooter::*member) {
         mk(id, text, QString(), QKeySequence(), [this, id, undo, member] {
@@ -235,6 +244,9 @@ void CrunchWindow::takeLayoutJob(std::unique_ptr<crunch::PrintJob> job)
     if (!m_pageView || !job) return;
     std::shared_ptr<crunch::PrintJob> shared(std::move(job));
     auto pages = std::make_shared<JobPages>(shared, m_sheet);
+    shared->setAsyncPictures(true);
+    shared->setScreenMarks(act(QStringLiteral("view.gridlines"))->isChecked(), act(QStringLiteral("view.headings"))->isChecked());
+    shared->prefetchPictures();
     m_pageView->setSource(pages.get());
     m_layoutPages = pages;
     m_layoutJob = shared;
@@ -317,7 +329,7 @@ void CrunchWindow::endZoneEdit(bool keep)
     const QString made = jp::office::sheet::composeHeaderFooter(parts[0], parts[1], parts[2]).left(jp::office::sheet::kMaxHeaderFooterChars);
     const bool pictureNeeded = zone.hasPicture && jp::office::sheet::headerFooterHasPicture(made, zone.zone == 0 ? QLatin1Char('L') : zone.zone == 1 ? QLatin1Char('C') : QLatin1Char('R'));
     if (made != current || pictureNeeded) {
-        QString place = QString(zone.zone == 0 ? QLatin1Char('L') : zone.zone == 1 ? QLatin1Char('C') : QLatin1Char('R')) + (zone.header ? QLatin1Char('H') : QLatin1Char('F')) + (zone.form == 2 ? QStringLiteral("F") : zone.form == 1 ? QStringLiteral("E") : QString());
+        QString place = QString(zone.zone == 0 ? QLatin1Char('L') : zone.zone == 1 ? QLatin1Char('C') : QLatin1Char('R')) + (zone.header ? QLatin1Char('H') : QLatin1Char('F')) + (zone.form == 2 ? QStringLiteral("FIRST") : zone.form == 1 ? QStringLiteral("EVEN") : QString());
         changePage(zone.header ? tr("Header") : tr("Footer"), [&](PageSetup *s) {
             QString *text = zone.header ? (zone.form == 2 ? &s->headerFooter.firstHeader : zone.form == 1 ? &s->headerFooter.evenHeader : &s->headerFooter.oddHeader)
                                         : (zone.form == 2 ? &s->headerFooter.firstFooter : zone.form == 1 ? &s->headerFooter.evenFooter : &s->headerFooter.oddFooter);
@@ -361,7 +373,7 @@ void CrunchWindow::insertHeaderPicture()
     if (path.isEmpty()) return;
     jp::office::sheet::HeaderPicture picture;
     QString why;
-    if (!loadHeaderPicture(path, &picture, &why)) {
+    if (!loadHeaderPicture(path, &picture, &why, headerPictureRoom(m_session->pages().sheet(m_sheet).margins, m_zone.header))) {
         notice(tr("Picture"), why);
         return;
     }

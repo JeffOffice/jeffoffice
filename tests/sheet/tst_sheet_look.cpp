@@ -345,6 +345,21 @@ private Q_SLOTS:
         QCOMPARE(kindOf("view=\"other\""), int(SheetView::Kind::Normal));
     }
 
+    // The zoom of the cells as they are is read apart from the zoom of the view the sheet was left in: its own attribute, else the zoom of the sheet when it was left in that view, else 100.
+    void theNormalZoomIsReadApartFromTheViewsZoom()
+    {
+        auto zooms = [](const char *attr) {
+            Sheet sheet;
+            if (!readSheetXml(worksheet(cell("A1", 1), QString(), QStringLiteral("<sheetViews><sheetView %1 workbookViewId=\"0\"/></sheetViews>").arg(QLatin1String(attr))), &sheet)) return QStringLiteral("unread");
+            return QStringLiteral("%1/%2").arg(sheet.view.zoom).arg(sheet.view.normalZoom);
+        };
+        QCOMPARE(zooms(""), QStringLiteral("100/100"));
+        QCOMPARE(zooms("zoomScale=\"80\""), QStringLiteral("80/80"));
+        QCOMPARE(zooms("view=\"pageBreakPreview\" zoomScale=\"60\" zoomScaleNormal=\"130\""), QStringLiteral("60/130"));
+        QCOMPARE(zooms("view=\"pageLayout\" zoomScale=\"70\""), QStringLiteral("70/100"));
+        QCOMPARE(zooms("zoomScale=\"90\" zoomScaleNormal=\"125\""), QStringLiteral("90/125"));
+    }
+
     // A split that is not frozen is not kept, and the view of a sheet with none is the plain one; a zoom outside what the program zooms to is brought in.
     void aSplitIsNotAFreezeAndTheZoomIsBounded()
     {

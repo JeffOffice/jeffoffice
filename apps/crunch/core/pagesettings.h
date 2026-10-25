@@ -45,9 +45,12 @@ public:
     // from the file's has it written.
     int viewKind(int index) const { return index >= 0 && index < int(m_kinds.size()) ? m_kinds[size_t(index)] : 0; }
     int viewZoom(int index) const { return index >= 0 && index < int(m_zooms.size()) ? m_zooms[size_t(index)] : 100; }
+    // The zoom of the cells as they are (the file's own until the person zooms them), which leaving another view puts back.
+    int normalZoom(int index) const { return index >= 0 && index < int(m_normals.size()) ? m_normals[size_t(index)] : 100; }
+    // The view of a sheet and its zoom; in the view of the cells as they are, that zoom is also the zoom of the cells.
     void setView(int index, int kind, int zoom);
-    // Whether a sheet is shown in a view other than the one the file has (a save has something to write, though no cell changed).
-    bool viewsChanged() const { return m_kinds != m_fileKinds; }
+    // Whether a sheet is shown in another view, or at another zoom, than the file has (a save has something to write, though no cell changed).
+    bool viewsChanged() const { return m_kinds != m_fileKinds || m_zooms != m_fileZooms || m_normals != m_fileNormals; }
 
     // What saving needs: the setup of each sheet that may differ from the file's (a command changed it, or an edit moved what it names), and the names of its print area and titles.
     // `sheetNames` are the sheets' names by place (empty for one that is deleted) and `order` the places in the order of the tabs.
@@ -66,7 +69,7 @@ private:
     };
     std::vector<jp::office::sheet::PageSetup> m_sheets;
     std::set<int> m_touched;
-    std::vector<int> m_kinds, m_zooms, m_fileKinds;
+    std::vector<int> m_kinds, m_zooms, m_normals, m_fileKinds, m_fileZooms, m_fileNormals;
     std::vector<Kept> m_kept;
 };
 

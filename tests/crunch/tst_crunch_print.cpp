@@ -15,6 +15,8 @@
 #include "editwindow.h"
 #include "core/printjob.h"
 #include "grid/gridview.h"
+#include "grid/hfpicturecache.h"
+#include "grid/pagelayoutview.h"
 #include "io/zipindex.h"
 
 #include <QAction>
@@ -1920,7 +1922,7 @@ private Q_SLOTS:
         add->click();
         made = editor.texts();
         QCOMPARE(made.pictures.size(), 2);
-        QCOMPARE(made.pictures[1].place, QStringLiteral("LHF"));
+        QCOMPARE(made.pictures[1].place, QStringLiteral("LHFIRST"));
         QVERIFY(made.firstHeader.contains(QStringLiteral("&G")));
         // taking one out takes its code too
         drop->click();
@@ -2112,7 +2114,7 @@ private Q_SLOTS:
         const QRect first = w.pageView()->pageRect(0);
         QVERIFY(!first.isEmpty());
         QVERIFY(qAbs(double(first.width()) / first.height() - 612.0 / 792.0) < 0.01);   // (letter paper)
-        QVERIFY(first.width() > 500);                                                     // (a point is 96 / 72 pixels at 100%)
+        QCOMPARE(first.width(), int(std::lround(612.0 * 96 / 72 * w.pageView()->zoom())));   // (a point is 96 / 72 pixels at 100%)
         w.pageView()->drawPagesNow();
         QVERIFY(w.pageView()->pageIsDrawn(0));
         // a second page is below the first with a gap that is not paper
@@ -2122,8 +2124,11 @@ private Q_SLOTS:
         const QImage shot = w.pageView()->viewport()->grab().toImage();
         const QRect second = w.pageView()->pageRect(1);
         QVERIFY(!second.isEmpty());
-        QVERIFY(shot.pixelColor(second.center().x(), second.top() + 4).lightness() > 240);        // (paper)
-        QVERIFY(shot.pixelColor(second.center().x(), second.top() - jp::grid::PageLayoutView::kGap / 2).lightness() < 235);   // (the gap above it)
+        // (the picture of the viewport has the screen's device pixels: a place of the viewport is that many times further along)
+        const double dpr = shot.devicePixelRatio();
+        auto at = [&](int x, int y) { return shot.pixelColor(int(x * dpr), int(y * dpr)); };
+        QVERIFY(at(second.center().x(), second.top() + 4).lightness() > 240);        // (paper)
+        QVERIFY(at(second.center().x(), second.top() - jp::grid::PageLayoutView::kGap / 2).lightness() < 235);   // (the gap above it)
         // back to the cells
         w.setViewKind(0);
         QVERIFY(e.view()->isVisible());
@@ -2375,6 +2380,392 @@ private Q_SLOTS:
         QTRY_VERIFY(w.pageView()->pageIsDrawn(5000));
         QVERIFY(w.pageView()->pagesKept() <= 10);
         QVERIFY(w.pageView()->pagesDrawn() < 20);
+    }
+
+    // ---- review fixes (printing 2)
+
+    // A zoom change alone is something to save: the file gets the zoom (and, for the cells, the zoom of the cells), and a save with the zoom as the file has it writes nothing.
+    void aZoomChangeAloneIsSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(30, {})));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(!w.session()->viewsChanged());
+        e.view()->setZoom(1.5);
+        QVERIFY(w.session()->viewsChanged());
+        QVERIFY(!w.session()->isModified());
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        Package pk;
+        QString why;
+        QVERIFY(pk.readLazyFile(e.path, &why));
+        const QByteArray xml = pk.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
+        QVERIFY2(xml.contains("zoomScale=\"150\"") && xml.contains("zoomScaleNormal=\"150\""), xml.left(500).constData());
+        QVERIFY(!w.session()->viewsChanged());
+        // (the same zoom again: nothing to write)
+        QSignalSpy second(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY(w.statusText().contains(QLatin1String("Nothing to save")));
+    }
+
+    // Leaving a view puts back the zoom the cells had (kept for the sheet, not for the window), and the file's own zoom of the cells is written whichever view the sheet is left in.
+    void leavingAViewPutsTheCellsOwnZoomBack()
+    {
+        QByteArray bytes;
+        {
+            EditWindow e;
+            QVERIFY(e.open(rowsWithFormulas(30, {})));
+            CrunchWindow &w = e.win.w;
+            e.view()->setZoom(1.5);
+            w.setViewKind(1);
+            QVERIFY(qAbs(e.view()->zoom() - 0.6) < 0.01);
+            w.setViewKind(0);
+            QVERIFY(qAbs(e.view()->zoom() - 1.5) < 0.01);
+            w.setViewKind(2);
+            w.setViewKind(0);
+            QVERIFY(qAbs(e.view()->zoom() - 1.5) < 0.01);
+            QCOMPARE(w.session()->pages().normalZoom(0), 150);
+            // left in the page breaks view: the file has the view's zoom and, apart, the cells' own
+            w.setViewKind(1);
+            e.view()->setZoom(0.5);
+            QCOMPARE(w.session()->pages().normalZoom(0), 150);
+            QSignalSpy saved(&w, &CrunchWindow::saved);
+            QVERIFY(w.save());
+            QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+            Package pk;
+            QString why;
+            QVERIFY(pk.readLazyFile(e.path, &why));
+            const QByteArray xml = pk.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
+            QVERIFY2(xml.contains("zoomScale=\"50\"") && xml.contains("zoomScaleNormal=\"150\"") && xml.contains("zoomScaleSheetLayoutView=\"50\""), xml.left(600).constData());
+            QFile f(e.path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            bytes = f.readAll();
+        }
+        EditWindow again;
+        QVERIFY(again.open(bytes));
+        QCOMPARE(again.win.w.viewKind(), 1);
+        QCOMPARE(int(std::lround(again.view()->zoom() * 100)), 50);
+        again.win.w.setViewKind(0);
+        QCOMPARE(int(std::lround(again.view()->zoom() * 100)), 150);
+    }
+
+    // Each sheet has its own zoom of the cells, read from the file: going from one to the other, and leaving a view on one, never gives it another's.
+    void eachSheetKeepsItsOwnZoomOfTheCells()
+    {
+        auto views = [](const char *attrs) { return QStringLiteral("<sheetViews><sheetView %1 workbookViewId=\"0\"/></sheetViews>").arg(QLatin1String(attrs)); };
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>");
+        const QByteArray book = buildXlsx({worksheet(rows, QString(), views("zoomScale=\"80\" zoomScaleNormal=\"80\"")), worksheet(rows, QString(), views("zoomScale=\"120\" zoomScaleNormal=\"120\""))});
+        EditWindow e;
+        QVERIFY(e.open(book));
+        CrunchWindow &w = e.win.w;
+        QCOMPARE(w.session()->pages().normalZoom(0), 80);
+        QCOMPARE(w.session()->pages().normalZoom(1), 120);
+        QCOMPARE(int(std::lround(e.view()->zoom() * 100)), 80);
+        w.setActiveSheet(1);
+        QCOMPARE(int(std::lround(e.view()->zoom() * 100)), 120);
+        w.setViewKind(1);
+        w.setViewKind(0);
+        QCOMPARE(int(std::lround(e.view()->zoom() * 100)), 120);
+        w.setActiveSheet(0);
+        QCOMPARE(int(std::lround(e.view()->zoom() * 100)), 80);
+        w.setViewKind(2);
+        w.setViewKind(0);
+        QCOMPARE(int(std::lround(e.view()->zoom() * 100)), 80);
+        QCOMPARE(w.session()->pages().normalZoom(1), 120);
+        // (nothing of this is a change of the file: the zooms are as it has them)
+        QVERIFY(!w.session()->viewsChanged());
+    }
+
+    // A move of a break that cannot be made because the list is full leaves the old break, and says so.
+    void aFullListOfBreaksKeepsTheOldBreak()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(30, {})));
+        CrunchWindow &w = e.win.w;
+        PageSetup p = w.session()->pages().sheet(0);
+        for (int i = 0; i < jp::office::sheet::kMaxPageBreaks; ++i) {
+            jp::office::sheet::PageBreak b;
+            b.before = quint32(1 + i);
+            b.max = 16383;
+            p.rowBreaks.append(b);
+        }
+        QVERIFY(w.session()->setPageSetup(0, p, QStringLiteral("Breaks")).ok);
+        QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), jp::office::sheet::kMaxPageBreaks);
+        const int steps = w.session()->undoStack()->count();
+        w.moveBreakForTest(false, 9999, 100000);   // (a line the program found, dragged to a place with no break: there is no room for another)
+        QCOMPARE(w.session()->undoStack()->count(), steps);
+        QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), jp::office::sheet::kMaxPageBreaks);
+        bool kept = false;
+        for (const auto &b : w.session()->pages().sheet(0).rowBreaks) kept = kept || b.before == 5u;
+        QVERIFY(kept);
+        QVERIFY(w.statusText().contains(QLatin1String("page breaks")));
+        // a break set by hand moved to a place with none frees its own place; one moved onto another, or taken away, is made
+        w.moveBreakForTest(false, 5, 100000);
+        QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), jp::office::sheet::kMaxPageBreaks);
+        w.moveBreakForTest(false, 7, 6);
+        QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), jp::office::sheet::kMaxPageBreaks - 1);
+        w.moveBreakForTest(false, 8, -1);
+        QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), jp::office::sheet::kMaxPageBreaks - 2);
+    }
+
+    // A picture in a header is made on a worker, not on the window thread: a page is drawn at once without it, nothing is decoded on this thread, and it is there when the picture is ready.
+    void aHeaderPictureIsMadeOffTheWindowThread()
+    {
+        const QByteArray red = drawtest::pngBytes(160, 80, Qt::red);
+        EditWindow e;
+        QVERIFY(e.open(bookWithHeaderPictures(QStringLiteral("<oddHeader>&amp;C&amp;G</oddHeader>"), {hfShape(QStringLiteral("CH"))}, {red})));
+        CrunchWindow &w = e.win.w;
+        jp::grid::HeaderPictureCache &cache = jp::grid::HeaderPictureCache::instance();
+        cache.clear();
+        const int here = cache.decodesHere();
+        QString why;
+        std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY(job);
+        job->setAsyncPictures(true);
+        auto isRed = [](const QImage &page) {
+            const QColor c = page.pixelColor(int(306 * 2), int(40 * 2));
+            return c.red() > 200 && c.green() < 70 && c.blue() < 70;
+        };
+        const QImage first = job->preview(0, 1224);
+        QVERIFY(!isRed(first));                    // (drawn at once, without the picture)
+        QVERIFY(job->picturesPending() || cache.count() > 0);
+        QCOMPARE(cache.decodesHere(), here);       // (and nothing was decoded here)
+        cache.waitForWorkers();
+        QVERIFY(!job->picturesPending());
+        QVERIFY(isRed(job->preview(0, 1224)));     // (the next time, the picture is there)
+        QCOMPARE(cache.decodesHere(), here);
+        // a job that is not for a view waits for its pictures: they are made at once
+        cache.clear();
+        job->setAsyncPictures(false);
+        QVERIFY(isRed(job->preview(0, 1224)));
+        QCOMPARE(cache.decodesHere(), here + 1);
+        // in the view: the page is drawn again when the picture is ready
+        cache.clear();
+        w.setViewKind(2);
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        auto redInView = [&] {
+            w.pageView()->drawPagesNow();
+            const QImage shot = w.pageView()->viewport()->grab().toImage();
+            const QRect page = w.pageView()->pageRect(0);
+            const double k = 96.0 / 72.0 * w.pageView()->zoom();
+            const QColor c = shot.pixelColor(int((page.left() + 306 * k) * shot.devicePixelRatio()), int((page.top() + 30 * k) * shot.devicePixelRatio()));
+            return c.red() > 200 && c.green() < 70 && c.blue() < 70;
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(redInView(), 20000);
+        QCOMPARE(cache.decodesHere(), here + 1);
+    }
+
+    // A page too large to keep is drawn only where it is exposed: the painter is clipped to the part asked for, and the page painter draws the cells of that part, not of the whole page.
+    void anOversizedPageIsDrawnOnlyWhereItIsExposed()
+    {
+        struct Pages : jp::grid::PageLayoutSource {
+            int pageCount() const override { return 3; }
+            QSizeF pageSize(int) const override { return QSizeF(612, 792); }
+            QRectF headerBand(int) const override { return QRectF(50, 0, 500, 54); }
+            QRectF footerBand(int) const override { return QRectF(50, 738, 500, 54); }
+            void paintPage(QPainter *p, int) override { clips << p->clipBoundingRect(); }
+            bool cellRect(int, qint64, qint64, QRectF *) override { return false; }
+            bool cellAt(int, const QPointF &, qint64 *, qint64 *) override { return false; }
+            bool rangeRect(int, const jp::grid::GridRange &, QRectF *) override { return false; }
+            int pageOfCell(qint64, qint64) override { return -1; }
+            QList<QRectF> clips;
+        } pages;
+        jp::grid::PageLayoutView view;
+        view.resize(900, 700);
+        view.setSource(&pages);
+        view.setCacheBudgetPixels(100);   // (every page is too large to keep)
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        pages.clips.clear();
+        const QRect page = view.pageRect(0);
+        view.viewport()->repaint(QRect(page.left() + 100, page.top() + 100, 40, 30));
+        QVERIFY(!pages.clips.isEmpty());
+        for (const QRectF &c : std::as_const(pages.clips)) QVERIFY2(c.width() < 200 && c.height() < 200, qPrintable(QStringLiteral("%1 x %2 points").arg(c.width()).arg(c.height())));
+        QCOMPARE(view.pagesKept(), 0);
+    }
+
+    // The cells of an oversized page are not all drawn for a small exposed part: the painter's clip says which, and the count of cells looked at is the part's.
+    void thePagePainterDrawsOnlyWhatTheClipLeavesInView()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(40, {})));
+        QString why;
+        std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY(job);
+        QImage img(612, 792, QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::white);
+        QPainter whole(&img);
+        QVERIFY(job->paint(&whole, 0));
+        whole.end();
+        const qint64 all = job->lastPaintStats().cellsLooked;
+        QVERIFY(all >= 40);
+        QImage part(612, 792, QImage::Format_ARGB32_Premultiplied);
+        part.fill(Qt::white);
+        QPainter clipped(&part);
+        clipped.setClipRect(QRect(40, 50, 200, 60));   // (the first few rows)
+        QVERIFY(job->paint(&clipped, 0));
+        clipped.end();
+        QVERIFY2(job->lastPaintStats().cellsLooked < all / 2, qPrintable(QStringLiteral("%1 of %2").arg(job->lastPaintStats().cellsLooked).arg(all)));
+        // and what shows in the exposed part is what the whole page has there
+        for (int y = 50; y < 110; y += 3)
+            for (int x = 40; x < 240; x += 3) QCOMPARE(part.pixel(x, y), img.pixel(x, y));
+    }
+
+    // After a change the pages that were drawn stay on the screen until they are drawn again (no white page between): the view keeps them, marked as old, and draws them a page a turn.
+    void pagesStayOnTheScreenUntilTheNewOnesAreReady()
+    {
+        struct Pages : jp::grid::PageLayoutSource {
+            int pageCount() const override { return 2; }
+            QSizeF pageSize(int) const override { return QSizeF(612, 792); }
+            QRectF headerBand(int) const override { return QRectF(50, 0, 500, 54); }
+            QRectF footerBand(int) const override { return QRectF(50, 738, 500, 54); }
+            void paintPage(QPainter *p, int) override { p->fillRect(QRectF(0, 0, 612, 792), Qt::white); ++painted; }
+            bool cellRect(int, qint64, qint64, QRectF *) override { return false; }
+            bool cellAt(int, const QPointF &, qint64 *, qint64 *) override { return false; }
+            bool rangeRect(int, const jp::grid::GridRange &, QRectF *) override { return false; }
+            int pageOfCell(qint64, qint64) override { return -1; }
+            int painted = 0;
+        } pages;
+        jp::grid::PageLayoutView view;
+        view.resize(900, 700);
+        view.setSource(&pages);
+        view.show();
+        view.drawPagesNow();
+        QVERIFY(view.pageIsCurrent(0));
+        const int drawn = pages.painted;
+        view.sourceChanged();   // (a change: the pages are cut again)
+        QVERIFY(view.pageIsDrawn(0));        // (still there)
+        QVERIFY(!view.pageIsCurrent(0));     // (but old)
+        QCOMPARE(pages.painted, drawn);
+        view.contentsChanged();
+        QVERIFY(view.pageIsDrawn(0));
+        QTRY_VERIFY(view.pageIsCurrent(0));
+        QVERIFY(pages.painted > drawn);
+        // another zoom needs other pictures: those go
+        view.setZoom(2);
+        QVERIFY(!view.pageIsDrawn(0));
+    }
+
+    // Many pages in view at a low zoom: where each page's cells are is worked out once for each page, however often they are painted or asked about.
+    void thePlaceOfAPagesCellsIsWorkedOutOncePerPage()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(3000, {})));
+        CrunchWindow &w = e.win.w;
+        w.resize(1280, 4000);
+        w.setViewKind(2);
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->setZoom(0.1);
+        e.view()->selectRange(0, 0, 2999, 1);   // (drawn over the cells of every page in view)
+        w.pageView()->drawPagesNow();
+        const int visible = w.pageView()->lastVisiblePage() - w.pageView()->firstVisiblePage() + 1;
+        QVERIFY(visible >= 10);
+        crunch::PrintJob *job = w.layoutJobForTest();
+        QVERIFY(job);
+        w.pageView()->viewport()->repaint();
+        const qint64 first = job->layoutsWorkedOut();
+        QVERIFY2(first <= visible + 4, qPrintable(QStringLiteral("%1 for %2 pages").arg(first).arg(visible)));
+        for (int i = 0; i < 3; ++i) w.pageView()->viewport()->repaint();
+        w.pageView()->cellRect(5, 1);
+        w.pageView()->cellRect(30, 0);
+        QCOMPARE(job->layoutsWorkedOut(), first);
+    }
+
+    // A picture put in is made to fit the margin it goes in (no taller than the header's room), and is never made larger than it is.
+    void aNewPictureFitsTheHeaderMargin()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString big = dir.filePath(QStringLiteral("big.png")), small = dir.filePath(QStringLiteral("small.png"));
+        QImage a(200, 100, QImage::Format_ARGB32), b(16, 8, QImage::Format_ARGB32);
+        a.fill(Qt::red);
+        b.fill(Qt::blue);
+        QVERIFY(a.save(big) && b.save(small));
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        QString file = big;
+        w.setPictureAsker([&] { return file; });
+        w.setViewKind(2);
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        QTest::mouseClick(w.pageView()->viewport(), Qt::LeftButton, Qt::NoModifier, w.pageView()->zoneRect(0, true, 0).center());
+        QVERIFY(w.zoneEditor());
+        w.act(QStringLiteral("hf.picture"))->trigger();
+        QTest::keyClick(w.zoneEditor(), Qt::Key_Return, Qt::ControlModifier);
+        const auto &pics = w.session()->pages().sheet(0).headerFooter.pictures;
+        QCOMPARE(pics.size(), 1);
+        // (margins of 0.75 inch at the top and 0.3 inch for the header: 0.45 inch of room, 32.4 points)
+        QVERIFY(qAbs(pics[0].height - 32.4) < 0.01);
+        QVERIFY(qAbs(pics[0].width - 64.8) < 0.01);
+        // a small one stays as it is, in the footer's room
+        file = small;
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        QTest::mouseClick(w.pageView()->viewport(), Qt::LeftButton, Qt::NoModifier, w.pageView()->zoneRect(0, false, 2).center());
+        QVERIFY(w.zoneEditor());
+        w.act(QStringLiteral("hf.picture"))->trigger();
+        QTest::keyClick(w.zoneEditor(), Qt::Key_Return, Qt::ControlModifier);
+        const auto &after = w.session()->pages().sheet(0).headerFooter.pictures;
+        QCOMPARE(after.size(), 2);
+        QCOMPARE(after[1].place, QStringLiteral("RF"));
+        QCOMPARE(after[1].height, 6.0);
+        // the editor of the dialog too
+        jp::office::sheet::HeaderFooter hf;
+        HeaderFooterEditor editor(true, hf, QStringLiteral("S"), QStringLiteral("f"));
+        file = big;
+        editor.setPictureAsker([&] { return file; });
+        editor.setPictureRoom(20);
+        editor.findChild<QPushButton *>(QStringLiteral("hfPicture"))->click();
+        QCOMPARE(editor.texts().pictures.size(), 1);
+        QCOMPARE(editor.texts().pictures[0].height, 20.0);
+    }
+
+    // The pages show the sheet's gridlines and headings (the sheet's own settings, and the View switches), and they are never printed.
+    void thePagesShowGridlinesAndHeadingsButTheyAreNotPrinted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(30, {})));
+        CrunchWindow &w = e.win.w;
+        w.setViewKind(2);
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        auto shot = [&] { return w.pageView()->viewport()->grab().toImage(); };
+        const double dpr = shot().devicePixelRatio();
+        // a few pixels along the bottom edge of cell A3, at its left (where its number is not), and a few beside the cells on the left, where the row numbers go
+        auto darkest = [&](const QImage &img, const QRect &r) {
+            int most = 255;
+            for (int y = r.top(); y <= r.bottom(); ++y)
+                for (int x = r.left(); x <= r.right(); ++x) most = std::min(most, img.pixelColor(int(x * dpr), int(y * dpr)).lightness());
+            return most;
+        };
+        const QRect a3 = w.pageView()->cellRect(2, 0);
+        const QRect line(a3.left() + 1, a3.bottom() - 1, 3, 3);
+        const QRect strip(a3.left() - 12, a3.top() + 2, 8, 4);
+        QVERIFY(w.act(QStringLiteral("view.gridlines"))->isChecked());
+        QVERIFY(w.act(QStringLiteral("view.headings"))->isChecked());
+        QVERIFY2(darkest(shot(), line) < 235, "gridlines");
+        QVERIFY2(darkest(shot(), strip) < 240, "headings");
+        w.act(QStringLiteral("view.gridlines"))->trigger();
+        w.act(QStringLiteral("view.headings"))->trigger();
+        w.pageView()->drawPagesNow();
+        QVERIFY(darkest(shot(), line) >= 250);
+        QVERIFY(darkest(shot(), strip) >= 250);
+        w.act(QStringLiteral("view.gridlines"))->trigger();
+        w.act(QStringLiteral("view.headings"))->trigger();
+        // what is printed has neither
+        QString why;
+        std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY(job);
+        const QImage page = job->preview(0, 1224);
+        QRectF cell;
+        QVERIFY(job->cellRect(0, 2, 0, &cell));
+        for (int y = int(cell.bottom() * 2) - 1; y <= int(cell.bottom() * 2) + 1; ++y)
+            for (int x = int(cell.left() * 2) + 1; x <= int(cell.left() * 2) + 4; ++x) QVERIFY(page.pixelColor(x, y).lightness() >= 250);
+        for (int y = int(cell.top() * 2) + 2; y < int(cell.top() * 2) + 6; ++y)
+            for (int x = int(cell.left() * 2) - 24; x < int(cell.left() * 2) - 4; ++x) QVERIFY(page.pixelColor(x, y).lightness() >= 250);
     }
 };
 

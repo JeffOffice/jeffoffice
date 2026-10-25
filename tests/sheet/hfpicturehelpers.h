@@ -3,6 +3,8 @@
 #pragma once
 
 #include "drawinghelpers.h"
+#include "io/zip.h"
+#include "io/zipindex.h"
 #include "sheethelpers.h"
 
 namespace sheettest {
@@ -52,6 +54,32 @@ inline QByteArray bookWithHeaderPictures(const QString &headerFooter, const QVec
     rels += QStringLiteral("</Relationships>");
     parts.append({QStringLiteral("xl/drawings/_rels/vmlDrawing1.vml.rels"), rels.toUtf8(), QString(), -1, QString(), QString(), QString()});
     return withParts(buildXlsx({sheet}), parts);
+}
+
+// The same with a second sheet that names the very same drawing (so that two sheets share one part), with the two sheets' headers saying `&C&G`.
+inline QByteArray bookWithSharedDrawing(const QVector<HfShape> &shapes, const QVector<QByteArray> &images)
+{
+    QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>");
+    const QString hf = QStringLiteral("<headerFooter><oddHeader>&amp;C&amp;G</oddHeader></headerFooter><legacyDrawingHF r:id=\"rIdH1\"/>");
+    QVector<ExtraPart> parts;
+    parts.append({QStringLiteral("xl/drawings/vmlDrawing1.vml"), hfVml(shapes), QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), 0, QStringLiteral("rIdH1"), QStringLiteral("vmlDrawing"),
+                  QStringLiteral("../drawings/vmlDrawing1.vml")});
+    QString rels = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">");
+    for (int i = 0; i < images.size(); ++i) {
+        parts.append({QStringLiteral("xl/media/hfimage%1.png").arg(i + 1), images[i], QStringLiteral("image/png"), -1, QString(), QString(), QString()});
+        rels += QStringLiteral("<Relationship Id=\"rId%1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/hfimage%1.png\"/>").arg(i + 1);
+    }
+    rels += QStringLiteral("</Relationships>");
+    parts.append({QStringLiteral("xl/drawings/_rels/vmlDrawing1.vml.rels"), rels.toUtf8(), QString(), -1, QString(), QString(), QString()});
+    const QByteArray one = withParts(buildXlsx({worksheet(rows, hf), worksheet(rows, hf)}), parts);
+    // the second sheet's link to the same drawing
+    QMap<QString, QByteArray> all;
+    jp::readZip(one, all);
+    all[QStringLiteral("xl/worksheets/_rels/sheet2.xml.rels")] = QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                                                                  "<Relationship Id=\"rIdH1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing\" Target=\"../drawings/vmlDrawing1.vml\"/></Relationships>");
+    jp::ZipWriter z;
+    for (auto it = all.begin(); it != all.end(); ++it) z.add(it.key(), it.value(), true);
+    return z.finish();
 }
 
 } // namespace sheettest

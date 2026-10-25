@@ -60,6 +60,10 @@ constexpr qint64 kMaxHeaderPicturePixels = 16000000;
 // The size a picture may be given on the page, in points.
 constexpr double kMaxHeaderPicturePoints = 2000;
 
+// The place of a picture the way this program writes it: the two letters in upper case (part and header or footer), then nothing (the pages in general), EVEN, or FIRST. The file's short forms
+// (an E or an F after the two letters) are read as these.
+QString canonicalHeaderPlace(const QString &place);
+
 // A picture in a header or footer (the `&G` of its text): the file keeps it in a legacy drawing the sheet names, as a shape for the place it is in. The place is the shape's id as the file has it: two
 // letters (L, C, or R for the left, center, or right part, and H or F for the header or footer), with more after them for the even-page and first-page forms (an E or an F). The image is kept
 // as the file has it, so it is written back as it was unless a person changed it.

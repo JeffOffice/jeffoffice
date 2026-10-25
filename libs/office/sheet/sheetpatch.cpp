@@ -385,7 +385,7 @@ QByteArray tabSelectedFromChange(const QByteArray &head, bool selected, const QB
 
 // The head of a sheet with its first view shown as `kind` says (0 normal: the `view` attribute is taken off; 1 the page breaks: pageBreakPreview; 2 the pages: pageLayout) at `zoom` percent
 // (0: the file's zoom stays): the zoom is put in as the zoom of that kind of view too. A sheet with no view is given one before the sizes of its columns (or before the cells).
-QByteArray viewKindFromChange(const QByteArray &head, int kind, int zoom, const QByteArray &defaultPrefix)
+QByteArray viewKindFromChange(const QByteArray &head, int kind, int zoom, int normalZoom, const QByteArray &defaultPrefix)
 {
     Tag t;
     qsizetype pos = 0, viewAt = -1, viewEnd = -1, insertAt = -1;
@@ -415,13 +415,15 @@ QByteArray viewKindFromChange(const QByteArray &head, int kind, int zoom, const 
             if (kind == 0) setAttr(tag, "zoomScaleNormal", QByteArray::number(zoom));
             else setAttr(tag, kind == 1 ? "zoomScaleSheetLayoutView" : "zoomScalePageLayoutView", QByteArray::number(zoom));
         }
+        // (the zoom of the cells as they are is its own, whichever view is shown)
+        if (normalZoom > 0 && kind != 0) setAttr(tag, "zoomScaleNormal", QByteArray::number(normalZoom));
     };
     if (viewAt >= 0) {
         QByteArray tag = head.mid(viewAt, viewEnd - viewAt);
         apply(&tag);
         return head.left(viewAt) + tag + head.mid(viewEnd);
     }
-    if (kind == 0) return head;
+    if (kind == 0 && (zoom <= 0 || zoom == 100)) return head;
     QByteArray tag = "<" + prefix + "sheetView workbookViewId=\"0\"/>";
     apply(&tag);
     const qsizetype at = insertAt >= 0 ? insertAt : head.size();
@@ -578,6 +580,7 @@ public:
         m_hfSet = changes.hfSet;
         m_hfRel = changes.hfRel.toLatin1();
         m_viewZoom = changes.viewZoom;
+        m_viewNormalZoom = changes.viewNormalZoom;
         for (RowEdits &r : m_rows) {
             std::stable_sort(r.items.begin(), r.items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
             // (one item for a cell: a changed cell stands over a result)
@@ -724,7 +727,7 @@ private:
         if (dimStart >= 0 && !m_cells.empty()) before = withDimension(before, dimStart, dimEnd);
         if (m_tabColor) before = tabColorFromChange(before, *m_tabColor, m_prefix);
         if (m_tabSelected >= 0) before = tabSelectedFromChange(before, m_tabSelected != 0, m_prefix);
-        if (m_viewKind >= 0) before = viewKindFromChange(before, m_viewKind, m_viewZoom, m_prefix);
+        if (m_viewKind >= 0) before = viewKindFromChange(before, m_viewKind, m_viewZoom, m_viewNormalZoom, m_prefix);
         if (m_format) before = formatFromChange(before, *m_format, m_prefix);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
         if (m_page) before = patchFitToPageHead(before, *m_page);
@@ -1135,7 +1138,7 @@ private:
     const SheetFormat *m_format = nullptr;
     const ColorSpec *m_tabColor = nullptr;
     int m_tabSelected = -1;
-    int m_viewKind = -1, m_viewZoom = 0;
+    int m_viewKind = -1, m_viewZoom = 0, m_viewNormalZoom = 0;
     bool m_hfSet = false;
     QByteArray m_hfRel;
 };

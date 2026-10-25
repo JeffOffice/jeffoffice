@@ -18,16 +18,24 @@ bool PageSetup::operator==(const PageSetup &o) const
            && rowBreaks == o.rowBreaks && colBreaks == o.colBreaks && printArea == o.printArea && titles == o.titles;
 }
 
+QString canonicalHeaderPlace(const QString &place)
+{
+    const QString up = place.trimmed().toUpper();
+    if (up.size() <= 2) return up;
+    const QString rest = up.mid(2);
+    if (rest == QLatin1String("E") || rest == QLatin1String("EVEN")) return up.left(2) + QStringLiteral("EVEN");
+    if (rest == QLatin1String("F") || rest == QLatin1String("FIRST")) return up.left(2) + QStringLiteral("FIRST");
+    return up;
+}
+
 const HeaderPicture *HeaderFooter::pictureFor(QChar part, bool header, bool first, bool even) const
 {
     const QString base = QString(part.toUpper()) + (header ? QLatin1Char('H') : QLatin1Char('F'));
     const HeaderPicture *plain = nullptr, *form = nullptr;
     for (const HeaderPicture &p : pictures) {
-        if (p.place.compare(base, Qt::CaseInsensitive) == 0) plain = &p;
-        else if (p.place.size() > base.size() && p.place.startsWith(base, Qt::CaseInsensitive)) {
-            const QChar c = p.place.at(base.size()).toUpper();
-            if ((first && c == QLatin1Char('F')) || (!first && even && c == QLatin1Char('E'))) form = &p;
-        }
+        const QString place = canonicalHeaderPlace(p.place);
+        if (place == base) plain = &p;
+        else if ((first && place == base + QLatin1String("FIRST")) || (!first && even && place == base + QLatin1String("EVEN"))) form = &p;
     }
     return form ? form : plain;
 }

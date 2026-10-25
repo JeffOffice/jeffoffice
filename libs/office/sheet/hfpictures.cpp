@@ -20,6 +20,8 @@ constexpr QLatin1String kOffice("urn:schemas-microsoft-com:office:office");
 // The most of a drawing part that is read, and the most shapes looked at in it (a file that repeats one is not read a million times over).
 constexpr qint64 kMaxDrawingBytes = 1 << 20;
 constexpr int kMaxShapesLooked = 4 * kMaxHeaderPictures;
+// The most elements of any kind looked at in a drawing.
+constexpr int kMaxVmlElements = 4096;
 
 // A length from a style: a number with the unit after it (pt, in, cm, mm, px, pc); none is pixels. In points; negative when it is not one.
 double lengthPoints(const QString &text)
@@ -56,40 +58,49 @@ void Workbook::readHeaderPictures(const QString &sheetPart, HeaderFooter *out) c
     if (out->drawingRel.isEmpty() || sheetPart.isEmpty()) return;
     const Relationship rel = m_package.relationship(sheetPart, out->drawingRel);
     if (rel.id.isEmpty() || rel.external || !rel.type.endsWith(QLatin1String("/vmlDrawing"))) return;
-    const qint64 size = m_package.partSize(rel.target);
-    if (size <= 0 || size > kMaxDrawingBytes) return;
-    const QByteArray xml = m_package.part(rel.target);
-    QXmlStreamReader r(xml);
-    int looked = 0;
-    QVector<HeaderPicture> found;
-    struct Shape {
-        QString id, style, relId, title;
-        bool open = false;
-    } shape;
-    auto finish = [&] {
-        if (!shape.open) return;
-        shape.open = false;
-        if (shape.relId.isEmpty() || shape.id.isEmpty() || found.size() >= kMaxHeaderPictures) return;
-        const Relationship image = m_package.relationship(rel.target, shape.relId);
-        if (image.id.isEmpty() || image.external || !image.type.endsWith(QLatin1String("/image"))) return;
-        HeaderPicture p;
-        p.place = shape.id.left(8);
-        p.part = image.target;
-        p.extension = extensionOf(image.target);
-        p.title = shape.title.left(255);
-        const QStringList properties = shape.style.split(QLatin1Char(';'));
-        for (const QString &item : properties) {
-            const int colon = item.indexOf(QLatin1Char(':'));
-            if (colon < 0) continue;
-            const QString key = item.left(colon).trimmed().toLower(), value = item.mid(colon + 1);
-            if (key == QLatin1String("width")) p.width = lengthPoints(value);
-            else if (key == QLatin1String("height")) p.height = lengthPoints(value);
+    const QString key = rel.target.toLower();
+    {
+        // (a drawing is read once for the workbook, whoever asks: the sheets that share one, and a save that looks again)
+        QMutexLocker lock(&m_headerImages->mutex);
+        const auto have = m_headerImages->drawings.constFind(key);
+        if (have != m_headerImages->drawings.constEnd()) {
+            out->pictures = *have;
+            return;
         }
-        if (!(p.width > 0 && p.height > 0)) return;
-        p.width = std::min(p.width, kMaxHeaderPicturePoints);
-        p.height = std::min(p.height, kMaxHeaderPicturePoints);
-        // the image: read once for the workbook, and not past what the workbook may hold of them
-        {
+    }
+    QVector<HeaderPicture> found;
+    const qint64 size = m_package.partSize(rel.target);
+    if (size > 0 && size <= kMaxDrawingBytes) {
+        const QByteArray xml = m_package.part(rel.target);
+        QXmlStreamReader r(xml);
+        int shapes = 0, elements = 0;
+        struct Shape {
+            QString id, style, relId, title;
+            bool open = false;
+        } shape;
+        auto finish = [&] {
+            if (!shape.open) return;
+            shape.open = false;
+            if (shape.relId.isEmpty() || shape.id.isEmpty() || found.size() >= kMaxHeaderPictures) return;
+            const Relationship image = m_package.relationship(rel.target, shape.relId);
+            if (image.id.isEmpty() || image.external || !image.type.endsWith(QLatin1String("/image"))) return;
+            HeaderPicture p;
+            p.place = canonicalHeaderPlace(shape.id.left(16));
+            p.part = image.target;
+            p.extension = extensionOf(image.target);
+            p.title = shape.title.left(255);
+            const QStringList properties = shape.style.split(QLatin1Char(';'));
+            for (const QString &item : properties) {
+                const int colon = item.indexOf(QLatin1Char(':'));
+                if (colon < 0) continue;
+                const QString name = item.left(colon).trimmed().toLower(), value = item.mid(colon + 1);
+                if (name == QLatin1String("width")) p.width = lengthPoints(value);
+                else if (name == QLatin1String("height")) p.height = lengthPoints(value);
+            }
+            if (!(p.width > 0 && p.height > 0)) return;
+            p.width = std::min(p.width, kMaxHeaderPicturePoints);
+            p.height = std::min(p.height, kMaxHeaderPicturePoints);
+            // the image: read once for the workbook, and not past what the workbook may hold of them
             QMutexLocker lock(&m_headerImages->mutex);
             const auto have = m_headerImages->images.constFind(image.target);
             if (have != m_headerImages->images.constEnd()) {
@@ -102,30 +113,35 @@ void Workbook::readHeaderPictures(const QString &sheetPart, HeaderFooter *out) c
                 m_headerImages->bytes += p.image.size();
                 m_headerImages->images.insert(image.target, p.image);
             }
-        }
-        found.append(p);
-    };
-    while (!r.atEnd()) {
-        const QXmlStreamReader::TokenType t = r.readNext();
-        if (t == QXmlStreamReader::StartElement) {
-            if (r.namespaceUri() == kVml && r.name() == QLatin1String("shape")) {
+            found.append(p);
+        };
+        while (!r.atEnd()) {
+            const QXmlStreamReader::TokenType t = r.readNext();
+            if (t == QXmlStreamReader::StartElement) {
+                // (every element is counted, not only the shapes: a drawing of a million empty elements is not read to its end)
+                if (++elements > kMaxVmlElements) break;
+                if (r.namespaceUri() == kVml && r.name() == QLatin1String("shape")) {
+                    finish();
+                    if (++shapes > kMaxShapesLooked) break;
+                    shape = Shape();
+                    shape.open = true;
+                    shape.id = r.attributes().value(QLatin1String("id")).toString();
+                    shape.style = r.attributes().value(QLatin1String("style")).toString();
+                } else if (shape.open && r.namespaceUri() == kVml && r.name() == QLatin1String("imagedata") && shape.relId.isEmpty()) {
+                    shape.relId = r.attributes().value(kOffice, QLatin1String("relid")).toString();
+                    shape.title = r.attributes().value(kOffice, QLatin1String("title")).toString();
+                }
+            } else if (t == QXmlStreamReader::EndElement && r.namespaceUri() == kVml && r.name() == QLatin1String("shape")) {
                 finish();
-                if (++looked > kMaxShapesLooked) break;
-                shape = Shape();
-                shape.open = true;
-                shape.id = r.attributes().value(QLatin1String("id")).toString();
-                shape.style = r.attributes().value(QLatin1String("style")).toString();
-            } else if (shape.open && r.namespaceUri() == kVml && r.name() == QLatin1String("imagedata") && shape.relId.isEmpty()) {
-                shape.relId = r.attributes().value(kOffice, QLatin1String("relid")).toString();
-                shape.title = r.attributes().value(kOffice, QLatin1String("title")).toString();
             }
-        } else if (t == QXmlStreamReader::EndElement && r.namespaceUri() == kVml && r.name() == QLatin1String("shape")) {
-            finish();
         }
+        finish();
+        // (a drawing that is not well formed has its pictures left out, all of them)
+        if (r.hasError()) found.clear();
     }
-    finish();
-    // (a drawing that is not well formed has its pictures left out, all of them)
-    if (r.hasError()) return;
+    QMutexLocker lock(&m_headerImages->mutex);
+    ++m_headerImages->parses;
+    m_headerImages->drawings.insert(key, found);
     out->pictures = found;
 }
 

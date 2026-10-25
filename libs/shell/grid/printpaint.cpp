@@ -1,7 +1,6 @@
 #include "grid/printpaint.h"
 
-#include <QBuffer>
-#include <QImageReader>
+#include "grid/hfpicturecache.h"
 
 #include <QFontMetricsF>
 #include <QPen>
@@ -72,15 +71,28 @@ void PagePainter::setBaseFont(const QString &family, double points)
 PageMetrics PagePainter::layoutPage(const SheetPrint &print, const PageCut &page, const PageSetup &setup)
 {
     GridLayout &L = m_sheet->layout();
+    // (the same page as the last time: the grid is as it was left)
+    const auto have = m_metrics.find(&page);
+    if (have != m_metrics.end() && m_applied == &page && m_appliedPrint == &print) return have->second;
     const bool titleRows = page.titleRow1 >= 0, titleCols = page.titleCol1 >= 0;
     // ---- the cells: the title rows and columns are the frozen part, the page's own rows and columns are what is scrolled to
     L.setSkipped(titleRows ? page.titleRow1 : 0, titleCols ? page.titleCol1 : 0);
     L.setFrozen(titleRows ? page.titleRow2 + 1 : 0, titleCols ? page.titleCol2 + 1 : 0);
     L.setHeaders(false, 0, 0);
-    const PageMetrics m = pageMetrics(print, page, setup, L.rows, L.cols);
+    PageMetrics m;
+    if (have != m_metrics.end()) {
+        m = have->second;
+    } else {
+        m = pageMetrics(print, page, setup, L.rows, L.cols);
+        ++m_layoutRuns;
+        if (m_metrics.size() >= 4096) m_metrics.clear();
+        m_metrics.emplace(&page, m);
+    }
     L.setZoom(m.zoom);
     L.setViewport(QSize(int(std::min<qint64>(m.widthUnits, 1 << 28)), int(std::min<qint64>(m.heightUnits, 1 << 28))));
     L.setScroll(L.cols.position(page.col1) - L.cols.position(L.frozenCols()), L.rows.position(page.row1) - L.rows.position(L.frozenRows()));
+    m_applied = &page;
+    m_appliedPrint = &print;
     return m;
 }
 
@@ -112,7 +124,8 @@ void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &pag
     m_sheet->invalidateTexts();
     PaintOptions options;
     options.headers = false;
-    options.gridlines = setup.gridLines && !setup.draft;
+    const bool printedGrid = setup.gridLines && !setup.draft;
+    options.gridlines = printedGrid;   // (a printed gridline is a hairline of the page; the screen's are drawn below, a pixel wide whatever the zoom)
     options.gridColor = setup.blackAndWhite ? QColor(Qt::black) : m_gridline;
     options.backdrop = Qt::white;
     options.paper = Qt::white;
@@ -123,15 +136,54 @@ void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &pag
     p->translate(m.cells.left(), m.cells.top());
     p->scale(m.unit, m.unit);
     const QRect cells(0, 0, int(m.widthUnits), int(m.heightUnits));
-    p->setClipRect(cells);
-    m_painter->paint(p, cells, options);
+    p->setClipRect(cells, Qt::IntersectClip);
+    // (only what the painter's clip leaves in view is drawn: a page shown on the screen larger than the screen draws what is exposed)
+    QRect area = cells;
+    if (p->hasClipping()) area = p->clipBoundingRect().toAlignedRect().adjusted(-2, -2, 2, 2) & cells;
+    if (!area.isEmpty()) m_painter->paint(p, area, options);
+    if (m_screenGrid && !printedGrid && !area.isEmpty()) paintScreenGridlines(p, L, area);
     if (objects && !setup.draft) {
-        p->setClipRect(cells);
+        p->setClipRect(cells, Qt::IntersectClip);
         objects(p, L, cells);
     }
     p->restore();
-    if (setup.headings) paintHeadings(p, L, page, m, scale);
+    if (setup.headings) {
+        paintHeadings(p, L, page, m, scale);
+    } else if (m_screenHeadings) {
+        // (in the margins beside the cells, so that they keep the places the paper gives them)
+        PageMetrics h = m;
+        const double headW = kRowHeadingPixels * kPointsPerPixel * scale, headH = kColumnHeadingPixels * kPointsPerPixel * scale;
+        h.headingColumn = QRectF(m.cells.left() - headW, m.cells.top(), headW, m.cells.height());
+        h.headingRow = QRectF(m.cells.left(), m.cells.top() - headH, m.cells.width(), headH);
+        paintHeadings(p, L, page, h, scale);
+    }
     paintHeaderFooter(p, print.paper, setup, labels, firstOfSheet, scale);
+}
+
+// The lines between the cells as the screen shows them: one device pixel wide at any zoom, over the parts of the grid the page has (the title rows and columns, and the page's own).
+void PagePainter::paintScreenGridlines(QPainter *p, const GridLayout &layout, const QRect &area)
+{
+    p->save();
+    QPen pen(QColor(0xC8, 0xC8, 0xC8), 0);
+    pen.setCosmetic(true);
+    p->setPen(pen);
+    for (const Pane pane : {Pane::Corner, Pane::Top, Pane::Left, Pane::Body}) {
+        const PaneView pv = layout.pane(pane);
+        const QRect clip = pv.rect & area;
+        if (pv.isEmpty() || clip.isEmpty()) continue;
+        const bool fr = pane == Pane::Corner || pane == Pane::Top, fc = pane == Pane::Corner || pane == Pane::Left;
+        p->setClipRect(clip, Qt::IntersectClip);
+        const int x0 = layout.xEdge(pv.firstCol, fc), x1 = layout.xEdge(pv.lastCol + 1, fc), y0 = layout.yEdge(pv.firstRow, fr), y1 = layout.yEdge(pv.lastRow + 1, fr);
+        for (qint64 r = pv.firstRow; r <= pv.lastRow; r = layout.rows.nextVisible(r)) {
+            const int y = layout.yEdge(r + 1, fr);
+            if (y >= clip.top() && y <= clip.bottom()) p->drawLine(x0, y, x1, y);
+        }
+        for (qint64 c = pv.firstCol; c <= pv.lastCol; c = layout.cols.nextVisible(c)) {
+            const int x = layout.xEdge(c + 1, fc);
+            if (x >= clip.left() && x <= clip.right()) p->drawLine(x, y0, x, y1);
+        }
+    }
+    p->restore();
 }
 
 void PagePainter::paintHeadings(QPainter *p, const GridLayout &layout, const PageCut &page, const PageMetrics &m, double scale)
@@ -181,26 +233,11 @@ void PagePainter::paintHeadings(QPainter *p, const GridLayout &layout, const Pag
     p->restore();
 }
 
-// The picture decoded, kept while the painter draws the sheet's pages (the picture is the setup's, which outlives them): at most a few thousand pixels across, and not at all when it is huge.
+// The picture decoded: from the cache the whole process shares (a picture not made yet is begun on a worker, or made here, as asked).
 QImage PagePainter::headerPicture(const jp::office::sheet::HeaderPicture &pic)
 {
-    const std::pair<const void *, qsizetype> key(pic.image.constData(), pic.image.size());
-    const auto have = m_pictures.find(key);
-    if (have != m_pictures.end()) return have->second;
-    QImage image;
-    if (m_pictures.size() < size_t(jp::office::sheet::kMaxHeaderPictures * 4)) {
-        QBuffer buffer;
-        buffer.setData(pic.image);
-        buffer.open(QIODevice::ReadOnly);
-        QImageReader reader(&buffer);
-        const QSize size = reader.size();
-        if (size.isValid() && qint64(size.width()) * size.height() <= jp::office::sheet::kMaxHeaderPicturePixels && reader.read(&image)) {
-            const int most = 2400;   // (a page's width at 300 to the inch)
-            if (image.width() > most || image.height() > most) image = image.scaled(most, most, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        }
-    }
-    m_pictures.emplace(key, image);
-    return image;
+    bool pending = false;
+    return HeaderPictureCache::instance().get(pic.image, !m_asyncPictures, &pending);
 }
 
 void PagePainter::paintHeaderFooter(QPainter *p, const PaperBox &paper, const PageSetup &setup, const HfContext &labels, bool firstOfSheet, double scale)

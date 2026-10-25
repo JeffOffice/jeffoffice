@@ -92,6 +92,7 @@ struct SheetChanges {
     // it is shown at, which is also written as the zoom of that kind of view.
     int viewKind = -1;
     int viewZoom = 0;
+    int viewNormalZoom = 0;   // the zoom of the cells as they are, kept in the view's own attribute whichever view the sheet is left in (0: the file's stays)
     // The relationship the sheet's `legacyDrawingHF` is to name (empty: the element is taken out), when the pictures of its headers and footers are not as the file has them (saving sets
     // this from the page setup's pictures; whoever asks for a save does not).
     bool hfSet = false;

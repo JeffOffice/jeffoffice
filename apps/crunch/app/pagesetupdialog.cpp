@@ -73,7 +73,12 @@ QString areaWords(const PageSetup &p)
 
 // ---- a picture for a header or footer
 
-bool loadHeaderPicture(const QString &path, jp::office::sheet::HeaderPicture *out, QString *problem)
+double headerPictureRoom(const jp::office::sheet::PageMargins &m, bool header)
+{
+    return std::max(12.0, (header ? m.top - m.header : m.bottom - m.footer) * 72.0);
+}
+
+bool loadHeaderPicture(const QString &path, jp::office::sheet::HeaderPicture *out, QString *problem, double roomPoints)
 {
     auto refuse = [problem](const QString &why) {
         if (problem) *problem = why;
@@ -101,6 +106,11 @@ bool loadHeaderPicture(const QString &path, jp::office::sheet::HeaderPicture *ou
         w *= 144 / most;
         h *= 144 / most;
     }
+    // (and no taller than the margin has room for, so that it does not cover cells: never made larger than it is)
+    if (roomPoints > 0 && h > roomPoints) {
+        w *= roomPoints / h;
+        h = roomPoints;
+    }
     pic.width = std::max(1.0, w);
     pic.height = std::max(1.0, h);
     pic.title = QFileInfo(path).completeBaseName().left(64);
@@ -118,11 +128,11 @@ HeaderFooterEditor::HeaderFooterEditor(bool header, const HeaderFooter &texts, c
     // the versions the setup keeps: every page (or the odd ones and the even ones), and the first page
     if (m_hf.differentOddEven) {
         m_versions.push_back({tr("Odd pages"), header ? &m_hf.oddHeader : &m_hf.oddFooter, QString()});
-        m_versions.push_back({tr("Even pages"), header ? &m_hf.evenHeader : &m_hf.evenFooter, QStringLiteral("E")});
+        m_versions.push_back({tr("Even pages"), header ? &m_hf.evenHeader : &m_hf.evenFooter, QStringLiteral("EVEN")});
     } else {
         m_versions.push_back({tr("Every page"), header ? &m_hf.oddHeader : &m_hf.oddFooter, QString()});
     }
-    if (m_hf.differentFirst) m_versions.push_back({tr("First page"), header ? &m_hf.firstHeader : &m_hf.firstFooter, QStringLiteral("F")});
+    if (m_hf.differentFirst) m_versions.push_back({tr("First page"), header ? &m_hf.firstHeader : &m_hf.firstFooter, QStringLiteral("FIRST")});
     auto *v = new QVBoxLayout(this);
     auto *intro = new QLabel(tr("Type the words for each part of the page, and use the buttons to add things that change from page to page. The parts print at the left, in the middle, and at the right."), this);
     intro->setWordWrap(true);
@@ -338,7 +348,7 @@ void HeaderFooterEditor::addPicture()
     };
     jp::office::sheet::HeaderPicture pic;
     QString why;
-    if (!loadHeaderPicture(path, &pic, &why)) return refuse(why);
+    if (!loadHeaderPicture(path, &pic, &why, m_room)) return refuse(why);
     pic.place = place();
     qint64 bytes = pic.image.size();
     int count = 0;
@@ -663,6 +673,17 @@ void PageSetupDialog::editHeaderFooter(bool header)
     hf.differentFirst = m_differentFirst->isChecked();
     hf.differentOddEven = m_differentOddEven->isChecked();
     HeaderFooterEditor editor(header, hf, m_request.sheetName, m_request.fileName, this);
+    {
+        // (a picture is made to fit the margin as the dialog has it now)
+        const View now = view();
+        const double unit = m_request.metric ? 2.54 : 1.0;
+        jp::office::sheet::PageMargins m = m_setup.margins;
+        m.top = now.margin[2] / unit;
+        m.bottom = now.margin[3] / unit;
+        m.header = now.margin[4] / unit;
+        m.footer = now.margin[5] / unit;
+        editor.setPictureRoom(headerPictureRoom(m, header));
+    }
     if (m_hfEditorAsker) {
         if (!m_hfEditorAsker(&editor)) return;
     } else if (editor.exec() != QDialog::Accepted) {
