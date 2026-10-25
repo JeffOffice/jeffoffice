@@ -43,6 +43,7 @@ public:
     double toUnit(double pt) const;
     double fromUnit(double v) const;
     QString format(double pt, int decimals = 3) const;   // "8.125\"", trailing zeros dropped
+    QString formatPair(double x, double y) const;        // "1\", 1.25\"" ("1\"; 1,25\"" where the decimal mark is a comma)
     bool parse(const QString &text, double *pt) const;   // accepts any unit suffix
 
     QStringList recentFiles() const;

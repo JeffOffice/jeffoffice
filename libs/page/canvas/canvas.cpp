@@ -2015,7 +2015,7 @@ void Canvas::mouseMoveEvent(QMouseEvent *e)
             if (auto loc = d->find(it.key()); loc.parent) loc.parent->syncRect();
         }
         const QRectF nb = m_origBox.translated(delta);
-        m_tip = QStringLiteral("%1, %2").arg(st.format(nb.left()), st.format(nb.top()));
+        m_tip = st.formatPair(nb.left(), nb.top());
         // One picture dragged over another: they swap when it's let go (a copy does not).
         m_swapTarget.clear();
         if (m_orig.size() == 1 && !m_copyDrag)

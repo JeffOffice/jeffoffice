@@ -10,4 +10,6 @@ void initPubTestCase()
     initCore();
     // Measurements in inches, whatever the region of the computer running the tests.
     jp::Settings::get().setUnit(jp::Unit::Inch);
+    // and with a period for the decimal mark, whatever the region; the German mark has its own test
+    QLocale::setDefault(QLocale::c());
 }
