@@ -89,4 +89,8 @@ double parseAngle(const QString &s, double fallback = 0, bool *ok = nullptr);
 bool parseBool(const QString &s, bool fallback = false, bool *ok = nullptr);
 qint64 parseInt(const QString &s, qint64 fallback = 0, bool *ok = nullptr);
 
+// The element and what is in it as XML that can be read by itself: every namespace it uses is declared in it, and each element's attributes come in a fixed order (namespace
+// declarations first, then by qualified name), since the DOM's own order changes from run to run. What is saved from a DOM tree goes through this.
+QString standaloneXml(const QDomElement &e);
+
 } // namespace jp::office

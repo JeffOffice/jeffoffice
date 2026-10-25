@@ -2,6 +2,9 @@
 
 #include <QCoreApplication>
 #include <QXmlStreamReader>
+#include <QHash>
+#include <QPair>
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstring>
@@ -10,6 +13,109 @@
 namespace jp::office {
 
 namespace {
+
+QString escapedXml(const QString &text, bool attribute)
+{
+    QString out;
+    out.reserve(text.size());
+    for (const QChar c : text) {
+        if (c == QLatin1Char('&')) out += QLatin1String("&amp;");
+        else if (c == QLatin1Char('<')) out += QLatin1String("&lt;");
+        else if (c == QLatin1Char('>')) out += QLatin1String("&gt;");
+        else if (attribute && c == QLatin1Char('"')) out += QLatin1String("&quot;");
+        else if (attribute && c == QLatin1Char('\n')) out += QLatin1String("&#10;");
+        else if (attribute && c == QLatin1Char('\t')) out += QLatin1String("&#9;");
+        else out += c;
+    }
+    return out;
+}
+
+QString qualifiedName(const QString &prefix, const QString &local) { return prefix.isEmpty() ? local : prefix + QLatin1Char(':') + local; }
+
+// The element's attributes in a fixed order: declarations of namespaces first, then by qualified name. (The DOM keeps them in a hash, whose order changes from run to run, and
+// what is saved must not.)
+QVector<QDomAttr> sortedAttributes(const QDomElement &e)
+{
+    const QDomNamedNodeMap map = e.attributes();
+    QVector<QPair<QString, QDomAttr>> keyed;
+    for (int i = 0; i < map.length(); ++i) {
+        const QDomAttr a = map.item(i).toAttr();
+        const QString name = qualifiedName(a.prefix(), a.localName());
+        keyed.append({(name == QLatin1String("xmlns") || a.prefix() == QLatin1String("xmlns") ? QStringLiteral("0") : QStringLiteral("1")) + name, a});
+    }
+    std::sort(keyed.begin(), keyed.end(), [](const auto &x, const auto &y) { return x.first < y.first; });
+    QVector<QDomAttr> out;
+    for (const auto &k : keyed) out.append(k.second);
+    return out;
+}
+
+// Every prefix the element and what is in it use, with its namespace.
+void collectPrefixes(const QDomElement &e, QHash<QString, QString> *known, int depth = 0)
+{
+    if (depth > 256) return;
+    if (!e.prefix().isEmpty()) known->insert(e.prefix(), e.namespaceURI());
+    for (const QDomAttr &a : sortedAttributes(e))
+        if (!a.prefix().isEmpty()) known->insert(a.prefix(), a.namespaceURI());
+    for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) collectPrefixes(c, known, depth + 1);
+}
+
+// Writes the element and what is in it, declaring each namespace where it is
+// first used (`scope`: the prefixes declared so far, "" the default). The
+// prefixes markup compatibility names in attribute values (mc:Choice's
+// Requires, mc:Ignorable) are declared on that element too, from `known`:
+// readers look them up there, and a file whose Requires names an undeclared
+// prefix is refused whole.
+void writeElement(const QDomElement &e, QString *out, QHash<QString, QString> *scope, const QHash<QString, QString> &known)
+{
+    QVector<QPair<QString, QString>> declared;
+    auto need = [&](const QString &prefix, const QString &uri) {
+        const auto it = scope->constFind(prefix);
+        const QString current = it == scope->cend() ? QString() : it.value();
+        if (current == uri) return;
+        for (const auto &d : declared)
+            if (d.first == prefix) return;
+        declared << qMakePair(prefix, uri);
+    };
+    need(e.prefix(), e.namespaceURI());
+    const QVector<QDomAttr> attrs = sortedAttributes(e);
+    for (const QDomAttr &a : attrs) {
+        if (!a.prefix().isEmpty()) need(a.prefix(), a.namespaceURI());
+        const QString name = a.localName();
+        if (name == QLatin1String("Requires") || name == QLatin1String("Ignorable") || name == QLatin1String("ProcessContent") || name == QLatin1String("MustUnderstand"))
+            for (const QString &listed : a.value().split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+                const QString prefix = listed.section(QLatin1Char(':'), 0, 0);   // ProcessContent names prefix:element
+                if (known.contains(prefix)) need(prefix, known.value(prefix));
+            }
+    }
+    *out += QLatin1Char('<') + qualifiedName(e.prefix(), e.localName());
+    struct Saved {
+        QString prefix, uri;
+        bool had;
+    };
+    QVector<Saved> saved;
+    for (const auto &d : declared) {
+        saved << Saved{d.first, scope->value(d.first), scope->contains(d.first)};
+        *out += d.first.isEmpty() ? QStringLiteral(" xmlns=\"%1\"").arg(escapedXml(d.second, true)) : QStringLiteral(" xmlns:%1=\"%2\"").arg(d.first, escapedXml(d.second, true));
+        scope->insert(d.first, d.second);
+    }
+    for (const QDomAttr &a : attrs)
+        *out += QLatin1Char(' ') + qualifiedName(a.prefix(), a.localName()) + QLatin1String("=\"") + escapedXml(a.value(), true) + QLatin1Char('"');
+    if (!e.hasChildNodes()) {
+        *out += QLatin1String("/>");
+    } else {
+        *out += QLatin1Char('>');
+        for (QDomNode n = e.firstChild(); !n.isNull(); n = n.nextSibling()) {
+            if (n.isElement()) writeElement(n.toElement(), out, scope, known);
+            else if (n.isCharacterData() && !n.isComment()) *out += escapedXml(n.toCharacterData().data(), false);
+        }
+        *out += QLatin1String("</") + qualifiedName(e.prefix(), e.localName()) + QLatin1Char('>');
+    }
+    // The namespaces go back to what they were outside the element.
+    for (const Saved &v : saved) {
+        if (v.had) scope->insert(v.prefix, v.uri);
+        else scope->remove(v.prefix);
+    }
+}
 
 std::atomic<qint64> g_domBytes{0};
 
@@ -286,6 +392,17 @@ qint64 parseInt(const QString &s, qint64 fallback, bool *ok)
     const qint64 v = s.trimmed().toLongLong(&good);
     if (ok) *ok = good;
     return good ? v : fallback;
+}
+
+// The element as XML that can be read by itself: every namespace it uses is
+// declared in it (the DOM does not keep the declarations of the elements around it).
+QString standaloneXml(const QDomElement &e)
+{
+    QString out;
+    QHash<QString, QString> scope, known;
+    collectPrefixes(e, &known);
+    writeElement(e, &out, &scope, known);
+    return out;
 }
 
 } // namespace jp::office

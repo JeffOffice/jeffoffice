@@ -11,6 +11,7 @@
 #include "sheet/xlsxsave.h"
 
 #include <QElapsedTimer>
+#include <QFile>
 #include <QHash>
 #include <QMap>
 #include <QSet>
@@ -120,6 +121,10 @@ int xlsSaveCheckMain(const QStringList &args)
         return 3;
     }
     const qint64 firstMs = timer.elapsed();
+    if (const QString keepAs = qEnvironmentVariable("JC_XLS_SAVE_KEEP"); !keepAs.isEmpty()) {   // (the file written, for a check that two saves are the same bytes)
+        QFile kept(keepAs);
+        if (kept.open(QIODevice::WriteOnly)) kept.write(bytes);
+    }
     Package package;
     Workbook back;
     Limits withRuns;

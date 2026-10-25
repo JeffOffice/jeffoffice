@@ -1,6 +1,7 @@
 // Tests of the charts, pictures, and shapes over the cells in JeffCrunch's window: they are shown where their anchors put them, a chart is drawn from the cells it reads and again when one
 // changes (typed, or worked out), and objects and charts move when rows are inserted or deleted, undone and redone. Every workbook is built here.
 #include "../sheet/drawinghelpers.h"
+#include "../stablesaves.h"
 #include "savedok.h"
 #include "editwindow.h"
 
@@ -1214,6 +1215,36 @@ private Q_SLOTS:
         QVERIFY(o->isDeleted(0, 0));
         QCOMPARE(e.win.told.size(), 1);
     }
+
+    // Not a test of its own: the work of a process that the next function starts. A workbook with a chart, a picture, and shapes has a cell typed over and a shape deleted, is saved.
+    void savesTheWorkbookWithObjects()
+    {
+        QString out;
+        if (!stable::childOutput(&out)) return;
+        EditWindow e;
+        QVERIFY(e.open(drawingBook()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, L.rangeRect(6, 0, 8, 1).center());
+        QCOMPARE(o->layer()->selectedId(), 1);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        e.select(QStringLiteral("B3"));
+        e.enter(QStringLiteral("55"));
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QFile in(e.path);
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        QFile f(out);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(in.readAll());
+    }
+
+    // The workbook is the same bytes each time it is saved, in whatever process: nothing written follows the order of a hash that Qt seeds anew for each process.
+    void aSavedWorkbookIsTheSameBytesInEachProcess() { JP_VERIFY_SAME_SAVES("savesTheWorkbookWithObjects"); }
 };
 
 JP_TEST_CLASS(CrunchDrawingTests)
