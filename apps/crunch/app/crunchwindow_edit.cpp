@@ -86,6 +86,10 @@ bool CrunchWindow::editingAllowed()
         setStatus(tr("The workbook is still being opened. It can be changed when it is open."));
         return false;
     }
+    if (m_applying) {
+        setStatus(tr("A large change is still being made. It can be changed again when that is done."));
+        return false;
+    }
     if (!m_session->canEdit(&why)) {
         if (m_saving) setStatus(why);
         else notice(tr("Edit"), why);

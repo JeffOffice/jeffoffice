@@ -88,6 +88,11 @@ struct SheetChanges {
     ColorSpec tabColor;
     // Whether the sheet's tab is the one that is open (`tabSelected` of its first view), when the sheets a person changed make it so (-1: the file's stays, 0: not, 1: it is).
     int tabSelected = -1;
+    // The sheet's filter, when a person set it, changed it, or took it off (the element is made from it, in place of the file's, or put where the format has it; an `autoFilter` that is
+    // not valid takes the file's away), and whether the sheet says it is filtered (`filterMode` of its `sheetPr`: 1 yes, 0 no, -1 the file's stays).
+    bool replaceAutoFilter = false;
+    AutoFilter autoFilter;
+    int filterMode = -1;
     // For a sheet a person added: the XML it begins as (its view, default sizes, rules, and no cells: the cells, sizes of rows and columns, and merged ranges above are put in it).
     QByteArray skeleton;
     // For a sheet a person copied: the part of the sheet it was copied from (in the file as it was read or last saved), and the edits to rows and columns made to the cells it was copied from
@@ -95,6 +100,10 @@ struct SheetChanges {
     // breaks) is taken from that part and put in, following the edits.
     QString copyFromPart;
     std::vector<StructEdit> copyEdits;
+    // Rows of the file in this range (from 0, both ends in it) that the list above does not name are shown: a filter that was changed hid and showed rows, and the file's rows it showed are
+    // told so. The rows of the sheet that are hidden in the range are in `rows`.
+    bool showRows = false;
+    quint32 showFirst = 0, showLast = 0;
     bool isProtected = false;           // for a sheet a person added: it is protected (a copy of a protected sheet has the protection the sheet had)
     // And the sheet's page setup as it is now, when a person changed how it prints (or any of it may differ from the file's): the part is changed where it differs from this and nowhere else.
     bool setPage = false;
@@ -102,7 +111,7 @@ struct SheetChanges {
     // For a sheet a person put an object on that had no drawing: the id of the relationship from the sheet to the drawing that is made (saving sets it, from SaveChanges::addedObjects), and the
     // sheet is given the element that names it.
     QString drawingRelId;
-    bool empty() const { return drawingRelId.isEmpty() && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    bool empty() const { return drawingRelId.isEmpty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
@@ -118,7 +127,19 @@ struct SheetOp {
     bool operator==(const SheetOp &o) const { return kind == o.kind && name == o.name && newName == o.newName; }
 };
 
+// Cells put in another order in place (a sort): in the cells of the sheet from `first` on that are in the lines (rows, or columns with `columns`) of `lines`, line `i` of the range
+// went to line `to[i]` of it. The notes and links on the cells go with them. `after` is how many of the edits to rows, columns, and cells (SaveChanges::edits) had been made when it was.
+struct CellPermute {
+    int sheet = 0;
+    bool columns = false;
+    quint32 first = 0;                  // the first line it covers
+    quint32 otherFirst = 0, otherLast = 0;   // the cells of the lines that it moves: these columns (rows, with `columns`)
+    std::vector<quint32> to;            // the line each of them went to (as a line number, not counted from `first`)
+    size_t after = 0;
+};
+
 struct SaveChanges {
+    std::vector<CellPermute> permutes;
     std::map<int, SheetChanges> sheets;           // by the sheet's place in the workbook
     // The print area and titles of the sheets whose page setup may differ from the file's: the workbook's names are changed where they differ from these.
     std::vector<PrintNameChange> printNames;
@@ -146,6 +167,8 @@ struct SaveChanges {
     QVector<FillSpec> newFills;
     QVector<BorderSpec> newBorders;
     qint64 fontsBefore = 0, fillsBefore = 0, bordersBefore = 0;
+    // And differential formats added (for the colors a filter asks for), at the end of the file's `dxfs`.
+    QVector<DifferentialFormat> newDxfs;
     struct StyleAdded {
         CellFormat format;
         CellStyleName name;
@@ -226,5 +249,12 @@ bool removeRelationshipOfType(const QByteArray &xml, const QString &typeSuffix, 
 bool removeRelationshipsById(const QByteArray &xml, const QStringList &ids, QByteArray *out);
 // The workbook part with fullCalcOnLoad="1" on its calcPr (made if there is none).
 bool setFullCalcOnLoad(const QByteArray &xml, QByteArray *out);
+// The hidden name that other programs keep for the range of a sheet's filter (`_xlnm._FilterDatabase`, of the sheet at `localSheetId` in the workbook's list of sheets) made, changed, or taken
+// away: `range` is the range as a name writes it ("'Sheet1'!$A$1:$D$9"), or empty to take the name away.
+struct FilterName {
+    int localSheetId = 0;
+    QString range;
+};
+bool patchFilterNames(const QByteArray &xml, const std::vector<FilterName> &names, QByteArray *out, QString *error = nullptr);
 
 } // namespace jp::office::sheet

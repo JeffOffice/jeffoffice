@@ -11,6 +11,7 @@
 //   jcrunchtool convert-fuzz <file.ods|file.fods|file.csv> [count=500] [seed=1] [seconds=60]   the same for an OpenDocument spreadsheet or a text file of values (see jcrunchtool_odsfuzz.cpp)
 //   jcrunchtool xls-fuzz <file.xls> [count=500] [seed=1] [seconds=60]   the workbook damaged in a few places, `count` times, and each copy opened, read, and (some) worked out, as a sweep for crashes
 //                                                and hangs of the reader of the old binary form (see jcrunchtool_xlsfuzz.cpp)
+//   jcrunchtool filter-roundtrip <file.xlsx> [out.xlsx]   a workbook with a filter written with its filters made again, read back, and compared (see jcrunchtool_filter.cpp)
 //   jcrunchtool xls-save-check <file.xls>   the workbook written as the XML form, read back, and compared with itself, and written again with one cell changed (see jcrunchtool_xlssave.cpp;
 //                                                tools/crunch_xls_savecheck.py runs it over a list)
 //   jcrunchtool dump <file.xlsx|file.xls> [sheet=1] [max=100]   the first cells of a sheet (counting from 1), one to a line: address, type, value, and formula
@@ -688,6 +689,7 @@ int usage()
              "       jcrunchtool compare-one [--first-sheet] [--values-only] <ours.xls|.ods|.csv> <theirs.xlsx>\n"
              "       jcrunchtool convert-fuzz <file.ods|file.fods|file.csv> [count=500] [seed=1] [seconds=60]\n"
              "       jcrunchtool xls-fuzz <file.xls> [count=500] [seed=1] [seconds=60]\n"
+             "       jcrunchtool filter-roundtrip <file.xlsx> [out.xlsx]\n"
              "       jcrunchtool xls-save-check <file.xls>\n"
              "       jcrunchtool functions\n"
              "       jcrunchtool eval <file.xlsx|file.xls> <sheet> <cell> <formula>\n"
@@ -720,6 +722,7 @@ int compareMain(const QStringList &args);   // (jcrunchtool_compare.cpp)
 int xlsFuzzMain(const QStringList &args);   // (jcrunchtool_xlsfuzz.cpp)
 int odsFuzzMain(const QStringList &args);   // (jcrunchtool_odsfuzz.cpp)
 int xlsSaveCheckMain(const QStringList &args);   // (jcrunchtool_xlssave.cpp)
+int filterRoundtripMain(const QStringList &args);   // (jcrunchtool_filter.cpp)
 }
 
 int main(int argc, char **argv)
@@ -758,6 +761,10 @@ int main(int argc, char **argv)
     }
     if (args.size() >= 2 && args.size() <= 5 && args[0] == QLatin1String("xls-fuzz")) {
         const int code = jp::crunchtool::xlsFuzzMain(args.mid(1));
+        if (code >= 0) return code;
+    }
+    if ((args.size() == 2 || args.size() == 3) && args[0] == QLatin1String("filter-roundtrip")) {
+        const int code = jp::crunchtool::filterRoundtripMain(args.mid(1));
         if (code >= 0) return code;
     }
     if (args.size() == 2 && args[0] == QLatin1String("xls-save-check")) {

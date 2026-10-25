@@ -24,11 +24,15 @@ void change(RowSpec *r, const EditSession::SizeChange &by)
         r->height = by.size;
         r->customHeight = by.custom;
     }
-    if (by.setHidden) r->hidden = by.hidden;
+    if (by.setHidden) {
+        // (hidden by hand, or shown: a row the sheet's filter hides stays hidden)
+        r->hand = by.hidden;
+        r->hidden = r->hand || r->filtered;
+    }
 }
 
 bool same(const ColumnSpan &a, const ColumnSpan &b) { return a.first == b.first && a.last == b.last && a.width == b.width && a.hidden == b.hidden && a.customWidth == b.customWidth && a.style == b.style; }
-bool same(const RowSpec &a, const RowSpec &b) { return a.row == b.row && a.height == b.height && a.hidden == b.hidden && a.customHeight == b.customHeight && a.customFormat == b.customFormat && a.style == b.style; }
+bool same(const RowSpec &a, const RowSpec &b) { return a.row == b.row && a.height == b.height && a.hidden == b.hidden && a.customHeight == b.customHeight && a.customFormat == b.customFormat && a.hand == b.hand && a.filtered == b.filtered && a.style == b.style; }
 
 template <class T>
 bool sameList(const std::vector<T> &a, const std::vector<T> &b)

@@ -231,6 +231,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     Sheet &S = m_sheets[size_t(e.sheet)];
     rec->ranges = S.ranges;
     rec->merges = S.merges;
+    rec->autoFilter = S.autoFilter;
     rec->mergeCount = S.mergeCount;
     rec->columns = S.columns;
     rec->rowSpecs = S.rowSpecs;
@@ -437,6 +438,28 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
             if (adjustRange(e, e.sheet, &r) && r.cellCount() > 1) kept.append(r);
             else --S.mergeCount;
         S.merges = kept;
+    }
+    // the filter goes with its cells: its range follows them, and the conditions of its columns follow the columns (a filter whose range is deleted is gone)
+    if (S.autoFilter.ref.valid) {
+        AutoFilter moved = S.autoFilter;
+        CellRange ref = moved.ref;
+        if (!adjustRange(e, e.sheet, &ref)) {
+            moved = AutoFilter();
+        } else {
+            QVector<FilterColumn> columns;
+            for (FilterColumn c : moved.columns) {
+                CellRange at;
+                at.valid = true;
+                at.row1 = at.row2 = S.autoFilter.ref.row1;
+                at.col1 = at.col2 = S.autoFilter.ref.col1 + c.column;
+                if (!adjustRange(e, e.sheet, &at) || at.col1 < ref.col1) continue;
+                c.column = at.col1 - ref.col1;
+                columns.append(c);
+            }
+            moved.ref = ref;
+            moved.columns = columns;
+        }
+        S.autoFilter = moved;
     }
     if (e.kind == K::InsertRows || e.kind == K::DeleteRows) {
         QVector<RowSpec> specs;
@@ -682,6 +705,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
     S.ranges = rec.ranges;
     putBackKinds(rec);
     S.merges = rec.merges;
+    S.autoFilter = rec.autoFilter;
     S.mergeCount = rec.mergeCount;
     S.columns = rec.columns;
     S.rowSpecs = rec.rowSpecs;

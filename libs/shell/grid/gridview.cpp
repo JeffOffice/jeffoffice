@@ -645,6 +645,7 @@ void GridView::paintEvent(QPaintEvent *e)
     m_painter->paint(&p, mirror(e->rect()), paintOptions());
     paintPageBreaks(&p, e->rect());
     paintOverlay(&p, e->rect());
+    paintMarks(&p, e->rect());
     p.end();
     if (m_paintTimes.size() < 100000) {
         m_paintTimes.push_back(double(t.nsecsElapsed()) / 1e6);
@@ -814,6 +815,7 @@ void GridView::mousePressEvent(QMouseEvent *e)
         return;
     }
     if (e->button() != Qt::LeftButton) return;
+    if (headerButtonPress(lp)) return;
     if (dropDownRectInLayout().contains(lp)) {
         Q_EMIT dropDownRequested();
         return;

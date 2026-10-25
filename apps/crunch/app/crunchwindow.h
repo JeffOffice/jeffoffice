@@ -5,10 +5,17 @@
 
 #include "app/appwindow.h"
 #include "app/celleditor.h"
+#include "app/filterpopup.h"
+#include "app/finddialog.h"
+#include "app/slicetuner.h"
+#include "app/sortdialog.h"
 #include "app/formatdialog.h"
 #include "app/widgets.h"
 #include "core/color.h"
 #include "core/editsession.h"
+#include "core/filterlist.h"
+#include "core/findrun.h"
+#include "core/gotospecial.h"
 #include "core/loader.h"
 #include "grid/gridview.h"
 #include "grid/valuestore.h"
@@ -100,6 +107,57 @@ public:
     QUndoStack *undoStack() const;
     bool commitEdit(CellEditor::Way way = CellEditor::Way::Stay);
     void cancelEdit();
+
+    // ---- Find and Replace, Go To (crunchwindow_find.cpp)
+    // The dialog of Find and Replace (null until it is first shown), and whether a search is going on (it is made a few thousand cells at a time).
+    FindDialog *findDialog() const { return m_findDialog; }
+    bool isSearching() const { return bool(m_findRun) || bool(m_replacePlan) || m_applying == 2; }
+    // Goes to what the text names: a cell, a range, a cell of another sheet, whole rows or columns, a defined name. False, with the reason shown, if it names nothing.
+    bool goToReference(const QString &text);
+    // Select by Kind: the first range of the cells found is selected and the rest are tinted (the next click takes the tint away). False, with the reason shown, if there are none.
+    bool goToSpecial(const jp::crunch::SpecialOptions &options);
+    // What Go To asks for (a reference) and Select by Kind (the kind of cells): dialogs unless these stand in for them (tests); false gives it up.
+    void setGoToAsker(const std::function<bool(QString *)> &asker) { m_goToAsker = asker; }
+    void setSpecialAsker(const std::function<bool(jp::crunch::SpecialOptions *)> &asker) { m_specialAsker = asker; }
+
+    // ---- Sort (crunchwindow_sort.cpp)
+    // Sorts the cells of the range (or, with none valid, the selection, or the block around the cell with the cursor) in the order the spec says; Sort A–Z and Z–A, and Sort…, come
+    // here. The work is done a slice at a time, the order on a thread of its own, and the step on the window's thread; sortFinished says when it is over.
+    bool sortRange(const jp::office::sheet::CellRange &range, const jp::crunch::SortSpec &spec);
+    bool isSorting() const { return bool(m_sortPlan) || m_applying == 1; }
+    // A big sort or replace is put in a slice at a time; a test makes the slices all one size (the cells each does).
+    void setFixedSlices(qint64 cells);
+    bool isApplying() const { return m_applying != 0; }
+    // What Sort… asks for: given the range and the spec it begins from, the spec the person chose (a dialog unless this stands in for it: tests); false gives it up.
+    void setSortAsker(const std::function<bool(const jp::office::sheet::CellRange &range, jp::crunch::SortSpec *spec)> &asker) { m_sortAsker = asker; }
+    // And what is asked when cells next to the selection hold data that would not be sorted with it: true sorts the whole block, false only what is selected (a message unless this stands in).
+    void setExpandAsker(const std::function<bool()> &asker) { m_expandAsker = asker; }
+
+    // ---- Pick a Function (crunchwindow_function.cpp)
+    // Begins a formula with the function (or puts it at the cursor of the formula being typed): "=NAME()" with the cursor inside the brackets. False if there is no such function, or the
+    // entry being made is not a formula.
+    bool insertFunction(const QString &name);
+    // What Pick a Function asks (the function's name): a dialog unless this stands in for it (tests); false gives it up.
+    void setFunctionAsker(const std::function<bool(QString *)> &asker) { m_functionAsker = asker; }
+
+    // ---- the message of a rule of validation (crunchwindow_cells.cpp)
+    // The note shown beside the cell with the cursor when a rule of validation for it has a message to show (its title and text); null while there is none.
+    QWidget *inputMessage() const { return m_inputMessage && m_inputMessage->isVisible() ? m_inputMessage.data() : nullptr; }
+
+    // ---- the filter (crunchwindow_filter.cpp)
+    // Turns the filter on (over the block around the cell with the cursor, or the cells selected) or off; and sets the sheet's filter to `filter`, as one step (a large one is worked out a
+    // slice at a time; filterFinished says when it is over). The drop-down of a button of the filter is a FilterPopup, kept in `filterPopup` while it is up.
+    void toggleFilter();
+    bool applyFilter(const jp::office::sheet::AutoFilter &filter, const QString &text);
+    bool isFiltering() const { return bool(m_filterPlan); }
+    FilterPopup *filterPopup() const { return m_filterPopup; }
+    void showFilterPopup(qint64 row, qint64 col);
+    // What the filters that ask (Equals…, Between…, Largest or Smallest…, Your Own Condition…) ask the person: given the question, the column's name, whether it holds dates, and the condition it has (or null),
+    // the condition chosen. A dialog unless this stands in for it (tests); false gives it up.
+    void setFilterAsker(const std::function<bool(jp::FilterAsk, const QString &column, bool dates, const jp::office::sheet::FilterColumn *current, jp::office::sheet::FilterColumn *chosen)> &asker)
+    {
+        m_filterAsker = asker;
+    }
 
     // ---- saving
     // Saves the workbook where it was read from (the file is made whole in a place of its own, and then put where the old one is), or, with a path, there. The work is done on a thread of its own;
@@ -269,6 +327,10 @@ Q_SIGNALS:
     void loadFinished(bool ok);
     // Every formula has its value.
     void calculationFinished();
+    // A sort is over: it was made (true), or it was refused, given up, or could not be made.
+    void sortFinished(bool made);
+    // A filter was put in (true), or was refused, given up, or could not be.
+    void filterFinished(bool made);
     // The window was asked to open a file it has open (or another window was), and has been brought to the front.
     void broughtForward();
 
@@ -326,6 +388,8 @@ private:
     bool askAboutRule(const crunch::EditSession::Outcome &outcome);
     // the list a rule offers on the cell with the cursor (crunchwindow_cells.cpp)
     void updateDropDown();
+    void updateInputMessage();
+    QPointer<QWidget> m_inputMessage;
     void showChoices();
     // what Paste Special asks for: the options (a dialog unless this stands in for it: tests); false gives it up
     std::function<bool(crunch::EditSession::PasteOptions *)> m_pasteOptionsAsker;
@@ -367,6 +431,79 @@ private:
     bool savesAsANewFile() const;
     void setStatus(const QString &text);
     void goToName();
+    // Find and Replace, Go To (crunchwindow_find.cpp)
+    enum class SearchFor { Next, All, ReplaceAll };
+    void createFindActions();
+    void showFindDialog(bool replace);
+    void startSearch(SearchFor what);
+    void stepSearch();
+    void finishSearch();
+    void cancelSearch();
+    void replaceCurrent();
+    void goToFound(int sheet, quint32 row, quint32 col);
+    void goToDialog();
+    void goToSpecialDialog();
+    jp::crunch::FindOptions searchOptions(bool forReplace) const;
+    QPointer<FindDialog> m_findDialog;
+    std::unique_ptr<jp::crunch::FindRun> m_findRun;
+    QTimer m_findTimer;
+    SearchFor m_searchFor = SearchFor::Next;
+    qint64 m_searchChanges = 0;
+    int m_searchSteps = 0;
+    void stepReplace();
+    void cancelReplace();
+    void finishReplace(bool done);
+    std::shared_ptr<jp::crunch::EditSession::ReplacePlan> m_replacePlan;
+    QTimer m_replaceTimer;
+    SliceTuner m_searchTuner, m_replaceTuner, m_listTuner, m_filterTuner, m_sortTuner, m_applyTuner;
+    // a big change put in a slice at a time (crunchwindow_find.cpp): 1 a sort, 2 a replace
+    void runApply(int what, const std::function<jp::crunch::EditSession::Outcome(qint64)> &step, const std::function<void(const jp::crunch::EditSession::Outcome &)> &done);
+    void stepApply();
+    int m_applying = 0;
+    std::function<jp::crunch::EditSession::Outcome(qint64)> m_applyStep;
+    std::function<void(const jp::crunch::EditSession::Outcome &)> m_applyDone;
+    QTimer m_applyTimer;
+    bool m_sortSmall = true;
+    bool m_settingMarks = false;
+    // Pick a Function (crunchwindow_function.cpp)
+    void createFunctionActions();
+    void insertFunctionCommand();
+    std::function<bool(QString *)> m_functionAsker;
+    // the filter (crunchwindow_filter.cpp)
+    void createFilterActions();
+    void updateFilterButtons();
+    void stepFilter();
+    void finishFilter(bool done);
+    void cancelFilter();
+    void stepList();
+    void listFinished();
+    void askFilter(jp::FilterAsk what, quint32 column);
+    jp::office::sheet::AutoFilter currentFilter() const;
+    std::shared_ptr<jp::crunch::EditSession::FilterPlan> m_filterPlan;
+    QString m_filterText;
+    QTimer m_filterTimer, m_listTimer;
+    QPointer<FilterPopup> m_filterPopup;
+    std::unique_ptr<jp::crunch::FilterListRun> m_listRun;
+    qint64 m_listChanges = 0;
+    int m_listSteps = 0;
+    std::function<bool(jp::FilterAsk, const QString &, bool, const jp::office::sheet::FilterColumn *, jp::office::sheet::FilterColumn *)> m_filterAsker;
+    // sorting (crunchwindow_sort.cpp)
+    void createSortActions();
+    void sortSelection(int mode);   // 0 A to Z, 1 Z to A, 2 the dialog
+    bool sortRangeOf(jp::office::sheet::CellRange *range, int *key, bool *expanded);
+    void stepSort();
+    void finishSort(bool ordered);
+    void cancelSort();
+    std::shared_ptr<jp::crunch::EditSession::SortPlan> m_sortPlan;
+    QTimer m_sortTimer;
+    QPointer<QThread> m_sortThread;
+    std::atomic<bool> m_sortCancel{false};
+    bool m_sortOrderedOk = false;
+    bool m_sortOrdering = false;
+    std::function<bool(const jp::office::sheet::CellRange &, jp::crunch::SortSpec *)> m_sortAsker;
+    std::function<bool()> m_expandAsker;
+    std::function<bool(QString *)> m_goToAsker;
+    std::function<bool(jp::crunch::SpecialOptions *)> m_specialAsker;
     void showNameInBox();
     // the clipboard (crunchwindow_clip.cpp)
     void createClipboardActions();

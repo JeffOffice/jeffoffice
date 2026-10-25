@@ -421,6 +421,34 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
         for (const FontSpec &f : changes.newFonts) items += prefixed(fontXml(f), p);
         if (!appendToList(&result, "fonts", items, changes.newFonts.size())) return bad();
     }
+    if (!changes.newDxfs.isEmpty()) {
+        QByteArray items;
+        for (const DifferentialFormat &d : changes.newDxfs) {
+            QByteArray one = "<dxf>";
+            if (d.fontColor.isSet()) one += "<font>" + colorXml("color", d.fontColor) + "</font>";
+            if (d.hasFill) one += "<fill><patternFill patternType=\"solid\">" + colorXml("fgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + colorXml("bgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + "</patternFill></fill>";
+            one += "</dxf>";
+            items += prefixed(one, p);
+        }
+        Tag dxfsTag;
+        if (findStart(result, "dxfs", &dxfsTag, 0)) {
+            if (!appendToList(&result, "dxfs", items, changes.newDxfs.size())) return bad();
+        } else {
+            // (a part with no list of them: made, in the place the format has it, before the table styles and what follows)
+            Tag at;
+            qsizetype insertAt = -1;
+            for (const char *after : {"tableStyles", "colors", "extLst"})
+                if (findStart(result, after, &at, 0)) {
+                    insertAt = insertAt < 0 ? at.start : std::min<qsizetype>(insertAt, at.start);
+                }
+            if (insertAt < 0) {
+                Tag close;
+                if (!findEnd(result, root, &close)) return bad();
+                insertAt = close.start;
+            }
+            result = result.left(insertAt) + "<" + p + "dxfs count=\"" + QByteArray::number(changes.newDxfs.size()) + "\">" + items + "</" + p + "dxfs>" + result.mid(insertAt);
+        }
+    }
     if (!changes.newNumberFormats.isEmpty()) {
         QByteArray added;
         for (const SaveChanges::NumberFormat &f : changes.newNumberFormats)
@@ -529,6 +557,87 @@ bool setFullCalcOnLoad(const QByteArray &xml, QByteArray *out)
     }
     if (at < 0) return false;
     *out = xml.left(at) + "<" + p + "calcPr fullCalcOnLoad=\"1\"/>" + xml.mid(at);
+    return true;
+}
+
+bool patchFilterNames(const QByteArray &xml, const std::vector<FilterName> &names, QByteArray *out, QString *error)
+{
+    if (names.empty()) {
+        *out = xml;
+        return true;
+    }
+    auto bad = [&] {
+        if (error) *error = QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes.");
+        return false;
+    };
+    const QByteArray p = prefixOfRoot(xml);
+    QByteArray result;
+    std::vector<bool> done(names.size(), false);
+    // the names the file has: those for these sheets are made again (or go)
+    {
+        qsizetype copied = 0, pos = 0;
+        Tag t;
+        while (xmlscan::nextTag(xml, pos, &t)) {
+            pos = t.end;
+            if (t.closing || t.local != "definedName") continue;
+            const QByteArray tag = xml.mid(t.start, t.end - t.start);
+            qsizetype vs = 0, ve = 0;
+            if (!xmlscan::attributeValue(tag, "name", &vs, &ve) || tag.mid(vs, ve - vs) != "_xlnm._FilterDatabase") continue;
+            if (!xmlscan::attributeValue(tag, "localSheetId", &vs, &ve)) continue;
+            const int id = tag.mid(vs, ve - vs).toInt();
+            size_t which = names.size();
+            for (size_t i = 0; i < names.size(); ++i)
+                if (names[i].localSheetId == id) which = i;
+            if (which == names.size()) continue;
+            qsizetype end = t.end;
+            if (!t.selfClosing) {
+                Tag close;
+                if (!findEnd(xml, t, &close)) return bad();
+                end = close.end;
+            }
+            result += xml.mid(copied, t.start - copied);
+            if (!done[which] && !names[which].range.isEmpty()) {
+                result += "<" + p + "definedName name=\"_xlnm._FilterDatabase\" localSheetId=\"" + QByteArray::number(id) + "\" hidden=\"1\">" + xmlscan::escapeAttribute(names[which].range) + "</" + p + "definedName>";
+            }
+            done[which] = true;
+            copied = end;
+            pos = end;
+        }
+        result += xml.mid(copied);
+    }
+    // the ones it did not have
+    QByteArray added;
+    for (size_t i = 0; i < names.size(); ++i)
+        if (!done[i] && !names[i].range.isEmpty())
+            added += "<" + p + "definedName name=\"_xlnm._FilterDatabase\" localSheetId=\"" + QByteArray::number(names[i].localSheetId) + "\" hidden=\"1\">" + xmlscan::escapeAttribute(names[i].range) + "</" + p + "definedName>";
+    if (added.isEmpty()) {
+        *out = result;
+        return true;
+    }
+    Tag open, close;
+    if (findStart(result, "definedNames", &open)) {
+        if (open.selfClosing) {
+            QByteArray tag = result.mid(open.start, open.end - open.start);
+            tag.chop(2);
+            while (!tag.isEmpty() && isSpace(tag.back())) tag.chop(1);
+            *out = result.left(open.start) + tag + ">" + added + "</" + p + "definedNames>" + result.mid(open.end);
+            return true;
+        }
+        if (!findEnd(result, open, &close)) return bad();
+        *out = result.left(close.start) + added + result.mid(close.start);
+        return true;
+    }
+    // (the list is made, after the ones the format puts before it)
+    qsizetype at = -1;
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(result, pos, &t)) {
+        pos = t.end;
+        const bool before = t.local == "sheets" || t.local == "functionGroups" || t.local == "externalReferences";
+        if (before && (t.closing || t.selfClosing)) at = t.end;
+    }
+    if (at < 0) return bad();
+    *out = result.left(at) + "<" + p + "definedNames>" + added + "</" + p + "definedNames>" + result.mid(at);
     return true;
 }
 
@@ -831,10 +940,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     MoveContext ctx;
     ctx.edits = changes.edits;
     ctx.renames = changes.renames;
+    ctx.permutes = changes.permutes;
     // (the file's own names: the edits to rows and columns say which sheet by its place, and the file has not been told of the renames yet)
     for (const SheetEntry &se : book.info().sheets) ctx.sheetNames << (se.isNew ? QString() : se.fileName);
     ctx.sheetOps = changes.sheetOps;
-    const bool moves = !ctx.edits.empty() || !ctx.renames.empty() || !ctx.sheetOps.empty();
+    const bool moves = !ctx.edits.empty() || !ctx.renames.empty() || !ctx.sheetOps.empty() || !ctx.permutes.empty();
     QSet<int> moveSheets;   // the sheets (by their place) whose part is made by the mover
     if (moves) {
         anyCellChanged = true;
@@ -1124,7 +1234,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         replaced.insert(index, patched);
     }
     // ---- the styles
-    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty()) {
+    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty() || !changes.newDxfs.isEmpty()) {
         const int index = entryOfPart(book.stylesPart());
         QByteArray xml, patched;
         if (index < 0 || !inflate(index, &xml)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The styles part is not in the file."));
@@ -1265,7 +1375,27 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         anyCellChanged = true;
     }
     // ---- the workbook part: the names follow the cells, and the other program is asked to work the formulas out again when it is to
-    if (changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty()) {
+    // (and the hidden names of the sheets' filters, for the sheets whose filter was changed)
+    std::vector<FilterName> filterNames;
+    const WorkbookInfo &listed = book.info();
+    for (const auto &entry : changes.sheets) {
+        if (!entry.second.replaceAutoFilter) continue;
+        const int place = entry.first;
+        if (place < 0 || place >= listed.sheets.size() || listed.sheets[place].deleted) continue;
+        const int id = int(listed.order.indexOf(place));
+        if (id < 0) continue;
+        FilterName name;
+        name.localSheetId = id;
+        const CellRange &r = entry.second.autoFilter.ref;
+        if (entry.second.autoFilter.valid()) {
+            QString sheetName = listed.sheets[place].name;
+            sheetName.replace(QLatin1Char('\''), QStringLiteral("''"));
+            name.range = QLatin1Char('\'') + sheetName + QStringLiteral("'!$") + columnName(r.col1) + QLatin1Char('$') + QString::number(r.row1 + 1) + QStringLiteral(":$") + columnName(r.col2)
+                         + QLatin1Char('$') + QString::number(r.row2 + 1);
+        }
+        filterNames.push_back(name);
+    }
+    if (changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty()) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
@@ -1279,6 +1409,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             if (!changes.printNames.empty() && patchPrintNames(xml, changes.printNames, &patched) && patched != xml) {
                 xml = patched;
                 changed = true;
+            }
+            if (!filterNames.empty()) {
+                if (!patchFilterNames(xml, filterNames, &patched, &why)) return fail(why);
+                changed = changed || patched != xml;
+                xml = patched;
             }
             if (changes.fullCalcOnLoad && setFullCalcOnLoad(xml, &patched)) {
                 xml = patched;

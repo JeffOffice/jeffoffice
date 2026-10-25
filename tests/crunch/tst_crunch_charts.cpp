@@ -210,6 +210,37 @@ private Q_SLOTS:
         QCOMPARE(partsOf(e.path).value(QStringLiteral("xl/charts/chart1.xml")), first);
     }
 
+    // A sheet that gets a drawing and a filter in one save has both, in the order the format wants (the filter before the drawing), and opens again with both.
+    void aNewChartAndAFilterAreSavedTogetherInTheRightOrder()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        AutoFilter f;
+        f.ref = rangeOf(QStringLiteral("A1:C4"));
+        FilterColumn c;
+        c.column = 1;
+        c.kind = FilterColumn::Kind::Custom;
+        c.conditions.append({FilterColumn::Op::Greater, QStringLiteral("10")});
+        f.columns.append(c);
+        QVERIFY(e.win.w.session()->setFilter(0, f, QStringLiteral("Filtering")).ok);
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        QVERIFY(save(e));
+        const QByteArray sheet = partsOf(e.path).value(QStringLiteral("xl/worksheets/sheet1.xml"));
+        const int filter = int(sheet.indexOf("<autoFilter")), drawing = int(sheet.indexOf("<drawing "));
+        QVERIFY2(filter >= 0 && drawing >= 0, sheet.constData());
+        QVERIFY2(sheet.indexOf("</sheetData>") < filter && filter < drawing, sheet.constData());
+        QDomDocument doc;
+        QVERIFY(doc.setContent(sheet));
+        QCOMPARE(savedCharts(e.path).size(), 1);
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QVERIFY(second.w.calculation()->autoFilterOf(0).valid());
+        QCOMPARE(second.w.calculation()->autoFilterOf(0).columns.size(), 1);
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 1);
+    }
+
     // Each kind on the ribbon makes that kind; the chart's data is the cells' for the kind (a scatter takes its x values from the first column).
     void everyKindOnTheRibbonMakesItsKind()
     {

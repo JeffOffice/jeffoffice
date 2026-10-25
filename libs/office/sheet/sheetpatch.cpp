@@ -423,6 +423,142 @@ QByteArray tailWithMerges(const QByteArray &after, const std::vector<CellRange> 
     return after.left(insertAt) + generated + after.mid(insertAt);
 }
 
+// A filter as the element the file has it: the conditions of its columns, in order of column, and its sort state (as the file had it).
+QByteArray autoFilterElement(const AutoFilter &f, const QByteArray &prefix)
+{
+    auto name = [&](const char *local) { return "<" + prefix + local; };
+    auto close = [&](const char *local) { return "</" + prefix + local + ">"; };
+    auto text = [](const QString &value) { return xmlscan::escapeAttribute(value); };
+    if (!f.ref.valid) return QByteArray();
+    QByteArray out = name("autoFilter") + " ref=\"" + rangeName(f.ref).toLatin1() + "\">";
+    QVector<FilterColumn> columns = f.columns;
+    std::stable_sort(columns.begin(), columns.end(), [](const FilterColumn &a, const FilterColumn &b) { return a.column < b.column; });
+    for (const FilterColumn &c : columns) {
+        if (c.kind == FilterColumn::Kind::None && !c.hideButton) continue;
+        if (c.kind == FilterColumn::Kind::Color && c.dxf < 0) continue;   // (a color the file has no format for cannot be written)
+        out += name("filterColumn") + " colId=\"" + QByteArray::number(c.column) + "\"" + (c.hideButton ? " hiddenButton=\"1\"" : "");
+        if (c.kind == FilterColumn::Kind::None) {
+            out += "/>";
+            continue;
+        }
+        out += ">";
+        switch (c.kind) {
+        case FilterColumn::Kind::Values:
+            out += name("filters") + (c.blank ? " blank=\"1\"" : "") + ">";
+            for (const QString &v : c.values) out += name("filter") + " val=\"" + text(v) + "\"/>";
+            for (const FilterColumn::DateGroup &g : c.dates) {
+                using U = FilterColumn::DateGroup::Unit;
+                out += name("dateGroupItem") + " year=\"" + QByteArray::number(g.year) + "\"";
+                if (g.unit != U::Year) out += " month=\"" + QByteArray::number(g.month) + "\"";
+                if (g.unit == U::Day || g.unit == U::Hour || g.unit == U::Minute || g.unit == U::Second) out += " day=\"" + QByteArray::number(g.day) + "\"";
+                if (g.unit == U::Hour || g.unit == U::Minute || g.unit == U::Second) out += " hour=\"" + QByteArray::number(g.hour) + "\"";
+                if (g.unit == U::Minute || g.unit == U::Second) out += " minute=\"" + QByteArray::number(g.minute) + "\"";
+                if (g.unit == U::Second) out += " second=\"" + QByteArray::number(g.second) + "\"";
+                out += QByteArray(" dateTimeGrouping=\"") + (g.unit == U::Year ? "year" : g.unit == U::Month ? "month" : g.unit == U::Day ? "day" : g.unit == U::Hour ? "hour" : g.unit == U::Minute ? "minute" : "second") + "\"/>";
+            }
+            out += close("filters");
+            break;
+        case FilterColumn::Kind::Custom:
+            out += name("customFilters") + (c.both ? " and=\"1\"" : "") + ">";
+            for (const FilterColumn::Condition &cond : c.conditions) {
+                using O = FilterColumn::Op;
+                const char *op = cond.op == O::NotEqual ? "notEqual" : cond.op == O::Greater ? "greaterThan" : cond.op == O::GreaterEqual ? "greaterThanOrEqual" : cond.op == O::Less ? "lessThan"
+                                 : cond.op == O::LessEqual ? "lessThanOrEqual" : nullptr;
+                out += name("customFilter") + (op ? QByteArray(" operator=\"") + op + "\"" : QByteArray()) + " val=\"" + text(cond.value) + "\"/>";
+            }
+            out += close("customFilters");
+            break;
+        case FilterColumn::Kind::Top10:
+            out += name("top10") + (c.top ? "" : " top=\"0\"") + (c.percent ? " percent=\"1\"" : "") + " val=\"" + numberText(c.count) + "\"" + (c.hasLimit ? " filterVal=\"" + numberText(c.limit) + "\"" : "") + "/>";
+            break;
+        case FilterColumn::Kind::Dynamic:
+            out += name("dynamicFilter") + " type=\"" + text(c.dynamic) + "\"" + (c.hasDynVal ? " val=\"" + numberText(c.dynVal) + "\" maxVal=\"" + numberText(c.dynMax) + "\"" : "") + "/>";
+            break;
+        case FilterColumn::Kind::Color:
+            out += name("colorFilter") + (c.dxf >= 0 ? " dxfId=\"" + QByteArray::number(c.dxf) + "\"" : "") + (c.fontColor ? " cellColor=\"0\"" : "") + "/>";
+            break;
+        case FilterColumn::Kind::None: break;
+        }
+        out += close("filterColumn");
+    }
+    if (!f.sortState.isEmpty()) {
+        QByteArray sort = f.sortState.toUtf8();
+        sort.replace("<sortState", name("sortState")).replace("</sortState>", close("sortState")).replace("<sortCondition", name("sortCondition"));
+        out += sort;
+    }
+    out += close("autoFilter");
+    return out;
+}
+
+// What follows a sheet's cells with its filter made from `filter`: in place of the element the file has, or where the format puts it; none (not valid) takes the file's away.
+QByteArray tailWithFilter(const QByteArray &after, const AutoFilter &filter, const QByteArray &prefix)
+{
+    const QByteArray generated = autoFilterElement(filter, prefix);
+    static const QList<QByteArray> later = {"sortState", "dataConsolidate", "customSheetViews", "mergeCells", "phoneticPr", "conditionalFormatting", "dataValidations", "hyperlinks", "printOptions",
+                                            "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches", "ignoredErrors", "smartTags", "drawing",
+                                            "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    Tag t;
+    qsizetype pos = 0, existingStart = -1, existingEnd = -1, insertAt = -1;
+    int depth = 0;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (insertAt < 0) insertAt = t.start;   // </worksheet>
+                break;
+            }
+            if (depth == 0 && existingStart >= 0 && existingEnd < 0 && t.local == "autoFilter") existingEnd = t.end;
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == "autoFilter" && existingStart < 0) {
+                existingStart = t.start;
+                if (t.selfClosing) existingEnd = t.end;
+            } else if (insertAt < 0 && later.contains(QByteArray(t.local))) {
+                insertAt = t.start;
+            }
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    if (existingStart >= 0 && existingEnd >= 0) return after.left(existingStart) + generated + after.mid(existingEnd);
+    if (generated.isEmpty() || insertAt < 0) return after;
+    return after.left(insertAt) + generated + after.mid(insertAt);
+}
+
+// The head of a sheet with `filterMode` on its `sheetPr` (the sheet is filtered) set or taken off; the element is made, first in the sheet, when the file has none and the mode is on.
+QByteArray filterModeFromChange(const QByteArray &head, bool on, const QByteArray &defaultPrefix)
+{
+    Tag t;
+    qsizetype pos = 0, rootEnd = -1, start = -1, end = -1;
+    QByteArray prefix = defaultPrefix;
+    bool self = false;
+    while (xmlscan::nextTag(head, pos, &t)) {
+        pos = t.end;
+        if (rootEnd < 0 && !t.closing) {
+            rootEnd = t.end;
+            prefix = QByteArray(xmlscan::prefixOf(t.name));
+            if (t.selfClosing) break;
+            continue;
+        }
+        if (!t.closing && t.local == "sheetPr") {
+            start = t.start;
+            end = t.end;
+            self = t.selfClosing;
+            break;
+        }
+        if (t.local == "sheetData") break;
+    }
+    if (rootEnd < 0) return head;
+    if (start < 0) {
+        if (!on) return head;
+        return head.left(rootEnd) + "<" + prefix + "sheetPr filterMode=\"1\"/>" + head.mid(rootEnd);
+    }
+    QByteArray tag = head.mid(start, end - start);
+    setFlag(&tag, "filterMode", on);
+    (void)self;
+    return head.left(start) + tag + head.mid(end);
+}
+
 // What follows a sheet's cells with the element that names its drawing put in, where the format has it (after the page setup and the header and footer, before the elements that come
 // after the drawing); not if the sheet has one.
 QByteArray tailWithDrawing(const QByteArray &after, const QByteArray &relId, const QByteArray &prefix)
@@ -481,6 +617,11 @@ public:
         m_drawingId = changes.drawingRelId.toLatin1();
         if (changes.replaceFormat) m_format = &changes.format;
         if (changes.replaceTabColor) m_tabColor = &changes.tabColor;
+        if (changes.replaceAutoFilter) m_filter = &changes.autoFilter;
+        m_showRows = changes.showRows;
+        m_showFirst = changes.showFirst;
+        m_showLast = changes.showLast;
+        m_filterMode = changes.filterMode;
         m_tabSelected = changes.tabSelected;
         for (RowEdits &r : m_rows) {
             std::stable_sort(r.items.begin(), r.items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
@@ -627,6 +768,7 @@ private:
         QByteArray before = m_buf.left(dataStart);
         if (dimStart >= 0 && !m_cells.empty()) before = withDimension(before, dimStart, dimEnd);
         if (m_tabColor) before = tabColorFromChange(before, *m_tabColor, m_prefix);
+        if (m_filterMode >= 0) before = filterModeFromChange(before, m_filterMode != 0, m_prefix);
         if (m_tabSelected >= 0) before = tabSelectedFromChange(before, m_tabSelected != 0, m_prefix);
         if (m_format) before = formatFromChange(before, *m_format, m_prefix);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
@@ -716,7 +858,7 @@ private:
             }
             const RowEdits *edits = nullptr;
             if (next < m_rows.size() && m_rows[next].row == rowIdx) edits = &m_rows[next++];
-            const bool slow = edits || (!m_dropped.isEmpty() && rowIdx <= m_sharedUntil);
+            const bool slow = edits || (!m_dropped.isEmpty() && rowIdx <= m_sharedUntil) || (m_showRows && rowIdx >= m_showFirst && rowIdx <= m_showLast);
             if (!selfClosing) {
                 const QByteArray closeTag = "</" + m_prefix + "row>";
                 qsizetype close = 0;
@@ -856,6 +998,7 @@ private:
         // the row's tag, its spans widened to the cells put in
         QByteArray openTag = row.left(open.end);
         if (edits && edits->props) applyRowProps(&openTag, *edits->props);
+        else if (m_showRows && rowIdx >= m_showFirst && rowIdx <= m_showLast) setFlag(&openTag, "hidden", false);   // (a row of the range that has no properties of its own is shown)
         if (open.selfClosing) {
             openTag.chop(2);
             while (!openTag.isEmpty() && (openTag.back() == ' ' || openTag.back() == '\t' || openTag.back() == '\n' || openTag.back() == '\r')) openTag.chop(1);
@@ -981,8 +1124,8 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_page || !m_drawingId.isEmpty()) {
-            // (what follows the cells is held whole to change its merged ranges, its page setup, and its drawing)
+        if (m_merges || m_page || m_filter || !m_drawingId.isEmpty()) {
+            // (what follows the cells is held whole to change its merged ranges, its filter, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
             }
@@ -991,7 +1134,9 @@ private:
             const QByteArray rest = m_buf.mid(m_written);
             Tag close;
             auto tailOf = [&](const QByteArray &rest) {
-                QByteArray tail = m_merges ? tailWithMerges(rest, *m_merges, m_prefix) : rest;
+                QByteArray tail = rest;
+                if (m_filter) tail = tailWithFilter(tail, *m_filter, m_prefix);
+                if (m_merges) tail = tailWithMerges(tail, *m_merges, m_prefix);
                 if (m_page) tail = patchPageSetupTail(tail, *m_page, m_prefix);
                 if (!m_drawingId.isEmpty()) tail = tailWithDrawing(tail, m_drawingId, m_prefix);
                 return tail;
@@ -1036,6 +1181,10 @@ private:
     QByteArray m_drawingId;
     const SheetFormat *m_format = nullptr;
     const ColorSpec *m_tabColor = nullptr;
+    const AutoFilter *m_filter = nullptr;
+    bool m_showRows = false;
+    quint32 m_showFirst = 0, m_showLast = 0;
+    int m_filterMode = -1;
     int m_tabSelected = -1;
 };
 

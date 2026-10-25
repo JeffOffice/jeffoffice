@@ -96,10 +96,25 @@ bool mapStreamCell(const MoveContext &c, int sheet, quint32 *row, quint32 *col)
 // A cell after all the edits (cells shifted too, and a Move): false if it is gone.
 bool followCell(const MoveContext &c, int sheet, quint32 *row, quint32 *col)
 {
+    size_t next = 0;
+    auto permutesBefore = [&](size_t edit) {
+        // (cells put in another order after `edit` edits were made: what is tied to a cell goes with it)
+        for (; next < c.permutes.size() && c.permutes[next].after <= edit; ++next) {
+            const CellPermute &p = c.permutes[next];
+            if (p.sheet != sheet) continue;
+            quint32 &line = p.columns ? *col : *row;
+            const quint32 other = p.columns ? *row : *col;
+            if (other < p.otherFirst || other > p.otherLast || line < p.first || line - p.first >= p.to.size()) continue;
+            line = p.to[line - p.first];
+        }
+    };
+    size_t i = 0;
     for (const StructEdit &e : c.edits) {
+        permutesBefore(i++);
         int s = sheet;
         if (adjustCell(e, &s, row, col) == RefFate::Gone) return false;
     }
+    permutesBefore(i);
     return true;
 }
 
@@ -479,8 +494,14 @@ QByteArray movedTop(const QByteArray &xml, const Elem &e, const MoveContext &c, 
             QByteArray open = x.mid(h.open.start, h.open.end - h.open.start);
             bool found = false;
             const QString ref = attributeText(open, "ref", &found);
-            const QString now = found ? adjustSqrefAll(ref, sheet, c) : QString();
+            QString now = found ? adjustSqrefAll(ref, sheet, c) : QString();
             if (found && now.isEmpty()) return QByteArray();
+            // (a link on one cell goes with the cell when cells were put in another order)
+            quint32 linkRow = 0, linkCol = 0;
+            if (found && !c.permutes.empty() && parseCellRef(ref, &linkRow, &linkCol)) {
+                if (!followCell(c, sheet, &linkRow, &linkCol)) return QByteArray();
+                now = cellName(linkRow, linkCol);
+            }
             if (found && now != ref) setAttribute(&open, "ref", xmlscan::escapeAttribute(now));
             bool hasLocation = false;
             const QString location = attributeText(open, "location", &hasLocation);
