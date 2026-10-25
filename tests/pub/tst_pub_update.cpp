@@ -1,5 +1,6 @@
 // JeffPub's tests of telemetry, crash reports, updates, and shared settings.
 #include "pubhelpers.h"
+#include <QScopeGuard>
 
 class PubUpdateTests : public QObject {
     Q_OBJECT
@@ -38,7 +39,13 @@ private Q_SLOTS:
         for (const QString &k : counts.keys()) QVERIFY(QRegularExpression(QStringLiteral("^[a-z0-9][a-z0-9._-]{0,47}$")).match(k).hasMatch());
         QCOMPARE(telemetry::payload()[QStringLiteral("install")].toString(), id);   // the same install each time
         // Once a day, and again the day an update is installed (0.1.37 had
-        // pinged that day, so 0.1.38 waited until the next).
+        // pinged that day, so 0.1.38 waited until the next). The test runner
+        // turns statistics off for the whole run; due() only answers, it never
+        // sends, so the switch is lifted for these checks and put back after.
+        const QByteArray noTelemetry = qgetenv("JP_NO_TELEMETRY");
+        const bool hadNoTelemetry = qEnvironmentVariableIsSet("JP_NO_TELEMETRY");
+        qunsetenv("JP_NO_TELEMETRY");
+        const auto restore = qScopeGuard([&] { if (hadNoTelemetry) qputenv("JP_NO_TELEMETRY", noTelemetry); });
         Settings::get().setValue(QStringLiteral("telemetry/lastSent"), QDate::currentDate());
         Settings::get().setValue(QStringLiteral("telemetry/lastVersion"), QStringLiteral(JP_VERSION));
         QVERIFY(!telemetry::due());
