@@ -155,6 +155,8 @@ public:
     void setAsyncPictures(bool on);
     void setScreenMarks(bool gridlines, bool headings);
     bool picturesPending() const;
+    // Whether the page drawn last lacked a picture that was not ready.
+    bool lastPaintMissedPictures() const { return m_lastMissed; }
     void prefetchPictures();
     // How many times the contexts worked out a page's place (counted, for tests).
     qint64 layoutsWorkedOut() const;
@@ -213,6 +215,7 @@ private:
     std::vector<Context> m_contexts;
     bool m_asyncPictures = false, m_screenGrid = false, m_screenHeadings = false;
     jp::grid::PaintStats m_lastStats;
+    bool m_lastMissed = false;
     quint64 m_tick = 0;
     bool m_cancelled = false;
     QDateTime m_now;

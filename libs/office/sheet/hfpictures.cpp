@@ -177,7 +177,7 @@ QByteArray headerPicturesVml(const QVector<HeaderPicture> &pictures)
                      "<v:path o:extrusionok=\"f\" gradientshapeok=\"t\" o:connecttype=\"rect\"/><o:lock v:ext=\"edit\" aspectratio=\"t\"/></v:shapetype>";
     for (int i = 0; i < pictures.size() && i < kMaxHeaderPictures; ++i) {
         const HeaderPicture &p = pictures[i];
-        xml += "<v:shape id=\"" + escaped(p.place) + "\" o:spid=\"_x0000_s" + QByteArray::number(1025 + i) + "\" type=\"#_x0000_t75\" style=\"position:absolute;margin-left:0;margin-top:0;width:" + QByteArray::number(p.width, 'g', 8)
+        xml += "<v:shape id=\"" + escaped(canonicalHeaderPlace(p.place)) + "\" o:spid=\"_x0000_s" + QByteArray::number(1025 + i) + "\" type=\"#_x0000_t75\" style=\"position:absolute;margin-left:0;margin-top:0;width:" + QByteArray::number(p.width, 'g', 8)
                + "pt;height:" + QByteArray::number(p.height, 'g', 8) + "pt;z-index:" + QByteArray::number(i + 1) + "\"><v:imagedata o:relid=\"rId" + QByteArray::number(i + 1) + "\" o:title=\"" + escaped(p.title)
                + "\"/><o:lock v:ext=\"edit\" rotation=\"t\"/></v:shape>";
     }

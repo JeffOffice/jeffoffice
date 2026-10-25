@@ -120,6 +120,7 @@ bool PagePainter::cellAt(const SheetPrint &print, const PageCut &page, const Pag
 void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &page, const PageSetup &setup, const HfContext &labels, bool firstOfSheet, const PageObjects &objects)
 {
     GridLayout &L = m_sheet->layout();
+    m_missedPictures = false;
     const PageMetrics m = layoutPage(print, page, setup);
     m_sheet->invalidateTexts();
     PaintOptions options;
@@ -237,7 +238,9 @@ void PagePainter::paintHeadings(QPainter *p, const GridLayout &layout, const Pag
 QImage PagePainter::headerPicture(const jp::office::sheet::HeaderPicture &pic)
 {
     bool pending = false;
-    return HeaderPictureCache::instance().get(pic.image, !m_asyncPictures, &pending);
+    const QImage image = HeaderPictureCache::instance().get(pic.image, !m_asyncPictures, &pending);
+    if (pending) m_missedPictures = true;
+    return image;
 }
 
 void PagePainter::paintHeaderFooter(QPainter *p, const PaperBox &paper, const PageSetup &setup, const HfContext &labels, bool firstOfSheet, double scale)

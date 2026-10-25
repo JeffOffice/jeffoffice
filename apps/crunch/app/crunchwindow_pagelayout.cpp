@@ -87,6 +87,7 @@ public:
     bool rangeRect(int page, const grid::GridRange &r, QRectF *rect) override { return m_job->rangeRect(page, r.row1, r.col1, r.row2, r.col2, rect); }
     int pageOfCell(qint64 row, qint64 col) override { return m_job->pageOfCell(m_sheet, row, col); }
     bool picturesPending() const override { return m_job->picturesPending(); }
+    bool lastPageMissedPictures() const override { return m_job->lastPaintMissedPictures(); }
     crunch::PrintJob *job() const { return m_job.get(); }
 
 private:

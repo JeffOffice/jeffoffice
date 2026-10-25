@@ -33,6 +33,9 @@
 
 namespace jp {
 
+static std::weak_ptr<void> gPaintClosure;
+std::weak_ptr<void> printPaintClosureForTest() { return gPaintClosure; }
+
 namespace {
 
 // What the page keeps while it is shown: the job (made again when a choice changes), the page in the preview, and the zoom of the preview (1 shows the whole page).
@@ -272,8 +275,10 @@ QWidget *CrunchFileScreen::buildPrint()
     };
     // (pictures in the header are made on a worker: the page is drawn at once without them, and again when they are ready)
     auto paintSelf = std::make_shared<std::function<void()>>();
+    gPaintClosure = paintSelf;
     auto paint = [=]() { (*paintSelf)(); };
-    *paintSelf = [=]() {
+    // (the closure holds itself weakly: held by itself it would never be freed)
+    *paintSelf = [=, weakSelf = std::weak_ptr<std::function<void()>>(paintSelf)]() {
         const QVector<int> pages = pagesToPrint();
         if (!state->job || pages.isEmpty()) {
             preview->clear();
@@ -293,7 +298,9 @@ QWidget *CrunchFileScreen::buildPrint()
         const QSize box(int(std::ceil(paperSize.width() * scale)) + 16, int(std::ceil(paperSize.height() * scale)) + 18);
         preview->setPixmap(paperPixmap(img, box, dpr));
         preview->resize(box.expandedTo(scroll->viewport()->size()));
-        if (state->job->picturesPending()) QTimer::singleShot(60, preview, [=] { (*paintSelf)(); });
+        if (state->job->lastPaintMissedPictures()) QTimer::singleShot(60, preview, [weakSelf] {
+            if (const auto again = weakSelf.lock()) (*again)();
+        });
     };
     auto words = [=]() {
         const QVector<int> pages = pagesToPrint();

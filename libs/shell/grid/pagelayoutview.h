@@ -38,6 +38,8 @@ public:
     virtual int pageOfCell(qint64 row, qint64 col) = 0;
     // Whether pictures on the pages are still being made (what is drawn lacks them; the view draws the pages again a little later).
     virtual bool picturesPending() const { return false; }
+    // Whether the page painted last lacked a picture that was not ready.
+    virtual bool lastPageMissedPictures() const { return false; }
 };
 
 class PageLayoutView : public QAbstractScrollArea {

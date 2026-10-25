@@ -60,6 +60,8 @@ public:
     // Pictures in the header and footer are made on a worker while this is on (a page is drawn without one that is not ready yet, and picturesPending() says so); off, a picture not ready is made
     // at once (a print or an export waits for its pictures).
     void setAsyncPictures(bool on) { m_asyncPictures = on; }
+    // Whether the page drawn last lacked a picture that was not ready (it is to be drawn again when the picture is: decided by what the drawing met, not by what is being made afterwards).
+    bool missedPictures() const { return m_missedPictures; }
     // What the screen shows and the paper does not: the gridlines and the row and column headings (the headings in the margins, so that the cells keep their places).
     void setScreenMarks(bool gridlines, bool headings)
     {
@@ -84,6 +86,7 @@ private:
     std::unique_ptr<GridPainter> m_painter;
     QFont m_base;
     QColor m_gridline = QColor(0x40, 0x40, 0x40);
+    bool m_missedPictures = false;
     bool m_asyncPictures = false, m_screenGrid = false, m_screenHeadings = false;
     // the metrics of the pages worked out (by the page's cut, which is as long-lived as the job), and the page the grid's layout is set for now
     std::unordered_map<const PageCut *, PageMetrics> m_metrics;

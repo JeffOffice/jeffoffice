@@ -55,6 +55,9 @@ QImage HeaderPictureCache::get(const QByteArray &image, bool wait, bool *pending
                 insert(key, pin, made);
                 m_pending.erase(key);
             });
+            const std::function<void()> hook = m_afterStart;
+            lock.unlock();
+            if (hook) hook();
             return QImage();
         }
         ++m_here;
@@ -70,14 +73,14 @@ void HeaderPictureCache::insert(const Key &key, const QByteArray &pin, const QIm
 {
     const auto old = m_entries.find(key);
     if (old != m_entries.end()) {
-        m_bytes -= old->image.sizeInBytes();
+        m_bytes -= old->image.sizeInBytes() + old->pin.size();
         m_entries.erase(old);
     }
     Entry e;
     e.pin = pin;
     e.image = image;
     e.used = ++m_tick;
-    m_bytes += image.sizeInBytes();
+    m_bytes += image.sizeInBytes() + pin.size();
     m_entries.insert(key, e);
     trim();
 }
@@ -89,7 +92,7 @@ void HeaderPictureCache::trim()
         auto oldest = m_entries.begin();
         for (auto it = m_entries.begin(); it != m_entries.end(); ++it)
             if (it->used < oldest->used) oldest = it;
-        m_bytes -= oldest->image.sizeInBytes();
+        m_bytes -= oldest->image.sizeInBytes() + oldest->pin.size();
         m_entries.erase(oldest);
     }
 }
@@ -125,6 +128,12 @@ int HeaderPictureCache::decodesHere() const
 {
     QMutexLocker lock(&m_mutex);
     return m_here;
+}
+
+void HeaderPictureCache::setAfterStartHook(const std::function<void()> &hook)
+{
+    QMutexLocker lock(&m_mutex);
+    m_afterStart = hook;
 }
 
 void HeaderPictureCache::waitForWorkers() { QThreadPool::globalInstance()->waitForDone(); }

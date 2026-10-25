@@ -2,6 +2,7 @@
 // Undo), the page setup saved in the file and nothing else of it touched, and the pages the window prints. Every workbook is built here, in a temporary folder.
 #include "../sheet/drawinghelpers.h"
 #include "../sheet/hfpicturehelpers.h"
+#include "app/crunchfilescreen.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "savedok.h"
@@ -2794,6 +2795,138 @@ private Q_SLOTS:
         };
         QTRY_VERIFY_WITH_TIMEOUT(redPixels() > 20, 20000);
         QCOMPARE(cache.decodesHere(), here);
+    }
+
+    // A worker that finishes before the page's drawing is over (the picture is made while the page is still being drawn): the page is drawn again with the picture all the same, in the view of the
+    // pages and in the preview of the Print screen. The page decides by what it met, not by whether anything is still being made afterwards.
+    void aPageDrawnWithoutAPictureIsDrawnAgainEvenIfTheWorkerWasQuick()
+    {
+        const QByteArray red = drawtest::pngBytes(160, 80, Qt::red);
+        jp::grid::HeaderPictureCache &cache = jp::grid::HeaderPictureCache::instance();
+        struct Reset {
+            ~Reset() { jp::grid::HeaderPictureCache::instance().setAfterStartHook(nullptr); }
+        } reset;
+        // (every picture handed to a worker is finished before the asker goes on)
+        cache.setAfterStartHook([&cache] { cache.waitForWorkers(); });
+        {
+            EditWindow e;
+            QVERIFY(e.open(bookWithHeaderPictures(QStringLiteral("<oddHeader>&amp;C&amp;G</oddHeader>"), {hfShape(QStringLiteral("CH"))}, {red})));
+            CrunchWindow &w = e.win.w;
+            cache.clear();
+            QString why;
+            std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+            QVERIFY(job);
+            job->setAsyncPictures(true);
+            job->preview(0, 612);
+            QVERIFY(job->lastPaintMissedPictures());   // (the page met a picture that was not ready, though nothing is being made now)
+            QCOMPARE(cache.pendingCount(), 0);
+            cache.clear();
+            w.setViewKind(2);
+            QTRY_VERIFY(w.pageLayoutReady());
+            auto redInView = [&] {
+                w.pageView()->drawPagesNow();
+                const QImage shot = w.pageView()->viewport()->grab().toImage();
+                const QRect page = w.pageView()->pageRect(0);
+                const double k = 96.0 / 72.0 * w.pageView()->zoom();
+                const QColor c = shot.pixelColor(int((page.left() + 306 * k) * shot.devicePixelRatio()), int((page.top() + 30 * k) * shot.devicePixelRatio()));
+                return c.red() > 200 && c.green() < 70 && c.blue() < 70;
+            };
+            cache.clear();
+            w.pageView()->contentsChanged();
+            QTRY_VERIFY_WITH_TIMEOUT(redInView(), 20000);
+        }
+        {
+            EditWindow e;
+            QVERIFY(e.open(bookWithHeaderPictures(QStringLiteral("<oddHeader>&amp;C&amp;G</oddHeader>"), {hfShape(QStringLiteral("CH"))}, {red})));
+            cache.clear();
+            e.win.w.act(QStringLiteral("file.print"))->trigger();
+            QLabel *preview = e.win.w.findChild<QLabel *>(QStringLiteral("printPreview"));
+            QVERIFY(preview);
+            auto redPixels = [&] {
+                const QImage img = preview->pixmap().toImage();
+                int n = 0;
+                for (int y = 0; y < img.height(); y += 2)
+                    for (int x = 0; x < img.width(); x += 2) {
+                        const QColor c = img.pixelColor(x, y);
+                        n += c.red() > 200 && c.green() < 70 && c.blue() < 70;
+                    }
+                return n;
+            };
+            QTRY_VERIFY_WITH_TIMEOUT(redPixels() > 20, 20000);
+        }
+    }
+
+    // What the cache holds on to counts against its budget: the decoded picture and the file it was made from (kept so that the key's pointer stays its own).
+    void theCacheCountsTheFilesItHoldsOnTo()
+    {
+        jp::grid::HeaderPictureCache &cache = jp::grid::HeaderPictureCache::instance();
+        cache.clear();
+        const QByteArray png = drawtest::pngBytes(50, 40, Qt::blue);
+        const QImage image = cache.get(png, true, nullptr);
+        QVERIFY(!image.isNull());
+        QCOMPARE(cache.bytes(), image.sizeInBytes() + png.size());
+        cache.clear();
+    }
+
+    // A first-page or even-page picture is written with the long ids, whichever spelling it came in, and read back as it was.
+    void firstAndEvenPagePicturesAreWrittenWithTheLongIds()
+    {
+        const QByteArray red = drawtest::pngBytes(8, 4, Qt::red), blue = drawtest::pngBytes(4, 8, Qt::blue);
+        EditWindow e;
+        QString rows;
+        for (int r = 1; r <= 3; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        CrunchWindow &w = e.win.w;
+        PageSetup p = w.session()->pages().sheet(0);
+        p.headerFooter.differentFirst = true;
+        p.headerFooter.differentOddEven = true;
+        p.headerFooter.firstHeader = QStringLiteral("&C&G");
+        p.headerFooter.evenHeader = QStringLiteral("&L&G");
+        for (const char *place : {"chf", "LHE"}) {
+            jp::office::sheet::HeaderPicture pic;
+            pic.place = QString::fromLatin1(place);
+            pic.image = pic.place == QLatin1String("chf") ? red : blue;
+            pic.extension = QStringLiteral("png");
+            pic.width = 50;
+            pic.height = 25;
+            p.headerFooter.pictures.append(pic);
+        }
+        QVERIFY(w.session()->setPageSetup(0, p, QStringLiteral("Pictures")).ok);
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        Package pk;
+        QString why;
+        QVERIFY(pk.readLazyFile(e.path, &why));
+        const auto link = pk.relationshipsOfType(QStringLiteral("/xl/worksheets/sheet1.xml"), QStringLiteral("/vmlDrawing"));
+        QCOMPARE(link.size(), 1);
+        const QByteArray vml = pk.part(link[0].target);
+        QVERIFY2(vml.contains("id=\"CHFIRST\"") && vml.contains("id=\"LHEVEN\""), vml.constData());
+        QVERIFY(!vml.contains("id=\"CHF\"") && !vml.contains("id=\"LHE\"") && !vml.contains("id=\"chf\""));
+        Workbook b;
+        Sheet sheet;
+        QVERIFY(b.open(pk, &why) && b.readSheet(0, &sheet));
+        const auto &hf = sheet.page.headerFooter;
+        QCOMPARE(hf.pictures.size(), 2);
+        QCOMPARE(hf.pictureFor(QLatin1Char('C'), true, true, false)->image, red);
+        QCOMPARE(hf.pictureFor(QLatin1Char('L'), true, false, true)->image, blue);
+    }
+
+    // The closure that draws the Print screen's preview is freed with the screen (it does not hold itself).
+    void thePrintScreensPaintClosureIsFreedWithTheScreen()
+    {
+        std::weak_ptr<void> closure;
+        {
+            EditWindow e;
+            QVERIFY(e.open(rowsWithFormulas(10, {})));
+            e.win.w.act(QStringLiteral("file.print"))->trigger();
+            closure = jp::printPaintClosureForTest();
+            QVERIFY(!closure.expired());
+            e.win.w.act(QStringLiteral("file.print"))->trigger();   // (the screen is shown again: made again or not, the last one is the one watched)
+            closure = jp::printPaintClosureForTest();
+            QVERIFY(!closure.expired());
+        }
+        QVERIFY(closure.expired());
     }
 };
 

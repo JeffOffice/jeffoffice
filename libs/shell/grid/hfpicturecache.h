@@ -8,6 +8,7 @@
 #include <QImage>
 #include <QMutex>
 
+#include <functional>
 #include <set>
 #include <utility>
 
@@ -22,11 +23,13 @@ public:
     QImage get(const QByteArray &image, bool wait, bool *pending);
     void setBudgetBytes(qint64 bytes);
     qint64 budgetBytes() const;
-    qint64 bytes() const;                 // what the kept pictures take
+    qint64 bytes() const;                 // what the kept pictures take: the decoded pictures and the files they were made from, which the cache holds on to
     int count() const;
     int pendingCount() const;             // pictures being made on workers
     int decodesHere() const;              // pictures made on the thread that asked for them, since the process began (counted, for tests)
     void waitForWorkers();
+    // For tests: called (with no lock held) just after a picture has been handed to a worker, so that a test can have the worker finish before the asker goes on.
+    void setAfterStartHook(const std::function<void()> &hook);
     void clear();
 
     // The most pictures that are being made at once.
@@ -49,6 +52,7 @@ private:
     std::set<Key> m_pending;
     qint64 m_bytes = 0, m_budget = kDefaultBudgetBytes;
     quint64 m_tick = 0;
+    std::function<void()> m_afterStart;
     int m_here = 0;
 };
 

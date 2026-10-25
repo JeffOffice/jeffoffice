@@ -428,6 +428,7 @@ bool PrintJob::paint(QPainter *painter, int page)
     if (c.objects && c.objects->count() > 0) objects = [&c, &cut](QPainter *p, const jp::grid::GridLayout &layout, const QRect &) { c.objects->paint(p, cut, layout.zoom()); };
     c.painter->paint(painter, info.print, cut, info.setup, labels, pg.index == 0, objects);
     m_lastStats = c.painter->stats();
+    m_lastMissed = c.painter->missedPictures();
     return true;
 }
 

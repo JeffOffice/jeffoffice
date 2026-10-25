@@ -302,7 +302,8 @@ void PageLayoutView::drawPage(int page)
         m_source->paintPage(&p, page);
     }
     ++m_drawn;
-    if (m_source->picturesPending()) {
+    if (m_source->lastPageMissedPictures()) {
+        // (what the drawing met decides, not what is being made after it: a worker may have finished already)
         m_drawnWithoutPictures.insert(page);
         m_pictureTimer.start();
     }
