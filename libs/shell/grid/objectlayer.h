@@ -142,6 +142,7 @@ public:
 
     void paint(QPainter *painter, const GridLayout &layout, Pane pane, const QRect &clip) override;
     bool press(const QPoint &point, const GridLayout &layout, Qt::KeyboardModifiers modifiers) override;
+    void setMirrored(bool mirrored) override { m_mirrored = mirrored; }
     bool key(QKeyEvent *event) override;
     void layoutChanged() override;
 
@@ -152,6 +153,7 @@ private Q_SLOTS:
     void deliver();
 
 private:
+    bool m_mirrored = false;   // the painter is mirrored: pictures are turned back
     struct Entry {
         LayerObject object;
         mutable ObjectBox box;

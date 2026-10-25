@@ -1,4 +1,5 @@
 #include "sheet/sheetreader.h"
+#include "sheet/builtinstyles.h"
 
 #include "calc/numfmt.h"
 #include "sheet/rowskip.h"
@@ -18,6 +19,7 @@
 #include <QSet>
 #include <QXmlStreamReader>
 #include <algorithm>
+#include <cstring>
 #include <cmath>
 
 namespace jp::office::sheet {
@@ -365,7 +367,9 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
         if (error) *error = why;
         return false;
     };
-    enum class Where { Other, NumFmts, CellXfs, Fonts, Fills, Borders, Colors };
+    enum class Where { Other, NumFmts, CellXfs, StyleXfs, CellStyles, Fonts, Fills, Borders, Colors, Dxfs };
+    enum class DxfPart { None, Font, Fill, Border } dxfPart = DxfPart::None;
+    BorderSide *dxfSide = nullptr;
     Where where = Where::Other;
     int depth = 0;
     qint64 numFmtElements = 0;
@@ -385,10 +389,13 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
             } else if (depth == 2) {
                 where = isElement(r, "numFmts")   ? Where::NumFmts
                         : isElement(r, "cellXfs") ? Where::CellXfs
+                        : isElement(r, "cellStyleXfs") ? Where::StyleXfs
+                        : isElement(r, "cellStyles") ? Where::CellStyles
                         : isElement(r, "fonts")   ? Where::Fonts
                         : isElement(r, "fills")   ? Where::Fills
                         : isElement(r, "borders") ? Where::Borders
                         : isElement(r, "colors")  ? Where::Colors
+                        : isElement(r, "dxfs")    ? Where::Dxfs
                                                   : Where::Other;
             } else if (depth == 3 && where == Where::NumFmts && isElement(r, "numFmt")) {
                 if (++numFmtElements > limits.numFmts) return fail(QCoreApplication::translate("Sheet", "The file has more number formats than any real file has."));
@@ -398,8 +405,9 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 out->chars += code.size();
                 if (out->chars > limits.numFmtChars) return fail(QCoreApplication::translate("Sheet", "The number formats have more characters than any real file has."));
                 if (ok) out->numFmts.insert(id, code);
-            } else if (depth == 3 && where == Where::CellXfs && isElement(r, "xf")) {
-                if (out->cellXfs.size() >= limits.cellXfs) return fail(QCoreApplication::translate("Sheet", "The file has more cell formats than any real file has."));
+            } else if (depth == 3 && (where == Where::CellXfs || where == Where::StyleXfs) && isElement(r, "xf")) {
+                if (where == Where::CellXfs && out->cellXfs.size() >= limits.cellXfs) return fail(QCoreApplication::translate("Sheet", "The file has more cell formats than any real file has."));
+                if (where == Where::StyleXfs && out->styleXfs.size() >= 100000) return fail(QCoreApplication::translate("Sheet", "The file has more cell styles than any real file has."));
                 bool ok = false;
                 CellFormat f;
                 const int id = attribute(r, "numFmtId").toInt(&ok);
@@ -410,10 +418,17 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 if (!ok) f.fill = 0;
                 f.border = attribute(r, "borderId").toUInt(&ok);
                 if (!ok) f.border = 0;
-                out->cellXfs.append(f.numFmtId);
-                out->formats.append(f);
-            } else if (depth == 4 && where == Where::CellXfs && isElement(r, "alignment") && !out->formats.isEmpty()) {
-                CellFormat &f = out->formats.last();
+                f.xfId = attribute(r, "xfId").toUInt(&ok);
+                if (!ok) f.xfId = 0;
+                f.quotePrefix = parseBool(attribute(r, "quotePrefix").toString());
+                if (where == Where::CellXfs) {
+                    out->cellXfs.append(f.numFmtId);
+                    out->formats.append(f);
+                } else {
+                    out->styleXfs.append(f);
+                }
+            } else if (depth == 4 && (where == Where::CellXfs || where == Where::StyleXfs) && isElement(r, "alignment") && !(where == Where::CellXfs ? out->formats.isEmpty() : out->styleXfs.isEmpty())) {
+                CellFormat &f = where == Where::CellXfs ? out->formats.last() : out->styleXfs.last();
                 f.horizontal = hAlignOf(attribute(r, "horizontal"));
                 f.vertical = vAlignOf(attribute(r, "vertical"));
                 f.wrap = parseBool(attribute(r, "wrapText").toString());
@@ -421,9 +436,24 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 f.indent = quint8(std::lround(boundedNumber(attribute(r, "indent"), 0, 255, 0)));
                 const double turn = boundedNumber(attribute(r, "textRotation"), 0, 255, 0);
                 f.rotation = quint8(turn == 255 ? 255 : turn <= 180 ? std::lround(turn) : 0);
-            } else if (depth == 4 && where == Where::CellXfs && isElement(r, "protection") && !out->formats.isEmpty()) {
+                f.readingOrder = quint8(std::lround(boundedNumber(attribute(r, "readingOrder"), 0, 2, 0)));
+            } else if (depth == 4 && (where == Where::CellXfs || where == Where::StyleXfs) && isElement(r, "protection") && !(where == Where::CellXfs ? out->formats.isEmpty() : out->styleXfs.isEmpty())) {
+                CellFormat &f = where == Where::CellXfs ? out->formats.last() : out->styleXfs.last();
                 const QStringView locked = attribute(r, "locked");
-                out->formats.last().locked = locked.isEmpty() ? true : parseBool(locked.toString());
+                f.locked = locked.isEmpty() ? true : parseBool(locked.toString());
+                f.formulaHidden = parseBool(attribute(r, "hidden").toString());
+            } else if (depth == 3 && where == Where::CellStyles && isElement(r, "cellStyle")) {
+                if (out->cellStyles.size() < 100000) {
+                    CellStyleName n;
+                    n.name = attribute(r, "name").left(255).toString();
+                    bool ok = false;
+                    const int builtin = attribute(r, "builtinId").toInt(&ok);
+                    n.builtin = ok ? builtin : -1;
+                    n.xfId = attribute(r, "xfId").toUInt(&ok);
+                    if (!ok) n.xfId = 0;
+                    n.hidden = parseBool(attribute(r, "hidden").toString());
+                    out->cellStyles.append(n);
+                }
             } else if (depth == 3 && where == Where::Fonts && isElement(r, "font")) {
                 if (out->fonts.size() >= limits.fonts) return fail(QCoreApplication::translate("Sheet", "The file has more fonts than any real file has."));
                 out->fonts.append(FontSpec());
@@ -434,6 +464,9 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 else if (isElement(r, "strike")) f.strike = flagOf(r);
                 else if (isElement(r, "sz")) f.size = boundedNumber(attribute(r, "val"), 1, 409.5, 11);
                 else if (isElement(r, "name")) f.name = attribute(r, "val").left(kMaxFontNameChars).toString();
+                else if (isElement(r, "family")) f.family = qint32(std::lround(boundedNumber(attribute(r, "val"), -1, 14, -1)));
+                else if (isElement(r, "charset")) f.charset = qint32(std::lround(boundedNumber(attribute(r, "val"), -1, 255, -1)));
+                else if (isElement(r, "scheme")) f.scheme = attribute(r, "val").left(16).toString();
                 else if (isElement(r, "color")) f.color = colorOf(r);
                 else if (isElement(r, "u")) {
                     const QStringView v = attribute(r, "val");
@@ -477,6 +510,54 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 if (side) side->style = borderStyleOf(attribute(r, "style"));
             } else if (depth == 5 && where == Where::Borders && side && isElement(r, "color")) {
                 side->color = colorOf(r);
+            } else if (depth == 3 && where == Where::Dxfs && isElement(r, "dxf")) {
+                if (out->dxfs.size() < 100000) out->dxfs.append(DifferentialFormat());
+                dxfPart = DxfPart::None;
+                dxfSide = nullptr;
+            } else if (where == Where::Dxfs && !out->dxfs.isEmpty() && depth >= 4) {
+                DifferentialFormat &d = out->dxfs.last();
+                if (depth == 4) {
+                    dxfPart = isElement(r, "font") ? DxfPart::Font : isElement(r, "fill") ? DxfPart::Fill : isElement(r, "border") ? DxfPart::Border : DxfPart::None;
+                    dxfSide = nullptr;
+                    if (isElement(r, "numFmt")) {
+                        const QString code = attribute(r, "formatCode").toString();
+                        if (!code.isEmpty()) d.numberFormat = code;
+                        else {
+                            bool ok = false;
+                            const int id = attribute(r, "numFmtId").toInt(&ok);
+                            if (ok) d.numberFormat = out->numFmts.value(id, jp::calc::builtinFormatCode(id));
+                        }
+                    } else if (dxfPart == DxfPart::Border) {
+                        d.hasBorder = true;
+                        d.border.diagonalUp = parseBool(attribute(r, "diagonalUp").toString());
+                        d.border.diagonalDown = parseBool(attribute(r, "diagonalDown").toString());
+                    } else if (dxfPart == DxfPart::Fill) {
+                        d.hasFill = true;
+                    }
+                } else if (dxfPart == DxfPart::Font && depth == 5) {
+                    if (isElement(r, "b")) d.bold = flagOf(r);
+                    else if (isElement(r, "i")) d.italic = flagOf(r);
+                    else if (isElement(r, "strike")) d.strike = flagOf(r);
+                    else if (isElement(r, "color")) d.fontColor = colorOf(r);
+                    else if (isElement(r, "u")) {
+                        const QStringView v = attribute(r, "val");
+                        d.underline = v == QLatin1String("none") ? Underline::None : v == QLatin1String("double") ? Underline::Double
+                                      : v == QLatin1String("singleAccounting") ? Underline::SingleAccounting : v == QLatin1String("doubleAccounting") ? Underline::DoubleAccounting : Underline::Single;
+                    }
+                } else if (dxfPart == DxfPart::Fill && depth == 5 && isElement(r, "patternFill")) {
+                    d.fill.pattern = patternOf(attribute(r, "patternType"));
+                    if (attribute(r, "patternType").isEmpty()) d.fill.pattern = PatternKind::Solid;   // (a differential fill with no type is a solid one)
+                } else if (dxfPart == DxfPart::Fill && depth == 6) {
+                    if (isElement(r, "fgColor")) d.fill.fg = colorOf(r);
+                    else if (isElement(r, "bgColor")) d.fill.bg = colorOf(r);
+                } else if (dxfPart == DxfPart::Border && depth == 5) {
+                    BorderSpec &b = d.border;
+                    dxfSide = isElement(r, "left") || isElement(r, "start") ? &b.left : isElement(r, "right") || isElement(r, "end") ? &b.right : isElement(r, "top") ? &b.top
+                              : isElement(r, "bottom") ? &b.bottom : isElement(r, "diagonal") ? &b.diagonal : nullptr;
+                    if (dxfSide) dxfSide->style = borderStyleOf(attribute(r, "style"));
+                } else if (dxfPart == DxfPart::Border && depth == 6 && dxfSide && isElement(r, "color")) {
+                    dxfSide->color = colorOf(r);
+                }
             } else if (depth == 3 && where == Where::Colors) {
                 inIndexed = isElement(r, "indexedColors");
             } else if (depth == 4 && where == Where::Colors && inIndexed && isElement(r, "rgbColor")) {
@@ -642,6 +723,7 @@ private:
     // a run of columns, a row kept as not the default, and a merged range (each rounded up from what the structure holds)
     static constexpr qint64 kColumnSpanBytes = 48, kRowSpecBytes = 48, kMergeBytes = 32;
     static constexpr qsizetype kMaxValidations = 20000;
+    static constexpr qsizetype kMaxCondRules = 50000;
     static qint64 stringBytes(qint64 chars) { return kSlotBytes + std::max<qint64>(32, (24 + 2 * chars + 2 + 8 + 15) / 16 * 16); }
     bool startRow(const QXmlStreamReader &r);
     bool startColumns(const QXmlStreamReader &r);
@@ -651,6 +733,7 @@ private:
     void endView();
     bool startMerge(const QXmlStreamReader &r);
     Validation readRule(const QXmlStreamReader &r) const;
+    CondRule readCondRule(const QXmlStreamReader &r) const;
     bool startCell(const QXmlStreamReader &r);
     bool startFormula(const QXmlStreamReader &r);
     bool endFormula();
@@ -761,9 +844,11 @@ bool SheetReader::startRow(const QXmlStreamReader &r)
     bool styleOk = false;
     const uint style = attribute(r, "s").toUInt(&styleOk);
     spec.style = styleOk && spec.customFormat ? style : 0;
+    spec.outline = quint8(std::clamp(attribute(r, "outlineLevel").toInt(), 0, 7));
+    spec.collapsed = parseBool(attribute(r, "collapsed").toString());
     const bool otherHeight = spec.height >= 0 && std::abs(spec.height - m_sheet.format.defaultRowHeight) > 0.001;
     // (a sheet that hides the rows it does not list needs to know which it lists)
-    if (spec.hidden || spec.customFormat || otherHeight || m_sheet.format.zeroHeight) {
+    if (spec.hidden || spec.customFormat || otherHeight || m_sheet.format.zeroHeight || spec.outline > 0 || spec.collapsed) {
         if (m_sheet.stats.rowSpecs >= m_limits.rowSpecs) return fail(QCoreApplication::translate("Sheet", "The sheet has more rows with their own height or format than any real file has."));
         if (!take(kRowSpecBytes)) return false;
         ++m_sheet.stats.rowSpecs;
@@ -798,6 +883,38 @@ Validation SheetReader::readRule(const QXmlStreamReader &r) const
         if (parseRangeRef(part, &range) && v.ranges.size() < 64) v.ranges.append(range);
     }
     return v;
+}
+
+CondRule SheetReader::readCondRule(const QXmlStreamReader &r) const
+{
+    CondRule c;
+    static const QHash<QString, CondRule::Type> types = {
+        {QStringLiteral("cellIs"), CondRule::Type::CellIs}, {QStringLiteral("expression"), CondRule::Type::Expression}, {QStringLiteral("colorScale"), CondRule::Type::ColorScale},
+        {QStringLiteral("dataBar"), CondRule::Type::DataBar}, {QStringLiteral("iconSet"), CondRule::Type::IconSet}, {QStringLiteral("top10"), CondRule::Type::Top10},
+        {QStringLiteral("uniqueValues"), CondRule::Type::UniqueValues}, {QStringLiteral("duplicateValues"), CondRule::Type::DuplicateValues}, {QStringLiteral("containsText"), CondRule::Type::ContainsText},
+        {QStringLiteral("notContainsText"), CondRule::Type::NotContainsText}, {QStringLiteral("beginsWith"), CondRule::Type::BeginsWith}, {QStringLiteral("endsWith"), CondRule::Type::EndsWith},
+        {QStringLiteral("containsBlanks"), CondRule::Type::ContainsBlanks}, {QStringLiteral("notContainsBlanks"), CondRule::Type::NotContainsBlanks}, {QStringLiteral("containsErrors"), CondRule::Type::ContainsErrors},
+        {QStringLiteral("notContainsErrors"), CondRule::Type::NotContainsErrors}, {QStringLiteral("timePeriod"), CondRule::Type::TimePeriod}, {QStringLiteral("aboveAverage"), CondRule::Type::AboveAverage}};
+    c.type = types.value(attribute(r, "type").toString(), CondRule::Type::Expression);
+    static const QStringList ops = {QStringLiteral("lessThan"), QStringLiteral("lessThanOrEqual"), QStringLiteral("equal"), QStringLiteral("notEqual"), QStringLiteral("greaterThanOrEqual"),
+                                    QStringLiteral("greaterThan"), QStringLiteral("between"), QStringLiteral("notBetween")};
+    const int o = int(ops.indexOf(attribute(r, "operator").toString()));
+    c.op = o >= 0 ? CondRule::Operator(o) : CondRule::Operator::Equal;
+    bool ok = false;
+    c.priority = attribute(r, "priority").toInt(&ok);
+    if (!ok) c.priority = 1 << 20;
+    c.dxf = attribute(r, "dxfId").isEmpty() ? -1 : attribute(r, "dxfId").toInt(&ok);
+    if (!ok) c.dxf = -1;
+    c.stopIfTrue = parseBool(attribute(r, "stopIfTrue").toString());
+    c.text = attribute(r, "text").left(255).toString();
+    c.timePeriod = attribute(r, "timePeriod").left(20).toString();
+    c.rank = int(std::lround(boundedNumber(attribute(r, "rank"), 1, 1000, 10)));
+    c.percent = parseBool(attribute(r, "percent").toString());
+    c.bottom = parseBool(attribute(r, "bottom").toString());
+    c.above = attribute(r, "aboveAverage").isEmpty() ? true : parseBool(attribute(r, "aboveAverage").toString());
+    c.equalAverage = parseBool(attribute(r, "equalAverage").toString());
+    c.stdDev = int(std::lround(boundedNumber(attribute(r, "stdDev"), 0, 3, 0)));
+    return c;
 }
 
 bool SheetReader::startColumns(const QXmlStreamReader &r)
@@ -1168,6 +1285,16 @@ bool SheetReader::read(QIODevice *in)
     int depth = 0, phonetic = 0;
     bool rootSeen = false, inData = false, inRow = false, inCell = false, inFormula = false, inValue = false, inInline = false, inText = false, inMerge = false;
     bool inSheetPr = false, inViews = false, inCols = false, inView = false, inValidations = false, inRule = false;
+    // conditional formatting: the ranges of the element being read, the rule, where its formula text goes, and (in the extension list) the data bars' extra attributes by their ids
+    bool inCond = false, inCondRule = false, inExtension = false;
+    QVector<CellRange> condRanges;
+    CondRule condRule;
+    QString *condText = nullptr;
+    int condFormulas = 0;
+    QHash<QString, CondRule> extensionBars;   // by id: only what the extension adds to a data bar
+    QString extensionBarId;
+    CondRule extensionBar;
+    bool inExtensionBar = false;
     QString *ruleText = nullptr;   // the formula of the rule being read, while its text is collected
     Validation rule;
     bool ok = true;
@@ -1185,6 +1312,15 @@ bool SheetReader::read(QIODevice *in)
             ok = fail(QCoreApplication::translate("Sheet", "The file begins with instructions that this program does not allow, so it can't be read."));
             break;
         case QXmlStreamReader::StartElement:
+            // (what the extensions hold that the program does not keep: a copy of the sheet is told, so that it can say what it leaves out. A data bar's extension is read into the rule.)
+            if (inExtension && depth == 3) {
+                const QString kind = r.name().toString();
+                const char *note = kind == QLatin1String("sparklineGroups") ? "sparklines" : kind == QLatin1String("dataValidations") ? "validationLists"
+                                   : kind == QLatin1String("conditionalFormattings") ? nullptr : "otherExtensions";
+                if (note && !m_sheet.notKept.contains(QLatin1String(note))) m_sheet.notKept.append(QLatin1String(note));
+            } else if (inExtension && depth == 5 && isElement(r, "cfRule") && attribute(r, "type") != QLatin1String("dataBar")) {
+                if (!m_sheet.notKept.contains(QLatin1String("extendedRules"))) m_sheet.notKept.append(QLatin1String("extendedRules"));
+            }
             if (++depth > kMaxXmlDepth) {
                 ok = fail(QCoreApplication::translate("Sheet", "The file has items inside items more deeply than any real file has."));
             } else if (depth == 1) {
@@ -1200,6 +1336,15 @@ bool SheetReader::read(QIODevice *in)
                     inMerge = true;
                 } else if (isElement(r, "dataValidations")) {
                     inValidations = true;
+                } else if (isElement(r, "conditionalFormatting")) {
+                    inCond = true;
+                    condRanges.clear();
+                    for (const QString &part : attribute(r, "sqref").toString().split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+                        CellRange range;
+                        if (condRanges.size() < 1000 && parseRangeRef(part, &range)) condRanges.append(range);
+                    }
+                } else if (isElement(r, "extLst")) {
+                    inExtension = true;
                 } else if (isElement(r, "sheetProtection")) {
                     m_sheet.isProtected = parseBool(attribute(r, "sheet").toString());
                 } else if (isElement(r, "sheetPr")) {
@@ -1215,6 +1360,8 @@ bool SheetReader::read(QIODevice *in)
                     f.baseColWidth = int(std::lround(boundedNumber(attribute(r, "baseColWidth"), 0, 255, 8)));
                     f.zeroHeight = parseBool(attribute(r, "zeroHeight").toString());
                     f.customHeight = parseBool(attribute(r, "customHeight").toString());
+                    f.outlineLevelRow = quint8(std::clamp(attribute(r, "outlineLevelRow").toInt(), 0, 7));
+                    f.outlineLevelCol = quint8(std::clamp(attribute(r, "outlineLevelCol").toInt(), 0, 7));
                 }
             } else if (depth == 3 && inMerge && isElement(r, "mergeCell")) {
                 ok = startMerge(r);
@@ -1223,6 +1370,58 @@ bool SheetReader::read(QIODevice *in)
                 rule = readRule(r);
             } else if (depth == 4 && inRule && (isElement(r, "formula1") || isElement(r, "formula2"))) {
                 ruleText = isElement(r, "formula1") ? &rule.formula1 : &rule.formula2;
+            } else if (depth == 3 && inCond && isElement(r, "cfRule")) {
+                inCondRule = true;
+                condFormulas = 0;
+                condRule = readCondRule(r);
+                condRule.ranges = condRanges;
+            } else if (inCondRule && depth == 4) {
+                if (isElement(r, "formula")) condText = condFormulas++ == 0 ? &condRule.formula1 : &condRule.formula2;
+                else if (isElement(r, "colorScale")) condRule.type = CondRule::Type::ColorScale;
+                else if (isElement(r, "dataBar")) {
+                    condRule.type = CondRule::Type::DataBar;
+                    condRule.minLength = int(std::lround(boundedNumber(attribute(r, "minLength"), 0, 100, 10)));
+                    condRule.maxLength = int(std::lround(boundedNumber(attribute(r, "maxLength"), 0, 100, 90)));
+                    if (!attribute(r, "showValue").isEmpty()) condRule.showValue = parseBool(attribute(r, "showValue").toString());
+                } else if (isElement(r, "iconSet")) {
+                    condRule.type = CondRule::Type::IconSet;
+                    condRule.iconSet = attribute(r, "iconSet").isEmpty() ? QStringLiteral("3TrafficLights1") : attribute(r, "iconSet").left(40).toString();
+                    if (!attribute(r, "showValue").isEmpty()) condRule.showValue = parseBool(attribute(r, "showValue").toString());
+                    condRule.reverse = parseBool(attribute(r, "reverse").toString());
+                }
+            } else if (inCondRule && depth == 5) {
+                if (isElement(r, "cfvo") && condRule.values.size() < 8) {
+                    CondValue v;
+                    const QStringView type = attribute(r, "type");
+                    v.type = type == QLatin1String("percent") ? CondValue::Type::Percent : type == QLatin1String("max") ? CondValue::Type::Max : type == QLatin1String("min") ? CondValue::Type::Min
+                             : type == QLatin1String("formula") ? CondValue::Type::Formula : type == QLatin1String("percentile") ? CondValue::Type::Percentile : type == QLatin1String("autoMin") ? CondValue::Type::AutoMin
+                             : type == QLatin1String("autoMax") ? CondValue::Type::AutoMax : CondValue::Type::Number;
+                    v.value = attribute(r, "val").left(1000).toString();
+                    v.gte = attribute(r, "gte").isEmpty() ? true : parseBool(attribute(r, "gte").toString());
+                    condRule.values.append(v);
+                } else if (isElement(r, "color") && condRule.colors.size() < 8) {
+                    condRule.colors.append(colorOf(r));
+                }
+            } else if (inExtension && depth == 6 && isElement(r, "cfRule") && attribute(r, "type") == QLatin1String("dataBar")) {
+                extensionBarId = attribute(r, "id").toString();
+                extensionBar = CondRule();
+                inExtensionBar = !extensionBarId.isEmpty();
+            } else if (inExtensionBar && depth == 7 && isElement(r, "dataBar")) {
+                extensionBar.minLength = int(std::lround(boundedNumber(attribute(r, "minLength"), 0, 100, 10)));
+                extensionBar.maxLength = int(std::lround(boundedNumber(attribute(r, "maxLength"), 0, 100, 90)));
+                extensionBar.gradient = attribute(r, "gradient").isEmpty() ? true : parseBool(attribute(r, "gradient").toString());
+                extensionBar.border = parseBool(attribute(r, "border").toString());
+                extensionBar.negativeSameColor = parseBool(attribute(r, "negativeBarColorSameAsPositive").toString());
+                const QStringView axis = attribute(r, "axisPosition");
+                extensionBar.axis = axis == QLatin1String("middle") ? CondRule::Axis::Middle : axis == QLatin1String("none") ? CondRule::Axis::None : CondRule::Axis::Automatic;
+                extensionBar.rightToLeft = attribute(r, "direction") == QLatin1String("rightToLeft");
+            } else if (inExtensionBar && depth == 8) {
+                if (isElement(r, "negativeFillColor")) extensionBar.negativeColor = colorOf(r);
+                else if (isElement(r, "borderColor")) extensionBar.borderColor = colorOf(r);
+                else if (isElement(r, "negativeBorderColor")) extensionBar.negativeBorderColor = colorOf(r);
+                else if (isElement(r, "axisColor")) extensionBar.axisColor = colorOf(r);
+            } else if (inCondRule && depth == 6 && isElement(r, "id")) {
+                condText = &condRule.extId;   // (the extension's x14:id of a data bar)
             } else if (depth == 3 && inCols && isElement(r, "col")) {
                 ok = startColumns(r);
             } else if (depth == 3 && inSheetPr && isElement(r, "tabColor")) {
@@ -1276,6 +1475,17 @@ bool SheetReader::read(QIODevice *in)
             } else if (depth == 4 && inCell) {
                 inCell = false;
                 ok = endCell();
+            } else if (condText && ((depth == 4 && inCondRule) || (depth == 6 && inCondRule))) {
+                condText = nullptr;
+            } else if (inExtensionBar && depth == 6 && isElement(r, "cfRule")) {
+                extensionBars.insert(extensionBarId, extensionBar);
+                inExtensionBar = false;
+            } else if (depth == 3 && inCondRule) {
+                inCondRule = false;
+                if (m_sheet.conditionalFormats.size() < kMaxCondRules) {
+                    if (condRule.type == CondRule::Type::DataBar && condRule.colors.isEmpty()) condRule.colors.append(ColorSpec::fromRgb(0x638EC6));
+                    m_sheet.conditionalFormats.append(condRule);
+                }
             } else if (depth == 4 && ruleText) {
                 ruleText = nullptr;
             } else if (depth == 3 && inRule) {
@@ -1287,12 +1497,14 @@ bool SheetReader::read(QIODevice *in)
                 inView = false;
                 endView();
             } else if (depth == 2) {
-                inData = inMerge = inSheetPr = inViews = inCols = inValidations = false;
+                inData = inMerge = inSheetPr = inViews = inCols = inValidations = inCond = inExtension = false;
             }
             --depth;
             break;
         case QXmlStreamReader::Characters:
-            if (ruleText) {
+            if (condText) {
+                if (condText->size() < m_limits.formulaChars) *condText += r.text();
+            } else if (ruleText) {
                 if (ruleText->size() < m_limits.formulaChars) *ruleText += r.text();
             } else if (inFormula) {
                 m_formula += r.text();
@@ -1314,6 +1526,24 @@ bool SheetReader::read(QIODevice *in)
         if (!why.isEmpty()) ok = fail(why);
         else if (!rootSeen) ok = fail(QCoreApplication::translate("Sheet", "The part is not a worksheet."));
     }
+    // a data bar takes what its extension says (the id ties them), and the rules are in the order of their priority
+    for (CondRule &c : m_sheet.conditionalFormats) {
+        if (c.type != CondRule::Type::DataBar || c.extId.trimmed().isEmpty()) continue;
+        const auto found = extensionBars.constFind(c.extId.trimmed());
+        if (found == extensionBars.constEnd()) continue;
+        c.minLength = found->minLength;
+        c.maxLength = found->maxLength;
+        c.gradient = found->gradient;
+        c.border = found->border;
+        c.negativeSameColor = found->negativeSameColor;
+        c.axis = found->axis;
+        c.rightToLeft = found->rightToLeft;
+        c.negativeColor = found->negativeColor;
+        c.borderColor = found->borderColor;
+        c.negativeBorderColor = found->negativeBorderColor;
+        c.axisColor = found->axisColor;
+    }
+    std::stable_sort(m_sheet.conditionalFormats.begin(), m_sheet.conditionalFormats.end(), [](const CondRule &a, const CondRule &b) { return a.priority < b.priority; });
     m_sheet.stats.xmlBytes = src.guard.bytesPassed();
     m_sheet.stats.largestToken = src.guard.largestToken();
     m_sheet.stats.largestRead = src.guard.largestRead();
@@ -1374,6 +1604,7 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
     }
     m_package = package;
     m_mainPart = main;
+    prepareSheetList();
     const QVector<Relationship> strings = package.relationshipsOfType(main, QStringLiteral("/sharedStrings"));
     for (const Relationship &rel : strings) {
         if (rel.external || !package.hasPart(rel.target)) continue;
@@ -1391,6 +1622,10 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         readStyles(device.get(), limits, &m_styles, &m_stylesError);
         m_stylesPart = rel.target;
         m_formatsInFile = m_styles.formats.size();
+        m_fontsInFile = m_styles.fonts.size();
+        m_fillsInFile = m_styles.fills.size();
+        m_bordersInFile = m_styles.borders.size();
+        m_styleXfsInFile = m_styles.styleXfs.size();
         break;
     }
     // The theme: the colors the styles name by place. A part that is missing or can't be read leaves the usual ones.
@@ -1404,6 +1639,8 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
                                                          Theme::Accent3, Theme::Accent4, Theme::Accent5, Theme::Accent6, Theme::Hyperlink, Theme::FollowedHyperlink};
         for (int i = 0; i < kThemeColors; ++i)
             if (theme.colors[order[i]].isValid()) m_styles.theme[i] = theme.colors[order[i]].rgb() & 0xFFFFFF;
+        m_styles.majorFont = theme.majorLatin;
+        m_styles.minorFont = theme.minorLatin;
         break;
     }
     return true;
@@ -1436,6 +1673,96 @@ void Workbook::nameBaseParts()
     }
     m_sharedInFile = m_shared.strings.size();
     m_formatsInFile = m_styles.formats.size();
+    prepareSheetList();
+}
+
+// The list of sheets as the file has it is also the list as it is now: the names are the file's, and the tabs are in the file's order.
+void Workbook::prepareSheetList()
+{
+    m_info.order.clear();
+    m_info.fileOrder.clear();
+    for (int i = 0; i < m_info.sheets.size(); ++i) {
+        m_info.sheets[i].fileName = m_info.sheets[i].name;
+        m_info.order.append(i);
+        m_info.fileOrder.append(i);
+    }
+}
+
+int Workbook::activeTabNow() const
+{
+    const int place = m_info.activeTab >= 0 && m_info.activeTab < m_info.fileOrder.size() ? m_info.fileOrder[m_info.activeTab] : -1;
+    if (place >= 0 && place < m_info.sheets.size() && !m_info.sheets[place].deleted && m_info.sheets[place].state == SheetState::Visible) {
+        const int at = int(m_info.order.indexOf(place));
+        if (at >= 0) return at;
+    }
+    for (int i = 0; i < m_info.order.size(); ++i)
+        if (m_info.sheets[m_info.order[i]].state == SheetState::Visible) return i;
+    return 0;
+}
+
+int Workbook::addSheetEntry(const QString &name, SheetState state)
+{
+    SheetEntry e;
+    e.name = name;
+    e.state = state;
+    e.isNew = true;
+    int id = 0;
+    for (const SheetEntry &s : m_info.sheets) id = std::max(id, s.sheetId);
+    e.sheetId = id + 1;
+    m_info.sheets.append(e);
+    return int(m_info.sheets.size() - 1);
+}
+
+void Workbook::removeLastSheetEntry()
+{
+    if (m_info.sheets.isEmpty()) return;
+    const int last = int(m_info.sheets.size() - 1);
+    m_info.order.removeAll(last);
+    m_info.sheets.removeLast();
+}
+
+void Workbook::setSheetName(int sheet, const QString &name)
+{
+    if (sheet >= 0 && sheet < m_info.sheets.size()) m_info.sheets[sheet].name = name;
+}
+
+void Workbook::setSheetState(int sheet, SheetState state)
+{
+    if (sheet >= 0 && sheet < m_info.sheets.size()) m_info.sheets[sheet].state = state;
+}
+
+void Workbook::setSheetDeleted(int sheet, bool deleted)
+{
+    if (sheet >= 0 && sheet < m_info.sheets.size()) m_info.sheets[sheet].deleted = deleted;
+}
+
+namespace {
+
+QString numberedPart(const QString &pattern, int n) { return pattern.arg(n); }
+
+} // namespace
+
+void Workbook::planSheetPart(int sheet)
+{
+    if (sheet < 0 || sheet >= m_info.sheets.size() || !m_info.sheets[sheet].part.isEmpty()) return;
+    QSet<QString> taken;
+    for (const SheetEntry &e : m_info.sheets) taken.insert(e.part.toLower());
+    for (const QString &p : m_package.partNames()) taken.insert(p.toLower());
+    int n = 1;
+    while (taken.contains(numberedPart(QStringLiteral("/xl/worksheets/sheet%1.xml"), n).toLower())) ++n;
+    m_info.sheets[sheet].part = numberedPart(QStringLiteral("/xl/worksheets/sheet%1.xml"), n);
+    QSet<QString> ids;
+    for (const Relationship &r : m_package.relationships(m_mainPart)) ids.insert(r.id.toLower());
+    for (const SheetEntry &e : m_info.sheets) ids.insert(e.relId.toLower());
+    int k = 1;
+    if (isBinary()) {
+        // (the package made from a workbook of the older form numbers its sheets, then the styles and the strings)
+        int original = 0;
+        while (original < m_info.sheets.size() && !m_info.sheets[original].isNew) ++original;
+        k = original + 3;
+    }
+    while (ids.contains(QStringLiteral("rid%1").arg(k))) ++k;
+    m_info.sheets[sheet].relId = QStringLiteral("rId%1").arg(k);
 }
 
 namespace {
@@ -1594,21 +1921,275 @@ int Workbook::numberFormatId(const QString &code)
     return id;
 }
 
+namespace {
+
+quint64 hashOf(const CellFormat &f)
+{
+    quint64 h = 1469598103934665603ull;
+    auto mix = [&h](quint64 v) { h = (h ^ v) * 1099511628211ull; };
+    mix(quint64(quint32(f.numFmtId)));
+    mix(f.font);
+    mix(f.fill);
+    mix(f.border);
+    mix(quint64(f.horizontal) | quint64(f.vertical) << 8 | quint64(f.wrap) << 16 | quint64(f.shrink) << 17 | quint64(f.locked) << 18 | quint64(f.formulaHidden) << 19 | quint64(f.quotePrefix) << 20
+        | quint64(f.indent) << 24 | quint64(f.rotation) << 32 | quint64(f.readingOrder) << 40);
+    mix(f.xfId);
+    mix(f.parent);
+    mix(f.isStyle);
+    return h;
+}
+
+constexpr qint64 kMaxFontsMade = 100000, kMaxFillsMade = 100000, kMaxBordersMade = 100000, kMaxStylesMade = 100000;
+
+} // namespace
+
+namespace {
+
+quint64 mixed(quint64 h, quint64 v) { return (h ^ v) * 1099511628211ull; }
+
+quint64 hashOf(const ColorSpec &c)
+{
+    quint64 h = mixed(1469598103934665603ull, quint64(c.kind));
+    switch (c.kind) {
+    case ColorSpec::Kind::Rgb: return mixed(h, c.rgb);
+    case ColorSpec::Kind::Theme: {
+        const double tint = c.tint == 0 ? 0.0 : c.tint;   // (-0 and 0 are equal)
+        quint64 bits = 0;
+        std::memcpy(&bits, &tint, sizeof(bits));
+        return mixed(mixed(h, quint64(quint32(c.index))), bits);
+    }
+    case ColorSpec::Kind::Indexed: return mixed(h, quint64(quint32(c.index)));
+    default: return h;
+    }
+}
+
+quint64 hashOf(const FontSpec &f)
+{
+    quint64 h = mixed(1469598103934665603ull, quint64(qHash(f.name)));
+    quint64 bits = 0;
+    const double size = f.size == 0 ? 0.0 : f.size;
+    std::memcpy(&bits, &size, sizeof(bits));
+    h = mixed(h, bits);
+    h = mixed(h, quint64(f.bold) | quint64(f.italic) << 1 | quint64(f.strike) << 2 | quint64(f.underline) << 8 | quint64(f.vertAlign) << 16);
+    h = mixed(h, hashOf(f.color));
+    h = mixed(h, quint64(quint32(f.family)) | quint64(quint32(f.charset)) << 32);
+    return mixed(h, quint64(qHash(f.scheme)));
+}
+
+quint64 hashOf(const FillSpec &f)
+{
+    quint64 h = mixed(1469598103934665603ull, quint64(f.pattern) | quint64(f.gradient) << 8);
+    return mixed(mixed(h, hashOf(f.fg)), hashOf(f.bg));
+}
+
+quint64 hashOf(const BorderSide &s)
+{
+    quint64 h = mixed(1469598103934665603ull, quint64(s.style));
+    return s.style == BorderStyle::None ? h : mixed(h, hashOf(s.color));   // (a side with no line has no color that matters)
+}
+
+quint64 hashOf(const BorderSpec &b)
+{
+    quint64 h = mixed(1469598103934665603ull, quint64(b.diagonalUp) | quint64(b.diagonalDown) << 1);
+    for (const BorderSide *s : {&b.left, &b.right, &b.top, &b.bottom, &b.diagonal}) h = mixed(h, hashOf(*s));
+    return h;
+}
+
+// The place of the first of the list's items that is equal to `item` (found by its hash; the index is made from the list when first needed), or -1.
+template <class T>
+int firstEqual(const QVector<T> &list, std::unordered_multimap<quint64, quint32> *index, bool *made, const T &item, qint64 *compared)
+{
+    if (!*made) {
+        index->clear();
+        index->reserve(size_t(list.size()) * 2);
+        for (int i = 0; i < list.size(); ++i) index->emplace(hashOf(list[i]), quint32(i));
+        *made = true;
+    }
+    const auto range = index->equal_range(hashOf(item));
+    quint32 found = 0xFFFFFFFFu;
+    for (auto it = range.first; it != range.second; ++it) {
+        ++*compared;
+        if (list[int(it->second)] == item && it->second < found) found = it->second;
+    }
+    return found == 0xFFFFFFFFu ? -1 : int(found);
+}
+
+} // namespace
+
+quint32 Workbook::fontPlace(const FontSpec &font)
+{
+    const int found = firstEqual(m_styles.fonts, &m_fontIndex, &m_fontIndexMade, font, &m_placeComparisons);
+    if (found >= 0) return quint32(found);
+    if (m_styles.fonts.size() >= kMaxFontsMade) {
+        m_formatLimitHit = true;
+        return 0;
+    }
+    m_styles.fonts.append(font);
+    m_fontsAdded.append(font);
+    m_fontIndex.emplace(hashOf(font), quint32(m_styles.fonts.size() - 1));
+    return quint32(m_styles.fonts.size() - 1);
+}
+
+quint32 Workbook::fillPlace(const FillSpec &fill)
+{
+    const int found = firstEqual(m_styles.fills, &m_fillIndex, &m_fillIndexMade, fill, &m_placeComparisons);
+    if (found >= 0) return quint32(found);
+    if (m_styles.fills.size() >= kMaxFillsMade) {
+        m_formatLimitHit = true;
+        return 0;
+    }
+    m_styles.fills.append(fill);
+    m_fillsAdded.append(fill);
+    m_fillIndex.emplace(hashOf(fill), quint32(m_styles.fills.size() - 1));
+    return quint32(m_styles.fills.size() - 1);
+}
+
+quint32 Workbook::borderPlace(const BorderSpec &border)
+{
+    const int found = firstEqual(m_styles.borders, &m_borderIndex, &m_borderIndexMade, border, &m_placeComparisons);
+    if (found >= 0) return quint32(found);
+    if (m_styles.borders.size() >= kMaxBordersMade) {
+        m_formatLimitHit = true;
+        return 0;
+    }
+    m_styles.borders.append(border);
+    m_bordersAdded.append(border);
+    m_borderIndex.emplace(hashOf(border), quint32(m_styles.borders.size() - 1));
+    return quint32(m_styles.borders.size() - 1);
+}
+
+quint32 Workbook::findOrAddFormat(quint32 base, const CellFormat &format)
+{
+    if (!m_formatIndexMade) {
+        m_formatIndex.clear();
+        m_formatIndex.reserve(size_t(m_styles.formats.size()) * 2);
+        for (int i = 0; i < m_styles.formats.size(); ++i) m_formatIndex.emplace(hashOf(m_styles.formats[i]), quint32(i));
+        m_formatIndexMade = true;
+    }
+    // (a cell format is never made twice: an equal one that the workbook has stands for it, the first of them)
+    const auto range = m_formatIndex.equal_range(hashOf(format));
+    quint32 found = 0xFFFFFFFFu;
+    for (auto it = range.first; it != range.second; ++it)
+        if (m_styles.formats[int(it->second)] == format && it->second < found) found = it->second;
+    if (found != 0xFFFFFFFFu) return found;
+    if (m_styles.formats.size() >= kMaxCellFormatsWritten) {
+        m_formatLimitHit = true;
+        return base;
+    }
+    m_styles.formats.append(format);
+    m_styles.cellXfs.append(format.numFmtId);
+    m_formatsAdded.append({base, format});
+    const quint32 at = quint32(m_styles.formats.size() - 1);
+    m_formatIndex.emplace(hashOf(format), at);
+    return at;
+}
+
 quint32 Workbook::formatWithNumberFormat(quint32 base, int numFmtId)
 {
     if (m_styles.formats.isEmpty()) return base;
     if (base >= quint32(m_styles.formats.size())) base = 0;
     if (m_styles.formats[int(base)].numFmtId == numFmtId) return base;
-    // (one made before for the same cell format and number format stands for it)
-    for (int i = 0; i < m_formatsAdded.size(); ++i)
-        if (m_formatsAdded[i].base == base && m_formatsAdded[i].numFmtId == numFmtId) return quint32(m_formatsInFile + i);
-    if (m_styles.formats.size() >= kMaxCellXfs) return base;
     CellFormat f = m_styles.formats[int(base)];
     f.numFmtId = numFmtId;
-    m_styles.formats.append(f);
-    m_styles.cellXfs.append(numFmtId);
-    m_formatsAdded.append({base, numFmtId});
-    return quint32(m_styles.formats.size() - 1);
+    return findOrAddFormat(base, f);
+}
+
+quint32 Workbook::formatWith(quint32 base, const FormatChange &c)
+{
+    if (m_styles.formats.isEmpty()) return base;
+    if (base >= quint32(m_styles.formats.size())) base = 0;
+    CellFormat f = m_styles.formats[int(base)];
+    if (c.namedStyle) {
+        const quint32 style = *c.namedStyle;
+        if (style >= quint32(m_styles.styleXfs.size())) return base;
+        const CellFormat &sf = m_styles.styleXfs[int(style)];
+        // the look of the style: its number format, font, fill, border, alignment, and protection (the font, fill, and border are places in the workbook's lists, as the style's own are)
+        f.numFmtId = sf.numFmtId;
+        f.font = sf.font;
+        f.fill = sf.fill;
+        f.border = sf.border;
+        f.horizontal = sf.horizontal;
+        f.vertical = sf.vertical;
+        f.wrap = sf.wrap;
+        f.shrink = sf.shrink;
+        f.indent = sf.indent;
+        f.rotation = sf.rotation;
+        f.readingOrder = sf.readingOrder;
+        f.locked = sf.locked;
+        f.formulaHidden = sf.formulaHidden;
+        f.xfId = style;
+    }
+    if (c.numberFormat) f.numFmtId = numberFormatId(*c.numberFormat);
+    if (c.touchesFont()) {
+        FontSpec font = m_styles.font(f.font);
+        if (c.fontName && font.name != *c.fontName) {
+            font.name = *c.fontName;
+            font.scheme.clear();   // (a font chosen by name is no longer the theme's own)
+        }
+        if (c.fontSize) font.size = *c.fontSize;
+        if (c.bold) font.bold = *c.bold;
+        if (c.italic) font.italic = *c.italic;
+        if (c.strike) font.strike = *c.strike;
+        if (c.underline) font.underline = *c.underline;
+        if (c.vertAlign) font.vertAlign = *c.vertAlign;
+        if (c.fontColor) font.color = *c.fontColor;
+        f.font = fontPlace(font);
+    }
+    if (c.fill) f.fill = fillPlace(*c.fill);
+    if (c.touchesBorder()) {
+        BorderSpec b = m_styles.border(f.border);
+        if (c.left) b.left = *c.left;
+        if (c.right) b.right = *c.right;
+        if (c.top) b.top = *c.top;
+        if (c.bottom) b.bottom = *c.bottom;
+        if (c.diagonal) b.diagonal = *c.diagonal;
+        if (c.diagonalUp) b.diagonalUp = *c.diagonalUp;
+        if (c.diagonalDown) b.diagonalDown = *c.diagonalDown;
+        f.border = borderPlace(b);
+    }
+    if (c.horizontal) f.horizontal = *c.horizontal;
+    if (c.vertical) f.vertical = *c.vertical;
+    if (c.wrap) f.wrap = *c.wrap;
+    if (c.shrink) f.shrink = *c.shrink;
+    if (c.indent) f.indent = quint8(std::max(0, std::min(255, *c.indent)));
+    if (c.rotation) f.rotation = quint8(std::max(0, std::min(255, *c.rotation)));
+    if (c.readingOrder) f.readingOrder = quint8(std::max(0, std::min(2, *c.readingOrder)));
+    if (c.locked) f.locked = *c.locked;
+    if (c.formulaHidden) f.formulaHidden = *c.formulaHidden;
+    if (f == m_styles.formats[int(base)]) return base;
+    return findOrAddFormat(base, f);
+}
+
+qint32 Workbook::styleNamed(const QString &name)
+{
+    for (const CellStyleName &n : m_styles.cellStyles)
+        if (n.name.compare(name, Qt::CaseInsensitive) == 0) return n.xfId < quint32(m_styles.styleXfs.size()) ? qint32(n.xfId) : -1;
+    // (a built-in style the workbook does not have is made, if the file can be given one: it has the lists the styles go in, and room)
+    BuiltinStyle def;
+    if (!builtinStyle(name, &def) || m_styles.styleXfs.isEmpty() || m_styles.cellStyles.isEmpty() || m_styles.styleXfs.size() >= kMaxStylesMade) return -1;
+    FontSpec font = m_styles.font(0);
+    if (!def.fontName.isEmpty()) font.name = def.fontName;
+    if (!def.scheme.isEmpty()) font.scheme = def.scheme;
+    // (a heading is set in the workbook's own heading font, which its theme names)
+    if (def.scheme == QLatin1String("major") && !m_styles.majorFont.isEmpty()) font.name = m_styles.majorFont;
+    if (def.size > 0) font.size = def.size;
+    if (def.bold) font.bold = true;
+    if (def.italic) font.italic = true;
+    if (def.underline != Underline::None) font.underline = def.underline;
+    if (def.fontColor.isSet()) font.color = def.fontColor;
+    CellFormat f;
+    f.numFmtId = def.numFmtId;
+    f.font = fontPlace(font);
+    f.fill = fillPlace(def.fill);
+    f.border = borderPlace(def.border);
+    m_styles.styleXfs.append(f);
+    CellStyleName n;
+    n.name = def.name;
+    n.builtin = def.builtinId;
+    n.xfId = quint32(m_styles.styleXfs.size() - 1);
+    m_styles.cellStyles.append(n);
+    m_stylesAdded.append({f, n});
+    return qint32(n.xfId);
 }
 
 const QVector<Table> &Workbook::tables() const
@@ -1733,19 +2314,45 @@ std::map<QString, QByteArray> Workbook::changedTableParts() const
     return out;
 }
 
-void Workbook::savedTo(const Package &package, int strings, int numberFormats, int cellFormats)
+void Workbook::savedTo(const Package &package, const SavedCounts &counts)
 {
+    const int strings = counts.strings, numberFormats = counts.numberFormats, cellFormats = counts.cellFormats;
     m_package = package;
     // (the tables are read again from the file just written, which has the names they have now)
     m_tablesRead = false;
     m_tables.clear();
     m_sharedInFile += strings;
     m_formatsInFile += cellFormats;
+    m_fontsInFile += counts.fonts;
+    m_fillsInFile += counts.fills;
+    m_bordersInFile += counts.borders;
+    m_styleXfsInFile += counts.styles;
     m_sharedAdded = m_sharedAdded.mid(strings);
     m_numFmtsAdded = m_numFmtsAdded.mid(numberFormats);
     m_formatsAdded = m_formatsAdded.mid(cellFormats);
+    m_fontsAdded = m_fontsAdded.mid(counts.fonts);
+    m_fillsAdded = m_fillsAdded.mid(counts.fills);
+    m_bordersAdded = m_bordersAdded.mid(counts.borders);
+    m_stylesAdded = m_stylesAdded.mid(counts.styles);
     m_sharedAddedAt.clear();
     for (int i = 0; i < m_sharedAdded.size(); ++i) m_sharedAddedAt.insert(m_sharedAdded[i], qint32(m_sharedInFile + i));
+    // The sheets: the file has them as they are now (in the order of the tabs, by the names they have); one deleted is not in it.
+    {
+        const int active = activeTabNow();
+        for (SheetEntry &e : m_info.sheets) {
+            if (e.deleted) {
+                e.part.clear();
+                e.relId.clear();
+                e.fileName.clear();
+                continue;
+            }
+            e.isNew = false;
+            e.fileName = e.name;
+        }
+        m_info.fileOrder = m_info.order;
+        m_info.activeTab = active;
+        m_info.firstSheet = 0;
+    }
 }
 
 bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows) const

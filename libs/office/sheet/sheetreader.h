@@ -18,6 +18,7 @@
 #include <functional>
 #include <memory>
 #include <map>
+#include <unordered_map>
 #include <vector>
 
 namespace jp::office::sheet {
@@ -63,6 +64,8 @@ constexpr qint64 kMaxSharedStringChars = 50000000;
 // (a code is 233 characters at the most, and 4,096 are read).
 constexpr qint64 kMaxNumFmts = 100000;
 constexpr qint64 kMaxCellXfs = 1000000;
+// The most cell formats the program adds to a workbook (a person's formatting makes them): the format's own practical limit, which the programs that open a workbook keep to.
+constexpr qint64 kMaxCellFormatsWritten = 64000;
 constexpr qint64 kMaxNumFmtChars = 4000000;
 // Fonts, fills, and borders in the styles (cell formats have their own limit above). A font's name is 31 characters at the most in the format; 255 are kept, so that a styles part
 // of a hundred thousand fonts each with a name of a million characters holds no more than the 4 GB budget says (the fonts take 50 MB at the most).
@@ -138,7 +141,10 @@ enum class SheetState { Visible, Hidden, VeryHidden };
 enum class SheetKind { Worksheet, Chartsheet, Dialogsheet, Macrosheet };
 
 struct SheetEntry {
-    QString name;
+    QString name;                 // the name now (a person may have renamed the sheet; empty for a sheet that was deleted)
+    QString fileName;             // the name the package's workbook part has for it (what the files' formulas say, until the next save)
+    bool deleted = false;         // a sheet a person deleted: it keeps its place, and is not in the order of the tabs
+    bool isNew = false;           // a sheet a person added: it has no part in the package yet
     int sheetId = 0;
     SheetState state = SheetState::Visible;
     QString relId;        // the workbook's relationship to the sheet's part
@@ -154,7 +160,9 @@ struct DefinedName {
 };
 
 struct WorkbookInfo {
-    QVector<SheetEntry> sheets;   // in the order the workbook has them
+    QVector<SheetEntry> sheets;   // by place: the order the file has them in, then those a person added (a sheet's place never changes)
+    QVector<int> order;           // the places of the sheets in the order of the tabs (those deleted are not in it)
+    QVector<int> fileOrder;       // the places of the sheets in the order the package's workbook part has them (what `activeTab` and the `localSheet` of the file's names count by, until a save)
     QVector<DefinedName> definedNames;
     DateSystem dateSystem = DateSystem::Date1900;
     CalcMode calcMode = CalcMode::Auto;
@@ -253,6 +261,17 @@ public:
     // format (the one it is already, or one made).
     int numberFormatId(const QString &code);
     quint32 formatWithNumberFormat(quint32 base, int numFmtId);
+    // The place of the cell format that is `base` with the change: one of the workbook's that is exactly that (a cell format is never made twice), else a new one at the end, with the
+    // font, fill, and border it needs found among the workbook's or added. `base` itself when the change changes nothing (or the workbook can take no more cell formats).
+    quint32 formatWith(quint32 base, const FormatChange &change);
+    // Whether a format (a cell format, a font, a fill, or a border) was wanted since `clearFormatLimit` that the workbook could take no more of: the caller then says so, and does not go
+    // on with what it was doing with `base`.
+    bool formatLimitHit() const { return m_formatLimitHit; }
+    void clearFormatLimit() { m_formatLimitHit = false; }
+    // How many fonts, fills, and borders were compared with another to find a place for one (found by a hash, it is a few for each, not as many as the workbook has).
+    qint64 placeComparisons() const { return m_placeComparisons; }
+    // The place of the style format a named style has (by its name), made when the workbook does not have it and it is one of the built-in styles (see builtinStyleNames); -1 if there is none.
+    qint32 styleNamed(const QString &name);
     // The additions since the file was read or saved, for saving them: the strings, the number formats (id and code), and the cell formats (the one each is a copy of, and its number format).
     QStringList addedSharedStrings() const { return m_sharedAdded; }
     struct AddedNumberFormat {
@@ -260,13 +279,51 @@ public:
         QString code;
     };
     struct AddedCellFormat {
-        quint32 base;
-        int numFmtId;
+        quint32 base;        // the cell format it is a copy of (in the file, or added before)
+        CellFormat format;   // and what it is: the places of its number format, font, fill, and border are the ones in the file as it will be written
     };
     QVector<AddedNumberFormat> addedNumberFormats() const { return m_numFmtsAdded; }
     QVector<AddedCellFormat> addedCellFormats() const { return m_formatsAdded; }
-    // The file has been written with the first `strings`, `numberFormats`, and `cellFormats` of what was added: the package is the new file's, and those are in it.
-    void savedTo(const Package &package, int strings, int numberFormats, int cellFormats);
+    QVector<FontSpec> addedFonts() const { return m_fontsAdded; }
+    QVector<FillSpec> addedFills() const { return m_fillsAdded; }
+    QVector<BorderSpec> addedBorders() const { return m_bordersAdded; }
+    // The named styles added (built-in ones the file did not have): the style format of each, and the name.
+    struct AddedStyle {
+        CellFormat format;
+        CellStyleName name;
+    };
+    QVector<AddedStyle> addedStyles() const { return m_stylesAdded; }
+    qint64 fontsInFile() const { return m_fontsInFile; }
+    qint64 fillsInFile() const { return m_fillsInFile; }
+    qint64 bordersInFile() const { return m_bordersInFile; }
+    qint64 styleXfsInFile() const { return m_styleXfsInFile; }
+    // The file has been written with the first `strings`, `numberFormats`, and `cellFormats` (and the fonts, fills, borders, and styles) of what was added: the package is the new file's, and
+    // those are in it.
+    struct SavedCounts {
+        int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0;
+    };
+    void savedTo(const Package &package, const SavedCounts &counts);
+    void savedTo(const Package &package, int strings, int numberFormats, int cellFormats)
+    {
+        SavedCounts c;
+        c.strings = strings;
+        c.numberFormats = numberFormats;
+        c.cellFormats = cellFormats;
+        savedTo(package, c);
+    }
+
+    // ---- the sheets as a person changes them (see apps/crunch/core/editsession.h). A sheet's place never changes: one added is given the next place, and one deleted keeps its own, marked.
+    // What the file has stays in `fileName` and `part` until a save. The window's thread only, with the worker held back.
+    int addSheetEntry(const QString &name, SheetState state = SheetState::Visible);
+    void removeLastSheetEntry();   // (Undo of adding one)
+    void setSheetName(int sheet, const QString &name);
+    void setSheetState(int sheet, SheetState state);
+    void setSheetDeleted(int sheet, bool deleted);
+    void setSheetOrder(const QVector<int> &order) { m_info.order = order; }
+    // The tab that is open in the file, by its place in the order the tabs are in now: where the sheet the file says is open is (or, if it was deleted or is hidden, the first that is shown).
+    int activeTabNow() const;
+    // The part, relationship, and sheet number the package would have for a new sheet (names none that the package, or another new sheet, has), chosen once and kept.
+    void planSheetPart(int sheet);
 
     // ---- tables (see sheet/tables.h): read from the package when first asked for
     const QVector<Table> &tables() const;
@@ -286,6 +343,7 @@ public:
 
 private:
     bool openStream(const QByteArray &stream, bool hasMacros, QString *error, const Limits &limits);
+    void prepareSheetList();
     bool openOpenDocument(const QByteArray &file, bool flat, QString *error, const Limits &limits);
     bool openDelimited(const QByteArray &file, const QString &path, QString *error, const Limits &limits);
     void nameBaseParts();
@@ -298,6 +356,21 @@ private:
     QHash<QString, qint32> m_sharedAddedAt;
     QVector<AddedNumberFormat> m_numFmtsAdded;
     QVector<AddedCellFormat> m_formatsAdded;
+    QVector<FontSpec> m_fontsAdded;
+    QVector<FillSpec> m_fillsAdded;
+    QVector<BorderSpec> m_bordersAdded;
+    QVector<AddedStyle> m_stylesAdded;
+    qint64 m_fontsInFile = 0, m_fillsInFile = 0, m_bordersInFile = 0, m_styleXfsInFile = 0;
+    std::unordered_multimap<quint64, quint32> m_formatIndex;   // the cell formats by a hash of what they are, to find an equal one (made when first needed)
+    bool m_formatIndexMade = false;
+    quint32 fontPlace(const FontSpec &font);
+    quint32 fillPlace(const FillSpec &fill);
+    quint32 borderPlace(const BorderSpec &border);
+    quint32 findOrAddFormat(quint32 base, const CellFormat &format);
+    std::unordered_multimap<quint64, quint32> m_fontIndex, m_fillIndex, m_borderIndex;   // the fonts, fills, and borders by a hash of what they are (made when first needed)
+    bool m_fontIndexMade = false, m_fillIndexMade = false, m_borderIndexMade = false;
+    bool m_formatLimitHit = false;
+    qint64 m_placeComparisons = 0;
     WorkbookInfo m_info;
     SharedStrings m_shared;
     QString m_sharedError;

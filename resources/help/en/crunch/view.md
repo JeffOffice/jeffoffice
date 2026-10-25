@@ -1,5 +1,5 @@
 # Change the view
-<!-- keywords: view, zoom, freeze, freeze panes, unfreeze, gridlines, headings, formula bar, show formulas, sheet tabs, hidden sheets, headers -->
+<!-- keywords: view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, gridlines, headings, formula bar, show formulas, sheet tabs, hidden sheets, headers -->
 
 The **View** tab changes how the sheet looks on your screen. It never changes the workbook.
 
@@ -24,7 +24,11 @@ A workbook that was saved with frozen panes opens with them.
 
 ## Sheets
 
-The tabs at the bottom are the sheets of the workbook. Click a tab to show that sheet. Each sheet remembers where you were in it. Sheets that the workbook hides are not shown. A colored line under a tab is the color the sheet asked for.
+The tabs at the bottom are the sheets of the workbook. Click a tab to show that sheet. Each sheet remembers where you were in it. Sheets that are hidden are not shown. A colored line under a tab is the color of the sheet's tab. To add, rename, move, copy, hide, delete, or color a sheet, see [Work with sheets](sheets).
+
+## Sheets that read from right to left
+
+A sheet made for a language such as Arabic or Hebrew reads from right to left, and JeffCrunch shows it that way: column A is at the right edge, the row numbers are at the right, and the horizontal scroll bar runs the other way. The arrow keys follow the sheet, so the Left arrow goes to the next column. Text in a cell starts from the side its language reads from. The workbook says which way a sheet reads; JeffCrunch has no command to change that yet.
 
 ## Show formulas
 

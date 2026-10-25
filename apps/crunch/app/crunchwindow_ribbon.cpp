@@ -1,4 +1,4 @@
-// JeffCrunch's ribbon (its layout is resources/ribbon.json, built by ribbonbuilder.cpp): the commands it names that are on the window, and the controls built in code (none yet).
+// JeffCrunch's ribbon (its layout is resources/ribbon.json, built by ribbonbuilder.cpp): the commands it names that are on the window, and the controls built in code (the font and size boxes, the colors, the number format).
 
 #include "app/crunchwindow.h"
 
@@ -21,9 +21,10 @@ void CrunchWindow::buildRibbon()
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
 }
 
-void CrunchWindow::ribbonParts(RibbonParts &)
+void CrunchWindow::ribbonParts(RibbonParts &parts)
 {
-    // (the ribbon's commands are all actions of the window)
+    // (the ribbon's commands are actions of the window; the controls made in code are those of formatting)
+    formatRibbonParts(parts);
 }
 
 } // namespace jp

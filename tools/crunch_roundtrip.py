@@ -116,7 +116,7 @@ def main():
     parts_same = sum(int(r[5]) for r in done)
     edit_parts = sum(int(r[12]) for r in done)
     edit_parts_same = sum(int(r[13]) for r in done)
-    # the edit script (a row and a column inserted and deleted, a paste, a fill): the cells read back right, and the parts that were not meant to change
+    # the edit script (a row and a column inserted and deleted, a paste, a fill, formatting, and a sheet added, renamed, moved, and colored): the cells read back right, and the parts that were not meant to change
     scripted = [r for r in done if len(r) > 25 and r[18].isdigit() and (int(r[18]) + int(r[19])) > 0]
     script_cells = sum(int(r[20]) for r in scripted)
     script_right = sum(int(r[21]) for r in scripted)
@@ -142,7 +142,7 @@ def main():
         print("parts not meant to change, and the same: %d of %d (%.4f%%)" % (edit_parts_same, edit_parts, 100.0 * edit_parts_same / max(1, edit_parts)))
         print("both: %d of %d (%.2f%%)" % (len(both), len(done), 100.0 * len(both) / len(done)))
         if scripted:
-            print("with an edit script (a row and a column inserted and deleted, a paste, a fill) saved and read back: %d of %d workbooks have 99.5%% of their cells right, with nothing else differing (%.2f%%); cells right: %d of %d (%.4f%%); "
+            print("with an edit script (a row and a column inserted and deleted, a paste, a fill, formatting, a sheet added, renamed, moved, and colored) saved and read back: %d of %d workbooks have 99.5%% of their cells right, with nothing else differing (%.2f%%); cells right: %d of %d (%.4f%%); "
                   "parts not meant to change, and the same: %d of %d; defined names, rules of validation, tables, conditional formats, hyperlinks, and chart series right: %d of %d (%.4f%%)"
                   % (len(script_ok), len(scripted), 100.0 * len(script_ok) / len(scripted), script_right, script_cells, 100.0 * script_right / max(1, script_cells), script_parts_same, script_parts, script_other_right, script_other, 100.0 * script_other_right / max(1, script_other)))
         deps = sum(int(r[9]) for r in done if r[9].isdigit())

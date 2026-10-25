@@ -58,6 +58,12 @@ struct RowProps {
     double height = -1;         // points; -1: the file's stays
     bool hidden = false;
     bool customHeight = false;
+    bool styleKnown = false;    // `style` and `customFormat` are the row's own format (else the file's stays)
+    bool customFormat = false;
+    quint32 style = 0;
+    bool outlineKnown = false;  // `outline` and `collapsed` are the row's own (else the file's stay)
+    quint8 outline = 0;
+    bool collapsed = false;
 };
 
 struct SheetChanges {
@@ -70,14 +76,37 @@ struct SheetChanges {
     // And the merged ranges, when a paste or a cut and paste changed them.
     bool replaceMerges = false;
     std::vector<CellRange> merges;
+    // The default sizes (`sheetFormatPr`), when a person changed them: the default height of rows (and whether it is a person's), and the default width of columns (none when 0).
+    bool replaceFormat = false;
+    SheetFormat format;
     std::vector<RowProps> rows;         // sorted by row
-    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && rows.empty(); }
+    // The color of the sheet's tab, when a person changed it (none: the sheet has no color).
+    bool replaceTabColor = false;
+    ColorSpec tabColor;
+    // Whether the sheet's tab is the one that is open (`tabSelected` of its first view), when the sheets a person changed make it so (-1: the file's stays, 0: not, 1: it is).
+    int tabSelected = -1;
+    // For a sheet a person added: the XML it begins as (its view, default sizes, rules, and no cells: the cells, sizes of rows and columns, and merged ranges above are put in it).
+    QByteArray skeleton;
+    // For a sheet a person copied: the part of the sheet it was copied from (in the file as it was read or last saved), and the edits to rows and columns made to the cells it was copied from
+    // before the copy, as the copy's own (its place is `sheet` of the edit). What the copied sheet's file has that the program keeps no model of (its protection, filter, links, page setup, and
+    // breaks) is taken from that part and put in, following the edits.
+    QString copyFromPart;
+    std::vector<StructEdit> copyEdits;
+    bool isProtected = false;           // for a sheet a person added: it is protected (a copy of a protected sheet has the protection the sheet had)
+    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty(); }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
 struct ColumnRename {
     QString table, oldName, newName;
     bool operator==(const ColumnRename &o) const { return table == o.table && oldName == o.oldName && newName == o.newName; }
+};
+
+// A sheet renamed or deleted by a person (the formulas of the file that name it follow; see structsave.h): the name it had, and for a rename the name it has.
+struct SheetOp {
+    enum class Kind : quint8 { Rename, Delete } kind = Kind::Rename;
+    QString name, newName;
+    bool operator==(const SheetOp &o) const { return kind == o.kind && name == o.name && newName == o.newName; }
 };
 
 struct SaveChanges {
@@ -93,10 +122,25 @@ struct SaveChanges {
     struct CellFormatAdded {
         quint32 base = 0;       // the cell format it is a copy of
         int numFmtId = 0;
+        // With `full`, the new cell format is `format`, whole (its number format, font, fill, border, alignment, and protection; the places are those of the file as it will be written),
+        // and the copy of `base` has only what the file says besides (a link to a named style, say) kept. Without, it is `base` with the number format `numFmtId`.
+        bool full = false;
+        CellFormat format;
     };
     QVector<NumberFormat> newNumberFormats;
     QVector<CellFormatAdded> newCellFormats;
     qint64 cellFormatsBefore = 0;
+    // And fonts, fills, and borders added (each list begins at the place the `...Before` says), and named styles with their formats among the style formats (cellStyleXfs).
+    QVector<FontSpec> newFonts;
+    QVector<FillSpec> newFills;
+    QVector<BorderSpec> newBorders;
+    qint64 fontsBefore = 0, fillsBefore = 0, bordersBefore = 0;
+    struct StyleAdded {
+        CellFormat format;
+        CellStyleName name;
+    };
+    QVector<StyleAdded> newStyles;
+    qint64 styleXfsBefore = 0;
     // Parts to be written anew whole, by the part's name (the table parts whose columns were renamed).
     std::map<QString, QByteArray> replacedParts;
     // Rows, columns, and cells inserted and deleted since the file was read, in the order they were made. Every part of the file that has cells in it, or names them, is changed by them
@@ -115,6 +159,11 @@ struct SaveChanges {
     std::map<QString, std::map<int, DrawingAnchor>> anchors;
     // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
     bool fullCalcOnLoad = false;
+    // The sheets: when a person added, deleted, renamed, moved, hid, or showed one (the workbook's own list is then made from the Workbook's: names, states, and the order of the tabs, with the
+    // parts and relationships of the new sheets it has planned), and the renames and deletes in the order made (everything in the file that names a sheet follows them).
+    bool sheetsChanged = false;
+    std::vector<SheetOp> sheetOps;
+    int activeTab = 0;                           // the sheet that is open, by its place in the order of the tabs
 };
 
 struct SaveReport {
@@ -147,6 +196,9 @@ bool patchSheet(QIODevice *in, PartSink *out, const SheetChanges &changes, bool 
 bool patchSharedStrings(const QByteArray &xml, const QStringList &added, QByteArray *out, QString *error = nullptr);
 // The styles part with the number formats and cell formats added.
 bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *out, QString *error = nullptr);
+// The workbook part with its list of sheets made from the workbook's own (names, shown or hidden, the order of the tabs, those added and deleted), the names that belong to a sheet
+// following it, and the open tab where it is now.
+bool patchWorkbookSheets(const QByteArray &xml, const Workbook &book, QByteArray *out, QString *error = nullptr);
 // [Content_Types].xml without the Override of a part, and a relationships part without the link of a type (whose Type ends with the given words); false (nothing changed) if there is none.
 bool removeContentTypeOverride(const QByteArray &xml, const QString &partName, QByteArray *out);
 bool removeRelationshipOfType(const QByteArray &xml, const QString &typeSuffix, QByteArray *out);

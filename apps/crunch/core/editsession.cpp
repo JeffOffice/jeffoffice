@@ -1,5 +1,7 @@
 #include "core/editsession.h"
 
+#include "sheet/xlsxbase.h"
+
 #include "grid/text.h"
 #include "sheet/cellref.h"
 
@@ -100,6 +102,14 @@ public:
     Step *step() { return &m_step; }
     // Whether the step inserted or deleted rows, columns, or cells.
     bool moves() const { return !m_forgotten && m_step.structure != nullptr; }
+    // Whether the step added, copied, renamed, deleted, or moved a sheet (what the saved file's parts name was changed).
+    bool sheetStructure() const
+    {
+        if (m_forgotten) return false;
+        for (const SheetEdit &e : m_step.sheets)
+            if (e.structural()) return true;
+        return false;
+    }
     // Whether the step deleted rows, columns, or cells.
     bool deletes() const
     {
@@ -114,8 +124,10 @@ public:
     {
         qint64 n = 0;
         for (const CellChange &c : m_step.cells) n += qint64(sizeof(c)) + contentBytes(c.before) + contentBytes(c.after) + qint64(c.formatCode.size()) * 2;
+        n += qint64(m_step.styles.size()) * qint64(sizeof(StyleCell));
         for (const TableRename &r : m_step.renames) n += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
         for (const MergeEdit &m : m_step.merges) n += qint64(sizeof(m)) + qint64(m.before.size() + m.after.size()) * qint64(sizeof(jp::office::sheet::CellRange));
+        for (const SheetEdit &e : m_step.sheets) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.orderBefore.size() + e.orderAfter.size()) * qint64(sizeof(int));
         for (const SizeEdit &e : m_step.sizes)
             n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
         if (m_step.structure) n += m_step.structure->bytes();
@@ -162,38 +174,63 @@ EditSession::~EditSession()
     m_undo.disconnect(this);
 }
 
+namespace {
+
+// The steps a command of the undo stack is: itself, or, for a macro (several steps a person sees as one: a dialog that changes the font and the borders), those it groups.
+template <class F>
+void eachStep(const QUndoCommand *command, const F &f)
+{
+    if (const auto *step = dynamic_cast<const ChangeCells *>(command)) f(const_cast<ChangeCells *>(step));
+    for (int k = 0; k < command->childCount(); ++k) eachStep(command->child(k), f);
+}
+
+// A command is forgotten when it holds steps and none of them is held.
+bool commandForgotten(const QUndoCommand *command)
+{
+    bool any = false, held = false;
+    eachStep(command, [&](ChangeCells *step) {
+        any = true;
+        held = held || !step->forgotten();
+    });
+    return any && !held;
+}
+
+} // namespace
+
 int EditSession::firstHeldStep() const
 {
     int i = 0;
-    while (i < m_undo.count() && static_cast<const ChangeCells *>(m_undo.command(i))->forgotten()) ++i;
+    while (i < m_undo.count() && commandForgotten(m_undo.command(i))) ++i;
     return i;
 }
 
 void EditSession::forgetDeletesInFile()
 {
+    // (the same for the sheets added, copied, renamed, deleted, and moved: the saved file has them as they are, and the parts of it that name a sheet were written with the names of the time)
     // (the saved file has lost what was in the rows, columns, and cells that were deleted: the parts of it that name cells were made smaller, and what was on the deleted cells (a note, a
     // link, a picture) is not in it, so an Undo of the delete could not give it back to the file. Undo goes back as far as the last delete saved, no further. Every other step, those that
     // move cells included, stays: Undo of it is made against the saved file.)
     int last = -1;
     for (int i = m_undo.index() - 1; i >= 0 && last < 0; --i)
-        if (static_cast<const ChangeCells *>(m_undo.command(i))->deletes()) last = i;
+        eachStep(m_undo.command(i), [&](ChangeCells *step) {
+            if (step->deletes() || step->sheetStructure()) last = i;
+        });
     m_forgotBySave = 0;
     for (int i = 0; i <= last; ++i) {
-        auto *cmd = const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)));
-        if (!cmd->forgotten()) ++m_forgotBySave;
-        cmd->forget();
+        if (!commandForgotten(m_undo.command(i))) ++m_forgotBySave;
+        eachStep(m_undo.command(i), [](ChangeCells *step) { step->forget(); });
     }
 }
 
 void EditSession::forgetStepsDone()
 {
-    for (int i = 0; i < m_undo.index(); ++i) const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)))->forget();
+    for (int i = 0; i < m_undo.index(); ++i) eachStep(m_undo.command(i), [](ChangeCells *step) { step->forget(); });
 }
 
 void EditSession::giveUpUndo(const QString &stepText, bool redoing)
 {
     // (the workbook is not as the stack says: no step is undone or done again from here)
-    for (int i = 0; i < m_undo.count(); ++i) const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)))->forget();
+    for (int i = 0; i < m_undo.count(); ++i) eachStep(m_undo.command(i), [](ChangeCells *step) { step->forget(); });
     Q_EMIT stepFailed(redoing ? tr("\"%1\" could not be done again, so Undo and Redo are not available any more for what came before it.").arg(stepText)
                               : tr("\"%1\" could not be undone, so Undo and Redo are not available any more for what came before it.").arg(stepText));
 }
@@ -210,7 +247,7 @@ void EditSession::trimUndo()
 {
     // the oldest steps first; the newest that is done is never forgotten, nor are those that were undone (they come after it, and are not the oldest)
     for (int i = firstHeldStep(); *m_undoBytes > m_undoByteLimit && i < m_undo.index() - 1; ++i)
-        const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(i)))->forget();
+        eachStep(m_undo.command(i), [](ChangeCells *step) { step->forget(); });
 }
 
 void EditSession::cleanChanged(bool clean)
@@ -223,6 +260,12 @@ void EditSession::cleanChanged(bool clean)
     m_columnsResized.clear();
     m_rowsResized.clear();
     m_mergesChanged.clear();
+    m_formatsChanged.clear();
+    m_sheetsListed = false;
+    m_statesChanged.clear();
+    m_tabColorsChanged.clear();
+    m_sheetOps.clear();
+    m_copies.clear();
 }
 
 void EditSession::calculationFinished()
@@ -250,7 +293,7 @@ bool EditSession::canEditSheet(int sheet, QString *why) const
         if (why) *why = text;
         return false;
     };
-    if (!m_book || !m_book->book || sheet < 0 || sheet >= m_book->book->info().sheets.size()) return refuse(tr("There is no such sheet."));
+    if (!m_book || !m_book->book || sheet < 0 || sheet >= m_book->book->info().sheets.size() || m_book->book->info().sheets[sheet].deleted) return refuse(tr("There is no such sheet."));
     if (m_book->book->info().sheets[sheet].kind != SheetKind::Worksheet) return refuse(tr("This sheet has no cells to change."));
     return true;
 }
@@ -329,7 +372,9 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
 {
     const Calculation *calc = m_book->calc.get();
     const Calculation::CellContent before = calc->content(sheet, row, col);
-    const QString code = m_book->book->styles().formatCode(before.style, m_locale);
+    // (a cell that holds nothing has its row's or its column's format, and a cell typed in takes it)
+    const quint32 baseStyle = before.exists ? before.style : implicitStyle(sheet, row, col);
+    const QString code = m_book->book->styles().formatCode(baseStyle, m_locale);
     const EntryResult r = readEntry(typed, entryOptions(sheet, code == QLatin1String("@")));
     if (!r.ok) {
         problem->ok = false;
@@ -348,6 +393,7 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
     ch.after.formula.clear();
     ch.after.value = Value();
     ch.after.sharedString = -1;
+    ch.after.style = baseStyle;
     const Entry &e = r.entry;
     switch (e.kind) {
     case Entry::Kind::Empty: break;
@@ -367,10 +413,20 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
         ch.after.formula = e.text;
         break;
     }
-    if (ch.after.value.isEmpty() && !ch.after.isFormula && ch.after.style == 0) ch.after.exists = false;
+    if (ch.after.value.isEmpty() && !ch.after.isFormula && (ch.after.style == 0 || !before.exists)) ch.after.exists = false;
     *none = sameMeaning(ch.before, ch.after) && ch.formatCode.isEmpty();   // (nothing to change)
     *out = std::move(ch);
     return true;
+}
+
+quint32 EditSession::implicitStyle(int sheet, quint32 row, quint32 col) const
+{
+    const Calculation *calc = m_book->calc.get();
+    for (const RowSpec &r : calc->rowSpecsIn(sheet, row, row))
+        if (r.row == row && r.customFormat && r.style != 0) return r.style;
+    for (const ColumnSpan &c : calc->columnRuns(sheet, col, col))
+        if (c.first <= col && col <= c.last) return c.style;
+    return 0;
 }
 
 EditSession::Outcome EditSession::checkRule(int sheet, quint32 row, quint32 col, const Value &value, bool isFormula, const QString &typed) const
@@ -618,6 +674,17 @@ bool EditSession::apply(Step *step, bool forward)
                 }
             }
             const Calculation::CellContent &c = forward ? ch.after : ch.before;
+            if (ch.styleOnly) {
+                // only the cell's format changes: its value, its formula, and the array it may be part of are not touched
+                calc->setStyle(ch.sheet, ch.row, ch.col, c.style);
+                m_touched.insert(keyOf(ch.sheet, ch.row, ch.col));
+                ValueStore::Item styled;
+                styled.sheet = ch.sheet;
+                styled.row = ch.row;
+                styled.col = ch.col;
+                cells[ch.sheet].push_back(styled);
+                continue;
+            }
             calc->put(ch.sheet, ch.row, ch.col, c, Calculation::Marking::Later);
             m_touched.insert(keyOf(ch.sheet, ch.row, ch.col));
             ValueStore::Item it;
@@ -631,6 +698,24 @@ bool EditSession::apply(Step *step, bool forward)
                 formulas.push_back(it);
             }
         }
+    }
+    {
+        // the cells whose format alone changed: told one by one, or, when there are very many, as the whole sheet being drawn again
+        const bool many = step->styles.size() > 20000;
+        std::set<int> sheetsStyled;
+        for (const StyleCell &sc : step->styles) {
+            calc->setStyle(sc.sheet, sc.row, sc.col, forward ? sc.after : sc.before);
+            m_touched.insert(keyOf(sc.sheet, sc.row, sc.col));
+            sheetsStyled.insert(sc.sheet);
+            if (many) continue;
+            ValueStore::Item styled;
+            styled.sheet = sc.sheet;
+            styled.row = sc.row;
+            styled.col = sc.col;
+            cells[sc.sheet].push_back(styled);
+        }
+        if (many)
+            for (const int sheet : sheetsStyled) m_sheetsRestyled.insert(sheet);
     }
     for (TableRename &r : step->renames) {
         book.setTableColumnName(r.table, r.column, forward ? r.after : r.before);
@@ -651,22 +736,35 @@ bool EditSession::apply(Step *step, bool forward)
         calc->setMerges(m.sheet, forward ? m.after : m.before, forward ? m.countAfter : m.countBefore);
         m_mergesChanged.insert(m.sheet);
     }
+    for (const FormatEdit &f : step->formats) {
+        calc->setSheetFormat(f.sheet, forward ? f.after : f.before);
+        m_formatsChanged.insert(f.sheet);
+    }
+    if (!applySheetEdits(step, forward, calc, book)) return false;
     if (m_holdHook) m_holdHook(calc, true);
-    if (!step->cells.empty() || !step->renames.empty()) hold->changed();
+    // (a change of formats alone leaves nothing for the worker to work out)
+    bool valuesChanged = !step->renames.empty();
+    for (const CellChange &ch : step->cells) valuesChanged = valuesChanged || !ch.styleOnly;
+    for (const SheetEdit &e : step->sheets) valuesChanged = valuesChanged || e.kind == SheetEdit::Kind::Insert || e.kind == SheetEdit::Kind::Copy || e.kind == SheetEdit::Kind::Delete || e.kind == SheetEdit::Kind::Rename;
+    if (valuesChanged) hold->changed();
     hold.reset();   // (the worker has the model again, and works out what these changes make)
     m_tracking = true;
     // a formula put in a cell has no value until the worker gives it one: it shows nothing, not the value of what was there
     if (!formulas.empty()) m_values->apply(formulas);
     for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
     for (const SizeEdit &e : step->sizes) Q_EMIT sizesChanged(e.sheet);
+    for (const int sheet : m_sheetsRestyled) Q_EMIT sizesChanged(sheet);
+    m_sheetsRestyled.clear();
     for (const MergeEdit &m : step->merges) Q_EMIT sizesChanged(m.sheet);
+    for (const FormatEdit &f : step->formats) Q_EMIT sizesChanged(f.sheet);
+    if (!step->sheets.empty()) Q_EMIT sheetsChanged();
     return true;
 }
 
 bool EditSession::widenLastStep(int index, int sheet, quint32 col, double width)
 {
-    auto *cmd = const_cast<ChangeCells *>(static_cast<const ChangeCells *>(m_undo.command(index)));
-    if (cmd->forgotten() || cmd->step()->structure || cmd->step()->cells.empty() || col >= kMaxColumns) return false;
+    auto *cmd = const_cast<ChangeCells *>(dynamic_cast<const ChangeCells *>(m_undo.command(index)));
+    if (!cmd || cmd->forgotten() || cmd->step()->structure || cmd->step()->cells.empty() || col >= kMaxColumns) return false;
     bool inColumn = false;
     for (const CellChange &c : cmd->step()->cells) inColumn = inColumn || (c.sheet == sheet && c.col == col);
     if (!inColumn) return false;
@@ -774,9 +872,11 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     bool resultMissing = false;
     std::vector<quint64> touchedInOrder(m_touched.begin(), m_touched.end());
     std::sort(touchedInOrder.begin(), touchedInOrder.end());
-    for (const quint64 key : touchedInOrder) {
-        const int sheet = int(key >> 40);
-        const quint32 row = quint32((key >> 16) & 0xFFFFFF), col = quint32(key & 0xFFFF);
+    // (a sheet that was added is made whole from the model, and one that was deleted is not in the file: the marks of their cells are not what is put in)
+    const WorkbookInfo &listed = book.info();
+    auto written = [&](int sheet) { return sheet >= 0 && sheet < listed.sheets.size() && !listed.sheets[sheet].deleted && !listed.sheets[sheet].isNew; };
+    auto addCell = [&](int sheet, quint32 row, quint32 col) {
+        const quint64 key = keyOf(sheet, row, col);
         const Calculation::CellContent c = calc->content(sheet, row, col);
         SavedCell cell;
         cell.row = row;
@@ -803,6 +903,106 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             }
         }
         changes.sheets[sheet].cells.push_back(cell);
+    };
+    for (const quint64 key : touchedInOrder) {
+        const int sheet = int(key >> 40);
+        if (!written(sheet)) continue;
+        addCell(sheet, quint32((key >> 16) & 0xFFFFFF), quint32(key & 0xFFFF));
+    }
+    // the sheets a person added: every cell, and what the sheet has besides
+    bool newSheets = false;
+    if (m_sheetsListed) {
+        changes.sheetsChanged = true;
+        changes.sheetOps = m_sheetOps;
+        for (int sheet = 0; sheet < listed.sheets.size(); ++sheet) {
+            if (listed.sheets[sheet].deleted || !listed.sheets[sheet].isNew) continue;
+            book.planSheetPart(sheet);
+            newSheets = true;
+            const Sheet &model = calc->sheet(sheet);
+            changes.sheets[sheet];   // (made, though the sheet is empty)
+            model.cells.forEach([&](const Cell &c) { addCell(sheet, c.row, c.col); });
+            SheetChanges &sc = changes.sheets[sheet];
+            sc.skeleton = newSheetSkeleton(model);
+            sc.isProtected = model.isProtected;
+            if (const CopyPoint *copy = copyPointOf(sheet)) {
+                // a copy: its file begins as the file of the sheet it was copied from (the first sheet of the chain of copies that has a part), moved by the edits to rows and columns made to
+                // the cells it came from before the copy, each as an edit to the copy
+                struct Span {
+                    int sheet;
+                    size_t from, to;
+                };
+                std::vector<Span> spans;
+                int source = copy->source;
+                size_t to = copy->edits;
+                for (;;) {
+                    const CopyPoint *earlier = copyPointOf(source);
+                    spans.push_back({source, earlier ? earlier->edits : 0, to});
+                    if (!earlier) break;
+                    to = earlier->edits;
+                    source = earlier->source;
+                }
+                if (source >= 0 && source < listed.sheets.size() && !listed.sheets[source].isNew && !listed.sheets[source].part.isEmpty()) {
+                    sc.copyFromPart = listed.sheets[source].part;
+                    for (auto span = spans.rbegin(); span != spans.rend(); ++span)
+                        for (size_t i = span->from; i < span->to && i < m_edits.size(); ++i) {
+                            StructEdit edit = m_edits[i];
+                            if (edit.kind == StructEdit::Kind::Offset) continue;
+                            bool touches = false;
+                            if (edit.sheet == span->sheet) {
+                                edit.sheet = sheet;
+                                touches = true;
+                            }
+                            if (edit.kind == StructEdit::Kind::Move && edit.toSheet == span->sheet) {
+                                edit.toSheet = sheet;
+                                touches = true;
+                            }
+                            if (touches) sc.copyEdits.push_back(edit);
+                        }
+                }
+            }
+            sc.replaceColumns = true;
+            for (const ColumnSpan &c : calc->columnRuns(sheet, 0, kMaxColumns - 1)) sc.columns.push_back(c);
+            if (calc->mergeCountOf(sheet) == qint64(calc->mergesOf(sheet).size())) {
+                sc.replaceMerges = true;
+                for (const CellRange &m : calc->mergesOf(sheet)) sc.merges.push_back(m);
+            }
+            for (const RowSpec &spec : calc->rowSpecsIn(sheet, 0, kMaxRows - 1)) {
+                RowProps p;
+                p.row = spec.row;
+                p.height = spec.height;
+                p.hidden = spec.hidden;
+                p.customHeight = spec.customHeight;
+                p.styleKnown = true;
+                p.customFormat = spec.customFormat;
+                p.style = spec.style;
+                p.outlineKnown = true;
+                p.outline = spec.outline;
+                p.collapsed = spec.collapsed;
+                sc.rows.push_back(p);
+            }
+        }
+        for (const int sheet : m_tabColorsChanged) {
+            if (!written(sheet)) continue;
+            SheetChanges &sc = changes.sheets[sheet];
+            sc.replaceTabColor = true;
+            sc.tabColor = calc->sheet(sheet).tabColor;
+        }
+        // the sheet that is open has its tab selected, and a sheet that is hidden, or was the one that was open and is not now, does not (the workbook says which tab is open: where the
+        // file said, or the first that is shown if that sheet is hidden or gone)
+        {
+            const int wasAt = listed.activeTab >= 0 && listed.activeTab < listed.fileOrder.size() ? listed.fileOrder[listed.activeTab] : -1;
+            const int nowTab = book.activeTabNow();
+            const int nowAt = nowTab >= 0 && nowTab < listed.order.size() ? listed.order[nowTab] : -1;
+            for (int sheet = 0; sheet < listed.sheets.size(); ++sheet) {
+                const SheetEntry &entry = listed.sheets[sheet];
+                if (entry.deleted) continue;
+                int want = -1;
+                if (sheet == nowAt && nowAt != wasAt) want = 1;
+                else if ((entry.state != SheetState::Visible && m_statesChanged.count(sheet)) || (sheet == wasAt && sheet != nowAt)) want = 0;
+                if (want < 0 || (entry.isNew && want == 0)) continue;
+                changes.sheets[sheet].tabSelected = want;
+            }
+        }
     }
     // the runs of columns of the sheets whose columns were sized or inserted or deleted, as the sheet has them now; and the sizes of the rows a step changed
     {
@@ -811,6 +1011,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         for (const StructEdit &e : m_edits)
             if (e.kind == StructEdit::Kind::InsertColumns || e.kind == StructEdit::Kind::DeleteColumns) sheets.insert(e.sheet);
         for (const int sheet : sheets) {
+            if (!written(sheet)) continue;
             SheetChanges &sc = changes.sheets[sheet];
             sc.replaceColumns = true;
             quint32 next = 0;   // (where the last run ended; a run that overlaps one before it keeps what that one left)
@@ -822,7 +1023,14 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             }
         }
     }
+    for (const int sheet : m_formatsChanged) {
+        if (!written(sheet)) continue;
+        SheetChanges &sc = changes.sheets[sheet];
+        sc.replaceFormat = true;
+        sc.format = calc->sheetFormatOf(sheet);
+    }
     for (const int sheet : m_mergesChanged) {
+        if (!written(sheet)) continue;
         // (only when all the sheet's merged ranges are held: past the limit the file's are left as they are)
         if (calc->mergeCountOf(sheet) != qint64(calc->mergesOf(sheet).size())) continue;
         SheetChanges &sc = changes.sheets[sheet];
@@ -831,10 +1039,12 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     }
     for (const quint64 key : m_rowsResized) {
         const int sheet = int(key >> 40);
+        if (!written(sheet)) continue;
         const quint32 row = quint32((key >> 16) & 0xFFFFFF);
         const std::vector<jp::office::sheet::RowSpec> specs = calc->rowSpecsIn(sheet, row, row);
         RowProps p;
         p.row = row;
+        p.styleKnown = true;
         if (specs.empty()) {
             // (a row that is back to the sheet's own height, shown: the file that has it taller, or hidden, from an earlier save is told so)
             p.height = calc->sheet(sheet).format.defaultRowHeight;
@@ -842,12 +1052,15 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             p.height = specs.front().height;
             p.hidden = specs.front().hidden;
             p.customHeight = specs.front().customHeight;
+            p.customFormat = specs.front().customFormat;
+            p.style = specs.front().style;
         }
         changes.sheets[sheet].rows.push_back(p);
     }
     for (const auto &[key, v] : m_results) {
         if (m_touched.count(key)) continue;
         const int sheet = int(key >> 40);
+        if (!written(sheet)) continue;
         SavedResult r;
         r.row = quint32((key >> 16) & 0xFFFFFF);
         r.col = quint16(key & 0xFFFF);
@@ -865,26 +1078,52 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     out->strings = int(changes.newSharedStrings.size());
     if (hasStyles) {
         for (const Workbook::AddedNumberFormat &f : book.addedNumberFormats()) changes.newNumberFormats.append({f.id, f.code});
-        for (const Workbook::AddedCellFormat &f : book.addedCellFormats()) changes.newCellFormats.append({f.base, f.numFmtId});
+        for (const Workbook::AddedCellFormat &f : book.addedCellFormats()) changes.newCellFormats.append({f.base, f.format.numFmtId, true, f.format});
         changes.cellFormatsBefore = book.cellFormatsInFile();
+        changes.newFonts = book.addedFonts();
+        changes.fontsBefore = book.fontsInFile();
+        changes.newFills = book.addedFills();
+        changes.fillsBefore = book.fillsInFile();
+        changes.newBorders = book.addedBorders();
+        changes.bordersBefore = book.bordersInFile();
+        for (const Workbook::AddedStyle &s : book.addedStyles()) changes.newStyles.append({s.format, s.name});
+        changes.styleXfsBefore = book.styleXfsInFile();
     }
     out->numberFormats = int(changes.newNumberFormats.size());
     out->cellFormats = int(changes.newCellFormats.size());
+    out->fonts = int(changes.newFonts.size());
+    out->fills = int(changes.newFills.size());
+    out->borders = int(changes.newBorders.size());
+    out->styles = int(changes.newStyles.size());
     // The other program is asked to work every formula out again when this program could not: a formula it keeps apart that may read what changed, a result it did not get to, or a
     // formula it gave no result.
-    changes.fullCalcOnLoad = (!m_touched.empty() || !m_results.empty()) && (calc->isDirty() || resultMissing || calc->keptCount() > 0);
+    changes.fullCalcOnLoad = (!m_touched.empty() || !m_results.empty() || newSheets) && (calc->isDirty() || resultMissing || calc->keptCount() > 0);
     return true;
 }
 
 void EditSession::saved(const Snapshot &snapshot, const Package &package)
 {
-    m_book->book->savedTo(package, snapshot.strings, snapshot.numberFormats, snapshot.cellFormats);
+    Workbook::SavedCounts counts;
+    counts.strings = snapshot.strings;
+    counts.numberFormats = snapshot.numberFormats;
+    counts.cellFormats = snapshot.cellFormats;
+    counts.fonts = snapshot.fonts;
+    counts.fills = snapshot.fills;
+    counts.borders = snapshot.borders;
+    counts.styles = snapshot.styles;
+    m_book->book->savedTo(package, counts);
     for (const auto &[key, v] : snapshot.results) m_fileResults[key] = v;
     for (const auto &[key, v] : snapshot.touchedResults) m_fileResults[key] = v;
     m_touched.clear();
     m_columnsResized.clear();
     m_rowsResized.clear();
     m_mergesChanged.clear();
+    m_formatsChanged.clear();
+    m_sheetsListed = false;
+    m_statesChanged.clear();
+    m_tabColorsChanged.clear();
+    m_sheetOps.clear();
+    m_copies.clear();
     m_engineAtStart.clear();
     m_edits.clear();
     m_renames.clear();

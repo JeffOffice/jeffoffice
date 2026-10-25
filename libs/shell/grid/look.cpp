@@ -43,12 +43,74 @@ void LookTable::setStyles(const Styles *styles)
 {
     m_styles = styles;
     m_looks.clear();
+    m_derived.clear();
     m_fontIdOfFont.clear();
 }
 
 void LookTable::trim() const
 {
-    if (m_looks.size() > kMaxHeld) m_looks.clear();
+    if (m_looks.size() > kMaxHeld || m_derived.size() > kMaxHeld) {
+        m_looks.clear();
+        m_derived.clear();
+    }
+}
+
+quint32 LookTable::fontIdOfSignature(const CellLook &l) const
+{
+    const std::string signature = l.family.toStdString() + '|' + std::to_string(l.pointSize) + '|' + char('0' + l.bold) + char('0' + l.italic) + char('0' + l.strike) + char('0' + int(l.underline)) +
+                                  char('0' + l.vertAlign);
+    const auto it = m_fontIds.find(signature);
+    if (it != m_fontIds.end()) return it->second;
+    const quint32 id = quint32(m_fontIds.size());
+    m_fontIds.emplace(signature, id);
+    return id;
+}
+
+const CellLook &LookTable::derived(quint32 xf, int key, const jp::office::sheet::DifferentialFormat &d) const
+{
+    const quint64 id = (quint64(quint32(key)) << 32) | xf;
+    const auto found = m_derived.find(id);
+    if (found != m_derived.end()) return *found->second;
+    CellLook l = look(xf);
+    if (m_styles) {
+        const Styles &s = *m_styles;
+        if (d.bold) l.bold = *d.bold;
+        if (d.italic) l.italic = *d.italic;
+        if (d.strike) l.strike = *d.strike;
+        if (d.underline) l.underline = *d.underline;
+        if (d.fontColor.isSet()) l.textColor = opaque(s.resolve(d.fontColor, 0x000000));
+        if (d.hasFill) {
+            // a differential fill keeps its color in the background color (the foreground one, when it names one, is of a pattern)
+            const jp::office::sheet::FillSpec &f = d.fill;
+            if (f.pattern == PatternKind::None || f.pattern == PatternKind::Solid) {
+                const jp::office::sheet::ColorSpec &c = f.bg.isSet() ? f.bg : f.fg;
+                if (c.isSet()) {
+                    l.pattern = PatternKind::Solid;
+                    l.fg = opaque(s.resolve(c, 0xFFFFFF));
+                    l.bg = l.fg;
+                }
+            } else {
+                l.pattern = f.pattern;
+                l.fg = opaque(s.resolve(f.fg, 0x000000));
+                l.bg = opaque(s.resolve(f.bg, 0xFFFFFF));
+            }
+        }
+        if (d.hasBorder) {
+            auto side = [&](LineLook *to, const jp::office::sheet::BorderSide &from) {
+                if (from.style != BorderStyle::None) *to = lineOf(s, from);
+            };
+            side(&l.left, d.border.left);
+            side(&l.right, d.border.right);
+            side(&l.top, d.border.top);
+            side(&l.bottom, d.border.bottom);
+        }
+        if (d.numberFormat) {
+            l.format = jp::calc::NumberFormat(*d.numberFormat);
+            l.hasFormat = !l.format.isGeneral();
+        }
+        l.fontId = fontIdOfSignature(l);
+    }
+    return *m_derived.emplace(id, std::make_unique<CellLook>(std::move(l))).first->second;
 }
 
 int LookTable::maxDigitWidth() const
@@ -129,6 +191,7 @@ CellLook LookTable::make(quint32 xf) const
     l.shrink = f.shrink;
     l.indent = f.indent;
     l.rotation = f.rotation;
+    l.readingOrder = f.readingOrder;
     l.format = jp::calc::NumberFormat(s.formatCode(xf));
     l.hasFormat = !l.format.isGeneral();
     return l;

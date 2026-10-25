@@ -407,6 +407,86 @@ private Q_SLOTS:
         QCOMPARE(b.book.formatWithNumberFormat(1, 9), 3u);        // (still the one that was made)
         QCOMPARE(b.book.addedSharedStrings().size(), 0);
     }
+
+    // A formatting command is a cell format that is the cell's with the change: one the workbook has already stands for it (a format, a font, a fill, and a border are never made twice),
+    // the font, fill, and border it needs are found among the workbook's or added, and what the change leaves is as the cell had it.
+    void aChangeToAFormatIsMadeOnceAndFoundAgain()
+    {
+        const QString fonts = QStringLiteral("<fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><b/><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts>"
+                                             "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
+                                             "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>");
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\"><alignment horizontal=\"center\"/></xf>"), fonts);
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rowXml(1, constant("A1", "5", 1)))}, QByteArray(), QString(), QString(), styles)));
+        Workbook &w = b.book;
+        QCOMPARE(w.fontsInFile(), qint64(2));
+        FormatChange bold;
+        bold.bold = true;
+        // bold on the plain format is the font the file has (bold), so the format that is the plain one with it is a new format that is not a new font
+        const quint32 plainBold = w.formatWith(0, bold);
+        QCOMPARE(plainBold, 2u);
+        QCOMPARE(w.styles().formats[2].font, 1u);
+        QCOMPARE(w.addedFonts().size(), 0);
+        QCOMPARE(w.formatWith(0, bold), 2u);                      // (made once)
+        QCOMPARE(w.formatWith(plainBold, bold), plainBold);       // (nothing to change)
+        QCOMPARE(w.formatWith(1, FormatChange()), 1u);            // (no change is no new format)
+        // a size is a new font; the same size on the same font again is that one
+        FormatChange big;
+        big.fontSize = 16;
+        const quint32 bigPlain = w.formatWith(0, big);
+        QCOMPARE(w.addedFonts().size(), 1);
+        QCOMPARE(w.addedFonts()[0].size, 16.0);
+        QCOMPARE(w.formatWith(0, big), bigPlain);
+        QCOMPARE(w.addedFonts().size(), 1);
+        // a fill and a border side
+        FormatChange fill;
+        FillSpec yellow;
+        yellow.pattern = PatternKind::Solid;
+        yellow.fg = ColorSpec::fromRgb(0xFFFF00);
+        fill.fill = yellow;
+        const quint32 filled = w.formatWith(1, fill);
+        QCOMPARE(w.styles().formats[int(filled)].fill, 2u);
+        QVERIFY(w.styles().formats[int(filled)].horizontal == HAlign::Center);   // (what the change leaves is as the cell had it)
+        QCOMPARE(w.formatWith(1, fill), filled);
+        FormatChange line;
+        BorderSide thin;
+        thin.style = BorderStyle::Thin;
+        thin.color = ColorSpec::fromRgb(0x336699);
+        line.bottom = thin;
+        const quint32 lined = w.formatWith(filled, line);
+        QCOMPARE(w.styles().formats[int(lined)].fill, 2u);
+        QVERIFY(w.styles().borders[int(w.styles().formats[int(lined)].border)].bottom.style == BorderStyle::Thin);
+        QCOMPARE(w.addedBorders().size(), 1);
+        QCOMPARE(w.formatWith(filled, line), lined);
+        // the number format by its code, alignment, and protection
+        FormatChange more;
+        more.numberFormat = QStringLiteral("0.00%");
+        more.horizontal = HAlign::Right;
+        more.wrap = true;
+        more.indent = 2;
+        more.rotation = 45;
+        more.locked = false;
+        const quint32 many = w.formatWith(0, more);
+        const CellFormat &m = w.styles().formats[int(many)];
+        QCOMPARE(m.numFmtId, 10);
+        QVERIFY(m.horizontal == HAlign::Right && m.wrap && m.indent == 2 && m.rotation == 45 && !m.locked);
+        // an equal format the file has is found: the second format of the file, asked for from the plain one
+        FormatChange centered;
+        centered.bold = true;
+        centered.horizontal = HAlign::Center;
+        QCOMPARE(w.formatWith(0, centered), 1u);
+        QCOMPARE(w.addedCellFormats().size(), 5);
+        // after a save the additions are in the file
+        Workbook::SavedCounts counts;
+        counts.cellFormats = w.addedCellFormats().size();
+        counts.fonts = w.addedFonts().size();
+        counts.fills = w.addedFills().size();
+        counts.borders = w.addedBorders().size();
+        w.savedTo(b.package, counts);
+        QCOMPARE(w.fontsInFile(), qint64(3));
+        QCOMPARE(w.addedFonts().size(), 0);
+        QCOMPARE(w.formatWith(0, big), bigPlain);
+    }
 };
 
 JP_TEST_CLASS(SheetEditTests)

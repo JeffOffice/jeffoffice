@@ -127,4 +127,12 @@ QString adjustRuleFormula(const QString &formula, int ownSheet, const QStringLis
 // those that would go off the grid are #REF!.
 QString offsetFormula(const QString &formula, qint32 dRow, qint32 dCol, bool *changed = nullptr);
 
+// The sheets themselves: a formula as a file stores it with a sheet renamed (each reference that names `oldName` names `newName`, quoted as a formula must when it has anything but letters,
+// digits, and underscores), and as it is when a sheet is deleted (each reference to its cells is #REF!). A name is matched without regard to case. `definedName` is for the text of a defined
+// name. Both leave a text as it is when nothing in it names the sheet.
+QString renameSheetInFormula(const QString &formula, const QString &oldName, const QString &newName, bool *changed = nullptr, bool definedName = false);
+QString deleteSheetInFormula(const QString &formula, const QString &name, bool *changed = nullptr, bool definedName = false);
+// Whether a formula has a reference through several sheets ("Sheet1:Sheet3!A1"): what moving or inserting a sheet would change the meaning of.
+bool formulaHasThreeD(const QString &formula, bool definedName = false);
+
 } // namespace jp::office::sheet

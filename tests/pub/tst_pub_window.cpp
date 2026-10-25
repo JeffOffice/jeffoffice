@@ -129,6 +129,40 @@ private Q_SLOTS:
         QVERIFY(err.contains(QStringLiteral("JSON")));
     }
 
+    // A submenu may be a menu built in code ("@name"): it is added with the title and icon the ribbon gives it; a name that is not a menu is reported.
+    void ribbonSubmenuFromCode()
+    {
+        QAction known(QStringLiteral("Known"));
+        known.setObjectName(QStringLiteral("known"));
+        jp::RibbonParts parts;
+        parts.action = [&](const QString &id) { return id == QLatin1String("known") ? &known : nullptr; };
+        parts.menus[QStringLiteral("dyn")] = [&](QWidget *owner) {
+            auto *m = new QMenu(owner);
+            m->addAction(&known);
+            return m;
+        };
+        auto json = [](const char *menu) {
+            return QStringLiteral(R"({"tabs": [{"name": "T", "keytip": "T", "groups": [{"name": "G", "keytip": "ZG", "items": [
+                {"large": {"id": "ribbon.m", "text": "M", "icon": "table"}, "keytip": "M", "menu": ["known", {"submenu": "Code", "icon": "square", "menu": "%1"}]}]}]}]})")
+                .arg(QLatin1String(menu))
+                .toUtf8();
+        };
+        jp::Ribbon r;
+        QString err;
+        QVERIFY2(jp::buildRibbon(&r, json("@dyn"), parts, &r, &err), qPrintable(err));
+        auto *big = qobject_cast<QToolButton *>(r.tabAt(0)->groups()[0]->controls()[0]);
+        QVERIFY(big && big->menu());
+        const QList<QAction *> items = big->menu()->actions();
+        QCOMPARE(items.size(), 2);
+        QVERIFY(items[1]->menu());
+        QCOMPARE(items[1]->text(), QStringLiteral("Code"));
+        QVERIFY(!items[1]->icon().isNull());
+        QCOMPARE(items[1]->menu()->actions(), QList<QAction *>{&known});
+        jp::Ribbon bad;
+        QVERIFY(!jp::buildRibbon(&bad, json("@nowhere"), parts, &bad, &err));
+        QVERIFY2(err.contains(QStringLiteral("nowhere")), qPrintable(err));
+    }
+
     // The loader's pieces together: a template used twice, a command that only
     // opens a menu (made once, shared by its uses, doing what its trigger says),
     // sections and submenus, a launcher, KeyTips, and translation.

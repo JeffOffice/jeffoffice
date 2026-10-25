@@ -29,6 +29,15 @@ const CellFormat &Styles::format(quint32 xf) const
     return xf < quint32(formats.size()) ? formats[int(xf)] : none;
 }
 
+QString Styles::fontNameOf(const FontSpec &font) const
+{
+    if (!font.name.isEmpty()) return font.name;
+    if (font.scheme == QLatin1String("major") && !majorFont.isEmpty()) return majorFont;
+    if (font.scheme == QLatin1String("minor") && !minorFont.isEmpty()) return minorFont;
+    if (!fonts.isEmpty() && !fonts.first().name.isEmpty()) return fonts.first().name;
+    return minorFont;
+}
+
 const FontSpec &Styles::font(quint32 index) const
 {
     static const FontSpec none;

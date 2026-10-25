@@ -6,8 +6,10 @@
 //                                                  whole workbook, to work all its formulas out, the longest slice of that work (what the window would wait for), and the slices.
 //   jcrunchtool grid-window <file.xlsx>            the window as a person sees it: milliseconds from opening the file to the first screen drawn, to the workbook read whole, and to
 //                                                  every formula worked out
-//   jcrunchtool grid-bench [rows=100000] [cols=20] a workbook made here of that many rows and columns, opened in the window: those times, and then 400 scrolls by a wheel step (at 100%),
-//                                                  100 page jumps, and 100 whole-window draws, with the milliseconds each draw took (the middle, the 95th percentile, the longest)
+//   jcrunchtool grid-bench [rows=100000] [cols=20] [ruled]   a workbook made here of that many rows and columns, opened in the window: those times, and then 400 scrolls by a wheel step (at 100%),
+//                                                  100 page jumps, and 100 whole-window draws, with the milliseconds each draw took (the middle, the 95th percentile, the longest);
+//                                                  with `ruled` the sheet has rules of conditional formatting on its columns B (a color scale), C (data bars), D (an icon set), and E (a rule
+//                                                  with a differential format that changes the fill and font of the cells over a number)
 //   jcrunchtool grid-sweep <keys.txt> <out-dir> [jobs]   runs `grid-one` on each workbook listed, each in a child process that has 120 seconds and 4 GB, and writes <out-dir>/grid.tsv;
 //                                                  prints how many crashed or timed out and the times (tools/crunch_grid.py does the work)
 
@@ -254,7 +256,7 @@ int gridWindow(const QString &path)
 
 // ---- a workbook made here
 
-QByteArray bigWorkbook(int rows, int cols)
+QByteArray bigWorkbook(int rows, int cols, bool ruled = false)
 {
     QByteArray sheet;
     sheet.reserve(qsizetype(rows) * cols * 28);
@@ -279,14 +281,24 @@ QByteArray bigWorkbook(int rows, int cols)
         }
         sheet += "</row>";
     }
-    sheet += "</sheetData></worksheet>";
+    sheet += "</sheetData>";
+    if (ruled) {
+        const QByteArray last = QByteArray::number(rows);
+        sheet += "<conditionalFormatting sqref=\"B2:B" + last + "\"><cfRule type=\"colorScale\" priority=\"1\"><colorScale><cfvo type=\"min\"/><cfvo type=\"percentile\" val=\"50\"/><cfvo type=\"max\"/>"
+                 "<color rgb=\"FFF8696B\"/><color rgb=\"FFFFEB84\"/><color rgb=\"FF63BE7B\"/></colorScale></cfRule></conditionalFormatting>"
+                 "<conditionalFormatting sqref=\"C2:C" + last + "\"><cfRule type=\"dataBar\" priority=\"2\"><dataBar><cfvo type=\"min\"/><cfvo type=\"max\"/><color rgb=\"FF638EC6\"/></dataBar></cfRule></conditionalFormatting>"
+                 "<conditionalFormatting sqref=\"D2:D" + last + "\"><cfRule type=\"iconSet\" priority=\"3\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/><cfvo type=\"percent\" val=\"33\"/><cfvo type=\"percent\" val=\"67\"/></iconSet></cfRule></conditionalFormatting>"
+                 "<conditionalFormatting sqref=\"E2:E" + last + "\"><cfRule type=\"cellIs\" dxfId=\"0\" priority=\"4\" operator=\"greaterThan\"><formula>200</formula></cfRule></conditionalFormatting>";
+    }
+    sheet += "</worksheet>";
     const char *main = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
     const QByteArray styles = QByteArray("<?xml version=\"1.0\"?>\n<styleSheet xmlns=\"") + main +
                               "\"><numFmts count=\"1\"><numFmt numFmtId=\"164\" formatCode=\"#,##0.00\"/></numFmts><fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font>"
                               "<font><b/><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts><fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
                               "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\"1\"><xf/></cellStyleXfs>"
                               "<cellXfs count=\"3\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\"/>"
-                              "<xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellXfs></styleSheet>";
+                              "<xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellXfs>"
+                              "<dxfs count=\"1\"><dxf><font><b/><color rgb=\"FF9C0006\"/></font><fill><patternFill><bgColor rgb=\"FFFFC7CE\"/></patternFill></fill></dxf></dxfs></styleSheet>";
     PackageWriter w;
     const QString relBase = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
     w.addPart(QStringLiteral("/xl/workbook.xml"), QByteArray(), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
@@ -308,7 +320,7 @@ void summarize(const char *what, const std::vector<double> &v, const std::vector
           << " ms, longest " << ms(cpu.empty() ? 0 : *std::max_element(cpu.begin(), cpu.end())) << " ms\n";
 }
 
-int gridBench(int rows, int cols)
+int gridBench(int rows, int cols, bool ruled)
 {
     // (JC_BENCH_FILE names a file to keep the workbook in, and to use again when it is there: making it takes longer than the measuring)
     QTemporaryDir dir;
@@ -317,14 +329,14 @@ int gridBench(int rows, int cols)
     if (keep.isEmpty() || !QFile::exists(keep)) {
         QElapsedTimer made;
         made.start();
-        const QByteArray bytes = bigWorkbook(rows, cols);
+        const QByteArray bytes = bigWorkbook(rows, cols, ruled);
         QFile f(path);
         if (!f.open(QIODevice::WriteOnly) || f.write(bytes) != bytes.size()) {
             err() << "grid-bench: the workbook could not be written\n";
             return 1;
         }
         f.close();
-        out() << "workbook of " << rows << " rows by " << cols << " columns: " << bytes.size() / 1048576 << " MB, made in " << made.elapsed() << " ms\n";
+        out() << "workbook of " << rows << " rows by " << cols << " columns" << (ruled ? " with conditional formats" : "") << ": " << bytes.size() / 1048576 << " MB, made in " << made.elapsed() << " ms\n";
     } else {
         out() << "workbook of " << rows << " rows by " << cols << " columns, from " << path << "\n";
     }
@@ -347,6 +359,9 @@ int gridBench(int rows, int cols)
         QCoreApplication::processEvents();
     }
     summarize("scrolling, 3 rows at a time", v->paintTimes(), v->paintCpuTimes());
+    if (ruled)
+        out() << "  rules shown: " << (v->sheet().hasConditionalFormats() ? "yes" : "NO") << "; so far " << v->sheet().conditional().passes() << " passes over the cells of the rules (one for each rule that needs all its cells, and again only when a value among them changed), "
+              << v->sheet().conditional().tests() << " tests made\n";
     const double scrollP95 = percentile(v->paintTimes(), 0.95);
     // page jumps: a screen of new rows each
     v->clearPaintTimes();
@@ -364,6 +379,7 @@ int gridBench(int rows, int cols)
     }
     summarize("the whole window", v->paintTimes(), v->paintCpuTimes());
     out() << "scrolling 95th percentile " << ms(scrollP95) << " ms (the bar: 8 ms)\n";
+    if (ruled) out() << "  after all that: " << v->sheet().conditional().passes() << " passes over the cells of the rules\n";
     // other zooms: a whole window drawn again, and a scroll of three rows (which moves the pixels already drawn where the scroll is a whole number of them at the zoom)
     for (double zoom : {0.5, 0.75, 1.5, 2.0, 4.0}) {
         v->setZoom(zoom);
@@ -420,7 +436,7 @@ int gridMain(const QStringList &args)
         if (args.size() == (full ? 3 : 2)) return gridOne(args.last(), full);
     }
     if (args.size() == 2 && args[0] == QLatin1String("grid-window")) return gridWindow(args[1]);
-    if (args[0] == QLatin1String("grid-bench") && args.size() <= 3) return gridBench(args.value(1, QStringLiteral("100000")).toInt(), args.value(2, QStringLiteral("20")).toInt());
+    if (args[0] == QLatin1String("grid-bench") && args.size() <= 4) return gridBench(args.value(1, QStringLiteral("100000")).toInt(), args.value(2, QStringLiteral("20")).toInt(), args.value(3) == QLatin1String("ruled"));
     if (args[0] == QLatin1String("grid-sweep") && (args.size() == 3 || args.size() == 4)) return gridSweep(args[1], args[2], args.value(3));
     return -1;
 }

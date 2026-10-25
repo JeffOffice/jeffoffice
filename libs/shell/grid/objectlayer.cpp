@@ -489,7 +489,17 @@ void ObjectLayer::paint(QPainter *p, const GridLayout &layout, Pane pane, const 
             const QRectF source((target.x() - r.x()) * sx, (target.y() - r.y()) * sy, target.width() * sx, target.height() * sy);
             const bool scaled = std::abs(sx - m_dpr) > 1e-3 || std::abs(sy - m_dpr) > 1e-3;
             p->setRenderHint(QPainter::SmoothPixmapTransform, scaled);
-            p->drawImage(QRectF(target), e.image, source);
+            if (m_mirrored) {
+                // (the painter is mirrored for a sheet that reads right to left: the object is where the mirror puts it and its picture is turned back, so it reads as it was made)
+                const QRectF back(e.image.width() - source.x() - source.width(), source.y(), source.width(), source.height());
+                p->save();
+                p->translate(target.x() * 2.0 + target.width(), 0);
+                p->scale(-1, 1);
+                p->drawImage(QRectF(target), e.image, back);
+                p->restore();
+            } else {
+                p->drawImage(QRectF(target), e.image, source);
+            }
             ++m_stats.drawn;
         } else if (!e.failed || e.object.render || e.object.prepare) {
             // no picture yet: an outline in the object's place

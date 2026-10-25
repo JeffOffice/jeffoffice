@@ -151,6 +151,23 @@ int pixelsOf(const QImage &img, const QRect &r, QRgb color)
     return n;
 }
 
+// The rectangle of the pixels in a block that are dark (ink): invalid when there are none.
+QRect inkBox(const QImage &img, const QRect &r, int limit = 160)
+{
+    int x0 = 1 << 30, y0 = 1 << 30, x1 = -1, y1 = -1;
+    for (int y = r.top(); y <= r.bottom(); ++y)
+        for (int x = r.left(); x <= r.right(); ++x) {
+            const QRgb c = img.pixel(x, y);
+            if (qRed(c) < limit && qGreen(c) < limit && qBlue(c) < limit) {
+                x0 = std::min(x0, x);
+                x1 = std::max(x1, x);
+                y0 = std::min(y0, y);
+                y1 = std::max(y1, y);
+            }
+        }
+    return x1 < 0 ? QRect() : QRect(QPoint(x0, y0), QPoint(x1, y1));
+}
+
 CellRange mergeOf(quint32 r1, quint32 c1, quint32 r2, quint32 c2)
 {
     CellRange r;
@@ -803,6 +820,448 @@ private Q_SLOTS:
         QVERIFY(s.mergesLeftOut > 150000);
         QVERIFY(s.mergesDrawn >= 50 && s.mergesDrawn <= 2000);
         QVERIFY(s.truncated);
+    }
+
+    // Text turned by an angle is placed by the cell's alignment, not centered: the box it turns in is at the corner or edge the alignment names (turned up from the bottom left by
+    // default), and text that is turned fully up or down runs along the cell's height.
+    void turnedTextIsPlacedByTheAlignment()
+    {
+        struct Case {
+            int rotation;
+            HAlign h;
+            VAlign v;
+            const char *what;
+        };
+        const Case cases[] = {{90, HAlign::Left, VAlign::Bottom, "up, left and bottom"}, {90, HAlign::Right, VAlign::Top, "up, right and top"}, {90, HAlign::Center, VAlign::Center, "up, centered"},
+                              {45, HAlign::Left, VAlign::Bottom, "45 degrees, left and bottom"}, {135, HAlign::Left, VAlign::Top, "down at 45 degrees, left and top"},
+                              {180, HAlign::Right, VAlign::Bottom, "straight down, right and bottom"}};
+        for (const Case &c : cases) {
+            Fixture f;
+            CellFormat fmt;
+            fmt.rotation = quint8(c.rotation);
+            fmt.horizontal = c.h;
+            fmt.vertical = c.v;
+            f.text(0, 0, QStringLiteral("HHH"), f.format(fmt));
+            f.options.gridlines = false;
+            f.build();
+            f.grid.layout().rows.setDefaultSize(80);
+            const QImage img = f.render();
+            const QRect cell(0, 0, 64, 80);
+            const QRect box = inkBox(img, cell);
+            QVERIFY2(box.isValid(), c.what);
+            const QString say = QStringLiteral("%1: ink at %2,%3 to %4,%5").arg(QLatin1String(c.what)).arg(box.left()).arg(box.top()).arg(box.right()).arg(box.bottom());
+            if (c.h == HAlign::Left) QVERIFY2(box.left() <= 8, qPrintable(say));
+            if (c.h == HAlign::Right) QVERIFY2(box.right() >= 64 - 10, qPrintable(say));
+            if (c.h == HAlign::Center) QVERIFY2(std::abs(box.center().x() - 32) <= 6, qPrintable(say));
+            if (c.v == VAlign::Bottom) QVERIFY2(box.bottom() >= 80 - 10, qPrintable(say));
+            if (c.v == VAlign::Top) QVERIFY2(box.top() <= 8, qPrintable(say));
+            if (c.v == VAlign::Center) QVERIFY2(std::abs(box.center().y() - 40) <= 6, qPrintable(say));
+            if (c.rotation == 90 || c.rotation == 180) QVERIFY2(box.height() > box.width(), qPrintable(say));   // (along the cell's height)
+        }
+    }
+
+    // A double underline is two lines, a single one is one, and an accounting underline is as wide as the cell; the lines are under the text.
+    void underlinesAreDrawnAsTheyAre()
+    {
+        auto lines = [](const QImage &img, const QRect &area, int fromX, int toX) {
+            // the rows where the ink reaches across the text, as groups of rows next to each other
+            QVector<int> groups;
+            bool inLine = false;
+            for (int y = area.top(); y <= area.bottom(); ++y) {
+                int dark = 0;
+                for (int x = fromX; x <= toX; ++x) {
+                    const QRgb c = img.pixel(x, y);
+                    if (qRed(c) < 200) ++dark;
+                }
+                const bool full = dark >= (toX - fromX + 1) * 9 / 10;
+                if (full && !inLine) groups.append(y);
+                inLine = full;
+            }
+            return groups;
+        };
+        struct Case {
+            Underline kind;
+            int groups;
+            bool wide;
+        };
+        for (const Case &c : {Case{Underline::Single, 1, false}, Case{Underline::Double, 2, false}, Case{Underline::SingleAccounting, 1, true}, Case{Underline::DoubleAccounting, 2, true}}) {
+            Fixture f;
+            FontSpec font;
+            font.name = QStringLiteral("Calibri");
+            font.size = 11;
+            font.underline = c.kind;
+            f.styles.fonts.append(font);
+            CellFormat fmt;
+            fmt.font = 1;
+            f.text(0, 0, QStringLiteral("mmm"), f.format(fmt));
+            f.options.gridlines = false;
+            f.build();
+            f.grid.layout().rows.setDefaultSize(30);
+            const QImage img = f.render();
+            const QRect text = inkBox(img, QRect(0, 0, 64, 30), 200);
+            QVERIFY(text.isValid());
+            const int from = c.wide ? 3 : text.left() + 1, to = c.wide ? 60 : text.right() - 1;
+            const QVector<int> found = lines(img, QRect(0, 0, 64, 30), from, to);
+            QVERIFY2(found.size() == c.groups, qPrintable(QStringLiteral("underline %1: %2 lines").arg(int(c.kind)).arg(found.size())));
+            if (c.groups == 2) QVERIFY2(found[1] - found[0] >= 2, qPrintable(QStringLiteral("the lines of %1 are %2 apart").arg(int(c.kind)).arg(found[1] - found[0])));
+        }
+    }
+
+    // Fill alignment repeats the text to fill the cell's width, and center across selection puts the text in the middle of the cell and the empty cells beside it that are formatted so.
+    void fillRepeatsTheTextAndCenterAcrossCentersOverEmptyCells()
+    {
+        Fixture f;
+        CellFormat fill;
+        fill.horizontal = HAlign::Fill;
+        CellFormat plain;
+        plain.horizontal = HAlign::Left;
+        f.text(0, 0, QStringLiteral("ab"), f.format(fill));
+        f.text(1, 0, QStringLiteral("ab"), f.format(plain));
+        CellFormat across;
+        across.horizontal = HAlign::CenterContinuous;
+        const quint32 acrossStyle = f.format(across);
+        f.text(2, 0, QStringLiteral("mid"), acrossStyle);
+        f.blank(2, 1, acrossStyle);
+        f.blank(2, 2, acrossStyle);
+        CellFormat centered;
+        centered.horizontal = HAlign::Center;
+        f.text(3, 0, QStringLiteral("mid"), f.format(centered));
+        f.options.gridlines = false;
+        f.build();
+        const QImage img = f.render();
+        QVERIFY(inkIn(img, QRect(40, 0, 22, 20)) > 10);            // (the text reaches the right of the cell)
+        QCOMPARE(inkIn(img, QRect(40, 20, 22, 20)), 0);           // (a left-aligned one does not)
+        QVERIFY(inkIn(img, QRect(3, 0, 20, 20)) > 5);
+        const QRect across3 = inkBox(img, QRect(0, 40, 3 * 64, 20));
+        QVERIFY(across3.isValid());
+        QVERIFY2(std::abs(across3.center().x() - 96) <= 8, qPrintable(QString::number(across3.center().x())));   // (the middle of three cells)
+        const QRect single = inkBox(img, QRect(0, 60, 3 * 64, 20));
+        QVERIFY2(std::abs(single.center().x() - 32) <= 8, qPrintable(QString::number(single.center().x())));
+    }
+
+    // A sheet that reads right to left is drawn from the right: column A is at the right edge, the headers are at the right, the letters are not turned round, and a text that a cell
+    // aligns to the left is at the left of its cell (a text with the general alignment is at the right).
+    void aRightToLeftSheetIsDrawnFromTheRight()
+    {
+        auto make = [](bool rtl, HAlign h) {
+            auto f = std::make_unique<Fixture>();
+            f->sheet.view.rightToLeft = rtl;
+            const quint32 green = f->fill(PatternKind::Solid, 0x00FF00);
+            const quint32 red = f->fill(PatternKind::Solid, 0xFF0000);
+            f->blank(0, 0, green);
+            f->blank(0, 1, red);
+            CellFormat fmt;
+            fmt.horizontal = h;
+            f->text(1, 0, QStringLiteral("Lq"), f->format(fmt));
+            f->options.gridlines = false;
+            f->build();
+            return f;
+        };
+        auto ltr = make(false, HAlign::Left), rtl = make(true, HAlign::Left);
+        const QImage a = ltr->render(), b = rtl->render();
+        const int w = ltr->size.width();
+        QCOMPARE(px(a, 10, 5), QRgb(0xFF00FF00));
+        QCOMPARE(px(a, 64 + 10, 5), QRgb(0xFFFF0000));
+        QCOMPARE(px(b, w - 1 - 10, 5), QRgb(0xFF00FF00));         // column A at the right edge
+        QCOMPARE(px(b, w - 1 - 64 - 10, 5), QRgb(0xFFFF0000));    // and B to its left
+        QCOMPARE(px(b, 10, 5), kWhite);
+        // the text of the first column, at the left of its cell, is the same picture as the left-to-right sheet draws at the left of its cell (nothing is turned round)
+        const QImage inLtr = a.copy(QRect(0, 20, 64, 20)), inRtl = b.copy(QRect(w - 64, 20, 64, 20));
+        QVERIFY(inkIn(inLtr, QRect(0, 0, 64, 20)) > 5);
+        QCOMPARE(inRtl, inLtr);
+        // the general alignment of a text is the right of the cell in a sheet that reads right to left, and the left in the other
+        auto generalLtr = make(false, HAlign::General), generalRtl = make(true, HAlign::General);
+        const QImage g1 = generalLtr->render(), g2 = generalRtl->render();
+        const QRect box1 = inkBox(g1, QRect(0, 20, 64, 20)), box2 = inkBox(g2, QRect(w - 64, 20, 64, 20));
+        QVERIFY(box1.left() <= 8);
+        QVERIFY2(box2.left() - (w - 64) <= 8, qPrintable(QString::number(box2.left())));   // (a Latin text begins at the left, in any sheet)
+        // a number, and a text with no letter of either direction, are at the right of the cell in a sheet that reads right to left
+        Fixture n;
+        n.sheet.view.rightToLeft = true;
+        n.number(1, 0, 5);
+        n.text(2, 0, QStringLiteral("123"));
+        n.options.gridlines = false;
+        n.build();
+        const QImage ni = n.render();
+        QVERIFY(inkBox(ni, QRect(w - 64, 20, 64, 20)).left() - (w - 64) >= 35);
+        QVERIFY(inkBox(ni, QRect(w - 64, 40, 64, 20)).left() - (w - 64) >= 35);
+        // the headers are at the right
+        Fixture h;
+        h.sheet.view.rightToLeft = true;
+        h.sheet.view.showHeadings = true;
+        h.options.headers = true;
+        h.build();
+        const QImage hi = h.render();
+        QCOMPARE(px(hi, w - 1 - 3, 3), h.options.headerBackground.rgb());            // the corner
+        QCOMPARE(px(hi, w - 1 - 3, 20 + 3), h.options.headerBackground.rgb());       // the row numbers
+        QVERIFY(inkIn(hi, QRect(w - 40, 20, 40, 20)) > 2);                            // "1"
+        QVERIFY(inkIn(hi, QRect(w - 40 - 64, 0, 64, 20)) > 2);                        // "A"
+    }
+
+    // The direction of the text of a cell: the general alignment of a text follows it (right for a reading order that runs right to left, and for text that begins with a letter of such a
+    // script when the order is the text's own), and numbers stay at the right.
+    void thePlaceOfTextWithTheGeneralAlignmentFollowsItsDirection()
+    {
+        const QString hebrew = QString(QChar(0x05D0)) + QChar(0x05D1) + QChar(0x05D2);
+        struct Case {
+            int order;
+            QString text;
+            HAlign want;
+        };
+        const Case cases[] = {{0, QStringLiteral("abc"), HAlign::Left}, {0, hebrew, HAlign::Right}, {2, QStringLiteral("abc"), HAlign::Right}, {1, hebrew, HAlign::Left}, {0, QStringLiteral("123"), HAlign::Left}};
+        for (const Case &c : cases) {
+            Fixture f;
+            CellFormat fmt;
+            fmt.readingOrder = quint8(c.order);
+            f.text(0, 0, c.text, f.format(fmt));
+            f.build();
+            const Shown sh = f.grid.shown(0, 0, *f.grid.cellAt(0, 0));
+            QVERIFY2(sh.align == c.want, qPrintable(QStringLiteral("order %1, \"%2\": %3").arg(c.order).arg(c.text).arg(int(sh.align))));
+        }
+        // a sheet that reads right to left: the text of a cell of the context order is at the right, and a number too
+        Fixture f;
+        f.sheet.view.rightToLeft = true;
+        f.text(0, 0, QStringLiteral("abc"));
+        f.number(1, 0, 5);
+        f.build();
+        f.text(2, 0, QStringLiteral("123"));
+        f.build();
+        // (in the grid's own places, which are mirrored for the screen: a Latin text begins at the screen's left, which is the grid's right; a number, and a text with no letter, at the screen's right)
+        QVERIFY(f.grid.shown(0, 0, *f.grid.cellAt(0, 0)).align == HAlign::Right);
+        QVERIFY(f.grid.shown(1, 0, *f.grid.cellAt(1, 0)).align == HAlign::Left);
+        QVERIFY(f.grid.shown(2, 0, *f.grid.cellAt(2, 0)).align == HAlign::Left);
+    }
+
+    // A color scale gives the cell its fill, a rule with a differential format changes the fill and the text color of the cells it holds, and the cells it does not hold stay as they were.
+    void colorScalesAndDifferentialFormatsAreDrawn()
+    {
+        Fixture f;
+        f.number(0, 0, 0);
+        f.number(1, 0, 100);
+        f.number(0, 1, 5);
+        f.number(1, 1, 50);
+        CondRule scale;
+        scale.type = CondRule::Type::ColorScale;
+        scale.ranges = {mergeOf(0, 0, 1, 0)};
+        scale.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+        scale.colors = {ColorSpec::fromRgb(0xFF0000), ColorSpec::fromRgb(0x0000FF)};
+        scale.priority = 1;
+        DifferentialFormat d;
+        d.hasFill = true;
+        d.fill.pattern = PatternKind::Solid;
+        d.fill.bg = ColorSpec::fromRgb(0xFFEB9C);
+        d.fontColor = ColorSpec::fromRgb(0xFF0000);
+        d.bold = true;
+        f.styles.dxfs.append(d);
+        CondRule over;
+        over.type = CondRule::Type::CellIs;
+        over.op = CondRule::Operator::GreaterThan;
+        over.formula1 = QStringLiteral("10");
+        over.dxf = 0;
+        over.ranges = {mergeOf(0, 1, 1, 1)};
+        over.priority = 2;
+        f.sheet.conditionalFormats = {scale, over};
+        f.build();
+        const QImage img = f.render();
+        QCOMPARE(px(img, 3, 3), QRgb(0xFFFF0000));         // the lowest: the first color, over the whole cell
+        QCOMPARE(px(img, 50, 16), QRgb(0xFFFF0000));
+        QCOMPARE(px(img, 3, 23), QRgb(0xFF0000FF));        // the highest: the last
+        QCOMPARE(px(img, 63, 39), QRgb(0xFF0000FF));       // (its gridline is covered, as a fill covers it)
+        QCOMPARE(px(img, 64 + 3, 3), kWhite);              // 5 is not over 10
+        QCOMPARE(px(img, 64 + 3, 23), QRgb(0xFFFFEB9C));   // 50 is: the fill of the differential format
+        // the text of the second is in the font color of the format (ink of that color, and not of the default black)
+        int reddish = 0, black = 0;
+        for (int y = 20; y < 40; ++y)
+            for (int x = 64; x < 128; ++x) {
+                const QRgb c = img.pixel(x, y);
+                if (qRed(c) > 200 && qGreen(c) < 90 && qBlue(c) < 90) ++reddish;
+                if (qRed(c) < 60 && qGreen(c) < 60 && qBlue(c) < 60) ++black;
+            }
+        QVERIFY(reddish > 5);
+        QCOMPARE(black, 0);
+    }
+
+    // A data bar is drawn inside the cell from the left, as long as its value is of the way from the lowest to the highest (between the shortest length and the longest), under the text,
+    // and the text is left out when the rule says so.
+    void dataBarsAreDrawnInTheCell()
+    {
+        auto make = [](bool showValue, bool gradient) {
+            auto f = std::make_unique<Fixture>();
+            f->number(0, 0, 0);
+            f->number(1, 0, 50);
+            f->number(2, 0, 100);
+            CondRule bar;
+            bar.type = CondRule::Type::DataBar;
+            bar.ranges = {mergeOf(0, 0, 2, 0)};
+            bar.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+            bar.colors = {ColorSpec::fromRgb(0x638EC6)};
+            bar.showValue = showValue;
+            bar.gradient = gradient;
+            f->sheet.conditionalFormats = {bar};
+            f->build();
+            return f;
+        };
+        auto f = make(true, false);
+        const QImage img = f->render();
+        const QRgb blue = QRgb(0xFF638EC6);
+        // the cell is 64 wide with a gridline, the bar is within 2 pixels of its sides: 59 wide; the lengths are 10, 50, and 90 percent of it
+        QCOMPARE(px(img, 4, 10), blue);
+        QCOMPARE(px(img, 3 + 6, 10), kWhite);                 // (the shortest bar is six pixels: 2 to 7)
+        QCOMPARE(px(img, 4, 20 + 10), blue);
+        QCOMPARE(px(img, 2 + 29, 20 + 3), blue);              // (the middle one reaches 2 + 30)
+        QCOMPARE(px(img, 2 + 31, 20 + 3), kWhite);
+        QCOMPARE(px(img, 2 + 52, 40 + 3), blue);              // (the longest, 53 pixels)
+        QCOMPARE(px(img, 2 + 55, 40 + 3), kWhite);
+        QCOMPARE(px(img, 10, 0), kWhite);                     // the bar has room above and below
+        QCOMPARE(px(img, 4, 1), kWhite);
+        QCOMPARE(px(img, 4, 18), kWhite);
+        QVERIFY(f->painter->stats().bars == 3);
+        // the value is drawn over it
+        QVERIFY(inkIn(img, QRect(0, 40, 64, 20)) > 5);
+        auto hidden = make(false, false);
+        const QImage without = hidden->render();
+        QCOMPARE(inkIn(without, QRect(0, 40, 64, 20)), 0);
+        QCOMPARE(px(without, 2 + 52, 40 + 3), blue);
+        // a gradient is solid at the left and lighter at the right
+        auto gradient = make(false, true);
+        const QImage g = gradient->render();
+        const QRgb left = px(g, 3, 40 + 8), right = px(g, 2 + 50, 40 + 8);
+        QVERIFY(qRed(left) <= qRed(blue) + 8);
+        QVERIFY(qRed(right) > qRed(blue) + 40);
+        QVERIFY(qRed(right) > qRed(left) + 30);
+    }
+
+    // An icon set puts an icon of the value's rank at the left of the cell, in its own colors, and text that begins at the left moves over to make room for it; with the rule saying to
+    // leave the value out, there is no text.
+    void iconsAreDrawnAtTheLeft()
+    {
+        auto make = [](bool showValue, HAlign align) {
+            auto f = std::make_unique<Fixture>();
+            CellFormat fmt;
+            fmt.horizontal = align;
+            const quint32 style = f->format(fmt);
+            const double values[] = {1, 5, 9, 5};
+            for (int i = 0; i < 4; ++i) f->number(quint32(i), i == 3 ? 1 : 0, values[i], style);
+            CondRule icons;
+            icons.type = CondRule::Type::IconSet;
+            icons.iconSet = QStringLiteral("3TrafficLights1");
+            icons.ranges = {mergeOf(0, 0, 2, 0)};
+            icons.values = {{CondValue::Type::Number, QStringLiteral("0"), true}, {CondValue::Type::Number, QStringLiteral("4"), true}, {CondValue::Type::Number, QStringLiteral("8"), true}};
+            icons.showValue = showValue;
+            f->sheet.conditionalFormats = {icons};
+            f->build();
+            return f;
+        };
+        auto f = make(true, HAlign::Left);
+        const QImage img = f->render();
+        // (a disc of 16 pixels from x = 2, in the middle of a row of 20: its middle is solid)
+        QCOMPARE(px(img, 10, 10), QRgb(0xFFD63E3E));
+        QCOMPARE(px(img, 10, 30), QRgb(0xFFE8B41C));
+        QCOMPARE(px(img, 10, 50), QRgb(0xFF2EA04F));
+        QCOMPARE(px(img, 1, 10), kWhite);
+        QVERIFY(f->painter->stats().icons == 3);
+        // the text of the first column is to the right of the icon; the same text in a cell no rule holds begins at the left
+        const QRect withIcon = inkBox(img, QRect(18, 22, 44, 16)), plain = inkBox(img, QRect(64, 62, 62, 16));
+        QVERIFY(withIcon.isValid() && plain.isValid());
+        QVERIFY2(withIcon.left() - 0 >= 18 + 2, qPrintable(QString::number(withIcon.left())));
+        QVERIFY2(withIcon.left() >= plain.left() - 64 + 14, qPrintable(QStringLiteral("%1 against %2").arg(withIcon.left()).arg(plain.left() - 64)));
+        // without the value
+        auto hidden = make(false, HAlign::Left);
+        const QImage without = hidden->render();
+        QCOMPARE(px(without, 10, 30), QRgb(0xFFE8B41C));
+        QCOMPARE(inkIn(without, QRect(18, 22, 44, 16)), 0);
+        // a number at the right stays at the right
+        auto right = make(true, HAlign::Right);
+        const QRect rightInk = inkBox(right->render(), QRect(18, 22, 44, 16));
+        QVERIFY(rightInk.isValid() && rightInk.right() >= 50);
+    }
+
+    // What the rules keep of the cells is bounded, and is let go of when it is full. A paint that fills it must still draw each cell as the rules say: what a paint holds is its own, so the
+    // rules letting go of theirs in the middle of it cannot show in a cell.
+    void aPaintThatFillsWhatTheRulesKeepDrawsAsOneThatDoesNot()
+    {
+        auto make = [](bool fillTheCache) {
+            auto f = std::make_unique<Fixture>();
+            for (quint32 i = 0; i < 20; ++i) f->number(i, 0, double(i * i));
+            CondRule scale;
+            scale.type = CondRule::Type::ColorScale;
+            scale.ranges = {mergeOf(0, 0, 9999, 25)};
+            scale.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+            scale.colors = {ColorSpec::fromRgb(0xFF0000), ColorSpec::fromRgb(0x0000FF)};
+            scale.priority = 1;
+            f->sheet.conditionalFormats = {scale};
+            f->build();
+            if (fillTheCache)
+                for (quint32 row = 100; row < 100 + 7688; ++row)
+                    for (quint32 col = 0; col < 26; ++col) f->grid.conditional().at(row, col);   // (199,888 cells asked about: what is kept is all but full)
+            return f;
+        };
+        const QImage clean = make(false)->render();
+        auto filled = make(true);
+        const QImage full = filled->render();
+        QCOMPARE(full, clean);
+        QCOMPARE(filled->grid.conditional().cacheClearsInPaint(), qint64(0));   // (what was kept was not let go of in the middle of the paint)
+        QCOMPARE(px(clean, 3, 3), QRgb(0xFFFF0000));   // (the cell of the lowest)
+        QCOMPARE(px(clean, 3, 19 * 20 + 3), QRgb(0xFF0000FF));   // (the cell of the highest)
+    }
+
+    // The rules are asked about the cells that are drawn, not about the million rows of the sheet.
+    void aBigSheetIsAskedAboutWhatIsDrawn()
+    {
+        Fixture f;
+        for (quint32 i = 0; i < 100000; ++i) f.number(i, 0, double((i * 7919) % 100003));
+        CondRule bar;
+        bar.type = CondRule::Type::DataBar;
+        bar.ranges = {mergeOf(0, 0, 99999, 0)};
+        bar.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+        bar.colors = {ColorSpec::fromRgb(0x638EC6)};
+        CondRule scale;
+        scale.type = CondRule::Type::ColorScale;
+        scale.ranges = {mergeOf(0, 1, 99999, 1)};
+        scale.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+        scale.colors = {ColorSpec::fromRgb(0xFF0000), ColorSpec::fromRgb(0x00FF00)};
+        for (quint32 i = 0; i < 100000; i += 1000) f.number(i, 1, double(i));
+        f.sheet.conditionalFormats = {bar, scale};
+        f.build();
+        f.grid.conditional().settle();   // (the figures of a big sheet are made in slices between paints, not in the paint)
+        f.render();
+        QVERIFY2(f.painter->stats().condCells <= 40, qPrintable(QString::number(f.painter->stats().condCells)));   // (20 rows of two columns)
+        QVERIFY(f.painter->stats().bars == 20);
+        QVERIFY(f.painter->stats().condCells > 0);
+    }
+
+    // In a sheet that reads right to left a bar is at the right of the cell (the screen's) and grows to the left, and an icon is at the right with the text moved over from it.
+    void barsAndIconsInARightToLeftSheet()
+    {
+        Fixture f;
+        f.sheet.view.rightToLeft = true;
+        f.number(0, 0, 0);
+        f.number(1, 0, 100);
+        f.number(2, 0, 9);
+        CondRule bar;
+        bar.type = CondRule::Type::DataBar;
+        bar.ranges = {mergeOf(0, 0, 1, 0)};
+        bar.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+        bar.colors = {ColorSpec::fromRgb(0x638EC6)};
+        bar.gradient = false;
+        bar.showValue = false;
+        CondRule icons;
+        icons.type = CondRule::Type::IconSet;
+        icons.iconSet = QStringLiteral("3TrafficLights1");
+        icons.ranges = {mergeOf(2, 0, 2, 0)};
+        icons.values = {{CondValue::Type::Number, QStringLiteral("0"), true}, {CondValue::Type::Number, QStringLiteral("4"), true}, {CondValue::Type::Number, QStringLiteral("8"), true}};
+        f.sheet.conditionalFormats = {bar, icons};
+        f.build();
+        const QImage img = f.render();
+        const int w = f.size.width();
+        // column A is at the right edge; the bar of the highest value (53 pixels) begins 2 pixels in from the right and is not at the cell's other side
+        QCOMPARE(px(img, w - 1 - 4, 20 + 10), QRgb(0xFF638EC6));
+        QCOMPARE(px(img, w - 1 - 53, 20 + 10), QRgb(0xFF638EC6));
+        QCOMPARE(px(img, w - 1 - 57, 20 + 10), kWhite);
+        // the icon is at the right too (its disc in the middle of its square), and the number is in the room left of it, not over it
+        QCOMPARE(px(img, w - 1 - 10, 40 + 10), QRgb(0xFF2EA04F));
+        QVERIFY(inkBox(img, QRect(w - 64, 42, 64 - 20, 16)).isValid());
+        QCOMPARE(inkIn(img, QRect(w - 1 - 17, 42, 16, 16)), 0);
     }
 };
 

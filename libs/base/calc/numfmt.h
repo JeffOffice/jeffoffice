@@ -19,7 +19,8 @@
 //     "h:mm:ss AM/PM").
 // Locales: a code's locale chooses the names of months and days. English is the default and the names of every English locale; German, French, Spanish,
 // Italian, Portuguese, and Dutch are known by name. Any other locale gets English names. The separators of numbers are never changed by a locale: a code
-// is always written with "." and ",", and the text it makes follows them (the reading of TEXT() in a workbook of another language is that program's).
+// is always written with "." and ",", and the text it makes follows them (the reading of TEXT() in a workbook of another language is that program's); the grid asks for the
+// person's marks with NumberSymbols.
 //
 // A value is rounded as the original does: from its 15 significant digits as decimal text (one rounding of the exact value of the number, half up), not
 // from the binary value, so 2.675 is "2.68" with "0.00" and
@@ -70,6 +71,16 @@ struct Formatted {
     bool failed = false;
 };
 
+// The marks a person's language puts in numbers: the decimal mark and the digit grouping ("1,5" and "1.234,5" in German, "1 234,5" in French, "1\u2019234.5" in Swiss German). A code
+// is always written with "." and ","; these are what the text a number makes shows in their places (text in quotes, dates, and times are as the code has them).
+struct NumberSymbols {
+    QString decimal = QStringLiteral(".");
+    QString group = QStringLiteral(",");
+    bool isPlain() const { return decimal == QLatin1String(".") && group == QLatin1String(","); }
+    // A locale's own (the usual ones for a locale that gives none).
+    static NumberSymbols of(const QLocale &locale);
+};
+
 // What the first section that takes a number makes of it; for the grid (a number or a date aligns right, a text left).
 enum class FormatKind : quint8 { General, Number, Date, Text };
 
@@ -89,7 +100,8 @@ public:
     // The value as the first section that takes it shows it. `generalChars` is the width, in characters, that a General number may take (what the
     // cell's column holds): the most digits of 15 that fit are shown, and scientific notation when none do; 0 for no limit, which is the 15 digits that
     // TEXT() and the joining of text give.
-    Formatted format(double value, DateSystem system = DateSystem::Date1900, int generalChars = 0) const;
+    // With `symbols`, the decimal mark and the grouping of digits are the person's (a "General" number and a number in a code; not the "." of a time's seconds or what is in quotes).
+    Formatted format(double value, DateSystem system = DateSystem::Date1900, int generalChars = 0, const NumberSymbols *symbols = nullptr) const;
     // A text as the text section shows it (or as it is when the code has none).
     Formatted formatText(const QString &text) const;
 

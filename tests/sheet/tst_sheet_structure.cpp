@@ -567,6 +567,43 @@ private Q_SLOTS:
         QVERIFY(!b.calc->content(0, 0, 4).editable);
     }
 
+    // The rules of conditional formatting follow the cells in the model as they do in the file: their ranges (a range that is all deleted takes its rule with it), and their formulas, written
+    // for the first cell of the range; Undo gives them back.
+    void conditionalFormatsFollowTheEditsAndComeBackWithUndo()
+    {
+        QString rows;
+        for (int r = 1; r <= 12; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        const QString after = QStringLiteral("<conditionalFormatting sqref=\"B3:B6\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$A3&gt;$D$8</formula></cfRule></conditionalFormatting>"
+                                             "<conditionalFormatting sqref=\"C1:C2\"><cfRule type=\"cellIs\" dxfId=\"0\" priority=\"2\" operator=\"greaterThan\"><formula>$D$9</formula></cfRule></conditionalFormatting>"
+                                             "<conditionalFormatting sqref=\"E10\"><cfRule type=\"colorScale\" priority=\"3\"><colorScale><cfvo type=\"min\"/><cfvo type=\"max\"/><color rgb=\"FFFFFFFF\"/><color rgb=\"FF63BE7B\"/></colorScale></cfRule></conditionalFormatting>");
+        Book b;
+        QVERIFY(b.openXml(worksheet(rows, after)));
+        auto rules = [&] {
+            QStringList out;
+            for (const CondRule &c : b.calc->sheet(0).conditionalFormats) {
+                QStringList ranges;
+                for (const CellRange &r : c.ranges) ranges << rangeName(r);
+                out << ranges.join(QLatin1Char(' ')) + QLatin1Char('|') + c.formula1;
+            }
+            return out;
+        };
+        QCOMPARE(rules(), (QStringList{"B3:B6|$A3>$D$8", "C1:C2|$D$9", "E10|"}));
+        Calculation::EditRecord first;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 1, 2), &first));                        // two rows above row 2
+        QCOMPARE(rules(), (QStringList{"B5:B8|$A5>$D$10", "C1:C4|$D$11", "E12|"}));       // (the second range grew: the rows went in it)
+        Calculation::EditRecord second;
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 0, 4), &second));                       // the first four rows: all of C1:C4
+        QCOMPARE(rules(), (QStringList{"B1:B4|$A1>$D$6", "E8|"}));
+        Calculation::EditRecord third;
+        QVERIFY(b.apply(StructEdit::deleteColumns(0, 1, 1), &third));                     // column B: all of the first rule's cells
+        QCOMPARE(rules(), (QStringList{"E8|"}.mid(0, 0) + QStringList{"D8|"}));
+        QVERIFY(b.calc->undoEdit(third));
+        QVERIFY(b.calc->undoEdit(second));
+        QCOMPARE(rules(), (QStringList{"B5:B8|$A5>$D$10", "C1:C4|$D$11", "E12|"}));
+        QVERIFY(b.calc->undoEdit(first));
+        QCOMPARE(rules(), (QStringList{"B3:B6|$A3>$D$8", "C1:C2|$D$9", "E10|"}));
+    }
+
     // A cut to another sheet: a reference to cells that stay names the sheet the formula came from; one to cells that go with it follows them.
     void aCutToAnotherSheetKeepsTheCellsItReads()
     {

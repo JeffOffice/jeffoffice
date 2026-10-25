@@ -1,6 +1,7 @@
 // Tests of reading what a person types into a cell: numbers, percents, money, dates, and times in the person's locale, with the number format that shows them as typed; formulas
 // (and the plain message for one that is not); text and its limits; and the text a cell is edited as.
 #include "sheethelpers.h"
+#include "../localepin.h"
 
 #include "grid/text.h"
 #include "calc/functions.h"
@@ -505,6 +506,7 @@ private Q_SLOTS:
 
     void limits()
     {
+        const PinnedLocale english;
         const EntryOptions o = options(en);
         QCOMPARE(read(QString(32767, QLatin1Char('x')), o).size(), 2 + 32767);
         const EntryResult r = readEntry(QString(32768, QLatin1Char('x')), o);

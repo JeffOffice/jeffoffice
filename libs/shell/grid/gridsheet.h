@@ -3,6 +3,7 @@
 // cell shows (from the calculation once there is one, else the result the file stored), and the text of each value in its format, kept in a cache so that a screen is drawn from
 // text made once. It reads the sheet and the workbook's styles and shared strings where they are (nothing is copied), and changes nothing in them.
 
+#include "grid/condformat.h"
 #include "grid/layout.h"
 #include "grid/look.h"
 #include "grid/text.h"
@@ -38,6 +39,9 @@ struct GridData {
     const jp::office::sheet::Calculation *calc = nullptr;   // read directly (only where nothing else is changing it: a tool, a test)
     const ValueStore *values = nullptr;                      // what a calculation on another thread has worked out and told (the window's way): a formula not in it shows what the file stored
     int sheetIndex = 0;
+    // The other sheets and the names of all, for the formulas of conditional formats that read cells of another sheet (none: they read only this one).
+    std::vector<const Sheet *> sheets;
+    QStringList sheetNames;
     jp::calc::DateSystem dateSystem = jp::calc::DateSystem::Date1900;
     std::shared_ptr<const GridGeometry> geometry;   // the sheet's geometry, made ahead by GridSheet::makeGeometry; none: setData makes it
 };
@@ -62,6 +66,19 @@ public:
     const Cell *cellAt(quint32 row, quint32 col) const;
     // The value of a cell as it is shown.
     jp::calc::Value valueOf(const Cell &cell) const;
+    // The value of a cell of this sheet or of another (as it is shown; empty for none), and a sheet by its place (null for none).
+    jp::calc::Value valueIn(int sheet, quint32 row, quint32 col) const;
+    const Sheet *sheetAt(int sheet) const;
+    // ---- conditional formats (see condformat.h)
+    bool hasConditionalFormats() const { return m_cond.any(); }
+    const CondFormats &conditional() const { return m_cond; }
+    CondFormats &conditional() { return m_cond; }
+    // The sheet's rules are new or changed: what was worked out of them, and the looks made from it, are let go. (Use this, not conditional().reset().)
+    void resetConditional() const;
+    // The day the rules of dates and TODAY() read (a day number; the clock's by default).
+    void setToday(double serial) const;
+    // The look of a cell with the changes the rules of conditional formatting make to it (the cell's own, when there are none).
+    const CellLook &lookOf(quint32 row, quint32 col, quint32 style) const;
     // The format of a place: its cell's, else its row's when the row has one, else its column's; 0 for none.
     quint32 styleOf(quint32 row, quint32 col, const Cell *cell) const;
     // The width of a column in the grid's units at 100% (0 when hidden), and of a block of columns.
@@ -73,8 +90,21 @@ public:
     QString textOf(const Cell &cell) const;
     // Forgets the texts (values or formats changed), or the text of one cell.
     void invalidateTexts() const;
-    void invalidateText(quint32 row, quint32 col) const { m_texts.erase((quint64(row) << 16) | col); }
+    // Forgets the texts and what the rules of conditional formatting made of the cells, but not the figures they keep of all their cells (those are let go by `invalidateText` of a cell
+    // that is among theirs): for values that changed, one by one, that a rule's formula may read.
+    void invalidateLooks() const;
+    void invalidateText(quint32 row, quint32 col) const
+    {
+        m_texts.erase((quint64(row) << 16) | col);
+        m_cond.valueChanged(row, col);
+    }
     // Shows the formula of a cell that has one in place of its value ("=SUM(A1:A3)", as text).
+    // The sheet reads right to left: column A is at the right, and what a cell's alignment says of the left and right is the screen's. (The `align` a cell shows is in the grid's own places,
+    // the way the layout puts the columns: a sheet that reads right to left has them mirrored for the screen, so a text aligned to its left has `align` right.)
+    bool rightToLeft() const { return m_rtl; }
+    // The marks the person's language puts in numbers (the decimal mark, the grouping of digits): what a number cell shows and a copy gives. Plain ("." and ",") until set.
+    void setNumberSymbols(const jp::calc::NumberSymbols &symbols);
+    const jp::calc::NumberSymbols &numberSymbols() const { return m_symbols; }
     void setShowFormulas(bool on);
     bool showFormulas() const { return m_showFormulas; }
     // Texts made (not found in the cache) so far, and held now.
@@ -116,6 +146,10 @@ private:
     mutable std::unordered_map<quint64, Shown> m_texts;
     mutable qint64 m_textsMade = 0;
     bool m_showFormulas = false;
+    jp::calc::NumberSymbols m_symbols;
+    bool m_rtl = false;
+    mutable CondFormats m_cond{this};
+    jp::calc::Value valueOfCell(int sheetIndex, const Sheet &sheet, const Cell &cell) const;
     std::shared_ptr<const GridGeometry> m_geometry;   // what the sheet's file gave (the layout above begins as a copy of its layout, which shares its places and merges), and the cell formats of the rows and columns, held where they were made
 };
 

@@ -12,6 +12,7 @@
 #include <QApplication>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
 #include <QRadioButton>
@@ -40,13 +41,15 @@ void CrunchWindow::createCellsActions()
     mk("cells.format", tr("Format"), "table-properties", QKeySequence(), [] {});
     mk("format.rowHeight", tr("Row Height…"), "", QKeySequence(), [this] { setSizeDialog(false); });
     mk("format.columnWidth", tr("Column Width…"), "", QKeySequence(), [this] { setSizeDialog(true); });
+    mk("format.defaultWidth", tr("Default Width…"), "", QKeySequence(), [this] { defaultSizeDialog(true); });
+    mk("format.defaultHeight", tr("Default Row Height…"), "", QKeySequence(), [this] { defaultSizeDialog(false); });
     mk("format.fitRow", tr("AutoFit Row Height"), "", QKeySequence(), [this] { fitSelection(false); });
     mk("format.fitColumn", tr("AutoFit Column Width"), "", QKeySequence(), [this] { fitSelection(true); });
     mk("format.hideRows", tr("Hide Rows"), "", QKeySequence(Qt::CTRL | Qt::Key_9), [this] { hideSelection(false, true); });
     mk("format.hideColumns", tr("Hide Columns"), "", QKeySequence(Qt::CTRL | Qt::Key_0), [this] { hideSelection(true, true); });
     mk("format.unhideRows", tr("Unhide Rows"), "", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_ParenLeft), [this] { hideSelection(false, false); });
     mk("format.unhideColumns", tr("Unhide Columns"), "", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_ParenRight), [this] { hideSelection(true, false); });
-    for (const char *id : {"cells.format", "format.rowHeight", "format.columnWidth", "format.fitRow", "format.fitColumn", "format.hideRows", "format.hideColumns", "format.unhideRows", "format.unhideColumns"})
+    for (const char *id : {"cells.format", "format.rowHeight", "format.columnWidth", "format.defaultWidth", "format.defaultHeight", "format.fitRow", "format.fitColumn", "format.hideRows", "format.hideColumns", "format.unhideRows", "format.unhideColumns"})
         m_opsActions << QString::fromLatin1(id);
     connect(m_view, &grid::GridView::dropDownRequested, this, [this] { showChoices(); });
     connect(m_view, &grid::GridView::selectionChanged, this, [this] { updateDropDown(); });
@@ -365,6 +368,49 @@ void CrunchWindow::setSizeDialog(bool column)
     const crunch::EditSession::Outcome o = column ? m_session->resizeColumns(m_sheet, first, last, by, request.value <= 0 ? tr("Hiding columns") : tr("Changing column width"))
                                                    : m_session->resizeRows(m_sheet, first, last, by, request.value <= 0 ? tr("Hiding rows") : tr("Changing row height"));
     if (!o.ok) notice(column ? tr("Column Width") : tr("Row Height"), o.problem);
+}
+
+// Default Width and Default Row Height: the size the sheet's columns (rows) have that have none of their own, asked for in the units a person is shown (see setSizeDialog).
+void CrunchWindow::defaultSizeDialog(bool column)
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return;
+    const int mdw = m_view->sheet().looks().maxDigitWidth();
+    SizeRequest request;
+    request.column = column;
+    request.standard = true;
+    if (column) request.value = grid::GridSheet::shownWidth(m_view->sheet().layout().cols.defaultSize() / double(std::max(1, mdw)), mdw);
+    else request.value = grid::GridSheet::pointsForPixels(m_view->sheet().layout().rows.defaultSize());
+    if (m_sizeAsker) {
+        if (!m_sizeAsker(&request)) return;
+    } else {
+        QDialog dialog(this);
+        dialog.setWindowTitle(column ? tr("Default Width") : tr("Default Row Height"));
+        auto *form = new QFormLayout;
+        auto *layout = new QVBoxLayout(&dialog);
+        layout->addLayout(form);
+        auto *value = new QDoubleSpinBox;
+        value->setRange(0.1, column ? 255 : 409.5);
+        value->setDecimals(2);
+        value->setValue(request.value);
+        form->addRow(column ? tr("Standard column width") : tr("Standard row height"), value);
+        auto *note = new QLabel(column ? tr("Columns that have no width of their own take this width.") : tr("Rows that have no height of their own take this height."));
+        note->setWordWrap(true);
+        layout->addWidget(note);
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        layout->addWidget(buttons);
+        connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        if (dialog.exec() != QDialog::Accepted) return;
+        request.value = value->value();
+    }
+    if (request.value <= 0) {
+        notice(column ? tr("Default Width") : tr("Default Row Height"), tr("A default size must be more than nothing."));
+        return;
+    }
+    const crunch::EditSession::Outcome o = column ? m_session->setDefaultSizes(m_sheet, grid::GridSheet::widthOfShown(request.value, mdw), std::nullopt, tr("Default Width"))
+                                                   : m_session->setDefaultSizes(m_sheet, std::nullopt, request.value, tr("Default Row Height"));
+    if (!o.ok) notice(column ? tr("Default Width") : tr("Default Row Height"), o.problem);
 }
 
 // AutoFit: the columns (rows) of the selection each get the size that holds what is in them (one that holds nothing keeps its size).

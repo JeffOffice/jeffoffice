@@ -19,6 +19,7 @@
 
 #include <functional>
 #include <map>
+#include <optional>
 #include <memory>
 #include <set>
 #include <unordered_set>
@@ -28,6 +29,8 @@ namespace jp::crunch {
 
 // The most cells a Delete (or any one edit) changes: past it the edit is refused, with a message, so that it never holds the worker, or the window, for long.
 constexpr qint64 kMaxCellsPerEdit = 100000;
+// The most cells a formatting command changes the format of at once (a whole column of a sheet that is full of cells, or a block), a step of them being 20 bytes each.
+constexpr qint64 kMaxStyledCells = 2000000;
 // The steps Undo goes back (each a command of the stack).
 constexpr int kUndoSteps = 1000;
 // The most memory the steps hold, by an estimate of the bytes of the cells in them (as they were and as they are): past it the oldest steps are forgotten, the newest never.
@@ -42,6 +45,8 @@ struct CellChange {
     // is to go in the shared strings, and a number format (a code) the cell's format is to be given.
     bool textToShare = false;
     QString formatCode;
+    // Only the format of the cell changes (its value, formula, and the array it may be part of stay as they are).
+    bool styleOnly = false;
 };
 
 // A table's column renamed by a step (its header cell is one of the step's cells): the table by its place in the workbook's tables, the column by its place in the table.
@@ -59,6 +64,27 @@ struct SizeEdit {
     quint32 first = 0, last = 0;   // the columns or rows
     std::vector<jp::office::sheet::ColumnSpan> columnsBefore, columnsAfter;
     std::vector<jp::office::sheet::RowSpec> rowsBefore, rowsAfter;
+};
+
+// A sheet added, copied, renamed, deleted, moved, shown or hidden, or given a tab color by a step. The sheets are never renumbered (see Calculation::addSheet): `sheet` is the sheet's place for
+// good, and what a step changes of the order of the tabs is kept whole.
+struct SheetEdit {
+    enum class Kind : quint8 { Insert, Copy, Delete, Rename, Move, State, TabColor } kind = Kind::Insert;
+    int sheet = 0;
+    QString nameBefore, nameAfter;
+    QVector<int> orderBefore, orderAfter;
+    jp::office::sheet::SheetState stateBefore = jp::office::sheet::SheetState::Visible, stateAfter = jp::office::sheet::SheetState::Visible;
+    jp::office::sheet::ColorSpec colorBefore, colorAfter;
+    int copyOf = -1;                                       // Copy: the sheet it is a copy of
+    jp::office::sheet::Calculation::SheetRewrite rewrite;  // Rename and Delete: what the formulas were (made when the step is done)
+    // Whether the step changes what the file's parts name (and so can't be undone against a file that was saved after it).
+    bool structural() const { return kind == Kind::Insert || kind == Kind::Copy || kind == Kind::Delete || kind == Kind::Rename || kind == Kind::Move; }
+};
+
+// The default sizes of a sheet (the height of rows and the width of columns that have none of their own) changed by a step: as they were and as they are.
+struct FormatEdit {
+    int sheet = 0;
+    jp::office::sheet::SheetFormat before, after;
 };
 
 // The merged ranges of a sheet changed by a step (a paste with merges, cells moved): as they were and as they are.
@@ -81,6 +107,14 @@ struct StructChange {
     int savedGen = 0;                                                    // how many saves had been made when it was done (an Undo after a later save is made against the saved file)
 };
 
+// A cell whose cell format a step changed, and nothing else of it (a formatting command's: it is what a format given to a million cells holds, so it is small): where it is, and the
+// formats it had and has.
+struct StyleCell {
+    qint32 sheet = 0;
+    quint32 row = 0, col = 0;
+    quint32 before = 0, after = 0;
+};
+
 // An object over the cells (a chart, picture, or shape) that a step took away: its sheet, and its number among that sheet's objects.
 struct ObjectEdit {
     int sheet = 0;
@@ -90,12 +124,15 @@ struct ObjectEdit {
 // What one step of the undo stack changes: cells (as they were and as they are), and whatever goes with them.
 struct Step {
     std::vector<CellChange> cells;
+    std::vector<StyleCell> styles;
     std::vector<TableRename> renames;
     std::vector<SizeEdit> sizes;
     std::vector<MergeEdit> merges;
+    std::vector<FormatEdit> formats;
+    std::vector<SheetEdit> sheets;
     std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
     std::vector<ObjectEdit> objects;           // or objects over the cells taken away (done: they are gone; undone: they are back)
-    bool empty() const { return cells.empty() && renames.empty() && sizes.empty() && merges.empty() && !structure && objects.empty(); }
+    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && sheets.empty() && !structure && objects.empty(); }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -212,6 +249,8 @@ public:
     // were; `moveToNow` puts the places in it where the cells are now.
     int generation() const { return int(m_log.size()); }
     void moveToNow(std::vector<jp::grid::ValueStore::Item> *items, int generation) const;
+    // Takes out of a batch of results those for a sheet that is not there any more (a sheet added and taken away by Undo while the worker was still working out its formulas).
+    void dropRemovedSheets(std::vector<jp::grid::ValueStore::Item> *items) const;
 
     // ---- the clipboard
     // What a paste puts: everything the cells have (All), their formulas or values, their values (a formula's result), or their formats; an operation made with the cells already there (the
@@ -252,8 +291,55 @@ public:
     // A number typed in a column that has the width it began with widens it to hold it: the width is added to the step of the entry (the last on the stack, which must be an entry in
     // that column); false if it was not.
     bool widenColumnWithEntry(int sheet, quint32 col, double width);
+    // The default width of the columns of a sheet and the default height of its rows (those that have no size of their own): one step. The width is as a SizeChange has it (characters
+    // of the widest digit, with the padding), the height in points; one that is not given is left as it is.
+    Outcome setDefaultSizes(int sheet, std::optional<double> columnWidth, std::optional<double> rowHeight, const QString &text);
+    // ---- the sheets (one step each, undone, redone, and saved: the formulas that name a sheet follow it when it is renamed, and have #REF! for it when it is deleted)
+    // The places of the sheets in the order of the tabs (those deleted are not among them, and hidden ones are).
+    QVector<int> sheetOrder() const;
+    // Whether a name can be a sheet's (not `except`'s own): 1 to 31 characters, none of : \ / ? * [ ], not beginning or ending with an apostrophe, not "History", and not another sheet's, in any
+    // case; else why.
+    bool validSheetName(const QString &name, int except, QString *why = nullptr) const;
+    // The name a new sheet is given ("Sheet4"), and a copy of `sheet` ("Data (2)").
+    QString newSheetName() const;
+    QString copyName(int sheet) const;
+    // A new sheet, or a copy of one, put before the sheet `before` in the order (-1: at the end); `made` is its place. `name` empty is the name given by newSheetName (copyName for a copy).
+    // A copy has the cells, formats, sizes, merged ranges, and rules of the sheet, and what its file says of its protection, filter, links, page setup, page breaks, outline, and the look of
+    // its data bars; a sheet with a table can't be copied. What is left out (pictures, charts, notes, and the like) is said by the outcome's `problem`, with `ok` true.
+    Outcome insertSheet(int before, const QString &name, int *made = nullptr);
+    Outcome copySheet(int sheet, int before, const QString &name, int *made = nullptr);
+    // Deletes a sheet (the last that is shown, or one that has a table, can't be); the sheet and everything in it are kept for Undo.
+    Outcome deleteSheet(int sheet);
+    Outcome renameSheet(int sheet, const QString &name);
+    // Puts a sheet before another in the order of the tabs (-1: at the end).
+    Outcome moveSheet(int sheet, int before);
+    Outcome setSheetHidden(int sheet, bool hidden);
+    Outcome setTabColor(int sheet, const jp::office::sheet::ColorSpec &color);
+    // Whether a sheet holds any cells (what a person is asked about before it is deleted).
+    bool sheetHasCells(int sheet) const;
     // The most rows one resize changes.
     static constexpr qint64 kMaxRowsPerResize = 100000;
+
+    // ---- formatting (one step each; undone, redone, and saved as styles of the file with no format made twice)
+    // The cells of a range given a change of their formats: the font, the fill, the borders, the number format, the alignment, or protection (see FormatChange). Whole columns (or whole rows)
+    // are given the format as the columns' (rows') own, and the cells in them that have formats of their own are changed too; any other block must be no more than kMaxCellsPerEdit cells.
+    // Not ok, and nothing changed, if a cell in it is locked on a protected sheet. `text` is the name of the step in the Edit menu.
+    Outcome formatCells(int sheet, const jp::office::sheet::CellRange &range, const jp::office::sheet::FormatChange &change, const QString &text);
+    // The borders of a block: which of its edges (the sides on the outside of the block, the lines between its cells, a diagonal) are given the line; a line of no style takes them away. The
+    // cells beside the block that share its outer edges are given the same line on the side that meets it, as in the programs people know.
+    enum BorderEdge { EdgeLeft = 1, EdgeRight = 2, EdgeTop = 4, EdgeBottom = 8, EdgeInsideHorizontal = 16, EdgeInsideVertical = 32, EdgeDiagonalUp = 64, EdgeDiagonalDown = 128 };
+    Outcome setBorders(int sheet, const jp::office::sheet::CellRange &range, int edges, const jp::office::sheet::BorderSide &line, const QString &text);
+    // Clears the formats of the cells in the range (they show General in the first cell format, with no fill or border), the contents and the formats, or both of them.
+    Outcome clearFormats(int sheet, const jp::office::sheet::CellRange &range);
+    Outcome clearAll(int sheet, const jp::office::sheet::CellRange &range);
+    // Merges the cells of the range into one (the cell at the top left keeps its value; the others are emptied, which is asked about first when they hold anything: `confirm` in the outcome,
+    // and the same call again with `discard`), merges each row of the range alone (Across), or takes the merges of the range away. Merge and center also centers the cell.
+    enum class MergeKind { Merge, MergeAndCenter, Across, Unmerge };
+    Outcome mergeCells(int sheet, const jp::office::sheet::CellRange &range, MergeKind kind, bool discard = false);
+    // Gives the cells a named style (its place among the style formats: see Workbook::styleNamed), which sets their fonts, fills, borders, number format, alignment, and protection.
+    Outcome applyStyle(int sheet, const jp::office::sheet::CellRange &range, quint32 style, const QString &text);
+    // The same by the style's name: a style the workbook has, or a built-in one it is given now. Not ok if there is no such style, or the file has no place to keep one.
+    Outcome applyStyleNamed(int sheet, const jp::office::sheet::CellRange &range, const QString &name, const QString &text);
 
     // An object over the cells is taken away (Delete with it picked): one step, which Undo gives back. Told to the hook (setObjectHook) when it is done, undone, and done again; the file is
     // written without it. A step that took an object away is like one that deleted rows: Undo goes back as far as the last such step saved, no further.
@@ -263,6 +349,8 @@ public:
 
     // The edits that insert or delete rows, columns, or cells since the file was read or saved that are done (not undone), in order: what the objects over the cells are moved by.
     const std::vector<jp::office::sheet::StructEdit> &structureEdits() const { return m_edits; }
+    // The renames and deletes of sheets since the file was read or saved that are done (not undone), in order: what the charts' references follow.
+    const std::vector<jp::office::sheet::SheetOp> &sheetOperations() const { return m_sheetOps; }
 
     // The worker's results, as they reach the window (before the window's store has them: the store's value is the engine's before it): kept for saving, those that the engine changed and that
     // differ from what the file holds.
@@ -276,7 +364,7 @@ public:
     // What the file needs to be made, taken now (nothing is held on to): false, with a message, if it can't be made.
     struct Snapshot {
         jp::office::sheet::SaveChanges changes;
-        int strings = 0, numberFormats = 0, cellFormats = 0;   // how many of the workbook's additions are in it
+        int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0;   // how many of the workbook's additions are in it
         std::map<quint64, jp::calc::Value> results;            // the results it holds (to be the file's, once it is written)
         std::vector<quint64> touchedFormulas;                  // the formula cells it holds whole, with the results they were given
         std::map<quint64, jp::calc::Value> touchedResults;
@@ -300,6 +388,8 @@ public:
     static quint64 keyOf(int sheet, quint32 row, quint32 col) { return (quint64(sheet) << 40) | (quint64(row) << 16) | quint64(col); }
 
 Q_SIGNALS:
+    // The sheets were changed (added, deleted, renamed, moved, shown, hidden, or given a color) by a step, Undo, or Redo: the window makes its tabs again.
+    void sheetsChanged();
     // Cells were changed by an edit, Undo, or Redo (the window draws them again).
     void cellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells);
     // Rows, columns, or cells were inserted or deleted (or put back by Undo: `edit` is what was done to the cells then); the window makes its picture of the sheet again.
@@ -321,6 +411,17 @@ private:
     void applySizes(Step *step, bool forward, jp::office::sheet::Calculation *calc);
     bool widenLastStep(int index, int sheet, quint32 col, double width);
     Outcome resize(const SizeEdit &edit, const QString &text);
+    // The format a cell that holds nothing has: its row's when the row has one, else its column's, else the first.
+    quint32 implicitStyle(int sheet, quint32 row, quint32 col) const;
+    // The formats of cells changed: each target is a cell given a change (or its formats cleared); the formats are made with the worker held back, then the step is pushed. Whole columns
+    // and rows of the range get their own formats.
+    struct RestyleTarget {
+        quint32 row = 0, col = 0;
+        const jp::office::sheet::FormatChange *change = nullptr;   // the change (the caller holds it until the call is over), or none to clear the formats
+    };
+    using SizeBuilder = std::function<void(jp::office::sheet::Workbook &, const jp::office::sheet::Calculation &, Step *)>;
+    Outcome restyle(int sheet, const std::vector<RestyleTarget> &targets, const QString &text, const SizeBuilder &sizes = nullptr);
+    Outcome restyleRange(int sheet, const jp::office::sheet::CellRange &range, const std::shared_ptr<const jp::office::sheet::FormatChange> &change, const QString &text);
     Outcome structure(const jp::office::sheet::StructEdit &edit, const QString &text);
     // The changes a paste makes: the block (`blockRows` by `blockCols`) is put at the first cell of `target`, or over all of it when it is a whole number of times the block. `make` is
     // asked for the change at each place of the block, and says false, with the problem, if the paste can't be made. `merges` are those of the block (from its first cell), put with it.
@@ -366,10 +467,30 @@ private:
     std::function<void(jp::office::sheet::Calculation *, bool)> m_holdHook;
     qint64 m_longestHoldWait = 0, m_lastHoldWait = 0;
     bool m_tracking = false;               // an edit has been made: results are compared with the file's
+    bool m_sheetRemoved = false;                     // a sheet added was taken away by Undo (so results may come for sheets that are not there)
+    void forgetSheet(int sheet);                     // what is kept by cell for a sheet taken away is let go of
     std::unordered_set<quint64> m_touched;           // cells changed by the person (written whole), by sheet, row, column
     std::map<quint64, jp::calc::Value> m_results;      // formulas whose value is not the file's
     std::map<quint64, jp::calc::Value> m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
     qint64 m_token;
+    std::set<int> m_formatsChanged;  // the sheets whose default sizes a step changed since the file was read or saved
+    bool m_sheetsListed = false;                          // a step changed the list of sheets since the file was read or saved
+    std::set<int> m_sheetsRestyled;                       // the sheets a step gave the format of very many cells (drawn again whole)
+    std::set<int> m_statesChanged;                        // the sheets a step hid or showed
+    std::set<int> m_tabColorsChanged;                     // the sheets whose tab color a step changed
+    std::vector<jp::office::sheet::SheetOp> m_sheetOps;   // renames and deletes of sheets since the file was read or saved that are done (not undone), for the file
+    // The sheets copied since the file was read or saved that are done (not undone): the copy, the sheet it is a copy of, and how many edits to rows and columns (m_edits) there were then.
+    // The copy's file begins as the file of the sheet, with the edits made to it before the copy (the copy's own cells come from the model).
+    struct CopyPoint {
+        int sheet = 0, source = 0;
+        size_t edits = 0;
+    };
+    std::vector<CopyPoint> m_copies;
+    const CopyPoint *copyPointOf(int sheet) const;
+    QString notCopiedNote(int sheet) const;
+    bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);
+    Outcome pushSheetEdit(SheetEdit edit, const QString &text);
+    bool sheetStepsRefused(QString *why);
     std::set<int> m_mergesChanged;   // the sheets whose merged ranges a step changed since the file was read or saved
     std::set<quint64> m_columnsResized, m_rowsResized;   // the columns and rows (by sheet and place) whose size a step changed since the file was read or saved
     std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)

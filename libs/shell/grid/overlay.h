@@ -36,6 +36,8 @@ public:
     }
     // The sizes of rows or columns, the frozen panes, or the sheet itself changed: what the overlay worked out from the layout is worked out again.
     virtual void layoutChanged() {}
+    // The view is drawn mirrored (a sheet that reads right to left): the painter given to `paint` is mirrored already, and an overlay that draws pictures turns them back so that they read as they were made.
+    virtual void setMirrored(bool mirrored) { Q_UNUSED(mirrored); }
     // How the overlay asks for part of the viewport to be drawn again (an empty rectangle: all of it); the view sets it.
     void setRepaintHook(std::function<void(const QRect &)> hook) { m_repaint = std::move(hook); }
 

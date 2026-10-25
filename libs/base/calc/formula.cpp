@@ -87,15 +87,23 @@ public:
     }
 
     // The references of the text, where they are in it (see findReferences); false if the text can't be read as a formula.
-    bool references(std::vector<ReferenceAt> *out)
+    bool references(std::vector<ReferenceAt> *out, bool withNames)
     {
         if (n > kMaxFormulaChars || !lex()) return false;
         for (const Token &t : toks) {
-            if (t.kind != T::Ref) continue;
+            const bool name = withNames && t.kind == T::Name && t.sheetPlus1 > 0 && t.body >= 0;
+            if (t.kind != T::Ref && !name) continue;
             ReferenceAt at;
             at.start = t.pos;
             at.end = t.end;
             at.body = t.body >= 0 ? t.body : t.pos;
+            at.afterWorkbook = t.pos > 0 && s[t.pos - 1] == QLatin1Char(']');
+            if (name) {
+                at.isName = true;
+                if (size_t(t.sheetPlus1 - 1) < size_t(prog.sheetNames.size())) at.sheet1 = prog.sheetNames[t.sheetPlus1 - 1];
+                out->push_back(std::move(at));
+                continue;
+            }
             at.ref = t.ref;
             if (t.ref.sheet1 >= 0 && size_t(t.ref.sheet1) < size_t(prog.sheetNames.size())) at.sheet1 = prog.sheetNames[t.ref.sheet1];
             if (t.ref.sheet2 >= 0 && size_t(t.ref.sheet2) < size_t(prog.sheetNames.size())) at.sheet2 = prog.sheetNames[t.ref.sheet2];
@@ -1322,11 +1330,11 @@ ParseResult parseFormula(const QString &text, const ParseOptions &options)
     return result;
 }
 
-bool findReferences(const QString &text, const ParseOptions &options, std::vector<ReferenceAt> *out)
+bool findReferences(const QString &text, const ParseOptions &options, std::vector<ReferenceAt> *out, bool withNames)
 {
     Program program;
     Parser parser(text, options, &program);
-    return parser.references(out);
+    return parser.references(out, withNames);
 }
 
 QString referenceCellsText(const RefLit &ref) { return refText(ref); }

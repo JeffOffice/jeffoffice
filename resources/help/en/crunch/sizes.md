@@ -1,5 +1,5 @@
 # Change the width of columns and the height of rows
-<!-- keywords: width, height, column, row, size, wider, taller, narrower, shorter, fit, autofit, hide, unhide, drag, border, double click, characters, points, Ctrl+0, Ctrl+9, pixels, number too wide, hashes -->
+<!-- keywords: default width, default row height, standard width, standard height, width, height, column, row, size, wider, taller, narrower, shorter, fit, autofit, hide, unhide, drag, border, double click, characters, points, Ctrl+0, Ctrl+9, pixels, number too wide, hashes -->
 
 A **column's width** is counted in characters: how many digits fit across it. A **row's height** is counted in points, a unit used for type (72 points make an inch). The usual column holds about 8 digits, and the usual row is 15 points high.
 
@@ -17,6 +17,10 @@ If whole columns (or rows) are selected and you drag the border of one of them, 
 
 Select the columns or rows, then use **Home > Format > Column Width** or **Row Height**, and type the size. A size of 0 hides them.
 
+## Change the standard size
+
+Columns and rows that have no size of their own take the **standard** size: 8.43 characters wide and 15 points high, unless the workbook says otherwise. To change it for the whole sheet, use **Home > Format > Default Width** or **Default Row Height**, type the size, and click **OK**. Every column (or row) that has not been given a size of its own changes at once; the ones you sized yourself keep their sizes. This is one step you can undo, and the workbook keeps the new standard.
+
 ## Hide and show
 
 **Ctrl+0** hides the selected columns, and **Ctrl+9** hides the selected rows. To show hidden ones, select the columns or rows on both sides of them (or a block that covers them) and use **Home > Format > Unhide Columns** or **Unhide Rows**. The right-click menu on the column letters and row numbers has these commands too.
@@ -25,4 +29,4 @@ Select the columns or rows, then use **Home > Format > Column Width** or **Row H
 
 When you type or paste a number that does not fit its column, the column widens to show it, if the column still has the width it began with. A column whose width you set yourself keeps it, and a number that does not fit it shows as **#** marks until you widen the column. Typing and the widening are one step, so **Undo** takes back both.
 
-Every change is one step you can undo, and the file keeps the sizes.
+Every change is one step you can undo, and the file keeps the sizes. For a sense of scale: a column 8.43 characters wide is about 64 pixels, and a row 15 points high is 20 pixels, at 100% zoom.
