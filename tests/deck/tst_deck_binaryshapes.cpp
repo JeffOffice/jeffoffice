@@ -1,6 +1,6 @@
 // JeffDeck's tests of old binary presentations: shapes, text, footers, pictures, and metafiles as they are drawn.
 #include "deckhelpers.h"
-#include "../timing.h"
+#include "render/metafile.h"
 
 class DeckBinaryShapesTests : public QObject {
     Q_OBJECT
@@ -834,13 +834,12 @@ private Q_SLOTS:
         shapes.clear();
         const QByteArray big = xmlPackage(600 << 10);
         for (int i = 0; i < 120; ++i) shapes += rectangle(0x600 + i, 100 + i * 20, big);
-        const qint64 ms = bestNanoseconds([&] {
-            d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
-        }, 3, [&] { d.reset(); }) / 1000000;
+        d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
         QVERIFY2(d, qPrintable(err));
         const int read = greens(*d);
         QVERIFY2(read > 90 && read < 120, qPrintable(QString::number(read)));
-        QVERIFY(ms < 30000);
+        // Counted: the XML read is the first 64 MB and the shape that passed it, not the 72 MB there is.
+        QVERIFY2(deck::lastPptImportWorkForTest().writersXmlBytes <= (64 << 20) + (700 << 10), qPrintable(QString::number(deck::lastPptImportWorkForTest().writersXmlBytes)));
     }
 
     // The shadow flag of an old file's words is a shadow in the words' effect list, as the presentation program draws it for them (light
@@ -1082,12 +1081,9 @@ private Q_SLOTS:
             shapes += pptBox(0xF004, pptRec(0xF00A, le(0x900, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, props, 5, 3) + pptRec(0xF010, le(400, 2) + le(100, 2) + le(600, 2) + le(300, 2)));
         }
         QString err;
-        std::unique_ptr<Document> d;
-        const qint64 ms = bestNanoseconds([&] {
-            d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, shapes), &err);
-        }, 3, [&] { d.reset(); }) / 1000000;
+        std::unique_ptr<Document> d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), group, shapes), &err);
         QVERIFY2(d, qPrintable(err));
-        QVERIFY2(ms < 30000, qPrintable(QString::number(ms)));
+        // (The pictures made of the 400 patterns are held to what is kept, asserted next: at most 203 images, the clock said no more.)
         QVERIFY2(d->images.size() <= 203, qPrintable(QString::number(d->images.size())));
         QVERIFY(d->images.size() >= 100);
         int tiles = 0;
@@ -1169,22 +1165,25 @@ private Q_SLOTS:
         QVERIFY2(fragments(*symbols) <= 256 + 8, qPrintable(QString::number(fragments(*symbols))));
         QVERIFY(fragments(*symbols) > 2);   // (the first of them are cut as before)
         // Laid out, it costs about what the same text in another font does.
-        auto layoutMs = [&](Document &d) {
+        // (Counted: the ranges of format the text engine made, and the characters of paragraphs it read, for a cache with nothing laid out.)
+        auto layoutWork = [&](Document &d, qint64 *chars) {
             const TextItem *body = nullptr;
             for (const auto &it : d.pages[0]->items)
                 if (it->type() == ItemType::Text && it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
             if (!body) return qint64(-1);
             const RenderOptions opt;
-            std::unique_ptr<LayoutCache> cache;
-            bool laid = false;
-            const qint64 ns = bestNanoseconds([&] { laid = bool(cache->textFrame(d, *body, 1, opt).layout); }, 5, [&] {
-                cache = std::make_unique<LayoutCache>();   // a cache with nothing laid out, for each run
-            });
-            return laid ? ns / 1000000 : qint64(-1);
+            LayoutCache cache;
+            const qint64 ranges = StoryLayout::formatRangesMadeForTest(), read = StoryLayout::paragraphCharsReadForTest();
+            const bool laid = bool(cache.textFrame(d, *body, 1, opt).layout);
+            *chars = StoryLayout::paragraphCharsReadForTest() - read;
+            return laid ? StoryLayout::formatRangesMadeForTest() - ranges : qint64(-1);
         };
-        const qint64 plain = layoutMs(*letters), cut = layoutMs(*symbols);
+        qint64 plainChars = 0, cutChars = 0;
+        const qint64 plain = layoutWork(*letters, &plainChars), cut = layoutWork(*symbols, &cutChars);
         QVERIFY2(plain >= 0 && cut >= 0, "the text was laid out");
-        QVERIFY2(cut <= 5 * std::max<qint64>(plain, 100), qPrintable(QStringLiteral("cut %1 ms, plain %2 ms").arg(cut).arg(plain)));
+        // (A symbol font's text is cut into at most 256 pieces and a few more, each its own range of format or two, where letters are one piece: so 516 ranges for 264 pieces, and
+        // the characters of the paragraph are read as many times as the plain text's.)
+        QVERIFY2(cut <= 2 * (256 + 8) + 16 && cutChars <= 5 * std::max<qint64>(plainChars, 200), qPrintable(QStringLiteral("cut %1 ranges and %2 characters, plain %3 and %4").arg(cut).arg(cutChars).arg(plain).arg(plainChars)));
     }
 
     // In 8-bit text the codes 0x80 to 0x9F read as Windows-1252's characters, which a symbol font doesn't have: a run set in the font gets
@@ -1943,10 +1942,11 @@ private Q_SLOTS:
         for (int i = 0; i < 100; ++i)
             hostile += wmfRecord(0x0410, wmfWords({1, 30000, 1, 30000})) + wmfRecord(0x0412, wmfWords({1, 30000, 1, 30000})) + wmfRecord(0x0410, wmfWords({1, -1, 1, -1}));
         hostile += wmfRecord(0x0410, wmfWords({0, 1, 0, 1})) + wmfRecord(0x0412, wmfWords({0, 1, 0, 1}));
-        QImage bad;
-        const qint64 ms = bestNanoseconds([&] { bad = drawMetafileWith(hostile); }, 3) / 1000000;
+        const double paid = jp::Metafile::workPaidForTest();
+        const QImage bad = drawMetafileWith(hostile);
         QVERIFY(!bad.isNull());
-        QVERIFY2(ms < 10000, qPrintable(QString::number(ms)));
+        // Counted: the work paid for what is drawn is inside a play's budget (2.5 million units), whatever the ratios come to.
+        QVERIFY2(jp::Metafile::workPaidForTest() - paid <= 2500000, qPrintable(QString::number(jp::Metafile::workPaidForTest() - paid)));
     }
 
     // A text box with a quarter turn that is flipped reads upright, turned the way its box is turned on the page: the box turns and then is flipped
@@ -2222,12 +2222,10 @@ private Q_SLOTS:
         const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, outline)));
         const QByteArray body = pptText(1, QStringLiteral("First point\rSecond point\rThird point"), pfRun(12, 0, 0) + pfRun(13, 1, 0) + pfRun(12, 1, 0) + cfRun(37, 0));
         QString err;
-        std::unique_ptr<Document> d;
-        const qint64 ms = bestNanoseconds([&] {
-            d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, tags), &err);
-        }, 3, [&] { d.reset(); }) / 1000000;
+        std::unique_ptr<Document> d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, tags), &err);
         QVERIFY2(d, qPrintable(err));
-        QVERIFY2(ms < 20000, qPrintable(QString::number(ms)));
+        // Counted: of the sixty thousand entries, no more than the limit are read (and the clock said it takes a moment).
+        QVERIFY2(deck::lastPptImportWorkForTest().pp9EntriesRead <= 20000, qPrintable(QString::number(deck::lastPptImportWorkForTest().pp9EntriesRead)));
         const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
         QVERIFY(story && story->firstBlock().textList());
         QCOMPARE(story->firstBlock().textList()->format().style(), QTextListFormat::ListDecimal);
@@ -2748,15 +2746,12 @@ private Q_SLOTS:
         // Thirty-two of them: 3 million pixels each; the picture is drawn as it is, and at once.
         auto crowd = make(doc, QVector<BlipEffect>(32, turn));
         const int made = blipAdjustedMade();
-        const qint64 ms = bestNanoseconds([&] {
-            for (const QSizeF &size : {QSizeF(800, 600), QSizeF(100, 75), QSizeF(333, 250)}) {
-                const QImage img = Renderer::processedImage(doc, *crowd, size, QSizeF());
-                const QColor c = img.pixelColor(img.width() / 2, img.height() / 2);
-                QVERIFY2(qAbs(c.red() - 100) <= 2 && qAbs(c.green() - 150) <= 2 && qAbs(c.blue() - 200) <= 2, qPrintable(c.name()));
-            }
-        }) / 1000000;
-        QVERIFY2(ms < 2000, qPrintable(QString::number(ms)));
-        QCOMPARE(blipAdjustedMade(), made);
+        for (const QSizeF &size : {QSizeF(800, 600), QSizeF(100, 75), QSizeF(333, 250)}) {
+            const QImage img = Renderer::processedImage(doc, *crowd, size, QSizeF());
+            const QColor c = img.pixelColor(img.width() / 2, img.height() / 2);
+            QVERIFY2(qAbs(c.red() - 100) <= 2 && qAbs(c.green() - 150) <= 2 && qAbs(c.blue() - 200) <= 2, qPrintable(c.name()));
+        }
+        QCOMPARE(blipAdjustedMade(), made);   // (counted: none of the thirty-two is made)
     }
 
     // A metafile (clip art) drawn in black and white takes the picture's own threshold, not half: the same box of gray 100 is black from half

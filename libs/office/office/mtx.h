@@ -28,4 +28,8 @@ namespace jp::office {
 // of result, in any of its blocks), or is in a form this does not read.
 bool mtxToTrueType(const QByteArray &mtx, QByteArray *font, QString *why = nullptr);
 
+// How many bytes the reader has moved on this thread since it began: the bytes a block came to when decompressed, the bytes of tables copied out of it, and the bytes of the
+// file made. A count for tests of cost, in which a tiny file is refused before anything is copied, and no byte is moved more often than the data allows.
+qint64 mtxBytesMovedForTest();
+
 } // namespace jp::office

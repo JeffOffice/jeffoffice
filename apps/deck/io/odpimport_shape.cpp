@@ -4,6 +4,7 @@
 // the fill, outline, and effects their styles give them.
 
 #include "io/odpimport_p.h"
+#include "io/odpimport.h"
 
 #include "core/deck.h"
 #include "core/items.h"
@@ -114,9 +115,12 @@ QString masterPrompt(const QString &cls)
 
 // ---- the page's objects
 
+thread_local OdpImportWork g_work;   // see odpImportWorkForTest
+
 void Reader::readShapes(const QDomElement &parent, Scope &sc, ItemList &out, const QTransform &t)
 {
     for (QDomElement c = parent.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+        ++g_work.elementsRead;
         if (sc.shapes >= kMaxShapes) {
             if (!m_said.contains(QStringLiteral("shapes"))) note(QCoreApplication::translate("OdpImport", "A page holds more than 100,000 objects; the rest are left out."));
             m_said.insert(QStringLiteral("shapes"));
@@ -649,6 +653,7 @@ ItemPtr Reader::readTableFrame(const QDomElement &frame, const QDomElement &tabl
                         if (out.fill.type == Fill::Solid && out.fill.transparency < 0.5 && out.fill.color.kind() == ColorRef::Rgb) behind = out.fill.color.rgbValue();
                         env.autoColor = behind.lightness() < 128 ? QColor(Qt::white) : QColor(Qt::black);
                         fillStory(out.storyId, cell, env);
+                        g_work.cellCharsRead += chars;
                         tableChars += chars;
                     }
                 }
@@ -714,6 +719,7 @@ void Reader::fitRows(TableItem &t)
                 if (spent) break;
                 continue;
             }
+            g_work.cellCharsLaidOut += chars;
             FrameSpec spec;
             spec.size = QSizeF(t.cellRect(r, c).width(), 1e5);
             spec.insets = cell.margins;
@@ -1066,3 +1072,7 @@ ItemPtr Reader::readGroup(const QDomElement &e, Scope &sc, const QTransform &par
 }
 
 } // namespace jp::deck::odp
+
+namespace jp::deck {
+OdpImportWork odpImportWorkForTest() { return odp::g_work; }
+}

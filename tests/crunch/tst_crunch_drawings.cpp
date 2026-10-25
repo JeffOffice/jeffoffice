@@ -1,6 +1,7 @@
 // Tests of the charts, pictures, and shapes over the cells in JeffCrunch's window: they are shown where their anchors put them, a chart is drawn from the cells it reads and again when one
 // changes (typed, or worked out), and objects and charts move when rows are inserted or deleted, undone and redone. Every workbook is built here.
 #include "../sheet/drawinghelpers.h"
+#include "savedok.h"
 #include "editwindow.h"
 
 #include "core/fonts.h"
@@ -307,7 +308,7 @@ private Q_SLOTS:
         QCOMPARE(o->chartNow(0, 0).plots[0].series[0].values, (QVector<double>{10, 77, 30}));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         const QString chart = QString::fromUtf8(savedParts(e.path).value(QStringLiteral("xl/charts/chart1.xml")));
         QVERIFY2(chart.contains(QStringLiteral("<c:f>Sales!$B$4:$B$6</c:f>")), qPrintable(chart));
         QVERIFY2(chart.contains(QStringLiteral("<c:v>77</c:v>")), qPrintable(chart));   // (the numbers under the reference as it is written)
@@ -460,7 +461,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         office::Package before, after;
         QString why;
         QVERIFY(before.readLazy(original, &why));
@@ -497,7 +498,7 @@ private Q_SLOTS:
         const QByteArray chartBefore = after.part(QStringLiteral("/xl/charts/chart1.xml"));
         saved.clear();
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         office::Package third;
         QVERIFY(third.readLazyFile(e.path, &why));
         QCOMPARE(third.part(QStringLiteral("/xl/charts/chart1.xml")), chartBefore);
@@ -527,7 +528,7 @@ private Q_SLOTS:
             // the sheet is listed, and an object is made when a picture of it is wanted: not the ten thousand, but those on and near the screen
             QCOMPARE(o->layer()->count(), jp::office::sheet::kMaxDrawingAnchors);
             QCOMPARE(o->drawingsParsedApart(), 1);   // (a drawing of megabytes is parsed on a worker: the window's thread only reads what the parser made)
-            QTRY_VERIFY(!o->layer()->busy());
+            QTRY_VERIFY_WITH_TIMEOUT(!o->layer()->busy(), 60000);
             QVERIFY2(o->objectsMade() < jp::office::sheet::kMaxDrawingAnchors / 2, qPrintable(QString::number(o->objectsMade())));
             const qint64 renders = o->layer()->stats().renders;
             shot(e);   // (a paint of the window makes nothing)
@@ -546,7 +547,7 @@ private Q_SLOTS:
             for (int i = 0; i < 120; ++i) nest = groupElement(10 + i, nest);
             EditWindow e;
             QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(twoCell(1, 1, 5, 5, nest)), {})));
-            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+            QTRY_VERIFY_WITH_TIMEOUT(e.win.w.objects()->shownSheet() == 0, 60000);   // (a worker parses the drawing: on a machine running every suite at once that takes far more than five seconds)
             const crunch::DrawingCounts c = e.win.w.objects()->counts(0);
             QCOMPARE(c.groups, 1);
             QVERIFY(c.shown + c.leftOut == 1);   // (drawn, or left out in words: no crash, no loop)
@@ -557,7 +558,7 @@ private Q_SLOTS:
             EditWindow e;
             const QString anchors = twoCell(1, 1, 5, 5, pictureElement(2, QStringLiteral("rIdP"))) + twoCell(7, 1, 9, 3, shapeElement(3, QStringLiteral("Box")));
             QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {drawtest::DrawingTarget{QStringLiteral("rIdP"), QStringLiteral("xl/media/image1.png"), hugePng(), QStringLiteral("image/png"), QStringLiteral("image")}})));
-            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+            QTRY_VERIFY_WITH_TIMEOUT(e.win.w.objects()->shownSheet() == 0, 60000);   // (a worker parses the drawing: on a machine running every suite at once that takes far more than five seconds)
             e.win.w.objects()->layer()->prepareAll();
             shot(e);
             // the picture says it has ten billion pixels and holds none: no byte of one is decoded (counted in the bytes the drawing code holds decoded), and what the layer holds is the shape's
@@ -573,7 +574,7 @@ private Q_SLOTS:
                                     + twoCell(99999999, 2000000000, 2147483647, 2147483647, shapeElement(4, QStringLiteral("Far")));
             EditWindow e;
             QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("lineChart"), series))})));
-            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+            QTRY_VERIFY_WITH_TIMEOUT(e.win.w.objects()->shownSheet() == 0, 60000);   // (a worker parses the drawing: on a machine running every suite at once that takes far more than five seconds)
             e.win.w.objects()->layer()->prepareAll();
             shot(e);
             const jp::office::Chart c = e.win.w.objects()->chartNow(0, 0);
@@ -710,7 +711,7 @@ private Q_SLOTS:
             crunch::SheetObjects *o = e.win.w.objects();
             auto save = [&]() -> bool {
                 QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-                return e.win.w.save() && saved.wait(20000);
+                return e.win.w.save() && savedOk(saved);
             };
             const QString rels = QStringLiteral("xl/drawings/_rels/drawing1.xml.rels");
             QVERIFY(hasRelationship(savedParts(e.path), rels, QStringLiteral("rIdP")));
@@ -762,7 +763,7 @@ private Q_SLOTS:
         QVERIFY(o->layer()->deviceRect(1, grid::Pane::Body) != moving);      // (the object of the cells moved)
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         // the file has the anchor as it was: an absolute one, the same place and size
         office::Package p;
         QString why;
@@ -845,7 +846,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QVERIFY(!o->listed(1));
         QCOMPARE(o->objectsMade(), 0);
         QCOMPARE(o->chartPartsRead(), 0);
@@ -875,7 +876,7 @@ private Q_SLOTS:
             QCOMPARE(now.top(), box.top());
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY(e.win.w.save());
-            QVERIFY(saved.wait(20000));
+            QVERIFY2(savedOk(saved, 20000), "the save failed");
             const SavedAnchor a = savedAnchor(e.path, QStringLiteral("Box"));
             QVERIFY(a.found);
             QCOMPARE(a.fromRow, 10);
@@ -889,7 +890,7 @@ private Q_SLOTS:
             QCOMPARE(o->layer()->deviceRect(2, grid::Pane::Body).height(), box.height());
             saved.clear();
             QVERIFY(e.win.w.save());
-            QVERIFY(saved.wait(20000));
+            QVERIFY2(savedOk(saved, 20000), "the save failed");
             const SavedAnchor b = savedAnchor(e.path, QStringLiteral("Box"));
             QVERIFY(b.found);
             QCOMPARE(b.fromRow, 10);

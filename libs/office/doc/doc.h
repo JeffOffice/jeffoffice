@@ -66,6 +66,14 @@ constexpr qint64 kMaxOutputElements = 600000;
 // A run of text is made into XML in pieces of at most this many characters (so the text of a single run can't be escaped all at once).
 constexpr int kMaxRunChars = 1 << 20;
 
+// The work the last file read on this thread took, counted for tests of cost: the characters of the main text and the stories converted, the XML made (bytes and elements), the
+// shapes walked over, the pictures read from the file (one that many characters point to is read once), and the steps taken along chains of styles.
+struct ReadWork {
+    qint64 charsConverted = 0, outputBytes = 0, outputElements = 0, shapeVisits = 0, picturesRead = 0, styleSteps = 0;
+};
+ReadWork readWorkForTest();
+inline thread_local qint64 g_styleSteps = 0;
+
 // True when the bytes begin as a compound file does, the container of the old binary formats.
 bool looksLikeCompoundFile(const QByteArray &bytes);
 

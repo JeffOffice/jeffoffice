@@ -2,6 +2,7 @@
 // keys and menus ask for it. Every workbook is built here, in a temporary folder.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "savedok.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
@@ -385,7 +386,7 @@ private Q_SLOTS:
         }
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const QString diff = differences(e.win.w.calculation(), second.w.calculation(), {"Total", "_xlnm.Print_Area"});
@@ -483,7 +484,7 @@ private Q_SLOTS:
                     if (e.win.w.isModified()) {
                         QSignalSpy midway(&e.win.w, &CrunchWindow::saved);
                         QVERIFY(e.win.w.save());
-                        QVERIFY(midway.wait(20000));
+                        QVERIFY2(savedOk(midway, 20000), "the save failed");
                     }
                     break;
                 case 13: s->type(sheet, quint32(rng.bounded(10)), 0, QStringLiteral("123456789012345")); break;
@@ -499,7 +500,7 @@ private Q_SLOTS:
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             const bool modified = e.win.w.isModified();
             QVERIFY(e.win.w.save() || !modified);
-            if (modified) QVERIFY(saved.wait(20000));
+            if (modified) QVERIFY2(savedOk(saved, 20000), "the save failed");
             Window second;
             QVERIFY(second.open(e.copyOfFile()));
             const QString diff = differences(e.win.w.calculation(), second.w.calculation(), {"Total", "_xlnm.Print_Area"});
@@ -534,7 +535,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         const QString sheet = savedSheetText(e.path);
         QVERIFY2(sheet.contains(QStringLiteral("<f t=\"array\" ref=\"D5\">SUM(A1:A3*2)</f>")), qPrintable(sheet));
         QVERIFY2(sheet.contains(QStringLiteral("<c r=\"D6\"><v>9</v></c>")), qPrintable(sheet));
@@ -547,7 +548,7 @@ private Q_SLOTS:
         auto save = [](EditWindow &e) {
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY(e.win.w.save());
-            QVERIFY(saved.wait(20000));
+            QVERIFY2(savedOk(saved, 20000), "the save failed");
         };
         auto agreeWithFile = [](EditWindow &e) {
             Window second;
@@ -622,7 +623,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QVERIFY(e.win.w.session()->stepsForgottenBySave() > 0);
         QVERIFY2(e.win.w.statusText().contains(QStringLiteral("can't be undone")), qPrintable(e.win.w.statusText()));
         QVERIFY(!e.win.w.session()->canUndo());
@@ -764,7 +765,7 @@ private Q_SLOTS:
         auto saveNow = [&] {
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY(e.win.w.save());
-            QVERIFY(saved.wait(20000));
+            QVERIFY2(savedOk(saved, 20000), "the save failed");
         };
         // refused: the header row, all of the table's rows, a column inside it, a block that takes part of it with it
         QVERIFY(!s->deleteRows(0, 0, 1).ok);
@@ -837,11 +838,12 @@ private Q_SLOTS:
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             const bool modified = e.win.w.isModified();
             const bool started = e.win.w.save();
-            if (started && modified) saved.wait(20000);
+            if (started && modified && !savedOk(saved)) return QStringLiteral("the save failed");
             QFile f(e.path);
             f.open(QIODevice::ReadOnly);
             QMap<QString, QByteArray> parts;
             jp::readZip(f.readAll(), parts);
+            f.close();   // (an open file can't be replaced on Windows: the next save would fail)
             return QString::fromUtf8(parts.value(part));
         };
         QVERIFY(s->type(0, 0, 1, QStringLiteral("Quarter")).ok);
@@ -877,7 +879,7 @@ private Q_SLOTS:
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.settle());
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QVERIFY(s->deleteRows(0, 0, 1).ok);                                      // 4: a delete after the save
         QVERIFY(s->type(0, 4, 0, QStringLiteral("7")).ok);                       // 5
         QVERIFY(e.settle());
@@ -906,7 +908,7 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->index(), 5);
         QVERIFY(e.win.w.isModified());
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         QCOMPARE(differences(e.win.w.calculation(), second.w.calculation(), {}), QString());

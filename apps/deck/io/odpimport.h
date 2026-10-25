@@ -40,6 +40,13 @@ namespace jp::deck {
 // out; empty when all of it was read.
 std::unique_ptr<Document> importOdp(const QByteArray &zip, QString *error = nullptr, QStringList *skipped = nullptr);
 
+// Counted since the program began on this thread, for tests of cost: the elements of a page read as objects, the characters of table cells read into their stories, and the
+// characters of cells that rows were fitted to (laid out).
+struct OdpImportWork {
+    qint64 elementsRead = 0, cellCharsRead = 0, cellCharsLaidOut = 0;
+};
+OdpImportWork odpImportWorkForTest();
+
 // Whether the first bytes of a file are those of an open document package
 // (the ZIP's first entry is "mimetype", stored, as the standard has it, and
 // holds an open document type). The package may be of another kind of open

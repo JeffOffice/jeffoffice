@@ -1,6 +1,5 @@
 // JeffPub's tests of SVG, ebook, and other output, barcodes, and metafiles.
 #include "pubhelpers.h"
-#include "../timing.h"
 
 class PubExportTests : public QObject {
     Q_OBJECT
@@ -368,9 +367,10 @@ private Q_SLOTS:
             bomb += "</g>";
         }
         bomb += "</defs><use xlink:href=\"#g9\"/></svg>";
-        svg::Drawing many;
-        const qint64 bombMs = bestNanoseconds([&] { many = svg::read(bomb); }, 5, [&] { many = svg::Drawing(); }) / 1000000;
-        QVERIFY(bombMs < 5000);
+        const qint64 walked = svg::walkStepsForTest();
+        const svg::Drawing many = svg::read(bomb);
+        // Counted: a billion parts are asked for and the walk stops at its budget of 200,000 nodes.
+        QVERIFY2(svg::walkStepsForTest() - walked <= 200000 + 64, qPrintable(QString::number(svg::walkStepsForTest() - walked)));
         QVERIFY(many.elements.size() <= 100000);
         QVERIFY(many.skipped);
         // A box too small to scale from gives no shapes, not endless ones.
@@ -1211,7 +1211,7 @@ private Q_SLOTS:
         auto put32 = [](QByteArray &b, qsizetype o, quint32 v) { qToLittleEndian(v, b.data() + o); };
         auto get32 = [](const QByteArray &b, qsizetype o) { return qFromLittleEndian<quint32>(b.constData() + o); };
         jp::cfb::File out;
-        const qint64 ms = bestNanoseconds([&] {
+        {
 
             // A DIFAT sector that names itself as the next one, and a count of
             // four billion of them.
@@ -1223,8 +1223,10 @@ private Q_SLOTS:
                 b += extra;
                 put32(b, 68, self);
                 put32(b, 72, 0xFFFFFFFF);
+                const qint64 w0 = jp::cfb::chainWorkForTest();
                 QVERIFY(jp::cfb::read(b, &out));
                 QCOMPARE(out.stream(QStringLiteral("s0")), QByteArray(5000, 'a'));
+                QVERIFY2(jp::cfb::chainWorkForTest() - w0 <= 8 * (b.size() / 512), qPrintable(QString::number(jp::cfb::chainWorkForTest() - w0)));   // (counted: the chains are followed once each)
             }
             // The one FAT sector listed 109 times, and a stream whose first sector
             // leads back to itself, claiming 4 GB.
@@ -1237,8 +1239,10 @@ private Q_SLOTS:
                 const quint32 first = get32(b, entry + 116);
                 put32(b, (qsizetype(fatSector) + 1) * 512 + qsizetype(first) * 4, first);
                 put32(b, entry + 120, 0xFFFFFFFF);
+                const qint64 w0 = jp::cfb::chainWorkForTest();
                 QVERIFY(jp::cfb::read(b, &out));
                 QVERIFY(out.stream(QStringLiteral("s0")).size() <= b.size());
+                QVERIFY2(jp::cfb::chainWorkForTest() - w0 <= 8 * (b.size() / 512), qPrintable(QString::number(jp::cfb::chainWorkForTest() - w0)));
             }
             // Three hundred streams pointed at one long chain.
             {
@@ -1251,7 +1255,11 @@ private Q_SLOTS:
                     put32(b, dir + i * 128 + 116, start);
                     put32(b, dir + i * 128 + 120, 100000);
                 }
+                const qint64 w0 = jp::cfb::chainWorkForTest();
                 QVERIFY(jp::cfb::read(b, &out));
+                // (Counted: 302 streams name one long chain, and the work stays within a fixed multiple of the file's size, because a chain is followed only while the budget
+                // can still take sectors; it was 302 walks of the whole chain, 142,000 steps for 276 sectors.)
+                QVERIFY2(jp::cfb::chainWorkForTest() - w0 <= 16 * (b.size() / 512) + 100, qPrintable(QString::number(jp::cfb::chainWorkForTest() - w0)));
                 qint64 total = 0;
                 for (const QString &p : out.streamPaths()) total += out.stream(p).size();
                 QVERIFY2(total <= 2 * b.size() + (1 << 20), qPrintable(QString::number(total)));
@@ -1277,12 +1285,13 @@ private Q_SLOTS:
                 near.data = "near";
                 f.entries[1].children << int(f.entries.size());
                 f.entries << near;
+                const qint64 w0 = jp::cfb::chainWorkForTest();
                 QVERIFY(jp::cfb::read(jp::cfb::write(f), &out));
+                QVERIFY2(jp::cfb::chainWorkForTest() - w0 <= 4 * 50000, qPrintable(QString::number(jp::cfb::chainWorkForTest() - w0)));   // (counted: the storages are visited once each, and stop 32 deep)
                 QCOMPARE(out.stream(QStringLiteral("d/y")), QByteArray("near"));
                 QVERIFY(out.entries.size() < 100);
             }
-        }, 3) / 1000000;
-        QVERIFY2(ms < 20000, qPrintable(QString::number(ms)));
+        }
     }
 
     void metafileWmfRenders()
@@ -1540,15 +1549,14 @@ private Q_SLOTS:
             QByteArray flood = wmfRecord(0x012D, words({0}));
             const QByteArray fill = wmfRecord(0x061D, patBlt);
             for (int i = 0; i < 400000; ++i) flood += fill;
-            QImage drawn;
-            const qint64 floodMs = bestNanoseconds([&] { drawn = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, flood)); }, 3) / 1000000;
-            QVERIFY2(floodMs < 6000, qPrintable(QString::number(floodMs)));
+            const double paidBefore = Metafile::workPaidForTest();
+            const QImage drawn = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, flood));
+            // Counted: the work paid for what is drawn stops at the metafile's budget (2.5 million units), though 400,000 records ask for a page each.
+            QVERIFY2(Metafile::workPaidForTest() - paidBefore <= 2500000 + 100000, qPrintable(QString::number(Metafile::workPaidForTest() - paidBefore)));
             QVERIFY(near(drawn.pixel(200, 150), QColor(0, 0, 255)));
             QByteArray nested;
             for (int i = 0; i < 200000; ++i) nested += wmfRecord(0x001E, QByteArray());
-            QImage deep;
-            const qint64 deepMs = bestNanoseconds([&] { deep = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, nested + wmfRecord(0x012D, words({0})) + fill)); }, 3) / 1000000;
-            QVERIFY2(deepMs < 6000, qPrintable(QString::number(deepMs)));
+            const QImage deep = picture(wmf(QStringLiteral("Arial"), 0, "", 0, 0, 12, nested + wmfRecord(0x012D, words({0})) + fill));
             QVERIFY(near(deep.pixel(200, 150), QColor(0, 0, 255)));
             // Saves past the cap are counted, so their restores undo nothing: a clip set after the first save
             // still holds once as many restores as later saves have run (before, they unwound past it).

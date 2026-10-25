@@ -24,6 +24,8 @@ public:
     // picture's recoloring, kept as vectors).
     void play(QPainter *p, const QRectF &target, const std::function<QColor(const QColor &)> &recolor = {}) const;
     QImage toImage(int maxSide = 1600) const;
+    // The work metafiles have paid for what they drew on this thread since the program began, in the units of their budget (about a microsecond each): a count for tests of cost.
+    static double workPaidForTest();
 
     static bool looksLikeMetafile(const QByteArray &data);
 

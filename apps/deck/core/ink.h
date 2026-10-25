@@ -52,6 +52,8 @@ bool inkTouches(const InkStroke &stroke, const QPointF &p, double reach);
 
 // A freeform line for the stroke, thinned to the points that matter; null for a stroke with no point.
 ItemPtr inkShape(const InkStroke &stroke);
+// How many times the thinning of strokes has looked at a point of one on this thread since the program began: a count for tests of cost (about twice for each point).
+qint64 inkPointsLookedAtForTest();
 // Puts the strokes on the slide as shapes above its other objects.
 void addInk(Page &slide, const QVector<InkStroke> &strokes);
 

@@ -491,11 +491,19 @@ QByteArray Converter::build()
     return pkg.finish();
 }
 
+static thread_local ReadWork g_lastWork;
+
+ReadWork readWorkForTest() { return g_lastWork; }
+
 QByteArray toDocxPackage(const QByteArray &bytes, QString *error, wml::ReadNotes *notes)
 {
     Converter c(notes);
+    g_styleSteps = 0;
+    g_lastWork = ReadWork();
     if (!c.open(bytes, error)) return QByteArray();
-    return c.build();
+    const QByteArray out = c.build();
+    g_lastWork = {c.charsConverted, c.outputBytes, c.outputElements, c.shapeVisits(), c.picturesRead, g_styleSteps};
+    return out;
 }
 
 bool readDoc(const QByteArray &bytes, wml::Document *doc, QString *error, wml::ReadNotes *notes)

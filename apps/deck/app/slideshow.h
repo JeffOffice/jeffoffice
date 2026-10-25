@@ -292,6 +292,10 @@ private:
     QImage withOverlay(const QImage &image, int slide) const;
     void updateCursor();
     void paintInk(QPainter *p, int slide, const QRectF &at, bool laser) const;
+public:
+    // The points of ink strokes drawn on this thread since the program began: a count for tests of cost (finished strokes come from a picture, not drawn again for each repaint).
+    static qint64 inkPointsDrawnForTest();
+private:
     void changeOverlay(const QRectF &page = QRectF());
     void pressPointer(const QPointF &page);
     void erasePoint(const QPointF &page);

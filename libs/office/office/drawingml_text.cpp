@@ -24,6 +24,9 @@
 
 namespace jp::office {
 
+static thread_local qint64 g_effectElementsRead = 0;
+qint64 textEffectElementsReadForTest() { return g_effectElementsRead; }
+
 namespace {
 
 // A stranger's file: no more than this many paragraphs, runs, or letters in a body. The most of any body in the sample decks are 26 paragraphs, 78 runs,
@@ -297,7 +300,7 @@ bool keptList(const QDomElement &list, QString *out)
     static const char *const order[] = {"blur", "fillOverlay", "glow", "innerShdw", "outerShdw", "prstShdw", "reflection", "softEdge"};
     QString parts[8];
     int seen = 0;
-    for (QDomElement c = list.firstChildElement(); !c.isNull() && ++seen <= 16; c = c.nextSiblingElement())
+    for (QDomElement c = list.firstChildElement(); !c.isNull() && ++seen <= 16; c = c.nextSiblingElement(), ++g_effectElementsRead)
         for (int k = 0; k < 8; ++k) {
             if (c.localName() != QLatin1String(order[k]) || !parts[k].isEmpty()) continue;
             QString one;
@@ -317,7 +320,7 @@ QString textEffectsOf(const QDomElement &list, const DrawingContext &ctx)
     TextEffects fx;
     // A list has at most eight kinds of effect (the schema's); a file that lists more is not read past the first sixteen.
     int seen = 0;
-    for (QDomElement c = list.firstChildElement(); !c.isNull() && ++seen <= 16; c = c.nextSiblingElement()) {
+    for (QDomElement c = list.firstChildElement(); !c.isNull() && ++seen <= 16; c = c.nextSiblingElement(), ++g_effectElementsRead) {
         const QString name = c.localName();
         double v = 0;
         if (name == QLatin1String("outerShdw") && !fx.outer.on) {

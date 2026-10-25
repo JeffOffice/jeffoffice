@@ -15,10 +15,13 @@
 #include <QXmlStreamReader>
 #include <QXmlStreamWriter>
 #include <algorithm>
+#include <atomic>
 
 namespace jp::office {
 
 namespace {
+
+std::atomic<qint64> g_relationshipsExamined{0}, g_writerSteps{0};
 
 // A package of more than this many parts is refused (and, unless the caller
 // says less, one of more than Package::kDefaultMaxInflated bytes inflated):
@@ -517,8 +520,12 @@ QVector<Relationship> Package::relationships(const QString &source) const
     return m_rels.value(nameKey(source.isEmpty() ? QStringLiteral("/") : source));
 }
 
+qint64 relationshipsExaminedForTest() { return g_relationshipsExamined.load(); }
+qint64 writerStepsForTest() { return g_writerSteps.load(); }
+
 Relationship Package::relationship(const QString &source, const QString &id) const
 {
+    ++g_relationshipsExamined;
     const QString key = nameKey(source.isEmpty() ? QStringLiteral("/") : source);
     const auto ids = m_relIds.constFind(key);
     if (ids == m_relIds.cend()) return {};
@@ -618,6 +625,7 @@ void PackageWriter::addPart(const QString &name, const QByteArray &data, const Q
         return;
     }
     const QString key = name.toLower();
+    ++g_writerSteps;
     const auto at = m_partAt.constFind(key);
     if (at != m_partAt.cend()) {
         m_parts[*at] = Part{name, data, contentType};
@@ -642,6 +650,7 @@ QString PackageWriter::addRelationship(const QString &source, const QString &typ
     // is where to look from, so that adding links takes time in proportion to how many there are.)
     int &next = m_nextRelId[from];
     for (int n = std::max(next, int(links.size()) + 1);; ++n) {
+        ++g_writerSteps;
         r.id = QStringLiteral("rId%1").arg(n);
         if (!ids.contains(r.id)) {
             next = n + 1;
@@ -661,6 +670,7 @@ bool PackageWriter::addRelationshipWithId(const QString &source, const QString &
     const QString from = source.isEmpty() ? QStringLiteral("/") : source;
     QVector<Relationship> &links = m_rels[from];
     QSet<QString> &ids = m_relIds[from];
+    ++g_writerSteps;
     if (ids.contains(id)) return false;
     ids.insert(id);
     Relationship r;

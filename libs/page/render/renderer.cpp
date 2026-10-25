@@ -502,12 +502,17 @@ static QString textArtKey(const TextArtItem &w)
     return QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)) + QStringLiteral("%1x%2").arg(w.rect.width()).arg(w.rect.height());
 }
 
+static thread_local qint64 g_outlinesMade = 0, g_picturesMade = 0;
+qint64 Renderer::textArtOutlinesMadeForTest() { return g_outlinesMade; }
+qint64 Renderer::textArtPicturesMadeForTest() { return g_picturesMade; }
+
 QPainterPath Renderer::textArtOutline(const TextArtItem &w)
 {
     // (Kept by what they cost, in elements of the path: a few long texts, or many short ones.)
     static QCache<QString, QPainterPath> cache(40000);
     const QString key = textArtKey(w);
     if (QPainterPath *p = cache.object(key)) return *p;
+    ++g_outlinesMade;
     QPainterPath path = textArtPath(w, w.rect.size());
     cache.insert(key, new QPainterPath(path), 1 + int(path.elementCount() / 8));
     return path;
@@ -1091,6 +1096,7 @@ static bool paintTextArtKept(QPainter *p, const PaintContext &ctx, const TextArt
     static QCache<QString, QImage> kept(128 * 1024);   // (kilobytes)
     QImage *picture = kept.object(key);
     if (!picture) {
+        ++g_picturesMade;
         QImage made(size, QImage::Format_ARGB32_Premultiplied);
         made.fill(Qt::transparent);
         QPainter ip(&made);

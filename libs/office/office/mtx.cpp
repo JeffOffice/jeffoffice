@@ -11,6 +11,9 @@
 
 namespace jp::office {
 
+static thread_local qint64 g_bytesMoved = 0;
+qint64 mtxBytesMovedForTest() { return g_bytesMoved; }
+
 namespace {
 
 QString say(const char *text) { return QCoreApplication::translate("MicroTypeExpress", text); }
@@ -218,6 +221,7 @@ bool lzDecompress(const quint8 *data, qint64 size, qint64 *budget, Bytes *out, Q
             at += copy;
         }
     }
+    g_bytesMoved += length;
     if (!runLength) {
         out->assign(window, window + length);
         *budget -= length;
@@ -604,6 +608,7 @@ bool mtxToTrueType(const QByteArray &mtx, QByteArray *font, QString *why)
     for (const Record &r : records) {
         if (out.count(r.tag)) return damaged();
         out[r.tag] = b1.mid(r.offset, r.length);
+        g_bytesMoved += r.length;
     }
     Bytes().swap(tables);   // what the block held is in the tables now
     for (const char *needed : {"head", "maxp", "glyf"})
@@ -673,6 +678,7 @@ bool mtxToTrueType(const QByteArray &mtx, QByteArray *font, QString *why)
     }
     for (const auto &table : out) {
         file.append(table.second);
+        g_bytesMoved += table.second.size();
         file.append(QByteArray((4 - table.second.size() % 4) % 4, '\0'));
     }
     const quint32 adjustment = 0xB1B0AFBAu - checkSum(file);

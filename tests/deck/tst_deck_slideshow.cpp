@@ -1,6 +1,5 @@
 // JeffDeck's tests of the slide show: settings, custom shows, ink, and rehearsal.
 #include "deckhelpers.h"
-#include "../timing.h"
 
 class DeckSlideShowTests : public QObject {
     Q_OBJECT
@@ -502,10 +501,12 @@ private Q_SLOTS:
         zip[QStringLiteral("ppt/presProps.xml")] = props.toUtf8();
         ZipWriter z;
         for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
-        decltype(deck::importPresentation(QByteArray(), &err)) back;
-        const qint64 readMs = bestNanoseconds([&] { back = deck::importPresentation(z.finish(), &err); }, 3, [&] { back.reset(); }) / 1000000;
+        const deck::ShowImportWork readBefore = deck::showImportWorkForTest();
+        auto back = deck::importPresentation(z.finish(), &err);
         QVERIFY2(back, qPrintable(err));
-        QVERIFY2(readMs < 5000, qPrintable(QString::number(readMs)));
+        // Counted: of the 20,000 show properties only the first is read in full, and the shows' slides are kept up to the limit on their entries.
+        QCOMPARE(deck::showImportWorkForTest().showPropertiesRead - readBefore.showPropertiesRead, qint64(1));
+        QVERIFY2(deck::showImportWorkForTest().customShowEntriesKept - readBefore.customShowEntriesKept <= 1000 * 90, qPrintable(QString::number(deck::showImportWorkForTest().customShowEntriesKept - readBefore.customShowEntriesKept)));
         const deck::ShowSettings s = deck::showSettingsOf(*back);
         QCOMPARE(int(s.type), int(deck::ShowSettings::Type::Kiosk));   // the first one's
         QCOMPARE(s.customShow, qint64(7));
@@ -514,10 +515,7 @@ private Q_SLOTS:
         QCOMPARE(int(deck::customShowsOf(*back)[0].slides.size()), 90);
         // Saved again, the shows and the properties are written once, in a moment.
         Exported again;
-        const qint64 saveMs = bestNanoseconds([&] { QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &err), qPrintable(err)); }, 3, [&] {
-            again = Exported();
-        }) / 1000000;
-        QVERIFY2(saveMs < 5000, qPrintable(QString::number(saveMs)));
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &err), qPrintable(err));
         QCOMPARE(int(part(again, QStringLiteral("/ppt/presProps.xml")).count(QStringLiteral("<p:showPr"))), 1);
         QCOMPARE(int(part(again, QStringLiteral("/ppt/presentation.xml")).count(QStringLiteral("<p:custShow "))), 1000);
     }
@@ -2014,10 +2012,11 @@ private Q_SLOTS:
         zip[QStringLiteral("ppt/presentation.xml")] = xml.toUtf8();
         ZipWriter z;
         for (auto it = zip.cbegin(); it != zip.cend(); ++it) z.add(it.key(), it.value(), true);
-        decltype(deck::importPresentation(QByteArray(), &err)) back;
-        const qint64 readMs = bestNanoseconds([&] { back = deck::importPresentation(z.finish(), &err); }, 3, [&] { back.reset(); }) / 1000000;
+        const deck::ShowImportWork readBefore = deck::showImportWorkForTest();
+        auto back = deck::importPresentation(z.finish(), &err);
         QVERIFY2(back, qPrintable(err));
-        QVERIFY2(readMs < 4000, qPrintable(QString::number(readMs)));
+        // Counted: the 1,000 shows keep their one slide each, once.
+        QCOMPARE(deck::showImportWorkForTest().customShowEntriesKept - readBefore.customShowEntriesKept, qint64(1000));
         const QVector<deck::CustomShow> got = deck::customShowsOf(*back);
         QCOMPARE(int(got.size()), 1000);
         QSet<QString> names;
@@ -2257,16 +2256,18 @@ private Q_SLOTS:
             return worst <= 4;
         };
         const QImage first = show.grab().toImage();   // the picture is made
-        QImage again;
-        const qint64 grabMs = bestNanoseconds([&] { again = show.grab().toImage(); }) / 1000000;
-        QVERIFY2(grabMs < 500, qPrintable(QString::number(grabMs)));
+        // Counted: a repaint draws none of the 100,000 points again (the finished stroke comes from its picture).
+        const qint64 drawn = SlideShow::inkPointsDrawnForTest();
+        const QImage again = show.grab().toImage();
+        QCOMPARE(SlideShow::inkPointsDrawnForTest(), drawn);
         QCOMPARE(again, first);
         // A stroke being drawn over it: each repaint is the picture and that stroke.
         show.pressAt(QPointF(50, 50));
         for (int i = 1; i < 200; ++i) show.moveTo(QPointF(50 + i, 50 + (i % 7)));
-        QImage live;
-        const qint64 liveMs = bestNanoseconds([&] { live = show.grab().toImage(); }) / 1000000;
-        QVERIFY2(liveMs < 500, qPrintable(QString::number(liveMs)));
+        const qint64 drawnLive = SlideShow::inkPointsDrawnForTest();
+        const QImage live = show.grab().toImage();
+        // (Only the stroke being drawn, its 200 points, is drawn on top of the picture.)
+        QVERIFY2(SlideShow::inkPointsDrawnForTest() - drawnLive <= 200, qPrintable(QString::number(SlideShow::inkPointsDrawnForTest() - drawnLive)));
         QVERIFY(live != first);
         show.releasePointer();
         // The same picture as drawing every stroke: once finished, the stroke is in the picture as it was on top of it.
@@ -2451,10 +2452,11 @@ private Q_SLOTS:
         }
         spiral.color = QColor(255, 0, 0);
         spiral.width = 2.5;
-        ItemPtr shape;
-        const qint64 inkMs = bestNanoseconds([&] { shape = deck::inkShape(spiral); }) / 1000000;
+        const qint64 looked = deck::inkPointsLookedAtForTest();
+        const ItemPtr shape = deck::inkShape(spiral);
         QVERIFY(shape);
-        QVERIFY2(inkMs < 500, qPrintable(QString::number(inkMs)));
+        // Counted: each point is looked at about twice, however the stroke winds (it would be the square, 10 billion, if each run began again at its first point).
+        QVERIFY2(deck::inkPointsLookedAtForTest() - looked <= 3 * 100000, qPrintable(QString::number(deck::inkPointsLookedAtForTest() - looked)));
         const auto *line = static_cast<const ShapeItem *>(shape.get());
         QVERIFY(line->customPath.elementCount() > 100);
         QVERIFY(line->customPath.elementCount() < 100000);

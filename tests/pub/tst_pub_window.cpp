@@ -1,6 +1,6 @@
 // JeffPub's tests of the window: ribbon, help, keyboard, accessibility, themes, and translations.
 #include "pubhelpers.h"
-#include "../timing.h"
+#include "canvas/canvasaccessible.h"
 
 class PubWindowTests : public QObject {
     Q_OBJECT
@@ -773,10 +773,12 @@ private Q_SLOTS:
             pic->altText = QStringLiteral("Picture %1").arg(i);
             ed->surfaceItems().push_back(pic);
         }
-        const qint64 ms = bestNanoseconds([&] {
-            for (int i = 0; i < page->childCount(); ++i) QVERIFY(page->child(i));
-        }) / 1000000;
-        QVERIFY2(ms < 1500, qPrintable(QStringLiteral("walking 1,500 objects took %1 ms").arg(ms)));
+        const qint64 listed = jp::CanvasAccessible::idsListedForTest();
+        const int scans = ed->doc()->findScansForTest();
+        for (int i = 0; i < page->childCount(); ++i) QVERIFY(page->child(i));
+        // Counted: the list of the page's objects is made once for the whole walk (1,500 ids, not 1,500 times 1,500), and the document is not searched for any of them.
+        QVERIFY2(jp::CanvasAccessible::idsListedForTest() - listed <= 2 * 1500 + 200, qPrintable(QString::number(jp::CanvasAccessible::idsListedForTest() - listed)));
+        QVERIFY2(ed->doc()->findScansForTest() - scans <= 2, qPrintable(QString::number(ed->doc()->findScansForTest() - scans)));
         QCOMPARE(page->childCount(), own + 1500);
         QCOMPARE(page->child(1499)->text(QAccessible::Name), QStringLiteral("Picture: Picture 1499"));
         // The list follows the publication.

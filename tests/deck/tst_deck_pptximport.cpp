@@ -1,6 +1,5 @@
 // JeffDeck's tests of reading a presentation file: slides, masters, pictures, and limits.
 #include "deckhelpers.h"
-#include "../timing.h"
 
 class DeckPptxImportTests : public QObject {
     Q_OBJECT
@@ -768,11 +767,10 @@ private Q_SLOTS:
         past.fill(0);
         const QByteArray png = imageBytes(past);
         QString none;
-        const qint64 ms = bestNanoseconds([&] { none = d.addImage(png, QStringLiteral("png")); }, 5, [&] {
-            d.imagesLeftOut = 0;   // one picture left out, as for one call
-        }) / 1000000;
+        const qint64 decodes = Document::imageDecodesForTest();
+        none = d.addImage(png, QStringLiteral("png"));
         QVERIFY(none.isEmpty());
-        QVERIFY2(ms < 3000, "reading the size of a picture must not decode it");
+        QCOMPARE(Document::imageDecodesForTest(), decodes);   // reading the size of a picture must not decode it
         QCOMPARE(d.imagesLeftOut, 1);
         QCOMPARE(int(d.images.size()), 1);
         // The same picture again is left out again (and counted again), not found.
@@ -863,11 +861,11 @@ private Q_SLOTS:
         Document d;
         const QString id = d.addImage(bmp, QStringLiteral("bmp"));
         QVERIFY(!id.isEmpty());
-        const qint64 ms = bestNanoseconds([&] {
-            for (int i = 0; i < 4000; ++i)
-                if (d.addImage(bmp, QStringLiteral("bmp")) != id) QFAIL("a picture used again is stored again");
-        }) / 1000000;
-        QVERIFY2(ms < 1000, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
+        const qint64 compared = Document::imageBytesComparedForTest();
+        for (int i = 0; i < 4000; ++i)
+            if (d.addImage(bmp, QStringLiteral("bmp")) != id) QFAIL("a picture used again is stored again");
+        // (Counted: the same buffer is known without a look at its 16 MB, 4,000 times over.)
+        QCOMPARE(Document::imageBytesComparedForTest(), compared);
         QCOMPARE(int(d.images.size()), 1);
     }
 
@@ -879,12 +877,11 @@ private Q_SLOTS:
         Document d;
         int left = 0;
         auto leavesOut = [&](const char *what, const QByteArray &svg) {
-            QString id;
-            const qint64 ms = bestNanoseconds([&] { id = d.addImage(svg, QStringLiteral("svg")); }, 5, [&] {
-                d.imagesLeftOut = left;   // each call leaves one out, counted from here
-            }) / 1000000;
+            const qint64 loads = Document::svgLoadsForTest(), decodes = Document::imageDecodesForTest();
+            const QString id = d.addImage(svg, QStringLiteral("svg"));
             QVERIFY2(id.isEmpty(), what);
-            QVERIFY2(ms < 2000, what);
+            // (Counted: it is refused as it is read, before a renderer is given the picture to load, let alone draw.)
+            QVERIFY2(Document::svgLoadsForTest() == loads && Document::imageDecodesForTest() == decodes, what);
             QCOMPARE(d.imagesLeftOut, ++left);
         };
         auto keeps = [&](const char *what, const QByteArray &svg) {
@@ -974,12 +971,10 @@ private Q_SLOTS:
             p.data["/ppt/media/image1.png"] = {QStringLiteral("image/png"), svg};
             QString err;
             std::unique_ptr<Document> d;
-            const qint64 ms = bestNanoseconds([&] { d = deck::importPresentation(pack(p), &err); }, 5, [&] {
-                d.reset();
-                err.clear();
-            }) / 1000000;
+            const qint64 loads = Document::svgLoadsForTest(), decodes = Document::imageDecodesForTest();
+            d = deck::importPresentation(pack(p), &err);
             QVERIFY2(d, qPrintable(err));
-            QVERIFY2(ms < 5000, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
+            QVERIFY2(Document::svgLoadsForTest() == loads && Document::imageDecodesForTest() == decodes, "a refused picture is neither loaded nor drawn");
             QVERIFY(d->images.isEmpty());
             QVERIFY(d->imagesLeftOut >= 1);
             QVERIFY2(err.contains(QStringLiteral("picture")), qPrintable(err));
@@ -1769,13 +1764,14 @@ private Q_SLOTS:
         p.data["/ppt/slides/slide1.xml"].xml = slideXml(QString(), QString(), slideShapes).toUtf8();
         QString err;
         std::unique_ptr<Document> d;
-        const qint64 ms = bestNanoseconds([&] { d = deck::importPresentation(pack(p), &err); }, 3, [&] {
-            d.reset();
-            err.clear();
-        }) / 1000000;
+        const qint64 examined = deck::pptxImportWorkForTest().placeholdersExamined;
+        d = deck::importPresentation(pack(p), &err);
         QVERIFY(d);
         QVERIFY2(!d->pages.empty() && d->pages[0]->items.size() == 1000, qPrintable(err));
-        QVERIFY2(ms < 6000, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
+        // (Counted: the layout's 5,000 placeholders are listed once, and each placeholder asks for its match on the layout and the master with a few lookups, about 26,000 in all;
+        // compared with each of them, it would be 5 million.)
+        const qint64 did = deck::pptxImportWorkForTest().placeholdersExamined - examined;
+        QVERIFY2(did <= 50000, qPrintable(QString::number(did)));
     }
 
     // File > Open: the window takes the presentation in place of an untouched new one.

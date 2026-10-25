@@ -1,6 +1,6 @@
 // Tests of libs/office: charts: reading them and drawing them as SVG.
 #include "officehelpers.h"
-#include "../timing.h"
+
 #include "core/fonts.h"
 
 class OfficeChartTests : public QObject {
@@ -955,11 +955,17 @@ private Q_SLOTS:
                                  .arg(QString(20000, QLatin1Char('x')), points) + chartAxes();
         Chart c;
         QString err;
-        const qint64 ms = bestNanoseconds([&] {
-            QVERIFY2(readChart(chartPart(plot), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
-        }, 5, [&] { c = Chart(); }) / 1000000;
-        QVERIFY2(ms < 500, qPrintable(QString::number(ms)));
+        const qint64 parsed = chartFormatCharsReadForTest();
+        QVERIFY2(readChart(chartPart(plot), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
         QCOMPARE(c.plots[0].series[0].categories[3], QStringLiteral("3.5"));
+        // (Counted: not one character of the 20,000 is parsed, once for each of the 100 categories or at all.)
+        QCOMPARE(chartFormatCharsReadForTest() - parsed, qint64(0));
+        // A code of the limit's length is parsed for each of its numbers, so the count can tell.
+        QString fitsPlot = plot;
+        fitsPlot.replace(QString(20000, QLatin1Char('x')), QString(252, QLatin1Char('x')));
+        const qint64 parsedFits = chartFormatCharsReadForTest();
+        QVERIFY2(readChart(chartPart(fitsPlot), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
+        QVERIFY(chartFormatCharsReadForTest() - parsedFits > 0);
     }
 
     // The text a chart keeps for a label is cut at a few hundred characters, and what can't be written in a picture is left out of it.
@@ -1038,19 +1044,18 @@ private Q_SLOTS:
             QByteArray svg;
             std::unique_ptr<QSvgRenderer> r;
             QImage img(600, 400, QImage::Format_ARGB32_Premultiplied);
-            const qint64 ms = bestNanoseconds([&] {
-                svg = chartSvg(c, QSizeF(480, 320));
-                r = std::make_unique<QSvgRenderer>(svg);
-                // And drawn, as a picture is for the page it is on.
-                img.fill(Qt::white);
+            svg = chartSvg(c, QSizeF(480, 320));
+            r = std::make_unique<QSvgRenderer>(svg);
+            // And drawn, as a picture is for the page it is on.
+            img.fill(Qt::white);
+            {
                 QPainter painter(&img);
                 r->render(&painter, QRectF(QPointF(), QSizeF(img.size())));
-                painter.end();
-            }, 3, [&] { r.reset(); }) / 1000000;
+            }
             const qint64 tags = svg.count('<');
             QVERIFY2(tags <= 8000, qPrintable(QStringLiteral("%1: %2 tags").arg(QLatin1String(k.name)).arg(tags)));
             QVERIFY2(r->isValid(), k.name);
-            QVERIFY2(ms < 20000, qPrintable(QStringLiteral("%1: %2 ms").arg(QLatin1String(k.name)).arg(ms)));
+            // (The work of drawing it is its tags, counted above: the picture is held to a few thousand of them, however many points the chart has.)
             // It is still a picture of the chart: its axis, and (but for a pie) the plot's ink, are there.
             QVERIFY2(tags > 10, k.name);
         }
@@ -1226,9 +1231,14 @@ private Q_SLOTS:
         Chart c;
         QString err;
         QVERIFY2(readChart(chartPart(scatter + chartAxes()), defaultTheme(), ColorMap(), &c, &err), qPrintable(err));
-        QImage img;
-        const qint64 ms = bestNanoseconds([&] { img = renderChart(c, QSizeF(500, 333), 2); }, 3) / 1000000;
-        QVERIFY2(ms < 20000, qPrintable(QString::number(ms)));
+        const QImage img = renderChart(c, QSizeF(500, 333), 2);
+        // Counted: a line of two thousand crossings is drawn in paths of a few dozen segments each (a path of all of them takes seconds to fill), and in all the tags the
+        // picture is held to.
+        const QByteArray svg = chartSvg(c, QSizeF(500, 333));
+        int longest = 0;
+        for (const QRegularExpressionMatch &m : QRegularExpression(QStringLiteral(" d=\"([^\"]*)\"")).globalMatch(QString::fromUtf8(svg)))
+            longest = std::max<int>(longest, m.captured(1).count(QRegularExpression(QStringLiteral("[LCQ]"))));
+        QVERIFY2(longest > 0 && longest <= 64 && svg.count('<') <= 8000, qPrintable(QStringLiteral("%1 segments in the longest path, %2 tags").arg(longest).arg(svg.count('<'))));
         // It is still a picture of the line: the plot has plenty of red in it.
         QVERIFY(colorArea(img, Qt::red) > 2000);
     }

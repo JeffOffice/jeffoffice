@@ -77,6 +77,9 @@ public:
     QAccessibleInterface *focusChild() const override;
     // The interface for an object (made once, then kept for it).
     PageObjectAccessible *objectInterface(const QString &id) const;
+    // How many objects' ids have been listed to answer for the page's children since the program began, on this thread: a count for tests of cost (the list is made again
+    // only when the publication changes, not for each child asked for).
+    static qint64 idsListedForTest();
 
 private:
     Canvas *canvas() const;

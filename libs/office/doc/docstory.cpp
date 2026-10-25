@@ -360,6 +360,7 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, const QByte
         plain.clear();
     };
     for (qint64 q = from; q < to && !c.truncated; ++q) {
+        ++c.charsConverted;
         if (nextBookmark < c.bookmarkEvents.size() && kind == Converter::Kind::Main && c.bookmarkEvents[nextBookmark].cp <= q) {
             flushPlain();
             bookmarksUpTo(q - 1, rb);   // (those that are at this character begin before it)

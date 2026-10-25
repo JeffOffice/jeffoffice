@@ -1727,6 +1727,7 @@ const TableIndex &TableFlow::index()
         m_index.rebuild(m_doc->story(), m_doc->tables, m_doc);
         m_valid = true;
         m_blockCount = m_doc->story()->blockCount();
+        m_blocksIndexed += m_blockCount;
         findRefs();
         // The edits made since the tables were last found: the rows they touched are measured again.
         std::vector<std::pair<int, int>> touched;

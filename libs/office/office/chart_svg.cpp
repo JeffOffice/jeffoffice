@@ -1799,8 +1799,12 @@ QSizeF pictureSize(const QSizeF &size)
 
 } // namespace
 
+static thread_local qint64 g_svgsMade = 0;
+qint64 chartSvgsMadeForTest() { return g_svgsMade; }
+
 QByteArray chartSvg(const Chart &chart, const QSizeF &size, bool *coarser)
 {
+    ++g_svgsMade;
     const QSizeF s = pictureSize(size);
     // A picture that still has more tags than its reader takes in is drawn again from fewer points and in fewer pieces.
     bool thinned = false, leftOut = false;

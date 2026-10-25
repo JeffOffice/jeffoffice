@@ -455,6 +455,13 @@ public:
     Loc find(const QString &itemId) const;
     // How many times find had to look through every item, for tests.
     int findScansForTest() const { return m_scans; }
+    // Counted since the program began on this thread, for tests of cost: the pictures decoded (made into pixels, from their bytes), the bytes of stored pictures compared with
+    // the bytes of one offered (only when it is not the very same buffer), and the SVG pictures loaded into a renderer.
+    static qint64 imageDecodesForTest();
+    static qint64 imageBytesComparedForTest();
+    static qint64 svgLoadsForTest();
+    // The items forEachItem has handed out on this thread since the program began: a count for tests of cost (a walk of the whole document for each item is the square).
+    static qint64 itemsWalkedForTest();
     // How many times the index of where items are was made again, for tests.
     int findIndexingsForTest() const { return m_indexings; }
     Item *item(const QString &itemId) const { return find(itemId).item; }

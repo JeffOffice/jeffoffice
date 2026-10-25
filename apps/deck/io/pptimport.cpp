@@ -44,6 +44,8 @@ namespace jp::deck {
 
 namespace {
 
+thread_local PptImportWork g_work;   // what the reading on this thread has done (see lastPptImportWorkForTest)
+
 // What a file may hold: more is left unread, with a note.
 constexpr int kMaxSlides = 10000, kMaxMasters = 1000;
 constexpr qint64 kMaxRecords = 1000000;   // read from one stream
@@ -1014,6 +1016,9 @@ private:
     int m_extraNotes = 0;
 
 public:
+    qint64 persistRead() const { return m_persistRead; }
+    qint64 shapesTaken() const { return kMaxTotalShapes - m_shapes.left; }
+    qint64 writersXmlBytes() const { return m_writersXmlBytes; }
     QString notesText() const
     {
         QStringList lines = m_notes;
@@ -1240,6 +1245,7 @@ void Importer::readDrawingGroup(const Rec &r)
     int first = INT_MAX;
     for (const office::OdrawStoreEntry &e : std::as_const(m_store)) first = std::min(first, e.index);
     for (int i = 0; i < m_store.size(); ++i) {
+        ++g_work.storeEntriesVisited;
         const qint64 number = qint64(m_store.at(i).index) - first + 1;
         if (number <= INT_MAX && !m_storeAt.contains(int(number))) m_storeAt.insert(int(number), i);
     }
@@ -1292,6 +1298,7 @@ static QVector<Pp9> pp9Entries(const QByteArray &d, const Rec &atom)
         if (special & 0x40) c.u16();
         if (special & 0x20) c.u32();
         if (!c.ok()) break;
+        ++g_work.pp9EntriesRead;
         entries << e;
     }
     return entries;
@@ -1819,6 +1826,7 @@ const PlaceholderIndex &Importer::placeholdersOf(const MasterInfo &m) const
     if (!m.placeholderIndex) {
         auto index = std::make_shared<PlaceholderIndex>();
         for (const auto &it : m.items) {
+            ++g_work.placeholderItemsVisited;
             const QString type = placeholderType(*it);
             if (!index->byType.contains(type)) index->byType.insert(type, it.get());
             if (!it->rect.isEmpty() && !index->rectByType.contains(type)) index->rectByType.insert(type, it->rect);
@@ -1839,12 +1847,15 @@ const Item *Importer::masterPlaceholder(const MasterInfo &m, const QString &type
         // The masters' items are still being made (a placeholder with no place of its own takes its master's, which may be one already made).
         for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main}) {
             if (!x) continue;
-            for (const auto &it : x->items)
+            for (const auto &it : x->items) {
+                ++g_work.placeholderItemsVisited;
                 if (placeholderType(*it) == type) return it.get();
+            }
         }
         for (const MasterInfo *x : std::initializer_list<const MasterInfo *>{&m, m.main}) {
             if (!x) continue;
             for (const auto &it : x->items) {
+                ++g_work.placeholderItemsVisited;
                 const QString t = placeholderType(*it);
                 if (!t.isEmpty() && placeholderKind(t) == placeholderKind(type)) return it.get();
             }
@@ -2351,6 +2362,7 @@ QString Importer::readNotes(const SlideEntry &slide, quint32 notesRef, const Mas
         if (!m_notesIndexed) {
             m_notesIndexed = true;
             for (const SlideEntry &n : std::as_const(m_notesList)) {
+                ++g_work.notesVisited;
                 Rec nc;
                 if (!containerAt(n.persist, RT_Notes, &nc)) continue;
                 const QVector<Rec> parts = m_ppt.in(nc);
@@ -2974,7 +2986,7 @@ bool Importer::run(QString *error)
         if (r.inst <= 2) into += list;
     }
     // (A scan of the list for each slide would take as long as the slides and the list are long, multiplied.)
-    for (int i = 0; i < m_notesList.size(); ++i)
+    for (int i = 0; i < m_notesList.size(); ++i, ++g_work.notesVisited)
         if (!m_notesBySlideId.contains(m_notesList.at(i).slideId)) m_notesBySlideId.insert(m_notesList.at(i).slideId, i);
 
     readMasters();
@@ -3041,6 +3053,7 @@ std::unique_ptr<Document> importBinaryPresentation(const QByteArray &bytes, QStr
     auto doc = std::make_unique<Document>();
     doc->slideText = true;
     doc->slidePictures = true;
+    g_work = PptImportWork();
     Importer importer(bytes, *doc);
     QString why;
     bool ok = false;
@@ -3053,6 +3066,9 @@ std::unique_ptr<Document> importBinaryPresentation(const QByteArray &bytes, QStr
     } catch (const std::bad_alloc &) {
         why = QCoreApplication::translate("PptImport", "The presentation is too big to open.");
     }
+    g_work.persistRead = importer.persistRead();
+    g_work.shapesTaken = importer.shapesTaken();
+    g_work.writersXmlBytes = importer.writersXmlBytes();
     if (!ok) {
         if (error) *error = why;
         return nullptr;
@@ -3061,5 +3077,7 @@ std::unique_ptr<Document> importBinaryPresentation(const QByteArray &bytes, QStr
     if (error) *error = (QStringList{importer.notesText()} + leftOutNotes(doc->imagesLeftOut, 0)).join(QLatin1Char('\n')).trimmed();
     return doc;
 }
+
+PptImportWork lastPptImportWorkForTest() { return g_work; }
 
 } // namespace jp::deck
