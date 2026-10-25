@@ -239,6 +239,22 @@ private Q_SLOTS:
         QVERIFY(std::fabs(many.calc->cell(0, 0, 1).number() - 1) < 0.001);
     }
 
+    void aCircleBeginsFromTheResultsTheFileStoredAndStaysWhereItIsWhenItIsStill()
+    {
+        // the file's own results are the fixed point (A1 = B1+1 = 2 and B1 = A1*0.5 = 1): one round changes nothing, and the values are the file's exactly
+        const QString rows = rowXml(1, cellXml("A1", "B1+1", "2") + cellXml("B1", "A1*0.5", "1"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QStringLiteral("iterate=\"1\" iterateCount=\"100\" iterateDelta=\"0.0001\""))));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:2"));
+        QCOMPARE(b.at("B1"), QStringLiteral("n:1"));
+        // and with results that are not (a file from a program that stopped early), it goes on from them: after one round 2.5 and 1.25 from 3 and 2
+        const QString early = rowXml(1, cellXml("A1", "B1+1", "3") + cellXml("B1", "A1*0.5", "2"));
+        Book c;
+        QVERIFY(c.open(buildXlsx({worksheet(early)}, QByteArray(), QString(), QStringLiteral("iterate=\"1\" iterateCount=\"1\" iterateDelta=\"0.0001\""))));
+        QCOMPARE(c.at("A1"), QStringLiteral("n:3"));     // (B1 was 2, so A1 = 3)
+        QCOMPARE(c.at("B1"), QStringLiteral("n:1.5"));   // (and B1 = A1 * 0.5)
+    }
+
     void turningIterationOnAndOffWorksTheCircleOutAgain()
     {
         const QString rows = rowXml(1, cellXml("A1", "B1+1") + cellXml("B1", "A1*0.5"));

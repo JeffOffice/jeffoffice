@@ -1493,11 +1493,18 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
         if (j.stage == 0) {
             while (j.at < n) {
                 if (!ck.next()) return false;
-                Node &x = m_nodes[j.open[j.at++]];
+                const quint32 id = j.open[j.at++];
+                Node &x = m_nodes[id];
                 if (x.state != Done) {
                     x.state = Done;
                     x.flags |= Iterating;
                     --m_notDone;
+                }
+                // (a formula never worked out begins from the result its file stored, as a program going on from where the file was left would)
+                if (!(x.flags & Worked)) {
+                    const Sheet &sheet = m_sheets[size_t(x.sheet)];
+                    if (const Cell *stored = sheet.cells.find(x.row, x.col)) storeResult(x, id, valueOf(sheet, *stored), false);
+                    x.flags &= quint16(~Worked);
                 }
             }
             j.stage = 1;
