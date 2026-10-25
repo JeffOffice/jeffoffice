@@ -75,6 +75,38 @@ private Q_SLOTS:
         QCOMPARE(cw.info().activeTab, 1);
     }
 
+    // The UNCALCED record says the workbook was saved before its calculation finished, in every form that has it.
+    void aWorkbookSavedBeforeItsCalculationFinishedIsKnown()
+    {
+        for (int biff : {8, 5}) {
+            Book plain(biff), unfinished(biff);
+            unfinished.globals(rec(0x005E, W().u16(0)));
+            plain.sheet(QStringLiteral("A"), number(0, 0, 1));
+            unfinished.sheet(QStringLiteral("A"), number(0, 0, 1));
+            Workbook p, u;
+            QString why;
+            QVERIFY2(openBook(plain, &p, &why), qPrintable(why));
+            QVERIFY2(openBook(unfinished, &u, &why), qPrintable(why));
+            QVERIFY(!p.info().calcUnfinished);
+            QVERIFY(u.info().calcUnfinished);
+            // and the form that writes it at the start of a sheet's own records
+            Book inSheet(biff);
+            inSheet.sheet(QStringLiteral("A"), rec(0x005E, W().u16(0)) + number(0, 0, 1));
+            Workbook s;
+            QVERIFY2(openBook(inSheet, &s, &why), qPrintable(why));
+            QVERIFY(s.info().calcUnfinished);
+        }
+        for (bool uncalced : {false, true}) {
+            QByteArray stream = rec(0x0409, W().u16(0).u16(0x10).u16(0).u16(0));
+            if (uncalced) stream += rec(0x005E, W().u16(0));
+            stream += rec(0x000A);
+            Workbook wb;
+            QString why;
+            QVERIFY2(wb.openBinary(stream, &why), qPrintable(why));
+            QCOMPARE(wb.info().calcUnfinished, uncalced);
+        }
+    }
+
     // The cell records: numbers, the packed numbers (whole, hundredths, and floating) singly and in runs, strings of the table and in the cell, true and false, errors,
     // and blanks, which count only when they have a look of their own.
     void theCellRecordsAreRead()

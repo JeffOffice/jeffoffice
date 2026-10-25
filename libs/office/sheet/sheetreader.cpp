@@ -645,6 +645,7 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 const QStringView mode = attribute(r, "calcMode");
                 out->calcMode = mode == QLatin1String("manual") ? CalcMode::Manual : mode == QLatin1String("autoNoTable") ? CalcMode::AutoNoTable : CalcMode::Auto;
                 out->fullCalcOnLoad = parseBool(attribute(r, "fullCalcOnLoad").toString());
+                out->calcUnfinished = !attribute(r, "calcCompleted").isEmpty() && !parseBool(attribute(r, "calcCompleted").toString());
                 out->iterate = parseBool(attribute(r, "iterate").toString());
                 bool okCount = false, okDelta = false;
                 const int count = attribute(r, "iterateCount").toInt(&okCount);

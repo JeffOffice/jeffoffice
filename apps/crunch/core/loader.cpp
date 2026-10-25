@@ -495,7 +495,7 @@ void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::of
     send([self] { if (self) Q_EMIT self->firstScreen(); });
     if (!loadWhole(result.get(), cancelled, [&](int sheet, qint64 cells) { send([self, sheet, cells] { if (self) Q_EMIT self->progress(sheet, cells); }); }, &state->cancel, &state->pace)) return;
     // (a workbook that is worked out by hand is shown with the results its file holds, unless the file asks for them to be worked out when it is opened)
-    state->manual = state->manualAllowed.load() && result->book && result->book->info().calcMode == jp::office::sheet::CalcMode::Manual && !result->book->info().fullCalcOnLoad;
+    state->manual = state->manualAllowed.load() && result->book && result->book->info().calcMode == jp::office::sheet::CalcMode::Manual && !result->book->info().fullCalcOnLoad && !result->book->info().calcUnfinished;
     state->serving = true;
     send([self] { if (self) Q_EMIT self->finished(true, QString()); });
     // and the formulas are worked out, here, as the window shows what it has; then the worker stays, to work out what the window changes

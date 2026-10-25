@@ -213,6 +213,7 @@ bool recalcWorkbook(const Workbook &book, const RecalcOptions &options, const st
     WorkbookSource source(book, options.workbookBytes);
     *report = RecalcReport();
     report->manualCalc = book.info().calcMode == CalcMode::Manual;
+    report->calcUnfinished = book.info().calcUnfinished;
     report->whole = source.loadAll();
     const int sheets = int(book.info().sheets.size());
     if (sheets == 0) {
@@ -405,6 +406,7 @@ bool recalcFull(const Workbook &book, const FullOptions &options, const std::fun
     copts.verify = [](const Value &stored, const Value &ours) { return sameResult(ours.isArray() ? ours.at(0, 0) : ours, stored, false); };
     Calculation calc(book, copts);
     report->manualCalc = book.info().calcMode == CalcMode::Manual;
+    report->calcUnfinished = book.info().calcUnfinished;
     report->whole = calc.load();
     report->loadSeconds = double(timer.nsecsElapsed()) / 1e9;
     QElapsedTimer calcTimer;
