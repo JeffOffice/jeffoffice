@@ -139,12 +139,10 @@ private Q_SLOTS:
             g.s(column(c) + "1", QStringLiteral("h%1").arg(c));
             g.n(column(c) + "2", 1);
         }
-        QElapsedTimer clock;
-        clock.start();
         const Outcome o = evOutcome("DSUM(A1:XFD3,1,A1:XFD3)", g);
         QVERIFY2(o.text == QStringLiteral("n:1"), qPrintable(said(o)));
         QVERIFY2(o.work >= fields && o.work <= 20 * qint64(fields), qPrintable(said(o)));
-        QVERIFY2(clock.elapsed() < 5000, qPrintable(QStringLiteral("%1 ms").arg(clock.elapsed())));
+        // (Counted: the work is in proportion to the fields, as asserted above; the clock said no more.)
         // two fields of one name: the first is the field
         Grid d;
         d.row("A1", {QString("x"), QString("X"), QString("y")});

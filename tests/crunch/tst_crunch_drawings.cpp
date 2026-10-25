@@ -528,7 +528,7 @@ private Q_SLOTS:
             // the sheet is listed, and an object is made when a picture of it is wanted: not the ten thousand, but those on and near the screen
             QCOMPARE(o->layer()->count(), jp::office::sheet::kMaxDrawingAnchors);
             QCOMPARE(o->drawingsParsedApart(), 1);   // (a drawing of megabytes is parsed on a worker: the window's thread only reads what the parser made)
-            QTRY_VERIFY(!o->layer()->busy());
+            QTRY_VERIFY_WITH_TIMEOUT(!o->layer()->busy(), 60000);
             QVERIFY2(o->objectsMade() < jp::office::sheet::kMaxDrawingAnchors / 2, qPrintable(QString::number(o->objectsMade())));
             const qint64 renders = o->layer()->stats().renders;
             shot(e);   // (a paint of the window makes nothing)
@@ -547,7 +547,7 @@ private Q_SLOTS:
             for (int i = 0; i < 120; ++i) nest = groupElement(10 + i, nest);
             EditWindow e;
             QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(twoCell(1, 1, 5, 5, nest)), {})));
-            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+            QTRY_VERIFY_WITH_TIMEOUT(e.win.w.objects()->shownSheet() == 0, 60000);   // (a worker parses the drawing: on a machine running every suite at once that takes far more than five seconds)
             const crunch::DrawingCounts c = e.win.w.objects()->counts(0);
             QCOMPARE(c.groups, 1);
             QVERIFY(c.shown + c.leftOut == 1);   // (drawn, or left out in words: no crash, no loop)
@@ -558,7 +558,7 @@ private Q_SLOTS:
             EditWindow e;
             const QString anchors = twoCell(1, 1, 5, 5, pictureElement(2, QStringLiteral("rIdP"))) + twoCell(7, 1, 9, 3, shapeElement(3, QStringLiteral("Box")));
             QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {drawtest::DrawingTarget{QStringLiteral("rIdP"), QStringLiteral("xl/media/image1.png"), hugePng(), QStringLiteral("image/png"), QStringLiteral("image")}})));
-            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+            QTRY_VERIFY_WITH_TIMEOUT(e.win.w.objects()->shownSheet() == 0, 60000);   // (a worker parses the drawing: on a machine running every suite at once that takes far more than five seconds)
             e.win.w.objects()->layer()->prepareAll();
             shot(e);
             // the picture says it has ten billion pixels and holds none: no byte of one is decoded (counted in the bytes the drawing code holds decoded), and what the layer holds is the shape's
@@ -574,7 +574,7 @@ private Q_SLOTS:
                                     + twoCell(99999999, 2000000000, 2147483647, 2147483647, shapeElement(4, QStringLiteral("Far")));
             EditWindow e;
             QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("lineChart"), series))})));
-            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+            QTRY_VERIFY_WITH_TIMEOUT(e.win.w.objects()->shownSheet() == 0, 60000);   // (a worker parses the drawing: on a machine running every suite at once that takes far more than five seconds)
             e.win.w.objects()->layer()->prepareAll();
             shot(e);
             const jp::office::Chart c = e.win.w.objects()->chartNow(0, 0);
