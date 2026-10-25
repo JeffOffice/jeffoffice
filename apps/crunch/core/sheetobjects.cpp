@@ -244,6 +244,12 @@ void SheetObjects::readContext()
     m_doc->fonts = {m_theme.name, m_theme.majorLatin, m_theme.minorLatin};
 }
 
+const jp::office::Theme &SheetObjects::theme()
+{
+    if (m_book) readContext();
+    return m_theme;
+}
+
 SheetObjects::Sheet &SheetObjects::sheetState(int sheet)
 {
     static Sheet none;

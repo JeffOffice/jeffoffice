@@ -148,6 +148,7 @@ void CrunchWindow::copyOrCut(bool cut)
     }
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active) return;
+    if (pickedObject() >= 0 && copyObject(cut)) return;   // (an object over the cells is picked: it is what is copied)
     m_copy = m_view->copyWalk();
     m_pendingClip = ClipData();
     if (m_copy && m_copy->tooMany()) {
@@ -275,6 +276,7 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
         line->paste();
         return;
     }
+    if (pasteObject()) return;   // (a chart was copied: it is what is pasted)
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed()) return;
     const QMimeData *md = QApplication::clipboard()->mimeData();

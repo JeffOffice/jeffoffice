@@ -1643,6 +1643,7 @@
     <file alias="en/color-schemes.md">help/en/color-schemes.md</file>
     <file alias="en/create.md">help/en/create.md</file>
     <file alias="en/crunch/cell-styles.md">help/en/crunch/cell-styles.md</file>
+    <file alias="en/crunch/charts.md">help/en/crunch/charts.md</file>
     <file alias="en/crunch/clipboard.md">help/en/crunch/clipboard.md</file>
     <file alias="en/crunch/conditional-formats.md">help/en/crunch/conditional-formats.md</file>
     <file alias="en/crunch/context.json">help/en/crunch/context.json</file>

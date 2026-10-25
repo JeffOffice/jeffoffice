@@ -15,6 +15,13 @@ void CrunchWindow::setupObjects()
     m_objects->layer()->attach(&m_view->sheet().layout());
     m_view->setOverlay(m_objects->layer());
     m_objects->layer()->setDeleteHook([this](int id) { deleteObject(id); });
+    // the person moves or sizes an object, picks one, or asks for its menu
+    connect(m_objects->layer(), &jp::grid::ObjectLayer::objectMoved, this, [this](int id, const jp::office::sheet::DrawingAnchor &anchor) { moveObject(id, anchor); });
+    connect(m_objects->layer(), &jp::grid::ObjectLayer::contextMenuRequested, this, [this](int id, const QPoint &global) { objectContextMenu(id, global); });
+    connect(m_objects->layer(), &jp::grid::ObjectLayer::objectActivated, this, [this](int) { propertiesDialog(); });
+    connect(m_objects->layer(), &jp::grid::ObjectLayer::selectionChanged, this, [this](int) { updateChartState(); });
+    connect(m_view, &grid::GridView::viewChanged, this, [this] { m_chartButtonsTimer.start(); });
+    connect(m_view, &grid::GridView::zoomChanged, this, [this] { m_chartButtonsTimer.start(); });
 }
 
 // The workbook is open (its first rows are read): the objects are its.
@@ -85,6 +92,7 @@ void CrunchWindow::connectObjects()
     });
     m_session->setObjectHook([this](const crunch::ObjectEdit &edit, bool forward) {
         if (m_objects) m_objects->applyState(edit.sheet, edit.id, forward ? edit.after : edit.before);
+        updateChartState();
     });
 }
 

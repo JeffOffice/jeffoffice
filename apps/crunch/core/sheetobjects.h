@@ -68,6 +68,9 @@ public:
     void setSheetOpsSource(SheetOpsSource ops) { m_sheetOps = std::move(ops); }
 
     jp::grid::ObjectLayer *layer() { return &m_layer; }
+    // The cells charts read (null until the workbook is whole), and the theme the workbook's charts are set in.
+    const jp::office::sheet::ChartCells *cells() const { return m_cells.get(); }
+    const jp::office::Theme &theme();
     // Puts the sheet's objects in the layer (listing the sheet's drawing if that has not been done); the objects are made as their pictures are wanted. A drawing of more than
     // kParseApartBytes is parsed on a worker thread (a drawing of ten thousand shapes takes the better part of a second to parse): the layer has no objects until then, and `shownSheet`
     // is the sheet already.

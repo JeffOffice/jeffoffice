@@ -38,6 +38,10 @@ constexpr int kMaxMadeSeries = 255;
 // A reference as a chart part writes it: the sheet's name (in quotes when it needs them), then the cells with their dollar signs ("'My Sheet'!$B$2:$B$9", "Sheet1!$B$1").
 QString chartRef(const QString &sheetName, const CellRange &range);
 
+// The block of cells a selection stands for: a cell is the block around it that has something in it, whole columns or rows go as far as the sheet's cells do, and the empty rows and columns at the
+// edges are left off. Invalid if there is none.
+CellRange chartBlockOf(const ChartCells &cells, int sheet, const CellRange &selection, bool *truncated = nullptr);
+
 // The plan for the cells selected on `sheet` (called `sheetName`). A selection of one cell is the block of cells around it that has something in it; whole columns or rows go as far as the
 // sheet's cells do. `inRows`: 0 the series are columns, 1 they are rows, -1 whichever the shape of the selection says (more columns than rows: rows). The plan has no series if the selection
 // has nothing to chart.

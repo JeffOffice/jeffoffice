@@ -157,24 +157,23 @@ ChartPlan planChartFrom(const QString &sheetName, const CellRange &block, bool h
     return plan;
 }
 
-ChartPlan planChart(const ChartCells &cells, int sheet, const QString &sheetName, const CellRange &selection, ChartKind kind, int inRowsAsked)
+CellRange chartBlockOf(const ChartCells &cells, int sheet, const CellRange &selection, bool *truncatedOut)
 {
-    ChartPlan none;
-    if (!selection.valid) return none;
+    if (truncatedOut) *truncatedOut = false;
+    if (!selection.valid) return CellRange();
     quint32 rows = 0, cols = 0;
     cells.extent(sheet, &rows, &cols);
-    if (rows == 0 || cols == 0) return none;
+    if (rows == 0 || cols == 0) return CellRange();
     CellRange r = selection;
     r.row2 = std::min(r.row2, rows - 1);
     r.col2 = std::min(r.col2, cols - 1);
-    if (r.row1 > r.row2 || r.col1 > r.col2) return none;
-    bool truncated = false;
+    if (r.row1 > r.row2 || r.col1 > r.col2) return CellRange();
     if (plainOneCell(r)) {
         r = regionAround(cells, sheet, r.row1, r.col1, rows, cols);
     } else if (r.cellCount() > 4000000) {
         // a selection too large to look through cell by cell: its first part
         r.row2 = std::min<quint32>(r.row2, r.row1 + 20000);
-        truncated = true;
+        if (truncatedOut) *truncatedOut = true;
     }
     // leave out the empty rows and columns at the far end (a whole column goes as far as the cells do), and at the near end
     qint64 budget = 2000000;
@@ -182,6 +181,15 @@ ChartPlan planChart(const ChartCells &cells, int sheet, const QString &sheetName
     while (r.col2 > r.col1 && !columnHasContent(cells, sheet, r.col2, r.row1, r.row2, &budget) && budget > 0) --r.col2;
     while (r.row1 < r.row2 && !rowHasContent(cells, sheet, r.row1, r.col1, r.col2, &budget) && budget > 0) ++r.row1;
     while (r.col1 < r.col2 && !columnHasContent(cells, sheet, r.col1, r.row1, r.row2, &budget) && budget > 0) ++r.col1;
+    return r;
+}
+
+ChartPlan planChart(const ChartCells &cells, int sheet, const QString &sheetName, const CellRange &selection, ChartKind kind, int inRowsAsked)
+{
+    ChartPlan none;
+    bool truncated = false;
+    const CellRange r = chartBlockOf(cells, sheet, selection, &truncated);
+    if (!r.valid) return none;
     const quint32 n = r.row2 - r.row1 + 1, m = r.col2 - r.col1 + 1;
     const bool scatter = kind == ChartKind::Scatter || kind == ChartKind::ScatterLines;
 

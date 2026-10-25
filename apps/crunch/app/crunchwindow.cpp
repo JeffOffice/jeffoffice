@@ -388,6 +388,7 @@ void CrunchWindow::createActions()
     createFormatActions();
     createSheetActions();
     createPageActions();
+    createChartActions();
     createDisabledActions();
 }
 
@@ -400,7 +401,7 @@ void CrunchWindow::createDisabledActions()
     static const Command commands[] = {
         {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"}, {"edit.find", QT_TR_NOOP("Find and Select"), "search"},
         {"insert.table", QT_TR_NOOP("Table"), "table"}, {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
-        {"insert.chart", QT_TR_NOOP("Chart"), "chart-column"}, {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
+        {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
         {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"}, {"formulas.insertFunction", QT_TR_NOOP("Insert Function"), "square-function"},
         {"formulas.names", QT_TR_NOOP("Name Manager"), "variable"}, {"formulas.options", QT_TR_NOOP("Calculation Options"), "settings-2"},
     };
