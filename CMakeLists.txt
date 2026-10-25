@@ -181,7 +181,8 @@ qt_add_executable(officetests
   tests/office/tst_office_odraw.cpp
   tests/office/tst_office_package.cpp
   tests/office/tst_office_text.cpp
-  tests/office/tst_office_theme.cpp)
+  tests/office/tst_office_theme.cpp
+  tests/office/tst_office_xmlwrite.cpp)
 target_link_libraries(officetests PRIVATE jo_office Qt6::Test)
 set_target_properties(officetests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME officetests COMMAND officetests)
@@ -355,6 +356,7 @@ qt_add_executable(jdtests
   tests/deck/tst_deck_review.cpp
   tests/deck/tst_deck_slidelist.cpp
   tests/deck/tst_deck_slideshow.cpp
+  tests/deck/tst_deck_stablesaves.cpp
   tests/deck/tst_deck_styles.cpp
   tests/deck/tst_deck_tablelimits.cpp
   tests/deck/tst_deck_tables.cpp
