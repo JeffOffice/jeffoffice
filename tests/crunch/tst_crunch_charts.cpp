@@ -7,6 +7,7 @@
 #include "app/chartdialogs.h"
 #include "app/ribbon.h"
 #include "core/fonts.h"
+#include "core/objectclip.h"
 #include "core/sheetobjects.h"
 #include "office/chart_write.h"
 #include "office/xml.h"
@@ -648,6 +649,25 @@ private Q_SLOTS:
         QGuiApplication::clipboard()->setMimeData(junk);
         e.win.w.act(QStringLiteral("edit.paste"))->trigger();
         QCOMPARE(int(o->idsOf(0).size()), 1);
+        // a chart that is a chart, with a size that is not one a chart is
+        crunch::ObjectClip big;
+        big.kind = QStringLiteral("chart");
+        big.width = 1e9;
+        big.height = 200;
+        big.chartXml = writeChartPart(chartOf(e));
+        auto *huge = new QMimeData;
+        huge->setData(QLatin1String("application/x-jeffcrunch-object"), big.toBytes());
+        QGuiApplication::clipboard()->setMimeData(huge);
+        e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(int(o->idsOf(0).size()), 1);
+        // and the same chart with a size that is one pastes
+        big.width = 300;
+        auto *fine = new QMimeData;
+        fine->setData(QLatin1String("application/x-jeffcrunch-object"), big.toBytes());
+        QGuiApplication::clipboard()->setMimeData(fine);
+        e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(int(o->idsOf(0).size()), 2);
+        QCOMPARE(o->layer()->boxNow(o->idsOf(0).back()).w, 300.0);
     }
 
     // ---- the order
@@ -777,7 +797,9 @@ private Q_SLOTS:
         QCOMPARE(seriesOf(c)[0].valueRef, QStringLiteral("Sheet1!$B$3:$B$5"));
         QCOMPARE(seriesOf(c)[0].categoryRef, QStringLiteral("Sheet1!$A$3:$A$5"));
         QCOMPARE(seriesOf(c)[0].nameRef, QStringLiteral("Sheet1!$B$1"));
-        QVERIFY(o->layer()->boxNow(0).y >= was.y);
+        const double moved = o->layer()->boxNow(0).y - was.y;
+        QVERIFY(moved > 0);   // (the chart is below the row that went in: it moved down by a row)
+        QCOMPARE(o->layer()->boxNow(0).x, was.x);
         QVERIFY(save(e));
         QVector<SavedChart> charts = savedCharts(e.path);
         QCOMPARE(seriesOf(charts[0].chart)[0].valueRef, QStringLiteral("Sheet1!$B$3:$B$5"));
@@ -792,10 +814,13 @@ private Q_SLOTS:
         o->layer()->nudge(1, 0, false, false);
         QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("Sheet1!$B$3:$B$5"));
         pressUndo(&e.win.w);   // the nudge
+        QCOMPARE(o->layer()->boxNow(0).x, was.x);
+        QCOMPARE(o->layer()->boxNow(0).y, was.y + moved);   // (where the insert left it, worked out again from the file's place through the edits)
         pressUndo(&e.win.w);   // the insert
         QVERIFY(e.settle());
         QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("Sheet1!$B$2:$B$4"));
         QCOMPARE(o->layer()->boxNow(0).x, was.x);
+        QCOMPARE(o->layer()->boxNow(0).y, was.y);   // (the insert undone after a save: the chart is back where it was)
     }
 
     // The menu of an object has the commands that are for it, those that can't be used off.
