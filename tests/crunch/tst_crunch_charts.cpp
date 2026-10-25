@@ -459,6 +459,14 @@ private Q_SLOTS:
         e.win.w.objects()->layer()->select(-1);
         QVERIFY(!visible());
         QTRY_VERIFY(!e.win.w.chartElementsButton() || !e.win.w.chartElementsButton()->isVisible());
+        // another sheet shown: the chart that was picked is let go of with its sheet, and the tab with it
+        e.win.w.objects()->layer()->select(0);
+        QVERIFY(visible());
+        e.win.w.act(QStringLiteral("sheet.insert"))->trigger();
+        QVERIFY(e.settle());
+        QTRY_VERIFY(!visible());
+        QCOMPARE(e.win.w.pickedObject(), -1);
+        QTRY_VERIFY(!e.win.w.chartElementsButton() || !e.win.w.chartElementsButton()->isVisible());
     }
 
     // Select Data: series added, removed, edited, and put in another order; the cells the chart reads; the rows and columns switched; empty cells and hidden ones; saved with their references.

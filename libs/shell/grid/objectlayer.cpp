@@ -128,6 +128,8 @@ void ObjectLayer::setObjects(std::vector<LayerObject> objects)
     m_shrink = 1.0;
     m_byId.clear();
     m_painting = false;
+    m_drag = Drag();   // (a drag of the objects there were is over)
+    m_dragEntry = size_t(-1);
     const size_t n = std::min<size_t>(objects.size(), size_t(kMaxObjects));
     m_entries.reserve(n);
     m_byId.reserve(n);
@@ -177,6 +179,7 @@ void ObjectLayer::moveObject(int id, size_t to)
     for (size_t i = 0; i < m_entries.size(); ++i) m_byId.emplace(m_entries[i].object.id, i);
     m_indexValid = false;
     m_firstLive = -2;
+    m_drag = Drag();   // (the places of the objects changed under a drag: it is given up)
     m_dragEntry = size_t(-1);
     m_seen.assign(m_entries.size(), 0);
     schedule(0);

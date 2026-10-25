@@ -306,15 +306,11 @@ bool CrunchWindow::moveObject(int id, const DrawingAnchor &anchor)
     e.id = id;
     e.before = m_objects->stateOf(m_sheet, id);
     e.after = m_objects->stateMoved(m_sheet, id, anchor);
-    const grid::ObjectBox was = m_objects->layer()->boxNow(id);
     const crunch::EditSession::Outcome o = m_session->changeObjects({e}, tr("Move or Size Object"));
     if (!o.ok) {
         setStatus(o.problem);
         return false;
     }
-    const grid::ObjectBox now = m_objects->layer()->boxNow(id);
-    Q_UNUSED(was);
-    Q_UNUSED(now);
     return true;
 }
 

@@ -51,6 +51,7 @@ void CrunchWindow::prepareObjects(int sheet)
         m_view->setShowGridlines(false);
     }
     m_chartSheetShown = chartSheet;
+    updateChartState();   // (the object that was picked is let go of with the sheet)
     updateEditActions();
     m_view->setCellsEnabled(!chartSheet);
     m_formulaBar->setReadOnly(chartSheet);
@@ -72,6 +73,7 @@ void CrunchWindow::prepareObjects(int sheet)
         [this, sheet, token] {
             if (token != m_objectsToken || !m_objects || sheet != m_sheet) return;
             m_objects->show(sheet);
+            updateChartState();
             if (m_objects->isChartSheet(sheet) && m_objects->layer()->count() == 0 && !m_calculating && !m_loading)
                 setStatus(tr("This chart sheet's chart can't be shown here."));
         },
