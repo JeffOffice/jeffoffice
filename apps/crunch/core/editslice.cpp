@@ -86,67 +86,17 @@ std::shared_ptr<const std::map<quint64, QString>> EditSession::notesOf(int sheet
     if (cannot) *cannot = false;
     auto none = std::make_shared<const std::map<quint64, QString>>();
     if (!m_book || !m_book->book) return none;
-    NotesOfSheet &c = m_notes[sheet];
-    if (c.notes && c.edits == m_edits.size() && c.permutes == m_permutes.size() && c.saves == m_saveGen) {
-        if (cannot) *cannot = c.cannot;
-        if (why) *why = c.why;
-        return c.notes;
-    }
     if (m_book->book->isConverted()) {
-        c.cannot = true;
-        c.why = tr("A workbook opened from an older kind of file, or from a text file, has its notes in a form JeffCrunch does not search. Save it as an .xlsx workbook, and look again.");
-        c.notes = none;
-    } else {
-        if (!c.raw || c.saves != m_saveGen) {
-            c.raw = std::make_shared<const std::map<quint64, QString>>(readSheetNotes(*m_book->book, sheet));
-            c.saves = m_saveGen;
-        }
-        c.cannot = false;
-        c.why.clear();
-        if (m_edits.empty() && m_permutes.empty()) {
-            c.notes = c.raw;
-        } else if (m_edits.size() + m_permutes.size() > 64) {
-            // (each note would be followed through every edit: past this many, the person is asked to save, which makes the file the base again)
-            c.cannot = true;
-            c.why = tr("There have been too many changes to rows, columns, and cells since the workbook was opened or saved to follow the notes through them. Save the workbook, and look again.");
-            c.notes = none;
-        } else {
-            // each note goes where the cells went: through the edits in the order they were made, the cells put in another order among them
-            std::map<quint64, QString> moved;
-            for (const auto &note : *c.raw) {
-                quint32 row = quint32(note.first >> 32), col = quint32(note.first & 0xFFFFFFFFu);
-                bool alive = true;
-                size_t next = 0;
-                auto permutesBefore = [&](size_t edit) {
-                    for (; next < m_permutes.size() && m_permutes[next].after <= edit; ++next) {
-                        const CellPermute &p = m_permutes[next];
-                        if (p.sheet != sheet) continue;
-                        quint32 &line = p.columns ? col : row;
-                        const quint32 other = p.columns ? row : col;
-                        if (other < p.otherFirst || other > p.otherLast || line < p.first || line - p.first >= p.to.size()) continue;
-                        line = p.to[line - p.first];
-                    }
-                };
-                size_t i = 0;
-                for (const StructEdit &e : m_edits) {
-                    permutesBefore(i++);
-                    int s = sheet;
-                    if (adjustCell(e, &s, &row, &col) == RefFate::Gone) {
-                        alive = false;
-                        break;
-                    }
-                }
-                if (!alive) continue;
-                permutesBefore(i);
-                moved[(quint64(row) << 32) | col] = note.second;
-            }
-            c.notes = std::make_shared<const std::map<quint64, QString>>(std::move(moved));
-        }
+        if (cannot) *cannot = true;
+        if (why) *why = tr("A workbook opened from an older kind of file, or from a text file, has its notes in a form JeffCrunch does not search. Save it as an .xlsx workbook, and look again.");
+        return none;
     }
-    c.edits = m_edits.size();
-    c.permutes = m_permutes.size();
-    if (cannot) *cannot = c.cannot;
-    if (why) *why = c.why;
+    // (the notes as they are now, kept by the session; the texts are copied when a search asks, and again after a change: see forgetNotes)
+    NotesOfSheet &c = m_notes[sheet];
+    if (c.notes) return c.notes;
+    std::map<quint64, QString> texts;
+    for (const auto &n : m_anchors.notes(sheet)) texts[n.first] = n.second.text;
+    c.notes = std::make_shared<const std::map<quint64, QString>>(std::move(texts));
     return c.notes;
 }
 

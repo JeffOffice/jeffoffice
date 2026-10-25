@@ -183,7 +183,7 @@ EditSession::Outcome EditSession::insertSheet(int before, const QString &name, i
 {
     Outcome out;
     QString why;
-    if (!canEdit(&why) || sheetStepsRefused(&why) || sheetCapReached(*m_book->book, &why)) {
+    if (!canEdit(&why) || !structureOpen(&why) || sheetStepsRefused(&why) || sheetCapReached(*m_book->book, &why)) {
         out.ok = false;
         out.problem = why;
         return out;
@@ -208,7 +208,7 @@ EditSession::Outcome EditSession::copySheet(int sheet, int before, const QString
 {
     Outcome out;
     QString why;
-    if (!canEdit(&why) || !canEditSheet(sheet, &why) || sheetStepsRefused(&why) || sheetCapReached(*m_book->book, &why)) {
+    if (!canEdit(&why) || !structureOpen(&why) || !canEditSheet(sheet, &why) || sheetStepsRefused(&why) || sheetCapReached(*m_book->book, &why)) {
         out.ok = false;
         out.problem = why;
         return out;
@@ -251,7 +251,7 @@ EditSession::Outcome EditSession::deleteSheet(int sheet)
 {
     Outcome out;
     QString why;
-    if (!canEdit(&why) || sheetStepsRefused(&why)) {
+    if (!canEdit(&why) || !structureOpen(&why) || sheetStepsRefused(&why)) {
         out.ok = false;
         out.problem = why;
         return out;
@@ -287,7 +287,7 @@ EditSession::Outcome EditSession::renameSheet(int sheet, const QString &name)
 {
     Outcome out;
     QString why;
-    if (!canEdit(&why)) {
+    if (!canEdit(&why) || !structureOpen(&why)) {
         out.ok = false;
         out.problem = why;
         return out;
@@ -316,7 +316,7 @@ EditSession::Outcome EditSession::moveSheet(int sheet, int before)
 {
     Outcome out;
     QString why;
-    if (!canEdit(&why)) {
+    if (!canEdit(&why) || !structureOpen(&why)) {
         out.ok = false;
         out.problem = why;
         return out;
@@ -346,7 +346,7 @@ EditSession::Outcome EditSession::setSheetHidden(int sheet, bool hidden)
 {
     Outcome out;
     QString why;
-    if (!canEdit(&why)) {
+    if (!canEdit(&why) || !structureOpen(&why)) {
         out.ok = false;
         out.problem = why;
         return out;
@@ -423,6 +423,7 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                 if (e.kind == SheetEdit::Kind::Copy) m_copies.push_back({made, e.copyOf, m_edits.size()});
                 // (a new sheet prints as the defaults say, a copy as the sheet it is a copy of does now, and the file is told of it)
                 m_pages.addSheet(e.kind == SheetEdit::Kind::Copy ? m_pages.sheet(e.copyOf) : jp::office::sheet::PageSetup(), e.kind == SheetEdit::Kind::Copy);
+                m_anchors.addSheet(e.kind == SheetEdit::Kind::Copy ? e.copyOf : -1);
                 if (m_book->geometry.size() < size_t(made) + 1) m_book->geometry.resize(size_t(made) + 1);
                 book.setSheetOrder(e.orderAfter);
             } else {
@@ -430,6 +431,7 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                 calc->removeLastSheet();
                 book.removeLastSheetEntry();
                 m_pages.removeLastSheet();
+                m_anchors.removeLastSheet();
                 if (!m_copies.empty() && m_copies.back().sheet == e.sheet) m_copies.pop_back();
                 forgetSheet(e.sheet);
                 if (m_book->geometry.size() > size_t(e.sheet)) m_book->geometry.resize(size_t(e.sheet));

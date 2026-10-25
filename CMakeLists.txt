@@ -251,10 +251,12 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_xlssave.cpp
   tests/sheet/tst_sheet_xlsformula.cpp
   tests/sheet/tst_sheet_xlshostile.cpp
+  tests/sheet/tst_sheet_notes.cpp
   tests/sheet/tst_sheet_ods.cpp
   tests/sheet/tst_sheet_odsformula.cpp
   tests/sheet/tst_sheet_odshostile.cpp
   tests/sheet/tst_sheet_csv.cpp
+  tests/sheet/tst_sheet_csvchoices.cpp
   tests/sheet/tst_sheet_csvhostile.cpp
   tests/sheet/tst_sheet_odsreview.cpp
   tests/sheet/tst_sheet_csvreview.cpp
@@ -466,7 +468,7 @@ endif()
 target_link_libraries(jeffcrunch PRIVATE jccore)
 set_target_properties(jeffcrunch PROPERTIES OUTPUT_NAME JeffCrunch)
 # The tests of the window (the grid's own are in sheettests).
-qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/crunch/tst_crunch_xls.cpp tests/crunch/tst_crunch_convert.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp tests/crunch/tst_crunch_format.cpp tests/crunch/tst_crunch_formatcodes.cpp tests/crunch/tst_crunch_formatdialog.cpp tests/crunch/tst_crunch_formatui.cpp tests/crunch/tst_crunch_sheets.cpp tests/crunch/tst_crunch_review.cpp tests/crunch/tst_crunch_drawings.cpp tests/crunch/tst_crunch_print.cpp tests/crunch/tst_crunch_find.cpp tests/crunch/tst_crunch_sort.cpp tests/crunch/tst_crunch_filter.cpp tests/crunch/tst_crunch_function.cpp tests/crunch/tst_crunch_charts.cpp tests/crunch/tst_crunch_names.cpp tests/crunch/tst_crunch_formulas.cpp)
+qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/crunch/tst_crunch_xls.cpp tests/crunch/tst_crunch_convert.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp tests/crunch/tst_crunch_format.cpp tests/crunch/tst_crunch_formatcodes.cpp tests/crunch/tst_crunch_formatdialog.cpp tests/crunch/tst_crunch_formatui.cpp tests/crunch/tst_crunch_sheets.cpp tests/crunch/tst_crunch_review.cpp tests/crunch/tst_crunch_drawings.cpp tests/crunch/tst_crunch_print.cpp tests/crunch/tst_crunch_find.cpp tests/crunch/tst_crunch_sort.cpp tests/crunch/tst_crunch_filter.cpp tests/crunch/tst_crunch_function.cpp tests/crunch/tst_crunch_charts.cpp tests/crunch/tst_crunch_names.cpp tests/crunch/tst_crunch_formulas.cpp tests/crunch/tst_crunch_notes.cpp tests/crunch/tst_crunch_links.cpp tests/crunch/tst_crunch_protect.cpp tests/crunch/tst_crunch_autoheight.cpp tests/crunch/tst_crunch_text.cpp)
 target_link_libraries(crunchtests PRIVATE jccore Qt6::Test)
 target_include_directories(crunchtests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 target_compile_definitions(crunchtests PRIVATE JC_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
@@ -551,7 +553,7 @@ endif()
 set_target_properties(writetool PROPERTIES WIN32_EXECUTABLE OFF)
 
 # Developer tool for JeffCrunch's readers and its yardstick: what a workbook holds, and a table of that for a list of workbooks.
-qt_add_executable(jcrunchtool tools/jcrunchtool.cpp tools/jcrunchtool_filter.cpp tools/jcrunchtool_compare.cpp tools/jcrunchtool_xlsfuzz.cpp tools/jcrunchtool_xlssave.cpp tools/jcrunchtool_odsfuzz.cpp)
+qt_add_executable(jcrunchtool tools/jcrunchtool.cpp tools/jcrunchtool_filter.cpp tools/jcrunchtool_side.cpp tools/jcrunchtool_compare.cpp tools/jcrunchtool_xlsfuzz.cpp tools/jcrunchtool_xlssave.cpp tools/jcrunchtool_odsfuzz.cpp)
 target_link_libraries(jcrunchtool PRIVATE jo_office)
 target_compile_definitions(jcrunchtool PRIVATE JCRUNCH_TOOLS_DIR="${CMAKE_SOURCE_DIR}/tools")
 set_target_properties(jcrunchtool PROPERTIES WIN32_EXECUTABLE OFF)

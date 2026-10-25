@@ -59,7 +59,7 @@ EditSession::Outcome EditSession::resizeColumns(int sheet, quint32 first, quint3
 {
     Outcome out;
     QString why;
-    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+    if (!canEdit(&why) || !canEditSheet(sheet, &why) || !allows(sheet, Allow::FormatColumns, &why)) {
         out.ok = false;
         out.problem = why;
         return out;
@@ -97,7 +97,7 @@ EditSession::Outcome EditSession::resizeRows(int sheet, quint32 first, quint32 l
 {
     Outcome out;
     QString why;
-    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+    if (!canEdit(&why) || !canEditSheet(sheet, &why) || !allows(sheet, Allow::FormatRows, &why)) {
         out.ok = false;
         out.problem = why;
         return out;
@@ -165,7 +165,7 @@ EditSession::Outcome EditSession::fitColumns(int sheet, const std::vector<std::p
 {
     Outcome out;
     QString why;
-    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+    if (!canEdit(&why) || !canEditSheet(sheet, &why) || !allows(sheet, Allow::FormatColumns, &why)) {
         out.ok = false;
         out.problem = why;
         return out;
@@ -195,7 +195,7 @@ EditSession::Outcome EditSession::fitRows(int sheet, const std::vector<std::pair
 {
     Outcome out;
     QString why;
-    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+    if (!canEdit(&why) || !canEditSheet(sheet, &why) || !allows(sheet, Allow::FormatRows, &why)) {
         out.ok = false;
         out.problem = why;
         return out;
@@ -224,6 +224,35 @@ EditSession::Outcome EditSession::fitRows(int sheet, const std::vector<std::pair
     if (step.sizes.empty()) return out;
     pushStep(std::move(step), heights.size() == 1 ? tr("Fitting a row to its contents") : tr("Fitting rows to their contents"));
     return out;
+}
+
+// The heights the text of rows needs, for rows whose height is the program's to choose (a row a person gave a height, or hid, keeps it): put in the sheet with no step of Undo. What a row's height
+// should be follows from what is in it and the widths of its columns, so Undo and Redo, which change those, make it again; it is saved with the sheet.
+int EditSession::setAutoRowHeights(int sheet, const std::vector<std::pair<quint32, double>> &heights)
+{
+    if (!canEdit() || !canEditSheet(sheet) || heights.empty()) return 0;
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold) return 0;
+    Calculation *calc = hold->calculation();
+    int changed = 0;
+    for (const auto &[row, height] : heights) {
+        if (row >= kMaxRows || height <= 0) continue;
+        std::vector<RowSpec> was = calc->rowSpecsIn(sheet, row, row);
+        RowSpec spec = was.empty() ? RowSpec() : was.front();
+        if (!was.empty() && (spec.customHeight || spec.hidden)) continue;
+        if (!was.empty() && std::abs(spec.height - height) < 0.01) continue;
+        spec.row = row;
+        spec.height = height;
+        spec.customHeight = false;
+        calc->setRowSpecs(sheet, row, row, {spec});
+        m_rowsResized.insert(keyOf(sheet, row, 0));
+        ++changed;
+    }
+    if (changed > 0) {
+        hold.reset();
+        Q_EMIT sizesChanged(sheet);
+    }
+    return changed;
 }
 
 bool EditSession::widenColumnWithEntry(int sheet, quint32 col, double width)

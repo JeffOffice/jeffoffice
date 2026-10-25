@@ -10,5 +10,6 @@
   "file:print": "printing",
   "file:export": "printing",
   "tab:Header and Footer": "page-layout",
-  "tab:Chart": "charts"
+  "tab:Chart": "charts",
+  "tab:Review": "notes-links"
 }

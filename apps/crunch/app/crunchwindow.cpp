@@ -1,4 +1,5 @@
 #include "app/crunchwindow.h"
+#include "app/plaintext.h"
 
 #include "core/printjob.h"
 #include <QPrinter>
@@ -96,6 +97,9 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     setMenuWidget(m_ribbon);
     buildCentral();
     m_printChoices = std::make_unique<crunch::PrintChoices>();
+    m_autoTimer.setSingleShot(true);
+    m_autoTimer.setInterval(0);
+    connect(&m_autoTimer, &QTimer::timeout, this, &CrunchWindow::stepAutoHeights);
     m_breaksTimer.setSingleShot(true);
     m_breaksTimer.setInterval(150);
     connect(&m_breaksTimer, &QTimer::timeout, this, &CrunchWindow::updatePageBreaks);
@@ -132,6 +136,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     });
     connect(m_view, &grid::GridView::clearRequested, this, &CrunchWindow::clearSelection);
     connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::placeEditor);
+    connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::scheduleAutoHeights);
     m_view->setClickGuard([this] { return commitEdit(CellEditor::Way::Stay); });
     connect(m_cellEditor, &CellEditor::finished, this, [this](CellEditor::Way way) { commitEdit(way); });
     connect(m_cellEditor, &CellEditor::cancelled, this, &CrunchWindow::cancelEdit);
@@ -186,6 +191,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 
 CrunchWindow::~CrunchWindow()
 {
+    stopPasswordJob();   // (a password being worked on is given up with the window)
     if (m_tabs) m_tabs->cancelRename();   // (a name being typed is given up with the window, not given to a window that is going)
     if (m_view) m_view->setOverlay(nullptr);   // (the objects over the cells go before the grid does)
     if (m_pageView) m_pageView->setSource(nullptr);
@@ -292,7 +298,7 @@ void CrunchWindow::buildCentral()
 void CrunchWindow::buildStatusBar()
 {
     QStatusBar *sb = statusBar();
-    m_status = new QLabel(tr("Ready"), this);
+    m_status = plainLabel(new QLabel(tr("Ready"), this));
     m_status->setObjectName(QStringLiteral("statusText"));
     m_status->setMinimumWidth(220);
     sb->addWidget(m_status);
@@ -340,6 +346,15 @@ void CrunchWindow::createActions()
         if (p.isEmpty()) return;
         Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
         openFile(p);
+    });
+    mk("file.openText", tr("Open Text File…"), "file-text", QKeySequence(), [this] {
+        const QString p = QFileDialog::getOpenFileName(this, tr("Open Text File"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
+                                                       tr("Text files (*.csv *.tsv *.txt)") + QStringLiteral(";;") + tr("All Files (*)"));
+        if (p.isEmpty()) return;
+        Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
+        m_forceTextPrompt = true;
+        openFile(p);
+        m_forceTextPrompt = false;
     });
     mk("file.save", tr("Save"), "save", QKeySequence::Save, [this] { save(); }, false, false);
     mk("file.saveAs", tr("Save As…"), "save", QKeySequence::SaveAs, [this] {
@@ -410,6 +425,8 @@ void CrunchWindow::createActions()
     createViewActions();
     createPageLayoutActions();
     createChartActions();
+    createNoteActions();
+    createProtectActions();
     createDisabledActions();
 }
 
@@ -422,7 +439,7 @@ void CrunchWindow::createDisabledActions()
     static const Command commands[] = {
         
         {"insert.table", QT_TR_NOOP("Table"), "table"}, {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
-        {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
+        {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"},
         {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"},
     };
     for (const Command &c : commands) mk(QString::fromLatin1(c.id), QCoreApplication::translate("jp::CrunchWindow", c.text), c.icon, QKeySequence(), nullptr, false, false);
@@ -441,8 +458,7 @@ void CrunchWindow::notice(const QString &title, const QString &text, bool warnin
         m_notifier(title, text);
         return;
     }
-    if (warning) QMessageBox::warning(this, title, text);
-    else QMessageBox::information(this, title, text);
+    plainBox(this, warning ? QMessageBox::Warning : QMessageBox::Information, title, text);
 }
 
 // ---- keeping the bars in step with the selection

@@ -3,6 +3,7 @@
 // place of the old one, so a save that fails leaves the old file as it was.
 
 #include "app/crunchwindow.h"
+#include "app/plaintext.h"
 
 #include "app/oldformat.h"
 #include "app/otherformats.h"
@@ -122,6 +123,7 @@ bool CrunchWindow::startSave(const QString &path)
         } else {
             QMessageBox box(QMessageBox::Warning, appInfo().name,
                             tr("Another program changed \"%1\" after you opened it. If you save here, what it changed is lost.").arg(name), QMessageBox::NoButton, this);
+            box.setTextFormat(Qt::PlainText);
             box.setInformativeText(tr("You can save your work as a copy and keep both, or save over the file."));
             QPushButton *copyButton = box.addButton(tr("Save a Copy…"), QMessageBox::AcceptRole);
             QPushButton *overwriteButton = box.addButton(tr("Overwrite"), QMessageBox::DestructiveRole);
@@ -227,6 +229,7 @@ bool CrunchWindow::askAboutChanges()
         answer = m_asker(title, text);
     } else {
         QMessageBox box(QMessageBox::Warning, title, text, QMessageBox::NoButton, this);
+        box.setTextFormat(Qt::PlainText);
         QPushButton *saveButton = box.addButton(tr("Save"), QMessageBox::AcceptRole);
         QPushButton *discardButton = box.addButton(tr("Don't Save"), QMessageBox::DestructiveRole);
         box.addButton(tr("Cancel"), QMessageBox::RejectRole);

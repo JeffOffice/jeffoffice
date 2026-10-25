@@ -78,6 +78,12 @@ ClipData EditSession::copyCells(int sheet, const CellRange &range, bool cut) con
         if (!cc.content.exists) return true;
         cc.shown = valueAt(sheet, c.row, c.col);
         if (!cc.content.editable && !cc.content.isFormula) cc.content.value = cc.shown;   // (a cell of an array holds the result)
+        // a formula the format hides on a protected sheet is not given away by copying: what is copied is what it is worth
+        if (cc.content.isFormula && formulaHidden(sheet, cc.content.style)) {
+            cc.content.isFormula = false;
+            cc.content.formula.clear();
+            cc.content.value = cc.shown;
+        }
         if (cc.content.style != 0) cc.formatCode = m_book->book->styles().formatCode(cc.content.style, usual);
         cc.content.arrayRange = CellRange();
         d.cells.push_back(std::move(cc));
@@ -139,7 +145,7 @@ EditSession::Outcome EditSession::pasteChanges(int sheet, const CellRange &targe
                     if (!make(spot, &ch, &problem)) return problem;
                     if (sameMeaning(ch.before, ch.after) && ch.formatCode.isEmpty()) continue;
                     if (!ch.before.editable) return refuse(tr("You can't change part of an array or a data table."));
-                    if (isLocked(sheet, ch.before.style)) return refuse(lockedMessage());
+                    if (isLocked(sheet, ch.before.exists ? ch.before.style : implicitStyle(sheet, spot.row, spot.col))) return refuse(lockedMessage());
                     if (m_book->book->tableHeaderAt(sheet, spot.row, spot.col, nullptr) >= 0)
                         return refuse(tr("The first row of a table holds the names of its columns, so cells can't be pasted over it. Paste below it, or change the names one by one."));
                     step.cells.push_back(std::move(ch));

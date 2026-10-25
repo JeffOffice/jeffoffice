@@ -1,4 +1,5 @@
 #include "app/chartdialogs.h"
+#include "app/plaintext.h"
 
 #include <QCheckBox>
 #include <QCoreApplication>
@@ -166,7 +167,7 @@ public:
             form->addRow(tr("X values"), m_x);
         }
         form->addRow(scatter ? tr("Y values") : tr("Values"), m_values);
-        m_problem = new QLabel(this);
+        m_problem = plainLabel(new QLabel(this));
         m_problem->setWordWrap(true);
         form->addRow(m_problem);
         auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -256,7 +257,7 @@ SelectDataDialog::SelectDataDialog(const SelectDataRequest &request, QWidget *pa
     m_hidden->setAccessibleName(tr("Include hidden rows and columns"));
     form->addRow(m_hidden);
     outer->addLayout(form);
-    m_problem = new QLabel(this);
+    m_problem = plainLabel(new QLabel(this));
     m_problem->setWordWrap(true);
     outer->addWidget(m_problem);
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);

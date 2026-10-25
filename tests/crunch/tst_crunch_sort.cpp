@@ -265,9 +265,15 @@ private Q_SLOTS:
             const crunch::EditSession::Outcome o = sortWith(a, QStringLiteral("A1:A2"), byColumn(0));
             QVERIFY(!o.ok);
             QVERIFY(o.problem.contains(QLatin1String("locked")));
+            // a protected sheet whose protection does not allow sorting refuses even unlocked cells, and says so
+            EditWindow c;
+            QVERIFY(c.open(buildXlsx({worksheet(open, QStringLiteral("<sheetProtection sheet=\"1\"/>"))}, QByteArray(), QString(), QString(), styles)));
+            const crunch::EditSession::Outcome refused = sortWith(c, QStringLiteral("A1:A2"), byColumn(0));
+            QVERIFY(!refused.ok);
+            QVERIFY2(refused.problem.contains(QLatin1String("sorting")), qPrintable(refused.problem));
             EditWindow b;
-            QVERIFY(b.open(buildXlsx({worksheet(open, QStringLiteral("<sheetProtection sheet=\"1\"/>"))}, QByteArray(), QString(), QString(), styles)));
-            QVERIFY2(sortWith(b, QStringLiteral("A1:A2"), byColumn(0)).ok, "unlocked cells on a protected sheet");
+            QVERIFY(b.open(buildXlsx({worksheet(open, QStringLiteral("<sheetProtection sheet=\"1\" sort=\"0\"/>"))}, QByteArray(), QString(), QString(), styles)));
+            QVERIFY2(sortWith(b, QStringLiteral("A1:A2"), byColumn(0)).ok, "unlocked cells on a protected sheet that allows sorting");
             QCOMPARE(shown(b, QStringLiteral("A1:A2")), QStringLiteral("1|2"));
         }
         {

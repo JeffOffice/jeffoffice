@@ -2,6 +2,7 @@
 // (horizontal, vertical, wrap, indent, orientation), merging, the number format and its buttons, the cell styles, the Format Painter, and Clear. Each is one step of Undo (the edit
 // session makes them; this part says what the buttons mean and keeps the buttons in step with the cell with the cursor).
 #include "app/crunchwindow.h"
+#include "app/plaintext.h"
 
 #include "app/icons.h"
 #include "app/ribbon.h"
@@ -222,7 +223,7 @@ void CrunchWindow::updateFormatState(bool force)
 bool CrunchWindow::confirm(const QString &title, const QString &text)
 {
     if (m_confirmAsker) return m_confirmAsker(title, text);
-    return QMessageBox::question(this, title, text, QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok) == QMessageBox::Ok;
+    return plainBox(this, QMessageBox::Question, title, text, QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Ok) == QMessageBox::Ok;
 }
 
 // Gives the selected cells a change of format: one step of Undo called `text`. An entry in progress is finished first.

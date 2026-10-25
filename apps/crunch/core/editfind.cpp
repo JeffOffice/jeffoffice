@@ -48,6 +48,7 @@ QString EditSession::searchText(int sheet, quint32 row, quint32 col) const
     if (!c) return {};
     if (c->hasFormula() && !(c->flags & (ArrayMember))) {
         const Calculation::CellContent content = m_book->calc->content(sheet, row, col);
+        if (content.isFormula && formulaHidden(sheet, content.style)) return {};   // (a formula the format hides is not looked in)
         return content.isFormula ? QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(content.formula), m_locale) : QString();
     }
     switch (c->type) {

@@ -1,4 +1,5 @@
 #include "sheet/sheetreader.h"
+#include "sheet/xmlscan.h"
 #include "sheet/builtinstyles.h"
 
 #include "calc/numfmt.h"
@@ -33,31 +34,7 @@ constexpr qint64 kReportEveryBytes = 65536;
 
 // The text a file writes a character in the form _xHHHH_ as it stands for ("_x000D_" is a carriage return); an underscore before an "x" is written
 // _x005F_, so that what comes after it is not read again.
-void decodeEscapes(QString *s)
-{
-    int at = s->indexOf(QLatin1String("_x"));
-    if (at < 0) return;
-    QString out;
-    out.reserve(s->size());
-    int from = 0;
-    while (at >= 0) {
-        bool ok = false;
-        const uint code = at + 7 <= s->size() && (*s)[at + 6] == QLatin1Char('_') ? s->mid(at + 2, 4).toUInt(&ok, 16) : 0;
-        // Four hex digits exactly (toUInt would take a sign or a "0x").
-        for (int k = 2; ok && k < 6; ++k)
-            if (!(*s)[at + k].isLetterOrNumber() || (*s)[at + k].unicode() > 127) ok = false;
-        if (ok) {
-            out += QStringView(*s).mid(from, at - from);
-            out += QChar(ushort(code));
-            from = at + 7;
-            at = s->indexOf(QLatin1String("_x"), from);
-        } else {
-            at = s->indexOf(QLatin1String("_x"), at + 2);
-        }
-    }
-    out += QStringView(*s).mid(from);
-    *s = out;
-}
+void decodeEscapes(QString *s) { xmlscan::decodeEscapes(s); }
 
 // A stream of XML tokens from a device, through the guard that keeps an element from crowding the parser with attributes; and what to say when the
 // reader stops for a reason that isn't in the XML.
@@ -100,6 +77,58 @@ QStringView attribute(const QXmlStreamReader &r, const char *name, bool *present
         }
     if (present) *present = false;
     return {};
+}
+
+// The settings of a `sheetProtection` element. In the file an item set is one that is not allowed; all but the two selections are set unless the file says otherwise.
+void readProtection(const QXmlStreamReader &r, SheetProtection *out)
+{
+    auto set = [&](const char *name, bool otherwise) {
+        bool present = false;
+        const QStringView v = attribute(r, name, &present);
+        return present ? parseBool(v.toString()) : otherwise;
+    };
+    SheetProtection p;
+    p.enabled = set("sheet", false);
+    p.objects = set("objects", false);
+    p.scenarios = set("scenarios", false);
+    p.allowFormatCells = !set("formatCells", true);
+    p.allowFormatColumns = !set("formatColumns", true);
+    p.allowFormatRows = !set("formatRows", true);
+    p.allowInsertColumns = !set("insertColumns", true);
+    p.allowInsertRows = !set("insertRows", true);
+    p.allowInsertLinks = !set("insertHyperlinks", true);
+    p.allowDeleteColumns = !set("deleteColumns", true);
+    p.allowDeleteRows = !set("deleteRows", true);
+    p.allowSelectLocked = !set("selectLockedCells", false);
+    p.allowSort = !set("sort", true);
+    p.allowFilter = !set("autoFilter", true);
+    p.allowPivot = !set("pivotTables", true);
+    p.allowSelectUnlocked = !set("selectUnlockedCells", false);
+    p.password.legacy = attribute(r, "password").toString().left(16);
+    p.password.algorithm = attribute(r, "algorithmName").toString().left(32);
+    p.password.hash = attribute(r, "hashValue").toString().left(1024);
+    p.password.salt = attribute(r, "saltValue").toString().left(1024);
+    bool ok = false;
+    const qint64 spin = attribute(r, "spinCount").toString().toLongLong(&ok);
+    p.password.spin = ok ? spin : 0;
+    *out = p;
+}
+
+// A `hyperlink` element: the cells, the place in the workbook or the id of the relationship that names the address outside it, the shown text, and the screen tip. A link past the limits
+// (more than kMaxLinks of them, too long a text, cells that are not a range) is left out.
+void readLink(const QXmlStreamReader &r, QVector<LinkSpec> *links)
+{
+    if (links->size() >= kMaxLinks) return;
+    LinkSpec link;
+    if (!parseRangeRef(attribute(r, "ref"), &link.range)) return;
+    link.location = attribute(r, "location").toString();
+    link.display = attribute(r, "display").toString();
+    link.tip = attribute(r, "tooltip").toString();
+    for (const QXmlStreamAttribute &a : r.attributes())
+        if (a.name() == QLatin1String("id") && !a.namespaceUri().isEmpty()) link.relId = a.value().toString();
+    if (link.location.size() > kMaxLinkTarget || link.display.size() > kMaxLinkText || link.tip.size() > kMaxLinkText || link.relId.size() > 64) return;
+    if (link.location.isEmpty() && link.relId.isEmpty()) return;
+    links->push_back(std::move(link));
 }
 
 // The text of a number as a number, never through the C library's conversions and never by the locale.
@@ -622,6 +651,17 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 const double delta = attribute(r, "iterateDelta").toDouble(&okDelta);
                 if (okCount) out->iterateCount = std::clamp(count, 1, 32767);
                 if (okDelta && delta >= 0 && delta < 1e300) out->iterateDelta = delta;
+            } else if (depth == 2 && isElement(r, "workbookProtection")) {
+                WorkbookProtection &wp = out->protection;
+                wp.lockStructure = parseBool(attribute(r, "lockStructure").toString());
+                wp.lockWindows = parseBool(attribute(r, "lockWindows").toString());
+                wp.password.legacy = attribute(r, "workbookPassword").toString().left(16);
+                wp.password.algorithm = attribute(r, "workbookAlgorithmName").toString().left(32);
+                wp.password.hash = attribute(r, "workbookHashValue").toString().left(1024);
+                wp.password.salt = attribute(r, "workbookSaltValue").toString().left(1024);
+                bool spinOk = false;
+                const qint64 spin = attribute(r, "workbookSpinCount").toString().toLongLong(&spinOk);
+                wp.password.spin = spinOk ? spin : 0;
             } else if (depth == 2 && isElement(r, "bookViews")) {
                 inViews = true;
             } else if (depth == 3 && inViews && isElement(r, "workbookView") && !viewSeen) {
@@ -1300,7 +1340,7 @@ bool SheetReader::read(QIODevice *in)
     QXmlStreamReader &r = src.reader;
     int depth = 0, phonetic = 0;
     bool rootSeen = false, inData = false, inRow = false, inCell = false, inFormula = false, inValue = false, inInline = false, inText = false, inMerge = false;
-    bool inSheetPr = false, inViews = false, inCols = false, inView = false, inValidations = false, inRule = false;
+    bool inSheetPr = false, inViews = false, inCols = false, inView = false, inValidations = false, inRule = false, inLinks = false;
     bool inHeaderFooter = false;
     int inBreaks = 0;              // 1 while the row breaks are read, 2 for the column breaks
     QString *hfText = nullptr;     // the header or footer text being read
@@ -1381,7 +1421,10 @@ bool SheetReader::read(QIODevice *in)
                     CellRange range;
                     if (parseRangeRef(attribute(r, "ref").toString(), &range)) m_sheet.autoFilter.ref = range;
                 } else if (isElement(r, "sheetProtection")) {
-                    m_sheet.isProtected = parseBool(attribute(r, "sheet").toString());
+                    readProtection(r, &m_sheet.protection);
+                    m_sheet.isProtected = m_sheet.protection.enabled;
+                } else if (isElement(r, "hyperlinks")) {
+                    inLinks = true;
                 } else if (isElement(r, "sheetPr")) {
                     inSheetPr = true;
                 } else if (isElement(r, "pageSetup")) {
@@ -1511,6 +1554,8 @@ bool SheetReader::read(QIODevice *in)
                 x14Text = &x14Ranges;
             } else if (depth == 3 && inMerge && isElement(r, "mergeCell")) {
                 ok = startMerge(r);
+            } else if (depth == 3 && inLinks && isElement(r, "hyperlink")) {
+                readLink(r, &m_sheet.links);
             } else if (depth == 3 && inValidations && isElement(r, "dataValidation")) {
                 inRule = true;
                 rule = readRule(r);
@@ -1637,7 +1682,7 @@ bool SheetReader::read(QIODevice *in)
             } else if (inFilter && depth == 2) {
                 inFilter = false;
                 m_sheet.autoFilter.sortState = sortState;
-                inData = inMerge = inSheetPr = inViews = inCols = inValidations = inCond = inExtension = false;
+                inData = inMerge = inSheetPr = inViews = inCols = inValidations = inCond = inExtension = inLinks = false;
             } else if (depth == 5 && inCell) {
                 if (inFormula && isElement(r, "f")) {
                     inFormula = false;
@@ -1676,7 +1721,7 @@ bool SheetReader::read(QIODevice *in)
             } else if (depth == 3 && hfText) {
                 hfText = nullptr;
             } else if (depth == 2) {
-                inData = inMerge = inSheetPr = inViews = inCols = inValidations = inCond = inExtension = false;
+                inData = inMerge = inSheetPr = inViews = inCols = inValidations = inCond = inExtension = inLinks = false;
                 inHeaderFooter = false;
                 inBreaks = 0;
             }
@@ -2612,6 +2657,7 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
     if (m_xls || m_foreign) {
         const bool ok = m_xls ? m_xls->readSheet(index, m_limits, progress, out) : m_foreign->readSheet(index, m_limits, progress, stopAfterRow, screenRows, out);
         applyPrintNames(m_info, index, out);
+        out->protection.enabled = out->isProtected;   // (the older kinds of file say only whether)
         return ok;
     }
     const SheetEntry &entry = m_info.sheets[index];
@@ -2647,6 +2693,43 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
     const bool ok = readSheetPart(device.get(), options, out);
     applyPrintNames(m_info, index, out);
     if (!out->page.headerFooter.drawingRel.isEmpty()) readHeaderPictures(entry.part, &out->page.headerFooter);
+    if (!out->links.isEmpty()) {
+        // the addresses outside the workbook are in the sheet's relationships
+        QHash<QString, QString> targets;
+        for (const Relationship &rel : m_package.relationships(entry.part))
+            if (rel.external && rel.type.endsWith(QLatin1String("/hyperlink"))) targets.insert(rel.id, rel.target);
+        QVector<LinkSpec> kept;
+        for (LinkSpec &link : out->links) {
+            if (!link.relId.isEmpty()) {
+                const QString target = targets.value(link.relId);
+                if (target.size() > kMaxLinkTarget) continue;
+                link.target = target;
+                link.relId.clear();
+            }
+            if (link.target.isEmpty() && link.location.isEmpty()) continue;
+            kept.push_back(std::move(link));
+        }
+        // the links of all the sheets are held to one budget
+        qint64 others = 0;
+        {
+            QMutexLocker locker(&m_linkBudget->lock);
+            for (const auto &entry : m_linkBudget->perSheet)
+                if (entry.first != index) others += entry.second;
+        }
+        qint64 mine = 0;
+        QVector<LinkSpec> within;
+        for (LinkSpec &link : kept) {
+            const qint64 cost = qint64(link.target.size() + link.location.size() + link.display.size() + link.tip.size()) * 2 + 64;
+            if (others + mine + cost > m_limits.linkBytes) continue;
+            mine += cost;
+            within.push_back(std::move(link));
+        }
+        {
+            QMutexLocker locker(&m_linkBudget->lock);
+            m_linkBudget->perSheet[index] = mine;
+        }
+        out->links = std::move(within);
+    }
     return ok;
 }
 

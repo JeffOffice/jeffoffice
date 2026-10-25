@@ -179,6 +179,7 @@ QWidget *CrunchFileScreen::buildPrint()
     auto *notes = new QLabel(w);
     notes->setObjectName(QStringLiteral("printNotes"));
     notes->setWordWrap(true);
+    notes->setTextFormat(Qt::PlainText);
     notes->setMinimumWidth(260);
     left->addWidget(notes);
     left->addStretch(1);

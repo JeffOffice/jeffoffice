@@ -690,6 +690,140 @@ QByteArray tailWithHeaderDrawing(const QByteArray &after, const QByteArray &relI
     return after.left(insertAt) + element + after.mid(insertAt);
 }
 
+// A top-level element of the tail (from after "</sheetData>"): where it is, whole, or -1; and where one that comes after it in the format starts (or the sheet's end).
+struct TopElement {
+    qsizetype start = -1, end = -1, insertAt = -1;
+};
+
+TopElement findTopElement(const QByteArray &after, const char *name, const QList<QByteArray> &later)
+{
+    TopElement e;
+    Tag t;
+    qsizetype pos = 0;
+    int depth = 0;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (e.insertAt < 0) e.insertAt = t.start;   // </worksheet>
+                break;
+            }
+            if (depth == 0 && e.start >= 0 && e.end < 0) e.end = t.end;
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == name && e.start < 0) {
+                e.start = t.start;
+                if (t.selfClosing) e.end = t.end;
+            } else if (e.insertAt < 0 && later.contains(QByteArray(t.local))) {
+                e.insertAt = t.start;
+            }
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    return e;
+}
+
+// The tail with a top-level element made, replaced, or (when `element` is empty) taken out.
+QByteArray tailWithElement(const QByteArray &after, const char *name, const QByteArray &element, const QList<QByteArray> &later)
+{
+    const TopElement e = findTopElement(after, name, later);
+    if (e.start >= 0 && e.end >= 0) return after.left(e.start) + element + after.mid(e.end);
+    if (e.start >= 0 || element.isEmpty() || e.insertAt < 0) return after;
+    return after.left(e.insertAt) + element + after.mid(e.insertAt);
+}
+
+const QList<QByteArray> &afterProtection()
+{
+    static const QList<QByteArray> later = {"protectedRanges", "scenarios", "autoFilter", "sortState", "dataConsolidate", "customSheetViews", "mergeCells", "phoneticPr", "conditionalFormatting",
+                                            "dataValidations", "hyperlinks", "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches",
+                                            "ignoredErrors", "smartTags", "drawing", "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    return later;
+}
+
+QByteArray tailWithProtection(const QByteArray &after, const SheetProtection &protection, const QByteArray &prefix)
+{
+    return tailWithElement(after, "sheetProtection", sheetProtectionElement(protection, prefix), afterProtection());
+}
+
+// The element that names the drawing of the notes (`legacyDrawing`), where the format has it (after the drawing, before the header and footer pictures); not if the sheet has one.
+QByteArray tailWithLegacyDrawing(const QByteArray &after, const QByteArray &relId, const QByteArray &prefix)
+{
+    static const QList<QByteArray> later = {"legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    const TopElement e = findTopElement(after, "legacyDrawing", later);
+    if (e.start >= 0 || e.insertAt < 0 || relId.isEmpty()) return after;
+    const QByteArray element = "<" + prefix + "legacyDrawing xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"" + xmlscan::escapeAttribute(QString::fromLatin1(relId)) + "\"/>";
+    return after.left(e.insertAt) + element + after.mid(e.insertAt);
+}
+
+// The links of the tail: those with the ranges in `unlinks` taken out, `links` put in at the end of the container (made, where the format has it, if the file has none, and taken out when
+// nothing is left in it).
+QByteArray tailWithLinks(const QByteArray &after, const std::vector<CellRange> &unlinks, const std::vector<LinkSpec> &links, const QByteArray &prefix)
+{
+    static const QList<QByteArray> later = {"printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches", "ignoredErrors", "smartTags",
+                                            "drawing", "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    QByteArray added;
+    for (const LinkSpec &l : links) {
+        added += "<" + prefix + "hyperlink ref=\"" + rangeName(l.range).toLatin1() + "\"";
+        if (!l.relId.isEmpty()) added += " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"" + xmlscan::escapeAttribute(l.relId) + "\"";
+        if (!l.location.isEmpty()) added += " location=\"" + xmlscan::escapeAttribute(l.location) + "\"";
+        if (!l.tip.isEmpty()) added += " tooltip=\"" + xmlscan::escapeAttribute(l.tip) + "\"";
+        if (!l.display.isEmpty()) added += " display=\"" + xmlscan::escapeAttribute(l.display) + "\"";
+        added += "/>";
+    }
+    const TopElement e = findTopElement(after, "hyperlinks", later);
+    if (e.start < 0 || e.end < 0) {
+        if (added.isEmpty() || e.insertAt < 0 || e.start >= 0) return after;
+        return after.left(e.insertAt) + "<" + prefix + "hyperlinks>" + added + "</" + prefix + "hyperlinks>" + after.mid(e.insertAt);
+    }
+    // the container: its links, those not taken out kept as they are
+    const QByteArray container = after.mid(e.start, e.end - e.start);
+    Tag open;
+    if (!xmlscan::nextTag(container, 0, &open)) return after;
+    QByteArray kept;
+    qint64 count = 0;
+    if (!open.selfClosing) {
+        Tag t;
+        qsizetype pos = open.end;
+        int depth = 0;
+        while (xmlscan::nextTag(container, pos, &t)) {
+            pos = t.end;
+            if (t.closing) {
+                if (--depth < 0) break;
+                continue;
+            }
+            if (depth == 0 && t.local == "hyperlink") {
+                qsizetype end = t.end;
+                if (!t.selfClosing) {
+                    Tag c;
+                    qsizetype p2 = t.end;
+                    int d2 = 1;
+                    while (d2 > 0 && xmlscan::nextTag(container, p2, &c)) {
+                        p2 = c.end;
+                        if (c.closing) --d2;
+                        else if (!c.selfClosing) ++d2;
+                    }
+                    end = p2;
+                    pos = p2;
+                }
+                CellRange r;
+                bool found = false;
+                const QByteArrayView ref = xmlscan::attribute(QByteArrayView(container).sliced(t.start, t.end - t.start), "ref", &found);
+                const bool gone = found && parseRangeRef(xmlscan::unescape(ref), &r) && std::find(unlinks.begin(), unlinks.end(), r) != unlinks.end();
+                if (!gone) {
+                    kept += container.mid(t.start, end - t.start);
+                    ++count;
+                }
+                continue;
+            }
+            if (!t.selfClosing) ++depth;
+        }
+    }
+    if (kept.isEmpty() && added.isEmpty()) return after.left(e.start) + after.mid(e.end);
+    (void)count;
+    return after.left(e.start) + "<" + prefix + "hyperlinks>" + kept + added + "</" + prefix + "hyperlinks>" + after.mid(e.end);
+}
+
 class Patcher {
 public:
     Patcher(QIODevice *in, PartSink *out, const SheetChanges &changes, bool hasShared, const std::atomic<bool> *cancel) : m_in(in), m_out(out), m_hasShared(hasShared), m_cancel(cancel)
@@ -720,6 +854,12 @@ public:
         m_viewKind = changes.viewKind;
         m_hfSet = changes.hfSet;
         m_hfRel = changes.hfRel.toLatin1();
+        m_legacyId = changes.legacyRelId.toLatin1();
+        if (!changes.unlinks.empty() || !changes.links.empty()) {
+            m_unlinks = &changes.unlinks;
+            m_links = &changes.links;
+        }
+        if (changes.setProtection) m_protection = &changes.protection;
         m_viewZoom = changes.viewZoom;
         m_viewNormalZoom = changes.viewNormalZoom;
         for (RowEdits &r : m_rows) {
@@ -1224,7 +1364,7 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet) {
+        if (m_merges || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection) {
             // (what follows the cells is held whole to change its merged ranges, its filter, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -1235,10 +1375,13 @@ private:
             Tag close;
             auto tailOf = [&](const QByteArray &rest) {
                 QByteArray tail = rest;
+                if (m_protection) tail = tailWithProtection(tail, *m_protection, m_prefix);
                 if (m_filter) tail = tailWithFilter(tail, *m_filter, m_prefix);
                 if (m_merges) tail = tailWithMerges(tail, *m_merges, m_prefix);
                 if (m_page) tail = patchPageSetupTail(tail, *m_page, m_prefix);
                 if (!m_drawingId.isEmpty()) tail = tailWithDrawing(tail, m_drawingId, m_prefix);
+                if (!m_legacyId.isEmpty()) tail = tailWithLegacyDrawing(tail, m_legacyId, m_prefix);
+                if (m_links) tail = tailWithLinks(tail, *m_unlinks, *m_links, m_prefix);
                 if (m_hfSet) tail = tailWithHeaderDrawing(tail, m_hfRel, m_prefix);
                 return tail;
             };
@@ -1290,6 +1433,10 @@ private:
     int m_viewKind = -1, m_viewZoom = 0, m_viewNormalZoom = 0;
     bool m_hfSet = false;
     QByteArray m_hfRel;
+    QByteArray m_legacyId;
+    const std::vector<CellRange> *m_unlinks = nullptr;
+    const std::vector<LinkSpec> *m_links = nullptr;
+    const SheetProtection *m_protection = nullptr;
 };
 
 } // namespace
