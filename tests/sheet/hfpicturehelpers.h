@@ -24,7 +24,7 @@ inline HfShape hfShape(const QString &id, const QString &relId = QStringLiteral(
 
 inline QByteArray hfVml(const QVector<HfShape> &shapes)
 {
-    QString xml = QStringLiteral("<xml xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\">"
+    QString xml = QStringLiteral("<xml xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\">"
                                  "<v:shapetype id=\"_x0000_t75\" coordsize=\"21600,21600\" o:spt=\"75\" path=\"m@4@5l@4@11@9@11@9@5xe\" filled=\"f\" stroked=\"f\"><v:stroke joinstyle=\"miter\"/></v:shapetype>");
     int n = 0;
     for (const HfShape &s : shapes)
