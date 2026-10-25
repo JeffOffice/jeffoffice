@@ -1,15 +1,16 @@
 // The check of saving a workbook that has a filter (docs/jeffcrunch.md):
-//   jcrunchtool filter-roundtrip <file.xlsx>   opens the workbook, writes it with the filter of each sheet that has one made again from what was read (the element the file has is taken out and
+//   jcrunchtool filter-roundtrip <file.xlsx> [out.xlsx]   opens the workbook, writes it with the filter of each sheet that has one made again from what was read (the element the file has is taken out and
 //                                              this one put in its place, and `filterMode` set to match), reads the file written, and compares it with the workbook: each sheet's filter (its
 //                                              range and the conditions of its columns), the rows that are hidden (and which of them the filter hides), and every cell (its type, value or
 //                                              text, formula, and format). One line of tab-separated fields: `filter-roundtrip`, the path, the result (ok, or the first differences), the
 //                                              sheets, the sheets that have a filter, the columns with a condition, the cells, and the hidden rows in sheets with a filter.
-//                                              (/home/user/jo-scratch/crunch-find/roundtrip.py runs it over a list of workbooks and sums it up.)
+//                                              (With a second name, the file written is kept there.)
 
 #include "office/package.h"
 #include "sheet/sheetreader.h"
 #include "sheet/xlsxsave.h"
 
+#include <QFile>
 #include <QTextStream>
 
 #include <cmath>
@@ -31,7 +32,7 @@ QTextStream &out()
 
 int filterRoundtripMain(const QStringList &args)
 {
-    if (args.size() != 1) return -1;
+    if (args.size() != 1 && args.size() != 2) return -1;
     const QString path = args[0];
     auto line = [&](const QString &result, int sheets = 0, int filtered = 0, int conditions = 0, qint64 cells = 0, qint64 hidden = 0) {
         out() << "filter-roundtrip\t" << path << '\t' << result << '\t' << sheets << '\t' << filtered << '\t' << conditions << '\t' << cells << '\t' << hidden << "\n";
@@ -68,6 +69,11 @@ int filterRoundtripMain(const QStringList &args)
     if (!saveXlsx(book, changes, &bytes, &why)) {
         line(QStringLiteral("save failed: ") + why, int(book.info().sheets.size()), filtered, conditions, cells, hidden);
         return 3;
+    }
+    if (args.size() == 2) {
+        // (the file written is kept, for another program to open)
+        QFile file(args[1]);
+        if (file.open(QIODevice::WriteOnly)) file.write(bytes);
     }
     Package package;
     Workbook back;
