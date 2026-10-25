@@ -1,5 +1,6 @@
-// What the tests that compare speeds share. A busy machine can make one run of a case several times slower than the same run on a quiet
-// one, so a test that asserts a time takes the fastest of several runs: the work itself, without the load the slow runs had.
+// What the few tests that still ask for a time share. The tests of cost assert counted work (steps, characters read, pictures made, ...); a clock is kept only as a ceiling
+// that is ten times or more what the case takes alone, to keep a work budget's units honest or to stop a hang. A busy machine can make one run of a case several times slower
+// than the same run on a quiet one, so such a test takes the fastest of several runs: the work itself, without the load the slow runs had.
 #pragma once
 
 #include <QElapsedTimer>

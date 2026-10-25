@@ -601,7 +601,7 @@ private Q_SLOTS:
             large.fill(QColor(100, 150, 200));
             before = jp::blipAdjustedMade();
         }) / 1000000;
-        QVERIFY2(turnMs < 5000, qPrintable(QString::number(turnMs)));
+        QVERIFY2(turnMs < 12000, qPrintable(QString::number(turnMs)));   // (a second alone: ten times that)
         QVERIFY(turned.cacheKey() != large.cacheKey());
         QCOMPARE(jp::blipAdjustedMade(), before + 1);
         QCOMPARE(jp::blipAdjusted(large, {hslEffect(120, 0, 0)}).cacheKey(), turned.cacheKey());

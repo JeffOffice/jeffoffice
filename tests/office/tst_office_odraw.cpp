@@ -263,7 +263,7 @@ private Q_SLOTS:
         QByteArray flood = red;
         const QByteArray page = pictU16(0x0031) + pictRect(0, 0, 100, 200);
         for (int i = 0; i < 300000; ++i) flood += page;
-        // (The picture is stopped by the work it may do, which is counted; the clock stays only to keep that work's units honest: about a tenth of a second here.)
+        // (The picture is stopped by the work it may do, which is counted; the clock stays only to keep that work's units honest: a tenth of a second alone, against two seconds.)
         qint64 floodWork = kOdrawPictWork;
         const qint64 floodMs = bestNanoseconds([&] { floodWork = kOdrawPictWork; img = pictImage(odPict(200, 100, flood), &floodWork); }, 3) / 1000000;
         QVERIFY2(kOdrawPictWork - floodWork <= kOdrawPictWork / 4, qPrintable(QString::number(kOdrawPictWork - floodWork)));
@@ -442,12 +442,12 @@ private Q_SLOTS:
     void odrawBlipHoldsAPictToLimits()
     {
         const QByteArray red = pictColor(0x001A, 255, 0, 0);
-        // (Each picture is held to a budget of work, which is counted; the clock stays only to keep that budget's units honest, at about a tenth of what it allows.)
+        // (Each picture is held to a budget of work, which is counted; the clock stays only to keep that budget's units honest: a ceiling of ten times or more what the dearest picture takes alone.)
         auto within = [&](const char *what, const QByteArray &ops) {
             qint64 work = kOdrawPictWork;
             const qint64 ms = bestNanoseconds([&] { work = kOdrawPictWork; pictImage(odPict(200, 100, red + ops), &work); }, 3) / 1000000;
             QVERIFY2(kOdrawPictWork - work <= kOdrawPictWork / 4, qPrintable(QStringLiteral("%1: %2 units of work").arg(QLatin1String(what)).arg(kOdrawPictWork - work)));
-            QVERIFY2(ms < 10000, qPrintable(QStringLiteral("%1: %2 ms").arg(QLatin1String(what)).arg(ms)));
+            QVERIFY2(ms < 20000, qPrintable(QStringLiteral("%1: %2 ms").arg(QLatin1String(what)).arg(ms)));   // (the dearest, the fonts, takes 1.7 s alone: the ceiling is ten times that)
         };
         // A region of 4,000 places in a row that every one of 500 rows after it shifts one of (a million rectangles).
         QByteArray region = pictU16(0) + pictRect(0, 0, 100, 200) + pictU16(1);
