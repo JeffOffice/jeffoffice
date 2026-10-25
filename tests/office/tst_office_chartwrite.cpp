@@ -191,12 +191,11 @@ private Q_SLOTS:
         const QByteArray ours = writeChartPart(comboChart());
         QString why;
         QVERIFY2(chartIsFullyModeled(ours, &why), qPrintable(why));
-        // a gradient fill, a trend line, and a three-dimensional chart are drawn another way, or not at all, by a chart written from the model
+        // a trend line and a three-dimensional chart are drawn another way, or not at all, by a chart written from the model
         QByteArray gradient = ours;
         gradient.replace("<a:solidFill><a:srgbClr val=\"4472C4\"/></a:solidFill>", "<a:gradFill><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"4472C4\"/></a:gs></a:gsLst></a:gradFill>");
         QVERIFY(gradient != ours);
-        QVERIFY(!chartIsFullyModeled(gradient, &why));
-        QCOMPARE(why, QStringLiteral("gradFill"));
+        QVERIFY2(chartIsFullyModeled(gradient, &why), qPrintable(why));   // (a gradient is kept: see whatTheModelKeepsIsWrittenBack)
         QByteArray trend = ours;
         trend.replace("<c:cat>", "<c:trendline><c:trendlineType val=\"linear\"/></c:trendline><c:cat>");
         QVERIFY(!chartIsFullyModeled(trend, &why));
@@ -207,6 +206,109 @@ private Q_SLOTS:
         QVERIFY(!chartIsFullyModeled(QByteArray("<c:chartSpace"), &why));
     }
 
+
+    // What the model has no place for but keeps as the file wrote it, or carries as a field, is written back: for each, the part is one that may be written over, what is written has the element,
+    // and what is written and read again is written the same (read, write, read: equal).
+    void whatTheModelKeepsIsWrittenBack()
+    {
+        const QByteArray ours = writeChartPart(comboChart());
+        auto roundTrip = [&](const QByteArray &xml, const char *marker, Chart *model = nullptr) {
+            QString why;
+            if (!chartIsFullyModeled(xml, &why)) {
+                QTest::qFail(qPrintable(QStringLiteral("not fully modeled (%1): %2").arg(why, QString::fromLatin1(marker))), __FILE__, __LINE__);
+                return QByteArray();
+            }
+            Chart a, b;
+            if (!readChart(xml, defaultTheme(), ColorMap(), &a, &why)) return QByteArray();
+            const QByteArray written = writeChartPart(a);
+            if (!written.contains(marker)) QTest::qFail(qPrintable(QStringLiteral("the written part has no %1").arg(QString::fromLatin1(marker))), __FILE__, __LINE__);
+            if (!readChart(written, defaultTheme(), ColorMap(), &b, &why)) return QByteArray();
+            if (writeChartPart(b) != written) QTest::qFail(qPrintable(QStringLiteral("written again, it differs: %1").arg(QString::fromLatin1(marker))), __FILE__, __LINE__);
+            if (model) *model = a;
+            return written;
+        };
+        // the units of a date axis, and its kind from the data, and every nth tick mark
+        Chart dates = comboChart();
+        dates.axes[0].kind = ChartAxis::Date;
+        dates.axes[0].baseTimeUnit = QStringLiteral("months");
+        dates.axes[0].majorUnit = 2;
+        dates.axes[0].majorTimeUnit = QStringLiteral("months");
+        dates.axes[0].minorUnit = 1;
+        dates.axes[0].minorTimeUnit = QStringLiteral("days");
+        dates.axes[0].autoKind = false;
+        Chart d;
+        const QByteArray dated = roundTrip(writeChartPart(dates), "<c:baseTimeUnit val=\"months\"/>", &d);
+        for (const char *marker : {"<c:majorUnit val=\"2\"/>", "<c:majorTimeUnit val=\"months\"/>", "<c:minorUnit val=\"1\"/>", "<c:minorTimeUnit val=\"days\"/>", "<c:auto val=\"0\"/>"})
+            QVERIFY2(dated.contains(marker), marker);
+        QCOMPARE(d.axes[0].baseTimeUnit, QStringLiteral("months"));
+        QCOMPARE(d.axes[0].majorUnit, 2.0);
+        QVERIFY(!d.axes[0].autoKind);
+        Chart skipped = comboChart();
+        skipped.axes[0].tickMarkSkip = 3;
+        QVERIFY(roundTrip(writeChartPart(skipped), "<c:tickMarkSkip val=\"3\"/>", &d).size() > 0);
+        QCOMPARE(d.axes[0].tickMarkSkip, 3);
+        // a gradient fill of a series, and its shadow: written back while the series has the color that was read, and not when a person gave it another
+        QByteArray gradient = ours;
+        gradient.replace("<c:spPr><a:solidFill><a:srgbClr val=\"4472C4\"/></a:solidFill></c:spPr>",
+                         "<c:spPr><a:gradFill><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"4472C4\"/></a:gs><a:gs pos=\"100000\"><a:srgbClr val=\"112233\"/></a:gs></a:gsLst><a:lin ang=\"5400000\"/></a:gradFill><a:effectLst><a:outerShdw blurRad=\"40000\"/></a:effectLst></c:spPr>");
+        QVERIFY2(gradient != ours, "the first series' look is where the test looks for it");
+        Chart g;
+        const QByteArray gradientWritten = roundTrip(gradient, "<a:gradFill>", &g);
+        QVERIFY(gradientWritten.contains("<a:outerShdw blurRad=\"40000\"/>"));
+        QVERIFY(gradientWritten.contains("<a:srgbClr val=\"112233\"/>"));
+        QCOMPARE(g.plots[0].series[0].color, QColor("#4472C4"));
+        g.plots[0].series[0].color = QColor("#FF0000");
+        const QByteArray recolored = writeChartPart(g);
+        QVERIFY(!recolored.contains("<a:gradFill>"));
+        QVERIFY(recolored.contains("<a:srgbClr val=\"FF0000\"/>"));
+        QVERIFY(recolored.contains("<a:outerShdw blurRad=\"40000\"/>"));   // (the shadow is the series' still)
+        // a point with an outline of its own, and a label of one point with its extension
+        QByteArray point = ours;
+        point.replace("<c:cat>", "<c:dPt><c:idx val=\"1\"/><c:spPr><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill><a:ln w=\"19050\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln></c:spPr></c:dPt><c:cat>");
+        Chart p;
+        const QByteArray pointWritten = roundTrip(point, "w=\"19050\"", &p);
+        QVERIFY(pointWritten.contains("<c:dPt>"));
+        for (ChartPlot &plot : p.plots)
+            for (ChartSeries &series : plot.series) series.pointColors[1] = QColor("#00FF00");
+        QVERIFY(!writeChartPart(p).contains("w=\"19050\""));
+        QByteArray label = ours;
+        label.replace("<c:dLbls>", "<c:dLbls><c:dLbl><c:idx val=\"1\"/><c:dLblPos val=\"r\"/><c:showLegendKey val=\"0\"/><c:showVal val=\"1\"/><c:showCatName val=\"0\"/><c:showSerName val=\"0\"/><c:showPercent val=\"0\"/><c:showBubbleSize val=\"0\"/>"
+                                  "<c:extLst><c:ext uri=\"{CE6537A1-D6FC-4f65-9D91-7224C49458BB}\" xmlns:c15=\"http://schemas.microsoft.com/office/drawing/2012/chart\"><c15:layout/></c:ext></c:extLst></c:dLbl>");
+        QVERIFY2(label != ours, "the line's labels are where the test looks for them");
+        const QByteArray labelWritten = roundTrip(label, "<c:dLbl>");
+        QVERIFY(labelWritten.contains("c15:layout"));
+        QByteArray labelsExt = ours;
+        labelsExt.replace("</c:dLbls>", "<c:extLst><c:ext uri=\"{CE6537A1-D6FC-4f65-9D91-7224C49458BB}\" xmlns:c15=\"http://schemas.microsoft.com/office/drawing/2012/chart\"><c15:layout/></c:ext></c:extLst></c:dLbls>");
+        QVERIFY(roundTrip(labelsExt, "c15:layout").size() > 0);
+        // an entry taken off the legend
+        QByteArray entry = ours;
+        entry.replace("<c:legendPos val=\"b\"/>", "<c:legendPos val=\"b\"/><c:legendEntry><c:idx val=\"1\"/><c:delete val=\"1\"/></c:legendEntry>");
+        QVERIFY2(entry != ours, "the legend is where the test looks for it");
+        QVERIFY(roundTrip(entry, "<c:legendEntry>").size() > 0);
+        // the drawing of shapes over the chart, and the workbook it was made from: links of the part, good for the part only
+        QByteArray links = ours;
+        links.replace("</c:chartSpace>", "<c:externalData r:id=\"rId2\"><c:autoUpdate val=\"0\"/></c:externalData><c:userShapes r:id=\"rId1\"/></c:chartSpace>");
+        Chart l;
+        const QByteArray linked = roundTrip(links, "<c:userShapes", &l);
+        QVERIFY(linked.contains("<c:externalData"));
+        QCOMPARE(l.userShapesId, QStringLiteral("rId1"));
+        QCOMPARE(l.externalDataId, QStringLiteral("rId2"));
+        l.clearPartLinks();
+        QVERIFY(!writeChartPart(l).contains("userShapes") && !writeChartPart(l).contains("externalData"));
+        // a chart area with no fill
+        QByteArray none = ours;
+        none.replace("</c:chart>", "</c:chart><c:spPr><a:noFill/></c:spPr>");
+        QVERIFY2(none != ours, "the chart area is where the test looks for it");
+        Chart n;
+        QVERIFY(roundTrip(none, "</c:chart><c:spPr><a:noFill/>", &n).size() > 0);
+        QVERIFY(n.backgroundNone);
+        // what is kept does not change how the chart is drawn
+        Chart plain, kept;
+        QVERIFY(readChart(ours, defaultTheme(), ColorMap(), &plain));
+        QVERIFY(readChart(gradient, defaultTheme(), ColorMap(), &kept));
+        QCOMPARE(chartSvg(plain, QSizeF(480, 288)), chartSvg(plain, QSizeF(480, 288)));
+    }
+
     // Whether a part may be written over is decided by writing what is read of it and looking at what is lost: an element or attribute the writer does not carry, a part of the extensions, a value
     // that is only written as the usual one, or a picture that is not the same. What only says how the part was set up, or how a color is made, is not a loss.
     void aPartIsWrittenOverOnlyIfTheRoundTripLosesNothing()
@@ -214,7 +316,7 @@ private Q_SLOTS:
         const QByteArray ours = writeChartPart(comboChart());
         QString why;
         QVERIFY2(chartIsFullyModeled(ours, &why), qPrintable(why));
-        // a date axis that says the unit of its dates: the writer does not carry it
+        // a date axis that says the unit of its dates is kept (see whatTheModelKeepsIsWrittenBack); an element of it that is not the schema's has nowhere to go
         Chart dates = comboChart();
         dates.axes[0].kind = ChartAxis::Date;
         const QByteArray dateAxis = writeChartPart(dates);
@@ -222,14 +324,11 @@ private Q_SLOTS:
         QByteArray unit = dateAxis;
         unit.replace("<c:lblOffset val=\"100\"/>", "<c:lblOffset val=\"100\"/><c:baseTimeUnit val=\"days\"/>");
         QVERIFY(unit != dateAxis);
-        QVERIFY(!chartIsFullyModeled(unit, &why));
-        QCOMPARE(why, QStringLiteral("baseTimeUnit"));
-        for (const char *name : {"majorTimeUnit", "minorTimeUnit"}) {
-            QByteArray other = dateAxis;
-            other.replace("<c:lblOffset val=\"100\"/>", QByteArray("<c:lblOffset val=\"100\"/><c:") + name + " val=\"days\"/>");
-            QVERIFY(!chartIsFullyModeled(other, &why));
-            QCOMPARE(why, QString::fromLatin1(name));
-        }
+        QVERIFY2(chartIsFullyModeled(unit, &why), qPrintable(why));
+        QByteArray strange = dateAxis;
+        strange.replace("<c:lblOffset val=\"100\"/>", "<c:lblOffset val=\"100\"/><c:dispUnits><c:builtInUnit val=\"thousands\"/></c:dispUnits>");
+        QVERIFY(!chartIsFullyModeled(strange, &why));
+        QCOMPARE(why, QStringLiteral("builtInUnit"));
         // the style offered twice (newer programs' form, and the plain one as the fallback) is the plain one; any other offer is not kept
         QByteArray offered = ours;
         offered.replace("<c:style val=\"2\"/>", "<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"c14\" xmlns:c14=\"http://schemas.microsoft.com/office/drawing/2007/8/2/chart\"><c14:style val=\"102\"/></mc:Choice><mc:Fallback><c:style val=\"2\"/></mc:Fallback></mc:AlternateContent>");
@@ -255,8 +354,7 @@ private Q_SLOTS:
         QVERIFY2(chartIsFullyModeled(labelled, &why), qPrintable(why));   // (labels that are on are the model's: the writer writes them)
         QByteArray oneLabel = unlabelled;
         oneLabel.replace("<c:ser>", "<c:ser><c:dLbls><c:dLbl><c:idx val=\"0\"/><c:showVal val=\"1\"/></c:dLbl><c:showVal val=\"0\"/></c:dLbls>");
-        QVERIFY(!chartIsFullyModeled(oneLabel, &why));
-        QCOMPARE(why, QStringLiteral("dLbl"));
+        QVERIFY2(chartIsFullyModeled(oneLabel, &why), qPrintable(why));   // (a label of one point is kept)
         // text that is not raised or lowered says so (baseline 0) and loses nothing; one that is raised does
         QByteArray level = ours;
         level.replace("<a:defRPr", "<a:defRPr baseline=\"0\"");
@@ -273,24 +371,28 @@ private Q_SLOTS:
         QVERIFY(!chartIsFullyModeled(field, &why));
         QCOMPARE(why, QStringLiteral("fld"));
         // things the model has no place for
-        for (const char *extra : {"<c:legendEntry><c:idx val=\"0\"/><c:delete val=\"1\"/></c:legendEntry>"}) {
+        for (const char *extra : {"<c:legendEntry><c:idx val=\"0\"/><c:txPr/></c:legendEntry>"}) {   // (an entry's own text look is the entry's, kept with it)
             QByteArray with = ours;
             with.replace("<c:legendPos val=\"b\"/>", QByteArray("<c:legendPos val=\"b\"/>") + extra);
-            QVERIFY(!chartIsFullyModeled(with, &why));
-            QCOMPARE(why, QStringLiteral("legendEntry"));
+            QVERIFY2(chartIsFullyModeled(with, &why), qPrintable(why));
         }
+        QByteArray hidden = ours;
+        hidden.replace("<c:legendPos val=\"b\"/>", "<c:legendPos val=\"b\"/><c:legendEntry><c:idx val=\"0\"/><c:delete val=\"1\"/></c:legendEntry>");
+        QVERIFY2(chartIsFullyModeled(hidden, &why), qPrintable(why));
         QByteArray colorMap = ours;
         colorMap.replace("<c:chart>", "<c:clrMapOvr bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" accent5=\"accent5\" accent6=\"accent6\" hlink=\"hlink\" folHlink=\"folHlink\"/><c:chart>");
         QVERIFY(!chartIsFullyModeled(colorMap, &why));
         QCOMPARE(why, QStringLiteral("clrMapOvr"));
         QByteArray tick = ours;
         tick.replace("<c:lblOffset val=\"100\"/>", "<c:lblOffset val=\"100\"/><c:tickMarkSkip val=\"2\"/>");
-        QVERIFY(!chartIsFullyModeled(tick, &why));
-        QCOMPARE(why, QStringLiteral("tickMarkSkip"));
+        QVERIFY2(chartIsFullyModeled(tick, &why), qPrintable(why));   // (carried: see whatTheModelKeepsIsWrittenBack)
+        QByteArray strangeTick = ours;
+        strangeTick.replace("<c:lblOffset val=\"100\"/>", "<c:lblOffset val=\"100\"/><c:noMultiLvlLbl val=\"1\"/>");
+        QVERIFY2(chartIsFullyModeled(strangeTick, &why), qPrintable(why));
         QByteArray external = ours;
-        external.replace("</c:chartSpace>", "<c:externalData r:id=\"rId1\"><c:autoUpdate val=\"0\"/></c:externalData></c:chartSpace>");
+        external.replace("</c:chartSpace>", "<c:externalData r:id=\"rId1\"><c:autoUpdate val=\"0\"/><c:extra/></c:externalData></c:chartSpace>");
         QVERIFY(!chartIsFullyModeled(external, &why));
-        QCOMPARE(why, QStringLiteral("autoUpdate"));
+        QCOMPARE(why, QStringLiteral("extra"));
         QByteArray arrow = ours;
         arrow.replace("<a:ln w=\"28575\" cap=\"rnd\">", "<a:ln w=\"28575\" cap=\"rnd\"><a:headEnd type=\"triangle\"/>");
         if (arrow != ours) {

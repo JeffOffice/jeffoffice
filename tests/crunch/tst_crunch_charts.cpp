@@ -800,6 +800,37 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.nameBox()->text(), QStringLiteral("C4"));
     }
 
+
+    // The links of a chart part (the shapes over the chart, the workbook it was made from) are good for that part only: a copy of the chart, in a part of its own, has none.
+    void aCopyOfAChartHasNoLinksOfThePartItCameFrom()
+    {
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+        QByteArray part = chartPart(QStringLiteral("barChart"), series);
+        part.replace("</c:chartSpace>", "<c:userShapes r:id=\"rId1\"/></c:chartSpace>");
+        QGuiApplication::clipboard()->clear();
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart(QStringLiteral("barChart"), part)));
+        QTRY_VERIFY(objectsShown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(o->canEditChart(0, 0));   // (the part is one that may be written over: it keeps the link)
+        o->layer()->select(0);
+        e.win.w.act(QStringLiteral("edit.copy"))->trigger();
+        e.select(QStringLiteral("B20"));
+        e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(int(o->idsOf(0).size()), 2);
+        QVERIFY(o->chartNow(0, 1).userShapesId.isEmpty());
+        QVERIFY(save(e));
+        const QMap<QString, QByteArray> parts = partsOf(e.path);
+        int linked = 0, charts = 0;
+        for (auto it = parts.begin(); it != parts.end(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/charts/chart")) && it.key().endsWith(QLatin1String(".xml"))) {
+                ++charts;
+                if (it.value().contains("userShapes")) ++linked;
+            }
+        QCOMPARE(charts, 2);
+        QCOMPARE(linked, 1);   // (the first chart's part is as it was; the copy's has no link)
+    }
+
     // ---- the order
 
     void objectsAreBroughtForwardAndSentBackward()

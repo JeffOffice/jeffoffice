@@ -102,6 +102,7 @@ bool ObjectClip::chart(const jp::office::Theme &theme, bool sameBook, jp::office
 {
     jp::office::Chart c;
     if (!jp::office::readChart(chartXml, theme, jp::office::ColorMap(), &c)) return false;
+    c.clearPartLinks();
     if (!sameBook) dropReferences(&c);
     *out = c;
     return true;

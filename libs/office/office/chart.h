@@ -50,6 +50,15 @@ struct ChartFont {
     QString family;                 // empty: the theme's body font
 };
 
+// Parts of a chart part that the model neither draws nor edits, kept as the file wrote them so that a part written from the model still has them (a rewritten chart keeps its gradient,
+// shadow, and the like). They ride along with the object they were read on (a series, a point, the legend); nothing here changes how a chart is drawn.
+struct ChartKept {
+    QByteArray fill;                // a gradient or pattern fill of a c:spPr, and
+    QColor fillColor;               // the color the model took of it: the fill is written only while the object still has that color (a person's new color replaces it)
+    QByteArray effects;             // the effects of a c:spPr (shadow, glow, 3-D look), written after the line
+    bool any() const { return !fill.isEmpty() || !effects.isEmpty(); }
+};
+
 struct ChartLine {
     bool set = false;               // the file says how the line looks
     bool none = false;              // no line
@@ -82,6 +91,8 @@ struct ChartMarker {
 
 struct ChartDataLabels {
     bool value = false, category = false, series = false, percent = false;
+    QByteArray ext;                 // the labels' extension list (c:extLst), as the file wrote it
+    QMap<int, QByteArray> kept;     // the labels of single points (c:dLbl), by the point's place, as the file wrote them
     QString position;               // c:dLblPos: "outEnd", "ctr", "inEnd", "inBase", "bestFit", "l", "r", "t", "b"; empty: the usual for the chart
     QString format;                 // a number format; empty: the values' own
     ChartFont font;
@@ -105,6 +116,12 @@ struct ChartSeries {
     bool noFill = false;            // the file says no fill
     ChartLine outline;              // the border of bars, areas, and slices; the stroke of a line
     QMap<int, QColor> pointColors;  // a point (or a slice) of another color, by its place
+    struct KeptPoint {
+        QByteArray xml;             // the file's c:dPt for the place
+        QColor color;               // the color the model took of it: written as it was while the point still has that color
+    };
+    QMap<int, KeptPoint> keptPoints;
+    ChartKept kept;                 // of the series' c:spPr
     // Where a chart in a workbook reads the series' data (the c:f of its name, its categories, and its values, or of a scatter's x and y values); empty when
     // the file gives a literal or says nothing. The name, categories, and values above are what the file stored; a program that has the cells puts theirs in.
     QString nameRef, categoryRef, valueRef, xRef;
@@ -161,6 +178,11 @@ struct ChartAxis {
     double crossesAt = 0;
     int labelSkip = 0;              // every nth category label; 0: as many as fit
     bool between = true;            // a value axis: the categories sit between ticks (else on them)
+    // A date axis (c:dateAx): the unit its dates are counted in and the units of its ticks ("days", "months", "years"; empty: the file says none), and whether it takes its kind from the data
+    QString baseTimeUnit, majorTimeUnit, minorTimeUnit;
+    bool autoKind = true;           // c:auto
+    int tickMarkSkip = 0;           // every nth tick mark; 0: the usual
+    ChartKept lineKept;             // of the axis line's c:spPr
 };
 
 struct ChartLegend {
@@ -174,6 +196,8 @@ struct ChartLegend {
     double x = 0, y = 0, w = 0, h = 0;
     QColor fill;                    // the legend's own fill; invalid for none
     ChartLine border;               // and its border
+    ChartKept kept;
+    QVector<QByteArray> entries;    // its c:legendEntry elements (an entry taken off the legend), as the file wrote them
 };
 
 struct Chart {
@@ -191,6 +215,13 @@ struct Chart {
     ChartLine border;               // the chart area's border
     QColor plotFill;                // the plot area's fill; invalid for none
     ChartLine plotBorder;
+    ChartKept backgroundKept, plotKept;   // of the c:spPr of the chart area and of the plot area
+    bool backgroundNone = false;    // the file says the chart area has no fill
+    // The relationships of the chart part's own (xl/charts/_rels) that it names: the drawing of shapes over the chart (c:userShapes) and the workbook it was made from (c:externalData). They
+    // are good only for the part they were read in: a chart put in another part has them cleared (clearPartLinks).
+    QString userShapesId, externalDataId;
+    bool externalAutoUpdate = false;
+    void clearPartLinks() { userShapesId.clear(); externalDataId.clear(); }
     // The plot area's place when the file fixes it, as fractions of the chart.
     bool plotManual = false, plotInner = true;
     double plotX = 0, plotY = 0, plotW = 0, plotH = 0;

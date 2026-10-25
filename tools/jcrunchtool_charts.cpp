@@ -13,6 +13,8 @@
 #include "core/sheetobjects.h"
 #include "grid/gridview.h"
 #include "sheet/chartedit.h"
+#include "office/chart_write.h"
+#include "office/package.h"
 
 #include <QApplication>
 #include <QDir>
@@ -271,12 +273,27 @@ int shots(const QString &in, const QString &dir)
     return 0;
 }
 
+// One line per chart part of the workbook: path, part, and everything the writer would lose of it (separated by "|"; empty: nothing).
+int losses(const QString &in)
+{
+    office::Package p;
+    QString why;
+    if (!p.readLazyFile(in, &why)) return 1;
+    for (const QString &name : p.partNames()) {
+        if (!name.startsWith(QLatin1String("/xl/charts/chart"), Qt::CaseInsensitive) || !name.endsWith(QLatin1String(".xml"), Qt::CaseInsensitive)) continue;
+        out() << in << '\t' << name << '\t' << office::chartLosses(p.part(name), false).join(QLatin1Char('|')) << "\n";
+    }
+    out().flush();
+    return 0;
+}
+
 } // namespace
 
 namespace jp::crunchtool {
 
 int chartsMain(const QStringList &args)
 {
+    if (args.size() == 2 && args[0] == QLatin1String("charts-losses")) return losses(args[1]);
     if (args.size() == 3 && args[0] == QLatin1String("charts-roundtrip")) return roundtrip(args[1], args[2]);
     if (args.size() >= 6 && args[0] == QLatin1String("charts-insert")) return insert(args[1], args[2], args[3].toInt() - 1, args[4], args.mid(5));
     if (args.size() == 3 && args[0] == QLatin1String("charts-shots")) return shots(args[1], args[2]);

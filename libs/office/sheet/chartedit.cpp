@@ -360,6 +360,15 @@ Chart withSeries(const Chart &chart, const QVector<ChartSeries> &series, const Q
     while (kinds.size() < series.size()) kinds << (kinds.isEmpty() ? (before.isEmpty() ? SeriesKind() : before.last()) : kinds.last());
     kinds.resize(series.size());
     Chart c = chartFromSeries(series, kinds, theme, &chart);
+    // what a series was kept to say of single points (their looks and labels) was said of the kind it was drawn as
+    bool sameKinds = kinds.size() == before.size();
+    for (int i = 0; sameKinds && i < kinds.size(); ++i) sameKinds = kinds[i].kind == before[i].kind && kinds[i].secondary == before[i].secondary;
+    if (!sameKinds)
+        for (ChartPlot &p : c.plots)
+            for (ChartSeries &s : p.series) {
+                s.keptPoints.clear();
+                s.labels.kept.clear();
+            }
     if (!c.plots.isEmpty() && (c.plots[0].type == ChartType::Pie || c.plots[0].type == ChartType::Doughnut) && !c.plots[0].series.isEmpty()) {
         ChartSeries &s = c.plots[0].series[0];
         if (s.pointColors.isEmpty()) {

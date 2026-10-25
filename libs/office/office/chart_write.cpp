@@ -5,6 +5,7 @@
 #include <QDomDocument>
 #include <QHash>
 #include <QSet>
+#include <QXmlStreamReader>
 #include <QXmlStreamWriter>
 
 #include <algorithm>
@@ -62,8 +63,18 @@ public:
         val("c:style", QString::number(std::clamp(c.style, 1, 48)));
         chart();
         // the chart area
-        shapeProps(c.background, false, c.border);
+        shapeProps(c.background, c.backgroundNone && !c.background.isValid(), c.border, QColor(), 0, false, &c.backgroundKept);
         if (hasFont(c.font)) textProps(c.font, false, 0);
+        if (!c.externalDataId.isEmpty()) {
+            w.writeStartElement(QStringLiteral("c:externalData"));
+            w.writeAttribute(QString::fromLatin1(kRNs), QStringLiteral("id"), c.externalDataId);
+            flag("c:autoUpdate", c.externalAutoUpdate);
+            w.writeEndElement();
+        }
+        if (!c.userShapesId.isEmpty()) {
+            w.writeEmptyElement(QStringLiteral("c:userShapes"));
+            w.writeAttribute(QString::fromLatin1(kRNs), QStringLiteral("id"), c.userShapesId);
+        }
         w.writeEndElement();
         w.writeEndDocument();
         return out;
@@ -118,14 +129,47 @@ private:
         w.writeEndElement();
     }
 
-    // c:spPr with a fill (invalid: none written; `noFill`: no fill) and a line.
-    void shapeProps(const QColor &fill, bool noFill, const ChartLine &l, const QColor &lineFallback = QColor(), double lineWidth = 0, bool round = false)
+    // Markup the model kept as the file wrote it (one element, or several one after another).
+    void raw(const QByteArray &xml)
     {
-        if (!fill.isValid() && !noFill && !l.set && !lineFallback.isValid()) return;
+        if (xml.isEmpty()) return;
+        QXmlStreamReader r(QByteArray("<k>") + xml + "</k>");
+        int depth = 0;
+        while (!r.atEnd()) {
+            const QXmlStreamReader::TokenType t = r.readNext();
+            if (t == QXmlStreamReader::StartDocument || t == QXmlStreamReader::EndDocument || t == QXmlStreamReader::Invalid) continue;
+            if (t == QXmlStreamReader::StartElement && depth++ == 0) continue;
+            if (t == QXmlStreamReader::EndElement && --depth == 0) continue;
+            switch (t) {
+            case QXmlStreamReader::StartElement:
+                w.writeStartElement(r.qualifiedName().toString());
+                for (const QXmlStreamNamespaceDeclaration &d : r.namespaceDeclarations()) {
+                    const QString prefix = d.prefix().toString(), uri = d.namespaceUri().toString();
+                    // (the part's own three are declared on its root)
+                    if ((prefix == QLatin1String("c") && uri == QLatin1String(kCNs)) || (prefix == QLatin1String("a") && uri == QLatin1String(kANs)) || (prefix == QLatin1String("r") && uri == QLatin1String(kRNs))) continue;
+                    w.writeNamespace(uri, prefix);
+                }
+                for (const QXmlStreamAttribute &attribute : r.attributes()) w.writeAttribute(attribute.qualifiedName().toString(), attribute.value().toString());
+                break;
+            case QXmlStreamReader::EndElement: w.writeEndElement(); break;
+            case QXmlStreamReader::Characters: w.writeCharacters(r.text().toString()); break;
+            default: break;
+            }
+        }
+    }
+
+    // c:spPr with a fill (invalid: none written; `noFill`: no fill) and a line; `kept` is what the file had of a gradient fill (written while the fill is the color the model took of it) and of effects.
+    void shapeProps(const QColor &fill, bool noFill, const ChartLine &l, const QColor &lineFallback = QColor(), double lineWidth = 0, bool round = false, const ChartKept *kept = nullptr)
+    {
+        const bool keepFill = kept && !kept->fill.isEmpty() && !noFill && fill == kept->fillColor;
+        const bool keepEffects = kept && !kept->effects.isEmpty();
+        if (!fill.isValid() && !noFill && !l.set && !lineFallback.isValid() && !keepFill && !keepEffects) return;
         w.writeStartElement(QStringLiteral("c:spPr"));
         if (noFill) w.writeEmptyElement(QStringLiteral("a:noFill"));
+        else if (keepFill) raw(kept->fill);
         else if (fill.isValid()) colorFill(fill);
         line(l, lineFallback, lineWidth, round);
+        if (keepEffects) raw(kept->effects);
         w.writeEndElement();
     }
 
@@ -326,8 +370,9 @@ private:
 
     void labels(const ChartDataLabels &l, bool pie)
     {
-        if (!l.shown()) return;
+        if (!l.shown() && l.kept.isEmpty()) return;
         w.writeStartElement(QStringLiteral("c:dLbls"));
+        for (const QByteArray &label : l.kept) raw(label);
         if (!l.format.isEmpty()) {
             w.writeEmptyElement(QStringLiteral("c:numFmt"));
             w.writeAttribute(QStringLiteral("formatCode"), clean(l.format));
@@ -343,6 +388,7 @@ private:
         flag("c:showBubbleSize", false);
         if (!l.separator.isEmpty()) text("c:separator", l.separator);
         if (pie) flag("c:showLeaderLines", true);
+        raw(l.ext);
         w.writeEndElement();
     }
 
@@ -372,9 +418,9 @@ private:
                 l.set = true;
                 l.none = true;
             }
-            shapeProps(QColor(), false, l, s.color, 2.25, true);
+            shapeProps(QColor(), false, l, s.color, 2.25, true, &s.kept);
         } else {
-            shapeProps(s.noFill ? QColor() : s.color, s.noFill, s.outline);
+            shapeProps(s.noFill ? QColor() : s.color, s.noFill, s.outline, QColor(), 0, false, &s.kept);
         }
         if (stroked) marker(s.marker, s.color, true);
         if (plot.type == ChartType::Pie || plot.type == ChartType::Doughnut) {
@@ -382,12 +428,24 @@ private:
         } else if (plot.type == ChartType::Bar) {
             flag("c:invertIfNegative", false);
         }
-        for (auto it = s.pointColors.cbegin(); it != s.pointColors.cend(); ++it) {
+        QList<int> places = s.pointColors.keys();
+        for (auto it = s.keptPoints.cbegin(); it != s.keptPoints.cend(); ++it)
+            if (!s.pointColors.contains(it.key())) places << it.key();
+        std::sort(places.begin(), places.end());
+        for (const int at : std::as_const(places)) {
+            const QColor color = s.pointColors.value(at);
+            const auto kept = s.keptPoints.constFind(at);
+            // a point the file said more of than a color is written as the file wrote it while its color is the one that was read
+            if (kept != s.keptPoints.cend() && kept->color == color) {
+                raw(kept->xml);
+                continue;
+            }
+            if (!s.pointColors.contains(at)) continue;
             w.writeStartElement(QStringLiteral("c:dPt"));
-            val("c:idx", QString::number(it.key()));
+            val("c:idx", QString::number(at));
             if (plot.type == ChartType::Bar) flag("c:invertIfNegative", false);
             if (plot.type != ChartType::Pie && plot.type != ChartType::Doughnut) flag("c:bubble3D", false);
-            shapeProps(it.value(), false, ChartLine());
+            shapeProps(color, false, ChartLine());
             w.writeEndElement();
         }
         labels(s.labels, plot.type == ChartType::Pie || plot.type == ChartType::Doughnut);
@@ -493,7 +551,7 @@ private:
         val("c:majorTickMark", a.majorTick);
         val("c:minorTickMark", a.minorTick);
         val("c:tickLblPos", a.labelPosition);
-        shapeProps(QColor(), false, a.line);
+        shapeProps(QColor(), false, a.line, QColor(), 0, false, &a.lineKept);
         if (hasFont(a.font) || a.hasRotation) textProps(a.font, a.hasRotation, a.labelRotation);
         val("c:crossAx", QString::number(a.crossId));
         if (a.hasCrossesAt) val("c:crossesAt", number(a.crossesAt));
@@ -503,11 +561,20 @@ private:
             if (a.majorUnit > 0) val("c:majorUnit", number(a.majorUnit));
             if (a.minorUnit > 0) val("c:minorUnit", number(a.minorUnit));
         } else {
-            flag("c:auto", true);
+            flag("c:auto", a.autoKind);
             if (!date) val("c:lblAlgn", QStringLiteral("ctr"));
             val("c:lblOffset", QStringLiteral("100"));
-            if (!date && a.labelSkip > 0) val("c:tickLblSkip", QString::number(a.labelSkip));
-            if (!date) flag("c:noMultiLvlLbl", false);
+            if (date) {
+                if (!a.baseTimeUnit.isEmpty()) val("c:baseTimeUnit", a.baseTimeUnit);
+                if (a.majorUnit > 0) val("c:majorUnit", number(a.majorUnit));
+                if (!a.majorTimeUnit.isEmpty()) val("c:majorTimeUnit", a.majorTimeUnit);
+                if (a.minorUnit > 0) val("c:minorUnit", number(a.minorUnit));
+                if (!a.minorTimeUnit.isEmpty()) val("c:minorTimeUnit", a.minorTimeUnit);
+            } else {
+                if (a.labelSkip > 0) val("c:tickLblSkip", QString::number(a.labelSkip));
+                if (a.tickMarkSkip > 0) val("c:tickMarkSkip", QString::number(a.tickMarkSkip));
+                flag("c:noMultiLvlLbl", false);
+            }
         }
         w.writeEndElement();
     }
@@ -516,9 +583,10 @@ private:
     {
         w.writeStartElement(QStringLiteral("c:legend"));
         val("c:legendPos", l.position);
+        for (const QByteArray &entry : l.entries) raw(entry);
         if (l.manual) manualPlace(l.edge, l.x, l.y, l.w, l.h);
         flag("c:overlay", l.overlay);
-        shapeProps(l.fill, false, l.border);
+        shapeProps(l.fill, false, l.border, QColor(), 0, false, &l.kept);
         if (hasFont(l.font)) textProps(l.font, false, 0);
         w.writeEndElement();
     }
@@ -533,7 +601,7 @@ private:
         else w.writeEmptyElement(QStringLiteral("c:layout"));
         for (const ChartPlot &p : c.plots) plot(p);
         for (const ChartAxis &a : c.axes) axis(a);
-        shapeProps(c.plotFill, false, c.plotBorder);
+        shapeProps(c.plotFill, false, c.plotBorder, QColor(), 0, false, &c.plotKept);
         w.writeEndElement();
         if (c.legend.shown) legend(c.legend);
         flag("c:plotVisOnly", c.plotVisibleOnly);
@@ -580,9 +648,10 @@ bool isHarmlessElement(const QString &name)
 }
 bool isHarmlessAttribute(const QString &name)
 {
+    // (the legacy index of a color that is given by its value; the format of a cached point, which the cells give again)
     static const QSet<QString> s = {"cmpd", "algn", "kern", "spc", "lang", "dirty", "altLang", "noProof", "smtClean", "err", "rtl", "anchor", "anchorCtr", "spcFirstLastPara", "vertOverflow", "horzOverflow",
                                     "wrap", "lIns", "tIns", "rIns", "bIns", "numCol", "spcCol", "upright", "forceAA", "compatLnSpc", "fromWordArt", "rotWithShape", "Ignorable", "id", "pos", "pitchFamily",
-                                    "charset", "panose", "uri"};
+                                    "charset", "panose", "uri", "legacySpreadsheetColorIndex"};
     return s.contains(name);
 }
 
@@ -620,7 +689,7 @@ bool showsNothing(const QDomElement &labels)
     return !shown;
 }
 
-void collect(const QDomElement &e, Shape *out, int depth)
+void collect(const QDomElement &e, Shape *out, int depth, QStringList &path)
 {
     if (depth > 64) {
         out->problem = QStringLiteral("too deep");
@@ -628,6 +697,7 @@ void collect(const QDomElement &e, Shape *out, int depth)
     }
     const QString name = e.localName();
     if (name == QLatin1String("printSettings")) return;   // (how it is printed: not kept, not a chart's look)
+    if (name == QLatin1String("extLst") && (path.contains(QStringLiteral("dLbl")) || path.contains(QStringLiteral("dLbls")))) return;   // (a label of a point is kept as the file wrote it, extensions and all)
     if (name == QLatin1String("extLst")) {
         // extensions: only those that hold nothing but an identifier of the chart or of a series
         for (QDomElement ext = e.firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement())
@@ -638,7 +708,15 @@ void collect(const QDomElement &e, Shape *out, int depth)
             }
         return;
     }
-    if (name == QLatin1String("bubble3D") && isOff(e)) return;   // (the usual: written by programs for every series, and it draws nothing)
+    if (name == QLatin1String("bubble3D") && isOff(e)) return;
+    if (name == QLatin1String("prstDash") && e.attribute(QStringLiteral("val")) == QLatin1String("solid")) return;   // (a solid line: the usual)
+    if (name == QLatin1String("showLeaderLines") && isOff(e)) return;
+    // no fill where the model has nothing to say it of (titles, labels, the legend's and the plot area's own fill, which are none when not said)
+    if (name == QLatin1String("noFill")) {
+        const bool inText = path.contains(QStringLiteral("title")) || path.contains(QStringLiteral("dLbls")) || path.contains(QStringLiteral("dLbl"));
+        const QString parent = path.value(path.size() - 1), grand = path.value(path.size() - 2);
+        if (inText || (parent == QLatin1String("spPr") && (grand == QLatin1String("plotArea") || grand == QLatin1String("legend")))) return;
+    }   // (the usual: written by programs for every series, and it draws nothing)
     if (name == QLatin1String("dLbls") && showsNothing(e)) return;   // (labels that are all turned off, or deleted: a chart without labels has none to write)
     if (name == QLatin1String("AlternateContent")) {
         // the markup that gives the chart's style in a form newer programs read and, as a fallback, in the plain one: the plain one is the model's (the writer writes it); any other offer is not
@@ -647,7 +725,7 @@ void collect(const QDomElement &e, Shape *out, int depth)
                 for (QDomElement c = choice.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
                     if (c.localName() != QLatin1String("style")) out->problem = QStringLiteral("AlternateContent (%1)").arg(c.localName());
             } else if (choice.localName() == QLatin1String("Fallback")) {
-                for (QDomElement c = choice.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) collect(c, out, depth + 1);
+                for (QDomElement c = choice.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) collect(c, out, depth + 1, path);
             } else {
                 out->problem = QStringLiteral("AlternateContent (%1)").arg(choice.localName());
             }
@@ -662,7 +740,9 @@ void collect(const QDomElement &e, Shape *out, int depth)
         if (isUsualValue(a.localName(), a.value())) continue;
         attrs.insert(a.localName().isEmpty() ? a.name() : a.localName());
     }
-    for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) collect(c, out, depth + 1);
+    path.append(name);
+    for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) collect(c, out, depth + 1, path);
+    path.removeLast();
 }
 
 QStringList refsOf(const Chart &c)
@@ -677,50 +757,78 @@ QStringList refsOf(const Chart &c)
 
 } // namespace
 
-bool chartIsFullyModeled(const QByteArray &chartPartXml, QString *why)
+QStringList chartLosses(const QByteArray &chartPartXml, bool firstOnly)
 {
+    QStringList lost;
     auto no = [&](const QString &text) {
-        if (why) *why = text;
-        return false;
+        lost << text;
+        return firstOnly;   // (true: stop at the first)
     };
-    if (chartPartXml.size() > 512 * 1024) return no(QStringLiteral("a part too large to be looked through"));
+    if (chartPartXml.size() > 512 * 1024) {
+        no(QStringLiteral("a part too large to be looked through"));
+        return lost;
+    }
     QDomDocument doc;
     QString problem;
-    if (!parseXml(chartPartXml, &doc, &problem)) return no(problem);
+    if (!parseXml(chartPartXml, &doc, &problem)) {
+        no(problem);
+        return lost;
+    }
     const Theme theme = defaultTheme();
     Chart a;
-    if (!readChart(chartPartXml, theme, ColorMap(), &a, &problem)) return no(problem);
+    if (!readChart(chartPartXml, theme, ColorMap(), &a, &problem)) {
+        no(problem);
+        return lost;
+    }
     // what is written of what was read, read again
     const QByteArray written = writeChartPart(a);
     QDomDocument out;
-    if (!parseXml(written, &out, &problem)) return no(problem);
+    if (!parseXml(written, &out, &problem)) {
+        no(problem);
+        return lost;
+    }
     Chart b;
-    if (!readChart(written, theme, ColorMap(), &b, &problem)) return no(problem);
+    if (!readChart(written, theme, ColorMap(), &b, &problem)) {
+        no(problem);
+        return lost;
+    }
     // every element of the part, and every attribute an element has, is in what is written (but what only says how a program set the part up)
     Shape was, now;
-    collect(doc.documentElement(), &was, 0);
-    collect(out.documentElement(), &now, 0);
-    if (!was.problem.isEmpty()) return no(was.problem);
+    QStringList path;
+    collect(doc.documentElement(), &was, 0, path);
+    collect(out.documentElement(), &now, 0, path);
+    if (!was.problem.isEmpty() && no(was.problem)) return lost;
     QStringList names = was.elements.keys();
     names.sort();   // (the first thing missing, in the same order every time)
     for (const QString &name : std::as_const(names)) {
         if (isHarmlessElement(name)) continue;
-        if (!now.elements.contains(name)) return no(name);
+        if (!now.elements.contains(name)) {
+            if (no(name)) return lost;
+            continue;
+        }
         QStringList attrs = was.elements.value(name).values();
         attrs.sort();
         for (const QString &attr : std::as_const(attrs))
-            if (!isHarmlessAttribute(attr) && !now.elements.value(name).contains(attr)) return no(name + QLatin1Char('@') + attr);
+            if (!isHarmlessAttribute(attr) && !(name == QLatin1String("pt") && attr == QLatin1String("formatCode")) && !now.elements.value(name).contains(attr) && no(name + QLatin1Char('@') + attr)) return lost;
     }
     // a value that is only written as the usual one
     const QDomNodeList over = doc.elementsByTagNameNS(QString::fromLatin1(kCNs), QStringLiteral("showDLblsOverMax"));
     for (int i = 0; i < over.size(); ++i) {
         const QString v = over.at(i).toElement().attribute(QStringLiteral("val"), QStringLiteral("1"));
-        if (v != QLatin1String("0") && v != QLatin1String("false")) return no(QStringLiteral("showDLblsOverMax"));
+        if (v != QLatin1String("0") && v != QLatin1String("false") && no(QStringLiteral("showDLblsOverMax"))) return lost;
     }
     // and what is read of it is what was read of the part: the same references, the same picture
-    if (refsOf(a) != refsOf(b)) return no(QStringLiteral("what the series read"));
-    if (chartSvg(a, QSizeF(480, 288)) != chartSvg(b, QSizeF(480, 288))) return no(QStringLiteral("how the chart is drawn"));
-    return true;
+    if (refsOf(a) != refsOf(b) && no(QStringLiteral("what the series read"))) return lost;
+    if (chartSvg(a, QSizeF(480, 288)) != chartSvg(b, QSizeF(480, 288))) no(QStringLiteral("how the chart is drawn"));
+    return lost;
+}
+
+bool chartIsFullyModeled(const QByteArray &chartPartXml, QString *why)
+{
+    const QStringList lost = chartLosses(chartPartXml, true);
+    if (lost.isEmpty()) return true;
+    if (why) *why = lost.first();
+    return false;
 }
 
 } // namespace jp::office

@@ -1265,7 +1265,12 @@ int SheetObjects::makeChart(int sheet, const Chart &chart, const DrawingAnchor &
     o->fileAnchor = o->base = o->anchor = anchor;
     o->frozen = anchor.kind != AnchorKind::TwoCell;
     o->placements.push_back(jp::crunch::AnchorPlacement{int(m_applied.size()), anchor});
-    o->chart = std::make_shared<const Chart>(chart);
+    {
+        // (a chart put in a part of its own has none of the links the part it came from had)
+        Chart fresh = chart;
+        fresh.clearPartLinks();
+        o->chart = std::make_shared<const Chart>(fresh);
+    }
     o->baseRefs = chartRefs(chart);
     for (QString &ref : o->baseRefs) ref = unfollowSheetOps(ref);
     o->refPlacements.push_back(jp::crunch::RefPlacement{int(m_applied.size()), o->baseRefs});
