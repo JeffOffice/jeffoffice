@@ -143,6 +143,20 @@ public:
     // Cells marked as what a search found (Go To Special): tinted over the cells, apart from the selection. An empty list takes the marks away.
     void setMarks(const std::vector<GridRange> &ranges);
     const std::vector<GridRange> &marks() const { return m_marks; }
+    // Notes over the cells while a person checks formulas: cells outlined as circular, and arrows from the cells a formula reads to the formula (or from a cell to the formulas that read
+    // it). An arrow starts at a cell or a block (a dot where it starts) and ends at a cell (the head); an end that is on another sheet is a small sheet icon beside the other end. The
+    // notes are not the sheet's. At most kMaxCheckArrows arrows and kMaxCheckCircles outlined cells are kept.
+    struct CheckArrow {
+        GridRange from;                   // the cell or block it starts at (ignored with fromOtherSheet)
+        qint64 toRow = 0, toCol = 0;      // the cell it ends at (ignored with toOtherSheet)
+        bool fromOtherSheet = false;      // it starts on another sheet: an icon stands for the start, beside the end
+        bool toOtherSheet = false;        // it ends on another sheet: an icon stands for the end, beside the start
+    };
+    static constexpr size_t kMaxCheckArrows = 2000;
+    static constexpr size_t kMaxCheckCircles = 10000;
+    void setCheckMarks(std::vector<GridRange> circles, std::vector<CheckArrow> arrows);
+    const std::vector<CheckArrow> &checkArrows() const { return m_checkArrows; }
+    const std::vector<GridRange> &checkCircles() const { return m_checkCircles; }
     // Buttons on cells (the drop-downs of a filter's header row): one at the bottom right of each cell, drawn as a funnel when `filtered`, with an arrow up or down when the cells are sorted
     // by it (`sort` 1 or -1). A click on one is told by headerButtonClicked instead of selecting the cell. At most kMaxHeaderButtons.
     struct HeaderButton {
@@ -254,6 +268,7 @@ private:
     QRect dropDownRectInLayout() const;
     QRect headerButtonRectInLayout(qint64 row, qint64 col) const;
     void paintMarks(QPainter *painter, const QRect &clip);
+    void paintChecks(QPainter *painter, const QRect &clip);
     bool headerButtonPress(const QPoint &layoutPoint);
     bool borderAtInLayout(const QPoint &p, bool *column, qint64 *index) const;
     void paintOverlay(QPainter *painter, const QRect &clip);
@@ -277,6 +292,8 @@ private:
     int m_resizeFrom = 0, m_resizeEdge = 0, m_resizeSize0 = 0, m_resizeSize = 0;
     qint64 m_dropRow = -1, m_dropCol = -1;
     std::vector<GridRange> m_marks;
+    std::vector<GridRange> m_checkCircles;
+    std::vector<CheckArrow> m_checkArrows;
     std::vector<HeaderButton> m_headerButtons;
     GridRange m_fillSource, m_fillExtent;
     bool m_fillCtrl = false;
