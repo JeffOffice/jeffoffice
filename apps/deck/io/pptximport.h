@@ -31,4 +31,11 @@ namespace jp::deck {
 std::unique_ptr<Document> importPresentation(const QByteArray &bytes, QString *error = nullptr);
 std::unique_ptr<Document> importPresentationFile(const QString &path, QString *error = nullptr);
 
+// Counted since the program began on this thread, for tests of cost: the placeholders of layouts and masters looked at to match the placeholders of slides to them (each once
+// to be indexed, and a few lookups for each placeholder asked about; a list gone through for each would count its length each time).
+struct PptxImportWork {
+    qint64 placeholdersExamined = 0;
+};
+PptxImportWork pptxImportWorkForTest();
+
 } // namespace jp::deck

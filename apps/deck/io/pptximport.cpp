@@ -135,6 +135,8 @@ QString family(const QString &type, bool wide)
 // type to go by to its master's. Each is found by lookup, so that slides of
 // thousands of placeholders over a layout of thousands don't compare each
 // with each.
+thread_local PptxImportWork g_work;   // see pptxImportWorkForTest
+
 class PhList {
 public:
     PhList() = default;
@@ -142,6 +144,7 @@ public:
     {
         for (int i = 0; i < int(m_list.size()); ++i) {
             const PhRef &p = m_list[i];
+            ++g_work.placeholdersExamined;
             if (!m_byType.contains(p.type)) m_byType.insert(p.type, i);
             for (int w = 0; w < 2; ++w) {
                 const QString kind = family(p.type, w != 0);
@@ -154,6 +157,7 @@ public:
     {
         const int w = wide ? 1 : 0;
         const QString kind = family(want.type, wide);
+        g_work.placeholdersExamined += 3;   // (the three lookups it may make; a list searched entry by entry would count each entry)
         if (byIdx)
             if (const auto it = m_byIdx[w].constFind({want.idx, kind}); it != m_byIdx[w].cend()) return &m_list[it.value()];
         if (const auto it = m_byType.constFind(want.type); it != m_byType.cend()) return &m_list[it.value()];
@@ -1877,5 +1881,7 @@ std::unique_ptr<Document> importPresentationFile(const QString &path, QString *e
     }
     return importPackage(pkg, error);
 }
+
+PptxImportWork pptxImportWorkForTest() { return g_work; }
 
 } // namespace jp::deck

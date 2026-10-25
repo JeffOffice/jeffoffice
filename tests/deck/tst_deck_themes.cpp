@@ -1,6 +1,5 @@
 // JeffDeck's tests of themes and variants.
 #include "deckhelpers.h"
-#include "../timing.h"
 
 struct BackdropDeck {
     std::unique_ptr<Document> doc;
@@ -898,8 +897,23 @@ private Q_SLOTS:
         auto source = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Granite")));
         MasterPage *obj = deck::layoutOfType(*source, QStringLiteral("obj"));
         obj->items = many(*source, 3000);
-        const qint64 themeMs = bestNanoseconds([&] { QVERIFY(deck::applyThemeToAll(*d, *source)); }, 3, fresh) / 1000000;
-        QVERIFY2(themeMs < 5000, qPrintable(QStringLiteral("took %1 ms").arg(themeMs)));
+        fresh();
+        const qint64 restyled = deck::themeRestyledForTest();
+        QVERIFY(deck::applyThemeToAll(*d, *source));
+        // Counted: not one of the 12,000 placeholders is matched and set again (the slides are put on the layout as they are).
+        QCOMPARE(deck::themeRestyledForTest(), restyled);
+        // And the count can tell: slides with a few placeholders each are matched and set again.
+        {
+            auto small = deck::newPresentation();
+            deck::addSlide(*small, *deck::layoutOfType(*small, QStringLiteral("obj")));
+            Page &slide = *small->pages.last();
+            const ItemList some = many(*small, 5);
+            slide.items.insert(slide.items.end(), some.begin(), some.end());
+            auto smallSource = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Granite")));
+            deck::layoutOfType(*smallSource, QStringLiteral("obj"))->items = many(*smallSource, 5);
+            QVERIFY(deck::applyThemeToAll(*small, *smallSource));
+            QVERIFY(deck::themeRestyledForTest() > restyled);
+        }
         QCOMPARE(deck::themeOf(*d).name, QStringLiteral("Granite"));
         QCOMPARE(layoutTypes(*d), (QStringList{QStringLiteral("title"), QStringLiteral("obj"), QStringLiteral("obj"), QStringLiteral("obj"), QStringLiteral("obj")}));
     }

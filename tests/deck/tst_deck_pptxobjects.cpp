@@ -1,6 +1,5 @@
 // JeffDeck's tests of diagrams, equations, and charts in a presentation file.
 #include "deckhelpers.h"
-#include "../timing.h"
 
 class DeckPptxObjectsTests : public QObject {
     Q_OBJECT
@@ -709,10 +708,8 @@ private Q_SLOTS:
         p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
         QString err;
         std::unique_ptr<Document> d;
-        const qint64 ms = bestNanoseconds([&] { d = deck::importPresentation(pack(p), &err); }, 3, [&] {
-            d.reset();
-            err.clear();
-        }) / 1000000;
+        const qint64 drawn = office::chartSvgsMadeForTest();
+        d = deck::importPresentation(pack(p), &err);
         QVERIFY2(d, qPrintable(err));
         QSet<QString> ids;
         int charts = 0;
@@ -723,7 +720,8 @@ private Q_SLOTS:
             }
         QCOMPARE(charts, 120);
         QCOMPARE(int(ids.size()), 1);
-        QVERIFY2(ms < 3000, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
+        // Counted: the chart of 120 frames is drawn once, not once for each frame.
+        QVERIFY2(office::chartSvgsMadeForTest() - drawn <= 1, qPrintable(QString::number(office::chartSvgsMadeForTest() - drawn)));
     }
 
     // A chart on a slide is a picture of it (an SVG drawn from the values the file stores), in the frame's place, and its parts

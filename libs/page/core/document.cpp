@@ -155,9 +155,16 @@ QSize svgImageSize(const QSvgRenderer &r)
 
 } // namespace
 
+static thread_local qint64 g_imageDecodes = 0, g_imageBytesCompared = 0, g_svgLoads = 0;
+
+qint64 Document::imageDecodesForTest() { return g_imageDecodes; }
+qint64 Document::imageBytesComparedForTest() { return g_imageBytesCompared; }
+qint64 Document::svgLoadsForTest() { return g_svgLoads; }
+
 QImage ImageData::image() const
 {
     if (!cache.isNull()) return cache;
+    ++g_imageDecodes;
     switch (kindOf(format, bytes)) {
     case PictureKind::Metafile: {
         Metafile m;
@@ -857,7 +864,10 @@ QString Document::findImage(const QByteArray &bytes) const
     const size_t hash = qHash(bytes);
     for (auto at = m_imageHashes.constFind(hash); at != m_imageHashes.cend() && at.key() == hash; ++at) {
         const auto it = images.constFind(*at);
-        if (it != images.cend() && !it->linked && it->bytes == bytes) return *at;
+        if (it != images.cend() && !it->linked) {
+            if (it->bytes.size() == bytes.size()) g_imageBytesCompared += bytes.size();
+            if (it->bytes == bytes) return *at;
+        }
     }
     return QString();
 }
@@ -954,6 +964,7 @@ QString Document::addImage(const QByteArray &bytes, const QString &format, const
                 ++imagesLeftOut;
                 return QString();
             }
+            ++g_svgLoads;
             size = svgImageSize(QSvgRenderer(bytes));
             break;
         }
