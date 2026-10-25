@@ -50,6 +50,20 @@ ChartPlan planChartFrom(const QString &sheetName, const CellRange &block, bool h
 // are given a color each (`slices` of them, at most 256).
 jp::office::Chart makeChart(ChartKind kind, const ChartPlan &plan, const jp::office::Theme &theme, int slices = 0);
 
+// What a series is drawn as: a kind of chart, and whether against the second pair of axes.
+struct SeriesKind {
+    ChartKind kind = ChartKind::Column;
+    bool secondary = false;
+};
+
+// A chart for series of any kinds: the series are grouped into plots by what they are drawn as (areas, then bars, then lines, then points; those against the second axes after), with the
+// axes they need. A pie or doughnut is its series alone, and bars across with other kinds are columns. `like`, if given, is a chart whose look is kept: its title, legend, page, and the
+// titles, gridlines, and scale of its first axes.
+jp::office::Chart chartFromSeries(const QVector<jp::office::ChartSeries> &series, const QVector<SeriesKind> &kinds, const jp::office::Theme &theme, const jp::office::Chart *like = nullptr);
+
+// The kind of one plot, as this makes it.
+ChartKind kindOfPlot(const jp::office::ChartPlot &plot);
+
 // The kind of the chart's first plot, as this makes it: the nearest of ChartKind for what the chart is (stacked, percent, markers, horizontal); a combo when there are two kinds of plot.
 ChartKind kindOfChart(const jp::office::Chart &chart);
 

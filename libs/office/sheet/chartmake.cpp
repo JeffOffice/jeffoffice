@@ -247,9 +247,52 @@ ChartAxis axisOf(ChartAxis::Kind kind, qint64 id, qint64 cross, const QString &p
     return a;
 }
 
+constexpr qint64 kCatId = 1001, kValId = 1002, kCat2Id = 1003, kVal2Id = 1004;
+
+// The plot a kind of chart draws its series with (no series, no axes yet).
+ChartPlot plotOf(ChartKind kind)
+{
+    ChartPlot p;
+    switch (kind) {
+    case ChartKind::Column:
+    case ChartKind::Combo: p.type = ChartType::Bar; break;
+    case ChartKind::ColumnStacked: p.type = ChartType::Bar; p.grouping = ChartGrouping::Stacked; p.overlap = 100; break;
+    case ChartKind::ColumnPercent: p.type = ChartType::Bar; p.grouping = ChartGrouping::PercentStacked; p.overlap = 100; break;
+    case ChartKind::Bar: p.type = ChartType::Bar; p.horizontal = true; break;
+    case ChartKind::BarStacked: p.type = ChartType::Bar; p.grouping = ChartGrouping::Stacked; p.overlap = 100; p.horizontal = true; break;
+    case ChartKind::BarPercent: p.type = ChartType::Bar; p.grouping = ChartGrouping::PercentStacked; p.overlap = 100; p.horizontal = true; break;
+    case ChartKind::Line: p.type = ChartType::Line; p.grouping = ChartGrouping::Standard; p.markers = false; break;
+    case ChartKind::LineMarkers: p.type = ChartType::Line; p.grouping = ChartGrouping::Standard; p.markers = true; break;
+    case ChartKind::LineStacked: p.type = ChartType::Line; p.grouping = ChartGrouping::Stacked; p.markers = false; break;
+    case ChartKind::Area: p.type = ChartType::Area; p.grouping = ChartGrouping::Standard; break;
+    case ChartKind::AreaStacked: p.type = ChartType::Area; p.grouping = ChartGrouping::Stacked; break;
+    case ChartKind::Pie: p.type = ChartType::Pie; p.grouping = ChartGrouping::Standard; p.varyColors = true; break;
+    case ChartKind::Doughnut: p.type = ChartType::Doughnut; p.grouping = ChartGrouping::Standard; p.varyColors = true; break;
+    case ChartKind::Scatter: p.type = ChartType::Scatter; p.grouping = ChartGrouping::Standard; p.lines = false; break;
+    case ChartKind::ScatterLines: p.type = ChartType::Scatter; p.grouping = ChartGrouping::Standard; p.lines = true; break;
+    }
+    return p;
 }
 
-Chart makeChart(ChartKind kind, const ChartPlan &plan, const jp::office::Theme &theme, int slices)
+bool samePlot(const ChartPlot &a, const ChartPlot &b)
+{
+    return a.type == b.type && a.grouping == b.grouping && a.horizontal == b.horizontal && a.markers == b.markers && a.lines == b.lines;
+}
+
+int rankOf(ChartType t)
+{
+    switch (t) {
+    case ChartType::Area: return 0;
+    case ChartType::Bar:
+    case ChartType::Other: return 1;
+    case ChartType::Line: return 2;
+    default: return 3;
+    }
+}
+
+} // namespace
+
+Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKind> &kinds, const jp::office::Theme &theme, const Chart *like)
 {
     Chart c = jp::office::blankChart(theme);
     c.background = QColor(Qt::white);
@@ -257,99 +300,176 @@ Chart makeChart(ChartKind kind, const ChartPlan &plan, const jp::office::Theme &
     c.border.color = QColor(0xD9, 0xD9, 0xD9);
     c.border.width = 0.75;
     c.style = 2;
+    const int count = int(series.size());
+    // the plots: one for each kind of drawing (and each side), the areas first and the lines over the bars
+    struct Group {
+        ChartPlot plot;
+        bool secondary = false;
+    };
+    QVector<Group> groups;
+    const bool onlyPie = count > 0 && kinds.value(0).kind != ChartKind::Combo && (plotOf(kinds.value(0).kind).type == ChartType::Pie || plotOf(kinds.value(0).kind).type == ChartType::Doughnut);
+    bool anyOther = false, anyHorizontal = false;
+    for (int i = 0; i < count; ++i) {
+        const ChartPlot p = plotOf(kinds.value(i).kind);
+        if (p.type == ChartType::Pie || p.type == ChartType::Doughnut) continue;
+        anyOther = true;
+        if (p.horizontal) anyHorizontal = true;
+    }
+    for (int i = 0; i < count; ++i) {
+        SeriesKind k = kinds.value(i, SeriesKind{ChartKind::Column, false});
+        ChartPlot p = plotOf(k.kind);
+        const bool pie = p.type == ChartType::Pie || p.type == ChartType::Doughnut;
+        if (onlyPie && !pie) k.kind = kinds.value(0).kind, p = plotOf(k.kind);   // (a pie holds only pie)
+        if (!onlyPie && pie) p = plotOf(ChartKind::Column);
+        if (p.horizontal && count > 1) {
+            // bars across mix with nothing: with other kinds they are columns
+            bool others = false;
+            for (int j = 0; j < count; ++j)
+                if (!plotOf(kinds.value(j).kind).horizontal) others = true;
+            if (others) p = plotOf(p.grouping == ChartGrouping::Stacked ? ChartKind::ColumnStacked : p.grouping == ChartGrouping::PercentStacked ? ChartKind::ColumnPercent : ChartKind::Column);
+        }
+        int at = -1;
+        for (int g = 0; g < groups.size(); ++g)
+            if (samePlot(groups[g].plot, p) && groups[g].secondary == (k.secondary && !onlyPie)) at = g;
+        if (at < 0) {
+            groups.push_back(Group{p, k.secondary && !onlyPie});
+            at = int(groups.size()) - 1;
+        }
+        ChartSeries s = series[i];
+        if (s.color.isValid() == false || !s.colorFromFile) {
+            s.color = c.palette.isEmpty() ? QColor(0x44, 0x72, 0xC4) : c.palette.value(i % c.palette.size());
+            s.colorFromFile = true;
+        }
+        if (p.type == ChartType::Line && !p.markers) s.marker.symbol = ChartMarker::None;
+        else if (s.marker.symbol == ChartMarker::None) s.marker.symbol = ChartMarker::Auto;
+        groups[at].plot.series << s;
+    }
+    std::stable_sort(groups.begin(), groups.end(), [](const Group &a, const Group &b) { return a.secondary == b.secondary ? rankOf(a.plot.type) < rankOf(b.plot.type) : !a.secondary; });
+    bool anySecondary = false;
+    for (const Group &g : groups) anySecondary = anySecondary || g.secondary;
+    Q_UNUSED(anyOther);
+    Q_UNUSED(anyHorizontal);
+    const ChartType first = groups.isEmpty() ? ChartType::Bar : groups.first().plot.type;
+    const bool noAxes = first == ChartType::Pie || first == ChartType::Doughnut;
+    const bool horizontal = !groups.isEmpty() && groups.first().plot.horizontal;
+    bool scatterOnly = !groups.isEmpty();
+    for (const Group &g : groups) scatterOnly = scatterOnly && g.plot.type == ChartType::Scatter;
+    for (Group &g : groups) {
+        if (!noAxes) {
+            g.plot.axisIds[0] = g.secondary ? kCat2Id : kCatId;
+            g.plot.axisIds[1] = g.secondary ? kVal2Id : kValId;
+        } else {
+            g.plot.axisIds[0] = g.plot.axisIds[1] = 0;
+        }
+        c.plots << g.plot;
+    }
+    if (!noAxes) {
+        ChartAxis cat = axisOf(scatterOnly ? ChartAxis::Value : ChartAxis::Category, kCatId, kValId, horizontal ? QStringLiteral("l") : QStringLiteral("b"));
+        ChartAxis val = axisOf(ChartAxis::Value, kValId, kCatId, horizontal ? QStringLiteral("b") : QStringLiteral("l"));
+        val.majorGridlines = true;
+        if (scatterOnly) cat.between = false;
+        if (!groups.isEmpty() && groups.first().plot.grouping == ChartGrouping::PercentStacked) {
+            val.format = QStringLiteral("0%");
+            val.formatLinked = false;
+        }
+        c.axes << cat << val;
+        if (anySecondary) {
+            ChartAxis cat2 = axisOf(ChartAxis::Category, kCat2Id, kVal2Id, QStringLiteral("b"));
+            cat2.deleted = true;
+            ChartAxis val2 = axisOf(ChartAxis::Value, kVal2Id, kCat2Id, QStringLiteral("r"));
+            val2.crosses = QStringLiteral("max");
+            c.axes << cat2 << val2;
+        }
+    }
+    const bool pieLike = noAxes;
+    if (count == 1 && !scatterOnly) {
+        c.title.present = true;
+        c.title.automatic = true;
+        c.title.text = QCoreApplication::translate("Chart", "Chart Title");
+    }
+    c.legend.shown = count > 1 || pieLike;
+    c.legend.position = pieLike ? QStringLiteral("r") : QStringLiteral("b");
+    if (like) {
+        // what the person set on the chart stays: its words, where things are, how the page looks
+        c.title = like->title;
+        if (c.title.automatic && count != 1) c.title.automatic = false;
+        c.legend = like->legend;
+        if (pieLike != (like->type() == ChartType::Pie || like->type() == ChartType::Doughnut)) c.legend.position = pieLike ? QStringLiteral("r") : QStringLiteral("b");
+        c.legend.shown = like->legend.shown;
+        c.background = like->background;
+        c.border = like->border;
+        c.plotFill = like->plotFill;
+        c.plotBorder = like->plotBorder;
+        c.font = like->font;
+        c.textColor = like->textColor;
+        c.style = like->style;
+        c.blanksAs = like->blanksAs;
+        c.plotVisibleOnly = like->plotVisibleOnly;
+        if (!noAxes && !like->axes.isEmpty()) {
+            // the first pair of axes: the titles, gridlines, scale, and numbers the old first pair had (the horizontal one is the one along the bottom or, for bars, the vertical one is the categories')
+            const ChartPlot &lp = like->plots.isEmpty() ? ChartPlot() : like->plots.first();
+            const ChartAxis *oldCat = like->axis(lp.axisIds[0]), *oldVal = like->axis(lp.axisIds[1]);
+            const bool oldHorizontal = lp.horizontal;
+            for (ChartAxis &a : c.axes) {
+                const bool isCat = a.id == kCatId, isVal = a.id == kValId;
+                if (!isCat && !isVal) continue;
+                const ChartAxis *old = isCat ? oldCat : oldVal;
+                if (!old) continue;
+                // titles and gridlines belong to the side of the chart (across or up) they are on
+                const bool sameSide = oldHorizontal == horizontal;
+                const ChartAxis *source = sameSide ? old : (isCat ? oldVal : oldCat);
+                if (!source) continue;
+                a.title = source->title;
+                a.majorGridlines = source->majorGridlines;
+                a.minorGridlines = source->minorGridlines;
+                a.gridline = source->gridline;
+                a.deleted = source->deleted;
+                a.font = source->font;
+                a.line = source->line;
+                if (isVal && source->kind == ChartAxis::Value && a.kind == ChartAxis::Value) {
+                    a.autoMin = source->autoMin;
+                    a.autoMax = source->autoMax;
+                    a.min = source->min;
+                    a.max = source->max;
+                    a.majorUnit = source->majorUnit;
+                    if (c.plots.value(0).grouping != ChartGrouping::PercentStacked) {
+                        a.format = source->format;
+                        a.formatLinked = source->formatLinked;
+                    }
+                }
+            }
+        }
+    }
+    return c;
+}
+
+Chart makeChart(ChartKind kind, const ChartPlan &plan, const jp::office::Theme &theme, int slices)
+{
+    QVector<ChartSeries> series;
+    QVector<SeriesKind> kinds;
     const int count = int(plan.series.size());
-    auto colorOf = [&](int i) { return c.palette.isEmpty() ? QColor(0x44, 0x72, 0xC4) : c.palette.value(i % c.palette.size()); };
-    auto seriesOf = [&](int i) {
+    const bool combo = kind == ChartKind::Combo && count >= 2;
+    for (int i = 0; i < count; ++i) {
         ChartSeries s;
         s.name = QCoreApplication::translate("Chart", "Series%1").arg(i + 1);
         s.nameRef = plan.series[i].nameRef;
         s.categoryRef = plan.series[i].categoryRef;
         s.valueRef = plan.series[i].valueRef;
         s.xRef = plan.series[i].xRef;
-        s.color = colorOf(i);
-        s.colorFromFile = true;
-        return s;
-    };
-    const qint64 catId = 1001, valId = 1002, cat2Id = 1003, val2Id = 1004;
-    ChartPlot p;
-    p.axisIds[0] = catId;
-    p.axisIds[1] = valId;
-    bool horizontal = false, axes = true, combo = false;
-    switch (kind) {
-    case ChartKind::Column: p.type = ChartType::Bar; break;
-    case ChartKind::ColumnStacked: p.type = ChartType::Bar; p.grouping = ChartGrouping::Stacked; p.overlap = 100; break;
-    case ChartKind::ColumnPercent: p.type = ChartType::Bar; p.grouping = ChartGrouping::PercentStacked; p.overlap = 100; break;
-    case ChartKind::Bar: p.type = ChartType::Bar; horizontal = true; break;
-    case ChartKind::BarStacked: p.type = ChartType::Bar; p.grouping = ChartGrouping::Stacked; p.overlap = 100; horizontal = true; break;
-    case ChartKind::BarPercent: p.type = ChartType::Bar; p.grouping = ChartGrouping::PercentStacked; p.overlap = 100; horizontal = true; break;
-    case ChartKind::Line: p.type = ChartType::Line; p.grouping = ChartGrouping::Standard; p.markers = false; break;
-    case ChartKind::LineMarkers: p.type = ChartType::Line; p.grouping = ChartGrouping::Standard; p.markers = true; break;
-    case ChartKind::LineStacked: p.type = ChartType::Line; p.grouping = ChartGrouping::Stacked; p.markers = false; break;
-    case ChartKind::Area: p.type = ChartType::Area; p.grouping = ChartGrouping::Standard; break;
-    case ChartKind::AreaStacked: p.type = ChartType::Area; p.grouping = ChartGrouping::Stacked; break;
-    case ChartKind::Pie: p.type = ChartType::Pie; p.grouping = ChartGrouping::Standard; p.varyColors = true; axes = false; break;
-    case ChartKind::Doughnut: p.type = ChartType::Doughnut; p.grouping = ChartGrouping::Standard; p.varyColors = true; axes = false; break;
-    case ChartKind::Scatter: p.type = ChartType::Scatter; p.grouping = ChartGrouping::Standard; p.lines = false; break;
-    case ChartKind::ScatterLines: p.type = ChartType::Scatter; p.grouping = ChartGrouping::Standard; p.lines = true; break;
-    case ChartKind::Combo: p.type = ChartType::Bar; combo = count >= 2; break;
+        series << s;
+        // a combo: columns, and the last series a line on a second pair of axes
+        kinds << (combo && i == count - 1 ? SeriesKind{ChartKind::LineMarkers, true} : SeriesKind{kind == ChartKind::Combo ? ChartKind::Column : kind, false});
     }
-    p.horizontal = horizontal;
-    if (!axes) p.axisIds[0] = p.axisIds[1] = 0;
-    ChartPlot lines;
-    const int barSeries = combo ? count - 1 : count;
-    for (int i = 0; i < barSeries; ++i) {
-        ChartSeries s = seriesOf(i);
-        if (p.type == ChartType::Line && !p.markers) s.marker.symbol = ChartMarker::None;
-        if (p.type == ChartType::Pie || p.type == ChartType::Doughnut) {
-            // each slice its own color
-            for (int k = 0; k < std::min(256, slices); ++k) s.pointColors.insert(k, colorOf(k));
-        }
-        p.series << s;
+    Chart c = chartFromSeries(series, kinds, theme, nullptr);
+    if (!c.plots.isEmpty() && (c.plots[0].type == ChartType::Pie || c.plots[0].type == ChartType::Doughnut) && !c.plots[0].series.isEmpty()) {
+        // each slice its own color
+        for (int k = 0; k < std::min(256, slices); ++k) c.plots[0].series[0].pointColors.insert(k, c.palette.isEmpty() ? QColor(0x44, 0x72, 0xC4) : c.palette.value(k % c.palette.size()));
     }
-    c.plots << p;
-    if (combo) {
-        lines.type = ChartType::Line;
-        lines.grouping = ChartGrouping::Standard;
-        lines.markers = true;
-        lines.axisIds[0] = cat2Id;
-        lines.axisIds[1] = val2Id;
-        lines.series << seriesOf(count - 1);
-        c.plots << lines;
-    }
-    if (axes) {
-        const bool scatter = p.type == ChartType::Scatter;
-        ChartAxis cat = axisOf(scatter ? ChartAxis::Value : ChartAxis::Category, catId, valId, horizontal ? QStringLiteral("l") : QStringLiteral("b"));
-        ChartAxis val = axisOf(ChartAxis::Value, valId, catId, horizontal ? QStringLiteral("b") : QStringLiteral("l"));
-        val.majorGridlines = true;
-        if (scatter) cat.between = false;
-        if (p.grouping == ChartGrouping::PercentStacked) {
-            val.format = QStringLiteral("0%");
-            val.formatLinked = false;
-        }
-        c.axes << cat << val;
-        if (combo) {
-            ChartAxis cat2 = axisOf(ChartAxis::Category, cat2Id, val2Id, QStringLiteral("b"));
-            cat2.deleted = true;
-            ChartAxis val2 = axisOf(ChartAxis::Value, val2Id, cat2Id, QStringLiteral("r"));
-            val2.crosses = QStringLiteral("max");
-            c.axes << cat2 << val2;
-        }
-    }
-    if (count == 1 && p.type != ChartType::Scatter) {
-        c.title.present = true;
-        c.title.automatic = true;
-        c.title.text = QCoreApplication::translate("Chart", "Chart Title");
-    }
-    c.legend.shown = count > 1 || p.type == ChartType::Pie || p.type == ChartType::Doughnut;
-    c.legend.position = (p.type == ChartType::Pie || p.type == ChartType::Doughnut) ? QStringLiteral("r") : QStringLiteral("b");
     return c;
 }
 
-ChartKind kindOfChart(const Chart &chart)
+ChartKind kindOfPlot(const ChartPlot &p)
 {
-    if (chart.plots.isEmpty()) return ChartKind::Column;
-    if (chart.plots.size() > 1) return ChartKind::Combo;
-    const ChartPlot &p = chart.plots.first();
     const bool stacked = p.grouping == ChartGrouping::Stacked, percent = p.grouping == ChartGrouping::PercentStacked;
     switch (p.type) {
     case ChartType::Bar:
@@ -363,6 +483,13 @@ ChartKind kindOfChart(const Chart &chart)
     case ChartType::Scatter: return p.lines ? ChartKind::ScatterLines : ChartKind::Scatter;
     }
     return ChartKind::Column;
+}
+
+ChartKind kindOfChart(const Chart &chart)
+{
+    if (chart.plots.isEmpty()) return ChartKind::Column;
+    if (chart.plots.size() > 1) return ChartKind::Combo;
+    return kindOfPlot(chart.plots.first());
 }
 
 } // namespace jp::office::sheet
