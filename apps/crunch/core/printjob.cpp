@@ -3,6 +3,7 @@
 #include "core/sheetobjects.h"
 
 #include <QCoreApplication>
+#include <QFile>
 #include <QFileInfo>
 #include <QPageLayout>
 #include <QPageSize>
@@ -123,7 +124,7 @@ bool PrintJob::build(QString *why)
 {
     m_sheets.clear();
     // (the date and time the fields show are taken once for the whole job: every page of it has the same, and so has a page drawn again)
-    m_now = m_options.now.isValid() ? m_options.now : QDateTime::currentDateTime();
+    m_now = m_options.now.isValid() ? m_options.now : m_options.clock ? m_options.clock() : QDateTime::currentDateTime();
     m_pages.clear();
     m_messages.clear();
     m_contexts.clear();
@@ -409,7 +410,10 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
         QPainter p;
         bool started = false;
         int done = 0;
-        for (const int page : pages) {
+        // (no more pages than a job may send, as printing holds it)
+        const int total = int(std::min<qint64>(pages.size(), kMaxSentPages));
+        for (int at = 0; at < total; ++at) {
+            const int page = pages[at];
             if (page < 0 || page >= pageCount()) continue;
             setSheet(&pdf, pageSize(page));
             if (!started) {
@@ -425,7 +429,7 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
             p.scale(kResolution / 72.0, kResolution / 72.0);
             paint(&p, page);
             p.restore();
-            if (progress && !progress(++done, int(pages.size()))) {
+            if (progress && !progress(++done, total)) {
                 m_cancelled = true;
                 ok = false;
                 break;
@@ -474,9 +478,11 @@ bool PrintJob::printTo(QPrinter *printer, const QVector<int> &pages, QString *er
         paint(&p, page);
         p.restore();
         if (progress && !progress(int(i + 1), int(total))) {
+            // (the job is called off before the painter ends: ending it is what hands the pages on, and a file the pages were going to is not left half made)
             m_cancelled = true;
-            p.end();
             printer->abort();
+            p.end();
+            if (printer->outputFormat() == QPrinter::PdfFormat && !printer->outputFileName().isEmpty()) QFile::remove(printer->outputFileName());
             return fail(QCoreApplication::translate("jp::crunch::PrintJob", "Printing was stopped."));
         }
     }

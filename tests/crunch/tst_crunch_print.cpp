@@ -23,6 +23,9 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QPaintDevice>
+#include <QPainter>
+#include <QPaintEngine>
 #include <QPrinter>
 #include <QScrollArea>
 #include <QPushButton>
@@ -76,6 +79,83 @@ PageSetup savedPage(const QString &path, int sheet = 0)
     Sheet s;
     if (!b.readSheet(sheet, &s)) return PageSetup();
     return s.page;
+}
+
+// A paint device that draws nothing and writes down the texts it is asked to draw, in order.
+class TextEngine : public QPaintEngine {
+public:
+    TextEngine() : QPaintEngine(QPaintEngine::PaintEngineFeatures()) {}
+    bool begin(QPaintDevice *) override { return true; }
+    bool end() override { return true; }
+    void updateState(const QPaintEngineState &) override {}
+    void drawPixmap(const QRectF &, const QPixmap &, const QRectF &) override {}
+    void drawImage(const QRectF &, const QImage &, const QRectF &, Qt::ImageConversionFlags) override {}
+    void drawPath(const QPainterPath &) override {}
+    void drawPolygon(const QPointF *, int, PolygonDrawMode) override {}
+    void drawPolygon(const QPoint *, int, PolygonDrawMode) override {}
+    void drawRects(const QRectF *, int) override {}
+    void drawRects(const QRect *, int) override {}
+    void drawLines(const QLineF *, int) override {}
+    void drawLines(const QLine *, int) override {}
+    void drawTextItem(const QPointF &, const QTextItem &item) override { texts << item.text(); }
+    Type type() const override { return User; }
+    QStringList texts;
+};
+
+class TextDevice : public QPaintDevice {
+public:
+    QPaintEngine *paintEngine() const override { return &m_engine; }
+    QStringList texts() const { return m_engine.texts; }
+
+protected:
+    int metric(PaintDeviceMetric m) const override
+    {
+        switch (m) {
+        case PdmWidth: return 5100;
+        case PdmHeight: return 6600;
+        case PdmWidthMM: return 216;
+        case PdmHeightMM: return 279;
+        case PdmNumColors: return 16777216;
+        case PdmDepth: return 32;
+        case PdmDpiX:
+        case PdmDpiY:
+        case PdmPhysicalDpiX:
+        case PdmPhysicalDpiY: return 600;
+        case PdmDevicePixelRatio: return 1;
+        case PdmDevicePixelRatioScaled: return int(devicePixelRatioFScale());
+        }
+        return 0;
+    }
+
+private:
+    mutable TextEngine m_engine;
+};
+
+// The number of pages a PDF holds, and the sizes of its pages (the boxes) in the order they come.
+int pdfPages(const QByteArray &pdf)
+{
+    int pages = 0;
+    for (qsizetype at = pdf.indexOf("/Type /Page"); at >= 0; at = pdf.indexOf("/Type /Page", at + 1))
+        if (at + 11 >= pdf.size() || pdf[at + 11] != 's') ++pages;
+    return pages;
+}
+
+QStringList pdfBoxes(const QByteArray &pdf)
+{
+    QStringList out;
+    for (qsizetype at = pdf.indexOf("/MediaBox"); at >= 0; at = pdf.indexOf("/MediaBox", at + 1)) {
+        const qsizetype open = pdf.indexOf('[', at), close = pdf.indexOf(']', at);
+        if (open > 0 && close > open) out << QString::fromLatin1(pdf.mid(open + 1, close - open - 1).simplified());
+    }
+    return out;
+}
+
+// Three sheets of one row each on three different papers (A4, letter on its side, legal), so that a page can be told from the size of its paper.
+QByteArray threePapers()
+{
+    auto sheet = [](const char *setup) { return worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), QString::fromLatin1(setup)); };
+    return buildXlsx({sheet("<pageSetup paperSize=\"9\"/>"), sheet("<pageSetup paperSize=\"1\" orientation=\"landscape\"/>"), sheet("<pageSetup paperSize=\"5\"/>")}, QByteArray(),
+                     QString(), QString(), QByteArray(), QStringList({"A", "B", "C"}));
 }
 
 } // namespace
@@ -465,7 +545,72 @@ private Q_SLOTS:
         QVERIFY(qint64(crunch::sheetOrder(many, 100000, false).size()) <= crunch::kMaxSentPages);
     }
 
-    // The date and time of the fields are one moment for the whole job (the options' if they give one, else the time it was made), not read again for each page.
+    // Printing tells how far it has got and can be stopped as an export can, and the copies are made on the print path itself: what is sent is counted in the PDF a printer writes, in the order
+    // of the papers the pages are on. Stopped, it leaves no file; the most a job sends is the same for a file and a printer.
+    void printingSendsTheCopiesAndCanBeStopped()
+    {
+        EditWindow e;
+        QVERIFY(e.open(threePapers()));
+        QString why;
+        crunch::PrintJobOptions all;
+        all.what = crunch::PrintWhat::Workbook;
+        const std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(all, &why);
+        QVERIFY2(job, qPrintable(why));
+        QCOMPARE(job->pageCount(), 3);
+        const QString path = e.folder.dir.filePath(QStringLiteral("sent.pdf"));
+        auto send = [&](const QVector<int> &pages, int copies, bool collate, const std::function<bool(int, int)> &progress = nullptr) {
+            QPrinter printer(QPrinter::HighResolution);
+            printer.setOutputFormat(QPrinter::PdfFormat);
+            printer.setOutputFileName(path);
+            return job->printTo(&printer, pages, &why, progress, copies, collate);
+        };
+        auto sentBoxes = [&] {
+            QFile f(path);
+            return f.open(QIODevice::ReadOnly) ? pdfBoxes(f.readAll()) : QStringList();
+        };
+        QVERIFY2(send({0, 1, 2}, 1, true), qPrintable(why));
+        const QStringList once = sentBoxes();
+        QCOMPARE(once.size(), 3);
+        QVERIFY(once[0] != once[1] && once[1] != once[2] && once[0] != once[2]);
+        QVERIFY2(send({0, 1, 2}, 2, true), qPrintable(why));
+        QCOMPARE(sentBoxes(), (QStringList{once[0], once[1], once[2], once[0], once[1], once[2]}));
+        QVERIFY2(send({0, 1, 2}, 2, false), qPrintable(why));
+        QCOMPARE(sentBoxes(), (QStringList{once[0], once[0], once[1], once[1], once[2], once[2]}));
+        QVERIFY2(send({2, 0}, 3, false), qPrintable(why));
+        QCOMPARE(sentBoxes(), (QStringList{once[2], once[2], once[2], once[0], once[0], once[0]}));
+        // it tells how far it has got, counting the copies
+        QList<QPair<int, int>> seen;
+        QVERIFY2(send({0, 1, 2}, 2, true, [&](int done, int total) {
+                      seen << qMakePair(done, total);
+                      return true;
+                  }), qPrintable(why));
+        QCOMPARE(seen, (QList<QPair<int, int>>{{1, 6}, {2, 6}, {3, 6}, {4, 6}, {5, 6}, {6, 6}}));
+        QVERIFY(!job->wasCancelled());
+        // stopped after the second sheet of paper: it says so, it is not a failure, and no file is left with the pages that went
+        QVERIFY(!send({0, 1, 2}, 2, true, [](int done, int) { return done < 2; }));
+        QVERIFY(job->wasCancelled());
+        QVERIFY2(why.contains(QLatin1String("stopped")), qPrintable(why));
+        QVERIFY(!QFileInfo::exists(path));
+        // the most a job sends is held, copies counted, for a printer and for a file
+        QVector<int> many(100000, 0);
+        qint64 printerTotal = 0, fileTotal = 0;
+        QVERIFY(!send(many, 100, true, [&](int, int total) {
+            printerTotal = total;
+            return false;
+        }));
+        QCOMPARE(printerTotal, crunch::kMaxSentPages);
+        QVector<int> tooMany(int(crunch::kMaxSentPages) + 5, 0);
+        QVERIFY(!job->exportPdf(path, tooMany, &why, [&](int, int total) {
+            fileTotal = total;
+            return false;
+        }));
+        QVERIFY(job->wasCancelled());
+        QCOMPARE(fileTotal, crunch::kMaxSentPages);
+        QVERIFY(!QFileInfo::exists(path));
+    }
+
+    // The date and time of the fields are one moment for the whole job (the options' if they give one, else the clock read once when it was made), not read again for each page: the
+    // header of every page shows the same, and a page drawn again too, though the clock has gone on.
     void theMomentOfTheFieldsIsTakenOncePerJob()
     {
         EditWindow e;
@@ -481,6 +626,38 @@ private Q_SLOTS:
         QVERIFY2(job, qPrintable(why));
         const QDateTime after = QDateTime::currentDateTime();
         QVERIFY(job->moment() >= before && job->moment() <= after);
+
+        // a sheet of the same number in every cell, three pages, a date and a time in the header: the texts of its pages are the same if the header is
+        QString rows;
+        for (int r = 1; r <= 135; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>7</v></c></row>").arg(r);
+        EditWindow same;
+        QVERIFY(same.open(buildXlsx({worksheet(rows, QStringLiteral("<headerFooter><oddHeader>&amp;D &amp;T</oddHeader></headerFooter>"))})));
+        int reads = 0;
+        crunch::PrintJobOptions timed;
+        timed.clock = [&reads] { return QDateTime(QDate(2026, 3, 5).addDays(reads++ * 40), QTime(14, 7, 9)); };
+        job = same.win.w.makePrintJob(timed, &why);
+        QVERIFY2(job, qPrintable(why));
+        QVERIFY(job->pageCount() >= 3);
+        QCOMPARE(reads, 1);
+        auto textsOf = [&](crunch::PrintJob &j, int page) {
+            TextDevice device;
+            QPainter painter(&device);
+            j.paint(&painter, page);
+            painter.end();
+            return device.texts();
+        };
+        const QStringList first = textsOf(*job, 0);
+        QVERIFY(first.size() > 2);
+        QCOMPARE(textsOf(*job, 1), first);
+        QCOMPARE(textsOf(*job, 2), first);
+        QCOMPARE(textsOf(*job, 0), first);
+        QCOMPARE(reads, 1);
+        // (and the header does show the moment: a job of another moment draws other words)
+        timed.clock = nullptr;
+        timed.now = job->moment().addDays(40);
+        const std::unique_ptr<crunch::PrintJob> later = same.win.w.makePrintJob(timed, &why);
+        QVERIFY2(later, qPrintable(why));
+        QVERIFY(textsOf(*later, 0) != first);
     }
 
     // A page as a picture: the width asked for, the height of the paper's shape, and ink on it.

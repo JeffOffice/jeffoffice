@@ -52,6 +52,7 @@ struct PrintJobOptions {
     jp::office::sheet::PageMargins margins;
     PrintScaling scaling = PrintScaling::AsSheet;
     QDateTime now;                              // what the date and time fields show (now, if not set)
+    std::function<QDateTime()> clock;           // where "now" is read from when `now` is not set, once per job (the system's clock if none)
     QString fileName, folder;                   // what the file name and folder fields show
     int maxPages = kMaxJobPages;
 };
