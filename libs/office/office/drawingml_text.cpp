@@ -275,13 +275,18 @@ bool keptXml(const QDomElement &e, QString *out, int depth)
 {
     if (depth > 6 || out->size() > 4096 || !sameNamespace(e.namespaceURI(), ns::A)) return false;
     *out += QStringLiteral("<a:") + e.localName();
+    // (in order of name: the attribute map's own order changes from run to run, and what is written must not)
     const QDomNamedNodeMap attrs = e.attributes();
+    QList<QPair<QString, QString>> kept;
     for (int i = 0; i < attrs.length(); ++i) {
         const QDomAttr a = attrs.item(i).toAttr();
         if (a.nodeName().startsWith(QLatin1String("xmlns"))) continue;
         if (!a.prefix().isEmpty()) return false;
-        *out += QLatin1Char(' ') + (a.localName().isEmpty() ? a.nodeName() : a.localName()) + QStringLiteral("=\"") + a.value().toHtmlEscaped().replace(QLatin1Char('"'), QStringLiteral("&quot;")) + QLatin1Char('"');
+        kept.append({a.localName().isEmpty() ? a.nodeName() : a.localName(), a.value()});
     }
+    std::sort(kept.begin(), kept.end());
+    for (const auto &[name, value] : kept)
+        *out += QLatin1Char(' ') + name + QStringLiteral("=\"") + value.toHtmlEscaped().replace(QLatin1Char('"'), QStringLiteral("&quot;")) + QLatin1Char('"');
     if (e.firstChildElement().isNull()) {
         *out += QStringLiteral("/>");
         return true;
