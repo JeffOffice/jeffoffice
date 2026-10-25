@@ -16,6 +16,7 @@
 #include <QString>
 #include <QStringList>
 
+#include <deque>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -52,7 +53,7 @@ public:
 
 protected:
     const Workbook &m_book;
-    std::vector<Sheet> m_sheets;
+    std::deque<Sheet> m_sheets;   // (a deque: a sheet added later does not move those there are, which the window holds pointers to)
     std::vector<quint32> m_rows, m_cols;
     mutable std::vector<std::vector<char>> m_subtotalTexts;   // for each sheet, for each text of a formula: 1 if it calls SUBTOTAL, 0 if not, -1 not yet asked
     QHash<QString, int> m_byName;

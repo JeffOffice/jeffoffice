@@ -129,9 +129,12 @@ struct ReferenceAt {
     int end = 0;              // after its last character
     RefLit ref;               // the cells as written (sheet1 and sheet2 are not set: the names are)
     QString sheet1, sheet2;   // the sheet it names, and the last sheet of a 3-D reference (empty: none written)
+    bool afterWorkbook = false;   // a workbook's name in square brackets comes right before it ("[Book2.xlsx]Data!A1"): the cells are in another workbook, whatever the sheet is called
+    bool isName = false;      // not cells but a name that belongs to a sheet ("Data!MyName"): only with `withNames`; `ref` is not set
 };
-// The references of a formula in the order of the text; false if it can't be read.
-bool findReferences(const QString &text, const ParseOptions &options, std::vector<ReferenceAt> *out);
+// The references of a formula in the order of the text; false if it can't be read. With `withNames`, a name written with its sheet is one too (so that a sheet renamed or deleted can be
+// followed in it).
+bool findReferences(const QString &text, const ParseOptions &options, std::vector<ReferenceAt> *out, bool withNames = false);
 // The cells of a reference as a formula writes them: "$A$1", "B2:C9", "A:C", "3:5".
 QString referenceCellsText(const RefLit &ref);
 

@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
+#include <QLocale>
 #include <QRegularExpression>
 
 namespace jp {
@@ -115,14 +116,25 @@ QString Settings::format(double pt, int decimals) const
 {
     QString n = QString::number(toUnit(pt), 'f', decimals);
     if (n.contains('.')) { while (n.endsWith('0')) n.chop(1); if (n.endsWith('.')) n.chop(1); }
-    return n + unitSuffix();
+    // with the computer's own decimal mark, as the number boxes beside it show theirs
+    return n.replace(QLatin1Char('.'), QLocale().decimalPoint()) + unitSuffix();
+}
+
+QString Settings::formatPair(double x, double y) const
+{
+    const QString between = QLocale().decimalPoint() == QStringLiteral(",") ? QStringLiteral("; ") : QStringLiteral(", ");
+    return format(x) + between + format(y);
 }
 
 bool Settings::parse(const QString &text, double *pt) const
 {
     static const QRegularExpression re(QStringLiteral("^\\s*(-?[0-9]*\\.?[0-9]+)\\s*(\"|in|inch|inches|cm|mm|pt|pi|px)?\\s*$"),
                                        QRegularExpression::CaseInsensitiveOption);
-    const auto m = re.match(text);
+    // the computer's decimal mark or a period, whichever was typed
+    QString t = text;
+    const QString mark = QLocale().decimalPoint();
+    if (mark != QStringLiteral(".")) t.replace(mark, QStringLiteral("."));
+    const auto m = re.match(t);
     if (!m.hasMatch()) return false;
     const double v = m.captured(1).toDouble();
     const QString u = m.captured(2).toLower();

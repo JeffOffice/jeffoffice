@@ -3,6 +3,7 @@
 #include "sheethelpers.h"
 
 #include "io/zipindex.h"
+#include "sheet/xlsxbase.h"
 #include "sheet/xlsxsave.h"
 #include "sheet/xmlscan.h"
 
@@ -651,6 +652,412 @@ private Q_SLOTS:
         only.cellFormatsBefore = 1;
         QVERIFY(patchStyles(bare, only, &out, &why));
         QVERIFY(out.contains("<styleSheet xmlns=\"" + kMainNs.toUtf8() + "\"><numFmts count=\"1\"><numFmt numFmtId=\"164\" formatCode=\"0.00\"/></numFmts><cellStyleXfs"));
+    }
+
+    // The default sizes: the file's element says them as the person left them (what else it says stays), one is made before the columns when the file has none, and a sheet whose sizes
+    // were not changed is as it was.
+    void theDefaultSizesAreWrittenInTheSheetsFormatElement()
+    {
+        const QByteArray with = "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews>"
+                                "<sheetFormatPr baseColWidth=\"10\" defaultColWidth=\"9.5\" defaultRowHeight=\"15\" outlineLevelRow=\"1\"/><cols><col min=\"1\" max=\"1\" width=\"20\" customWidth=\"1\"/></cols>"
+                                "<sheetData><row r=\"1\"><c r=\"A1\"><v>1</v></c></row></sheetData></worksheet>";
+        SheetChanges c;
+        c.replaceFormat = true;
+        c.format.baseColWidth = 10;
+        c.format.defaultRowHeight = 24;
+        c.format.customHeight = true;
+        c.format.defaultColWidth = 14.7109375;
+        bool ok = false;
+        QString why;
+        QByteArray out = patch(with, c, true, &why, &ok);
+        QVERIFY2(ok, qPrintable(why));
+        QVERIFY2(out.contains("defaultRowHeight=\"24\"") && out.contains("customHeight=\"1\"") && out.contains("defaultColWidth=\"14.7109375\"") && out.contains("outlineLevelRow=\"1\"") && out.contains("baseColWidth=\"10\""), out.constData());
+        QVERIFY(out.contains("<cols><col min=\"1\" max=\"1\" width=\"20\" customWidth=\"1\"/></cols>"));
+        Sheet read;
+        QVERIFY(readSheetXml(out, &read));
+        QCOMPARE(read.format.defaultRowHeight, 24.0);
+        QVERIFY(read.format.customHeight);
+        QCOMPARE(read.format.defaultColWidth, 14.7109375);
+        // no default width: the attribute goes, and a height that is not a person's is not flagged
+        c.format.defaultColWidth = 0;
+        c.format.customHeight = false;
+        out = patch(with, c, true, &why, &ok);
+        QVERIFY(ok && !out.contains("defaultColWidth") && !out.contains("customHeight"));
+        // a file with no element is given one, before the columns
+        const QByteArray without = "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews>"
+                                   "<cols><col min=\"1\" max=\"1\" width=\"20\" customWidth=\"1\"/></cols><sheetData/></worksheet>";
+        c.format.defaultColWidth = 11;
+        out = patch(without, c, true, &why, &ok);
+        QVERIFY2(ok, qPrintable(why));
+        QVERIFY2(out.indexOf("<sheetFormatPr") > 0 && out.indexOf("<sheetFormatPr") < out.indexOf("<cols>") && out.indexOf("</sheetViews>") < out.indexOf("<sheetFormatPr"), out.constData());
+        QVERIFY(readSheetXml(out, &read));
+        QCOMPARE(read.format.defaultColWidth, 11.0);
+        QCOMPARE(read.format.defaultRowHeight, 24.0);
+        // no change asked: the element is as the file had it
+        SheetChanges none;
+        none.cells.push_back(number(0, 0, 5));
+        out = patch(with, none);
+        QVERIFY(out.contains("<sheetFormatPr baseColWidth=\"10\" defaultColWidth=\"9.5\" defaultRowHeight=\"15\" outlineLevelRow=\"1\"/>"));
+    }
+
+    // The color of a tab: the file's element replaced, one put first in the file's sheetPr (or made, in a self-closing one or none), and none taking the element away; what else is in
+    // sheetPr stays.
+    void theTabColorIsPutInTheSheetsHead()
+    {
+        auto sheetWith = [](const QString &head) { return QByteArray("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">" + head.toUtf8() + "<sheetData/></worksheet>"); };
+        SheetChanges c;
+        c.replaceTabColor = true;
+        c.tabColor = ColorSpec::fromRgb(0xC00000);
+        bool ok = false;
+        QString why;
+        QByteArray out = patch(sheetWith(QStringLiteral("<sheetPr><tabColor rgb=\"FF00FF00\"/><pageSetUpPr fitToPage=\"1\"/></sheetPr>")), c, true, &why, &ok);
+        QVERIFY2(ok, qPrintable(why));
+        QVERIFY2(out.contains("<sheetPr><tabColor rgb=\"FFC00000\"/><pageSetUpPr fitToPage=\"1\"/></sheetPr>"), out.constData());
+        out = patch(sheetWith(QStringLiteral("<sheetPr><pageSetUpPr fitToPage=\"1\"/></sheetPr>")), c, true, &why, &ok);
+        QVERIFY2(ok && out.contains("<sheetPr><tabColor rgb=\"FFC00000\"/><pageSetUpPr fitToPage=\"1\"/></sheetPr>"), out.constData());
+        out = patch(sheetWith(QStringLiteral("<sheetPr/>")), c, true, &why, &ok);
+        QVERIFY2(ok && out.contains("<sheetPr><tabColor rgb=\"FFC00000\"/></sheetPr>"), out.constData());
+        out = patch(sheetWith(QStringLiteral("<dimension ref=\"A1\"/>")), c, true, &why, &ok);
+        QVERIFY2(ok && out.contains("xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetPr><tabColor rgb=\"FFC00000\"/></sheetPr><dimension"), out.constData());
+        // a theme color, and none
+        c.tabColor.kind = ColorSpec::Kind::Theme;
+        c.tabColor.index = 4;
+        c.tabColor.tint = 0.5;
+        out = patch(sheetWith(QStringLiteral("<sheetPr><tabColor rgb=\"FF00FF00\"/></sheetPr>")), c, true, &why, &ok);
+        QVERIFY2(ok && out.contains("<tabColor theme=\"4\" tint=\"0.5\"/>"), out.constData());
+        c.tabColor = ColorSpec();
+        out = patch(sheetWith(QStringLiteral("<sheetPr><tabColor rgb=\"FF00FF00\"/><pageSetUpPr fitToPage=\"1\"/></sheetPr>")), c, true, &why, &ok);
+        QVERIFY2(ok && !out.contains("tabColor") && out.contains("<pageSetUpPr fitToPage=\"1\"/>"), out.constData());
+        out = patch(sheetWith(QStringLiteral("<dimension ref=\"A1\"/>")), c, true, &why, &ok);
+        QVERIFY2(ok && !out.contains("sheetPr"), out.constData());
+    }
+
+    // The rules of conditional formatting and validation a sheet has, written for a sheet that is made whole, read again: each kind of rule comes back with what it says.
+    void rulesAreWrittenAsTheFileHasThem()
+    {
+        Sheet sheet;
+        auto range = [](const char *ref) {
+            CellRange r;
+            parseRangeRef(QString::fromLatin1(ref), &r);
+            return r;
+        };
+        QVector<CondRule> rules;
+        {
+            CondRule r;
+            r.type = CondRule::Type::CellIs;
+            r.op = CondRule::Operator::Between;
+            r.formula1 = QStringLiteral("5");
+            r.formula2 = QStringLiteral("9");
+            r.dxf = 2;
+            r.priority = 3;
+            r.stopIfTrue = true;
+            r.ranges = {range("A1:A10"), range("C3")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::ColorScale;
+            r.priority = 1;
+            r.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Percentile, QStringLiteral("50"), true}, {CondValue::Type::Max, QString(), true}};
+            r.colors = {ColorSpec::fromRgb(0xF8696B), ColorSpec::fromRgb(0xFFEB84), ColorSpec::fromRgb(0x63BE7B)};
+            r.ranges = {range("B1:B10")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::DataBar;
+            r.priority = 2;
+            r.showValue = false;
+            r.minLength = 5;
+            r.maxLength = 80;
+            r.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+            r.colors = {ColorSpec::fromRgb(0x638EC6)};
+            r.ranges = {range("D1:D10")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::IconSet;
+            r.priority = 4;
+            r.iconSet = QStringLiteral("3Arrows");
+            r.reverse = true;
+            r.values = {{CondValue::Type::Percent, QStringLiteral("0"), true}, {CondValue::Type::Percent, QStringLiteral("33"), true}, {CondValue::Type::Number, QStringLiteral("7"), false}};
+            r.ranges = {range("E1:E10")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::Top10;
+            r.priority = 5;
+            r.rank = 3;
+            r.percent = true;
+            r.bottom = true;
+            r.dxf = 1;
+            r.ranges = {range("F1:F9")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::ContainsText;
+            r.priority = 6;
+            r.text = QStringLiteral("ab\"c");
+            r.dxf = 0;
+            r.ranges = {range("G2:G9")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::AboveAverage;
+            r.priority = 7;
+            r.above = false;
+            r.equalAverage = true;
+            r.stdDev = 2;
+            r.ranges = {range("H1:H5")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::Expression;
+            r.priority = 8;
+            r.formula1 = QStringLiteral("MOD(ROW(),2)=0");
+            r.dxf = 0;
+            r.ranges = {range("I1:I9")};
+            rules.append(r);
+        }
+        {
+            CondRule r;
+            r.type = CondRule::Type::TimePeriod;
+            r.priority = 9;
+            r.timePeriod = QStringLiteral("lastWeek");
+            r.ranges = {range("J1:J9")};
+            rules.append(r);
+        }
+        QVector<Validation> checks;
+        {
+            Validation v;
+            v.type = Validation::Type::List;
+            v.formula1 = QStringLiteral("\"a,b,c\"");
+            v.dropDown = false;
+            v.showError = true;
+            v.showInput = true;
+            v.errorTitle = QStringLiteral("No");
+            v.error = QStringLiteral("Pick <one>");
+            v.promptTitle = QStringLiteral("Hint");
+            v.prompt = QStringLiteral("a, b, or c");
+            v.allowBlank = true;
+            v.ranges = {range("K1:K9")};
+            checks.append(v);
+            Validation w;
+            w.type = Validation::Type::Whole;
+            w.compare = Validation::Compare::GreaterEqual;
+            w.style = Validation::Style::Warning;
+            w.showError = true;
+            w.formula1 = QStringLiteral("0");
+            w.ranges = {range("L1:L9")};
+            checks.append(w);
+        }
+        const QByteArray after = conditionalFormatsXml(rules) + validationsXml(checks);
+        Sheet read;
+        QVERIFY(readSheetXml(worksheet(QString(), QString::fromUtf8(after)), &read));
+        QCOMPARE(read.conditionalFormats.size(), rules.size());
+        // (the sheet reads them by priority)
+        QVector<CondRule> byPriority = rules;
+        std::sort(byPriority.begin(), byPriority.end(), [](const CondRule &a, const CondRule &b) { return a.priority < b.priority; });
+        for (int i = 0; i < byPriority.size(); ++i) {
+            const CondRule &want = byPriority[i], &got = read.conditionalFormats[i];
+            QVERIFY2(got.type == want.type, qPrintable(QString::number(i)));
+            QCOMPARE(got.priority, want.priority);
+            QCOMPARE(got.dxf, want.dxf);
+            QCOMPARE(got.stopIfTrue, want.stopIfTrue);
+            QCOMPARE(got.ranges.size(), want.ranges.size());
+            QVERIFY(got.ranges[0] == want.ranges[0]);
+            QCOMPARE(got.values.size(), want.values.size());
+            for (int k = 0; k < want.values.size(); ++k) {
+                QVERIFY(got.values[k].type == want.values[k].type);
+                QCOMPARE(got.values[k].value, want.values[k].value);
+            }
+            QVERIFY(got.colors == want.colors);
+            if (want.type == CondRule::Type::CellIs) {
+                QVERIFY(got.op == want.op);
+                QCOMPARE(got.formula1, want.formula1);
+                QCOMPARE(got.formula2, want.formula2);
+            }
+            if (want.type == CondRule::Type::Expression) QCOMPARE(got.formula1, want.formula1);
+            if (want.type == CondRule::Type::DataBar) {
+                QCOMPARE(got.showValue, want.showValue);
+                QCOMPARE(got.minLength, want.minLength);
+                QCOMPARE(got.maxLength, want.maxLength);
+            }
+            if (want.type == CondRule::Type::IconSet) {
+                QCOMPARE(got.iconSet, want.iconSet);
+                QCOMPARE(got.reverse, want.reverse);
+                QVERIFY(got.values[2].gte == want.values[2].gte);
+            }
+            if (want.type == CondRule::Type::Top10) {
+                QCOMPARE(got.rank, want.rank);
+                QCOMPARE(got.percent, want.percent);
+                QCOMPARE(got.bottom, want.bottom);
+            }
+            if (want.type == CondRule::Type::ContainsText) QCOMPARE(got.text, want.text);
+            if (want.type == CondRule::Type::AboveAverage) {
+                QCOMPARE(got.above, want.above);
+                QCOMPARE(got.equalAverage, want.equalAverage);
+                QCOMPARE(got.stdDev, want.stdDev);
+            }
+            if (want.type == CondRule::Type::TimePeriod) QCOMPARE(got.timePeriod, want.timePeriod);
+        }
+        QCOMPARE(read.validations.size(), 2);
+        const Validation &v = read.validations[0], &w = read.validations[1];
+        QVERIFY(v.type == Validation::Type::List && !v.dropDown && v.showError && v.showInput && v.allowBlank);
+        QCOMPARE(v.formula1, QStringLiteral("\"a,b,c\""));
+        QCOMPARE(v.error, QStringLiteral("Pick <one>"));
+        QCOMPARE(v.promptTitle, QStringLiteral("Hint"));
+        QVERIFY(w.type == Validation::Type::Whole && w.compare == Validation::Compare::GreaterEqual && w.style == Validation::Style::Warning);
+        // a rule with no cells is not written
+        CondRule none;
+        none.type = CondRule::Type::Expression;
+        none.formula1 = QStringLiteral("TRUE");
+        QCOMPARE(conditionalFormatsXml({none}), QByteArray());
+        QCOMPARE(validationsXml({}), QByteArray());
+    }
+
+    // A sheet made whole: the skeleton has the view, the default sizes, the tab color, and the rules round an empty sheetData, and the changes put the cells in.
+    void aNewSheetIsTheSkeletonWithItsCellsPutIn()
+    {
+        Sheet sheet;
+        sheet.tabColor = ColorSpec::fromRgb(0x00B050);
+        sheet.view.frozen = true;
+        sheet.view.frozenRows = 1;
+        sheet.view.paneRow = 1;
+        sheet.view.zoom = 150;
+        sheet.view.showGridLines = false;
+        sheet.format.defaultRowHeight = 18;
+        sheet.format.customHeight = true;
+        const QByteArray skeleton = newSheetSkeleton(sheet);
+        SheetChanges c;
+        c.cells.push_back(number(0, 0, 7));
+        c.replaceColumns = true;
+        ColumnSpan col;
+        col.first = col.last = 1;
+        col.width = 20;
+        col.customWidth = true;
+        c.columns.push_back(col);
+        CellRange merged;
+        parseRangeRef(QStringLiteral("A3:B4"), &merged);
+        c.replaceMerges = true;
+        c.merges.push_back(merged);
+        bool ok = false;
+        QString why;
+        const QByteArray out = patch(skeleton, c, true, &why, &ok);
+        QVERIFY2(ok, qPrintable(why));
+        Sheet read;
+        QVERIFY2(readSheetXml(out, &read), out.constData());
+        QVERIFY(read.tabColor == ColorSpec::fromRgb(0x00B050));
+        QVERIFY(read.view.frozen && read.view.frozenRows == 1 && read.view.zoom == 150 && !read.view.showGridLines);
+        QCOMPARE(read.format.defaultRowHeight, 18.0);
+        QVERIFY(read.format.customHeight);
+        QCOMPARE(read.cells.cellCount(), qint64(1));
+        QCOMPARE(read.columns.size(), 1);
+        QCOMPARE(read.columns[0].width, 20.0);
+        QCOMPARE(read.merges.size(), 1);
+    }
+
+    // Fonts, fills, borders, and cell formats that a person's formatting made are put at the ends of their lists, each cell format a copy of the one it was made from with the places of its
+    // font, fill, and border, its alignment and protection, and what the file said of it besides (the style it follows) kept.
+    void stylesGetNewFontsFillsBordersAndWholeFormats()
+    {
+        const QString lists = QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/><scheme val=\"minor\"/></font></fonts>"
+                                             "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
+                                             "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>");
+        const QByteArray xml = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" xfId=\"0\" customAttribute=\"keep\"><alignment horizontal=\"center\" justifyLastLine=\"1\"/></xf>"), lists);
+        SaveChanges changes;
+        FontSpec font;
+        font.name = QStringLiteral("Georgia");
+        font.size = 14;
+        font.bold = true;
+        font.underline = Underline::Double;
+        font.color = ColorSpec::fromRgb(0xC00000);
+        changes.newFonts.append(font);
+        changes.fontsBefore = 1;
+        FillSpec fill;
+        fill.pattern = PatternKind::Solid;
+        fill.fg = ColorSpec::fromRgb(0xFFFF00);
+        changes.newFills.append(fill);
+        changes.fillsBefore = 2;
+        BorderSpec border;
+        border.bottom.style = BorderStyle::Double;
+        border.bottom.color = ColorSpec::fromRgb(0x0000FF);
+        changes.newBorders.append(border);
+        changes.bordersBefore = 1;
+        CellFormat one;
+        one.font = 1;
+        one.fill = 2;
+        one.border = 1;
+        one.horizontal = HAlign::Right;
+        one.vertical = VAlign::Top;
+        one.wrap = true;
+        one.indent = 3;
+        one.rotation = 90;
+        one.readingOrder = 2;
+        one.locked = false;
+        one.formulaHidden = true;
+        changes.newCellFormats.append({0, 0, true, one});
+        CellFormat two = one;
+        two.horizontal = HAlign::General;
+        two.wrap = false;
+        two.indent = 0;
+        two.rotation = 0;
+        two.readingOrder = 0;
+        two.locked = true;
+        two.formulaHidden = false;
+        two.vertical = VAlign::Bottom;
+        changes.newCellFormats.append({1, 0, true, two});   // a copy of the first, made plain again
+        changes.cellFormatsBefore = 1;
+        CellStyleName good;
+        good.name = QStringLiteral("Good");
+        good.builtin = 26;
+        CellFormat goodFormat;
+        goodFormat.font = 1;
+        goodFormat.fill = 2;
+        changes.newStyles.append({goodFormat, good});
+        changes.styleXfsBefore = 1;
+        QByteArray out;
+        QString why;
+        QVERIFY2(patchStyles(xml, changes, &out, &why), qPrintable(why));
+        QVERIFY(out.contains("<fonts count=\"2\">"));
+        QVERIFY(out.contains("<fills count=\"3\">"));
+        QVERIFY(out.contains("<borders count=\"2\">"));
+        QVERIFY(out.contains("<cellXfs count=\"3\">"));
+        QVERIFY(out.contains("<cellStyleXfs count=\"2\">"));
+        QVERIFY(out.contains("<cellStyles count=\"2\">"));
+        QVERIFY2(out.contains("customAttribute=\"keep\""), out.constData());   // (what the file said of the format besides stays)
+        Styles read;
+        QBuffer in(&out);
+        in.open(QIODevice::ReadOnly);
+        QVERIFY(readStyles(&in, Limits(), &read));
+        QCOMPARE(read.fonts.size(), 2);
+        QVERIFY(read.fonts[1] == font);
+        QCOMPARE(read.fonts[0].scheme, QStringLiteral("minor"));
+        QCOMPARE(read.fonts[0].family, 2);
+        QCOMPARE(read.fills.size(), 3);
+        QVERIFY(read.fills[2] == fill);
+        QCOMPARE(read.borders.size(), 2);
+        QVERIFY(read.borders[1] == border);
+        QCOMPARE(read.formats.size(), 3);
+        const CellFormat &a = read.formats[1], &b = read.formats[2];
+        QCOMPARE(a.font, 1u);
+        QCOMPARE(a.fill, 2u);
+        QCOMPARE(a.border, 1u);
+        QVERIFY(a.horizontal == HAlign::Right && a.vertical == VAlign::Top && a.wrap && a.indent == 3 && a.rotation == 90 && a.readingOrder == 2 && !a.locked && a.formulaHidden);
+        QVERIFY(b.horizontal == HAlign::General && b.vertical == VAlign::Bottom && !b.wrap && b.indent == 0 && b.rotation == 0 && b.readingOrder == 0 && b.locked && !b.formulaHidden);
+        QCOMPARE(b.font, 1u);
+        QCOMPARE(read.styleXfs.size(), 2);
+        QCOMPARE(read.styleXfs[1].fill, 2u);
+        QCOMPARE(read.cellStyles.size(), 2);
+        QCOMPARE(read.cellStyles[1].name, QStringLiteral("Good"));
+        QCOMPARE(read.cellStyles[1].builtin, 26);
+        QCOMPARE(read.cellStyles[1].xfId, 1u);
+        QVERIFY2(out.contains("justifyLastLine=\"1\""), "an alignment attribute the program does not know stays on the format that was copied from the first");
     }
 
     // ---- the whole file

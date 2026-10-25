@@ -5,6 +5,9 @@
 
 #include "app/appwindow.h"
 #include "app/celleditor.h"
+#include "app/formatdialog.h"
+#include "app/widgets.h"
+#include "core/color.h"
 #include "core/editsession.h"
 #include "core/loader.h"
 #include "grid/gridview.h"
@@ -27,6 +30,7 @@ class QThread;
 class QUndoStack;
 class QLabel;
 class QLineEdit;
+class QMenu;
 class QSlider;
 
 namespace jp {
@@ -83,6 +87,8 @@ public:
     bool isEditing() const { return m_edit.active; }
     CellEditor *cellEditor() const { return m_cellEditor; }
     crunch::EditSession *session() const { return m_session.get(); }
+    // The person's language: how numbers are typed and shown (the decimal mark, the grouping of digits, the order of a date). The window begins with the system's.
+    void setLocale(const QLocale &locale);
     // The objects over the cells (null before the window is built).
     crunch::SheetObjects *objects() const { return m_objects.get(); }
     QUndoStack *undoStack() const;
@@ -122,8 +128,21 @@ public:
     struct SizeRequest {
         bool column = true;
         double value = 0;
+        bool standard = false;   // the sheet's default (Default Width, Default Row Height), not the size of the selected columns or rows
     };
     void setSizeAsker(const std::function<bool(SizeRequest *)> &asker) { m_sizeAsker = asker; }
+    // What Move or Copy asks: which sheets (their places), before which sheet (its place; -1: at the end), and whether to make copies. A dialog unless this stands in for it (tests); false
+    // gives it up.
+    struct MoveCopyRequest {
+        QVector<int> sheets;
+        int before = -1;
+        bool copy = false;
+    };
+    void setMoveCopyAsker(const std::function<bool(MoveCopyRequest *)> &asker) { m_moveCopyAsker = asker; }
+    // The sheets the tabs have picked (their places in the workbook), the one with the cursor among them.
+    QVector<int> selectedSheets() const;
+    // Gives a sheet a new name (what the tab's name line does when it is finished): the formulas that name it follow. The reason is shown if the name is refused.
+    bool renameSheetTo(int sheet, const QString &name);
     // What is asked when a value does not fit the rule of validation of its cell and the rule is a warning or only tells: the rule's title, its message, and its style (Validation::Style, 1
     // warning, 2 information); true goes on. A message box unless this stands in for it (tests). A rule that stops is only told (through the notifier).
     // For tests: what asks whether to go on with a step that Undo cannot hold (its text), standing in for the question.
@@ -132,6 +151,18 @@ public:
     // And Paste Special: how to paste. A dialog unless this stands in for it (tests); false gives it up.
     void setPasteAsker(const std::function<bool(crunch::EditSession::PasteOptions *)> &asker) { m_pasteOptionsAsker = asker; }
     void setChangedAsker(const std::function<ChangedAnswer(const QString &name)> &asker) { m_changedAsker = asker; }
+    // What Format Cells asks: given the format of the cell with the cursor, what the person changed (a dialog unless this stands in for it: tests); false gives it up.
+    void setFormatAsker(const std::function<bool(const FormatCellsDialog::Input &, FormatCellsDialog::Result *)> &asker) { m_formatAsker = asker; }
+    // What is asked before a step that throws something away (merging cells that hold values): the title and the sentence; true goes on. A message box unless this stands in for it (tests).
+    void setConfirmAsker(const std::function<bool(const QString &title, const QString &text)> &asker) { m_confirmAsker = asker; }
+    // The Format Painter: whether it is waiting for cells to paint, and whether it stays on after painting (a double click).
+    // How many times the buttons of formatting were made to show a cell's format (they are not, for a cell that has the format they already show).
+    int formatStateRuns() const { return m_formatStateRuns; }
+    bool formatPainterActive() const { return m_painter.mode != PainterMode::Off; }
+    bool formatPainterLocked() const { return m_painter.mode == PainterMode::Locked; }
+    // The format the dialog starts from (the cell with the cursor), and the dialog's changes made.
+    FormatCellsDialog::Input formatInput() const;
+    bool applyFormatResult(const FormatCellsDialog::Result &result);
     // Where Save As writes: asked of a file dialog, unless this stands in for it (tests): the name it starts with, and the filter; an empty path gives it up.
     void setSavePicker(const std::function<QString(const QString &start, const QString &filter)> &picker) { m_savePicker = picker; }
     // The kind of file the stand-in for the file dialog says was picked (what the dialog gives as its selected filter).
@@ -288,6 +319,7 @@ private:
     void resizeDragged(bool column, qint64 index, int size);
     void fitDragged(bool column, qint64 index);
     void setSizeDialog(bool column);
+    void defaultSizeDialog(bool column);
     void fitSelection(bool column);
     void hideSelection(bool column, bool hide);
     void widenForEntry(int sheet, quint32 row, quint32 col);
@@ -331,6 +363,78 @@ private:
     void widenForCells(int sheet, const jp::office::sheet::CellRange &cells);
     QString htmlOfClip(const crunch::ClipData &clip) const;
     void freezeAtSelection();
+    // the sheets (crunchwindow_sheets.cpp): the tabs, and the commands that add, copy, rename, delete, move, hide, and color them
+    void createSheetActions();
+    void onSheetsChanged();
+    void onTabMoved(int from, int to);
+    void refreshStripes();
+    void insertSheetCommand(bool atEnd);
+    void deleteSheetsCommand();
+    void moveCopyCommand();
+    void hideSheetsCommand();
+    void setTabColorCommand(const jp::office::sheet::ColorSpec &color);
+    void showTabMenu(const QPoint &globalPos);
+    QMenu *buildTabColorMenu(QWidget *owner);
+    QMenu *buildUnhideMenu(QWidget *owner);
+    std::function<bool(MoveCopyRequest *)> m_moveCopyAsker;
+    QWidget *m_sheetTabRow = nullptr;
+    // formatting (crunchwindow_format.cpp): the commands of the Home tab and the Format Cells dialog
+    enum class PainterMode { Off, Once, Locked };
+    void createFormatActions();
+    void formatRibbonParts(RibbonParts &parts);
+    // The buttons of formatting are made to show the format of the cell with the cursor. Unless `force`, nothing is done again for a cell that has the same cell format as the last one shown
+    // (the cursor moving down a column of cells, or an entry that is kept: the buttons already show it).
+    void updateFormatState(bool force = true);
+    bool formatSelection(const jp::office::sheet::FormatChange &change, const QString &text);
+    FormatView viewOfActiveCell() const;
+    void toggleFont(int what);
+    void setFontSize(double size);
+    void growFont(int steps);
+    void chooseFillColor(const ColorRef &c);
+    void chooseFontColor(const ColorRef &c);
+    void alignCommand(int kind);
+    void indentCommand(int delta);
+    void orientationCommand(int degrees);
+    void numberFormatCommand(int kind);
+    void decimalsCommand(int delta);
+    void borderCommand(int kind);
+    void mergeCommand(crunch::EditSession::MergeKind kind);
+    void clearCommand(int what);
+    void applyCellStyle(const QString &name);
+    void formatPainterCommand();
+    void paintFormats();
+    void cancelFormatPainter();
+    void formatCellsDialog(int tab);
+    bool confirm(const QString &title, const QString &text);
+    ColorScheme workbookColors() const;
+    jp::office::sheet::ColorSpec colorSpecOf(const ColorRef &c) const;
+    QMenu *buildBordersMenu(QWidget *owner);
+    QMenu *buildStylesMenu(QWidget *owner);
+    QMenu *buildOrientationMenu(QWidget *owner);
+    std::function<bool(const FormatCellsDialog::Input &, FormatCellsDialog::Result *)> m_formatAsker;
+    std::function<bool(const QString &, const QString &)> m_confirmAsker;
+    QList<QPointer<FontCombo>> m_fontCombos;
+    QList<QPointer<SizeCombo>> m_sizeCombos;
+    QPointer<ColorButton> m_fillButton, m_fontColorButton;
+    QPointer<QComboBox> m_numberBox;
+    QStringList m_formatActions;                // the commands that format cells (enabled when the workbook can be changed)
+    jp::office::sheet::BorderStyle m_lineStyle = jp::office::sheet::BorderStyle::Thin;
+    jp::office::sheet::ColorSpec m_lineColor;   // the color of the lines the border commands draw (none: automatic)
+    int m_lastBorder = 0;                       // the border command the button of the Borders menu repeats
+    struct Painter {
+        PainterMode mode = PainterMode::Off;
+        crunch::ClipData clip;
+        QElapsedTimer started;
+    } m_painter;
+    struct FormatShown {                         // what the buttons of formatting show now: the workbook, the cell format of the cell with the cursor, and what else decides it
+        const void *book = nullptr;
+        quint32 xf = ~quint32(0);
+        quint32 flags = 0;
+        bool operator==(const FormatShown &o) const { return book == o.book && xf == o.xf && flags == o.flags; }
+    } m_formatShown;
+    int m_formatStateRuns = 0;
+    int m_formatOpen = -1;                       // whether the commands of formatting were last made usable (1), or not (0); -1 before the first time
+    bool m_formatting = false;                   // a formatting command is working (the state of the buttons is not read back into it)
     void notice(const QString &title, const QString &text, bool warning = true);
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);

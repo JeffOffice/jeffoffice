@@ -31,6 +31,8 @@
 #include <QSignalSpy>
 #include <QTextDocument>
 
+#include "../localepin.h"
+
 using namespace jp;
 using namespace crunchtest;
 
@@ -152,6 +154,7 @@ private Q_SLOTS:
     // After the load every formula is worked out again: the totals the file stored as 0 are the sums, and the formula bar shows the formula.
     void formulasAreCalculatedAfterTheLoad()
     {
+        const PinnedLocale english;   // (the amounts are written the way the United States writes them)
         Folder folder;
         Window win;
         QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));
@@ -309,6 +312,7 @@ private Q_SLOTS:
     // Copy puts what the selected cells show on the clipboard, as text with tabs and lines.
     void copyPutsTheSelectionOnTheClipboardAsText()
     {
+        const PinnedLocale english;   // (the amounts are written the way the United States writes them)
         Folder folder;
         Window win;
         QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));
@@ -320,6 +324,7 @@ private Q_SLOTS:
     // The view commands: gridlines, headings, the formula bar, show formulas, zoom, and freezing panes.
     void theViewCommandsChangeTheView()
     {
+        const PinnedLocale english;   // (the amounts are written the way the United States writes them)
         Folder folder;
         Window win;
         QVERIFY(win.open(folder.write(QStringLiteral("budget.xlsx"), budgetWorkbook())));
@@ -807,7 +812,7 @@ private Q_SLOTS:
         QCOMPARE(win.w.formulaBar()->text(), QStringLiteral("1"));
     }
 
-    // The Help says nothing that this build cannot do (it cannot yet sort or filter, print, paint a format with the painter, or insert a chart).
+    // The Help says nothing that this build cannot do (it cannot yet sort or filter, print, or insert a chart), and it says that the rules of conditional formats can be seen but not yet made.
     void theHelpPromisesNothingTheBuildCannotDo()
     {
         QDirIterator it(QStringLiteral(JC_SOURCE_DIR "/resources/help/en/crunch"), QStringList{QStringLiteral("*.md")}, QDir::Files);
@@ -817,10 +822,14 @@ private Q_SLOTS:
             QVERIFY(f.open(QIODevice::ReadOnly));
             const QString text = QString::fromUtf8(f.readAll());
             ++files;
-            for (const QString &phrase : {QStringLiteral("format painter"), QStringLiteral("print preview"), QStringLiteral("sort ascending"), QStringLiteral("autofilter"), QStringLiteral("insert a chart")})
+            for (const QString &phrase : {QStringLiteral("print preview"), QStringLiteral("sort ascending"), QStringLiteral("autofilter"), QStringLiteral("insert a chart")})
                 QVERIFY2(!text.contains(phrase, Qt::CaseInsensitive), qPrintable(f.fileName() + QStringLiteral(" says: ") + phrase));
+            if (f.fileName().endsWith(QLatin1String("conditional-formats.md"))) {
+                QVERIFY(text.contains(QStringLiteral("You can't make, change, or delete a rule yet")));
+                QVERIFY(text.contains(QStringLiteral("Rule editing comes in a later version")));
+            }
         }
-        QVERIFY(files >= 7);
+        QVERIFY(files >= 12);
     }
 
     // Show Formulas has the keys Ctrl and the grave accent, and on a Mac the Control key (Command and that key belong to the system).

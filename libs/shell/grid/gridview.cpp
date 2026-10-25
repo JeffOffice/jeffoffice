@@ -51,6 +51,8 @@ GridView::GridView(QWidget *parent) : QAbstractScrollArea(parent)
     viewport()->setBackgroundRole(QPalette::Window);
     m_painter = std::make_unique<GridPainter>(&m_sheet);
     m_nav = std::make_unique<Nav>(&m_sheet);
+    m_conditionalTimer.setSingleShot(true);
+    connect(&m_conditionalTimer, &QTimer::timeout, this, [this] { conditionalWork(); });
     connect(horizontalScrollBar(), &QScrollBar::valueChanged, this, [this](int) {
         if (!m_syncingBars) scrollTo(horizontalScrollBar()->value(), m_sheet.layout().scrollY());
     });
@@ -180,6 +182,7 @@ void GridView::updateScrollBars()
     verticalScrollBar()->setPageStep(std::max(1, pageY));
     verticalScrollBar()->setSingleStep(std::max(1, L.rows.defaultSize()));
     verticalScrollBar()->setValue(int(std::min<qint64>(L.scrollY(), INT_MAX)));
+    horizontalScrollBar()->setInvertedAppearance(mirrored());   // (the sheet's first column is at the right)
     horizontalScrollBar()->setRange(0, int(std::min<qint64>(L.maxScrollX(), INT_MAX)));
     horizontalScrollBar()->setPageStep(std::max(1, pageX));
     horizontalScrollBar()->setSingleStep(std::max(1, L.cols.defaultSize()));
@@ -212,10 +215,10 @@ void GridView::scrollTo(qint64 x, qint64 y)
     // (the pixels already drawn are the pixels that are wanted when the scroll is a whole number of them at this zoom: every edge is then where it was, that far on; at 100% always)
     const bool exact = digits == m_headerDigits && std::abs(exactX - dx) < 1e-9 && std::abs(exactY - dy) < 1e-9;
     if (exact && dx == 0 && dy != 0 && std::abs(dy) < body.rect.height()) {
-        viewport()->scroll(0, -dy, bodyScrollRect(true));
+        viewport()->scroll(0, -dy, mirror(bodyScrollRect(true)));
         ++m_blits;
     } else if (exact && dy == 0 && dx != 0 && std::abs(dx) < body.rect.width()) {
-        viewport()->scroll(-dx, 0, bodyScrollRect(false));
+        viewport()->scroll(mirrored() ? dx : -dx, 0, mirror(bodyScrollRect(false)));
         ++m_blits;
     } else {
         viewport()->update();
@@ -389,8 +392,14 @@ bool GridView::valuesChanged(int sheetIndex, const std::vector<ValueStore::Item>
             dirty += L.rangeRectIn(p.pane, it.row, p.view.firstCol, it.row, p.view.lastCol) & p.view.rect;
         }
     }
+    if (m_sheet.hasConditionalFormats() && !items.empty()) {
+        // (a rule of conditional formatting can make any cell look different when a value changes: the figures it keeps are let go, the texts are made again as they are drawn, and
+        // the whole of what is shown is drawn again)
+        m_sheet.invalidateLooks();
+        all = true;
+    }
     if (all) viewport()->update();
-    else if (!dirty.isEmpty()) viewport()->update(dirty);
+    else if (!dirty.isEmpty()) viewport()->update(mirror(dirty));
     if (inSelection) startStats();
     return active;
 }
@@ -456,9 +465,10 @@ void GridView::setSelectionInternal(const Selection &s, bool keepActiveInView)
         }
     dirty += QRect(0, 0, viewport()->width(), L.headerHeight());
     dirty += QRect(0, 0, L.headerWidth(), viewport()->height());
-    viewport()->update(dirty);
+    viewport()->update(mirror(dirty));
     Q_EMIT selectionChanged();
     startStats();
+    if (m_drag == Drag::None) Q_EMIT selectionSettled();
 }
 
 QString GridView::selectionName() const
@@ -604,7 +614,7 @@ PaintOptions GridView::paintOptions() const
     o.fillPreview = m_drag == Drag::Fill && !(m_fillExtent == m_fillSource) ? &m_fillExtent : nullptr;
     o.copyRange = hasCopyBorder() ? &m_copyBorder : nullptr;
     o.copyPhase = m_copyPhase;
-    o.dropDown = dropDownRect();
+    o.dropDown = dropDownRectInLayout();
     if (m_drag == Drag::Resize) {
         o.resizeGuide = m_resizeEdge + int(std::lround((m_resizeSize - m_resizeSize0) * m_sheet.layout().zoom()));
         o.resizeGuideColumn = m_resizeColumn;
@@ -632,7 +642,7 @@ void GridView::paintEvent(QPaintEvent *e)
     t.start();
     const qint64 cpu0 = jp::threadCpuMicros();
     QPainter p(viewport());
-    m_painter->paint(&p, e->rect(), paintOptions());
+    m_painter->paint(&p, mirror(e->rect()), paintOptions());
     paintPageBreaks(&p, e->rect());
     paintOverlay(&p, e->rect());
     p.end();
@@ -640,6 +650,26 @@ void GridView::paintEvent(QPaintEvent *e)
         m_paintTimes.push_back(double(t.nsecsElapsed()) / 1e6);
         m_paintCpuTimes.push_back(double(jp::threadCpuMicros() - cpu0) / 1e3);
     }
+    afterPaint();
+}
+
+// What the rules of conditional formatting left after a paint is done in slices between the paints, and what stopped one altogether is said once.
+void GridView::afterPaint()
+{
+    const CondFormats &rules = m_sheet.conditional();
+    if (rules.wantsMore() && !m_conditionalTimer.isActive()) m_conditionalTimer.start(0);
+    const QString notice = rules.takeNotice();
+    if (!notice.isEmpty()) Q_EMIT noticeRaised(notice);
+}
+
+void GridView::conditionalWork()
+{
+    CondFormats &rules = m_sheet.conditional();
+    const bool more = rules.step(3000);
+    // (what was shown plain while the figures were not ready is made again, and drawn again)
+    m_sheet.invalidateLooks();
+    viewport()->update();
+    if (more) m_conditionalTimer.start(0);
 }
 
 void GridView::setPageBreaks(std::vector<PageBreakLine> rows, std::vector<PageBreakLine> cols)
@@ -771,7 +801,8 @@ void GridView::mousePressEvent(QMouseEvent *e)
     if (overlayPress(e) || !m_cellsEnabled) return;
     m_jump.reset();
     const GridLayout &L = m_sheet.layout();
-    const Hit h = L.hit(e->pos());
+    const QPoint lp = mirror(e->pos());
+    const Hit h = L.hit(lp);
     Navigator nav(&m_sheet.layout(), m_nav.get());
     const bool shift = e->modifiers() & Qt::ShiftModifier;
     if (e->button() == Qt::RightButton) {
@@ -783,70 +814,73 @@ void GridView::mousePressEvent(QMouseEvent *e)
         return;
     }
     if (e->button() != Qt::LeftButton) return;
-    if (dropDownRect().contains(e->pos())) {
+    if (dropDownRectInLayout().contains(lp)) {
         Q_EMIT dropDownRequested();
         return;
     }
     bool borderColumn = false;
     qint64 borderIndex = -1;
-    if (borderAt(e->pos(), &borderColumn, &borderIndex)) {
+    if (borderAtInLayout(lp, &borderColumn, &borderIndex)) {
         const GridLayout &LL = m_sheet.layout();
         m_drag = Drag::Resize;
         m_resizeColumn = borderColumn;
         m_resizeIndex = borderIndex;
-        m_resizeFrom = borderColumn ? e->pos().x() : e->pos().y();
+        m_resizeFrom = borderColumn ? lp.x() : lp.y();
         m_resizeSize0 = m_resizeSize = borderColumn ? LL.cols.size(borderIndex) : LL.rows.size(borderIndex);
         m_resizeEdge = borderColumn ? LL.xEdge(borderIndex + 1, borderIndex < LL.frozenCols()) : LL.yEdge(borderIndex + 1, borderIndex < LL.frozenRows());
-        m_lastMouse = e->pos();
+        m_lastMouse = lp;
         viewport()->update();
         return;
     }
-    if (fillHandleRect().contains(e->pos())) {
+    if (fillHandleRectInLayout().contains(lp)) {
         m_drag = Drag::Fill;
         m_fillSource = m_fillExtent = m_selection.range;
         m_fillCtrl = e->modifiers() & Qt::ControlModifier;
-        m_lastMouse = e->pos();
+        m_lastMouse = lp;
         return;
     }
     switch (h.kind) {
     case Hit::Kind::Cell:
+        m_drag = Drag::Cells;   // (before the selection is set: it is settled when the button is let go)
         setSelectionInternal(shift ? nav.extendTo(m_selection, h.row, h.col) : nav.click(h.row, h.col), false);
-        m_drag = Drag::Cells;
         break;
     case Hit::Kind::RowHeader:
-        setSelectionInternal(shift ? nav.extendRows(m_selection, h.row) : nav.selectRows(h.row, h.row), false);
         m_drag = Drag::Rows;
+        setSelectionInternal(shift ? nav.extendRows(m_selection, h.row) : nav.selectRows(h.row, h.row), false);
         break;
     case Hit::Kind::ColumnHeader:
-        setSelectionInternal(shift ? nav.extendColumns(m_selection, h.col) : nav.selectColumns(h.col, h.col), false);
         m_drag = Drag::Columns;
+        setSelectionInternal(shift ? nav.extendColumns(m_selection, h.col) : nav.selectColumns(h.col, h.col), false);
         break;
     case Hit::Kind::Corner: setSelectionInternal(nav.selectAll(m_selection), false); break;
     case Hit::Kind::None: break;
     }
-    m_lastMouse = e->pos();
+    m_lastMouse = lp;
 }
 
 void GridView::mouseMoveEvent(QMouseEvent *e)
 {
-    m_lastMouse = e->pos();
+    const QPoint lp = mirror(e->pos());
+    m_lastMouse = lp;
     if (m_drag == Drag::Resize) {
-        const int at = m_resizeColumn ? e->pos().x() : e->pos().y();
+        const int at = m_resizeColumn ? lp.x() : lp.y();
         m_resizeSize = std::clamp(m_resizeSize0 + int(std::lround((at - m_resizeFrom) / m_sheet.layout().zoom())), 0, Axis::kMaxSize);
         viewport()->update();
         return;
     }
     if (e->buttons() & Qt::LeftButton) {
-        dragTo(e->pos());
+        dragTo(lp);
         return;
     }
     bool column = false;
     qint64 index = -1;
-    if (borderAt(e->pos(), &column, &index)) viewport()->setCursor(column ? Qt::SplitHCursor : Qt::SplitVCursor);
-    else viewport()->setCursor(fillHandleRect().contains(e->pos()) ? Qt::CrossCursor : Qt::ArrowCursor);
+    if (borderAtInLayout(lp, &column, &index)) viewport()->setCursor(column ? Qt::SplitHCursor : Qt::SplitVCursor);
+    else viewport()->setCursor(fillHandleRectInLayout().contains(lp) ? Qt::CrossCursor : Qt::ArrowCursor);
 }
 
-bool GridView::borderAt(const QPoint &p, bool *column, qint64 *index) const
+bool GridView::borderAt(const QPoint &p, bool *column, qint64 *index) const { return borderAtInLayout(mirror(p), column, index); }
+
+bool GridView::borderAtInLayout(const QPoint &p, bool *column, qint64 *index) const
 {
     if (!m_headings) return false;
     const GridLayout &L = m_sheet.layout();
@@ -880,6 +914,7 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
         return;
     }
     const bool fill = m_drag == Drag::Fill;
+    const bool selecting = m_drag == Drag::Cells || m_drag == Drag::Rows || m_drag == Drag::Columns;
     const GridRange source = m_fillSource, extent = m_fillExtent;
     const bool ctrl = m_fillCtrl || (e && (e->modifiers() & Qt::ControlModifier));
     m_drag = Drag::None;
@@ -888,12 +923,15 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
         viewport()->update();
         if (!(extent == source)) Q_EMIT fillRequested(source, extent, ctrl);
     }
+    if (selecting) Q_EMIT selectionSettled();
 }
 
-QRect GridView::fillHandleRect() const
+QRect GridView::fillHandleRect() const { return mirror(fillHandleRectInLayout()); }
+
+QRect GridView::fillHandleRectInLayout() const
 {
     if (m_selection.whole != Selection::Whole::None) return QRect();
-    const QRect corner = cellRect(m_selection.range.row2, m_selection.range.col2);
+    const QRect corner = cellRectInLayout(m_selection.range.row2, m_selection.range.col2);
     if (corner.isEmpty()) return QRect();
     return QRect(corner.right() - 4, corner.bottom() - 4, 9, 9);
 }
@@ -906,12 +944,14 @@ void GridView::setDropDownCell(qint64 row, qint64 col)
     viewport()->update();
 }
 
-QRect GridView::dropDownCellRect() const { return m_dropRow < 0 ? QRect() : cellRect(m_dropRow, m_dropCol); }
+QRect GridView::dropDownCellRect() const { return mirror(m_dropRow < 0 ? QRect() : cellRectInLayout(m_dropRow, m_dropCol)); }
 
-QRect GridView::dropDownRect() const
+QRect GridView::dropDownRect() const { return mirror(dropDownRectInLayout()); }
+
+QRect GridView::dropDownRectInLayout() const
 {
     if (m_dropRow < 0 || m_dropRow != m_selection.activeRow || m_dropCol != m_selection.activeCol) return QRect();
-    const QRect cell = dropDownCellRect();
+    const QRect cell = m_dropRow < 0 ? QRect() : cellRectInLayout(m_dropRow, m_dropCol);
     if (cell.isEmpty() || cell.width() < 30 || cell.height() < 12) return QRect();
     const int size = std::min(cell.height() - 2, 17);
     return QRect(cell.right() - size, cell.bottom() - size, size, size);
@@ -938,16 +978,19 @@ void GridView::mouseDoubleClickEvent(QMouseEvent *e)
     if (e->button() != Qt::LeftButton || !m_cellsEnabled) return;
     bool column = false;
     qint64 index = -1;
-    if (borderAt(e->pos(), &column, &index)) {
+    const QPoint lp = mirror(e->pos());
+    if (borderAtInLayout(lp, &column, &index)) {
         m_drag = Drag::None;
         Q_EMIT fitRequested(column, index);
         return;
     }
-    const Hit h = m_sheet.layout().hit(e->pos());
+    const Hit h = m_sheet.layout().hit(lp);
     if (h.kind == Hit::Kind::Cell) Q_EMIT editRequested();
 }
 
-QRect GridView::cellRect(qint64 row, qint64 col) const
+QRect GridView::cellRect(qint64 row, qint64 col) const { return mirror(cellRectInLayout(row, col)); }
+
+QRect GridView::cellRectInLayout(qint64 row, qint64 col) const
 {
     const GridLayout &L = m_sheet.layout();
     GridRange r{row, col, row, col};
@@ -993,13 +1036,13 @@ void GridView::wheelEvent(QWheelEvent *e)
     }
     const double z = zoom();
     if (!e->pixelDelta().isNull()) {
-        scrollTo(m_sheet.layout().scrollX() - qint64(std::lround(e->pixelDelta().x() / z)), m_sheet.layout().scrollY() - qint64(std::lround(e->pixelDelta().y() / z)));
+        scrollTo(m_sheet.layout().scrollX() + (mirrored() ? 1 : -1) * qint64(std::lround(e->pixelDelta().x() / z)), m_sheet.layout().scrollY() - qint64(std::lround(e->pixelDelta().y() / z)));
     } else {
         const int steps = e->angleDelta().y() / 120;
         const int across = e->angleDelta().x() / 120;
         if ((e->modifiers() & Qt::ShiftModifier) && steps != 0) scrollColumns(-steps * 3);
         else if (steps != 0) scrollRows(-steps * 3);
-        if (across != 0) scrollColumns(-across * 3);
+        if (across != 0) scrollColumns((mirrored() ? across : -across) * 3);
     }
     e->accept();
 }
@@ -1074,8 +1117,8 @@ void GridView::keyPressEvent(QKeyEvent *e)
     }
     int dRow = 0, dCol = 0;
     switch (e->key()) {
-    case Qt::Key_Left: dCol = -1; break;
-    case Qt::Key_Right: dCol = 1; break;
+    case Qt::Key_Left: dCol = mirrored() ? 1 : -1; break;   // (in a sheet that reads right to left the next column is to the left)
+    case Qt::Key_Right: dCol = mirrored() ? -1 : 1; break;
     case Qt::Key_Up: dRow = -1; break;
     case Qt::Key_Down: dRow = 1; break;
     default: break;

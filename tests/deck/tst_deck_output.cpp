@@ -343,6 +343,21 @@ private Q_SLOTS:
         QVERIFY2(!text.contains(QStringLiteral("Defined")), qPrintable(text));
     }
 
+    // Whatever font an SVG's text is set in, the PDF's text has every letter: the bundled blackletter joins "c" and "k" into one glyph.
+    void exportPdfSvgTextKeepsLettersOfAJoiningFont()
+    {
+        const QByteArray svg =
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"100\" viewBox=\"0 0 300 100\">"
+            "<text x=\"10\" y=\"40\" font-family=\"UnifrakturMaguntia\" font-size=\"24\">Tick Black Backdrop</text></svg>";
+        auto d = deck::newPresentation();
+        addPicture(*d->pages[0], d->addImage(svg, QStringLiteral("svg")), QRectF(100, 100, 300, 100));
+        QString err;
+        const QByteArray pdf = pdfOf(*d, &err);
+        QVERIFY2(!pdf.isEmpty(), qPrintable(err));
+        const QString text = pdfText(pdf);
+        QVERIFY2(text.contains(QStringLiteral("Tick Black Backdrop")), qPrintable(text));
+    }
+
     // A drawing can't make the PDF hold more words than it may: at most five thousand texts of one drawing are said, and at most two hundred thousand
     // letters, each text cut at a thousand. (Counted in the text that comes back, not timed.)
     void exportPdfBoundsTheTextOfAnSvgPicture()

@@ -370,7 +370,7 @@ private Q_SLOTS:
         changes.newSharedStrings = wb.addedSharedStrings();
         changes.sharedStringsBefore = wb.sharedStringsInFile();
         for (const Workbook::AddedNumberFormat &f : wb.addedNumberFormats()) changes.newNumberFormats.append({f.id, f.code});
-        for (const Workbook::AddedCellFormat &f : wb.addedCellFormats()) changes.newCellFormats.append({f.base, f.numFmtId});
+        for (const Workbook::AddedCellFormat &f : wb.addedCellFormats()) changes.newCellFormats.append({f.base, f.format.numFmtId, true, f.format});
         changes.cellFormatsBefore = wb.cellFormatsInFile();
         QByteArray bytes;
         SaveReport report;

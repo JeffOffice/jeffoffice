@@ -480,6 +480,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
 
     // ---- the rules of validation
     adjustValidations(e, names, rec);
+    adjustConditionalFormats(e, names, rec);
 
     // ---- the defined names
     bool namesChanged = false;
@@ -676,6 +677,8 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
             m_sheets[size_t(entry.first)].validations = entry.second;
             forgetRuleIndex();
         }
+    for (const auto &entry : rec.conditionalFormats)
+        if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].conditionalFormats = entry.second;
     S.ranges = rec.ranges;
     putBackKinds(rec);
     S.merges = rec.merges;
@@ -786,6 +789,42 @@ void Calculation::adjustValidations(const StructEdit &e, const QStringList &name
         rec->validations.push_back({si, sheet.validations});
         sheet.validations = now;
         forgetRuleIndex();
+    }
+}
+
+// The rules of conditional formatting follow the cells like the rules of validation: their ranges, and their formulas, which are written for the first cell of the first range.
+void Calculation::adjustConditionalFormats(const StructEdit &e, const QStringList &names, EditRecord *rec)
+{
+    for (int si = 0; si < int(m_sheets.size()); ++si) {
+        Sheet &sheet = m_sheets[size_t(si)];
+        if (sheet.conditionalFormats.isEmpty()) continue;
+        QVector<CondRule> now;
+        now.reserve(sheet.conditionalFormats.size());
+        bool changed = false;
+        for (const CondRule &was : sheet.conditionalFormats) {
+            CondRule v = was;
+            QVector<CellRange> ranges;
+            for (CellRange r : v.ranges)
+                if (adjustRange(e, si, &r)) ranges.append(r);
+            v.ranges = ranges;
+            const CellRange first = was.ranges.isEmpty() ? CellRange() : was.ranges.first();
+            bool any = false, one = false;
+            v.formula1 = adjustRuleFormula(v.formula1, si, names, e, first, &one);
+            any = any || one;
+            v.formula2 = adjustRuleFormula(v.formula2, si, names, e, first, &one);
+            any = any || one;
+            for (CondValue &value : v.values)
+                if (value.type == CondValue::Type::Formula) {
+                    value.value = adjustRuleFormula(value.value, si, names, e, first, &one);
+                    any = any || one;
+                }
+            if (any || !(ranges == was.ranges)) changed = true;
+            if (!v.ranges.isEmpty()) now.append(std::move(v));
+            else changed = true;
+        }
+        if (!changed) continue;
+        rec->conditionalFormats.push_back({si, sheet.conditionalFormats});
+        sheet.conditionalFormats = std::move(now);
     }
 }
 

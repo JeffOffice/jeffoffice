@@ -41,7 +41,8 @@ constexpr double kCellPadding = 3;
 double textRoom(double cellWidth, const CellLook &look);
 
 // What the value shows in a cell of `cellWidth`, in the look. `generalChars` is how many characters a "general" number may take (from the width: see charsFor()).
-Shown showValue(const jp::calc::Value &value, const CellLook &look, jp::calc::DateSystem system, double cellWidth, int maxDigitWidth, const TextMeter &meter);
+// With `symbols`, a number shows the person's decimal mark and digit grouping (the number format codes stay as the file has them).
+Shown showValue(const jp::calc::Value &value, const CellLook &look, jp::calc::DateSystem system, double cellWidth, int maxDigitWidth, const TextMeter &meter, const jp::calc::NumberSymbols *symbols = nullptr);
 // The characters of the widest digit that fit in a column of this width.
 int charsFor(double cellWidth, int maxDigitWidth);
 

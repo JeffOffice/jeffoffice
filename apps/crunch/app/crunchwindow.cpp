@@ -145,6 +145,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         placeEditor();
     });
     connect(m_view, &grid::GridView::statsChanged, this, [this](const QString &text) { m_stats->setText(text); });
+    connect(m_view, &grid::GridView::noticeRaised, this, [this](const QString &text) { setStatus(text); });   // (a limit that stopped a conditional format: said in the status bar)
     connect(m_view, &grid::GridView::zoomChanged, this, [this](double z) {
         placeEditor();
         m_zoomLabel->setText(QStringLiteral("%1%").arg(std::lround(z * 100)));
@@ -158,8 +159,13 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(&m_loader, &crunch::WorkbookLoader::calcBatch, this, &CrunchWindow::onCalcBatch);
     m_copyTimer.setSingleShot(true);
     connect(&m_copyTimer, &QTimer::timeout, this, &CrunchWindow::copyStep);
+    connect(m_tabs, &crunch::SheetTabBar::contextRequested, this, [this](int, const QPoint &global) { showTabMenu(global); });
+    connect(m_tabs, &crunch::SheetTabBar::renamed, this, [this](int tab, const QString &name) {
+        if (tab >= 0 && tab < m_tabSheets.size()) renameSheetTo(m_tabSheets[tab], name);
+    });
+    connect(m_tabs, &crunch::SheetTabBar::tabDragged, this, [this](int from, int to) { onTabMoved(from, to); });
     connect(m_tabs, &QTabBar::currentChanged, this, [this](int tab) {
-        if (m_switchingTabs || tab < 0 || tab >= m_tabSheets.size()) return;
+        if (m_switchingTabs || m_tabs->isDragging() || tab < 0 || tab >= m_tabSheets.size()) return;
         setActiveSheet(m_tabSheets[tab]);
     });
     showBlank();
@@ -171,6 +177,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 
 CrunchWindow::~CrunchWindow()
 {
+    if (m_tabs) m_tabs->cancelRename();   // (a name being typed is given up with the window, not given to a window that is going)
     if (m_view) m_view->setOverlay(nullptr);   // (the objects over the cells go before the grid does)
     openWindows().removeAll(this);
     // (the session's undo stack tells the window as its steps go: it is let go of first, and the window is not told)
@@ -256,8 +263,13 @@ void CrunchWindow::buildCentral()
     m_cellEditor->hide();
     m_cellEditor->setAccessibleName(tr("Cell editor"));
     m_cellEditor->setAccessibleDescription(tr("The cell being typed into. Enter and Tab finish the entry; Escape gives it up."));
-    m_tabs = new crunch::SheetTabBar(central);
-    v->addWidget(m_tabs);
+    m_sheetTabRow = new QWidget(central);
+    auto *tabLayout = new QHBoxLayout(m_sheetTabRow);
+    tabLayout->setContentsMargins(0, 0, 0, 0);
+    tabLayout->setSpacing(0);
+    m_tabs = new crunch::SheetTabBar(m_sheetTabRow);
+    tabLayout->addWidget(m_tabs, 1);
+    v->addWidget(m_sheetTabRow);
     setCentralWidget(central);
     connect(m_nameBox, &QLineEdit::returnPressed, this, &CrunchWindow::goToName);
     m_formulaBar->installEventFilter(this);
@@ -370,6 +382,8 @@ void CrunchWindow::createActions()
     createOpsActions();
     createCellsActions();
     createClipboardActions();
+    createFormatActions();
+    createSheetActions();
     createPageActions();
     createDisabledActions();
 }
@@ -381,14 +395,7 @@ void CrunchWindow::createDisabledActions()
         const char *id, *text, *icon;
     };
     static const Command commands[] = {
-        {"edit.clear", QT_TR_NOOP("Clear"), "eraser"},
         {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"}, {"edit.find", QT_TR_NOOP("Find and Select"), "search"},
-        {"fmt.bold", QT_TR_NOOP("Bold"), "bold"}, {"fmt.italic", QT_TR_NOOP("Italic"), "italic"}, {"fmt.underline", QT_TR_NOOP("Underline"), "underline"},
-        {"fmt.strike", QT_TR_NOOP("Strikethrough"), "strikethrough"}, {"fmt.fillColor", QT_TR_NOOP("Fill Color"), "paint-bucket"}, {"fmt.fontColor", QT_TR_NOOP("Font Color"), "baseline"},
-        {"fmt.alignLeft", QT_TR_NOOP("Align Left"), "align-left"}, {"fmt.alignCenter", QT_TR_NOOP("Center"), "align-center"}, {"fmt.alignRight", QT_TR_NOOP("Align Right"), "align-right"},
-        {"fmt.wrap", QT_TR_NOOP("Wrap Text"), "wrap-text"}, {"fmt.merge", QT_TR_NOOP("Merge and Center"), "table-cells-merge"}, {"fmt.indentInc", QT_TR_NOOP("Increase Indent"), "indent-increase"},
-        {"fmt.indentDec", QT_TR_NOOP("Decrease Indent"), "indent-decrease"}, {"fmt.currency", QT_TR_NOOP("Currency"), "dollar-sign"}, {"fmt.percent", QT_TR_NOOP("Percent"), "percent"},
-        {"fmt.comma", QT_TR_NOOP("Comma Style"), "hash"}, {"fmt.decimalInc", QT_TR_NOOP("Increase Decimal"), "arrow-up-0-1"}, {"fmt.decimalDec", QT_TR_NOOP("Decrease Decimal"), "arrow-down-1-0"},
         {"insert.table", QT_TR_NOOP("Table"), "table"}, {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
         {"insert.chart", QT_TR_NOOP("Chart"), "chart-column"}, {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
         {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"}, {"formulas.insertFunction", QT_TR_NOOP("Insert Function"), "square-function"},
@@ -429,6 +436,7 @@ void CrunchWindow::updateBars()
     if (m_formulaFull.size() <= kShown || m_formulaBar->hasFocus()) m_formulaBar->setText(m_formulaFull);
     else m_formulaBar->setText(m_formulaFull.left(kShown) + QChar(0x2026));
     m_formulaBar->setCursorPosition(0);
+    updateFormatState(false);
 }
 
 void CrunchWindow::goToName()
@@ -545,6 +553,11 @@ void CrunchWindow::dropEvent(QDropEvent *e)
 // Esc stops the calculation (what is not worked out keeps the result the file stored); with the File screen over the window it closes the screen instead.
 void CrunchWindow::keyPressEvent(QKeyEvent *e)
 {
+    if (e->key() == Qt::Key_Escape && m_painter.mode != PainterMode::Off && !m_edit.active) {
+        cancelFormatPainter();
+        e->accept();
+        return;
+    }
     if (e->key() == Qt::Key_Escape && m_calculating && !m_fileScreen->isVisible()) {
         if (!stopCalculation()) setStatus(tr("Calculation stopped"));   // (a save that was waiting says it was cancelled)
         e->accept();

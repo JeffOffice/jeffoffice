@@ -126,14 +126,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     if (m_objects && m_loaded->calc) m_objects->setCells(m_loaded->calc.get(), &m_values);
     for (int i = 0; i < m_tabs->count(); ++i) m_tabs->setTabEnabled(i, true);
     // the stripes the sheets ask for, now that every sheet is read
-    const jp::office::sheet::Styles &styles = m_loaded->book->styles();
-    // (the calculation is the worker's until the read is told to be over: it is looked at only once m_haveCalc says so, as everywhere else)
-    if (m_haveCalc && m_loaded->calc) {
-        for (int tab = 0; tab < m_tabSheets.size(); ++tab) {
-            const auto &color = m_loaded->calc->sheet(m_tabSheets[tab]).tabColor;
-            if (color.isSet()) m_tabs->setStripe(tab, QColor::fromRgb(styles.resolve(color, 0x808080)));
-        }
-    }
+    refreshStripes();
     // the sheet read whole takes the place of its first rows (what the person did with the view stays)
     showSheet(m_sheet, true);
     m_loaded->preview.reset();
@@ -157,20 +150,19 @@ void CrunchWindow::fillTabs()
     m_tabSheets.clear();
     if (m_loaded && m_loaded->book) {
         const auto &sheets = m_loaded->book->info().sheets;
-        for (int i = 0; i < sheets.size(); ++i) {
-            if (sheets[i].state != SheetState::Visible) continue;   // (hidden and very hidden sheets are kept out)
+        for (const int i : m_loaded->book->info().order) {
+            if (i < 0 || i >= sheets.size() || sheets[i].deleted || sheets[i].state != SheetState::Visible) continue;   // (hidden and very hidden sheets are kept out)
             // (the name is shown as it is: a "&" in a tab's text makes the next letter a key, and a name that has one is shown without it, unless it is doubled)
             const int tab = m_tabs->addTab(QString(sheets[i].name).replace(QLatin1Char('&'), QStringLiteral("&&")));
+            m_tabs->setTabData(tab, sheets[i].name);
             m_tabSheets.append(i);
-            m_tabs->setTabEnabled(tab, i == m_sheet);
+            m_tabs->setTabEnabled(tab, m_haveCalc || i == m_sheet);
             if (i == m_sheet) m_tabs->setCurrentIndex(tab);
         }
-        if (m_loaded->preview && m_loaded->preview->tabColor.isSet() && m_sheet >= 0) {
-            const int tab = m_tabSheets.indexOf(m_sheet);
-            if (tab >= 0) m_tabs->setStripe(tab, QColor::fromRgb(m_loaded->book->styles().resolve(m_loaded->preview->tabColor, 0x808080)));
-        }
+        m_tabs->selectOnly(m_tabs->currentIndex());
+        refreshStripes();
     }
-    m_tabs->setVisible(!m_tabSheets.isEmpty());
+    m_sheetTabRow->setVisible(!m_tabSheets.isEmpty());
     m_switchingTabs = false;
 }
 
@@ -185,6 +177,12 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
     d.sheetIndex = sheetIndex;
     if (m_haveCalc && m_loaded->calc) {   // (the worker puts the calculation there while it reads: not looked at before the read is over)
         d.sheet = &m_loaded->calc->sheet(sheetIndex);
+        // (the other sheets and the names of all: the rules of conditional formatting have formulas that read them)
+        const int count = std::min<int>(m_loaded->calc->sheetCount(), int(m_loaded->book->info().sheets.size()));
+        for (int i = 0; i < count; ++i) {
+            d.sheets.push_back(&m_loaded->calc->sheet(i));
+            d.sheetNames.append(m_loaded->book->info().sheets[i].name);
+        }
         d.values = &m_values;
         if (size_t(sheetIndex) < m_loaded->geometry.size()) d.geometry = m_loaded->geometry[size_t(sheetIndex)];
     } else if (m_loaded->preview && sheetIndex == m_loaded->previewSheet) {
@@ -196,6 +194,9 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
     m_view->setData(d, keepView);
     if (!keepView && m_views.contains(sheetIndex)) m_view->setViewState(m_views.value(sheetIndex));
     m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
+    // (the colors the buttons of the ribbon offer are the workbook's theme)
+    if (m_fillButton) m_fillButton->setScheme(workbookColors());
+    if (m_fontColorButton) m_fontColorButton->setScheme(workbookColors());
     prepareObjects(sheetIndex);
     act("view.gridlines")->setChecked(m_view->showGridlines());
     act("view.headings")->setChecked(m_view->showHeadings());
@@ -262,6 +263,7 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     const qint64 cpu0 = jp::threadCpuMicros();
     m_longestBatchItems = std::max<qint64>(m_longestBatchItems, qint64(batch->items.size()));
     if (m_session && batch->generation < m_session->generation()) m_session->moveToNow(&batch->items, batch->generation);   // (made before cells were moved: they are named by where they were)
+    if (m_session) m_session->dropRemovedSheets(&batch->items);   // (results for a sheet that Undo took away while it was being worked out)
     if (m_session) m_session->noteResults(batch->items);   // (before the store has them: it says what the engine had before)
     m_values.apply(batch->items);
     if (m_objects) m_objects->cellsChanged(batch->items);

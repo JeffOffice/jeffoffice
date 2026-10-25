@@ -1047,7 +1047,7 @@ QString MainWindow::positionText(const QPointF &page) const
 {
     const Settings &st = Settings::get();
     const QPointF zero = m_ed->doc()->rulerZero;
-    return QStringLiteral("%1, %2").arg(st.format(page.x() - zero.x()), st.format(page.y() - zero.y()));
+    return st.formatPair(page.x() - zero.x(), page.y() - zero.y());
 }
 
 void MainWindow::refreshUi()

@@ -46,6 +46,8 @@ public:
     void relocate(int sheet, const std::vector<Move> &moves);
     // And a cell's value let go of, true if there was one.
     bool erase(int sheet, quint32 row, quint32 col);
+    // Lets go of every value of a sheet (a sheet that was added and is taken away again: when another is added in its place, it starts with none).
+    void dropSheet(int sheet);
     // How many cells have values.
     qint64 count() const { return m_count; }
 

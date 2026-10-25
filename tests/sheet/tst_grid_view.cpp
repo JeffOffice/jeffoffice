@@ -2,6 +2,7 @@
 // million rows, Home and End, the page keys, Tab and Enter, clicks, drags, the headers), the address and text of the cell with the cursor, the numbers of the selection, copying
 // it as text, and zoom. The window is offscreen; every sheet is made here.
 #include "sheethelpers.h"
+#include "../localepin.h"
 
 #include "grid/gridview.h"
 
@@ -78,6 +79,18 @@ struct Book {
         return r.center();
     }
 };
+
+// How many dark pixels are in a block of the picture.
+int inkBoxOf(const QImage &img, const QRect &r)
+{
+    int n = 0;
+    for (int y = std::max(0, r.top()); y <= std::min(img.height() - 1, r.bottom()); ++y)
+        for (int x = std::max(0, r.left()); x <= std::min(img.width() - 1, r.right()); ++x) {
+            const QRgb c = img.pixel(x, y);
+            if (qRed(c) < 160 && qGreen(c) < 160 && qBlue(c) < 160) ++n;
+        }
+    return n;
+}
 
 // Records the rectangles the viewport is asked to draw.
 class PaintRecorder : public QObject {
@@ -282,6 +295,39 @@ private Q_SLOTS:
         QCOMPARE(b.view->rangeName(), QStringLiteral("A1:A5"));
     }
 
+    // The selection is settled where the person leaves it: at the click, at the end of a drag (not while the drag goes on), and at a key that moves it. (The Format Painter acts on it.)
+    void theSelectionIsSettledWhenThePersonLeavesIt()
+    {
+        Book b;
+        for (quint32 r = 0; r < 20; ++r)
+            for (quint32 c = 0; c < 10; ++c) b.number(r, c, r + c);
+        b.show();
+        QSignalSpy settled(b.view.get(), &GridView::selectionSettled), changed(b.view.get(), &GridView::selectionChanged);
+        QTest::mouseClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, b.centerOf(3, 2));
+        QCOMPARE(settled.count(), 1);
+        QCOMPARE(b.view->selectionName(), QStringLiteral("C4"));
+        // a drag: changed as it goes, settled once at the end
+        settled.clear();
+        changed.clear();
+        QTest::mousePress(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, b.centerOf(1, 1));
+        QMouseEvent move(QEvent::MouseMove, QPointF(b.centerOf(3, 3)), QPointF(b.view->viewport()->mapToGlobal(b.centerOf(3, 3))), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(b.view->viewport(), &move);
+        QVERIFY(changed.count() >= 2);
+        QCOMPARE(settled.count(), 0);
+        QTest::mouseRelease(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, b.centerOf(3, 3));
+        QCOMPARE(settled.count(), 1);
+        QCOMPARE(b.view->rangeName(), QStringLiteral("B2:D4"));
+        // a click on the cell that is the selection already still settles it
+        settled.clear();
+        QTest::mouseClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, b.centerOf(1, 1));
+        QTest::mouseClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, b.centerOf(1, 1));
+        QCOMPARE(settled.count(), 2);
+        // a key
+        settled.clear();
+        QTest::keyClick(b.view.get(), Qt::Key_Down);
+        QCOMPARE(settled.count(), 1);
+    }
+
     // A click selects the cell, a shift-click extends, a drag extends as it goes; the headers select whole rows and columns, and the corner everything.
     void theMouseSelectsCellsHeadersAndTheCorner()
     {
@@ -323,6 +369,7 @@ private Q_SLOTS:
     // The numbers of the selection reach the status bar when added up (not for one cell), and a whole column is added up as far as its used rows.
     void theNumbersOfTheSelectionAreToldWhenAddedUp()
     {
+        const PinnedLocale english;
         Book b;
         for (quint32 r = 0; r < 4; ++r)
             for (quint32 c = 0; c < 2; ++c) b.number(r, c, r * 2.0 + c + 1);
@@ -525,6 +572,133 @@ private Q_SLOTS:
         QApplication::sendEvent(b.view->viewport(), &wheel);
         QCOMPARE(b.view->blitScrolls(), blits2);
         QCOMPARE(b.view->fullScrolls(), fulls2 + 1);
+    }
+
+    // A sheet that reads right to left in the widget: column A is at the right edge of what is drawn, a click there selects it, the rectangle of a cell is where it is drawn, the arrow
+    // keys go the way the columns lie (the left arrow to the next column), the scroll bar runs the other way, and the part that scrolls is moved the right way.
+    void aSheetThatReadsRightToLeftIsDrawnAndClickedFromTheRight()
+    {
+        Book b;
+        FillSpec green;
+        green.pattern = PatternKind::Solid;
+        green.fg = ColorSpec::fromRgb(0x00FF00);
+        b.styles.fills.append(green);
+        CellFormat fmt;
+        fmt.fill = 1;
+        b.styles.formats.append(fmt);
+        b.styles.cellXfs.append(0);
+        for (int c = 0; c < 40; ++c) b.number(0, quint32(c), c + 1, c == 0 ? 1u : 0u);
+        b.sheet.view.rightToLeft = true;
+        b.show();
+        QVERIFY(b.view->sheet().rightToLeft());
+        const QRect a = b.view->cellRect(0, 0), c = b.view->cellRect(0, 1);
+        QVERIFY2(a.right() > b.view->viewport()->width() - 100, qPrintable(QStringLiteral("A is at %1").arg(a.right())));
+        QVERIFY(c.right() < a.left() + 2 && c.left() < a.left());                    // (B is to the left of A)
+        // what is drawn: the fill of A1 is in the rectangle the view gives
+        const QImage img = b.view->viewport()->grab().toImage();
+        QCOMPARE(img.pixel(a.center().x(), a.center().y()), QRgb(0xFF00FF00));
+        QCOMPARE(img.pixel(c.center().x(), c.center().y()), QRgb(0xFFFFFFFF));
+        QCOMPARE(img.pixel(10, a.center().y()), QRgb(0xFFFFFFFF));
+        // a click selects the cell that is drawn there
+        QTest::mouseClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, c.center());
+        QCOMPARE(b.view->selection().activeCol, qint64(1));
+        QTest::mouseClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, a.center());
+        QCOMPARE(b.view->selection().activeCol, qint64(0));
+        // the arrow keys: the left arrow goes to the next column (to the left on the screen), the right arrow to the one before
+        QTest::keyClick(b.view.get(), Qt::Key_Left);
+        QCOMPARE(b.view->selection().activeCol, qint64(1));
+        QTest::keyClick(b.view.get(), Qt::Key_Right);
+        QCOMPARE(b.view->selection().activeCol, qint64(0));
+        // the scroll bar runs the other way, and a scroll to a later column draws the columns the other way
+        QVERIFY(b.view->horizontalScrollBar()->invertedAppearance());
+        b.view->horizontalScrollBar()->setValue(64 * 5);
+        QApplication::processEvents();
+        const QRect moved = b.view->cellRect(0, 5);
+        QVERIFY2(moved.right() >= b.view->viewport()->width() - 100, qPrintable(QStringLiteral("column F is at %1").arg(moved.right())));
+        const QImage again = b.view->viewport()->grab().toImage();
+        QVERIFY(inkBoxOf(again, moved) > 0);
+        // a drag along the cells selects the cells between, to the left
+        const QRect from = b.view->cellRect(0, 5), to = b.view->cellRect(0, 7);
+        QTest::mousePress(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, from.center());
+        QTest::mouseMove(b.view->viewport(), to.center());
+        QTest::mouseRelease(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, to.center());
+        QCOMPARE(b.view->selection().range.col1, qint64(5));
+        QCOMPARE(b.view->selection().range.col2, qint64(7));
+    }
+
+    // A limit that stops a rule of conditional formatting is said by the view, once, in a sentence for the status bar (the rule is not passed over in silence).
+    void aLimitThatStopsARuleIsSaidOnce()
+    {
+        Book b;
+        for (quint32 i = 0; i < 2000; ++i) b.number(i, 0, double(i));
+        CondRule rule;
+        rule.type = CondRule::Type::Expression;
+        CellRange where;
+        where.valid = true;
+        where.row1 = 0;
+        where.row2 = 4;
+        where.col1 = where.col2 = 1;
+        rule.ranges.append(where);
+        rule.formula1 = QStringLiteral("SUMPRODUCT(--($A$1:$A$2000>A1))>5");
+        rule.priority = 1;
+        b.sheet.conditionalFormats.append(rule);
+        b.sheet.cells.finish();
+        auto view = std::make_unique<GridView>();
+        view->resize(640, 420);
+        GridData d;
+        d.styles = &b.styles;
+        d.strings = &b.strings;
+        d.sheet = &b.sheet;
+        view->setData(d);
+        CondFormats::Limits limits;
+        limits.testWork = 500;
+        view->sheet().conditional().setLimits(limits);
+        QSignalSpy said(view.get(), &GridView::noticeRaised);
+        view->show();
+        QVERIFY(QTest::qWaitForWindowExposed(view.get()));
+        QTRY_COMPARE(said.count(), 1);
+        QVERIFY2(said.first().first().toString().contains(QStringLiteral("formula")), qPrintable(said.first().first().toString()));
+        view->viewport()->repaint();
+        QCOMPARE(said.count(), 1);
+    }
+
+    // The figures of a rule over a hundred and fifty thousand cells are made in the slices the view gives them, between paints, and the cells are drawn again when they are ready.
+    void theFiguresOfABigRuleAreMadeBetweenPaints()
+    {
+        Book b;
+        for (quint32 i = 0; i < 150000; ++i) b.number(i, 0, double(i));
+        CondRule rule;
+        rule.type = CondRule::Type::Top10;
+        rule.rank = 1;
+        CellRange where;
+        where.valid = true;
+        where.row1 = 0;
+        where.row2 = 149999;
+        where.col1 = where.col2 = 0;
+        rule.ranges.append(where);
+        rule.priority = 1;
+        DifferentialFormat dxf;
+        dxf.bold = true;
+        b.styles.dxfs.append(dxf);
+        rule.dxf = 0;
+        b.sheet.conditionalFormats.append(rule);
+        b.sheet.cells.finish();
+        auto view = std::make_unique<GridView>();
+        view->resize(640, 420);
+        GridData d;
+        d.styles = &b.styles;
+        d.strings = &b.strings;
+        d.sheet = &b.sheet;
+        view->setData(d);
+        // (more than the first look at the cells takes is left to do: the cell shows nothing yet, and the view has work to do)
+        QVERIFY(!view->sheet().conditional().at(149999, 0).any);
+        QVERIFY(view->sheet().conditional().wantsMore());
+        QCOMPARE(view->sheet().conditional().passes(), qint64(0));
+        view->show();
+        QVERIFY(QTest::qWaitForWindowExposed(view.get()));
+        QTRY_VERIFY(!view->sheet().conditional().wantsMore());
+        QCOMPARE(view->sheet().conditional().passes(), qint64(1));
+        QVERIFY(view->sheet().conditional().at(149999, 0).any);
     }
 };
 

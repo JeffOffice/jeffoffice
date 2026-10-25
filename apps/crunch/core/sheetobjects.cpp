@@ -165,8 +165,41 @@ QStringList SheetObjects::sheetNames() const
 {
     QStringList names;
     if (m_book)
-        for (const SheetEntry &e : m_book->info().sheets) names << e.name;
+        for (const SheetEntry &e : m_book->info().sheets) names << (e.isNew ? QString() : e.fileName);
     return names;
+}
+
+QString SheetObjects::followSheetOps(const QString &ref) const
+{
+    if (!m_sheetOps || ref.isEmpty()) return ref;
+    QString f = ref;
+    for (const SheetOp &op : m_sheetOps()) {
+        if (op.kind == SheetOp::Kind::Rename) f = renameSheetInFormula(f, op.name, op.newName);
+        else f = deleteSheetInFormula(f, op.name);
+    }
+    return f;
+}
+
+void SheetObjects::refreshRefs(Object &o) const
+{
+    o.refs = o.movedRefs;
+    for (QString &ref : o.refs) ref = followSheetOps(ref);
+}
+
+void SheetObjects::sheetsChanged()
+{
+    if (!m_book) return;
+    // room for the sheets there are (one added or copied has no drawing; one taken away by Undo is let go of)
+    m_sheets.resize(size_t(m_book->info().sheets.size()));
+    if (m_shown >= int(m_sheets.size())) m_shown = -1;
+    qint64 budget = kMaxMovedChartCells;
+    for (size_t i = 0; i < m_sheets.size(); ++i)
+        for (const std::shared_ptr<Object> &o : m_sheets[i].objects) {
+            if (o->movedRefs.isEmpty() && o->baseRefs.isEmpty()) continue;
+            const QStringList before = o->refs;
+            refreshRefs(*o);
+            if (o->refs != before && int(i) == m_shown && chartDataChanged(int(i), *o, &budget)) m_layer.invalidate(o->id);
+        }
 }
 
 void SheetObjects::readContext()
@@ -267,8 +300,9 @@ void SheetObjects::replay(int sheet, Object &o)
     if (!m_applied.empty()) o.anchor = movedAnchor(o.base, sheet, m_applied);
     if (!o.refs.isEmpty() || !o.baseRefs.isEmpty()) {
         const QStringList names = sheetNames();
-        o.refs = o.baseRefs;
-        for (QString &ref : o.refs) ref = movedChartRef(ref, names, m_applied, sheet);
+        o.movedRefs = o.baseRefs;
+        for (QString &ref : o.movedRefs) ref = movedChartRef(ref, names, m_applied, sheet);
+        refreshRefs(o);
     }
 }
 
@@ -277,9 +311,10 @@ void SheetObjects::applyEdit(int sheet, Object &o, const StructEdit &edit)
     ++m_editSteps;
     const std::vector<StructEdit> one = {edit};
     o.anchor = movedAnchor(o.anchor, sheet, one);
-    if (o.refs.isEmpty()) return;
+    if (o.movedRefs.isEmpty()) return;
     const QStringList names = sheetNames();
-    for (QString &ref : o.refs) ref = movedChartRef(ref, names, one, sheet);
+    for (QString &ref : o.movedRefs) ref = movedChartRef(ref, names, one, sheet);
+    refreshRefs(o);
 }
 
 void SheetObjects::ensureBuilt(int sheet, Object &o)
@@ -326,10 +361,11 @@ void SheetObjects::ensureBuilt(int sheet, Object &o)
         }
         o.chart = chart;
         o.baseRefs = chartRefs(*chart);
-        o.refs = o.baseRefs;
+        o.movedRefs = o.baseRefs;
         const QStringList names = sheetNames();
         if (!m_applied.empty())
-            for (QString &ref : o.refs) ref = movedChartRef(ref, names, m_applied, sheet);
+            for (QString &ref : o.movedRefs) ref = movedChartRef(ref, names, m_applied, sheet);
+        refreshRefs(o);
         o.made = true;
     } else {
         o.item = readShape(o.meta.element, *s.context);
@@ -683,6 +719,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
     const std::vector<StructEdit> none;
     const std::vector<StructEdit> &edits = m_edits ? m_edits() : none;
     QSet<QString> deletedParts, aliveParts;
+    auto sheetGone = [&](int sheet) { return sheet >= 0 && sheet < m_book->info().sheets.size() && m_book->info().sheets[sheet].deleted; };
     for (size_t i = 0; i < m_sheets.size(); ++i) {
         Sheet &s = m_sheets[i];
         if (!s.listed || s.drawingPart.isEmpty()) continue;
@@ -716,8 +753,10 @@ void SheetObjects::addToSave(SaveChanges *changes)
         const QString key = part.toLower();
         if (deletedParts.contains(key) && !aliveParts.contains(key)) continue;
         const int own = m_chartSheet.value(key, -1);
+        if (sheetGone(own)) continue;   // (the part goes with its sheet)
         for (const QString &ref : partRefs(part)) {
-            const QString moved = movedChartRef(ref, names, edits, std::max(own, 0));
+            // (as the saver writes the part: the edits to rows and columns, then the renames and deletes of sheets)
+            const QString moved = followSheetOps(movedChartRef(ref, names, edits, std::max(own, 0)));
             bool dirty = moved != ref;
             QVector<ChartBlock> blocks;
             if (!chartBlocks(moved, own, *m_cells, &blocks)) continue;
@@ -753,6 +792,7 @@ void SheetObjects::saved()
             o->base = o->anchor;
             o->fileAnchor = o->savedAnchor;   // (what addToSave said the file has)
             o->baseRefs = o->refs;
+            o->movedRefs = o->refs;
             kept.push_back(o);
         }
         const bool changed = kept.size() != s.objects.size();

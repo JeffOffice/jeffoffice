@@ -16,11 +16,11 @@ void GridView::setOverlay(GridOverlay *overlay)
         return;
     }
     // (the viewport goes with the view: a hook the overlay outlives does nothing)
-    const QPointer<QWidget> vp = viewport();
-    m_overlay->setRepaintHook([vp](const QRect &area) {
-        if (!vp) return;
-        if (area.isEmpty()) vp->update();
-        else vp->update(area);
+    const QPointer<GridView> self(this);
+    m_overlay->setRepaintHook([self](const QRect &area) {
+        if (!self) return;
+        if (area.isEmpty()) self->viewport()->update();
+        else self->viewport()->update(self->mirror(area));   // (the overlay speaks in the layout's places)
     });
     viewport()->update();
 }
@@ -36,16 +36,25 @@ void GridView::paintOverlay(QPainter *painter, const QRect &clip)
 {
     if (!m_overlay) return;
     const GridLayout &L = m_sheet.layout();
+    // (a sheet that reads right to left is laid out as ever and drawn mirrored: the overlay draws in the layout's places, through a mirrored painter, and turns its pictures back)
+    const QRect inLayout = mirror(clip);
+    m_overlay->setMirrored(mirrored());
+    painter->save();
+    if (mirrored()) {
+        painter->translate(viewport()->width(), 0);
+        painter->scale(-1, 1);
+    }
     for (const Pane pane : {Pane::Corner, Pane::Top, Pane::Left, Pane::Body}) {
-        const QRect area = L.pane(pane).rect.intersected(clip);
+        const QRect area = L.pane(pane).rect.intersected(inLayout);
         if (!area.isEmpty()) m_overlay->paint(painter, L, pane, area);
     }
+    painter->restore();
 }
 
 bool GridView::overlayPress(QMouseEvent *e)
 {
     if (!m_overlay || e->button() != Qt::LeftButton) return false;
-    return m_overlay->press(e->pos(), m_sheet.layout(), e->modifiers());
+    return m_overlay->press(mirror(e->pos()), m_sheet.layout(), e->modifiers());   // (in the layout's places)
 }
 
 } // namespace jp::grid

@@ -125,6 +125,203 @@ bool patchSharedStrings(const QByteArray &xml, const QStringList &added, QByteAr
 
 // ---- the styles
 
+namespace {
+
+// The XML with a prefix put in front of every element name (a styles part whose elements have one).
+QByteArray prefixed(const QByteArray &xml, const QByteArray &prefix)
+{
+    if (prefix.isEmpty()) return xml;
+    QByteArray out;
+    out.reserve(xml.size() + xml.size() / 8);
+    for (qsizetype i = 0; i < xml.size(); ++i) {
+        out += xml[i];
+        if (xml[i] == '<' && i + 1 < xml.size()) {
+            if (xml[i + 1] == '/') {
+                out += '/';
+                ++i;
+            }
+            out += prefix;   // (a prefix as xmlscan::prefixOf gives it has its colon)
+        }
+    }
+    return out;
+}
+
+// Removes an attribute from a start tag.
+void removeAttr(QByteArray *tag, const char *name)
+{
+    qsizetype vs = 0, ve = 0;
+    if (!xmlscan::attributeValue(*tag, name, &vs, &ve)) return;
+    qsizetype n = vs - 2;   // before the quote, the "="
+    while (n >= 0 && isSpace((*tag)[n])) --n;
+    if (n >= 0 && (*tag)[n] == '=') --n;
+    while (n >= 0 && isSpace((*tag)[n])) --n;
+    qsizetype nameStart = n;
+    while (nameStart > 0 && !isSpace((*tag)[nameStart - 1])) --nameStart;
+    qsizetype a = nameStart;
+    while (a > 0 && isSpace((*tag)[a - 1])) --a;
+    tag->remove(a, ve + 1 - a);
+}
+
+// An attribute set to a value, or taken away when the value is empty.
+void setOrRemove(QByteArray *tag, const char *name, const QByteArray &value)
+{
+    if (value.isEmpty()) removeAttr(tag, name);
+    else setAttribute(tag, name, value);
+}
+
+const char *horizontalText(HAlign a)
+{
+    switch (a) {
+    case HAlign::Left: return "left";
+    case HAlign::Center: return "center";
+    case HAlign::Right: return "right";
+    case HAlign::Fill: return "fill";
+    case HAlign::Justify: return "justify";
+    case HAlign::CenterContinuous: return "centerContinuous";
+    case HAlign::Distributed: return "distributed";
+    default: return "";
+    }
+}
+
+const char *verticalText(VAlign a)
+{
+    switch (a) {
+    case VAlign::Center: return "center";
+    case VAlign::Top: return "top";
+    case VAlign::Justify: return "justify";
+    case VAlign::Distributed: return "distributed";
+    default: return "";
+    }
+}
+
+// A raw xf element made to be `f`: its attributes (the places of the number format, font, fill, and border, the style it follows) and its alignment and protection children, with
+// anything else the file said of it (an extension, an attribute this program does not know) kept.
+bool xfMadeInto(const QByteArray &raw, const CellFormat &f, const QByteArray &prefix, QByteArray *out)
+{
+    Tag open;
+    if (!xmlscan::nextTag(raw, 0, &open) || open.closing) return false;
+    QByteArray tag = raw.left(open.end);
+    const bool selfClosing = open.selfClosing;
+    if (selfClosing) {
+        tag.chop(2);
+        while (!tag.isEmpty() && isSpace(tag.back())) tag.chop(1);
+        tag += ">";
+    }
+    setAttribute(&tag, "numFmtId", QByteArray::number(f.numFmtId));
+    setAttribute(&tag, "fontId", QByteArray::number(f.font));
+    setAttribute(&tag, "fillId", QByteArray::number(f.fill));
+    setAttribute(&tag, "borderId", QByteArray::number(f.border));
+    setAttribute(&tag, "xfId", QByteArray::number(f.xfId));
+    for (const char *apply : {"applyNumberFormat", "applyFont", "applyFill", "applyBorder", "applyAlignment", "applyProtection"}) setAttribute(&tag, apply, "1");
+    setOrRemove(&tag, "quotePrefix", f.quotePrefix ? "1" : "");
+    // the children: those that are not the alignment and protection are kept
+    QByteArray alignment, protection, others;
+    if (!selfClosing) {
+        const qsizetype innerStart = open.end;
+        qsizetype innerEnd = raw.lastIndexOf("</");
+        if (innerEnd < innerStart) innerEnd = raw.size();
+        const QByteArray inner = raw.mid(innerStart, innerEnd - innerStart);
+        qsizetype pos = 0;
+        Tag t;
+        int depth = 0;
+        qsizetype keepFrom = 0;
+        while (xmlscan::nextTag(inner, pos, &t)) {
+            pos = t.end;
+            if (t.closing) {
+                --depth;
+                continue;
+            }
+            if (depth == 0 && (t.local == "alignment" || t.local == "protection")) {
+                qsizetype end = t.end;
+                if (!t.selfClosing) {
+                    Tag close;
+                    if (!findEnd(inner, t, &close)) return false;
+                    end = close.end;
+                }
+                others += inner.mid(keepFrom, t.start - keepFrom);
+                (t.local == "alignment" ? alignment : protection) = inner.mid(t.start, end - t.start);
+                keepFrom = end;
+                pos = end;
+                continue;
+            }
+            if (!t.selfClosing) ++depth;
+        }
+        others += inner.mid(keepFrom);
+    }
+    // the alignment: the attributes this program knows are set to the format's, the others stay
+    QByteArray al = alignment.isEmpty() ? QByteArray("<alignment/>") : alignment;
+    Tag alTag;
+    if (!xmlscan::nextTag(al, 0, &alTag)) return false;
+    QByteArray alOpen = al.left(alTag.end);
+    if (alTag.selfClosing) {
+        alOpen.chop(2);
+        while (!alOpen.isEmpty() && isSpace(alOpen.back())) alOpen.chop(1);
+        alOpen += "/>";
+    }
+    setOrRemove(&alOpen, "horizontal", horizontalText(f.horizontal));
+    setOrRemove(&alOpen, "vertical", verticalText(f.vertical));
+    setOrRemove(&alOpen, "textRotation", f.rotation ? QByteArray::number(f.rotation) : QByteArray());
+    setOrRemove(&alOpen, "wrapText", f.wrap ? "1" : "");
+    setOrRemove(&alOpen, "indent", f.indent ? QByteArray::number(f.indent) : QByteArray());
+    setOrRemove(&alOpen, "shrinkToFit", f.shrink ? "1" : "");
+    setOrRemove(&alOpen, "readingOrder", f.readingOrder ? QByteArray::number(f.readingOrder) : QByteArray());
+    QByteArray alignmentNow = alTag.selfClosing ? alOpen : alOpen + al.mid(alTag.end);
+    // (an alignment that says nothing is left out)
+    Tag check;
+    xmlscan::nextTag(alignmentNow, 0, &check);
+    {
+        QByteArray bare = alOpen;
+        bare.replace("<alignment", "").replace("/>", "").replace(">", "");
+        if (bare.trimmed().isEmpty() && alTag.selfClosing) alignmentNow.clear();
+    }
+    QByteArray protectionNow;
+    if (!f.locked || f.formulaHidden || !protection.isEmpty()) {
+        QByteArray pr = protection.isEmpty() ? QByteArray("<protection/>") : protection;
+        Tag prTag;
+        if (!xmlscan::nextTag(pr, 0, &prTag)) return false;
+        QByteArray prOpen = pr.left(prTag.end);
+        if (prTag.selfClosing) {
+            prOpen.chop(2);
+            while (!prOpen.isEmpty() && isSpace(prOpen.back())) prOpen.chop(1);
+            prOpen += "/>";
+        }
+        setOrRemove(&prOpen, "locked", f.locked ? "" : "0");
+        setOrRemove(&prOpen, "hidden", f.formulaHidden ? "1" : "");
+        protectionNow = prTag.selfClosing ? prOpen : prOpen + pr.mid(prTag.end);
+    }
+    const QByteArray inner = alignmentNow + protectionNow + others;
+    if (inner.isEmpty()) {
+        tag.chop(1);
+        *out = tag + "/>";
+    } else {
+        *out = tag + inner + QByteArray("</") + prefix + "xf>";
+    }
+    return true;
+}
+
+// The container (an element that holds a list) with `n` items put at its end and its count raised; false if it is not in the part.
+bool appendToList(QByteArray *xml, const char *container, const QByteArray &items, qint64 n)
+{
+    if (n <= 0) return true;
+    Tag open;
+    if (!findStart(*xml, container, &open)) return false;
+    QByteArray openTag = xml->mid(open.start, open.end - open.start);
+    addToCount(&openTag, "count", n);
+    if (open.selfClosing) {
+        const QByteArray p(xmlscan::prefixOf(open.name));
+        openTag.chop(2);
+        while (!openTag.isEmpty() && isSpace(openTag.back())) openTag.chop(1);
+        *xml = xml->left(open.start) + openTag + ">" + items + "</" + p + container + ">" + xml->mid(open.end);
+        return true;
+    }
+    Tag close;
+    if (!findEnd(*xml, open, &close)) return false;
+    *xml = xml->left(open.start) + openTag + xml->mid(open.end, close.start - open.end) + items + xml->mid(close.start);
+    return true;
+}
+
+} // namespace
+
 bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *out, QString *error)
 {
     auto bad = [&] {
@@ -179,12 +376,17 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
             if (qint64(f.base) < changes.cellFormatsBefore) base = raw.value(f.base);
             else if (qint64(f.base) - changes.cellFormatsBefore < made.size()) base = made[int(qint64(f.base) - changes.cellFormatsBefore)];
             if (base.isEmpty()) return bad();
-            Tag baseTag;
-            if (!xmlscan::nextTag(base, 0, &baseTag)) return bad();
-            QByteArray tag = base.left(baseTag.end);
-            setAttribute(&tag, "numFmtId", QByteArray::number(f.numFmtId));
-            setAttribute(&tag, "applyNumberFormat", "1");
-            const QByteArray one = tag + base.mid(baseTag.end);
+            QByteArray one;
+            if (f.full) {
+                if (!xfMadeInto(base, f.format, p, &one)) return bad();
+            } else {
+                Tag baseTag;
+                if (!xmlscan::nextTag(base, 0, &baseTag)) return bad();
+                QByteArray tag = base.left(baseTag.end);
+                setAttribute(&tag, "numFmtId", QByteArray::number(f.numFmtId));
+                setAttribute(&tag, "applyNumberFormat", "1");
+                one = tag + base.mid(baseTag.end);
+            }
             made.append(one);
             added += one;
         }
@@ -192,23 +394,40 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
         addToCount(&openTag, "count", changes.newCellFormats.size());
         result = result.left(open.start) + openTag + result.mid(open.end, close.start - open.end) + added + result.mid(close.start);
     }
+    // the named styles: their formats among the style formats, and their names
+    if (!changes.newStyles.isEmpty()) {
+        QByteArray xfs, names;
+        qint64 at = changes.styleXfsBefore;
+        for (const SaveChanges::StyleAdded &s : changes.newStyles) {
+            xfs += prefixed(xfXml(s.format, 0, false), p);
+            names += prefixed("<cellStyle name=\"" + xmlscan::escapeAttribute(s.name.name) + "\" xfId=\"" + QByteArray::number(at++) + "\"" + (s.name.builtin >= 0 ? " builtinId=\"" + QByteArray::number(s.name.builtin) + "\"" : QByteArray()) + "/>", p);
+        }
+        if (!appendToList(&result, "cellStyleXfs", xfs, changes.newStyles.size())) return bad();
+        if (!appendToList(&result, "cellStyles", names, changes.newStyles.size())) return bad();
+    }
+    // the borders, fills, and fonts (before the cell formats in the part; each is found again, so that the places do not matter)
+    if (!changes.newBorders.isEmpty()) {
+        QByteArray items;
+        for (const BorderSpec &b : changes.newBorders) items += prefixed(borderXml(b), p);
+        if (!appendToList(&result, "borders", items, changes.newBorders.size())) return bad();
+    }
+    if (!changes.newFills.isEmpty()) {
+        QByteArray items;
+        for (const FillSpec &f : changes.newFills) items += prefixed(fillXml(f), p);
+        if (!appendToList(&result, "fills", items, changes.newFills.size())) return bad();
+    }
+    if (!changes.newFonts.isEmpty()) {
+        QByteArray items;
+        for (const FontSpec &f : changes.newFonts) items += prefixed(fontXml(f), p);
+        if (!appendToList(&result, "fonts", items, changes.newFonts.size())) return bad();
+    }
     if (!changes.newNumberFormats.isEmpty()) {
         QByteArray added;
         for (const SaveChanges::NumberFormat &f : changes.newNumberFormats)
             added += "<" + p + "numFmt numFmtId=\"" + QByteArray::number(f.id) + "\" formatCode=\"" + xmlscan::escapeAttribute(f.code) + "\"/>";
         Tag open;
         if (findStart(result, "numFmts", &open, root.end)) {
-            QByteArray openTag = result.mid(open.start, open.end - open.start);
-            addToCount(&openTag, "count", changes.newNumberFormats.size());
-            if (open.selfClosing) {
-                openTag.chop(2);
-                while (!openTag.isEmpty() && isSpace(openTag.back())) openTag.chop(1);
-                result = result.left(open.start) + openTag + ">" + added + "</" + p + "numFmts>" + result.mid(open.end);
-            } else {
-                Tag close;
-                if (!findEnd(result, open, &close)) return bad();
-                result = result.left(open.start) + openTag + result.mid(open.end, close.start - open.end) + added + result.mid(close.start);
-            }
+            if (!appendToList(&result, "numFmts", added, changes.newNumberFormats.size())) return bad();
         } else {
             const QByteArray element = "<" + p + "numFmts count=\"" + QByteArray::number(changes.newNumberFormats.size()) + "\">" + added + "</" + p + "numFmts>";
             Tag again;
@@ -313,9 +532,199 @@ bool setFullCalcOnLoad(const QByteArray &xml, QByteArray *out)
     return true;
 }
 
+// ---- the workbook's list of sheets
+
+namespace {
+
+void dropAttribute(QByteArray *tag, const char *name)
+{
+    qsizetype vs = 0, ve = 0;
+    if (!xmlscan::attributeValue(*tag, name, &vs, &ve)) return;
+    qsizetype n = vs - 2;
+    while (n >= 0 && isSpace((*tag)[n])) --n;
+    if (n >= 0 && (*tag)[n] == '=') --n;
+    while (n >= 0 && isSpace((*tag)[n])) --n;
+    qsizetype nameStart = n;
+    while (nameStart > 0 && !isSpace((*tag)[nameStart - 1])) --nameStart;
+    qsizetype a = nameStart;
+    while (a > 0 && isSpace((*tag)[a - 1])) --a;
+    tag->remove(a, ve + 1 - a);
+}
+
+// Whether a namespace is the one the attributes that name relationships are in (the usual form of the format, or the strict one).
+bool isRelationshipNamespace(const QString &uri)
+{
+    return uri == QLatin1String("http://schemas.openxmlformats.org/officeDocument/2006/relationships") || uri == QLatin1String("http://purl.oclc.org/ooxml/officeDocument/relationships");
+}
+
+// The prefix a tag declares for the relationships' namespace ("r" for xmlns:r="..."), or empty if it declares none. What an attribute is called does not say what it is: the prefix the
+// namespace is declared with does.
+QByteArray relationshipPrefixDeclaredIn(const QByteArray &tag)
+{
+    static const QRegularExpression re(QStringLiteral("\\sxmlns:([A-Za-z_][A-Za-z0-9_.-]*)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
+    const QString text = QString::fromUtf8(tag);
+    for (auto it = re.globalMatch(text); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        if (isRelationshipNamespace(m.captured(2).isEmpty() ? m.captured(3) : m.captured(2))) return m.captured(1).toUtf8();
+    }
+    return QByteArray();
+}
+
+} // namespace
+
+// The workbook part with its list of sheets made from the workbook's own (the names they have now, whether each is shown, and the order of the tabs; a sheet that was deleted is out, and
+// one that was added is in, with the sheet number and relationship the workbook planned for it); the names that belong to one sheet follow it to its place in the list, or go with it; and
+// the sheet that is open is the one the file said, where it is now.
+bool patchWorkbookSheets(const QByteArray &xml, const Workbook &book, QByteArray *out, QString *error)
+{
+    auto bad = [&] {
+        if (error) *error = QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes.");
+        return false;
+    };
+    const WorkbookInfo &info = book.info();
+    Tag open, close;
+    if (!findStart(xml, "sheets", &open) || open.selfClosing || !findEnd(xml, open, &close)) return bad();
+    const QByteArray p(xmlscan::prefixOf(open.name));
+    // the sheet elements the file has, in the order it has them (a sheet's place in the file is what ties it to its element: an element may have no relationship, or name it by any prefix)
+    QVector<QByteArray> inFile;
+    // the prefix the relationships' namespace has in the part: declared on the workbook element or on a sheet element; else "r", which is declared when a sheet that is added needs it
+    Tag rootTag;
+    if (!xmlscan::nextTag(xml, 0, &rootTag) || rootTag.closing) return bad();
+    QByteArray relPrefix = relationshipPrefixDeclaredIn(xml.mid(rootTag.start, rootTag.end - rootTag.start));
+    const bool declared = !relPrefix.isEmpty();   // (on the workbook element)
+    {
+        Tag t;
+        qsizetype pos = open.end;
+        while (xmlscan::nextTag(xml, pos, &t) && t.start < close.start) {
+            pos = t.end;
+            if (t.closing || t.local != "sheet") continue;
+            const QByteArray tag = xml.mid(t.start, t.end - t.start);
+            if (relPrefix.isEmpty()) relPrefix = relationshipPrefixDeclaredIn(tag);
+            inFile.append(tag);
+        }
+    }
+    if (relPrefix.isEmpty()) relPrefix = "r";
+    const QByteArray relAttribute = relPrefix + ":id";
+    QByteArray sheets;
+    for (const int place : info.order) {
+        const SheetEntry &e = info.sheets[place];
+        QByteArray tag;
+        if (!e.isNew) {
+            const int at = int(info.fileOrder.indexOf(place));
+            if (at < 0 || at >= inFile.size()) return bad();
+            tag = inFile[at];
+        } else if (!e.relId.isEmpty()) {
+            tag = "<" + p + "sheet name=\"x\" sheetId=\"" + QByteArray::number(e.sheetId) + "\" " + relAttribute + "=\"" + e.relId.toUtf8() + "\"/>";
+        } else {
+            return bad();
+        }
+        setAttribute(&tag, "name", xmlscan::escapeAttribute(e.name));
+        if (e.state == SheetState::Hidden) setAttribute(&tag, "state", "hidden");
+        else if (e.state == SheetState::VeryHidden) setAttribute(&tag, "state", "veryHidden");
+        else dropAttribute(&tag, "state");
+        sheets += tag;
+    }
+    QByteArray result = xml.left(open.end) + sheets + xml.mid(close.start);
+    // the namespace the relationships' attribute is in must be declared (a new sheet's element names it)
+    if (!declared) {
+        Tag root;
+        if (xmlscan::nextTag(result, 0, &root)) {
+            QByteArray rootText = result.mid(root.start, root.end - root.start);
+            setAttribute(&rootText, ("xmlns:" + relPrefix).constData(), "http://schemas.openxmlformats.org/officeDocument/2006/relationships");
+            result = result.left(root.start) + rootText + result.mid(root.end);
+        }
+    }
+    // the names that belong to one sheet: by the place of the sheet in the list (or gone with it)
+    {
+        QByteArray rewritten;
+        qsizetype copied = 0, pos = 0;
+        Tag t;
+        while (xmlscan::nextTag(result, pos, &t)) {
+            pos = t.end;
+            if (t.closing || t.local != "definedName") continue;
+            QByteArray tag = result.mid(t.start, t.end - t.start);
+            qsizetype vs = 0, ve = 0;
+            if (!xmlscan::attributeValue(tag, "localSheetId", &vs, &ve)) continue;
+            const int was = tag.mid(vs, ve - vs).toInt();
+            const int place = was >= 0 && was < info.fileOrder.size() ? info.fileOrder[was] : -1;
+            const int now = place >= 0 && place < info.sheets.size() && !info.sheets[place].deleted ? int(info.order.indexOf(place)) : -1;
+            qsizetype end = t.end;
+            if (!t.selfClosing) {
+                Tag closeName;
+                if (!findEnd(result, t, &closeName)) return bad();
+                end = closeName.end;
+            }
+            if (now < 0) {
+                rewritten += result.mid(copied, t.start - copied);
+                copied = end;
+                pos = end;
+                continue;
+            }
+            if (now == was) continue;
+            setAttribute(&tag, "localSheetId", QByteArray::number(now));
+            rewritten += result.mid(copied, t.start - copied) + tag;
+            copied = t.end;
+        }
+        rewritten += result.mid(copied);
+        result = rewritten;
+    }
+    // the sheet that is open
+    {
+        Tag view;
+        if (findStart(result, "workbookView", &view)) {
+            QByteArray tag = result.mid(view.start, view.end - view.start);
+            const int active = book.activeTabNow();
+            qsizetype a = 0, b = 0;
+            if (active != 0 || xmlscan::attributeValue(tag, "activeTab", &a, &b)) setAttribute(&tag, "activeTab", QByteArray::number(active));
+            if (xmlscan::attributeValue(tag, "firstSheet", &a, &b)) setAttribute(&tag, "firstSheet", "0");
+            result = result.left(view.start) + tag + result.mid(view.end);
+        }
+    }
+    *out = result;
+    return true;
+}
+
 // ---- the whole file
 
 namespace {
+
+// A relationship of the part's relationships taken out by its Id; false (nothing changed) if there is none.
+bool removeRelationshipById(const QByteArray &xml, const QString &id, QByteArray *out)
+{
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "Relationship") continue;
+        bool found = false;
+        const QByteArrayView value = xmlscan::attribute(QByteArrayView(xml).sliced(t.start, t.end - t.start), "Id", &found);
+        if (!found || xmlscan::unescape(value) != id) continue;
+        qsizetype from = t.start;
+        while (from > 0 && isSpace(xml[from - 1])) --from;
+        *out = xml.left(from) + xml.mid(t.end);
+        return true;
+    }
+    return false;
+}
+
+// A relationship made, at the end of the part's list; an Override of [Content_Types].xml the same.
+bool appendBefore(const QByteArray &xml, const char *container, const QByteArray &element, QByteArray *out)
+{
+    Tag open, close;
+    if (!findStart(xml, container, &open) || open.selfClosing || !findEnd(xml, open, &close)) return false;
+    const QByteArray p(xmlscan::prefixOf(open.name));
+    QByteArray e = element;
+    e.replace("<", "<" + p);
+    *out = xml.left(close.start) + e + xml.mid(close.start);
+    return true;
+}
+
+// Where a part's own relationships are kept: "/xl/worksheets/sheet2.xml" has "/xl/worksheets/_rels/sheet2.xml.rels".
+QString relationshipsPartOf(const QString &part)
+{
+    const int slash = int(part.lastIndexOf(QLatin1Char('/')));
+    return (slash < 0 ? QString() : part.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? part : part.mid(slash + 1)) + QStringLiteral(".rels");
+}
 
 class ZipSink : public PartSink {
 public:
@@ -378,6 +787,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     for (const auto &[sheet, sc] : changes.sheets) {
         if (sc.empty()) continue;
         if (sheet < 0 || sheet >= book.info().sheets.size()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A change is to a sheet the workbook does not have."));
+        if (book.info().sheets[sheet].deleted) continue;   // (it is not in the file)
+        if (book.info().sheets[sheet].isNew) {
+            // (a sheet that was added is made whole: see below)
+            if (!sc.cells.empty()) anyCellChanged = true;
+            continue;
+        }
         const int index = entryOfPart(book.info().sheets[sheet].part);
         if (index < 0) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A sheet that changed has no part in the file."));
         sheetOfEntry.insert(index, sheet);
@@ -389,13 +804,15 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     MoveContext ctx;
     ctx.edits = changes.edits;
     ctx.renames = changes.renames;
-    for (const SheetEntry &se : book.info().sheets) ctx.sheetNames << se.name;
-    const bool moves = !ctx.edits.empty() || !ctx.renames.empty();
+    // (the file's own names: the edits to rows and columns say which sheet by its place, and the file has not been told of the renames yet)
+    for (const SheetEntry &se : book.info().sheets) ctx.sheetNames << (se.isNew ? QString() : se.fileName);
+    ctx.sheetOps = changes.sheetOps;
+    const bool moves = !ctx.edits.empty() || !ctx.renames.empty() || !ctx.sheetOps.empty();
     QSet<int> moveSheets;   // the sheets (by their place) whose part is made by the mover
     if (moves) {
         anyCellChanged = true;
         for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet) {
-            if (book.info().sheets[sheet].kind != SheetKind::Worksheet) continue;
+            if (book.info().sheets[sheet].kind != SheetKind::Worksheet || book.info().sheets[sheet].deleted || book.info().sheets[sheet].isNew) continue;
             const int index = entryOfPart(book.info().sheets[sheet].part);
             if (index < 0) continue;
             if (cancel && cancel->load()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -432,7 +849,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             else if (cachePart.match(part).hasMatch()) replacePart(part, [&](const QByteArray &x, QByteArray *o, bool *c) { return movePivotCachePart(x, ctx, o, c); });
         }
         for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet) {
-            if (book.info().sheets[sheet].kind != SheetKind::Worksheet) continue;
+            if (book.info().sheets[sheet].kind != SheetKind::Worksheet || book.info().sheets[sheet].deleted || book.info().sheets[sheet].isNew) continue;
             const QString sheetPart = book.info().sheets[sheet].part;
             for (const Relationship &r : package.relationshipsOfType(sheetPart, QStringLiteral("/drawing")))
                 if (!r.external) replacePart(r.target, [&](const QByteArray &x, QByteArray *o, bool *c) { return moveDrawingPart(x, ctx, sheet, o, c); });
@@ -563,7 +980,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
         replaced.insert(index, patched);
     }
     // ---- the styles
-    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty()) {
+    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty()) {
         const int index = entryOfPart(book.stylesPart());
         QByteArray xml, patched;
         if (index < 0 || !inflate(index, &xml)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The styles part is not in the file."));
@@ -604,13 +1021,112 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             }
         }
     }
+    // ---- the sheets: added (made whole, below), deleted (their parts, and what only they use, are left out), renamed, moved, hidden, and shown
+    struct NewSheet {
+        int sheet;
+        QString part;
+    };
+    std::vector<NewSheet> newSheets;
+    if (changes.sheetsChanged) {
+        const WorkbookInfo &info = book.info();
+        // the parts that go with the sheets deleted: those they have and the rest of the workbook does not
+        QHash<QString, QString> gone;   // by the plain name
+        {
+            QHash<QString, QString> roots;
+            for (const SheetEntry &e : info.sheets)
+                if (e.deleted && !e.isNew && !e.part.isEmpty()) roots.insert(plain(e.part), e.part);
+            if (!roots.isEmpty()) {
+                QSet<QString> kept;
+                std::vector<QString> stack{QStringLiteral("/")};
+                while (!stack.empty()) {
+                    const QString source = stack.back();
+                    stack.pop_back();
+                    for (const Relationship &r : package.relationships(source)) {
+                        if (r.external) continue;
+                        const QString key = plain(r.target);
+                        if (roots.contains(key) || kept.contains(key)) continue;
+                        kept.insert(key);
+                        stack.push_back(r.target);
+                    }
+                }
+                gone = roots;
+                std::vector<QString> work;
+                for (const QString &part : roots) work.push_back(part);
+                while (!work.empty()) {
+                    const QString source = work.back();
+                    work.pop_back();
+                    for (const Relationship &r : package.relationships(source)) {
+                        if (r.external) continue;
+                        const QString key = plain(r.target);
+                        if (kept.contains(key) || gone.contains(key)) continue;
+                        gone.insert(key, r.target);
+                        work.push_back(r.target);
+                    }
+                }
+            }
+        }
+        const QString mainEntryName = package.entryName(book.mainPart());
+        const int slash = mainEntryName.lastIndexOf(QLatin1Char('/'));
+        const QString relsName = (slash < 0 ? QString() : mainEntryName.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? mainEntryName : mainEntryName.mid(slash + 1)) + QStringLiteral(".rels");
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        const int relsEntry = entryAt.value(plain(relsName), -1);
+        if (typesEntry < 0 || relsEntry < 0) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the file."));
+        QByteArray types, rels;
+        if (replaced.contains(typesEntry)) types = replaced.value(typesEntry);
+        else if (!inflate(typesEntry, &types)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the file."));
+        if (replaced.contains(relsEntry)) rels = replaced.value(relsEntry);
+        else if (!inflate(relsEntry, &rels)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the file."));
+        for (auto it = gone.cbegin(); it != gone.cend(); ++it) {
+            const QString &part = it.value();
+            QByteArray t2;
+            if (removeContentTypeOverride(types, part, &t2)) types = t2;
+            const int entry = entryOfPart(part);
+            if (entry >= 0) dropped.insert(entry);
+            const int relsOfPart = entryAt.value(plain(relationshipsPartOf(package.entryName(part).isEmpty() ? part : QStringLiteral("/") + package.entryName(part))), -1);
+            if (relsOfPart >= 0) dropped.insert(relsOfPart);
+        }
+        for (const SheetEntry &e : info.sheets) {
+            if (e.deleted && !e.isNew && !e.relId.isEmpty()) {
+                QByteArray r2;
+                if (removeRelationshipById(rels, e.relId, &r2)) rels = r2;
+            }
+        }
+        QString mainDir = book.mainPart().left(book.mainPart().lastIndexOf(QLatin1Char('/')) + 1);
+        for (int sheet = 0; sheet < info.sheets.size(); ++sheet) {
+            const SheetEntry &e = info.sheets[sheet];
+            if (!e.isNew || e.deleted || e.part.isEmpty() || e.relId.isEmpty()) continue;
+            QByteArray t2, r2;
+            if (!appendBefore(types, "Types", "<Override PartName=\"" + xmlscan::escapeAttribute(e.part) + "\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>", &t2))
+                return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the form this program changes."));
+            types = t2;
+            const QString target = e.part.startsWith(mainDir, Qt::CaseInsensitive) ? e.part.mid(mainDir.size()) : e.part;
+            if (!appendBefore(rels, "Relationships",
+                              "<Relationship Id=\"" + xmlscan::escapeAttribute(e.relId) + "\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"" + xmlscan::escapeAttribute(target) + "\"/>", &r2))
+                return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's relationships are not in the form this program changes."));
+            rels = r2;
+            newSheets.push_back({sheet, e.part});
+        }
+        replaced.insert(typesEntry, types);
+        replaced.insert(relsEntry, rels);
+        anyCellChanged = true;
+    }
     // ---- the workbook part: the names follow the cells, and the other program is asked to work the formulas out again when it is to
-    if (changes.fullCalcOnLoad || moves || !changes.printNames.empty()) {
+    if (changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty()) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
             bool changed = false;
             if (moves && moveWorkbookPart(xml, ctx, &patched, &changed) && changed) xml = patched;
+            if (changes.sheetsChanged) {
+                if (!patchWorkbookSheets(xml, book, &patched, &why)) return fail(why);
+                xml = patched;
+                changed = true;
+            }
             if (!changes.printNames.empty() && patchPrintNames(xml, changes.printNames, &patched) && patched != xml) {
                 xml = patched;
                 changed = true;
@@ -671,6 +1187,48 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             zip.addRaw(e.name, e.method, e.crc, quint32(e.csize), quint32(e.usize), bytes.constData() + e.dataAt);
             ++rep.partsCopied;
         }
+    }
+    // the sheets that were added, made whole: the skeleton with their cells, sizes, and merged ranges put in
+    for (const NewSheet &n : newSheets) {
+        if (cancel && cancel->load()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
+        const auto found = changes.sheets.find(n.sheet);
+        SheetChanges sc;
+        if (found != changes.sheets.end()) sc = found->second;
+        QByteArray skeleton = sc.skeleton;
+        if (skeleton.isEmpty())
+            skeleton = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData/></worksheet>";
+        // a copy takes what the sheet it was copied from has that the program keeps no model of (protection, filter, links, page setup, breaks), moved by the edits made to rows and columns
+        QByteArray linkRelationships;
+        if (!sc.copyFromPart.isEmpty()) {
+            const auto source = package.openPart(sc.copyFromPart);
+            SheetExtras extras;
+            QString carryWhy;
+            if (!source || !readSheetExtras(source.get(), &extras, &carryWhy))
+                return fail(carryWhy.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "The sheet that was copied could not be read again.") : carryWhy);
+            MoveContext copyCtx = ctx;
+            copyCtx.edits = sc.copyEdits;
+            copyCtx.edits.insert(copyCtx.edits.end(), ctx.edits.begin(), ctx.edits.end());
+            if (!moveSheetExtras(&extras, copyCtx, n.sheet, &carryWhy, cancel)) return fail(carryWhy);
+            skeleton = skeletonWithExtras(skeleton, extras, sc.isProtected);
+            linkRelationships = hyperlinkRelationshipsXml(package.relationships(sc.copyFromPart));
+        } else if (sc.isProtected) {
+            skeleton = skeletonWithExtras(skeleton, SheetExtras(), true);
+        }
+        QBuffer in(&skeleton);
+        in.open(QIODevice::ReadOnly);
+        zip.beginStream(n.part.startsWith(QLatin1Char('/')) ? n.part.mid(1) : n.part, true);
+        const bool ok = patchSheet(&in, &sink, sc, hasShared, &why, cancel);
+        zip.endStream();
+        if (!ok) return fail(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "A sheet that was added could not be made.") : why);
+        if (!linkRelationships.isEmpty()) {
+            // (the copy's links to places outside the workbook: its own relationships, with the ids the links name)
+            QString relsOfNew = relationshipsPartOf(n.part);
+            if (relsOfNew.startsWith(QLatin1Char('/'))) relsOfNew.remove(0, 1);
+            zip.add(relsOfNew, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" + linkRelationships + "</Relationships>", true);
+        }
+        rep.changedParts << n.part;
+        ++rep.partsChanged;
+        ++rep.sheetsRewritten;
     }
     *out = zip.finish();
     return true;

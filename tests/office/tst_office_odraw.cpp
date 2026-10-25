@@ -1,6 +1,7 @@
 // Tests of libs/office: the binary drawing format: pictures, shapes, and properties.
 #include "officehelpers.h"
 #include "../timing.h"
+#include "core/fonts.h"
 
 class OfficeOdrawTests : public QObject {
     Q_OBJECT
@@ -80,6 +81,10 @@ class OfficeOdrawTests : public QObject {
     }
 
 private Q_SLOTS:
+    // The program's own fonts and their stand-ins, as the apps load them at their start: a picture's words are drawn in them (under the offscreen platform
+    // on Windows there are no others, and the letters came out as wide as the font is tall).
+    void initTestCase() { jp::initCore(); }
+
     void odrawBlipReadsBitmapPictures()
     {
         const QByteArray png = QByteArray("\x89PNG\r\n\x1a\n", 8) + QByteArray(50, 'p');
@@ -216,9 +221,6 @@ private Q_SLOTS:
         };
         QVERIFY(inkIn(20, 45) > 50);
         QVERIFY(inkIn(120, 145) > 50);
-#ifndef Q_OS_WIN
-        // On Windows (CI, October 16, 2026) this picture draws ink between and after the two letters as well: a Windows-only
-        // difference in how a picture's text is drawn, to be looked into there; the letters' places are checked elsewhere.
         QCOMPARE(inkIn(150, 200), 0);
         // Measured by the ink, not by how wide this computer's font draws an "I": exactly two letters, the first starting near
         // 20 and the second 100 points after the first one's start (a fixed empty gap failed where the font drew wider).
@@ -237,7 +239,6 @@ private Q_SLOTS:
             const double apart = runs[1].first - runs[0].first;
             QVERIFY2(apart > 94 && apart < 106, qPrintable(QString::number(apart)));
         }
-#endif
         // A bitmap with a color table (here 8 pixels in a row at 8 bits each, red, green, then blue, over 10 to 90 across), and a direct one
         // (32 bits to the pixel in rows of each color: 4 pixels red, then 4 blue).
         auto pixmapHeader = [&](int rowBytes, int packType, int pixelSize, int components) {

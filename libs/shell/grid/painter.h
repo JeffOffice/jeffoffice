@@ -65,6 +65,8 @@ struct PaintStats {
     qint64 mergesLeftOut = 0;    // merged ranges on the screen that were not drawn for want of room (the bound is far above what a sheet has)
     qint64 mergeMarks = 0;       // cells marked as part of a merged range
     qint64 headersDrawn = 0;
+    qint64 condCells = 0;        // cells the rules of conditional formatting were asked about
+    qint64 bars = 0, icons = 0;  // data bars and icons drawn
     qint64 textsMade = 0;        // texts of cells made (not found in the cache) during the drawing
     qint64 looksMade = 0;
     bool truncated = false;      // a bound was reached: some cells in view were left out
@@ -78,6 +80,7 @@ public:
     static constexpr qint64 kMaxCells = 60000, kMaxTextRuns = 12000, kMaxSpillProbes = 20000, kMaxMergeMarks = 200000;
     static constexpr int kMaxMerges = 100000;   // far above what a screen of a real sheet has (its cells are at most 60,000, and a merged range is two of them or more); the ones left out are counted
     static constexpr int kMinFontPixels = 4;
+    static constexpr qint64 kMaxCondCells = 60000;   // cells of a part the rules of conditional formatting are asked about
 
     explicit GridPainter(GridSheet *sheet);
     ~GridPainter();
@@ -107,7 +110,10 @@ private:
     void drawFill(QPainter *p, const QRect &rect, const CellLook &look, const PaintOptions &o);
     void drawEdge(QPainter *p, const LineLook &line, int x, int y, int length, bool vertical, const QRect &clip);
     void drawText(QPainter *p, const QRect &cell, const QRect &box, const QRect &area, const CellLook &look, const Shown &shown, const PaintOptions &o);
-    const QFont &fontFor(const CellLook &look, double scale);
+    void drawHeaderText(QPainter *p, const QRect &cell, const QString &text);
+    void drawBar(QPainter *p, const QRect &cell, const CondBar &bar, bool gridlines);
+    void drawIcon(QPainter *p, const QRect &cell, const QString &set, int index, int count, int size);
+    const QFont &fontFor(const CellLook &look);
     QBrush patternBrush(PatternKind kind, QRgb fg, QRgb bg);
 
     GridSheet *m_sheet;
@@ -118,6 +124,8 @@ private:
     double m_fontZoom = 0;
     QHash<quint64, QBrush> m_patterns;
     std::vector<std::unique_ptr<GlyphFace>> m_faces;          // by font id, at the zoom of the last paint
+    int m_iconInset = 0;              // the room the icon of the cell being drawn takes at its left (device pixels)
+    bool m_drawingMirrored = false;   // drawText is drawing a text of a sheet that reads right to left, on the screen's places
     int m_lastFontId = -1;      // what the painter was last given, so a run in the same font and color sets neither again
     double m_lastFontZoom = 0;
     QRgb m_lastInk = 0;

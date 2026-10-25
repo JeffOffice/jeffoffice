@@ -181,9 +181,19 @@ private:
                 const QString title = tr(str(o, "submenu")), iconName = str(o, "icon");
                 if (!iconName.isEmpty() && !QFile::exists(QStringLiteral(":/icons/%1.svg").arg(iconName)))
                     problem(QStringLiteral("unknown icon \"%1\"").arg(iconName));
-                QMenu *sub = iconName.isEmpty() ? m->addMenu(title) : m->addMenu(icon(iconName), title);
-                if (!o.value(QLatin1String("menu")).isArray()) problem(QStringLiteral("submenu \"%1\" needs a \"menu\" list").arg(title));
-                else fill(sub, o.value(QLatin1String("menu")).toArray());
+                const QJsonValue spec = o.value(QLatin1String("menu"));
+                if (spec.isString()) {
+                    // (a menu built in code, "@name": it is the submenu, with the title and icon given here)
+                    if (QMenu *sub = menu(spec, m)) {
+                        sub->setTitle(title);
+                        if (!iconName.isEmpty()) sub->setIcon(icon(iconName));
+                        m->addMenu(sub);
+                    }
+                } else {
+                    QMenu *sub = iconName.isEmpty() ? m->addMenu(title) : m->addMenu(icon(iconName), title);
+                    if (!spec.isArray()) problem(QStringLiteral("submenu \"%1\" needs a \"menu\" list, or \"@name\" for one built in code").arg(title));
+                    else fill(sub, spec.toArray());
+                }
             } else if (QAction *a = command(e)) {
                 m->addAction(a);
             }

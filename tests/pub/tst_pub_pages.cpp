@@ -1,5 +1,6 @@
 // JeffPub's tests of rulers, page sizes, and new pages.
 #include "pubhelpers.h"
+#include <QScopeGuard>
 
 class PubPageTests : public QObject {
     Q_OBJECT
@@ -231,6 +232,33 @@ private Q_SLOTS:
         QCOMPARE(d.text(), QStringLiteral("12.345 pt"));
         d.setValue(12);
         QCOMPARE(d.text(), QStringLiteral("12 pt"));
+    }
+
+    // On a computer that writes a decimal comma, a measurement box shows one, as the number boxes beside it do, and takes
+    // a measurement typed with either mark.
+    void measurementsUseTheComputersDecimalMark()
+    {
+        const QLocale computer;
+        QLocale::setDefault(QLocale(QLocale::German, QLocale::Germany));
+        jp::Settings &st = jp::Settings::get();
+        const jp::Unit was = st.unit();
+        const auto restore = qScopeGuard([&] { st.setUnit(was); QLocale::setDefault(computer); });
+        st.setUnit(jp::Unit::Centimeter);
+        jp::MeasureSpin m;
+        m.setRange(0, 72 * 240);
+        double pt = 0;
+        QVERIFY(st.parse(QStringLiteral("1,25 cm"), &pt));
+        m.setValue(pt);
+        QCOMPARE(m.text(), QStringLiteral("1,25 cm"));
+        QVERIFY(st.parse(QStringLiteral("1.5"), &pt));
+        m.setValue(pt);
+        QCOMPARE(m.text(), QStringLiteral("1,5 cm"));
+        QVERIFY(!st.parse(QStringLiteral("1,2,5"), &pt));
+        QCOMPARE(st.formatPair(72, 0.9 * 72 / 2.54), QStringLiteral("2,54 cm; 0,9 cm"));
+        jp::DecimalSpin d;
+        d.setRange(0, 1000);
+        d.setValue(2.5);
+        QCOMPARE(d.text(), QStringLiteral("2,5"));
     }
 
     // A color given as ink amounts keeps them: in the file, in tints and

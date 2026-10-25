@@ -5,6 +5,7 @@
 #include "app/crunchwindow.h"
 #include "app/oldformat.h"
 #include "app/settings.h"
+#include "app/sheettabs.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "grid/gridview.h"
@@ -387,6 +388,64 @@ private Q_SLOTS:
         // a window with no workbook has nothing to save
         Window empty;
         QCOMPARE(empty.w.pathToSave(), QString());
+    }
+
+    // The sheets of a workbook of the older form can be added, renamed, moved, and given a color: the first save writes them into the .xlsx it makes (a package made from the model), and
+    // the next save patches that file; the original is never written.
+    void sheetChangesOfAnOldWorkbookAreSaved()
+    {
+        OldWindow o;
+        xlstest::Book b;
+        b.sheet(QStringLiteral("One"), xlstest::number(0, 0, 2));
+        b.sheet(QStringLiteral("Two"), xlstest::number(0, 0, 7));
+        QVERIFY(o.open(b.file()));
+        auto names = [](Window &w) {
+            QStringList out;
+            for (int i = 0; i < w.w.sheetTabs()->count(); ++i) out << w.w.sheetTabs()->tabData(i).toString();
+            return out;
+        };
+        QCOMPARE(names(o.win), QStringList({QStringLiteral("One"), QStringLiteral("Two")}));
+        o.win.w.act("sheet.insertEnd")->trigger();
+        QVERIFY(o.win.w.renameSheetTo(0, QStringLiteral("Plan")));
+        QVERIFY(o.win.w.session()->moveSheet(0, -1).ok);
+        QVERIFY(o.win.w.session()->setTabColor(1, office::sheet::ColorSpec::fromRgb(0x00B050)).ok);
+        QCOMPARE(names(o.win), QStringList({QStringLiteral("Two"), QStringLiteral("Sheet3"), QStringLiteral("Plan")}));
+        QVERIFY(o.settle());
+        o.answer = o.folder.dir.filePath(QStringLiteral("copy"));
+        QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
+        pressStandard(&o.win.w, QKeySequence::Save);
+        QVERIFY(saved.wait(20000));
+        QCOMPARE(saved.first().at(1).toBool(), true);
+        QVERIFY(o.originalIsUntouched());
+        {
+            Window second;
+            QVERIFY(second.open(o.copyOfSaved(QStringLiteral("copy.xlsx"), QStringLiteral("sheets1.xlsx"))));
+            QCOMPARE(names(second), QStringList({QStringLiteral("Two"), QStringLiteral("Sheet3"), QStringLiteral("Plan")}));
+            const auto &info = second.w.loaded()->book->info();
+            QCOMPARE(info.sheets.size(), 3);
+            // (the sheets are in the file in the order the tabs show)
+            QCOMPARE(info.sheets[0].name, QStringLiteral("Two"));
+            QCOMPARE(info.sheets[2].name, QStringLiteral("Plan"));
+            second.w.setActiveSheet(2);
+            QCOMPARE(second.w.view()->sheet().valueOf(*second.w.view()->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:2"));
+            second.w.setActiveSheet(0);
+            QCOMPARE(second.w.view()->sheet().valueOf(*second.w.view()->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:7"));
+            QVERIFY(second.w.calculation()->sheet(0).tabColor.isSet());
+        }
+        // the next save patches the .xlsx: a sheet renamed again, and one added
+        QVERIFY(o.activate());
+        QVERIFY(o.win.w.renameSheetTo(2, QStringLiteral("Totals")));
+        QVERIFY(o.win.w.session()->insertSheet(-1, QStringLiteral("Notes")).ok);
+        pressStandard(&o.win.w, QKeySequence::Save);
+        QTRY_COMPARE_WITH_TIMEOUT(saved.count(), 2, 20000);
+        QCOMPARE(saved.last().at(1).toBool(), true);
+        QCOMPARE(o.asked.size(), 1);
+        {
+            Window third;
+            QVERIFY(third.open(o.copyOfSaved(QStringLiteral("copy.xlsx"), QStringLiteral("sheets2.xlsx"))));
+            QCOMPARE(names(third), QStringList({QStringLiteral("Two"), QStringLiteral("Totals"), QStringLiteral("Plan"), QStringLiteral("Notes")}));
+        }
+        QVERIFY(o.originalIsUntouched());
     }
 
     // The names: what ends as the older form does, the name offered (never the original, nor a file that is there), and the ending put on what the person typed.

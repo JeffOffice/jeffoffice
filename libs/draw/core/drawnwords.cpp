@@ -7,6 +7,7 @@
 #include <QJsonObject>
 #include <QPaintDevice>
 #include <QPainter>
+#include <QTextLayout>
 
 #include <algorithm>
 #include <cmath>
@@ -78,8 +79,7 @@ void drawUnseenText(QPainter *p, const QString &family, double size, bool bold, 
     f.setBold(bold);
     f.setItalic(italic);
     // Without ligatures: a glyph that stands for several letters has no letter to give a reader that copies the text.
-    f.setFeature(QFont::Tag("liga"), 0);
-    f.setFeature(QFont::Tag("clig"), 0);
+    for (const QByteArray &tag : {QByteArray("liga"), QByteArray("clig"), QByteArray("dlig"), QByteArray("rlig"), QByteArray("calt")}) f.setFeature(QFont::Tag::fromString(tag).value(), 0);
     const QFontMetricsF fm(f);
     const double width = fm.horizontalAdvance(text) / kFine;
     const QPointF start(at.x() - anchor * width, at.y());
@@ -88,7 +88,24 @@ void drawUnseenText(QPainter *p, const QString &family, double size, bool bold, 
     p->setPen(QColor(0, 0, 0, 0));
     p->setFont(f);
     p->scale(1 / kFine, 1 / kFine);
-    p->drawText(start * kFine, text);
+    // A font may still join letters (a blackletter's "ck") whatever is asked: then each letter is set alone, at the place the whole text puts it.
+    QTextLayout layout(text, f);
+    layout.beginLayout();
+    layout.createLine();
+    layout.endLayout();
+    qsizetype glyphs = 0;
+    for (const QGlyphRun &run : layout.glyphRuns()) glyphs += run.glyphIndexes().size();
+    qsizetype letters = 0;
+    for (const QChar c : text) letters += !c.isLowSurrogate();
+    if (glyphs >= letters) {
+        p->drawText(start * kFine, text);
+    } else {
+        for (qsizetype i = 0; i < text.size(); ++i) {
+            if (text[i].isLowSurrogate()) continue;
+            const qsizetype n = text[i].isHighSurrogate() && i + 1 < text.size() ? 2 : 1;
+            p->drawText((start + QPointF(fm.horizontalAdvance(text.left(i)) / kFine, 0)) * kFine, text.mid(i, n));
+        }
+    }
     p->restore();
 }
 

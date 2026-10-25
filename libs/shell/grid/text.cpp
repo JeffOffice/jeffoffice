@@ -24,7 +24,7 @@ int charsFor(double cellWidth, int maxDigitWidth)
     return std::max(1, int((cellWidth - 5) / maxDigitWidth));
 }
 
-Shown showValue(const jp::calc::Value &given, const CellLook &look, jp::calc::DateSystem system, double cellWidth, int maxDigitWidth, const TextMeter &meter)
+Shown showValue(const jp::calc::Value &given, const CellLook &look, jp::calc::DateSystem system, double cellWidth, int maxDigitWidth, const TextMeter &meter, const jp::calc::NumberSymbols *symbols)
 {
     using jp::calc::Value;
     Shown s;
@@ -36,7 +36,7 @@ Shown showValue(const jp::calc::Value &given, const CellLook &look, jp::calc::Da
         return s;
     case Value::Kind::Number: {
         s.kind = Kind::Number;
-        const jp::calc::Formatted f = look.format.format(v.number(), system, charsFor(cellWidth, maxDigitWidth));
+        const jp::calc::Formatted f = look.format.format(v.number(), system, charsFor(cellWidth, maxDigitWidth), symbols);
         s.text = f.text;
         if (f.color > 0) s.color = 0xFF000000u | jp::calc::formatColorRgb(f.color);
         s.fillAt = f.fillAt;
@@ -160,6 +160,19 @@ Spill spillOf(const Shown &shown, const CellLook &look, double cellWidth, const 
 {
     Spill sp;
     if (shown.kind != Kind::Text || shown.hashes || look.wrap || look.shrink || look.rotation != 0) return sp;
+    if (look.horizontal == HAlign::Fill) return sp;   // (a text that fills its cell goes no further)
+    if (shown.align == HAlign::CenterContinuous) {
+        // centered across the cell and the empty cells after it that are formatted so, whether or not it needs them
+        double gained = 0;
+        for (int step = 1; step <= kMaxSpill; ++step) {
+            const double w = neighbor(step);
+            if (w < 0) break;
+            gained += w;
+            sp.right = step;
+        }
+        sp.extra = gained;
+        return sp;
+    }
     const double need = shown.width + 2 * kCellPadding + indentPixels(look) - cellWidth;
     if (need <= 0) return sp;
     const bool both = shown.align == HAlign::Center || shown.align == HAlign::CenterContinuous;

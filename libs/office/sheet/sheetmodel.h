@@ -351,6 +351,8 @@ struct RowSpec {
     bool customHeight = false;
     bool customFormat = false;
     quint32 style = 0;
+    quint8 outline = 0;            // the outline level (0 to 7)
+    bool collapsed = false;        // the row's group is collapsed (the row that follows the group says so)
 };
 
 // `sheetFormatPr`: the sizes of rows and columns that have none of their own.
@@ -360,6 +362,8 @@ struct SheetFormat {
     int baseColWidth = 8;           // characters of the default font's widest digit, with no padding
     bool zeroHeight = false;        // the rows that have no row element are hidden
     bool customHeight = false;
+    quint8 outlineLevelRow = 0;     // the deepest outline levels of the rows and of the columns (what the buttons of the outline show)
+    quint8 outlineLevelCol = 0;
 };
 
 // `sheetView`: how the sheet was left on the screen.
@@ -391,6 +395,45 @@ struct Validation {
     QString formula1, formula2;    // as the file writes them (the limits, the choices, or the formula), relative to the first cell of the first range
 };
 
+// A value a color scale, data bar, or icon set is cut at (a `cfvo`): a number, a percent, the lowest or highest value, a formula, or a percentile.
+struct CondValue {
+    enum class Type : quint8 { Number, Percent, Max, Min, Formula, Percentile, AutoMin, AutoMax } type = Type::Number;
+    QString value;       // the number or the formula, as the file writes it
+    bool gte = true;     // an icon set: the icon is for values at or over this one (else over it)
+    bool operator==(const CondValue &o) const { return type == o.type && value == o.value && gte == o.gte; }
+};
+
+// A rule of conditional formatting (a `cfRule`), for the cells of the ranges its `conditionalFormatting` names. The rules of a sheet are in the order of their priority (lower first).
+struct CondRule {
+    enum class Type : quint8 {
+        CellIs, Expression, ColorScale, DataBar, IconSet, Top10, UniqueValues, DuplicateValues, ContainsText, NotContainsText, BeginsWith, EndsWith, ContainsBlanks, NotContainsBlanks,
+        ContainsErrors, NotContainsErrors, TimePeriod, AboveAverage
+    } type = Type::Expression;
+    enum class Operator : quint8 { LessThan, LessThanOrEqual, Equal, NotEqual, GreaterThanOrEqual, GreaterThan, Between, NotBetween } op = Operator::Equal;
+    int priority = 0;
+    qint32 dxf = -1;                 // the differential format (Styles::dxfs) the rule applies; -1 for none
+    bool stopIfTrue = false;
+    QString formula1, formula2;      // as the file writes them, for the first cell of the first range (the file's `formula` elements)
+    QString text;                    // the text of the rules that look for text
+    QString timePeriod;              // today, yesterday, tomorrow, last7Days, thisWeek, lastWeek, nextWeek, thisMonth, lastMonth, nextMonth
+    int rank = 10;                   // top or bottom N (a percent of the cells with `percent`)
+    bool percent = false, bottom = false;
+    bool above = true, equalAverage = false;   // above or below the average (or equal to it too)
+    int stdDev = 0;                  // that many standard deviations from the average (0 for none)
+    // a color scale (two or three values and their colors), a data bar (the shortest and longest, one color), an icon set (the values the icons change at)
+    QVector<CondValue> values;
+    QVector<ColorSpec> colors;
+    QString iconSet;                 // "3TrafficLights1" and the like
+    bool reverse = false, showValue = true;
+    int minLength = 10, maxLength = 90;          // a data bar: the shortest and longest, in percent of the cell's width
+    bool gradient = true, border = false, negativeSameColor = false;
+    ColorSpec negativeColor, borderColor, negativeBorderColor, axisColor;
+    enum class Axis : quint8 { Automatic, Middle, None } axis = Axis::Automatic;
+    bool rightToLeft = false;
+    QVector<CellRange> ranges;       // the cells it is for (the `sqref` of its `conditionalFormatting`)
+    QString extId;                   // the id that ties a data bar to its extension (x14), while the sheet is read
+};
+
 struct Sheet {
     CellStore cells;
     QVector<QString> texts;           // inline strings and the texts of formula results
@@ -405,11 +448,13 @@ struct Sheet {
     QVector<ColumnSpan> columns;      // in the order of the file
     QVector<RowSpec> rowSpecs;        // the rows that are not as the default, in the order of the file
     QVector<Validation> validations;  // the rules for what may be put in cells
+    QVector<CondRule> conditionalFormats;   // the rules of conditional formatting, by priority
     SheetFormat format;
     SheetView view;
     PageSetup page;                   // how it prints: the paper, margins, header and footer, breaks, and the print area and titles (see sheet/pagesetup.h)
     ColorSpec tabColor;               // the color of the sheet's tab
     bool isProtected = false;         // the sheet is protected (sheetProtection): its locked cells can't be changed
+    QStringList notKept;              // what the sheet's file has that the program neither shows nor writes into a copy of the sheet, in words (sparklines, say)
     bool partial = false;             // the read was stopped at a row asked for (ReadOptions::stopAfterRow): the cells of the rows after it, and what follows the cells (the merged ranges), are not here
     quint32 extentRows = 0;           // the rows and columns the cells reach: the most of a cell that holds a value or a formula or has a format of its own (a style other than the first)
     quint32 extentCols = 0;

@@ -3,6 +3,7 @@
 // loses its formula. See xlsxsave.h.
 
 #include "sheet/cellref.h"
+#include "sheet/xlsxbase.h"
 #include "sheet/xlsxsave.h"
 #include "sheet/xmlscan.h"
 
@@ -199,6 +200,16 @@ void applyRowProps(QByteArray *tag, const RowProps &p)
     if (p.height >= 0) setAttr(tag, "ht", numberText(p.height));
     setFlag(tag, "customHeight", p.customHeight && p.height >= 0);
     setFlag(tag, "hidden", p.hidden);
+    if (p.styleKnown) {
+        if (p.customFormat && p.style != 0) setAttr(tag, "s", QByteArray::number(p.style));
+        else dropAttr(tag, "s");
+        setFlag(tag, "customFormat", p.customFormat && p.style != 0);
+    }
+    if (p.outlineKnown) {
+        if (p.outline > 0) setAttr(tag, "outlineLevel", QByteArray::number(int(p.outline)));
+        else dropAttr(tag, "outlineLevel");
+        setFlag(tag, "collapsed", p.collapsed);
+    }
 }
 
 // The columns' element of a sheet's head (the bytes before sheetData) made from the runs of columns the sheet has: in place of the file's, or before sheetData if the file has none.
@@ -246,6 +257,129 @@ QByteArray columnsFromRuns(const QByteArray &head, const std::vector<ColumnSpan>
     }
     if (colsStart >= 0) return head.left(colsStart) + out + head.mid(colsEnd);
     return head + out;
+}
+
+// The head of a sheet with its `sheetFormatPr` made to say the sheet's default sizes: the file's element with those attributes changed (what else it says stays), or one made before the
+// columns (or before the cells) if the file has none.
+QByteArray formatFromChange(const QByteArray &head, const SheetFormat &f, const QByteArray &defaultPrefix)
+{
+    Tag t;
+    qsizetype pos = 0, found = -1, foundEnd = -1, colsAt = -1;
+    QByteArray prefix = defaultPrefix;
+    while (xmlscan::nextTag(head, pos, &t)) {
+        pos = t.end;
+        if (t.closing) continue;
+        if (t.local == "sheetFormatPr" && found < 0) {
+            found = t.start;
+            foundEnd = t.end;
+            prefix = QByteArray(xmlscan::prefixOf(t.name));
+        } else if (t.local == "cols" && colsAt < 0) {
+            colsAt = t.start;
+        }
+    }
+    auto apply = [&](QByteArray *tag) {
+        setAttr(tag, "defaultRowHeight", numberText(f.defaultRowHeight));
+        setFlag(tag, "customHeight", f.customHeight);
+        if (f.defaultColWidth > 0) setAttr(tag, "defaultColWidth", numberText(f.defaultColWidth));
+        else dropAttr(tag, "defaultColWidth");
+    };
+    if (found >= 0) {
+        QByteArray tag = head.mid(found, foundEnd - found);
+        apply(&tag);
+        return head.left(found) + tag + head.mid(foundEnd);
+    }
+    QByteArray tag = "<" + prefix + "sheetFormatPr baseColWidth=\"" + QByteArray::number(f.baseColWidth) + "\"/>";
+    apply(&tag);
+    const qsizetype at = colsAt >= 0 ? colsAt : head.size();
+    return head.left(at) + tag + head.mid(at);
+}
+
+// The head of a sheet with the color of its tab made: the file's `tabColor` replaced (or taken out, for no color), or one put first in `sheetPr` (which is made, first in the sheet, if the
+// file has none).
+QByteArray tabColorFromChange(const QByteArray &head, const ColorSpec &color, const QByteArray &defaultPrefix)
+{
+    Tag t;
+    qsizetype pos = 0, rootEnd = -1, sheetPrStart = -1, sheetPrEnd = -1, closeStart = -1, closeEnd = -1, tabStart = -1, tabEnd = -1;
+    bool sheetPrSelf = false;
+    QByteArray prefix = defaultPrefix;
+    int depth = 0;
+    while (xmlscan::nextTag(head, pos, &t)) {
+        pos = t.end;
+        if (rootEnd < 0 && !t.closing) {
+            rootEnd = t.end;
+            prefix = QByteArray(xmlscan::prefixOf(t.name));
+            if (t.selfClosing) break;
+            continue;
+        }
+        if (t.closing) {
+            --depth;
+            if (sheetPrStart >= 0 && closeStart < 0 && t.local == "sheetPr") {
+                closeStart = t.start;
+                closeEnd = t.end;
+            }
+            continue;
+        }
+        if (t.local == "sheetPr" && sheetPrStart < 0) {
+            sheetPrStart = t.start;
+            sheetPrEnd = t.end;
+            sheetPrSelf = t.selfClosing;
+        } else if (t.local == "tabColor" && sheetPrStart >= 0 && closeStart < 0 && tabStart < 0) {
+            tabStart = t.start;
+            tabEnd = t.end;
+        }
+        if (!t.selfClosing) ++depth;
+        if (t.local == "sheetData") break;
+    }
+    if (rootEnd < 0) return head;
+    QByteArray element = colorXml("tabColor", color);
+    if (!element.isEmpty() && !prefix.isEmpty()) element.replace("<tabColor", "<" + prefix + "tabColor");
+    if (sheetPrStart < 0) {
+        if (element.isEmpty()) return head;
+        return head.left(rootEnd) + "<" + prefix + "sheetPr>" + element + "</" + prefix + "sheetPr>" + head.mid(rootEnd);
+    }
+    if (sheetPrSelf) {
+        if (element.isEmpty()) return head;
+        QByteArray open = head.mid(sheetPrStart, sheetPrEnd - sheetPrStart);
+        open.chop(2);
+        while (!open.isEmpty() && isSpaceByte(open.back())) open.chop(1);
+        return head.left(sheetPrStart) + open + ">" + element + "</" + prefix + "sheetPr>" + head.mid(sheetPrEnd);
+    }
+    if (tabStart >= 0) return head.left(tabStart) + element + head.mid(tabEnd);
+    if (element.isEmpty()) return head;
+    return head.left(sheetPrEnd) + element + head.mid(sheetPrEnd);
+}
+
+// The head of a sheet with its first view said to be the one that is open (`tabSelected`), or not: the attribute put on or taken off the first `sheetView`; for a sheet that is to be
+// open and has no view, one made before the sizes of its columns (or before the cells).
+QByteArray tabSelectedFromChange(const QByteArray &head, bool selected, const QByteArray &defaultPrefix)
+{
+    Tag t;
+    qsizetype pos = 0, viewAt = -1, viewEnd = -1, insertAt = -1;
+    QByteArray prefix = defaultPrefix;
+    bool first = true;
+    while (xmlscan::nextTag(head, pos, &t)) {
+        pos = t.end;
+        if (t.closing) continue;
+        if (first) {
+            first = false;
+            prefix = QByteArray(xmlscan::prefixOf(t.name));
+            continue;
+        }
+        if (t.local == "sheetView" && viewAt < 0) {
+            viewAt = t.start;
+            viewEnd = t.end;
+        } else if ((t.local == "sheetFormatPr" || t.local == "cols" || t.local == "sheetData") && insertAt < 0) {
+            insertAt = t.start;
+        }
+    }
+    if (viewAt >= 0) {
+        QByteArray tag = head.mid(viewAt, viewEnd - viewAt);
+        setFlag(&tag, "tabSelected", selected);
+        return head.left(viewAt) + tag + head.mid(viewEnd);
+    }
+    if (!selected) return head;
+    const qsizetype at = insertAt >= 0 ? insertAt : head.size();
+    return head.left(at) + "<" + prefix + "sheetViews><" + prefix + "sheetView tabSelected=\"1\" workbookViewId=\"0\"/></" + prefix + "sheetViews>" + head.mid(at);
 }
 
 // What follows a sheet's cells (from after "</sheetData>" to the end) with its merged ranges made from `merges`: in place of the element the file has, or where the format puts it.
@@ -306,6 +440,9 @@ public:
         if (changes.replaceColumns) m_columns = &changes.columns;
         if (changes.replaceMerges) m_merges = &changes.merges;
         if (changes.setPage) m_page = &changes.page;
+        if (changes.replaceFormat) m_format = &changes.format;
+        if (changes.replaceTabColor) m_tabColor = &changes.tabColor;
+        m_tabSelected = changes.tabSelected;
         for (RowEdits &r : m_rows) {
             std::stable_sort(r.items.begin(), r.items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
             // (one item for a cell: a changed cell stands over a result)
@@ -450,6 +587,9 @@ private:
         const qsizetype dataEnd = t.end;
         QByteArray before = m_buf.left(dataStart);
         if (dimStart >= 0 && !m_cells.empty()) before = withDimension(before, dimStart, dimEnd);
+        if (m_tabColor) before = tabColorFromChange(before, *m_tabColor, m_prefix);
+        if (m_tabSelected >= 0) before = tabSelectedFromChange(before, m_tabSelected != 0, m_prefix);
+        if (m_format) before = formatFromChange(before, *m_format, m_prefix);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
         if (m_page) before = patchFitToPageHead(before, *m_page);
         put(before);
@@ -464,6 +604,7 @@ private:
             if (!newRowsFrom(0, 0xFFFFFFFFu)) return false;
             put("</" + m_prefix + "sheetData>");
             m_afterData = true;
+            m_dataClosed = true;
         } else {
             m_cur = dataEnd;
         }
@@ -810,14 +951,14 @@ private:
             m_cur = m_written;
             const QByteArray rest = m_buf.mid(m_written);
             Tag close;
-            if (xmlscan::nextTag(rest, 0, &close) && close.closing && close.local == "sheetData") {
-                QByteArray tail = rest.mid(close.end);
-                if (m_merges) tail = tailWithMerges(tail, *m_merges, m_prefix);
+            auto tailOf = [&](const QByteArray &rest) {
+                QByteArray tail = m_merges ? tailWithMerges(rest, *m_merges, m_prefix) : rest;
                 if (m_page) tail = patchPageSetupTail(tail, *m_page, m_prefix);
-                put(rest.left(close.end) + tail);
-            } else {
-                put(rest);
-            }
+                return tail;
+            };
+            if (m_dataClosed) put(tailOf(rest));   // (an empty sheetData was given its closing tag with its rows: what is left follows it)
+            else if (xmlscan::nextTag(rest, 0, &close) && close.closing && close.local == "sheetData") put(rest.left(close.end) + tailOf(rest.mid(close.end)));
+            else put(rest);
             m_buf.clear();
             m_cur = m_written = 0;
             return true;
@@ -845,13 +986,16 @@ private:
     QByteArray m_buf;
     qsizetype m_written = 0;   // [0, m_written) has been written, or dropped
     qsizetype m_cur = 0;       // [m_written, m_cur) is passed on as it is, and not yet written
-    bool m_eof = false, m_failed = false, m_afterData = false;
+    bool m_eof = false, m_failed = false, m_afterData = false, m_dataClosed = false;
     QByteArray m_prefix;
     QHash<QByteArray, SharedMaster> m_dropped;
     quint32 m_sharedUntil = 0;
     const std::vector<ColumnSpan> *m_columns = nullptr;
     const std::vector<CellRange> *m_merges = nullptr;
     const PageSetup *m_page = nullptr;
+    const SheetFormat *m_format = nullptr;
+    const ColorSpec *m_tabColor = nullptr;
+    int m_tabSelected = -1;
 };
 
 } // namespace

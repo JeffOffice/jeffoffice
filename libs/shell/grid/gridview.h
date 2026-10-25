@@ -135,7 +135,7 @@ public:
     bool hasCopyBorder() const { return m_copyBorder.row1 >= 0; }
     GridRange copyBorder() const { return m_copyBorder; }
     // The border between two rows or columns under a point of the headers (a few pixels either side of it): whether it is a column's (its right edge), and which row or column it ends.
-    bool borderAt(const QPoint &p, bool *column, qint64 *index) const;
+    bool borderAt(const QPoint &p, bool *column, qint64 *index) const;   // (a point of the viewport's pixels)
     // The cell with the cursor offers a list to choose from (a rule of validation): a small button at the right edge of it opens the list (dropDownRequested), as Alt+Down does. -1 for none.
     void setDropDownCell(qint64 row, qint64 col);
     QRect dropDownRect() const;       // the button, in the viewport's pixels (empty when the cell is out of sight or too narrow)
@@ -164,10 +164,14 @@ public:
 
 Q_SIGNALS:
     void selectionChanged();
+    // The selection is where the person left it: a key moved it, or the button was let go after a click or a drag (during a drag it is only changed).
+    void selectionSettled();
     void zoomChanged(double zoom);
     void statsChanged(const QString &text);
     void contextMenuRequested(const QPoint &globalPos);
     void viewChanged();   // the scroll, frozen panes, or what is shown changed
+    // Something the rules of conditional formatting could not do for want of room (a limit): a sentence for the status bar, said once.
+    void noticeRaised(const QString &text);
     // Keys that start an entry: a character that prints (with no Ctrl or Alt) is typed into the cell with the cursor in place of what it holds, and Backspace starts an entry with
     // nothing; F2 and a double click on a cell edit what it holds; Delete clears the selection.
     void typingStarted(const QString &text);
@@ -217,6 +221,22 @@ private:
     void updateHeaderWidth();
     void dragTo(const QPoint &p);
     PaintOptions paintOptions() const;
+    // A sheet that reads right to left has its columns laid out as ever and drawn mirrored: everything inside the view is in the layout's places, and what comes in from the screen (the mouse, the
+    // area to draw) and goes out to it (a rectangle to draw again, a cell's place) is mirrored at the edge. `mirror` is its own inverse.
+    bool mirrored() const { return m_sheet.rightToLeft(); }
+    QRect mirror(const QRect &r) const { return mirrored() && !r.isEmpty() ? QRect(viewport()->width() - r.right() - 1, r.top(), r.width(), r.height()) : r; }
+    QPoint mirror(const QPoint &p) const { return mirrored() ? QPoint(viewport()->width() - 1 - p.x(), p.y()) : p; }
+    QRegion mirror(const QRegion &region) const
+    {
+        if (!mirrored()) return region;
+        QRegion out;
+        for (const QRect &r : region) out += mirror(r);
+        return out;
+    }
+    QRect cellRectInLayout(qint64 row, qint64 col) const;
+    QRect fillHandleRectInLayout() const;
+    QRect dropDownRectInLayout() const;
+    bool borderAtInLayout(const QPoint &p, bool *column, qint64 *index) const;
     void paintOverlay(QPainter *painter, const QRect &clip);
     void paintPageBreaks(QPainter *painter, const QRect &clip);
     bool overlayPress(QMouseEvent *e);
@@ -251,6 +271,9 @@ private:
     bool m_syncingBars = false;
     qint64 m_lastScrollX = 0, m_lastScrollY = 0;
     std::vector<double> m_paintTimes, m_paintCpuTimes;
+    QTimer m_conditionalTimer;   // the work of the rules of conditional formatting that a paint left (figures to make, formulas to work out for more cells), done a slice at a time
+    void conditionalWork();
+    void afterPaint();
     qint64 m_blits = 0, m_fullScrolls = 0;
     std::function<bool()> m_clickGuard;
     GridOverlay *m_overlay = nullptr;

@@ -81,6 +81,9 @@ QByteArray fontElement(const FontSpec &f)
     e += "<sz val=\"" + real(f.size) + "\"/>";
     e += colorElement("color", f.color);
     e += "<name val=\"" + attributeValue(f.name.isEmpty() ? QStringLiteral("Arial") : f.name) + "\"/>";
+    if (f.family >= 0) e += "<family val=\"" + num(f.family) + "\"/>";
+    if (f.charset >= 0) e += "<charset val=\"" + num(f.charset) + "\"/>";
+    if (!f.scheme.isEmpty()) e += "<scheme val=\"" + attributeValue(f.scheme) + "\"/>";
     return e + "</font>";
 }
 
@@ -159,11 +162,12 @@ QByteArray xfElement(const CellFormat &f, int xfId, bool cellFormat)
 {
     QByteArray e = "<xf" + attr("numFmtId", num(f.numFmtId)) + attr("fontId", num(f.font)) + attr("fillId", num(f.fill)) + attr("borderId", num(f.border)) + attr("xfId", num(xfId));
     if (cellFormat) e += attr("applyNumberFormat", "1") + attr("applyFont", "1") + attr("applyFill", "1") + attr("applyBorder", "1") + attr("applyAlignment", "1");
-    if (!f.locked) e += attr("applyProtection", "1");
+    if (!f.locked || f.formulaHidden) e += attr("applyProtection", "1");
+    if (f.quotePrefix) e += attr("quotePrefix", "1");
     QByteArray inner;
     const char *h = horizontalName(f.horizontal);
     const char *v = verticalName(f.vertical);
-    if (h || v || f.wrap || f.shrink || f.indent || f.rotation) {
+    if (h || v || f.wrap || f.shrink || f.indent || f.rotation || f.readingOrder) {
         inner += "<alignment";
         if (h) inner += attr("horizontal", h);
         if (v) inner += attr("vertical", v);
@@ -171,9 +175,10 @@ QByteArray xfElement(const CellFormat &f, int xfId, bool cellFormat)
         if (f.wrap) inner += attr("wrapText", "1");
         if (f.indent) inner += attr("indent", num(f.indent));
         if (f.shrink) inner += attr("shrinkToFit", "1");
+        if (f.readingOrder) inner += attr("readingOrder", num(f.readingOrder));
         inner += "/>";
     }
-    if (!f.locked) inner += "<protection locked=\"0\"/>";
+    if (!f.locked || f.formulaHidden) inner += QByteArray("<protection") + (f.locked ? "" : " locked=\"0\"") + (f.formulaHidden ? " hidden=\"1\"" : "") + "/>";
     return inner.isEmpty() ? e + "/>" : e + ">" + inner + "</xf>";
 }
 
@@ -261,8 +266,9 @@ QByteArray stylesPart(const Styles &st, qsizetype formatCount, const QSet<int> &
 
 // ---- the workbook
 
-QByteArray workbookPart(const WorkbookInfo &info)
+QByteArray workbookPart(const WorkbookInfo &fileInfo)
 {
+    const WorkbookInfo &info = fileInfo;
     QByteArray o = kXmlHead;
     o += QByteArray("<workbook xmlns=\"") + kMainNs + "\" xmlns:r=\"" + kRelNs + "\">";
     if (info.dateSystem == DateSystem::Date1904) o += "<workbookPr date1904=\"1\"/>";
@@ -625,7 +631,19 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         return false;
     };
     if (!book.isConverted()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook is not one that was read from a file of another form."));
-    const WorkbookInfo &info = book.info();
+    // The file is made of the sheets that were read, as they were read (by the names they had, whether or not a person has since renamed, deleted, or moved them: the changes are put in
+    // this file after, as in any other).
+    WorkbookInfo info = book.info();
+    {
+        QVector<SheetEntry> read;
+        for (SheetEntry e : info.sheets) {
+            if (e.isNew) continue;
+            if (!e.fileName.isEmpty()) e.name = e.fileName;
+            e.deleted = false;
+            read.append(e);
+        }
+        info.sheets = read;
+    }
     ZipWriter zip;
     // [Content_Types].xml and the relationships
     {
@@ -671,6 +689,21 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     zip.add(QStringLiteral("xl/sharedStrings.xml"), sharedStringsPart(book.sharedStrings(), qsizetype(book.sharedStringsInFile()), references), true);
     *out = zip.finish();
     return true;
+}
+
+
+QByteArray colorXml(const char *name, const ColorSpec &c) { return colorElement(name, c); }
+QByteArray fontXml(const FontSpec &f) { return fontElement(f); }
+QByteArray fillXml(const FillSpec &f) { return fillElement(f); }
+QByteArray borderXml(const BorderSpec &b) { return borderElement(b); }
+QByteArray xfXml(const CellFormat &f, int xfId, bool cellFormat) { return xfElement(f, xfId, cellFormat); }
+QByteArray alignmentXml(const CellFormat &f)
+{
+    const QByteArray xf = xfElement(f, 0, false);
+    const qsizetype at = xf.indexOf("<alignment");
+    if (at < 0) return QByteArray();
+    const qsizetype end = xf.indexOf("/>", at);
+    return end < 0 ? QByteArray() : xf.mid(at, end + 2 - at);
 }
 
 } // namespace jp::office::sheet

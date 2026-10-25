@@ -1,12 +1,16 @@
 // Tests of libs/office: charts: reading them and drawing them as SVG.
 #include "officehelpers.h"
 #include "../timing.h"
+#include "core/fonts.h"
 
 class OfficeChartTests : public QObject {
     Q_OBJECT
 
 
 private Q_SLOTS:
+    // The program's own fonts and their stand-ins, as the apps load them at their start: the legend's size comes from its text, and a computer with
+    // other fonts (or, under the offscreen platform on Windows, none) would put the legend somewhere else.
+    void initTestCase() { jp::initCore(); }
 
     // ---- charts
 
@@ -827,9 +831,14 @@ private Q_SLOTS:
         const QImage img = renderChart(c, QSizeF(400, 300), 2);
         // the columns touch and fill the plot's width: where they end is where the plot does; the key (a red square) is at the legend, and the plot stops short of it (apart from it: two
         // patches of red, not one that the plot runs into the legend with)
+        // (the thin lines between the categories may cut the columns' red, by where they fall in a pixel, so the plot is every red run but the last, which is the key)
         const QVector<QRect> reds = colorRuns(img, Qt::red, false);
-        QCOMPARE(reds.size(), 2);
-        QVERIFY2(reds[0].right() < reds[1].left() - 4, qPrintable(QStringLiteral("%1 %2").arg(reds[0].right()).arg(reds[1].left())));
+        QVERIFY(reds.size() >= 2);
+        const QRect key = reds.last();
+        QVERIFY2(key.height() < img.height() / 10, qPrintable(QString::number(key.height())));
+        int plotRight = 0;
+        for (int i = 0; i + 1 < reds.size(); ++i) plotRight = std::max(plotRight, reds[i].right());
+        QVERIFY2(plotRight < key.left() - 4, qPrintable(QStringLiteral("%1 %2").arg(plotRight).arg(key.left())));
         // with the legend moved over the plot, nothing is taken from it
         const Chart over = readOrFail(withPlotLayout(chartPart(plot, QString(), QStringLiteral("<c:legend><c:legendPos val=\"r\"/><c:overlay val=\"1\"/></c:legend>")), manualLayout(0.05, 0.05, 0.9, 0.8, QStringLiteral("inner"))));
         const QImage full = renderChart(over, QSizeF(400, 300), 2);

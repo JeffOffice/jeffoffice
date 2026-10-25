@@ -8,6 +8,8 @@
 #include <QString>
 #include <QVector>
 
+#include <optional>
+
 namespace jp::office::sheet {
 
 // A color as the file names it. `rgb` is 0xRRGGBB (the alpha a file writes in front is dropped).
@@ -18,6 +20,24 @@ struct ColorSpec {
     qint32 index = 0;      // Theme: 0 to 11 (light 1, dark 1, light 2, dark 2, the six accents, the two hyperlinks); Indexed: the palette's place
     double tint = 0;       // -1 (darker) to 1 (lighter), for a theme color
     bool isSet() const { return kind != Kind::None; }
+    static ColorSpec fromRgb(quint32 rgb)
+    {
+        ColorSpec c;
+        c.kind = Kind::Rgb;
+        c.rgb = rgb & 0xFFFFFF;
+        return c;
+    }
+    bool operator==(const ColorSpec &o) const
+    {
+        if (kind != o.kind) return false;
+        switch (kind) {
+        case Kind::Rgb: return rgb == o.rgb;
+        case Kind::Theme: return index == o.index && tint == o.tint;
+        case Kind::Indexed: return index == o.index;
+        default: return true;
+        }
+    }
+    bool operator!=(const ColorSpec &o) const { return !(*this == o); }
 };
 
 enum class Underline : quint8 { None, Single, Double, SingleAccounting, DoubleAccounting };
@@ -29,6 +49,15 @@ struct FontSpec {
     Underline underline = Underline::None;
     quint8 vertAlign = 0;            // 0 baseline, 1 superscript, 2 subscript
     ColorSpec color;
+    // What the file says of the font besides: its family (the kind of face, -1 for none), character set (-1), and the scheme ("minor" and "major": the theme's own fonts), kept for writing it again.
+    qint32 family = -1, charset = -1;
+    QString scheme;
+    bool operator==(const FontSpec &o) const
+    {
+        return name == o.name && size == o.size && bold == o.bold && italic == o.italic && strike == o.strike && underline == o.underline && vertAlign == o.vertAlign && color == o.color
+               && family == o.family && charset == o.charset && scheme == o.scheme;
+    }
+    bool operator!=(const FontSpec &o) const { return !(*this == o); }
 };
 
 enum class PatternKind : quint8 {
@@ -40,6 +69,8 @@ struct FillSpec {
     PatternKind pattern = PatternKind::None;
     ColorSpec fg, bg;                // a solid fill shows fg; a pattern draws fg over bg
     bool gradient = false;           // a gradient is shown as a solid fill of its first stop (fg)
+    bool operator==(const FillSpec &o) const { return pattern == o.pattern && fg == o.fg && bg == o.bg && gradient == o.gradient; }
+    bool operator!=(const FillSpec &o) const { return !(*this == o); }
 };
 
 enum class BorderStyle : quint8 { None, Thin, Medium, Dashed, Dotted, Thick, Double, Hair, MediumDashed, DashDot, MediumDashDot, DashDotDot, MediumDashDotDot, SlantDashDot };
@@ -47,11 +78,18 @@ enum class BorderStyle : quint8 { None, Thin, Medium, Dashed, Dotted, Thick, Dou
 struct BorderSide {
     BorderStyle style = BorderStyle::None;
     ColorSpec color;
+    bool operator==(const BorderSide &o) const { return style == o.style && (style == BorderStyle::None || color == o.color); }
+    bool operator!=(const BorderSide &o) const { return !(*this == o); }
 };
 
 struct BorderSpec {
     BorderSide left, right, top, bottom, diagonal;
     bool diagonalUp = false, diagonalDown = false;
+    bool operator==(const BorderSpec &o) const
+    {
+        return left == o.left && right == o.right && top == o.top && bottom == o.bottom && diagonal == o.diagonal && diagonalUp == o.diagonalUp && diagonalDown == o.diagonalDown;
+    }
+    bool operator!=(const BorderSpec &o) const { return !(*this == o); }
 };
 
 enum class HAlign : quint8 { General, Left, Center, Right, Fill, Justify, CenterContinuous, Distributed };
@@ -67,11 +105,22 @@ struct CellFormat {
     quint8 indent = 0;
     quint8 rotation = 0;             // 0 to 90 turns the text up, 91 to 180 down (that many less 90), 255 sets it upright one letter under another
     bool locked = true;              // the cell is locked: on a protected sheet it can't be changed (every cell is, unless its format says it is not)
+    bool formulaHidden = false;      // the cell's formula is not shown on a protected sheet
+    quint8 readingOrder = 0;         // the direction of the text: 0 by what the text is, 1 left to right, 2 right to left
+    bool quotePrefix = false;        // the cell holds a text that looks like something else (typed with a leading apostrophe)
+    quint32 xfId = 0;                // the named style the format follows (its place among the style formats, for a workbook of the XML form)
     // For a workbook of the old binary form, which keeps the formats of its named styles among the cell formats: the style format this one follows (its place in `formats`), and
     // whether this is the format of a named style (and not of cells).
     static constexpr quint32 kNoParent = 0xFFFFFFFF;
     quint32 parent = kNoParent;
     bool isStyle = false;
+    bool operator==(const CellFormat &o) const
+    {
+        return numFmtId == o.numFmtId && font == o.font && fill == o.fill && border == o.border && horizontal == o.horizontal && vertical == o.vertical && wrap == o.wrap && shrink == o.shrink
+               && indent == o.indent && rotation == o.rotation && locked == o.locked && formulaHidden == o.formulaHidden && readingOrder == o.readingOrder && quotePrefix == o.quotePrefix
+               && xfId == o.xfId && parent == o.parent && isStyle == o.isStyle;
+    }
+    bool operator!=(const CellFormat &o) const { return !(*this == o); }
 };
 
 // A named cell style ("Normal", "Comma", "Heading 4"): the number of the built-in style it is (-1 for one a person named), the name, and the format that holds its look.
@@ -81,8 +130,62 @@ struct NamedStyle {
     quint32 format = 0;
 };
 
+// A named style of a workbook of the XML form: its name, the number of the built-in style it is (-1 for one a person named), and the place of its format among the style formats
+// (`Styles::styleXfs`), which is what the cell formats that follow it name as their `xfId`.
+struct CellStyleName {
+    QString name;
+    qint32 builtin = -1;
+    quint32 xfId = 0;
+    bool hidden = false;
+};
+
+// What a formatting command changes in a cell format: each field that is set is put in, and the rest stays as the cell has it. The borders are changed side by side, so that a command
+// for the outside of a block touches only the sides on its edge.
+struct FormatChange {
+    // the font
+    std::optional<QString> fontName;
+    std::optional<double> fontSize;
+    std::optional<bool> bold, italic, strike;
+    std::optional<Underline> underline;
+    std::optional<quint8> vertAlign;
+    std::optional<ColorSpec> fontColor;
+    // the fill (the whole of it)
+    std::optional<FillSpec> fill;
+    // the borders, side by side
+    std::optional<BorderSide> left, right, top, bottom, diagonal;
+    std::optional<bool> diagonalUp, diagonalDown;
+    // the number format, as a code
+    std::optional<QString> numberFormat;
+    // the alignment
+    std::optional<HAlign> horizontal;
+    std::optional<VAlign> vertical;
+    std::optional<bool> wrap, shrink;
+    std::optional<int> indent;
+    std::optional<int> rotation;
+    std::optional<int> readingOrder;
+    // protection
+    std::optional<bool> locked, formulaHidden;
+    // a named style (its place among `Styles::styleXfs`): the format takes the style's look and follows it
+    std::optional<quint32> namedStyle;
+    bool touchesFont() const { return fontName || fontSize || bold || italic || strike || underline || vertAlign || fontColor; }
+    bool touchesBorder() const { return left || right || top || bottom || diagonal || diagonalUp || diagonalDown; }
+};
+
 // The colors of the theme in the order the styles name them by number: light 1, dark 1, light 2, dark 2, accent 1 to 6, hyperlink, followed hyperlink.
 constexpr int kThemeColors = 12;
+
+// A differential format (a `dxf`): what a rule of conditional formatting changes of a cell's look. Each part is set only if the format says it.
+struct DifferentialFormat {
+    std::optional<bool> bold, italic, strike;
+    std::optional<Underline> underline;
+    ColorSpec fontColor;
+    bool hasFill = false;
+    FillSpec fill;
+    bool hasBorder = false;
+    BorderSpec border;
+    std::optional<QString> numberFormat;   // the code
+    bool isEmpty() const { return !bold && !italic && !strike && !underline && !fontColor.isSet() && !hasFill && !hasBorder && !numberFormat; }
+};
 
 struct Styles {
     QHash<int, QString> numFmts;    // the formats the file defines, by id
@@ -92,9 +195,13 @@ struct Styles {
     QVector<FillSpec> fills;
     QVector<BorderSpec> borders;
     QVector<CellFormat> formats;    // each cell format whole, in order (as cellXfs)
-    QVector<NamedStyle> namedStyles; // the named cell styles the file keeps (none for a file that was read from XML: the styles part is kept as it is)
+    QVector<NamedStyle> namedStyles; // the named cell styles of a workbook of the older binary form (the XML form's are cellStyles)
+    QVector<CellFormat> styleXfs;    // the formats of the named styles of the XML form (cellStyleXfs), in order
+    QVector<CellStyleName> cellStyles; // and their names
+    QVector<DifferentialFormat> dxfs;  // the differential formats conditional formatting uses, by place
     QVector<quint32> indexed;       // the palette the file defines for indexed colors (0xRRGGBB); empty for the usual one
     quint32 theme[kThemeColors];    // the workbook's theme colors (0xRRGGBB), set when the workbook is opened; the usual ones until then
+    QString majorFont, minorFont;   // the typefaces the workbook's theme gives headings and body text (its fonts that say "major" or "minor" mean these); empty when it has no theme
 
     Styles();
 
@@ -109,6 +216,8 @@ struct Styles {
     const FontSpec &font(quint32 index) const;
     const FillSpec &fill(quint32 index) const;
     const BorderSpec &border(quint32 index) const;
+    // The typeface a font is set in: its own name; for one with no name that is the theme's (its scheme says which), the theme's; else the first font's (the workbook's usual); else empty.
+    QString fontNameOf(const FontSpec &font) const;
 
     // The color as 0xRRGGBB: a theme color with its tint, an indexed color through the palette, an RGB as it is. `automatic` is what the "automatic" color (and
     // an index that stands for the system's) is, and what a color that is not set is: the caller's own (text is dark, a border dark, a fill none).

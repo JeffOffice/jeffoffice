@@ -103,13 +103,23 @@ bool followCell(const MoveContext &c, int sheet, quint32 *row, quint32 *col)
     return true;
 }
 
+// What names a sheet that was renamed or deleted, after the edits.
+QString followSheetOps(QString f, const MoveContext &c, bool definedName)
+{
+    for (const SheetOp &op : c.sheetOps) {
+        if (op.kind == SheetOp::Kind::Rename) f = renameSheetInFormula(f, op.name, op.newName, nullptr, definedName);
+        else f = deleteSheetInFormula(f, op.name, nullptr, definedName);
+    }
+    return f;
+}
+
 QString adjustAll(const QString &formula, int ownSheet, const MoveContext &c, bool definedName = false)
 {
     QString f = formula;
     for (const StructEdit &e : c.edits) f = adjustFormula(f, ownSheet, c.sheetNames, e, nullptr, definedName);
     if (f.contains(QLatin1Char('[')))
         for (const ColumnRename &r : c.renames) f = renameColumnInFormula(f, r.table, r.oldName, r.newName, false);
-    return f;
+    return followSheetOps(f, c, definedName);
 }
 
 // The formula of a rule (a conditional format, a validation) after the edits, as the rule's first range (the first of `sqref`) goes through them: it is written for that range's first cell.
@@ -125,7 +135,7 @@ QString adjustRuleAll(const QString &formula, int ownSheet, const MoveContext &c
     }
     if (f.contains(QLatin1Char('[')))
         for (const ColumnRename &r : c.renames) f = renameColumnInFormula(f, r.table, r.oldName, r.newName, false);
-    return f;
+    return followSheetOps(f, c, false);
 }
 
 QString adjustSqrefAll(const QString &sqref, int sheet, const MoveContext &c)
@@ -258,6 +268,31 @@ QByteArray rewriteElementText(const QByteArray &xml, QByteArrayView local, const
         if (now == text) continue;
         out += xml.mid(copied, t.end - copied) + xmlscan::escapeText(now);
         copied = e.closeStart;
+    }
+    if (copied == 0 && out.isEmpty()) return xml;
+    out += xml.mid(copied);
+    return out;
+}
+
+// The `val` of each value (`cfvo`) of a rule that is a formula (a cell such as $H$1, or a calculation) rewritten with `fn`; the others (a number, a percent, a percentile) are left.
+QByteArray rewriteValueFormulas(const QByteArray &xml, const std::function<QString(const QString &)> &fn)
+{
+    QByteArray out;
+    qsizetype copied = 0, pos = 0;
+    Tag t;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "cfvo") continue;
+        QByteArray tag = xml.mid(t.start, t.end - t.start);
+        bool hasType = false, hasVal = false;
+        if (attributeText(tag, "type", &hasType) != QLatin1String("formula") || !hasType) continue;
+        const QString val = attributeText(tag, "val", &hasVal);
+        if (!hasVal) continue;
+        const QString now = fn(val);
+        if (now == val) continue;
+        setAttribute(&tag, "val", xmlscan::escapeAttribute(now));
+        out += xml.mid(copied, t.start - copied) + tag;
+        copied = t.end;
     }
     if (copied == 0 && out.isEmpty()) return xml;
     out += xml.mid(copied);
@@ -421,6 +456,8 @@ QByteArray movedTop(const QByteArray &xml, const Elem &e, const MoveContext &c, 
         if (found && now != sqref) setAttribute(&open, "sqref", xmlscan::escapeAttribute(now));
         QByteArray rest = whole.mid(e.open.end - e.open.start);
         rest = rewriteElementText(rest, "formula", [&](const QString &f) { return adjustRuleAll(f, sheet, c, sqref); });
+        // (the values of a color scale, a data bar, or a set of icons that are formulas follow the cells too)
+        rest = rewriteValueFormulas(rest, [&](const QString &f) { return adjustRuleAll(f, sheet, c, sqref); });
         return open + rest;
     }
     if (name == "dataValidations") {
@@ -1067,9 +1104,18 @@ bool movePivotCachePart(const QByteArray &xml, const MoveContext &ctx, QByteArra
             if (ctx.sheetNames[i].compare(sheetName, Qt::CaseInsensitive) == 0) sheet = i;
         if (sheet < 0) continue;
         const QString was = ref;
-        if (!adjustRangeAll(ctx, sheet, &ref, false)) continue;
-        if (ref == was) continue;
+        if (!adjustRangeAll(ctx, sheet, &ref, false)) ref = was;
+        // (a sheet renamed: the cache names it as it is called now. A sheet deleted: the cache keeps its records and the name of the sheet it was made from, as the programs people know leave
+        // it, so that a PivotTable still shows what it did and can't be refreshed until the data is put back; a name given later to another sheet is not the source's)
+        QString nowSheet = sheetName;
+        for (const SheetOp &op : ctx.sheetOps) {
+            if (op.name.compare(nowSheet, Qt::CaseInsensitive) != 0) continue;
+            if (op.kind == SheetOp::Kind::Delete) break;
+            nowSheet = op.newName;
+        }
+        if (ref == was && nowSheet == sheetName) continue;
         setAttribute(&tag, "ref", ref.toLatin1());
+        if (nowSheet != sheetName) setAttribute(&tag, "sheet", xmlscan::escapeAttribute(nowSheet));
         result += xml.mid(copied, t.start - copied) + tag;
         copied = t.end;
     }
@@ -1272,8 +1318,10 @@ bool moveControlPart(const QByteArray &xml, const MoveContext &ctx, int sheet, Q
 bool moveNotesDrawing(const QByteArray &vml, const MoveContext &ctx, int sheet, QByteArray *out, bool *changed)
 {
     // each note's shape holds <x:Row>1</x:Row> <x:Column>2</x:Column> (from 0) and an <x:Anchor> of eight numbers (column, offset, row, offset, twice)
-    static const QRegularExpression shape(QStringLiteral("<v:shape\\b.*?</v:shape>"), QRegularExpression::DotMatchesEverythingOption);
-    static const QRegularExpression rowRe(QStringLiteral("<x:Row>(\\d+)</x:Row>")), colRe(QStringLiteral("<x:Column>(\\d+)</x:Column>")), anchorRe(QStringLiteral("<x:Anchor>([^<]*)</x:Anchor>"));
+    // (the prefixes are the usual ones in the files of the programs people know, but the format does not fix them: whatever prefix an element has, it is kept)
+    static const QRegularExpression shape(QStringLiteral("<((?:[A-Za-z_][\\w.\\-]*:)?)shape\\b.*?</\\1shape>"), QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression rowRe(QStringLiteral("<((?:[A-Za-z_][\\w.\\-]*:)?)Row>(\\d+)</\\1Row>")), colRe(QStringLiteral("<((?:[A-Za-z_][\\w.\\-]*:)?)Column>(\\d+)</\\1Column>")),
+        anchorRe(QStringLiteral("<((?:[A-Za-z_][\\w.\\-]*:)?)Anchor>([^<]*)</\\1Anchor>"));
     const QString text = QString::fromUtf8(vml);
     QString result;
     int at = 0;
@@ -1284,7 +1332,7 @@ bool moveNotesDrawing(const QByteArray &vml, const MoveContext &ctx, int sheet, 
         QString body = m.captured();
         const QRegularExpressionMatch rm = rowRe.match(body), cm = colRe.match(body);
         if (!rm.hasMatch() || !cm.hasMatch()) continue;
-        const quint32 row = rm.captured(1).toUInt(), col = cm.captured(1).toUInt();
+        const quint32 row = rm.captured(2).toUInt(), col = cm.captured(2).toUInt();
         quint32 r = row, c = col;
         const bool alive = followCell(ctx, sheet, &r, &c);
         if (alive && r == row && c == col) continue;
@@ -1292,11 +1340,11 @@ bool moveNotesDrawing(const QByteArray &vml, const MoveContext &ctx, int sheet, 
         at = m.capturedEnd();
         any = true;
         if (!alive) continue;
-        body.replace(rowRe, QStringLiteral("<x:Row>%1</x:Row>").arg(r));
-        body.replace(colRe, QStringLiteral("<x:Column>%1</x:Column>").arg(c));
+        body.replace(rowRe, QStringLiteral("<\\1Row>%1</\\1Row>").arg(r));
+        body.replace(colRe, QStringLiteral("<\\1Column>%1</\\1Column>").arg(c));
         const QRegularExpressionMatch am = anchorRe.match(body);
         if (am.hasMatch()) {
-            QStringList parts = am.captured(1).split(QLatin1Char(','));
+            QStringList parts = am.captured(2).split(QLatin1Char(','));
             if (parts.size() >= 8) {
                 for (QString &part : parts) part = part.trimmed();
                 const int dc = int(c) - int(col), dr = int(r) - int(row);
@@ -1304,7 +1352,7 @@ bool moveNotesDrawing(const QByteArray &vml, const MoveContext &ctx, int sheet, 
                 parts[2] = QString::number(parts[2].trimmed().toInt() + dr);
                 parts[4] = QString::number(parts[4].trimmed().toInt() + dc);
                 parts[6] = QString::number(parts[6].trimmed().toInt() + dr);
-                body.replace(anchorRe, QStringLiteral("<x:Anchor>%1</x:Anchor>").arg(parts.join(QStringLiteral(", "))));
+                body.replace(anchorRe, QStringLiteral("<\\1Anchor>%1</\\1Anchor>").arg(parts.join(QStringLiteral(", "))));
             }
         }
         result += body;
