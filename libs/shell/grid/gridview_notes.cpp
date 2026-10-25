@@ -15,6 +15,8 @@ namespace jp::grid {
 namespace {
 // The most boxes drawn in one paint (the ones in view; a sheet can show thousands of notes, and a paint should cost the ones a person can read).
 constexpr int kMaxBoxes = 200;
+// The most characters of a note that are laid out and drawn (the note that appears when the pointer rests on its cell is cut at the same place).
+constexpr int kMaxShownNoteChars = 4000;
 }
 
 void GridView::setNoteCells(std::vector<quint64> sortedKeys)
@@ -27,7 +29,11 @@ void GridView::setNoteCells(std::vector<quint64> sortedKeys)
 void GridView::setShownNotes(std::vector<ShownNote> notes)
 {
     if (notes.size() > 5000) notes.resize(5000);
+    // (what is drawn of a note is cut, as the note that appears beside a cell is: a note of millions of characters is not laid out)
+    for (ShownNote &n : notes)
+        if (n.text.size() > kMaxShownNoteChars) n.text = n.text.left(kMaxShownNoteChars) + QChar(0x2026);
     m_shownNotes = std::move(notes);
+    m_shownSizes.assign(m_shownNotes.size(), QSize());
     viewport()->update();
 }
 
@@ -66,7 +72,13 @@ void GridView::paintNotes(QPainter *painter, const QRect &clip)
     font.setPointSizeF(std::max(7.0, 9.0 * L.zoom()));
     painter->setFont(font);
     const QFontMetrics fm(font);
-    for (const ShownNote &n : m_shownNotes) {
+    // (each box is laid out once, for the zoom it is drawn at, and kept)
+    if (m_shownZoom != L.zoom() || m_shownSizes.size() != m_shownNotes.size()) {
+        m_shownZoom = L.zoom();
+        m_shownSizes.assign(m_shownNotes.size(), QSize());
+    }
+    for (size_t index = 0; index < m_shownNotes.size(); ++index) {
+        const ShownNote &n = m_shownNotes[index];
         if (boxes >= kMaxBoxes) break;
         bool visible = false;
         for (Pane p : {Pane::Corner, Pane::Top, Pane::Left, Pane::Body}) {
@@ -76,10 +88,15 @@ void GridView::paintNotes(QPainter *painter, const QRect &clip)
         if (!visible) continue;
         const QRect cell = cellRectInLayout(n.row, n.col);
         if (cell.isEmpty()) continue;
-        const int width = int(160 * L.zoom());
-        QRect text = fm.boundingRect(QRect(0, 0, width, 100000), Qt::TextWordWrap, n.text);
-        text.setHeight(std::min(text.height(), int(200 * L.zoom())));
-        QRect box(cell.right() + int(6 * L.zoom()), cell.top(), text.width() + 10, text.height() + 8);
+        QSize &size = m_shownSizes[index];
+        if (!size.isValid()) {
+            const int width = int(160 * L.zoom());
+            QRect text = fm.boundingRect(QRect(0, 0, width, 100000), Qt::TextWordWrap, n.text);
+            text.setHeight(std::min(text.height(), int(200 * L.zoom())));
+            size = QSize(text.width() + 10, text.height() + 8);
+            ++m_shownLayouts;
+        }
+        QRect box(cell.right() + int(6 * L.zoom()), cell.top(), size.width(), size.height());
         if (!box.intersects(inLayout)) continue;
         ++boxes;
         painter->setPen(QPen(QColor(0x80, 0x80, 0x60), 1));

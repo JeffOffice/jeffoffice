@@ -15,35 +15,41 @@ namespace jp::office::sheet {
 namespace {
 std::atomic<qint64> g_noteReads{0};
 
-// The name of each person a thread's comments are from, by the id the thread names.
-std::map<QString, QString> readPersons(const Workbook &book)
+// The name of each person a thread's comments are from, by the id the thread names: read once for the workbook, each name cut to kMaxPersonChars and counted in the budget.
+const std::map<QString, QString> &readPersons(const Workbook &book, NoteReadContext &ctx)
 {
-    std::map<QString, QString> out;
+    if (ctx.personsRead) return ctx.persons;
+    ctx.personsRead = true;
     for (const Relationship &rel : book.package().relationshipsOfType(book.mainPart(), QStringLiteral("/person"))) {
         const qint64 size = rel.external ? 0 : book.package().partSize(rel.target);
         if (size <= 0 || size > (qint64(4) << 20)) continue;
         const QByteArray bytes = book.package().part(rel.target);
         QXmlStreamReader r(bytes);
-        int count = 0;
-        while (!r.atEnd() && count < 10000) {
+        while (!r.atEnd() && ctx.persons.size() < kMaxPersons) {
             if (r.readNext() == QXmlStreamReader::DTD) break;
             if (r.isStartElement() && r.name() == QLatin1String("person")) {
-                ++count;
-                out[r.attributes().value(QLatin1String("id")).toString()] = r.attributes().value(QLatin1String("displayName")).toString();
+                QString name = r.attributes().value(QLatin1String("displayName")).toString().left(kMaxPersonChars);
+                QString id = r.attributes().value(QLatin1String("id")).toString().left(kMaxPersonChars);
+                ctx.chars += name.size() + id.size();
+                if (ctx.chars > kMaxNoteCharsPerBook) {
+                    ctx.exhausted = true;
+                    return ctx.persons;
+                }
+                ctx.persons[id] = name;
             }
         }
     }
-    return out;
+    return ctx.persons;
 }
 
 // The text of each thread of a sheet: by cell, its comments (the first, then the replies) with who wrote each, one under the other.
-std::map<quint64, QString> readThreads(const Workbook &book, const QString &sheetPart, bool *truncated)
+std::map<quint64, QString> readThreads(const Workbook &book, const QString &sheetPart, bool *truncated, NoteReadContext &ctx)
 {
     std::map<quint64, QString> out;
     const auto parts = book.package().relationshipsOfType(sheetPart, QStringLiteral("/threadedComment"));
     if (parts.isEmpty()) return out;
-    const std::map<QString, QString> persons = readPersons(book);
-    qint64 chars = 0;
+    const std::map<QString, QString> &persons = readPersons(book, ctx);
+    qint64 &chars = ctx.chars;
     for (const Relationship &rel : parts) {
         const qint64 size = rel.external ? 0 : book.package().partSize(rel.target);
         if (size <= 0 || size > kMaxNotesPartBytes) continue;
@@ -72,7 +78,8 @@ std::map<quint64, QString> readThreads(const Workbook &book, const QString &shee
             case QXmlStreamReader::Characters:
                 if (inComment && inText) {
                     chars += r.text().size();
-                    if (chars > kMaxNoteChars) {
+                    if (chars > kMaxNoteCharsPerBook) {
+                        ctx.exhausted = true;
                         if (truncated) *truncated = true;
                         return out;
                     }
@@ -228,8 +235,113 @@ QString notesDrawingPart(const Package &package, const QString &sheetPart, QByte
     return spare;
 }
 
-std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, bool *truncated, qint64 most)
+// The notes of a comments part as the file has them (by cell: words, author, whether it is a thread's), read once for the workbook whatever number of sheets name the part.
+const std::map<quint64, NoteInfo> &commentsOf(const Workbook &book, const QString &commentsPart, bool *truncated, NoteReadContext &ctx)
 {
+    const auto cached = ctx.parts.find(commentsPart);
+    if (cached != ctx.parts.end()) return cached->second;
+    std::map<quint64, NoteInfo> &out = ctx.parts[commentsPart];
+    const qint64 size = book.package().partSize(commentsPart);
+    if (size <= 0 || size > kMaxNotesPartBytes) {
+        if (truncated && size > kMaxNotesPartBytes) *truncated = true;
+        return out;
+    }
+    if (ctx.exhausted) {
+        if (truncated) *truncated = true;
+        return out;
+    }
+    g_noteReads.fetch_add(1);
+    {
+    // (read as a stream: the part is not held whole)
+    const std::unique_ptr<QIODevice> device = book.package().openPart(commentsPart);
+    if (!device) return out;
+    QXmlStreamReader r(device.get());
+    int depth = 0;
+    bool inComment = false, inText = false, inAuthors = false, inAuthor = false, inPhonetic = false;
+    quint32 row = 0, col = 0;
+    int authorId = 0;
+    QString text, authorText;
+    QStringList authors;
+    bool stopped = false;
+    while (!r.atEnd() && !stopped) {
+        switch (r.readNext()) {
+        case QXmlStreamReader::DTD: stopped = true; break;
+        case QXmlStreamReader::StartElement:
+            if (++depth > 40) {
+                stopped = true;
+                break;
+            }
+            if (r.name() == QLatin1String("authors")) {
+                inAuthors = true;
+            } else if (inAuthors && r.name() == QLatin1String("author")) {
+                inAuthor = true;
+                authorText.clear();
+            } else if (r.name() == QLatin1String("comment")) {
+                inComment = true;
+                text.clear();
+                row = col = 0;
+                authorId = r.attributes().value(QLatin1String("authorId")).toInt();
+                if (!parseCellRef(r.attributes().value(QLatin1String("ref")), &row, &col)) inComment = false;
+            } else if (inComment && r.name() == QLatin1String("rPh")) {
+                inPhonetic = true;
+            } else if (inComment && !inPhonetic && r.name() == QLatin1String("t")) {
+                inText = true;
+            }
+            break;
+        case QXmlStreamReader::Characters:
+            if (inAuthor) {
+                authorText += r.text();
+                if (authorText.size() > 1000) authorText.truncate(1000);
+            } else if (inComment && inText) {
+                ctx.chars += r.text().size();
+                if (ctx.chars > kMaxNoteCharsPerBook) {
+                    ctx.exhausted = true;
+                    if (truncated) *truncated = true;
+                    stopped = true;
+                    break;
+                }
+                text += r.text();
+            }
+            break;
+        case QXmlStreamReader::EndElement:
+            --depth;
+            if (r.name() == QLatin1String("t")) inText = false;
+            if (r.name() == QLatin1String("rPh")) inPhonetic = false;
+            if (r.name() == QLatin1String("authors")) inAuthors = false;
+            if (r.name() == QLatin1String("author") && inAuthor) {
+                inAuthor = false;
+                xmlscan::decodeEscapes(&authorText);
+                if (authors.size() < 100000) authors << authorText;
+            }
+            if (r.name() == QLatin1String("comment") && inComment) {
+                inComment = false;
+                if (qint64(out.size()) >= kMaxNotes) {
+                    if (truncated) *truncated = true;
+                    stopped = true;
+                    break;
+                }
+                if (!text.isEmpty()) {
+                    NoteInfo &n = out[noteKey(row, col)];
+                    xmlscan::decodeEscapes(&text);
+                    n.text = text;
+                    n.author = authorId >= 0 && authorId < authors.size() ? authors[authorId] : QString();
+                    // (a comment of a thread has an author named "tc=" and the id of the thread)
+                    n.threaded = n.author.startsWith(QLatin1String("tc="));
+                    if (n.threaded) n.author.clear();
+                }
+            }
+            break;
+        default: break;
+        }
+    }
+    }
+    return out;
+}
+
+std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, bool *truncated, qint64 most, NoteReadContext *context)
+{
+    NoteReadContext local;
+    NoteReadContext &c = context ? *context : local;
     std::map<quint64, NoteInfo> out;
     if (truncated) *truncated = false;
     const WorkbookInfo &info = book.info();
@@ -242,100 +354,20 @@ std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, 
             break;
         }
     if (commentsPart.isEmpty()) return out;
-    const qint64 size = book.package().partSize(commentsPart);
-    if (size <= 0 || size > kMaxNotesPartBytes) {
-        if (truncated && size > kMaxNotesPartBytes) *truncated = true;
-        return out;
-    }
-    g_noteReads.fetch_add(1);
-    {
-        // (read as a stream: the part is not held whole)
-        const std::unique_ptr<QIODevice> device = book.package().openPart(commentsPart);
-        if (!device) return out;
-        QXmlStreamReader r(device.get());
-        int depth = 0;
-        bool inComment = false, inText = false, inAuthors = false, inAuthor = false, inPhonetic = false;
-        quint32 row = 0, col = 0;
-        int authorId = 0;
-        QString text, authorText;
-        QStringList authors;
-        qint64 chars = 0;
-        bool stopped = false;
-        while (!r.atEnd() && !stopped) {
-            switch (r.readNext()) {
-            case QXmlStreamReader::DTD: stopped = true; break;
-            case QXmlStreamReader::StartElement:
-                if (++depth > 40) {
-                    stopped = true;
-                    break;
-                }
-                if (r.name() == QLatin1String("authors")) {
-                    inAuthors = true;
-                } else if (inAuthors && r.name() == QLatin1String("author")) {
-                    inAuthor = true;
-                    authorText.clear();
-                } else if (r.name() == QLatin1String("comment")) {
-                    inComment = true;
-                    text.clear();
-                    row = col = 0;
-                    authorId = r.attributes().value(QLatin1String("authorId")).toInt();
-                    if (!parseCellRef(r.attributes().value(QLatin1String("ref")), &row, &col)) inComment = false;
-                } else if (inComment && r.name() == QLatin1String("rPh")) {
-                    inPhonetic = true;
-                } else if (inComment && !inPhonetic && r.name() == QLatin1String("t")) {
-                    inText = true;
-                }
-                break;
-            case QXmlStreamReader::Characters:
-                if (inAuthor) {
-                    authorText += r.text();
-                    if (authorText.size() > 1000) authorText.truncate(1000);
-                } else if (inComment && inText) {
-                    chars += r.text().size();
-                    if (chars > kMaxNoteChars) {
-                        if (truncated) *truncated = true;
-                        stopped = true;
-                        break;
-                    }
-                    text += r.text();
-                }
-                break;
-            case QXmlStreamReader::EndElement:
-                --depth;
-                if (r.name() == QLatin1String("t")) inText = false;
-                if (r.name() == QLatin1String("rPh")) inPhonetic = false;
-                if (r.name() == QLatin1String("authors")) inAuthors = false;
-                if (r.name() == QLatin1String("author") && inAuthor) {
-                    inAuthor = false;
-                    xmlscan::decodeEscapes(&authorText);
-                    if (authors.size() < 100000) authors << authorText;
-                }
-                if (r.name() == QLatin1String("comment") && inComment) {
-                    inComment = false;
-                    if (qint64(out.size()) >= std::min(most, kMaxNotes)) {
-                        if (truncated) *truncated = true;
-                        stopped = true;
-                        break;
-                    }
-                    if (!text.isEmpty()) {
-                        NoteInfo &n = out[noteKey(row, col)];
-                        xmlscan::decodeEscapes(&text);
-                        n.text = text;
-                        n.author = authorId >= 0 && authorId < authors.size() ? authors[authorId] : QString();
-                        // (a comment of a thread has an author named "tc=" and the id of the thread)
-                        n.threaded = n.author.startsWith(QLatin1String("tc="));
-                        if (n.threaded) n.author.clear();
-                    }
-                }
-                break;
-            default: break;
-            }
+    const std::map<quint64, NoteInfo> &raw = commentsOf(book, commentsPart, truncated, c);
+    qint64 taken = 0;
+    for (const auto &n : raw) {
+        if (taken >= std::min(most, kMaxNotes)) {
+            if (truncated) *truncated = true;
+            break;
         }
+        out.insert(out.end(), n);
+        ++taken;
     }
     bool anyThreaded = false;
     for (const auto &n : out) anyThreaded = anyThreaded || n.second.threaded;
     if (anyThreaded) {
-        const std::map<quint64, QString> threads = readThreads(book, info.sheets[sheet].part, truncated);
+        const std::map<quint64, QString> threads = readThreads(book, info.sheets[sheet].part, truncated, c);
         for (auto &n : out) {
             if (!n.second.threaded) continue;
             const auto t = threads.find(n.first);

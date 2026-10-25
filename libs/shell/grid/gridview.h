@@ -150,6 +150,8 @@ public:
     // The cells that have notes (sorted by row, then column; each is `(row << 32) | col`): a small mark is drawn in the corner of each that is in view.
     void setNoteCells(std::vector<quint64> sortedKeys);
     size_t noteCellCount() const { return m_noteCells.size(); }
+    // How many boxes of shown notes have been laid out so far (for tests: a box is laid out once for a zoom, not at every paint).
+    qint64 shownNoteLayouts() const { return m_shownLayouts; }
     void setShownNotes(std::vector<ShownNote> notes);
     // The cell the pointer is on (-1 for none), and the place a note about it is to appear (the cell's right edge, in the viewport's pixels).
     qint64 hoverRow() const { return m_hoverRow; }
@@ -344,6 +346,9 @@ private:
     std::vector<GridRange> m_marks;
     std::vector<quint64> m_noteCells;
     std::vector<ShownNote> m_shownNotes;
+    mutable std::vector<QSize> m_shownSizes;
+    mutable double m_shownZoom = 0;
+    mutable qint64 m_shownLayouts = 0;
     qint64 m_hoverRow = -1, m_hoverCol = -1, m_pressRow = -1, m_pressCol = -1;
     std::vector<GridRange> m_checkCircles;
     std::vector<CheckArrow> m_checkArrows;

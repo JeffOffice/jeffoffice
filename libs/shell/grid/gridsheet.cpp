@@ -162,7 +162,7 @@ int GridSheet::wrappedLines(const QString &text, const CellLook &look, double ro
     return std::max(1, lines);
 }
 
-double GridSheet::autoHeight(quint32 row, qint64 limit) const
+double GridSheet::autoHeight(quint32 row, qint64 limit, qint64 *work) const
 {
     if (!m_data.sheet) return 0;
     const double standard = std::max(1.0, m_meter->lineHeight(m_looks.look(0)));
@@ -175,10 +175,12 @@ double GridSheet::autoHeight(quint32 row, qint64 limit) const
         if (m_layout.merges.at(cell.row, cell.col) >= 0) return true;
         const CellLook &look = lookOf(cell.row, cell.col, cell.style);
         const Shown s = showValue(valueOf(cell), look, m_data.dateSystem, columnWidth(cell.col), m_looks.maxDigitWidth(), *m_meter, &m_symbols);
+        if (work) *work += 20;
         if (s.kind == Kind::Empty) return true;
         int lines = 1;
         if (look.wrap) {
             const QString text = textOf(cell);
+            if (work) *work += std::min<qsizetype>(text.size(), kMaxMeasuredChars) + 20;
             const double room = std::max(1.0, textRoom(columnWidth(cell.col), look));
             lines = wrappedLines(text.left(kMaxMeasuredChars), look, room);
             // (what is past the characters that are measured is counted by the share of the text it is)

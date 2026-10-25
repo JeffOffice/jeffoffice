@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <map>
+#include <set>
 
 namespace jp::office::sheet {
 
@@ -53,8 +54,6 @@ QByteArray commentXml(const QByteArray &prefix, const NoteOp &op, int authorId)
 }
 
 QByteArray authorXml(const QByteArray &prefix, const QString &name) { return "<" + prefix + "author>" + xmlscan::escapeText(name) + "</" + prefix + "author>"; }
-
-bool sameCell(const NoteOp &a, quint32 row, quint32 col) { return a.row == row && a.col == col; }
 
 } // namespace
 
@@ -146,31 +145,30 @@ bool applyNoteOpsToComments(const QByteArray &xml, const std::vector<NoteOp> &op
         addedAuthors += authorXml(prefix, name);
         return int(names.size()) - 1;
     };
-    // the new comments list: the old ones in order, those that are changed replaced or dropped, and new ones where they sort
+    // the new comments list: the old ones in the order they are in (whatever it is: the file's cells are not assumed sorted), each changed by the change that names its cell (a put
+    // takes the place of the first comment of the cell and drops any more; a removal drops them all), and the notes put where the file had none after them, in the order of their cells
+    std::map<quint64, const NoteOp *> byCell;
+    for (const NoteOp &op : ops) byCell[noteKey(op.row, op.col)] = &op;
     QByteArray listBody;
-    size_t next = 0;   // the next op not yet put
-    auto putOps = [&](bool before, quint32 row, quint32 col) {
-        // ops sorted by cell: those for cells before (row, col) that no comment has are put now
-        while (next < ops.size() && (before ? (ops[next].row < row || (ops[next].row == row && ops[next].col < col)) : true)) {
-            if (!ops[next].remove) listBody += commentXml(prefix, ops[next], authorIndex(ops[next].author));
-            ++next;
-        }
-    };
+    std::set<quint64> handled;
     for (size_t i = 0; i < comments.size(); ++i) {
         const quint32 row = commentCells[i].first, col = commentCells[i].second;
+        const QByteArray raw = xml.mid(comments[i].start, comments[i].end - comments[i].start);
         if (row == 0xFFFFFFFFu) {
-            listBody += xml.mid(comments[i].start, comments[i].end - comments[i].start);
+            listBody += raw;   // (one with no place is kept as it is)
             continue;
         }
-        putOps(true, row, col);
-        if (next < ops.size() && sameCell(ops[next], row, col)) {
-            if (!ops[next].remove) listBody += commentXml(prefix, ops[next], authorIndex(ops[next].author));
-            ++next;
+        const quint64 key = noteKey(row, col);
+        const auto op = byCell.find(key);
+        if (op == byCell.end()) {
+            listBody += raw;
             continue;
         }
-        listBody += xml.mid(comments[i].start, comments[i].end - comments[i].start);
+        if (!op->second->remove && handled.insert(key).second) listBody += commentXml(prefix, *op->second, authorIndex(op->second->author));
+        else handled.insert(key);
     }
-    putOps(false, 0, 0);
+    for (const auto &entry : byCell)
+        if (!entry.second->remove && !handled.count(entry.first)) listBody += commentXml(prefix, *entry.second, authorIndex(entry.second->author));
     // put together
     QByteArray result;
     QByteArray listOpen = xml.mid(list.start, list.end - list.start);

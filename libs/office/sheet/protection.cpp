@@ -51,16 +51,18 @@ bool spinHash(QCryptographicHash::Algorithm algorithm, const QByteArray &salt, c
 
 QString legacyPasswordHash(const QString &password)
 {
+    // (the older form takes the first 15 characters of a password, so no shift is past 15 places)
+    const QString used = password.left(15);
     quint32 hash = 0;
     int index = 1;
-    for (const QChar c : password) {
+    for (const QChar c : used) {
         quint32 value = quint32(c.unicode()) << index;
         const quint32 rotated = value >> 15;
         value &= 0x7FFF;
         hash ^= (value | rotated);
         ++index;
     }
-    hash ^= quint32(password.size());
+    hash ^= quint32(used.size());
     hash ^= 0xCE4B;
     return QStringLiteral("%1").arg(hash & 0xFFFF, 4, 16, QLatin1Char('0')).toUpper();
 }

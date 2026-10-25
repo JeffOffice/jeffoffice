@@ -140,6 +140,8 @@ struct Limits {
     std::function<bool()> cancelled;
     // For a text file of delimited values: what a person chose for it when it was opened (none: detected).
     std::shared_ptr<const CsvImport> csv;
+    // The most bytes the links of all the sheets hold (see kMaxLinkBytesPerBook).
+    qint64 linkBytes = kMaxLinkBytesPerBook;
 };
 
 enum class CalcMode { Auto, AutoNoTable, Manual };
@@ -400,6 +402,12 @@ private:
         int parses = 0;
     };
     mutable std::shared_ptr<HeaderImages> m_headerImages = std::make_shared<HeaderImages>();
+    // What the links of each sheet read hold, so that the links of all the sheets can be kept within one budget (a sheet read again replaces what it was counted as).
+    struct LinkBudget {
+        QMutex lock;
+        std::map<int, qint64> perSheet;
+    };
+    mutable std::shared_ptr<LinkBudget> m_linkBudget = std::make_shared<LinkBudget>();
     bool m_formatLimitHit = false;
     qint64 m_placeComparisons = 0;
     WorkbookInfo m_info;

@@ -197,6 +197,44 @@ private Q_SLOTS:
         QVERIFY(!entriesOf(again->bytes).value(QStringLiteral("xl/comments1.xml")).contains('\r'));
     }
 
+    // A comments part that two sheets name is read once for the workbook, not once for each sheet (a hostile file can name one part from a thousand sheets).
+    void aCommentsPartTwoSheetsNameIsReadOnce()
+    {
+        QVector<ExtraPart> parts;
+        parts.push_back({QStringLiteral("xl/comments1.xml"), QByteArray(kComments), kContentComments, 0, QStringLiteral("rId1"), QStringLiteral("comments"), QStringLiteral("../comments1.xml")});
+        parts.push_back({QStringLiteral("xl/dummy.txt"), QByteArray("x"), QString(), 1, QStringLiteral("rId1"), QStringLiteral("comments"), QStringLiteral("../comments1.xml")});
+        auto o = open(withParts(buildXlsx({worksheet(kRows), worksheet(kRows)}), parts));
+        QVERIFY2(o->ok, qPrintable(o->why));
+        NoteReadContext shared;
+        const qint64 before = noteReads();
+        const auto a = readSheetNoteInfos(o->book, 0, nullptr, kMaxNotes, &shared);
+        const auto b = readSheetNoteInfos(o->book, 1, nullptr, kMaxNotes, &shared);
+        QCOMPARE(noteReads() - before, qint64(1));
+        QCOMPARE(a.size(), size_t(3));
+        QCOMPARE(b.size(), size_t(3));
+        // without it each sheet reads it
+        const qint64 mid = noteReads();
+        readSheetNoteInfos(o->book, 0);
+        readSheetNoteInfos(o->book, 1);
+        QCOMPARE(noteReads() - mid, qint64(2));
+    }
+
+    // A person's name in a thread is cut, and what is read of names and notes is counted for the workbook.
+    void aHugeNameOfAPersonIsCutAndTheCharactersAreCounted()
+    {
+        QMap<QString, QByteArray> all = entriesOf(notesBook());
+        all[QStringLiteral("xl/persons/person.xml")] = "<personList xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\"><person displayName=\"" + QByteArray(2000000, 'x')
+                                                       + "\" id=\"{AAAAAAAA-0000-0000-0000-000000000001}\"/><person displayName=\"Eli\" id=\"{AAAAAAAA-0000-0000-0000-000000000002}\"/></personList>";
+        auto o = open(zipOf(all));
+        QVERIFY2(o->ok, qPrintable(o->why));
+        NoteReadContext context;
+        const auto notes = readSheetNoteInfos(o->book, 0, nullptr, kMaxNotes, &context);
+        const QString text = notes.at(noteKey(4, 1)).text;
+        QVERIFY2(text.size() < kMaxPersonChars + 100, qPrintable(QString::number(text.size())));
+        QVERIFY(text.startsWith(QString(kMaxPersonChars, QLatin1Char('x')) + QStringLiteral(": Is this")));
+        QVERIFY(context.chars > 0 && context.chars < 10000);   // (the long name is counted as cut)
+    }
+
     void aSheetWithNoNotesHasNone()
     {
         auto o = open(plainBook());
@@ -219,12 +257,36 @@ private Q_SLOTS:
         QVERIFY(!xml.contains("Ann:"));
         QVERIFY(xml.contains("<author>Cy</author>"));
         QVERIFY(xml.contains("New words &amp; &lt;more&gt;"));
-        // in the order of the cells: C3, then D4, then B5? no: by row, then column
+        // the ones the file has stay in their places (the edited one where it was); a note made for a cell the file has none for goes after them
         const qsizetype c3 = xml.indexOf("ref=\"C3\""), d4 = xml.indexOf("ref=\"D4\""), b5 = xml.indexOf("ref=\"B5\"");
-        QVERIFY(c3 > 0 && d4 > c3 && b5 > d4);
+        QVERIFY(c3 > 0 && b5 > c3 && d4 > b5);
         QCOMPARE(xml.count("<comment "), 3);
         // Bob (already an author) is not added twice
         QCOMPARE(xml.count("<author>Bob</author>"), 1);
+    }
+
+    // The cells of a file's comments are in no order we can count on (the order a program wrote them in, row by row or column by column): a change to one is made to that one wherever it is.
+    void commentsInNoParticularOrderAreChangedByTheirCells()
+    {
+        const QByteArray comments =
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?><comments xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><authors><author>Ann</author></authors><commentList>"
+            "<comment ref=\"A1\" authorId=\"0\"><text><t>one</t></text></comment><comment ref=\"A2\" authorId=\"0\"><text><t>two</t></text></comment>"
+            "<comment ref=\"B1\" authorId=\"0\"><text><t>three</t></text></comment></commentList></comments>";
+        QByteArray edited, removed;
+        QString why;
+        QVERIFY2(applyNoteOpsToComments(comments, {put(0, 1, QStringLiteral("Ann"), QStringLiteral("THREE"))}, &edited, &why), qPrintable(why));
+        QCOMPARE(edited.count("<comment "), 3);
+        QCOMPARE(edited.count("ref=\"B1\""), 1);
+        QVERIFY(edited.contains("THREE") && !edited.contains(">three<") && edited.contains(">one<") && edited.contains(">two<"));
+        QVERIFY(edited.indexOf("ref=\"A2\"") < edited.indexOf("ref=\"B1\""));   // (where it was)
+        QVERIFY2(applyNoteOpsToComments(comments, {drop(0, 1)}, &removed, &why), qPrintable(why));
+        QCOMPARE(removed.count("<comment "), 2);
+        QVERIFY(!removed.contains("B1") && removed.contains(">one<") && removed.contains(">two<"));
+        // and a note put on a cell the file has none for goes after them
+        QByteArray added;
+        QVERIFY2(applyNoteOpsToComments(comments, {put(0, 2, QStringLiteral("Ann"), QStringLiteral("four"))}, &added, &why), qPrintable(why));
+        QCOMPARE(added.count("<comment "), 4);
+        QVERIFY(added.indexOf("ref=\"C1\"") > added.indexOf("ref=\"B1\""));
     }
 
     void notesAreAddedToAFileThatHasNone()
@@ -349,6 +411,31 @@ private Q_SLOTS:
         QCOMPARE(rangeName(sheet.links[1].range), QStringLiteral("B1:C2"));
     }
 
+    // The links of all the sheets of a workbook are held to one budget of bytes, so that many sheets with many long addresses can't hold more than a workbook should.
+    void theLinksOfAllTheSheetsShareOneBudget()
+    {
+        QString links = QStringLiteral("<hyperlinks>");
+        for (int i = 1; i <= 50; ++i) links += QStringLiteral("<hyperlink ref=\"A%1\" location=\"Sheet1!%2\" tooltip=\"%3\"/>").arg(i).arg(QString(100, QLatin1Char('Z')), QString(100, QLatin1Char('t')));
+        links += QStringLiteral("</hyperlinks>");
+        Package package;
+        const QByteArray bytes = buildXlsx({worksheet(kRows, links), worksheet(kRows, links)});
+        QString why;
+        QVERIFY(package.readLazy(bytes, &why));
+        Limits limits;
+        limits.linkBytes = 25000;   // (a link here is about 450 bytes: 50 of them are 22,500)
+        Workbook book;
+        QVERIFY2(book.open(package, &why, limits), qPrintable(why));
+        Sheet a, b;
+        QVERIFY(book.readSheet(0, &a));
+        QCOMPARE(a.links.size(), 50);
+        QVERIFY(book.readSheet(1, &b));
+        QVERIFY2(b.links.size() < 50 && b.links.size() > 0, qPrintable(QString::number(b.links.size())));
+        // a sheet read again is not counted twice
+        Sheet again;
+        QVERIFY(book.readSheet(0, &again));
+        QVERIFY2(again.links.size() >= 40, qPrintable(QString::number(again.links.size())));
+    }
+
     void linksAreSavedTakenOutAndPutIn()
     {
         QMap<QString, QByteArray> all = entriesOf(withParts(plainBook(QStringLiteral("<hyperlinks><hyperlink ref=\"A1\" r:id=\"rId7\"/><hyperlink ref=\"B1\" location=\"Sheet1!C3\"/></hyperlinks><pageMargins left=\"0.7\" right=\"0.7\" top=\"0.75\" bottom=\"0.75\" header=\"0.3\" footer=\"0.3\"/>")), {}));
@@ -419,6 +506,19 @@ private Q_SLOTS:
         QCOMPARE(targetKind(QStringLiteral("  JavaScript:alert(1)")), LinkKind::Unsafe);
         QCOMPARE(targetKind(QStringLiteral("vbscript:x")), LinkKind::Unsafe);
         QCOMPARE(targetKind(QStringLiteral("data:text/html,<b>")), LinkKind::Unsafe);
+        // a program, a script, or a shortcut is never opened, however the name is dressed
+        for (const char *name : {"C:\\Tools\\run.EXE", "file:///tmp/a.sh", "report.pdf.exe", "x.exe?arg=1", "x.exe ", "x.exe...", "x.ex%65", "\\\\host\\share\\setup.msi", "a.lnk", "b.ps1#frag", "c.vbs", "d.js", "e.scr", "f.cmd",
+                                 "g.com", "h.bat\"", "doc.txt:evil.exe", "k.hta", "m.jar"})
+            QVERIFY2(targetKind(QString::fromLatin1(name)) == LinkKind::Unsafe, name);
+        QCOMPARE(targetKind(QStringLiteral("data/report.pdf")), LinkKind::File);
+        QCOMPARE(targetKind(QStringLiteral("notes.exe.txt")), LinkKind::File);
+        QCOMPARE(targetKind(QStringLiteral("C:\\Data\\book.xlsx")), LinkKind::File);
+        // a long address is shown with both ends
+        const QString longOne = QStringLiteral("https://example.org/") + QString(500, QLatin1Char('q')) + QStringLiteral("/end.pdf");
+        const QString shortOne = elidedMiddle(longOne, 100);
+        QCOMPARE(shortOne.size(), 100);
+        QVERIFY(shortOne.startsWith(QStringLiteral("https://example.org/")) && shortOne.endsWith(QStringLiteral("/end.pdf")) && shortOne.contains(QStringLiteral("...")));
+        QCOMPARE(elidedMiddle(QStringLiteral("short"), 100), QStringLiteral("short"));
         LinkSpec place;
         place.location = QStringLiteral("Sheet2!A1");
         QCOMPARE(linkKind(place), LinkKind::Place);
@@ -528,6 +628,12 @@ private Q_SLOTS:
         QCOMPARE(checkPassword(h, QStringLiteral("password")), PasswordResult::Match);
         QCOMPARE(checkPassword(h, QStringLiteral("Password")), PasswordResult::Wrong);
         QCOMPARE(checkPassword(h, QString()), PasswordResult::Wrong);
+        // only the first 15 characters count, as in the format, and a very long password shifts nothing past a place a number has
+        QCOMPARE(legacyPasswordHash(QStringLiteral("0123456789abcdefghijklmnopqrstuvwxyz")), legacyPasswordHash(QStringLiteral("0123456789abcde")));
+        QCOMPARE(checkPassword(h, QString(100000, QChar(0xFFFF))), PasswordResult::Wrong);
+        PasswordHash longOne;
+        longOne.legacy = legacyPasswordHash(QStringLiteral("0123456789abcdeXYZ"));
+        QCOMPARE(checkPassword(longOne, QStringLiteral("0123456789abcdeQQQ")), PasswordResult::Match);
         // no password at all matches anything (nothing is asked)
         QCOMPARE(checkPassword(PasswordHash(), QStringLiteral("x")), PasswordResult::Match);
     }

@@ -70,7 +70,7 @@ When you change a cell, JeffCrunch works out the formulas that depend on it in t
 ## What can't be changed
 
 - A cell that is part of an **array formula** or a data table can't be changed alone.
-- On a **protected sheet**, a cell that is locked can't be changed. Every cell is locked unless the workbook says it is not. JeffCrunch tells you when you try. To change the cell, take the protection off in the program that put it on.
+- On a **protected sheet**, a cell that is locked can't be changed. Every cell is locked unless the workbook says it is not. JeffCrunch tells you when you try. To change the cell, choose Unprotect Sheet on the Review tab.
 - The first row of a **table** holds the names of its columns. Type a new name in one of those cells to rename the column: the formulas that use the old name follow, and the table in the file stays valid. A name another column already has gets a number after it, a name can't be empty, and **Delete** doesn't clear that row.
 - A workbook that could not be read whole can be looked at but not changed or saved.
 - A function JeffCrunch does not have yet leaves a new formula without a value in the cell; the workbook asks the program that opens it next to work the formula out.

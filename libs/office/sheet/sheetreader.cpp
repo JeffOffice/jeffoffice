@@ -2709,7 +2709,26 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
             if (link.target.isEmpty() && link.location.isEmpty()) continue;
             kept.push_back(std::move(link));
         }
-        out->links = std::move(kept);
+        // the links of all the sheets are held to one budget
+        qint64 others = 0;
+        {
+            QMutexLocker locker(&m_linkBudget->lock);
+            for (const auto &entry : m_linkBudget->perSheet)
+                if (entry.first != index) others += entry.second;
+        }
+        qint64 mine = 0;
+        QVector<LinkSpec> within;
+        for (LinkSpec &link : kept) {
+            const qint64 cost = qint64(link.target.size() + link.location.size() + link.display.size() + link.tip.size()) * 2 + 64;
+            if (others + mine + cost > m_limits.linkBytes) continue;
+            mine += cost;
+            within.push_back(std::move(link));
+        }
+        {
+            QMutexLocker locker(&m_linkBudget->lock);
+            m_linkBudget->perSheet[index] = mine;
+        }
+        out->links = std::move(within);
     }
     return ok;
 }

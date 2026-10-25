@@ -13,6 +13,8 @@ namespace jp::office::sheet {
 constexpr qint64 kMaxLinks = 20000;
 constexpr int kMaxLinkTarget = 8192;
 constexpr int kMaxLinkText = 1024;
+// The most bytes (counting two for each character, and 64 for each link) the links of all the sheets of a workbook hold; a link that would go past it is not read.
+constexpr qint64 kMaxLinkBytesPerBook = qint64(32) << 20;
 
 struct LinkSpec {
     CellRange range;
@@ -35,6 +37,11 @@ enum class LinkKind : quint8 {
 };
 
 LinkKind linkKind(const LinkSpec &link);
+// Whether a file or path a link names is a program, a script, or a shortcut (a name ending .exe, .bat, .cmd, .ps1, .vbs, .js, .msi, .scr, .lnk, and the like): a link to one is never opened.
+// Looked at the way a system would take the name: a query or a fragment is left off, a %-escape read, and spaces, dots, and quotes at the end ignored.
+bool namesAProgram(const QString &target);
+// The text cut in the middle (a "..." between its start and its end) if it is longer than `most` characters, so that a long address is shown with both ends.
+QString elidedMiddle(const QString &text, int most);
 LinkKind targetKind(const QString &target);
 
 // A web address as a person typed it, made one a link can hold: spaces at the ends taken off, "mailto:" put before one that looks like an e-mail address and has no scheme, and

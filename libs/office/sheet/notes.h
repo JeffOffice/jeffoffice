@@ -21,6 +21,15 @@ constexpr qint64 kMaxNoteChars = qint64(8) << 20;
 constexpr qint64 kMaxNotesPartBytes = qint64(64) << 20;
 // The most of a note's drawing (the file's shapes for its notes) and of a thread part that is read.
 constexpr qint64 kMaxNotesDrawingBytes = qint64(32) << 20;
+// The most characters of notes, authors, and names of people read in a whole workbook, and of the names of people (and the most of them).
+constexpr qint64 kMaxNoteCharsPerBook = qint64(32) << 20;
+constexpr int kMaxPersons = 10000;
+constexpr int kMaxPersonChars = 200;
+
+// What reading the notes of a workbook's sheets one after another shares: a comments part that more than one sheet names is read once, the people of the threads are read once, and the
+// characters read are counted for the whole workbook.
+struct NoteInfo;
+struct NoteReadContext;
 
 struct NoteInfo {
     QString author;
@@ -30,12 +39,21 @@ struct NoteInfo {
     bool operator==(const NoteInfo &o) const { return author == o.author && text == o.text && shown == o.shown && threaded == o.threaded; }
 };
 
+struct NoteReadContext {
+    std::map<QString, std::map<quint64, NoteInfo>> parts;   // by the comments part's name
+    std::map<QString, QString> persons;
+    bool personsRead = false;
+    qint64 chars = 0;
+    bool exhausted = false;                                  // the budget of characters is spent: nothing more is read
+};
+
 // The key a note is kept by: `(row << 32) | col`.
 inline quint64 noteKey(quint32 row, quint32 col) { return (quint64(row) << 32) | col; }
 
 // The notes of the sheet (by its place in the workbook) as the file has them. Empty for a sheet with none, a sheet that was added, and a workbook that has no package of XML parts.
 // `truncated`, if given, is told whether a limit stopped the read.
-std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, bool *truncated = nullptr, qint64 most = kMaxNotes);
+// With a `context`, what an earlier call read is not read again, and the budget of characters is the workbook's.
+std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, bool *truncated = nullptr, qint64 most = kMaxNotes, NoteReadContext *context = nullptr);
 
 // How many times a sheet's notes have been read from a file since the program began (a test counts them to see that a search does not read them again and again).
 qint64 noteReads();

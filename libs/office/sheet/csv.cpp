@@ -533,6 +533,19 @@ private:
     qint64 m_fields = 0, m_row = 0, m_unclosedRow = 0;
 };
 
+// The bytes of the mark at the front of a file that the encoding has, if the file has them (a person may choose an encoding for a file that has no mark; what is not a mark is text).
+qint64 markLength(CsvEncoding encoding, const QByteArray &bytes)
+{
+    switch (encoding) {
+    case CsvEncoding::Utf8:
+    case CsvEncoding::Utf8Bom: return bytes.startsWith("\xEF\xBB\xBF") ? 3 : 0;
+    case CsvEncoding::Utf16Le: return bytes.startsWith("\xFF\xFE") ? 2 : 0;
+    case CsvEncoding::Utf16Be: return bytes.startsWith("\xFE\xFF") ? 2 : 0;
+    case CsvEncoding::Legacy: return 0;
+    }
+    return 0;
+}
+
 // ---- a date in the order a person chose for its column
 
 // Three numbers with a slash, dash, dot, or space between (or eight digits together) read in the order "MDY", "DMY", or "YMD"; a year of two digits is 2000 to 2029 or 1930 to 1999.
@@ -918,8 +931,7 @@ std::shared_ptr<const CsvBook> CsvBook::open(const QByteArray &file, const QStri
         if (book->m_import.columns.size() > kMaxCsvColumnChoices) book->m_import.columns.resize(kMaxCsvColumnChoices);
         if (book->m_import.firstRow < 0) book->m_import.firstRow = 0;
     }
-    qint64 skip = (book->m_form.encoding == CsvEncoding::Utf8Bom || (book->m_form.encoding == CsvEncoding::Utf8 && file.startsWith("\xEF\xBB\xBF"))) ? 3
-                  : (book->m_form.encoding == CsvEncoding::Utf16Le || book->m_form.encoding == CsvEncoding::Utf16Be) ? 2 : 0;
+    qint64 skip = markLength(book->m_form.encoding, file);
     if (book->m_form.sepLine) {
         // (the line's end: the data begins after it)
         const bool wide = book->m_form.encoding == CsvEncoding::Utf16Le || book->m_form.encoding == CsvEncoding::Utf16Be;
@@ -1112,7 +1124,7 @@ QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName,
         if (columnsOut) *columnsOut = 0;
         return rows;
     }
-    qint64 skip = (form.encoding == CsvEncoding::Utf8Bom || (form.encoding == CsvEncoding::Utf8 && head.startsWith("\xEF\xBB\xBF"))) ? 3 : (form.encoding == CsvEncoding::Utf16Le || form.encoding == CsvEncoding::Utf16Be) ? 2 : 0;
+    qint64 skip = markLength(form.encoding, head);
     if (form.sepLine) {
         const qsizetype nl = head.indexOf('\n', skip);
         skip = nl < 0 ? head.size() : nl + 1;

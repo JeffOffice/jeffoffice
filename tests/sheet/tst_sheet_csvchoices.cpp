@@ -141,6 +141,23 @@ private Q_SLOTS:
         QCOMPARE(shown(wb2, read(wb2), QLatin1String("A1")), QStringLiteral("i:a"));
     }
 
+    // A mark is dropped only if the file has it: an encoding chosen for a file that has none leaves its first letter where it is.
+    void aMarkIsDroppedOnlyIfTheFileHasIt()
+    {
+        LocaleScope locale(QLocale::c());
+        auto c = choices();
+        c->separators = QStringLiteral(",");
+        c->encodingSet = true;
+        c->encoding = CsvEncoding::Utf8Bom;
+        Workbook wb;
+        QVERIFY(openWith("abc,def\n", c, &wb));
+        QCOMPARE(shown(wb, read(wb), QLatin1String("A1")), QStringLiteral("i:abc"));
+        // the same in the preview, and a file with the mark loses it
+        c->separators = QStringLiteral(",");
+        QCOMPARE(csvPreview("abc,def\n", QStringLiteral("a.csv"), *c, QLocale::c()).value(0).value(0), QStringLiteral("abc"));
+        QCOMPARE(csvPreview("\xEF\xBB\xBF" "abc,def\n", QStringLiteral("a.csv"), *c, QLocale::c()).value(0).value(0), QStringLiteral("abc"));
+    }
+
     void aListOfColumnChoicesThatIsTooLongIsCut()
     {
         LocaleScope locale(QLocale::c());
