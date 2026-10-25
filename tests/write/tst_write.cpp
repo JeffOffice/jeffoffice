@@ -2,6 +2,7 @@
 
 #include "core/fonts.h"
 #include "../plainprobe.h"
+#include "../stablesaves.h"
 #include "app/pagepaint.h"
 #include "app/pageview.h"
 #include "app/pageoutput.h"
@@ -19716,6 +19717,28 @@ private Q_SLOTS:
         QVERIFY(doc->undo());
         QVERIFY2(!doc->story()->toPlainText().contains(QLatin1String("alonea")), qPrintable(doc->story()->toPlainText()));
     }
+
+    // Not a test of its own: the work of a process that the next function starts. A document with a header and a footer, read, typed in, and saved.
+    void savesTheDocumentWithHeaderAndFooter()
+    {
+        QString out;
+        if (!stable::childOutput(&out)) return;
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        const QByteArray header = headerPart("hdr", {"<w:r><w:t>Top of the page</w:t></w:r>"});
+        const QByteArray footer = headerPart("ftr", {"<w:r><w:t xml:space=\"preserve\">Page </w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>"});
+        auto doc = open(makeDocxWithParts(paragraphs(30), sect, {{QStringLiteral("/word/header1.xml"), header}, {QStringLiteral("/word/footer1.xml"), footer}}));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        insertText(*doc, c, QStringLiteral("typed words"));
+        const QByteArray saved = doc->toDocx();
+        QVERIFY(!saved.isEmpty());
+        QFile f(out);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        QCOMPARE(f.write(saved), saved.size());
+    }
+
+    // The file is the same bytes each time it is saved, in whatever process: nothing written follows the order of a hash that Qt seeds anew for each process.
+    void aSavedDocumentIsTheSameBytesInEachProcess() { JP_VERIFY_SAME_SAVES("savesTheDocumentWithHeaderAndFooter"); }
 };
 
 QTEST_MAIN(WriteTests)

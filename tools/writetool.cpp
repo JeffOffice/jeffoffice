@@ -3,6 +3,7 @@
 //   writetool pdf <file.txt|.docx> <out.pdf> [options]                 the pages as a PDF
 //   writetool info <file.txt> [options]                          the pages and where each starts
 //   writetool docpkg <file.doc> <out.docx>                       the package an old binary document is turned into (to look at what the reader made of it)
+//   writetool docsave <file.docx> <out.docx>                     the document read and saved again (to compare two saves)
 //   writetool bench [paragraphs=26443] [options]                 a made-up long story: the time to its first page, to all of its pages, and to repaginate after a typed character,
 //                                                                against the targets (all of 26,443 paragraphs in 5 s, the first page in 0.3 s, a typed character in 50 ms); exits 1 if one is missed.
 //                                                                With JeffWrite built, it also times spelling as you type: a page's paragraphs, the same again, and after a typed character
@@ -412,6 +413,20 @@ int main(int argc, char **argv)
         for (const QString &n : rn.notes) out << "note\t" << n << "\n";
         QFile w(args[3]);
         if (zip.isEmpty() || !w.open(QIODevice::WriteOnly) || w.write(zip) != zip.size()) { out << "cannot make the package: " << why << "\n"; return 1; }
+        out << "wrote\t" << zip.size() << " bytes\n";
+        return 0;
+    }
+#endif
+#ifdef JW_DOCX
+    if (cmd == "docsave" && args.size() >= 4) {
+        QFile f(args[2]);
+        if (!f.open(QIODevice::ReadOnly)) { out << "cannot read: " << f.errorString() << "\n"; return 1; }
+        QString why;
+        QStringList notes;
+        std::unique_ptr<write::WriteDoc> d = write::WriteDoc::fromDocx(f.readAll(), &why, &notes);
+        const QByteArray zip = d ? d->toDocx(&why) : QByteArray();
+        QFile w(args[3]);
+        if (zip.isEmpty() || !w.open(QIODevice::WriteOnly) || w.write(zip) != zip.size()) { out << "cannot save: " << why << "\n"; return 1; }
         out << "wrote\t" << zip.size() << " bytes\n";
         return 0;
     }
