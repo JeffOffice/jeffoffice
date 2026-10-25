@@ -982,6 +982,25 @@ private Q_SLOTS:
         QVERIFY(save(e));
         QCOMPARE(savedCharts(e.path).size(), 1);
     }
+
+    // The numbers of a chart made here are shown, and saved, in the format of the cells they come from.
+    void aNewChartHasTheFormatOfItsCells()
+    {
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"164\" applyNumberFormat=\"1\"/>"));
+        const QByteArray styled = stylesXml(QStringLiteral("<numFmt numFmtId=\"164\" formatCode=\"&quot;$&quot;#,##0.00\"/>"), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"164\" applyNumberFormat=\"1\"/>"));
+        Q_UNUSED(styles);
+        QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Item</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>Cost</t></is></c></row>");
+        for (int i = 0; i < 3; ++i) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>x%2</t></is></c><c r=\"B%1\" s=\"1\"><v>%3</v></c></row>").arg(i + 2).arg(i).arg(1200 + i);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), styled)));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:B4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        QCOMPARE(seriesOf(chartOf(e))[0].format, QStringLiteral("\"$\"#,##0.00"));
+        QVERIFY(save(e));
+        const QVector<SavedChart> charts = savedCharts(e.path);
+        QCOMPARE(seriesOf(charts[0].chart)[0].format, QStringLiteral("\"$\"#,##0.00"));
+    }
 };
 
 JP_TEST_CLASS(CrunchChartTests)

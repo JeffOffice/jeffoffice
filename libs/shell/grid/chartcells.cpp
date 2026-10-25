@@ -66,6 +66,14 @@ QString WorkbookChartCells::text(int sheet, quint32 row, quint32 col) const
     return QString();
 }
 
+QString WorkbookChartCells::formatCode(int sheet, quint32 row, quint32 col) const
+{
+    const Cell *c = cellAt(sheet, row, col);
+    if (!c || !m_styles) return QStringLiteral("General");
+    const QString code = m_styles->formatCode(c->style, QLocale::c());   // (the file's code, not the person's: it is written into charts)
+    return code.isEmpty() ? QStringLiteral("General") : code;
+}
+
 const WorkbookChartCells::Hidden &WorkbookChartCells::hidden(int sheet) const
 {
     Hidden &h = m_hidden[sheet];

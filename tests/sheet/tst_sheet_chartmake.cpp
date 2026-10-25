@@ -17,6 +17,7 @@ class Cells : public ChartCells {
 public:
     QMap<QPair<quint32, quint32>, Value> cells;
     QMap<QPair<quint32, quint32>, QString> shown;   // what a cell shows, when it is not the value's plain text (a date)
+    QMap<QPair<quint32, quint32>, QString> codes;   // the number format codes of cells that have one
     quint32 rows = 0, cols = 0;                     // the extent, when it is more than the cells reach
     mutable qint64 reads = 0;
     int sheetCount() const override { return 1; }
@@ -32,6 +33,7 @@ public:
         const Value v = cells.value({row, col});
         return v.isText() ? v.text() : v.isNumber() ? numberToText(v.number()) : QString();
     }
+    QString formatCode(int, quint32 row, quint32 col) const override { return codes.value({row, col}, QStringLiteral("General")); }
     bool rowHidden(int, quint32) const override { return false; }
     bool columnHidden(int, quint32) const override { return false; }
     void extent(int, quint32 *r, quint32 *c) const override
@@ -270,6 +272,31 @@ private Q_SLOTS:
         const Cells empty;
         QVERIFY(planChart(empty, 0, QStringLiteral("S"), range(QStringLiteral("A1:C3")), ChartKind::Column).series.isEmpty());
         QVERIFY(planChart(f, 0, QStringLiteral("S"), CellRange(), ChartKind::Column).series.isEmpty());
+    }
+
+    // A chart made here has no format of its own: the series' values take the format of the cells they are read from, unless the chart already says one.
+    void seriesTakeTheFormatOfTheirCells()
+    {
+        Cells f = regional();
+        f.codes[{1, 1}] = QStringLiteral("$#,##0.00");
+        f.codes[{1, 2}] = QStringLiteral("0%");
+        Chart c = makeChart(ChartKind::Column, planChart(f, 0, QStringLiteral("Sheet1"), range(QStringLiteral("A1:C4")), ChartKind::Column), defaultTheme());
+        c.plots[0].series[1].format = QStringLiteral("0.0");   // (this one says its own)
+        applyChartFormats(&c, 0, f);
+        QCOMPARE(c.plots[0].series[0].format, QStringLiteral("$#,##0.00"));
+        QCOMPARE(c.plots[0].series[1].format, QStringLiteral("0.0"));
+        // written, and read back, the format is in the part
+        Chart back;
+        QVERIFY(readChart(writeChartPart(c), defaultTheme(), ColorMap(), &back));
+        QCOMPARE(back.plots[0].series[0].format, QStringLiteral("$#,##0.00"));
+        // cells that keep no format to ask for leave it alone
+        Chart plain = makeChart(ChartKind::Column, planChart(f, 0, QStringLiteral("Sheet1"), range(QStringLiteral("A1:C4")), ChartKind::Column), defaultTheme());
+        struct Mute : Cells {
+            QString formatCode(int, quint32, quint32) const override { return QString(); }
+        } mute;
+        mute.cells = f.cells;
+        applyChartFormats(&plain, 0, mute);
+        QVERIFY(plain.plots[0].series[0].format.isEmpty());
     }
 };
 

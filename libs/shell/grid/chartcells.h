@@ -23,6 +23,7 @@ public:
     int sheetIndex(const QString &name) const override;
     jp::calc::Value value(int sheet, quint32 row, quint32 col) const override;
     QString text(int sheet, quint32 row, quint32 col) const override;
+    QString formatCode(int sheet, quint32 row, quint32 col) const override;
     bool rowHidden(int sheet, quint32 row) const override;
     bool columnHidden(int sheet, quint32 col) const override;
     void extent(int sheet, quint32 *rows, quint32 *cols) const override;

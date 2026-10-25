@@ -458,6 +458,7 @@ std::function<QImage()> SheetObjects::prepareChart(int sheet, Object &o, const R
     setChartRefs(chart.get(), o.refs);
     if (m_cells) {
         applyChartCells(chart.get(), sheet, *m_cells);
+        if (o.added || o.chart != o.fileChart) applyChartFormats(chart.get(), sheet, *m_cells);   // (a chart made here has no format of its own: its cells' are what it shows its numbers in)
         o.reads = ChartReadIndex(jp::office::sheet::chartReads(*chart, sheet, *m_cells));
         o.drawnKey = dataKey(*chart);
         ++m_chartsDrawn;
@@ -854,6 +855,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
                 Chart c = *o->chart;
                 setChartRefs(&c, o->refs);
                 applyChartCells(&c, int(i), *m_cells);
+                applyChartFormats(&c, int(i), *m_cells);
                 o->savedPart = freePartName(QStringLiteral("/xl/charts/chart"), QStringLiteral(".xml"), takenNames());
                 takenNames().insert(o->savedPart.toLower());
                 DrawingAnchor want = o->anchor;
@@ -887,6 +889,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
                 Chart c = *o->chart;
                 setChartRefs(&c, o->refs);
                 applyChartCells(&c, int(i), *m_cells);
+                applyChartFormats(&c, int(i), *m_cells);
                 changes->replacedParts[o->meta.chartPart] = writeChartPart(c);
                 editedParts.insert(o->meta.chartPart.toLower());
             }
@@ -1262,7 +1265,10 @@ Chart SheetObjects::chartNow(int sheet, int objectId)
             if (!o->chart) return Chart();
             Chart c = *o->chart;
             setChartRefs(&c, o->refs);
-            if (m_cells) applyChartCells(&c, sheet, *m_cells);
+            if (m_cells) {
+                applyChartCells(&c, sheet, *m_cells);
+                if (o->added || o->chart != o->fileChart) applyChartFormats(&c, sheet, *m_cells);
+            }
             return c;
         }
     return Chart();

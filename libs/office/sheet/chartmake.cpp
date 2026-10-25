@@ -400,7 +400,10 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
     if (like) {
         // what the person set on the chart stays: its words, where things are, how the page looks
         c.title = like->title;
-        if (c.title.automatic && count != 1) c.title.automatic = false;
+        if (c.title.automatic && count != 1) {
+            c.title.automatic = false;   // (a title named for the one series is only a title when there are more)
+            c.title.text = QCoreApplication::translate("Chart", "Chart Title");
+        }
         c.legend = like->legend;
         if (pieLike != (like->type() == ChartType::Pie || like->type() == ChartType::Doughnut)) c.legend.position = pieLike ? QStringLiteral("r") : QStringLiteral("b");
         c.legend.shown = like->legend.shown;

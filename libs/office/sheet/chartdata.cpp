@@ -480,4 +480,25 @@ int applyChartCells(Chart *chart, int ownSheet, const ChartCells &cells)
     return read;
 }
 
+void applyChartFormats(Chart *chart, int ownSheet, const ChartCells &cells)
+{
+    auto codeOf = [&](const QString &ref) {
+        QVector<ChartBlock> blocks;
+        if (ref.isEmpty() || !chartBlocks(ref, ownSheet, cells, &blocks) || blocks.isEmpty()) return QString();
+        const ChartBlock &b = blocks.first();
+        return cells.formatCode(b.sheet, b.range.row1, b.range.col1);
+    };
+    for (ChartPlot &plot : chart->plots)
+        for (ChartSeries &s : plot.series) {
+            if (s.format.isEmpty() || s.format.compare(QLatin1String("General"), Qt::CaseInsensitive) == 0) {
+                const QString code = codeOf(s.valueRef);
+                if (!code.isEmpty()) s.format = code;
+            }
+            if (plot.type == ChartType::Scatter && !s.xRef.isEmpty() && (s.categoryFormat.isEmpty() || s.categoryFormat.compare(QLatin1String("General"), Qt::CaseInsensitive) == 0)) {
+                const QString code = codeOf(s.xRef);
+                if (!code.isEmpty()) s.categoryFormat = code;
+            }
+        }
+}
+
 } // namespace jp::office::sheet
