@@ -199,6 +199,16 @@ private Q_SLOTS:
             QVERIFY2(!r.hasError(), qPrintable(r.errorString()));
             QCOMPARE(names, 3);
         }
+        // a closing tag with a space before its ">" (allowed): the added name still goes inside the list
+        {
+            QByteArray spaced = xml;
+            spaced.replace("</definedNames>", "</definedNames >");
+            QVERIFY(patchPrintNames(spaced, {changed, second}, &out));
+            QVERIFY(out.contains("$1:$2</definedName></definedNames >"));
+            QXmlStreamReader r(out);
+            while (!r.atEnd()) r.readNext();
+            QVERIFY2(!r.hasError(), qPrintable(r.errorString()));
+        }
         // taken away
         PrintNameChange none = same;
         none.setup.printArea.clear();

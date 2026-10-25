@@ -549,7 +549,12 @@ bool patchPrintNames(const QByteArray &xml, const std::vector<PrintNameChange> &
             *out = xml.left(names.start) + xml.mid(names.end);
             return true;
         }
-        if (!additions.isEmpty()) edits.push_back({names.end - (3 + prefix.size() + 12), names.end - (3 + prefix.size() + 12), additions});   // (before "</definedNames>")
+        if (!additions.isEmpty()) {
+            // before the list's closing tag, wherever it starts ("</definedNames >" is allowed too)
+            const int close = int(xml.lastIndexOf("</", names.end - 1));
+            if (close < names.start) return false;
+            edits.push_back({close, close, additions});
+        }
     } else if (names.exists()) {
         *out = xml.left(names.start) + "<" + prefix + "definedNames>" + additions + "</" + prefix + "definedNames>" + xml.mid(names.end);
         return true;
