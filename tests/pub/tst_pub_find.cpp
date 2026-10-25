@@ -394,7 +394,7 @@ private Q_SLOTS:
             }
             return doc;
         };
-        const auto smallDoc = documentOf(500), bigDoc = documentOf(4000);
+        const auto smallDoc = documentOf(500), bigDoc = documentOf(8000);
         bool found = true;
         auto timeOf = [&](const jp::Document &doc, int pages) {
             return bestNanoseconds([&] {
@@ -402,17 +402,17 @@ private Q_SLOTS:
                 found = found && stories.size() == pages * 2;
             }, 1);
         };
-        // Eight times the pages: linear work grows about 8 times (up to about 30 on a busy machine, where the bigger set spills out of the caches), the old
-        // quadratic walk 64 times. The two sizes take turns, the fastest of five rounds of each, so a load that comes or goes partway through slows
+        // Sixteen times the pages: linear work grows about 16 times (about 40 to 50 on a busy machine, where the bigger set spills out of the caches), the old
+        // quadratic walk 256 times, so a bound of 128 is far from both (at eight times the pages the two were 30 and 64 apart, and a busy machine went past 40). The two sizes take turns, the fastest of five rounds of each, so a load that comes or goes partway through slows
         // both alike (timed one after the other, a busy spell over the bigger set alone failed a linear walk under the parallel gates).
         qint64 small = std::numeric_limits<qint64>::max(), big = small;
         for (int round = 0; round < 5; ++round) {
             small = std::min(small, timeOf(*smallDoc, 500));
-            big = std::min(big, timeOf(*bigDoc, 4000));
+            big = std::min(big, timeOf(*bigDoc, 8000));
         }
         QVERIFY(found);
         QVERIFY(small > 0 && big > 0);
-        QVERIFY2(big < small * 40, qPrintable(QStringLiteral("500 pages: %1 us, 4000 pages: %2 us").arg(small / 1000).arg(big / 1000)));
+        QVERIFY2(big < small * 128, qPrintable(QStringLiteral("500 pages: %1 us, 8000 pages: %2 us").arg(small / 1000).arg(big / 1000)));
     }
 
     // A Text Art's words are searched when the scope says so (not for JeffPub, whose pane does not follow a match into one): found,

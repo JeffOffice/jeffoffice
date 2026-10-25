@@ -28,7 +28,6 @@ constexpr int kMaxSlides = 10000, kMaxMasters = 1000, kMaxLayouts = 1000, kMaxNo
 // A slide may be 56 inches across at most, and is a point at least.
 constexpr double kMinSlide = 1, kMaxSlide = 4032;
 
-QString say(const char *text) { return QCoreApplication::translate("OdpImport", text); }
 
 const QString kTitleSample = QStringLiteral("Click to edit Master title style");
 const QString kSubtitleSample = QStringLiteral("Click to edit Master subtitle style");
@@ -90,7 +89,7 @@ bool Reader::parse(const QString &part, QDomDocument *dom, QString *why)
 {
     const QByteArray xml = m_pkg.part(part);
     if (xml.isEmpty()) {
-        *why = say("The part is missing from the file.");
+        *why = QCoreApplication::translate("OdpImport", "The part is missing from the file.");
         return false;
     }
     return office::parseXml(xml, dom, why);
@@ -173,7 +172,7 @@ bool Reader::readSize()
             known = true;
         }
     }
-    if (!known) note(say("The slide size in the file can't be used, so the slides are 13.333 by 7.5 inches."));
+    if (!known) note(QCoreApplication::translate("OdpImport", "The slide size in the file can't be used, so the slides are 13.333 by 7.5 inches."));
     m_slideSize = size;
     m_doc.setup.size = m_doc.setup.sheet = size;
     m_doc.setup.sizeName = slideSizeName(size);
@@ -195,7 +194,7 @@ void Reader::readMasterPage(MasterInfo &m, int number)
 {
     auto page = std::make_shared<MasterPage>();
     page->id = QStringLiteral("SM%1").arg(number);
-    page->name = !m.displayName.isEmpty() ? m.displayName : !m.name.isEmpty() ? m.name : say("Slide Master");
+    page->name = !m.displayName.isEmpty() ? m.displayName : !m.name.isEmpty() ? m.name : QCoreApplication::translate("OdpImport", "Slide Master");
     page->abbr = number == 1 ? QStringLiteral("SM") : QStringLiteral("SM%1").arg(number);
     page->props[QStringLiteral("kind")] = QStringLiteral("master");
     m.page = page;
@@ -230,7 +229,7 @@ void Reader::readMasters()
     int number = 0;
     for (const QDomElement &e : kids(masterStyles, "style:master-page")) {
         if (int(m_masters.size()) >= kMaxMasters) {
-            note(say("Only the first 1,000 master pages are read."));
+            note(QCoreApplication::translate("OdpImport", "Only the first 1,000 master pages are read."));
             break;
         }
         auto m = std::make_unique<MasterInfo>();
@@ -364,18 +363,18 @@ std::shared_ptr<MasterPage> Reader::standardLayout(MasterInfo &m, const QString 
         page->items.push_back(it);
     };
     if (type == QLatin1String("title")) {
-        page->name = say("Title Slide");
+        page->name = QCoreApplication::translate("OdpImport", "Title Slide");
         add(title, QStringLiteral("ctrTitle"), 0, QRectF(titleRect.x(), s.height() * 0.2, titleRect.width(), s.height() * 0.3), kTitleSample, QStringLiteral("title"));
         add(body, QStringLiteral("subTitle"), 1, QRectF(titleRect.x(), s.height() * 0.53, titleRect.width(), s.height() * 0.25), kSubtitleSample, QStringLiteral("outline"));
     } else if (type == QLatin1String("obj")) {
-        page->name = say("Title and Content");
+        page->name = QCoreApplication::translate("OdpImport", "Title and Content");
         add(title, QStringLiteral("title"), 0, titleRect, kTitleSample, QStringLiteral("title"));
         add(body, QStringLiteral("obj"), 1, bodyRect, kBodySample, QStringLiteral("outline"));
     } else if (type == QLatin1String("titleOnly")) {
-        page->name = say("Title Only");
+        page->name = QCoreApplication::translate("OdpImport", "Title Only");
         add(title, QStringLiteral("title"), 0, titleRect, kTitleSample, QStringLiteral("title"));
     } else {
-        page->name = say("Blank");
+        page->name = QCoreApplication::translate("OdpImport", "Blank");
     }
     for (const ItemPtr &it : m.page->items)
         if (isFooter(placeholderType(*it))) page->items.push_back(m_doc.cloneItem(*it));
@@ -399,7 +398,7 @@ std::shared_ptr<MasterPage> Reader::layoutFor(MasterInfo &m, const ItemList &ite
         for (const QString &k : m.layoutOrder)
             if (k.startsWith(QLatin1String("standard:")) && layoutType(*m.layouts.value(k)) == shape.type) return m.layouts.value(k);
     if (m_layoutCount >= kMaxLayouts) {
-        if (!m_said.contains(QStringLiteral("layouts"))) note(say("Only the first 1,000 layouts are made."));
+        if (!m_said.contains(QStringLiteral("layouts"))) note(QCoreApplication::translate("OdpImport", "Only the first 1,000 layouts are made."));
         m_said.insert(QStringLiteral("layouts"));
         return m.layouts.isEmpty() ? nullptr : m.layouts.value(m.layoutOrder.first());
     }
@@ -408,7 +407,7 @@ std::shared_ptr<MasterPage> Reader::layoutFor(MasterInfo &m, const ItemList &ite
     page->id = QStringLiteral("L%1").arg(++m_layoutCount);
     page->abbr = QString::number(m_layoutCount);
     page->baseId = m.page->id;
-    page->name = shape.name.isEmpty() ? say("Custom Layout %1").arg(m_layoutCount) : shape.name;
+    page->name = shape.name.isEmpty() ? QCoreApplication::translate("OdpImport", "Custom Layout %1").arg(m_layoutCount) : shape.name;
     page->props[QStringLiteral("kind")] = QStringLiteral("layout");
     page->props[QStringLiteral("type")] = shape.type;
     // The placeholders as this slide has them, with prompts for their text.
@@ -525,7 +524,7 @@ void Reader::readSlides(const QDomElement &presentation)
     int number = 0;
     for (const QDomElement &p : kids(presentation, "draw:page")) {
         if (++number > kMaxSlides) {
-            note(say("Only the first 10,000 slides are read."));
+            note(QCoreApplication::translate("OdpImport", "Only the first 10,000 slides are read."));
             break;
         }
         readSlide(p, number);
@@ -537,7 +536,7 @@ bool Reader::readSlide(const QDomElement &pageElement, int number)
     const Attrs a(pageElement);
     MasterInfo *m = masterByName(a.get("draw:master-page-name"));
     if (!m) {
-        note(say("Slide %1 was left out: the file has no master page for it.").arg(number));
+        note(QCoreApplication::translate("OdpImport", "Slide %1 was left out: the file has no master page for it.").arg(number));
         return false;
     }
     const Bag style = m_contentSheet->resolve(QStringLiteral("drawing-page"), a.get("draw:style-name"));
@@ -628,29 +627,29 @@ bool Reader::run(QString *error)
     const QString mime = QString::fromUtf8(m_pkg.part(QStringLiteral("/mimetype"))).trimmed();
     if (!mime.isEmpty() && !mime.startsWith(QLatin1String("application/vnd.oasis.opendocument.presentation"))) {
         QString kind = mime.mid(mime.lastIndexOf(QLatin1Char('.')) + 1);
-        if (kind.startsWith(QLatin1String("text"))) kind = say("a text document");
-        else if (kind.startsWith(QLatin1String("spreadsheet"))) kind = say("a spreadsheet");
-        else if (kind.startsWith(QLatin1String("graphics"))) kind = say("a drawing");
-        else kind = say("another kind of document");
-        return fail(say("This file is an open document, but it is %1, not a presentation.").arg(kind));
+        if (kind.startsWith(QLatin1String("text"))) kind = QCoreApplication::translate("OdpImport", "a text document");
+        else if (kind.startsWith(QLatin1String("spreadsheet"))) kind = QCoreApplication::translate("OdpImport", "a spreadsheet");
+        else if (kind.startsWith(QLatin1String("graphics"))) kind = QCoreApplication::translate("OdpImport", "a drawing");
+        else kind = QCoreApplication::translate("OdpImport", "another kind of document");
+        return fail(QCoreApplication::translate("OdpImport", "This file is an open document, but it is %1, not a presentation.").arg(kind));
     }
     if (m_pkg.part(QStringLiteral("/META-INF/manifest.xml")).contains("encryption-data"))
-        return fail(say("This presentation is protected with a password, which JeffDeck can't open yet."));
+        return fail(QCoreApplication::translate("OdpImport", "This presentation is protected with a password, which JeffDeck can't open yet."));
 
     QString why;
-    if (!parse(QStringLiteral("/content.xml"), &m_contentDom, &why)) return fail(say("The file has no readable content: %1").arg(why));
-    if (!parse(QStringLiteral("/styles.xml"), &m_stylesDom, &why)) return fail(say("The file has no readable styles: %1").arg(why));
+    if (!parse(QStringLiteral("/content.xml"), &m_contentDom, &why)) return fail(QCoreApplication::translate("OdpImport", "The file has no readable content: %1").arg(why));
+    if (!parse(QStringLiteral("/styles.xml"), &m_stylesDom, &why)) return fail(QCoreApplication::translate("OdpImport", "The file has no readable styles: %1").arg(why));
     m_content = m_contentDom.documentElement();
     m_styles = m_stylesDom.documentElement();
     if (tagOf(m_content) != QLatin1String("office:document-content") || tagOf(m_styles) != QLatin1String("office:document-styles"))
-        return fail(say("The file is not an open document."));
+        return fail(QCoreApplication::translate("OdpImport", "The file is not an open document."));
     if (QDomDocument metaDom; m_pkg.hasPart(QStringLiteral("/meta.xml")) && parse(QStringLiteral("/meta.xml"), &metaDom, &why)) {
         m_metaDom = metaDom;
         m_meta = m_metaDom.documentElement();
     }
     const QDomElement body = kid(m_content, "office:body");
     const QDomElement presentation = kid(body, "office:presentation");
-    if (presentation.isNull()) return fail(say("The file is an open document, but not a presentation."));
+    if (presentation.isNull()) return fail(QCoreApplication::translate("OdpImport", "The file is an open document, but not a presentation."));
 
     // The styles, and the links text makes.
     m_common = std::make_shared<StyleSheet::Common>();
@@ -667,9 +666,9 @@ bool Reader::run(QString *error)
     readMeta();
     m_doc.masters.clear();
     readMasters();
-    if (m_masters.empty()) return fail(say("The presentation has no master page that can be read."));
+    if (m_masters.empty()) return fail(QCoreApplication::translate("OdpImport", "The presentation has no master page that can be read."));
     readSlides(presentation);
-    if (!ensureASlide(m_doc)) return fail(say("The presentation has no slides."));
+    if (!ensureASlide(m_doc)) return fail(QCoreApplication::translate("OdpImport", "The presentation has no slides."));
     for (const QString &text : leftOutNotes(m_doc.imagesLeftOut, m_pkg.skippedCount())) note(text);
 
     // The theme: the colors the first master names, and the fonts of its title and outline.
@@ -728,8 +727,8 @@ bool Reader::run(QString *error)
     for (const auto &pf : std::as_const(m_pendingFooters)) applyFooters(m_doc, pf.second, pf.first);
     if (m_footers) m_doc.appData[QStringLiteral("footers")] = true;
 
-    if (m_animations) note(say("The animations of %1 slides were left out.").arg(m_animations));
-    if (m_transitionsLost) note(say("The transitions of %1 slides have no match in JeffDeck, and were left out.").arg(m_transitionsLost));
+    if (m_animations) note(QCoreApplication::translate("OdpImport", "The animations of %1 slides were left out.").arg(m_animations));
+    if (m_transitionsLost) note(QCoreApplication::translate("OdpImport", "The transitions of %1 slides have no match in JeffDeck, and were left out.").arg(m_transitionsLost));
     return true;
 }
 

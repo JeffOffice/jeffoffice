@@ -44,7 +44,8 @@ QByteArray skeletonWithExtras(const QByteArray &skeleton, const SheetExtras &ext
 
 // The other parts, as bytes: `changed` says whether the output is not the input.
 bool moveWorkbookPart(const QByteArray &xml, const MoveContext &ctx, QByteArray *out, bool *changed);
-bool moveChartPart(const QByteArray &xml, const MoveContext &ctx, QByteArray *out, bool *changed);
+// `ownSheet` is the sheet the chart is on (a reference with no sheet in it, and a name of that sheet, are its).
+bool moveChartPart(const QByteArray &xml, const MoveContext &ctx, QByteArray *out, bool *changed, int ownSheet = 0);
 bool movePivotCachePart(const QByteArray &xml, const MoveContext &ctx, QByteArray *out, bool *changed);
 // A drawing of `sheet`: the cells its anchors name.
 bool moveDrawingPart(const QByteArray &xml, const MoveContext &ctx, int sheet, QByteArray *out, bool *changed);

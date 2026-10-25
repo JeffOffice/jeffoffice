@@ -15,8 +15,6 @@ namespace jp::deck {
 
 namespace {
 
-QString say(const char *text) { return QCoreApplication::translate("PptxTableStyles", text); }
-
 const QString kKey = QStringLiteral("tableStyles");
 constexpr int kMaxStyles = 64;
 constexpr qsizetype kMaxStyleBytes = 32 * 1024, kMaxTotalBytes = 256 * 1024;
@@ -61,7 +59,7 @@ void readTableStyleDefs(const QDomElement &list, const std::function<QString(con
     QJsonObject kept{{"styles", styles}};
     if (isGuid(def)) kept["def"] = def;
     doc.appData[kKey] = kept;
-    if (notes && (tooMany || tooLarge)) *notes << say("Some of the presentation's table styles are too many or too large to keep, so tables that use them take the usual style when they are changed.");
+    if (notes && (tooMany || tooLarge)) *notes << QCoreApplication::translate("PptxTableStyles", "Some of the presentation's table styles are too many or too large to keep, so tables that use them take the usual style when they are changed.");
 }
 
 office::TableStyleDefs tableStyleDefsOf(const Document &doc)

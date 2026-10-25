@@ -9,8 +9,6 @@ namespace jp::office {
 
 namespace {
 
-QString say(const char *text) { return QCoreApplication::translate("EmbeddedFont", text); }
-
 constexpr quint32 kVersion1 = 0x00010000, kVersion21 = 0x00020001, kVersion22 = 0x00020002;
 constexpr quint16 kMagic = 0x504C;
 constexpr quint32 kFlagCompressed = 0x4, kFlagScrambled = 0x10000000;
@@ -108,15 +106,15 @@ bool readEmbeddedFont(const QByteArray &data, QByteArray *font, FontFileInfo *in
     if (looksLikeFontFile(data)) {
         bytes = data;
     } else {
-        if (data.size() < kLeastHeader) return fail(say("The embedded font is too short to be a font."));
+        if (data.size() < kLeastHeader) return fail(QCoreApplication::translate("EmbeddedFont", "The embedded font is too short to be a font."));
         const qint64 total = le32(data, 0), fontSize = le32(data, 4);
         const quint32 version = le32(data, 8), flags = le32(data, 12);
-        if (version != kVersion1 && version != kVersion21 && version != kVersion22) return fail(say("The embedded font is in a form that is not read."));
-        if (le16(data, 34) != kMagic) return fail(say("The embedded font is damaged."));
-        if (total > data.size()) return fail(say("The embedded font is cut off."));
-        if (fontSize > kMaxEmbeddedFontBytes) return fail(say("The embedded font is larger than 32 MB."));
+        if (version != kVersion1 && version != kVersion21 && version != kVersion22) return fail(QCoreApplication::translate("EmbeddedFont", "The embedded font is in a form that is not read."));
+        if (le16(data, 34) != kMagic) return fail(QCoreApplication::translate("EmbeddedFont", "The embedded font is damaged."));
+        if (total > data.size()) return fail(QCoreApplication::translate("EmbeddedFont", "The embedded font is cut off."));
+        if (fontSize > kMaxEmbeddedFontBytes) return fail(QCoreApplication::translate("EmbeddedFont", "The embedded font is larger than 32 MB."));
         // Whatever the names and other things the header holds come to, the font is the last of the file.
-        if (fontSize > total - kLeastHeader) return fail(say("The embedded font is damaged."));
+        if (fontSize > total - kLeastHeader) return fail(QCoreApplication::translate("EmbeddedFont", "The embedded font is damaged."));
         bytes = data.mid(total - fontSize, fontSize);
         if (flags & kFlagScrambled)
             for (char &c : bytes) c = char(c ^ 0x50);

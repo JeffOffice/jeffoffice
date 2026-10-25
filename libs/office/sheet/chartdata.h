@@ -1,0 +1,142 @@
+#pragma once
+// Charts that follow their cells. A chart in a workbook says where each series reads its name, categories, and values (the c:f of its parts: "Sheet1!$B$2:$B$13",
+// "'My Sheet'!$A$1:$A$9", "(Sheet1!$A$2:$A$3,Sheet1!$A$6:$A$7)", a defined name, a whole column); the numbers the part also stores are what those cells held when the file was
+// saved. This puts what the cells hold now in the chart model (libs/office/office/chart.h), and says which cells a chart reads, so that whoever shows it can draw it again when one
+// of them changes. The drawing itself is chart.h's, as for presentations and documents.
+//
+// The cells are asked of a ChartCells, which the program gives (the window's reads the values its calculation has worked out), so no workbook is needed to test this. A reference it
+// cannot resolve (another workbook, a sheet that is not there, a name that is a formula) leaves the series as the file stored it. What a stranger's chart can ask is bounded: a
+// series reads at most kMaxChartSeriesCells cells and a chart kMaxChartCells, a reference has at most kMaxChartBlocks areas, and names are followed kMaxChartNameDepth deep.
+
+#include "calc/value.h"
+#include "office/chart.h"
+#include "sheet/cellref.h"
+#include "sheet/refshift.h"
+
+#include <QString>
+#include <QStringList>
+#include <QVector>
+
+#include <vector>
+
+namespace jp::office::sheet {
+
+constexpr int kMaxChartSeriesCells = 10000;   // as many points as chart.cpp keeps of a series
+constexpr int kMaxChartCells = 100000;        // and of a chart
+constexpr int kMaxChartBlocks = 1000;
+constexpr int kMaxChartNameDepth = 4;
+// The areas (and names) one reference may visit in all, however its names list one another: a name that lists itself a hundred times, or names that each list a hundred more, stop here.
+constexpr int kMaxChartVisits = 4 * kMaxChartBlocks;
+// The blocks the cells of one chart are watched by (all its series and titles); past it the chart is watched by the smallest block that holds them all, on each sheet.
+constexpr int kMaxChartReadBlocks = 2000;
+
+// What a chart reads of a workbook.
+class ChartCells {
+public:
+    virtual ~ChartCells();
+    virtual int sheetCount() const = 0;
+    // The place of the sheet with this name (capitals and small letters alike), -1 for none.
+    virtual int sheetIndex(const QString &name) const = 0;
+    // The value of a cell as the sheet has it now (empty for a cell that is not there), and the text its number format makes of it.
+    virtual jp::calc::Value value(int sheet, quint32 row, quint32 col) const = 0;
+    virtual QString text(int sheet, quint32 row, quint32 col) const = 0;
+    virtual bool rowHidden(int sheet, quint32 row) const = 0;
+    virtual bool columnHidden(int sheet, quint32 col) const = 0;
+    // The rows and columns the sheet's cells reach (a whole column is read as far as the rows go).
+    virtual void extent(int sheet, quint32 *rows, quint32 *cols) const = 0;
+    // What a defined name stands for, as written ("Sheet1!$A$1:$A$9"); empty if there is none. A name of the sheet itself is found before one of the workbook.
+    virtual QString definedName(const QString &name, int sheet) const = 0;
+};
+
+struct ChartBlock {
+    int sheet = 0;
+    CellRange range;
+};
+
+// The blocks of cells a reference names, in the order it lists them. `ownSheet` is the sheet a reference with no sheet in it is on. False if none of it could be resolved (blocks
+// that could are still given). A whole column or row is a block of all its cells; readChartRef reads it as far as the sheet's cells go.
+bool chartBlocks(const QString &ref, int ownSheet, const ChartCells &cells, QVector<ChartBlock> *out);
+
+// One cell of what a reference reads.
+struct ChartPoint {
+    bool empty = true;           // no cell, or an empty one
+    bool isNumber = false;       // a number, a date, or true or false (as 1 or 0)
+    double number = 0;
+    bool isError = false;
+    QString text;                // as the sheet shows it
+    bool hidden = false;         // in a hidden row or column
+};
+
+// What a reference reads, cell by cell, in order: row by row within each block. False if it could not be resolved. `cut` says it was cut at the limits above.
+struct ChartRefData {
+    QVector<ChartPoint> points;
+    qint64 rows = 0, cols = 0;   // of the first block
+    bool cut = false;
+};
+// `wantText` leaves the text of each point (what the sheet shows: a number formatted) unmade; a series of values needs only the numbers.
+bool readChartRef(const QString &ref, int ownSheet, const ChartCells &cells, int maxCells, ChartRefData *out, bool wantText = true);
+
+// Every block the chart reads (its series' names, categories, and values, and its linked titles), for deciding whether a change to the cells is one it draws. Blocks of a reference that
+// does not resolve are left out. At most kMaxChartReadBlocks are given as they are; past them the blocks are held, for each sheet, in one block that is the hull of what is past the limit (`cut`,
+// if given, says that was done: the chart is then drawn again for some cells it does not read, never for fewer than it does).
+QVector<ChartBlock> chartReads(const Chart &chart, int ownSheet, const ChartCells &cells, bool *cut = nullptr);
+
+// Which cells a chart reads, found without going over its blocks: the blocks of each sheet are kept in two balanced trees, one by rows (for the blocks that are wider than they are tall) and one
+// by columns (the others: a whole column is a block of every row), each node holding the farthest any block in its stretch reaches, so that whether a cell is read costs the depth of the
+// trees and the blocks that hold the cell's row (or column), however long or tall the blocks are. The smallest block of each sheet that holds them all is a first test. A chart that read more
+// blocks than kMaxChartReadBlocks has one more block of each sheet that is the hull of those past the limit (see chartReads), so none of what it reads goes unfollowed.
+class ChartReadIndex {
+public:
+    ChartReadIndex() = default;
+    explicit ChartReadIndex(const QVector<ChartBlock> &blocks);
+    bool isEmpty() const { return m_sheets.empty(); }
+    // Whether the chart reads the cell.
+    bool reads(int sheet, quint32 row, quint32 col) const;
+    // Whether the chart reads a cell of the sheet at all, and the smallest block of the sheet's cells that holds every cell it reads.
+    bool readsSheet(int sheet) const { return find(sheet) != nullptr; }
+    CellRange hull(int sheet) const;
+    // The blocks it was made from.
+    int blockCount() const { return m_count; }
+    // Places of the trees looked at by reads() so far (a test counts them).
+    qint64 probes() const { return m_probes; }
+
+private:
+    // A balanced tree held in a sorted list (the middle of each stretch is its root): the blocks by where they begin along one direction, and for each stretch's middle the farthest end
+    // along that direction of any block in the stretch.
+    struct Tree {
+        bool byRow = true;
+        std::vector<CellRange> blocks;
+        std::vector<quint32> reach;
+        void build(std::vector<CellRange> list, bool rows);
+        quint32 fill(size_t lo, size_t hi);
+        bool stab(size_t lo, size_t hi, quint32 along, quint32 across, qint64 *probes) const;
+    };
+    struct Sheet {
+        int sheet = 0;
+        CellRange hull;
+        Tree byRow, byColumn;
+    };
+    const Sheet *find(int sheet) const;
+    std::vector<Sheet> m_sheets;
+    int m_count = 0;
+    mutable qint64 m_probes = 0;
+};
+
+// Every reference of the chart in a fixed order (each series' name, categories, values, and x values, then the chart's title and its axes' titles; an empty text for one it has not), and
+// the same given back: what a chart keeps of where it reads, apart from the rest of the model.
+QStringList chartRefs(const Chart &chart);
+void setChartRefs(Chart *chart, const QStringList &refs);
+// One reference after the edits (the same text, if they do not change it); `ownSheet` as for moveChartRefs.
+QString movedChartRef(const QString &ref, const QStringList &sheetNames, const std::vector<StructEdit> &edits, int ownSheet = 0);
+
+// The chart's references after the edits that insert and delete rows and columns, as saving rewrites the chart part's (so a chart follows its cells when they move): each reference of
+// each series and linked title. `sheetNames` are the workbook's, in order.
+// `ownSheet` is the sheet the chart is on: a reference with no sheet in it, and a name of that sheet, are its.
+void moveChartRefs(Chart *chart, const QStringList &sheetNames, const std::vector<StructEdit> &edits, int ownSheet = 0);
+
+// Puts the cells' contents in the chart: for each series that has the reference, its name, categories (or a scatter's x values), and values, without the points of hidden rows and
+// columns when the chart leaves them out (plotVisibleOnly); a point of an empty cell is a blank (NaN) and a text is 0. Linked titles take their cells' text. Returns the number of
+// series whose values were read. A series whose reference does not resolve keeps what the file stored.
+int applyChartCells(Chart *chart, int ownSheet, const ChartCells &cells);
+
+} // namespace jp::office::sheet

@@ -102,6 +102,11 @@ jobs:
         if: runner.os == 'Linux'
         run: python3 tools/check_layers.py
 
+      # Every text marked for translation is in a form lupdate sees, and none can stall it (the nightly translate.yml runs it over the whole tree).
+      - name: Translation call check
+        if: runner.os == 'Linux'
+        run: python3 tools/check_translate_calls.py
+
       - name: Configure
         shell: bash
         env:

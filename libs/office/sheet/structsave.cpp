@@ -1078,9 +1078,9 @@ bool moveWorkbookPart(const QByteArray &xml, const MoveContext &ctx, QByteArray 
     return true;
 }
 
-bool moveChartPart(const QByteArray &xml, const MoveContext &ctx, QByteArray *out, bool *changed)
+bool moveChartPart(const QByteArray &xml, const MoveContext &ctx, QByteArray *out, bool *changed, int ownSheet)
 {
-    *out = rewriteElementText(xml, "f", [&](const QString &f) { return adjustAll(f, 0, ctx, true); });
+    *out = rewriteElementText(xml, "f", [&](const QString &f) { return adjustAll(f, ownSheet, ctx, true); });
     *changed = *out != xml;
     return true;
 }

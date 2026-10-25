@@ -90,6 +90,8 @@ public:
     static constexpr qint64 kLazyMaxInflated = qint64(4) << 30;
     bool readLazy(const QByteArray &zip, QString *error = nullptr, qint64 maxInflated = kLazyMaxInflated);
     bool readLazyFile(const QString &path, QString *error = nullptr);
+    // The same for a package of the open document kind (see readOpenDocument), kept compressed until a part is asked for.
+    bool readLazyOpenDocument(const QByteArray &zip, QString *error = nullptr, qint64 maxInflated = kLazyMaxInflated);
     bool isLazy() const;
     // For a lazy package: the file's bytes (shared, not copied), and the name the file gives the entry of a part (as the ZIP directory spells it, without the slash a part name
     // starts with, perhaps); empty for a part it does not have. Saving copies the entries of the parts that did not change from these bytes as they are.

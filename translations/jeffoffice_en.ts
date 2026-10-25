@@ -169,6 +169,61 @@
     </message>
 </context>
 <context>
+    <name>jp::crunch::SheetObjects</name>
+    <message numerus="yes">
+        <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
+        <translation>
+            <numerusform>The file stores this object together with %n other object, so they can&apos;t be deleted one at a time.</numerusform>
+            <numerusform>The file stores this object together with %n other objects, so they can&apos;t be deleted one at a time.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>jp::office::sheet::Ods</name>
+    <message numerus="yes">
+        <source>%n sheet name(s), made valid for an .xlsx file</source>
+        <translation>
+            <numerusform>%n sheet name, made valid for an .xlsx file</numerusform>
+            <numerusform>%n sheet names, made valid for an .xlsx file</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n name(s) the program could not convert, which are left out</source>
+        <translation>
+            <numerusform>%n name the program could not convert, which is left out</numerusform>
+            <numerusform>%n names the program could not convert, which are left out</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n merged range(s), past the most a sheet keeps, which are left out</source>
+        <translation>
+            <numerusform>%n merged range, past the most a sheet keeps, which is left out</numerusform>
+            <numerusform>%n merged ranges, past the most a sheet keeps, which are left out</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n setting(s) of cell styles, past the most one style keeps, which are left out</source>
+        <translation>
+            <numerusform>%n setting of cell styles, past the most one style keeps, which is left out</numerusform>
+            <numerusform>%n settings of cell styles, past the most one style keeps, which are left out</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n part(s) of number formats, past the most one format keeps, which are left out</source>
+        <translation>
+            <numerusform>%n part of number formats, past the most one format keeps, which is left out</numerusform>
+            <numerusform>%n parts of number formats, past the most one format keeps, which are left out</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n formula(s) the program could not convert, which keep the value the file stored</source>
+        <translation>
+            <numerusform>%n formula the program could not convert, which keeps the value the file stored</numerusform>
+            <numerusform>%n formulas the program could not convert, which keep the value the file stored</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::office::wml</name>
     <message numerus="yes">
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>

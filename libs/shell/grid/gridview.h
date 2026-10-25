@@ -5,6 +5,7 @@
 // look for, the numbers of a whole column) is done a few milliseconds at a time between events.
 
 #include "grid/gridsheet.h"
+#include "grid/overlay.h"
 #include "grid/painter.h"
 #include "grid/selection.h"
 #include "grid/stats.h"
@@ -139,6 +140,14 @@ public:
     void setDropDownCell(qint64 row, qint64 col);
     QRect dropDownRect() const;       // the button, in the viewport's pixels (empty when the cell is out of sight or too narrow)
     QRect dropDownCellRect() const;   // and the cell it is on
+    // Something drawn over the cells (the objects of a sheet) that also takes the clicks that land on it and the keys while it has something picked. Not owned: the owner takes it away
+    // (setOverlay(nullptr)) before it is destroyed.
+    void setOverlay(GridOverlay *overlay);
+    GridOverlay *overlay() const { return m_overlay; }
+    // The cells can be acted on (the usual): when not (a chart sheet, which shows a chart and no cells) there is no cell cursor, and a click, a key, a double click, and an input method
+    // do nothing to the cells.
+    void setCellsEnabled(bool enabled);
+    bool cellsEnabled() const { return m_cellsEnabled; }
     // A hook asked before a click changes the selection: false, and the click is ignored (the window finishes an entry first, and does not go on when it can't).
     void setClickGuard(std::function<bool()> guard) { m_clickGuard = std::move(guard); }
 
@@ -217,6 +226,8 @@ private:
     QRect fillHandleRectInLayout() const;
     QRect dropDownRectInLayout() const;
     bool borderAtInLayout(const QPoint &p, bool *column, qint64 *index) const;
+    void paintOverlay(QPainter *painter, const QRect &clip);
+    bool overlayPress(QMouseEvent *e);
     QRect bodyScrollRect(bool vertical) const;
 
     GridSheet m_sheet;
@@ -253,6 +264,8 @@ private:
     void afterPaint();
     qint64 m_blits = 0, m_fullScrolls = 0;
     std::function<bool()> m_clickGuard;
+    GridOverlay *m_overlay = nullptr;
+    bool m_cellsEnabled = true;
 };
 
 } // namespace jp::grid

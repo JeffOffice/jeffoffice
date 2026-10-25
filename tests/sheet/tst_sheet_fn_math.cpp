@@ -178,6 +178,67 @@ private Q_SLOTS:
         CHECK_EVALS(cases, Grid(), Settings());
     }
 
+    // CEILING.MATH(number, [significance], [mode]) and FLOOR.MATH(number, [significance], [mode]) (written _xlfn.CEILING.MATH in a file) as the common program defines them: the significance is 1 when it is left out, its sign
+    // is ignored, and 0 gives 0; a positive number goes up (CEILING.MATH) or down (FLOOR.MATH) to a multiple of it; a negative number goes toward plus infinity (CEILING.MATH) or away from
+    // zero (FLOOR.MATH) unless the mode is not 0, which turns that round (away from zero for CEILING.MATH, toward zero for FLOOR.MATH); the mode means nothing for a positive number.
+    void ceilingMathAndFloorMathFollowTheirDefinition()
+    {
+        const E cases[] = {
+            {"_xlfn.CEILING.MATH(24.3,5)", "n:25"},
+            {"_xlfn.CEILING.MATH(6.7)", "n:7"},
+            {"_xlfn.CEILING.MATH(-8.1,2)", "n:-8"},
+            {"_xlfn.CEILING.MATH(-8.1)", "n:-8"},
+            {"_xlfn.CEILING.MATH(5,0)", "n:0"},
+            {"_xlfn.CEILING.MATH(-5.5,2,-1)", "n:-6"},
+            {"_xlfn.CEILING.MATH(-5.5,2,1)", "n:-6"},
+            {"_xlfn.CEILING.MATH(-5.5,2,0)", "n:-4"},
+            {"_xlfn.CEILING.MATH(-5.5,-2)", "n:-4"},
+            {"_xlfn.CEILING.MATH(24.3,-5)", "n:25"},
+            {"_xlfn.CEILING.MATH(6.7,1,-1)", "n:7"},
+            {"_xlfn.CEILING.MATH(4.2,0.5)", "n:4.5"},
+            {"_xlfn.CEILING.MATH(0.3,0.1)", "n:0.3"},
+            {"_xlfn.CEILING.MATH(0)", "n:0"},
+            {"_xlfn.CEILING.MATH(-0.3)", "n:0"},
+            {"_xlfn.FLOOR.MATH(0.3)", "n:0"},
+            {"_xlfn.FLOOR.MATH(-0.3,1,1)", "n:0"},
+            {"_xlfn.CEILING.MATH(\"6.7\")", "n:7"},
+            {"_xlfn.CEILING.MATH(TRUE)", "n:1"},
+            {"_xlfn.CEILING.MATH(\"x\")", "e:#VALUE!"},
+            {"_xlfn.CEILING.MATH(2.1,\"x\")", "e:#VALUE!"},
+            {"_xlfn.ceiling.math(2.1)", "n:3"},
+            {"CEILING.MATH(2.1)", "!unsupported: CEILING.MATH"},   // (a newer function is written with its _xlfn. in a file; a typed entry gets it)
+            {"FLOOR.MATH(2.1)", "!unsupported: FLOOR.MATH"},
+            {"_xlfn.CEILING.MATH(2.1)", "n:3"},
+            {"_xlfn.FLOOR.MATH(24.3,5)", "n:20"},
+            {"_xlfn.FLOOR.MATH(6.7)", "n:6"},
+            {"_xlfn.FLOOR.MATH(-8.1,2)", "n:-10"},
+            {"_xlfn.FLOOR.MATH(-8.1)", "n:-9"},
+            {"_xlfn.FLOOR.MATH(5,0)", "n:0"},
+            {"_xlfn.FLOOR.MATH(-5.5,2,-1)", "n:-4"},
+            {"_xlfn.FLOOR.MATH(-5.5,2,1)", "n:-4"},
+            {"_xlfn.FLOOR.MATH(-5.5,2,0)", "n:-6"},
+            {"_xlfn.FLOOR.MATH(-5.5,-2)", "n:-6"},
+            {"_xlfn.FLOOR.MATH(24.3,-5)", "n:20"},
+            {"_xlfn.FLOOR.MATH(6.7,1,-1)", "n:6"},
+            {"_xlfn.FLOOR.MATH(4.2,0.5)", "n:4"},
+            {"_xlfn.FLOOR.MATH(0.7,0.1)", "n:0.7"},
+            {"_xlfn.FLOOR.MATH(-0.5)", "n:-1"},
+            {"_xlfn.FLOOR.MATH(0)", "n:0"},
+            {"_xlfn.FLOOR.MATH(\"x\")", "e:#VALUE!"},
+            {"_xlfn.FLOOR.MATH(6.7)", "n:6"},
+        };
+        CHECK_EVALS(cases, Grid(), Settings());
+        // over a range, in a formula that works on arrays, as ROUND does
+        const E arrays[] = {
+            {"SUMPRODUCT(ROUND(A1:A3/2,0))", "n:4"},
+            {"SUMPRODUCT(_xlfn.CEILING.MATH(A1:A3,2))", "n:8"},
+            {"SUMPRODUCT(IFERROR(_xlfn.CEILING.MATH(A1:A3,2),0))", "n:8"},
+            {"SUMPRODUCT(_xlfn.FLOOR.MATH(A1:A3,2))", "n:4"},
+            {"SUMPRODUCT(_xlfn.CEILING.MATH(B1:B3/7))", "n:10"},
+        };
+        CHECK_EVALS(arrays, sample(), Settings());
+    }
+
     void powersLogarithmsAndSigns()
     {
         const E cases[] = {

@@ -31,7 +31,6 @@ const QString kTypesNs = ns::ContentTypes;
 const QString kRelsNs = ns::PackageRelationships;
 const QString kRelsContentType = QStringLiteral("application/vnd.openxmlformats-package.relationships+xml");
 
-QString translate(const char *text) { return QCoreApplication::translate("Package", text); }
 
 // The key part names are compared by: absolute, without regard to case.
 QString nameKey(const QString &name)
@@ -283,6 +282,8 @@ struct Package::Lazy {
 
 bool Package::readLazy(const QByteArray &zip, QString *error, qint64 maxInflated) { return load(zip, error, true, maxInflated, true); }
 
+bool Package::readLazyOpenDocument(const QByteArray &zip, QString *error, qint64 maxInflated) { return load(zip, error, false, maxInflated, true); }
+
 bool Package::readLazyFile(const QString &path, QString *error)
 {
     QByteArray bytes;
@@ -317,7 +318,7 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
     // Too much is refused from the sizes in the directory, before anything is
     // inflated.
     auto tooMuch = [&] {
-        return fail(translate("The file would take more than %1 of memory to open, which is too much.")
+        return fail(QCoreApplication::translate("Package", "The file would take more than %1 of memory to open, which is too much.")
                         .arg(QLocale().formattedDataSize(maxInflated, 0, QLocale::DataSizeTraditionalFormat)));
     };
     qint64 declared = 0;
@@ -332,7 +333,7 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
         // until it is asked for. (As in readZip, of two entries of one name
         // the later one is the one that is read.)
         QVector<jp::ZipEntry> directory;
-        if (!jp::readZipDirectory(zip, &directory)) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
+        if (!jp::readZipDirectory(zip, &directory)) return fail(QCoreApplication::translate("Package", "The file is damaged, or is not a package of the kind this program opens."));
         state = std::make_shared<Lazy>();
         state->zip = zip;
         state->inflated->limit = maxInflated;
@@ -341,7 +342,7 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
             directoryEntries.insert(e.name, e);
         }
     } else {
-        if (!readZip(zip, items)) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
+        if (!readZip(zip, items)) return fail(QCoreApplication::translate("Package", "The file is damaged, or is not a package of the kind this program opens."));
         // Each entry was inflated into a buffer of the size the directory gave,
         // and refused if it did not fit exactly, so the total is no more than was
         // checked; looking again at what is there keeps that true whatever the
@@ -383,8 +384,8 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
                 continue;
             }
             types = dataOf(entry);
-            if (damaged) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
-            if (unguarded) return fail(translate("The file's [Content_Types].xml is damaged."));
+            if (damaged) return fail(QCoreApplication::translate("Package", "The file is damaged, or is not a package of the kind this program opens."));
+            if (unguarded) return fail(QCoreApplication::translate("Package", "The file's [Content_Types].xml is damaged."));
             haveTypes = true;
             continue;
         }
@@ -399,24 +400,24 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
         keys.insert(name.toLower());
         if (isRelationshipPart(name)) {
             relationshipParts.insert(name, dataOf(entry));
-            if (damaged) return fail(translate("The file is damaged, or is not a package of the kind this program opens."));
-            if (unguarded) return fail(translate("A part that holds the file's relationships, %1, is damaged.").arg(name));
+            if (damaged) return fail(QCoreApplication::translate("Package", "The file is damaged, or is not a package of the kind this program opens."));
+            if (unguarded) return fail(QCoreApplication::translate("Package", "A part that holds the file's relationships, %1, is damaged.").arg(name));
         } else {
             m_parts.insert(name, lazy ? QByteArray() : items.value(entry));
             m_names.insert(name.toLower(), name);
             if (lazy) state->entries.insert(name, directoryEntries.value(entry));
         }
     }
-    if (m_parts.size() > kMaxParts) return fail(translate("The file holds more parts than a document can, which is 10,000."));
+    if (m_parts.size() > kMaxParts) return fail(QCoreApplication::translate("Package", "The file holds more parts than a document can, which is 10,000."));
     m_lazy = state;
     if (!opc) return true;
-    if (!haveTypes) return fail(translate("The file has no [Content_Types].xml, so it is not a package."));
-    if (!parseContentTypes(types, &m_defaults, &m_overrides)) return fail(translate("The file's [Content_Types].xml is damaged."));
+    if (!haveTypes) return fail(QCoreApplication::translate("Package", "The file has no [Content_Types].xml, so it is not a package."));
+    if (!parseContentTypes(types, &m_defaults, &m_overrides)) return fail(QCoreApplication::translate("Package", "The file's [Content_Types].xml is damaged."));
     for (auto it = relationshipParts.cbegin(); it != relationshipParts.cend(); ++it) {
         const QString source = relationshipSource(it.key());
         QVector<Relationship> links;
         if (!parseRelationships(it.value(), source.isEmpty() ? QStringLiteral("/") : source, &links, &m_skipped))
-            return fail(translate("A part that holds the file's relationships, %1, is damaged.").arg(it.key()));
+            return fail(QCoreApplication::translate("Package", "A part that holds the file's relationships, %1, is damaged.").arg(it.key()));
         if (!source.isEmpty()) {
             QHash<QString, int> &ids = m_relIds[source.toLower()];
             for (int i = 0; i < int(links.size()); ++i) ids.insert(links[i].id, i);
@@ -431,7 +432,7 @@ bool readWholeFile(const QString &path, QByteArray *out, QString *error, qint64 
     out->clear();
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
-        if (error) *error = translate("The file couldn't be opened: %1").arg(f.errorString());
+        if (error) *error = QCoreApplication::translate("Package", "The file couldn't be opened: %1").arg(f.errorString());
         return false;
     }
     if (f.size() > most) {

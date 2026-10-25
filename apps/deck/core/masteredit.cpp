@@ -19,7 +19,6 @@ namespace {
 
 const QString kPreserve = QStringLiteral("preserve");
 
-QString say(const char *text) { return QCoreApplication::translate("Deck", text); }
 
 bool isFooter(const QString &type) { return type == QLatin1String("dt") || type == QLatin1String("ftr") || type == QLatin1String("sldNum"); }
 bool isTitle(const QString &type) { return type == QLatin1String("title") || type == QLatin1String("ctrTitle"); }
@@ -94,11 +93,11 @@ QString placeholderTypeOf(PlaceholderKind kind)
 
 QString placeholderLabel(const QString &type)
 {
-    if (type == QLatin1String("pic")) return say("Picture");
-    if (type == QLatin1String("chart")) return say("Chart");
-    if (type == QLatin1String("tbl")) return say("Table");
-    if (type == QLatin1String("media")) return say("Media");
-    if (type == QLatin1String("clipArt")) return say("Online Image");
+    if (type == QLatin1String("pic")) return QCoreApplication::translate("Deck", "Picture");
+    if (type == QLatin1String("chart")) return QCoreApplication::translate("Deck", "Chart");
+    if (type == QLatin1String("tbl")) return QCoreApplication::translate("Deck", "Table");
+    if (type == QLatin1String("media")) return QCoreApplication::translate("Deck", "Media");
+    if (type == QLatin1String("clipArt")) return QCoreApplication::translate("Deck", "Online Image");
     return QString();
 }
 
@@ -121,21 +120,21 @@ QString whyCantDelete(const Document &d, const MasterPage &page)
     const int used = slidesUsing(d, page);
     if (isSlideMaster(page)) {
         const int masters = int(std::count_if(d.masters.begin(), d.masters.end(), [](const auto &m) { return isSlideMaster(*m); }));
-        if (masters < 2) return say("This is the only slide master. A presentation needs at least one.");
-        if (used == 1) return say("1 slide uses this slide master. Give it a layout of another slide master first.");
+        if (masters < 2) return QCoreApplication::translate("Deck", "This is the only slide master. A presentation needs at least one.");
+        if (used == 1) return QCoreApplication::translate("Deck", "1 slide uses this slide master. Give it a layout of another slide master first.");
         if (used > 1) return QCoreApplication::translate("Deck", "%1 slides use this slide master. Give them layouts of another slide master first.").arg(used);
         return QString();
     }
-    if (used == 1) return say("1 slide uses this layout. Give it another layout first.");
+    if (used == 1) return QCoreApplication::translate("Deck", "1 slide uses this layout. Give it another layout first.");
     if (used > 1) return QCoreApplication::translate("Deck", "%1 slides use this layout. Give them another layout first.").arg(used);
-    if (isLayout(page) && layouts(d, page.baseId).size() < 2) return say("A slide master needs at least one layout.");
+    if (isLayout(page) && layouts(d, page.baseId).size() < 2) return QCoreApplication::translate("Deck", "A slide master needs at least one layout.");
     return QString();
 }
 
 bool deleteMasterPage(Document &d, const QString &id, QString *why)
 {
     MasterPage *page = d.master(id);
-    const QString reason = !page || !(isSlideMaster(*page) || isLayout(*page)) ? say("There is nothing to delete.") : whyCantDelete(d, *page);
+    const QString reason = !page || !(isSlideMaster(*page) || isLayout(*page)) ? QCoreApplication::translate("Deck", "There is nothing to delete.") : whyCantDelete(d, *page);
     if (!reason.isEmpty()) {
         if (why) *why = reason;
         return false;
@@ -234,7 +233,7 @@ Item *insertPlaceholder(Document &d, MasterPage &layout, PlaceholderKind kind)
     while (used.contains(number)) ++number;
     t->role = placeholderRole(type, number);
     const QString label = placeholderLabel(type);
-    t->name = QCoreApplication::translate("Deck", "%1 Placeholder").arg(label.isEmpty() ? (kind == PlaceholderKind::Text ? say("Text") : say("Content")) : label);
+    t->name = QCoreApplication::translate("Deck", "%1 Placeholder").arg(label.isEmpty() ? (kind == PlaceholderKind::Text ? QCoreApplication::translate("Deck", "Text") : QCoreApplication::translate("Deck", "Content")) : label);
     t->prompt.clear();
     // Where the body goes, moved aside from the placeholders that already stand there.
     QRectF rect = t->rect;

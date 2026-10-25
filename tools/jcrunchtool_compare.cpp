@@ -1,6 +1,8 @@
 // The comparison of two readings of one workbook, for the yardstick of the old binary format (docs/jeffcrunch.md, "`.xls`"): what the reader gets from a workbook in the old
 // form, and what it gets from the same workbook saved in the XML form by another program.
-//   jcrunchtool compare-one <ours.xls> <theirs.xlsx>   every cell of the two, side by side. Lines (tab-separated):
+//   jcrunchtool compare-one [--first-sheet] [--values-only] <ours> <theirs.xlsx>   every cell of the two, side by side (`ours` is a workbook in the old binary form, an .ods, or a .csv).
+//     --first-sheet compares the first sheet of each only (a .csv has one); --values-only leaves the formulas' texts and the number formats out (a .csv holds values and nothing else).
+//     Lines (tab-separated):
 //     `d`  sheet, cell, kind, ours, theirs      a difference: kind V a constant's value, W a formula's value, F a formula's text, N a number format, A a cell only ours has,
 //                                               B a cell only theirs has (a few of each kind: the first 60)
 //     `s`  the counts: sheets of ours, theirs, whether their names agree, cells with a value or a formula in either, in both, only in ours, only in theirs, constants that
@@ -184,8 +186,16 @@ bool sameFormat(const QString &a, const QString &b)
 
 namespace jp::crunchtool {
 
-int compareMain(const QStringList &args)
+int compareMain(const QStringList &argsIn)
 {
+    QStringList args = argsIn;
+    bool firstSheet = false, valuesOnly = false;
+    while (!args.isEmpty() && args.first().startsWith(QLatin1String("--"))) {
+        const QString flag = args.takeFirst();
+        if (flag == QLatin1String("--first-sheet")) firstSheet = true;
+        else if (flag == QLatin1String("--values-only")) valuesOnly = true;
+        else return -1;
+    }
     if (args.size() != 2) return -1;
     Workbook a, b;
     QString why;
@@ -197,7 +207,7 @@ int compareMain(const QStringList &args)
         out() << "!theirs\t" << why << "\n";
         return 1;
     }
-    const int sheets = int(std::min(a.info().sheets.size(), b.info().sheets.size()));
+    const int sheets = firstSheet ? 1 : int(std::min(a.info().sheets.size(), b.info().sheets.size()));
     bool namesAgree = a.info().sheets.size() == b.info().sheets.size();
     for (int i = 0; i < sheets; ++i)
         if (a.info().sheets[i].name != b.info().sheets[i].name) namesAgree = false;
@@ -244,6 +254,7 @@ int compareMain(const QStringList &args)
                     ++fvalDiff;
                     diff(i, c.row, c.col, 'W', valueText(mine), valueText(other));
                 }
+                if (!valuesOnly) {
                 const QString na = mine.formula ? normalizeFormula(mine.ftext) : QString(), nb = other.formula ? normalizeFormula(other.ftext) : QString();
                 auto isBoolean = [](const QString &n) { return n == QLatin1String("TRUE") || n == QLatin1String("FALSE"); };
                 if (mine.formula && other.formula && (na.startsWith(QLatin1String("TABLE(")) || nb.startsWith(QLatin1String("MULTIPLE.OPERATIONS(")))) {
@@ -260,6 +271,7 @@ int compareMain(const QStringList &args)
                     ++ftextDiff;
                     diff(i, c.row, c.col, 'F', mine.formula ? mine.ftext : QStringLiteral("(a value)"), other.formula ? other.ftext : QStringLiteral("(a value)"));
                 }
+                }
             } else if (exact) {
                 ++constSame;
             } else if (near) {
@@ -268,7 +280,7 @@ int compareMain(const QStringList &args)
                 ++constDiff;
                 diff(i, c.row, c.col, 'V', valueText(mine), valueText(other));
             }
-            if (mine.type == CellType::Number || mine.type == CellType::Date || mine.type == CellType::Empty) {
+            if (!valuesOnly && (mine.type == CellType::Number || mine.type == CellType::Date || mine.type == CellType::Empty)) {
                 const QString ca = a.styles().formatCode(mine.style), cb = b.styles().formatCode(other.style);
                 if (mine.type == CellType::Empty) return;
                 if (sameFormat(ca, cb)) ++fmtSame;

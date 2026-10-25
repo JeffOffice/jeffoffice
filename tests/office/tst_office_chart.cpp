@@ -1,12 +1,16 @@
 // Tests of libs/office: charts: reading them and drawing them as SVG.
 #include "officehelpers.h"
 #include "../timing.h"
+#include "core/fonts.h"
 
 class OfficeChartTests : public QObject {
     Q_OBJECT
 
 
 private Q_SLOTS:
+    // The program's own fonts and their stand-ins, as the apps load them at their start: the legend's size comes from its text, and a computer with
+    // other fonts (or, under the offscreen platform on Windows, none) would put the legend somewhere else.
+    void initTestCase() { jp::initCore(); }
 
     // ---- charts
 
@@ -698,6 +702,240 @@ private Q_SLOTS:
             if (pos == QLatin1String("l")) QVERIFY2(key.x() < img.width() * 0.4, qPrintable(QString::number(key.x())));
             QVERIFY(QString::fromUtf8(chartSvg(c, QSizeF(400, 300))).contains(QStringLiteral(">Only series<")));
         }
+    }
+
+    // ---- the places a file gives to the legend and the titles
+
+    // A bar chart of one series of the color, `values` over their names, whose columns touch (so that a column covers what is behind it), with an axis title if asked.
+    static QString oneSeriesPlot(const QString &color, const QVector<double> &values, const QString &axisTitle = QString(), const QString &axisTitleXml = QString(), const QString &catTitleXml = QString())
+    {
+        QStringList names;
+        for (int i = 0; i < values.size(); ++i) names << QString(QChar('a' + i));
+        const QString fill = QStringLiteral("<c:spPr><a:solidFill><a:srgbClr val=\"%1\"/></a:solidFill></c:spPr>").arg(color);
+        QString axes = chartAxes();
+        // (the value axis stops at the largest value, so that the tallest column reaches the top of the plot)
+        axes.replace(QStringLiteral("<c:axId val=\"222\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling>"), QStringLiteral("<c:axId val=\"222\"/><c:scaling><c:orientation val=\"minMax\"/><c:max val=\"1\"/><c:min val=\"0\"/></c:scaling>"));
+        if (!axisTitle.isEmpty()) axes.replace(QStringLiteral("<c:majorGridlines/>"), QStringLiteral("<c:majorGridlines/>") + axisTitleXml.arg(axisTitle));
+        if (!catTitleXml.isEmpty()) axes.replace(QStringLiteral("<c:axPos val=\"b\"/>"), QStringLiteral("<c:axPos val=\"b\"/>") + catTitleXml);
+        return QStringLiteral("<c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>") + chartSeries(0, QStringLiteral("Only series"), names, values, fill) + QStringLiteral("<c:gapWidth val=\"0\"/><c:axId val=\"111\"/><c:axId val=\"222\"/></c:barChart>") + axes;
+    }
+    static QString manualLayout(double x, double y, double w, double h, const QString &target = QString())
+    {
+        return QStringLiteral("<c:layout><c:manualLayout>%1<c:xMode val=\"edge\"/><c:yMode val=\"edge\"/><c:x val=\"%2\"/><c:y val=\"%3\"/>%4</c:manualLayout></c:layout>")
+            .arg(target.isEmpty() ? QString() : QStringLiteral("<c:layoutTarget val=\"%1\"/>").arg(target)).arg(x).arg(y)
+            .arg(w > 0 ? QStringLiteral("<c:w val=\"%1\"/><c:h val=\"%2\"/>").arg(w).arg(h) : QString());
+    }
+    static QByteArray withPlotLayout(const QByteArray &part, const QString &layout)
+    {
+        QByteArray out = part;
+        out.replace("<c:plotArea><c:layout/>", ("<c:plotArea>" + layout).toUtf8());
+        return out;
+    }
+    static Chart readOrFail(const QByteArray &part)
+    {
+        Chart c;
+        QString err;
+        if (!readChart(part, defaultTheme(), ColorMap(), &c, &err)) qFatal("%s", qPrintable(err));
+        return c;
+    }
+
+    // The legend's own place (c:legend's c:layout) is read: where its corner is, and how large it is if the file says; a file that gives no place, or none that can be used, has none.
+    void chartReadsTheLegendsOwnPlace()
+    {
+        const QString plot = oneSeriesPlot(QStringLiteral("FF0000"), {1, 0});
+        auto legend = [](const QString &layout) { return QStringLiteral("<c:legend><c:legendPos val=\"r\"/>") + layout + QStringLiteral("<c:overlay val=\"0\"/></c:legend>"); };
+        Chart c = readOrFail(chartPart(plot, QString(), legend(manualLayout(0.15, 0.2, 0.3, 0.1))));
+        QVERIFY(c.legend.manual);
+        QVERIFY(c.legend.edge);
+        QCOMPARE(c.legend.x, 0.15);
+        QCOMPARE(c.legend.y, 0.2);
+        QCOMPARE(c.legend.w, 0.3);
+        QCOMPARE(c.legend.h, 0.1);
+        // only a corner: its size is the entries'
+        c = readOrFail(chartPart(plot, QString(), legend(manualLayout(0.4, 0.5, 0, 0))));
+        QVERIFY(c.legend.manual);
+        QCOMPARE(c.legend.w, 0.0);
+        // a place that is how far to move it from where its position puts it
+        QString factor = manualLayout(0.1, -0.05, 0.2, 0.2);
+        factor.replace(QStringLiteral("<c:xMode val=\"edge\"/><c:yMode val=\"edge\"/>"), QStringLiteral("<c:xMode val=\"factor\"/><c:yMode val=\"factor\"/>"));
+        c = readOrFail(chartPart(plot, QString(), legend(factor)));
+        QVERIFY(c.legend.manual);
+        QVERIFY(!c.legend.edge);
+        QCOMPARE(c.legend.y, -0.05);
+        // none, and what is out of range
+        QVERIFY(!readOrFail(chartPart(plot, QString(), legend(QString()))).legend.manual);
+        c = readOrFail(chartPart(plot, QString(), legend(manualLayout(7, -3, 9, 0.2))));
+        QVERIFY(c.legend.manual);
+        QVERIFY(c.legend.x >= 0 && c.legend.x <= 1 && c.legend.y >= 0 && c.legend.y <= 1 && c.legend.w <= 1);
+        // the same for the legend's own fill and line: read when the file gives them
+        QString filled = legend(QString());
+        filled.replace(QStringLiteral("<c:overlay val=\"0\"/>"), QStringLiteral("<c:overlay val=\"0\"/><c:spPr><a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"0000FF\"/></a:solidFill></a:ln></c:spPr>"));
+        c = readOrFail(chartPart(plot, QString(), filled));
+        QCOMPARE(c.legend.fill, QColor(0, 255, 0));
+        QVERIFY(c.legend.border.set);
+        QCOMPARE(c.legend.border.color, QColor(0, 0, 255));
+    }
+
+    // The legend is where the file puts it: its key (a small square in the series' color) is inside the place, and not at the side its position says.
+    void aLegendWithItsOwnPlaceIsDrawnThere()
+    {
+        const QString plot = oneSeriesPlot(QStringLiteral("FF0000"), {1, 0});
+        const Chart c = readOrFail(chartPart(plot, QString(), QStringLiteral("<c:legend><c:legendPos val=\"r\"/>") + manualLayout(0.55, 0.05, 0.4, 0.15) + QStringLiteral("<c:overlay val=\"0\"/></c:legend>")));
+        const QSizeF size(400, 300);
+        const QImage img = renderChart(c, size, 2);
+        const QVector<QPointF> keys = colorComponents(img, Qt::red, 4);
+        // (the first column is the red at the left; the key is the red patch at the right)
+        QVERIFY(keys.size() >= 2);
+        const QPointF key = keys.last();
+        const QRectF place(0.55 * size.width() * 2, 0.05 * size.height() * 2, 0.4 * size.width() * 2, 0.15 * size.height() * 2);
+        QVERIFY2(place.contains(key), qPrintable(QStringLiteral("%1,%2").arg(key.x()).arg(key.y())));
+        // a legend of its own size and place (the file gives the width and height) draws its name inside the place
+        QRect text;
+        for (int y = int(place.top()); y < int(place.bottom()); ++y)
+            for (int x = int(place.left()); x < int(place.right()); ++x)
+                if (qRed(img.pixel(x, y)) < 90 && qGreen(img.pixel(x, y)) < 90 && qBlue(img.pixel(x, y)) < 90) text = text.isNull() ? QRect(x, y, 1, 1) : text.united(QRect(x, y, 1, 1));
+        QVERIFY(!text.isNull());
+        QVERIFY(text.left() > key.x());
+    }
+
+    // A legend over the plot (its overlay on) is drawn after it, so a column does not cover its name.
+    void aLegendOverThePlotIsNotCovered()
+    {
+        const QString plot = oneSeriesPlot(QStringLiteral("FF0000"), {0, 1});
+        const Chart c = readOrFail(chartPart(plot, QString(), QStringLiteral("<c:legend><c:legendPos val=\"tr\"/><c:overlay val=\"1\"/></c:legend>")));
+        const QSizeF size(400, 300);
+        const QImage img = renderChart(c, size, 2);
+        // the column at the right is red from the top of the plot down, under the legend; the legend's name is dark on it
+        int dark = 0;
+        for (int y = 0; y < int(0.12 * img.height()); ++y)
+            for (int x = int(0.55 * img.width()); x < img.width(); ++x) {
+                const QRgb p = img.pixel(x, y);
+                if (qRed(p) < 80 && qGreen(p) < 80 && qBlue(p) < 80) ++dark;
+            }
+        QVERIFY2(dark > 30, qPrintable(QString::number(dark)));
+        // and what is laid over the column is the legend's own white, when the file gives the legend a fill
+        QString filled = QStringLiteral("<c:legend><c:legendPos val=\"tr\"/><c:overlay val=\"1\"/><c:spPr><a:solidFill><a:srgbClr val=\"FFFFFF\"/></a:solidFill></c:spPr></c:legend>");
+        const QImage white = renderChart(readOrFail(chartPart(plot, QString(), filled)), size, 2);
+        // (inside the legend's corner: the column's red where the legend has no fill, the legend's white where it has)
+        QCOMPARE(white.pixel(img.width() - 40, 48), QColor(Qt::white).rgb());
+        QCOMPARE(img.pixel(img.width() - 40, 48), QColor(Qt::red).rgb());
+    }
+
+    // A plot the file fixes (as a rectangle of the chart) does not run under a legend that takes room at its side.
+    void aPlotTheFileFixesStaysOffTheLegend()
+    {
+        const QString plot = oneSeriesPlot(QStringLiteral("FF0000"), {1, 1, 1});
+        const QByteArray part = withPlotLayout(chartPart(plot, QString(), QStringLiteral("<c:legend><c:legendPos val=\"r\"/><c:overlay val=\"0\"/></c:legend>")), manualLayout(0.05, 0.05, 0.9, 0.8, QStringLiteral("inner")));
+        const Chart c = readOrFail(part);
+        QVERIFY(c.plotManual);
+        const QImage img = renderChart(c, QSizeF(400, 300), 2);
+        // the columns touch and fill the plot's width: where they end is where the plot does; the key (a red square) is at the legend, and the plot stops short of it (apart from it: two
+        // patches of red, not one that the plot runs into the legend with)
+        // (the thin lines between the categories may cut the columns' red, by where they fall in a pixel, so the plot is every red run but the last, which is the key)
+        const QVector<QRect> reds = colorRuns(img, Qt::red, false);
+        QVERIFY(reds.size() >= 2);
+        const QRect key = reds.last();
+        QVERIFY2(key.height() < img.height() / 10, qPrintable(QString::number(key.height())));
+        int plotRight = 0;
+        for (int i = 0; i + 1 < reds.size(); ++i) plotRight = std::max(plotRight, reds[i].right());
+        QVERIFY2(plotRight < key.left() - 4, qPrintable(QStringLiteral("%1 %2").arg(plotRight).arg(key.left())));
+        // with the legend moved over the plot, nothing is taken from it
+        const Chart over = readOrFail(withPlotLayout(chartPart(plot, QString(), QStringLiteral("<c:legend><c:legendPos val=\"r\"/><c:overlay val=\"1\"/></c:legend>")), manualLayout(0.05, 0.05, 0.9, 0.8, QStringLiteral("inner"))));
+        const QImage full = renderChart(over, QSizeF(400, 300), 2);
+        QVERIFY(colorBounds(full, Qt::red, false).right() > full.width() * 0.9);
+    }
+
+    // The title of an axis stands at the edge of the chart, outside the plot whatever the plot's own place, and where its own layout puts it, if it has one.
+    void axisTitlesStandOutsideAPlotTheFileFixes()
+    {
+        const QString title = QStringLiteral("<c:title><c:tx><c:rich><a:bodyPr/><a:p><a:pPr><a:defRPr sz=\"1000\"/></a:pPr><a:r><a:rPr lang=\"en-US\" sz=\"1000\"><a:solidFill><a:srgbClr val=\"FF00FF\"/></a:solidFill></a:rPr><a:t>%1</a:t></a:r></a:p></c:rich></c:tx>%2<c:overlay val=\"0\"/></c:title>");
+        const QString plot = oneSeriesPlot(QStringLiteral("0000FF"), {1, 0.5}, QStringLiteral("Dollars"), QString(title).replace(QStringLiteral("%2"), QString()));
+        const QSizeF size(400, 300);
+        const QString inner = manualLayout(0.2, 0.1, 0.75, 0.7, QStringLiteral("inner"));
+        const Chart c = readOrFail(withPlotLayout(chartPart(plot), inner));
+        QVERIFY(c.plotManual && c.plotInner);
+        const QImage img = renderChart(c, size, 2);
+        const QRect text = colorBounds(img, QColor(255, 0, 255), false);
+        QVERIFY(!text.isNull());
+        // the title is a column of turned text at the left edge of the chart, left of the plot (and of the labels along it)
+        QVERIFY2(text.right() < 0.2 * img.width() - 12, qPrintable(QString::number(text.right())));
+        QVERIFY2(text.left() < 0.08 * img.width(), qPrintable(QString::number(text.left())));
+        // the same with a plot whose place is the whole of what the plot and its labels take (an outer target)
+        const Chart outerPlot = readOrFail(withPlotLayout(chartPart(plot), manualLayout(0.2, 0.1, 0.75, 0.7, QStringLiteral("outer"))));
+        const QRect outerText = colorBounds(renderChart(outerPlot, size, 2), QColor(255, 0, 255), false);
+        QVERIFY(!outerText.isNull());
+        QVERIFY2(outerText.left() >= 0.2 * 2 * size.width() - 6 && outerText.left() < 0.2 * 2 * size.width() + 20, qPrintable(QString::number(outerText.left())));
+        // a title with a place of its own: its corner is where the layout says (as fractions of the chart)
+        const QString placed = QString(title).replace(QStringLiteral("%2"), manualLayout(0.02, 0.30, 0, 0));
+        const Chart own = readOrFail(withPlotLayout(chartPart(oneSeriesPlot(QStringLiteral("0000FF"), {1, 0.5}, QStringLiteral("Dollars"), placed)), inner));
+        QVERIFY(own.axes.size() >= 2);
+        bool found = false;
+        for (const ChartAxis &a : own.axes)
+            if (a.title.manual) {
+                found = true;
+                QCOMPARE(a.title.x, 0.02);
+                QCOMPARE(a.title.y, 0.30);
+            }
+        QVERIFY(found);
+        const QRect put = colorBounds(renderChart(own, size, 2), QColor(255, 0, 255), false);
+        QVERIFY(!put.isNull());
+        // (the box of the turned text starts there; the letters a little in from its sides)
+        QVERIFY2(put.left() >= 0.02 * 2 * size.width() - 2 && put.left() <= 0.02 * 2 * size.width() + 12, qPrintable(QString::number(put.left())));
+        QVERIFY2(put.top() >= 0.30 * 2 * size.height() - 2 && put.top() <= 0.30 * 2 * size.height() + 12, qPrintable(QString::number(put.top())));
+        // the title of the category axis, the same way
+        const QString catPlaced = QString(title).replace(QStringLiteral("%2"), manualLayout(0.40, 0.90, 0, 0));
+        const Chart cat = readOrFail(withPlotLayout(chartPart(oneSeriesPlot(QStringLiteral("0000FF"), {1, 0.5}, QString(), QString(), catPlaced.arg(QStringLiteral("Months")))), inner));
+        const QRect catPut = colorBounds(renderChart(cat, size, 2), QColor(255, 0, 255), false);
+        QVERIFY(!catPut.isNull());
+        QVERIFY2(catPut.left() >= 0.40 * 2 * size.width() - 2 && catPut.left() <= 0.40 * 2 * size.width() + 12 && catPut.top() >= 0.90 * 2 * size.height() - 2 && catPut.top() <= 0.90 * 2 * size.height() + 14,
+                 qPrintable(QStringLiteral("%1,%2").arg(catPut.left()).arg(catPut.top())));
+    }
+
+    // The title of the chart is across the top, or where its own layout puts its corner (as fractions of the chart); the plot is laid out the same either way.
+    void aChartTitleStandsWhereItsLayoutPutsIt()
+    {
+        auto titled = [](const QString &layout) {
+            return QStringLiteral("<c:title><c:tx><c:rich><a:bodyPr/><a:p><a:pPr><a:defRPr sz=\"1400\"/></a:pPr><a:r><a:rPr lang=\"en-US\" sz=\"1400\"><a:solidFill><a:srgbClr val=\"FF00FF\"/></a:solidFill></a:rPr><a:t>Sales</a:t></a:r></a:p></c:rich></c:tx>%1<c:overlay val=\"0\"/></c:title>")
+                .arg(layout);
+        };
+        const QString plot = oneSeriesPlot(QStringLiteral("0000FF"), {1, 0.5});
+        const QSizeF size(400, 300);
+        const QColor magenta(255, 0, 255), blue(0, 0, 255);
+        Chart usual = readOrFail(chartPart(plot, titled(QString())));
+        QVERIFY(usual.title.present && !usual.title.manual);
+        const QImage across = renderChart(usual, size, 2);
+        const QRect centered = colorBounds(across, magenta, false);
+        QVERIFY(!centered.isNull());
+        QVERIFY2(qAbs(centered.center().x() - int(size.width())) <= 8, qPrintable(QString::number(centered.center().x())));   // (the middle of the 800 pixels)
+        QVERIFY2(centered.top() < 40, qPrintable(QString::number(centered.top())));
+        Chart own = readOrFail(chartPart(plot, titled(manualLayout(0.55, 0.30, 0, 0))));
+        QVERIFY(own.title.manual);
+        QCOMPARE(own.title.x, 0.55);
+        QCOMPARE(own.title.y, 0.30);
+        const QImage placed = renderChart(own, size, 2);
+        const QRect put = colorBounds(placed, magenta, false);
+        QVERIFY(!put.isNull());
+        // (the box of the text starts at the corner; the letters a little in from it)
+        QVERIFY2(put.left() >= 0.55 * 2 * size.width() - 2 && put.left() <= 0.55 * 2 * size.width() + 12, qPrintable(QString::number(put.left())));
+        QVERIFY2(put.top() >= 0.30 * 2 * size.height() - 2 && put.top() <= 0.30 * 2 * size.height() + 14, qPrintable(QString::number(put.top())));
+        // the plot is where it was (the room the title would have taken is kept)
+        QCOMPARE(colorBounds(placed, blue, false), colorBounds(across, blue, false));
+    }
+
+    // A pie of negative values is drawn by their size, as the common programs draw it: the same as the pie of their absolute values.
+    void aPieOfNegativeValuesIsDrawnByTheirSize()
+    {
+        auto pie = [&](const QVector<double> &values) {
+            const QString plot = QStringLiteral("<c:pieChart><c:varyColors val=\"1\"/>") + chartSeries(0, QStringLiteral("S"), {"a", "b", "c"}, values) + QStringLiteral("<c:firstSliceAng val=\"0\"/></c:pieChart>");
+            return renderChart(readOrFail(chartPart(plot)), QSizeF(300, 300), 2);
+        };
+        const QImage positive = pie({3, 1, 2});
+        QVERIFY(colorBounds(positive, QColor(), true).width() > 200);
+        QCOMPARE(pie({-3, -1, -2}), positive);
+        QCOMPARE(pie({3, -1, 2}), positive);
+        // values of nothing are no slice, and nothing at all is a blank page
+        QVERIFY(colorBounds(pie({3, 0, 2}), QColor(), true).width() > 200);
+        QVERIFY(colorBounds(pie({0, 0, 0}), QColor(), true).isNull());
     }
 
     // A number format code is at most 255 characters (the spreadsheet limit); a longer one is not applied, and the numbers show as they are.

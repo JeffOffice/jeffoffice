@@ -37,19 +37,26 @@ int firstSheetToShow(const WorkbookInfo &info)
 
 namespace {
 
-// Workers that were stopped and are still going: waited for when the program ends (a thread must not be destroyed while it runs).
+// Workers that were stopped and are still going: waited for when the program ends (a thread must not be destroyed while it runs). A worker that was never stopped (its window was never
+// closed: a program that ends with a window open, as one that saves a picture of it and quits does) is told to stop first, or the program would wait for it for ever.
 struct Janitor {
+    struct Worker {
+        std::shared_ptr<QThread> thread;
+        std::function<void()> stop;
+    };
     std::mutex mutex;
-    std::vector<std::shared_ptr<QThread>> threads;
-    void add(const std::shared_ptr<QThread> &t)
+    std::vector<Worker> workers;
+    void add(const std::shared_ptr<QThread> &t, std::function<void()> stop)
     {
         std::lock_guard<std::mutex> lock(mutex);
-        threads.erase(std::remove_if(threads.begin(), threads.end(), [](const std::shared_ptr<QThread> &x) { return x->isFinished(); }), threads.end());
-        threads.push_back(t);
+        workers.erase(std::remove_if(workers.begin(), workers.end(), [](const Worker &x) { return x.thread->isFinished(); }), workers.end());
+        workers.push_back({t, std::move(stop)});
     }
     ~Janitor()
     {
-        for (const auto &t : threads) t->wait();
+        for (const Worker &w : workers)
+            if (w.stop) w.stop();
+        for (const Worker &w : workers) w.thread->wait();
     }
 };
 
@@ -73,14 +80,17 @@ std::atomic<int> g_workers{0};
 
 int WorkbookLoader::workersRunning() { return g_workers.load(); }
 
+void WorkbookLoader::stopAll(State &state)
+{
+    state.cancel = true;
+    state.stopCalc = true;
+    state.halt = true;
+    state.wake.notify_all();
+}
+
 void WorkbookLoader::cancel()
 {
-    if (m_state) {
-        m_state->cancel = true;
-        m_state->stopCalc = true;
-        m_state->halt = true;
-        m_state->wake.notify_all();
-    }
+    if (m_state) stopAll(*m_state);
     m_thread.reset();   // (the janitor keeps it until it is over)
 }
 
@@ -98,14 +108,14 @@ void WorkbookLoader::setPace(int micros)
     if (m_state) m_state->pace = micros;
 }
 
-void WorkbookLoader::startThread(std::function<void()> work)
+void WorkbookLoader::startThread(std::function<void()> work, const std::shared_ptr<State> &state)
 {
     m_thread = std::shared_ptr<QThread>(QThread::create([work] {
         ++g_workers;
         work();
         --g_workers;
     }));
-    janitor().add(m_thread);
+    janitor().add(m_thread, [state] { stopAll(*state); });
     m_thread->start();
 }
 
@@ -119,7 +129,7 @@ void WorkbookLoader::start(const QString &path)
     const std::shared_ptr<LoadedBook> result = m_result;
     const std::shared_ptr<State> state = m_state;
     const QPointer<WorkbookLoader> self(this);
-    startThread([path, result, state, self] { run(path, result, state, self); });
+    startThread([path, result, state, self] { run(path, result, state, self); }, state);
 }
 
 bool WorkbookLoader::recalculate()
@@ -191,7 +201,10 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     total.start();
     out->path = path;
     auto book = std::make_shared<Workbook>();
-    if (!book->openFile(path, why)) return false;   // (either kind: the package of XML parts, or the older binary form)
+    // (the read can be stopped while a large document's styles and settings are read, and while its sheets are)
+    Limits limits;
+    limits.cancelled = cancelled;
+    if (!book->openFile(path, why, limits)) return false;   // (any kind: the package of XML parts, the older binary form, or another format)
     out->book = book;
     out->notRead = book->skippedFeatures();
     const int shownSheet = firstSheetToShow(book->info());
@@ -248,7 +261,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
 
 QString fileKind(const QString &path)
 {
-    static const QStringList kinds = {QStringLiteral("xlsx"), QStringLiteral("xlsm"), QStringLiteral("xls")};
+    static const QStringList kinds = {QStringLiteral("xlsx"), QStringLiteral("xlsm"), QStringLiteral("xls"), QStringLiteral("ods"), QStringLiteral("fods"), QStringLiteral("csv"), QStringLiteral("tsv"), QStringLiteral("txt")};
     const QString ending = QFileInfo(path).suffix().toLower();
     return kinds.contains(ending) ? ending : QStringLiteral("other");
 }

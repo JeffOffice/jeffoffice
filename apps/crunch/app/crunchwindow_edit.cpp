@@ -4,6 +4,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/sheettabs.h"
+#include "core/sheetobjects.h"
 #include "core/editsession.h"
 #include "grid/gridview.h"
 #include "sheet/cellref.h"
@@ -26,6 +27,7 @@ void CrunchWindow::createEditing()
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, &CrunchWindow::onSizesChanged);
     connect(m_session.get(), &crunch::EditSession::sheetsChanged, this, &CrunchWindow::onSheetsChanged);
+    connectObjects();
     connect(m_session.get(), &crunch::EditSession::stepFailed, this, [this](const QString &what) {
         notice(tr("Undo"), what);
         updateEditActions();
@@ -64,8 +66,11 @@ void CrunchWindow::updateEditActions()
     act("edit.redo")->setEnabled(open && u->canRedo());
     act("edit.undo")->setToolTip(u && m_session->canUndo() ? tr("Undo %1 (%2)").arg(u->undoText(), QKeySequence(QKeySequence::Undo).toString(QKeySequence::NativeText)) : tr("Undo"));
     act("edit.redo")->setToolTip(u && u->canRedo() ? tr("Redo %1 (%2)").arg(u->redoText(), QKeySequence(QKeySequence::Redo).toString(QKeySequence::NativeText)) : tr("Redo"));
+    // (a chart sheet has no cells to work on: none of the commands that do is on while one is in view, and they are back on a sheet of cells)
     for (const QString &id : m_opsActions)
-        if (QAction *a = act(id)) a->setEnabled(open && m_loaded && m_loaded->problem.isEmpty());
+        if (QAction *a = act(id)) a->setEnabled(open && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown);
+    for (const char *id : {"edit.copy", "edit.selectAll", "view.formulas", "view.gridlines", "view.headings", "view.freeze", "view.freezeRow", "view.freezeCol", "view.unfreeze"})
+        if (QAction *a = act(QString::fromLatin1(id))) a->setEnabled(!m_chartSheetShown);
     const bool canSave = open && m_loaded && m_loaded->problem.isEmpty();
     act("file.save")->setEnabled(canSave);
     act("file.saveAs")->setEnabled(canSave);
@@ -91,6 +96,7 @@ bool CrunchWindow::editingAllowed()
 void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool fromBar)
 {
     if (m_edit.active) return;
+    if (m_objects && m_objects->isChartSheet(m_sheet)) return;   // (a chart sheet has no cells to type in)
     if (!editingAllowed()) return;
     const grid::Selection &sel = m_view->selection();
     const int sheet = m_sheet;
@@ -228,6 +234,7 @@ void CrunchWindow::cancelEdit()
 
 void CrunchWindow::onCellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells)
 {
+    if (m_objects) m_objects->cellsChanged(cells);
     if (sheet == m_sheet && m_view->valuesChanged(sheet, cells)) updateBars();
     if (m_undoing && !cells.empty()) {
         // Undo and Redo show the cell they changed

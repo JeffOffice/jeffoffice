@@ -27,10 +27,11 @@ constexpr int kMaxSeries = 256, kMaxPoints = 10000, kMaxPlots = 16, kMaxAxes = 1
 constexpr int kMaxChartPoints = 100000;
 // A number format code is at most 255 characters in a spreadsheet; a longer one is none, and the numbers show as they are.
 constexpr int kMaxFormatCode = 255;
+// The text of a reference to cells (a list of areas can be long, but a few thousand characters is far more than a chart has).
+constexpr int kMaxRefChars = 4096;
 // A title and the like: a paragraph or two.
 constexpr int kMaxTitle = 1000;
 
-QString say(const char *text) { return QCoreApplication::translate("Chart", text); }
 
 constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 
@@ -400,6 +401,7 @@ struct Data {
     QString format = QStringLiteral("General");
     bool numeric = false;   // the file stores numbers
     bool present = false;
+    QString ref;            // the c:f of the c:numRef or c:strRef the cache is of
 };
 
 class Reader {
@@ -522,6 +524,30 @@ QString Reader::richText(const QDomElement &rich, ChartFont *font, bool *hasRota
     return lines.join(QLatin1Char('\n')).left(kMaxTitle);
 }
 
+// c:layout's c:manualLayout of a legend or a title: where it is (`edge`: its corner, from the chart's edges; else how far it is moved from where it would be), and its size if given.
+struct Place {
+    bool valid = false, edge = true;
+    double x = 0, y = 0, w = 0, h = 0;
+};
+
+static Place readPlace(const QDomElement &layout)
+{
+    Place p;
+    const QDomElement manual = cChild(layout, "manualLayout");
+    if (manual.isNull() || cChild(manual, "x").isNull() || cChild(manual, "y").isNull()) return p;
+    p.edge = valOf(cChild(manual, "xMode"), QStringLiteral("factor")) == QLatin1String("edge") && valOf(cChild(manual, "yMode"), QStringLiteral("factor")) == QLatin1String("edge");
+    const double lowest = p.edge ? 0.0 : -1.0;
+    p.x = std::clamp(numberOf(cChild(manual, "x"), 0), lowest, 1.0);
+    p.y = std::clamp(numberOf(cChild(manual, "y"), 0), lowest, 1.0);
+    const double w = numberOf(cChild(manual, "w"), 0), h = numberOf(cChild(manual, "h"), 0);
+    if (w > 0 && h > 0) {
+        p.w = std::clamp(w, 0.01, 1.0);
+        p.h = std::clamp(h, 0.01, 1.0);
+    }
+    p.valid = true;
+    return p;
+}
+
 ChartTitle Reader::readTitle(const QDomElement &e) const
 {
     ChartTitle t;
@@ -532,6 +558,7 @@ ChartTitle Reader::readTitle(const QDomElement &e) const
         t.text = richText(r, &t.font, &t.hasRotation, &t.rotation);
     } else if (const QDomElement ref = cChild(tx, "strRef"); !ref.isNull()) {
         t.text = cChild(cChild(cChild(ref, "strCache"), "pt"), "v").text().left(kMaxTitle);
+        t.ref = cChild(ref, "f").text().trimmed().left(kMaxRefChars);
     }
     t.overlay = flagOf(cChild(e, "overlay"), false);
     const ChartFont fromProps = readTxPr(cChild(e, "txPr"), &t.hasRotation, &t.rotation);
@@ -541,6 +568,11 @@ ChartTitle Reader::readTitle(const QDomElement &e) const
     if (t.font.italic < 0) t.font.italic = fromProps.italic;
     if (!t.font.color.isValid()) t.font.color = fromProps.color;
     if (t.font.family.isEmpty()) t.font.family = fromProps.family;
+    if (const Place place = readPlace(cChild(e, "layout")); place.valid && place.edge) {
+        t.manual = true;
+        t.x = place.x;
+        t.y = place.y;
+    }
     return t;
 }
 
@@ -555,6 +587,7 @@ Data Reader::readData(const QDomElement &parent) const
         if (const QDomElement ref = cChild(parent, k.ref); !ref.isNull()) {
             cache = cChild(ref, k.cache);
             data.numeric = k.numeric;
+            data.ref = cChild(ref, "f").text().trimmed().left(kMaxRefChars);
             break;
         }
     if (cache.isNull())
@@ -641,10 +674,11 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     if (const QDomElement ref = cChild(tx, "strRef"); !ref.isNull()) {
         const QDomElement pt = cChild(cChild(ref, "strCache"), "pt");
         s.name = cChild(pt, "v").text().left(kChartMaxLabel);
+        s.nameRef = cChild(ref, "f").text().trimmed().left(kMaxRefChars);
     } else if (!tx.isNull()) {
         s.name = cChild(tx, "v").text().left(kChartMaxLabel);
     }
-    if (s.name.isEmpty()) s.name = say("Series%1").arg(idx + 1);
+    if (s.name.isEmpty()) s.name = QCoreApplication::translate("Chart", "Series%1").arg(idx + 1);
     // Its look.
     const QDomElement spPr = cChild(ser, "spPr");
     const bool stroked = plot.type == ChartType::Line || plot.type == ChartType::Scatter;
@@ -674,6 +708,9 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     const Data categories = readData(cChild(ser, scatter ? "xVal" : "cat"));
     s.values = values.numbers;
     s.format = values.format;
+    s.valueRef = values.ref;
+    (scatter ? s.xRef : s.categoryRef) = categories.ref;
+    s.categoryRefNumeric = categories.numeric;
     if (scatter) {
         s.xValues = categories.numbers;
         if (!categories.numeric && categories.present) {
@@ -685,6 +722,8 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     } else if (categories.numeric) {
         const NumberFormat format = readFormat(categories.format);
         for (double v : categories.numbers) s.categories << (std::isnan(v) ? QString() : formatWith(format, v).left(kChartMaxLabel));
+        s.categoryNumbers = categories.numbers;
+        s.categoryFormat = categories.format;
     } else {
         s.categories = categories.strings;
     }
@@ -845,12 +884,12 @@ bool Reader::read(const QDomElement &root, QString *error)
 {
     Chart &c = *m_chart;
     if (!isElement(root, kChartNs, QStringLiteral("chartSpace")) && !isElement(root, kStrictChartNs, QStringLiteral("chartSpace"))) {
-        if (error) *error = say("The part is not a chart.");
+        if (error) *error = QCoreApplication::translate("Chart", "The part is not a chart.");
         return false;
     }
     const QDomElement chart = cChild(root, "chart");
     if (chart.isNull()) {
-        if (error) *error = say("The chart has no drawing in it.");
+        if (error) *error = QCoreApplication::translate("Chart", "The chart has no drawing in it.");
         return false;
     }
     if (const QDomElement over = cChild(root, "clrMapOvr"); !over.isNull()) m_map = readColorMap(over);
@@ -891,11 +930,37 @@ bool Reader::read(const QDomElement &root, QString *error)
         c.legend.position = valOf(cChild(legend, "legendPos"), QStringLiteral("r"));
         c.legend.overlay = flagOf(cChild(legend, "overlay"), false);
         c.legend.font = readTxPr(cChild(legend, "txPr"));
+        if (const Place place = readPlace(cChild(legend, "layout")); place.valid) {
+            c.legend.manual = true;
+            c.legend.edge = place.edge;
+            c.legend.x = place.x;
+            c.legend.y = place.y;
+            c.legend.w = place.w;
+            c.legend.h = place.h;
+        }
+        if (const QDomElement spPr = cChild(legend, "spPr"); !spPr.isNull()) {
+            bool none = false;
+            readFill(spPr, &c.legend.fill, &none);
+            c.legend.border = readLine(spPr);
+        }
+    }
+    // Numbers for categories (dates, say) are shown through the category axis's own number format when it is not linked to the source's.
+    for (ChartPlot &plot : c.plots) {
+        const ChartAxis *axis = c.axis(plot.axisIds[0]);
+        if (!axis || axis->formatLinked || (axis->kind != ChartAxis::Category && axis->kind != ChartAxis::Date)) continue;
+        const NumberFormat format = readFormat(axis->format);
+        for (ChartSeries &s : plot.series) {
+            if (s.categoryNumbers.isEmpty()) continue;
+            s.categories.clear();
+            for (double v : std::as_const(s.categoryNumbers)) s.categories << (std::isnan(v) ? QString() : formatWith(format, v).left(kChartMaxLabel));
+        }
     }
     c.blanksAs = valOf(cChild(chart, "dispBlanksAs"), QStringLiteral("gap"));
+    c.plotVisibleOnly = flagOf(cChild(chart, "plotVisOnly"), true);
     applyStyleColors();
     // A title with no text of its own is named for the series, or has the usual words.
     if (c.title.present && c.title.text.isEmpty()) {
+        c.title.automatic = c.title.ref.isEmpty();
         int count = 0;
         QString only;
         for (const ChartPlot &p : std::as_const(c.plots))
@@ -903,10 +968,10 @@ bool Reader::read(const QDomElement &root, QString *error)
                 ++count;
                 only = s.name;
             }
-        c.title.text = count == 1 ? only : say("Chart Title");
+        c.title.text = count == 1 ? only : QCoreApplication::translate("Chart", "Chart Title");
     }
     for (ChartAxis &a : c.axes)
-        if (a.title.present && a.title.text.isEmpty()) a.title.text = say("Axis Title");
+        if (a.title.present && a.title.text.isEmpty()) a.title.text = QCoreApplication::translate("Chart", "Axis Title");
     return true;
 }
 

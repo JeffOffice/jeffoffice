@@ -392,6 +392,24 @@ Value fnFloor(Call &c)
     return numberResult(std::floor(roundTo15Digits(n / s)) * s);
 }
 
+// CEILING.MATH and FLOOR.MATH (number, [significance], [mode]): to a multiple of the significance, which is 1 when it is left out and whose sign is ignored (0 gives 0). A positive number
+// goes up (CEILING.MATH) or down (FLOOR.MATH); a negative one goes toward plus infinity (CEILING.MATH) or away from zero (FLOOR.MATH), and a mode that is not 0 turns that round. The mode
+// means nothing for a positive number.
+Value roundToMultiple(Call &c, bool up)
+{
+    double n, s, mode;
+    if (!c.number(0, &n) || !c.numberOr(1, 1, &s) || !c.numberOr(2, 0, &mode)) return c.failure();
+    s = std::fabs(s);
+    if (s == 0 || n == 0) return Value::number(0);
+    const double q = roundTo15Digits(n / s);
+    const bool goUp = (n < 0 && mode != 0) ? !up : up;
+    return numberResult((goUp ? std::ceil(q) : std::floor(q)) * s + 0.0);   // (+ 0.0: a result of -0 is 0)
+}
+
+Value fnCeilingMath(Call &c) { return roundToMultiple(c, true); }
+
+Value fnFloorMath(Call &c) { return roundToMultiple(c, false); }
+
 Value fnEven(Call &c)
 {
     double x;
@@ -600,6 +618,8 @@ void registerMathFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"TRUNC", 1, 2, "vv", 0, fnTrunc});
     r.push_back({"CEILING", 1, 2, "vv", 0, fnCeiling});
     r.push_back({"FLOOR", 1, 2, "vv", 0, fnFloor});
+    r.push_back({"CEILING.MATH", 1, 3, "vvv", kFnFuture, fnCeilingMath});
+    r.push_back({"FLOOR.MATH", 1, 3, "vvv", kFnFuture, fnFloorMath});
     r.push_back({"EVEN", 1, 1, "v", 0, fnEven});
     r.push_back({"ODD", 1, 1, "v", 0, fnOdd});
     r.push_back({"FACT", 1, 1, "v", 0, fnFact});

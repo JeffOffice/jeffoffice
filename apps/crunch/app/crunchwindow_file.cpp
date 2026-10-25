@@ -6,6 +6,7 @@
 #include "app/settings.h"
 #include "app/sheettabs.h"
 #include "app/telemetry.h"
+#include "core/sheetobjects.h"
 #include "core/appinfo.h"
 #include "core/threadtime.h"
 
@@ -29,6 +30,11 @@ void CrunchWindow::showBlank()
     d.strings = &m_emptyStrings;
     d.sheet = &m_emptySheet;
     m_view->setData(d);
+    // (a blank grid has cells: what a chart sheet had turned off is back)
+    m_chartSheetShown = false;
+    if (m_formulaBar) m_formulaBar->setReadOnly(false);
+    if (m_nameBox) m_nameBox->setEnabled(true);
+    if (!m_actions.isEmpty()) updateEditActions();
 }
 
 bool CrunchWindow::openFile(const QString &path)
@@ -77,6 +83,7 @@ void CrunchWindow::onFirstScreen()
     m_loaded = m_loader.result();
     if (!m_loaded || !m_loaded->book || !m_loaded->preview) return;
     m_haveFirstScreen = true;
+    openObjects();
     m_views.clear();
     m_sheet = m_loaded->previewSheet;
     fillTabs();
@@ -101,6 +108,8 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
         m_path.clear();
         m_session.reset();
         m_loaded.reset();
+        if (m_objects) m_objects->open(nullptr);   // (nothing opened: no object is left over the blank grid)
+        m_view->setCellsEnabled(true);
         showBlank();
         fillTabs();
         setStatus(tr("Ready"));
@@ -111,7 +120,10 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     }
     m_loaded = m_loader.result();
     m_haveCalc = true;
+    // (a workbook read from a file of another form: that file is the one never written, whatever the workbook is saved as)
+    m_originalPath = m_loaded->book->isConverted() ? m_path : QString();
     createEditing();
+    if (m_objects && m_loaded->calc) m_objects->setCells(m_loaded->calc.get(), &m_values);
     for (int i = 0; i < m_tabs->count(); ++i) m_tabs->setTabEnabled(i, true);
     // the stripes the sheets ask for, now that every sheet is read
     refreshStripes();
@@ -123,7 +135,9 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     m_calculating = true;
     setStatus(tr("Calculating…"));
     if (!m_loadProblem.isEmpty()) notice(tr("Open"), m_loadProblem, true);
-    if (!m_loaded->notRead.isEmpty()) notice(tr("Open"), crunch::notReadNotice(m_loaded->notRead));
+    // (what had to be changed is known once every sheet is read: sheet names the .xlsx form does not allow, and formulas that could not be converted)
+    const QStringList changed = m_loaded->book->changedFeatures();
+    if (!m_loaded->notRead.isEmpty() || !changed.isEmpty()) notice(tr("Open"), crunch::notReadNotice(m_loaded->notRead, changed));
     Q_EMIT loadFinished(true);
 }
 
@@ -183,6 +197,7 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
     // (the colors the buttons of the ribbon offer are the workbook's theme)
     if (m_fillButton) m_fillButton->setScheme(workbookColors());
     if (m_fontColorButton) m_fontColorButton->setScheme(workbookColors());
+    prepareObjects(sheetIndex);
     act("view.gridlines")->setChecked(m_view->showGridlines());
     act("view.headings")->setChecked(m_view->showHeadings());
     updateBars();
@@ -216,8 +231,7 @@ void CrunchWindow::setActiveSheet(int sheetIndex)
         m_switchingTabs = false;
     }
     showSheet(sheetIndex, false);
-    if (m_loaded->book->info().sheets[sheetIndex].kind == SheetKind::Chartsheet) setStatus(tr("This is a chart sheet; JeffCrunch doesn't show charts yet."));
-    else if (!m_calculating && !m_loading) setStatus(tr("Ready"));
+    if (!m_calculating && !m_loading) setStatus(tr("Ready"));
 }
 
 // ---- the calculation, on the worker
@@ -251,6 +265,7 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     if (m_session) m_session->dropRemovedSheets(&batch->items);   // (results for a sheet that Undo took away while it was being worked out)
     if (m_session) m_session->noteResults(batch->items);   // (before the store has them: it says what the engine had before)
     m_values.apply(batch->items);
+    if (m_objects) m_objects->cellsChanged(batch->items);
     m_workerCpuMicros = batch->workerCpuMicros;
     const bool active = m_view->valuesChanged(m_sheet, batch->items);
     if (active) updateBars();
