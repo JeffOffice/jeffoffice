@@ -43,6 +43,7 @@ void eachNameUse(const QString &s, F use)
     const int n = int(s.size());
     int i = 0;
     QString sheet;
+    bool external = false;   // a workbook's number in brackets was just read: what follows is another workbook's
     int sheetEnd = -1;   // where the "!" of a sheet that was just read is
     while (i < n) {
         const QChar c = s[i];
@@ -61,6 +62,7 @@ void eachNameUse(const QString &s, F use)
         }
         if (c == QLatin1Char('[')) {
             // a table's columns, or a workbook in brackets: passed over, brackets inside brackets and all
+            external = i == 0 || !(wordChar(s[i - 1]) || s[i - 1] == QLatin1Char(']'));
             int depth = 0;
             while (i < n) {
                 if (s[i] == QLatin1Char('[')) ++depth;
@@ -72,12 +74,22 @@ void eachNameUse(const QString &s, F use)
             }
             continue;
         }
+        if (external && c == QLatin1Char('!')) {
+            // "[1]!Total": a name of another workbook
+            ++i;
+            while (i < n && wordChar(s[i])) ++i;
+            external = false;
+            continue;
+        }
         if (c.isDigit()) {
             while (i < n && wordChar(s[i])) ++i;
             continue;
         }
         if (!wordStart(c)) {
-            if (c != QLatin1Char('!') && c != QLatin1Char('$')) sheet.clear();
+            if (c != QLatin1Char('!') && c != QLatin1Char('$')) {
+                sheet.clear();
+                external = false;
+            }
             ++i;
             continue;
         }
@@ -90,6 +102,7 @@ void eachNameUse(const QString &s, F use)
             i = next;
             continue;
         }
+        external = false;
         const bool qualified = sheetEnd >= 0 && start == sheetEnd + 1;
         const QString own = qualified ? sheet : QString();
         sheet.clear();
@@ -147,6 +160,7 @@ QString nameProblem(const QString &name)
 {
     if (name.isEmpty()) return QCoreApplication::translate("jp::office::sheet::Names", "A name needs at least one character.");
     if (name.size() > 255) return QCoreApplication::translate("jp::office::sheet::Names", "A name can have at most 255 characters.");
+    if (name.startsWith(QLatin1String("_xlnm."), Qt::CaseInsensitive)) return QCoreApplication::translate("jp::office::sheet::Names", "Names that begin with _xlnm. belong to the program's own use, such as print areas. Choose another.");
     if (!wordStart(name[0])) return QCoreApplication::translate("jp::office::sheet::Names", "A name begins with a letter, an underscore, or a backslash.");
     for (const QChar c : name) {
         if (c == QLatin1Char(' ')) return QCoreApplication::translate("jp::office::sheet::Names", "A name can't have a space in it. Use an underscore or a dot instead.");

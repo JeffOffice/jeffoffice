@@ -796,6 +796,11 @@ bool patchWorkbookSheets(const QByteArray &xml, const Workbook &book, QByteArray
 // ---- the workbook's defined names and calculation settings
 
 namespace {
+std::atomic<qint64> g_namesWork{0};
+}
+qint64 patchDefinedNamesWork() { return g_namesWork.load(); }
+
+namespace {
 
 // Where a calcPr or definedNames element is made when the file has none: after the last of the elements the format puts before it.
 qsizetype placeAfterNames(const QByteArray &xml, bool includeNames)
@@ -824,6 +829,7 @@ QByteArray nameElement(const QByteArray &p, const NameChange &c, int id)
 
 bool patchDefinedNames(const QByteArray &xml, const std::vector<NameChange> &changes, const QVector<int> &order, QByteArray *out)
 {
+    ++g_namesWork;
     *out = xml;
     if (changes.empty()) return true;
     auto idOf = [&](int place) { return place < 0 ? -1 : int(order.indexOf(place)); };
@@ -835,6 +841,7 @@ bool patchDefinedNames(const QByteArray &xml, const std::vector<NameChange> &cha
         bool used = false;
     };
     std::vector<Existing> existing;
+    QHash<QString, std::vector<size_t>> byKey;   // the elements by the place of their sheet and their name in capitals, in the order they come
     Tag list, listClose;
     const bool hasList = findStart(xml, "definedNames", &list);
     if (hasList && !list.selfClosing) {
@@ -861,6 +868,8 @@ bool patchDefinedNames(const QByteArray &xml, const std::vector<NameChange> &cha
                 e.textEnd = close.start;
                 pos = close.end;
             }
+            ++g_namesWork;
+            byKey[QString::number(e.id) + QLatin1Char('|') + e.name.toUpper()].push_back(existing.size());
             existing.push_back(e);
         }
     }
@@ -874,12 +883,16 @@ bool patchDefinedNames(const QByteArray &xml, const std::vector<NameChange> &cha
     qint64 removed = 0, addedCount = 0;
     for (const NameChange &c : changes) {
         Existing *found = nullptr;
-        if (c.hadOld)
-            for (Existing &e : existing)
-                if (!e.used && e.id == idOf(c.oldPlace) && e.name.compare(c.oldName, Qt::CaseInsensitive) == 0) {
-                    found = &e;
-                    break;
-                }
+        if (c.hadOld) {
+            ++g_namesWork;
+            const auto at = byKey.constFind(QString::number(idOf(c.oldPlace)) + QLatin1Char('|') + c.oldName.toUpper());
+            if (at != byKey.constEnd())
+                for (const size_t k : at.value())
+                    if (!existing[k].used) {
+                        found = &existing[k];
+                        break;
+                    }
+        }
         if (found) found->used = true;
         if (c.remove) {
             if (found) {

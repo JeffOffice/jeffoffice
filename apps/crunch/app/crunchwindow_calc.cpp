@@ -33,7 +33,7 @@ void CrunchWindow::createCalcActions()
         QString text;
     };
     const Mode kinds[] = {{"formulas.calcAuto", CalcMode::Auto, tr("Automatic")},
-                          {"formulas.calcNoTables", CalcMode::AutoNoTable, tr("Automatic, Skipping Data Tables")},
+                          {"formulas.calcNoTables", CalcMode::AutoNoTable, tr("Automatic, Tables by Hand")},
                           {"formulas.calcManual", CalcMode::Manual, tr("Manual")}};
     for (const Mode &k : kinds) {
         QAction *a = mk(QString::fromLatin1(k.id), k.text, "", QKeySequence(), [this, mode = k.mode] { setCalculationMode(mode); }, true, false);
@@ -112,7 +112,11 @@ void CrunchWindow::sendCalcSettings()
 {
     if (!m_session) return;
     const crunch::CalcSettings s = m_session->calcSettings();
-    m_loader.setManual(s.mode == CalcMode::Manual);
+    const bool manual = s.mode == CalcMode::Manual;
+    m_loader.setManual(manual);
+    // (back to automatic: what waited for the key, being worked out by the next change, is worked out now)
+    if (m_manualNow && !manual && m_loader.recalculate()) m_calculating = true;
+    m_manualNow = manual;
     if (s.mode != CalcMode::Manual) m_calcDue = false;
     const char *id = s.mode == CalcMode::Manual ? "formulas.calcManual" : s.mode == CalcMode::AutoNoTable ? "formulas.calcNoTables" : "formulas.calcAuto";
     if (QAction *a = act(QString::fromLatin1(id))) a->setChecked(true);

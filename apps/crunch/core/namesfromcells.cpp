@@ -22,10 +22,11 @@ QString nameFromLabel(const QString &label)
             name += QLatin1Char('_');   // (a space, or a mark a name can't have)
         }
     }
-    if (!anyWord) return QString();
+    if (!anyWord || name.startsWith(QLatin1String("_xlnm."), Qt::CaseInsensitive)) return QString();
     if (!name[0].isLetter() && name[0] != QLatin1Char('_')) name.prepend(QLatin1Char('_'));
     if (!jp::office::sheet::nameProblem(name.left(255)).isEmpty()) name.prepend(QLatin1Char('_'));   // (a cell's address, such as Q1)
     name = name.left(255);
+    if (name.startsWith(QLatin1String("_xlnm."), Qt::CaseInsensitive)) return QString();
     return jp::office::sheet::nameProblem(name).isEmpty() ? name : QString();
 }
 

@@ -152,7 +152,9 @@ public:
     bool defineNameCommand();
     bool nameFromCellsCommand();
     bool insertName(const QString &name);
-    QMenu *namesMenu();   // the names to choose from, as a menu (not shown); the caller owns it
+    QMenu *namesMenu();
+    // For tests: how many times the sorted list the menu shows was made (it is made again only when a name or the sheet in view changes).
+    int namesMenuBuilds() const { return m_menuBuilds; }   // the names to choose from, as a menu (not shown); the caller owns it
     void setNameAsker(const std::function<bool(crunch::EditSession::NameDraft *)> &asker) { m_nameAsker = asker; }
     void setEdgesAsker(const std::function<bool(int *)> &asker) { m_edgesAsker = asker; }
     // How the workbook calculates: the mode (a change of it is one step of Undo), the circles, and the work that waits when it is done by hand.
@@ -525,6 +527,9 @@ private:
     bool m_tracedUp = false, m_tracedDown = false;
     bool startTrace(bool up);
     QLabel *m_calcNote = nullptr;
+    std::vector<int> m_menuNames;
+    qint64 m_menuGeneration = -1;
+    int m_menuSheet = -2, m_menuBuilds = 0;
     FormulaHelper *m_helper = nullptr;
     crunch::CompletionIndex m_completions;
     qint64 m_completionsGeneration = -1;
@@ -532,7 +537,7 @@ private:
     std::function<bool(crunch::EditSession::NameDraft *)> m_nameAsker;
     std::function<bool(int *)> m_edgesAsker;
     std::function<bool(crunch::CalcSettings *)> m_iterationAsker;
-    bool m_calcDue = false;
+    bool m_calcDue = false, m_manualNow = false;
     qint64 m_circular = 0;
     std::vector<jp::office::sheet::Calculation::CircularCell> m_circleCells;   // the first of them, in the order of the sheets and cells
     int m_circularNotices = 0;

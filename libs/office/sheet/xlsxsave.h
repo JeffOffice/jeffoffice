@@ -282,6 +282,8 @@ bool setFullCalcOnLoad(const QByteArray &xml, QByteArray *out);
 // The workbook part with the defined names changed as the list says (names not in it are left byte for byte as they are). `order` is the places of the sheets in the order of the tabs, which the
 // file's `localSheetId` counts by (the part is as patchWorkbookSheets left it). False (nothing changed) if the part is not in a form this changes.
 bool patchDefinedNames(const QByteArray &xml, const std::vector<NameChange> &changes, const QVector<int> &order, QByteArray *out);
+// For tests: the elements and lookups patchDefinedNames has made in all (it is linear in the names and the changes).
+qint64 patchDefinedNamesWork();
 // The workbook part with its calcPr saying how the workbook calculates (made if there is none).
 bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterateCount, double iterateDelta, QByteArray *out);
 // The hidden name that other programs keep for the range of a sheet's filter (`_xlnm._FilterDatabase`, of the sheet at `localSheetId` in the workbook's list of sheets) made, changed, or taken

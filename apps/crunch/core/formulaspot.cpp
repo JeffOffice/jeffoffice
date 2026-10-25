@@ -4,6 +4,7 @@
 
 #include <QCoreApplication>
 #include <QLocale>
+#include <QSet>
 
 #include <algorithm>
 
@@ -103,8 +104,15 @@ void CompletionIndex::build(const NameTable &names, int sheet, const QStringList
             m_names.push_back({t.toUpper(), t, -1, true});
             ++taken;
         }
+    // (a name of this sheet hides the workbook's of the same text here: that one is offered, once)
+    QSet<QString> own;
+    for (int id = 0; id < names.slots(); ++id) {
+        const NameEntry &e = names.at(id);
+        if (e.alive && !e.hidden && e.scope == sheet && sheet >= 0) own.insert(e.name.toUpper());
+    }
     for (int id = 0; id < names.slots() && taken < kMaxNamesIndexed; ++id) {
         const NameEntry &e = names.at(id);
+        if (e.scope < 0 && own.contains(e.name.toUpper())) continue;
         if (!e.alive || e.hidden || (e.scope >= 0 && e.scope != sheet)) continue;
         m_names.push_back({e.name.toUpper(), e.name, id, false});
         ++taken;

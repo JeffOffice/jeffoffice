@@ -135,7 +135,7 @@ private Q_SLOTS:
         int made = -1;
         QVERIFY(s->defineName(draft(QStringLiteral("Tax"), QStringLiteral("=Sheet1!$C$2*2")), &made).ok);
         QCOMPARE(u->count(), before + 1);
-        QCOMPARE(u->undoText(), QStringLiteral("Define Name"));
+        QCOMPARE(u->undoText(), QStringLiteral("New Name"));
         QVERIFY(s->nameListed(made));
         QCOMPARE(s->nameValueOf(made), QStringLiteral("14"));
         QVERIFY(s->type(0, 3, 0, QStringLiteral("=Tax+1")).ok);
@@ -339,7 +339,7 @@ private Q_SLOTS:
         now.count = 7;
         now.delta = 0.5;
         QVERIFY(s->setCalcSettings(now).ok);
-        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Calculation Options"));
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("How Formulas Are Worked Out"));
         QCOMPARE(changed.count(), 1);
         QCOMPARE(int(s->calcSettings().mode), int(CalcMode::Manual));
         QVERIFY(s->setCalcSettings(now).ok);   // (the same: nothing to do)

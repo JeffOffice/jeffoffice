@@ -28,7 +28,7 @@ Type **=** and the first letters of a function, and a short list shows the funct
 Click **Calculation Mode** on the **Formulas** tab to choose how the workbook works its formulas out:
 
 - **Automatic** works them out as you change cells.
-- **Automatic, Skipping Data Tables** does the same, and is kept in the file for programs that treat data tables apart.
+- **Automatic, Tables by Hand** does the same, and is kept in the file for programs that treat data tables apart.
 - **Manual** works nothing out until you ask. The status bar says **Out of date** after a change. Press **F9** (**Recalculate All**) to work everything out, or **Shift+F9** (**Recalculate This Sheet**) to work out the formulas of the sheet you are on, and whatever else was waiting. A workbook that is set to Manual opens with the results its file holds.
 
 The choice is saved with the workbook, and it is one step you can undo.
@@ -41,4 +41,4 @@ Some models need such a circle on purpose. Choose **Go Round Circular Formulas**
 
 ## See what a formula reads
 
-Select a cell and click **Show What Feeds This Cell** to draw arrows from the cells its formula reads. Click again to go one step further back. **Show What Uses This Cell** draws arrows to the formulas that read the cell, and each click goes one step on. A small page stands for a cell on another sheet. At most 2,000 arrows are drawn, and the status bar says when there were more. **Remove Arrows** clears them, and so does any change to the workbook.
+Select a cell and click **Show What Feeds This Cell** to draw arrows from the cells its formula reads. Click again to go one step further back. **Show What Uses This Cell** draws arrows to the formulas that read the cell, and each click goes one step on. A small page stands for a cell on another sheet. At most 2,000 arrows are drawn, and the status bar says when there were more. **Clear Arrows** clears them, and so does any change to the workbook.

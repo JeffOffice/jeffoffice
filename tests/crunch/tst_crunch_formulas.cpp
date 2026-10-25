@@ -436,7 +436,7 @@ private Q_SLOTS:
         d.newName();
         QCOMPARE(asked.text, QStringLiteral("=Sheet1!$B$1"));
         QCOMPARE(d.model()->rowCount(), 4);
-        QCOMPARE(w.undoStack()->undoText(), QStringLiteral("Define Name"));
+        QCOMPARE(w.undoStack()->undoText(), QStringLiteral("New Name"));
         // change one
         d.table()->selectRow(d.model()->rowOf(s->names().find(-1, QStringLiteral("Double"))));
         d.setEditAsker([&asked](crunch::EditSession::NameDraft *draft) {
@@ -473,7 +473,7 @@ private Q_SLOTS:
         start.text = QStringLiteral("=Sheet1!$A$1");
         NameEditDialog d(e.win.w.session(), -1, start, QStringList({QStringLiteral("Sheet1"), QStringLiteral("Sheet2")}));
         d.show();
-        QCOMPARE(d.windowTitle(), QStringLiteral("Define Name"));
+        QCOMPARE(d.windowTitle(), QStringLiteral("New Name"));
         QVERIFY(!d.okButton()->isEnabled());                    // (no name yet)
         d.nameBox()->setText(QStringLiteral("A1"));
         QVERIFY(!d.okButton()->isEnabled());
@@ -512,7 +512,7 @@ private Q_SLOTS:
         w.setLocale(kEnglish);
         QVERIFY(e.settle());
         crunch::EditSession *s = w.session();
-        // Define Name: the cells selected are what the name begins as standing for
+        // New Name: the cells selected are what the name begins as standing for
         e.view()->selectRange(1, 0, 2, 0);
         crunch::EditSession::NameDraft asked;
         w.setNameAsker([&asked](crunch::EditSession::NameDraft *d) {
@@ -586,7 +586,7 @@ private Q_SLOTS:
         QStringList entries;
         for (QAction *a : menu->actions())
             if (!a->isSeparator()) entries << a->text();
-        QCOMPARE(entries, QStringList({"Alpha", "TaxRate", "All Names…"}));   // (in order)
+        QCOMPARE(entries, QStringList({"Alpha", "TaxRate", "More…"}));   // (in order)
         // into a formula being typed, at the cursor
         e.select(QStringLiteral("C1"));
         e.type(QStringLiteral("=1+"));
@@ -648,7 +648,7 @@ private Q_SLOTS:
         QVERIFY(note->text().isEmpty());
         // back to automatic: the next change is worked out by itself
         w.act(QStringLiteral("formulas.calcAuto"))->trigger();
-        QCOMPARE(w.undoStack()->undoText(), QStringLiteral("Calculation Options"));
+        QCOMPARE(w.undoStack()->undoText(), QStringLiteral("How Formulas Are Worked Out"));
         QVERIFY(w.session()->type(0, 0, 0, QStringLiteral("6")).ok);
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:12"));
@@ -681,6 +681,186 @@ private Q_SLOTS:
         w.act(QStringLiteral("formulas.calculate"))->trigger();
         QTRY_COMPARE(w.session()->valueAt(1, 0, 1).debug(), QStringLiteral("n:60"));
         QTRY_VERIFY(!w.calculationDue());
+    }
+
+    void aFormulaTypedInAWorkbookWorkedOutByHandIsWorkedOutAtOnce()
+    {
+        EditWindow e;
+        QVERIFY(e.open(manualBook()));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QVERIFY(w.session()->type(0, 0, 0, QStringLiteral("5")).ok);
+        QVERIFY(w.session()->type(0, 0, 2, QStringLiteral("=A1*3")).ok);
+        QTRY_COMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:15"));   // (the cell typed in, at once)
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:0"));        // (what reads A1 waits)
+        QTRY_VERIFY(w.calculationDue());
+        // one that reads a formula that waits has it worked out too
+        QVERIFY(w.session()->type(0, 0, 3, QStringLiteral("=B1+1")).ok);
+        QTRY_COMPARE(e.valueAt(QStringLiteral("D1")), QStringLiteral("n:11"));
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:10"));
+        // back to automatic: what waited is worked out
+        w.act(QStringLiteral("formulas.calcAuto"))->trigger();
+        QTRY_VERIFY(!w.calculationDue());
+    }
+
+    void oneSheetWorkedOutByHandClearsTheNoteWhenNothingWaits()
+    {
+        EditWindow e;
+        QVERIFY(e.open(manualBook()));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QVERIFY(w.session()->type(0, 0, 0, QStringLiteral("5")).ok);
+        QTRY_VERIFY(w.calculationDue());
+        w.act(QStringLiteral("formulas.calculateSheet"))->trigger();
+        QTRY_COMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:10"));
+        QTRY_VERIFY(!w.calculationDue());
+        QVERIFY(w.findChild<QLabel *>(QStringLiteral("calcNote"))->text().isEmpty());
+    }
+
+    void theProgramsOwnNamesAreRefusedEverywhere()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=_xlnm.Print_Area", "B1=Qty", "A2=1", "B2=2"}}, {}, {}, QStringLiteral("<definedName name=\"Rate\">Sheet1!$A$2</definedName>"))));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QVERIFY(e.settle());
+        crunch::EditSession *s = w.session();
+        crunch::EditSession::NameDraft d;
+        d.name = QStringLiteral("_XLNM.Print_Area");
+        d.text = QStringLiteral("Sheet1!$A$1");
+        QVERIFY(!s->defineName(d).ok);
+        NameEditDialog dialog(s, -1, d, QStringList({QStringLiteral("Sheet1")}));
+        QVERIFY(!dialog.okButton()->isEnabled());
+        QVERIFY(dialog.problemLabel()->text().contains(QStringLiteral("_xlnm.")));
+        d.name = QStringLiteral("_xlnm.Other");
+        QVERIFY(!s->changeName(s->names().find(-1, QStringLiteral("Rate")), d).ok);
+        QVERIFY(s->names().find(-1, QStringLiteral("Rate")) >= 0);
+        QCOMPARE(crunch::nameFromLabel(QStringLiteral("_xlnm.Print_Area")), QString());
+        e.view()->selectRange(0, 0, 1, 1);
+        w.setEdgesAsker([](int *edges) {
+            *edges = crunch::TopEdge;
+            return true;
+        });
+        QVERIFY(w.nameFromCellsCommand());   // (Qty is made; the label of the program's own kind is not)
+        QVERIFY(s->names().find(-1, QStringLiteral("Qty")) >= 0);
+        QCOMPARE(s->names().aliveCount(), 2);
+    }
+
+    void aRenameThatWouldChangeWhichNameFormulasReadIsRefused()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1", "B1==Rate+1"}, {"A1=2", "B1==Rate+1"}}, {}, {},
+                                    QStringLiteral("<definedName name=\"Rate\">Sheet1!$A$1</definedName><definedName name=\"Local\" localSheetId=\"1\">Sheet2!$A$1</definedName>"
+                                                   "<definedName name=\"Rate\" localSheetId=\"1\">Sheet2!$A$1</definedName><definedName name=\"Plain\">Sheet1!$A$1</definedName>"))));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QVERIFY(e.settle());
+        crunch::EditSession *s = w.session();
+        auto draftOf = [&](int id, const QString &name) {
+            crunch::EditSession::NameDraft d;
+            d.name = name;
+            d.text = s->nameTextOf(id);
+            return d;
+        };
+        // the workbook's name given the text of a name of a sheet
+        const int plain = s->names().find(-1, QStringLiteral("Plain"));
+        const auto toLocal = s->changeName(plain, draftOf(plain, QStringLiteral("local")));
+        QVERIFY(!toLocal.ok);
+        QVERIFY(toLocal.problem.contains(QStringLiteral("sheet")));
+        // and a name of a sheet given the text of the workbook's
+        const int local = s->names().find(1, QStringLiteral("Local"));
+        const auto toWide = s->changeName(local, draftOf(local, QStringLiteral("PLAIN")));
+        QVERIFY(!toWide.ok);
+        QVERIFY(toWide.problem.contains(QStringLiteral("workbook")));
+        QCOMPARE(w.undoStack()->count(), 0);
+        // a name that clashes with nothing is renamed
+        QVERIFY(s->changeName(plain, draftOf(plain, QStringLiteral("Plainer"))).ok);
+        // the sheet's own Rate keeps being read on its sheet
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->valueAt(1, 0, 1).debug(), QStringLiteral("n:3"));
+    }
+
+    void aNameOfASheetIsOfferedInPlaceOfTheWorkbooksOfTheSameText()
+    {
+        crunch::NameTable table;
+        QVector<jp::office::sheet::DefinedName> file;
+        jp::office::sheet::DefinedName wide, own;
+        wide.name = QStringLiteral("Rate");
+        wide.ref = QStringLiteral("Sheet1!$A$1");
+        own.name = QStringLiteral("rate");
+        own.localSheet = 1;
+        own.ref = QStringLiteral("Sheet2!$A$1");
+        file << wide << own;
+        table.load(file);
+        crunch::CompletionIndex index;
+        index.build(table, 1, QStringList());
+        std::vector<crunch::Completion> onSecond;
+        for (const crunch::Completion &c : index.matches(QStringLiteral("rate"), 50))
+            if (c.kind == crunch::Completion::Kind::Name) onSecond.push_back(c);
+        QCOMPARE(int(onSecond.size()), 1);
+        QCOMPARE(table.at(onSecond[0].id).scope, 1);
+        index.build(table, 0, QStringList());
+        std::vector<crunch::Completion> onFirst;
+        for (const crunch::Completion &c : index.matches(QStringLiteral("rate"), 50))
+            if (c.kind == crunch::Completion::Kind::Name) onFirst.push_back(c);
+        QCOMPARE(int(onFirst.size()), 1);
+        QCOMPARE(table.at(onFirst[0].id).scope, -1);
+    }
+
+    void theMenuOfNamesIsSortedOnceCappedAndLeadsToTheList()
+    {
+        QString names;
+        for (int i = 0; i < 60; ++i) names += QStringLiteral("<definedName name=\"N%1\">Sheet1!$A$1</definedName>").arg(i, 2, 10, QLatin1Char('0'));
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1"}}, {}, {}, names)));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(e.settle());
+        std::unique_ptr<QMenu> first(w.namesMenu());
+        std::unique_ptr<QMenu> second(w.namesMenu());
+        QCOMPARE(w.namesMenuBuilds(), 1);
+        QStringList entries;
+        for (QAction *a : first->actions())
+            if (!a->isSeparator()) entries << a->text();
+        QCOMPARE(int(entries.size()), 41);
+        QCOMPARE(entries.first(), QStringLiteral("N00"));
+        QCOMPARE(entries[39], QStringLiteral("N39"));
+        QCOMPARE(entries.last(), QStringLiteral("More…"));
+        crunch::EditSession::NameDraft d;
+        d.name = QStringLiteral("Another");
+        d.text = QStringLiteral("Sheet1!$A$1");
+        QVERIFY(w.session()->defineName(d).ok);
+        std::unique_ptr<QMenu> third(w.namesMenu());
+        QCOMPARE(w.namesMenuBuilds(), 2);
+        QCOMPARE(third->actions().first()->text(), QStringLiteral("Another"));
+    }
+
+    void arrowsToTheReadersOfACellThatTwoHundredThousandFormulasReadCostWhatFourThousandDo()
+    {
+        auto fan = [](int n) {
+            QStringList cells = {"A1=1"};
+            for (int i = 1; i <= n; ++i) cells << QStringLiteral("B%1==A1+%1").arg(i);
+            return cells;
+        };
+        qint64 work[2] = {0, 0};
+        int arrows[2] = {0, 0};
+        int at = 0;
+        for (const int n : {20000, 200000}) {
+            EditWindow e;
+            QVERIFY(e.open(bookOfSheets({fan(n)})));
+            e.win.w.setLocale(kEnglish);
+            QVERIFY(e.settle());
+            e.select(QStringLiteral("A1"));
+            const jp::calc::DependencyGraph &graph = e.win.w.session()->calculation()->graph();
+            const qint64 before = graph.queryWork();
+            QVERIFY(e.win.w.traceDependents());
+            work[at] = graph.queryWork() - before;
+            arrows[at] = int(e.view()->checkArrows().size());
+            QVERIFY(e.win.w.statusText().contains(QStringLiteral("not drawn")));
+            ++at;
+        }
+        QCOMPARE(arrows[0], int(grid::GridView::kMaxCheckArrows));
+        QCOMPARE(arrows[1], int(grid::GridView::kMaxCheckArrows));
+        QVERIFY2(work[0] > 0 && work[1] <= work[0] * 3 / 2, qPrintable(QStringLiteral("%1 and %2").arg(work[0]).arg(work[1])));
     }
 
     // ---- circles
@@ -733,7 +913,7 @@ private Q_SLOTS:
         });
         w.act(QStringLiteral("formulas.iteration"))->trigger();
         QVERIFY(e.settle());
-        QCOMPARE(w.undoStack()->undoText(), QStringLiteral("Calculation Options"));
+        QCOMPARE(w.undoStack()->undoText(), QStringLiteral("How Formulas Are Worked Out"));
         QTRY_COMPARE(w.circularCount(), qint64(0));
         QVERIFY2(e.valueAt(QStringLiteral("B1")).startsWith(QStringLiteral("n:1.99")) || e.valueAt(QStringLiteral("B1")).startsWith(QStringLiteral("n:2")), qPrintable(e.valueAt(QStringLiteral("B1"))));
         QVERIFY(w.act(QStringLiteral("formulas.calcAuto"))->isChecked());
@@ -766,7 +946,8 @@ private Q_SLOTS:
         QVERIFY(w.tracePrecedents());
         QCOMPARE(int(e.view()->checkArrows().size()), 3);
         // nothing is further back than that (A1 is a number; the other sheet's cell is a number)
-        QVERIFY(!w.tracePrecedents() || e.view()->checkArrows().size() >= 3);
+        QVERIFY(!w.tracePrecedents());
+        QCOMPARE(int(e.view()->checkArrows().size()), 3);
         // the other way
         w.removeArrows();
         QVERIFY(e.view()->checkArrows().empty());

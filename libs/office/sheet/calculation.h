@@ -112,6 +112,11 @@ public:
         quint32 row, col;
     };
     qint64 circularCells(std::vector<CircularCell> *out, qint64 cap) const;
+    // For tests: the formulas looked at to answer circularCells (it looks at those that were found in circles, not at every formula), and the formulas a change of a name read again.
+    qint64 circleWork() const { return m_circleWork; }
+    qint64 nameRebuilds() const { return m_nameRebuilds; }
+    // Works out the formulas typed or edited since the last recalculation, and what they need that is not worked out; what reads them is left as it is. For a workbook worked out by hand.
+    Progress recalculateFresh(qint64 workBudget = 0, const std::atomic<bool> *cancel = nullptr, qint64 timeBudgetMicros = 0);
     // Formulas that have yet to be worked out.
     bool isDirty() const { return m_notDone > 0 || m_running || m_invalidate.active; }
     // The formulas still to be worked out (while all of them are being marked, the ones not marked yet are counted, those that cannot be worked out among them).
@@ -577,6 +582,8 @@ private:
         quint32 round = 0;         // the rounds done
         size_t at = 0;             // and the formula the round is at
         double change = 0;         // the most any value changed by in the round
+        std::vector<jp::calc::Value> start;   // the values the rounds began from, and whether each was the file's result
+        std::vector<char> fromFile;
     } m_job;
     struct AbandonJob {
         bool active = false;
@@ -607,7 +614,15 @@ private:
     std::vector<jp::calc::CellArea> m_deferredAreas;
     jp::calc::CellArea m_sheetArea;   // the whole of the sheet a recalculation of one sheet worked out, which the formulas of other sheets that read it wait for (the sheet's own formulas are not marked again)
     int m_sheetAreaOwner = -1, m_sheetAreaPending = -1;
-    void releaseDeferred();
+    void releaseDeferred(bool discardSheetArea = false);
+    // Formulas typed or edited and not yet worked out, which a workbook worked out by hand works out at once (recalculateFresh); and those in circles, found as they are marked.
+    std::unordered_set<quint32> m_fresh;
+    bool m_onlyFresh = false;
+    mutable std::unordered_set<quint32> m_circle;
+    mutable qint64 m_circleWork = 0;
+    qint64 m_nameRebuilds = 0;
+    // The formulas whose text mentions one of the names (or a name that mentions them) are read again; what else uses names is left.
+    void nameTextsChangedFor(const QStringList &names);
     struct InvalidateJob {
         bool active = false;
         size_t at = 0;

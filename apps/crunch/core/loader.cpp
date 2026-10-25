@@ -390,8 +390,19 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         result->calcIdle = false;
         bool stopped = false;
         qint64 epoch = 0;
-        if (paused) epoch = state->changes.load();
-        else for (;;) {
+        if (paused) {
+            // (by hand: a formula typed or edited is worked out at once, with what it needs that is not worked out; what reads it waits for the key)
+            epoch = state->changes.load();
+            for (;;) {
+                const Calculation::Progress p = calc->recalculateFresh(0, nullptr, kSliceMicros);
+                if (p.finished || state->cancel.load()) break;
+                if (p.cancelled) calc->settle();
+                lock.unlock();
+                while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);
+                lock.lock();
+                sealStale();
+            }
+        } else for (;;) {
             const Calculation::Progress p = calc->recalculate(0, nullptr, kSliceMicros);
             circles += p.circular;
             if (p.cancelled) {

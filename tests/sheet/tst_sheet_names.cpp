@@ -310,6 +310,127 @@ private Q_SLOTS:
         }
     }
 
+    // ---- review fixes
+    void aFormulaTypedWhileTheRestWaitsIsWorkedOutAtOnceAndWhatReadsItIsNot()
+    {
+        const QString rows = rowXml(1, constant("A1", "1") + cellXml("B1", "A1*2") + cellXml("C1", "B1+1"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(b.calc->setValue(0, 0, 0, Value::number(5)));        // A1 changed: B1 and C1 are stale until the next recalculation
+        QVERIFY(b.calc->setFormula(0, 0, 3, QStringLiteral("A1*3")));   // D1 typed
+        QVERIFY(b.calc->setFormula(0, 0, 4, QStringLiteral("D1+B1")));  // E1 typed: reads D1 (fresh) and B1 (stale)
+        qint64 slices = 0;
+        while (!b.calc->recalculateFresh().finished) QVERIFY(++slices < 1000);
+        QCOMPARE(b.at("D1"), QStringLiteral("n:15"));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:25"));      // (B1 is worked out, as E1 needs it)
+        QCOMPARE(b.at("B1"), QStringLiteral("n:10"));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:3"));       // (nothing that was typed reads C1: it waits)
+        QVERIFY(b.calc->isDirty());
+        QVERIFY(b.settle());
+        QCOMPARE(b.at("C1"), QStringLiteral("n:11"));
+    }
+
+    void oneSheetWorkedOutLeavesNothingWaitingWhenNoOtherSheetReadsIt()
+    {
+        const QString rows = rowXml(1, constant("A1", "1") + cellXml("B1", "A1*2"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(b.calc->setValue(0, 0, 0, Value::number(5)));
+        b.calc->invalidateSheet(0);
+        QVERIFY(b.settle());
+        QCOMPARE(b.at("B1"), QStringLiteral("n:10"));
+        QVERIFY(!b.calc->isDirty());
+    }
+
+    void aCircleWhoseFirstRoundMovesNothingByMuchKeepsTheStoredResults()
+    {
+        // stored 2.00005 and 1.00002: a round gives 2.00002 and 1.00001, which differ by less than 0.0001, so the file's numbers stand
+        const QString rows = rowXml(1, cellXml("A1", "B1+1", "2.00005") + cellXml("B1", "A1*0.5", "1.00002"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QStringLiteral("iterate=\"1\" iterateCount=\"100\" iterateDelta=\"0.0001\""))));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:2.00005"));
+        QCOMPARE(b.at("B1"), QStringLiteral("n:1.00002"));
+        // one that moves a value by more goes on
+        const QString far = rowXml(1, cellXml("A1", "B1+1", "5") + cellXml("B1", "A1*0.5", "1"));
+        Book c;
+        QVERIFY(c.open(buildXlsx({worksheet(far)}, QByteArray(), QString(), QStringLiteral("iterate=\"1\" iterateCount=\"100\" iterateDelta=\"0.0001\""))));
+        QVERIFY(std::fabs(c.calc->cell(0, 0, 0).number() - 2) < 0.001);
+    }
+
+    void aChangeOfANameReadsAgainOnlyTheFormulasThatMentionIt()
+    {
+        QString rows = rowXml(1, constant("C1", "5") + cellXml("A1", "Rate*2") + cellXml("B1", "Twice+1") + cellXml("D1", "Other*3"));
+        for (int i = 2; i <= 300; ++i) rows += rowXml(i, cellXml(QStringLiteral("A%1").arg(i), QStringLiteral("C1+%1").arg(i)));
+        const QByteArray file = buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(),
+                                          QStringLiteral("<definedName name=\"Rate\">Sheet1!$C$1</definedName><definedName name=\"Twice\">Rate*2</definedName><definedName name=\"Other\">7</definedName>"));
+        Book b;
+        QVERIFY(b.open(file));
+        const qint64 before = b.calc->nameRebuilds();
+        b.calc->setNameText(-1, QStringLiteral("Unused"), QStringLiteral("Sheet1!$C$1"));   // a name nothing uses
+        QCOMPARE(b.calc->nameRebuilds() - before, qint64(0));
+        b.calc->setNameText(-1, QStringLiteral("rate"), QStringLiteral("Sheet1!$C$1+1"));    // used by A1, and by Twice, which B1 uses
+        QCOMPARE(b.calc->nameRebuilds() - before, qint64(2));
+        QVERIFY(b.settle());
+        QCOMPARE(b.at("A1"), QStringLiteral("n:12"));
+        QCOMPARE(b.at("B1"), QStringLiteral("n:13"));
+        QCOMPARE(b.at("D1"), QStringLiteral("n:21"));
+    }
+
+    void circlesAreKeptAsTheyAreFoundAndNotLookedForInEveryFormula()
+    {
+        QString rows = rowXml(1, cellXml("A1", "B1+1") + cellXml("B1", "A1*2"));
+        for (int i = 2; i <= 5000; ++i) rows += rowXml(i, cellXml(QStringLiteral("A%1").arg(i), QStringLiteral("%1+1").arg(i)));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        const qint64 before = b.calc->circleWork();
+        for (int k = 0; k < 3; ++k) {
+            QVERIFY(b.calc->setFormula(0, 7, 3, QStringLiteral("%1+1").arg(k)));
+            QVERIFY(b.settle());
+            QCOMPARE(b.calc->circularCells(nullptr, 0), qint64(2));
+        }
+        QVERIFY2(b.calc->circleWork() - before <= 12, qPrintable(QString::number(b.calc->circleWork() - before)));
+    }
+
+    void namesOfAnotherWorkbookAreNotNamesOfThisOne()
+    {
+        QCOMPARE(renameNameInFormula(QStringLiteral("[1]!Total+Total+[1]Sheet1!Total"), QStringLiteral("Total"), QStringLiteral("Sum"), nullptr),
+                 QStringLiteral("[1]!Total+Sum+[1]Sheet1!Total"));
+        QVERIFY(!formulaUsesName(QStringLiteral("[1]!Total*2"), QStringLiteral("Total")));
+        QVERIFY(formulaUsesName(QStringLiteral("[1]!Other*Total"), QStringLiteral("Total")));
+        QVERIFY(!formulaUsesName(QStringLiteral("Table1[Total]"), QStringLiteral("Total")));
+    }
+
+    void theProgramsOwnNamesAreRefused()
+    {
+        for (const char *bad : {"_xlnm.Print_Area", "_XLNM.x", "_xlnm._FilterDatabase"}) QVERIFY2(!nameProblem(QString::fromLatin1(bad)).isEmpty(), bad);
+        QVERIFY(nameProblem(QStringLiteral("_xlnmx")).isEmpty());
+    }
+
+    void patchingTheListOfNamesCostsWhatTheListAndTheChangesCost()
+    {
+        auto work = [](int n) {
+            QByteArray xml = "<workbook><sheets/><definedNames>";
+            std::vector<NameChange> changes;
+            for (int i = 0; i < n; ++i) {
+                xml += "<definedName name=\"N" + QByteArray::number(i) + "\">S!$A$1</definedName>";
+                NameChange c;
+                c.hadOld = true;
+                c.oldName = QStringLiteral("n%1").arg(i);
+                c.name = QStringLiteral("N%1").arg(i);
+                c.text = QStringLiteral("S!$A$2");
+                changes.push_back(c);
+            }
+            xml += "</definedNames></workbook>";
+            const qint64 before = patchDefinedNamesWork();
+            QByteArray out;
+            const bool ok = patchDefinedNames(xml, changes, QVector<int>{0}, &out);
+            return ok && out.contains("S!$A$2") ? patchDefinedNamesWork() - before : qint64(-1);
+        };
+        const qint64 small = work(10000), big = work(20000);
+        QVERIFY(small > 0 && big > 0);
+        QVERIFY2(big <= small * 21 / 10, qPrintable(QStringLiteral("%1 for 10,000 and %2 for 20,000").arg(small).arg(big)));
+    }
+
     // ---- the workbook part
     void definedNamesAreChangedInPlaceAndTheRestIsLeftAsItWas()
     {

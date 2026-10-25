@@ -3,6 +3,7 @@
 #include "calc/formula.h"
 
 #include <algorithm>
+#include <atomic>
 #include <set>
 #include <tuple>
 
@@ -84,7 +85,9 @@ std::vector<TraceCell> readersOf(const jp::office::sheet::Calculation &calc, int
 {
     std::vector<TraceCell> out;
     std::vector<quint32> nodes;
-    calc.graph().dependentsOfCell(sheet, row, col, &nodes);
+    // (the graph is told to stop at once: it ends the answer after a few thousand formulas, so that a cell that two hundred thousand formulas read costs no more than one that four thousand do)
+    static const std::atomic<bool> enough{true};
+    const bool whole = calc.graph().dependentsOfCell(sheet, row, col, &nodes, &enough);
     std::vector<TraceCell> all;
     all.reserve(nodes.size());
     for (const quint32 node : nodes) {
@@ -98,7 +101,7 @@ std::vector<TraceCell> readersOf(const jp::office::sheet::Calculation &calc, int
     std::partial_sort(all.begin(), all.begin() + std::ptrdiff_t(keep), all.end(), before);
     all.resize(keep);
     all.erase(std::unique(all.begin(), all.end(), [](const TraceCell &a, const TraceCell &b) { return a.sheet == b.sheet && a.row == b.row && a.col == b.col; }), all.end());
-    if (total) *total = keep < size_t(readers) ? readers : qint64(all.size());
+    if (total) *total = !whole ? std::max<qint64>(readers, cap + 1) : (keep < size_t(readers) ? readers : qint64(all.size()));
     for (size_t i = 0; i < all.size() && qint64(i) < cap; ++i) out.push_back(all[i]);
     return out;
 }

@@ -94,7 +94,7 @@ QString CrunchWindow::completionDetail(const crunch::Completion &c) const
 void CrunchWindow::createNameActions()
 {
     mk("formulas.names", tr("Names…"), "variable", QKeySequence(Qt::CTRL | Qt::Key_F3), [this] { showNames(); }, false, false);
-    mk("formulas.defineName", tr("Define Name…"), "tag", QKeySequence(), [this] { defineNameCommand(); }, false, false);
+    mk("formulas.defineName", tr("New Name…"), "tag", QKeySequence(), [this] { defineNameCommand(); }, false, false);
     mk("formulas.nameFromCells", tr("Name From Cells…"), "tags", QKeySequence(), [this] { nameFromCellsCommand(); }, false, false);
     mk("formulas.useName", tr("Insert Name"), "text-cursor-input", QKeySequence(), [this] {
         if (QMenu *menu = namesMenu()) {
@@ -135,7 +135,7 @@ bool CrunchWindow::defineNameCommand()
     }
     const crunch::EditSession::Outcome o = m_session->defineName(draft);
     if (!o.ok) {
-        notice(tr("Define Name"), o.problem);
+        notice(tr("New Name"), o.problem);
         return false;
     }
     return true;
@@ -198,14 +198,21 @@ QMenu *CrunchWindow::namesMenu()
     if (!m_session || !m_loaded) return nullptr;
     auto *menu = new QMenu(this);
     menu->setObjectName(QStringLiteral("namesMenu"));
-    std::vector<int> ids;
-    for (int id = 0; id < m_session->names().slots(); ++id) {
-        if (!m_session->nameListed(id)) continue;
-        const crunch::NameEntry &e = m_session->names().at(id);
-        if (e.hidden || (e.scope >= 0 && e.scope != m_sheet)) continue;
-        ids.push_back(id);
+    // (the list is sorted once, and again only when a name changes or another sheet is in view)
+    if (m_menuGeneration != m_session->names().generation() || m_menuSheet != m_sheet) {
+        m_menuNames.clear();
+        for (int id = 0; id < m_session->names().slots(); ++id) {
+            if (!m_session->nameListed(id)) continue;
+            const crunch::NameEntry &e = m_session->names().at(id);
+            if (e.hidden || (e.scope >= 0 && e.scope != m_sheet)) continue;
+            m_menuNames.push_back(id);
+        }
+        std::sort(m_menuNames.begin(), m_menuNames.end(), [this](int a, int b) { return m_session->names().at(a).name.compare(m_session->names().at(b).name, Qt::CaseInsensitive) < 0; });
+        m_menuGeneration = m_session->names().generation();
+        m_menuSheet = m_sheet;
+        ++m_menuBuilds;
     }
-    std::sort(ids.begin(), ids.end(), [this](int a, int b) { return m_session->names().at(a).name.compare(m_session->names().at(b).name, Qt::CaseInsensitive) < 0; });
+    const std::vector<int> &ids = m_menuNames;
     constexpr size_t kShown = 40;
     for (size_t i = 0; i < ids.size() && i < kShown; ++i) {
         const QString name = m_session->names().at(ids[i]).name;
@@ -215,7 +222,7 @@ QMenu *CrunchWindow::namesMenu()
     }
     if (ids.empty()) menu->addAction(tr("There are no names yet."))->setEnabled(false);
     menu->addSeparator();
-    connect(menu->addAction(tr("All Names…")), &QAction::triggered, this, [this] { showNames(); });
+    connect(menu->addAction(tr("More…")), &QAction::triggered, this, [this] { showNames(); });
     return menu;
 }
 

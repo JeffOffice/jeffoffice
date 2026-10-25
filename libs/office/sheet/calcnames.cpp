@@ -26,7 +26,7 @@ void Calculation::setNameText(int scope, const QString &name, const QString &tex
     const QString key = keyOf(scope, name);
     if (text.isEmpty()) m_names.remove(key);
     else m_names[key] = text;
-    nameTextsChanged();
+    nameTextsChangedFor({name});
 }
 
 void Calculation::renameName(int scope, const QString &oldName, const QString &newName, SheetRewrite *record)
@@ -123,7 +123,7 @@ void Calculation::renameName(int scope, const QString &oldName, const QString &n
         m_names.erase(at);
         m_names[newKey] = text;
     }
-    nameTextsChanged();
+    nameTextsChangedFor({oldName, newName});
 }
 
 void Calculation::undoRenameName(int scope, const QString &oldName, const QString &newName, const SheetRewrite &record)
@@ -139,7 +139,64 @@ void Calculation::undoRenameName(int scope, const QString &oldName, const QStrin
         m_names[oldKey] = text;
     }
     undoSheetRewrite(record);
-    nameTextsChanged();
+    nameTextsChangedFor({oldName, newName});
+}
+
+void Calculation::nameTextsChangedFor(const QStringList &given)
+{
+    // the names that are to be looked for: these, and every name whose text mentions one of them, and so on
+    QStringList names = given;
+    bool grew = true;
+    for (int pass = 0; grew && pass < 16; ++pass) {
+        grew = false;
+        for (auto it = m_names.constBegin(); it != m_names.constEnd(); ++it) {
+            const int bar = int(it.key().indexOf(QLatin1Char('|')));
+            const QString own = it.key().mid(bar + 1);
+            bool known = false;
+            for (const QString &n : names) known = known || n.compare(own, Qt::CaseInsensitive) == 0;
+            if (known) continue;
+            for (const QString &n : names)
+                if (it.value().contains(n, Qt::CaseInsensitive) && formulaUsesName(it.value(), n)) {
+                    names << own;
+                    grew = true;
+                    break;
+                }
+        }
+    }
+    m_nameTraits.clear();
+    for (int si = 0; si < int(m_sheets.size()); ++si) {
+        Sheet &s = m_sheets[size_t(si)];
+        SheetState &st = m_state[size_t(si)];
+        std::vector<char> mention(size_t(s.formulaTexts.size()), 0);
+        bool any = false;
+        for (qint32 slot = 0; slot < s.formulaTexts.size(); ++slot) {
+            const QString &text = s.formulaTexts[slot];
+            if (text.isEmpty()) continue;
+            for (const QString &n : names)
+                if (text.contains(n, Qt::CaseInsensitive)) {
+                    mention[size_t(slot)] = 1;
+                    any = true;
+                    if (size_t(slot) < st.plain.size()) st.plain[size_t(slot)].tried = false;
+                    if (size_t(slot) < st.array.size()) st.array[size_t(slot)].tried = false;
+                    break;
+                }
+        }
+        if (!any) continue;
+        for (qint32 fi = 0; fi < s.formulas.size(); ++fi) {
+            const Formula &f = s.formulas[fi];
+            if (f.text < 0 || size_t(f.text) >= mention.size() || !mention[size_t(f.text)]) continue;
+            if (size_t(fi) >= st.nodeOf.size() || st.nodeOf[size_t(fi)] == kNone) continue;
+            const quint32 id = st.nodeOf[size_t(fi)];
+            Cell *c = s.cells.findMutable(m_nodes[id].row, m_nodes[id].col);
+            if (!c || !c->hasFormula()) continue;
+            const qint32 formula = c->formula;
+            dropNode(id);
+            const quint32 now = addNode(si, *c, formula);
+            queueDependents(areaOf(m_nodes[now]));
+            ++m_nameRebuilds;
+        }
+    }
+    if (!m_running) beginRecalculation();
 }
 
 } // namespace jp::office::sheet

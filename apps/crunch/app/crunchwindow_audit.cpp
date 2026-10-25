@@ -14,7 +14,7 @@ void CrunchWindow::createAuditActions()
 {
     mk("formulas.tracePrecedents", tr("Show What Feeds This Cell"), "arrow-down-to-dot", QKeySequence(), [this] { tracePrecedents(); }, false, false);
     mk("formulas.traceDependents", tr("Show What Uses This Cell"), "arrow-up-from-dot", QKeySequence(), [this] { traceDependents(); }, false, false);
-    mk("formulas.removeArrows", tr("Remove Arrows"), "eraser", QKeySequence(), [this] { removeArrows(); }, false, false);
+    mk("formulas.removeArrows", tr("Clear Arrows"), "eraser", QKeySequence(), [this] { removeArrows(); }, false, false);
     for (const char *id : {"formulas.tracePrecedents", "formulas.traceDependents", "formulas.removeArrows"}) m_opsActions << QString::fromLatin1(id);
     updateEditActions();
 }
@@ -65,6 +65,10 @@ bool CrunchWindow::tracePrecedents()
     std::vector<crunch::TraceCell> next;
     bool truncated = false;
     for (const crunch::TraceCell &f : m_traceUp) {
+        if (m_trace.size() >= grid::GridView::kMaxCheckArrows) {
+            truncated = true;
+            break;   // (the arrows there is room for are drawn: the rest is not looked for)
+        }
         bool cut = false;
         const std::vector<crunch::TraceBlock> blocks = crunch::cellsRead(*calc, f.sheet, f.row, f.col, &cut);
         truncated = truncated || cut;
@@ -105,13 +109,17 @@ bool CrunchWindow::traceDependents()
     std::vector<crunch::TraceCell> next;
     qint64 notDrawn = 0;
     for (const crunch::TraceCell &f : m_traceDown) {
+        if (m_trace.size() >= grid::GridView::kMaxCheckArrows) {
+            ++notDrawn;
+            break;   // (the arrows there is room for are drawn: the rest is not looked for)
+        }
         qint64 total = 0;
         const std::vector<crunch::TraceCell> readers = crunch::readersOf(*calc, f.sheet, f.row, f.col, crunch::kMaxTraceReaders, &total);
         notDrawn += std::max<qint64>(0, total - qint64(readers.size()));
         for (const crunch::TraceCell &d : readers) {
             if (m_trace.size() >= grid::GridView::kMaxCheckArrows) {
                 ++notDrawn;
-                continue;
+                break;
             }
             TraceArrow a;
             a.fromSheet = f.sheet;

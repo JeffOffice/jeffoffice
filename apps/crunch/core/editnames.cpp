@@ -137,7 +137,7 @@ EditSession::Outcome EditSession::defineName(const NameDraft &draft, int *made)
     Step step;
     step.names.push_back(std::move(e));
     if (made) *made = m_nameTable.slots();
-    pushStep(std::move(step), tr("Define Name"));
+    pushStep(std::move(step), tr("New Name"));
     return out;
 }
 
@@ -162,6 +162,19 @@ EditSession::Outcome EditSession::changeName(int id, const NameDraft &draft)
         out.ok = false;
         out.problem = problem;
         return out;
+    }
+    // a name given the text of one that hides it, or that it would hide, is read by some formulas as the other: refused
+    if (was.name.compare(d.name.trimmed(), Qt::CaseInsensitive) != 0) {
+        if (was.scope < 0 && !shadowingSheets(d.name.trimmed()).empty()) {
+            out.ok = false;
+            out.problem = tr("A sheet has a name of its own like that. Renaming would change which name some formulas on that sheet read. Choose another name.");
+            return out;
+        }
+        if (was.scope >= 0 && m_nameTable.find(-1, d.name.trimmed()) >= 0) {
+            out.ok = false;
+            out.problem = tr("The workbook has a name like that. Renaming would change which name formulas on this sheet read. Choose another name.");
+            return out;
+        }
     }
     NameEdit e;
     e.id = id;
@@ -364,7 +377,7 @@ EditSession::Outcome EditSession::setCalcSettings(const CalcSettings &settings)
     e.after = now;
     Step step;
     step.calcs.push_back(e);
-    pushStep(std::move(step), tr("Calculation Options"));
+    pushStep(std::move(step), tr("How Formulas Are Worked Out"));
     return out;
 }
 

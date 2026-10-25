@@ -22,7 +22,7 @@ using crunch::EditSession;
 NameEditDialog::NameEditDialog(EditSession *session, int id, const EditSession::NameDraft &initial, const QStringList &sheets, QWidget *parent) : QDialog(parent), m_session(session), m_id(id)
 {
     setObjectName(QStringLiteral("nameEditDialog"));
-    setWindowTitle(id < 0 ? tr("Define Name") : tr("Change Name"));
+    setWindowTitle(id < 0 ? tr("New Name") : tr("Change Name"));
     auto *layout = new QVBoxLayout(this);
     auto *form = new QFormLayout;
     m_name = new QLineEdit(initial.name);
