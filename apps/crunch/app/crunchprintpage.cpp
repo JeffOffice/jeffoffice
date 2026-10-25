@@ -26,10 +26,15 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <functional>
+#include <memory>
 #include <cmath>
 #include <memory>
 
 namespace jp {
+
+static std::weak_ptr<void> gPaintClosure;
+std::weak_ptr<void> printPaintClosureForTest() { return gPaintClosure; }
 
 namespace {
 
@@ -268,7 +273,12 @@ QWidget *CrunchFileScreen::buildPrint()
         }
         return crunch::parsePageRange(range->text(), state->job->pageCount());
     };
-    auto paint = [=]() {
+    // (pictures in the header are made on a worker: the page is drawn at once without them, and again when they are ready)
+    auto paintSelf = std::make_shared<std::function<void()>>();
+    gPaintClosure = paintSelf;
+    auto paint = [=]() { (*paintSelf)(); };
+    // (the closure holds itself weakly: held by itself it would never be freed)
+    *paintSelf = [=, weakSelf = std::weak_ptr<std::function<void()>>(paintSelf)]() {
         const QVector<int> pages = pagesToPrint();
         if (!state->job || pages.isEmpty()) {
             preview->clear();
@@ -288,6 +298,9 @@ QWidget *CrunchFileScreen::buildPrint()
         const QSize box(int(std::ceil(paperSize.width() * scale)) + 16, int(std::ceil(paperSize.height() * scale)) + 18);
         preview->setPixmap(paperPixmap(img, box, dpr));
         preview->resize(box.expandedTo(scroll->viewport()->size()));
+        if (state->job->lastPaintMissedPictures()) QTimer::singleShot(60, preview, [weakSelf] {
+            if (const auto again = weakSelf.lock()) (*again)();
+        });
     };
     auto words = [=]() {
         const QVector<int> pages = pagesToPrint();
@@ -319,6 +332,10 @@ QWidget *CrunchFileScreen::buildPrint()
         crunch::PrintChoices c = read();
         QString why;
         state->job = win->makePrintJob(c.job, &why);
+        if (state->job) {
+            state->job->setAsyncPictures(true);
+            state->job->prefetchPictures();
+        }
         state->why = why;
         state->page = 0;
         words();

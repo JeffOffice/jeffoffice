@@ -483,6 +483,9 @@ public:
     // How a sheet prints now; and a change to it, one step of Undo (nothing if it is as it is). The print area, titles, and breaks follow rows, columns, and cells inserted and deleted.
     const PageSettings &pages() const { return m_pages; }
     Outcome setPageSetup(int sheet, const jp::office::sheet::PageSetup &setup, const QString &text);
+    // How a sheet is shown (0 the cells, 1 the page breaks, 2 the pages) and at what zoom in percent: kept for saving, not a step of Undo.
+    void setSheetView(int sheet, int kind, int zoom) { m_pages.setView(sheet, kind, zoom); }
+    bool viewsChanged() const { return m_pages.viewsChanged(); }
 
     // The edits that insert or delete rows, columns, or cells since the file was read or saved that are done (not undone), in order: what the objects over the cells are moved by.
     const std::vector<jp::office::sheet::StructEdit> &structureEdits() const { return m_edits; }
@@ -505,6 +508,7 @@ public:
         std::map<quint64, jp::calc::Value> results;            // the results it holds (to be the file's, once it is written)
         std::vector<quint64> touchedFormulas;                  // the formula cells it holds whole, with the results they were given
         std::map<quint64, jp::calc::Value> touchedResults;
+        std::map<int, QString> headerDrawings;                 // set by the save: the drawing of header and footer pictures each sheet names now (see SaveReport)
     };
     bool takeSnapshot(Snapshot *out, QString *why);
     // The file was written from this snapshot: it is the base now. `package` is the new file's.

@@ -79,6 +79,11 @@ QString escapeHeaderFooterText(const QString &plain);
 QString composeHeaderFooter(const QString &left, const QString &center, const QString &right);
 // The string split into its three parts, each as the codes it holds (the opposite of composeHeaderFooter). A string with no part code is all center text, as the format reads it.
 void splitHeaderFooter(const QString &code, QString *left, QString *center, QString *right);
+// Whether the text draws a picture (&G) in the part: 'L', 'C', or 'R'.
+bool headerFooterHasPicture(const QString &code, QChar part);
+// Takes out the pictures of a header and footer that no text asks for (a picture's place says which part of which text it is for); a picture whose place is not one of the six, with or
+// without the forms for the even and first pages, is left.
+void dropUnusedHeaderPictures(HeaderFooter *hf);
 // The words of a string as a person reads them in the sheet: its text with each field shown as it comes out for the page (a preview line of the dialog).
 QString headerFooterPreview(const QString &code, const HfContext &context);
 

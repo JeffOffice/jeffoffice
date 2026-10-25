@@ -266,6 +266,31 @@ void splitHeaderFooter(const QString &code, QString *left, QString *center, QStr
     }
 }
 
+bool headerFooterHasPicture(const QString &code, QChar part)
+{
+    const HfText t = parseHeaderFooter(code);
+    const HfPart &p = part == QLatin1Char('L') ? t.left : part == QLatin1Char('C') ? t.center : t.right;
+    for (const HfLine &line : p.lines)
+        for (const HfRun &run : line)
+            if (run.field == HfField::Picture) return true;
+    return false;
+}
+
+void dropUnusedHeaderPictures(HeaderFooter *hf)
+{
+    for (qsizetype i = hf->pictures.size(); i-- > 0;) {
+        const QString place = canonicalHeaderPlace(hf->pictures[i].place);
+        if (place.size() < 2) continue;
+        const QChar part = place[0], kind = place[1];
+        if ((part != QLatin1Char('L') && part != QLatin1Char('C') && part != QLatin1Char('R')) || (kind != QLatin1Char('H') && kind != QLatin1Char('F'))) continue;
+        const QString form = place.mid(2);
+        if (!form.isEmpty() && form != QLatin1String("EVEN") && form != QLatin1String("FIRST")) continue;
+        const bool header = kind == QLatin1Char('H');
+        const QString &text = form == QLatin1String("FIRST") ? (header ? hf->firstHeader : hf->firstFooter) : form == QLatin1String("EVEN") ? (header ? hf->evenHeader : hf->evenFooter) : (header ? hf->oddHeader : hf->oddFooter);
+        if (!headerFooterHasPicture(text, part)) hf->pictures.removeAt(i);
+    }
+}
+
 QString headerFooterPreview(const QString &code, const HfContext &context)
 {
     const HfText t = parseHeaderFooter(code);

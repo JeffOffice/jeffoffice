@@ -686,6 +686,7 @@ void GridView::setPageBreaks(std::vector<PageBreakLine> rows, std::vector<PageBr
 // The lines are found by the rows and columns each part of the grid shows, so a sheet with a hundred thousand of them costs the few on the screen.
 void GridView::paintPageBreaks(QPainter *p, const QRect &clip)
 {
+    if (m_breakView) paintBreakView(p, clip);
     if (m_breakRows.empty() && m_breakCols.empty()) return;
     const GridLayout &L = m_sheet.layout();
     const QColor ink = uiDark() ? QColor(0x7F, 0xA8, 0xFF) : QColor(0x1F, 0x3F, 0xA8);
@@ -799,6 +800,7 @@ void GridView::mousePressEvent(QMouseEvent *e)
 {
     if (e->button() == Qt::LeftButton && m_clickGuard && !m_clickGuard()) return;
     setFocus(Qt::MouseFocusReason);
+    if (m_breakView && e->button() == Qt::LeftButton && m_cellsEnabled && breakPress(mirror(e->pos()))) return;
     if (overlayContext(e) || overlayPress(e) || !m_cellsEnabled) return;
     m_jump.reset();
     const GridLayout &L = m_sheet.layout();
@@ -864,6 +866,7 @@ void GridView::mouseMoveEvent(QMouseEvent *e)
 {
     if (m_drag == Drag::None && overlayMove(e)) return;
     const QPoint lp = mirror(e->pos());
+    if (breakMove(lp)) return;
     m_lastMouse = lp;
     if (m_drag == Drag::Resize) {
         const int at = m_resizeColumn ? lp.x() : lp.y();
@@ -877,6 +880,14 @@ void GridView::mouseMoveEvent(QMouseEvent *e)
     }
     bool column = false;
     qint64 index = -1;
+    if (m_breakView) {
+        const BreakGrab g = breakGrabAt(e->pos());
+        if (g.kind != BreakGrab::Kind::None) {
+            const bool vertical = g.kind == BreakGrab::Kind::Line ? g.column : g.side >= 2;
+            viewport()->setCursor(vertical ? Qt::SizeHorCursor : Qt::SizeVerCursor);
+            return;
+        }
+    }
     if (borderAtInLayout(lp, &column, &index)) viewport()->setCursor(column ? Qt::SplitHCursor : Qt::SplitVCursor);
     else viewport()->setCursor(fillHandleRectInLayout().contains(lp) ? Qt::CrossCursor : Qt::ArrowCursor);
 }
@@ -911,6 +922,7 @@ bool GridView::borderAtInLayout(const QPoint &p, bool *column, qint64 *index) co
 void GridView::mouseReleaseEvent(QMouseEvent *e)
 {
     if (m_drag == Drag::None && overlayRelease(e)) return;
+    if (breakRelease()) return;
     if (m_drag == Drag::Resize) {
         m_drag = Drag::None;
         viewport()->update();

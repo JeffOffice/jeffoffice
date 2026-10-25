@@ -2,6 +2,8 @@
 
 #include "sheet/xlsxsave.h"
 
+#include "sheet/hfpictures.h"
+
 #include "io/zip.h"
 #include "io/zipindex.h"
 #include "sheet/structsave.h"
@@ -816,6 +818,25 @@ bool removeRelationshipById(const QByteArray &xml, const QString &id, QByteArray
     return false;
 }
 
+// A relationship of the part's relationships made to name another target, by its Id; false (nothing changed) if there is none.
+bool retargetRelationshipById(const QByteArray &xml, const QString &id, const QString &target, QByteArray *out)
+{
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "Relationship") continue;
+        bool found = false;
+        const QByteArrayView value = xmlscan::attribute(QByteArrayView(xml).sliced(t.start, t.end - t.start), "Id", &found);
+        if (!found || xmlscan::unescape(value) != id) continue;
+        QByteArray tag = xml.mid(t.start, t.end - t.start);
+        setAttribute(&tag, "Target", xmlscan::escapeAttribute(target));
+        *out = xml.left(t.start) + tag + xml.mid(t.end);
+        return true;
+    }
+    return false;
+}
+
 // A relationship made, at the end of the part's list; an Override of [Content_Types].xml the same.
 bool appendBefore(const QByteArray &xml, const char *container, const QByteArray &element, QByteArray *out)
 {
@@ -897,6 +918,119 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             const QString id = freeRelationshipId(used);
             newDrawingRel[sheet] = id;
             adjusted.sheets[sheet].drawingRelId = id;
+        }
+    }
+    // ---- pictures in headers and footers that a person put in, changed, or took out: the sheet is given the element that names their drawing (or loses it), and the drawing and its images are
+    // made below. What is planned here is by the sheet's place.
+    struct HeaderWrite {
+        int sheet = 0;
+        bool remove = false;
+        QString fileRel;                       // the relationship the file has from the sheet to the drawing (empty if none)
+        QString relId;                         // the one the sheet names it by now
+        bool newRel = false;
+        bool retarget = false;                 // the sheet's link is kept and made to name the drawing made for it (the one it had is shared with another sheet)
+        QString vmlPart;
+        bool newVml = false;
+        QVector<HeaderPicture> pictures;
+        std::vector<QString> imageParts;       // the part of each picture's image
+        std::vector<bool> imageIsNew;
+    };
+    std::vector<HeaderWrite> headerWrites;
+    {
+        QSet<QString> taken;
+        bool takenFilled = false;
+        qint64 added = 0;
+        for (const auto &[sheet, sc] : requested.sheets) {
+            if (!sc.setPage || sheet < 0 || sheet >= book.info().sheets.size()) continue;
+            const SheetEntry &se = book.info().sheets[sheet];
+            if (se.deleted || se.kind != SheetKind::Worksheet) continue;
+            const HeaderFooter &hf = sc.page.headerFooter;
+            HeaderFooter fileHf;
+            const bool inFile = !se.isNew && sc.copyFromPart.isEmpty();
+            if (inFile && !hf.drawingRel.isEmpty()) {
+                fileHf.drawingRel = hf.drawingRel;
+                book.readHeaderPictures(se.part, &fileHf);
+            }
+            if (fileHf.pictures == hf.pictures) continue;
+            HeaderWrite w;
+            w.sheet = sheet;
+            w.pictures = hf.pictures;
+            if (w.pictures.size() > kMaxHeaderPictures) w.pictures.resize(kMaxHeaderPictures);
+            w.remove = w.pictures.isEmpty();
+            if (inFile && !hf.drawingRel.isEmpty()) {
+                const Relationship rel = package.relationship(se.part, hf.drawingRel);
+                if (!rel.id.isEmpty() && !rel.external && rel.type.endsWith(QLatin1String("/vmlDrawing")) && package.hasPart(rel.target)) {
+                    w.fileRel = rel.id;
+                    w.vmlPart = rel.target;
+                }
+            }
+            if (w.remove && w.fileRel.isEmpty()) continue;   // (nothing in the file to take out)
+            // a drawing that another sheet (or its notes) names too is not changed for this one: it gets a drawing of its own, and the other keeps the one it has
+            bool shared = false;
+            if (!w.fileRel.isEmpty()) {
+                for (int other = 0; other < book.info().sheets.size() && !shared; ++other) {
+                    const SheetEntry &oe = book.info().sheets[other];
+                    if (other == sheet || oe.deleted || oe.isNew || oe.part.isEmpty()) continue;
+                    for (const Relationship &r : package.relationshipsOfType(oe.part, QStringLiteral("/vmlDrawing")))
+                        if (!r.external && r.target.compare(w.vmlPart, Qt::CaseInsensitive) == 0) shared = true;
+                }
+            }
+            if (!takenFilled) {
+                for (const QString &n : package.partNames()) taken.insert(n.toLower());
+                takenFilled = true;
+            }
+            if (!w.remove) {
+                if (shared) {
+                    w.retarget = true;
+                    w.vmlPart.clear();
+                }
+                if (w.vmlPart.isEmpty()) {
+                    w.newVml = true;
+                    w.vmlPart = freePartName(QStringLiteral("/xl/drawings/vmlDrawing"), QStringLiteral(".vml"), taken);
+                    taken.insert(w.vmlPart.toLower());
+                }
+                if (!w.fileRel.isEmpty()) {
+                    w.relId = w.fileRel;   // (a link kept, even when it is made to name another drawing)
+                } else {
+                    QStringList used;
+                    if (!se.isNew) {
+                        for (const Relationship &r : package.relationships(se.part)) used << r.id;
+                    } else if (!sc.copyFromPart.isEmpty()) {
+                        for (const Relationship &r : package.relationships(sc.copyFromPart)) used << r.id;
+                    }
+                    if (const auto d = newDrawingRel.find(sheet); d != newDrawingRel.end()) used << d->second;
+                    w.relId = freeRelationshipId(used);
+                    w.newRel = true;
+                }
+                for (const HeaderPicture &pic : std::as_const(w.pictures)) {
+                    QString part;
+                    for (const HeaderPicture &old : std::as_const(fileHf.pictures))
+                        if (old.place == pic.place && old.image == pic.image && !old.part.isEmpty() && package.hasPart(old.part)) part = old.part;
+                    const bool isNew = part.isEmpty();
+                    if (isNew) {
+                        added += pic.image.size();
+                        if (pic.image.isEmpty() || pic.image.size() > kMaxHeaderPictureBytes || added > kMaxAddedBytes)
+                            return fail(QCoreApplication::translate("jp::office::sheet::Save", "A picture in a header or footer is too large to be saved."));
+                        const QString ext = headerPictureContentType(pic.extension).isEmpty() ? QStringLiteral("png") : pic.extension.toLower();
+                        part = freePartName(QStringLiteral("/xl/media/hfimage"), QStringLiteral(".") + ext, taken);
+                        taken.insert(part.toLower());
+                    }
+                    w.imageParts.push_back(part);
+                    w.imageIsNew.push_back(isNew);
+                }
+            }
+            headerWrites.push_back(std::move(w));
+        }
+    }
+    if (!headerWrites.empty()) {
+        if (useChanges == &requested) {
+            adjusted = requested;
+            useChanges = &adjusted;
+        }
+        for (const HeaderWrite &w : headerWrites) {
+            adjusted.sheets[w.sheet].hfSet = true;
+            adjusted.sheets[w.sheet].hfRel = w.remove ? QString() : w.relId;
+            rep.headerDrawings[w.sheet] = w.remove ? QString() : w.relId;
         }
     }
     const SaveChanges &changes = *useChanges;
@@ -1034,6 +1168,9 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             if (!ids.isEmpty()) released.emplace_back(part, ids);
         }
     }
+    // (the drawing of header and footer pictures taken out, and what only it related to)
+    for (const HeaderWrite &w : headerWrites)
+        if (w.remove) released.emplace_back(book.info().sheets[w.sheet].part, QStringList{w.fileRel});
     if (!released.empty()) {
         QHash<QString, QVector<QPair<QString, QString>>> into;   // by the part a relationship goes to (lower case): (the part it is from, its id), both lower case
         auto addRelationships = [&](const QString &source) {
@@ -1208,6 +1345,82 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     const QString name = relationshipsPartOf(drawingPart);
                     newEntries.emplace_back(name.startsWith(QLatin1Char('/')) ? name.mid(1) : name, drawingRels);
                 }
+            }
+        }
+        replaced.insert(typesEntry, types);
+    }
+    // ---- the drawing of the pictures in headers and footers, with its relationships and images, for the sheets that have them now
+    if (std::any_of(headerWrites.begin(), headerWrites.end(), [](const HeaderWrite &w) { return !w.remove; })) {
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        QByteArray types;
+        if (typesEntry < 0 || !(replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types)))
+            return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file's list of part types is not in it."));
+        auto relsEntryFor = [&](const QString &part) {
+            const QString name = package.entryName(part);
+            if (name.isEmpty()) return -1;
+            const int slash = name.lastIndexOf(QLatin1Char('/'));
+            return entryAt.value(plain((slash < 0 ? QString() : name.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? name : name.mid(slash + 1)) + QStringLiteral(".rels")), -1);
+        };
+        auto bad = [&] { return fail(QCoreApplication::translate("jp::office::sheet::Save", "A drawing of the file is not in the form this program changes.")); };
+        auto entryName = [](const QString &part) { return part.startsWith(QLatin1Char('/')) ? part.mid(1) : part; };
+        for (const HeaderWrite &w : headerWrites) {
+            if (w.remove) continue;
+            const SheetEntry &se = book.info().sheets[w.sheet];
+            QByteArray vmlRels = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">";
+            for (size_t i = 0; i < w.imageParts.size(); ++i) {
+                vmlRels += relationshipXml(QStringLiteral("rId%1").arg(i + 1), QStringLiteral("image"), relativeTarget(w.vmlPart, w.imageParts[i]));
+                if (!w.imageIsNew[i]) continue;
+                const HeaderPicture &pic = w.pictures[int(i)];
+                newEntries.emplace_back(entryName(w.imageParts[i]), pic.image);
+                const QString ext = w.imageParts[i].mid(w.imageParts[i].lastIndexOf(QLatin1Char('.')) + 1);
+                const QString contentType = headerPictureContentType(ext);
+                QByteArray t2;
+                if (!contentType.isEmpty()) {
+                    if (!addContentDefault(types, ext, contentType, &t2)) return bad();
+                    types = t2;
+                }
+            }
+            vmlRels += "</Relationships>";
+            const QByteArray vml = headerPicturesVml(w.pictures);
+            if (w.newVml) {
+                newEntries.emplace_back(entryName(w.vmlPart), vml);
+                newEntries.emplace_back(entryName(relationshipsPartOf(w.vmlPart)), vmlRels);
+                QByteArray t2;
+                if (!addContentOverride(types, w.vmlPart, QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), &t2)) return bad();
+                types = t2;
+            } else {
+                const int vmlEntry = entryOfPart(w.vmlPart);
+                if (vmlEntry < 0) return bad();
+                replaced.insert(vmlEntry, vml);
+                const int relsEntry = relsEntryFor(w.vmlPart);
+                if (relsEntry >= 0) replaced.insert(relsEntry, vmlRels);
+                else newEntries.emplace_back(entryName(relationshipsPartOf(w.vmlPart)), vmlRels);
+            }
+            if (!w.newRel && !w.retarget) continue;
+            // the sheet's link to the drawing
+            const QString target = relativeTarget(se.part, w.vmlPart);
+            if (w.retarget) {
+                const int sheetRelsEntry = relsEntryFor(se.part);
+                QByteArray sheetRels, r2;
+                if (sheetRelsEntry < 0 || !(replaced.contains(sheetRelsEntry) ? (sheetRels = replaced.value(sheetRelsEntry), true) : inflate(sheetRelsEntry, &sheetRels))) return bad();
+                if (!retargetRelationshipById(sheetRels, w.relId, target, &r2)) return bad();
+                replaced.insert(sheetRelsEntry, r2);
+                continue;
+            }
+            if (se.isNew) {
+                newSheetRels[w.sheet] += relationshipXml(w.relId, QStringLiteral("vmlDrawing"), target);
+            } else {
+                const int sheetRelsEntry = relsEntryFor(se.part);
+                QByteArray sheetRels, r2;
+                if (sheetRelsEntry >= 0 && !(replaced.contains(sheetRelsEntry) ? (sheetRels = replaced.value(sheetRelsEntry), true) : inflate(sheetRelsEntry, &sheetRels))) return bad();
+                if (!addRelationship(sheetRels, w.relId, QStringLiteral("vmlDrawing"), target, &r2)) return bad();
+                if (sheetRelsEntry >= 0) replaced.insert(sheetRelsEntry, r2);
+                else newEntries.emplace_back(entryName(relationshipsPartOf(se.part)), r2);
             }
         }
         replaced.insert(typesEntry, types);

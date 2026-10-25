@@ -165,6 +165,25 @@ public:
     const std::vector<PageBreakLine> &pageBreakRows() const { return m_breakRows; }
     const std::vector<PageBreakLine> &pageBreakCols() const { return m_breakCols; }
     bool hasPageBreaks() const { return !m_breakRows.empty() || !m_breakCols.empty(); }
+    // The sheet shown as the pages it prints on: the cells that print as they are and the rest shaded, each page numbered over its cells, the lines where pages begin and the edges of the
+    // printed blocks (`areas`) grabbed and dragged. A page is the block of cells it prints (its number is what its fields show). Nothing here is the sheet's; the window gives the lists
+    // and does what a drag asks for. With `editable` off (breaks set by hand are not used when the sheet is fitted to pages) the lines and edges cannot be dragged.
+    struct BreakPage {
+        qint64 row1 = 0, row2 = -1, col1 = 0, col2 = -1;
+        int number = 1;
+    };
+    void setBreakView(bool on);
+    bool breakView() const { return m_breakView; }
+    void setBreakPages(std::vector<GridRange> areas, std::vector<BreakPage> pages, bool editable);
+    const std::vector<GridRange> &breakAreas() const { return m_breakAreas; }
+    // What is under a point of the viewport in the break view: a line where a page begins, or an edge of a printed block (0 top, 1 bottom, 2 left, 3 right).
+    struct BreakGrab {
+        enum class Kind { None, Line, Edge } kind = Kind::None;
+        bool column = false;     // a line between columns
+        qint64 before = 0;       // the row (column) the page begins at
+        int area = -1, side = 0;
+    };
+    BreakGrab breakGrabAt(const QPoint &p) const;
     // Something drawn over the cells (the objects of a sheet) that also takes the clicks that land on it and the keys while it has something picked. Not owned: the owner takes it away
     // (setOverlay(nullptr)) before it is destroyed.
     void setOverlay(GridOverlay *overlay);
@@ -203,6 +222,12 @@ Q_SIGNALS:
     void resizeRequested(bool column, qint64 index, int size);
     // A double click on the border at the end of a column (row): fit it to what it holds.
     void fitRequested(bool column, qint64 index);
+    // In the break view, a line where a page begins was dragged and let go: the row (column) it began at, and the row (column) it was let go at (-1: let go away from the printed cells, so it is
+    // to be taken away).
+    void breakMoveRequested(bool column, qint64 from, qint64 to);
+    // An edge of a printed block was dragged and let go: which block, which side (0 top, 1 bottom, 2 left, 3 right), and the row (column) the edge is now at (the first row of the block for the
+    // top, the last for the bottom).
+    void printEdgeRequested(int area, int side, qint64 to);
 
 protected:
     void paintEvent(QPaintEvent *e) override;
@@ -258,6 +283,11 @@ private:
     bool borderAtInLayout(const QPoint &p, bool *column, qint64 *index) const;
     void paintOverlay(QPainter *painter, const QRect &clip);
     void paintPageBreaks(QPainter *painter, const QRect &clip);
+    void paintBreakView(QPainter *painter, const QRect &clip);
+    bool breakPress(const QPoint &lp);
+    bool breakMove(const QPoint &lp);
+    bool breakRelease();
+    qint64 breakTargetAt(const QPoint &lp, bool column, bool *inside) const;
     bool overlayPress(QMouseEvent *e);
     bool overlayMove(QMouseEvent *e);
     bool overlayRelease(QMouseEvent *e);
@@ -271,7 +301,7 @@ private:
     Selection m_selection;
     bool m_gridlines = true, m_headings = true;
     // the mouse
-    enum class Drag { None, Cells, Rows, Columns, Fill, Resize } m_drag = Drag::None;
+    enum class Drag { None, Cells, Rows, Columns, Fill, Resize, BreakLine, BreakEdge } m_drag = Drag::None;
     bool m_resizeColumn = false;
     qint64 m_resizeIndex = -1;
     int m_resizeFrom = 0, m_resizeEdge = 0, m_resizeSize0 = 0, m_resizeSize = 0;
@@ -304,6 +334,11 @@ private:
     GridOverlay *m_overlay = nullptr;
     bool m_cellsEnabled = true;
     std::vector<PageBreakLine> m_breakRows, m_breakCols;
+    bool m_breakView = false, m_breakEditable = true;
+    std::vector<GridRange> m_breakAreas;
+    std::vector<BreakPage> m_breakPageList;
+    BreakGrab m_breakGrab;
+    QPoint m_breakAt;   // where the dragged line or edge is now
 };
 
 } // namespace jp::grid

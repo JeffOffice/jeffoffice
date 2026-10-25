@@ -9,5 +9,6 @@
   "tab:Page Layout": "page-layout",
   "file:print": "printing",
   "file:export": "printing",
+  "tab:Header and Footer": "page-layout",
   "tab:Chart": "charts"
 }

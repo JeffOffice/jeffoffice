@@ -383,6 +383,53 @@ QByteArray tabSelectedFromChange(const QByteArray &head, bool selected, const QB
     return head.left(at) + "<" + prefix + "sheetViews><" + prefix + "sheetView tabSelected=\"1\" workbookViewId=\"0\"/></" + prefix + "sheetViews>" + head.mid(at);
 }
 
+// The head of a sheet with its first view shown as `kind` says (0 normal: the `view` attribute is taken off; 1 the page breaks: pageBreakPreview; 2 the pages: pageLayout) at `zoom` percent
+// (0: the file's zoom stays): the zoom is put in as the zoom of that kind of view too. A sheet with no view is given one before the sizes of its columns (or before the cells).
+QByteArray viewKindFromChange(const QByteArray &head, int kind, int zoom, int normalZoom, const QByteArray &defaultPrefix)
+{
+    Tag t;
+    qsizetype pos = 0, viewAt = -1, viewEnd = -1, insertAt = -1;
+    QByteArray prefix = defaultPrefix;
+    bool first = true;
+    while (xmlscan::nextTag(head, pos, &t)) {
+        pos = t.end;
+        if (t.closing) continue;
+        if (first) {
+            first = false;
+            prefix = QByteArray(xmlscan::prefixOf(t.name));
+            continue;
+        }
+        if (t.local == "sheetView" && viewAt < 0) {
+            viewAt = t.start;
+            viewEnd = t.end;
+        } else if ((t.local == "sheetFormatPr" || t.local == "cols" || t.local == "sheetData") && insertAt < 0) {
+            insertAt = t.start;
+        }
+    }
+    auto apply = [&](QByteArray *tag) {
+        if (kind == 1) setAttr(tag, "view", "pageBreakPreview");
+        else if (kind == 2) setAttr(tag, "view", "pageLayout");
+        else dropAttr(tag, "view");
+        if (zoom > 0) {
+            setAttr(tag, "zoomScale", QByteArray::number(zoom));
+            if (kind == 0) setAttr(tag, "zoomScaleNormal", QByteArray::number(zoom));
+            else setAttr(tag, kind == 1 ? "zoomScaleSheetLayoutView" : "zoomScalePageLayoutView", QByteArray::number(zoom));
+        }
+        // (the zoom of the cells as they are is its own, whichever view is shown)
+        if (normalZoom > 0 && kind != 0) setAttr(tag, "zoomScaleNormal", QByteArray::number(normalZoom));
+    };
+    if (viewAt >= 0) {
+        QByteArray tag = head.mid(viewAt, viewEnd - viewAt);
+        apply(&tag);
+        return head.left(viewAt) + tag + head.mid(viewEnd);
+    }
+    if (kind == 0 && (zoom <= 0 || zoom == 100)) return head;
+    QByteArray tag = "<" + prefix + "sheetView workbookViewId=\"0\"/>";
+    apply(&tag);
+    const qsizetype at = insertAt >= 0 ? insertAt : head.size();
+    return head.left(at) + "<" + prefix + "sheetViews>" + tag + "</" + prefix + "sheetViews>" + head.mid(at);
+}
+
 // What follows a sheet's cells (from after "</sheetData>" to the end) with its merged ranges made from `merges`: in place of the element the file has, or where the format puts it.
 QByteArray tailWithMerges(const QByteArray &after, const std::vector<CellRange> &merges, const QByteArray &prefix)
 {
@@ -596,6 +643,53 @@ QByteArray tailWithDrawing(const QByteArray &after, const QByteArray &relId, con
     return after.left(insertAt) + element + after.mid(insertAt);
 }
 
+// What follows a sheet's cells with the element that names its header and footer pictures' drawing (`legacyDrawingHF`) made to name `relId` (taken out when it is empty): in place of the
+// one the sheet has, or where the format puts it (after the drawings, before the controls and the table parts).
+QByteArray tailWithHeaderDrawing(const QByteArray &after, const QByteArray &relId, const QByteArray &prefix)
+{
+    static const QList<QByteArray> later = {"drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    Tag t;
+    qsizetype pos = 0, insertAt = -1, existingStart = -1, existingEnd = -1;
+    int depth = 0;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (insertAt < 0) insertAt = t.start;   // </worksheet>
+                break;
+            }
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == "legacyDrawingHF" && existingStart < 0) {
+                existingStart = t.start;
+                existingEnd = t.end;
+                if (!t.selfClosing) {
+                    Tag close;
+                    qsizetype p2 = t.end;
+                    int d2 = 1;
+                    while (d2 > 0 && xmlscan::nextTag(after, p2, &close)) {
+                        p2 = close.end;
+                        if (close.closing) --d2;
+                        else if (!close.selfClosing) ++d2;
+                    }
+                    existingEnd = p2;
+                    pos = p2;
+                    continue;
+                }
+            }
+            if (insertAt < 0 && later.contains(QByteArray(t.local))) insertAt = t.start;
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    QByteArray element;
+    if (!relId.isEmpty())
+        element = "<" + prefix + "legacyDrawingHF xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"" + xmlscan::escapeAttribute(QString::fromLatin1(relId)) + "\"/>";
+    if (existingStart >= 0) return after.left(existingStart) + element + after.mid(existingEnd);
+    if (element.isEmpty() || insertAt < 0) return after;
+    return after.left(insertAt) + element + after.mid(insertAt);
+}
+
 class Patcher {
 public:
     Patcher(QIODevice *in, PartSink *out, const SheetChanges &changes, bool hasShared, const std::atomic<bool> *cancel) : m_in(in), m_out(out), m_hasShared(hasShared), m_cancel(cancel)
@@ -623,6 +717,11 @@ public:
         m_showLast = changes.showLast;
         m_filterMode = changes.filterMode;
         m_tabSelected = changes.tabSelected;
+        m_viewKind = changes.viewKind;
+        m_hfSet = changes.hfSet;
+        m_hfRel = changes.hfRel.toLatin1();
+        m_viewZoom = changes.viewZoom;
+        m_viewNormalZoom = changes.viewNormalZoom;
         for (RowEdits &r : m_rows) {
             std::stable_sort(r.items.begin(), r.items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
             // (one item for a cell: a changed cell stands over a result)
@@ -770,6 +869,7 @@ private:
         if (m_tabColor) before = tabColorFromChange(before, *m_tabColor, m_prefix);
         if (m_filterMode >= 0) before = filterModeFromChange(before, m_filterMode != 0, m_prefix);
         if (m_tabSelected >= 0) before = tabSelectedFromChange(before, m_tabSelected != 0, m_prefix);
+        if (m_viewKind >= 0) before = viewKindFromChange(before, m_viewKind, m_viewZoom, m_viewNormalZoom, m_prefix);
         if (m_format) before = formatFromChange(before, *m_format, m_prefix);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
         if (m_page) before = patchFitToPageHead(before, *m_page);
@@ -1124,7 +1224,7 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_page || m_filter || !m_drawingId.isEmpty()) {
+        if (m_merges || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet) {
             // (what follows the cells is held whole to change its merged ranges, its filter, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -1139,6 +1239,7 @@ private:
                 if (m_merges) tail = tailWithMerges(tail, *m_merges, m_prefix);
                 if (m_page) tail = patchPageSetupTail(tail, *m_page, m_prefix);
                 if (!m_drawingId.isEmpty()) tail = tailWithDrawing(tail, m_drawingId, m_prefix);
+                if (m_hfSet) tail = tailWithHeaderDrawing(tail, m_hfRel, m_prefix);
                 return tail;
             };
             if (m_dataClosed) put(tailOf(rest));   // (an empty sheetData was given its closing tag with its rows: what is left follows it)
@@ -1186,6 +1287,9 @@ private:
     quint32 m_showFirst = 0, m_showLast = 0;
     int m_filterMode = -1;
     int m_tabSelected = -1;
+    int m_viewKind = -1, m_viewZoom = 0, m_viewNormalZoom = 0;
+    bool m_hfSet = false;
+    QByteArray m_hfRel;
 };
 
 } // namespace

@@ -93,6 +93,15 @@ struct SheetChanges {
     bool replaceAutoFilter = false;
     AutoFilter autoFilter;
     int filterMode = -1;
+    // How the sheet's first view shows it (`view` of the sheet view): -1 as the file has it, else 0 normal, 1 the pages' breaks, 2 the pages themselves; with the zoom (percent, 0 for the file's)
+    // it is shown at, which is also written as the zoom of that kind of view.
+    int viewKind = -1;
+    int viewZoom = 0;
+    int viewNormalZoom = 0;   // the zoom of the cells as they are, kept in the view's own attribute whichever view the sheet is left in (0: the file's stays)
+    // The relationship the sheet's `legacyDrawingHF` is to name (empty: the element is taken out), when the pictures of its headers and footers are not as the file has them (saving sets
+    // this from the page setup's pictures; whoever asks for a save does not).
+    bool hfSet = false;
+    QString hfRel;
     // For a sheet a person added: the XML it begins as (its view, default sizes, rules, and no cells: the cells, sizes of rows and columns, and merged ranges above are put in it).
     QByteArray skeleton;
     // For a sheet a person copied: the part of the sheet it was copied from (in the file as it was read or last saved), and the edits to rows and columns made to the cells it was copied from
@@ -111,7 +120,7 @@ struct SheetChanges {
     // For a sheet a person put an object on that had no drawing: the id of the relationship from the sheet to the drawing that is made (saving sets it, from SaveChanges::addedObjects), and the
     // sheet is given the element that names it.
     QString drawingRelId;
-    bool empty() const { return drawingRelId.isEmpty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    bool empty() const { return drawingRelId.isEmpty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !hfSet && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
@@ -216,6 +225,7 @@ struct SaveReport {
     qint64 cellsChanged = 0, resultsChanged = 0;
     bool calcChainDropped = false;
     QStringList changedParts;            // the names, as the file has them
+    std::map<int, QString> headerDrawings;   // by the sheet's place: the relationship its header and footer pictures are named by now (empty: it has none), for the sheets whose pictures were written
 };
 
 // Makes the new file's bytes from the old (the lazy package `book` was opened from) and the changes. `cancel`, if given, is looked at as the sheets are copied. False, with a message, if

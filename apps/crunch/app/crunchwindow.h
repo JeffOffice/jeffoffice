@@ -18,8 +18,10 @@
 #include "core/gotospecial.h"
 #include "core/loader.h"
 #include "grid/gridview.h"
+#include "grid/pagelayoutview.h"
 #include "grid/valuestore.h"
 #include "sheet/chartmake.h"
+#include "sheet/pagesetup.h"
 
 #include <QElapsedTimer>
 #include <QHash>
@@ -40,7 +42,9 @@ class QUndoStack;
 class QLabel;
 class QLineEdit;
 class QMenu;
+class QPlainTextEdit;
 class QSlider;
+class QVBoxLayout;
 class QToolButton;
 
 namespace jp {
@@ -50,7 +54,11 @@ struct ObjectProperties;
 namespace office { struct Chart; }
 class CrunchFileScreen;
 struct PageSetupRequest;
-namespace grid { struct SheetPrint; }
+namespace grid {
+struct SheetPrint;
+class PageLayoutView;
+class PageLayoutSource;
+}
 namespace office::sheet { struct PageSetup; }
 class HelpView;
 class HelpWindow;
@@ -259,6 +267,8 @@ public:
 
     // ---- how the sheets print (crunchwindow_page.cpp)
     // What the Page Setup dialog is given and gives back: a dialog unless this stands in for it (tests); false gives it up.
+    // For tests: stands in for the file picker of the Picture button of the Header and Footer tab.
+    void setPictureAsker(const std::function<QString()> &asker) { m_pictureAsker = asker; }
     void setPageSetupAsker(const std::function<bool(PageSetupRequest *)> &asker) { m_pageSetupAsker = asker; }
     // Opens Page Setup on a tab (0 Page, 1 Margins, 2 Header and Footer, 3 Sheet); the change is one step of Undo.
     void pageSetupDialog(int tab = 0);
@@ -287,6 +297,18 @@ public:
     std::function<bool(int, int)> progressFunction(const QString &title, const QString &text);
     void armPageBreaks();
     void updatePageBreaks();
+    // How the sheet in view is shown: 0 the cells as they are, 1 the sheet cut into the pages it prints on (the printed cells light and the rest shaded, the pages numbered, the lines
+    // where they begin and the edges of the printed cells dragged), 2 the pages themselves. What the person chose for each sheet is kept with the workbook and saved.
+    void setViewKind(int kind);
+    int viewKind() const { return m_viewKind; }
+    // For tests: a line where a page begins is dragged from a row (column) to another, as the mouse would ask.
+    void moveBreakForTest(bool column, qint64 from, qint64 to) { breakLineMoved(column, from, to); }
+    // For tests and the window: the view of the pages, and the strip of text being typed in a header or footer.
+    grid::PageLayoutView *pageView() const { return m_pageView; }
+    QPlainTextEdit *zoneEditor() const { return m_zoneEditor; }
+    // The pages of the sheet in the Page Layout view have been laid out (a job is held for drawing them).
+    bool pageLayoutReady() const { return bool(m_layoutPages); }
+    crunch::PrintJob *layoutJobForTest() const { return m_layoutJob.get(); }
     // The lines are worked out in slices of counted work, a turn of the event loop each; an edit, or a workbook opened over this one, drops what was begun.
     void schedulePageBreaks();
     void cancelPageBreaks();
@@ -596,6 +618,46 @@ private:
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);
 
+    // the views of a sheet: the cells, the page breaks, the pages (crunchwindow_views.cpp)
+    void createViewActions();
+    void addViewButtons(QStatusBar *bar);
+    void showViewKind(int kind);
+    void breakLineMoved(bool column, qint64 from, qint64 to);
+    void printEdgeMoved(int area, int side, qint64 to);
+    void sendBreakPages(const crunch::PrintJob &job, const jp::office::sheet::PageSetup &setup);
+    int m_viewKind = 0;
+    bool m_showingSheet = false;   // a sheet is being given to the grid (its zoom is not the person's change)
+
+    // the Page Layout view: the pages one below the other, with the header and footer in the margins to be typed in (crunchwindow_pagelayout.cpp)
+    void createPageLayoutActions();
+    void buildPageLayoutView(QWidget *parent, QVBoxLayout *into);
+    void showPageLayout(bool on);
+    void takeLayoutJob(std::unique_ptr<crunch::PrintJob> job);
+    void dropLayoutJob();
+    void syncPageViewSelection();
+    void zoneClicked(int page, bool header, int zone);
+    void endZoneEdit(bool keep);
+    void insertHeaderCode(const QString &code);
+    void insertHeaderPicture();
+    void updateHeaderFooterActions();
+    double viewZoom() const;
+    void setViewZoom(double zoom);
+    grid::PageLayoutView *m_pageView = nullptr;
+    std::shared_ptr<crunch::PrintJob> m_layoutJob;
+    std::shared_ptr<grid::PageLayoutSource> m_layoutPages;
+    int m_layoutSheet = -1;
+    QPlainTextEdit *m_zoneEditor = nullptr;
+    struct ZoneEdit {
+        int page = -1;
+        bool header = true;
+        int zone = 0;
+        int form = 0;   // 0 the pages in general, 1 the even pages, 2 the first page
+        bool keep = false;
+        jp::office::sheet::HeaderPicture picture;
+        bool hasPicture = false;
+    } m_zone;
+    qint64 m_pressRow = 0, m_pressCol = 0;
+
     // the page commands and the Page Layout tab (crunchwindow_page.cpp)
     void createPageActions();
     void pageRibbonParts(RibbonParts &parts);
@@ -604,6 +666,7 @@ private:
     // Changes how the sheet in view prints: one step of Undo named `text`; what is wrong is told.
     void changePage(const QString &text, const std::function<void(jp::office::sheet::PageSetup *)> &change);
     std::function<bool(PageSetupRequest *)> m_pageSetupAsker;
+    std::function<QString()> m_pictureAsker;
     std::function<void(QPrinter &)> m_printerPreparer;
     std::function<bool(int, int)> m_progressHook;
     std::unique_ptr<crunch::PrintChoices> m_printChoices;

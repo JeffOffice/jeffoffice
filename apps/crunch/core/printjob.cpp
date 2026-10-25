@@ -1,5 +1,7 @@
 #include "core/printjob.h"
 
+#include "grid/hfpicturecache.h"
+
 #include "core/sheetobjects.h"
 
 #include <QCoreApplication>
@@ -387,6 +389,8 @@ PrintJob::Context &PrintJob::contextFor(int infoIndex)
                                                                                           : GridSheet::ErrorDisplay::Shown);
     c.painter = std::make_unique<PagePainter>(c.grid.get());
     c.painter->setBaseFont(m_source->baseFontFamily(), m_source->baseFontPoints());
+    c.painter->setAsyncPictures(m_asyncPictures);
+    c.painter->setScreenMarks(m_screenGrid, m_screenHeadings);
     if (!info.setup.draft) c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.geometry->layout.rows, info.cols);
     return c;
 }
@@ -423,8 +427,114 @@ bool PrintJob::paint(QPainter *painter, int page)
     jp::grid::PageObjects objects;
     if (c.objects && c.objects->count() > 0) objects = [&c, &cut](QPainter *p, const jp::grid::GridLayout &layout, const QRect &) { c.objects->paint(p, cut, layout.zoom()); };
     c.painter->paint(painter, info.print, cut, info.setup, labels, pg.index == 0, objects);
+    m_lastStats = c.painter->stats();
+    m_lastMissed = c.painter->missedPictures();
     return true;
 }
+
+void PrintJob::setAsyncPictures(bool on)
+{
+    m_asyncPictures = on;
+    for (Context &c : m_contexts)
+        if (c.painter) c.painter->setAsyncPictures(on);
+}
+
+void PrintJob::setScreenMarks(bool gridlines, bool headings)
+{
+    m_screenGrid = gridlines;
+    m_screenHeadings = headings;
+    for (Context &c : m_contexts)
+        if (c.painter) c.painter->setScreenMarks(gridlines, headings);
+}
+
+bool PrintJob::picturesPending() const { return jp::grid::HeaderPictureCache::instance().pendingCount() > 0; }
+
+void PrintJob::prefetchPictures()
+{
+    for (const SheetInfo &info : m_sheets)
+        for (const jp::office::sheet::HeaderPicture &p : info.setup.headerFooter.pictures) {
+            bool pending = false;
+            jp::grid::HeaderPictureCache::instance().get(p.image, false, &pending);
+        }
+}
+
+qint64 PrintJob::layoutsWorkedOut() const
+{
+    qint64 n = 0;
+    for (const Context &c : m_contexts)
+        if (c.painter) n += c.painter->layoutsWorkedOut();
+    return n;
+}
+
+bool PrintJob::cellRect(int page, qint64 row, qint64 col, QRectF *rect)
+{
+    if (page < 0 || page >= pageCount()) return false;
+    const Page &pg = m_pages[size_t(page)];
+    const SheetInfo &info = m_sheets[size_t(pg.info)];
+    if (info.chart) return false;
+    const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
+    const bool rowIn = (row >= cut.row1 && row <= cut.row2) || (cut.titleRow1 >= 0 && row >= cut.titleRow1 && row <= cut.titleRow2);
+    const bool colIn = (col >= cut.col1 && col <= cut.col2) || (cut.titleCol1 >= 0 && col >= cut.titleCol1 && col <= cut.titleCol2);
+    if (!rowIn || !colIn) return false;
+    return contextFor(pg.info).painter->cellRect(info.print, cut, info.setup, row, col, rect);
+}
+
+bool PrintJob::cellAt(int page, const QPointF &point, qint64 *row, qint64 *col)
+{
+    if (page < 0 || page >= pageCount()) return false;
+    const Page &pg = m_pages[size_t(page)];
+    const SheetInfo &info = m_sheets[size_t(pg.info)];
+    if (info.chart) return false;
+    return contextFor(pg.info).painter->cellAt(info.print, info.print.pages[size_t(pg.index)], info.setup, point, row, col);
+}
+
+bool PrintJob::rangeRect(int page, qint64 row1, qint64 col1, qint64 row2, qint64 col2, QRectF *rect)
+{
+    if (page < 0 || page >= pageCount()) return false;
+    const Page &pg = m_pages[size_t(page)];
+    const SheetInfo &info = m_sheets[size_t(pg.info)];
+    if (info.chart) return false;
+    const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
+    // (the part of the range among the page's own rows and columns)
+    const qint64 r1 = std::max(row1, cut.row1), r2 = std::min(row2, cut.row2), c1 = std::max(col1, cut.col1), c2 = std::min(col2, cut.col2);
+    if (r1 > r2 || c1 > c2) return false;
+    QRectF a, b;
+    // (the first and last cells the page shows of it; a hidden row or column at an end has none, so the next one that is shown is looked for, a few steps)
+    auto shown = [&](qint64 row, qint64 col, int step, QRectF *out) {
+        for (int i = 0; i < 64; ++i) {
+            if (cellRect(page, std::clamp<qint64>(row + step * i, r1, r2), std::clamp<qint64>(col + step * i, c1, c2), out)) return true;
+        }
+        return false;
+    };
+    if (!shown(r1, c1, 1, &a) || !shown(r2, c2, -1, &b)) return false;
+    *rect = a.united(b);
+    return true;
+}
+
+int PrintJob::pageOfCell(int sheet, qint64 row, qint64 col) const
+{
+    for (size_t i = 0; i < m_pages.size(); ++i) {
+        const SheetInfo &info = m_sheets[size_t(m_pages[i].info)];
+        if (info.sheet != sheet) continue;
+        const jp::grid::PageCut &cut = info.print.pages[size_t(m_pages[i].index)];
+        if (row >= cut.row1 && row <= cut.row2 && col >= cut.col1 && col <= cut.col2) return int(i);
+    }
+    return -1;
+}
+
+jp::grid::PaperBox PrintJob::paperOf(int page) const
+{
+    if (page < 0 || page >= pageCount()) return jp::grid::PaperBox();
+    return m_sheets[size_t(m_pages[size_t(page)].info)].print.paper;
+}
+
+const jp::office::sheet::PageSetup *PrintJob::setupOfPage(int page) const
+{
+    if (page < 0 || page >= pageCount()) return nullptr;
+    return &m_sheets[size_t(m_pages[size_t(page)].info)].setup;
+}
+
+bool PrintJob::isFirstOfSheet(int page) const { return page >= 0 && page < pageCount() && m_pages[size_t(page)].index == 0; }
 
 QImage PrintJob::preview(int page, int widthPixels)
 {
