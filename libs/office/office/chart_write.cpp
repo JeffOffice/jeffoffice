@@ -593,6 +593,33 @@ struct Shape {
     QString problem;
 };
 
+// An attribute with the value it has when it is not there (no strike through the text, no underline, no raising or lowering, no capitals, horizontal text): saying so adds nothing.
+bool isUsualValue(const QString &name, const QString &value)
+{
+    return (name == QLatin1String("strike") && value == QLatin1String("noStrike")) || (name == QLatin1String("u") && value == QLatin1String("none")) || (name == QLatin1String("baseline") && value == QLatin1String("0")) ||
+           (name == QLatin1String("cap") && value == QLatin1String("none")) || (name == QLatin1String("vert") && value == QLatin1String("horz"));
+}
+
+// An element that is a flag, and false.
+bool isOff(const QDomElement &e)
+{
+    const QString v = e.attribute(QStringLiteral("val"), QStringLiteral("1"));
+    return v == QLatin1String("0") || v == QLatin1String("false");
+}
+
+// A set of data labels that draws none: all its flags off or the whole set deleted, and no label of its own (which may show one).
+bool showsNothing(const QDomElement &labels)
+{
+    bool shown = false;
+    for (QDomElement c = labels.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+        const QString n = c.localName();
+        if (n == QLatin1String("dLbl")) return false;
+        if (n == QLatin1String("delete") && !isOff(c)) return true;
+        if (n.startsWith(QLatin1String("show")) && !isOff(c)) shown = true;
+    }
+    return !shown;
+}
+
 void collect(const QDomElement &e, Shape *out, int depth)
 {
     if (depth > 64) {
@@ -604,8 +631,27 @@ void collect(const QDomElement &e, Shape *out, int depth)
     if (name == QLatin1String("extLst")) {
         // extensions: only those that hold nothing but an identifier of the chart or of a series
         for (QDomElement ext = e.firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement())
-            for (QDomElement c = ext.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+            for (QDomElement c = ext.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+                // (leader lines turned off draw nothing)
+                if (c.localName() == QLatin1String("showLeaderLines") && isOff(c)) continue;
                 if (c.localName() != QLatin1String("uniqueId")) out->problem = QStringLiteral("extLst (%1)").arg(c.localName());
+            }
+        return;
+    }
+    if (name == QLatin1String("bubble3D") && isOff(e)) return;   // (the usual: written by programs for every series, and it draws nothing)
+    if (name == QLatin1String("dLbls") && showsNothing(e)) return;   // (labels that are all turned off, or deleted: a chart without labels has none to write)
+    if (name == QLatin1String("AlternateContent")) {
+        // the markup that gives the chart's style in a form newer programs read and, as a fallback, in the plain one: the plain one is the model's (the writer writes it); any other offer is not
+        for (QDomElement choice = e.firstChildElement(); !choice.isNull(); choice = choice.nextSiblingElement()) {
+            if (choice.localName() == QLatin1String("Choice")) {
+                for (QDomElement c = choice.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+                    if (c.localName() != QLatin1String("style")) out->problem = QStringLiteral("AlternateContent (%1)").arg(c.localName());
+            } else if (choice.localName() == QLatin1String("Fallback")) {
+                for (QDomElement c = choice.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) collect(c, out, depth + 1);
+            } else {
+                out->problem = QStringLiteral("AlternateContent (%1)").arg(choice.localName());
+            }
+        }
         return;
     }
     QSet<QString> &attrs = out->elements[name];
@@ -613,6 +659,7 @@ void collect(const QDomElement &e, Shape *out, int depth)
     for (int i = 0; i < map.size(); ++i) {
         const QDomAttr a = map.item(i).toAttr();
         if (a.name().startsWith(QLatin1String("xmlns")) || a.prefix() == QLatin1String("xmlns") || a.prefix() == QLatin1String("mc")) continue;
+        if (isUsualValue(a.localName(), a.value())) continue;
         attrs.insert(a.localName().isEmpty() ? a.name() : a.localName());
     }
     for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) collect(c, out, depth + 1);

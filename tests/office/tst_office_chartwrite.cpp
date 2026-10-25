@@ -230,6 +230,42 @@ private Q_SLOTS:
             QVERIFY(!chartIsFullyModeled(other, &why));
             QCOMPARE(why, QString::fromLatin1(name));
         }
+        // the style offered twice (newer programs' form, and the plain one as the fallback) is the plain one; any other offer is not kept
+        QByteArray offered = ours;
+        offered.replace("<c:style val=\"2\"/>", "<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"c14\" xmlns:c14=\"http://schemas.microsoft.com/office/drawing/2007/8/2/chart\"><c14:style val=\"102\"/></mc:Choice><mc:Fallback><c:style val=\"2\"/></mc:Fallback></mc:AlternateContent>");
+        QVERIFY2(offered != ours, "the style is where the test looks for it");
+        QVERIFY2(chartIsFullyModeled(offered, &why), qPrintable(why));
+        QByteArray other = offered;
+        other.replace("<c14:style val=\"102\"/>", "<c14:style val=\"102\"/><c14:extra val=\"1\"/>");
+        QVERIFY(!chartIsFullyModeled(other, &why));
+        QCOMPARE(why, QStringLiteral("AlternateContent (extra)"));
+        // what draws nothing and is only how another program wrote the part is no loss: a series' bubble3D off, leader lines off, labels that are all off; the same turned on are
+        const QByteArray unlabelled = QString::fromUtf8(ours).remove(QRegularExpression(QStringLiteral("<c:dLbls>.*?</c:dLbls>"))).toUtf8();
+        QByteArray quiet = unlabelled;
+        quiet.replace("<c:ser>", "<c:ser><c:bubble3D val=\"0\"/><c:dLbls><c:showLegendKey val=\"0\"/><c:showVal val=\"0\"/><c:showCatName val=\"0\"/><c:showSerName val=\"0\"/><c:showPercent val=\"0\"/><c:showBubbleSize val=\"0\"/><c:extLst><c:ext uri=\"{CE6537A1-D6FC-4f65-9D91-7224C49458BB}\"><c15:showLeaderLines xmlns:c15=\"http://schemas.microsoft.com/office/drawing/2012/chart\" val=\"0\"/></c:ext></c:extLst></c:dLbls>");
+        QVERIFY2(quiet != ours, "a series is where the test looks for it");
+        QVERIFY2(chartIsFullyModeled(quiet, &why), qPrintable(why));
+        QByteArray bubbles = unlabelled;
+        bubbles.replace("<c:ser>", "<c:ser><c:bubble3D val=\"1\"/>");
+        QVERIFY(!chartIsFullyModeled(bubbles, &why));
+        QCOMPARE(why, QStringLiteral("bubble3D"));
+        QByteArray labelled = unlabelled;
+        labelled.replace("<c:ser>", "<c:ser><c:dLbls><c:showVal val=\"1\"/></c:dLbls>");
+        QVERIFY(labelled != unlabelled);
+        QVERIFY2(chartIsFullyModeled(labelled, &why), qPrintable(why));   // (labels that are on are the model's: the writer writes them)
+        QByteArray oneLabel = unlabelled;
+        oneLabel.replace("<c:ser>", "<c:ser><c:dLbls><c:dLbl><c:idx val=\"0\"/><c:showVal val=\"1\"/></c:dLbl><c:showVal val=\"0\"/></c:dLbls>");
+        QVERIFY(!chartIsFullyModeled(oneLabel, &why));
+        QCOMPARE(why, QStringLiteral("dLbl"));
+        // text that is not raised or lowered says so (baseline 0) and loses nothing; one that is raised does
+        QByteArray level = ours;
+        level.replace("<a:defRPr", "<a:defRPr baseline=\"0\"");
+        QVERIFY2(level != ours, "the text's properties are where the test looks for them");
+        QVERIFY2(chartIsFullyModeled(level, &why), qPrintable(why));
+        QByteArray raised = ours;
+        raised.replace("<a:defRPr", "<a:defRPr baseline=\"30000\"");
+        QVERIFY(!chartIsFullyModeled(raised, &why));
+        QCOMPARE(why, QStringLiteral("defRPr@baseline"));
         // a title that holds a field (the text of a cell, the page): a run is not that
         QByteArray field = ours;
         field.replace("<a:r><a:rPr lang=\"en-US\"/><a:t>Sales &amp; costs &lt;2026&gt;</a:t></a:r>", "<a:fld id=\"{00000000-0000-0000-0000-000000000000}\" type=\"CELLRANGE\"><a:rPr lang=\"en-US\"/><a:t>Sales &amp; costs &lt;2026&gt;</a:t></a:fld>");
