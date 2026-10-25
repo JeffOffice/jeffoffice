@@ -22,6 +22,7 @@
 #include <QVector>
 
 #include <atomic>
+#include <functional>
 #include <map>
 #include <vector>
 
@@ -172,6 +173,8 @@ struct SaveChanges {
     // Drawings whose objects are drawn in another order: for each drawing part (by its name), the order of all the children of its root as they are after what is above is done (the objects taken
     // away gone, those added at the end): the child at place k is the one this says (drawingsave.h, reorderDrawingChildren).
     std::map<QString, std::vector<int>> drawingOrder;
+    // Parts to be written anew whole, made by the thread that writes the file (replacedParts' kind, for what takes time to make: a chart part from a model).
+    std::map<QString, std::function<QByteArray()>> producedParts;
     // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
     bool fullCalcOnLoad = false;
     // The sheets: when a person added, deleted, renamed, moved, hid, or showed one (the workbook's own list is then made from the Workbook's: names, states, and the order of the tabs, with the

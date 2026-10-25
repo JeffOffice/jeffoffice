@@ -783,6 +783,8 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             QStringList used;
             if (!e.isNew)
                 for (const Relationship &r : package.relationships(e.part)) used << r.id;
+            else if (const auto own = requested.sheets.find(sheet); own != requested.sheets.end() && !own->second.copyFromPart.isEmpty())
+                for (const Relationship &r : package.relationships(own->second.copyFromPart)) used << r.id;   // (a copy keeps the ids its links have)
             const QString id = freeRelationshipId(used);
             newDrawingRel[sheet] = id;
             adjusted.sheets[sheet].drawingRelId = id;
@@ -1037,10 +1039,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     xml.replace(xmlscan::escapeAttribute(part.token), xmlscan::escapeAttribute(id));
                     if (!part.contentType.isEmpty()) {
                         // a part the file does not have
-                        bytesAdded += part.bytes.size();
-                        if (bytesAdded > kMaxAddedBytes || taken.contains(part.part.toLower()) || part.bytes.isEmpty()) return bad();
+                        const QByteArray data = part.produce ? part.produce() : part.bytes;
+                        bytesAdded += data.size();
+                        if (bytesAdded > kMaxAddedBytes || taken.contains(part.part.toLower()) || data.isEmpty()) return bad();
                         taken.insert(part.part.toLower());
-                        newEntries.emplace_back(part.part.startsWith(QLatin1Char('/')) ? part.part.mid(1) : part.part, part.bytes);
+                        newEntries.emplace_back(part.part.startsWith(QLatin1Char('/')) ? part.part.mid(1) : part.part, data);
                         QByteArray t2;
                         const int dot = int(part.part.lastIndexOf(QLatin1Char('.')));
                         const bool media = part.part.startsWith(QLatin1String("/xl/media/"), Qt::CaseInsensitive) && dot > 0;
@@ -1127,6 +1130,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         const int index = entryOfPart(part);
         if (index < 0) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A table that changed has no part in the file."));
         replaced.insert(index, data);
+    }
+    for (const auto &[part, make] : changes.producedParts) {
+        const int index = entryOfPart(part);
+        if (index < 0) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A chart that changed has no part in the file."));
+        replaced.insert(index, make());
     }
     // ---- the calculation chain: left out when a cell changed (it may name a cell that no longer holds a formula)
     if (anyCellChanged) {

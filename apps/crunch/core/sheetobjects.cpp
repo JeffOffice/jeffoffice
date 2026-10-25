@@ -3,6 +3,7 @@
 #include "grid/gridsheet.h"
 #include "office/chart_write.h"
 #include "sheet/drawingadd.h"
+#include "sheet/xmlscan.h"
 #include "office/theme.h"
 #include "office/xml.h"
 
@@ -800,6 +801,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
             return *geometry;
         };
         AddedDrawing add;
+        s.savedDrawing.clear();   // (chosen again for each save: a name kept from a save that failed could be one another sheet's save now takes)
         // where each object will be among the children of the drawing's root: the file's, less those taken away, then those added; and the order they are drawn in
         std::vector<int> removedOrdinals;
         for (const std::shared_ptr<Object> &o : s.objects)
@@ -813,6 +815,10 @@ void SheetObjects::addToSave(SaveChanges *changes)
             std::set<int> used;
             for (const std::shared_ptr<Object> &o : s.objects) {
                 if (o->deleted || o->gone) continue;
+                if (o->added && !(m_source && m_cells && o->chart)) {
+                    o->savedPart.clear();   // (it cannot be written now: it stays as it is, not in the file, and is not said to be)
+                    continue;
+                }
                 int at = 0;
                 if (o->added) {
                     at = survivors + addedSoFar++;
@@ -851,11 +857,11 @@ void SheetObjects::addToSave(SaveChanges *changes)
             if (o->gone) continue;
             if (o->added) {
                 // a chart a person made: its part, and its anchor at the end of the drawing
-                if (!m_source || !m_cells || !o->chart || int(add.objects.size()) >= kMaxAddedObjects) continue;
-                Chart c = *o->chart;
-                setChartRefs(&c, o->refs);
-                applyChartCells(&c, int(i), *m_cells);
-                applyChartFormats(&c, int(i), *m_cells);
+                if (!m_source || !m_cells || !o->chart) continue;
+                auto c = std::make_shared<Chart>(*o->chart);
+                setChartRefs(c.get(), o->refs);
+                applyChartCells(c.get(), int(i), *m_cells);
+                applyChartFormats(c.get(), int(i), *m_cells);
                 o->savedPart = freePartName(QStringLiteral("/xl/charts/chart"), QStringLiteral(".xml"), takenNames());
                 takenNames().insert(o->savedPart.toLower());
                 DrawingAnchor want = o->anchor;
@@ -866,7 +872,14 @@ void SheetObjects::addToSave(SaveChanges *changes)
                 const QString token = QStringLiteral("@@chart%1@@").arg(add.objects.size());
                 AddedObject obj;
                 obj.xml = chartAnchorXml(want, int(o->meta.id), o->meta.name, token);
-                obj.parts.push_back({o->savedPart, QStringLiteral("chart"), QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"), writeChartPart(c), token});
+                // (the part is written by the thread that writes the file: it is made from the model, which is a copy)
+                AddedPart part;
+                part.part = o->savedPart;
+                part.relType = QStringLiteral("chart");
+                part.contentType = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml");
+                part.produce = [c] { return writeChartPart(*c); };
+                part.token = token;
+                obj.parts.push_back(std::move(part));
                 add.objects.push_back(std::move(obj));
                 continue;
             }
@@ -886,11 +899,11 @@ void SheetObjects::addToSave(SaveChanges *changes)
             }
             // a chart a person changed is written whole from the model, over its part
             if (o->chart && o->fileChart && o->chart != o->fileChart && !o->meta.chartPart.isEmpty() && m_source && m_cells) {
-                Chart c = *o->chart;
-                setChartRefs(&c, o->refs);
-                applyChartCells(&c, int(i), *m_cells);
-                applyChartFormats(&c, int(i), *m_cells);
-                changes->replacedParts[o->meta.chartPart] = writeChartPart(c);
+                auto c = std::make_shared<Chart>(*o->chart);
+                setChartRefs(c.get(), o->refs);
+                applyChartCells(c.get(), int(i), *m_cells);
+                applyChartFormats(c.get(), int(i), *m_cells);
+                changes->producedParts[o->meta.chartPart] = [c] { return writeChartPart(*c); };
                 editedParts.insert(o->meta.chartPart.toLower());
             }
         }
@@ -953,6 +966,7 @@ void SheetObjects::saved()
                 continue;
             }
             if (o->gone) continue;
+            if (o->added && o->savedPart.isEmpty()) continue;   // (not written: still to be)
             if (o->added) {
                 ++addedNow;
                 o->added = false;
@@ -997,6 +1011,76 @@ QString SheetObjects::unfollowSheetOps(const QString &ref) const
     for (size_t i = ops.size(); i-- > 0;)
         if (ops[i].kind == SheetOp::Kind::Rename) f = renameSheetInFormula(f, ops[i].newName, ops[i].name);
     return f;
+}
+
+int SheetObjects::addedCount() const
+{
+    int n = 0;
+    for (const Sheet &s : m_sheets)
+        for (const std::shared_ptr<Object> &o : s.objects)
+            if (o->added && !o->deleted) ++n;
+    return n;
+}
+
+qint64 SheetObjects::chartPointsHeld() const
+{
+    qint64 n = 0;
+    for (const Sheet &s : m_sheets)
+        for (const std::shared_ptr<Object> &o : s.objects)
+            if (!o->deleted && !o->gone && o->chart && (o->added || o->chart != o->fileChart)) n += o->points;
+    return n;
+}
+
+qint64 SheetObjects::pointsOf(int sheet, const Chart &chart) const
+{
+    qint64 n = 0;
+    for (const ChartPlot &plot : chart.plots)
+        for (const ChartSeries &s : plot.series) {
+            auto cells = [&](const QString &ref, qint64 held) -> qint64 {
+                if (ref.isEmpty() || !m_cells) return held;
+                QVector<ChartBlock> blocks;
+                if (!chartBlocks(ref, sheet, *m_cells, &blocks)) return held;
+                qint64 total = 0;
+                for (const ChartBlock &b : std::as_const(blocks)) total += std::min<qint64>(b.range.cellCount(), kMaxChartSeriesCells);
+                return std::min<qint64>(total, kMaxChartSeriesCells);
+            };
+            n += cells(s.valueRef, s.values.size()) + cells(s.categoryRef, s.categories.size()) + cells(s.xRef, s.xValues.size()) + 8;   // (and what its name and settings hold)
+        }
+    return n;
+}
+
+bool SheetObjects::chartRoom(int sheet, const Chart &chart, int replacing, QString *why) const
+{
+    qint64 held = chartPointsHeld();
+    if (replacing >= 0)
+        for (const std::shared_ptr<Object> &o : m_sheets[size_t(sheet)].objects)
+            if (o->id == replacing && !o->deleted && o->chart && (o->added || o->chart != o->fileChart)) held -= o->points;
+    if (held + pointsOf(sheet, chart) > m_limits.maxPoints) {
+        if (why) *why = QCoreApplication::translate("jp::crunch::SheetObjects", "The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.").arg(QLocale().toString(m_limits.maxPoints));
+        return false;
+    }
+    return true;
+}
+
+void SheetObjects::knowShapeIds(int sheet, Sheet &s)
+{
+    if (s.shapeIdsKnown) return;
+    s.shapeIdsKnown = true;
+    Q_UNUSED(sheet);
+    if (s.drawingPart.isEmpty()) return;
+    // the largest number any shape of the part has, found by looking through the part (a drawing is read for at most kMaxDrawingAnchors, and the rest must not be given ids again)
+    const QByteArray xml = m_book->package().part(s.drawingPart);
+    xmlscan::Tag t;
+    qsizetype pos = 0;
+    qint64 most = 1;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "cNvPr") continue;
+        bool found = false;
+        const QByteArrayView v = xmlscan::attribute(QByteArrayView(xml).sliced(t.start, t.end - t.start), "id", &found);
+        if (found) most = std::max(most, QByteArray(v).toLongLong());
+    }
+    s.nextShapeId = std::max(s.nextShapeId, most + 1);
 }
 
 bool SheetObjects::exists(int sheet, int id) { return find(sheet, id) != nullptr; }
@@ -1082,12 +1166,18 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
             o->refPlacements = st.refs;
             o->built = o->made = true;
             o->drawnKey = 0;
+            o->points = pointsOf(sheet, *st.chart);
         }
     }
     replay(sheet, *o);
     o->frozen = o->anchor.kind != AnchorKind::TwoCell;
     o->meta.anchor.editAs = o->anchor.editAs;
     o->deleted = st.deleted;
+    // a chart put on and taken away again lets go of its numbers (the step that put it on holds them, and gives them back)
+    if (o->deleted && o->added && o->chart) {
+        o->chart.reset();
+        o->points = 0;
+    }
     // its place among the others, in the order they are drawn
     Sheet &s = sheetState(sheet);
     size_t at = s.objects.size();
@@ -1115,9 +1205,11 @@ int SheetObjects::makeChart(int sheet, const Chart &chart, const DrawingAnchor &
     if (!m_book || sheet < 0 || sheet >= int(m_sheets.size())) return refuse(tr("There is no such sheet."));
     if (m_book->info().sheets[sheet].kind != SheetKind::Worksheet) return refuse(tr("A chart sheet holds one chart. Put charts on a worksheet."));
     Sheet &s = sheetState(sheet);
-    int added = 0;
-    for (const std::shared_ptr<Object> &o : s.objects) added += o->added ? 1 : 0;
-    if (added >= kMaxAddedObjects || m_objectsMade >= kMaxWorkbookObjects) return refuse(tr("This sheet has as many objects as JeffCrunch puts on a sheet."));
+    if (addedCount() >= m_limits.maxAdded)
+        return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(QLocale().toString(m_limits.maxAdded)));
+    if (m_objectsMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
+    if (!chartRoom(sheet, chart, -1, why)) return -1;
+    knowShapeIds(sheet, s);
     auto o = std::make_shared<Object>();
     o->id = s.nextId++;
     o->added = true;
@@ -1136,6 +1228,7 @@ int SheetObjects::makeChart(int sheet, const Chart &chart, const DrawingAnchor &
     o->refPlacements.push_back(jp::crunch::RefPlacement{int(m_applied.size()), o->baseRefs});
     o->movedRefs = o->baseRefs;
     refreshRefs(*o);
+    o->points = pointsOf(sheet, chart);
     o->built = o->made = true;
     ++m_objectsMade;
     ++s.counts.charts;

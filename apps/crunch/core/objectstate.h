@@ -46,4 +46,18 @@ struct ObjectEdit {
     bool adds() const { return before.deleted && !after.deleted; }
 };
 
+// About how many bytes a state holds that a step of Undo keeps: the numbers and words of a chart's series (a chart made from many cells is a large thing), and its references.
+inline qint64 approxBytes(const ObjectState &st)
+{
+    qint64 n = qint64(sizeof(ObjectState)) + qint64(st.placements.size()) * qint64(sizeof(AnchorPlacement));
+    for (const RefPlacement &r : st.refs) n += 64 + qint64(r.refs.size()) * 96;
+    if (st.chart)
+        for (const jp::office::ChartPlot &p : st.chart->plots)
+            for (const jp::office::ChartSeries &s : p.series) {
+                n += 1500 + qint64(s.values.size() + s.xValues.size() + s.categoryNumbers.size()) * 8;
+                for (const QString &c : s.categories) n += 32 + qint64(c.size()) * 2;
+            }
+    return n;
+}
+
 } // namespace jp::crunch

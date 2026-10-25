@@ -141,8 +141,7 @@ public:
         for (const SizeEdit &e : m_step.sizes)
             n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
         if (m_step.structure) n += m_step.structure->bytes();
-        for (const ObjectEdit &e : m_step.objects)
-            n += qint64(sizeof(e)) + (e.before.chart || e.after.chart ? 4096 : 0) + qint64(e.before.refs.size() + e.after.refs.size()) * 64;
+        for (const ObjectEdit &e : m_step.objects) n += qint64(sizeof(e)) + approxBytes(e.before) + (e.after.chart == e.before.chart ? 0 : approxBytes(e.after));
         for (const PageEdit &e : m_step.pages) n += qint64(sizeof(e)) + qint64(e.before.rowBreaks.size() + e.before.colBreaks.size() + e.after.rowBreaks.size() + e.after.colBreaks.size()) * 16 + qint64(e.before.printArea.size() + e.after.printArea.size()) * qint64(sizeof(jp::office::sheet::CellRange)) + qint64(e.before.headerFooter.oddHeader.size() + e.after.headerFooter.oddHeader.size()) * 2;
         *m_total += n - m_bytes;
         m_bytes = n;

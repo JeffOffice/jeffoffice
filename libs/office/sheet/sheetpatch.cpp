@@ -10,6 +10,7 @@
 #include <QCoreApplication>
 #include <QHash>
 #include <QIODevice>
+#include <QRegularExpression>
 
 #include <algorithm>
 #include <cmath>
@@ -440,7 +441,16 @@ QByteArray tailWithDrawing(const QByteArray &after, const QByteArray &relId, con
             continue;
         }
         if (depth == 0) {
-            if (t.local == "drawing") return after;
+            if (t.local == "drawing") {
+                // the sheet names a drawing that its relationships do not (or whose part is not there): the element names the one made now
+                QByteArray tag = after.mid(t.start, t.end - t.start);
+                static const QRegularExpression idAttr(QStringLiteral("(\\s[A-Za-z_][\\w.-]*:id\\s*=\\s*)(\"[^\"]*\"|'[^']*')"));
+                const QString text = QString::fromUtf8(tag);
+                const QRegularExpressionMatch m = idAttr.match(text);
+                if (!m.hasMatch()) return after;
+                const QString fixed = text.left(m.capturedStart(2)) + QLatin1Char('"') + QString::fromLatin1(xmlscan::escapeAttribute(QString::fromLatin1(relId))) + QLatin1Char('"') + text.mid(m.capturedEnd(2));
+                return after.left(t.start) + fixed.toUtf8() + after.mid(t.end);
+            }
             if (insertAt < 0 && later.contains(QByteArray(t.local))) insertAt = t.start;
         }
         if (!t.selfClosing) ++depth;

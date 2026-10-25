@@ -10,6 +10,7 @@
 #include <QString>
 #include <QSet>
 #include <QStringList>
+#include <functional>
 #include <vector>
 
 namespace jp::office::sheet {
@@ -20,6 +21,7 @@ struct AddedPart {
     QString relType;         // the last word of the relationship's type ("chart", "image")
     QString contentType;     // for a part the package does not have: its media type (empty: the package has the part, and only the relationship is made)
     QByteArray bytes;        // for a part the package does not have
+    std::function<QByteArray()> produce;   // or the way to make them, run by the thread that writes the file (a chart is written there, not where the save began)
     QString token;           // what the object's XML has where the relationship's id goes; the id is put in its place
 };
 

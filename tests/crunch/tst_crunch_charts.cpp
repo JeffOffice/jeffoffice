@@ -12,6 +12,8 @@
 #include "office/chart_write.h"
 #include "office/xml.h"
 #include "sheet/chartedit.h"
+#include "sheet/drawing.h"
+#include "sheet/xlsxsave.h"
 
 #include <QClipboard>
 #include <QGuiApplication>
@@ -1029,6 +1031,249 @@ private Q_SLOTS:
         pressUndo(&e.win.w);   // the second rename
         QVERIFY(e.settle());
         QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("'Q1 Budget'!$B$2:$B$4"));
+    }
+
+    // ---- limits, and what a save does with them
+
+    // One set of limits for the whole workbook, kept where an object is made: past them a new chart is refused with a reason, an object taken away makes room, and nothing is made that a save would
+    // have to leave out.
+    void newObjectsAreLimitedWhereTheyAreMade()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({dataSheet(), dataSheet()})));
+        QVERIFY(e.settle());
+        crunch::SheetObjects *o = e.win.w.objects();
+        crunch::SheetObjects::Limits limits = o->limits();
+        QCOMPARE(limits.maxAdded, 1000);
+        limits.maxAdded = 3;
+        o->setLimits(limits);
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        e.win.w.setActiveSheet(1);
+        QTRY_VERIFY(o->shownSheet() == 1);
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Line));
+        QVERIFY(e.win.w.insertChart(ChartKind::Pie));
+        QCOMPARE(o->addedCount(), 3);   // (the sheets share the count)
+        QVERIFY(!e.win.w.insertChart(ChartKind::Area));
+        QVERIFY2(e.win.told.last().contains(QLatin1String("3 new objects")), qPrintable(e.win.told.last()));
+        QCOMPARE(o->addedCount(), 3);
+        // one taken away makes room, and a save makes room for all
+        pressUndo(&e.win.w);
+        QCOMPARE(o->addedCount(), 2);
+        QVERIFY(e.win.w.insertChart(ChartKind::Area));
+        QVERIFY(save(e));
+        QCOMPARE(o->addedCount(), 0);
+        QCOMPARE(savedCharts(e.path, 0).size() + savedCharts(e.path, 1).size(), 3);
+        QVERIFY(e.win.w.insertChart(ChartKind::Pie));
+    }
+
+    // A chart is not let to hold more numbers than the workbook's budget, a paste repeated until it is refused stays within it, what an undone chart held is let go (the step that made it holds it),
+    // and the numbers a step of Undo holds are counted in the bytes Undo may keep.
+    void chartsAreHeldWithinABudgetOfNumbers()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->select(0);
+        e.win.w.act(QStringLiteral("edit.copy"))->trigger();
+        crunch::SheetObjects::Limits limits = o->limits();
+        const Chart one = chartOf(e);
+        const qint64 each = o->pointsOf(0, one);
+        QVERIFY(each > 0);
+        limits.maxPoints = each * 4 + 1;
+        o->setLimits(limits);
+        int pasted = 0;
+        for (int i = 0; i < 50; ++i) {
+            e.select(QStringLiteral("B20"));
+            const int before = int(o->idsOf(0).size());
+            e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+            if (int(o->idsOf(0).size()) == before) break;
+            ++pasted;
+        }
+        QCOMPARE(pasted, 4);
+        QVERIFY(o->chartPointsHeld() <= limits.maxPoints);
+        QVERIFY2(e.win.told.last().contains(QLatin1String("hold as many numbers")), qPrintable(e.win.told.last()));
+        // an undone paste lets go of its numbers and makes room; redo gives them back
+        const int last = o->idsOf(0).back();
+        pressUndo(&e.win.w);
+        QCOMPARE(seriesCount(chartOf(e, last)), 0);
+        QCOMPARE(o->chartPointsHeld(), each * 3);
+        pressRedo(&e.win.w);
+        QCOMPARE(seriesCount(chartOf(e, last)), 1);
+        QCOMPARE(o->chartPointsHeld(), each * 4);
+        // a change that would need more than there is, is refused as well
+        o->layer()->select(last);
+        limits.maxPoints = each * 4 - 1;
+        o->setLimits(limits);
+        QString why;
+        QVERIFY(!o->chartRoom(0, chartOf(e, last), -1, &why));
+        QVERIFY(o->chartRoom(0, chartOf(e, last), last, &why) || why.contains(QLatin1String("numbers")));
+        // Undo's bytes include the numbers a step holds
+        limits.maxPoints = 100000;
+        o->setLimits(limits);
+        const qint64 bytes = e.win.w.session()->undoBytes();
+        QVERIFY(e.win.w.changePickedChart(QStringLiteral("Test"), [](Chart *c) { c->plots[0].series[0].values = QVector<double>(5000, 1.5); }));
+        QVERIFY2(e.win.w.session()->undoBytes() - bytes >= qint64(5000 * 8), qPrintable(QString::number(e.win.w.session()->undoBytes() - bytes)));
+    }
+
+    // The part of a chart is written by the thread that writes the file, not by the one that began the save: the save is given the model to write from.
+    void chartPartsAreWrittenByTheSavingThread()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->select(0);
+        QVERIFY(e.win.w.changePickedChart(QStringLiteral("Test"), [](Chart *c) { c->title.present = true; c->title.automatic = false; c->title.text = QStringLiteral("T"); }));
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        SaveChanges changes;
+        o->addToSave(&changes);
+        QCOMPARE(int(changes.producedParts.size()), 1);
+        QVERIFY(changes.replacedParts.empty());
+        QCOMPARE(int(changes.addedObjects.size()), 1);
+        const AddedPart &part = changes.addedObjects.begin()->second.objects[0].parts[0];
+        QVERIFY(part.bytes.isEmpty() && part.produce);
+        QVERIFY(part.produce().contains("<c:chartSpace"));
+        QVERIFY(changes.producedParts.begin()->second().contains("<c:chartSpace"));
+    }
+
+    // What a save names is chosen again each time: the name of a drawing kept from a save that did not happen is not taken by another sheet's.
+    void namesOfNewPartsAreChosenAgainForEachSave()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({dataSheet(), dataSheet()})));
+        QVERIFY(e.settle());
+        crunch::SheetObjects *o = e.win.w.objects();
+        e.win.w.setActiveSheet(1);
+        QTRY_VERIFY(o->shownSheet() == 1);
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        SaveChanges failed;
+        o->addToSave(&failed);   // (the save that did not happen)
+        QCOMPARE(failed.addedObjects.begin()->second.part, QStringLiteral("/xl/drawings/drawing1.xml"));
+        e.win.w.setActiveSheet(0);
+        QTRY_VERIFY(o->shownSheet() == 0);
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Line));
+        SaveChanges again;
+        o->addToSave(&again);
+        QCOMPARE(int(again.addedObjects.size()), 2);
+        QVERIFY(again.addedObjects.at(0).part != again.addedObjects.at(1).part);
+        QVERIFY(again.addedObjects.at(0).objects[0].parts[0].part != again.addedObjects.at(1).objects[0].parts[0].part);
+        QVERIFY(save(e));
+        QCOMPARE(savedCharts(e.path, 0).size(), 1);
+        QCOMPARE(savedCharts(e.path, 1).size(), 1);
+    }
+
+    // An object that cannot be written is not said to be in the file: it stays to be saved.
+    void anObjectThatCouldNotBeWrittenIsNotSaidToBeSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        crunch::SheetObjects *o = e.win.w.objects();
+        // a second set of objects with no cells to read from (as before the workbook is whole): nothing can be written for what it holds
+        crunch::SheetObjects bare;
+        bare.open(e.win.w.loadedBook()->book);
+        QString why;
+        const int id = bare.makeChart(0, chartOf(e), DrawingAnchor{}, &why);
+        QVERIFY2(id >= 0, qPrintable(why));
+        crunch::ObjectEdit edit;
+        edit.sheet = 0;
+        edit.id = id;
+        edit.before = bare.stateOf(0, id);
+        edit.after = edit.before;
+        edit.after.deleted = false;
+        bare.applyState(0, id, edit.after);
+        QCOMPARE(bare.addedCount(), 1);
+        SaveChanges changes;
+        bare.addToSave(&changes);
+        QVERIFY(changes.addedObjects.empty());
+        bare.saved();
+        QCOMPARE(bare.addedCount(), 1);   // (still to be saved)
+        Q_UNUSED(o);
+    }
+
+    // A shape put on a drawing is numbered past every shape the part has, the ones past the number a drawing is read for too.
+    void aNewShapeIsNumberedPastEveryShapeOfTheDrawing()
+    {
+        QString anchors;
+        const int n = kMaxDrawingAnchors + 120;
+        for (int i = 0; i < n; ++i) anchors += twoCell(i % 200, i / 200, i % 200 + 1, i / 200 + 1, shapeElement(10 + i, QStringLiteral("S%1").arg(i)));
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {})));
+        QTRY_VERIFY_WITH_TIMEOUT(e.win.w.objects()->shownSheet() == 0 && e.win.w.objects()->layer()->count() > 0, 30000);
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        QVERIFY(save(e));
+        Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        QDomDocument doc;
+        QVERIFY(parseXml(p.part(QStringLiteral("/xl/drawings/drawing1.xml")), &doc));
+        QSet<qint64> ids;
+        qint64 chartId = 0;
+        const QDomNodeList all = doc.elementsByTagName(QStringLiteral("cNvPr"));
+        for (int i = 0; i < all.size(); ++i) {
+            const qint64 id = all.at(i).toElement().attribute(QStringLiteral("id")).toLongLong();
+            QVERIFY2(!ids.contains(id), qPrintable(QString::number(id)));
+            ids.insert(id);
+            if (all.at(i).toElement().attribute(QStringLiteral("name")) == QLatin1String("Chart 1")) chartId = id;
+        }
+        QVERIFY(chartId > 10 + n - 1);
+    }
+
+    // A sheet that is a copy of one with an outside link keeps the link's relationship id: the drawing a chart on the copy gets has another, and every relationships part of the file has each id once.
+    void aCopyOfASheetWithALinkGetsADrawingWithAnIdOfItsOwn()
+    {
+        const QByteArray sheet = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Region</t></is></c><c r=\"B1\"><v>4</v></c></row><row r=\"2\"><c r=\"A2\"><v>5</v></c><c r=\"B2\"><v>6</v></c></row>"),
+                                           QStringLiteral("<hyperlinks><hyperlink ref=\"A1\" r:id=\"rId1\"/></hyperlinks>"));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(buildXlsx({sheet}), parts));
+        parts[QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")] = QByteArray("<?xml version=\"1.0\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                                                                               "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink\" Target=\"https://example.org/\" TargetMode=\"External\"/></Relationships>");
+        jp::ZipWriter z;
+        for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+        EditWindow e;
+        QVERIFY(e.open(z.finish()));
+        QVERIFY(e.settle());
+        e.win.w.setMoveCopyAsker([](CrunchWindow::MoveCopyRequest *r) {
+            r->sheets = {0};
+            r->before = -1;
+            r->copy = true;
+            return true;
+        });
+        e.win.w.act(QStringLiteral("sheet.moveCopy"))->trigger();
+        QVERIFY(e.settle());
+        crunch::SheetObjects *o = e.win.w.objects();
+        QCOMPARE(e.win.w.shownSheets().size(), 2);
+        e.win.w.setActiveSheet(1);
+        QTRY_VERIFY(o->shownSheet() == 1);
+        selectRange(e, QStringLiteral("A1:B2"));
+        QVERIFY2(e.win.w.insertChart(ChartKind::Column), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        QVERIFY(save(e));
+        const QMap<QString, QByteArray> saved = partsOf(e.path);
+        int relationshipParts = 0;
+        for (auto it = saved.begin(); it != saved.end(); ++it) {
+            if (!it.key().endsWith(QLatin1String(".rels"))) continue;
+            ++relationshipParts;
+            QDomDocument doc;
+            QVERIFY2(doc.setContent(it.value()), qPrintable(it.key()));
+            QSet<QString> ids;
+            const QDomNodeList all = doc.elementsByTagName(QStringLiteral("Relationship"));
+            for (int i = 0; i < all.size(); ++i) {
+                const QString id = all.at(i).toElement().attribute(QStringLiteral("Id"));
+                QVERIFY2(!ids.contains(id), qPrintable(it.key() + QLatin1Char(' ') + id));
+                ids.insert(id);
+            }
+        }
+        QVERIFY(relationshipParts >= 4);
+        QCOMPARE(savedCharts(e.path, 1).size() + savedCharts(e.path, 0).size(), 1);
     }
 };
 

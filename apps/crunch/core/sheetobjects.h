@@ -115,6 +115,21 @@ public:
     ObjectState stateOf(int sheet, int id);
     // Gives the object a state (a step is done, undone, or done again); the layer is told if the sheet is shown.
     void applyState(int sheet, int id, const ObjectState &state);
+    // What a workbook is let hold of what a person put there and has not saved: the objects (at most what one save writes) and the points of the charts made or changed (a chart's numbers are
+    // kept as the model holds them, and Undo holds copies). A refusal says so in words; the limits are the same wherever an object is made.
+    struct Limits {
+        int maxAdded = jp::office::sheet::kMaxAddedObjects;
+        qint64 maxPoints = 400000;
+    };
+    void setLimits(const Limits &limits) { m_limits = limits; }
+    const Limits &limits() const { return m_limits; }
+    // The objects put there since the file was read or saved that are not taken away, and the points of the charts that are new or changed, in the whole workbook.
+    int addedCount() const;
+    qint64 chartPointsHeld() const;
+    // The points a chart reads or holds (the cells its references name, up to what a series may read, and the numbers it holds for what has no reference).
+    qint64 pointsOf(int sheet, const jp::office::Chart &chart) const;
+    // Whether a chart of this size may be held in the place of the object `replacing` (-1: as one more); if not, why.
+    bool chartRoom(int sheet, const jp::office::Chart &chart, int replacing, QString *why = nullptr) const;
     // Makes a chart object on a worksheet from the model (its references inside it, in the names the sheets have now). It is there but taken away (hidden) until a step gives it the state with
     // `deleted` false; discardMade() lets it go if the step is not made. The id, or -1 with the reason in `why`.
     int makeChart(int sheet, const jp::office::Chart &chart, const jp::office::sheet::DrawingAnchor &anchor, QString *why = nullptr);
@@ -189,6 +204,7 @@ private:
         std::vector<jp::crunch::RefPlacement> refPlacements;   // what a person made the chart read
         std::shared_ptr<const jp::office::Chart> fileChart;   // the chart as the file's part gave it (a chart that is another was changed by a person)
         QString savedPart;                             // what saving makes for it: the chart part's name
+        qint64 points = 0;                             // what a chart that is new or changed holds, for the limits
         int savedOrdinal = -1;                         // where it will be among the children of the drawing's root when what addToSave gave is saved
         int editable = -1;                             // whether the chart can be changed (-1 not looked at, 0 no, 1 yes), and why not: found once, for a part of the file is read to say
         QString editWhy;
@@ -209,6 +225,7 @@ private:
         DrawingCounts counts;
         int nextId = 0;                                // the id of the next object put on the sheet
         qint64 nextShapeId = 2;                        // and the number the next one has in the drawing
+        bool shapeIdsKnown = false;                    // `nextShapeId` is past every id the drawing part has (found by looking through the whole part)
         QString savedDrawing;                          // the drawing part saving makes for a sheet that has none
     };
     Sheet &sheetState(int sheet);
@@ -236,6 +253,7 @@ private:
     bool chartDataChanged(int sheet, Object &o, qint64 *budget);
     jp::office::sheet::DrawingAnchor twoCellFor(const Object &o, const jp::grid::Axis &rows, const jp::grid::Axis &cols) const;
     Object *find(int sheet, int id);
+    void knowShapeIds(int sheet, Sheet &s);
     std::vector<jp::office::sheet::StructEdit> editsFrom(int at, int to = -1) const;
     QStringList movedRefList(const QStringList &refs, int sheet, int at, int to) const;
     // A reference as the file's names for the sheets would have it (the renames and deletes of sheets since the file was read or saved taken back).
@@ -267,6 +285,7 @@ private:
     quint64 m_generation = 0;                                // of the workbook open (a worker's answer for another is let go)
     qint64 m_chartsDrawn = 0;
     qint64 m_editSteps = 0;
+    Limits m_limits;
     int m_epoch = 0;                                         // counts the saves that followed edits to rows and columns (see core/objectstate.h)
 };
 

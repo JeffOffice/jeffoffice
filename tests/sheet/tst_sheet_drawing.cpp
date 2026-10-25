@@ -743,7 +743,13 @@ private Q_SLOTS:
         a.from = {1, 2, 0, 0};
         a.to = {6, 14, 0, 0};
         obj.xml = chartAnchorXml(a, shapeId, QStringLiteral("Chart %1").arg(shapeId), token);
-        obj.parts.push_back({partName, QStringLiteral("chart"), QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"), chartXml, token});
+        AddedPart part;
+        part.part = partName;
+        part.relType = QStringLiteral("chart");
+        part.contentType = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml");
+        part.bytes = chartXml;
+        part.token = token;
+        obj.parts.push_back(part);
         return obj;
     }
     static bool allXmlParses(const QMap<QString, QByteArray> &parts, QString *bad)
@@ -927,6 +933,57 @@ private Q_SLOTS:
         QVERIFY(anchor.contains("r:id=\"@@t@@\"") && anchor.contains("editAs=\"oneCell\"") && anchor.contains("name=\"A &quot;b&quot; &lt;c&gt;\""));
         QDomDocument doc;
         QVERIFY(doc.setContent(anchor));
+    }
+
+    // A sheet whose `drawing` element names a relationship the sheet does not have (or one whose part is not there) is given the drawing that is made: the element is pointed at it, and the
+    // object is not lost.
+    void aDrawingElementThatNamesNothingIsPointedAtTheNewDrawing()
+    {
+        for (const bool relationshipThere : {false, true}) {
+            const QByteArray sheet = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), QStringLiteral("<pageMargins left=\"0.7\" right=\"0.7\" top=\"0.75\" bottom=\"0.75\" header=\"0.3\" footer=\"0.3\"/><drawing r:id=\"rId9\"/>"));
+            QByteArray xlsx = buildXlsx({sheet});
+            if (relationshipThere) {
+                QVector<ExtraPart> extra;
+                // (a relationship to a drawing part the package does not have)
+                extra.append({QStringLiteral("xl/media/other.bin"), QByteArray("x"), QString(), 0, QStringLiteral("rId9"), QStringLiteral("drawing"), QStringLiteral("../drawings/missing.xml")});
+                xlsx = withParts(xlsx, extra);
+            }
+            Package p;
+            QString why;
+            QVERIFY(p.readLazy(xlsx, &why));
+            Workbook b;
+            QVERIFY2(b.open(p, &why), qPrintable(why));
+            SaveChanges changes;
+            AddedDrawing add;
+            add.part = QStringLiteral("/xl/drawings/drawing1.xml");
+            add.objects.push_back(chartObject(2, QStringLiteral("/xl/charts/chart1.xml"), QStringLiteral("@@c@@"), simpleChart()));
+            changes.addedObjects[0] = add;
+            QByteArray out;
+            QVERIFY2(saveXlsx(b, changes, &out, &why), qPrintable(why));
+            QMap<QString, QByteArray> parts;
+            QVERIFY(jp::readZip(out, parts));
+            const QByteArray xml = parts.value(QStringLiteral("xl/worksheets/sheet1.xml"));
+            QCOMPARE(xml.count("<drawing "), 1);
+            Package q;
+            QVERIFY(q.readLazy(out, &why));
+            Workbook b2;
+            QVERIFY2(b2.open(q, &why), qPrintable(why));
+            const QString drawing = drawingPartOf(q, b2.info().sheets[0].part);
+            QVERIFY2(!drawing.isEmpty(), "the sheet's drawing element names the drawing that was made");
+            SheetDrawing d;
+            QVERIFY(readDrawing(q, drawing, &d, &why));
+            QCOMPARE(d.objects.size(), 1);
+            QCOMPARE(int(d.objects[0].kind), int(ObjectKind::Chart));
+            QDomDocument doc;
+            QVERIFY(doc.setContent(xml));
+            // the element's id is the relationship that goes to the drawing that was made
+            const QDomNodeList drawings = doc.elementsByTagName(QStringLiteral("drawing"));
+            QCOMPARE(drawings.size(), 1);
+            const QString named = drawings.at(0).toElement().attributeNS(QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships"), QStringLiteral("id"));
+            QVERIFY(!named.isEmpty());
+            const Relationship r = q.relationship(b2.info().sheets[0].part, named);
+            QCOMPARE(r.target, drawing);
+        }
     }
 };
 
