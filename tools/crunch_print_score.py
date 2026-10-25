@@ -13,7 +13,7 @@ cut), and compares:
     words and its words as a whole are those of our page (the words say which cells are on it, whatever the type is);
 and lists the ten sheets that match worst, with what is different. Two things are made to match the reference's own run: each workbook is printed from a link named as the reference's copy
 was (<key>.<ext>, so the file name fields show the same name), and the date and time fields show the moment the reference PDF was made (its CreationDate, given to the tool as JP_NOW). A
-reference that is one blank page (an empty sheet) is compared by page count only, and counted on its own line. Only the first --pages (default 20) pages of a sheet are compared picture by picture. Prints summary lines; writes
+reference that is one blank page (an empty sheet) is compared by page count only, and counted on its own line. Only the first --pages (default 50) pages of a sheet are compared picture by picture. Prints summary lines; writes
 OUT/scores.tsv (a line for each page) and OUT/sheets.tsv (a line for each sheet).
 """
 import collections, csv, glob, os, re, shutil, statistics, subprocess, sys, tempfile
@@ -103,7 +103,7 @@ def one_workbook(job):
     except OSError:
         link = path
     groups = collections.OrderedDict()
-    for n, name in sheets:
+    for n, name, _empty in sheets:
         moment = ref_now(os.path.join(ref_dir, key, "sheet-%02d.pdf" % n))
         groups.setdefault(re.sub(r"(T\d\d:\d\d):\d\d", r"\1", moment) if moment else "", (moment, []))[1].append(n)
     where = {}
@@ -131,11 +131,16 @@ def one_workbook(job):
             pass
     shutil.rmtree(linkdir, ignore_errors=True)
     results = []
-    for n, name in sheets:
+    for n, name, empty in sheets:
         mine = os.path.join(where.get(n, target), "sheet-%02d.pdf" % n)
         ref = os.path.join(ref_dir, key, "sheet-%02d.pdf" % n)
         row = {"key": key, "sheet": n, "name": name, "ref_pages": 0, "our_pages": 0, "status": "", "pages": [], "cause": "", "blank": False}
-        if not os.path.exists(ref):
+        if empty:
+            row["status"] = "empty" if not os.path.exists(mine) else "empty printed"
+            row["cause"] = "" if row["status"] == "empty" else "we printed %d pages of a sheet the original printed none of" % page_info(mine)[0]
+            row["our_pages"] = 0 if row["status"] == "empty" else page_info(mine)[0]
+            row["blank"] = True
+        elif not os.path.exists(ref):
             row["status"] = "no reference"
         elif not os.path.exists(mine):
             # nothing printed: a failure of ours, unless the reference is the blank page of an empty sheet (the tool says "no cells to print" for those, and they are counted on their own)
@@ -195,7 +200,7 @@ def summ(name, v):
 
 def main():
     args = sys.argv[1:]
-    opt = {"--ref": os.path.expanduser("~/crunch-corpus/printref"), "--out": None, "--jobs": "8", "--limit": "0", "--pages": "20"}
+    opt = {"--ref": os.path.expanduser("~/crunch-corpus/printref"), "--out": None, "--jobs": "8", "--limit": "0", "--pages": "50"}
     rest = []
     i = 0
     while i < len(args):
@@ -218,10 +223,10 @@ def main():
         if len(r) < 5:
             continue
         key, path, n, name, status = r[0], r[1], int(r[2]), r[3], r[4]
-        if status.strip() != "ok":
+        if status.strip() not in ("ok", "empty", "unreadable pdf"):   # (the original printed 0 pages of an empty sheet: no PDF, "unreadable pdf"; we are to print nothing too)
             skipped[status.strip()] += 1
             continue
-        groups.setdefault((key, path), []).append((n, name))
+        groups.setdefault((key, path), []).append((n, name, status.strip() != "ok"))
     jobs = [(tool, k, p, s, ref_dir, out_dir, int(opt["--pages"])) for (k, p), s in groups.items()]
     if int(opt["--limit"]) > 0:
         jobs = jobs[:int(opt["--limit"])]
@@ -239,6 +244,7 @@ def main():
     scored = [r for r in results if r["status"] in ("match", "count differs")]
     exact = [r for r in scored if r["status"] == "match"]
     blank_unprinted = [r for r in results if r["status"] == "empty"]
+    wrongly = [r for r in results if r["status"] == "empty printed"]
     print("sheets %d from %d workbooks (skipped by the reference: %s; no reference page %d; not printed by us %d)" % (
         len(results), len(groups), ", ".join("%s %d" % kv for kv in skipped.items()) or "none", sum(r["status"] == "no reference" for r in results), sum(r["cause"].startswith("not printed") for r in results)))
     if scored:
@@ -246,8 +252,8 @@ def main():
         blanks = [r for r in scored if r["blank"]]
         if blanks:
             print("  %d of them have a blank one-page reference (compared by count only)" % len(blanks))
-    if blank_unprinted:
-        print("empty sheets: %d have a blank one-page reference and we print nothing for them (the sheet has no cells to print; a message says so); not counted above; with them counted as misses the match is %.1f%%" % (len(blank_unprinted), 100 * len(exact) / max(1, len(scored) + len(blank_unprinted))))
+    if blank_unprinted or wrongly:
+        print("sheets the original printed nothing of: %d; we also print nothing for %d, and print pages for %d" % (len(blank_unprinted) + len(wrongly), len(blank_unprinted), len(wrongly)))
     if scored:
         both = [p for r in exact for p in r["pages"]]
         summ("page picture difference (matched)", [p["score"] for p in both if p["score"] is not None])
