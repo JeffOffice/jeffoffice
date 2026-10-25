@@ -47,7 +47,10 @@ const PageSetup &PageSettings::sheet(int index) const
 void PageSettings::set(int index, const PageSetup &setup)
 {
     if (index < 0 || index >= int(m_sheets.size())) return;
+    // (the drawing the file names for the pictures is the file's, not a step's: a step that was made before a save has the one the file had then)
+    const QString rel = m_sheets[size_t(index)].headerFooter.drawingRel;
     m_sheets[size_t(index)] = setup;
+    m_sheets[size_t(index)].headerFooter.drawingRel = rel;
     m_touched.insert(index);
 }
 
@@ -77,7 +80,9 @@ void PageSettings::undoEdit(const void *token)
         // (a sheet put back is written again: the file may have it as the step left it)
         for (const auto &[s, setup] : m_kept[i].before)
             if (s >= 0 && s < int(m_sheets.size())) {
+                const QString rel = m_sheets[size_t(s)].headerFooter.drawingRel;
                 m_sheets[size_t(s)] = setup;
+                m_sheets[size_t(s)].headerFooter.drawingRel = rel;
                 m_touched.insert(s);
             }
         m_kept.erase(m_kept.begin() + std::ptrdiff_t(i));
@@ -129,6 +134,11 @@ void PageSettings::addToSave(jp::office::sheet::SaveChanges *changes, const QStr
         n.setup = m_sheets[size_t(s)];
         changes->printNames.push_back(n);
     }
+}
+
+void PageSettings::setHeaderDrawing(int index, const QString &rel)
+{
+    if (index >= 0 && index < int(m_sheets.size())) m_sheets[size_t(index)].headerFooter.drawingRel = rel;
 }
 
 void PageSettings::saved()

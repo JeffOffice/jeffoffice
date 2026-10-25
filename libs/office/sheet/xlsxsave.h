@@ -92,6 +92,10 @@ struct SheetChanges {
     // it is shown at, which is also written as the zoom of that kind of view.
     int viewKind = -1;
     int viewZoom = 0;
+    // The relationship the sheet's `legacyDrawingHF` is to name (empty: the element is taken out), when the pictures of its headers and footers are not as the file has them (saving sets
+    // this from the page setup's pictures; whoever asks for a save does not).
+    bool hfSet = false;
+    QString hfRel;
     // For a sheet a person added: the XML it begins as (its view, default sizes, rules, and no cells: the cells, sizes of rows and columns, and merged ranges above are put in it).
     QByteArray skeleton;
     // For a sheet a person copied: the part of the sheet it was copied from (in the file as it was read or last saved), and the edits to rows and columns made to the cells it was copied from
@@ -197,6 +201,7 @@ struct SaveReport {
     qint64 cellsChanged = 0, resultsChanged = 0;
     bool calcChainDropped = false;
     QStringList changedParts;            // the names, as the file has them
+    std::map<int, QString> headerDrawings;   // by the sheet's place: the relationship its header and footer pictures are named by now (empty: it has none), for the sheets whose pictures were written
 };
 
 // Makes the new file's bytes from the old (the lazy package `book` was opened from) and the changes. `cancel`, if given, is looked at as the sheets are copied. False, with a message, if

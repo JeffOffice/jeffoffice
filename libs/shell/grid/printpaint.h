@@ -12,9 +12,11 @@
 #include "sheet/headerfooter.h"
 
 #include <QFont>
+#include <QImage>
 #include <QPainter>
 
 #include <functional>
+#include <map>
 #include <memory>
 
 namespace jp::grid {
@@ -57,12 +59,14 @@ public:
 
 private:
     void paintHeadings(QPainter *p, const GridLayout &layout, const PageCut &page, const PageMetrics &m, double scale);
-    void paintHeaderFooterText(QPainter *p, const QString &code, const PaperBox &paper, const PageSetup &setup, const jp::office::sheet::HfContext &labels, bool header, double scale);
+    void paintHeaderFooterText(QPainter *p, const QString &code, const PaperBox &paper, const PageSetup &setup, const jp::office::sheet::HfContext &labels, bool header, double scale, bool first, bool even);
+    QImage headerPicture(const jp::office::sheet::HeaderPicture &pic);
 
     GridSheet *m_sheet;
     std::unique_ptr<GridPainter> m_painter;
     QFont m_base;
     QColor m_gridline = QColor(0x40, 0x40, 0x40);
+    std::map<std::pair<const void *, qsizetype>, QImage> m_pictures;
 };
 
 } // namespace jp::grid

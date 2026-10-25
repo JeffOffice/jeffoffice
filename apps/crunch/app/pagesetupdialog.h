@@ -45,6 +45,10 @@ public:
     QPlainTextEdit *box(int part) const;   // 0 left, 1 center, 2 right
     // Which box the buttons put their text in (the one last typed in, to begin with the middle).
     void setInsertPart(int part) { m_focused = box(part); }
+    // For tests: stands in for the file picker of the Picture button (it gives the picture's file name; empty is giving it up).
+    void setPictureAsker(const std::function<QString()> &asker) { m_pictureAsker = asker; }
+    // What was said of the last picture that was refused (empty when it was taken).
+    QString pictureProblem() const;
 
 protected:
     bool eventFilter(QObject *o, QEvent *e) override;
@@ -54,9 +58,14 @@ private:
     void load(int version);
     void insert(const QString &code);
     void refreshPreview();
+    void addPicture();
+    void removePicture();
+    QString place() const;
+    void showPictureState();
     struct Version {
         QString name;
         QString *text;
+        QString form;      // the end of a picture's place for this version: nothing, "E" for the even pages, "F" for the first
     };
     bool m_header;
     jp::office::sheet::HeaderFooter m_hf;
@@ -67,6 +76,9 @@ private:
     QPlainTextEdit *m_boxes[3] = {nullptr, nullptr, nullptr};
     QPlainTextEdit *m_focused = nullptr;
     QLabel *m_preview = nullptr;
+    QLabel *m_pictureLabel = nullptr;
+    QPushButton *m_addPicture = nullptr, *m_dropPicture = nullptr;
+    std::function<QString()> m_pictureAsker;
     bool m_loading = false;
 };
 

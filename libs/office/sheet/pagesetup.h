@@ -8,6 +8,7 @@
 
 #include "sheet/cellref.h"
 
+#include <QByteArray>
 #include <QString>
 #include <QVector>
 
@@ -50,6 +51,28 @@ struct PageBreak {
     bool operator==(const PageBreak &o) const { return before == o.before && min == o.min && max == o.max && manual == o.manual; }
 };
 
+// The most pictures a sheet's headers and footers hold (a place for each of the six parts, in the odd, even, and first-page forms), the most bytes one picture has in the file, the most all
+// the pictures a workbook reads come to, and the most a picture may be in pixels (what is larger is kept as it is and not drawn).
+constexpr int kMaxHeaderPictures = 18;
+constexpr qint64 kMaxHeaderPictureBytes = qint64(8) << 20;
+constexpr qint64 kMaxHeaderPictureBytesInBook = qint64(64) << 20;
+constexpr qint64 kMaxHeaderPicturePixels = 16000000;
+// The size a picture may be given on the page, in points.
+constexpr double kMaxHeaderPicturePoints = 2000;
+
+// A picture in a header or footer (the `&G` of its text): the file keeps it in a legacy drawing the sheet names, as a shape for the place it is in. The place is the shape's id as the file has it: two
+// letters (L, C, or R for the left, center, or right part, and H or F for the header or footer), with more after them for the even-page and first-page forms (an E or an F). The image is kept
+// as the file has it, so it is written back as it was unless a person changed it.
+struct HeaderPicture {
+    QString place;              // "LH", "CH", "RH", "LF", "CF", "RF", and the forms for the even and first pages
+    QByteArray image;           // the picture's file
+    QString extension;          // "png", "jpeg", ... (lower case, without the dot)
+    double width = 0, height = 0;   // the size it is drawn at, in points
+    QString title;              // the name the file gives it
+    QString part;               // the part it was read from (empty for one a person added)
+    bool operator==(const HeaderPicture &o) const { return place == o.place && image == o.image && extension == o.extension && width == o.width && height == o.height && title == o.title; }
+};
+
 // The text of the header and the footer, as the file writes it (with the & codes that sheet/headerfooter.h reads), for the pages in general, the odd and even pages, and the first.
 struct HeaderFooter {
     QString oddHeader, oddFooter, evenHeader, evenFooter, firstHeader, firstFooter;
@@ -57,11 +80,16 @@ struct HeaderFooter {
     bool differentFirst = false;
     bool scaleWithDoc = true;
     bool alignWithMargins = true;
+    // The pictures the texts name with `&G` (at most kMaxHeaderPictures), and the relationship from the sheet to the drawing that holds them, as the file has it (not part of what the setup says).
+    QVector<HeaderPicture> pictures;
+    QString drawingRel;
+    // The picture for a part of a header or footer: `part` is 'L', 'C', or 'R', and the form is the first page's, the even pages', or the rest; the form's own picture, else the rest's.
+    const HeaderPicture *pictureFor(QChar part, bool header, bool first, bool even) const;
     bool isEmpty() const { return oddHeader.isEmpty() && oddFooter.isEmpty() && evenHeader.isEmpty() && evenFooter.isEmpty() && firstHeader.isEmpty() && firstFooter.isEmpty(); }
     bool operator==(const HeaderFooter &o) const
     {
         return oddHeader == o.oddHeader && oddFooter == o.oddFooter && evenHeader == o.evenHeader && evenFooter == o.evenFooter && firstHeader == o.firstHeader && firstFooter == o.firstFooter
-               && differentOddEven == o.differentOddEven && differentFirst == o.differentFirst && scaleWithDoc == o.scaleWithDoc && alignWithMargins == o.alignWithMargins;
+               && differentOddEven == o.differentOddEven && differentFirst == o.differentFirst && scaleWithDoc == o.scaleWithDoc && alignWithMargins == o.alignWithMargins && pictures == o.pictures;
     }
 };
 

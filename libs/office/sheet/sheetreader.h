@@ -11,7 +11,9 @@
 #include "sheet/tables.h"
 #include "sheet/styles.h"
 
+#include <QHash>
 #include <QIODevice>
+#include <QMutex>
 #include <QString>
 #include <QVector>
 
@@ -246,6 +248,9 @@ public:
     // `screenRows` reads what the view shows, from where it begins (ReadOptions::screenRows).
     bool readSheet(int index, Sheet *out, const std::function<bool(qint64)> &progress = nullptr, qint64 stopAfterRow = -1, qint64 screenRows = 0) const;
     const Package &package() const { return m_package; }
+    // The pictures of a sheet's headers and footers, read from the legacy drawing its `legacyDrawingHF` names (readSheet does this for a sheet that has one). Bounded: the shapes looked at, the
+    // pictures kept, the bytes of one and of all those a workbook reads (an image shared by several sheets is read once).
+    void readHeaderPictures(const QString &sheetPart, HeaderFooter *out) const;
     // The parts the workbook is made of (empty for one it has not): its own, the shared strings, and the styles.
     QString mainPart() const { return m_mainPart; }
     QString sharedStringsPart() const { return m_sharedPart; }
@@ -369,6 +374,12 @@ private:
     quint32 findOrAddFormat(quint32 base, const CellFormat &format);
     std::unordered_multimap<quint64, quint32> m_fontIndex, m_fillIndex, m_borderIndex;   // the fonts, fills, and borders by a hash of what they are (made when first needed)
     bool m_fontIndexMade = false, m_fillIndexMade = false, m_borderIndexMade = false;
+    struct HeaderImages {
+        QMutex mutex;
+        QHash<QString, QByteArray> images;
+        qint64 bytes = 0;
+    };
+    mutable std::shared_ptr<HeaderImages> m_headerImages = std::make_shared<HeaderImages>();
     bool m_formatLimitHit = false;
     qint64 m_placeComparisons = 0;
     WorkbookInfo m_info;

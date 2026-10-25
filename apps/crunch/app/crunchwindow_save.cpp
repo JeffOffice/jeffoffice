@@ -159,6 +159,7 @@ bool CrunchWindow::startSave(const QString &path)
         QString message;
         SaveReport report;
         bool ok = office::sheet::saveXlsx(*book, snapshot->changes, &bytes, &message, &report);
+        snapshot->headerDrawings = report.headerDrawings;   // (read by the window after this thread has told it the save is over)
         if (ok) ok = office::sheet::writeFileAtomically(path, bytes, &message);
         QMetaObject::invokeMethod(qApp, [self, ok, message, path, bytes, snapshot] {
             if (self) self->onSaved(ok, message, path, bytes, snapshot);

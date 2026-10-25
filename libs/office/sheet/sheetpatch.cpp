@@ -505,6 +505,53 @@ QByteArray tailWithDrawing(const QByteArray &after, const QByteArray &relId, con
     return after.left(insertAt) + element + after.mid(insertAt);
 }
 
+// What follows a sheet's cells with the element that names its header and footer pictures' drawing (`legacyDrawingHF`) made to name `relId` (taken out when it is empty): in place of the
+// one the sheet has, or where the format puts it (after the drawings, before the controls and the table parts).
+QByteArray tailWithHeaderDrawing(const QByteArray &after, const QByteArray &relId, const QByteArray &prefix)
+{
+    static const QList<QByteArray> later = {"drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    Tag t;
+    qsizetype pos = 0, insertAt = -1, existingStart = -1, existingEnd = -1;
+    int depth = 0;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (insertAt < 0) insertAt = t.start;   // </worksheet>
+                break;
+            }
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == "legacyDrawingHF" && existingStart < 0) {
+                existingStart = t.start;
+                existingEnd = t.end;
+                if (!t.selfClosing) {
+                    Tag close;
+                    qsizetype p2 = t.end;
+                    int d2 = 1;
+                    while (d2 > 0 && xmlscan::nextTag(after, p2, &close)) {
+                        p2 = close.end;
+                        if (close.closing) --d2;
+                        else if (!close.selfClosing) ++d2;
+                    }
+                    existingEnd = p2;
+                    pos = p2;
+                    continue;
+                }
+            }
+            if (insertAt < 0 && later.contains(QByteArray(t.local))) insertAt = t.start;
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    QByteArray element;
+    if (!relId.isEmpty())
+        element = "<" + prefix + "legacyDrawingHF xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"" + xmlscan::escapeAttribute(QString::fromLatin1(relId)) + "\"/>";
+    if (existingStart >= 0) return after.left(existingStart) + element + after.mid(existingEnd);
+    if (element.isEmpty() || insertAt < 0) return after;
+    return after.left(insertAt) + element + after.mid(insertAt);
+}
+
 class Patcher {
 public:
     Patcher(QIODevice *in, PartSink *out, const SheetChanges &changes, bool hasShared, const std::atomic<bool> *cancel) : m_in(in), m_out(out), m_hasShared(hasShared), m_cancel(cancel)
@@ -528,6 +575,8 @@ public:
         if (changes.replaceTabColor) m_tabColor = &changes.tabColor;
         m_tabSelected = changes.tabSelected;
         m_viewKind = changes.viewKind;
+        m_hfSet = changes.hfSet;
+        m_hfRel = changes.hfRel.toLatin1();
         m_viewZoom = changes.viewZoom;
         for (RowEdits &r : m_rows) {
             std::stable_sort(r.items.begin(), r.items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
@@ -1029,7 +1078,7 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_page || !m_drawingId.isEmpty()) {
+        if (m_merges || m_page || !m_drawingId.isEmpty() || m_hfSet) {
             // (what follows the cells is held whole to change its merged ranges, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -1042,6 +1091,7 @@ private:
                 QByteArray tail = m_merges ? tailWithMerges(rest, *m_merges, m_prefix) : rest;
                 if (m_page) tail = patchPageSetupTail(tail, *m_page, m_prefix);
                 if (!m_drawingId.isEmpty()) tail = tailWithDrawing(tail, m_drawingId, m_prefix);
+                if (m_hfSet) tail = tailWithHeaderDrawing(tail, m_hfRel, m_prefix);
                 return tail;
             };
             if (m_dataClosed) put(tailOf(rest));   // (an empty sheetData was given its closing tag with its rows: what is left follows it)
@@ -1086,6 +1136,8 @@ private:
     const ColorSpec *m_tabColor = nullptr;
     int m_tabSelected = -1;
     int m_viewKind = -1, m_viewZoom = 0;
+    bool m_hfSet = false;
+    QByteArray m_hfRel;
 };
 
 } // namespace

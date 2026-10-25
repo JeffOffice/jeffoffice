@@ -29,4 +29,4 @@ After you open the Print screen, the sheet on your screen shows where the pages 
 
 ## What is not printed yet
 
-Notes (comments) are not read or printed, and pictures in headers and footers are left out. Conditional formats are not shown on the screen yet, so they are not printed either.
+Notes (comments) are not read or printed. Conditional formats are not shown on the screen yet, so they are not printed either.

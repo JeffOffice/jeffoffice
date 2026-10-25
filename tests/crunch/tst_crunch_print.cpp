@@ -1,6 +1,7 @@
 // Tests of printing in JeffCrunch's window: how a sheet prints as a step of Undo, the print area, titles, and breaks following rows and columns inserted and deleted (and coming back with
 // Undo), the page setup saved in the file and nothing else of it touched, and the pages the window prints. Every workbook is built here, in a temporary folder.
 #include "../sheet/drawinghelpers.h"
+#include "../sheet/hfpicturehelpers.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "savedok.h"
@@ -34,6 +35,7 @@
 #include <QSpinBox>
 #include <QTabWidget>
 #include <QSettings>
+#include <QTemporaryDir>
 #include <QSignalSpy>
 #include <QStatusBar>
 #include <QToolButton>
@@ -1774,6 +1776,282 @@ private Q_SLOTS:
         QVERIFY(again.win.w.save());
         QVERIFY(second.count() == 1);
         QVERIFY(again.win.w.statusText().contains(QLatin1String("Nothing to save")));
+    }
+
+    // ---- pictures in headers and footers (printing 2)
+
+    // A picture in the center of the header is drawn on the printed page, at the size the file gives, hung from the header's distance from the top; the same page without it is white there.
+    void aPictureInTheHeaderIsDrawnOnThePage()
+    {
+        const QByteArray red = drawtest::pngBytes(8, 4, Qt::red);
+        EditWindow e;
+        QVERIFY(e.open(bookWithHeaderPictures(QStringLiteral("<oddHeader>&amp;C&amp;G</oddHeader>"), {hfShape(QStringLiteral("CH"))}, {red})));
+        QString why;
+        std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY2(job, qPrintable(why));
+        QImage page = job->preview(0, 1224);   // (two pixels to the point on letter paper)
+        QVERIFY(!page.isNull());
+        auto isRed = [&](double xPoints, double yPoints) {
+            const QColor c = page.pixelColor(int(xPoints * 2), int(yPoints * 2));
+            return c.red() > 200 && c.green() < 60 && c.blue() < 60;
+        };
+        QVERIFY(isRed(306, 40));        // (72 by 36 points, centered, from 21.6 points down)
+        QVERIFY(isRed(272, 24));
+        QVERIFY(isRed(340, 55));
+        QVERIFY(!isRed(250, 40));       // (left of it)
+        QVERIFY(!isRed(306, 62));       // (below it)
+        QVERIFY(!isRed(306, 15));       // (above it)
+        // the same page with the picture's code taken out of the text: nothing there
+        PageSetup p = e.win.w.session()->pages().sheet(0);
+        p.headerFooter.oddHeader = QStringLiteral("&CNo picture");
+        QVERIFY(e.win.w.session()->setPageSetup(0, p, QStringLiteral("Header")).ok);
+        job = e.win.w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY(job);
+        page = job->preview(0, 1224);
+        QVERIFY(!isRed(306, 40));
+    }
+
+    // A footer's picture sits on the footer's distance from the bottom, at the left; the form for the first page is the first page's alone.
+    void aPictureInTheFooterAndInTheFirstPageForm()
+    {
+        const QByteArray red = drawtest::pngBytes(8, 4, Qt::red), green = drawtest::pngBytes(8, 4, Qt::green);
+        EditWindow e;
+        QVERIFY(e.open(bookWithHeaderPictures(QStringLiteral("<oddFooter>&amp;L&amp;G</oddFooter><firstFooter>&amp;L&amp;G</firstFooter>").replace(QStringLiteral("<oddFooter>"), QStringLiteral("<oddFooter>")),
+                                              {hfShape(QStringLiteral("LF")), hfShape(QStringLiteral("LFF"), QStringLiteral("rId2"))}, {red, green})));
+        // (the first page's form needs the flag)
+        PageSetup p = e.win.w.session()->pages().sheet(0);
+        p.headerFooter.differentFirst = true;
+        QVERIFY(e.win.w.session()->setPageSetup(0, p, QStringLiteral("First page")).ok);
+        QString why;
+        std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY2(job, qPrintable(why));
+        const QImage page = job->preview(0, 1224);
+        // left margin 0.7 in = 50.4 points; the footer is 0.3 in = 21.6 points from the bottom edge (792): the picture is 36 points tall, ending there
+        const QColor c = page.pixelColor(int(60 * 2), int((792 - 21.6 - 18) * 2));
+        QVERIFY2(c.green() > 150 && c.red() < 100, qPrintable(c.name()));   // (the first page's own picture: green)
+        QVERIFY(c.blue() < 100);
+    }
+
+    // A workbook with a picture in its header, saved after a cell and the page setup changed: the drawing, the image, and the sheet's link to it are the same bytes, and the sheet still names it.
+    void aHeaderPictureSurvivesASaveThatChangesOtherThings()
+    {
+        const QByteArray red = drawtest::pngBytes(8, 4, Qt::red);
+        EditWindow e;
+        const QByteArray book = bookWithHeaderPictures(QStringLiteral("<oddHeader>&amp;C&amp;G</oddHeader>"), {hfShape(QStringLiteral("CH"))}, {red});
+        QVERIFY(e.open(book));
+        QCOMPARE(e.win.w.session()->pages().sheet(0).headerFooter.pictures.size(), 1);
+        QVERIFY(e.win.w.session()->type(0, 0, 0, QStringLiteral("7")).ok);
+        PageSetup p = e.win.w.session()->pages().sheet(0);
+        p.orientation = PageOrientation::Landscape;
+        QVERIFY(e.win.w.session()->setPageSetup(0, p, QStringLiteral("Orientation")).ok);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        Package before, after;
+        QString why;
+        QVERIFY(before.readLazy(book, &why));
+        QVERIFY(after.readLazyFile(e.path, &why));
+        for (const char *part : {"/xl/drawings/vmlDrawing1.vml", "/xl/media/hfimage1.png"})
+            QVERIFY2(before.part(QString::fromLatin1(part)) == after.part(QString::fromLatin1(part)) && !after.part(QString::fromLatin1(part)).isEmpty(), part);
+        for (const QString &source : {QStringLiteral("/xl/drawings/vmlDrawing1.vml"), QStringLiteral("/xl/worksheets/sheet1.xml")}) {
+            const auto was = before.relationships(source), now = after.relationships(source);
+            QCOMPARE(now.size(), was.size());
+            for (int i = 0; i < was.size(); ++i) QVERIFY(was[i].id == now[i].id && was[i].target == now[i].target && was[i].type == now[i].type);
+        }
+        const QByteArray sheet = after.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
+        QVERIFY(sheet.contains("<legacyDrawingHF r:id=\"rIdH1\"/>"));
+        QVERIFY(sheet.contains("orientation=\"landscape\""));
+        // and it is read again the same
+        EditWindow again;
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QVERIFY(again.open(f.readAll()));
+        const auto &pics = again.win.w.session()->pages().sheet(0).headerFooter.pictures;
+        QCOMPARE(pics.size(), 1);
+        QCOMPARE(pics[0].image, red);
+    }
+
+    // The editor of a header: the Picture button puts a picture from a file in the part being typed in (with its code), sized to fit; it is kept for the form of the page being edited; Remove takes
+    // it and its code out; typing the code away takes the picture; a file that is not a picture is refused and says so.
+    void thePictureButtonsOfTheHeaderEditor()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString png = dir.filePath(QStringLiteral("logo.png"));
+        QImage red(200, 100, QImage::Format_ARGB32);
+        red.fill(Qt::red);
+        QVERIFY(red.save(png));
+        const QString text = dir.filePath(QStringLiteral("words.txt"));
+        {
+            QFile f(text);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("not a picture");
+        }
+        jp::office::sheet::HeaderFooter hf;
+        hf.oddHeader = QStringLiteral("&Cmiddle");
+        hf.differentFirst = true;
+        HeaderFooterEditor editor(true, hf, QStringLiteral("S"), QStringLiteral("f"));
+        QString file = png;
+        editor.setPictureAsker([&] { return file; });
+        auto *add = editor.findChild<QPushButton *>(QStringLiteral("hfPicture"));
+        auto *drop = editor.findChild<QPushButton *>(QStringLiteral("hfPictureRemove"));
+        QVERIFY(add && drop);
+        QVERIFY(!drop->isEnabled());
+        editor.setInsertPart(1);
+        add->click();
+        QVERIFY(editor.box(1)->toPlainText().contains(QStringLiteral("&G")));
+        QVERIFY(drop->isEnabled());
+        jp::office::sheet::HeaderFooter made = editor.texts();
+        QCOMPARE(made.pictures.size(), 1);
+        QCOMPARE(made.pictures[0].place, QStringLiteral("CH"));
+        QCOMPARE(made.pictures[0].width, 144.0);    // (200 by 100 pixels is 150 by 75 points: held to two inches on the long side)
+        QCOMPARE(made.pictures[0].height, 72.0);
+        QCOMPARE(made.pictures[0].extension, QStringLiteral("png"));
+        QCOMPARE(made.pictures[0].title, QStringLiteral("logo"));
+        QVERIFY(made.oddHeader.contains(QStringLiteral("&G")));
+        // (a second one in the same part takes the first one's place, and its code is not put in twice)
+        add->click();
+        made = editor.texts();
+        QCOMPARE(made.pictures.size(), 1);
+        QCOMPARE(editor.box(1)->toPlainText().count(QStringLiteral("&G")), 1);
+        // the first page's form has pictures of its own
+        editor.selectVersion(1);
+        editor.setInsertPart(0);
+        add->click();
+        made = editor.texts();
+        QCOMPARE(made.pictures.size(), 2);
+        QCOMPARE(made.pictures[1].place, QStringLiteral("LHF"));
+        QVERIFY(made.firstHeader.contains(QStringLiteral("&G")));
+        // taking one out takes its code too
+        drop->click();
+        QCOMPARE(editor.texts().pictures.size(), 1);
+        QVERIFY(!editor.box(0)->toPlainText().contains(QStringLiteral("&G")));
+        // a code typed away takes the picture with it
+        editor.selectVersion(0);
+        editor.box(1)->setPlainText(QStringLiteral("no code any more"));
+        QVERIFY(editor.texts().pictures.isEmpty());
+        // not a picture, and the editor says so
+        file = text;
+        editor.setInsertPart(2);
+        add->click();
+        QVERIFY(!editor.pictureProblem().isEmpty());
+        QVERIFY(editor.texts().pictures.isEmpty());
+        QVERIFY(!editor.box(2)->toPlainText().contains(QStringLiteral("&G")));
+        file.clear();   // (given up: nothing happens)
+        add->click();
+        QVERIFY(editor.texts().pictures.isEmpty());
+    }
+
+    // A picture put in with the Page Setup dialog is one step of Undo, saved in the file, taken out again in a later save, and put back, each save with the sheet naming the drawing the last one made.
+    void aHeaderPictureAddedThroughPageSetupSavesAndComesOut()
+    {
+        const QByteArray red = drawtest::pngBytes(8, 4, Qt::red);
+        EditWindow e;
+        QString rows;
+        for (int r = 1; r <= 3; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        CrunchWindow &w = e.win.w;
+        bool withPicture = true;
+        w.setPageSetupAsker([&](PageSetupRequest *r) {
+            if (withPicture) {
+                r->setup.headerFooter.oddHeader = QStringLiteral("&C&G");
+                jp::office::sheet::HeaderPicture p;
+                p.place = QStringLiteral("CH");
+                p.image = red;
+                p.extension = QStringLiteral("png");
+                p.width = 60;
+                p.height = 30;
+                r->setup.headerFooter.pictures = {p};
+            } else {
+                r->setup.headerFooter.oddHeader.clear();
+                r->setup.headerFooter.pictures.clear();
+            }
+            return true;
+        });
+        auto saveNow = [&] {
+            QSignalSpy saved(&w, &CrunchWindow::saved);
+            return w.save() && savedOk(saved, 20000);
+        };
+        auto pictureCount = [&] {
+            Package pk;
+            QString why;
+            if (!pk.readLazyFile(e.path, &why)) return -1;
+            Workbook b;
+            Sheet s;
+            if (!b.open(pk, &why) || !b.readSheet(0, &s)) return -1;
+            return int(s.page.headerFooter.pictures.size());
+        };
+        const int steps = w.session()->undoStack()->count();
+        w.pageSetupDialog(2);
+        QCOMPARE(w.session()->undoStack()->count(), steps + 1);
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.pictures.size(), 1);
+        QVERIFY(saveNow());
+        QCOMPARE(pictureCount(), 1);
+        withPicture = false;
+        w.pageSetupDialog(2);
+        QVERIFY(saveNow());
+        QCOMPARE(pictureCount(), 0);
+        withPicture = true;
+        w.pageSetupDialog(2);
+        QVERIFY(saveNow());
+        QCOMPARE(pictureCount(), 1);
+        // Undo puts back what the step before it had, and a save writes that
+        pressUndo(e.view());
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.pictures.size(), 0);
+        QVERIFY(saveNow());
+        QCOMPARE(pictureCount(), 0);
+    }
+
+    // Rows inserted in a sheet with a picture in its header (the edit moves what names cells in the file's drawings): the header's drawing and image are the same bytes after the save.
+    void aHeaderPictureSurvivesRowsBeingInserted()
+    {
+        const QByteArray red = drawtest::pngBytes(8, 4, Qt::red);
+        EditWindow e;
+        const QByteArray book = bookWithHeaderPictures(QStringLiteral("<oddHeader>&amp;C&amp;G</oddHeader>"), {hfShape(QStringLiteral("CH"))}, {red});
+        QVERIFY(e.open(book));
+        QVERIFY(e.win.w.session()->insertRows(0, 2, 3).ok);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        Package before, after;
+        QString why;
+        QVERIFY(before.readLazy(book, &why));
+        QVERIFY(after.readLazyFile(e.path, &why));
+        QCOMPARE(after.part(QStringLiteral("/xl/drawings/vmlDrawing1.vml")), before.part(QStringLiteral("/xl/drawings/vmlDrawing1.vml")));
+        QCOMPARE(after.part(QStringLiteral("/xl/media/hfimage1.png")), red);
+        QVERIFY(after.part(QStringLiteral("/xl/worksheets/sheet1.xml")).contains("<legacyDrawingHF"));
+    }
+
+    // A copy of a sheet that has header pictures has them too, in parts of its own (the copy's setup and the file's agree), and the first sheet keeps its own.
+    void aCopyOfASheetWithHeaderPicturesHasThemToo()
+    {
+        const QByteArray red = drawtest::pngBytes(8, 4, Qt::red);
+        EditWindow e;
+        QVERIFY(e.open(bookWithHeaderPictures(QStringLiteral("<oddHeader>&amp;C&amp;G</oddHeader>"), {hfShape(QStringLiteral("CH"))}, {red})));
+        int made = -1;
+        QVERIFY(e.win.w.session()->copySheet(0, 1, QStringLiteral("Copy"), &made).ok);
+        QVERIFY(made > 0);
+        QCOMPARE(e.win.w.session()->pages().sheet(made).headerFooter.pictures.size(), 1);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        Package pk;
+        QString why;
+        QVERIFY(pk.readLazyFile(e.path, &why));
+        Workbook b;
+        QVERIFY2(b.open(pk, &why), qPrintable(why));
+        QCOMPARE(b.info().sheets.size(), 2);
+        for (int i = 0; i < 2; ++i) {
+            Sheet s;
+            QVERIFY(b.readSheet(i, &s));
+            QCOMPARE(s.page.headerFooter.pictures.size(), 1);
+            QCOMPARE(s.page.headerFooter.pictures[0].image, red);
+            QCOMPARE(s.page.headerFooter.pictures[0].place, QStringLiteral("CH"));
+        }
+        // (two drawings: each sheet names its own)
+        QCOMPARE(pk.relationshipsOfType(b.info().sheets[0].part, QStringLiteral("/vmlDrawing")).size(), 1);
+        QCOMPARE(pk.relationshipsOfType(b.info().sheets[1].part, QStringLiteral("/vmlDrawing")).size(), 1);
+        QVERIFY(pk.relationshipsOfType(b.info().sheets[0].part, QStringLiteral("/vmlDrawing"))[0].target != pk.relationshipsOfType(b.info().sheets[1].part, QStringLiteral("/vmlDrawing"))[0].target);
     }
 };
 

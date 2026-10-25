@@ -54,6 +54,8 @@ public:
     void addToSave(jp::office::sheet::SaveChanges *changes, const QStringList &sheetNames, const QVector<int> &order) const;
     // The file has been written with these: the sheets are as the file has them.
     void saved();
+    // The save wrote the pictures of a sheet's headers and footers: the drawing the sheet names them by now (empty: none).
+    void setHeaderDrawing(int index, const QString &rel);
     // How many sheets would be put in a save (for tests).
     int touchedCount() const { return int(m_touched.size()); }
 

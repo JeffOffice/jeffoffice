@@ -18,6 +18,20 @@ bool PageSetup::operator==(const PageSetup &o) const
            && rowBreaks == o.rowBreaks && colBreaks == o.colBreaks && printArea == o.printArea && titles == o.titles;
 }
 
+const HeaderPicture *HeaderFooter::pictureFor(QChar part, bool header, bool first, bool even) const
+{
+    const QString base = QString(part.toUpper()) + (header ? QLatin1Char('H') : QLatin1Char('F'));
+    const HeaderPicture *plain = nullptr, *form = nullptr;
+    for (const HeaderPicture &p : pictures) {
+        if (p.place.compare(base, Qt::CaseInsensitive) == 0) plain = &p;
+        else if (p.place.size() > base.size() && p.place.startsWith(base, Qt::CaseInsensitive)) {
+            const QChar c = p.place.at(base.size()).toUpper();
+            if ((first && c == QLatin1Char('F')) || (!first && even && c == QLatin1Char('E'))) form = &p;
+        }
+    }
+    return form ? form : plain;
+}
+
 namespace {
 
 // An attribute's value, or null when the element has none by that name.

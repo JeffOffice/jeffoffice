@@ -1364,6 +1364,9 @@ bool SheetReader::read(QIODevice *in)
                 } else if (isElement(r, "headerFooter")) {
                     readHeaderFooterAttributes(r.attributes(), &m_sheet.page);
                     inHeaderFooter = true;
+                } else if (isElement(r, "legacyDrawingHF")) {
+                    for (const QXmlStreamAttribute &a : r.attributes())
+                        if (a.name() == QLatin1String("id") && !a.namespaceUri().isEmpty() && sameNamespace(a.namespaceUri().toString(), ns::R)) m_sheet.page.headerFooter.drawingRel = a.value().toString();
                 } else if (isElement(r, "rowBreaks")) {
                     inBreaks = 1;
                 } else if (isElement(r, "colBreaks")) {
@@ -2443,6 +2446,7 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
     options.screenRows = screenRows;
     const bool ok = readSheetPart(device.get(), options, out);
     applyPrintNames(m_info, index, out);
+    if (!out->page.headerFooter.drawingRel.isEmpty()) readHeaderPictures(entry.part, &out->page.headerFooter);
     return ok;
 }
 

@@ -231,6 +231,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_pagesave.cpp
   tests/sheet/tst_sheet_pagefollow.cpp
   tests/sheet/tst_sheet_headerfooter.cpp
+  tests/sheet/tst_sheet_hfpictures.cpp
   tests/sheet/tst_sheet_parser.cpp
   tests/sheet/tst_sheet_recalc.cpp
   tests/sheet/tst_sheet_refshift.cpp

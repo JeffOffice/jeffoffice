@@ -1158,6 +1158,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_renames.clear();
     ++m_saveGen;
     m_pages.saved();
+    for (const auto &[sheet, rel] : snapshot.headerDrawings) m_pages.setHeaderDrawing(sheet, rel);
     forgetDeletesInFile();
     // what differs from the file is what differs from the file just written
     for (auto it = m_results.begin(); it != m_results.end();) {

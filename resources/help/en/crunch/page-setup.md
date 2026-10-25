@@ -16,7 +16,7 @@ Type the space around the cells, and how far the header and footer sit from the 
 
 ## Header and Footer
 
-A **header** is a line of words at the top of every page, and a **footer** is one at the bottom. Pick one from the list, or choose **Edit header** or **Edit footer** to write your own. Each has a left, a middle, and a right part, and buttons that put in the page number, the number of pages, the date, the time, the file name, the folder, and the sheet name. These change from page to page, so they are worked out when the page prints. A picture in a header or footer is kept in the file, but JeffCrunch does not draw it yet.
+A **header** is a line of words at the top of every page, and a **footer** is one at the bottom. Pick one from the list, or choose **Edit header** or **Edit footer** to write your own. Each has a left, a middle, and a right part, and buttons that put in the page number, the number of pages, the date, the time, the file name, the folder, and the sheet name. These change from page to page, so they are worked out when the page prints. To put a picture in a part, click in that part and choose **Picture…**, then pick a PNG, JPEG, GIF, or BMP file. The picture is made no more than two inches on its longest side, and it prints where the code `&G` stands. **Remove Picture** takes it out. A part holds one picture, and the first page and the even pages can each have pictures of their own.
 
 You can also set a different header and footer for the first page, and for odd and even pages, and choose whether the letters grow and shrink with the cells and whether the header and footer line up with the margins.
 

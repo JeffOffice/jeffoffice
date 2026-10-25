@@ -2,16 +2,21 @@
 
 #include "sheet/headerfooter.h"
 
+#include <QBuffer>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDate>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
+#include <QFileDialog>
+#include <QFile>
+#include <QFileInfo>
 #include <QFontDialog>
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QImageReader>
 #include <QLabel>
 #include <QLineEdit>
 #include <QLocale>
@@ -74,12 +79,12 @@ HeaderFooterEditor::HeaderFooterEditor(bool header, const HeaderFooter &texts, c
     setWindowTitle(header ? tr("Header Text") : tr("Footer Text"));
     // the versions the setup keeps: every page (or the odd ones and the even ones), and the first page
     if (m_hf.differentOddEven) {
-        m_versions.push_back({tr("Odd pages"), header ? &m_hf.oddHeader : &m_hf.oddFooter});
-        m_versions.push_back({tr("Even pages"), header ? &m_hf.evenHeader : &m_hf.evenFooter});
+        m_versions.push_back({tr("Odd pages"), header ? &m_hf.oddHeader : &m_hf.oddFooter, QString()});
+        m_versions.push_back({tr("Even pages"), header ? &m_hf.evenHeader : &m_hf.evenFooter, QStringLiteral("E")});
     } else {
-        m_versions.push_back({tr("Every page"), header ? &m_hf.oddHeader : &m_hf.oddFooter});
+        m_versions.push_back({tr("Every page"), header ? &m_hf.oddHeader : &m_hf.oddFooter, QString()});
     }
-    if (m_hf.differentFirst) m_versions.push_back({tr("First page"), header ? &m_hf.firstHeader : &m_hf.firstFooter});
+    if (m_hf.differentFirst) m_versions.push_back({tr("First page"), header ? &m_hf.firstHeader : &m_hf.firstFooter, QStringLiteral("F")});
     auto *v = new QVBoxLayout(this);
     auto *intro = new QLabel(tr("Type the words for each part of the page, and use the buttons to add things that change from page to page. The parts print at the left, in the middle, and at the right."), this);
     intro->setWordWrap(true);
@@ -151,6 +156,25 @@ HeaderFooterEditor::HeaderFooterEditor(bool header, const HeaderFooter &texts, c
     styles->addWidget(font);
     styles->addStretch(1);
     v->addLayout(styles);
+    // a picture in the part you are typing in
+    auto *pictures = new QHBoxLayout;
+    m_addPicture = new QPushButton(tr("Picture…"), this);
+    m_addPicture->setObjectName(QStringLiteral("hfPicture"));
+    m_addPicture->setToolTip(tr("Puts a picture from a file in the part you are typing in"));
+    m_addPicture->setAutoDefault(false);
+    connect(m_addPicture, &QPushButton::clicked, this, [this] { addPicture(); });
+    m_dropPicture = new QPushButton(tr("Remove Picture"), this);
+    m_dropPicture->setObjectName(QStringLiteral("hfPictureRemove"));
+    m_dropPicture->setToolTip(tr("Takes the picture out of the part you are typing in"));
+    m_dropPicture->setAutoDefault(false);
+    connect(m_dropPicture, &QPushButton::clicked, this, [this] { removePicture(); });
+    m_pictureLabel = new QLabel(this);
+    m_pictureLabel->setObjectName(QStringLiteral("hfPictureState"));
+    m_pictureLabel->setWordWrap(true);
+    pictures->addWidget(m_addPicture);
+    pictures->addWidget(m_dropPicture);
+    pictures->addWidget(m_pictureLabel, 1);
+    v->addLayout(pictures);
     static const char *const names[3] = {QT_TR_NOOP("Left part"), QT_TR_NOOP("Middle part"), QT_TR_NOOP("Right part")};
     static const char *const objectNames[3] = {"hfLeft", "hfCenter", "hfRight"};
     for (int i = 0; i < 3; ++i) {
@@ -162,6 +186,7 @@ HeaderFooterEditor::HeaderFooterEditor(bool header, const HeaderFooter &texts, c
         m_boxes[i]->installEventFilter(this);
         connect(m_boxes[i], &QPlainTextEdit::textChanged, this, [this] {
             if (!m_loading) refreshPreview();
+            showPictureState();
         });
         v->addWidget(m_boxes[i]);
     }
@@ -180,13 +205,17 @@ HeaderFooterEditor::HeaderFooterEditor(bool header, const HeaderFooter &texts, c
     v->addWidget(ok);
     connect(m_version, &QComboBox::currentIndexChanged, this, [this](int i) { selectVersion(i); });
     load(0);
+    showPictureState();
 }
 
 bool HeaderFooterEditor::eventFilter(QObject *o, QEvent *e)
 {
     if (e->type() == QEvent::FocusIn)
         for (QPlainTextEdit *b : m_boxes)
-            if (b == o) m_focused = b;
+            if (b == o) {
+                m_focused = b;
+                showPictureState();
+            }
     return QDialog::eventFilter(o, e);
 }
 
@@ -231,7 +260,115 @@ HeaderFooter HeaderFooterEditor::texts() const
 {
     HeaderFooterEditor *self = const_cast<HeaderFooterEditor *>(this);
     self->commit();
-    return m_hf;
+    HeaderFooter out = m_hf;
+    jp::office::sheet::dropUnusedHeaderPictures(&out);   // (a picture whose code was typed away goes with it)
+    return out;
+}
+
+// Where a picture put in the box being typed in is: the part, whether it is the header or the footer, and the form of the page.
+QString HeaderFooterEditor::place() const
+{
+    QWidget *focus = m_focused ? m_focused : m_boxes[1];
+    const QChar part = focus == m_boxes[0] ? QLatin1Char('L') : focus == m_boxes[1] ? QLatin1Char('C') : QLatin1Char('R');
+    const QString form = m_current >= 0 && m_current < int(m_versions.size()) ? m_versions[size_t(m_current)].form : QString();
+    return QString(part) + (m_header ? QLatin1Char('H') : QLatin1Char('F')) + form;
+}
+
+QString HeaderFooterEditor::pictureProblem() const { return m_pictureLabel && m_pictureLabel->property("problem").toBool() ? m_pictureLabel->text() : QString(); }
+
+void HeaderFooterEditor::showPictureState()
+{
+    if (!m_pictureLabel) return;
+    const QString where = place();
+    const jp::office::sheet::HeaderPicture *have = nullptr;
+    for (const jp::office::sheet::HeaderPicture &p : std::as_const(m_hf.pictures))
+        if (p.place.compare(where, Qt::CaseInsensitive) == 0) have = &p;
+    m_dropPicture->setEnabled(have != nullptr);
+    m_pictureLabel->setProperty("problem", false);
+    m_pictureLabel->setText(have ? tr("This part has a picture, %1 by %2 points.").arg(QLocale().toString(have->width, 'f', 0), QLocale().toString(have->height, 'f', 0)) : tr("This part has no picture."));
+}
+
+// A picture from a file put in the part being typed in: its code (&G) goes in the box, and the picture is kept at a size that fits a header (the longest side no more than two inches).
+void HeaderFooterEditor::addPicture()
+{
+    const QString path = m_pictureAsker ? m_pictureAsker() : QFileDialog::getOpenFileName(this, tr("Choose a Picture"), QString(), tr("Pictures (*.png *.jpg *.jpeg *.gif *.bmp)"));
+    if (path.isEmpty()) return;
+    auto refuse = [this](const QString &why) {
+        m_pictureLabel->setText(why);
+        m_pictureLabel->setProperty("problem", true);
+        return;
+    };
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) return refuse(tr("The picture's file could not be opened."));
+    if (file.size() > jp::office::sheet::kMaxHeaderPictureBytes) return refuse(tr("That picture's file is larger than a header can hold."));
+    jp::office::sheet::HeaderPicture pic;
+    pic.image = file.read(jp::office::sheet::kMaxHeaderPictureBytes + 1);
+    QBuffer buffer(&pic.image);
+    buffer.open(QIODevice::ReadOnly);
+    QImageReader reader(&buffer);
+    const QByteArray format = reader.format().toLower();
+    if (format == "png") pic.extension = QStringLiteral("png");
+    else if (format == "jpeg" || format == "jpg") pic.extension = QStringLiteral("jpeg");
+    else if (format == "gif") pic.extension = QStringLiteral("gif");
+    else if (format == "bmp") pic.extension = QStringLiteral("bmp");
+    else return refuse(tr("That file is not a picture of a kind a header can hold. Use a PNG, JPEG, GIF, or BMP picture."));
+    const QSize size = reader.size();
+    if (!size.isValid() || qint64(size.width()) * size.height() > jp::office::sheet::kMaxHeaderPicturePixels) return refuse(tr("That picture is too large for a header."));
+    double w = size.width() * 0.75, h = size.height() * 0.75;   // (points, at 96 to the inch)
+    const double most = std::max(w, h);
+    if (most > 144) {
+        w *= 144 / most;
+        h *= 144 / most;
+    }
+    pic.width = std::max(1.0, w);
+    pic.height = std::max(1.0, h);
+    pic.title = QFileInfo(path).completeBaseName().left(64);
+    pic.place = place();
+    qint64 bytes = pic.image.size();
+    int count = 0;
+    for (const jp::office::sheet::HeaderPicture &p : std::as_const(m_hf.pictures)) {
+        if (p.place.compare(pic.place, Qt::CaseInsensitive) == 0) continue;
+        ++count;
+        bytes += p.image.size();
+    }
+    if (count >= jp::office::sheet::kMaxHeaderPictures || bytes > 4 * jp::office::sheet::kMaxHeaderPictureBytes) return refuse(tr("There are already as many pictures in the headers and footers as there can be."));
+    for (qsizetype i = m_hf.pictures.size(); i-- > 0;)
+        if (m_hf.pictures[i].place.compare(pic.place, Qt::CaseInsensitive) == 0) m_hf.pictures.removeAt(i);
+    m_hf.pictures.append(pic);
+    QPlainTextEdit *box = m_focused ? m_focused : m_boxes[1];
+    const QChar which = box == m_boxes[0] ? QLatin1Char('L') : box == m_boxes[1] ? QLatin1Char('C') : QLatin1Char('R');
+    if (!jp::office::sheet::headerFooterHasPicture(composeHeaderFooter(which == QLatin1Char('L') ? box->toPlainText() : QString(), which == QLatin1Char('C') ? box->toPlainText() : QString(),
+                                                                       which == QLatin1Char('R') ? box->toPlainText() : QString()),
+                                                   which))
+        box->insertPlainText(QStringLiteral("&G"));
+    showPictureState();
+    refreshPreview();
+}
+
+void HeaderFooterEditor::removePicture()
+{
+    const QString where = place();
+    for (qsizetype i = m_hf.pictures.size(); i-- > 0;)
+        if (m_hf.pictures[i].place.compare(where, Qt::CaseInsensitive) == 0) m_hf.pictures.removeAt(i);
+    QPlainTextEdit *box = m_focused ? m_focused : m_boxes[1];
+    // (its code goes too: each & followed by G, but not the second of two ampersands)
+    QString text = box->toPlainText(), out;
+    for (int i = 0; i < text.size(); ++i) {
+        if (text[i] == QLatin1Char('&') && i + 1 < text.size()) {
+            if (text[i + 1] == QLatin1Char('G')) {
+                ++i;
+                continue;
+            }
+            out += text[i];
+            out += text[i + 1];
+            ++i;
+            continue;
+        }
+        out += text[i];
+    }
+    if (out != text) box->setPlainText(out);
+    showPictureState();
+    refreshPreview();
 }
 
 void HeaderFooterEditor::insert(const QString &code)
@@ -516,6 +653,7 @@ void PageSetupDialog::editHeaderFooter(bool header)
         return;
     }
     const HeaderFooter made = editor.texts();
+    m_setup.headerFooter.pictures = made.pictures;
     if (header) {
         m_setup.headerFooter.oddHeader = made.oddHeader;
         m_setup.headerFooter.evenHeader = made.evenHeader;
@@ -739,6 +877,7 @@ PageSetup PageSetupDialog::setup() const
     if (now.differentOddEven != was.differentOddEven) s.headerFooter.differentOddEven = now.differentOddEven;
     if (now.scaleWith != was.scaleWith) s.headerFooter.scaleWithDoc = now.scaleWith;
     if (now.align != was.align) s.headerFooter.alignWithMargins = now.align;
+    jp::office::sheet::dropUnusedHeaderPictures(&s.headerFooter);   // (a preset or a text that has no code for a picture has no picture)
     if (now.area != was.area) {
         QVector<CellRange> areas;
         if (readAreas(&areas, nullptr)) s.printArea = areas;

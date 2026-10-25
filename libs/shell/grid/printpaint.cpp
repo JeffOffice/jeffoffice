@@ -1,5 +1,8 @@
 #include "grid/printpaint.h"
 
+#include <QBuffer>
+#include <QImageReader>
+
 #include <QFontMetricsF>
 #include <QPen>
 
@@ -150,6 +153,28 @@ void PagePainter::paintHeadings(QPainter *p, const GridLayout &layout, const Pag
     p->restore();
 }
 
+// The picture decoded, kept while the painter draws the sheet's pages (the picture is the setup's, which outlives them): at most a few thousand pixels across, and not at all when it is huge.
+QImage PagePainter::headerPicture(const jp::office::sheet::HeaderPicture &pic)
+{
+    const std::pair<const void *, qsizetype> key(pic.image.constData(), pic.image.size());
+    const auto have = m_pictures.find(key);
+    if (have != m_pictures.end()) return have->second;
+    QImage image;
+    if (m_pictures.size() < size_t(jp::office::sheet::kMaxHeaderPictures * 4)) {
+        QBuffer buffer;
+        buffer.setData(pic.image);
+        buffer.open(QIODevice::ReadOnly);
+        QImageReader reader(&buffer);
+        const QSize size = reader.size();
+        if (size.isValid() && qint64(size.width()) * size.height() <= jp::office::sheet::kMaxHeaderPicturePixels && reader.read(&image)) {
+            const int most = 2400;   // (a page's width at 300 to the inch)
+            if (image.width() > most || image.height() > most) image = image.scaled(most, most, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        }
+    }
+    m_pictures.emplace(key, image);
+    return image;
+}
+
 void PagePainter::paintHeaderFooter(QPainter *p, const PaperBox &paper, const PageSetup &setup, const HfContext &labels, bool firstOfSheet, double scale)
 {
     const HeaderFooter &hf = setup.headerFooter;
@@ -158,11 +183,11 @@ void PagePainter::paintHeaderFooter(QPainter *p, const PaperBox &paper, const Pa
         if (hf.differentFirst && firstOfSheet) code = header ? hf.firstHeader : hf.firstFooter;
         else if (hf.differentOddEven && labels.page % 2 == 0) code = header ? hf.evenHeader : hf.evenFooter;
         else code = header ? hf.oddHeader : hf.oddFooter;
-        if (!code.isEmpty()) paintHeaderFooterText(p, code, paper, setup, labels, header, scale);
+        if (!code.isEmpty()) paintHeaderFooterText(p, code, paper, setup, labels, header, scale, hf.differentFirst && firstOfSheet, hf.differentOddEven && labels.page % 2 == 0 && !(hf.differentFirst && firstOfSheet));
     }
 }
 
-void PagePainter::paintHeaderFooterText(QPainter *p, const QString &code, const PaperBox &paper, const PageSetup &setup, const HfContext &labels, bool header, double scale)
+void PagePainter::paintHeaderFooterText(QPainter *p, const QString &code, const PaperBox &paper, const PageSetup &setup, const HfContext &labels, bool header, double scale, bool first, bool even)
 {
     const HfText text = jp::office::sheet::parseHeaderFooter(code);
     if (text.isEmpty()) return;
@@ -175,17 +200,34 @@ void PagePainter::paintHeaderFooterText(QPainter *p, const QString &code, const 
         QFont font;
         QColor color;
         double width, shift;
+        QImage picture;          // a picture (`&G`): drawn in place of the text, its height above the line's baseline
+        double pictureHeight = 0;
     };
     struct Line {
         std::vector<Piece> pieces;
         double width = 0, height = 0, ascent = 0, descent = 0;
     };
-    auto layoutPart = [&](const jp::office::sheet::HfPart &part) {
+    auto layoutPart = [&](const jp::office::sheet::HfPart &part, QChar which) {
         std::vector<Line> lines;
         for (const HfLine &src : part.lines) {
             Line line;
             for (const HfRun &run : src) {
                 Piece piece;
+                if (run.field == HfField::Picture) {
+                    // (the picture of this part, at the size the file gives it; none, or one that can't be read, takes no room)
+                    const jp::office::sheet::HeaderPicture *pic = hf.pictureFor(which, header, first, even);
+                    if (!pic) continue;
+                    piece.picture = headerPicture(*pic);
+                    if (piece.picture.isNull()) continue;
+                    piece.width = pic->width * sizeFactor * U;
+                    piece.pictureHeight = pic->height * sizeFactor * U;
+                    piece.shift = 0;
+                    piece.color = Qt::black;
+                    line.width += piece.width;
+                    line.ascent = std::max(line.ascent, piece.pictureHeight);
+                    line.pieces.push_back(piece);
+                    continue;
+                }
                 piece.text = run.field == HfField::None ? run.text : jp::office::sheet::hfFieldText(run.field, labels);
                 double size = (run.size > 0 ? run.size : m_base.pointSizeF()) * sizeFactor;
                 piece.shift = 0;
@@ -222,13 +264,18 @@ void PagePainter::paintHeaderFooterText(QPainter *p, const QString &code, const 
     p->save();
     p->scale(1 / U, 1 / U);
     auto drawPart = [&](const jp::office::sheet::HfPart &part, int align) {
-        const std::vector<Line> lines = layoutPart(part);
+        const std::vector<Line> lines = layoutPart(part, align == 0 ? QLatin1Char('L') : align == 1 ? QLatin1Char('C') : QLatin1Char('R'));
         double total = 0;
         for (const Line &l : lines) total += l.height;
         double y = header ? paper.header * U : (paper.height - paper.footer) * U - total;
         for (const Line &l : lines) {
             double x = align == 0 ? left : align == 1 ? (left + right - l.width) / 2 : right - l.width;
             for (const Piece &piece : l.pieces) {
+                if (!piece.picture.isNull()) {
+                    p->drawImage(QRectF(x, y + l.ascent - piece.pictureHeight, piece.width, piece.pictureHeight), piece.picture);
+                    x += piece.width;
+                    continue;
+                }
                 p->setFont(piece.font);
                 p->setPen(piece.color);
                 p->drawText(QPointF(x, y + l.ascent + piece.shift), piece.text);

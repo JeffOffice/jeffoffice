@@ -376,6 +376,7 @@ public:
         std::map<quint64, jp::calc::Value> results;            // the results it holds (to be the file's, once it is written)
         std::vector<quint64> touchedFormulas;                  // the formula cells it holds whole, with the results they were given
         std::map<quint64, jp::calc::Value> touchedResults;
+        std::map<int, QString> headerDrawings;                 // set by the save: the drawing of header and footer pictures each sheet names now (see SaveReport)
     };
     bool takeSnapshot(Snapshot *out, QString *why);
     // The file was written from this snapshot: it is the base now. `package` is the new file's.

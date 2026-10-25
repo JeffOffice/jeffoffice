@@ -266,6 +266,31 @@ void splitHeaderFooter(const QString &code, QString *left, QString *center, QStr
     }
 }
 
+bool headerFooterHasPicture(const QString &code, QChar part)
+{
+    const HfText t = parseHeaderFooter(code);
+    const HfPart &p = part == QLatin1Char('L') ? t.left : part == QLatin1Char('C') ? t.center : t.right;
+    for (const HfLine &line : p.lines)
+        for (const HfRun &run : line)
+            if (run.field == HfField::Picture) return true;
+    return false;
+}
+
+void dropUnusedHeaderPictures(HeaderFooter *hf)
+{
+    for (qsizetype i = hf->pictures.size(); i-- > 0;) {
+        const QString &place = hf->pictures[i].place;
+        if (place.size() < 2) continue;
+        const QChar part = place[0].toUpper(), kind = place[1].toUpper();
+        if ((part != QLatin1Char('L') && part != QLatin1Char('C') && part != QLatin1Char('R')) || (kind != QLatin1Char('H') && kind != QLatin1Char('F'))) continue;
+        const QChar form = place.size() > 2 ? place[2].toUpper() : QChar();
+        if (place.size() > 3 || (place.size() == 3 && form != QLatin1Char('E') && form != QLatin1Char('F'))) continue;
+        const bool header = kind == QLatin1Char('H');
+        const QString &text = form == QLatin1Char('F') ? (header ? hf->firstHeader : hf->firstFooter) : form == QLatin1Char('E') ? (header ? hf->evenHeader : hf->evenFooter) : (header ? hf->oddHeader : hf->oddFooter);
+        if (!headerFooterHasPicture(text, part)) hf->pictures.removeAt(i);
+    }
+}
+
 QString headerFooterPreview(const QString &code, const HfContext &context)
 {
     const HfText t = parseHeaderFooter(code);
