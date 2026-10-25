@@ -168,6 +168,8 @@ struct SaveChanges {
     // Two-cell anchors whose places are written again, by the drawing part and the place of the element (DrawingObject::ordinal): an object that keeps its size when cells are resized (editAs
     // "oneCell" or "absolute") is where its size and place now put it. Applied before the objects are taken away (the places are the part's as it was).
     std::map<QString, std::map<int, DrawingAnchor>> anchors;
+    // Objects a person named: for each drawing part (by its name), the new name of the object at a place (DrawingObject::ordinal). Applied with the anchors, before objects are taken away.
+    std::map<QString, std::map<int, QString>> objectNames;
     // Objects a person put on sheets (a chart, a picture, a shape): by the sheet's place, what the drawing part gets and the parts it relates to (drawingadd.h). A sheet with no drawing is given one.
     std::map<int, AddedDrawing> addedObjects;
     // Drawings whose objects are drawn in another order: for each drawing part (by its name), the order of all the children of its root as they are after what is above is done (the objects taken

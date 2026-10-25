@@ -217,6 +217,12 @@ void ObjectLayer::setDeleted(int id, bool deleted)
     requestRepaint();
 }
 
+void ObjectLayer::setName(int id, const QString &name)
+{
+    const size_t i = entryOf(id);
+    if (i < m_entries.size()) m_entries[i].object.name = name;
+}
+
 bool ObjectLayer::isDeleted(int id) const
 {
     const size_t i = entryOf(id);

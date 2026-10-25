@@ -101,6 +101,7 @@ public:
 
     // An object is taken away (a person pressed Delete) or brought back (undone): it is not drawn or hit while it is.
     void setDeleted(int id, bool deleted);
+    void setName(int id, const QString &name);
     bool isDeleted(int id) const;
     // The object's anchor changed (cells were inserted or deleted before it): it is placed again.
     void setAnchor(int id, const jp::office::sheet::DrawingAnchor &anchor);

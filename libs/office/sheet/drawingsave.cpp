@@ -145,6 +145,69 @@ bool reorderDrawingChildren(const QByteArray &xml, const std::vector<int> &order
     return true;
 }
 
+namespace {
+
+// `element[from, to)` with the name of its first cNvPr set; false (and `edit` untouched) if it has none.
+bool nameEdit(const QByteArray &element, qsizetype from, qsizetype to, const QString &name, qsizetype *tagStart, qsizetype *tagEnd, QByteArray *replacement)
+{
+    qsizetype pos = from;
+    Tag t;
+    while (xmlscan::nextTag(element, pos, &t) && t.start < to) {
+        pos = t.end;
+        if (t.closing || t.local != "cNvPr") continue;
+        QByteArray text = element.mid(t.start, t.end - t.start);
+        static const QRegularExpression attr(QStringLiteral("\\sname\\s*=\\s*(\"[^\"]*\"|'[^']*')"));
+        const QString s = QString::fromUtf8(text);
+        const QRegularExpressionMatch m = attr.match(s);
+        const QString value = QStringLiteral("\"") + QString::fromUtf8(xmlscan::escapeAttribute(name)) + QStringLiteral("\"");
+        QString now;
+        if (m.hasMatch()) now = s.left(m.capturedStart(1)) + value + s.mid(m.capturedEnd(1));
+        else {
+            const qsizetype at = s.indexOf(QLatin1String("cNvPr")) + 5;
+            now = s.left(at) + QStringLiteral(" name=") + value + s.mid(at);
+        }
+        *tagStart = t.start;
+        *tagEnd = t.end;
+        *replacement = now.toUtf8();
+        return true;
+    }
+    return false;
+}
+
+} // namespace
+
+QByteArray withFirstObjectName(const QByteArray &element, const QString &name)
+{
+    qsizetype a = 0, b = 0;
+    QByteArray r;
+    if (!nameEdit(element, 0, element.size(), name, &a, &b, &r)) return element;
+    return element.left(a) + r + element.mid(b);
+}
+
+bool setDrawingObjectNames(const QByteArray &xml, const std::map<int, QString> &names, QByteArray *out, bool *changed)
+{
+    *out = xml;
+    *changed = false;
+    if (names.empty()) return true;
+    std::vector<std::pair<qsizetype, qsizetype>> children;
+    if (!childrenOfRoot(xml, &children)) return false;
+    QByteArray result;
+    qsizetype copied = 0;
+    for (const auto &[ordinal, name] : names) {
+        if (ordinal < 0 || size_t(ordinal) >= children.size()) continue;
+        qsizetype a = 0, b = 0;
+        QByteArray r;
+        if (!nameEdit(xml, children[size_t(ordinal)].first, children[size_t(ordinal)].second, name, &a, &b, &r) || a < copied) continue;
+        result += xml.mid(copied, a - copied) + r;
+        copied = b;
+    }
+    if (copied == 0) return true;
+    result += xml.mid(copied);
+    *out = result;
+    *changed = *out != xml;
+    return true;
+}
+
 bool setDrawingAnchors(const QByteArray &xml, const std::map<int, DrawingAnchor> &anchors, QByteArray *out, bool *changed)
 {
     *out = xml;

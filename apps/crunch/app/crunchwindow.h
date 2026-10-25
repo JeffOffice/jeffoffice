@@ -367,6 +367,7 @@ private:
     bool savesAsANewFile() const;
     void setStatus(const QString &text);
     void goToName();
+    void showNameInBox();
     // the clipboard (crunchwindow_clip.cpp)
     void createClipboardActions();
     void copySelection();

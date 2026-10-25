@@ -904,6 +904,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         const int index = partBytes(part, &xml);
         if (index >= 0 && setDrawingAnchors(xml, anchors, &now, &changed) && changed) replaced.insert(index, now);
     }
+    for (const auto &[part, names] : changes.objectNames) {
+        QByteArray xml, now;
+        bool changed = false;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && setDrawingObjectNames(xml, names, &now, &changed) && changed) replaced.insert(index, now);
+    }
     // (what the objects taken away relate to: the links of the drawing they alone used, and the parts nothing else relates to)
     std::vector<std::pair<QString, QStringList>> released;
     for (const auto &[part, ordinals] : changes.removedObjects) {

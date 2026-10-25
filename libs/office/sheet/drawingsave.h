@@ -31,6 +31,13 @@ bool reorderDrawingChildren(const QByteArray &xml, const std::vector<int> &order
 // stays. A place that is not of a two-cell anchor is left as it is.
 bool setDrawingAnchors(const QByteArray &xml, const std::map<int, DrawingAnchor> &anchors, QByteArray *out, bool *changed);
 
+// The name of the objects at the given places (as DrawingObject::ordinal counts them) written as given: the name attribute of the first cNvPr of each (its own, not a member's of a group). Every
+// other byte stays.
+bool setDrawingObjectNames(const QByteArray &xml, const std::map<int, QString> &names, QByteArray *out, bool *changed);
+
+// An object's element (or several) with the name of its first cNvPr set to `name`.
+QByteArray withFirstObjectName(const QByteArray &element, const QString &name);
+
 // The references a chart part reads (the text of each c:f), in order, as written (unescaped).
 QStringList chartPartRefs(const QByteArray &xml);
 

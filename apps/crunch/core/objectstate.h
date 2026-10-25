@@ -9,6 +9,7 @@
 #include "office/chart.h"
 #include "sheet/drawing.h"
 
+#include <QString>
 #include <QStringList>
 
 #include <memory>
@@ -32,6 +33,7 @@ struct ObjectState {
     std::vector<AnchorPlacement> placements;          // where it was put, in the order it was put there (the file's anchor, moved by the edits, is where it begins)
     std::shared_ptr<const jp::office::Chart> chart;   // a chart's model (null: whatever the object has; for a picture or shape)
     std::vector<RefPlacement> refs;                   // what the chart reads, as given by a person
+    QString name;                                     // its name (empty: whatever it has)
     bool deleted = false;                             // taken away (or not made yet)
     int order = 0;                                    // its place among the sheet's objects, from the back
     int epoch = 0;                                    // which stretch between saves the places are of: after a save that followed edits to rows and columns, what was kept of the one before is no use

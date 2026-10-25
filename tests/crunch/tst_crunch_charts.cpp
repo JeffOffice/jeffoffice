@@ -681,6 +681,125 @@ private Q_SLOTS:
         QCOMPARE(o->layer()->boxNow(o->idsOf(0).back()).w, 300.0);
     }
 
+
+    // A picture and a shape are copied and pasted as a chart is: in the workbook, in another window, and saved with their pictures as parts of their own, each shape with a number of its own.
+    void aPictureAndAShapeAreCopiedAndPasted()
+    {
+        const QString anchors = oneCell(1, 6, 952500, 476250, pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("Logo"))) + twoCell(5, 10, 8, 14, shapeElement(4, QStringLiteral("Box")));
+        const QByteArray png = pngBytes(8, 4, Qt::red);
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {imageTarget(QStringLiteral("rIdP"), 1, png)})));
+        QTRY_VERIFY(objectsShown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        QGuiApplication::clipboard()->clear();
+        o->layer()->select(0);
+        e.win.w.act(QStringLiteral("edit.copy"))->trigger();
+        QVERIFY(QGuiApplication::clipboard()->mimeData()->hasFormat(QLatin1String("application/x-jeffcrunch-object")));
+        e.select(QStringLiteral("B20"));
+        e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(int(o->idsOf(0).size()), 3);
+        QCOMPARE(o->kindOf(0, o->layer()->selectedId()), jp::office::sheet::ObjectKind::Picture);
+        // the shape too, into a workbook that has no drawing
+        o->layer()->select(1);
+        e.win.w.act(QStringLiteral("edit.copy"))->trigger();
+        e.select(QStringLiteral("B30"));
+        e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(int(o->idsOf(0).size()), 4);
+        QVERIFY(e.win.told.isEmpty());
+        QVERIFY(save(e));
+        const QMap<QString, QByteArray> parts = partsOf(e.path);
+        // two pictures in the file now: the first and the copy, each a part of its own with its own relationship
+        int media = 0;
+        for (auto it = parts.begin(); it != parts.end(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/media/"))) {
+                ++media;
+                QCOMPARE(it.value(), png);
+            }
+        QCOMPARE(media, 2);
+        // every number of a shape in the drawing is its own
+        QDomDocument doc;
+        QVERIFY(parseXml(parts.value(QStringLiteral("xl/drawings/drawing1.xml")), &doc));
+        const QDomNodeList all = doc.elementsByTagName(QStringLiteral("cNvPr"));
+        QSet<QString> ids;
+        for (int i = 0; i < all.size(); ++i) ids.insert(all.at(i).toElement().attribute(QStringLiteral("id")));
+        QCOMPARE(int(ids.size()), 4);
+        // read again, there are four, and the pasted picture draws
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QTRY_VERIFY(second.w.objects()->shownSheet() == 0 && second.w.objects()->layer()->count() == 4);
+        // another window: the picture comes with its bytes
+        QGuiApplication::clipboard()->clear();
+        o->layer()->select(0);
+        e.win.w.act(QStringLiteral("edit.copy"))->trigger();
+        EditWindow other;
+        QVERIFY(other.open(plainBook()));
+        QVERIFY(other.settle());
+        QTRY_VERIFY(objectsShown(other, 0));
+        other.select(QStringLiteral("E3"));
+        other.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(int(other.win.w.objects()->idsOf(0).size()), 1);
+        QVERIFY(save(other));
+        const QMap<QString, QByteArray> far = partsOf(other.path);
+        bool found = false;
+        for (auto it = far.begin(); it != far.end(); ++it) found = found || (it.key().startsWith(QLatin1String("xl/media/")) && it.value() == png);
+        QVERIFY(found);
+        QVERIFY(far.value(QStringLiteral("[Content_Types].xml")).contains("png"));
+        // a clip that names a picture it does not carry, and one with more than it may, are not pasted
+        crunch::ObjectClip bad;
+        bad.kind = QStringLiteral("picture");
+        bad.width = 50;
+        bad.height = 50;
+        bad.elementXml = "<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"2\" name=\"X\"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"rIdMissing\"/></xdr:blipFill><xdr:spPr/></xdr:pic>";
+        auto *md = new QMimeData;
+        bad.toMime(md);
+        QGuiApplication::clipboard()->setMimeData(md);
+        other.select(QStringLiteral("E20"));
+        other.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QVERIFY(other.win.w.objects()->idsOf(0).size() <= 2);
+        QCOMPARE(int(other.win.w.objects()->idsOf(0).size()), other.win.w.objects()->layer()->count());
+    }
+
+
+    // With an object picked, the name box shows its name, and a name typed there is the object's (an edit that Undo takes back, and a file that has it).
+    void theNameBoxShowsAndChangesAnObjectsName()
+    {
+        const QString anchors = twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales"))) + twoCell(5, 15, 8, 19, shapeElement(4, QStringLiteral("Box")));
+        const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series))})));
+        QTRY_VERIFY(objectsShown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        e.select(QStringLiteral("B3"));
+        QCOMPARE(e.win.w.nameBox()->text(), QStringLiteral("B3"));
+        o->layer()->select(0);
+        QCOMPARE(e.win.w.nameBox()->text(), QStringLiteral("Sales"));
+        e.win.w.nameBox()->setText(QStringLiteral("Revenue"));
+        QMetaObject::invokeMethod(e.win.w.nameBox(), "returnPressed");
+        QCOMPARE(o->nameOf(0, 0), QStringLiteral("Revenue"));
+        QCOMPARE(e.win.w.nameBox()->text(), QStringLiteral("Revenue"));
+        // a shape the same, and an empty name is not one
+        o->layer()->select(1);
+        e.win.w.nameBox()->setText(QStringLiteral("Panel"));
+        QMetaObject::invokeMethod(e.win.w.nameBox(), "returnPressed");
+        e.win.w.nameBox()->setText(QString());
+        QMetaObject::invokeMethod(e.win.w.nameBox(), "returnPressed");
+        QCOMPARE(o->nameOf(0, 1), QStringLiteral("Panel"));
+        QVERIFY(save(e));
+        QVERIFY(savedAnchor(e.path, QStringLiteral("Revenue")).found);
+        QVERIFY(savedAnchor(e.path, QStringLiteral("Panel")).found);
+        QVERIFY(!savedAnchor(e.path, QStringLiteral("Sales")).found);
+        // Undo gives the old name back, and the file after it has it
+        e.win.w.undoStack()->undo();
+        QCOMPARE(o->nameOf(0, 1), QStringLiteral("Box"));
+        QVERIFY(save(e));
+        QVERIFY(savedAnchor(e.path, QStringLiteral("Box")).found);
+        QVERIFY(!savedAnchor(e.path, QStringLiteral("Panel")).found);
+        // with no object picked it is an address again
+        o->layer()->select(-1);
+        e.select(QStringLiteral("C4"));
+        QCOMPARE(e.win.w.nameBox()->text(), QStringLiteral("C4"));
+    }
+
     // ---- the order
 
     void objectsAreBroughtForwardAndSentBackward()
@@ -908,7 +1027,7 @@ private Q_SLOTS:
     }
 
     // Pictures and shapes move and size too: the anchor of the file is kept in the form it keeps what the object does when cells change (a picture of a one-cell anchor moves with the cells and
-    // keeps its size; a shape set not to move or size stays where it is), and Copy on one says what can be copied.
+    // keeps its size; a shape set not to move or size stays where it is).
     void picturesAndShapesAreMovedAndSaved()
     {
         const QString anchors = oneCell(1, 6, 952500, 476250, pictureElement(3, QStringLiteral("rIdP"), QStringLiteral("Logo"))) + twoCell(5, 10, 8, 14, shapeElement(4, QStringLiteral("Box")), QStringLiteral("absolute"));
@@ -934,11 +1053,6 @@ private Q_SLOTS:
         o->layer()->select(1);
         QTest::keyClick(e.view(), Qt::Key_Down);
         QCOMPARE(o->layer()->boxNow(1).y, box.y + 6);
-        // Copy on them says what can be copied and leaves the cells' clipboard alone
-        QGuiApplication::clipboard()->clear();
-        e.win.w.act(QStringLiteral("edit.copy"))->trigger();
-        QVERIFY(!QGuiApplication::clipboard()->mimeData() || !QGuiApplication::clipboard()->mimeData()->hasText());
-        QVERIFY(e.win.w.statusText().contains(QLatin1String("Only a chart")));
         QVERIFY(save(e));
         const SavedAnchor a = savedAnchor(e.path, QStringLiteral("Logo")), b = savedAnchor(e.path, QStringLiteral("Box"));
         QVERIFY(a.found && b.found);
@@ -1296,7 +1410,7 @@ private Q_SLOTS:
             for (const ChartKindEntry &k : chartKindEntries()) d->selectKind(k.kind);
             QVERIFY(!d->previewShown().isNull());
             const qint64 read = cells->reads() - before;
-            QVERIFY2(read < 40000, qPrintable(QString::number(read)));   // (the dialog draws 17 kinds twice and the swap from 41 rows of two columns: the block is not looked for again)
+            QVERIFY2(read < 8500, qPrintable(QString::number(read)));   // (the block of the selection is looked for once, and the kinds are drawn from it: found again for each of the 17 kinds and the swap it would be read several times over)
         }
     }
 
@@ -1336,6 +1450,14 @@ private Q_SLOTS:
         id = pasteIt();
         QVERIFY(seriesOf(chartOf(e, id))[0].valueRef.isEmpty());
         QCOMPARE(seriesOf(chartOf(e, id))[0].values, (QVector<double>{10, 20, 30}));
+        // a copy that names a sheet this workbook has not (deleted, or never in it) is another workbook's whatever its references say
+        crunch::ObjectClip gone = clip;
+        gone.sheetName = QStringLiteral("NoSuchSheet");
+        auto *mg = new QMimeData;
+        mg->setData(QLatin1String(crunch::kObjectMime), gone.toBytes());
+        QGuiApplication::clipboard()->setMimeData(mg);
+        id = pasteIt();
+        QVERIFY(seriesOf(chartOf(e, id))[0].valueRef.isEmpty());
         // the sheet it read renamed between the copy and the paste: it would read other cells, or none
         copyIt();
         QVERIFY(e.win.w.renameSheetTo(0, QStringLiteral("Budget")));

@@ -69,6 +69,15 @@ QByteArray chartAnchorXml(const DrawingAnchor &a, int shapeId, const QString &na
            "\"><c:chart r:id=\"" + escapeBytes(token) + "\"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>";
 }
 
+QByteArray objectAnchorXml(const DrawingAnchor &a, const QByteArray &namespaces, const QByteArray &elementXml)
+{
+    QByteArray edit;
+    if (a.editAs == AnchorKind::OneCell) edit = " editAs=\"oneCell\"";
+    else if (a.editAs == AnchorKind::Absolute) edit = " editAs=\"absolute\"";
+    return QByteArray("<xdr:twoCellAnchor") + edit + " xmlns:xdr=\"" + kXdr + "\" xmlns:a=\"" + kA + "\" xmlns:r=\"" + kR + "\" " + namespaces + ">" + point("from", a.from) + point("to", a.to) + elementXml +
+           "<xdr:clientData/></xdr:twoCellAnchor>";
+}
+
 QByteArray drawingWithAnchors(const QByteArray &xml, const QByteArray &anchors)
 {
     Tag open, close;

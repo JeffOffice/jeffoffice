@@ -37,9 +37,16 @@ When a chart is picked, two buttons appear beside it and a **Chart** tab appears
 
 A reference to cells is written like **Sheet1!$B$2:$B$9**, with the sheet's name in single quotes when it has spaces.
 
-## Cut, copy, and paste a chart
+## Cut, copy, and paste an object
+
+A picture or shape is copied and pasted the same way as a chart. A shape that uses something other than a picture from the workbook, such as a link to a file, can't be copied, and JeffCrunch tells you why.
+
 
 Copy a chart and paste it into the same workbook, on any sheet: the copy reads the same cells as the first. Paste it into another workbook and it keeps the numbers it showed but no longer reads cells, because the cells it would read there are not the ones it was made from.
+
+## Name it
+
+With an object picked, the name box shows its name. Type a new name there and press **Enter**. Undo puts the old name back, and the new name is saved in the file.
 
 ## Delete it
 

@@ -3,12 +3,15 @@
 #include "grid/gridsheet.h"
 #include "office/chart_write.h"
 #include "sheet/drawingadd.h"
+#include "sheet/drawingsave.h"
+#include "io/zip.h"
 #include "sheet/xmlscan.h"
 #include "office/theme.h"
 #include "office/xml.h"
 
 #include <QCoreApplication>
 #include <QMetaObject>
+#include <QRegularExpression>
 #include <QPainter>
 #include <QPointer>
 #include <QSvgRenderer>
@@ -281,19 +284,9 @@ void SheetObjects::list(int sheet, Sheet &s)
     c.skipped = s.drawing.skipped;
     c.truncated = s.drawing.truncated;
     if (s.drawing.truncated) c.why << tr("more than %1 objects in a drawing; the rest are left out").arg(kMaxDrawingAnchors);
-    s.context = std::make_shared<DrawingContext>();
-    DrawingContext &ctx = *s.context;
-    ctx.package = &m_book->package();
-    ctx.part = s.drawingPart;
-    ctx.theme = m_theme;
-    ctx.colors = ColorMap();
-    ctx.formats = m_formats;
-    ctx.images = &m_images;
-    ctx.budget = &m_budget;
-    ctx.addImage = [this](const QByteArray &bytes, const QString &format) { return m_doc->addImage(bytes, format); };
-    ctx.addMedia = [this](const QByteArray &bytes, const QString &type, const QString &extension) { return m_doc->addMedia(bytes, type, extension); };
-    ctx.newStory = [this] { return m_doc->createStory(); };
-    ctx.storyDoc = [this](const QString &id) { return m_doc->storyDoc(id); };
+    s.context = baseContext();
+    s.context->package = &m_book->package();
+    s.context->part = s.drawingPart;
     s.nextId = int(s.drawing.objects.size());
     for (const DrawingObject &d : std::as_const(s.drawing.objects)) s.nextShapeId = std::max<qint64>(s.nextShapeId, d.id + 1);
     for (const DrawingObject &d : std::as_const(s.drawing.objects)) {
@@ -313,6 +306,7 @@ void SheetObjects::list(int sheet, Sheet &s)
         o->id = d.index;
         o->meta = d;
         o->fileAnchor = o->base = o->anchor = d.anchor;
+        o->fileName = d.name;
         replay(sheet, *o);
         s.objects.push_back(std::move(o));
     }
@@ -334,6 +328,23 @@ QStringList SheetObjects::movedRefList(const QStringList &refs, int sheet, int a
     const QStringList names = sheetNames();
     for (QString &ref : out) ref = movedChartRef(ref, names, edits, sheet);
     return out;
+}
+
+std::shared_ptr<DrawingContext> SheetObjects::baseContext()
+{
+    readContext();
+    auto context = std::make_shared<DrawingContext>();
+    DrawingContext &ctx = *context;
+    ctx.theme = m_theme;
+    ctx.colors = ColorMap();
+    ctx.formats = m_formats;
+    ctx.images = &m_images;
+    ctx.budget = &m_budget;
+    ctx.addImage = [this](const QByteArray &bytes, const QString &format) { return m_doc->addImage(bytes, format); };
+    ctx.addMedia = [this](const QByteArray &bytes, const QString &type, const QString &extension) { return m_doc->addMedia(bytes, type, extension); };
+    ctx.newStory = [this] { return m_doc->createStory(); };
+    ctx.storyDoc = [this](const QString &id) { return m_doc->storyDoc(id); };
+    return context;
 }
 
 void SheetObjects::replay(int sheet, Object &o)
@@ -431,7 +442,7 @@ void SheetObjects::ensureBuilt(int sheet, Object &o)
         refreshRefs(o);
         o.made = true;
     } else {
-        o.item = readShape(o.meta.element, *s.context);
+        o.item = readShape(o.meta.element, o.ownContext ? *o.ownContext : *s.context);
         if (!o.item) {
             leaveOut(o.meta.kind == ObjectKind::Group ? tr("a group with nothing in it that is drawn") : tr("a shape or picture that could not be read"));
             return;
@@ -815,7 +826,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
             std::set<int> used;
             for (const std::shared_ptr<Object> &o : s.objects) {
                 if (o->deleted || o->gone) continue;
-                if (o->added && !(m_source && m_cells && o->chart)) {
+                if (o->added && !(m_source && m_cells && (o->chart || o->item))) {
                     o->savedPart.clear();   // (it cannot be written now: it stays as it is, not in the file, and is not said to be)
                     continue;
                 }
@@ -857,7 +868,30 @@ void SheetObjects::addToSave(SaveChanges *changes)
             if (o->gone) continue;
             if (o->added) {
                 // a chart a person made: its part, and its anchor at the end of the drawing
-                if (!m_source || !m_cells || !o->chart) continue;
+                if (!m_source || !m_cells || (!o->chart && !o->item)) continue;
+                if (!o->chart) {
+                    // a picture or shape from a copy: its element, and its pictures as parts of their own
+                    DrawingAnchor want = o->anchor;
+                    if (want.kind != AnchorKind::TwoCell) want = twoCellFor(*o, geometryOf().layout.rows, geometryOf().layout.cols);
+                    else want.editAs = o->anchor.editAs;
+                    o->savedAnchor = want;
+                    AddedObject obj;
+                    obj.xml = objectAnchorXml(want, o->pasteNamespaces, withFirstObjectName(o->pasteXml, o->meta.name));
+                    o->savedName = o->meta.name;
+                    for (const jp::crunch::ClipMedia &m : std::as_const(o->pasteMedia)) {
+                        AddedPart part;
+                        part.part = freePartName(QStringLiteral("/xl/media/image"), QLatin1Char('.') + m.extension, takenNames());
+                        takenNames().insert(part.part.toLower());
+                        part.relType = QStringLiteral("image");
+                        part.contentType = m.contentType;
+                        part.bytes = m.bytes;
+                        part.token = m.token;
+                        obj.parts.push_back(std::move(part));
+                    }
+                    o->savedPart = QStringLiteral("-");   // (written: there is no part of its own to name)
+                    add.objects.push_back(std::move(obj));
+                    continue;
+                }
                 auto c = std::make_shared<Chart>(*o->chart);
                 setChartRefs(c.get(), o->refs);
                 applyChartCells(c.get(), int(i), *m_cells);
@@ -872,6 +906,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
                 const QString token = QStringLiteral("@@chart%1@@").arg(add.objects.size());
                 AddedObject obj;
                 obj.xml = chartAnchorXml(want, int(o->meta.id), o->meta.name, token);
+                o->savedName = o->meta.name;
                 // (the part is written by the thread that writes the file: it is made from the model, which is a copy)
                 AddedPart part;
                 part.part = o->savedPart;
@@ -885,6 +920,8 @@ void SheetObjects::addToSave(SaveChanges *changes)
             }
             if (!o->meta.chartPart.isEmpty()) aliveParts.insert(o->meta.chartPart.toLower());
             // what the file will have for the object: the anchor as the cells' edits leave it, or, for one a person moved or that keeps its size, as its size and place now give it
+            o->savedName = o->meta.name;
+            if (o->meta.name != o->fileName && !s.drawingPart.isEmpty() && o->meta.ordinal >= 0) changes->objectNames[s.drawingPart][o->meta.ordinal] = o->meta.name;
             const DrawingAnchor inFile = movedAnchor(o->fileAnchor, int(i), edits);
             o->savedAnchor = inFile;
             if (o->frozen && m_source) {
@@ -970,8 +1007,10 @@ void SheetObjects::saved()
             if (o->added) {
                 ++addedNow;
                 o->added = false;
-                o->meta.chartPart = o->savedPart;
-                m_chartSheet.insert(o->savedPart.toLower(), int(i));
+                if (o->meta.kind == ObjectKind::Chart) {
+                    o->meta.chartPart = o->savedPart;
+                    m_chartSheet.insert(o->savedPart.toLower(), int(i));
+                }
             }
             if (o->savedOrdinal >= 0) o->meta.ordinal = o->savedOrdinal;
             o->base = o->anchor;
@@ -981,6 +1020,7 @@ void SheetObjects::saved()
             o->baseRefs = o->refs;
             o->movedRefs = o->refs;
             o->fileChart = o->chart;
+            o->fileName = o->savedName;
         }
         s.drawing.rootChildren = std::max(0, s.drawing.rootChildren - removedNow) + addedNow;
         QVector<DrawingObject> kept;
@@ -1125,6 +1165,7 @@ ObjectState SheetObjects::stateOf(int sheet, int id)
     ensureBuilt(sheet, *o);
     st.placements = o->placements;
     st.chart = o->chart;
+    st.name = o->meta.name;
     st.refs = o->refPlacements;
     st.deleted = o->deleted;
     st.epoch = m_epoch;
@@ -1169,6 +1210,7 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
             o->points = pointsOf(sheet, *st.chart);
         }
     }
+    if (!st.name.isEmpty()) o->meta.name = st.name;
     replay(sheet, *o);
     o->frozen = o->anchor.kind != AnchorKind::TwoCell;
     o->meta.anchor.editAs = o->anchor.editAs;
@@ -1190,6 +1232,7 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
         if (sheet == m_shown) m_layer.moveObject(o->id, size_t(st.order));
     }
     if (sheet != m_shown) return;
+    m_layer.setName(o->id, o->meta.name);
     m_layer.setAnchor(o->id, o->anchor);
     m_layer.setDeleted(o->id, o->deleted);
     if (placed && st.chart) m_layer.invalidate(o->id);
@@ -1317,6 +1360,207 @@ bool SheetObjects::canReorder(int sheet, int id, QString *why)
         }
     }
     return true;
+}
+
+
+namespace {
+
+// The relationship ids (the values of r:embed, r:link, r:pict, and r:id attributes) of the XML replaced by others, only where they stand as those attributes' values.
+QByteArray remapIds(const QByteArray &xml, const QHash<QString, QString> &map)
+{
+    static const QRegularExpression attr(QStringLiteral("(\\b[A-Za-z_][\\w.-]*:(?:embed|link|pict|id)\\s*=\\s*)(\"([^\"]*)\"|'([^']*)')"));
+    const QString text = QString::fromUtf8(xml);
+    QString out;
+    qsizetype last = 0;
+    for (QRegularExpressionMatchIterator it = attr.globalMatch(text); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        const QString id = m.captured(3).isEmpty() ? m.captured(4) : m.captured(3);
+        if (!map.contains(id)) continue;
+        out += text.mid(last, m.capturedStart(2) - last) + QLatin1Char('"') + map.value(id) + QLatin1Char('"');
+        last = m.capturedEnd(2);
+    }
+    return (out + text.mid(last)).toUtf8();
+}
+
+const char *const kPastePart = "/xl/drawings/p.xml";
+
+} // namespace
+
+bool SheetObjects::copyElement(int sheet, int id, jp::crunch::ObjectClip *clip, QString *why)
+{
+    auto refuse = [&](const QString &text) {
+        if (why) *why = text;
+        return false;
+    };
+    Object *o = find(sheet, id);
+    if (!o || o->meta.kind == ObjectKind::Chart || o->meta.kind == ObjectKind::Other) return refuse(tr("This object can't be copied."));
+    Sheet &s = sheetState(sheet);
+    ensureBuilt(sheet, *o);
+    if (!o->made || o->meta.element.isNull()) return refuse(tr("This object can't be shown here, so it can't be copied."));
+    QString text;
+    {
+        QTextStream ts(&text);
+        o->meta.element.save(ts, -1);
+    }
+    QByteArray xml = text.toUtf8();
+    if (xml.size() > jp::crunch::kMaxClipElementBytes) return refuse(tr("This object is too large to copy."));
+    // the namespaces its element uses (the anchor that holds it will declare the usual three)
+    QByteArray namespaces;
+    const QDomNamedNodeMap attrs = o->meta.element.ownerDocument().documentElement().attributes();
+    for (int i = 0; i < attrs.size() && i < 64; ++i) {
+        const QDomAttr a = attrs.item(i).toAttr();
+        if (a.name().startsWith(QLatin1String("xmlns:")) && a.name() != QLatin1String("xmlns:xdr") && a.name() != QLatin1String("xmlns:a") && a.name() != QLatin1String("xmlns:r"))
+            namespaces += " " + a.name().toUtf8() + "=\"" + xmlscan::escapeAttribute(a.value()) + "\"";
+    }
+    // the pictures it names
+    const Package &package = o->ownPackage ? *o->ownPackage : m_book->package();
+    const QString part = o->ownPackage ? QString::fromLatin1(kPastePart) : s.drawingPart;
+    QHash<QString, QString> tokens;
+    QList<jp::crunch::ClipMedia> media;
+    qint64 total = 0;
+    for (const QString &rid : namedRelationships(xml)) {
+        const Relationship r = package.relationship(part, rid);
+        if (r.id.isEmpty() || r.external || !r.type.endsWith(QLatin1String("/image")) || !package.hasPart(r.target))
+            return refuse(tr("This object uses something that is not a picture in the workbook (a link, say), so it can't be copied."));
+        const QByteArray bytes = package.part(r.target);
+        total += bytes.size();
+        if (bytes.isEmpty() || bytes.size() > jp::crunch::kMaxClipMediaBytes || total > jp::crunch::kMaxClipMediaTotal || media.size() >= jp::crunch::kMaxClipMedia) return refuse(tr("The pictures in this object are too large to copy."));
+        jp::crunch::ClipMedia m;
+        m.token = QStringLiteral("rIdPaste%1Z").arg(media.size());
+        m.extension = r.target.mid(r.target.lastIndexOf(QLatin1Char('.')) + 1).toLower();
+        bool plain = !m.extension.isEmpty() && m.extension.size() <= 8;
+        for (const QChar ch : m.extension) plain = plain && ch.isLetterOrNumber();
+        if (!plain) return refuse(tr("This object has a picture this program can't copy."));
+        m.contentType = package.contentType(r.target);
+        if (m.contentType.isEmpty()) m.contentType = QStringLiteral("image/") + m.extension;
+        m.bytes = bytes;
+        tokens.insert(rid, m.token);
+        media.append(m);
+    }
+    jp::crunch::ObjectClip c;
+    const QString kind = o->meta.element.localName();
+    c.kind = kind == QLatin1String("pic") ? QStringLiteral("picture") : kind == QLatin1String("grpSp") ? QStringLiteral("group") : kind == QLatin1String("cxnSp") ? QStringLiteral("connector") : QStringLiteral("shape");
+    const jp::grid::ObjectBox box = m_layer.boxNow(id);
+    c.width = std::clamp(box.w, 4.0, 20000.0);
+    c.height = std::clamp(box.h, 4.0, 20000.0);
+    c.sheetName = m_book->info().sheets[sheet].name;
+    c.elementXml = remapIds(xml, tokens);
+    c.namespaces = namespaces;
+    c.media = media;
+    *clip = c;
+    return true;
+}
+
+int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, const DrawingAnchor &anchor, QString *why)
+{
+    auto refuse = [&](const QString &text) {
+        if (why) *why = text;
+        return -1;
+    };
+    if (!m_book || sheet < 0 || sheet >= int(m_sheets.size()) || !clip.valid() || clip.kind == QLatin1String("chart")) return refuse(tr("There is nothing to paste here."));
+    if (m_book->info().sheets[sheet].kind != SheetKind::Worksheet) return refuse(tr("A chart sheet holds one chart. Put objects on a worksheet."));
+    Sheet &s = sheetState(sheet);
+    if (addedCount() >= m_limits.maxAdded)
+        return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(QLocale().toString(m_limits.maxAdded)));
+    if (m_objectsMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
+    qint64 held = 0;
+    for (const Object *o : {static_cast<const Object *>(nullptr)}) Q_UNUSED(o);
+    for (const jp::crunch::ClipMedia &m : clip.media) held += m.bytes.size();
+    knowShapeIds(sheet, s);
+    // the element in a document of its own
+    QByteArray wrapped = "<w xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"" + clip.namespaces + ">" + clip.elementXml + "</w>";
+    auto doc = std::make_shared<QDomDocument>();
+    QString problem;
+    if (!parseXml(wrapped, doc.get(), &problem)) return refuse(tr("The object on the clipboard can't be read."));
+    QDomElement el = doc->documentElement().firstChildElement();
+    if (el.isNull()) return refuse(tr("The object on the clipboard can't be read."));
+    // its numbers in the drawing: each shape in it a new one
+    qint64 nextId = s.nextShapeId;
+    QString name;
+    qint64 firstId = 0;
+    int count = 0;
+    std::function<bool(QDomElement &, int)> number = [&](QDomElement &e, int depth) {
+        if (depth > 64 || count > 1000) return false;
+        if (e.localName() == QLatin1String("cNvPr")) {
+            ++count;
+            if (name.isEmpty()) name = e.attribute(QStringLiteral("name"));
+            if (!firstId) firstId = nextId;
+            e.setAttribute(QStringLiteral("id"), QString::number(nextId++));
+        }
+        for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+            if (!number(c, depth + 1)) return false;
+        return true;
+    };
+    if (!number(el, 0)) return refuse(tr("The object on the clipboard has more parts than JeffCrunch keeps."));
+    s.nextShapeId = nextId;
+    QString text;
+    {
+        QTextStream ts(&text);
+        el.save(ts, -1);
+    }
+    // a package of its own, with the pictures it names, so that it is read as any object of a drawing is
+    jp::ZipWriter zip;
+    QByteArray types = "<?xml version=\"1.0\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/>";
+    QSet<QString> seen;
+    for (const jp::crunch::ClipMedia &m : clip.media)
+        if (!seen.contains(m.extension.toLower())) {
+            seen.insert(m.extension.toLower());
+            types += "<Default Extension=\"" + xmlscan::escapeAttribute(m.extension) + "\" ContentType=\"" + xmlscan::escapeAttribute(m.contentType) + "\"/>";
+        }
+    types += "</Types>";
+    zip.add(QStringLiteral("[Content_Types].xml"), types, true);
+    zip.add(QStringLiteral("xl/drawings/p.xml"), QByteArray("<xdr:wsDr xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\"/>"), true);
+    QByteArray rels;
+    for (int i = 0; i < clip.media.size(); ++i) {
+        const jp::crunch::ClipMedia &m = clip.media[i];
+        zip.add(QStringLiteral("xl/media/paste%1.%2").arg(i).arg(m.extension), m.bytes, true);
+        rels = rels.isEmpty() ? QByteArray() : rels;
+        rels += relationshipXml(m.token, QStringLiteral("image"), QStringLiteral("../media/paste%1.%2").arg(i).arg(m.extension));
+    }
+    zip.add(QStringLiteral("xl/drawings/_rels/p.xml.rels"), "<?xml version=\"1.0\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" + rels + "</Relationships>", true);
+    auto package = std::make_shared<Package>();
+    if (!package->readLazy(zip.finish(), &problem)) return refuse(tr("The object on the clipboard can't be read."));
+    auto context = std::make_shared<DrawingContext>(*baseContext());
+    context->package = package.get();
+    context->part = QString::fromLatin1(kPastePart);
+    jp::ItemPtr item = readShape(el, *context);
+    if (!item) return refuse(tr("The object on the clipboard can't be drawn."));
+    auto o = std::make_shared<Object>();
+    o->id = s.nextId++;
+    o->added = true;
+    o->deleted = true;
+    const QString kind = el.localName();
+    o->meta.kind = kind == QLatin1String("pic") ? ObjectKind::Picture : kind == QLatin1String("grpSp") ? ObjectKind::Group : kind == QLatin1String("cxnSp") ? ObjectKind::Connector : ObjectKind::Shape;
+    o->meta.name = name.isEmpty() ? newName(sheet, o->meta.kind) : name;
+    o->meta.id = firstId;
+    o->meta.anchor = anchor;
+    o->meta.element = el;
+    o->meta.ordinal = -1;
+    o->fileAnchor = o->base = o->anchor = anchor;
+    o->frozen = anchor.kind != AnchorKind::TwoCell;
+    o->placements.push_back(jp::crunch::AnchorPlacement{int(m_applied.size()), anchor});
+    o->item = item;
+    o->ownDoc = doc;
+    o->ownPackage = package;
+    o->ownContext = context;
+    o->pasteXml = text.toUtf8();
+    o->pasteNamespaces = clip.namespaces;
+    o->pasteMedia = clip.media;
+    o->built = o->made = true;
+    ++m_objectsMade;
+    ++s.counts.shown;
+    switch (o->meta.kind) {
+    case ObjectKind::Picture: ++s.counts.pictures; break;
+    case ObjectKind::Group: ++s.counts.groups; break;
+    case ObjectKind::Connector: ++s.counts.connectors; break;
+    default: ++s.counts.shapes; break;
+    }
+    s.objects.push_back(o);
+    if (sheet == m_shown) {
+        m_layer.addObject(layerObject(sheet, o));
+        m_layer.setDeleted(o->id, true);
+    }
+    return o->id;
 }
 
 bool SheetObjects::canEditChart(int sheet, int id, QString *why)

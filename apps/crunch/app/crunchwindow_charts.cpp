@@ -583,6 +583,7 @@ void CrunchWindow::updateChartState()
     for (const char *name : {"object.properties", "object.front", "object.forward", "object.backward", "object.back", "object.delete"}) act(QString::fromLatin1(name))->setEnabled(picked);
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Chart"), chart);
     m_chartButtonsTimer.start();
+    showNameInBox();
 }
 
 void CrunchWindow::placeChartButtons()
@@ -652,7 +653,7 @@ QMenu *CrunchWindow::buildObjectMenu(int id, QWidget *owner)
     menu->addAction(act(QStringLiteral("edit.cut")));
     QAction *copy = menu->addAction(icon(QStringLiteral("copy")), tr("Copy"));
     connect(copy, &QAction::triggered, this, [this] { copyObject(false); });
-    copy->setEnabled(chart);
+    copy->setEnabled(true);
     menu->addAction(act(QStringLiteral("edit.paste")));
     menu->addAction(act(QStringLiteral("object.delete")));
     menu->addSeparator();
@@ -679,30 +680,38 @@ bool CrunchWindow::copyObject(bool cut)
 {
     const int id = pickedObject();
     if (id < 0 || !m_session || !m_objects) return false;
-    if (m_objects->kindOf(m_sheet, id) != ObjectKind::Chart) {
-        setStatus(tr("Only a chart can be copied or cut. A picture or shape can be moved, sized, put in front or behind, and deleted."));
-        return false;
-    }
+    const ObjectKind kind = m_objects->kindOf(m_sheet, id);
     if (cut && !editingAllowed()) return false;
-    const Chart chart = m_objects->chartNow(m_sheet, id);
     crunch::ObjectClip clip;
-    clip.kind = QStringLiteral("chart");
+    QImage picture;
+    const grid::ObjectBox box = m_objects->layer()->boxNow(id);
+    if (kind == ObjectKind::Chart) {
+        const Chart chart = m_objects->chartNow(m_sheet, id);
+        clip.kind = QStringLiteral("chart");
+        clip.chartXml = writeChartPart(chart);
+        clip.width = std::max(4.0, box.w);
+        clip.height = std::max(4.0, box.h);
+        picture = renderChart(chart, QSize(int(clip.width), int(clip.height)));
+    } else {
+        QString why;
+        if (!m_objects->copyElement(m_sheet, id, &clip, &why)) {
+            setStatus(why);
+            return false;
+        }
+    }
     clip.origin = m_workbookId + QLatin1Char('|') + m_path;
     clip.sheetName = m_loaded && m_loaded->book ? m_loaded->book->info().sheets[m_sheet].name : QString();
-    const grid::ObjectBox box = m_objects->layer()->boxNow(id);
-    clip.width = std::max(4.0, box.w);
-    clip.height = std::max(4.0, box.h);
-    clip.chartXml = writeChartPart(chart);
     auto *md = new QMimeData;
-    md->setData(QLatin1String(crunch::kObjectMime), clip.toBytes());
-    md->setImageData(renderChart(chart, QSize(int(clip.width), int(clip.height))));
+    clip.toMime(md);
+    if (!picture.isNull()) md->setImageData(picture);
     m_settingClipboard = true;
     QApplication::clipboard()->setMimeData(md);
     m_settingClipboard = false;
     m_clip = crunch::ClipData();
     m_view->clearCopyBorder();
     if (cut) deleteObject(id);
-    setStatus(cut ? tr("Chart cut") : tr("Chart copied"));
+    const QString what = kind == ObjectKind::Chart ? tr("Chart") : kind == ObjectKind::Picture ? tr("Picture") : tr("Shape");
+    setStatus(cut ? tr("%1 cut").arg(what) : tr("%1 copied").arg(what));
     return true;
 }
 
@@ -711,29 +720,31 @@ bool CrunchWindow::pasteObject()
     const QMimeData *md = QApplication::clipboard()->mimeData();
     if (!md || !md->hasFormat(QLatin1String(crunch::kObjectMime))) return false;
     crunch::ObjectClip clip;
-    if (!crunch::ObjectClip::fromBytes(md->data(QLatin1String(crunch::kObjectMime)), &clip)) return false;
+    if (!crunch::ObjectClip::fromMime(md, &clip)) return false;
     if (!m_session || !m_objects || m_chartSheetShown) return true;
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed()) return true;
+    const bool isChart = clip.kind == QLatin1String("chart");
     Chart chart;
     // it reads this workbook's cells only if it was copied from this workbook (by its own id: not another program's, nor another opening of the file) and everything it reads is still there (a
     // sheet renamed or deleted since would make its references name other cells, or none)
     bool sameBook = !m_workbookId.isEmpty() && clip.origin.section(QLatin1Char('|'), 0, 0) == m_workbookId && m_objects->cells() && m_objects->cells()->sheetIndex(clip.sheetName) >= 0;
-    if (sameBook) {
-        Chart probe;
-        if (clip.chart(m_objects->theme(), true, &probe)) {
-            for (const ChartSeries &s : seriesOf(probe))
-                for (const QString &ref : {s.nameRef, s.categoryRef, s.valueRef, s.xRef}) {
-                    QVector<ChartBlock> blocks;
-                    if (!ref.isEmpty() && !chartBlocks(ref, m_sheet, *m_objects->cells(), &blocks)) sameBook = false;
-                }
+    if (isChart) {
+        if (sameBook) {
+            Chart probe;
+            if (clip.chart(m_objects->theme(), true, &probe)) {
+                for (const ChartSeries &s : seriesOf(probe))
+                    for (const QString &ref : {s.nameRef, s.categoryRef, s.valueRef, s.xRef}) {
+                        QVector<ChartBlock> blocks;
+                        if (!ref.isEmpty() && !chartBlocks(ref, m_sheet, *m_objects->cells(), &blocks)) sameBook = false;
+                    }
+            }
+        }
+        if (!clip.chart(m_objects->theme(), sameBook, &chart)) {
+            notice(tr("Paste"), tr("The chart on the clipboard can't be read."));
+            return true;
         }
     }
-    if (!clip.chart(m_objects->theme(), sameBook, &chart)) {
-        notice(tr("Paste"), tr("The chart on the clipboard can't be read."));
-        return true;
-    }
-    // its sheet's name: a copy made in this workbook reads the cells it read, on the sheet it read them
     const grid::Selection &sel = m_view->selection();
     const grid::GridLayout &L = m_view->sheet().layout();
     grid::ObjectBox box;
@@ -745,7 +756,7 @@ bool CrunchWindow::pasteObject()
     m_objects->layer()->attach(&L);
     if (!m_objects->layer()->anchorAtBox(box, AnchorKind::TwoCell, &anchor)) return true;
     QString why;
-    const int id = m_objects->makeChart(m_sheet, chart, anchor, &why);
+    const int id = isChart ? m_objects->makeChart(m_sheet, chart, anchor, &why) : m_objects->makeElement(m_sheet, clip, anchor, &why);
     if (id < 0) {
         notice(tr("Paste"), why);
         return true;
@@ -756,14 +767,15 @@ bool CrunchWindow::pasteObject()
     e.before = m_objects->stateOf(m_sheet, id);
     e.after = e.before;
     e.after.deleted = false;
-    const crunch::EditSession::Outcome o = m_session->changeObjects({e}, tr("Paste Chart"));
+    const crunch::EditSession::Outcome o = m_session->changeObjects({e}, isChart ? tr("Paste Chart") : tr("Paste Object"));
     if (!o.ok) {
         m_objects->discardMade(m_sheet, id);
         notice(tr("Paste"), o.problem);
         return true;
     }
     m_objects->layer()->select(id);
-    setStatus(sameBook ? tr("Chart pasted") : tr("Chart pasted with the numbers it showed: it doesn't read this workbook's cells."));
+    if (!isChart) setStatus(tr("Pasted"));
+    else setStatus(sameBook ? tr("Chart pasted") : tr("Chart pasted with the numbers it showed: it doesn't read this workbook's cells."));
     return true;
 }
 

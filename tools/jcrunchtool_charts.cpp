@@ -124,7 +124,9 @@ int roundtrip(const QString &in, const QString &outPath)
     for (int sheet = 0; sheet < sheets; ++sheet)
         for (const int id : o->idsOf(sheet)) {
             if (o->kindOf(sheet, id) != ObjectKind::Chart) continue;
-            if (!o->canEditChart(sheet, id)) {
+            QString why;
+            if (!o->canEditChart(sheet, id, &why)) {
+                if (qEnvironmentVariableIsSet("JP_WHY")) fprintf(stderr, "WHY\t%s\n", qPrintable(why));
                 ++notEditable;
                 continue;
             }

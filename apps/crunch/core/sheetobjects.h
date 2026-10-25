@@ -13,6 +13,7 @@
 // code), the points and series a chart keeps, the cells a chart is watched by, and the pictures and renders of the layer.
 
 #include "core/document.h"
+#include "core/objectclip.h"
 #include "core/objectstate.h"
 #include "grid/chartcells.h"
 #include "grid/objectlayer.h"
@@ -134,6 +135,10 @@ public:
     // `deleted` false; discardMade() lets it go if the step is not made. The id, or -1 with the reason in `why`.
     int makeChart(int sheet, const jp::office::Chart &chart, const jp::office::sheet::DrawingAnchor &anchor, QString *why = nullptr);
     void discardMade(int sheet, int id);
+    // Copies a picture, shape, group, or connector into a clip (with the pictures it uses); false with the reason if it uses something that is not in the workbook. And puts one from a clip
+    // on a sheet, as makeChart does a chart: hidden until a step gives it the state with `deleted` false.
+    bool copyElement(int sheet, int id, jp::crunch::ObjectClip *clip, QString *why = nullptr);
+    int makeElement(int sheet, const jp::crunch::ObjectClip &clip, const jp::office::sheet::DrawingAnchor &anchor, QString *why = nullptr);
     // The state with a changed chart (its references as they are now), for the step that changes it; and with the object put in another place.
     ObjectState stateWithChart(int sheet, int id, const jp::office::Chart &chart);
     ObjectState stateMoved(int sheet, int id, const jp::office::sheet::DrawingAnchor &anchor);
@@ -205,6 +210,12 @@ private:
         std::shared_ptr<const jp::office::Chart> fileChart;   // the chart as the file's part gave it (a chart that is another was changed by a person)
         QString savedPart;                             // what saving makes for it: the chart part's name
         qint64 points = 0;                             // what a chart that is new or changed holds, for the limits
+        std::shared_ptr<QDomDocument> ownDoc;          // for a picture or shape put here from a copy: its element's own document, the package that has the pictures it names, how it is read, and its XML to be written
+        std::shared_ptr<jp::office::Package> ownPackage;
+        std::shared_ptr<jp::office::DrawingContext> ownContext;
+        QByteArray pasteXml, pasteNamespaces;
+        QList<jp::crunch::ClipMedia> pasteMedia;
+        QString fileName, savedName;                   // its name as the file has it, and as the save in flight writes it
         int savedOrdinal = -1;                         // where it will be among the children of the drawing's root when what addToSave gave is saved
         int editable = -1;                             // whether the chart can be changed (-1 not looked at, 0 no, 1 yes), and why not: found once, for a part of the file is read to say
         QString editWhy;
@@ -254,6 +265,7 @@ private:
     jp::office::sheet::DrawingAnchor twoCellFor(const Object &o, const jp::grid::Axis &rows, const jp::grid::Axis &cols) const;
     Object *find(int sheet, int id);
     void knowShapeIds(int sheet, Sheet &s);
+    std::shared_ptr<jp::office::DrawingContext> baseContext();
     std::vector<jp::office::sheet::StructEdit> editsFrom(int at, int to = -1) const;
     QStringList movedRefList(const QStringList &refs, int sheet, int at, int to) const;
     // A reference as the file's names for the sheets would have it (the renames and deletes of sheets since the file was read or saved taken back).

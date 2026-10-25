@@ -44,6 +44,10 @@ constexpr qint64 kMaxAddedBytes = qint64(256) << 20;
 // `shapeId` is its number in the drawing, and the chart is the relationship `token` stands for.
 QByteArray chartAnchorXml(const DrawingAnchor &anchor, int shapeId, const QString &name, const QString &token);
 
+// The anchor of a picture, shape, group, or connector: the element (as bytes, with the pictures it names by the tokens that are put in its place) in a two-cell anchor, with the namespace
+// declarations (`xmlns:...` attributes as written) it needs.
+QByteArray objectAnchorXml(const DrawingAnchor &anchor, const QByteArray &namespaces, const QByteArray &elementXml);
+
 // ---- the bytes of the parts
 // The drawing part with the anchors (elements, as bytes) put at the end of its root; empty if the part has no root to put them in.
 QByteArray drawingWithAnchors(const QByteArray &drawingXml, const QByteArray &anchors);
