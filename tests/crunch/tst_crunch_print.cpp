@@ -892,6 +892,9 @@ private Q_SLOTS:
         QCOMPARE(d.setup().headerFooter.oddHeader, QStringLiteral("&C&A"));
         QCOMPARE(d.setup().headerFooter.oddFooter, QStringLiteral("&CMy own &P"));
         QVERIFY(d.findChild<QLabel *>(QStringLiteral("psHeaderShown"))->text().contains(QStringLiteral("Q3 Sales")));
+        // (header and footer text comes from the file: never read as markup, which could name a picture to fetch)
+        for (const char *name : {"psHeaderShown", "psFooterShown", "hfPreview"})
+            if (auto *label = d.findChild<QLabel *>(QLatin1String(name))) QCOMPARE(label->textFormat(), Qt::PlainText);
         // the editor: the three boxes, the buttons that put things in, and a version for each kind of page
         jp::office::sheet::HeaderFooter hf;
         hf.differentFirst = true;
@@ -1181,6 +1184,7 @@ private Q_SLOTS:
         QCOMPARE(page->text(), QStringLiteral("Page 1 of 1"));
         QVERIFY(!next->isEnabled());
         QVERIFY(w.findChild<QLabel *>(QStringLiteral("printNotes"))->text().contains(QStringLiteral("small")));   // (shrunk to a few percent: the letters are small)
+        QCOMPARE(w.findChild<QLabel *>(QStringLiteral("printNotes"))->textFormat(), Qt::PlainText);
         QCOMPARE(w.printChoices().job.scaling, crunch::PrintScaling::FitSheet);
         // the choices are there when the screen is shown again
         w.hideFileScreen();
