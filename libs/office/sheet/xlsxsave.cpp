@@ -913,10 +913,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     MoveContext ctx;
     ctx.edits = changes.edits;
     ctx.renames = changes.renames;
+    ctx.permutes = changes.permutes;
     // (the file's own names: the edits to rows and columns say which sheet by its place, and the file has not been told of the renames yet)
     for (const SheetEntry &se : book.info().sheets) ctx.sheetNames << (se.isNew ? QString() : se.fileName);
     ctx.sheetOps = changes.sheetOps;
-    const bool moves = !ctx.edits.empty() || !ctx.renames.empty() || !ctx.sheetOps.empty();
+    const bool moves = !ctx.edits.empty() || !ctx.renames.empty() || !ctx.sheetOps.empty() || !ctx.permutes.empty();
     QSet<int> moveSheets;   // the sheets (by their place) whose part is made by the mover
     if (moves) {
         anyCellChanged = true;
@@ -1259,11 +1260,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             if (!changes.printNames.empty() && patchPrintNames(xml, changes.printNames, &patched) && patched != xml) {
                 xml = patched;
                 changed = true;
+            }
             if (!filterNames.empty()) {
                 if (!patchFilterNames(xml, filterNames, &patched, &why)) return fail(why);
                 changed = changed || patched != xml;
                 xml = patched;
-            }
             }
             if (changes.fullCalcOnLoad && setFullCalcOnLoad(xml, &patched)) {
                 xml = patched;

@@ -579,6 +579,9 @@ public:
         if (changes.replaceFormat) m_format = &changes.format;
         if (changes.replaceTabColor) m_tabColor = &changes.tabColor;
         if (changes.replaceAutoFilter) m_filter = &changes.autoFilter;
+        m_showRows = changes.showRows;
+        m_showFirst = changes.showFirst;
+        m_showLast = changes.showLast;
         m_filterMode = changes.filterMode;
         m_tabSelected = changes.tabSelected;
         for (RowEdits &r : m_rows) {
@@ -816,7 +819,7 @@ private:
             }
             const RowEdits *edits = nullptr;
             if (next < m_rows.size() && m_rows[next].row == rowIdx) edits = &m_rows[next++];
-            const bool slow = edits || (!m_dropped.isEmpty() && rowIdx <= m_sharedUntil);
+            const bool slow = edits || (!m_dropped.isEmpty() && rowIdx <= m_sharedUntil) || (m_showRows && rowIdx >= m_showFirst && rowIdx <= m_showLast);
             if (!selfClosing) {
                 const QByteArray closeTag = "</" + m_prefix + "row>";
                 qsizetype close = 0;
@@ -956,6 +959,7 @@ private:
         // the row's tag, its spans widened to the cells put in
         QByteArray openTag = row.left(open.end);
         if (edits && edits->props) applyRowProps(&openTag, *edits->props);
+        else if (m_showRows && rowIdx >= m_showFirst && rowIdx <= m_showLast) setFlag(&openTag, "hidden", false);   // (a row of the range that has no properties of its own is shown)
         if (open.selfClosing) {
             openTag.chop(2);
             while (!openTag.isEmpty() && (openTag.back() == ' ' || openTag.back() == '\t' || openTag.back() == '\n' || openTag.back() == '\r')) openTag.chop(1);
@@ -1137,6 +1141,8 @@ private:
     const SheetFormat *m_format = nullptr;
     const ColorSpec *m_tabColor = nullptr;
     const AutoFilter *m_filter = nullptr;
+    bool m_showRows = false;
+    quint32 m_showFirst = 0, m_showLast = 0;
     int m_filterMode = -1;
     int m_tabSelected = -1;
 };

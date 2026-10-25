@@ -5,9 +5,16 @@
 #include <QIODevice>
 #include <QXmlStreamReader>
 
+#include <atomic>
 #include <memory>
 
 namespace jp::office::sheet {
+
+namespace {
+std::atomic<qint64> g_noteReads{0};
+}
+
+qint64 noteReads() { return g_noteReads.load(); }
 
 std::map<quint64, QString> readSheetNotes(const Workbook &book, int sheet, bool *truncated)
 {
@@ -28,6 +35,7 @@ std::map<quint64, QString> readSheetNotes(const Workbook &book, int sheet, bool 
         if (truncated && size > kMaxNotesPartBytes) *truncated = true;
         return out;
     }
+    g_noteReads.fetch_add(1);
     // (read as a stream: the part is not held whole)
     const std::unique_ptr<QIODevice> device = book.package().openPart(commentsPart);
     if (!device) return out;

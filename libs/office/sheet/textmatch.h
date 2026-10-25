@@ -11,8 +11,8 @@ namespace jp::office::sheet {
 
 constexpr int kMaxPatternChars = 255;
 // The most characters of a cell's text that are looked at, and the most steps the matching of one text takes (a step is one comparison of a character).
-constexpr qsizetype kMaxMatchChars = 32768;
-constexpr qint64 kMaxMatchSteps = 4000000;
+constexpr qsizetype kMaxMatchChars = 32767;   // (the most a cell holds)
+constexpr qint64 kMaxMatchSteps = 1000000;
 
 struct TextPattern {
     QString text;

@@ -98,11 +98,15 @@ struct SheetChanges {
     // breaks) is taken from that part and put in, following the edits.
     QString copyFromPart;
     std::vector<StructEdit> copyEdits;
+    // Rows of the file in this range (from 0, both ends in it) that the list above does not name are shown: a filter that was changed hid and showed rows, and the file's rows it showed are
+    // told so. The rows of the sheet that are hidden in the range are in `rows`.
+    bool showRows = false;
+    quint32 showFirst = 0, showLast = 0;
     bool isProtected = false;           // for a sheet a person added: it is protected (a copy of a protected sheet has the protection the sheet had)
     // And the sheet's page setup as it is now, when a person changed how it prints (or any of it may differ from the file's): the part is changed where it differs from this and nowhere else.
     bool setPage = false;
     PageSetup page;
-    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && !replaceAutoFilter && filterMode < 0 && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && !showRows && !replaceAutoFilter && filterMode < 0 && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
@@ -118,7 +122,19 @@ struct SheetOp {
     bool operator==(const SheetOp &o) const { return kind == o.kind && name == o.name && newName == o.newName; }
 };
 
+// Cells put in another order in place (a sort): in the cells of the sheet from `first` on that are in the lines (rows, or columns with `columns`) of `lines`, line `i` of the range
+// went to line `to[i]` of it. The notes and links on the cells go with them. `after` is how many of the edits to rows, columns, and cells (SaveChanges::edits) had been made when it was.
+struct CellPermute {
+    int sheet = 0;
+    bool columns = false;
+    quint32 first = 0;                  // the first line it covers
+    quint32 otherFirst = 0, otherLast = 0;   // the cells of the lines that it moves: these columns (rows, with `columns`)
+    std::vector<quint32> to;            // the line each of them went to (as a line number, not counted from `first`)
+    size_t after = 0;
+};
+
 struct SaveChanges {
+    std::vector<CellPermute> permutes;
     std::map<int, SheetChanges> sheets;           // by the sheet's place in the workbook
     // The print area and titles of the sheets whose page setup may differ from the file's: the workbook's names are changed where they differ from these.
     std::vector<PrintNameChange> printNames;

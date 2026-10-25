@@ -227,6 +227,12 @@ public:
     // The runs of columns [first, last] has widths or hidden or formats for, cut to that range, in order; the rows in it that are not as the default, in order.
     std::vector<ColumnSpan> columnRuns(int sheet, quint32 first, quint32 last) const;
     std::vector<RowSpec> rowSpecsIn(int sheet, quint32 first, quint32 last) const;
+    // All the rows' specs of a sheet, in order of row (shared, not copied), and putting a whole list back (it must be in order of row).
+    QVector<RowSpec> rowSpecsOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].rowSpecs : QVector<RowSpec>(); }
+    void setRowSpecsOf(int sheet, const QVector<RowSpec> &specs)
+    {
+        if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].rowSpecs = specs;
+    }
     // The merged ranges of a sheet (and how many it has, which may be more than are kept), and putting them back.
     QVector<CellRange> mergesOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].merges : QVector<CellRange>(); }
     qint64 mergeCountOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].mergeCount : 0; }

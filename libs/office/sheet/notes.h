@@ -18,6 +18,8 @@ constexpr qint64 kMaxNotesPartBytes = qint64(64) << 20;
 
 // The notes of the sheet (by its place in the workbook) as the file has them, by `(row << 32) | col`. Empty for a sheet with none, a sheet that was added, and a workbook that
 // has no package of XML parts. `truncated`, if given, is told whether a limit stopped the read.
+// How many times a sheet's notes have been read from a file since the program began (a test counts them to see that a search does not read them again and again).
+qint64 noteReads();
 std::map<quint64, QString> readSheetNotes(const Workbook &book, int sheet, bool *truncated = nullptr);
 
 } // namespace jp::office::sheet

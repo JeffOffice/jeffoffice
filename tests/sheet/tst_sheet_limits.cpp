@@ -132,6 +132,26 @@ private Q_SLOTS:
         QVERIFY(kMaxSharedStrings >= 10 * 66608 && kMaxSharedStringChars >= 10 * 547609);
     }
 
+    // The values a filter lists are held too, so a filter that lists more of them than the sheet is allowed to take is not read (and one that lists a few is).
+    void theValuesAFilterListsCountTowardsWhatASheetTakesToHold()
+    {
+        ReadOptions options;
+        options.limits.sheetBytes = 100000;
+        const auto filterWith = [](int count) {
+            QString values;
+            for (int i = 0; i < count; ++i) values += QStringLiteral("<filter val=\"%1%2\"/>").arg(i, 4, 10, QLatin1Char('0')).arg(QString(96, 'x'));
+            return worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), QStringLiteral("<autoFilter ref=\"A1:A5\"><filterColumn colId=\"0\"><filters>") + values + QStringLiteral("</filters></filterColumn></autoFilter>"));
+        };
+        Sheet ok;
+        QVERIFY2(readSheetXml(filterWith(100), &ok, options), qPrintable(ok.error));
+        QCOMPARE(ok.autoFilter.columns.size(), 1);
+        QCOMPARE(ok.autoFilter.columns[0].values.size(), 100);
+        QVERIFY(ok.stats.heldBytes >= 100 * 200);                                 // (each value takes what its characters take, and a slot)
+        Sheet over;
+        QVERIFY(!readSheetXml(filterWith(2000), &over, options));
+        QVERIFY2(over.error.contains(QStringLiteral("memory")), qPrintable(over.error));
+    }
+
     void theLengthOfAStringIsBounded()
     {
         ReadOptions options;

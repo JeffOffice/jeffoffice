@@ -1445,8 +1445,18 @@ bool SheetReader::read(QIODevice *in)
                 }
             } else if (inFilterColumn && depth == 5) {
                 if (isElement(r, "filter") && filterColumn.kind == FilterColumn::Kind::Values) {
-                    if (++filterValues <= kMaxFilterValues) filterColumn.values.append(attribute(r, "val").left(1000).toString());
+                    // (what the listed values take is counted with the rest of what the sheet holds: a sheet whose filter lists more than the memory limit allows is not read)
+                    const QStringView val = attribute(r, "val").left(1000);
+                    if (!take(kSlotBytes + 2 * val.size() + 48)) {
+                        ok = false;
+                        break;
+                    }
+                    if (++filterValues <= kMaxFilterValues) filterColumn.values.append(val.toString());
                 } else if (isElement(r, "dateGroupItem") && filterColumn.kind == FilterColumn::Kind::Values) {
+                    if (!take(kSlotBytes + 64)) {
+                        ok = false;
+                        break;
+                    }
                     if (++filterValues <= kMaxFilterValues) {
                         FilterColumn::DateGroup g;
                         const QStringView by = attribute(r, "dateTimeGrouping");
@@ -1685,6 +1695,9 @@ bool SheetReader::read(QIODevice *in)
         if (!why.isEmpty()) ok = fail(why);
         else if (!rootSeen) ok = fail(QCoreApplication::translate("Sheet", "The part is not a worksheet."));
     }
+    // the rows kept as not the default are in order of their number (a file may list them in any order; the model's edits count on it)
+    if (!std::is_sorted(m_sheet.rowSpecs.begin(), m_sheet.rowSpecs.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; }))
+        std::stable_sort(m_sheet.rowSpecs.begin(), m_sheet.rowSpecs.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
     // a row that is hidden was hidden by hand, unless a filter that has conditions covers it (it was the filter that hid it)
     {
         const AutoFilter &f = m_sheet.autoFilter;
