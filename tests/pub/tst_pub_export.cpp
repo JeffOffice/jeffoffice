@@ -1257,9 +1257,9 @@ private Q_SLOTS:
                 }
                 const qint64 w0 = jp::cfb::chainWorkForTest();
                 QVERIFY(jp::cfb::read(b, &out));
-                // (Counted: the chain is followed for each of the 302 streams that name it, each time at most the sectors there are and the table set aside for the walk; the bytes
-                // they make are held to the budget below.)
-                QVERIFY2(jp::cfb::chainWorkForTest() - w0 <= 302 * 2 * (b.size() / 512) + 100, qPrintable(QString::number(jp::cfb::chainWorkForTest() - w0)));
+                // (Counted: 302 streams name one long chain, and the work stays within a fixed multiple of the file's size, because a chain is followed only while the budget
+                // can still take sectors; it was 302 walks of the whole chain, 142,000 steps for 276 sectors.)
+                QVERIFY2(jp::cfb::chainWorkForTest() - w0 <= 16 * (b.size() / 512) + 100, qPrintable(QString::number(jp::cfb::chainWorkForTest() - w0)));
                 qint64 total = 0;
                 for (const QString &p : out.streamPaths()) total += out.stream(p).size();
                 QVERIFY2(total <= 2 * b.size() + (1 << 20), qPrintable(QString::number(total)));

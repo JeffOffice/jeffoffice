@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <QtEndian>
 #include <algorithm>
+#include <limits>
 #include <functional>
 
 namespace jp::cfb {
@@ -99,18 +100,23 @@ struct Reader {
 
     // The sectors from `start`, each at most once: a chain that runs back
     // into itself (a damaged file) ends where it would repeat.
-    QVector<quint32> chain(quint32 start, const QVector<quint32> &table, quint32 limit) const
+    // (`most` caps the sectors followed: a stream is read only while the budget lasts, so a chain is not followed past what the budget can still take; and the sectors seen are
+    // marked in a table kept for all the walks, with a stamp for each, so that a walk costs its own length and not the size of the table.)
+    QVector<quint32> chain(quint32 start, const QVector<quint32> &table, quint32 limit, qint64 most = std::numeric_limits<qint64>::max()) const
     {
         QVector<quint32> c;
-        QVector<bool> seen(qsizetype(std::min<quint32>(limit, quint32(table.size()))), false);
-        g_chainWork += seen.size();
-        for (quint32 cur = start; cur < quint32(seen.size()) && !seen[cur]; cur = table[cur]) {
-            seen[cur] = true;
+        const quint32 n = std::min<quint32>(limit, quint32(table.size()));
+        if (quint32(marks.size()) < n) marks.resize(n, 0);
+        const quint32 stamp = ++stampNow;
+        for (quint32 cur = start; cur < n && marks[cur] != stamp && qint64(c.size()) < most; cur = table[cur]) {
+            marks[cur] = stamp;
             c << cur;
             ++g_chainWork;
         }
         return c;
     }
+    mutable QVector<quint32> marks;
+    mutable quint32 stampNow = 0;
     QVector<quint32> chain(quint32 start) const { return chain(start, fat, sectors); }
     QByteArray readChain(quint32 start) const
     {
@@ -198,7 +204,7 @@ struct Reader {
         if (r.size < cutoff) {
             QByteArray out;
             QHash<quint32, QByteArray> cache;
-            for (quint32 m : chain(r.start, miniFat, quint32(miniFat.size()))) {
+            for (quint32 m : chain(r.start, miniFat, quint32(miniFat.size()), budget / mss + 1)) {
                 const quint64 at = quint64(m) * quint64(mss);
                 if (at + quint64(mss) > miniStreamSize) break;
                 const qsizetype k = qsizetype(at / quint64(ss));
@@ -210,7 +216,7 @@ struct Reader {
             return out.left(qsizetype(r.size));
         }
         QByteArray out;
-        for (quint32 n : chain(r.start)) {
+        for (quint32 n : chain(r.start, fat, sectors, budget / ss + 1)) {
             if (quint64(out.size()) >= r.size) break;
             if (!spend(ss)) return {};
             out += sector(n);
