@@ -368,6 +368,8 @@ public:
     qint64 rowsMeasured() const { return m_measured; }
     // How many cells have been laid out (a cell that is asked for again soon is not: see CellContentCache).
     qint64 cellsLaidOut() const { return m_laidOut; }
+    // How many paragraphs the tables were found among since this was made (the story's paragraphs, each time they are found): what an edit that finds them again costs.
+    qint64 blocksIndexed() const { return m_blocksIndexed; }
     // The table at index `span` of the index, laid out (the same one again while the story is as it was).
     std::shared_ptr<TableLayout> layout(int span);
     // A fragment of rows [first, end) of a table, with the cells it shows laid out; `parts` are those of its rows that it shows only a part of.
@@ -389,7 +391,7 @@ private:
     QHash<int, std::shared_ptr<TableLayout>> m_layouts;
     TableContext::Heights m_heights;
     CellContentCache m_contents;
-    qint64 m_measured = 0, m_laidOut = 0;
+    qint64 m_measured = 0, m_laidOut = 0, m_blocksIndexed = 0;
     // Edits made while the tables were not found (the index is made when it is asked for): where they were, as places in the story now, with what is beside them. The
     // heights of the rows in them are dropped when the tables are found.
     std::vector<std::pair<int, int>> m_touched;

@@ -7,7 +7,6 @@
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
 #include "flow/tableflow.h"
-#include "../timing.h"
 #include "pageaudit.h"
 #include "render/renderer.h"
 #include "text/hyphenation.h"
@@ -1178,26 +1177,45 @@ void insertRefsDescending(FlowDocument &fd, QVector<QPair<int, QString>> refs)
     for (const auto &r : refs) addReference(fd.story(), r.first, r.second);
 }
 
-// How long it takes to find the pages of a document (and to make them all), in milliseconds; the best of `times` runs.
-double millisecondsToPaginate(const std::function<void(FlowDocument &, TestNotes &)> &build, int times = 5, bool make = false)
+// The work it takes to find the pages of a document (and to make them all): the pages laid out, the notes set in type, the characters of paragraphs the text engine read, and
+// the runs it passed. Counted, so that what a busy machine does to the clock does not change it.
+struct PaginateWork {
+    qint64 pages = 0, notes = 0, chars = 0, runs = 0;
+};
+
+PaginateWork workToPaginate(const std::function<void(FlowDocument &, TestNotes &)> &build, int make = 0)
 {
-    std::unique_ptr<TestNotes> notes;
-    std::unique_ptr<FlowDocument> fd;
-    std::unique_ptr<Paginator> pg;
-    return bestNanoseconds([&] {
-        pg = std::make_unique<Paginator>(fd.get());
-        const int pages = pg->pageCount();
-        if (make)
-            for (int k = 0; k < pages; ++k) pg->materialize(k);
-    }, times, [&] {
-        pg.reset();
-        fd.reset();
-        notes = std::make_unique<TestNotes>();
-        fd = std::make_unique<FlowDocument>();
-        fd->env.wordLines = true;
-        fd->fields = notes.get();
-        build(*fd, *notes);
-    }) / 1e6;
+    TestNotes notes;
+    FlowDocument fd;
+    fd.env.wordLines = true;
+    fd.fields = &notes;
+    build(fd, notes);
+    const qint64 chars = StoryLayout::paragraphCharsReadForTest(), runs = StoryLayout::runsPassedForTest(), notesSet = StoryLayout::notesSetInTypeForTest();
+    Paginator pg(&fd);
+    const int count = pg.pageCount();
+    for (int k = 0; k < std::min(count, make); ++k) pg.materialize(k);
+    return {pg.pagesLaidOut(), StoryLayout::notesSetInTypeForTest() - notesSet, StoryLayout::paragraphCharsReadForTest() - chars, StoryLayout::runsPassedForTest() - runs};
+}
+
+// What the text engine did since a snapshot: the characters of paragraphs it read, the runs it passed, the heights of lines it measured against objects, and the ranges of format it
+// made. Counted work, which does not change with the load the machine is under.
+struct EngineWork {
+    qint64 chars = 0, runs = 0, heights = 0, ranges = 0;
+    static EngineWork now()
+    {
+        return {StoryLayout::paragraphCharsReadForTest(), StoryLayout::runsPassedForTest(), StoryLayout::lineHeightsMeasuredForTest(), StoryLayout::formatRangesMadeForTest()};
+    }
+    EngineWork since(const EngineWork &before) const { return {chars - before.chars, runs - before.runs, heights - before.heights, ranges - before.ranges}; }
+    QString text() const { return QStringLiteral("%1 characters read, %2 runs passed, %3 heights measured, %4 ranges made").arg(chars).arg(runs).arg(heights).arg(ranges); }
+};
+
+// Four times the input costs about four times the work when work is in step with it, and sixteen times when it is the square: the counted work of the larger may be at most
+// `most` times the smaller's, in each of the counts that matter to the test (a count of nothing in the smaller is not compared).
+void verifyInStep(const PaginateWork &small, const PaginateWork &big, double most, bool notes, bool chars = true)
+{
+    const auto what = [&] { return QStringLiteral("%1 characters read and %2 notes set for the smaller, %3 and %4 for the larger").arg(small.chars).arg(small.notes).arg(big.chars).arg(big.notes); };
+    if (chars) QVERIFY2(big.chars < most * std::max<qint64>(small.chars, 1), qPrintable(what()));
+    if (notes) QVERIFY2(big.notes < most * std::max<qint64>(small.notes, 1), qPrintable(what()));
 }
 
 // The tests of where a word processor's tabs go lay a story out twice: once as it is, and once with the default stops (past a paragraph's own) listed as its own, which is where the
@@ -7498,37 +7516,24 @@ private Q_SLOTS:
     // References packed in one paragraph cost in step with their number, not its square: the page lays out only what it holds of the paragraph's notes.
     void denseReferencesTakeTimeInStepWithTheirNumber()
     {
-        auto seconds = [&](int count) {
-            std::unique_ptr<TestNotes> notes;
-            std::unique_ptr<FlowDocument> fd;
-            std::unique_ptr<Paginator> pg;
-            return bestNanoseconds([&] {
-                pg = std::make_unique<Paginator>(fd.get());
-                const int pages = pg->pageCount();
-                for (int k = 0; k < std::min(pages, 12); ++k) pg->materialize(k);
-            }, 3, [&] {
-                pg.reset();
-                fd.reset();
-                notes = std::make_unique<TestNotes>();
-                fd = std::make_unique<FlowDocument>();
-                fd->env.wordLines = true;
-                fd->fields = notes.get();
-                QTextCursor c(fd->story());
+        auto work = [&](int count) {
+            return workToPaginate([count](FlowDocument &fd, TestNotes &notes) {
+                QTextCursor c(fd.story());
                 QTextCharFormat cf;
                 cf.setFontPointSize(11);
                 for (int i = 0; i < count; ++i) {
                     const QString id = QStringLiteral("n%1").arg(i);
-                    addNote(notes.get(), id, 3, QStringLiteral("N%1").arg(i));
+                    addNote(&notes, id, 3, QStringLiteral("N%1").arg(i));
                     QTextCharFormat ref = cf;
                     ref.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
                     ref.setProperty(tp::Field, QStringLiteral("footnote:") + id);
                     c.insertText(QString(QChar(0xFFFC)), ref);
                 }
-            }) / 1e9;
+            }, 12);
         };
-        const double small = seconds(400), large = seconds(1600);
-        // (Four times the references: four times the time when it is in step, sixteen when it is the square; it was twenty before.)
-        QVERIFY2(large < small * 8, qPrintable(QStringLiteral("400 references %1 s, 1600 references %2 s").arg(small).arg(large)));
+        const PaginateWork small = work(400), large = work(1600);
+        // (Four times the references: four times the work when it is in step, sixteen when it is the square; it was twenty before.)
+        verifyInStep(small, large, 8, true);
     }
 
     // Note numbers that restart in each section restart where a continuous section begins in the middle of a page: on the page, in its references and in
@@ -8221,12 +8226,13 @@ private Q_SLOTS:
             QStringList paragraphs;
             for (int i = 0; i < count; ++i) paragraphs << QStringLiteral("frame paragraph %1").arg(i);
             addFrame(fd, 4, paragraphs, proto, 120);
-            QElapsedTimer timer;
-            timer.start();
+            const EngineWork before = EngineWork::now();
             Paginator pg(&fd);
             const int pages = pg.pageCount();
             QVERIFY(pages >= 1);
-            QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));
+            const EngineWork did = EngineWork::now().since(before);
+            // (A page looks at a frame's paragraph a few times: about 25 characters read for each paragraph, where the square of 3,000 is nine million.)
+            QVERIFY2(did.chars < 60 * count + 50000 && did.ranges < 4 * count + 3000, qPrintable(QStringLiteral("%1 frame paragraphs: %2").arg(count).arg(did.text())));
             const auto page = pg.materialize(0);
             QVERIFY(page);
             const TextItem *box = frameBoxWith(*page, QStringLiteral("frame paragraph 0"));
@@ -8458,11 +8464,11 @@ private Q_SLOTS:
         proto.wrap = FloatingObject::Wrap::Square;
         const int count = 3000;
         for (int i = 0; i < count; ++i) addFrame(fd, 4 + i, {QStringLiteral("FRAMETEXT %1").arg(i)}, proto, 50);
-        QElapsedTimer t;
-        t.start();
+        const EngineWork before = EngineWork::now();
         Paginator pg(&fd);
         const int pages = pg.pageCount();
-        QVERIFY2(t.elapsed() < 30000, qPrintable(QString::number(t.elapsed())));
+        const EngineWork did = EngineWork::now().since(before);
+        QVERIFY2(did.chars < 60 * count + 50000 && did.ranges < 4 * count + 3000, qPrintable(QStringLiteral("%1 frames: %2").arg(count).arg(did.text())));
         // (Each frame paragraph in the text is a line of its own, 3000 lines and more than the text's own: dozens of pages.)
         QVERIFY2(pages >= 40, qPrintable(QString::number(pages)));
         QVERIFY2(audit::coverageProblems(pg, fd.story()).isEmpty(), qPrintable(audit::coverageProblems(pg, fd.story())));
@@ -8807,7 +8813,7 @@ private Q_SLOTS:
     // runs of the paragraphs it holds is found once for the paragraph, not for each of its lines.
     void aParagraphOfManyRunsCostsNoMoreWithAnObjectOnThePage()
     {
-        qint64 took[2] = {0, 0};
+        EngineWork took[2];
         for (int variant = 0; variant < 2; ++variant) {
             FlowDocument fd;
             fd.env.wordLines = true;
@@ -8827,21 +8833,21 @@ private Q_SLOTS:
                 const int id = addObject(&fd, item, fd.story()->findBlockByNumber(0).position() + 2, FloatingObject::Rel::Page, FloatingObject::Rel::Page, 500, 700);
                 fd.objects[size_t(id) - 1].wrap = FloatingObject::Wrap::None;
             }
-            QElapsedTimer t;
-            t.start();
+            const EngineWork before = EngineWork::now();
             Paginator pg(&fd);
             QVERIFY(pg.pageCount() > 20);
-            took[variant] = t.elapsed();
+            took[variant] = EngineWork::now().since(before);
         }
-        qInfo("20,000 runs: %lld ms with an object on the page, %lld ms without", took[1], took[0]);
-        QVERIFY2(took[1] < 2 * took[0] + 300, qPrintable(QStringLiteral("%1 ms with the object, %2 ms without").arg(took[1]).arg(took[0])));
+        qInfo("20,000 runs with an object on the page: %s; without: %s", qPrintable(took[1].text()), qPrintable(took[0].text()));
+        QVERIFY2(took[1].runs < 2 * took[0].runs + 1000 && took[1].chars < 2 * took[0].chars + 1000 && took[1].ranges < 2 * took[0].ranges + 1000,
+                 qPrintable(QStringLiteral("with the object: %1; without: %2").arg(took[1].text(), took[0].text())));
     }
 
     // Ten thousand objects anchored in one paragraph cost little more than the paragraph does without them (anchor marks that anchor nothing): the anchors are cut at the most a
     // page is given as they are found, character by character, not paragraph by paragraph, and each is found by its place in the paragraph, not by looking at all its lines.
     void manyObjectsInOneParagraphAreCutAsTheyAreFound()
     {
-        qint64 took[2] = {0, 0};
+        EngineWork took[2];
         for (int variant = 0; variant < 2; ++variant) {
             FlowDocument fd;
             fd.env.wordLines = true;
@@ -8864,15 +8870,15 @@ private Q_SLOTS:
                     c.insertText(QString(QChar(0xFFFC)), anchor);
                 }
             }
-            QElapsedTimer t;
-            t.start();
+            const EngineWork before = EngineWork::now();
             Paginator pg(&fd);
             const int pages = pg.pageCount();
             for (int k = 0; k < pages; ++k) QVERIFY(pg.materialize(k));
-            took[variant] = t.elapsed();
+            took[variant] = EngineWork::now().since(before);
         }
-        qInfo("10,000 anchor marks: %lld ms with the objects, %lld ms without", took[1], took[0]);
-        QVERIFY2(took[1] < 2 * took[0] + 300, qPrintable(QStringLiteral("%1 ms with 10,000 objects, %2 ms with none").arg(took[1]).arg(took[0])));
+        qInfo("10,000 anchor marks with the objects: %s; without: %s", qPrintable(took[1].text()), qPrintable(took[0].text()));
+        QVERIFY2(took[1].runs < 2 * took[0].runs + 1000 && took[1].chars < 2 * took[0].chars + 1000 && took[1].ranges < 2 * took[0].ranges + 1000,
+                 qPrintable(QStringLiteral("with 10,000 objects: %1; with none: %2").arg(took[1].text(), took[0].text())));
     }
 
     // A page with walls is laid out again to find where they are, once; the walls it ended with are kept, and the page asked for again (its lines, the page made) is laid out
@@ -13362,22 +13368,20 @@ private Q_SLOTS:
             table = addTable(*fd, spec);
             pg = std::make_unique<Paginator>(fd.get());
         };
-        int pages = 0;
-        const double whole = bestNanoseconds([&] { pages = pg->pageCount(); }, 3, fresh) / 1e6;
+        fresh();
+        const int pages = pg->pageCount();
         QVERIFY(pages > 40);
-        QTextCursor c;
-        const double typed = bestNanoseconds([&] {
-            c.insertText(QStringLiteral("x"));
-            pg->paginate(pg->pageOfPosition(c.position()) + 1);
-        }, 3, [&] {
-            c = QTextCursor();
-            fresh();
-            pg->pageCount();
-            c = QTextCursor(fd->story());
-            c.setPosition(fd->story()->findBlock(table.rowStarts[2500]).position() + 1);
-        }) / 1e6;
-        qInfo("a table of 3,000 rows: all of it laid out in %.0f ms, a letter typed in row 2,500 in %.0f ms", whole, typed);
-        QVERIFY2(typed < whole / 8, qPrintable(QStringLiteral("typing took %1 ms, the whole %2 ms").arg(typed).arg(whole)));
+        const qint64 wholePages = pg->pagesLaidOut(), wholeRows = pg->tableRowsMeasured();
+        QTextCursor c(fd->story());
+        c.setPosition(fd->story()->findBlock(table.rowStarts[2500]).position() + 1);
+        const qint64 pagesBefore = pg->pagesLaidOut(), rowsBefore = pg->tableRowsMeasured();
+        c.insertText(QStringLiteral("x"));
+        pg->paginate(pg->pageOfPosition(c.position()) + 1);
+        const qint64 typedPages = pg->pagesLaidOut() - pagesBefore, typedRows = pg->tableRowsMeasured() - rowsBefore;
+        qInfo("a table of 3,000 rows: all of it laid out in %lld pages and %lld rows measured, a letter typed in row 2,500 in %lld pages and %lld rows", (long long)wholePages, (long long)wholeRows, (long long)typedPages, (long long)typedRows);
+        QVERIFY2(wholeRows >= 3000, qPrintable(QString::number(wholeRows)));
+        QVERIFY2(typedPages <= 8 && typedPages * 8 < wholePages, qPrintable(QStringLiteral("typing laid out %1 pages, the whole %2").arg(typedPages).arg(wholePages)));
+        QVERIFY2(typedRows <= 5, qPrintable(QStringLiteral("typing measured %1 rows, the whole %2").arg(typedRows).arg(wholeRows)));
     }
 
     // ---- the pages that are looked at ----
@@ -13892,13 +13896,15 @@ private Q_SLOTS:
             cf.setFontPointSize(11);
             c.insertText(text, cf);
         }
-        std::unique_ptr<Paginator> made;
-        int pages = 0;
-        const qint64 ms = bestNanoseconds([&] { pages = made->pageCount(); }, 3, [&] { made = std::make_unique<Paginator>(&fd); }) / 1000000;
+        const EngineWork before = EngineWork::now();
+        auto made = std::make_unique<Paginator>(&fd);
+        const int pages = made->pageCount();
+        const EngineWork did = EngineWork::now().since(before);
         Paginator &pg = *made;
-        qInfo("a paragraph of 900 KB: %d pages in %.1f s", pages, ms / 1000.0);
+        qInfo("a paragraph of 900 KB: %d pages: %s", pages, qPrintable(did.text()));
         QVERIFY(pages > 150);
-        QVERIFY2(ms < 60000, qPrintable(QString::number(ms)));
+        // (A page costs a page: about one range of format for each, and none of the paragraph's characters read again for it.)
+        QVERIFY2(did.ranges <= 2 * pages + 8 && did.chars <= pages && did.runs <= pages, qPrintable(did.text()));
         const QString bad = coverageProblem(pg, fd);
         QVERIFY2(bad.isEmpty(), qPrintable(bad));
         const int perPage = pg.lines(10).size();
@@ -13926,12 +13932,13 @@ private Q_SLOTS:
                 cf.setFontPointSize(11);
                 c.insertText(text, cf);
             }
-            std::unique_ptr<Paginator> made;
-            int pages = 0;
-            const qint64 ms = bestNanoseconds([&] { pages = made->pageCount(); }, 3, [&] { made = std::make_unique<Paginator>(&fd); }) / 1000000;
+            const EngineWork before = EngineWork::now();
+            auto made = std::make_unique<Paginator>(&fd);
+            const int pages = made->pageCount();
+            const EngineWork did = EngineWork::now().since(before);
             Paginator &pg = *made;
-            qInfo("%s: %d pages in %.1f s", what ? "a word of 200 KB" : "a paragraph of 2 MB", pages, ms / 1000.0);
-            QVERIFY2(ms < (what ? 60000 : 120000), qPrintable(QString::number(ms)));
+            qInfo("%s: %d pages: %s", what ? "a word of 200 KB" : "a paragraph of 2 MB", pages, qPrintable(did.text()));
+            QVERIFY2(did.ranges <= 2 * pages + 8 && did.chars <= pages && did.runs <= pages, qPrintable(did.text()));
             QVERIFY(pages > 40);
             const QString bad = coverageProblem(pg, fd);
             QVERIFY2(bad.isEmpty(), qPrintable(bad));
@@ -14942,9 +14949,11 @@ private Q_SLOTS:
                 for (int k = refs - 1; k >= 0; --k) addReference(fd.story(), at, QStringLiteral("n%1").arg(k % 50));
             };
         };
-        const double small = millisecondsToPaginate(build(500), 3, true), big = millisecondsToPaginate(build(2000), 3, true);
+        const PaginateWork small = workToPaginate(build(500), 1 << 30), big = workToPaginate(build(2000), 1 << 30);
+        // Four times the notes: linear work is about 4x, the quadratic carry this guards against about 16x.
+        verifyInStep(small, big, 8, true);
         // Four times the notes: linear work takes about 4x, the quadratic carry this guards against about 16x; 12x leaves room for a slow CI machine.
-        QVERIFY2(big < 12 * std::max(small, 20.0), qPrintable(QStringLiteral("500 notes took %1 ms, 2000 notes %2 ms").arg(small).arg(big)));
+        //         QVERIFY2(big < 12 * std::max(small, 20.0), qPrintable(QStringLiteral("500 notes took %1 ms, 2000 notes %2 ms").arg(small).arg(big)));
     }
 
     // Tables of rows that each cite many notes: the work is bounded for the document, not for each row (twice the rows take about twice as long, and a hostile file is not
@@ -14965,8 +14974,9 @@ private Q_SLOTS:
                     for (int k = 999; k >= 0; --k) addReference(fd.story(), table.rowStarts[r] + 1, QStringLiteral("n%1").arg((r * 7 + k) % 50));
             };
         };
-        const double small = millisecondsToPaginate(build(4), 3, true), big = millisecondsToPaginate(build(16), 3, true);
-        QVERIFY2(big < 8 * std::max(small, 50.0), qPrintable(QStringLiteral("4 rows of 1000 notes took %1 ms, 16 rows %2 ms").arg(small).arg(big)));
+        const PaginateWork small = workToPaginate(build(4), 1 << 30), big = workToPaginate(build(16), 1 << 30);
+        verifyInStep(small, big, 8, true);
+        //         QVERIFY2(big < 8 * std::max(small, 50.0), qPrintable(QStringLiteral("4 rows of 1000 notes took %1 ms, 16 rows %2 ms").arg(small).arg(big)));
     }
 
     // A long note cited in a cell of a table in a cell: the time is in step with its length.
@@ -15016,8 +15026,9 @@ private Q_SLOTS:
                 addReference(fd.story(), refAt, QStringLiteral("long"));
             };
         };
-        const double small = millisecondsToPaginate(build(5000), 3, true), big = millisecondsToPaginate(build(20000), 3, true);
-        QVERIFY2(big < 8 * std::max(small, 100.0), qPrintable(QStringLiteral("5000 words took %1 ms, 20000 words %2 ms").arg(small).arg(big)));
+        const PaginateWork small = workToPaginate(build(5000), 1 << 30), big = workToPaginate(build(20000), 1 << 30);
+        verifyInStep(small, big, 8, true);
+        //         QVERIFY2(big < 8 * std::max(small, 100.0), qPrintable(QStringLiteral("5000 words took %1 ms, 20000 words %2 ms").arg(small).arg(big)));
     }
 
     // Objects anchored in the paragraphs of cells: making a page costs the paragraphs and the anchors, not their product.
@@ -15051,8 +15062,9 @@ private Q_SLOTS:
                 }
             };
         };
-        const double small = millisecondsToPaginate(build(5), 3, true), big = millisecondsToPaginate(build(20), 3, true);
-        QVERIFY2(big < 8 * std::max(small, 100.0), qPrintable(QStringLiteral("5 cells took %1 ms, 20 cells %2 ms").arg(small).arg(big)));
+        const PaginateWork small = workToPaginate(build(5), 1 << 30), big = workToPaginate(build(20), 1 << 30);
+        verifyInStep(small, big, 8, true);
+        //         QVERIFY2(big < 8 * std::max(small, 100.0), qPrintable(QStringLiteral("5 cells took %1 ms, 20 cells %2 ms").arg(small).arg(big)));
     }
 
     // The heights of notes belong to the environment they were measured in: after the text is made another size (and the pages are laid out again), the notes are the heights a
@@ -15084,7 +15096,12 @@ private Q_SLOTS:
     // Deleting a character in a document of many paragraphs with a table in it costs about what typing one does: it does not find the tables again.
     void deletingACharacterCostsLikeTypingOne()
     {
-        double perDelete[2] = {0, 0}, perType[2] = {0, 0};
+        struct Cost {
+            EngineWork engine;
+            qint64 pages = 0, rows = 0, cells = 0, indexed = 0;
+            QString text() const { return engine.text() + QStringLiteral(", %1 pages laid out, %2 rows and %3 cells measured, %4 paragraphs searched for tables").arg(pages).arg(rows).arg(cells).arg(indexed); }
+        };
+        Cost perDelete[2], perType[2];
         int n = 0;
         for (const int paras : {8000, 32000}) {
             TestNotes notes;
@@ -15103,27 +15120,35 @@ private Q_SLOTS:
             QTextCursor cur(fd.story());
             const int at = fd.story()->findBlockByNumber(paras / 4).position() + 5;
             const int reps = 20;
-            // Each run types (or deletes) the block of letters; the best run of the five is the time per letter.
-            const auto typeBlock = [&] {
+            // What twenty letters typed (or deleted) in a row cost in all.
+            const auto counted = [&](const std::function<void()> &edit) {
+                const EngineWork before = EngineWork::now();
+                const qint64 pages = pg.pagesLaidOut(), rows = pg.tableRowsMeasured(), cells = pg.tableCellsLaidOut(), indexed = pg.tableBlocksIndexed();
                 for (int i = 0; i < reps; ++i) {
-                    cur.setPosition(at);
-                    cur.insertText(QStringLiteral("x"));
+                    edit();
                     pg.paginate(paras / 100);
                 }
+                return Cost{EngineWork::now().since(before), pg.pagesLaidOut() - pages, pg.tableRowsMeasured() - rows, pg.tableCellsLaidOut() - cells, pg.tableBlocksIndexed() - indexed};
             };
-            const auto deleteBlock = [&] {
-                for (int i = 0; i < reps; ++i) {
-                    cur.setPosition(at + 1);
-                    cur.deleteChar();
-                    pg.paginate(paras / 100);
-                }
-            };
-            perType[n] = double(bestNanoseconds(typeBlock)) / 1e6 / reps;
-            perDelete[n] = double(bestNanoseconds(deleteBlock)) / 1e6 / reps;
+            perType[n] = counted([&] {
+                cur.setPosition(at);
+                cur.insertText(QStringLiteral("x"));
+            });
+            perDelete[n] = counted([&] {
+                cur.setPosition(at + 1);
+                cur.deleteChar();
+            });
+            qInfo("%d paragraphs: typing %s; deleting %s", paras, qPrintable(perType[n].text()), qPrintable(perDelete[n].text()));
             ++n;
         }
-        QVERIFY2(perDelete[1] < 3 * perType[1] + 3, qPrintable(QStringLiteral("typing takes %1 ms, deleting %2 ms (32000 paragraphs)").arg(perType[1]).arg(perDelete[1])));
-        QVERIFY2(perDelete[1] < 2.5 * perDelete[0] + 3, qPrintable(QStringLiteral("deleting takes %1 ms at 8000 paragraphs and %2 ms at 32000 (typing %3 and %4)").arg(perDelete[0]).arg(perDelete[1]).arg(perType[0]).arg(perType[1])));
+        // (Counted: a letter deleted does the work of a letter typed, and the longer story costs no more.)
+        const auto cheaper = [](const Cost &a, const Cost &b) {
+            return a.engine.chars <= 3 * b.engine.chars + 100 && a.engine.runs <= 3 * b.engine.runs + 100 && a.engine.ranges <= 3 * b.engine.ranges + 100 && a.pages <= 3 * b.pages + 2 && a.rows <= 3 * b.rows + 2
+                   && a.cells <= 3 * b.cells + 2 && a.indexed <= 3 * b.indexed;
+        };
+        QVERIFY2(cheaper(perDelete[1], perType[1]), qPrintable(QStringLiteral("typing: %1; deleting: %2 (32000 paragraphs)").arg(perType[1].text(), perDelete[1].text())));
+        QVERIFY2(cheaper(perDelete[1], perDelete[0]) && cheaper(perType[1], perType[0]), qPrintable(QStringLiteral("deleting at 8000 paragraphs: %1; at 32000: %2").arg(perDelete[0].text(), perDelete[1].text())));
+        QCOMPARE(perDelete[1].indexed, qint64(0));
     }
 };
 

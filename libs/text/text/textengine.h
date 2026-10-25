@@ -419,6 +419,9 @@ public:
     // How many runs of paragraphs were passed over by a layout (or a count) to reach the place in a paragraph that a page begins at, or to look for what a paragraph's runs say of their tabs,
     // since the program began: a cost test, for a paragraph of hundreds of thousands of runs over hundreds of pages passes each run a few times in all, not once for each page.
     static qint64 runsPassedForTest();
+    // How many times a note was set in type (measured for its height) since the program began: a cost test, for the notes a page holds are set once for its width, not once for each
+    // note that is cited beside them.
+    static qint64 notesSetInTypeForTest();
     // The most paragraphs that were laid out as one, for the marks between them being hidden (a word processor's deleted paragraph marks): a cost test, for a run of such paragraphs is
     // cut into paragraphs of at most kMostJoinedParagraphs.
     static qint64 longestJoinedParagraphsForTest();
