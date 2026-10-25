@@ -1258,7 +1258,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("no/such/folder/book.xlsx"))));
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY(saved.wait(20000));   // (this save is meant to fail: its ok is false, below)
         QCOMPARE(saved.first().at(1).toBool(), false);
         QCOMPARE(e.win.told.size(), 1);
         QVERIFY2(e.win.told[0].startsWith(QLatin1String("Save: ")) && e.win.told[0].contains(QLatin1String("couldn't save")), qPrintable(e.win.told[0]));
@@ -1273,7 +1273,7 @@ private Q_SLOTS:
         if (!QFileInfo(locked).isWritable()) {
             e.win.told.clear();
             QVERIFY(e.win.w.saveAs(locked));
-            QVERIFY2(savedOk(saved, 20000), "the save failed");
+            QVERIFY(saved.wait(20000));   // (this save is meant to fail too)
             QCOMPARE(saved.last().at(1).toBool(), false);
             QCOMPARE(e.win.told.size(), 1);
             QVERIFY2(e.win.told[0].contains(QLatin1String("couldn't save")), qPrintable(e.win.told[0]));
