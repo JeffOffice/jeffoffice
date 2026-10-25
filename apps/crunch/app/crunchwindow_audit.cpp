@@ -116,9 +116,10 @@ bool CrunchWindow::traceDependents()
         qint64 total = 0;
         const std::vector<crunch::TraceCell> readers = crunch::readersOf(*calc, f.sheet, f.row, f.col, crunch::kMaxTraceReaders, &total);
         notDrawn += std::max<qint64>(0, total - qint64(readers.size()));
-        for (const crunch::TraceCell &d : readers) {
+        for (size_t at = 0; at < readers.size(); ++at) {
+            const crunch::TraceCell &d = readers[at];
             if (m_trace.size() >= grid::GridView::kMaxCheckArrows) {
-                ++notDrawn;
+                notDrawn += qint64(readers.size() - at);   // (the rest of this cell's readers)
                 break;
             }
             TraceArrow a;

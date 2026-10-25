@@ -620,6 +620,7 @@ private:
     bool m_onlyFresh = false;
     mutable std::unordered_set<quint32> m_circle;
     mutable qint64 m_circleWork = 0;
+    const Node &circleNode(quint32 id) const;
     qint64 m_nameRebuilds = 0;
     // The formulas whose text mentions one of the names (or a name that mentions them) are read again; what else uses names is left.
     void nameTextsChangedFor(const QStringList &names);

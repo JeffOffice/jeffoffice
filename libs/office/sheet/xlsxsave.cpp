@@ -841,6 +841,11 @@ bool patchDefinedNames(const QByteArray &xml, const std::vector<NameChange> &cha
         bool used = false;
     };
     std::vector<Existing> existing;
+    // (every element looked at to answer a change is counted here, whatever finds it: a scan of the list would count each element it passes)
+    auto probeExisting = [](const Existing &e) {
+        ++g_namesWork;
+        return !e.used;
+    };
     QHash<QString, std::vector<size_t>> byKey;   // the elements by the place of their sheet and their name in capitals, in the order they come
     Tag list, listClose;
     const bool hasList = findStart(xml, "definedNames", &list);
@@ -888,7 +893,7 @@ bool patchDefinedNames(const QByteArray &xml, const std::vector<NameChange> &cha
             const auto at = byKey.constFind(QString::number(idOf(c.oldPlace)) + QLatin1Char('|') + c.oldName.toUpper());
             if (at != byKey.constEnd())
                 for (const size_t k : at.value())
-                    if (!existing[k].used) {
+                    if (probeExisting(existing[k])) {
                         found = &existing[k];
                         break;
                     }

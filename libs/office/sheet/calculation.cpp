@@ -1823,13 +1823,18 @@ void Calculation::setIteration(bool on, int count, double delta)
     if (changed) invalidateAll();   // (what is in a circle is worked out again)
 }
 
+const Calculation::Node &Calculation::circleNode(quint32 id) const
+{
+    ++m_circleWork;   // (every formula circularCells looks at is counted here)
+    return m_nodes[id];
+}
+
 qint64 Calculation::circularCells(std::vector<CircularCell> *out, qint64 cap) const
 {
     // (the formulas that were found in circles are kept as they are found, so that nothing looks at every formula; one that has stopped being in a circle is let go of when met)
     std::vector<CircularCell> all;
     for (auto it = m_circle.begin(); it != m_circle.end();) {
-        ++m_circleWork;
-        const Node &n = m_nodes[*it];
+        const Node &n = circleNode(*it);
         if ((n.flags & (Dead | Circular)) != Circular) {
             it = m_circle.erase(it);
             continue;
