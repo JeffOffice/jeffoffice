@@ -23,6 +23,7 @@
 
 #include <functional>
 #include <mutex>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -92,6 +93,9 @@ public:
     void setFillsView(bool fills);
     bool fillsView() const { return m_fills; }
 
+    // Puts one more object over the others (a chart a person just made); more than kMaxObjects are left out. The pictures of the others are kept.
+    void addObject(LayerObject object);
+
     // An object is taken away (a person pressed Delete) or brought back (undone): it is not drawn or hit while it is.
     void setDeleted(int id, bool deleted);
     bool isDeleted(int id) const;
@@ -110,6 +114,23 @@ public:
     void select(int id);
     // What happens when Delete is pressed with an object picked; unset, the key is not taken.
     void setDeleteHook(std::function<void(int id)> hook) { m_deleteHook = std::move(hook); }
+
+    // ---- moving and sizing with the mouse and the keys
+    // The anchor that puts an object where `box` is (the grid's units) on the rows and columns now, as `editAs` says it follows them (two cells, one, or none); false if the layer has no layout.
+    bool anchorAtBox(const ObjectBox &box, jp::office::sheet::AnchorKind editAs, jp::office::sheet::DrawingAnchor *out) const;
+    // The picked object moved (or sized, with `resize`) by keys: by `step` units, or to the next edge of a cell with `snap`. The new place is told by objectMoved. False if none is picked or it can't be.
+    bool nudge(int dx, int dy, bool resize, bool snap, double step = 6);
+    // An object is being dragged (a press on it, or on a handle of the one picked, and the mouse moved); the drag ends at the button's release, or is given up (Escape).
+    bool dragging() const { return m_drag.mode == DragMode::Move || m_drag.mode == DragMode::Resize; }
+    void cancelDrag();
+    // Whether the object may be moved by a person (not one that fills the view, or that is taken away).
+    bool canMove(int id) const;
+    // The squares of the picked object's handles on the screen in a part of the grid, by place (0 top left, going clockwise: top, top right, right, bottom right, bottom, bottom left, left).
+    static constexpr int kHandles = 8;
+    static constexpr int kHandleSize = 7;
+    QRect handleRect(int handle, const QRect &objectRect) const;
+    // The handle at a point (-1 for none) for the object that is picked.
+    int handleAt(const QPoint &point) const;
 
     // Where the object is on the screen now, in the part of the grid given: empty if it is not shown there.
     QRect deviceRect(int id, Pane pane) const;
@@ -145,14 +166,36 @@ public:
     void setMirrored(bool mirrored) override { m_mirrored = mirrored; }
     bool key(QKeyEvent *event) override;
     void layoutChanged() override;
+    bool mouseMove(const QPoint &point, const GridLayout &layout, Qt::MouseButtons buttons, Qt::KeyboardModifiers modifiers) override;
+    bool mouseRelease(const QPoint &point, const GridLayout &layout, Qt::KeyboardModifiers modifiers) override;
+    std::optional<Qt::CursorShape> cursorAt(const QPoint &point, const GridLayout &layout) override;
+    bool contextMenu(const QPoint &point, const QPoint &global, const GridLayout &layout) override;
+    bool doubleClick(const QPoint &point, const GridLayout &layout) override;
 
 Q_SIGNALS:
     void selectionChanged(int id);
+    // A person moved or sized the object (with the mouse or the keys): the anchor that puts it where they left it.
+    void objectMoved(int id, const jp::office::sheet::DrawingAnchor &anchor);
+    // A right click on an object (it is picked), at a point of the screen.
+    void contextMenuRequested(int id, const QPoint &global);
+    // A double click on an object.
+    void objectActivated(int id);
 
 private Q_SLOTS:
     void deliver();
 
 private:
+    enum class DragMode : quint8 { None, Pending, Move, Resize };
+    struct Drag {
+        DragMode mode = DragMode::None;
+        int id = -1;
+        int handle = -1;
+        QPoint from;           // where the button went down (the layout's places)
+        ObjectBox start;       // the box then
+        ObjectBox now;
+        bool changed = false;
+        size_t entry = 0;
+    };
     bool m_mirrored = false;   // the painter is mirrored: pictures are turned back
     struct Entry {
         LayerObject object;
@@ -178,6 +221,9 @@ private:
         double zoom = 0;
         QImage image;
     };
+    ObjectBox dragBox(const Drag &d, const QPoint &point, Qt::KeyboardModifiers modifiers, const Entry &e) const;
+    double snapAxis(const Axis &axis, double at) const;
+    void finishDrag(bool commit);
     void ensureBoxes(const GridLayout &layout) const;
     // The objects (their places in the list, in order) that may be in `area` of the pane (device pixels): those the index finds by where the area is on the sheet, and the few that are
     // too large to be indexed. Each is then asked for its own rectangle.
@@ -238,6 +284,10 @@ private:
     std::vector<Result> m_results;
     mutable Stats m_stats;
     std::function<void(int)> m_deleteHook;
+    Drag m_drag;
+    mutable size_t m_dragEntry = size_t(-1);   // the entry being dragged: always drawn, wherever the index puts it
 };
 
 } // namespace jp::grid
+
+Q_DECLARE_METATYPE(jp::office::sheet::DrawingAnchor)

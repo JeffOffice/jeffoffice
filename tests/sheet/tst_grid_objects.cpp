@@ -877,8 +877,8 @@ private Q_SLOTS:
         QVERIFY(s.objects.key(&esc));
         QCOMPARE(s.objects.selectedId(), -1);
         s.objects.select(2);
-        QKeyEvent down(QEvent::KeyPress, Qt::Key_Down, Qt::NoModifier);
-        QVERIFY(!s.objects.key(&down));
+        QKeyEvent other(QEvent::KeyPress, Qt::Key_F2, Qt::NoModifier);
+        QVERIFY(!s.objects.key(&other));
         QCOMPARE(s.objects.selectedId(), -1);
         s.objects.select(2);
         QVERIFY(!s.objects.press(QPoint(5, 5), s.layout, Qt::NoModifier));
@@ -887,6 +887,237 @@ private Q_SLOTS:
         s.objects.setDeleteHook(nullptr);
         s.objects.select(2);
         QVERIFY(!s.objects.key(&del));
+    }
+
+    // ---- moving and sizing
+
+    // A press on an object, a move, and a let-go give the anchor that puts it where it was left; a wobble of a pixel or two, or a click, moves nothing; and an owner that does not take the new
+    // anchor leaves the object where it was.
+    void anObjectIsMovedWithTheMouse()
+    {
+        Scene s;
+        s.objects.setObjects({colored(1, twoCell(1, 2, 4, 6), kRed)});
+        s.draw();
+        QSignalSpy moved(&s.objects, &ObjectLayer::objectMoved);
+        QVERIFY(s.objects.press(QPoint(100, 60), s.layout, Qt::NoModifier));
+        QCOMPARE(s.objects.selectedId(), 1);
+        QVERIFY(!s.objects.dragging());
+        QVERIFY(s.objects.mouseMove(QPoint(101, 61), s.layout, Qt::LeftButton, Qt::NoModifier));   // (a wobble)
+        QVERIFY(s.objects.mouseRelease(QPoint(101, 61), s.layout, Qt::NoModifier));
+        QCOMPARE(moved.size(), 0);
+        QVERIFY(s.objects.press(QPoint(100, 60), s.layout, Qt::NoModifier));
+        QVERIFY(s.objects.mouseMove(QPoint(140, 100), s.layout, Qt::LeftButton, Qt::NoModifier));
+        QVERIFY(s.objects.dragging());
+        // while the button is down the object is where the mouse has taken it, and drawn there
+        QCOMPARE(s.objects.lastBox(1).x, 104.0);
+        s.paint();
+        QCOMPARE(s.at(150, 100), kRed);
+        QVERIFY(s.at(70, 45) != kRed);
+        QVERIFY(s.objects.mouseRelease(QPoint(140, 100), s.layout, Qt::NoModifier));
+        QVERIFY(!s.objects.dragging());
+        QCOMPARE(moved.size(), 1);
+        const DrawingAnchor a = moved.at(0).at(1).value<DrawingAnchor>();
+        QCOMPARE(moved.at(0).at(0).toInt(), 1);
+        QCOMPARE(int(a.kind), int(AnchorKind::TwoCell));
+        QCOMPARE(int(a.from.col), 1);
+        QCOMPARE(a.from.colOff, px(40));
+        QCOMPARE(int(a.from.row), 4);
+        QCOMPARE(a.from.rowOff, qint64(0));
+        QCOMPARE(int(a.to.col), 4);
+        QCOMPARE(a.to.colOff, px(40));
+        QCOMPARE(int(a.to.row), 8);
+        // nobody changed the anchor: the object goes back to it
+        QCOMPARE(s.objects.boxNow(1).x, 64.0);
+        // the owner takes it
+        s.objects.setAnchor(1, a);
+        QCOMPARE(s.objects.boxNow(1).x, 104.0);
+        QCOMPARE(s.objects.boxNow(1).y, 80.0);
+        // the button let go outside the object: the same; Escape gives it up
+        QVERIFY(s.objects.press(QPoint(150, 100), s.layout, Qt::NoModifier));
+        QVERIFY(s.objects.mouseMove(QPoint(250, 200), s.layout, Qt::LeftButton, Qt::NoModifier));
+        QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+        QVERIFY(s.objects.key(&esc));
+        QVERIFY(!s.objects.dragging());
+        QCOMPARE(moved.size(), 1);
+        QCOMPARE(s.objects.boxNow(1).x, 104.0);
+        // a drag that ends with no button down is given up
+        QVERIFY(s.objects.press(QPoint(150, 100), s.layout, Qt::NoModifier));
+        QVERIFY(!s.objects.mouseMove(QPoint(250, 200), s.layout, Qt::NoButton, Qt::NoModifier));
+        QVERIFY(!s.objects.dragging());
+        QCOMPARE(moved.size(), 1);
+    }
+
+    // The handles of the picked object size it; Shift keeps the proportions at a corner; an object is never smaller than a few pixels; an edge handle moves one edge.
+    void anObjectIsSizedByItsHandles()
+    {
+        Scene s;
+        s.objects.setObjects({colored(1, twoCell(1, 2, 4, 6), kRed)});   // (64, 40) to (256, 120)
+        s.objects.select(1);
+        s.draw();
+        QSignalSpy moved(&s.objects, &ObjectLayer::objectMoved);
+        auto drag = [&](const QPoint &from, const QPoint &to, Qt::KeyboardModifiers mods = Qt::NoModifier) {
+            moved.clear();
+            if (!s.objects.press(from, s.layout, mods)) return DrawingAnchor();
+            s.objects.mouseMove(to, s.layout, Qt::LeftButton, mods);
+            s.objects.mouseRelease(to, s.layout, mods);
+            return moved.isEmpty() ? DrawingAnchor() : moved.at(0).at(1).value<DrawingAnchor>();
+        };
+        QCOMPARE(s.objects.handleAt(QPoint(255, 119)), 4);
+        QCOMPARE(s.objects.handleAt(QPoint(64, 40)), 0);
+        QCOMPARE(s.objects.handleAt(QPoint(160, 40)), 1);
+        QCOMPARE(s.objects.handleAt(QPoint(160, 80)), -1);
+        // bottom right, by 30 across and 20 down
+        DrawingAnchor a = drag(QPoint(255, 119), QPoint(285, 139));
+        QCOMPARE(int(a.from.col), 1);
+        QCOMPARE(int(a.from.row), 2);
+        QCOMPARE(int(a.to.col), 4);
+        QCOMPARE(a.to.colOff, px(30));   // (30 across from 256)
+        QCOMPARE(int(a.to.row), 7);
+        // with Shift the proportions stay (192 by 80): 48 more across is 20 more down
+        a = drag(QPoint(255, 119), QPoint(303, 119), Qt::ShiftModifier);
+        const ObjectBox now = s.objects.lastBox(1);
+        QCOMPARE(int(a.to.row), 7);
+        QCOMPARE(a.to.rowOff, px(0));
+        Q_UNUSED(now);
+        // the top left corner moves the first edges, and the object keeps its far corner
+        a = drag(QPoint(64, 40), QPoint(84, 60));
+        QCOMPARE(int(a.from.col), 1);
+        QCOMPARE(a.from.colOff, px(20));
+        QCOMPARE(int(a.from.row), 3);
+        QCOMPARE(int(a.to.col), 4);
+        QCOMPARE(int(a.to.row), 6);
+        QCOMPARE(a.to.rowOff, px(0));
+        // pulled past the other side it stops a few pixels from it
+        a = drag(QPoint(255, 119), QPoint(0, 0));
+        const double w = double(a.to.col) * 64 + double(a.to.colOff) / 9525.0 - (double(a.from.col) * 64 + double(a.from.colOff) / 9525.0);
+        QVERIFY2(w >= 4 && w < 10, qPrintable(QString::number(w)));
+        // an edge handle sizes one way only
+        a = drag(QPoint(160, 119), QPoint(190, 150));
+        QCOMPARE(int(a.to.col), 4);
+        QCOMPARE(a.to.colOff, px(0));
+        QCOMPARE(int(a.to.row), 7);
+        QCOMPARE(a.to.rowOff, px(11));   // (31 down from 120)
+    }
+
+    // Alt takes the edges to the edges of cells, in a move and in sizing.
+    void altTakesEdgesToCells()
+    {
+        Scene s;
+        s.objects.setObjects({colored(1, twoCell(1, 2, 4, 6), kRed)});
+        s.draw();
+        QSignalSpy moved(&s.objects, &ObjectLayer::objectMoved);
+        QVERIFY(s.objects.press(QPoint(100, 60), s.layout, Qt::AltModifier));
+        s.objects.mouseMove(QPoint(130, 67), s.layout, Qt::LeftButton, Qt::AltModifier);
+        s.objects.mouseRelease(QPoint(130, 67), s.layout, Qt::AltModifier);
+        QCOMPARE(moved.size(), 1);
+        DrawingAnchor a = moved.at(0).at(1).value<DrawingAnchor>();
+        QCOMPARE(int(a.from.col), 1);
+        QCOMPARE(a.from.colOff, px(0));
+        QCOMPARE(int(a.from.row), 2);
+        QCOMPARE(a.from.rowOff, px(0));
+        QCOMPARE(a.to.colOff, px(0));
+        QCOMPARE(a.to.rowOff, px(0));
+        // sizing: the corner goes to the corner of a cell
+        moved.clear();
+        s.objects.select(1);
+        QVERIFY(s.objects.press(QPoint(255, 119), s.layout, Qt::AltModifier));
+        s.objects.mouseMove(QPoint(280, 135), s.layout, Qt::LeftButton, Qt::AltModifier);
+        s.objects.mouseRelease(QPoint(280, 135), s.layout, Qt::AltModifier);
+        QCOMPARE(moved.size(), 1);
+        a = moved.at(0).at(1).value<DrawingAnchor>();
+        QCOMPARE(int(a.to.col), 4);
+        QCOMPARE(a.to.colOff, px(0));
+        QCOMPARE(int(a.to.row), 7);
+        QCOMPARE(a.to.rowOff, px(0));
+    }
+
+    // The arrow keys move the picked object a few pixels (one with Control), Shift sizes it, Alt goes to the next edge of a cell.
+    void arrowKeysMoveAndSize()
+    {
+        Scene s;
+        s.objects.setObjects({colored(1, twoCell(1, 2, 4, 6), kRed)});
+        s.objects.select(1);
+        s.draw();
+        QSignalSpy moved(&s.objects, &ObjectLayer::objectMoved);
+        auto key = [&](int k, Qt::KeyboardModifiers mods) {
+            moved.clear();
+            QKeyEvent e(QEvent::KeyPress, k, mods);
+            const bool taken = s.objects.key(&e);
+            return taken && !moved.isEmpty() ? moved.at(0).at(1).value<DrawingAnchor>() : DrawingAnchor();
+        };
+        DrawingAnchor a = key(Qt::Key_Right, Qt::NoModifier);
+        QCOMPARE(int(a.from.col), 1);
+        QCOMPARE(a.from.colOff, px(6));
+        QCOMPARE(a.to.colOff, px(6));
+        a = key(Qt::Key_Down, Qt::ControlModifier);
+        QCOMPARE(int(a.from.row), 2);
+        QCOMPARE(a.from.rowOff, px(1));
+        a = key(Qt::Key_Right, Qt::ShiftModifier);
+        QCOMPARE(a.from.colOff, px(0));
+        QCOMPARE(int(a.to.col), 4);
+        QCOMPARE(a.to.colOff, px(6));
+        a = key(Qt::Key_Right, Qt::AltModifier);
+        QCOMPARE(int(a.from.col), 2);   // (the left edge to the next edge of a cell: 128)
+        QCOMPARE(a.from.colOff, px(0));
+        a = key(Qt::Key_Up, Qt::AltModifier);
+        QCOMPARE(int(a.from.row), 1);
+        QCOMPARE(a.from.rowOff, px(0));
+        a = key(Qt::Key_Left, Qt::NoModifier);
+        QCOMPARE(int(a.from.col), 0);
+        QCOMPARE(a.from.colOff, px(58));
+        // the keys are the object's while it is picked; an object that is not picked leaves them to the cells
+        s.objects.select(-1);
+        QKeyEvent e(QEvent::KeyPress, Qt::Key_Right, Qt::NoModifier);
+        QVERIFY(!s.objects.key(&e));
+    }
+
+    // The pointer is a four-way arrow over the picked object and a size arrow over its handles; the right and double clicks on an object are told.
+    void theMouseSaysWhatIsUnderIt()
+    {
+        Scene s;
+        s.objects.setObjects({colored(1, twoCell(1, 2, 4, 6), kRed)});
+        s.draw();
+        QVERIFY(!s.objects.cursorAt(QPoint(10, 10), s.layout));
+        QCOMPARE(*s.objects.cursorAt(QPoint(160, 80), s.layout), Qt::ArrowCursor);
+        s.objects.select(1);
+        QCOMPARE(*s.objects.cursorAt(QPoint(160, 80), s.layout), Qt::SizeAllCursor);
+        QCOMPARE(*s.objects.cursorAt(QPoint(255, 119), s.layout), Qt::SizeFDiagCursor);
+        QCOMPARE(*s.objects.cursorAt(QPoint(255, 40), s.layout), Qt::SizeBDiagCursor);
+        QCOMPARE(*s.objects.cursorAt(QPoint(160, 119), s.layout), Qt::SizeVerCursor);
+        QCOMPARE(*s.objects.cursorAt(QPoint(64, 80), s.layout), Qt::SizeHorCursor);
+        QSignalSpy menu(&s.objects, &ObjectLayer::contextMenuRequested), activated(&s.objects, &ObjectLayer::objectActivated);
+        QVERIFY(!s.objects.contextMenu(QPoint(10, 10), QPoint(), s.layout));
+        QVERIFY(s.objects.contextMenu(QPoint(160, 80), QPoint(7, 8), s.layout));
+        QCOMPARE(menu.size(), 1);
+        QCOMPARE(menu.at(0).at(0).toInt(), 1);
+        QCOMPARE(menu.at(0).at(1).toPoint(), QPoint(7, 8));
+        QVERIFY(s.objects.doubleClick(QPoint(160, 80), s.layout));
+        QCOMPARE(activated.size(), 1);
+        QVERIFY(!s.objects.doubleClick(QPoint(10, 10), s.layout));
+    }
+
+    // An object put on later is over the others and drawn; the ones there are not made again; and nothing moves on a chart sheet.
+    void anObjectIsAddedOnTop()
+    {
+        Scene s;
+        Painted log;
+        s.objects.setObjects({colored(1, twoCell(1, 2, 4, 6), kRed, &log)});
+        s.draw();
+        const qint64 renders = s.objects.stats().renders;
+        s.objects.addObject(colored(2, twoCell(2, 3, 5, 8), kBlue));
+        s.draw();
+        QCOMPARE(s.objects.count(), 2);
+        QCOMPARE(s.at(200, 100), kBlue);   // (over the first)
+        QCOMPARE(s.at(70, 45), kRed);
+        QCOMPARE(s.objects.stats().renders, renders + 1);
+        QCOMPARE(s.objects.objectAt(QPoint(200, 100)), 2);
+        s.objects.setFillsView(true);
+        s.objects.select(1);
+        QVERIFY(!s.objects.canMove(1));
+        QKeyEvent e(QEvent::KeyPress, Qt::Key_Right, Qt::NoModifier);
+        QSignalSpy moved(&s.objects, &ObjectLayer::objectMoved);
+        s.objects.key(&e);
+        QCOMPARE(moved.size(), 0);
     }
 
     // A chart sheet: the first object fills the part that scrolls, at its size.
@@ -1024,6 +1255,36 @@ private Q_SLOTS:
         const QImage shot = b.view->viewport()->grab().toImage();
         QCOMPARE(shot.pixel(int(std::lround(r.center().x() * shot.devicePixelRatio())), int(std::lround(r.center().y() * shot.devicePixelRatio()))), kRed);
         QVERIFY(r.top() >= 3 * 20 + 40);
+    }
+    // The view gives the layer the mouse while an object is dragged (the cells see nothing of it), the pointer over it, the right click, and the double click.
+    void dragsAndMenusGoToTheLayerFirst()
+    {
+        Book b;
+        b.layer.setObjects({colored(1, twoCell(2, 3, 4, 6), kRed)});
+        b.show();
+        b.layer.prepareAll();
+        b.view->selectCell(0, 0);
+        QSignalSpy moved(&b.layer, &ObjectLayer::objectMoved), menu(&b.layer, &ObjectLayer::contextMenuRequested), activated(&b.layer, &ObjectLayer::objectActivated);
+        QSignalSpy selected(b.view.get(), &GridView::selectionSettled);
+        const QRect r = b.view->sheet().layout().rangeRect(3, 2, 5, 3);
+        QTest::mousePress(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, r.center());
+        QTest::mouseMove(b.view->viewport(), r.center() + QPoint(30, 20));
+        QTest::mouseMove(b.view->viewport(), r.center() + QPoint(40, 25));
+        QTest::mouseRelease(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, r.center() + QPoint(40, 25));
+        QCOMPARE(moved.size(), 1);
+        QCOMPARE(b.view->selection().range.row1, qint64(0));   // (the cursor did not move, nor did the cells select anything)
+        QCOMPARE(selected.size(), 0);
+        QTest::mouseMove(b.view->viewport(), r.center() + QPoint(2, 2));
+        QCOMPARE(b.view->viewport()->cursor().shape(), Qt::SizeAllCursor);
+        QTest::mouseClick(b.view->viewport(), Qt::RightButton, Qt::NoModifier, r.center());
+        QCOMPARE(menu.size(), 1);
+        QTest::mouseDClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, r.center());
+        QCOMPARE(activated.size(), 1);
+        // a right click on a cell is the cells'
+        QSignalSpy cellMenu(b.view.get(), &GridView::contextMenuRequested);
+        QTest::mouseClick(b.view->viewport(), Qt::RightButton, Qt::NoModifier, b.view->sheet().layout().cellRect(10, 5).center());
+        QCOMPARE(cellMenu.size(), 1);
+        QCOMPARE(menu.size(), 1);
     }
 };
 
