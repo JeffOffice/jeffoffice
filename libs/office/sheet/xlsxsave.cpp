@@ -852,7 +852,7 @@ public:
 
 } // namespace
 
-bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out, QString *error, SaveReport *report, const std::atomic<bool> *cancel)
+bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *out, QString *error, SaveReport *report, const std::atomic<bool> *cancel)
 {
     SaveReport local;
     SaveReport &rep = report ? *report : local;
@@ -873,6 +873,33 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
     }
     const Package &package = *base;
     if (!package.isLazy()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook was not opened from a file this program can save over."));
+    // ---- a sheet that gets its first drawing is given the relationship that names it, and the element in its XML (the sheet's changes say so)
+    SaveChanges adjusted;
+    const SaveChanges *useChanges = &requested;
+    std::map<int, QString> newDrawingRel;   // by the sheet's place: the id of the relationship from the sheet to the drawing that is made for it
+    if (!requested.addedObjects.empty()) {
+        adjusted = requested;
+        useChanges = &adjusted;
+        qint64 objects = 0;
+        for (const auto &[sheet, add] : requested.addedObjects) {
+            if (sheet < 0 || sheet >= book.info().sheets.size()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A change is to a sheet the workbook does not have."));
+            const SheetEntry &e = book.info().sheets[sheet];
+            if (e.deleted || add.objects.empty()) continue;
+            objects += qint64(add.objects.size());
+            if (e.kind != SheetKind::Worksheet || add.part.isEmpty() || objects > kMaxAddedObjects)
+                return fail(QCoreApplication::translate("jp::office::sheet::Save", "Objects were put on a sheet this program can't put them on."));
+            if (!e.isNew && !drawingPartOf(package, e.part).isEmpty()) continue;
+            QStringList used;
+            if (!e.isNew)
+                for (const Relationship &r : package.relationships(e.part)) used << r.id;
+            else if (const auto own = requested.sheets.find(sheet); own != requested.sheets.end() && !own->second.copyFromPart.isEmpty())
+                for (const Relationship &r : package.relationships(own->second.copyFromPart)) used << r.id;   // (a copy keeps the ids its links have)
+            const QString id = freeRelationshipId(used);
+            newDrawingRel[sheet] = id;
+            adjusted.sheets[sheet].drawingRelId = id;
+        }
+    }
+    const SaveChanges &changes = *useChanges;
     const QByteArray bytes = package.fileBytes();
     QVector<ZipEntry> directory;
     if (!readZipDirectory(bytes, &directory)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file this workbook was opened from is damaged."));
@@ -987,6 +1014,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
         const int index = partBytes(part, &xml);
         if (index >= 0 && setDrawingAnchors(xml, anchors, &now, &changed) && changed) replaced.insert(index, now);
     }
+    for (const auto &[part, names] : changes.objectNames) {
+        QByteArray xml, now;
+        bool changed = false;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && setDrawingObjectNames(xml, names, &now, &changed) && changed) replaced.insert(index, now);
+    }
     // (what the objects taken away relate to: the links of the drawing they alone used, and the parts nothing else relates to)
     std::vector<std::pair<QString, QStringList>> released;
     for (const auto &[part, ordinals] : changes.removedObjects) {
@@ -1075,6 +1108,117 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             }
         }
     }
+    // ---- the objects a person put on sheets: their anchors at the end of the drawing, the parts they relate to, and the links and types that name them
+    std::vector<std::pair<QString, QByteArray>> newEntries;   // parts the file did not have (the name without its first slash)
+    std::map<int, QByteArray> newSheetRels;                   // for a sheet that was added: the relationship to its new drawing (its relationships part is made with it)
+    if (!changes.addedObjects.empty()) {
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        QByteArray types;
+        if (typesEntry < 0 || !(replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types)))
+            return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file's list of part types is not in it."));
+        QSet<QString> taken;
+        for (const QString &n : package.partNames()) taken.insert(n.toLower());
+        auto relsEntryFor = [&](const QString &part) {
+            const QString name = package.entryName(part);
+            if (name.isEmpty()) return -1;
+            const int slash = name.lastIndexOf(QLatin1Char('/'));
+            return entryAt.value(plain((slash < 0 ? QString() : name.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? name : name.mid(slash + 1)) + QStringLiteral(".rels")), -1);
+        };
+        auto current = [&](int index, QByteArray *data) { return index >= 0 && (replaced.contains(index) ? (*data = replaced.value(index), true) : inflate(index, data)); };
+        auto bad = [&] { return fail(QCoreApplication::translate("jp::office::sheet::Save", "A drawing of the file is not in the form this program changes.")); };
+        qint64 bytesAdded = 0;
+        for (const auto &[sheet, add] : changes.addedObjects) {
+            const SheetEntry &se = book.info().sheets[sheet];
+            if (se.deleted || add.objects.empty()) continue;
+            const bool newDrawing = newDrawingRel.count(sheet) != 0;
+            const QString drawingPart = add.part;
+            QByteArray drawingRels;
+            int drawingRelsEntry = -1;
+            if (!newDrawing) {
+                drawingRelsEntry = relsEntryFor(drawingPart);
+                if (drawingRelsEntry >= 0 && !current(drawingRelsEntry, &drawingRels)) return bad();
+            } else if (taken.contains(drawingPart.toLower())) {
+                return bad();
+            }
+            QStringList used = relationshipIds(drawingRels);
+            QByteArray anchors;
+            for (const AddedObject &obj : add.objects) {
+                QByteArray xml = obj.xml;
+                for (const AddedPart &part : obj.parts) {
+                    const QString id = freeRelationshipId(used);
+                    used << id;
+                    xml.replace(xmlscan::escapeAttribute(part.token), xmlscan::escapeAttribute(id));
+                    if (!part.contentType.isEmpty()) {
+                        // a part the file does not have
+                        const QByteArray data = part.produce ? part.produce() : part.bytes;
+                        bytesAdded += data.size();
+                        if (bytesAdded > kMaxAddedBytes || taken.contains(part.part.toLower()) || data.isEmpty()) return bad();
+                        taken.insert(part.part.toLower());
+                        newEntries.emplace_back(part.part.startsWith(QLatin1Char('/')) ? part.part.mid(1) : part.part, data);
+                        QByteArray t2;
+                        const int dot = int(part.part.lastIndexOf(QLatin1Char('.')));
+                        const bool media = part.part.startsWith(QLatin1String("/xl/media/"), Qt::CaseInsensitive) && dot > 0;
+                        if (!(media ? addContentDefault(types, part.part.mid(dot + 1), part.contentType, &t2) : addContentOverride(types, part.part, part.contentType, &t2))) return bad();
+                        types = t2;
+                    }
+                    QByteArray r2;
+                    if (!addRelationship(drawingRels, id, part.relType, relativeTarget(drawingPart, part.part), &r2)) return bad();
+                    drawingRels = r2;
+                }
+                anchors += xml;
+            }
+            if (newDrawing) {
+                newEntries.emplace_back(drawingPart.startsWith(QLatin1Char('/')) ? drawingPart.mid(1) : drawingPart, newDrawingXml(anchors));
+                taken.insert(drawingPart.toLower());
+                QByteArray t2;
+                if (!addContentOverride(types, drawingPart, QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"), &t2)) return bad();
+                types = t2;
+                QString relsName = relationshipsPartOf(drawingPart);
+                newEntries.emplace_back(relsName.startsWith(QLatin1Char('/')) ? relsName.mid(1) : relsName, drawingRels);
+                // the sheet's link to it
+                const QString target = relativeTarget(se.part, drawingPart);
+                if (se.isNew) {
+                    newSheetRels[sheet] = relationshipXml(newDrawingRel[sheet], QStringLiteral("drawing"), target);
+                } else {
+                    const int sheetRelsEntry = relsEntryFor(se.part);
+                    QByteArray sheetRels, r2;
+                    if (sheetRelsEntry >= 0 && !current(sheetRelsEntry, &sheetRels)) return bad();
+                    if (!addRelationship(sheetRels, newDrawingRel[sheet], QStringLiteral("drawing"), target, &r2)) return bad();
+                    if (sheetRelsEntry >= 0) {
+                        replaced.insert(sheetRelsEntry, r2);
+                    } else {
+                        const QString name = relationshipsPartOf(se.part);
+                        newEntries.emplace_back(name.startsWith(QLatin1Char('/')) ? name.mid(1) : name, r2);
+                    }
+                }
+            } else {
+                const int drawingEntry = entryOfPart(drawingPart);
+                QByteArray xml;
+                if (!current(drawingEntry, &xml)) return bad();
+                const QByteArray now = drawingWithAnchors(xml, anchors);
+                if (now.isEmpty()) return bad();
+                replaced.insert(drawingEntry, now);
+                if (drawingRelsEntry >= 0) replaced.insert(drawingRelsEntry, drawingRels);
+                else if (!drawingRels.isEmpty()) {
+                    const QString name = relationshipsPartOf(drawingPart);
+                    newEntries.emplace_back(name.startsWith(QLatin1Char('/')) ? name.mid(1) : name, drawingRels);
+                }
+            }
+        }
+        replaced.insert(typesEntry, types);
+    }
+    // (the objects drawn in another order: the children of the drawing, as what is above leaves them)
+    for (const auto &[part, order] : changes.drawingOrder) {
+        QByteArray xml, now;
+        bool changed = false;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && reorderDrawingChildren(xml, order, &now, &changed) && changed) replaced.insert(index, now);
+    }
     for (const auto &[part, caches] : changes.chartCaches) {
         QByteArray xml, now;
         bool changed = false;
@@ -1102,6 +1246,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
         const int index = entryOfPart(part);
         if (index < 0) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A table that changed has no part in the file."));
         replaced.insert(index, data);
+    }
+    for (const auto &[part, make] : changes.producedParts) {
+        const int index = entryOfPart(part);
+        if (index < 0) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A chart that changed has no part in the file."));
+        replaced.insert(index, make());
     }
     // ---- the calculation chain: left out when a cell changed (it may name a cell that no longer holds a formula)
     if (anyCellChanged) {
@@ -1323,6 +1472,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
             ++rep.partsCopied;
         }
     }
+    for (const auto &[name, data] : newEntries) {
+        zip.add(name, data, true);
+        rep.changedParts << name;
+        ++rep.partsChanged;
+    }
     // the sheets that were added, made whole: the skeleton with their cells, sizes, and merged ranges put in
     for (const NewSheet &n : newSheets) {
         if (cancel && cancel->load()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -1355,6 +1509,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
         const bool ok = patchSheet(&in, &sink, sc, hasShared, &why, cancel);
         zip.endStream();
         if (!ok) return fail(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "A sheet that was added could not be made.") : why);
+        if (const auto drawingLink = newSheetRels.find(n.sheet); drawingLink != newSheetRels.end()) linkRelationships += drawingLink->second;
         if (!linkRelationships.isEmpty()) {
             // (the copy's links to places outside the workbook: its own relationships, with the ids the links name)
             QString relsOfNew = relationshipsPartOf(n.part);

@@ -118,6 +118,96 @@ bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinal
     return true;
 }
 
+bool reorderDrawingChildren(const QByteArray &xml, const std::vector<int> &order, QByteArray *out, bool *changed)
+{
+    *out = xml;
+    *changed = false;
+    std::vector<std::pair<qsizetype, qsizetype>> children;
+    if (!childrenOfRoot(xml, &children) || children.size() != order.size()) return false;
+    std::vector<char> seen(order.size(), 0);
+    bool identity = true;
+    for (size_t k = 0; k < order.size(); ++k) {
+        const int at = order[k];
+        if (at < 0 || size_t(at) >= order.size() || seen[size_t(at)]) return false;
+        seen[size_t(at)] = 1;
+        identity = identity && size_t(at) == k;
+    }
+    if (identity || children.empty()) return true;
+    QByteArray result = xml.left(children.front().first);
+    for (size_t k = 0; k < order.size(); ++k) {
+        const auto &c = children[size_t(order[k])];
+        result += xml.mid(c.first, c.second - c.first);
+        if (k + 1 < children.size()) result += xml.mid(children[k].second, children[k + 1].first - children[k].second);
+    }
+    result += xml.mid(children.back().second);
+    *out = result;
+    *changed = *out != xml;
+    return true;
+}
+
+namespace {
+
+// `element[from, to)` with the name of its first cNvPr set; false (and `edit` untouched) if it has none.
+bool nameEdit(const QByteArray &element, qsizetype from, qsizetype to, const QString &name, qsizetype *tagStart, qsizetype *tagEnd, QByteArray *replacement)
+{
+    qsizetype pos = from;
+    Tag t;
+    while (xmlscan::nextTag(element, pos, &t) && t.start < to) {
+        pos = t.end;
+        if (t.closing || t.local != "cNvPr") continue;
+        QByteArray text = element.mid(t.start, t.end - t.start);
+        static const QRegularExpression attr(QStringLiteral("\\sname\\s*=\\s*(\"[^\"]*\"|'[^']*')"));
+        const QString s = QString::fromUtf8(text);
+        const QRegularExpressionMatch m = attr.match(s);
+        const QString value = QStringLiteral("\"") + QString::fromUtf8(xmlscan::escapeAttribute(name)) + QStringLiteral("\"");
+        QString now;
+        if (m.hasMatch()) now = s.left(m.capturedStart(1)) + value + s.mid(m.capturedEnd(1));
+        else {
+            const qsizetype at = s.indexOf(QLatin1String("cNvPr")) + 5;
+            now = s.left(at) + QStringLiteral(" name=") + value + s.mid(at);
+        }
+        *tagStart = t.start;
+        *tagEnd = t.end;
+        *replacement = now.toUtf8();
+        return true;
+    }
+    return false;
+}
+
+} // namespace
+
+QByteArray withFirstObjectName(const QByteArray &element, const QString &name)
+{
+    qsizetype a = 0, b = 0;
+    QByteArray r;
+    if (!nameEdit(element, 0, element.size(), name, &a, &b, &r)) return element;
+    return element.left(a) + r + element.mid(b);
+}
+
+bool setDrawingObjectNames(const QByteArray &xml, const std::map<int, QString> &names, QByteArray *out, bool *changed)
+{
+    *out = xml;
+    *changed = false;
+    if (names.empty()) return true;
+    std::vector<std::pair<qsizetype, qsizetype>> children;
+    if (!childrenOfRoot(xml, &children)) return false;
+    QByteArray result;
+    qsizetype copied = 0;
+    for (const auto &[ordinal, name] : names) {
+        if (ordinal < 0 || size_t(ordinal) >= children.size()) continue;
+        qsizetype a = 0, b = 0;
+        QByteArray r;
+        if (!nameEdit(xml, children[size_t(ordinal)].first, children[size_t(ordinal)].second, name, &a, &b, &r) || a < copied) continue;
+        result += xml.mid(copied, a - copied) + r;
+        copied = b;
+    }
+    if (copied == 0) return true;
+    result += xml.mid(copied);
+    *out = result;
+    *changed = *out != xml;
+    return true;
+}
+
 bool setDrawingAnchors(const QByteArray &xml, const std::map<int, DrawingAnchor> &anchors, QByteArray *out, bool *changed)
 {
     *out = xml;
@@ -134,46 +224,87 @@ bool setDrawingAnchors(const QByteArray &xml, const std::map<int, DrawingAnchor>
     for (const auto &[ordinal, anchor] : anchors) {
         if (ordinal < 0 || size_t(ordinal) >= children.size() || anchor.kind != AnchorKind::TwoCell) continue;
         const qsizetype from0 = children[size_t(ordinal)].first, to0 = children[size_t(ordinal)].second;
-        // the first two-cell anchor of the child: its from and its to
+        if (from0 < copied) continue;
+        // the first anchor of the child (a two-cell, one-cell, or absolute one)
         Tag t;
         qsizetype pos = from0;
-        bool inAnchor = false;
-        Tag fromTag, toTag;
-        qsizetype fromEnd = -1, toEnd = -1;
+        Tag open;
+        bool found = false;
         while (xmlscan::nextTag(xml, pos, &t) && t.start < to0) {
             pos = t.end;
             if (t.closing) continue;
-            if (!inAnchor) {
-                if (t.local == "twoCellAnchor") inAnchor = true;
-                continue;
+            if (t.local == "twoCellAnchor" || t.local == "oneCellAnchor" || t.local == "absoluteAnchor") {
+                open = t;
+                found = true;
+                break;
             }
-            if (t.local == "from" && fromEnd < 0) {
-                fromTag = t;
-                fromEnd = elementEnd(xml, t);
-                pos = fromEnd > 0 ? fromEnd : pos;
-            } else if (t.local == "to" && toEnd < 0) {
-                toTag = t;
-                toEnd = elementEnd(xml, t);
-                pos = toEnd > 0 ? toEnd : pos;
+        }
+        if (!found) continue;
+        const qsizetype anchorEnd = elementEnd(xml, open);
+        if (anchorEnd < 0) continue;
+        const QByteArray prefix(xmlscan::prefixOf(open.name).data(), xmlscan::prefixOf(open.name).size());
+        // what the anchor holds besides its places (the object, its client data...) is kept as it is; the places are written again
+        QByteArray kept;
+        qsizetype keepFrom = open.end, closeStart = anchorEnd;
+        if (!open.selfClosing) {
+            int depth = 1;
+            Tag c;
+            qsizetype at = open.end;
+            qsizetype childStart = -1;
+            while (xmlscan::nextTag(xml, at, &c) && c.start < anchorEnd) {
+                at = c.end;
+                if (c.closing) {
+                    if (--depth == 0) {
+                        closeStart = c.start;
+                        break;
+                    }
+                    if (depth == 1 && childStart >= 0) {
+                        const QByteArrayView l = c.local;
+                        if (l == "from" || l == "to" || l == "pos" || l == "ext") {
+                            kept += xml.mid(keepFrom, childStart - keepFrom);
+                            keepFrom = c.end;
+                        }
+                        childStart = -1;
+                    }
+                    continue;
+                }
+                if (depth == 1) {
+                    childStart = c.start;
+                    const QByteArrayView l = c.local;
+                    if (c.selfClosing && (l == "from" || l == "to" || l == "pos" || l == "ext")) {
+                        kept += xml.mid(keepFrom, c.start - keepFrom);
+                        keepFrom = c.end;
+                        childStart = -1;
+                    }
+                }
+                if (!c.selfClosing) ++depth;
             }
-            if (fromEnd >= 0 && toEnd >= 0) break;
+            kept += xml.mid(keepFrom, closeStart - keepFrom);
         }
-        if (fromEnd < 0 || toEnd < 0) continue;
-        const QByteArrayView pf = xmlscan::prefixOf(fromTag.name);
-        const QByteArray prefix(pf.data(), pf.size());
-        // (the from comes before the to in a well-formed anchor; the later block is replaced first so that the earlier one's places hold)
-        const QByteArray newFrom = point(prefix, "from", anchor.from), newTo = point(prefix, "to", anchor.to);
-        struct Part {
-            qsizetype start, end;
-            QByteArray text;
-        };
-        std::vector<Part> parts = {{fromTag.start, fromEnd, newFrom}, {toTag.start, toEnd, newTo}};
-        std::sort(parts.begin(), parts.end(), [](const Part &a, const Part &b) { return a.start < b.start; });
-        for (const Part &p : parts) {
-            if (p.start < copied) continue;
-            result += xml.mid(copied, p.start - copied) + p.text;
-            copied = p.end;
+        QByteArray tag = xml.mid(open.start, open.end - open.start);
+        const bool selfClosed = open.selfClosing;
+        if (selfClosed) {
+            tag.chop(2);
+            tag += ">";
         }
+        // the element is a two-cell anchor, with what it does when cells change as `anchor` says
+        const QByteArray oldName(open.name);
+        const QByteArray newName = prefix + "twoCellAnchor";
+        tag.replace(0, 1 + oldName.size(), "<" + newName);
+        qsizetype vs = 0, ve = 0;
+        if (xmlscan::attributeValue(tag, "editAs", &vs, &ve)) {
+            // (the attribute and the space before it)
+            qsizetype from = vs;
+            while (from > 0 && tag[from - 1] != ' ' && tag[from - 1] != '\n' && tag[from - 1] != '\t' && tag[from - 1] != '\r') --from;
+            while (from > 0 && (tag[from - 1] == ' ' || tag[from - 1] == '\n' || tag[from - 1] == '\t' || tag[from - 1] == '\r')) --from;
+            tag.remove(from, ve + 1 - from);
+        }
+        if (anchor.editAs != AnchorKind::TwoCell) {
+            const qsizetype at = tag.size() - 1;
+            tag.insert(at, anchor.editAs == AnchorKind::OneCell ? " editAs=\"oneCell\"" : " editAs=\"absolute\"");
+        }
+        result += xml.mid(copied, open.start - copied) + tag + point(prefix, "from", anchor.from) + point(prefix, "to", anchor.to) + kept + "</" + newName + ">";
+        copied = anchorEnd;
     }
     if (copied == 0 && result.isEmpty()) return true;
     result += xml.mid(copied);

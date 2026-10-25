@@ -30,6 +30,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Find, replace, and go to](find-replace)
 - [Sort and filter](sort-filter)
 - [Insert a function](insert-function)
+- [Charts, pictures, and shapes](charts)
 
 ## Print
 

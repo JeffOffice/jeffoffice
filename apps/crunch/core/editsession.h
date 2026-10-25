@@ -11,6 +11,7 @@
 #include "core/pagesettings.h"
 #include "core/loader.h"
 #include "core/sortspec.h"
+#include "core/objectstate.h"
 #include "grid/valuestore.h"
 #include "sheet/entry.h"
 #include "calc/numfmt.h"
@@ -133,12 +134,6 @@ struct StyleCell {
     qint32 sheet = 0;
     quint32 row = 0, col = 0;
     quint32 before = 0, after = 0;
-};
-
-// An object over the cells (a chart, picture, or shape) that a step took away: its sheet, and its number among that sheet's objects.
-struct ObjectEdit {
-    int sheet = 0;
-    int id = 0;
 };
 
 // What one step of the undo stack changes: cells (as they were and as they are), and whatever goes with them.
@@ -475,11 +470,14 @@ public:
     // The same by the style's name: a style the workbook has, or a built-in one it is given now. Not ok if there is no such style, or the file has no place to keep one.
     Outcome applyStyleNamed(int sheet, const jp::office::sheet::CellRange &range, const QString &name, const QString &text);
 
-    // An object over the cells is taken away (Delete with it picked): one step, which Undo gives back. Told to the hook (setObjectHook) when it is done, undone, and done again; the file is
-    // written without it. A step that took an object away is like one that deleted rows: Undo goes back as far as the last such step saved, no further.
-    using ObjectHook = std::function<void(int sheet, int id, bool deleted)>;
+    // An object over the cells is taken away (Delete with it picked), put there, moved, or changed: one step, which Undo gives back. The hook (setObjectHook) is told the change when the step is
+    // done, undone, and done again (`forward`: the object is to have the state after). A step that took an object away is like one that deleted rows: Undo goes back as far as the last such
+    // step saved, no further; a step that put one there cannot be done again once the object was taken away and the file saved.
+    using ObjectHook = std::function<void(const ObjectEdit &edit, bool forward)>;
     void setObjectHook(ObjectHook hook) { m_objectHook = std::move(hook); }
-    Outcome deleteObject(int sheet, int id, const QString &text);
+    Outcome deleteObject(int sheet, int id, const QString &text, const ObjectState &before, const ObjectState &after);
+    // The same for any change of objects (all in one step).
+    Outcome changeObjects(std::vector<ObjectEdit> edits, const QString &text);
 
     // ---- how the sheets print (editpage.cpp)
     // How a sheet prints now; and a change to it, one step of Undo (nothing if it is as it is). The print area, titles, and breaks follow rows, columns, and cells inserted and deleted.

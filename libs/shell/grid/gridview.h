@@ -259,6 +259,10 @@ private:
     void paintOverlay(QPainter *painter, const QRect &clip);
     void paintPageBreaks(QPainter *painter, const QRect &clip);
     bool overlayPress(QMouseEvent *e);
+    bool overlayMove(QMouseEvent *e);
+    bool overlayRelease(QMouseEvent *e);
+    bool overlayContext(QMouseEvent *e);
+    bool overlayDoubleClick(QMouseEvent *e);
     QRect bodyScrollRect(bool vertical) const;
 
     GridSheet m_sheet;

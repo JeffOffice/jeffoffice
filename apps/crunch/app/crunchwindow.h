@@ -19,6 +19,7 @@
 #include "core/loader.h"
 #include "grid/gridview.h"
 #include "grid/valuestore.h"
+#include "sheet/chartmake.h"
 
 #include <QElapsedTimer>
 #include <QHash>
@@ -30,6 +31,7 @@
 #include <memory>
 
 class QComboBox;
+class QDialog;
 class QDockWidget;
 class QPrinter;
 class QSpinBox;
@@ -39,9 +41,13 @@ class QLabel;
 class QLineEdit;
 class QMenu;
 class QSlider;
+class QToolButton;
 
 namespace jp {
 
+struct SelectDataRequest;
+struct ObjectProperties;
+namespace office { struct Chart; }
 class CrunchFileScreen;
 struct PageSetupRequest;
 namespace grid { struct SheetPrint; }
@@ -498,6 +504,7 @@ private:
     std::function<bool()> m_expandAsker;
     std::function<bool(QString *)> m_goToAsker;
     std::function<bool(jp::crunch::SpecialOptions *)> m_specialAsker;
+    void showNameInBox();
     // the clipboard (crunchwindow_clip.cpp)
     void createClipboardActions();
     void copySelection();
@@ -621,6 +628,68 @@ private:
     std::unique_ptr<crunch::SheetObjects> m_objects;
     quint64 m_objectsToken = 0;
     bool m_chartSheetShown = false;   // the sheet in view is a chart sheet: no command that works on cells is on
+
+
+    // ---- the charts: making and changing them (crunchwindow_charts.cpp)
+public:
+    // What New Chart asks (a dialog unless this stands in for it: tests): the kind, and how to read the cells (-1 as their shape says, 2 the other way); false gives it up.
+    struct InsertChartChoice {
+        jp::office::sheet::ChartKind kind = jp::office::sheet::ChartKind::Column;
+        int inRows = -1;
+    };
+    void setInsertChartAsker(const std::function<bool(InsertChartChoice *)> &asker) { m_insertChartAsker = asker; }
+    // Chart Data: given the chart and what a dialog needs, gives the chart as it should be; false gives it up.
+    void setSelectDataAsker(const std::function<bool(const SelectDataRequest &, jp::office::Chart *)> &asker) { m_selectDataAsker = asker; }
+    // Chart Kind: given each series' name and what it is drawn as, gives what each is to be drawn as.
+    void setChangeTypeAsker(const std::function<bool(const QStringList &, const QVector<jp::office::sheet::SeriesKind> &, QVector<jp::office::sheet::SeriesKind> *)> &asker) { m_changeTypeAsker = asker; }
+    // Properties of an object: its size and what it does when cells change.
+    void setPropertiesAsker(const std::function<bool(const ObjectProperties &, ObjectProperties *)> &asker) { m_propertiesAsker = asker; }
+    // The commands of charts, for tests and the menus: a chart of the kind from the cells selected; the picked object moved to an anchor; the model of the picked chart changed.
+    bool insertChart(jp::office::sheet::ChartKind kind, int inRows = -1);
+    void insertChartDialog();
+    // The dialogs, made but not shown, for whoever shows them (the window runs them; a tool takes pictures of them). Null if there is nothing for them to work on.
+    QDialog *makeInsertChartDialog();
+    QDialog *makeSelectDataDialog();
+    QDialog *makeChangeTypeDialog();
+    bool moveObject(int id, const jp::office::sheet::DrawingAnchor &anchor);
+    bool changePickedChart(const QString &text, const std::function<void(jp::office::Chart *)> &change);
+    void selectDataDialog();
+    // A picture of a chart of the kind from the cells selected (a part of them), at a size in pixels; null if there is nothing to chart.
+    QImage chartPreviewImage(jp::office::sheet::ChartKind kind, int inRows, const QSize &pixels);
+    void changeChartTypeDialog();
+    void propertiesDialog();
+    // The picked object, or -1.
+    int pickedObject() const;
+    // The chart buttons beside the picked chart (the elements, the looks), and what the context menu of an object has; for tests.
+    QToolButton *chartElementsButton() const { return m_chartPlus; }
+    QToolButton *chartLooksButton() const { return m_chartBrush; }
+    QMenu *buildObjectMenu(int id, QWidget *owner);
+    QMenu *buildChartElementsMenu(QWidget *owner);
+    QMenu *buildChartLooksMenu(QWidget *owner);
+    // Cut, Copy, and Paste of the picked object (a chart), within this workbook and between workbooks.
+    bool copyObject(bool cut);
+    bool pasteObject();
+    // Puts the picked object in front of or behind the others (+1 forward, -1 backward, 2 to the front, -2 to the back).
+    bool reorderObject(int how);
+
+private:
+    void createChartActions();
+    void chartRibbonParts(RibbonParts &parts);
+    SelectDataRequest selectDataRequest(int id);
+    void updateChartState();
+    void placeChartButtons();
+    bool chartPlanFor(jp::office::sheet::ChartKind kind, int inRows, jp::office::sheet::ChartPlan *plan, bool forPreview = false);
+    jp::office::sheet::DrawingAnchor newObjectAnchor(double width, double height);
+    void objectContextMenu(int id, const QPoint &global);
+    std::function<bool(InsertChartChoice *)> m_insertChartAsker;
+    std::function<bool(const SelectDataRequest &, jp::office::Chart *)> m_selectDataAsker;
+    std::function<bool(const QStringList &, const QVector<jp::office::sheet::SeriesKind> &, QVector<jp::office::sheet::SeriesKind> *)> m_changeTypeAsker;
+    std::function<bool(const ObjectProperties &, ObjectProperties *)> m_propertiesAsker;
+    QString m_workbookId;   // which workbook this is, among all that are open in any program: random for each one opened (what a copy says it came from)
+    jp::office::sheet::CellRange m_previewBlock;   // the block of cells the pictures of the New Chart dialog are drawn from, found once for all of them
+    QToolButton *m_chartPlus = nullptr, *m_chartBrush = nullptr;
+    QTimer m_chartButtonsTimer;
+    QStringList m_chartActions;
 
     grid::GridView *m_view = nullptr;
     Ribbon *m_ribbon = nullptr;

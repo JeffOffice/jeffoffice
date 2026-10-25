@@ -57,4 +57,35 @@ bool GridView::overlayPress(QMouseEvent *e)
     return m_overlay->press(mirror(e->pos()), m_sheet.layout(), e->modifiers());   // (in the layout's places)
 }
 
+bool GridView::overlayMove(QMouseEvent *e)
+{
+    if (!m_overlay) return false;
+    const QPoint lp = mirror(e->pos());
+    if (m_overlay->mouseMove(lp, m_sheet.layout(), e->buttons(), e->modifiers())) return true;
+    if (!(e->buttons() & Qt::LeftButton))
+        if (const std::optional<Qt::CursorShape> shape = m_overlay->cursorAt(lp, m_sheet.layout())) {
+            viewport()->setCursor(*shape);
+            return true;
+        }
+    return false;
+}
+
+bool GridView::overlayRelease(QMouseEvent *e)
+{
+    if (!m_overlay || e->button() != Qt::LeftButton) return false;
+    return m_overlay->mouseRelease(mirror(e->pos()), m_sheet.layout(), e->modifiers());
+}
+
+bool GridView::overlayContext(QMouseEvent *e)
+{
+    if (!m_overlay || e->button() != Qt::RightButton) return false;
+    return m_overlay->contextMenu(mirror(e->pos()), e->globalPosition().toPoint(), m_sheet.layout());
+}
+
+bool GridView::overlayDoubleClick(QMouseEvent *e)
+{
+    if (!m_overlay || e->button() != Qt::LeftButton) return false;
+    return m_overlay->doubleClick(mirror(e->pos()), m_sheet.layout());
+}
+
 } // namespace jp::grid

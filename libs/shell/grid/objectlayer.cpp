@@ -99,6 +99,7 @@ AnchorPoint anchorPointAt(const Axis &rows, const Axis &cols, double x, double y
 
 ObjectLayer::ObjectLayer(QObject *parent) : QObject(parent)
 {
+    qRegisterMetaType<jp::office::sheet::DrawingAnchor>();
     // (the charts are made one at a time: what they share (fonts, number formats) is then used by one thread besides the window's)
     m_pool.setMaxThreadCount(1);
     m_timer.setSingleShot(true);
@@ -127,6 +128,8 @@ void ObjectLayer::setObjects(std::vector<LayerObject> objects)
     m_shrink = 1.0;
     m_byId.clear();
     m_painting = false;
+    m_drag = Drag();   // (a drag of the objects there were is over)
+    m_dragEntry = size_t(-1);
     const size_t n = std::min<size_t>(objects.size(), size_t(kMaxObjects));
     m_entries.reserve(n);
     m_byId.reserve(n);
@@ -140,6 +143,46 @@ void ObjectLayer::setObjects(std::vector<LayerObject> objects)
     m_seen.assign(n, 0);
     m_query = 0;
     m_nearKey.clear();
+    requestRepaint();
+}
+
+void ObjectLayer::addObject(LayerObject object)
+{
+    if (m_entries.size() >= size_t(kMaxObjects)) return;
+    Entry e;
+    e.object = std::move(object);
+    m_maxMargin = std::max(m_maxMargin, e.object.margin);
+    m_byId.emplace(e.object.id, m_entries.size());
+    m_entries.push_back(std::move(e));
+    m_boxesValid = false;
+    m_indexValid = false;
+    m_firstLive = -2;
+    requestRepaint();
+}
+
+void ObjectLayer::moveObject(int id, size_t to)
+{
+    const size_t from = entryOf(id);
+    if (from >= m_entries.size() || to >= m_entries.size() || from == to) return;
+    // (the places of the objects change: a picture being made for a place is made again, and what it was told is not heard)
+    ++m_generation;
+    m_inflight = 0;
+    m_reserved = 0;
+    for (Entry &e : m_entries) {
+        e.pending = false;
+        e.reserved = 0;
+    }
+    Entry moved = std::move(m_entries[from]);
+    m_entries.erase(m_entries.begin() + qsizetype(from));
+    m_entries.insert(m_entries.begin() + qsizetype(to), std::move(moved));
+    m_byId.clear();
+    for (size_t i = 0; i < m_entries.size(); ++i) m_byId.emplace(m_entries[i].object.id, i);
+    m_indexValid = false;
+    m_firstLive = -2;
+    m_drag = Drag();   // (the places of the objects changed under a drag: it is given up)
+    m_dragEntry = size_t(-1);
+    m_seen.assign(m_entries.size(), 0);
+    schedule(0);
     requestRepaint();
 }
 
@@ -172,6 +215,12 @@ void ObjectLayer::setDeleted(int id, bool deleted)
     m_firstLive = -2;
     if (deleted && m_selected == id) m_selected = -1;
     requestRepaint();
+}
+
+void ObjectLayer::setName(int id, const QString &name)
+{
+    const size_t i = entryOf(id);
+    if (i < m_entries.size()) m_entries[i].object.name = name;
 }
 
 bool ObjectLayer::isDeleted(int id) const
@@ -321,6 +370,7 @@ void ObjectLayer::candidates(const GridLayout &layout, Pane pane, const QRect &a
         out->push_back(i);
     };
     for (const quint32 i : m_index.large) take(i);
+    if (m_dragEntry < m_entries.size()) take(quint32(m_dragEntry));
     for (qint64 sx = x0; sx <= x1; ++sx)
         for (qint64 sy = y0; sy <= y1; ++sy) {
             const auto it = m_index.squares.find(keyOf(sx, sy));
@@ -519,10 +569,8 @@ void ObjectLayer::paint(QPainter *p, const GridLayout &layout, Pane pane, const 
             p->drawRect(r.adjusted(1, 1, -2, -2));
             p->setPen(QPen(accent, 1));
             p->setBrush(Qt::white);
-            const int h = 3;
-            const QPoint corners[] = {r.topLeft(), r.topRight(), r.bottomLeft(), r.bottomRight(), QPoint(r.center().x(), r.top()), QPoint(r.center().x(), r.bottom()),
-                                      QPoint(r.left(), r.center().y()), QPoint(r.right(), r.center().y())};
-            for (const QPoint &c : corners) p->drawRect(QRect(c.x() - h, c.y() - h, 2 * h, 2 * h));
+            if (canMove(m_selected))
+                for (int h = 0; h < kHandles; ++h) p->drawRect(handleRect(h, r));
         }
     }
     p->restore();
@@ -767,16 +815,325 @@ int ObjectLayer::objectAt(const QPoint &point) const
     return -1;
 }
 
+QRect ObjectLayer::handleRect(int handle, const QRect &r) const
+{
+    const int h = kHandleSize / 2;
+    const int cx = r.left() + (r.width() - 1) / 2, cy = r.top() + (r.height() - 1) / 2;
+    const QPoint at[kHandles] = {r.topLeft(), QPoint(cx, r.top()), r.topRight(), QPoint(r.right(), cy), r.bottomRight(), QPoint(cx, r.bottom()), r.bottomLeft(), QPoint(r.left(), cy)};
+    const QPoint c = at[std::clamp(handle, 0, kHandles - 1)];
+    return QRect(c.x() - h, c.y() - h, kHandleSize, kHandleSize);
+}
+
+int ObjectLayer::handleAt(const QPoint &point) const
+{
+    if (!m_layout || m_selected < 0 || m_fills) return -1;
+    const size_t at = entryOf(m_selected);
+    if (at >= m_entries.size()) return -1;
+    ensureBoxes(*m_layout);
+    for (const Pane pane : kPanes) {
+        if (!m_layout->pane(pane).rect.contains(point)) continue;
+        const QRect r = rectIn(*m_layout, pane, m_entries[at]);
+        if (r.isEmpty()) return -1;
+        for (int h = 0; h < kHandles; ++h)
+            if (handleRect(h, r).adjusted(-1, -1, 1, 1).contains(point)) return h;
+        return -1;
+    }
+    return -1;
+}
+
+bool ObjectLayer::canMove(int id) const
+{
+    if (m_fills) return false;
+    const size_t i = entryOf(id);
+    return i < m_entries.size() && !m_entries[i].deleted;
+}
+
+bool ObjectLayer::anchorAtBox(const ObjectBox &box, AnchorKind editAs, DrawingAnchor *out) const
+{
+    if (!m_layout) return false;
+    DrawingAnchor a;
+    a.editAs = editAs;
+    const qint64 emu = kEmuPerPixel;
+    if (editAs == AnchorKind::Absolute) {
+        a.kind = AnchorKind::Absolute;
+        a.x = qint64(std::llround(std::max(0.0, box.x) * double(emu)));
+        a.y = qint64(std::llround(std::max(0.0, box.y) * double(emu)));
+        a.cx = qint64(std::llround(box.w * double(emu)));
+        a.cy = qint64(std::llround(box.h * double(emu)));
+    } else if (editAs == AnchorKind::OneCell) {
+        a.kind = AnchorKind::OneCell;
+        a.from = anchorPointAt(m_layout->rows, m_layout->cols, std::max(0.0, box.x), std::max(0.0, box.y));
+        a.cx = qint64(std::llround(box.w * double(emu)));
+        a.cy = qint64(std::llround(box.h * double(emu)));
+    } else {
+        a.kind = AnchorKind::TwoCell;
+        a.from = anchorPointAt(m_layout->rows, m_layout->cols, std::max(0.0, box.x), std::max(0.0, box.y));
+        a.to = anchorPointAt(m_layout->rows, m_layout->cols, std::max(0.0, box.x + box.w), std::max(0.0, box.y + box.h));
+    }
+    *out = a;
+    return true;
+}
+
+double ObjectLayer::snapAxis(const Axis &axis, double at) const
+{
+    if (axis.count() <= 0) return at;
+    const double total = double(axis.total());
+    if (at <= 0) return 0;
+    if (at >= total) return total;
+    const qint64 i = axis.indexAt(qint64(std::floor(at)));
+    const double a = double(axis.position(i)), b = double(axis.position(i + 1));
+    return at - a <= b - at ? a : b;
+}
+
+namespace {
+constexpr double kMinObject = 4;   // the smallest an object is made by hand, in the grid's units
+}
+
+ObjectBox ObjectLayer::dragBox(const Drag &d, const QPoint &point, Qt::KeyboardModifiers modifiers, const Entry &e) const
+{
+    const double zoom = std::max(1e-6, m_layout->zoom());
+    const double dx = (point.x() - d.from.x()) / zoom, dy = (point.y() - d.from.y()) / zoom;
+    const bool alt = modifiers & Qt::AltModifier, shift = modifiers & Qt::ShiftModifier;
+    ObjectBox b = d.start;
+    if (d.mode == DragMode::Move) {
+        b.x = std::max(0.0, b.x + dx);
+        b.y = std::max(0.0, b.y + dy);
+        if (alt) {
+            // the edge of the object nearest an edge of a cell goes to it
+            const double l = snapAxis(m_layout->cols, b.x) - b.x, r = snapAxis(m_layout->cols, b.x + b.w) - (b.x + b.w);
+            b.x += std::abs(l) <= std::abs(r) ? l : r;
+            const double t = snapAxis(m_layout->rows, b.y) - b.y, bo = snapAxis(m_layout->rows, b.y + b.h) - (b.y + b.h);
+            b.y += std::abs(t) <= std::abs(bo) ? t : bo;
+        }
+        return b;
+    }
+    const int h = d.handle;
+    const bool left = h == 0 || h == 6 || h == 7, right = h == 2 || h == 3 || h == 4, top = h == 0 || h == 1 || h == 2, bottom = h == 4 || h == 5 || h == 6;
+    double x0 = d.start.x, y0 = d.start.y, x1 = d.start.x + d.start.w, y1 = d.start.y + d.start.h;
+    if (left) x0 += dx;
+    if (right) x1 += dx;
+    if (top) y0 += dy;
+    if (bottom) y1 += dy;
+    if (alt) {
+        if (left) x0 = snapAxis(m_layout->cols, x0);
+        if (right) x1 = snapAxis(m_layout->cols, x1);
+        if (top) y0 = snapAxis(m_layout->rows, y0);
+        if (bottom) y1 = snapAxis(m_layout->rows, y1);
+    }
+    if (x1 - x0 < kMinObject) {
+        if (left) x0 = x1 - kMinObject;
+        else x1 = x0 + kMinObject;
+    }
+    if (y1 - y0 < kMinObject) {
+        if (top) y0 = y1 - kMinObject;
+        else y1 = y0 + kMinObject;
+    }
+    if (shift && (left || right) && (top || bottom) && d.start.w > 0 && d.start.h > 0) {
+        // a corner dragged with Shift keeps the proportions the object had: the greater change decides
+        const double sw = (x1 - x0) / d.start.w, sh = (y1 - y0) / d.start.h;
+        const double s = std::max(std::max(sw, sh), kMinObject / std::min(d.start.w, d.start.h));
+        const double w = d.start.w * s, hh = d.start.h * s;
+        if (left) x0 = x1 - w;
+        else x1 = x0 + w;
+        if (top) y0 = y1 - hh;
+        else y1 = y0 + hh;
+    }
+    Q_UNUSED(e);
+    b.x = std::max(0.0, x0);
+    b.y = std::max(0.0, y0);
+    b.w = std::max(kMinObject, x1 - std::max(0.0, x0));
+    b.h = std::max(kMinObject, y1 - std::max(0.0, y0));
+    return b;
+}
+
+void ObjectLayer::finishDrag(bool commit)
+{
+    const Drag d = m_drag;
+    m_drag = Drag();
+    m_dragEntry = size_t(-1);
+    if (d.mode == DragMode::None) return;
+    if (commit && d.changed && d.entry < m_entries.size()) {
+        DrawingAnchor a;
+        if (anchorAtBox(d.now, m_entries[d.entry].object.anchor.editAs, &a)) Q_EMIT objectMoved(d.id, a);
+    }
+    // (the box is the anchor's again: the anchor the window gives is what the person left, and if it gives none the object goes back)
+    m_boxesValid = false;
+    m_indexValid = false;
+    requestRepaint();
+}
+
+void ObjectLayer::cancelDrag() { finishDrag(false); }
+
 bool ObjectLayer::press(const QPoint &point, const GridLayout &layout, Qt::KeyboardModifiers)
 {
     m_layout = &layout;
+    finishDrag(false);
+    if (m_selected >= 0 && canMove(m_selected)) {
+        const int handle = handleAt(point);
+        if (handle >= 0) {
+            ensureBoxes(layout);
+            m_drag.mode = DragMode::Pending;
+            m_drag.id = m_selected;
+            m_drag.handle = handle;
+            m_drag.from = point;
+            m_drag.entry = entryOf(m_selected);
+            m_drag.start = m_entries[m_drag.entry].box;
+            return true;
+        }
+    }
     const int hit = objectAt(point);
     if (hit >= 0) {
         select(hit);
+        if (canMove(hit)) {
+            ensureBoxes(layout);
+            m_drag.mode = DragMode::Pending;
+            m_drag.id = hit;
+            m_drag.handle = -1;
+            m_drag.from = point;
+            m_drag.entry = entryOf(hit);
+            m_drag.start = m_entries[m_drag.entry].box;
+        }
         return true;
     }
     select(-1);
     return false;
+}
+
+bool ObjectLayer::mouseMove(const QPoint &point, const GridLayout &layout, Qt::MouseButtons buttons, Qt::KeyboardModifiers modifiers)
+{
+    if (m_drag.mode == DragMode::None) return false;
+    m_layout = &layout;
+    if (!(buttons & Qt::LeftButton)) {
+        finishDrag(false);
+        return false;
+    }
+    if (m_drag.mode == DragMode::Pending) {
+        // (a click that wobbles by a pixel or two moves nothing)
+        if ((point - m_drag.from).manhattanLength() < 4) return true;
+        m_drag.mode = m_drag.handle >= 0 ? DragMode::Resize : DragMode::Move;
+    }
+    if (m_drag.entry >= m_entries.size()) {
+        finishDrag(false);
+        return false;
+    }
+    Entry &e = m_entries[m_drag.entry];
+    m_drag.now = dragBox(m_drag, point, modifiers, e);
+    m_drag.changed = true;
+    e.box = m_drag.now;
+    m_dragEntry = m_drag.entry;
+    requestRepaint();
+    return true;
+}
+
+bool ObjectLayer::mouseRelease(const QPoint &point, const GridLayout &layout, Qt::KeyboardModifiers modifiers)
+{
+    if (m_drag.mode == DragMode::None) return false;
+    m_layout = &layout;
+    if (m_drag.mode != DragMode::Pending && m_drag.entry < m_entries.size()) {
+        m_drag.now = dragBox(m_drag, point, modifiers, m_entries[m_drag.entry]);
+        m_drag.changed = true;
+    }
+    finishDrag(true);
+    return true;
+}
+
+std::optional<Qt::CursorShape> ObjectLayer::cursorAt(const QPoint &point, const GridLayout &layout)
+{
+    m_layout = &layout;
+    if (m_fills || m_entries.empty()) return std::nullopt;
+    if (m_selected >= 0 && canMove(m_selected)) {
+        switch (handleAt(point)) {
+        case 0:
+        case 4: return Qt::SizeFDiagCursor;
+        case 2:
+        case 6: return Qt::SizeBDiagCursor;
+        case 1:
+        case 5: return Qt::SizeVerCursor;
+        case 3:
+        case 7: return Qt::SizeHorCursor;
+        default: break;
+        }
+    }
+    const int hit = objectAt(point);
+    if (hit < 0) return std::nullopt;
+    return hit == m_selected ? Qt::SizeAllCursor : Qt::ArrowCursor;
+}
+
+bool ObjectLayer::contextMenu(const QPoint &point, const QPoint &global, const GridLayout &layout)
+{
+    m_layout = &layout;
+    const int hit = objectAt(point);
+    if (hit < 0) return false;
+    select(hit);
+    Q_EMIT contextMenuRequested(hit, global);
+    return true;
+}
+
+bool ObjectLayer::doubleClick(const QPoint &point, const GridLayout &layout)
+{
+    m_layout = &layout;
+    const int hit = objectAt(point);
+    if (hit < 0) return false;
+    select(hit);
+    Q_EMIT objectActivated(hit);
+    return true;
+}
+
+bool ObjectLayer::nudge(int dx, int dy, bool resize, bool snap, double step)
+{
+    if (m_selected < 0 || !m_layout || !canMove(m_selected)) return false;
+    ensureBoxes(*m_layout);
+    const size_t at = entryOf(m_selected);
+    ObjectBox b = m_entries[at].box;
+    auto toward = [&](const Axis &axis, double edge, int direction) {
+        // the next edge of a cell past `edge` in the direction
+        if (axis.count() <= 0) return edge;
+        const qint64 i = axis.indexAt(qint64(std::floor(std::max(0.0, edge))));
+        for (qint64 k = std::max<qint64>(0, i - 1); k <= std::min<qint64>(axis.count(), i + 2); ++k) {
+            const double p = double(axis.position(k));
+            if (direction > 0 && p > edge + 0.5) return p;
+        }
+        if (direction < 0) {
+            for (qint64 k = std::min<qint64>(axis.count(), i + 1); k >= 0; --k) {
+                const double p = double(axis.position(k));
+                if (p < edge - 0.5) return p;
+            }
+            return 0.0;
+        }
+        return edge;
+    };
+    if (dx != 0) {
+        if (snap) {
+            const double edge = resize ? b.x + b.w : b.x;
+            const double target = toward(m_layout->cols, edge, dx);
+            if (resize) b.w += target - edge;
+            else b.x += target - edge;
+        } else if (resize) {
+            b.w += dx * step;
+        } else {
+            b.x += dx * step;
+        }
+    }
+    if (dy != 0) {
+        if (snap) {
+            const double edge = resize ? b.y + b.h : b.y;
+            const double target = toward(m_layout->rows, edge, dy);
+            if (resize) b.h += target - edge;
+            else b.y += target - edge;
+        } else if (resize) {
+            b.h += dy * step;
+        } else {
+            b.y += dy * step;
+        }
+    }
+    b.x = std::max(0.0, b.x);
+    b.y = std::max(0.0, b.y);
+    b.w = std::max(kMinObject, b.w);
+    b.h = std::max(kMinObject, b.h);
+    DrawingAnchor a;
+    if (!anchorAtBox(b, m_entries[at].object.anchor.editAs, &a)) return false;
+    Q_EMIT objectMoved(m_selected, a);
+    return true;
 }
 
 bool ObjectLayer::key(QKeyEvent *event)
@@ -793,7 +1150,24 @@ bool ObjectLayer::key(QKeyEvent *event)
         if (!m_deleteHook) break;
         m_deleteHook(m_selected);
         return true;
-    case Qt::Key_Escape: select(-1); return true;
+    case Qt::Key_Escape:
+        if (dragging()) {
+            cancelDrag();
+            return true;
+        }
+        select(-1);
+        return true;
+    case Qt::Key_Left:
+    case Qt::Key_Right:
+    case Qt::Key_Up:
+    case Qt::Key_Down: {
+        if (!canMove(m_selected)) return true;
+        const Qt::KeyboardModifiers m = event->modifiers();
+        const int key = event->key();
+        const int dx = key == Qt::Key_Left ? -1 : key == Qt::Key_Right ? 1 : 0, dy = key == Qt::Key_Up ? -1 : key == Qt::Key_Down ? 1 : 0;
+        nudge(dx, dy, m & Qt::ShiftModifier, m & Qt::AltModifier, (m & Qt::ControlModifier) ? 1 : 6);
+        return true;
+    }
     default: break;
     }
     select(-1);   // (any other key goes to the cells, and the object is let go)

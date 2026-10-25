@@ -40,6 +40,14 @@ public:
     // The value of a cell as the sheet has it now (empty for a cell that is not there), and the text its number format makes of it.
     virtual jp::calc::Value value(int sheet, quint32 row, quint32 col) const = 0;
     virtual QString text(int sheet, quint32 row, quint32 col) const = 0;
+    // The number format code of the cell ("General" for none; empty if the cells keep none to ask).
+    virtual QString formatCode(int sheet, quint32 row, quint32 col) const
+    {
+        Q_UNUSED(sheet);
+        Q_UNUSED(row);
+        Q_UNUSED(col);
+        return QString();
+    }
     virtual bool rowHidden(int sheet, quint32 row) const = 0;
     virtual bool columnHidden(int sheet, quint32 col) const = 0;
     // The rows and columns the sheet's cells reach (a whole column is read as far as the rows go).
@@ -138,5 +146,9 @@ void moveChartRefs(Chart *chart, const QStringList &sheetNames, const std::vecto
 // columns when the chart leaves them out (plotVisibleOnly); a point of an empty cell is a blank (NaN) and a text is 0. Linked titles take their cells' text. Returns the number of
 // series whose values were read. A series whose reference does not resolve keeps what the file stored.
 int applyChartCells(Chart *chart, int ownSheet, const ChartCells &cells);
+
+// The number formats of the cells a chart reads, put in the chart: a series' values take the format of the first cell they are read from (what a program that has no cells shows its
+// axis and labels in, when they are linked to the source), unless the chart says one that is not General. For a chart made here, whose model has none.
+void applyChartFormats(Chart *chart, int ownSheet, const ChartCells &cells);
 
 } // namespace jp::office::sheet
