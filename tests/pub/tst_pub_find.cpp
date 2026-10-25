@@ -1,6 +1,5 @@
 // JeffPub's tests of find, replace, spelling, and hyphenation.
 #include "pubhelpers.h"
-#include "../timing.h"
 
 class PubFindTests : public QObject {
     Q_OBJECT
@@ -396,23 +395,18 @@ private Q_SLOTS:
         };
         const auto smallDoc = documentOf(500), bigDoc = documentOf(8000);
         bool found = true;
-        auto timeOf = [&](const jp::Document &doc, int pages) {
-            return bestNanoseconds([&] {
-                const auto stories = jp::findStories(doc);
-                found = found && stories.size() == pages * 2;
-            }, 1);
+        auto workOf = [&](const jp::Document &doc, int pages) {
+            const qint64 before = jp::Document::itemsWalkedForTest();
+            const auto stories = jp::findStories(doc);
+            found = found && stories.size() == pages * 2;
+            return jp::Document::itemsWalkedForTest() - before;
         };
-        // Sixteen times the pages: linear work grows about 16 times (about 40 to 50 on a busy machine, where the bigger set spills out of the caches), the old
-        // quadratic walk 256 times, so a bound of 128 is far from both (at eight times the pages the two were 30 and 64 apart, and a busy machine went past 40). The two sizes take turns, the fastest of five rounds of each, so a load that comes or goes partway through slows
-        // both alike (timed one after the other, a busy spell over the bigger set alone failed a linear walk under the parallel gates).
-        qint64 small = std::numeric_limits<qint64>::max(), big = small;
-        for (int round = 0; round < 5; ++round) {
-            small = std::min(small, timeOf(*smallDoc, 500));
-            big = std::min(big, timeOf(*bigDoc, 8000));
-        }
+        // Counted: the items the document handed out to find the stories. Sixteen times the pages: linear work is sixteen times, the old quadratic walk (the whole
+        // document for each text box) 256 times, and the walk of one pass is one item for each item there is.
+        const qint64 small = workOf(*smallDoc, 500), big = workOf(*bigDoc, 8000);
         QVERIFY(found);
         QVERIFY(small > 0 && big > 0);
-        QVERIFY2(big < small * 128, qPrintable(QStringLiteral("500 pages: %1 us, 8000 pages: %2 us").arg(small / 1000).arg(big / 1000)));
+        QVERIFY2(small <= 2 * 500 * 2 && big <= 2 * 8000 * 2 && big < small * 20, qPrintable(QStringLiteral("500 pages: %1 items, 8000 pages: %2 items").arg(small).arg(big)));
     }
 
     // A Text Art's words are searched when the scope says so (not for JeffPub, whose pane does not follow a match into one): found,

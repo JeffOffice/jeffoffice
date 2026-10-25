@@ -1824,6 +1824,8 @@ double MSPUBCollector::getSpecialValue(const ShapeInfo &info, const CustomShape 
   return 0;
 }
 
+extern unsigned long long g_calculationsDone;
+
 double MSPUBCollector::getCalculationValue(const ShapeInfo &info, unsigned index, bool recursiveEntry, const std::vector<int> &adjustValues) const
 {
   std::shared_ptr<const CustomShape> p_shape = info.getCustomShape();
@@ -1876,6 +1878,7 @@ double MSPUBCollector::getCalculationValue(const ShapeInfo &info, unsigned index
   double valTwo = twoSpecial ? getSpecialValue(info, shape, c.m_argTwo, adjustValues) : c.m_argTwo;
   double valThree = threeSpecial ? getSpecialValue(info, shape, c.m_argThree, adjustValues) : c.m_argThree;
   m_calculationBusy[index] = 0;
+  ++g_calculationsDone;
   double v = calculate(c.m_flags & 0xFF, valOne, valTwo, valThree);
   if (!std::isfinite(v))   // JeffPub: a square root of a negative or a division by 0 is no coordinate
     v = 0;

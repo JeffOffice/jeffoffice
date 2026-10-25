@@ -155,11 +155,12 @@ QSize svgImageSize(const QSvgRenderer &r)
 
 } // namespace
 
-static thread_local qint64 g_imageDecodes = 0, g_imageBytesCompared = 0, g_svgLoads = 0;
+static thread_local qint64 g_imageDecodes = 0, g_imageBytesCompared = 0, g_svgLoads = 0, g_itemsWalked = 0;
 
 qint64 Document::imageDecodesForTest() { return g_imageDecodes; }
 qint64 Document::imageBytesComparedForTest() { return g_imageBytesCompared; }
 qint64 Document::svgLoadsForTest() { return g_svgLoads; }
+qint64 Document::itemsWalkedForTest() { return g_itemsWalked; }
 
 QImage ImageData::image() const
 {
@@ -1487,9 +1488,9 @@ ItemList Document::cloneItems(const ItemList &items)
 
 void Document::forEachItem(const std::function<void(Item *, int, const QString &)> &fn) const
 {
-    for (int p = 0; p < pages.size(); ++p) walkItems(pages[p]->items, [&](const ItemPtr &it) { fn(it.get(), p, QString()); });
-    for (const auto &m : masters) walkItems(m->items, [&](const ItemPtr &it) { fn(it.get(), -1, m->id); });
-    walkItems(scratch, [&](const ItemPtr &it) { fn(it.get(), -1, QString()); });
+    for (int p = 0; p < pages.size(); ++p) walkItems(pages[p]->items, [&](const ItemPtr &it) { ++g_itemsWalked; fn(it.get(), p, QString()); });
+    for (const auto &m : masters) walkItems(m->items, [&](const ItemPtr &it) { ++g_itemsWalked; fn(it.get(), -1, m->id); });
+    walkItems(scratch, [&](const ItemPtr &it) { ++g_itemsWalked; fn(it.get(), -1, QString()); });
 }
 
 bool Document::routeConnectors()

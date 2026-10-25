@@ -383,6 +383,9 @@ unsigned long getLength(librevenge::RVNGInputStream *const input)
 // JeffPub: UTF-16LE and windows-1252 are decoded here; other legacy
 // codepages go through a host-supplied hook (Qt) instead of ICU.
 static DecodeHook g_decodeHook = nullptr;
+unsigned long long g_calculationsDone = 0;
+unsigned long long calculationsDoneForTest() { return g_calculationsDone; }
+
 void setDecodeHook(DecodeHook hook)
 {
   g_decodeHook = hook;

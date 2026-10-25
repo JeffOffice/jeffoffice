@@ -460,6 +460,8 @@ public:
     static qint64 imageDecodesForTest();
     static qint64 imageBytesComparedForTest();
     static qint64 svgLoadsForTest();
+    // The items forEachItem has handed out on this thread since the program began: a count for tests of cost (a walk of the whole document for each item is the square).
+    static qint64 itemsWalkedForTest();
     // How many times the index of where items are was made again, for tests.
     int findIndexingsForTest() const { return m_indexings; }
     Item *item(const QString &itemId) const { return find(itemId).item; }

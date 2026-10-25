@@ -503,17 +503,23 @@ static const StandInWidths *measuredStandIn(const QString &family)
 // Whether a family is installed or an application font. The font database
 // takes about 0.2 ms to say, and layout asks it of every run: its answers are
 // kept until fonts are added or removed.
+static thread_local qint64 g_databaseAsked = 0;
+qint64 fontDatabaseAskedForTest() { return g_databaseAsked; }
+
 static bool haveFamily(const QString &family)
 {
     static QHash<QString, bool> cache;   // main thread only, like all layout
     static bool watching = false;
-    if (!qGuiApp) return QFontDatabase::hasFamily(family);
+    if (!qGuiApp) return (++g_databaseAsked, QFontDatabase::hasFamily(family));
     if (!watching) {
         QObject::connect(qGuiApp, &QGuiApplication::fontDatabaseChanged, qGuiApp, [] { cache.clear(); });
         watching = true;
     }
     auto it = cache.constFind(family);
-    if (it == cache.constEnd()) it = cache.insert(family, QFontDatabase::hasFamily(family));
+    if (it == cache.constEnd()) {
+        ++g_databaseAsked;
+        it = cache.insert(family, QFontDatabase::hasFamily(family));
+    }
     return *it;
 }
 

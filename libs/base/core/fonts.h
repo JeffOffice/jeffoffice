@@ -45,6 +45,8 @@ QByteArray fontWithItalicFlags(const QByteArray &font);
 // them, for the test that shows how the platform draws them.
 struct StandInStretch { QString family, standIn; int stretch[4]; };
 QList<StandInStretch> standInStretchesForTest();
+// How many times the font database has been asked whether a family is installed, on this thread, since the program began (the answers are kept): a count for tests of cost.
+qint64 fontDatabaseAskedForTest();
 // Every family the table of stand-ins names, sorted, for the same test.
 QStringList standInFamiliesForTest();
 // The name to write in files other programs read: a bundled font that is

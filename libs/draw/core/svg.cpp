@@ -20,6 +20,9 @@
 
 namespace jp::svg {
 
+static thread_local qint64 g_walkSteps = 0;
+qint64 walkStepsForTest() { return g_walkSteps; }
+
 namespace {
 
 const QString svgNs = QStringLiteral("http://www.w3.org/2000/svg");
@@ -648,6 +651,7 @@ static Drawing readParts(const QByteArray &svg, const QColor &currentColor, std:
     // nine levels making a billion parts; the work stops at a fixed count.
     int budget = 200000;
     std::function<void(int, QTransform, Style, int, const Node *)> walk = [&](int idx, QTransform ctm, Style st, int depth, const Node *use) {
+        ++g_walkSteps;
         if (depth > 32 || --budget < 0 || out.elements.size() >= 100000) {
             out.skipped = true;
             return;

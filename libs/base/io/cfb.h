@@ -30,6 +30,9 @@ struct File {
 };
 
 bool read(const QByteArray &bytes, File *out, QString *error = nullptr);
+// The work of following sector chains on this thread since the program began, in sectors followed and table entries set aside to follow them: a count for tests of cost
+// (a chain is followed once, not again for each stream that points at it).
+qint64 chainWorkForTest();
 // One stream ("Quill/QuillSub/CONTENTS") read straight from a file, touching
 // only its sectors and the tables that find them.
 QByteArray readStream(const QString &filePath, const QString &streamPath, QString *error = nullptr);

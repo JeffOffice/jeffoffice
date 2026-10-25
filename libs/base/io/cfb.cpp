@@ -77,6 +77,8 @@ QStringList File::streamPaths() const
 // ---------------- read ----------------
 namespace {
 
+thread_local qint64 g_chainWork = 0;   // see chainWorkForTest
+
 // The allocation tables and directory of a compound file, read through a
 // function that returns one sector: from bytes in memory, or from a file
 // (so one stream can be read without the rest).
@@ -101,9 +103,11 @@ struct Reader {
     {
         QVector<quint32> c;
         QVector<bool> seen(qsizetype(std::min<quint32>(limit, quint32(table.size()))), false);
+        g_chainWork += seen.size();
         for (quint32 cur = start; cur < quint32(seen.size()) && !seen[cur]; cur = table[cur]) {
             seen[cur] = true;
             c << cur;
+            ++g_chainWork;
         }
         return c;
     }
@@ -460,5 +464,7 @@ QByteArray write(const File &f)
     }
     return out;
 }
+
+qint64 chainWorkForTest() { return g_chainWork; }
 
 } // namespace jp::cfb
