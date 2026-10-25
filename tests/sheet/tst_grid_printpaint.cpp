@@ -6,8 +6,10 @@
 
 #include "grid/printpaint.h"
 
+#include <QBuffer>
 #include <QImage>
 #include <QPainter>
+#include <QPdfWriter>
 
 using namespace jp::grid;
 
@@ -382,6 +384,51 @@ private Q_SLOTS:
         for (int y = 0; y < int(54 * kPx); ++y)
             for (int x = 0; x < red.width(); ++x) colored = colored || isRed(red.pixel(x, y));
         QVERIFY(!colored);
+    }
+
+    // A dashed or dotted border is one stroke of a dashed pen on paper, not a mark for every dash: a page of dotted borders is a few kilobytes of PDF, not megabytes (and a printer is
+    // not sent tens of thousands of dots), and the dots are still there.
+    void dottedBordersAreStrokesOnPaper()
+    {
+        Page pg;
+        BorderSpec b;
+        b.bottom.style = BorderStyle::Dotted;
+        b.right.style = BorderStyle::Dashed;
+        pg.styles.borders.append(b);
+        CellFormat cf;
+        cf.border = 1;
+        pg.styles.formats.append(cf);
+        pg.styles.cellXfs.append(0);
+        const quint32 dotted = quint32(pg.styles.formats.size() - 1);
+        for (quint32 r = 0; r < 40; ++r)
+            for (quint32 c = 0; c < 10; ++c) pg.cell(r, c, dotted);
+        pg.open();
+        const SheetPrint p = pg.print();
+        QCOMPARE(p.pages.size(), size_t(1));
+        QByteArray bytes;
+        {
+            QBuffer buffer(&bytes);
+            QVERIFY(buffer.open(QIODevice::WriteOnly));
+            QPdfWriter pdf(&buffer);
+            pdf.setResolution(1200);
+            pdf.setPageSize(QPageSize(QSizeF(p.paper.width, p.paper.height), QPageSize::Point));
+            pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
+            QPainter qp(&pdf);
+            qp.scale(1200 / 72.0, 1200 / 72.0);
+            pg.painter->paint(&qp, p, p.pages[0], pg.setup, jp::office::sheet::HfContext(), true, nullptr);
+        }
+        QVERIFY2(bytes.size() > 1000, qPrintable(QString::number(bytes.size())));
+        QVERIFY2(bytes.size() < 60000, qPrintable(QString::number(bytes.size())));   // (a mark for each dash made it 180 kilobytes: over fifty thousand marks)
+        // the borders are there on an image (a hair of a line at this scale, so grey, not black): along the bottom of row 3, and down the right of column 3
+        const QImage img = pg.render(p, 0);
+        int inked = 0;
+        const int y = int((54 + 45) * kPx) - 1;
+        for (int x = int((50.4 + 10) * kPx); x < int((50.4 + 40) * kPx); ++x) inked += !isWhite(img.pixel(x, y));
+        QVERIFY2(inked > 10, qPrintable(QString::number(inked)));
+        int inkedDown = 0;
+        const int x = int((50.4 + 144) * kPx) - 1;
+        for (int row = int((54 + 15) * kPx); row < int((54 + 45) * kPx); ++row) inkedDown += !isWhite(img.pixel(x, row)) || !isWhite(img.pixel(x + 1, row));
+        QVERIFY2(inkedDown > 10, qPrintable(QString::number(inkedDown)));
     }
 
     // A page's drawing is the work of the cells on it: counted, for a sheet of a million rows.

@@ -299,6 +299,22 @@ void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int 
     // a dashed line: dashes of the pattern's lengths along the edge, from the whole pattern that the part in the clip begins in
     int period = 0;
     for (qreal d : dashes) period += int(d);
+    if (m_strokedDashes) {
+        // (one stroke: the pen's pattern is in widths of the pen, and begins at the stroke's start, so it is moved on by what the clip cut off)
+        QPen pen(color, thickness, Qt::CustomDashLine, Qt::FlatCap);
+        QList<qreal> pattern;
+        for (qreal d : dashes) pattern.append(d / thickness);
+        pen.setDashPattern(pattern);
+        pen.setDashOffset(double(lo % period) / thickness);
+        ++m_stats.dashSteps;
+        p->save();
+        p->setPen(pen);
+        const double across0 = (vertical ? x : y) + first + thickness / 2.0;
+        if (vertical) p->drawLine(QPointF(across0, y + from), QPointF(across0, y + from + size));
+        else p->drawLine(QPointF(x + from, across0), QPointF(x + from + size, across0));
+        p->restore();
+        return;
+    }
     qint64 at = (lo / period) * period;
     size_t step = 0;
     while (at < hi) {
@@ -841,6 +857,7 @@ void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
 {
     m_stats = PaintStats();
     m_mono = o.monochrome;
+    m_strokedDashes = o.strokedDashes;
     if (!m_sheet->data().sheet) {
         p->fillRect(clip, o.backdrop);   // (no sheet to show)
         return;

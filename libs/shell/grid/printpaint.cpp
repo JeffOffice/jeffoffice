@@ -86,6 +86,7 @@ void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &pag
     options.backdrop = Qt::white;
     options.paper = Qt::white;
     options.monochrome = setup.blackAndWhite;
+    options.strokedDashes = true;
     const double scale = print.scalePercent / 100.0;
     p->save();
     p->translate(m.cells.left(), m.cells.top());
