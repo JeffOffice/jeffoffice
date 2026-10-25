@@ -294,12 +294,14 @@ private Q_SLOTS:
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
         QVERIFY(saved.wait(20000));
+        QVERIFY2(saved.first().at(1).toBool(), "the save failed");
         const PageSetup back = savedPage(e.path);
         QVERIFY(back == p);
         // the second sheet's part is the same bytes, and the first sheet's cells are as they were
         QFile after(e.path);
         QVERIFY(after.open(QIODevice::ReadOnly));
         const QByteArray now = after.readAll();
+        after.close();   // (an open file can't be replaced on Windows: the next save would fail)
         QVector<jp::ZipEntry> a, b;
         QVERIFY(jp::readZipDirectory(was, &a) && jp::readZipDirectory(now, &b));
         auto raw = [](const QByteArray &zip, const QVector<jp::ZipEntry> &dir, const QString &name) {
@@ -316,6 +318,7 @@ private Q_SLOTS:
         QSignalSpy savedAgain(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
         QVERIFY(savedAgain.wait(20000));
+        QVERIFY2(savedAgain.first().at(1).toBool(), "the second save failed");
         const PageSetup undone = savedPage(e.path);
         QVERIFY(!undone.hasPrintArea());
         QVERIFY(!undone.titles.hasRows);
