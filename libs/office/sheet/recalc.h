@@ -67,6 +67,7 @@ protected:
     mutable std::vector<char> m_hiddenRowsReady;
     mutable bool m_tableIndexReady = false;
     mutable QHash<QString, int> m_tableByName;                   // by the lower-case name, the table's place among the workbook's
+    mutable std::vector<int> m_lastTableOfSheet;                 // the table a reference with no name was last found in, by the sheet (formulas of one table are worked out one after another)
     mutable std::vector<std::vector<int>> m_tablesOfSheet;       // by the sheet, the places of its tables
     QHash<QString, int> m_byName;
     QHash<QString, QString> m_names;   // "<sheet>|<NAME>" -> what it stands for; the sheet counted from 0, or -1

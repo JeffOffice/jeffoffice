@@ -12,6 +12,8 @@
 #include <QString>
 #include <QStringList>
 #include <QVector>
+#include <QHash>
+#include <QSet>
 
 #include <map>
 #include <memory>
@@ -86,8 +88,9 @@ struct TablePlace {
     int totalsRows = 0;
 };
 
-// The tables of the workbook, in the order of the sheets and of each sheet's relationships. Tables whose part can't be read are left out (and a table with no columns).
-QVector<Table> readTables(const Package &package, const WorkbookInfo &info);
+// The tables of the workbook, in the order of the sheets and of each sheet's relationships. Tables whose part can't be read are left out (and a table with no columns), and so is a table that has the
+// name, the id, or some of the cells of one before it (the first is kept; `notes`, if given, says what was left out).
+QVector<Table> readTables(const Package &package, const WorkbookInfo &info, QStringList *notes = nullptr);
 
 // A formula with the column of a table renamed: Table1[Old], Table1[[#This Row],[Old]], Table1[[Old]:[Next]], and, for a formula inside the table (`insideTable`), [@Old] and
 // [[#This Row],[Old]] with no table's name. Text in quotes and names of sheets are not touched, nor is a column of another table. A name that needs it is escaped (' before [ ] # and ')
@@ -103,6 +106,22 @@ bool renameTableXml(const QByteArray &xml, const QStringList &fileNames, const Q
 // is given a number after it, as the programs people know do ("Total" is "Total2" when there is a "Total"). Empty if there is no name to be made (nothing typed, or past the 255 characters
 // a column's name can have: `tooLong` says which).
 QString uniqueColumnName(const QString &typed, const QStringList &columns, int column, bool *tooLong = nullptr);
+
+// The names of a table's columns as they are made one after another (a table made from many cells, a table resized): each is looked for in a set, and a name that is taken is given the next
+// number that was not (not the first, counted again each time), so that making them all takes as long as there are names.
+class ColumnNames {
+public:
+    explicit ColumnNames(const QStringList &existing = QStringList());
+    void add(const QString &name);
+    bool taken(const QString &name) const { return m_lower.contains(name.toLower()); }
+    // `typed` made one that is free (and kept as taken), as uniqueColumnName does; empty if there is no name to make.
+    QString unique(const QString &typed, bool *tooLong = nullptr);
+    // "Column1", "Column2", ... the first from `from` that is free (kept as taken).
+    QString fresh(int from);
+private:
+    QSet<QString> m_lower;
+    QHash<QString, int> m_next;
+};
 
 // ---- the part of a table, read into the model and written from it
 

@@ -358,6 +358,16 @@
     </message>
 </context>
 <context>
+    <name>jp::office::sheet::Tables</name>
+    <message numerus="yes">
+        <source>%n table(s) that have the name, the number, or the cells of another table were not read (the first is %1).</source>
+        <translation>
+            <numerusform>%n table that has the name, the number, or the cells of another table was not read (it is %1).</numerusform>
+            <numerusform>%n tables that have the name, the number, or the cells of another table were not read (the first is %1).</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::office::wml</name>
     <message numerus="yes">
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>

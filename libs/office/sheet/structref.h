@@ -36,4 +36,7 @@ QString renameTableInFormula(const QString &formula, const QString &oldName, con
 // #REF!); a reference that stands for no cells is #REF!. A formula on another sheet than the table's names the sheet.
 QString structuredRefsToCells(const QString &formula, const Table &table, const QString &tableSheetName, const QString &formulaSheetName, qint64 formulaRow, bool insideTable);
 
+// A formula with the references to a table that is gone written as #REF!.
+QString structuredRefsToError(const QString &formula, const QString &tableName);
+
 } // namespace jp::office::sheet

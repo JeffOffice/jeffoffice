@@ -164,6 +164,7 @@ public:
         n += qint64(m_step.styles.size()) * qint64(sizeof(StyleCell));
         for (const TableRename &r : m_step.renames) n += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
         for (const TableEdit &e : m_step.tables) n += qint64(sizeof(e)) + tableBytes(e.before) + tableBytes(e.after);
+        for (const FillEdit &f : m_step.fills) n += qint64(sizeof(f)) + qint64(f.formula.size() + f.oldFormula.size()) * 2 + qint64(f.oldRuns.size()) * qint64(sizeof(std::pair<quint32, quint32>));
         for (const MergeEdit &m : m_step.merges) n += qint64(sizeof(m)) + qint64(m.before.size() + m.after.size()) * qint64(sizeof(jp::office::sheet::CellRange));
         for (const FilterEdit &f : m_step.filters) n += qint64(sizeof(f)) + filterBytes(f.before) + filterBytes(f.after);
         for (const NameEdit &e : m_step.names) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.before.name.size() + e.after.name.size() + e.textBefore.size() + e.textAfter.size()) * 2;
@@ -668,7 +669,29 @@ EditSession::Outcome EditSession::typeInHeader(int sheet, quint32 row, quint32 c
     }
     Step step;
     step.cells = std::move(changes);
-    if (name != oldName) step.renames.push_back({table, column, oldName, name});
+    if (name != oldName) {
+        step.renames.push_back({table, column, oldName, name});
+        // the formulas other tables keep for their columns that name the column follow it (the table's own follow with the rename)
+        const QVector<Table> &all = m_book->book->tables();
+        for (int i = 0; i < all.size(); ++i) {
+            if (i == table) continue;
+            Table other = all[i];
+            bool changed = false;
+            for (TableColumnInfo &c : other.info) {
+                const QString a = renameColumnInFormula(c.calcFormula, t.name, oldName, name, false), b = renameColumnInFormula(c.totalsFormula, t.name, oldName, name, false);
+                changed = changed || a != c.calcFormula || b != c.totalsFormula;
+                c.calcFormula = a;
+                c.totalsFormula = b;
+            }
+            if (!changed) continue;
+            TableEdit e;
+            e.kind = TableEdit::Kind::Replace;
+            e.index = i;
+            e.before = all[i];
+            e.after = other;
+            step.tables.push_back(std::move(e));
+        }
+    }
     pushStep(std::move(step), tr("Typing in %1").arg(cellName(row, col)));
     return out;
 }
@@ -782,6 +805,38 @@ bool EditSession::apply(Step *step, bool forward)
     applyTableEdits(step, forward, calc, book, &tableSheets);
     std::map<int, std::vector<ValueStore::Item>> cells;
     std::vector<ValueStore::Item> formulas;
+    // the cells a formula was filled into (or taken out of, by Undo), one row at a time; the values of the formulas come from the worker
+    auto putFills = [&] {
+        if (step->fills.empty()) return;
+        Calculation::BulkEdit bulk(calc);
+        for (const FillEdit &f : step->fills) {
+            auto oldHolds = [&](quint32 row) {
+                const auto run = std::upper_bound(f.oldRuns.begin(), f.oldRuns.end(), row, [](quint32 r, const std::pair<quint32, quint32> &x) { return r < x.first; });
+                return run != f.oldRuns.begin() && row <= std::prev(run)->second;
+            };
+            for (quint32 row = f.row1; row <= f.row2; ++row) {
+                ValueStore::Item it;
+                it.sheet = f.sheet;
+                it.row = row;
+                it.col = f.col;
+                if (forward) {
+                    calc->setFormula(f.sheet, row, f.col, shiftFormula(f.formula, int(qint64(row) - qint64(f.base)), 0), Calculation::Marking::Later);
+                    formulas.push_back(it);
+                } else if (oldHolds(row)) {
+                    calc->setFormula(f.sheet, row, f.col, shiftFormula(f.oldFormula, int(qint64(row) - qint64(f.oldBase)), 0), Calculation::Marking::Later);
+                    formulas.push_back(it);
+                } else {
+                    const quint32 style = calc->content(f.sheet, row, f.col).style;
+                    calc->setValue(f.sheet, row, f.col, Value(), Calculation::Marking::Later);
+                    calc->setStyle(f.sheet, row, f.col, style);
+                }
+                m_touched.insert(keyOf(f.sheet, row, f.col));
+                cells[f.sheet].push_back(it);
+                if (row == f.row2) break;
+            }
+        }
+        };
+    if (!forward) putFills();   // (Undo takes the fills out first: the cells that were there come back after)
     {
         Calculation::BulkEdit bulk(calc);   // (what waits to be worked out is put right once, not at each of the cells)
         for (CellChange &ch : step->cells) {
@@ -827,6 +882,7 @@ bool EditSession::apply(Step *step, bool forward)
             }
         }
     }
+    if (forward) putFills();
     {
         // the cells whose format alone changed: told one by one, or, when there are very many, as the whole sheet being drawn again
         const bool many = step->styles.size() > 20000;
@@ -863,10 +919,18 @@ bool EditSession::apply(Step *step, bool forward)
     if (!tableSheets.empty()) calc->tablesChanged();
     // (the rows a filter or a person hid or showed: the subtotals leave out the rows that are hidden)
     {
+        // (only a row that was hidden or shown matters, not one that was made taller)
+        auto hiddenOf = [](const auto &specs) {
+            std::set<quint32> rows;
+            for (const RowSpec &r : specs)
+                if (r.hidden) rows.insert(r.row);
+            return rows;
+        };
         std::set<int> hiddenSheets;
-        for (const RowSpecsEdit &e : step->rowSpecs) hiddenSheets.insert(e.sheet);
+        for (const RowSpecsEdit &e : step->rowSpecs)
+            if (hiddenOf(e.before) != hiddenOf(e.after)) hiddenSheets.insert(e.sheet);
         for (const SizeEdit &e : step->sizes)
-            if (!e.columns) hiddenSheets.insert(e.sheet);
+            if (!e.columns && hiddenOf(e.rowsBefore) != hiddenOf(e.rowsAfter)) hiddenSheets.insert(e.sheet);
         for (const int hs : hiddenSheets) calc->hiddenRowsAndSubtotals(hs);
     }   // (the formulas that name a table's columns are worked out again, now that the cells and the tables are as they are to be)
     applyCalcEdits(step, forward, calc);
@@ -897,7 +961,7 @@ bool EditSession::apply(Step *step, bool forward)
     if (!step->tables.empty() && !step->sheets.empty()) calc->tablesChanged();   // (the tables of a sheet copied are looked up where the sheets are now)
     if (m_holdHook) m_holdHook(calc, true);
     // (a change of formats alone leaves nothing for the worker to work out)
-    bool valuesChanged = !step->renames.empty() || !step->tables.empty() || !step->names.empty() || !step->calcs.empty();
+    bool valuesChanged = !step->renames.empty() || !step->tables.empty() || !step->fills.empty() || !step->names.empty() || !step->calcs.empty();
     for (const CellChange &ch : step->cells) valuesChanged = valuesChanged || !ch.styleOnly;
     for (const SheetEdit &e : step->sheets) valuesChanged = valuesChanged || e.kind == SheetEdit::Kind::Insert || e.kind == SheetEdit::Kind::Copy || e.kind == SheetEdit::Kind::Delete || e.kind == SheetEdit::Kind::Rename;
     if (valuesChanged) hold->changed();

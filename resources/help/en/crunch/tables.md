@@ -18,9 +18,13 @@ The **Table** tab shows while the cursor is in a table.
 - **Change Table Size…** asks for the cells the table covers. It keeps its first cell; rows and columns can be added at the bottom and the right, or taken off.
 - **Back to Plain Cells** turns the table into ordinary cells. They keep what they hold. A formula that named the table or its columns names the cells instead.
 
+## The menu of the cells
+
+Right-click a cell of a table and choose **Table**: **Insert Row Above**, **Insert Row Below**, **Insert Column Left**, **Insert Column Right**, **Delete Table Rows**, **Delete Table Columns**, **Totals Row**, and **Back to Plain Cells**. They put in or take out whole rows and columns of the sheet, as Insert and Delete do; one put in just past the table's end is taken in by the table.
+
 ## Totals row
 
-Turn on **Totals Row** and the row under the table holds the word Total in its first column and a total in its last. Each cell of the row has a button: choose what the column's total shows (the average, a count, a count of numbers, the largest, the smallest, the sum, the standard deviation, the variance, or **Your Own Formula**). A total is a SUBTOTAL of its column, so it leaves out rows a filter hides.
+Turn on **Totals Row** and the row under the table holds the word Total in its first column and a total in its last. Each cell of the row has a button: choose what the column's total shows (the average, a count, how many numbers there are, the largest, the smallest, the sum, the standard deviation, the variance, or **Your Own Formula**). A total is a SUBTOTAL of its column, so it leaves out rows a filter hides.
 
 ## Adding to a table
 

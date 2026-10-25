@@ -19,6 +19,7 @@ namespace jp::office::sheet {
 namespace {
 
 constexpr int kMaxPartNodes = 200000;
+constexpr int kMaxPartDepth = 100;   // (a table's part is four or five deep; the writing and the letting go of the tree go as deep as it)
 constexpr qint64 kMaxPartBytes = 16 << 20;
 constexpr int kMaxTableColumns = 16384;
 const char *const kMainNs = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
@@ -82,7 +83,7 @@ bool parseTree(const QByteArray &xml, XNode *root)
     while (!r.atEnd()) {
         const QXmlStreamReader::TokenType tok = r.readNext();
         if (tok == QXmlStreamReader::StartElement) {
-            if (++count > kMaxPartNodes) return false;
+            if (++count > kMaxPartNodes || int(stack.size()) >= kMaxPartDepth) return false;
             XNode node;
             node.name = r.qualifiedName().toString();
             for (const QXmlStreamAttribute &a : r.attributes()) node.attrs.emplace_back(a.qualifiedName().toString(), a.value().toString());

@@ -290,8 +290,8 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
             kept = 'P';
         } else {
             const Program &p = *slot.program;
-            if (p.structured) m_structuredNodes.push_back(id);
-            if (isSubtotal(n.sheet, n.row, n.col)) m_subtotalNodes.push_back(id);
+            if (p.structured) m_structuredNodes.insert(id);
+            if (isSubtotal(n.sheet, n.row, n.col)) m_subtotalNodes.insert(id);
             told = slot.usesNames || slot.dynamic || slot.reaches;
             always = slot.dynamic || slot.changesByItself;
             if (m_options.keepApart) {
@@ -1107,8 +1107,22 @@ void Calculation::tablesChanged()
     abandonNow();
     BulkEdit bulk(this);
     // (the formulas that name a table's columns: each is registered again, which works it out and what reads it; the ones it finds are listed anew)
-    std::vector<quint32> ids;
-    ids.swap(m_structuredNodes);
+    std::vector<quint32> ids(m_structuredNodes.begin(), m_structuredNodes.end());
+    m_structuredNodes.clear();
+    // (a defined name that names a table's columns stands for other cells now: what uses a name is registered again, with what each name stands for looked at anew)
+    bool namesOfTables = false;
+    for (auto it = m_names.constBegin(); it != m_names.constEnd() && !namesOfTables; ++it) namesOfTables = it.value().contains(QLatin1Char('['));
+    if (namesOfTables) {
+        m_nameTraits.clear();
+        for (SheetState &state : m_state) {
+            for (Compiled &slot : state.plain) slot.tried = false;
+            for (Compiled &slot : state.array) slot.tried = false;
+        }
+        for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
+            const Node &n = m_nodes[id];
+            if (!(n.flags & Dead) && (n.flags & Told)) ids.push_back(id);
+        }
+    }
     std::sort(ids.begin(), ids.end());
     ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
     for (const quint32 id : ids)
@@ -1121,10 +1135,9 @@ void Calculation::hiddenRowsAndSubtotals(int sheet)
     hiddenRowsChanged(sheet);
     abandonNow();
     BulkEdit bulk(this);
-    std::vector<quint32> ids;
-    ids.swap(m_subtotalNodes);
+    std::vector<quint32> ids(m_subtotalNodes.begin(), m_subtotalNodes.end());
+    m_subtotalNodes.clear();
     std::sort(ids.begin(), ids.end());
-    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
     for (const quint32 id : ids)
         if (id < m_nodes.size()) readdNode(id);
     if (!m_running) beginRecalculation();

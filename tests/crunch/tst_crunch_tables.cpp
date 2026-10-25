@@ -22,6 +22,7 @@
 #include <QTreeWidget>
 
 #include <QMenu>
+#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QToolButton>
 #include <QUndoStack>
@@ -809,6 +810,10 @@ private Q_SLOTS:
         QVERIFY(w.session()->workbook()->tables().first().filterButtons);
         QVERIFY(e.win.told.last().contains(QStringLiteral("Clear its filter first")));
         QVERIFY(w.act(QStringLiteral("table.buttons"))->isChecked());
+        // and so does its row of names: a filtered table's names stay until the filter is cleared
+        const auto namesOff = w.session()->setTableHeaderRow(0, false);
+        QVERIFY(!namesOff.ok && namesOff.problem.contains(QStringLiteral("filtered")));
+        QCOMPARE(w.session()->workbook()->tables().first().headerRows, 1);
         // cleared: the rows are shown again, and the totals count them
         w.act(QStringLiteral("filter.clear"))->trigger();
         QTRY_VERIFY(!w.isFiltering());
@@ -1011,6 +1016,338 @@ private Q_SLOTS:
         Saved again;
         QVERIFY(again.open(e.path));
         QCOMPARE(again.book.tables().size(), 2);
+    }
+
+    // The rows a table's filter hid in a file are the filter's (not a person's): Clear shows them, Reapply hides them again, and a row hidden in a table that has no conditions is a person's.
+    void rowsHiddenByATablesFilterInAFileAreTheFilters()
+    {
+        const QString part = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"%1\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:C4\"><autoFilter ref=\"A1:C4\">"
+                                           "<filterColumn colId=\"0\"><filters><filter val=\"East\"/><filter val=\"West\"/></filters></filterColumn></autoFilter><tableColumns count=\"3\">"
+                                           "<tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/><tableColumn id=\"3\" name=\"Q2\"/></tableColumns>"
+                                           "<tableStyleInfo name=\"TableStyleMedium2\" showRowStripes=\"1\"/></table>")
+                                 .arg(QStringLiteral("http://schemas.openxmlformats.org/spreadsheetml/2006/main"));
+        auto book = [&](const QString &p, int hiddenRow) {
+            QString rows = QStringLiteral("<row r=\"1\">%1%2%3</row>").arg(text(QStringLiteral("A1"), QStringLiteral("Region")), text(QStringLiteral("B1"), QStringLiteral("Q1")), text(QStringLiteral("C1"), QStringLiteral("Q2")));
+            const char *names[] = {"East", "West", "North"};
+            for (int i = 0; i < 3; ++i)
+                rows += QStringLiteral("<row r=\"%1\"%4>%2%3</row>").arg(i + 2).arg(text(QStringLiteral("A%1").arg(i + 2), QLatin1String(names[i])), num(QStringLiteral("B%1").arg(i + 2), i + 1),
+                                                                         hiddenRow == i + 2 ? QStringLiteral(" hidden=\"1\"") : QString());
+            return withTables(buildXlsx({worksheet(rows)}), {p});
+        };
+        {
+            EditWindow e;
+            QVERIFY(e.open(book(part, 4)));
+            CrunchWindow &w = e.win.w;
+            w.session()->setLocale(kUs);
+            QVERIFY(e.settle());
+            QVERIFY(w.session()->rowFilteredOut(0, 3));      // (the fourth row: North, which the filter does not let through)
+            QVERIFY(!w.session()->rowFilteredOut(0, 1));
+            e.select(QStringLiteral("B2"));
+            w.act(QStringLiteral("filter.clear"))->trigger();
+            QTRY_VERIFY(!w.isFiltering());
+            QVERIFY(e.settle());
+            QVERIFY(!rowHidden(e, 3));
+            QVERIFY(!w.session()->tableFilter(0).active());
+            w.undoStack()->undo();
+            QVERIFY(rowHidden(e, 3));
+            w.undoStack()->redo();
+            QVERIFY(!rowHidden(e, 3));
+            // Reapply: the conditions were taken off, so nothing is hidden; put the filter back by undoing, then reapply keeps North hidden
+            w.undoStack()->undo();
+            w.act(QStringLiteral("filter.reapply"))->trigger();
+            QTRY_VERIFY(!w.isFiltering());
+            QVERIFY(rowHidden(e, 3));
+        }
+        {
+            // no conditions: a hidden row is a person's, and the table's Clear leaves it
+            QString plain = part;
+            plain.replace(QRegularExpression(QStringLiteral("<filterColumn.*</filterColumn>")), QString());
+            EditWindow e;
+            QVERIFY(e.open(book(plain, 3)));
+            QVERIFY(e.settle());
+            QVERIFY(!e.win.w.session()->rowFilteredOut(0, 2));
+            QVERIFY(rowHidden(e, 2));
+        }
+    }
+
+    // Sort from the ribbon with the cursor in a table puts the table's rows of data in order, and nothing else: not its row of names, not its row of totals, not the cells under it.
+    void sortInATableSortsItsRowsOfDataOnly()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        CrunchWindow &w = e.win.w;
+        w.session()->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(w.session()->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(w.session()->setTableTotalsRow(0, true).ok);
+        QVERIFY(e.settle());
+        QVERIFY(w.session()->type(0, 5, 0, QStringLiteral("under")).ok);   // (a cell right under the row of totals)
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("B3"));
+        w.act(QStringLiteral("sort.descending"))->trigger();
+        QTRY_VERIFY(!w.isSorting());
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A1")), QStringLiteral("s:Region"));
+        QCOMPARE(valueOf(e, QStringLiteral("A2")), QStringLiteral("s:North"));
+        QCOMPARE(valueOf(e, QStringLiteral("A3")), QStringLiteral("s:West"));
+        QCOMPARE(valueOf(e, QStringLiteral("A4")), QStringLiteral("s:East"));
+        QCOMPARE(valueOf(e, QStringLiteral("A5")), QStringLiteral("s:Total"));
+        QCOMPARE(valueOf(e, QStringLiteral("A6")), QStringLiteral("s:under"));
+        QCOMPARE(valueOf(e, QStringLiteral("C5")), QStringLiteral("n:60"));
+        // a selection of cells in the table is sorted among its rows of data, and one that takes in the names is clipped to the data
+        e.view()->selectRange(0, 1, 3, 2);
+        w.act(QStringLiteral("sort.ascending"))->trigger();
+        QTRY_VERIFY(!w.isSorting());
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("B1")), QStringLiteral("s:Q1"));
+        QCOMPARE(valueOf(e, QStringLiteral("B2")), QStringLiteral("n:1"));
+        QCOMPARE(valueOf(e, QStringLiteral("B4")), QStringLiteral("n:3"));
+        QCOMPARE(valueOf(e, QStringLiteral("A2")), QStringLiteral("s:North"));   // (the first column was not in it)
+    }
+
+    // A defined name can't take a table's name, in any way a name is made: the dialog's check, a change of name, and names from labels.
+    void aDefinedNameCannotTakeATablesName()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(s->renameTable(0, QStringLiteral("Sales")).ok);
+        crunch::EditSession::NameDraft d;
+        d.name = QStringLiteral("sales");
+        d.text = QStringLiteral("Sheet1!$B$2");
+        QVERIFY(!s->nameProblem(d, -1).isEmpty());
+        QVERIFY(!s->defineName(d).ok);
+        d.name = QStringLiteral("Rate");
+        int made = -1;
+        QVERIFY(s->defineName(d, &made).ok);
+        d.name = QStringLiteral("SALES");
+        QVERIFY(!s->changeName(made, d).ok);
+        QVERIFY(s->names().at(made).name == QLatin1String("Rate"));
+        // names from labels: a label that is a table's name makes none
+        QVERIFY(s->type(0, 9, 0, QStringLiteral("Sales")).ok);
+        QVERIFY(s->type(0, 9, 1, QStringLiteral("7")).ok);
+        int madeFromLabels = 0, skipped = 0;
+        CellRange block = rangeText(QStringLiteral("A10:B10"));
+        QVERIFY(s->defineNamesFromLabels(0, block, 2, &madeFromLabels, &skipped).ok);
+        QCOMPARE(madeFromLabels, 0);
+        QVERIFY(skipped >= 1);
+    }
+
+    // A header typed over renames the column in the formulas other tables keep for their columns too (and Undo gives the name back), and a defined name that names a table's columns reads
+    // the table as it is when the table grows.
+    void otherTablesAndNamedRangesFollowATable()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(s->renameTable(0, QStringLiteral("Sales")).ok);
+        QVERIFY(s->type(0, 0, 5, QStringLiteral("Sum")).ok);
+        QVERIFY(s->type(0, 1, 5, QStringLiteral("x")).ok);
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("F1:G2")), true, QString()).ok);
+        QCOMPARE(s->workbook()->tables().last().columns.size(), 2);
+        QVERIFY(s->type(0, 1, 6, QStringLiteral("=SUM(Sales[Q1])")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().last().info[1].calcFormula, QStringLiteral("SUM(Sales[Q1])"));
+        QVERIFY(s->type(0, 0, 1, QStringLiteral("First")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().last().info[1].calcFormula, QStringLiteral("SUM(Sales[First])"));
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().last().info[1].calcFormula, QStringLiteral("SUM(Sales[Q1])"));
+        QCOMPARE(s->workbook()->tables().first().columns.at(1), QStringLiteral("Q1"));
+        // a defined name that is a table's column: what reads the name follows the table when it grows by a row typed under it
+        crunch::EditSession::NameDraft d;
+        d.name = QStringLiteral("Quarter");
+        d.text = QStringLiteral("=Sales[Q1]");
+        QVERIFY(s->defineName(d).ok);
+        QVERIFY(s->type(0, 9, 0, QStringLiteral("=SUM(Quarter)")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A10")), QStringLiteral("n:6"));
+        QVERIFY(s->type(0, 4, 1, QStringLiteral("10")).ok);      // (under the table: it grows)
+        QVERIFY(e.settle());
+        QCOMPARE(int(s->workbook()->tables().first().row2), 4);
+        QCOMPARE(valueOf(e, QStringLiteral("A10")), QStringLiteral("n:16"));
+        e.win.w.undoStack()->undo();                               // (the growth)
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A10")), QStringLiteral("n:6"));
+        // pointing at a cell of a table from another row, or another sheet, is a plain reference
+    }
+
+    // A formula typed in an empty column of a table of very many rows fills it a slice at a time (no slice is more than a few thousand cells), as one step of Undo that takes the whole
+    // column out and puts it back; a table longer than the old limit of 100,000 rows is filled to its end.
+    void aVeryLongCalculatedColumnIsFilledInSlices()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"/>"))})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:B250001")), true, QString()).ok);
+        QUndoStack *u = e.win.w.undoStack();
+        QVERIFY(s->type(0, 1, 1, QStringLiteral("=A2*2")).ok);
+        QVERIFY(s->fillPending());
+        QVERIFY(s->isSlicing());
+        QString why;
+        QVERIFY(!s->canEdit(&why));                                   // (nothing else is changed while it goes on)
+        QTRY_VERIFY_WITH_TIMEOUT(!s->fillPending(), 120000);
+        QVERIFY(s->canEdit());
+        QVERIFY(s->slicesPushed() >= 10);
+        QVERIFY2(s->longestSlice() <= 20000, qPrintable(QString::number(s->longestSlice())));
+        QCOMPARE(editOf(e, QStringLiteral("B250001")), QStringLiteral("=A250001*2"));
+        QCOMPARE(editOf(e, QStringLiteral("B100001")), QStringLiteral("=A100001*2"));
+        QCOMPARE(s->workbook()->tables().first().info[1].calcFormula, QStringLiteral("A2*2"));
+        const int steps = u->count();
+        u->undo();                                                    // the fill, in one step
+        QCOMPARE(u->count(), steps);
+        QCOMPARE(editOf(e, QStringLiteral("B3")), QString());
+        QCOMPARE(editOf(e, QStringLiteral("B250001")), QString());
+        QCOMPARE(editOf(e, QStringLiteral("B2")), QStringLiteral("=A2*2"));
+        QCOMPARE(s->workbook()->tables().first().info[1].calcFormula, QString());
+        u->redo();
+        QCOMPARE(editOf(e, QStringLiteral("B250001")), QStringLiteral("=A250001*2"));
+        QVERIFY(e.settle());
+    }
+
+    // A sheet that has tables can be deleted: its tables go with it, what names them on other sheets is #REF! (in the cells, and in the file), and Undo brings the tables and the formulas back.
+    void aSheetWithTablesCanBeDeleted()
+    {
+        const QByteArray two = buildXlsx({salesRows(), worksheet(row(1, formula(QStringLiteral("A1"), QStringLiteral("SUM(Sales[Q1])")) + formula(QStringLiteral("B1"), QStringLiteral("SUM(A2:A3)"))))},
+                                         QByteArray(), QString(), QString(), QByteArray(), QStringList{QStringLiteral("Data"), QStringLiteral("Other")});
+        EditWindow e;
+        QVERIFY(e.open(two));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(s->renameTable(0, QStringLiteral("Sales")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A1"), 1), QStringLiteral("n:6"));
+        const auto gone = s->deleteSheet(0);
+        QVERIFY2(gone.ok, qPrintable(gone.problem));
+        QVERIFY(e.settle());
+        QVERIFY(s->workbook()->tables().isEmpty());
+        QCOMPARE(editOf(e, QStringLiteral("A1"), 1), QStringLiteral("=SUM(#REF!)"));
+        QCOMPARE(valueOf(e, QStringLiteral("A1"), 1), QStringLiteral("e:#REF!"));
+        // Undo puts the sheet back with its table and the formulas that named it
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().size(), 1);
+        QCOMPARE(s->workbook()->tables().first().name, QStringLiteral("Sales"));
+        QCOMPARE(editOf(e, QStringLiteral("A1"), 1), QStringLiteral("=SUM(Sales[Q1])"));
+        QCOMPARE(valueOf(e, QStringLiteral("A1"), 1), QStringLiteral("n:6"));
+        // deleted again and saved, the file has no table part and the formula that named it has #REF!
+        e.win.w.undoStack()->redo();
+        QVERIFY(e.settle());
+        QVERIFY(saveNow(e));
+        Saved back;
+        QVERIFY(back.open(e.path));
+        QVERIFY(back.book.tables().isEmpty());
+        QVERIFY(!back.package.hasPart(QStringLiteral("/xl/tables/table1.xml")));
+        QCOMPARE(back.formula(0, QStringLiteral("A1")), QStringLiteral("SUM(#REF!)"));   // (the first sheet of the file now)
+    }
+
+    // The menu of the cells has the table's commands when the cursor is in a table: rows and columns beside the selection (the table takes the one past its end), taking rows and columns out,
+    // the row of totals, and back to cells.
+    void theMenuOfCellsHasTheTablesCommands()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        CrunchWindow &w = e.win.w;
+        w.session()->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(w.session()->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        auto menuAction = [&](const QString &text) -> QAction * {
+            Q_EMIT e.view()->contextMenuRequested(QPoint(10, 10));
+            QMenu *cells = w.findChild<QMenu *>(QStringLiteral("cellMenu"));
+            QMenu *table = cells ? cells->findChild<QMenu *>(QStringLiteral("tableMenu")) : nullptr;
+            if (!table) return nullptr;
+            for (QAction *a : table->actions())
+                if (a->text() == text) return a;
+            return nullptr;
+        };
+        e.select(QStringLiteral("F3"));
+        Q_EMIT e.view()->contextMenuRequested(QPoint(10, 10));
+        QVERIFY(!w.findChild<QMenu *>(QStringLiteral("cellMenu"))->findChild<QMenu *>(QStringLiteral("tableMenu")));   // (outside a table: none)
+        delete w.findChild<QMenu *>(QStringLiteral("cellMenu"));
+        e.select(QStringLiteral("B3"));
+        QAction *above = menuAction(QStringLiteral("Insert Row Above"));
+        QVERIFY(above);
+        above->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(int(w.session()->workbook()->tables().first().row2), 4);
+        QCOMPARE(valueOf(e, QStringLiteral("A3")), QStringLiteral("-"));         // (the new row)
+        QCOMPARE(valueOf(e, QStringLiteral("A4")), QStringLiteral("s:West"));
+        e.select(QStringLiteral("B5"));                                             // (the last row of data)
+        QAction *below = menuAction(QStringLiteral("Insert Row Below"));
+        QVERIFY(below);
+        below->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(int(w.session()->workbook()->tables().first().row2), 5);
+        e.select(QStringLiteral("C2"));                                             // (the last column)
+        QAction *right = menuAction(QStringLiteral("Insert Column Right"));
+        QVERIFY(right);
+        right->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->workbook()->tables().first().columns.size(), 4);
+        QAction *left = menuAction(QStringLiteral("Insert Column Left"));
+        QVERIFY(left);
+        left->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->workbook()->tables().first().columns.size(), 5);
+        e.select(QStringLiteral("B3"));
+        menuAction(QStringLiteral("Delete Table Rows"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(int(w.session()->workbook()->tables().first().row2), 4);
+        menuAction(QStringLiteral("Delete Table Columns"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->workbook()->tables().first().columns.size(), 4);
+        QAction *totals = menuAction(QStringLiteral("Totals Row"));
+        QVERIFY(totals);
+        totals->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->workbook()->tables().first().totalsRows, 1);
+        menuAction(QStringLiteral("Back to Plain Cells"))->trigger();
+        QVERIFY(w.session()->workbook()->tables().isEmpty());
+    }
+
+    // A small change to a table does not make the sheet's whole picture again (a row added by typing under it), and a subtotal is worked out again when a row is hidden or shown, not when a row
+    // is made taller.
+    void smallChangesDoNotRedoWhatTheyDoNotTouch()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        CrunchWindow &w = e.win.w;
+        w.session()->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(w.session()->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(w.session()->type(0, 7, 0, QStringLiteral("=SUBTOTAL(109,B2:B4)")).ok);
+        QVERIFY(e.settle());
+        const int shows = w.sheetShows();
+        QVERIFY(w.session()->type(0, 4, 1, QStringLiteral("5")).ok);                 // (under the table: it grows)
+        QVERIFY(e.settle());
+        QCOMPARE(int(w.session()->workbook()->tables().first().row2), 4);
+        QCOMPARE(w.sheetShows(), shows);
+        // a row made taller: the subtotal is not told to work again; hidden: it is
+        const qint64 before = w.session()->calculation()->registrations();
+        crunch::EditSession::SizeChange taller;
+        taller.setSize = true;
+        taller.size = 30;
+        QVERIFY(w.session()->resizeRows(0, 2, 2, taller, QStringLiteral("Row height")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->calculation()->registrations(), before);
+        crunch::EditSession::SizeChange hide;
+        hide.setHidden = true;
+        hide.hidden = true;
+        QVERIFY(w.session()->resizeRows(0, 2, 2, hide, QStringLiteral("Hide rows")).ok);
+        QVERIFY(e.settle());
+        QVERIFY(w.session()->calculation()->registrations() > before);
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:4"));            // (the rows 1 and 3 and the new one of 5: 1 + 3, as the second row is hidden)
     }
 };
 

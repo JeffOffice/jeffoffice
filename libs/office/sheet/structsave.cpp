@@ -159,6 +159,8 @@ QString followTableOps(QString f, const MoveContext &c, int ownSheet)
         const TableRewrite &t = c.tableRewrites[ti++];
         if (t.kind == TableRewrite::Kind::Rename) {
             f = renameTableInFormula(f, t.oldName, t.newName);
+        } else if (t.kind == TableRewrite::Kind::Remove) {
+            f = structuredRefsToError(f, t.oldName);
         } else {
             const QString own = ownSheet >= 0 && ownSheet < c.sheetNames.size() ? c.sheetNames[ownSheet] : QString();
             f = structuredRefsToCells(f, t.table, t.sheetName, own, -1, false);

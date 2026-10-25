@@ -4,6 +4,7 @@
 
 #include "app/crunchinfo.h"
 #include "core/formulaspot.h"
+#include "app/icons.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "sheet/cellref.h"
@@ -186,10 +187,8 @@ void CrunchWindow::tableHeaderButtons(std::vector<grid::GridView::HeaderButton> 
 void CrunchWindow::onTablesChanged(int sheet)
 {
     if (!m_loaded) return;
-    if (sheet == m_sheet) {
-        showSheet(m_sheet, true);
-        placeEditor();
-    }
+    // (a table's look, its buttons, and its tab are made again: the sheet's own picture, its sizes and cells, is not)
+    if (sheet == m_sheet) updateFilterButtons();
 }
 
 // ---------------------------------------------------------------- the commands
@@ -422,14 +421,16 @@ bool CrunchWindow::pointAtTableCell(qint64 row, qint64 col)
     const Table &t = m_session->workbook()->tables()[index];
     const int column = int(quint32(col) - t.col1);
     if (column < 0 || column >= t.columns.size()) return false;
-    const grid::Selection &sel = m_view->selection();
-    const quint32 formulaRow = quint32(std::max<qint64>(0, sel.activeRow)), formulaCol = quint32(std::max<qint64>(0, sel.activeCol));
-    const bool inside = m_session->tableAt(m_sheet, formulaRow, formulaCol) == index;
+    // the formula's own cell is where the entry is made: the short form is for a cell of the table's sheet, in the clicked row
+    const int formulaSheet = m_edit.sheet;
+    const quint32 formulaRow = m_edit.row, formulaCol = m_edit.col;
+    const bool sameSheet = formulaSheet == t.sheet;
+    const bool inside = sameSheet && m_session->tableAt(formulaSheet, formulaRow, formulaCol) == index;
     QString text;
     if (t.headerRows > 0 && quint32(row) == t.row1) text = jp::office::sheet::structuredSpecialRef(t.name, QStringLiteral("#Headers"), t.columns[column]);
     else if (t.totalsRows > 0 && quint32(row) == t.row2) text = jp::office::sheet::structuredSpecialRef(t.name, QStringLiteral("#Totals"), t.columns[column]);
-    else if (formulaRow == quint32(row)) text = (inside ? QString() : t.name) + jp::office::sheet::structuredRowRef(t.name, t.columns[column], true);
-    else text = jp::office::sheet::cellName(quint32(row), quint32(col));
+    else if (sameSheet && formulaRow == quint32(row)) text = (inside ? QString() : t.name) + jp::office::sheet::structuredRowRef(t.name, t.columns[column], true);
+    else text = (sameSheet ? QString() : jp::office::sheet::sheetNamePrefix(m_loaded->book->info().sheets[t.sheet].name)) + jp::office::sheet::cellName(quint32(row), quint32(col));
     line->insert(text);
     Q_EMIT line->textEdited(line->text());
     return true;
@@ -450,7 +451,7 @@ bool CrunchWindow::showTotalsMenu(qint64 row, qint64 col)
         const char *word;
         QString text;
     };
-    const Choice choices[] = {{"", tr("None")},          {"average", tr("Average")}, {"count", tr("Count")},       {"countNums", tr("Count Numbers")}, {"max", tr("Largest")},
+    const Choice choices[] = {{"", tr("None")},          {"average", tr("Average")}, {"count", tr("Count")},       {"countNums", tr("How Many Numbers")}, {"max", tr("Largest")},
                               {"min", tr("Smallest")},   {"sum", tr("Sum")},         {"stdDev", tr("Standard Deviation")}, {"var", tr("Variance")},   {"custom", tr("Your Own Formula…")}};
     auto *menu = new QMenu(this);
     menu->setObjectName(QStringLiteral("totalsMenu"));
@@ -485,6 +486,68 @@ QWidget *CrunchWindow::makeTableLooksPicker(QWidget *parent)
     const int t = selectedTable();
     const QString current = t >= 0 ? m_session->workbook()->tables()[t].styleName : QString();
     return new TableLooksPicker(m_loaded->book->styles(), m_tableStyleBook, current, [this](const QString &style) { tableGalleryChosen(style); }, parent);
+}
+
+// The table's commands in the menu of the cells (right-click), when the cursor is in a table: rows and columns put in beside the selection (whole rows and columns of the sheet, as Insert makes them:
+// a table that one is put beside grows by it) or taken out of the table, the row of totals, and back to cells.
+void CrunchWindow::addTableMenu(QMenu *menu)
+{
+    const int ti = selectedTable();
+    if (ti < 0 || !m_session) return;
+    const Table t = m_session->workbook()->tables()[ti];
+    const CellRange sel = selectedRange();
+    const int sheet = m_sheet;
+    // the rows of the selection that are the table's data, and its columns
+    const quint32 dataFirst = t.dataFirst(), dataLast = quint32(std::max<qint64>(t.dataLast(), qint64(dataFirst)));
+    const quint32 rowA = std::clamp(sel.row1, dataFirst, dataLast), rowB = std::clamp(sel.row2, dataFirst, dataLast);
+    const quint32 colA = std::clamp(sel.col1, t.col1, t.col2), colB = std::clamp(sel.col2, t.col1, t.col2);
+    const quint32 rowCount = rowB - rowA + 1, colCount = colB - colA + 1;
+    auto run = [this, ti, sheet](const std::function<crunch::EditSession::Outcome()> &fn, const QString &title) {
+        if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+        if (m_edit.active || !editingAllowed()) return;
+        const auto o = fn();
+        if (!o.ok) notice(title, o.problem);
+        Q_UNUSED(ti);
+        Q_UNUSED(sheet);
+    };
+    // a row or column put in just past the table is the table's: the table is made to take it
+    auto grow = [this, ti](int sheetIndex, bool rows, quint32 count) {
+        const Table &now = m_session->workbook()->tables()[ti];
+        CellRange to;
+        to.valid = true;
+        to.row1 = now.row1;
+        to.col1 = now.col1;
+        to.row2 = now.row2 + (rows ? count : 0);
+        to.col2 = now.col2 + (rows ? 0 : count);
+        Q_UNUSED(sheetIndex);
+        return m_session->resizeTable(ti, to);
+    };
+    QMenu *sub = menu->addMenu(icon(QStringLiteral("table")), tr("Table"));
+    sub->setObjectName(QStringLiteral("tableMenu"));
+    sub->addAction(tr("Insert Row Above"), this, [=] { run([=] { return m_session->insertRows(sheet, rowA, rowCount); }, tr("Table")); });
+    sub->addAction(tr("Insert Row Below"), this, [=] {
+        run([=] {
+            const quint32 before = m_session->workbook()->tables()[ti].row2;
+            auto o = m_session->insertRows(sheet, rowB + 1, rowCount);
+            if (o.ok && m_session->workbook()->tables()[ti].row2 == before) o = grow(sheet, true, rowCount);
+            return o;
+        }, tr("Table"));
+    });
+    sub->addAction(tr("Insert Column Left"), this, [=] { run([=] { return m_session->insertColumns(sheet, colA, colCount); }, tr("Table")); });
+    sub->addAction(tr("Insert Column Right"), this, [=] {
+        run([=] {
+            const quint32 before = m_session->workbook()->tables()[ti].col2;
+            auto o = m_session->insertColumns(sheet, colB + 1, colCount);
+            if (o.ok && m_session->workbook()->tables()[ti].col2 == before) o = grow(sheet, false, colCount);
+            return o;
+        }, tr("Table"));
+    });
+    sub->addSeparator();
+    sub->addAction(tr("Delete Table Rows"), this, [=] { run([=] { return m_session->deleteRows(sheet, rowA, rowCount); }, tr("Table")); });
+    sub->addAction(tr("Delete Table Columns"), this, [=] { run([=] { return m_session->deleteColumns(sheet, colA, colCount); }, tr("Table")); });
+    sub->addSeparator();
+    if (QAction *a = act(QStringLiteral("table.totals"))) sub->addAction(a);
+    if (QAction *a = act(QStringLiteral("table.toRange"))) sub->addAction(a);
 }
 
 // ---------------------------------------------------------------- the ribbon's parts

@@ -351,7 +351,7 @@ Value fnSubtotal(Call &c)
     if (!c.number(0, &f)) return c.failure();
     int fn = int(std::trunc(f));
     // (1 to 11 leave out the rows a filter hides; 101 to 111 leave out every hidden row)
-    const int hiddenRows = fn >= 101 && fn <= 111 ? 2 : 1;
+    const int hiddenRows = fn >= 101 && fn <= 111 ? 1 : 2;
     if (fn >= 101 && fn <= 111) fn -= 100;
     if (fn < 1 || fn > 11) return c.error(ErrorKind::Value);
     if (fn == 3) {

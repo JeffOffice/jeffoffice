@@ -16,6 +16,7 @@
 #include <QHash>
 #include <QIODevice>
 #include <QMutex>
+#include <QSet>
 #include <QString>
 #include <QVector>
 
@@ -439,6 +440,8 @@ private:
     Limits m_limits;
     mutable QVector<Table> m_tables;
     mutable bool m_tablesRead = false;
+    mutable QStringList m_tableNotes;   // what was left out of the tables when they were read (see readTables)
+    mutable QSet<QString> m_tablePartSet;   // the parts of the file that are tables' (by the part's name), for looking one up
     mutable std::vector<std::pair<QString, int>> m_tablesInFile;   // the parts of the file that are tables' (by the part's name), and the sheet each is related to
     mutable std::map<int, QVector<CellRange>> m_pivots;
 };

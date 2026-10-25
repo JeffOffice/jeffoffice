@@ -38,6 +38,20 @@ CellRange rangeOf(const Table &t)
 
 QString freshColumnName(const QStringList &columns, int from) { return freshTableColumnName(columns, from); }
 
+// The runs of rows from `first` to `last` that are not among `taken` (sorted).
+std::vector<std::pair<quint32, quint32>> runsWithout(quint32 first, quint32 last, const std::vector<quint32> &taken)
+{
+    std::vector<std::pair<quint32, quint32>> runs;
+    qint64 next = first;
+    for (const quint32 r : taken) {
+        if (r < first || r > last) continue;
+        if (qint64(r) > next) runs.emplace_back(quint32(next), r - 1);
+        next = qint64(r) + 1;
+    }
+    if (next <= qint64(last)) runs.emplace_back(quint32(next), last);
+    return runs;
+}
+
 int nextColumnId(const Table &t)
 {
     int id = 0;
@@ -69,6 +83,14 @@ QStringList EditSession::tableNames(int limit) const
         if (out.size() >= limit) break;
     }
     return out;
+}
+
+bool EditSession::tableNamed(const QString &name) const
+{
+    if (!m_book || !m_book->book) return false;
+    for (const Table &t : m_book->book->tables())
+        if (t.name.compare(name, Qt::CaseInsensitive) == 0 && !m_book->book->info().sheets[t.sheet].deleted) return true;
+    return false;
 }
 
 QString EditSession::tableNameProblem(const QString &name, int except) const
@@ -183,12 +205,7 @@ EditSession::Outcome EditSession::pushTableStep(Step step, const QString &text)
 {
     Outcome out;
     if (step.empty()) return out;
-    if (qint64(step.cells.size()) > kMaxCellsPerEdit) {
-        out.ok = false;
-        out.problem = tr("That changes more cells than JeffCrunch changes at once (%1).").arg(QLocale().toString(kMaxCellsPerEdit));
-        return out;
-    }
-    pushStep(std::move(step), text);
+    startFill(std::move(step), text);   // (a step of many cells is put in a slice at a time)
     return out;
 }
 
@@ -225,6 +242,13 @@ void EditSession::applyTableEdits(Step *step, bool forward, Calculation *calc, W
                 r.newName = e.after.name;
                 r.seq = ++m_opSeq;
                 m_tableRewrites.push_back(r);
+            } else if (e.rewrite == TableEdit::Rewrite::Remove) {
+                e.names = calc->rewriteNames([&](const QString &text) { return structuredRefsToError(text, e.before.name); });
+                TableRewrite r;
+                r.kind = TableRewrite::Kind::Remove;
+                r.oldName = e.before.name;
+                r.seq = ++m_opSeq;
+                m_tableRewrites.push_back(r);
             } else {
                 const QString sheetName = sheetNameOf(e.before.sheet);
                 e.names = calc->rewriteNames([&](const QString &text) { return structuredRefsToCells(text, e.before, sheetName, QStringLiteral("\x01"), -1, false); });
@@ -239,7 +263,7 @@ void EditSession::applyTableEdits(Step *step, bool forward, Calculation *calc, W
         } else {
             calc->restoreNames(e.names);
             TableRewrite r;
-            r.kind = e.rewrite == TableEdit::Rewrite::Rename ? TableRewrite::Kind::Rename : TableRewrite::Kind::ToRange;
+            r.kind = e.rewrite == TableEdit::Rewrite::Rename ? TableRewrite::Kind::Rename : e.rewrite == TableEdit::Rewrite::Remove ? TableRewrite::Kind::Remove : TableRewrite::Kind::ToRange;
             if (!m_tableRewrites.empty() && m_tableRewrites.back().kind == r.kind && m_tableRewrites.back().oldName == e.before.name && (r.kind != TableRewrite::Kind::Rename || m_tableRewrites.back().newName == e.after.name)) {
                 m_tableRewrites.pop_back();
             } else if (e.rewrite == TableEdit::Rewrite::Rename) {
@@ -305,6 +329,7 @@ EditSession::Outcome EditSession::makeTable(int sheet, const CellRange &range, b
     t.headerRows = hasHeaders ? 1 : 0;
     Step step;
     QStringList names;
+    ColumnNames used;
     for (quint32 i = 0; i < columns; ++i) {
         QString name;
         if (hasHeaders) {
@@ -313,17 +338,16 @@ EditSession::Outcome EditSession::makeTable(int sheet, const CellRange &range, b
             if (c.exists && (c.isFormula || !c.value.isEmpty())) shown = displayText(sheet, r.row1, r.col1 + i);
             name = shown.trimmed();
             if (name.size() > 255) name = name.left(255);
-            if (name.isEmpty()) name = freshColumnName(names, int(i) + 1);
             // (two of a name: the second is numbered, as a name typed in the row would be)
-            const QString unique = uniqueColumnName(name, names + QStringList(QString()), int(names.size()));
-            name = unique.isEmpty() ? freshColumnName(names, int(i) + 1) : unique;
+            const QString unique = name.isEmpty() ? QString() : used.unique(name);
+            name = unique.isEmpty() ? used.fresh(int(i) + 1) : unique;
             const bool plainText = c.exists && !c.isFormula && c.value.isText() && c.value.text() == name;
             if (!plainText) {
                 if (!c.editable) return refuse(tr("An array formula or a data table is in those cells, so they can't be a table."));
                 step.cells.push_back(textCell(sheet, r.row1, r.col1 + i, name));
             }
         } else {
-            name = freshColumnName(names, int(i) + 1);
+            name = used.fresh(int(i) + 1);
         }
         names << name;
     }
@@ -587,6 +611,7 @@ EditSession::Outcome EditSession::setTableHeaderRow(int table, bool on)
         after.filterButtons = true;
         for (int i = 0; i < t.columns.size(); ++i) step.cells.push_back(textCell(t.sheet, after.row1, t.col1 + quint32(i), t.columns[i]));
     } else {
+        if (tableFilter(table).active()) return refuse(tr("The table is filtered. Clear its filter first, so the rows it hides are shown, and then turn off its row of names."));
         if (!t.hasData() || t.dataLast() - qint64(t.dataFirst()) < 0) return refuse(tr("A table needs a row of data."));
         for (int i = 0; i < t.columns.size(); ++i) step.cells.push_back(clearedCell(t.sheet, t.row1, t.col1 + quint32(i)));
         after.row1 = t.row1 + 1;
@@ -757,6 +782,8 @@ EditSession::Outcome EditSession::resizeTable(int table, const CellRange &range)
             if (int(c.column) < newColumns) kept.append(c);
         after.filter.columns = kept;
     }
+    ColumnNames used(after.columns);
+    int nextId = nextColumnId(after);
     for (int i = int(t.columns.size()); i < newColumns; ++i) {
         const quint32 col = t.col1 + quint32(i);
         QString name;
@@ -764,16 +791,15 @@ EditSession::Outcome EditSession::resizeTable(int table, const CellRange &range)
             const Calculation::CellContent c = m_book->calc->content(t.sheet, t.row1, col);
             if (c.exists && (c.isFormula || !c.value.isEmpty())) name = displayText(t.sheet, t.row1, col).trimmed();
         }
-        if (name.isEmpty()) name = freshColumnName(after.columns, int(after.columns.size()) + 1);
-        const QString unique = uniqueColumnName(name, after.columns + QStringList(QString()), int(after.columns.size()));
-        name = unique.isEmpty() ? freshColumnName(after.columns, int(after.columns.size()) + 1) : unique;
+        const QString unique = name.isEmpty() ? QString() : used.unique(name);
+        name = unique.isEmpty() ? used.fresh(int(after.columns.size()) + 1) : unique;
         if (t.headerRows > 0) {
             const Calculation::CellContent c = m_book->calc->content(t.sheet, t.row1, col);
             if (!(c.exists && !c.isFormula && c.value.isText() && c.value.text() == name)) step.cells.push_back(textCell(t.sheet, t.row1, col, name));
         }
         after.columns << name;
         TableColumnInfo info;
-        info.id = nextColumnId(after);
+        info.id = nextId++;
         after.info.append(info);
     }
     // the rows: a row of totals goes to the new last row; rows added to the data get the columns' formulas where they are empty
@@ -799,19 +825,28 @@ EditSession::Outcome EditSession::resizeTable(int table, const CellRange &range)
         }
         // a column added under the totals has none
     }
-    for (qint64 row = oldDataLast + 1; row <= newDataLast; ++row)
+    // the rows added to the data take the formulas of the columns that have one, where their cells are empty (those of the old row of totals are cleared above, and are filled here)
+    if (newDataLast > oldDataLast) {
         for (int i = 0; i < after.columns.size(); ++i) {
-            const quint32 r = quint32(row), col = t.col1 + quint32(i);
-            const QString formula = calculatedFormulaFor(after, i, r);
-            if (formula.isEmpty()) continue;
-            // (a cell the old totals row held is cleared above, and is filled here)
-            const Calculation::CellContent now = m_book->calc->content(t.sheet, r, col);
-            const bool wasTotals = t.totalsRows > 0 && r == t.row2;
-            if (now.exists && (now.isFormula || !now.value.isEmpty()) && !wasTotals) continue;
-            CellChange f = formulaCell(t.sheet, r, col, formula);
-            if (wasTotals) f.before = m_book->calc->content(t.sheet, r, col);
-            step.cells.push_back(std::move(f));
+            if (after.info[i].calcFormula.isEmpty()) continue;   // (a column with no formula has nothing to fill: its cells are not looked at)
+            const quint32 col = t.col1 + quint32(i);
+            std::vector<quint32> taken;
+            m_book->calc->sheet(t.sheet).cells.forEachInRange(quint32(oldDataLast + 1), col, quint32(newDataLast), col, [&](const Cell &c) {
+                if ((c.hasFormula() || c.type != CellType::Empty) && !(t.totalsRows > 0 && c.row == t.row2)) taken.push_back(c.row);
+                return true;
+            });
+            for (const auto &run : runsWithout(quint32(oldDataLast + 1), quint32(newDataLast), taken)) {
+                FillEdit f;
+                f.sheet = t.sheet;
+                f.col = col;
+                f.row1 = run.first;
+                f.row2 = run.second;
+                f.formula = after.info[i].calcFormula;
+                f.base = after.dataFirst();
+                step.fills.push_back(std::move(f));
+            }
         }
+    }
     // (a change of one cell twice in a step: the last stands, with what the cell was before the step)
     {
         std::map<quint64, size_t> at;
@@ -835,7 +870,8 @@ EditSession::Outcome EditSession::resizeTable(int table, const CellRange &range)
     e.before = t;
     e.after = after;
     step.tables.push_back(std::move(e));
-    return pushTableStep(std::move(step), tr("Resizing a table"));
+    startFill(std::move(step), tr("Resizing a table"));
+    return out;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -938,35 +974,57 @@ void EditSession::calculatedColumnAfterEntry(int sheet, quint32 row, quint32 col
     if (first.contains(QLatin1String("#REF!"))) return;
     const QString was = t.info[column].calcFormula;
     if (first == was) return;
-    const qint64 rows = t.dataLast() - qint64(t.dataFirst()) + 1;
-    if (rows - 1 > kMaxCellsPerEdit) return;   // (too many rows to fill at once: the cell stays as it was typed)
     // the other cells of the column: empty (the formula is new), or the old formula (it is changed); anything else, and the cell is an exception that stands alone
-    std::vector<CellChange> fills;
+    const quint32 firstRow = t.dataFirst(), lastRow = quint32(t.dataLast());
+    std::vector<quint32> taken;
+    std::vector<std::pair<quint32, quint32>> oldRuns;
     bool consistent = true;
-    for (qint64 r = qint64(t.dataFirst()); r <= t.dataLast() && consistent; ++r) {
-        if (quint32(r) == row) continue;
-        const Calculation::CellContent now = m_book->calc->content(sheet, quint32(r), col);
-        const bool empty = !now.exists || (!now.isFormula && now.value.isEmpty());
-        const bool old = !was.isEmpty() && now.isFormula && now.formula == shiftFormula(was, int(r - qint64(t.dataFirst())), 0);
-        if (!empty && !old) {
+    m_book->calc->sheet(sheet).cells.forEachInRange(firstRow, col, lastRow, col, [&](const Cell &c) {
+        if (c.row == row) return true;
+        if (!c.hasFormula() && c.type == CellType::Empty) return true;
+        const Calculation::CellContent now = m_book->calc->content(sheet, c.row, col);
+        const bool old = !was.isEmpty() && now.isFormula && now.formula == shiftFormula(was, int(qint64(c.row) - qint64(firstRow)), 0);
+        if (!old) {
             consistent = false;
-            break;
+            return false;
         }
-        fills.push_back(formulaCell(sheet, quint32(r), col, shiftFormula(first, int(r - qint64(t.dataFirst())), 0)));
-    }
+        taken.push_back(c.row);
+        if (!oldRuns.empty() && oldRuns.back().second + 1 == c.row) oldRuns.back().second = c.row;
+        else oldRuns.emplace_back(c.row, c.row);
+        return true;
+    });
     if (!consistent) return;
     Table after = t;
     after.info[column].calcFormula = first;
     Step step;
-    step.cells = std::move(fills);
+    // the rows above the typed one and those under it (the typed cell has its own formula, which is the column's)
+    for (const auto &piece : {std::pair<qint64, qint64>(firstRow, qint64(row) - 1), std::pair<qint64, qint64>(qint64(row) + 1, lastRow)}) {
+        if (piece.first > piece.second) continue;
+        FillEdit f;
+        f.sheet = sheet;
+        f.col = col;
+        f.row1 = quint32(piece.first);
+        f.row2 = quint32(piece.second);
+        f.formula = first;
+        f.base = firstRow;
+        f.oldFormula = was;
+        f.oldBase = firstRow;
+        for (const auto &run : oldRuns) {
+            if (qint64(run.second) < piece.first || qint64(run.first) > piece.second) continue;
+            f.oldRuns.emplace_back(quint32(std::max<qint64>(run.first, piece.first)), quint32(std::min<qint64>(run.second, piece.second)));
+        }
+        step.fills.push_back(std::move(f));
+    }
     TableEdit e;
     e.index = index;
     e.before = t;
     e.after = after;
     step.tables.push_back(std::move(e));
-    pushStep(std::move(step), tr("Filling a calculated column"));
-    m_lastCalculated = true;
-    m_calculatedIndex = m_undo.index();
+    startFill(std::move(step), tr("Filling a calculated column"));
+    if (!fillPending()) {
+        m_lastCalculated = true;
+        m_calculatedIndex = m_undo.index();
+    }
 }
 
 // Rows inserted among a table's rows take the formulas of its calculated columns where their cells are empty; columns inserted among its columns are named in its row of names.
@@ -979,16 +1037,19 @@ void EditSession::fillTableAfterInsert(int sheet, bool rows, quint32 first, quin
         if (t.sheet != sheet) continue;
         Step step;
         if (rows) {
-            if (first <= t.row1 || first > t.row2 || qint64(count) * t.columns.size() > kMaxCellsPerEdit) continue;
-            // (the table has grown: the new rows are data rows, but for one inserted at the row of totals, which is under them)
-            for (quint32 r = first; r < first + count; ++r)
-                for (int c = 0; c < t.columns.size(); ++c) {
-                    const QString formula = calculatedFormulaFor(t, c, r);
-                    if (formula.isEmpty()) continue;
-                    const Calculation::CellContent now = m_book->calc->content(sheet, r, t.col1 + quint32(c));
-                    if (now.exists && (now.isFormula || !now.value.isEmpty())) continue;
-                    step.cells.push_back(formulaCell(sheet, r, t.col1 + quint32(c), formula));
-                }
+            if (first <= t.row1 || first > t.row2) continue;
+            // (the table has grown: the new rows are data rows, but for one inserted at the row of totals, which is under them; what is in them is nothing: they are new)
+            for (int c = 0; c < t.columns.size(); ++c) {
+                if (t.info[c].calcFormula.isEmpty()) continue;
+                FillEdit f;
+                f.sheet = sheet;
+                f.col = t.col1 + quint32(c);
+                f.row1 = first;
+                f.row2 = first + count - 1;
+                f.formula = t.info[c].calcFormula;
+                f.base = t.dataFirst();
+                step.fills.push_back(std::move(f));
+            }
         } else {
             if (first <= t.col1 || first > t.col2 || t.headerRows == 0) continue;
             for (quint32 k = 0; k < count; ++k) {
@@ -998,7 +1059,7 @@ void EditSession::fillTableAfterInsert(int sheet, bool rows, quint32 first, quin
                 step.cells.push_back(textCell(sheet, t.row1, col, t.columns[at]));
             }
         }
-        if (!step.cells.empty()) pushStep(std::move(step), rows ? tr("Filling a calculated column") : tr("Naming the new columns"));
+        if (!step.cells.empty() || !step.fills.empty()) startFill(std::move(step), rows ? tr("Filling a calculated column") : tr("Naming the new columns"));
     }
 }
 

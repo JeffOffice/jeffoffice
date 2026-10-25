@@ -132,6 +132,7 @@ jp::calc::StructuredAnswer WorkbookSource::structuredRef(const QString &text, in
     if (!m_tableIndexReady) {
         m_tableByName.clear();
         m_tablesOfSheet.assign(m_sheets.size(), {});
+        m_lastTableOfSheet.assign(m_sheets.size(), -1);
         for (int i = 0; i < all.size(); ++i) {
             m_tableByName.insert(all[i].name.toLower(), i);
             if (all[i].sheet >= 0 && all[i].sheet < int(m_tablesOfSheet.size())) m_tablesOfSheet[size_t(all[i].sheet)].push_back(i);
@@ -144,9 +145,20 @@ jp::calc::StructuredAnswer WorkbookSource::structuredRef(const QString &text, in
     const Table *table = nullptr;
     if (tableName.isEmpty()) {
         // no name: the table the formula's cell is in
-        if (sheet >= 0 && sheet < int(m_tablesOfSheet.size()))
-            for (const int i : m_tablesOfSheet[size_t(sheet)])
-                if (row >= all[i].row1 && row <= all[i].row2 && col >= all[i].col1 && col <= all[i].col2) table = &all[i];
+        if (sheet >= 0 && sheet < int(m_tablesOfSheet.size())) {
+            auto holds = [&](int i) { return i >= 0 && i < all.size() && row >= all[i].row1 && row <= all[i].row2 && col >= all[i].col1 && col <= all[i].col2; };
+            const int last = m_lastTableOfSheet[size_t(sheet)];
+            if (holds(last)) {
+                table = &all[last];
+            } else {
+                for (const int i : m_tablesOfSheet[size_t(sheet)])
+                    if (holds(i)) {
+                        table = &all[i];
+                        m_lastTableOfSheet[size_t(sheet)] = i;
+                        break;
+                    }
+            }
+        }
     } else {
         const auto it = m_tableByName.constFind(tableName.toLower());
         if (it != m_tableByName.constEnd()) table = &all[*it];

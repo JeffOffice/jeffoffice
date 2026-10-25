@@ -2155,7 +2155,7 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
     return open(package, error, limits);
 }
 
-QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() : m_foreign ? m_foreign->skipped() : QStringList(); }
+QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() : m_foreign ? m_foreign->skipped() : m_tableNotes; }
 
 QStringList Workbook::changedFeatures() const { return m_foreign ? m_foreign->changed() : QStringList(); }
 
@@ -2493,10 +2493,14 @@ qint32 Workbook::styleNamed(const QString &name)
 const QVector<Table> &Workbook::tables() const
 {
     if (!m_tablesRead) {
-        m_tables = readTables(m_package, m_info);
+        m_tables = readTables(m_package, m_info, &m_tableNotes);
         m_tablesRead = true;
         m_tablesInFile.clear();
-        for (const Table &t : m_tables) m_tablesInFile.emplace_back(t.part, t.sheet);
+        m_tablePartSet.clear();
+        for (const Table &t : m_tables) {
+            m_tablesInFile.emplace_back(t.part, t.sheet);
+            m_tablePartSet.insert(t.part);
+        }
     }
     return m_tables;
 }
@@ -2657,8 +2661,7 @@ std::map<QString, QByteArray> Workbook::changedTableParts() const
     if (!m_tablesRead) return out;
     for (const Table &t : m_tables) {
         if (t.fileSignature.isEmpty() || tableSignature(t) == t.fileSignature) continue;
-        const auto inFile = std::find_if(m_tablesInFile.begin(), m_tablesInFile.end(), [&](const auto &p) { return p.first == t.part; });
-        if (inFile == m_tablesInFile.end()) continue;   // (a table made here: addedTables)
+        if (!m_tablePartSet.contains(t.part)) continue;   // (a table made here: addedTables)
         bool ok = false;
         const QByteArray bytes = writeTablePart(t, m_package.part(t.part), &ok);
         if (ok) out[t.part] = bytes;
@@ -2712,7 +2715,7 @@ std::vector<Workbook::TableAdd> Workbook::addedTables() const
     std::vector<TableAdd> out;
     if (!m_tablesRead) return out;
     for (const Table &t : m_tables) {
-        if (std::any_of(m_tablesInFile.begin(), m_tablesInFile.end(), [&](const auto &p) { return p.first == t.part; })) continue;
+        if (m_tablePartSet.contains(t.part)) continue;
         bool ok = false;
         const QByteArray bytes = writeTablePart(t, t.copyOfPart.isEmpty() ? QByteArray() : m_package.part(t.copyOfPart), &ok, !t.copyOfPart.isEmpty());
         if (ok) out.push_back({t.sheet, t.part, bytes});
@@ -2724,8 +2727,10 @@ std::vector<Workbook::TableGone> Workbook::removedTables() const
 {
     std::vector<TableGone> out;
     if (!m_tablesRead) return out;
+    QSet<QString> now;
+    for (const Table &t : m_tables) now.insert(t.part);
     for (const auto &p : m_tablesInFile)
-        if (std::none_of(m_tables.begin(), m_tables.end(), [&](const Table &t) { return t.part == p.first; })) out.push_back({p.second, p.first});
+        if (!now.contains(p.first)) out.push_back({p.second, p.first});
     return out;
 }
 
@@ -2743,8 +2748,10 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
     // (the tables stay as they are, with the file's state now what they are; their places are what the steps of Undo name)
     if (m_tablesRead) {
         m_tablesInFile.clear();
+        m_tablePartSet.clear();
         for (Table &t : m_tables) {
             m_tablesInFile.emplace_back(t.part, t.sheet);
+            m_tablePartSet.insert(t.part);
             t.fileSignature = tableSignature(t);
             t.copyOfPart.clear();
             t.fileColumns = t.columns;
@@ -2846,6 +2853,15 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
     options.stopAfterRow = stopAfterRow;
     options.screenRows = screenRows;
     const bool ok = readSheetPart(device.get(), options, out);
+    // a row that is hidden among the rows of a table that has a filter with conditions was hidden by that filter, not by hand
+    for (const Table &t : tables()) {
+        if (t.sheet != index || !t.filterButtons || t.headerRows == 0 || t.filter.conditionColumns().isEmpty() || !t.hasData()) continue;
+        for (RowSpec &spec : out->rowSpecs)
+            if (spec.hidden && spec.row >= t.dataFirst() && qint64(spec.row) <= t.dataLast()) {
+                spec.filtered = true;
+                spec.hand = false;
+            }
+    }
     applyPrintNames(m_info, index, out);
     if (!out->page.headerFooter.drawingRel.isEmpty()) readHeaderPictures(entry.part, &out->page.headerFooter);
     if (!out->links.isEmpty()) {

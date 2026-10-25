@@ -149,7 +149,7 @@ struct ColumnRename {
 // A table renamed by a person, or turned back into plain cells (the formulas of the file's other parts that name it follow: a rename writes the new name; a table made plain cells has its
 // references written as cells, and the references that cannot be, such as a reference to the formula's own row, are #REF!). `table` is the table as it was; `sheetName` the name of its sheet.
 struct TableRewrite {
-    enum class Kind : quint8 { Rename, ToRange } kind = Kind::Rename;
+    enum class Kind : quint8 { Rename, ToRange, Remove } kind = Kind::Rename;
     QString oldName, newName;
     Table table;
     QString sheetName;

@@ -4,6 +4,7 @@
 
 #include <QCoreApplication>
 #include <QRegularExpression>
+#include <QSet>
 #include <QXmlStreamReader>
 
 #include <algorithm>
@@ -204,6 +205,21 @@ QString renameColumnInFormula(const QString &formula, const QString &table, cons
 
 QString uniqueColumnName(const QString &typedIn, const QStringList &columns, int column, bool *tooLong)
 {
+    QStringList others = columns;
+    if (column >= 0 && column < others.size()) others.removeAt(column);
+    ColumnNames names(others);
+    return names.unique(typedIn, tooLong);
+}
+
+ColumnNames::ColumnNames(const QStringList &existing)
+{
+    for (const QString &n : existing) m_lower.insert(n.toLower());
+}
+
+void ColumnNames::add(const QString &name) { m_lower.insert(name.toLower()); }
+
+QString ColumnNames::unique(const QString &typedIn, bool *tooLong)
+{
     if (tooLong) *tooLong = false;
     QString name = typedIn.trimmed();
     if (name.startsWith(QLatin1Char('\'')) && name.size() > 1) name = name.mid(1);
@@ -212,19 +228,37 @@ QString uniqueColumnName(const QString &typedIn, const QStringList &columns, int
         if (tooLong) *tooLong = true;
         return {};
     }
-    auto taken = [&](const QString &candidate) {
-        for (int i = 0; i < columns.size(); ++i)
-            if (i != column && columns[i].compare(candidate, Qt::CaseInsensitive) == 0) return true;
-        return false;
-    };
-    if (!taken(name)) return name;
-    for (int n = 2;; ++n) {
-        const QString candidate = name.left(kMaxColumnNameChars - 6) + QString::number(n);
-        if (!taken(candidate)) return candidate;
+    if (!taken(name)) {
+        add(name);
+        return name;
+    }
+    const QString base = name.left(kMaxColumnNameChars - 6);
+    int &n = m_next[base.toLower()];
+    if (n < 2) n = 2;
+    for (;; ++n) {
+        const QString candidate = base + QString::number(n);
+        if (!taken(candidate)) {
+            add(candidate);
+            return candidate;
+        }
     }
 }
 
-QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
+QString ColumnNames::fresh(int from)
+{
+    const QString word = QCoreApplication::translate("jp::office::sheet::Tables", "Column");
+    int &n = m_next[QStringLiteral("\x01") + word.toLower()];
+    if (n < std::max(1, from)) n = std::max(1, from);
+    for (;; ++n) {
+        const QString candidate = word + QString::number(n);
+        if (!taken(candidate)) {
+            add(candidate);
+            return candidate;
+        }
+    }
+}
+
+QVector<Table> readTables(const Package &package, const WorkbookInfo &info, QStringList *notes)
 {
     QVector<Table> tables;
     qint64 total = 0;
@@ -281,6 +315,37 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
             t.fileSignature = tableSignature(t);
             tables.append(t);
         }
+    }
+    // a table that has the name, the id, or cells of one before it is left out: the file is not valid, and two tables there would be taken for one another
+    {
+        QVector<Table> kept;
+        QSet<QString> names;
+        QSet<int> ids;
+        std::vector<std::vector<int>> onSheet(size_t(info.sheets.size()));
+        int dropped = 0;
+        QString first;
+        for (const Table &t : std::as_const(tables)) {
+            bool bad = names.contains(t.name.toLower()) || ids.contains(t.id);
+            if (!bad && t.sheet >= 0 && t.sheet < int(onSheet.size()))
+                for (const int k : onSheet[size_t(t.sheet)]) {
+                    const Table &o = kept[k];
+                    if (!(o.row2 < t.row1 || o.row1 > t.row2 || o.col2 < t.col1 || o.col1 > t.col2)) {
+                        bad = true;
+                        break;
+                    }
+                }
+            if (bad) {
+                if (dropped++ == 0) first = t.name;
+                continue;
+            }
+            names.insert(t.name.toLower());
+            ids.insert(t.id);
+            if (t.sheet >= 0 && t.sheet < int(onSheet.size())) onSheet[size_t(t.sheet)].push_back(int(kept.size()));
+            kept.append(t);
+        }
+        if (dropped > 0 && notes)
+            *notes << QCoreApplication::translate("jp::office::sheet::Tables", "%n table(s) that have the name, the number, or the cells of another table were not read (the first is %1).", nullptr, dropped).arg(first);
+        tables = kept;
     }
     return tables;
 }

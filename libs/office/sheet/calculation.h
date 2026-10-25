@@ -560,8 +560,8 @@ private:
     QVector<QString> m_texts;
     std::vector<qint32> m_freeTexts;
     QHash<quint32, jp::calc::Value> m_arrays;
-    std::vector<quint32> m_subtotalNodes;     // the formulas that call SUBTOTAL (a place may be stale)
-    std::vector<quint32> m_structuredNodes;   // the formulas that name a table's columns (a place may be stale: tablesChanged looks at each)
+    std::unordered_set<quint32> m_subtotalNodes;     // the formulas that call SUBTOTAL (a place may be stale)
+    std::unordered_set<quint32> m_structuredNodes;   // the formulas that name a table's columns (a place may be stale: tablesChanged looks at each)
     jp::calc::NameTraitsCache m_nameTraits;   // what each defined name calls (by its scope and name)
     std::unordered_set<quint32> m_threeD;     // formulas that read a block of several sheets (a node on it has ThreeD); one leaves it when its formula goes or reads no more than one sheet
     std::vector<quint32> m_always;            // formulas worked out in every recalculation, each once (a node on it has AlwaysListed); those that are not, or are gone, are left out at the next

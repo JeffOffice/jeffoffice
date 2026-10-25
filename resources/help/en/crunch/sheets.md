@@ -31,7 +31,7 @@ A workbook always keeps at least one sheet that is shown.
 
 Formulas keep reading the sheets they read, wherever the sheets are. A copy has the same cells, formulas, formats, and sizes as the sheet it came from. A reference with no sheet name (such as **A1**) reads the copy's own cell; a reference that names a sheet (such as **Sheet1!A1**) still names that sheet, even if it is the sheet the copy came from.
 
-A copy also has the original's protection, filter, links, page setup and page breaks, the groups of rows and columns, and the look of its data bars; links follow the rows you inserted or deleted, in the original before the copy and in the copy after it. It does not have the pictures, charts, notes, PivotTables, sparklines, or the names that belong to the original alone, because JeffCrunch does not copy those yet; it tells you which when this happens. A sheet that has a table on it can't be copied or deleted yet.
+A copy also has the original's protection, filter, links, page setup and page breaks, the groups of rows and columns, and the look of its data bars; links follow the rows you inserted or deleted, in the original before the copy and in the copy after it. It does not have the pictures, charts, notes, PivotTables, sparklines, or the names that belong to the original alone, because JeffCrunch does not copy those yet; it tells you which when this happens. A sheet that has tables is copied with copies of them (each with a name, an id, and a part of its own, and the copy's formulas name its own tables). Deleting a sheet takes its tables with it; a formula on another sheet that named one has #REF! then, and Undo brings it back.
 
 ## Hide and show a sheet
 

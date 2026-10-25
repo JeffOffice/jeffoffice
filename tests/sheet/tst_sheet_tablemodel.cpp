@@ -227,6 +227,8 @@ private Q_SLOTS:
         second.part = back.b.freshTablePart();
         second.id = back.b.freshTableId();
         second.name = QStringLiteral("More");
+        second.col1 = 3;
+        second.col2 = 4;
         QCOMPARE(second.part, QStringLiteral("/xl/tables/table2.xml"));
         QCOMPARE(second.id, 2);
         back.b.insertTable(-1, second);
@@ -246,7 +248,7 @@ private Q_SLOTS:
     // A table taken out loses its part, its type, the sheet's link, and its element; the other table of the sheet stays.
     void aTableTakenOutLeavesNothingBehind()
     {
-        const QString second = QString(salesPart()).replace(QStringLiteral("id=\"7\" name=\"Sales\" displayName=\"Sales\""), QStringLiteral("id=\"8\" name=\"Other\" displayName=\"Other\""));
+        const QString second = QString(salesPart()).replace(QStringLiteral("id=\"7\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:C6\""), QStringLiteral("id=\"8\" name=\"Other\" displayName=\"Other\" ref=\"E1:G6\"")).replace(QStringLiteral("<autoFilter ref=\"A1:C5\""), QStringLiteral("<autoFilter ref=\"E1:G5\""));
         Open o;
         QVERIFY(o.ok(salesBook()));
         QByteArray two = withTables(buildXlsx({worksheet(QStringLiteral("<row r=\"1\">%1</row>").arg(inlineCell(QStringLiteral("A1"), QStringLiteral("Region"))))}), {salesPart(), second});
@@ -443,6 +445,136 @@ private Q_SLOTS:
         back.columns = t.columns;
         QVERIFY(readTableModel(bytes, &back));
         QCOMPARE(back.info.size(), 2);
+    }
+
+    // SUBTOTAL 1 to 11 leave out the rows a filter hides and keep those a person hid; 101 to 111 leave out both; and what is worked out follows a row hidden or shown.
+    void subtotalLeavesOutHiddenRowsAsTheCodeSays()
+    {
+        QString rows;
+        for (int i = 1; i <= 5; ++i) rows += QStringLiteral("<row r=\"%1\">%2</row>").arg(i).arg(numberCell(QStringLiteral("A%1").arg(i), i * 10));
+        rows += QStringLiteral("<row r=\"7\">%1%2%3</row>").arg(formulaCell(QStringLiteral("A7"), QStringLiteral("SUBTOTAL(9,A1:A5)")), formulaCell(QStringLiteral("B7"), QStringLiteral("SUBTOTAL(109,A1:A5)")),
+                                                                formulaCell(QStringLiteral("C7"), QStringLiteral("SUBTOTAL(3,A1:A5)+SUBTOTAL(103,A1:A5)*100")));
+        Open o;
+        QVERIFY(o.ok(buildXlsx({worksheet(rows)})));
+        CalcOptions options;
+        options.keepApart = true;
+        options.workOutWhatHasNoResult = true;
+        Calculation calc(o.b, options);
+        QVERIFY(calc.load());
+        calc.recalculate();
+        auto at = [&](const QString &ref) {
+            quint32 r = 0, c = 0;
+            parseCellRef(ref, &r, &c);
+            return calc.cell(0, r, c).debug();
+        };
+        QCOMPARE(at(QStringLiteral("A7")), QStringLiteral("n:150"));
+        QCOMPARE(at(QStringLiteral("B7")), QStringLiteral("n:150"));
+        RowSpec hand, filtered;
+        hand.row = 1;                    // (the second row: 20, hidden by hand)
+        hand.hidden = hand.hand = true;
+        filtered.row = 2;                // (the third: 30, hidden by a filter)
+        filtered.hidden = filtered.filtered = true;
+        calc.setRowSpecsOf(0, QVector<RowSpec>{hand, filtered});
+        calc.hiddenRowsAndSubtotals(0);
+        calc.recalculate();
+        QCOMPARE(at(QStringLiteral("A7")), QStringLiteral("n:120"));   // (without the filtered row only)
+        QCOMPARE(at(QStringLiteral("B7")), QStringLiteral("n:100"));   // (without both)
+        QCOMPARE(at(QStringLiteral("C7")), QStringLiteral("n:%1").arg(4 + 3 * 100));
+        calc.setRowSpecsOf(0, QVector<RowSpec>());
+        calc.hiddenRowsAndSubtotals(0);
+        calc.recalculate();
+        QCOMPARE(at(QStringLiteral("A7")), QStringLiteral("n:150"));
+        QCOMPARE(at(QStringLiteral("B7")), QStringLiteral("n:150"));
+    }
+
+    // A reference to another workbook ([1]Sheet2!A1) is not one to a table's columns; a column named with spaces at its ends is found; columns apart are not a block.
+    void externalReferencesAndSpacedAndSeparateColumns()
+    {
+        Table t;
+        t.name = QStringLiteral("T");
+        t.row1 = 0;
+        t.row2 = 4;
+        t.col1 = 0;
+        t.col2 = 3;
+        t.headerRows = 1;
+        t.columns = {QStringLiteral("Region"), QStringLiteral(" Pad "), QStringLiteral("Q1"), QStringLiteral("Double")};
+        t.info.resize(4);
+        QCOMPARE(structuredRefsToCells(QStringLiteral("[1]Sheet2!A1+[1]!Name+SUM([1]Sheet2!B2:B3)"), t, QStringLiteral("S"), QStringLiteral("S"), 2, true), QStringLiteral("[1]Sheet2!A1+[1]!Name+SUM([1]Sheet2!B2:B3)"));
+        QCOMPARE(fileFormOfStructuredRefs(QStringLiteral("[1]Sheet2!A1+[@Q1]"), QStringLiteral("T")), QStringLiteral("[1]Sheet2!A1+T[[#This Row],[Q1]]"));
+        QCOMPARE(renameTableInFormula(QStringLiteral("[1]Sheet2!A1+T[Q1]"), QStringLiteral("T"), QStringLiteral("U")), QStringLiteral("[1]Sheet2!A1+U[Q1]"));
+        QCOMPARE(structuredRefsToCells(QStringLiteral("T[Q1]+[2]!X"), t, QStringLiteral("S"), QStringLiteral("S"), -1, false), QStringLiteral("$C$2:$C$5+[2]!X"));
+        CellRange r;
+        QVERIFY(structuredArea(t, QStringLiteral(" Pad "), -1, &r) == StructResult::Ok && r.col1 == 1 && r.col2 == 1);
+        QVERIFY(structuredArea(t, QStringLiteral("[ Pad ]"), -1, &r) == StructResult::Ok && r.col1 == 1 && r.col2 == 1);
+        QVERIFY(structuredArea(t, QStringLiteral("[ Pad ]:[Q1]"), -1, &r) == StructResult::Ok && r.col1 == 1 && r.col2 == 2);
+        QVERIFY(structuredArea(t, QStringLiteral("Pad"), -1, &r) == StructResult::Ref);
+        QVERIFY(structuredArea(t, QStringLiteral("[Region],[Double]"), -1, &r) == StructResult::Ref);    // (two blocks, not the range between them)
+        QVERIFY(structuredArea(t, QStringLiteral("[Q1],[Double]"), -1, &r) == StructResult::Ok && r.col1 == 2 && r.col2 == 3);   // (next to each other: one block)
+        QVERIFY(structuredArea(t, QStringLiteral("[Double],[Q1]"), -1, &r) == StructResult::Ok && r.col1 == 2 && r.col2 == 3);
+        QVERIFY(structuredArea(t, QStringLiteral("@[ Pad ]"), 2, &r) == StructResult::Ok && r.col1 == 1 && r.row1 == 2);
+    }
+
+    // A defined name that stands for a table's column is worked out where the table is, and what reads the name is worked out again when the table grows.
+    void aNameOfATablesColumnFollowsTheTable()
+    {
+        QString rows = QStringLiteral("<row r=\"1\">%1%2</row>").arg(inlineCell(QStringLiteral("A1"), QStringLiteral("Region")), inlineCell(QStringLiteral("B1"), QStringLiteral("Q1")));
+        for (int i = 0; i < 3; ++i) rows += QStringLiteral("<row r=\"%1\">%2%3</row>").arg(i + 2).arg(inlineCell(QStringLiteral("A%1").arg(i + 2), QStringLiteral("x")), numberCell(QStringLiteral("B%1").arg(i + 2), i + 1));
+        rows += QStringLiteral("<row r=\"5\">%1</row><row r=\"7\">%2</row>").arg(numberCell(QStringLiteral("B5"), 10), formulaCell(QStringLiteral("D1"), QStringLiteral("SUM(Quarter)")));
+        const QString part = QStringLiteral("<table xmlns=\"%1\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:B4\"><tableColumns count=\"2\"><tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/></tableColumns></table>").arg(QLatin1String(kNs));
+        Open o;
+        QVERIFY(o.ok(withTables(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QStringLiteral("<definedName name=\"Quarter\">Sales[Q1]</definedName>")), {part})));
+        CalcOptions options;
+        options.keepApart = true;
+        options.workOutTables = true;
+        options.workOutWhatHasNoResult = true;
+        Calculation calc(o.b, options);
+        QVERIFY(calc.load());
+        calc.recalculate();
+        quint32 r = 0, c = 0;
+        parseCellRef(QStringLiteral("D1"), &r, &c);
+        QCOMPARE(calc.cell(0, r, c).debug(), QStringLiteral("n:6"));
+        Table grown = o.b.tables().first();
+        grown.row2 += 1;
+        o.b.setTableAt(0, grown);
+        calc.tablesChanged();
+        calc.recalculate();
+        QCOMPARE(calc.cell(0, r, c).debug(), QStringLiteral("n:16"));
+    }
+
+    // A file with two tables of one name, one id, or the same cells keeps the first of them and says what it left out; a part nested past any real one is not a table.
+    void tablesThatClashAreLeftOut()
+    {
+        auto part = [&](int id, const QString &name, const QString &ref, const QString &columns) {
+            return QStringLiteral("<table xmlns=\"%1\" id=\"%2\" name=\"%3\" displayName=\"%3\" ref=\"%4\"><tableColumns count=\"2\">%5</tableColumns></table>").arg(QLatin1String(kNs)).arg(id).arg(name, ref, columns);
+        };
+        const QString cols = QStringLiteral("<tableColumn id=\"1\" name=\"A\"/><tableColumn id=\"2\" name=\"B\"/>");
+        const QStringList parts = {part(1, QStringLiteral("One"), QStringLiteral("A1:B3"), cols), part(2, QStringLiteral("one"), QStringLiteral("D1:E3"), cols),        // (the name again)
+                                   part(1, QStringLiteral("Two"), QStringLiteral("G1:H3"), cols),                                                                        // (the id again)
+                                   part(3, QStringLiteral("Three"), QStringLiteral("B2:C5"), cols),                                                                      // (cells of the first)
+                                   part(4, QStringLiteral("Four"), QStringLiteral("J1:K3"), cols)};
+        Open o;
+        QVERIFY(o.ok(withTables(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"/>"))}), parts)));
+        QStringList names;
+        for (const Table &t : o.b.tables()) names << t.name;
+        QCOMPARE(names, (QStringList{QStringLiteral("One"), QStringLiteral("Four")}));
+        QVERIFY(!o.b.skippedFeatures().isEmpty());
+        QVERIFY(o.b.skippedFeatures().join(QLatin1Char(' ')).contains(QStringLiteral("3 table")));
+        // nested too deep
+        QString deep = QStringLiteral("<extLst>");
+        for (int i = 0; i < 400; ++i) deep += QStringLiteral("<ext>");
+        for (int i = 0; i < 400; ++i) deep += QStringLiteral("</ext>");
+        deep += QStringLiteral("</extLst>");
+        QString nested = part(1, QStringLiteral("Deep"), QStringLiteral("A1:B3"), cols);
+        nested.replace(QStringLiteral("</table>"), deep + QStringLiteral("</table>"));
+        Open d;
+        QVERIFY(d.ok(withTables(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"/>"))}), {nested})));
+        QVERIFY(d.b.tables().isEmpty());
+        // many columns with one name are given numbers, each once
+        ColumnNames used;
+        QSet<QString> seen;
+        for (int i = 0; i < 3000; ++i) seen.insert(used.unique(QStringLiteral("A")).toLower());
+        QCOMPARE(int(seen.size()), 3000);
+        QVERIFY(seen.contains(QStringLiteral("a")) && seen.contains(QStringLiteral("a2")) && seen.contains(QStringLiteral("a3000")));
     }
 
     // Names: what a table may be called, and the name a new table is given.

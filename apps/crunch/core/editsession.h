@@ -22,6 +22,7 @@
 
 #include <QLocale>
 #include <QObject>
+#include <QTimer>
 #include <QUndoStack>
 
 #include <atomic>
@@ -74,10 +75,22 @@ struct TableRename {
 // again (the cells' are in the step; the defined names' are made when the step is first done).
 struct TableEdit {
     enum class Kind : quint8 { Replace, Insert, Erase } kind = Kind::Replace;
-    enum class Rewrite : quint8 { None, Rename, ToRange } rewrite = Rewrite::None;
+    enum class Rewrite : quint8 { None, Rename, ToRange, Remove } rewrite = Rewrite::None;
     int index = 0;
     jp::office::sheet::Table before, after;
     std::vector<std::pair<QString, QString>> names;   // the defined names that named the table, as they were (made when the step is first done)
+};
+
+// A formula put in the cells of a column of a sheet by a step, rows `row1` to `row2`, each as it reads in its own row (the text is written for the row `base`): what a calculated column fills. The cells
+// were empty, but those in `oldRuns` (runs of rows, from first to last), which held `oldFormula` (written for `oldBase`): it is the small description of very many cells, put in a slice at a time.
+struct FillEdit {
+    int sheet = 0;
+    quint32 col = 0, row1 = 0, row2 = 0;
+    QString formula;
+    quint32 base = 0;
+    QString oldFormula;
+    quint32 oldBase = 0;
+    std::vector<std::pair<quint32, quint32>> oldRuns;
 };
 
 // The width of columns or the height of rows changed by a step: the runs of columns (the specs of rows) in a range as they were and as they are.
@@ -191,6 +204,7 @@ struct Step {
     std::vector<StyleCell> styles;
     std::vector<TableRename> renames;
     std::vector<TableEdit> tables;
+    std::vector<FillEdit> fills;
     std::vector<SizeEdit> sizes;
     std::vector<MergeEdit> merges;
     std::vector<FormatEdit> formats;
@@ -205,7 +219,7 @@ struct Step {
     std::vector<ProtectEdit> protections;      // or the protection of a sheet or the workbook
     std::vector<NameEdit> names;               // or defined names made, changed, or taken away
     std::vector<CalcEdit> calcs;               // or how the workbook calculates
-    bool empty() const { return protections.empty() && sides.empty() && cells.empty() && styles.empty() && renames.empty() && tables.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
+    bool empty() const { return protections.empty() && sides.empty() && cells.empty() && styles.empty() && renames.empty() && tables.empty() && fills.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -326,6 +340,8 @@ public:
     Outcome makeTable(int sheet, const jp::office::sheet::CellRange &range, bool hasHeaders, const QString &style, int *made = nullptr);
     // Why a name can't be a table's (not `except`'s own), in a sentence; empty when it can: not a valid name, or another table's or a defined name, in any case.
     QString tableNameProblem(const QString &name, int except) const;
+    // Whether a table (on a sheet that is there) has the name (any case): a defined name can't be the same.
+    bool tableNamed(const QString &name) const;
     // Turns the table back into plain cells: the cells keep what they hold and how they look (the style is drawn no more), and the formulas that named the table's columns name the cells.
     Outcome tableToRange(int table);
     Outcome renameTable(int table, const QString &name);
@@ -368,11 +384,21 @@ public:
         QString text;
         size_t next = 0;
         bool began = false;
+        bool tablesApplied = false;
+        size_t fillAt = 0;         // the fill the slices are at, and its next row
+        quint32 fillRow = 0;
     };
     std::shared_ptr<SlicedPush> beginSlicedPush(Step step, const QString &text);
     // Puts in about `budget` more cells (0: all); true when the step is all in and is on the undo stack.
     bool continueSlicedPush(SlicedPush &push, qint64 budget);
     bool isSlicing() const { return m_slicing; }
+    // A step that fills a column with a formula (or changes a table, with many cells to fill) is put in a slice at a time by the session's own timer, as one step of Undo; a small one is put in at
+    // once. `fillPending` says one is going on, and `finishFills` puts in what is left at once (for a save, a test, or a tool).
+    void startFill(Step step, const QString &text);
+    bool fillPending() const { return bool(m_fill); }
+    void finishFills();
+    // The most cells a step is put in at once (more are put in by slices).
+    static constexpr qint64 kFillAtOnce = 2000;
     // What the slices did (a test counts them): how many cells the biggest slice put in, and how many slices there have been.
     qint64 longestSlice() const { return m_longestSlice; }
     int slicesPushed() const { return m_slicesPushed; }
@@ -581,7 +607,7 @@ public:
     // its data bars; a sheet with a table can't be copied. What is left out (pictures, charts, notes, and the like) is said by the outcome's `problem`, with `ok` true.
     Outcome insertSheet(int before, const QString &name, int *made = nullptr);
     Outcome copySheet(int sheet, int before, const QString &name, int *made = nullptr);
-    // Deletes a sheet (the last that is shown, or one that has a table, can't be); the sheet and everything in it are kept for Undo.
+    // Deletes a sheet (the last that is shown can't be); the sheet and everything in it, its tables too, are kept for Undo, and what named a table of it on another sheet is #REF!.
     Outcome deleteSheet(int sheet);
     Outcome renameSheet(int sheet, const QString &name);
     // Puts a sheet before another in the order of the tabs (-1: at the end).
@@ -711,6 +737,8 @@ Q_SIGNALS:
     void sizesChanged(int sheet);
     // A step of the undo stack could not be undone or done again (the workbook could not be held, or the edit was refused): Undo and Redo of every step are given up, and this says so.
     void stepFailed(const QString &what);
+    // A fill that was put in slice by slice is all in (startFill).
+    void fillFinished();
     // The tables of a sheet changed (made, taken out, resized, restyled, or renamed, by a step, Undo, or Redo): the window draws the sheet again.
     void tablesChanged(int sheet);
     // How a sheet prints changed (a command, Undo or Redo of one, or an edit of rows, columns, or cells that moved its print area, titles, or breaks).
@@ -826,7 +854,7 @@ private:
     void applyPermute(jp::office::sheet::CellPermute &p, bool forward);
     void forgetNotes();
     bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);
-    Outcome pushSheetEdit(SheetEdit edit, const QString &text, std::vector<TableEdit> tables = {});
+    Outcome pushSheetEdit(SheetEdit edit, const QString &text, std::vector<TableEdit> tables = {}, std::vector<CellChange> cells = {});
     bool sheetStepsRefused(QString *why);
     bool applyNameEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc);
     void applyCalcEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc);
@@ -860,6 +888,10 @@ private:
     jp::office::sheet::WorkbookProtection m_fileBookProtection;
     std::vector<jp::office::sheet::ColumnRename> m_renames;   // and the table columns renamed, for the names, validations, rules, and charts that name them
     std::vector<jp::office::sheet::TableRewrite> m_tableRewrites;   // and the tables renamed or made plain cells, for the same
+    std::shared_ptr<SlicedPush> m_fill;
+    QTimer m_fillTimer;
+    qint64 m_fillBudget = 2000;
+    void stepFill();
     int m_opSeq = 0;                   // the order renames of columns and tables are made in
     bool m_lastCalculated = false;     // the last entry made its column a calculated column (see lastEntryMadeCalculatedColumn)
     int m_calculatedIndex = -1;        // the place on the undo stack of the step that made it

@@ -618,7 +618,7 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     // What INDIRECT is given names a reference (a cell, a range, a name): a formula that works one out is not a reference to take.
     if (!relativeToA1 && !namesAReference(*program)) return Item::ofError(ErrorKind::Ref);
     if (program->external) unsupported |= 1;
-    if (program->structured) unsupported |= 2;
+    // (the columns of a table are worked out where the source knows tables: Op::PushTable says, when it is run, that it does not)
     if (!program->unknownFunctions.isEmpty()) unsupported |= 4;
     const int savedRows = ctx.shiftRows, savedCols = ctx.shiftCols;
     ctx.shiftRows = relativeToA1 ? int(ctx.row) : 0;

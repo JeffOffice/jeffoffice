@@ -59,18 +59,23 @@ Parsed parseInside(const QString &inside)
     auto skip = [&] {
         while (i < n && inside[i] == QLatin1Char(' ')) ++i;
     };
-    skip();
+    // (spaces before a bracket or an "@" are the format's; spaces in a column's name are the name's)
+    int probe = 0;
+    while (probe < n && inside[probe] == QLatin1Char(' ')) ++probe;
+    if (probe < n && (inside[probe] == QLatin1Char('@') || inside[probe] == QLatin1Char('['))) i = probe;
     if (i < n && inside[i] == QLatin1Char('@')) {
         p.at = true;
         ++i;
-        skip();
+        int after = i;
+        while (after < n && inside[after] == QLatin1Char(' ')) ++after;
+        if (after < n && inside[after] == QLatin1Char('[')) i = after;
         if (i >= n) return p;
     }
     if (i < n && inside[i] != QLatin1Char('[')) {
         // a single name (or special item) written in the one pair of brackets
-        const QString raw = inside.mid(i).trimmed();
-        if (raw.isEmpty()) return p;
-        p.terms.push_back(termOf(raw));
+        const QString raw = inside.mid(i);
+        if (raw.trimmed().isEmpty()) return p;
+        p.terms.push_back(termOf(raw.trimmed().startsWith(QLatin1Char('#')) ? raw.trimmed() : raw));
         p.rangeFromPrevious.push_back(false);
         return p;
     }
@@ -122,7 +127,8 @@ StructResult structuredArea(const Table &t, const QString &inside, qint64 formul
     const Parsed p = parseInside(inside);
     if (!p.ok) return StructResult::Ref;
     bool all = false, data = false, headers = false, totals = false, thisRow = p.at;
-    int firstCol = -1, lastCol = -1;
+    // the columns named: each a block of its own (one, or those from one to another), which must make one block together
+    std::vector<std::pair<int, int>> blocks;
     int previousColumn = -1;
     for (size_t i = 0; i < p.terms.size(); ++i) {
         const Term &term = p.terms[i];
@@ -138,14 +144,19 @@ StructResult structuredArea(const Table &t, const QString &inside, qint64 formul
         }
         const int column = t.columnNamed(term.name);
         if (column < 0) return StructResult::Ref;
-        if (p.rangeFromPrevious[i] && previousColumn >= 0) {
-            firstCol = std::min({firstCol, previousColumn, column});
-            lastCol = std::max({lastCol, previousColumn, column});
-        } else {
-            firstCol = firstCol < 0 ? column : std::min(firstCol, column);
-            lastCol = lastCol < 0 ? column : std::max(lastCol, column);
-        }
+        if (p.rangeFromPrevious[i] && previousColumn >= 0 && !blocks.empty()) blocks.back() = {std::min(previousColumn, column), std::max(previousColumn, column)};
+        else blocks.emplace_back(column, column);
         previousColumn = column;
+    }
+    int firstCol = -1, lastCol = -1;
+    if (!blocks.empty()) {
+        std::sort(blocks.begin(), blocks.end());
+        firstCol = blocks.front().first;
+        lastCol = blocks.front().second;
+        for (size_t i = 1; i < blocks.size(); ++i) {
+            if (blocks[i].first > lastCol + 1) return StructResult::Ref;   // (columns apart are two blocks: a reference that is one block of cells cannot be them)
+            lastCol = std::max(lastCol, blocks[i].second);
+        }
     }
     if (firstCol < 0) {
         firstCol = 0;
@@ -237,6 +248,18 @@ QString mapReferences(const QString &formula, F f)
                 out += formula.mid(i);
                 break;
             }
+            // [1]Sheet2!A1 and [1]!Name name another workbook (by its number), not the columns of a table
+            if (end - i > 2 && end < n && (isNameChar(formula[end]) || formula[end] == QLatin1Char('!') || formula[end] == QLatin1Char('\''))) {
+                bool digits = true;
+                for (int k = i + 1; k < end - 1; ++k)
+                    if (!formula[k].isDigit()) digits = false;
+                const bool atWordStart = out.isEmpty() || !isNameChar(out.back());
+                if (digits && atWordStart) {
+                    out += formula.mid(i, end - i);
+                    i = end;
+                    continue;
+                }
+            }
             int nameStart = int(out.size());
             while (nameStart > 0 && isNameChar(out[nameStart - 1])) --nameStart;
             const QString name = out.mid(nameStart);
@@ -281,6 +304,11 @@ QString structuredRefsToCells(const QString &formula, const Table &t, const QStr
         if (r.row1 == r.row2 && r.col1 == r.col2) return prefix + first;
         return prefix + first + QLatin1Char(':') + d + columnName(r.col2) + (own ? QString() : d) + QString::number(r.row2 + 1);
     });
+}
+
+QString structuredRefsToError(const QString &formula, const QString &tableName)
+{
+    return mapReferences(formula, [&](const QString &name, const QString &) -> QString { return !name.isEmpty() && name.compare(tableName, Qt::CaseInsensitive) == 0 ? QStringLiteral("#REF!") : QString(); });
 }
 
 QString fileFormOfStructuredRefs(const QString &formula, const QString &tableAtCell)

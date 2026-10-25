@@ -184,6 +184,7 @@ void CrunchWindow::fillTabs()
 
 void CrunchWindow::showSheet(int sheetIndex, bool keepView)
 {
+    ++m_sheetShows;
     if (!m_loaded || !m_loaded->book) return;
     if (!keepView) m_copy.reset();   // (a copy being made is of the sheet that was shown)
     if (m_layoutSheet != sheetIndex) dropLayoutJob();   // (the pages held are another sheet's)
