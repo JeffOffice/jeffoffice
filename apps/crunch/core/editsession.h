@@ -9,6 +9,7 @@
 
 #include "core/clipdata.h"
 #include "core/loader.h"
+#include "core/sortspec.h"
 #include "grid/valuestore.h"
 #include "sheet/entry.h"
 #include "sheet/textmatch.h"
@@ -18,6 +19,7 @@
 #include <QObject>
 #include <QUndoStack>
 
+#include <atomic>
 #include <functional>
 #include <map>
 #include <optional>
@@ -252,6 +254,26 @@ public:
     // step. Nothing is changed, and the reason is told, if a cell is part of an array, is locked on a protected sheet, is in a table's header row, would not be a formula any more, or
     // there are more than kMaxCellsPerEdit.
     Outcome replaceInCells(const std::vector<CellSpot> &cells, const jp::office::sheet::TextPattern &pattern, const QString &with, ReplaceResult *result = nullptr);
+
+    // ---- Sort (editsort.cpp)
+    // A sort being made: what it reads of the cells (the keys, read a slice at a time by `prepareSort`), the order it comes to (`orderSort`, which reads only the keys and so may be done on another
+    // thread while the window goes on), and the one step it is (`applySort`).
+    struct SortPlan;
+    // The plan for sorting the range; null, with the reason in `why`, if it cannot be: a cell in it is locked or part of an array, merged cells of different sizes (or that span the rows
+    // sorted), a header row of a table, more cells than kMaxCellsPerEdit, no level, or a level that is not in the range.
+    std::shared_ptr<SortPlan> planSort(int sheet, const jp::office::sheet::CellRange &range, const SortSpec &spec, QString *why);
+    // Reads the keys of about `budget` more of the lines to sort (0: all of them); true when every key is read.
+    bool prepareSort(SortPlan &plan, qint64 budget);
+    // Works out the order from the keys; false if `cancel` was set (nothing then comes of the plan). Reads nothing of the workbook.
+    static bool orderSort(SortPlan &plan, const std::atomic<bool> *cancel = nullptr);
+    // Puts the cells in the order: one step. Not ok, and nothing changed, if the plan is not ready or the workbook has changed since it was made.
+    Outcome applySort(SortPlan &plan);
+    // All of it at once (for the tools and the tests): a plan, its keys, its order, and the step.
+    Outcome sortRange(int sheet, const jp::office::sheet::CellRange &range, const SortSpec &spec);
+    // Whether the first row of the range looks like names of columns: all text, with something that is not text in one of the cells under it.
+    bool looksLikeHeader(int sheet, const jp::office::sheet::CellRange &range) const;
+    // The distinct colors of the cells (cell colors, or font colors) of a column of the range, in the order they first appear, at most `limit`; with `none` set if some cell has no color.
+    std::vector<jp::office::sheet::ColorSpec> colorsIn(int sheet, const jp::office::sheet::CellRange &range, bool font, bool *none, int limit = 64) const;
 
     // Inserts or deletes rows, columns, or cells: the cells after them move over (down, right, left, or up) and everything that refers to them follows (formulas on every sheet, defined
     // names, merged cells, tables, and, in the file, conditional formats, validations, hyperlinks, charts, print areas, and the rest); a reference to cells that are deleted becomes #REF!.

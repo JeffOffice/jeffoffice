@@ -179,6 +179,8 @@ CrunchWindow::~CrunchWindow()
         m_session->disconnect(this);
         m_session.reset();
     }
+    m_sortCancel = true;
+    if (m_sortThread) m_sortThread->wait();   // (the order a thread is working out is given up)
     m_loader.cancel();
     if (m_saveThread) m_saveThread->wait();   // (a save that is going on is finished: it ends with the file whole)
 }
@@ -375,6 +377,7 @@ void CrunchWindow::createActions()
     createCellsActions();
     createClipboardActions();
     createFindActions();
+    createSortActions();
     createFormatActions();
     createSheetActions();
     createDisabledActions();
@@ -387,7 +390,7 @@ void CrunchWindow::createDisabledActions()
         const char *id, *text, *icon;
     };
     static const Command commands[] = {
-        {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"},
+        
         {"insert.table", QT_TR_NOOP("Table"), "table"}, {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
         {"insert.chart", QT_TR_NOOP("Chart"), "chart-column"}, {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
         {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"}, {"formulas.insertFunction", QT_TR_NOOP("Insert Function"), "square-function"},
@@ -548,6 +551,12 @@ void CrunchWindow::keyPressEvent(QKeyEvent *e)
 {
     if (e->key() == Qt::Key_Escape && m_painter.mode != PainterMode::Off && !m_edit.active) {
         cancelFormatPainter();
+        e->accept();
+        return;
+    }
+    if (e->key() == Qt::Key_Escape && (m_sortPlan || m_findRun) && !m_edit.active) {
+        if (m_sortPlan) cancelSort();
+        if (m_findRun) cancelSearch();
         e->accept();
         return;
     }

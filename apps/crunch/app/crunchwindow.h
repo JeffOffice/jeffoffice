@@ -6,6 +6,7 @@
 #include "app/appwindow.h"
 #include "app/celleditor.h"
 #include "app/finddialog.h"
+#include "app/sortdialog.h"
 #include "app/formatdialog.h"
 #include "app/widgets.h"
 #include "core/color.h"
@@ -100,6 +101,16 @@ public:
     // What Go To asks for (a reference) and Go To Special (the kind of cells): dialogs unless these stand in for them (tests); false gives it up.
     void setGoToAsker(const std::function<bool(QString *)> &asker) { m_goToAsker = asker; }
     void setSpecialAsker(const std::function<bool(jp::crunch::SpecialOptions *)> &asker) { m_specialAsker = asker; }
+
+    // ---- Sort (crunchwindow_sort.cpp)
+    // Sorts the cells of the range (or, with none valid, the selection, or the block around the cell with the cursor) in the order the spec says; Sort A to Z and Z to A, and Custom Sort, come
+    // here. The work is done a slice at a time, the order on a thread of its own, and the step on the window's thread; sortFinished says when it is over.
+    bool sortRange(const jp::office::sheet::CellRange &range, const jp::crunch::SortSpec &spec);
+    bool isSorting() const { return bool(m_sortPlan); }
+    // What Custom Sort asks for: given the range and the spec it begins from, the spec the person chose (a dialog unless this stands in for it: tests); false gives it up.
+    void setSortAsker(const std::function<bool(const jp::office::sheet::CellRange &range, jp::crunch::SortSpec *spec)> &asker) { m_sortAsker = asker; }
+    // And what is asked when cells next to the selection hold data that would not be sorted with it: true sorts the whole block, false only what is selected (a message unless this stands in).
+    void setExpandAsker(const std::function<bool()> &asker) { m_expandAsker = asker; }
 
     // ---- saving
     // Saves the workbook where it was read from (the file is made whole in a place of its own, and then put where the old one is), or, with a path, there. The work is done on a thread of its own;
@@ -222,6 +233,8 @@ Q_SIGNALS:
     void loadFinished(bool ok);
     // Every formula has its value.
     void calculationFinished();
+    // A sort is over: it was made (true), or it was refused, given up, or could not be made.
+    void sortFinished(bool made);
     // The window was asked to open a file it has open (or another window was), and has been brought to the front.
     void broughtForward();
 
@@ -340,6 +353,21 @@ private:
     qint64 m_searchChanges = 0;
     int m_searchSteps = 0;
     bool m_settingMarks = false;
+    // sorting (crunchwindow_sort.cpp)
+    void createSortActions();
+    void sortSelection(int mode);   // 0 A to Z, 1 Z to A, 2 the dialog
+    bool sortRangeOf(jp::office::sheet::CellRange *range, int *key, bool *expanded);
+    void stepSort();
+    void finishSort(bool ordered);
+    void cancelSort();
+    std::shared_ptr<jp::crunch::EditSession::SortPlan> m_sortPlan;
+    QTimer m_sortTimer;
+    QPointer<QThread> m_sortThread;
+    std::atomic<bool> m_sortCancel{false};
+    bool m_sortOrderedOk = false;
+    bool m_sortOrdering = false;
+    std::function<bool(const jp::office::sheet::CellRange &, jp::crunch::SortSpec *)> m_sortAsker;
+    std::function<bool()> m_expandAsker;
     std::function<bool(QString *)> m_goToAsker;
     std::function<bool(jp::crunch::SpecialOptions *)> m_specialAsker;
     // the clipboard (crunchwindow_clip.cpp)
