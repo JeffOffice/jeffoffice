@@ -11,10 +11,12 @@ cut), and compares:
     the mean gray difference (0 is the same page);
   * where the pages are cut: our first and last row and column of each page (from the pagination), and, from the text of the reference page (pdftotext -bbox), whether its first and last
     words and its words as a whole are those of our page (the words say which cells are on it, whatever the type is);
-and lists the ten sheets that match worst, with what is different. Only the first --pages (default 20) pages of a sheet are compared picture by picture. Prints summary lines; writes
+and lists the ten sheets that match worst, with what is different. Two things are made to match the reference's own run: each workbook is printed from a link named as the reference's copy
+was (<key>.<ext>, so the file name fields show the same name), and the date and time fields show the moment the reference PDF was made (its CreationDate, given to the tool as JP_NOW). A
+reference that is one blank page (an empty sheet) is compared by page count only, and counted on its own line. Only the first --pages (default 20) pages of a sheet are compared picture by picture. Prints summary lines; writes
 OUT/scores.tsv (a line for each page) and OUT/sheets.tsv (a line for each sheet).
 """
-import collections, csv, glob, os, re, statistics, subprocess, sys, tempfile
+import collections, csv, glob, os, re, shutil, statistics, subprocess, sys, tempfile
 from concurrent.futures import ThreadPoolExecutor
 from html import unescape
 
@@ -36,6 +38,30 @@ def page_info(pdf):
     pages = re.search(r"^Pages:\s+(\d+)", out, re.M)
     size = re.search(r"^Page size:\s+([\d.]+) x ([\d.]+) pts", out, re.M)
     return (int(pages.group(1)) if pages else 0), ((float(size.group(1)), float(size.group(2))) if size else (0, 0))
+
+
+def ref_now(pdf):
+    """The moment the reference was made (its PDF's creation date, as ISO 8601 with its offset), so the date and time fields show the same: JP_NOW for the tool; None if it has none."""
+    try:
+        out = sh(["pdfinfo", "-isodates", pdf], timeout=60).stdout
+    except Exception:
+        return None
+    m = re.search(r"^CreationDate:\s+(\S+)", out, re.M)
+    if not m:
+        return None
+    v = m.group(1)
+    return v + ":00" if re.search(r"[+-]\d\d$", v) else v   # (pdfinfo gives -04; the tool reads -04:00)
+
+
+def is_blank(pdf):
+    """Whether the reference is the one blank page an empty sheet comes out as: a page, a few kilobytes, and no words."""
+    try:
+        if os.path.getsize(pdf) > 12000 or page_info(pdf)[0] != 1:
+            return False
+    except OSError:
+        return False
+    pages = words_by_page(pdf, 1)
+    return not (pages and pages[0])
 
 
 def words_by_page(pdf, limit):
@@ -68,35 +94,61 @@ def one_workbook(job):
     tool, key, path, sheets, ref_dir, out_dir, max_pages = job
     target = os.path.join(out_dir, key)
     os.makedirs(target, exist_ok=True)
-    env = dict(os.environ, QT_QPA_PLATFORM="offscreen", JP_NO_TELEMETRY="1")
-    cmd = ["systemd-run", "--user", "--scope", "-q", "-p", "MemoryMax=4G", "timeout", "300", tool, "print-sheets", path, target] + [str(n) for n, _ in sheets]
+    # the workbook as the reference printed it: a copy named <key>.<ext> (a link here), and the moment the reference was made (the sheets of one workbook are made within seconds of each
+    # other: one run of the tool for each minute there is)
+    linkdir = tempfile.mkdtemp(prefix="crunch-print-link-")
+    link = os.path.join(linkdir, key + (os.path.splitext(path)[1] or ".xlsx"))
     try:
-        sh(cmd, timeout=360, env=env)
-    except Exception:
-        pass
-    cuts = collections.defaultdict(list)
-    try:
-        for line in open(os.path.join(target, "cuts.tsv"), encoding="utf-8"):
-            f = line.rstrip("\n").split("\t")
-            if len(f) >= 12:
-                cuts[int(f[0])].append(f)
+        os.symlink(os.path.abspath(os.path.expanduser(path)), link)
     except OSError:
-        pass
+        link = path
+    groups = collections.OrderedDict()
+    for n, name in sheets:
+        moment = ref_now(os.path.join(ref_dir, key, "sheet-%02d.pdf" % n))
+        groups.setdefault(re.sub(r"(T\d\d:\d\d):\d\d", r"\1", moment) if moment else "", (moment, []))[1].append(n)
+    where = {}
+    cuts = collections.defaultdict(list)
+    for gi, (moment, ns) in enumerate(groups.values()):
+        gdir = os.path.join(target, "run%d" % gi)
+        os.makedirs(gdir, exist_ok=True)
+        env = dict(os.environ, QT_QPA_PLATFORM="offscreen", JP_NO_TELEMETRY="1")
+        env.pop("JP_NOW", None)
+        if moment:
+            env["JP_NOW"] = moment
+        cmd = ["systemd-run", "--user", "--scope", "-q", "-p", "MemoryMax=4G", "timeout", "300", tool, "print-sheets", link, gdir] + [str(n) for n in ns]
+        try:
+            sh(cmd, timeout=360, env=env)
+        except Exception:
+            pass
+        for n in ns:
+            where[n] = gdir
+        try:
+            for line in open(os.path.join(gdir, "cuts.tsv"), encoding="utf-8"):
+                f = line.rstrip("\n").split("\t")
+                if len(f) >= 12 and int(f[0]) in ns:
+                    cuts[int(f[0])].append(f)
+        except OSError:
+            pass
+    shutil.rmtree(linkdir, ignore_errors=True)
     results = []
     for n, name in sheets:
-        mine = os.path.join(target, "sheet-%02d.pdf" % n)
+        mine = os.path.join(where.get(n, target), "sheet-%02d.pdf" % n)
         ref = os.path.join(ref_dir, key, "sheet-%02d.pdf" % n)
-        row = {"key": key, "sheet": n, "name": name, "ref_pages": 0, "our_pages": 0, "status": "", "pages": [], "cause": ""}
+        row = {"key": key, "sheet": n, "name": name, "ref_pages": 0, "our_pages": 0, "status": "", "pages": [], "cause": "", "blank": False}
         if not os.path.exists(ref):
             row["status"] = "no reference"
         elif not os.path.exists(mine):
-            row["status"] = "not printed"
+            # nothing printed: a failure of ours, unless the reference is the blank page of an empty sheet (the tool says "no cells to print" for those, and they are counted on their own)
             row["ref_pages"] = page_info(ref)[0]
+            row["blank"] = is_blank(ref)
+            row["status"] = "empty" if row["blank"] else "count differs"
+            row["cause"] = "" if row["blank"] else "not printed; reference %d pages" % row["ref_pages"]
         else:
             rp, rsize = page_info(ref)
             op, osize = page_info(mine)
             row["ref_pages"], row["our_pages"] = rp, op
             row["status"] = "match" if rp == op else "count differs"
+            row["blank"] = is_blank(ref)
             cause = []
             if rp != op:
                 cause.append("pages %d, reference %d" % (op, rp))
@@ -106,8 +158,8 @@ def one_workbook(job):
                 c0 = cuts[n][0]
                 cause.append("scale %s" % c0[2])
             row["cause"] = "; ".join(cause)
-            limit = max_pages
-            rw, ow = words_by_page(ref, limit), words_by_page(mine, limit)
+            limit = 0 if row["blank"] else max_pages   # (a blank reference: the page count is all there is to compare)
+            rw, ow = (words_by_page(ref, limit), words_by_page(mine, limit)) if limit else ([], [])
             for i in range(min(rp, op, limit)):
                 p = {"page": i + 1, "score": None, "jaccard": None, "first": None, "last": None, "cut": ""}
                 if i < len(cuts.get(n, [])):
@@ -120,7 +172,7 @@ def one_workbook(job):
                     p["first"] = (rw[i][:1] == ow[i][:1])
                     p["last"] = (rw[i][-1:] == ow[i][-1:])
                 row["pages"].append(p)
-            if rp == op:
+            if rp == op and limit > 0:
                 with tempfile.TemporaryDirectory() as tmp:
                     a = rasterize(mine, os.path.join(tmp, "m"), limit)
                     b = rasterize(ref, os.path.join(tmp, "r"), limit)
@@ -186,10 +238,17 @@ def main():
                 f.write("%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\n" % (r["key"], r["sheet"], p["page"], "" if p["score"] is None else "%.2f" % p["score"], "" if p["jaccard"] is None else "%.3f" % p["jaccard"], p["first"], p["last"], p["cut"]))
     scored = [r for r in results if r["status"] in ("match", "count differs")]
     exact = [r for r in scored if r["status"] == "match"]
+    blank_unprinted = [r for r in results if r["status"] == "empty"]
     print("sheets %d from %d workbooks (skipped by the reference: %s; no reference page %d; not printed by us %d)" % (
-        len(results), len(groups), ", ".join("%s %d" % kv for kv in skipped.items()) or "none", sum(r["status"] == "no reference" for r in results), sum(r["status"] == "not printed" for r in results)))
+        len(results), len(groups), ", ".join("%s %d" % kv for kv in skipped.items()) or "none", sum(r["status"] == "no reference" for r in results), sum(r["cause"].startswith("not printed") for r in results)))
     if scored:
         print("page count: %d of %d sheets match exactly (%.1f%%)" % (len(exact), len(scored), 100 * len(exact) / len(scored)))
+        blanks = [r for r in scored if r["blank"]]
+        if blanks:
+            print("  %d of them have a blank one-page reference (compared by count only)" % len(blanks))
+    if blank_unprinted:
+        print("empty sheets: %d have a blank one-page reference and we print nothing for them (the sheet has no cells to print; a message says so); not counted above; with them counted as misses the match is %.1f%%" % (len(blank_unprinted), 100 * len(exact) / max(1, len(scored) + len(blank_unprinted))))
+    if scored:
         both = [p for r in exact for p in r["pages"]]
         summ("page picture difference (matched)", [p["score"] for p in both if p["score"] is not None])
         jac = [p["jaccard"] for r in scored for p in r["pages"] if p["jaccard"] is not None]
