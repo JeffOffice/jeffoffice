@@ -521,7 +521,7 @@ private Q_SLOTS:
             for (int i = 0; i < jp::office::sheet::kMaxDrawingAnchors + 2000; ++i) many += twoCell(i % 40, i % 300, i % 40 + 1, i % 300 + 1, shapeElement(2 + i, QStringLiteral("S")));
             EditWindow e;
             QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(many), {})));
-            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0 && e.win.w.objects()->layer()->count() > 0);
+            QTRY_VERIFY_WITH_TIMEOUT(e.win.w.objects()->shownSheet() == 0 && e.win.w.objects()->layer()->count() > 0, 30000);   // (a drawing of ten thousand anchors is parsed on a worker: on a machine running every suite at once that takes more than five seconds)
             crunch::SheetObjects *o = e.win.w.objects();
             // the sheet is listed, and an object is made when a picture of it is wanted: not the ten thousand, but those on and near the screen
             QCOMPARE(o->layer()->count(), jp::office::sheet::kMaxDrawingAnchors);
