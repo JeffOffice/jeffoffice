@@ -975,7 +975,7 @@ private Q_SLOTS:
             QCOMPARE(d.objects.size(), 1);
             QCOMPARE(int(d.objects[0].kind), int(ObjectKind::Chart));
             QDomDocument doc;
-            QVERIFY(doc.setContent(xml));
+            QVERIFY(doc.setContent(xml, QDomDocument::ParseOption::UseNamespaceProcessing));
             // the element's id is the relationship that goes to the drawing that was made
             const QDomNodeList drawings = doc.elementsByTagName(QStringLiteral("drawing"));
             QCOMPARE(drawings.size(), 1);
