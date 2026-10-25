@@ -164,6 +164,7 @@ void Calculation::nameTextsChangedFor(const QStringList &given)
         }
     }
     m_nameTraits.clear();
+    qint64 rebuilt = 0;
     for (int si = 0; si < int(m_sheets.size()); ++si) {
         Sheet &s = m_sheets[size_t(si)];
         SheetState &st = m_state[size_t(si)];
@@ -194,9 +195,11 @@ void Calculation::nameTextsChangedFor(const QStringList &given)
             const quint32 now = addNode(si, *c, formula);
             queueDependents(areaOf(m_nodes[now]));
             ++m_nameRebuilds;
+            ++rebuilt;
         }
     }
-    if (!m_running) beginRecalculation();
+    // (a change of a name that nothing mentions leaves nothing to work out, and no recalculation is begun for it)
+    if (rebuilt > 0 && !m_running) beginRecalculation();
 }
 
 } // namespace jp::office::sheet

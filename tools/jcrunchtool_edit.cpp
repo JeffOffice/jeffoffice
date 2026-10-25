@@ -1239,7 +1239,8 @@ int namesRoundtripOne(const QString &path)
             auto hold = w.loader.hold();
             return hold && !hold->calculation()->isDirty();
         }, 280000)) {
-        line(QStringLiteral("the worker did not finish"));
+        auto hold = w.loader.hold();
+        line(QStringLiteral("the worker did not finish (idle %1, waiting %2)").arg(w.loader.result()->calcIdle.load()).arg(hold ? hold->calculation()->dirtyCount() : -1));
         return 3;
     }
     crunch::EditSession::Snapshot snap;
@@ -1252,6 +1253,10 @@ int namesRoundtripOne(const QString &path)
     if (!saveXlsx(book, snap.changes, &bytes, &why)) {
         line(QStringLiteral("save failed: ") + why);
         return 3;
+    }
+    if (const QString keep = qEnvironmentVariable("JC_NAMES_KEEP"); !keep.isEmpty()) {
+        QFile kept(keep);
+        if (kept.open(QIODevice::WriteOnly)) kept.write(bytes);
     }
     Read after(bytes);
     if (!after.ok) {

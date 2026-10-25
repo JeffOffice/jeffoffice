@@ -368,6 +368,7 @@ private Q_SLOTS:
         const qint64 before = b.calc->nameRebuilds();
         b.calc->setNameText(-1, QStringLiteral("Unused"), QStringLiteral("Sheet1!$C$1"));   // a name nothing uses
         QCOMPARE(b.calc->nameRebuilds() - before, qint64(0));
+        QVERIFY(!b.calc->isDirty());   // (and no recalculation was begun: what changes by itself is not worked out for it)
         b.calc->setNameText(-1, QStringLiteral("rate"), QStringLiteral("Sheet1!$C$1+1"));    // used by A1, and by Twice, which B1 uses
         QCOMPARE(b.calc->nameRebuilds() - before, qint64(2));
         QVERIFY(b.settle());
