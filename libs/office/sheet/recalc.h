@@ -109,6 +109,7 @@ struct RecalcReport {
     QMap<QString, qint64> patterns;               // how mismatches look: "stored -> ours: functions" -> count
     qint64 volatileChecked = 0, volatileMatched = 0;   // volatile formulas of functions that don't change by themselves, worked out anyway
     bool manualCalc = false;
+    bool calcUnfinished = false;   // the workbook was saved before its calculation finished
     bool whole = true;                            // every sheet was read whole
     double seconds = 0;
     qint64 checked() const { return byClass.value('M') + byClass.value('X'); }
@@ -143,6 +144,7 @@ struct FullReport {
     qint64 graphEntries = 0, graphBytes = 0, untracked = 0;
     qint64 sheetXmlBytes = 0;                     // the most any one sheet's part had
     bool manualCalc = false;
+    bool calcUnfinished = false;   // the workbook was saved before its calculation finished
     bool whole = true;
     double loadSeconds = 0, calcSeconds = 0, seconds = 0;
     qint64 checked() const { return byClass.value('M') + byClass.value('X'); }

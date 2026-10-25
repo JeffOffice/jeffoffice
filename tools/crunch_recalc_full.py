@@ -160,7 +160,7 @@ def main():
             books.write("%s\t%d\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%.2f\t%s\t%s\t%.0f\t%.1f\t%d\t%d\t%.1f\n" % (escape(path), code, "\t".join(map(str, counts)), vc, vm, tm, circ, circ0, roots, manual, whole,
                                                                                                          seconds, load, calc, peak, sheet_mb, graph_entries, evaluations, wall))
             timing.append((max(seconds, wall), peak, sheet_mb, counts[0], path))
-            if calculation_not_completed(path):
+            if (len(book) > n + 15 and book[n + 15] == "1") or calculation_not_completed(path):
                 stale_books += 1
                 stale_checked += counts[1] + counts[2]
                 stale_matched += counts[1]

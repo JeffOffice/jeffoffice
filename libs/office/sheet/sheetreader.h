@@ -176,6 +176,7 @@ struct WorkbookInfo {
     DateSystem dateSystem = DateSystem::Date1900;
     CalcMode calcMode = CalcMode::Auto;
     bool fullCalcOnLoad = false;
+    bool calcUnfinished = false;   // saved before its calculation finished (calcCompleted="0", or the old form's UNCALCED record): the results it holds are not the program's own answers
     bool iterate = false;   // the workbook asks for iterative calculation (circular references are worked out by going round them)
     int iterateCount = 100;         // the most rounds it goes
     double iterateDelta = 0.001;    // and it stops when no value changes by as much as this

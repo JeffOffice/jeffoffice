@@ -532,6 +532,13 @@ private Q_SLOTS:
         QVERIFY(d.open(nameBook()));
         QCOMPARE(d.book.info().iterateCount, 100);
         QCOMPARE(d.book.info().iterateDelta, 0.001);
+        QVERIFY(!d.book.info().calcUnfinished);
+        Book u;
+        QVERIFY(u.open(nameBook(QStringLiteral("calcCompleted=\"0\""))));
+        QVERIFY(u.book.info().calcUnfinished);
+        Book f;
+        QVERIFY(f.open(nameBook(QStringLiteral("calcCompleted=\"1\""))));
+        QVERIFY(!f.book.info().calcUnfinished);
     }
 };
 

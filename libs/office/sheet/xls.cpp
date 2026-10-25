@@ -30,6 +30,8 @@ enum : quint16 {
     kDateMode = 0x0022,
     kCalcMode = 0x000D,
     kIteration = 0x0011,
+    kWsBool = 0x0081,
+    kUncalced = 0x005E,
     kFilePass = 0x002F,
     kFont = 0x0031,
     kFont4 = 0x0231,       // the font, in BIFF3 and BIFF4
@@ -416,6 +418,7 @@ public:
                 m_calcMode = m == 0 ? CalcMode::Manual : m == 0xFFFF ? CalcMode::AutoNoTable : CalcMode::Auto;
                 break;
             }
+            case kUncalced: m_uncalced = true; break;
             case kIteration: {
                 Bytes b(m_d, r.pos, r.pos + r.len);
                 m_iterate = b.u16() == 1;
@@ -494,6 +497,7 @@ private:
     int m_biff = 8;
     int m_codepage = 1252;
     bool m_date1904 = false;
+    bool m_uncalced = false;
     CalcMode m_calcMode = CalcMode::Auto;
     bool m_iterate = false;
     bool m_haveWindow = false;
@@ -992,6 +996,7 @@ private:
                 case kMsoDrawing: m_drawingsInSheets = true; break;
                 case kNote: m_comments = true; break;
                 case kSxView: m_pivots = true; break;
+                case kUncalced: if (depth == 0) m_uncalced = true; break;   // (a sheet's own record, near its start)
                 default: break;
                 }
             }
@@ -1025,6 +1030,7 @@ private:
         info->sheets = m_sheets;
         info->dateSystem = m_date1904 ? DateSystem::Date1904 : DateSystem::Date1900;
         info->calcMode = m_calcMode;
+        info->calcUnfinished = m_uncalced;
         info->iterate = m_iterate;
         info->activeTab = m_activeTab < m_sheets.size() ? m_activeTab : 0;
         info->firstSheet = m_firstTab < m_sheets.size() ? m_firstTab : 0;
@@ -1628,6 +1634,15 @@ private:
             if (height > 0) m_format.defaultRowHeight = (height & 0x7FFF) / 20.0;
             m_format.zeroHeight = grbit & 2;
             m_format.customHeight = grbit & 1;
+            return true;
+        }
+        case kWsBool: {
+            const quint16 v = b.u16();
+            if (!b.bad()) {
+                m_s.transitionEvaluation = v & 0x4000;
+                m_s.transitionEntry = v & 0x8000;
+            }
+            readXlsPrintRecord(r.id, m_d, r.pos, r.len, m_b8, [this](const char *p, int n) { return text(p, n); }, &m_s.page);   // (and the page's fit to pages)
             return true;
         }
         case kProtect: {

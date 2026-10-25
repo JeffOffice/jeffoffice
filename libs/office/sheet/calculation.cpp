@@ -1251,6 +1251,7 @@ Value Calculation::runFormula(quint32 id, qint64 *work)
     const Compiled &slot = compiled(n.sheet, f.text, n.flags & Array);
     m_ctx.source = this;
     m_ctx.sheet = n.sheet;
+    m_ctx.transition = m_sheets[size_t(n.sheet)].transitionEvaluation;
     m_ctx.row = n.row;
     m_ctx.col = n.col;
     m_ctx.shiftRows = f.dRow;

@@ -170,6 +170,18 @@ Value Machine::toArray(const Item &item)
     return array;
 }
 
+namespace {
+
+// What an arithmetic operator reads on a sheet with the old rules: a text that is not a number is 0.
+Value oldRulesOperand(const Value &v, bool transition, DateSystem system)
+{
+    double x;
+    if (transition && v.isText() && !textToNumber(v.text(), system, &x)) return Value::number(0);
+    return v;
+}
+
+} // namespace
+
 Item Machine::unaryOp(Op op, quint8 flags, const Item &item)
 {
     const bool keep = flags & kInstrArray;
@@ -177,7 +189,7 @@ Item Machine::unaryOp(Op op, quint8 flags, const Item &item)
     auto one = [&](const Value &v) -> Value {
         double x;
         ErrorKind e = ErrorKind::Value;
-        if (!coerceNumber(v, ctx.dateSystem, &x, &e)) return Value::error(e);
+        if (!coerceNumber(oldRulesOperand(v, ctx.transition, ctx.dateSystem), ctx.dateSystem, &x, &e)) return Value::error(e);
         return numberResult(op == Op::Neg ? 0.0 - x : x / 100.0);
     };
     if (!a.isArray()) return Item::ofValue(one(a));
@@ -260,8 +272,12 @@ Value scalarBinary(Op op, const Value &a, const Value &b, bool final, DateSystem
 Item Machine::binary(Op op, quint8 flags, const Item &ia, const Item &ib)
 {
     const bool keep = flags & kInstrArray;
-    const Value a = scalar(ia, keep);
-    const Value b = scalar(ib, keep);
+    Value a = scalar(ia, keep);
+    Value b = scalar(ib, keep);
+    const bool arithmetic = op == Op::Add || op == Op::Sub || op == Op::Mul || op == Op::Div || op == Op::Pow;
+    const bool old = ctx.transition && arithmetic;
+    if (old && !a.isArray()) a = oldRulesOperand(a, true, ctx.dateSystem);
+    if (old && !b.isArray()) b = oldRulesOperand(b, true, ctx.dateSystem);
     if (!a.isArray() && !b.isArray()) return Item::ofValue(scalarBinary(op, a, b, flags & kInstrFinal, ctx.dateSystem, this));
     const int rows = std::max(a.rows(), b.rows()), cols = std::max(a.cols(), b.cols());
     if (qint64(rows) * cols > kMaxArrayCells) {
@@ -273,8 +289,8 @@ Item Machine::binary(Op op, quint8 flags, const Item &ia, const Item &ib)
     if (!r.isArray()) return Item::ofValue(r);
     for (int i = 0; i < rows; ++i)
         for (int j = 0; j < cols; ++j) {
-            const Value &x = a.at(a.rows() == 1 ? 0 : i, a.cols() == 1 ? 0 : j);
-            const Value &y = b.at(b.rows() == 1 ? 0 : i, b.cols() == 1 ? 0 : j);
+            const Value x = oldRulesOperand(a.at(a.rows() == 1 ? 0 : i, a.cols() == 1 ? 0 : j), old, ctx.dateSystem);
+            const Value y = oldRulesOperand(b.at(b.rows() == 1 ? 0 : i, b.cols() == 1 ? 0 : j), old, ctx.dateSystem);
             const Value e = scalarBinary(op, x, y, false, ctx.dateSystem, this, true);
             if (!charge(0)) return Item::ofError(ErrorKind::Value);   // (the steps of comparing texts count here)
             r.set(i, j, e);

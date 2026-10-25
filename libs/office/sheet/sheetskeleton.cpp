@@ -330,7 +330,10 @@ QByteArray newSheetSkeleton(const Sheet &sheet)
     QByteArray o = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
     o += "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">";
     const QByteArray tab = colorXml("tabColor", sheet.tabColor);
-    if (!tab.isEmpty()) o += "<sheetPr>" + tab + "</sheetPr>";
+    QByteArray transition;
+    if (sheet.transitionEvaluation) transition += attr("transitionEvaluation", "1");
+    if (sheet.transitionEntry) transition += attr("transitionEntry", "1");
+    if (!tab.isEmpty() || !transition.isEmpty()) o += "<sheetPr" + transition + ">" + tab + "</sheetPr>";
     QByteArray view = "<sheetView";
     if (!v.showGridLines) view += attr("showGridLines", "0");
     if (!v.showHeadings) view += attr("showRowColHeaders", "0");
