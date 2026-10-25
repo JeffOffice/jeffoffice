@@ -107,6 +107,11 @@ jobs:
         if: runner.os == 'Linux'
         run: python3 tools/check_translate_calls.py
 
+      # No text from a file, the clipboard, or the network is handed to a label, tip, or message box that may take it for markup (and read a picture it names).
+      - name: Plain text check
+        if: runner.os == 'Linux'
+        run: python3 tools/check_plain_text.py
+
       - name: Configure
         shell: bash
         env:
