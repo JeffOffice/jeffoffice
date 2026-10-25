@@ -326,6 +326,52 @@ private Q_SLOTS:
         e.key(Qt::Key_Escape);
     }
 
+    void theFormulaBarIsHelpedAsTheCellIs()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QVERIFY(e.settle());
+        FormulaHelper *h = w.formulaHelper();
+        e.select(QStringLiteral("F1"));
+        w.formulaBar()->setFocus();
+        QTest::keyClicks(w.formulaBar(), QStringLiteral("=sum"));
+        QVERIFY(w.isEditing());
+        QVERIFY(h->isListOpen());
+        QCOMPARE(h->offered().first(), QStringLiteral("SUM"));
+        QTest::keyClick(w.formulaBar(), Qt::Key_Tab);
+        QCOMPARE(w.formulaBar()->text(), QStringLiteral("=SUM("));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=SUM("));   // (the cell shows what the bar has)
+        QVERIFY(h->isHintOpen());
+        QVERIFY(w.isEditing());
+        QTest::keyClicks(w.formulaBar(), QStringLiteral("A1:A2)"));
+        QTest::keyClick(w.formulaBar(), Qt::Key_Return);
+        QVERIFY(!w.isEditing());
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("n:11"));
+    }
+
+    void theNamesOfTablesAreOfferedToo()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Region</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>Q1</t></is></c></row>"
+                                            "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>East</t></is></c><c r=\"B2\"><v>1</v></c></row>");
+        const QString table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:B2\">"
+                                             "<autoFilter ref=\"A1:B2\"/><tableColumns count=\"2\"><tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/></tableColumns></table>");
+        EditWindow e;
+        QVERIFY(e.open(withTables(buildXlsx({worksheet(rows)}), {table})));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("E1"));
+        e.type(QStringLiteral("=sal"));
+        QCOMPARE(w.formulaHelper()->offered(), QStringList({QStringLiteral("Sales")}));
+        QCOMPARE(w.formulaHelper()->detail()->text(), QStringLiteral("A table."));
+        QTest::keyClick(w.cellEditor(), Qt::Key_Tab);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=Sales"));
+        e.key(Qt::Key_Escape);
+    }
+
     void theHelpHoldsAFileWithManyNamesToAWordsWorth()
     {
         QString names;

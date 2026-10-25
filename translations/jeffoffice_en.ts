@@ -138,14 +138,14 @@
     <message numerus="yes">
         <source>The first %n cell(s) are listed.</source>
         <translation>
-            <numerusform>The first cell is listed.</numerusform>
+            <numerusform>The first %n cell is listed.</numerusform>
             <numerusform>The first %n cells are listed.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <source>Only the first %n arrow(s) are drawn.</source>
         <translation>
-            <numerusform>Only the first arrow is drawn.</numerusform>
+            <numerusform>Only the first %n arrow is drawn.</numerusform>
             <numerusform>Only the first %n arrows are drawn.</numerusform>
         </translation>
     </message>

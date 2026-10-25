@@ -279,6 +279,34 @@ private Q_SLOTS:
         QVERIFY(f.workbookXml().contains(kKeep.toUtf8()));
     }
 
+    void aRenamedNameIsWrittenInTheRulesAndOtherNamesOfTheFileToo()
+    {
+        const QString rows = row(1, cell(QStringLiteral("A1"), QStringLiteral("5")) + cell(QStringLiteral("C1"), QStringLiteral("9")) + formula(QStringLiteral("D1"), QStringLiteral("Rate+1")));
+        const QString after = QStringLiteral("<conditionalFormatting sqref=\"A1\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>A1&gt;Rate</formula></cfRule></conditionalFormatting>"
+                                             "<dataValidations count=\"1\"><dataValidation type=\"whole\" operator=\"lessThan\" sqref=\"A1\"><formula1>Rate</formula1></dataValidation></dataValidations>");
+        const QByteArray book = buildXlsx({worksheet(rows, after)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(),
+                                          QStringLiteral("<definedName name=\"Rate\">Sheet1!$C$1</definedName><definedName name=\"Twice\">Rate*2</definedName>"));
+        EditWindow e;
+        QVERIFY(e.open(book));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        QVERIFY(e.settle());
+        QVERIFY(s->changeName(s->names().find(-1, QStringLiteral("Rate")), draft(QStringLiteral("Tax"), QStringLiteral("Sheet1!$C$1"))).ok);
+        QCOMPARE(s->nameTextOf(s->names().find(-1, QStringLiteral("Twice"))), QStringLiteral("=Tax*2"));   // (in the model at once)
+        QVERIFY(saveNow(e));
+        Saved f;
+        QVERIFY(f.open(e.path));
+        Sheet sheet;
+        QVERIFY(f.book.readSheet(0, &sheet));
+        QCOMPARE(sheet.validations.size(), 1);
+        QCOMPARE(sheet.validations[0].formula1, QStringLiteral("Tax"));
+        QCOMPARE(sheet.conditionalFormats.size(), 1);
+        QCOMPARE(sheet.conditionalFormats[0].formula1, QStringLiteral("A1>Tax"));
+        QStringList names = f.names();
+        QVERIFY2(names.contains(QStringLiteral("Twice|-1|Tax*2||0")), qPrintable(names.join(QLatin1Char(' '))));
+        QCOMPARE(f.formula(0, QStringLiteral("D1")), QStringLiteral("Tax+1"));
+    }
+
     void whatAPersonTypesInTheirLocaleIsWrittenInTheFormulaLanguage()
     {
         EditWindow e;
