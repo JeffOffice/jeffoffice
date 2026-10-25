@@ -41,6 +41,14 @@ public:
     void addSheet(const jp::office::sheet::PageSetup &setup, bool touched);
     void removeLastSheet();
 
+    // How each sheet is shown (the file's `view`: 0 the cells, 1 the page breaks, 2 the pages) and at what zoom in percent. Not a step of Undo (it is how the window looks); a sheet whose view differs
+    // from the file's has it written.
+    int viewKind(int index) const { return index >= 0 && index < int(m_kinds.size()) ? m_kinds[size_t(index)] : 0; }
+    int viewZoom(int index) const { return index >= 0 && index < int(m_zooms.size()) ? m_zooms[size_t(index)] : 100; }
+    void setView(int index, int kind, int zoom);
+    // Whether a sheet is shown in a view other than the one the file has (a save has something to write, though no cell changed).
+    bool viewsChanged() const { return m_kinds != m_fileKinds; }
+
     // What saving needs: the setup of each sheet that may differ from the file's (a command changed it, or an edit moved what it names), and the names of its print area and titles.
     // `sheetNames` are the sheets' names by place (empty for one that is deleted) and `order` the places in the order of the tabs.
     void addToSave(jp::office::sheet::SaveChanges *changes, const QStringList &sheetNames, const QVector<int> &order) const;
@@ -56,6 +64,7 @@ private:
     };
     std::vector<jp::office::sheet::PageSetup> m_sheets;
     std::set<int> m_touched;
+    std::vector<int> m_kinds, m_zooms, m_fileKinds;
     std::vector<Kept> m_kept;
 };
 

@@ -229,6 +229,10 @@ public:
     std::function<bool(int, int)> progressFunction(const QString &title, const QString &text);
     void armPageBreaks();
     void updatePageBreaks();
+    // How the sheet in view is shown: 0 the cells as they are, 1 the sheet cut into the pages it prints on (the printed cells light and the rest shaded, the pages numbered, the lines
+    // where they begin and the edges of the printed cells dragged), 2 the pages themselves. What the person chose for each sheet is kept with the workbook and saved.
+    void setViewKind(int kind);
+    int viewKind() const { return m_viewKind; }
     // The lines are worked out in slices of counted work, a turn of the event loop each; an edit, or a workbook opened over this one, drops what was begun.
     void schedulePageBreaks();
     void cancelPageBreaks();
@@ -458,6 +462,16 @@ private:
     void notice(const QString &title, const QString &text, bool warning = true);
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);
+
+    // the views of a sheet: the cells, the page breaks, the pages (crunchwindow_views.cpp)
+    void createViewActions();
+    void addViewButtons(QStatusBar *bar);
+    void showViewKind(int kind);
+    void breakLineMoved(bool column, qint64 from, qint64 to);
+    void printEdgeMoved(int area, int side, qint64 to);
+    void sendBreakPages(const crunch::PrintJob &job, const jp::office::sheet::PageSetup &setup);
+    int m_viewKind = 0;
+    double m_normalZoom = 1.0;
 
     // the page commands and the Page Layout tab (crunchwindow_page.cpp)
     void createPageActions();

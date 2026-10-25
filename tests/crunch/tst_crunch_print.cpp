@@ -35,6 +35,8 @@
 #include <QTabWidget>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QStatusBar>
+#include <QToolButton>
 #include <QUndoStack>
 
 using namespace jp;
@@ -1557,6 +1559,221 @@ private Q_SLOTS:
         QCOMPARE(back.rowBreaks.size(), 1);
         QCOMPARE(back.rowBreaks[0].before, 6u);
         QVERIFY(back == session->pages().sheet(0));
+    }
+
+    // ---- the page breaks view (printing 2)
+
+    // The cells with a view of the pages: the shaded rest, the numbers, and the lines wait for the job; here the sheet of 100 rows is three pages, numbered, over the printed cells.
+    void thePageBreaksViewNumbersThePagesOverThePrintedCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        QCOMPARE(w.viewKind(), 0);
+        QVERIFY(!e.view()->breakView());
+        // (the buttons for the views are at the bottom of the window)
+        bool inStatusBar = false;
+        for (QToolButton *b : w.statusBar()->findChildren<QToolButton *>())
+            if (b->defaultAction() == w.act(QStringLiteral("view.pageBreakView"))) inStatusBar = true;
+        QVERIFY(inStatusBar);
+        w.setViewKind(1);
+        QCOMPARE(w.viewKind(), 1);
+        QVERIFY(e.view()->breakView());
+        QVERIFY(w.act(QStringLiteral("view.pageBreakView"))->isChecked());
+        QVERIFY(!w.act(QStringLiteral("view.normal"))->isChecked());
+        QTRY_COMPARE(e.view()->breakAreas().size(), size_t(1));
+        const grid::GridRange area = e.view()->breakAreas()[0];
+        QCOMPARE(area.row1, qint64(0));
+        QCOMPARE(area.row2, qint64(99));
+        QCOMPARE(area.col2, qint64(1));   // (A and B have numbers)
+        // the lines are on whether or not the Page Lines switch is
+        w.act(QStringLiteral("view.pageBreaks"))->trigger();
+        QCOMPARE(e.view()->hasPageBreaks() ? 1 : 0, 1);
+        w.setViewKind(0);
+        QVERIFY(!e.view()->breakView());
+        QVERIFY(e.view()->breakAreas().empty());
+        QTRY_VERIFY(!e.view()->hasPageBreaks());
+    }
+
+    // A line dragged to another row is a break set by hand there, and the whole drag is one step of Undo.
+    void draggingALineMovesABreakAsOneStep()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        w.setViewKind(1);
+        e.view()->setZoom(0.4);
+        auto rowLines = [&] {
+            QList<qint64> at;
+            for (const auto &l : e.view()->pageBreakRows()) at << l.before;
+            return at;
+        };
+        QTRY_COMPARE(rowLines(), (QList<qint64>{45, 90}));
+        QTRY_COMPARE(e.view()->breakAreas().size(), size_t(1));
+        const int steps = w.session()->undoStack()->count();
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        const int x = L.xEdge(1, false) + 5;
+        const QPoint from(x, L.yEdge(45, false)), to(x, L.yEdge(30, false) + 2);
+        QVERIFY(e.view()->breakGrabAt(from).kind == grid::GridView::BreakGrab::Kind::Line);
+        QTest::mousePress(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(e.view()->viewport(), to);
+        QTest::mouseRelease(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, to);
+        QCOMPARE(w.session()->undoStack()->count(), steps + 1);
+        const PageSetup now = w.session()->pages().sheet(0);
+        QCOMPARE(now.rowBreaks.size(), 1);
+        QCOMPARE(now.rowBreaks[0].before, 30u);
+        QVERIFY(now.rowBreaks[0].manual);
+        QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75}));
+        QVERIFY(e.view()->pageBreakRows()[0].manual);
+        pressUndo(e.view());
+        QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), 0);
+        QTRY_COMPARE(rowLines(), (QList<qint64>{45, 90}));
+        // a break set by hand is moved the same way (the old one goes, no second is left behind)
+        pressRedo(e.view());
+        QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), 1);
+        QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75}));
+        const QPoint again(x, L.yEdge(30, false)), moved(x, L.yEdge(20, false) + 2);
+        QTest::mousePress(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, again);
+        QTest::mouseMove(e.view()->viewport(), moved);
+        QTest::mouseRelease(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, moved);
+        QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), 1);
+        QCOMPARE(w.session()->pages().sheet(0).rowBreaks[0].before, 20u);
+    }
+
+    // A line let go off the printed cells (on the headings) is taken away; letting a line go where it was changes nothing.
+    void draggingALineOffTheCellsTakesItAway()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        PageSetup p = w.session()->pages().sheet(0);
+        jp::office::sheet::PageBreak b;
+        b.before = 30;
+        b.max = 16383;
+        p.rowBreaks.append(b);
+        QVERIFY(w.session()->setPageSetup(0, p, QStringLiteral("Break")).ok);
+        w.setViewKind(1);
+        e.view()->setZoom(0.4);
+        QTRY_COMPARE(e.view()->pageBreakRows().size(), size_t(2));   // (30 by hand, and 75 as 45 rows later)
+        QTRY_COMPARE(e.view()->breakAreas().size(), size_t(1));
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        const int x = L.xEdge(1, false) + 5;
+        const int steps = w.session()->undoStack()->count();
+        // (let go where it was: nothing happens)
+        QTest::mousePress(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(x, L.yEdge(30, false)));
+        QTest::mouseRelease(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(x, L.yEdge(30, false) + 1));
+        QCOMPARE(w.session()->undoStack()->count(), steps);
+        // (the column headings are not cells: off the printed cells)
+        QTest::mousePress(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(x, L.yEdge(30, false)));
+        QTest::mouseMove(e.view()->viewport(), QPoint(x, 3));
+        QTest::mouseRelease(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(x, 3));
+        QCOMPARE(w.session()->undoStack()->count(), steps + 1);
+        QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), 0);
+        pressUndo(e.view());
+        QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), 1);
+    }
+
+    // An edge of the printed cells dragged sets the print area (from the cells that print of themselves, when there is none), one step.
+    void draggingAnEdgeOfThePrintedCellsSetsThePrintArea()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(50, {})));
+        CrunchWindow &w = e.win.w;
+        w.setViewKind(1);
+        e.view()->setZoom(0.3);
+        QTRY_COMPARE(e.view()->breakAreas().size(), size_t(1));
+        QCOMPARE(e.view()->breakAreas()[0].row2, qint64(49));
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        QVERIFY(!w.session()->pages().sheet(0).hasPrintArea());
+        // (the bottom edge of the cells that print of themselves is taken hold of, and the area is made of them)
+        const int x = L.xEdge(1, false) + 5;
+        const int steps = w.session()->undoStack()->count();
+        const QPoint from(x, L.yEdge(50, false)), to(x, L.yEdge(20, false) + 1);
+        const auto grab = e.view()->breakGrabAt(from);
+        QVERIFY(grab.kind == grid::GridView::BreakGrab::Kind::Edge);
+        QCOMPARE(grab.side, 1);
+        QTest::mousePress(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(e.view()->viewport(), to);
+        QTest::mouseRelease(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, to);
+        QCOMPARE(w.session()->undoStack()->count(), steps + 1);
+        QCOMPARE(areaOf(w.session()->pages().sheet(0)), QStringLiteral("A1:B20"));
+        QTRY_COMPARE(e.view()->breakAreas()[0].row2, qint64(19));
+        // the right edge of that area, the same way
+        const QPoint right(L.xEdge(2, false), L.yEdge(10, false) + 3), narrower(L.xEdge(1, false) + 1, L.yEdge(10, false) + 3);
+        QCOMPARE(e.view()->breakGrabAt(right).side, 3);
+        QTest::mousePress(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, right);
+        QTest::mouseMove(e.view()->viewport(), narrower);
+        QTest::mouseRelease(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, narrower);
+        QCOMPARE(areaOf(w.session()->pages().sheet(0)), QStringLiteral("A1:A20"));
+        pressUndo(e.view());
+        QCOMPARE(areaOf(w.session()->pages().sheet(0)), QStringLiteral("A1:B20"));
+        pressUndo(e.view());
+        QVERIFY(!w.session()->pages().sheet(0).hasPrintArea());
+    }
+
+    // A sheet fitted to pages uses no breaks of its own, so its lines and edges cannot be taken hold of.
+    void aFittedSheetCannotHaveItsLinesDragged()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        PageSetup p = w.session()->pages().sheet(0);
+        p.fitToPage = true;
+        p.fitToWidth = 1;
+        p.fitToHeight = 3;
+        QVERIFY(w.session()->setPageSetup(0, p, QStringLiteral("Fit")).ok);
+        w.setViewKind(1);
+        e.view()->setZoom(0.4);
+        QTRY_COMPARE(e.view()->breakAreas().size(), size_t(1));
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        const grid::GridRange area = e.view()->breakAreas()[0];
+        QVERIFY(e.view()->breakGrabAt(QPoint(L.xEdge(1, false) + 5, L.yEdge(area.row2 + 1, false))).kind == grid::GridView::BreakGrab::Kind::None);
+    }
+
+    // The view a sheet was left in is saved with the workbook, comes back when the file is opened, and a workbook never shown in it is saved with no view attribute.
+    void theViewIsSavedAndComesBack()
+    {
+        QByteArray bytes;
+        {
+            EditWindow e;
+            QVERIFY(e.open(rowsWithFormulas(100, {})));
+            CrunchWindow &w = e.win.w;
+            w.setViewKind(1);
+            e.view()->setZoom(0.5);
+            // (a view alone, with no cell changed, is something to save)
+            QSignalSpy saved(&w, &CrunchWindow::saved);
+            QVERIFY(w.save());
+            QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+            Package pk;
+            QString why;
+            QVERIFY(pk.readLazyFile(e.path, &why));
+            const QByteArray xml = pk.part(QStringLiteral("xl/worksheets/sheet1.xml"));
+            QVERIFY2(xml.contains("view=\"pageBreakPreview\""), xml.left(600).constData());
+            QVERIFY(xml.contains("zoomScale=\"50\""));
+            QVERIFY(xml.contains("zoomScaleSheetLayoutView=\"50\""));
+            QFile f(e.path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            bytes = f.readAll();
+        }
+        EditWindow again;
+        QVERIFY(again.open(bytes));
+        QCOMPARE(again.win.w.viewKind(), 1);
+        QVERIFY(again.view()->breakView());
+        QCOMPARE(int(std::lround(again.view()->zoom() * 100)), 50);
+        // back to the cells: the attribute goes, and the sheet is saved the same way again
+        again.win.w.setViewKind(0);
+        QSignalSpy saved(&again.win.w, &CrunchWindow::saved);
+        QVERIFY(again.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(again.win.told.join(QLatin1Char('|'))));
+        Package pk;
+        QString why;
+        QVERIFY(pk.readLazyFile(again.path, &why));
+        QVERIFY(!pk.part(QStringLiteral("xl/worksheets/sheet1.xml")).contains("view=\"pageBreakPreview\""));
+        // a second save with nothing changed writes nothing
+        QSignalSpy second(&again.win.w, &CrunchWindow::saved);
+        QVERIFY(again.win.w.save());
+        QVERIFY(second.count() == 1);
+        QVERIFY(again.win.w.statusText().contains(QLatin1String("Nothing to save")));
     }
 };
 

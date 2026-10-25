@@ -425,6 +425,8 @@ struct SheetView {
     bool showZeros = true;
     bool rightToLeft = false;
     bool tabSelected = false;
+    // How the sheet was left: the cells as they are (the usual), the sheet cut into the pages it prints on, or the pages themselves (the file's `view`).
+    enum class Kind : quint8 { Normal, PageBreaks, PageLayout } kind = Kind::Normal;
     int zoom = 100;                 // percent
     bool frozen = false;            // the first rows and columns stay in place (a split that is not frozen is not kept)
     quint32 frozenRows = 0, frozenCols = 0;

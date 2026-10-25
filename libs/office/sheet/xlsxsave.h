@@ -88,6 +88,10 @@ struct SheetChanges {
     ColorSpec tabColor;
     // Whether the sheet's tab is the one that is open (`tabSelected` of its first view), when the sheets a person changed make it so (-1: the file's stays, 0: not, 1: it is).
     int tabSelected = -1;
+    // How the sheet's first view shows it (`view` of the sheet view): -1 as the file has it, else 0 normal, 1 the pages' breaks, 2 the pages themselves; with the zoom (percent, 0 for the file's)
+    // it is shown at, which is also written as the zoom of that kind of view.
+    int viewKind = -1;
+    int viewZoom = 0;
     // For a sheet a person added: the XML it begins as (its view, default sizes, rules, and no cells: the cells, sizes of rows and columns, and merged ranges above are put in it).
     QByteArray skeleton;
     // For a sheet a person copied: the part of the sheet it was copied from (in the file as it was read or last saved), and the edits to rows and columns made to the cells it was copied from
@@ -102,7 +106,7 @@ struct SheetChanges {
     // For a sheet a person put an object on that had no drawing: the id of the relationship from the sheet to the drawing that is made (saving sets it, from SaveChanges::addedObjects), and the
     // sheet is given the element that names it.
     QString drawingRelId;
-    bool empty() const { return drawingRelId.isEmpty() && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    bool empty() const { return drawingRelId.isEmpty() && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.

@@ -206,8 +206,9 @@ void CrunchWindow::updatePageBreaks()
 {
     cancelPageBreaks();
     if (!m_view) return;
-    if (!m_breaksArmed || !act(QStringLiteral("view.pageBreaks"))->isChecked() || !m_loaded || !m_haveCalc || m_chartSheetShown) {
+    if (!m_breaksArmed || !(act(QStringLiteral("view.pageBreaks"))->isChecked() || m_viewKind == 1) || !m_loaded || !m_haveCalc || m_chartSheetShown) {
         if (m_view->hasPageBreaks()) m_view->setPageBreaks({}, {});
+        if (m_view->breakView()) m_view->setBreakPages({}, {}, false);
         return;
     }
     crunch::PrintJobOptions options;
@@ -219,6 +220,7 @@ void CrunchWindow::updatePageBreaks()
     auto job = std::make_unique<crunch::PrintJob>(std::move(source), options);
     if (!job->beginBuild()) {
         if (m_view->hasPageBreaks()) m_view->setPageBreaks({}, {});
+        if (m_view->breakView()) m_view->setBreakPages({}, {}, false);
         return;
     }
     m_breakJob = std::move(job);
@@ -250,6 +252,7 @@ void CrunchWindow::stepPageBreaks()
         const jp::grid::SheetPrint *print = job->printOf(m_sheet);
         const jp::office::sheet::PageSetup *setup = job->setupOf(m_sheet);
         if (print && setup) pageBreakLines(*print, *setup, &rows, &cols);
+        if (m_view->breakView() && print && setup) sendBreakPages(*job, *setup);
     }
     m_view->setPageBreaks(std::move(rows), std::move(cols));
 }

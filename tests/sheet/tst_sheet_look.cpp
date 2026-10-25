@@ -330,6 +330,21 @@ private Q_SLOTS:
         QCOMPARE(sheet.tabColor.rgb, 0xC00000u);
     }
 
+    // The kind of view a sheet was left in: the cells, the page breaks, or the pages; a name that is not one is the cells.
+    void theKindOfViewIsRead()
+    {
+        auto kindOf = [](const char *attr) {
+            Sheet sheet;
+            if (!readSheetXml(worksheet(cell("A1", 1), QString(), QStringLiteral("<sheetViews><sheetView %1 workbookViewId=\"0\"/></sheetViews>").arg(QLatin1String(attr))), &sheet)) return -1;
+            return int(sheet.view.kind);
+        };
+        QCOMPARE(kindOf(""), int(SheetView::Kind::Normal));
+        QCOMPARE(kindOf("view=\"normal\""), int(SheetView::Kind::Normal));
+        QCOMPARE(kindOf("view=\"pageBreakPreview\" zoomScale=\"60\""), int(SheetView::Kind::PageBreaks));
+        QCOMPARE(kindOf("view=\"pageLayout\""), int(SheetView::Kind::PageLayout));
+        QCOMPARE(kindOf("view=\"other\""), int(SheetView::Kind::Normal));
+    }
+
     // A split that is not frozen is not kept, and the view of a sheet with none is the plain one; a zoom outside what the program zooms to is brought in.
     void aSplitIsNotAFreezeAndTheZoomIsBounded()
     {

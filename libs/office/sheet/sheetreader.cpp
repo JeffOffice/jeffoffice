@@ -961,6 +961,8 @@ void SheetReader::startView(const QXmlStreamReader &r)
     v.rightToLeft = flag("rightToLeft", false);
     v.tabSelected = flag("tabSelected", false);
     v.zoom = int(std::lround(boundedZoom(attribute(r, "zoomScale"))));
+    const QStringView kind = attribute(r, "view");
+    v.kind = kind == QLatin1String("pageBreakPreview") ? SheetView::Kind::PageBreaks : kind == QLatin1String("pageLayout") ? SheetView::Kind::PageLayout : SheetView::Kind::Normal;
     quint32 row = 0, col = 0;
     if (parseCellRef(attribute(r, "topLeftCell"), &row, &col)) {
         v.topRow = row;

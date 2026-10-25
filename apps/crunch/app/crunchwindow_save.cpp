@@ -102,7 +102,7 @@ bool CrunchWindow::startSave(const QString &path)
     }
     const bool samePath = crunch::sameFile(path, m_path);
     // nothing to save over the file it was read from
-    if (samePath && !m_session->isModified()) {
+    if (samePath && !m_session->isModified() && !m_session->viewsChanged()) {
         setStatus(tr("Nothing to save: %1 is as it was.").arg(QFileInfo(path).fileName()));
         Q_EMIT saved(path, true);
         return true;

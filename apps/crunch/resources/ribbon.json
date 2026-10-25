@@ -284,6 +284,14 @@
       "keytip": "W",
       "groups": [
         {
+          "name": "Views",
+          "keytip": "ZV",
+          "items": [
+            {"large": "view.normal", "keytip": "N"},
+            {"large": "view.pageBreakView", "keytip": "B"}
+          ]
+        },
+        {
           "name": "Show",
           "keytip": "ZS",
           "items": [

@@ -25,7 +25,7 @@ Pick a printer from the list, or **Save as PDF**. **Printer settings** opens you
 
 ## Page breaks on the screen
 
-After you open the Print screen, the sheet on your screen shows where the pages begin: a dashed line for a break JeffCrunch worked out, and a solid line for one you set. They stay up to date as you change the sheet. Turn them off with **View > Page Breaks**.
+After you open the Print screen, the sheet on your screen shows where the pages begin: a dashed line for a break JeffCrunch worked out, and a solid line for one you set. They stay up to date as you change the sheet. Turn them off with **View > Page Lines**. (The **Page Breaks** view, described in [Set up the pages](page-layout), always shows them.)
 
 ## What is not printed yet
 

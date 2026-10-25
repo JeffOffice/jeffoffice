@@ -43,6 +43,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Scale to Fit"),
     QT_TRANSLATE_NOOP("Ribbon", "Sheet Options"),
     QT_TRANSLATE_NOOP("Ribbon", "Show"),
+    QT_TRANSLATE_NOOP("Ribbon", "Views"),
     QT_TRANSLATE_NOOP("Ribbon", "Size"),
     QT_TRANSLATE_NOOP("Ribbon", "Styles"),
     QT_TRANSLATE_NOOP("Ribbon", "Tab Color"),

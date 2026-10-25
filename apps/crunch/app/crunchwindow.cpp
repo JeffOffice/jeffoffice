@@ -114,6 +114,11 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(m_ribbon, &Ribbon::fileClicked, this, [this] { showFileScreen(); });
     connect(m_ribbon, &Ribbon::leaveRequested, this, [this] { m_view->setFocus(Qt::OtherFocusReason); });
     connect(m_view, &grid::GridView::selectionChanged, this, &CrunchWindow::updateBars);
+    connect(m_view, &grid::GridView::breakMoveRequested, this, &CrunchWindow::breakLineMoved);
+    connect(m_view, &grid::GridView::printEdgeRequested, this, &CrunchWindow::printEdgeMoved);
+    connect(m_view, &grid::GridView::zoomChanged, this, [this](double z) {
+        if (m_viewKind != 0 && m_session && m_sheet >= 0) m_session->setSheetView(m_sheet, m_viewKind, int(std::lround(z * 100)));
+    });
     connect(m_view, &grid::GridView::selectionChanged, this, [this] {
         if (!m_finishing) m_tabOriginCol = m_tabRow = -1;
     });
@@ -297,6 +302,7 @@ void CrunchWindow::buildStatusBar()
         sb->addPermanentWidget(b);
         return b;
     };
+    addViewButtons(sb);
     button("zoom.out");
     m_zoomSlider = new QSlider(Qt::Horizontal);
     m_zoomSlider->setObjectName(QStringLiteral("zoomSlider"));
@@ -357,7 +363,7 @@ void CrunchWindow::createActions()
     mk("view.gridlines", tr("Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("view.gridlines")->isChecked()); }, true)->setChecked(true);
     mk("view.headings", tr("Headings"), "table-properties", QKeySequence(), [this] { m_view->setShowHeadings(act("view.headings")->isChecked()); }, true)->setChecked(true);
     mk("view.formulaBar", tr("Formula Bar"), "text-cursor-input", QKeySequence(), [this] { m_formulaRow->setVisible(act("view.formulaBar")->isChecked()); }, true)->setChecked(true);
-    mk("view.pageBreaks", tr("Page Breaks"), "separator-horizontal", QKeySequence(), [this] { updatePageBreaks(); }, true)->setChecked(true);
+    mk("view.pageBreaks", tr("Page Lines"), "separator-horizontal", QKeySequence(), [this] { updatePageBreaks(); }, true)->setChecked(true);
     mk("view.formulas", tr("Show Formulas"), "square-function", crunch::showFormulasKey(), [this] {
         m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
         m_view->invalidateValues();
@@ -388,6 +394,7 @@ void CrunchWindow::createActions()
     createFormatActions();
     createSheetActions();
     createPageActions();
+    createViewActions();
     createChartActions();
     createDisabledActions();
 }

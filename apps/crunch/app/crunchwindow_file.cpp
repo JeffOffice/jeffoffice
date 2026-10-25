@@ -202,6 +202,7 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
     prepareObjects(sheetIndex);
     act("view.gridlines")->setChecked(m_view->showGridlines());
     act("view.headings")->setChecked(m_view->showHeadings());
+    showViewKind(d.sheet ? (m_session ? m_session->pages().viewKind(sheetIndex) : int(d.sheet->view.kind)) : 0);
     updatePageActions();
     updateBars();
 }
