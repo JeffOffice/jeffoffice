@@ -585,15 +585,14 @@ private Q_SLOTS:
         QImage large(4000, 3000, QImage::Format_ARGB32);
         large.fill(QColor(100, 150, 200));
         QImage refused;
-        const qint64 refusedMs = bestNanoseconds([&] { refused = jp::applyBlipEffects(large, turns); }) / 1000000;
-        QVERIFY2(refusedMs < 500, qPrintable(QString::number(refusedMs)));
+        // (Refused: the picture comes back as it is, no turn is made of it, and no pixel is worked.)
+        const int madeBefore = jp::blipAdjustedMade();
+        refused = jp::applyBlipEffects(large, turns);
         QCOMPARE(refused.cacheKey(), large.cacheKey());
-        const qint64 keptMs = bestNanoseconds([&] {
-            refused = jp::applyBlipEffects(large, turns);
-            QCOMPARE(jp::blipAdjusted(large, turns).cacheKey(), large.cacheKey());
-        }) / 1000000;
-        QVERIFY(keptMs < 500);
-        // One turn of the hue is made, in a time a person does not wait out, and made once however many times it is asked for.
+        QCOMPARE(jp::blipAdjusted(large, turns).cacheKey(), large.cacheKey());
+        QCOMPARE(jp::blipAdjustedMade(), madeBefore);
+        // One turn of the hue is made, in a time a person does not wait out (the clock stays for that: about a fifth of a second here, against five), and made once however many
+        // times it is asked for (counted).
         // Each run turns a picture that is new (a new key in the cache), so each run makes the turn.
         int before = 0;
         QImage turned;
@@ -613,8 +612,9 @@ private Q_SLOTS:
         // More pixels than a picture is changed in (one byte each here, so as not to take a gigabyte): as it is.
         QImage huge(10100, 10100, QImage::Format_Alpha8);
         QVERIFY(qint64(huge.width()) * huge.height() > jp::kMaxBlipPixels);
-        const qint64 hugeMs = bestNanoseconds([&] { QCOMPARE(jp::applyBlipEffects(huge, {grayEffect()}).cacheKey(), huge.cacheKey()); }) / 1000000;
-        QVERIFY(hugeMs < 500);
+        const int madeHuge = jp::blipAdjustedMade();
+        QCOMPARE(jp::applyBlipEffects(huge, {grayEffect()}).cacheKey(), huge.cacheKey());
+        QCOMPARE(jp::blipAdjustedMade(), madeHuge);
     }
 
     // A picture's changes are written in the order they are drawn: the settings (a clear color, the brightness and contrast, gray or black and white

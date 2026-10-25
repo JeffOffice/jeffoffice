@@ -209,6 +209,9 @@ struct Chart {
 // (no series) is still one.
 bool readChart(const QByteArray &chartPartXml, const Theme &theme, const ColorMap &colors, Chart *out, QString *error = nullptr);
 
+// How many characters of number format codes were parsed on this thread since it began (a code past what a spreadsheet allows is not parsed): a count for tests of cost.
+qint64 chartFormatCharsReadForTest();
+
 // The largest a chart is drawn on a side, in points: the longest side a
 // slide has (56 inches). A frame that asks for more is drawn this large.
 constexpr double kChartMaxSide = 4032;

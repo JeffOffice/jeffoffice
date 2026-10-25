@@ -12,6 +12,9 @@
 
 namespace jp::office {
 
+static thread_local qint64 g_formatCharsRead = 0;
+qint64 chartFormatCharsReadForTest() { return g_formatCharsRead; }
+
 namespace {
 
 const QString kChartNs = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/chart");
@@ -309,6 +312,7 @@ NumberFormat readFormat(const QString &format)
 {
     NumberFormat out;
     if (format.isEmpty() || format.size() > kMaxFormatCode || format.compare(QLatin1String("General"), Qt::CaseInsensitive) == 0) return out;
+    g_formatCharsRead += format.size();
     out.general = false;
     for (const QString &section : formatSections(format)) out.sections << readSection(section);
     return out;

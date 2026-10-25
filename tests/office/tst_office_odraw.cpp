@@ -263,7 +263,10 @@ private Q_SLOTS:
         QByteArray flood = red;
         const QByteArray page = pictU16(0x0031) + pictRect(0, 0, 100, 200);
         for (int i = 0; i < 300000; ++i) flood += page;
-        const qint64 floodMs = bestNanoseconds([&] { img = draw(flood); }, 3) / 1000000;
+        // (The picture is stopped by the work it may do, which is counted; the clock stays only to keep that work's units honest: about a tenth of a second here.)
+        qint64 floodWork = kOdrawPictWork;
+        const qint64 floodMs = bestNanoseconds([&] { floodWork = kOdrawPictWork; img = pictImage(odPict(200, 100, flood), &floodWork); }, 3) / 1000000;
+        QVERIFY2(kOdrawPictWork - floodWork <= kOdrawPictWork / 4, qPrintable(QString::number(kOdrawPictWork - floodWork)));
         QVERIFY2(floodMs < 2000, qPrintable(QString::number(floodMs)));
         QVERIFY(is(at(img, 100, 50), 255, 0, 0));
         // A picture with bytes changed at random, and cut short, is drawn as far as it can be or not at all, each time in no more work than
@@ -275,28 +278,37 @@ private Q_SLOTS:
                                                           + pictU16(30) + pictU16(40) + pictU16(60) + pictU16(0x7FFF) + pictU16(40) + pictU16(30) + pictU16(60) + pictU16(0x7FFF) + pictU16(0x7FFF)
                                                           + pictU16(0x0020) + pictU16(50) + pictU16(20) + pictU16(50) + pictU16(180) + text
                                                           + pictU16(0x0098) + pixmapHeader(8, 0, 8, 1) + table + pictRect(0, 0, 1, 8) + pictRect(10, 10, 30, 90) + pictU16(0) + QByteArray(1, char(indexes.size())) + indexes);
+            qint64 damagedWork = 0;
             const qint64 damagedMs = bestNanoseconds([&] {
                 QRandomGenerator g(11);   // the same damage in every run
+                damagedWork = 0;
                 for (int i = 0; i < 400; ++i) {
                     QByteArray b = whole;
                     for (int k = 0; k < 1 + i % 6; ++k) b[int(g.bounded(quint32(b.size())))] = char(g.generate());
                     if (i % 5 == 0) b.truncate(int(g.bounded(quint32(b.size()))));
-                    odrawBlip(odMetafileBlip(0xF01C, 0x542, b, true), nullptr);
+                    qint64 work = kOdrawPictWork;
+                    odrawBlip(odMetafileBlip(0xF01C, 0x542, b, true), nullptr, &work);
+                    damagedWork += kOdrawPictWork - work;
                 }
             }, 3) / 1000000;
+            // (Counted: no damaged picture takes more than a picture may, and the clock stays as the watchdog for a hang.)
+            QVERIFY2(damagedWork <= 400 * (kOdrawPictWork / 4), qPrintable(QString::number(damagedWork)));
             QVERIFY2(damagedMs < 20000, qPrintable(QString::number(damagedMs)));
         }
         // A damaged text size (61,756) is no text, at once: some systems' font engines fail on glyphs that large (it crashed the
         // damaged-bytes loop above on Windows).
         {
             int dark = 0;
+            qint64 hugeWork = kOdrawPictWork;
             const qint64 hugeMs = bestNanoseconds([&] {
-                img = draw(pictU16(0x0003) + pictU16(21) + pictU16(0x000D) + pictU16(61756) + pictU16(0x0028) + pictU16(90) + pictU16(20) + QByteArray("\x01" "H"));
+                hugeWork = kOdrawPictWork;
+                img = pictImage(odPict(200, 100, pictU16(0x0003) + pictU16(21) + pictU16(0x000D) + pictU16(61756) + pictU16(0x0028) + pictU16(90) + pictU16(20) + QByteArray("\x01" "H")), &hugeWork);
                 dark = 0;
                 for (int y = 0; y < img.height(); ++y)
                     for (int x = 0; x < img.width(); ++x) dark += qAlpha(img.pixel(x, y)) > 128;
             }, 3) / 1000000;
             QCOMPARE(dark, 0);
+            QVERIFY2(kOdrawPictWork - hugeWork <= kOdrawPictWork / 100, qPrintable(QString::number(kOdrawPictWork - hugeWork)));   // (no text: next to no work)
             QVERIFY2(hugeMs < 5000, qPrintable(QString::number(hugeMs)));
         }
         // What it can't read, or what is cut short, is no picture and no crash.
@@ -430,8 +442,11 @@ private Q_SLOTS:
     void odrawBlipHoldsAPictToLimits()
     {
         const QByteArray red = pictColor(0x001A, 255, 0, 0);
+        // (Each picture is held to a budget of work, which is counted; the clock stays only to keep that budget's units honest, at about a tenth of what it allows.)
         auto within = [&](const char *what, const QByteArray &ops) {
-            const qint64 ms = bestNanoseconds([&] { pictImage(odPict(200, 100, red + ops)); }, 3) / 1000000;
+            qint64 work = kOdrawPictWork;
+            const qint64 ms = bestNanoseconds([&] { work = kOdrawPictWork; pictImage(odPict(200, 100, red + ops), &work); }, 3) / 1000000;
+            QVERIFY2(kOdrawPictWork - work <= kOdrawPictWork / 4, qPrintable(QStringLiteral("%1: %2 units of work").arg(QLatin1String(what)).arg(kOdrawPictWork - work)));
             QVERIFY2(ms < 10000, qPrintable(QStringLiteral("%1: %2 ms").arg(QLatin1String(what)).arg(ms)));
         };
         // A region of 4,000 places in a row that every one of 500 rows after it shifts one of (a million rectangles).
