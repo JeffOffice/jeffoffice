@@ -3,6 +3,7 @@
 #include "../sheet/drawinghelpers.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "savedok.h"
 #include "app/pagesetupdialog.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
@@ -293,7 +294,7 @@ private Q_SLOTS:
         before.close();
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QVERIFY2(saved.first().at(1).toBool(), "the save failed");
         const PageSetup back = savedPage(e.path);
         QVERIFY(back == p);
@@ -317,7 +318,7 @@ private Q_SLOTS:
         QVERIFY(e.win.w.isModified());
         QSignalSpy savedAgain(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(savedAgain.wait(20000));
+        QVERIFY2(savedOk(savedAgain, 20000), "the save failed");
         QVERIFY2(savedAgain.first().at(1).toBool(), "the second save failed");
         const PageSetup undone = savedPage(e.path);
         QVERIFY(!undone.hasPrintArea());
@@ -495,7 +496,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         Package package;
         QString why;
         QVERIFY2(package.readLazyFile(e.path, &why), qPrintable(why));
@@ -1550,7 +1551,7 @@ private Q_SLOTS:
         QVERIFY(session->insertColumns(0, 0, 1).ok);
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         const PageSetup back = savedPage(e.path);
         QCOMPARE(areaOf(back), QStringLiteral("B2:C8"));
         QCOMPARE(back.rowBreaks.size(), 1);

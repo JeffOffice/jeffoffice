@@ -2,6 +2,7 @@
 // number format and its buttons, cell styles, the Format Painter, Clear) and the Format Cells dialog's changes made to the cells. Each command is one step of Undo; every language is set
 // explicitly; the workbook is built here.
 #include "app/crunchwindow.h"
+#include "savedok.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
@@ -153,7 +154,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const grid::GridSheet &g = second.w.view()->sheet();
@@ -413,7 +414,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));

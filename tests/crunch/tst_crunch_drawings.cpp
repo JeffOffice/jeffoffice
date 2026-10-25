@@ -1,6 +1,7 @@
 // Tests of the charts, pictures, and shapes over the cells in JeffCrunch's window: they are shown where their anchors put them, a chart is drawn from the cells it reads and again when one
 // changes (typed, or worked out), and objects and charts move when rows are inserted or deleted, undone and redone. Every workbook is built here.
 #include "../sheet/drawinghelpers.h"
+#include "savedok.h"
 #include "editwindow.h"
 
 #include "core/fonts.h"
@@ -307,7 +308,7 @@ private Q_SLOTS:
         QCOMPARE(o->chartNow(0, 0).plots[0].series[0].values, (QVector<double>{10, 77, 30}));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         const QString chart = QString::fromUtf8(savedParts(e.path).value(QStringLiteral("xl/charts/chart1.xml")));
         QVERIFY2(chart.contains(QStringLiteral("<c:f>Sales!$B$4:$B$6</c:f>")), qPrintable(chart));
         QVERIFY2(chart.contains(QStringLiteral("<c:v>77</c:v>")), qPrintable(chart));   // (the numbers under the reference as it is written)
@@ -460,7 +461,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         office::Package before, after;
         QString why;
         QVERIFY(before.readLazy(original, &why));
@@ -497,7 +498,7 @@ private Q_SLOTS:
         const QByteArray chartBefore = after.part(QStringLiteral("/xl/charts/chart1.xml"));
         saved.clear();
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         office::Package third;
         QVERIFY(third.readLazyFile(e.path, &why));
         QCOMPARE(third.part(QStringLiteral("/xl/charts/chart1.xml")), chartBefore);
@@ -710,7 +711,7 @@ private Q_SLOTS:
             crunch::SheetObjects *o = e.win.w.objects();
             auto save = [&]() -> bool {
                 QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-                return e.win.w.save() && saved.wait(20000);
+                return e.win.w.save() && savedOk(saved);
             };
             const QString rels = QStringLiteral("xl/drawings/_rels/drawing1.xml.rels");
             QVERIFY(hasRelationship(savedParts(e.path), rels, QStringLiteral("rIdP")));
@@ -762,7 +763,7 @@ private Q_SLOTS:
         QVERIFY(o->layer()->deviceRect(1, grid::Pane::Body) != moving);      // (the object of the cells moved)
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         // the file has the anchor as it was: an absolute one, the same place and size
         office::Package p;
         QString why;
@@ -845,7 +846,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QVERIFY(!o->listed(1));
         QCOMPARE(o->objectsMade(), 0);
         QCOMPARE(o->chartPartsRead(), 0);
@@ -875,7 +876,7 @@ private Q_SLOTS:
             QCOMPARE(now.top(), box.top());
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY(e.win.w.save());
-            QVERIFY(saved.wait(20000));
+            QVERIFY2(savedOk(saved, 20000), "the save failed");
             const SavedAnchor a = savedAnchor(e.path, QStringLiteral("Box"));
             QVERIFY(a.found);
             QCOMPARE(a.fromRow, 10);
@@ -889,7 +890,7 @@ private Q_SLOTS:
             QCOMPARE(o->layer()->deviceRect(2, grid::Pane::Body).height(), box.height());
             saved.clear();
             QVERIFY(e.win.w.save());
-            QVERIFY(saved.wait(20000));
+            QVERIFY2(savedOk(saved, 20000), "the save failed");
             const SavedAnchor b = savedAnchor(e.path, QStringLiteral("Box"));
             QVERIFY(b.found);
             QCOMPARE(b.fromRow, 10);

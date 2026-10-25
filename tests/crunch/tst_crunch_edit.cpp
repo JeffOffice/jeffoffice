@@ -3,6 +3,7 @@
 // (Save, Save As, a save that fails, the question when a window with changes is closed). Every workbook is built here, in a temporary folder.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "savedok.h"
 #include "app/help.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
@@ -295,7 +296,7 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("e:#NAME?"));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(savedFormula(e.path, QStringLiteral("F1")), QStringLiteral("_xlfn.IMAGE(\"x\")"));
         QCOMPARE(savedFormula(e.path, QStringLiteral("F2")), QStringLiteral("_xlfn.LET(_xlpm.x,A1,_xlpm.x*2)"));
         // and F2 shows it as it was typed
@@ -368,7 +369,7 @@ private Q_SLOTS:
         // the file has the format's own
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(savedFormula(e.path, QStringLiteral("F1")), QStringLiteral("SUM(A1,A2)"));
         QCOMPARE(savedFormula(e.path, QStringLiteral("F2")), QStringLiteral("A1*0.5+IF(A2>1,\"a,b\",\"c\")&\"\""));
         QCOMPARE(savedFormula(e.path, QStringLiteral("F4")), QStringLiteral("SUM(1.5,2.5)"));
@@ -605,7 +606,7 @@ private Q_SLOTS:
         auto saveNow = [&] {
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY(e.win.w.save());
-            QVERIFY(saved.wait(20000));
+            QVERIFY2(savedOk(saved, 20000), "the save failed");
         };
         // an empty name, and a header that is cleared: refused, with a message
         e.select(QStringLiteral("B1"));
@@ -970,7 +971,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(savedFormula(e.path, QStringLiteral("A1")), QStringLiteral("_xlfn.IMAGE(\"x\")"));
         QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:88"));
         QCOMPARE(savedCell(e.path, QStringLiteral("B1")), QStringLiteral("n:89"));
@@ -1020,7 +1021,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(60000));
+        QVERIFY2(savedOk(saved, 60000), "the save failed");
         QCOMPARE(saved.first().at(1).toBool(), true);
         const QString first = savedCell(e.path, QStringLiteral("F11"));
         QVERIFY2(first.size() == 2 + 30000 + 1 && (first.startsWith(QLatin1String("i:xxxx")) || first.startsWith(QLatin1String("s:xxxx"))), qPrintable(first.left(20)));
@@ -1061,7 +1062,7 @@ private Q_SLOTS:
             QVERIFY(e.win.w.isModified());
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY(e.win.w.save());
-            QVERIFY(saved.wait(20000));
+            QVERIFY2(savedOk(saved, 20000), "the save failed");
             QVERIFY2(saved.first().at(1).toBool(), qPrintable(QString::number(variant)));
             QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:5"));
             QVERIFY2(savedCell(e.path, QStringLiteral("B1")) == QStringLiteral("n:10"), qPrintable(QStringLiteral("variant %1: B1 is %2").arg(variant).arg(savedCell(e.path, QStringLiteral("B1")))));
@@ -1123,7 +1124,7 @@ private Q_SLOTS:
         QVERIFY(e.win.w.windowTitle().contains(QLatin1String("[*]")) || e.win.w.isWindowModified());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(saved.first().at(1).toBool(), true);
         QVERIFY(!e.win.w.isModified());
         QVERIFY(!e.win.w.isSaving());
@@ -1176,13 +1177,13 @@ private Q_SLOTS:
         e.enter(QStringLiteral("5"));
         QVERIFY(e.settle());
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         e.select(QStringLiteral("A2"));
         e.enter(QStringLiteral("6"));
         QVERIFY(e.settle());
         QVERIFY(e.win.w.isModified());
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.count() == 2 || saved.wait(20000));
+        QVERIFY2((saved.count() == 2 || saved.wait(20000)) && saved.last().value(1).toBool(), "the save failed");
         QVERIFY(!e.win.w.isModified());
         {
             Package p;
@@ -1225,7 +1226,7 @@ private Q_SLOTS:
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         const QString other = e.folder.dir.filePath(QStringLiteral("copy"));   // (no ending: it is given one)
         QVERIFY(e.win.w.saveAs(other));
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(saved.first().at(0).toString(), other + QStringLiteral(".xlsx"));
         QVERIFY(QFileInfo::exists(other + QStringLiteral(".xlsx")));
         QCOMPARE(e.win.w.filePath(), other + QStringLiteral(".xlsx"));
@@ -1257,7 +1258,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("no/such/folder/book.xlsx"))));
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(saved.first().at(1).toBool(), false);
         QCOMPARE(e.win.told.size(), 1);
         QVERIFY2(e.win.told[0].startsWith(QLatin1String("Save: ")) && e.win.told[0].contains(QLatin1String("couldn't save")), qPrintable(e.win.told[0]));
@@ -1272,7 +1273,7 @@ private Q_SLOTS:
         if (!QFileInfo(locked).isWritable()) {
             e.win.told.clear();
             QVERIFY(e.win.w.saveAs(locked));
-            QVERIFY(saved.wait(20000));
+            QVERIFY2(savedOk(saved, 20000), "the save failed");
             QCOMPARE(saved.last().at(1).toBool(), false);
             QCOMPARE(e.win.told.size(), 1);
             QVERIFY2(e.win.told[0].contains(QLatin1String("couldn't save")), qPrintable(e.win.told[0]));
@@ -1288,7 +1289,7 @@ private Q_SLOTS:
         const QString existing = e.folder.write(QStringLiteral("existing.xlsx"), QByteArray("an old file that is not a workbook"));
         e.win.told.clear();
         QVERIFY(e.win.w.saveAs(existing));
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(saved.last().at(1).toBool(), true);
         QCOMPARE(e.win.told.size(), 0);
         QCOMPARE(savedCell(existing, QStringLiteral("A1")), QStringLiteral("n:3"));
@@ -1297,7 +1298,7 @@ private Q_SLOTS:
         e.select(QStringLiteral("A2"));
         e.enter(QStringLiteral("4"));
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(saved.last().at(1).toBool(), true);
     }
 
@@ -1336,7 +1337,7 @@ private Q_SLOTS:
             } else if (answer == CrunchWindow::Answer::Discard) {
                 QVERIFY(!e.win.w.isVisible());
             } else {
-                QVERIFY(saved.wait(20000));
+                QVERIFY2(savedOk(saved, 20000), "the save failed");
                 QTRY_VERIFY(!e.win.w.isVisible());
                 Package p;
                 QVERIFY(p.readLazyFile(e.path));
@@ -1369,7 +1370,7 @@ private Q_SLOTS:
         QCOMPARE(saved.count(), 0);
         QVERIFY(e.win.w.statusText().contains(QLatin1String("calculation")));
         e.win.w.setWorkerPace(0);
-        QVERIFY(saved.wait(60000));
+        QVERIFY2(savedOk(saved, 60000), "the save failed");
         QCOMPARE(saved.first().at(1).toBool(), true);
         Package p;
         QVERIFY(p.readLazyFile(e.path));
@@ -1566,7 +1567,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(saved.first().at(1).toBool(), true);
         Package p;
         QVERIFY(p.readLazyFile(e.path));
@@ -1608,7 +1609,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:10"));
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(savedValue(QStringLiteral("A1")), QStringLiteral("n:5"));
         QCOMPARE(savedValue(QStringLiteral("C1")), QStringLiteral("n:10"));    // the engine changed it
         QCOMPARE(savedValue(QStringLiteral("B1")), QStringLiteral("n:999"));   // worked out again, and the same (0): the file's own stays
@@ -1617,7 +1618,7 @@ private Q_SLOTS:
         e.enter(QStringLiteral("1"));
         QVERIFY(e.settle());
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.count() == 2 || saved.wait(20000));
+        QVERIFY2((saved.count() == 2 || saved.wait(20000)) && saved.last().value(1).toBool(), "the save failed");
         QCOMPARE(savedValue(QStringLiteral("C1")), QStringLiteral("n:2"));
         QCOMPARE(savedValue(QStringLiteral("B1")), QStringLiteral("n:999"));
     }
@@ -1650,7 +1651,7 @@ private Q_SLOTS:
         QVERIFY(!e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("macros.xlsx"))));
         QVERIFY(e.win.told.last().contains(QLatin1String(".xlsm")));
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QFile f(e.path);
         QVERIFY(f.open(QIODevice::ReadOnly));
         const QByteArray now = f.readAll();

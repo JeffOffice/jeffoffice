@@ -2,6 +2,7 @@
 // workbook, and the default sizes. Every workbook is built here, and every locale is set explicitly.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "savedok.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
@@ -212,7 +213,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const grid::GridSheet &g = second.w.view()->sheet();
@@ -264,7 +265,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const grid::GridSheet &g = second.w.view()->sheet();
@@ -333,7 +334,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const grid::GridSheet &g = second.w.view()->sheet();
@@ -382,7 +383,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         QCOMPARE(second.w.calculation()->mergesOf(0), e.win.w.calculation()->mergesOf(0));
@@ -447,7 +448,7 @@ private Q_SLOTS:
         // saved, and the file has the rules where they are
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const QVector<CondRule> &rules = second.w.calculation()->sheet(0).conditionalFormats;
@@ -510,7 +511,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(saved.wait(20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const SheetFormat f = second.w.calculation()->sheetFormatOf(0);
