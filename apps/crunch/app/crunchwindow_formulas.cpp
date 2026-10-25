@@ -96,7 +96,7 @@ void CrunchWindow::createNameActions()
     mk("formulas.names", tr("Names…"), "variable", QKeySequence(Qt::CTRL | Qt::Key_F3), [this] { showNames(); }, false, false);
     mk("formulas.defineName", tr("Define Name…"), "tag", QKeySequence(), [this] { defineNameCommand(); }, false, false);
     mk("formulas.nameFromCells", tr("Name From Cells…"), "tags", QKeySequence(), [this] { nameFromCellsCommand(); }, false, false);
-    mk("formulas.useName", tr("Insert Name"), "text-cursor-input", QKeySequence(Qt::Key_F3), [this] {
+    mk("formulas.useName", tr("Insert Name"), "text-cursor-input", QKeySequence(), [this] {
         if (QMenu *menu = namesMenu()) {
             menu->exec(QCursor::pos());
             delete menu;
