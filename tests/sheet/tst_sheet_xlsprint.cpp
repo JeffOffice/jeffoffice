@@ -151,6 +151,21 @@ private Q_SLOTS:
         QCOMPARE(sheet.page.margins.left, 0.7);
     }
 
+    // Entries that repeat a break already held are still looked at, so the records of one kind are read for only so many entries in all.
+    void breakEntriesLookedAtAreCountedAcrossRecords()
+    {
+        Book b;
+        QByteArray s = number(0, 0, 1);
+        QByteArray same = W().u16(1000);
+        for (int i = 1; i <= 1000; ++i) same += W().u16(i).u16(0).u16(255).bytes();
+        for (int r = 0; r < 20; ++r) s += rec(0x001B, same);   // 20,000 entries, all but the first 1,000 repeats
+        s += rec(0x001B, W().u16(1).u16(5000).u16(0).u16(255));   // a new break after the bound
+        b.sheet(QStringLiteral("S"), s);
+        const Sheet sheet = readFirst(b);
+        QCOMPARE(sheet.page.rowBreaks.size(), 1000);
+        QCOMPARE(sheet.page.rowBreakElements, kMaxBreakElements);
+    }
+
     // A workbook read from the old form is saved as the XML form with its sheets' page setup and print area, and reads back the same.
     void aConvertedWorkbookKeepsItsPageSetup()
     {

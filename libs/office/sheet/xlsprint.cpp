@@ -137,9 +137,11 @@ bool readXlsPrintRecord(quint16 id, const QByteArray &data, qsizetype pos, qsize
         QVector<PageBreak> &list = rows ? out->rowBreaks : out->colBreaks;
         const quint16 count = b.u16();
         const qsizetype each = biff8 ? 6 : 2;
+        int &looked = rows ? out->rowBreakElements : out->colBreakElements;   // (the entries looked at in all the records of this kind: repeats count too)
         QSet<quint32> have;   // (the places already in the list: a record that repeats one is not searched for it each time)
         for (const PageBreak &e : std::as_const(list)) have.insert(e.before);
-        for (quint32 i = 0; i < count && b.left() >= each && list.size() < kMaxPageBreaks; ++i) {
+        for (quint32 i = 0; i < count && b.left() >= each && list.size() < kMaxPageBreaks && looked < kMaxBreakElements; ++i) {
+            ++looked;
             const quint16 at = b.u16();
             quint16 lo = 0, hi = 0;
             if (biff8) {
