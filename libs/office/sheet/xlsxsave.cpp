@@ -1243,6 +1243,72 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             rep.headerDrawings[w.sheet] = w.remove ? QString() : w.relId;
         }
     }
+    // ---- tables made or taken out: the sheet gets the links to their parts (and loses those of the parts taken out), planned here by the sheet's place
+    struct TableLink {
+        int sheet = 0;
+        QString part, relId;
+        QByteArray xml;
+        bool remove = false;
+    };
+    std::vector<TableLink> tableLinks;
+    if (!requested.addedTables.empty() || !requested.removedTables.empty()) {
+        if (useChanges == &requested) {
+            adjusted = requested;
+            useChanges = &adjusted;
+        }
+        QSet<QString> takenParts;
+        for (const QString &n : package.partNames()) takenParts.insert(n.toLower());
+        qint64 bytesOfTables = 0;
+        std::map<int, QStringList> usedIds;
+        auto idsOf = [&](int sheet) -> QStringList & {
+            auto it = usedIds.find(sheet);
+            if (it != usedIds.end()) return it->second;
+            const SheetEntry &se = book.info().sheets[sheet];
+            QStringList used;
+            if (!se.isNew) {
+                for (const Relationship &r : package.relationships(se.part)) used << r.id;
+            } else if (const auto own = requested.sheets.find(sheet); own != requested.sheets.end() && !own->second.copyFromPart.isEmpty()) {
+                for (const Relationship &r : package.relationships(own->second.copyFromPart)) used << r.id;
+            }
+            if (const auto d = newDrawingRel.find(sheet); d != newDrawingRel.end()) used << d->second;
+            for (const HeaderWrite &w : headerWrites)
+                if (w.sheet == sheet && !w.relId.isEmpty()) used << w.relId;
+            return usedIds.emplace(sheet, used).first->second;
+        };
+        for (const SaveChanges::RemovedTable &gone : requested.removedTables) {
+            if (gone.sheet < 0 || gone.sheet >= book.info().sheets.size()) continue;
+            const SheetEntry &se = book.info().sheets[gone.sheet];
+            if (se.deleted || se.isNew || se.part.isEmpty()) continue;
+            for (const Relationship &r : package.relationshipsOfType(se.part, QStringLiteral("/table"))) {
+                if (r.external || r.target.compare(gone.part, Qt::CaseInsensitive) != 0) continue;
+                TableLink link;
+                link.sheet = gone.sheet;
+                link.part = r.target;
+                link.relId = r.id;
+                link.remove = true;
+                tableLinks.push_back(link);
+                adjusted.sheets[gone.sheet].removeTableRels.push_back(r.id);
+            }
+        }
+        for (const SaveChanges::AddedTable &add : requested.addedTables) {
+            if (add.sheet < 0 || add.sheet >= book.info().sheets.size()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A change is to a sheet the workbook does not have."));
+            const SheetEntry &se = book.info().sheets[add.sheet];
+            if (se.deleted) continue;
+            bytesOfTables += add.xml.size();
+            if (se.kind != SheetKind::Worksheet || se.part.isEmpty() || add.xml.isEmpty() || bytesOfTables > kMaxAddedBytes || takenParts.contains(add.part.toLower()))
+                return fail(QCoreApplication::translate("jp::office::sheet::Save", "A table was made that this program can't put in the file."));
+            takenParts.insert(add.part.toLower());
+            QStringList &used = idsOf(add.sheet);
+            TableLink link;
+            link.sheet = add.sheet;
+            link.part = add.part;
+            link.relId = freeRelationshipId(used);
+            link.xml = add.xml;
+            used << link.relId;
+            tableLinks.push_back(link);
+            adjusted.sheets[add.sheet].addTableRels.push_back(link.relId);
+        }
+    }
     const SaveChanges &changes = *useChanges;
     const QByteArray bytes = package.fileBytes();
     QVector<ZipEntry> directory;
@@ -1284,12 +1350,13 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     MoveContext ctx;
     ctx.edits = changes.edits;
     ctx.renames = changes.renames;
+    ctx.tableRewrites = changes.tableRewrites;
     ctx.nameRenames = changes.nameRenames;
     ctx.permutes = changes.permutes;
     // (the file's own names: the edits to rows and columns say which sheet by its place, and the file has not been told of the renames yet)
     for (const SheetEntry &se : book.info().sheets) ctx.sheetNames << (se.isNew ? QString() : se.fileName);
     ctx.sheetOps = changes.sheetOps;
-    const bool moves = !ctx.edits.empty() || !ctx.renames.empty() || !ctx.nameRenames.empty() || !ctx.sheetOps.empty() || !ctx.permutes.empty();
+    const bool moves = !ctx.edits.empty() || !ctx.renames.empty() || !ctx.tableRewrites.empty() || !ctx.nameRenames.empty() || !ctx.sheetOps.empty() || !ctx.permutes.empty();
     QSet<int> moveSheets;   // the sheets (by their place) whose part is made by the mover
     if (moves) {
         anyCellChanged = true;
@@ -1632,6 +1699,64 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 if (!addRelationship(sheetRels, w.relId, QStringLiteral("vmlDrawing"), target, &r2)) return bad();
                 if (sheetRelsEntry >= 0) replaced.insert(sheetRelsEntry, r2);
                 else newEntries.emplace_back(entryName(relationshipsPartOf(se.part)), r2);
+            }
+        }
+        replaced.insert(typesEntry, types);
+    }
+    // ---- the tables: the parts made, their types, and the sheets' links to them; the parts taken out with their types and links
+    if (!tableLinks.empty()) {
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        QByteArray types;
+        if (typesEntry < 0 || !(replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types)))
+            return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file's list of part types is not in it."));
+        auto relsEntryFor = [&](const QString &part) {
+            const QString name = package.entryName(part);
+            if (name.isEmpty()) return -1;
+            const int slash = name.lastIndexOf(QLatin1Char('/'));
+            return entryAt.value(plain((slash < 0 ? QString() : name.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? name : name.mid(slash + 1)) + QStringLiteral(".rels")), -1);
+        };
+        auto bad = [&] { return fail(QCoreApplication::translate("jp::office::sheet::Save", "A table could not be put in the file's list of parts.")); };
+        for (const TableLink &link : tableLinks) {
+            const SheetEntry &se = book.info().sheets[link.sheet];
+            const int sheetRelsEntry = se.isNew ? -1 : relsEntryFor(se.part);
+            if (link.remove) {
+                const int entry = entryOfPart(link.part);
+                if (entry >= 0) dropped.insert(entry);
+                const int relsOfTable = relsEntryFor(link.part);
+                if (relsOfTable >= 0) dropped.insert(relsOfTable);
+                QByteArray t2;
+                if (removeContentTypeOverride(types, link.part, &t2)) types = t2;
+                QByteArray sheetRels, r2;
+                if (sheetRelsEntry < 0 || !(replaced.contains(sheetRelsEntry) ? (sheetRels = replaced.value(sheetRelsEntry), true) : inflate(sheetRelsEntry, &sheetRels))) return bad();
+                if (removeRelationshipsById(sheetRels, QStringList{link.relId}, &r2)) replaced.insert(sheetRelsEntry, r2);
+                continue;
+            }
+            newEntries.emplace_back(link.part.startsWith(QLatin1Char('/')) ? link.part.mid(1) : link.part, link.xml);
+            QByteArray t2;
+            if (!addContentOverride(types, link.part, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"), &t2)) return bad();
+            types = t2;
+            const QString target = relativeTarget(se.part, link.part);
+            if (se.isNew) {
+                newSheetRels[link.sheet] += relationshipXml(link.relId, QStringLiteral("table"), target);
+            } else {
+                QByteArray sheetRels, r2;
+                if (sheetRelsEntry >= 0 && !(replaced.contains(sheetRelsEntry) ? (sheetRels = replaced.value(sheetRelsEntry), true) : inflate(sheetRelsEntry, &sheetRels))) return bad();
+                // (a sheet with no relationships part may have been given one a moment ago, for a drawing)
+                const QString relsName = [&] {
+                    const QString name = relationshipsPartOf(se.part);
+                    return name.startsWith(QLatin1Char('/')) ? name.mid(1) : name;
+                }();
+                auto made = std::find_if(newEntries.begin(), newEntries.end(), [&](const auto &e) { return e.first == relsName; });
+                if (sheetRelsEntry < 0 && made != newEntries.end()) sheetRels = made->second;
+                if (!addRelationship(sheetRels, link.relId, QStringLiteral("table"), target, &r2)) return bad();
+                if (sheetRelsEntry >= 0) replaced.insert(sheetRelsEntry, r2);
+                else if (made != newEntries.end()) made->second = r2;
+                else newEntries.emplace_back(relsName, r2);
             }
         }
         replaced.insert(typesEntry, types);

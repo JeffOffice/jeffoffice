@@ -120,13 +120,27 @@ struct SheetChanges {
     // For a sheet a person put an object on that had no drawing: the id of the relationship from the sheet to the drawing that is made (saving sets it, from SaveChanges::addedObjects), and the
     // sheet is given the element that names it.
     QString drawingRelId;
-    bool empty() const { return drawingRelId.isEmpty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !hfSet && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    // The links from the sheet to its tables' parts: the ids of the relationships of tables made here (saving sets them, from SaveChanges::addedTables), and of tables taken out.
+    std::vector<QString> addTableRels, removeTableRels;
+    bool empty() const { return drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !hfSet && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
 struct ColumnRename {
     QString table, oldName, newName;
+    int seq = 0;   // the order it was made in, among the renames of columns and of tables (they are followed in that order)
     bool operator==(const ColumnRename &o) const { return table == o.table && oldName == o.oldName && newName == o.newName; }
+};
+
+// A table renamed by a person, or turned back into plain cells (the formulas of the file's other parts that name it follow: a rename writes the new name; a table made plain cells has its
+// references written as cells, and the references that cannot be, such as a reference to the formula's own row, are #REF!). `table` is the table as it was; `sheetName` the name of its sheet.
+struct TableRewrite {
+    enum class Kind : quint8 { Rename, ToRange } kind = Kind::Rename;
+    QString oldName, newName;
+    Table table;
+    QString sheetName;
+    int seq = 0;
+    bool operator==(const TableRewrite &o) const { return kind == o.kind && oldName == o.oldName && newName == o.newName; }
 };
 
 // A sheet renamed or deleted by a person (the formulas of the file that name it follow; see structsave.h): the name it had, and for a rename the name it has.
@@ -205,13 +219,28 @@ struct SaveChanges {
     };
     QVector<StyleAdded> newStyles;
     qint64 styleXfsBefore = 0;
-    // Parts to be written anew whole, by the part's name (the table parts whose columns were renamed).
+    // Parts to be written anew whole, by the part's name (the table parts that changed).
     std::map<QString, QByteArray> replacedParts;
+    // Tables made here: the sheet they are on, the part they are written to, and its bytes (the part, its type, and the sheet's link to it are made); and the parts of tables taken out (the
+    // part, the link to it, and its type go).
+    struct AddedTable {
+        int sheet = 0;
+        QString part;
+        QByteArray xml;
+    };
+    std::vector<AddedTable> addedTables;
+    struct RemovedTable {
+        int sheet = 0;
+        QString part;
+    };
+    std::vector<RemovedTable> removedTables;
     // Rows, columns, and cells inserted and deleted since the file was read, in the order they were made. Every part of the file that has cells in it, or names them, is changed by them
     // (see structsave.h) before the cells above are put in, which are in the places the edits leave.
     std::vector<StructEdit> edits;
     // And the columns of tables renamed since, in order.
     std::vector<ColumnRename> renames;
+    // And the tables renamed or made plain cells since, in order.
+    std::vector<TableRewrite> tableRewrites;
     // And the defined names given other names since, in order, and the names a person made, changed, or took away (written into the workbook's list of names).
     std::vector<NameRename> nameRenames;
     std::vector<NameChange> nameChanges;

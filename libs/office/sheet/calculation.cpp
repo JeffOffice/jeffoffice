@@ -290,12 +290,13 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
             kept = 'P';
         } else {
             const Program &p = *slot.program;
+            if (p.structured) m_structuredNodes.push_back(id);
             told = slot.usesNames || slot.dynamic || slot.reaches;
             always = slot.dynamic || slot.changesByItself;
             if (m_options.keepApart) {
                 if (!p.unknownFunctions.isEmpty()) kept = 'U';
                 else if (p.external) kept = 'E';
-                else if (p.structured) kept = 'T';
+                else if (p.structured && !m_options.workOutTables) kept = 'T';
                 else if (slot.changesByItself) kept = 'V';
                 else if (slot.iterative) kept = 'R';
                 else if (!cell.hasResult() && !m_options.workOutWhatHasNoResult) kept = 'N';
@@ -1097,6 +1098,21 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
     m_begin = BeginJob();
     m_sheetAreaOwner = -1;
     return true;
+}
+
+void Calculation::tablesChanged()
+{
+    WorkbookSource::tablesChanged();
+    abandonNow();
+    BulkEdit bulk(this);
+    // (the formulas that name a table's columns: each is registered again, which works it out and what reads it; the ones it finds are listed anew)
+    std::vector<quint32> ids;
+    ids.swap(m_structuredNodes);
+    std::sort(ids.begin(), ids.end());
+    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+    for (const quint32 id : ids)
+        if (id < m_nodes.size()) readdNode(id);
+    if (!m_running) beginRecalculation();
 }
 
 void Calculation::invalidateAll()

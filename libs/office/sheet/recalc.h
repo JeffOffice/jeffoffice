@@ -44,6 +44,9 @@ public:
     void usedExtent(int sheet, quint32 *rows, quint32 *cols) const override;
     QString definedName(int sheet, const QString &name) const override;
     bool isSubtotal(int sheet, quint32 row, quint32 col) const override;
+    jp::calc::StructuredAnswer structuredRef(const QString &text, int sheet, quint32 row, quint32 col, jp::calc::CellArea *area, jp::calc::ErrorKind *error) const override;
+    // The tables changed (made, taken out, renamed, moved, resized): the next reference by a table's name looks them up again. Call with the worker held back.
+    void tablesChanged() const { m_tableIndexReady = false; }
 
     // The defined names by "<sheet>|<NAME>" (the sheet counted from 0, or -1), and what each stands for (for the yardstick of saving).
     const QHash<QString, QString> &definedNameTexts() const { return m_names; }
@@ -56,6 +59,9 @@ protected:
     std::deque<Sheet> m_sheets;   // (a deque: a sheet added later does not move those there are, which the window holds pointers to)
     std::vector<quint32> m_rows, m_cols;
     mutable std::vector<std::vector<char>> m_subtotalTexts;   // for each sheet, for each text of a formula: 1 if it calls SUBTOTAL, 0 if not, -1 not yet asked
+    mutable bool m_tableIndexReady = false;
+    mutable QHash<QString, int> m_tableByName;                   // by the lower-case name, the table's place among the workbook's
+    mutable std::vector<std::vector<int>> m_tablesOfSheet;       // by the sheet, the places of its tables
     QHash<QString, int> m_byName;
     QHash<QString, QString> m_names;   // "<sheet>|<NAME>" -> what it stands for; the sheet counted from 0, or -1
     QStringList m_notWhole;

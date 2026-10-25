@@ -1,5 +1,6 @@
 // The parts of a file as rows, columns, and cells are inserted and deleted: see structsave.h.
 #include "sheet/structsave.h"
+#include "sheet/structref.h"
 #include "sheet/namerefs.h"
 
 #include "sheet/cellref.h"
@@ -143,12 +144,34 @@ QString followNameRenames(QString f, int ownSheet, const MoveContext &c)
     return f;
 }
 
+// What names a table's columns or a table, after the renames of columns and of tables (in the order they were made).
+QString followTableOps(QString f, const MoveContext &c, int ownSheet)
+{
+    if (!f.contains(QLatin1Char('['))) return f;
+    size_t ri = 0, ti = 0;
+    while (ri < c.renames.size() || ti < c.tableRewrites.size()) {
+        const bool column = ti >= c.tableRewrites.size() || (ri < c.renames.size() && c.renames[ri].seq <= c.tableRewrites[ti].seq);
+        if (column) {
+            const ColumnRename &r = c.renames[ri++];
+            f = renameColumnInFormula(f, r.table, r.oldName, r.newName, false);
+            continue;
+        }
+        const TableRewrite &t = c.tableRewrites[ti++];
+        if (t.kind == TableRewrite::Kind::Rename) {
+            f = renameTableInFormula(f, t.oldName, t.newName);
+        } else {
+            const QString own = ownSheet >= 0 && ownSheet < c.sheetNames.size() ? c.sheetNames[ownSheet] : QString();
+            f = structuredRefsToCells(f, t.table, t.sheetName, own, -1, false);
+        }
+    }
+    return f;
+}
+
 QString adjustAll(const QString &formula, int ownSheet, const MoveContext &c, bool definedName = false, int nameSheet = -2)
 {
     QString f = formula;
     for (const StructEdit &e : c.edits) f = adjustFormula(f, ownSheet, c.sheetNames, e, nullptr, definedName);
-    if (f.contains(QLatin1Char('[')))
-        for (const ColumnRename &r : c.renames) f = renameColumnInFormula(f, r.table, r.oldName, r.newName, false);
+    f = followTableOps(f, c, definedName ? -1 : ownSheet);
     if (!c.nameRenames.empty()) f = followNameRenames(f, nameSheet == -2 ? ownSheet : nameSheet, c);
     return followSheetOps(f, c, definedName);
 }
@@ -164,8 +187,7 @@ QString adjustRuleAll(const QString &formula, int ownSheet, const MoveContext &c
         f = adjustRuleFormula(f, ownSheet, c.sheetNames, e, first);
         if (first.valid && !adjustRange(e, ownSheet, &first)) first = CellRange();
     }
-    if (f.contains(QLatin1Char('[')))
-        for (const ColumnRename &r : c.renames) f = renameColumnInFormula(f, r.table, r.oldName, r.newName, false);
+    f = followTableOps(f, c, ownSheet);
     if (!c.nameRenames.empty()) f = followNameRenames(f, ownSheet, c);
     return followSheetOps(f, c, false);
 }

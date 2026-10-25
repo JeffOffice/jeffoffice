@@ -2424,6 +2424,8 @@ const QVector<Table> &Workbook::tables() const
     if (!m_tablesRead) {
         m_tables = readTables(m_package, m_info);
         m_tablesRead = true;
+        m_tablesInFile.clear();
+        for (const Table &t : m_tables) m_tablesInFile.emplace_back(t.part, t.sheet);
     }
     return m_tables;
 }
@@ -2477,7 +2479,15 @@ void Workbook::setTableColumnName(int table, int column, const QString &name)
 {
     tables();
     if (table < 0 || table >= m_tables.size() || column < 0 || column >= m_tables[table].columns.size()) return;
-    m_tables[table].columns[column] = name;
+    Table &t = m_tables[table];
+    const QString was = t.columns[column];
+    t.columns[column] = name;
+    // (the formulas the table's part keeps for its columns follow the name)
+    if (was != name)
+        for (TableColumnInfo &c : t.info) {
+            if (!c.calcFormula.isEmpty()) c.calcFormula = renameColumnInFormula(c.calcFormula, t.name, was, name, true);
+            if (!c.totalsFormula.isEmpty()) c.totalsFormula = renameColumnInFormula(c.totalsFormula, t.name, was, name, true);
+        }
 }
 
 bool Workbook::tablesAllow(const StructEdit &edit, QString *why) const
@@ -2527,17 +2537,76 @@ std::map<QString, QByteArray> Workbook::changedTableParts() const
     std::map<QString, QByteArray> out;
     if (!m_tablesRead) return out;
     for (const Table &t : m_tables) {
-        const bool moved = t.row1 != t.fileRow1 || t.col1 != t.fileCol1 || t.row2 != t.fileRow2 || t.col2 != t.fileCol2 || t.totalsRows != t.fileTotalsRows;
-        if (t.columns == t.fileColumns && !moved) continue;
-        QByteArray renamed;
-        CellRange now;
-        now.valid = true;
-        now.row1 = t.row1;
-        now.col1 = t.col1;
-        now.row2 = t.row2;
-        now.col2 = t.col2;
-        if (renameTableXml(m_package.part(t.part), t.fileColumns, t.columns, t.name, &renamed, moved ? &now : nullptr, moved ? &t.totalsRows : nullptr)) out[t.part] = renamed;
+        if (t.fileSignature.isEmpty() || tableSignature(t) == t.fileSignature) continue;
+        const auto inFile = std::find_if(m_tablesInFile.begin(), m_tablesInFile.end(), [&](const auto &p) { return p.first == t.part; });
+        if (inFile == m_tablesInFile.end()) continue;   // (a table made here: addedTables)
+        bool ok = false;
+        const QByteArray bytes = writeTablePart(t, m_package.part(t.part), &ok);
+        if (ok) out[t.part] = bytes;
     }
+    return out;
+}
+
+void Workbook::setTableAt(int index, const Table &table)
+{
+    tables();
+    if (index >= 0 && index < m_tables.size()) m_tables[index] = table;
+}
+
+int Workbook::insertTable(int index, const Table &table)
+{
+    tables();
+    if (index < 0 || index > m_tables.size()) index = int(m_tables.size());
+    m_tables.insert(index, table);
+    return index;
+}
+
+void Workbook::eraseTable(int index)
+{
+    tables();
+    if (index >= 0 && index < m_tables.size()) m_tables.removeAt(index);
+}
+
+QString Workbook::freshTablePart() const
+{
+    tables();
+    QSet<QString> taken;
+    for (const QString &n : m_package.partNames()) taken.insert(n.toLower());
+    for (const Table &t : m_tables) taken.insert(t.part.toLower());
+    for (const auto &p : m_tablesInFile) taken.insert(p.first.toLower());
+    for (int n = 1;; ++n) {
+        const QString part = QStringLiteral("/xl/tables/table%1.xml").arg(n);
+        if (!taken.contains(part.toLower())) return part;
+    }
+}
+
+int Workbook::freshTableId() const
+{
+    tables();
+    int id = 0;
+    for (const Table &t : m_tables) id = std::max(id, t.id);
+    return id + 1;
+}
+
+std::vector<Workbook::TableAdd> Workbook::addedTables() const
+{
+    std::vector<TableAdd> out;
+    if (!m_tablesRead) return out;
+    for (const Table &t : m_tables) {
+        if (std::any_of(m_tablesInFile.begin(), m_tablesInFile.end(), [&](const auto &p) { return p.first == t.part; })) continue;
+        bool ok = false;
+        const QByteArray bytes = writeTablePart(t, QByteArray(), &ok);
+        if (ok) out.push_back({t.sheet, t.part, bytes});
+    }
+    return out;
+}
+
+std::vector<Workbook::TableGone> Workbook::removedTables() const
+{
+    std::vector<TableGone> out;
+    if (!m_tablesRead) return out;
+    for (const auto &p : m_tablesInFile)
+        if (std::none_of(m_tables.begin(), m_tables.end(), [&](const Table &t) { return t.part == p.first; })) out.push_back({p.second, p.first});
     return out;
 }
 
@@ -2552,9 +2621,20 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
         m_headerImages->images.clear();
         m_headerImages->bytes = 0;
     }
-    // (the tables are read again from the file just written, which has the names they have now)
-    m_tablesRead = false;
-    m_tables.clear();
+    // (the tables stay as they are, with the file's state now what they are; their places are what the steps of Undo name)
+    if (m_tablesRead) {
+        m_tablesInFile.clear();
+        for (Table &t : m_tables) {
+            m_tablesInFile.emplace_back(t.part, t.sheet);
+            t.fileSignature = tableSignature(t);
+            t.fileColumns = t.columns;
+            t.fileRow1 = t.row1;
+            t.fileCol1 = t.col1;
+            t.fileRow2 = t.row2;
+            t.fileCol2 = t.col2;
+            t.fileTotalsRows = t.totalsRows;
+        }
+    }
     m_sharedInFile += strings;
     m_formatsInFile += cellFormats;
     m_fontsInFile += counts.fonts;

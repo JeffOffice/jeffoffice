@@ -65,6 +65,16 @@ struct TableRename {
     std::vector<std::pair<QString, QString>> names;   // the defined names that named the column, as they were (made when the step is first done)
 };
 
+// A table made, taken out, or changed by a step: its place in the workbook's tables, and the table as it was and as it is. A table taken out or renamed has the formulas that named it written
+// again (the cells' are in the step; the defined names' are made when the step is first done).
+struct TableEdit {
+    enum class Kind : quint8 { Replace, Insert, Erase } kind = Kind::Replace;
+    enum class Rewrite : quint8 { None, Rename, ToRange } rewrite = Rewrite::None;
+    int index = 0;
+    jp::office::sheet::Table before, after;
+    std::vector<std::pair<QString, QString>> names;   // the defined names that named the table, as they were (made when the step is first done)
+};
+
 // The width of columns or the height of rows changed by a step: the runs of columns (the specs of rows) in a range as they were and as they are.
 struct SizeEdit {
     int sheet = 0;
@@ -166,6 +176,7 @@ struct Step {
     std::vector<CellChange> cells;
     std::vector<StyleCell> styles;
     std::vector<TableRename> renames;
+    std::vector<TableEdit> tables;
     std::vector<SizeEdit> sizes;
     std::vector<MergeEdit> merges;
     std::vector<FormatEdit> formats;
@@ -178,7 +189,7 @@ struct Step {
     std::vector<PageEdit> pages;               // or how sheets print (the paper, margins, header and footer, breaks, print area, titles)
     std::vector<NameEdit> names;               // or defined names made, changed, or taken away
     std::vector<CalcEdit> calcs;               // or how the workbook calculates
-    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
+    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && tables.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -287,6 +298,49 @@ public:
     Outcome fill(int sheet, const jp::office::sheet::CellRange &source, FillDirection direction, quint32 count);   // (as the fill handle: Auto)
 
 
+
+    // ---- tables (edittables.cpp). A table is named by its place among the workbook's tables (Workbook::tables); each of these is one step of Undo, and nothing is changed when it is not ok.
+    // The table whose cells include the cell, or -1; and the one whose header row, data, or totals row it is in is the same table.
+    int tableAt(int sheet, quint32 row, quint32 col) const;
+    // Insert > Table: the cells of `range` become a table. With `hasHeaders` the first row holds the names of the columns (a cell that is not text becomes the text it shows, an empty one is
+    // named, and two of one name are numbered); without, the table has no header row and its columns are named Column1, Column2, and so on. A table needs a row of data: a single row
+    // with headers is given the empty row under it. `made` is the table's place.
+    Outcome makeTable(int sheet, const jp::office::sheet::CellRange &range, bool hasHeaders, const QString &style, int *made = nullptr);
+    // Why a name can't be a table's (not `except`'s own), in a sentence; empty when it can: not a valid name, or another table's or a defined name, in any case.
+    QString tableNameProblem(const QString &name, int except) const;
+    // Turns the table back into plain cells: the cells keep what they hold and how they look (the style is drawn no more), and the formulas that named the table's columns name the cells.
+    Outcome tableToRange(int table);
+    Outcome renameTable(int table, const QString &name);
+    // The marks of a table's look and the filter buttons.
+    struct TableMarks {
+        QString style;
+        bool firstColumn = false, lastColumn = false, rowStripes = true, columnStripes = false, filterButtons = true;
+    };
+    Outcome setTableMarks(int table, const TableMarks &marks);
+    // The row of column names on or off. Off: the names' cells are cleared and the table begins at the row under them. On: the row above the table (which must be empty) is the table's, with
+    // the columns' names in it.
+    Outcome setTableHeaderRow(int table, bool on);
+    // The row of totals on or off. On: the row under the table (empty) holds a total for the last column and the word "Total" in the first; off: that row is cleared.
+    Outcome setTableTotalsRow(int table, bool on);
+    // What a column's total shows: one of the file's words (sum, average, count, countNums, max, min, stdDev, var), "custom" with its formula (no "="), or empty for none; the cell is written.
+    Outcome setTableTotal(int table, int column, const QString &function, const QString &custom = QString());
+    // A table's cells changed to `range` (it keeps its first cell and header row; it may grow or shrink down and right): the new rows get the calculated columns' formulas, new columns are
+    // named, the totals row moves with the last row.
+    Outcome resizeTable(int table, const jp::office::sheet::CellRange &range);
+    // What a table's cells would be if a cell was typed into (sheet, row, col): the table it would grow, and how, or -1: typing in the row under a table, or the column beside it, adds it.
+    struct TableGrowth {
+        int table = -1;
+        bool row = false, column = false;
+    };
+    TableGrowth growthByTyping(int sheet, quint32 row, quint32 col) const;
+    // Whether a formula typed in the table's cell would make its column a calculated column (the column has no formula, and the cells of its other rows are empty), and the choice not to: the
+    // last calculated column made by typing is undone (the cell keeps its formula).
+    bool lastEntryMadeCalculatedColumn() const { return m_lastCalculated; }
+    Outcome undoCalculatedColumn();
+    // The columns' calculated formulas of a table, for a row: the formula (as the cell holds it, with no "=") of the column for that row, or empty for none.
+    QString calculatedFormulaFor(const jp::office::sheet::Table &table, int column, quint32 row) const;
+    // The table names for a list to offer, and a table's column names; at most `limit`.
+    QStringList tableNames(int limit = 200) const;
 
     // ---- steps put in a slice at a time
     // A step of very many cells is put in a slice at a time (no turn of the window does more than a few thousand cells) and then lies on the undo stack as one step. While it is being put in, the
@@ -594,6 +648,8 @@ Q_SIGNALS:
     void sizesChanged(int sheet);
     // A step of the undo stack could not be undone or done again (the workbook could not be held, or the edit was refused): Undo and Redo of every step are given up, and this says so.
     void stepFailed(const QString &what);
+    // The tables of a sheet changed (made, taken out, resized, restyled, or renamed, by a step, Undo, or Redo): the window draws the sheet again.
+    void tablesChanged(int sheet);
     // How a sheet prints changed (a command, Undo or Redo of one, or an edit of rows, columns, or cells that moved its print area, titles, or breaks).
     void pageSetupChanged(int sheet);
 
@@ -642,6 +698,17 @@ private:
     void pushStep(Step step, const QString &text, bool alreadyDone = false);
     // A text typed in a cell of a table's header row: the column is renamed (the formulas that name it follow, and the table's part when the workbook is saved).
     Outcome typeInHeader(int sheet, quint32 row, quint32 col, int table, int column, const QString &typed);
+    // After a typed entry in a table's cell: the table grows, and a formula typed in an empty column becomes the column's (edittables.cpp).
+    void growTableAfterEntry(int sheet, quint32 row, quint32 col, const CellChange &entry);
+    void calculatedColumnAfterEntry(int sheet, quint32 row, quint32 col, const CellChange &entry);
+    void applyTableEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book, std::set<int> *sheets);
+    Outcome pushTableStep(Step step, const QString &text);
+    // A change that puts text (never read as anything else) or a formula (as the file writes it) in a cell, or clears it.
+    CellChange textCell(int sheet, quint32 row, quint32 col, const QString &text);
+    CellChange formulaCell(int sheet, quint32 row, quint32 col, const QString &formula);
+    CellChange clearedCell(int sheet, quint32 row, quint32 col);
+    bool tableFree(int sheet, const jp::office::sheet::CellRange &range, int except, QString *why) const;
+    bool cellsEmpty(int sheet, const jp::office::sheet::CellRange &range) const;
     jp::office::sheet::EntryOptions entryOptions(int sheet, bool textFormat) const;
     // The change typing `typed` into a cell makes (not a header cell's, not checked against the cell's rule): false, with the problem, if it can't be put in; `none` if it changes nothing.
     bool typedChange(int sheet, quint32 row, quint32 col, const QString &typed, CellChange *change, bool *none, Outcome *problem);
@@ -724,6 +791,10 @@ private:
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
     PageSettings m_pages;
     std::vector<jp::office::sheet::ColumnRename> m_renames;   // and the table columns renamed, for the names, validations, rules, and charts that name them
+    std::vector<jp::office::sheet::TableRewrite> m_tableRewrites;   // and the tables renamed or made plain cells, for the same
+    int m_opSeq = 0;                   // the order renames of columns and tables are made in
+    bool m_lastCalculated = false;     // the last entry made its column a calculated column (see lastEntryMadeCalculatedColumn)
+    int m_calculatedIndex = -1;        // the place on the undo stack of the step that made it
     bool m_bigStepAllowed = false;     // see allowNextBigStep
     int m_saveGen = 0;                 // how many times the workbook has been saved
     int m_forgotBySave = 0;            // the steps the last save made Undo forget (see forgetDeletesInFile)

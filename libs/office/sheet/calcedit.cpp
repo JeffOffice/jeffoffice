@@ -780,6 +780,21 @@ std::vector<std::pair<QString, QString>> Calculation::renameColumnInNames(const 
     return was;
 }
 
+std::vector<std::pair<QString, QString>> Calculation::rewriteNames(const std::function<QString(const QString &)> &rewrite)
+{
+    std::vector<std::pair<QString, QString>> was;
+    abandonNow();
+    for (auto it = m_names.begin(); it != m_names.end(); ++it) {
+        if (!it.value().contains(QLatin1Char('['))) continue;
+        const QString now = rewrite(it.value());
+        if (now == it.value()) continue;
+        was.push_back({it.key(), it.value()});
+        it.value() = now;
+    }
+    if (!was.empty()) nameTextsChanged();
+    return was;
+}
+
 void Calculation::restoreNames(const std::vector<std::pair<QString, QString>> &names)
 {
     if (names.empty()) return;

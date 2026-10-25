@@ -471,7 +471,7 @@ QByteArray tailWithMerges(const QByteArray &after, const std::vector<CellRange> 
 }
 
 // A filter as the element the file has it: the conditions of its columns, in order of column, and its sort state (as the file had it).
-QByteArray autoFilterElement(const AutoFilter &f, const QByteArray &prefix)
+QByteArray autoFilterElementOf(const AutoFilter &f, const QByteArray &prefix)
 {
     auto name = [&](const char *local) { return "<" + prefix + local; };
     auto close = [&](const char *local) { return "</" + prefix + local + ">"; };
@@ -540,7 +540,7 @@ QByteArray autoFilterElement(const AutoFilter &f, const QByteArray &prefix)
 // What follows a sheet's cells with its filter made from `filter`: in place of the element the file has, or where the format puts it; none (not valid) takes the file's away.
 QByteArray tailWithFilter(const QByteArray &after, const AutoFilter &filter, const QByteArray &prefix)
 {
-    const QByteArray generated = autoFilterElement(filter, prefix);
+    const QByteArray generated = autoFilterElementOf(filter, prefix);
     static const QList<QByteArray> later = {"sortState", "dataConsolidate", "customSheetViews", "mergeCells", "phoneticPr", "conditionalFormatting", "dataValidations", "hyperlinks", "printOptions",
                                             "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches", "ignoredErrors", "smartTags", "drawing",
                                             "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
@@ -690,6 +690,55 @@ QByteArray tailWithHeaderDrawing(const QByteArray &after, const QByteArray &relI
     return after.left(insertAt) + element + after.mid(insertAt);
 }
 
+// What follows a sheet's cells with the links to its tables' parts changed: the ones with these relationship ids taken out, the ones in `add` put in (the element and its count are made if
+// the sheet has none, where the format has it: after everything but the extension list, and gone when no table is left).
+QByteArray tailWithTableParts(const QByteArray &after, const std::vector<QString> &add, const std::vector<QString> &remove, const QByteArray &prefix)
+{
+    Tag t;
+    qsizetype pos = 0, existingStart = -1, existingEnd = -1, insertAt = -1;
+    int depth = 0;
+    QByteArray openTag;
+    QByteArrayList kept;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (insertAt < 0) insertAt = t.start;   // </worksheet>
+                break;
+            }
+            if (depth == 0 && existingStart >= 0 && existingEnd < 0 && t.local == "tableParts") existingEnd = t.end;
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == "tableParts" && existingStart < 0) {
+                existingStart = t.start;
+                openTag = after.mid(t.start, t.end - t.start);
+                if (t.selfClosing) existingEnd = t.end;
+            } else if (insertAt < 0 && t.local == "extLst") {
+                insertAt = t.start;
+            }
+        } else if (depth == 1 && existingStart >= 0 && existingEnd < 0 && t.local == "tablePart") {
+            const QByteArray tag = after.mid(t.start, t.end - t.start);
+            static const QRegularExpression idAttr(QStringLiteral("\\s[A-Za-z_][\\w.-]*:id\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
+            const QRegularExpressionMatch m = idAttr.match(QString::fromUtf8(tag));
+            const QString id = m.hasMatch() ? (m.captured(1).isEmpty() ? m.captured(2) : m.captured(1)) : QString();
+            if (std::find(remove.begin(), remove.end(), xmlscan::unescape(id.toUtf8())) == remove.end()) kept.push_back(tag);
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    for (const QString &id : add)
+        kept.push_back("<" + prefix + "tablePart xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"" + xmlscan::escapeAttribute(id) + "\"/>");
+    QByteArray generated;
+    if (!kept.isEmpty()) {
+        generated = "<" + prefix + "tableParts count=\"" + QByteArray::number(qulonglong(kept.size())) + "\">";
+        for (const QByteArray &k : kept) generated += k;
+        generated += "</" + prefix + "tableParts>";
+    }
+    if (existingStart >= 0 && existingEnd >= 0) return after.left(existingStart) + generated + after.mid(existingEnd);
+    if (generated.isEmpty() || insertAt < 0) return after;
+    return after.left(insertAt) + generated + after.mid(insertAt);
+}
+
 class Patcher {
 public:
     Patcher(QIODevice *in, PartSink *out, const SheetChanges &changes, bool hasShared, const std::atomic<bool> *cancel) : m_in(in), m_out(out), m_hasShared(hasShared), m_cancel(cancel)
@@ -709,6 +758,8 @@ public:
         if (changes.replaceMerges) m_merges = &changes.merges;
         if (changes.setPage) m_page = &changes.page;
         m_drawingId = changes.drawingRelId.toLatin1();
+        m_addTables = &changes.addTableRels;
+        m_removeTables = &changes.removeTableRels;
         if (changes.replaceFormat) m_format = &changes.format;
         if (changes.replaceTabColor) m_tabColor = &changes.tabColor;
         if (changes.replaceAutoFilter) m_filter = &changes.autoFilter;
@@ -1224,7 +1275,7 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet) {
+        if (m_merges || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_addTables->empty() || !m_removeTables->empty()) {
             // (what follows the cells is held whole to change its merged ranges, its filter, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -1240,6 +1291,7 @@ private:
                 if (m_page) tail = patchPageSetupTail(tail, *m_page, m_prefix);
                 if (!m_drawingId.isEmpty()) tail = tailWithDrawing(tail, m_drawingId, m_prefix);
                 if (m_hfSet) tail = tailWithHeaderDrawing(tail, m_hfRel, m_prefix);
+                if (!m_addTables->empty() || !m_removeTables->empty()) tail = tailWithTableParts(tail, *m_addTables, *m_removeTables, m_prefix);
                 return tail;
             };
             if (m_dataClosed) put(tailOf(rest));   // (an empty sheetData was given its closing tag with its rows: what is left follows it)
@@ -1280,6 +1332,8 @@ private:
     const std::vector<CellRange> *m_merges = nullptr;
     const PageSetup *m_page = nullptr;
     QByteArray m_drawingId;
+    const std::vector<QString> *m_addTables = nullptr;
+    const std::vector<QString> *m_removeTables = nullptr;
     const SheetFormat *m_format = nullptr;
     const ColorSpec *m_tabColor = nullptr;
     const AutoFilter *m_filter = nullptr;
@@ -1293,6 +1347,8 @@ private:
 };
 
 } // namespace
+
+QByteArray autoFilterElement(const AutoFilter &filter, const QByteArray &prefix) { return autoFilterElementOf(filter, prefix); }
 
 bool patchSheet(QIODevice *in, PartSink *out, const SheetChanges &changes, bool hasSharedStrings, QString *error, const std::atomic<bool> *cancel)
 {

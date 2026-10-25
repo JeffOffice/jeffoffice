@@ -379,6 +379,7 @@ bool EditSession::applyStructure(Step *step, bool forward)
         if (ok) book.putTablesBack(sc.tables);
     }
     if (!ok) return false;
+    if (!sc.tables.empty()) calc->tablesChanged();   // (the formulas that name a table's columns read the table where it is now)
     sc.done = forward;
     const StructEdit now = forward ? sc.edit : sc.edit.inverse();   // what was done to the cells
     followEdit(sc.edit, &sc, forward);
@@ -411,6 +412,7 @@ bool EditSession::applyStructure(Step *step, bool forward)
     hold.reset();
     m_tracking = true;
     Q_EMIT cellsMoved(now);
+    if (!sc.tables.empty()) Q_EMIT tablesChanged(sc.edit.sheet);
     return true;
 }
 

@@ -16,6 +16,7 @@ struct MoveContext {
     std::vector<StructEdit> edits;
     std::vector<CellPermute> permutes;   // cells put in another order (a sort), among the edits by `after`: what is tied to a cell (a note, a link) goes with it
     std::vector<ColumnRename> renames;   // columns of tables renamed (the formulas that name them follow)
+    std::vector<TableRewrite> tableRewrites;   // tables renamed or made plain cells, in the order made
     QStringList sheetNames;   // the workbook's, in order
     std::vector<NameRename> nameRenames;   // defined names given other names, in the order made (the formulas that use them follow)
     std::vector<SheetOp> sheetOps;       // sheets renamed or deleted, in the order made, after the edits above (what names a sheet follows them)

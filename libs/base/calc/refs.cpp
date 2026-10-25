@@ -11,7 +11,7 @@ ProgramTraits traitsOf(const Program &program)
 {
     ProgramTraits t;
     for (const Instr &in : program.code) {
-        if (in.op == Op::PushName) t.usesNames = true;
+        if (in.op == Op::PushName || in.op == Op::PushTable) t.usesNames = true;   // (a table's column stands for cells that are found as the formula is worked out)
         else if (in.op == Op::Range) t.reachesBeyond = true;
     }
     for (const auto &call : program.calls) {

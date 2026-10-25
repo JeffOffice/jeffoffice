@@ -39,6 +39,7 @@ constexpr qint64 kMaxHeldBytes = qint64(512) << 20;
 
 struct CalcOptions {
     bool keepApart = false;           // formulas the engine cannot work out keep the stored result (and mark what reads them): see the class
+    bool workOutTables = false;       // with keepApart: a formula that names the columns of a table is worked out (the yardstick keeps it apart, as it keeps what it cannot work out)
     bool goRoundCircles = false;      // a workbook that asks for iterative calculation (or is told to: setIteration) has its circles worked out by going round them, as a window does; else (as the yardstick does)
                                       // they are given 0, or, with keepApart, kept apart as the file has them
     bool workOutWhatHasNoResult = false;   // with keepApart: a formula the file stored no result for is worked out (the yardstick keeps it apart, for want of a result to compare with; a window has nothing else to show)
@@ -92,6 +93,8 @@ public:
     void setResultSink(ResultSink sink) { m_sink = std::move(sink); }
     // The day number NOW and TODAY give from the next recalculation (0: the clock is read at each, as it is when the calculation is made without a time).
     void setNow(double serial) { m_options.now = serial; }
+    // The tables changed (made, taken out, renamed, moved, resized, or a column renamed): the formulas that name a table's columns are worked out again. Call with the worker held back.
+    void tablesChanged();
     // Marks every formula to be worked out again (the next recalculation is a whole one).
     void invalidateAll();
     // The same for the formulas of one sheet, and only those: what they read that is out of date is worked out as they need it, and what is waiting on other sheets (formulas never worked out,
@@ -323,6 +326,8 @@ public:
     // A column of a table renamed: the defined names that name it follow. Gives the texts the names had (by the key the calculation keeps them by), for putting back with restoreNames.
     std::vector<std::pair<QString, QString>> renameColumnInNames(const QString &table, const QString &oldName, const QString &newName);
     void restoreNames(const std::vector<std::pair<QString, QString>> &names);
+    // The defined names whose texts name a table (a table renamed, or made plain cells): each text that `rewrite` gives another text for is changed. Gives the texts the names had, as above.
+    std::vector<std::pair<QString, QString>> rewriteNames(const std::function<QString(const QString &)> &rewrite);
 
     // ---- the sheets (a person adds, renames, deletes, and copies them: see apps/crunch/core/editsession.h). A sheet is never renumbered: one added is put after the others and keeps its
     // number, one deleted keeps its number and its cells (nothing reads them any more: every reference to it is #REF!), and Undo puts it all back. Called with the worker held back.
@@ -543,6 +548,7 @@ private:
     QVector<QString> m_texts;
     std::vector<qint32> m_freeTexts;
     QHash<quint32, jp::calc::Value> m_arrays;
+    std::vector<quint32> m_structuredNodes;   // the formulas that name a table's columns (a place may be stale: tablesChanged looks at each)
     jp::calc::NameTraitsCache m_nameTraits;   // what each defined name calls (by its scope and name)
     std::unordered_set<quint32> m_threeD;     // formulas that read a block of several sheets (a node on it has ThreeD); one leaves it when its formula goes or reads no more than one sheet
     std::vector<quint32> m_always;            // formulas worked out in every recalculation, each once (a node on it has AlwaysListed); those that are not, or are gone, are left out at the next

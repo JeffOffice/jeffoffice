@@ -1,4 +1,5 @@
 #include "core/editsession.h"
+#include "sheet/structref.h"
 
 #include "sheet/xlsxbase.h"
 
@@ -537,14 +538,25 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
         const Outcome rule = checkRule(sheet, row, col, ch.after.value, ch.after.isFormula, typed.trimmed());
         if (!rule.ok) return rule;
     }
+    // a formula typed with the short forms of a table's cells ([@Amount]) is kept the way the file writes them
+    if (ch.after.isFormula && ch.after.formula.contains(QLatin1Char('['))) {
+        int inTable = tableAt(sheet, row, col);
+        if (inTable < 0) inTable = growthByTyping(sheet, row, col).table;   // (a cell that makes the table grow is in it)
+        ch.after.formula = fileFormOfStructuredRefs(ch.after.formula, inTable >= 0 ? m_book->book->tables()[inTable].name : QString());
+    }
+    const CellChange entry = ch;
     Step step;
     step.cells.push_back(std::move(ch));
     pushStep(std::move(step), tr("Typing in %1").arg(cellName(row, col)));
+    // what typing in a table's cell, or next to one, brings with it: the table grows; a formula typed in an empty column becomes the column's
+    growTableAfterEntry(sheet, row, col, entry);
+    calculatedColumnAfterEntry(sheet, row, col, entry);
     return out;
 }
 
 void EditSession::pushStep(Step step, const QString &text, bool alreadyDone)
 {
+    m_lastCalculated = false;
     auto *command = new ChangeCells(this, std::move(step), text, m_undoBytes);
     if (alreadyDone) command->markDone();
     m_undo.push(command);
@@ -718,6 +730,8 @@ bool EditSession::apply(Step *step, bool forward)
     Calculation *calc = hold->calculation();
     Workbook &book = *m_book->book;
     if (m_holdHook) m_holdHook(calc, false);
+    std::set<int> tableSheets;
+    applyTableEdits(step, forward, calc, book, &tableSheets);
     std::map<int, std::vector<ValueStore::Item>> cells;
     std::vector<ValueStore::Item> formulas;
     {
@@ -781,7 +795,7 @@ bool EditSession::apply(Step *step, bool forward)
         book.setTableColumnName(r.table, r.column, forward ? r.after : r.before);
         // the defined names that name the column follow, and the file's other parts that do are told at a save
         const QString table = r.table >= 0 && r.table < book.tables().size() ? book.tables()[r.table].name : QString();
-        const jp::office::sheet::ColumnRename was{table, r.before, r.after}, back{table, r.after, r.before};
+        const jp::office::sheet::ColumnRename was{table, r.before, r.after, ++m_opSeq}, back{table, r.after, r.before, ++m_opSeq};
         if (forward) {
             r.names = calc->renameColumnInNames(table, r.before, r.after);
             m_renames.push_back(was);
@@ -792,6 +806,7 @@ bool EditSession::apply(Step *step, bool forward)
         }
     }
     if (!applyNameEdits(step, forward, calc)) return false;
+    if (!tableSheets.empty()) calc->tablesChanged();   // (the formulas that name a table's columns are worked out again, now that the cells and the tables are as they are to be)
     applyCalcEdits(step, forward, calc);
     applySizes(step, forward, calc);
     for (const MergeEdit &m : step->merges) {
@@ -819,7 +834,7 @@ bool EditSession::apply(Step *step, bool forward)
     if (!applySheetEdits(step, forward, calc, book)) return false;
     if (m_holdHook) m_holdHook(calc, true);
     // (a change of formats alone leaves nothing for the worker to work out)
-    bool valuesChanged = !step->renames.empty() || !step->names.empty() || !step->calcs.empty();
+    bool valuesChanged = !step->renames.empty() || !step->tables.empty() || !step->names.empty() || !step->calcs.empty();
     for (const CellChange &ch : step->cells) valuesChanged = valuesChanged || !ch.styleOnly;
     for (const SheetEdit &e : step->sheets) valuesChanged = valuesChanged || e.kind == SheetEdit::Kind::Insert || e.kind == SheetEdit::Kind::Copy || e.kind == SheetEdit::Kind::Delete || e.kind == SheetEdit::Kind::Rename;
     if (valuesChanged) hold->changed();
@@ -835,6 +850,7 @@ bool EditSession::apply(Step *step, bool forward)
     for (const FormatEdit &f : step->formats) Q_EMIT sizesChanged(f.sheet);
     for (const FilterEdit &f : step->filters) Q_EMIT sizesChanged(f.sheet);
     for (const RowSpecsEdit &e : step->rowSpecs) Q_EMIT sizesChanged(e.sheet);
+    for (const int s : tableSheets) Q_EMIT tablesChanged(s);
     if (!step->sheets.empty()) Q_EMIT sheetsChanged();
     if (!step->calcs.empty()) Q_EMIT calcSettingsChanged();
     return true;
@@ -1226,6 +1242,9 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         changes.sharedStringsBefore = book.sharedStringsInFile();
     }
     changes.replacedParts = book.changedTableParts();
+    for (const Workbook::TableAdd &a : book.addedTables()) changes.addedTables.push_back({a.sheet, a.part, a.xml});
+    for (const Workbook::TableGone &g : book.removedTables()) changes.removedTables.push_back({g.sheet, g.part});
+    changes.tableRewrites = m_tableRewrites;
     {
         QStringList names;
         for (const jp::office::sheet::SheetEntry &se : book.info().sheets) names << (se.deleted ? QString() : se.name);
@@ -1302,6 +1321,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_filterRows.clear();
     forgetNotes();
     m_renames.clear();
+    m_tableRewrites.clear();
     m_nameRenames.clear();
     m_calcFile = m_calcNow;
     m_nameTable.rebase([this](const NameEntry &e) {

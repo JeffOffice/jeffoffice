@@ -13,6 +13,8 @@ namespace jp::office::sheet {
 namespace {
 
 constexpr int kMaxTables = 20000;
+constexpr qint64 kMaxTablePartBytes = 8 << 20;        // a table part longer than this is not read
+constexpr qint64 kMaxTablePartsBytes = 128 << 20;     // and all the table parts of a workbook together
 constexpr int kMaxTableColumns = 16384;
 constexpr int kMaxColumnNameChars = 255;
 
@@ -126,6 +128,10 @@ QString renameInBracket(const QString &group, const Rename &rename, bool *change
 
 } // namespace
 
+QString escapeTableColumn(const QString &name) { return escapeColumn(name); }
+bool tableColumnNeedsDoubleBrackets(const QString &name) { return needsDoubleBrackets(name); }
+QString unescapeTableColumn(const QString &raw) { return unescapeColumn(raw); }
+
 QString renameColumnInFormula(const QString &formula, const QString &table, const QString &oldName, const QString &newName, bool insideTable)
 {
     if (!formula.contains(QLatin1Char('['))) return formula;
@@ -221,6 +227,7 @@ QString uniqueColumnName(const QString &typedIn, const QStringList &columns, int
 QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
 {
     QVector<Table> tables;
+    qint64 total = 0;
     for (int sheet = 0; sheet < info.sheets.size(); ++sheet) {
         const SheetEntry &entry = info.sheets[sheet];
         if (entry.kind != SheetKind::Worksheet || entry.part.isEmpty()) continue;
@@ -228,7 +235,8 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
             if (rel.external || tables.size() >= kMaxTables) continue;
             const QString partName = resolvePartName(entry.part, rel.target);
             const QByteArray bytes = package.part(partName);
-            if (bytes.isEmpty()) continue;
+            if (bytes.isEmpty() || bytes.size() > kMaxTablePartBytes) continue;
+            if ((total += bytes.size()) > kMaxTablePartsBytes) return tables;
             Table t;
             t.part = partName;
             t.sheet = sheet;
@@ -253,6 +261,8 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
             if (r.hasError() || t.columns.isEmpty()) continue;
             CellRange range;
             if (!parseRangeRef(ref, &range)) continue;
+            // (the columns are the cells' width: a part that says otherwise is not a table the program can work with)
+            if (qint64(t.columns.size()) != qint64(range.col2) - range.col1 + 1) continue;
             t.name = displayName.isEmpty() ? name : displayName;
             t.row1 = range.row1;
             t.col1 = range.col1;
@@ -265,6 +275,8 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
             t.headerRows = headerRows > 0 ? 1 : 0;
             t.totalsRows = t.fileTotalsRows = totalsRows;
             t.fileColumns = t.columns;
+            if (!readTableModel(bytes, &t)) continue;
+            t.fileSignature = tableSignature(t);
             tables.append(t);
         }
     }

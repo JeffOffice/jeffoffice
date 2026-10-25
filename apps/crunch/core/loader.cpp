@@ -225,6 +225,7 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     Limits limits;
     limits.cancelled = cancelled;
     if (!book->openFile(path, why, limits)) return false;   // (any kind: the package of XML parts, the older binary form, or another format)
+    book->tables();   // (read now: the worker looks at the tables as it works formulas out, and the window changes them, neither of which may be the first to read them)
     out->book = book;
     out->notRead = book->skippedFeatures();
     const int shownSheet = firstSheetToShow(book->info());
@@ -250,6 +251,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     options.keepApart = true;                  // what the engine cannot work out keeps the result the file stored
     options.workOutWhatHasNoResult = true;     // and a formula the file stored no result for is worked out (a program that wrote the file may not have)
     options.goRoundCircles = true;             // and a circle is gone round when the workbook is set to
+    options.workOutTables = true;              // and the columns of tables are worked out (a formula that names them is no longer kept as the file has it)
     auto calc = std::make_unique<Calculation>(*out->book, options);
     calc->setCancel(cancelFlag);
     QElapsedTimer sinceTold;
