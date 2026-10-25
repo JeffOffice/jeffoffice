@@ -61,6 +61,22 @@ private Q_SLOTS:
         QCOMPARE(areas(p), QStringLiteral("A7:F25"));
     }
 
+    // Two breaks that a delete brings to one place are one break (set by hand if either was), not two saved at the same place.
+    void breaksThatMeetAfterADeleteAreOne()
+    {
+        PageSetup p;
+        PageBreak a = breakAt(10), b = breakAt(14);
+        a.manual = false;
+        b.manual = true;
+        p.rowBreaks = {a, b, breakAt(30)};
+        followStructEdit(&p, StructEdit::deleteRows(0, 10, 4), 0, kNames);
+        QCOMPARE(breaks(p.rowBreaks), QStringLiteral("10 26"));
+        QVERIFY(p.rowBreaks[0].manual);
+        p.colBreaks = {breakAt(3), breakAt(5)};
+        followStructEdit(&p, StructEdit::deleteColumns(0, 3, 2), 0, kNames);
+        QCOMPARE(breaks(p.colBreaks), QStringLiteral("3"));
+    }
+
     // Rows deleted from a print area shrink it; all of it deleted leaves none; one block of several can go.
     void rowsDeletedShrinkThePrintArea()
     {

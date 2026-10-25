@@ -665,7 +665,7 @@ bool PageSetupDialog::readAreas(QVector<CellRange> *out, QString *problem) const
     if (text.isEmpty()) return true;
     for (const QString &piece : text.split(QRegularExpression(QStringLiteral("[,;]")), Qt::SkipEmptyParts)) {
         PageSetup tmp;
-        readPrintAreaText(piece.trimmed(), QString(), &tmp);
+        readPrintAreaText(piece.trimmed(), m_request.sheetName, &tmp);
         if (tmp.printArea.size() != 1) {
             if (problem) *problem = tr("\"%1\" is not a block of cells. Write blocks such as A1:D20, separated by commas.").arg(piece.trimmed());
             return false;
@@ -686,7 +686,7 @@ bool PageSetupDialog::readTitles(PrintTitles *out, QString *problem) const
         shaped.remove(QLatin1Char('$'));
         if (!shaped.contains(QLatin1Char(':'))) shaped += QLatin1Char(':') + shaped;   // (one row or column)
         PageSetup tmp;
-        readPrintTitlesText(shaped, QString(), &tmp);
+        readPrintTitlesText(shaped, m_request.sheetName, &tmp);
         if (rows && tmp.titles.hasRows) {
             out->hasRows = true;
             out->row1 = tmp.titles.row1;

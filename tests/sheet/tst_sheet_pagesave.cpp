@@ -7,6 +7,8 @@
 #include "sheet/xlsxsave.h"
 #include "sheet/xmlscan.h"
 
+#include <QXmlStreamReader>
+
 using namespace jp;
 
 namespace {
@@ -163,7 +165,7 @@ private Q_SLOTS:
     // The names of the print area and titles are changed where the setup differs from them, added, and taken away.
     void thePrintNamesArePatched()
     {
-        const QByteArray head = "<?xml version=\"1.0\"?>\n<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">";
+        const QByteArray head = "<?xml version=\"1.0\"?>\n<workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">";
         const QByteArray sheets = "<sheets><sheet name=\"Data\" sheetId=\"1\" r:id=\"rId1\"/><sheet name=\"My Sheet\" sheetId=\"2\" r:id=\"rId2\"/></sheets>";
         // a name that says what the setup says is not touched
         const QByteArray names = "<definedNames><definedName name=\"Total\">Data!$A$1</definedName><definedName name=\"_xlnm.Print_Area\" localSheetId=\"0\">Data!$A$1:$D$20</definedName></definedNames>";
@@ -185,9 +187,18 @@ private Q_SLOTS:
         second.setup.titles.row1 = 0;
         second.setup.titles.row2 = 1;
         QVERIFY(patchPrintNames(xml, {changed, second}, &out));
-        QVERIFY(out.contains("<definedName name=\"_xlnm.Print_Area\" localSheetId=\"0\">Data!$A$1:$D$30</definedName>"));
-        QVERIFY(out.contains("<definedName name=\"_xlnm.Print_Titles\" localSheetId=\"1\">'My Sheet'!$1:$2</definedName>"));
-        QVERIFY(out.contains("<definedName name=\"Total\">Data!$A$1</definedName>"));
+        // (the whole part, parsed: well formed, and exactly the names that should be there)
+        QCOMPARE(out, head + sheets + "<definedNames><definedName name=\"Total\">Data!$A$1</definedName><definedName name=\"_xlnm.Print_Area\" localSheetId=\"0\">Data!$A$1:$D$30</definedName>"
+                                      "<definedName name=\"_xlnm.Print_Titles\" localSheetId=\"1\">'My Sheet'!$1:$2</definedName></definedNames><calcPr calcId=\"1\"/></workbook>");
+        {
+            QXmlStreamReader r(out);
+            int names = 0;
+            while (!r.atEnd()) {
+                if (r.readNext() == QXmlStreamReader::StartElement && r.name() == QLatin1String("definedName")) ++names;
+            }
+            QVERIFY2(!r.hasError(), qPrintable(r.errorString()));
+            QCOMPARE(names, 3);
+        }
         // taken away
         PrintNameChange none = same;
         none.setup.printArea.clear();

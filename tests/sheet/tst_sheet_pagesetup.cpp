@@ -117,6 +117,21 @@ private Q_SLOTS:
         QCOMPARE(q.rowBreaks[0].before, 1048575u);
     }
 
+    // A file that repeats one break a million times is not read a million times: the elements looked at are counted, and past the bound they are passed by.
+    void repeatedBreaksAreNotAllLookedAt()
+    {
+        PageSetup p;
+        QString list = QStringLiteral("<brk id=\"7\" max=\"16383\" man=\"1\"/>");
+        QString many;
+        const int n = 1000000;
+        many.reserve(n * 36);
+        for (int i = 0; i < n; ++i) many += QStringLiteral("<brk id=\"7\" max=\"16383\" man=\"1\"/>");
+        QVERIFY(readPage(QString(), QStringLiteral("<rowBreaks>") + list + many + QStringLiteral("<brk id=\"9\"/></rowBreaks>"), &p));
+        QCOMPARE(p.rowBreaks.size(), 1);   // (the one at 9 comes after the bound: it is not read)
+        QCOMPARE(p.rowBreakElements, kMaxBreakElements);
+        QCOMPARE(p.colBreakElements, 0);
+    }
+
     // What a file gives is held to what the format allows: the scale 10 to 400, the pages to fit 0 to 32,767, a margin 0 to 100 inches, and the texts to their bound.
     void numbersAndTextsAreBounded()
     {

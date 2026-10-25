@@ -3,6 +3,8 @@
 
 #include "app/crunchwindow.h"
 
+#include <QSet>
+
 #include "core/appinfo.h"
 #include "core/printjob.h"
 #include "core/sheetobjects.h"
@@ -11,6 +13,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QPrinter>
+#include <QProgressDialog>
 #include <QStandardPaths>
 
 namespace jp {
@@ -31,8 +34,27 @@ std::unique_ptr<crunch::PrintJob> CrunchWindow::makePrintJob(crunch::PrintJobOpt
     return job;
 }
 
-bool CrunchWindow::exportPdfTo(const QString &path, crunch::PrintJobOptions options, const QString &pageRange, QString *why)
+std::function<bool(int, int)> CrunchWindow::progressFunction(const QString &title, const QString &text)
 {
+    if (m_progressHook) return m_progressHook;
+    // (a bar with Cancel, shown only when the job takes a while; the events are let through so that Cancel can be pressed)
+    auto dialog = std::make_shared<QProgressDialog>(text, tr("Cancel"), 0, 100, this);
+    dialog->setWindowTitle(title);
+    dialog->setWindowModality(Qt::WindowModal);
+    dialog->setMinimumDuration(700);
+    dialog->setAutoClose(false);
+    dialog->setAutoReset(false);
+    return [dialog](int done, int total) {
+        dialog->setMaximum(std::max(1, total));
+        dialog->setValue(done);
+        QCoreApplication::processEvents(QEventLoop::ExcludeSocketNotifiers);
+        return !dialog->wasCanceled();
+    };
+}
+
+bool CrunchWindow::exportPdfTo(const QString &path, crunch::PrintJobOptions options, const QString &pageRange, QString *why, bool *cancelled)
+{
+    if (cancelled) *cancelled = false;
     const std::unique_ptr<crunch::PrintJob> job = makePrintJob(options, why);
     if (!job) return false;
     QVector<int> pages;
@@ -45,9 +67,8 @@ bool CrunchWindow::exportPdfTo(const QString &path, crunch::PrintJobOptions opti
             return false;
         }
     }
-    QApplication::setOverrideCursor(Qt::WaitCursor);
-    const bool ok = job->exportPdf(path, pages, why);
-    QApplication::restoreOverrideCursor();
+    const bool ok = job->exportPdf(path, pages, why, progressFunction(tr("Export to PDF"), tr("Making the pages...")));
+    if (!ok && cancelled) *cancelled = job->wasCancelled();
     return ok;
 }
 
@@ -72,7 +93,12 @@ bool CrunchWindow::exportPdf(bool wholeWorkbook)
     if (path.isEmpty()) return false;
     if (QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".pdf");
     QString why;
-    if (!exportPdfTo(path, options, QString(), &why)) {
+    bool cancelled = false;
+    if (!exportPdfTo(path, options, QString(), &why, &cancelled)) {
+        if (cancelled) {
+            setStatus(tr("Export was cancelled"));
+            return false;
+        }
         notice(tr("Export to PDF"), tr("%1 couldn't export \"%2\".\n%3").arg(appInfo().name, QFileInfo(path).fileName(), why));
         return false;
     }
@@ -105,9 +131,11 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
         QString path = askForSavePath(tr("Save as PDF"), QDir(dir).filePath(displayName() + QStringLiteral(".pdf")), tr("PDF (*.pdf)"));
         if (path.isEmpty()) return false;
         if (QFileInfo(path).suffix().compare(QLatin1String("pdf"), Qt::CaseInsensitive) != 0) path += QStringLiteral(".pdf");
-        QApplication::setOverrideCursor(Qt::WaitCursor);
-        ok = job->exportPdf(path, pages, &why);
-        QApplication::restoreOverrideCursor();
+        ok = job->exportPdf(path, pages, &why, progressFunction(tr("Save as PDF"), tr("Making the pages...")));
+        if (!ok && job->wasCancelled()) {
+            setStatus(tr("Saving the PDF was cancelled"));
+            return false;
+        }
         if (!ok) notice(tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3").arg(appInfo().name, QFileInfo(path).fileName(), why));
         else setStatus(tr("Saved %1").arg(QFileInfo(path).fileName()));
     } else {
@@ -119,10 +147,11 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
         if (m_printerPreparer) m_printerPreparer(p);
         // a printer that can't make copies is sent the pages again, in the order the copies are to come out
         const bool again = p.outputFormat() == QPrinter::NativeFormat && !p.supportsMultipleCopies();
-        const QVector<int> sheets = again ? crunch::sheetOrder(pages, c.copies, c.collate) : pages;
-        QApplication::setOverrideCursor(Qt::WaitCursor);
-        ok = job->printTo(&p, sheets, &why);
-        QApplication::restoreOverrideCursor();
+        ok = job->printTo(&p, pages, &why, progressFunction(tr("Printing"), tr("Sending the pages...")), again ? c.copies : 1, c.collate);
+        if (!ok && job->wasCancelled()) {
+            setStatus(tr("Printing was cancelled"));
+            return false;
+        }
         if (!ok) notice(tr("Print"), tr("%1 couldn't send \"%2\" to the printer.\n%3").arg(appInfo().name, displayName(), why));
         else setStatus(tr("Sent %1 to the printer").arg(displayName()));
     }
@@ -137,6 +166,25 @@ void CrunchWindow::armPageBreaks()
 }
 
 // Where the pages of the sheet in view begin, as lines over its cells.
+void CrunchWindow::pageBreakLines(const jp::grid::SheetPrint &print, const jp::office::sheet::PageSetup &setup, std::vector<grid::GridView::PageBreakLine> *rows,
+                                  std::vector<grid::GridView::PageBreakLine> *cols)
+{
+    // (the breaks set by hand, looked up in a set: a sheet of thousands of pages and of breaks is not searched once for each page)
+    QSet<qint64> rowBreaks, colBreaks;
+    if (!setup.fitToPage) {
+        for (const jp::office::sheet::PageBreak &b : setup.rowBreaks)
+            if (b.manual) rowBreaks.insert(qint64(b.before));
+        for (const jp::office::sheet::PageBreak &b : setup.colBreaks)
+            if (b.manual) colBreaks.insert(qint64(b.before));
+    }
+    for (const jp::grid::PageCut &page : print.pages) {
+        if (page.area < 0 || size_t(page.area) >= print.areas.size()) continue;
+        const jp::office::sheet::CellRange &area = print.areas[size_t(page.area)];
+        if (page.rowBand > 0 && page.colBand == 0) rows->push_back({page.row1, qint64(area.col1), qint64(area.col2), rowBreaks.contains(page.row1)});
+        if (page.colBand > 0 && page.rowBand == 0) cols->push_back({page.col1, qint64(area.row1), qint64(area.row2), colBreaks.contains(page.col1)});
+    }
+}
+
 void CrunchWindow::updatePageBreaks()
 {
     if (!m_view) return;
@@ -150,19 +198,7 @@ void CrunchWindow::updatePageBreaks()
     const jp::grid::SheetPrint *print = job ? job->printOf(m_sheet) : nullptr;
     const jp::office::sheet::PageSetup *setup = job ? job->setupOf(m_sheet) : nullptr;
     std::vector<grid::GridView::PageBreakLine> rows, cols;
-    if (print) {
-        auto manual = [](const QVector<jp::office::sheet::PageBreak> &list, qint64 before) {
-            for (const jp::office::sheet::PageBreak &b : list)
-                if (b.manual && qint64(b.before) == before) return true;
-            return false;
-        };
-        for (const jp::grid::PageCut &page : print->pages) {
-            if (page.area < 0 || size_t(page.area) >= print->areas.size()) continue;
-            const jp::office::sheet::CellRange &area = print->areas[size_t(page.area)];
-            if (page.rowBand > 0 && page.colBand == 0) rows.push_back({page.row1, qint64(area.col1), qint64(area.col2), manual(setup->rowBreaks, page.row1) && !setup->fitToPage});
-            if (page.colBand > 0 && page.rowBand == 0) cols.push_back({page.col1, qint64(area.row1), qint64(area.row2), manual(setup->colBreaks, page.col1) && !setup->fitToPage});
-        }
-    }
+    if (print && setup) pageBreakLines(*print, *setup, &rows, &cols);
     m_view->setPageBreaks(std::move(rows), std::move(cols));
 }
 

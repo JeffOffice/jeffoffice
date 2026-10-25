@@ -1,5 +1,7 @@
 #include "sheet/xlsprint.h"
 
+#include <QSet>
+
 #include "sheet/xlsbytes.h"
 
 #include <algorithm>
@@ -135,6 +137,8 @@ bool readXlsPrintRecord(quint16 id, const QByteArray &data, qsizetype pos, qsize
         QVector<PageBreak> &list = rows ? out->rowBreaks : out->colBreaks;
         const quint16 count = b.u16();
         const qsizetype each = biff8 ? 6 : 2;
+        QSet<quint32> have;   // (the places already in the list: a record that repeats one is not searched for it each time)
+        for (const PageBreak &e : std::as_const(list)) have.insert(e.before);
         for (quint32 i = 0; i < count && b.left() >= each && list.size() < kMaxPageBreaks; ++i) {
             const quint16 at = b.u16();
             quint16 lo = 0, hi = 0;
@@ -143,9 +147,8 @@ bool readXlsPrintRecord(quint16 id, const QByteArray &data, qsizetype pos, qsize
                 hi = b.u16();
             }
             if (at < 1 || at >= (rows ? kMaxRows : kMaxColumns)) continue;
-            bool seen = false;
-            for (const PageBreak &e : std::as_const(list)) seen = seen || e.before == at;
-            if (seen) continue;
+            if (have.contains(at)) continue;
+            have.insert(at);
             PageBreak br;
             br.before = at;
             br.min = lo;

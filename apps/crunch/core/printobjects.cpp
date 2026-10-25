@@ -24,6 +24,13 @@ PageObjectPainter::PageObjectPainter(std::vector<LayerObject> objects, const Axi
     }
 }
 
+void PageObjectPainter::fitFirstTo(double width, double height)
+{
+    if (m_items.empty()) return;
+    m_items.resize(1);
+    m_items[0].box = ObjectBox{0, 0, std::max(1.0, width), std::max(1.0, height)};
+}
+
 std::vector<ObjectBox> PageObjectPainter::boxes() const
 {
     std::vector<ObjectBox> out;

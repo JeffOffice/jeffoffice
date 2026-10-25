@@ -160,6 +160,8 @@ private:
             m_full = true;
             return;
         }
+        // (a part that has no line yet and is given a line break first has an empty first line: "\nB" is B on the second line)
+        if (m_line < 0 && m_part->lines.isEmpty()) m_part->lines.append(HfLine());
         m_part->lines.append(HfLine());
         m_line = int(m_part->lines.size()) - 1;
         m_full = false;

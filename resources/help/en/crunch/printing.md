@@ -5,7 +5,7 @@ Choose **File > Print** (or press **Ctrl+P**). The page opens with a preview of 
 
 ## What to print
 
-- **What**: the sheet you are on, the whole workbook (every sheet that is shown), or the selection. Hidden sheets and chart sheets are left out.
+- **What**: the sheet you are on, the whole workbook (every sheet that is shown), or the selection. Hidden sheets are left out. A chart sheet is one page, with its chart as large as the page's room inside the margins.
 - **Pages**: all of them, or some, such as **1-3, 5**.
 - **Copies** and **Collated** (a whole set at a time, 1 2 3 1 2 3, instead of each page's copies together).
 - **Orientation**, **Paper**, and **Margins**, to use for this print instead of what each sheet says.

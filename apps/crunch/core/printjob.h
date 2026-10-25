@@ -30,6 +30,10 @@ namespace jp::crunch {
 class SheetObjects;
 
 constexpr int kMaxJobPages = 100000;
+// The most pixels a preview image has (16 million: 64 MB), whatever the zoom and the screen; a page asked for larger is drawn with fewer pixels to the point.
+constexpr qint64 kMaxPreviewPixels = 16000000;
+// The most pages sent to a printer in one job, copies counted (a hundred thousand pages in a hundred copies is not a print job).
+constexpr qint64 kMaxSentPages = 2000000;
 
 enum class PrintWhat { ActiveSheet, Workbook, Selection };
 enum class PrintScaling { AsSheet, NoScaling, FitSheet, FitColumns, FitRows };
@@ -68,9 +72,11 @@ public:
     virtual ~PrintSource() = default;
     virtual int sheetCount() const = 0;
     virtual QString sheetName(int sheet) const = 0;
-    // A sheet of cells (a chart sheet is not printed), and whether it is hidden: the whole workbook leaves the hidden ones out.
+    // A sheet of cells or a chart sheet, and whether it is hidden: the whole workbook leaves the hidden ones out.
     virtual bool printable(int sheet) const = 0;
     virtual bool hidden(int sheet) const = 0;
+    // A chart sheet: one page, with its chart fitted to the page's room (it has no cells).
+    virtual bool isChartSheet(int sheet) const { Q_UNUSED(sheet); return false; }
     virtual jp::grid::GridData data(int sheet) const = 0;
     virtual jp::office::sheet::PageSetup page(int sheet) const = 0;
     virtual std::vector<jp::grid::LayerObject> objects(int sheet) = 0;
@@ -88,6 +94,7 @@ public:
     QString sheetName(int sheet) const override;
     bool printable(int sheet) const override;
     bool hidden(int sheet) const override;
+    bool isChartSheet(int sheet) const override;
     jp::grid::GridData data(int sheet) const override;
     jp::office::sheet::PageSetup page(int sheet) const override;
     std::vector<jp::grid::LayerObject> objects(int sheet) override;
@@ -133,7 +140,13 @@ public:
     // The pages (indexes from 0, in the order given) as a PDF file, written at once; `progress` is told the pages done and the total, and says false to stop. The file is not there if it fails.
     bool exportPdf(const QString &path, const QVector<int> &pages, QString *error = nullptr, const std::function<bool(int done, int total)> &progress = nullptr);
     // The pages to a printer (any QPrinter, a file among them), one sheet of paper each; the printer's own copies are not used here (the caller repeats the pages).
-    bool printTo(QPrinter *printer, const QVector<int> &pages, QString *error = nullptr, const std::function<bool(int done, int total)> &progress = nullptr);
+    // `copies` of the pages are sent, each set together (collated) or each page's copies together; never made into a list (the number sent is held to kMaxSentPages).
+    bool printTo(QPrinter *printer, const QVector<int> &pages, QString *error = nullptr, const std::function<bool(int done, int total)> &progress = nullptr, int copies = 1,
+                 bool collate = true);
+    // Whether the last export or print was stopped by its progress function (not a failure: nothing was written or sent past that point).
+    bool wasCancelled() const { return m_cancelled; }
+    // The date and time the date and time fields show on every page (taken when the job was made, or the moment the options gave).
+    QDateTime moment() const { return m_now; }
 
 private:
     struct SheetInfo {
@@ -141,6 +154,7 @@ private:
         jp::office::sheet::PageSetup setup;
         jp::grid::SheetPrint print;
         std::shared_ptr<const jp::grid::GridGeometry> geometry;
+        bool chart = false;                     // a chart sheet: one page with the chart over the whole of its room
         jp::grid::Axis cols;                    // the columns as they are on paper, in the grid's pixels (what the page is drawn by)
         int firstNumber = 1;
         int firstPage = 0;
@@ -168,6 +182,8 @@ private:
     QStringList m_messages;
     std::vector<Context> m_contexts;
     quint64 m_tick = 0;
+    bool m_cancelled = false;
+    QDateTime m_now;
     int m_totalNumbers = 0;
 };
 

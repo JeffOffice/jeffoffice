@@ -284,7 +284,7 @@ QWidget *CrunchFileScreen::buildPrint()
         const double scale = fitScale * state->zoom;
         const int widthPx = std::max(1, int(std::lround(paperSize.width() * scale * dpr)));
         QImage img = state->job->preview(index, widthPx);
-        img.setDevicePixelRatio(dpr);
+        img.setDevicePixelRatio(img.isNull() ? dpr : double(img.width()) / (paperSize.width() * scale));   // (fewer pixels than asked for, past the budget: the same size on the screen)
         const QSize box(int(std::ceil(paperSize.width() * scale)) + 16, int(std::ceil(paperSize.height() * scale)) + 18);
         preview->setPixmap(paperPixmap(img, box, dpr));
         preview->resize(box.expandedTo(scroll->viewport()->size()));

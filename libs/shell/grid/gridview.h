@@ -148,6 +148,8 @@ public:
         bool manual = false;
     };
     void setPageBreaks(std::vector<PageBreakLine> rows, std::vector<PageBreakLine> cols);
+    const std::vector<PageBreakLine> &pageBreakRows() const { return m_breakRows; }
+    const std::vector<PageBreakLine> &pageBreakCols() const { return m_breakCols; }
     bool hasPageBreaks() const { return !m_breakRows.empty() || !m_breakCols.empty(); }
     // Something drawn over the cells (the objects of a sheet) that also takes the clicks that land on it and the keys while it has something picked. Not owned: the owner takes it away
     // (setOverlay(nullptr)) before it is destroyed.

@@ -146,7 +146,9 @@ void readHeaderFooterAttributes(const QXmlStreamAttributes &a, PageSetup *out)
 void readBreakAttributes(const QXmlStreamAttributes &a, bool rows, PageSetup *out)
 {
     QVector<PageBreak> &list = rows ? out->rowBreaks : out->colBreaks;
-    if (list.size() >= kMaxPageBreaks) return;
+    int &looked = rows ? out->rowBreakElements : out->colBreakElements;
+    if (list.size() >= kMaxPageBreaks || looked >= kMaxBreakElements) return;
+    ++looked;
     const QStringView idText = attr(a, "id").trimmed();
     bool ok = false;
     const qulonglong id = idText.toULongLong(&ok);

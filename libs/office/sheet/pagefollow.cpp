@@ -21,7 +21,15 @@ void followBreaks(QVector<PageBreak> *breaks, const StructEdit &edit, bool rows,
             if (b.before >= edit.first + edit.count) b.before -= edit.count;
             else if (b.before > edit.first) continue;   // (the row it was before is gone)
         }
-        out.append(b);
+        // (two breaks can come to one place: the one before the first row deleted and the one after the last; the place has one break, set by hand if either was)
+        bool merged = false;
+        for (PageBreak &e : out)
+            if (e.before == b.before) {
+                e.manual = e.manual || b.manual;
+                merged = true;
+                break;
+            }
+        if (!merged) out.append(b);
     }
     *breaks = out;
 }

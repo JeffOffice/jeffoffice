@@ -33,6 +33,8 @@ namespace jp {
 
 class CrunchFileScreen;
 struct PageSetupRequest;
+namespace grid { struct SheetPrint; }
+namespace office::sheet { struct PageSetup; }
 class HelpView;
 class HelpWindow;
 class Ribbon;
@@ -171,7 +173,9 @@ public:
     // `why`, when there is nothing to print or the workbook is not open whole.
     std::unique_ptr<crunch::PrintJob> makePrintJob(crunch::PrintJobOptions options, QString *why = nullptr);
     // Puts the job's pages (all, or those of the range text) in a PDF file; the work is done here, with the wait cursor. False, with the reason, if it could not be done.
-    bool exportPdfTo(const QString &path, crunch::PrintJobOptions options, const QString &pageRange = QString(), QString *why = nullptr);
+    bool exportPdfTo(const QString &path, crunch::PrintJobOptions options, const QString &pageRange = QString(), QString *why = nullptr, bool *cancelled = nullptr);
+    // For tests: stands in for the progress bar of an export or a print (it is given the pages done and the total, and says false to cancel).
+    void setProgressHook(const std::function<bool(int, int)> &hook) { m_progressHook = hook; }
     // File > Export: asks for a name and puts the sheet in view (or every sheet that is shown) in a PDF file. True when the file is made; false, with the reason shown, if it is not or the
     // person gives it up.
     bool exportPdf(bool wholeWorkbook);
@@ -185,8 +189,12 @@ public:
     void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
     // The lines on the sheet in view where its pages begin follow the sheet as it is now (View > Page Breaks turns them off). They are worked out when the Print screen is shown or something
     // is printed, and kept up to date until the window is closed.
+    std::function<bool(int, int)> progressFunction(const QString &title, const QString &text);
     void armPageBreaks();
     void updatePageBreaks();
+    // The lines for a sheet's pages: a row's line for each page that begins a band of rows, and a column's likewise (a break set by hand is marked, unless the sheet is fitted to pages).
+    static void pageBreakLines(const jp::grid::SheetPrint &print, const jp::office::sheet::PageSetup &setup, std::vector<jp::grid::GridView::PageBreakLine> *rows,
+                               std::vector<jp::grid::GridView::PageBreakLine> *cols);
 
     // ---- the File screen, Help
     void showFileScreen(const QString &page = QString());
@@ -336,6 +344,7 @@ private:
     void changePage(const QString &text, const std::function<void(jp::office::sheet::PageSetup *)> &change);
     std::function<bool(PageSetupRequest *)> m_pageSetupAsker;
     std::function<void(QPrinter &)> m_printerPreparer;
+    std::function<bool(int, int)> m_progressHook;
     std::unique_ptr<crunch::PrintChoices> m_printChoices;
     std::unique_ptr<QPrinter> m_printer;
     bool m_breaksArmed = false;

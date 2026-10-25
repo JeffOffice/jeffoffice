@@ -112,6 +112,22 @@ private Q_SLOTS:
         QVERIFY(size.center.lines[0][0].size <= 409);
     }
 
+    // A line break first is an empty first line: the text after it is on the second.
+    void aLeadingLineBreakMakesAnEmptyFirstLine()
+    {
+        const HfText t = parseHeaderFooter(QStringLiteral("\nB"));
+        QCOMPARE(t.center.lines.size(), qsizetype(2));
+        QVERIFY(t.center.lines[0].isEmpty());
+        QCOMPARE(t.center.lines[1][0].text, QStringLiteral("B"));
+        const HfText left = parseHeaderFooter(QStringLiteral("&L\n\nX&RY"));
+        QCOMPARE(left.left.lines.size(), qsizetype(3));
+        QCOMPARE(left.left.lines[2][0].text, QStringLiteral("X"));
+        QCOMPARE(left.right.lines.size(), qsizetype(1));
+        const HfText mid = parseHeaderFooter(QStringLiteral("A\n\nB"));
+        QCOMPARE(mid.center.lines.size(), qsizetype(3));
+        QCOMPARE(mid.center.lines[2][0].text, QStringLiteral("B"));
+    }
+
     // The fields as a page shows them.
     void fieldsAreWorkedOutForThePage()
     {

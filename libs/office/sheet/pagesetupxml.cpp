@@ -549,7 +549,7 @@ bool patchPrintNames(const QByteArray &xml, const std::vector<PrintNameChange> &
             *out = xml.left(names.start) + xml.mid(names.end);
             return true;
         }
-        if (!additions.isEmpty()) edits.push_back({names.end - (2 + prefix.size() + 12), names.end - (2 + prefix.size() + 12), additions});   // (before "</definedNames>")
+        if (!additions.isEmpty()) edits.push_back({names.end - (3 + prefix.size() + 12), names.end - (3 + prefix.size() + 12), additions});   // (before "</definedNames>")
     } else if (names.exists()) {
         *out = xml.left(names.start) + "<" + prefix + "definedNames>" + additions + "</" + prefix + "definedNames>" + xml.mid(names.end);
         return true;

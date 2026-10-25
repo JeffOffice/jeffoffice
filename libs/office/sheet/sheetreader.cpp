@@ -1804,6 +1804,18 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
     }
     const SheetEntry &entry = m_info.sheets[index];
     // A sheet of a chart has no cells, nor has one the file names with no part to hold it (a module of macros that is listed as a sheet has no relationship).
+    if (entry.kind == SheetKind::Chartsheet && !entry.part.isEmpty()) {
+        // (a chart sheet has no cells; what it says of printing is kept: the paper, margins, and header and footer)
+        if (const auto device = m_package.openPart(entry.part)) {
+            ReadOptions chartOptions;
+            chartOptions.limits = m_limits;
+            chartOptions.dateSystem = m_info.dateSystem;
+            Sheet chart;
+            if (readSheetPart(device.get(), chartOptions, &chart)) out->page = chart.page;
+        }
+        applyPrintNames(m_info, index, out);
+        return true;
+    }
     if (entry.kind == SheetKind::Chartsheet || entry.relId.isEmpty()) return true;
     if (entry.part.isEmpty()) {
         out->error = QCoreApplication::translate("Sheet", "The sheet's part is not in the file.");

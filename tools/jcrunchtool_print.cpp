@@ -379,6 +379,20 @@ int printBench(int rows, int cols)
     }
     out() << "  40 pages turned: middle " << QString::number(percentile(flips, 0.5), 'f', 1) << " ms, 95th percentile " << QString::number(percentile(flips, 0.95), 'f', 1) << " ms, longest "
           << QString::number(*std::max_element(flips.begin(), flips.end()), 'f', 1) << " ms\n";
+    // the lines on the sheet where its pages begin, made again as they are after an edit: the job cut again and the lines worked out (a turn of the window's thread)
+    {
+        std::vector<double> turns;
+        for (int i = 0; i < 12; ++i) {
+            QElapsedTimer f;
+            f.start();
+            const std::unique_ptr<crunch::PrintJob> again = o.job(path, options, &why);
+            std::vector<grid::GridView::PageBreakLine> rows, cols;
+            if (again && again->printOf(0) && again->setupOf(0)) CrunchWindow::pageBreakLines(*again->printOf(0), *again->setupOf(0), &rows, &cols);
+            turns.push_back(double(f.nsecsElapsed()) / 1e6);
+        }
+        out() << "  page lines made again (12 times): middle " << QString::number(percentile(turns, 0.5), 'f', 1) << " ms, longest " << QString::number(*std::max_element(turns.begin(), turns.end()), 'f', 1)
+              << " ms\n";
+    }
     QVector<int> all;
     for (int i = 0; i < count; ++i) all << i;
     t.restart();

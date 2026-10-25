@@ -27,6 +27,8 @@ public:
     // Where each object lies in the grid's pixels from the sheet's first row and column (the ones that are empty are not in it): what extends the printed block.
     std::vector<jp::grid::ObjectBox> boxes() const;
     int count() const { return int(m_items.size()); }
+    // For a chart sheet: only the first object is kept, and it is as large as the room it is given (in the grid's pixels, from the corner).
+    void fitFirstTo(double width, double height);
 
     // Draws the objects that reach the page, in the painter set up as the cells were drawn (its origin the page's cells, a unit one pixel of the sheet at `zoom`).
     void paint(QPainter *painter, const jp::grid::PageCut &page, double zoom);

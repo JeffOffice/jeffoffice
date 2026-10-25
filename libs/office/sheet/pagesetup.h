@@ -18,6 +18,8 @@ namespace jp::office::sheet {
 // The most manual breaks of one kind a sheet keeps (the format allows 1,026; the most found in a public workbook is far below), the most print areas, and the most characters in
 // a header or footer text (the format allows 255 in a part; a file's whole string, with all three parts and the codes, is bounded here).
 constexpr int kMaxPageBreaks = 4096;
+// The most `brk` elements of one kind that are looked at (a file that repeats one a million times is not read a million times over).
+constexpr int kMaxBreakElements = 4 * kMaxPageBreaks;
 constexpr int kMaxPrintAreas = 1024;
 constexpr int kMaxHeaderFooterChars = 8192;
 // The scale of a page, in percent.
@@ -94,6 +96,7 @@ struct PageSetup {
     HeaderFooter headerFooter;
     // The breaks (in the order of the file, none twice), the print area (the blocks in the order they print), and the titles: from the sheet's own names.
     QVector<PageBreak> rowBreaks, colBreaks;
+    int rowBreakElements = 0, colBreakElements = 0;   // how many `brk` elements were looked at while reading (not part of the setup)
     QVector<CellRange> printArea;
     PrintTitles titles;
 

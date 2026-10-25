@@ -124,6 +124,30 @@ public:
         for (const auto &block : m_blocks)
             for (const Cell &c : block.second.cells) f(c);
     }
+    // Calls f(cell) for the cells of each row from its last cell backwards, until f gives true for one (then the next row up begins): for the last cell of each row that is of use,
+    // at the cost of the rows (and a search in a block for where each begins), not of every cell. Rows are visited from the last to the first.
+    template <class F>
+    void forEachRowTail(F f) const
+    {
+        std::ptrdiff_t guess = 1;
+        for (auto block = m_blocks.rbegin(); block != m_blocks.rend(); ++block) {
+            const std::vector<Cell> &cells = block->second.cells;
+            auto end = cells.end();
+            while (end != cells.begin()) {
+                const quint32 row = (end - 1)->row;
+                // (where the row begins: as far back as the last row had cells, if that is right, else a search)
+                auto first = end - std::min<std::ptrdiff_t>(guess, end - cells.begin());
+                if (!(first == cells.begin() || (first - 1)->row < row) || first->row != row)
+                    first = std::lower_bound(cells.begin(), end, row, [](const Cell &c, quint32 r) { return c.row < r; });
+                guess = std::max<std::ptrdiff_t>(1, end - first);
+                for (auto at = end; at != first;) {
+                    --at;
+                    if (f(*at)) break;
+                }
+                end = first;
+            }
+        }
+    }
     // What a walk over a range did, counted as it did it: the cells it stepped over one by one (every move of the cursor along a row of a block is counted), and the
     // comparisons of its searches for the first cell of each row. A test counts them to see that a narrow range of a wide sheet costs what it holds.
     struct RangeWalk {

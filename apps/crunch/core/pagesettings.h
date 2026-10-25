@@ -36,6 +36,9 @@ public:
     void undoEdit(const void *token);
 
     // A sheet is inserted at a place, or deleted, or moved from one place to another (the sheets after it change places): the setups follow. A new sheet prints with the defaults.
+    // NOT YET CALLED: the sheet operations (insert, delete, move, and copy of a sheet: `editsheets.cpp` on the branch crunch-w4d) are to call these in the step that does the
+    // operation (and keep the store as it was for Undo, as followEdit/undoEdit do for rows), so that `PageSettings` has one setup for each sheet of the workbook; until then a workbook
+    // that has sheets added or removed in the window keeps the setups of the sheets it was opened with, by place.
     void insertSheet(int at);
     void removeSheet(int at);
     void moveSheet(int from, int to);

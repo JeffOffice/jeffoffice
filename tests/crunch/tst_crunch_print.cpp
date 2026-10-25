@@ -360,6 +360,55 @@ private Q_SLOTS:
         QCOMPARE(crunch::sheetOrder({0}, 0, true), (QVector<int>{0}));
     }
 
+    // An export tells how far it has got and can be cancelled (it says so, and leaves no file); copies of many pages are never made into a list of millions.
+    void anExportShowsProgressAndCanBeCancelled()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        const QString path = e.folder.dir.filePath(QStringLiteral("progress.pdf"));
+        QList<QPair<int, int>> seen;
+        e.win.w.setProgressHook([&](int done, int total) {
+            seen << qMakePair(done, total);
+            return true;
+        });
+        QString why;
+        bool cancelled = true;
+        QVERIFY2(e.win.w.exportPdfTo(path, crunch::PrintJobOptions(), QString(), &why, &cancelled), qPrintable(why));
+        QVERIFY(!cancelled);
+        QCOMPARE(seen, (QList<QPair<int, int>>{{1, 3}, {2, 3}, {3, 3}}));
+        // cancelled after the first page: not a failure to write, no file, and the words say so
+        QVERIFY(QFile::remove(path));
+        e.win.w.setProgressHook([&](int done, int) { return done < 1; });
+        QVERIFY(!e.win.w.exportPdfTo(path, crunch::PrintJobOptions(), QString(), &why, &cancelled));
+        QVERIFY(cancelled);
+        QVERIFY2(why.contains(QLatin1String("cancel")), qPrintable(why));
+        QVERIFY(!why.contains(QLatin1String("could not")) && !why.contains(QLatin1String("couldn't")));
+        QVERIFY(!QFileInfo::exists(path));
+        // copies: the list is held to the most a job may send
+        QVector<int> many(100000);
+        for (int i = 0; i < many.size(); ++i) many[i] = i;
+        QCOMPARE(qint64(crunch::sheetOrder(many, 100000, true).size()), qint64(crunch::kMaxSentPages));
+        QVERIFY(qint64(crunch::sheetOrder(many, 100000, false).size()) <= crunch::kMaxSentPages);
+    }
+
+    // The date and time of the fields are one moment for the whole job (the options' if they give one, else the time it was made), not read again for each page.
+    void theMomentOfTheFieldsIsTakenOncePerJob()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        QString why;
+        crunch::PrintJobOptions options;
+        options.now = QDateTime::fromString(QStringLiteral("2026-03-05T14:07:09-05:00"), Qt::ISODate);
+        std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(options, &why);
+        QVERIFY2(job, qPrintable(why));
+        QCOMPARE(job->moment(), options.now);
+        const QDateTime before = QDateTime::currentDateTime();
+        job = e.win.w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY2(job, qPrintable(why));
+        const QDateTime after = QDateTime::currentDateTime();
+        QVERIFY(job->moment() >= before && job->moment() <= after);
+    }
+
     // A page as a picture: the width asked for, the height of the paper's shape, and ink on it.
     void aPageCanBeSeenAsAPicture()
     {
@@ -376,6 +425,12 @@ private Q_SLOTS:
             for (int x = 0; x < img.width() && !ink; ++x) ink = qGray(img.pixel(x, y)) < 100;
         QVERIFY(ink);
         QVERIFY(job->preview(50, 100).isNull());
+        // a picture is held to its budget of pixels whatever size is asked for (six times the zoom on a large screen is hundreds of megabytes), and keeps the page's shape
+        const QImage big = job->preview(0, 20000);
+        QVERIFY(!big.isNull());
+        QVERIFY(qint64(big.width()) * big.height() <= crunch::kMaxPreviewPixels);
+        QVERIFY(big.width() < 20000);
+        QVERIFY(std::abs(double(big.height()) / big.width() - 792.0 / 612.0) < 0.01);
     }
 
     // ---- the Page Setup dialog
@@ -526,6 +581,27 @@ private Q_SLOTS:
         QCOMPARE(d.result(), int(QDialog::Accepted));
         QCOMPARE(d.setup().titles.row1, 1u);
         QCOMPARE(d.setup().titles.row2, 1u);
+    }
+
+    // An area or titles typed with the sheet's name in front (as the names of the workbook write them) are taken; another sheet's are not this sheet's.
+    void anAreaTypedWithTheSheetsNameIsTaken()
+    {
+        PageSetupRequest request;
+        request.sheetName = QStringLiteral("My Sheet");
+        PageSetupDialog d(request);
+        d.show();
+        d.findChild<QLineEdit *>(QStringLiteral("psArea"))->setText(QStringLiteral("'My Sheet'!$A$1:$D$20, 'My Sheet'!F1:G9"));
+        d.findChild<QLineEdit *>(QStringLiteral("psTitleRows"))->setText(QStringLiteral("'My Sheet'!$1:$2"));
+        d.accept();
+        QCOMPARE(d.result(), int(QDialog::Accepted));
+        QCOMPARE(d.setup().printArea.size(), 2);
+        QCOMPARE(d.setup().printArea[0].row2, 19u);
+        QCOMPARE(d.setup().titles.row2, 1u);
+        PageSetupDialog other(request);
+        other.show();
+        other.findChild<QLineEdit *>(QStringLiteral("psArea"))->setText(QStringLiteral("Elsewhere!A1:D20"));
+        other.accept();
+        QVERIFY(other.result() != int(QDialog::Accepted));
     }
 
     // The header and footer lists are made from the sheet's name, the file, the page, and the date; choosing one sets the text, and a text of its own is kept as it is.
@@ -942,19 +1018,61 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(rowsWithFormulas(100, {})));
         CrunchWindow &w = e.win.w;
+        auto rowLines = [&] {
+            QList<qint64> at;
+            for (const auto &l : e.view()->pageBreakRows()) at << l.before;
+            return at;
+        };
         QVERIFY(!e.view()->hasPageBreaks());
         w.act(QStringLiteral("file.print"))->trigger();
         w.hideFileScreen();
         QTRY_VERIFY(e.view()->hasPageBreaks());
-        // a break set by hand is added to the lines
+        QTRY_COMPARE(rowLines(), (QList<qint64>{45, 90}));   // (45 rows to a page: the pages begin at rows 46 and 91)
+        QVERIFY(!e.view()->pageBreakRows()[0].manual);
+        // a break set by hand moves the lines, and is drawn as one set by hand
         e.view()->selectCell(30, 0);
         w.act(QStringLiteral("breaks.insert"))->trigger();
-        QTest::qWait(250);
-        QVERIFY(e.view()->hasPageBreaks());
+        QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75}));
+        QVERIFY(e.view()->pageBreakRows()[0].manual);
+        // what is typed past the last cell makes another page, and the line follows it
+        QVERIFY(w.session()->type(0, 199, 0, QStringLiteral("x")).ok);
+        QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75, 120, 165}));
+        pressUndo(e.view());
+        QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75}));
         w.act(QStringLiteral("view.pageBreaks"))->trigger();   // (off)
         QTRY_VERIFY(!e.view()->hasPageBreaks());
         w.act(QStringLiteral("view.pageBreaks"))->trigger();
-        QTRY_VERIFY(e.view()->hasPageBreaks());
+        QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75}));
+    }
+
+    // The lines are looked up, not searched for: a sheet of thousands of pages and of breaks gets its lines, each marked as set by hand or not, as the setup says.
+    void pageLinesComeFromTheCutsAndTheBreaks()
+    {
+        jp::grid::SheetPrint print;
+        jp::office::sheet::PageSetup setup;
+        print.areas.push_back(jp::office::sheet::CellRange{0, 0, 9999, 3, true});
+        for (int i = 0; i < 2000; ++i) {
+            jp::grid::PageCut c;
+            c.area = 0;
+            c.row1 = i * 5;
+            c.row2 = i * 5 + 4;
+            c.rowBand = i;
+            c.colBand = 0;
+            print.pages.push_back(c);
+        }
+        for (int i = 1; i < 2000; i += 2) setup.rowBreaks.append({quint32(i * 5), 0, 3, true});
+        std::vector<jp::grid::GridView::PageBreakLine> rows, cols;
+        CrunchWindow::pageBreakLines(print, setup, &rows, &cols);
+        QCOMPARE(int(rows.size()), 1999);
+        QVERIFY(cols.empty());
+        QVERIFY(rows[0].manual);    // (the line above page 2 is at row 5, a break set by hand)
+        QVERIFY(!rows[1].manual);
+        QCOMPARE(rows[0].from, qint64(0));
+        QCOMPARE(rows[0].to, qint64(3));
+        setup.fitToPage = true;   // (a sheet fitted to pages ignores the breaks)
+        rows.clear();
+        CrunchWindow::pageBreakLines(print, setup, &rows, &cols);
+        QVERIFY(!rows[0].manual);
     }
 
     // The objects over the cells print where they are, at the page's scale, unless the file says an object stays off the paper; a draft leaves them all out.

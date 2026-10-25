@@ -153,17 +153,18 @@ bool usedExtent(const PrintRequest &q, const Axis &rows, const Axis &cols, quint
     bool any = false;
     quint32 r = 0, c = 0;
     std::vector<signed char> shows(q.styles ? size_t(q.styles->formats.size()) : 0, -1);
-    q.sheet->cells.forEach([&](const jp::office::sheet::Cell &cell) {
+    q.sheet->cells.forEachRowTail([&](const jp::office::sheet::Cell &cell) {
         bool counts = cell.type != CellType::Empty || cell.hasFormula();
         if (!counts && q.styles && cell.style != 0 && cell.style < quint32(shows.size())) {
             signed char &s = shows[cell.style];
             if (s < 0) s = formatShows(*q.styles, cell.style) ? 1 : 0;
             counts = s == 1;
         }
-        if (!counts) return;
+        if (!counts) return false;
         any = true;
         r = std::max(r, cell.row);
         c = std::max<quint32>(c, cell.col);
+        return true;
     });
     if (any) {
         // a merged range with its first cell in the block reaches to its last
@@ -196,9 +197,8 @@ bool trimHidden(const Axis &rows, const Axis &cols, CellRange *b)
     const qint64 r1 = rows.nextVisible(qint64(b->row1) - 1), r2 = rows.previousVisible(qint64(b->row2) + 1);
     const qint64 c1 = cols.nextVisible(qint64(b->col1) - 1), c2 = cols.previousVisible(qint64(b->col2) + 1);
     if (r1 > qint64(b->row2) || r2 < qint64(b->row1) || r1 > r2 || c1 > qint64(b->col2) || c2 < qint64(b->col1) || c1 > c2) return false;
-    b->row1 = quint32(r1);
+    // (the hidden rows and columns at the start stay in the block: a manual break among them still begins a page, and cutAxis steps over them to the first that shows)
     b->row2 = quint32(r2);
-    b->col1 = quint32(c1);
     b->col2 = quint32(c2);
     return true;
 }
@@ -283,8 +283,19 @@ qint64 cutAxis(const Axis &axis, qint64 first, qint64 last, double capacity, con
 {
     qint64 bands = 0;
     qint64 pos = axis.nextVisible(first - 1);
+    // Breaks among the hidden rows at the start each close a page too, the first of them one of rows that are all hidden: a blank page.
+    if (!breaks.empty() && pos <= last && pos < axis.count()) {
+        const auto lo = std::upper_bound(breaks.begin(), breaks.end(), first);   // (a break at the first row begins nothing before it)
+        const auto hi = std::upper_bound(lo, breaks.end(), pos);
+        for (auto it = lo; it != hi; ++it) {
+            const qint64 from = it == lo ? first : *(it - 1);
+            if (out && bands < keep) out->push_back({from, *it - 1, titles.last >= 0 && titles.extent * 2 <= capacity && from > titles.last});
+            ++bands;
+        }
+    }
     while (pos <= last && pos < axis.count()) {
-        const bool titled = titles.last >= 0 && pos > titles.last;
+        // (titles that take more than half a page leave no room for the sheet: they are not repeated, rather than one row a page under a page of titles)
+        const bool titled = titles.last >= 0 && titles.extent * 2 <= capacity && pos > titles.last;
         const double cap = std::max(1.0, capacity - (titled ? titles.extent : 0.0));
         qint64 limit = last;
         const auto next = std::upper_bound(breaks.begin(), breaks.end(), pos);
@@ -296,7 +307,18 @@ qint64 cutAxis(const Axis &axis, qint64 first, qint64 last, double capacity, con
         end = std::min(std::max(end, pos), limit);
         if (out && bands < keep) out->push_back({pos, end, titled});
         ++bands;
-        pos = axis.nextVisible(end);
+        const qint64 nextPos = axis.nextVisible(end);
+        // Rows that are all hidden between two manual breaks still make a page (a blank one, with its header and footer and the titles): the breaks that fall in the hidden rows between this
+        // band and the next each close a page. (The common programs do so: a sheet filtered down to a few rows of a list that has a break every page keeps all those pages.)
+        if (!breaks.empty() && nextPos <= last && nextPos < axis.count()) {
+            const auto lo = std::upper_bound(breaks.begin(), breaks.end(), end);
+            const auto hi = std::upper_bound(lo, breaks.end(), nextPos);
+            for (auto it = lo; it != hi && it + 1 != hi; ++it) {
+                if (out && bands < keep) out->push_back({*it, *(it + 1) - 1, titles.last >= 0 && titles.extent * 2 <= capacity && *it > titles.last});
+                ++bands;
+            }
+        }
+        pos = nextPos;
     }
     return bands;
 }

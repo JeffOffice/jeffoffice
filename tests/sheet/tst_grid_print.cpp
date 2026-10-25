@@ -239,6 +239,83 @@ private Q_SLOTS:
         QCOMPARE(box.run().areas[0].col2, quint32(3));
     }
 
+    // The last cell of each row of use is found at the cost of the rows, not of every cell (a sheet of 100,000 rows by 20 columns is asked about at every edit).
+    void theEndOfEachRowIsFoundWithoutWalkingTheRow()
+    {
+        Sheet sheet;
+        for (quint32 r = 0; r < 3000; ++r)
+            for (quint32 c = 0; c < 20; ++c) sheet.cells.add(numberAt(r, c));
+        // (one row is short, one is long: the guess of where a row begins is wrong there, and the answer is still right)
+        sheet.cells.add(numberAt(5000, 0));
+        for (quint32 c = 0; c < 200; ++c) sheet.cells.add(numberAt(5001, c));
+        sheet.cells.finish();
+        qint64 calls = 0;
+        quint32 lastRow = 0, lastCol = 0;
+        qint64 rowsSeen = 0;
+        quint32 previousRow = 0xFFFFFFFF;
+        sheet.cells.forEachRowTail([&](const Cell &cell) {
+            ++calls;
+            if (cell.row != previousRow) {
+                ++rowsSeen;
+                previousRow = cell.row;
+                lastRow = std::max(lastRow, cell.row);
+            }
+            lastCol = std::max<quint32>(lastCol, cell.col);
+            return true;
+        });
+        QCOMPARE(calls, qint64(3002));
+        QCOMPARE(rowsSeen, qint64(3002));
+        QCOMPARE(lastRow, 5001u);
+        QCOMPARE(lastCol, 199u);
+        // asked to go back over a row until a cell is wanted: it does, and only that row
+        qint64 steps = 0;
+        sheet.cells.forEachRowTail([&](const Cell &cell) {
+            ++steps;
+            return cell.row != 5001 || cell.col == 150;
+        });
+        QCOMPARE(steps, qint64(3001 + 50));
+    }
+
+    // Rows hidden between two manual breaks still make a page each (blank, with the titles): a list filtered down to a few rows keeps a page for each of its breaks.
+    void hiddenRowsBetweenBreaksMakeBlankPages()
+    {
+        Fixture f(99, 3);
+        for (qint64 r = 10; r < 80; ++r) f.rows.setSize(r, 0);
+        for (quint32 b : {20u, 30u, 40u}) {
+            PageBreak br;
+            br.before = b;
+            f.request.setup.rowBreaks.append(br);
+        }
+        SheetPrint p = f.run();
+        QCOMPARE(rowsOf(p), QStringLiteral("0-19 20-29 30-39 80-99"));
+        // the rows 10 to 79 are all hidden: 40 is a break whose page is the rows after the hidden ones
+        QCOMPARE(p.pages[0].rowBands, 4);
+        // titles are on the blank pages too (they are after the titles)
+        f.request.setup.titles.hasRows = true;
+        f.request.setup.titles.row1 = 0;
+        f.request.setup.titles.row2 = 0;
+        p = f.run();
+        QCOMPARE(p.pages.size(), size_t(4));
+        QCOMPARE(p.pages[1].titleRow1, qint64(0));
+        QCOMPARE(p.pages[3].titleRow1, qint64(0));
+        // a break in the hidden rows with no other between the visible rows before and after it makes no extra page
+        Fixture g(99, 3);
+        for (qint64 r = 10; r < 80; ++r) g.rows.setSize(r, 0);
+        PageBreak one;
+        one.before = 30;
+        g.request.setup.rowBreaks.append(one);
+        QCOMPARE(rowsOf(g.run()), QStringLiteral("0-29 80-99"));
+        // hidden rows at the start with breaks among them: a blank page for each segment before the first row that shows, as for the ones in the middle
+        Fixture h(99, 3);
+        for (qint64 r = 0; r < 20; ++r) h.rows.setSize(r, 0);
+        for (quint32 b : {5u, 12u}) {
+            PageBreak br;
+            br.before = b;
+            h.request.setup.rowBreaks.append(br);
+        }
+        QCOMPARE(rowsOf(h.run()), QStringLiteral("0-4 5-11 20-64 65-99"));
+    }
+
     // The paper: letter and A4 upright and turned, a custom size, margins that are negative or leave no room.
     void thePaperAndItsMarginsAreHeldToWhatThePageCanHave()
     {
@@ -450,6 +527,26 @@ private Q_SLOTS:
         f.rows.setSize(4, 2000);   // (more than the 912 pixels a page holds)
         const SheetPrint p = f.run();
         QCOMPARE(rowsOf(p), QStringLiteral("0-3 4-4 5-9"));
+    }
+
+
+    // Titles that take more than half a page are not repeated: a page of titles with one row of the sheet under it, for every row, is not a printout.
+    void titlesTallerThanThePageAreLeftOff()
+    {
+        Fixture f(1999, 3);
+        f.request.setup.titles.hasRows = true;
+        f.request.setup.titles.row1 = 0;
+        f.request.setup.titles.row2 = 1499;   // (1,500 rows of 20 pixels: 33 pages' worth)
+        SheetPrint p = f.run();
+        QCOMPARE(p.pages.size(), size_t(45));   // (2,000 rows at 45 a page, as with no titles)
+        for (const PageCut &c : p.pages) QCOMPARE(c.titleRow1, qint64(-1));
+        // titles that fit within half a page still repeat
+        Fixture g(199, 3);
+        g.request.setup.titles.hasRows = true;
+        g.request.setup.titles.row1 = 0;
+        g.request.setup.titles.row2 = 19;   // 400 of the 912 pixels
+        SheetPrint q = g.run();
+        QCOMPARE(q.pages[1].titleRow2, qint64(19));
     }
 
     // Titles are printed again above (and to the left of) every page after the one they are on.
