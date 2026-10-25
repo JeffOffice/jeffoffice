@@ -1,5 +1,7 @@
 #include "office/chart.h"
 
+#include <QTextStream>
+
 #include "office/xml.h"
 
 #include <QCoreApplication>
@@ -28,6 +30,8 @@ const QString kMarkupNs = QStringLiteral("http://schemas.openxmlformats.org/mark
 constexpr int kMaxSeries = 256, kMaxPoints = 10000, kMaxPlots = 16, kMaxAxes = 16;
 // The points all of a chart's series may have between them.
 constexpr int kMaxChartPoints = 100000;
+// The most of a chart part's markup that is kept as it was written (what the model neither draws nor edits): beyond it the rest is let go.
+constexpr qint64 kMaxKeptBytes = 256 * 1024;
 // A number format code is at most 255 characters in a spreadsheet; a longer one is none, and the numbers show as they are.
 constexpr int kMaxFormatCode = 255;
 // The text of a reference to cells (a list of areas can be long, but a few thousand characters is far more than a chart has).
@@ -423,6 +427,8 @@ private:
     QString richText(const QDomElement &rich, ChartFont *font, bool *hasRotation, double *rotation) const;
     Data readData(const QDomElement &parent) const;
     ChartDataLabels readLabels(const QDomElement &dLbls) const;
+    QByteArray fragment(const QDomElement &e) const;
+    ChartKept keptIn(const QDomElement &spPr, const QColor &fillColor) const;
     ChartMarker readMarker(const QDomElement &marker) const;
     ChartSeries readSeries(const QDomElement &ser, const ChartPlot &plot, int *order, bool *ownLabels) const;
     bool readPlot(const QDomElement &e);
@@ -434,6 +440,7 @@ private:
     ColorMap m_map;
     Chart *m_chart;
     mutable int m_pointsLeft = kMaxChartPoints;
+    mutable qint64 m_keptLeft = kMaxKeptBytes;
     int m_seriesLeft = kMaxSeries;
 };
 
@@ -456,6 +463,46 @@ void Reader::readFill(const QDomElement &spPr, QColor *color, bool *none) const
         const QColor c = colorIn(aChild(pattern, "fgClr"));
         if (c.isValid()) *color = c;
     }
+}
+
+// An element as the file wrote it, with the namespace declarations it needs; empty if it is null or too much is kept already.
+QByteArray Reader::fragment(const QDomElement &e) const
+{
+    if (e.isNull()) return QByteArray();
+    QDomElement copy = e.cloneNode(true).toElement();
+    int guard = 0;
+    for (QDomNode n = e.parentNode(); n.isElement() && guard < 64; n = n.parentNode(), ++guard) {
+        const QDomNamedNodeMap attrs = n.toElement().attributes();
+        for (int i = 0; i < attrs.size(); ++i) {
+            const QDomAttr a = attrs.item(i).toAttr();
+            if ((a.name() == QLatin1String("xmlns") || a.name().startsWith(QLatin1String("xmlns:"))) && !copy.hasAttribute(a.name())) copy.setAttribute(a.name(), a.value());
+        }
+    }
+    QString text;
+    {
+        QTextStream ts(&text);
+        copy.save(ts, -1);
+    }
+    const QByteArray bytes = text.toUtf8();
+    if (bytes.size() > m_keptLeft) return QByteArray();
+    m_keptLeft -= bytes.size();
+    return bytes;
+}
+
+// What a c:spPr says that the model has no place for: a gradient or pattern fill (the model has the color of its first stop), and effects.
+ChartKept Reader::keptIn(const QDomElement &spPr, const QColor &fillColor) const
+{
+    ChartKept k;
+    if (spPr.isNull()) return k;
+    for (const char *name : {"gradFill", "pattFill"})
+        if (const QDomElement f = aChild(spPr, name); !f.isNull()) {
+            k.fill = fragment(f);
+            k.fillColor = fillColor;
+            break;
+        }
+    for (const char *name : {"effectLst", "effectDag", "scene3d", "sp3d"})
+        if (const QDomElement f = aChild(spPr, name); !f.isNull()) k.effects += fragment(f);
+    return k;
 }
 
 ChartLine Reader::readLine(const QDomElement &spPr) const
@@ -643,6 +690,11 @@ ChartDataLabels Reader::readLabels(const QDomElement &e) const
     l.series = flagOf(cChild(e, "showSerName"), false);
     l.percent = flagOf(cChild(e, "showPercent"), false);
     l.position = valOf(cChild(e, "dLblPos"));
+    l.ext = fragment(cChild(e, "extLst"));
+    for (const QDomElement &d : cChildren(e, "dLbl")) {
+        const int at = int(parseInt(valOf(cChild(d, "idx")), -1));
+        if (at >= 0 && at <= kMaxPoints && l.kept.size() < kMaxPoints) l.kept.insert(at, fragment(d));
+    }
     if (const QDomElement fmt = cChild(e, "numFmt"); !fmt.isNull() && !parseBool(attr(fmt, QStringLiteral("sourceLinked")), false)) l.format = attr(fmt, QStringLiteral("formatCode"));
     l.font = readTxPr(cChild(e, "txPr"));
     l.separator = cChild(e, "separator").text().left(kChartMaxLabel);
@@ -693,6 +745,7 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
     if (stroked && !color.isValid()) color = fill;
     s.colorFromFile = color.isValid();
     s.color = color.isValid() ? color : m_chart->palette.value(idx % std::max<int>(1, m_chart->palette.size()), QColor(Qt::gray));
+    s.kept = keptIn(spPr, stroked ? QColor() : fill);
     s.marker = readMarker(cChild(ser, "marker"));
     s.smooth = flagOf(cChild(ser, "smooth"), false);
     s.explosion = std::clamp(numberOf(cChild(ser, "explosion"), 0), 0.0, 400.0);
@@ -703,6 +756,18 @@ ChartSeries Reader::readSeries(const QDomElement &ser, const ChartPlot &plot, in
         bool none = false;
         readFill(cChild(dPt, "spPr"), &c, &none);
         if (c.isValid()) s.pointColors.insert(at, c);
+        // a point that says more than a color (an outline, a marker, a pulled-out slice) is kept as the file wrote it
+        bool plain = !none;
+        for (QDomElement x = dPt.firstChildElement(); !x.isNull() && plain; x = x.nextSiblingElement()) {
+            const QString n = x.localName();
+            if (n == QLatin1String("spPr")) {
+                for (QDomElement y = x.firstChildElement(); !y.isNull(); y = y.nextSiblingElement())
+                    if (y.localName() != QLatin1String("solidFill")) plain = false;
+            } else if (n != QLatin1String("idx") && n != QLatin1String("invertIfNegative") && n != QLatin1String("bubble3D")) {
+                plain = false;
+            }
+        }
+        if (!plain && s.keptPoints.size() < kMaxPoints) s.keptPoints.insert(at, ChartSeries::KeptPoint{fragment(dPt), c});
     }
     *ownLabels = !cChild(ser, "dLbls").isNull();
     if (*ownLabels) s.labels = readLabels(cChild(ser, "dLbls"));
@@ -836,6 +901,12 @@ ChartAxis Reader::readAxis(const QDomElement &e) const
     a.majorUnit = std::max(0.0, numberOf(cChild(e, "majorUnit"), 0));
     a.minorUnit = std::max(0.0, numberOf(cChild(e, "minorUnit"), 0));
     a.between = valOf(cChild(e, "crossBetween"), QStringLiteral("between")) != QLatin1String("midCat");
+    a.baseTimeUnit = valOf(cChild(e, "baseTimeUnit"));
+    a.majorTimeUnit = valOf(cChild(e, "majorTimeUnit"));
+    a.minorTimeUnit = valOf(cChild(e, "minorTimeUnit"));
+    a.autoKind = flagOf(cChild(e, "auto"), true);
+    a.tickMarkSkip = int(std::clamp<qint64>(parseInt(valOf(cChild(e, "tickMarkSkip")), 0), 0, 10000));
+    a.lineKept = keptIn(cChild(e, "spPr"), QColor());
     return a;
 }
 
@@ -907,11 +978,18 @@ bool Reader::read(const QDomElement &root, QString *error)
         if (c.style < 1 || c.style > 48) c.style = 2;
     }
     c.font = readTxPr(cChild(root, "txPr"));
+    c.userShapesId = attrNs(cChild(root, "userShapes"), ns::R, QStringLiteral("id"));
+    if (const QDomElement ext = cChild(root, "externalData"); !ext.isNull()) {
+        c.externalDataId = attrNs(ext, ns::R, QStringLiteral("id"));
+        c.externalAutoUpdate = flagOf(cChild(ext, "autoUpdate"), false);
+    }
     {
         const QDomElement spPr = cChild(root, "spPr");
         bool none = false;
         readFill(spPr, &c.background, &none);
+        c.backgroundNone = none;
         c.border = readLine(spPr);
+        c.backgroundKept = keptIn(spPr, c.background);
     }
 
     c.title = readTitle(cChild(chart, "title"));
@@ -928,6 +1006,7 @@ bool Reader::read(const QDomElement &root, QString *error)
         bool none = false;
         readFill(spPr, &c.plotFill, &none);
         c.plotBorder = readLine(spPr);
+        c.plotKept = keptIn(spPr, c.plotFill);
     }
     if (const QDomElement legend = cChild(chart, "legend"); !legend.isNull()) {
         c.legend.shown = true;
@@ -946,7 +1025,10 @@ bool Reader::read(const QDomElement &root, QString *error)
             bool none = false;
             readFill(spPr, &c.legend.fill, &none);
             c.legend.border = readLine(spPr);
+            c.legend.kept = keptIn(spPr, c.legend.fill);
         }
+        for (const QDomElement &entry : cChildren(legend, "legendEntry"))
+            if (c.legend.entries.size() < 256) c.legend.entries << fragment(entry);
     }
     // Numbers for categories (dates, say) are shown through the category axis's own number format when it is not linked to the source's.
     for (ChartPlot &plot : c.plots) {

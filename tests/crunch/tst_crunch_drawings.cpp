@@ -490,7 +490,7 @@ private Q_SLOTS:
             QVERIFY2(after.part(name) == before.part(name), qPrintable(name));
         }
         // the objects are as the file has them: four
-        QCOMPARE(o->layer()->count(), 4);
+        QCOMPARE(int(o->idsOf(0).size()), 4);
         // a chart whose cells did not change keeps its part as it was, whatever else is saved
         e.select(QStringLiteral("C3"));
         e.enter(QStringLiteral("77"));
@@ -507,7 +507,7 @@ private Q_SLOTS:
         pressUndo(e.view());
         pressUndo(e.view());
         QVERIFY(!e.win.w.session()->canUndo());
-        QCOMPARE(o->layer()->count(), 4);
+        QCOMPARE(int(o->idsOf(0).size()), 4);
         // the file opens with four objects
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
@@ -713,24 +713,30 @@ private Q_SLOTS:
                 QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
                 return e.win.w.save() && savedOk(saved);
             };
+            auto takeAway = [&](int id) {
+                const crunch::ObjectState before = o->stateOf(0, id);
+                crunch::ObjectState after = before;
+                after.deleted = true;
+                return e.win.w.session()->deleteObject(0, id, QStringLiteral("Delete Object"), before, after).ok;
+            };
             const QString rels = QStringLiteral("xl/drawings/_rels/drawing1.xml.rels");
             QVERIFY(hasRelationship(savedParts(e.path), rels, QStringLiteral("rIdP")));
-            QVERIFY(e.win.w.session()->deleteObject(0, 0, QStringLiteral("Delete Object")).ok);
+            QVERIFY(takeAway(0));
             QVERIFY(save());
             QMap<QString, QByteArray> parts = savedParts(e.path);
             QVERIFY2(parts.contains(QStringLiteral("xl/media/image1.png")), "the picture the other uses stays");
             QVERIFY(hasRelationship(parts, rels, secondId));
             QCOMPARE(hasRelationship(parts, rels, QStringLiteral("rIdP")), oneRelationship);   // (the one the deleted object had, if the other does not use it)
             QVERIFY(hasOverride(parts, QStringLiteral("/xl/media/image1.png")));
-            QCOMPARE(o->layer()->count(), 2);
-            QVERIFY(e.win.w.session()->deleteObject(0, 1, QStringLiteral("Delete Object")).ok);
+            QCOMPARE(int(o->idsOf(0).size()), 2);
+            QVERIFY(takeAway(1));
             QVERIFY(save());
             parts = savedParts(e.path);
             QVERIFY2(!parts.contains(QStringLiteral("xl/media/image1.png")), "the last that used it is gone, and the picture");
             QVERIFY(!hasRelationship(parts, rels, QStringLiteral("rIdP")));
             QVERIFY(!hasRelationship(parts, rels, QStringLiteral("rIdQ")));
             QVERIFY(!hasOverride(parts, QStringLiteral("/xl/media/image1.png")));
-            QCOMPARE(o->layer()->count(), 1);   // (the shape)
+            QCOMPARE(int(o->idsOf(0).size()), 1);   // (the shape)
             // the file opens with the one object
             Window second;
             QVERIFY(second.open(e.copyOfFile()));

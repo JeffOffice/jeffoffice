@@ -388,6 +388,7 @@ void CrunchWindow::createActions()
     createFormatActions();
     createSheetActions();
     createPageActions();
+    createChartActions();
     createDisabledActions();
 }
 
@@ -400,7 +401,7 @@ void CrunchWindow::createDisabledActions()
     static const Command commands[] = {
         {"edit.sort", QT_TR_NOOP("Sort and Filter"), "arrow-down-a-z"}, {"edit.find", QT_TR_NOOP("Find and Select"), "search"},
         {"insert.table", QT_TR_NOOP("Table"), "table"}, {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
-        {"insert.chart", QT_TR_NOOP("Chart"), "chart-column"}, {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
+        {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
         {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"}, {"formulas.insertFunction", QT_TR_NOOP("Insert Function"), "square-function"},
         {"formulas.names", QT_TR_NOOP("Name Manager"), "variable"}, {"formulas.options", QT_TR_NOOP("Calculation Options"), "settings-2"},
     };
@@ -429,7 +430,7 @@ void CrunchWindow::notice(const QString &title, const QString &text, bool warnin
 void CrunchWindow::updateBars()
 {
     updateDropDown();
-    if (!m_nameBox->hasFocus()) m_nameBox->setText(m_view->selectionName());
+    showNameInBox();
     if (m_edit.active) return;   // (the formula bar holds what is being typed)
     // The formula bar takes about 20 milliseconds to be given 32,000 characters, whenever the cursor moves on to a cell that has them: it is given a part of a long text (with "…"
     // after it) until it is clicked into or tabbed to, and the whole of it then.
@@ -442,10 +443,43 @@ void CrunchWindow::updateBars()
     updateFormatState(false);
 }
 
+// The name box: the address of the selection, or the name of the object that is picked.
+void CrunchWindow::showNameInBox()
+{
+    if (m_nameBox->hasFocus() || m_chartSheetShown) return;
+    const int id = pickedObject();
+    m_nameBox->setText(id >= 0 ? m_objects->nameOf(m_sheet, id) : m_view->selectionName());
+}
+
 void CrunchWindow::goToName()
 {
     if (!commitEdit()) return;
     const QString text = m_nameBox->text().trimmed();
+    if (const int id = pickedObject(); id >= 0 && m_session && m_objects) {
+        // with an object picked, what is typed is its name
+        if (!editingAllowed()) {
+            m_nameBox->setText(m_objects->nameOf(m_sheet, id));
+            return;
+        }
+        if (text.isEmpty() || text.size() > 255) {
+            setStatus(tr("An object's name is one to 255 characters."));
+            m_nameBox->setText(m_objects->nameOf(m_sheet, id));
+            return;
+        }
+        if (text != m_objects->nameOf(m_sheet, id)) {
+            crunch::ObjectEdit e;
+            e.sheet = m_sheet;
+            e.id = id;
+            e.before = m_objects->stateOf(m_sheet, id);
+            e.after = e.before;
+            e.after.name = text;
+            const crunch::EditSession::Outcome o = m_session->changeObjects({e}, tr("Rename Object"));
+            if (!o.ok) setStatus(o.problem);
+        }
+        m_nameBox->setText(m_objects->nameOf(m_sheet, id));
+        m_view->setFocus(Qt::OtherFocusReason);
+        return;
+    }
     static const QRegularExpression columns(QStringLiteral("^([A-Za-z]{1,3}):([A-Za-z]{1,3})$")), rows(QStringLiteral("^(\\d{1,7}):(\\d{1,7})$"));
     jp::office::sheet::CellRange range;
     bool done = false;

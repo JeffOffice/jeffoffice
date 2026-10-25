@@ -10,6 +10,7 @@
 #include <QCoreApplication>
 #include <QHash>
 #include <QIODevice>
+#include <QRegularExpression>
 
 #include <algorithm>
 #include <cmath>
@@ -422,6 +423,43 @@ QByteArray tailWithMerges(const QByteArray &after, const std::vector<CellRange> 
     return after.left(insertAt) + generated + after.mid(insertAt);
 }
 
+// What follows a sheet's cells with the element that names its drawing put in, where the format has it (after the page setup and the header and footer, before the elements that come
+// after the drawing); not if the sheet has one.
+QByteArray tailWithDrawing(const QByteArray &after, const QByteArray &relId, const QByteArray &prefix)
+{
+    static const QList<QByteArray> later = {"legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    Tag t;
+    qsizetype pos = 0, insertAt = -1;
+    int depth = 0;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (insertAt < 0) insertAt = t.start;   // </worksheet>
+                break;
+            }
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == "drawing") {
+                // the sheet names a drawing that its relationships do not (or whose part is not there): the element names the one made now
+                QByteArray tag = after.mid(t.start, t.end - t.start);
+                static const QRegularExpression idAttr(QStringLiteral("(\\s[A-Za-z_][\\w.-]*:id\\s*=\\s*)(\"[^\"]*\"|'[^']*')"));
+                const QString text = QString::fromUtf8(tag);
+                const QRegularExpressionMatch m = idAttr.match(text);
+                if (!m.hasMatch()) return after;
+                const QString fixed = text.left(m.capturedStart(2)) + QLatin1Char('"') + QString::fromLatin1(xmlscan::escapeAttribute(QString::fromLatin1(relId))) + QLatin1Char('"') + text.mid(m.capturedEnd(2));
+                return after.left(t.start) + fixed.toUtf8() + after.mid(t.end);
+            }
+            if (insertAt < 0 && later.contains(QByteArray(t.local))) insertAt = t.start;
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    if (insertAt < 0) return after;
+    const QByteArray element = "<" + prefix + "drawing xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"" + xmlscan::escapeAttribute(QString::fromLatin1(relId)) + "\"/>";
+    return after.left(insertAt) + element + after.mid(insertAt);
+}
+
 class Patcher {
 public:
     Patcher(QIODevice *in, PartSink *out, const SheetChanges &changes, bool hasShared, const std::atomic<bool> *cancel) : m_in(in), m_out(out), m_hasShared(hasShared), m_cancel(cancel)
@@ -440,6 +478,7 @@ public:
         if (changes.replaceColumns) m_columns = &changes.columns;
         if (changes.replaceMerges) m_merges = &changes.merges;
         if (changes.setPage) m_page = &changes.page;
+        m_drawingId = changes.drawingRelId.toLatin1();
         if (changes.replaceFormat) m_format = &changes.format;
         if (changes.replaceTabColor) m_tabColor = &changes.tabColor;
         m_tabSelected = changes.tabSelected;
@@ -942,8 +981,8 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_page) {
-            // (what follows the cells is held whole to change its merged ranges and its page setup)
+        if (m_merges || m_page || !m_drawingId.isEmpty()) {
+            // (what follows the cells is held whole to change its merged ranges, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
             }
@@ -954,6 +993,7 @@ private:
             auto tailOf = [&](const QByteArray &rest) {
                 QByteArray tail = m_merges ? tailWithMerges(rest, *m_merges, m_prefix) : rest;
                 if (m_page) tail = patchPageSetupTail(tail, *m_page, m_prefix);
+                if (!m_drawingId.isEmpty()) tail = tailWithDrawing(tail, m_drawingId, m_prefix);
                 return tail;
             };
             if (m_dataClosed) put(tailOf(rest));   // (an empty sheetData was given its closing tag with its rows: what is left follows it)
@@ -993,6 +1033,7 @@ private:
     const std::vector<ColumnSpan> *m_columns = nullptr;
     const std::vector<CellRange> *m_merges = nullptr;
     const PageSetup *m_page = nullptr;
+    QByteArray m_drawingId;
     const SheetFormat *m_format = nullptr;
     const ColorSpec *m_tabColor = nullptr;
     int m_tabSelected = -1;

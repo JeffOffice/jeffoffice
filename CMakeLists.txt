@@ -169,6 +169,7 @@ qt_add_executable(officetests
   tests/office/dochelpers.cpp
   tests/office/tst_doc.cpp
   tests/office/tst_office_chart.cpp
+  tests/office/tst_office_chartwrite.cpp
   tests/office/tst_office_dmlfill.cpp
   tests/office/tst_office_dmlgeometry.cpp
   tests/office/tst_office_dmlshape.cpp
@@ -205,6 +206,8 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_calculation.cpp
   tests/sheet/tst_sheet_condformat.cpp
   tests/sheet/tst_sheet_chartdata.cpp
+  tests/sheet/tst_sheet_chartmake.cpp
+  tests/sheet/tst_sheet_chartedit.cpp
   tests/sheet/tst_sheet_drawing.cpp
   tests/sheet/tst_sheet_cells.cpp
   tests/sheet/tst_sheet_edit.cpp
@@ -459,7 +462,7 @@ endif()
 target_link_libraries(jeffcrunch PRIVATE jccore)
 set_target_properties(jeffcrunch PROPERTIES OUTPUT_NAME JeffCrunch)
 # The tests of the window (the grid's own are in sheettests).
-qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/crunch/tst_crunch_xls.cpp tests/crunch/tst_crunch_convert.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp tests/crunch/tst_crunch_format.cpp tests/crunch/tst_crunch_formatcodes.cpp tests/crunch/tst_crunch_formatdialog.cpp tests/crunch/tst_crunch_formatui.cpp tests/crunch/tst_crunch_sheets.cpp tests/crunch/tst_crunch_review.cpp tests/crunch/tst_crunch_drawings.cpp tests/crunch/tst_crunch_print.cpp)
+qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp tests/crunch/tst_crunch_edit.cpp tests/crunch/tst_crunch_ops.cpp tests/crunch/tst_crunch_cells.cpp tests/crunch/tst_crunch_sizes.cpp tests/crunch/tst_crunch_clip.cpp tests/crunch/tst_crunch_rules.cpp tests/crunch/tst_crunch_xls.cpp tests/crunch/tst_crunch_convert.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp tests/crunch/tst_crunch_format.cpp tests/crunch/tst_crunch_formatcodes.cpp tests/crunch/tst_crunch_formatdialog.cpp tests/crunch/tst_crunch_formatui.cpp tests/crunch/tst_crunch_sheets.cpp tests/crunch/tst_crunch_review.cpp tests/crunch/tst_crunch_drawings.cpp tests/crunch/tst_crunch_charts.cpp tests/crunch/tst_crunch_print.cpp)
 target_link_libraries(crunchtests PRIVATE jccore Qt6::Test)
 target_include_directories(crunchtests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 target_compile_definitions(crunchtests PRIVATE JC_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
@@ -550,7 +553,7 @@ target_compile_definitions(jcrunchtool PRIVATE JCRUNCH_TOOLS_DIR="${CMAKE_SOURCE
 set_target_properties(jcrunchtool PROPERTIES WIN32_EXECUTABLE OFF)
 if(JP_BUILD_CRUNCH)
   # Its grid commands (how fast a workbook is on the screen, and a sweep of a list of workbooks through the grid model) use the window's parts.
-  target_sources(jcrunchtool PRIVATE tools/jcrunchtool_grid.cpp tools/jcrunchtool_edit.cpp tools/jcrunchtool_drawings.cpp tools/jcrunchtool_print.cpp)
+  target_sources(jcrunchtool PRIVATE tools/jcrunchtool_grid.cpp tools/jcrunchtool_edit.cpp tools/jcrunchtool_drawings.cpp tools/jcrunchtool_print.cpp tools/jcrunchtool_charts.cpp)
   target_link_libraries(jcrunchtool PRIVATE jccore)
   target_compile_definitions(jcrunchtool PRIVATE JC_GRID=1)
 endif()

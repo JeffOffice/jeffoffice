@@ -798,7 +798,7 @@ void GridView::mousePressEvent(QMouseEvent *e)
 {
     if (e->button() == Qt::LeftButton && m_clickGuard && !m_clickGuard()) return;
     setFocus(Qt::MouseFocusReason);
-    if (overlayPress(e) || !m_cellsEnabled) return;
+    if (overlayContext(e) || overlayPress(e) || !m_cellsEnabled) return;
     m_jump.reset();
     const GridLayout &L = m_sheet.layout();
     const QPoint lp = mirror(e->pos());
@@ -860,6 +860,7 @@ void GridView::mousePressEvent(QMouseEvent *e)
 
 void GridView::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_drag == Drag::None && overlayMove(e)) return;
     const QPoint lp = mirror(e->pos());
     m_lastMouse = lp;
     if (m_drag == Drag::Resize) {
@@ -907,6 +908,7 @@ bool GridView::borderAtInLayout(const QPoint &p, bool *column, qint64 *index) co
 
 void GridView::mouseReleaseEvent(QMouseEvent *e)
 {
+    if (m_drag == Drag::None && overlayRelease(e)) return;
     if (m_drag == Drag::Resize) {
         m_drag = Drag::None;
         viewport()->update();
@@ -975,6 +977,7 @@ void GridView::clearCopyBorder()
 
 void GridView::mouseDoubleClickEvent(QMouseEvent *e)
 {
+    if (overlayDoubleClick(e)) return;
     if (e->button() != Qt::LeftButton || !m_cellsEnabled) return;
     bool column = false;
     qint64 index = -1;

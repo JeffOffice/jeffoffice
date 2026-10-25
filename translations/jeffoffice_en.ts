@@ -177,6 +177,20 @@
             <numerusform>The file stores this object together with %n other objects, so they can&apos;t be deleted one at a time.</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>The file stores this chart together with %n other(s), so it can&apos;t be changed here.</source>
+        <translation>
+            <numerusform>The file stores this chart together with %n other chart, so it can&apos;t be changed here.</numerusform>
+            <numerusform>The file stores this chart together with %n other charts, so it can&apos;t be changed here.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>The file stores this object together with %n other(s), so it can&apos;t be put in another place in the order they are drawn.</source>
+        <translation>
+            <numerusform>The file stores this object together with %n other object, so it can&apos;t be put in another place in the order they are drawn.</numerusform>
+            <numerusform>The file stores this object together with %n other objects, so it can&apos;t be put in another place in the order they are drawn.</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>jp::office::sheet::Ods</name>

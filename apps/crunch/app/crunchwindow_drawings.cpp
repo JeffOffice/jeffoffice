@@ -6,6 +6,7 @@
 #include "core/sheetobjects.h"
 
 #include <QMetaObject>
+#include <QUuid>
 
 namespace jp {
 
@@ -15,6 +16,13 @@ void CrunchWindow::setupObjects()
     m_objects->layer()->attach(&m_view->sheet().layout());
     m_view->setOverlay(m_objects->layer());
     m_objects->layer()->setDeleteHook([this](int id) { deleteObject(id); });
+    // the person moves or sizes an object, picks one, or asks for its menu
+    connect(m_objects->layer(), &jp::grid::ObjectLayer::objectMoved, this, [this](int id, const jp::office::sheet::DrawingAnchor &anchor) { moveObject(id, anchor); });
+    connect(m_objects->layer(), &jp::grid::ObjectLayer::contextMenuRequested, this, [this](int id, const QPoint &global) { objectContextMenu(id, global); });
+    connect(m_objects->layer(), &jp::grid::ObjectLayer::objectActivated, this, [this](int) { propertiesDialog(); });
+    connect(m_objects->layer(), &jp::grid::ObjectLayer::selectionChanged, this, [this](int) { updateChartState(); });
+    connect(m_view, &grid::GridView::viewChanged, this, [this] { m_chartButtonsTimer.start(); });
+    connect(m_view, &grid::GridView::zoomChanged, this, [this] { m_chartButtonsTimer.start(); });
 }
 
 // The workbook is open (its first rows are read): the objects are its.
@@ -22,6 +30,7 @@ void CrunchWindow::openObjects()
 {
     if (!m_objects || !m_loaded) return;
     m_objects->open(m_loaded->book);
+    m_workbookId = QUuid::createUuid().toString(QUuid::WithoutBraces);   // (128 random bits: no other program, and no other opening of the same file, has it)
     m_objects->setEditsSource([this]() -> const std::vector<jp::office::sheet::StructEdit> & {
         static const std::vector<jp::office::sheet::StructEdit> none;
         return m_session ? m_session->structureEdits() : none;
@@ -44,6 +53,7 @@ void CrunchWindow::prepareObjects(int sheet)
         m_view->setShowGridlines(false);
     }
     m_chartSheetShown = chartSheet;
+    updateChartState();   // (the object that was picked is let go of with the sheet)
     updateEditActions();
     m_view->setCellsEnabled(!chartSheet);
     m_formulaBar->setReadOnly(chartSheet);
@@ -65,6 +75,7 @@ void CrunchWindow::prepareObjects(int sheet)
         [this, sheet, token] {
             if (token != m_objectsToken || !m_objects || sheet != m_sheet) return;
             m_objects->show(sheet);
+            updateChartState();
             if (m_objects->isChartSheet(sheet) && m_objects->layer()->count() == 0 && !m_calculating && !m_loading)
                 setStatus(tr("This chart sheet's chart can't be shown here."));
         },
@@ -83,8 +94,9 @@ void CrunchWindow::connectObjects()
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, [this](int sheet) {
         if (m_objects) m_objects->sizesChanged(sheet);
     });
-    m_session->setObjectHook([this](int sheet, int id, bool deleted) {
-        if (m_objects) m_objects->setDeleted(sheet, id, deleted);
+    m_session->setObjectHook([this](const crunch::ObjectEdit &edit, bool forward) {
+        if (m_objects) m_objects->applyState(edit.sheet, edit.id, forward ? edit.after : edit.before);
+        updateChartState();
     });
 }
 
@@ -97,7 +109,10 @@ void CrunchWindow::deleteObject(int id)
         notice(tr("Delete"), why);
         return;
     }
-    const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Object"));
+    const crunch::ObjectState before = m_objects->stateOf(m_sheet, id);
+    crunch::ObjectState after = before;
+    after.deleted = true;
+    const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Object"), before, after);
     if (!o.ok) notice(tr("Delete"), o.problem);
 }
 

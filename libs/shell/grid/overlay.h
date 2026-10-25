@@ -9,6 +9,7 @@
 #include <QRect>
 
 #include <functional>
+#include <optional>
 
 namespace jp::grid {
 
@@ -26,6 +27,45 @@ public:
         Q_UNUSED(point);
         Q_UNUSED(layout);
         Q_UNUSED(modifiers);
+        return false;
+    }
+    // The mouse moved (with a button down or not) at a point of the viewport: true if the overlay is using it (an object is being dragged), so that the cells do not see it.
+    virtual bool mouseMove(const QPoint &point, const GridLayout &layout, Qt::MouseButtons buttons, Qt::KeyboardModifiers modifiers)
+    {
+        Q_UNUSED(point);
+        Q_UNUSED(layout);
+        Q_UNUSED(buttons);
+        Q_UNUSED(modifiers);
+        return false;
+    }
+    // The left button was let go: true if the overlay had the mouse (an object was being dragged).
+    virtual bool mouseRelease(const QPoint &point, const GridLayout &layout, Qt::KeyboardModifiers modifiers)
+    {
+        Q_UNUSED(point);
+        Q_UNUSED(layout);
+        Q_UNUSED(modifiers);
+        return false;
+    }
+    // The shape of the pointer over a point of the viewport when the overlay has something there (a handle of the object that is picked, or the object); none: the grid's own.
+    virtual std::optional<Qt::CursorShape> cursorAt(const QPoint &point, const GridLayout &layout)
+    {
+        Q_UNUSED(point);
+        Q_UNUSED(layout);
+        return std::nullopt;
+    }
+    // The right button was pressed at a point of the viewport (`global` on the screen): true if an object was under it (the overlay asks for its menu), else the cells' own menu.
+    virtual bool contextMenu(const QPoint &point, const QPoint &global, const GridLayout &layout)
+    {
+        Q_UNUSED(point);
+        Q_UNUSED(global);
+        Q_UNUSED(layout);
+        return false;
+    }
+    // A double click at a point of the viewport: true if an object was under it.
+    virtual bool doubleClick(const QPoint &point, const GridLayout &layout)
+    {
+        Q_UNUSED(point);
+        Q_UNUSED(layout);
         return false;
     }
     // A key before the grid's own: true if the overlay has it.

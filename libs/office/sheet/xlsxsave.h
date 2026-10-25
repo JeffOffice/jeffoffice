@@ -10,6 +10,7 @@
 // on: nothing here reads the workbook's cells.
 
 #include "office/package.h"
+#include "sheet/drawingadd.h"
 #include "sheet/drawingsave.h"
 #include "sheet/pagesetupxml.h"
 #include "sheet/refshift.h"
@@ -21,6 +22,7 @@
 #include <QVector>
 
 #include <atomic>
+#include <functional>
 #include <map>
 #include <vector>
 
@@ -97,7 +99,10 @@ struct SheetChanges {
     // And the sheet's page setup as it is now, when a person changed how it prints (or any of it may differ from the file's): the part is changed where it differs from this and nowhere else.
     bool setPage = false;
     PageSetup page;
-    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    // For a sheet a person put an object on that had no drawing: the id of the relationship from the sheet to the drawing that is made (saving sets it, from SaveChanges::addedObjects), and the
+    // sheet is given the element that names it.
+    QString drawingRelId;
+    bool empty() const { return drawingRelId.isEmpty() && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
@@ -163,6 +168,15 @@ struct SaveChanges {
     // Two-cell anchors whose places are written again, by the drawing part and the place of the element (DrawingObject::ordinal): an object that keeps its size when cells are resized (editAs
     // "oneCell" or "absolute") is where its size and place now put it. Applied before the objects are taken away (the places are the part's as it was).
     std::map<QString, std::map<int, DrawingAnchor>> anchors;
+    // Objects a person named: for each drawing part (by its name), the new name of the object at a place (DrawingObject::ordinal). Applied with the anchors, before objects are taken away.
+    std::map<QString, std::map<int, QString>> objectNames;
+    // Objects a person put on sheets (a chart, a picture, a shape): by the sheet's place, what the drawing part gets and the parts it relates to (drawingadd.h). A sheet with no drawing is given one.
+    std::map<int, AddedDrawing> addedObjects;
+    // Drawings whose objects are drawn in another order: for each drawing part (by its name), the order of all the children of its root as they are after what is above is done (the objects taken
+    // away gone, those added at the end): the child at place k is the one this says (drawingsave.h, reorderDrawingChildren).
+    std::map<QString, std::vector<int>> drawingOrder;
+    // Parts to be written anew whole, made by the thread that writes the file (replacedParts' kind, for what takes time to make: a chart part from a model).
+    std::map<QString, std::function<QByteArray()>> producedParts;
     // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
     bool fullCalcOnLoad = false;
     // The sheets: when a person added, deleted, renamed, moved, hid, or showed one (the workbook's own list is then made from the Workbook's: names, states, and the order of the tabs, with the

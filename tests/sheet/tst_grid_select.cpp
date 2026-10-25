@@ -543,6 +543,26 @@ private Q_SLOTS:
         QCOMPARE(statsText(Stats()), QString());
     }
 
+    // The sum and the average in the status line have at most ten significant digits (14.58333333333 would be a number nobody reads), in the person's language.
+    void statsAreShownToTenDigitsInTheLocale()
+    {
+        Stats s;
+        s.count = 12;
+        s.numbers = 12;
+        s.sum = 175.0;   // (the average is 14.583333333333334)
+        s.min = 1;
+        s.max = 30;
+        {
+            PinnedLocale pin(QLocale(QLocale::English, QLocale::UnitedStates));
+            QCOMPARE(statsText(s), QStringLiteral("Average: 14.58333333    Count: 12    Sum: 175"));
+        }
+        {
+            PinnedLocale pin(QLocale(QLocale::German, QLocale::Germany));
+            const QString text = statsText(s);
+            QVERIFY2(text.contains(QStringLiteral("14,58333333")) && !text.contains(QStringLiteral("14,583333333")), qPrintable(text));
+        }
+    }
+
     // A whole column of a million rows is added up a few thousand rows at a time, and comes to what adding it all at once does.
     void aWholeColumnIsAddedUpInSlices()
     {
@@ -632,7 +652,7 @@ private Q_SLOTS:
         QCOMPARE(w.hiddenBuilds(), qint64(1));
     }
 
-    // The numbers of a selection read as the General number format and the user's locale write them: a sum of twelve billion is written out and grouped, not in the scientific way.
+    // The numbers of a selection are written as the user's locale writes them, to ten digits: a sum of twelve billion is written out and grouped, not in the scientific way.
     void sumsAreWrittenAsNumbersAreInTheUsersLocale()
     {
         const QLocale saved = QLocale();
@@ -641,14 +661,14 @@ private Q_SLOTS:
         s.count = 2;
         s.numbers = 2;
         s.sum = 12345678901.0;
-        QCOMPARE(statsText(s), QStringLiteral("Average: 6,172,839,450.5    Count: 2    Sum: 12,345,678,901"));
+        QCOMPARE(statsText(s), QStringLiteral("Average: 6,172,839,451    Count: 2    Sum: 12,345,678,901"));
         s.count = 1234567;
         s.numbers = 4;
         s.sum = 0.1 + 0.2;
         QCOMPARE(statsText(s), QStringLiteral("Average: 0.075    Count: 1,234,567    Sum: 0.3"));
         s.count = s.numbers = 3;
         s.sum = -4500.25;
-        QCOMPARE(statsText(s), QStringLiteral("Average: -1,500.08333333333    Count: 3    Sum: -4,500.25"));
+        QCOMPARE(statsText(s), QStringLiteral("Average: -1,500.083333    Count: 3    Sum: -4,500.25"));
         QLocale::setDefault(QLocale(QLocale::German, QLocale::Germany));
         s.count = s.numbers = 2;
         s.sum = 1234.5;

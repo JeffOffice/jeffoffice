@@ -176,7 +176,16 @@
           "name": "Charts",
           "keytip": "ZH",
           "items": [
-            {"large": "insert.chart", "keytip": "C"}
+            {"large": "insert.chart", "keytip": "C"},
+            {"small": "chart.column", "keytip": "CL", "split": true, "menu": ["chart.column.clustered", "chart.column.stacked", "chart.column.percent"]},
+            {"small": "chart.line", "keytip": "CN", "split": true, "menu": ["chart.line.plain", "chart.line.markers", "chart.line.stacked"]},
+            {"small": "chart.pie", "keytip": "CP", "split": true, "menu": ["chart.pie.pie", "chart.pie.doughnut"]},
+            {"column": true},
+            {"small": "chart.bar", "keytip": "CB", "split": true, "menu": ["chart.bar.clustered", "chart.bar.stacked", "chart.bar.percent"]},
+            {"small": "chart.area", "keytip": "CA", "split": true, "menu": ["chart.area.plain", "chart.area.stacked"]},
+            {"small": "chart.scatter", "keytip": "CS", "split": true, "menu": ["chart.scatter.points", "chart.scatter.joined"]},
+            {"column": true},
+            {"small": "chart.combo", "keytip": "CO"}
           ]
         },
         {
@@ -305,6 +314,54 @@
               "keytip": "FZ",
               "menu": ["view.freeze", "view.freezeRow", "view.freezeCol", "-", "view.unfreeze"]
             }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chart",
+      "keytip": "JD",
+      "context": "Chart",
+      "color": "chartDesign",
+      "groups": [
+        {
+          "name": "Chart Layouts",
+          "keytip": "ZL",
+          "items": [
+            {"large": {"id": "ribbon.addElement", "text": "Chart Parts", "icon": "plus"}, "keytip": "AE", "menu": "@chartElements"},
+            {"large": {"id": "ribbon.quickLayout", "text": "Layouts", "icon": "layers"}, "keytip": "QL", "menu": "@chartLayouts"}
+          ]
+        },
+        {
+          "name": "Looks",
+          "keytip": "ZS",
+          "items": [
+            {"large": {"id": "ribbon.chartColors", "text": "Colors", "icon": "palette"}, "keytip": "CC", "menu": "@chartColors"},
+            {"large": {"id": "ribbon.chartStyles", "text": "Looks", "icon": "brush"}, "keytip": "ST", "menu": "@chartStyles"}
+          ]
+        },
+        {
+          "name": "Data",
+          "keytip": "ZD",
+          "items": [
+            {"large": "chartdesign.switch", "keytip": "SW"},
+            {"large": "chartdesign.selectData", "keytip": "SD"}
+          ]
+        },
+        {
+          "name": "Type",
+          "keytip": "ZT",
+          "items": [
+            {"large": "chartdesign.changeType", "keytip": "CT"}
+          ]
+        },
+        {
+          "name": "Object",
+          "keytip": "ZO",
+          "items": [
+            {"large": "object.properties", "keytip": "PR"},
+            {"small": "object.front", "keytip": "BF"},
+            {"small": "object.back", "keytip": "SB"}
           ]
         }
       ]

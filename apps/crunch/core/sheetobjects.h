@@ -13,6 +13,8 @@
 // code), the points and series a chart keeps, the cells a chart is watched by, and the pictures and renders of the layer.
 
 #include "core/document.h"
+#include "core/objectclip.h"
+#include "core/objectstate.h"
 #include "grid/chartcells.h"
 #include "grid/objectlayer.h"
 #include "grid/valuestore.h"
@@ -67,6 +69,9 @@ public:
     void setSheetOpsSource(SheetOpsSource ops) { m_sheetOps = std::move(ops); }
 
     jp::grid::ObjectLayer *layer() { return &m_layer; }
+    // The cells charts read (null until the workbook is whole), and the theme the workbook's charts are set in.
+    const jp::office::sheet::ChartCells *cells() const { return m_cells.get(); }
+    const jp::office::Theme &theme();
     // Puts the sheet's objects in the layer (listing the sheet's drawing if that has not been done); the objects are made as their pictures are wanted. A drawing of more than
     // kParseApartBytes is parsed on a worker thread (a drawing of ten thousand shapes takes the better part of a second to parse): the layer has no objects until then, and `shownSheet`
     // is the sheet already.
@@ -105,6 +110,56 @@ public:
     void addToSave(jp::office::sheet::SaveChanges *changes);
     // The file was saved: what it holds is what the objects are now (the edits made so far are in it, and the objects taken away are not).
     void saved();
+
+    // ---- making and changing objects (the window makes each change one step of Undo: core/editsession.h, objectstate.h)
+    // The state of an object as it is now (its chart is made if it has not been), to be the "before" of a step, or to be changed into its "after".
+    ObjectState stateOf(int sheet, int id);
+    // Gives the object a state (a step is done, undone, or done again); the layer is told if the sheet is shown.
+    void applyState(int sheet, int id, const ObjectState &state);
+    // What a workbook is let hold of what a person put there and has not saved: the objects (at most what one save writes) and the points of the charts made or changed (a chart's numbers are
+    // kept as the model holds them, and Undo holds copies). A refusal says so in words; the limits are the same wherever an object is made.
+    struct Limits {
+        int maxAdded = jp::office::sheet::kMaxAddedObjects;
+        qint64 maxPoints = 400000;
+        qint64 maxBytes = jp::office::sheet::kMaxAddedBytes;   // the pictures pasted since the last save
+    };
+    void setLimits(const Limits &limits) { m_limits = limits; }
+    const Limits &limits() const { return m_limits; }
+    // The objects put there since the file was read or saved that are not taken away, and the points of the charts that are new or changed, in the whole workbook.
+    int addedCount() const;
+    qint64 chartPointsHeld() const;
+    qint64 pastedBytesHeld() const;
+    // The points a chart reads or holds (the cells its references name, up to what a series may read, and the numbers it holds for what has no reference).
+    qint64 pointsOf(int sheet, const jp::office::Chart &chart) const;
+    // Whether a chart of this size may be held in the place of the object `replacing` (-1: as one more); if not, why.
+    bool chartRoom(int sheet, const jp::office::Chart &chart, int replacing, QString *why = nullptr) const;
+    // Makes a chart object on a worksheet from the model (its references inside it, in the names the sheets have now). It is there but taken away (hidden) until a step gives it the state with
+    // `deleted` false; discardMade() lets it go if the step is not made. The id, or -1 with the reason in `why`.
+    int makeChart(int sheet, const jp::office::Chart &chart, const jp::office::sheet::DrawingAnchor &anchor, QString *why = nullptr);
+    void discardMade(int sheet, int id);
+    // Copies a picture, shape, group, or connector into a clip (with the pictures it uses); false with the reason if it uses something that is not in the workbook. And puts one from a clip
+    // on a sheet, as makeChart does a chart: hidden until a step gives it the state with `deleted` false.
+    bool copyElement(int sheet, int id, jp::crunch::ObjectClip *clip, QString *why = nullptr);
+    int makeElement(int sheet, const jp::crunch::ObjectClip &clip, const jp::office::sheet::DrawingAnchor &anchor, QString *why = nullptr);
+    // The state with a changed chart (its references as they are now), for the step that changes it; and with the object put in another place.
+    ObjectState stateWithChart(int sheet, int id, const jp::office::Chart &chart);
+    ObjectState stateMoved(int sheet, int id, const jp::office::sheet::DrawingAnchor &anchor);
+    // Whether the object's chart can be changed (it is a chart, the file stores it by itself, and it holds nothing a chart saved from the model would lose); if not, why.
+    bool canEditChart(int sheet, int id, QString *why = nullptr);
+    // An object's place now, as the layer has it (the grid's units), and the sheet's object under that name; false if there is none.
+    bool exists(int sheet, int id);
+    jp::office::sheet::ObjectKind kindOf(int sheet, int id);
+    QString nameOf(int sheet, int id);
+    // Where an object goes when it is brought forward (+1) or sent backward (-1), or to the front (2) or the back (-2): its place among the sheet's objects, or -1 for none (it is there already).
+    int zTarget(int sheet, int id, int how);
+    // Whether the object can be put in another place in the drawing (the file does not store it in one element with another).
+    bool canReorder(int sheet, int id, QString *why = nullptr);
+    // The ids of the sheet's objects that are not taken away, from the back.
+    std::vector<int> idsOf(int sheet);
+    // A name for a new object of a kind that no object of the sheet has ("Chart 3").
+    QString newName(int sheet, jp::office::sheet::ObjectKind kind);
+    // The state of an object that a pasted copy begins as: a new object like it (a chart of its model; another kind is not copied here) with the anchor given. -1 if it can't be.
+    int duplicate(int sheet, int fromSheet, int fromId, const jp::office::sheet::DrawingAnchor &anchor, QString *why = nullptr);
 
     // For tests and tools: the chart of an object as it is drawn now (the numbers the cells give), or an empty chart.
     jp::office::Chart chartNow(int sheet, int objectId);
@@ -151,6 +206,22 @@ private:
         jp::office::sheet::ChartReadIndex reads;       // the cells it read when last given to the worker
         quint64 drawnKey = 0;                          // what the numbers and words it was last given to draw come to (0: it has not been given)
         bool deleted = false;                          // taken away by a person (not yet saved)
+        bool added = false;                            // put there by a person: the file does not have it yet
+        std::vector<jp::crunch::AnchorPlacement> placements;   // where a person put it (`base` is the file's; `anchor` is what they come to with the edits)
+        std::vector<jp::crunch::RefPlacement> refPlacements;   // what a person made the chart read
+        std::shared_ptr<const jp::office::Chart> fileChart;   // the chart as the file's part gave it (a chart that is another was changed by a person)
+        QString savedPart;                             // what saving makes for it: the chart part's name
+        qint64 points = 0;                             // what a chart that is new or changed holds, for the limits
+        std::shared_ptr<QDomDocument> ownDoc;          // for a picture or shape put here from a copy: its element's own document, the package that has the pictures it names, how it is read, and its XML to be written
+        std::shared_ptr<jp::office::Package> ownPackage;
+        std::shared_ptr<jp::office::DrawingContext> ownContext;
+        QByteArray pasteXml, pasteNamespaces;
+        QList<jp::crunch::ClipMedia> pasteMedia;
+        QString fileName, savedName;                   // its name as the file has it, and as the save in flight writes it
+        int savedOrdinal = -1;                         // where it will be among the children of the drawing's root when what addToSave gave is saved
+        int editable = -1;                             // whether the chart can be changed (-1 not looked at, 0 no, 1 yes), and why not: found once, for a part of the file is read to say
+        QString editWhy;
+        bool gone = false;                             // taken away and the file written without it (it keeps its place in the list, so that the places Undo holds stay)
     };
     struct Sheet {
         bool listed = false;
@@ -165,6 +236,10 @@ private:
         QHash<QString, std::shared_ptr<const jp::office::Chart>> parsed;   // the charts read, by part (the part is read once, whatever number of anchors name it)
         QHash<QString, QString> failedParts;           // chart parts that could not be read, and why
         DrawingCounts counts;
+        int nextId = 0;                                // the id of the next object put on the sheet
+        qint64 nextShapeId = 2;                        // and the number the next one has in the drawing
+        bool shapeIdsKnown = false;                    // `nextShapeId` is past every id the drawing part has (found by looking through the whole part)
+        QString savedDrawing;                          // the drawing part saving makes for a sheet that has none
     };
     Sheet &sheetState(int sheet);
     void list(int sheet, Sheet &s);
@@ -190,6 +265,13 @@ private:
     // Whether the chart, with the references it has now, would be drawn from other numbers and words than it was last given (`budget` is what is left to read for the answer: past it, yes).
     bool chartDataChanged(int sheet, Object &o, qint64 *budget);
     jp::office::sheet::DrawingAnchor twoCellFor(const Object &o, const jp::grid::Axis &rows, const jp::grid::Axis &cols) const;
+    Object *find(int sheet, int id);
+    void knowShapeIds(int sheet, Sheet &s);
+    std::shared_ptr<jp::office::DrawingContext> baseContext();
+    std::vector<jp::office::sheet::StructEdit> editsFrom(int at, int to = -1) const;
+    QStringList movedRefList(const QStringList &refs, int sheet, int at, int to) const;
+    // A reference as the file's names for the sheets would have it (the renames and deletes of sheets since the file was read or saved taken back).
+    QString unfollowSheetOps(const QString &ref) const;
 
     std::shared_ptr<jp::office::sheet::Workbook> m_book;
     const jp::office::sheet::WorkbookSource *m_source = nullptr;
@@ -217,6 +299,8 @@ private:
     quint64 m_generation = 0;                                // of the workbook open (a worker's answer for another is let go)
     qint64 m_chartsDrawn = 0;
     qint64 m_editSteps = 0;
+    Limits m_limits;
+    int m_epoch = 0;                                         // counts the saves that followed edits to rows and columns (see core/objectstate.h)
 };
 
 } // namespace jp::crunch

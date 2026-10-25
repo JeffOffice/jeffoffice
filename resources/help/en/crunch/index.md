@@ -27,6 +27,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Change the width of columns and the height of rows](sizes)
 - [Cut, copy, and paste](clipboard)
 - [Fill cells and add them up](fill-sum)
+- [Charts, pictures, and shapes](charts)
 
 ## Print
 

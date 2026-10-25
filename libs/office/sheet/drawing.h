@@ -64,6 +64,7 @@ struct SheetDrawing {
     std::shared_ptr<QDomDocument> document;
     QVector<DrawingObject> objects;        // in the order of the file (which is the order they are drawn in, the first at the back)
     int anchorsInPart = 0;                 // anchors the part holds (the objects are those read, up to the limit)
+    int rootChildren = 0;                  // elements the part's root holds (an object's `ordinal` counts among them; one added at the end has the next)
     bool truncated = false;                // more anchors than kMaxDrawingAnchors: the rest were left out
     int skipped = 0;                       // anchors that hold nothing that is read (a form control, an ink stroke, a table or slicer)
     QString problem;                       // what is wrong with the part, if it could not be read
