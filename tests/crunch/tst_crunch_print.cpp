@@ -2767,6 +2767,34 @@ private Q_SLOTS:
         for (int y = int(cell.top() * 2) + 2; y < int(cell.top() * 2) + 6; ++y)
             for (int x = int(cell.left() * 2) - 24; x < int(cell.left() * 2) - 4; ++x) QVERIFY(page.pixelColor(x, y).lightness() >= 250);
     }
+
+    // The preview of the Print screen draws a header picture without decoding it on the window thread: the page shows at once, and the picture is in it when the worker has it.
+    void thePrintPreviewMakesHeaderPicturesOffTheWindowThread()
+    {
+        const QByteArray red = drawtest::pngBytes(160, 80, Qt::red);
+        EditWindow e;
+        QVERIFY(e.open(bookWithHeaderPictures(QStringLiteral("<oddHeader>&amp;C&amp;G</oddHeader>"), {hfShape(QStringLiteral("CH"))}, {red})));
+        CrunchWindow &w = e.win.w;
+        jp::grid::HeaderPictureCache &cache = jp::grid::HeaderPictureCache::instance();
+        cache.clear();
+        const int here = cache.decodesHere();
+        w.act(QStringLiteral("file.print"))->trigger();
+        QLabel *preview = w.findChild<QLabel *>(QStringLiteral("printPreview"));
+        QVERIFY(preview);
+        QCOMPARE(cache.decodesHere(), here);
+        auto redPixels = [&] {
+            const QImage img = preview->pixmap().toImage();
+            int n = 0;
+            for (int y = 0; y < img.height(); y += 2)
+                for (int x = 0; x < img.width(); x += 2) {
+                    const QColor c = img.pixelColor(x, y);
+                    n += c.red() > 200 && c.green() < 70 && c.blue() < 70;
+                }
+            return n;
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(redPixels() > 20, 20000);
+        QCOMPARE(cache.decodesHere(), here);
+    }
 };
 
 JP_TEST_CLASS(CrunchPrintTests)
