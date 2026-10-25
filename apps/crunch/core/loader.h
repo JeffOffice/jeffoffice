@@ -17,6 +17,7 @@
 #include <QStringList>
 
 #include <atomic>
+#include <vector>
 #include <condition_variable>
 #include <functional>
 #include <map>
@@ -58,6 +59,9 @@ struct CalcBatch {
     bool stopped = false;          // ... because it was stopped
     qint64 epoch = 0;              // for a last batch: how many changes the window had made when the calculation finished (WorkbookLoader::changesMade): all of them are worked out
     qint64 workerCpuMicros = 0;    // the worker thread's processor time since it began
+    bool due = false;              // (a last batch) the workbook is set to be worked out by hand and has formulas waiting for it
+    qint64 circular = 0;           // (a last batch) the formulas in circles, which a person is to be told of (0 when the workbook goes round them, or has none)
+    std::vector<jp::office::sheet::Calculation::CircularCell> circleCells;   // and the first of them, in the order of the sheets and cells
     int generation = 0;            // how many times rows, columns, or cells had been moved (WorkbookLoader::structureGeneration) when the values in it were worked out: cells they name are where
                                    // they were then
 };
@@ -103,6 +107,13 @@ public:
     void stopCalculation();
     // Works every formula out again, on the worker; false if there is nothing to work out (no workbook read whole).
     bool recalculate();
+    // Works out the formulas of one sheet (and whatever else was waiting: what they read may be among it); for a workbook that is worked out by hand.
+    bool recalculateSheet(int sheet);
+    // Whether the workbook is worked out by hand: the worker does nothing at an edit, and works out only what recalculate and recalculateSheet ask for. The last batch of each change says
+    // that formulas are waiting (CalcBatch::due). Going back to automatic works out what waits.
+    void setManual(bool manual);
+    // Before start(): whether a workbook that its file sets to be worked out by hand is (true, the default); the tools that compare every formula with the file's result say false.
+    void setManualAllowed(bool allowed) { m_manualAllowed = allowed; }
 
     // ---- changing the cells, on the window's thread
     // The calculation and the cells are the worker's while it works the formulas out; the window reads the cells directly to draw them (reading beside the worker is no
@@ -175,6 +186,9 @@ private:
         std::atomic<qint64> holdsMade{0};     // holds taken (see holdsTaken)
         std::atomic<int> refuse{0};           // holds to refuse (see refuseHolds)
         std::atomic<int> structure{0};        // times cells were moved (see structureGeneration)
+        std::atomic<bool> manual{false};      // the workbook is worked out by hand
+        std::atomic<bool> manualAllowed{true};
+        std::atomic<int> sheetCalc{-1};       // a sheet whose formulas are to be worked out (by hand)
         std::atomic<bool> urgent{false};      // a change was made: the first values it makes go to the window as soon as they are there
         void updateHalt() { halt.store(stopCalc.load() || holds.load() > 0 || cancel.load()); }
     };
@@ -187,6 +201,7 @@ private:
     std::shared_ptr<LoadedBook> m_result;
     std::shared_ptr<State> m_state;
     int m_pace = 0;
+    bool m_manualAllowed = true;
 };
 
 } // namespace jp::crunch

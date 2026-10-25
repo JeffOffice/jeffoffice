@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <tuple>
 
 namespace jp::office::sheet {
 
@@ -69,6 +70,8 @@ Calculation::Calculation(const Workbook &book, const CalcOptions &options) : Wor
     m_evaluator.seedRandom(quint64(QDateTime::currentMSecsSinceEpoch()) * 0x9E3779B97F4A7C15ull + 12345);
     if (options.workLimit > 0) m_evaluator.setWorkLimit(options.workLimit);
     m_iterate = book.info().iterate;
+    m_iterCount = book.info().iterateCount;
+    m_iterDelta = book.info().iterateDelta;
     m_ctx.dateSystem = book.info().dateSystem;
     if (options.recalcWorkLimit > 0) m_workLimit = options.recalcWorkLimit;
     if (options.maxHeldBytes > 0) m_heldLimit = options.maxHeldBytes;
@@ -963,6 +966,12 @@ void Calculation::undoSheetRewrite(const SheetRewrite &record)
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // recalculation
 
+// A formula kept apart because it is in a circle (a window works circles out, or goes round them): when something it reads changes it is looked at again, as it may not be in a circle now.
+bool Calculation::circleKeptForRetry(Node &n) const
+{
+    return m_options.goRoundCircles && (n.flags & Kept) && (n.kept == 'C' || n.kept == 'I') && n.state == Done;
+}
+
 void Calculation::markDirty(quint32 id, std::vector<CellArea> *changed)
 {
     Node &n = m_nodes[id];
@@ -998,6 +1007,10 @@ void Calculation::markDependents(std::vector<CellArea> *changed)
                 giveName(id, changed);
                 continue;
             }
+            if (circleKeptForRetry(n)) {
+                n.flags &= quint16(~(Kept | NodeTainted | Circular));
+                n.kept = 0;
+            }
             if ((n.flags & Kept) || n.state != Done) continue;
             markDirty(id, changed);
         }
@@ -1029,6 +1042,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
             continue;
         }
         m_always[j.listed++] = id;
+        if (m_onlySheet >= 0 && n.sheet != m_onlySheet) continue;   // (left for the next recalculation: it stays on the list)
         if ((n.flags & Kept) || n.state != Done) continue;
         markDirty(id, &j.changed);
     }
@@ -1043,9 +1057,19 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
             const quint32 id = j.found[j.foundAt++];
             Node &n = m_nodes[id];
             if (n.flags & Dead) continue;
+            if (m_sheetAreaOwner >= 0 && n.sheet == m_sheetAreaOwner && j.queried == m_sheetArea) continue;   // (the sheet's own formulas were worked out whole)
+            if (m_onlySheet >= 0 && n.sheet != m_onlySheet) {
+                // (a formula of another sheet: it is not marked now; the block it reads is read again by the next recalculation)
+                if (m_deferredAreas.empty() || !(m_deferredAreas.back() == j.queried)) m_deferredAreas.push_back(j.queried);
+                continue;
+            }
             if ((n.flags & Kept) && n.kept == 'U' && n.state == Done) {
                 giveName(id, &j.changed);
                 continue;
+            }
+            if (circleKeptForRetry(n)) {
+                n.flags &= quint16(~(Kept | NodeTainted | Circular));
+                n.kept = 0;
             }
             if ((n.flags & Kept) || n.state != Done) continue;
             markDirty(id, &j.changed);
@@ -1056,6 +1080,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         j.changed.pop_back();
         j.found.clear();
         j.foundAt = 0;
+        j.queried = a;
         // (a stop ends the search where it is: it is made again, whole, when the calculation goes on; a cell that two hundred thousand formulas read is a search that long)
         const bool whole = a.single() ? m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &j.found, m_ctx.cancel) : m_graph->dependentsOfArea(a, &j.found, m_ctx.cancel);
         if (!whole) {
@@ -1070,15 +1095,36 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
     ck.finish();
     m_dirtyCursor = 0;
     m_begin = BeginJob();
+    m_sheetAreaOwner = -1;
     return true;
 }
 
 void Calculation::invalidateAll()
 {
     abandon();
+    releaseDeferred(true);
     // (every formula is marked to be worked out, a chunk at a time by the next recalculation: asking costs nothing, and the count says how many are to be done)
     m_invalidate.active = true;
     m_invalidate.at = 0;
+    m_invalidate.sheet = -1;
+}
+
+void Calculation::invalidateSheet(int sheet)
+{
+    abandon();
+    m_onlySheet = sheet;
+    // (what other sheets read of this one is read again by the next recalculation, if any formula there reads it: see releaseDeferred)
+    CellArea whole;
+    whole.sheet1 = whole.sheet2 = sheet;
+    whole.row1 = 0;
+    whole.row2 = kGridRows - 1;
+    whole.col1 = 0;
+    whole.col2 = kGridCols - 1;
+    m_sheetArea = whole;
+    m_sheetAreaPending = sheet;
+    m_invalidate.active = true;
+    m_invalidate.at = 0;
+    m_invalidate.sheet = sheet;
 }
 
 bool Calculation::stepInvalidate(const std::function<bool()> &timeUp, qint64 *spent)
@@ -1088,7 +1134,12 @@ bool Calculation::stepInvalidate(const std::function<bool()> &timeUp, qint64 *sp
         if (!ck.next()) return false;
         const quint32 id = quint32(m_invalidate.at++);
         Node &n = m_nodes[id];
-        if ((n.flags & (Dead | Kept)) || n.state != Done) continue;
+        if (n.flags & Dead) continue;
+        if (circleKeptForRetry(n)) {
+            n.flags &= quint16(~(Kept | NodeTainted | Circular));
+            n.kept = 0;
+        }
+        if ((n.flags & Kept) || n.state != Done || (m_invalidate.sheet >= 0 && n.sheet != m_invalidate.sheet)) continue;
         n.state = Dirty;
         ++m_notDone;
         m_dirty.push_back(id);
@@ -1141,7 +1192,12 @@ bool Calculation::stepAbandon(const std::function<bool()> &timeUp, qint64 *spent
         if (!ck.next()) return false;
         const quint32 x = a.open[a.openAt++];
         Node &n = m_nodes[x];
-        if (n.state == Done) continue;
+        if (n.state == Done) {
+            if (!(n.flags & Iterating)) continue;
+            // (made ready to be gone round, and not given back: it is to be worked out again)
+            n.flags &= quint16(~Iterating);
+            ++m_notDone;
+        }
         n.state = Dirty;
         n.flags &= quint16(~Retried);
         m_dirty.push_back(x);
@@ -1327,6 +1383,7 @@ void Calculation::markCircular(quint32 id, Progress &pr)
         c.flags &= quint16(~NodeTainted);
     }
     c.flags &= quint16(~Retried);
+    m_circle.insert(id);
     c.state = Done;
     --m_notDone;
     ++pr.recalculated;
@@ -1423,6 +1480,103 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
         j.cursor = j.open.size();
         j.phase = GroupJob::Apply;
     }
+    // the formulas of a circle of a workbook that is to be gone round: each is worked out again and again, reading the latest values of the others
+    if (j.phase == GroupJob::Apply && j.closing && !j.fresh && m_iterate && m_options.goRoundCircles) {
+        j.phase = GroupJob::Iterate;
+        j.stage = 0;
+        j.round = 0;
+        j.at = 0;
+        j.change = 0;
+    }
+    if (j.phase == GroupJob::Iterate) {
+        const size_t n = j.open.size();
+        if (j.stage == 0) {
+            if (j.at == 0) {
+                j.start.assign(n, Value());
+                j.fromFile.assign(n, 0);
+            }
+            while (j.at < n) {
+                if (!ck.next()) return false;
+                const size_t place = j.at;
+                const quint32 id = j.open[j.at++];
+                Node &x = m_nodes[id];
+                if (x.state != Done) {
+                    x.state = Done;
+                    x.flags |= Iterating;
+                    --m_notDone;
+                }
+                // (a formula never worked out begins from the result its file stored, as a program going on from where the file was left would)
+                if (!(x.flags & Worked)) {
+                    const Sheet &sheet = m_sheets[size_t(x.sheet)];
+                    if (const Cell *stored = sheet.cells.find(x.row, x.col)) {
+                        j.start[place] = valueOf(sheet, *stored);
+                        j.fromFile[place] = 1;
+                        storeResult(x, id, j.start[place], false);
+                    }
+                    x.flags &= quint16(~Worked);
+                }
+            }
+            j.stage = 1;
+            j.at = 0;
+            j.round = 0;
+            j.change = 0;
+        }
+        const quint32 rounds = quint32(std::clamp(m_iterCount, 1, kMaxIterations));
+        while (j.stage == 1) {
+            if (j.at >= n) {
+                // a round is done: another, unless nothing changed by as much as it may, or the work there is to do is used
+                ++j.round;
+                const bool settled = j.change < m_iterDelta || j.change == 0;
+                if (settled && j.round == 1 && std::find(j.fromFile.begin(), j.fromFile.end(), char(0)) == j.fromFile.end()) {
+                    // the first round moved no value by as much as it may: the file's results stand, as they were stored
+                    for (size_t k = 0; k < n; ++k) storeResult(m_nodes[j.open[k]], j.open[k], j.start[k], false);
+                }
+                j.at = 0;
+                j.change = 0;
+                if (settled || j.round >= rounds || m_workUsed >= m_workLimit) {
+                    j.stage = 2;
+                    break;
+                }
+                continue;
+            }
+            if (!ck.next()) return false;
+            const quint32 id = j.open[j.at];
+            Node &x = m_nodes[id];
+            const Value was = x.kind == KindArray ? m_arrays.value(id) : nodeValue(x, id);
+            qint64 work = 0;
+            const Value v = runFormula(id, &work);
+            if (m_evaluator.status() == EvalStatus::Cancelled) return false;   // (stopped in the middle of it: it is worked out again)
+            ++j.at;
+            *spent += work;
+            pr.work += work;
+            m_workUsed += work;
+            ++pr.evaluated;
+            if (x.flags & Told) registerNode(id, &m_touched);
+            storeResult(x, id, v, false);
+            if (was.isNumber() && v.isNumber()) j.change = std::max(j.change, std::fabs(was.number() - v.number()));
+            else if (was.debug() != v.debug()) j.change = std::max(j.change, 1e308);
+        }
+        // the values the rounds came to are given, and the formulas are done
+        while (j.at < n) {
+            if (!ck.next()) return false;
+            const quint32 id = j.open[j.at++];
+            Node &x = m_nodes[id];
+            if (m_sink) {
+                const Value v = x.kind == KindArray ? m_arrays.value(id) : nodeValue(x, id);
+                if (v.isArray()) {
+                    for (int r = 0; r < v.rows(); ++r)
+                        for (int c = 0; c < v.cols(); ++c) m_sink(x.sheet, x.row + quint32(r), quint32(x.col) + quint32(c), v.at(r, c));
+                } else {
+                    m_sink(x.sheet, x.row, x.col, v);
+                }
+            }
+            x.flags &= quint16(~(Iterating | Circular | Retried | NodeTainted));
+            ++pr.recalculated;
+        }
+        ck.finish();
+        m_job = GroupJob();
+        return true;
+    }
     // the formulas of the group, each given back to the stack (the first of them is worked out first), or the result of a circle
     const bool circle = j.closing && !j.fresh;
     while (j.cursor > 0) {
@@ -1444,9 +1598,33 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
     return true;
 }
 
+bool Calculation::formulaPlace(quint32 node, int *sheet, quint32 *row, quint32 *col) const
+{
+    if (node >= m_nodes.size() || (m_nodes[node].flags & Dead)) return false;
+    *sheet = m_nodes[node].sheet;
+    *row = m_nodes[node].row;
+    *col = m_nodes[node].col;
+    return true;
+}
+
 Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<bool> *cancel, qint64 timeBudgetMicros)
 {
     const qint64 before = m_items;
+    m_onlyFresh = false;
+    Progress pr = recalculateSlice(budget, cancel, timeBudgetMicros);
+    pr.jobItems = m_items - before;
+    return pr;
+}
+
+Calculation::Progress Calculation::recalculateFresh(qint64 budget, const std::atomic<bool> *cancel, qint64 timeBudgetMicros)
+{
+    if (m_fresh.empty()) {
+        Progress done;
+        done.finished = true;
+        return done;
+    }
+    const qint64 before = m_items;
+    m_onlyFresh = true;
     Progress pr = recalculateSlice(budget, cancel, timeBudgetMicros);
     pr.jobItems = m_items - before;
     return pr;
@@ -1480,7 +1658,7 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
         if (!stepInvalidate(timeUp, &spent)) return pr;
     }
     if (!m_running) beginRecalculation();
-    if (m_begin.active) {
+    if (m_begin.active && !m_onlyFresh) {
         if (stopped()) {
             abandon();
             pr.cancelled = true;
@@ -1509,6 +1687,10 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
                 const quint32 id = m_dirty[m_dirtyCursor++];
                 const Node &n = m_nodes[id];
                 if (n.state == Dirty && !(n.flags & Dead)) {
+                    if ((m_onlySheet >= 0 && n.sheet != m_onlySheet) || (m_onlyFresh && !m_fresh.count(id))) {
+                        m_deferredRoots.push_back(id);   // (it waits for the next recalculation)
+                        continue;
+                    }
                     root = id;
                     break;
                 }
@@ -1592,8 +1774,80 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
     m_running = false;
     m_dirty.clear();
     m_dirtyCursor = 0;
+    m_fresh.clear();
+    m_onlyFresh = false;
+    releaseDeferred();
     pr.finished = true;
     return pr;
+}
+
+// What a recalculation of one sheet left for the others is waiting again: the formulas that were to be started from, and the blocks whose readers were to be marked.
+void Calculation::releaseDeferred(bool discardSheetArea)
+{
+    m_onlySheet = -1;
+    const int pending = m_sheetAreaPending;
+    m_sheetAreaPending = -1;
+    m_sheetAreaOwner = -1;
+    if (pending >= 0 && !discardSheetArea) {
+        // (the sheet that was worked out is read by formulas of another: only then is anything left waiting for it)
+        std::vector<quint32> readers;
+        m_graph->dependentsOfArea(m_sheetArea, &readers);
+        bool other = false;
+        for (const quint32 id : readers)
+            if (!(m_nodes[id].flags & Dead) && m_nodes[id].sheet != pending) {
+                other = true;
+                break;
+            }
+        if (other) {
+            m_deferredAreas.push_back(m_sheetArea);
+            m_sheetAreaOwner = pending;
+        }
+    }
+    for (const quint32 id : m_deferredRoots)
+        if (id < m_nodes.size() && m_nodes[id].state == Dirty && !(m_nodes[id].flags & Dead)) m_dirty.push_back(id);
+    m_deferredRoots.clear();
+    m_dirtyCursor = 0;
+    const std::vector<CellArea> areas = std::move(m_deferredAreas);
+    m_deferredAreas.clear();
+    for (const CellArea &a : areas) queueDependents(a);
+}
+
+void Calculation::setIteration(bool on, int count, double delta)
+{
+    count = std::clamp(count, 1, kMaxIterations);
+    if (!(delta >= 0)) delta = 0;
+    const bool changed = on != m_iterate || count != m_iterCount || delta != m_iterDelta;
+    m_iterate = on;
+    m_iterCount = count;
+    m_iterDelta = delta;
+    if (changed) invalidateAll();   // (what is in a circle is worked out again)
+}
+
+const Calculation::Node &Calculation::circleNode(quint32 id) const
+{
+    ++m_circleWork;   // (every formula circularCells looks at is counted here)
+    return m_nodes[id];
+}
+
+qint64 Calculation::circularCells(std::vector<CircularCell> *out, qint64 cap) const
+{
+    // (the formulas that were found in circles are kept as they are found, so that nothing looks at every formula; one that has stopped being in a circle is let go of when met)
+    std::vector<CircularCell> all;
+    for (auto it = m_circle.begin(); it != m_circle.end();) {
+        const Node &n = circleNode(*it);
+        if ((n.flags & (Dead | Circular)) != Circular) {
+            it = m_circle.erase(it);
+            continue;
+        }
+        if (n.state == Done) all.push_back({n.sheet, n.row, quint32(n.col)});
+        ++it;
+    }
+    const qint64 found = qint64(all.size());
+    if (!out || cap <= 0 || found == 0) return found;
+    // (in the order of the sheets and cells, so that the first of them are the first of the sheets)
+    std::sort(all.begin(), all.end(), [](const CircularCell &a, const CircularCell &b) { return std::tie(a.sheet, a.row, a.col) < std::tie(b.sheet, b.row, b.col); });
+    for (size_t i = 0; i < all.size() && qint64(i) < cap; ++i) out->push_back(all[i]);
+    return found;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1731,6 +1985,7 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
     s.extentRows = std::max(s.extentRows, row + 1);
     s.extentCols = std::max<quint32>(s.extentCols, col + 1);
     const quint32 id = addNode(sheet, c, c.formula);
+    m_fresh.insert(id);
     const CellArea a = areaOf(m_nodes[id]);
     // a formula typed with a function the engine lacks has no result to keep: it has #NAME?, which the recalculation gives it
     const bool needsName = m_nodes[id].kept == 'U' && !c.hasResult();

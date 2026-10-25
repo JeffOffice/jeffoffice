@@ -796,6 +796,216 @@ bool patchWorkbookSheets(const QByteArray &xml, const Workbook &book, QByteArray
     return true;
 }
 
+// ---- the workbook's defined names and calculation settings
+
+namespace {
+std::atomic<qint64> g_namesWork{0};
+}
+qint64 patchDefinedNamesWork() { return g_namesWork.load(); }
+
+namespace {
+
+// Where a calcPr or definedNames element is made when the file has none: after the last of the elements the format puts before it.
+qsizetype placeAfterNames(const QByteArray &xml, bool includeNames)
+{
+    qsizetype at = -1;
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        const bool before = t.local == "sheets" || t.local == "functionGroups" || t.local == "externalReferences" || (includeNames && t.local == "definedNames");
+        if (before && (t.closing || t.selfClosing)) at = t.end;
+    }
+    return at;
+}
+
+QByteArray nameElement(const QByteArray &p, const NameChange &c, int id)
+{
+    QByteArray e = "<" + p + "definedName name=\"" + xmlscan::escapeAttribute(c.name) + "\"";
+    if (!c.comment.isEmpty()) e += " comment=\"" + xmlscan::escapeAttribute(c.comment) + "\"";
+    if (id >= 0) e += " localSheetId=\"" + QByteArray::number(id) + "\"";
+    if (c.hidden) e += " hidden=\"1\"";
+    return e + ">" + xmlscan::escapeText(c.text) + "</" + p + "definedName>";
+}
+
+} // namespace
+
+bool patchDefinedNames(const QByteArray &xml, const std::vector<NameChange> &changes, const QVector<int> &order, QByteArray *out)
+{
+    ++g_namesWork;
+    *out = xml;
+    if (changes.empty()) return true;
+    auto idOf = [&](int place) { return place < 0 ? -1 : int(order.indexOf(place)); };
+    struct Existing {
+        qsizetype start, tagEnd, end, textEnd;   // the element, its start tag, and where its text ends (before the closing tag)
+        bool selfClosing;
+        QString name;
+        int id;
+        bool used = false;
+    };
+    std::vector<Existing> existing;
+    // (every element looked at to answer a change is counted here, whatever finds it: a scan of the list would count each element it passes)
+    auto probeExisting = [](const Existing &e) {
+        ++g_namesWork;
+        return !e.used;
+    };
+    QHash<QString, std::vector<size_t>> byKey;   // the elements by the place of their sheet and their name in capitals, in the order they come
+    Tag list, listClose;
+    const bool hasList = findStart(xml, "definedNames", &list);
+    if (hasList && !list.selfClosing) {
+        if (!findEnd(xml, list, &listClose)) return false;
+        Tag t;
+        qsizetype pos = list.end;
+        while (xmlscan::nextTag(xml, pos, &t) && t.start < listClose.start) {
+            pos = t.end;
+            if (t.closing || t.local != "definedName") continue;
+            const QByteArray tag = xml.mid(t.start, t.end - t.start);
+            Existing e;
+            e.start = t.start;
+            e.tagEnd = t.end;
+            e.end = t.end;
+            e.textEnd = t.end;
+            e.selfClosing = t.selfClosing;
+            qsizetype vs = 0, ve = 0;
+            e.name = xmlscan::attributeValue(tag, "name", &vs, &ve) ? xmlscan::unescape(QByteArrayView(tag).sliced(vs, ve - vs)) : QString();
+            e.id = xmlscan::attributeValue(tag, "localSheetId", &vs, &ve) ? tag.mid(vs, ve - vs).toInt() : -1;
+            if (!t.selfClosing) {
+                Tag close;
+                if (!findEnd(xml, t, &close)) return false;
+                e.end = close.end;
+                e.textEnd = close.start;
+                pos = close.end;
+            }
+            ++g_namesWork;
+            byKey[QString::number(e.id) + QLatin1Char('|') + e.name.toUpper()].push_back(existing.size());
+            existing.push_back(e);
+        }
+    }
+    const QByteArray p = hasList ? QByteArray(xmlscan::prefixOf(list.name)) : prefixOfRoot(xml);
+    struct Edit {
+        qsizetype start, end;
+        QByteArray with;
+    };
+    std::vector<Edit> edits;
+    QByteArray added;
+    qint64 removed = 0, addedCount = 0;
+    for (const NameChange &c : changes) {
+        Existing *found = nullptr;
+        if (c.hadOld) {
+            ++g_namesWork;
+            const auto at = byKey.constFind(QString::number(idOf(c.oldPlace)) + QLatin1Char('|') + c.oldName.toUpper());
+            if (at != byKey.constEnd())
+                for (const size_t k : at.value())
+                    if (probeExisting(existing[k])) {
+                        found = &existing[k];
+                        break;
+                    }
+        }
+        if (found) found->used = true;
+        if (c.remove) {
+            if (found) {
+                edits.push_back({found->start, found->end, QByteArray()});
+                ++removed;
+            }
+            continue;
+        }
+        if (!found) {
+            added += nameElement(p, c, idOf(c.place));
+            ++addedCount;
+            continue;
+        }
+        QByteArray tag = xml.mid(found->start, found->tagEnd - found->start);
+        const QByteArray was = tag;
+        if (found->name != c.name) setAttribute(&tag, "name", xmlscan::escapeAttribute(c.name));
+        qsizetype vs = 0, ve = 0;
+        const QString haveComment = xmlscan::attributeValue(tag, "comment", &vs, &ve) ? xmlscan::unescape(QByteArrayView(tag).sliced(vs, ve - vs)) : QString();
+        if (haveComment != c.comment) {
+            if (c.comment.isEmpty()) dropAttribute(&tag, "comment");
+            else setAttribute(&tag, "comment", xmlscan::escapeAttribute(c.comment));
+        }
+        const bool haveHidden = xmlscan::attributeValue(tag, "hidden", &vs, &ve) && (tag.mid(vs, ve - vs) == "1" || tag.mid(vs, ve - vs) == "true");
+        if (haveHidden != c.hidden) {
+            if (c.hidden) setAttribute(&tag, "hidden", "1");
+            else dropAttribute(&tag, "hidden");
+        }
+        const QString haveText = found->selfClosing ? QString() : xmlscan::unescape(QByteArrayView(xml).sliced(found->tagEnd, found->textEnd - found->tagEnd));
+        const bool textChanges = haveText != c.text;
+        if (tag == was && !textChanges) continue;
+        if (found->selfClosing) {
+            if (!textChanges) {
+                edits.push_back({found->start, found->tagEnd, tag});
+            } else {
+                tag.chop(2);
+                while (!tag.isEmpty() && isSpace(tag.back())) tag.chop(1);
+                edits.push_back({found->start, found->end, tag + ">" + xmlscan::escapeText(c.text) + "</" + p + "definedName>"});
+            }
+            continue;
+        }
+        if (tag != was) edits.push_back({found->start, found->tagEnd, tag});
+        if (textChanges) edits.push_back({found->tagEnd, found->textEnd, xmlscan::escapeText(c.text)});
+    }
+    if (edits.empty() && added.isEmpty()) return true;
+    const qint64 left = qint64(existing.size()) - removed + addedCount;
+    if (hasList && !list.selfClosing) {
+        if (left == 0) {
+            // (a list with no name in it is not allowed: it goes)
+            *out = xml.left(list.start) + xml.mid(listClose.end);
+            return true;
+        }
+        if (!added.isEmpty()) edits.push_back({listClose.start, listClose.start, added});
+    } else if (hasList) {
+        if (added.isEmpty()) return true;
+        *out = xml.left(list.start) + "<" + p + "definedNames>" + added + "</" + p + "definedNames>" + xml.mid(list.end);
+        return true;
+    } else {
+        const qsizetype at = placeAfterNames(xml, false);
+        if (at < 0) return false;
+        *out = xml.left(at) + "<" + p + "definedNames>" + added + "</" + p + "definedNames>" + xml.mid(at);
+        return true;
+    }
+    std::stable_sort(edits.begin(), edits.end(), [](const Edit &a, const Edit &b) { return a.start < b.start; });
+    QByteArray result;
+    qsizetype copied = 0;
+    for (const Edit &e : edits) {
+        if (e.start < copied) return false;
+        result += xml.mid(copied, e.start - copied) + e.with;
+        copied = e.end;
+    }
+    *out = result + xml.mid(copied);
+    return true;
+}
+
+bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterateCount, double iterateDelta, QByteArray *out)
+{
+    Tag calc;
+    const bool has = findStart(xml, "calcPr", &calc);
+    const QByteArray p = prefixOfRoot(xml);
+    QByteArray tag = has ? xml.mid(calc.start, calc.end - calc.start) : "<" + p + "calcPr/>";
+    const QByteArray was = tag;
+    if (mode == CalcMode::Manual) setAttribute(&tag, "calcMode", "manual");
+    else if (mode == CalcMode::AutoNoTable) setAttribute(&tag, "calcMode", "autoNoTable");
+    else dropAttribute(&tag, "calcMode");
+    if (iterate) {
+        setAttribute(&tag, "iterate", "1");
+        setAttribute(&tag, "iterateCount", QByteArray::number(iterateCount));
+        setAttribute(&tag, "iterateDelta", QByteArray::number(iterateDelta, 'g', 12));
+    } else {
+        dropAttribute(&tag, "iterate");
+    }
+    if (has && tag == was) {
+        *out = xml;
+        return true;
+    }
+    if (has) {
+        *out = xml.left(calc.start) + tag + xml.mid(calc.end);
+        return true;
+    }
+    const qsizetype at = placeAfterNames(xml, true);
+    if (at < 0) return false;
+    *out = xml.left(at) + tag + xml.mid(at);
+    return true;
+}
+
 // ---- the whole file
 
 namespace {
@@ -1189,11 +1399,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     MoveContext ctx;
     ctx.edits = changes.edits;
     ctx.renames = changes.renames;
+    ctx.nameRenames = changes.nameRenames;
     ctx.permutes = changes.permutes;
     // (the file's own names: the edits to rows and columns say which sheet by its place, and the file has not been told of the renames yet)
     for (const SheetEntry &se : book.info().sheets) ctx.sheetNames << (se.isNew ? QString() : se.fileName);
     ctx.sheetOps = changes.sheetOps;
-    const bool moves = !ctx.edits.empty() || !ctx.renames.empty() || !ctx.sheetOps.empty() || !ctx.permutes.empty();
+    const bool moves = !ctx.edits.empty() || !ctx.renames.empty() || !ctx.nameRenames.empty() || !ctx.sheetOps.empty() || !ctx.permutes.empty();
     QSet<int> moveSheets;   // the sheets (by their place) whose part is made by the mover
     if (moves) {
         anyCellChanged = true;
@@ -1802,7 +2013,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
         filterNames.push_back(name);
     }
-    if (changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || changes.setWorkbookProtection) {
+    if (changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.setWorkbookProtection) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
@@ -1819,6 +2030,16 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             }
             if (!filterNames.empty()) {
                 if (!patchFilterNames(xml, filterNames, &patched, &why)) return fail(why);
+                changed = changed || patched != xml;
+                xml = patched;
+            }
+            if (!changes.nameChanges.empty()) {
+                if (!patchDefinedNames(xml, changes.nameChanges, book.info().order, &patched)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes."));
+                changed = changed || patched != xml;
+                xml = patched;
+            }
+            if (changes.calcChanged) {
+                if (!patchCalcPr(xml, changes.calcMode, changes.iterate, changes.iterateCount, changes.iterateDelta, &patched)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes."));
                 changed = changed || patched != xml;
                 xml = patched;
             }

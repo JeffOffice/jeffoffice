@@ -150,6 +150,27 @@ struct SheetOp {
     bool operator==(const SheetOp &o) const { return kind == o.kind && name == o.name && newName == o.newName; }
 };
 
+// A defined name given another name by a person (the formulas of the file that use it follow; see structsave.h): the names it had and has, the place of the sheet it belongs to (-1 for the
+// workbook's), and the places of the sheets that had a name of the same text of their own then (a use of the workbook's name on such a sheet is of the sheet's name).
+struct NameRename {
+    QString oldName, newName;
+    int scope = -1;
+    std::vector<int> shadowed;
+    bool operator==(const NameRename &o) const { return oldName == o.oldName && newName == o.newName && scope == o.scope && shadowed == o.shadowed; }
+};
+
+// A defined name a person made, changed, or took away. It is found in the file by the name it had and the place of its sheet (`hadOld`: it is in the file; else it is added at the end of the
+// list); `remove` takes it away; else it is as `name`, `text`, `comment`, and `hidden` say, and `place` is where it belongs (-1: the workbook).
+struct NameChange {
+    bool hadOld = false;
+    QString oldName;
+    int oldPlace = -1;
+    bool remove = false;
+    QString name, text, comment;
+    int place = -1;
+    bool hidden = false;
+};
+
 // Cells put in another order in place (a sort): in the cells of the sheet from `first` on that are in the lines (rows, or columns with `columns`) of `lines`, line `i` of the range
 // went to line `to[i]` of it. The notes and links on the cells go with them. `after` is how many of the edits to rows, columns, and cells (SaveChanges::edits) had been made when it was.
 struct CellPermute {
@@ -205,6 +226,15 @@ struct SaveChanges {
     std::vector<StructEdit> edits;
     // And the columns of tables renamed since, in order.
     std::vector<ColumnRename> renames;
+    // And the defined names given other names since, in order, and the names a person made, changed, or took away (written into the workbook's list of names).
+    std::vector<NameRename> nameRenames;
+    std::vector<NameChange> nameChanges;
+    // How the workbook calculates, when a person changed it (the workbook's calcPr is made to say so): the mode, whether circular references are worked out by going round them, and how.
+    bool calcChanged = false;
+    CalcMode calcMode = CalcMode::Auto;
+    bool iterate = false;
+    int iterateCount = 100;
+    double iterateDelta = 0.001;
     // Chart parts whose caches (the numbers and texts a chart stores for the cells it reads) are made again, by the part's name: for each reference as the part writes it (its c:f), what
     // the cells hold now. A cache that holds that already is left alone (drawingsave.h).
     std::map<QString, ChartCaches> chartCaches;
@@ -276,6 +306,13 @@ bool removeRelationshipOfType(const QByteArray &xml, const QString &typeSuffix, 
 bool removeRelationshipsById(const QByteArray &xml, const QStringList &ids, QByteArray *out);
 // The workbook part with fullCalcOnLoad="1" on its calcPr (made if there is none).
 bool setFullCalcOnLoad(const QByteArray &xml, QByteArray *out);
+// The workbook part with the defined names changed as the list says (names not in it are left byte for byte as they are). `order` is the places of the sheets in the order of the tabs, which the
+// file's `localSheetId` counts by (the part is as patchWorkbookSheets left it). False (nothing changed) if the part is not in a form this changes.
+bool patchDefinedNames(const QByteArray &xml, const std::vector<NameChange> &changes, const QVector<int> &order, QByteArray *out);
+// For tests: the elements and lookups patchDefinedNames has made in all (it is linear in the names and the changes).
+qint64 patchDefinedNamesWork();
+// The workbook part with its calcPr saying how the workbook calculates (made if there is none).
+bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterateCount, double iterateDelta, QByteArray *out);
 // The hidden name that other programs keep for the range of a sheet's filter (`_xlnm._FilterDatabase`, of the sheet at `localSheetId` in the workbook's list of sheets) made, changed, or taken
 // away: `range` is the range as a name writes it ("'Sheet1'!$A$1:$D$9"), or empty to take the name away.
 struct FilterName {

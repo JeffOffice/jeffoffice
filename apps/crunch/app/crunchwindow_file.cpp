@@ -255,6 +255,7 @@ void CrunchWindow::setActiveSheet(int sheetIndex)
         m_switchingTabs = false;
     }
     showSheet(sheetIndex, false);
+    refreshCheckMarks();
     if (!m_calculating && !m_loading) setStatus(tr("Ready"));
 }
 
@@ -296,6 +297,7 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     if (active) updateBars();
     ++m_batches;
     if (batch->last) {
+        followCalcBatch(*batch);
         // (a calculation that was stopped has been said to be: only one that finished says so now; and one that has not worked out all the changes made since is not over)
         if (!batch->stopped && m_calculating && batch->epoch >= m_loader.changesMade()) {
             m_calculating = false;
