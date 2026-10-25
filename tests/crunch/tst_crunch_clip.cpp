@@ -2,6 +2,7 @@
 // programs as text and as HTML, and a cut that moves the cells and what refers to them. Every workbook is built here, in a temporary folder.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "savedok.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
@@ -385,7 +386,7 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("E7")), QStringLiteral("n:6"));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QFile f(e.path);
         QVERIFY(f.open(QIODevice::ReadOnly));
         QMap<QString, QByteArray> parts;
@@ -422,7 +423,7 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("edit.redo"))->trigger();
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         QCOMPARE(second.w.calculation()->mergesOf(0).size(), e.win.w.calculation()->mergesOf(0).size());

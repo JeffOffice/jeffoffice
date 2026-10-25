@@ -322,8 +322,11 @@ Shown GridSheet::shown(quint32 row, quint32 col, const Cell &cell) const
     Shown s;
     if (m_showFormulas && cell.hasFormula() && m_data.sheet && !m_data.sheet->formulaText(cell).isEmpty())
         s = showValue(jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(cell))), lookOf(row, col, cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
-    else
-        s = showValue(valueOf(cell), lookOf(row, col, cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
+    else {
+        jp::calc::Value v = valueOf(cell);
+        if (m_errors != ErrorDisplay::Shown && v.isError()) v = m_errors == ErrorDisplay::Blank ? jp::calc::Value() : m_errors == ErrorDisplay::Dash ? jp::calc::Value::text(QStringLiteral("--")) : jp::calc::Value::error(jp::calc::ErrorKind::NA);
+        s = showValue(v, lookOf(row, col, cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
+    }
     // Where it sits in the grid's places: a text with the general alignment begins on the side its direction says (a number is at the right, true, false, and errors in the middle), and in
     // a sheet that reads right to left the places are mirrored for the screen, so left and right change.
     {
@@ -398,6 +401,13 @@ void GridSheet::setNumberSymbols(const jp::calc::NumberSymbols &symbols)
 {
     if (symbols.decimal == m_symbols.decimal && symbols.group == m_symbols.group) return;
     m_symbols = symbols;
+    m_texts.clear();
+}
+
+void GridSheet::setErrorDisplay(ErrorDisplay mode)
+{
+    if (mode == m_errors) return;
+    m_errors = mode;
     m_texts.clear();
 }
 

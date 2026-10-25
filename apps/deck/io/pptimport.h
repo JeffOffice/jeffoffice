@@ -19,4 +19,11 @@ namespace jp::deck {
 // it couldn't be read; empty when all of it was.
 std::unique_ptr<Document> importBinaryPresentation(const QByteArray &bytes, QString *error = nullptr);
 
+// The work the last presentation read on this thread took, counted for tests of cost: the shapes of drawings taken, the persist entries listed, and the items or entries that
+// the lookups of pictures, notes, and master placeholders went through (each is passed once to make an index and not again for each lookup).
+struct PptImportWork {
+    qint64 shapesTaken = 0, persistRead = 0, storeEntriesVisited = 0, notesVisited = 0, placeholderItemsVisited = 0, writersXmlBytes = 0, pp9EntriesRead = 0;
+};
+PptImportWork lastPptImportWorkForTest();
+
 } // namespace jp::deck

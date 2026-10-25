@@ -93,6 +93,9 @@ QString nextRelationshipId(const QVector<office::Relationship> &links);
 int levelsScannedForOutlineForTest();
 // How many expressions the attributes of tags have been looked for with since the program began: one for each name, however many tags a file has.
 qint64 attributeExpressionsMadeForTest();
+// How many times the expression for a frame's properties has been run on a paragraph property kept as written since the program began: a cost test (only a property that names
+// a frame is looked at with it, not every property of every paragraph of a style chain).
+qint64 frameExpressionRunsForTest();
 // How many paragraphs the fields that show a paragraph style's text have looked at (to find where each style's paragraphs are, and to read one found), since the count was reset: a
 // cost test (a page's fields cost a search, not a walk over the story).
 qint64 styleRefParagraphsScannedForTest();

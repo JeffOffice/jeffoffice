@@ -1,6 +1,7 @@
 // JeffPub's tests of text layout: lines, tabs, bullets, and page-number fields.
 #include "pubhelpers.h"
 #include "../timing.h"
+#include <libmspub/jp_hooks.h>
 
 class PubTextTests : public QObject {
     Q_OBJECT
@@ -781,6 +782,7 @@ private Q_SLOTS:
     // places.
     void tabbedRowsLayOutLikePlainOnes()
     {
+        struct Work { qint64 ranges, chars, runs, tabStops; };
         auto timed = [](bool tabs) {
             QTextDocument doc;
             QTextCursor c(&doc);
@@ -797,13 +799,16 @@ private Q_SLOTS:
             fs.size = QSizeF(400, 700);
             fs.insets = QMarginsF(0, 0, 0, 0);
             fs.hyphenate = false;
-            return bestNanoseconds([&] {
-                jp::StoryLayout l;
-                l.build(&doc, {fs}, jp::LayoutEnv());
-            }) / 1000000;
+            const Work before{jp::StoryLayout::formatRangesMadeForTest(), jp::StoryLayout::paragraphCharsReadForTest(), jp::StoryLayout::runsPassedForTest(), jp::StoryLayout::defaultTabStopsListedForTest()};
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, jp::LayoutEnv());
+            return Work{jp::StoryLayout::formatRangesMadeForTest() - before.ranges, jp::StoryLayout::paragraphCharsReadForTest() - before.chars, jp::StoryLayout::runsPassedForTest() - before.runs,
+                        jp::StoryLayout::defaultTabStopsListedForTest() - before.tabStops};
         };
-        const qint64 plain = timed(false), tabbed = timed(true);
-        QVERIFY2(tabbed < 5 * plain + 200, qPrintable(QStringLiteral("%1 ms with tabs, %2 ms without").arg(tabbed).arg(plain)));
+        const Work plain = timed(false), tabbed = timed(true);
+        // Counted: the tabs add no pass over the rest of the paragraph's items for each (no default stop is handed to Qt as a left stop), and nothing else grows with them.
+        QVERIFY2(tabbed.tabStops == 0 && tabbed.ranges <= 5 * plain.ranges + 200 && tabbed.chars <= 5 * plain.chars + 2000 && tabbed.runs <= 5 * plain.runs + 200,
+                 qPrintable(QStringLiteral("with tabs: %1 ranges, %2 characters, %3 runs, %4 stops; without: %5, %6, %7").arg(tabbed.ranges).arg(tabbed.chars).arg(tabbed.runs).arg(tabbed.tabStops).arg(plain.ranges).arg(plain.chars).arg(plain.runs)));
     }
 
     // A tab goes on to the next line with the text after it only when that
@@ -2114,9 +2119,11 @@ private Q_SLOTS:
         const QString path = dir.filePath(QStringLiteral("links.pub"));
         QString err;
         QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
-        decltype(importPublisherFile(path, &err)) back;
-        const qint64 ms = bestNanoseconds([&] { back = importPublisherFile(path, &err); }, 3, [&] { back.reset(); }) / 1000000;
+        const auto looked = libmspub::tokensLookedAtForTest();
+        auto back = importPublisherFile(path, &err);
         QVERIFY(back);
+        // Counted: each span looks at the links over it (about one for each of the 12,000), not at all of them (the square: 144 million).
+        QVERIFY2(libmspub::tokensLookedAtForTest() - looked <= 3ull * links, qPrintable(QString::number(libmspub::tokensLookedAtForTest() - looked)));
         QSet<QString> found;
         for (const auto &st : back->stories)
             for (QTextBlock b = st->doc->begin(); b.isValid(); b = b.next())
@@ -2124,10 +2131,10 @@ private Q_SLOTS:
                     if (it.fragment().charFormat().isAnchor()) found << it.fragment().charFormat().anchorHref();
         QCOMPARE(found.size(), links);
         QVERIFY(found.contains(QStringLiteral("https://example.com/11999")));
-        QVERIFY2(ms < 15000, qPrintable(QStringLiteral("%1 ms").arg(ms)));   // was over 40 s; a sanitizer build takes 5
         // And as .jpub, reopened just as quickly.
         const QString jpub = dir.filePath(QStringLiteral("links.jpub"));
         QVERIFY2(savePublication(*back, jpub, QImage(), &err), qPrintable(err));
+        // (The clock stays for this one as a watchdog: the load is one pass over the document's JSON, and takes about a second here against fifteen.)
         const qint64 reopened = bestNanoseconds([&] { QVERIFY(loadPublication(jpub, &err)); }, 3) / 1000000;
         QVERIFY2(reopened < 15000, qPrintable(QStringLiteral("%1 ms").arg(reopened)));
     }

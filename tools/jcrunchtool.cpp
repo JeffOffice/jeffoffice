@@ -89,6 +89,7 @@ int gridMain(const QStringList &args);
 // The editing commands (tools/jcrunchtool_edit.cpp: roundtrip, edit-bench), the same.
 int editMain(const QStringList &args);
 int drawingsMain(const QStringList &args);   // (jcrunchtool_drawings.cpp)
+int printMain(const QStringList &args);      // (jcrunchtool_print.cpp)
 }
 #endif
 
@@ -701,7 +702,12 @@ int usage()
              "       jcrunchtool grid-drawings-one [--live] <file.xlsx>\n"
              "       jcrunchtool grid-drawings-shot <file.xlsx> <out.png> [sheet] [WxH]\n"
              "       jcrunchtool grid-drawings-bench [charts=400] [shapes=0]\n"
-             "       jcrunchtool grid-drawings <keys.txt> <out-dir> [jobs]\n";
+             "       jcrunchtool grid-drawings <keys.txt> <out-dir> [jobs]\n"
+             "       jcrunchtool print-pdf <file> <out.pdf> [--sheet N]\n"
+             "       jcrunchtool print-sheets <file> <out-dir> [N ...]\n"
+             "       jcrunchtool print-cuts <file> [N ...]\n"
+             "       jcrunchtool print-shots <out-dir> [file]\n"
+             "       jcrunchtool print-bench [rows=100000] [cols=20]\n";
     return 2;
 }
 
@@ -720,7 +726,7 @@ int main(int argc, char **argv)
     qputenv("JP_NO_TELEMETRY", "1");
 #ifdef JC_GRID
     // the grid commands draw: they need the program's own window system parts (offscreen unless the person chose another)
-    if (argc > 1 && (QByteArray(argv[1]).startsWith("grid-") || QByteArray(argv[1]).startsWith("roundtrip") || QByteArray(argv[1]).startsWith("edit-"))) {
+    if (argc > 1 && (QByteArray(argv[1]).startsWith("grid-") || QByteArray(argv[1]).startsWith("roundtrip") || QByteArray(argv[1]).startsWith("edit-") || QByteArray(argv[1]).startsWith("print-"))) {
         if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM", "offscreen");
         Q_INIT_RESOURCE(resources);
         Q_INIT_RESOURCE(crunch);
@@ -732,6 +738,7 @@ int main(int argc, char **argv)
         int code = ::jp::crunchtool::gridMain(gui.arguments().mid(1));
         if (code < 0) code = ::jp::crunchtool::editMain(gui.arguments().mid(1));
         if (code < 0) code = ::jp::crunchtool::drawingsMain(gui.arguments().mid(1));
+        if (code < 0) code = ::jp::crunchtool::printMain(gui.arguments().mid(1));
         return code >= 0 ? code : usage();
     }
 #endif

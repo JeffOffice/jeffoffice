@@ -124,6 +124,8 @@ ItemList readShapeTree(const QDomElement &tree, const DrawingContext &ctx, const
 // above. The text box's a:bodyPr (insets, anchoring, a:normAutofit's
 // shrinking) is the shape's, read by readShape.
 void readTextBody(const QDomElement &txBody, QTextDocument *doc, const DrawingContext &ctx, const TextStyleStack &styles = {});
+// How many elements of runs' effect lists have been read on this thread since the program began: a count for tests of cost (a list is read as far as its first sixteen).
+qint64 textEffectElementsReadForTest();
 
 // A shape's fill and outline from its properties (a:spPr), with its style
 // (p:style) for what spPr leaves out.

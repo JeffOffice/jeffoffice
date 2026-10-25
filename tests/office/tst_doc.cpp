@@ -28,15 +28,6 @@ using jp::office::Package;
 
 namespace {
 
-// How long a file made to cost a great deal may take to read: ten seconds (twice that where the build is slow, with no optimization or with a sanitizer).
-// These files read in about a second here, and took 23 to 31 seconds before their limits; a busy machine or a slow CI runner takes two or three
-// times as long, so the limit sits well above that and well below the old cost.
-#ifdef NDEBUG
-constexpr qint64 kFastMs = 10000;
-#else
-constexpr qint64 kFastMs = 20000;
-#endif
-
 QString paragraphText(const Block &b)
 {
     QString t;
@@ -417,10 +408,9 @@ private Q_SLOTS:
         w.styles = {a, b};
         w.paras = {{0, 2, 1, QByteArray()}};
         Document d;
-        QElapsedTimer t;
-        t.start();
         QVERIFY(read(w.build(), &d));
-        QVERIFY(t.elapsed() < 5000);
+        // (Counted: the steps along style chains, not the time.)
+        QVERIFY2(doc::readWorkForTest().styleSteps <= 3 * doc::kMaxStyleDepth, qPrintable(QString::number(doc::readWorkForTest().styleSteps)));
         QCOMPARE(bodyTexts(d), QStringList{"x"});
     }
 
@@ -668,11 +658,10 @@ private Q_SLOTS:
         text += QString(depth, QChar(0x13));
         text += QString(depth, QChar(0x15));
         text += QStringLiteral(" finish\r");
-        QElapsedTimer t;
-        t.start();
         Document d;
         QVERIFY(read(simple(text).build(), &d));
-        QVERIFY2(t.elapsed() < kFastMs, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        // (Each mark is converted once: the work is the length of the text, not a state kept for each mark.)
+        QVERIFY2(doc::readWorkForTest().charsConverted <= text.size() && doc::readWorkForTest().outputElements < 1000, qPrintable(QString::number(doc::readWorkForTest().charsConverted)));
         int begins = 0, ends = 0;
         for (const Inline &in : d.body[0].para.content)
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) {
@@ -1090,11 +1079,9 @@ private Q_SLOTS:
         wd[78] = char(0xFF);
         wd[79] = char(0x7F);
         QVERIFY(f.setStream(QStringLiteral("WordDocument"), wd));
-        QElapsedTimer t;
-        t.start();
         QString error;
         QVERIFY2(read(jp::cfb::write(f), &d, &notes, &error), qPrintable(error));
-        QVERIFY(t.elapsed() < 5000);
+        QVERIFY2(doc::readWorkForTest().charsConverted <= 100, qPrintable(QString::number(doc::readWorkForTest().charsConverted)));   // (the text the file holds, not the length it claims)
         // (What the file holds is read; the length it claims is not believed, and the cut is said.)
         QCOMPARE(bodyTexts(d), QStringList{QStringLiteral("short")});
         QVERIFY(notes.leftOut);
@@ -1117,12 +1104,10 @@ private Q_SLOTS:
         }
         text += QStringLiteral("end\r");
         w.text = text;
-        QElapsedTimer t;
-        t.start();
         Document d;
         ReadNotes notes;
         QVERIFY(read(w.build(), &d, &notes));
-        QVERIFY(t.elapsed() < 20000);
+        QVERIFY2(doc::readWorkForTest().charsConverted <= text.size() && doc::readWorkForTest().outputElements <= doc::kMaxOutputElements, qPrintable(QString::number(doc::readWorkForTest().outputElements)));
         int count = 0;
         for (const Block &b : d.body)
             if (b.isRaw && b.tag == QLatin1String("tr") && b.role == Inline::Open) ++count;
@@ -1141,11 +1126,9 @@ private Q_SLOTS:
             w.sections.push_back({i + 1, QByteArray()});
         }
         w.text = text;
-        QElapsedTimer t;
-        t.start();
         Document d;
         QVERIFY(read(w.build(), &d));
-        QVERIFY(t.elapsed() < 20000);
+        QVERIFY2(doc::readWorkForTest().charsConverted <= sections && doc::readWorkForTest().outputElements <= doc::kMaxOutputElements, qPrintable(QString::number(doc::readWorkForTest().outputElements)));
         int breaks = 0;
         for (const Block &b : d.body)
             if (!b.isRaw && b.para.props.section) ++breaks;
@@ -1164,11 +1147,9 @@ private Q_SLOTS:
         }
         text += QLatin1Char('\r');
         w.text = text;
-        QElapsedTimer t;
-        t.start();
         Document d;
         QVERIFY(read(w.build(), &d));
-        QVERIFY(t.elapsed() < 20000);
+        QCOMPARE(doc::readWorkForTest().picturesRead, qint64(1));   // (3,000 characters point to it: it is read once)
         int media = 0;
         for (const wml::KeptPart &p : d.parts)
             if (p.name.startsWith(QLatin1String("/word/media/"))) ++media;
@@ -1211,10 +1192,8 @@ private Q_SLOTS:
         w.styles = st;
         w.paras = {{0, 2, 299, QByteArray()}};
         Document d;
-        QElapsedTimer t;
-        t.start();
         QVERIFY(read(w.build(), &d));
-        QVERIFY(t.elapsed() < 5000);
+        QVERIFY2(doc::readWorkForTest().styleSteps <= 300 * (doc::kMaxStyleDepth + 2), qPrintable(QString::number(doc::readWorkForTest().styleSteps)));
         QCOMPARE(bodyTexts(d), QStringList{"x"});
         // (The style the paragraph has is still read, and its chain no longer than the limit.)
         int depth = 0;
@@ -1245,12 +1224,11 @@ private Q_SLOTS:
             w.shapes.push_back(m);
         }
         const QByteArray file = w.build();
-        QElapsedTimer t;
-        t.start();
         Document d;
         ReadNotes notes;
         QVERIFY(read(file, &d, &notes));
-        QVERIFY2(t.elapsed() < kFastMs, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        // (Walks have a budget of their own: 20,000 members for each of 1,000 anchors would be 20 million visits.)
+        QVERIFY2(doc::readWorkForTest().shapeVisits <= doc::kMaxShapeVisits + 2 * members, qPrintable(QString::number(doc::readWorkForTest().shapeVisits)));
         QVERIFY(notes.leftOut);
     }
 
@@ -1291,13 +1269,12 @@ private Q_SLOTS:
         w.repeatText = 5000;
         const QByteArray file = w.build();
         QVERIFY(file.size() < 200000);
-        QElapsedTimer t;
-        t.start();
         Document d;
         ReadNotes notes;
         QString error;
         QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
-        QVERIFY2(t.elapsed() < kFastMs, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY2(doc::readWorkForTest().outputElements <= doc::kMaxOutputElements + 100 && doc::readWorkForTest().outputBytes <= doc::kMaxOutputBytes + (1 << 20), qPrintable(QString::number(doc::readWorkForTest().outputElements)));
+        QVERIFY2(doc::readWorkForTest().charsConverted <= 5000 * 90, qPrintable(QString::number(doc::readWorkForTest().charsConverted)));
         QVERIFY(notes.leftOut);
         QVERIFY(notes.notes.join(QLatin1Char(' ')).contains(QLatin1String("longer than this program can open")));
         // (What came before the cut is there, whole paragraphs of it.)
@@ -1314,13 +1291,12 @@ private Q_SLOTS:
         w.repeatText = 15000;
         const QByteArray file = w.build();
         QVERIFY(file.size() < 200000);
-        QElapsedTimer t;
-        t.start();
         Document d;
         ReadNotes notes;
         QString error;
         QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
-        QVERIFY2(t.elapsed() < kFastMs, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY2(doc::readWorkForTest().outputBytes <= doc::kMaxOutputBytes + (1 << 20), qPrintable(QString::number(doc::readWorkForTest().outputBytes)));
+        QVERIFY2(doc::readWorkForTest().charsConverted <= 15000 * 1001 / 10, qPrintable(QString::number(doc::readWorkForTest().charsConverted)));
         QVERIFY(notes.leftOut);
         QVERIFY(notes.notes.join(QLatin1Char(' ')).contains(QLatin1String("longer than this program can open")));
         const QStringList texts = bodyTexts(d);
@@ -1335,13 +1311,13 @@ private Q_SLOTS:
         w.text = QString(1000, QLatin1Char('&'));
         w.repeatText = 15000;
         const QByteArray file = w.build();
-        QElapsedTimer t;
-        t.start();
         Document d;
         ReadNotes notes;
         QString error;
         QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
-        QVERIFY2(t.elapsed() < kFastMs, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        // (One paragraph is cut in the middle of a piece: a few megabytes past the limit at most.)
+        QVERIFY2(doc::readWorkForTest().outputBytes <= doc::kMaxOutputBytes + (8 << 20), qPrintable(QString::number(doc::readWorkForTest().outputBytes)));
+        QVERIFY2(doc::readWorkForTest().charsConverted <= 15000 * 1000 / 10, qPrintable(QString::number(doc::readWorkForTest().charsConverted)));
         QVERIFY(notes.leftOut);
         QVERIFY(notes.notes.join(QLatin1Char(' ')).contains(QLatin1String("longer than this program can open")));
         const QStringList texts = bodyTexts(d);
@@ -1364,13 +1340,11 @@ private Q_SLOTS:
         w.text = text + QLatin1Char('\r');
         const QByteArray file = w.build();
         QVERIFY(file.size() < 1000000);
-        QElapsedTimer t;
-        t.start();
         Document d;
         ReadNotes notes;
         QString error;
         QVERIFY2(read(file, &d, &notes, &error), qPrintable(error));
-        QVERIFY2(t.elapsed() < kFastMs, qPrintable(QStringLiteral("took %1 ms").arg(t.elapsed())));
+        QVERIFY2(doc::readWorkForTest().picturesRead == pictures && doc::readWorkForTest().outputBytes <= doc::kMaxOutputBytes + (1 << 20), qPrintable(QString::number(doc::readWorkForTest().picturesRead)));
         qint64 bytes = 0;
         int media = 0;
         for (const wml::KeptPart &p : d.parts)
@@ -1432,9 +1406,15 @@ private Q_SLOTS:
             }
             if (round % 7 == 0) bad.truncate(int(rng.bounded(quint32(bad.size()))));
             Document d;
+            // (The clock stays as a watchdog for a hang: three seconds is hundreds of times what a round takes.)
             QElapsedTimer one;
             one.start();
             if (read(bad, &d)) ++read1;
+            // (Counted: whatever the bytes say, the work stays inside the reader's own limits.)
+            const doc::ReadWork work = doc::readWorkForTest();
+            QVERIFY2(work.outputBytes <= doc::kMaxOutputBytes + (1 << 20) && work.outputElements <= doc::kMaxOutputElements + 100 && work.shapeVisits <= doc::kMaxShapeVisits + doc::kMaxShapes
+                         && work.picturesRead <= doc::kMaxPictures && work.styleSteps <= 4096 * (doc::kMaxStyleDepth + 2),
+                     qPrintable(QStringLiteral("round %1: %2 bytes, %3 elements, %4 shape visits, %5 pictures, %6 style steps").arg(round).arg(work.outputBytes).arg(work.outputElements).arg(work.shapeVisits).arg(work.picturesRead).arg(work.styleSteps)));
             QVERIFY2(one.elapsed() < 3000, qPrintable(QStringLiteral("round %1 took %2 ms").arg(round).arg(one.elapsed())));
         }
         QVERIFY(read1 > 0);
@@ -1458,10 +1438,8 @@ private Q_SLOTS:
             const QByteArray bytes = f.readAll();
             ++files;
             Document d;
-            QElapsedTimer t;
-            t.start();
             if (read(bytes, &d)) ++readable;
-            QVERIFY2(t.elapsed() < 60000, qPrintable(f.fileName()));
+                QVERIFY2(doc::readWorkForTest().outputBytes <= doc::kMaxOutputBytes + (1 << 20) && doc::readWorkForTest().shapeVisits <= doc::kMaxShapeVisits + doc::kMaxShapes, qPrintable(f.fileName()));
             jp::cfb::File cf;
             const bool whole = jp::cfb::read(bytes, &cf);
             for (int round = 0; round < rounds; ++round) {
@@ -1490,10 +1468,8 @@ private Q_SLOTS:
                     if (round % 7 == 3) bad.truncate(int(rng.bounded(quint32(bad.size()))));
                 }
                 Document e;
-                QElapsedTimer one;
-                one.start();
                 read(bad, &e);
-                QVERIFY2(one.elapsed() < 60000, qPrintable(f.fileName()));
+                QVERIFY2(doc::readWorkForTest().outputBytes <= doc::kMaxOutputBytes + (1 << 20) && doc::readWorkForTest().shapeVisits <= doc::kMaxShapeVisits + doc::kMaxShapes, qPrintable(f.fileName()));
             }
         }
         qInfo("sweep: %d files, %d read whole, %d changed copies each", files, readable, rounds);
@@ -1547,6 +1523,11 @@ private Q_SLOTS:
             QElapsedTimer one;
             one.start();
             read(jp::cfb::write(g), &d);
+            // (Counted: whatever the bytes say, the work stays inside the reader's own limits.)
+            const doc::ReadWork work = doc::readWorkForTest();
+            QVERIFY2(work.outputBytes <= doc::kMaxOutputBytes + (1 << 20) && work.outputElements <= doc::kMaxOutputElements + 100 && work.shapeVisits <= doc::kMaxShapeVisits + doc::kMaxShapes
+                         && work.picturesRead <= doc::kMaxPictures && work.styleSteps <= 4096 * (doc::kMaxStyleDepth + 2),
+                     qPrintable(QStringLiteral("round %1: %2 bytes, %3 elements, %4 shape visits, %5 pictures, %6 style steps").arg(round).arg(work.outputBytes).arg(work.outputElements).arg(work.shapeVisits).arg(work.picturesRead).arg(work.styleSteps)));
             QVERIFY2(one.elapsed() < 3000, qPrintable(QStringLiteral("round %1 (%2) took %3 ms").arg(round).arg(name).arg(one.elapsed())));
         }
     }

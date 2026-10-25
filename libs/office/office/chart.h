@@ -209,6 +209,9 @@ struct Chart {
 // (no series) is still one.
 bool readChart(const QByteArray &chartPartXml, const Theme &theme, const ColorMap &colors, Chart *out, QString *error = nullptr);
 
+// How many characters of number format codes were parsed on this thread since it began (a code past what a spreadsheet allows is not parsed): a count for tests of cost.
+qint64 chartFormatCharsReadForTest();
+
 // The largest a chart is drawn on a side, in points: the longest side a
 // slide has (56 inches). A frame that asks for more is drawn this large.
 constexpr double kChartMaxSide = 4032;
@@ -222,6 +225,8 @@ constexpr int kChartMaxLabel = 256;
 // coarser, from every nth point, and leaves out the labels that crowd it;
 // `coarser` is told whether it was.
 QByteArray chartSvg(const Chart &chart, const QSizeF &size, bool *coarser = nullptr);
+// How many times chartSvg has drawn a chart on this thread since the program began: a count for tests of cost (a chart used by many frames is drawn once).
+qint64 chartSvgsMadeForTest();
 // The same, drawn as a test wants to see it: gridlines and the marks of axes
 // drawn one by one while the chart has this many of them (more are one path;
 // the usual is 300), a line of many points drawn in paths of this many

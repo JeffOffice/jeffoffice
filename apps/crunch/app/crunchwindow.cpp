@@ -1,5 +1,8 @@
 #include "app/crunchwindow.h"
 
+#include "core/printjob.h"
+#include <QPrinter>
+
 #include "app/crunchfilescreen.h"
 #include "app/crunchinfo.h"
 #include "app/editor.h"
@@ -92,6 +95,13 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     m_ribbon = new Ribbon(this);
     setMenuWidget(m_ribbon);
     buildCentral();
+    m_printChoices = std::make_unique<crunch::PrintChoices>();
+    m_breaksTimer.setSingleShot(true);
+    m_breaksTimer.setInterval(150);
+    connect(&m_breaksTimer, &QTimer::timeout, this, &CrunchWindow::updatePageBreaks);
+    m_breaksStepTimer.setSingleShot(true);
+    m_breaksStepTimer.setInterval(0);
+    connect(&m_breaksStepTimer, &QTimer::timeout, this, &CrunchWindow::stepPageBreaks);
     createActions();
     buildRibbon();
     buildStatusBar();
@@ -349,6 +359,7 @@ void CrunchWindow::createActions()
     mk("view.gridlines", tr("Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("view.gridlines")->isChecked()); }, true)->setChecked(true);
     mk("view.headings", tr("Headings"), "table-properties", QKeySequence(), [this] { m_view->setShowHeadings(act("view.headings")->isChecked()); }, true)->setChecked(true);
     mk("view.formulaBar", tr("Formula Bar"), "text-cursor-input", QKeySequence(), [this] { m_formulaRow->setVisible(act("view.formulaBar")->isChecked()); }, true)->setChecked(true);
+    mk("view.pageBreaks", tr("Page Breaks"), "separator-horizontal", QKeySequence(), [this] { updatePageBreaks(); }, true)->setChecked(true);
     mk("view.formulas", tr("Show Formulas"), "square-function", crunch::showFormulasKey(), [this] {
         m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
         m_view->invalidateValues();
@@ -382,6 +393,7 @@ void CrunchWindow::createActions()
     createFunctionActions();
     createFormatActions();
     createSheetActions();
+    createPageActions();
     createDisabledActions();
 }
 

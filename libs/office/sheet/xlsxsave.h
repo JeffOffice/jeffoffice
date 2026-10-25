@@ -11,6 +11,7 @@
 
 #include "office/package.h"
 #include "sheet/drawingsave.h"
+#include "sheet/pagesetupxml.h"
 #include "sheet/refshift.h"
 #include "sheet/sheetreader.h"
 
@@ -98,7 +99,10 @@ struct SheetChanges {
     QString copyFromPart;
     std::vector<StructEdit> copyEdits;
     bool isProtected = false;           // for a sheet a person added: it is protected (a copy of a protected sheet has the protection the sheet had)
-    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && !replaceAutoFilter && filterMode < 0 && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty(); }
+    // And the sheet's page setup as it is now, when a person changed how it prints (or any of it may differ from the file's): the part is changed where it differs from this and nowhere else.
+    bool setPage = false;
+    PageSetup page;
+    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && !replaceAutoFilter && filterMode < 0 && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
@@ -116,6 +120,8 @@ struct SheetOp {
 
 struct SaveChanges {
     std::map<int, SheetChanges> sheets;           // by the sheet's place in the workbook
+    // The print area and titles of the sheets whose page setup may differ from the file's: the workbook's names are changed where they differ from these.
+    std::vector<PrintNameChange> printNames;
     // Strings added to the end of the shared strings (the first is at the place `sharedStringsBefore`), and the number of strings the file has now.
     QStringList newSharedStrings;
     qint64 sharedStringsBefore = 0;

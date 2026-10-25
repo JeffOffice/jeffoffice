@@ -136,6 +136,7 @@ QByteArray Converter::pictureXml(qint32 position, const QString &part)
     if (cached == m_pictureAt.constEnd()) {
         // (The pictures held are counted as they are read, and one that would take them past the limit is not kept.)
         Picture read;
+        ++picturesRead;
         if (m_pictureBytes > kMaxPictureTotal || !readPicture(position, &read) || m_pictureBytes + read.bytes.size() > kMaxPictureTotal) read = Picture();
         m_pictureBytes += read.bytes.size();
         cached = m_pictureAt.insert(position, read);

@@ -1,6 +1,6 @@
 // JeffPub's tests of reading and writing .pub files, and templates.
 #include "pubhelpers.h"
-#include "../timing.h"
+#include <libmspub/jp_hooks.h>
 
 // Rebuilds a .pub's drawing records (Escher/EscherStm) with the first
 // shape properties table (OPT) that `edit` changes: `edit` gets its body
@@ -2953,10 +2953,13 @@ private Q_SLOTS:
         });
         QVERIFY(!rebuilt.isEmpty());
         QVERIFY(file.setStream(QStringLiteral("Escher/EscherStm"), rebuilt));
-        decltype(importPublisher(cfb::write(file), nullptr)) back;
-        const qint64 ms = bestNanoseconds([&] { back = importPublisher(cfb::write(file), nullptr); }, 5, [&] { back.reset(); }) / 1000000;
+        const QByteArray rebuiltFile = cfb::write(file);
+        const auto steps = libmspub::calculationsDoneForTest();
+        auto back = importPublisher(rebuiltFile, nullptr);
         QVERIFY(back);
-        QVERIFY2(ms < 1500, qPrintable(QStringLiteral("%1 ms").arg(ms)));
+        // Counted: each of the 22 formulas is worked out once for each point it is asked for (3 points), not afresh at every reference (2 to the 22nd).
+        const auto done = libmspub::calculationsDoneForTest() - steps;
+        QVERIFY2(done > 0 && done <= 22 * 3 * 4, qPrintable(QString::number(done)));
     }
 
     // A freeform's coordinate space (0x0140-0x0143) is any 32-bit range;

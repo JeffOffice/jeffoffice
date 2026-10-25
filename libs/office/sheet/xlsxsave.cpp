@@ -1245,7 +1245,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
         }
         filterNames.push_back(name);
     }
-    if (changes.fullCalcOnLoad || moves || changes.sheetsChanged || !filterNames.empty()) {
+    if (changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty()) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
@@ -1256,10 +1256,14 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
                 xml = patched;
                 changed = true;
             }
+            if (!changes.printNames.empty() && patchPrintNames(xml, changes.printNames, &patched) && patched != xml) {
+                xml = patched;
+                changed = true;
             if (!filterNames.empty()) {
                 if (!patchFilterNames(xml, filterNames, &patched, &why)) return fail(why);
                 changed = changed || patched != xml;
                 xml = patched;
+            }
             }
             if (changes.fullCalcOnLoad && setFullCalcOnLoad(xml, &patched)) {
                 xml = patched;

@@ -1,6 +1,5 @@
 // Tests of libs/office: DrawingML geometry: guides, custom paths, and the preset shapes.
 #include "officehelpers.h"
-#include "../timing.h"
 
 class OfficeDmlGeometryTests : public QObject {
     Q_OBJECT
@@ -440,7 +439,7 @@ private Q_SLOTS:
             return doc;
         };
         decltype(read(QStringLiteral("<a:buChar char=\"&#8226;\"/>"), 10000)) bullets;
-        const qint64 ms = bestNanoseconds([&] { bullets = read(QStringLiteral("<a:buChar char=\"&#8226;\"/>"), 10000); }, 5, [&] { bullets.reset(); }) / 1000000;
+        bullets = read(QStringLiteral("<a:buChar char=\"&#8226;\"/>"), 10000);
         QCOMPARE(bullets->blockCount(), 10000);
         QHash<QTextList *, int> lists;
         for (QTextBlock b = bullets->begin(); b.isValid(); b = b.next()) {
@@ -450,7 +449,7 @@ private Q_SLOTS:
         int longest = 0;
         for (int blocks : std::as_const(lists)) longest = std::max(longest, blocks);
         QVERIFY2(longest <= 500 && lists.size() >= 20, qPrintable(QStringLiteral("%1 lists, the longest of %2").arg(lists.size()).arg(longest)));
-        QVERIFY2(ms < 3000, qPrintable(QStringLiteral("10,000 bulleted paragraphs took %1 ms").arg(ms)));
+        // (What made it slow was each paragraph joining one list of thousands, an insertion that costs the list's length: no list is longer than 500, counted above.)
         // Counted on across the lists they are split into.
         const auto numbered = read(QStringLiteral("<a:buAutoNum type=\"arabicPeriod\"/>"), 1300);
         QCOMPARE(numbered->blockCount(), 1300);

@@ -197,4 +197,9 @@ private:
 // character, or (after decoding) a "." or ".." or a "/" in a segment.
 QString resolvePartName(const QString &sourcePart, const QString &target);
 
+// Counted work, for tests of cost (since the program began): the relationships a lookup by Id looked at, and the steps the writer took to place parts and Ids (a name or an Id
+// tried). Work in step with the number of calls takes one or two of either for each; the square of them is what a scan of all that came before would take.
+qint64 relationshipsExaminedForTest();
+qint64 writerStepsForTest();
+
 } // namespace jp::office

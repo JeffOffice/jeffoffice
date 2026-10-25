@@ -95,6 +95,9 @@ ThemeSource themeSourceProblem(const Document &source);
 // kept, and set in the new fonts and colors where it used the theme's. False,
 // with nothing changed, if `source` can't give a theme (themeSourceProblem).
 bool applyThemeToAll(Document &d, const Document &source);
+// How many placeholders of slides have had their text set again in a new theme's look, since the program began on this thread: a count for tests of cost (a slide with more
+// placeholders than can be matched to its layout's is put on it as it is, and none of its text is set again).
+qint64 themeRestyledForTest();
 // The same for the slides `slides` (indexes) only: they get a copy of the
 // source's slide master of their own (the other slides keep theirs, and the
 // presentation's theme stays the first master's).

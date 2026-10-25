@@ -15,6 +15,9 @@ namespace jp::deck {
 
 namespace {
 
+thread_local ShowImportWork g_work;
+
+
 using office::ns::P;
 
 const QLatin1String kP14("http://schemas.microsoft.com/office/powerpoint/2010/main");
@@ -107,6 +110,7 @@ void readCustomShows(const QDomElement &presentation, const QHash<QString, int> 
             }
             show.slides << doc.pages[page]->id;
             ++total;
+            ++g_work.customShowEntriesKept;
         }
         if (show.slides.isEmpty()) continue;
         shows << show;
@@ -159,6 +163,7 @@ void readShowProperties(const QDomElement &presProps, const office::Theme &theme
         else if (name == QLatin1String("clrMru") || name == QLatin1String("extLst")) keep(after, c);
         else if (name == QLatin1String("showPr") && office::isElement(c, P, name) && !kept.contains(QStringLiteral("showPr"))) {   // the first only
             kept["showPr"] = true;
+            ++g_work.showPropertiesRead;
             const office::ColorMap map;
             settings.loop = office::parseBool(office::attr(c, QStringLiteral("loop")), false);
             settings.narration = office::parseBool(office::attr(c, QStringLiteral("showNarration")), false);
@@ -263,5 +268,7 @@ QString presentationPropertiesXml(const Document &doc, const QString &namespaces
     inner += keptXml("after");
     return inner.isEmpty() ? xml + QStringLiteral("/>") : xml + QLatin1Char('>') + inner + QStringLiteral("</p:presentationPr>");
 }
+
+ShowImportWork showImportWorkForTest() { return g_work; }
 
 } // namespace jp::deck

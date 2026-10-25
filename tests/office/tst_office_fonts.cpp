@@ -1,6 +1,6 @@
 // Tests of libs/office: reading, inspecting, and embedding fonts.
 #include "officehelpers.h"
-#include "../timing.h"
+#include "office/mtx.h"
 
 namespace {
 
@@ -1055,7 +1055,8 @@ private Q_SLOTS:
 
         // Corrupt data: a byte changed anywhere is read as a font or refused, in a moment, and what is read is a sound font.
         int refusedCount = 0, readCount = 0;
-        const qint64 ms = bestNanoseconds([&] {
+        const qint64 movedBefore = mtxBytesMovedForTest();
+        {
             QRandomGenerator rng(20261012);   // the same damage in every run
             refusedCount = readCount = 0;
             for (int i = 0; i < 300; ++i) {
@@ -1069,8 +1070,9 @@ private Q_SLOTS:
                     QVERIFY(!why.isEmpty());
                 }
             }
-        }, 3) / 1000000;
-        QVERIFY2(ms < 30000, qPrintable(QString::number(ms)));
+        }
+        // (Counted: 300 damaged copies of a small font move about ten megabytes in all, and none moves more than the cap on a font would allow it.)
+        QVERIFY2(mtxBytesMovedForTest() - movedBefore < (100 << 20), qPrintable(QString::number(mtxBytesMovedForTest() - movedBefore)));
         QVERIFY(refusedCount > 50);
     }
 
@@ -1105,13 +1107,12 @@ private Q_SLOTS:
         QString why;
         resetPeakMemory();
         const qint64 before = peakMemoryKb();
-        const qint64 ms = bestNanoseconds([&] { QVERIFY(!readEmbeddedFont(eot, &read, nullptr, &why)); }, 5, [&] {
-            read.clear();
-            why.clear();
-        }) / 1000000;
+        const qint64 movedBefore = mtxBytesMovedForTest();
+        QVERIFY(!readEmbeddedFont(eot, &read, nullptr, &why));
         QVERIFY2(!why.isEmpty() && read.isEmpty(), qPrintable(why));
         QCOMPARE(why, QStringLiteral("The embedded font is damaged."));   // the directory's tables overlap, which no copy is made to find out
-        QVERIFY2(ms < 3000, qPrintable(QString::number(ms)));
+        // (The block is decompressed once, 16.7 MB; a hundred tables copied from it would move a hundred times that.)
+        QVERIFY2(mtxBytesMovedForTest() - movedBefore <= 16700000 + (1 << 20), qPrintable(QString::number(mtxBytesMovedForTest() - movedBefore)));
         if (before > 0) QVERIFY2(peakMemoryKb() - before < 120 * 1024, qPrintable(QString::number(peakMemoryKb() - before) + QLatin1String(" KB more at the peak")));
         // Tables that overlap, or reach past the data, are refused whatever their size.
         for (int i = 0; i < 2; ++i) {
@@ -1154,13 +1155,11 @@ private Q_SLOTS:
         QString why;
         resetPeakMemory();
         const qint64 before = peakMemoryKb();
-        const qint64 ms = bestNanoseconds([&] { QVERIFY(!readEmbeddedFont(eotWithMtx(font, mtx), &read, nullptr, &why)); }, 3, [&] {
-            read.clear();
-            why.clear();
-        }) / 1000000;
+        const qint64 movedBefore = mtxBytesMovedForTest();
+        QVERIFY(!readEmbeddedFont(eotWithMtx(font, mtx), &read, nullptr, &why));
         QVERIFY2(!why.isEmpty() && read.isEmpty(), qPrintable(why));
         QCOMPARE(why, QStringLiteral("The embedded font is larger than 32 MB."));   // the budget, not what the data turned out to be
-        QVERIFY2(ms < 10000, qPrintable(QString::number(ms)));
+        QVERIFY2(mtxBytesMovedForTest() - movedBefore <= 32 << 20, qPrintable(QString::number(mtxBytesMovedForTest() - movedBefore)));   // (the one budget)
         if (before > 0) QVERIFY2(peakMemoryKb() - before < 160 * 1024, qPrintable(QString::number(peakMemoryKb() - before) + QLatin1String(" KB more at the peak")));
     }
 

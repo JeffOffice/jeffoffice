@@ -64,6 +64,13 @@ constexpr int kMorphMaxTextCharacters = 16000;
 constexpr qint64 kMorphMaxTextPixels = 16LL * 3840 * 2160;
 constexpr qint64 kMorphMaxLayerPixels = 16LL * 3840 * 2160;
 
+// Counted since the program began on this thread, for tests of cost: the objects two slides' plans were made of, the words or characters that texts were cut into, and the
+// pictures of text that were painted for moving it.
+struct MorphWork {
+    qint64 objectsPlanned = 0, tokensMade = 0, textPicturesPainted = 0;
+};
+MorphWork morphWorkForTest();
+
 class MorphFrames {
 public:
     // The morph from slide `from` to slide `to` of `doc`, drawn `size` device-independent pixels across at `dpr`, the

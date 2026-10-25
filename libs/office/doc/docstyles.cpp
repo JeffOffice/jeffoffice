@@ -123,6 +123,7 @@ void StyleSheet::settle(int istd, int depth) const
     StyleDef &d = const_cast<StyleDef &>(styles[istd]);
     if (d.settledDone) return;
     d.settledDone = true;   // (a style that is its own ancestor stops here)
+    ++g_styleSteps;
     quint8 parent[TogCount] = {};
     if (d.base >= 0 && d.base < styles.size() && styles[d.base].valid && depth < kMaxStyleDepth) {
         settle(d.base, depth + 1);
@@ -180,6 +181,7 @@ QByteArray StyleSheet::xml(const FontNames &fonts, int listInstances) const
         if (basedOn) {
             int at = d.base, steps = 0;
             while (at >= 0 && at < styles.size() && styles[at].valid && steps <= kMaxStyleDepth) {
+                ++g_styleSteps;
                 if (at == i) {
                     steps = kMaxStyleDepth + 1;   // (it comes round to itself)
                     break;

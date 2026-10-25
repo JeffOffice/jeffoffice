@@ -109,6 +109,25 @@ private Q_SLOTS:
         QCOMPARE(d.objects[3].element.localName(), QStringLiteral("grpSp"));
     }
 
+    // An object prints with the sheet unless its anchor's client data says it does not (fPrintsWithSheet).
+    void anObjectSaysWhetherItPrints()
+    {
+        QString noPrint = twoCell(0, 10, 2, 12, shapeElement(2, QStringLiteral("Hidden from paper")));
+        noPrint.replace(QStringLiteral("<xdr:clientData/>"), QStringLiteral("<xdr:clientData fPrintsWithSheet=\"0\"/>"));
+        QString yes = twoCell(0, 0, 2, 2, shapeElement(3, QStringLiteral("Prints")));
+        yes.replace(QStringLiteral("<xdr:clientData/>"), QStringLiteral("<xdr:clientData fLocksWithSheet=\"0\" fPrintsWithSheet=\"1\"/>"));
+        const QString plain = twoCell(4, 0, 6, 2, shapeElement(4, QStringLiteral("Default")));
+        Opened o;
+        QString why;
+        QVERIFY2(open(&o, bookWithDrawing({dataSheet()}, drawingPart(noPrint + yes + plain), {}), &why), qPrintable(why));
+        SheetDrawing d;
+        QVERIFY2(readDrawing(o.package, o.drawingPart, &d, &why), qPrintable(why));
+        QCOMPARE(d.objects.size(), 3);
+        QVERIFY(!d.objects[0].prints);
+        QVERIFY(d.objects[1].prints);
+        QVERIFY(d.objects[2].prints);
+    }
+
     // An anchor that holds a table or a slicer, a chart the drawing has no relationship for, or nothing is counted and left out; a hidden object is read (it says it is hidden).
     void leavesOutWhatIsNotRead()
     {

@@ -8,10 +8,22 @@
 
 #include <QtGlobal>
 
+#include <limits>
 #include <memory>
 #include <vector>
 
 namespace jp::grid {
+
+// A count of the work a slice of a long job may do before it stops and leaves the rest for the next turn. The work is counted in steps of about the same small cost (a place, a row, a
+// band, a page), never timed, so a slice does the same on a slow machine as on a fast one. A step that cannot be cut (a row's cells) may take the slice a little past its limit.
+struct Work {
+    qint64 limit = std::numeric_limits<qint64>::max();
+    qint64 used = 0;
+    Work() = default;
+    explicit Work(qint64 maxSteps) : limit(maxSteps) {}
+    bool spent() const { return used >= limit; }
+    void add(qint64 steps = 1) { used += steps; }
+};
 
 class Axis {
 public:
@@ -43,6 +55,11 @@ public:
     // Replaces every place that differs with these, which are in order of index with none twice (a place that is not, or past the count, or with a size equal to the
     // default, is dropped).
     void assign(std::vector<Place> places);
+    // The same one place at a time, for a list built in slices: begin, append each in order of index (with the same drops), and then build in slices until it says it is built. An
+    // axis that is asked anything before it is built builds itself at once.
+    void beginAssign(size_t expected = 0);
+    void appendPlace(Place place);
+    bool buildSome(Work &work) const;
     int placeCount() const;
 
     int size(qint64 index) const;

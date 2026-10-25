@@ -38,6 +38,8 @@ struct Drawing {
 
 // `currentColor` is the color a drawing asks for with "currentColor".
 Drawing read(const QByteArray &svg, const QColor &currentColor = Qt::black);
+// How many nodes read() has walked on this thread since the program began, <use> repeats included: a count for tests of cost (the walk has a budget).
+qint64 walkStepsForTest();
 // SVG path data ("M2 8.5c0 2.3 1.5 4 3 5.5l7 7Z").
 QPainterPath pathData(const QString &d);
 // The drawing as editable artwork shapes (ShapeItem::isArt) filling

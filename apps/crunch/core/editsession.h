@@ -8,6 +8,7 @@
 // cells that changed, and the formulas whose result is not what the file has (known from the batches the worker sends).
 
 #include "core/clipdata.h"
+#include "core/pagesettings.h"
 #include "core/loader.h"
 #include "core/sortspec.h"
 #include "grid/valuestore.h"
@@ -142,7 +143,8 @@ struct Step {
     std::vector<SheetEdit> sheets;
     std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
     std::vector<ObjectEdit> objects;           // or objects over the cells taken away (done: they are gone; undone: they are back)
-    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && sheets.empty() && !structure && objects.empty(); }
+    std::vector<PageEdit> pages;               // or how sheets print (the paper, margins, header and footer, breaks, print area, titles)
+    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && sheets.empty() && !structure && objects.empty() && pages.empty(); }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -428,6 +430,11 @@ public:
     void setObjectHook(ObjectHook hook) { m_objectHook = std::move(hook); }
     Outcome deleteObject(int sheet, int id, const QString &text);
 
+    // ---- how the sheets print (editpage.cpp)
+    // How a sheet prints now; and a change to it, one step of Undo (nothing if it is as it is). The print area, titles, and breaks follow rows, columns, and cells inserted and deleted.
+    const PageSettings &pages() const { return m_pages; }
+    Outcome setPageSetup(int sheet, const jp::office::sheet::PageSetup &setup, const QString &text);
+
     // The edits that insert or delete rows, columns, or cells since the file was read or saved that are done (not undone), in order: what the objects over the cells are moved by.
     const std::vector<jp::office::sheet::StructEdit> &structureEdits() const { return m_edits; }
     // The renames and deletes of sheets since the file was read or saved that are done (not undone), in order: what the charts' references follow.
@@ -479,6 +486,8 @@ Q_SIGNALS:
     void sizesChanged(int sheet);
     // A step of the undo stack could not be undone or done again (the workbook could not be held, or the edit was refused): Undo and Redo of every step are given up, and this says so.
     void stepFailed(const QString &what);
+    // How a sheet prints changed (a command, Undo or Redo of one, or an edit of rows, columns, or cells that moved its print area, titles, or breaks).
+    void pageSetupChanged(int sheet);
 
 private:
     friend class ChangeCells;
@@ -578,6 +587,7 @@ private:
     std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)
     ObjectHook m_objectHook;
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
+    PageSettings m_pages;
     std::vector<jp::office::sheet::ColumnRename> m_renames;   // and the table columns renamed, for the names, validations, rules, and charts that name them
     bool m_bigStepAllowed = false;     // see allowNextBigStep
     int m_saveGen = 0;                 // how many times the workbook has been saved

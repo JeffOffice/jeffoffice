@@ -31,6 +31,12 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Sort and filter](sort-filter)
 - [Insert a function](insert-function)
 
+## Print
+
+- [Set up the pages](page-layout)
+- [The Page Setup dialog](page-setup)
+- [Print and make a PDF](printing)
+
 ## Work faster
 
 - [Use JeffCrunch with the keyboard](keyboard)

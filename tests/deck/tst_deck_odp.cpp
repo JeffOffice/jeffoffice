@@ -1,6 +1,5 @@
 // JeffDeck's tests of open document presentations: reading, writing, and saving from the window.
 #include "deckhelpers.h"
-#include "../timing.h"
 
 namespace odptest {
 
@@ -838,16 +837,12 @@ private Q_SLOTS:
             const QString page = QStringLiteral("<draw:page draw:name=\"p\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\">%1<draw:frame svg:width=\"10cm\" svg:height=\"5cm\" svg:x=\"1cm\" svg:y=\"1cm\">"
                                                 "<draw:text-box>%2</draw:text-box></draw:frame></draw:page>");
             std::unique_ptr<Document> d;
-            const qint64 ms = bestNanoseconds([&] {
-                d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), page.arg(groups, lists))), &err, &skipped);
-            }, 3, [&] {
-                d.reset();
-                err.clear();
-                skipped.clear();
-            }) / 1000000;
+            const qint64 elements = deck::odpImportWorkForTest().elementsRead;
+            d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), page.arg(groups, lists))), &err, &skipped);
             QVERIFY2(d, qPrintable(err));
             QCOMPARE(int(d->pages.size()), 1);
-            QVERIFY(ms < 20000);
+            // Counted: the groups are followed down to the limit of nesting and no further (73 elements read, where 200 groups and 100 lists are 300).
+            QVERIFY2(deck::odpImportWorkForTest().elementsRead - elements <= 150, qPrintable(QString::number(deck::odpImportWorkForTest().elementsRead - elements)));
             QString deeper;
             for (int i = 0; i < 300; ++i) deeper += QStringLiteral("<draw:g>");
             for (int i = 0; i < 300; ++i) deeper += QStringLiteral("</draw:g>");
@@ -2186,15 +2181,13 @@ private Q_SLOTS:
         QString err;
         QStringList skipped;
         std::unique_ptr<Document> d;
-        const qint64 ms = bestNanoseconds([&] {
-            d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), odpTablePage(table))), &err, &skipped);
-        }, 3, [&] {
-            d.reset();
-            err.clear();
-            skipped.clear();
-        }) / 1000000;
+        const deck::OdpImportWork before = deck::odpImportWorkForTest();
+        d = deck::importOdp(odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), odpTablePage(table))), &err, &skipped);
         QVERIFY2(d, qPrintable(err));
-        QVERIFY2(ms < 20000, qPrintable(QString::number(ms)));
+        // Counted: the 10,000 cells are made of one copy of the cell (2,000 characters read, not 20 million), and the rows are fitted to no more text than can be laid out in seconds.
+        const deck::OdpImportWork after = deck::odpImportWorkForTest();
+        QVERIFY2(after.cellCharsRead - before.cellCharsRead <= 2 * word.size(), qPrintable(QString::number(after.cellCharsRead - before.cellCharsRead)));
+        QVERIFY2(after.cellCharsLaidOut - before.cellCharsLaidOut <= 60000, qPrintable(QString::number(after.cellCharsLaidOut - before.cellCharsLaidOut)));
         const TableItem *t = odpFirstTable(*d);
         QVERIFY(t);
         QCOMPARE(t->rows, 100);

@@ -5,5 +5,8 @@
   "tab:View": "view",
   "pane:help": "index",
   "file:open": "open-save",
-  "file:about": "start"
+  "file:about": "start",
+  "tab:Page Layout": "page-layout",
+  "file:print": "printing",
+  "file:export": "printing"
 }

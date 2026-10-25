@@ -291,7 +291,7 @@ std::atomic<qint64> g_longestJoinedParagraphs{0};
 std::atomic<qint64> g_hyphenationLetters{0};
 std::atomic<qint64> g_paragraphCharsRead{0};
 std::atomic<qint64> g_formatRangesMade{0};
-std::atomic<qint64> g_unbreakableParagraphs{0}, g_defaultTabStopsListed{0}, g_defaultTabStopsMade{0}, g_runsPassed{0};
+std::atomic<qint64> g_unbreakableParagraphs{0}, g_defaultTabStopsListed{0}, g_defaultTabStopsMade{0}, g_runsPassed{0}, g_notesSetInType{0};
 inline void noteJoinedParagraphs(int n)
 {
     qint64 seen = g_longestJoinedParagraphs.load(std::memory_order_relaxed);
@@ -1493,6 +1493,7 @@ qint64 StoryLayout::unbreakableParagraphsForTest() { return g_unbreakableParagra
 qint64 StoryLayout::defaultTabStopsListedForTest() { return g_defaultTabStopsListed.load(); }
 qint64 StoryLayout::defaultTabStopsMadeForTest() { return g_defaultTabStopsMade.load(); }
 qint64 StoryLayout::runsPassedForTest() { return g_runsPassed.load(); }
+qint64 StoryLayout::notesSetInTypeForTest() { return g_notesSetInType.load(); }
 
 // The absolute position tabs of the runs of a paragraph (the tp::AlignTab of each tab character), in order, as many as a paragraph may have, from the paragraph's start to the first run that
 // begins at `stop` or past it (counted from `headPosition`, the start of the paragraphs joined to it). The pages of a paragraph of hundreds of thousands of runs each ask for this up to the end
@@ -2868,6 +2869,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     auto measureNote = [&](Note &n, double width, bool whole = true) {
         if (n.layout && std::abs(n.width - width) < 0.01) return n.height;
         if (!whole && n.numberFont.pointSizeF() > 0 && std::abs(n.width - width) < 0.01) return n.height;
+        ++g_notesSetInType;
         n.width = width;
         if (whole) n.layout = std::make_shared<StoryLayout>();
         const QTextDocument *nd = notesDoc ? notesDoc->storyDoc(n.storyId) : nullptr;

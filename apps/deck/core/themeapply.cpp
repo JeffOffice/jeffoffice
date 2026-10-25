@@ -631,8 +631,11 @@ constexpr qint64 kMaxMatches = 90000;
 
 // Text that looked as the old layout said looks as the new layout says, paragraph by paragraph; whatever else was set stays, except that the old
 // scheme's colors and fonts become the new scheme's.
+thread_local qint64 g_restyled = 0;
+
 void restyleText(Document &d, TextItem &t, const Item *oldPlace, const Item *newPlace, const Swap &swap, bool title)
 {
+    ++g_restyled;
     followLayout(d, t, oldPlace, newPlace, [&](QTextCharFormat &cf, const Following &followed) { return swapRun(cf, swap, title, !followed.color, !followed.family); });
 }
 
@@ -722,6 +725,8 @@ ThemeSource themeSourceProblem(const Document &source)
     if (!src) return ThemeSource::NoSlideMaster;
     return layouts(source, src->id).isEmpty() ? ThemeSource::NoLayouts : ThemeSource::Fine;
 }
+
+qint64 themeRestyledForTest() { return g_restyled; }
 
 bool applyThemeToAll(Document &d, const Document &source)
 {

@@ -698,6 +698,8 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
     return k;
 }
 
+thread_local qint64 g_effectsRead = 0;
+
 void collectEffects(const QDomElement &list, int depth, QVector<Anim> *out, bool *tooMany)
 {
     if (depth > kMaxDepth) return;
@@ -713,6 +715,7 @@ void collectEffects(const QDomElement &list, int depth, QVector<Anim> *out, bool
             // How long a kept effect lasts: its behaviors' end, in ms from its start.
             qint64 length = 0;
             lengthOf(pChild(cTn, "childTnLst"), &length);
+            ++g_effectsRead;
             out->push_back(readEffect(par, cTn, int(std::min<qint64>(length, 3600000))));
         } else {
             collectEffects(pChild(cTn, "childTnLst"), depth + 1, out, tooMany);
@@ -764,6 +767,8 @@ QString keptText(const QDomElement &e, const QStringList &texts, qsizetype at, c
 }
 
 } // namespace
+
+qint64 animationEffectsReadForTest() { return g_effectsRead; }
 
 AnimSequence readAnimations(const Page &slide, const Document *doc)
 {

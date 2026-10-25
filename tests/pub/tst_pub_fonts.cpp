@@ -1,6 +1,5 @@
 // JeffPub's tests of stand-in fonts, letter widths, and bold drawn by hand.
 #include "pubhelpers.h"
-#include "../timing.h"
 
 class PubFontTests : public QObject {
     Q_OBJECT
@@ -1039,12 +1038,11 @@ private Q_SLOTS:
         if (QFontDatabase::hasFamily(fam)) QSKIP("Gill Sans MT is installed here");
         QVERIFY(!jp::substituteFor(fam).isEmpty());
         int found = 0;
-        const qint64 ms = bestNanoseconds([&] {
-            found = 0;
-            for (int i = 0; i < 1000; ++i) found += !jp::substituteFor(fam).isEmpty();
-        }) / 1000000;
+        const qint64 asked = jp::fontDatabaseAskedForTest();
+        for (int i = 0; i < 1000; ++i) found += !jp::substituteFor(fam).isEmpty();
         QCOMPARE(found, 1000);
-        QVERIFY2(ms < 50, qPrintable(QStringLiteral("1,000 lookups took %1 ms").arg(ms)));
+        // Counted: the database is not asked again for any of the 1,000 (it takes 0.2 ms to answer).
+        QCOMPARE(jp::fontDatabaseAskedForTest(), asked);
         // Fonts coming and going (a bundled font renamed "Arial" stands in for an installed Arial).
         if (QFontDatabase::hasFamily(QStringLiteral("Arial"))) QSKIP("Arial is installed here");
         QVERIFY(!jp::substituteFor(QStringLiteral("Arial")).isEmpty());

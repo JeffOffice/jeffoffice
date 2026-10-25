@@ -511,6 +511,16 @@ void SheetObjects::show(int sheet)
     showNow(sheet);
 }
 
+std::vector<jp::grid::LayerObject> SheetObjects::printObjects(int sheet)
+{
+    std::vector<jp::grid::LayerObject> out;
+    if (!m_book || sheet < 0 || size_t(sheet) >= m_sheets.size()) return out;
+    Sheet &s = sheetState(sheet);
+    for (const std::shared_ptr<Object> &o : s.objects)
+        if (!o->deleted && o->meta.prints) out.push_back(layerObject(sheet, o));
+    return out;
+}
+
 void SheetObjects::showNow(int sheet)
 {
     Sheet &s = sheetState(sheet);

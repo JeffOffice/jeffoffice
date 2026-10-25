@@ -115,6 +115,9 @@ public:
     // to a polygon of a few dozen points in frame-local coordinates.
     static QPolygonF defaultWrapPolygon(const Document &doc, const Item &it);
     static QPainterPath textArtOutline(const TextArtItem &w);
+    // How many Text Art outlines, and how many pictures of a long one, have been made on this thread since the program began (both are kept): counts for tests of cost.
+    static qint64 textArtOutlinesMadeForTest();
+    static qint64 textArtPicturesMadeForTest();
     // shown: a picture drawn into pixels smaller than it is comes back at that size, each pixel the average of those it covers.
     static QImage processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &shown = QSizeF());
     static QImage renderToImage(const PaintContext &ctx, int pageIndex, double scale, bool transparent = false);

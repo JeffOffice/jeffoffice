@@ -30,6 +30,11 @@ constexpr qint64 kMaxTreeBytes = qint64(256) << 20;
 constexpr qint64 kMaxTreeNodes = 8000000;
 constexpr qint64 kMaxTreeAttributes = 10000000;
 
+// How many times a reader moved from an element to its first child or its next sibling on this thread since it began: a count for tests of cost, in which reading in step with the
+// size of a part takes a few steps for each element, and the square of them is what a scan of all that came before each would take.
+inline thread_local qint64 g_treeSteps = 0;
+inline qint64 treeStepsForTest() { return g_treeSteps; }
+
 class XmlTree {
 public:
     // False, with a message, when the part is refused. The tree is empty then.
@@ -38,8 +43,8 @@ public:
     int root() const { return m_root; }
     int count() const { return int(m_nodes.size()); }
     int parent(int n) const { return m_nodes[n].parent; }
-    int firstChild(int n) const { return m_nodes[n].first; }
-    int next(int n) const { return m_nodes[n].next; }
+    int firstChild(int n) const { ++g_treeSteps; return m_nodes[n].first; }
+    int next(int n) const { ++g_treeSteps; return m_nodes[n].next; }
 
     // The element is `local` in the namespace (the word processing one by default).
     bool is(int n, const char *local, int ns = NsW) const;

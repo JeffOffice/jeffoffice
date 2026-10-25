@@ -4,6 +4,7 @@
 #include "../sheet/odshelpers.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "savedok.h"
 #include "app/oldformat.h"
 #include "app/otherformats.h"
 #include "app/settings.h"
@@ -175,7 +176,7 @@ private Q_SLOTS:
         o.answer = o.folder.dir.filePath(QStringLiteral("copy"));
         QSignalSpy saved(&o.w, &CrunchWindow::saved);
         QVERIFY(o.w.save());
-        QVERIFY(saved.wait(20000));
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(o.asked, QStringList{o.folder.dir.filePath(QStringLiteral("book.xlsx"))});
         QVERIFY2(o.filters.first().contains(QLatin1String("*.xlsx")) && o.filters.first().contains(QLatin1String("*.csv")), qPrintable(o.filters.first()));
         QCOMPARE(saved.first().at(0).toString(), o.folder.dir.filePath(QStringLiteral("copy.xlsx")));
@@ -349,7 +350,7 @@ private Q_SLOTS:
             o.answer = o.folder.dir.filePath(QStringLiteral("copy.xlsx"));
             QSignalSpy saved(&o.w, &CrunchWindow::saved);
             QVERIFY(o.w.save());
-            QVERIFY(saved.wait(20000));
+            QVERIFY2(savedOk(saved, 20000), "the save failed");
             QVERIFY(o.originalIsUntouched());
             o.told.clear();
             QVERIFY(!o.w.saveAs(link));

@@ -155,9 +155,17 @@ QSize svgImageSize(const QSvgRenderer &r)
 
 } // namespace
 
+static thread_local qint64 g_imageDecodes = 0, g_imageBytesCompared = 0, g_svgLoads = 0, g_itemsWalked = 0;
+
+qint64 Document::imageDecodesForTest() { return g_imageDecodes; }
+qint64 Document::imageBytesComparedForTest() { return g_imageBytesCompared; }
+qint64 Document::svgLoadsForTest() { return g_svgLoads; }
+qint64 Document::itemsWalkedForTest() { return g_itemsWalked; }
+
 QImage ImageData::image() const
 {
     if (!cache.isNull()) return cache;
+    ++g_imageDecodes;
     switch (kindOf(format, bytes)) {
     case PictureKind::Metafile: {
         Metafile m;
@@ -857,7 +865,10 @@ QString Document::findImage(const QByteArray &bytes) const
     const size_t hash = qHash(bytes);
     for (auto at = m_imageHashes.constFind(hash); at != m_imageHashes.cend() && at.key() == hash; ++at) {
         const auto it = images.constFind(*at);
-        if (it != images.cend() && !it->linked && it->bytes == bytes) return *at;
+        if (it != images.cend() && !it->linked) {
+            if (it->bytes.size() == bytes.size()) g_imageBytesCompared += bytes.size();
+            if (it->bytes == bytes) return *at;
+        }
     }
     return QString();
 }
@@ -954,6 +965,7 @@ QString Document::addImage(const QByteArray &bytes, const QString &format, const
                 ++imagesLeftOut;
                 return QString();
             }
+            ++g_svgLoads;
             size = svgImageSize(QSvgRenderer(bytes));
             break;
         }
@@ -1476,9 +1488,9 @@ ItemList Document::cloneItems(const ItemList &items)
 
 void Document::forEachItem(const std::function<void(Item *, int, const QString &)> &fn) const
 {
-    for (int p = 0; p < pages.size(); ++p) walkItems(pages[p]->items, [&](const ItemPtr &it) { fn(it.get(), p, QString()); });
-    for (const auto &m : masters) walkItems(m->items, [&](const ItemPtr &it) { fn(it.get(), -1, m->id); });
-    walkItems(scratch, [&](const ItemPtr &it) { fn(it.get(), -1, QString()); });
+    for (int p = 0; p < pages.size(); ++p) walkItems(pages[p]->items, [&](const ItemPtr &it) { ++g_itemsWalked; fn(it.get(), p, QString()); });
+    for (const auto &m : masters) walkItems(m->items, [&](const ItemPtr &it) { ++g_itemsWalked; fn(it.get(), -1, m->id); });
+    walkItems(scratch, [&](const ItemPtr &it) { ++g_itemsWalked; fn(it.get(), -1, QString()); });
 }
 
 bool Document::routeConnectors()

@@ -26,8 +26,8 @@
 #include "core/writeprops.h"
 #include "../flow/pageaudit.h"
 #include "../office/dochelpers.h"
-#include "../timing.h"
 #include "office/package.h"
+#include "wml/xmltree.h"
 #include "render/renderer.h"
 #include "rtcheck.h"
 #include "app/spelling.h"
@@ -697,6 +697,20 @@ struct NoteBox {
     QRectF rect;
     int from;
 };
+
+// What it takes to open a document and to page it, counted: the steps the readers took along the XML's elements, the characters and runs the text engine read, the pages
+// laid out, and the rows and cells of tables measured and laid out. (Counted, so that what a busy machine does to the clock changes none of it.)
+struct OpenWork {
+    qint64 tree = 0, chars = 0, runs = 0, ranges = 0, pages = 0, rows = 0, cells = 0;
+    QString text() const { return QStringLiteral("%1 tree steps, %2 characters, %3 runs, %4 ranges, %5 pages, %6 rows, %7 cells").arg(tree).arg(chars).arg(runs).arg(ranges).arg(pages).arg(rows).arg(cells); }
+    // Whether this is at most `most` times `base` in every count (a count of nothing in the base is allowed `slack`).
+    bool atMost(const OpenWork &base, double most, qint64 slack = 50) const
+    {
+        auto ok = [&](qint64 mine, qint64 theirs) { return mine <= most * std::max(theirs, slack); };
+        return ok(tree, base.tree) && ok(chars, base.chars) && ok(runs, base.runs) && ok(ranges, base.ranges) && ok(pages, base.pages) && ok(rows, base.rows) && ok(cells, base.cells);
+    }
+};
+
 
 class WriteTests : public QObject {
     Q_OBJECT
@@ -1790,34 +1804,32 @@ private Q_SLOTS:
     // Replace All takes time in step with the matches, also when they are all in one paragraph (it was the square of them: each swap in a long paragraph cost its length).
     void replaceAllInOneLongParagraphTakesTimeInStepWithTheMatches()
     {
-        // A paragraph of 96,000 characters with this many "cat"s in it; the time Replace All takes to turn them into "dog"s.
-        auto seconds = [](int matches, double *took) {
+        // A paragraph of 96,000 characters with this many "cat"s in it; the characters of the story that Replace All takes out and puts in to turn them into "dog"s (counted from
+        // the story's own changes: one swap of three letters is six characters, and a swap that cost its paragraph's length would be 96,000).
+        auto changed = [](int matches) {
             std::unique_ptr<WriteWindow> w;
             WriteFindPane *pane = nullptr;
             QString text;
-            const qint64 ns = bestNanoseconds([&] { pane->replaceAll(); }, 5, [&] {
-                w.reset();
-                const int per = 96000 / matches;
-                text.clear();
-                while (text.size() < 96000) text += QString(per - 4, QLatin1Char('x')) + QStringLiteral(" cat");
-                w = std::make_unique<WriteWindow>();
-                QTextCursor c(w->document()->story());
-                c.insertText(text);
-                w->showFindPane(true);
-                pane = w->findPane();
-                pane->findBox()->setText(QStringLiteral("cat"));
-                pane->replaceBox()->setText(QStringLiteral("dog"));
-            });
-            *took = ns / 1e9;
-            QCOMPARE(pane->status(), QStringLiteral("JeffWrite made %1 replacements.").arg(text.count(QLatin1String("cat"))));
-            QVERIFY(!w->document()->story()->toPlainText().contains(QLatin1String("cat")));
+            const int per = 96000 / matches;
+            while (text.size() < 96000) text += QString(per - 4, QLatin1Char('x')) + QStringLiteral(" cat");
+            w = std::make_unique<WriteWindow>();
+            QTextCursor c(w->document()->story());
+            c.insertText(text);
+            w->showFindPane(true);
+            pane = w->findPane();
+            pane->findBox()->setText(QStringLiteral("cat"));
+            pane->replaceBox()->setText(QStringLiteral("dog"));
+            qint64 touched = 0;
+            QObject::connect(w->document()->story(), &QTextDocument::contentsChange, w->document()->story(), [&](int, int removed, int added) { touched += removed + added; });
+            pane->replaceAll();
+            if (pane->status() != QStringLiteral("JeffWrite made %1 replacements.").arg(text.count(QLatin1String("cat")))) return qint64(-1);
+            if (w->document()->story()->toPlainText().contains(QLatin1String("cat"))) return qint64(-1);
+            return touched;
         };
-        double few = 0, many = 0;
-        seconds(2000, &few);
-        seconds(16000, &many);
-        few = std::max(few, 0.001);
-        // (Eight times the matches: eight times the time, with some room; the square would be sixty-four.)
-        QVERIFY2(many < few * 24, qPrintable(QStringLiteral("2,000 matches took %1 s, 16,000 took %2 s").arg(few).arg(many)));
+        const qint64 few = changed(2000), many = changed(16000);
+        QVERIFY2(few > 0 && many > 0, "Replace All made the replacements");
+        // (Eight times the matches: eight times the characters changed, with some room; the square would be sixty-four.)
+        QVERIFY2(many < few * 12, qPrintable(QStringLiteral("2,000 matches changed %1 characters, 16,000 changed %2").arg(few).arg(many)));
     }
 
     // A bookmark in the middle of words does not hide them: they are found, shown selected, and replaced, and the bookmark is kept.
@@ -3838,27 +3850,23 @@ private Q_SLOTS:
 
     void anEditCostsTheCommandNotTheDocument()
     {
-        // 20,000 paragraphs: an undo that kept the whole document would take time in proportion to it (the design's reason for commands). The same
-        // edits in a tenth of the paragraphs take about as long, not a tenth: compared with each other, not with a clock.
-        auto timeEdits = [](int paragraphCount) {
-            std::unique_ptr<WriteDoc> doc;
-            QTextCursor c;
-            const qint64 ns = bestNanoseconds([&] {
-                for (int i = 0; i < 50; ++i) insertText(*doc, c, QStringLiteral("x"));
-                insertParagraph(*doc, c);
-                for (int i = 0; i < 50; ++i) doc->story()->undo(&c);
-            }, 5, [&] {
-                c = QTextCursor();
-                doc = open(makeDocx(paragraphs(paragraphCount, 12), kStyles));
-                c = QTextCursor(doc->story());
-                c.setPosition(5000);
-            });
-            const double ms = ns / 1e6;
-            return doc->story()->blockCount() == paragraphCount ? ms : 1e9;
+        // 20,000 paragraphs: an undo that kept the whole document would cost in proportion to it (the design's reason for commands). The same edits in a tenth of the
+        // paragraphs change as many characters, not a tenth.
+        auto charactersChanged = [](int paragraphCount) {
+            auto doc = open(makeDocx(paragraphs(paragraphCount, 12), kStyles));
+            QTextCursor c(doc->story());
+            c.setPosition(5000);
+            qint64 touched = 0;
+            QObject::connect(doc->story(), &QTextDocument::contentsChange, doc->story(), [&](int, int removed, int added) { touched += removed + added; });
+            for (int i = 0; i < 50; ++i) insertText(*doc, c, QStringLiteral("x"));
+            insertParagraph(*doc, c);
+            for (int i = 0; i < 50; ++i) doc->story()->undo(&c);
+            return doc->story()->blockCount() == paragraphCount ? touched : qint64(-1);
         };
-        timeEdits(2000);   // (the first of anything is slow)
-        const double small = std::max(timeEdits(2000), 5.0), large = timeEdits(20000);
-        QVERIFY2(large < 4 * small, qPrintable(QStringLiteral("2,000 paragraphs %1 ms, 20,000 paragraphs %2 ms").arg(small).arg(large)));
+        const qint64 small = charactersChanged(2000), large = charactersChanged(20000);
+        // Counted: the characters the story changed in the process are those of the edits and their undo, the same for ten times the paragraphs (an undo that kept the whole
+        // document would change 20,000 paragraphs' worth each time).
+        QVERIFY2(small > 0 && large > 0 && large <= 2 * small + 200, qPrintable(QStringLiteral("2,000 paragraphs %1 characters changed, 20,000 paragraphs %2").arg(small).arg(large)));
     }
 
     void enterAndBackspaceSplitAndJoinParagraphs()
@@ -4843,8 +4851,6 @@ private Q_SLOTS:
         QByteArray body;
         for (int i = 0; i < sections - 1; ++i) body += "<w:p><w:pPr>" + ref + "</w:pPr><w:r><w:t>s" + QByteArray::number(i) + "</w:t></w:r></w:p>";
         body += "<w:p><w:r><w:t>last</w:t></w:r></w:p>";
-        QElapsedTimer timer;
-        timer.start();
         auto doc = open(makeDocxWithParts(body, ref, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>ALL</w:t></w:r>"})}, {QStringLiteral("/word/footer1.xml"), headerPart("ftr", {"<w:r><w:t>FOOT</w:t></w:r>"})}}));
         QVERIFY(doc);
         QCOMPARE(doc->sectionCount(), sections);
@@ -4857,7 +4863,8 @@ private Q_SLOTS:
         QVERIFY(pkg.read(saved));
         QVERIFY(pkg.part(QStringLiteral("/word/header1.xml")).contains("ALL+"));
         QCOMPARE(int(documentXml(saved).count("r:id=\"rIdheader1\"")), sections);
-        QVERIFY2(timer.elapsed() < 60000, qPrintable(QString::number(timer.elapsed())));
+        // Counted: the sections the document made are the 300 it names, once each (the header is one story for all of them).
+        QVERIFY2(doc->sectionsMadeForTest() <= 2 * sections, qPrintable(QString::number(doc->sectionsMadeForTest())));
     }
 
     void aReferenceToAMissingPartIsKeptAndCanBeReplaced()
@@ -8296,16 +8303,18 @@ private Q_SLOTS:
     // A font table of thousands of fonts that say nothing is read in step with its size.
     void aLongFontTableCostsInStepWithItsSize()
     {
-        auto seconds = [&](int count) {
+        auto steps = [&](int count) {
             QByteArray table = "<w:fonts " + QByteArray(kNs) + ">";
             for (int i = 0; i < count; ++i) table += "<w:font w:name=\"F" + QByteArray::number(i) + "\"/>";
             table += "</w:fonts>";
             const QByteArray zip = makeDocxWithParts(paragraphs(1, 5), QByteArray(), {{QStringLiteral("/word/fontTable.xml"), table}});
-            std::unique_ptr<WriteDoc> doc;
-            return bestNanoseconds([&] { doc = open(zip); }, 5, [&] { doc.reset(); }) / 1e9;
+            const qint64 before = office::wml::treeStepsForTest();
+            auto doc = open(zip);
+            return doc ? office::wml::treeStepsForTest() - before : qint64(-1);
         };
-        const double small = seconds(5000), large = seconds(20000);
-        QVERIFY2(large < 0.2 + small * 8, qPrintable(QStringLiteral("5000 fonts %1 s, 20000 fonts %2 s").arg(small).arg(large)));
+        const qint64 small = steps(5000), large = steps(20000);
+        // (Four times the fonts: about four times the steps along the table; the square would be sixteen.)
+        QVERIFY2(small > 0 && large < 8 * small, qPrintable(QStringLiteral("5000 fonts %1 steps, 20000 fonts %2").arg(small).arg(large)));
     }
 
     // A file whose compatibility options say to suppress the space before after a page break has none at the top of the page that a break at the start of a paragraph opens.
@@ -9977,15 +9986,15 @@ private Q_SLOTS:
             for (int i = 0; i < 1500; ++i) body += "<w:p><w:pPr><w:pStyle w:val=\"Deep0\"/></w:pPr><w:r><w:t>paragraph " + QByteArray::number(i) + "</w:t></w:r></w:p>";
             return makeDocx(body, styles);
         };
-        auto openTime = [&](const QByteArray &zip) {
-            std::unique_ptr<WriteDoc> doc;
-            const qint64 ns = bestNanoseconds([&] { doc = open(zip); }, 2, [&] { doc.reset(); });
-            return doc ? ns / 1e6 : 1e9;
+        auto expressions = [&](const QByteArray &zip) {
+            const qint64 before = frameExpressionRunsForTest();
+            auto doc = open(zip);
+            return doc ? frameExpressionRunsForTest() - before : qint64(-1);
         };
         const QByteArray shallow = build(1), deep = build(32);
-        openTime(shallow);   // (the first of anything is slow: fonts, the first layout)
-        const double base = std::max(openTime(shallow), 20.0), chain = openTime(deep);
-        QVERIFY2(chain < 4 * base, qPrintable(QStringLiteral("a chain of 32 styles %1 ms, of one %2 ms").arg(chain).arg(base)));
+        const qint64 base = expressions(shallow), chain = expressions(deep);
+        // Counted: not one regular expression is run for the style chain's properties of any of the 1,500 paragraphs (a property that names no frame is passed by a plain look).
+        QVERIFY2(base >= 0 && chain >= 0 && chain <= base + 32, qPrintable(QStringLiteral("a chain of 32 styles %1 expressions, of one %2").arg(chain).arg(base)));
     }
 
     // A section break made inside a section of odd pages (or of any other kind) is a break of the kind asked for: the section the break makes begins as the command says, not as the
@@ -11152,12 +11161,12 @@ private Q_SLOTS:
         QVERIFY2(pic->fill.type == Fill::Solid && !pic->stroke.isNone(), "a white frame with an outline");
         QVERIFY2(pic->imgRect.width() < 30 && pic->imgRect.height() < 30 && pic->imgRect.left() >= 0 && pic->imgRect.top() >= 0, qPrintable(QString::number(pic->imgRect.width())));
         // A hundred of them, of a hundred sizes: one picture of the document, and no time to speak of.
-        QElapsedTimer clock;
-        clock.start();
+        const qint64 decodes = Document::imageDecodesForTest();
         auto many = open(makeDocxWithPicture(bodyOf(100), true));
         QVERIFY(many);
         QVERIFY2(many->flow().images.size() == 1, qPrintable(QString::number(many->flow().images.size()) + " pictures made"));
-        QVERIFY2(clock.elapsed() < 4000, qPrintable(QString::number(clock.elapsed()) + " ms to open"));
+        // Counted: the one picture is decoded no more than a couple of times for all hundred (not once for each).
+        QVERIFY2(Document::imageDecodesForTest() - decodes <= 4, qPrintable(QString::number(Document::imageDecodesForTest() - decodes) + " decodes"));
     }
 
     // A row that is hidden (w:hidden in its properties) is not shown and takes no room, whatever height it says (the table is as tall as the other row alone), and a table
@@ -11405,13 +11414,16 @@ private Q_SLOTS:
             img.fill(Qt::white);
             QPainter p(&img);
             p.translate(10, 10);
-            QElapsedTimer clock;
-            clock.start();
             Renderer::paintItem(&p, ctx, *art);
-            return clock.elapsed();
         };
-        const qint64 first = paint(), second = paint();
-        QVERIFY2(second * 3 < first, qPrintable(QString::number(first) + " ms the first time, " + QString::number(second) + " the second"));
+        // Counted: the outline of the lettering is made once, and so is the picture of it (the Text Art is long); drawn again, nothing is made.
+        const qint64 outlines = Renderer::textArtOutlinesMadeForTest(), pictures = Renderer::textArtPicturesMadeForTest();
+        paint();
+        const qint64 outlinesFirst = Renderer::textArtOutlinesMadeForTest(), picturesFirst = Renderer::textArtPicturesMadeForTest();
+        QVERIFY2(outlinesFirst - outlines == 1 && picturesFirst - pictures <= 1, qPrintable(QStringLiteral("%1 outlines and %2 pictures the first time").arg(outlinesFirst - outlines).arg(picturesFirst - pictures)));
+        paint();
+        QCOMPARE(Renderer::textArtOutlinesMadeForTest(), outlinesFirst);
+        QCOMPARE(Renderer::textArtPicturesMadeForTest(), picturesFirst);
     }
 
     // A picture's border has the sides the file sets (a single w10:bordertop is one line, not a frame), in the color it says (or the picture's line color): all four sides are
@@ -13758,15 +13770,12 @@ private Q_SLOTS:
         QVERIFY(doc->flow().section(0).columnCount() <= 45);
         // A big document: 30,000 paragraphs open in time in proportion to their number (ten times the paragraphs, about ten times as long), lay out
         // the first page at once, and save.
-        auto openTime = [](int count) {
+        auto openWork = [](int count) {
             const QByteArray zip = makeDocx(paragraphs(count, 25), kStyles);
-            std::unique_ptr<WriteDoc> d;
-            const qint64 ns = bestNanoseconds([&] { d = open(zip); }, 3, [&] { d.reset(); });
-            return d ? ns / 1e6 : 1e9;
+            return openAndPageWork(zip);
         };
-        openTime(3000);   // (the first of anything is slow)
-        const double few = std::max(openTime(3000), 20.0), many = openTime(30000);
-        QVERIFY2(many < 25 * few, qPrintable(QStringLiteral("3,000 paragraphs %1 ms, 30,000 paragraphs %2 ms").arg(few).arg(many)));
+        const OpenWork few = openWork(3000), many = openWork(30000);
+        QVERIFY2(many.atMost(few, 12), qPrintable(QStringLiteral("3,000 paragraphs: %1; 30,000 paragraphs: %2").arg(few.text(), many.text())));
         auto big = open(makeDocx(paragraphs(30000, 25), kStyles));
         QVERIFY(big->pager().materialize(0));
         QVERIFY(big->pager().pagesLaidOut() <= 2);
@@ -13797,16 +13806,11 @@ private Q_SLOTS:
             w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
             return w.finish();
         };
-        auto openTime = [&](const QByteArray &zip) {
-            std::unique_ptr<WriteDoc> doc;
-            const qint64 ns = bestNanoseconds([&] { doc = open(zip); }, 3, [&] { doc.reset(); });
-            return doc ? ns / 1e6 : 1e9;
-        };
+        auto openWork = [&](const QByteArray &zip) { return openAndPageWork(zip); };
         const QByteArray plain = build(0), withIds = build(1), withBookmarks = build(2);
-        openTime(plain);   // (the first of anything is slow: fonts, the first layout)
-        const double base = std::max(openTime(plain), 20.0), ids = openTime(withIds), marks = openTime(withBookmarks);
-        QVERIFY2(ids < 10 * base, qPrintable(QStringLiteral("with ids %1 ms, without %2 ms").arg(ids).arg(base)));
-        QVERIFY2(marks < 10 * base, qPrintable(QStringLiteral("with bookmarks %1 ms, without %2 ms").arg(marks).arg(base)));
+        const OpenWork base = openWork(plain), ids = openWork(withIds), marks = openWork(withBookmarks);
+        QVERIFY2(ids.atMost(base, 4), qPrintable(QStringLiteral("with ids: %1; without: %2").arg(ids.text(), base.text())));
+        QVERIFY2(marks.atMost(base, 4), qPrintable(QStringLiteral("with bookmarks: %1; without: %2").arg(marks.text(), base.text())));
     }
 
     // The root of the main part declares its prefixes on lines of their own; a piece kept as XML uses one the writer would add if it were missing.
@@ -14506,27 +14510,27 @@ private Q_SLOTS:
 
     // ---- hostile tables
 
-    // How long a document takes to open and to page, in seconds.
-    static double secondsToOpenAndPage(const QByteArray &zip, int *pages = nullptr, QStringList *notes = nullptr)
+    static OpenWork openAndPageWork(const QByteArray &zip, int *pages = nullptr, QStringList *notes = nullptr, std::unique_ptr<WriteDoc> *keep = nullptr)
     {
-        std::unique_ptr<WriteDoc> doc;
         QString err;
-        int n = 0;
-        // Three runs: a document of thousands of rows takes seconds to open.
-        const qint64 ns = bestNanoseconds([&] {
-            doc = WriteDoc::fromDocx(zip, &err, notes);
-            if (doc) n = doc->pager().pageCount();
-        }, 3, [&] {
-            doc.reset();
-            err.clear();
-            if (notes) notes->clear();
-        });
+        const qint64 tree = office::wml::treeStepsForTest(), chars = StoryLayout::paragraphCharsReadForTest(), runs = StoryLayout::runsPassedForTest(), ranges = StoryLayout::formatRangesMadeForTest();
+        auto doc = WriteDoc::fromDocx(zip, &err, notes);
         if (!doc) {
             qWarning("open: %s", qPrintable(err));
-            return 1e9;
+            return OpenWork{-1};
         }
+        const int n = doc->pager().pageCount();
         if (pages) *pages = n;
-        return ns / 1e9;
+        OpenWork w;
+        w.tree = office::wml::treeStepsForTest() - tree;
+        w.chars = StoryLayout::paragraphCharsReadForTest() - chars;
+        w.runs = StoryLayout::runsPassedForTest() - runs;
+        w.ranges = StoryLayout::formatRangesMadeForTest() - ranges;
+        w.pages = doc->pager().pagesLaidOut();
+        w.rows = doc->pager().tableRowsMeasured();
+        w.cells = doc->pager().tableCellsLaidOut();
+        if (keep) *keep = std::move(doc);
+        return w;
     }
 
     // A table of `rows` by `columns` short cells.
@@ -14551,8 +14555,10 @@ private Q_SLOTS:
             const QByteArray zip = makeDocx(cellP("before") + table + cellP("after"), kStyles);
             QStringList notes;
             int pages = 0;
-            const double seconds = secondsToOpenAndPage(zip, &pages, &notes);
-            QVERIFY2(seconds < 5, qPrintable(QString::number(seconds)));
+            const OpenWork work = openAndPageWork(zip, &pages, &notes);
+            // Counted: the table is a stand-in, and none of its rows or cells is measured or laid out.
+            QVERIFY2(work.rows == 0 && work.cells == 0, qPrintable(work.text()));
+            QVERIFY2(work.tree <= 150000 && work.chars <= 100 && work.ranges <= 20, qPrintable(work.text()));   // (next to nothing: the XML is passed over once)
             QVERIFY2(notes.size() == 1 && notes[0].contains(QLatin1String("table")), qPrintable(notes.join(QLatin1Char('|'))));
             QCOMPARE(pages, 1);
             auto doc = open(zip);
@@ -14561,19 +14567,20 @@ private Q_SLOTS:
         }
         {   // 20,000 rows: real, in pages, in time that is not much more than for a tenth of them
             int small = 0, big = 0;
-            const double secondsSmall = secondsToOpenAndPage(makeDocx(cellP("before") + manyCells(2000, 2) + cellP("after"), kStyles), &small);
-            const double secondsBig = secondsToOpenAndPage(makeDocx(cellP("before") + manyCells(20000, 2) + cellP("after"), kStyles), &big);
+            const OpenWork workSmall = openAndPageWork(makeDocx(cellP("before") + manyCells(2000, 2) + cellP("after"), kStyles), &small);
+            const OpenWork workBig = openAndPageWork(makeDocx(cellP("before") + manyCells(20000, 2) + cellP("after"), kStyles), &big);
             QVERIFY2(small > 30 && small < 80, qPrintable(QString::number(small)));
             QVERIFY2(big > 10 * small - 10 && big < 10 * small + 20, qPrintable(QStringLiteral("%1 pages for 2,000 rows, %2 for 20,000").arg(small).arg(big)));
-            QVERIFY2(secondsBig < 12 * secondsSmall + 3, qPrintable(QStringLiteral("%1 s for 2,000 rows, %2 s for 20,000").arg(secondsSmall).arg(secondsBig)));
+            QVERIFY2(workBig.atMost(workSmall, 12), qPrintable(QStringLiteral("2,000 rows: %1; 20,000 rows: %2").arg(workSmall.text(), workBig.text())));
         }
         {   // as many cells as a document lays out
             int pages = 0;
             QStringList notes;
-            const double seconds = secondsToOpenAndPage(makeDocx(cellP("before") + manyCells(5000, 10) + cellP("after"), kStyles), &pages, &notes);
+            const OpenWork work = openAndPageWork(makeDocx(cellP("before") + manyCells(5000, 10) + cellP("after"), kStyles), &pages, &notes);
             QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
             QVERIFY2(pages > 150 && pages < 400, qPrintable(QString::number(pages)));
-            QVERIFY2(seconds < 15, qPrintable(QStringLiteral("%1 s for 50,000 cells").arg(seconds)));
+            // Counted: the cells are laid out once each (50,000), and the rest of the work is in step with them.
+            QVERIFY2(work.cells <= 2 * 50000 && work.rows <= 2 * 5000 && work.tree <= 2200000 && work.chars <= 1500000 && work.runs <= 150000 && work.ranges <= 150000, qPrintable(work.text()));
         }
     }
 
@@ -14586,13 +14593,11 @@ private Q_SLOTS:
         const QByteArray zip = makeDocx(tableX(rowX(cellX(lines, QByteArray(), 3000)), 1, 3000) + cellP("after"), kStyles, QByteArray(), sect);
         std::unique_ptr<WriteDoc> doc;
         int pages = 0;
-        const qint64 ms = bestNanoseconds([&] {
-            doc = open(zip);
-            if (doc) pages = doc->pager().pageCount();
-        }, 3, [&] { doc.reset(); }) / 1000000;
+        const OpenWork work = openAndPageWork(zip, &pages, nullptr, &doc);
         QVERIFY(doc);
         flow::Paginator &pg = doc->pager();
-        QVERIFY2(ms < 20000, qPrintable(QString::number(ms)));
+        // Counted: the 3,000 lines are read about once each (a run and a range for each), and the pages are those of the lines.
+        QVERIFY2(work.tree <= 70000 && work.chars <= 110000 && work.runs <= 10000 && work.ranges <= 10000 && work.pages <= 4500, qPrintable(work.text()));
         QVERIFY2(pages > 1000 && pages < 4000, qPrintable(QString::number(pages)));
         // Every paragraph of the cell is on a page: the last part has the last, and the parts go on from one to the next.
         double offset = -1;
@@ -14623,8 +14628,8 @@ private Q_SLOTS:
         const QByteArray zip = makeDocx(inner, kStyles);
         QStringList notes;
         int pages = 0;
-        const double seconds = secondsToOpenAndPage(zip, &pages, &notes);
-        QVERIFY2(seconds < 5, qPrintable(QString::number(seconds)));
+        const OpenWork work = openAndPageWork(zip, &pages, &notes);
+        QVERIFY2(work.rows <= 30 && work.cells <= 60 && work.tree <= 2000 && work.chars <= 1000, qPrintable(work.text()));   // (counted: next to nothing)
         QVERIFY2(notes.size() == 1 && notes[0].contains(QLatin1String("table")), qPrintable(notes.join(QLatin1Char('|'))));
         QVERIFY(pages >= 1 && pages < 20);
         auto doc = open(zip);

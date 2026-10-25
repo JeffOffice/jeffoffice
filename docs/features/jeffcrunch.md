@@ -90,9 +90,9 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 - [ ] **later** Open from a web address (HTTP and WebDAV) and save back
 
 ### Print
-- [~] **first release** Print with printer choice, copies, collate, what to print (the active sheets, the whole workbook, or the selection), page ranges, one- or two-sided, orientation, paper size, margins, and scaling, and printer properties *(shared: JeffPub's print)*
-- [~] **first release** Print preview with page navigation, zoom, a margins view that drags the margins and column widths, and a shrink-to-fit check *(shared: JeffPub's print preview)*
-- [ ] **first release** Print what the page setup says (see Page Layout): the print area, titles repeated on every page, page breaks, scaling to a number of pages wide and tall, headers and footers, gridlines, and headings
+- [~] **first release** Print with printer choice, copies, collate, what to print (the active sheets, the whole workbook, or the selection), page ranges, one- or two-sided, orientation, paper size, margins, and scaling, and printer properties *(shared: JeffPub's print; done October 24, 2026: File > Print with the system's printers and Save as PDF, copies, collate, this sheet, the whole workbook, or the selection, page ranges, orientation, paper, margins, and scaling for the one print, and the system's own dialog for two-sided and the other settings of a printer; not done: several selected sheets printed at once)*
+- [~] **first release** Print preview with page navigation, zoom, a margins view that drags the margins and column widths, and a shrink-to-fit check *(shared: JeffPub's print preview; done: the live preview drawn as the printer and the PDF are, next and previous, page n of m, fit page and zoom, and a note under it when a sheet is shrunk very small, needs more pages than can be made, or has nothing on it; not done: dragging the margins and the column widths on the preview)*
+- [x] **first release** Print what the page setup says (see Page Layout): the print area, titles repeated on every page, page breaks, scaling to a number of pages wide and tall, headers and footers, gridlines, and headings *(done October 24, 2026; notes are not printed, and conditional formats are not shown on the screen yet so they are not printed)*
 - [ ] **1.0** Print several pages on a sheet, scaled to a paper size, collated or not, and a table or chart alone
 - [ ] **1.0** Duplex printing by hand: print the odd pages, then the even ones, with a prompt to turn the stack over
 
@@ -250,19 +250,19 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 - [~] **1.0** Themes gallery, Colors, Fonts, and Effects: a new theme restyles every cell that uses theme colors and theme fonts; save the current theme; create your own color and font sets; browse for a theme from another file *(shared: JeffDeck's theme gallery and the themes of libs/office)*
 
 ### Page Setup
-- [~] **first release** Margins (Normal, Wide, Narrow, and custom, with the header and footer margins), Orientation, and Size (every paper size the printer offers, plus More Paper Sizes), and Center on Page (horizontally and vertically) *(shared: JeffPub's page setup)*
-- [ ] **first release** Print Area: Set, Add to, and Clear; several areas on one sheet print on separate pages *(print areas: ours <1% (.xls 3%), public 36%, Enron 47% (7,422 workbooks), EUSES 35%, government 27%)*
-- [ ] **first release** Breaks: Insert, Remove, and Reset All Page Breaks (horizontal and vertical), and automatic breaks that fall where the original puts them for the same fonts and printer *(manual page breaks: ours <1%, public 14%, EUSES 17%, government 15%, Enron 10%)*
-- [ ] **first release** Print Titles: rows repeated at the top and columns repeated at the left of every printed page *(print titles: ours <1%, public 18%, government 20%, EUSES 19%, Enron 16%)*
+- [~] **first release** Margins (Normal, Wide, Narrow, and custom, with the header and footer margins), Orientation, and Size (every paper size the printer offers, plus More Paper Sizes), and Center on Page (horizontally and vertically) *(shared: JeffPub's page setup; done October 24, 2026 except that the sizes are a fixed list of the common ones and More Paper Sizes is the Page Setup dialog's size box, not the printer's own list)*
+- [x] **first release** Print Area: Set, Add to, and Clear; several areas on one sheet print on separate pages *(print areas: ours <1% (.xls 3%), public 36%, Enron 47% (7,422 workbooks), EUSES 35%, government 27%; done October 24, 2026, read from `.xlsx` and `.xls`, kept through saving, and moved by inserting and deleting rows and columns; and with a sheet through insert, copy, delete, rename, and move, and Undo of each)*
+- [~] **first release** Breaks: Insert, Remove, and Reset All Page Breaks (horizontal and vertical), and automatic breaks that fall where the original puts them for the same fonts and printer *(manual page breaks: ours <1%, public 14%, EUSES 17%, government 15%, Enron 10%; done October 24, 2026: the commands, the breaks read and saved and moved by edits, and dashed lines for the automatic ones on the sheet; the automatic breaks: the automatic breaks agree for 84.6% of the 1,283 reference sheets by count of pages, and the first word of a page is the same on 72.4% of pages)*
+- [x] **first release** Print Titles: rows repeated at the top and columns repeated at the left of every printed page *(print titles: ours <1%, public 18%, government 20%, EUSES 19%, Enron 16%; done October 24, 2026, read from `.xlsx` and `.xls`, kept through saving, and moved by edits)*
 - [ ] **1.0** Background: a picture tiled behind a sheet's cells (shown, not printed)
-- [ ] **first release** The Page Setup dialog with its four tabs: Page (orientation, scale or fit, paper size, quality, first page number), Margins, Header/Footer (see Header & Footer tab), and Sheet (print area, titles, gridlines, black and white, draft quality, row and column headings, comments at the end or as displayed, errors printed as shown or as blank, `--`, or `#N/A`, and page order: down then over, or over then down) *(headers and footers: Enron 95%; the converted collections read 100%, not real)*
+- [~] **first release** The Page Setup dialog with its four tabs: Page (orientation, scale or fit, paper size, quality, first page number), Margins, Header/Footer (see Header & Footer tab), and Sheet (print area, titles, gridlines, black and white, draft quality, row and column headings, comments at the end or as displayed, errors printed as shown or as blank, `--`, or `#N/A`, and page order: down then over, or over then down) *(headers and footers: Enron 95%; the converted collections read 100%, not real; done October 24, 2026 with the four tabs and the presets and the custom editor for the header and footer; the print quality is not on the Page tab, and the comments setting is kept and saved but notes are not printed yet)*
 
 ### Scale to Fit
-- [ ] **first release** Fit the sheet to a number of pages wide and tall (or automatic), or a percent from 10 to 400, with a shrink warning when the type becomes too small to read
-- [ ] **first release** Scaling stays with the sheet and is kept as saved, so the same pages come out on the same paper
+- [x] **first release** Fit the sheet to a number of pages wide and tall (or automatic), or a percent from 10 to 400, with a shrink warning when the type becomes too small to read *(done October 24, 2026; a fit never enlarges, as in the original)*
+- [x] **first release** Scaling stays with the sheet and is kept as saved, so the same pages come out on the same paper *(done October 24, 2026: the scale, the fit, and the paper are read, changed, and saved by patching only what differs)*
 
 ### Sheet Options
-- [~] **first release** Gridlines and Headings: view and print each separately
+- [~] **first release** Gridlines and Headings: view and print each separately *(printing each is done October 24, 2026, and the view part was there before)*
 - [ ] **first release** Right-to-left sheet (Page Layout > Sheet Right-to-Left) *(right-to-left sheets: ours 0%, public 0%)*
 
 ### Arrange
@@ -362,7 +362,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 ## View tab
 
 ### Workbook Views
-- [ ] **first release** Normal, Page Break Preview (dragging the blue page lines, with "Page 1" watermark on each page and the print area in white), and Page Layout (each page drawn with margins, header and footer, and the rulers)
+- [~] **first release** Normal, Page Break Preview (dragging the blue page lines, with "Page 1" watermark on each page and the print area in white), and Page Layout (each page drawn with margins, header and footer, and the rulers) *(Normal only; after a preview or print, dashed lines on the Normal view show where the pages begin and View > Page Breaks turns them off; Page Break Preview and the Page Layout view are not built)*
 - [ ] **1.0** Custom Views: named combinations of the view, filters, hidden rows and columns, print settings, and window position, shown and kept *(custom views: ours 0%, public <1%, Enron <1% (138 workbooks))*
 - [ ] **later** Sheet View (the 365 feature: private filter and sort views of a shared sheet)
 
@@ -614,10 +614,10 @@ The format a cell shows its value in. Workbooks keep their own: the middle one i
 
 ## Under the ribbon: printing and page layout
 
-- [ ] **first release** Pagination: the sheet is cut into pages by the paper, margins, scale, print area, repeated titles, manual breaks, and the page order, with the breaks falling where the original puts them for the same fonts; a page shows the cells whole (a row is not split) and wide text is clipped as in the original
-- [ ] **first release** Header and footer fields (page, pages, date, time, file, path, sheet, picture) updated at print time, with separate first-page and even-page forms, and the margins they sit in
-- [ ] **first release** Gridlines, row and column headings, notes (at the end of the sheet or as displayed), errors as blank, black and white, and draft quality, printed as chosen
-- [ ] **first release** Charts, pictures, and shapes print in place with their cells, or not, as each one's "print object" says
+- [~] **first release** Pagination: the sheet is cut into pages by the paper, margins, scale, print area, repeated titles, manual breaks, and the page order, with the breaks falling where the original puts them for the same fonts; a page shows the cells whole (a row is not split) and wide text is clipped as in the original *(done October 24, 2026 as a library with bounds and tests; where the breaks fall against the original's: the page count is the same for 84.6% of 1,283 sheets (87.5% of those we print), the first word of a page for 72.4%)*
+- [~] **first release** Header and footer fields (page, pages, date, time, file, path, sheet, picture) updated at print time, with separate first-page and even-page forms, and the margins they sit in *(done October 24, 2026 except the picture, which draws nothing)*
+- [~] **first release** Gridlines, row and column headings, notes (at the end of the sheet or as displayed), errors as blank, black and white, and draft quality, printed as chosen *(done October 24, 2026 except notes, which are not read yet)*
+- [x] **first release** Charts, pictures, and shapes print in place with their cells, or not, as each one's "print object" says *(done October 24, 2026; a draft leaves them out; a chart sheet prints as one page with its chart over the page's room)*
 - [ ] **1.0** Print the pages a pivot table needs (repeat item labels, a page for each filter value), and print a selected table or chart alone
 
 ## Fidelity and testing
@@ -631,7 +631,7 @@ The collections are tests as well as evidence. Every saved workbook stores the l
 - [ ] **first release** Reference answers: recalculated values and the "as shown" text of every cell (a CSV saved from a workbook writes each cell as shown) give the answers for number formats, rounding, dates, and anything the stored results don't settle
 - [ ] **first release** Round trip: open, save, and open again in JeffCrunch and compare the model; check that the saved `.xlsx` opens without a repair message and that every cell matches. Run over all `.xlsx` (Enron 15,871, ours 1,335, POI 366, LibreOffice 364) and over the `.xls` and `.ods` files after conversion to `.xlsx`
 - [ ] **first release** LibreOffice's Calc test folder as format tests: 312 `.xlsx`, 305 `.ods`, 80 `.xls`, 8 `.xlsb`, 6 `.xlsm`, 9 `.csv`, 18 `.fods`, and the Lotus, Quattro Pro, Works, SYLK, DIF, dBASE, and Gnumeric files for the later formats; each opens and shows what the test file's name says it holds
-- [ ] **first release** Pages against reference pages: a set of workbooks has reference PDF pages; JeffCrunch's pages are compared page by page (page breaks, column widths, wrapped text, fills, borders, headers and footers, charts) with the same tools used for JeffPub and JeffDeck. The set is picked from the collections by features: print areas, titles, scale to fit, merged cells, wrapped text, charts, and notes
+- [~] **first release** Pages against reference pages: a set of workbooks has reference PDF pages; JeffCrunch's pages are compared page by page (page breaks, column widths, wrapped text, fills, borders, headers and footers, charts) with the same tools used for JeffPub and JeffDeck. The set is picked from the collections by features: print areas, titles, scale to fit, merged cells, wrapped text, charts, and notes *(`tools/crunch_print_score.py` against 360 practice workbooks: page count 84.6% of 1,283 sheets, picture difference median 3.28 (60% of pages under 4), first word of the page 72.4%, nothing printed where the original printed nothing 251 of 251)*
 - [ ] **1.0** Charts: the 1,685 Enron, 340 EUSES, 81 government, and 28 POI workbooks with charts are drawn and compared with a reference picture of each, as JeffDeck's charts are
 - [ ] **1.0** Pivot tables: the 250 Enron, 17 EUSES, 9 government, and 70 LibreOffice workbooks with pivot tables. First release: round trip keeps the table and its cache whole. 1.0: refresh each pivot table and compare its cells with the stored ones
 - [ ] **1.0** Number formats: every format in the collections applied to its cell's stored value, compared with the "as shown" text of the reference answers

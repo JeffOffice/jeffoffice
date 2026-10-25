@@ -446,7 +446,14 @@ bool looksAlike(const QTextDocument &sa, int pa, const QTextDocument &sb, int pb
 
 } // namespace
 
-MorphPlan planMorph(const Document &doc, const ItemList &from, const ItemList &to) { return Pairing(doc, from, to).run(); }
+static thread_local MorphWork g_work;
+MorphWork morphWorkForTest() { return g_work; }
+
+MorphPlan planMorph(const Document &doc, const ItemList &from, const ItemList &to)
+{
+    g_work.objectsPlanned += from.size() + to.size();
+    return Pairing(doc, from, to).run();
+}
 
 // ---- the frames ----
 
@@ -609,6 +616,7 @@ struct MorphFrames::Impl {
         if (!layoutA || !layoutB) return nullptr;
         const bool byWord = by == QLatin1String("words");
         const QVector<Token> oldTokens = tokensOf(*sa, *layoutA, frameA, originA, byWord), newTokens = tokensOf(*sb, *layoutB, frameB, originB, byWord);
+        g_work.tokensMade += oldTokens.size() + newTokens.size();
         const QVector<QPair<int, int>> pairs = pairTokens(oldTokens, newTokens);
         if (pairs.isEmpty()) return nullptr;
 
@@ -634,6 +642,7 @@ struct MorphFrames::Impl {
         };
         m->oldText = paint(boxA, from);
         m->newText = paint(boxB, to);
+        g_work.textPicturesPainted += 2;
         // A token's cell: the pixels its place covers.
         auto cell = [&](const QRectF &r) {
             return QRectF((r.x() + m->pad) * perPoint, (r.y() + m->pad) * perPoint, r.width() * perPoint, r.height() * perPoint).toAlignedRect() & QRect(QPoint(0, 0), px);

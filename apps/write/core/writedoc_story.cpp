@@ -147,7 +147,7 @@ QString textOfXml(const QByteArray &xml)
 }
 
 // How many expressions the attributes of tags have been looked for with since the program began (one for each name), for a test of the cost of reading a file.
-std::atomic<qint64> s_attributeExpressions{0};
+std::atomic<qint64> s_attributeExpressions{0}, s_frameExpressionRuns{0};
 
 // The attribute of a start tag kept as written.
 QString attributeOfTag(const QByteArray &xml, const QString &name)
@@ -494,6 +494,7 @@ QHash<QString, QString> framePropertiesOf(const QVector<RawChild> &extra, QByteA
     for (const RawChild &ch : extra) {
         if (!ch.xml.contains("framePr")) continue;   // (the usual child has none: no need of the expression)
         const QString head = QString::fromUtf8(ch.xml.left(3000));
+        ++s_frameExpressionRuns;
         if (!isFrame.match(head).hasMatch()) continue;
         *xml = ch.xml;
         const int close = head.indexOf(QLatin1Char('>'));
@@ -602,6 +603,7 @@ flow::FloatingObject frameObjectOf(const QHash<QString, QString> &at)
 QString liveFieldFor(const QString &instruction) { return liveFieldOf(instruction); }
 
 qint64 attributeExpressionsMadeForTest() { return s_attributeExpressions.load(); }
+qint64 frameExpressionRunsForTest() { return s_frameExpressionRuns.load(); }
 
 // Fills `story` from the elements of a body or of a header or footer. A header's or footer's (`header`) fields for the page's number and the page
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.

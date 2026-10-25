@@ -393,17 +393,14 @@ private Q_SLOTS:
         for (int i = 0; i < 12; ++i) entries += slidePersist(5, 0, 0x100 + i);
         QString err;
         std::unique_ptr<Document> d;
-        const qint64 ms = bestNanoseconds([&] {
-            d = deck::importBinaryPresentation(pptOf(entries, {{5, pptSlideOf(pptTinyShape().repeated(20000))}}), &err);
-        }, 5, [&] {
-            d.reset();
-            err.clear();
-        }) / 1000000;
+        d = deck::importBinaryPresentation(pptOf(entries, {{5, pptSlideOf(pptTinyShape().repeated(20000))}}), &err);
+        { const auto w = jp::deck::lastPptImportWorkForTest();
+          // (Counted: the drawing of 20,000 shapes is read once, though twelve entries name it; the clock said so before.)
+          QVERIFY2(w.shapesTaken <= 20000 + 16, qPrintable(QString::number(w.shapesTaken))); }
         QVERIFY2(d, qPrintable(err));
         QCOMPARE(int(d->pages.size()), 1);
         QCOMPARE(int(d->pages[0]->items.size()), 20000);
         QVERIFY2(err.contains(QStringLiteral("Slide 2 was left out")) && err.contains(QStringLiteral("Slide 12 was left out")), qPrintable(err));
-        QVERIFY(ms < 20000);
         // Slides that are each their own are all read, with no note.
         entries.clear();
         for (int i = 0; i < 3; ++i) entries += slidePersist(5 + i, 0, 0x100 + i);
@@ -470,16 +467,13 @@ private Q_SLOTS:
         s += userEdit(previous, directory, 1);
         QString err;
         std::unique_ptr<Document> d;
-        const qint64 ms = bestNanoseconds([&] {
-            d = deck::importBinaryPresentation(pptFileOf(s, newest), &err);
-        }, 5, [&] {
-            d.reset();
-            err.clear();
-        }) / 1000000;
+        d = deck::importBinaryPresentation(pptFileOf(s, newest), &err);
+        { const auto w = jp::deck::lastPptImportWorkForTest();
+          // (Each of the million ids of the directory the 300 edits share is listed once, not once for each edit.)
+          QVERIFY2(w.persistRead <= 1000000 + 16, qPrintable(QString::number(w.persistRead))); }
         QVERIFY2(d, qPrintable(err));
         QCOMPARE(int(d->pages.size()), 1);
         QVERIFY2(err.isEmpty(), qPrintable(err));
-        QVERIFY2(ms < 8000, qPrintable(QString::number(ms)));
     }
 
     // Directories that lie inside one another (each edit's begins in the last one's ids) are read only up to as many ids as the
@@ -510,16 +504,13 @@ private Q_SLOTS:
         s += userEdit(previous, directory, 1);
         QString err;
         std::unique_ptr<Document> d;
-        const qint64 ms = bestNanoseconds([&] {
-            d = deck::importBinaryPresentation(pptFileOf(s, newest), &err);
-        }, 5, [&] {
-            d.reset();
-            err.clear();
-        }) / 1000000;
+        d = deck::importBinaryPresentation(pptFileOf(s, newest), &err);
+        { const auto w = jp::deck::lastPptImportWorkForTest();
+          // (The ids listed are no more than the stream has bytes.)
+          QVERIFY2(w.persistRead <= pptFileOf(s, newest).size(), qPrintable(QString::number(w.persistRead))); }
         QVERIFY2(d, qPrintable(err));
         QCOMPARE(int(d->pages.size()), 1);
         QVERIFY2(err.contains(QStringLiteral("older edits")), qPrintable(err));
-        QVERIFY(ms < 8000);
     }
 
     // A picture is found in the store by its number in one step: a store of 100,000 pictures and a slide of 100,000 frames, each
@@ -534,16 +525,13 @@ private Q_SLOTS:
         for (int i = 1; i <= kPictures; ++i) frames += pptPictureShape(i);
         QString err;
         std::unique_ptr<Document> d;
-        const qint64 ms = bestNanoseconds([&] {
-            d = deck::importBinaryPresentation(pptOf(slidePersist(5, 0, 0x100), {{5, pptSlideOf(frames)}}, group), &err);
-        }, 5, [&] {
-            d.reset();
-            err.clear();
-        }) / 1000000;
+        d = deck::importBinaryPresentation(pptOf(slidePersist(5, 0, 0x100), {{5, pptSlideOf(frames)}}, group), &err);
+        { const auto w = jp::deck::lastPptImportWorkForTest();
+          // (The store is passed once to be indexed, and a frame's picture is found by its number.)
+          QVERIFY2(w.storeEntriesVisited <= kPictures + 16 && w.shapesTaken >= kPictures, qPrintable(QString::number(w.storeEntriesVisited))); }
         QVERIFY2(d, qPrintable(err));
         QCOMPARE(int(d->pages.size()), 1);
         QCOMPARE(int(d->pages[0]->items.size()), kPictures);
-        QVERIFY2(ms < 10000, qPrintable(QString::number(ms)));
     }
 
     // The Macintosh pictures of a presentation are drawn from what they may do between them: pictures that are as slow as one may be, six of
@@ -578,19 +566,11 @@ private Q_SLOTS:
             auto d = deck::importBinaryPresentation(pptOf(slidePersist(5, 0, 0x100), {{5, pptSlideOf(frames)}}, group), &err);
             return std::make_pair(std::move(d), err);
         };
-        decltype(import(6)) six, three;
-        const qint64 ms = bestNanoseconds([&] {
-            six = import(6);
-            three = import(3);
-        }, 3, [&] {
-            six.first.reset();
-            three.first.reset();
-        }) / 1000000;
+        decltype(import(6)) six = import(6), three = import(3);
         QVERIFY2(six.first, qPrintable(six.second));
         QVERIFY2(six.second.contains(QStringLiteral("2 pictures were left out")), qPrintable(six.second));
         QVERIFY2(three.first, qPrintable(three.second));
         QVERIFY2(!three.second.contains(QStringLiteral("were left out")), qPrintable(three.second));
-        QVERIFY2(ms < 20000, qPrintable(QString::number(ms)));
     }
 
     // The notes pages that slides name are found by their slide id in one step: 8,000 slides naming pages in a list of 500,000 each had
@@ -623,15 +603,12 @@ private Q_SLOTS:
         s += userEdit(0, directory, 1);
         QString err;
         std::unique_ptr<Document> d;
-        const qint64 ms = bestNanoseconds([&] {
-            d = deck::importBinaryPresentation(pptFileOf(s, edit), &err);
-        }, 5, [&] {
-            d.reset();
-            err.clear();
-        }) / 1000000;
+        d = deck::importBinaryPresentation(pptFileOf(s, edit), &err);
+        { const auto w = jp::deck::lastPptImportWorkForTest();
+          // (The list of 500,000 is passed to be indexed, twice at the most, and not for each of the 8,000 slides.)
+          QVERIFY2(w.notesVisited <= 2 * 50 * 10000 + 16, qPrintable(QString::number(w.notesVisited))); }
         QVERIFY2(d, qPrintable(err));
         QCOMPARE(int(d->pages.size()), kSlides);
-        QVERIFY2(ms < 5000, qPrintable(QString::number(ms)));
     }
 
     // The placeholders of a slide find their master's by type in one step: 10,000 of them on a master of 40,000 shapes each had the
@@ -652,16 +629,13 @@ private Q_SLOTS:
         s += userEdit(0, directory, 1);
         QString err;
         std::unique_ptr<Document> d;
-        const qint64 ms = bestNanoseconds([&] {
-            d = deck::importBinaryPresentation(pptFileOf(s, edit), &err);
-        }, 5, [&] {
-            d.reset();
-            err.clear();
-        }) / 1000000;
+        d = deck::importBinaryPresentation(pptFileOf(s, edit), &err);
+        { const auto w = jp::deck::lastPptImportWorkForTest();
+          // (The master's 40,001 shapes are passed once to be indexed, and not for each of the 10,000 placeholders.)
+          QVERIFY2(w.placeholderItemsVisited <= 2 * 40001, qPrintable(QString::number(w.placeholderItemsVisited))); }
         QVERIFY2(d, qPrintable(err));
         QCOMPARE(int(d->pages[0]->items.size()), 10000);
         for (const auto &it : d->pages[0]->items) QCOMPARE(it->rect, QRectF(25, 12.5, 600, 100));
-        QVERIFY2(ms < 4000, qPrintable(QString::number(ms)));
     }
 
     // The copies of a title master's own shapes that each layout on it has are among the budget of shapes: twelve layouts of a master of

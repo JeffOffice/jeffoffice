@@ -40,7 +40,10 @@ bool WorkbookSource::loadAll()
     bool whole = true, stopped = false;
     qint64 held = 0;
     for (int i = 0; i < m_book.info().sheets.size(); ++i) {
-        if (m_book.info().sheets[i].kind == SheetKind::Chartsheet) continue;
+        if (m_book.info().sheets[i].kind == SheetKind::Chartsheet) {
+            m_book.readSheet(i, &m_sheets[size_t(i)]);   // (no cells: what it says of printing is read)
+            continue;
+        }
         Sheet &s = m_sheets[size_t(i)];
         if (stopped || held > m_maxBytes || (m_progress && !m_progress(i, 0))) {
             // the sheets read so far take all that a workbook may, or the load was stopped: this one is left out

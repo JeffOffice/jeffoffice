@@ -231,6 +231,8 @@ public:
     // How many rows were looked at to see whether a row kept with the next has room with those after it (a count for the tests of cost).
     qint64 keepChecks() const { return m_keepChecks; }
     qint64 tableCellsLaidOut() const { return m_tables ? m_tables->cellsLaidOut() : 0; }
+    // How many paragraphs the tables were found among since it was made (the whole story each time they are found again): what an edit costs in a long story with a table.
+    qint64 tableBlocksIndexed() const { return m_tables ? m_tables->blocksIndexed() : 0; }
     // How many pages the page numbers have been walked back over to find where their section began, for tests.
     qint64 numberStepsForTest() const { return m_numberSteps; }
     // How many characters the copies of the text on the pages have held since it was made (the copy a page is drawn from holds that page's text and a line more): for tests of what a page costs.
