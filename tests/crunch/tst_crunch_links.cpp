@@ -15,6 +15,8 @@
 #include <QAction>
 #include <QFileInfo>
 #include <QLineEdit>
+#include <QMessageBox>
+#include <QTimer>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -30,12 +32,14 @@ namespace {
 
 // Two sheets. Sheet1 (A1:D3 as editBook has them) has links: A1 to a web page (with a screen tip), B1 to Sheet2!C2, C1 to javascript: (a file can say anything), D1 to a file beside the workbook, and
 // D2 to an e-mail address.
-QByteArray linksBook()
+QByteArray linksBook(bool hostile = false)
 {
     const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c><c r=\"C1\"><v>3</v></c><c r=\"D1\"><v>4</v></c></row><row r=\"2\"><c r=\"D2\"><v>5</v></c></row>"
                                          "<row r=\"3\"><c r=\"A3\"><v>6</v></c></row>");
     const QString links = QStringLiteral("<hyperlinks><hyperlink ref=\"A1\" r:id=\"rId1\" tooltip=\"The first page\"/><hyperlink ref=\"B1\" location=\"Sheet2!C2\"/><hyperlink ref=\"C1\" r:id=\"rId2\"/>"
-                                         "<hyperlink ref=\"D1\" r:id=\"rId3\"/><hyperlink ref=\"D2\" r:id=\"rId4\"/></hyperlinks>");
+                                         "<hyperlink ref=\"D1\" r:id=\"rId3\"/><hyperlink ref=\"D2\" r:id=\"rId4\"/>")
+                          + (hostile ? QStringLiteral("<hyperlink ref=\"A3\" r:id=\"rId5\" tooltip=\"&lt;b&gt;bold&lt;/b&gt;&lt;img src=&quot;file:///etc/hostname&quot;&gt;\"/><hyperlink ref=\"A4\" r:id=\"rId6\"/>") : QString())
+                          + QStringLiteral("</hyperlinks>");
     QMap<QString, QByteArray> all;
     // (styles with the lists a named style goes in, so that the look of a link can be given)
     const QByteArray styles = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts>"
@@ -47,7 +51,9 @@ QByteArray linksBook()
     auto rel = [&](const QString &id, const QString &target) { return QStringLiteral("<Relationship Id=\"%1\" Type=\"%2\" Target=\"%3\" TargetMode=\"External\"/>").arg(id, base, target.toHtmlEscaped()); };
     all[QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")] = ("<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" + rel(QStringLiteral("rId1"), QStringLiteral("https://example.org/first"))
                                                                   + rel(QStringLiteral("rId2"), QStringLiteral("javascript:alert(1)")) + rel(QStringLiteral("rId3"), QStringLiteral("data/report.pdf"))
-                                                                  + rel(QStringLiteral("rId4"), QStringLiteral("mailto:a@example.org")) + "</Relationships>").toUtf8();
+                                                                  + rel(QStringLiteral("rId4"), QStringLiteral("mailto:a@example.org"))
+                                                                  + (hostile ? rel(QStringLiteral("rId5"), QStringLiteral("ftp://h/<img src=\"file:///etc/passwd\">")) + rel(QStringLiteral("rId6"), QStringLiteral("tools/clean.cmd")) : QString())
+                                                                  + "</Relationships>").toUtf8();
     jp::ZipWriter z;
     for (auto it = all.begin(); it != all.end(); ++it) z.add(it.key(), it.value(), true);
     return z.finish();
@@ -149,6 +155,60 @@ private Q_SLOTS:
         QCOMPARE(int(seen.urls.size()), count);
     }
 
+    // What a file says in a tip or an address is shown as the words it is, never as markup (markup can name a picture to fetch).
+    void aTipOrAnAddressFromAFileIsShownAsPlainText()
+    {
+        EditWindow e;
+        QVERIFY(e.open(linksBook(true)));
+        QTest::mouseMove(e.view()->viewport(), centerOf(e, QStringLiteral("A3")));
+        QTRY_VERIFY(QToolTip::isVisible());
+        const QString shown = QToolTip::text();
+        QVERIFY2(!shown.contains(QStringLiteral("<img")) && !shown.contains(QStringLiteral("<b>")), qPrintable(shown));
+        QVERIFY(shown.contains(QStringLiteral("&lt;img")));
+        // and the question that names an address of another kind shows it as plain text too
+        Opened seen;
+        watchOpener(e, &seen);
+        bool plain = false, named = false;
+        QTimer::singleShot(400, &e.win.w, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                plain = box->textFormat() == Qt::PlainText;
+                named = box->text().contains(QStringLiteral("<img src=\"file:///etc/passwd\">"));
+                box->reject();
+            }
+        });
+        e.select(QStringLiteral("B3"));
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::ControlModifier, centerOf(e, QStringLiteral("A3")));
+        QVERIFY(plain);
+        QVERIFY(named);
+        QVERIFY(seen.urls.isEmpty());   // (it was refused)
+    }
+
+    // A link to a program, a script, or a shortcut is never opened, and never asked about.
+    void aLinkToAProgramIsNeverOpenedOrAskedAbout()
+    {
+        EditWindow e;
+        QVERIFY(e.open(linksBook(true)));
+        Opened seen;
+        watchOpener(e, &seen);
+        bool asked = false;
+        e.win.w.setConfirmAsker([&asked](const QString &, const QString &) {
+            asked = true;
+            return true;
+        });
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::ControlModifier, centerOf(e, QStringLiteral("A4")));
+        QVERIFY(seen.urls.isEmpty());
+        QVERIFY(!asked);
+        QVERIFY(!e.win.told.isEmpty());
+        // and the dialog's address is refused the same way
+        LinkRequest req;
+        req.sheetNames = {QStringLiteral("Sheet1")};
+        LinkDialog dialog(req);
+        dialog.findChild<QLineEdit *>(QStringLiteral("linkAddress"))->setText(QStringLiteral("C:\\Tools\\Setup.EXE"));
+        QString problem;
+        QVERIFY(!dialog.result(&req, &problem));
+        QVERIFY(!problem.isEmpty());
+    }
+
     void aLinkThatRunsAScriptIsNeverOpened()
     {
         EditWindow e;
@@ -235,6 +295,36 @@ private Q_SLOTS:
         e.win.w.undoStack()->redo();
         QVERIFY(s->anchors().linkAt(0, 4, 5));
         QCOMPARE(e.shownAt(QStringLiteral("F5")), QStringLiteral("the new page"));
+    }
+
+    // A link on a protected sheet that allows links goes only where every cell of the range may be changed (each one looked at, the empty ones by the lock of their column), and a range that
+    // is too large to look at is refused.
+    void linksOnAProtectedSheetCheckEveryCellOfTheRange()
+    {
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"0\" applyProtection=\"1\"><protection locked=\"0\"/></xf>"));
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" s=\"1\"><v>1</v></c><c r=\"B1\"><v>2</v></c></row><row r=\"2\"><c r=\"A2\" s=\"1\"><v>3</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, QStringLiteral("<sheetProtection sheet=\"1\" insertHyperlinks=\"0\"/>"), QStringLiteral("<cols><col min=\"4\" max=\"4\" width=\"9\" style=\"1\" customWidth=\"1\"/></cols>"))},
+                                QByteArray(), QString(), QString(), styles)));
+        crunch::EditSession *s = e.win.w.session();
+        LinkSpec link;
+        link.target = QStringLiteral("https://example.org/");
+        auto range = [](const char *ref) {
+            jp::office::sheet::CellRange r;
+            jp::office::sheet::parseRangeRef(QString::fromLatin1(ref), &r);
+            return r;
+        };
+        QVERIFY(s->setLink(0, range("A1:A2"), link, QStringLiteral("Link")).ok);        // (both unlocked)
+        QVERIFY(!s->setLink(0, range("A1:B1"), link, QStringLiteral("Link")).ok);       // (B1 is locked)
+        QVERIFY(!s->setLink(0, range("A3:A9"), link, QStringLiteral("Link")).ok);       // (A3 to A9 hold nothing, and are locked)
+        QVERIFY(s->setLink(0, range("D1:D40"), link, QStringLiteral("Link")).ok);        // (column D is unlocked, and holds nothing)
+        const auto big = s->setLink(0, range("D1:D60000"), link, QStringLiteral("Link"));
+        QVERIFY(!big.ok);
+        QVERIFY2(big.problem.contains(QStringLiteral("more cells")), qPrintable(big.problem));
+        // taking links off is the same
+        QVERIFY(!s->removeLinks(0, range("A1:B2"), QStringLiteral("Remove")).ok);
+        QVERIFY(s->removeLinks(0, range("A1:A2"), QStringLiteral("Remove")).ok);
+        QVERIFY(!s->anchors().linkAt(0, 0, 0));
     }
 
     void aLinkCanBeChangedAndRemovedAndEachIsAStepOfUndo()

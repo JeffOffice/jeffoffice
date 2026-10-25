@@ -1,4 +1,5 @@
 #include "app/namesdialog.h"
+#include "app/plaintext.h"
 
 #include "core/formulaspot.h"
 
@@ -279,7 +280,7 @@ void NamesDialog::newName()
     int made = -1;
     const EditSession::Outcome out = m_session->defineName(d, &made);
     if (!out.ok) {
-        QMessageBox::warning(this, windowTitle(), out.problem);
+        plainBox(this, QMessageBox::Warning, windowTitle(), out.problem);
         return;
     }
     refresh();
@@ -301,7 +302,7 @@ void NamesDialog::editName()
     if (!ask(id, &d)) return;
     const EditSession::Outcome out = m_session->changeName(id, d);
     if (!out.ok) {
-        QMessageBox::warning(this, windowTitle(), out.problem);
+        plainBox(this, QMessageBox::Warning, windowTitle(), out.problem);
         return;
     }
     refresh();
@@ -313,7 +314,7 @@ void NamesDialog::deleteName()
     if (id < 0) return;
     const EditSession::Outcome out = m_session->removeName(id);
     if (!out.ok) {
-        QMessageBox::warning(this, windowTitle(), out.problem);
+        plainBox(this, QMessageBox::Warning, windowTitle(), out.problem);
         return;
     }
     refresh();

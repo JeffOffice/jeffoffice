@@ -1,4 +1,5 @@
 #include "app/textimportdialog.h"
+#include "app/plaintext.h"
 
 #include "sheet/csv.h"
 
@@ -55,7 +56,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     setWindowTitle(tr("Open a Text File"));
     resize(820, 560);
     auto *layout = new QVBoxLayout(this);
-    auto *name = new QLabel(tr("%1 (%2 bytes)").arg(QFileInfo(request.path).fileName(), QLocale().toString(request.size)), this);
+    auto *name = plainLabel(new QLabel(tr("%1 (%2 bytes)").arg(QFileInfo(request.path).fileName(), QLocale().toString(request.size)), this));
     name->setObjectName(QStringLiteral("textImportName"));
     layout->addWidget(name);
     auto *form = new QFormLayout;
@@ -113,7 +114,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     m_start->setValue(request.choices.firstRow + 1);
     form->addRow(tr("Begin at row:"), m_start);
     layout->addLayout(form);
-    m_note = new QLabel(this);
+    m_note = plainLabel(new QLabel(this));
     m_note->setObjectName(QStringLiteral("textImportNote"));
     m_note->setWordWrap(true);
     layout->addWidget(m_note);

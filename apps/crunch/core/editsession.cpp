@@ -348,7 +348,7 @@ bool EditSession::canEdit(QString *why) const
         return false;
     };
     if (!m_book || !m_book->book || !m_book->calc || !m_loader->canHold()) return refuse(tr("The workbook is still being opened. It can be changed when it is open."));
-    if (m_busy) return refuse(tr("The workbook is being saved. It can be changed when that is done."));
+    if (m_busy) return refuse(tr("The workbook is busy (it is being saved, or a password is being worked on). It can be changed when that is done."));
     if (m_slicing) return refuse(tr("A large change is still being made to the workbook. It can be changed again when that is done."));
     if (!m_book->problem.isEmpty() || !m_book->book->sharedStringsError().isEmpty() || !m_book->book->stylesError().isEmpty())
         return refuse(tr("Some of this workbook could not be read whole, so JeffCrunch does not change it. You can look at it, and save nothing."));
@@ -376,7 +376,8 @@ bool EditSession::canEditCell(int sheet, quint32 row, quint32 col, QString *why)
     if (row >= kMaxRows || col >= kMaxColumns) return refuse(tr("That cell is outside the sheet."));
     const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
     if (!c.editable) return refuse(tr("You can't change part of an array or a data table."));
-    if (isLocked(sheet, c.style)) return refuse(lockedMessage());
+    // (a cell that holds nothing has its row's or its column's format, and so its lock)
+    if (isLocked(sheet, c.exists ? c.style : implicitStyle(sheet, row, col))) return refuse(lockedMessage());
     return true;
 }
 
@@ -388,7 +389,7 @@ bool EditSession::isLocked(int sheet, quint32 style) const
 
 QString EditSession::lockedMessage() const
 {
-    return tr("This sheet is protected, and the cell is locked, so it can't be changed. To change it, take the protection off in the program that put it on.");
+    return tr("This sheet is protected, and the cell is locked, so it can't be changed. To change it, choose Unprotect Sheet on the Review tab.");
 }
 
 QString EditSession::formatCodeOf(int sheet, quint32 row, quint32 col) const
@@ -905,6 +906,26 @@ void EditSession::applyPermute(jp::office::sheet::CellPermute &p, bool forward)
         if (p.to[i] >= p.first && p.to[i] - p.first < back.to.size()) back.to[p.to[i] - p.first] = p.first + quint32(i);
     back.after = m_edits.size();
     m_permutes.push_back(back);
+}
+
+bool EditSession::stepDropsPassword(bool redo, jp::office::sheet::PasswordHash *hash, QString *what) const
+{
+    const int at = redo ? m_undo.index() : m_undo.index() - 1;
+    if (at < 0 || at >= m_undo.count()) return false;
+    bool found = false;
+    eachStep(m_undo.command(at), [&](ChangeCells *cmd) {
+        const Step &step = *cmd->step();
+        for (const ProtectEdit &e : step.protections) {
+            // the password the step leaves is the one it drops, if it is not the same as the one it puts
+            const jp::office::sheet::PasswordHash &from = e.sheet < 0 ? (redo ? e.bookBefore.password : e.bookAfter.password) : (redo ? e.sheetBefore.password : e.sheetAfter.password);
+            const jp::office::sheet::PasswordHash &to = e.sheet < 0 ? (redo ? e.bookAfter.password : e.bookBefore.password) : (redo ? e.sheetAfter.password : e.sheetBefore.password);
+            if (found || !from.isSet() || from == to) continue;
+            found = true;
+            *hash = from;
+            *what = e.sheet < 0 ? tr("the workbook") : m_book->book->info().sheets.value(e.sheet).name;
+        }
+    });
+    return found;
 }
 
 void EditSession::forgetNotes()

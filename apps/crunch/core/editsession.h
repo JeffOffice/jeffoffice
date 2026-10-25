@@ -40,6 +40,8 @@ namespace jp::crunch {
 constexpr qint64 kMaxCellsPerEdit = 100000;
 // The most cells a formatting command changes the format of at once (a whole column of a sheet that is full of cells, or a block), a step of them being 20 bytes each.
 constexpr qint64 kMaxStyledCells = 2000000;
+// The most cells looked at one by one for a lock (a link put on, or taken off, a protected sheet).
+constexpr qint64 kMaxCellsLockLooked = 50000;
 // The steps Undo goes back (each a command of the stack).
 constexpr int kUndoSteps = 1000;
 // The most memory the steps hold, by an estimate of the bytes of the cells in them (as they were and as they are): past it the oldest steps are forgotten, the newest never.
@@ -145,6 +147,7 @@ struct StructChange {
     std::vector<std::pair<quint64, jp::calc::Value>> resultsGone, engineGone, fileGone;   // the results kept by cell that it deleted
     std::vector<quint64> columnsGone, rowsGone;                          // the columns and rows marked as resized that it deleted
     qint64 bytes() const;
+    std::shared_ptr<AnchorDelta> anchors;                                // what the edit moved or took away of the notes and links
     int savedGen = 0;                                                    // how many saves had been made when it was done (an Undo after a later save is made against the saved file)
 };
 
@@ -331,6 +334,9 @@ public:
     Outcome showNotes(int sheet, const std::vector<std::pair<quint32, quint32>> &cells, bool shown, const QString &stepText);
     // Gives the cells of the range a link (taking the place of the links that are on those cells), or takes the links on the range away. One step.
     Outcome setLink(int sheet, const jp::office::sheet::CellRange &range, const jp::office::sheet::LinkSpec &link, const QString &stepText);
+    // Not ok, with the reason, if a cell of the range is locked on a protected sheet (a cell with nothing in it has the lock of its row or column); the range is looked at cell by cell up to
+    // kMaxCellsLockLooked of them, and a larger one is refused.
+    Outcome lockedCellsIn(int sheet, const jp::office::sheet::CellRange &range) const;
     // Whether setLink would put the link there: not ok, with the reason, if not.
     Outcome checkLink(int sheet, const jp::office::sheet::CellRange &range, const jp::office::sheet::LinkSpec &link) const;
     Outcome removeLinks(int sheet, const jp::office::sheet::CellRange &range, const QString &stepText);
@@ -350,6 +356,8 @@ public:
     // Protects the sheet as the settings say (or takes the protection off): one step. The password is already a hash.
     Outcome setSheetProtection(int sheet, const jp::office::sheet::SheetProtection &protection, const QString &stepText);
     const jp::office::sheet::WorkbookProtection &workbookProtection() const;
+    // Whether Undo (Redo, with `redo`) would take the protection off something a password guards: the hash of the password, and what it guards in words (a sheet's name, or "the workbook").
+    bool stepDropsPassword(bool redo, jp::office::sheet::PasswordHash *hash, QString *what) const;
     Outcome setWorkbookProtection(const jp::office::sheet::WorkbookProtection &protection, const QString &stepText);
     // Whether the sheets can be added, deleted, renamed, moved, hidden, or shown; if not, why.
     bool structureOpen(QString *why = nullptr) const;

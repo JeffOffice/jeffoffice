@@ -10,6 +10,7 @@
 #include <QStringList>
 
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <tuple>
@@ -27,6 +28,51 @@ struct SideEdit {
     std::vector<Note> notes;
     std::vector<jp::office::sheet::LinkSpec> linksRemoved, linksAdded;
     bool empty() const { return notes.empty() && linksRemoved.empty() && linksAdded.empty(); }
+};
+
+using AnchorRangeKey = std::tuple<quint32, quint32, quint32, quint32>;
+
+// What an edit to rows, columns, or cells did to the notes and the links of the sheets it is on, kept to take it back: only what moved or was dropped (not the notes and links the edit
+// left where they were), so that a step of Undo holds what the edit changed and no more.
+struct AnchorDelta {
+    struct Note {
+        int sheet = 0;
+        quint64 from = 0;
+        int toSheet = 0;
+        quint64 to = 0;
+        bool gone = false;
+        jp::office::sheet::NoteInfo note;
+    };
+    struct TouchedNote {
+        int sheet = 0;
+        quint64 from = 0;
+        int toSheet = 0;
+        quint64 to = 0;
+        bool gone = false;
+    };
+    struct Link {
+        int sheet = 0;
+        size_t index = 0;           // the place in the sheet's links before the edit
+        jp::office::sheet::LinkSpec before;
+        bool gone = false;
+        bool crossed = false;       // went to another sheet (and is the last of that sheet's links, put there)
+        int toSheet = 0;
+    };
+    struct TouchedLink {
+        int sheet = 0;
+        AnchorRangeKey from;
+        AnchorRangeKey to;
+        bool gone = false;
+    };
+    std::vector<Note> notes;
+    std::vector<TouchedNote> touchedNotes;
+    std::vector<Link> links;
+    std::vector<TouchedLink> touchedLinks;
+    std::map<int, size_t> linkCounts;   // each sheet's number of links before the edit
+    int saves = 0;
+    bool empty() const { return notes.empty() && touchedNotes.empty() && links.empty() && touchedLinks.empty(); }
+    // About how many bytes it holds (the notes' words are shared with the notes, and not counted again).
+    qint64 bytes() const;
 };
 
 class CellAnchors {
@@ -49,11 +95,11 @@ public:
     // A step's changes done (forward) or taken back.
     void apply(const SideEdit &edit, bool forward);
 
-    // Rows, columns, or cells were inserted or deleted (`token` names the step): the notes and links follow, and what they were is kept for undoEdit. `sheetNames` are the sheets' names by
+    // Rows, columns, or cells were inserted or deleted: the notes and links follow, and what moved or went is returned, for undoEdit (null if nothing did). `sheetNames` are the sheets' names by
     // place, for the places that links name.
-    void followEdit(const jp::office::sheet::StructEdit &edit, const QStringList &sheetNames, const void *token);
-    // The step is undone: the notes and links are as they were before it (nothing if the step is not known).
-    void undoEdit(const void *token, const jp::office::sheet::StructEdit &edit);
+    std::shared_ptr<AnchorDelta> followEdit(const jp::office::sheet::StructEdit &edit, const QStringList &sheetNames);
+    // The step is undone: what the delta says moved or went is put back (nothing if there is none).
+    void undoEdit(const std::shared_ptr<AnchorDelta> &delta, const jp::office::sheet::StructEdit &edit);
     // Cells put in another order (a sort), done or taken back: the notes and the links on one cell go with it.
     void permute(const jp::office::sheet::CellPermute &p, bool forward);
     // A sheet added at the end, and taken away again.
@@ -72,7 +118,7 @@ public:
     size_t touchedLinks() const;
 
 private:
-    using RangeKey = std::tuple<quint32, quint32, quint32, quint32>;
+    using RangeKey = AnchorRangeKey;
     struct SheetData {
         std::map<quint64, jp::office::sheet::NoteInfo> notes;
         std::vector<jp::office::sheet::LinkSpec> links;
@@ -80,17 +126,11 @@ private:
         std::set<RangeKey> linkTouched;
         bool truncated = false;
     };
-    struct Kept {
-        const void *token = nullptr;
-        int saves = 0;
-        std::map<int, SheetData> before;
-    };
     SheetData &sheetData(int sheet);
     static RangeKey keyOf(const jp::office::sheet::CellRange &r) { return {r.row1, r.col1, r.row2, r.col2}; }
     void touch(SheetData &d, const jp::office::sheet::LinkSpec &l) { d.linkTouched.insert(keyOf(l.range)); }
 
     std::vector<SheetData> m_sheets;
-    std::vector<Kept> m_kept;
     int m_saves = 0;
 };
 

@@ -229,10 +229,10 @@ private Q_SLOTS:
         e.win.w.undoStack()->undo();
         QVERIFY(!s->anchors().noteAt(0, 0, 0)->shown);
         // all of them
-        QCOMPARE(e.win.w.act(QStringLiteral("notes.showAll"))->text(), QStringLiteral("Show All Notes"));
+        QCOMPARE(e.win.w.act(QStringLiteral("notes.showAll"))->text(), QStringLiteral("Show Every Note"));
         e.win.w.act(QStringLiteral("notes.showAll"))->trigger();
         for (const auto &n : s->anchors().notes(0)) QVERIFY(n.second.shown);
-        QCOMPARE(e.win.w.act(QStringLiteral("notes.showAll"))->text(), QStringLiteral("Hide All Notes"));
+        QCOMPARE(e.win.w.act(QStringLiteral("notes.showAll"))->text(), QStringLiteral("Hide Every Note"));
         e.win.w.act(QStringLiteral("notes.showAll"))->trigger();
         for (const auto &n : s->anchors().notes(0)) QVERIFY(!n.second.shown);
     }
@@ -351,6 +351,144 @@ private Q_SLOTS:
         QVERIFY2(savedOk(saved2, 20000), "the second save failed");
         QCOMPARE(savedNoteText(e.path, QStringLiteral("B3")), QStringLiteral("one"));
         QCOMPARE(savedNoteText(e.path, QStringLiteral("B2")), QStringLiteral("-"));
+    }
+
+    // A sheet added since the last save takes notes and links like any other, and they are in the file after the save.
+    void aSheetAddedSinceTheLastSaveTakesNotesAndLinks()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithNotes()));
+        crunch::EditSession *s = e.win.w.session();
+        int made = -1;
+        QVERIFY(s->insertSheet(1, QStringLiteral("Fresh"), &made).ok);
+        QVERIFY(made >= 0);
+        QVERIFY(s->setNote(made, 1, 1, QStringLiteral("on a new sheet"), QStringLiteral("Zed"), false, QStringLiteral("Note")).ok);
+        jp::office::sheet::LinkSpec link;
+        link.range = jp::office::sheet::CellRange{2, 2, 2, 2, true};
+        link.target = QStringLiteral("https://example.org/new");
+        QVERIFY(s->setLink(made, link.range, link, QStringLiteral("Link")).ok);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const crunch::CellAnchors &a = second.w.session()->anchors();
+        QVERIFY(a.noteAt(made, 1, 1));
+        QCOMPARE(a.noteAt(made, 1, 1)->text, QStringLiteral("on a new sheet"));
+        QCOMPARE(a.links(made).size(), size_t(1));
+    }
+
+    // What a note says is shown as the words it is: markup in it (a picture to fetch, say) is text, in the note that shows beside the cell, in the one that is shown all the time, and in the
+    // tips of the lists of the search.
+    void aNoteFromAFileIsShownAsPlainText()
+    {
+        QByteArray comments = QByteArray(kComments);
+        comments.replace("Bob says hi", "&lt;img src=&quot;file:///etc/hostname&quot; width=&quot;400&quot;&gt;&lt;b&gt;bold&lt;/b&gt;");
+        comments.replace("<t xml:space=\"preserve\">\ncheck the total</t>", "<t>&lt;img src=&quot;file:///etc/passwd&quot;&gt;</t>");
+        ExtraPart part;
+        part.name = QStringLiteral("xl/comments1.xml");
+        part.data = comments;
+        part.contentType = QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml");
+        part.sheet = 0;
+        part.relId = QStringLiteral("rIdC");
+        part.relType = QStringLiteral("comments");
+        part.relTarget = QStringLiteral("../comments1.xml");
+        EditWindow e;
+        QVERIFY(e.open(withParts(editBook(), {part})));
+        QTest::mouseMove(e.view()->viewport(), centerOf(e, QStringLiteral("A1")));
+        auto popup = [&]() -> QLabel * { return e.win.w.findChild<QLabel *>(QStringLiteral("notePopup")); };
+        QTRY_VERIFY(popup() && popup()->isVisible());
+        QCOMPARE(popup()->textFormat(), Qt::PlainText);
+        QVERIFY(popup()->text().contains(QStringLiteral("<img src=\"file:///etc/passwd\">")));
+        // its size is that of the words, not of a picture
+        QVERIFY(popup()->width() < 400 && popup()->height() < 200);
+    }
+
+    // A note that is shown all the time is laid out once for the zoom it is drawn at, and kept: drawing again does not lay it out again.
+    // What a step of Undo holds for an insert or a delete is what the edit moved or took away, and counts in the undo budget: an edit past every note holds next to nothing, one above them all
+    // holds a record for each; and Undo and Redo bring every note back to where it was, through many edits.
+    void anEditHoldsOnlyWhatItMovedAndUndoAndRedoPutItBack()
+    {
+        QByteArray comments = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<comments xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><authors><author>Ann</author></authors><commentList>";
+        for (int r = 1; r <= 4000; ++r) comments += "<comment ref=\"E" + QByteArray::number(r) + "\" authorId=\"0\" shapeId=\"0\"><text><t>n" + QByteArray::number(r) + "</t></text></comment>";
+        comments += "</commentList></comments>";
+        ExtraPart part;
+        part.name = QStringLiteral("xl/comments1.xml");
+        part.data = comments;
+        part.contentType = QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml");
+        part.sheet = 0;
+        part.relId = QStringLiteral("rIdC");
+        part.relType = QStringLiteral("comments");
+        part.relTarget = QStringLiteral("../comments1.xml");
+        EditWindow e;
+        QVERIFY(e.open(withParts(editBook(), {part})));
+        crunch::EditSession *s = e.win.w.session();
+        auto snapshot = [&] {
+            std::map<quint64, QString> m;
+            for (const auto &n : s->anchors().notes(0)) m[n.first] = n.second.text;
+            return m;
+        };
+        const auto original = snapshot();
+        QCOMPARE(original.size(), size_t(4000));
+        const qint64 base = s->undoBytes();
+        QVERIFY(s->insertRows(0, 5000, 2).ok);                 // (below every note: it moves none)
+        const qint64 past = s->undoBytes() - base;
+        QVERIFY(s->insertRows(0, 0, 2).ok);                    // (above them all: it moves every one)
+        const qint64 above = s->undoBytes() - base - past;
+        QVERIFY2(above > past + 4000 * 40, qPrintable(QString::number(past) + " " + QString::number(above)));
+        QVERIFY2(past < 20000, qPrintable(QString::number(past)));
+        const auto afterTwo = snapshot();
+        QVERIFY(s->deleteRows(0, 100, 50).ok);
+        QVERIFY(s->insertColumns(0, 2, 3).ok);                 // (E moves to H)
+        QVERIFY(s->deleteColumns(0, 7, 1).ok);                 // (and the column the notes are in goes: with every note)
+        QCOMPARE(s->anchors().notes(0).size(), size_t(0));
+        const auto finalState = snapshot();
+        for (int i = 0; i < 5; ++i) e.win.w.undoStack()->undo();
+        QVERIFY(snapshot() == original);
+        for (int i = 0; i < 5; ++i) e.win.w.undoStack()->redo();
+        QVERIFY(snapshot() == finalState);
+        for (int i = 0; i < 3; ++i) e.win.w.undoStack()->undo();   // (the column deleted, the columns inserted, the rows deleted)
+        QVERIFY(snapshot() == afterTwo);
+        QCOMPARE(s->anchors().notes(0).size(), size_t(4000));
+        e.win.w.undoStack()->redo();                                 // (the 50 rows deleted took 50 notes)
+        QCOMPARE(s->anchors().notes(0).size(), size_t(4000 - 50));
+        e.win.w.undoStack()->undo();
+        QVERIFY(snapshot() == afterTwo);
+    }
+
+    void aShownNoteIsLaidOutOnceAndNotAtEveryPaint()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithNotes()));   // (C3's note is shown)
+        e.win.w.grab();
+        const qint64 first = e.view()->shownNoteLayouts();
+        QCOMPARE(first, qint64(1));
+        for (int i = 0; i < 5; ++i) {
+            e.view()->viewport()->repaint();
+            e.win.w.grab();
+        }
+        QCOMPARE(e.view()->shownNoteLayouts(), first);
+        // another zoom lays it out for that zoom, once
+        e.view()->setZoom(1.5);
+        e.win.w.grab();
+        e.win.w.grab();
+        QCOMPARE(e.view()->shownNoteLayouts(), first + 1);
+        // and a note of a very long text is cut where the one beside the cell is (what is laid out is bounded)
+        EditWindow longOne;
+        QVERIFY(longOne.open(bookWithNotes()));
+        longOne.select(QStringLiteral("A1"));
+        answerNotesWith(longOne, QString(500000, QLatin1Char('x')));
+        longOne.win.w.act(QStringLiteral("notes.edit"))->trigger();
+        longOne.win.w.act(QStringLiteral("notes.showHide"))->trigger();
+        QVERIFY(longOne.win.w.session()->anchors().noteAt(0, 0, 0)->shown);
+        QElapsedTimer t;
+        t.start();
+        longOne.win.w.grab();
+        const qint64 once = longOne.view()->shownNoteLayouts();
+        QVERIFY(once <= 3);   // (C3's, and the long one's)
+        longOne.win.w.grab();
+        QCOMPARE(longOne.view()->shownNoteLayouts(), once);
+        QVERIFY(t.elapsed() < 20000);
     }
 
     void aSheetWithMoreNotesThanAreKeptShowsThemAndLeavesThemAlone()

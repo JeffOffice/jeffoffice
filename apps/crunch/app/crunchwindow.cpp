@@ -1,4 +1,5 @@
 #include "app/crunchwindow.h"
+#include "app/plaintext.h"
 
 #include "core/printjob.h"
 #include <QPrinter>
@@ -190,6 +191,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 
 CrunchWindow::~CrunchWindow()
 {
+    stopPasswordJob();   // (a password being worked on is given up with the window)
     if (m_tabs) m_tabs->cancelRename();   // (a name being typed is given up with the window, not given to a window that is going)
     if (m_view) m_view->setOverlay(nullptr);   // (the objects over the cells go before the grid does)
     if (m_pageView) m_pageView->setSource(nullptr);
@@ -296,7 +298,7 @@ void CrunchWindow::buildCentral()
 void CrunchWindow::buildStatusBar()
 {
     QStatusBar *sb = statusBar();
-    m_status = new QLabel(tr("Ready"), this);
+    m_status = plainLabel(new QLabel(tr("Ready"), this));
     m_status->setObjectName(QStringLiteral("statusText"));
     m_status->setMinimumWidth(220);
     sb->addWidget(m_status);
@@ -456,8 +458,7 @@ void CrunchWindow::notice(const QString &title, const QString &text, bool warnin
         m_notifier(title, text);
         return;
     }
-    if (warning) QMessageBox::warning(this, title, text);
-    else QMessageBox::information(this, title, text);
+    plainBox(this, warning ? QMessageBox::Warning : QMessageBox::Information, title, text);
 }
 
 // ---- keeping the bars in step with the selection

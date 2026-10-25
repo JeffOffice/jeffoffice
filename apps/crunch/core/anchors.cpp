@@ -11,9 +11,6 @@ namespace {
 const std::map<quint64, NoteInfo> kNoNotes;
 const std::vector<LinkSpec> kNoLinks;
 
-// The most edits kept to take back (each step of Undo holds one).
-constexpr size_t kMaxKept = 1000;
-
 bool single(const CellRange &r) { return r.row1 == r.row2 && r.col1 == r.col2; }
 
 } // namespace
@@ -27,7 +24,6 @@ CellAnchors::SheetData &CellAnchors::sheetData(int sheet)
 void CellAnchors::open(std::vector<std::map<quint64, NoteInfo>> notes, std::vector<std::vector<LinkSpec>> links)
 {
     m_sheets.clear();
-    m_kept.clear();
     m_sheets.resize(std::max(notes.size(), links.size()));
     for (size_t i = 0; i < notes.size(); ++i) m_sheets[i].notes = std::move(notes[i]);
     for (size_t i = 0; i < links.size(); ++i) m_sheets[i].links = std::move(links[i]);
@@ -82,80 +78,142 @@ void CellAnchors::apply(const SideEdit &edit, bool forward)
     }
 }
 
-void CellAnchors::followEdit(const StructEdit &edit, const QStringList &sheetNames, const void *token)
+namespace {
+
+// A link's place ("Sheet2!B5", "'My Sheet'!B5:C9") after the edit: the cells it names follow it (a place that is gone becomes "#REF!"); a name, or a place on another sheet, is as it was.
+QString placeAfter(const QString &place, const QStringList &sheetNames, const StructEdit &edit)
+{
+    const int bang = int(place.lastIndexOf(QLatin1Char('!')));
+    if (bang <= 0) return place;
+    QString name = place.left(bang);
+    if (name.size() >= 2 && name.startsWith(QLatin1Char('\'')) && name.endsWith(QLatin1Char('\''))) name = name.mid(1, name.size() - 2).replace(QStringLiteral("''"), QStringLiteral("'"));
+    if (edit.sheet < 0 || edit.sheet >= sheetNames.size() || sheetNames[edit.sheet].compare(name, Qt::CaseInsensitive) != 0) return place;
+    QString cells = place.mid(bang + 1);
+    const bool dollars = cells.contains(QLatin1Char('$'));
+    cells.remove(QLatin1Char('$'));
+    CellRange range;
+    if (!parseRangeRef(cells, &range)) return place;
+    if (!adjustRange(edit, edit.sheet, &range)) return place.left(bang + 1) + QStringLiteral("#REF!");
+    QString now = rangeName(range);
+    if (dollars) {
+        // (as written with its dollar signs: each of the two cells absolute)
+        const QStringList parts = now.split(QLatin1Char(':'));
+        QStringList marked;
+        for (const QString &part : parts) {
+            quint32 r = 0, c = 0;
+            parseCellRef(part, &r, &c);
+            marked << QLatin1Char('$') + columnName(c) + QLatin1Char('$') + QString::number(r + 1);
+        }
+        now = marked.join(QLatin1Char(':'));
+    }
+    return place.left(bang + 1) + now;
+}
+
+} // namespace
+
+qint64 AnchorDelta::bytes() const
+{
+    return qint64(sizeof(*this)) + qint64(notes.size()) * qint64(sizeof(Note)) + qint64(touchedNotes.size()) * qint64(sizeof(TouchedNote)) + qint64(touchedLinks.size()) * qint64(sizeof(TouchedLink))
+           + qint64(links.size()) * (qint64(sizeof(Link)) + 160);
+}
+
+std::shared_ptr<AnchorDelta> CellAnchors::followEdit(const StructEdit &edit, const QStringList &sheetNames)
 {
     using K = StructEdit::Kind;
-    if (edit.kind == K::Offset) return;
-    // the sheets the edit may change something of
+    if (edit.kind == K::Offset) return nullptr;
     std::set<int> sheets = {edit.sheet};
     if (edit.kind == K::Move) sheets.insert(edit.toSheet);
-    Kept kept;
-    kept.token = token;
-    kept.saves = m_saves;
-    // Everything on the sheet that is not where it was, or not there, is rebuilt: the notes by cell, the links by range.
-    struct MovedNote {
+    auto delta = std::make_shared<AnchorDelta>();
+    delta->saves = m_saves;
+    struct Landing {
         int sheet;
-        quint32 row, col;
-        NoteInfo note;
-        bool touched;
+        quint64 key;
+        jp::office::sheet::NoteInfo note;
     };
-    std::vector<MovedNote> movedNotes;
-    std::vector<std::pair<int, LinkSpec>> movedLinks;
-    std::vector<std::pair<int, RangeKey>> movedLinkTouched;
+    std::vector<Landing> landings;
+    std::vector<std::pair<int, quint64>> touchedLandings;
+    std::vector<std::pair<int, LinkSpec>> linkLandings;
     for (const int sheet : sheets) {
-        if (sheet < 0) continue;
-        SheetData &d = sheetData(sheet);
-        // notes
-        std::map<quint64, NoteInfo> notes;
-        std::set<quint64> touched;
+        if (sheet < 0 || sheet >= int(m_sheets.size())) continue;
+        SheetData &d = m_sheets[size_t(sheet)];
+        // the notes that move or go (only those are touched: the others stay where they are, in the map and in the delta's absence)
+        struct Change {
+            quint64 from;
+            int toSheet;
+            quint64 to;
+            bool gone;
+        };
+        std::vector<Change> changes;
         for (const auto &n : d.notes) {
             int s = sheet;
             quint32 row = quint32(n.first >> 32), col = quint32(n.first & 0xFFFFFFFFu);
             const RefFate fate = adjustCell(edit, &s, &row, &col);
-            const bool isTouched = d.noteTouched.count(n.first) != 0;
-            if (fate == RefFate::Gone) continue;
-            if (s == sheet) {
-                notes[noteKey(row, col)] = n.second;
-                if (isTouched) touched.insert(noteKey(row, col));
-            } else {
-                movedNotes.push_back({s, row, col, n.second, isTouched});
-            }
+            if (fate == RefFate::Same) continue;
+            changes.push_back({n.first, s, noteKey(row, col), fate == RefFate::Gone});
         }
-        // (a note written over by cells moved onto it is gone, and its place may hold one that moved there: the moved ones win)
-        std::set<quint64> touchedOnly;
+        for (const Change &c : changes) {
+            auto node = d.notes.extract(c.from);
+            delta->notes.push_back({sheet, c.from, c.toSheet, c.to, c.gone, node.mapped()});
+            if (!c.gone) landings.push_back({c.toSheet, c.to, std::move(node.mapped())});
+        }
+        // the cells marked as changed since the file was read or saved
+        std::vector<Change> touchedChanges;
         for (const quint64 k : d.noteTouched) {
             int s = sheet;
             quint32 row = quint32(k >> 32), col = quint32(k & 0xFFFFFFFFu);
             const RefFate fate = adjustCell(edit, &s, &row, &col);
-            if (fate == RefFate::Gone) continue;
-            if (s == sheet) touchedOnly.insert(noteKey(row, col));
+            if (fate == RefFate::Same) continue;
+            touchedChanges.push_back({k, s, noteKey(row, col), fate == RefFate::Gone});
         }
-        // links
-        std::vector<LinkSpec> links;
-        for (const LinkSpec &l : d.links) {
+        for (const Change &c : touchedChanges) {
+            d.noteTouched.erase(c.from);
+            delta->touchedNotes.push_back({sheet, c.from, c.toSheet, c.to, c.gone});
+            if (!c.gone) touchedLandings.emplace_back(c.toSheet, c.to);
+        }
+        // the links: those that move are changed in place, and those that go are taken out (a link that goes to another sheet goes to the end of that sheet's)
+        delta->linkCounts[sheet] = d.links.size();
+        std::vector<LinkSpec> kept;
+        bool any = false;
+        for (size_t i = 0; i < d.links.size(); ++i) {
+            LinkSpec &l = d.links[i];
             LinkSpec moved = l;
             bool alive = true;
+            int toSheet = sheet;
             if (single(l.range) && edit.kind == K::Move) {
-                int s = sheet;
                 quint32 row = l.range.row1, col = l.range.col1;
-                const RefFate fate = adjustCell(edit, &s, &row, &col);
-                if (fate == RefFate::Gone) alive = false;
-                else {
-                    moved.range.row1 = moved.range.row2 = row;
-                    moved.range.col1 = moved.range.col2 = col;
-                    if (s != sheet) {
-                        movedLinks.emplace_back(s, moved);
-                        continue;
-                    }
-                }
+                const RefFate fate = adjustCell(edit, &toSheet, &row, &col);
+                alive = fate != RefFate::Gone;
+                moved.range.row1 = moved.range.row2 = row;
+                moved.range.col1 = moved.range.col2 = col;
             } else {
                 alive = adjustRange(edit, sheet, &moved.range);
             }
-            if (!alive) continue;
-            if (!moved.location.isEmpty()) moved.location = adjustFormula(moved.location, sheet, sheetNames, edit);
-            links.push_back(moved);
+            if (alive && !moved.location.isEmpty()) moved.location = placeAfter(moved.location, sheetNames, edit);
+            if (alive && toSheet == sheet && moved == l) {
+                kept.push_back(std::move(l));
+                continue;
+            }
+            any = true;
+            AnchorDelta::Link change;
+            change.sheet = sheet;
+            change.index = i;
+            change.before = l;
+            change.gone = !alive;
+            if (alive && toSheet == sheet) {
+                kept.push_back(std::move(moved));
+            } else if (alive) {
+                change.crossed = true;
+                change.toSheet = toSheet;
+                linkLandings.emplace_back(toSheet, std::move(moved));
+            } else {
+                change.gone = true;
+            }
+            delta->links.push_back(std::move(change));
         }
-        std::set<RangeKey> linkTouched;
+        if (any) d.links = std::move(kept);
+        // the ranges marked as changed
+        std::vector<std::pair<RangeKey, RangeKey>> touchedMoves;
+        std::vector<RangeKey> touchedGone;
         for (const RangeKey &k : d.linkTouched) {
             CellRange r;
             r.valid = true;
@@ -170,71 +228,108 @@ void CellAnchors::followEdit(const StructEdit &edit, const QStringList &sheetNam
             } else {
                 alive = adjustRange(edit, sheet, &r);
             }
-            if (alive) linkTouched.insert(keyOf(r));
+            if (alive && keyOf(r) == k) continue;
+            if (alive) touchedMoves.emplace_back(k, keyOf(r));
+            else touchedGone.push_back(k);
         }
-        if ((!d.notes.empty() || !d.links.empty() || !d.noteTouched.empty() || !d.linkTouched.empty()) && !kept.before.count(sheet)) kept.before[sheet] = d;
-        d.notes = std::move(notes);
-        d.noteTouched = std::move(touched);
-        for (const quint64 k : touchedOnly) d.noteTouched.insert(k);
-        d.links = std::move(links);
-        d.linkTouched = std::move(linkTouched);
+        for (const auto &m : touchedMoves) {
+            d.linkTouched.erase(m.first);
+            delta->touchedLinks.push_back({sheet, m.first, m.second, false});
+        }
+        for (const RangeKey &k : touchedGone) {
+            d.linkTouched.erase(k);
+            delta->touchedLinks.push_back({sheet, k, k, true});
+        }
+        for (const auto &m : touchedMoves) d.linkTouched.insert(m.second);
     }
-    // what went to another sheet (a block of cells moved there)
-    for (MovedNote &m : movedNotes) {
-        SheetData &d = sheetData(m.sheet);
-        if (!kept.before.count(m.sheet)) kept.before[m.sheet] = d;
-        d.notes[noteKey(m.row, m.col)] = m.note;
-        d.noteTouched.insert(noteKey(m.row, m.col));
+    // what went to its new place, and what went to another sheet
+    for (Landing &l : landings) {
+        SheetData &d = sheetData(l.sheet);
+        d.notes.insert_or_assign(l.key, std::move(l.note));
+        d.noteTouched.insert(l.key);
     }
-    for (auto &m : movedLinks) {
-        SheetData &d = sheetData(m.first);
-        if (!kept.before.count(m.first)) kept.before[m.first] = d;
-        d.links.push_back(m.second);
-        touch(d, m.second);
+    for (const auto &t : touchedLandings) sheetData(t.first).noteTouched.insert(t.second);
+    for (auto &l : linkLandings) {
+        SheetData &d = sheetData(l.first);
+        delta->linkCounts.emplace(l.first, d.links.size());
+        d.links.push_back(std::move(l.second));
+        touch(d, d.links.back());
     }
-    // (what the sheets held before is kept in full: a step is taken back to exactly it)
-    if (!kept.before.empty()) {
-        if (m_kept.size() >= kMaxKept) m_kept.erase(m_kept.begin());
-        m_kept.push_back(std::move(kept));
-    }
+    return delta->empty() ? nullptr : delta;
 }
 
-void CellAnchors::undoEdit(const void *token, const StructEdit &edit)
+void CellAnchors::undoEdit(const std::shared_ptr<AnchorDelta> &delta, const StructEdit &edit)
 {
-    for (size_t i = m_kept.size(); i-- > 0;) {
-        if (m_kept[i].token != token) continue;
-        Kept k = std::move(m_kept[i]);
-        m_kept.erase(m_kept.begin() + qsizetype(i));
-        const bool saved = k.saves != m_saves;
-        for (auto &entry : k.before) {
-            SheetData &now = sheetData(entry.first);
-            if (saved) {
-                // the file was written after the edit: it has the notes and links where the edit put them, and then where the undo of it puts them; what is touched now stays touched
-                // where the cells go back to
-                SheetData restored = std::move(entry.second);
-                restored.noteTouched.clear();
-                restored.linkTouched.clear();
-                const StructEdit back = edit.inverse();
-                for (const quint64 key : now.noteTouched) {
-                    int s = entry.first;
-                    quint32 row = quint32(key >> 32), col = quint32(key & 0xFFFFFFFFu);
-                    if (adjustCell(back, &s, &row, &col) != RefFate::Gone && s == entry.first) restored.noteTouched.insert(noteKey(row, col));
-                }
-                for (const RangeKey &key : now.linkTouched) {
-                    CellRange r;
-                    r.valid = true;
-                    std::tie(r.row1, r.col1, r.row2, r.col2) = key;
-                    if (adjustRange(back, entry.first, &r)) restored.linkTouched.insert(keyOf(r));
-                }
-                now = std::move(restored);
-            } else {
-                now = std::move(entry.second);
+    if (!delta) return;
+    const bool saved = delta->saves != m_saves;
+    // the links that went to another sheet are taken off its end, last first
+    for (auto it = delta->links.rbegin(); it != delta->links.rend(); ++it)
+        if (it->crossed) {
+            SheetData &d = sheetData(it->toSheet);
+            if (!d.links.empty()) d.links.pop_back();
+        }
+    // the links are as they were: those that stayed in the order they have, and those that moved or went in the places they were in
+    std::map<int, std::vector<const AnchorDelta::Link *>> bySheet;
+    for (const AnchorDelta::Link &l : delta->links) bySheet[l.sheet].push_back(&l);
+    for (auto &entry : bySheet) {
+        SheetData &d = sheetData(entry.first);
+        const size_t total = delta->linkCounts.count(entry.first) ? delta->linkCounts.at(entry.first) : d.links.size();
+        std::vector<LinkSpec> restored;
+        restored.reserve(total);
+        size_t current = 0, next = 0;
+        for (size_t i = 0; i < total; ++i) {
+            if (next < entry.second.size() && entry.second[next]->index == i) {
+                const AnchorDelta::Link &l = *entry.second[next++];
+                restored.push_back(l.before);
+                if (!l.gone && !l.crossed) ++current;   // (it was changed in place: its place now is passed over)
+            } else if (current < d.links.size()) {
+                restored.push_back(std::move(d.links[current++]));
             }
         }
-        return;
+        d.links = std::move(restored);
     }
-    // (a step that moved nothing of ours: the edits that follow it are taken back the way they went)
-    (void)edit;
+    // the notes: those that moved or went, out of the places they went to (all of them first, so that none lands on another that has not moved yet), and back
+    std::vector<std::pair<int, quint64>> out;
+    for (const AnchorDelta::Note &n : delta->notes)
+        if (!n.gone) out.emplace_back(n.toSheet, n.to);
+    for (const auto &o : out)
+        if (o.first >= 0 && o.first < int(m_sheets.size())) m_sheets[size_t(o.first)].notes.erase(o.second);
+    for (const AnchorDelta::Note &n : delta->notes) sheetData(n.sheet).notes.insert_or_assign(n.from, n.note);
+    // the cells marked as changed
+    if (!saved) {
+        std::vector<std::pair<int, quint64>> touchedOut;
+        for (const AnchorDelta::TouchedNote &t : delta->touchedNotes)
+            if (!t.gone) touchedOut.emplace_back(t.toSheet, t.to);
+        for (const auto &o : touchedOut)
+            if (o.first >= 0 && o.first < int(m_sheets.size())) m_sheets[size_t(o.first)].noteTouched.erase(o.second);
+        for (const AnchorDelta::TouchedNote &t : delta->touchedNotes) sheetData(t.sheet).noteTouched.insert(t.from);
+        for (const AnchorDelta::TouchedLink &t : delta->touchedLinks) {
+            SheetData &d = sheetData(t.sheet);
+            if (!t.gone) d.linkTouched.erase(t.to);
+        }
+        for (const AnchorDelta::TouchedLink &t : delta->touchedLinks) sheetData(t.sheet).linkTouched.insert(t.from);
+    } else {
+        // the file was written after the edit: it has the notes and links where the edit put them, and then where the undo of it puts them, and what is marked now stays marked where its
+        // cells go back to
+        const StructEdit back = edit.inverse();
+        for (SheetData &d : m_sheets) {
+            std::set<quint64> keys;
+            for (const quint64 key : d.noteTouched) {
+                int s = int(&d - m_sheets.data());
+                quint32 row = quint32(key >> 32), col = quint32(key & 0xFFFFFFFFu);
+                if (adjustCell(back, &s, &row, &col) != RefFate::Gone && s == int(&d - m_sheets.data())) keys.insert(noteKey(row, col));
+            }
+            d.noteTouched = std::move(keys);
+            std::set<RangeKey> ranges;
+            for (const RangeKey &key : d.linkTouched) {
+                CellRange r;
+                r.valid = true;
+                std::tie(r.row1, r.col1, r.row2, r.col2) = key;
+                if (adjustRange(back, int(&d - m_sheets.data()), &r)) ranges.insert(keyOf(r));
+            }
+            d.linkTouched = std::move(ranges);
+        }
+    }
 }
 
 void CellAnchors::permute(const CellPermute &p, bool forward)

@@ -925,6 +925,12 @@ private:
     // ---- automatic row heights (crunchwindow_autoheight.cpp)
     void scheduleAutoHeights();
     void stepAutoHeights();
+public:
+    // How many slices the measuring of the rows has taken, and the most rows measured in one (for tests: a slice is charged by the work it does, so a row of very long text takes one alone).
+    int autoHeightSlices() const { return m_autoSlices; }
+    int mostRowsMeasuredInASlice() const { return m_autoMostRowsInASlice; }
+private:
+    int m_autoSlices = 0, m_autoMostRowsInASlice = 0;
     void noteRowsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells);
     void noteWidthsChanged(int sheet);
     std::map<int, std::set<quint32>> m_autoDirty;                       // by sheet: the rows an edit changed, not measured yet
@@ -939,7 +945,13 @@ private:
     void protectSheet();
     void protectWorkbook();
     void guardSelection();
-    bool askPassword(const QString &what, const jp::office::sheet::PasswordHash &hash);
+    void askPassword(const QString &what, const jp::office::sheet::PasswordHash &hash, const std::function<void()> &onRight);
+    void hashPassword(const QString &typed, const std::function<void(const jp::office::sheet::PasswordHash &)> &done);
+    struct PasswordJob;
+    void runPasswordJob(const QString &text, const std::function<int(const std::atomic<bool> *)> &work, const std::function<void(int)> &done);
+    void stopPasswordJob();
+    std::shared_ptr<PasswordJob> m_passwordJob;
+    void undoRedoNow(bool redo);
     grid::Selection m_lastSelectable;
     bool m_revertingSelection = false;
     AnchorHooks m_anchorHooks;

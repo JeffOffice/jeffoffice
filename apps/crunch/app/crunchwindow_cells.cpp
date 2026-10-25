@@ -1,6 +1,7 @@
 // Rows, columns, and cells inserted and deleted: the ribbon's Insert and Delete, the right-click menus of cells and of the headers, and Ctrl++ and Ctrl+-. Each asks the edit session for one
 // step; the window makes its picture of the sheet again when the cells have moved.
 #include "app/crunchwindow.h"
+#include "app/plaintext.h"
 
 #include "app/icons.h"
 
@@ -115,7 +116,7 @@ crunch::EditSession::Outcome CrunchWindow::doStructural(const std::function<crun
     }
     if (!o.ok && o.confirm) {
         // (too big for Undo to hold: the person is asked, and may go on)
-        const bool goOn = m_bigStepAsker ? m_bigStepAsker(o.problem) : QMessageBox::question(this, appInfo().name, o.problem, QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
+        const bool goOn = m_bigStepAsker ? m_bigStepAsker(o.problem) : plainBox(this, QMessageBox::Question, appInfo().name, o.problem, QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
         if (!goOn) {
             o.problem.clear();   // (nothing is done, and nothing is said: it was the person's answer; `confirm` still says why)
             return o;
@@ -234,6 +235,7 @@ bool CrunchWindow::askAboutRule(const crunch::EditSession::Outcome &o)
     if (m_ruleAsker) return m_ruleAsker(o.ruleTitle, o.problem, o.ruleStyle);
     QMessageBox box(o.ruleStyle == int(Style::Warning) ? QMessageBox::Warning : QMessageBox::Information, o.ruleTitle, o.problem,
                     o.ruleStyle == int(Style::Warning) ? QMessageBox::Yes | QMessageBox::No : QMessageBox::Ok | QMessageBox::Cancel, this);
+    box.setTextFormat(Qt::PlainText);
     return box.exec() == (o.ruleStyle == int(Style::Warning) ? QMessageBox::Yes : QMessageBox::Ok);
 }
 

@@ -2,6 +2,7 @@
 // commands that add, copy, rename, delete, move, hide, show, and color them. Each is a step of the edit session (see core/editsheets.cpp); this part asks the person what the step needs and
 // keeps the tabs and the sheet shown in step with the sheets.
 #include "app/crunchwindow.h"
+#include "app/plaintext.h"
 
 #include "app/icons.h"
 #include "app/ribbon.h"
@@ -224,7 +225,7 @@ void CrunchWindow::moveCopyCommand()
         auto *layout = new QVBoxLayout(&dialog);
         QStringList names;
         for (const int s : request.sheets) names << info.sheets[s].name;
-        layout->addWidget(new QLabel(tr("Sheets chosen: %1").arg(names.join(QStringLiteral(", ")))));
+        layout->addWidget(plainLabel(new QLabel(tr("Sheets chosen: %1").arg(names.join(QStringLiteral(", "))))));
         auto *label = new QLabel(tr("&Put the sheets in front of:"));
         layout->addWidget(label);
         auto *list = new QListWidget;

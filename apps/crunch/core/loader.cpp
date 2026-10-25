@@ -274,12 +274,13 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     out->geometry.assign(size_t(out->book->info().sheets.size()), nullptr);
     out->notes.assign(size_t(out->book->info().sheets.size()), {});
     out->notesTruncated.assign(size_t(out->book->info().sheets.size()), false);
+    jp::office::sheet::NoteReadContext notesContext;   // (a comments part that more sheets than one name is read once, and the characters are counted for the workbook)
     for (int i = 0; i < out->book->info().sheets.size(); ++i) {
         if (cancelled()) return false;
         if (out->book->info().sheets[i].kind != SheetKind::Chartsheet) out->geometry[size_t(i)] = jp::grid::GridSheet::makeGeometry(calc->sheet(i), out->book->styles());
         if (out->book->info().sheets[i].kind == SheetKind::Worksheet) {
             bool truncated = false;
-            out->notes[size_t(i)] = readSheetNoteInfos(*out->book, i, &truncated, jp::office::sheet::kMaxModelNotes);
+            out->notes[size_t(i)] = readSheetNoteInfos(*out->book, i, &truncated, jp::office::sheet::kMaxModelNotes, &notesContext);
             out->notesTruncated[size_t(i)] = truncated;
         }
     }

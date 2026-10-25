@@ -1,4 +1,5 @@
 #include "app/anchordialogs.h"
+#include "app/plaintext.h"
 
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -31,7 +32,7 @@ NoteDialog::NoteDialog(const NoteRequest &request, QWidget *parent) : QDialog(pa
     setWindowTitle(tr("Note on %1").arg(request.where));
     auto *layout = new QVBoxLayout(this);
     if (!request.author.isEmpty()) {
-        auto *by = new QLabel(tr("Written by %1").arg(request.author), this);
+        auto *by = plainLabel(new QLabel(tr("Written by %1").arg(request.author), this));
         by->setObjectName(QStringLiteral("noteAuthor"));
         layout->addWidget(by);
     }
@@ -131,7 +132,7 @@ LinkDialog::LinkDialog(const LinkRequest &request, QWidget *parent) : QDialog(pa
     m_tip->setAccessibleName(tr("Screen tip"));
     tipForm->addRow(tr("Screen tip:"), m_tip);
     layout->addLayout(tipForm);
-    m_note = new QLabel(this);
+    m_note = plainLabel(new QLabel(this));
     m_note->setObjectName(QStringLiteral("linkProblem"));
     m_note->setWordWrap(true);
     layout->addWidget(m_note);

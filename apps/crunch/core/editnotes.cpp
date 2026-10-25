@@ -31,11 +31,9 @@ bool EditSession::canEditNotes(int sheet, QString *why) const
         return false;
     };
     if (!canEdit(why) || !canEditSheet(sheet, why)) return false;
-    const jp::office::sheet::SheetEntry &entry = m_book->book->info().sheets[sheet];
     if (m_book->book->isConverted())
         return refuse(tr("Notes and links of a workbook opened from this kind of file are kept when it is saved as an .xlsx workbook. Save it as one, and then add them."));
     if (m_anchors.truncated(sheet)) return refuse(tr("This sheet has more notes than JeffCrunch changes (%1). It shows them, and keeps them, but doesn't put notes on it or take them off.").arg(jp::office::sheet::kMaxModelNotes));
-    if (entry.isNew) return refuse(tr("This sheet was added since the workbook was last saved, so notes and links can't be put on it yet. Save the workbook first."));
     return true;
 }
 
@@ -136,11 +134,22 @@ EditSession::Outcome EditSession::checkLink(int sheet, const CellRange &range, c
     if (jp::office::sheet::linkKind(link) == jp::office::sheet::LinkKind::Unsafe) return refused(tr("That kind of address runs a script or carries a page inside itself, so it can't be made a link."));
     const jp::office::sheet::Sheet &model = m_book->calc->sheet(sheet);
     if (model.isProtected) {
-        if (!model.protection.allowInsertLinks) return refused(tr("This sheet is protected, so links can't be put on it. Take the protection off first."));
-        for (quint32 r = range.row1; r <= range.row2 && r < range.row1 + 1000; ++r)
-            for (quint32 c = range.col1; c <= range.col2 && c < range.col1 + 100; ++c)
-                if (isLocked(sheet, implicitStyle(sheet, r, c))) return refused(lockedMessage());
+        if (!model.protection.allowInsertLinks) return refused(tr("This sheet is protected, so links can't be put on it. Take the protection off first (Review, Unprotect Sheet)."));
+        return lockedCellsIn(sheet, range);
     }
+    return Outcome();
+}
+
+// Not ok if a cell of the range is locked on a protected sheet (a cell that holds nothing has the lock of its row or its column), or if the range is more cells than are looked at.
+EditSession::Outcome EditSession::lockedCellsIn(int sheet, const CellRange &range) const
+{
+    if (range.cellCount() > kMaxCellsLockLooked) return refused(tr("That is more cells (%1) than are looked at to see that none is locked. Select fewer cells.").arg(QLocale().toString(qint64(kMaxCellsLockLooked))));
+    const jp::office::sheet::Sheet &model = m_book->calc->sheet(sheet);
+    for (quint32 r = range.row1; r <= range.row2; ++r)
+        for (quint32 c = range.col1; c <= range.col2; ++c) {
+            const jp::office::sheet::Cell *cell = model.cells.find(r, c);
+            if (isLocked(sheet, cell ? cell->style : implicitStyle(sheet, r, c))) return refused(lockedMessage());
+        }
     return Outcome();
 }
 
@@ -169,7 +178,12 @@ EditSession::Outcome EditSession::removeLinks(int sheet, const CellRange &range,
     QString why;
     if (!canEditNotes(sheet, &why)) return refused(why);
     const jp::office::sheet::Sheet &model = m_book->calc->sheet(sheet);
-    if (model.isProtected && !model.protection.allowInsertLinks) return refused(tr("This sheet is protected, so its links can't be changed. Take the protection off first."));
+    if (model.isProtected) {
+        if (!model.protection.allowInsertLinks) return refused(tr("This sheet is protected, so its links can't be changed. Take the protection off first (Review, Unprotect Sheet)."));
+        // (the links on the cells it may not change stay: every cell of the range is looked at)
+        const Outcome locked = lockedCellsIn(sheet, range);
+        if (!locked.ok) return locked;
+    }
     SideEdit edit;
     edit.sheet = sheet;
     for (const LinkSpec &l : m_anchors.links(sheet))

@@ -11,8 +11,8 @@
 namespace jp {
 
 namespace {
-// The cells looked at in one slice of the measuring (a slice is a few milliseconds of the window's time; it goes on in the next).
-constexpr qint64 kCellsPerSlice = 1500;
+// The work done in one slice of the measuring (a slice is a few milliseconds of the window's time; it goes on in the next).
+constexpr qint64 kCellsPerSlice = 6000;   // (in units of work: 20 for each cell shown, and one for each character wrapped)
 // The most cells of one row looked at, and the most rows an edit marks to be measured one by one (past it, only the rows in view are measured as they come into view).
 constexpr qint64 kCellsPerRow = 2000;
 constexpr size_t kMaxDirtyRows = 20000;
@@ -89,12 +89,15 @@ void CrunchWindow::stepAutoHeights()
             dirty.erase(row);
             continue;
         }
-        const double needed = gs.autoHeight(row, kCellsPerRow);
-        cells += 20 + (needed > 0 ? 20 : 0);
+        qint64 work = 20;   // (the row looked at)
+        const double needed = gs.autoHeight(row, kCellsPerRow, &work);
+        cells += work;
         heights.emplace_back(row, std::max(defaultPoints, needed));
         seen[row] = gen;
         dirty.erase(row);
     }
+    ++m_autoSlices;
+    m_autoMostRowsInASlice = std::max(m_autoMostRowsInASlice, int(heights.size()));
     if (!heights.empty()) {
         // (a row that needs only the default height, and has no height of its own, has nothing put in it)
         std::vector<std::pair<quint32, double>> put;

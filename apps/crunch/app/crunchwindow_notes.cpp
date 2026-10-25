@@ -4,6 +4,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/anchordialogs.h"
+#include "app/plaintext.h"
 #include "app/icons.h"
 #include "app/ribbon.h"
 #include "core/anchors.h"
@@ -30,6 +31,9 @@ using jp::office::sheet::NoteInfo;
 using jp::office::sheet::noteKey;
 
 namespace {
+
+// The most characters of an address shown in a question about it.
+constexpr int kLinkShownChars = 200;
 
 // The name the person is known by in the notes they write: the settings' own, else the computer account's.
 QString authorName()
@@ -62,7 +66,7 @@ void CrunchWindow::createNoteActions()
     mk("notes.edit", tr("New Note"), "message-square-plus", QKeySequence(Qt::SHIFT | Qt::Key_F2), [this] { editNote(); }, false, false);
     mk("notes.delete", tr("Delete Note"), "message-square-x", QKeySequence(), [this] { deleteSelectedNotes(); }, false, false);
     mk("notes.showHide", tr("Show or Hide Note"), "eye", QKeySequence(), [this] { toggleNoteShown(); }, true, false);
-    mk("notes.showAll", tr("Show All Notes"), "sticky-note", QKeySequence(), [this] { showAllNotes(); }, false, false);
+    mk("notes.showAll", tr("Show Every Note"), "sticky-note", QKeySequence(), [this] { showAllNotes(); }, false, false);
     mk("notes.prev", tr("Previous Note"), "chevron-left", QKeySequence(), [this] { goToNote(false); }, false, false);
     mk("notes.next", tr("Next Note"), "chevron-right", QKeySequence(), [this] { goToNote(true); }, false, false);
     mk("insert.link", tr("Link"), "link", QKeySequence(Qt::CTRL | Qt::Key_K), [this] { insertLink(); }, false, false);
@@ -145,7 +149,7 @@ void CrunchWindow::updateNoteActions()
                 allShown = false;
                 break;
             }
-    act("notes.showAll")->setText(allShown ? tr("Hide All Notes") : tr("Show All Notes"));
+    act("notes.showAll")->setText(allShown ? tr("Hide Every Note") : tr("Show Every Note"));
     act("notes.showAll")->setEnabled(can && anyNotes);
     act("notes.prev")->setEnabled(anyNotes);
     act("notes.next")->setEnabled(anyNotes);
@@ -245,7 +249,7 @@ void CrunchWindow::showAllNotes()
         cells.emplace_back(quint32(n.first >> 32), quint32(n.first & 0xFFFFFFFFu));
         anyHidden = anyHidden || !n.second.shown;
     }
-    const crunch::EditSession::Outcome o = m_session->showNotes(m_sheet, cells, anyHidden, anyHidden ? tr("Show All Notes") : tr("Hide All Notes"));
+    const crunch::EditSession::Outcome o = m_session->showNotes(m_sheet, cells, anyHidden, anyHidden ? tr("Show Every Note") : tr("Hide Every Note"));
     if (!o.ok) notice(tr("Note"), o.problem);
 }
 
@@ -319,7 +323,7 @@ void CrunchWindow::showHoverTip()
     const QRect cell = m_view->cellRectAt(row, col);
     const QPoint global = m_view->viewport()->mapToGlobal(QPoint(cell.right() + 4, cell.top()));
     if (!isNote) {
-        QToolTip::showText(global, text, m_view->viewport(), cell);
+        QToolTip::showText(global, plainToolTip(text), m_view->viewport(), cell);
         m_hoverTipShown = true;
         return;
     }
@@ -328,6 +332,7 @@ void CrunchWindow::showHoverTip()
     if (!m_notePopup) {
         auto *label = new QLabel(this, Qt::ToolTip | Qt::FramelessWindowHint);
         label->setObjectName(QStringLiteral("notePopup"));
+        label->setTextFormat(Qt::PlainText);   // (a note is the words it has, never markup)
         label->setWordWrap(true);
         label->setMargin(5);
         label->setMaximumWidth(280);
@@ -440,7 +445,7 @@ void CrunchWindow::followLinkAt(quint32 row, quint32 col)
         return;
     }
     case LinkKind::Unsafe:
-        notice(tr("Link"), tr("This link runs a script or carries a page inside itself, so JeffCrunch does not follow it."));
+        notice(tr("Link"), tr("This link goes to a program or a script, or carries a page inside itself, so JeffCrunch does not open it."));
         return;
     case LinkKind::Web:
     case LinkKind::Mail: {
@@ -465,7 +470,8 @@ void CrunchWindow::followLinkAt(quint32 row, quint32 col)
         } else {
             url = QUrl(link.target, QUrl::TolerantMode);
         }
-        if (!confirm(tr("Link"), tr("This link opens %1 with another program. Open it?").arg(link.target.left(300)))) return;
+        const QString what = jp::office::sheet::linkKind(link) == LinkKind::File ? tr("the file") : tr("an address of the kind \"%1\"").arg(QUrl(link.target, QUrl::TolerantMode).scheme());
+        if (!confirm(tr("Link"), tr("This link goes to %1 below, and opens it with another program. Open it?\n\n%2").arg(what, jp::office::sheet::elidedMiddle(link.target, kLinkShownChars)))) return;
         if (!url.isValid() || !openAddress(url)) notice(tr("Link"), tr("The address could not be opened."));
         return;
     }

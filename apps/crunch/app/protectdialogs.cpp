@@ -22,19 +22,19 @@ struct Item {
 
 // What a protected sheet can still allow, in the order the dialog lists it.
 const Item kItems[] = {
-    {"selectLocked", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Select locked cells"), &SheetProtection::allowSelectLocked},
-    {"selectUnlocked", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Select unlocked cells"), &SheetProtection::allowSelectUnlocked},
-    {"formatCells", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Format cells"), &SheetProtection::allowFormatCells},
-    {"formatColumns", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Format columns (width, hiding)"), &SheetProtection::allowFormatColumns},
-    {"formatRows", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Format rows (height, hiding)"), &SheetProtection::allowFormatRows},
-    {"insertColumns", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Insert columns"), &SheetProtection::allowInsertColumns},
-    {"insertRows", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Insert rows"), &SheetProtection::allowInsertRows},
-    {"insertLinks", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Put in links"), &SheetProtection::allowInsertLinks},
-    {"deleteColumns", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Delete columns"), &SheetProtection::allowDeleteColumns},
-    {"deleteRows", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Delete rows"), &SheetProtection::allowDeleteRows},
-    {"sort", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Sort"), &SheetProtection::allowSort},
-    {"filter", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Use filters"), &SheetProtection::allowFilter},
-    {"pivot", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Use PivotTables"), &SheetProtection::allowPivot},
+    {"formatRows", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Change row heights or hide rows"), &SheetProtection::allowFormatRows},
+    {"formatColumns", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Change column widths or hide columns"), &SheetProtection::allowFormatColumns},
+    {"insertRows", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Add new rows"), &SheetProtection::allowInsertRows},
+    {"insertColumns", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Add new columns"), &SheetProtection::allowInsertColumns},
+    {"deleteRows", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Remove rows"), &SheetProtection::allowDeleteRows},
+    {"deleteColumns", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Remove columns"), &SheetProtection::allowDeleteColumns},
+    {"formatCells", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Change how cells look"), &SheetProtection::allowFormatCells},
+    {"insertLinks", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Add or remove links"), &SheetProtection::allowInsertLinks},
+    {"sort", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Sort ranges"), &SheetProtection::allowSort},
+    {"filter", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Filter lists"), &SheetProtection::allowFilter},
+    {"pivot", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Work with PivotTables"), &SheetProtection::allowPivot},
+    {"selectUnlocked", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Click cells that are unlocked"), &SheetProtection::allowSelectUnlocked},
+    {"selectLocked", QT_TRANSLATE_NOOP("jp::ProtectSheetDialog", "Click cells that are locked"), &SheetProtection::allowSelectLocked},
 };
 
 } // namespace
@@ -62,7 +62,7 @@ ProtectSheetDialog::ProtectSheetDialog(const ProtectRequest &request, QWidget *p
     auto *warn = new QLabel(tr("A password can't be found again if it is forgotten. Keep it somewhere safe."), this);
     warn->setWordWrap(true);
     layout->addWidget(warn);
-    layout->addWidget(new QLabel(tr("Everyone may:"), this));
+    layout->addWidget(new QLabel(tr("Anyone may also:"), this));
     for (const Item &item : kItems) {
         auto *box = new QCheckBox(QCoreApplication::translate("jp::ProtectSheetDialog", item.label), this);
         box->setObjectName(QStringLiteral("protect_") + QLatin1String(item.id));
@@ -70,7 +70,7 @@ ProtectSheetDialog::ProtectSheetDialog(const ProtectRequest &request, QWidget *p
         layout->addWidget(box);
         m_checks.insert(QLatin1String(item.id), box);
     }
-    auto *objects = new QCheckBox(tr("Change drawing objects and notes"), this);
+    auto *objects = new QCheckBox(tr("Edit notes and drawing objects"), this);
     objects->setObjectName(QStringLiteral("protect_objects"));
     objects->setChecked(!request.settings.objects);
     layout->addWidget(objects);

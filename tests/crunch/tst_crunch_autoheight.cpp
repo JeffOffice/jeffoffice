@@ -173,6 +173,28 @@ private Q_SLOTS:
         QCOMPARE(rowPx(e, 1500), plain);   // (never looked at)
     }
 
+    // A slice of the measuring is charged by the work it does (the cells shown and the characters wrapped), not by the rows: rows of very long wrapped text are measured one or two to a slice, and
+    // rows of a few words many to a slice.
+    void aSliceOfTheMeasuringIsChargedByTheWorkItDoes()
+    {
+        const QString longText(4000, QLatin1Char('w'));
+        QString rows;
+        for (int r = 1; r <= 30; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" s=\"1\" t=\"inlineStr\"><is><t>%2</t></is></c></row>").arg(r).arg(longText);
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"0\" applyAlignment=\"1\"><alignment wrapText=\"1\"/></xf>"));
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), styles)));
+        QTRY_VERIFY(e.win.w.autoHeightSlices() >= 3);
+        QVERIFY2(e.win.w.mostRowsMeasuredInASlice() <= 2, qPrintable(QString::number(e.win.w.mostRowsMeasuredInASlice())));
+        // and short ones many to a slice
+        QString small;
+        for (int r = 1; r <= 60; ++r) small += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>ab</t></is></c></row>").arg(r);
+        EditWindow f;
+        QVERIFY(f.open(buildXlsx({worksheet(small)}, QByteArray(), QString(), QString(), autoStyles())));
+        QTRY_VERIFY(f.win.w.autoHeightSlices() >= 1);
+        QTest::qWait(100);
+        QVERIFY(f.win.w.autoHeightSlices() <= 3);
+    }
+
     void theHeightsOfAutomaticRowsAreSavedAndKeptAsNotAPersons()
     {
         EditWindow e;

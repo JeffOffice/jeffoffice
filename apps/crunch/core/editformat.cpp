@@ -54,6 +54,18 @@ EditSession::Outcome EditSession::restyle(int sheet, const std::vector<RestyleTa
         return out;
     }
     if (targets.empty() && !sizes) return out;
+    // what a protected sheet's protection lets be formatted does not include the lock and the hiding of formulas: they are what the protection stands on
+    if (jp::office::sheet::FormatChange const *last = nullptr; m_book->calc->sheet(sheet).isProtected) {
+        for (const RestyleTarget &t : targets) {
+            if (t.change == last) continue;
+            last = t.change;
+            if (t.change && (t.change->locked || t.change->formulaHidden)) {
+                out.ok = false;
+                out.problem = tr("This sheet is protected, so whether its cells are locked, and whether their formulas are hidden, can't be changed. Unprotect the sheet first (Review, Unprotect Sheet).");
+                return out;
+            }
+        }
+    }
     Step step;
     {
         // (the formats are made with the worker held back: it reads the workbook's styles)
@@ -435,7 +447,7 @@ EditSession::Outcome EditSession::mergeCells(int sheet, const CellRange &range, 
     Calculation *calcEdit = m_book->calc.get();
     const Calculation *calc = calcEdit;
     const Sheet &s = calc->sheet(sheet);
-    if (s.isProtected) return refuse(tr("This sheet is protected, so cells can't be merged or unmerged on it. Take the protection off in the program that put it on."));
+    if (s.isProtected) return refuse(tr("This sheet is protected, so cells can't be merged or unmerged on it. To do that, choose Unprotect Sheet on the Review tab."));
     if (calc->mergeCountOf(sheet) != qint64(calc->mergesOf(sheet).size())) return refuse(tr("This sheet has more merged cells than JeffCrunch changes. Merge and unmerge them in the program that made it."));
     const QVector<CellRange> before = calc->mergesOf(sheet);
     auto meets = [](const CellRange &a, const CellRange &b) { return !(a.row2 < b.row1 || a.row1 > b.row2 || a.col2 < b.col1 || a.col1 > b.col2); };

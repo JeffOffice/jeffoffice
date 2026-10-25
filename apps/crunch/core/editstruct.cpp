@@ -26,6 +26,7 @@ qint64 StructChange::bytes() const
     n += qint64(record.rewritten.size()) * qint64(sizeof(Calculation::EditRecord::Place));
     n += qint64(touchedGone.size() + touchedAdded.size()) * 8 + qint64(tables.size()) * qint64(sizeof(TablePlace));
     n += qint64(resultsGone.size() + engineGone.size() + fileGone.size()) * qint64(sizeof(std::pair<quint64, Value>));
+    if (anchors) n += anchors->bytes();   // (the notes and links it moved or took away)
     return n;
 }
 
@@ -388,8 +389,12 @@ bool EditSession::applyStructure(Step *step, bool forward)
         for (const jp::office::sheet::SheetEntry &se : book.info().sheets) names << se.name;
         if (forward) m_pages.followEdit(sc.edit, names, &sc);
         else m_pages.undoEdit(&sc);
-        if (forward) m_anchors.followEdit(sc.edit, names, &sc);
-        else m_anchors.undoEdit(&sc, sc.edit);
+        if (forward) {
+            sc.anchors = m_anchors.followEdit(sc.edit, names);
+        } else {
+            m_anchors.undoEdit(sc.anchors, sc.edit);
+            sc.anchors.reset();
+        }
         std::set<int> sheets = {sc.edit.sheet};
         if (sc.edit.kind == StructEdit::Kind::Move) sheets.insert(sc.edit.toSheet);
         for (const int s : sheets) {

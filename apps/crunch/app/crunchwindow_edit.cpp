@@ -270,7 +270,23 @@ void CrunchWindow::clearSelection()
     else if (m_loader.changesMade() != before) m_calculating = true;
 }
 
+// Undo and Redo: a step that would take a password's protection off (the undoing of putting it on, the redoing of taking it off) asks for the password first, so that undoing is no way
+// round a password.
 void CrunchWindow::undoRedo(bool redo)
+{
+    QUndoStack *u = undoStack();
+    if (!u || m_edit.active || m_saving || m_passwordJob) return;
+    if (redo ? !u->canRedo() : !m_session->canUndo()) return;
+    jp::office::sheet::PasswordHash guard;
+    QString what;
+    if (m_session->stepDropsPassword(redo, &guard, &what)) {
+        askPassword(what, guard, [this, redo] { undoRedoNow(redo); });
+        return;
+    }
+    undoRedoNow(redo);
+}
+
+void CrunchWindow::undoRedoNow(bool redo)
 {
     QUndoStack *u = undoStack();
     if (!u || m_edit.active || m_saving) return;

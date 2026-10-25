@@ -113,12 +113,66 @@ private Q_SLOTS:
         QVERIFY(!object.ok);
         QVERIFY2(object.problem.contains(QStringLiteral("drawing objects")), qPrintable(object.problem));
         QVERIFY(!s->resizeRows(0, 0, 0, crunch::EditSession::SizeChange(), QStringLiteral("Row Height")).ok);
-        // Undo takes the protection off, Redo puts it back
+        // two steps were made (the entry in B1, and the protection), and Undo goes back over them in turn: the entry first, with the sheet still protected, then the protection (it has no
+        // password, so nothing is asked)
+        QCOMPARE(e.win.w.undoStack()->count(), 2);
         e.win.w.undoStack()->undo();
-        QVERIFY(e.win.w.undoStack()->count() >= 1);
+        QVERIFY(s->protectionOf(0).enabled);
         e.win.w.undoStack()->undo();
         QVERIFY(!s->protectionOf(0).enabled);
         QVERIFY(s->type(0, 0, 0, QStringLiteral("99")).ok);
+    }
+
+    // A cell that holds nothing has the format of its column (or its row), and so its lock: typing and pasting into an empty cell of an unlocked column are allowed on a protected sheet, and into
+    // an empty cell of a locked one are not.
+    void anEmptyCellHasTheLockOfItsColumn()
+    {
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"0\" applyProtection=\"1\"><protection locked=\"0\"/></xf>"));
+        QString rows;
+        for (int r = 1; r <= 3; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        rows += QStringLiteral("<row r=\"9\" s=\"1\" customFormat=\"1\"><c r=\"A9\"><v>9</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, QStringLiteral("<sheetProtection sheet=\"1\"/>"), QStringLiteral("<cols><col min=\"5\" max=\"5\" width=\"9\" style=\"1\" customWidth=\"1\"/></cols>"))}, QByteArray(), QString(), QString(), styles)));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, 4, 4, QStringLiteral("typed")).ok);              // E5: empty, in the unlocked column E
+        QCOMPARE(e.valueAt(QStringLiteral("E5")), QStringLiteral("s:typed"));
+        const auto refused = s->type(0, 4, 5, QStringLiteral("no"));          // F5: empty, locked
+        QVERIFY(!refused.ok);
+        QVERIFY2(refused.problem.contains(QStringLiteral("locked")), qPrintable(refused.problem));
+        QVERIFY(s->type(0, 8, 3, QStringLiteral("row")).ok);                // D9: empty, in the unlocked row 9
+        QVERIFY(!s->type(0, 7, 3, QStringLiteral("row")).ok);               // D8
+        // pasted text the same
+        crunch::EditSession::PasteOptions options;
+        jp::office::sheet::CellRange target;
+        jp::office::sheet::parseRangeRef(QStringLiteral("E7"), &target);
+        QVERIFY(s->pasteText(0, target, {QStringList{QStringLiteral("p")}}, options).ok);
+        jp::office::sheet::parseRangeRef(QStringLiteral("F7"), &target);
+        QVERIFY(!s->pasteText(0, target, {QStringList{QStringLiteral("p")}}, options).ok);
+    }
+
+    // With Format Cells allowed on a protected sheet, the lock and the hiding of formulas (the Protection tab) still can't be changed: they are what the protection stands on.
+    void theLockAndTheHidingOfFormulasCantBeChangedOnAProtectedSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(protectBook(QStringLiteral("<sheetProtection sheet=\"1\" formatCells=\"0\"/>"))));
+        crunch::EditSession *s = e.win.w.session();
+        jp::office::sheet::CellRange range;
+        jp::office::sheet::parseRangeRef(QStringLiteral("A1:A2"), &range);
+        jp::office::sheet::FormatChange bold, unlock, hide;
+        bold.bold = true;
+        unlock.locked = false;
+        hide.formulaHidden = true;
+        QVERIFY(s->formatCells(0, range, bold, QStringLiteral("Bold")).ok);   // (formatting is allowed)
+        const auto a = s->formatCells(0, range, unlock, QStringLiteral("Unlock"));
+        QVERIFY(!a.ok);
+        QVERIFY2(a.problem.contains(QStringLiteral("locked")), qPrintable(a.problem));
+        QVERIFY(!s->formatCells(0, range, hide, QStringLiteral("Hide")).ok);
+        QVERIFY(s->cellIsLocked(0, 0, 0));
+        // and on a sheet that is not protected they can
+        EditWindow open;
+        QVERIFY(open.open(protectBook()));
+        QVERIFY(open.win.w.session()->formatCells(0, range, unlock, QStringLiteral("Unlock")).ok);
+        QVERIFY(!open.win.w.session()->cellIsLocked(0, 0, 0));
     }
 
     void aFormulaTheFormatHidesIsNotShownOnAProtectedSheet()
@@ -128,6 +182,7 @@ private Q_SLOTS:
         crunch::EditSession *s = e.win.w.session();
         QCOMPARE(s->editText(0, 0, 3), QStringLiteral("=A1+1"));
         QCOMPARE(s->barText(0, 0, 3, QStringLiteral("=A1+1")), QStringLiteral("=A1+1"));
+        QCOMPARE(s->searchText(0, 0, 3), QStringLiteral("=A1+1"));
         protectWith(e, [](ProtectRequest *) {});
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
         QVERIFY(s->protectionOf(0).enabled);
@@ -135,6 +190,19 @@ private Q_SLOTS:
         QCOMPARE(s->barText(0, 0, 3, QStringLiteral("=A1+1")), QString());
         QCOMPARE(e.valueAt(QStringLiteral("D1")), QStringLiteral("n:2"));   // (the value shows)
         QCOMPARE(s->editText(0, 0, 0), QStringLiteral("1"));              // (a cell that is not a formula is as it was)
+        // the copy of it is its value, and the search of formulas does not look in it
+        const crunch::ClipData clip = s->copyCells(0, [] {
+            jp::office::sheet::CellRange r;
+            jp::office::sheet::parseRangeRef(QStringLiteral("D1:D2"), &r);
+            return r;
+        }(), false);
+        QCOMPARE(clip.cells.size(), size_t(2));
+        for (const crunch::ClipCell &c : clip.cells) {
+            QVERIFY(!c.content.isFormula);
+            QVERIFY(c.content.formula.isEmpty());
+            QVERIFY(c.content.value.isNumber());
+        }
+        QCOMPARE(s->searchText(0, 0, 3), QString());
         e.win.w.undoStack()->undo();
         QCOMPARE(s->editText(0, 0, 3), QStringLiteral("=A1+1"));
     }
@@ -177,8 +245,8 @@ private Q_SLOTS:
         crunch::EditSession *s = e.win.w.session();
         protectWith(e, [](ProtectRequest *r) { r->password = QStringLiteral("secret"); });
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
+        QTRY_VERIFY(s->protectionOf(0).enabled);   // (the hash is made off the window's thread)
         const SheetProtection &p = s->protectionOf(0);
-        QVERIFY(p.enabled);
         QCOMPARE(p.password.algorithm, QStringLiteral("SHA-512"));
         QCOMPARE(p.password.spin, qint64(jp::office::sheet::kNewSpinCount));
         QVERIFY(!p.password.hash.isEmpty() && !p.password.salt.isEmpty() && p.password.legacy.isEmpty());
@@ -193,20 +261,82 @@ private Q_SLOTS:
         };
         e.win.told.clear();
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
+        QTRY_VERIFY(!e.win.told.isEmpty());
+        QVERIFY2(e.win.told.last().contains(QStringLiteral("not the right password")), qPrintable(e.win.told.join(QLatin1Char('\n'))));
         QVERIFY(s->protectionOf(0).enabled);
-        QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("not the right password")), qPrintable(e.win.told.join(QLatin1Char('\n'))));
         QCOMPARE(asked, (QStringList{"Sheet1"}));
         // the right one takes it off
         answer = QStringLiteral("secret");
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QVERIFY(!s->protectionOf(0).enabled);
+        QTRY_VERIFY(!s->protectionOf(0).enabled);
         QVERIFY(!s->protectionOf(0).password.isSet());
         // a person cancelling the question leaves things as they were
-        e.win.w.undoStack()->undo();
+        e.win.w.undoStack()->undo();   // (the stack itself: the window's Undo asks, as the next test shows)
         QVERIFY(s->protectionOf(0).enabled);
         e.win.w.anchorHooks().passwordAsker = [](PasswordRequest *) { return false; };
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
         QVERIFY(s->protectionOf(0).enabled);
+    }
+
+    // Undo and Redo are no way round a password: Undo of putting a password on, and Redo of taking it off, ask for it (the sheet's, and the workbook's).
+    void undoAndRedoOfAPasswordAskForIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(protectBook()));
+        crunch::EditSession *s = e.win.w.session();
+        protectWith(e, [](ProtectRequest *r) { r->password = QStringLiteral("secret"); });
+        e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
+        QTRY_VERIFY(s->protectionOf(0).enabled);
+        QString answer = QStringLiteral("wrong");
+        int asked = 0;
+        e.win.w.anchorHooks().passwordAsker = [&](PasswordRequest *r) {
+            ++asked;
+            r->password = answer;
+            return true;
+        };
+        e.win.told.clear();
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QTRY_VERIFY(!e.win.told.isEmpty());
+        QCOMPARE(asked, 1);
+        QVERIFY(s->protectionOf(0).enabled);   // (still on)
+        answer = QStringLiteral("secret");
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QTRY_VERIFY(!s->protectionOf(0).enabled);
+        // Redo puts it back with no question (it protects)
+        asked = 0;
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QCOMPARE(asked, 0);
+        QVERIFY(s->protectionOf(0).enabled);
+        // taking it off with the password, and Undo (which protects again) asks nothing, but Redo (which takes it off) asks
+        e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
+        QTRY_VERIFY(!s->protectionOf(0).enabled);
+        asked = 0;
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(asked, 0);
+        QVERIFY(s->protectionOf(0).enabled);
+        answer = QStringLiteral("wrong");
+        e.win.told.clear();
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QTRY_VERIFY(!e.win.told.isEmpty());
+        QVERIFY(s->protectionOf(0).enabled);
+        QCOMPARE(asked, 1);
+        // the workbook's structure is the same
+        e.win.w.anchorHooks().workbookProtectAsker = [](WorkbookProtectRequest *r) {
+            r->password = QStringLiteral("book");
+            return true;
+        };
+        e.win.w.act(QStringLiteral("protect.workbook"))->trigger();
+        QTRY_VERIFY(s->workbookProtection().lockStructure);
+        asked = 0;
+        answer = QStringLiteral("nope");
+        e.win.told.clear();
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QTRY_VERIFY(!e.win.told.isEmpty());
+        QCOMPARE(asked, 1);
+        QVERIFY(s->workbookProtection().lockStructure);
+        answer = QStringLiteral("book");
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QTRY_VERIFY(!s->workbookProtection().any());
     }
 
     void theFileKeepsTheSettingsAndTheHashAndNeverThePassword()
@@ -220,6 +350,7 @@ private Q_SLOTS:
             r->settings.allowSelectUnlocked = true;
         });
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
+        QTRY_VERIFY(e.win.w.session()->protectionOf(0).enabled);
         const SheetProtection mine = e.win.w.session()->protectionOf(0);
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
@@ -237,7 +368,7 @@ private Q_SLOTS:
             return true;
         };
         second.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QVERIFY(!second.w.session()->protectionOf(0).enabled);
+        QTRY_VERIFY(!second.w.session()->protectionOf(0).enabled);
     }
 
     void aPasswordTheFileMadeTheOlderWayIsCheckedAndKeptAsItWas()
@@ -262,10 +393,11 @@ private Q_SLOTS:
             return true;
         };
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
+        QTRY_VERIFY(!e.win.told.isEmpty());   // (the check is over: it said the password is wrong)
         QVERIFY(s->protectionOf(0).enabled);
         answer = QStringLiteral("test");
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QVERIFY(!s->protectionOf(0).enabled);
+        QTRY_VERIFY(!s->protectionOf(0).enabled);
     }
 
     void aFileThatAsksForAnAbsurdNumberOfRepeatsIsNotWorkedOut()
@@ -280,6 +412,7 @@ private Q_SLOTS:
         QElapsedTimer t;
         t.start();
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
+        QTRY_VERIFY(!e.win.told.isEmpty());
         QVERIFY(e.win.w.session()->protectionOf(0).enabled);
         QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("far more times")), qPrintable(e.win.told.join(QLatin1Char('\n'))));
         QVERIFY(t.elapsed() < 5000);
@@ -296,6 +429,32 @@ private Q_SLOTS:
         QVERIFY(e.win.w.statusText().contains(QStringLiteral("protected")));
     }
 
+    // On a sheet that does not let locked cells be selected the arrow keys pass over them: the cursor goes to the next cell in that direction that it may rest on.
+    void arrowKeysPassOverLockedCellsOnASheetThatDoesNotLetThemBeSelected()
+    {
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"0\" applyProtection=\"1\"><protection locked=\"0\"/></xf>"));
+        QString rows;
+        for (int r = 1; r <= 4; ++r) {
+            rows += QStringLiteral("<row r=\"%1\">").arg(r);
+            for (int c = 0; c < 6; ++c) rows += QStringLiteral("<c r=\"%1%2\" s=\"%3\"><v>%2</v></c>").arg(QChar('A' + c)).arg(r).arg(c % 2 == 1 ? 1 : 0);   // B, D, and F are unlocked
+            rows += QStringLiteral("</row>");
+        }
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows, QStringLiteral("<sheetProtection sheet=\"1\" selectLockedCells=\"1\"/>"))}, QByteArray(), QString(), QString(), styles)));
+        e.select(QStringLiteral("B2"));
+        QCOMPARE(e.selected(), QStringLiteral("B2"));
+        QTest::keyClick(e.view(), Qt::Key_Right);
+        QCOMPARE(e.selected(), QStringLiteral("D2"));   // (C2 is locked)
+        QTest::keyClick(e.view(), Qt::Key_Right);
+        QCOMPARE(e.selected(), QStringLiteral("F2"));
+        QTest::keyClick(e.view(), Qt::Key_Right);        // (nothing to the right that it may rest on: it stays)
+        QCOMPARE(e.selected(), QStringLiteral("F2"));
+        QTest::keyClick(e.view(), Qt::Key_Left);
+        QCOMPARE(e.selected(), QStringLiteral("D2"));
+        QTest::keyClick(e.view(), Qt::Key_Down);         // (D3 is unlocked)
+        QCOMPARE(e.selected(), QStringLiteral("D3"));
+    }
+
     void theWorkbooksStructureCanBeLockedAndUnlockedWithAPassword()
     {
         EditWindow e;
@@ -308,7 +467,7 @@ private Q_SLOTS:
             return true;
         };
         e.win.w.act(QStringLiteral("protect.workbook"))->trigger();
-        QVERIFY(s->workbookProtection().lockStructure);
+        QTRY_VERIFY(s->workbookProtection().lockStructure);
         QVERIFY(s->workbookProtection().password.isSet());
         QCOMPARE(e.win.w.act(QStringLiteral("protect.workbook"))->text(), QStringLiteral("Unprotect Workbook"));
         // no sheet is added, renamed, moved, hidden, or deleted
@@ -331,7 +490,7 @@ private Q_SLOTS:
             return true;
         };
         e.win.w.act(QStringLiteral("protect.workbook"))->trigger();
-        QVERIFY(!s->workbookProtection().any());
+        QTRY_VERIFY(!s->workbookProtection().any());
         QVERIFY(s->insertSheet(1, QStringLiteral("Extra")).ok);
     }
 };
