@@ -137,6 +137,7 @@ qt_add_executable(jptests
   tests/pub/tst_pub_pages.cpp
   tests/pub/tst_pub_pdf.cpp
   tests/pub/tst_pub_pictures.cpp
+  tests/pub/tst_pub_stablesaves.cpp
   tests/pub/tst_pub_tables.cpp
   tests/pub/tst_pub_text.cpp
   tests/pub/tst_pub_update.cpp

@@ -29,7 +29,6 @@
 #include <QHash>
 #include <QSet>
 #include <QMap>
-#include <QRandomGenerator>
 #include <QRawFont>
 #include <QTextBlock>
 #include <QTextDocument>
@@ -2595,7 +2594,9 @@ QByteArray PubWriter::write(QStringList *skipped)
     }
 
     // ---- text stream
-    const quint32 magic = QRandomGenerator::global()->generate();
+    // (the tag the tables of the style sheet carry: made from the text, so that the same publication is saved as the same bytes)
+    quint32 magic = 2166136261u;
+    for (const char c : std::as_const(m_text)) magic = (magic ^ quint8(c)) * 16777619u;
     QVector<Section> secs;
     if (!m_text.isEmpty()) secs << Section{"TEXT", "TEXT", 0, m_text, false};
     // The style sheet: Normal (built-in id -1, 10 pt body font, 6 pt after),
