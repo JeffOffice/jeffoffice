@@ -472,8 +472,8 @@ private Q_SLOTS:
         QVERIFY(has(7, 3, TablePart::LastTotalCell) && !has(7, 3, TablePart::LastColumn));
         t.showLastColumn = true;
         QVERIFY(has(4, 3, TablePart::LastColumn));
-        // a medium style: a filled header with light text, stripes in a pale color
-        const TableStyle &st = *builtinTableStyle(QStringLiteral("TableStyleMedium9"));
+        // a medium style (Medium 2): a filled header with light text, stripes in a pale color
+        const TableStyle &st = *builtinTableStyle(QStringLiteral("TableStyleMedium2"));
         quint32 headerKey = 0, bodyKey = 0, plainKey = 0;
         const DifferentialFormat header = tableLookAt(st, t, 2, 2, &headerKey);
         QVERIFY(header.hasFill && header.bold.value_or(false) && header.fontColor.isSet());

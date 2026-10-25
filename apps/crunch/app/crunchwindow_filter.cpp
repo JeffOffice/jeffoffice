@@ -25,9 +25,17 @@ void CrunchWindow::createFilterActions()
 {
     mk("filter.toggle", tr("Filter"), "filter", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L), [this] { toggleFilter(); }, true);
     mk("filter.clear", tr("Clear"), "filter-x", QKeySequence(), [this] {
+        if (const int table = selectedTable(); table >= 0 && m_session && m_loaded) {
+            applyFilter(m_session->filterCleared(m_sheet, table), tr("Clearing the filter"), table);
+            return;
+        }
         if (m_session && m_loaded && currentFilter().valid()) applyFilter(m_session->filterCleared(m_sheet), tr("Clearing the filter"));
     });
     mk("filter.reapply", tr("Reapply"), "refresh-cw", QKeySequence(), [this] {
+        if (const int table = selectedTable(); table >= 0 && m_session && m_loaded) {
+            applyFilter(m_session->tableFilter(table), tr("Applying the filter again"), table);
+            return;
+        }
         if (m_session && m_loaded && currentFilter().valid()) applyFilter(currentFilter(), tr("Applying the filter again"));
     });
     for (const char *id : {"filter.toggle", "filter.clear", "filter.reapply"}) m_opsActions << QString::fromLatin1(id);
@@ -63,6 +71,8 @@ void CrunchWindow::updateFilterButtons()
             buttons.push_back(b);
         }
     }
+    if (!m_chartSheetShown) tableHeaderButtons(&buttons);
+    updateTableLooks();
     m_view->setHeaderButtons(std::move(buttons));
     if (QAction *a = act("filter.toggle")) {
         const QSignalBlocker block(a);
@@ -76,6 +86,20 @@ void CrunchWindow::toggleFilter()
 {
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed() || m_filterPlan) return;
+    if (const int table = selectedTable(); table >= 0) {
+        // (a table has buttons of its own: the command turns them on and off)
+        const jp::office::sheet::Table &t = m_session->workbook()->tables()[table];
+        crunch::EditSession::TableMarks marks;
+        marks.style = t.styleName;
+        marks.firstColumn = t.showFirstColumn;
+        marks.lastColumn = t.showLastColumn;
+        marks.rowStripes = t.showRowStripes;
+        marks.columnStripes = t.showColumnStripes;
+        marks.filterButtons = !t.filterButtons;
+        const auto o = m_session->setTableMarks(table, marks);
+        if (!o.ok) notice(tr("Filter"), o.problem);
+        return;
+    }
     if (currentFilter().valid()) {
         applyFilter(AutoFilter(), tr("Turning the filter off"));
         return;
@@ -108,12 +132,12 @@ void CrunchWindow::toggleFilter()
     applyFilter(f, tr("Turning the filter on"));
 }
 
-bool CrunchWindow::applyFilter(const AutoFilter &filter, const QString &text)
+bool CrunchWindow::applyFilter(const AutoFilter &filter, const QString &text, int table)
 {
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed() || m_filterPlan) return false;
     QString why;
-    m_filterPlan = m_session->planFilter(m_sheet, filter, &why);
+    m_filterPlan = m_session->planFilter(m_sheet, filter, &why, table);
     if (!m_filterPlan) {
         notice(tr("Filter"), why);
         Q_EMIT filterFinished(false);
@@ -182,7 +206,9 @@ void CrunchWindow::showFilterPopup(qint64 row, qint64 col)
 {
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !m_session || !m_loaded || !m_haveCalc || m_filterPlan) return;
-    const AutoFilter f = currentFilter();
+    if (showTotalsMenu(row, col)) return;
+    const int table = m_session->workbook()->tableHeaderAt(m_sheet, quint32(row), quint32(col), nullptr);
+    const AutoFilter f = table >= 0 ? m_session->tableFilter(table) : currentFilter();
     if (!f.valid() || row != qint64(f.ref.row1) || col < qint64(f.ref.col1) || col > qint64(f.ref.col2)) return;
     if (m_filterPopup) m_filterPopup->close();
     const quint32 column = quint32(col - f.ref.col1);
@@ -233,15 +259,15 @@ void CrunchWindow::showFilterPopup(qint64 row, qint64 col)
         spec.hasHeader = true;
         sortRange(f.ref, spec);
     });
-    connect(popup, &FilterPopup::clearRequested, this, [this, sheet, column] {
-        if (m_session && m_sheet == sheet) applyFilter(m_session->filterWith(sheet, column, FilterColumn()), tr("Clearing the filter from a column"));
+    connect(popup, &FilterPopup::clearRequested, this, [this, sheet, column, table] {
+        if (m_session && m_sheet == sheet) applyFilter(m_session->filterWith(sheet, column, FilterColumn(), table), tr("Clearing the filter from a column"), table);
     });
-    connect(popup, &FilterPopup::conditionChosen, this, [this, sheet, column](const FilterColumn &c) {
-        if (m_session && m_sheet == sheet) applyFilter(m_session->filterWith(sheet, column, c), tr("Filtering"));
+    connect(popup, &FilterPopup::conditionChosen, this, [this, sheet, column, table](const FilterColumn &c) {
+        if (m_session && m_sheet == sheet) applyFilter(m_session->filterWith(sheet, column, c, table), tr("Filtering"), table);
     });
-    connect(popup, &FilterPopup::askRequested, this, [this, column, popup](FilterAsk what) {
+    connect(popup, &FilterPopup::askRequested, this, [this, column, popup, table](FilterAsk what) {
         popup->close();
-        askFilter(what, column);
+        askFilter(what, column, table);
     });
     const QRect button = m_view->headerButtonRect(row, col);
     const QPoint at = m_view->viewport()->mapToGlobal(QPoint(button.isEmpty() ? m_view->cellRect(row, col).left() : button.left(), (button.isEmpty() ? m_view->cellRect(row, col).bottom() : button.bottom()) + 1));
@@ -279,10 +305,10 @@ void CrunchWindow::listFinished()
 }
 
 // Equals…, Between…, Largest or Smallest…, Your Own Condition…: the person is asked, and the condition is put on the column.
-void CrunchWindow::askFilter(FilterAsk what, quint32 column)
+void CrunchWindow::askFilter(FilterAsk what, quint32 column, int table)
 {
     if (!m_session || !m_loaded) return;
-    const AutoFilter f = currentFilter();
+    const AutoFilter f = table >= 0 ? m_session->tableFilter(table) : currentFilter();
     if (!f.valid() || column > f.ref.col2 - f.ref.col1) return;
     const quint32 col = f.ref.col1 + column;
     const QString head = m_session->displayText(m_sheet, f.ref.row1, col).trimmed().left(60);
@@ -307,7 +333,7 @@ void CrunchWindow::askFilter(FilterAsk what, quint32 column)
         if (dialog.exec() != QDialog::Accepted) return;
         chosen = dialog.result();
     }
-    applyFilter(m_session->filterWith(m_sheet, column, chosen), tr("Filtering"));
+    applyFilter(m_session->filterWith(m_sheet, column, chosen, table), tr("Filtering"), table);
 }
 
 } // namespace jp

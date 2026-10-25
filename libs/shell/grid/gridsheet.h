@@ -11,6 +11,7 @@
 #include "sheet/calculation.h"
 #include "sheet/sheetmodel.h"
 #include "sheet/styles.h"
+#include "sheet/tablestyle.h"
 
 #include <memory>
 #include <unordered_map>
@@ -79,6 +80,20 @@ public:
     void setToday(double serial) const;
     // The look of a cell with the changes the rules of conditional formatting make to it (the cell's own, when there are none).
     const CellLook &lookOf(quint32 row, quint32 col, quint32 style) const;
+    // ---- table styles (sheet/tablestyle.h): the cells of a table are drawn as its style says, under what the cell formats itself (a fill, borders, a text color, or bold of the cell's own stay)
+    struct TableSkin {
+        jp::office::sheet::Table table;
+        const jp::office::sheet::TableStyle *style = nullptr;   // held by whoever set it
+    };
+    static constexpr size_t kMaxTableSkins = 500;
+    void setTableSkins(std::vector<TableSkin> skins);
+    bool hasTableSkins() const { return !m_skins.empty(); }
+    bool inTableSkin(quint32 row, quint32 col) const
+    {
+        for (const TableSkin &skin : m_skins)
+            if (skin.style && row >= skin.table.row1 && row <= skin.table.row2 && col >= skin.table.col1 && col <= skin.table.col2) return true;
+        return false;
+    }
     // The format of a place: its cell's, else its row's when the row has one, else its column's; 0 for none.
     quint32 styleOf(quint32 row, quint32 col, const Cell *cell) const;
     // The width of a column in the grid's units at 100% (0 when hidden), and of a block of columns.
@@ -153,6 +168,7 @@ private:
     jp::calc::NumberSymbols m_symbols;
     bool m_rtl = false;
     mutable CondFormats m_cond{this};
+    std::vector<TableSkin> m_skins;
     jp::calc::Value valueOfCell(int sheetIndex, const Sheet &sheet, const Cell &cell) const;
     std::shared_ptr<const GridGeometry> m_geometry;   // what the sheet's file gave (the layout above begins as a copy of its layout, which shares its places and merges), and the cell formats of the rows and columns, held where they were made
 };

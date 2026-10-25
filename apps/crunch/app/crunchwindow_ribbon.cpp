@@ -27,6 +27,7 @@ void CrunchWindow::ribbonParts(RibbonParts &parts)
     formatRibbonParts(parts);
     pageRibbonParts(parts);
     chartRibbonParts(parts);
+    tableRibbonParts(parts);
 }
 
 } // namespace jp

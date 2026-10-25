@@ -14,6 +14,7 @@
 #include <QVector>
 
 #include <map>
+#include <memory>
 #include <vector>
 
 namespace jp::office::sheet {
@@ -77,6 +78,7 @@ TableFate tableAfter(const StructEdit &edit, const Table &table, CellRange *out,
 
 // A table's place in the sheet, for putting it back.
 struct TablePlace {
+    std::shared_ptr<Table> whole;   // the table as it was, when the edit changed its columns (its range alone is put back otherwise)
     int table = 0;
     quint32 row1 = 0, col1 = 0, row2 = 0, col2 = 0;
     int totalsRows = 0;
@@ -128,6 +130,9 @@ constexpr int kMaxTableNameChars = 255;
 bool validTableName(const QString &name, QString *why = nullptr);
 // "Table1", "Table2", ... the first that none of `taken` has (without regard to capitals).
 QString freshTableName(const QStringList &taken, const QString &stem = QString());
+
+// "Column1", "Column2", ...: the first, counting from `from`, that none of `columns` has (without regard to capitals).
+QString freshTableColumnName(const QStringList &columns, int from);
 
 // The functions a totals row offers, in the order of the drop-down: the file's word, and the SUBTOTAL function number (101 to 111, the kind that leaves out hidden rows) it is worked out by.
 struct TotalsFunction {

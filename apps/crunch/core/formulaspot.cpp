@@ -31,6 +31,7 @@ FormulaSpot spotAt(const QString &text, int cursor, QChar separator)
     std::vector<Frame> frames;
     bool inString = false, inQuote = false;
     int brackets = 0, braces = 0;
+    std::vector<int> opened;   // where the brackets that are open began
     for (int i = 1; i < n; ++i) {
         const QChar c = text[i];
         if (inString || inQuote) {
@@ -47,8 +48,12 @@ FormulaSpot spotAt(const QString &text, int cursor, QChar separator)
             inQuote = true;
         } else if (c == QLatin1Char('[')) {
             ++brackets;
+            opened.push_back(i);
         } else if (c == QLatin1Char(']')) {
-            if (brackets > 0) --brackets;
+            if (brackets > 0) {
+                --brackets;
+                if (!opened.empty()) opened.pop_back();
+            }
         } else if (brackets > 0) {
             continue;
         } else if (c == QLatin1Char('{')) {
@@ -70,6 +75,21 @@ FormulaSpot spotAt(const QString &text, int cursor, QChar separator)
     if (inString || inQuote || brackets > 0) {
         spot.inText = true;
         spot.wordStart = n;
+        if (!inString && !inQuote && !opened.empty()) {
+            // in the brackets of a table's column: the table is named before the first of them, and the column is what follows the last
+            int nameStart = opened.front();
+            while (nameStart > 1 && wordChar(text[nameStart - 1])) --nameStart;
+            QString table = text.mid(nameStart, opened.front() - nameStart);
+            int from = opened.back() + 1;
+            if (from < n && text[from] == QLatin1Char('@')) ++from;
+            const QString typed = text.mid(from, n - from);
+            if (!typed.contains(QLatin1Char(',')) && !typed.contains(QLatin1Char(':')) && !typed.contains(QLatin1Char('[')) && !typed.contains(separator)) {
+                spot.inColumns = true;
+                spot.table = table;
+                spot.columnWord = typed;
+                spot.columnStart = from;
+            }
+        }
         return spot;
     }
     // the nearest function (a bracket that only groups is passed over: the arguments counted are the function's own)
@@ -89,6 +109,7 @@ FormulaSpot spotAt(const QString &text, int cursor, QChar separator)
     static const QString operators = QStringLiteral("=(+-*/^&<>@{~");
     const bool placeForWord = back == 0 || operators.contains(before) || before == separator || before == QLatin1Char(',') || before == QLatin1Char(';');
     spot.canComplete = braces == 0 && placeForWord && !spot.word.isEmpty() && !spot.word[0].isDigit() && spot.word[0] != QLatin1Char('.');
+    spot.canPoint = braces == 0 && placeForWord && spot.word.isEmpty();
     return spot;
 }
 
@@ -118,6 +139,36 @@ void CompletionIndex::build(const NameTable &names, int sheet, const QStringList
         ++taken;
     }
     std::sort(m_names.begin(), m_names.end(), [](const Entry &a, const Entry &b) { return a.upper < b.upper; });
+}
+
+void CompletionIndex::setTableColumns(const std::vector<std::pair<QString, QStringList>> &tables)
+{
+    m_tableColumns.clear();
+    for (const auto &t : tables) {
+        if (int(m_tableColumns.size()) >= kMaxTablesIndexed) break;
+        QStringList columns = t.second.mid(0, kMaxColumnsIndexed);
+        m_tableColumns.emplace_back(t.first.toUpper(), columns);
+    }
+    std::sort(m_tableColumns.begin(), m_tableColumns.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+}
+
+std::vector<Completion> CompletionIndex::columnMatches(const QString &table, const QString &word, int cap) const
+{
+    std::vector<Completion> out;
+    const QString key = (table.isEmpty() ? m_cellTable : table).toUpper();
+    if (key.isEmpty() || cap <= 0) return out;
+    const auto at = std::lower_bound(m_tableColumns.begin(), m_tableColumns.end(), key, [](const auto &t, const QString &k) { return t.first < k; });
+    if (at == m_tableColumns.end() || at->first != key) return out;
+    for (const QString &column : at->second) {
+        if (int(out.size()) >= cap) return out;
+        if (column.startsWith(word, Qt::CaseInsensitive)) out.push_back({Completion::Kind::Column, column, -1});
+    }
+    static const char *const special[] = {"#All", "#Data", "#Headers", "#Totals", "#This Row"};
+    for (const char *item : special) {
+        if (int(out.size()) >= cap) break;
+        if (QString::fromLatin1(item).startsWith(word, Qt::CaseInsensitive) && (word.isEmpty() || word.startsWith(QLatin1Char('#')))) out.push_back({Completion::Kind::SpecialItem, QString::fromLatin1(item), -1});
+    }
+    return out;
 }
 
 std::vector<Completion> CompletionIndex::matches(const QString &word, int cap) const

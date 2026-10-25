@@ -767,11 +767,10 @@ private Q_SLOTS:
             QVERIFY(e.win.w.save());
             QVERIFY2(savedOk(saved, 20000), "the save failed");
         };
-        // refused: the header row, all of the table's rows, a column inside it, a block that takes part of it with it
+        // refused: the header row, all of the table's rows and columns, a block that takes part of it with it
         QVERIFY(!s->deleteRows(0, 0, 1).ok);
         QVERIFY(!s->deleteRows(0, 0, 4).ok);
-        QVERIFY(!s->insertColumns(0, 1, 1).ok);
-        QVERIFY(!s->deleteColumns(0, 1, 1).ok);
+        QVERIFY(!s->deleteColumns(0, 0, 3).ok);
         office::sheet::CellRange part;
         part.valid = true;
         part.row1 = 2;

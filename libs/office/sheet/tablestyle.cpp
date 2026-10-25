@@ -225,7 +225,8 @@ struct Builtins {
                 const QString name = QStringLiteral("TableStyle%1%2").arg(QLatin1String(families[f].word)).arg(n);
                 const int group = f == 2 ? (n <= 7 ? 0 : 1) : (n - 1) / 7;
                 const int k = f == 2 ? (n <= 7 ? n - 1 : n - 8) : (n - 1) % 7;
-                styles.push_back(makeStyle(name, f, group, k));
+                // (Medium 1 to 7 have a filled header, as the common programs' do; the plain lines are Medium 8 to 14)
+                styles.push_back(makeStyle(name, f, f == 1 && group < 2 ? 1 - group : group, k));
                 names << name;
                 g.names << name;
             }

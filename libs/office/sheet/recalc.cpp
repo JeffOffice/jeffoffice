@@ -168,6 +168,29 @@ jp::calc::StructuredAnswer WorkbookSource::structuredRef(const QString &text, in
     return StructuredAnswer::Area;
 }
 
+int WorkbookSource::rowHiddenKind(int sheet, quint32 row) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return 0;
+    if (m_hiddenRows.size() != m_sheets.size()) {
+        m_hiddenRows.assign(m_sheets.size(), {});
+        m_hiddenRowsReady.assign(m_sheets.size(), 0);
+    }
+    if (!m_hiddenRowsReady[size_t(sheet)]) {
+        auto &map = m_hiddenRows[size_t(sheet)];
+        map.clear();
+        for (const RowSpec &r : m_sheets[size_t(sheet)].rowSpecs)
+            if (r.hidden) map[r.row] = r.filtered ? 2 : 1;
+        m_hiddenRowsReady[size_t(sheet)] = 1;
+    }
+    const auto it = m_hiddenRows[size_t(sheet)].find(row);
+    return it == m_hiddenRows[size_t(sheet)].end() ? 0 : it->second;
+}
+
+void WorkbookSource::hiddenRowsChanged(int sheet) const
+{
+    if (sheet >= 0 && sheet < int(m_hiddenRowsReady.size())) m_hiddenRowsReady[size_t(sheet)] = 0;
+}
+
 bool WorkbookSource::isSubtotal(int sheet, quint32 row, quint32 col) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return false;

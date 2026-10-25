@@ -95,6 +95,8 @@ public:
     void setNow(double serial) { m_options.now = serial; }
     // The tables changed (made, taken out, renamed, moved, resized, or a column renamed): the formulas that name a table's columns are worked out again. Call with the worker held back.
     void tablesChanged();
+    // The rows hidden on a sheet changed: the formulas that call SUBTOTAL are worked out again (they leave out hidden rows). Call with the worker held back.
+    void hiddenRowsAndSubtotals(int sheet);
     // Marks every formula to be worked out again (the next recalculation is a whole one).
     void invalidateAll();
     // The same for the formulas of one sheet, and only those: what they read that is out of date is worked out as they need it, and what is waiting on other sheets (formulas never worked out,
@@ -259,7 +261,10 @@ public:
     QVector<RowSpec> rowSpecsOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].rowSpecs : QVector<RowSpec>(); }
     void setRowSpecsOf(int sheet, const QVector<RowSpec> &specs)
     {
-        if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].rowSpecs = specs;
+        if (sheet >= 0 && sheet < int(m_sheets.size())) {
+            m_sheets[size_t(sheet)].rowSpecs = specs;
+            hiddenRowsChanged(sheet);
+        }
     }
     // The merged ranges of a sheet (and how many it has, which may be more than are kept), and putting them back.
     QVector<CellRange> mergesOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].merges : QVector<CellRange>(); }
@@ -548,6 +553,7 @@ private:
     QVector<QString> m_texts;
     std::vector<qint32> m_freeTexts;
     QHash<quint32, jp::calc::Value> m_arrays;
+    std::vector<quint32> m_subtotalNodes;     // the formulas that call SUBTOTAL (a place may be stale)
     std::vector<quint32> m_structuredNodes;   // the formulas that name a table's columns (a place may be stale: tablesChanged looks at each)
     jp::calc::NameTraitsCache m_nameTraits;   // what each defined name calls (by its scope and name)
     std::unordered_set<quint32> m_threeD;     // formulas that read a block of several sheets (a node on it has ThreeD); one leaves it when its formula goes or reads no more than one sheet

@@ -798,6 +798,10 @@ void GridView::dragTo(const QPoint &pos)
 
 void GridView::mousePressEvent(QMouseEvent *e)
 {
+    if (e->button() == Qt::LeftButton && m_pointGuard && m_cellsEnabled && !m_breakView) {
+        const Hit pointed = m_sheet.layout().hit(mirror(e->pos()));
+        if (pointed.kind == Hit::Kind::Cell && m_pointGuard(pointed.row, pointed.col)) return;
+    }
     if (e->button() == Qt::LeftButton && m_clickGuard && !m_clickGuard()) return;
     setFocus(Qt::MouseFocusReason);
     if (m_breakView && e->button() == Qt::LeftButton && m_cellsEnabled && breakPress(mirror(e->pos()))) return;

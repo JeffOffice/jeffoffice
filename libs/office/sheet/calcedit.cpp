@@ -473,6 +473,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
             specs.append(r);
         }
         S.rowSpecs = specs;
+        hiddenRowsChanged(rec->sheet >= 0 ? rec->sheet : e.sheet);
     }
     if (e.kind == K::InsertColumns || e.kind == K::DeleteColumns) {
         QVector<ColumnSpan> spans;
@@ -709,6 +710,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
     S.mergeCount = rec.mergeCount;
     S.columns = rec.columns;
     S.rowSpecs = rec.rowSpecs;
+    hiddenRowsChanged(rec.sheet);
     S.extentRows = std::max(S.extentRows, rec.extentRows);
     S.extentCols = std::max(S.extentCols, rec.extentCols);
     m_rows[size_t(rec.sheet)] = std::max(m_rows[size_t(rec.sheet)], rec.rowsSeen);
@@ -930,6 +932,7 @@ void Calculation::setRowSpecs(int sheet, quint32 first, quint32 last, const std:
     for (const RowSpec &r : specs) now.append(r);
     std::stable_sort(now.begin(), now.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
     S.rowSpecs = now;
+    hiddenRowsChanged(sheet);
 }
 
 } // namespace jp::office::sheet

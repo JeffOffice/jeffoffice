@@ -425,7 +425,10 @@ public:
     static constexpr qint64 kMaxFilterWork = 40000000;
     // The plan for the filter `after` (its range, and the conditions of its columns); null, with the reason in `why`, if it cannot be: the work (rows times conditions) is past kMaxFilterWork, the range is in a table, a column's condition
     // is none that can be worked out, or the sheet cannot be changed. An `after` that is not valid takes the sheet's filter away (the rows it hid are shown).
-    std::shared_ptr<FilterPlan> planFilter(int sheet, const jp::office::sheet::AutoFilter &after, QString *why);
+    std::shared_ptr<FilterPlan> planFilter(int sheet, const jp::office::sheet::AutoFilter &after, QString *why, int table = -1);
+    // With a `table`, the filter is the table's own (its buttons and conditions, over its rows of data): the plan is of the table's filter, and it is put in the table (planFilter's other rules
+    // hold; a table's filter and another filter on the same rows are refused). tableFilter is the table's filter as a filter over cells (not valid for a table with no buttons).
+    jp::office::sheet::AutoFilter tableFilter(int table) const;
     // Works out which rows the conditions hide, a slice (about `budget` cells; 0 for all) at a time; true when it is done.
     bool prepareFilter(FilterPlan &plan, qint64 budget);
     // Puts the filter in, and shows and hides the rows: one step. Not ok if the plan is not done or the cells have been changed since it was made.
@@ -433,11 +436,11 @@ public:
     // How many things the plan does in all (rows and cells looked at): what a window decides by whether to work it out a slice at a time.
     static qint64 filterWork(const FilterPlan &plan);
     // All of it at once: the sheet's filter is `after`.
-    Outcome setFilter(int sheet, const jp::office::sheet::AutoFilter &after, const QString &text);
+    Outcome setFilter(int sheet, const jp::office::sheet::AutoFilter &after, const QString &text, int table = -1);
     // The sheet's filter with the condition of one column (from the first column of its range) put in (a condition of kind None takes the column's away).
-    jp::office::sheet::AutoFilter filterWith(int sheet, quint32 column, const jp::office::sheet::FilterColumn &condition) const;
+    jp::office::sheet::AutoFilter filterWith(int sheet, quint32 column, const jp::office::sheet::FilterColumn &condition, int table = -1) const;
     // The same with every column's condition taken away (the buttons stay).
-    jp::office::sheet::AutoFilter filterCleared(int sheet) const;
+    jp::office::sheet::AutoFilter filterCleared(int sheet, int table = -1) const;
     // Whether a row is hidden by the sheet's filter (and not by hand).
     bool rowFilteredOut(int sheet, quint32 row) const;
     // The color a color condition asks for, as a color: the one it names, or the one its format in the file has.
@@ -700,6 +703,7 @@ private:
     Outcome typeInHeader(int sheet, quint32 row, quint32 col, int table, int column, const QString &typed);
     // After a typed entry in a table's cell: the table grows, and a formula typed in an empty column becomes the column's (edittables.cpp).
     void growTableAfterEntry(int sheet, quint32 row, quint32 col, const CellChange &entry);
+    void fillTableAfterInsert(int sheet, bool rows, quint32 first, quint32 count);
     void calculatedColumnAfterEntry(int sheet, quint32 row, quint32 col, const CellChange &entry);
     void applyTableEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book, std::set<int> *sheets);
     Outcome pushTableStep(Step step, const QString &text);

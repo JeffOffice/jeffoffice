@@ -65,13 +65,25 @@ const crunch::CompletionIndex &CrunchWindow::completionIndex()
         return none;
     }
     const qint64 generation = m_session->names().generation();
-    if (generation != m_completionsGeneration || m_sheet != m_completionsSheet) {
+    const int undoIndex = m_session->undoStack()->index();
+    if (generation != m_completionsGeneration || m_sheet != m_completionsSheet || undoIndex != m_completionsUndo) {
         QStringList tables;
+        std::vector<std::pair<QString, QStringList>> columns;
         if (const jp::office::sheet::Workbook *book = m_session->workbook())
-            for (const jp::office::sheet::Table &t : book->tables()) tables << t.name;
+            for (const jp::office::sheet::Table &t : book->tables()) {
+                tables << t.name;
+                if (int(columns.size()) < crunch::CompletionIndex::kMaxTablesIndexed) columns.emplace_back(t.name, t.columns);
+            }
         m_completions.build(m_session->names(), m_sheet, tables);
+        m_completions.setTableColumns(columns);
         m_completionsGeneration = generation;
+        m_completionsUndo = undoIndex;
         m_completionsSheet = m_sheet;
+    }
+    {
+        // (a reference with no table's name, as in [@Amount], is of the table the cell being written is in)
+        const int t = selectedTable();
+        m_completions.setCellTable(t >= 0 ? m_session->workbook()->tables()[t].name : QString());
     }
     return m_completions;
 }

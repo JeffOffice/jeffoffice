@@ -108,7 +108,9 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
 
 EditSession::Outcome EditSession::insertRows(int sheet, quint32 first, quint32 count)
 {
-    return structure(StructEdit::insertRows(sheet, first, count), count == 1 ? tr("Inserting a row") : tr("Inserting rows"));
+    const Outcome out = structure(StructEdit::insertRows(sheet, first, count), count == 1 ? tr("Inserting a row") : tr("Inserting rows"));
+    if (out.ok && !out.confirm) fillTableAfterInsert(sheet, true, first, count);
+    return out;
 }
 
 EditSession::Outcome EditSession::deleteRows(int sheet, quint32 first, quint32 count)
@@ -118,7 +120,9 @@ EditSession::Outcome EditSession::deleteRows(int sheet, quint32 first, quint32 c
 
 EditSession::Outcome EditSession::insertColumns(int sheet, quint32 first, quint32 count)
 {
-    return structure(StructEdit::insertColumns(sheet, first, count), count == 1 ? tr("Inserting a column") : tr("Inserting columns"));
+    const Outcome out = structure(StructEdit::insertColumns(sheet, first, count), count == 1 ? tr("Inserting a column") : tr("Inserting columns"));
+    if (out.ok && !out.confirm) fillTableAfterInsert(sheet, false, first, count);
+    return out;
 }
 
 EditSession::Outcome EditSession::deleteColumns(int sheet, quint32 first, quint32 count)

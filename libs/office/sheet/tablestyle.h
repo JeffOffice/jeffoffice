@@ -15,11 +15,6 @@
 
 namespace jp::office::sheet {
 
-enum class TablePart : quint8 {
-    WholeTable, HeaderRow, TotalRow, FirstColumn, LastColumn, FirstRowStripe, SecondRowStripe, FirstColumnStripe, SecondColumnStripe,
-    FirstHeaderCell, LastHeaderCell, FirstTotalCell, LastTotalCell, Count
-};
-
 struct TableStyle {
     QString name;
     std::array<DifferentialFormat, size_t(TablePart::Count)> parts;
@@ -30,17 +25,6 @@ struct TableStyle {
         has[size_t(p)] = true;
         return parts[size_t(p)];
     }
-};
-
-// A table style the workbook defines (the file's `tableStyle`): the parts as the file names them, each the place of a differential format of the styles part.
-struct CustomTableStyle {
-    QString name;
-    struct Part {
-        TablePart part = TablePart::WholeTable;
-        qint32 dxf = -1;
-        int size = 1;
-    };
-    QVector<Part> parts;
 };
 
 constexpr int kMaxTableStyles = 1000;

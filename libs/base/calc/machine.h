@@ -70,7 +70,7 @@ bool hasWildcards(const QString &s);
 
 // The numbers of the arguments of a call from `first` on, as functions of many numbers take them: in a reference or an array the numbers; typed, a text read as a number
 // and true and false as 1 and 0. False, with `*error` the error to give, if one is met. With skipSubtotals the cells of references that hold a SUBTOTAL are left out.
-bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, bool skipSubtotals = false);
+bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, bool skipSubtotals = false, int hiddenRows = 0);
 
 // x to the power y once the cases with no answer are out (0^0, 0 to a negative power, a negative number to a fraction), as the original works it out: a whole
 // exponent by squaring and multiplying, any other as exp(y ln x) in double arithmetic. (A correctly rounded pow gives other last digits in one cell of a few hundred, and

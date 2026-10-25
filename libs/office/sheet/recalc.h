@@ -17,6 +17,7 @@
 #include <QStringList>
 
 #include <deque>
+#include <unordered_map>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -44,6 +45,9 @@ public:
     void usedExtent(int sheet, quint32 *rows, quint32 *cols) const override;
     QString definedName(int sheet, const QString &name) const override;
     bool isSubtotal(int sheet, quint32 row, quint32 col) const override;
+    int rowHiddenKind(int sheet, quint32 row) const override;
+    // The rows hidden on the sheet changed (hidden, shown, filtered): they are looked up again.
+    void hiddenRowsChanged(int sheet) const;
     jp::calc::StructuredAnswer structuredRef(const QString &text, int sheet, quint32 row, quint32 col, jp::calc::CellArea *area, jp::calc::ErrorKind *error) const override;
     // The tables changed (made, taken out, renamed, moved, resized): the next reference by a table's name looks them up again. Call with the worker held back.
     void tablesChanged() const { m_tableIndexReady = false; }
@@ -59,6 +63,8 @@ protected:
     std::deque<Sheet> m_sheets;   // (a deque: a sheet added later does not move those there are, which the window holds pointers to)
     std::vector<quint32> m_rows, m_cols;
     mutable std::vector<std::vector<char>> m_subtotalTexts;   // for each sheet, for each text of a formula: 1 if it calls SUBTOTAL, 0 if not, -1 not yet asked
+    mutable std::vector<std::unordered_map<quint32, quint8>> m_hiddenRows;   // for each sheet, the rows that are hidden and why (1 by hand, 2 by a filter), made when first asked
+    mutable std::vector<char> m_hiddenRowsReady;
     mutable bool m_tableIndexReady = false;
     mutable QHash<QString, int> m_tableByName;                   // by the lower-case name, the table's place among the workbook's
     mutable std::vector<std::vector<int>> m_tablesOfSheet;       // by the sheet, the places of its tables

@@ -1,6 +1,7 @@
 #include "app/formulahelper.h"
 
 #include "core/functioninfo.h"
+#include "sheet/tables.h"
 
 #include <QApplication>
 #include <QEvent>
@@ -107,6 +108,9 @@ void FormulaHelper::refresh()
     m_spot = spot;
     std::vector<Completion> found;
     if (spot.canComplete) found = m_index().matches(spot.word, kMaxOffered);
+    else if (spot.inColumns) found = m_index().columnMatches(spot.table, spot.columnWord, kMaxOffered);
+    // a column that is typed whole already has nothing to offer
+    if (spot.inColumns && found.size() == 1 && found.front().text.compare(spot.columnWord, Qt::CaseInsensitive) == 0) found.clear();
     // a word that is a whole function or name already (and nothing else begins so) has nothing to offer
     if (found.size() == 1 && found.front().text.compare(spot.word, Qt::CaseInsensitive) == 0 && found.front().kind != Completion::Kind::Function) found.clear();
     if (found.empty()) {
@@ -193,6 +197,28 @@ bool FormulaHelper::acceptMarked()
     const Completion c = m_found[size_t(row)];
     const QString text = line->text();
     const int cursor = line->cursorPosition();
+    if (c.kind == Completion::Kind::Column || c.kind == Completion::Kind::SpecialItem) {
+        // a column's name goes in its brackets: the typed part of it is replaced (a name with a mark in it needs double brackets), and the bracket is closed
+        const int from = m_spot.columnStart;
+        QString put = c.kind == Completion::Kind::SpecialItem ? c.text : jp::office::sheet::escapeTableColumn(c.text);
+        const bool double_ = c.kind == Completion::Kind::Column && jp::office::sheet::tableColumnNeedsDoubleBrackets(c.text);
+        // (a name that needs the double brackets, written where the single ones are, is made into the inner pair)
+        if (double_ && from > 0 && text.mid(from - 1, 1) == QLatin1String("[") && (from < 2 || text[from - 2] != QLatin1Char('['))) {
+            put = QLatin1Char('[') + put;
+        }
+        int end = cursor;
+        while (end < text.size() && text[end] != QLatin1Char(']') && text[end] != QLatin1Char(',') && text[end] != QLatin1Char(':') && text[end] != QLatin1Char('[')) ++end;
+        const QString closing = double_ && put.startsWith(QLatin1Char('[')) ? QStringLiteral("]") : QString();
+        const bool hasClose = end < text.size() && text[end] == QLatin1Char(']');
+        const QString now = text.left(from) + put + closing + (hasClose ? QString() : QStringLiteral("]")) + text.mid(end + (hasClose ? 0 : 0));
+        m_working = true;
+        line->setText(now);
+        line->setCursorPosition(from + int(put.size()) + int(closing.size()) + 1);
+        m_working = false;
+        Q_EMIT line->textEdited(now);
+        m_arrowed = false;
+        return true;
+    }
     // the word is replaced by the entry; a function is given its bracket
     const int start = m_spot.wordStart;
     QString put = c.text;

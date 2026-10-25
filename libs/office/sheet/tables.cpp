@@ -351,7 +351,10 @@ TableFate tableAfter(const StructEdit &e, const Table &t, CellRange *out, QStrin
             out->col2 += c;
             return TableFate::Moved;
         }
-        if (f <= t.col2) return refuse(inside);
+        if (f <= t.col2) {
+            out->col2 += c;   // (inside: the table has more columns)
+            return TableFate::Moved;
+        }
         return TableFate::Same;
     case K::DeleteColumns: {
         const quint32 last = f + c - 1;
@@ -361,7 +364,14 @@ TableFate tableAfter(const StructEdit &e, const Table &t, CellRange *out, QStrin
             out->col2 -= c;
             return TableFate::Moved;
         }
-        return refuse(inside);
+        const quint32 from = std::max(f, t.col1), to = std::min(last, t.col2);
+        const quint32 gone = to - from + 1;
+        const quint32 left = t.col1 > f ? std::min(t.col1 - 1, last) - f + 1 : 0;   // (columns deleted left of the table)
+        const quint32 width = t.col2 - t.col1 + 1;
+        if (gone >= width) return refuse(QCoreApplication::translate("jp::office::sheet::Tables", "That would remove all of a table's columns. Select some of them, or change cells outside the table."));
+        out->col1 = t.col1 - left;
+        out->col2 = out->col1 + (width - gone) - 1;
+        return TableFate::Moved;
     }
     case K::InsertCellsDown:
     case K::DeleteCellsUp: {

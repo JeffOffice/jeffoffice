@@ -187,6 +187,22 @@ struct DifferentialFormat {
     bool isEmpty() const { return !bold && !italic && !strike && !underline && !fontColor.isSet() && !hasFill && !hasBorder && !numberFormat; }
 };
 
+enum class TablePart : quint8 {
+    WholeTable, HeaderRow, TotalRow, FirstColumn, LastColumn, FirstRowStripe, SecondRowStripe, FirstColumnStripe, SecondColumnStripe,
+    FirstHeaderCell, LastHeaderCell, FirstTotalCell, LastTotalCell, Count
+};
+
+// A table style the workbook defines (the file's `tableStyle`): the parts as the file names them, each the place of a differential format of the styles part.
+struct CustomTableStyle {
+    QString name;
+    struct Part {
+        TablePart part = TablePart::WholeTable;
+        qint32 dxf = -1;
+        int size = 1;
+    };
+    QVector<Part> parts;
+};
+
 struct Styles {
     QHash<int, QString> numFmts;    // the formats the file defines, by id
     QVector<qint32> cellXfs;        // the format id of each cell format, in order
@@ -199,6 +215,7 @@ struct Styles {
     QVector<CellFormat> styleXfs;    // the formats of the named styles of the XML form (cellStyleXfs), in order
     QVector<CellStyleName> cellStyles; // and their names
     QVector<DifferentialFormat> dxfs;  // the differential formats conditional formatting uses, by place
+    QVector<CustomTableStyle> tableStyles;   // the table styles the workbook defines (the built-in ones are not here: see tablestyle.h)
     QVector<quint32> indexed;       // the palette the file defines for indexed colors (0xRRGGBB); empty for the usual one
     quint32 theme[kThemeColors];    // the workbook's theme colors (0xRRGGBB), set when the workbook is opened; the usual ones until then
     QString majorFont, minorFont;   // the typefaces the workbook's theme gives headings and body text (its fonts that say "major" or "minor" mean these); empty when it has no theme

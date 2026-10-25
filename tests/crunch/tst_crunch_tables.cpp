@@ -6,12 +6,24 @@
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
+#include "findbooks.h"
 #include "grid/gridview.h"
 #include "savedok.h"
 #include "sheet/structref.h"
 #include "sheet/tablestyle.h"
+#include "app/ribbon.h"
+#include "app/filterpopup.h"
+#include "app/formulahelper.h"
+#include "core/formulaspot.h"
+#include <QLabel>
+#include <QListWidget>
+#include <QPainter>
+#include <QPushButton>
+#include <QTreeWidget>
 
+#include <QMenu>
 #include <QSignalSpy>
+#include <QToolButton>
 #include <QUndoStack>
 
 #include "../testrunner.h"
@@ -91,6 +103,35 @@ struct Saved {
 };
 
 const QLocale kUs(QLocale::English, QLocale::UnitedStates);
+
+// The window with the popups that stand over it (the list of the help, a menu) drawn where they are.
+void saveWithPopups(EditWindow &e, const QString &name, std::initializer_list<QWidget *> popups)
+{
+    if (qgetenv("JC_SHOT_DIR").isEmpty()) return;
+    QCoreApplication::processEvents();
+    QPixmap shot = e.win.w.grab();
+    QPainter p(&shot);
+    for (QWidget *w : popups)
+        if (w && w->isVisible()) p.drawPixmap(e.win.w.mapFromGlobal(w->pos()), w->grab());
+    p.end();
+    QDir().mkpath(QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR")));
+    shot.save(QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR")) + QLatin1Char('/') + name + QStringLiteral(".png"));
+}
+
+bool rowHidden(EditWindow &e, quint32 row)
+{
+    for (const RowSpec &r : e.win.w.session()->calculation()->rowSpecsIn(0, row, row))
+        if (r.row == row) return r.hidden;
+    return false;
+}
+
+bool tabShown(CrunchWindow &w)
+{
+    Ribbon *r = w.ribbon();
+    for (int i = 0; i < r->tabCount(); ++i)
+        if (r->tabName(i) == QLatin1String("Table")) return r->tabVisible(i);
+    return false;
+}
 
 } // namespace
 
@@ -451,7 +492,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
         crunch::EditSession::TableMarks marks;
-        marks.style = QStringLiteral("TableStyleDark3");
+        marks.style = QStringLiteral("TableStyleDark1");
         marks.firstColumn = true;
         marks.rowStripes = false;
         marks.columnStripes = true;
@@ -461,7 +502,7 @@ private Q_SLOTS:
         QVERIFY(s->setTableMarks(0, marks).ok);
         QCOMPARE(u->count(), before + 1);
         const Table &t = s->workbook()->tables().first();
-        QCOMPARE(t.styleName, QStringLiteral("TableStyleDark3"));
+        QCOMPARE(t.styleName, QStringLiteral("TableStyleDark1"));
         QVERIFY(t.showFirstColumn && !t.showRowStripes && t.showColumnStripes && !t.filterButtons);
         QVERIFY(s->setTableMarks(0, marks).ok);
         QCOMPARE(u->count(), before + 1);   // (nothing changed: no step)
@@ -536,6 +577,371 @@ private Q_SLOTS:
         QCOMPARE(calc->content(0, 3, 3).formula, QStringLiteral("Table1[[#This Row],[Q1]]+Table1[[#This Row],[Q2]]"));
         QCOMPARE(valueOf(e, QStringLiteral("D4")), QStringLiteral("n:33"));
         QCOMPARE(valueOf(e, QStringLiteral("D2")), QStringLiteral("n:11"));
+    }
+
+    // Rows and columns inserted inside a table: the table has more of them, new rows get the calculated columns' formulas, new columns are named in the row of names; deleted columns go from
+    // the table; each is undone, and a column that is gone leaves #REF! in the formulas that named it.
+    void rowsAndColumnsInsideATableChangeIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(s->type(0, 1, 3, QStringLiteral("=[@Q1]*5")).ok);
+        QVERIFY(s->type(0, 7, 0, QStringLiteral("=SUM(Table1[Q1])")).ok);
+        QVERIFY(e.settle());
+        QUndoStack *u = e.win.w.undoStack();
+        QVERIFY(s->insertRows(0, 2, 1).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(int(s->workbook()->tables().first().row2), 4);
+        QCOMPARE(editOf(e, QStringLiteral("D3")), QStringLiteral("=Table1[[#This Row],[Q1]]*5"));
+        QCOMPARE(valueOf(e, QStringLiteral("D3")), QStringLiteral("n:0"));
+        u->undo();   // the formulas
+        u->undo();   // the row
+        QVERIFY(e.settle());
+        QCOMPARE(int(s->workbook()->tables().first().row2), 3);
+        QVERIFY(s->insertColumns(0, 1, 1).ok);
+        QVERIFY(e.settle());
+        const Table &t = s->workbook()->tables().first();
+        QCOMPARE(t.columns, (QStringList{QStringLiteral("Region"), QStringLiteral("Column5"), QStringLiteral("Q1"), QStringLiteral("Q2"), QStringLiteral("Column4")}));
+        QCOMPARE(int(t.col2), 4);
+        QCOMPARE(valueOf(e, QStringLiteral("B1")), QStringLiteral("s:Column5"));
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:6"));
+        QCOMPARE(valueOf(e, QStringLiteral("E3")), QStringLiteral("n:10"));
+        // a column deleted: the one the formula names
+        QVERIFY(s->deleteColumns(0, 2, 1).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().first().columns.size(), 4);
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("e:#REF!"));
+        u->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().first().columns.size(), 5);
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:6"));
+        // all of the columns can't be deleted
+        QVERIFY(!s->deleteColumns(0, 0, 5).ok);
+        QVERIFY(saveNow(e));
+        Saved back;
+        QVERIFY(back.open(e.path));
+        QCOMPARE(back.book.tables().first().columns.size(), 5);
+        QCOMPARE(back.book.tables().first().columns.at(1), QStringLiteral("Column5"));
+    }
+
+    // Insert > Table makes a table of the block round the cursor and draws it in its look: the header filled, the rows striped, a button on each name; the Table tab shows while the cursor
+    // is in it; the look is chosen from the gallery; the table is not drawn where it is not.
+    void insertTableDrawsTheTableInItsLook()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        CrunchWindow &w = e.win.w;
+        w.session()->setLocale(kUs);
+        QVERIFY(e.settle());
+        QString asked;
+        w.setTableMakeAsker([&](QString *where, bool *headers) {
+            asked = *where;
+            *headers = true;
+            return true;
+        });
+        e.select(QStringLiteral("B3"));
+        w.act(QStringLiteral("insert.table"))->trigger();
+        QCOMPARE(asked, QStringLiteral("A1:C4"));
+        QCOMPARE(w.session()->workbook()->tables().size(), 1);
+        QCOMPARE(int(e.view()->headerButtonCount()), 3);
+        auto colorAt = [&](const QString &ref) {
+            quint32 r = 0, c = 0;
+            parseCellRef(ref, &r, &c);
+            const QRect cell = e.view()->cellRect(r, c);
+            const QImage img = e.view()->viewport()->grab().toImage();
+            const qreal ratio = img.devicePixelRatio();
+            return img.pixelColor(int((cell.left() + 3) * ratio), int((cell.bottom() - 3) * ratio));
+        };
+        QTest::qWait(20);
+        const QColor header = colorAt(QStringLiteral("A1")), stripe = colorAt(QStringLiteral("A2")), plain = colorAt(QStringLiteral("A3")), outside = colorAt(QStringLiteral("F2"));
+        QVERIFY(header != outside);                     // (a filled header)
+        QVERIFY(header.blue() > header.red());          // (the first accent is blue)
+        QVERIFY(stripe != plain);                       // (the rows are striped)
+        QVERIFY(plain == outside || plain.lightness() > 240);
+        QCOMPARE(outside.name(), QColor(Qt::white).name());
+        saveShot(&w, QStringLiteral("table-styled"));
+        // the Table tab shows for a cell in the table and not for one outside
+        QVERIFY(tabShown(w));
+        e.select(QStringLiteral("F2"));
+        QVERIFY(!tabShown(w));
+        e.select(QStringLiteral("B3"));
+        QVERIFY(w.act(QStringLiteral("table.stripeRows"))->isChecked());
+        QVERIFY(w.act(QStringLiteral("table.header"))->isChecked());
+        QVERIFY(!w.act(QStringLiteral("table.totals"))->isChecked());
+        // marks from the tab
+        w.act(QStringLiteral("table.stripeRows"))->trigger();
+        QVERIFY(!w.session()->workbook()->tables().first().showRowStripes);
+        QTest::qWait(20);
+        QCOMPARE(colorAt(QStringLiteral("A2")), colorAt(QStringLiteral("A3")));
+        w.act(QStringLiteral("table.stripeRows"))->trigger();
+        // the gallery: a look chosen by its button
+        QWidget *picker = w.makeTableLooksPicker(nullptr);
+        picker->resize(picker->sizeHint());
+        picker->show();
+        auto *button = picker->findChild<QToolButton *>(QStringLiteral("tableLook.TableStyleDark1"));
+        QVERIFY(button);
+        QCOMPARE(picker->findChildren<QToolButton *>().size(), 60);
+        saveShot(picker, QStringLiteral("table-looks-gallery"));
+        button->click();
+        QCOMPARE(w.session()->workbook()->tables().first().styleName, QStringLiteral("TableStyleDark1"));
+        delete picker;
+        QTest::qWait(20);
+        QVERIFY(colorAt(QStringLiteral("A3")).lightness() < 140);   // (a dark look)
+        // the name from the tab, and back to cells
+        auto *box = w.findChild<QLineEdit *>(QStringLiteral("table.name"));
+        QVERIFY(box);
+        QCOMPARE(box->text(), QStringLiteral("Table1"));
+        box->setText(QStringLiteral("Sales"));
+        box->setModified(true);
+        box->editingFinished();
+        QCOMPARE(w.session()->workbook()->tables().first().name, QStringLiteral("Sales"));
+        w.act(QStringLiteral("table.toRange"))->trigger();
+        QVERIFY(w.session()->workbook()->tables().isEmpty());
+        QCOMPARE(int(e.view()->headerButtonCount()), 0);
+        QVERIFY(!tabShown(w));
+        // undone, the table is back, drawn, and its buttons; the cells in a table can't be made one again
+        w.undoStack()->undo();
+        QCOMPARE(int(e.view()->headerButtonCount()), 3);
+        e.select(QStringLiteral("B3"));
+        const int steps = w.undoStack()->count();
+        w.act(QStringLiteral("insert.table"))->trigger();
+        QCOMPARE(w.undoStack()->count(), steps);
+        QVERIFY(e.win.told.last().contains(QStringLiteral("in a table already")));
+    }
+
+    // The totals row: a button on each of its cells chooses what the column adds up; a filter from the buttons on the names hides rows of the table only, and the totals leave out the rows it
+    // hides; sorting from the same button puts the table's rows in order; the filter is undone, saved, and kept in the table's part.
+    void theTotalsButtonsAndTheFilterButtonsOfATable()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        CrunchWindow &w = e.win.w;
+        w.session()->setLocale(kUs);
+        QVERIFY(e.settle());
+        w.setTableMakeAsker([](QString *, bool *headers) {
+            *headers = true;
+            return true;
+        });
+        e.select(QStringLiteral("B3"));
+        w.act(QStringLiteral("insert.table"))->trigger();
+        w.act(QStringLiteral("table.totals"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->workbook()->tables().first().totalsRows, 1);
+        QCOMPARE(int(e.view()->headerButtonCount()), 6);          // (three on the names, three on the totals)
+        QCOMPARE(valueOf(e, QStringLiteral("C5")), QStringLiteral("n:60"));
+        // the button of a total: the menu lists the functions with the one in use checked
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, e.view()->headerButtonRect(4, 1).center());
+        QMenu *menu = w.findChild<QMenu *>(QStringLiteral("totalsMenu"));
+        QVERIFY(menu);
+        QStringList texts;
+        QAction *average = nullptr;
+        for (QAction *a : menu->actions()) {
+            texts << a->text();
+            if (a->text() == QLatin1String("Average")) average = a;
+            if (a->isChecked()) QCOMPARE(a->text(), QStringLiteral("None"));   // (the first column of the sum is the last: this one has none)
+        }
+        QCOMPARE(texts.size(), 10);
+        QVERIFY(average);
+        saveWithPopups(e, QStringLiteral("table-totals-menu"), {menu});
+        average->trigger();
+        delete menu;
+        QVERIFY(e.settle());
+        QCOMPARE(editOf(e, QStringLiteral("B5")), QStringLiteral("=SUBTOTAL(101,Table1[Q1])"));
+        QCOMPARE(valueOf(e, QStringLiteral("B5")), QStringLiteral("n:2"));
+        // a filter from the button on a name
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, e.view()->headerButtonRect(0, 0).center());
+        FilterPopup *popup = w.filterPopup();
+        QVERIFY(popup);
+        QTRY_VERIFY(popup->listed());
+        QTreeWidgetItem *all = popup->tree()->topLevelItem(0);
+        QCOMPARE(all->childCount(), 3);
+        all->setCheckState(0, Qt::Unchecked);
+        all->child(0)->setCheckState(0, Qt::Checked);   // East
+        all->child(2)->setCheckState(0, Qt::Checked);   // West
+        saveWithPopups(e, QStringLiteral("table-filter-dropdown"), {popup});
+        popup->findChild<QPushButton *>(QStringLiteral("filterOk"))->click();
+        QTRY_VERIFY(!w.isFiltering());
+        QVERIFY(e.settle());
+        QVERIFY(!rowHidden(e, 1) && !rowHidden(e, 2) && rowHidden(e, 3));       // (North, the third row of data, is hidden)
+        QVERIFY(!rowHidden(e, 4) && !rowHidden(e, 0));                          // (the totals and the names stay)
+        QVERIFY(w.session()->rowFilteredOut(0, 3));                             // (a row the filter hides, as a sheet's filter does)
+        QCOMPARE(valueOf(e, QStringLiteral("B5")), QStringLiteral("n:1.5"));    // (East 1 and West 2 are shown: their average)
+        QCOMPARE(valueOf(e, QStringLiteral("C5")), QStringLiteral("n:30"));     // (the sum of 10 and 20)
+        QVERIFY(w.session()->tableFilter(0).active());
+        QCOMPARE(w.session()->workbook()->tables().first().filter.columns.size(), 1);
+        QVERIFY(!w.session()->calculation()->autoFilterOf(0).valid());          // (the sheet has no filter)
+        saveShot(&w, QStringLiteral("table-filtered"));
+        // sorted from the button: the rows that show are put in order (Z to A)
+        w.undoStack()->count();
+        const int steps = w.undoStack()->count();
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, e.view()->headerButtonRect(0, 0).center());
+        popup = w.filterPopup();
+        QVERIFY(popup);
+        QTRY_VERIFY(popup->listed());
+        Q_EMIT popup->sortRequested(true);
+        QTRY_VERIFY(w.undoStack()->count() > steps);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A2")), QStringLiteral("s:West"));
+        QCOMPARE(valueOf(e, QStringLiteral("A3")), QStringLiteral("s:East"));
+        QCOMPARE(valueOf(e, QStringLiteral("A4")), QStringLiteral("s:North"));   // (the row the filter hides stays where it is)
+        QVERIFY(rowHidden(e, 3));
+        // saved: the part keeps the filter, the file has the rows hidden, and it opens as it was
+        QVERIFY(saveNow(e));
+        Saved back;
+        QVERIFY(back.open(e.path));
+        QCOMPARE(back.book.tables().first().filter.columns.size(), 1);
+        QCOMPARE(back.book.tables().first().filter.columns[0].values.size(), 2);
+        Sheet sheet;
+        QVERIFY(back.book.readSheet(0, &sheet));
+        bool hidden = false;
+        for (const RowSpec &r : sheet.rowSpecs)
+            if (r.row == 3) hidden = r.hidden;
+        QVERIFY(hidden);
+        QVERIFY(!sheet.autoFilter.valid());
+        // cleared: the rows are shown again, and the totals count them
+        w.act(QStringLiteral("filter.clear"))->trigger();
+        QTRY_VERIFY(!w.isFiltering());
+        QVERIFY(e.settle());
+        QVERIFY(!rowHidden(e, 3));
+        QVERIFY(!w.session()->tableFilter(0).active());
+        // the buttons off: the table has none (and a filtered table cannot lose them)
+        w.act(QStringLiteral("table.buttons"))->trigger();
+        QCOMPARE(int(e.view()->headerButtonCount()), 3);
+    }
+
+    // What is typed inside the brackets of a table is helped: after the name and "[" the table's columns and the special items are listed, a few letters narrow the list, Tab puts the column
+    // in with its closing bracket, and a name that needs the double brackets is given them; in a cell of the table, [@ lists the columns too.
+    void theColumnsOfATableAreOfferedInsideItsBrackets()
+    {
+        crunch::FormulaSpot spot = crunch::spotAt(QStringLiteral("=SUM(Sales[Am"), 13, QLatin1Char(','));
+        QVERIFY(spot.inText && spot.inColumns);
+        QCOMPARE(spot.table, QStringLiteral("Sales"));
+        QCOMPARE(spot.columnWord, QStringLiteral("Am"));
+        QCOMPARE(spot.columnStart, 11);
+        spot = crunch::spotAt(QStringLiteral("=Sales[[#Headers],[Re"), 21, QLatin1Char(','));
+        QVERIFY(spot.inColumns);
+        QCOMPARE(spot.columnWord, QStringLiteral("Re"));
+        spot = crunch::spotAt(QStringLiteral("=[@Q"), 4, QLatin1Char(','));
+        QVERIFY(spot.inColumns);
+        QVERIFY(spot.table.isEmpty());
+        QCOMPARE(spot.columnWord, QStringLiteral("Q"));
+        QVERIFY(!crunch::spotAt(QStringLiteral("=Sales[[#Headers],"), 18, QLatin1Char(',')).inColumns);   // (a comma between the parts: nothing typed yet)
+        QVERIFY(!crunch::spotAt(QStringLiteral("=\"Sales[Am"), 10, QLatin1Char(',')).inColumns);           // (in a text)
+        QVERIFY(crunch::spotAt(QStringLiteral("=1+"), 3, QLatin1Char(',')).canPoint);
+        QVERIFY(!crunch::spotAt(QStringLiteral("=1+A"), 4, QLatin1Char(',')).canPoint);
+        QVERIFY(!crunch::spotAt(QStringLiteral("=1"), 2, QLatin1Char(',')).canPoint);
+        crunch::CompletionIndex index;
+        index.setTableColumns({{QStringLiteral("Sales"), {QStringLiteral("Region"), QStringLiteral("Amount"), QStringLiteral("Unit #")}}});
+        QCOMPARE(int(index.columnMatches(QStringLiteral("sales"), QString()).size()), 3 + 5);
+        const auto am = index.columnMatches(QStringLiteral("Sales"), QStringLiteral("am"));
+        QCOMPARE(int(am.size()), 1);
+        QCOMPARE(am[0].text, QStringLiteral("Amount"));
+        QCOMPARE(int(index.columnMatches(QStringLiteral("Sales"), QStringLiteral("#h")).size()), 1);
+        QVERIFY(index.columnMatches(QStringLiteral("Nothing"), QString()).empty());
+        // in the window
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        CrunchWindow &w = e.win.w;
+        w.session()->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(w.session()->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(w.session()->renameTable(0, QStringLiteral("Sales")).ok);
+        QVERIFY(w.session()->type(0, 0, 2, QStringLiteral("Q 2.5")).ok);
+        QVERIFY(e.settle());
+        FormulaHelper *h = w.formulaHelper();
+        e.select(QStringLiteral("F1"));
+        e.type(QStringLiteral("=SUM(Sales["));
+        QVERIFY(h->isListOpen());
+        QCOMPARE(h->offered().mid(0, 3), (QStringList{QStringLiteral("Region"), QStringLiteral("Q1"), QStringLiteral("Q 2.5")}));
+        QVERIFY(h->offered().contains(QStringLiteral("#Totals")));
+        saveWithPopups(e, QStringLiteral("table-autocomplete"), {h->list()->window(), static_cast<QWidget *>(h->hint())});
+        QTest::keyClicks(w.cellEditor(), QStringLiteral("q"));
+        QCOMPARE(h->offered(), (QStringList{QStringLiteral("Q1"), QStringLiteral("Q 2.5")}));
+        QTest::keyClick(w.cellEditor(), Qt::Key_Down);
+        QTest::keyClick(w.cellEditor(), Qt::Key_Tab);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=SUM(Sales[[Q 2.5]]"));
+        QVERIFY(!h->isListOpen());
+        QTest::keyClicks(w.cellEditor(), QStringLiteral(")"));
+        e.key(Qt::Key_Return);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("F1")), QStringLiteral("n:60"));
+        // a column that is a plain word: the closing bracket goes after it, whatever follows
+        e.select(QStringLiteral("F2"));
+        e.type(QStringLiteral("=Sales[Reg"));
+        QCOMPARE(h->offered(), QStringList{QStringLiteral("Region")});
+        QTest::keyClick(w.cellEditor(), Qt::Key_Tab);
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=Sales[Region]"));
+        e.key(Qt::Key_Escape);
+        // inside the table, [@ lists the table's own columns
+        e.select(QStringLiteral("B3"));
+        e.type(QStringLiteral("=[@"));
+        QVERIFY(h->isListOpen());
+        QCOMPARE(h->offered().mid(0, 2), (QStringList{QStringLiteral("Region"), QStringLiteral("Q1")}));
+        e.key(Qt::Key_Escape);
+        e.key(Qt::Key_Escape);
+        // a renamed column is what is offered next
+        QVERIFY(w.session()->type(0, 0, 1, QStringLiteral("First")).ok);
+        e.select(QStringLiteral("F3"));
+        e.type(QStringLiteral("=Sales[Fir"));
+        QCOMPARE(h->offered(), QStringList{QStringLiteral("First")});
+        e.key(Qt::Key_Escape);
+        e.key(Qt::Key_Escape);
+    }
+
+    // While a formula is typed, a click on a cell of a table writes a reference by the table's names: the cell of its own row, a name, a total; a cell of another row is its address; a cell
+    // that is in no table is not pointed at (the click ends the entry as before).
+    void aClickOnATableCellWhileTypingAFormulaWritesAStructuredReference()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        CrunchWindow &w = e.win.w;
+        w.session()->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(w.session()->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(w.session()->setTableTotalsRow(0, true).ok);
+        QVERIFY(e.settle());
+        auto click = [&](const QString &ref) {
+            quint32 r = 0, c = 0;
+            parseCellRef(ref, &r, &c);
+            const QRect cell = e.view()->cellRect(r, c);
+            QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(cell.left() + 6, cell.top() + 4));
+        };
+        // beside the table, in its row 3: the cell of the row is Table1[@Q1]
+        e.select(QStringLiteral("F3"));
+        e.type(QStringLiteral("="));
+        click(QStringLiteral("B3"));
+        QVERIFY(w.isEditing());
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=Table1[@Q1]"));
+        QTest::keyClicks(w.cellEditor(), QStringLiteral("+"));
+        click(QStringLiteral("C1"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=Table1[@Q1]+Table1[[#Headers],[Q2]]"));
+        QTest::keyClicks(w.cellEditor(), QStringLiteral("&"));
+        click(QStringLiteral("B5"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=Table1[@Q1]+Table1[[#Headers],[Q2]]&Table1[[#Totals],[Q1]]"));
+        QTest::keyClicks(w.cellEditor(), QStringLiteral("&"));
+        click(QStringLiteral("A4"));    // (another row of the table: its address)
+        QVERIFY(w.cellEditor()->text().endsWith(QStringLiteral("&A4")));
+        e.key(Qt::Key_Escape);
+        // in the table: [@Q1]
+        e.select(QStringLiteral("C3"));
+        e.type(QStringLiteral("=2*"));
+        click(QStringLiteral("B3"));
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=2*[@Q1]"));
+        e.key(Qt::Key_Return);
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->calculation()->content(0, 2, 2).formula, QStringLiteral("2*Table1[[#This Row],[Q1]]"));
+        QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("n:4"));
+        // where no reference may go (after a name, a number), or on a cell that is in no table: the click ends the entry
+        e.select(QStringLiteral("F4"));
+        e.type(QStringLiteral("=1"));
+        click(QStringLiteral("B3"));
+        QVERIFY(!w.isEditing());
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("F4")), QStringLiteral("n:1"));
     }
 };
 

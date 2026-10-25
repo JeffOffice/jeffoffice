@@ -36,19 +36,7 @@ CellRange rangeOf(const Table &t)
     return r;
 }
 
-// The first free "ColumnN" of a table's columns (without regard to capitals), N counting from `from`.
-QString freshColumnName(const QStringList &columns, int from)
-{
-    auto taken = [&](const QString &candidate) {
-        for (const QString &c : columns)
-            if (c.compare(candidate, Qt::CaseInsensitive) == 0) return true;
-        return false;
-    };
-    for (int n = std::max(1, from);; ++n) {
-        const QString candidate = QCoreApplication::translate("jp::crunch::EditSession", "Column") + QString::number(n);
-        if (!taken(candidate)) return candidate;
-    }
-}
+QString freshColumnName(const QStringList &columns, int from) { return freshTableColumnName(columns, from); }
 
 int nextColumnId(const Table &t)
 {
@@ -553,8 +541,12 @@ EditSession::Outcome EditSession::setTableMarks(int table, const TableMarks &mar
     after.showColumnStripes = marks.columnStripes;
     after.filterButtons = marks.filterButtons;
     if (tableSignature(after) == tableSignature(book.tables()[table])) return out;
-    // a table's filter that is on is not left with no buttons: its conditions go with them
-    if (!after.filterButtons) after.filter.columns.clear();
+    // a table's filter that is on is not left with no buttons: the rows it hides would stay hidden
+    if (!after.filterButtons && tableFilter(table).active()) {
+        out.ok = false;
+        out.problem = tr("The table is filtered. Clear its filter first, so the rows it hides are shown, and then take the buttons off.");
+        return out;
+    }
     Step step;
     TableEdit e;
     e.index = table;
@@ -975,6 +967,39 @@ void EditSession::calculatedColumnAfterEntry(int sheet, quint32 row, quint32 col
     pushStep(std::move(step), tr("Filling a calculated column"));
     m_lastCalculated = true;
     m_calculatedIndex = m_undo.index();
+}
+
+// Rows inserted among a table's rows take the formulas of its calculated columns where their cells are empty; columns inserted among its columns are named in its row of names.
+void EditSession::fillTableAfterInsert(int sheet, bool rows, quint32 first, quint32 count)
+{
+    Workbook &book = *m_book->book;
+    const QVector<Table> &all = book.tables();
+    for (int i = 0; i < all.size(); ++i) {
+        const Table &t = all[i];
+        if (t.sheet != sheet) continue;
+        Step step;
+        if (rows) {
+            if (first <= t.row1 || first > t.row2 || qint64(count) * t.columns.size() > kMaxCellsPerEdit) continue;
+            // (the table has grown: the new rows are data rows, but for one inserted at the row of totals, which is under them)
+            for (quint32 r = first; r < first + count; ++r)
+                for (int c = 0; c < t.columns.size(); ++c) {
+                    const QString formula = calculatedFormulaFor(t, c, r);
+                    if (formula.isEmpty()) continue;
+                    const Calculation::CellContent now = m_book->calc->content(sheet, r, t.col1 + quint32(c));
+                    if (now.exists && (now.isFormula || !now.value.isEmpty())) continue;
+                    step.cells.push_back(formulaCell(sheet, r, t.col1 + quint32(c), formula));
+                }
+        } else {
+            if (first <= t.col1 || first > t.col2 || t.headerRows == 0) continue;
+            for (quint32 k = 0; k < count; ++k) {
+                const quint32 col = first + k;
+                const int at = int(col - t.col1);
+                if (at < 0 || at >= t.columns.size()) continue;
+                step.cells.push_back(textCell(sheet, t.row1, col, t.columns[at]));
+            }
+        }
+        if (!step.cells.empty()) pushStep(std::move(step), rows ? tr("Filling a calculated column") : tr("Naming the new columns"));
+    }
 }
 
 EditSession::Outcome EditSession::undoCalculatedColumn()

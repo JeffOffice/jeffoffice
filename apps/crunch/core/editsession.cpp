@@ -806,7 +806,15 @@ bool EditSession::apply(Step *step, bool forward)
         }
     }
     if (!applyNameEdits(step, forward, calc)) return false;
-    if (!tableSheets.empty()) calc->tablesChanged();   // (the formulas that name a table's columns are worked out again, now that the cells and the tables are as they are to be)
+    if (!tableSheets.empty()) calc->tablesChanged();
+    // (the rows a filter or a person hid or showed: the subtotals leave out the rows that are hidden)
+    {
+        std::set<int> hiddenSheets;
+        for (const RowSpecsEdit &e : step->rowSpecs) hiddenSheets.insert(e.sheet);
+        for (const SizeEdit &e : step->sizes)
+            if (!e.columns) hiddenSheets.insert(e.sheet);
+        for (const int hs : hiddenSheets) calc->hiddenRowsAndSubtotals(hs);
+    }   // (the formulas that name a table's columns are worked out again, now that the cells and the tables are as they are to be)
     applyCalcEdits(step, forward, calc);
     applySizes(step, forward, calc);
     for (const MergeEdit &m : step->merges) {

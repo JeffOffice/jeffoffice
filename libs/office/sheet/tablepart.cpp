@@ -506,6 +506,19 @@ bool validTableName(const QString &name, QString *why)
     return true;
 }
 
+QString freshTableColumnName(const QStringList &columns, int from)
+{
+    auto taken = [&](const QString &candidate) {
+        for (const QString &c : columns)
+            if (c.compare(candidate, Qt::CaseInsensitive) == 0) return true;
+        return false;
+    };
+    for (int n = std::max(1, from);; ++n) {
+        const QString candidate = QCoreApplication::translate("jp::office::sheet::Tables", "Column") + QString::number(n);
+        if (!taken(candidate)) return candidate;
+    }
+}
+
 QString freshTableName(const QStringList &taken, const QString &stem)
 {
     const QString base = stem.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Tables", "Table") : stem;

@@ -291,6 +291,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
         } else {
             const Program &p = *slot.program;
             if (p.structured) m_structuredNodes.push_back(id);
+            if (isSubtotal(n.sheet, n.row, n.col)) m_subtotalNodes.push_back(id);
             told = slot.usesNames || slot.dynamic || slot.reaches;
             always = slot.dynamic || slot.changesByItself;
             if (m_options.keepApart) {
@@ -1108,6 +1109,20 @@ void Calculation::tablesChanged()
     // (the formulas that name a table's columns: each is registered again, which works it out and what reads it; the ones it finds are listed anew)
     std::vector<quint32> ids;
     ids.swap(m_structuredNodes);
+    std::sort(ids.begin(), ids.end());
+    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+    for (const quint32 id : ids)
+        if (id < m_nodes.size()) readdNode(id);
+    if (!m_running) beginRecalculation();
+}
+
+void Calculation::hiddenRowsAndSubtotals(int sheet)
+{
+    hiddenRowsChanged(sheet);
+    abandonNow();
+    BulkEdit bulk(this);
+    std::vector<quint32> ids;
+    ids.swap(m_subtotalNodes);
     std::sort(ids.begin(), ids.end());
     ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
     for (const quint32 id : ids)
