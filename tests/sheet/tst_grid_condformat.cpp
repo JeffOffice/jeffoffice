@@ -622,6 +622,47 @@ private Q_SLOTS:
 
     // ---- the limits of what a sheet's rules cost (hostile workbooks)
 
+    // What the rules keep of the cells is bounded (200,000 results). A paint that asks about more than that is not interrupted by it: the clear waits for the end of the paint, and every cell
+    // of the paint is given the values its own pass took (counted, not looked at in pixels: a clear in the middle would show only in the count).
+    void theResultsKeptAreLetGoOfWhenThePaintIsOverNotInTheMiddleOfIt()
+    {
+        Book b;
+        for (int i = 0; i < 10000; ++i) b.sheet.cells.add(Book::numberCell(quint32(i), 0, double(i % 10)));
+        CondRule &r = b.rule(CondRule::Type::ColorScale, QStringLiteral("A1:Z10000"));
+        r.values = {{CondValue::Type::Min, QString(), true}, {CondValue::Type::Max, QString(), true}};
+        r.colors = {rgb(0xFF0000), rgb(0x00FF00)};
+        b.build();
+        CondFormats &rules = b.grid.conditional();
+        rules.settle();   // (the figures are made: the paint below only asks)
+        QCOMPARE(rules.cacheClears(), qint64(0));
+        std::vector<CondCell> drawn;
+        drawn.reserve(260000);
+        rules.beginPaint();
+        for (quint32 row = 0; row < 10000; ++row)
+            for (quint32 col = 0; col < 26; ++col) drawn.push_back(rules.at(row, col));   // (260,000 cells in one paint: past what is kept)
+        QCOMPARE(rules.cacheClears(), qint64(0));          // (nothing was let go of in the middle of the paint)
+        QCOMPARE(rules.cacheClearsInPaint(), qint64(0));
+        rules.endPaint();
+        QCOMPARE(rules.cacheClears(), qint64(1));          // (it was, when the paint was over)
+        // each cell of the paint has what its own pass took: a number in the first column has its color of the scale (the lowest the red end, the highest the green), any other cell has none
+        for (quint32 row = 0; row < 10000; ++row)
+            for (quint32 col = 0; col < 26; ++col) {
+                const CondCell &c = drawn[size_t(row) * 26 + col];
+                QCOMPARE(c.any, col == 0);
+                if (col == 0) {
+                    QVERIFY(c.hasScale);
+                    QCOMPARE(c.scale, row % 10 == 0 ? QRgb(0xFFFF0000) : row % 10 == 9 ? QRgb(0xFF00FF00) : c.scale);
+                }
+            }
+        // and asked again afterwards the answers are the same
+        for (quint32 row = 0; row < 100; ++row) QCOMPARE(rules.at(row, 0).scale, drawn[size_t(row) * 26].scale);
+        // a paint that does not fill it lets go of nothing
+        rules.beginPaint();
+        for (quint32 row = 0; row < 100; ++row) rules.at(row, 0);
+        rules.endPaint();
+        QCOMPARE(rules.cacheClears(), qint64(1));
+    }
+
     // The cells a paint goes through for figures are counted for the paint, all its rules and all its cells together (each of sixty rules, and each of eight hundred cells, went through its own
     // share before, and a paint took as long as a hundred times that): a paint goes through the number the limit says, and the slices between paints do the rest.
     void aPaintGoesThroughOnlyAsManyCellsAsTheLimitSays()

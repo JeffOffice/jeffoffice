@@ -952,8 +952,10 @@ bool CondFormats::testOf(size_t rule, quint32 row, quint32 col) const
 CondCell CondFormats::at(quint32 row, quint32 col) const
 {
     if (m_stale) {
+        // (values changed since the cells were worked out: what was kept is let go of before the first cell is asked about, which is before a paint holds anything of it)
         m_cache.clear();
         m_stale = false;
+        if (m_inPaint) ++m_cacheClearsInPaint;
     }
     if (!covers(row, col)) return CondCell();   // (a cell no rule has costs one look at the index, and nothing is kept for it)
     const quint64 key = (quint64(row) << 16) | col;
@@ -966,9 +968,38 @@ CondCell CondFormats::at(quint32 row, quint32 col) const
         m_incomplete = true;
         return cell;
     }
-    if (m_cache.size() >= kMaxCached) m_cache.clear();   // (what callers hold is theirs: values)
+    if (m_cache.size() >= kMaxCached) {
+        // (full: in a paint it is let go of when the paint is over, and until then this result is given and not kept; out of a paint, now. What callers hold is theirs: values.)
+        if (m_inPaint) {
+            m_clearAfterPaint = true;
+            return cell;
+        }
+        m_cache.clear();
+        ++m_cacheClears;
+    }
     m_cache.emplace(key, cell);
     return cell;
+}
+
+void CondFormats::beginPaint() const
+{
+    m_paintWork = 0;
+    m_syncUsed = 0;
+    if (m_stale) {
+        // (values changed since the cells were worked out: what was kept is let go of before the paint holds anything of it)
+        m_cache.clear();
+        m_stale = false;
+    }
+    m_inPaint = true;
+}
+
+void CondFormats::endPaint() const
+{
+    m_inPaint = false;
+    if (!m_clearAfterPaint) return;
+    m_clearAfterPaint = false;
+    m_cache.clear();
+    ++m_cacheClears;
 }
 
 CondCell CondFormats::compute(quint32 row, quint32 col, bool *incomplete) const

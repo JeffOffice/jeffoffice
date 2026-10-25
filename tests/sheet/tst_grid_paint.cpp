@@ -1197,8 +1197,10 @@ private Q_SLOTS:
             return f;
         };
         const QImage clean = make(false)->render();
-        const QImage full = make(true)->render();
+        auto filled = make(true);
+        const QImage full = filled->render();
         QCOMPARE(full, clean);
+        QCOMPARE(filled->grid.conditional().cacheClearsInPaint(), qint64(0));   // (what was kept was not let go of in the middle of the paint)
         QCOMPARE(px(clean, 3, 3), QRgb(0xFFFF0000));   // (the cell of the lowest)
         QCOMPARE(px(clean, 3, 19 * 20 + 3), QRgb(0xFF0000FF));   // (the cell of the highest)
     }

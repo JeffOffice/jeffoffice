@@ -1173,6 +1173,10 @@ void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOption
 
 void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
 {
+    struct EndOfPaint {   // (what the rules kept of the cells, if the paint filled it, is let go of when the paint is over, not in the middle of it)
+        const CondFormats &rules;
+        ~EndOfPaint() { rules.endPaint(); }
+    } endOfPaint{m_sheet->conditional()};
     m_stats = PaintStats();
     m_sheet->conditional().beginPaint();   // (the steps this paint may spend on the rules' formulas)
     if (!m_sheet->data().sheet) {

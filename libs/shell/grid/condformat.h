@@ -106,11 +106,13 @@ public:
 
     // ---- work that is not done at once
     // A paint is about to begin: it has the steps of rules' formulas that `kPaintWork` says.
-    void beginPaint() const
-    {
-        m_paintWork = 0;
-        m_syncUsed = 0;
-    }
+    void beginPaint() const;
+    // The paint is over: what the rules kept of the cells is let go of now if the paint filled it (never in the middle of the paint, so that nothing a paint asks for is let go of while it
+    // is drawing).
+    void endPaint() const;
+    // How many times what the rules keep of the cells was let go of for being full, and how many of those were in the middle of a paint (none are).
+    qint64 cacheClears() const { return m_cacheClears; }
+    qint64 cacheClearsInPaint() const { return m_cacheClearsInPaint; }
     // Whether something is left to do: figures being made, or cells left plain for want of the steps a paint has.
     bool wantsMore() const { return m_building || m_incomplete; }
     // Makes figures for about `budgetMicros` microseconds (and gives the next paint its steps); true if there is more to do after.
@@ -170,6 +172,8 @@ private:
     mutable qint64 m_tests = 0, m_passes = 0, m_statCells = 0, m_incremental = 0, m_indexSteps = 0, m_figureCells = 0;
     Limits m_limits;
     mutable qint64 m_paintWork = 0;
+    mutable bool m_inPaint = false, m_clearAfterPaint = false;
+    mutable qint64 m_cacheClears = 0, m_cacheClearsInPaint = 0;
     mutable qint64 m_syncUsed = 0;   // the cells of figures that this paint has gone through, all rules together (kSyncCells is for the paint, not for each rule or each cell)
     mutable bool m_building = false, m_incomplete = false, m_unlimited = false;
     mutable unsigned m_noticesGiven = 0, m_noticesWanted = 0;   // by Limit
