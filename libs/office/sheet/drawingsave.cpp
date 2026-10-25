@@ -118,6 +118,33 @@ bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinal
     return true;
 }
 
+bool reorderDrawingChildren(const QByteArray &xml, const std::vector<int> &order, QByteArray *out, bool *changed)
+{
+    *out = xml;
+    *changed = false;
+    std::vector<std::pair<qsizetype, qsizetype>> children;
+    if (!childrenOfRoot(xml, &children) || children.size() != order.size()) return false;
+    std::vector<char> seen(order.size(), 0);
+    bool identity = true;
+    for (size_t k = 0; k < order.size(); ++k) {
+        const int at = order[k];
+        if (at < 0 || size_t(at) >= order.size() || seen[size_t(at)]) return false;
+        seen[size_t(at)] = 1;
+        identity = identity && size_t(at) == k;
+    }
+    if (identity || children.empty()) return true;
+    QByteArray result = xml.left(children.front().first);
+    for (size_t k = 0; k < order.size(); ++k) {
+        const auto &c = children[size_t(order[k])];
+        result += xml.mid(c.first, c.second - c.first);
+        if (k + 1 < children.size()) result += xml.mid(children[k].second, children[k + 1].first - children[k].second);
+    }
+    result += xml.mid(children.back().second);
+    *out = result;
+    *changed = *out != xml;
+    return true;
+}
+
 bool setDrawingAnchors(const QByteArray &xml, const std::map<int, DrawingAnchor> &anchors, QByteArray *out, bool *changed)
 {
     *out = xml;

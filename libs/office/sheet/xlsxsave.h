@@ -169,6 +169,9 @@ struct SaveChanges {
     std::map<QString, std::map<int, DrawingAnchor>> anchors;
     // Objects a person put on sheets (a chart, a picture, a shape): by the sheet's place, what the drawing part gets and the parts it relates to (drawingadd.h). A sheet with no drawing is given one.
     std::map<int, AddedDrawing> addedObjects;
+    // Drawings whose objects are drawn in another order: for each drawing part (by its name), the order of all the children of its root as they are after what is above is done (the objects taken
+    // away gone, those added at the end): the child at place k is the one this says (drawingsave.h, reorderDrawingChildren).
+    std::map<QString, std::vector<int>> drawingOrder;
     // Ask the program that opens the file to work every formula out again (a result that could not be worked out here is stale).
     bool fullCalcOnLoad = false;
     // The sheets: when a person added, deleted, renamed, moved, hid, or showed one (the workbook's own list is then made from the Workbook's: names, states, and the order of the tabs, with the

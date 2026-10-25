@@ -308,7 +308,7 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
     c.border.color = QColor(0xD9, 0xD9, 0xD9);
     c.border.width = 0.75;
     c.style = 2;
-    const int count = int(series.size());
+    const int count = std::min(int(series.size()), kMaxMadeSeries);
     // the plots: one for each kind of drawing (and each side), the areas first and the lines over the bars
     struct Group {
         ChartPlot plot;

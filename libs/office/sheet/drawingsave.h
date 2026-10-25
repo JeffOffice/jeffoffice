@@ -22,6 +22,11 @@ bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinal
 // The relationship ids (the values of r:embed, r:link, r:id, and r:pict attributes) a part names.
 QStringList namedRelationships(const QByteArray &xml);
 
+// The drawing part with the children of its root in another order: the child at place k of the new part is the one `order[k]` of the part (a permutation of all the children, counted as
+// DrawingObject::ordinal counts them); what lies between the children (white space) stays where it is. `changed` says whether the output is not the input; false if the part has no root, or
+// the order is not a permutation of its children.
+bool reorderDrawingChildren(const QByteArray &xml, const std::vector<int> &order, QByteArray *out, bool *changed);
+
 // The two-cell anchors at the given places (as DrawingObject::ordinal counts them; the first anchor of a wrapper) given the places `from` and `to` say, as the part writes them; every other byte
 // stays. A place that is not of a two-cell anchor is left as it is.
 bool setDrawingAnchors(const QByteArray &xml, const std::map<int, DrawingAnchor> &anchors, QByteArray *out, bool *changed);

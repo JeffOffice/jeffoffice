@@ -158,6 +158,31 @@ void ObjectLayer::addObject(LayerObject object)
     requestRepaint();
 }
 
+void ObjectLayer::moveObject(int id, size_t to)
+{
+    const size_t from = entryOf(id);
+    if (from >= m_entries.size() || to >= m_entries.size() || from == to) return;
+    // (the places of the objects change: a picture being made for a place is made again, and what it was told is not heard)
+    ++m_generation;
+    m_inflight = 0;
+    m_reserved = 0;
+    for (Entry &e : m_entries) {
+        e.pending = false;
+        e.reserved = 0;
+    }
+    Entry moved = std::move(m_entries[from]);
+    m_entries.erase(m_entries.begin() + qsizetype(from));
+    m_entries.insert(m_entries.begin() + qsizetype(to), std::move(moved));
+    m_byId.clear();
+    for (size_t i = 0; i < m_entries.size(); ++i) m_byId.emplace(m_entries[i].object.id, i);
+    m_indexValid = false;
+    m_firstLive = -2;
+    m_dragEntry = size_t(-1);
+    m_seen.assign(m_entries.size(), 0);
+    schedule(0);
+    requestRepaint();
+}
+
 void ObjectLayer::setFillsView(bool fills)
 {
     if (m_fills == fills) return;

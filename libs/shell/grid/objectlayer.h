@@ -96,6 +96,9 @@ public:
     // Puts one more object over the others (a chart a person just made); more than kMaxObjects are left out. The pictures of the others are kept.
     void addObject(LayerObject object);
 
+    // Puts the object at a place in the order they are drawn in (0 is the back); the others keep their order.
+    void moveObject(int id, size_t to);
+
     // An object is taken away (a person pressed Delete) or brought back (undone): it is not drawn or hit while it is.
     void setDeleted(int id, bool deleted);
     bool isDeleted(int id) const;

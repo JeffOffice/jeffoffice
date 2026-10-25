@@ -148,7 +148,10 @@ void CrunchWindow::copyOrCut(bool cut)
     }
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active) return;
-    if (pickedObject() >= 0 && copyObject(cut)) return;   // (an object over the cells is picked: it is what is copied)
+    if (pickedObject() >= 0) {   // (an object over the cells is picked: it is what is copied, if it can be)
+        copyObject(cut);
+        return;
+    }
     m_copy = m_view->copyWalk();
     m_pendingClip = ClipData();
     if (m_copy && m_copy->tooMany()) {

@@ -305,8 +305,7 @@ bool CrunchWindow::moveObject(int id, const DrawingAnchor &anchor)
     e.sheet = m_sheet;
     e.id = id;
     e.before = m_objects->stateOf(m_sheet, id);
-    e.after = e.before;
-    e.after.anchor = anchor;
+    e.after = m_objects->stateMoved(m_sheet, id, anchor);
     const grid::ObjectBox was = m_objects->layer()->boxNow(id);
     const crunch::EditSession::Outcome o = m_session->changeObjects({e}, tr("Move or Size Object"));
     if (!o.ok) {
@@ -684,7 +683,7 @@ bool CrunchWindow::copyObject(bool cut)
     const int id = pickedObject();
     if (id < 0 || !m_session || !m_objects) return false;
     if (m_objects->kindOf(m_sheet, id) != ObjectKind::Chart) {
-        setStatus(tr("Only charts are copied here."));
+        setStatus(tr("Only a chart can be copied or cut. A picture or shape can be moved, sized, put in front or behind, and deleted."));
         return false;
     }
     if (cut && !editingAllowed()) return false;
@@ -763,8 +762,28 @@ bool CrunchWindow::pasteObject()
 
 bool CrunchWindow::reorderObject(int how)
 {
-    Q_UNUSED(how);
-    return false;
+    const int id = pickedObject();
+    if (id < 0 || !m_session || !m_objects || m_edit.active || m_chartSheetShown) return false;
+    QString why;
+    if (!m_objects->canReorder(m_sheet, id, &why)) {
+        notice(tr("Order"), why);
+        return false;
+    }
+    const int to = m_objects->zTarget(m_sheet, id, how);
+    if (to < 0) return false;   // (it is where that puts it)
+    crunch::ObjectEdit e;
+    e.sheet = m_sheet;
+    e.id = id;
+    e.before = m_objects->stateOf(m_sheet, id);
+    e.after = e.before;
+    e.after.order = to;
+    const QString text = how > 0 ? (how == 2 ? tr("Bring to Front") : tr("Bring Forward")) : (how == -2 ? tr("Send to Back") : tr("Send Backward"));
+    const crunch::EditSession::Outcome o = m_session->changeObjects({e}, text);
+    if (!o.ok) {
+        setStatus(o.problem);
+        return false;
+    }
+    return true;
 }
 
 } // namespace jp

@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <set>
 
 namespace jp::crunch {
 
@@ -316,25 +317,52 @@ void SheetObjects::list(int sheet, Sheet &s)
     }
 }
 
-std::vector<StructEdit> SheetObjects::editsFrom(int at) const
+std::vector<StructEdit> SheetObjects::editsFrom(int at, int to) const
 {
-    if (at <= 0) return m_applied;
-    if (size_t(at) >= m_applied.size()) return {};
-    return std::vector<StructEdit>(m_applied.begin() + at, m_applied.end());
+    const int end = to < 0 ? int(m_applied.size()) : std::min(to, int(m_applied.size()));
+    if (at < 0) at = 0;
+    if (at >= end) return {};
+    return std::vector<StructEdit>(m_applied.begin() + at, m_applied.begin() + end);
+}
+
+QStringList SheetObjects::movedRefList(const QStringList &refs, int sheet, int at, int to) const
+{
+    QStringList out = refs;
+    const std::vector<StructEdit> edits = editsFrom(at, to);
+    if (edits.empty()) return out;
+    const QStringList names = sheetNames();
+    for (QString &ref : out) ref = movedChartRef(ref, names, edits, sheet);
+    return out;
 }
 
 void SheetObjects::replay(int sheet, Object &o)
 {
     m_editSteps += qint64(m_applied.size());
-    o.anchor = o.base;
-    if (int(m_applied.size()) > o.anchorAt) o.anchor = movedAnchor(o.base, sheet, editsFrom(o.anchorAt));
-    if (!o.refs.isEmpty() || !o.baseRefs.isEmpty()) {
-        const QStringList names = sheetNames();
-        o.movedRefs = o.baseRefs;
-        if (int(m_applied.size()) > o.refsAt) {
-            const std::vector<StructEdit> since = editsFrom(o.refsAt);
-            for (QString &ref : o.movedRefs) ref = movedChartRef(ref, names, since, sheet);
+    const int n = int(m_applied.size());
+    // the anchor: the file's, and each place a person put it, with the edits made between them
+    {
+        DrawingAnchor anchor = o.base;
+        int done = 0;
+        for (const jp::crunch::AnchorPlacement &p : o.placements) {
+            if (p.at > n) break;
+            if (p.at > done) anchor = movedAnchor(anchor, sheet, editsFrom(done, p.at));
+            done = std::max(done, p.at);
+            anchor = p.anchor;
         }
+        if (done < n) anchor = movedAnchor(anchor, sheet, editsFrom(done, n));
+        o.anchor = anchor;
+    }
+    if (!o.baseRefs.isEmpty() || !o.refPlacements.empty()) {
+        QStringList refs = o.baseRefs;
+        int done = 0;
+        for (const jp::crunch::RefPlacement &p : o.refPlacements) {
+            if (p.at > n) break;
+            if (p.at > done) refs = movedRefList(refs, sheet, done, p.at);
+            done = std::max(done, p.at);
+            refs = p.refs;
+        }
+        if (done < n) refs = movedRefList(refs, sheet, done, n);
+        o.movedRefs = refs;
         refreshRefs(o);
     }
 }
@@ -771,14 +799,55 @@ void SheetObjects::addToSave(SaveChanges *changes)
             return *geometry;
         };
         AddedDrawing add;
+        // where each object will be among the children of the drawing's root: the file's, less those taken away, then those added; and the order they are drawn in
+        std::vector<int> removedOrdinals;
+        for (const std::shared_ptr<Object> &o : s.objects)
+            if (o->deleted && !o->added && !o->gone && o->meta.ordinal >= 0) removedOrdinals.push_back(o->meta.ordinal);
+        std::sort(removedOrdinals.begin(), removedOrdinals.end());
+        const int survivors = std::max(0, s.drawing.rootChildren - int(removedOrdinals.size()));
+        std::vector<std::pair<std::shared_ptr<Object>, int>> placed;   // (object, its place among the children after what is above), in the order they are drawn
+        int addedSoFar = 0;
+        bool shares = false;
+        {
+            std::set<int> used;
+            for (const std::shared_ptr<Object> &o : s.objects) {
+                if (o->deleted || o->gone) continue;
+                int at = 0;
+                if (o->added) {
+                    at = survivors + addedSoFar++;
+                } else {
+                    at = o->meta.ordinal - int(std::lower_bound(removedOrdinals.begin(), removedOrdinals.end(), o->meta.ordinal) - removedOrdinals.begin());
+                    if (!used.insert(at).second) shares = true;
+                }
+                placed.emplace_back(o, at);
+            }
+        }
+        std::vector<int> perm(size_t(survivors + addedSoFar));
+        for (size_t k = 0; k < perm.size(); ++k) perm[k] = int(k);
+        bool reordered = false;
+        if (!shares && !s.drawingPart.isEmpty() && placed.size() > 1) {
+            std::vector<int> slots;
+            for (const auto &p : placed) slots.push_back(p.second);
+            std::vector<int> desired = slots;
+            std::sort(slots.begin(), slots.end());
+            for (size_t k = 0; k < slots.size(); ++k) {
+                perm[size_t(slots[k])] = desired[k];
+                if (desired[k] != slots[k]) reordered = true;
+            }
+        }
+        std::vector<int> inverse(perm.size());
+        for (size_t k = 0; k < perm.size(); ++k) inverse[size_t(perm[k])] = int(k);
+        for (const auto &p : placed) p.first->savedOrdinal = size_t(p.second) < inverse.size() ? inverse[size_t(p.second)] : p.second;
+        if (reordered) changes->drawingOrder[s.drawingPart] = perm;
         for (const std::shared_ptr<Object> &o : s.objects) {
             if (o->deleted) {
-                if (!o->added && !s.drawingPart.isEmpty()) {
+                if (!o->added && !o->gone && !s.drawingPart.isEmpty()) {
                     changes->removedObjects[s.drawingPart].push_back(o->meta.ordinal);
                     if (!o->meta.chartPart.isEmpty()) deletedParts.insert(o->meta.chartPart.toLower());
                 }
                 continue;
             }
+            if (o->gone) continue;
             if (o->added) {
                 // a chart a person made: its part, and its anchor at the end of the drawing
                 if (!m_source || !m_cells || !o->chart || int(add.objects.size()) >= kMaxAddedObjects) continue;
@@ -865,45 +934,48 @@ void SheetObjects::addToSave(SaveChanges *changes)
 void SheetObjects::saved()
 {
     m_partRefs.clear();   // (the parts are the new file's: their references are the moved ones)
+    if (!m_applied.empty()) ++m_epoch;   // (the places steps of Undo hold are of the rows and columns before the edits the file now has)
     m_applied.clear();
     for (size_t i = 0; i < m_sheets.size(); ++i) {
         Sheet &s = m_sheets[i];
         s.parsed.clear();
         s.failedParts.clear();
-        // the objects that were taken away are not in the file: they are let go, and the places of the elements after them are one less each
-        std::vector<int> removed;
-        for (const std::shared_ptr<Object> &o : s.objects)
-            if (o->deleted && !o->added) removed.push_back(o->meta.ordinal);
-        std::sort(removed.begin(), removed.end());
-        auto shifted = [&](int ordinal) { return ordinal - int(std::lower_bound(removed.begin(), removed.end(), ordinal) - removed.begin()); };
-        for (DrawingObject &d : s.drawing.objects) d.ordinal = shifted(d.ordinal);
-        s.drawing.rootChildren = std::max(0, s.drawing.rootChildren - int(removed.size()));
-        std::vector<std::shared_ptr<Object>> kept;
-        bool addedAny = false;
+        // what is in the file now: the objects taken away are not (they stay in the list as they were, so that the places Undo holds are what they were), those added are, at the places
+        // addToSave said
+        int removedNow = 0, addedNow = 0;
         for (const std::shared_ptr<Object> &o : s.objects) {
-            if (o->deleted) continue;
+            if (o->deleted) {
+                if (!o->gone && !o->added) ++removedNow;
+                o->gone = true;
+                continue;
+            }
+            if (o->gone) continue;
             if (o->added) {
-                // it is in the file now, at the end of the drawing
-                addedAny = true;
+                ++addedNow;
                 o->added = false;
-                o->meta.ordinal = s.drawing.rootChildren++;
                 o->meta.chartPart = o->savedPart;
                 m_chartSheet.insert(o->savedPart.toLower(), int(i));
-            } else {
-                o->meta.ordinal = shifted(o->meta.ordinal);
             }
+            if (o->savedOrdinal >= 0) o->meta.ordinal = o->savedOrdinal;
             o->base = o->anchor;
-            o->anchorAt = o->refsAt = 0;
+            o->placements.clear();
+            o->refPlacements.clear();
             o->fileAnchor = o->savedAnchor;   // (what addToSave said the file has)
             o->baseRefs = o->refs;
             o->movedRefs = o->refs;
             o->fileChart = o->chart;
-            kept.push_back(o);
         }
-        if (addedAny && s.drawingPart.isEmpty()) s.drawingPart = s.savedDrawing;
-        const bool changed = kept.size() != s.objects.size();
-        s.objects = std::move(kept);
-        if (changed && int(i) == m_shown) show(int(i));
+        s.drawing.rootChildren = std::max(0, s.drawing.rootChildren - removedNow) + addedNow;
+        QVector<DrawingObject> kept;
+        for (DrawingObject d : std::as_const(s.drawing.objects))
+            for (const std::shared_ptr<Object> &o : s.objects)
+                if (o->id == d.index && !o->gone) {
+                    d.ordinal = o->meta.ordinal;
+                    kept << d;
+                    break;
+                }
+        s.drawing.objects = kept;
+        if (addedNow > 0 && s.drawingPart.isEmpty()) s.drawingPart = s.savedDrawing;
     }
 }
 
@@ -964,12 +1036,14 @@ ObjectState SheetObjects::stateOf(int sheet, int id)
     Object *o = find(sheet, id);
     if (!o) return st;
     ensureBuilt(sheet, *o);
-    st.anchor = o->anchor;
-    st.anchorAt = int(m_applied.size());
+    st.placements = o->placements;
     st.chart = o->chart;
-    st.refs = o->movedRefs;
-    st.refsAt = int(m_applied.size());
+    st.refs = o->refPlacements;
     st.deleted = o->deleted;
+    st.epoch = m_epoch;
+    const Sheet &s = sheetState(sheet);
+    for (size_t k = 0; k < s.objects.size(); ++k)
+        if (s.objects[k].get() == o) st.order = int(k);
     return st;
 }
 
@@ -977,9 +1051,18 @@ ObjectState SheetObjects::stateWithChart(int sheet, int id, const Chart &chart)
 {
     ObjectState st = stateOf(sheet, id);
     st.chart = std::make_shared<const Chart>(chart);
-    st.refs = chartRefs(chart);
-    for (QString &ref : st.refs) ref = unfollowSheetOps(ref);
-    st.refsAt = int(m_applied.size());
+    jp::crunch::RefPlacement p;
+    p.at = int(m_applied.size());
+    p.refs = chartRefs(chart);
+    for (QString &ref : p.refs) ref = unfollowSheetOps(ref);
+    st.refs.push_back(p);
+    return st;
+}
+
+ObjectState SheetObjects::stateMoved(int sheet, int id, const DrawingAnchor &anchor)
+{
+    ObjectState st = stateOf(sheet, id);
+    st.placements.push_back(jp::crunch::AnchorPlacement{int(m_applied.size()), anchor});
     return st;
 }
 
@@ -987,23 +1070,36 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
 {
     Object *o = find(sheet, id);
     if (!o) return;
-    o->base = st.anchor;
-    o->anchorAt = st.anchorAt;
-    o->frozen = st.anchor.kind != AnchorKind::TwoCell;
-    o->meta.anchor.editAs = st.anchor.editAs;
-    if (st.chart) {
-        o->chart = st.chart;
-        o->baseRefs = st.refs;
-        o->refsAt = st.refsAt;
-        o->built = o->made = true;
-        o->drawnKey = 0;
+    // (a state of before a save that followed edits to rows and columns has places that are of other rows and columns: what it says of them is not used)
+    const bool placed = st.epoch == m_epoch;
+    if (placed) {
+        o->placements = st.placements;
+        if (st.chart) {
+            o->chart = st.chart;
+            o->refPlacements = st.refs;
+            o->built = o->made = true;
+            o->drawnKey = 0;
+        }
     }
     replay(sheet, *o);
+    o->frozen = o->anchor.kind != AnchorKind::TwoCell;
+    o->meta.anchor.editAs = o->anchor.editAs;
     o->deleted = st.deleted;
+    // its place among the others, in the order they are drawn
+    Sheet &s = sheetState(sheet);
+    size_t at = s.objects.size();
+    for (size_t k = 0; k < s.objects.size(); ++k)
+        if (s.objects[k].get() == o) at = k;
+    if (placed && at < s.objects.size() && st.order >= 0 && size_t(st.order) < s.objects.size() && size_t(st.order) != at) {
+        const std::shared_ptr<Object> keep = s.objects[at];
+        s.objects.erase(s.objects.begin() + qsizetype(at));
+        s.objects.insert(s.objects.begin() + st.order, keep);
+        if (sheet == m_shown) m_layer.moveObject(o->id, size_t(st.order));
+    }
     if (sheet != m_shown) return;
     m_layer.setAnchor(o->id, o->anchor);
     m_layer.setDeleted(o->id, o->deleted);
-    if (st.chart) m_layer.invalidate(o->id);
+    if (placed && st.chart) m_layer.invalidate(o->id);
     m_layer.layoutChanged();
 }
 
@@ -1030,9 +1126,11 @@ int SheetObjects::makeChart(int sheet, const Chart &chart, const DrawingAnchor &
     o->meta.ordinal = -1;
     o->fileAnchor = o->base = o->anchor = anchor;
     o->frozen = anchor.kind != AnchorKind::TwoCell;
-    o->anchorAt = o->refsAt = int(m_applied.size());
+    o->placements.push_back(jp::crunch::AnchorPlacement{int(m_applied.size()), anchor});
     o->chart = std::make_shared<const Chart>(chart);
     o->baseRefs = chartRefs(chart);
+    for (QString &ref : o->baseRefs) ref = unfollowSheetOps(ref);
+    o->refPlacements.push_back(jp::crunch::RefPlacement{int(m_applied.size()), o->baseRefs});
     o->movedRefs = o->baseRefs;
     refreshRefs(*o);
     o->built = o->made = true;
@@ -1078,6 +1176,53 @@ int SheetObjects::duplicate(int sheet, int fromSheet, int fromId, const DrawingA
     return makeChart(sheet, c, anchor, why);
 }
 
+int SheetObjects::zTarget(int sheet, int id, int how)
+{
+    Sheet &s = sheetState(sheet);
+    int at = -1;
+    for (size_t k = 0; k < s.objects.size(); ++k)
+        if (s.objects[k]->id == id) at = int(k);
+    if (at < 0) return -1;
+    const int last = int(s.objects.size()) - 1;
+    auto live = [&](int k) { return !s.objects[size_t(k)]->deleted; };
+    int to = at;
+    if (how == 2) {
+        to = last;
+    } else if (how == -2) {
+        to = 0;
+    } else if (how > 0) {
+        for (int k = at + 1; k <= last; ++k)
+            if (live(k)) {
+                to = k;
+                break;
+            }
+    } else {
+        for (int k = at - 1; k >= 0; --k)
+            if (live(k)) {
+                to = k;
+                break;
+            }
+    }
+    return to == at ? -1 : to;
+}
+
+bool SheetObjects::canReorder(int sheet, int id, QString *why)
+{
+    Sheet &s = sheetState(sheet);
+    const Object *o = find(sheet, id);
+    if (!o) return false;
+    if (!o->added) {
+        int same = 0;
+        for (const std::shared_ptr<Object> &p : s.objects)
+            if (!p->added && !p->gone && p->meta.ordinal == o->meta.ordinal) ++same;
+        if (same > 1) {
+            if (why) *why = tr("The file stores this object together with %n other(s), so it can't be put in another place in the order they are drawn.", nullptr, same - 1);
+            return false;
+        }
+    }
+    return true;
+}
+
 bool SheetObjects::canEditChart(int sheet, int id, QString *why)
 {
     auto refuse = [&](const QString &text) {
@@ -1091,13 +1236,21 @@ bool SheetObjects::canEditChart(int sheet, int id, QString *why)
     if (!o->chart || !o->made) return refuse(tr("This chart can't be shown here, so it can't be changed."));
     if (isChartSheet(sheet)) return refuse(tr("This chart is on a chart sheet."));
     if (o->added || o->chart != o->fileChart) return true;   // (made here, or changed here: the model is what there is)
-    int same = 0;
-    for (const DrawingObject &d : std::as_const(s.drawing.objects))
-        if (!d.chartPart.isEmpty() && d.chartPart.compare(o->meta.chartPart, Qt::CaseInsensitive) == 0) ++same;
-    if (same > 1) return refuse(tr("The file stores this chart together with %n other(s), so it can't be changed here.", nullptr, same - 1));
-    QString problem;
-    if (!chartIsFullyModeled(m_book->package().part(o->meta.chartPart), &problem))
-        return refuse(tr("This chart has something JeffCrunch can't keep when it changes a chart (%1). It can be moved, sized, and deleted.").arg(problem));
+    if (o->editable < 0) {
+        int same = 0;
+        for (const DrawingObject &d : std::as_const(s.drawing.objects))
+            if (!d.chartPart.isEmpty() && d.chartPart.compare(o->meta.chartPart, Qt::CaseInsensitive) == 0) ++same;
+        QString problem;
+        o->editable = 1;
+        if (same > 1) {
+            o->editable = 0;
+            o->editWhy = tr("The file stores this chart together with %n other(s), so it can't be changed here.", nullptr, same - 1);
+        } else if (!chartIsFullyModeled(m_book->package().part(o->meta.chartPart), &problem)) {
+            o->editable = 0;
+            o->editWhy = tr("This chart has something JeffCrunch can't keep when it changes a chart (%1). It can be moved, sized, and deleted.").arg(problem);
+        }
+    }
+    if (o->editable == 0) return refuse(o->editWhy);
     return true;
 }
 

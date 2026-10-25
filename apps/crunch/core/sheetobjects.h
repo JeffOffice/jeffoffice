@@ -119,14 +119,19 @@ public:
     // `deleted` false; discardMade() lets it go if the step is not made. The id, or -1 with the reason in `why`.
     int makeChart(int sheet, const jp::office::Chart &chart, const jp::office::sheet::DrawingAnchor &anchor, QString *why = nullptr);
     void discardMade(int sheet, int id);
-    // The state with a changed chart (its references as they are now), for the step that changes it.
+    // The state with a changed chart (its references as they are now), for the step that changes it; and with the object put in another place.
     ObjectState stateWithChart(int sheet, int id, const jp::office::Chart &chart);
+    ObjectState stateMoved(int sheet, int id, const jp::office::sheet::DrawingAnchor &anchor);
     // Whether the object's chart can be changed (it is a chart, the file stores it by itself, and it holds nothing a chart saved from the model would lose); if not, why.
     bool canEditChart(int sheet, int id, QString *why = nullptr);
     // An object's place now, as the layer has it (the grid's units), and the sheet's object under that name; false if there is none.
     bool exists(int sheet, int id);
     jp::office::sheet::ObjectKind kindOf(int sheet, int id);
     QString nameOf(int sheet, int id);
+    // Where an object goes when it is brought forward (+1) or sent backward (-1), or to the front (2) or the back (-2): its place among the sheet's objects, or -1 for none (it is there already).
+    int zTarget(int sheet, int id, int how);
+    // Whether the object can be put in another place in the drawing (the file does not store it in one element with another).
+    bool canReorder(int sheet, int id, QString *why = nullptr);
     // The ids of the sheet's objects that are not taken away, from the back.
     std::vector<int> idsOf(int sheet);
     // A name for a new object of a kind that no object of the sheet has ("Chart 3").
@@ -180,9 +185,14 @@ private:
         quint64 drawnKey = 0;                          // what the numbers and words it was last given to draw come to (0: it has not been given)
         bool deleted = false;                          // taken away by a person (not yet saved)
         bool added = false;                            // put there by a person: the file does not have it yet
-        int anchorAt = 0, refsAt = 0;                  // how many of the edits since the file was read or saved `base` and `baseRefs` already hold
+        std::vector<jp::crunch::AnchorPlacement> placements;   // where a person put it (`base` is the file's; `anchor` is what they come to with the edits)
+        std::vector<jp::crunch::RefPlacement> refPlacements;   // what a person made the chart read
         std::shared_ptr<const jp::office::Chart> fileChart;   // the chart as the file's part gave it (a chart that is another was changed by a person)
         QString savedPart;                             // what saving makes for it: the chart part's name
+        int savedOrdinal = -1;                         // where it will be among the children of the drawing's root when what addToSave gave is saved
+        int editable = -1;                             // whether the chart can be changed (-1 not looked at, 0 no, 1 yes), and why not: found once, for a part of the file is read to say
+        QString editWhy;
+        bool gone = false;                             // taken away and the file written without it (it keeps its place in the list, so that the places Undo holds stay)
     };
     struct Sheet {
         bool listed = false;
@@ -226,7 +236,8 @@ private:
     bool chartDataChanged(int sheet, Object &o, qint64 *budget);
     jp::office::sheet::DrawingAnchor twoCellFor(const Object &o, const jp::grid::Axis &rows, const jp::grid::Axis &cols) const;
     Object *find(int sheet, int id);
-    std::vector<jp::office::sheet::StructEdit> editsFrom(int at) const;
+    std::vector<jp::office::sheet::StructEdit> editsFrom(int at, int to = -1) const;
+    QStringList movedRefList(const QStringList &refs, int sheet, int at, int to) const;
     // A reference as the file's names for the sheets would have it (the renames and deletes of sheets since the file was read or saved taken back).
     QString unfollowSheetOps(const QString &ref) const;
 
@@ -256,6 +267,7 @@ private:
     quint64 m_generation = 0;                                // of the workbook open (a worker's answer for another is let go)
     qint64 m_chartsDrawn = 0;
     qint64 m_editSteps = 0;
+    int m_epoch = 0;                                         // counts the saves that followed edits to rows and columns (see core/objectstate.h)
 };
 
 } // namespace jp::crunch

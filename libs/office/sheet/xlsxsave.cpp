@@ -1093,6 +1093,13 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
         replaced.insert(typesEntry, types);
     }
+    // (the objects drawn in another order: the children of the drawing, as what is above leaves them)
+    for (const auto &[part, order] : changes.drawingOrder) {
+        QByteArray xml, now;
+        bool changed = false;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && reorderDrawingChildren(xml, order, &now, &changed) && changed) replaced.insert(index, now);
+    }
     for (const auto &[part, caches] : changes.chartCaches) {
         QByteArray xml, now;
         bool changed = false;
