@@ -25,8 +25,6 @@ namespace jp {
 using jp::office::sheet::CellRange;
 
 namespace {
-// The cells a slice of a search looks at: a few thousand is a few milliseconds.
-constexpr qint64 kSearchSlice = 4000;
 }
 
 void CrunchWindow::createFindActions()
@@ -45,6 +43,8 @@ void CrunchWindow::createFindActions()
     m_findTimer.setInterval(0);
     m_findTimer.setSingleShot(false);
     connect(&m_findTimer, &QTimer::timeout, this, [this] { stepSearch(); });
+    m_replaceTimer.setInterval(0);
+    connect(&m_replaceTimer, &QTimer::timeout, this, [this] { stepReplace(); });
     connect(m_view, &grid::GridView::selectionChanged, this, [this] {
         if (!m_settingMarks && !m_view->marks().empty()) m_view->setMarks({});
     });
@@ -128,14 +128,20 @@ void CrunchWindow::stepSearch()
         cancelSearch();
         return;
     }
-    if (m_findRun->step(kSearchSlice)) finishSearch();
+    m_searchTuner.begin();
+    const qint64 before = m_findRun->cellsLooked();
+    const bool done = m_findRun->step(m_searchTuner.budget());
+    m_searchTuner.end(m_findRun->cellsLooked() - before);
+    if (done) finishSearch();
 }
 
 void CrunchWindow::cancelSearch()
 {
-    const bool was = bool(m_findRun);
+    const bool was = bool(m_findRun) || bool(m_replacePlan);
     m_findTimer.stop();
+    m_replaceTimer.stop();
     m_findRun.reset();
+    m_replacePlan.reset();
     if (m_findDialog) {
         m_findDialog->setBusy(false);
         if (was) m_findDialog->setStatus(tr("The search was stopped."));
@@ -198,21 +204,60 @@ void CrunchWindow::finishSearch()
         std::vector<crunch::EditSession::CellSpot> spots;
         spots.reserve(hits.size());
         for (const crunch::FoundCell &h : hits) spots.push_back({h.sheet, h.row, h.col});
-        const qint64 before = m_loader.changesMade();
-        crunch::EditSession::ReplaceResult result;
-        const crunch::EditSession::Outcome o = doStructural([&] { return m_session->replaceInCells(spots, m_findDialog->options().pattern, m_findDialog->replacement(), &result); });
-        if (!o.ok) {
-            if (!o.problem.isEmpty()) {
-                m_findDialog->setStatus(o.problem);
-                notice(tr("Replace All"), o.problem);
-            }
+        QString why;
+        m_replacePlan = m_session->planReplace(spots, m_findDialog->options().pattern, m_findDialog->replacement(), &why);
+        if (!m_replacePlan) {
+            m_findDialog->setStatus(why);
+            notice(tr("Replace All"), why);
             break;
         }
-        if (m_loader.changesMade() != before) m_calculating = true;
-        m_findDialog->setStatus(result.cells == 0 ? tr("Nothing needed to change.") : tr("Replaced %1 in %2.").arg(tr("%n place(s)", nullptr, result.occurrences), tr("%n cell(s)", nullptr, result.cells)));
+        m_searchChanges = m_loader.changesMade();
+        m_searchSteps = m_session->undoStack()->index();
+        m_findDialog->setBusy(true);
+        setStatus(tr("Replacing…"));
+        m_replaceTimer.start();
         break;
     }
     }
+}
+
+void CrunchWindow::stepReplace()
+{
+    if (!m_replacePlan) {
+        m_replaceTimer.stop();
+        return;
+    }
+    if (!m_session || m_loader.changesMade() != m_searchChanges || m_session->undoStack()->index() != m_searchSteps) {
+        cancelSearch();
+        return;
+    }
+    m_replaceTuner.begin();
+    const bool done = m_session->prepareReplace(*m_replacePlan, m_replaceTuner.budget());
+    m_replaceTuner.end(m_replaceTuner.budget());
+    if (done) finishReplace(true);
+}
+
+// The new text of every cell is worked out: the cells are changed in one step.
+void CrunchWindow::finishReplace(bool done)
+{
+    m_replaceTimer.stop();
+    const auto plan = std::move(m_replacePlan);
+    m_replacePlan.reset();
+    if (!plan || !m_findDialog) return;
+    m_findDialog->setBusy(false);
+    if (!m_calculating && !m_loading) setStatus(tr("Ready"));
+    if (!done || !m_session) return;
+    const qint64 before = m_loader.changesMade();
+    crunch::EditSession::ReplaceResult result;
+    const crunch::EditSession::Outcome o = doStructural([&] { return m_session->applyReplace(*plan, &result); });
+    if (!o.ok) {
+        m_findDialog->setStatus(o.problem);
+        if (!o.problem.isEmpty()) notice(tr("Replace All"), o.problem);
+        return;
+    }
+    if (m_loader.changesMade() != before) m_calculating = true;
+    const int places = result.occurrences, cells = result.cells;
+    m_findDialog->setStatus(cells == 0 ? tr("Nothing needed to change.") : tr("Replaced %1 in %2.").arg(tr("%n place(s)", nullptr, places), tr("%n cell(s)", nullptr, cells)));
 }
 
 // Replace: the cell with the cursor, if it has the text, is changed and the search goes on to the next; else the search goes on to the first.

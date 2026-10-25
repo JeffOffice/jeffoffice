@@ -421,6 +421,34 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
         for (const FontSpec &f : changes.newFonts) items += prefixed(fontXml(f), p);
         if (!appendToList(&result, "fonts", items, changes.newFonts.size())) return bad();
     }
+    if (!changes.newDxfs.isEmpty()) {
+        QByteArray items;
+        for (const DifferentialFormat &d : changes.newDxfs) {
+            QByteArray one = "<dxf>";
+            if (d.fontColor.isSet()) one += "<font>" + colorXml("color", d.fontColor) + "</font>";
+            if (d.hasFill) one += "<fill><patternFill patternType=\"solid\">" + colorXml("fgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + colorXml("bgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + "</patternFill></fill>";
+            one += "</dxf>";
+            items += prefixed(one, p);
+        }
+        Tag dxfsTag;
+        if (findStart(result, "dxfs", &dxfsTag, 0)) {
+            if (!appendToList(&result, "dxfs", items, changes.newDxfs.size())) return bad();
+        } else {
+            // (a part with no list of them: made, in the place the format has it, before the table styles and what follows)
+            Tag at;
+            qsizetype insertAt = -1;
+            for (const char *after : {"tableStyles", "colors", "extLst"})
+                if (findStart(result, after, &at, 0)) {
+                    insertAt = insertAt < 0 ? at.start : std::min<qsizetype>(insertAt, at.start);
+                }
+            if (insertAt < 0) {
+                Tag close;
+                if (!findEnd(result, root, &close)) return bad();
+                insertAt = close.start;
+            }
+            result = result.left(insertAt) + "<" + p + "dxfs count=\"" + QByteArray::number(changes.newDxfs.size()) + "\">" + items + "</" + p + "dxfs>" + result.mid(insertAt);
+        }
+    }
     if (!changes.newNumberFormats.isEmpty()) {
         QByteArray added;
         for (const SaveChanges::NumberFormat &f : changes.newNumberFormats)
@@ -980,7 +1008,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &changes, QByteArray *out,
         replaced.insert(index, patched);
     }
     // ---- the styles
-    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty()) {
+    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty() || !changes.newDxfs.isEmpty()) {
         const int index = entryOfPart(book.stylesPart());
         QByteArray xml, patched;
         if (index < 0 || !inflate(index, &xml)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The styles part is not in the file."));

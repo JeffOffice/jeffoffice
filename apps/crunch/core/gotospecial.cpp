@@ -196,21 +196,29 @@ CellRange currentRegion(const EditSession &session, int sheet, quint32 row, quin
         }, &walk);
         return any;
     };
-    // a cell with nothing in it and no neighbor with something is its own region
+    // Each side is grown as far as it goes before the next is looked at (a side is looked at again if another has grown), and a side past the cells the sheet reaches is not looked at.
+    auto over = [&] { return walk.stepped + walk.compared > kMaxSpecialWork; };
     bool grew = true;
-    while (grew) {
-        if (walk.stepped + walk.compared > kMaxSpecialWork) {
-            if (truncated) *truncated = true;
-            break;
-        }
+    while (grew && !over()) {
         grew = false;
-        const qint64 r1 = box.row1, r2 = box.row2, c1 = box.col1, c2 = box.col2;
-        if (box.row1 > 0 && anyIn(r1 - 1, c1 - 1, r1 - 1, c2 + 1)) { --box.row1; grew = true; }
-        if (box.row2 + 1 < kMaxRows && anyIn(r2 + 1, c1 - 1, r2 + 1, c2 + 1)) { ++box.row2; grew = true; }
-        if (box.col1 > 0 && anyIn(box.row1 - 0, c1 - 1, box.row2, c1 - 1)) { --box.col1; grew = true; }
-        if (box.col2 + 1 < kMaxColumns && anyIn(box.row1, c2 + 1, box.row2, c2 + 1)) { ++box.col2; grew = true; }
-        // (a corner cell alone makes the block grow too: the bands above and below reach a column past the sides)
+        while (box.row2 + 1 < s.extentRows && !over() && anyIn(qint64(box.row2) + 1, qint64(box.col1) - 1, qint64(box.row2) + 1, qint64(box.col2) + 1)) {
+            ++box.row2;
+            grew = true;
+        }
+        while (box.row1 > 0 && !over() && anyIn(qint64(box.row1) - 1, qint64(box.col1) - 1, qint64(box.row1) - 1, qint64(box.col2) + 1)) {
+            --box.row1;
+            grew = true;
+        }
+        while (box.col2 + 1 < s.extentCols && !over() && anyIn(qint64(box.row1) - 1, qint64(box.col2) + 1, qint64(box.row2) + 1, qint64(box.col2) + 1)) {
+            ++box.col2;
+            grew = true;
+        }
+        while (box.col1 > 0 && !over() && anyIn(qint64(box.row1) - 1, qint64(box.col1) - 1, qint64(box.row2) + 1, qint64(box.col1) - 1)) {
+            --box.col1;
+            grew = true;
+        }
     }
+    if (over() && truncated) *truncated = true;
     return box;
 }
 

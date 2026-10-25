@@ -380,6 +380,67 @@ private Q_SLOTS:
         QCOMPARE(l->editText(0, 0, 1), QStringLiteral("dog"));
     }
 
+    void replaceIsWorkedOutASliceAtATimeAndAStalePlanIsNotApplied()
+    {
+        QStringList cells;
+        for (int r = 1; r <= 500; ++r) cells << QStringLiteral("A%1=item %2").arg(r).arg(r);
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({cells})));
+        crunch::EditSession *s = e.win.w.session();
+        std::vector<crunch::EditSession::CellSpot> spots;
+        for (quint32 r = 0; r < 500; ++r) spots.push_back({0, r, 0});
+        jp::office::sheet::TextPattern p;
+        p.text = QStringLiteral("item");
+        QString why;
+        const auto plan = s->planReplace(spots, p, QStringLiteral("thing"), &why);
+        QVERIFY2(plan, qPrintable(why));
+        int slices = 0;
+        while (!s->prepareReplace(*plan, 100)) QVERIFY(++slices < 20);
+        QCOMPARE(slices, 4);                                                    // (500 cells, 100 at a time)
+        QCOMPARE(e.win.w.undoStack()->count(), 0);                              // (nothing is changed until the plan is applied)
+        crunch::EditSession::ReplaceResult result;
+        QVERIFY(s->applyReplace(*plan, &result).ok);
+        QCOMPARE(result.cells, 500);
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QCOMPARE(s->editText(0, 499, 0), QStringLiteral("thing 500"));
+        // a plan made before another edit is not applied
+        const auto stale = s->planReplace(spots, p, QStringLiteral("x"), &why);
+        QVERIFY(stale);
+        QVERIFY(s->type(0, 0, 1, QStringLiteral("1")).ok);
+        s->prepareReplace(*stale, 0);
+        const crunch::EditSession::Outcome o = s->applyReplace(*stale);
+        QVERIFY(!o.ok);
+        QVERIFY(o.problem.contains(QLatin1String("changed")));
+        // a cell that cannot be changed is told, when the plan is applied
+        const auto bad = s->planReplace({{0, 0, 0}}, jp::office::sheet::TextPattern{QStringLiteral("zzz"), false, false, true}, QStringLiteral("x"), &why);
+        QVERIFY(bad);
+        s->prepareReplace(*bad, 0);
+        QVERIFY(s->applyReplace(*bad).ok);                                      // (nothing matches: nothing to change)
+    }
+
+    void whatASearchLooksInIsWhatACellHoldsAndATextThatLooksLikeAFormulaIsTheText()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1==2+3", "A2=hello", "A3=7", "B1==A3*2"}})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        // a text that begins with a mark that would make it a formula when typed is found as it is
+        QVERIFY(s->type(0, 3, 0, QStringLiteral("'=sum")).ok);
+        QCOMPARE(s->searchText(0, 3, 0), QStringLiteral("=sum"));
+        QCOMPARE(s->editText(0, 3, 0), QStringLiteral("'=sum"));                 // (but typed, it needs the apostrophe)
+        QCOMPARE(s->searchText(0, 0, 0), QStringLiteral("=2+3"));
+        QCOMPARE(s->searchText(0, 1, 0), QStringLiteral("hello"));
+        QCOMPARE(s->searchText(0, 2, 0), QStringLiteral("7"));
+        QCOMPARE(s->searchText(0, 0, 1), QStringLiteral("=A3*2"));
+        QCOMPARE(s->searchText(0, 9, 9), QString());
+        FindOptions o = options(QStringLiteral("=sum"));
+        QCOMPARE(names(findAll(e, o)), (QStringList{"1!A4"}));
+        // and a replace in it keeps it a text
+        QVERIFY(s->replaceInCells({{0, 3, 0}}, o.pattern, QStringLiteral("=total")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A4")), QStringLiteral("s:=total"));
+    }
+
     void replaceRefusesMoreCellsThanAnEditHolds()
     {
         EditWindow e;
@@ -460,6 +521,25 @@ private Q_SLOTS:
         QCOMPARE(rangesOf(special(e, K::CurrentRegion, QString(), QStringLiteral("H9"))), QStringLiteral("H9"));
     }
 
+    void theCurrentRegionOfATallBlockOrADiagonalIsFoundWholeAndNotSlowly()
+    {
+        QStringList cells = {"A1=Head", "B1=Other"};
+        for (int r = 2; r <= 8000; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r) << QStringLiteral("B%1=x").arg(r);
+        for (int i = 0; i < 300; ++i) cells << QStringLiteral("%1%2=1").arg(QChar(QLatin1Char(char('H' + (i % 10))))).arg(10010 + i);   // (a column of a separate block)
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({cells})));
+        bool truncated = true;
+        const CellRange r = crunch::currentRegion(*e.win.w.session(), 0, 4000, 0, &truncated);
+        QCOMPARE(rangeName(r), QStringLiteral("A1:B8000"));
+        QVERIFY(!truncated);
+        // cells that touch only at a corner are one block
+        EditWindow d;
+        QStringList diagonal;
+        for (int i = 0; i < 40; ++i) diagonal << QStringLiteral("%1%2=1").arg(columnName(quint32(i))).arg(i + 1);
+        QVERIFY(d.open(bookOfSheets({diagonal})));
+        QCOMPARE(rangeName(crunch::currentRegion(*d.win.w.session(), 0, 0, 0)), QStringLiteral("A1:AN40"));
+    }
+
     void goToSpecialFindsTheCellsThatShow()
     {
         using K = crunch::SpecialKind;
@@ -513,6 +593,10 @@ private Q_SLOTS:
         QTreeWidget *list = d->results();
         QTRY_COMPARE(list->topLevelItemCount(), 2);
         QVERIFY(list->isVisible());
+        d->setTab(FindDialog::Tab::Replace);
+        d->findChild<QLineEdit *>(QStringLiteral("replaceText"))->setText(QStringLiteral("pear"));
+        saveShot(d, QStringLiteral("find-and-replace"));
+        d->setTab(FindDialog::Tab::Find);
         QCOMPARE(list->topLevelItem(1)->text(1), QStringLiteral("B1"));
         list->setCurrentItem(list->topLevelItem(1));
         QCOMPARE(e.selected(), QStringLiteral("B1"));

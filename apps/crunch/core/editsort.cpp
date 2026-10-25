@@ -148,7 +148,18 @@ std::shared_ptr<EditSession::SortPlan> EditSession::planSort(int sheet, const Ce
             return refuse(plan->columns ? tr("Some merged cells span more than one column, so the columns can't be put in order. Unmerge them first.")
                                         : tr("Some merged cells span more than one row, so the rows can't be put in order. Unmerge them first."));
     }
-    for (quint32 u = firstUnit; u <= lastUnit; ++u) plan->units.push_back(u);
+    // (the rows a filter hides stay where they are, and the rows that show are put in order among themselves)
+    std::vector<RowSpec> filtered;
+    if (!plan->columns)
+        for (const RowSpec &r : calc->rowSpecsIn(sheet, firstUnit, lastUnit))
+            if (r.filtered) filtered.push_back(r);
+    size_t skip = 0;
+    for (quint32 u = firstUnit; u <= lastUnit; ++u) {
+        while (skip < filtered.size() && filtered[skip].row < u) ++skip;
+        if (skip < filtered.size() && filtered[skip].row == u) continue;
+        plan->units.push_back(u);
+    }
+    if (plan->units.size() < 2) return refuse(tr("There is nothing to put in order: the filter shows fewer than two of these rows."));
     plan->keys.assign(plan->units.size() * size_t(spec.levels.size()), SortPlan::Key());
     for (const SortLevel &level : spec.levels) {
         QStringList list;

@@ -175,6 +175,7 @@ public:
         std::vector<RewrittenGroup> groups;
         // the sheet's other structures, as they were
         QVector<CellRange> ranges, merges;
+        AutoFilter autoFilter;
         qint64 mergeCount = 0;
         QVector<ColumnSpan> columns;
         QVector<RowSpec> rowSpecs;
@@ -234,6 +235,16 @@ public:
         if (sheet < 0 || sheet >= int(m_sheets.size())) return;
         m_sheets[size_t(sheet)].merges = merges;
         m_sheets[size_t(sheet)].mergeCount = count;
+    }
+    // The sheet's filter (not valid when it has none), and putting one in its place (a filter that is not valid takes it away).
+    const AutoFilter &autoFilterOf(int sheet) const
+    {
+        static const AutoFilter none;
+        return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].autoFilter : none;
+    }
+    void setAutoFilter(int sheet, const AutoFilter &filter)
+    {
+        if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].autoFilter = filter;
     }
     // The sheet's own default sizes (the default row height and column width its file gives), and putting them back.
     SheetFormat sheetFormatOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].format : SheetFormat(); }

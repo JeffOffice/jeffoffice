@@ -13,8 +13,7 @@ namespace jp {
 using jp::office::sheet::CellRange;
 
 namespace {
-// Lines whose keys are read in a slice (a few milliseconds), and the lines a sort does without a thread (it is quicker than the thread's start).
-constexpr qint64 kKeySlice = 4000;
+// The cells a sort does without a thread (it is quicker than the thread's start).
 constexpr size_t kSmallSort = 2000;
 }
 
@@ -39,9 +38,14 @@ bool CrunchWindow::sortRangeOf(CellRange *range, int *key, bool *expanded)
     const quint32 activeRow = quint32(std::max<qint64>(0, sel.activeRow)), activeCol = quint32(std::max<qint64>(0, sel.activeCol));
     CellRange picked = selectedRange();
     const bool oneCell = picked.row1 == picked.row2 && picked.col1 == picked.col2;
-    const CellRange region = crunch::currentRegion(*m_session, m_sheet, activeRow, activeCol);
+    bool regionTruncated = false;
+    const CellRange region = crunch::currentRegion(*m_session, m_sheet, activeRow, activeCol, &regionTruncated);
     if (oneCell || sel.whole != grid::Selection::Whole::None) {
         if (sel.whole == grid::Selection::Whole::None) {
+            if (regionTruncated) {
+                notice(tr("Sort"), tr("The block of data around this cell is too big to find its edges quickly. Select the cells to put in order."));
+                return false;
+            }
             if (region.cellCount() <= 1) {
                 notice(tr("Sort"), tr("There is nothing to sort here. Select a cell in the data, or select the cells to put in order."));
                 return false;
@@ -167,7 +171,11 @@ void CrunchWindow::stepSort()
         finishSort(false);
         return;
     }
-    if (!m_session->prepareSort(*m_sortPlan, kKeySlice)) return;
+    m_sortTuner.begin();
+    const qint64 budget = m_sortTuner.budget();
+    const bool done = m_session->prepareSort(*m_sortPlan, budget);
+    m_sortTuner.end(budget);
+    if (!done) return;
     // the keys are read: the order is worked out on a thread of its own
     m_sortTimer.stop();
     m_sortOrdering = true;

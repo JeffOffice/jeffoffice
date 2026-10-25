@@ -12,7 +12,7 @@ class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
-class QTabWidget;
+class QTabBar;
 class QTreeWidget;
 
 namespace jp {
@@ -52,7 +52,7 @@ protected:
 
 private:
     void updateTab();
-    QTabWidget *m_tabs = nullptr;
+    QTabBar *m_tabs = nullptr;
     QLineEdit *m_find = nullptr, *m_replace = nullptr;
     QComboBox *m_within = nullptr, *m_search = nullptr, *m_lookIn = nullptr;
     QCheckBox *m_case = nullptr, *m_whole = nullptr;

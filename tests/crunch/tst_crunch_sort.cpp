@@ -422,7 +422,7 @@ private Q_SLOTS:
         QTRY_COMPARE(finished.count(), 1);
         QVERIFY(finished.last().first().toBool());
         QVERIFY(!w.isSorting());
-        QCOMPARE(shown(e, QStringLiteral("A1:B2")), QStringLiteral("2|row 429|4|row 858"));
+        QCOMPARE(shown(e, QStringLiteral("A1:B2")), QStringLiteral("1|row 1715|2|row 429"));
         QCOMPARE(w.undoStack()->count(), 1);
         // Esc before the work is done gives it up and changes nothing
         w.act(QStringLiteral("sort.descending"))->trigger();
@@ -434,7 +434,7 @@ private Q_SLOTS:
         QCOMPARE(w.undoStack()->count(), 1);
         QVERIFY(w.statusText().contains(QLatin1String("stopped")));
         // and the cells are as the first sort left them
-        QCOMPARE(shown(e, QStringLiteral("A1:B1")), QStringLiteral("2|row 429"));
+        QCOMPARE(shown(e, QStringLiteral("A1:B1")), QStringLiteral("1|row 1715"));
     }
 
     void aSortWhenTheCellsCannotBeMovedSaysWhy()
@@ -464,6 +464,18 @@ private Q_SLOTS:
         SortSpec initial = byColumn(1, true, true);
         initial.caseSensitive = true;
         SortDialog d(provider, initial, nullptr);
+        {
+            // a second level by color, for a picture of the dialog
+            SortLevel color;
+            color.key = 2;
+            color.by = SortLevel::By::CellColor;
+            color.color = jp::office::sheet::ColorSpec::fromRgb(0xFF0000);
+            SortSpec two = initial;
+            two.levels.append(color);
+            SortDialog shot(provider, two, nullptr);
+            shot.show();
+            saveShot(&shot, QStringLiteral("sort-dialog"));
+        }
         SortSpec got = d.spec();
         QCOMPARE(got.levels.size(), 1);
         QCOMPARE(got.levels[0].key, 1);

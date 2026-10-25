@@ -724,6 +724,7 @@ private:
     static constexpr qint64 kColumnSpanBytes = 48, kRowSpecBytes = 48, kMergeBytes = 32;
     static constexpr qsizetype kMaxValidations = 20000;
     static constexpr qsizetype kMaxCondRules = 50000;
+    static constexpr qint64 kMaxFilterValues = 200000;
     static qint64 stringBytes(qint64 chars) { return kSlotBytes + std::max<qint64>(32, (24 + 2 * chars + 2 + 8 + 15) / 16 * 16); }
     bool startRow(const QXmlStreamReader &r);
     bool startColumns(const QXmlStreamReader &r);
@@ -1297,6 +1298,17 @@ bool SheetReader::read(QIODevice *in)
     bool inExtensionBar = false;
     QString *ruleText = nullptr;   // the formula of the rule being read, while its text is collected
     Validation rule;
+    // the filter: the column in the making, and the sort state (written again as it is)
+    bool inFilter = false, inFilterColumn = false, filterColumnBad = false;
+    FilterColumn filterColumn;
+    qint64 filterValues = 0;
+    QString sortState;
+    // the rules of validation in the extension list (x14): the rule, and where the text of its formula or ranges goes
+    bool inX14Rules = false, inX14Rule = false;
+    Validation x14Rule;
+    QString x14Ranges;
+    QString *x14Text = nullptr;
+    int x14Which = 1;
     bool ok = true;
     // Whoever asked to be told how far the read has come is told at least once for every so many bytes of the XML, so that a sheet of anything (merged ranges,
     // an extension list) and not only of cells can be stopped.
@@ -1315,8 +1327,8 @@ bool SheetReader::read(QIODevice *in)
             // (what the extensions hold that the program does not keep: a copy of the sheet is told, so that it can say what it leaves out. A data bar's extension is read into the rule.)
             if (inExtension && depth == 3) {
                 const QString kind = r.name().toString();
-                const char *note = kind == QLatin1String("sparklineGroups") ? "sparklines" : kind == QLatin1String("dataValidations") ? "validationLists"
-                                   : kind == QLatin1String("conditionalFormattings") ? nullptr : "otherExtensions";
+                const char *note = kind == QLatin1String("sparklineGroups") ? "sparklines" : kind == QLatin1String("dataValidations") || kind == QLatin1String("conditionalFormattings") ? nullptr
+                                   : "otherExtensions";
                 if (note && !m_sheet.notKept.contains(QLatin1String(note))) m_sheet.notKept.append(QLatin1String(note));
             } else if (inExtension && depth == 5 && isElement(r, "cfRule") && attribute(r, "type") != QLatin1String("dataBar")) {
                 if (!m_sheet.notKept.contains(QLatin1String("extendedRules"))) m_sheet.notKept.append(QLatin1String("extendedRules"));
@@ -1345,6 +1357,11 @@ bool SheetReader::read(QIODevice *in)
                     }
                 } else if (isElement(r, "extLst")) {
                     inExtension = true;
+                } else if (isElement(r, "autoFilter")) {
+                    inFilter = true;
+                    m_sheet.autoFilter = AutoFilter();
+                    CellRange range;
+                    if (parseRangeRef(attribute(r, "ref").toString(), &range)) m_sheet.autoFilter.ref = range;
                 } else if (isElement(r, "sheetProtection")) {
                     m_sheet.isProtected = parseBool(attribute(r, "sheet").toString());
                 } else if (isElement(r, "sheetPr")) {
@@ -1363,6 +1380,91 @@ bool SheetReader::read(QIODevice *in)
                     f.outlineLevelRow = quint8(std::clamp(attribute(r, "outlineLevelRow").toInt(), 0, 7));
                     f.outlineLevelCol = quint8(std::clamp(attribute(r, "outlineLevelCol").toInt(), 0, 7));
                 }
+            } else if (inFilter && depth == 3 && isElement(r, "filterColumn")) {
+                inFilterColumn = true;
+                filterColumn = FilterColumn();
+                bool good = false;
+                const int id = attribute(r, "colId").toInt(&good);
+                filterColumn.column = good && id >= 0 && id < int(kMaxColumns) ? quint32(id) : 0;
+                filterColumnBad = !(good && id >= 0 && id < int(kMaxColumns));
+                filterColumn.hideButton = parseBool(attribute(r, "hiddenButton").toString()) || (!attribute(r, "showButton").isEmpty() && !parseBool(attribute(r, "showButton").toString(), true));
+            } else if (inFilter && depth == 3 && isElement(r, "sortState")) {
+                sortState = QStringLiteral("<sortState");
+                for (const QXmlStreamAttribute &a : r.attributes())
+                    if (a.namespaceUri().isEmpty()) sortState += QStringLiteral(" %1=\"%2\"").arg(a.name().toString(), a.value().toString().toHtmlEscaped());
+                sortState += QLatin1Char('>');
+            } else if (inFilter && depth == 4 && !sortState.isEmpty() && isElement(r, "sortCondition")) {
+                sortState += QStringLiteral("<sortCondition");
+                for (const QXmlStreamAttribute &a : r.attributes())
+                    if (a.namespaceUri().isEmpty()) sortState += QStringLiteral(" %1=\"%2\"").arg(a.name().toString(), a.value().toString().toHtmlEscaped());
+                sortState += QStringLiteral("/>");
+            } else if (inFilterColumn && depth == 4) {
+                if (isElement(r, "filters")) {
+                    filterColumn.kind = FilterColumn::Kind::Values;
+                    filterColumn.blank = parseBool(attribute(r, "blank").toString());
+                } else if (isElement(r, "customFilters")) {
+                    filterColumn.kind = FilterColumn::Kind::Custom;
+                    filterColumn.both = parseBool(attribute(r, "and").toString());
+                } else if (isElement(r, "top10")) {
+                    filterColumn.kind = FilterColumn::Kind::Top10;
+                    filterColumn.top = attribute(r, "top").isEmpty() ? true : parseBool(attribute(r, "top").toString(), true);
+                    filterColumn.percent = parseBool(attribute(r, "percent").toString());
+                    filterColumn.count = boundedNumber(attribute(r, "val"), 0, 1e6, 10);
+                    filterColumn.hasLimit = !attribute(r, "filterVal").isEmpty();
+                    filterColumn.limit = boundedNumber(attribute(r, "filterVal"), -1e300, 1e300, 0);
+                } else if (isElement(r, "dynamicFilter")) {
+                    filterColumn.kind = FilterColumn::Kind::Dynamic;
+                    filterColumn.dynamic = attribute(r, "type").left(40).toString();
+                    filterColumn.hasDynVal = !attribute(r, "val").isEmpty();
+                    filterColumn.dynVal = boundedNumber(attribute(r, "val"), -1e300, 1e300, 0);
+                    filterColumn.dynMax = boundedNumber(attribute(r, "maxVal"), -1e300, 1e300, 0);
+                } else if (isElement(r, "colorFilter")) {
+                    filterColumn.kind = FilterColumn::Kind::Color;
+                    bool good = false;
+                    const int dxf = attribute(r, "dxfId").toInt(&good);
+                    filterColumn.dxf = good ? dxf : -1;
+                    // (the cells' own color, unless the file says cellColor="0": then it is the text's)
+                    filterColumn.fontColor = !attribute(r, "cellColor").isEmpty() && !parseBool(attribute(r, "cellColor").toString(), true);
+                }
+            } else if (inFilterColumn && depth == 5) {
+                if (isElement(r, "filter") && filterColumn.kind == FilterColumn::Kind::Values) {
+                    if (++filterValues <= kMaxFilterValues) filterColumn.values.append(attribute(r, "val").left(1000).toString());
+                } else if (isElement(r, "dateGroupItem") && filterColumn.kind == FilterColumn::Kind::Values) {
+                    if (++filterValues <= kMaxFilterValues) {
+                        FilterColumn::DateGroup g;
+                        const QStringView by = attribute(r, "dateTimeGrouping");
+                        g.unit = by == QLatin1String("year") ? FilterColumn::DateGroup::Unit::Year : by == QLatin1String("month") ? FilterColumn::DateGroup::Unit::Month
+                                 : by == QLatin1String("hour") ? FilterColumn::DateGroup::Unit::Hour : by == QLatin1String("minute") ? FilterColumn::DateGroup::Unit::Minute
+                                 : by == QLatin1String("second") ? FilterColumn::DateGroup::Unit::Second : FilterColumn::DateGroup::Unit::Day;
+                        g.year = attribute(r, "year").toInt();
+                        g.month = attribute(r, "month").toInt();
+                        g.day = attribute(r, "day").toInt();
+                        g.hour = attribute(r, "hour").toInt();
+                        g.minute = attribute(r, "minute").toInt();
+                        g.second = attribute(r, "second").toInt();
+                        filterColumn.dates.append(g);
+                    }
+                } else if (isElement(r, "customFilter") && filterColumn.kind == FilterColumn::Kind::Custom && filterColumn.conditions.size() < 2) {
+                    FilterColumn::Condition c;
+                    const QStringView op = attribute(r, "operator");
+                    c.op = op == QLatin1String("notEqual") ? FilterColumn::Op::NotEqual : op == QLatin1String("greaterThan") ? FilterColumn::Op::Greater
+                           : op == QLatin1String("greaterThanOrEqual") ? FilterColumn::Op::GreaterEqual : op == QLatin1String("lessThan") ? FilterColumn::Op::Less
+                           : op == QLatin1String("lessThanOrEqual") ? FilterColumn::Op::LessEqual : FilterColumn::Op::Equal;
+                    c.value = attribute(r, "val").left(255).toString();
+                    filterColumn.conditions.append(c);
+                }
+            } else if (inExtension && depth == 4 && isElement(r, "dataValidations")) {
+                inX14Rules = true;
+            } else if (inX14Rules && depth == 5 && isElement(r, "dataValidation")) {
+                inX14Rule = true;
+                x14Rule = readRule(r);
+                x14Ranges.clear();
+            } else if (inX14Rule && depth == 6 && (isElement(r, "formula1") || isElement(r, "formula2"))) {
+                x14Which = isElement(r, "formula1") ? 1 : 2;   // (its text is in the element inside)
+            } else if (inX14Rule && depth == 7 && isElement(r, "f")) {
+                x14Text = x14Which == 1 ? &x14Rule.formula1 : &x14Rule.formula2;
+            } else if (inX14Rule && depth == 6 && isElement(r, "sqref")) {
+                x14Text = &x14Ranges;
             } else if (depth == 3 && inMerge && isElement(r, "mergeCell")) {
                 ok = startMerge(r);
             } else if (depth == 3 && inValidations && isElement(r, "dataValidation")) {
@@ -1461,7 +1563,31 @@ bool SheetReader::read(QIODevice *in)
             break;
         case QXmlStreamReader::EndElement:
             if (phonetic == depth) phonetic = 0;
-            if (depth == 5 && inCell) {
+            if (x14Text && ((depth == 7 && isElement(r, "f")) || (depth == 6 && isElement(r, "sqref")))) {
+                if (depth == 6) {
+                    for (const QString &part : x14Ranges.split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+                        CellRange range;
+                        if (parseRangeRef(part, &range) && x14Rule.ranges.size() < 64) x14Rule.ranges.append(range);
+                    }
+                }
+                x14Text = nullptr;
+            } else if (inX14Rule && depth == 5) {
+                inX14Rule = false;
+                if (!x14Rule.ranges.isEmpty() && m_sheet.validations.size() < kMaxValidations) m_sheet.validations.append(x14Rule);
+            } else if (inX14Rules && depth == 4) {
+                inX14Rules = false;
+            } else if (inFilterColumn && depth == 3 && isElement(r, "filterColumn")) {
+                inFilterColumn = false;
+                // (a column the sheet does not have is not kept, nor is a second condition for one)
+                if (!filterColumnBad && (filterColumn.kind != FilterColumn::Kind::None || filterColumn.hideButton) && m_sheet.autoFilter.columns.size() < int(kMaxColumns) && !m_sheet.autoFilter.columnAt(filterColumn.column))
+                    m_sheet.autoFilter.columns.append(filterColumn);
+            } else if (inFilter && depth == 3 && isElement(r, "sortState")) {
+                sortState += QStringLiteral("</sortState>");
+            } else if (inFilter && depth == 2) {
+                inFilter = false;
+                m_sheet.autoFilter.sortState = sortState;
+                inData = inMerge = inSheetPr = inViews = inCols = inValidations = inCond = inExtension = false;
+            } else if (depth == 5 && inCell) {
                 if (inFormula && isElement(r, "f")) {
                     inFormula = false;
                     ok = endFormula();
@@ -1502,7 +1628,9 @@ bool SheetReader::read(QIODevice *in)
             --depth;
             break;
         case QXmlStreamReader::Characters:
-            if (condText) {
+            if (x14Text) {
+                if (x14Text->size() < m_limits.formulaChars) *x14Text += r.text();
+            } else if (condText) {
                 if (condText->size() < m_limits.formulaChars) *condText += r.text();
             } else if (ruleText) {
                 if (ruleText->size() < m_limits.formulaChars) *ruleText += r.text();
@@ -1525,6 +1653,15 @@ bool SheetReader::read(QIODevice *in)
         const QString why = src.problem();
         if (!why.isEmpty()) ok = fail(why);
         else if (!rootSeen) ok = fail(QCoreApplication::translate("Sheet", "The part is not a worksheet."));
+    }
+    // a row that is hidden was hidden by hand, unless a filter that has conditions covers it (it was the filter that hid it)
+    {
+        const AutoFilter &f = m_sheet.autoFilter;
+        const bool filtering = f.ref.valid && f.active();
+        for (RowSpec &spec : m_sheet.rowSpecs) {
+            spec.filtered = filtering && spec.hidden && spec.row > f.ref.row1 && spec.row <= f.ref.row2;
+            spec.hand = spec.hidden && !spec.filtered;
+        }
     }
     // a data bar takes what its extension says (the id ties them), and the rules are in the order of their priority
     for (CondRule &c : m_sheet.conditionalFormats) {
@@ -1626,6 +1763,7 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         m_fillsInFile = m_styles.fills.size();
         m_bordersInFile = m_styles.borders.size();
         m_styleXfsInFile = m_styles.styleXfs.size();
+        m_dxfsInFile = m_styles.dxfs.size();
         break;
     }
     // The theme: the colors the styles name by place. A part that is missing or can't be read leaves the usual ones.
@@ -2030,6 +2168,34 @@ quint32 Workbook::fontPlace(const FontSpec &font)
     return quint32(m_styles.fonts.size() - 1);
 }
 
+qint32 Workbook::dxfForColor(const ColorSpec &color, bool font)
+{
+    if (m_stylesPart.isEmpty() || !color.isSet()) return -1;
+    auto colorOf = [&](const DifferentialFormat &d) {
+        if (font) return d.fontColor;
+        return d.fill.bg.isSet() ? d.fill.bg : d.fill.fg;
+    };
+    for (qsizetype i = 0; i < m_styles.dxfs.size(); ++i) {
+        const DifferentialFormat &d = m_styles.dxfs[i];
+        // (a format that is only this color)
+        const bool onlyThis = font ? (d.fontColor == color && !d.hasFill && !d.hasBorder && !d.bold && !d.italic && !d.strike && !d.underline && !d.numberFormat)
+                                   : (d.hasFill && colorOf(d) == color && !d.fontColor.isSet() && !d.hasBorder && !d.bold && !d.italic && !d.strike && !d.underline && !d.numberFormat);
+        if (onlyThis) return qint32(i);
+    }
+    if (m_styles.dxfs.size() >= 100000) return -1;
+    DifferentialFormat d;
+    if (font) {
+        d.fontColor = color;
+    } else {
+        d.hasFill = true;
+        d.fill.pattern = PatternKind::Solid;
+        d.fill.bg = color;
+    }
+    m_styles.dxfs.append(d);
+    m_dxfsAdded.append(d);
+    return qint32(m_styles.dxfs.size() - 1);
+}
+
 quint32 Workbook::fillPlace(const FillSpec &fill)
 {
     const int found = firstEqual(m_styles.fills, &m_fillIndex, &m_fillIndexMade, fill, &m_placeComparisons);
@@ -2327,6 +2493,8 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
     m_fillsInFile += counts.fills;
     m_bordersInFile += counts.borders;
     m_styleXfsInFile += counts.styles;
+    m_dxfsInFile += counts.dxfs;
+    m_dxfsAdded = m_dxfsAdded.mid(counts.dxfs);
     m_sharedAdded = m_sharedAdded.mid(strings);
     m_numFmtsAdded = m_numFmtsAdded.mid(numberFormats);
     m_formatsAdded = m_formatsAdded.mid(cellFormats);

@@ -54,11 +54,19 @@ public:
     QString problem() const { return m_problem; }
 
 private:
+    // A stretch of one sheet that is looked at: all of it, or from just after a cell, or up to a cell (Find Next by rows looks at the stretches in the order of the search and stops at the first hit).
+    struct Segment {
+        int sheet = 0;
+        bool hasStart = false, hasEnd = false;
+        quint32 startRow = 0, startCol = 0, endRow = 0, endCol = 0;
+    };
     struct Sweep {
         int sheet = 0;
         bool started = false;
         quint32 row = 0, col = 0;     // where the walk of the sheet's cells stands (the last cell looked at)
         bool finished = false;
+        bool begun = false;       // a stretch that begins after a cell has been put at that cell
+        bool ended = false;       // the walk went past the end of its stretch, or the search stopped
         std::map<quint64, QString> notes;
         bool notesRead = false;
     };
@@ -66,7 +74,7 @@ private:
     Key keyOf(int sheetPos, quint32 row, quint32 col) const;
     int positionOf(int sheet) const;
     void look(int sheet, quint32 row, quint32 col, const std::map<quint64, QString> *notes);
-    bool walkSheet(Sweep &sw, qint64 budget, qint64 *looked);
+    bool walkSheet(Sweep &sw, const Segment &segment, qint64 budget, qint64 *looked);
     void finish();
     QString textOf(int sheet, quint32 row, quint32 col, const std::map<quint64, QString> *notes) const;
 
@@ -75,6 +83,9 @@ private:
     Want m_want;
     jp::office::sheet::TextMatcher m_matcher;
     std::vector<int> m_sheets;
+    std::vector<Segment> m_segments;
+    bool m_ordered = false;     // Find Next by rows: the first hit in the order of the search is the answer, and the search stops there
+    bool m_stop = false;
     size_t m_at = 0;
     Sweep m_sweep;
     FoundCell m_from;

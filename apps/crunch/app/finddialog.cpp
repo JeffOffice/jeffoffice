@@ -12,7 +12,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QTabWidget>
+#include <QTabBar>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 
@@ -28,10 +28,11 @@ FindDialog::FindDialog(QWidget *parent) : QDialog(parent)
     setWindowTitle(tr("Find and Replace"));
     setModal(false);
     auto *layout = new QVBoxLayout(this);
-    m_tabs = new QTabWidget;
+    m_tabs = new QTabBar;
     m_tabs->setObjectName(QStringLiteral("findTabs"));
-    m_tabs->addTab(new QWidget, tr("Find"));
-    m_tabs->addTab(new QWidget, tr("Replace"));
+    m_tabs->addTab(tr("Find"));
+    m_tabs->addTab(tr("Replace"));
+    m_tabs->setExpanding(false);
     m_tabs->setAccessibleName(tr("Find or Replace"));
     layout->addWidget(m_tabs);
     auto *form = new QFormLayout;
@@ -115,7 +116,7 @@ FindDialog::FindDialog(QWidget *parent) : QDialog(parent)
     m_status->setAccessibleName(tr("Search result"));
     layout->addWidget(m_status);
 
-    connect(m_tabs, &QTabWidget::currentChanged, this, [this] { updateTab(); });
+    connect(m_tabs, &QTabBar::currentChanged, this, [this] { updateTab(); });
     connect(m_findNext, &QPushButton::clicked, this, &FindDialog::findNextRequested);
     connect(m_findAll, &QPushButton::clicked, this, &FindDialog::findAllRequested);
     connect(m_replaceOne, &QPushButton::clicked, this, &FindDialog::replaceRequested);

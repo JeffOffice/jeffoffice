@@ -9,6 +9,7 @@
 
 #include <QHash>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 #include <algorithm>
@@ -328,6 +329,10 @@ struct RowSpec {
     quint32 style = 0;
     quint8 outline = 0;            // the outline level (0 to 7)
     bool collapsed = false;        // the row's group is collapsed (the row that follows the group says so)
+    // Why a row that is hidden is: `hand` (a person hid it) and `filtered` (the sheet's filter does). `hidden` is whether either is (what the file says, and what the grid shows). A row the
+    // file says is hidden is `filtered` when it is among the rows of a filter that has conditions (the filter hid it), else `hand`.
+    bool hand = false;
+    bool filtered = false;
 };
 
 // `sheetFormatPr`: the sizes of rows and columns that have none of their own.
@@ -409,6 +414,76 @@ struct CondRule {
     QString extId;                   // the id that ties a data bar to its extension (x14), while the sheet is read
 };
 
+// What a filter asks of the cells of one column (a `filterColumn`): the values that are let through, or one or two conditions, or the top or bottom of the values, or a kind of date or
+// the values above or below the average, or a color.
+struct FilterColumn {
+    // A group of dates a list of values lets through: all those in a year, a month, a day, ... (the parts that are `has` are the group).
+    struct DateGroup {
+        enum class Unit : quint8 { Year, Month, Day, Hour, Minute, Second } unit = Unit::Day;
+        int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
+        bool operator==(const DateGroup &o) const { return unit == o.unit && year == o.year && month == o.month && day == o.day && hour == o.hour && minute == o.minute && second == o.second; }
+    };
+    enum class Op : quint8 { Equal, NotEqual, Greater, GreaterEqual, Less, LessEqual };
+    struct Condition {
+        Op op = Op::Equal;
+        QString value;      // as the file writes it; the characters ? and * mean any one and any run, as in Find
+        bool operator==(const Condition &o) const { return op == o.op && value == o.value; }
+    };
+    enum class Kind : quint8 { None, Values, Custom, Top10, Dynamic, Color } kind = Kind::None;
+    quint32 column = 0;         // the column, from the first of the filter's range (`colId`)
+    bool hideButton = false;    // the column has no drop-down button (`hiddenButton`)
+    // Values: what is let through (the text the cells show), whether empty cells are, and groups of dates.
+    QStringList values;
+    bool blank = false;
+    QVector<DateGroup> dates;
+    // Custom: one condition, or two joined by and (else or).
+    QVector<Condition> conditions;
+    bool both = false;
+    // Top10: the top (else the bottom) of the values, that many (`val`), or that many percent, and the number that is the limit (`filterVal`, as the file wrote it when it saved).
+    bool top = true, percent = false;
+    double count = 10;
+    double limit = 0;
+    bool hasLimit = false;
+    // Dynamic: the kind ("aboveAverage", "today", "M3", "Q1", ...), and the numbers the file wrote (`val` and `maxVal`).
+    QString dynamic;
+    double dynVal = 0, dynMax = 0;
+    bool hasDynVal = false;
+    // Color: the color the cells have (the fill, or with `font` the text), as the file's differential format `dxf` says (-1 when it is a color the file has no format for).
+    ColorSpec color;
+    bool fontColor = false;
+    qint32 dxf = -1;
+    bool operator==(const FilterColumn &o) const
+    {
+        return kind == o.kind && column == o.column && hideButton == o.hideButton && values == o.values && blank == o.blank && dates == o.dates && conditions == o.conditions && both == o.both
+               && top == o.top && percent == o.percent && count == o.count && limit == o.limit && hasLimit == o.hasLimit && dynamic == o.dynamic && dynVal == o.dynVal && dynMax == o.dynMax
+               && hasDynVal == o.hasDynVal && color == o.color && fontColor == o.fontColor && dxf == o.dxf;
+    }
+};
+
+// A filter on a range of cells (`autoFilter`): the range, whose first row has the buttons, and the conditions of its columns.
+struct AutoFilter {
+    CellRange ref;
+    QVector<FilterColumn> columns;     // those with a condition or no button, in the order of the file
+    QString sortState;                 // the file's `sortState` inside the filter, as it is (written again unchanged)
+    bool valid() const { return ref.valid; }
+    bool active() const { return ref.valid && !conditionColumns().isEmpty(); }
+    // The columns (from the first of the range) that have a condition.
+    QVector<quint32> conditionColumns() const
+    {
+        QVector<quint32> out;
+        for (const FilterColumn &c : columns)
+            if (c.kind != FilterColumn::Kind::None) out.append(c.column);
+        return out;
+    }
+    const FilterColumn *columnAt(quint32 column) const
+    {
+        for (const FilterColumn &c : columns)
+            if (c.column == column) return &c;
+        return nullptr;
+    }
+    bool operator==(const AutoFilter &o) const { return ref == o.ref && columns == o.columns && sortState == o.sortState; }
+};
+
 struct Sheet {
     CellStore cells;
     QVector<QString> texts;           // inline strings and the texts of formula results
@@ -422,6 +497,7 @@ struct Sheet {
     QVector<CellRange> merges;        // the merged ranges read (as many as the limit allows), in the order of the file
     QVector<ColumnSpan> columns;      // in the order of the file
     QVector<RowSpec> rowSpecs;        // the rows that are not as the default, in the order of the file
+    AutoFilter autoFilter;            // the sheet's filter (not valid when it has none)
     QVector<Validation> validations;  // the rules for what may be put in cells
     QVector<CondRule> conditionalFormats;   // the rules of conditional formatting, by priority
     SheetFormat format;

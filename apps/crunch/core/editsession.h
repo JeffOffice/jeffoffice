@@ -97,6 +97,12 @@ struct MergeEdit {
     qint64 countBefore = 0, countAfter = 0;
 };
 
+// The filter of a sheet changed by a step (its conditions, or turned on or off): as it was and as it is. The rows it shows and hides are in the step's `sizes`.
+struct FilterEdit {
+    int sheet = 0;
+    jp::office::sheet::AutoFilter before, after;
+};
+
 // Rows, columns, or cells inserted or deleted by a step: the edit, what the model needs to undo it (made when it is first done), and the marks the session keeps by cell that it moved.
 struct StructChange {
     bool done = false;                                                   // the cells are as the edit leaves them
@@ -132,10 +138,11 @@ struct Step {
     std::vector<SizeEdit> sizes;
     std::vector<MergeEdit> merges;
     std::vector<FormatEdit> formats;
+    std::vector<FilterEdit> filters;
     std::vector<SheetEdit> sheets;
     std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
     std::vector<ObjectEdit> objects;           // or objects over the cells taken away (done: they are gone; undone: they are back)
-    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && sheets.empty() && !structure && objects.empty(); }
+    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && sheets.empty() && !structure && objects.empty(); }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -252,8 +259,16 @@ public:
     };
     // Puts `with` in place of what matches the pattern in the text each of these cells holds (a formula with its "=", a constant as it is typed), and enters the new text as if typed: one
     // step. Nothing is changed, and the reason is told, if a cell is part of an array, is locked on a protected sheet, is in a table's header row, would not be a formula any more, or
-    // there are more than kMaxCellsPerEdit.
+    // there are more than kMaxCellsPerEdit. (A large one is made a slice at a time: planReplace, prepareReplace, and applyReplace; replaceInCells is all of them at once.)
     Outcome replaceInCells(const std::vector<CellSpot> &cells, const jp::office::sheet::TextPattern &pattern, const QString &with, ReplaceResult *result = nullptr);
+    struct ReplacePlan;
+    std::shared_ptr<ReplacePlan> planReplace(const std::vector<CellSpot> &cells, const jp::office::sheet::TextPattern &pattern, const QString &with, QString *why);
+    // Works out the new text of about `budget` more cells (0: all); true when done (or when a cell cannot be changed: applyReplace says why).
+    bool prepareReplace(ReplacePlan &plan, qint64 budget);
+    Outcome applyReplace(ReplacePlan &plan, ReplaceResult *result = nullptr);
+    // The text a search looks in for a cell: its formula with the "=", else what it holds (a text as it is; a number, true or false, or an error as it is typed). Faster than editText, which makes
+    // a text that could be read as something else safe to type.
+    QString searchText(int sheet, quint32 row, quint32 col) const;
 
     // ---- Sort (editsort.cpp)
     // A sort being made: what it reads of the cells (the keys, read a slice at a time by `prepareSort`), the order it comes to (`orderSort`, which reads only the keys and so may be done on another
@@ -274,6 +289,30 @@ public:
     bool looksLikeHeader(int sheet, const jp::office::sheet::CellRange &range) const;
     // The distinct colors of the cells (cell colors, or font colors) of a column of the range, in the order they first appear, at most `limit`; with `none` set if some cell has no color.
     std::vector<jp::office::sheet::ColorSpec> colorsIn(int sheet, const jp::office::sheet::CellRange &range, bool font, bool *none, int limit = 64) const;
+
+    // ---- Filter (editfilter.cpp)
+    // A filter being put on a sheet: the conditions it will have, the rows they hide (worked out a slice at a time by `prepareFilter`), and the one step it is (`applyFilter`). The rows hidden
+    // by a filter are kept apart from the rows a person hid.
+    struct FilterPlan;
+    // The most rows a filter covers (the cells under its buttons).
+    static constexpr qint64 kMaxFilterRows = 100000;
+    // The plan for the filter `after` (its range, and the conditions of its columns); null, with the reason in `why`, if it cannot be: the range is past kMaxFilterRows, a column's condition
+    // is none that can be worked out, or the sheet cannot be changed. An `after` that is not valid takes the sheet's filter away (the rows it hid are shown).
+    std::shared_ptr<FilterPlan> planFilter(int sheet, const jp::office::sheet::AutoFilter &after, QString *why);
+    // Works out which rows the conditions hide, a slice (about `budget` cells; 0 for all) at a time; true when it is done.
+    bool prepareFilter(FilterPlan &plan, qint64 budget);
+    // Puts the filter in, and shows and hides the rows: one step. Not ok if the plan is not done or the cells have been changed since it was made.
+    Outcome applyFilter(FilterPlan &plan, const QString &text);
+    // All of it at once: the sheet's filter is `after`.
+    Outcome setFilter(int sheet, const jp::office::sheet::AutoFilter &after, const QString &text);
+    // The sheet's filter with the condition of one column (from the first column of its range) put in (a condition of kind None takes the column's away).
+    jp::office::sheet::AutoFilter filterWith(int sheet, quint32 column, const jp::office::sheet::FilterColumn &condition) const;
+    // The same with every column's condition taken away (the buttons stay).
+    jp::office::sheet::AutoFilter filterCleared(int sheet) const;
+    // Whether a row is hidden by the sheet's filter (and not by hand).
+    bool rowFilteredOut(int sheet, quint32 row) const;
+    // The color a color condition asks for, as a color: the one it names, or the one its format in the file has.
+    jp::office::sheet::ColorSpec colorOfCondition(const jp::office::sheet::FilterColumn &condition) const;
 
     // Inserts or deletes rows, columns, or cells: the cells after them move over (down, right, left, or up) and everything that refers to them follows (formulas on every sheet, defined
     // names, merged cells, tables, and, in the file, conditional formats, validations, hyperlinks, charts, print areas, and the rest); a reference to cells that are deleted becomes #REF!.
@@ -406,7 +445,7 @@ public:
     // What the file needs to be made, taken now (nothing is held on to): false, with a message, if it can't be made.
     struct Snapshot {
         jp::office::sheet::SaveChanges changes;
-        int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0;   // how many of the workbook's additions are in it
+        int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0, dxfs = 0;   // how many of the workbook's additions are in it
         std::map<quint64, jp::calc::Value> results;            // the results it holds (to be the file's, once it is written)
         std::vector<quint64> touchedFormulas;                  // the formula cells it holds whole, with the results they were given
         std::map<quint64, jp::calc::Value> touchedResults;
@@ -534,6 +573,7 @@ private:
     Outcome pushSheetEdit(SheetEdit edit, const QString &text);
     bool sheetStepsRefused(QString *why);
     std::set<int> m_mergesChanged;   // the sheets whose merged ranges a step changed since the file was read or saved
+    std::set<int> m_filtersChanged;  // and those whose filter a step changed
     std::set<quint64> m_columnsResized, m_rowsResized;   // the columns and rows (by sheet and place) whose size a step changed since the file was read or saved
     std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)
     ObjectHook m_objectHook;

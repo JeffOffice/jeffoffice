@@ -236,8 +236,8 @@ private Q_SLOTS:
         }
     }
 
-    // What the extensions of a sheet's file hold that the program neither shows nor writes into a copy is noted by the reader (sparklines, drop-down lists that read other sheets, rules of
-    // conditional formatting of the extended kind); a data bar's extension is read into the rule and is not among them.
+    // What the extensions of a sheet's file hold that the program neither shows nor writes into a copy is noted by the reader (sparklines, rules of conditional formatting of the extended
+    // kind); a data bar's extension is read into the rule and is not among them, and nor are the drop-down lists that read other sheets (they are rules of validation like the rest).
     void whatTheExtensionsHoldThatIsNotKeptIsNoted()
     {
         const QString x14 = QStringLiteral("xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" xmlns:xm=\"http://schemas.microsoft.com/office/excel/2006/main\"");
@@ -246,7 +246,7 @@ private Q_SLOTS:
         QVERIFY(readSheetXml(sheetOf(QStringLiteral("<x14:sparklineGroups/>")), &s));
         QCOMPARE(s.notKept, QStringList({QStringLiteral("sparklines")}));
         QVERIFY(readSheetXml(sheetOf(QStringLiteral("<x14:dataValidations count=\"0\"/>")), &s));
-        QCOMPARE(s.notKept, QStringList({QStringLiteral("validationLists")}));
+        QVERIFY(s.notKept.isEmpty());
         QVERIFY(readSheetXml(sheetOf(QStringLiteral("<x14:conditionalFormattings><x14:conditionalFormatting><x14:cfRule type=\"iconSet\" id=\"{1}\"/><xm:sqref>A1</xm:sqref></x14:conditionalFormatting></x14:conditionalFormattings>")), &s));
         QCOMPARE(s.notKept, QStringList({QStringLiteral("extendedRules")}));
         QVERIFY(readSheetXml(sheetOf(QStringLiteral("<x14:conditionalFormattings><x14:conditionalFormatting><x14:cfRule type=\"dataBar\" id=\"{1}\"><x14:dataBar/></x14:cfRule><xm:sqref>A1</xm:sqref></x14:conditionalFormatting></x14:conditionalFormattings>")), &s));

@@ -4,9 +4,22 @@
 
 #include "editwindow.h"
 
+#include <QDir>
+#include <QWidget>
+
 #include <climits>
 
 namespace crunchtest {
+
+// With the environment variable JC_SHOT_DIR set, a picture of the widget is saved there as <name>.png (for looking at the windows; a test never depends on it).
+inline void saveShot(QWidget *w, const QString &name)
+{
+    const QString dir = QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR"));
+    if (dir.isEmpty() || !w) return;
+    QDir().mkpath(dir);
+    QCoreApplication::processEvents();
+    w->grab().save(dir + QLatin1Char('/') + name + QStringLiteral(".png"));
+}
 
 // The rows of a sheet from the cells' texts (see sheetOf); a spec may end with "~n" to give the cell the style n.
 inline QString rowsOfSpecs(const QStringList &specs, const QMap<int, QString> &rowAttrs = QMap<int, QString>())

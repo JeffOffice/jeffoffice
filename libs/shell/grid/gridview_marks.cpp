@@ -68,7 +68,17 @@ void GridView::paintMarks(QPainter *painter, const QRect &clip)
         }
     }
     painter->setRenderHint(QPainter::Antialiasing, true);
+    // (a button is looked at only if its cell is in a part of the grid that shows: there may be thousands of them, and a paint should cost the ones in view)
+    PaneView panes[4];
+    int pane = 0;
+    for (Pane p : {Pane::Corner, Pane::Top, Pane::Left, Pane::Body}) panes[pane++] = L.pane(p);
+    auto inView = [&](qint64 row, qint64 col) {
+        for (const PaneView &v : panes)
+            if (!v.isEmpty() && row >= v.firstRow && row <= v.lastRow && col >= v.firstCol && col <= v.lastCol) return true;
+        return false;
+    };
     for (const HeaderButton &b : m_headerButtons) {
+        if (!inView(b.row, b.col)) continue;
         const QRect r = headerButtonRectInLayout(b.row, b.col);
         if (r.isEmpty() || !r.intersects(inLayout)) continue;
         painter->setPen(QPen(uiLine(), 1));

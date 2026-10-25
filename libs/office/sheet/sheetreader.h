@@ -285,6 +285,11 @@ public:
     QVector<AddedNumberFormat> addedNumberFormats() const { return m_numFmtsAdded; }
     QVector<AddedCellFormat> addedCellFormats() const { return m_formatsAdded; }
     QVector<FontSpec> addedFonts() const { return m_fontsAdded; }
+    // The place of the differential format that is only a fill of this color (or, with `font`, only a font of it): one the workbook has, else one added at the end (the file's `dxfs`).
+    // -1 if the workbook has no styles part to put one in, or has as many as it may.
+    qint32 dxfForColor(const ColorSpec &color, bool font);
+    QVector<DifferentialFormat> addedDxfs() const { return m_dxfsAdded; }
+    qint64 dxfsInFile() const { return m_dxfsInFile; }
     QVector<FillSpec> addedFills() const { return m_fillsAdded; }
     QVector<BorderSpec> addedBorders() const { return m_bordersAdded; }
     // The named styles added (built-in ones the file did not have): the style format of each, and the name.
@@ -300,7 +305,7 @@ public:
     // The file has been written with the first `strings`, `numberFormats`, and `cellFormats` (and the fonts, fills, borders, and styles) of what was added: the package is the new file's, and
     // those are in it.
     struct SavedCounts {
-        int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0;
+        int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0, dxfs = 0;
     };
     void savedTo(const Package &package, const SavedCounts &counts);
     void savedTo(const Package &package, int strings, int numberFormats, int cellFormats)
@@ -360,6 +365,8 @@ private:
     QVector<FillSpec> m_fillsAdded;
     QVector<BorderSpec> m_bordersAdded;
     QVector<AddedStyle> m_stylesAdded;
+    QVector<DifferentialFormat> m_dxfsAdded;
+    qint64 m_dxfsInFile = 0;
     qint64 m_fontsInFile = 0, m_fillsInFile = 0, m_bordersInFile = 0, m_styleXfsInFile = 0;
     std::unordered_multimap<quint64, quint32> m_formatIndex;   // the cell formats by a hash of what they are, to find an equal one (made when first needed)
     bool m_formatIndexMade = false;

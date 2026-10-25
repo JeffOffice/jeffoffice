@@ -73,6 +73,17 @@ qint64 contentBytes(const Calculation::CellContent &c)
     return n;
 }
 
+// About how many bytes a filter takes: its conditions and the texts in them.
+qint64 filterBytes(const jp::office::sheet::AutoFilter &f)
+{
+    qint64 n = qint64(f.columns.size()) * 160 + f.sortState.size() * 2;
+    for (const jp::office::sheet::FilterColumn &c : f.columns) {
+        for (const QString &v : c.values) n += 32 + v.size() * 2;
+        n += qint64(c.dates.size()) * 40 + qint64(c.conditions.size()) * 40;
+    }
+    return n;
+}
+
 class ChangeCells : public QUndoCommand {
 public:
     ChangeCells(EditSession *session, Step step, const QString &text, const std::shared_ptr<qint64> &total) : QUndoCommand(text), m_session(session), m_step(std::move(step)), m_total(total)
@@ -127,6 +138,7 @@ public:
         n += qint64(m_step.styles.size()) * qint64(sizeof(StyleCell));
         for (const TableRename &r : m_step.renames) n += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
         for (const MergeEdit &m : m_step.merges) n += qint64(sizeof(m)) + qint64(m.before.size() + m.after.size()) * qint64(sizeof(jp::office::sheet::CellRange));
+        for (const FilterEdit &f : m_step.filters) n += qint64(sizeof(f)) + filterBytes(f.before) + filterBytes(f.after);
         for (const SheetEdit &e : m_step.sheets) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.orderBefore.size() + e.orderAfter.size()) * qint64(sizeof(int));
         for (const SizeEdit &e : m_step.sizes)
             n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
@@ -260,6 +272,7 @@ void EditSession::cleanChanged(bool clean)
     m_columnsResized.clear();
     m_rowsResized.clear();
     m_mergesChanged.clear();
+    m_filtersChanged.clear();
     m_formatsChanged.clear();
     m_sheetsListed = false;
     m_statesChanged.clear();
@@ -740,6 +753,10 @@ bool EditSession::apply(Step *step, bool forward)
         calc->setSheetFormat(f.sheet, forward ? f.after : f.before);
         m_formatsChanged.insert(f.sheet);
     }
+    for (const FilterEdit &f : step->filters) {
+        calc->setAutoFilter(f.sheet, forward ? f.after : f.before);
+        m_filtersChanged.insert(f.sheet);
+    }
     if (!applySheetEdits(step, forward, calc, book)) return false;
     if (m_holdHook) m_holdHook(calc, true);
     // (a change of formats alone leaves nothing for the worker to work out)
@@ -757,6 +774,7 @@ bool EditSession::apply(Step *step, bool forward)
     m_sheetsRestyled.clear();
     for (const MergeEdit &m : step->merges) Q_EMIT sizesChanged(m.sheet);
     for (const FormatEdit &f : step->formats) Q_EMIT sizesChanged(f.sheet);
+    for (const FilterEdit &f : step->filters) Q_EMIT sizesChanged(f.sheet);
     if (!step->sheets.empty()) Q_EMIT sheetsChanged();
     return true;
 }
@@ -1037,6 +1055,22 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         sc.replaceMerges = true;
         for (const jp::office::sheet::CellRange &m : calc->mergesOf(sheet)) sc.merges.push_back(m);
     }
+    for (const int sheet : m_filtersChanged) {
+        if (!written(sheet)) continue;
+        SheetChanges &sc = changes.sheets[sheet];
+        sc.replaceAutoFilter = true;
+        sc.autoFilter = calc->autoFilterOf(sheet);
+        sc.filterMode = sc.autoFilter.active() ? 1 : 0;
+        // the colors a filter asks for are differential formats of the file: one the workbook has, or one added
+        for (jp::office::sheet::FilterColumn &c : sc.autoFilter.columns)
+            if (c.kind == jp::office::sheet::FilterColumn::Kind::Color) {
+                const jp::office::sheet::ColorSpec color = colorOfCondition(c);
+                if (c.dxf < 0 || !color.isSet() || c.color.isSet()) {
+                    const qint32 dxf = color.isSet() ? book.dxfForColor(color, c.fontColor) : -1;
+                    if (dxf >= 0) c.dxf = dxf;
+                }
+            }
+    }
     for (const quint64 key : m_rowsResized) {
         const int sheet = int(key >> 40);
         if (!written(sheet)) continue;
@@ -1088,6 +1122,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         changes.bordersBefore = book.bordersInFile();
         for (const Workbook::AddedStyle &s : book.addedStyles()) changes.newStyles.append({s.format, s.name});
         changes.styleXfsBefore = book.styleXfsInFile();
+        changes.newDxfs = book.addedDxfs();
     }
     out->numberFormats = int(changes.newNumberFormats.size());
     out->cellFormats = int(changes.newCellFormats.size());
@@ -1095,6 +1130,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     out->fills = int(changes.newFills.size());
     out->borders = int(changes.newBorders.size());
     out->styles = int(changes.newStyles.size());
+    out->dxfs = int(changes.newDxfs.size());
     // The other program is asked to work every formula out again when this program could not: a formula it keeps apart that may read what changed, a result it did not get to, or a
     // formula it gave no result.
     changes.fullCalcOnLoad = (!m_touched.empty() || !m_results.empty() || newSheets) && (calc->isDirty() || resultMissing || calc->keptCount() > 0);
@@ -1111,6 +1147,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     counts.fills = snapshot.fills;
     counts.borders = snapshot.borders;
     counts.styles = snapshot.styles;
+    counts.dxfs = snapshot.dxfs;
     m_book->book->savedTo(package, counts);
     for (const auto &[key, v] : snapshot.results) m_fileResults[key] = v;
     for (const auto &[key, v] : snapshot.touchedResults) m_fileResults[key] = v;
@@ -1118,6 +1155,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_columnsResized.clear();
     m_rowsResized.clear();
     m_mergesChanged.clear();
+    m_filtersChanged.clear();
     m_formatsChanged.clear();
     m_sheetsListed = false;
     m_statesChanged.clear();

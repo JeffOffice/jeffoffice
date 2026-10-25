@@ -85,6 +85,11 @@ struct SheetChanges {
     ColorSpec tabColor;
     // Whether the sheet's tab is the one that is open (`tabSelected` of its first view), when the sheets a person changed make it so (-1: the file's stays, 0: not, 1: it is).
     int tabSelected = -1;
+    // The sheet's filter, when a person set it, changed it, or took it off (the element is made from it, in place of the file's, or put where the format has it; an `autoFilter` that is
+    // not valid takes the file's away), and whether the sheet says it is filtered (`filterMode` of its `sheetPr`: 1 yes, 0 no, -1 the file's stays).
+    bool replaceAutoFilter = false;
+    AutoFilter autoFilter;
+    int filterMode = -1;
     // For a sheet a person added: the XML it begins as (its view, default sizes, rules, and no cells: the cells, sizes of rows and columns, and merged ranges above are put in it).
     QByteArray skeleton;
     // For a sheet a person copied: the part of the sheet it was copied from (in the file as it was read or last saved), and the edits to rows and columns made to the cells it was copied from
@@ -93,7 +98,7 @@ struct SheetChanges {
     QString copyFromPart;
     std::vector<StructEdit> copyEdits;
     bool isProtected = false;           // for a sheet a person added: it is protected (a copy of a protected sheet has the protection the sheet had)
-    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty(); }
+    bool empty() const { return cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && !replaceAutoFilter && filterMode < 0 && tabSelected < 0 && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty(); }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
@@ -135,6 +140,8 @@ struct SaveChanges {
     QVector<FillSpec> newFills;
     QVector<BorderSpec> newBorders;
     qint64 fontsBefore = 0, fillsBefore = 0, bordersBefore = 0;
+    // And differential formats added (for the colors a filter asks for), at the end of the file's `dxfs`.
+    QVector<DifferentialFormat> newDxfs;
     struct StyleAdded {
         CellFormat format;
         CellStyleName name;

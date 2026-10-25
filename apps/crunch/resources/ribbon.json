@@ -142,11 +142,11 @@
               "small": "edit.autosum",
               "keytip": "U",
               "split": true,
-              "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min"]
+              "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min", "-", "edit.autosum.more"]
             },
             {"small": "edit.fill", "keytip": "FI", "split": true, "menu": ["fill.down", "fill.right", "fill.up", "fill.left", "-", "fill.series"]},
             {"small": "edit.clear", "keytip": "E", "split": true, "menu": ["edit.clear.all", "edit.clear.formats", "edit.clear.contents"]},
-            {"large": "edit.sort", "keytip": "SS", "menu": ["sort.ascending", "sort.descending", "sort.custom"]},
+            {"large": "edit.sort", "keytip": "SS", "menu": ["sort.ascending", "sort.descending", "sort.custom", "-", "filter.toggle", "filter.clear", "filter.reapply"]},
             {"large": "edit.find", "keytip": "FD", "split": true, "menu": ["find.find", "find.replace", "-", "find.goto", "find.gotoSpecial"]}
           ]
         }
@@ -208,7 +208,7 @@
               "large": "edit.autosum",
               "keytip": "U",
               "split": true,
-              "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min"]
+              "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min", "-", "edit.autosum.more"]
             }
           ]
         },

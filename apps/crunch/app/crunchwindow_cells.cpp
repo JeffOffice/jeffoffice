@@ -12,9 +12,11 @@
 #include <QApplication>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <QFrame>
 #include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
+#include <QPalette>
 #include <QRadioButton>
 #include <QVBoxLayout>
 
@@ -246,6 +248,70 @@ void CrunchWindow::updateDropDown()
         }
     }
     m_view->setDropDownCell(row, col);
+    updateInputMessage();
+}
+
+// The rule of validation for the cell with the cursor may have a message to show while the cell is the one that is selected (a title and a sentence): a small note beside the cell.
+void CrunchWindow::updateInputMessage()
+{
+    const jp::office::sheet::Validation *rule = nullptr;
+    const grid::Selection &sel = m_view->selection();
+    if (m_session && m_haveCalc && m_loaded && m_loaded->calc && m_loaded->problem.isEmpty() && !m_chartSheetShown && m_view->selection().isOneCell()) {
+        rule = m_loaded->calc->validationAt(m_sheet, quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol)));
+        if (rule && !(rule->showInput && (!rule->promptTitle.isEmpty() || !rule->prompt.isEmpty()))) rule = nullptr;
+    }
+    const QRect cell = rule ? m_view->cellRect(sel.activeRow, sel.activeCol) : QRect();
+    if (!rule || cell.isEmpty()) {
+        if (m_inputMessage) m_inputMessage->hide();
+        return;
+    }
+    if (!m_inputMessage) {
+        auto *frame = new QFrame(m_view->viewport());
+        frame->setObjectName(QStringLiteral("inputMessage"));
+        frame->setFrameShape(QFrame::Box);
+        frame->setAutoFillBackground(true);
+        frame->setAttribute(Qt::WA_TransparentForMouseEvents);
+        frame->setAccessibleName(tr("Message for this cell"));
+        QPalette p = frame->palette();
+        p.setColor(QPalette::Window, p.color(QPalette::ToolTipBase));
+        p.setColor(QPalette::WindowText, p.color(QPalette::ToolTipText));
+        frame->setPalette(p);
+        auto *layout = new QVBoxLayout(frame);
+        layout->setContentsMargins(6, 4, 6, 4);
+        layout->setSpacing(2);
+        auto *title = new QLabel;
+        title->setObjectName(QStringLiteral("inputMessageTitle"));
+        title->setTextFormat(Qt::PlainText);
+        QFont f = title->font();
+        f.setBold(true);
+        title->setFont(f);
+        auto *body = new QLabel;
+        body->setObjectName(QStringLiteral("inputMessageText"));
+        body->setTextFormat(Qt::PlainText);
+        body->setWordWrap(true);
+        layout->addWidget(title);
+        layout->addWidget(body);
+        frame->setMaximumWidth(280);
+        m_inputMessage = frame;
+        connect(m_view, &grid::GridView::viewChanged, this, [this] {
+            if (m_inputMessage && m_inputMessage->isVisible()) updateInputMessage();
+        });
+    }
+    auto *title = m_inputMessage->findChild<QLabel *>(QStringLiteral("inputMessageTitle"));
+    auto *body = m_inputMessage->findChild<QLabel *>(QStringLiteral("inputMessageText"));
+    title->setText(rule->promptTitle);
+    title->setVisible(!rule->promptTitle.isEmpty());
+    body->setText(rule->prompt);
+    body->setVisible(!rule->prompt.isEmpty());
+    m_inputMessage->adjustSize();
+    // beside the cell: under it, at its left; moved up or left where it would pass the edge of the grid
+    QPoint at(cell.left(), cell.bottom() + 2);
+    const QSize room = m_view->viewport()->size();
+    if (at.y() + m_inputMessage->height() > room.height()) at.setY(std::max(0, cell.top() - m_inputMessage->height() - 2));
+    if (at.x() + m_inputMessage->width() > room.width()) at.setX(std::max(0, room.width() - m_inputMessage->width()));
+    m_inputMessage->move(at);
+    m_inputMessage->show();
+    m_inputMessage->raise();
 }
 
 // The choices of the list on the active cell, in a menu under it; the one chosen is entered.

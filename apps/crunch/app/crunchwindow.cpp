@@ -378,6 +378,8 @@ void CrunchWindow::createActions()
     createClipboardActions();
     createFindActions();
     createSortActions();
+    createFilterActions();
+    createFunctionActions();
     createFormatActions();
     createSheetActions();
     createDisabledActions();
@@ -393,7 +395,7 @@ void CrunchWindow::createDisabledActions()
         
         {"insert.table", QT_TR_NOOP("Table"), "table"}, {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
         {"insert.chart", QT_TR_NOOP("Chart"), "chart-column"}, {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
-        {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"}, {"formulas.insertFunction", QT_TR_NOOP("Insert Function"), "square-function"},
+        {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"},
         {"formulas.names", QT_TR_NOOP("Name Manager"), "variable"}, {"formulas.options", QT_TR_NOOP("Calculation Options"), "settings-2"},
     };
     for (const Command &c : commands) mk(QString::fromLatin1(c.id), QCoreApplication::translate("jp::CrunchWindow", c.text), c.icon, QKeySequence(), nullptr, false, false);
@@ -554,9 +556,10 @@ void CrunchWindow::keyPressEvent(QKeyEvent *e)
         e->accept();
         return;
     }
-    if (e->key() == Qt::Key_Escape && (m_sortPlan || m_findRun) && !m_edit.active) {
+    if (e->key() == Qt::Key_Escape && (m_sortPlan || m_findRun || m_filterPlan || m_replacePlan) && !m_edit.active) {
         if (m_sortPlan) cancelSort();
-        if (m_findRun) cancelSearch();
+        if (m_filterPlan) cancelFilter();
+        if (m_findRun || m_replacePlan) cancelSearch();
         e->accept();
         return;
     }
