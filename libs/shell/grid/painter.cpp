@@ -200,7 +200,7 @@ void GridPainter::resetFonts()
     m_sheet->invalidateTexts();
 }
 
-const QFont &GridPainter::fontFor(const CellLook &look, double scale)
+const QFont &GridPainter::fontFor(const CellLook &look)
 {
     const size_t id = look.fontId;
     if (id >= m_fonts.size()) {
@@ -221,7 +221,6 @@ const QFont &GridPainter::fontFor(const CellLook &look, double scale)
         m_fontMade[id] = true;
         if (id < m_faces.size()) m_faces[id].reset();
     }
-    Q_UNUSED(scale);
     return m_fonts[id];
 }
 
@@ -459,8 +458,7 @@ void GridPainter::drawIcon(QPainter *p, const QRect &cell, const QString &set, i
         p->drawEllipse(circle);
         p->setPen(Qt::NoPen);
         p->setBrush(black);
-        const int quarters = 4 - index;   // (the lowest is the fullest in the original; here the lowest is empty and the highest full)
-        Q_UNUSED(quarters);
+        // (the lowest is empty and the highest full)
         if (index == count - 1) p->drawEllipse(circle);
         else if (index > 0) p->drawPie(circle, 90 * 16, -index * 90 * 16);
     } else if (set.contains(QLatin1String("Boxes"))) {
@@ -521,7 +519,7 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
         return;
     }
     const double z = L.zoom();
-    QFont font = fontFor(look, z);
+    QFont font = fontFor(look);
     if (font.pixelSize() < kMinFontPixels) return;
     const int pad = std::max(1, int(std::lround(kCellPadding * z))), indent = int(std::lround(look.indent * 9 * z));
     const bool left = sh.align != HAlign::Right && sh.align != HAlign::Center && sh.align != HAlign::CenterContinuous, right = sh.align == HAlign::Right;
@@ -567,7 +565,7 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
     const QRgb ink = sh.color ? sh.color : look.textColor;
     const bool otherUnderline = look.underline == Underline::Double || look.underline == Underline::SingleAccounting || look.underline == Underline::DoubleAccounting;
     // A line of text with nothing special (not turned, not wrapped, not shrunk) is drawn from its baseline as a run of glyphs, where no layout of a box is needed.
-    if (look.rotation == 0 && !look.wrap && look.readingOrder != 2 && font.pixelSize() == fontFor(look, z).pixelSize()) {
+    if (look.rotation == 0 && !look.wrap && look.readingOrder != 2 && font.pixelSize() == fontFor(look).pixelSize()) {
         const size_t id = look.fontId;
         if (id >= m_faces.size()) m_faces.resize(id + 1);
         if (!m_faces[id]) m_faces[id] = std::make_unique<GlyphFace>(font);
@@ -822,13 +820,13 @@ marked:
     auto iconOf = [&](const CondCell &cc, const CellLook &look, const Span &rs, int *size, QString *name, int *count) {
         *name = m_sheet->conditional().iconSetName(cc.iconSet);
         *count = iconSetCount(*name);
-        const int font = fontFor(look, L.zoom()).pixelSize();
+        const int font = fontFor(look).pixelSize();
         *size = std::max(6, std::min(rs.size - 4, font + 3));
     };
     // ---- each row: fills, borders, text
     qint64 textBudget = kMaxTextRuns - m_stats.textRuns;
     // (a font too small to read is not drawn, so a cell in one has no text made for it)
-    auto tooSmall = [&](const CellLook &look) { return fontFor(look, L.zoom()).pixelSize() < kMinFontPixels; };
+    auto tooSmall = [&](const CellLook &look) { return fontFor(look).pixelSize() < kMinFontPixels; };
     auto spillOfCell = [&](const Cell &cell, const CellLook &look, const Shown &sh, qint64 row) {
         const double width = colsAxis.size(cell.col);
         const bool centerContinuous = sh.align == HAlign::CenterContinuous;
@@ -1173,12 +1171,12 @@ void GridPainter::paintHeaders(QPainter *p, const QRect &clip, const PaintOption
 
 void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
 {
+    m_stats = PaintStats();
+    m_sheet->conditional().beginPaint();   // (the steps this paint may spend on the rules' formulas)
     struct EndOfPaint {   // (what the rules kept of the cells, if the paint filled it, is let go of when the paint is over, not in the middle of it)
         const CondFormats &rules;
         ~EndOfPaint() { rules.endPaint(); }
     } endOfPaint{m_sheet->conditional()};
-    m_stats = PaintStats();
-    m_sheet->conditional().beginPaint();   // (the steps this paint may spend on the rules' formulas)
     if (!m_sheet->data().sheet) {
         p->fillRect(clip, o.backdrop);   // (no sheet to show)
         return;

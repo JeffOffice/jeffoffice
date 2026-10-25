@@ -341,7 +341,7 @@ void FormatCellsDialog::buildNumber(QWidget *page)
     connect(m_negatives, &QListWidget::currentRowChanged, this, [this] { numberControlsChanged(); });
     connect(m_types, &QListWidget::currentRowChanged, this, [this] { numberControlsChanged(); });
     connect(m_custom, &QLineEdit::textEdited, this, [this] { numberControlsChanged(); });
-    setCode(m_in.view.numberFormat.isEmpty() ? QStringLiteral("General") : m_in.view.numberFormat, false);
+    setCode(m_in.view.numberFormat.isEmpty() ? QStringLiteral("General") : m_in.view.numberFormat);
 }
 
 namespace {
@@ -477,9 +477,8 @@ void FormatCellsDialog::updateSample()
 }
 
 // Shows a code: the category it is in, with the options it was made from, or its place among the ready-made formats, or as a custom code.
-void FormatCellsDialog::setCode(const QString &code, bool fromControls)
+void FormatCellsDialog::setCode(const QString &code)
 {
-    Q_UNUSED(fromControls);
     m_code = code;
     NumberCategory category = jp::crunch::categoryOf(code);
     NumberOptions o;

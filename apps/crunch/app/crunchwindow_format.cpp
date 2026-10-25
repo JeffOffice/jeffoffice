@@ -565,17 +565,14 @@ void CrunchWindow::borderCommand(int kind)
     QUndoStack *u = m_session->undoStack();
     const QString text = kind == NoBorder ? tr("Remove Borders") : tr("Borders");
     if (ops.size() > 1) u->beginMacro(text);
-    bool ok = true;
     for (const Op &op : ops) {
         const crunch::EditSession::Outcome o = m_session->setBorders(m_sheet, range, op.edges, op.side, text);
         if (!o.ok) {
             notice(tr("Borders"), o.problem);
-            ok = false;
             break;
         }
     }
     if (ops.size() > 1) u->endMacro();
-    Q_UNUSED(ok);
     updateFormatState();
 }
 

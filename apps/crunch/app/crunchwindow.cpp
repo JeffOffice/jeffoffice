@@ -150,7 +150,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(&m_loader, &crunch::WorkbookLoader::calcBatch, this, &CrunchWindow::onCalcBatch);
     m_copyTimer.setSingleShot(true);
     connect(&m_copyTimer, &QTimer::timeout, this, &CrunchWindow::copyStep);
-    connect(m_tabs, &crunch::SheetTabBar::contextRequested, this, [this](int tab, const QPoint &global) { showTabMenu(tab, global); });
+    connect(m_tabs, &crunch::SheetTabBar::contextRequested, this, [this](int, const QPoint &global) { showTabMenu(global); });
     connect(m_tabs, &crunch::SheetTabBar::renamed, this, [this](int tab, const QString &name) {
         if (tab >= 0 && tab < m_tabSheets.size()) renameSheetTo(m_tabSheets[tab], name);
     });

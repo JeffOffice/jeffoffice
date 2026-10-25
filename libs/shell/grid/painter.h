@@ -111,7 +111,7 @@ private:
     void drawHeaderText(QPainter *p, const QRect &cell, const QString &text);
     void drawBar(QPainter *p, const QRect &cell, const CondBar &bar, bool gridlines);
     void drawIcon(QPainter *p, const QRect &cell, const QString &set, int index, int count, int size);
-    const QFont &fontFor(const CellLook &look, double scale);
+    const QFont &fontFor(const CellLook &look);
     QBrush patternBrush(PatternKind kind, QRgb fg, QRgb bg);
 
     GridSheet *m_sheet;

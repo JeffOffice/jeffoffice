@@ -93,7 +93,7 @@ private:
     void buildBorder(QWidget *page);
     void buildFill(QWidget *page);
     void buildProtection(QWidget *page);
-    void setCode(const QString &code, bool fromControls);
+    void setCode(const QString &code);
     void numberControlsChanged();
     void categoryChanged(int row);
     void updateSample();

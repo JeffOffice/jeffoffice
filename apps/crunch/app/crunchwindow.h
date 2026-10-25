@@ -317,7 +317,7 @@ private:
     void moveCopyCommand();
     void hideSheetsCommand();
     void setTabColorCommand(const jp::office::sheet::ColorSpec &color);
-    void showTabMenu(int tab, const QPoint &globalPos);
+    void showTabMenu(const QPoint &globalPos);
     QMenu *buildTabColorMenu(QWidget *owner);
     QMenu *buildUnhideMenu(QWidget *owner);
     std::function<bool(MoveCopyRequest *)> m_moveCopyAsker;

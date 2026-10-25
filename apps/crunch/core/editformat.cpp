@@ -180,8 +180,6 @@ EditSession::Outcome EditSession::restyleRange(int sheet, const CellRange &range
         return out;
     }
     // (the cells' formats and the columns' or rows' own are made in the same step)
-    const Sheet &sh = calc->sheet(sheet);
-    Q_UNUSED(sh);
     auto sizes = [=](Workbook &book, const Calculation &c, Step *step) {
         SizeEdit e;
         e.sheet = sheet;
@@ -305,8 +303,6 @@ EditSession::Outcome EditSession::setBorders(int sheet, const CellRange &range, 
         if (!p) p = std::make_shared<FormatChange>();
         return *p;
     };
-    const bool inside = (edges & (EdgeInsideHorizontal | EdgeInsideVertical)) != 0;
-    Q_UNUSED(inside);
     for (quint32 row = r.row1; row <= r.row2; ++row)
         for (quint32 col = r.col1; col <= r.col2; ++col) {
             const bool first = col == r.col1, last = col == r.col2, top = row == r.row1, bottom = row == r.row2;

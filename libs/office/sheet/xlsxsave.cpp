@@ -289,7 +289,6 @@ bool xfMadeInto(const QByteArray &raw, const CellFormat &f, const QByteArray &pr
         setOrRemove(&prOpen, "hidden", f.formulaHidden ? "1" : "");
         protectionNow = prTag.selfClosing ? prOpen : prOpen + pr.mid(prTag.end);
     }
-    Q_UNUSED(prefix);
     const QByteArray inner = alignmentNow + protectionNow + others;
     if (inner.isEmpty()) {
         tag.chop(1);

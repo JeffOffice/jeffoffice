@@ -812,7 +812,6 @@ private Q_SLOTS:
         }
         b.build();
         b.grid.conditional().reset();
-        qint64 before = b.grid.conditional().indexSteps();
         QVERIFY(b.grid.conditional().covers(5, 7));
         QVERIFY(b.grid.conditional().covers(399, 249));
         QVERIFY(!b.grid.conditional().covers(5, 300));
@@ -821,7 +820,6 @@ private Q_SLOTS:
         for (int i = 0; i < 1000; ++i) b.grid.conditional().covers(quint32(i % 400), quint32((i * 7) % 250));
         // (a hundred thousand ranges: looking at each for each of a thousand cells would be a hundred million)
         QVERIFY2(b.grid.conditional().indexSteps() - built < 1000 * 400, qPrintable(QString::number(b.grid.conditional().indexSteps() - built)));
-        Q_UNUSED(before);
     }
 
     // The ranges of a sheet's rules that are looked at are limited, and the rules past the limit are not shown, with a sentence that says so, once.

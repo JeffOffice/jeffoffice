@@ -178,7 +178,7 @@ private Q_SLOTS:
         const qint32 style = w.styleNamed(QStringLiteral("Bad"));
         FormatChange change;
         change.namedStyle = quint32(style);
-        const quint32 cell = w.formatWith(0, change);
+        w.formatWith(0, change);
         SaveChanges changes;
         for (const Workbook::AddedStyle &s : w.addedStyles()) changes.newStyles.append({s.format, s.name});
         changes.styleXfsBefore = w.styleXfsInFile();
@@ -208,7 +208,6 @@ private Q_SLOTS:
         QCOMPARE(read.formats.size(), 2);
         QCOMPARE(read.formats[1].xfId, 1u);
         QCOMPARE(read.formats[1].fill, read.styleXfs[1].fill);
-        Q_UNUSED(cell);
     }
 };
 

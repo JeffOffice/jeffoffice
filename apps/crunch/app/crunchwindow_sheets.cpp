@@ -358,9 +358,8 @@ QMenu *CrunchWindow::buildUnhideMenu(QWidget *owner)
 }
 
 // The menu of a tab (a right click): the commands for the sheets picked.
-void CrunchWindow::showTabMenu(int tab, const QPoint &globalPos)
+void CrunchWindow::showTabMenu(const QPoint &globalPos)
 {
-    Q_UNUSED(tab);
     auto *menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
     menu->setObjectName(QStringLiteral("sheetMenu"));
