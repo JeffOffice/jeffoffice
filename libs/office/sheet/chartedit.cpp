@@ -14,7 +14,6 @@ using jp::office::ChartType;
 
 namespace {
 
-QString tr(const char *text) { return QCoreApplication::translate("Chart", text); }
 
 bool isPie(const Chart &c) { return !c.plots.isEmpty() && (c.plots.first().type == ChartType::Pie || c.plots.first().type == ChartType::Doughnut); }
 
@@ -86,7 +85,7 @@ void setChartTitle(Chart *chart, TitleMode mode)
         t = ChartTitle();
         t.present = true;
         if (totalSeries(*chart) == 1 && chart->type() != ChartType::Scatter) t.automatic = true;
-        t.text = tr("Chart Title");
+        t.text = QCoreApplication::translate("Chart", "Chart Title");
     }
     t.overlay = mode == TitleMode::Overlay;
 }
@@ -107,7 +106,7 @@ void setAxisTitle(Chart *chart, bool horizontal, bool shown)
     if (a->title.present) return;
     a->title = ChartTitle();
     a->title.present = true;
-    a->title.text = tr("Axis Title");
+    a->title.text = QCoreApplication::translate("Chart", "Axis Title");
 }
 
 void setGridlines(Chart *chart, bool horizontal, bool minor, bool shown)
