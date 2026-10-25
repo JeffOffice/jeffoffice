@@ -145,7 +145,7 @@ void CrunchWindow::createFormatActions()
 void CrunchWindow::updateFormatState(bool force)
 {
     if (!m_actions.contains(QStringLiteral("fmt.painter"))) return;   // (the commands are not made yet)
-    const bool open = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty();
+    const bool open = m_session && !m_saving && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;   // (a chart sheet has no cells to format)
     if (force || int(open) != m_formatOpen) {
         m_formatOpen = int(open);
         for (const QString &id : m_formatActions)
