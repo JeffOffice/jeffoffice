@@ -1318,8 +1318,10 @@ bool moveControlPart(const QByteArray &xml, const MoveContext &ctx, int sheet, Q
 bool moveNotesDrawing(const QByteArray &vml, const MoveContext &ctx, int sheet, QByteArray *out, bool *changed)
 {
     // each note's shape holds <x:Row>1</x:Row> <x:Column>2</x:Column> (from 0) and an <x:Anchor> of eight numbers (column, offset, row, offset, twice)
-    static const QRegularExpression shape(QStringLiteral("<v:shape\\b.*?</v:shape>"), QRegularExpression::DotMatchesEverythingOption);
-    static const QRegularExpression rowRe(QStringLiteral("<x:Row>(\\d+)</x:Row>")), colRe(QStringLiteral("<x:Column>(\\d+)</x:Column>")), anchorRe(QStringLiteral("<x:Anchor>([^<]*)</x:Anchor>"));
+    // (the prefixes are the usual ones in the files of the programs people know, but the format does not fix them: whatever prefix an element has, it is kept)
+    static const QRegularExpression shape(QStringLiteral("<((?:[A-Za-z_][\\w.\\-]*:)?)shape\\b.*?</\\1shape>"), QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression rowRe(QStringLiteral("<((?:[A-Za-z_][\\w.\\-]*:)?)Row>(\\d+)</\\1Row>")), colRe(QStringLiteral("<((?:[A-Za-z_][\\w.\\-]*:)?)Column>(\\d+)</\\1Column>")),
+        anchorRe(QStringLiteral("<((?:[A-Za-z_][\\w.\\-]*:)?)Anchor>([^<]*)</\\1Anchor>"));
     const QString text = QString::fromUtf8(vml);
     QString result;
     int at = 0;
@@ -1330,7 +1332,7 @@ bool moveNotesDrawing(const QByteArray &vml, const MoveContext &ctx, int sheet, 
         QString body = m.captured();
         const QRegularExpressionMatch rm = rowRe.match(body), cm = colRe.match(body);
         if (!rm.hasMatch() || !cm.hasMatch()) continue;
-        const quint32 row = rm.captured(1).toUInt(), col = cm.captured(1).toUInt();
+        const quint32 row = rm.captured(2).toUInt(), col = cm.captured(2).toUInt();
         quint32 r = row, c = col;
         const bool alive = followCell(ctx, sheet, &r, &c);
         if (alive && r == row && c == col) continue;
@@ -1338,11 +1340,11 @@ bool moveNotesDrawing(const QByteArray &vml, const MoveContext &ctx, int sheet, 
         at = m.capturedEnd();
         any = true;
         if (!alive) continue;
-        body.replace(rowRe, QStringLiteral("<x:Row>%1</x:Row>").arg(r));
-        body.replace(colRe, QStringLiteral("<x:Column>%1</x:Column>").arg(c));
+        body.replace(rowRe, QStringLiteral("<\\1Row>%1</\\1Row>").arg(r));
+        body.replace(colRe, QStringLiteral("<\\1Column>%1</\\1Column>").arg(c));
         const QRegularExpressionMatch am = anchorRe.match(body);
         if (am.hasMatch()) {
-            QStringList parts = am.captured(1).split(QLatin1Char(','));
+            QStringList parts = am.captured(2).split(QLatin1Char(','));
             if (parts.size() >= 8) {
                 for (QString &part : parts) part = part.trimmed();
                 const int dc = int(c) - int(col), dr = int(r) - int(row);
@@ -1350,7 +1352,7 @@ bool moveNotesDrawing(const QByteArray &vml, const MoveContext &ctx, int sheet, 
                 parts[2] = QString::number(parts[2].trimmed().toInt() + dr);
                 parts[4] = QString::number(parts[4].trimmed().toInt() + dc);
                 parts[6] = QString::number(parts[6].trimmed().toInt() + dr);
-                body.replace(anchorRe, QStringLiteral("<x:Anchor>%1</x:Anchor>").arg(parts.join(QStringLiteral(", "))));
+                body.replace(anchorRe, QStringLiteral("<\\1Anchor>%1</\\1Anchor>").arg(parts.join(QStringLiteral(", "))));
             }
         }
         result += body;

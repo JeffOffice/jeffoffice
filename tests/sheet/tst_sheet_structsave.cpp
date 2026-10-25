@@ -42,6 +42,37 @@ Saved saveWith(const QByteArray &xlsx, const std::vector<StructEdit> &edits, con
 
 QString text(const Saved &s, const QString &part) { return QString::fromUtf8(s.parts.value(part)); }
 
+// The XML with the prefix of its root element's namespace changed to `to` on every element that has it (a part with no prefix gets one), and the namespace declared for the new prefix: the
+// same document written by a program that prefixes its elements differently.
+QByteArray reprefixed(const QByteArray &xml, const QString &to)
+{
+    const QString text = QString::fromUtf8(xml);
+    static const QRegularExpression rootRe(QStringLiteral("<(?:([A-Za-z_][\\w.\\-]*):)?[A-Za-z_][\\w.\\-]*"));
+    // the first element (not the declaration)
+    QRegularExpressionMatch root;
+    for (auto it = rootRe.globalMatch(text); it.hasNext();) {
+        root = it.next();
+        break;
+    }
+    if (!root.hasMatch()) return xml;
+    const QString from = root.captured(1);
+    QString out;
+    int at = 0;
+    static const QRegularExpression tagRe(QStringLiteral("<(/?)(?:([A-Za-z_][\\w.\\-]*):)?([A-Za-z_][\\w.\\-]*)"));
+    for (auto it = tagRe.globalMatch(text); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        out += text.mid(at, m.capturedStart() - at);
+        at = m.capturedEnd();
+        if (m.captured(2) == from) out += QStringLiteral("<") + m.captured(1) + to + QLatin1Char(':') + m.captured(3);
+        else out += m.captured();
+    }
+    out += text.mid(at);
+    const QString was = from.isEmpty() ? QStringLiteral(" xmlns=\"") : QStringLiteral(" xmlns:") + from + QStringLiteral("=\"");
+    out.replace(out.indexOf(was), was.size(), QStringLiteral(" xmlns:") + to + QStringLiteral("=\""));
+    return out.toUtf8();
+}
+
+
 } // namespace
 
 class SheetStructSaveTests : public QObject {
@@ -131,6 +162,92 @@ private Q_SLOTS:
         QVERIFY2(vml.contains(QStringLiteral("<x:Row>3</x:Row>")) && vml.contains(QStringLiteral("<x:Row>4</x:Row>")), qPrintable(vml));
         QVERIFY(vml.contains(QStringLiteral("<x:Anchor>1, 15, 3, 2, 3, 15, 5, 16</x:Anchor>")));
         QVERIFY(s.report.calcChainDropped || true);
+    }
+
+    // Every part the saver moves when a sheet is renamed or deleted or rows are inserted (the sheets, the workbook's names, a chart, a drawing, notes and their drawing, threaded comments,
+    // a control, a pivot cache) is moved the same when its elements are written with another prefix: the saved part is the plain one's, with the prefix.
+    void everyPartThatIsMovedMayHaveAnyPrefix()
+    {
+        const QByteArray threads = "<?xml version=\"1.0\"?><ThreadedComments xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\">"
+                                   "<threadedComment ref=\"A1\" dT=\"2024-01-01T00:00:00.00\" personId=\"{P}\" id=\"{1}\"><text>first</text></threadedComment>"
+                                   "<threadedComment ref=\"A3\" dT=\"2024-01-01T00:00:00.00\" personId=\"{P}\" id=\"{2}\"><text>on three</text></threadedComment></ThreadedComments>";
+        const QByteArray control = "<?xml version=\"1.0\"?><formControlPr xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" objectType=\"Drop\" fmlaLink=\"$A$5\" fmlaRange=\"Sheet2!$A$1:$A$5\"/>";
+        const QByteArray pivot = "<?xml version=\"1.0\"?><pivotCacheDefinition xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><cacheSource type=\"worksheet\"><worksheetSource ref=\"A1:C5\" sheet=\"Sheet2\"/></cacheSource></pivotCacheDefinition>";
+        const QByteArray drawing = "<?xml version=\"1.0\"?><xdr:wsDr xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\">"
+                                   "<xdr:twoCellAnchor><xdr:from><xdr:col>1</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>2</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>4</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>6</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to></xdr:twoCellAnchor></xdr:wsDr>";
+        QVector<ExtraPart> extra;
+        extra.append({QStringLiteral("xl/threadedComments/threadedComment1.xml"), threads, QStringLiteral("application/vnd.ms-excel.threadedcomments+xml"), 0, QStringLiteral("rIdT"), QStringLiteral("threadedComment"), QStringLiteral("../threadedComments/threadedComment1.xml")});
+        extra.append({QStringLiteral("xl/ctrlProps/ctrlProp1.xml"), control, QStringLiteral("application/vnd.ms-excel.controlproperties+xml"), 0, QStringLiteral("rIdK"), QStringLiteral("ctrlProp"), QStringLiteral("../ctrlProps/ctrlProp1.xml")});
+        extra.append({QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml"), pivot, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheDefinition+xml"), -1, QString(), QString(), QString()});
+        extra.append({QStringLiteral("xl/drawings/drawing2.xml"), drawing, QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"), 1, QStringLiteral("rIdD2"), QStringLiteral("drawing"), QStringLiteral("../drawings/drawing2.xml")});
+        QMap<QString, QByteArray> plain;
+        jp::readZip(withParts(richBook(), extra), plain);
+        plain[QStringLiteral("xl/worksheets/sheet2.xml")].replace("</worksheet>", "<drawing r:id=\"rIdD2\"/></worksheet>");
+        // the same book with every part of the format's main kinds written with the prefix "pp" (and the notes' drawing with other prefixes than the usual)
+        const QStringList kinds = {QStringLiteral("xl/workbook.xml"), QStringLiteral("xl/worksheets/sheet1.xml"), QStringLiteral("xl/worksheets/sheet2.xml"), QStringLiteral("xl/charts/chart1.xml"),
+                                   QStringLiteral("xl/drawings/drawing1.xml"), QStringLiteral("xl/drawings/drawing2.xml"), QStringLiteral("xl/comments1.xml"), QStringLiteral("xl/threadedComments/threadedComment1.xml"),
+                                   QStringLiteral("xl/ctrlProps/ctrlProp1.xml"), QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")};
+        auto asVml = [](QByteArray vml) { return vml.replace("<x:", "<xl:").replace("</x:", "</xl:").replace("<v:", "<vv:").replace("</v:", "</vv:"); };
+        auto build = [&](bool prefixed) {
+            jp::ZipWriter z;
+            for (auto it = plain.begin(); it != plain.end(); ++it) {
+                QByteArray data = it.value();
+                if (prefixed && kinds.contains(it.key())) data = reprefixed(data, QStringLiteral("pp"));
+                else if (prefixed && it.key().endsWith(QLatin1String(".vml"))) data = asVml(data);
+                z.add(it.key(), data, true);
+            }
+            return z.finish();
+        };
+        struct Case {
+            const char *what;
+            std::vector<StructEdit> edits;
+            std::vector<SheetOp> ops;
+            int mostMoved;   // the parts at least that moved in the plain run (so that the comparison is not between two copies of the input)
+        };
+        SheetOp rename;
+        rename.kind = SheetOp::Kind::Rename;
+        rename.name = QStringLiteral("Sheet2");
+        rename.newName = QStringLiteral("Q 2");
+        SheetOp del;
+        del.kind = SheetOp::Kind::Delete;
+        del.name = QStringLiteral("Sheet2");
+        const std::vector<Case> cases = {{"rows inserted on the first sheet", {StructEdit::insertRows(0, 0, 2)}, {}, 6},
+                                         {"a sheet renamed", {}, {rename}, 3},
+                                         {"a sheet deleted", {}, {del}, 2},
+                                         {"rows inserted on the second sheet", {StructEdit::insertRows(1, 0, 2)}, {}, 3}};
+        for (const Case &c : cases) {
+            SaveChanges more;
+            more.sheetOps = c.ops;
+            const Saved base = saveWith(build(false), c.edits, &more);
+            const Saved other = saveWith(build(true), c.edits, &more);
+            QVERIFY2(base.error.isEmpty(), qPrintable(QLatin1String(c.what) + QStringLiteral(": ") + base.error));
+            QVERIFY2(other.error.isEmpty(), qPrintable(QLatin1String(c.what) + QStringLiteral(": ") + other.error));
+            int moved = 0;
+            for (const QString &part : kinds) {
+                const QByteArray want = reprefixed(base.parts.value(part), QStringLiteral("pp"));
+                if (base.parts.value(part) != plain.value(part)) ++moved;
+                QVERIFY2(other.parts.value(part) == want, qPrintable(QStringLiteral("%1: %2\n got  %3\n want %4").arg(QLatin1String(c.what), part, QString::fromUtf8(other.parts.value(part)), QString::fromUtf8(want))));
+            }
+            QVERIFY2(moved >= c.mostMoved, qPrintable(QStringLiteral("%1: %2 parts moved").arg(QLatin1String(c.what)).arg(moved)));
+            const QString vmlName = QStringLiteral("xl/drawings/vmlDrawing1.vml");
+            QCOMPARE(other.parts.value(vmlName), asVml(base.parts.value(vmlName)));
+            if (base.parts.value(vmlName) != plain.value(vmlName)) ++moved;
+        }
+        {
+            // the pivot cache names the sheet it was made from: renamed, it is named by the new name, in the prefixed part too
+            SaveChanges renamed;
+            renamed.sheetOps = {rename};
+            const Saved r = saveWith(build(true), {}, &renamed);
+            const QString cache = text(r, QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml"));
+            QVERIFY2(cache.contains(QStringLiteral("<pp:worksheetSource ref=\"A1:C5\" sheet=\"Q 2\"/>")), qPrintable(cache));
+        }
+        // the rows inserted on the first sheet moved the notes, their drawing, the threads, the control's link, and the chart's cells, each with the prefix it has
+        SaveChanges none;
+        const Saved rows = saveWith(build(true), {StructEdit::insertRows(0, 0, 2)}, &none);
+        QVERIFY2(text(rows, QStringLiteral("xl/comments1.xml")).contains(QStringLiteral("ref=\"A5\"")), qPrintable(text(rows, QStringLiteral("xl/comments1.xml"))));
+        QVERIFY2(text(rows, QStringLiteral("xl/drawings/vmlDrawing1.vml")).contains(QStringLiteral("<xl:Row>4</xl:Row>")), qPrintable(text(rows, QStringLiteral("xl/drawings/vmlDrawing1.vml"))));
+        QVERIFY2(text(rows, QStringLiteral("xl/threadedComments/threadedComment1.xml")).contains(QStringLiteral("ref=\"A5\"")), qPrintable(text(rows, QStringLiteral("xl/threadedComments/threadedComment1.xml"))));
+        QVERIFY2(text(rows, QStringLiteral("xl/charts/chart1.xml")).contains(QStringLiteral("<pp:f>Sheet1!$A$3:$A$7</pp:f>")), qPrintable(text(rows, QStringLiteral("xl/charts/chart1.xml"))));
     }
 
     // The formulas of a rule (a conditional format, a validation) are written for the first cell of its range, in the file too: the first row of the range deleted, or rows inserted above
