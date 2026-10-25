@@ -3,6 +3,10 @@
 
 The **View** tab changes how the sheet looks on your screen. It never changes the workbook.
 
+## Views
+
+The **Views** group of the View tab (and the three buttons at the bottom right of the window) change what the sheet shows. **Normal** is the cells as they are. **Page Layout** shows the pages as they print, with their header and footer. **Page Breaks** shades what does not print, numbers the pages, and lets you drag the lines where pages begin. See [Set up the pages](page-layout) for the last two. Each sheet remembers its view, and the workbook saves it.
+
 ## Zoom
 
 Use the slider at the bottom right, the **Zoom** button on the View tab, or hold **Ctrl** and turn the mouse wheel. You can zoom from 10% to 400%. **100%** puts it back to normal size.

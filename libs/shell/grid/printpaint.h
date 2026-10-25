@@ -49,6 +49,10 @@ public:
 
     // Draws the page. `labels` has the page's number and the totals, the date, and the names its fields come to; `firstOfSheet` and the number's parity pick the header and footer.
     void paint(QPainter *painter, const SheetPrint &print, const PageCut &page, const PageSetup &setup, const jp::office::sheet::HfContext &labels, bool firstOfSheet, const PageObjects &objects = nullptr);
+    // Where a cell is on the page, in points from the paper's corner (false if the cell is not among those the page shows), and which cell is at a point of the paper (false if none): the page is
+    // laid out as paint() lays it out, without drawing it.
+    bool cellRect(const SheetPrint &print, const PageCut &page, const PageSetup &setup, qint64 row, qint64 col, QRectF *out);
+    bool cellAt(const SheetPrint &print, const PageCut &page, const PageSetup &setup, const QPointF &point, qint64 *row, qint64 *col);
     // The header and footer alone (the margins of the paper).
     void paintHeaderFooter(QPainter *painter, const PaperBox &paper, const PageSetup &setup, const jp::office::sheet::HfContext &labels, bool firstOfSheet, double scale);
 
@@ -58,6 +62,7 @@ public:
     const PaintStats &stats() const { return m_painter->stats(); }
 
 private:
+    PageMetrics layoutPage(const SheetPrint &print, const PageCut &page, const PageSetup &setup);
     void paintHeadings(QPainter *p, const GridLayout &layout, const PageCut &page, const PageMetrics &m, double scale);
     void paintHeaderFooterText(QPainter *p, const QString &code, const PaperBox &paper, const PageSetup &setup, const jp::office::sheet::HfContext &labels, bool header, double scale, bool first, bool even);
     QImage headerPicture(const jp::office::sheet::HeaderPicture &pic);

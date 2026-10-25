@@ -288,6 +288,7 @@
           "keytip": "ZV",
           "items": [
             {"large": "view.normal", "keytip": "N"},
+            {"large": "view.pageLayout", "keytip": "L"},
             {"large": "view.pageBreakView", "keytip": "B"}
           ]
         },
@@ -322,6 +323,38 @@
               "keytip": "FZ",
               "menu": ["view.freeze", "view.freezeRow", "view.freezeCol", "-", "view.unfreeze"]
             }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Header and Footer",
+      "keytip": "JH",
+      "context": "Header and Footer",
+      "color": "headerFooter",
+      "groups": [
+        {
+          "name": "Put In",
+          "keytip": "ZI",
+          "items": [
+            {"large": "hf.pageNumber", "keytip": "P"},
+            {"large": "hf.pageCount", "keytip": "N"},
+            {"large": "hf.date", "keytip": "D"},
+            {"large": "hf.time", "keytip": "T"},
+            {"large": "hf.filePath", "keytip": "Z"},
+            {"large": "hf.fileName", "keytip": "F"},
+            {"large": "hf.sheetName", "keytip": "A"},
+            {"large": "hf.picture", "keytip": "G"}
+          ]
+        },
+        {
+          "name": "Choices",
+          "keytip": "ZC",
+          "items": [
+            {"small": "hf.differentFirst", "keytip": "DF"},
+            {"small": "hf.differentOddEven", "keytip": "DO"},
+            {"small": "hf.scaleWithDoc", "keytip": "SD"},
+            {"small": "hf.alignWithMargins", "keytip": "AM"}
           ]
         }
       ]

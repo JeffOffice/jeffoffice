@@ -3,6 +3,7 @@
 #include "sheet/headerfooter.h"
 
 #include <QBuffer>
+#include <QCoreApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDate>
@@ -69,6 +70,43 @@ QString areaWords(const PageSetup &p)
 }
 
 } // namespace
+
+// ---- a picture for a header or footer
+
+bool loadHeaderPicture(const QString &path, jp::office::sheet::HeaderPicture *out, QString *problem)
+{
+    auto refuse = [problem](const QString &why) {
+        if (problem) *problem = why;
+        return false;
+    };
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) return refuse(QCoreApplication::translate("HeaderFooterEditor", "The picture's file could not be opened."));
+    if (file.size() > jp::office::sheet::kMaxHeaderPictureBytes) return refuse(QCoreApplication::translate("HeaderFooterEditor", "That picture's file is larger than a header can hold."));
+    jp::office::sheet::HeaderPicture pic;
+    pic.image = file.read(jp::office::sheet::kMaxHeaderPictureBytes + 1);
+    QBuffer buffer(&pic.image);
+    buffer.open(QIODevice::ReadOnly);
+    QImageReader reader(&buffer);
+    const QByteArray format = reader.format().toLower();
+    if (format == "png") pic.extension = QStringLiteral("png");
+    else if (format == "jpeg" || format == "jpg") pic.extension = QStringLiteral("jpeg");
+    else if (format == "gif") pic.extension = QStringLiteral("gif");
+    else if (format == "bmp") pic.extension = QStringLiteral("bmp");
+    else return refuse(QCoreApplication::translate("HeaderFooterEditor", "That file is not a picture of a kind a header can hold. Use a PNG, JPEG, GIF, or BMP picture."));
+    const QSize size = reader.size();
+    if (!size.isValid() || qint64(size.width()) * size.height() > jp::office::sheet::kMaxHeaderPicturePixels) return refuse(QCoreApplication::translate("HeaderFooterEditor", "That picture is too large for a header."));
+    double w = size.width() * 0.75, h = size.height() * 0.75;   // (points, at 96 to the inch)
+    const double most = std::max(w, h);
+    if (most > 144) {
+        w *= 144 / most;
+        h *= 144 / most;
+    }
+    pic.width = std::max(1.0, w);
+    pic.height = std::max(1.0, h);
+    pic.title = QFileInfo(path).completeBaseName().left(64);
+    *out = pic;
+    return true;
+}
 
 // ---- the editor of a header or footer
 
@@ -298,31 +336,9 @@ void HeaderFooterEditor::addPicture()
         m_pictureLabel->setProperty("problem", true);
         return;
     };
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) return refuse(tr("The picture's file could not be opened."));
-    if (file.size() > jp::office::sheet::kMaxHeaderPictureBytes) return refuse(tr("That picture's file is larger than a header can hold."));
     jp::office::sheet::HeaderPicture pic;
-    pic.image = file.read(jp::office::sheet::kMaxHeaderPictureBytes + 1);
-    QBuffer buffer(&pic.image);
-    buffer.open(QIODevice::ReadOnly);
-    QImageReader reader(&buffer);
-    const QByteArray format = reader.format().toLower();
-    if (format == "png") pic.extension = QStringLiteral("png");
-    else if (format == "jpeg" || format == "jpg") pic.extension = QStringLiteral("jpeg");
-    else if (format == "gif") pic.extension = QStringLiteral("gif");
-    else if (format == "bmp") pic.extension = QStringLiteral("bmp");
-    else return refuse(tr("That file is not a picture of a kind a header can hold. Use a PNG, JPEG, GIF, or BMP picture."));
-    const QSize size = reader.size();
-    if (!size.isValid() || qint64(size.width()) * size.height() > jp::office::sheet::kMaxHeaderPicturePixels) return refuse(tr("That picture is too large for a header."));
-    double w = size.width() * 0.75, h = size.height() * 0.75;   // (points, at 96 to the inch)
-    const double most = std::max(w, h);
-    if (most > 144) {
-        w *= 144 / most;
-        h *= 144 / most;
-    }
-    pic.width = std::max(1.0, w);
-    pic.height = std::max(1.0, h);
-    pic.title = QFileInfo(path).completeBaseName().left(64);
+    QString why;
+    if (!loadHeaderPicture(path, &pic, &why)) return refuse(why);
     pic.place = place();
     qint64 bytes = pic.image.size();
     int count = 0;

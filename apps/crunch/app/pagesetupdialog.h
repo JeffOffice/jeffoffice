@@ -32,6 +32,10 @@ struct PageSetupRequest {
     bool metric = false;        // margins in centimeters
 };
 
+// A picture's file read to be put in a header or footer: kept as the file has it, with the size it is drawn at (its pixels at 96 to the inch, the longest side held to two inches), a title from
+// the file's name, and no place yet. False, with the reason in plain words, when the file is not a PNG, JPEG, GIF, or BMP picture, is too large, or can't be read.
+bool loadHeaderPicture(const QString &path, jp::office::sheet::HeaderPicture *out, QString *problem);
+
 // The text of a header or a footer for each version the setup keeps: edited in three boxes (left, center, and right), with buttons that put the page number, the date, and so on in.
 class HeaderFooterEditor : public QDialog {
     Q_OBJECT

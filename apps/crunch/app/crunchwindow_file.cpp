@@ -81,6 +81,7 @@ bool CrunchWindow::openFile(const QString &path)
 void CrunchWindow::onFirstScreen()
 {
     cancelPageBreaks();
+    dropLayoutJob();
     m_loaded = m_loader.result();
     if (!m_loaded || !m_loaded->book || !m_loaded->preview) return;
     m_haveFirstScreen = true;
@@ -105,6 +106,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
 {
     m_loading = false;
     cancelPageBreaks();
+    dropLayoutJob();
     if (!ok) {
         const QString name = QFileInfo(m_path).fileName();
         m_path.clear();
@@ -172,6 +174,7 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
 {
     if (!m_loaded || !m_loaded->book) return;
     if (!keepView) m_copy.reset();   // (a copy being made is of the sheet that was shown)
+    if (m_layoutSheet != sheetIndex) dropLayoutJob();   // (the pages held are another sheet's)
     grid::GridData d;
     d.styles = &m_loaded->book->styles();
     d.strings = &m_loaded->book->sharedStrings();
@@ -272,6 +275,7 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     if (m_objects) m_objects->cellsChanged(batch->items);
     m_workerCpuMicros = batch->workerCpuMicros;
     const bool active = m_view->valuesChanged(m_sheet, batch->items);
+    if (m_viewKind == 2 && m_pageView && m_layoutPages) m_pageView->contentsChanged();   // (the pages show the values the calculation gave)
     if (active) updateBars();
     ++m_batches;
     if (batch->last) {

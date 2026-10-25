@@ -7,10 +7,13 @@
 #include "core/editsession.h"
 #include "core/printjob.h"
 #include "grid/gridview.h"
+#include "grid/pagelayoutview.h"
 #include "sheet/pagesetup.h"
 
 #include <QAction>
 #include <QActionGroup>
+#include <QLabel>
+#include <QSlider>
 #include <QStatusBar>
 #include <QToolButton>
 
@@ -46,7 +49,7 @@ void CrunchWindow::createViewActions()
 
 void CrunchWindow::addViewButtons(QStatusBar *bar)
 {
-    for (const char *id : {"view.normal", "view.pageBreakView"}) {
+    for (const char *id : {"view.normal", "view.pageLayout", "view.pageBreakView"}) {
         auto *b = new QToolButton();
         b->setDefaultAction(act(QString::fromLatin1(id)));
         b->setAutoRaise(true);
@@ -71,9 +74,16 @@ void CrunchWindow::setViewKind(int kind)
     if (m_viewKind == 0) m_normalZoom = m_view->zoom();
     const int old = m_viewKind;
     showViewKind(kind);
-    if (old == 0) m_view->setZoom(kBreakViewZoom);
+    // (the cells' zoom is the grid's; the pages have a zoom of their own, in the view of the pages)
+    if (kind == 2) m_pageView->setZoom(1.0);
+    else if (old == 0) m_view->setZoom(kBreakViewZoom);
     else if (kind == 0) m_view->setZoom(m_normalZoom);
-    m_session->setSheetView(m_sheet, kind, int(std::lround(m_view->zoom() * 100)));
+    m_session->setSheetView(m_sheet, kind, int(std::lround(viewZoom() * 100)));
+    // the zoom shown at the bottom is the view's
+    const double zoom = viewZoom();
+    m_zoomLabel->setText(QStringLiteral("%1%").arg(std::lround(zoom * 100)));
+    const QSignalBlocker block(m_zoomSlider);
+    m_zoomSlider->setValue(int(std::lround(std::log(zoom) / std::log(1.05))));
 }
 
 // The sheet now in view is shown in the view it was left in (or the one chosen): the grid, the buttons, and the lines.
@@ -85,7 +95,11 @@ void CrunchWindow::showViewKind(int kind)
     if (kind != 1) m_view->setBreakPages({}, {}, false);
     if (QAction *a = act(QStringLiteral("view.normal"))) a->setChecked(kind == 0);
     if (QAction *a = act(QStringLiteral("view.pageBreakView"))) a->setChecked(kind == 1);
-    if (kind == 1) armPageBreaks();
+    if (QAction *a = act(QStringLiteral("view.pageLayout"))) a->setChecked(kind == 2);
+    showPageLayout(kind == 2);
+    // (the pages' zoom is the sheet's own)
+    if (kind == 2 && m_pageView) m_pageView->setZoom(m_session ? m_session->pages().viewZoom(m_sheet) / 100.0 : m_view->zoom());
+    if (kind == 1 || kind == 2) armPageBreaks();
     else updatePageBreaks();
 }
 

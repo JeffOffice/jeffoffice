@@ -139,6 +139,17 @@ public:
     // The first page of a sheet in the job's list, or -1.
     int firstPageOf(int sheet) const;
 
+    // Where the cells of a page are, for a view of the pages: the cell's place on the page in points from the paper's corner (false if the page does not show it), the cell at a point of the paper
+    // (false if the point is not on a cell of the page), the cells' own area, the range's part on the page, and the first page that shows a cell.
+    bool cellRect(int page, qint64 row, qint64 col, QRectF *rect);
+    bool cellAt(int page, const QPointF &point, qint64 *row, qint64 *col);
+    bool rangeRect(int page, qint64 row1, qint64 col1, qint64 row2, qint64 col2, QRectF *rect);
+    int pageOfCell(int sheet, qint64 row, qint64 col) const;
+    // The paper's box for the page (its margins and the header and footer distances), in points; the sheet's setup the page prints with.
+    jp::grid::PaperBox paperOf(int page) const;
+    const jp::office::sheet::PageSetup *setupOfPage(int page) const;
+    bool isFirstOfSheet(int page) const;
+
     // Draws a page in points on the painter (its origin the paper's corner). Gives false if the page is not one.
     bool paint(QPainter *painter, int page);
     // The page as a picture of the width (its height follows), on white.

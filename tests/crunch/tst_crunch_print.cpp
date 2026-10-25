@@ -2053,6 +2053,329 @@ private Q_SLOTS:
         QCOMPARE(pk.relationshipsOfType(b.info().sheets[1].part, QStringLiteral("/vmlDrawing")).size(), 1);
         QVERIFY(pk.relationshipsOfType(b.info().sheets[0].part, QStringLiteral("/vmlDrawing"))[0].target != pk.relationshipsOfType(b.info().sheets[1].part, QStringLiteral("/vmlDrawing"))[0].target);
     }
+
+    // ---- the Page Layout view (printing 2)
+
+    // Where the cells of a printed page are: the cell's place on the paper in points, the cell at a point, the part of a range on a page, and the page that has a cell.
+    void aJobSaysWhereTheCellsOfAPageAre()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        QString why;
+        std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY2(job, qPrintable(why));
+        QCOMPARE(job->pageCount(), 3);
+        QRectF a1, b3, second;
+        QVERIFY(job->cellRect(0, 0, 0, &a1));
+        QVERIFY(qAbs(a1.left() - 50.4) < 0.5);   // (the left margin: 0.7 inch)
+        QVERIFY(qAbs(a1.top() - 54) < 0.5);      // (and the top: 0.75 inch)
+        QVERIFY(a1.width() > 20 && a1.height() > 10);
+        QVERIFY(job->cellRect(0, 2, 1, &b3));
+        QVERIFY(b3.left() > a1.right() - 0.5 && b3.top() > a1.bottom() - 0.5);
+        qint64 row = -1, col = -1;
+        QVERIFY(job->cellAt(0, b3.center(), &row, &col));
+        QCOMPARE(row, qint64(2));
+        QCOMPARE(col, qint64(1));
+        QVERIFY(!job->cellAt(0, QPointF(5, 5), &row, &col));          // (the margin)
+        QVERIFY(!job->cellRect(0, 50, 0, &second));                    // (a row of the second page)
+        QVERIFY(job->cellRect(1, 50, 0, &second));
+        QVERIFY(qAbs(second.top() - 54 - 5 * a1.height()) < 3);        // (the page begins at row 45: row 50 is five rows down)
+        QCOMPARE(job->pageOfCell(0, 50, 0), 1);
+        QCOMPARE(job->pageOfCell(0, 0, 0), 0);
+        QCOMPARE(job->pageOfCell(0, 99, 1), 2);
+        QCOMPARE(job->pageOfCell(0, 500, 0), -1);
+        QRectF part, whole;
+        QVERIFY(job->rangeRect(0, 40, 0, 60, 1, &part));    // (rows 40 to 44 are on the first page)
+        QVERIFY(job->cellRect(0, 40, 0, &whole));
+        QVERIFY(qAbs(part.top() - whole.top()) < 0.5);
+        QVERIFY(job->cellRect(0, 44, 1, &whole));
+        QVERIFY(qAbs(part.bottom() - whole.bottom()) < 0.5 && qAbs(part.right() - whole.right()) < 0.5);
+        QVERIFY(!job->rangeRect(0, 50, 0, 60, 1, &part));
+    }
+
+    // The Page Layout view takes the grid's place: the pages one below the other (three here, on letter paper), drawn when in view, with the gap between them in another color than the paper.
+    void thePageLayoutViewShowsThePages()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.act(QStringLiteral("view.pageLayout")));
+        QVERIFY(!w.pageView()->isVisible());
+        w.setViewKind(2);
+        QCOMPARE(w.viewKind(), 2);
+        QVERIFY(w.pageView()->isVisible());
+        QVERIFY(!e.view()->isVisible());
+        QVERIFY(w.act(QStringLiteral("view.pageLayout"))->isChecked());
+        QVERIFY(!w.act(QStringLiteral("view.normal"))->isChecked());
+        QTRY_VERIFY(w.pageLayoutReady());
+        QCOMPARE(w.pageView()->source()->pageCount(), 3);
+        const QRect first = w.pageView()->pageRect(0);
+        QVERIFY(!first.isEmpty());
+        QVERIFY(qAbs(double(first.width()) / first.height() - 612.0 / 792.0) < 0.01);   // (letter paper)
+        QVERIFY(first.width() > 500);                                                     // (a point is 96 / 72 pixels at 100%)
+        w.pageView()->drawPagesNow();
+        QVERIFY(w.pageView()->pageIsDrawn(0));
+        // a second page is below the first with a gap that is not paper
+        w.pageView()->scrollToPage(1);
+        w.pageView()->drawPagesNow();
+        QVERIFY(w.pageView()->pageIsDrawn(1));
+        const QImage shot = w.pageView()->viewport()->grab().toImage();
+        const QRect second = w.pageView()->pageRect(1);
+        QVERIFY(!second.isEmpty());
+        QVERIFY(shot.pixelColor(second.center().x(), second.top() + 4).lightness() > 240);        // (paper)
+        QVERIFY(shot.pixelColor(second.center().x(), second.top() - jp::grid::PageLayoutView::kGap / 2).lightness() < 235);   // (the gap above it)
+        // back to the cells
+        w.setViewKind(0);
+        QVERIFY(e.view()->isVisible());
+        QVERIFY(!w.pageView()->isVisible());
+        QVERIFY(!w.pageLayoutReady());
+    }
+
+    // A click on a cell of a page chooses it; the arrow keys, which go to the cells, move the choice and the view follows it onto the next page; the choice is drawn over the page.
+    void cellsCanBeChosenAndMovedOnThePages()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        w.setViewKind(2);
+        QTRY_VERIFY(w.pageLayoutReady());
+        QWidget *vp = w.pageView()->viewport();
+        w.pageView()->drawPagesNow();
+        const QRect b6 = w.pageView()->cellRect(5, 1);
+        QVERIFY(!b6.isEmpty());
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, b6.center());
+        QCOMPARE(e.selected(), QStringLiteral("B6"));
+        QTest::keyClick(w.pageView(), Qt::Key_Down);
+        QCOMPARE(e.selected(), QStringLiteral("B7"));
+        // a drag chooses a block, and the choice is drawn
+        const QRect a3 = w.pageView()->cellRect(2, 0), b5 = w.pageView()->cellRect(4, 1);
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, a3.center());
+        QTest::mouseMove(vp, b5.center());
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, b5.center());
+        QCOMPARE(e.view()->rangeName(), QStringLiteral("A3:B5"));
+        // a cell of the second page: the choice moves there by the keys, and the view scrolls to it
+        e.view()->selectCell(44, 0);
+        QTest::keyClick(w.pageView(), Qt::Key_Down);
+        QCOMPARE(e.selected(), QStringLiteral("A46"));
+        QVERIFY(!w.pageView()->cellRect(45, 0).isEmpty());
+        QVERIFY(w.pageView()->cellRect(45, 0).top() >= 0 && w.pageView()->cellRect(45, 0).bottom() <= vp->height());
+    }
+
+    // Typing on a page puts the cell's strip over the cell on its page, at the pages' zoom; Enter finishes it, and the value is in the sheet; a double click edits what the cell holds.
+    void cellsAreEditedOnThePages()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        w.setViewKind(2);
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        const QRect c2 = w.pageView()->cellRect(1, 1);
+        QTest::mouseClick(w.pageView()->viewport(), Qt::LeftButton, Qt::NoModifier, c2.center());
+        QCOMPARE(e.selected(), QStringLiteral("B2"));
+        QTest::keyClick(w.pageView(), '7');
+        QVERIFY(w.cellEditor()->isVisible());
+        QVERIFY(w.cellEditor()->parentWidget() == w.pageView()->viewport());
+        QCOMPARE(w.cellEditor()->geometry().topLeft(), c2.topLeft());
+        QTest::keyClicks(w.cellEditor(), "5");
+        QTest::keyClick(w.cellEditor(), Qt::Key_Return);
+        QVERIFY(!w.cellEditor()->isVisible());
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:75"));
+        QCOMPARE(e.selected(), QStringLiteral("B3"));
+        // F2 on the cell, and a double click, edit what it holds
+        const QRect a1 = w.pageView()->cellRect(0, 0);
+        QTest::mouseDClick(w.pageView()->viewport(), Qt::LeftButton, Qt::NoModifier, a1.center());
+        QVERIFY(w.cellEditor()->isVisible());
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("1"));
+        QTest::keyClick(w.cellEditor(), Qt::Key_Escape);
+        QVERIFY(!w.cellEditor()->isVisible());
+        // back on the cells, the strip is on the grid again
+        w.setViewKind(0);
+        QVERIFY(w.cellEditor()->parentWidget() == e.view()->viewport());
+    }
+
+    // A click on a part of a header opens a strip to type its words, with the Header and Footer tab; Ctrl and Enter finish it as one step of Undo; Escape gives it up; the tab's buttons put things in.
+    void aHeaderIsTypedInPlace()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        w.setViewKind(2);
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        auto tabShown = [&] {
+            for (int i = 0; i < w.ribbon()->tabCount(); ++i)
+                if (w.ribbon()->tabName(i) == QStringLiteral("Header and Footer")) return w.ribbon()->tabVisible(i);
+            return false;
+        };
+        QVERIFY(!tabShown());
+        QVERIFY(!w.zoneEditor());
+        const QRect center = w.pageView()->zoneRect(0, true, 1);
+        QVERIFY(!center.isEmpty());
+        QTest::mouseClick(w.pageView()->viewport(), Qt::LeftButton, Qt::NoModifier, center.center());
+        QVERIFY(w.zoneEditor());
+        QVERIFY(w.zoneEditor()->isVisible());
+        QVERIFY(tabShown());
+        const int steps = w.session()->undoStack()->count();
+        QTest::keyClicks(w.zoneEditor(), "Quarterly ");
+        w.act(QStringLiteral("hf.pageNumber"))->trigger();
+        QCOMPARE(w.zoneEditor()->toPlainText(), QStringLiteral("Quarterly &P"));
+        QTest::keyClick(w.zoneEditor(), Qt::Key_Return, Qt::ControlModifier);
+        QVERIFY(!w.zoneEditor());
+        QVERIFY(!tabShown());
+        QCOMPARE(w.session()->undoStack()->count(), steps + 1);
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddHeader, QStringLiteral("&CQuarterly &P"));
+        // the page is drawn again with it (the job is cut again after a change)
+        QTRY_VERIFY(w.pageView()->pageIsDrawn(0));
+        pressUndo(w.pageView());
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddHeader, QString());
+        // the left part of the footer; Escape gives it up
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        const QRect left = w.pageView()->zoneRect(0, false, 0);
+        QTest::mouseClick(w.pageView()->viewport(), Qt::LeftButton, Qt::NoModifier, left.center());
+        QVERIFY(w.zoneEditor());
+        QTest::keyClicks(w.zoneEditor(), "not this");
+        QTest::keyClick(w.zoneEditor(), Qt::Key_Escape);
+        QVERIFY(!w.zoneEditor());
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QString());
+        // a part with words already shows them, and typing more keeps the other parts
+        PageSetup p = w.session()->pages().sheet(0);
+        p.headerFooter.oddFooter = QStringLiteral("&LLeft words&RRight words");
+        QVERIFY(w.session()->setPageSetup(0, p, QStringLiteral("Footer")).ok);
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        QTest::mouseClick(w.pageView()->viewport(), Qt::LeftButton, Qt::NoModifier, w.pageView()->zoneRect(0, false, 1).center());
+        QVERIFY(w.zoneEditor());
+        QCOMPARE(w.zoneEditor()->toPlainText(), QString());
+        QTest::keyClicks(w.zoneEditor(), "Middle");
+        QTest::keyClick(w.zoneEditor(), Qt::Key_Return, Qt::ControlModifier);
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QStringLiteral("&LLeft words&CMiddle&RRight words"));
+    }
+
+    // The first page has a header of its own once Different First Page is chosen on the tab, and a click on the first page's header types that one.
+    void theFirstPageHeaderIsTypedInPlace()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        w.setViewKind(2);
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        QTest::mouseClick(w.pageView()->viewport(), Qt::LeftButton, Qt::NoModifier, w.pageView()->zoneRect(0, true, 2).center());
+        QVERIFY(w.zoneEditor());
+        QVERIFY(!w.act(QStringLiteral("hf.differentFirst"))->isChecked());
+        w.act(QStringLiteral("hf.differentFirst"))->trigger();
+        QVERIFY(w.session()->pages().sheet(0).headerFooter.differentFirst);
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        w.pageView()->scrollToPage(0);
+        QTest::mouseClick(w.pageView()->viewport(), Qt::LeftButton, Qt::NoModifier, w.pageView()->zoneRect(0, true, 2).center());
+        QVERIFY(w.zoneEditor());
+        QTest::keyClicks(w.zoneEditor(), "Cover");
+        QTest::keyClick(w.zoneEditor(), Qt::Key_Return, Qt::ControlModifier);
+        const auto &hf = w.session()->pages().sheet(0).headerFooter;
+        QCOMPARE(hf.firstHeader, QStringLiteral("&RCover"));
+        QCOMPARE(hf.oddHeader, QString());
+    }
+
+    // The Picture button of the tab puts a picture in the part being typed in: the text and the picture are one step.
+    void theTabPutsAPictureInTheHeader()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString png = dir.filePath(QStringLiteral("logo.png"));
+        QImage img(80, 40, QImage::Format_ARGB32);
+        img.fill(Qt::red);
+        QVERIFY(img.save(png));
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        w.setPictureAsker([&] { return png; });
+        w.setViewKind(2);
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.pageView()->drawPagesNow();
+        QTest::mouseClick(w.pageView()->viewport(), Qt::LeftButton, Qt::NoModifier, w.pageView()->zoneRect(0, true, 0).center());
+        QVERIFY(w.zoneEditor());
+        const int steps = w.session()->undoStack()->count();
+        w.act(QStringLiteral("hf.picture"))->trigger();
+        QCOMPARE(w.zoneEditor()->toPlainText(), QStringLiteral("&G"));
+        QTest::keyClick(w.zoneEditor(), Qt::Key_Return, Qt::ControlModifier);
+        QCOMPARE(w.session()->undoStack()->count(), steps + 1);
+        const auto &hf = w.session()->pages().sheet(0).headerFooter;
+        QCOMPARE(hf.oddHeader, QStringLiteral("&L&G"));
+        QCOMPARE(hf.pictures.size(), 1);
+        QCOMPARE(hf.pictures[0].place, QStringLiteral("LH"));
+        QCOMPARE(hf.pictures[0].width, 60.0);
+        // it is on the printed page
+        QString why;
+        std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY(job);
+        const QImage page = job->preview(0, 1224);
+        const QColor c = page.pixelColor(int(60 * 2), int(40 * 2));
+        QVERIFY2(c.red() > 200 && c.green() < 60, qPrintable(c.name()));
+        // one step takes both away
+        pressUndo(w.pageView());
+        QVERIFY(w.session()->pages().sheet(0).headerFooter.pictures.isEmpty());
+        QVERIFY(w.session()->pages().sheet(0).headerFooter.oddHeader.isEmpty());
+    }
+
+    // The view of the pages is saved, with the zoom of the pages, and the file opens in it again.
+    void thePageLayoutViewIsSavedAndComesBack()
+    {
+        QByteArray bytes;
+        {
+            EditWindow e;
+            QVERIFY(e.open(rowsWithFormulas(30, {})));
+            CrunchWindow &w = e.win.w;
+            w.setViewKind(2);
+            w.pageView()->setZoom(0.75);
+            QSignalSpy saved(&w, &CrunchWindow::saved);
+            QVERIFY(w.save());
+            QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+            Package pk;
+            QString why;
+            QVERIFY(pk.readLazyFile(e.path, &why));
+            const QByteArray xml = pk.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
+            QVERIFY2(xml.contains("view=\"pageLayout\""), xml.left(500).constData());
+            QVERIFY(xml.contains("zoomScalePageLayoutView=\"75\""));
+            QFile f(e.path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            bytes = f.readAll();
+        }
+        EditWindow again;
+        QVERIFY(again.open(bytes));
+        QCOMPARE(again.win.w.viewKind(), 2);
+        QVERIFY(again.win.w.pageView()->isVisible());
+        QTRY_VERIFY(again.win.w.pageLayoutReady());
+        QCOMPARE(int(std::lround(again.win.w.pageView()->zoom() * 100)), 75);
+        QCOMPARE(again.win.w.pageView()->source()->pageCount(), 1);
+    }
+
+    // A sheet of a million rows is cut into its pages for the Page Layout view in slices of counted work (no turn of the loop does more than a slice), the view lays out all its thousands of pages,
+    // draws only those in view (one a turn), and keeps only a few drawn.
+    void aSheetOfAMillionRowsIsShownAsPagesInSlices()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1048576\"><c r=\"A1048576\"><v>1</v></c></row>"))})));
+        CrunchWindow &w = e.win.w;
+        w.setViewKind(2);
+        w.updatePageBreaks();   // (not waiting for the timer)
+        QVERIFY(w.pageBreaksUnderWay());
+        QVERIFY(!w.pageLayoutReady());
+        QTRY_VERIFY_WITH_TIMEOUT(w.pageLayoutReady(), 60000);
+        const CrunchWindow::PageBreakWork work = w.pageBreakWork();
+        QVERIFY(work.slices > 5);
+        QVERIFY2(work.most <= CrunchWindow::pageBreakSliceWork() + 16, qPrintable(QString::number(work.most)));
+        QVERIFY(w.pageView()->source()->pageCount() > 1000);
+        // (one page is drawn a turn: after a few turns the ones in view are, and nothing else)
+        QTRY_VERIFY(w.pageView()->pageIsDrawn(0));
+        QVERIFY(w.pageView()->pagesDrawn() <= 4);
+        w.pageView()->scrollToPage(5000);
+        QTRY_VERIFY(w.pageView()->pageIsDrawn(5000));
+        QVERIFY(w.pageView()->pagesKept() <= 10);
+        QVERIFY(w.pageView()->pagesDrawn() < 20);
+    }
 };
 
 JP_TEST_CLASS(CrunchPrintTests)

@@ -131,7 +131,9 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
 void CrunchWindow::placeEditor()
 {
     if (!m_edit.active) return;
-    const QRect r = m_view->cellRect(m_edit.row, m_edit.col);
+    const bool onPages = m_viewKind == 2 && m_pageView && m_pageView->isVisible();
+    // (over the pages, the strip is over the cell on its page, and the zoom is the pages')
+    const QRect r = onPages ? m_pageView->cellRect(m_edit.row, m_edit.col) : m_view->cellRect(m_edit.row, m_edit.col);
     if (r.isEmpty() || m_edit.sheet != m_sheet) {
         m_cellEditor->hide();
         return;
@@ -141,12 +143,12 @@ void CrunchWindow::placeEditor()
     const grid::Cell *cell = gs.cellAt(m_edit.row, m_edit.col);
     const grid::CellLook &look = gs.looks().look(gs.styleOf(m_edit.row, m_edit.col, cell));
     QFont f(look.family.isEmpty() ? m_view->font().family() : look.family);
-    f.setPixelSize(std::max(9, int(std::lround(look.pointSize * 96.0 / 72.0 * m_view->zoom()))));
+    f.setPixelSize(std::max(9, int(std::lround(look.pointSize * 96.0 / 72.0 * (onPages ? m_pageView->zoom() : m_view->zoom())))));
     f.setBold(look.bold);
     f.setItalic(look.italic);
     m_cellEditor->setFont(f);
     // as wide as the cell, and wider as the text grows, as far as the edge of the grid
-    const QRect vp = m_view->viewport()->rect();
+    const QRect vp = onPages ? m_pageView->viewport()->rect() : m_view->viewport()->rect();
     const int want = QFontMetrics(f).horizontalAdvance(m_cellEditor->text()) + 16;
     const int width = std::max(r.width(), std::min(want, std::max(r.width(), vp.right() - r.left())));
     m_cellEditor->setGeometry(r.left(), r.top(), width, r.height());

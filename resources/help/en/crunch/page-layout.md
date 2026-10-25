@@ -32,6 +32,16 @@ Where one page ends and the next begins is worked out from the paper, the margin
 
 Each drag is one step of Undo. While a sheet is being shrunk to fit, its breaks are ignored, so the lines cannot be dragged. **Normal** brings back the cells as they were. The view each sheet was left in is saved with the workbook.
 
+## The Page Layout view
+
+**View > Page Layout** (or the middle button at the bottom right of the window) shows the sheet as the pages it prints on, one below the other, each as a sheet of paper with its margins and a gap between pages. Rulers run along the top and down the left. The header and footer are drawn where they print, and so are pictures in them.
+
+- **Work in the cells.** Click a cell to choose it, drag to choose several, and use the arrow keys, typing, F2, and a double click as you do in the Normal view. What you type goes in a strip over the cell on its page.
+- **Type a header or footer.** Move the pointer over the top or bottom margin of a page: its left, middle, and right parts light up. Click one and type. The **Header and Footer** tab appears, with buttons that put in the page number, the number of pages, the date, the time, the file's folder and name, the sheet's name, and a picture; its choices turn on a different first page, different odd and even pages, and whether the header grows with the cells and lines up with the margins. Press **Ctrl+Enter**, or click anywhere else, to finish; **Esc** gives it up. Each finished header or footer is one step of Undo.
+- **Zoom** with the slider, or hold **Ctrl** and turn the mouse wheel.
+
+Only the pages in view are drawn, so a sheet of thousands of pages opens at once. The view each sheet was left in is saved with the workbook.
+
 ## Print titles
 
 **Print Titles** repeats rows at the top, and columns at the left, of every page after the one they are on, so that a heading row is on every page. Type the rows (such as **1:3**) and the columns (such as **A:B**) on the Sheet tab of the Page Setup dialog.

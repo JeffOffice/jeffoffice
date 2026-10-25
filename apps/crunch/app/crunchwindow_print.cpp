@@ -206,9 +206,10 @@ void CrunchWindow::updatePageBreaks()
 {
     cancelPageBreaks();
     if (!m_view) return;
-    if (!m_breaksArmed || !(act(QStringLiteral("view.pageBreaks"))->isChecked() || m_viewKind == 1) || !m_loaded || !m_haveCalc || m_chartSheetShown) {
+    if (!m_breaksArmed || !(act(QStringLiteral("view.pageBreaks"))->isChecked() || m_viewKind != 0) || !m_loaded || !m_haveCalc || m_chartSheetShown) {
         if (m_view->hasPageBreaks()) m_view->setPageBreaks({}, {});
         if (m_view->breakView()) m_view->setBreakPages({}, {}, false);
+        if (m_viewKind == 2 && !m_breaksArmed) dropLayoutJob();
         return;
     }
     crunch::PrintJobOptions options;
@@ -221,6 +222,7 @@ void CrunchWindow::updatePageBreaks()
     if (!job->beginBuild()) {
         if (m_view->hasPageBreaks()) m_view->setPageBreaks({}, {});
         if (m_view->breakView()) m_view->setBreakPages({}, {}, false);
+        if (m_viewKind == 2) dropLayoutJob();   // (nothing on the sheet to print: no pages)
         return;
     }
     m_breakJob = std::move(job);
@@ -246,7 +248,7 @@ void CrunchWindow::stepPageBreaks()
         m_breaksStepTimer.start();
         return;
     }
-    const std::unique_ptr<crunch::PrintJob> job = std::move(m_breakJob);
+    std::unique_ptr<crunch::PrintJob> job = std::move(m_breakJob);
     std::vector<grid::GridView::PageBreakLine> rows, cols;
     if (state == crunch::PrintJob::BuildState::Done) {
         const jp::grid::SheetPrint *print = job->printOf(m_sheet);
@@ -255,6 +257,7 @@ void CrunchWindow::stepPageBreaks()
         if (m_view->breakView() && print && setup) sendBreakPages(*job, *setup);
     }
     m_view->setPageBreaks(std::move(rows), std::move(cols));
+    if (state == crunch::PrintJob::BuildState::Done && m_viewKind == 2 && job) takeLayoutJob(std::move(job));
 }
 
 } // namespace jp

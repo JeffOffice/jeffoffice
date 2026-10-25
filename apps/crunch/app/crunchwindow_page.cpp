@@ -153,6 +153,7 @@ void CrunchWindow::createPageActions()
 void CrunchWindow::pageRibbonParts(RibbonParts &parts)
 {
     parts.launchers[QStringLiteral("pageSetup")] = [this] { pageSetupDialog(0); };
+    parts.colors[QStringLiteral("headerFooter")] = QColor(0x8A, 0x4B, 0x0F);
     auto fitBox = [this](bool across) {
         auto *box = new QComboBox;
         box->setObjectName(across ? QStringLiteral("fitWidthBox") : QStringLiteral("fitHeightBox"));
@@ -219,6 +220,7 @@ void CrunchWindow::connectPageSetup()
     // (and what is typed: a cell past the last one the pages ended at makes another page)
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, [this](int sheet, const std::vector<jp::grid::ValueStore::Item> &) {
         if (m_breaksArmed && sheet == m_sheet) schedulePageBreaks();
+        if (m_viewKind == 2 && m_pageView && m_layoutPages && sheet == m_sheet) m_pageView->contentsChanged();
     });
     connect(m_session->undoStack(), &QUndoStack::indexChanged, this, [this] { updatePageActions(); });
     updatePageActions();
@@ -261,6 +263,7 @@ void CrunchWindow::updatePageActions()
         m_scaleBox->setEnabled(open && !fit);
     }
     m_updatingPage = false;
+    updateHeaderFooterActions();
     if (m_breaksArmed) schedulePageBreaks();
 }
 

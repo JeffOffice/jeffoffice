@@ -178,7 +178,7 @@ void GridView::paintBreakView(QPainter *p, const QRect &clip)
     const GridLayout &L = m_sheet.layout();
     const bool dark = uiDark();
     const QColor shade = dark ? QColor(0, 0, 0, 140) : QColor(96, 100, 112, 120);
-    const QColor mark = dark ? QColor(255, 255, 255, 70) : QColor(70, 74, 90, 90);
+    const QColor mark = dark ? QColor(255, 255, 255, 120) : QColor(40, 44, 60, 130);
     const QColor ink = dark ? QColor(0x7F, 0xA8, 0xFF) : QColor(0x1F, 0x3F, 0xA8);
     p->save();
     p->setRenderHint(QPainter::Antialiasing, false);
@@ -202,12 +202,14 @@ void GridView::paintBreakView(QPainter *p, const QRect &clip)
         for (const BreakPage &page : m_breakPageList) {
             if (page.row2 < pv.firstRow || page.row1 > pv.lastRow || page.col2 < pv.firstCol || page.col1 > pv.lastCol) continue;
             const QRect box = L.rangeRectIn(pane, page.row1, page.col1, page.row2, page.col2) & pv.rect;
-            if (box.width() < 40 || box.height() < 20) continue;
+            if (box.width() < 12 || box.height() < 20) continue;
+            // (a page of a few narrow columns is lettered over the shading beside it too)
             QFont f = p->font();
             f.setBold(true);
-            f.setPixelSize(std::clamp(std::min(box.height() / 3, box.width() / 5), 10, 160));
+            f.setPixelSize(std::clamp(box.height() / 4, 12, 96));
             p->setFont(f);
-            p->drawText(box, Qt::AlignCenter, format.arg(page.number));
+            const QRect wide = box.adjusted(-400, 0, 400, 0);
+            p->drawText(wide, Qt::AlignCenter | Qt::TextSingleLine, format.arg(page.number));
         }
         // the edges of the blocks
         QPen edge(ink, 2);

@@ -69,7 +69,7 @@ void PagePainter::setBaseFont(const QString &family, double points)
     if (points > 0) m_base.setPointSizeF(std::min(points, 409.0));
 }
 
-void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &page, const PageSetup &setup, const HfContext &labels, bool firstOfSheet, const PageObjects &objects)
+PageMetrics PagePainter::layoutPage(const SheetPrint &print, const PageCut &page, const PageSetup &setup)
 {
     GridLayout &L = m_sheet->layout();
     const bool titleRows = page.titleRow1 >= 0, titleCols = page.titleCol1 >= 0;
@@ -81,6 +81,34 @@ void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &pag
     L.setZoom(m.zoom);
     L.setViewport(QSize(int(std::min<qint64>(m.widthUnits, 1 << 28)), int(std::min<qint64>(m.heightUnits, 1 << 28))));
     L.setScroll(L.cols.position(page.col1) - L.cols.position(L.frozenCols()), L.rows.position(page.row1) - L.rows.position(L.frozenRows()));
+    return m;
+}
+
+bool PagePainter::cellRect(const SheetPrint &print, const PageCut &page, const PageSetup &setup, qint64 row, qint64 col, QRectF *out)
+{
+    const PageMetrics m = layoutPage(print, page, setup);
+    const QRect r = m_sheet->layout().cellRect(row, col);
+    if (r.isEmpty()) return false;
+    *out = QRectF(m.cells.left() + r.x() * m.unit, m.cells.top() + r.y() * m.unit, r.width() * m.unit, r.height() * m.unit);
+    return true;
+}
+
+bool PagePainter::cellAt(const SheetPrint &print, const PageCut &page, const PageSetup &setup, const QPointF &point, qint64 *row, qint64 *col)
+{
+    const PageMetrics m = layoutPage(print, page, setup);
+    if (!m.cells.contains(point) || m.unit <= 0) return false;
+    const QPoint units(int((point.x() - m.cells.left()) / m.unit), int((point.y() - m.cells.top()) / m.unit));
+    const Hit h = m_sheet->layout().hit(units);
+    if (h.kind != Hit::Kind::Cell) return false;
+    *row = h.row;
+    *col = h.col;
+    return true;
+}
+
+void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &page, const PageSetup &setup, const HfContext &labels, bool firstOfSheet, const PageObjects &objects)
+{
+    GridLayout &L = m_sheet->layout();
+    const PageMetrics m = layoutPage(print, page, setup);
     m_sheet->invalidateTexts();
     PaintOptions options;
     options.headers = false;

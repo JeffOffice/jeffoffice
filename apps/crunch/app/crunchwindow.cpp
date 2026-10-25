@@ -187,6 +187,7 @@ CrunchWindow::~CrunchWindow()
 {
     if (m_tabs) m_tabs->cancelRename();   // (a name being typed is given up with the window, not given to a window that is going)
     if (m_view) m_view->setOverlay(nullptr);   // (the objects over the cells go before the grid does)
+    if (m_pageView) m_pageView->setSource(nullptr);
     openWindows().removeAll(this);
     // (the session's undo stack tells the window as its steps go: it is let go of first, and the window is not told)
     if (m_session) {
@@ -267,6 +268,7 @@ void CrunchWindow::buildCentral()
     m_view->setAccessibleName(tr("Sheet"));
     m_view->setAccessibleDescription(tr("The cells of the sheet. The arrow keys move the selection; Ctrl and an arrow go to the edge of the data."));
     v->addWidget(m_view, 1);
+    buildPageLayoutView(central, v);
     m_cellEditor = new CellEditor(m_view->viewport());
     m_cellEditor->hide();
     m_cellEditor->setAccessibleName(tr("Cell editor"));
@@ -310,7 +312,7 @@ void CrunchWindow::buildStatusBar()
     m_zoomSlider->setFixedWidth(140);
     m_zoomSlider->setAccessibleName(tr("Zoom"));
     m_zoomSlider->setAccessibleDescription(tr("Left and Right arrows zoom out and in."));
-    connect(m_zoomSlider, &QSlider::valueChanged, this, [this](int v) { m_view->setZoom(std::pow(1.05, v)); });
+    connect(m_zoomSlider, &QSlider::valueChanged, this, [this](int v) { setViewZoom(std::pow(1.05, v)); });
     sb->addPermanentWidget(m_zoomSlider);
     button("zoom.in");
     m_zoomLabel = new QLabel(QStringLiteral("100%"));
@@ -368,10 +370,10 @@ void CrunchWindow::createActions()
         m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
         m_view->invalidateValues();
     }, true);
-    mk("zoom.in", tr("Zoom In"), "zoom-in", QKeySequence(), [this] { m_view->setZoom(std::round(m_view->zoom() * 10 + 1) / 10); });
-    mk("zoom.out", tr("Zoom Out"), "zoom-out", QKeySequence(), [this] { m_view->setZoom(std::round(m_view->zoom() * 10 - 1) / 10); });
+    mk("zoom.in", tr("Zoom In"), "zoom-in", QKeySequence(), [this] { setViewZoom(std::round(viewZoom() * 10 + 1) / 10); });
+    mk("zoom.out", tr("Zoom Out"), "zoom-out", QKeySequence(), [this] { setViewZoom(std::round(viewZoom() * 10 - 1) / 10); });
     for (int pct : {200, 150, 100, 75, 50, 25, 10}) {
-        mk(QStringLiteral("zoom.%1").arg(pct), QStringLiteral("%1%").arg(pct), pct == 100 ? "zoom-in" : "", QKeySequence(), [this, pct] { m_view->setZoom(pct / 100.0); });
+        mk(QStringLiteral("zoom.%1").arg(pct), QStringLiteral("%1%").arg(pct), pct == 100 ? "zoom-in" : "", QKeySequence(), [this, pct] { setViewZoom(pct / 100.0); });
     }
     act("zoom.100")->setText(tr("100%"));
     mk("view.freeze", tr("Freeze Panes"), "snowflake", QKeySequence(), [this] { freezeAtSelection(); });
@@ -395,6 +397,7 @@ void CrunchWindow::createActions()
     createSheetActions();
     createPageActions();
     createViewActions();
+    createPageLayoutActions();
     createChartActions();
     createDisabledActions();
 }
