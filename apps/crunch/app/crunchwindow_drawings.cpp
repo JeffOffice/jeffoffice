@@ -83,8 +83,8 @@ void CrunchWindow::connectObjects()
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, [this](int sheet) {
         if (m_objects) m_objects->sizesChanged(sheet);
     });
-    m_session->setObjectHook([this](int sheet, int id, bool deleted) {
-        if (m_objects) m_objects->setDeleted(sheet, id, deleted);
+    m_session->setObjectHook([this](const crunch::ObjectEdit &edit, bool forward) {
+        if (m_objects) m_objects->applyState(edit.sheet, edit.id, forward ? edit.after : edit.before);
     });
 }
 
@@ -97,7 +97,10 @@ void CrunchWindow::deleteObject(int id)
         notice(tr("Delete"), why);
         return;
     }
-    const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Object"));
+    const crunch::ObjectState before = m_objects->stateOf(m_sheet, id);
+    crunch::ObjectState after = before;
+    after.deleted = true;
+    const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Object"), before, after);
     if (!o.ok) notice(tr("Delete"), o.problem);
 }
 

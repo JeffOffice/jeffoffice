@@ -713,9 +713,15 @@ private Q_SLOTS:
                 QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
                 return e.win.w.save() && savedOk(saved);
             };
+            auto takeAway = [&](int id) {
+                const crunch::ObjectState before = o->stateOf(0, id);
+                crunch::ObjectState after = before;
+                after.deleted = true;
+                return e.win.w.session()->deleteObject(0, id, QStringLiteral("Delete Object"), before, after).ok;
+            };
             const QString rels = QStringLiteral("xl/drawings/_rels/drawing1.xml.rels");
             QVERIFY(hasRelationship(savedParts(e.path), rels, QStringLiteral("rIdP")));
-            QVERIFY(e.win.w.session()->deleteObject(0, 0, QStringLiteral("Delete Object")).ok);
+            QVERIFY(takeAway(0));
             QVERIFY(save());
             QMap<QString, QByteArray> parts = savedParts(e.path);
             QVERIFY2(parts.contains(QStringLiteral("xl/media/image1.png")), "the picture the other uses stays");
@@ -723,7 +729,7 @@ private Q_SLOTS:
             QCOMPARE(hasRelationship(parts, rels, QStringLiteral("rIdP")), oneRelationship);   // (the one the deleted object had, if the other does not use it)
             QVERIFY(hasOverride(parts, QStringLiteral("/xl/media/image1.png")));
             QCOMPARE(o->layer()->count(), 2);
-            QVERIFY(e.win.w.session()->deleteObject(0, 1, QStringLiteral("Delete Object")).ok);
+            QVERIFY(takeAway(1));
             QVERIFY(save());
             parts = savedParts(e.path);
             QVERIFY2(!parts.contains(QStringLiteral("xl/media/image1.png")), "the last that used it is gone, and the picture");
