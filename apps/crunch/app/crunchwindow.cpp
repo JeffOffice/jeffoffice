@@ -99,6 +99,9 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     m_breaksTimer.setSingleShot(true);
     m_breaksTimer.setInterval(150);
     connect(&m_breaksTimer, &QTimer::timeout, this, &CrunchWindow::updatePageBreaks);
+    m_breaksStepTimer.setSingleShot(true);
+    m_breaksStepTimer.setInterval(0);
+    connect(&m_breaksStepTimer, &QTimer::timeout, this, &CrunchWindow::stepPageBreaks);
     createActions();
     buildRibbon();
     buildStatusBar();

@@ -148,6 +148,58 @@ public:
             }
         }
     }
+    // The same walk in slices: the place it has got to. Start with a fresh cursor; each call goes on from where the last stopped.
+    struct RowTailCursor {
+        bool started = false, done = false;
+        quint32 block = 0;           // the key of the block it is in
+        std::ptrdiff_t end = 0;      // the cells of that block before this place are still to be walked
+    };
+    // Walks on from the cursor as forEachRowTail does, adding to `*steps` one for each row and each cell it looks at, and stops after the row it is in once `*steps` has reached `limit`
+    // (so a slice takes at most a row's cells past it). True when every cell has been walked. A store changed between two calls is walked from what is there (never past it).
+    template <class F>
+    bool forEachRowTailSome(RowTailCursor *cur, qint64 limit, qint64 *steps, F f) const
+    {
+        if (cur->done) return true;
+        if (!cur->started) {
+            cur->started = true;
+            if (m_blocks.empty()) {
+                cur->done = true;
+                return true;
+            }
+            cur->block = m_blocks.rbegin()->first;
+            cur->end = std::ptrdiff_t(m_blocks.rbegin()->second.cells.size());
+        }
+        auto block = m_blocks.find(cur->block);
+        if (block == m_blocks.end()) {
+            cur->done = true;
+            return true;
+        }
+        while (*steps < limit) {
+            const std::vector<Cell> &cells = block->second.cells;
+            const std::ptrdiff_t end = std::min<std::ptrdiff_t>(cur->end, std::ptrdiff_t(cells.size()));
+            if (end <= 0) {
+                if (block == m_blocks.begin()) {
+                    cur->done = true;
+                    return true;
+                }
+                --block;
+                cur->block = block->first;
+                cur->end = std::ptrdiff_t(block->second.cells.size());
+                ++*steps;
+                continue;
+            }
+            const quint32 row = cells[size_t(end - 1)].row;
+            const auto first = std::lower_bound(cells.begin(), cells.begin() + end, row, [](const Cell &c, quint32 r) { return c.row < r; });
+            ++*steps;
+            for (auto at = cells.begin() + end; at != first;) {
+                --at;
+                ++*steps;
+                if (f(*at)) break;
+            }
+            cur->end = first - cells.begin();
+        }
+        return false;
+    }
     // What a walk over a range did, counted as it did it: the cells it stepped over one by one (every move of the cursor along a row of a block is counted), and the
     // comparisons of its searches for the first cell of each row. A test counts them to see that a narrow range of a wide sheet costs what it holds.
     struct RangeWalk {

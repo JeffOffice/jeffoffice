@@ -223,6 +223,17 @@ public:
     std::function<bool(int, int)> progressFunction(const QString &title, const QString &text);
     void armPageBreaks();
     void updatePageBreaks();
+    // The lines are worked out in slices of counted work, a turn of the event loop each; an edit, or a workbook opened over this one, drops what was begun.
+    void schedulePageBreaks();
+    void cancelPageBreaks();
+    void stepPageBreaks();
+    // For tests: how the last lines were worked out, in how many slices and the most work (grid/axis.h) any one did.
+    struct PageBreakWork {
+        int slices = 0;
+        qint64 most = 0;
+    };
+    PageBreakWork pageBreakWork() const { return m_breakStats; }
+    static qint64 pageBreakSliceWork();
     // The lines for a sheet's pages: a row's line for each page that begins a band of rows, and a column's likewise (a break set by hand is marked, unless the sheet is fitted to pages).
     static void pageBreakLines(const jp::grid::SheetPrint &print, const jp::office::sheet::PageSetup &setup, std::vector<jp::grid::GridView::PageBreakLine> *rows,
                                std::vector<jp::grid::GridView::PageBreakLine> *cols);
@@ -452,7 +463,11 @@ private:
     std::unique_ptr<crunch::PrintChoices> m_printChoices;
     std::unique_ptr<QPrinter> m_printer;
     bool m_breaksArmed = false;
-    QTimer m_breaksTimer;
+    QTimer m_breaksTimer, m_breaksStepTimer;
+    std::unique_ptr<crunch::PrintJob> m_breakJob;
+    const crunch::LoadedBook *m_breakBook = nullptr;
+    int m_breakSheet = -1;
+    PageBreakWork m_breakStats;
     QStringList m_pageActions;
     bool m_updatingPage = false;
     QComboBox *m_fitWidthBox = nullptr, *m_fitHeightBox = nullptr;

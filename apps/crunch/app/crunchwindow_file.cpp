@@ -80,6 +80,7 @@ bool CrunchWindow::openFile(const QString &path)
 
 void CrunchWindow::onFirstScreen()
 {
+    cancelPageBreaks();
     m_loaded = m_loader.result();
     if (!m_loaded || !m_loaded->book || !m_loaded->preview) return;
     m_haveFirstScreen = true;
@@ -103,6 +104,7 @@ void CrunchWindow::onProgress(int sheet, qint64 cells)
 void CrunchWindow::onFinished(bool ok, const QString &message)
 {
     m_loading = false;
+    cancelPageBreaks();
     if (!ok) {
         const QString name = QFileInfo(m_path).fileName();
         m_path.clear();

@@ -116,6 +116,12 @@ public:
 
     // Cuts the sheets into pages. False, with a message, when there is nothing to print.
     bool build(QString *why = nullptr);
+    // The same in slices, so that a sheet of a million rows does not hold the window: begin (false, with a message, when there is nothing to print), then step with a fresh Work (see
+    // grid/axis.h) for each turn until it says Done or Failed. The pages are the job's only when it is Done. The job must not be used for anything else, and the workbook must not be
+    // closed or replaced, between the slices; one that is let go of is simply let go of.
+    enum class BuildState { Working, Done, Failed };
+    bool beginBuild(QString *why = nullptr);
+    BuildState buildStep(jp::grid::Work &work, QString *why = nullptr);
     int pageCount() const { return int(m_pages.size()); }
     // Words about the job: a sheet that was cut short, a fit that makes the type small, a sheet with nothing on it.
     const QStringList &messages() const { return m_messages; }
@@ -172,6 +178,7 @@ private:
         int index = 0;      // the place among the sheet's pages
         int number = 1;
     };
+    struct Build;
     Context &contextFor(int infoIndex);
     SheetInfo *infoOfSheet(int sheet);
     const SheetInfo *infoOfSheet(int sheet) const;
@@ -186,6 +193,7 @@ private:
     bool m_cancelled = false;
     QDateTime m_now;
     int m_totalNumbers = 0;
+    std::unique_ptr<Build> m_build;
 };
 
 // The pages (from 0) that text such as "1-3, 5" names, once each, in the order given; "8-" goes to the last and "-2" from the first. A part that names no page is passed by. Empty when none is named.

@@ -162,7 +162,19 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
 void CrunchWindow::armPageBreaks()
 {
     m_breaksArmed = true;
+    schedulePageBreaks();
+}
+
+void CrunchWindow::schedulePageBreaks()
+{
+    cancelPageBreaks();
     m_breaksTimer.start();
+}
+
+void CrunchWindow::cancelPageBreaks()
+{
+    m_breaksStepTimer.stop();
+    m_breakJob.reset();
 }
 
 // Where the pages of the sheet in view begin, as lines over its cells.
@@ -185,8 +197,14 @@ void CrunchWindow::pageBreakLines(const jp::grid::SheetPrint &print, const jp::o
     }
 }
 
+// The most work one slice of the page breaks does (see grid/axis.h: a place, a row, a band, a page each); a slice of this is a few milliseconds at most.
+static constexpr qint64 kPageBreakSliceWork = 4096;
+
+qint64 CrunchWindow::pageBreakSliceWork() { return kPageBreakSliceWork; }
+
 void CrunchWindow::updatePageBreaks()
 {
+    cancelPageBreaks();
     if (!m_view) return;
     if (!m_breaksArmed || !act(QStringLiteral("view.pageBreaks"))->isChecked() || !m_loaded || !m_haveCalc || m_chartSheetShown) {
         if (m_view->hasPageBreaks()) m_view->setPageBreaks({}, {});
@@ -194,11 +212,45 @@ void CrunchWindow::updatePageBreaks()
     }
     crunch::PrintJobOptions options;
     options.what = crunch::PrintWhat::ActiveSheet;
-    const std::unique_ptr<crunch::PrintJob> job = makePrintJob(options);
-    const jp::grid::SheetPrint *print = job ? job->printOf(m_sheet) : nullptr;
-    const jp::office::sheet::PageSetup *setup = job ? job->setupOf(m_sheet) : nullptr;
+    options.activeSheet = m_sheet;
+    options.fileName = QFileInfo(m_path).fileName();
+    options.folder = m_path.isEmpty() ? QString() : QFileInfo(m_path).absolutePath();
+    auto source = std::make_unique<crunch::BookPrintSource>(m_loaded.get(), &m_values, m_session ? &m_session->pages() : nullptr, m_objects.get());
+    auto job = std::make_unique<crunch::PrintJob>(std::move(source), options);
+    if (!job->beginBuild()) {
+        if (m_view->hasPageBreaks()) m_view->setPageBreaks({}, {});
+        return;
+    }
+    m_breakJob = std::move(job);
+    m_breakBook = m_loaded.get();
+    m_breakSheet = m_sheet;
+    m_breakStats = PageBreakWork();
+    stepPageBreaks();
+}
+
+void CrunchWindow::stepPageBreaks()
+{
+    if (!m_breakJob) return;
+    // (the workbook or the sheet in view is not the one the job began on: its lines would be another sheet's)
+    if (!m_view || !m_loaded || m_loaded.get() != m_breakBook || !m_haveCalc || m_sheet != m_breakSheet) {
+        cancelPageBreaks();
+        return;
+    }
+    jp::grid::Work work(kPageBreakSliceWork);
+    const crunch::PrintJob::BuildState state = m_breakJob->buildStep(work);
+    ++m_breakStats.slices;
+    m_breakStats.most = std::max(m_breakStats.most, work.used);
+    if (state == crunch::PrintJob::BuildState::Working) {
+        m_breaksStepTimer.start();
+        return;
+    }
+    const std::unique_ptr<crunch::PrintJob> job = std::move(m_breakJob);
     std::vector<grid::GridView::PageBreakLine> rows, cols;
-    if (print && setup) pageBreakLines(*print, *setup, &rows, &cols);
+    if (state == crunch::PrintJob::BuildState::Done) {
+        const jp::grid::SheetPrint *print = job->printOf(m_sheet);
+        const jp::office::sheet::PageSetup *setup = job->setupOf(m_sheet);
+        if (print && setup) pageBreakLines(*print, *setup, &rows, &cols);
+    }
     m_view->setPageBreaks(std::move(rows), std::move(cols));
 }
 

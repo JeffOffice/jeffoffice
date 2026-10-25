@@ -1296,6 +1296,36 @@ private Q_SLOTS:
         QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75}));
     }
 
+    // The lines where the pages begin on a sheet a million rows long are worked out in slices of counted work, one turn of the event loop each, and are the lines one pass makes. Each slice
+    // stops soon after its limit, whatever the sheet; the window is free between them.
+    void thePageBreakLinesOfAMillionRowsAreWorkedOutInSlices()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1048576\"><c r=\"A1048576\"><v>1</v></c></row>"))})));
+        CrunchWindow &w = e.win.w;
+        QString why;
+        const std::unique_ptr<crunch::PrintJob> whole = w.makePrintJob(crunch::PrintJobOptions(), &why);
+        QVERIFY2(whole, qPrintable(why));
+        std::vector<jp::grid::GridView::PageBreakLine> rows, cols;
+        CrunchWindow::pageBreakLines(*whole->printOf(0), *whole->setupOf(0), &rows, &cols);
+        QVERIFY(rows.size() > 1000);
+        int turns = 0;
+        QTimer counter;
+        counter.setInterval(0);
+        connect(&counter, &QTimer::timeout, &counter, [&turns] { ++turns; });
+        counter.start();
+        w.act(QStringLiteral("file.print"))->trigger();
+        w.hideFileScreen();
+        QTRY_VERIFY_WITH_TIMEOUT(e.view()->hasPageBreaks(), 30000);
+        QCOMPARE(e.view()->pageBreakRows().size(), rows.size());
+        QCOMPARE(e.view()->pageBreakRows().back().before, rows.back().before);
+        const CrunchWindow::PageBreakWork work = w.pageBreakWork();
+        QVERIFY(work.slices > 5);
+        QVERIFY2(work.most <= CrunchWindow::pageBreakSliceWork() + 16, qPrintable(QString::number(work.most)));
+        // (other things were done between the slices: the loop turned about as often)
+        QVERIFY2(turns >= work.slices / 2, qPrintable(QStringLiteral("%1 turns, %2 slices").arg(turns).arg(work.slices)));
+    }
+
     // The lines are looked up, not searched for: a sheet of thousands of pages and of breaks gets its lines, each marked as set by hand or not, as the setup says.
     void pageLinesComeFromTheCutsAndTheBreaks()
     {

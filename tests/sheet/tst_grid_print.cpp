@@ -779,6 +779,151 @@ private Q_SLOTS:
         QCOMPARE(p.pages.back().row2, qint64(1048575));
     }
 
+    // A sheet of a million rows is cut in slices of counted work: every slice stops soon after its limit (a row's cells at most past it), the slices are many, and what they make is what one
+    // slice with no limit makes. The sheet has a cell that shows nothing in every row (all of them walked), a custom height in every tenth row given out of order (so that they are put in
+    // order), and the print area it is cut for is the cells with something, or the whole of the rows.
+    void aMillionRowsAreCutInSlicesOfBoundedWork()
+    {
+        Fixture f(0, 0);
+        Sheet sheet;
+        for (quint32 r = 0; r < 1000000; ++r) {
+            Cell e;
+            e.row = r;
+            e.col = 0;
+            sheet.cells.add(e);   // (empty, and no format: nothing to show)
+        }
+        sheet.cells.add(numberAt(999999, 9));
+        sheet.cells.finish();
+        for (qint64 i = 0; i < 100000; ++i) {
+            RowSpec spec;
+            spec.row = quint32((i * 7919) % 100000 * 10);
+            spec.height = 30;
+            sheet.rowSpecs.push_back(spec);
+        }
+        constexpr qint64 kLimit = 2000;
+        auto slices = [&](auto &task, qint64 *most, int *count) {
+            *most = 0;
+            *count = 0;
+            for (;;) {
+                Work w(kLimit);
+                const bool done = task.step(w);
+                ++*count;
+                *most = std::max(*most, w.used);
+                if (done) return;
+            }
+        };
+        // the rows' sizes, in slices and at once and from specs that were in order already
+        RowAxisTask sliced(sheet, kCutFine);
+        qint64 most = 0;
+        int count = 0;
+        slices(sliced, &most, &count);
+        QVERIFY2(most <= kLimit + 400, qPrintable(QString::number(most)));   // (a sorted run of 64 specs is taken as 384 steps whole)
+        QVERIFY(count > 50);
+        const Axis rows = sliced.take();
+        Sheet ordered = sheet;
+        std::sort(ordered.rowSpecs.begin(), ordered.rowSpecs.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
+        const Axis direct = printRowAxis(ordered, kCutFine);
+        QCOMPARE(rows.total(), qint64(100000) * 320 + qint64(1048576 - 100000) * 160);   // (the sheet's 1,048,576 rows)
+        QCOMPARE(rows.total(), direct.total());
+        for (qint64 r : {0, 1, 9, 10, 11, 5005, 499990, 499991, 999990, 999999}) QCOMPARE(rows.position(r), direct.position(r));
+        Axis cols{16384, 64 * kCutFine};
+        for (int variant = 0; variant < 3; ++variant) {
+            PrintRequest q = f.request;
+            q.sheet = &sheet;
+            q.rows = &rows;
+            q.cols = &cols;
+            q.rowFine = q.colFine = kCutFine;
+            if (variant == 1) {
+                CellRange all;
+                parseRangeRef(QStringLiteral("A1:XFD1048576"), &all);   // the whole of the rows: cut where the sheet has something
+                q.setup.printArea = {all};
+            }
+            if (variant == 2) {
+                q.setup.fitToPage = true;
+                q.setup.fitToWidth = 1;
+                q.setup.fitToHeight = 0;
+            }
+            PaginateTask task(q);
+            slices(task, &most, &count);
+            QVERIFY2(most <= kLimit + 8, qPrintable(QString::number(most)));
+            QVERIFY(count > 10);
+            const SheetPrint made = task.take();
+            const SheetPrint once = paginate(q);
+            QVERIFY(made.pages.size() > 1000);
+            QCOMPARE(made.pages.size(), once.pages.size());
+            QCOMPARE(rowsOf(made), rowsOf(once));
+            QCOMPARE(colsOf(made), colsOf(once));
+            QCOMPARE(made.pagesNeeded, once.pagesNeeded);
+            QCOMPARE(made.scalePercent, once.scalePercent);
+            QCOMPARE(made.truncated, once.truncated);
+            QCOMPARE(made.areas.size(), once.areas.size());
+            QCOMPARE(made.pages.back().row2, qint64(999999));
+        }
+    }
+
+    // An axis made place by place and worked out in slices is the axis made from the list at once: the sizes, the starts, the rows at a place, and the steps over runs of hidden rows.
+    void anAxisBuiltInSlicesIsTheAxisBuiltAtOnce()
+    {
+        std::vector<Axis::Place> places;
+        quint32 seed = 12345;
+        auto next = [&] { return seed = seed * 1103515245u + 12345u; };
+        for (qint64 i = 0; i < 3000; ++i) {
+            const quint32 r = next() >> 16;
+            places.push_back({i, r % 7 < 3 ? 0 : int(10 + r % 40)});
+            if (r % 11 == 0) places.push_back({i, 25});   // (twice: the second is dropped)
+        }
+        Axis once(3000, 20);
+        once.assign(places);
+        Axis sliced(3000, 20);
+        sliced.beginAssign(places.size());
+        for (const Axis::Place &p : places) sliced.appendPlace(p);
+        int slices = 0;
+        for (;;) {
+            Work w(100);
+            ++slices;
+            if (sliced.buildSome(w)) break;
+        }
+        QVERIFY(slices > 20);
+        QCOMPARE(sliced.placeCount(), once.placeCount());
+        QCOMPARE(sliced.total(), once.total());
+        for (qint64 i = -1; i <= 3001; ++i) {
+            QCOMPARE(sliced.size(i), once.size(i));
+            QCOMPARE(sliced.position(i), once.position(i));
+            QCOMPARE(sliced.nextVisible(i), once.nextVisible(i));
+            QCOMPARE(sliced.previousVisible(i), once.previousVisible(i));
+            QCOMPARE(sliced.indexAt(once.position(i)), once.indexAt(once.position(i)));
+        }
+    }
+
+    // The walk over the last cell of each row can be made in slices, and visits what the walk at once visits, in the same order.
+    void theCellWalkInSlicesVisitsTheSameCells()
+    {
+        Sheet sheet;
+        for (quint32 r = 0; r < 700; ++r)
+            for (quint32 c = 0; c <= r % 9; ++c) sheet.cells.add(numberAt(r * 3, c));   // (rows far apart, so there are many blocks)
+        sheet.cells.finish();
+        auto key = [](const Cell &c) { return qint64(c.row) * 100 + c.col; };
+        QVector<qint64> whole, parts;
+        sheet.cells.forEachRowTail([&](const Cell &c) {
+            whole << key(c);
+            return c.col % 4 == 2;
+        });
+        CellStore::RowTailCursor cursor;
+        int calls = 0;
+        for (;;) {
+            qint64 steps = 0;
+            ++calls;
+            const bool done = sheet.cells.forEachRowTailSome(&cursor, 30, &steps, [&](const Cell &c) {
+                parts << key(c);
+                return c.col % 4 == 2;
+            });
+            QVERIFY(steps <= 30 + 9 + 1);
+            if (done) break;
+        }
+        QVERIFY(calls > 20);
+        QCOMPARE(parts, whole);
+    }
+
     // Sizes a file gives that are not usable (a column of no width, a hidden last row, a margin of a thousand inches) never end in a loop or a page without a cell.
     void oddSizesNeverMakeAnEmptyOrEndlessPage()
     {

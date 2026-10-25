@@ -16,6 +16,7 @@
 #include <QRectF>
 #include <QString>
 
+#include <memory>
 #include <vector>
 
 namespace jp::grid {
@@ -49,6 +50,18 @@ double printColumnPoints(double fileWidth, int digitPixels, int dpi = kPrinterDp
 Axis printColumnAxis(const Sheet &sheet, const Styles &styles, int fine = 1, int dpi = kPrinterDpi);
 // The sizes of the sheet's rows, the same way: the height in points the file gives, in 1/`fine` of a pixel (with `fine` 1, the rows the grid has).
 Axis printRowAxis(const Sheet &sheet, int fine = 1);
+// The same, made a step at a time (see Work): `step` goes on until the work is spent and says whether the axis is done; `take` is the axis once it is.
+class RowAxisTask {
+public:
+    explicit RowAxisTask(const Sheet &sheet, int fine = 1);
+    ~RowAxisTask();
+    bool step(Work &work);
+    Axis take();
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> d;
+};
 // The finer axes the pages are cut by, as many to the pixel as that.
 constexpr int kCutFine = 8;
 
@@ -107,5 +120,19 @@ struct PrintRequest {
 std::vector<CellRange> printedBlocks(const PrintRequest &request);
 
 SheetPrint paginate(const PrintRequest &request);
+
+// The same, a step at a time: `step` goes on until the work is spent and says whether the cut is done (the request's axes, sheet, and styles stay as they are until it is); `take` is
+// the result. A task stepped to its end with no limit gives what paginate gives, as paginate is exactly that.
+class PaginateTask {
+public:
+    explicit PaginateTask(const PrintRequest &request);
+    ~PaginateTask();
+    bool step(Work &work);
+    SheetPrint take();
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> d;
+};
 
 } // namespace jp::grid

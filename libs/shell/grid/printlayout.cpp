@@ -65,37 +65,159 @@ Axis printColumnAxis(const Sheet &sheet, const Styles &styles, int fine, int dpi
     return cols;
 }
 
+// The row axis built a step at a time: the specs are copied, put in order of row if they are not (a merge sort that goes a few steps at a call), the last of any row given twice kept, the
+// places made, and the axis worked out.
+struct RowAxisTask::Impl {
+    using RowSpec = jp::office::sheet::RowSpec;
+    enum class Stage { Copy, Chunks, Merge, Unique, Emit, Build, Done };
+    static constexpr size_t kChunk = 64;
+
+    const Sheet *sheet;
+    int fine;
+    int defaultRow;
+    Axis rows;
+    Stage stage = Stage::Copy;
+    std::vector<RowSpec> specs, spare;
+    size_t at = 0, keep = 0;
+    bool sorted = true;
+    size_t width = kChunk, base = 0, l = 0, mid = 0, r = 0, end = 0;
+    bool inPair = false;
+    bool zeroHeight = false;
+    qint64 nextRow = 0, lastRow = 0;
+    size_t listed = 0;
+
+    Impl(const Sheet &s, int f)
+        : sheet(&s), fine(std::clamp(f, 1, 64)), defaultRow(std::max(1, sizeFor(s.format.defaultRowHeight > 0 ? s.format.defaultRowHeight : 15))), rows(qint64(jp::office::sheet::kMaxRows), defaultRow)
+    {
+        specs.reserve(size_t(s.rowSpecs.size()));
+    }
+    int sizeFor(double points) const { return int(std::lround(std::clamp(points, 0.0, 1000.0) / kPointsPerPixel * fine)); }
+    int sizeOf(const RowSpec &s) const { return s.hidden ? 0 : s.height >= 0 ? sizeFor(s.height) : defaultRow; }
+
+    bool step(Work &w)
+    {
+        const auto before = [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; };
+        for (;;) {
+            if (stage == Stage::Done) return true;
+            if (w.spent()) return false;
+            switch (stage) {
+            case Stage::Copy:
+                if (at < size_t(sheet->rowSpecs.size())) {
+                    const RowSpec &s = sheet->rowSpecs[qsizetype(at++)];
+                    if (!specs.empty() && s.row < specs.back().row) sorted = false;
+                    specs.push_back(s);
+                    w.add();
+                } else {
+                    at = 0;
+                    stage = sorted ? Stage::Unique : Stage::Chunks;
+                    keep = 0;
+                }
+                break;
+            case Stage::Chunks:
+                if (at < specs.size()) {
+                    const size_t to = std::min(specs.size(), at + kChunk);
+                    std::stable_sort(specs.begin() + std::ptrdiff_t(at), specs.begin() + std::ptrdiff_t(to), before);
+                    w.add(qint64(kChunk) * 6);
+                    at = to;
+                } else {
+                    stage = Stage::Merge;
+                    base = 0;
+                    inPair = false;
+                    spare.clear();
+                    spare.reserve(specs.size());
+                }
+                break;
+            case Stage::Merge:
+                if (width >= specs.size()) {
+                    at = 0;
+                    stage = Stage::Unique;
+                    break;
+                }
+                if (base >= specs.size()) {
+                    specs.swap(spare);
+                    spare.clear();
+                    width *= 2;
+                    base = 0;
+                    inPair = false;
+                    break;
+                }
+                if (!inPair) {
+                    l = base;
+                    mid = std::min(specs.size(), base + width);
+                    r = mid;
+                    end = std::min(specs.size(), base + 2 * width);
+                    inPair = true;
+                }
+                // (the left run before the right when they are equal: the sort is a stable one)
+                while (spare.size() < end && !w.spent()) {
+                    if (l < mid && (r >= end || !before(specs[r], specs[l]))) spare.push_back(specs[l++]);
+                    else spare.push_back(specs[r++]);
+                    w.add();
+                }
+                if (spare.size() >= end) {
+                    inPair = false;
+                    base = end;
+                }
+                break;
+            case Stage::Unique:
+                // a row the file gives twice has its last
+                if (at < specs.size()) {
+                    if (keep > 0 && specs[keep - 1].row == specs[at].row) specs[keep - 1] = specs[at];
+                    else specs[keep++] = specs[at];
+                    ++at;
+                    w.add();
+                } else {
+                    specs.resize(keep);
+                    spare = std::vector<RowSpec>();
+                    zeroHeight = sheet->format.zeroHeight && !specs.empty();
+                    if (zeroHeight) {
+                        // the rows the file does not list are hidden, and the sheet ends at its last listed row
+                        lastRow = qint64(specs.back().row);
+                        rows.setCount(lastRow + 1);
+                        rows.beginAssign(size_t(lastRow + 1));
+                    } else {
+                        rows.beginAssign(specs.size());
+                    }
+                    at = 0;
+                    nextRow = 0;
+                    stage = Stage::Emit;
+                }
+                break;
+            case Stage::Emit:
+                if (zeroHeight ? nextRow <= lastRow : at < specs.size()) {
+                    if (zeroHeight) {
+                        if (at < specs.size() && qint64(specs[at].row) == nextRow) rows.appendPlace({nextRow, sizeOf(specs[at++])});
+                        else rows.appendPlace({nextRow, 0});
+                        ++nextRow;
+                    } else {
+                        rows.appendPlace({qint64(specs[at].row), sizeOf(specs[at])});
+                        ++at;
+                    }
+                    w.add();
+                } else {
+                    stage = Stage::Build;
+                }
+                break;
+            case Stage::Build:
+                if (rows.buildSome(w)) stage = Stage::Done;
+                break;
+            case Stage::Done: break;
+            }
+        }
+    }
+};
+
+RowAxisTask::RowAxisTask(const Sheet &sheet, int fine) : d(std::make_unique<Impl>(sheet, fine)) {}
+RowAxisTask::~RowAxisTask() = default;
+bool RowAxisTask::step(Work &work) { return d->step(work); }
+Axis RowAxisTask::take() { return d->rows; }
+
 Axis printRowAxis(const Sheet &sheet, int fine)
 {
-    using jp::office::sheet::RowSpec;
-    fine = std::clamp(fine, 1, 64);
-    auto sizeFor = [&](double points) { return int(std::lround(std::clamp(points, 0.0, 1000.0) / kPointsPerPixel * fine)); };
-    const int defaultRow = std::max(1, sizeFor(sheet.format.defaultRowHeight > 0 ? sheet.format.defaultRowHeight : 15));
-    Axis rows(qint64(jp::office::sheet::kMaxRows), defaultRow);
-    std::vector<RowSpec> specs(sheet.rowSpecs.begin(), sheet.rowSpecs.end());
-    std::stable_sort(specs.begin(), specs.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
-    std::vector<RowSpec> unique;   // (a row the file gives twice has its last)
-    for (const RowSpec &s : specs) {
-        if (!unique.empty() && unique.back().row == s.row) unique.back() = s;
-        else unique.push_back(s);
-    }
-    auto sizeOf = [&](const RowSpec &s) { return s.hidden ? 0 : s.height >= 0 ? sizeFor(s.height) : defaultRow; };
-    std::vector<Axis::Place> places;
-    if (sheet.format.zeroHeight && !unique.empty()) {
-        // the rows the file does not list are hidden, and the sheet ends at its last listed row
-        const qint64 last = qint64(unique.back().row);
-        rows.setCount(last + 1);
-        size_t at = 0;
-        for (qint64 r = 0; r <= last; ++r) {
-            if (at < unique.size() && qint64(unique[at].row) == r) places.push_back({r, sizeOf(unique[at++])});
-            else places.push_back({r, 0});
-        }
-    } else {
-        for (const RowSpec &s : unique) places.push_back({qint64(s.row), sizeOf(s)});
-    }
-    rows.assign(std::move(places));
-    rows.total();
-    return rows;
+    RowAxisTask task(sheet, fine);
+    Work all;
+    task.step(all);
+    return task.take();
 }
 
 namespace {
@@ -147,49 +269,75 @@ bool formatShows(const Styles &styles, quint32 xf)
            || (b.diagonal.style != BorderStyle::None && (b.diagonalUp || b.diagonalDown));
 }
 
-// The last row and column of the cells that have something to show, and the objects over them; false when there is nothing.
-bool usedExtent(const PrintRequest &q, const Axis &rows, const Axis &cols, quint32 *lastRow, quint32 *lastCol)
-{
-    bool any = false;
-    quint32 r = 0, c = 0;
-    std::vector<signed char> shows(q.styles ? size_t(q.styles->formats.size()) : 0, -1);
-    q.sheet->cells.forEachRowTail([&](const jp::office::sheet::Cell &cell) {
-        bool counts = cell.type != CellType::Empty || cell.hasFormula();
-        if (!counts && q.styles && cell.style != 0 && cell.style < quint32(shows.size())) {
-            signed char &s = shows[cell.style];
-            if (s < 0) s = formatShows(*q.styles, cell.style) ? 1 : 0;
-            counts = s == 1;
+// The last row and column of the cells that have something to show, and the objects over them, found a step at a time (see Work): first the cells, a row at a time from the last row up, then
+// the merged ranges, then the objects. `any` is false when there is nothing.
+class UsedScan {
+public:
+    UsedScan(const PrintRequest &q, const Axis &rows, const Axis &cols) : m_q(q), m_rows(rows), m_cols(cols), m_shows(q.styles ? size_t(q.styles->formats.size()) : 0, -1) {}
+
+    bool step(Work &work)
+    {
+        if (m_phase == 0) {
+            qint64 steps = 0;
+            const qint64 room = std::max<qint64>(1, work.limit - work.used);
+            const bool done = m_q.sheet->cells.forEachRowTailSome(&m_cursor, room, &steps, [&](const jp::office::sheet::Cell &cell) {
+                bool counts = cell.type != CellType::Empty || cell.hasFormula();
+                if (!counts && m_q.styles && cell.style != 0 && cell.style < quint32(m_shows.size())) {
+                    signed char &s = m_shows[cell.style];
+                    if (s < 0) s = formatShows(*m_q.styles, cell.style) ? 1 : 0;
+                    counts = s == 1;
+                }
+                if (!counts) return false;
+                any = true;
+                lastRow = std::max(lastRow, cell.row);
+                lastCol = std::max<quint32>(lastCol, cell.col);
+                return true;
+            });
+            work.add(steps);
+            if (!done) return false;
+            m_phase = 1;
         }
-        if (!counts) return false;
-        any = true;
-        r = std::max(r, cell.row);
-        c = std::max<quint32>(c, cell.col);
-        return true;
-    });
-    if (any) {
-        // a merged range with its first cell in the block reaches to its last
-        for (const CellRange &m : q.sheet->merges)
-            if (m.valid && m.row1 <= r && m.col1 <= c) {
-                if (q.sheet->cells.find(m.row1, m.col1)) {
-                    r = std::max(r, m.row2);
-                    c = std::max(c, m.col2);
+        if (m_phase == 1) {
+            // a merged range with its first cell in the block reaches to its last
+            while (any && m_at < size_t(m_q.sheet->merges.size())) {
+                if (work.spent()) return false;
+                const CellRange &m = m_q.sheet->merges[qsizetype(m_at++)];
+                work.add();
+                if (m.valid && m.row1 <= lastRow && m.col1 <= lastCol && m_q.sheet->cells.find(m.row1, m.col1)) {
+                    lastRow = std::max(lastRow, m.row2);
+                    lastCol = std::max(lastCol, m.col2);
                 }
             }
+            m_phase = 2;
+            m_at = 0;
+        }
+        while (m_at < m_q.objects.size()) {
+            if (work.spent()) return false;
+            const ObjectBox &b = m_q.objects[m_at++];
+            work.add();
+            if (b.isNothing()) continue;
+            const qint64 right = qint64(std::min(1e12, (b.x + b.w) * m_q.colFine)) - 1, bottom = qint64(std::min(1e12, (b.y + b.h) * m_q.rowFine)) - 1;
+            qint64 oc = m_cols.indexAt(std::max<qint64>(0, right)), orow = m_rows.indexAt(std::max<qint64>(0, bottom));
+            if (oc < 0) oc = m_cols.count() - 1;
+            if (orow < 0) orow = m_rows.count() - 1;
+            any = true;
+            lastRow = std::max<quint32>(lastRow, quint32(orow));
+            lastCol = std::max<quint32>(lastCol, quint32(oc));
+        }
+        return true;
     }
-    for (const ObjectBox &b : q.objects) {
-        if (b.isNothing()) continue;
-        const qint64 right = qint64(std::min(1e12, (b.x + b.w) * q.colFine)) - 1, bottom = qint64(std::min(1e12, (b.y + b.h) * q.rowFine)) - 1;
-        qint64 oc = cols.indexAt(std::max<qint64>(0, right)), orow = rows.indexAt(std::max<qint64>(0, bottom));
-        if (oc < 0) oc = cols.count() - 1;
-        if (orow < 0) orow = rows.count() - 1;
-        any = true;
-        r = std::max<quint32>(r, quint32(orow));
-        c = std::max<quint32>(c, quint32(oc));
-    }
-    *lastRow = r;
-    *lastCol = c;
-    return any;
-}
+
+    bool any = false;
+    quint32 lastRow = 0, lastCol = 0;
+
+private:
+    const PrintRequest &m_q;
+    const Axis &m_rows, &m_cols;
+    std::vector<signed char> m_shows;
+    jp::office::sheet::CellStore::RowTailCursor m_cursor;
+    int m_phase = 0;
+    size_t m_at = 0;
+};
 
 // Takes the hidden rows and columns off the ends of a block; false if no row or no column of it shows.
 bool trimHidden(const Axis &rows, const Axis &cols, CellRange *b)
@@ -219,23 +367,28 @@ CellRange held(const CellRange &r, const Axis &rows, const Axis &cols)
     return out;
 }
 
-std::vector<CellRange> blocksOf(const PrintRequest &q, const Axis &rows, const Axis &cols)
+// What the scan for the extent of the used cells found, once it was needed.
+struct UsedState {
+    bool known = false, any = false;
+    quint32 row = 0, col = 0;
+    bool wanted = false;   // blocksOf could not go on without it (the blocks it gave are not the blocks)
+};
+
+std::vector<CellRange> blocksOf(const PrintRequest &q, const Axis &rows, const Axis &cols, UsedState *used)
 {
     std::vector<CellRange> blocks;
     if (!q.sheet) return blocks;
     // Whole rows (or whole columns) are printed as far as the sheet has anything: a print area of $1:$1048576 is not a million rows of paper.
-    bool usedKnown = false, anyUsed = false;
-    quint32 usedRow = 0, usedCol = 0;
     auto wholeLines = [&](CellRange b, CellRange *out) {
         const bool wholeColumns = b.row1 == 0 && qint64(b.row2) >= rows.count() - 1, wholeRows = b.col1 == 0 && qint64(b.col2) >= cols.count() - 1;
         if (wholeColumns || wholeRows) {
-            if (!usedKnown) {
-                usedKnown = true;
-                anyUsed = usedExtent(q, rows, cols, &usedRow, &usedCol);
+            if (!used->known) {
+                used->wanted = true;
+                return false;
             }
-            if (!anyUsed) return false;
-            if (wholeColumns) b.row2 = std::min(b.row2, usedRow);
-            if (wholeRows) b.col2 = std::min(b.col2, usedCol);
+            if (!used->any) return false;
+            if (wholeColumns) b.row2 = std::min(b.row2, used->row);
+            if (wholeRows) b.col2 = std::min(b.col2, used->col);
         }
         *out = b;
         return true;
@@ -248,17 +401,17 @@ std::vector<CellRange> blocksOf(const PrintRequest &q, const Axis &rows, const A
             CellRange h = held(a, rows, cols);
             if (h.valid && wholeLines(h, &h)) blocks.push_back(h);
         }
-    } else {
-        quint32 lastRow = 0, lastCol = 0;
-        if (usedExtent(q, rows, cols, &lastRow, &lastCol)) {
-            CellRange all;
-            all.valid = true;
-            all.row1 = 0;
-            all.col1 = 0;
-            all.row2 = std::min<quint32>(lastRow, quint32(rows.count() - 1));
-            all.col2 = std::min<quint32>(lastCol, quint32(cols.count() - 1));
-            blocks.push_back(all);
-        }
+    } else if (!used->known) {
+        used->wanted = true;
+        return blocks;
+    } else if (used->any) {
+        CellRange all;
+        all.valid = true;
+        all.row1 = 0;
+        all.col1 = 0;
+        all.row2 = std::min<quint32>(used->row, quint32(rows.count() - 1));
+        all.col2 = std::min<quint32>(used->col, quint32(cols.count() - 1));
+        blocks.push_back(all);
     }
     std::vector<CellRange> shown;
     for (CellRange b : blocks)
@@ -277,51 +430,80 @@ struct Titles {
     double extent = 0;              // the axis's units
 };
 
-// Cuts [first, last] of an axis into the bands that fit `capacity` pixels (less the titles' extent for a band after them), a new one at each break. Gives how many bands there are; the first
-// `keep` of them are put in `out`.
-qint64 cutAxis(const Axis &axis, qint64 first, qint64 last, double capacity, const Titles &titles, const std::vector<qint64> &breaks, qint64 keep, std::vector<Band> *out)
-{
-    qint64 bands = 0;
-    qint64 pos = axis.nextVisible(first - 1);
-    // Breaks among the hidden rows at the start each close a page too, the first of them one of rows that are all hidden: a blank page.
-    if (!breaks.empty() && pos <= last && pos < axis.count()) {
-        const auto lo = std::upper_bound(breaks.begin(), breaks.end(), first);   // (a break at the first row begins nothing before it)
-        const auto hi = std::upper_bound(lo, breaks.end(), pos);
-        for (auto it = lo; it != hi; ++it) {
-            const qint64 from = it == lo ? first : *(it - 1);
-            if (out && bands < keep) out->push_back({from, *it - 1, titles.last >= 0 && titles.extent * 2 <= capacity && from > titles.last});
-            ++bands;
-        }
+// Cuts [first, last] of an axis into the bands that fit `capacity` pixels (less the titles' extent for a band after them), a new one at each break, a band at a time (see Work). The number of
+// bands is `bands`; the first `keep` of them are put in `out`.
+class BandCutter {
+public:
+    BandCutter(const Axis &axis, qint64 first, qint64 last, double capacity, const Titles &titles, std::vector<qint64> breaks, qint64 keep, std::vector<Band> *out)
+        : m_axis(&axis), m_first(first), m_last(last), m_capacity(capacity), m_titles(titles), m_breaks(std::move(breaks)), m_keep(keep), m_out(out)
+    {
     }
-    while (pos <= last && pos < axis.count()) {
-        // (titles that take more than half a page leave no room for the sheet: they are not repeated, rather than one row a page under a page of titles)
-        const bool titled = titles.last >= 0 && titles.extent * 2 <= capacity && pos > titles.last;
-        const double cap = std::max(1.0, capacity - (titled ? titles.extent : 0.0));
-        qint64 limit = last;
-        const auto next = std::upper_bound(breaks.begin(), breaks.end(), pos);
-        if (next != breaks.end()) limit = std::min(limit, *next - 1);
-        const double start = double(axis.position(pos));
-        const qint64 reach = qint64(std::floor(start + cap + 1e-6));
-        const qint64 row = axis.indexAt(reach);
-        qint64 end = row < 0 ? axis.count() - 1 : row - 1;
-        end = std::min(std::max(end, pos), limit);
-        if (out && bands < keep) out->push_back({pos, end, titled});
-        ++bands;
-        const qint64 nextPos = axis.nextVisible(end);
-        // Rows that are all hidden between two manual breaks still make a page (a blank one, with its header and footer and the titles): the breaks that fall in the hidden rows between this
-        // band and the next each close a page. (The common programs do so: a sheet filtered down to a few rows of a list that has a break every page keeps all those pages.)
-        if (!breaks.empty() && nextPos <= last && nextPos < axis.count()) {
-            const auto lo = std::upper_bound(breaks.begin(), breaks.end(), end);
-            const auto hi = std::upper_bound(lo, breaks.end(), nextPos);
-            for (auto it = lo; it != hi && it + 1 != hi; ++it) {
-                if (out && bands < keep) out->push_back({*it, *(it + 1) - 1, titles.last >= 0 && titles.extent * 2 <= capacity && *it > titles.last});
-                ++bands;
+
+    qint64 bands = 0;
+
+    bool step(Work &w)
+    {
+        const Axis &axis = *m_axis;
+        const std::vector<qint64> &breaks = m_breaks;
+        if (!m_started) {
+            m_started = true;
+            m_pos = axis.nextVisible(m_first - 1);
+            // Breaks among the hidden rows at the start each close a page too, the first of them one of rows that are all hidden: a blank page.
+            if (!breaks.empty() && m_pos <= m_last && m_pos < axis.count()) {
+                const auto lo = std::upper_bound(breaks.begin(), breaks.end(), m_first);   // (a break at the first row begins nothing before it)
+                const auto hi = std::upper_bound(lo, breaks.end(), m_pos);
+                for (auto it = lo; it != hi; ++it) {
+                    const qint64 from = it == lo ? m_first : *(it - 1);
+                    if (m_out && bands < m_keep) m_out->push_back({from, *it - 1, m_titles.last >= 0 && m_titles.extent * 2 <= m_capacity && from > m_titles.last});
+                    ++bands;
+                }
+                w.add(hi - lo);
             }
         }
-        pos = nextPos;
+        while (m_pos <= m_last && m_pos < axis.count()) {
+            if (w.spent()) return false;
+            w.add();
+            // (titles that take more than half a page leave no room for the sheet: they are not repeated, rather than one row a page under a page of titles)
+            const bool titled = m_titles.last >= 0 && m_titles.extent * 2 <= m_capacity && m_pos > m_titles.last;
+            const double cap = std::max(1.0, m_capacity - (titled ? m_titles.extent : 0.0));
+            qint64 limit = m_last;
+            const auto next = std::upper_bound(breaks.begin(), breaks.end(), m_pos);
+            if (next != breaks.end()) limit = std::min(limit, *next - 1);
+            const double start = double(axis.position(m_pos));
+            const qint64 reach = qint64(std::floor(start + cap + 1e-6));
+            const qint64 row = axis.indexAt(reach);
+            qint64 end = row < 0 ? axis.count() - 1 : row - 1;
+            end = std::min(std::max(end, m_pos), limit);
+            if (m_out && bands < m_keep) m_out->push_back({m_pos, end, titled});
+            ++bands;
+            const qint64 nextPos = axis.nextVisible(end);
+            // Rows that are all hidden between two manual breaks still make a page (a blank one, with its header and footer and the titles): the breaks that fall in the hidden rows between this
+            // band and the next each close a page. (The common programs do so: a sheet filtered down to a few rows of a list that has a break every page keeps all those pages.)
+            if (!breaks.empty() && nextPos <= m_last && nextPos < axis.count()) {
+                const auto lo = std::upper_bound(breaks.begin(), breaks.end(), end);
+                const auto hi = std::upper_bound(lo, breaks.end(), nextPos);
+                for (auto it = lo; it != hi && it + 1 != hi; ++it) {
+                    if (m_out && bands < m_keep) m_out->push_back({*it, *(it + 1) - 1, m_titles.last >= 0 && m_titles.extent * 2 <= m_capacity && *it > m_titles.last});
+                    ++bands;
+                }
+                w.add(hi - lo);
+            }
+            m_pos = nextPos;
+        }
+        return true;
     }
-    return bands;
-}
+
+private:
+    const Axis *m_axis;
+    qint64 m_first, m_last;
+    double m_capacity;
+    Titles m_titles;
+    std::vector<qint64> m_breaks;
+    qint64 m_keep;
+    std::vector<Band> *m_out;
+    bool m_started = false;
+    qint64 m_pos = 0;
+};
 
 std::vector<qint64> breaksIn(const QVector<jp::office::sheet::PageBreak> &list, qint64 first, qint64 last)
 {
@@ -358,11 +540,24 @@ struct Context {
 // The capacity of a page in the axis's units (`fine` to the grid's pixel) at the scale (a fraction); the headings are in pixels.
 double capacityOf(double points, double scale, double headingPixels, int fine) { return (points / kPointsPerPixel / scale - headingPixels) * fine; }
 
-// How many bands the block needs each way at the scale (the breaks are not looked at).
-void bandCounts(const Context &c, const CellRange &b, double scale, qint64 *rowBands, qint64 *colBands)
+} // namespace
+
+namespace {
+
+// The blocks that print, found with no limit on the work.
+std::vector<CellRange> blocksNow(const PrintRequest &q, const Axis &rows, const Axis &cols)
 {
-    *rowBands = cutAxis(*c.rows, b.row1, b.row2, capacityOf(c.contentH, scale, c.headings ? kColumnHeadingPixels : 0, c.rowFine), c.titleRows, {}, 0, nullptr);
-    *colBands = cutAxis(*c.cols, b.col1, b.col2, capacityOf(c.contentW, scale, c.headings ? kRowHeadingPixels : 0, c.colFine), c.titleCols, {}, 0, nullptr);
+    UsedState used;
+    std::vector<CellRange> blocks = blocksOf(q, rows, cols, &used);
+    if (!used.wanted) return blocks;
+    UsedScan scan(q, rows, cols);
+    Work all;
+    scan.step(all);
+    used.known = true;
+    used.any = scan.any;
+    used.row = scan.lastRow;
+    used.col = scan.lastCol;
+    return blocksOf(q, rows, cols, &used);
 }
 
 } // namespace
@@ -370,113 +565,280 @@ void bandCounts(const Context &c, const CellRange &b, double scale, qint64 *rowB
 std::vector<CellRange> printedBlocks(const PrintRequest &request)
 {
     if (!request.rows || !request.cols) return {};
-    return blocksOf(request, withoutSkips(request.rows), withoutSkips(request.cols));
+    return blocksNow(request, withoutSkips(request.rows), withoutSkips(request.cols));
 }
+
+struct PaginateTask::Impl {
+    enum class Stage { Blocks, Scan, Fit, Pages, Done };
+    // the stages of the fit: the whole sheet at the ceiling, at the least, and then between them
+    enum class Fit { Ceiling, Least, Between, Done };
+
+    PrintRequest q;
+    Axis rows, cols;
+    SheetPrint out;
+    Context c;
+    Stage stage = Stage::Blocks;
+    UsedState used;
+    std::unique_ptr<UsedScan> scan;
+    bool fit = false;
+    int percent = 100;
+    double scale = 1;
+
+    // the fit
+    Fit fitStage = Fit::Ceiling;
+    int ceiling = 100, lo = 0, hi = 0, probing = 0;
+    size_t probeArea = 0;
+    int probeAxis = 0;
+    qint64 probeRows = 0;
+    std::unique_ptr<BandCutter> probe;
+
+    // the pages
+    qint64 room = 0;
+    size_t area = 0;
+    int pageStage = 0;
+    std::vector<Band> rowBands, colBands;
+    std::unique_ptr<BandCutter> rowCut, colCut;
+    qint64 emitted = 0;
+
+    explicit Impl(const PrintRequest &request) : q(request)
+    {
+        if (!q.sheet || !q.rows || !q.cols) {
+            stage = Stage::Done;
+            return;
+        }
+        rows = withoutSkips(q.rows);
+        cols = withoutSkips(q.cols);
+        const PageSetup &setup = q.setup;
+        out.paper = paperBox(setup);
+        out.headings = setup.headings;
+        percent = std::clamp(setup.scale, kMinPageScale, kMaxPageScale);
+        c.rows = &rows;
+        c.cols = &cols;
+        c.contentW = out.paper.content().width();
+        c.contentH = out.paper.content().height();
+        c.headings = setup.headings;
+        c.rowFine = std::clamp(q.rowFine, 1, 64);
+        c.colFine = std::clamp(q.colFine, 1, 64);
+        c.titleRows = titlesOf(rows, setup.titles.hasRows, setup.titles.row1, setup.titles.row2);
+        c.titleCols = titlesOf(cols, setup.titles.hasCols, setup.titles.col1, setup.titles.col2);
+        fit = setup.fitToPage && (setup.fitToWidth > 0 || setup.fitToHeight > 0);
+        room = std::max(1, q.maxPages);
+    }
+
+    double capacityRows(double sc) const { return capacityOf(c.contentH, sc, c.headings ? kColumnHeadingPixels : 0, c.rowFine); }
+    double capacityCols(double sc) const { return capacityOf(c.contentW, sc, c.headings ? kRowHeadingPixels : 0, c.colFine); }
+
+    // Whether the sheet fits the pages asked for at the percent (the blocks cut each way, the breaks not looked at); false until the answer is known.
+    bool probeStep(Work &w, int pct, bool *fits)
+    {
+        const PageSetup &setup = q.setup;
+        while (probeArea < out.areas.size()) {
+            const CellRange &b = out.areas[probeArea];
+            if (!probe) {
+                probe = probeAxis == 0 ? std::make_unique<BandCutter>(rows, b.row1, b.row2, capacityRows(pct / 100.0), c.titleRows, std::vector<qint64>(), 0, nullptr)
+                                       : std::make_unique<BandCutter>(cols, b.col1, b.col2, capacityCols(pct / 100.0), c.titleCols, std::vector<qint64>(), 0, nullptr);
+            }
+            if (!probe->step(w)) return false;
+            const qint64 n = probe->bands;
+            probe.reset();
+            if (probeAxis == 0) {
+                probeRows = n;
+                probeAxis = 1;
+            } else {
+                probeAxis = 0;
+                ++probeArea;
+                if ((setup.fitToHeight > 0 && probeRows > setup.fitToHeight) || (setup.fitToWidth > 0 && n > setup.fitToWidth)) {
+                    *fits = false;
+                    probeArea = 0;
+                    return true;
+                }
+            }
+        }
+        *fits = true;
+        probeArea = 0;
+        return true;
+    }
+
+    // The scale: the percent that was asked, or the largest that fits the pages asked for.
+    bool fitStep(Work &w)
+    {
+        for (;;) {
+            bool fits = false;
+            switch (fitStage) {
+            case Fit::Ceiling:
+                if (!probeStep(w, ceiling, &fits)) return false;
+                if (fits) {
+                    percent = ceiling;
+                    fitStage = Fit::Done;
+                } else {
+                    fitStage = Fit::Least;
+                }
+                break;
+            case Fit::Least:
+                if (!probeStep(w, kMinPageScale, &fits)) return false;
+                if (!fits) {
+                    percent = kMinPageScale;
+                    out.tooSmall = true;
+                    fitStage = Fit::Done;
+                } else {
+                    lo = kMinPageScale;   // fits at lo, not at hi
+                    hi = ceiling;
+                    probing = 0;
+                    fitStage = Fit::Between;
+                }
+                break;
+            case Fit::Between:
+                if (hi - lo <= 1) {
+                    percent = lo;
+                    fitStage = Fit::Done;
+                    break;
+                }
+                if (!probeStep(w, (lo + hi) / 2, &fits)) return false;
+                if (fits) lo = (lo + hi) / 2;
+                else hi = (lo + hi) / 2;
+                break;
+            case Fit::Done: return true;
+            }
+        }
+    }
+
+    bool add(qint64 ri, qint64 ci, qint64 nr, qint64 nc, size_t areaIndex)
+    {
+        if (qint64(out.pages.size()) >= room) {
+            out.truncated = true;
+            return false;
+        }
+        PageCut p;
+        p.area = int(areaIndex);
+        p.row1 = rowBands[size_t(ri)].first;
+        p.row2 = rowBands[size_t(ri)].last;
+        p.col1 = colBands[size_t(ci)].first;
+        p.col2 = colBands[size_t(ci)].last;
+        if (rowBands[size_t(ri)].titled) {
+            p.titleRow1 = c.titleRows.first;
+            p.titleRow2 = c.titleRows.last;
+        }
+        if (colBands[size_t(ci)].titled) {
+            p.titleCol1 = c.titleCols.first;
+            p.titleCol2 = c.titleCols.last;
+        }
+        p.rowBand = int(ri);
+        p.colBand = int(ci);
+        p.rowBands = int(std::min<qint64>(nr, 1 << 30));
+        p.colBands = int(std::min<qint64>(nc, 1 << 30));
+        out.pages.push_back(p);
+        return true;
+    }
+
+    bool pagesStep(Work &w)
+    {
+        const PageSetup &setup = q.setup;
+        while (area < out.areas.size()) {
+            const CellRange &b = out.areas[area];
+            if (w.spent()) return false;
+            if (pageStage == 0) {
+                const std::vector<qint64> rowBreaks = fit ? std::vector<qint64>() : breaksIn(setup.rowBreaks, b.row1, b.row2);
+                const std::vector<qint64> colBreaks = fit ? std::vector<qint64>() : breaksIn(setup.colBreaks, b.col1, b.col2);
+                w.add(qint64(rowBreaks.size() + colBreaks.size()));
+                rowBands.clear();
+                colBands.clear();
+                rowCut = std::make_unique<BandCutter>(rows, b.row1, b.row2, capacityRows(scale), c.titleRows, rowBreaks, room, &rowBands);
+                colCut = std::make_unique<BandCutter>(cols, b.col1, b.col2, capacityCols(scale), c.titleCols, colBreaks, room, &colBands);
+                pageStage = 1;
+            }
+            if (pageStage == 1) {
+                if (!rowCut->step(w)) return false;
+                pageStage = 2;
+            }
+            if (pageStage == 2) {
+                if (!colCut->step(w)) return false;
+                out.pagesNeeded += rowCut->bands * colCut->bands;
+                emitted = 0;
+                pageStage = 3;
+            }
+            const qint64 nr = rowCut->bands, nc = colCut->bands;
+            const qint64 rn = qint64(rowBands.size()), cn = qint64(colBands.size());
+            bool more = true;
+            while (more && emitted < rn * cn) {
+                if (w.spent()) return false;
+                const bool overFirst = setup.pageOrder == PageOrder::OverThenDown;
+                const qint64 ri = overFirst ? emitted / cn : emitted % rn, ci = overFirst ? emitted % cn : emitted / rn;
+                more = add(ri, ci, nr, nc, area);
+                ++emitted;
+                w.add();
+            }
+            if (nr * nc > 0 && nr * nc > room && qint64(out.pages.size()) >= room) out.truncated = true;
+            rowCut.reset();
+            colCut.reset();
+            rowBands.clear();
+            colBands.clear();
+            pageStage = 0;
+            ++area;
+        }
+        return true;
+    }
+
+    bool step(Work &w)
+    {
+        for (;;) {
+            switch (stage) {
+            case Stage::Done: return true;
+            case Stage::Blocks: {
+                if (w.spent()) return false;
+                out.areas = blocksOf(q, rows, cols, &used);
+                if (used.wanted) {
+                    scan = std::make_unique<UsedScan>(q, rows, cols);
+                    stage = Stage::Scan;
+                    break;
+                }
+                if (out.areas.empty()) {
+                    out.scalePercent = percent;
+                    stage = Stage::Done;
+                    break;
+                }
+                ceiling = std::clamp(q.fitCeiling, kMinPageScale, kMaxPageScale);
+                out.fitted = fit;
+                stage = fit ? Stage::Fit : Stage::Pages;
+                if (!fit) scale = percent / 100.0;
+                break;
+            }
+            case Stage::Scan:
+                if (!scan->step(w)) return false;
+                used.known = true;
+                used.wanted = false;
+                used.any = scan->any;
+                used.row = scan->lastRow;
+                used.col = scan->lastCol;
+                scan.reset();
+                stage = Stage::Blocks;
+                break;
+            case Stage::Fit:
+                if (!fitStep(w)) return false;
+                out.scalePercent = percent;
+                scale = percent / 100.0;
+                stage = Stage::Pages;
+                break;
+            case Stage::Pages:
+                out.scalePercent = percent;
+                if (!pagesStep(w)) return false;
+                stage = Stage::Done;
+                break;
+            }
+        }
+    }
+};
+
+PaginateTask::PaginateTask(const PrintRequest &request) : d(std::make_unique<Impl>(request)) {}
+PaginateTask::~PaginateTask() = default;
+bool PaginateTask::step(Work &work) { return d->step(work); }
+SheetPrint PaginateTask::take() { return std::move(d->out); }
 
 SheetPrint paginate(const PrintRequest &request)
 {
-    SheetPrint out;
-    if (!request.sheet || !request.rows || !request.cols) return out;
-    const Axis rows = withoutSkips(request.rows), cols = withoutSkips(request.cols);
-    const PageSetup &setup = request.setup;
-    out.paper = paperBox(setup);
-    out.areas = blocksOf(request, rows, cols);
-    out.headings = setup.headings;
-    int percent = std::clamp(setup.scale, kMinPageScale, kMaxPageScale);
-    if (out.areas.empty()) {
-        out.scalePercent = percent;
-        return out;
-    }
-    Context c;
-    c.rows = &rows;
-    c.cols = &cols;
-    c.contentW = out.paper.content().width();
-    c.contentH = out.paper.content().height();
-    c.headings = setup.headings;
-    c.rowFine = std::clamp(request.rowFine, 1, 64);
-    c.colFine = std::clamp(request.colFine, 1, 64);
-    c.titleRows = titlesOf(rows, setup.titles.hasRows, setup.titles.row1, setup.titles.row2);
-    c.titleCols = titlesOf(cols, setup.titles.hasCols, setup.titles.col1, setup.titles.col2);
-
-    // ---- the scale
-    const bool fit = setup.fitToPage && (setup.fitToWidth > 0 || setup.fitToHeight > 0);
-    if (fit) {
-        auto fits = [&](int pct) {
-            for (const CellRange &b : out.areas) {
-                qint64 r = 0, k = 0;
-                bandCounts(c, b, pct / 100.0, &r, &k);
-                if ((setup.fitToHeight > 0 && r > setup.fitToHeight) || (setup.fitToWidth > 0 && k > setup.fitToWidth)) return false;
-            }
-            return true;
-        };
-        const int ceiling = std::clamp(request.fitCeiling, kMinPageScale, kMaxPageScale);
-        out.fitted = true;
-        if (fits(ceiling)) {
-            percent = ceiling;
-        } else if (!fits(kMinPageScale)) {
-            percent = kMinPageScale;
-            out.tooSmall = true;
-        } else {
-            int lo = kMinPageScale, hi = ceiling;   // fits at lo, not at hi
-            while (hi - lo > 1) {
-                const int mid = (lo + hi) / 2;
-                if (fits(mid)) lo = mid;
-                else hi = mid;
-            }
-            percent = lo;
-        }
-    }
-    out.scalePercent = percent;
-    const double scale = percent / 100.0;
-
-    // ---- the pages
-    const qint64 room = std::max(1, request.maxPages);
-    int areaIndex = 0;
-    for (const CellRange &b : out.areas) {
-        const std::vector<qint64> rowBreaks = fit ? std::vector<qint64>() : breaksIn(setup.rowBreaks, b.row1, b.row2);
-        const std::vector<qint64> colBreaks = fit ? std::vector<qint64>() : breaksIn(setup.colBreaks, b.col1, b.col2);
-        std::vector<Band> rowBands, colBands;
-        const qint64 nr = cutAxis(rows, b.row1, b.row2, capacityOf(c.contentH, scale, c.headings ? kColumnHeadingPixels : 0, c.rowFine), c.titleRows, rowBreaks, room, &rowBands);
-        const qint64 nc = cutAxis(cols, b.col1, b.col2, capacityOf(c.contentW, scale, c.headings ? kRowHeadingPixels : 0, c.colFine), c.titleCols, colBreaks, room, &colBands);
-        out.pagesNeeded += nr * nc;
-        auto add = [&](qint64 ri, qint64 ci) {
-            if (qint64(out.pages.size()) >= room) {
-                out.truncated = true;
-                return false;
-            }
-            PageCut p;
-            p.area = areaIndex;
-            p.row1 = rowBands[size_t(ri)].first;
-            p.row2 = rowBands[size_t(ri)].last;
-            p.col1 = colBands[size_t(ci)].first;
-            p.col2 = colBands[size_t(ci)].last;
-            if (rowBands[size_t(ri)].titled) {
-                p.titleRow1 = c.titleRows.first;
-                p.titleRow2 = c.titleRows.last;
-            }
-            if (colBands[size_t(ci)].titled) {
-                p.titleCol1 = c.titleCols.first;
-                p.titleCol2 = c.titleCols.last;
-            }
-            p.rowBand = int(ri);
-            p.colBand = int(ci);
-            p.rowBands = int(std::min<qint64>(nr, 1 << 30));
-            p.colBands = int(std::min<qint64>(nc, 1 << 30));
-            out.pages.push_back(p);
-            return true;
-        };
-        bool more = true;
-        if (setup.pageOrder == PageOrder::OverThenDown) {
-            for (qint64 ri = 0; more && ri < qint64(rowBands.size()); ++ri)
-                for (qint64 ci = 0; more && ci < qint64(colBands.size()); ++ci) more = add(ri, ci);
-        } else {
-            for (qint64 ci = 0; more && ci < qint64(colBands.size()); ++ci)
-                for (qint64 ri = 0; more && ri < qint64(rowBands.size()); ++ri) more = add(ri, ci);
-        }
-        if (nr * nc > 0 && nr * nc > room && qint64(out.pages.size()) >= room) out.truncated = true;
-        ++areaIndex;
-    }
-    return out;
+    PaginateTask task(request);
+    Work all;
+    task.step(all);
+    return task.take();
 }
 
 } // namespace jp::grid

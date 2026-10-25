@@ -80,10 +80,6 @@ double BookPrintSource::baseFontPoints() const { return m_book->book->styles().f
 
 // ---- the job
 
-PrintJob::PrintJob(std::unique_ptr<PrintSource> source, const PrintJobOptions &options) : m_source(std::move(source)), m_options(options) {}
-
-PrintJob::~PrintJob() = default;
-
 namespace {
 
 void applyChoices(PageSetup *s, const PrintJobOptions &o)
@@ -120,19 +116,48 @@ void applyChoices(PageSetup *s, const PrintJobOptions &o)
 
 } // namespace
 
+// What a build in slices holds between the slices: the sheets to cut, the one being cut, and the pieces of its cut.
+struct PrintJob::Build {
+    enum class Stage { Sheet, Rows, Pages, Finish };
+    QVector<int> sheets;
+    int at = 0;
+    int next = 1;
+    qint64 room = 0;
+    Stage stage = Stage::Sheet;
+    SheetInfo info;
+    jp::grid::Axis cutRows, cutCols;
+    jp::grid::PrintRequest request;     // (its axes are the two above)
+    std::unique_ptr<jp::grid::RowAxisTask> rowTask;
+    std::unique_ptr<jp::grid::PaginateTask> paginateTask;
+};
+
+PrintJob::PrintJob(std::unique_ptr<PrintSource> source, const PrintJobOptions &options) : m_source(std::move(source)), m_options(options) {}
+
+PrintJob::~PrintJob() = default;
+
 bool PrintJob::build(QString *why)
 {
+    if (!beginBuild(why)) return false;
+    jp::grid::Work all;
+    return buildStep(all, why) == BuildState::Done;
+}
+
+bool PrintJob::beginBuild(QString *why)
+{
     m_sheets.clear();
+    m_build.reset();
     // (the date and time the fields show are taken once for the whole job: every page of it has the same, and so has a page drawn again)
     m_now = m_options.now.isValid() ? m_options.now : m_options.clock ? m_options.clock() : QDateTime::currentDateTime();
     m_pages.clear();
     m_messages.clear();
     m_contexts.clear();
+    m_totalNumbers = 0;
     auto refuse = [&](const QString &text) {
         if (why) *why = text;
         return false;
     };
-    QVector<int> sheets;
+    auto build = std::make_unique<Build>();
+    QVector<int> &sheets = build->sheets;
     if (m_options.what == PrintWhat::Workbook) {
         for (int i = 0; i < m_source->sheetCount(); ++i)
             if (m_source->printable(i) && !m_source->hidden(i)) sheets << i;
@@ -142,49 +167,71 @@ bool PrintJob::build(QString *why)
         return refuse(QCoreApplication::translate("jp::crunch::PrintJob", "This sheet has no cells to print."));
     }
     if (sheets.isEmpty()) return refuse(QCoreApplication::translate("jp::crunch::PrintJob", "The workbook has no sheet to print."));
-    int next = 1;
-    qint64 room = std::max(1, m_options.maxPages);
-    for (int at = 0; at < sheets.size(); ++at) {
-        const int sheet = sheets[at];
-        SheetInfo info;
-        info.sheet = sheet;
-        info.setup = m_source->page(sheet);
-        applyChoices(&info.setup, m_options);
-        if (m_source->isChartSheet(sheet)) {
-            // A chart sheet is one page: the chart over the whole of the paper's room (the page's margins and its orientation say how large), at the page's own proportions.
-            info.chart = true;
-            const jp::grid::PaperBox paper = jp::grid::paperBox(info.setup);
-            const QRectF room = paper.content();
-            const int w = int(std::max(1.0, std::floor(room.width() / jp::grid::kPointsPerPixel))), h = int(std::max(1.0, std::floor(room.height() / jp::grid::kPointsPerPixel)));
-            auto geometry = std::make_shared<jp::grid::GridGeometry>();
-            geometry->layout.rows = jp::grid::Axis(1, h);
-            geometry->layout.cols = jp::grid::Axis(1, w);
-            info.geometry = geometry;
-            info.cols = geometry->layout.cols;
-            info.print.paper = paper;
-            jp::office::sheet::CellRange block;
-            block.valid = true;
-            info.print.areas.push_back(block);
-            info.print.pages.push_back(jp::grid::PageCut());
-            info.print.pages[0].row2 = info.print.pages[0].col2 = 0;
-            info.print.scalePercent = 100;
-        } else {
+    build->room = std::max(1, m_options.maxPages);
+    m_build = std::move(build);
+    return true;
+}
+
+PrintJob::BuildState PrintJob::buildStep(jp::grid::Work &work, QString *why)
+{
+    if (!m_build) {
+        if (why && why->isEmpty()) *why = QCoreApplication::translate("jp::crunch::PrintJob", "There is nothing to print.");
+        return m_pages.empty() ? BuildState::Failed : BuildState::Done;
+    }
+    Build &b = *m_build;
+    bool cutShort = false;
+    while (b.at < b.sheets.size() && !cutShort) {
+        const int sheet = b.sheets[b.at];
+        SheetInfo &info = b.info;
+        switch (b.stage) {
+        case Build::Stage::Sheet: {
+            if (work.spent()) return BuildState::Working;
+            info = SheetInfo();
+            info.sheet = sheet;
+            info.setup = m_source->page(sheet);
+            applyChoices(&info.setup, m_options);
+            work.add();
+            if (m_source->isChartSheet(sheet)) {
+                // A chart sheet is one page: the chart over the whole of the paper's room (the page's margins and its orientation say how large), at the page's own proportions.
+                info.chart = true;
+                const jp::grid::PaperBox paper = jp::grid::paperBox(info.setup);
+                const QRectF room = paper.content();
+                const int w = int(std::max(1.0, std::floor(room.width() / jp::grid::kPointsPerPixel))), h = int(std::max(1.0, std::floor(room.height() / jp::grid::kPointsPerPixel)));
+                auto geometry = std::make_shared<jp::grid::GridGeometry>();
+                geometry->layout.rows = jp::grid::Axis(1, h);
+                geometry->layout.cols = jp::grid::Axis(1, w);
+                info.geometry = geometry;
+                info.cols = geometry->layout.cols;
+                info.print.paper = paper;
+                jp::office::sheet::CellRange block;
+                block.valid = true;
+                info.print.areas.push_back(block);
+                info.print.pages.push_back(jp::grid::PageCut());
+                info.print.pages[0].row2 = info.print.pages[0].col2 = 0;
+                info.print.scalePercent = 100;
+                b.stage = Build::Stage::Finish;
+                break;
+            }
             GridData data = m_source->data(sheet);
-            if (!data.sheet || !data.styles) continue;
+            if (!data.sheet || !data.styles) {
+                ++b.at;
+                break;
+            }
             info.geometry = data.geometry ? data.geometry : std::shared_ptr<const jp::grid::GridGeometry>(GridSheet::makeGeometry(*data.sheet, *data.styles));
             info.cols = jp::grid::printColumnAxis(*data.sheet, *data.styles);   // (what the page is drawn by; the cuts are made by the finer ones below)
-            const jp::grid::Axis cutRows = jp::grid::printRowAxis(*data.sheet, jp::grid::kCutFine);
-            const jp::grid::Axis cutCols = jp::grid::printColumnAxis(*data.sheet, *data.styles, jp::grid::kCutFine);
+            b.cutCols = jp::grid::printColumnAxis(*data.sheet, *data.styles, jp::grid::kCutFine);
             std::vector<jp::grid::ObjectBox> boxes;
             {
                 PageObjectPainter objects(m_source->objects(sheet), info.geometry->layout.rows, info.cols);
                 if (!info.setup.draft) boxes = objects.boxes();
+                work.add(qint64(data.sheet->columns.size()) + qint64(objects.count()));
             }
-            jp::grid::PrintRequest q;
+            jp::grid::PrintRequest &q = b.request;
+            q = jp::grid::PrintRequest();
             q.sheet = data.sheet;
             q.styles = data.styles;
-            q.rows = &cutRows;
-            q.cols = &cutCols;
+            q.rows = &b.cutRows;
+            q.cols = &b.cutCols;
             q.rowFine = q.colFine = jp::grid::kCutFine;
             q.setup = info.setup;
             q.objects = boxes;
@@ -193,38 +240,63 @@ bool PrintJob::build(QString *why)
                 q.onlySelection = true;
                 q.selection = m_options.selection;
             }
-            q.maxPages = int(std::max<qint64>(1, std::min<qint64>(room, jp::grid::kMaxSheetPages)));
-            info.print = jp::grid::paginate(q);
-        }
-        if (info.print.pages.empty()) {
-            m_messages << QCoreApplication::translate("jp::crunch::PrintJob", "%1 has nothing to print.").arg(m_source->sheetName(sheet));
-            continue;
-        }
-        if (info.print.truncated)
-            m_messages << QCoreApplication::translate("jp::crunch::PrintJob", "%1 needs %2 pages. Only the first %3 are made. Print part of it, or make the pages larger, to get the rest.")
-                              .arg(m_source->sheetName(sheet)).arg(info.print.pagesNeeded).arg(info.print.pages.size());
-        if (info.print.tooSmall)
-            m_messages << QCoreApplication::translate("jp::crunch::PrintJob", "%1 does not fit the pages asked for even at 10%. It is printed at 10% on more pages.").arg(m_source->sheetName(sheet));
-        info.firstNumber = info.setup.useFirstPageNumber ? info.setup.firstPageNumber : next;
-        info.firstPage = int(m_pages.size());
-        for (size_t i = 0; i < info.print.pages.size(); ++i) {
-            Page p;
-            p.info = int(m_sheets.size());
-            p.index = int(i);
-            p.number = info.firstNumber + int(i);
-            m_pages.push_back(p);
-        }
-        next = info.firstNumber + int(info.print.pages.size());
-        room -= qint64(info.print.pages.size());
-        m_sheets.push_back(std::move(info));
-        if (room <= 0) {
-            if (at + 1 < sheets.size()) m_messages << QCoreApplication::translate("jp::crunch::PrintJob", "The job is cut short at %1 pages.").arg(m_options.maxPages);
+            q.maxPages = int(std::max<qint64>(1, std::min<qint64>(b.room, jp::grid::kMaxSheetPages)));
+            b.rowTask = std::make_unique<jp::grid::RowAxisTask>(*data.sheet, jp::grid::kCutFine);
+            b.stage = Build::Stage::Rows;
             break;
         }
+        case Build::Stage::Rows:
+            if (!b.rowTask->step(work)) return BuildState::Working;
+            b.cutRows = b.rowTask->take();
+            b.rowTask.reset();
+            b.paginateTask = std::make_unique<jp::grid::PaginateTask>(b.request);
+            b.stage = Build::Stage::Pages;
+            break;
+        case Build::Stage::Pages:
+            if (!b.paginateTask->step(work)) return BuildState::Working;
+            info.print = b.paginateTask->take();
+            b.paginateTask.reset();
+            b.stage = Build::Stage::Finish;
+            break;
+        case Build::Stage::Finish: {
+            b.stage = Build::Stage::Sheet;
+            ++b.at;
+            if (info.print.pages.empty()) {
+                m_messages << QCoreApplication::translate("jp::crunch::PrintJob", "%1 has nothing to print.").arg(m_source->sheetName(sheet));
+                break;
+            }
+            if (info.print.truncated)
+                m_messages << QCoreApplication::translate("jp::crunch::PrintJob", "%1 needs %2 pages. Only the first %3 are made. Print part of it, or make the pages larger, to get the rest.")
+                                  .arg(m_source->sheetName(sheet)).arg(info.print.pagesNeeded).arg(info.print.pages.size());
+            if (info.print.tooSmall)
+                m_messages << QCoreApplication::translate("jp::crunch::PrintJob", "%1 does not fit the pages asked for even at 10%. It is printed at 10% on more pages.").arg(m_source->sheetName(sheet));
+            info.firstNumber = info.setup.useFirstPageNumber ? info.setup.firstPageNumber : b.next;
+            info.firstPage = int(m_pages.size());
+            for (size_t i = 0; i < info.print.pages.size(); ++i) {
+                Page p;
+                p.info = int(m_sheets.size());
+                p.index = int(i);
+                p.number = info.firstNumber + int(i);
+                m_pages.push_back(p);
+            }
+            b.next = info.firstNumber + int(info.print.pages.size());
+            b.room -= qint64(info.print.pages.size());
+            m_sheets.push_back(std::move(info));
+            if (b.room <= 0) {
+                if (b.at < b.sheets.size()) m_messages << QCoreApplication::translate("jp::crunch::PrintJob", "The job is cut short at %1 pages.").arg(m_options.maxPages);
+                cutShort = true;
+            }
+            break;
+        }
+        }
     }
+    m_build.reset();
     m_totalNumbers = int(m_pages.size());
-    if (m_pages.empty()) return refuse(m_messages.isEmpty() ? QCoreApplication::translate("jp::crunch::PrintJob", "There is nothing to print.") : m_messages.join(QLatin1Char(' ')));
-    return true;
+    if (m_pages.empty()) {
+        if (why) *why = m_messages.isEmpty() ? QCoreApplication::translate("jp::crunch::PrintJob", "There is nothing to print.") : m_messages.join(QLatin1Char(' '));
+        return BuildState::Failed;
+    }
+    return BuildState::Done;
 }
 
 QSizeF PrintJob::pageSize(int page) const

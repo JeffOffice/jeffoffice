@@ -207,18 +207,18 @@ void CrunchWindow::connectPageSetup()
 {
     connect(m_session.get(), &crunch::EditSession::pageSetupChanged, this, [this](int sheet) {
         if (sheet == m_sheet) updatePageActions();
-        if (m_breaksArmed) m_breaksTimer.start();
+        if (m_breaksArmed) schedulePageBreaks();
     });
     // the lines where the pages begin follow the cells (the sizes, the rows and columns inserted, and what is typed are what the pages are cut by)
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, [this] {
-        if (m_breaksArmed) m_breaksTimer.start();
+        if (m_breaksArmed) schedulePageBreaks();
     });
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, [this] {
-        if (m_breaksArmed) m_breaksTimer.start();
+        if (m_breaksArmed) schedulePageBreaks();
     });
     // (and what is typed: a cell past the last one the pages ended at makes another page)
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, [this](int sheet, const std::vector<jp::grid::ValueStore::Item> &) {
-        if (m_breaksArmed && sheet == m_sheet) m_breaksTimer.start();
+        if (m_breaksArmed && sheet == m_sheet) schedulePageBreaks();
     });
     connect(m_session->undoStack(), &QUndoStack::indexChanged, this, [this] { updatePageActions(); });
     updatePageActions();
@@ -261,7 +261,7 @@ void CrunchWindow::updatePageActions()
         m_scaleBox->setEnabled(open && !fit);
     }
     m_updatingPage = false;
-    if (m_breaksArmed) m_breaksTimer.start();
+    if (m_breaksArmed) schedulePageBreaks();
 }
 
 void CrunchWindow::changePage(const QString &text, const std::function<void(PageSetup *)> &change)
