@@ -241,6 +241,7 @@ bool readDrawing(const Package &package, const QString &drawingPart, SheetDrawin
             out->objects.push_back(o);
         }
     }
+    out->rootChildren = ordinal + 1;
     return true;
 }
 
