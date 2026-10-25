@@ -51,6 +51,8 @@ constexpr int kMaxXmlDepth = 256;
 // outside), or passes one of the limits above (the parser is slow in depth,
 // and a stranger's file could stall it or use up the memory).
 bool parseXml(const QByteArray &xml, QDomDocument *doc, QString *error = nullptr);
+// How many bytes of XML parseXml has handed to the DOM's parser since the program began (what it refused beforehand it did not): a count for tests, which a clock cannot give.
+qint64 xmlBytesParsedByTheDomForTest();
 
 // The first child element named `local` in namespace `ns`; null if none.
 QDomElement child(const QDomElement &e, const QString &ns, const QString &local);

@@ -1,6 +1,5 @@
 // Tests of libs/office/wml: the tree the word processing parts are read into, and reading and writing a .docx.
 
-#include "../timing.h"
 #include "office/package.h"
 #include "office/xml.h"
 #include "wml/wml.h"
@@ -1293,20 +1292,20 @@ private Q_SLOTS:
         QVERIFY(fonts[2].family.isEmpty());
         QCOMPARE(fonts[3].charset, QStringLiteral("02"));
         QCOMPARE(fonts[3].pitch, QStringLiteral("fixed"));
-        auto seconds = [&](int count) {
+        auto refusedAt = [&](int count) {
             QByteArray many = QByteArray("<w:fonts ") + kW + ">";
             for (int i = 0; i < count; ++i) many += "<w:font ";
-            bool accepted = false;
-            const double best = bestNanoseconds([&] {
-                QVector<FontEntry> none;
-                if (readFonts(many, &none)) accepted = true;
-            }) / 1e9;
-            return accepted ? -1.0 : best;
+            QVector<FontEntry> none;
+            if (readFonts(many, &none)) return -1;
+            XmlTree tree;
+            QString why;
+            tree.parse(many, &why);
+            const QRegularExpressionMatch at = QRegularExpression(QStringLiteral("at byte (\\d+)")).match(why);
+            return at.hasMatch() ? at.captured(1).toInt() : -1;
         };
-        const double small = seconds(5000), large = seconds(20000);
-        QVERIFY(small >= 0 && large >= 0);
-        // (Four times the openers: four times the time, or sixteen when it is the square; and never more than a moment.)
-        QVERIFY2(large < 0.1 + small * 8, qPrintable(QStringLiteral("5000 openers %1 s, 20000 openers %2 s").arg(small).arg(large)));
+        // (The part is refused at its first unfinished tag, however many follow: the bytes read before that are counted, not the time.)
+        const int small = refusedAt(5000), large = refusedAt(20000);
+        QVERIFY2(small > 0 && small == large && small < 200, qPrintable(QStringLiteral("5000 openers refused at byte %1, 20000 at byte %2").arg(small).arg(large)));
         // More fonts than the limit have the rest left out.
         QByteArray huge = QByteArray("<w:fonts ") + kW + ">";
         for (int i = 0; i < kMaxFonts + 50; ++i) huge += "<w:font w:name=\"F" + QByteArray::number(i) + "\"/>";
@@ -2157,20 +2156,20 @@ private Q_SLOTS:
         }
         // Two hundred thousand paragraphs, each with runs, read in time in proportion to their number (ten times the paragraphs of twenty
         // thousand, about ten times as long: compared with each other, not with a clock), and written again.
-        auto readTime = [&](int count, Document *into) {
+        auto readSteps = [&](int count, Document *into) {
             QByteArray many;
             many.reserve(count * 80);
             for (int i = 0; i < count; ++i) many += "<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>word</w:t></w:r></w:p>";
             const QByteArray zip = Made{many, {}, {}, {}}.build();
-            bool ok = false;
-            const qint64 ns = bestNanoseconds([&] { ok = readDocx(zip, into, &err); });
-            return ok ? ns / 1e6 : 1e9;
+            const qint64 before = treeStepsForTest();
+            const bool ok = readDocx(zip, into, &err);
+            return ok ? treeStepsForTest() - before : qint64(-1);
         };
         Document small;
-        readTime(20000, &small);   // (the first of anything is slow)
-        const double few = std::max(readTime(20000, &small), 10.0), lots = readTime(200000, &d);
+        const qint64 few = readSteps(20000, &small), lots = readSteps(200000, &d);
         QCOMPARE(d.body.size(), 200000);
-        QVERIFY2(lots < 25 * few, qPrintable(QStringLiteral("20,000 paragraphs %1 ms, 200,000 paragraphs %2 ms").arg(few).arg(lots)));
+        // (Ten times the paragraphs: ten times the steps, where the square is a hundred times.)
+        QVERIFY2(few > 0 && lots < 12 * few, qPrintable(QStringLiteral("20,000 paragraphs %1 steps, 200,000 paragraphs %2 steps").arg(few).arg(lots)));
         QVERIFY(!writeDocx(d).isEmpty());
         // More elements than the limit allows are refused before the memory goes: 8,000,001 empty ones.
         QByteArray tooMany;

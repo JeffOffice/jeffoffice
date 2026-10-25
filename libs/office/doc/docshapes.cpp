@@ -120,6 +120,8 @@ struct Converter::Drawings {
     qint64 visits = 0;                     // the shapes walked over for all the places together, shown or not
 };
 
+qint64 Converter::shapeVisits() const { return m_drawings ? m_drawings->visits : 0; }
+
 void Converter::readDrawings()
 {
     if (m_drawings) return;

@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QXmlStreamReader>
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <string>
@@ -9,6 +10,8 @@
 namespace jp::office {
 
 namespace {
+
+std::atomic<qint64> g_domBytes{0};
 
 // Which standard's namespace a URI is, strict or transitional alike: 0 if it
 // is none of ours.
@@ -134,6 +137,8 @@ bool sameNamespace(const QString &a, const QString &b)
     return fa == 0 ? a == b : fa == family(b);
 }
 
+qint64 xmlBytesParsedByTheDomForTest() { return g_domBytes.load(); }
+
 bool parseXml(const QByteArray &xml, QDomDocument *doc, QString *error)
 {
     auto fail = [&](const QString &message) {
@@ -164,6 +169,7 @@ bool parseXml(const QByteArray &xml, QDomDocument *doc, QString *error)
     if (r.hasError()) return fail(r.errorString());
     QDomDocument::ParseOptions options(QDomDocument::ParseOption::UseNamespaceProcessing);
     options |= QDomDocument::ParseOption::PreserveSpacingOnlyNodes;
+    g_domBytes += xml.size();
     const QDomDocument::ParseResult result = doc->setContent(xml, options);
     if (!result) return fail(result.errorMessage);
     return true;
