@@ -21,6 +21,7 @@
 #include <QMenu>
 #include <QPainter>
 #include <QToolButton>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -214,7 +215,7 @@ void DeckWindow::addTableParts(RibbonParts &parts)
             QAction *a = act(command);
             auto *box = new QCheckBox(a->text());
             box->setObjectName(command);
-            box->setToolTip(a->text());
+            box->setToolTip(jp::plainToolTip(a->text()));
             box->setChecked(a->isChecked());
             connect(box, &QCheckBox::clicked, a, [a] { a->trigger(); });
             connect(a, &QAction::toggled, box, [box](bool on) {

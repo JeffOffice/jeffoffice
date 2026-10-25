@@ -216,12 +216,12 @@ QAction *CrunchWindow::mk(const QString &id, const QString &text, const QString 
     if (!key.isEmpty()) {
         a->setShortcut(key);
         a->setShortcutContext(Qt::WindowShortcut);
-        a->setToolTip(tr("%1 (%2)").arg(QString(text).remove('&'), key.toString(QKeySequence::NativeText)));
+        a->setToolTip(jp::plainToolTip(tr("%1 (%2)").arg(QString(text).remove('&'), key.toString(QKeySequence::NativeText))));
         addAction(a);
     }
     a->setCheckable(checkable);
     a->setEnabled(enabled);
-    if (!enabled) a->setToolTip(tr("%1: not available in JeffCrunch yet").arg(QString(text).remove('&')));
+    if (!enabled) a->setToolTip(jp::plainToolTip(tr("%1: not available in JeffCrunch yet").arg(QString(text).remove('&'))));
     // Each command counts by its id for the usage statistics (when they're on).
     connect(a, &QAction::triggered, this, [fn, id] {
         telemetry::count(id);
@@ -302,7 +302,7 @@ void CrunchWindow::buildStatusBar()
     m_status->setObjectName(QStringLiteral("statusText"));
     m_status->setMinimumWidth(220);
     sb->addWidget(m_status);
-    m_stats = new QLabel(this);
+    m_stats = plainLabel(new QLabel(this));
     m_stats->setObjectName(QStringLiteral("selectionStats"));
     sb->addPermanentWidget(m_stats);
     auto button = [&](const char *id) {
@@ -325,7 +325,7 @@ void CrunchWindow::buildStatusBar()
     connect(m_zoomSlider, &QSlider::valueChanged, this, [this](int v) { setViewZoom(std::pow(1.05, v)); });
     sb->addPermanentWidget(m_zoomSlider);
     button("zoom.in");
-    m_zoomLabel = new QLabel(QStringLiteral("100%"));
+    m_zoomLabel = plainLabel(new QLabel(QStringLiteral("100%")));
     m_zoomLabel->setMinimumWidth(44);
     m_zoomLabel->setObjectName(QStringLiteral("zoomPercent"));
     sb->addPermanentWidget(m_zoomLabel);

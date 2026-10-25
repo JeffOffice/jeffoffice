@@ -15,6 +15,7 @@
 #include <QTabBar>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -63,7 +64,7 @@ FindDialog::FindDialog(QWidget *parent) : QDialog(parent)
     m_lookIn->setAccessibleName(tr("What to search: formulas, values, or notes"));
     m_lookIn->addItems({tr("Formulas"), tr("Values"), tr("Notes")});
     auto addPair = [&](int row, int col, const QString &text, QWidget *w) {
-        auto *label = new QLabel(text);
+        auto *label = plainLabel(new QLabel(text));
         label->setBuddy(w);
         grid->addWidget(label, row, col);
         grid->addWidget(w, row, col + 1);
@@ -111,7 +112,7 @@ FindDialog::FindDialog(QWidget *parent) : QDialog(parent)
     m_results->setMinimumHeight(120);
     m_results->hide();
     layout->addWidget(m_results, 1);
-    m_status = new QLabel;
+    m_status = plainLabel(new QLabel);
     m_status->setObjectName(QStringLiteral("findStatus"));
     m_status->setAccessibleName(tr("Outcome of the search"));
     layout->addWidget(m_status);

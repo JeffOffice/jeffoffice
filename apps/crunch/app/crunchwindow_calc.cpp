@@ -14,6 +14,7 @@
 #include <QSpinBox>
 #include <QStatusBar>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -22,7 +23,7 @@ using jp::office::sheet::CalcMode;
 void CrunchWindow::createCalcActions()
 {
     // the note at the right of the status bar: formulas wait to be worked out, or some read themselves
-    m_calcNote = new QLabel(this);
+    m_calcNote = plainLabel(new QLabel(this));
     m_calcNote->setObjectName(QStringLiteral("calcNote"));
     statusBar()->insertPermanentWidget(0, m_calcNote);
     auto *modes = new QActionGroup(this);

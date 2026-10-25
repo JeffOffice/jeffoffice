@@ -58,6 +58,7 @@
 #include <QClipboard>
 #include <QMimeData>
 #include <QTextDocumentFragment>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -196,7 +197,7 @@ PageForm buildPageForm(QTabWidget *tabs, const PageSetup &s)
     f.top = measure(s.topMargin, page);
     f.gapH = measure(s.gapH, page);
     f.gapV = measure(s.gapV, page);
-    f.fits = new QLabel(page);
+    f.fits = plainLabel(new QLabel(page));
     f.layout->setObjectName("pageLayout");
     f.w->setObjectName("pageWidth");
     f.h->setObjectName("pageHeight");
@@ -481,7 +482,7 @@ void rulerGuidesDialog(QWidget *p, Editor *ed)
     auto side = [&](const QString &title, const QString &from, QVector<double> *list, double limit) {
         auto *box = new QGroupBox(title, &dlg.d);
         auto *v = new QVBoxLayout(box);
-        auto *hint = new QLabel(from, box);
+        auto *hint = plainLabel(new QLabel(from, box));
         hint->setEnabled(false);
         v->addWidget(hint);
         auto *items = new QListWidget(box);
@@ -1006,7 +1007,7 @@ void businessInfoDialog(QWidget *p, Editor *ed)
     }
     auto *setName = new QLineEdit(&dlg.d);
     form->addRow(QCoreApplication::translate("Dialogs", "Business Information set name:"), setName);
-    auto *logo = new QLabel(&dlg.d);
+    auto *logo = plainLabel(new QLabel(&dlg.d));
     logo->setFixedSize(96, 64);
     logo->setFrameShape(QFrame::StyledPanel);
     logo->setAlignment(Qt::AlignCenter);
@@ -1120,11 +1121,21 @@ void fontSchemeDialog(QWidget *p, Editor *ed)
     form->addRow(QCoreApplication::translate("Dialogs", "Heading font:"), heading);
     form->addRow(QCoreApplication::translate("Dialogs", "Body font:"), body);
     form->addRow(QCoreApplication::translate("Dialogs", "Font scheme name:"), name);
-    auto *sample = new QLabel(&dlg.d);
+    // (the preview is two plain labels set in the fonts, since a font's name is not safe to put into markup)
+    auto *sample = new QWidget(&dlg.d);
+    auto *sampleLayout = new QVBoxLayout(sample);
+    sampleLayout->setContentsMargins(0, 0, 0, 0);
+    auto *sampleHeading = plainLabel(new QLabel(QCoreApplication::translate("Dialogs", "Heading"), sample));
+    auto *sampleBody = plainLabel(new QLabel(QCoreApplication::translate("Dialogs", "Body text, lorem-free: the quick brown fox jumps over the lazy dog."), sample));
+    sampleBody->setWordWrap(true);
+    sampleLayout->addWidget(sampleHeading);
+    sampleLayout->addWidget(sampleBody);
     auto upd = [&] {
-        sample->setText(QStringLiteral("<span style=\"font-family:'%1'; font-size:18pt\">%3</span><br><span style=\"font-family:'%2'; font-size:10pt\">%4</span>")
-                            .arg(heading->currentText(), body->currentText(), QCoreApplication::translate("Dialogs", "Heading").toHtmlEscaped(),
-                                 QCoreApplication::translate("Dialogs", "Body text, lorem-free: the quick brown fox jumps over the lazy dog.").toHtmlEscaped()));
+        QFont h(heading->currentText()), b(body->currentText());
+        h.setPointSize(18);
+        b.setPointSize(10);
+        sampleHeading->setFont(h);
+        sampleBody->setFont(b);
     };
     QObject::connect(heading, &QComboBox::currentTextChanged, &dlg.d, upd);
     QObject::connect(body, &QComboBox::currentTextChanged, &dlg.d, upd);
@@ -1742,7 +1753,7 @@ void hyphenationDialog(QWidget *p, Editor *ed)
             for (int c = rg.c0; c <= rg.c1; ++c) cells << &tb->cell(r, c);
     }
     if (!t && cells.isEmpty()) {
-        QMessageBox::information(p, QCoreApplication::translate("Dialogs", "Hyphenation"), QCoreApplication::translate("Dialogs", "Click in a text box or a table first."));
+        jp::plainInformation(p, QCoreApplication::translate("Dialogs", "Hyphenation"), QCoreApplication::translate("Dialogs", "Click in a text box or a table first."));
         return;
     }
     const QVector<TextItem *> chain = t ? d->chainOf(t->id) : QVector<TextItem *>();
@@ -1862,7 +1873,7 @@ static void offerAutoflow(QWidget *p, Editor *ed, const QString &boxId)
     RenderOptions opt;
     const auto fl = ed->cache().textFrame(*d, *last, d->find(last->id).page + 1, opt);
     if (!fl.layout || !fl.layout->overflow()) return;
-    if (QMessageBox::question(p, QCoreApplication::translate("Dialogs", "Autoflow"),
+    if (jp::plainQuestion(p, QCoreApplication::translate("Dialogs", "Autoflow"),
                               QCoreApplication::translate("Dialogs", "The inserted text doesn't fit in the text box. Do you want to continue it on new pages, in text boxes like this one?"))
         != QMessageBox::Yes)
         return;
@@ -1908,7 +1919,7 @@ void recipientsDialog(QWidget *p, Editor *ed, bool typeNew)
         m.include << true;
     }
     if (m.isEmpty()) {
-        QMessageBox::information(p, QCoreApplication::translate("Dialogs", "Mail Merge Recipients"), QCoreApplication::translate("Dialogs", "Select a recipient list first (Mailings > Select Recipients)."));
+        jp::plainInformation(p, QCoreApplication::translate("Dialogs", "Mail Merge Recipients"), QCoreApplication::translate("Dialogs", "Select a recipient list first (Mailings > Select Recipients)."));
         return;
     }
     Dlg dlg(p, typeNew ? QCoreApplication::translate("Dialogs", "New Address List") : QCoreApplication::translate("Dialogs", "Mail Merge Recipients"));
@@ -1979,7 +1990,7 @@ void recipientsDialog(QWidget *p, Editor *ed, bool typeNew)
             if (seen.contains(key)) { table->item(r, 0)->setCheckState(Qt::Unchecked); ++n; }
             else seen.insert(key, r);
         }
-        QMessageBox::information(table, QCoreApplication::translate("Dialogs", "Find Duplicates"), QCoreApplication::translate("Dialogs", "Unchecked %1 duplicate entries.").arg(n));
+        jp::plainInformation(table, QCoreApplication::translate("Dialogs", "Find Duplicates"), QCoreApplication::translate("Dialogs", "Unchecked %1 duplicate entries.").arg(n));
     });
     QObject::connect(validate, &QPushButton::clicked, &dlg.d, [=] {
         int bad = 0;
@@ -1997,7 +2008,7 @@ void recipientsDialog(QWidget *p, Editor *ed, bool typeNew)
                 if (table->item(r, c)) table->item(r, c)->setBackground(ok ? QBrush() : QBrush(QColor(255, 220, 200)));
             bad += !ok;
         }
-        QMessageBox::information(table, QCoreApplication::translate("Dialogs", "Validate Addresses"), bad ? QCoreApplication::translate("Dialogs", "%1 entries have a missing address or a ZIP code that doesn't look right (highlighted).").arg(bad)
+        jp::plainInformation(table, QCoreApplication::translate("Dialogs", "Validate Addresses"), bad ? QCoreApplication::translate("Dialogs", "%1 entries have a missing address or a ZIP code that doesn't look right (highlighted).").arg(bad)
                                                                                   : QCoreApplication::translate("Dialogs", "All entries have an address and a well-formed ZIP code."));
     });
     if (!dlg.exec()) return;
@@ -2027,7 +2038,7 @@ void recipientsDialog(QWidget *p, Editor *ed, bool typeNew)
 void mergeFieldDialog(QWidget *p, Editor *ed, int kind)
 {
     if (ed->doc()->merge.isEmpty()) {
-        QMessageBox::information(p, QCoreApplication::translate("Dialogs", "Mail Merge"), QCoreApplication::translate("Dialogs", "Select a recipient list first."));
+        jp::plainInformation(p, QCoreApplication::translate("Dialogs", "Mail Merge"), QCoreApplication::translate("Dialogs", "Select a recipient list first."));
         return;
     }
     const QString code = kind == 0 ? QStringLiteral("mergeblock:address") : QStringLiteral("mergeblock:greeting");

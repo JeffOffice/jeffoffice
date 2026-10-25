@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -216,7 +217,7 @@ HeaderFooterEditor::HeaderFooterEditor(bool header, const HeaderFooter &texts, c
     m_dropPicture->setToolTip(tr("Takes the picture out of the part you are typing in"));
     m_dropPicture->setAutoDefault(false);
     connect(m_dropPicture, &QPushButton::clicked, this, [this] { removePicture(); });
-    m_pictureLabel = new QLabel(this);
+    m_pictureLabel = plainLabel(new QLabel(this));
     m_pictureLabel->setObjectName(QStringLiteral("hfPictureState"));
     m_pictureLabel->setWordWrap(true);
     pictures->addWidget(m_addPicture);
@@ -446,7 +447,7 @@ PageSetupDialog::PageSetupDialog(const PageSetupRequest &request, QWidget *paren
     buildHeaderFooter(header);
     buildSheet(sheet);
     v->addWidget(m_tabs);
-    m_problem = new QLabel(this);
+    m_problem = plainLabel(new QLabel(this));
     m_problem->setObjectName(QStringLiteral("psProblem"));
     m_problem->setWordWrap(true);
     m_problem->setStyleSheet(QStringLiteral("color: #c42b1c;"));
@@ -643,7 +644,7 @@ void PageSetupDialog::buildHeaderFooter(QWidget *tab)
         auto *c = new QCheckBox(text, tab);
         c->setObjectName(name);
         c->setChecked(on);
-        c->setToolTip(tip);
+        c->setToolTip(jp::plainToolTip(tip));
         v->addWidget(c);
         return c;
     };
@@ -740,8 +741,8 @@ void PageSetupDialog::buildSheet(QWidget *tab)
     m_area->setObjectName(QStringLiteral("psArea"));
     m_area->setAccessibleName(tr("Cells to print"));
     m_area->setPlaceholderText(tr("Everything that has something in it"));
-    m_area->setToolTip(m_request.selectionText.isEmpty() ? tr("Cell ranges separated by commas, such as A1:D20, F1:G9. Each block prints on pages of its own.")
-                                                          : tr("Cell ranges separated by commas, such as A1:D20, F1:G9 (the selection is %1). Each block prints on pages of its own.").arg(m_request.selectionText));
+    m_area->setToolTip(jp::plainToolTip(m_request.selectionText.isEmpty() ? tr("Cell ranges separated by commas, such as A1:D20, F1:G9. Each block prints on pages of its own.")
+                                                          : tr("Cell ranges separated by commas, such as A1:D20, F1:G9 (the selection is %1). Each block prints on pages of its own.").arg(m_request.selectionText)));
     form->addRow(tr("Cells to print:"), m_area);
     QString rows, cols;
     if (m_setup.titles.hasRows) rows = QStringLiteral("%1:%2").arg(m_setup.titles.row1 + 1).arg(m_setup.titles.row2 + 1);
@@ -763,7 +764,7 @@ void PageSetupDialog::buildSheet(QWidget *tab)
         auto *c = new QCheckBox(text, include);
         c->setObjectName(name);
         c->setChecked(on);
-        if (!tip.isEmpty()) c->setToolTip(tip);
+        if (!tip.isEmpty()) c->setToolTip(jp::plainToolTip(tip));
         il->addWidget(c);
         return c;
     };

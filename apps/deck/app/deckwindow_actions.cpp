@@ -28,6 +28,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextList>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -272,6 +273,7 @@ void DeckWindow::askSlideSize(const QSizeF &size)
         return;
     }
     QMessageBox box(QMessageBox::Question, tr("Slide Size"), tr("Scale your content to fit the new slide size?"), QMessageBox::NoButton, this);
+    box.setTextFormat(Qt::PlainText);
     box.setInformativeText(tr("Ensure Fit shrinks your content when it has to, so all of it stays on the slide."));
     QPushButton *fit = box.addButton(tr("Ensure Fit"), QMessageBox::AcceptRole);
     box.addButton(QMessageBox::Cancel);
@@ -387,7 +389,7 @@ void DeckWindow::insertPictureFromFile()
     if (paths.isEmpty()) return;
     Settings::get().setValue(QStringLiteral("dirs/pictures"), QFileInfo(paths.first()).absolutePath());
     for (const QString &path : paths)
-        if (!insertPicture(path)) QMessageBox::warning(this, tr("Insert Picture"), tr("%1 can't be read as a picture.").arg(QFileInfo(path).fileName()));
+        if (!insertPicture(path)) jp::plainWarning(this, tr("Insert Picture"), tr("%1 can't be read as a picture.").arg(QFileInfo(path).fileName()));
 }
 
 void DeckWindow::insertTable(int rows, int columns)

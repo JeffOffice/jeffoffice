@@ -46,6 +46,7 @@
 #include <QTextList>
 #include <QTextDocumentFragment>
 #include <QMimeData>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -243,7 +244,7 @@ void MainWindow::createActions()
         if (p.isEmpty()) return;
         QString err;
         auto src = loadAnyPublication(p, &err);
-        if (!src) { QMessageBox::warning(this, tr("Import Styles"), err); return; }
+        if (!src) { jp::plainWarning(this, tr("Import Styles"), err); return; }
         m_ed->change(tr("Import Styles"), [&] {
             for (const auto &s : src->styles) {
                 bool replaced = false;
@@ -384,7 +385,7 @@ void MainWindow::createActions()
     mk("page.insertDup", tr("Insert Duplicate Page"), "copy", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_U), [ed] { ed->insertPages(ed->currentPage(), 1, true, false); });
     mk("page.insertDialog", tr("Insert Page…"), "files", QKeySequence(), [this] { insertPageDialog(this, m_ed); });
     mk("page.delete", tr("Delete Page"), "file-minus", QKeySequence(), [this] {
-        if (QMessageBox::question(this, tr("Delete Page"), tr("Delete page %1?").arg(m_ed->currentPage() + 1)) == QMessageBox::Yes)
+        if (jp::plainQuestion(this, tr("Delete Page"), tr("Delete page %1?").arg(m_ed->currentPage() + 1)) == QMessageBox::Yes)
             m_ed->deletePage(m_ed->currentPage());
     });
     mk("page.moveUp", tr("Move Page Up"), "arrow-up", QKeySequence(), [ed] { ed->movePage(ed->currentPage(), ed->currentPage() - 1); });
@@ -483,7 +484,7 @@ void MainWindow::createActions()
         file.replace(QRegularExpression(QStringLiteral("[\\\\/:*?\"<>|]|^\\.+")), QStringLiteral("-"));
         QSaveFile f(QDir(dir).filePath(file + ".json"));
         if (!f.open(QIODevice::WriteOnly) || f.write(data) != data.size() || !f.commit()) {
-            QMessageBox::warning(this, tr("Save as Building Block"), tr("JeffPub couldn't save the building block: %1").arg(f.errorString()));
+            jp::plainWarning(this, tr("Save as Building Block"), tr("JeffPub couldn't save the building block: %1").arg(f.errorString()));
             return;
         }
         statusBar()->showMessage(tr("Saved \"%1\" to My Building Blocks.").arg(name.trimmed()), 4000);
@@ -561,7 +562,7 @@ void MainWindow::createActions()
         Item *it = m_ed->single();
         auto *pic = dynamic_cast<PictureItem *>(it);
         if (!pic || pic->imageId.isEmpty()) {
-            QMessageBox::information(this, tr("Apply Image as Background"), tr("Select a picture first."));
+            jp::plainInformation(this, tr("Apply Image as Background"), tr("Select a picture first."));
             return;
         }
         m_ed->change(tr("Background"), [&] {
@@ -614,7 +615,7 @@ void MainWindow::createActions()
         if (p.isEmpty()) return;
         MergeSource src;
         QString err;
-        if (!loadMergeSource(p, &src, &err)) { QMessageBox::warning(this, title, err); return; }
+        if (!loadMergeSource(p, &src, &err)) { jp::plainWarning(this, title, err); return; }
         m_ed->selectRecipients(src);
         recipientsDialog(this, m_ed, false);
     };
@@ -631,7 +632,7 @@ void MainWindow::createActions()
     mk("mm.greeting", tr("Greeting Line"), "hand", QKeySequence(), [this] { mergeFieldDialog(this, m_ed, 1); });
     mk("mm.pictureField", tr("Picture Field"), "image", QKeySequence(), [this] {
         const QStringList fields = m_ed->doc()->merge.fields;
-        if (fields.isEmpty()) { QMessageBox::information(this, tr("Picture Field"), tr("Select a recipient list first.")); return; }
+        if (fields.isEmpty()) { jp::plainInformation(this, tr("Picture Field"), tr("Select a recipient list first.")); return; }
         bool ok = false;
         const QString f = QInputDialog::getItem(this, tr("Picture Field"), tr("Field that holds picture file names:"), fields, 0, false, &ok);
         if (!ok) return;
@@ -672,16 +673,16 @@ void MainWindow::createActions()
         statusBar()->showMessage(tr("No recipient matches \"%1\".").arg(q), 4000);
     });
     mk("mm.mergeNew", tr("Merge to New Publication"), "files", QKeySequence(), [this] {
-        if (m_ed->doc()->merge.isEmpty()) { QMessageBox::information(this, tr("Merge"), tr("Select a recipient list first.")); return; }
+        if (m_ed->doc()->merge.isEmpty()) { jp::plainInformation(this, tr("Merge"), tr("Select a recipient list first.")); return; }
         if (!maybeSave()) return;
         newPublication(mergeToNewPublication(*m_ed->doc()));
     });
     mk("mm.mergePrint", tr("Merge to Printer…"), "printer", QKeySequence(), [this] {
-        if (m_ed->doc()->merge.isEmpty()) { QMessageBox::information(this, tr("Merge"), tr("Select a recipient list first.")); return; }
+        if (m_ed->doc()->merge.isEmpty()) { jp::plainInformation(this, tr("Merge"), tr("Select a recipient list first.")); return; }
         showBackstage("print");
     });
     mk("mm.mergePdf", tr("Merge to PDF…"), "file-text", QKeySequence(), [this] {
-        if (m_ed->doc()->merge.isEmpty()) { QMessageBox::information(this, tr("Merge"), tr("Select a recipient list first.")); return; }
+        if (m_ed->doc()->merge.isEmpty()) { jp::plainInformation(this, tr("Merge"), tr("Select a recipient list first.")); return; }
         exportPdf(QString(), true);
     });
     mk("mm.mergeEmail", tr("Merge to Email…"), "mail", QKeySequence(), [this] {
@@ -713,7 +714,7 @@ void MainWindow::createActions()
         text.replace(QChar::ParagraphSeparator, '\n').replace(QChar::LineSeparator, '\n').remove(QChar(0x00AD)).remove(QChar::ObjectReplacementCharacter);
         text = text.trimmed();
         if (text.isEmpty()) {
-            QMessageBox::information(this, tr("Translate"), tr("Select the text you want to translate, then choose Translate."));
+            jp::plainInformation(this, tr("Translate"), tr("Select the text you want to translate, then choose Translate."));
             return;
         }
         // The saved setting keeps the English name, so it survives a change of language.
@@ -1129,14 +1130,14 @@ void MainWindow::createActions()
         bool partial = false;
         const ItemPtr made = svg::pictureShapes(data.bytes, *pic, &partial);
         if (!made) {
-            QMessageBox::information(this, tr("Convert to Shapes"), tr("This picture has no lines or areas to turn into shapes."));
+            jp::plainInformation(this, tr("Convert to Shapes"), tr("This picture has no lines or areas to turn into shapes."));
             return;
         }
         const qsizetype index = at - items.begin();
         ed->change(tr("Convert to Shapes"), [&] { items[index] = made; });
         ed->select(made->id);
         if (partial)
-            QMessageBox::information(this, tr("Convert to Shapes"),
+            jp::plainInformation(this, tr("Convert to Shapes"),
                                      tr("Text and pictures inside this drawing can't become shapes, so they were left out. Undo brings the picture back."));
     });
     mk("pic.crop", tr("Crop"), "crop", QKeySequence(), [ed] {
@@ -1264,7 +1265,7 @@ void MainWindow::createActions()
         });
     }
     // ---------------- Help ----------------
-    auto described = [](QAction *a, const QString &tip) { a->setToolTip(tip); return a; };
+    auto described = [](QAction *a, const QString &tip) { a->setToolTip(jp::plainToolTip(tip)); return a; };
     described(mk("help.show", tr("Help"), "circle-help", QKeySequence::HelpContents, [this] { showHelp(helpContext()); }),
               tr("Help (F1): how to do things in JeffPub, and a search that finds commands too."));
     described(mk("help.feedback", tr("Feedback"), "smile", QKeySequence(), [] { help::openUrl(help::feedbackUrl()); }),

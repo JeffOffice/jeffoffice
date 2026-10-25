@@ -25,6 +25,7 @@
 #include <QPainter>
 #include <QStandardPaths>
 #include <QWidgetAction>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -112,18 +113,18 @@ bool DeckWindow::applyThemeFile(const QString &path, bool allSlides)
     auto source = deck::importAnyPresentationFile(path, &why);
     if (!source) {
         waiting.off();
-        QMessageBox::warning(this, tr("Browse for Themes"), tr("%1 can't be read: %2").arg(QFileInfo(path).fileName(), why.isEmpty() ? tr("The file can't be read.") : why));
+        jp::plainWarning(this, tr("Browse for Themes"), tr("%1 can't be read: %2").arg(QFileInfo(path).fileName(), why.isEmpty() ? tr("The file can't be read.") : why));
         return false;
     }
     const QString name = QFileInfo(path).fileName();
     switch (deck::themeSourceProblem(*source)) {
     case deck::ThemeSource::NoSlideMaster:
         waiting.off();
-        QMessageBox::warning(this, tr("Browse for Themes"), tr("%1 has no slide master, so there is no theme to take from it. Nothing was changed.").arg(name));
+        jp::plainWarning(this, tr("Browse for Themes"), tr("%1 has no slide master, so there is no theme to take from it. Nothing was changed.").arg(name));
         return false;
     case deck::ThemeSource::NoLayouts:
         waiting.off();
-        QMessageBox::warning(this, tr("Browse for Themes"), tr("%1 has a slide master but no slide layouts, so your slides would have nothing to stand on. Nothing was changed.").arg(name));
+        jp::plainWarning(this, tr("Browse for Themes"), tr("%1 has a slide master but no slide layouts, so your slides would have nothing to stand on. Nothing was changed.").arg(name));
         return false;
     case deck::ThemeSource::Fine: break;
     }

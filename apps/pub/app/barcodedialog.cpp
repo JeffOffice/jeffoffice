@@ -41,6 +41,7 @@
 #include <QRadioButton>
 #include <QSpinBox>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -238,13 +239,13 @@ void barcodeDialog(QWidget *p, Editor *ed)
     v->addWidget(white);
     v->addWidget(check39);
 
-    auto *preview = new QLabel(&dlg);
+    auto *preview = plainLabel(new QLabel(&dlg));
     preview->setMinimumSize(380, 190);
     preview->setAlignment(Qt::AlignCenter);
     preview->setStyleSheet(QStringLiteral("QLabel{background:#ffffff; border:1px solid #d0d4da;}"));
     preview->setObjectName(QStringLiteral("barcodePreview"));
     v->addWidget(preview);
-    auto *problem = new QLabel(&dlg);
+    auto *problem = plainLabel(new QLabel(&dlg));
     problem->setStyleSheet(QStringLiteral("color:#c0392b;"));
     problem->setWordWrap(true);
     v->addWidget(problem);

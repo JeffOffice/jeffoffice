@@ -24,6 +24,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 #include <functional>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -551,7 +552,7 @@ void AnimationPane::rebuild()
         m_rows.push_back(r);
         auto *item = new QListWidgetItem(QStringLiteral("%1. %2, %3: %4, %5").arg(r.click).arg(r.shape, effectClassLabel(a.cls), r.effect, r.start), m_list);
         item->setData(Qt::AccessibleTextRole, item->text());
-        item->setToolTip(QStringLiteral("%1\n%2\n%3").arg(name, effectClassLabel(a.cls) + QStringLiteral(": ") + effectLabel(a), r.start));
+        item->setToolTip(jp::plainToolTip(QStringLiteral("%1\n%2\n%3").arg(name, effectClassLabel(a.cls) + QStringLiteral(": ") + effectLabel(a), r.start)));
     }
     m_scale = std::min(longest, 30000);
     for (int r : picked)

@@ -12,6 +12,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QToolTip>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -168,7 +169,7 @@ void LayoutGallery::mouseMoveEvent(QMouseEvent *e)
         m_hover = i;
         update();
     }
-    if (i >= 0) QToolTip::showText(e->globalPosition().toPoint(), m_tiles[i].name, this);
+    if (i >= 0) QToolTip::showText(e->globalPosition().toPoint(), jp::plainToolTip(m_tiles[i].name), this);
 }
 
 void LayoutGallery::leaveEvent(QEvent *)
@@ -268,7 +269,7 @@ bool ThemeColors::event(QEvent *e)
                                             QT_TR_NOOP("Accent 1"), QT_TR_NOOP("Accent 2"), QT_TR_NOOP("Accent 3"), QT_TR_NOOP("Accent 4"),
                                             QT_TR_NOOP("Accent 5"), QT_TR_NOOP("Accent 6"), QT_TR_NOOP("Hyperlink"), QT_TR_NOOP("Followed Hyperlink")};
             const int k = kOrder[i];
-            QToolTip::showText(he->globalPos(), QStringLiteral("%1 (%2)").arg(tr(names[k]), deck::themeOf(*m_ed->doc()).colors[k].name().toUpper()), this);
+            QToolTip::showText(he->globalPos(), jp::plainToolTip(QStringLiteral("%1 (%2)").arg(tr(names[k]), deck::themeOf(*m_ed->doc()).colors[k].name().toUpper())), this);
         } else {
             QToolTip::hideText();
         }

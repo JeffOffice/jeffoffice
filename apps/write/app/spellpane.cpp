@@ -20,6 +20,7 @@
 #include <QTextDocument>
 #include <QVBoxLayout>
 #include <algorithm>
+#include "app/plaintext.h"
 
 namespace jp::write {
 
@@ -96,7 +97,7 @@ SpellPane::SpellPane(PageView *view, QWidget *parent) : QWidget(parent), m_view(
     m_status->setObjectName(QStringLiteral("spellStatus"));
     m_status->setWordWrap(true);
     v->addWidget(m_status);
-    m_wordLabel = new QLabel(this);
+    m_wordLabel = plainLabel(new QLabel(this));
     m_wordLabel->setObjectName(QStringLiteral("spellWord"));
     QFont f = m_wordLabel->font();
     f.setBold(true);

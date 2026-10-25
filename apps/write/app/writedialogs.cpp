@@ -30,6 +30,7 @@
 #include <QVBoxLayout>
 #include <initializer_list>
 #include <iterator>
+#include "app/plaintext.h"
 
 namespace jp::write {
 
@@ -233,7 +234,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     QObject::connect(underline, &QComboBox::currentIndexChanged, &dlg, [underlineColor](int i) { underlineColor->setEnabled(i != 0); });
 
     auto place = [&](const QString &text, QWidget *box, int row, int column) {
-        auto *label = new QLabel(text, &dlg);
+        auto *label = plainLabel(new QLabel(text, &dlg));
         label->setBuddy(box);
         grid->addWidget(label, row, column);
         grid->addWidget(box, row + 1, column);

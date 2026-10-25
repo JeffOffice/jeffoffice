@@ -122,7 +122,7 @@ void CrunchWindow::updateNoteActions()
     QAction *edit = act("notes.edit");
     edit->setText(here ? tr("Edit Note") : tr("New Note"));
     edit->setEnabled(can || (here && open));   // (a note that cannot be changed can still be read)
-    if (!can && !here) edit->setToolTip(why);
+    if (!can && !here) edit->setToolTip(jp::plainToolTip(why));
     const CellRange r = selectedRange();
     bool anyInSelection = false, anyShown = false, anyHidden = false;
     if (open) {

@@ -10,6 +10,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -41,7 +42,7 @@ MediaTrimDialog::MediaTrimDialog(const QString &title, qint64 length, int cutSta
     form->addRow(tr("&Start Time:"), m_start);
     form->addRow(tr("&End Time:"), m_end);
     column->addLayout(form);
-    m_note = new QLabel(this);
+    m_note = plainLabel(new QLabel(this));
     m_note->setWordWrap(true);
     column->addWidget(m_note);
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);

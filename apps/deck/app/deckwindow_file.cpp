@@ -15,6 +15,7 @@
 #include <QApplication>
 #include <QFileInfo>
 #include <QMessageBox>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -34,7 +35,7 @@ bool DeckWindow::openFile(const QString &path)
     QApplication::restoreOverrideCursor();
     const QString name = QFileInfo(path).fileName();
     if (!doc) {
-        QMessageBox::warning(this, tr("Open"), tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, notes));
+        jp::plainWarning(this, tr("Open"), tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, notes));
         return false;
     }
     // A new presentation nobody has touched gives way; any other stays.
@@ -54,7 +55,7 @@ bool DeckWindow::openFile(const QString &path)
     telemetry::count(QStringLiteral("file.open.") + fileKind(path));
     hideFileScreen();
     if (!notes.isEmpty())
-        QMessageBox::warning(target, tr("Open"), tr("Some of \"%1\" couldn't be read and was left out.\n\n%2").arg(name, notes));
+        jp::plainWarning(target, tr("Open"), tr("Some of \"%1\" couldn't be read and was left out.\n\n%2").arg(name, notes));
     return true;
 }
 

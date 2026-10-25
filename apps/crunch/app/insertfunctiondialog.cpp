@@ -12,6 +12,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -115,7 +116,7 @@ void InsertFunctionDialog::refill()
     for (const FunctionDoc *d : found) {
         auto *item = new QListWidgetItem(QString::fromLatin1(d->name));
         item->setData(Qt::UserRole, QString::fromLatin1(d->name));
-        item->setToolTip(summaryOf(*d));
+        item->setToolTip(jp::plainToolTip(summaryOf(*d)));
         m_list->addItem(item);
         if (QString::fromLatin1(d->name) == was) keep = m_list->count() - 1;
     }

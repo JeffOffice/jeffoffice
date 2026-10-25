@@ -6,6 +6,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QToolButton>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -21,13 +22,13 @@ RehearseBar::RehearseBar(SlideShow *show) : QWidget(show), m_show(show)
     row->setSpacing(6);
     QAbstractButton *next = button(QStringLiteral("rehearseNext"), QStringLiteral("arrow-right"), tr("Next"));
     m_pause = button(QStringLiteral("rehearsePause"), QStringLiteral("pause"), tr("Pause Recording"));
-    m_slide = new QLabel(QStringLiteral("0:00:00"), this);
+    m_slide = plainLabel(new QLabel(QStringLiteral("0:00:00"), this));
     m_slide->setObjectName(QStringLiteral("rehearseSlideTime"));
     m_slide->setAccessibleName(tr("Time on this slide"));
     m_slide->setMinimumWidth(64);
     m_slide->setAlignment(Qt::AlignCenter);
     QAbstractButton *repeat = button(QStringLiteral("rehearseRepeat"), QStringLiteral("rotate-ccw"), tr("Repeat the slide: its time starts again"));
-    m_total = new QLabel(QStringLiteral("0:00:00"), this);
+    m_total = plainLabel(new QLabel(QStringLiteral("0:00:00"), this));
     m_total->setObjectName(QStringLiteral("rehearseTotalTime"));
     m_total->setAccessibleName(tr("Total time"));
     m_total->setMinimumWidth(64);
@@ -68,7 +69,7 @@ QAbstractButton *RehearseBar::button(const QString &name, const QString &iconNam
     b->setObjectName(name);
     b->setIcon(icon(iconName));
     b->setIconSize(QSize(20, 20));
-    b->setToolTip(tip);
+    b->setToolTip(jp::plainToolTip(tip));
     b->setAccessibleName(tip);
     b->setAutoRaise(true);
     b->setFocusPolicy(Qt::NoFocus);   // keys go to the show, not to a button

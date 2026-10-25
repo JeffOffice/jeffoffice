@@ -25,6 +25,7 @@
 #include <QToolButton>
 #include <QWidgetAction>
 #include <cmath>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -145,7 +146,7 @@ QWidget *DeckWindow::actionCheckBox(const QString &id)
 {
     QAction *a = act(id);
     auto *box = new QCheckBox(a->text());
-    box->setToolTip(a->toolTip());
+    box->setToolTip(jp::plainToolTip(a->toolTip()));
     box->setChecked(a->isChecked());
     box->setEnabled(a->isEnabled());
     connect(box, &QCheckBox::clicked, a, [a] { a->trigger(); });
@@ -238,7 +239,7 @@ void DeckWindow::ribbonMenuParts(RibbonParts &parts)
 void DeckWindow::buildStatusBar()
 {
     QStatusBar *sb = statusBar();
-    m_slideLabel = new QLabel(this);
+    m_slideLabel = plainLabel(new QLabel(this));
     m_slideLabel->setObjectName(QStringLiteral("slideNumber"));
     m_slideLabel->setMinimumWidth(110);
     sb->addWidget(m_slideLabel);
@@ -269,7 +270,7 @@ void DeckWindow::buildStatusBar()
     });
     sb->addPermanentWidget(m_zoomSlider);
     button("zoom.in", false);
-    m_zoomLabel = new QLabel(QStringLiteral("100%"));
+    m_zoomLabel = plainLabel(new QLabel(QStringLiteral("100%")));
     m_zoomLabel->setMinimumWidth(44);
     m_zoomLabel->setObjectName(QStringLiteral("zoomPercent"));
     sb->addPermanentWidget(m_zoomLabel);

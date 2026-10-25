@@ -20,6 +20,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QWidgetAction>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -36,7 +37,7 @@ void DeckWindow::createMasterActions()
         QString why;
         if (deleteMasterPage(m_ed->masterView(), &why)) return;
         if (m_masterNotice) m_masterNotice(why);
-        else QMessageBox::information(this, tr("Delete"), why);
+        else jp::plainInformation(this, tr("Delete"), why);
     });
     mk(QStringLiteral("master.rename"), tr("Rename"), QStringLiteral("pencil-line"), QKeySequence(), [this] {
         const MasterPage *m = m_ed->doc()->master(m_ed->masterView());

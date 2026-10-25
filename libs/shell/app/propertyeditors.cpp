@@ -23,6 +23,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -1047,7 +1048,7 @@ FillEditor::FillEditor(QWidget *parent) : QWidget(parent)
     insert->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     insert->setIcon(icon(QStringLiteral("image-plus")));
     row->addWidget(insert);
-    m_thumb = new QLabel(picture);
+    m_thumb = plainLabel(new QLabel(picture));
     m_thumb->setObjectName(QStringLiteral("pictureThumb"));
     m_thumb->setFixedSize(96, 64);
     m_thumb->setFrameShape(QFrame::StyledPanel);
@@ -1082,7 +1083,7 @@ FillEditor::FillEditor(QWidget *parent) : QWidget(parent)
         b->setCheckable(true);
         b->setIcon(patternIcon(i));
         b->setIconSize(QSize(28, 28));
-        b->setToolTip(patternName(i));
+        b->setToolTip(jp::plainToolTip(patternName(i)));
         b->setAccessibleName(patternName(i));
         patterns->addButton(b, i);
         grid->addWidget(b, i / 7, i % 7);

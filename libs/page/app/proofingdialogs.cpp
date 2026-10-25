@@ -26,6 +26,7 @@
 #include <QVBoxLayout>
 
 #include <memory>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -41,7 +42,7 @@ static QString languageAt(QTextDocument *doc, int pos)
 void spellingDialog(QWidget *p, Editor *ed)
 {
     if (dict::root().isEmpty()) {
-        QMessageBox::warning(p, QCoreApplication::translate("Proofing", "Spelling"), QCoreApplication::translate("Proofing", "The dictionaries are missing from this installation."));
+        jp::plainWarning(p, QCoreApplication::translate("Proofing", "Spelling"), QCoreApplication::translate("Proofing", "The dictionaries are missing from this installation."));
         return;
     }
     // Stories in reading order.
@@ -108,7 +109,7 @@ void spellingDialog(QWidget *p, Editor *ed)
                 return true;
             }
         }
-        QMessageBox::information(&dlg, QCoreApplication::translate("Proofing", "Check Spelling"), QCoreApplication::translate("Proofing", "The spelling check is complete."));
+        jp::plainInformation(&dlg, QCoreApplication::translate("Proofing", "Check Spelling"), QCoreApplication::translate("Proofing", "The spelling check is complete."));
         dlg.accept();
         return false;
     };

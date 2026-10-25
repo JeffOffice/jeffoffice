@@ -14,6 +14,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QToolButton>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -120,7 +121,7 @@ void KeyTips::add(const QString &key, QWidget *target, std::function<void()> act
 {
     if (key.isEmpty() || !target || !target->isVisible()) return;
     QWidget *host = target->window();
-    auto *b = new QLabel(key, host);
+    auto *b = plainLabel(new QLabel(key, host));
     b->setObjectName(QStringLiteral("jpKeyTip"));
     b->setAttribute(Qt::WA_TransparentForMouseEvents);
     // A control that can't be used now shows its letters faded.

@@ -26,6 +26,7 @@
 #include <QSet>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -469,7 +470,7 @@ QFrame *CommentsPane::buildCard(const deck::Comment &c)
     bold.setBold(true);
     author->setFont(bold);
     author->setMinimumWidth(1);   // a long name is cut off, not made to widen the card
-    auto *date = new QLabel(whenText(c.date), card);
+    auto *date = plainLabel(new QLabel(whenText(c.date), card));
     date->setMinimumWidth(1);
     date->setObjectName(QStringLiteral("commentDate"));
     date->setStyleSheet(QStringLiteral("color:%1;").arg(gray()));
@@ -499,7 +500,7 @@ QFrame *CommentsPane::buildCard(const deck::Comment &c)
         ra->setTextFormat(Qt::PlainText);
         ra->setFont(bold);
         ra->setMinimumWidth(1);
-        auto *rd = new QLabel(whenText(r.date), box);
+        auto *rd = plainLabel(new QLabel(whenText(r.date), box));
         rd->setMinimumWidth(1);
         rd->setStyleSheet(QStringLiteral("color:%1;").arg(gray()));
         auto *rw = new QVBoxLayout;
@@ -512,7 +513,7 @@ QFrame *CommentsPane::buildCard(const deck::Comment &c)
             b->setObjectName(QLatin1String(name));
             b->setIcon(icon(QLatin1String(iconName)));
             b->setAutoRaise(true);
-            b->setToolTip(tip);
+            b->setToolTip(jp::plainToolTip(tip));
             b->setAccessibleName(tip);
             rh->addWidget(b, 0, Qt::AlignTop);
             return b;
@@ -562,7 +563,7 @@ QFrame *CommentsPane::buildCard(const deck::Comment &c)
         b->setObjectName(QLatin1String(name));
         b->setIcon(icon(QLatin1String(iconName)));
         b->setAutoRaise(true);
-        b->setToolTip(tip);
+        b->setToolTip(jp::plainToolTip(tip));
         b->setAccessibleName(tip);
         return b;
     };

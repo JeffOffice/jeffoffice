@@ -13,6 +13,7 @@
 #include <QScrollArea>
 #include <QStackedWidget>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -37,7 +38,7 @@ FileScreen::FileScreen(QWidget *parent) : QWidget(parent)
     auto *bh = new QHBoxLayout(brand);
     bh->setContentsMargins(22, 0, 12, 0);
     bh->setSpacing(10);
-    auto *badge = new QLabel(brand);
+    auto *badge = plainLabel(new QLabel(brand));
     badge->setPixmap(appBadge(this, 30, 13, 8));
     auto *word = new QLabel(appInfo().name, brand);
     QFont wf = word->font();
@@ -79,7 +80,7 @@ FileScreen::FileScreen(QWidget *parent) : QWidget(parent)
 void FileScreen::setBackButton(const QString &text, const QString &toolTip)
 {
     m_back->setText(text);
-    m_back->setToolTip(toolTip);
+    m_back->setToolTip(jp::plainToolTip(toolTip));
 }
 
 void FileScreen::insertEntry(QWidget *w) { m_sideLayout->insertWidget(m_next++, w); }

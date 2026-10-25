@@ -12,6 +12,7 @@
 #include <QTreeWidget>
 #include <QVBoxLayout>
 #include <QWidgetAction>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -88,7 +89,7 @@ void FilterPopup::buildMenus()
     m_tree->setUniformRowHeights(true);
     m_tree->setMinimumSize(240, 180);
     layout->addWidget(m_tree, 1);
-    m_note = new QLabel(tr("Listing the values…"));
+    m_note = plainLabel(new QLabel(tr("Listing the values…")));
     m_note->setObjectName(QStringLiteral("filterNote"));
     m_note->setWordWrap(true);
     layout->addWidget(m_note);

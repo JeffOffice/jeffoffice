@@ -148,6 +148,7 @@ void ask(QWidget *window)
     QDialog d(window);
     d.setWindowTitle(QCoreApplication::translate("Telemetry", "Help improve %1").arg(appInfo().name));
     auto *v = new QVBoxLayout(&d);
+    // plain: reviewed: our own text and links, no file text
     auto *text = new QLabel(QCoreApplication::translate("Telemetry",
         "%1 can send anonymous usage statistics once a day (and when it's updated): its version, your operating system and language, "
         "and how often each of its commands is used, and if it ever closes unexpectedly, where in the program that happened. "

@@ -42,6 +42,7 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QFile>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -965,7 +966,7 @@ void MainWindow::ribbonMenuParts(RibbonParts &parts)
 void MainWindow::buildStatusBar()
 {
     QStatusBar *sb = statusBar();
-    m_pageLabel = new QLabel();
+    m_pageLabel = plainLabel(new QLabel());
     m_pageLabel->setMinimumWidth(110);
     auto *prev = new QToolButton();
     prev->setDefaultAction(act("page.prev"));
@@ -973,9 +974,9 @@ void MainWindow::buildStatusBar()
     auto *next = new QToolButton();
     next->setDefaultAction(act("page.next"));
     next->setAutoRaise(true);
-    m_posLabel = new QLabel();
+    m_posLabel = plainLabel(new QLabel());
     m_posLabel->setMinimumWidth(120);
-    m_sizeLabel = new QLabel();
+    m_sizeLabel = plainLabel(new QLabel());
     m_sizeLabel->setMinimumWidth(120);
     sb->addWidget(prev);
     sb->addWidget(m_pageLabel);
@@ -1016,7 +1017,7 @@ void MainWindow::buildStatusBar()
     zi->setDefaultAction(act("zoom.in"));
     zi->setAutoRaise(true);
     sb->addPermanentWidget(zi);
-    m_zoomLabel = new QLabel(QStringLiteral("100%"));
+    m_zoomLabel = plainLabel(new QLabel(QStringLiteral("100%")));
     m_zoomLabel->setMinimumWidth(44);
     sb->addPermanentWidget(m_zoomLabel);
     mkBtn("zoom.page");
@@ -1064,8 +1065,8 @@ void MainWindow::refreshUi()
 
     act("edit.undo")->setEnabled(ed->undoStack()->canUndo() || editing);
     act("edit.redo")->setEnabled(ed->undoStack()->canRedo());
-    act("edit.undo")->setToolTip(tr("Undo %1 (Ctrl+Z)").arg(ed->undoStack()->undoText()));
-    act("edit.redo")->setToolTip(tr("Redo %1 (Ctrl+Y)").arg(ed->undoStack()->redoText()));
+    act("edit.undo")->setToolTip(jp::plainToolTip(tr("Undo %1 (Ctrl+Z)").arg(ed->undoStack()->undoText())));
+    act("edit.redo")->setToolTip(jp::plainToolTip(tr("Redo %1 (Ctrl+Y)").arg(ed->undoStack()->redoText())));
     act("pd.extraContent")->setEnabled(!d->extra.empty());
     for (const char *id : {"edit.cut", "edit.copy", "edit.duplicate", "edit.delete"}) act(id)->setEnabled(sel || (editing && ed->cursor().hasSelection()));
     for (const char *id : {"arr.front", "arr.forward", "arr.backward", "arr.back", "arr.rotR", "arr.rotL", "arr.flipH", "arr.flipV", "obj.format", "obj.lock"})

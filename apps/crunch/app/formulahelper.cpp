@@ -10,6 +10,7 @@
 #include <QListWidget>
 #include <QScreen>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -129,7 +130,7 @@ void FormulaHelper::showList(QLineEdit *line, const std::vector<Completion> &fou
     m_list->clear();
     for (const Completion &c : found) {
         auto *item = new QListWidgetItem(c.text);
-        item->setToolTip(m_detailOf ? m_detailOf(c) : QString());
+        item->setToolTip(jp::plainToolTip(m_detailOf ? m_detailOf(c) : QString()));
         m_list->addItem(item);
     }
     m_list->setCurrentRow(0);
@@ -158,6 +159,7 @@ void FormulaHelper::showHint(QLineEdit *line, const FormulaSpot &spot)
         return;
     }
     const QChar separator = m_separator ? m_separator() : QLatin1Char(',');
+    // plain: reviewed: a built-in function's own text, no file text
     m_hint->setText(hintHtml(*doc, spot.argument, separator));
     m_hint->adjustSize();
 }

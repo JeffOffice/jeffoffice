@@ -15,6 +15,7 @@
 #include <QTextFragment>
 #include <algorithm>
 #include <limits>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -245,7 +246,7 @@ bool spellingAdd(const QString &w, QString *firstFailure) { return Speller::get(
 void spellingReportFailure(QWidget *parent, const QString &firstFailure)
 {
     if (firstFailure.isEmpty()) return;
-    QMessageBox::warning(parent, QCoreApplication::translate("Proofing", "Add to Dictionary"),
+    jp::plainWarning(parent, QCoreApplication::translate("Proofing", "Add to Dictionary"),
                          QCoreApplication::translate("Proofing", "The word can't be saved in your dictionary, so it is accepted only until you close the program.\n%1").arg(firstFailure));
 }
 void spellingIgnore(const QString &w) { Speller::get().ignore(w); }

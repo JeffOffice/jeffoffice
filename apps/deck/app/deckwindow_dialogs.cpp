@@ -19,6 +19,7 @@
 #include <QTextDocument>
 #include <QVBoxLayout>
 #include <memory>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -54,7 +55,7 @@ void slideWordCount(QWidget *p, Editor *ed)
     QString sel;
     if (ed->isEditingText() && ed->cursor().hasSelection())
         sel = QCoreApplication::translate("jp::DeckWindow", "<br><br><b>Selection</b><br>Words: %1").arg(ed->cursor().selectedText().split(QRegularExpression("\\s+"), Qt::SkipEmptyParts).size());
-    QMessageBox::information(p, QCoreApplication::translate("jp::DeckWindow", "Word Count"),
+    jp::plainInformation(p, QCoreApplication::translate("jp::DeckWindow", "Word Count"),
                              QCoreApplication::translate("jp::DeckWindow", "<b>Presentation</b><br>Slides: %1<br>Words: %2<br>Characters (no spaces): %3<br>Characters (with spaces): %4"
                                                                        "<br>Paragraphs: %5%6")
                                  .arg(d->pages.size()).arg(words).arg(charsNoSpace).arg(chars).arg(paragraphs).arg(sel));
@@ -117,8 +118,8 @@ void DeckWindow::createDialogActions()
             f->embedFonts->setObjectName(QStringLiteral("embedFonts"));
             const QString about = tr("Puts the fonts that come with the program, and that the slides use, in the file, so the slides look the same on a computer that doesn't have them. "
                                      "It makes the file larger. Fonts every computer has, such as Calibri and Arial, are never put in.");
-            f->embedFonts->setToolTip(about);
-            f->embedFonts->setWhatsThis(about);
+            f->embedFonts->setToolTip(jp::plainToolTip(about));
+            f->embedFonts->setWhatsThis(jp::plainToolTip(about));
             f->embedFonts->setAccessibleDescription(about);
             f->embedFonts->setChecked(Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool());
             column->addWidget(f->embedFonts);

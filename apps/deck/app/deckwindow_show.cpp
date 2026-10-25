@@ -39,6 +39,7 @@
 #include <QStyledItemDelegate>
 #include <cmath>
 #include <memory>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -613,6 +614,7 @@ bool DeckWindow::askAboutShow(const QString &question, const QString &keep, cons
 {
     if (m_showQuestion) return m_showQuestion(question);
     QMessageBox box(QMessageBox::Question, appInfo().name, question, QMessageBox::NoButton, this);
+    box.setTextFormat(Qt::PlainText);
     QPushButton *yes = box.addButton(keep, QMessageBox::AcceptRole);
     QPushButton *no = box.addButton(discard, QMessageBox::RejectRole);
     box.setDefaultButton(yes);
@@ -627,7 +629,7 @@ void DeckWindow::tellAboutShow(const QString &text)
         m_showQuestion(text);
         return;
     }
-    QMessageBox::information(this, appInfo().name, text);
+    jp::plainInformation(this, appInfo().name, text);
 }
 
 // ---- Set Up Slide Show and Custom Shows ----

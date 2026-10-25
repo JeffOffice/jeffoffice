@@ -41,6 +41,7 @@
 #include <QTextBlock>
 #include <QTextList>
 #include <QWindow>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -188,7 +189,7 @@ QAction *DeckWindow::mk(const QString &id, const QString &text, const QString &i
     if (!key.isEmpty()) {
         a->setShortcut(key);
         a->setShortcutContext(Qt::WindowShortcut);
-        a->setToolTip(tr("%1 (%2)").arg(QString(text).remove('&'), key.toString(QKeySequence::NativeText)));
+        a->setToolTip(jp::plainToolTip(tr("%1 (%2)").arg(QString(text).remove('&'), key.toString(QKeySequence::NativeText))));
         addAction(a);
     }
     a->setCheckable(checkable);
@@ -292,8 +293,8 @@ void DeckWindow::refreshUi()
     act("slide.hide")->setChecked(n && d->pages[std::clamp(ed->currentPage(), 0, n - 1)]->hidden);
     act("edit.undo")->setEnabled(ed->undoStack()->canUndo());
     act("edit.redo")->setEnabled(ed->undoStack()->canRedo());
-    act("edit.undo")->setToolTip(tr("Undo %1 (Ctrl+Z)").arg(ed->undoStack()->undoText()));
-    act("edit.redo")->setToolTip(tr("Redo %1 (Ctrl+Y)").arg(ed->undoStack()->redoText()));
+    act("edit.undo")->setToolTip(jp::plainToolTip(tr("Undo %1 (Ctrl+Z)").arg(ed->undoStack()->undoText())));
+    act("edit.redo")->setToolTip(jp::plainToolTip(tr("Redo %1 (Ctrl+Y)").arg(ed->undoStack()->redoText())));
 
     // What the selection lets the text and drawing commands do.
     const QString kind = ed->selectionKind();
@@ -505,6 +506,7 @@ bool DeckWindow::maybeSave()
     if (!m_ed->isModified()) return true;
     QMessageBox box(QMessageBox::Question, appInfo().name, tr("Do you want to save changes to %1?").arg(m_ed->displayName()),
                     QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
+    box.setTextFormat(Qt::PlainText);
     box.setDefaultButton(QMessageBox::Save);
     box.button(QMessageBox::Discard)->setText(tr("Don't Save"));
     box.exec();

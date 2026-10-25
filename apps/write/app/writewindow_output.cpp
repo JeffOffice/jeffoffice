@@ -21,6 +21,7 @@
 #include <QStatusBar>
 #include <QTemporaryFile>
 #include <memory>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -88,7 +89,7 @@ bool WriteWindow::exportPdf()
     if (!ok) err = file.error() != QFileDevice::NoError ? file.errorString() : tr("The pages can't be made.");
     QApplication::restoreOverrideCursor();
     if (!ok) {
-        QMessageBox::warning(this, tr("Export to PDF"), tr("%1 couldn't export \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        jp::plainWarning(this, tr("Export to PDF"), tr("%1 couldn't export \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
     statusBar()->showMessage(tr("Exported %1").arg(QFileInfo(path).fileName()), 5000);
@@ -111,7 +112,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
         if (path.isEmpty()) return false;
         made = std::make_unique<QTemporaryFile>(QDir::tempPath() + QStringLiteral("/jeffwrite-XXXXXX.pdf"));
         if (!made->open()) {
-            QMessageBox::warning(this, tr("Save as PDF"), tr("%1 couldn't make \"%2\".\n%3").arg(appInfo().name, QFileInfo(path).fileName(), made->errorString()));
+            jp::plainWarning(this, tr("Save as PDF"), tr("%1 couldn't make \"%2\".\n%3").arg(appInfo().name, QFileInfo(path).fileName(), made->errorString()));
             return false;
         }
         made->close();
@@ -141,8 +142,8 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     }
     QApplication::restoreOverrideCursor();
     if (!ok) {
-        if (made && !err.isEmpty()) QMessageBox::warning(this, tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
-        else QMessageBox::warning(this, tr("Print"), tr("%1 couldn't send \"%2\" to the printer.").arg(appInfo().name, displayName()));
+        if (made && !err.isEmpty()) jp::plainWarning(this, tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        else jp::plainWarning(this, tr("Print"), tr("%1 couldn't send \"%2\" to the printer.").arg(appInfo().name, displayName()));
         return false;
     }
     statusBar()->showMessage(options.toFile ? tr("Saved %1").arg(QFileInfo(path).fileName()) : tr("Sent %1 to the printer").arg(displayName()), 5000);

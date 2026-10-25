@@ -33,6 +33,7 @@
 #include <QToolButton>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -41,7 +42,7 @@ TaskPane::TaskPane(MainWindow *win) : QWidget(win), m_win(win)
     auto *v = new QVBoxLayout(this);
     v->setContentsMargins(6, 6, 6, 6);
     auto *head = new QHBoxLayout();
-    m_title = new QLabel(this);
+    m_title = plainLabel(new QLabel(this));
     QFont f = m_title->font();
     f.setBold(true);
     f.setPointSizeF(f.pointSizeF() * 1.15);
@@ -363,7 +364,7 @@ public:
         linkRow->addWidget(m_embed);
         v->addLayout(linkRow);
         for (auto *b : {m_update, m_change, m_embed}) b->setEnabled(false);
-        m_details = new QLabel(this);
+        m_details = plainLabel(new QLabel(this));
         m_details->setWordWrap(true);
         v->addWidget(m_details);
         connect(m_sort, &QComboBox::currentIndexChanged, this, &GraphicsPane::refresh);
@@ -485,7 +486,7 @@ public:
     {
         auto *v = new QVBoxLayout(this);
         v->setContentsMargins(0, 0, 0, 0);
-        m_step = new QLabel(this);
+        m_step = plainLabel(new QLabel(this));
         QFont f = m_step->font();
         f.setBold(true);
         m_step->setFont(f);
@@ -503,7 +504,7 @@ public:
                 connect(b, &QPushButton::clicked, a, &QAction::trigger);
                 l->addWidget(b);
             }
-            m_summary = new QLabel(w);
+            m_summary = plainLabel(new QLabel(w));
             m_summary->setWordWrap(true);
             l->addWidget(m_summary);
             l->addStretch(1);
@@ -522,7 +523,7 @@ public:
                 if (code == "addr") { mergeFieldDialog(this, ed, 0); return; }
                 if (code == "greet") { mergeFieldDialog(this, ed, 1); return; }
                 if (ed->isEditingText()) ed->insertField("merge:" + code);
-                else QMessageBox::information(this, tr("Mail Merge"), tr("Click in a text box first."));
+                else jp::plainInformation(this, tr("Mail Merge"), tr("Click in a text box first."));
             });
             m_body->addWidget(w);
         }
@@ -595,7 +596,7 @@ public:
     {
         auto *v = new QVBoxLayout(this);
         v->setContentsMargins(0, 0, 0, 0);
-        m_step = new QLabel(this);
+        m_step = plainLabel(new QLabel(this));
         QFont f = m_step->font();
         f.setBold(true);
         m_step->setFont(f);
@@ -615,7 +616,7 @@ public:
                 connect(b, &QPushButton::clicked, a, &QAction::trigger);
                 l->addWidget(b);
             }
-            m_summary = new QLabel(w);
+            m_summary = plainLabel(new QLabel(w));
             m_summary->setWordWrap(true);
             l->addWidget(m_summary);
             l->addStretch(1);

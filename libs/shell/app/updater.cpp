@@ -35,6 +35,7 @@
 
 #include <algorithm>
 #include <memory>
+#include "app/plaintext.h"
 
 namespace jp {
 
@@ -127,7 +128,7 @@ void Updater::check(bool interactive)
         m_busy = false;
         if (r->error() != QNetworkReply::NoError) {
             if (interactive)
-                QMessageBox::warning(m_win, tr("Check for Updates"),
+                jp::plainWarning(m_win, tr("Check for Updates"),
                                      tr("%1 couldn't reach the update server. Check your internet connection and try again.\n\n%2").arg(appInfo().name, r->errorString()));
             return;
         }
@@ -158,7 +159,7 @@ void Updater::check(bool interactive)
             return;
         }
         if (interactive)
-            QMessageBox::information(m_win, tr("Check for Updates"),
+            jp::plainInformation(m_win, tr("Check for Updates"),
                                      tr("You have the latest version of %1 (%2).").arg(appInfo().name, QStringLiteral(JP_VERSION)));
     });
 }
@@ -204,7 +205,7 @@ QDialog *Updater::offerDialog(QWidget *parent, const QString &version, const QSt
     icon->setPixmap(QApplication::windowIcon().pixmap(QSize(56, 56)));
     icon->setAlignment(Qt::AlignTop);
     icon->setVisible(!icon->pixmap().isNull());
-    auto *title = new QLabel(tr("%1 %2 is available").arg(appInfo().name, version.toHtmlEscaped()), d);
+    auto *title = plainLabel(new QLabel(tr("%1 %2 is available").arg(appInfo().name, version.toHtmlEscaped()), d));
     QFont tf = title->font();
     tf.setPointSizeF(tf.pointSizeF() * 1.4);
     tf.setBold(true);
@@ -225,7 +226,7 @@ QDialog *Updater::offerDialog(QWidget *parent, const QString &version, const QSt
     top->addWidget(icon, 0, Qt::AlignTop);
     top->addLayout(head, 1);
 
-    auto *news = new QTextBrowser(d);
+    auto *news = new NoResourceBrowser(d);
     news->setOpenExternalLinks(true);
     news->setMarkdown(notes.isEmpty() ? tr("This version has no notes.") : notes);
     news->document()->setDocumentMargin(12);
@@ -305,14 +306,14 @@ void Updater::downloadAndRun(const QString &url, const QString &tag, const QStri
         progress->deleteLater();
         if (r->error() != QNetworkReply::NoError) {
             if (r->error() != QNetworkReply::OperationCanceledError)
-                QMessageBox::warning(m_win, tr("Update"), tr("The download didn't finish: %1").arg(r->errorString()));
+                jp::plainWarning(m_win, tr("Update"), tr("The download didn't finish: %1").arg(r->errorString()));
             return;
         }
         const QByteArray bytes = r->readAll();
         // Run only the installer GitHub lists for this release, byte for byte.
         const QByteArray got = QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex();
         if (bytes.isEmpty() || got != digest.mid(7).toLatin1().toLower()) {
-            QMessageBox::warning(m_win, tr("Update"),
+            jp::plainWarning(m_win, tr("Update"),
                                  tr("The downloaded installer didn't match the one published for this release, so it wasn't run. "
                                     "You can download it from the release page instead."));
             QDesktopServices::openUrl(QUrl(pageUrl));
@@ -320,14 +321,14 @@ void Updater::downloadAndRun(const QString &url, const QString &tag, const QStri
         }
         QSaveFile f(dest);
         if (!f.open(QIODevice::WriteOnly) || f.write(bytes) != bytes.size() || !f.commit()) {
-            QMessageBox::warning(m_win, tr("Update"), tr("%1 couldn't save the installer to %2.").arg(appInfo().name, QDir::toNativeSeparators(dest)));
+            jp::plainWarning(m_win, tr("Update"), tr("%1 couldn't save the installer to %2.").arg(appInfo().name, QDir::toNativeSeparators(dest)));
             return;
         }
         // Give every window a chance to save, then hand over to the installer.
         for (AppWindow *w : AppWindow::windows())
             if (w->isVisible() && !w->close()) return;
         if (!QProcess::startDetached(dest, {})) {
-            QMessageBox::warning(m_win, tr("Update"), tr("%1 couldn't start the installer. You can run it yourself from %2.").arg(appInfo().name, QDir::toNativeSeparators(dest)));
+            jp::plainWarning(m_win, tr("Update"), tr("%1 couldn't start the installer. You can run it yourself from %2.").arg(appInfo().name, QDir::toNativeSeparators(dest)));
             return;
         }
         QApplication::quit();
