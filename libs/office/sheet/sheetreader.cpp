@@ -2669,7 +2669,7 @@ std::vector<Workbook::TableAdd> Workbook::addedTables() const
     for (const Table &t : m_tables) {
         if (std::any_of(m_tablesInFile.begin(), m_tablesInFile.end(), [&](const auto &p) { return p.first == t.part; })) continue;
         bool ok = false;
-        const QByteArray bytes = writeTablePart(t, QByteArray(), &ok);
+        const QByteArray bytes = writeTablePart(t, t.copyOfPart.isEmpty() ? QByteArray() : m_package.part(t.copyOfPart), &ok, !t.copyOfPart.isEmpty());
         if (ok) out.push_back({t.sheet, t.part, bytes});
     }
     return out;
@@ -2701,6 +2701,7 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
         for (Table &t : m_tables) {
             m_tablesInFile.emplace_back(t.part, t.sheet);
             t.fileSignature = tableSignature(t);
+            t.copyOfPart.clear();
             t.fileColumns = t.columns;
             t.fileRow1 = t.row1;
             t.fileCol1 = t.col1;

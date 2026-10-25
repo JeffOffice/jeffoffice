@@ -82,7 +82,9 @@ bool saveNow(EditWindow &e)
 {
     if (!e.settle()) return false;
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-    return e.win.w.save() && savedOk(saved);
+    const bool started = e.win.w.save();
+    // (a save that has nothing to write is over when the call returns)
+    return started && (!saved.isEmpty() ? saved.last().value(1).toBool() : savedOk(saved));
 }
 
 struct Saved {
@@ -802,6 +804,11 @@ private Q_SLOTS:
             if (r.row == 3) hidden = r.hidden;
         QVERIFY(hidden);
         QVERIFY(!sheet.autoFilter.valid());
+        // a filtered table keeps its buttons: taking them off is refused (the rows it hides would stay hidden)
+        w.act(QStringLiteral("table.buttons"))->trigger();
+        QVERIFY(w.session()->workbook()->tables().first().filterButtons);
+        QVERIFY(e.win.told.last().contains(QStringLiteral("Clear its filter first")));
+        QVERIFY(w.act(QStringLiteral("table.buttons"))->isChecked());
         // cleared: the rows are shown again, and the totals count them
         w.act(QStringLiteral("filter.clear"))->trigger();
         QTRY_VERIFY(!w.isFiltering());
@@ -942,6 +949,68 @@ private Q_SLOTS:
         QVERIFY(!w.isEditing());
         QVERIFY(e.settle());
         QCOMPARE(valueOf(e, QStringLiteral("F4")), QStringLiteral("n:1"));
+    }
+
+    // A sheet that has tables is copied with them: the copy's tables have names, ids, and parts of their own, the formulas of the copy name them, and a formula of another sheet is not
+    // changed; the saved file has every table once with its own id; Undo takes the copies away.
+    void aCopyOfASheetHasCopiesOfItsTables()
+    {
+        const QByteArray two = buildXlsx({salesRows(), worksheet(row(1, formula(QStringLiteral("A1"), QStringLiteral("SUM(Sales[Q1])"))))}, QByteArray(), QString(), QString(), QByteArray(), QStringList{QStringLiteral("Data"), QStringLiteral("Other")});
+        EditWindow e;
+        QVERIFY(e.open(two));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(s->renameTable(0, QStringLiteral("Sales")).ok);
+        QVERIFY(s->type(0, 1, 3, QStringLiteral("=[@Q1]*10")).ok);
+        QVERIFY(s->type(0, 7, 0, QStringLiteral("=SUM(Sales[Q1])")).ok);
+        QVERIFY(s->setTableTotalsRow(0, true).ok);
+        QVERIFY(e.settle());
+        QUndoStack *u = e.win.w.undoStack();
+        int made = -1;
+        const auto copied = s->copySheet(0, -1, QString(), &made);
+        QVERIFY2(copied.ok, qPrintable(copied.problem));
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().size(), 2);
+        const Table &c = s->workbook()->tables().last();
+        QCOMPARE(c.name, QStringLiteral("Sales2"));
+        QCOMPARE(c.sheet, made);
+        QVERIFY(c.id != s->workbook()->tables().first().id && c.part != s->workbook()->tables().first().part);
+        QCOMPARE(c.info[3].calcFormula, QStringLiteral("Sales2[[#This Row],[Q1]]*10"));
+        QCOMPARE(c.styleName, s->workbook()->tables().first().styleName);
+        QCOMPARE(editOf(e, QStringLiteral("A8"), made), QStringLiteral("=SUM(Sales2[Q1])"));
+        QCOMPARE(editOf(e, QStringLiteral("A8"), 0), QStringLiteral("=SUM(Sales[Q1])"));
+        QCOMPARE(editOf(e, QStringLiteral("A1"), 1), QStringLiteral("=SUM(Sales[Q1])"));
+        QCOMPARE(valueOf(e, QStringLiteral("A8"), made), QStringLiteral("n:6"));
+        QCOMPARE(valueOf(e, QStringLiteral("D3"), made), QStringLiteral("n:20"));
+        // the copy's table is its own: a value changed there is not changed in the first
+        QVERIFY(s->type(made, 1, 1, QStringLiteral("100")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A8"), made), QStringLiteral("n:105"));
+        QCOMPARE(valueOf(e, QStringLiteral("A8"), 0), QStringLiteral("n:6"));
+        QVERIFY(saveNow(e));
+        Saved back;
+        QVERIFY(back.open(e.path));
+        QCOMPARE(back.book.tables().size(), 2);
+        QCOMPARE(back.book.tables()[1].name, QStringLiteral("Sales2"));
+        QCOMPARE(back.book.tables()[1].sheet, made);
+        QVERIFY(back.book.tables()[0].id != back.book.tables()[1].id);
+        QCOMPARE(back.book.tables()[1].info[3].calcFormula, QStringLiteral("Sales2[[#This Row],[Q1]]*10"));
+        QCOMPARE(back.formula(made, QStringLiteral("A8")), QStringLiteral("SUM(Sales2[Q1])"));
+        // and again, it is another copy with another name
+        QVERIFY(s->copySheet(0, -1, QString()).ok);
+        QCOMPARE(s->workbook()->tables().last().name, QStringLiteral("Sales3"));
+        QCOMPARE(s->workbook()->tables().size(), 3);
+        u->undo();   // the second copy
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().size(), 2);
+        QCOMPARE(s->workbook()->tables().last().name, QStringLiteral("Sales2"));
+        // saved with the copy taken away, the file has the first copy and the table once
+        QVERIFY(saveNow(e));
+        Saved again;
+        QVERIFY(again.open(e.path));
+        QCOMPARE(again.book.tables().size(), 2);
     }
 };
 

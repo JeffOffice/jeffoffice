@@ -27,7 +27,7 @@ QString salesPart()
                           "<tableColumn id=\"2\" name=\"Q1\" totalsRowFunction=\"sum\"/>"
                           "<tableColumn id=\"3\" name=\"Double\" totalsRowFunction=\"custom\"><calculatedColumnFormula>Sales[[#This Row],[Q1]]*2</calculatedColumnFormula><totalsRowFormula>SUM(Sales[Double])</totalsRowFormula></tableColumn>"
                           "</tableColumns><tableStyleInfo name=\"TableStyleMedium2\" showFirstColumn=\"1\" showLastColumn=\"0\" showRowStripes=\"1\" showColumnStripes=\"0\"/>"
-                          "<extLst><ext uri=\"{x}\"><x14:note/></ext></extLst></table>")
+                          "<extLst><ext uri=\"{x}\"><x14:note/></ext><ext uri=\"{y}\"><x14:table altTextSummary=\"s\"/></ext></extLst></table>")
         .arg(QLatin1String(kNs));
 }
 
@@ -412,6 +412,37 @@ private Q_SLOTS:
         quint32 r = 0, c = 0;
         parseCellRef(QStringLiteral("B6"), &r, &c);
         QVERIFY(calc.isTainted(0, r, c));
+    }
+
+    // A part is written as it was: a name that holds the file's own mark for a line break (_x000a_), a function a column names although the table has no row of totals, and attributes the
+    // program knows nothing of; the table's range and filter follow a row added.
+    void aChangedPartKeepsWhatItNeverHeld()
+    {
+        const QString part = QStringLiteral("<table xmlns=\"%1\" id=\"3\" name=\"Budget\" displayName=\"Budget\" ref=\"A1:B4\"><autoFilter ref=\"A1:B4\"/><tableColumns count=\"2\">"
+                                           "<tableColumn id=\"1\" name=\"Hand_x000a_Bars\" totalsRowLabel=\"Total\"/><tableColumn id=\"2\" name=\"Amount &amp; more\" totalsRowFunction=\"sum\" totalsRowDxfId=\"2\"/></tableColumns>"
+                                           "<tableStyleInfo name=\"My &quot;own&quot; style\" showRowStripes=\"1\"/></table>")
+                                 .arg(QLatin1String(kNs));
+        Open o;
+        QVERIFY(o.ok(withTables(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"/>"))}), {part})));
+        QCOMPARE(o.b.tables().size(), 1);
+        Table t = o.b.tables().first();
+        QCOMPARE(t.columns.first(), QStringLiteral("Hand_x000a_Bars"));
+        t.row2 += 1;
+        o.b.setTableAt(0, t);
+        const QString xml = QString::fromUtf8(o.b.changedTableParts().begin()->second);
+        QVERIFY2(xml.contains(QStringLiteral("name=\"Hand_x000a_Bars\"")) && xml.contains(QStringLiteral("name=\"Amount &amp; more\"")), qPrintable(xml));
+        QVERIFY2(xml.contains(QStringLiteral("totalsRowFunction=\"sum\"")) && xml.contains(QStringLiteral("totalsRowLabel=\"Total\"")) && xml.contains(QStringLiteral("totalsRowDxfId=\"2\"")), qPrintable(xml));
+        QVERIFY2(xml.contains(QStringLiteral("ref=\"A1:B5\"")) && xml.contains(QStringLiteral("<autoFilter ref=\"A1:B5\"/>")) && !xml.contains(QStringLiteral("totalsRowShown")), qPrintable(xml));
+        QVERIFY2(xml.contains(QStringLiteral("name=\"My &quot;own&quot; style\"")), qPrintable(xml));
+        // a real line break in a name is written as the character reference an attribute keeps
+        t.columns[0] = QStringLiteral("Two\nlines");
+        o.b.setTableAt(0, t);
+        const QByteArray bytes = o.b.changedTableParts().begin()->second;
+        QVERIFY(bytes.contains("name=\"Two&#10;lines\""));
+        Table back;
+        back.columns = t.columns;
+        QVERIFY(readTableModel(bytes, &back));
+        QCOMPARE(back.info.size(), 2);
     }
 
     // Names: what a table may be called, and the name a new table is given.

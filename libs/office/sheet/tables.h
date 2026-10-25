@@ -55,6 +55,8 @@ struct Table {
     // Whether the header row has its filter buttons, and the conditions of the filter (its `ref` is the table's, as it is written).
     bool filterButtons = true;
     AutoFilter filter;
+    // A table made as a copy of another (a sheet was copied): the part of the table it is a copy of, which its part is made from (the attributes the program has no model of are kept).
+    QString copyOfPart;
     // What the file has, to tell whether the part must be written again: made when the table is read (empty for a table made here, which is always written).
     QByteArray fileSignature;
     // The first row of data, and the last (none when there is no data: first > last).
@@ -109,7 +111,7 @@ QString uniqueColumnName(const QString &typed, const QStringList &columns, int c
 bool readTableModel(const QByteArray &xml, Table *table);
 // The part for the table: the part it was read from (`original`, empty for a table made here) with the model put in it and everything else of it as it was. `ok` is false if the part given
 // cannot be read as a table's.
-QByteArray writeTablePart(const Table &table, const QByteArray &original, bool *ok = nullptr);
+QByteArray writeTablePart(const Table &table, const QByteArray &original, bool *ok = nullptr, bool asCopy = false);
 // The model as plain bytes, equal for equal tables: what is compared to tell whether a table changed from what the file has.
 QByteArray tableSignature(const Table &table);
 // A filter as the element the file has it (`<autoFilter ref=...>` with the conditions of its columns and its sort state), with the prefix of the element names; empty if it has no range.

@@ -244,9 +244,11 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
             QString displayName, name;
             QString ref;
             int headerRows = 1, totalsRows = 0;
+            bool rootSeen = false;   // (an extension of the part may hold an element called "table" of its own)
             while (!r.atEnd()) {
                 if (r.readNext() != QXmlStreamReader::StartElement) continue;
-                if (isTableElement(r, "table")) {
+                if (isTableElement(r, "table") && !rootSeen) {
+                    rootSeen = true;
                     const QXmlStreamAttributes a = r.attributes();
                     name = nameOf(a, "name");
                     displayName = nameOf(a, "displayName");

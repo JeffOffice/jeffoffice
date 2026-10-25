@@ -85,6 +85,15 @@ qint64 filterBytes(const jp::office::sheet::AutoFilter &f)
     return n;
 }
 
+// About how many bytes a table takes: its names, what its columns say, and its filter.
+qint64 tableBytes(const jp::office::sheet::Table &t)
+{
+    qint64 n = qint64(sizeof(t)) + (t.part.size() + t.name.size() + t.styleName.size()) * 2 + t.fileSignature.size() + filterBytes(t.filter);
+    for (const QString &c : t.columns) n += 24 + c.size() * 2;
+    for (const jp::office::sheet::TableColumnInfo &c : t.info) n += qint64(sizeof(c)) + (c.totalsFunction.size() + c.totalsLabel.size() + c.totalsFormula.size() + c.calcFormula.size()) * 2;
+    return n;
+}
+
 class ChangeCells : public QUndoCommand {
 public:
     ChangeCells(EditSession *session, Step step, const QString &text, const std::shared_ptr<qint64> &total) : QUndoCommand(text), m_session(session), m_step(std::move(step)), m_total(total)
@@ -154,6 +163,7 @@ public:
         for (const CellChange &c : m_step.cells) n += qint64(sizeof(c)) + contentBytes(c.before) + contentBytes(c.after) + qint64(c.formatCode.size()) * 2;
         n += qint64(m_step.styles.size()) * qint64(sizeof(StyleCell));
         for (const TableRename &r : m_step.renames) n += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
+        for (const TableEdit &e : m_step.tables) n += qint64(sizeof(e)) + tableBytes(e.before) + tableBytes(e.after);
         for (const MergeEdit &m : m_step.merges) n += qint64(sizeof(m)) + qint64(m.before.size() + m.after.size()) * qint64(sizeof(jp::office::sheet::CellRange));
         for (const FilterEdit &f : m_step.filters) n += qint64(sizeof(f)) + filterBytes(f.before) + filterBytes(f.after);
         for (const NameEdit &e : m_step.names) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.before.name.size() + e.after.name.size() + e.textBefore.size() + e.textAfter.size()) * 2;
@@ -840,6 +850,7 @@ bool EditSession::apply(Step *step, bool forward)
     }
     for (const auto &p : step->permutes) applyPermute(*p, forward);
     if (!applySheetEdits(step, forward, calc, book)) return false;
+    if (!step->tables.empty() && !step->sheets.empty()) calc->tablesChanged();   // (the tables of a sheet copied are looked up where the sheets are now)
     if (m_holdHook) m_holdHook(calc, true);
     // (a change of formats alone leaves nothing for the worker to work out)
     bool valuesChanged = !step->renames.empty() || !step->tables.empty() || !step->names.empty() || !step->calcs.empty();

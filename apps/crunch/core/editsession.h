@@ -94,6 +94,7 @@ struct SheetEdit {
     jp::office::sheet::SheetState stateBefore = jp::office::sheet::SheetState::Visible, stateAfter = jp::office::sheet::SheetState::Visible;
     jp::office::sheet::ColorSpec colorBefore, colorAfter;
     int copyOf = -1;                                       // Copy: the sheet it is a copy of
+    std::vector<std::pair<QString, QString>> tableRenames;   // Copy: the tables that were copied, by the name they had and have (the copy's formulas name its own tables)
     jp::office::sheet::Calculation::SheetRewrite rewrite;  // Rename and Delete: what the formulas were (made when the step is done)
     // Whether the step changes what the file's parts name (and so can't be undone against a file that was saved after it).
     bool structural() const { return kind == Kind::Insert || kind == Kind::Copy || kind == Kind::Delete || kind == Kind::Rename || kind == Kind::Move; }
@@ -194,6 +195,8 @@ struct Step {
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
 qint64 contentBytes(const jp::office::sheet::Calculation::CellContent &c);
+// And of a table (its names, columns, and filter).
+qint64 tableBytes(const jp::office::sheet::Table &t);
 
 class EditSession : public QObject {
     Q_OBJECT
@@ -761,7 +764,7 @@ private:
     void applyPermute(jp::office::sheet::CellPermute &p, bool forward);
     void forgetNotes();
     bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);
-    Outcome pushSheetEdit(SheetEdit edit, const QString &text);
+    Outcome pushSheetEdit(SheetEdit edit, const QString &text, std::vector<TableEdit> tables = {});
     bool sheetStepsRefused(QString *why);
     bool applyNameEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc);
     void applyCalcEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc);

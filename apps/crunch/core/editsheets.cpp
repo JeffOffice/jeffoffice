@@ -2,10 +2,13 @@
 // names, and what the formulas said kept for Undo. The calculation and the workbook do the work (Calculation::addSheet, rewriteSheetReferences; Workbook::setSheetName, ...), with the
 // worker held back; this says what is allowed and what the step is.
 #include "core/editsession.h"
+#include "sheet/structref.h"
 
 #include <QRegularExpression>
+#include <QSet>
 
 #include <algorithm>
+#include <tuple>
 
 namespace jp::crunch {
 
@@ -98,11 +101,12 @@ bool EditSession::sheetStepsRefused(QString *why)
     return false;
 }
 
-EditSession::Outcome EditSession::pushSheetEdit(SheetEdit edit, const QString &text)
+EditSession::Outcome EditSession::pushSheetEdit(SheetEdit edit, const QString &text, std::vector<TableEdit> tables)
 {
     Outcome out;
     Step step;
     step.sheets.push_back(std::move(edit));
+    step.tables = std::move(tables);
     pushStep(std::move(step), text);
     return out;
 }
@@ -219,12 +223,6 @@ EditSession::Outcome EditSession::copySheet(int sheet, int before, const QString
         out.problem = tr("There is no such sheet.");
         return out;
     }
-    for (const Table &t : book.tables())
-        if (t.sheet == sheet) {
-            out.ok = false;
-            out.problem = tr("This sheet has a table, and JeffCrunch does not yet make a copy of a sheet that has one.");
-            return out;
-        }
     const QString nm = name.isEmpty() ? copyName(sheet) : name;
     if (!validSheetName(nm, -1, &why)) {
         out.ok = false;
@@ -240,9 +238,55 @@ EditSession::Outcome EditSession::copySheet(int sheet, int before, const QString
     e.nameAfter = nm;
     e.orderBefore = sheetOrder();
     e.orderAfter = orderWith(e.orderBefore, e.sheet, before);
+    // the tables on the sheet are copied with it: each has a name, an id, and a part of its own, and the copy's formulas name the copies
+    std::vector<TableEdit> copies;
+    {
+        QStringList taken = tableNames(20000);
+        for (int id = 0; id < m_nameTable.slots(); ++id)
+            if (m_nameTable.at(id).alive) taken << m_nameTable.at(id).name;
+        QSet<QString> usedParts;
+        for (const QString &n : book.package().partNames()) usedParts.insert(n.toLower());
+        for (const Table &t : book.tables()) usedParts.insert(t.part.toLower());
+        int nextId = book.freshTableId(), nextPart = 1;
+        const int existing = int(book.tables().size());
+        for (const Table &t : book.tables()) {
+            if (t.sheet != sheet) continue;
+            if (qint64(book.tables().size()) + qint64(copies.size()) >= 20000) {
+                out.ok = false;
+                out.problem = tr("The workbook has as many tables as JeffCrunch works with.");
+                return out;
+            }
+            Table c = t;
+            c.sheet = e.sheet;
+            int n = 2;
+            while (taken.contains(t.name + QString::number(n), Qt::CaseInsensitive)) ++n;
+            c.name = t.name + QString::number(n);
+            taken << c.name;
+            QString part;
+            do part = QStringLiteral("/xl/tables/table%1.xml").arg(nextPart++);
+            while (usedParts.contains(part.toLower()));
+            usedParts.insert(part.toLower());
+            c.part = part;
+            c.id = nextId++;
+            c.copyOfPart = t.copyOfPart.isEmpty() ? t.part : t.copyOfPart;
+            c.fileSignature.clear();
+            e.tableRenames.emplace_back(t.name, c.name);
+            TableEdit te;
+            te.kind = TableEdit::Kind::Insert;
+            te.index = existing + int(copies.size());
+            te.after = c;
+            copies.push_back(std::move(te));
+        }
+        for (TableEdit &te : copies)
+            for (TableColumnInfo &ci : te.after.info)
+                for (const auto &r : e.tableRenames) {
+                    ci.calcFormula = jp::office::sheet::renameTableInFormula(ci.calcFormula, r.first, r.second);
+                    ci.totalsFormula = jp::office::sheet::renameTableInFormula(ci.totalsFormula, r.first, r.second);
+                }
+    }
     if (made) *made = e.sheet;
     const QString note = out.problem;
-    out = pushSheetEdit(e, tr("Copy Sheet"));
+    out = pushSheetEdit(e, tr("Copy Sheet"), std::move(copies));
     out.problem = note;
     return out;
 }
@@ -421,6 +465,17 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                 const int entry = book.addSheetEntry(e.nameAfter);
                 if (made != e.sheet || entry != e.sheet) return false;
                 if (e.kind == SheetEdit::Kind::Copy) m_copies.push_back({made, e.copyOf, m_edits.size()});
+                if (!e.tableRenames.empty()) {
+                    // (the copy's formulas name the tables that were copied with it)
+                    std::vector<std::tuple<quint32, quint32, QString>> changes;
+                    calc->forEachFormulaText([&](int s, quint32 r, quint32 c, const QString &text) {
+                        if (s != made || !text.contains(QLatin1Char('['))) return;
+                        QString now = text;
+                        for (const auto &rename : e.tableRenames) now = jp::office::sheet::renameTableInFormula(now, rename.first, rename.second);
+                        if (now != text) changes.emplace_back(r, c, now);
+                    });
+                    for (const auto &[r, c, text] : changes) calc->setFormula(made, r, c, text);
+                }
                 // (a new sheet prints as the defaults say, a copy as the sheet it is a copy of does now, and the file is told of it)
                 m_pages.addSheet(e.kind == SheetEdit::Kind::Copy ? m_pages.sheet(e.copyOf) : jp::office::sheet::PageSetup(), e.kind == SheetEdit::Kind::Copy);
                 if (m_book->geometry.size() < size_t(made) + 1) m_book->geometry.resize(size_t(made) + 1);

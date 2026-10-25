@@ -25,6 +25,8 @@ qint64 StructChange::bytes() const
     for (const auto &name : record.names) n += qint64(name.first.size() + name.second.size()) * 2;
     n += qint64(record.rewritten.size()) * qint64(sizeof(Calculation::EditRecord::Place));
     n += qint64(touchedGone.size() + touchedAdded.size()) * 8 + qint64(tables.size()) * qint64(sizeof(TablePlace));
+    for (const TablePlace &p : tables)
+        if (p.whole) n += tableBytes(*p.whole);
     n += qint64(resultsGone.size() + engineGone.size() + fileGone.size()) * qint64(sizeof(std::pair<quint64, Value>));
     return n;
 }

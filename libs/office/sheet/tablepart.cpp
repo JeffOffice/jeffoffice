@@ -7,10 +7,12 @@
 
 #include <QCoreApplication>
 #include <QRegularExpression>
+#include <QSet>
 #include <QXmlStreamReader>
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 
 namespace jp::office::sheet {
 
@@ -104,16 +106,53 @@ bool parseTree(const QByteArray &xml, XNode *root)
     return any && !r.hasError() && stack.empty();
 }
 
+// A value as it is written: the entities, and the characters an attribute's reading would turn into spaces as numbers. (A name that holds _x000a_ keeps it as it is: that is how the file says a
+// line break, not a text to be protected.)
+QByteArray attributeText(const QString &value)
+{
+    QString o;
+    o.reserve(value.size() + 8);
+    for (const QChar c : value) {
+        switch (c.unicode()) {
+        case '&': o += QStringLiteral("&amp;"); break;
+        case '<': o += QStringLiteral("&lt;"); break;
+        case '>': o += QStringLiteral("&gt;"); break;
+        case '"': o += QStringLiteral("&quot;"); break;
+        case '\n': o += QStringLiteral("&#10;"); break;
+        case '\r': o += QStringLiteral("&#13;"); break;
+        case '\t': o += QStringLiteral("&#9;"); break;
+        default: o += c;
+        }
+    }
+    return o.toUtf8();
+}
+
+QByteArray elementText(const QString &value)
+{
+    QString o;
+    o.reserve(value.size() + 8);
+    for (const QChar c : value) {
+        switch (c.unicode()) {
+        case '&': o += QStringLiteral("&amp;"); break;
+        case '<': o += QStringLiteral("&lt;"); break;
+        case '>': o += QStringLiteral("&gt;"); break;
+        case '\r': o += QStringLiteral("&#13;"); break;
+        default: o += c;
+        }
+    }
+    return o.toUtf8();
+}
+
 void writeNode(const XNode &n, QByteArray *out)
 {
     *out += "<" + n.name.toUtf8();
-    for (const auto &a : n.attrs) *out += " " + a.first.toUtf8() + "=\"" + xmlscan::escapeAttribute(a.second) + "\"";
+    for (const auto &a : n.attrs) *out += " " + a.first.toUtf8() + "=\"" + attributeText(a.second) + "\"";
     if (n.kids.empty() && n.text.isEmpty()) {
         *out += "/>";
         return;
     }
     *out += ">";
-    if (!n.text.isEmpty()) *out += xmlscan::escapeText(n.text);
+    if (!n.text.isEmpty()) *out += elementText(n.text);
     for (const XNode &k : n.kids) writeNode(k, out);
     *out += "</" + n.name.toUtf8() + ">";
 }
@@ -334,7 +373,7 @@ QByteArray tableSignature(const Table &t)
     return s;
 }
 
-QByteArray writeTablePart(const Table &t, const QByteArray &original, bool *ok)
+QByteArray writeTablePart(const Table &t, const QByteArray &original, bool *ok, bool asCopy)
 {
     if (ok) *ok = true;
     XNode root;
@@ -345,6 +384,14 @@ QByteArray writeTablePart(const Table &t, const QByteArray &original, bool *ok)
     } else if (!parseTree(original, &root) || root.local() != QLatin1String("table")) {
         if (ok) *ok = false;
         return {};
+    }
+    // (a copy is a table of its own: the identifiers a program gives the elements of the one it was made from are not its)
+    if (asCopy) {
+        std::function<void(XNode &)> dropUids = [&](XNode &n) {
+            n.attrs.erase(std::remove_if(n.attrs.begin(), n.attrs.end(), [](const auto &a) { return a.first.endsWith(QLatin1String(":uid")); }), n.attrs.end());
+            for (XNode &k : n.kids) dropUids(k);
+        };
+        dropUids(root);
     }
     const QString prefix = root.prefix();
     auto nodeNamed = [&](const char *local) {
@@ -364,13 +411,16 @@ QByteArray writeTablePart(const Table &t, const QByteArray &original, bool *ok)
     root.set("ref", rangeName(all));
     if (t.headerRows == 0) root.set("headerRowCount", QStringLiteral("0"));
     else root.drop("headerRowCount");
+    // (what the part says of totals when the table has none now: dropped if the part had a row of totals, as it is no more; kept if it never had one, since it is the file's own)
+    const bool hadTotals = flag(root.attrOr("totalsRowCount", QStringLiteral("0")), false) || root.attrOr("totalsRowCount").toInt() > 0;
     if (t.totalsRows > 0) {
         root.set("totalsRowCount", QStringLiteral("1"));
         root.drop("totalsRowShown");
     } else {
         root.drop("totalsRowCount");
-        root.set("totalsRowShown", QStringLiteral("0"));
+        if (fresh || hadTotals) root.set("totalsRowShown", QStringLiteral("0"));
     }
+    const bool keepTotals = t.totalsRows == 0 && !fresh && !hadTotals;
     // the elements the model owns are taken out and put back in the order the format has them
     std::vector<XNode> kept;
     XNode oldFilter, oldColumns, oldStyle;
@@ -429,9 +479,9 @@ QByteArray writeTablePart(const Table &t, const QByteArray &original, bool *ok)
         else c = nodeNamed("tableColumn");
         c.set("id", QString::number(ci.id > 0 ? ci.id : i + 1));
         c.set("name", t.columns[i]);
-        if (t.totalsRows > 0 && !ci.totalsFunction.isEmpty()) c.set("totalsRowFunction", ci.totalsFunction);
+        if ((t.totalsRows > 0 || keepTotals) && !ci.totalsFunction.isEmpty()) c.set("totalsRowFunction", ci.totalsFunction);
         else c.drop("totalsRowFunction");
-        if (t.totalsRows > 0 && !ci.totalsLabel.isEmpty()) c.set("totalsRowLabel", ci.totalsLabel);
+        if ((t.totalsRows > 0 || keepTotals) && !ci.totalsLabel.isEmpty()) c.set("totalsRowLabel", ci.totalsLabel);
         else c.drop("totalsRowLabel");
         // the formulas: the model's, in the place of the file's (an unchanged formula keeps its element)
         XNode *calc = c.child("calculatedColumnFormula");
@@ -447,7 +497,7 @@ QByteArray writeTablePart(const Table &t, const QByteArray &original, bool *ok)
             c.kids.erase(c.kids.begin() + (calc - c.kids.data()));
         }
         XNode *total = c.child("totalsRowFormula");
-        if (t.totalsRows > 0 && !ci.totalsFormula.isEmpty()) {
+        if ((t.totalsRows > 0 || keepTotals) && !ci.totalsFormula.isEmpty()) {
             if (!total) {
                 c.kids.push_back(nodeNamed("totalsRowFormula"));
                 total = &c.kids.back();
@@ -522,14 +572,11 @@ QString freshTableColumnName(const QStringList &columns, int from)
 QString freshTableName(const QStringList &taken, const QString &stem)
 {
     const QString base = stem.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Tables", "Table") : stem;
-    auto has = [&](const QString &candidate) {
-        for (const QString &t : taken)
-            if (t.compare(candidate, Qt::CaseInsensitive) == 0) return true;
-        return false;
-    };
+    QSet<QString> lower;
+    for (const QString &t : taken) lower.insert(t.toLower());
     for (int n = 1;; ++n) {
         const QString candidate = base + QString::number(n);
-        if (!has(candidate)) return candidate;
+        if (!lower.contains(candidate.toLower())) return candidate;
     }
 }
 
