@@ -65,7 +65,14 @@ double GridSheet::widthOfShown(double shown, int maxDigitWidth)
 namespace {
 
 // The width in pixels a cell's text needs, in a column wide enough for any text.
-double neededPixels(const Shown &s, const CellLook &look) { return s.width + 2 * kCellPadding + (look.indent > 0 ? look.indent * 9.0 : 0.0); }
+// (A number is shown in as many digits as the column's width holds by the digit width it is counted in, charsFor: the column must hold that many, or the number
+// falls back to a shorter form, whatever its font's digits measure.)
+double neededPixels(const Shown &s, const CellLook &look, int maxDigitWidth)
+{
+    double need = s.width + 2 * kCellPadding + (look.indent > 0 ? look.indent * 9.0 : 0.0);
+    if (s.kind == Kind::Number && maxDigitWidth > 0) need = std::max(need, 5.0 + double(s.text.size()) * maxDigitWidth);
+    return need;
+}
 
 } // namespace
 
@@ -76,7 +83,7 @@ double GridSheet::fitWidthOfCell(quint32 row, quint32 col) const
     const CellLook &look = lookOf(row, col, cell->style);
     const Shown s = showValue(valueOf(*cell), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
     if (s.kind == Kind::Empty || s.width <= 0) return 0;
-    return widthForPixels(int(std::ceil(neededPixels(s, look))), m_looks.maxDigitWidth());
+    return widthForPixels(int(std::ceil(neededPixels(s, look, m_looks.maxDigitWidth()))), m_looks.maxDigitWidth());
 }
 
 double GridSheet::fitWidth(quint32 col, qint64 limit) const
@@ -91,7 +98,7 @@ double GridSheet::fitWidth(quint32 col, qint64 limit) const
         const CellLook &look = lookOf(cell.row, cell.col, cell.style);
         if (look.wrap) return true;
         const Shown s = showValue(valueOf(cell), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
-        if (s.kind != Kind::Empty && s.width > 0) widest = std::max(widest, neededPixels(s, look));
+        if (s.kind != Kind::Empty && s.width > 0) widest = std::max(widest, neededPixels(s, look, m_looks.maxDigitWidth()));
         return true;
     });
     return widest > 0 ? widthForPixels(int(std::ceil(widest)), m_looks.maxDigitWidth()) : 0;

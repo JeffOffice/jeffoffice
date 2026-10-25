@@ -240,6 +240,18 @@ private Q_SLOTS:
         QCOMPARE(columnPx(e, 2), narrow);
     }
 
+    // The column a number widens holds all its digits, whatever the digits of the font measure: the number is not cut to its shorter form.
+    void aWidenedColumnShowsAllTheDigits()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        e.select(QStringLiteral("A2"));
+        e.enter(QStringLiteral("12345678901234"));
+        QVERIFY(e.settle());
+        auto &sheet = e.view()->sheet();
+        QCOMPARE(sheet.shown(1, 0, *sheet.cellAt(1, 0)).text, QStringLiteral("12345678901234"));
+    }
+
     // The file keeps the sizes: the columns' elements are cut where the change is and keep what else they say, the rows have their height and that they are hidden, and it opens as it was.
     void theSavedFileHasTheSizes()
     {
