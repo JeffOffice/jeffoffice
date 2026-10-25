@@ -105,30 +105,33 @@ public:
     // ---- Find and Replace, Go To (crunchwindow_find.cpp)
     // The dialog of Find and Replace (null until it is first shown), and whether a search is going on (it is made a few thousand cells at a time).
     FindDialog *findDialog() const { return m_findDialog; }
-    bool isSearching() const { return bool(m_findRun) || bool(m_replacePlan); }
+    bool isSearching() const { return bool(m_findRun) || bool(m_replacePlan) || m_applying == 2; }
     // Goes to what the text names: a cell, a range, a cell of another sheet, whole rows or columns, a defined name. False, with the reason shown, if it names nothing.
     bool goToReference(const QString &text);
-    // Go To Special: the first range of the cells found is selected and the rest are tinted (the next click takes the tint away). False, with the reason shown, if there are none.
+    // Select by Kind: the first range of the cells found is selected and the rest are tinted (the next click takes the tint away). False, with the reason shown, if there are none.
     bool goToSpecial(const jp::crunch::SpecialOptions &options);
-    // What Go To asks for (a reference) and Go To Special (the kind of cells): dialogs unless these stand in for them (tests); false gives it up.
+    // What Go To asks for (a reference) and Select by Kind (the kind of cells): dialogs unless these stand in for them (tests); false gives it up.
     void setGoToAsker(const std::function<bool(QString *)> &asker) { m_goToAsker = asker; }
     void setSpecialAsker(const std::function<bool(jp::crunch::SpecialOptions *)> &asker) { m_specialAsker = asker; }
 
     // ---- Sort (crunchwindow_sort.cpp)
-    // Sorts the cells of the range (or, with none valid, the selection, or the block around the cell with the cursor) in the order the spec says; Sort A to Z and Z to A, and Custom Sort, come
+    // Sorts the cells of the range (or, with none valid, the selection, or the block around the cell with the cursor) in the order the spec says; Sort A–Z and Z–A, and Sort…, come
     // here. The work is done a slice at a time, the order on a thread of its own, and the step on the window's thread; sortFinished says when it is over.
     bool sortRange(const jp::office::sheet::CellRange &range, const jp::crunch::SortSpec &spec);
-    bool isSorting() const { return bool(m_sortPlan); }
-    // What Custom Sort asks for: given the range and the spec it begins from, the spec the person chose (a dialog unless this stands in for it: tests); false gives it up.
+    bool isSorting() const { return bool(m_sortPlan) || m_applying == 1; }
+    // A big sort or replace is put in a slice at a time; a test makes the slices all one size (the cells each does).
+    void setFixedSlices(qint64 cells);
+    bool isApplying() const { return m_applying != 0; }
+    // What Sort… asks for: given the range and the spec it begins from, the spec the person chose (a dialog unless this stands in for it: tests); false gives it up.
     void setSortAsker(const std::function<bool(const jp::office::sheet::CellRange &range, jp::crunch::SortSpec *spec)> &asker) { m_sortAsker = asker; }
     // And what is asked when cells next to the selection hold data that would not be sorted with it: true sorts the whole block, false only what is selected (a message unless this stands in).
     void setExpandAsker(const std::function<bool()> &asker) { m_expandAsker = asker; }
 
-    // ---- Insert Function (crunchwindow_function.cpp)
+    // ---- Pick a Function (crunchwindow_function.cpp)
     // Begins a formula with the function (or puts it at the cursor of the formula being typed): "=NAME()" with the cursor inside the brackets. False if there is no such function, or the
     // entry being made is not a formula.
     bool insertFunction(const QString &name);
-    // What Insert Function asks (the function's name): a dialog unless this stands in for it (tests); false gives it up.
+    // What Pick a Function asks (the function's name): a dialog unless this stands in for it (tests); false gives it up.
     void setFunctionAsker(const std::function<bool(QString *)> &asker) { m_functionAsker = asker; }
 
     // ---- the message of a rule of validation (crunchwindow_cells.cpp)
@@ -143,7 +146,7 @@ public:
     bool isFiltering() const { return bool(m_filterPlan); }
     FilterPopup *filterPopup() const { return m_filterPopup; }
     void showFilterPopup(qint64 row, qint64 col);
-    // What the filters that ask (Equals…, Between…, Top 10…, Custom Filter…) ask the person: given the question, the column's name, whether it holds dates, and the condition it has (or null),
+    // What the filters that ask (Equals…, Between…, Largest or Smallest…, Your Own Condition…) ask the person: given the question, the column's name, whether it holds dates, and the condition it has (or null),
     // the condition chosen. A dialog unless this stands in for it (tests); false gives it up.
     void setFilterAsker(const std::function<bool(jp::FilterAsk, const QString &column, bool dates, const jp::office::sheet::FilterColumn *current, jp::office::sheet::FilterColumn *chosen)> &asker)
     {
@@ -446,9 +449,17 @@ private:
     void finishReplace(bool done);
     std::shared_ptr<jp::crunch::EditSession::ReplacePlan> m_replacePlan;
     QTimer m_replaceTimer;
-    SliceTuner m_searchTuner, m_replaceTuner, m_listTuner, m_filterTuner, m_sortTuner;
+    SliceTuner m_searchTuner, m_replaceTuner, m_listTuner, m_filterTuner, m_sortTuner, m_applyTuner;
+    // a big change put in a slice at a time (crunchwindow_find.cpp): 1 a sort, 2 a replace
+    void runApply(int what, const std::function<jp::crunch::EditSession::Outcome(qint64)> &step, const std::function<void(const jp::crunch::EditSession::Outcome &)> &done);
+    void stepApply();
+    int m_applying = 0;
+    std::function<jp::crunch::EditSession::Outcome(qint64)> m_applyStep;
+    std::function<void(const jp::crunch::EditSession::Outcome &)> m_applyDone;
+    QTimer m_applyTimer;
+    bool m_sortSmall = true;
     bool m_settingMarks = false;
-    // Insert Function (crunchwindow_function.cpp)
+    // Pick a Function (crunchwindow_function.cpp)
     void createFunctionActions();
     void insertFunctionCommand();
     std::function<bool(QString *)> m_functionAsker;

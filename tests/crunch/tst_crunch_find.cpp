@@ -7,6 +7,7 @@
 #include "core/fonts.h"
 #include "core/findrun.h"
 #include "core/gotospecial.h"
+#include "sheet/notes.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
@@ -21,6 +22,9 @@
 #include <QToolButton>
 #include <QTreeWidget>
 #include <QUndoStack>
+#include "../localepin.h"
+
+#include <memory>
 
 using namespace jp;
 using namespace crunchtest;
@@ -110,7 +114,15 @@ private Q_SLOTS:
         Q_INIT_RESOURCE(crunch);
         setAppInfo(crunchAppInfo());
         initCore();
-        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        m_localeBefore = QLocale();
+        m_pin = std::make_unique<PinnedLocale>();   // (put back when the class is done)
+    }
+
+    void cleanupTestCase()
+    {
+        // the computer's language is back, whatever this class pinned (a class that is run after this one in the same process is not told it was English)
+        m_pin.reset();
+        QCOMPARE(QLocale().name(), m_localeBefore.name());
     }
 
     // ---- what is found
@@ -283,11 +295,129 @@ private Q_SLOTS:
         // a cell's own text is not a note
         o.pattern.text = QStringLiteral("x");
         QCOMPARE(names(findAll(e, o)), (QStringList{}));
-        // after rows are inserted the notes are not where the file has them: the search says so
+        // after rows are inserted the notes are where their cells went
+        o.pattern.text = QStringLiteral("invoice");
         QVERIFY(e.win.w.session()->insertRows(0, 0, 1).ok);
-        FindRun after(e.win.w.session(), o);
-        QVERIFY(after.done());
-        QVERIFY(!after.problem().isEmpty());
+        QCOMPARE(names(findAll(e, o)), (QStringList{"1!B3"}));
+        // a note on a cell that was deleted is gone, and comes back with an Undo
+        QVERIFY(e.win.w.session()->deleteRows(0, 2, 1).ok);
+        QCOMPARE(names(findAll(e, o)), (QStringList{}));
+        pressUndo(&e.win.w);
+        QCOMPARE(names(findAll(e, o)), (QStringList{"1!B3"}));
+        // (the notes are read from the file once for the sheet, and kept as long as nothing moves them)
+        const int reads = jp::office::sheet::noteReads();
+        QCOMPARE(names(findAll(e, o)), (QStringList{"1!B3"}));
+        QCOMPARE(jp::office::sheet::noteReads(), reads);
+    }
+
+    void findNextByColumnsStopsAtTheFirstHitInsteadOfLookingAtEverything()
+    {
+        QStringList cells;
+        for (int r = 1; r <= 2000; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r == 3 || r == 6 ? "x" : "p") << QStringLiteral("B%1=%2").arg(r).arg(r == 1 ? "x" : "p");
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({cells})));
+        FindOptions o = options(QStringLiteral("x"));
+        o.order = FindOptions::Order::ByColumns;
+        auto next = [&](quint32 row, quint32 col, qint64 *looked) {
+            FoundCell from;
+            from.sheet = 0;
+            from.row = row;
+            from.col = col;
+            FindRun run(e.win.w.session(), o, FindRun::Want::Next, from);
+            run.step(0);
+            if (looked) *looked = run.cellsLooked();
+            return names(run.hits());
+        };
+        qint64 looked = 0;
+        QCOMPARE(next(3, 0, &looked), (QStringList{"1!A6"}));                    // (from A4: A5, A6)
+        QCOMPARE(looked, qint64(2));
+        QCOMPARE(next(5, 0, &looked), (QStringList{"1!B1"}));                    // (down the rest of column A, and B1)
+        QCOMPARE(looked, qint64(1995));
+        QCOMPARE(next(0, 1, &looked), (QStringList{"1!A3"}));                    // (round to the start)
+        QCOMPARE(looked, qint64(1999 + 3));
+    }
+
+    void theNumberFormatOfAStyleIsMadeOnceForAllTheCellsThatHaveIt()
+    {
+        QStringList cells;
+        for (int r = 1; r <= 3000; ++r) cells << QStringLiteral("A%1=%2~5").arg(r).arg(r);
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({cells})));
+        FindOptions o = options(QStringLiteral("2,9"));
+        o.lookIn = FindOptions::LookIn::Values;
+        const qint64 before = e.win.w.session()->formatsMade();
+        FindRun run(e.win.w.session(), o);
+        run.step(0);
+        QVERIFY(run.hits().size() > 10);
+        QVERIFY2(e.win.w.session()->formatsMade() - before <= 1, qPrintable(QString::number(e.win.w.session()->formatsMade() - before)));
+    }
+
+    void aLongTextCostsMoreOfASliceThanAShortOne()
+    {
+        QStringList longTexts, shortTexts;
+        for (int r = 1; r <= 200; ++r) {
+            longTexts << QStringLiteral("A%1=%2").arg(r).arg(QString(30000, QLatin1Char('a')));
+            shortTexts << QStringLiteral("A%1=ab").arg(r);
+        }
+        FindOptions o = options(QStringLiteral("a*c"));
+        auto slicesOf = [&](const QStringList &cells) {
+            EditWindow e;
+            if (!e.open(bookOfSheets({cells}))) return -1;
+            FindRun run(e.win.w.session(), o);
+            int slices = 0;
+            while (!run.step(1000)) ++slices;
+            return slices;
+        };
+        QCOMPARE(slicesOf(shortTexts), 0);                                      // (200 cells, one unit each)
+        QVERIFY2(slicesOf(longTexts) >= 20, qPrintable(QString::number(slicesOf(longTexts))));
+    }
+
+    void notesFollowASortAndSayWhenTheyCannotBeFollowed()
+    {
+        const QByteArray comments = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><comments xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><authors><author>A</author></authors><commentList>"
+                                    "<comment ref=\"B2\" authorId=\"0\"><text><t>invoice date</t></text></comment><comment ref=\"C4\" authorId=\"0\"><text><t>fine</t></text></comment></commentList></comments>";
+        ExtraPart part;
+        part.name = QStringLiteral("xl/comments1.xml");
+        part.data = comments;
+        part.contentType = QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml");
+        part.sheet = 0;
+        part.relId = QStringLiteral("rIdC");
+        part.relType = QStringLiteral("comments");
+        part.relTarget = QStringLiteral("../comments1.xml");
+        EditWindow e;
+        QVERIFY(e.open(withParts(bookOfSheets({{"A1=x", "B2=invoice date", "C4=5", "B3=a"}}), {part})));
+        crunch::EditSession *s = e.win.w.session();
+        FindOptions o = options(QStringLiteral("invoice"));
+        o.lookIn = FindOptions::LookIn::Notes;
+        QCOMPARE(names(findAll(e, o)), (QStringList{"1!B2"}));
+        const qint64 reads = jp::office::sheet::noteReads();                      // (the file's notes are read once; the changes after this are followed, not read again)
+        // a sort of rows 2 to 4 by column B puts the row of the note (B2, "invoice date"... after "a") second, and the note goes with it
+        jp::crunch::SortSpec spec;
+        jp::crunch::SortLevel level;
+        level.key = 1;
+        spec.levels.append(level);
+        QVERIFY(s->sortRange(0, rangeOf(QStringLiteral("A2:C4")), spec).ok);
+        QCOMPARE(s->displayText(0, 1, 1), QStringLiteral("a"));
+        QCOMPARE(names(findAll(e, o)), (QStringList{"1!B3"}));
+        pressUndo(&e.win.w);
+        QCOMPARE(names(findAll(e, o)), (QStringList{"1!B2"}));
+        // too many changes to follow the notes through: the person is asked to save
+        for (int i = 0; i < 70; ++i) QVERIFY(s->insertRows(0, 20, 1).ok);
+        FindRun many(s, o);
+        QVERIFY(many.done());
+        QVERIFY2(many.problem().contains(QLatin1String("too many")), qPrintable(many.problem()));
+        QCOMPARE(jp::office::sheet::noteReads(), reads);
+    }
+
+    void notesOfAWorkbookFromATextFileAreNotSearchedAndTheReasonIsGiven()
+    {
+        EditWindow e;
+        QVERIFY(e.open("a,b\n1,2\n", QStringLiteral("data.csv")));
+        FindOptions o = options(QStringLiteral("x"));
+        o.lookIn = FindOptions::LookIn::Notes;
+        FindRun run(e.win.w.session(), o);
+        QVERIFY(run.done());
+        QVERIFY2(run.problem().contains(QLatin1String(".xlsx")), qPrintable(run.problem()));
     }
 
     // ---- Replace
@@ -588,7 +718,7 @@ private Q_SLOTS:
         click("findNext");                                                       // (nothing more on this sheet: round to the first)
         QTRY_COMPARE(e.selected(), QStringLiteral("A1"));
         QVERIFY(d->findChild<QLabel *>(QStringLiteral("findStatus"))->text().contains(QLatin1String("Sheet1!A1")));
-        // Find All lists the cells, and a click on one goes to it
+        // List All lists the cells, and a click on one goes to it
         click("findAll");
         QTreeWidget *list = d->results();
         QTRY_COMPARE(list->topLevelItemCount(), 2);
@@ -610,7 +740,7 @@ private Q_SLOTS:
         // nothing found says so
         d->findChild<QLineEdit *>(QStringLiteral("findText"))->setText(QStringLiteral("zzz"));
         click("findAll");
-        QTRY_VERIFY(d->findChild<QLabel *>(QStringLiteral("findStatus"))->text().contains(QLatin1String("No cells")));
+        QTRY_VERIFY(d->findChild<QLabel *>(QStringLiteral("findStatus"))->text().contains(QLatin1String("No cell matches")));
         QVERIFY(!list->isVisible());
     }
 
@@ -646,7 +776,7 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.session()->editText(0, 0, 1), QStringLiteral("pear pie"));
         QCOMPARE(e.win.w.session()->editText(0, 0, 2), QStringLiteral("=A1&\"!\""));           // (A1 is a reference, not the word)
         QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("s:pear!"));                // (and the formula was worked out again)
-        QVERIFY(d->findChild<QLabel *>(QStringLiteral("findStatus"))->text().contains(QLatin1String("Replaced")));
+        QVERIFY(d->findChild<QLabel *>(QStringLiteral("findStatus"))->text().contains(QLatin1String("Changed")));
         w.act(QStringLiteral("edit.undo"))->trigger();
         QCOMPARE(e.win.w.session()->editText(0, 0, 0), QStringLiteral("apple"));
         // Replace takes the cell with the cursor if it has the text, and goes on to the next
@@ -659,7 +789,7 @@ private Q_SLOTS:
         // Replace on the cell that has it changes it, and with nothing more to find says so
         d->findChild<QPushButton *>(QStringLiteral("replaceOne"))->click();
         QTRY_COMPARE(e.win.w.session()->editText(0, 0, 1), QStringLiteral("fig pie"));
-        QTRY_VERIFY(d->findChild<QLabel *>(QStringLiteral("findStatus"))->text().contains(QLatin1String("Nothing was found")));
+        QTRY_VERIFY(d->findChild<QLabel *>(QStringLiteral("findStatus"))->text().contains(QLatin1String("Nothing matches")));
         // Replace on a cell that does not have it only finds (the replace text is not put anywhere)
         e.select(QStringLiteral("A2"));
         d->findChild<QLineEdit *>(QStringLiteral("findText"))->setText(QStringLiteral("cherry"));
@@ -690,11 +820,12 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(bookOfSheets({cells})));
         CrunchWindow &w = e.win.w;
+        w.setFixedSlices(1000);                                                  // (every slice the same size: how many turns it takes is counted, not timed)
         w.act(QStringLiteral("find.find"))->trigger();
         FindDialog *d = w.findDialog();
         d->findChild<QLineEdit *>(QStringLiteral("findText"))->setText(QStringLiteral("x"));
         d->findChild<QPushButton *>(QStringLiteral("findAll"))->click();
-        QVERIFY(w.isSearching());                                                // (9,000 cells are three slices)
+        QVERIFY(w.isSearching());                                                // (9,000 cells at 1,000 a turn are nine slices)
         QVERIFY(e.win.w.session()->type(0, 0, 3, QStringLiteral("5")).ok);
         QTRY_VERIFY(!w.isSearching());
         QVERIFY(d->findChild<QLabel *>(QStringLiteral("findStatus"))->text().contains(QLatin1String("stopped")));
@@ -775,6 +906,9 @@ private Q_SLOTS:
         for (const char *id : {"edit.find", "find.find", "find.replace", "find.next", "find.goto", "find.gotoSpecial"}) QVERIFY2(e.win.w.act(QString::fromLatin1(id))->isEnabled(), id);
         QVERIFY(e.win.w.ribbonErrors().isEmpty());
     }
+private:
+    QLocale m_localeBefore;
+    std::unique_ptr<PinnedLocale> m_pin;
 };
 
 JP_TEST_CLASS(CrunchFindTests)

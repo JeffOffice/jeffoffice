@@ -1,4 +1,4 @@
-// Find and Replace, Go To, and Go To Special on the window: the dialog, the search made a few thousand cells at a time between events, and the selection the results lead to. The matching is
+// Find and Replace, Go To, and Select by Kind on the window: the dialog, the search made a few thousand cells at a time between events, and the selection the results lead to. The matching is
 // textmatch.h, the walk over the cells FindRun, and Replace one step of the edit session.
 #include "app/crunchwindow.h"
 
@@ -29,22 +29,24 @@ namespace {
 
 void CrunchWindow::createFindActions()
 {
-    mk("edit.find", tr("Find and Select"), "search", QKeySequence(), [this] { showFindDialog(false); });
+    mk("edit.find", tr("Find"), "search", QKeySequence(), [this] { showFindDialog(false); });
     mk("find.find", tr("Find…"), "search", QKeySequence(QKeySequence::Find), [this] { showFindDialog(false); });
     mk("find.replace", tr("Replace…"), "replace", QKeySequence(QKeySequence::Replace), [this] { showFindDialog(true); });
-    mk("find.next", tr("Find Next"), "", QKeySequence(QKeySequence::FindNext), [this] {
+    mk("find.next", tr("Next Match"), "", QKeySequence(QKeySequence::FindNext), [this] {
         if (m_findDialog && !m_findDialog->findText().isEmpty()) startSearch(SearchFor::Next);
         else showFindDialog(false);
     });
     mk("find.goto", tr("Go To…"), "locate", QKeySequence(Qt::CTRL | Qt::Key_G), [this] { goToDialog(); });
     act("find.goto")->setShortcuts({QKeySequence(Qt::Key_F5), QKeySequence(Qt::CTRL | Qt::Key_G)});
-    mk("find.gotoSpecial", tr("Go To Special…"), "", QKeySequence(), [this] { goToSpecialDialog(); });
+    mk("find.gotoSpecial", tr("Select by Kind…"), "", QKeySequence(), [this] { goToSpecialDialog(); });
     for (const char *id : {"edit.find", "find.find", "find.replace", "find.next", "find.goto", "find.gotoSpecial"}) m_opsActions << QString::fromLatin1(id);
     m_findTimer.setInterval(0);
     m_findTimer.setSingleShot(false);
     connect(&m_findTimer, &QTimer::timeout, this, [this] { stepSearch(); });
     m_replaceTimer.setInterval(0);
     connect(&m_replaceTimer, &QTimer::timeout, this, [this] { stepReplace(); });
+    m_applyTimer.setInterval(0);
+    connect(&m_applyTimer, &QTimer::timeout, this, [this] { stepApply(); });
     connect(m_view, &grid::GridView::selectionChanged, this, [this] {
         if (!m_settingMarks && !m_view->marks().empty()) m_view->setMarks({});
     });
@@ -175,10 +177,10 @@ void CrunchWindow::finishSearch()
         if (!run->problem().isEmpty()) {
             m_findDialog->setStatus(run->problem());
         } else if (hits.empty()) {
-            m_findDialog->setStatus(tr("Nothing was found for \"%1\".").arg(m_findDialog->findText().left(60)));
+            m_findDialog->setStatus(tr("Nothing matches \"%1\".").arg(m_findDialog->findText().left(60)));
         } else {
             goToFound(hits.front().sheet, hits.front().row, hits.front().col);
-            m_findDialog->setStatus(tr("Found in %1.").arg((hits.front().sheet >= 0 && hits.front().sheet < sheetNames.size() ? sheetNames[hits.front().sheet] + QLatin1Char('!') : QString())
+            m_findDialog->setStatus(tr("Match in %1.").arg((hits.front().sheet >= 0 && hits.front().sheet < sheetNames.size() ? sheetNames[hits.front().sheet] + QLatin1Char('!') : QString())
                                                            + jp::office::sheet::cellName(hits.front().row, hits.front().col)));
         }
         break;
@@ -192,13 +194,13 @@ void CrunchWindow::finishSearch()
             break;
         }
         if (hits.empty()) {
-            m_findDialog->setStatus(tr("Nothing was found for \"%1\", so nothing was replaced.").arg(m_findDialog->findText().left(60)));
+            m_findDialog->setStatus(tr("Nothing matches \"%1\", so nothing was changed.").arg(m_findDialog->findText().left(60)));
             break;
         }
         if (run->truncated()) {
-            const QString text = tr("There are more matching cells than JeffCrunch replaces at once. Narrow the search, and replace again.");
+            const QString text = tr("More cells match than JeffCrunch changes in one go. Narrow the search, then change again.");
             m_findDialog->setStatus(text);
-            notice(tr("Replace All"), text);
+            notice(tr("Change All"), text);
             break;
         }
         std::vector<crunch::EditSession::CellSpot> spots;
@@ -208,13 +210,13 @@ void CrunchWindow::finishSearch()
         m_replacePlan = m_session->planReplace(spots, m_findDialog->options().pattern, m_findDialog->replacement(), &why);
         if (!m_replacePlan) {
             m_findDialog->setStatus(why);
-            notice(tr("Replace All"), why);
+            notice(tr("Change All"), why);
             break;
         }
         m_searchChanges = m_loader.changesMade();
         m_searchSteps = m_session->undoStack()->index();
         m_findDialog->setBusy(true);
-        setStatus(tr("Replacing…"));
+        setStatus(tr("Changing…"));
         m_replaceTimer.start();
         break;
     }
@@ -237,6 +239,42 @@ void CrunchWindow::stepReplace()
     if (done) finishReplace(true);
 }
 
+void CrunchWindow::setFixedSlices(qint64 cells)
+{
+    for (SliceTuner *t : {&m_searchTuner, &m_replaceTuner, &m_listTuner, &m_filterTuner, &m_sortTuner, &m_applyTuner}) t->setFixed(cells);
+}
+
+// A change of many cells (a sort, a replace) is put in a slice at a time, each of a few milliseconds, and is one step on the undo stack when it is all in. `step` does a slice (about the cells it
+// is told) and says whether there is more; `done` is told how it ended.
+void CrunchWindow::runApply(int what, const std::function<crunch::EditSession::Outcome(qint64)> &step, const std::function<void(const crunch::EditSession::Outcome &)> &done)
+{
+    m_applying = what;
+    m_applyStep = step;
+    m_applyDone = done;
+    m_applyTuner.reset();
+    m_applyTimer.start();
+}
+
+void CrunchWindow::stepApply()
+{
+    if (!m_applyStep) {
+        m_applyTimer.stop();
+        m_applying = 0;
+        return;
+    }
+    m_applyTuner.begin();
+    const qint64 budget = m_applyTuner.budget();
+    const crunch::EditSession::Outcome o = m_applyStep(budget);
+    m_applyTuner.end(budget);
+    if (o.ok && o.pending) return;
+    m_applyTimer.stop();
+    const auto done = std::move(m_applyDone);
+    m_applyStep = nullptr;
+    m_applyDone = nullptr;
+    m_applying = 0;
+    if (done) done(o);
+}
+
 // The new text of every cell is worked out: the cells are changed in one step.
 void CrunchWindow::finishReplace(bool done)
 {
@@ -248,16 +286,24 @@ void CrunchWindow::finishReplace(bool done)
     if (!m_calculating && !m_loading) setStatus(tr("Ready"));
     if (!done || !m_session) return;
     const qint64 before = m_loader.changesMade();
-    crunch::EditSession::ReplaceResult result;
-    const crunch::EditSession::Outcome o = doStructural([&] { return m_session->applyReplace(*plan, &result); });
-    if (!o.ok) {
-        m_findDialog->setStatus(o.problem);
-        if (!o.problem.isEmpty()) notice(tr("Replace All"), o.problem);
-        return;
-    }
-    if (m_loader.changesMade() != before) m_calculating = true;
-    const int places = result.occurrences, cells = result.cells;
-    m_findDialog->setStatus(cells == 0 ? tr("Nothing needed to change.") : tr("Replaced %1 in %2.").arg(tr("%n place(s)", nullptr, places), tr("%n cell(s)", nullptr, cells)));
+    const auto result = std::make_shared<crunch::EditSession::ReplaceResult>();
+    m_findDialog->setBusy(true);
+    setStatus(tr("Changing…"));
+    runApply(
+        2, [this, plan, result](qint64 budget) { return m_session->applyReplace(*plan, result.get(), budget); },
+        [this, before, result](const crunch::EditSession::Outcome &o) {
+            if (m_findDialog) m_findDialog->setBusy(false);
+            if (!m_calculating && !m_loading) setStatus(tr("Ready"));
+            if (!m_findDialog) return;
+            if (!o.ok) {
+                m_findDialog->setStatus(o.problem);
+                if (!o.problem.isEmpty()) notice(tr("Change All"), o.problem);
+                return;
+            }
+            if (m_loader.changesMade() != before) m_calculating = true;
+            const int places = result->occurrences, cells = result->cells;
+            m_findDialog->setStatus(cells == 0 ? tr("Nothing needed to change.") : tr("Changed %1 in %2.").arg(tr("%n place(s)", nullptr, places), tr("%n cell(s)", nullptr, cells)));
+        });
 }
 
 // Replace: the cell with the cursor, if it has the text, is changed and the search goes on to the next; else the search goes on to the first.
@@ -279,7 +325,7 @@ void CrunchWindow::replaceCurrent()
         const crunch::EditSession::Outcome o = doStructural([&] { return m_session->replaceInCells({{m_sheet, row, col}}, options.pattern, m_findDialog->replacement(), &result); });
         if (!o.ok) {
             m_findDialog->setStatus(o.problem);
-            if (!o.problem.isEmpty()) notice(tr("Replace"), o.problem);
+            if (!o.problem.isEmpty()) notice(tr("Change"), o.problem);
             return;
         }
         if (m_loader.changesMade() != before) m_calculating = true;
@@ -363,7 +409,7 @@ void CrunchWindow::goToSpecialDialog()
         if (!m_specialAsker(&options)) return;
     } else {
         QDialog dialog(this);
-        dialog.setWindowTitle(tr("Go To Special"));
+        dialog.setWindowTitle(tr("Select by Kind"));
         auto *layout = new QVBoxLayout(&dialog);
         struct Kind {
             crunch::SpecialKind kind;
@@ -386,7 +432,7 @@ void CrunchWindow::goToSpecialDialog()
             group->addButton(button, id++);
             layout->addWidget(button);
         }
-        auto *which = new QGroupBox(tr("For constants and formulas, count"));
+        auto *which = new QGroupBox(tr("For constants and formulas, include"));
         auto *whichLayout = new QVBoxLayout(which);
         auto *numbers = new QCheckBox(tr("Numbers"));
         auto *text = new QCheckBox(tr("Text"));
@@ -426,7 +472,7 @@ bool CrunchWindow::goToSpecial(const crunch::SpecialOptions &options)
     const crunch::SpecialResult found = crunch::goToSpecial(*m_session, m_sheet, selection, quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol)), options);
     if (found.ranges.isEmpty()) {
         m_view->setMarks({});
-        notice(tr("Go To Special"), found.problem.isEmpty() ? tr("No cells were found.") : found.problem);
+        notice(tr("Select by Kind"), found.problem.isEmpty() ? tr("No cell matches.") : found.problem);
         return false;
     }
     m_settingMarks = true;
@@ -438,7 +484,7 @@ bool CrunchWindow::goToSpecial(const crunch::SpecialOptions &options)
     m_view->setMarks(marks);
     m_settingMarks = false;
     const int cells = int(std::min<qint64>(found.cells, 100000000)), ranges = int(found.ranges.size());
-    QString text = tr("%1 found in %2.").arg(tr("%n cell(s)", nullptr, cells), tr("%n range(s)", nullptr, ranges));
+    QString text = tr("Picked %1 in %2.").arg(tr("%n cell(s)", nullptr, cells), tr("%n range(s)", nullptr, ranges));
     if (ranges > 1) text += QLatin1Char(' ') + tr("The first range is selected, and the others are tinted.");
     if (found.truncated) text += QLatin1Char(' ') + tr("The search stopped at a limit, so there may be more.");
     setStatus(text);

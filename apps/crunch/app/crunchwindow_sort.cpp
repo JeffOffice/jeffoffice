@@ -1,4 +1,4 @@
-// Sort on the window: Sort A to Z and Z to A, Custom Sort and its dialog, and the work behind them. The keys are read from the cells a slice at a time on the window's thread, the order is
+// Sort on the window: Sort A–Z and Z–A, Sort… and its dialog, and the work behind them. The keys are read from the cells a slice at a time on the window's thread, the order is
 // worked out on a thread of its own from the keys alone (and can be given up with Esc), and the cells are put in order as one step on the window's thread.
 #include "app/crunchwindow.h"
 
@@ -19,10 +19,10 @@ constexpr size_t kSmallSort = 2000;
 
 void CrunchWindow::createSortActions()
 {
-    mk("edit.sort", tr("Sort and Filter"), "arrow-down-a-z", QKeySequence(), [this] { sortSelection(2); });
-    mk("sort.ascending", tr("Sort A to Z"), "arrow-down-a-z", QKeySequence(), [this] { sortSelection(0); });
-    mk("sort.descending", tr("Sort Z to A"), "arrow-up-z-a", QKeySequence(), [this] { sortSelection(1); });
-    mk("sort.custom", tr("Custom Sort…"), "list-ordered", QKeySequence(), [this] { sortSelection(2); });
+    mk("edit.sort", tr("Sort and Pick Rows"), "arrow-down-a-z", QKeySequence(), [this] { sortSelection(2); });
+    mk("sort.ascending", tr("Sort A–Z"), "arrow-down-a-z", QKeySequence(), [this] { sortSelection(0); });
+    mk("sort.descending", tr("Sort Z–A"), "arrow-up-z-a", QKeySequence(), [this] { sortSelection(1); });
+    mk("sort.custom", tr("Sort…"), "list-ordered", QKeySequence(), [this] { sortSelection(2); });
     for (const char *id : {"edit.sort", "sort.ascending", "sort.descending", "sort.custom"}) m_opsActions << QString::fromLatin1(id);
     m_sortTimer.setInterval(0);
     connect(&m_sortTimer, &QTimer::timeout, this, [this] { stepSort(); });
@@ -150,7 +150,8 @@ bool CrunchWindow::sortRange(const CellRange &given, const crunch::SortSpec &spe
     m_sortOrderedOk = false;
     setStatus(tr("Sorting…"));
     // a small sort is done at once; a large one a slice at a time
-    if (range.cellCount() <= qint64(kSmallSort)) {
+    m_sortSmall = range.cellCount() <= qint64(kSmallSort);
+    if (m_sortSmall) {
         m_session->prepareSort(*m_sortPlan, 0);
         const bool ordered = crunch::EditSession::orderSort(*m_sortPlan, &m_sortCancel);
         finishSort(ordered);
@@ -205,6 +206,24 @@ void CrunchWindow::finishSort(bool ordered)
     m_sortThread.clear();
     bool made = false;
     if (plan && m_session) {
+        if (ordered && !m_sortCancel && !m_sortSmall) {
+            // the step is made and put in a slice at a time
+            const qint64 before = m_loader.changesMade();
+            runApply(
+                1, [this, plan](qint64 budget) { return m_session->applySort(*plan, budget); },
+                [this, before](const crunch::EditSession::Outcome &o) {
+                    bool done = false;
+                    if (!o.ok) {
+                        if (!o.problem.isEmpty()) notice(tr("Sort"), o.problem);
+                    } else {
+                        done = true;
+                        if (m_loader.changesMade() != before) m_calculating = true;
+                    }
+                    if (!m_calculating && !m_loading) setStatus(tr("Ready"));
+                    Q_EMIT sortFinished(done);
+                });
+            return;
+        }
         if (ordered && !m_sortCancel) {
             const qint64 before = m_loader.changesMade();
             const crunch::EditSession::Outcome o = doStructural([&] { return m_session->applySort(*plan); });

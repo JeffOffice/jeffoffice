@@ -297,6 +297,7 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
             m_mergesChanged.insert(edit.toSheet);
         }
         m_edits.push_back(edit);
+        forgetNotes();
     } else if (sc->savedGen != m_saveGen) {
         // The file was saved since the edit was done, so it has the edit: the edit that undoes it is made against the saved file (it goes in the list for the file), and the cells that
         // come back, and those that were written over, are written whole. (A step that deleted cells is not undone after a save: see forgetDeletesInFile.)
@@ -329,6 +330,7 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
             m_mergesChanged.insert(edit.sheet);
         }
         m_edits.push_back(back);
+        forgetNotes();
     } else {
         // (the state before the undo is the one after the edit was done: nothing was done to the cells since)
         for (const quint64 key : sc->touchedAdded) m_touched.erase(key);
@@ -349,6 +351,7 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
         for (auto &entry : sc->engineGone) m_engineAtStart[entry.first] = entry.second;
         for (auto &entry : sc->fileGone) m_fileResults[entry.first] = entry.second;
         if (!m_edits.empty() && m_edits.back().kind == edit.kind && m_edits.back().sheet == edit.sheet) m_edits.pop_back();
+        forgetNotes();
     }
 }
 

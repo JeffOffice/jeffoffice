@@ -1,5 +1,5 @@
 #pragma once
-// Go To: a reference a person types (a cell or a range, with or without a sheet, whole rows or columns, or the name of a defined name) found in the workbook, and Go To Special: the cells
+// Go To: a reference a person types (a cell or a range, with or without a sheet, whole rows or columns, or the name of a defined name) found in the workbook, and Select by Kind: the cells
 // of a sheet that are of a kind (blank, constants, formulas, errors, the current region, the last cell, those that show, those with conditional formats or a rule of validation) as
 // ranges. All of it is bounded: the work is counted in cells and rows looked at, and what a search finds is at most kMaxSpecialRanges ranges.
 

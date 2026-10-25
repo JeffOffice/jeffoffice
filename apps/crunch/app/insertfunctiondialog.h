@@ -1,5 +1,5 @@
 #pragma once
-// The Insert Function dialog: the functions of the formula language, by kind or found by a search of their names and what they do, with the arguments of the one picked and a sentence on
+// The Pick a Function dialog: the functions of the formula language, by kind or found by a search of their names and what they do, with the arguments of the one picked and a sentence on
 // what it does. It only picks; the window puts the function in the formula.
 
 #include <QDialog>

@@ -91,9 +91,15 @@ public:
         recount();
     }
     ~ChangeCells() override { *m_total -= m_bytes; }
+    void markDone() { m_skipRedo = true; }
     void redo() override
     {
         if (m_forgotten) return;
+        if (m_skipRedo) {
+            m_skipRedo = false;
+            recount();
+            return;
+        }
         if (!m_session->apply(&m_step, true)) {
             m_session->giveUpUndo(text(), true);
             return;
@@ -144,6 +150,8 @@ public:
             n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
         if (m_step.structure) n += m_step.structure->bytes();
         n += qint64(m_step.objects.size()) * qint64(sizeof(ObjectEdit));
+        for (const RowSpecsEdit &e : m_step.rowSpecs) n += qint64(sizeof(e)) + qint64(e.before.size() + e.after.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
+        for (const auto &p : m_step.permutes) n += qint64(sizeof(*p)) + qint64(p->to.size()) * 4;
         for (const PageEdit &e : m_step.pages) n += qint64(sizeof(e)) + qint64(e.before.rowBreaks.size() + e.before.colBreaks.size() + e.after.rowBreaks.size() + e.after.colBreaks.size()) * 16 + qint64(e.before.printArea.size() + e.after.printArea.size()) * qint64(sizeof(jp::office::sheet::CellRange)) + qint64(e.before.headerFooter.oddHeader.size() + e.after.headerFooter.oddHeader.size()) * 2;
         *m_total += n - m_bytes;
         m_bytes = n;
@@ -163,6 +171,7 @@ private:
     std::shared_ptr<qint64> m_total;
     qint64 m_bytes = 0;
     bool m_forgotten = false;
+    bool m_skipRedo = false;   // the step was done a slice at a time before it was put on the stack: its first redo does nothing
 };
 
 namespace {
@@ -297,6 +306,7 @@ bool EditSession::canEdit(QString *why) const
     };
     if (!m_book || !m_book->book || !m_book->calc || !m_loader->canHold()) return refuse(tr("The workbook is still being opened. It can be changed when it is open."));
     if (m_busy) return refuse(tr("The workbook is being saved. It can be changed when that is done."));
+    if (m_slicing) return refuse(tr("A large change is still being made to the workbook. It can be changed again when that is done."));
     if (!m_book->problem.isEmpty() || !m_book->book->sharedStringsError().isEmpty() || !m_book->book->stylesError().isEmpty())
         return refuse(tr("Some of this workbook could not be read whole, so JeffCrunch does not change it. You can look at it, and save nothing."));
     return true;
@@ -504,9 +514,11 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
     return out;
 }
 
-void EditSession::pushStep(Step step, const QString &text)
+void EditSession::pushStep(Step step, const QString &text, bool alreadyDone)
 {
-    m_undo.push(new ChangeCells(this, std::move(step), text, m_undoBytes));
+    auto *command = new ChangeCells(this, std::move(step), text, m_undoBytes);
+    if (alreadyDone) command->markDone();
+    m_undo.push(command);
     trimUndo();
 }
 
@@ -763,6 +775,16 @@ bool EditSession::apply(Step *step, bool forward)
         calc->setAutoFilter(f.sheet, forward ? f.after : f.before);
         m_filtersChanged.insert(f.sheet);
     }
+    for (const RowSpecsEdit &e : step->rowSpecs) {
+        calc->setRowSpecsOf(e.sheet, forward ? e.after : e.before);
+        auto at = m_filterRows.find(e.sheet);
+        if (at == m_filterRows.end()) m_filterRows[e.sheet] = {e.first, e.last};
+        else {
+            at->second.first = std::min(at->second.first, e.first);
+            at->second.second = std::max(at->second.second, e.last);
+        }
+    }
+    for (const auto &p : step->permutes) applyPermute(*p, forward);
     if (!applySheetEdits(step, forward, calc, book)) return false;
     if (m_holdHook) m_holdHook(calc, true);
     // (a change of formats alone leaves nothing for the worker to work out)
@@ -781,8 +803,36 @@ bool EditSession::apply(Step *step, bool forward)
     for (const MergeEdit &m : step->merges) Q_EMIT sizesChanged(m.sheet);
     for (const FormatEdit &f : step->formats) Q_EMIT sizesChanged(f.sheet);
     for (const FilterEdit &f : step->filters) Q_EMIT sizesChanged(f.sheet);
+    for (const RowSpecsEdit &e : step->rowSpecs) Q_EMIT sizesChanged(e.sheet);
     if (!step->sheets.empty()) Q_EMIT sheetsChanged();
     return true;
+}
+
+// A sort done (forward) or taken back: what the file's notes and links on the cells are to follow is kept in order, with how many edits to rows and columns had been made.
+void EditSession::applyPermute(jp::office::sheet::CellPermute &p, bool forward)
+{
+    forgetNotes();
+    if (forward) {
+        p.after = m_edits.size();
+        m_permutes.push_back(p);
+        return;
+    }
+    const auto &last = m_permutes.empty() ? p : m_permutes.back();
+    if (!m_permutes.empty() && last.sheet == p.sheet && last.columns == p.columns && last.first == p.first && last.to == p.to && last.after == m_edits.size()) {
+        m_permutes.pop_back();
+        return;
+    }
+    // (after a save, or with the edits made since not in the same order: the way back is a sort of its own)
+    jp::office::sheet::CellPermute back = p;
+    for (size_t i = 0; i < p.to.size(); ++i)
+        if (p.to[i] >= p.first && p.to[i] - p.first < back.to.size()) back.to[p.to[i] - p.first] = p.first + quint32(i);
+    back.after = m_edits.size();
+    m_permutes.push_back(back);
+}
+
+void EditSession::forgetNotes()
+{
+    for (auto &entry : m_notes) entry.second.notes.reset();
 }
 
 bool EditSession::widenLastStep(int index, int sheet, quint32 col, double width)
@@ -883,6 +933,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         return false;
     };
     if (!m_book || !m_book->book || !m_book->calc) return refuse(tr("There is no workbook to save."));
+    if (m_slicing) return refuse(tr("A large change is still being made to the workbook. Save when that is done."));
     if (!m_book->problem.isEmpty() || !m_book->book->sharedStringsError().isEmpty() || !m_book->book->stylesError().isEmpty())
         return refuse(tr("Some of this workbook could not be read whole, so JeffCrunch does not save it."));
     // (a workbook read from the older binary form has no package yet: the first save makes one)
@@ -1066,6 +1117,13 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         SheetChanges &sc = changes.sheets[sheet];
         sc.replaceAutoFilter = true;
         sc.autoFilter = calc->autoFilterOf(sheet);
+        // (a sheet's filter over cells of a table is never written: other programs do not open a file that has both)
+        if (sc.autoFilter.ref.valid)
+            for (const jp::office::sheet::Table &t : book.tables())
+                if (t.sheet == sheet && t.row1 <= sc.autoFilter.ref.row2 && t.row2 >= sc.autoFilter.ref.row1 && t.col1 <= sc.autoFilter.ref.col2 && t.col2 >= sc.autoFilter.ref.col1) {
+                    sc.autoFilter = jp::office::sheet::AutoFilter();
+                    break;
+                }
         sc.filterMode = sc.autoFilter.active() ? 1 : 0;
         // the colors a filter asks for are differential formats of the file: one the workbook has, or one added
         for (jp::office::sheet::FilterColumn &c : sc.autoFilter.columns)
@@ -1076,6 +1134,29 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
                     if (dxf >= 0) c.dxf = dxf;
                 }
             }
+    }
+    // the rows a filter showed and hid: those in its range, as they are (the file's other rows in the range are shown)
+    for (const auto &[sheet, range] : m_filterRows) {
+        if (!written(sheet)) continue;
+        SheetChanges &sc = changes.sheets[sheet];
+        sc.showRows = true;
+        sc.showFirst = range.first;
+        sc.showLast = range.second;
+        for (const RowSpec &spec : calc->rowSpecsIn(sheet, range.first, range.second)) {
+            if (m_rowsResized.count(keyOf(sheet, spec.row, 0))) continue;   // (the loop below writes it)
+            RowProps p;
+            p.row = spec.row;
+            p.height = spec.height;
+            p.hidden = spec.hidden;
+            p.customHeight = spec.customHeight;
+            p.styleKnown = true;
+            p.customFormat = spec.customFormat;
+            p.style = spec.style;
+            p.outlineKnown = true;
+            p.outline = spec.outline;
+            p.collapsed = spec.collapsed;
+            sc.rows.push_back(p);
+        }
     }
     for (const quint64 key : m_rowsResized) {
         const int sheet = int(key >> 40);
@@ -1119,6 +1200,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         m_pages.addToSave(&changes, names, book.info().order);
     }
     changes.edits = m_edits;
+    changes.permutes = m_permutes;
     changes.renames = m_renames;
     out->strings = int(changes.newSharedStrings.size());
     if (hasStyles) {
@@ -1175,6 +1257,9 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_copies.clear();
     m_engineAtStart.clear();
     m_edits.clear();
+    m_permutes.clear();
+    m_filterRows.clear();
+    forgetNotes();
     m_renames.clear();
     ++m_saveGen;
     m_pages.saved();

@@ -13,6 +13,7 @@
 #include "core/sortspec.h"
 #include "grid/valuestore.h"
 #include "sheet/entry.h"
+#include "calc/numfmt.h"
 #include "sheet/textmatch.h"
 #include "sheet/xlsxsave.h"
 
@@ -26,6 +27,7 @@
 #include <optional>
 #include <memory>
 #include <set>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -119,6 +121,14 @@ struct StructChange {
 
 // A cell whose cell format a step changed, and nothing else of it (a formatting command's: it is what a format given to a million cells holds, so it is small): where it is, and the
 // formats it had and has.
+// The specs of the rows of a sheet (their heights, which are hidden, and why) as they were and as they are, whole: what a filter that shows and hides very many rows changes, put in and taken out
+// at once. The rows from `first` to `last` are those it looked at (what is saved of them).
+struct RowSpecsEdit {
+    int sheet = 0;
+    QVector<jp::office::sheet::RowSpec> before, after;
+    quint32 first = 0, last = 0;
+};
+
 struct StyleCell {
     qint32 sheet = 0;
     quint32 row = 0, col = 0;
@@ -140,11 +150,13 @@ struct Step {
     std::vector<MergeEdit> merges;
     std::vector<FormatEdit> formats;
     std::vector<FilterEdit> filters;
+    std::vector<RowSpecsEdit> rowSpecs;
+    std::vector<std::shared_ptr<jp::office::sheet::CellPermute>> permutes;   // cells put in another order (what is tied to a cell goes with it when the file is written)
     std::vector<SheetEdit> sheets;
     std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
     std::vector<ObjectEdit> objects;           // or objects over the cells taken away (done: they are gone; undone: they are back)
     std::vector<PageEdit> pages;               // or how sheets print (the paper, margins, header and footer, breaks, print area, titles)
-    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && sheets.empty() && !structure && objects.empty() && pages.empty(); }
+    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty(); }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -157,7 +169,11 @@ public:
     ~EditSession() override;
 
     // The locale a person types in, and the date a date without a year is in (the system's and today by default; a test sets them).
-    void setLocale(const QLocale &locale) { m_locale = locale; }
+    void setLocale(const QLocale &locale)
+    {
+        m_locale = locale;
+        m_symbolsReady = false;
+    }
     void setToday(const QDate &today) { m_today = today; }
     QLocale locale() const { return m_locale; }
 
@@ -205,6 +221,8 @@ public:
         // are undone).
         bool confirm = false;
         QString ruleTitle;
+        // A step made a slice at a time is not over: call again (ok and `problem` empty so far).
+        bool pending = false;
     };
     // The next step that moves cells is made though it is bigger than Undo holds (the person was asked, and said to go on).
     void allowNextBigStep() { m_bigStepAllowed = true; }
@@ -248,9 +266,39 @@ public:
 
 
 
+    // ---- steps put in a slice at a time
+    // A step of very many cells is put in a slice at a time (no turn of the window does more than a few thousand cells) and then lies on the undo stack as one step. While it is being put in, the
+    // workbook is not changed by anything else (canEdit says so), and it cannot be saved.
+    struct SlicedPush {
+        Step step;
+        QString text;
+        size_t next = 0;
+        bool began = false;
+    };
+    std::shared_ptr<SlicedPush> beginSlicedPush(Step step, const QString &text);
+    // Puts in about `budget` more cells (0: all); true when the step is all in and is on the undo stack.
+    bool continueSlicedPush(SlicedPush &push, qint64 budget);
+    bool isSlicing() const { return m_slicing; }
+    // What the slices did (a test counts them): how many cells the biggest slice put in, and how many slices there have been.
+    qint64 longestSlice() const { return m_longestSlice; }
+    int slicesPushed() const { return m_slicesPushed; }
+    // How many number formats have been made for the cells' formats (one for each format, not one for each cell that is shown through it).
+    qint64 formatsMade() const { return m_formatsMade; }
+
+    // ---- notes
+    // The notes of a sheet as the cells hold them now: the file's, moved with the cells by the edits made since (a note on a cell that was deleted is gone). Made once and kept until a change.
+    std::shared_ptr<const std::map<quint64, QString>> notesOf(int sheet, bool *cannot = nullptr, QString *why = nullptr) const;
+
     // ---- Find and Replace (editfind.cpp)
     // What a cell shows, as text: its value through its number format (the person's marks for the decimal and the digits), a text as it is, TRUE and FALSE, an error's name; empty for no cell.
     QString displayText(int sheet, quint32 row, quint32 col) const;
+    // The same as a file writes it, with no language in it ("1,234.50", "1/15/2024"): what the lists of a filter are kept in, so that a file filtered in one language is filtered in another.
+    QString neutralText(int sheet, quint32 row, quint32 col) const;
+    QString shownText(int sheet, quint32 row, quint32 col, bool neutral) const;
+    // The number format of a cell format, made once for each (not for each cell that has it).
+    const jp::calc::NumberFormat &formatOfStyle(quint32 style) const;
+    // The color as the number it comes to (0xRRGGBB), or -1 for none: a theme color and an RGB that look alike are the same.
+    qint64 colorKey(const jp::office::sheet::ColorSpec &color) const;
     struct CellSpot {
         int sheet = 0;
         quint32 row = 0, col = 0;
@@ -267,7 +315,7 @@ public:
     std::shared_ptr<ReplacePlan> planReplace(const std::vector<CellSpot> &cells, const jp::office::sheet::TextPattern &pattern, const QString &with, QString *why);
     // Works out the new text of about `budget` more cells (0: all); true when done (or when a cell cannot be changed: applyReplace says why).
     bool prepareReplace(ReplacePlan &plan, qint64 budget);
-    Outcome applyReplace(ReplacePlan &plan, ReplaceResult *result = nullptr);
+    Outcome applyReplace(ReplacePlan &plan, ReplaceResult *result = nullptr, qint64 budget = 0);
     // The text a search looks in for a cell: its formula with the "=", else what it holds (a text as it is; a number, true or false, or an error as it is typed). Faster than editText, which makes
     // a text that could be read as something else safe to type.
     QString searchText(int sheet, quint32 row, quint32 col) const;
@@ -284,7 +332,8 @@ public:
     // Works out the order from the keys; false if `cancel` was set (nothing then comes of the plan). Reads nothing of the workbook.
     static bool orderSort(SortPlan &plan, const std::atomic<bool> *cancel = nullptr);
     // Puts the cells in the order: one step. Not ok, and nothing changed, if the plan is not ready or the workbook has changed since it was made.
-    Outcome applySort(SortPlan &plan);
+    // With a budget the step is made and put in a slice at a time (`pending` is set while there is more).
+    Outcome applySort(SortPlan &plan, qint64 budget = 0);
     // All of it at once (for the tools and the tests): a plan, its keys, its order, and the step.
     Outcome sortRange(int sheet, const jp::office::sheet::CellRange &range, const SortSpec &spec);
     // Whether the first row of the range looks like names of columns: all text, with something that is not text in one of the cells under it.
@@ -296,15 +345,17 @@ public:
     // A filter being put on a sheet: the conditions it will have, the rows they hide (worked out a slice at a time by `prepareFilter`), and the one step it is (`applyFilter`). The rows hidden
     // by a filter are kept apart from the rows a person hid.
     struct FilterPlan;
-    // The most rows a filter covers (the cells under its buttons).
-    static constexpr qint64 kMaxFilterRows = 100000;
-    // The plan for the filter `after` (its range, and the conditions of its columns); null, with the reason in `why`, if it cannot be: the range is past kMaxFilterRows, a column's condition
+    // The most a filter may be asked to do: its rows times its conditions (a filter with more says so, and is not made). A filter with no condition (Clear, Filter off) has none of it.
+    static constexpr qint64 kMaxFilterWork = 40000000;
+    // The plan for the filter `after` (its range, and the conditions of its columns); null, with the reason in `why`, if it cannot be: the work (rows times conditions) is past kMaxFilterWork, the range is in a table, a column's condition
     // is none that can be worked out, or the sheet cannot be changed. An `after` that is not valid takes the sheet's filter away (the rows it hid are shown).
     std::shared_ptr<FilterPlan> planFilter(int sheet, const jp::office::sheet::AutoFilter &after, QString *why);
     // Works out which rows the conditions hide, a slice (about `budget` cells; 0 for all) at a time; true when it is done.
     bool prepareFilter(FilterPlan &plan, qint64 budget);
     // Puts the filter in, and shows and hides the rows: one step. Not ok if the plan is not done or the cells have been changed since it was made.
     Outcome applyFilter(FilterPlan &plan, const QString &text);
+    // How many things the plan does in all (rows and cells looked at): what a window decides by whether to work it out a slice at a time.
+    static qint64 filterWork(const FilterPlan &plan);
     // All of it at once: the sheet's filter is `after`.
     Outcome setFilter(int sheet, const jp::office::sheet::AutoFilter &after, const QString &text);
     // The sheet's filter with the condition of one column (from the first column of its range) put in (a condition of kind None takes the column's away).
@@ -530,7 +581,8 @@ private:
     // other step stays: Undo of it is made against the saved file (the edit that undoes it goes in the list for the file).
     void forgetDeletesInFile();
     // Puts a step on the undo stack (done, as pushed) and keeps the stack within its bytes.
-    void pushStep(Step step, const QString &text);
+    // `alreadyDone`: the step was put in a slice at a time already (see SlicedPush): it is put on the stack and not done again.
+    void pushStep(Step step, const QString &text, bool alreadyDone = false);
     // A text typed in a cell of a table's header row: the column is renamed (the formulas that name it follow, and the table's part when the workbook is saved).
     Outcome typeInHeader(int sheet, quint32 row, quint32 col, int table, int column, const QString &typed);
     jp::office::sheet::EntryOptions entryOptions(int sheet, bool textFormat) const;
@@ -578,11 +630,30 @@ private:
     std::vector<CopyPoint> m_copies;
     const CopyPoint *copyPointOf(int sheet) const;
     QString notCopiedNote(int sheet) const;
+    void applyPermute(jp::office::sheet::CellPermute &p, bool forward);
+    void forgetNotes();
     bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);
     Outcome pushSheetEdit(SheetEdit edit, const QString &text);
     bool sheetStepsRefused(QString *why);
     std::set<int> m_mergesChanged;   // the sheets whose merged ranges a step changed since the file was read or saved
     std::set<int> m_filtersChanged;  // and those whose filter a step changed
+    std::map<int, std::pair<quint32, quint32>> m_filterRows;   // and the rows (from the first to the last) of each whose rows a filter showed or hid
+    bool m_slicing = false;          // a step is being put in a slice at a time
+    qint64 m_longestSlice = 0;
+    int m_slicesPushed = 0;
+    mutable qint64 m_formatsMade = 0;
+    mutable std::unordered_map<quint32, std::shared_ptr<jp::calc::NumberFormat>> m_formats;   // the number formats of the cell formats, made when first wanted
+    mutable jp::calc::NumberSymbols m_symbols;   // the marks of the locale, made when first wanted
+    mutable bool m_symbolsReady = false;
+    std::vector<jp::office::sheet::CellPermute> m_permutes;   // cells put in another order since the file was read or saved, in order, for the file (and for where the notes are)
+    struct NotesOfSheet {
+        std::shared_ptr<const std::map<quint64, QString>> notes, raw;   // as moved by the edits, and as the file has them
+        size_t edits = 0, permutes = 0;
+        int saves = -1;
+        bool cannot = false;
+        QString why;
+    };
+    mutable std::map<int, NotesOfSheet> m_notes;
     std::set<quint64> m_columnsResized, m_rowsResized;   // the columns and rows (by sheet and place) whose size a step changed since the file was read or saved
     std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)
     ObjectHook m_objectHook;

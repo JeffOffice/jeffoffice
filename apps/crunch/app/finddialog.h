@@ -1,7 +1,7 @@
 #pragma once
 // The Find and Replace dialog: what to look for (with the marks ? and * for any one character and any run, and ~ to mean one of them itself), what to put in its place, and where to look
 // (this sheet or the workbook, by rows or by columns, in formulas, values, or notes, matching case, matching whole cells). It stays open beside the sheet. It does no searching itself:
-// it says what was asked (the window searches, a few thousand cells at a time) and shows the cells a Find All found, as a list to click.
+// it says what was asked (the window searches, a few thousand cells at a time) and shows the cells a List All found, as a list to click.
 
 #include "core/findrun.h"
 
@@ -31,7 +31,7 @@ public:
     // What the controls say, as options for a search (`sheet` and `within` are the window's to fill).
     crunch::FindOptions options() const;
     void setOptions(const crunch::FindOptions &options);
-    // A sentence at the bottom ("3 cells found", "Replaced 4 places"), and the cells a Find All found (the names of the sheets are by their place in the workbook).
+    // A sentence at the bottom ("3 cells found", "Replaced 4 places"), and the cells a List All found (the names of the sheets are by their place in the workbook).
     void setStatus(const QString &text);
     void showResults(const std::vector<crunch::FoundCell> &hits, const QStringList &sheetNames, bool truncated);
     void clearResults();

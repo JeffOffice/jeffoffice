@@ -9,15 +9,22 @@
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
 #include "findbooks.h"
+#include "io/zipindex.h"
+#include "savedok.h"
 
 #include <QAction>
 #include <QComboBox>
 #include <QPushButton>
 #include <QCheckBox>
+#include <QFile>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTableWidget>
 #include <QUndoStack>
+#include "../localepin.h"
+
+#include <memory>
 
 using namespace jp;
 using namespace crunchtest;
@@ -57,7 +64,15 @@ private Q_SLOTS:
         Q_INIT_RESOURCE(crunch);
         setAppInfo(crunchAppInfo());
         initCore();
-        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        m_localeBefore = QLocale();
+        m_pin = std::make_unique<PinnedLocale>();   // (put back when the class is done)
+    }
+
+    void cleanupTestCase()
+    {
+        // the computer's language is back, whatever this class pinned (a class that is run after this one in the same process is not told it was English)
+        m_pin.reset();
+        QCOMPARE(QLocale().name(), m_localeBefore.name());
     }
 
     void numbersTextLogicalsAndErrorsGoInThatOrderAndNothingGoesLast()
@@ -321,6 +336,74 @@ private Q_SLOTS:
         QVERIFY(o.problem.contains(QLatin1String("changed")));
     }
 
+    // ---- what is tied to a cell goes with it
+    void sortMovesTheNotesAndLinksWithTheirRowsWhenTheFileIsSaved()
+    {
+        const QByteArray comments = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><comments xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><authors><author>A</author></authors><commentList>"
+                                    "<comment ref=\"A1\" authorId=\"0\"><text><t>note on c</t></text></comment><comment ref=\"A3\" authorId=\"0\"><text><t>note on b</t></text></comment></commentList></comments>";
+        sheettest::ExtraPart part;
+        part.name = QStringLiteral("xl/comments1.xml");
+        part.data = comments;
+        part.contentType = QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml");
+        part.sheet = 0;
+        part.relId = QStringLiteral("rIdC");
+        part.relType = QStringLiteral("comments");
+        part.relTarget = QStringLiteral("../comments1.xml");
+        const QString links = QStringLiteral("<hyperlinks><hyperlink ref=\"A2\" location=\"Sheet1!C9\" display=\"go\"/></hyperlinks>");
+        EditWindow e;
+        QVERIFY(e.open(sheettest::withParts(bookOfSheets({{"A1=c", "A2=a", "A3=b"}}, {{0, links}}), {part})));
+        auto saved = [&](const QString &name) {
+            QFile f(e.path);
+            f.open(QIODevice::ReadOnly);
+            QMap<QString, QByteArray> parts;
+            jp::readZip(f.readAll(), parts);
+            return QString::fromUtf8(parts.value(name));
+        };
+        auto save = [&] {
+            QSignalSpy done(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY2(savedOk(done, 20000), "the save failed");
+        };
+        QVERIFY(sortWith(e, QStringLiteral("A1:A3"), byColumn(0)).ok);
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("a|b|c"));
+        save();
+        // "c" was in row 1 with its note and is in row 3; "b" was in row 3 and is in row 2; the link was on "a", which is in row 1
+        const QString comment = saved(QStringLiteral("xl/comments1.xml"));
+        QVERIFY2(comment.contains(QRegularExpression(QStringLiteral("ref=\"A3\"[^>]*><text><t>note on c"))), qPrintable(comment));
+        QVERIFY2(comment.contains(QRegularExpression(QStringLiteral("ref=\"A2\"[^>]*><text><t>note on b"))), qPrintable(comment));
+        QVERIFY2(saved(QStringLiteral("xl/worksheets/sheet1.xml")).contains(QLatin1String("<hyperlink ref=\"A1\"")), qPrintable(saved(QStringLiteral("xl/worksheets/sheet1.xml"))));
+        // undone and saved again, they are where they were
+        pressUndo(&e.win.w);
+        save();
+        const QString back = saved(QStringLiteral("xl/comments1.xml"));
+        QVERIFY2(back.contains(QRegularExpression(QStringLiteral("ref=\"A1\"[^>]*><text><t>note on c"))), qPrintable(back));
+        QVERIFY2(saved(QStringLiteral("xl/worksheets/sheet1.xml")).contains(QLatin1String("<hyperlink ref=\"A2\"")), "link back");
+    }
+
+    void aBigSortIsPutInASliceAtATimeAndIsOneStep()
+    {
+        QStringList cells;
+        for (int r = 1; r <= 5000; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg((r * 7919) % 5003);
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(cells)));
+        CrunchWindow &w = e.win.w;
+        w.setFixedSlices(500);
+        QSignalSpy finished(&w, &CrunchWindow::sortFinished);
+        QVERIFY(w.sortRange(rangeOf(QStringLiteral("A1:A5000")), byColumn(0)));
+        QTRY_COMPARE(finished.count(), 1);
+        QVERIFY(finished.last().first().toBool());
+        crunch::EditSession *s = w.session();
+        QVERIFY2(s->longestSlice() <= 500, qPrintable(QString::number(s->longestSlice())));      // (counted: no slice put in more than the budget)
+        QVERIFY2(s->slicesPushed() >= 9 && s->slicesPushed() <= 11, qPrintable(QString::number(s->slicesPushed())));
+        QCOMPARE(w.undoStack()->count(), 1);
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("1|2|3"));
+        pressUndo(&w);
+        QCOMPARE(shown(e, QStringLiteral("A1:A2")), QStringLiteral("%1|%2").arg((1 * 7919) % 5003).arg((2 * 7919) % 5003));
+        pressRedo(&w);
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("1|2|3"));
+        QVERIFY(!w.isApplying());
+    }
+
     void aHeaderIsGuessedFromTextOverNumbersAndColorsAreListed()
     {
         EditWindow e;
@@ -415,10 +498,11 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(sheetOf(cells)));
         CrunchWindow &w = e.win.w;
+        w.setFixedSlices(300);                                                      // (every slice the same size: how many turns it takes is counted, not timed)
         QSignalSpy finished(&w, &CrunchWindow::sortFinished);
         e.select(QStringLiteral("A2"));
         w.act(QStringLiteral("sort.ascending"))->trigger();
-        QVERIFY(w.isSorting());                                                     // (6,000 cells: not done at once)
+        QVERIFY(w.isSorting());                                                     // (6,000 cells at 300 a turn: not done at once)
         QTRY_COMPARE(finished.count(), 1);
         QVERIFY(finished.last().first().toBool());
         QVERIFY(!w.isSorting());
@@ -538,6 +622,9 @@ private Q_SLOTS:
         for (const char *id : {"edit.sort", "sort.ascending", "sort.descending", "sort.custom"}) QVERIFY2(e.win.w.act(QString::fromLatin1(id))->isEnabled(), id);
         QVERIFY(e.win.w.ribbonErrors().isEmpty());
     }
+private:
+    QLocale m_localeBefore;
+    std::unique_ptr<PinnedLocale> m_pin;
 };
 
 JP_TEST_CLASS(CrunchSortTests)

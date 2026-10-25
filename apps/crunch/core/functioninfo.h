@@ -1,5 +1,5 @@
 #pragma once
-// What the Insert Function dialog says about the functions of the formula language: for each one the engine has, its kind, the names of its arguments (an optional one is in brackets, and
+// What the Pick a Function dialog says about the functions of the formula language: for each one the engine has, its kind, the names of its arguments (an optional one is in brackets, and
 // "..." stands for as many more as the function takes), and a sentence on what it does. The list is the engine's: a test compares them, so no function is named here that the engine lacks.
 
 #include <QString>

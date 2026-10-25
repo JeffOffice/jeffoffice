@@ -46,11 +46,11 @@ SortDialog::SortDialog(const Provider &provider, const SortSpec &initial, QWidge
     m_lists = jp::crunch::builtInSortLists();
     auto *layout = new QVBoxLayout(this);
     auto *tools = new QHBoxLayout;
-    m_add = new QPushButton(tr("Add Level"));
+    m_add = new QPushButton(tr("Add Rule"));
     m_add->setObjectName(QStringLiteral("sortAddLevel"));
-    m_delete = new QPushButton(tr("Delete Level"));
+    m_delete = new QPushButton(tr("Remove Rule"));
     m_delete->setObjectName(QStringLiteral("sortDeleteLevel"));
-    m_copy = new QPushButton(tr("Copy Level"));
+    m_copy = new QPushButton(tr("Duplicate Rule"));
     m_copy->setObjectName(QStringLiteral("sortCopyLevel"));
     m_up = new QPushButton(tr("Move Up"));
     m_up->setObjectName(QStringLiteral("sortMoveUp"));
@@ -61,8 +61,8 @@ SortDialog::SortDialog(const Provider &provider, const SortSpec &initial, QWidge
     layout->addLayout(tools);
     m_levels = new QTableWidget(0, 5);
     m_levels->setObjectName(QStringLiteral("sortLevels"));
-    m_levels->setAccessibleName(tr("Sort levels"));
-    m_levels->setHorizontalHeaderLabels({QString(), tr("Column"), tr("Sort on"), tr("Order"), tr("Color goes")});
+    m_levels->setAccessibleName(tr("Sort rules"));
+    m_levels->setHorizontalHeaderLabels({QString(), tr("Column"), tr("Using"), tr("Order"), tr("Place color")});
     m_levels->verticalHeader()->hide();
     m_levels->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_levels->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -73,11 +73,11 @@ SortDialog::SortDialog(const Provider &provider, const SortSpec &initial, QWidge
     m_levels->setMinimumWidth(640);
     layout->addWidget(m_levels, 1);
     auto *options = new QHBoxLayout;
-    m_header = new QCheckBox(tr("My data has headers"));
+    m_header = new QCheckBox(tr("The first row names the columns"));
     m_header->setObjectName(QStringLiteral("sortHeader"));
-    m_case = new QCheckBox(tr("Case sensitive"));
+    m_case = new QCheckBox(tr("Capitals count"));
     m_case->setObjectName(QStringLiteral("sortCase"));
-    m_leftToRight = new QCheckBox(tr("Sort left to right"));
+    m_leftToRight = new QCheckBox(tr("Sort columns, not rows"));
     m_leftToRight->setObjectName(QStringLiteral("sortLeftToRight"));
     options->addWidget(m_header);
     options->addWidget(m_case);
@@ -129,7 +129,7 @@ SortDialog::SortDialog(const Provider &provider, const SortSpec &initial, QWidge
 
 void SortDialog::renumber()
 {
-    for (int r = 0; r < m_levels->rowCount(); ++r) m_levels->setItem(r, LevelColumn, new QTableWidgetItem(r == 0 ? tr("Sort by") : tr("Then by")));
+    for (int r = 0; r < m_levels->rowCount(); ++r) m_levels->setItem(r, LevelColumn, new QTableWidgetItem(r == 0 ? tr("First by") : tr("After that")));
     m_add->setEnabled(m_levels->rowCount() < jp::crunch::kMaxSortLevels);
     m_delete->setEnabled(m_levels->rowCount() > 1);
 }
@@ -145,18 +145,18 @@ void SortDialog::addLevel(const SortLevel &level)
         m_levels->setCellWidget(row, c, box);
     }
     auto *on = qobject_cast<QComboBox *>(m_levels->cellWidget(row, OnColumn));
-    on->addItems({tr("Cell values"), tr("Cell color"), tr("Font color")});
+    on->addItems({tr("Values"), tr("Fill color"), tr("Text color")});
     auto *where = qobject_cast<QComboBox *>(m_levels->cellWidget(row, WhereColumn));
-    where->addItems({tr("On top"), tr("On bottom")});
+    where->addItems({tr("First"), tr("Last")});
     auto *key = qobject_cast<QComboBox *>(m_levels->cellWidget(row, KeyColumn));
     key->setAccessibleName(tr("Column to sort by"));
-    on->setAccessibleName(tr("Sort on"));
+    on->setAccessibleName(tr("Using"));
     auto *orderBox = qobject_cast<QComboBox *>(m_levels->cellWidget(row, OrderColumn));
     orderBox->setAccessibleName(tr("Order"));
     connect(orderBox, &QComboBox::activated, this, [this, orderBox](int index) {
         if (orderBox->itemData(index, kKindRole).toInt() != Custom) return;
         bool ok = false;
-        const QString text = QInputDialog::getText(this, tr("Custom list"), tr("Type the values in the order you want, with commas between them:"), QLineEdit::Normal, QString(), &ok);
+        const QString text = QInputDialog::getText(this, tr("Own list"), tr("Type the values in the order you want, with commas between them:"), QLineEdit::Normal, QString(), &ok);
         QStringList list;
         for (const QString &item : text.split(QLatin1Char(','), Qt::SkipEmptyParts))
             if (!item.trimmed().isEmpty() && list.size() < 500) list << item.trimmed();
@@ -169,7 +169,7 @@ void SortDialog::addLevel(const SortLevel &level)
         orderBox->setItemData(index, List, kKindRole);
         orderBox->setCurrentIndex(index);
     });
-    where->setAccessibleName(tr("Where the color goes"));
+    where->setAccessibleName(tr("Where to put the color"));
     connect(on, &QComboBox::currentIndexChanged, this, [this, on] {
         for (int r = 0; r < m_levels->rowCount(); ++r)
             if (m_levels->cellWidget(r, OnColumn) == on) fillOrder(r, nullptr);
@@ -227,9 +227,9 @@ void SortDialog::fillOrder(int row, const SortLevel *level)
     const bool color = on->currentIndex() != 0;
     where->setEnabled(color);
     if (!color) {
-        order->addItem(tr("A to Z"), 0);
+        order->addItem(tr("A–Z"), 0);
         order->setItemData(0, Ascending, kKindRole);
-        order->addItem(tr("Z to A"), 0);
+        order->addItem(tr("Z–A"), 0);
         order->setItemData(1, Descending, kKindRole);
         for (const QStringList &list : m_lists) {
             order->addItem(preview(list));
@@ -237,7 +237,7 @@ void SortDialog::fillOrder(int row, const SortLevel *level)
             order->setItemData(at, list, kListRole);
             order->setItemData(at, List, kKindRole);
         }
-        order->addItem(tr("Custom list…"));
+        order->addItem(tr("Own list…"));
         order->setItemData(order->count() - 1, Custom, kKindRole);
         int at = 0;
         if (level) {

@@ -37,7 +37,7 @@ FindRun::FindRun(const EditSession *session, const FindOptions &options, Want wa
         for (int sheet : session->sheetOrder())
             if (searchable(sheet) && (book->info().sheets[sheet].state == SheetState::Visible || sheet == options.sheet)) m_sheets.push_back(sheet);
     }
-    m_ordered = want == Want::Next && options.order == FindOptions::Order::ByRows;
+    m_ordered = want == Want::Next;
     if (m_ordered) {
         // the stretches in the order of the search, from just after the cell with the cursor, round to just before it
         const int fromPos = positionOf(from.sheet);
@@ -71,8 +71,17 @@ FindRun::FindRun(const EditSession *session, const FindOptions &options, Want wa
             m_segments.push_back(g);
         }
     }
-    if (options.lookIn == FindOptions::LookIn::Notes && !session->structureEdits().empty())
-        m_problem = QCoreApplication::translate("jp::crunch::FindRun", "Notes are searched as they were saved, and rows or columns have been inserted or deleted since. Save the workbook, and look again.");
+    if (options.lookIn == FindOptions::LookIn::Notes) {
+        for (const int sheet : m_sheets) {
+            bool cannot = false;
+            QString why;
+            session->notesOf(sheet, &cannot, &why);
+            if (cannot) {
+                m_problem = why;
+                break;
+            }
+        }
+    }
     if (!m_problem.isEmpty()) {
         m_sheets.clear();
         m_segments.clear();
@@ -92,7 +101,7 @@ FindRun::Key FindRun::keyOf(int sheetPos, quint32 row, quint32 col) const
     return m_options.order == FindOptions::Order::ByRows ? Key(sheetPos, row, col) : Key(sheetPos, col, row);
 }
 
-void FindRun::look(int sheet, quint32 row, quint32 col, const std::map<quint64, QString> *notes)
+qint64 FindRun::look(int sheet, quint32 row, quint32 col, const std::map<quint64, QString> *notes)
 {
     QString text;
     switch (m_options.lookIn) {
@@ -104,7 +113,12 @@ void FindRun::look(int sheet, quint32 row, quint32 col, const std::map<quint64, 
         break;
     }
     }
-    if (text.isEmpty() || !m_matcher.matches(text)) return;
+    if (text.isEmpty()) return 1;
+    qint64 steps = 0;
+    const bool matched = m_matcher.matches(text, &steps);
+    // (a long text costs more than a short one: about a unit for each 64 comparisons)
+    const qint64 work = 1 + steps / 64;
+    if (!matched) return work;
     FoundCell hit;
     hit.sheet = sheet;
     hit.row = row;
@@ -113,16 +127,16 @@ void FindRun::look(int sheet, quint32 row, quint32 col, const std::map<quint64, 
     if (m_want == Want::All) {
         if (qint64(m_hits.size()) >= kMaxFindHits) {
             m_truncated = true;
-            return;
+            return work;
         }
         m_hits.push_back(hit);
-        return;
+        return work;
     }
     if (m_ordered) {
         // (the first hit in the order of the search is the answer)
         m_hits.assign(1, hit);
         m_stop = true;
-        return;
+        return work;
     }
     const Key key = keyOf(positionOf(sheet), row, col);
     if (!m_haveFirst || key < keyOf(positionOf(m_first.sheet), m_first.row, m_first.col)) {
@@ -134,6 +148,7 @@ void FindRun::look(int sheet, quint32 row, quint32 col, const std::map<quint64, 
         m_after = hit;
         m_haveAfter = true;
     }
+    return work;
 }
 
 // Walks the cells of the sheet from where the last step stopped, until the budget is spent. True when the sheet is done.
@@ -150,32 +165,40 @@ bool FindRun::walkSheet(Sweep &sw, const Segment &segment, qint64 budget, qint64
         sw.started = true;
     }
     if (m_options.lookIn == FindOptions::LookIn::Notes) {
+        const bool byCols = m_options.order == FindOptions::Order::ByColumns;
+        // (the order of the search: by rows, or by columns)
+        auto inOrder = [&](quint64 key) { return byCols ? ((quint64(key & 0xFFFFFFFFu) << 32) | (key >> 32)) : key; };
         if (!sw.notesRead) {
-            sw.notes = readSheetNotes(*m_session->workbook(), sw.sheet);
+            sw.notes = m_session->notesOf(sw.sheet);
             sw.notesRead = true;
-            sw.started = false;
-            sw.row = sw.col = 0;
+            for (const auto &n : *sw.notes) sw.noteOrder.push_back(n.first);
+            if (byCols) std::sort(sw.noteOrder.begin(), sw.noteOrder.end(), [&](quint64 x, quint64 y) { return inOrder(x) < inOrder(y); });
+            sw.noteAt = 0;
             if (segment.hasStart) {
-                sw.row = segment.startRow;
-                sw.col = segment.startCol;
-                sw.started = true;
+                const quint64 from = inOrder((quint64(segment.startRow) << 32) | segment.startCol);
+                sw.noteAt = size_t(std::upper_bound(sw.noteOrder.begin(), sw.noteOrder.end(), from, [&](quint64 v, quint64 key) { return v < inOrder(key); }) - sw.noteOrder.begin());
             }
         }
-        auto it = sw.started ? sw.notes.upper_bound((quint64(sw.row) << 32) | sw.col) : sw.notes.begin();
-        for (; it != sw.notes.end(); ++it) {
-            const quint32 row = quint32(it->first >> 32), col = quint32(it->first & 0xFFFFFFFFu);
-            if (afterEnd(row, col)) return true;
+        for (; sw.noteAt < sw.noteOrder.size(); ++sw.noteAt) {
+            const quint64 key = sw.noteOrder[sw.noteAt];
+            const quint32 row = quint32(key >> 32), col = quint32(key & 0xFFFFFFFFu);
+            if (segment.hasEnd && inOrder(key) > inOrder((quint64(segment.endRow) << 32) | segment.endCol)) return true;
             if (m_options.within.valid && m_options.scope == FindOptions::Scope::Sheet && !m_options.within.contains(row, col)) continue;
-            look(sw.sheet, row, col, &sw.notes);
+            const qint64 work = look(sw.sheet, row, col, sw.notes.get());
             sw.row = row;
             sw.col = col;
             sw.started = true;
             if (m_stop) return true;
             ++m_looked;
-            if (budget && ++*looked >= budget) return std::next(it) == sw.notes.end();
+            *looked += work;
+            if (budget && *looked >= budget) {
+                ++sw.noteAt;
+                return sw.noteAt >= sw.noteOrder.size();
+            }
         }
         return true;
     }
+    if (m_options.order == FindOptions::Order::ByColumns && m_want == Want::Next) return walkColumns(sw, segment, budget, looked);
     if (s.extentRows == 0 || s.extentCols == 0) return true;
     quint32 r1 = 0, c1 = 0, r2 = s.extentRows - 1, c2 = s.extentCols - 1;
     if (m_options.within.valid && m_options.scope == FindOptions::Scope::Sheet) {
@@ -195,12 +218,14 @@ bool FindRun::walkSheet(Sweep &sw, const Segment &segment, qint64 budget, qint64
         sw.col = c.col;
         sw.started = true;
         ++m_looked;
-        if (c.type != CellType::Empty || c.hasFormula()) look(sw.sheet, c.row, c.col, nullptr);
+        qint64 work = 1;
+        if (c.type != CellType::Empty || c.hasFormula()) work = look(sw.sheet, c.row, c.col, nullptr);
         if (m_stop) {
             sw.ended = true;
             return false;
         }
-        if (budget && ++*looked >= budget) {
+        *looked += work;
+        if (budget && *looked >= budget) {
             stopped = true;
             return false;
         }
@@ -233,6 +258,67 @@ bool FindRun::walkSheet(Sweep &sw, const Segment &segment, qint64 budget, qint64
             return false;
         });
         return !more;
+    }
+    return true;
+}
+
+// Next by columns: the cells column by column, each column from the top (only a column's cells are looked at), from just after the place the search stands on; it stops at the first hit.
+bool FindRun::walkColumns(Sweep &sw, const Segment &segment, qint64 budget, qint64 *looked)
+{
+    const Sheet &s = m_session->calculation()->sheet(sw.sheet);
+    if (s.extentRows == 0 || s.extentCols == 0) return true;
+    quint32 r1 = 0, c1 = 0, r2 = s.extentRows - 1, c2 = s.extentCols - 1;
+    if (m_options.within.valid && m_options.scope == FindOptions::Scope::Sheet) {
+        r1 = m_options.within.row1;
+        c1 = m_options.within.col1;
+        r2 = std::min(r2, m_options.within.row2);
+        c2 = std::min(c2, m_options.within.col2);
+        if (r1 > r2 || c1 > c2) return true;
+    }
+    if (segment.hasStart && !sw.started && !sw.begun) {
+        sw.begun = true;
+        sw.row = segment.startRow;
+        sw.col = segment.startCol;
+        sw.started = true;
+    }
+    quint32 col = c1, rowFrom = r1;
+    if (sw.started) {
+        if (sw.col > c2) return true;
+        if (sw.col >= c1) {
+            col = sw.col;
+            rowFrom = quint32(std::max<qint64>(r1, qint64(sw.row) + 1));
+        }
+    }
+    for (; col <= c2; ++col, rowFrom = r1) {
+        if (segment.hasEnd && col > segment.endCol) return true;
+        if (rowFrom > r2) continue;
+        bool stopped = false, over = false;
+        s.cells.forEachInRange(rowFrom, col, r2, col, [&](const Cell &c) {
+            if (segment.hasEnd && col == segment.endCol && c.row > segment.endRow) {
+                over = true;
+                return false;
+            }
+            sw.row = c.row;
+            sw.col = c.col;
+            sw.started = true;
+            ++m_looked;
+            qint64 work = 1;
+            if (c.type != CellType::Empty || c.hasFormula()) work = look(sw.sheet, c.row, c.col, nullptr);
+            if (m_stop) return false;
+            *looked += work;
+            if (budget && *looked >= budget) {
+                stopped = true;
+                return false;
+            }
+            return true;
+        });
+        if (over || m_stop) return true;
+        if (stopped) return false;
+        // (the column is done: the walk stands at its end)
+        sw.col = col;
+        sw.row = r2;
+        sw.started = true;
+        if (budget && *looked >= budget && col < c2) return false;
     }
     return true;
 }

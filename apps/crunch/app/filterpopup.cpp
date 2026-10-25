@@ -22,7 +22,7 @@ using jp::office::sheet::FilterColumn;
 namespace {
 
 constexpr int kKindRole = Qt::UserRole;      // 1 a value, 2 a year, 3 a month, 4 a day, 5 blanks, 6 select all
-constexpr int kYearRole = Qt::UserRole + 1, kMonthRole = Qt::UserRole + 2, kDayRole = Qt::UserRole + 3;
+constexpr int kYearRole = Qt::UserRole + 1, kMonthRole = Qt::UserRole + 2, kDayRole = Qt::UserRole + 3, kStoredRole = Qt::UserRole + 4;   // (kStoredRole: a value as a file writes it)
 enum ItemKind { Value = 1, Year, Month, Day, Blanks, All };
 
 QIcon swatch(const QColor &color)
@@ -45,28 +45,28 @@ FilterPopup::FilterPopup(const Input &input, QWidget *parent) : QMenu(parent), m
 
 void FilterPopup::buildMenus()
 {
-    QAction *asc = addAction(jp::icon(QStringLiteral("arrow-down-a-z")), tr("Sort A to Z"));
+    QAction *asc = addAction(jp::icon(QStringLiteral("arrow-down-a-z")), tr("Sort A–Z"));
     asc->setObjectName(QStringLiteral("filterSortAscending"));
     asc->setCheckable(true);
     asc->setChecked(m_input.sortDirection > 0);
-    QAction *desc = addAction(jp::icon(QStringLiteral("arrow-up-z-a")), tr("Sort Z to A"));
+    QAction *desc = addAction(jp::icon(QStringLiteral("arrow-up-z-a")), tr("Sort Z–A"));
     desc->setObjectName(QStringLiteral("filterSortDescending"));
     desc->setCheckable(true);
     desc->setChecked(m_input.sortDirection < 0);
     connect(asc, &QAction::triggered, this, [this] { Q_EMIT sortRequested(false); });
     connect(desc, &QAction::triggered, this, [this] { Q_EMIT sortRequested(true); });
-    m_sortColors = addMenu(tr("Sort by Color"));
+    m_sortColors = addMenu(tr("Sort by a Color"));
     m_sortColors->setObjectName(QStringLiteral("filterSortColors"));
     m_sortColors->setEnabled(false);
     addSeparator();
-    m_clear = addAction(jp::icon(QStringLiteral("filter-x")), tr("Clear Filter From \"%1\"").arg(m_input.columnName.left(40)));
+    m_clear = addAction(jp::icon(QStringLiteral("filter-x")), tr("Show All of \"%1\"").arg(m_input.columnName.left(40)));
     m_clear->setObjectName(QStringLiteral("filterClear"));
     m_clear->setEnabled(m_input.filtered);
     connect(m_clear, &QAction::triggered, this, [this] { Q_EMIT clearRequested(); });
-    m_filterColors = addMenu(tr("Filter by Color"));
+    m_filterColors = addMenu(tr("Keep a Color"));
     m_filterColors->setObjectName(QStringLiteral("filterColors"));
     m_filterColors->setEnabled(false);
-    m_kindMenu = addMenu(tr("Filters"));
+    m_kindMenu = addMenu(tr("Conditions"));
     m_kindMenu->setObjectName(QStringLiteral("filterKinds"));
     m_kindMenu->setEnabled(false);
     addSeparator();
@@ -144,7 +144,7 @@ void FilterPopup::setList(const FilterList &list)
             });
         }
         if (none) {
-            QAction *a = menu->addAction(font ? tr("No font color") : tr("No fill"));
+            QAction *a = menu->addAction(font ? tr("Without a text color") : tr("Without a fill"));
             connect(a, &QAction::triggered, this, [this, font, sort] {
                 if (sort) {
                     Q_EMIT sortByColorRequested(font, ColorSpec());
@@ -169,7 +169,7 @@ void FilterPopup::setList(const FilterList &list)
         for (int sort = 0; sort < 2; ++sort) {
             QMenu *menu = sort ? m_sortColors : m_filterColors;
             if (anyCell) {
-                addHeading(menu, tr("By cell color"));
+                addHeading(menu, tr("Fill colors"));
                 QMenu scratch;
                 fillColors(&scratch, false, list.cellColors, list.noCellColor, sort);
                 for (QAction *a : scratch.actions()) {
@@ -180,7 +180,7 @@ void FilterPopup::setList(const FilterList &list)
             }
             if (anyFont) {
                 if (anyCell) menu->addSeparator();
-                addHeading(menu, tr("By font color"));
+                addHeading(menu, tr("Text colors"));
                 QMenu scratch;
                 fillColors(&scratch, true, list.fontColors, list.noFontColor, sort);
                 for (QAction *a : scratch.actions()) {
@@ -210,22 +210,22 @@ void FilterPopup::setList(const FilterList &list)
         });
     };
     if (list.kind == FilterList::Kind::Number) {
-        m_kindMenu->setTitle(tr("Number Filters"));
+        m_kindMenu->setTitle(tr("Number Conditions"));
         ask(m_kindMenu, tr("Equals…"), FilterAsk::Equals);
-        ask(m_kindMenu, tr("Does Not Equal…"), FilterAsk::NotEquals);
-        ask(m_kindMenu, tr("Greater Than…"), FilterAsk::Greater);
-        ask(m_kindMenu, tr("Greater Than Or Equal To…"), FilterAsk::GreaterEqual);
-        ask(m_kindMenu, tr("Less Than…"), FilterAsk::Less);
-        ask(m_kindMenu, tr("Less Than Or Equal To…"), FilterAsk::LessEqual);
+        ask(m_kindMenu, tr("Differs From…"), FilterAsk::NotEquals);
+        ask(m_kindMenu, tr("Above…"), FilterAsk::Greater);
+        ask(m_kindMenu, tr("At Least…"), FilterAsk::GreaterEqual);
+        ask(m_kindMenu, tr("Below…"), FilterAsk::Less);
+        ask(m_kindMenu, tr("At Most…"), FilterAsk::LessEqual);
         ask(m_kindMenu, tr("Between…"), FilterAsk::Between);
         m_kindMenu->addSeparator();
-        ask(m_kindMenu, tr("Top 10…"), FilterAsk::Top10);
-        dynamic(m_kindMenu, tr("Above Average"), QStringLiteral("aboveAverage"));
-        dynamic(m_kindMenu, tr("Below Average"), QStringLiteral("belowAverage"));
+        ask(m_kindMenu, tr("Largest or Smallest…"), FilterAsk::Top10);
+        dynamic(m_kindMenu, tr("Over the Average"), QStringLiteral("aboveAverage"));
+        dynamic(m_kindMenu, tr("Under the Average"), QStringLiteral("belowAverage"));
         m_kindMenu->addSeparator();
-        ask(m_kindMenu, tr("Custom Filter…"), FilterAsk::Custom);
+        ask(m_kindMenu, tr("Your Own Condition…"), FilterAsk::Custom);
     } else if (list.kind == FilterList::Kind::Date) {
-        m_kindMenu->setTitle(tr("Date Filters"));
+        m_kindMenu->setTitle(tr("Date Conditions"));
         ask(m_kindMenu, tr("Equals…"), FilterAsk::Equals);
         ask(m_kindMenu, tr("Before…"), FilterAsk::Before);
         ask(m_kindMenu, tr("After…"), FilterAsk::After);
@@ -235,42 +235,42 @@ void FilterPopup::setList(const FilterList &list)
         dynamic(m_kindMenu, tr("Today"), QStringLiteral("today"));
         dynamic(m_kindMenu, tr("Yesterday"), QStringLiteral("yesterday"));
         m_kindMenu->addSeparator();
-        dynamic(m_kindMenu, tr("Next Week"), QStringLiteral("nextWeek"));
-        dynamic(m_kindMenu, tr("This Week"), QStringLiteral("thisWeek"));
-        dynamic(m_kindMenu, tr("Last Week"), QStringLiteral("lastWeek"));
+        dynamic(m_kindMenu, tr("Following Week"), QStringLiteral("nextWeek"));
+        dynamic(m_kindMenu, tr("Current Week"), QStringLiteral("thisWeek"));
+        dynamic(m_kindMenu, tr("Previous Week"), QStringLiteral("lastWeek"));
         m_kindMenu->addSeparator();
-        dynamic(m_kindMenu, tr("Next Month"), QStringLiteral("nextMonth"));
-        dynamic(m_kindMenu, tr("This Month"), QStringLiteral("thisMonth"));
-        dynamic(m_kindMenu, tr("Last Month"), QStringLiteral("lastMonth"));
+        dynamic(m_kindMenu, tr("Following Month"), QStringLiteral("nextMonth"));
+        dynamic(m_kindMenu, tr("Current Month"), QStringLiteral("thisMonth"));
+        dynamic(m_kindMenu, tr("Previous Month"), QStringLiteral("lastMonth"));
         m_kindMenu->addSeparator();
-        dynamic(m_kindMenu, tr("Next Quarter"), QStringLiteral("nextQuarter"));
-        dynamic(m_kindMenu, tr("This Quarter"), QStringLiteral("thisQuarter"));
-        dynamic(m_kindMenu, tr("Last Quarter"), QStringLiteral("lastQuarter"));
+        dynamic(m_kindMenu, tr("Following Quarter"), QStringLiteral("nextQuarter"));
+        dynamic(m_kindMenu, tr("Current Quarter"), QStringLiteral("thisQuarter"));
+        dynamic(m_kindMenu, tr("Previous Quarter"), QStringLiteral("lastQuarter"));
         m_kindMenu->addSeparator();
-        dynamic(m_kindMenu, tr("Next Year"), QStringLiteral("nextYear"));
-        dynamic(m_kindMenu, tr("This Year"), QStringLiteral("thisYear"));
-        dynamic(m_kindMenu, tr("Last Year"), QStringLiteral("lastYear"));
-        dynamic(m_kindMenu, tr("Year to Date"), QStringLiteral("yearToDate"));
+        dynamic(m_kindMenu, tr("Following Year"), QStringLiteral("nextYear"));
+        dynamic(m_kindMenu, tr("Current Year"), QStringLiteral("thisYear"));
+        dynamic(m_kindMenu, tr("Previous Year"), QStringLiteral("lastYear"));
+        dynamic(m_kindMenu, tr("So Far This Year"), QStringLiteral("yearToDate"));
         m_kindMenu->addSeparator();
-        QMenu *period = m_kindMenu->addMenu(tr("All Dates in the Period"));
+        QMenu *period = m_kindMenu->addMenu(tr("Any Date In"));
         QMenu *quarters = period->addMenu(tr("Quarter"));
         for (int q = 1; q <= 4; ++q) dynamic(quarters, tr("Quarter %1").arg(q), QStringLiteral("Q%1").arg(q));
         QMenu *months = period->addMenu(tr("Month"));
         for (int m = 1; m <= 12; ++m) dynamic(months, QLocale().monthName(m, QLocale::LongFormat), QStringLiteral("M%1").arg(m));
         m_kindMenu->addSeparator();
-        ask(m_kindMenu, tr("Custom Filter…"), FilterAsk::Custom);
+        ask(m_kindMenu, tr("Your Own Condition…"), FilterAsk::Custom);
     } else {
-        m_kindMenu->setTitle(tr("Text Filters"));
+        m_kindMenu->setTitle(tr("Text Conditions"));
         ask(m_kindMenu, tr("Equals…"), FilterAsk::Equals);
-        ask(m_kindMenu, tr("Does Not Equal…"), FilterAsk::NotEquals);
+        ask(m_kindMenu, tr("Differs From…"), FilterAsk::NotEquals);
         m_kindMenu->addSeparator();
-        ask(m_kindMenu, tr("Begins With…"), FilterAsk::BeginsWith);
-        ask(m_kindMenu, tr("Ends With…"), FilterAsk::EndsWith);
+        ask(m_kindMenu, tr("Starts With…"), FilterAsk::BeginsWith);
+        ask(m_kindMenu, tr("Ends In…"), FilterAsk::EndsWith);
         m_kindMenu->addSeparator();
         ask(m_kindMenu, tr("Contains…"), FilterAsk::Contains);
-        ask(m_kindMenu, tr("Does Not Contain…"), FilterAsk::NotContains);
+        ask(m_kindMenu, tr("Leaves Out…"), FilterAsk::NotContains);
         m_kindMenu->addSeparator();
-        ask(m_kindMenu, tr("Custom Filter…"), FilterAsk::Custom);
+        ask(m_kindMenu, tr("Your Own Condition…"), FilterAsk::Custom);
     }
     m_kindMenu->setEnabled(true);
     fillTree();
@@ -282,7 +282,7 @@ void FilterPopup::fillTree()
 {
     const QSignalBlocker block(m_tree);
     m_tree->clear();
-    m_all = new QTreeWidgetItem(m_tree, QStringList(tr("(Select All)")));
+    m_all = new QTreeWidgetItem(m_tree, QStringList(tr("(Everything)")));
     m_all->setData(0, kKindRole, All);
     m_all->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
     const FilterColumn &cur = m_input.current;
@@ -327,19 +327,21 @@ void FilterPopup::fillTree()
                 }
             }
         }
-    } else {
-        for (const FilterList::Item &item : m_list.items) {
-            auto *i = new QTreeWidgetItem(m_all, QStringList(item.text));
-            i->setData(0, kKindRole, Value);
-            const int cells = int(std::min<qint64>(item.count, 100000000));
-            i->setToolTip(0, tr("%n cell(s)", nullptr, cells));
-            i->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
-            i->setCheckState(0, checked(item.text) ? Qt::Checked : Qt::Unchecked);
-        }
+    }
+    // the values (in a column of dates, those that are not dates)
+    for (const FilterList::Item &item : m_list.items) {
+        auto *i = new QTreeWidgetItem(m_all, QStringList(item.text));
+        i->setData(0, kKindRole, Value);
+        i->setData(0, kStoredRole, item.stored);
+        const int cells = int(std::min<qint64>(item.count, 100000000));
+        i->setToolTip(0, tr("%n cell(s)", nullptr, cells));
+        i->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
+        // (a filter that was made in another language, or by another program, lists the values as it had them)
+        i->setCheckState(0, checked(item.text) || checked(item.stored) ? Qt::Checked : Qt::Unchecked);
     }
     m_blanks = nullptr;
     if (m_list.blanks) {
-        m_blanks = new QTreeWidgetItem(m_all, QStringList(tr("(Blanks)")));
+        m_blanks = new QTreeWidgetItem(m_all, QStringList(tr("(Empty)")));
         m_blanks->setData(0, kKindRole, Blanks);
         m_blanks->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
         m_blanks->setCheckState(0, !filtering || cur.blank ? Qt::Checked : Qt::Unchecked);
@@ -421,7 +423,7 @@ void FilterPopup::searched(const QString &text)
     };
     visit(m_all, QString());
     m_all->setHidden(false);
-    m_all->setText(0, words.isEmpty() ? tr("(Select All)") : tr("(Select All Search Results)"));
+    m_all->setText(0, words.isEmpty() ? tr("(Everything)") : tr("(Everything Found)"));
     m_all->setExpanded(true);
     if (!words.isEmpty()) m_tree->expandAll();
 }
@@ -472,11 +474,11 @@ FilterColumn FilterPopup::conditionOfList() const
                 }
             }
         }
-    } else {
-        for (int i = 0; i < m_all->childCount(); ++i) {
-            QTreeWidgetItem *item = m_all->child(i);
-            if (item->data(0, kKindRole).toInt() == Value && item->checkState(0) == Qt::Checked) c.values.append(item->text(0));
-        }
+    }
+    for (int i = 0; i < m_all->childCount(); ++i) {
+        QTreeWidgetItem *item = m_all->child(i);
+        // (kept as a file writes it, so that the filter is the same in any language)
+        if (item->data(0, kKindRole).toInt() == Value && item->checkState(0) == Qt::Checked) c.values.append(item->data(0, kStoredRole).toString());
     }
     return c;
 }

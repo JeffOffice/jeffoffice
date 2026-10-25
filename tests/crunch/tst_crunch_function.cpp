@@ -1,4 +1,4 @@
-// Tests of Insert Function (the list of functions against the engine's, the dialog, and what it puts in the formula), and of the message a rule of validation shows beside its cell.
+// Tests of Pick a Function (the list of functions against the engine's, the dialog, and what it puts in the formula), and of the message a rule of validation shows beside its cell.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/insertfunctiondialog.h"
@@ -18,6 +18,9 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QSettings>
+#include "../localepin.h"
+
+#include <memory>
 
 using namespace jp;
 using namespace crunchtest;
@@ -35,7 +38,15 @@ private Q_SLOTS:
         Q_INIT_RESOURCE(crunch);
         setAppInfo(crunchAppInfo());
         initCore();
-        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        m_localeBefore = QLocale();
+        m_pin = std::make_unique<PinnedLocale>();   // (put back when the class is done)
+    }
+
+    void cleanupTestCase()
+    {
+        // the computer's language is back, whatever this class pinned (a class that is run after this one in the same process is not told it was English)
+        m_pin.reset();
+        QCOMPARE(QLocale().name(), m_localeBefore.name());
     }
 
     // ---- the list
@@ -243,6 +254,9 @@ private Q_SLOTS:
         e.view()->selectRange(1, 3, 2, 3);
         QVERIFY(!w.inputMessage());
     }
+private:
+    QLocale m_localeBefore;
+    std::unique_ptr<PinnedLocale> m_pin;
 };
 
 JP_TEST_CLASS(CrunchFunctionTests)

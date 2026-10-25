@@ -55,14 +55,14 @@ CustomFilterDialog::CustomFilterDialog(const QString &column, bool dates, jp::ca
     : QDialog(parent), m_dates(dates), m_system(system)
 {
     setObjectName(QStringLiteral("customFilterDialog"));
-    setWindowTitle(tr("Custom Filter"));
+    setWindowTitle(tr("Your Own Condition"));
     auto *layout = new QVBoxLayout(this);
-    layout->addWidget(new QLabel(tr("Show rows where the value in \"%1\"").arg(column.left(60))));
+    layout->addWidget(new QLabel(tr("Keep the rows whose value in \"%1\"").arg(column.left(60))));
     auto *grid = new QGridLayout;
     layout->addLayout(grid);
-    const QStringList numberOps = {tr("equals"), tr("does not equal"), tr("is greater than"), tr("is greater than or equal to"), tr("is less than"), tr("is less than or equal to"),
-                                   tr("begins with"), tr("does not begin with"), tr("ends with"), tr("does not end with"), tr("contains"), tr("does not contain")};
-    const QStringList dateOps = {tr("equals"), tr("does not equal"), tr("is after"), tr("is on or after"), tr("is before"), tr("is on or before")};
+    const QStringList numberOps = {tr("equals"), tr("differs from"), tr("is above"), tr("is at least"), tr("is below"), tr("is at most"),
+                                   tr("starts with"), tr("does not start with"), tr("ends in"), tr("does not end in"), tr("contains"), tr("does not contain")};
+    const QStringList dateOps = {tr("equals"), tr("differs from"), tr("is after"), tr("is that day or later"), tr("is before"), tr("is that day or earlier")};
     for (int row = 0; row < 2; ++row) {
         m_op[row] = new QComboBox;
         m_op[row]->setObjectName(QStringLiteral("filterOperator%1").arg(row));
@@ -94,7 +94,7 @@ CustomFilterDialog::CustomFilterDialog(const QString &column, bool dates, jp::ca
     joiner->addWidget(m_or);
     joiner->addStretch(1);
     grid->addLayout(joiner, 1, 0, 1, 2);
-    if (!dates) layout->addWidget(new QLabel(tr("Use ? for any one character and * for any run of characters.")));
+    if (!dates) layout->addWidget(new QLabel(tr("? stands for any one character and * for any stretch of characters.")));
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -222,9 +222,9 @@ FilterColumn CustomFilterDialog::result() const
 TopFilterDialog::TopFilterDialog(const QString &column, const FilterColumn *current, QWidget *parent) : QDialog(parent)
 {
     setObjectName(QStringLiteral("topFilterDialog"));
-    setWindowTitle(tr("Top 10 Filter"));
+    setWindowTitle(tr("Largest or Smallest"));
     auto *layout = new QVBoxLayout(this);
-    layout->addWidget(new QLabel(tr("Show the values of \"%1\" that are").arg(column.left(60))));
+    layout->addWidget(new QLabel(tr("Keep the values of \"%1\" that are among the").arg(column.left(60))));
     auto *row = new QHBoxLayout;
     m_which = new QComboBox;
     m_which->setObjectName(QStringLiteral("topWhich"));

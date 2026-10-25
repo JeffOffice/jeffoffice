@@ -147,10 +147,10 @@
 <context>
     <name>jp::FindDialog</name>
     <message numerus="yes">
-        <source>%n cell(s) found.</source>
+        <source>%n cell(s) match.</source>
         <translation>
-            <numerusform>%n cell found.</numerusform>
-            <numerusform>%n cells found.</numerusform>
+            <numerusform>%n cell matches.</numerusform>
+            <numerusform>%n cells match.</numerusform>
         </translation>
     </message>
 </context>

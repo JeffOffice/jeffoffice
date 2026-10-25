@@ -1,5 +1,5 @@
 #pragma once
-// The drop-down of a filter's button: Sort A to Z and Z to A (and by color), Clear Filter, Filter by Color, the number, text, or date filters, and the list of the values in the column with a
+// The drop-down of a filter's button: Sort A–Z and Z–A (and by color), Clear Filter, Filter by Color, the number, text, or date filters, and the list of the values in the column with a
 // search box and (Select All). It shows at once and the list is filled when the values are listed (the window lists them a slice at a time). It decides nothing: what was chosen is told by
 // signals, and the window changes the filter.
 

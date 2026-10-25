@@ -1,4 +1,4 @@
-// Insert Function, and AutoSum's More Functions: the dialog picks a function and the formula is begun with it, in the cell being typed in (at the cursor) or in the cell with the cursor.
+// Pick a Function, and AutoSum's All Functions: the dialog picks a function and the formula is begun with it, in the cell being typed in (at the cursor) or in the cell with the cursor.
 #include "app/crunchwindow.h"
 
 #include "app/insertfunctiondialog.h"
@@ -10,8 +10,8 @@ namespace jp {
 
 void CrunchWindow::createFunctionActions()
 {
-    mk("formulas.insertFunction", tr("Insert Function"), "square-function", QKeySequence(Qt::SHIFT | Qt::Key_F3), [this] { insertFunctionCommand(); });
-    mk("edit.autosum.more", tr("More Functions…"), "", QKeySequence(), [this] { insertFunctionCommand(); });
+    mk("formulas.insertFunction", tr("Pick a Function…"), "square-function", QKeySequence(Qt::SHIFT | Qt::Key_F3), [this] { insertFunctionCommand(); });
+    mk("edit.autosum.more", tr("All Functions…"), "", QKeySequence(), [this] { insertFunctionCommand(); });
     for (const char *id : {"formulas.insertFunction", "edit.autosum.more"}) m_opsActions << QString::fromLatin1(id);
     updateEditActions();
 }

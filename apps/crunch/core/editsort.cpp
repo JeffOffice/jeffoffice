@@ -7,6 +7,8 @@
 #include "sheet/refshift.h"
 
 #include <QCoreApplication>
+#include "core/collation.h"
+
 #include <QCollator>
 #include <QLocale>
 
@@ -67,6 +69,13 @@ struct EditSession::SortPlan {
     qint64 changesAtPlan = 0;
     int undoIndexAtPlan = 0;
     std::vector<QStringList> lists; // each level's list, folded to lower case
+    // the step, made a slice at a time (see applySort)
+    int stage = 0;                  // 0: the cells are read, 1: the changes are made, 2: the merged cells and the move of notes, 3: the step is put in
+    size_t readAt = 0, buildAt = 0;
+    std::vector<Calculation::CellContent> contents;
+    Step step;
+    bool pushing = false;
+    std::shared_ptr<SlicedPush> push;
 };
 
 namespace {
@@ -231,7 +240,7 @@ bool EditSession::prepareSort(SortPlan &plan, qint64 budget)
                     }
                 }
                 if (color.kind == ColorSpec::Kind::Auto) color = ColorSpec();
-                k.match = color == level.color;
+                k.match = colorKey(color) == colorKey(level.color);
             }
         }
         if (plan.keyChars > kMaxSortKeyChars) {
@@ -249,8 +258,7 @@ bool EditSession::orderSort(SortPlan &plan, const std::atomic<bool> *cancel)
     if (plan.keys.empty() && !plan.units.empty()) return false;
     const size_t levels = size_t(plan.spec.levels.size());
     const size_t n = plan.units.size();
-    QCollator collator(QLocale(QLocale::English, QLocale::UnitedStates));
-    collator.setCaseSensitivity(plan.spec.caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive);
+    const QCollator collator = sortCollator(plan.spec.caseSensitive);
     plan.order.resize(n);
     std::iota(plan.order.begin(), plan.order.end(), 0u);
     qint64 compared = 0;
@@ -312,7 +320,7 @@ bool sameMeaningOf(const Calculation::CellContent &a, const Calculation::CellCon
 
 } // namespace
 
-EditSession::Outcome EditSession::applySort(SortPlan &plan)
+EditSession::Outcome EditSession::applySort(SortPlan &plan, qint64 budget)
 {
     Outcome out;
     auto refuse = [&](const QString &problem) {
@@ -320,65 +328,99 @@ EditSession::Outcome EditSession::applySort(SortPlan &plan)
         out.problem = problem;
         return out;
     };
-    QString why;
-    if (!canEdit(&why) || !canEditSheet(plan.sheet, &why)) return refuse(why);
-    if (!plan.ordered || plan.order.size() != plan.units.size()) return refuse(tr("The sort could not be finished. Try it again."));
-    if (m_loader->changesMade() != plan.changesAtPlan || m_undo.index() != plan.undoIndexAtPlan) return refuse(tr("The cells were changed while the sort was being worked out, so it was not made. Sort again."));
     out.range = plan.range;
+    if (plan.stage == 4) return out;   // (it was made)
     const Calculation *calc = m_book->calc.get();
     const quint32 otherFirst = plan.columns ? plan.data.row1 : plan.data.col1, otherLast = plan.columns ? plan.data.row2 : plan.data.col2;
     const size_t n = plan.units.size(), width = size_t(otherLast - otherFirst) + 1;
-    bool identity = true;
-    for (size_t i = 0; i < n; ++i)
-        if (plan.order[i] != i) {
-            identity = false;
-            break;
-        }
-    if (identity) return out;   // (already in order)
-    // every cell as it is, once
-    std::vector<Calculation::CellContent> contents(n * width);
-    for (size_t u = 0; u < n; ++u)
-        for (size_t o = 0; o < width; ++o) {
-            const quint32 row = plan.columns ? otherFirst + quint32(o) : plan.units[u], col = plan.columns ? plan.units[u] : otherFirst + quint32(o);
-            contents[u * width + o] = calc->content(plan.sheet, row, col);
-        }
-    const bool hasShared = !m_book->book->sharedStringsPart().isEmpty();
-    Step step;
-    for (size_t i = 0; i < n; ++i) {
-        const size_t from = plan.order[i];
-        if (from == i) continue;
-        for (size_t o = 0; o < width; ++o) {
-            const quint32 other = otherFirst + quint32(o);
-            CellChange ch;
-            ch.sheet = plan.sheet;
-            ch.row = plan.columns ? other : plan.units[i];
-            ch.col = quint16(plan.columns ? plan.units[i] : other);
-            ch.before = contents[i * width + o];
-            const Calculation::CellContent &src = contents[from * width + o];
-            if (!src.exists) {
-                ch.after = Calculation::CellContent();
-            } else {
-                ch.after = src;
-                ch.after.arrayRange = CellRange();
-                ch.after.dataTable = false;
-                ch.after.editable = true;
-                if (src.isFormula) {
-                    // (written for the place it goes to, as if it were copied there)
-                    const qint64 d = qint64(plan.units[i]) - qint64(plan.units[from]);
-                    ch.after.formula = offsetFormula(src.formula, plan.columns ? 0 : int(d), plan.columns ? int(d) : 0);
-                    ch.after.hasStored = false;
-                    ch.after.stored = Value();
-                } else if (src.value.isText()) {
-                    ch.after.sharedString = -1;
-                    ch.textToShare = hasShared;
-                }
+    QString why;
+    if (!plan.pushing) {
+        if (!canEdit(&why) || !canEditSheet(plan.sheet, &why)) return refuse(why);
+        if (!plan.ordered || plan.order.size() != plan.units.size()) return refuse(tr("The sort could not be finished. Try it again."));
+        if (m_loader->changesMade() != plan.changesAtPlan || m_undo.index() != plan.undoIndexAtPlan) return refuse(tr("The cells were changed while the sort was being worked out, so it was not made. Sort again."));
+    }
+    // (nothing the slices do before the cells are put in changes the workbook: they only read it)
+    qint64 spent = 0;
+    auto full = [&] { return budget > 0 && spent >= budget; };
+    if (plan.stage == 0 && plan.readAt == 0) {
+        bool identity = true;
+        for (size_t i = 0; i < n; ++i)
+            if (plan.order[i] != i) {
+                identity = false;
+                break;
             }
-            if (sameMeaningOf(ch.before, ch.after)) continue;
-            step.cells.push_back(std::move(ch));
+        if (identity) {
+            plan.stage = 4;
+            return out;   // (already in order)
+        }
+        plan.contents.assign(n * width, Calculation::CellContent());
+    }
+    // every cell as it is, once
+    if (plan.stage == 0) {
+        for (; plan.readAt < n; ++plan.readAt) {
+            if (full()) {
+                out.pending = true;
+                return out;
+            }
+            spent += qint64(width);
+            for (size_t o = 0; o < width; ++o) {
+                const quint32 row = plan.columns ? otherFirst + quint32(o) : plan.units[plan.readAt], col = plan.columns ? plan.units[plan.readAt] : otherFirst + quint32(o);
+                plan.contents[plan.readAt * width + o] = calc->content(plan.sheet, row, col);
+            }
+        }
+        plan.stage = 1;
+    }
+    // the changes
+    if (plan.stage == 1) {
+        const bool hasShared = !m_book->book->sharedStringsPart().isEmpty();
+        for (; plan.buildAt < n; ++plan.buildAt) {
+            if (full()) {
+                out.pending = true;
+                return out;
+            }
+            spent += qint64(width);
+            const size_t i = plan.buildAt, from = plan.order[i];
+            if (from == i) continue;
+            for (size_t o = 0; o < width; ++o) {
+                const quint32 other = otherFirst + quint32(o);
+                CellChange ch;
+                ch.sheet = plan.sheet;
+                ch.row = plan.columns ? other : plan.units[i];
+                ch.col = quint16(plan.columns ? plan.units[i] : other);
+                ch.before = plan.contents[i * width + o];
+                const Calculation::CellContent &src = plan.contents[from * width + o];
+                if (!src.exists) {
+                    ch.after = Calculation::CellContent();
+                } else {
+                    ch.after = src;
+                    ch.after.arrayRange = CellRange();
+                    ch.after.dataTable = false;
+                    ch.after.editable = true;
+                    if (src.isFormula) {
+                        // (written for the place it goes to, as if it were copied there)
+                        const qint64 d = qint64(plan.units[i]) - qint64(plan.units[from]);
+                        ch.after.formula = offsetFormula(src.formula, plan.columns ? 0 : int(d), plan.columns ? int(d) : 0);
+                        ch.after.hasStored = false;
+                        ch.after.stored = Value();
+                    } else if (src.value.isText()) {
+                        ch.after.sharedString = -1;
+                        ch.textToShare = hasShared;
+                    }
+                }
+                if (sameMeaningOf(ch.before, ch.after)) continue;
+                plan.step.cells.push_back(std::move(ch));
+            }
+        }
+        plan.contents.clear();
+        plan.contents.shrink_to_fit();
+        plan.stage = 2;
+        if (budget > 0 && spent > 0) {
+            out.pending = true;   // (the next part is a slice of its own)
+            return out;
         }
     }
-    // merged cells go with their lines
-    {
+    // merged cells go with their lines, and so do the notes and links on the cells
+    if (plan.stage == 2) {
         const QVector<CellRange> merges = calc->mergesOf(plan.sheet);
         std::vector<size_t> placeOf(n);   // the place each line goes to
         for (size_t i = 0; i < n; ++i) placeOf[plan.order[i]] = i;
@@ -400,10 +442,46 @@ EditSession::Outcome EditSession::applySort(SortPlan &plan)
             any = true;
         }
         m.countAfter = m.countBefore;
-        if (any && m.countBefore == qint64(merges.size())) step.merges.push_back(std::move(m));
+        if (any && m.countBefore == qint64(merges.size())) plan.step.merges.push_back(std::move(m));
+        if (!plan.step.cells.empty()) {
+            // what the file ties to a cell (its note, its link) is moved with it when the file is written: the line that was at place i is now at place j
+            auto permute = std::make_shared<CellPermute>();
+            permute->sheet = plan.sheet;
+            permute->columns = plan.columns;
+            permute->first = plan.units.front();
+            permute->otherFirst = otherFirst;
+            permute->otherLast = otherLast;
+            permute->to.resize(size_t(plan.units.back() - plan.units.front()) + 1);
+            std::iota(permute->to.begin(), permute->to.end(), permute->first);
+            for (size_t i = 0; i < n; ++i) permute->to[plan.units[plan.order[i]] - permute->first] = plan.units[i];
+            plan.step.permutes.push_back(std::move(permute));
+        }
+        plan.stage = 3;
+        if (plan.step.cells.empty() && plan.step.merges.empty()) {
+            plan.stage = 4;
+            return out;
+        }
+        if (budget > 0) {
+            out.pending = true;
+            return out;
+        }
     }
-    if (step.cells.empty() && step.merges.empty()) return out;
-    pushStep(std::move(step), tr("Sorting"));
+    // the step is put in (a slice at a time if there is a budget: one step on the undo stack in the end)
+    if (budget <= 0) {
+        plan.stage = 4;
+        pushStep(std::move(plan.step), tr("Sorting"));
+        return out;
+    }
+    if (!plan.push) {
+        plan.pushing = true;
+        plan.push = beginSlicedPush(std::move(plan.step), tr("Sorting"));
+    }
+    if (!continueSlicedPush(*plan.push, budget)) {
+        out.pending = true;
+        return out;
+    }
+    plan.stage = 4;
+    plan.pushing = false;
     return out;
 }
 

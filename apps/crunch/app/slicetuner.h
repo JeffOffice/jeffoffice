@@ -13,7 +13,9 @@ public:
     // The most microseconds a slice should take, and the least and most things it does.
     static constexpr qint64 kTargetMicros = 5000;
     static constexpr qint64 kLeast = 50, kMost = 200000;
-    qint64 budget() const { return m_budget; }
+    qint64 budget() const { return m_fixed > 0 ? m_fixed : m_budget; }
+    // A test makes every slice the same size (so that how many slices a job takes is known).
+    void setFixed(qint64 things) { m_fixed = things; }
     void begin() { m_timer.start(); }
     // The slice did `done` things (the budget, unless the job ended): the next does as many as fit in the target at this pace.
     void end(qint64 done)
@@ -27,6 +29,7 @@ public:
 
 private:
     qint64 m_budget = 1000;
+    qint64 m_fixed = 0;
     QElapsedTimer m_timer;
 };
 

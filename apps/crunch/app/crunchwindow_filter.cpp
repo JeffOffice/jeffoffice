@@ -121,9 +121,7 @@ bool CrunchWindow::applyFilter(const AutoFilter &filter, const QString &text)
     }
     m_filterText = text;
     setStatus(tr("Filtering…"));
-    const qint64 rows = filter.ref.valid ? qint64(filter.ref.row2) - filter.ref.row1 : 0;
-    const qint64 cost = rows * qint64(filter.conditionColumns().size());   // (a filter with no conditions has nothing to work out)
-    if (cost <= kSmallFilter) {
+    if (crunch::EditSession::filterWork(*m_filterPlan) <= kSmallFilter) {
         m_session->prepareFilter(*m_filterPlan, 0);
         finishFilter(true);
         return true;
@@ -280,7 +278,7 @@ void CrunchWindow::listFinished()
     m_listRun.reset();
 }
 
-// Equals…, Between…, Top 10…, Custom Filter…: the person is asked, and the condition is put on the column.
+// Equals…, Between…, Largest or Smallest…, Your Own Condition…: the person is asked, and the condition is put on the column.
 void CrunchWindow::askFilter(FilterAsk what, quint32 column)
 {
     if (!m_session || !m_loaded) return;

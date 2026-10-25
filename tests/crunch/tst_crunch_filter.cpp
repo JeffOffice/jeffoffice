@@ -25,6 +25,9 @@
 #include <QXmlStreamReader>
 #include <QSignalSpy>
 #include <QUndoStack>
+#include "../localepin.h"
+
+#include <memory>
 
 using namespace jp;
 using namespace crunchtest;
@@ -96,6 +99,23 @@ QString shownRows(EditWindow &e, int first = 2, int last = 9)
     return out.join(QLatin1Char(' '));
 }
 
+// Whether the row (from 0) is hidden.
+bool rowHidden(EditWindow &e, quint32 row)
+{
+    for (const jp::office::sheet::RowSpec &spec : e.win.w.session()->calculation()->rowSpecsIn(0, row, row))
+        if (spec.row == row) return spec.hidden;
+    return false;
+}
+
+jp::crunch::SortSpec byColumnSpec()
+{
+    jp::crunch::SortSpec spec;
+    jp::crunch::SortLevel level;
+    level.key = 0;
+    spec.levels.append(level);
+    return spec;
+}
+
 bool filterWith(EditWindow &e, const AutoFilter &f)
 {
     const crunch::EditSession::Outcome o = e.win.w.session()->setFilter(0, f, QStringLiteral("Filtering"));
@@ -149,7 +169,15 @@ private Q_SLOTS:
         Q_INIT_RESOURCE(crunch);
         setAppInfo(crunchAppInfo());
         initCore();
-        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        m_localeBefore = QLocale();
+        m_pin = std::make_unique<PinnedLocale>();   // (put back when the class is done)
+    }
+
+    void cleanupTestCase()
+    {
+        // the computer's language is back, whatever this class pinned (a class that is run after this one in the same process is not told it was English)
+        m_pin.reset();
+        QCOMPARE(QLocale().name(), m_localeBefore.name());
     }
 
     void aListOfValuesLetsThroughTheCellsThatShowThem()
@@ -426,21 +454,17 @@ private Q_SLOTS:
         QCOMPARE(shownRows(e), QStringLiteral("3 4 5 6 7 8 9"));
     }
 
-    void aFilterOverMoreRowsThanAnEditHoldsIsRefused()
+    void aConditionForAColumnTheRangeDoesNotHaveIsRefused()
     {
         EditWindow e;
         QVERIFY(e.open(bookOfSheets({fruit()})));
         QString why;
-        AutoFilter f = range(QStringLiteral("A1:D200000"));
-        QVERIFY(!e.win.w.session()->planFilter(0, f, &why));
-        QVERIFY(why.contains(QLatin1String("more rows")));
-        QCOMPARE(e.win.w.undoStack()->count(), 0);
-        // a condition for a column the range does not have
-        f = range();
+        AutoFilter f = range();
         FilterColumn c = values({"x"});
         c.column = 9;
         f.columns.append(c);
         QVERIFY(!e.win.w.session()->planFilter(0, f, &why));
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
     }
 
     void theRowsAreWorkedOutASliceAtATime()
@@ -461,7 +485,7 @@ private Q_SLOTS:
         QVERIFY2(plan, qPrintable(why));
         int slices = 0;
         while (!s->prepareFilter(*plan, 1000)) QVERIFY(++slices < 10);
-        QCOMPARE(slices, 2);                                                    // (3,000 rows, 1,000 cells at a time)
+        QCOMPARE(slices, 8);                                                    // (3,000 rows: each looks at the row and its one condition, and then the specs of the rows are made; 1,000 at a time)
         QVERIFY(s->applyFilter(*plan, QStringLiteral("Filtering")).ok);
         int shown = 0;
         for (int r = 2; r <= 3001; ++r) {
@@ -477,6 +501,247 @@ private Q_SLOTS:
         QVERIFY(s->type(0, 1, 0, QStringLiteral("9")).ok);
         s->prepareFilter(*stale, 0);
         QVERIFY(!s->applyFilter(*stale, QStringLiteral("Filtering")).ok);
+    }
+
+    // ---- very many rows, and the most a filter is asked to do
+    void aFilterOverAMillionRowsIsWorkedOutInSlicesAndIsUndoneAtOnce()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=Head", "A2=a", "A3=b", "A4=a", "A1048576=b"}})));
+        crunch::EditSession *s = e.win.w.session();
+        AutoFilter f = range(QStringLiteral("A1:A1048576"));
+        FilterColumn c = values({"a"}, true);
+        c.column = 0;
+        f.columns.append(c);
+        QString why;
+        const auto plan = s->planFilter(0, f, &why);
+        QVERIFY2(plan, qPrintable(why));
+        const qint64 work = crunch::EditSession::filterWork(*plan);
+        QVERIFY(work >= 3 * 1048575);                                           // (each row looked at, its condition, and its spec made)
+        int slices = 0;
+        while (!s->prepareFilter(*plan, 100000)) ++slices;
+        QVERIFY2(slices >= work / 100000 - 2 && slices <= work / 100000 + 1, qPrintable(QString::number(slices)));   // (counted work, not a time)
+        QVERIFY(s->applyFilter(*plan, QStringLiteral("Filtering")).ok);
+        QVERIFY(!rowHidden(e, 1));
+        QVERIFY(rowHidden(e, 2));
+        QVERIFY(!rowHidden(e, 3));
+        QVERIFY(rowHidden(e, 1048575));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        // Clear, and Filter off, work over as many rows as there are
+        QVERIFY(filterWith(e, s->filterCleared(0)));
+        QVERIFY(!rowHidden(e, 2));
+        QVERIFY(!rowHidden(e, 1048575));
+        QVERIFY(filterWith(e, AutoFilter()));
+        QVERIFY(!s->calculation()->autoFilterOf(0).valid());
+        QCOMPARE(e.win.w.undoStack()->count(), 3);
+        pressUndo(&e.win.w);
+        pressUndo(&e.win.w);
+        QVERIFY(rowHidden(e, 2));
+        QVERIFY(rowHidden(e, 1048575));
+        pressUndo(&e.win.w);
+        QVERIFY(!rowHidden(e, 2));
+    }
+
+    void aFilterWithMoreWorkThanItCanDoIsRefusedAndClearAndOffAreNot()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=Head", "AM1048576=x"}})));
+        crunch::EditSession *s = e.win.w.session();
+        AutoFilter f = range(QStringLiteral("A1:AM1048576"));
+        for (int i = 0; i < 39; ++i) {
+            FilterColumn c = values({"x"});
+            c.column = quint32(i);
+            f.columns.append(c);
+        }
+        QString why;
+        // (1,048,575 rows for each of 39 conditions is past the 40 million checks a filter may be asked for)
+        QVERIFY(!s->planFilter(0, f, &why));
+        QVERIFY2(why.contains(QLatin1String("fewer conditions")), qPrintable(why));
+        QVERIFY2(why.contains(QLatin1String("40,000,000")), qPrintable(why));
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        f.columns.removeLast();
+        QVERIFY2(s->planFilter(0, f, &why), qPrintable(why));                // (38 are not)
+        f.columns.clear();
+        QVERIFY2(s->planFilter(0, f, &why), qPrintable(why));                // (and none is none)
+    }
+
+    void theListOfAColumnCoversAllItsRows()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=Head", "A2=x", "A1048576=zzz"}})));
+        AutoFilter f = range(QStringLiteral("A1:A1048576"));
+        crunch::FilterListRun run(e.win.w.session(), 0, f, 0);
+        int slices = 0;
+        while (!run.step(100000)) ++slices;
+        QVERIFY(slices >= 9);                                                   // (1,048,575 cells, 100,000 at a time)
+        QCOMPARE(run.list().cells, qint64(1048575));
+        QStringList texts;
+        for (const auto &item : run.list().items) texts << item.text;
+        QCOMPARE(texts, (QStringList{"x", "zzz"}));                             // (the last row is in the list)
+        QVERIFY(run.list().blanks);
+    }
+
+    // ---- tables, languages, colors, and the order of text
+    void aFilterOverATableIsRefusedAndASheetFilterOverOneIsNotSaved()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Region</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>Q1</t></is></c></row>"
+                                            "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>East</t></is></c><c r=\"B2\"><v>5</v></c></row>"
+                                            "<row r=\"3\"><c r=\"A3\" t=\"inlineStr\"><is><t>West</t></is></c><c r=\"B3\"><v>7</v></c></row>");
+        const QString table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Sales\" "
+                                             "displayName=\"Sales\" ref=\"A1:B3\"><autoFilter ref=\"A1:B3\"/><tableColumns count=\"2\"><tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/>"
+                                             "</tableColumns></table>");
+        // a file that has a sheet filter over its table as well (other programs do not open one like that)
+        const QByteArray book = withTables(buildXlsx({worksheet(rows, QStringLiteral("<autoFilter ref=\"A1:B3\"/>"))}), {table});
+        EditWindow e;
+        QVERIFY(e.open(book));
+        crunch::EditSession *s = e.win.w.session();
+        QString why;
+        QVERIFY(!s->planFilter(0, range(QStringLiteral("A1:B3")), &why));
+        QVERIFY2(why.contains(QLatin1String("Sales")), qPrintable(why));
+        QVERIFY(!s->planFilter(0, range(QStringLiteral("B2:D6")), &why));      // (part of it is the table's)
+        QVERIFY(s->planFilter(0, range(QStringLiteral("D1:E3")), &why));       // (cells clear of it are not)
+        // the filter the file had is turned off and back on: it is not written over the table
+        QVERIFY(s->calculation()->autoFilterOf(0).valid());
+        QVERIFY(s->type(0, 4, 4, QStringLiteral("9")).ok);                      // (a change, so that there is something to save)
+        QVERIFY(filterWith(e, AutoFilter()));
+        pressUndo(&e.win.w);
+        QVERIFY(s->calculation()->autoFilterOf(0).valid());
+        QVERIFY2(saveIt(e), "saved");
+        QVERIFY(!savedSheet(e.path).autoFilter.valid());
+    }
+
+    void savedValuesAreMatchedInTheComputersLanguageAndAsAFileWritesThem()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=Head", "A2=1234.5~5", "A3=99~5", "A4=text"}})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(QLocale(QLocale::German, QLocale::Germany));
+        QCOMPARE(s->displayText(0, 1, 0), QStringLiteral("1.234,50"));
+        QCOMPARE(s->neutralText(0, 1, 0), QStringLiteral("1,234.50"));
+        // a list a file has (no language in its numbers), and one made in this language: both let the cell through
+        QVERIFY(filterWith(e, [&] {
+            AutoFilter f = range(QStringLiteral("A1:A4"));
+            FilterColumn c = values({"1,234.50"});
+            c.column = 0;
+            f.columns.append(c);
+            return f;
+        }()));
+        QCOMPARE(shownRows(e, 2, 4), QStringLiteral("2"));
+        QVERIFY(filterWith(e, [&] {
+            AutoFilter f = range(QStringLiteral("A1:A4"));
+            FilterColumn c = values({"1.234,50", "99,00"});
+            c.column = 0;
+            f.columns.append(c);
+            return f;
+        }()));
+        QCOMPARE(shownRows(e, 2, 4), QStringLiteral("2 3"));
+        // the list keeps each value as a file writes it
+        crunch::FilterListRun run(s, 0, range(QStringLiteral("A1:A4")), 0);
+        QVERIFY(run.step(0));
+        QStringList stored, shown;
+        for (const auto &item : run.list().items) {
+            stored << item.stored;
+            shown << item.text;
+        }
+        QCOMPARE(shown, (QStringList{"99,00", "1.234,50", "text"}));
+        QCOMPARE(stored, (QStringList{"99.00", "1,234.50", "text"}));
+    }
+
+    void aColumnOfDatesListsTheValuesThatAreNotDates()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=Head", "A2=@2024-01-15", "A3=@2024-02-20", "A4=n/a", "A5=@2023-06-01", "A6=none yet"}})));
+        crunch::EditSession *s = e.win.w.session();
+        crunch::FilterListRun run(s, 0, range(QStringLiteral("A1:A6")), 0);
+        QVERIFY(run.step(0));
+        QCOMPARE(int(run.list().kind), int(crunch::FilterList::Kind::Date));
+        QStringList texts;
+        for (const auto &item : run.list().items) texts << item.text;
+        QCOMPARE(texts, (QStringList{"n/a", "none yet"}));                      // (the dates are in the years, months, and days)
+        QCOMPARE(int(run.list().dates.size()), 2);
+        // a filter by dates and a value lets both through
+        AutoFilter f = range(QStringLiteral("A1:A6"));
+        FilterColumn c = values({"n/a"});
+        c.column = 0;
+        FilterColumn::DateGroup g;
+        g.unit = FilterColumn::DateGroup::Unit::Year;
+        g.year = 2024;
+        c.dates.append(g);
+        f.columns.append(c);
+        QVERIFY(filterWith(e, f));
+        QCOMPARE(shownRows(e, 2, 6), QStringLiteral("2 3 4"));
+    }
+
+    void aColorIsTheColorItComesToWhateverWayTheFileNamesIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({fruit()})));
+        crunch::EditSession *s = e.win.w.session();
+        jp::office::sheet::ColorSpec theme;
+        theme.kind = jp::office::sheet::ColorSpec::Kind::Theme;
+        theme.index = 4;
+        const quint32 rgb = s->workbook()->styles().resolve(theme, 0);
+        QVERIFY(s->colorKey(theme) >= 0);
+        QCOMPARE(s->colorKey(theme), s->colorKey(jp::office::sheet::ColorSpec::fromRgb(rgb)));
+        QVERIFY(s->colorKey(theme) != s->colorKey(jp::office::sheet::ColorSpec::fromRgb(rgb ^ 0x010101)));
+        QCOMPARE(s->colorKey(jp::office::sheet::ColorSpec()), qint64(-1));
+    }
+
+    void aClearedFilterShowsTheRowsTheFileHadHiddenOnceItIsSaved()
+    {
+        using Op = FilterColumn::Op;
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({fruit()})));
+        QVERIFY(filterWith(e, with(e, 1, custom(Op::Greater, QStringLiteral("10")))));
+        QVERIFY2(saveIt(e), "saved");
+        auto hiddenIn = [](const QString &path) {
+            QStringList rows;
+            for (const jp::office::sheet::RowSpec &r : savedSheet(path).rowSpecs)
+                if (r.hidden) rows << QString::number(r.row + 1);
+            return rows.join(QLatin1Char(' '));
+        };
+        QCOMPARE(hiddenIn(e.path), QStringLiteral("2 4 5 6 8"));
+        // a filter that is undone after the save: the model no longer has those rows at all, and the file still has them hidden until it is saved again
+        pressUndo(&e.win.w);
+        QCOMPARE(shownRows(e), QStringLiteral("2 3 4 5 6 7 8 9"));
+        QVERIFY2(saveIt(e), "saved");
+        QCOMPARE(hiddenIn(e.path), QString());
+        pressRedo(&e.win.w);
+        QVERIFY2(saveIt(e), "saved");
+        QCOMPARE(hiddenIn(e.path), QStringLiteral("2 4 5 6 8"));
+        // a second window opens that file: the rows are hidden in the file and not listed by anything the window changes, but for the filter
+        QFile f(e.copyOfFile());
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        EditWindow second;
+        QVERIFY(second.open(f.readAll()));
+        QVERIFY(filterWith(second, second.win.w.session()->filterCleared(0)));
+        QCOMPARE(shownRows(second), QStringLiteral("2 3 4 5 6 7 8 9"));
+        QVERIFY2(saveIt(second), "saved");
+        QCOMPARE(hiddenIn(second.path), QString());
+        // and the same window, that saved, clears it as well
+        QVERIFY(filterWith(e, e.win.w.session()->filterCleared(0)));
+        QVERIFY2(saveIt(e), "saved");
+        QCOMPARE(hiddenIn(e.path), QString());
+    }
+
+    void textIsPutInOrderByAFilterAsASortDoesIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=Head", "A2=apple", "A3=Banana", "A4=cherry", "A5=\xc3\x84pfel", "A6=zebra"}})));
+        crunch::EditSession *s = e.win.w.session();
+        // the order a sort puts the texts in
+        QVERIFY(s->sortRange(0, rangeOf(QStringLiteral("A2:A6")), byColumnSpec()).ok);
+        QStringList sorted;
+        for (int r = 2; r <= 6; ++r) sorted << s->displayText(0, quint32(r - 1), 0);
+        QCOMPARE(sorted, (QStringList{"\xc3\x84pfel", "apple", "Banana", "cherry", "zebra"}));        // (the letter with the dots is an "A" first, and "Apfel" comes before "apple")
+        pressUndo(&e.win.w);
+        // is the order "greater than" goes by: the "A" with the two dots over it is not after "B"
+        AutoFilter f = range(QStringLiteral("A1:A6"));
+        FilterColumn c = custom(FilterColumn::Op::Greater, QStringLiteral("Banana"));
+        c.column = 0;
+        f.columns.append(c);
+        QVERIFY(filterWith(e, f));
+        QCOMPARE(shownRows(e, 2, 6), QStringLiteral("4 6"));
     }
 
     void theFilterFollowsRowsAndColumnsThatAreInsertedAndDeleted()
@@ -675,12 +940,12 @@ private Q_SLOTS:
         saveShot(&w, QStringLiteral("filter-window"));
         QTreeWidget *tree = popup->tree();
         QTreeWidgetItem *all = tree->topLevelItem(0);
-        QCOMPARE(all->text(0), QStringLiteral("(Select All)"));
+        QCOMPARE(all->text(0), QStringLiteral("(Everything)"));
         QCOMPARE(all->childCount(), 8);                                           // seven values and the blanks
         QCOMPARE(all->child(0)->text(0), QStringLiteral("apple"));
-        QCOMPARE(all->child(7)->text(0), QStringLiteral("(Blanks)"));
+        QCOMPARE(all->child(7)->text(0), QStringLiteral("(Empty)"));
         QCOMPARE(int(all->checkState(0)), int(Qt::Checked));
-        // Select All off, then two values on
+        // Everything off, then two values on
         all->setCheckState(0, Qt::Unchecked);
         QCOMPARE(int(all->child(3)->checkState(0)), int(Qt::Unchecked));
         all->child(0)->setCheckState(0, Qt::Checked);
@@ -702,7 +967,7 @@ private Q_SLOTS:
         QCOMPARE(int(all->child(0)->checkState(0)), int(Qt::Checked));
         QCOMPARE(int(all->child(1)->checkState(0)), int(Qt::Unchecked));
         QVERIFY(popup->findChild<QAction *>(QStringLiteral("filterClear"))->isEnabled());
-        // Clear Filter From the column
+        // Show All of the column
         popup->findChild<QAction *>(QStringLiteral("filterClear"))->trigger();
         QTRY_VERIFY(!w.isFiltering());
         QCOMPARE(shownRows(e), QStringLiteral("2 3 4 5 6 7 8 9"));
@@ -729,7 +994,7 @@ private Q_SLOTS:
         QTRY_VERIFY(popup->listed());
         popup->search()->setText(QStringLiteral("APPLE"));
         QTreeWidgetItem *all = popup->tree()->topLevelItem(0);
-        QCOMPARE(all->text(0), QStringLiteral("(Select All Search Results)"));
+        QCOMPARE(all->text(0), QStringLiteral("(Everything Found)"));
         int visible = 0;
         for (int i = 0; i < all->childCount(); ++i) visible += all->child(i)->isHidden() ? 0 : 1;
         QCOMPARE(visible, 2);                                                       // apple, Apple pie
@@ -796,10 +1061,10 @@ private Q_SLOTS:
         FilterPopup *popup = w.filterPopup();
         QTRY_VERIFY(popup->listed());
         QMenu *kinds = popup->findChild<QMenu *>(QStringLiteral("filterKinds"));
-        QCOMPARE(kinds->title(), QStringLiteral("Number Filters"));
+        QCOMPARE(kinds->title(), QStringLiteral("Number Conditions"));
         QAction *greater = nullptr;
         for (QAction *a : kinds->actions())
-            if (a->text() == QStringLiteral("Greater Than…")) greater = a;
+            if (a->text() == QStringLiteral("Above…")) greater = a;
         QVERIFY(greater);
         greater->trigger();
         QTRY_VERIFY(!w.isFiltering());
@@ -807,12 +1072,12 @@ private Q_SLOTS:
         QCOMPARE(askedColumn, QStringLiteral("Qty"));
         QVERIFY(!askedDates);
         QCOMPARE(shownRows(e), QStringLiteral("3 7 9"));
-        // Above Average is a condition without a question
+        // Over the Average is a condition without a question
         w.showFilterPopup(0, 1);
         popup = w.filterPopup();
         QTRY_VERIFY(popup->listed());
         for (QAction *a : popup->findChild<QMenu *>(QStringLiteral("filterKinds"))->actions())
-            if (a->text() == QStringLiteral("Above Average")) a->trigger();
+            if (a->text() == QStringLiteral("Over the Average")) a->trigger();
         QTRY_VERIFY(!w.isFiltering());
         QCOMPARE(shownRows(e), QStringLiteral("3 7 9"));
         QCOMPARE(w.session()->calculation()->autoFilterOf(0).columns[0].dynamic, QStringLiteral("aboveAverage"));
@@ -820,16 +1085,16 @@ private Q_SLOTS:
         w.showFilterPopup(0, 0);
         popup = w.filterPopup();
         QTRY_VERIFY(popup->listed());
-        QCOMPARE(popup->findChild<QMenu *>(QStringLiteral("filterKinds"))->title(), QStringLiteral("Text Filters"));
+        QCOMPARE(popup->findChild<QMenu *>(QStringLiteral("filterKinds"))->title(), QStringLiteral("Text Conditions"));
         w.showFilterPopup(0, 2);
         popup = w.filterPopup();
         QTRY_VERIFY(popup->listed());
-        QCOMPARE(popup->findChild<QMenu *>(QStringLiteral("filterKinds"))->title(), QStringLiteral("Date Filters"));
+        QCOMPARE(popup->findChild<QMenu *>(QStringLiteral("filterKinds"))->title(), QStringLiteral("Date Conditions"));
         // giving the question up changes nothing
         w.setFilterAsker([](FilterAsk, const QString &, bool, const FilterColumn *, FilterColumn *) { return false; });
         const int steps = w.undoStack()->count();
         for (QAction *a : popup->findChild<QMenu *>(QStringLiteral("filterKinds"))->actions())
-            if (a->text() == QStringLiteral("Custom Filter…")) a->trigger();
+            if (a->text() == QStringLiteral("Your Own Condition…")) a->trigger();
         QCOMPARE(w.undoStack()->count(), steps);
     }
 
@@ -886,8 +1151,10 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(bookOfSheets({cells})));
         CrunchWindow &w = e.win.w;
+        w.setFixedSlices(400);                                                      // (every slice the same size: how many turns it takes is counted, not timed)
         e.select(QStringLiteral("A3"));
         w.act(QStringLiteral("filter.toggle"))->trigger();
+        QTRY_VERIFY(!w.isFiltering());                  // (the buttons go on over 6,000 rows a slice at a time too)
         QSignalSpy finished(&w, &CrunchWindow::filterFinished);
         AutoFilter f = w.session()->calculation()->autoFilterOf(0);
         FilterColumn c = custom(FilterColumn::Op::Equal, QStringLiteral("3"));
@@ -1077,6 +1344,9 @@ private Q_SLOTS:
         QCOMPARE(int(run.list().items.size()), crunch::kMaxFilterItems);
         QVERIFY(run.list().truncated);
     }
+private:
+    QLocale m_localeBefore;
+    std::unique_ptr<PinnedLocale> m_pin;
 };
 
 JP_TEST_CLASS(CrunchFilterTests)

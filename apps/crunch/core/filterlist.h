@@ -18,6 +18,7 @@ constexpr int kMaxFilterItems = 5000;
 struct FilterList {
     struct Item {
         QString text;          // what the cells show
+        QString stored;        // and as a file writes it (no language in it): what a filter that lets the value through keeps
         qint64 count = 0;
         int rank = 0;          // 0 a number, 1 text, 2 true or false, 3 an error: the order the list has them in
         double number = 0;
@@ -32,6 +33,7 @@ struct FilterList {
     std::map<int, std::map<int, std::set<int>>> dates;
     // the colors of the cells under the button (cell colors, font colors), and whether some have none
     std::vector<jp::office::sheet::ColorSpec> cellColors, fontColors;
+    // (a column of dates lists the values that are not dates in `items`, and the dates in `dates`)
     bool noCellColor = false, noFontColor = false;
 };
 
@@ -51,9 +53,11 @@ private:
     int m_sheet;
     quint32 m_col, m_row, m_last;
     FilterList m_list;
-    std::map<QString, size_t> m_at;      // folded text -> place in the items (before they are sorted)
+    std::map<QString, size_t> m_at, m_dateAt;      // folded text -> place in the items (before they are sorted); the same for the values that are dates
+    std::vector<FilterList::Item> m_dateItems;   // the values that are dates: they are items only if the column is not one of dates
+    std::set<qint64> m_cellKeys, m_fontKeys;     // the colors seen, as the colors they come to
     qint64 m_dates = 0, m_numbers = 0, m_texts = 0;
-    bool m_done = false;
+    bool m_done = false, m_dateCut = false;
 };
 
 } // namespace jp::crunch

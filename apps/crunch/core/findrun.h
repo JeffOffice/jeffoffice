@@ -1,5 +1,5 @@
 #pragma once
-// Looking for text in the cells of a workbook, a little at a time: Find All collects the cells that match, and Find Next the one that comes after a place (wrapping round to the start).
+// Looking for text in the cells of a workbook, a little at a time: List All collects the cells that match, and Next the one that comes after a place (wrapping round to the start).
 // A search is a FindRun that the window steps a few thousand cells at a time between events (so that a sheet of a million cells never holds the window), and that a person can give up;
 // a test steps it by counted budgets. The cells are those the sheet has (a sheet is searched cell by cell as the store holds them, never by its rows and columns), the work is counted
 // in cells looked at, and the hits are at most kMaxFindHits.
@@ -12,6 +12,7 @@
 #include <QString>
 
 #include <map>
+#include <memory>
 #include <tuple>
 #include <vector>
 
@@ -38,7 +39,7 @@ struct FoundCell {
 class FindRun {
 public:
     enum class Want { All, Next };
-    // Find All, or Find Next after `from` (the cell with the cursor; the match after it in the order, else the first of all). The session must outlive the run and not change the
+    // List All, or Next after `from` (the cell with the cursor; the match after it in the order, else the first of all). The session must outlive the run and not change the
     // workbook while it goes on (the window gives it up when anything is edited).
     FindRun(const EditSession *session, const FindOptions &options, Want want = Want::All, const FoundCell &from = FoundCell());
 
@@ -46,7 +47,7 @@ public:
     bool step(qint64 budget);
     bool done() const { return m_done; }
     qint64 cellsLooked() const { return m_looked; }
-    // Find All: the cells, in the order of the search (sheets in the order of the tabs; by rows or by columns), when done. Find Next: the one cell, when done and found.
+    // List All: the cells, in the order of the search (sheets in the order of the tabs; by rows or by columns), when done. Next: the one cell, when done and found.
     const std::vector<FoundCell> &hits() const { return m_hits; }
     bool found() const { return !m_hits.empty(); }
     bool truncated() const { return m_truncated; }
@@ -54,7 +55,7 @@ public:
     QString problem() const { return m_problem; }
 
 private:
-    // A stretch of one sheet that is looked at: all of it, or from just after a cell, or up to a cell (Find Next by rows looks at the stretches in the order of the search and stops at the first hit).
+    // A stretch of one sheet that is looked at: all of it, or from just after a cell, or up to a cell (Next by rows looks at the stretches in the order of the search and stops at the first hit).
     struct Segment {
         int sheet = 0;
         bool hasStart = false, hasEnd = false;
@@ -67,13 +68,17 @@ private:
         bool finished = false;
         bool begun = false;       // a stretch that begins after a cell has been put at that cell
         bool ended = false;       // the walk went past the end of its stretch, or the search stopped
-        std::map<quint64, QString> notes;
+        std::shared_ptr<const std::map<quint64, QString>> notes;
+        std::vector<quint64> noteOrder;   // the notes' places in the order of the search
+        size_t noteAt = 0;
         bool notesRead = false;
     };
     using Key = std::tuple<int, quint32, quint32>;
     Key keyOf(int sheetPos, quint32 row, quint32 col) const;
     int positionOf(int sheet) const;
-    void look(int sheet, quint32 row, quint32 col, const std::map<quint64, QString> *notes);
+    // Looks at a cell; the work it was (1, and more for a long text: the comparisons the match made).
+    qint64 look(int sheet, quint32 row, quint32 col, const std::map<quint64, QString> *notes);
+    bool walkColumns(Sweep &sw, const Segment &segment, qint64 budget, qint64 *looked);
     bool walkSheet(Sweep &sw, const Segment &segment, qint64 budget, qint64 *looked);
     void finish();
     QString textOf(int sheet, quint32 row, quint32 col, const std::map<quint64, QString> *notes) const;
@@ -84,7 +89,7 @@ private:
     jp::office::sheet::TextMatcher m_matcher;
     std::vector<int> m_sheets;
     std::vector<Segment> m_segments;
-    bool m_ordered = false;     // Find Next by rows: the first hit in the order of the search is the answer, and the search stops there
+    bool m_ordered = false;     // Next by rows: the first hit in the order of the search is the answer, and the search stops there
     bool m_stop = false;
     size_t m_at = 0;
     Sweep m_sweep;

@@ -12,7 +12,7 @@ namespace jp::crunch {
 using namespace jp::office::sheet;
 using jp::calc::Value;
 
-QString EditSession::displayText(int sheet, quint32 row, quint32 col) const
+QString EditSession::shownText(int sheet, quint32 row, quint32 col, bool neutral) const
 {
     if (!m_book || !m_book->calc || !m_book->book || sheet < 0 || sheet >= m_book->calc->sheetCount()) return {};
     const Cell *c = m_book->calc->sheet(sheet).cells.find(row, col);
@@ -26,11 +26,19 @@ QString EditSession::displayText(int sheet, quint32 row, quint32 col) const
     case Value::Kind::Array: return {};
     case Value::Kind::Number: break;
     }
-    const jp::calc::NumberFormat format(m_book->book->styles().formatCode(c->style, QLocale::c()));
-    const jp::calc::NumberSymbols symbols = jp::calc::NumberSymbols::of(m_locale);
-    const jp::calc::Formatted f = format.format(v.number(), m_book->book->info().dateSystem, 0, &symbols);
+    const jp::calc::NumberFormat &format = formatOfStyle(c->style);
+    if (!m_symbolsReady) {
+        m_symbols = jp::calc::NumberSymbols::of(m_locale);
+        m_symbolsReady = true;
+    }
+    const jp::calc::NumberSymbols plain;
+    const jp::calc::Formatted f = format.format(v.number(), m_book->book->info().dateSystem, 0, neutral ? &plain : &m_symbols);
     return f.failed ? jp::calc::numberToText(v.number()) : f.text;
 }
+
+QString EditSession::displayText(int sheet, quint32 row, quint32 col) const { return shownText(sheet, row, col, false); }
+
+QString EditSession::neutralText(int sheet, quint32 row, quint32 col) const { return shownText(sheet, row, col, true); }
 
 QString EditSession::searchText(int sheet, quint32 row, quint32 col) const
 {
@@ -67,6 +75,8 @@ struct EditSession::ReplacePlan {
     bool done = false;
     qint64 changesAtPlan = 0;
     int undoIndexAtPlan = 0;
+    std::shared_ptr<SlicedPush> push;   // the step being put in a slice at a time
+    size_t changed = 0;                  // the cells it changes
 };
 
 std::shared_ptr<EditSession::ReplacePlan> EditSession::planReplace(const std::vector<CellSpot> &cells, const TextPattern &pattern, const QString &with, QString *why)
@@ -144,7 +154,7 @@ bool EditSession::prepareReplace(ReplacePlan &plan, qint64 budget)
     return true;
 }
 
-EditSession::Outcome EditSession::applyReplace(ReplacePlan &plan, ReplaceResult *result)
+EditSession::Outcome EditSession::applyReplace(ReplacePlan &plan, ReplaceResult *result, qint64 budget)
 {
     Outcome out;
     if (result) *result = ReplaceResult();
@@ -153,18 +163,32 @@ EditSession::Outcome EditSession::applyReplace(ReplacePlan &plan, ReplaceResult 
         out.problem = problem;
         return out;
     };
-    QString why;
-    if (!canEdit(&why)) return refuse(why);
-    if (!plan.done) return refuse(tr("The replace could not be finished. Try it again."));
-    if (!plan.problem.isEmpty()) return refuse(plan.problem);
-    if (m_loader->changesMade() != plan.changesAtPlan || m_undo.index() != plan.undoIndexAtPlan) return refuse(tr("The cells were changed while the replace was being worked out, so it was not made. Replace again."));
     if (result) {
-        result->cells = int(plan.step.cells.size());
         result->occurrences = plan.occurrences;
+        result->cells = int(plan.push ? plan.changed : plan.step.cells.size());
     }
-    if (plan.step.cells.empty()) return out;
-    pushStep(std::move(plan.step), tr("Replacing"));
-    plan.step = Step();
+    if (!plan.push) {
+        QString why;
+        if (!canEdit(&why)) return refuse(why);
+        if (!plan.done) return refuse(tr("The replace could not be finished. Try it again."));
+        if (!plan.problem.isEmpty()) return refuse(plan.problem);
+        if (m_loader->changesMade() != plan.changesAtPlan || m_undo.index() != plan.undoIndexAtPlan) return refuse(tr("The cells were changed while the replace was being worked out, so it was not made. Replace again."));
+    }
+    if (!plan.push) {
+        plan.changed = plan.step.cells.size();
+        if (plan.step.cells.empty()) return out;
+        if (budget <= 0) {
+            pushStep(std::move(plan.step), tr("Replacing"));
+            plan.step = Step();
+            return out;
+        }
+        plan.push = beginSlicedPush(std::move(plan.step), tr("Replacing"));
+        plan.step = Step();
+    }
+    if (!continueSlicedPush(*plan.push, budget)) {
+        out.pending = true;
+        return out;
+    }
     return out;
 }
 

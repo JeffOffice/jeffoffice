@@ -2,6 +2,8 @@
 // worked out for the rows under its buttons a slice at a time, and put in as one step with the rows they hide. The rows a filter hides are kept apart from those a person hid.
 #include "core/editsession.h"
 
+#include "core/collation.h"
+
 #include "calc/dates.h"
 #include "calc/numfmt.h"
 #include "sheet/cellref.h"
@@ -47,20 +49,31 @@ struct EditSession::FilterPlan {
     struct Column {
         FilterColumn fc;
         quint32 col = 0;                     // the column in the sheet
-        QSet<QString> values;                // Values: what shows in the cells let through (folded)
+        QSet<QString> values;                // Values: what shows in the cells let through (folded; made in the first slices)
+        size_t valuesDone = 0;               // and how many of the condition's values are in it
         std::vector<TextMatcher> matchers;   // Custom: each condition's text, as a pattern for the whole cell
         std::vector<double> numbers;         // Custom: the number of each condition, when it has one (else the matcher is used)
         std::vector<bool> isNumber;
         double lo = 0, hi = 0;               // Dynamic: the serial numbers that are let through (lo to before hi), or a threshold
         bool useRange = false, threshold = false, above = true, atLeast = false;
         ColorSpec wanted;
+        qint64 wantedKey = -1;               // Color: the color it comes to (see colorKey)
         bool needNumbers = false;
         std::vector<double> collected;       // the numbers of the column, for the top and the average
     };
     std::vector<Column> columns;
+    QCollator collator = sortCollator();     // Custom: the order of "greater than" and "less than" on text is the sort's
     std::vector<quint8> hide;                // for each row from firstRow: 1 if the conditions hide it
     quint32 next = 0;                        // the next row to look at
-    int phase = 0;                           // 0: the numbers some conditions need are collected; 1: the rows are worked out
+    int phase = 0;                           // 0: the numbers some conditions need are collected; 1: the rows are worked out; 2: the specs of the rows are made
+    size_t setupColumn = 0;                  // the column whose values are being put in the sets
+    qint64 work = 0;                         // what the plan comes to (see filterWork)
+    // phase 2: the sheet's specs of rows as they are and as they will be
+    QVector<RowSpec> beforeSpecs, afterSpecs;
+    int stage = 0;                           // 0: those before the range are copied, 1: the rows of the range are made, 2: those after it are copied
+    int beforeAt = 0;
+    quint32 buildRow = 0;
+    bool anyChange = false, built = false;
     size_t collecting = 0;
     bool done = false;
     qint64 changesAtPlan = 0;
@@ -155,8 +168,11 @@ std::shared_ptr<EditSession::FilterPlan> EditSession::planFilter(int sheet, cons
         plan->done = true;
         return plan;
     }
-    if (qint64(last) - first + 1 > kMaxFilterRows)
-        return refuse(tr("The filter covers more rows than JeffCrunch filters at once (%1). Filter a smaller block of cells.").arg(QLocale().toString(kMaxFilterRows)));
+    // (a sheet's filter and a table's own cannot cover the same cells: a file that has both does not open in other programs)
+    if (after.ref.valid)
+        for (const Table &t : m_book->book->tables())
+            if (t.sheet == sheet && t.row1 <= after.ref.row2 && t.row2 >= after.ref.row1 && t.col1 <= after.ref.col2 && t.col2 >= after.ref.col1)
+                return refuse(tr("The cells are in the table %1, which has its own filter buttons. Use those, or filter cells outside the table.").arg(t.name));
     plan->firstRow = first;
     plan->lastRow = last;
     plan->hide.assign(size_t(last - first) + 1, 0);
@@ -178,7 +194,6 @@ std::shared_ptr<EditSession::FilterPlan> EditSession::planFilter(int sheet, cons
             c.col = after.ref.col1 + fc.column;
             switch (fc.kind) {
             case FilterColumn::Kind::Values:
-                for (const QString &v : fc.values) c.values.insert(v.toCaseFolded());
                 break;
             case FilterColumn::Kind::Custom:
                 for (const FilterColumn::Condition &cond : fc.conditions) {
@@ -208,6 +223,7 @@ std::shared_ptr<EditSession::FilterPlan> EditSession::planFilter(int sheet, cons
             }
             case FilterColumn::Kind::Color:
                 c.wanted = colorOfCondition(fc);
+                c.wantedKey = colorKey(c.wanted);
                 break;
             case FilterColumn::Kind::None: break;
             }
@@ -257,13 +273,20 @@ std::shared_ptr<EditSession::FilterPlan> EditSession::planFilter(int sheet, cons
     }
     plan->changesAtPlan = m_loader->changesMade();
     plan->undoIndexAtPlan = m_undo.index();
-    // no condition: nothing hides a row
+    // what it comes to: each row looked at for each condition (twice for a condition that needs the numbers of the column first), and each value the conditions list
+    const qint64 rows = qint64(last) - first + 1;
+    qint64 conditions = 0, listed = 0;
     plan->phase = 1;
-    for (size_t i = 0; i < plan->columns.size(); ++i)
-        if (plan->columns[i].needNumbers) {
-            plan->phase = 0;
-            break;
-        }
+    for (const FilterPlan::Column &c : plan->columns) {
+        conditions += c.needNumbers ? 2 : 1;
+        listed += c.fc.values.size() + c.fc.dates.size();
+        if (c.needNumbers) plan->phase = 0;
+    }
+    plan->work = rows * (conditions + 2) + listed;
+    // (a filter with no condition has none of it: it only shows rows)
+    if (conditions > 0 && rows * conditions + listed > kMaxFilterWork)
+        return refuse(tr("That is more than JeffCrunch can work out for a filter: %1 rows with %2 conditions (at most %3 checks). Filter fewer rows, or use fewer conditions.")
+                          .arg(QLocale().toString(rows), QLocale().toString(conditions), QLocale().toString(kMaxFilterWork)));
     return plan;
 }
 
@@ -283,6 +306,20 @@ bool EditSession::prepareFilter(FilterPlan &plan, qint64 budget)
     const Calculation *calc = m_book->calc.get();
     const Sheet &s = calc->sheet(plan.sheet);
     qint64 spent = 0;
+    // the values the conditions list, put in sets (a slice at a time: a file's filter may list a great many)
+    while (plan.setupColumn < plan.columns.size()) {
+        FilterPlan::Column &c = plan.columns[plan.setupColumn];
+        if (c.fc.kind != FilterColumn::Kind::Values) {
+            ++plan.setupColumn;
+            continue;
+        }
+        while (c.valuesDone < size_t(c.fc.values.size())) {
+            if (budget > 0 && spent >= budget) return false;
+            ++spent;
+            c.values.insert(c.fc.values[int(c.valuesDone++)].toCaseFolded());
+        }
+        ++plan.setupColumn;
+    }
     // phase 0: the numbers of the columns whose condition is about all the values (the top, the average)
     while (plan.phase == 0) {
         while (plan.collecting < plan.columns.size() && !plan.columns[plan.collecting].needNumbers) ++plan.collecting;
@@ -327,10 +364,9 @@ bool EditSession::prepareFilter(FilterPlan &plan, qint64 budget)
         plan.next = plan.firstRow;
     }
     // phase 1: the rows
-    const qint64 rowsLeft = qint64(plan.lastRow) - plan.next + 1;
-    (void)rowsLeft;
-    for (; plan.next <= plan.lastRow && plan.after.ref.valid; ++plan.next) {
+    for (; plan.phase == 1 && plan.next <= plan.lastRow && plan.after.ref.valid; ++plan.next) {
         if (budget > 0 && spent >= budget) return false;
+        ++spent;
         const quint32 row = plan.next;
         bool hidden = false;
         for (const FilterPlan::Column &c : plan.columns) {
@@ -344,8 +380,8 @@ bool EditSession::prepareFilter(FilterPlan &plan, qint64 budget)
                     pass = c.fc.blank;
                     break;
                 }
-                const QString shownText = displayText(plan.sheet, row, c.col);
-                pass = c.values.contains(shownText.toCaseFolded());
+                // (the list may be in the language the person uses, or in none, as a file writes it)
+                pass = c.values.contains(displayText(plan.sheet, row, c.col).toCaseFolded()) || c.values.contains(neutralText(plan.sheet, row, c.col).toCaseFolded());
                 if (!pass && v.isNumber() && !c.fc.dates.isEmpty()) {
                     int y = 0, m = 0, d = 0;
                     if (jp::calc::serialToDate(std::floor(v.number()), plan.system, &y, &m, &d)) {
@@ -391,7 +427,7 @@ bool EditSession::prepareFilter(FilterPlan &plan, qint64 budget)
                     if (cond.op == O::NotEqual) return !t.isEmpty() ? !c.matchers[i].matches(t) : !cond.value.isEmpty();
                     if (v.isEmpty()) return false;
                     if (v.isNumber() != c.isNumber[i]) return cond.op == O::Greater || cond.op == O::GreaterEqual ? v.isText() : !v.isText();   // (text is above numbers)
-                    const int cmp = QString::compare(t, cond.value, Qt::CaseInsensitive);
+                    const int cmp = plan.collator.compare(t, cond.value);
                     switch (cond.op) {
                     case O::Greater: return cmp > 0;
                     case O::GreaterEqual: return cmp >= 0;
@@ -437,7 +473,7 @@ bool EditSession::prepareFilter(FilterPlan &plan, qint64 budget)
                     }
                     if (color.kind == ColorSpec::Kind::Auto) color = ColorSpec();
                 }
-                pass = color == c.wanted;
+                pass = colorKey(color) == c.wantedKey;
                 break;
             }
             case FilterColumn::Kind::None: break;
@@ -448,7 +484,56 @@ bool EditSession::prepareFilter(FilterPlan &plan, qint64 budget)
             }
         }
         plan.hide[row - plan.firstRow] = hidden ? 1 : 0;
-        if (row == 0xFFFFFFFFu) break;
+    }
+    if (plan.phase == 1) {
+        plan.phase = 2;
+        plan.stage = 0;
+        plan.beforeSpecs = calc->rowSpecsOf(plan.sheet);
+        plan.afterSpecs.reserve(plan.beforeSpecs.size());
+        plan.buildRow = plan.firstRow;
+    }
+    // phase 2: the specs of the sheet's rows as they will be: those before the range as they are, the rows of the range with the filter's mark, and those after it as they are
+    const QVector<RowSpec> &before = plan.beforeSpecs;
+    while (plan.stage == 0) {
+        if (plan.beforeAt >= before.size() || before[plan.beforeAt].row >= plan.firstRow) {
+            plan.stage = 1;
+            break;
+        }
+        if (budget > 0 && spent >= budget) return false;
+        ++spent;
+        plan.afterSpecs.append(before[plan.beforeAt++]);
+    }
+    const AutoFilter &now = plan.after;
+    while (plan.stage == 1) {
+        if (plan.buildRow > plan.lastRow) {
+            plan.stage = 2;
+            break;
+        }
+        if (budget > 0 && spent >= budget) return false;
+        ++spent;
+        const quint32 row = plan.buildRow++;
+        const bool has = plan.beforeAt < before.size() && before[plan.beforeAt].row == row;
+        RowSpec spec;
+        if (has) spec = before[plan.beforeAt++];
+        spec.row = row;
+        // (a row that is hidden and is not the filter's was hidden by hand, whatever read the sheet)
+        spec.hand = spec.hand || (spec.hidden && !spec.filtered);
+        RowSpec r = spec;
+        // (rows under the buttons that the conditions hide; any other row is not the filter's)
+        const bool inFilter = now.ref.valid && row > now.ref.row1 && row <= now.ref.row2;
+        r.filtered = inFilter && plan.hide[row - plan.firstRow] != 0;
+        r.hidden = r.hand || r.filtered;
+        if (!sameSpec(spec, r)) plan.anyChange = true;
+        if (has || r.height >= 0 || r.hidden || r.customFormat) plan.afterSpecs.append(r);
+    }
+    while (plan.stage == 2) {
+        if (plan.beforeAt >= before.size()) {
+            plan.stage = 3;
+            break;
+        }
+        if (budget > 0 && spent >= budget) return false;
+        ++spent;
+        plan.afterSpecs.append(before[plan.beforeAt++]);
     }
     plan.done = true;
     return true;
@@ -475,38 +560,22 @@ EditSession::Outcome EditSession::applyFilter(FilterPlan &plan, const QString &t
         e.after = plan.after;
         step.filters.push_back(e);
     }
-    if (plan.lastRow >= plan.firstRow) {
-        SizeEdit e;
+    if (plan.lastRow >= plan.firstRow && plan.anyChange) {
+        // (the whole list at once, which costs nothing: the lists are shared)
+        RowSpecsEdit e;
         e.sheet = plan.sheet;
-        e.columns = false;
         e.first = plan.firstRow;
         e.last = plan.lastRow;
-        e.rowsBefore = m_book->calc->rowSpecsIn(plan.sheet, plan.firstRow, plan.lastRow);
-        size_t at = 0;
-        bool anyChange = false;
-        const AutoFilter &now = plan.after;
-        for (quint32 row = plan.firstRow; row <= plan.lastRow; ++row) {
-            const bool has = at < e.rowsBefore.size() && e.rowsBefore[at].row == row;
-            RowSpec before;
-            if (has) before = e.rowsBefore[at++];
-            before.row = row;
-            // (a row that is hidden and is not the filter's was hidden by hand, whatever read the sheet)
-            before.hand = before.hand || (before.hidden && !before.filtered);
-            RowSpec r = before;
-            // (rows under the buttons that the conditions hide; any other row is not the filter's)
-            const bool inFilter = now.ref.valid && row > now.ref.row1 && row <= now.ref.row2;
-            r.filtered = inFilter && plan.hide[row - plan.firstRow] != 0;
-            r.hidden = r.hand || r.filtered;
-            if (!sameSpec(before, r)) anyChange = true;
-            if (has || r.height >= 0 || r.hidden || r.customFormat) e.rowsAfter.push_back(r);
-            if (row == 0xFFFFFFFFu) break;
-        }
-        if (anyChange) step.sizes.push_back(std::move(e));
+        e.before = plan.beforeSpecs;
+        e.after = plan.afterSpecs;
+        step.rowSpecs.push_back(std::move(e));
     }
     if (step.empty()) return out;
     pushStep(std::move(step), text);
     return out;
 }
+
+qint64 EditSession::filterWork(const FilterPlan &plan) { return plan.work; }
 
 EditSession::Outcome EditSession::setFilter(int sheet, const AutoFilter &after, const QString &text)
 {

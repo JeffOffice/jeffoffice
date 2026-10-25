@@ -338,7 +338,7 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
         out.ranges.append(one);
         out.cells = 1;
     };
-    auto none = [&] { out.problem = QCoreApplication::translate("jp::crunch::GoTo", "No cells were found."); };
+    auto none = [&] { out.problem = QCoreApplication::translate("jp::crunch::GoTo", "No cell matches."); };
     switch (options.kind) {
     case SpecialKind::LastCell:
         if (s.extentRows == 0) none();

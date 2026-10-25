@@ -20,7 +20,7 @@ using namespace jp::crunch;
 InsertFunctionDialog::InsertFunctionDialog(QWidget *parent, const QString &search) : QDialog(parent)
 {
     setObjectName(QStringLiteral("insertFunctionDialog"));
-    setWindowTitle(tr("Insert Function"));
+    setWindowTitle(tr("Pick a Function"));
     auto *layout = new QVBoxLayout(this);
     auto *form = new QFormLayout;
     m_search = new QLineEdit(search);
