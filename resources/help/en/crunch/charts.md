@@ -7,7 +7,7 @@ A chart is a picture of numbers that stays tied to them: change a number and the
 
 1. Select the numbers you want to chart. If the first row has names and the first column has labels, select those too. JeffCrunch looks at the first row and column and uses them as the names and the labels when they are words (or dates, for the labels).
 2. On the **Insert** tab, in **Charts**, pick a kind: **Column**, **Bar**, **Line**, **Pie**, **Area**, **Scatter**, or **Combo**. The small arrow beside a kind has its variations, such as stacked columns or a line with markers.
-3. For a look at every kind first, choose **All Charts**. The list on the left shows each kind drawn from your cells. **Switch rows and columns** turns the series the other way.
+3. For a look at every kind first, choose **More Charts**. The list on the left shows each kind drawn from your cells. **Swap rows and columns** turns the series the other way.
 
 If you select only one cell, JeffCrunch charts the block of cells around it that has something in it.
 
@@ -28,12 +28,12 @@ Each move or size is one step you can undo. Right-click the object and choose **
 
 ## Change what a chart shows
 
-When a chart is picked, two buttons appear beside it and a **Chart Design** tab appears on the ribbon.
+When a chart is picked, two buttons appear beside it and a **Chart** tab appears on the ribbon.
 
-- The **+** button (and **Add Chart Element** on the tab) turns the chart's title, axes, axis titles, gridlines, legend, and data labels on or off, and says where the legend and the labels go.
-- The brush button (and **Change Colors** and **Styles** on the tab) gives the chart one of JeffCrunch's sets of colors and one of its looks. **Quick Layout** sets several elements at once.
-- **Select Data** lists the chart's series. You can add, edit, remove, and reorder them, change the cells each one reads, set the cells with the labels, switch the rows and columns, and choose how empty cells and hidden rows and columns are charted.
-- **Change Chart Type** changes the kind for the whole chart, or for each series: columns with a line over them, or a series against a second vertical axis.
+- The **+** button (and **Chart Parts** on the tab) turns the chart's title, axes, axis titles, gridlines, legend, and data labels on or off, and says where the legend and the labels go.
+- The brush button (and **Colors** and **Looks** on the tab) gives the chart one of JeffCrunch's sets of colors and one of its looks. **Layouts** sets several elements at once.
+- **Chart Data** lists the chart's series. You can add, edit, remove, and reorder them, change the cells each one reads, set the cells with the labels, switch the rows and columns, and choose how empty cells and hidden rows and columns are charted.
+- **Chart Kind** changes the kind for the whole chart, or for each series: columns with a line over them, or a series against a second vertical axis.
 
 A reference to cells is written like **Sheet1!$B$2:$B$9**, with the sheet's name in single quotes when it has spaces.
 

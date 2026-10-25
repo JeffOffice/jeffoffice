@@ -5,8 +5,8 @@
 //                                                       something of (left as they were), charts the same after, charts that differ, then the first difference
 //   jcrunchtool charts-insert <in.xlsx> <out.xlsx> <sheet> <range> <kind> [kind...]   makes a chart of each kind (column, bar, line, pie, area, scatter, combo, or the names the ribbon
 //                                                       uses) from the cells of the range on the sheet (from 1) and saves the workbook
-//   jcrunchtool charts-shots <in.xlsx> <out-dir>        pictures of the window with a chart made from the first cells of the first sheet and picked, its elements menu, the Insert Chart dialog,
-//                                                       Select Data, Change Chart Type, and an object's menu
+//   jcrunchtool charts-shots <in.xlsx> <out-dir>        pictures of the window with a chart made from the first cells of the first sheet and picked, its elements menu, the New Chart dialog,
+//                                                       Chart Data, Chart Kind, and an object's menu
 
 #include "app/chartdialogs.h"
 #include "app/crunchwindow.h"
@@ -225,7 +225,7 @@ int shots(const QString &in, const QString &dir)
     if (!openWindow(w, in)) return 1;
     waitFor([&] { return w.objects() && w.objects()->shownSheet() == 0; }, 20);
     w.view()->selectRange(0, 0, 4, 3);
-    // the Insert Chart dialog
+    // the New Chart dialog
     {
         std::unique_ptr<QDialog> d(w.makeInsertChartDialog());
         if (d) {

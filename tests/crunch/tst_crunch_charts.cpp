@@ -1,4 +1,4 @@
-// Tests of making and changing charts in JeffCrunch's window: Insert Chart from the cells selected, moving and sizing objects, the chart's elements, Select Data, Change Chart Type, Copy and Paste of a
+// Tests of making and changing charts in JeffCrunch's window: New Chart from the cells selected, moving and sizing objects, the chart's elements, Chart Data, Chart Kind, Copy and Paste of a
 // chart, and what each saves (the chart part, the drawing, and what names them), read back by the readers of this program. Every workbook is built here.
 #include "../sheet/drawinghelpers.h"
 #include "editwindow.h"
@@ -126,7 +126,7 @@ class CrunchChartTests : public QObject {
 private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
 
-    // Insert Chart makes a chart from the cells selected: headers found, the chart over the cells in view, picked, one step of Undo, and Redo puts it back.
+    // New Chart makes a chart from the cells selected: headers found, the chart over the cells in view, picked, one step of Undo, and Redo puts it back.
     void aChartIsMadeFromTheCellsSelected()
     {
         EditWindow e;
@@ -155,7 +155,7 @@ private Q_SLOTS:
         QCOMPARE(r.width(), 480);
         QCOMPARE(r.height(), 288);
         // Undo takes it away, Redo gives it back
-        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Insert Chart"));
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("New Chart"));
         pressUndo(&e.win.w);
         QVERIFY(o->layer()->isDeleted(0));
         QVERIFY(!e.win.w.isModified());
@@ -404,7 +404,7 @@ private Q_SLOTS:
             found->trigger();
             return true;
         };
-        QVERIFY(fire({"Chart Title", "Above the Chart"}));
+        QVERIFY(fire({"Chart Title", "Above"}));
         QVERIFY(fire({"Legend", "Right"}));
         QVERIFY(fire({"Axis Titles", "Vertical"}));
         QVERIFY(fire({"Data Labels", "Outside End"}));
@@ -447,7 +447,7 @@ private Q_SLOTS:
         QTRY_VERIFY(objectsShown(e, 1));
         auto visible = [&] {
             for (int i = 0; i < e.win.w.ribbon()->tabCount(); ++i)
-                if (e.win.w.ribbon()->tabName(i) == QLatin1String("Chart Design")) return e.win.w.ribbon()->tabVisible(i);
+                if (e.win.w.ribbon()->tabName(i) == QLatin1String("Chart")) return e.win.w.ribbon()->tabVisible(i);
             return false;
         };
         QVERIFY(!visible());
@@ -469,7 +469,7 @@ private Q_SLOTS:
         QTRY_VERIFY(!e.win.w.chartElementsButton() || !e.win.w.chartElementsButton()->isVisible());
     }
 
-    // Select Data: series added, removed, edited, and put in another order; the cells the chart reads; the rows and columns switched; empty cells and hidden ones; saved with their references.
+    // Chart Data: series added, removed, edited, and put in another order; the cells the chart reads; the rows and columns switched; empty cells and hidden ones; saved with their references.
     void selectDataChangesTheSeries()
     {
         EditWindow e;
@@ -530,7 +530,7 @@ private Q_SLOTS:
         QVERIFY(seriesRunDownColumns(chartOf(e)));
     }
 
-    // Change Chart Type: the whole chart, and a combination of kinds with a series on the second axes; both saved.
+    // Chart Kind: the whole chart, and a combination of kinds with a series on the second axes; both saved.
     void changeChartTypeChangesTheKinds()
     {
         EditWindow e;
@@ -768,7 +768,7 @@ private Q_SLOTS:
         edit.before = o->stateOf(sheet, id);
         edit.after = edit.before;
         edit.after.deleted = false;
-        QVERIFY(e.win.w.session()->changeObjects({edit}, QStringLiteral("Insert Chart")).ok);
+        QVERIFY(e.win.w.session()->changeObjects({edit}, QStringLiteral("New Chart")).ok);
         QVERIFY(save(e));
         // (the sheet added is first among the tabs, so first in the file)
         const QVector<SavedChart> charts = savedCharts(e.path, 0);
@@ -846,8 +846,8 @@ private Q_SLOTS:
             texts << a->text();
             enabled[a->text()] = a->isEnabled();
         }
-        for (const char *want : {"Cut", "Copy", "Paste", "Delete", "Order", "Select Data…", "Change Chart Type…", "Add Chart Element", "Properties…"}) QVERIFY2(texts.contains(QString::fromUtf8(want)), qPrintable(texts.join(QLatin1Char('|'))));
-        QVERIFY(enabled.value(QStringLiteral("Select Data…")));
+        for (const char *want : {"Cut", "Copy", "Paste", "Delete", "Order", "Chart Data…", "Chart Kind…", "Chart Parts", "Properties…"}) QVERIFY2(texts.contains(QString::fromUtf8(want)), qPrintable(texts.join(QLatin1Char('|'))));
+        QVERIFY(enabled.value(QStringLiteral("Chart Data…")));
         // the right click on the chart asks for it (the window pops it up: a stand-in is the test's own menu)
         QSignalSpy asked(o->layer(), &grid::ObjectLayer::contextMenuRequested);
         QTest::mouseClick(e.view()->viewport(), Qt::RightButton, Qt::NoModifier, o->layer()->deviceRect(0, grid::Pane::Body).center());
@@ -1047,7 +1047,7 @@ class CrunchChartDialogTests : public QObject {
 private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
 
-    // Insert Chart lists every kind with a picture of it, shows the one picked large, and gives back the kind and whether the rows and columns are switched.
+    // New Chart lists every kind with a picture of it, shows the one picked large, and gives back the kind and whether the rows and columns are switched.
     void insertChartShowsEveryKind()
     {
         QVector<QString> asked;

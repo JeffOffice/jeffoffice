@@ -319,25 +319,25 @@
       ]
     },
     {
-      "name": "Chart Design",
+      "name": "Chart",
       "keytip": "JD",
-      "context": "Chart Tools",
+      "context": "Chart",
       "color": "chartDesign",
       "groups": [
         {
           "name": "Chart Layouts",
           "keytip": "ZL",
           "items": [
-            {"large": {"id": "ribbon.addElement", "text": "Add Chart Element", "icon": "plus"}, "keytip": "AE", "menu": "@chartElements"},
-            {"large": {"id": "ribbon.quickLayout", "text": "Quick Layout", "icon": "layers"}, "keytip": "QL", "menu": "@chartLayouts"}
+            {"large": {"id": "ribbon.addElement", "text": "Chart Parts", "icon": "plus"}, "keytip": "AE", "menu": "@chartElements"},
+            {"large": {"id": "ribbon.quickLayout", "text": "Layouts", "icon": "layers"}, "keytip": "QL", "menu": "@chartLayouts"}
           ]
         },
         {
-          "name": "Chart Styles",
+          "name": "Looks",
           "keytip": "ZS",
           "items": [
-            {"large": {"id": "ribbon.chartColors", "text": "Change Colors", "icon": "palette"}, "keytip": "CC", "menu": "@chartColors"},
-            {"large": {"id": "ribbon.chartStyles", "text": "Styles", "icon": "brush"}, "keytip": "ST", "menu": "@chartStyles"}
+            {"large": {"id": "ribbon.chartColors", "text": "Colors", "icon": "palette"}, "keytip": "CC", "menu": "@chartColors"},
+            {"large": {"id": "ribbon.chartStyles", "text": "Looks", "icon": "brush"}, "keytip": "ST", "menu": "@chartStyles"}
           ]
         },
         {

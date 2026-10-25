@@ -494,15 +494,15 @@ private:
 
     // ---- the charts: making and changing them (crunchwindow_charts.cpp)
 public:
-    // What Insert Chart asks (a dialog unless this stands in for it: tests): the kind, and how to read the cells (-1 as their shape says, 2 the other way); false gives it up.
+    // What New Chart asks (a dialog unless this stands in for it: tests): the kind, and how to read the cells (-1 as their shape says, 2 the other way); false gives it up.
     struct InsertChartChoice {
         jp::office::sheet::ChartKind kind = jp::office::sheet::ChartKind::Column;
         int inRows = -1;
     };
     void setInsertChartAsker(const std::function<bool(InsertChartChoice *)> &asker) { m_insertChartAsker = asker; }
-    // Select Data: given the chart and what a dialog needs, gives the chart as it should be; false gives it up.
+    // Chart Data: given the chart and what a dialog needs, gives the chart as it should be; false gives it up.
     void setSelectDataAsker(const std::function<bool(const SelectDataRequest &, jp::office::Chart *)> &asker) { m_selectDataAsker = asker; }
-    // Change Chart Type: given each series' name and what it is drawn as, gives what each is to be drawn as.
+    // Chart Kind: given each series' name and what it is drawn as, gives what each is to be drawn as.
     void setChangeTypeAsker(const std::function<bool(const QStringList &, const QVector<jp::office::sheet::SeriesKind> &, QVector<jp::office::sheet::SeriesKind> *)> &asker) { m_changeTypeAsker = asker; }
     // Properties of an object: its size and what it does when cells change.
     void setPropertiesAsker(const std::function<bool(const ObjectProperties &, ObjectProperties *)> &asker) { m_propertiesAsker = asker; }

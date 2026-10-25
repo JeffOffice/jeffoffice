@@ -1,6 +1,6 @@
 #pragma once
-// The dialogs of charts: Insert Chart (a kind of chart, shown on the cells selected), Select Data (the series a chart reads, their names, values, and categories, and what to do with empty and
-// hidden cells), Change Chart Type (the kind of the chart, and of each series), and the Properties of an object over the cells (its size, and whether it follows the cells when they change).
+// The dialogs of charts: New Chart (a kind of chart, shown on the cells selected), Chart Data (the series a chart reads, their names, values, and categories, and what to do with empty and
+// hidden cells), Chart Kind (the kind of the chart, and of each series), and the Properties of an object over the cells (its size, and whether it follows the cells when they change).
 // Each is given what it shows as plain data and gives back what the person chose; the window turns that into a step of Undo.
 
 #include "office/chart.h"
@@ -56,7 +56,7 @@ private:
     QCheckBox *m_switch = nullptr;
 };
 
-// What Select Data starts from and gives back.
+// What Chart Data starts from and gives back.
 struct SelectDataRequest {
     jp::office::Chart chart;
     jp::office::Theme theme;

@@ -66,11 +66,11 @@ const QVector<ChartKind> &comboKinds()
 
 } // namespace
 
-// ---- Insert Chart
+// ---- New Chart
 
 InsertChartDialog::InsertChartDialog(const ChartPreviewFn &preview, ChartKind initial, QWidget *parent) : QDialog(parent), m_preview(preview)
 {
-    setWindowTitle(tr("Insert Chart"));
+    setWindowTitle(tr("New Chart"));
     setObjectName(QStringLiteral("insertChartDialog"));
     auto *outer = new QVBoxLayout(this);
     auto *row = new QHBoxLayout;
@@ -95,8 +95,8 @@ InsertChartDialog::InsertChartDialog(const ChartPreviewFn &preview, ChartKind in
     row->addWidget(m_list);
     row->addWidget(m_big, 1);
     outer->addLayout(row, 1);
-    m_switch = new QCheckBox(tr("Switch rows and columns"), this);
-    m_switch->setAccessibleName(tr("Switch rows and columns"));
+    m_switch = new QCheckBox(tr("Swap rows and columns"), this);
+    m_switch->setAccessibleName(tr("Swap rows and columns"));
     outer->addWidget(m_switch);
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -145,7 +145,7 @@ void InsertChartDialog::refresh()
     }
 }
 
-// ---- Select Data
+// ---- Chart Data
 
 namespace {
 
@@ -208,7 +208,7 @@ private:
 
 SelectDataDialog::SelectDataDialog(const SelectDataRequest &request, QWidget *parent) : QDialog(parent), m_request(request), m_chart(request.chart)
 {
-    setWindowTitle(tr("Select Data"));
+    setWindowTitle(tr("Chart Data"));
     setObjectName(QStringLiteral("selectDataDialog"));
     m_series = seriesOf(m_chart);
     m_kinds = seriesKindsOf(m_chart);
@@ -219,7 +219,7 @@ SelectDataDialog::SelectDataDialog(const SelectDataRequest &request, QWidget *pa
     m_range->setAccessibleName(tr("Cells the chart reads"));
     m_range->setPlaceholderText(tr("For example Sheet1!$A$1:$D$8"));
     auto *useRange = new QPushButton(tr("Use These Cells"), this);
-    auto *switchButton = new QPushButton(tr("Switch Rows and Columns"), this);
+    auto *switchButton = new QPushButton(tr("Swap Rows and Columns"), this);
     rangeRow->addWidget(new QLabel(tr("Cells the chart reads"), this));
     rangeRow->addWidget(m_range, 1);
     rangeRow->addWidget(useRange);
@@ -247,13 +247,13 @@ SelectDataDialog::SelectDataDialog(const SelectDataRequest &request, QWidget *pa
     form->addRow(tr("Category labels"), m_categories);
     m_blanks = new QComboBox(this);
     m_blanks->setObjectName(QStringLiteral("blanksAs"));
-    m_blanks->setAccessibleName(tr("Show empty cells as"));
+    m_blanks->setAccessibleName(tr("Empty cells are drawn as"));
     m_blanks->addItem(tr("Gaps"), QStringLiteral("gap"));
     m_blanks->addItem(tr("Zero"), QStringLiteral("zero"));
     m_blanks->addItem(tr("Connect the points with a line"), QStringLiteral("span"));
-    form->addRow(tr("Show empty cells as"), m_blanks);
-    m_hidden = new QCheckBox(tr("Show data in hidden rows and columns"), this);
-    m_hidden->setAccessibleName(tr("Show data in hidden rows and columns"));
+    form->addRow(tr("Empty cells are drawn as"), m_blanks);
+    m_hidden = new QCheckBox(tr("Include hidden rows and columns"), this);
+    m_hidden->setAccessibleName(tr("Include hidden rows and columns"));
     form->addRow(m_hidden);
     outer->addLayout(form);
     m_problem = new QLabel(this);
@@ -432,12 +432,12 @@ Chart SelectDataDialog::result() const
     return c;
 }
 
-// ---- Change Chart Type
+// ---- Chart Kind
 
 ChangeChartTypeDialog::ChangeChartTypeDialog(const QStringList &seriesNames, const QVector<SeriesKind> &now, const KindsPreviewFn &preview, QWidget *parent)
     : QDialog(parent), m_names(seriesNames), m_preview(preview)
 {
-    setWindowTitle(tr("Change Chart Type"));
+    setWindowTitle(tr("Chart Kind"));
     setObjectName(QStringLiteral("changeTypeDialog"));
     auto *outer = new QVBoxLayout(this);
     auto *row = new QHBoxLayout;
@@ -587,8 +587,8 @@ ObjectPropertiesDialog::ObjectPropertiesDialog(const ObjectProperties &now, QWid
     outer->addLayout(form);
     auto *group = new QGroupBox(tr("When cells change"), this);
     auto *g = new QVBoxLayout(group);
-    m_sizes = new QRadioButton(tr("Move and size with the cells"), group);
-    m_moves = new QRadioButton(tr("Move with the cells, keep the size"), group);
+    m_sizes = new QRadioButton(tr("Moves and stretches with its cells"), group);
+    m_moves = new QRadioButton(tr("Moves with its cells, keeps its size"), group);
     m_stays = new QRadioButton(tr("Stay where it is"), group);
     m_sizes->setObjectName(QStringLiteral("followSizes"));
     m_moves->setObjectName(QStringLiteral("followMoves"));

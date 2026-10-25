@@ -1,4 +1,4 @@
-// Making and changing charts in JeffCrunch's window: Insert Chart from the cells selected, the chart's buttons and menus (its elements, colors, and looks), Select Data, Change Chart Type, the
+// Making and changing charts in JeffCrunch's window: New Chart from the cells selected, the chart's buttons and menus (its elements, colors, and looks), Chart Data, Chart Kind, the
 // properties and the context menu of an object, and Copy, Cut, and Paste of a chart. Each change is one step of Undo (core/objectstate.h); the chart model it changes is
 // libs/office/sheet/chartedit.h's, and what it writes is libs/office/office/chart_write.h's.
 
@@ -90,7 +90,7 @@ QImage renderChart(const Chart &chart, const QSize &pixels)
 void CrunchWindow::createChartActions()
 {
     // (Insert > Chart is the dialog; the others make the kind they name from the cells selected)
-    mk("insert.chart", tr("All Charts…"), "chart-column", QKeySequence(), [this] { insertChartDialog(); });
+    mk("insert.chart", tr("More Charts…"), "chart-column", QKeySequence(), [this] { insertChartDialog(); });
     m_chartActions << QStringLiteral("insert.chart");
     for (const KindAction &k : kKindActions) {
         const ChartKind kind = k.kind;
@@ -104,19 +104,19 @@ void CrunchWindow::createChartActions()
     }
     for (const QString &id : std::as_const(m_chartActions)) m_opsActions << id;
     // the commands of the chart that is picked
-    mk("chartdesign.selectData", tr("Select Data…"), "table-properties", QKeySequence(), [this] { selectDataDialog(); }, false, false);
-    mk("chartdesign.changeType", tr("Change Chart Type…"), "chart-no-axes-combined", QKeySequence(), [this] { changeChartTypeDialog(); }, false, false);
-    mk("chartdesign.switch", tr("Switch Row/Column"), "arrow-left-right", QKeySequence(), [this] {
+    mk("chartdesign.selectData", tr("Chart Data…"), "table-properties", QKeySequence(), [this] { selectDataDialog(); }, false, false);
+    mk("chartdesign.changeType", tr("Chart Kind…"), "chart-no-axes-combined", QKeySequence(), [this] { changeChartTypeDialog(); }, false, false);
+    mk("chartdesign.switch", tr("Swap Rows and Columns"), "arrow-left-right", QKeySequence(), [this] {
         const int id = pickedObject();
         if (id < 0) return;
         bool ok = false;
         const Chart now = m_objects->chartNow(m_sheet, id);
         const Chart switched = switchedRowsColumns(now, m_objects->theme(), &ok);
         if (!ok) {
-            notice(tr("Switch Row/Column"), tr("The series of this chart don't read one block of cells that can be turned the other way."));
+            notice(tr("Swap Rows and Columns"), tr("The series of this chart don't read one block of cells that can be turned the other way."));
             return;
         }
-        changePickedChart(tr("Switch Row/Column"), [switched](Chart *c) { *c = switched; });
+        changePickedChart(tr("Swap Rows and Columns"), [switched](Chart *c) { *c = switched; });
     }, false, false);
     mk("object.properties", tr("Properties…"), "sliders-horizontal", QKeySequence(), [this] { propertiesDialog(); }, false, false);
     mk("object.front", tr("Bring to Front"), "bring-to-front", QKeySequence(), [this] { reorderObject(2); }, false, false);
@@ -140,7 +140,7 @@ void CrunchWindow::chartRibbonParts(RibbonParts &parts)
         menu->setObjectName(QStringLiteral("chartLayoutsMenu"));
         for (int i = 0; i < chartLayoutCount(); ++i) {
             QAction *a = menu->addAction(chartLayoutName(i));
-            connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Quick Layout"), [i](Chart *c) { applyChartLayout(c, i); }); });
+            connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Layouts"), [i](Chart *c) { applyChartLayout(c, i); }); });
         }
         return menu;
     };
@@ -149,7 +149,7 @@ void CrunchWindow::chartRibbonParts(RibbonParts &parts)
         menu->setObjectName(QStringLiteral("chartColorsMenu"));
         for (int i = 0; i < chartColorSchemeCount(); ++i) {
             QAction *a = menu->addAction(chartColorSchemeName(i));
-            connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Change Colors"), [i](Chart *c) { applyColorScheme(c, i); }); });
+            connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Colors"), [i](Chart *c) { applyColorScheme(c, i); }); });
         }
         return menu;
     };
@@ -158,7 +158,7 @@ void CrunchWindow::chartRibbonParts(RibbonParts &parts)
         menu->setObjectName(QStringLiteral("chartStylesMenu"));
         for (int i = 0; i < chartStyleCount(); ++i) {
             QAction *a = menu->addAction(chartStyleName(i));
-            connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Chart Style"), [i](Chart *c) { applyChartStyle(c, i); }); });
+            connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Chart Look"), [i](Chart *c) { applyChartStyle(c, i); }); });
         }
         return menu;
     };
@@ -172,7 +172,7 @@ int CrunchWindow::pickedObject() const
     return id >= 0 && !m_objects->layer()->isDeleted(id) ? id : -1;
 }
 
-// ---- Insert Chart
+// ---- New Chart
 
 bool CrunchWindow::chartPlanFor(ChartKind kind, int inRows, ChartPlan *plan, bool forPreview)
 {
@@ -237,18 +237,18 @@ bool CrunchWindow::insertChart(ChartKind kind, int inRows)
     QString why;
     ChartPlan plan;
     if (!m_objects->cells()) {
-        notice(tr("Insert Chart"), tr("The workbook is still being read. A chart can be made when it is open."));
+        notice(tr("New Chart"), tr("The workbook is still being read. A chart can be made when it is open."));
         return false;
     }
     if (!chartPlanFor(kind, inRows, &plan)) {
-        notice(tr("Insert Chart"), tr("Select the cells that hold the numbers to chart. If the first row has names and the first column has labels, select those too."), false);
+        notice(tr("New Chart"), tr("Select the cells that hold the numbers to chart. If the first row has names and the first column has labels, select those too."), false);
         return false;
     }
     const Chart chart = makeChart(kind, plan, m_objects->theme(), plan.points);
     const DrawingAnchor anchor = newObjectAnchor(480, 288);
     const int id = m_objects->makeChart(m_sheet, chart, anchor, &why);
     if (id < 0) {
-        notice(tr("Insert Chart"), why);
+        notice(tr("New Chart"), why);
         return false;
     }
     crunch::ObjectEdit e;
@@ -257,10 +257,10 @@ bool CrunchWindow::insertChart(ChartKind kind, int inRows)
     e.before = m_objects->stateOf(m_sheet, id);
     e.after = e.before;
     e.after.deleted = false;
-    const crunch::EditSession::Outcome o = m_session->changeObjects({e}, tr("Insert Chart"));
+    const crunch::EditSession::Outcome o = m_session->changeObjects({e}, tr("New Chart"));
     if (!o.ok) {
         m_objects->discardMade(m_sheet, id);
-        notice(tr("Insert Chart"), o.problem);
+        notice(tr("New Chart"), o.problem);
         return false;
     }
     m_objects->layer()->select(id);
@@ -284,7 +284,7 @@ void CrunchWindow::insertChartDialog()
     } else {
         std::unique_ptr<QDialog> dialog(makeInsertChartDialog());
         if (!dialog) {
-            notice(tr("Insert Chart"), tr("The workbook is still being read. A chart can be made when it is open."));
+            notice(tr("New Chart"), tr("The workbook is still being read. A chart can be made when it is open."));
             return;
         }
         if (dialog->exec() != QDialog::Accepted) return;
@@ -367,7 +367,7 @@ void CrunchWindow::propertiesDialog()
     moveObject(id, a);
 }
 
-// ---- Select Data and Change Chart Type
+// ---- Chart Data and Chart Kind
 
 SelectDataRequest CrunchWindow::selectDataRequest(int id)
 {
@@ -427,7 +427,7 @@ void CrunchWindow::selectDataDialog()
     if (id < 0 || !m_session || !m_objects) return;
     QString why;
     if (!m_objects->canEditChart(m_sheet, id, &why)) {
-        notice(tr("Select Data"), why);
+        notice(tr("Chart Data"), why);
         return;
     }
     Chart result;
@@ -438,7 +438,7 @@ void CrunchWindow::selectDataDialog()
         if (d.exec() != QDialog::Accepted) return;
         result = d.result();
     }
-    changePickedChart(tr("Select Data"), [result](Chart *c) { *c = result; });
+    changePickedChart(tr("Chart Data"), [result](Chart *c) { *c = result; });
 }
 
 QDialog *CrunchWindow::makeChangeTypeDialog()
@@ -458,7 +458,7 @@ void CrunchWindow::changeChartTypeDialog()
     if (id < 0 || !m_session || !m_objects) return;
     QString why;
     if (!m_objects->canEditChart(m_sheet, id, &why)) {
-        notice(tr("Change Chart Type"), why);
+        notice(tr("Chart Kind"), why);
         return;
     }
     const Chart chart = m_objects->chartNow(m_sheet, id);
@@ -474,7 +474,7 @@ void CrunchWindow::changeChartTypeDialog()
         chosen = static_cast<ChangeChartTypeDialog *>(dialog.get())->kinds();
     }
     const Theme theme = m_objects->theme();
-    changePickedChart(tr("Change Chart Type"), [chosen, theme](Chart *c) { *c = withSeriesKinds(*c, chosen, theme); });
+    changePickedChart(tr("Chart Kind"), [chosen, theme](Chart *c) { *c = withSeriesKinds(*c, chosen, theme); });
 }
 
 // ---- the chart's menus
@@ -515,8 +515,8 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
         title->setObjectName(QStringLiteral("chartTitleMenu"));
         auto *titleGroup = new QActionGroup(title);
         choice(title, titleGroup, tr("None"), !e.title, [](Chart *c) { setChartTitle(c, TitleMode::None); }, tr("Chart Title"));
-        choice(title, titleGroup, tr("Above the Chart"), e.title && !e.titleOverlay, [](Chart *c) { setChartTitle(c, TitleMode::Above); }, tr("Chart Title"));
-        choice(title, titleGroup, tr("Over the Chart"), e.titleOverlay, [](Chart *c) { setChartTitle(c, TitleMode::Overlay); }, tr("Chart Title"));
+        choice(title, titleGroup, tr("Above"), e.title && !e.titleOverlay, [](Chart *c) { setChartTitle(c, TitleMode::Above); }, tr("Chart Title"));
+        choice(title, titleGroup, tr("On Top"), e.titleOverlay, [](Chart *c) { setChartTitle(c, TitleMode::Overlay); }, tr("Chart Title"));
         QMenu *labels = menu->addMenu(tr("Data Labels"));
         labels->setObjectName(QStringLiteral("dataLabelsMenu"));
         auto *labelGroup = new QActionGroup(labels);
@@ -559,12 +559,12 @@ QMenu *CrunchWindow::buildChartLooksMenu(QWidget *owner)
     menu->addSection(tr("Colors"));
     for (int i = 0; i < chartColorSchemeCount(); ++i) {
         QAction *a = menu->addAction(chartColorSchemeName(i));
-        connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Change Colors"), [i](Chart *c) { applyColorScheme(c, i); }); });
+        connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Colors"), [i](Chart *c) { applyColorScheme(c, i); }); });
     }
-    menu->addSection(tr("Styles"));
+    menu->addSection(tr("Looks"));
     for (int i = 0; i < chartStyleCount(); ++i) {
         QAction *a = menu->addAction(chartStyleName(i));
-        connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Chart Style"), [i](Chart *c) { applyChartStyle(c, i); }); });
+        connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Chart Look"), [i](Chart *c) { applyChartStyle(c, i); }); });
     }
     return menu;
 }
@@ -580,7 +580,7 @@ void CrunchWindow::updateChartState()
     if (chart) editable = m_objects->canEditChart(m_sheet, id);
     for (const char *name : {"chartdesign.selectData", "chartdesign.changeType", "chartdesign.switch"}) act(QString::fromLatin1(name))->setEnabled(editable);
     for (const char *name : {"object.properties", "object.front", "object.forward", "object.backward", "object.back", "object.delete"}) act(QString::fromLatin1(name))->setEnabled(picked);
-    if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Chart Tools"), chart);
+    if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Chart"), chart);
     m_chartButtonsTimer.start();
 }
 
@@ -663,7 +663,7 @@ QMenu *CrunchWindow::buildObjectMenu(int id, QWidget *owner)
         menu->addAction(act(QStringLiteral("chartdesign.changeType")));
         if (editable) {
             QMenu *elements = buildChartElementsMenu(menu);
-            elements->setTitle(tr("Add Chart Element"));
+            elements->setTitle(tr("Chart Parts"));
             menu->addMenu(elements);
         }
     }

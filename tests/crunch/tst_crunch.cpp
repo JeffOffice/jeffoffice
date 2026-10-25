@@ -67,7 +67,7 @@ private Q_SLOTS:
         QCOMPARE(w.ribbonErrors(), QString());
         QStringList tabs;
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
-        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Page Layout", "Formulas", "View", "Chart Design"}));
+        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Page Layout", "Formulas", "View", "Chart"}));
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffCrunch")));
         QVERIFY(w.windowTitle().startsWith(QLatin1String("Book")));

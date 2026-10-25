@@ -9,5 +9,5 @@
   "tab:Page Layout": "page-layout",
   "file:print": "printing",
   "file:export": "printing",
-  "tab:Chart Design": "charts"
+  "tab:Chart": "charts"
 }
