@@ -863,19 +863,21 @@ private Q_SLOTS:
     // A double underline is two lines, a single one is one, and an accounting underline is as wide as the cell; the lines are under the text.
     void underlinesAreDrawnAsTheyAre()
     {
-        auto lines = [](const QImage &img, const QRect &area, int fromX, int toX) {
-            // the rows where the ink reaches across the text, as groups of rows next to each other
+        auto lines = [](const QImage &img, const QImage &plain, const QRect &area, int fromX, int toX) {
+            // the rows where the ink reaches across the text, as groups of rows next to each other; a row the
+            // letters fill as well without the underline is the letters' own (a font's flat tops can reach across)
+            auto full = [&](const QImage &im, int y) {
+                int dark = 0;
+                for (int x = fromX; x <= toX; ++x)
+                    if (qRed(im.pixel(x, y)) < 200) ++dark;
+                return dark >= (toX - fromX + 1) * 9 / 10;
+            };
             QVector<int> groups;
             bool inLine = false;
             for (int y = area.top(); y <= area.bottom(); ++y) {
-                int dark = 0;
-                for (int x = fromX; x <= toX; ++x) {
-                    const QRgb c = img.pixel(x, y);
-                    if (qRed(c) < 200) ++dark;
-                }
-                const bool full = dark >= (toX - fromX + 1) * 9 / 10;
-                if (full && !inLine) groups.append(y);
-                inLine = full;
+                const bool line = full(img, y) && !full(plain, y);
+                if (line && !inLine) groups.append(y);
+                inLine = line;
             }
             return groups;
         };
@@ -885,24 +887,29 @@ private Q_SLOTS:
             bool wide;
         };
         for (const Case &c : {Case{Underline::Single, 1, false}, Case{Underline::Double, 2, false}, Case{Underline::SingleAccounting, 1, true}, Case{Underline::DoubleAccounting, 2, true}}) {
-            Fixture f;
-            FontSpec font;
-            font.name = QStringLiteral("Calibri");
-            font.size = 11;
-            font.underline = c.kind;
-            f.styles.fonts.append(font);
-            CellFormat fmt;
-            fmt.font = 1;
-            f.text(0, 0, QStringLiteral("mmm"), f.format(fmt));
-            f.options.gridlines = false;
-            f.build();
-            f.grid.layout().rows.setDefaultSize(30);
-            const QImage img = f.render();
+            auto draw = [](Underline kind) {
+                Fixture f;
+                FontSpec font;
+                font.name = QStringLiteral("Calibri");
+                font.size = 11;
+                font.underline = kind;
+                f.styles.fonts.append(font);
+                CellFormat fmt;
+                fmt.font = 1;
+                f.text(0, 0, QStringLiteral("mmm"), f.format(fmt));
+                f.options.gridlines = false;
+                f.build();
+                f.grid.layout().rows.setDefaultSize(30);
+                return f.render();
+            };
+            const QImage img = draw(c.kind), plain = draw(Underline::None);
             const QRect text = inkBox(img, QRect(0, 0, 64, 30), 200);
             QVERIFY(text.isValid());
             const int from = c.wide ? 3 : text.left() + 1, to = c.wide ? 60 : text.right() - 1;
-            const QVector<int> found = lines(img, QRect(0, 0, 64, 30), from, to);
-            QVERIFY2(found.size() == c.groups, qPrintable(QStringLiteral("underline %1: %2 lines").arg(int(c.kind)).arg(found.size())));
+            const QVector<int> found = lines(img, plain, QRect(0, 0, 64, 30), from, to);
+            QStringList rows;
+            for (int y : found) rows << QString::number(y);
+            QVERIFY2(found.size() == c.groups, qPrintable(QStringLiteral("underline %1: %2 lines, at rows %3 (text %4 to %5)").arg(int(c.kind)).arg(found.size()).arg(rows.join(QLatin1Char(','))).arg(text.top()).arg(text.bottom())));
             if (c.groups == 2) QVERIFY2(found[1] - found[0] >= 2, qPrintable(QStringLiteral("the lines of %1 are %2 apart").arg(int(c.kind)).arg(found[1] - found[0])));
         }
     }
