@@ -13,6 +13,7 @@
 // The sheet limits are enforced: what is past the last row or column of a sheet, a field longer than a cell holds, is not read, and the sheet says so (Sheet::error).
 // The file is read in pieces as it is scanned, so a file far larger than the memory its cells take is read in the memory its cells take, and the first rows can be had at once.
 
+#include "sheet/csvimport.h"
 #include "sheet/foreignbook.h"
 
 #include <QByteArray>
@@ -25,7 +26,6 @@
 
 namespace jp::office::sheet {
 
-enum class CsvEncoding { Utf8, Utf8Bom, Utf16Le, Utf16Be, Legacy };
 
 // What the first bytes of a file say about its form.
 struct CsvForm {
@@ -44,6 +44,11 @@ CsvForm detectCsvForm(const QByteArray &bytes, const QString &fileName, const QL
 // The code page of the person's language, for a file that is not Unicode.
 int legacyCodePageFor(const QLocale &locale);
 
+// The first rows of the file as the choices would read them, for the preview that is shown before the file is opened: the text of each field (cut to kCsvPreviewFieldChars), and for a
+// column read as a date, the date as year-month-day (or the text, if it is no date in that order). At most kCsvPreviewRows rows and kCsvPreviewColumns columns, from the first
+// kCsvPreviewBytes of the file. `form`, if given, gets the form the choices (or the file) come to; `columns` the number of columns the widest row has.
+QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName, const CsvImport &choices, const QLocale &locale, CsvForm *form = nullptr, int *columns = nullptr);
+
 class CsvBook : public ForeignBook {
 public:
     // The most characters of one field (a cell holds 32,767).
@@ -60,6 +65,7 @@ private:
     CsvBook() = default;
     QByteArray m_data;
     CsvForm m_form;
+    CsvImport m_import;
     QLocale m_locale;
     qint64 m_skip = 0;                  // bytes before the data: the byte order mark and the `sep=` line
     QHash<QString, quint32> m_formats;  // the cell format of each number format code a typed entry asks for

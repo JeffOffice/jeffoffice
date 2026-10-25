@@ -58,9 +58,9 @@ QStringList relationshipIds(const QByteArray &relsXml);
 // The first "rIdN" not among the ids.
 QString freeRelationshipId(const QStringList &used);
 // One Relationship element, as the part writes it.
-QByteArray relationshipXml(const QString &id, const QString &type, const QString &target);
+QByteArray relationshipXml(const QString &id, const QString &type, const QString &target, bool external = false);
 // The relationships part with one more relationship (made, if `relsXml` is empty). `type` is the last word of the type, or a whole type; `target` is as the part writes it.
-bool addRelationship(const QByteArray &relsXml, const QString &id, const QString &type, const QString &target, QByteArray *out);
+bool addRelationship(const QByteArray &relsXml, const QString &id, const QString &type, const QString &target, QByteArray *out, bool external = false);
 // The content types part with an override for the part, or a default for the extension (unless it has one); false if it is not a content types part.
 bool addContentOverride(const QByteArray &typesXml, const QString &part, const QString &contentType, QByteArray *out);
 bool addContentDefault(const QByteArray &typesXml, const QString &extension, const QString &contentType, QByteArray *out);

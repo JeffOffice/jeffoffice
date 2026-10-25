@@ -1,5 +1,6 @@
 #include "sheet/csv.h"
 
+#include "calc/dates.h"
 #include "calc/numfmt.h"
 #include "sheet/cellref.h"
 #include "sheet/entry.h"
@@ -330,7 +331,7 @@ public:
 
 class Scanner {
 public:
-    Scanner(QChar delimiter, Sink *sink, int maxField) : m_delim(delimiter), m_sink(sink), m_max(maxField) {}
+    Scanner(const QString &delimiters, QChar quote, bool merge, Sink *sink, int maxField) : m_delims(delimiters), m_quote(quote), m_hasQuote(!quote.isNull()), m_merge(merge), m_sink(sink), m_max(maxField) {}
     // Takes the next piece of the text. False if the sink asked to stop.
     bool feed(QStringView s)
     {
@@ -347,10 +348,16 @@ public:
             }
             switch (m_state) {
             case FieldStart:
-                if (c == m_delim) {
+                if (isDelim(c)) {
+                    if (m_merge && m_afterDelim) {
+                        ++i;   // (several separators in a row count as one)
+                        continue;
+                    }
                     if (!endField(QStringView(), false)) return false;
+                    m_afterDelim = true;
                     ++i;
-                } else if (c == QLatin1Char('"')) {
+                } else if (m_hasQuote && c == m_quote) {
+                    m_afterDelim = false;
                     m_state = Quoted;
                     m_quoted = true;
                     m_buf.clear();
@@ -366,11 +373,12 @@ public:
                     m_inBuf = false;
                     m_buf.clear();
                     m_quoted = false;
+                    m_afterDelim = false;
                 }
                 break;
             case Plain: {
                 qsizetype j = i;
-                while (j < n && s[j] != m_delim && s[j] != QLatin1Char('\r') && s[j] != QLatin1Char('\n')) ++j;
+                while (j < n && !isDelim(s[j]) && s[j] != QLatin1Char('\r') && s[j] != QLatin1Char('\n')) ++j;
                 if (!m_inBuf && j < n) {
                     // the whole field is in this piece: no copy
                     QStringView view = s.mid(i, j - i);
@@ -387,9 +395,11 @@ public:
                 if (j < n) {
                     const QChar t = s[j];
                     i = j + 1;
-                    if (t != m_delim) {
+                    if (!isDelim(t)) {
                         if (t == QLatin1Char('\r')) m_crPending = true;
                         if (!endRecord()) return false;
+                    } else {
+                        m_afterDelim = true;
                     }
                 } else {
                     i = j;
@@ -398,7 +408,7 @@ public:
             }
             case Quoted: {
                 qsizetype j = i;
-                while (j < n && s[j] != QLatin1Char('"')) ++j;
+                while (j < n && s[j] != m_quote) ++j;
                 appendLimited(s.mid(i, j - i));
                 if (j < n) {
                     m_state = QuotePending;
@@ -409,7 +419,7 @@ public:
                 break;
             }
             case QuotePending:
-                if (c == QLatin1Char('"')) {
+                if (c == m_quote) {
                     appendLimited(QStringView(&c, 1));
                     m_state = Quoted;
                     ++i;
@@ -418,8 +428,9 @@ public:
                 }
                 break;
             case AfterQuote:
-                if (c == m_delim) {
+                if (isDelim(c)) {
                     if (!emitBuffered()) return false;
+                    m_afterDelim = true;
                     ++i;
                 } else if (c == QLatin1Char('\r') || c == QLatin1Char('\n')) {
                     if (c == QLatin1Char('\r')) m_crPending = true;
@@ -500,15 +511,20 @@ private:
         return ok;
     }
 
+    bool isDelim(QChar c) const { return m_delims.size() == 1 ? c == m_delims[0] : m_delims.contains(c); }
+
     bool endRecord()
     {
         m_fields = 0;
+        m_afterDelim = false;
         m_state = FieldStart;
         ++m_row;
         return m_sink->endRecord();
     }
 
-    QChar m_delim;
+    QString m_delims;
+    QChar m_quote;
+    bool m_hasQuote = true, m_merge = false, m_afterDelim = false;
     Sink *m_sink;
     int m_max;
     State m_state = FieldStart;
@@ -517,40 +533,115 @@ private:
     qint64 m_fields = 0, m_row = 0, m_unclosedRow = 0;
 };
 
+// ---- a date in the order a person chose for its column
+
+// Three numbers with a slash, dash, dot, or space between (or eight digits together) read in the order "MDY", "DMY", or "YMD"; a year of two digits is 2000 to 2029 or 1930 to 1999.
+bool dateInOrder(const QString &text, const QString &order, double *serial)
+{
+    static const QRegularExpression parts(QStringLiteral("^\\s*(\\d{1,4})[\\s/.\\-](\\d{1,2})[\\s/.\\-](\\d{1,4})\\s*$")), packed(QStringLiteral("^\\s*(\\d{8})\\s*$"));
+    int a = 0, b = 0, c = 0;
+    const QRegularExpressionMatch m = parts.match(text);
+    if (m.hasMatch()) {
+        a = m.captured(1).toInt();
+        b = m.captured(2).toInt();
+        c = m.captured(3).toInt();
+    } else if (const QRegularExpressionMatch p = packed.match(text); p.hasMatch()) {
+        const QString d = p.captured(1);
+        if (order == QLatin1String("YMD")) {
+            a = d.left(4).toInt();
+            b = d.mid(4, 2).toInt();
+            c = d.mid(6, 2).toInt();
+        } else {
+            a = d.left(2).toInt();
+            b = d.mid(2, 2).toInt();
+            c = d.mid(4, 4).toInt();
+        }
+    } else {
+        return false;
+    }
+    int year = 0, month = 0, day = 0;
+    if (order == QLatin1String("YMD")) {
+        year = a;
+        month = b;
+        day = c;
+    } else if (order == QLatin1String("DMY")) {
+        day = a;
+        month = b;
+        year = c;
+    } else {
+        month = a;
+        day = b;
+        year = c;
+    }
+    if (year < 100) year += year < 30 ? 2000 : 1900;
+    return jp::calc::dateToSerial(year, month, day, jp::calc::DateSystem::Date1900, serial);
+}
+
 // ---- the sheet's cells
 
 class SheetSink : public Sink {
 public:
     SheetSink(const QHash<QString, quint32> &formats, const QSet<QString> &words, const QSet<QString> &months, const QLocale &locale, const Limits &limits, const std::function<bool(qint64)> &progress, qint64 stopAfterRow,
-              Sheet *out)
-        : m_formats(formats), m_words(words), m_months(months), m_limits(limits), m_progress(progress), m_stopAfter(stopAfterRow), m_s(*out)
+              Sheet *out, const CsvImport &choices)
+        : m_formats(formats), m_words(words), m_months(months), m_limits(limits), m_progress(progress), m_stopAfter(stopAfterRow), m_s(*out), m_choices(choices)
     {
         m_options.locale = locale;
         booleanWordsFor(locale, &m_true, &m_false);
         m_sign = currencySignOf(locale);
         for (const QChar c : m_sign)
             if (c.isLetter()) m_signHasLetters = true;
+        // the columns left out: the ones after them are one to the left
+        int skipped = 0;
+        for (const CsvColumn &c : m_choices.columns) {
+            m_shift.push_back(skipped);
+            if (c.kind == CsvColumn::Kind::Skip) ++skipped;
+        }
+        m_shiftRest = skipped;
     }
 
     bool field(quint32 col, QStringView text, bool quoted) override
     {
         Q_UNUSED(quoted)
+        if (m_rec < m_choices.firstRow) return true;   // (the rows before the first are left out)
         if (text.isEmpty()) return true;
-        if (col >= kMaxColumns) {
+        const CsvColumn kind = m_choices.columnAt(col);
+        if (kind.kind == CsvColumn::Kind::Skip) return true;
+        const quint32 shown = col - quint32(col < quint32(m_shift.size()) ? m_shift[int(col)] : m_shiftRest);
+        if (shown >= kMaxColumns) {
             m_tooManyColumns = true;
             return true;
         }
-        if (m_row >= qint64(kMaxRows)) {
+        const qint64 row = m_rec - m_choices.firstRow;
+        if (row >= qint64(kMaxRows)) {
             m_tooManyRows = true;
             return false;
         }
-        return addField(quint32(m_row), col, text);
+        if (kind.kind == CsvColumn::Kind::Text) {
+            Cell c;
+            c.row = quint32(row);
+            c.col = quint16(shown);
+            return addText(c, text.toString());
+        }
+        if (kind.kind == CsvColumn::Kind::Date) {
+            Cell c;
+            c.row = quint32(row);
+            c.col = quint16(shown);
+            double serial = 0;
+            if (dateInOrder(text.toString(), kind.dateOrder, &serial)) {
+                c.type = CellType::Number;
+                c.number = serial;
+                c.style = m_formats.value(QStringLiteral("yyyy-mm-dd"), 0);
+                return add(c, 0);
+            }
+            return addText(c, text.toString());
+        }
+        return addField(quint32(row), shown, text);
     }
 
     bool endRecord() override
     {
-        ++m_row;
-        if (m_stopAfter >= 0 && m_row > m_stopAfter) {
+        ++m_rec;
+        if (m_stopAfter >= 0 && m_rec - m_choices.firstRow > m_stopAfter) {
             m_stoppedEarly = true;
             return false;
         }
@@ -561,7 +652,7 @@ public:
     bool tooManyColumns() const { return m_tooManyColumns; }
     bool stoppedEarly() const { return m_stoppedEarly; }
     bool failed() const { return m_failed; }
-    qint64 rows() const { return m_row; }
+    qint64 rows() const { return std::max<qint64>(0, m_rec - m_choices.firstRow); }
     qint64 heldBytes() const { return m_held; }
 
 private:
@@ -702,7 +793,10 @@ private:
     qint64 m_stopAfter;
     Sheet &m_s;
     EntryOptions m_options;
-    qint64 m_row = 0, m_cells = 0, m_held = 0;
+    qint64 m_rec = 0, m_cells = 0, m_held = 0;
+    CsvImport m_choices;
+    QVector<int> m_shift;
+    int m_shiftRest = 0;
     bool m_tooManyRows = false, m_tooManyColumns = false, m_stoppedEarly = false, m_failed = false;
 };
 
@@ -802,7 +896,6 @@ CsvForm detectCsvForm(const QByteArray &bytes, const QString &fileName, const QL
 std::shared_ptr<const CsvBook> CsvBook::open(const QByteArray &file, const QString &fileName, const Limits &limits, const QLocale &locale, WorkbookInfo *info, SharedStrings *shared,
                                               Styles *styles, QString *error)
 {
-    Q_UNUSED(limits)
     // (a zero byte in the first piece of a file that is not UTF-16: a binary file, not text)
     if (!file.startsWith("\xFF\xFE") && !file.startsWith("\xFE\xFF") && file.left(8192).contains('\0')) {
         if (error) *error = QCoreApplication::translate("jp::office::sheet::Csv", "This file is not a text file of values separated by commas, semicolons, or tabs.");
@@ -813,7 +906,20 @@ std::shared_ptr<const CsvBook> CsvBook::open(const QByteArray &file, const QStri
     book->m_locale = locale;
     book->m_words = knownWordsOf(locale, &book->m_months);
     book->m_form = detectCsvForm(file, fileName, locale);
-    qint64 skip = book->m_form.encoding == CsvEncoding::Utf8Bom ? 3 : (book->m_form.encoding == CsvEncoding::Utf16Le || book->m_form.encoding == CsvEncoding::Utf16Be) ? 2 : 0;
+    if (limits.csv) {
+        book->m_import = *limits.csv;
+        const CsvImport &c = book->m_import;
+        if (!c.separators.isEmpty()) book->m_form.delimiter = c.separators[0];
+        if (c.encodingSet) {
+            book->m_form.encoding = c.encoding;
+            book->m_form.codePage = c.codePage;
+        }
+        // (the choices are bounded: a list of columns is only so long)
+        if (book->m_import.columns.size() > kMaxCsvColumnChoices) book->m_import.columns.resize(kMaxCsvColumnChoices);
+        if (book->m_import.firstRow < 0) book->m_import.firstRow = 0;
+    }
+    qint64 skip = (book->m_form.encoding == CsvEncoding::Utf8Bom || (book->m_form.encoding == CsvEncoding::Utf8 && file.startsWith("\xEF\xBB\xBF"))) ? 3
+                  : (book->m_form.encoding == CsvEncoding::Utf16Le || book->m_form.encoding == CsvEncoding::Utf16Be) ? 2 : 0;
     if (book->m_form.sepLine) {
         // (the line's end: the data begins after it)
         const bool wide = book->m_form.encoding == CsvEncoding::Utf16Le || book->m_form.encoding == CsvEncoding::Utf16Be;
@@ -850,7 +956,9 @@ std::shared_ptr<const CsvBook> CsvBook::open(const QByteArray &file, const QStri
     styles->formats.append(CellFormat());
     styles->cellXfs.append(0);
     int nextId = 164;
-    for (const QString &code : entryFormatCodes(locale)) {
+    QStringList codes = entryFormatCodes(locale);
+    codes << QStringLiteral("yyyy-mm-dd");   // (the format of a column a person chose to read as dates)
+    for (const QString &code : codes) {
         if (book->m_formats.contains(code)) continue;
         int id = -1;
         for (int b = 0; b <= 58; ++b)
@@ -883,8 +991,9 @@ bool CsvBook::readSheet(int index, const Limits &limits, const std::function<boo
     if (screenRows > 0 && (stopAfter < 0 || screenRows - 1 < stopAfter)) stopAfter = screenRows - 1;
     out->format.defaultRowHeight = 15;
     out->view.tabSelected = true;
-    SheetSink sink(m_formats, m_words, m_months, m_locale, limits, progress, stopAfter, out);
-    Scanner scanner(m_form.delimiter, &sink, kMaxFieldChars);
+    SheetSink sink(m_formats, m_words, m_months, m_locale, limits, progress, stopAfter, out, m_import);
+    const QString separators = m_import.separators.isEmpty() ? QString(m_form.delimiter) : m_import.separators;
+    Scanner scanner(separators, m_import.quote, m_import.mergeSeparators, &sink, kMaxFieldChars);
     bool whole = true;
     const qint64 total = m_data.size();
     qint64 pos = m_skip;
@@ -940,6 +1049,86 @@ bool CsvBook::readSheet(int index, const Limits &limits, const std::function<boo
     out->error = problems.join(QLatin1Char(' '));
     out->stats.heldBytes = sink.heldBytes();
     return out->error.isEmpty();
+}
+
+namespace {
+
+// The sink of a preview: the text of the first fields of the first rows, as the choices read them.
+class PreviewSink : public Sink {
+public:
+    PreviewSink(const CsvImport &choices, QVector<QStringList> *rows, int *widest) : m_choices(choices), m_rows(rows), m_widest(widest) {}
+    bool field(quint32 col, QStringView text, bool quoted) override
+    {
+        Q_UNUSED(quoted)
+        if (m_rec < m_choices.firstRow) return true;
+        if (col >= quint32(kCsvPreviewColumns)) return true;
+        const qint64 row = m_rec - m_choices.firstRow;
+        if (row >= kCsvPreviewRows) return false;
+        while (m_rows->size() <= row) m_rows->append(QStringList());
+        QStringList &fields = (*m_rows)[int(row)];
+        while (fields.size() <= qsizetype(col)) fields.append(QString());
+        QString shown = text.left(kCsvPreviewFieldChars).toString();
+        const CsvColumn kind = m_choices.columnAt(col);
+        if (kind.kind == CsvColumn::Kind::Date && !shown.isEmpty()) {
+            double serial = 0;
+            int y = 0, m = 0, d = 0;
+            if (dateInOrder(text.toString(), kind.dateOrder, &serial) && jp::calc::serialToDate(serial, jp::calc::DateSystem::Date1900, &y, &m, &d))
+                shown = QStringLiteral("%1-%2-%3").arg(y, 4, 10, QLatin1Char('0')).arg(m, 2, 10, QLatin1Char('0')).arg(d, 2, 10, QLatin1Char('0'));
+        }
+        fields[int(col)] = shown;
+        *m_widest = std::max(*m_widest, int(col) + 1);
+        return true;
+    }
+    bool endRecord() override
+    {
+        ++m_rec;
+        return m_rec - m_choices.firstRow < kCsvPreviewRows;
+    }
+
+private:
+    CsvImport m_choices;
+    QVector<QStringList> *m_rows;
+    int *m_widest;
+    qint64 m_rec = 0;
+};
+
+} // namespace
+
+QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName, const CsvImport &choices, const QLocale &locale, CsvForm *formOut, int *columnsOut)
+{
+    QVector<QStringList> rows;
+    int widest = 0;
+    const QByteArray head = file.left(kCsvPreviewBytes);
+    CsvForm form = detectCsvForm(head, fileName, locale);
+    CsvImport c = choices;
+    if (!c.separators.isEmpty()) form.delimiter = c.separators[0];
+    if (c.encodingSet) {
+        form.encoding = c.encoding;
+        form.codePage = c.codePage;
+    }
+    if (c.firstRow < 0) c.firstRow = 0;
+    if (formOut) *formOut = form;
+    if (head.isEmpty() || (!head.startsWith("\xFF\xFE") && !head.startsWith("\xFE\xFF") && head.left(8192).contains('\0'))) {
+        if (columnsOut) *columnsOut = 0;
+        return rows;
+    }
+    qint64 skip = (form.encoding == CsvEncoding::Utf8Bom || (form.encoding == CsvEncoding::Utf8 && head.startsWith("\xEF\xBB\xBF"))) ? 3 : (form.encoding == CsvEncoding::Utf16Le || form.encoding == CsvEncoding::Utf16Be) ? 2 : 0;
+    if (form.sepLine) {
+        const qsizetype nl = head.indexOf('\n', skip);
+        skip = nl < 0 ? head.size() : nl + 1;
+    }
+    const bool wide = form.encoding == CsvEncoding::Utf16Le || form.encoding == CsvEncoding::Utf16Be;
+    qint64 count = head.size() - skip;
+    if (wide) count &= ~qint64(1);
+    QString text;
+    if (wide || form.encoding == CsvEncoding::Legacy) text = decodeSample(head, skip, count, form);
+    else text = QString::fromUtf8(head.constData() + skip, qsizetype(count));
+    PreviewSink sink(c, &rows, &widest);
+    const QString separators = c.separators.isEmpty() ? QString(form.delimiter) : c.separators;
+    Scanner scanner(separators, c.quote, c.mergeSeparators, &sink, kCsvPreviewFieldChars * 4);
+    if (scanner.feed(text)) scanner.finish();   // (the last row of a file cut short is shown as far as it goes)
+    if (columnsOut) *columnsOut = widest;
+    return rows;
 }
 
 bool Workbook::openDelimited(const QByteArray &file, const QString &path, QString *error, const Limits &limits)

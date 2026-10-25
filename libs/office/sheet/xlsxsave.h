@@ -12,7 +12,10 @@
 #include "office/package.h"
 #include "sheet/drawingadd.h"
 #include "sheet/drawingsave.h"
+#include "sheet/links.h"
+#include "sheet/notesave.h"
 #include "sheet/pagesetupxml.h"
+#include "sheet/protection.h"
 #include "sheet/refshift.h"
 #include "sheet/sheetreader.h"
 
@@ -117,10 +120,21 @@ struct SheetChanges {
     // And the sheet's page setup as it is now, when a person changed how it prints (or any of it may differ from the file's): the part is changed where it differs from this and nowhere else.
     bool setPage = false;
     PageSetup page;
+    // Notes put or taken away, by cell in the places the sheet's cells have after the edits to rows and columns (the notes of the file the change does not name stay as they are: see
+    // notesave.h). `legacyRelId` is the id of the relationship to a drawing of notes that is made, for a sheet that had none (saving sets it, and the sheet is given the element that names it).
+    std::vector<NoteOp> noteOps;
+    QString legacyRelId;
+    // Links: those of the file with exactly the ranges of `unlinks` are taken out, and `links` put in. For one that goes outside the workbook `relId` is the id of the relationship that
+    // names its address (saving sets it).
+    std::vector<CellRange> unlinks;
+    std::vector<LinkSpec> links;
+    // The sheet's protection, made into the element `sheetProtection` in place of the file's (no element when it is not enabled).
+    bool setProtection = false;
+    SheetProtection protection;
     // For a sheet a person put an object on that had no drawing: the id of the relationship from the sheet to the drawing that is made (saving sets it, from SaveChanges::addedObjects), and the
     // sheet is given the element that names it.
     QString drawingRelId;
-    bool empty() const { return drawingRelId.isEmpty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !hfSet && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    bool empty() const { return drawingRelId.isEmpty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !hfSet && noteOps.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
@@ -213,6 +227,9 @@ struct SaveChanges {
     bool fullCalcOnLoad = false;
     // The sheets: when a person added, deleted, renamed, moved, hid, or showed one (the workbook's own list is then made from the Workbook's: names, states, and the order of the tabs, with the
     // parts and relationships of the new sheets it has planned), and the renames and deletes in the order made (everything in the file that names a sheet follows them).
+    // The workbook's protection of its structure, when a person changed it (made into the element `workbookProtection` in place of the file's).
+    bool setWorkbookProtection = false;
+    WorkbookProtection workbookProtection;
     bool sheetsChanged = false;
     std::vector<SheetOp> sheetOps;
     int activeTab = 0;                           // the sheet that is open, by its place in the order of the tabs

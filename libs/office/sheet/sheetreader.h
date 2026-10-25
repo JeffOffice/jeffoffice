@@ -7,6 +7,8 @@
 
 #include "office/package.h"
 #include "calc/dates.h"
+#include "sheet/csvimport.h"
+#include "sheet/protection.h"
 #include "sheet/sheetmodel.h"
 #include "sheet/tables.h"
 #include "sheet/styles.h"
@@ -136,6 +138,8 @@ struct Limits {
     qint64 odsDataParts = kMaxOdsDataParts;
     // Asked now and then while a file is read (a worker looks at its stop flag here): true stops the read, with the message that it was stopped. Optional.
     std::function<bool()> cancelled;
+    // For a text file of delimited values: what a person chose for it when it was opened (none: detected).
+    std::shared_ptr<const CsvImport> csv;
 };
 
 enum class CalcMode { Auto, AutoNoTable, Manual };
@@ -172,6 +176,7 @@ struct WorkbookInfo {
     bool iterate = false;   // the workbook asks for iterative calculation (circular references are worked out by going round them)
     int activeTab = 0;      // the sheet (from 0, in the order the workbook has them) that was open when it was saved
     int firstSheet = 0;     // the first tab of the row of tabs that shows
+    WorkbookProtection protection;   // the protection of the workbook's structure (workbookProtection)
 };
 
 // Reads the workbook part. Each sheet has its name, id, state, and the Id of
@@ -332,6 +337,7 @@ public:
     void setSheetState(int sheet, SheetState state);
     void setSheetDeleted(int sheet, bool deleted);
     void setSheetOrder(const QVector<int> &order) { m_info.order = order; }
+    void setWorkbookProtection(const WorkbookProtection &protection) { m_info.protection = protection; }
     // The tab that is open in the file, by its place in the order the tabs are in now: where the sheet the file says is open is (or, if it was deleted or is hidden, the first that is shown).
     int activeTabNow() const;
     // The part, relationship, and sheet number the package would have for a new sheet (names none that the package, or another new sheet, has), chosen once and kept.

@@ -87,7 +87,28 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
     if (e.kind == K::Offset) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "That is not done by inserting or deleting.")));
     const Sheet &s = m_sheets[size_t(e.sheet)];
     if (m_untracked > 0) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "This workbook has too many formulas for JeffCrunch to follow when rows, columns, or cells are inserted or deleted.")));
-    if (s.isProtected) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "This sheet is protected, so rows, columns, and cells can't be inserted or deleted. Take the protection off in the program that put it on.")));
+    if (s.isProtected) {
+        // a protected sheet lets rows or columns be inserted or deleted if its protection allows it (and deleted only if none of the cells in them is locked)
+        const SheetProtection &p = s.protection;
+        bool allowed = false;
+        switch (e.kind) {
+        case K::InsertRows: allowed = p.allowInsertRows; break;
+        case K::InsertColumns: allowed = p.allowInsertColumns; break;
+        case K::DeleteRows: allowed = p.allowDeleteRows; break;
+        case K::DeleteColumns: allowed = p.allowDeleteColumns; break;
+        default: break;
+        }
+        if (!allowed) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "This sheet is protected, and its protection doesn't allow rows, columns, or cells to be inserted or deleted this way. Take the protection off first.")));
+        if (e.kind == K::DeleteRows || e.kind == K::DeleteColumns) {
+            const CellArea gone = affectedArea(e);
+            bool locked = false;
+            s.cells.forEachInRange(gone.row1, gone.col1, gone.row2, gone.col2, [&](const Cell &c) {
+                locked = m_book.styles().format(c.style).locked;
+                return !locked;
+            });
+            if (locked) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "This sheet is protected, and some of the cells in what you are deleting are locked, so it can't be deleted. Take the protection off first.")));
+        }
+    }
     const quint32 count = shiftBy(e);
     if (count == 0) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "There is nothing to insert or delete.")));
     const CellArea region = affectedArea(e);
