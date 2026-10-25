@@ -288,6 +288,7 @@ QByteArray workbookPart(const WorkbookInfo &fileInfo)
             o += "<definedName" + attrText("name", n.name);
             if (n.localSheet >= 0) o += attr("localSheetId", num(n.localSheet));
             if (n.hidden) o += attr("hidden", "1");
+            if (!n.comment.isEmpty()) o += attrText("comment", n.comment);
             o += ">" + escapeText(n.ref) + "</definedName>";
         }
         o += "</definedNames>";
@@ -295,7 +296,7 @@ QByteArray workbookPart(const WorkbookInfo &fileInfo)
     o += "<calcPr";
     if (info.calcMode == CalcMode::Manual) o += attr("calcMode", "manual");
     else if (info.calcMode == CalcMode::AutoNoTable) o += attr("calcMode", "autoNoTable");
-    if (info.iterate) o += attr("iterate", "1");
+    if (info.iterate) o += attr("iterate", "1") + attr("iterateCount", num(info.iterateCount)) + attr("iterateDelta", QByteArray::number(info.iterateDelta, 'g', 12));
     if (info.fullCalcOnLoad) o += attr("fullCalcOnLoad", "1");
     return o + "/></workbook>";
 }

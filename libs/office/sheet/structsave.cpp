@@ -1,5 +1,6 @@
 // The parts of a file as rows, columns, and cells are inserted and deleted: see structsave.h.
 #include "sheet/structsave.h"
+#include "sheet/namerefs.h"
 
 #include "sheet/cellref.h"
 #include "sheet/tables.h"
@@ -128,12 +129,27 @@ QString followSheetOps(QString f, const MoveContext &c, bool definedName)
     return f;
 }
 
-QString adjustAll(const QString &formula, int ownSheet, const MoveContext &c, bool definedName = false)
+// What uses a defined name that was given another name. `ownSheet` is the place of the sheet the formula is on (-1 for a name of the workbook).
+QString followNameRenames(QString f, int ownSheet, const MoveContext &c)
+{
+    for (const NameRename &r : c.nameRenames) {
+        if (!f.contains(r.oldName, Qt::CaseInsensitive)) continue;
+        const QString scopeName = r.scope >= 0 && r.scope < c.sheetNames.size() ? c.sheetNames[r.scope] : QString();
+        f = renameNameInFormula(f, r.oldName, r.newName, [&](const QString &written) {
+            if (written.isEmpty()) return r.scope >= 0 ? ownSheet == r.scope : ownSheet < 0 || std::find(r.shadowed.begin(), r.shadowed.end(), ownSheet) == r.shadowed.end();
+            return r.scope >= 0 && !scopeName.isEmpty() && written.compare(scopeName, Qt::CaseInsensitive) == 0;
+        });
+    }
+    return f;
+}
+
+QString adjustAll(const QString &formula, int ownSheet, const MoveContext &c, bool definedName = false, int nameSheet = -2)
 {
     QString f = formula;
     for (const StructEdit &e : c.edits) f = adjustFormula(f, ownSheet, c.sheetNames, e, nullptr, definedName);
     if (f.contains(QLatin1Char('[')))
         for (const ColumnRename &r : c.renames) f = renameColumnInFormula(f, r.table, r.oldName, r.newName, false);
+    if (!c.nameRenames.empty()) f = followNameRenames(f, nameSheet == -2 ? ownSheet : nameSheet, c);
     return followSheetOps(f, c, definedName);
 }
 
@@ -150,6 +166,7 @@ QString adjustRuleAll(const QString &formula, int ownSheet, const MoveContext &c
     }
     if (f.contains(QLatin1Char('[')))
         for (const ColumnRename &r : c.renames) f = renameColumnInFormula(f, r.table, r.oldName, r.newName, false);
+    if (!c.nameRenames.empty()) f = followNameRenames(f, ownSheet, c);
     return followSheetOps(f, c, false);
 }
 
@@ -1082,7 +1099,7 @@ bool moveWorkbookPart(const QByteArray &xml, const MoveContext &ctx, QByteArray 
         bool hasScope = false;
         const int scope = attributeText(open, "localSheetId", &hasScope).toInt();
         const QString text = xmlscan::unescape(QByteArrayView(xml).sliced(t.end, e.closeStart - t.end));
-        const QString now = adjustAll(text, hasScope ? scope : 0, ctx, true);
+        const QString now = adjustAll(text, hasScope ? scope : 0, ctx, true, hasScope ? scope : -1);
         if (now == text) continue;
         result += xml.mid(copied, t.end - copied) + xmlscan::escapeText(now);
         copied = e.closeStart;

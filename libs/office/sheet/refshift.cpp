@@ -327,6 +327,8 @@ QString sheetPrefix(const QString &name)
 
 } // namespace
 
+QString sheetNamePrefix(const QString &name) { return sheetPrefix(name); }
+
 namespace {
 
 std::atomic<bool> g_fastRows{true};
