@@ -13,6 +13,10 @@
 //                                           workbook allows), saved and read back, and compared with the model the window has: every cell (what it holds, its format by place and by how it
 //                                           looks, and what it shows), the merged ranges, and the parts that were not meant to change; the fields after the edit's: the steps made and refused, the cells
 //                                           compared and right, the differences, the parts not meant to change and the same, and the milliseconds.
+//   jcrunchtool edit-names-roundtrip <file.xlsx>   opens the workbook as the window does, makes a name and changes the comment of the first name the file has (the other names are not touched),
+//                                           saves, reads the new file, and compares every name (its scope, what it stands for, its comment, whether it is hidden), the bytes of the names that were not
+//                                           touched, and every cell. One line: `names-roundtrip`, the path, the result (ok, or the first differences), the names the file has, the names that read back the same,
+//                                           the names whose element is the file's, byte for byte, the cells, and the cells that read back the same.
 //   jcrunchtool roundtrip <keys.txt> <out-dir> [jobs]   runs roundtrip-one on each workbook listed, each in a child process that has 300 seconds and 6 GB, and writes <out-dir>/roundtrip.tsv; prints the
 //                                           summary (tools/crunch_roundtrip.py does the work)
 //   jcrunchtool edit-bench <file.xlsx> [edits=200]   opens the workbook in the model of the window and makes that many edits, each in a cell a few rows apart, as a person typing; for each, the
@@ -100,6 +104,7 @@ struct Opened {
     QMetaObject::Connection c1, c2;
     Opened()
     {
+        loader.setManualAllowed(false);   // (the yardstick works every formula out, whatever the file asks for)
         c1 = QObject::connect(&loader, &crunch::WorkbookLoader::finished, &loader, [this](bool good, const QString &m) {
             finished = true;
             ok = good;
@@ -1166,6 +1171,165 @@ int editBench(const QString &pathIn, int edits, int rows, int cols, int readers)
     return 0;
 }
 
+// The names of a workbook, edited and saved, and read back (docs/jeffcrunch.md): every name must come back as it was but for the two changes.
+int namesRoundtripOne(const QString &path)
+{
+    auto line = [&](const QString &result, qint64 names = 0, qint64 namesSame = 0, qint64 bytesSame = 0, qint64 cells = 0, qint64 cellsSame = 0) {
+        out() << "names-roundtrip\t" << path << '\t' << result << '\t' << names << '\t' << namesSame << '\t' << bytesSame << '\t' << cells << '\t' << cellsSame << "\n";
+        out().flush();
+    };
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        line(QStringLiteral("not opened"));
+        return 1;
+    }
+    const QByteArray original = file.readAll();
+    file.close();
+    Opened w;
+    if (!w.open(path)) {
+        line(QStringLiteral("not opened"));
+        return 1;
+    }
+    if (!w.loader.result()->problem.isEmpty()) {
+        line(QStringLiteral("opened in part"));
+        return 2;
+    }
+    Workbook &book = *w.loader.result()->book;
+    const QVector<DefinedName> names = book.info().definedNames;
+    if (names.isEmpty()) {
+        line(QStringLiteral("no names"));
+        return 0;
+    }
+    crunch::EditSession *session = w.session.get();
+    session->setLocale(QLocale::c());
+    int firstSheet = -1;
+    for (int si = 0; si < book.info().sheets.size() && firstSheet < 0; ++si)
+        if (book.info().sheets[si].kind == SheetKind::Worksheet && !book.info().sheets[si].deleted) firstSheet = si;
+    QStringList notes;
+    QString probeName = QStringLiteral("JcProbeName");
+    for (int k = 0; session->names().find(-1, probeName) >= 0; ++k) probeName = QStringLiteral("JcProbeName%1").arg(k);
+    int changedId = -1;
+    QString changedName;
+    if (firstSheet >= 0) {
+        crunch::EditSession::NameDraft d;
+        d.name = probeName;
+        d.text = QStringLiteral("'") + QString(book.info().sheets[firstSheet].name).replace(QLatin1Char('\''), QLatin1String("''")) + QStringLiteral("'!$A$1");
+        d.comment = QStringLiteral("probe <&> \"comment\"");
+        const auto o = session->defineName(d);
+        if (!o.ok) notes << QStringLiteral("probe refused: ") + o.problem.left(60);
+    }
+    for (int id = 0; id < session->names().slots() && changedId < 0; ++id) {
+        if (!session->nameListed(id) || session->names().at(id).name == probeName) continue;
+        crunch::EditSession::NameDraft d;
+        const crunch::NameEntry &e = session->names().at(id);
+        d.name = e.name;
+        d.scope = e.scope;
+        d.hidden = e.hidden;
+        d.comment = QStringLiteral("changed by the check");
+        d.text = session->nameTextOf(id);
+        const auto o = session->changeName(id, d);
+        if (o.ok) {
+            changedId = id;
+            changedName = e.name;
+        }
+    }
+    // (a name that no formula uses leaves nothing to work out, and the worker then sends nothing: it is idle, and has nothing waiting)
+    if (!w.wait([&] {
+            if (!w.loader.result()->calcIdle.load()) return false;
+            auto hold = w.loader.hold();
+            return hold && !hold->calculation()->isDirty();
+        }, 280000)) {
+        line(QStringLiteral("the worker did not finish"));
+        return 3;
+    }
+    crunch::EditSession::Snapshot snap;
+    QString why;
+    QByteArray bytes;
+    if (!session->takeSnapshot(&snap, &why)) {
+        line(QStringLiteral("snapshot: ") + why);
+        return 3;
+    }
+    if (!saveXlsx(book, snap.changes, &bytes, &why)) {
+        line(QStringLiteral("save failed: ") + why);
+        return 3;
+    }
+    Read after(bytes);
+    if (!after.ok) {
+        line(QStringLiteral("the saved file does not open: ") + after.why);
+        return 3;
+    }
+    // every name of the file, by scope and name: the same as it was, but the two that were changed
+    auto key = [](const DefinedName &n) { return QString::number(n.localSheet) + QLatin1Char('|') + n.name.toUpper(); };
+    QHash<QString, DefinedName> now;
+    for (const DefinedName &n : after.book.info().definedNames)
+        if (!now.contains(key(n))) now.insert(key(n), n);
+    qint64 same = 0;
+    QStringList diffs = notes;
+    auto add = [&](const QString &what) {
+        if (diffs.size() < 4 && !diffs.contains(what)) diffs << what;
+    };
+    QSet<QString> seen;
+    for (const DefinedName &n : names) {
+        if (seen.contains(key(n))) {
+            ++same;   // (a name the file repeats: the first stands)
+            continue;
+        }
+        seen.insert(key(n));
+        const auto at = now.constFind(key(n));
+        if (at == now.constEnd()) {
+            add(QStringLiteral("a name went"));
+            continue;
+        }
+        const bool changed = changedId >= 0 && n.name == changedName && n.localSheet == session->names().at(changedId).scope;
+        if (at->name != n.name) add(QStringLiteral("a name's capitals changed"));
+        else if (at->hidden != n.hidden) add(QStringLiteral("hidden changed"));
+        else if (at->ref != n.ref && !(changed && at->ref.trimmed() == n.ref.trimmed())) add(QStringLiteral("what a name stands for changed"));
+        else if (at->comment != (changed ? QStringLiteral("changed by the check") : n.comment)) add(QStringLiteral("a comment changed"));
+        else ++same;
+    }
+    if (!now.contains(QStringLiteral("-1|") + probeName.toUpper()) && firstSheet >= 0 && diffs.isEmpty()) add(QStringLiteral("the name that was made is not there"));
+    if (qint64(after.book.info().definedNames.size()) != qint64(names.size()) + (firstSheet >= 0 ? 1 : 0)) add(QStringLiteral("the number of names"));
+    // the names that were not touched: their elements are the file's, to the byte
+    qint64 bytesSame = 0, untouched = 0;
+    {
+        const QByteArray before = rawEntries(original).value(QStringLiteral("xl/workbook.xml"));
+        QByteArray inflatedBefore, inflatedAfter;
+        QString err;
+        Package pa, pb;
+        pa.readLazy(original, &err);
+        pb.readLazy(bytes, &err);
+        const QByteArray a = pa.part(book.mainPart()), b = pb.part(after.book.mainPart());
+        static const QRegularExpression element(QStringLiteral("<(?:[A-Za-z0-9]+:)?definedName\\b[^>]*?(?:/>|>.*?</(?:[A-Za-z0-9]+:)?definedName>)"), QRegularExpression::DotMatchesEverythingOption);
+        const QString textA = QString::fromUtf8(a), textB = QString::fromUtf8(b);
+        QRegularExpressionMatchIterator it = element.globalMatch(textA);
+        while (it.hasNext()) {
+            const QString e = it.next().captured(0);
+            if (changedId >= 0 && e.contains(QLatin1String("\"") + changedName.toHtmlEscaped() + QLatin1String("\""))) continue;
+            ++untouched;
+            if (textB.contains(e)) ++bytesSame;
+        }
+        Q_UNUSED(before);
+    }
+    if (bytesSame != untouched) add(QStringLiteral("the element of a name that was not touched changed"));
+    // every cell
+    qint64 cells = 0, cellsSame = 0;
+    for (int si = 0; si < book.info().sheets.size(); ++si) {
+        Sheet sa, sb;
+        Workbook &x = book;
+        x.readSheet(si, &sa);
+        after.book.readSheet(si, &sb);
+        sa.cells.forEach([&](const Cell &c) {
+            ++cells;
+            const Cell *e = sb.cells.find(c.row, c.col);
+            if (e && hashCell(sa, x.sharedStrings(), c) == hashCell(sb, after.book.sharedStrings(), *e)) ++cellsSame;
+        });
+        if (sa.cells.cellCount() != sb.cells.cellCount()) add(QStringLiteral("cell count"));
+    }
+    if (cellsSame != cells) add(QStringLiteral("a cell changed"));
+    line(diffs.isEmpty() ? QStringLiteral("ok") : diffs.join(QStringLiteral("; ")), qint64(names.size()), same, bytesSame, cells, cellsSame);
+    return diffs.isEmpty() ? 0 : 2;
+}
+
 } // namespace
 
 namespace jp::crunchtool {
@@ -1176,6 +1340,7 @@ int editMain(const QStringList &args)
     if (args.size() >= 1 && args.size() <= 5 && args[0] == QLatin1String("edit-bench-make"))
         return editBench(QString(), args.value(4, QStringLiteral("200")).toInt(), args.value(1, QStringLiteral("100000")).toInt(), args.value(2, QStringLiteral("20")).toInt(), args.value(3, QStringLiteral("0")).toInt());
     if (args.size() == 2 && args[0] == QLatin1String("roundtrip-one")) return roundtripOne(args[1]);
+    if (args.size() == 2 && args[0] == QLatin1String("edit-names-roundtrip")) return namesRoundtripOne(args[1]);
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("roundtrip")) return roundtripSweep(args[1], args[2], args.value(3));
     return -1;
 }

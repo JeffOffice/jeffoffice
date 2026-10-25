@@ -155,6 +155,8 @@ public:
         for (const TableRename &r : m_step.renames) n += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
         for (const MergeEdit &m : m_step.merges) n += qint64(sizeof(m)) + qint64(m.before.size() + m.after.size()) * qint64(sizeof(jp::office::sheet::CellRange));
         for (const FilterEdit &f : m_step.filters) n += qint64(sizeof(f)) + filterBytes(f.before) + filterBytes(f.after);
+        for (const NameEdit &e : m_step.names) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.before.name.size() + e.after.name.size() + e.textBefore.size() + e.textAfter.size()) * 2;
+        n += qint64(m_step.calcs.size()) * qint64(sizeof(CalcEdit));
         for (const SheetEdit &e : m_step.sheets) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.orderBefore.size() + e.orderAfter.size()) * qint64(sizeof(int));
         for (const SizeEdit &e : m_step.sizes)
             n += qint64(sizeof(e)) + qint64(e.columnsBefore.size() + e.columnsAfter.size()) * qint64(sizeof(jp::office::sheet::ColumnSpan)) + qint64(e.rowsBefore.size() + e.rowsAfter.size()) * qint64(sizeof(jp::office::sheet::RowSpec));
@@ -199,6 +201,15 @@ EditSession::EditSession(WorkbookLoader *loader, const std::shared_ptr<LoadedBoo
     m_undo.setUndoLimit(kUndoSteps);
     connect(&m_undo, &QUndoStack::cleanChanged, this, [this](bool clean) { cleanChanged(clean); });
     if (m_book && m_book->calc) m_pages.open(*m_book->calc);
+    if (m_book && m_book->book) {
+        const jp::office::sheet::WorkbookInfo &info = m_book->book->info();
+        m_nameTable.load(info.definedNames);
+        m_calcNow.mode = info.calcMode;
+        m_calcNow.iterate = info.iterate;
+        m_calcNow.count = info.iterateCount;
+        m_calcNow.delta = info.iterateDelta;
+        m_calcFile = m_calcNow;
+    }
 }
 
 EditSession::~EditSession()
@@ -780,6 +791,8 @@ bool EditSession::apply(Step *step, bool forward)
             else m_renames.push_back(back);
         }
     }
+    if (!applyNameEdits(step, forward, calc)) return false;
+    applyCalcEdits(step, forward, calc);
     applySizes(step, forward, calc);
     for (const MergeEdit &m : step->merges) {
         calc->setMerges(m.sheet, forward ? m.after : m.before, forward ? m.countAfter : m.countBefore);
@@ -806,7 +819,7 @@ bool EditSession::apply(Step *step, bool forward)
     if (!applySheetEdits(step, forward, calc, book)) return false;
     if (m_holdHook) m_holdHook(calc, true);
     // (a change of formats alone leaves nothing for the worker to work out)
-    bool valuesChanged = !step->renames.empty();
+    bool valuesChanged = !step->renames.empty() || !step->names.empty() || !step->calcs.empty();
     for (const CellChange &ch : step->cells) valuesChanged = valuesChanged || !ch.styleOnly;
     for (const SheetEdit &e : step->sheets) valuesChanged = valuesChanged || e.kind == SheetEdit::Kind::Insert || e.kind == SheetEdit::Kind::Copy || e.kind == SheetEdit::Kind::Delete || e.kind == SheetEdit::Kind::Rename;
     if (valuesChanged) hold->changed();
@@ -823,6 +836,7 @@ bool EditSession::apply(Step *step, bool forward)
     for (const FilterEdit &f : step->filters) Q_EMIT sizesChanged(f.sheet);
     for (const RowSpecsEdit &e : step->rowSpecs) Q_EMIT sizesChanged(e.sheet);
     if (!step->sheets.empty()) Q_EMIT sheetsChanged();
+    if (!step->calcs.empty()) Q_EMIT calcSettingsChanged();
     return true;
 }
 
@@ -1220,6 +1234,15 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     changes.edits = m_edits;
     changes.permutes = m_permutes;
     changes.renames = m_renames;
+    changes.nameRenames = m_nameRenames;
+    nameChangesForSave(&changes.nameChanges);
+    if (m_calcNow != m_calcFile) {
+        changes.calcChanged = true;
+        changes.calcMode = m_calcNow.mode;
+        changes.iterate = m_calcNow.iterate;
+        changes.iterateCount = m_calcNow.count;
+        changes.iterateDelta = m_calcNow.delta;
+    }
     out->strings = int(changes.newSharedStrings.size());
     if (hasStyles) {
         for (const Workbook::AddedNumberFormat &f : book.addedNumberFormats()) changes.newNumberFormats.append({f.id, f.code});
@@ -1279,6 +1302,13 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_filterRows.clear();
     forgetNotes();
     m_renames.clear();
+    m_nameRenames.clear();
+    m_calcFile = m_calcNow;
+    m_nameTable.rebase([this](const NameEntry &e) {
+        QString text;
+        m_book->calc->nameText(e.scope, e.name, &text);
+        return text;
+    });
     ++m_saveGen;
     m_pages.saved();
     forgetDeletesInFile();

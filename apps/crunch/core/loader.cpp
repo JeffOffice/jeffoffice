@@ -123,6 +123,7 @@ void WorkbookLoader::start(const QString &path)
 {
     cancel();
     m_state = std::make_shared<State>();
+    m_state->manualAllowed = m_manualAllowed;
     m_state->pace = m_pace;
     m_result = std::make_shared<LoadedBook>();
     m_result->path = path;
@@ -142,6 +143,25 @@ bool WorkbookLoader::recalculate()
     ++m_state->changes;
     m_state->wake.notify_all();
     return true;
+}
+
+bool WorkbookLoader::recalculateSheet(int sheet)
+{
+    if (!m_result || !m_state || !m_result->calc || m_state->cancel.load() || !m_state->serving.load() || sheet < 0) return false;
+    m_state->stopCalc = false;
+    m_state->updateHalt();
+    m_state->sheetCalc = sheet;
+    m_state->urgent = true;
+    ++m_state->changes;
+    m_state->wake.notify_all();
+    return true;
+}
+
+void WorkbookLoader::setManual(bool manual)
+{
+    if (!m_state) return;
+    m_state->manual = manual;
+    m_state->wake.notify_all();
 }
 
 qint64 WorkbookLoader::changesMade() const { return m_state ? m_state->changes.load() : 0; }
@@ -229,6 +249,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     CalcOptions options;
     options.keepApart = true;                  // what the engine cannot work out keeps the result the file stored
     options.workOutWhatHasNoResult = true;     // and a formula the file stored no result for is worked out (a program that wrote the file may not have)
+    options.goRoundCircles = true;             // and a circle is gone round when the workbook is set to
     auto calc = std::make_unique<Calculation>(*out->book, options);
     calc->setCancel(cancelFlag);
     QElapsedTimer sinceTold;
@@ -295,6 +316,9 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
     sinceSent.start();
     std::unique_lock<std::mutex> lock(state->model);
     int itemsGeneration = state->structure.load();   // the generation of the cells the values in `items` name
+    bool everCircular = false, lastDue = false;
+    qint64 lastCircular = 0;
+    std::vector<Calculation::CircularCell> lastCells;
     // (the values are sent without the model: sending can wait for the window to take what it has)
     auto flush = [&](bool last, bool stopped, qint64 epoch) {
         const qint64 total = std::max<qint64>(1, calc->formulaCount());
@@ -308,6 +332,9 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         batch->epoch = epoch;
         batch->workerCpuMicros = jp::threadCpuMicros();
         batch->generation = itemsGeneration;
+        batch->due = last && lastDue;
+        batch->circular = last ? lastCircular : 0;
+        if (last) batch->circleCells = lastCells;
         sendBatch(batch);
         sinceSent.restart();
         state->urgent = false;
@@ -335,22 +362,38 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         }
     };
     bool first = true;   // (the first pass is made even when nothing is to be worked out, so that the window is told it is over)
+    qint64 toldEpoch = -1, lastCalcEpoch = -1, circles = 0;   // (by hand: the changes the window has been told of; and the formulas found in circles since the pass began)
     for (;;) {
         // wait for something to work out (the wait ends at least every so often, in case a request came between looking and waiting)
         if (!first) {
             result->calcIdle = true;
-            state->wake.wait_for(lock, std::chrono::milliseconds(50), [&] { return state->cancel.load() || state->redo.load() || (!state->stopCalc.load() && calc->isDirty()); });
+            state->wake.wait_for(lock, std::chrono::milliseconds(50), [&] {
+                return state->cancel.load() || state->redo.load() || state->sheetCalc.load() >= 0 || (state->manual.load() ? state->changes.load() != toldEpoch : !state->stopCalc.load() && calc->isDirty());
+            });
         }
         sealStale();
         if (state->cancel.load()) break;
-        if (state->redo.exchange(false)) calc->invalidateAll();
-        if (!first && (state->stopCalc.load() || !calc->isDirty())) continue;
+        bool asked = false, askedAll = false;
+        if (state->redo.exchange(false)) {
+            calc->invalidateAll();
+            asked = askedAll = true;
+        }
+        if (const int sheet = state->sheetCalc.exchange(-1); sheet >= 0) {
+            calc->invalidateSheet(sheet);
+            asked = true;
+        }
+        // (by hand: nothing is worked out but what was asked for; the window is told, once for each change, whether formulas wait)
+        const bool paused = state->manual.load() && !asked;
+        if (paused && !first && state->changes.load() == toldEpoch) continue;
+        if (!paused && !first && (state->stopCalc.load() || !calc->isDirty())) continue;
         first = false;
         result->calcIdle = false;
         bool stopped = false;
         qint64 epoch = 0;
-        for (;;) {
+        if (paused) epoch = state->changes.load();
+        else for (;;) {
             const Calculation::Progress p = calc->recalculate(0, nullptr, kSliceMicros);
+            circles += p.circular;
             if (p.cancelled) {
                 if (state->stopCalc.load() || state->cancel.load()) {
                     stopped = true;
@@ -389,6 +432,16 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
             }
         }
         if (state->cancel.load()) break;
+        toldEpoch = std::max(toldEpoch, epoch);
+        if (circles > 0) everCircular = true;
+        // (formulas wait when the workbook is worked out by hand and something was changed since all of it was last worked out; one sheet worked out leaves it so while anything else waits)
+        if (paused || askedAll || !state->manual.load()) {
+            if (!paused) lastCalcEpoch = epoch;
+            else if (lastCalcEpoch < 0) lastCalcEpoch = epoch;
+        }
+        lastDue = state->manual.load() && state->changes.load() > lastCalcEpoch && !(asked && !askedAll && !calc->isDirty());
+        lastCells.clear();
+        lastCircular = everCircular && !stopped ? calc->circularCells(&lastCells, 10000) : 0;
         flush(true, stopped, epoch);
         result->calcIdle = true;
         while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);
@@ -421,6 +474,8 @@ void WorkbookLoader::run(const QString &path, std::shared_ptr<LoadedBook> result
     if (cancelled()) return;
     send([self] { if (self) Q_EMIT self->firstScreen(); });
     if (!loadWhole(result.get(), cancelled, [&](int sheet, qint64 cells) { send([self, sheet, cells] { if (self) Q_EMIT self->progress(sheet, cells); }); }, &state->cancel, &state->pace)) return;
+    // (a workbook that is worked out by hand is shown with the results its file holds, unless the file asks for them to be worked out when it is opened)
+    state->manual = state->manualAllowed.load() && result->book && result->book->info().calcMode == jp::office::sheet::CalcMode::Manual && !result->book->info().fullCalcOnLoad;
     state->serving = true;
     send([self] { if (self) Q_EMIT self->finished(true, QString()); });
     // and the formulas are worked out, here, as the window shows what it has; then the worker stays, to work out what the window changes

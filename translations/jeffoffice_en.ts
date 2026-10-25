@@ -108,6 +108,62 @@
         </translation>
     </message>
     <message numerus="yes">
+        <source>%n name(s) made. %1 left out: empty, repeated, or already there.</source>
+        <translation>
+            <numerusform>%n name made. %1 left out: empty, repeated, or already there.</numerusform>
+            <numerusform>%n names made. %1 left out: empty, repeated, or already there.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n name(s) made.</source>
+        <translation>
+            <numerusform>%n name made.</numerusform>
+            <numerusform>%n names made.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Circular references: %n cell(s)</source>
+        <translation>
+            <numerusform>Circular references: %n cell</numerusform>
+            <numerusform>Circular references: %n cells</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source> and %n more</source>
+        <translation>
+            <numerusform> and %n more</numerusform>
+            <numerusform> and %n more</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>The first %n cell(s) are listed.</source>
+        <translation>
+            <numerusform>The first cell is listed.</numerusform>
+            <numerusform>The first %n cells are listed.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Only the first %n arrow(s) are drawn.</source>
+        <translation>
+            <numerusform>Only the first arrow is drawn.</numerusform>
+            <numerusform>Only the first %n arrows are drawn.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n arrow(s) drawn.</source>
+        <translation>
+            <numerusform>%n arrow drawn.</numerusform>
+            <numerusform>%n arrows drawn.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n arrow(s) drawn. %1 more are not drawn: too many.</source>
+        <translation>
+            <numerusform>%n arrow drawn. %1 more are not drawn: too many.</numerusform>
+            <numerusform>%n arrows drawn. %1 more are not drawn: too many.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
         <source>%n place(s)</source>
         <translation>
             <numerusform>%n place</numerusform>
@@ -188,6 +244,16 @@
         <translation>
             <numerusform>Saved %n picture.</numerusform>
             <numerusform>Saved %n pictures.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>jp::NamesDialog</name>
+    <message numerus="yes">
+        <source>%n name(s)</source>
+        <translation>
+            <numerusform>%n name</numerusform>
+            <numerusform>%n names</numerusform>
         </translation>
     </message>
 </context>

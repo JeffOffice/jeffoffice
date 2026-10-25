@@ -278,6 +278,7 @@ void CrunchWindow::buildCentral()
     setCentralWidget(central);
     connect(m_nameBox, &QLineEdit::returnPressed, this, &CrunchWindow::goToName);
     m_formulaBar->installEventFilter(this);
+    createFormulaHelper();
 }
 
 void CrunchWindow::buildStatusBar()
@@ -375,7 +376,7 @@ void CrunchWindow::createActions()
     mk("view.freezeCol", tr("Freeze First Column"), "panel-left", QKeySequence(), [this] { m_view->freezeFirstColumn(); });
     mk("view.unfreeze", tr("Unfreeze Panes"), "panels-top-left", QKeySequence(), [this] { m_view->unfreeze(); });
     // ---- formulas
-    mk("formulas.calculate", tr("Calculate Now"), "calculator", QKeySequence(Qt::Key_F9), [this] {
+    mk("formulas.calculate", tr("Recalculate All"), "calculator", QKeySequence(Qt::Key_F9), [this] {
         // (the calculation is the worker's: it is asked to work everything out again, and does)
         if (m_loading || !m_haveCalc || !m_loader.recalculate()) return;
         m_calculating = true;
@@ -391,6 +392,9 @@ void CrunchWindow::createActions()
     createSortActions();
     createFilterActions();
     createFunctionActions();
+    createNameActions();
+    createCalcActions();
+    createAuditActions();
     createFormatActions();
     createSheetActions();
     createPageActions();
@@ -409,7 +413,6 @@ void CrunchWindow::createDisabledActions()
         {"insert.table", QT_TR_NOOP("Table"), "table"}, {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
         {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"}, {"insert.link", QT_TR_NOOP("Link"), "link"},
         {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"},
-        {"formulas.names", QT_TR_NOOP("Name Manager"), "variable"}, {"formulas.options", QT_TR_NOOP("Calculation Options"), "settings-2"},
     };
     for (const Command &c : commands) mk(QString::fromLatin1(c.id), QCoreApplication::translate("jp::CrunchWindow", c.text), c.icon, QKeySequence(), nullptr, false, false);
 }

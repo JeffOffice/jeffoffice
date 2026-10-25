@@ -116,22 +116,23 @@ GoToTarget resolveGoTo(const EditSession &session, const QString &input, int she
         t.ok = true;
         return t;
     }
-    // a defined name: of the sheet in view first, then of the workbook
+    // a defined name: of the sheet in view first, then of the workbook (the names as they are now: made, changed, or taken away since the file was read)
     const Workbook *book = session.workbook();
-    if (book && t.sheet == sheet && text.size() <= 255) {
-        const DefinedName *best = nullptr;
-        for (const DefinedName &n : book->info().definedNames) {
-            if (n.name.compare(text, Qt::CaseInsensitive) != 0) continue;
-            if (n.localSheet == sheet) {
-                best = &n;
+    const Calculation *namesOf = session.calculation();
+    if (book && namesOf && t.sheet == sheet && text.size() <= 255) {
+        QString best;
+        bool found = false;
+        for (const int scope : {sheet, -1}) {
+            const int id = session.names().find(scope, text);
+            if (id >= 0 && session.nameListed(id) && namesOf->nameText(scope, text, &best)) {
+                found = true;
                 break;
             }
-            if (n.localSheet < 0 && !best) best = &n;
         }
-        if (best) {
+        if (found) {
             QString nameSheet, nameRest;
             GoToTarget inner;
-            QString ref = best->ref.trimmed();
+            QString ref = best.trimmed();
             if (ref.startsWith(QLatin1Char('='))) ref.remove(0, 1);
             inner.sheet = sheet;
             if (splitSheet(ref, &nameSheet, &nameRest)) {
@@ -155,15 +156,18 @@ QVector<QPair<QString, QString>> goToNames(const EditSession &session, int sheet
     QVector<QPair<QString, QString>> out;
     const Workbook *book = session.workbook();
     if (!book) return out;
-    for (const DefinedName &n : book->info().definedNames) {
-        if (n.hidden || (n.localSheet >= 0 && n.localSheet != sheet)) continue;
-        QString ref = n.ref;
-        if (ref.startsWith(QLatin1Char('='))) ref.remove(0, 1);
+    const Calculation *calc = session.calculation();
+    if (!calc) return out;
+    for (int id = 0; id < session.names().slots(); ++id) {
+        const NameEntry &n = session.names().at(id);
+        if (!session.nameListed(id) || n.hidden || (n.scope >= 0 && n.scope != sheet)) continue;
+        QString ref;
+        if (!calc->nameText(n.scope, n.name, &ref)) continue;
         GoToTarget probe;
         QString a, b;
         QString area = splitSheet(ref, &a, &b) ? b : ref;
         if (!parseArea(area, &probe)) continue;
-        out.append({n.name, n.ref});
+        out.append({n.name, ref});
         if (out.size() >= 5000) break;
     }
     std::sort(out.begin(), out.end(), [](const QPair<QString, QString> &x, const QPair<QString, QString> &y) { return x.first.compare(y.first, Qt::CaseInsensitive) < 0; });
