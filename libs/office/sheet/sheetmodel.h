@@ -5,7 +5,9 @@
 // The shared strings of a workbook are one list that every sheet refers to.
 
 #include "sheet/cellref.h"
+#include "sheet/links.h"
 #include "sheet/pagesetup.h"
+#include "sheet/protection.h"
 #include "sheet/styles.h"
 
 #include <QHash>
@@ -585,6 +587,8 @@ struct Sheet {
     PageSetup page;                   // how it prints: the paper, margins, header and footer, breaks, and the print area and titles (see sheet/pagesetup.h)
     ColorSpec tabColor;               // the color of the sheet's tab
     bool isProtected = false;         // the sheet is protected (sheetProtection): its locked cells can't be changed
+    SheetProtection protection;       // and what the protection says (isProtected is its `enabled`)
+    QVector<LinkSpec> links;          // the links on cells, in the order of the file (an address outside the workbook is resolved by Workbook::readSheet; a sheet read alone has the relationship's id)
     QStringList notKept;              // what the sheet's file has that the program neither shows nor writes into a copy of the sheet, in words (sparklines, say)
     bool partial = false;             // the read was stopped at a row asked for (ReadOptions::stopAfterRow): the cells of the rows after it, and what follows the cells (the merged ranges), are not here
     quint32 extentRows = 0;           // the rows and columns the cells reach: the most of a cell that holds a value or a formula or has a format of its own (a style other than the first)

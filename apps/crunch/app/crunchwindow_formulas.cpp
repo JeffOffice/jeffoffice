@@ -1,6 +1,7 @@
 // The Formulas tab, the parts about writing formulas and defined names: the help while a formula is typed (functions and names that fit, the arguments of the function being typed), the
 // list of names, a name made for the cells selected or from the labels round them, and a name put in a formula.
 #include "app/crunchwindow.h"
+#include "app/plaintext.h"
 
 #include "app/formulahelper.h"
 #include "app/namesdialog.h"
@@ -229,7 +230,7 @@ QMenu *CrunchWindow::namesMenu()
     for (size_t i = 0; i < ids.size() && i < kShown; ++i) {
         const QString name = m_session->names().at(ids[i]).name;
         QAction *a = menu->addAction(name);
-        a->setToolTip(m_session->nameTextOf(ids[i]));
+        a->setToolTip(plainToolTip(m_session->nameTextOf(ids[i])));
         connect(a, &QAction::triggered, this, [this, name] { insertName(name); });
     }
     if (ids.empty()) menu->addAction(tr("There are no names yet."))->setEnabled(false);

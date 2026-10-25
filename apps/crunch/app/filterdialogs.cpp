@@ -1,4 +1,5 @@
 #include "app/filterdialogs.h"
+#include "app/plaintext.h"
 
 #include <QComboBox>
 #include <QDateEdit>
@@ -57,7 +58,7 @@ CustomFilterDialog::CustomFilterDialog(const QString &column, bool dates, jp::ca
     setObjectName(QStringLiteral("customFilterDialog"));
     setWindowTitle(tr("Your Own Condition"));
     auto *layout = new QVBoxLayout(this);
-    layout->addWidget(new QLabel(tr("Keep the rows whose value in \"%1\"").arg(column.left(60))));
+    layout->addWidget(plainLabel(new QLabel(tr("Keep the rows whose value in \"%1\"").arg(column.left(60)))));
     auto *grid = new QGridLayout;
     layout->addLayout(grid);
     const QStringList numberOps = {tr("equals"), tr("differs from"), tr("is above"), tr("is at least"), tr("is below"), tr("is at most"),
@@ -224,7 +225,7 @@ TopFilterDialog::TopFilterDialog(const QString &column, const FilterColumn *curr
     setObjectName(QStringLiteral("topFilterDialog"));
     setWindowTitle(tr("Largest or Smallest"));
     auto *layout = new QVBoxLayout(this);
-    layout->addWidget(new QLabel(tr("Keep the values of \"%1\" that are among the").arg(column.left(60))));
+    layout->addWidget(plainLabel(new QLabel(tr("Keep the values of \"%1\" that are among the").arg(column.left(60)))));
     auto *row = new QHBoxLayout;
     m_which = new QComboBox;
     m_which->setObjectName(QStringLiteral("topWhich"));

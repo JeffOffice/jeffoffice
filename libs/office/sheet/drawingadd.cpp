@@ -119,14 +119,15 @@ QString freeRelationshipId(const QStringList &used)
     }
 }
 
-QByteArray relationshipXml(const QString &id, const QString &type, const QString &target)
+QByteArray relationshipXml(const QString &id, const QString &type, const QString &target, bool external)
 {
-    return "<Relationship Id=\"" + escapeBytes(id) + "\" Type=\"" + (type.contains(QLatin1Char(':')) ? escapeBytes(type) : QByteArray(kRelType) + escapeBytes(type)) + "\" Target=\"" + escapeBytes(target) + "\"/>";
+    return "<Relationship Id=\"" + escapeBytes(id) + "\" Type=\"" + (type.contains(QLatin1Char(':')) ? escapeBytes(type) : QByteArray(kRelType) + escapeBytes(type)) + "\" Target=\"" + escapeBytes(target) + "\""
+           + (external ? " TargetMode=\"External\"" : "") + "/>";
 }
 
-bool addRelationship(const QByteArray &relsXml, const QString &id, const QString &type, const QString &target, QByteArray *out)
+bool addRelationship(const QByteArray &relsXml, const QString &id, const QString &type, const QString &target, QByteArray *out, bool external)
 {
-    const QByteArray element = relationshipXml(id, type, target);
+    const QByteArray element = relationshipXml(id, type, target, external);
     if (relsXml.isEmpty()) {
         *out = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" + element + "</Relationships>";
         return true;

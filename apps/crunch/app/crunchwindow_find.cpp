@@ -1,6 +1,7 @@
 // Find and Replace, Go To, and Select by Kind on the window: the dialog, the search made a few thousand cells at a time between events, and the selection the results lead to. The matching is
 // textmatch.h, the walk over the cells FindRun, and Replace one step of the edit session.
 #include "app/crunchwindow.h"
+#include "app/plaintext.h"
 
 #include "app/crunchinfo.h"
 #include "app/finddialog.h"
@@ -370,7 +371,7 @@ void CrunchWindow::goToDialog()
         names->setAccessibleName(tr("Names"));
         for (const auto &n : crunch::goToNames(*m_session, m_sheet)) {
             auto *item = new QListWidgetItem(n.first);
-            item->setToolTip(n.second);
+            item->setToolTip(plainToolTip(n.second));
             names->addItem(item);
         }
         auto *edit = new QLineEdit;

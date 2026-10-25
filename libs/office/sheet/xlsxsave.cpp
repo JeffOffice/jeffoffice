@@ -3,6 +3,7 @@
 #include "sheet/xlsxsave.h"
 
 #include "sheet/hfpictures.h"
+#include "sheet/notes.h"
 
 #include "io/zip.h"
 #include "io/zipindex.h"
@@ -1081,6 +1082,33 @@ public:
     QByteArray bytes;
 };
 
+// The workbook part with its `workbookProtection` made from the settings, in place of the file's (taken out when there is nothing to protect), or where the format has it (before the views).
+bool patchWorkbookProtection(const QByteArray &xml, const WorkbookProtection &p, QByteArray *out)
+{
+    Tag root;
+    if (!xmlscan::nextTag(xml, 0, &root) || root.closing) return false;
+    const QByteArray prefix(xmlscan::prefixOf(root.name));
+    const QByteArray element = workbookProtectionElement(p, prefix);
+    Tag t;
+    if (findStart(xml, "workbookProtection", &t)) {
+        qsizetype end = t.end;
+        if (!t.selfClosing) {
+            Tag close;
+            if (!findEnd(xml, t, &close)) return false;
+            end = close.end;
+        }
+        *out = xml.left(t.start) + element + xml.mid(end);
+        return true;
+    }
+    if (element.isEmpty()) {
+        *out = xml;
+        return true;
+    }
+    Tag at;
+    if (!findStart(xml, "bookViews", &at) && !findStart(xml, "sheets", &at)) return false;
+    *out = xml.left(at.start) + element + xml.mid(at.start);
+    return true;
+}
 } // namespace
 
 bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *out, QString *error, SaveReport *report, const std::atomic<bool> *cancel)
@@ -1243,6 +1271,100 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             rep.headerDrawings[w.sheet] = w.remove ? QString() : w.relId;
         }
     }
+    // ---- notes and links that a person put in or took out: the parts and relationships they need are planned here (the ids of the relationships go into the sheets' changes), and made below.
+    struct NoteWrite {
+        int sheet = 0;
+        QString commentsPart, vmlPart;
+        bool newComments = false, newVml = false;
+        QString commentsRel, vmlRel;     // the relationships that are made (empty: the file has them)
+    };
+    std::vector<NoteWrite> noteWrites;
+    struct LinkRel {
+        QString id, target;
+    };
+    std::map<int, std::vector<LinkRel>> newLinkRels;   // by the sheet: the relationships made for the addresses of new links
+    {
+        QSet<QString> taken;
+        bool takenFilled = false;
+        for (const auto &[sheet, sc] : requested.sheets) {
+            if (sc.noteOps.empty() && sc.links.empty() && sc.unlinks.empty()) continue;
+            if (sheet < 0 || sheet >= book.info().sheets.size()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A change is to a sheet the workbook does not have."));
+            const SheetEntry &se = book.info().sheets[sheet];
+            if (se.deleted) continue;
+            if (se.kind != SheetKind::Worksheet || se.part.isEmpty()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "Notes and links can't be saved on this sheet."));
+            if (useChanges == &requested) {
+                adjusted = requested;
+                useChanges = &adjusted;
+            }
+            SheetChanges &ac = adjusted.sheets[sheet];
+            QStringList used;
+            // (a sheet that was added has no relationships in the file; a copy of a sheet has those of the sheet it is copied from, with the ids its links name)
+            if (!se.isNew) {
+                for (const Relationship &r : package.relationships(se.part)) used << r.id;
+            } else if (!sc.copyFromPart.isEmpty()) {
+                for (const Relationship &r : package.relationships(sc.copyFromPart)) used << r.id;
+            }
+            if (const auto d = newDrawingRel.find(sheet); d != newDrawingRel.end()) used << d->second;
+            for (const HeaderWrite &w : headerWrites)
+                if (w.sheet == sheet && !w.relId.isEmpty()) used << w.relId;
+            if (!takenFilled) {
+                for (const QString &n : package.partNames()) taken.insert(n.toLower());
+                for (const SheetEntry &e : book.info().sheets)
+                    if (!e.part.isEmpty()) taken.insert(e.part.toLower());   // (the parts the sheets that were added are to have)
+                takenFilled = true;
+            }
+            if (!sc.noteOps.empty()) {
+                NoteWrite w;
+                w.sheet = sheet;
+                for (const Relationship &r : package.relationshipsOfType(se.part, QStringLiteral("/comments")))
+                    if (!r.external && package.hasPart(r.target)) {
+                        w.commentsPart = r.target;
+                        break;
+                    }
+                w.vmlPart = notesDrawingPart(package, se.part);
+                if (w.commentsPart.isEmpty()) {
+                    w.newComments = true;
+                    w.commentsPart = freePartName(QStringLiteral("/xl/comments"), QStringLiteral(".xml"), taken);
+                    taken.insert(w.commentsPart.toLower());
+                    w.commentsRel = freeRelationshipId(used);
+                    used << w.commentsRel;
+                }
+                if (w.vmlPart.isEmpty()) {
+                    w.newVml = true;
+                    w.vmlPart = freePartName(QStringLiteral("/xl/drawings/vmlDrawing"), QStringLiteral(".vml"), taken);
+                    taken.insert(w.vmlPart.toLower());
+                    w.vmlRel = freeRelationshipId(used);
+                    used << w.vmlRel;
+                    ac.legacyRelId = w.vmlRel;
+                }
+                noteWrites.push_back(w);
+            }
+            // addresses outside the workbook: a link to one the sheet already has a relationship for uses it
+            if (!sc.links.empty()) {
+                ac.links = sc.links;
+                QHash<QString, QString> known;
+                if (!se.isNew)
+                    for (const Relationship &r : package.relationshipsOfType(se.part, QStringLiteral("/hyperlink")))
+                        if (r.external) known.insert(r.target, r.id);
+                for (LinkSpec &l : ac.links) {
+                    if (l.target.isEmpty()) {
+                        l.relId.clear();
+                        continue;
+                    }
+                    const auto k = known.constFind(l.target);
+                    if (k != known.constEnd()) {
+                        l.relId = k.value();
+                        continue;
+                    }
+                    const QString id = freeRelationshipId(used);
+                    used << id;
+                    known.insert(l.target, id);
+                    l.relId = id;
+                    newLinkRels[sheet].push_back({id, l.target});
+                }
+            }
+        }
+    }
     // ---- tables made or taken out: the sheet gets the links to their parts (and loses those of the parts taken out), planned here by the sheet's place
     struct TableLink {
         int sheet = 0;
@@ -1273,6 +1395,10 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             if (const auto d = newDrawingRel.find(sheet); d != newDrawingRel.end()) used << d->second;
             for (const HeaderWrite &w : headerWrites)
                 if (w.sheet == sheet && !w.relId.isEmpty()) used << w.relId;
+            for (const NoteWrite &nw : noteWrites)
+                if (nw.sheet == sheet) used << nw.commentsRel << nw.vmlRel;
+            if (const auto lr = newLinkRels.find(sheet); lr != newLinkRels.end())
+                for (const LinkRel &l : lr->second) used << l.id;
             return usedIds.emplace(sheet, used).first->second;
         };
         for (const SaveChanges::RemovedTable &gone : requested.removedTables) {
@@ -1774,6 +1900,90 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         const int index = partBytes(part, &xml);
         if (index >= 0 && refreshChartCaches(xml, caches, &now, &changed) && changed) replaced.insert(index, now);
     }
+    // ---- notes: the comments part and the drawing of the notes, changed or made, and the relationships and types that name the new ones
+    if (!noteWrites.empty() || !newLinkRels.empty()) {
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        QByteArray types;
+        if (typesEntry < 0 || !(replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types)))
+            return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file's list of part types is not in it."));
+        auto entryName = [](const QString &part) { return part.startsWith(QLatin1Char('/')) ? part.mid(1) : part; };
+        auto relsEntryFor = [&](const QString &part) {
+            const QString name = package.entryName(part);
+            if (name.isEmpty()) return -1;
+            const int slash = name.lastIndexOf(QLatin1Char('/'));
+            return entryAt.value(plain((slash < 0 ? QString() : name.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? name : name.mid(slash + 1)) + QStringLiteral(".rels")), -1);
+        };
+        auto bad = [&] { return fail(QCoreApplication::translate("jp::office::sheet::Save", "A part of the file that holds notes is not in the form this program changes.")); };
+        std::map<int, QByteArray> sheetRels;
+        std::map<int, bool> sheetRelsAreNew;
+        auto relsOf = [&](int sheet) -> QByteArray & {
+            auto it = sheetRels.find(sheet);
+            if (it != sheetRels.end()) return it->second;
+            const SheetEntry &se = book.info().sheets[sheet];
+            QByteArray data;
+            const int index = relsEntryFor(se.part);
+            sheetRelsAreNew[sheet] = index < 0;
+            if (index >= 0) {
+                if (replaced.contains(index)) data = replaced.value(index);
+                else inflate(index, &data);
+            }
+            return sheetRels[sheet] = data;
+        };
+        // the sheet's relationships, as they are now, with the relationships added (a sheet that was added has its own, made with it)
+        auto addRel = [&](int sheet, const QString &id, const QString &type, const QString &target, bool external) {
+            if (book.info().sheets[sheet].isNew) {
+                newSheetRels[sheet] += relationshipXml(id, type, target, external);
+                return true;
+            }
+            QByteArray r2;
+            if (!addRelationship(relsOf(sheet), id, type, target, &r2, external)) return false;
+            relsOf(sheet) = r2;
+            return true;
+        };
+        for (const NoteWrite &w : noteWrites) {
+            const SheetEntry &se = book.info().sheets[w.sheet];
+            const auto found = changes.sheets.find(w.sheet);
+            const std::vector<NoteOp> &ops = found->second.noteOps;
+            if (w.newComments) {
+                newEntries.emplace_back(entryName(w.commentsPart), newCommentsPart(ops));
+                QByteArray t2;
+                if (!addContentOverride(types, w.commentsPart, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"), &t2)) return bad();
+                types = t2;
+                if (!addRel(w.sheet, w.commentsRel, QStringLiteral("comments"), relativeTarget(se.part, w.commentsPart), false)) return bad();
+            } else {
+                QByteArray xml, now;
+                const int index = partBytes(w.commentsPart, &xml);
+                if (index < 0 || !applyNoteOpsToComments(xml, ops, &now, &why)) return fail(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "The notes of a sheet could not be saved.") : why);
+                replaced.insert(index, now);
+            }
+            if (w.newVml) {
+                newEntries.emplace_back(entryName(w.vmlPart), newNotesDrawing(ops));
+                QByteArray t2;
+                if (!addContentOverride(types, w.vmlPart, QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), &t2)) return bad();
+                types = t2;
+                if (!addRel(w.sheet, w.vmlRel, QStringLiteral("vmlDrawing"), relativeTarget(se.part, w.vmlPart), false)) return bad();
+            } else {
+                QByteArray xml, now;
+                const int index = partBytes(w.vmlPart, &xml);
+                if (index < 0 || !applyNoteOpsToDrawing(xml, ops, &now, &why)) return fail(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "The notes of a sheet could not be saved.") : why);
+                replaced.insert(index, now);
+            }
+        }
+        for (const auto &[sheet, list] : newLinkRels)
+            for (const LinkRel &l : list)
+                if (!addRel(sheet, l.id, QStringLiteral("hyperlink"), l.target, true)) return bad();
+        for (auto &[sheet, data] : sheetRels) {
+            const SheetEntry &se = book.info().sheets[sheet];
+            if (sheetRelsAreNew[sheet]) newEntries.emplace_back(entryName(relationshipsPartOf(se.part)), data);
+            else replaced.insert(relsEntryFor(se.part), data);
+        }
+        replaced.insert(typesEntry, types);
+    }
     // ---- the shared strings
     if (!changes.newSharedStrings.isEmpty()) {
         const int index = entryOfPart(book.sharedStringsPart());
@@ -1944,7 +2154,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
         filterNames.push_back(name);
     }
-    if (changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged) {
+    if (changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.setWorkbookProtection) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
@@ -1971,6 +2181,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             }
             if (changes.calcChanged) {
                 if (!patchCalcPr(xml, changes.calcMode, changes.iterate, changes.iterateCount, changes.iterateDelta, &patched)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes."));
+                changed = changed || patched != xml;
+                xml = patched;
+            }
+            if (changes.setWorkbookProtection) {
+                if (!patchWorkbookProtection(xml, changes.workbookProtection, &patched)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook's protection could not be saved."));
                 changed = changed || patched != xml;
                 xml = patched;
             }

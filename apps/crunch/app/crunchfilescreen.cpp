@@ -63,7 +63,9 @@ QWidget *CrunchFileScreen::buildOpen()
     auto *browse = new ActionCard(QStringLiteral("folder-open"), tr("Browse"), tr("Open a workbook from your computer."), w);
     connect(browse, &QAbstractButton::clicked, this, [this] { m_win->act("file.openDialog")->trigger(); });
     cards->addWidget(browse, 1);
-    cards->addStretch(1);
+    auto *text = new ActionCard(QStringLiteral("file-text"), tr("Open a Text File"), tr("Choose how the columns of a .csv or .txt file are read."), w);
+    connect(text, &QAbstractButton::clicked, this, [this] { m_win->act("file.openText")->trigger(); });
+    cards->addWidget(text, 1);
     v->addLayout(cards);
     v->addSpacing(14);
     auto section = [&](const QString &t) {

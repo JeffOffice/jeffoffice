@@ -2,6 +2,8 @@
 
 #include "app/crunchwindow.h"
 
+#include "sheet/csv.h"
+
 #include "app/oldformat.h"
 #include "app/settings.h"
 #include "app/sheettabs.h"
@@ -59,8 +61,18 @@ bool CrunchWindow::openFile(const QString &path)
         auto *w = new CrunchWindow();
         w->setAttribute(Qt::WA_DeleteOnClose);
         w->setNotifier(m_notifier);
+        w->m_promptForText = m_promptForText;
+        w->m_forceTextPrompt = m_forceTextPrompt;
+        w->m_anchorHooks = m_anchorHooks;
+        m_forceTextPrompt = false;
         w->show();
         return w->openFile(path);
+    }
+    // a text file of values: how it is read is asked first (the window that opens it asks)
+    std::shared_ptr<const jp::office::sheet::CsvImport> csv;
+    if ((m_promptForText && jp::office::sheet::isDelimitedName(path)) || m_forceTextPrompt) {
+        m_forceTextPrompt = false;
+        if (!askTextImport(path, &csv)) return false;
     }
     m_path = path;
     m_loading = true;
@@ -69,7 +81,7 @@ bool CrunchWindow::openFile(const QString &path)
     m_values.clear();
     m_longestBatchMicros = m_batches = m_longestBatchItems = 0;
     m_loadProblem.clear();
-    m_loader.start(path);
+    m_loader.start(path, csv);
     setStatus(tr("Opening %1…").arg(name));
     updateTitle();
     hideFileScreen();
@@ -210,6 +222,8 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
     updateFilterButtons();
     showViewKind(d.sheet ? (m_session ? m_session->pages().viewKind(sheetIndex) : int(d.sheet->view.kind)) : 0);
     updatePageActions();
+    refreshAnchors();
+    scheduleAutoHeights();
     updateBars();
 }
 

@@ -7,6 +7,7 @@
 // of the formulas that depend (they are worked out again), so the memory it takes is what the edits changed. A cell typed into is one step. The session also keeps what saving needs: the
 // cells that changed, and the formulas whose result is not what the file has (known from the batches the worker sends).
 
+#include "core/anchors.h"
 #include "core/clipdata.h"
 #include "core/pagesettings.h"
 #include "core/loader.h"
@@ -39,6 +40,8 @@ namespace jp::crunch {
 constexpr qint64 kMaxCellsPerEdit = 100000;
 // The most cells a formatting command changes the format of at once (a whole column of a sheet that is full of cells, or a block), a step of them being 20 bytes each.
 constexpr qint64 kMaxStyledCells = 2000000;
+// The most cells looked at one by one for a lock (a link put on, or taken off, a protected sheet).
+constexpr qint64 kMaxCellsLockLooked = 50000;
 // The steps Undo goes back (each a command of the stack).
 constexpr int kUndoSteps = 1000;
 // The most memory the steps hold, by an estimate of the bytes of the cells in them (as they were and as they are): past it the oldest steps are forgotten, the newest never.
@@ -53,6 +56,8 @@ struct CellChange {
     // is to go in the shared strings, and a number format (a code) the cell's format is to be given.
     bool textToShare = false;
     QString formatCode;
+    // A text of several lines (Alt+Enter) turns on Wrap Text for a cell that did not wrap, so that the lines show.
+    bool wrapToSet = false;
     // Only the format of the cell changes (its value, formula, and the array it may be part of stay as they are).
     bool styleOnly = false;
 };
@@ -153,6 +158,7 @@ struct StructChange {
     std::vector<std::pair<quint64, jp::calc::Value>> resultsGone, engineGone, fileGone;   // the results kept by cell that it deleted
     std::vector<quint64> columnsGone, rowsGone;                          // the columns and rows marked as resized that it deleted
     qint64 bytes() const;
+    std::shared_ptr<AnchorDelta> anchors;                                // what the edit moved or took away of the notes and links
     int savedGen = 0;                                                    // how many saves had been made when it was done (an Undo after a later save is made against the saved file)
 };
 
@@ -164,6 +170,13 @@ struct RowSpecsEdit {
     int sheet = 0;
     QVector<jp::office::sheet::RowSpec> before, after;
     quint32 first = 0, last = 0;
+};
+
+// The protection of a sheet, or of the workbook's structure, changed by a step: as it was and as it is.
+struct ProtectEdit {
+    int sheet = -1;   // -1: the workbook's
+    jp::office::sheet::SheetProtection sheetBefore, sheetAfter;
+    jp::office::sheet::WorkbookProtection bookBefore, bookAfter;
 };
 
 struct StyleCell {
@@ -188,9 +201,11 @@ struct Step {
     std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
     std::vector<ObjectEdit> objects;           // or objects over the cells taken away (done: they are gone; undone: they are back)
     std::vector<PageEdit> pages;               // or how sheets print (the paper, margins, header and footer, breaks, print area, titles)
+    std::vector<SideEdit> sides;               // or the notes and links of sheets
+    std::vector<ProtectEdit> protections;      // or the protection of a sheet or the workbook
     std::vector<NameEdit> names;               // or defined names made, changed, or taken away
     std::vector<CalcEdit> calcs;               // or how the workbook calculates
-    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && tables.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
+    bool empty() const { return protections.empty() && sides.empty() && cells.empty() && styles.empty() && renames.empty() && tables.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -364,7 +379,47 @@ public:
     // How many number formats have been made for the cells' formats (one for each format, not one for each cell that is shown through it).
     qint64 formatsMade() const { return m_formatsMade; }
 
-    // ---- notes
+    // ---- notes and links (editnotes.cpp)
+    // The notes and links as the person has them now.
+    const CellAnchors &anchors() const { return m_anchors; }
+    // Whether the notes and links of the sheet can be changed; if not, why.
+    bool canEditNotes(int sheet, QString *why = nullptr) const;
+    // Puts a note on the cell (a new one, or in place of the one there), written by `author`: one step named `stepText`. `shown` is whether it is shown all the time.
+    Outcome setNote(int sheet, quint32 row, quint32 col, const QString &text, const QString &author, bool shown, const QString &stepText);
+    Outcome deleteNotes(int sheet, const std::vector<std::pair<quint32, quint32>> &cells, const QString &stepText);
+    // Shows or hides the notes on the cells (those of them that have one): one step.
+    Outcome showNotes(int sheet, const std::vector<std::pair<quint32, quint32>> &cells, bool shown, const QString &stepText);
+    // Gives the cells of the range a link (taking the place of the links that are on those cells), or takes the links on the range away. One step.
+    Outcome setLink(int sheet, const jp::office::sheet::CellRange &range, const jp::office::sheet::LinkSpec &link, const QString &stepText);
+    // Not ok, with the reason, if a cell of the range is locked on a protected sheet (a cell with nothing in it has the lock of its row or column); the range is looked at cell by cell up to
+    // kMaxCellsLockLooked of them, and a larger one is refused.
+    Outcome lockedCellsIn(int sheet, const jp::office::sheet::CellRange &range) const;
+    // Whether setLink would put the link there: not ok, with the reason, if not.
+    Outcome checkLink(int sheet, const jp::office::sheet::CellRange &range, const jp::office::sheet::LinkSpec &link) const;
+    Outcome removeLinks(int sheet, const jp::office::sheet::CellRange &range, const QString &stepText);
+    // Takes the notes and the links off the cells of the range (what Clear All does besides the cells): one step; nothing to do is ok.
+    Outcome clearNotesAndLinks(int sheet, const jp::office::sheet::CellRange &range, const QString &stepText);
+    // The notes and links on the cells of the range, as a step's change to take them off.
+    SideEdit notesAndLinksIn(int sheet, const jp::office::sheet::CellRange &range) const;
+
+    // ---- protection (editprotect.cpp)
+    // The things a protected sheet can allow.
+    enum class Allow : quint8 { SelectLocked, SelectUnlocked, FormatCells, FormatColumns, FormatRows, InsertColumns, InsertRows, InsertLinks, DeleteColumns, DeleteRows, Sort, Filter, Pivot, Objects };
+    // Whether the sheet lets a person do it (it does when it is not protected); if not, why, in a sentence that says what to do.
+    bool allows(int sheet, Allow what, QString *why = nullptr) const;
+    const jp::office::sheet::SheetProtection &protectionOf(int sheet) const;
+    // Whether the cell has its protection setting "locked" (whether or not the sheet is protected).
+    bool cellIsLocked(int sheet, quint32 row, quint32 col) const;
+    // Protects the sheet as the settings say (or takes the protection off): one step. The password is already a hash.
+    Outcome setSheetProtection(int sheet, const jp::office::sheet::SheetProtection &protection, const QString &stepText);
+    const jp::office::sheet::WorkbookProtection &workbookProtection() const;
+    // Whether Undo (Redo, with `redo`) would take the protection off something a password guards: the hash of the password, and what it guards in words (a sheet's name, or "the workbook").
+    bool stepDropsPassword(bool redo, jp::office::sheet::PasswordHash *hash, QString *what) const;
+    Outcome setWorkbookProtection(const jp::office::sheet::WorkbookProtection &protection, const QString &stepText);
+    // Whether the sheets can be added, deleted, renamed, moved, hidden, or shown; if not, why.
+    bool structureOpen(QString *why = nullptr) const;
+
+    // ---- notes, for Find
     // The notes of a sheet as the cells hold them now: the file's, moved with the cells by the edits made since (a note on a cell that was deleted is gone). Made once and kept until a change.
     std::shared_ptr<const std::map<quint64, QString>> notesOf(int sheet, bool *cannot = nullptr, QString *why = nullptr) const;
 
@@ -504,6 +559,8 @@ public:
     // Columns each given its width in one step (a fit to the contents of several): the column and the width.
     Outcome fitColumns(int sheet, const std::vector<std::pair<quint32, double>> &widths);
     Outcome fitRows(int sheet, const std::vector<std::pair<quint32, double>> &heights);
+    // Heights (in points) that the text of rows needs, for the rows whose height is not a person's: put in the sheet with no step of Undo (see editsize.cpp). The number of rows changed.
+    int setAutoRowHeights(int sheet, const std::vector<std::pair<quint32, double>> &heights);
     // A number typed in a column that has the width it began with widens it to hold it: the width is added to the step of the entry (the last on the stack, which must be an entry in
     // that column); false if it was not.
     bool widenColumnWithEntry(int sheet, quint32 col, double width);
@@ -658,6 +715,10 @@ Q_SIGNALS:
     void tablesChanged(int sheet);
     // How a sheet prints changed (a command, Undo or Redo of one, or an edit of rows, columns, or cells that moved its print area, titles, or breaks).
     void pageSetupChanged(int sheet);
+    // The notes or the links of a sheet changed (a command, Undo, Redo, or rows or columns inserted or deleted).
+    void anchorsChanged(int sheet);
+    // The protection of a sheet changed (-1: the workbook's).
+    void protectionChanged(int sheet);
 
 private:
     friend class ChangeCells;
@@ -721,6 +782,7 @@ private:
     bool typedChange(int sheet, quint32 row, quint32 col, const QString &typed, CellChange *change, bool *none, Outcome *problem);
     // Whether a cell of that format on the sheet can't be changed: the sheet is protected and the cell is locked.
     bool isLocked(int sheet, quint32 style) const;
+    bool formulaHidden(int sheet, quint32 style) const;
     QString lockedMessage() const;
     bool storedEquals(int sheet, quint32 row, quint32 col, const jp::calc::Value &value) const;
     void cleanChanged(bool clean);
@@ -785,11 +847,7 @@ private:
     mutable bool m_symbolsReady = false;
     std::vector<jp::office::sheet::CellPermute> m_permutes;   // cells put in another order since the file was read or saved, in order, for the file (and for where the notes are)
     struct NotesOfSheet {
-        std::shared_ptr<const std::map<quint64, QString>> notes, raw;   // as moved by the edits, and as the file has them
-        size_t edits = 0, permutes = 0;
-        int saves = -1;
-        bool cannot = false;
-        QString why;
+        std::shared_ptr<const std::map<quint64, QString>> notes;   // the texts of the sheet's notes now, for Find
     };
     mutable std::map<int, NotesOfSheet> m_notes;
     std::set<quint64> m_columnsResized, m_rowsResized;   // the columns and rows (by sheet and place) whose size a step changed since the file was read or saved
@@ -797,6 +855,9 @@ private:
     ObjectHook m_objectHook;
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
     PageSettings m_pages;
+    CellAnchors m_anchors;
+    std::vector<jp::office::sheet::SheetProtection> m_fileProtection;   // the protection of each sheet as the file has it now (read, or last saved)
+    jp::office::sheet::WorkbookProtection m_fileBookProtection;
     std::vector<jp::office::sheet::ColumnRename> m_renames;   // and the table columns renamed, for the names, validations, rules, and charts that name them
     std::vector<jp::office::sheet::TableRewrite> m_tableRewrites;   // and the tables renamed or made plain cells, for the same
     int m_opSeq = 0;                   // the order renames of columns and tables are made in

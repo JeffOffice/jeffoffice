@@ -251,4 +251,31 @@ bool parseAddress(QByteArrayView text, quint32 *row, quint32 *col)
     return true;
 }
 
+// The text a file writes a character in the form _xHHHH_ as it stands for ("_x000D_" is a carriage return); an underscore before an "x" is written _x005F_, so that what comes after it is not read again.
+void decodeEscapes(QString *s)
+{
+    int at = s->indexOf(QLatin1String("_x"));
+    if (at < 0) return;
+    QString out;
+    out.reserve(s->size());
+    int from = 0;
+    while (at >= 0) {
+        bool ok = false;
+        const uint code = at + 7 <= s->size() && (*s)[at + 6] == QLatin1Char('_') ? s->mid(at + 2, 4).toUInt(&ok, 16) : 0;
+        // Four hex digits exactly (toUInt would take a sign or a "0x").
+        for (int k = 2; ok && k < 6; ++k)
+            if (!(*s)[at + k].isLetterOrNumber() || (*s)[at + k].unicode() > 127) ok = false;
+        if (ok) {
+            out += QStringView(*s).mid(from, at - from);
+            out += QChar(ushort(code));
+            from = at + 7;
+            at = s->indexOf(QLatin1String("_x"), from);
+        } else {
+            at = s->indexOf(QLatin1String("_x"), at + 2);
+        }
+    }
+    out += QStringView(*s).mid(from);
+    *s = out;
+}
+
 } // namespace jp::office::sheet::xmlscan

@@ -401,11 +401,14 @@ private Q_SLOTS:
         QCOMPARE(names(findAll(e, o)), (QStringList{"1!B3"}));
         pressUndo(&e.win.w);
         QCOMPARE(names(findAll(e, o)), (QStringList{"1!B2"}));
-        // too many changes to follow the notes through: the person is asked to save
+        // many changes to rows and columns: the notes are followed through each as it is made, so there is no limit to say, and rows inserted above one move it
         for (int i = 0; i < 70; ++i) QVERIFY(s->insertRows(0, 20, 1).ok);
+        QVERIFY(s->insertRows(0, 0, 3).ok);
         FindRun many(s, o);
+        QVERIFY(many.step(0));
         QVERIFY(many.done());
-        QVERIFY2(many.problem().contains(QLatin1String("too many")), qPrintable(many.problem()));
+        QVERIFY2(many.problem().isEmpty(), qPrintable(many.problem()));
+        QCOMPARE(names(many.hits()), (QStringList{"1!B5"}));
         QCOMPARE(jp::office::sheet::noteReads(), reads);
     }
 

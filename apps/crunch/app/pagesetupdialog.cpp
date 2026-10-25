@@ -242,6 +242,7 @@ HeaderFooterEditor::HeaderFooterEditor(bool header, const HeaderFooter &texts, c
     m_preview = new QLabel(this);
     m_preview->setObjectName(QStringLiteral("hfPreview"));
     m_preview->setWordWrap(true);
+    m_preview->setTextFormat(Qt::PlainText);   // (header text comes from the file)
     m_preview->setFrameShape(QFrame::StyledPanel);
     v->addWidget(m_preview);
     auto *ok = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -631,9 +632,11 @@ void PageSetupDialog::buildHeaderFooter(QWidget *tab)
     m_headerShown = new QLabel(tab);
     m_headerShown->setObjectName(QStringLiteral("psHeaderShown"));
     m_headerShown->setWordWrap(true);
+    m_headerShown->setTextFormat(Qt::PlainText);   // (header text comes from the file)
     m_footerShown = new QLabel(tab);
     m_footerShown->setObjectName(QStringLiteral("psFooterShown"));
     m_footerShown->setWordWrap(true);
+    m_footerShown->setTextFormat(Qt::PlainText);   // (header text comes from the file)
     v->addWidget(m_headerShown);
     v->addWidget(m_footerShown);
     auto check = [&](const QString &name, const QString &text, bool on, const QString &tip) {

@@ -153,6 +153,12 @@ public:
     // not widen a column. For a few thousand cells: the walk stops at `limit` cells.
     double fitWidth(quint32 col, qint64 limit = 200000) const;
     double fitHeight(quint32 row, qint64 limit = 20000) const;
+    // The height (in points) that the text of the row needs when its height is the program's to choose: as many lines as each cell shows (a wrapped cell as many as its width needs, a
+    // cell of several lines that wraps one for each), each as tall as a line of the cell's font, where a line of the sheet's standard font is the sheet's standard row height. 0 if the
+    // row holds nothing. Looks at most `limit` cells.
+    // `work`, if given, is added the work done: 20 for each cell shown (its value made into the text it shows) and a unit for each character measured to wrap it.
+    double autoHeight(quint32 row, qint64 limit = 2000, qint64 *work = nullptr) const;
+    int wrappedLines(const QString &text, const CellLook &look, double room) const;
     // The width that shows one cell's text whole (a number typed in it), 0 for a cell that holds nothing.
     double fitWidthOfCell(quint32 row, quint32 col) const;
 

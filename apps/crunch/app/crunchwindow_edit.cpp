@@ -31,6 +31,8 @@ void CrunchWindow::createEditing()
     connect(m_session.get(), &crunch::EditSession::tablesChanged, this, &CrunchWindow::onTablesChanged);
     connectObjects();
     connectPageSetup();
+    connectAnchors();
+    connectProtection();
     connect(m_session.get(), &crunch::EditSession::calcSettingsChanged, this, [this] { sendCalcSettings(); });
     sendCalcSettings();   // (how the file says it calculates)
     connect(m_session.get(), &crunch::EditSession::stepFailed, this, [this](const QString &what) {
@@ -249,6 +251,7 @@ void CrunchWindow::cancelEdit()
 void CrunchWindow::onCellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells)
 {
     if (m_objects) m_objects->cellsChanged(cells);
+    noteRowsChanged(sheet, cells);
     if (sheet == m_sheet && m_view->valuesChanged(sheet, cells)) updateBars();
     if (m_undoing && !cells.empty()) {
         // Undo and Redo show the cell they changed
@@ -268,7 +271,23 @@ void CrunchWindow::clearSelection()
     else if (m_loader.changesMade() != before) m_calculating = true;
 }
 
+// Undo and Redo: a step that would take a password's protection off (the undoing of putting it on, the redoing of taking it off) asks for the password first, so that undoing is no way
+// round a password.
 void CrunchWindow::undoRedo(bool redo)
+{
+    QUndoStack *u = undoStack();
+    if (!u || m_edit.active || m_saving || m_passwordJob) return;
+    if (redo ? !u->canRedo() : !m_session->canUndo()) return;
+    jp::office::sheet::PasswordHash guard;
+    QString what;
+    if (m_session->stepDropsPassword(redo, &guard, &what)) {
+        askPassword(what, guard, [this, redo] { undoRedoNow(redo); });
+        return;
+    }
+    undoRedoNow(redo);
+}
+
+void CrunchWindow::undoRedoNow(bool redo)
 {
     QUndoStack *u = undoStack();
     if (!u || m_edit.active || m_saving) return;

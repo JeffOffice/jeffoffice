@@ -1,6 +1,9 @@
 // Rows, columns, and cells inserted and deleted: the ribbon's Insert and Delete, the right-click menus of cells and of the headers, and Ctrl++ and Ctrl+-. Each asks the edit session for one
 // step; the window makes its picture of the sheet again when the cells have moved.
 #include "app/crunchwindow.h"
+#include "app/plaintext.h"
+
+#include "app/icons.h"
 
 #include "core/appinfo.h"
 #include "sheet/cellref.h"
@@ -113,7 +116,7 @@ crunch::EditSession::Outcome CrunchWindow::doStructural(const std::function<crun
     }
     if (!o.ok && o.confirm) {
         // (too big for Undo to hold: the person is asked, and may go on)
-        const bool goOn = m_bigStepAsker ? m_bigStepAsker(o.problem) : QMessageBox::question(this, appInfo().name, o.problem, QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
+        const bool goOn = m_bigStepAsker ? m_bigStepAsker(o.problem) : plainBox(this, QMessageBox::Question, appInfo().name, o.problem, QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
         if (!goOn) {
             o.problem.clear();   // (nothing is done, and nothing is said: it was the person's answer; `confirm` still says why)
             return o;
@@ -232,6 +235,7 @@ bool CrunchWindow::askAboutRule(const crunch::EditSession::Outcome &o)
     if (m_ruleAsker) return m_ruleAsker(o.ruleTitle, o.problem, o.ruleStyle);
     QMessageBox box(o.ruleStyle == int(Style::Warning) ? QMessageBox::Warning : QMessageBox::Information, o.ruleTitle, o.problem,
                     o.ruleStyle == int(Style::Warning) ? QMessageBox::Yes | QMessageBox::No : QMessageBox::Ok | QMessageBox::Cancel, this);
+    box.setTextFormat(Qt::PlainText);
     return box.exec() == (o.ruleStyle == int(Style::Warning) ? QMessageBox::Yes : QMessageBox::Ok);
 }
 
@@ -362,6 +366,7 @@ void CrunchWindow::onSizesChanged(int sheet)
 {
     if (!m_loaded) return;
     if (sheet >= 0 && size_t(sheet) < m_loaded->geometry.size()) m_loaded->geometry[size_t(sheet)].reset();
+    noteWidthsChanged(sheet);
     if (sheet == m_sheet) {
         showSheet(m_sheet, true);
         placeEditor();
@@ -543,32 +548,57 @@ void CrunchWindow::showContextMenu(const QPoint &globalPos)
     auto *menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
     menu->setObjectName(QStringLiteral("cellMenu"));
-    for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) menu->addAction(act(QString::fromLatin1(id)));
-    menu->addAction(act("paste.special"));
+    auto add = [&](const char *id) {
+        if (QAction *a = act(QString::fromLatin1(id))) menu->addAction(a);
+    };
+    for (const char *id : {"edit.cut", "edit.copy", "edit.paste", "paste.special"}) add(id);
     menu->addSeparator();
     const grid::Selection::Whole whole = m_view->selection().whole;
     if (whole == grid::Selection::Whole::Rows) {
-        menu->addAction(act("cells.insert.rows"));
-        menu->addAction(act("cells.delete.rows"));
+        add("cells.insert.rows");
+        add("cells.delete.rows");
+        add("edit.clear.contents");
         menu->addSeparator();
-        menu->addAction(act("format.rowHeight"));
-        menu->addAction(act("format.fitRow"));
-        menu->addAction(act("format.hideRows"));
-        menu->addAction(act("format.unhideRows"));
+        add("format.rowHeight");
+        add("format.fitRow");
+        add("format.hideRows");
+        add("format.unhideRows");
+        menu->addSeparator();
+        add("format.cells");
     } else if (whole == grid::Selection::Whole::Columns) {
-        menu->addAction(act("cells.insert.columns"));
-        menu->addAction(act("cells.delete.columns"));
+        add("cells.insert.columns");
+        add("cells.delete.columns");
+        add("edit.clear.contents");
         menu->addSeparator();
-        menu->addAction(act("format.columnWidth"));
-        menu->addAction(act("format.fitColumn"));
-        menu->addAction(act("format.hideColumns"));
-        menu->addAction(act("format.unhideColumns"));
+        add("format.columnWidth");
+        add("format.fitColumn");
+        add("format.hideColumns");
+        add("format.unhideColumns");
+        menu->addSeparator();
+        add("format.cells");
     } else {
-        menu->addAction(act("cells.insert.cells"));
-        menu->addAction(act("cells.delete.cells"));
+        add("cells.insert.cells");
+        add("cells.delete.cells");
+        add("edit.clear.contents");
+        menu->addSeparator();
+        add("filter.toggle");
+        QMenu *sort = menu->addMenu(icon(QStringLiteral("arrow-up-down")), tr("Sort"));
+        for (const char *id : {"sort.ascending", "sort.descending", "sort.custom"})
+            if (QAction *a = act(QString::fromLatin1(id))) sort->addAction(a);
+        menu->addSeparator();
+        // the note and the link on the cell with the cursor
+        updateNoteActions();
+        add("notes.edit");
+        if (act("notes.delete")->isEnabled()) add("notes.delete");
+        if (act("notes.showHide")->isEnabled()) add("notes.showHide");
+        add("insert.link");
+        if (act("link.open")->isEnabled()) add("link.open");
+        if (act("link.remove")->isEnabled()) add("link.remove");
+        menu->addSeparator();
+        add("format.cells");
     }
     menu->addSeparator();
-    menu->addAction(act("edit.selectAll"));
+    add("edit.selectAll");
     menu->popup(globalPos);
 }
 

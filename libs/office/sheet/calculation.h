@@ -285,6 +285,13 @@ public:
     {
         if (sheet >= 0 && sheet < int(m_sheets.size())) m_sheets[size_t(sheet)].autoFilter = filter;
     }
+    // The sheet's protection (the worker does not read it: the window changes it).
+    void setProtection(int sheet, const SheetProtection &protection)
+    {
+        if (sheet < 0 || sheet >= int(m_sheets.size())) return;
+        m_sheets[size_t(sheet)].protection = protection;
+        m_sheets[size_t(sheet)].isProtected = protection.enabled;
+    }
     // The sheet's own default sizes (the default row height and column width its file gives), and putting them back.
     SheetFormat sheetFormatOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].format : SheetFormat(); }
     void setSheetFormat(int sheet, const SheetFormat &format)

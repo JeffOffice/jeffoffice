@@ -299,6 +299,32 @@
       ]
     },
     {
+      "name": "Review",
+      "keytip": "R",
+      "groups": [
+        {
+          "name": "Notes",
+          "keytip": "ZN",
+          "items": [
+            {"large": "notes.edit", "keytip": "N"},
+            {"small": "notes.delete", "keytip": "D"},
+            {"small": "notes.prev", "keytip": "V"},
+            {"small": "notes.next", "keytip": "X"},
+            {"small": "notes.showHide", "keytip": "S"},
+            {"small": "notes.showAll", "keytip": "A"}
+          ]
+        },
+        {
+          "name": "Protect",
+          "keytip": "ZP",
+          "items": [
+            {"large": "protect.sheet", "keytip": "PS"},
+            {"large": "protect.workbook", "keytip": "PW"}
+          ]
+        }
+      ]
+    },
+    {
       "name": "View",
       "keytip": "W",
       "groups": [

@@ -47,4 +47,7 @@ QString unescape(QByteArrayView text);
 // The number of a column as a file writes it in "r" ("AB12" -> column 27 (from 0), row 11): false if the text is no cell address.
 bool parseAddress(QByteArrayView text, quint32 *row, quint32 *col);
 
+// Text with the characters a file writes as _xHHHH_ put back (the other way round from escapeText).
+void decodeEscapes(QString *s);
+
 } // namespace jp::office::sheet::xmlscan

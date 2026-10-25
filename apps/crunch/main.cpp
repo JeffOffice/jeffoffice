@@ -47,6 +47,7 @@ public:
         if (!target) {
             target = new jp::CrunchWindow();
             target->setAttribute(Qt::WA_DeleteOnClose);
+            target->setPromptForText(true);
             target->show();
         }
         target->openFile(path);
@@ -124,6 +125,7 @@ int main(int argc, char **argv)
     // Lets the installer see that JeffCrunch is running and ask to close it first.
     CreateMutexW(nullptr, FALSE, L"JeffCrunchRunning");
 #endif
+    w->setPromptForText(true);   // (a text file asks how it is read)
     w->show();
     if (!files.isEmpty()) {
         w->openFile(files.first());

@@ -646,6 +646,7 @@ void GridView::paintEvent(QPaintEvent *e)
     paintPageBreaks(&p, e->rect());
     paintOverlay(&p, e->rect());
     paintMarks(&p, e->rect());
+    paintNotes(&p, e->rect());
     p.end();
     if (m_paintTimes.size() < 100000) {
         m_paintTimes.push_back(double(t.nsecsElapsed()) / 1e6);
@@ -850,6 +851,8 @@ void GridView::mousePressEvent(QMouseEvent *e)
     switch (h.kind) {
     case Hit::Kind::Cell:
         m_drag = Drag::Cells;   // (before the selection is set: it is settled when the button is let go)
+        m_pressRow = h.kind == Hit::Kind::Cell ? h.row : -1;
+        m_pressCol = h.kind == Hit::Kind::Cell ? h.col : -1;
         setSelectionInternal(shift ? nav.extendTo(m_selection, h.row, h.col) : nav.click(h.row, h.col), false);
         break;
     case Hit::Kind::RowHeader:
@@ -894,6 +897,22 @@ void GridView::mouseMoveEvent(QMouseEvent *e)
     }
     if (borderAtInLayout(lp, &column, &index)) viewport()->setCursor(column ? Qt::SplitHCursor : Qt::SplitVCursor);
     else viewport()->setCursor(fillHandleRectInLayout().contains(lp) ? Qt::CrossCursor : Qt::ArrowCursor);
+    const Hit over = m_sheet.layout().hit(lp);
+    const qint64 hr = over.kind == Hit::Kind::Cell ? over.row : -1, hc = over.kind == Hit::Kind::Cell ? over.col : -1;
+    if (hr != m_hoverRow || hc != m_hoverCol) {
+        m_hoverRow = hr;
+        m_hoverCol = hc;
+        Q_EMIT hoverCellChanged(hr, hc);
+    }
+}
+
+void GridView::leaveEvent(QEvent *e)
+{
+    QAbstractScrollArea::leaveEvent(e);
+    if (m_hoverRow >= 0) {
+        m_hoverRow = m_hoverCol = -1;
+        Q_EMIT hoverCellChanged(-1, -1);
+    }
 }
 
 bool GridView::borderAt(const QPoint &p, bool *column, qint64 *index) const { return borderAtInLayout(mirror(p), column, index); }
@@ -935,6 +954,7 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
     }
     const bool fill = m_drag == Drag::Fill;
     const bool selecting = m_drag == Drag::Cells || m_drag == Drag::Rows || m_drag == Drag::Columns;
+    const bool clicking = m_drag == Drag::Cells && e && e->button() == Qt::LeftButton && m_pressRow >= 0;
     const GridRange source = m_fillSource, extent = m_fillExtent;
     const bool ctrl = m_fillCtrl || (e && (e->modifiers() & Qt::ControlModifier));
     m_drag = Drag::None;
@@ -944,6 +964,11 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
         if (!(extent == source)) Q_EMIT fillRequested(source, extent, ctrl);
     }
     if (selecting) Q_EMIT selectionSettled();
+    if (clicking) {
+        const Hit up = m_sheet.layout().hit(mirror(e->pos()));
+        if (up.kind == Hit::Kind::Cell && up.row == m_pressRow && up.col == m_pressCol) Q_EMIT cellClicked(up.row, up.col, e->modifiers());
+    }
+    m_pressRow = m_pressCol = -1;
 }
 
 QRect GridView::fillHandleRect() const { return mirror(fillHandleRectInLayout()); }
