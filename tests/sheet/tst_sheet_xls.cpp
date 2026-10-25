@@ -6,6 +6,7 @@
 
 #include "io/cfb.h"
 #include "sheet/calculation.h"
+#include "sheet/xlsxbase.h"
 #include "sheet/xlscodepage.h"
 
 #include <QFile>
@@ -105,6 +106,40 @@ private Q_SLOTS:
             QVERIFY2(wb.openBinary(stream, &why), qPrintable(why));
             QCOMPARE(wb.info().calcUnfinished, uncalced);
         }
+    }
+
+    // The sheet options with the old rules of evaluation (0x4000) and of entry (0x8000) are read; text counts as 0 in the sheet's arithmetic; and the base file written for
+    // the workbook keeps both marks.
+    void theOldRulesOfASheetAreReadAndUsed()
+    {
+        const QByteArray sum = tRef(0, 0) + tRef(0, 1) + tOp(0x03);
+        const QByteArray cells = label(0, 0, QStringLiteral("-")) + number(0, 1, 70) + formulaNumber(0, 2, sum, 0);
+        Book b;
+        b.sheet(QStringLiteral("Old"), rec(0x0081, W().u16(0xC4C1)) + cells);
+        b.sheet(QStringLiteral("New"), rec(0x0081, W().u16(0x04C1)) + cells);
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        Sheet old, current;
+        QVERIFY(wb.readSheet(0, &old) && wb.readSheet(1, &current));
+        QVERIFY(old.transitionEvaluation && old.transitionEntry);
+        QVERIFY(!current.transitionEvaluation && !current.transitionEntry);
+        jp::office::sheet::CalcOptions options;
+        options.keepApart = true;
+        jp::office::sheet::Calculation calc(wb, options);
+        QVERIFY(calc.load());
+        calc.recalculate();
+        QCOMPARE(calc.cell(0, 0, 2).debug(), QStringLiteral("n:70"));
+        QCOMPARE(calc.cell(1, 0, 2).debug(), QStringLiteral("e:#VALUE!"));
+        QByteArray xlsx;
+        QVERIFY2(writeBaseXlsx(wb, &xlsx, &why), qPrintable(why));
+        Package package;
+        Workbook back;
+        QVERIFY2(package.readLazy(xlsx, &why) && back.open(package, &why), qPrintable(why));
+        Sheet a, c;
+        QVERIFY(back.readSheet(0, &a) && back.readSheet(1, &c));
+        QVERIFY(a.transitionEvaluation && a.transitionEntry);
+        QVERIFY(!c.transitionEvaluation && !c.transitionEntry);
     }
 
     // The cell records: numbers, the packed numbers (whole, hundredths, and floating) singly and in runs, strings of the table and in the cell, true and false, errors,

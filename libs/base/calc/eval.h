@@ -54,6 +54,7 @@ struct EvalContext {
     quint32 row = 0, col = 0;
     int shiftRows = 0, shiftCols = 0;    // how far that cell is from the one the formula's text was written for (a shared formula)
     DateSystem dateSystem = DateSystem::Date1900;
+    bool transition = false;             // the formula's sheet asks for the old rules ("transition formula evaluation"): a text that is not a number counts as 0 in arithmetic
     double now = 0;                      // the day number NOW() and TODAY() give; 0 reads the clock, once for the evaluation (see clockSerial)
     // If set, every block of cells the evaluation names is added to it: what the formula's own references name (as they were worked out), what a name or a text given
     // to INDIRECT stands for, and what OFFSET and the like give. What a formula that reads where its values say it reads, is told to the dependency graph with.

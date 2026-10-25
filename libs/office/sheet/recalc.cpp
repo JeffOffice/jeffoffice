@@ -235,6 +235,7 @@ bool recalcWorkbook(const Workbook &book, const RecalcOptions &options, const st
         const QString sheetName = book.info().sheets[si].name;
         std::vector<Compiled> plain(size_t(sheet.formulaTexts.size())), array(size_t(sheet.formulaTexts.size()));
         ctx.sheet = si;
+        ctx.transition = sheet.transitionEvaluation;
         sheet.cells.forEach([&](const Cell &c) {
             if (!c.hasFormula()) return;
             ++report->formulaCells;

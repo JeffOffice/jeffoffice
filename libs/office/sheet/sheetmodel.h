@@ -586,6 +586,8 @@ struct Sheet {
     SheetView view;
     PageSetup page;                   // how it prints: the paper, margins, header and footer, breaks, and the print area and titles (see sheet/pagesetup.h)
     ColorSpec tabColor;               // the color of the sheet's tab
+    bool transitionEvaluation = false; // sheetPr transitionEvaluation (the old rules of formula evaluation: see EvalContext::transition)
+    bool transitionEntry = false;      // sheetPr transitionEntry (kept; no behavior)
     bool isProtected = false;         // the sheet is protected (sheetProtection): its locked cells can't be changed
     SheetProtection protection;       // and what the protection says (isProtected is its `enabled`)
     QVector<LinkSpec> links;          // the links on cells, in the order of the file (an address outside the workbook is resolved by Workbook::readSheet; a sheet read alone has the relationship's id)

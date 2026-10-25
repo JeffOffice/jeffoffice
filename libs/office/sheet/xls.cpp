@@ -30,6 +30,7 @@ enum : quint16 {
     kDateMode = 0x0022,
     kCalcMode = 0x000D,
     kIteration = 0x0011,
+    kWsBool = 0x0081,
     kUncalced = 0x005E,
     kFilePass = 0x002F,
     kFont = 0x0031,
@@ -1633,6 +1634,15 @@ private:
             if (height > 0) m_format.defaultRowHeight = (height & 0x7FFF) / 20.0;
             m_format.zeroHeight = grbit & 2;
             m_format.customHeight = grbit & 1;
+            return true;
+        }
+        case kWsBool: {
+            const quint16 v = b.u16();
+            if (!b.bad()) {
+                m_s.transitionEvaluation = v & 0x4000;
+                m_s.transitionEntry = v & 0x8000;
+            }
+            readXlsPrintRecord(r.id, m_d, r.pos, r.len, m_b8, [this](const char *p, int n) { return text(p, n); }, &m_s.page);   // (and the page's fit to pages)
             return true;
         }
         case kProtect: {

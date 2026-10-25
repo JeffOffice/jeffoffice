@@ -1428,6 +1428,8 @@ bool SheetReader::read(QIODevice *in)
                     inLinks = true;
                 } else if (isElement(r, "sheetPr")) {
                     inSheetPr = true;
+                    m_sheet.transitionEvaluation = parseBool(attribute(r, "transitionEvaluation").toString());
+                    m_sheet.transitionEntry = parseBool(attribute(r, "transitionEntry").toString());
                 } else if (isElement(r, "pageSetup")) {
                     readPageSetupAttributes(r.attributes(), &m_sheet.page);
                 } else if (isElement(r, "pageMargins")) {

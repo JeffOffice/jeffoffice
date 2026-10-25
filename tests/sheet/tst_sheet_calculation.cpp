@@ -96,6 +96,28 @@ private Q_SLOTS:
         QVERIFY(!b.calc->isDirty());
     }
 
+    // A sheet that asks for the old rules (sheetPr transitionEvaluation) reads a text that is not a number as 0 in arithmetic; another sheet of the same workbook does not.
+    void aSheetWithTheOldRulesReadsTextAsZeroInArithmetic()
+    {
+        const QString rows = rowXml(1, QStringLiteral("<c r=\"A1\" t=\"inlineStr\"><is><t>-</t></is></c>") + constant("B1", "70") + cellXml("C1", "A1+B1") + cellXml("D1", "-A1")
+                                           + cellXml("E1", "B1*A1") + cellXml("F1", "A1&\"x\"") + cellXml("G1", "A1=0"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows, QString(), QStringLiteral("<sheetPr transitionEvaluation=\"1\" transitionEntry=\"1\"/>")), worksheet(rows)})));
+        QVERIFY(settle(b).finished);
+        Sheet s0, s1;
+        QVERIFY(b.book.readSheet(0, &s0) && b.book.readSheet(1, &s1));
+        QVERIFY(s0.transitionEvaluation && s0.transitionEntry);
+        QVERIFY(!s1.transitionEvaluation && !s1.transitionEntry);
+        QCOMPARE(b.at("C1"), QStringLiteral("n:70"));
+        QCOMPARE(b.at("D1"), QStringLiteral("n:0"));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:0"));
+        QCOMPARE(b.at("F1"), QStringLiteral("s:-x"));      // joining is not arithmetic
+        QCOMPARE(b.at("G1"), QStringLiteral("b:0"));       // and comparing is left as it is
+        QCOMPARE(b.at("C1", 1), QStringLiteral("e:#VALUE!"));
+        QCOMPARE(b.at("D1", 1), QStringLiteral("e:#VALUE!"));
+        QCOMPARE(b.at("E1", 1), QStringLiteral("e:#VALUE!"));
+    }
+
     // A slice can be ended by the clock as well as by work: with a time that has passed at once, each call works out one formula and goes on from there, and the values it ends with are
     // those of a whole recalculation; with a long time it is whole in one call.
     void aSliceCanBeGivenATimeAsWellAsWork()

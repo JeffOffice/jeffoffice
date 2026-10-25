@@ -403,7 +403,10 @@ public:
         m_out += kXmlHead;
         m_out += QByteArray("<worksheet xmlns=\"") + kMainNs + "\" xmlns:r=\"" + kRelNs + "\">";
         const QByteArray tab = colorElement("tabColor", m_sheet.tabColor), fit = fitToPageXml(m_sheet.page, QByteArray());
-        if (!tab.isEmpty() || !fit.isEmpty()) m_out += "<sheetPr>" + tab + fit + "</sheetPr>";
+        QByteArray transition;
+        if (m_sheet.transitionEvaluation) transition += attr("transitionEvaluation", "1");
+        if (m_sheet.transitionEntry) transition += attr("transitionEntry", "1");
+        if (!tab.isEmpty() || !fit.isEmpty() || !transition.isEmpty()) m_out += "<sheetPr" + transition + ">" + tab + fit + "</sheetPr>";
         if (m_sheet.dimension.valid) m_out += "<dimension" + attr("ref", rangeName(m_sheet.dimension).toLatin1()) + "/>";
         // how the sheet was left on the screen
         QByteArray view = "<sheetView";
