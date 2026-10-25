@@ -10,6 +10,7 @@
 #include "core/clipdata.h"
 #include "core/pagesettings.h"
 #include "core/loader.h"
+#include "core/nametable.h"
 #include "core/sortspec.h"
 #include "core/objectstate.h"
 #include "grid/valuestore.h"
@@ -88,6 +89,30 @@ struct SheetEdit {
     bool structural() const { return kind == Kind::Insert || kind == Kind::Copy || kind == Kind::Delete || kind == Kind::Rename || kind == Kind::Move; }
 };
 
+// A defined name made, changed, or taken away by a step: its place in the name table, the entry and what the name stands for (the text of its formula) as they were and as they are. A
+// name given another name has the formulas that used it as they were (made when the step is first done).
+struct NameEdit {
+    int id = 0;
+    NameEntry before, after;
+    QString textBefore, textAfter;
+    jp::office::sheet::Calculation::SheetRewrite rewrite;
+    bool renamed() const { return before.alive && after.alive && before.name.compare(after.name, Qt::CaseInsensitive) != 0; }
+};
+
+// How the workbook calculates: whether by itself, when it is told, or by itself except for tables; and whether a formula that reads itself is worked out by going round it, how many
+// rounds it goes at the most, and the change that is small enough to stop at.
+struct CalcSettings {
+    jp::office::sheet::CalcMode mode = jp::office::sheet::CalcMode::Auto;
+    bool iterate = false;
+    int count = 100;
+    double delta = 0.001;
+    bool operator==(const CalcSettings &o) const { return mode == o.mode && iterate == o.iterate && count == o.count && delta == o.delta; }
+    bool operator!=(const CalcSettings &o) const { return !(*this == o); }
+};
+struct CalcEdit {
+    CalcSettings before, after;
+};
+
 // The default sizes of a sheet (the height of rows and the width of columns that have none of their own) changed by a step: as they were and as they are.
 struct FormatEdit {
     int sheet = 0;
@@ -151,7 +176,9 @@ struct Step {
     std::shared_ptr<StructChange> structure;   // or rows, columns, or cells inserted or deleted
     std::vector<ObjectEdit> objects;           // or objects over the cells taken away (done: they are gone; undone: they are back)
     std::vector<PageEdit> pages;               // or how sheets print (the paper, margins, header and footer, breaks, print area, titles)
-    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty(); }
+    std::vector<NameEdit> names;               // or defined names made, changed, or taken away
+    std::vector<CalcEdit> calcs;               // or how the workbook calculates
+    bool empty() const { return cells.empty() && styles.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -498,6 +525,32 @@ public:
     // The worker has told every result there is to tell (the calculation is finished, with no change after it unworked).
     void calculationFinished();
 
+    // ---- defined names (see core/nametable.h). Each of these is one step of Undo.
+    struct NameDraft {
+        QString name;
+        int scope = -1;       // the place of the sheet it belongs to; -1 for the workbook
+        QString text;         // what it stands for, as typed in the person's locale ("=" in front is allowed)
+        QString comment;
+        bool hidden = false;
+    };
+    const NameTable &names() const { return m_nameTable; }
+    // Whether the name is one to show: alive, and not of a sheet that is deleted.
+    bool nameListed(int id) const;
+    // What the name stands for as the person types it ("=Sheet1!$A$1"), and the value it has (a block of cells is "{…}"); empty for none.
+    QString nameTextOf(int id) const;
+    QString nameValueOf(int id) const;
+    // Why a name can't be made or changed to this, in a sentence (empty when it can); `id` is the name being changed, -1 for a new one.
+    QString nameProblem(const NameDraft &draft, int id) const;
+    Outcome defineName(const NameDraft &draft, int *made = nullptr);
+    Outcome changeName(int id, const NameDraft &draft);
+    Outcome removeName(int id);
+    // Names made from the labels round a block of cells, as one step (core/namesfromcells.h): how many were made, and how many were left out (a label that made no name, a repeat, and a name
+    // that is there already is not made again).
+    Outcome defineNamesFromLabels(int sheet, const jp::office::sheet::CellRange &block, int edges, int *made = nullptr, int *skipped = nullptr);
+    // ---- how the workbook calculates
+    CalcSettings calcSettings() const { return m_calcNow; }
+    Outcome setCalcSettings(const CalcSettings &settings);
+
     // ---- saving
     // Whether there is anything the file lacks: the undo stack is not at the state that was last saved.
     bool isModified() const { return !m_undo.isClean(); }
@@ -531,6 +584,8 @@ public:
 Q_SIGNALS:
     // The sheets were changed (added, deleted, renamed, moved, shown, hidden, or given a color) by a step, Undo, or Redo: the window makes its tabs again.
     void sheetsChanged();
+    // How the workbook calculates was changed (by a step, or by Undo of one).
+    void calcSettingsChanged();
     // Cells were changed by an edit, Undo, or Redo (the window draws them again).
     void cellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells);
     // Rows, columns, or cells were inserted or deleted (or put back by Undo: `edit` is what was done to the cells then); the window makes its picture of the sheet again.
@@ -637,6 +692,13 @@ private:
     bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);
     Outcome pushSheetEdit(SheetEdit edit, const QString &text);
     bool sheetStepsRefused(QString *why);
+    bool applyNameEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc);
+    void applyCalcEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc);
+    void nameChangesForSave(std::vector<jp::office::sheet::NameChange> *out) const;
+    std::vector<int> shadowingSheets(const QString &name) const;
+    NameTable m_nameTable;
+    std::vector<jp::office::sheet::NameRename> m_nameRenames;   // names given other names since the file was read or saved that are done (not undone), for the file
+    CalcSettings m_calcNow, m_calcFile;                          // how it calculates, and how the file says
     std::set<int> m_mergesChanged;   // the sheets whose merged ranges a step changed since the file was read or saved
     std::set<int> m_filtersChanged;  // and those whose filter a step changed
     std::map<int, std::pair<quint32, quint32>> m_filterRows;   // and the rows (from the first to the last) of each whose rows a filter showed or hid

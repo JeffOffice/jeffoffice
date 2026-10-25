@@ -159,6 +159,7 @@ struct DefinedName {
     QString ref;            // what it stands for, as written: "Sheet1!$A$1", "'My Sheet'!$B$2:$C$9", or a formula
     int localSheet = -1;    // the place (counting from 0) of the sheet it belongs to; -1 for the whole workbook
     bool hidden = false;
+    QString comment;        // what the file says it is for
 };
 
 struct WorkbookInfo {
@@ -170,6 +171,8 @@ struct WorkbookInfo {
     CalcMode calcMode = CalcMode::Auto;
     bool fullCalcOnLoad = false;
     bool iterate = false;   // the workbook asks for iterative calculation (circular references are worked out by going round them)
+    int iterateCount = 100;         // the most rounds it goes
+    double iterateDelta = 0.001;    // and it stops when no value changes by as much as this
     int activeTab = 0;      // the sheet (from 0, in the order the workbook has them) that was open when it was saved
     int firstSheet = 0;     // the first tab of the row of tabs that shows
 };

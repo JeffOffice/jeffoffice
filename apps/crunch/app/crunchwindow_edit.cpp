@@ -2,6 +2,7 @@
 // EditSession (core/editsession.h), which holds the worker back for the moment the cell is put in; the worker works out what depends on it and tells the window in batches.
 
 #include "app/crunchwindow.h"
+#include "app/formulahelper.h"
 
 #include "app/sheettabs.h"
 #include "core/sheetobjects.h"
@@ -29,11 +30,14 @@ void CrunchWindow::createEditing()
     connect(m_session.get(), &crunch::EditSession::sheetsChanged, this, &CrunchWindow::onSheetsChanged);
     connectObjects();
     connectPageSetup();
+    connect(m_session.get(), &crunch::EditSession::calcSettingsChanged, this, [this] { sendCalcSettings(); });
+    sendCalcSettings();   // (how the file says it calculates)
     connect(m_session.get(), &crunch::EditSession::stepFailed, this, [this](const QString &what) {
         notice(tr("Undo"), what);
         updateEditActions();
     });
     QUndoStack *u = m_session->undoStack();
+    connect(u, &QUndoStack::indexChanged, this, [this] { removeArrows(); });   // (the arrows are of the cells as they were)
     connect(u, &QUndoStack::canUndoChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::canRedoChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::indexChanged, this, &CrunchWindow::updateEditActions);   // (the oldest steps may be forgotten: Undo ends before them)
@@ -197,6 +201,7 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
 
 void CrunchWindow::finishEdit(CellEditor::Way way)
 {
+    if (m_helper) m_helper->close();
     m_cellEditor->hide();
     const quint32 row = m_edit.row, col = m_edit.col;
     m_edit.active = false;
@@ -233,6 +238,7 @@ void CrunchWindow::finishEdit(CellEditor::Way way)
 void CrunchWindow::cancelEdit()
 {
     if (!m_edit.active) return;
+    if (m_helper) m_helper->close();
     m_cellEditor->hide();
     m_edit.active = false;
     m_view->setFocus(Qt::OtherFocusReason);

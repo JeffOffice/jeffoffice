@@ -12,7 +12,9 @@
 #include "app/formatdialog.h"
 #include "app/widgets.h"
 #include "core/color.h"
+#include "core/auditing.h"
 #include "core/editsession.h"
+#include "core/formulaspot.h"
 #include "core/filterlist.h"
 #include "core/findrun.h"
 #include "core/gotospecial.h"
@@ -60,6 +62,7 @@ class PageLayoutView;
 class PageLayoutSource;
 }
 namespace office::sheet { struct PageSetup; }
+class FormulaHelper;
 class HelpView;
 class HelpWindow;
 class Ribbon;
@@ -147,6 +150,36 @@ public:
     bool insertFunction(const QString &name);
     // What Pick a Function asks (the function's name): a dialog unless this stands in for it (tests); false gives it up.
     void setFunctionAsker(const std::function<bool(QString *)> &asker) { m_functionAsker = asker; }
+
+    // ---- the Formulas tab (crunchwindow_formulas.cpp, crunchwindow_names.cpp, crunchwindow_calc.cpp, crunchwindow_audit.cpp)
+    // The help while a formula is typed (the list of functions and names that fit, and the arguments of the function being typed).
+    FormulaHelper *formulaHelper() const { return m_helper; }
+    // Names: the list, a name made for the cells selected, names made from the labels around them, and a name put in the formula being typed (or begun). What the dialogs ask is
+    // asked of these instead when a test sets them; false gives it up.
+    void showNames();
+    bool defineNameCommand();
+    bool nameFromCellsCommand();
+    bool insertName(const QString &name);
+    QMenu *namesMenu();
+    // For tests: how many times the sorted list the menu shows was made (it is made again only when a name or the sheet in view changes).
+    int namesMenuBuilds() const { return m_menuBuilds; }   // the names to choose from, as a menu (not shown); the caller owns it
+    void setNameAsker(const std::function<bool(crunch::EditSession::NameDraft *)> &asker) { m_nameAsker = asker; }
+    void setEdgesAsker(const std::function<bool(int *)> &asker) { m_edgesAsker = asker; }
+    // How the workbook calculates: the mode (a change of it is one step of Undo), the circles, and the work that waits when it is done by hand.
+    void setCalculationMode(jp::office::sheet::CalcMode mode);
+    bool calculationDue() const { return m_calcDue; }
+    // The formulas found in circles when the last calculation ended (0 when the workbook goes round them, or has none), and the list of them.
+    qint64 circularCount() const { return m_circular; }
+    bool showCircularReferences();
+    void setIterationAsker(const std::function<bool(crunch::CalcSettings *)> &asker) { m_iterationAsker = asker; }
+    // Checking formulas: arrows from the cells the formula in the cell with the cursor reads (one more step back each time), arrows from the cell to the formulas that read it (one more step
+    // on each time), and the arrows taken away. They are taken away by any change to the workbook. False, with the reason in the status line, when there is nothing to draw.
+    bool tracePrecedents();
+    bool traceDependents();
+    void removeArrows();
+    int arrowCount() const { return int(m_trace.size()); }
+    // The circular references named once in a message each time they begin (not again while they stay).
+    int circularNotices() const { return m_circularNotices; }
 
     // ---- the message of a rule of validation (crunchwindow_cells.cpp)
     // The note shown beside the cell with the cursor when a rule of validation for it has a message to show (its title and text); null while there is none.
@@ -488,6 +521,49 @@ private:
     bool m_sortSmall = true;
     bool m_settingMarks = false;
     // Pick a Function (crunchwindow_function.cpp)
+    void createNameActions();
+    void createCalcActions();
+    void createAuditActions();
+    void createFormulaHelper();
+    const crunch::CompletionIndex &completionIndex();
+    QString completionDetail(const crunch::Completion &c) const;
+    bool insertTextInFormula(const QString &text, bool asFunction);
+    void followCalcBatch(const crunch::CalcBatch &batch);
+    void updateCalcStatus();
+    void sendCalcSettings();
+    void announceCircles();
+    void refreshCheckMarks();
+    struct TraceArrow {
+        int fromSheet = 0;
+        jp::office::sheet::CellRange from;
+        int toSheet = 0;
+        quint32 toRow = 0, toCol = 0;
+    };
+    std::vector<TraceArrow> m_trace;
+    struct TraceRoot {
+        bool set = false;
+        int sheet = 0;
+        quint32 row = 0, col = 0;
+    } m_traceRoot;
+    std::vector<crunch::TraceCell> m_traceUp, m_traceDown;   // the formulas the next step back and the next step on begin from
+    bool m_tracedUp = false, m_tracedDown = false;
+    bool startTrace(bool up);
+    QLabel *m_calcNote = nullptr;
+    std::vector<int> m_menuNames;
+    qint64 m_menuGeneration = -1;
+    int m_menuSheet = -2, m_menuBuilds = 0;
+    FormulaHelper *m_helper = nullptr;
+    crunch::CompletionIndex m_completions;
+    qint64 m_completionsGeneration = -1;
+    int m_completionsSheet = -2;
+    std::function<bool(crunch::EditSession::NameDraft *)> m_nameAsker;
+    std::function<bool(int *)> m_edgesAsker;
+    std::function<bool(crunch::CalcSettings *)> m_iterationAsker;
+    bool m_calcDue = false, m_manualNow = false;
+    qint64 m_circular = 0;
+    std::vector<jp::office::sheet::Calculation::CircularCell> m_circleCells;   // the first of them, in the order of the sheets and cells
+    int m_circularNotices = 0;
+    bool m_circularNoticed = false;
     void createFunctionActions();
     void insertFunctionCommand();
     std::function<bool(QString *)> m_functionAsker;

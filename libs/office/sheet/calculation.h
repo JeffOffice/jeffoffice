@@ -39,6 +39,8 @@ constexpr qint64 kMaxHeldBytes = qint64(512) << 20;
 
 struct CalcOptions {
     bool keepApart = false;           // formulas the engine cannot work out keep the stored result (and mark what reads them): see the class
+    bool goRoundCircles = false;      // a workbook that asks for iterative calculation (or is told to: setIteration) has its circles worked out by going round them, as a window does; else (as the yardstick does)
+                                      // they are given 0, or, with keepApart, kept apart as the file has them
     bool workOutWhatHasNoResult = false;   // with keepApart: a formula the file stored no result for is worked out (the yardstick keeps it apart, for want of a result to compare with; a window has nothing else to show)
     qint64 workLimit = 0;             // steps for one formula; 0: the engine's own
     qint64 recalcWorkLimit = 0;       // the most steps a recalculation takes in all its slices; 0: kMaxRecalcWork
@@ -92,6 +94,29 @@ public:
     void setNow(double serial) { m_options.now = serial; }
     // Marks every formula to be worked out again (the next recalculation is a whole one).
     void invalidateAll();
+    // The same for the formulas of one sheet, and only those: what they read that is out of date is worked out as they need it, and what is waiting on other sheets (formulas never worked out,
+    // and what reads cells that were changed) stays waiting, until the next recalculation, which is a whole one.
+    void invalidateSheet(int sheet);
+    // Circular references. A formula that reads itself, directly or round a circle, has the result 0 and is circular (isCircular), unless the workbook is to be worked out by going round
+    // circles: then each formula of a circle is worked out again and again, reading the latest values of the others (those they had before, at first), until no value changes by as much as
+    // `delta` or `count` rounds are done. A change of these works every formula out again. Only with CalcOptions::goRoundCircles (the yardstick keeps the circles of a file apart: what the file
+    // stored is what its own program's last round left).
+    static constexpr int kMaxIterations = 32767;
+    void setIteration(bool on, int count, double delta);
+    bool iterating() const { return m_iterate; }
+    int iterationCount() const { return m_iterCount; }
+    double iterationDelta() const { return m_iterDelta; }
+    // The formulas found circular (not worked out by going round): how many, and the first `cap` of them in the order of the sheets and cells (`out` may be null). Called with the worker held back.
+    struct CircularCell {
+        int sheet;
+        quint32 row, col;
+    };
+    qint64 circularCells(std::vector<CircularCell> *out, qint64 cap) const;
+    // For tests: the formulas looked at to answer circularCells (it looks at those that were found in circles, not at every formula), and the formulas a change of a name read again.
+    qint64 circleWork() const { return m_circleWork; }
+    qint64 nameRebuilds() const { return m_nameRebuilds; }
+    // Works out the formulas typed or edited since the last recalculation, and what they need that is not worked out; what reads them is left as it is. For a workbook worked out by hand.
+    Progress recalculateFresh(qint64 workBudget = 0, const std::atomic<bool> *cancel = nullptr, qint64 timeBudgetMicros = 0);
     // Formulas that have yet to be worked out.
     bool isDirty() const { return m_notDone > 0 || m_running || m_invalidate.active; }
     // The formulas still to be worked out (while all of them are being marked, the ones not marked yet are counted, those that cannot be worked out among them).
@@ -328,6 +353,17 @@ public:
     void undoSheetRewrite(const SheetRewrite &record);
     // Whether a formula (a cell's or a name's) reads a block of several sheets, which moving, adding, or deleting a sheet could change the meaning of.
     bool hasThreeDReferences() const;
+
+    // ---- the defined names (a name's key is its scope, a "|", and its name in capitals). `scope` is the place of the sheet a name belongs to, -1 for the workbook's.
+    // What the name stands for (the text of its formula, as a file writes it), by exactly that scope; false if there is none.
+    bool nameText(int scope, const QString &name, QString *text) const;
+    // Gives the name that text (a name that is not there is made), or takes it away when the text is empty; what uses it is worked out again.
+    void setNameText(int scope, const QString &name, const QString &text);
+    // The name given another name: every formula (the cells', the rules', the other names') that uses it follows, and `record` says what they were, for undoRenameName. A change of capitals alone
+    // changes nothing (formulas read a name in any case).
+    void renameName(int scope, const QString &oldName, const QString &newName, SheetRewrite *record);
+    void undoRenameName(int scope, const QString &oldName, const QString &newName, const SheetRewrite &record);
+    qint64 nameCount() const { return qint64(m_names.size()); }
     // The color of a sheet's tab, and the default sizes (see SheetFormat), put back.
     void setTabColor(int sheet, const ColorSpec &color)
     {
@@ -357,6 +393,8 @@ public:
     const jp::calc::DependencyGraph &graph() const { return *m_graph; }
     // The number of the formula in the cell (the graph's name for it); 0xFFFFFFFF if the cell holds none.
     quint32 nodeAt(int sheet, quint32 row, quint32 col) const;
+    // Where the formula numbered `node` is (false if the number is none, or the formula is gone): for what the graph names.
+    bool formulaPlace(quint32 node, int *sheet, quint32 *row, quint32 *col) const;
     bool isCircular(int sheet, quint32 row, quint32 col) const;
     bool isTainted(int sheet, quint32 row, quint32 col) const;
     bool isCascaded(int sheet, quint32 row, quint32 col) const;   // reads (through others) a formula that `verify` called a mismatch
@@ -382,7 +420,7 @@ public:
 
 private:
     enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3, Suspended = 4 };   // (Suspended: worked out, found to wait only for formulas on the way to it or in its own group)
-    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048, Worked = 4096, ThreeD = 8192 };
+    enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048, Worked = 4096, ThreeD = 8192, Iterating = 16384 };
     enum : quint8 { KindEmpty = 0, KindNumber, KindText, KindBool, KindError, KindArray };
     struct Node {
         double number = 0;
@@ -460,6 +498,7 @@ private:
     void queueDependents(const jp::calc::CellArea &area);
     void giveName(quint32 id, std::vector<jp::calc::CellArea> *changed);
     void markDirty(quint32 id, std::vector<jp::calc::CellArea> *changed);
+    bool circleKeptForRetry(Node &n) const;
     void beginRecalculation();
     // The parts of a recalculation that are done in slices of the time they are given: each does some of its work, and says whether it is all done. `timeUp` is asked every
     // few thousand things done. Each does at least one chunk, so that a call always gets on.
@@ -528,7 +567,7 @@ private:
     void closeGroup(quint32 root, quint32 parent, Progress &pr);
     void leaveGroup(quint32 node, quint32 parent);
     struct GroupJob {
-        enum Phase : quint8 { None, Collect, Sort, Apply } phase = None;
+        enum Phase : quint8 { None, Collect, Sort, Apply, Iterate } phase = None;
         bool closing = false;      // closeGroup, or leaveGroup
         quint32 root = 0, parent = 0;
         bool fresh = false;        // some formula of the group has not had its second try
@@ -539,6 +578,12 @@ private:
         std::vector<size_t> sortCount;
         std::vector<quint32> sortTmp;
         size_t cursor = 0;         // for Apply: those before it are still to be done (it goes from the last to the first)
+        int stage = 0;             // for Iterate: 0 the formulas are made ready, 1 they are worked out round and round, 2 their values are given
+        quint32 round = 0;         // the rounds done
+        size_t at = 0;             // and the formula the round is at
+        double change = 0;         // the most any value changed by in the round
+        std::vector<jp::calc::Value> start;   // the values the rounds began from, and whether each was the file's result
+        std::vector<char> fromFile;
     } m_job;
     struct AbandonJob {
         bool active = false;
@@ -562,10 +607,27 @@ private:
         std::vector<jp::calc::CellArea> changed;
         std::vector<quint32> found;
         size_t foundAt = 0;
+        jp::calc::CellArea queried;   // the block `found` is the readers of
     } m_begin;
+    int m_onlySheet = -1;   // a recalculation of one sheet is going (invalidateSheet): the formulas of the others are left, and noted here for the next
+    std::vector<quint32> m_deferredRoots;
+    std::vector<jp::calc::CellArea> m_deferredAreas;
+    jp::calc::CellArea m_sheetArea;   // the whole of the sheet a recalculation of one sheet worked out, which the formulas of other sheets that read it wait for (the sheet's own formulas are not marked again)
+    int m_sheetAreaOwner = -1, m_sheetAreaPending = -1;
+    void releaseDeferred(bool discardSheetArea = false);
+    // Formulas typed or edited and not yet worked out, which a workbook worked out by hand works out at once (recalculateFresh); and those in circles, found as they are marked.
+    std::unordered_set<quint32> m_fresh;
+    bool m_onlyFresh = false;
+    mutable std::unordered_set<quint32> m_circle;
+    mutable qint64 m_circleWork = 0;
+    const Node &circleNode(quint32 id) const;
+    qint64 m_nameRebuilds = 0;
+    // The formulas whose text mentions one of the names (or a name that mentions them) are read again; what else uses names is left.
+    void nameTextsChangedFor(const QStringList &names);
     struct InvalidateJob {
         bool active = false;
         size_t at = 0;
+        int sheet = -1;   // only the formulas of this sheet; -1 for all
     } m_invalidate;
     void markCircular(quint32 id, Progress &pr);
     bool finishNode(Node &n, quint32 id, const jp::calc::Value &v);   // true if the value was not held for want of room
@@ -583,6 +645,8 @@ private:
     double m_now = 0;
     qint64 m_notDone = 0, m_formulaCount = 0, m_untracked = 0;
     bool m_iterate = false;
+    int m_iterCount = 100;
+    double m_iterDelta = 0.001;
     // while a formula is being worked out
     mutable bool m_evaluating = false;
     mutable std::vector<quint32> m_pending;   // formulas it read that were not worked out yet

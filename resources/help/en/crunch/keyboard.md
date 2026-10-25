@@ -46,6 +46,9 @@ On a Mac, the **Command** key (⌘) does what **Ctrl** does in the tables below,
 | F5, Ctrl+G | Go to a cell, a range, or a name |
 | Ctrl+Shift+L | Turn the filter on or off |
 | Shift+F3 | Pick a function |
+| Ctrl+F3 | The list of names |
+| F9, Shift+F9 | Recalculate all, recalculate this sheet |
+| Tab, Enter | While a formula is typed: take the function or name marked in the list |
 | Esc | Stop a search, a sort, or a filter that is going on |
 
 ## Commands

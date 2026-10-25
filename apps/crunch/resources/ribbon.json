@@ -262,19 +262,37 @@
           ]
         },
         {
-          "name": "Defined Names",
+          "name": "Names",
           "keytip": "ZD",
           "items": [
-            {"large": "formulas.names", "keytip": "N"}
+            {"large": "formulas.names", "keytip": "N"},
+            {"small": "formulas.defineName", "keytip": "DF"},
+            {"small": "formulas.nameFromCells", "keytip": "FC"},
+            {"small": "formulas.useName", "keytip": "IN"}
           ]
         },
         {
-          "name": "Calculation",
+          "name": "Check",
+          "keytip": "ZA",
+          "items": [
+            {"large": "formulas.tracePrecedents", "keytip": "TP"},
+            {"large": "formulas.traceDependents", "keytip": "TD"},
+            {"small": "formulas.removeArrows", "keytip": "RA"},
+            {"small": "view.formulas", "keytip": "H"},
+            {"small": "formulas.circular", "keytip": "CR"}
+          ]
+        },
+        {
+          "name": "Calculate",
           "keytip": "ZB",
           "items": [
             {"large": "formulas.calculate", "keytip": "B"},
-            {"large": "view.formulas", "keytip": "H"},
-            {"large": "formulas.options", "keytip": "O"}
+            {"small": "formulas.calculateSheet", "keytip": "SB"},
+            {
+              "large": "formulas.options",
+              "keytip": "O",
+              "menu": ["formulas.calcAuto", "formulas.calcNoTables", "formulas.calcManual", "-", "formulas.iteration"]
+            }
           ]
         }
       ]

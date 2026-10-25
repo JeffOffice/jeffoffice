@@ -617,6 +617,11 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 out->calcMode = mode == QLatin1String("manual") ? CalcMode::Manual : mode == QLatin1String("autoNoTable") ? CalcMode::AutoNoTable : CalcMode::Auto;
                 out->fullCalcOnLoad = parseBool(attribute(r, "fullCalcOnLoad").toString());
                 out->iterate = parseBool(attribute(r, "iterate").toString());
+                bool okCount = false, okDelta = false;
+                const int count = attribute(r, "iterateCount").toInt(&okCount);
+                const double delta = attribute(r, "iterateDelta").toDouble(&okDelta);
+                if (okCount) out->iterateCount = std::clamp(count, 1, 32767);
+                if (okDelta && delta >= 0 && delta < 1e300) out->iterateDelta = delta;
             } else if (depth == 2 && isElement(r, "bookViews")) {
                 inViews = true;
             } else if (depth == 3 && inViews && isElement(r, "workbookView") && !viewSeen) {
@@ -636,7 +641,8 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 const int local = attribute(r, "localSheetId").toInt(&ok);
                 name.localSheet = ok ? local : -1;
                 name.hidden = parseBool(attribute(r, "hidden").toString());
-                nameChars += name.name.size();
+                name.comment = attribute(r, "comment").toString();
+                nameChars += name.name.size() + name.comment.size();
                 if (nameChars > limits.definedNameChars) return fail(QCoreApplication::translate("Sheet", "The names have more characters than any real file has."));
                 inName = true;
             } else if (depth == 2 && isElement(r, "sheets")) {
