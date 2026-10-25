@@ -14,7 +14,7 @@
 namespace jp::crunch {
 
 constexpr char kObjectMime[] = "application/x-jeffcrunch-object";
-constexpr qint64 kMaxObjectClipBytes = qint64(16) << 20;
+constexpr qint64 kMaxObjectClipBytes = qint64(4) << 20;   // (the largest chart part of the practice workbooks is 1.8 MB)
 
 struct ObjectClip {
     QString kind;             // "chart"

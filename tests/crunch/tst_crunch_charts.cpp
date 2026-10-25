@@ -1001,6 +1001,35 @@ private Q_SLOTS:
         const QVector<SavedChart> charts = savedCharts(e.path);
         QCOMPARE(seriesOf(charts[0].chart)[0].format, QStringLiteral("\"$\"#,##0.00"));
     }
+
+    // A chart made here follows the sheet it reads when that is renamed (a name that needs quotes gets them), and back with Undo; the file has the name it has then.
+    void aNewChartFollowsTheRenameOfItsSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        QVERIFY(e.win.w.renameSheetTo(0, QStringLiteral("Q1 Budget")));
+        QVERIFY(e.settle());
+        QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("'Q1 Budget'!$B$2:$B$4"));
+        QCOMPARE(seriesOf(chartOf(e))[0].nameRef, QStringLiteral("'Q1 Budget'!$B$1"));
+        QCOMPARE(seriesOf(chartOf(e))[0].values, (QVector<double>{10, 20, 30}));   // (it still reads the cells)
+        QVERIFY(save(e));
+        const QVector<SavedChart> charts = savedCharts(e.path);
+        QCOMPARE(seriesOf(charts[0].chart)[0].valueRef, QStringLiteral("'Q1 Budget'!$B$2:$B$4"));
+        QCOMPARE(seriesOf(charts[0].chart)[0].values, (QVector<double>{10, 20, 30}));
+        // a chart changed after the rename reads by the new name too
+        e.win.w.objects()->layer()->select(0);
+        QVERIFY(e.win.w.changePickedChart(QStringLiteral("Test"), [](Chart *c) { c->title.present = true; c->title.automatic = false; c->title.text = QStringLiteral("T"); }));
+        QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("'Q1 Budget'!$B$2:$B$4"));
+        QVERIFY(e.win.w.renameSheetTo(0, QStringLiteral("Data")));
+        QVERIFY(e.settle());
+        QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("Data!$B$2:$B$4"));
+        pressUndo(&e.win.w);   // the second rename
+        QVERIFY(e.settle());
+        QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("'Q1 Budget'!$B$2:$B$4"));
+    }
 };
 
 JP_TEST_CLASS(CrunchChartTests)
