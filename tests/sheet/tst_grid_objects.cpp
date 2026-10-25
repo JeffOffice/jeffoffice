@@ -481,8 +481,7 @@ private Q_SLOTS:
         s.draw();
         QCOMPARE(s.objects.stats().renders, qint64(1));
         // (the second is below the 300 pixels the window shows, within another screenful: the layer makes it when the grid has stopped, and then has nothing in hand)
-        QTRY_VERIFY(nearLog.asked.size() >= 1);
-        QTRY_VERIFY(!s.objects.busy());   // (settled: nothing more is in hand, so what was asked for is all that will be)
+        QTRY_VERIFY(!s.objects.busy() && nearLog.asked.size() >= 1);   // (settled: nothing more is in hand, so what was asked for is all that will be)
         QCOMPARE(nearLog.asked.size(), 1);
         QCOMPARE(s.objects.stats().renders, qint64(2));
         QCOMPARE(farLog.asked.size(), 0);   // (the third is never made while it is far off)

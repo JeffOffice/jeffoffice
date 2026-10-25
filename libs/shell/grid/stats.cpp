@@ -4,6 +4,7 @@
 #include <QLocale>
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 namespace jp::grid {
@@ -68,8 +69,21 @@ Stats computeStats(const GridSheet &sheet, const GridRange &range)
 
 QString statsText(const Stats &s)
 {
-    // (as the General number format writes a number, in the user's locale: up to fifteen digits, grouped, and in the scientific way only when it is very large or very small)
-    auto number = [](double v) { return QLocale().toString(v, 'g', 15); };
+    // (the status line is short: a sum and an average are shown to ten significant digits, in the user's locale, grouped, and in the scientific way only when very large or very small)
+    auto number = [](double v) {
+        const QLocale locale;
+        const double a = std::fabs(v);
+        if (a >= 1e15 || (a > 0 && a < 1e-9)) return locale.toString(v, 'g', 10);
+        const int whole = a >= 1 ? int(std::floor(std::log10(a))) + 1 : -int(std::floor(std::log10(a))) - 1;   // (digits before the point, or zeros after it)
+        const int decimals = a >= 1 ? std::max(0, 10 - whole) : std::min(20, 10 + whole);
+        QString text = locale.toString(v, 'f', decimals);
+        const QString point = locale.decimalPoint();
+        if (decimals > 0 && text.contains(point)) {
+            while (text.endsWith(QLatin1Char('0'))) text.chop(1);
+            if (text.endsWith(point)) text.chop(point.size());
+        }
+        return text;
+    };
     if (s.hasNumbers())
         return QStringLiteral("%1: %2    %3: %4    %5: %6")
             .arg(QCoreApplication::translate("jp::grid::Stats", "Average"), number(s.average()), QCoreApplication::translate("jp::grid::Stats", "Count"), QLocale().toString(s.count), QCoreApplication::translate("jp::grid::Stats", "Sum"), number(s.sum));
