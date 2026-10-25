@@ -13,6 +13,8 @@ typedef bool (*DecodeHook)(const char *encoding, const unsigned char *data, std:
 void setDecodeHook(DecodeHook hook);
 // How many formulas of custom shapes have been worked out, since the program began (a formula that is asked for again is not): a count for tests of cost.
 unsigned long long calculationsDoneForTest();
+// How many dates, hyperlinks, and objects set in text the spans of text have looked at since the program began (each span looks only at those over it): a count for tests of cost.
+unsigned long long tokensLookedAtForTest();
 }
 
 #endif

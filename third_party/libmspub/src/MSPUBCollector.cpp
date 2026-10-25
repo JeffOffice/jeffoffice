@@ -41,6 +41,8 @@
 namespace libmspub
 {
 
+extern unsigned long long g_calculationsDone, g_tokensLookedAt;   // JeffPub: counted for tests (jp_hooks.h)
+
 namespace
 {
 // JeffPub: JP_PUB_TRACE, read once (it is checked for every shape and paragraph).
@@ -1675,6 +1677,7 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
           openTokens.erase(std::remove_if(openTokens.begin(), openTokens.end(),
                                           [first](const TextToken *t) { return 0ull + t->pos + t->len <= first; }),
                            openTokens.end());
+          g_tokensLookedAt += openTokens.size() + here.size();
           std::set<unsigned> cuts{0, count};
           for (const auto &o : here)
           {
@@ -1823,8 +1826,6 @@ double MSPUBCollector::getSpecialValue(const ShapeInfo &info, const CustomShape 
   }
   return 0;
 }
-
-extern unsigned long long g_calculationsDone;
 
 double MSPUBCollector::getCalculationValue(const ShapeInfo &info, unsigned index, bool recursiveEntry, const std::vector<int> &adjustValues) const
 {

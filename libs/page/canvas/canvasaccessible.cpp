@@ -265,6 +265,9 @@ CanvasAccessible::~CanvasAccessible()
 
 Canvas *CanvasAccessible::canvas() const { return static_cast<Canvas *>(widget()); }
 
+static thread_local qint64 g_idsListed = 0;
+qint64 CanvasAccessible::idsListedForTest() { return g_idsListed; }
+
 QStringList CanvasAccessible::objectIds() const
 {
     // A screen reader asks for the children one at a time: the list is made
@@ -273,6 +276,7 @@ QStringList CanvasAccessible::objectIds() const
     const ItemList &items = canvas()->editor()->surfaceItems();
     if (!m_stale && m_listOf == &items && m_listSize == qsizetype(items.size())) return m_list;
     m_list.clear();
+    g_idsListed += qint64(items.size());
     for (const ItemPtr &it : items) m_list << it->id;
     // Objects gone from the document let their interfaces go.
     const QSet<QString> onPage(m_list.cbegin(), m_list.cend());
