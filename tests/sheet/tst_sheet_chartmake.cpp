@@ -298,6 +298,31 @@ private Q_SLOTS:
         applyChartFormats(&plain, 0, mute);
         QVERIFY(plain.plots[0].series[0].format.isEmpty());
     }
+
+    // A block that is cut to a few rows and columns is cut before the cells are looked at: a whole sheet of numbers, or the block around one cell of it, costs what the cut block holds.
+    void aBlockCutShortIsCutBeforeItIsLookedAt()
+    {
+        Cells f;
+        for (quint32 r = 0; r < 30000; ++r)
+            for (quint32 c = 0; c < 4; ++c) f.cells[{r, c}] = Value::number(r + c);
+        CellRange whole = range(QStringLiteral("A1:XFD1048576"));
+        const qint64 before = f.reads;
+        const CellRange cut = chartBlockOf(f, 0, whole, nullptr, 41, 13);
+        QCOMPARE(int(cut.row2 - cut.row1 + 1), 41);
+        QCOMPARE(int(cut.col2 - cut.col1 + 1), 4);
+        const qint64 cutReads = f.reads - before;
+        QVERIFY2(cutReads < 2000, qPrintable(QString::number(cutReads)));
+        const qint64 mid = f.reads;
+        const CellRange around = chartBlockOf(f, 0, range(QStringLiteral("B5")), nullptr, 41, 13);
+        QVERIFY(around.valid);
+        QVERIFY(int(around.row2 - around.row1 + 1) <= 41);
+        QVERIFY2(f.reads - mid < 3000, qPrintable(QString::number(f.reads - mid)));
+        // without the cut the block is all of it
+        const qint64 start = f.reads;
+        const CellRange all = chartBlockOf(f, 0, range(QStringLiteral("B5")));
+        QCOMPARE(int(all.row2 - all.row1 + 1), 30000);
+        QVERIFY(f.reads - start > 20000);
+    }
 };
 
 JP_TEST_CLASS(SheetChartMakeTests)

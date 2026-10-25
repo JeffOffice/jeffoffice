@@ -64,26 +64,26 @@ bool columnHasContent(const ChartCells &cells, int sheet, quint32 col, quint32 r
 }
 
 // The block of cells with something in them around the cell, as far as a budget of cells looked at allows.
-CellRange regionAround(const ChartCells &cells, int sheet, quint32 row, quint32 col, quint32 rows, quint32 cols)
+CellRange regionAround(const ChartCells &cells, int sheet, quint32 row, quint32 col, quint32 rows, quint32 cols, quint32 maxRows = 0, quint32 maxCols = 0)
 {
     quint32 r1 = row, r2 = row, c1 = col, c2 = col;
     qint64 budget = 600000;
     bool grew = true;
     while (grew && budget > 0) {
         grew = false;
-        if (r1 > 0 && rowHasContent(cells, sheet, r1 - 1, c1 > 0 ? c1 - 1 : c1, std::min(c2 + 1, cols ? cols - 1 : c2), &budget)) {
+        if ((!maxRows || r2 - r1 + 1 < maxRows) && r1 > 0 && rowHasContent(cells, sheet, r1 - 1, c1 > 0 ? c1 - 1 : c1, std::min(c2 + 1, cols ? cols - 1 : c2), &budget)) {
             --r1;
             grew = true;
         }
-        if (r2 + 1 < rows && rowHasContent(cells, sheet, r2 + 1, c1 > 0 ? c1 - 1 : c1, std::min(c2 + 1, cols ? cols - 1 : c2), &budget)) {
+        if ((!maxRows || r2 - r1 + 1 < maxRows) && r2 + 1 < rows && rowHasContent(cells, sheet, r2 + 1, c1 > 0 ? c1 - 1 : c1, std::min(c2 + 1, cols ? cols - 1 : c2), &budget)) {
             ++r2;
             grew = true;
         }
-        if (c1 > 0 && columnHasContent(cells, sheet, c1 - 1, r1 > 0 ? r1 - 1 : r1, std::min(r2 + 1, rows ? rows - 1 : r2), &budget)) {
+        if ((!maxCols || c2 - c1 + 1 < maxCols) && c1 > 0 && columnHasContent(cells, sheet, c1 - 1, r1 > 0 ? r1 - 1 : r1, std::min(r2 + 1, rows ? rows - 1 : r2), &budget)) {
             --c1;
             grew = true;
         }
-        if (c2 + 1 < cols && columnHasContent(cells, sheet, c2 + 1, r1 > 0 ? r1 - 1 : r1, std::min(r2 + 1, rows ? rows - 1 : r2), &budget)) {
+        if ((!maxCols || c2 - c1 + 1 < maxCols) && c2 + 1 < cols && columnHasContent(cells, sheet, c2 + 1, r1 > 0 ? r1 - 1 : r1, std::min(r2 + 1, rows ? rows - 1 : r2), &budget)) {
             ++c2;
             grew = true;
         }
@@ -157,7 +157,7 @@ ChartPlan planChartFrom(const QString &sheetName, const CellRange &block, bool h
     return plan;
 }
 
-CellRange chartBlockOf(const ChartCells &cells, int sheet, const CellRange &selection, bool *truncatedOut)
+CellRange chartBlockOf(const ChartCells &cells, int sheet, const CellRange &selection, bool *truncatedOut, int maxRows, int maxCols)
 {
     if (truncatedOut) *truncatedOut = false;
     if (!selection.valid) return CellRange();
@@ -168,8 +168,10 @@ CellRange chartBlockOf(const ChartCells &cells, int sheet, const CellRange &sele
     r.row2 = std::min(r.row2, rows - 1);
     r.col2 = std::min(r.col2, cols - 1);
     if (r.row1 > r.row2 || r.col1 > r.col2) return CellRange();
+    if (maxRows > 0 && r.row2 - r.row1 + 1 > quint32(maxRows)) r.row2 = r.row1 + quint32(maxRows) - 1;   // (cut before anything is looked at)
+    if (maxCols > 0 && r.col2 - r.col1 + 1 > quint32(maxCols)) r.col2 = r.col1 + quint32(maxCols) - 1;
     if (plainOneCell(r)) {
-        r = regionAround(cells, sheet, r.row1, r.col1, rows, cols);
+        r = regionAround(cells, sheet, r.row1, r.col1, rows, cols, quint32(std::max(0, maxRows)), quint32(std::max(0, maxCols)));
     } else if (r.cellCount() > 4000000) {
         // a selection too large to look through cell by cell: its first part
         r.row2 = std::min<quint32>(r.row2, r.row1 + 20000);

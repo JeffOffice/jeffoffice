@@ -181,12 +181,10 @@ bool CrunchWindow::chartPlanFor(ChartKind kind, int inRows, ChartPlan *plan, boo
     const QString name = m_loaded->book->info().sheets[m_sheet].name;
     jp::office::sheet::CellRange selection = selectedRange();
     if (forPreview) {
-        // a picture of a chart is drawn from a part of the cells: at most this many rows and columns of the block
-        const jp::office::sheet::CellRange block = chartBlockOf(cells, m_sheet, selection);
-        if (!block.valid) return false;
-        selection = block;
-        selection.row2 = std::min<quint32>(selection.row2, selection.row1 + 40);
-        selection.col2 = std::min<quint32>(selection.col2, selection.col1 + 12);
+        // a picture of a chart is drawn from a part of the cells: at most this many rows and columns of the block, found once (before anything is looked at, the selection is cut to them)
+        if (!m_previewBlock.valid) m_previewBlock = chartBlockOf(cells, m_sheet, selection, nullptr, 41, 13);
+        if (!m_previewBlock.valid) return false;
+        selection = m_previewBlock;
     }
     *plan = planChart(cells, m_sheet, name, selection, kind);
     if (!plan->series.isEmpty() && inRows == 2) {
@@ -272,6 +270,7 @@ bool CrunchWindow::insertChart(ChartKind kind, int inRows)
 QDialog *CrunchWindow::makeInsertChartDialog()
 {
     if (!m_objects || !m_objects->cells()) return nullptr;
+    m_previewBlock = jp::office::sheet::CellRange();   // (the selection may have changed: found again, once, for this dialog)
     return new InsertChartDialog([this](ChartKind k, int inRows, const QSize &px) { return chartPreviewImage(k, inRows, px); }, ChartKind::Column, this);
 }
 
@@ -287,7 +286,9 @@ void CrunchWindow::insertChartDialog()
             notice(tr("New Chart"), tr("The workbook is still being read. A chart can be made when it is open."));
             return;
         }
-        if (dialog->exec() != QDialog::Accepted) return;
+        const bool accepted = dialog->exec() == QDialog::Accepted;
+        m_previewBlock = jp::office::sheet::CellRange();
+        if (!accepted) return;
         const auto *d = static_cast<InsertChartDialog *>(dialog.get());
         choice.kind = d->kind();
         choice.inRows = d->inRows();
@@ -686,7 +687,7 @@ bool CrunchWindow::copyObject(bool cut)
     const Chart chart = m_objects->chartNow(m_sheet, id);
     crunch::ObjectClip clip;
     clip.kind = QStringLiteral("chart");
-    clip.origin = QString::number(m_session->token());
+    clip.origin = m_workbookId + QLatin1Char('|') + m_path;
     clip.sheetName = m_loaded && m_loaded->book ? m_loaded->book->info().sheets[m_sheet].name : QString();
     const grid::ObjectBox box = m_objects->layer()->boxNow(id);
     clip.width = std::max(4.0, box.w);
@@ -715,7 +716,19 @@ bool CrunchWindow::pasteObject()
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed()) return true;
     Chart chart;
-    const bool sameBook = clip.origin == QString::number(m_session->token());
+    // it reads this workbook's cells only if it was copied from this workbook (by its own id: not another program's, nor another opening of the file) and everything it reads is still there (a
+    // sheet renamed or deleted since would make its references name other cells, or none)
+    bool sameBook = !m_workbookId.isEmpty() && clip.origin.section(QLatin1Char('|'), 0, 0) == m_workbookId && m_objects->cells() && m_objects->cells()->sheetIndex(clip.sheetName) >= 0;
+    if (sameBook) {
+        Chart probe;
+        if (clip.chart(m_objects->theme(), true, &probe)) {
+            for (const ChartSeries &s : seriesOf(probe))
+                for (const QString &ref : {s.nameRef, s.categoryRef, s.valueRef, s.xRef}) {
+                    QVector<ChartBlock> blocks;
+                    if (!ref.isEmpty() && !chartBlocks(ref, m_sheet, *m_objects->cells(), &blocks)) sameBook = false;
+                }
+        }
+    }
     if (!clip.chart(m_objects->theme(), sameBook, &chart)) {
         notice(tr("Paste"), tr("The chart on the clipboard can't be read."));
         return true;

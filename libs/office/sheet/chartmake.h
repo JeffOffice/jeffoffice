@@ -40,7 +40,9 @@ QString chartRef(const QString &sheetName, const CellRange &range);
 
 // The block of cells a selection stands for: a cell is the block around it that has something in it, whole columns or rows go as far as the sheet's cells do, and the empty rows and columns at the
 // edges are left off. Invalid if there is none.
-CellRange chartBlockOf(const ChartCells &cells, int sheet, const CellRange &selection, bool *truncated = nullptr);
+// With `maxRows` and `maxCols` (not 0) the block is no more than that many rows and columns: the selection is cut to them before any cell is looked at, and a block around one cell grows no
+// further than they allow (a picture of a chart is drawn from a part of the cells, and finding the whole block first would look at all of them).
+CellRange chartBlockOf(const ChartCells &cells, int sheet, const CellRange &selection, bool *truncated = nullptr, int maxRows = 0, int maxCols = 0);
 
 // The plan for the cells selected on `sheet` (called `sheetName`). A selection of one cell is the block of cells around it that has something in it; whole columns or rows go as far as the
 // sheet's cells do. `inRows`: 0 the series are columns, 1 they are rows, -1 whichever the shape of the selection says (more columns than rows: rows). The plan has no series if the selection

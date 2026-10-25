@@ -6,6 +6,7 @@
 #include "core/sheetobjects.h"
 
 #include <QMetaObject>
+#include <QUuid>
 
 namespace jp {
 
@@ -29,6 +30,7 @@ void CrunchWindow::openObjects()
 {
     if (!m_objects || !m_loaded) return;
     m_objects->open(m_loaded->book);
+    m_workbookId = QUuid::createUuid().toString(QUuid::WithoutBraces);   // (128 random bits: no other program, and no other opening of the same file, has it)
     m_objects->setEditsSource([this]() -> const std::vector<jp::office::sheet::StructEdit> & {
         static const std::vector<jp::office::sheet::StructEdit> none;
         return m_session ? m_session->structureEdits() : none;

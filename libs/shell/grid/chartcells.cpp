@@ -35,6 +35,7 @@ Value WorkbookChartCells::valueOf(int sheet, const Cell &cell) const
 
 Value WorkbookChartCells::value(int sheet, quint32 row, quint32 col) const
 {
+    ++m_reads;
     const Cell *c = cellAt(sheet, row, col);
     return c ? valueOf(sheet, *c) : Value();
 }

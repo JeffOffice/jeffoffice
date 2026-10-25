@@ -23,6 +23,8 @@ public:
     int sheetIndex(const QString &name) const override;
     jp::calc::Value value(int sheet, quint32 row, quint32 col) const override;
     QString text(int sheet, quint32 row, quint32 col) const override;
+    // How many cells have been read through this since it was made (a count for tests of cost).
+    qint64 reads() const { return m_reads; }
     QString formatCode(int sheet, quint32 row, quint32 col) const override;
     bool rowHidden(int sheet, quint32 row) const override;
     bool columnHidden(int sheet, quint32 col) const override;
@@ -48,6 +50,7 @@ private:
     jp::calc::DateSystem m_dateSystem;
     LookTable m_looks;
     mutable std::unordered_map<int, Hidden> m_hidden;
+    mutable qint64 m_reads = 0;
 };
 
 } // namespace jp::grid

@@ -8,6 +8,7 @@
 #include "app/ribbon.h"
 #include "core/fonts.h"
 #include "core/objectclip.h"
+#include "grid/chartcells.h"
 #include "core/sheetobjects.h"
 #include "office/chart_write.h"
 #include "office/xml.h"
@@ -1274,6 +1275,79 @@ private Q_SLOTS:
         }
         QVERIFY(relationshipParts >= 4);
         QCOMPARE(savedCharts(e.path, 1).size() + savedCharts(e.path, 0).size(), 1);
+    }
+
+    // The More Charts dialog finds the block of cells it draws from once, for every kind and for the swap: what it reads does not grow with the number of kinds, nor with the size of the sheet.
+    void theNewChartDialogReadsTheCellsOnce()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(20000, {})));
+        QVERIFY(e.settle());
+        auto *cells = dynamic_cast<const jp::grid::WorkbookChartCells *>(e.win.w.objects()->cells());
+        QVERIFY(cells);
+        for (const bool wholeSheet : {false, true}) {
+            if (wholeSheet) e.view()->selectAll();
+            else e.select(QStringLiteral("A5"));
+            const qint64 before = cells->reads();
+            std::unique_ptr<QDialog> dialog(e.win.w.makeInsertChartDialog());
+            QVERIFY(dialog);
+            auto *d = static_cast<InsertChartDialog *>(dialog.get());
+            d->setRowsAndColumns(true);
+            for (const ChartKindEntry &k : chartKindEntries()) d->selectKind(k.kind);
+            QVERIFY(!d->previewShown().isNull());
+            const qint64 read = cells->reads() - before;
+            QVERIFY2(read < 40000, qPrintable(QString::number(read)));   // (the dialog draws 17 kinds twice and the swap from 41 rows of two columns: the block is not looked for again)
+        }
+    }
+
+    // A copy says which workbook it came from by an id no other opening of any file has (a program started again, or another program, has another), and a paste keeps its references only if the
+    // sheets they name are still there under those names.
+    void aPastedChartReadsCellsOnlyInTheWorkbookItCameFrom()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        auto copyIt = [&] {
+            QGuiApplication::clipboard()->clear();
+            o->layer()->select(0);
+            e.win.w.act(QStringLiteral("edit.copy"))->trigger();
+        };
+        auto pasteIt = [&] {
+            e.select(QStringLiteral("B20"));
+            e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+            return o->idsOf(0).back();
+        };
+        // the same workbook: the references stay
+        copyIt();
+        crunch::ObjectClip clip;
+        QVERIFY(crunch::ObjectClip::fromBytes(QGuiApplication::clipboard()->mimeData()->data(QLatin1String(crunch::kObjectMime)), &clip));
+        QVERIFY(!clip.origin.section(QLatin1Char('|'), 0, 0).isEmpty());
+        QVERIFY(clip.origin.section(QLatin1Char('|'), 0, 0) != QString::number(e.win.w.session()->token()));
+        QCOMPARE(clip.origin.section(QLatin1Char('|'), 0, 0).size(), 36);   // (a random 128-bit id, written out)
+        int id = pasteIt();
+        QCOMPARE(seriesOf(chartOf(e, id))[0].valueRef, QStringLiteral("Sheet1!$B$2:$B$4"));
+        // a copy that says another workbook (another program, or the same file opened again): the numbers, no references
+        crunch::ObjectClip other = clip;
+        other.origin = QStringLiteral("0b0f2d6e-1111-4222-8333-444455556666|") + clip.origin.section(QLatin1Char('|'), 1);
+        auto *md = new QMimeData;
+        md->setData(QLatin1String(crunch::kObjectMime), other.toBytes());
+        QGuiApplication::clipboard()->setMimeData(md);
+        id = pasteIt();
+        QVERIFY(seriesOf(chartOf(e, id))[0].valueRef.isEmpty());
+        QCOMPARE(seriesOf(chartOf(e, id))[0].values, (QVector<double>{10, 20, 30}));
+        // the sheet it read renamed between the copy and the paste: it would read other cells, or none
+        copyIt();
+        QVERIFY(e.win.w.renameSheetTo(0, QStringLiteral("Budget")));
+        QVERIFY(e.settle());
+        id = pasteIt();
+        QVERIFY(seriesOf(chartOf(e, id))[0].valueRef.isEmpty());
+        QCOMPARE(seriesOf(chartOf(e, id))[0].values, (QVector<double>{10, 20, 30}));
+        // renamed back (Undo): the copy is the workbook's again
+        pressUndo(&e.win.w);
+        pressUndo(&e.win.w);
+        QVERIFY(e.settle());
+        QCOMPARE(seriesOf(chartOf(e, 0))[0].valueRef, QStringLiteral("Sheet1!$B$2:$B$4"));
     }
 };
 

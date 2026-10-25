@@ -547,6 +547,8 @@ private:
     std::function<bool(const SelectDataRequest &, jp::office::Chart *)> m_selectDataAsker;
     std::function<bool(const QStringList &, const QVector<jp::office::sheet::SeriesKind> &, QVector<jp::office::sheet::SeriesKind> *)> m_changeTypeAsker;
     std::function<bool(const ObjectProperties &, ObjectProperties *)> m_propertiesAsker;
+    QString m_workbookId;   // which workbook this is, among all that are open in any program: random for each one opened (what a copy says it came from)
+    jp::office::sheet::CellRange m_previewBlock;   // the block of cells the pictures of the New Chart dialog are drawn from, found once for all of them
     QToolButton *m_chartPlus = nullptr, *m_chartBrush = nullptr;
     QTimer m_chartButtonsTimer;
     QStringList m_chartActions;
