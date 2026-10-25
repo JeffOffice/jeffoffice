@@ -360,6 +360,80 @@ private Q_SLOTS:
         QCOMPARE(crunch::sheetOrder({0}, 0, true), (QVector<int>{0}));
     }
 
+    // A sheet's page setup (paper, breaks, print area, titles) goes with the sheet through every sheet operation, and through Undo of each, in the model and in the saved file: the sheets
+    // keep their places in the session whatever the tabs do, and the names in the file say where each sheet is among the tabs and what it is called.
+    void pageSetupFollowsTheSheetOperations()
+    {
+        const QByteArray one = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"),
+                                         QStringLiteral("<pageSetup orientation=\"landscape\"/><rowBreaks count=\"1\" manualBreakCount=\"1\"><brk id=\"3\" max=\"16383\" man=\"1\"/></rowBreaks>"));
+        const QByteArray two = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>2</v></c></row>"));
+        const QByteArray three = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>3</v></c></row>"));
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({one, two, three}, QByteArray(), QString(), QString(), QByteArray(), QStringList({"A", "B", "C"}),
+                                 QStringLiteral("<definedName name=\"_xlnm.Print_Area\" localSheetId=\"1\">B!$A$1:$B$5</definedName><definedName name=\"_xlnm.Print_Titles\" localSheetId=\"2\">C!$1:$1</definedName>"))));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        auto setup = [&](int sheet) { return s->pages().sheet(sheet); };
+        QVERIFY(setup(0).orientation == jp::office::sheet::PageOrientation::Landscape);
+        QCOMPARE(setup(0).rowBreaks.size(), 1);
+        QVERIFY(setup(1).hasPrintArea());
+        QVERIFY(setup(2).titles.hasRows);
+        // a new sheet prints as the defaults say, and Undo takes it away (and Redo brings it back)
+        int made = -1;
+        QVERIFY(s->insertSheet(0, QStringLiteral("New"), &made).ok);
+        QCOMPARE(made, 3);
+        QCOMPARE(s->pages().sheetCount(), 4);
+        QVERIFY(!setup(3).hasPrintArea() && setup(3).rowBreaks.isEmpty());
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(s->pages().sheetCount(), 3);
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QCOMPARE(s->pages().sheetCount(), 4);
+        QCOMPARE(setup(1).printArea.size(), 1);   // (the others are where they were)
+        // a copy prints as the sheet it is a copy of: its print area, its breaks, its paper
+        int copied = -1;
+        QVERIFY(s->copySheet(1, -1, QStringLiteral("B copy"), &copied).ok);
+        QCOMPARE(copied, 4);
+        QVERIFY(setup(4).hasPrintArea());
+        QCOMPARE(setup(4).printArea[0].row2, 4u);
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(s->pages().sheetCount(), 4);
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QVERIFY(setup(4).hasPrintArea());
+        // a rename, a move, and a delete keep the setups with their sheets (and Undo of each)
+        QVERIFY(s->renameSheet(1, QStringLiteral("Renamed")).ok);
+        QVERIFY(setup(1).hasPrintArea());
+        QVERIFY(s->moveSheet(2, 0).ok);   // C first
+        QVERIFY(setup(2).titles.hasRows);
+        QVERIFY(s->deleteSheet(3).ok);    // the new sheet goes
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(s->deleteSheet(3).ok);
+        QVERIFY(setup(0).rowBreaks.size() == 1 && setup(1).hasPrintArea() && setup(2).titles.hasRows);
+        // the saved file: tabs are C, A, New (deleted, so not there), Renamed, and the copy; each has its own setup
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        Package package;
+        QString why;
+        QVERIFY2(package.readLazyFile(e.path, &why), qPrintable(why));
+        Workbook book;
+        QVERIFY2(book.open(package, &why), qPrintable(why));
+        QStringList names;
+        for (const SheetEntry &entry : book.info().sheets) names << entry.name;
+        QCOMPARE(names, QStringList({QStringLiteral("C"), QStringLiteral("A"), QStringLiteral("Renamed"), QStringLiteral("B copy")}));
+        auto page = [&](int place) {
+            Sheet sheet;
+            book.readSheet(place, &sheet);
+            return sheet.page;
+        };
+        QVERIFY(page(0).titles.hasRows);                       // C: its titles
+        QCOMPARE(page(1).rowBreaks.size(), 1);                 // A: landscape, with its break
+        QVERIFY(page(1).orientation == jp::office::sheet::PageOrientation::Landscape);
+        QVERIFY(page(2).hasPrintArea() && page(2).printArea[0].row2 == 4u);   // B, renamed
+        QVERIFY(page(3).hasPrintArea() && page(3).printArea[0].row2 == 4u);   // its copy
+        QVERIFY(!page(0).hasPrintArea() && !page(1).hasPrintArea());
+    }
+
     // An export tells how far it has got and can be cancelled (it says so, and leaves no file); copies of many pages are never made into a list of millions.
     void anExportShowsProgressAndCanBeCancelled()
     {

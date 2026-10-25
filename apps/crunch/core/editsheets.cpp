@@ -421,12 +421,15 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                 const int entry = book.addSheetEntry(e.nameAfter);
                 if (made != e.sheet || entry != e.sheet) return false;
                 if (e.kind == SheetEdit::Kind::Copy) m_copies.push_back({made, e.copyOf, m_edits.size()});
+                // (a new sheet prints as the defaults say, a copy as the sheet it is a copy of does now, and the file is told of it)
+                m_pages.addSheet(e.kind == SheetEdit::Kind::Copy ? m_pages.sheet(e.copyOf) : jp::office::sheet::PageSetup(), e.kind == SheetEdit::Kind::Copy);
                 if (m_book->geometry.size() < size_t(made) + 1) m_book->geometry.resize(size_t(made) + 1);
                 book.setSheetOrder(e.orderAfter);
             } else {
                 if (calc->sheetCount() != e.sheet + 1) return false;   // (the sheet added is the last: what was done after it was undone first)
                 calc->removeLastSheet();
                 book.removeLastSheetEntry();
+                m_pages.removeLastSheet();
                 if (!m_copies.empty() && m_copies.back().sheet == e.sheet) m_copies.pop_back();
                 forgetSheet(e.sheet);
                 if (m_book->geometry.size() > size_t(e.sheet)) m_book->geometry.resize(size_t(e.sheet));

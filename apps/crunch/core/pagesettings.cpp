@@ -71,56 +71,32 @@ void PageSettings::undoEdit(const void *token)
     }
 }
 
-void PageSettings::insertSheet(int at)
+void PageSettings::addSheet(const PageSetup &setup, bool touched)
 {
-    at = std::clamp(at, 0, int(m_sheets.size()));
-    m_sheets.insert(m_sheets.begin() + at, PageSetup());
-    std::set<int> t;
-    for (const int s : m_touched) t.insert(s >= at ? s + 1 : s);
-    m_touched = t;
-    m_kept.clear();
+    m_sheets.push_back(setup);
+    if (touched) m_touched.insert(int(m_sheets.size()) - 1);
 }
 
-void PageSettings::removeSheet(int at)
+void PageSettings::removeLastSheet()
 {
-    if (at < 0 || at >= int(m_sheets.size())) return;
-    m_sheets.erase(m_sheets.begin() + at);
-    std::set<int> t;
-    for (const int s : m_touched) {
-        if (s == at) continue;
-        t.insert(s > at ? s - 1 : s);
-    }
-    m_touched = t;
-    m_kept.clear();
+    if (m_sheets.empty()) return;
+    const int last = int(m_sheets.size()) - 1;
+    m_sheets.pop_back();
+    m_touched.erase(last);
+    for (Kept &k : m_kept) k.before.erase(std::remove_if(k.before.begin(), k.before.end(), [last](const auto &b) { return b.first == last; }), k.before.end());
 }
 
-void PageSettings::moveSheet(int from, int to)
-{
-    if (from < 0 || from >= int(m_sheets.size()) || to < 0 || to >= int(m_sheets.size()) || from == to) return;
-    PageSetup moving = m_sheets[size_t(from)];
-    m_sheets.erase(m_sheets.begin() + from);
-    m_sheets.insert(m_sheets.begin() + to, moving);
-    auto place = [&](int s) {
-        if (s == from) return to;
-        if (from < to && s > from && s <= to) return s - 1;
-        if (from > to && s >= to && s < from) return s + 1;
-        return s;
-    };
-    std::set<int> t;
-    for (const int s : m_touched) t.insert(place(s));
-    m_touched = t;
-    m_kept.clear();
-}
-
-void PageSettings::addToSave(jp::office::sheet::SaveChanges *changes, const QStringList &sheetNames) const
+void PageSettings::addToSave(jp::office::sheet::SaveChanges *changes, const QStringList &sheetNames, const QVector<int> &order) const
 {
     for (const int s : m_touched) {
-        if (s < 0 || s >= int(m_sheets.size()) || s >= sheetNames.size()) continue;
+        if (s < 0 || s >= int(m_sheets.size()) || s >= sheetNames.size() || sheetNames[s].isEmpty()) continue;   // (a deleted sheet has no name, and none of its names are written)
+        const int place = order.isEmpty() ? s : int(order.indexOf(s));   // (the names of a sheet say where it is among the tabs)
+        if (place < 0) continue;
         jp::office::sheet::SheetChanges &sc = changes->sheets[s];
         sc.setPage = true;
         sc.page = m_sheets[size_t(s)];
         jp::office::sheet::PrintNameChange n;
-        n.sheet = s;
+        n.sheet = place;
         n.sheetName = sheetNames[s];
         n.setup = m_sheets[size_t(s)];
         changes->printNames.push_back(n);

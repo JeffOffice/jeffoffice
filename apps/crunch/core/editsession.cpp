@@ -1081,8 +1081,8 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     changes.replacedParts = book.changedTableParts();
     {
         QStringList names;
-        for (const jp::office::sheet::SheetEntry &se : book.info().sheets) names << se.name;
-        m_pages.addToSave(&changes, names);
+        for (const jp::office::sheet::SheetEntry &se : book.info().sheets) names << (se.deleted ? QString() : se.name);
+        m_pages.addToSave(&changes, names, book.info().order);
     }
     changes.edits = m_edits;
     changes.renames = m_renames;
