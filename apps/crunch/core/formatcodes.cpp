@@ -9,8 +9,6 @@ namespace jp::crunch {
 
 namespace {
 
-QString tr(const char *s) { return QCoreApplication::translate("jp::crunch::FormatCodes", s); }
-
 // The code with what is not a format's own taken out: quoted text, an escaped character, a bracket (color, condition, locale), a pad or a fill. What is left says what kind it is.
 QString skeleton(const QString &code)
 {
@@ -115,18 +113,18 @@ QString accounting(const NumberOptions &o)
 QString categoryName(NumberCategory c)
 {
     switch (c) {
-    case NumberCategory::General: return tr("General");
-    case NumberCategory::Number: return tr("Number");
-    case NumberCategory::Currency: return tr("Currency");
-    case NumberCategory::Accounting: return tr("Accounting");
-    case NumberCategory::Date: return tr("Date");
-    case NumberCategory::Time: return tr("Time");
-    case NumberCategory::Percentage: return tr("Percentage");
-    case NumberCategory::Fraction: return tr("Fraction");
-    case NumberCategory::Scientific: return tr("Scientific");
-    case NumberCategory::Text: return tr("Text");
-    case NumberCategory::Special: return tr("Special");
-    case NumberCategory::Custom: return tr("Custom");
+    case NumberCategory::General: return QCoreApplication::translate("jp::crunch::FormatCodes", "General");
+    case NumberCategory::Number: return QCoreApplication::translate("jp::crunch::FormatCodes", "Number");
+    case NumberCategory::Currency: return QCoreApplication::translate("jp::crunch::FormatCodes", "Currency");
+    case NumberCategory::Accounting: return QCoreApplication::translate("jp::crunch::FormatCodes", "Accounting");
+    case NumberCategory::Date: return QCoreApplication::translate("jp::crunch::FormatCodes", "Date");
+    case NumberCategory::Time: return QCoreApplication::translate("jp::crunch::FormatCodes", "Time");
+    case NumberCategory::Percentage: return QCoreApplication::translate("jp::crunch::FormatCodes", "Percentage");
+    case NumberCategory::Fraction: return QCoreApplication::translate("jp::crunch::FormatCodes", "Fraction");
+    case NumberCategory::Scientific: return QCoreApplication::translate("jp::crunch::FormatCodes", "Scientific");
+    case NumberCategory::Text: return QCoreApplication::translate("jp::crunch::FormatCodes", "Text");
+    case NumberCategory::Special: return QCoreApplication::translate("jp::crunch::FormatCodes", "Special");
+    case NumberCategory::Custom: return QCoreApplication::translate("jp::crunch::FormatCodes", "Custom");
     }
     return QString();
 }
@@ -256,8 +254,8 @@ QVector<FormatType> typesFor(NumberCategory category, const QLocale &locale)
     QVector<FormatType> t;
     switch (category) {
     case NumberCategory::Date:
-        t = {{jp::calc::shortDateFormatCode(locale), tr("Short date")},
-             {QStringLiteral("dddd, mmmm d, yyyy"), tr("Long date")},
+        t = {{jp::calc::shortDateFormatCode(locale), QCoreApplication::translate("jp::crunch::FormatCodes", "Short date")},
+             {QStringLiteral("dddd, mmmm d, yyyy"), QCoreApplication::translate("jp::crunch::FormatCodes", "Long date")},
              {QStringLiteral("d-mmm-yy"), QString()},
              {QStringLiteral("d-mmm"), QString()},
              {QStringLiteral("mmm-yy"), QString()},
@@ -265,10 +263,10 @@ QVector<FormatType> typesFor(NumberCategory category, const QLocale &locale)
              {QStringLiteral("mmmm-yy"), QString()},
              {QStringLiteral("m/d"), QString()},
              {QStringLiteral("mm-dd-yy"), QString()},
-             {QStringLiteral("yyyy-mm-dd"), tr("ISO date")},
+             {QStringLiteral("yyyy-mm-dd"), QCoreApplication::translate("jp::crunch::FormatCodes", "ISO date")},
              {QStringLiteral("dd/mm/yyyy"), QString()},
              {QStringLiteral("d mmmm yyyy"), QString()},
-             {QStringLiteral("m/d/yyyy h:mm"), tr("Date and time")},
+             {QStringLiteral("m/d/yyyy h:mm"), QCoreApplication::translate("jp::crunch::FormatCodes", "Date and time")},
              {QStringLiteral("yyyy-mm-dd h:mm"), QString()}};
         break;
     case NumberCategory::Time:
@@ -276,27 +274,27 @@ QVector<FormatType> typesFor(NumberCategory category, const QLocale &locale)
              {QStringLiteral("h:mm:ss"), QString()},
              {QStringLiteral("h:mm AM/PM"), QString()},
              {QStringLiteral("h:mm:ss AM/PM"), QString()},
-             {QStringLiteral("[h]:mm:ss"), tr("Elapsed hours")},
+             {QStringLiteral("[h]:mm:ss"), QCoreApplication::translate("jp::crunch::FormatCodes", "Elapsed hours")},
              {QStringLiteral("[h]:mm"), QString()},
              {QStringLiteral("mm:ss"), QString()},
              {QStringLiteral("mm:ss.0"), QString()}};
         break;
     case NumberCategory::Fraction:
-        t = {{QStringLiteral("# ?/?"), tr("Up to one digit")},
-             {QStringLiteral("# ??/??"), tr("Up to two digits")},
-             {QStringLiteral("# ???/???"), tr("Up to three digits")},
-             {QStringLiteral("# ?/2"), tr("As halves")},
-             {QStringLiteral("# ?/4"), tr("As quarters")},
-             {QStringLiteral("# ?/8"), tr("As eighths")},
-             {QStringLiteral("# ??/16"), tr("As sixteenths")},
-             {QStringLiteral("# ?/10"), tr("As tenths")},
-             {QStringLiteral("# ??/100"), tr("As hundredths")}};
+        t = {{QStringLiteral("# ?/?"), QCoreApplication::translate("jp::crunch::FormatCodes", "Up to one digit")},
+             {QStringLiteral("# ??/??"), QCoreApplication::translate("jp::crunch::FormatCodes", "Up to two digits")},
+             {QStringLiteral("# ???/???"), QCoreApplication::translate("jp::crunch::FormatCodes", "Up to three digits")},
+             {QStringLiteral("# ?/2"), QCoreApplication::translate("jp::crunch::FormatCodes", "As halves")},
+             {QStringLiteral("# ?/4"), QCoreApplication::translate("jp::crunch::FormatCodes", "As quarters")},
+             {QStringLiteral("# ?/8"), QCoreApplication::translate("jp::crunch::FormatCodes", "As eighths")},
+             {QStringLiteral("# ??/16"), QCoreApplication::translate("jp::crunch::FormatCodes", "As sixteenths")},
+             {QStringLiteral("# ?/10"), QCoreApplication::translate("jp::crunch::FormatCodes", "As tenths")},
+             {QStringLiteral("# ??/100"), QCoreApplication::translate("jp::crunch::FormatCodes", "As hundredths")}};
         break;
     case NumberCategory::Special:
-        t = {{QStringLiteral("00000"), tr("ZIP code")},
-             {QStringLiteral("00000\\-0000"), tr("ZIP code + 4")},
-             {QStringLiteral("[<=9999999]###\\-####;\\(###\\) ###\\-####"), tr("Phone number")},
-             {QStringLiteral("000\\-00\\-0000"), tr("Social security number")}};
+        t = {{QStringLiteral("00000"), QCoreApplication::translate("jp::crunch::FormatCodes", "ZIP code")},
+             {QStringLiteral("00000\\-0000"), QCoreApplication::translate("jp::crunch::FormatCodes", "ZIP code + 4")},
+             {QStringLiteral("[<=9999999]###\\-####;\\(###\\) ###\\-####"), QCoreApplication::translate("jp::crunch::FormatCodes", "Phone number")},
+             {QStringLiteral("000\\-00\\-0000"), QCoreApplication::translate("jp::crunch::FormatCodes", "Social security number")}};
         break;
     case NumberCategory::Custom:
         t = {{QStringLiteral("General"), QString()},
