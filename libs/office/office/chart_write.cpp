@@ -3,6 +3,7 @@
 #include "office/xml.h"
 
 #include <QDomDocument>
+#include <QHash>
 #include <QSet>
 #include <QXmlStreamWriter>
 
@@ -56,6 +57,7 @@ public:
         w.writeNamespace(QString::fromLatin1(kANs), QStringLiteral("a"));
         w.writeNamespace(QString::fromLatin1(kRNs), QStringLiteral("r"));
         val("c:date1904", QStringLiteral("0"));
+        val("c:lang", QStringLiteral("en-US"));
         val("c:roundedCorners", QStringLiteral("0"));
         val("c:style", QString::number(std::clamp(c.style, 1, 48)));
         chart();
@@ -536,6 +538,7 @@ private:
         if (c.legend.shown) legend(c.legend);
         flag("c:plotVisOnly", c.plotVisibleOnly);
         val("c:dispBlanksAs", c.blanksAs);
+        flag("c:showDLblsOverMax", false);
         w.writeEndElement();
     }
 };
@@ -560,73 +563,117 @@ Chart blankChart(const Theme &theme)
 
 namespace {
 
-// The elements (by local name) a part may hold and still be written whole by writeChartPart; elements of other namespaces that carry no drawing (markup compatibility) are skipped.
-const QSet<QString> &modeled()
+// Elements that say how a color is made: the model keeps the color that comes of them (and writes it plainly), so they are not lost.
+const QSet<QString> &colorElements()
 {
-    static const QSet<QString> names = [] {
-        const char *list[] = {
-            // the chart
-            "chartSpace", "date1904", "lang", "roundedCorners", "style", "clrMapOvr", "chart", "title", "tx", "rich", "strRef", "numRef", "f", "strCache", "numCache", "ptCount", "pt", "v",
-            "formatCode", "layout", "manualLayout", "layoutTarget", "xMode", "yMode", "x", "y", "w", "h", "overlay", "spPr", "txPr", "autoTitleDeleted", "plotArea", "barChart", "lineChart",
-            "areaChart", "pieChart", "doughnutChart", "scatterChart", "barDir", "grouping", "varyColors", "ser", "idx", "order", "marker", "symbol", "size", "dPt", "invertIfNegative",
-            "bubble3D", "explosion", "dLbls", "numFmt", "dLblPos", "showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize", "showLeaderLines", "separator",
-            "delete", "cat", "val", "xVal", "yVal", "numLit", "strLit", "smooth", "gapWidth", "overlap", "firstSliceAng", "holeSize", "scatterStyle", "axId", "catAx", "valAx", "dateAx",
-            "scaling", "orientation", "max", "min", "axPos", "majorGridlines", "minorGridlines", "majorTickMark", "minorTickMark", "tickLblPos", "crossAx", "crosses", "crossesAt",
-            "crossBetween", "majorUnit", "minorUnit", "auto", "lblAlgn", "lblOffset", "tickLblSkip", "tickMarkSkip", "noMultiLvlLbl", "baseTimeUnit", "majorTimeUnit", "minorTimeUnit",
-            "legend", "legendPos", "plotVisOnly", "dispBlanksAs", "showDLblsOverMax", "externalData", "autoUpdate",
-            // drawing
-            "solidFill", "noFill", "ln", "srgbClr", "schemeClr", "sysClr", "prstClr", "lumMod", "lumOff", "alpha", "alphaMod", "alphaOff", "tint", "shade", "satMod", "satOff", "hueMod",
-            "prstDash", "round", "miter", "bevel", "headEnd", "tailEnd", "effectLst", "latin", "ea", "cs", "sym", "bodyPr", "lstStyle", "p", "pPr", "defRPr", "r", "rPr", "t", "br", "fld",
-            "endParaRPr", "normAutofit", "spAutoFit", "noAutofit",
-            // shadows and glows: looks that are not kept
-            "outerShdw", "innerShdw", "prstShdw", "glow", "softEdge", "reflection",
-            // markup compatibility, around the style
-            "AlternateContent", "Choice", "Fallback"};
-        QSet<QString> s;
-        for (const char *n : list) s.insert(QString::fromLatin1(n));
-        return s;
-    }();
-    return names;
+    static const QSet<QString> s = {"schemeClr", "sysClr", "prstClr", "scrgbClr", "hslClr", "lumMod", "lumOff", "alpha", "alphaMod", "alphaOff", "tint", "shade", "satMod", "satOff", "hueMod", "hue", "hueOff",
+                                    "sat", "lum", "red", "green", "blue", "comp", "inv", "gray", "gamma", "invGamma"};
+    return s;
 }
 
-bool lookAt(const QDomElement &e, QString *why, int depth)
+// Elements and attributes that are only how a program that wrote the part set it up (fonts for scripts the chart's text is not in, the fit of text in its box, the joins of lines, a line's
+// compound kind and alignment, proofing marks): nothing a person sees of a chart is in them.
+bool isHarmlessElement(const QString &name)
+{
+    static const QSet<QString> s = {"ea", "cs", "sym", "normAutofit", "spAutoFit", "noAutofit", "miter", "round", "bevel", "printSettings", "headerFooter", "pageMargins", "pageSetup"};
+    return s.contains(name) || colorElements().contains(name);
+}
+bool isHarmlessAttribute(const QString &name)
+{
+    static const QSet<QString> s = {"cmpd", "algn", "kern", "spc", "lang", "dirty", "altLang", "noProof", "smtClean", "err", "rtl", "anchor", "anchorCtr", "spcFirstLastPara", "vertOverflow", "horzOverflow",
+                                    "wrap", "lIns", "tIns", "rIns", "bIns", "numCol", "spcCol", "upright", "forceAA", "compatLnSpc", "fromWordArt", "rotWithShape", "Ignorable", "id", "pos", "pitchFamily",
+                                    "charset", "panose", "uri"};
+    return s.contains(name);
+}
+
+// The names of the elements of a part, each with the names of the attributes it has anywhere (those of namespace declarations left out), looking into extension lists and the markup that
+// offers a part another form only for what is plainly harmless there.
+struct Shape {
+    QHash<QString, QSet<QString>> elements;
+    QString problem;
+};
+
+void collect(const QDomElement &e, Shape *out, int depth)
 {
     if (depth > 64) {
-        if (why) *why = QStringLiteral("too deep");
-        return false;
+        out->problem = QStringLiteral("too deep");
+        return;
     }
-    for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
-        const QString name = c.localName();
-        if (name == QLatin1String("extLst") || name == QLatin1String("printSettings") || name == QLatin1String("userShapes")) {
-            if (name == QLatin1String("userShapes")) {
-                if (why) *why = name;
-                return false;
-            }
-            continue;
-        }
-        // a style given again in the other markup (c14:style) is the same style
-        if (name == QLatin1String("style")) continue;
-        if (!modeled().contains(name)) {
-            if (why) *why = name;
-            return false;
-        }
-        if (name == QLatin1String("AlternateContent") || name == QLatin1String("Choice") || name == QLatin1String("Fallback")) continue;
-        if (!lookAt(c, why, depth + 1)) return false;
+    const QString name = e.localName();
+    if (name == QLatin1String("printSettings")) return;   // (how it is printed: not kept, not a chart's look)
+    if (name == QLatin1String("extLst")) {
+        // extensions: only those that hold nothing but an identifier of the chart or of a series
+        for (QDomElement ext = e.firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement())
+            for (QDomElement c = ext.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+                if (c.localName() != QLatin1String("uniqueId")) out->problem = QStringLiteral("extLst (%1)").arg(c.localName());
+        return;
     }
-    return true;
+    QSet<QString> &attrs = out->elements[name];
+    const QDomNamedNodeMap map = e.attributes();
+    for (int i = 0; i < map.size(); ++i) {
+        const QDomAttr a = map.item(i).toAttr();
+        if (a.name().startsWith(QLatin1String("xmlns")) || a.prefix() == QLatin1String("xmlns") || a.prefix() == QLatin1String("mc")) continue;
+        attrs.insert(a.localName().isEmpty() ? a.name() : a.localName());
+    }
+    for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) collect(c, out, depth + 1);
+}
+
+QStringList refsOf(const Chart &c)
+{
+    QStringList out;
+    out << c.title.ref;
+    for (const ChartAxis &a : c.axes) out << a.title.ref;
+    for (const ChartPlot &p : c.plots)
+        for (const ChartSeries &s : p.series) out << s.nameRef << s.categoryRef << s.valueRef << s.xRef;
+    return out;
 }
 
 } // namespace
 
 bool chartIsFullyModeled(const QByteArray &chartPartXml, QString *why)
 {
+    auto no = [&](const QString &text) {
+        if (why) *why = text;
+        return false;
+    };
+    if (chartPartXml.size() > 512 * 1024) return no(QStringLiteral("a part too large to be looked through"));
     QDomDocument doc;
     QString problem;
-    if (!parseXml(chartPartXml, &doc, &problem)) {
-        if (why) *why = problem;
-        return false;
+    if (!parseXml(chartPartXml, &doc, &problem)) return no(problem);
+    const Theme theme = defaultTheme();
+    Chart a;
+    if (!readChart(chartPartXml, theme, ColorMap(), &a, &problem)) return no(problem);
+    // what is written of what was read, read again
+    const QByteArray written = writeChartPart(a);
+    QDomDocument out;
+    if (!parseXml(written, &out, &problem)) return no(problem);
+    Chart b;
+    if (!readChart(written, theme, ColorMap(), &b, &problem)) return no(problem);
+    // every element of the part, and every attribute an element has, is in what is written (but what only says how a program set the part up)
+    Shape was, now;
+    collect(doc.documentElement(), &was, 0);
+    collect(out.documentElement(), &now, 0);
+    if (!was.problem.isEmpty()) return no(was.problem);
+    QStringList names = was.elements.keys();
+    names.sort();   // (the first thing missing, in the same order every time)
+    for (const QString &name : std::as_const(names)) {
+        if (isHarmlessElement(name)) continue;
+        if (!now.elements.contains(name)) return no(name);
+        QStringList attrs = was.elements.value(name).values();
+        attrs.sort();
+        for (const QString &attr : std::as_const(attrs))
+            if (!isHarmlessAttribute(attr) && !now.elements.value(name).contains(attr)) return no(name + QLatin1Char('@') + attr);
     }
-    return lookAt(doc.documentElement(), why, 0);
+    // a value that is only written as the usual one
+    const QDomNodeList over = doc.elementsByTagNameNS(QString::fromLatin1(kCNs), QStringLiteral("showDLblsOverMax"));
+    for (int i = 0; i < over.size(); ++i) {
+        const QString v = over.at(i).toElement().attribute(QStringLiteral("val"), QStringLiteral("1"));
+        if (v != QLatin1String("0") && v != QLatin1String("false")) return no(QStringLiteral("showDLblsOverMax"));
+    }
+    // and what is read of it is what was read of the part: the same references, the same picture
+    if (refsOf(a) != refsOf(b)) return no(QStringLiteral("what the series read"));
+    if (chartSvg(a, QSizeF(480, 288)) != chartSvg(b, QSizeF(480, 288))) return no(QStringLiteral("how the chart is drawn"));
+    return true;
 }
 
 } // namespace jp::office

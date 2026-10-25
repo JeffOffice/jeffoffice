@@ -207,6 +207,89 @@ private Q_SLOTS:
         QVERIFY(!chartIsFullyModeled(QByteArray("<c:chartSpace"), &why));
     }
 
+    // Whether a part may be written over is decided by writing what is read of it and looking at what is lost: an element or attribute the writer does not carry, a part of the extensions, a value
+    // that is only written as the usual one, or a picture that is not the same. What only says how the part was set up, or how a color is made, is not a loss.
+    void aPartIsWrittenOverOnlyIfTheRoundTripLosesNothing()
+    {
+        const QByteArray ours = writeChartPart(comboChart());
+        QString why;
+        QVERIFY2(chartIsFullyModeled(ours, &why), qPrintable(why));
+        // a date axis that says the unit of its dates: the writer does not carry it
+        Chart dates = comboChart();
+        dates.axes[0].kind = ChartAxis::Date;
+        const QByteArray dateAxis = writeChartPart(dates);
+        QVERIFY2(chartIsFullyModeled(dateAxis, &why), qPrintable(why));
+        QByteArray unit = dateAxis;
+        unit.replace("<c:lblOffset val=\"100\"/>", "<c:lblOffset val=\"100\"/><c:baseTimeUnit val=\"days\"/>");
+        QVERIFY(unit != dateAxis);
+        QVERIFY(!chartIsFullyModeled(unit, &why));
+        QCOMPARE(why, QStringLiteral("baseTimeUnit"));
+        for (const char *name : {"majorTimeUnit", "minorTimeUnit"}) {
+            QByteArray other = dateAxis;
+            other.replace("<c:lblOffset val=\"100\"/>", QByteArray("<c:lblOffset val=\"100\"/><c:") + name + " val=\"days\"/>");
+            QVERIFY(!chartIsFullyModeled(other, &why));
+            QCOMPARE(why, QString::fromLatin1(name));
+        }
+        // a title that holds a field (the text of a cell, the page): a run is not that
+        QByteArray field = ours;
+        field.replace("<a:r><a:rPr lang=\"en-US\"/><a:t>Sales &amp; costs &lt;2026&gt;</a:t></a:r>", "<a:fld id=\"{00000000-0000-0000-0000-000000000000}\" type=\"CELLRANGE\"><a:rPr lang=\"en-US\"/><a:t>Sales &amp; costs &lt;2026&gt;</a:t></a:fld>");
+        QVERIFY2(field != ours, "the title's run is where the test looks for it");
+        QVERIFY(!chartIsFullyModeled(field, &why));
+        QCOMPARE(why, QStringLiteral("fld"));
+        // things the model has no place for
+        for (const char *extra : {"<c:legendEntry><c:idx val=\"0\"/><c:delete val=\"1\"/></c:legendEntry>"}) {
+            QByteArray with = ours;
+            with.replace("<c:legendPos val=\"b\"/>", QByteArray("<c:legendPos val=\"b\"/>") + extra);
+            QVERIFY(!chartIsFullyModeled(with, &why));
+            QCOMPARE(why, QStringLiteral("legendEntry"));
+        }
+        QByteArray colorMap = ours;
+        colorMap.replace("<c:chart>", "<c:clrMapOvr bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" accent5=\"accent5\" accent6=\"accent6\" hlink=\"hlink\" folHlink=\"folHlink\"/><c:chart>");
+        QVERIFY(!chartIsFullyModeled(colorMap, &why));
+        QCOMPARE(why, QStringLiteral("clrMapOvr"));
+        QByteArray tick = ours;
+        tick.replace("<c:lblOffset val=\"100\"/>", "<c:lblOffset val=\"100\"/><c:tickMarkSkip val=\"2\"/>");
+        QVERIFY(!chartIsFullyModeled(tick, &why));
+        QCOMPARE(why, QStringLiteral("tickMarkSkip"));
+        QByteArray external = ours;
+        external.replace("</c:chartSpace>", "<c:externalData r:id=\"rId1\"><c:autoUpdate val=\"0\"/></c:externalData></c:chartSpace>");
+        QVERIFY(!chartIsFullyModeled(external, &why));
+        QCOMPARE(why, QStringLiteral("autoUpdate"));
+        QByteArray arrow = ours;
+        arrow.replace("<a:ln w=\"28575\" cap=\"rnd\">", "<a:ln w=\"28575\" cap=\"rnd\"><a:headEnd type=\"triangle\"/>");
+        if (arrow != ours) {
+            QVERIFY(!chartIsFullyModeled(arrow, &why));
+            QCOMPARE(why, QStringLiteral("headEnd"));
+        }
+        // an attribute the writer does not carry (underline of a title's run) is a loss; the compound kind of a line is not
+        QByteArray underline = ours;
+        underline.replace("<a:rPr lang=\"en-US\"/>", "<a:rPr lang=\"en-US\" u=\"sng\"/>");
+        QVERIFY(underline != ours);
+        QVERIFY(!chartIsFullyModeled(underline, &why));
+        QCOMPARE(why, QStringLiteral("rPr@u"));
+        QByteArray harmless = ours;
+        harmless.replace("<c:spPr><a:solidFill><a:srgbClr val=\"4472C4\"/></a:solidFill></c:spPr>", "<c:spPr><a:solidFill><a:schemeClr val=\"accent1\"><a:lumMod val=\"75000\"/></a:schemeClr></a:solidFill><a:ln cmpd=\"sng\"><a:noFill/></a:ln></c:spPr>");
+        harmless.replace("<a:rPr lang=\"en-US\"/>", "<a:rPr lang=\"en-US\"><a:latin typeface=\"Calibri\"/><a:ea typeface=\"+mn-ea\"/><a:cs typeface=\"+mn-cs\"/></a:rPr>");
+        QVERIFY2(chartIsFullyModeled(harmless, &why), qPrintable(why));
+        // extensions that name only the chart, and print settings, are not a loss; an extension that does something is
+        QByteArray ext = ours;
+        ext.replace("</c:chartSpace>", "<c:printSettings><c:headerFooter/><c:pageMargins b=\"0.75\" l=\"0.7\" r=\"0.7\" t=\"0.75\" header=\"0.3\" footer=\"0.3\"/><c:pageSetup/></c:printSettings></c:chartSpace>");
+        QVERIFY2(chartIsFullyModeled(ext, &why), qPrintable(why));
+        QByteArray idOnly = ours;
+        idOnly.replace("</c:ser>", "<c:extLst><c:ext uri=\"{C3380CC4-5D6E-409C-BE32-E72D297353CC}\" xmlns:c16=\"http://schemas.microsoft.com/office/drawing/2014/chart\"><c16:uniqueId val=\"{00000000-0000-0000-0000-000000000001}\"/></c:ext></c:extLst></c:ser>");
+        QVERIFY2(chartIsFullyModeled(idOnly, &why), qPrintable(why));
+        QByteArray doing = ours;
+        doing.replace("</c:ser>", "<c:extLst><c:ext uri=\"{02D57815-91ED-43cb-92C2-25804820EDAC}\" xmlns:c15=\"http://schemas.microsoft.com/office/drawing/2012/chart\"><c15:datalabelsRange><c15:f>Sheet1!$A$1</c15:f></c15:datalabelsRange></c:ext></c:extLst></c:ser>");
+        QVERIFY(!chartIsFullyModeled(doing, &why));
+        QVERIFY2(why.startsWith(QLatin1String("extLst")), qPrintable(why));
+        // labels over the largest value shown
+        QByteArray over = ours;
+        over.replace("<c:showDLblsOverMax val=\"0\"/>", "<c:showDLblsOverMax val=\"1\"/>");
+        QVERIFY(over != ours);
+        QVERIFY(!chartIsFullyModeled(over, &why));
+        QCOMPARE(why, QStringLiteral("showDLblsOverMax"));
+    }
+
     void textThatXmlCannotHoldIsLeftOut()
     {
         Chart c = comboChart();
