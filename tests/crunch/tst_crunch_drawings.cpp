@@ -93,6 +93,26 @@ QByteArray bookWithChartSheet()
     return z.finish();
 }
 
+
+// A chart on "Sheet1" that reads "Sheet2" (B2:B4 by A2:A4 there: 10, 20, 30), with "Sheet1" a sheet of one cell.
+QByteArray chartOfTheOtherSheetBook()
+{
+    const QVector<SeriesSpec> series = {SeriesSpec{QStringLiteral("Sheet2!$B$1"), QStringLiteral("Sheet2!$A$2:$A$4"), QStringLiteral("Sheet2!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+    const QString anchors = twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("Sales")));
+    return bookWithDrawing({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>")), dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), series))});
+}
+
+// drawingBook() with its sheet read from right to left.
+QByteArray rightToLeftDrawingBook()
+{
+    QMap<QString, QByteArray> parts;
+    jp::readZip(drawingBook(), parts);
+    parts[QStringLiteral("xl/worksheets/sheet1.xml")].replace("<sheetData>", "<sheetViews><sheetView rightToLeft=\"1\" workbookViewId=\"0\"/></sheetViews><sheetData>");
+    jp::ZipWriter z;
+    for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+    return z.finish();
+}
+
 } // namespace
 
 class CrunchDrawingTests : public QObject {
@@ -264,6 +284,105 @@ private Q_SLOTS:
         pressUndo(e.view());
         QVERIFY(e.settle());
         QCOMPARE(o->chartNow(0, 0).plots[0].series[0].name, QStringLiteral("East"));
+    }
+
+    // A sheet renamed: a chart that reads it reads it by its new name, on the screen and in the file (its references are written by the saver with the name, and the numbers kept in the
+    // part are those under the references as they are written); the edits to rows are still found for the sheet by the name the file has for it, and Undo gives the old name back.
+    void aChartFollowsASheetThatIsRenamed()
+    {
+        EditWindow e;
+        QVERIFY(e.open(drawingBook()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(e.win.w.session()->renameSheet(0, QStringLiteral("Sales")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(o->chartReads(0, 0).size(), 3);
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 2).ok);   // (the sheet is found by the name the file has: "Sheet1")
+        QVERIFY(e.settle());
+        QCOMPARE(o->chartReads(0, 0).value(2).range.row1, quint32(3));
+        e.select(QStringLiteral("B5"));
+        e.enter(QStringLiteral("77"));
+        QVERIFY(e.settle());
+        QCOMPARE(o->chartNow(0, 0).plots[0].series[0].values, (QVector<double>{10, 77, 30}));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY(saved.wait(20000));
+        const QString chart = QString::fromUtf8(savedParts(e.path).value(QStringLiteral("xl/charts/chart1.xml")));
+        QVERIFY2(chart.contains(QStringLiteral("<c:f>Sales!$B$4:$B$6</c:f>")), qPrintable(chart));
+        QVERIFY2(chart.contains(QStringLiteral("<c:v>77</c:v>")), qPrintable(chart));   // (the numbers under the reference as it is written)
+        QVERIFY2(!chart.contains(QStringLiteral("Sheet1!")), qPrintable(chart));
+    }
+
+    // A sheet deleted: a chart that read it reads nothing (its references are #REF!), and a sheet added after and given the same name is not the one it reads; Undo gives the sheet back
+    // and the chart its numbers.
+    void aDeletedSheetsNameGivenToANewSheetIsNotReadByTheChart()
+    {
+        EditWindow e;
+        QVERIFY(e.open(chartOfTheOtherSheetBook()));
+        QTRY_VERIFY(shown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(o->chartReads(0, 0).size(), 3);
+        QVERIFY(s->deleteSheet(1).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(o->chartReads(0, 0).size(), 0);
+        int made = -1;
+        QVERIFY(s->insertSheet(-1, QStringLiteral("Sheet2"), &made).ok);
+        QVERIFY(s->type(made, 1, 1, QStringLiteral("999")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(o->chartReads(0, 0).size(), 0);   // (the new "Sheet2" is another sheet)
+        int refs = 0, found = 0;
+        o->chartRefCounts(0, 0, &refs, &found);
+        QCOMPARE(found, 0);
+        // taken back: the sheet and the chart's cells
+        pressUndo(e.view());
+        pressUndo(e.view());
+        pressUndo(e.view());
+        QVERIFY(e.settle());
+        QCOMPARE(o->chartReads(0, 0).size(), 3);
+    }
+
+    // A sheet added or copied has room among the objects' sheets; a copy of a sheet with a chart says plainly that it does not have the chart, shows none, and the original keeps its own.
+    void aCopiedSheetHasNoObjectsAndSaysSo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(drawingBook()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        int made = -1;
+        const crunch::EditSession::Outcome copied = e.win.w.session()->copySheet(0, -1, QStringLiteral("Copy"), &made);
+        QVERIFY(copied.ok);
+        QVERIFY2(copied.problem.contains(QStringLiteral("pictures and charts")), qPrintable(copied.problem));
+        QVERIFY(e.settle());
+        o->show(made);
+        QCOMPARE(o->shownSheet(), made);
+        QCOMPARE(o->layer()->count(), 0);
+        QCOMPARE(o->counts(made).total(), 0);
+        o->show(0);
+        QTRY_VERIFY(shown(e, 5));
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 1).ok);   // (the original's objects still move with its cells)
+        QCOMPARE(o->chartReads(0, 0).value(2).range.row1, quint32(2));
+    }
+
+    // A sheet that reads right to left is drawn mirrored, and its objects with it: an object over the first columns is at the right of the screen, its picture reads as it was made (it is
+    // not turned over), and a click where it is picks it (a click where it would be in a sheet that reads left to right does not).
+    void objectsOfASheetThatReadsRightToLeftAreMirroredAndPicked()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rightToLeftDrawingBook()));
+        QTRY_VERIFY(shown(e, 5));
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->layer()->prepareAll();
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        const QRect inLayout = L.rangeRect(6, 0, 8, 1);                       // the picture's cells, as the layout has them
+        const QRect onScreen = e.view()->cellRect(6, 0).united(e.view()->cellRect(8, 1));   // (where the screen has them)
+        QVERIFY(onScreen.center().x() != inLayout.center().x());
+        QCOMPARE(at(shot(e), onScreen.center()), QColor(Qt::red).rgb());
+        QVERIFY(at(shot(e), inLayout.center()) != QColor(Qt::red).rgb());
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, inLayout.center());
+        QVERIFY(o->layer()->selectedId() != 1);
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, onScreen.center());
+        QCOMPARE(o->layer()->selectedId(), 1);
     }
 
     // Rows and columns inserted or deleted move the objects with the cells, and the chart's references with its cells; Undo puts them back; a hidden row is left out of the chart.

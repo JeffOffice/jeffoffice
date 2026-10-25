@@ -53,6 +53,9 @@ public:
     // Where the structure edits that were made since the file was read or saved are kept (rows and columns inserted or deleted), in the order they were made.
     using EditsSource = std::function<const std::vector<jp::office::sheet::StructEdit> &()>;
 
+    // Where the renames and deletes of sheets made since the file was read or saved are kept, in the order they were made (a chart's references follow them).
+    using SheetOpsSource = std::function<const std::vector<jp::office::sheet::SheetOp> &()>;
+
     explicit SheetObjects(QObject *parent = nullptr);
     ~SheetObjects() override;
 
@@ -61,6 +64,7 @@ public:
     // The workbook is whole: charts read its cells (`source` has the sheets, `values` the results worked out). Until then, and for what cannot be resolved, a chart has its stored numbers.
     void setCells(const jp::office::sheet::WorkbookSource *source, const jp::grid::ValueStore *values);
     void setEditsSource(EditsSource edits) { m_edits = std::move(edits); }
+    void setSheetOpsSource(SheetOpsSource ops) { m_sheetOps = std::move(ops); }
 
     jp::grid::ObjectLayer *layer() { return &m_layer; }
     // Puts the sheet's objects in the layer (listing the sheet's drawing if that has not been done); the objects are made as their pictures are wanted. A drawing of more than
@@ -84,6 +88,9 @@ public:
     // Rows or columns were inserted or deleted (or that was undone): the objects, and the charts' references, are where those edits put them. Only the edit that is new is worked in,
     // unless the list of edits is not the one before with one more at its end (an Undo): the objects are then worked out again from what they were.
     void cellsMoved();
+    // Sheets were added, copied, renamed, or deleted (or that was undone): there is room for the sheets there are, and the charts' references name the sheets as they are called now (a
+    // sheet that was deleted is `#REF!` in them, and a sheet given its name later is not the one they read).
+    void sheetsChanged();
     // The sizes of rows or columns of the sheet changed (a hidden row is left out of a chart): charts are drawn again.
     void sizesChanged(int sheet);
     // An object is taken away (a person deleted it) or brought back (undone); the layer is told if its sheet is shown.
@@ -137,7 +144,7 @@ private:
         bool built = false, made = false;
         jp::ItemPtr item;                              // a picture, shape, group, or connector
         std::shared_ptr<const jp::office::Chart> chart;   // a chart as read from its part, shared by the objects of that part
-        QStringList baseRefs, refs;                    // its references as the file has them, and now
+        QStringList baseRefs, movedRefs, refs;         // its references as the file has them, as the edits to rows and columns leave them (still by the file's names of the sheets), and now (by the names the sheets have)
         jp::office::sheet::ChartReadIndex reads;       // the cells it read when last given to the worker
         quint64 drawnKey = 0;                          // what the numbers and words it was last given to draw come to (0: it has not been given)
         bool deleted = false;                          // taken away by a person (not yet saved)
@@ -170,7 +177,11 @@ private:
     jp::grid::LayerObject layerObject(int sheet, const std::shared_ptr<Object> &o);
     void applyEdit(int sheet, Object &o, const jp::office::sheet::StructEdit &edit);
     void replay(int sheet, Object &o);
+    // The names the file has for the sheets (what the edits to rows and columns, and the references of the file, name them by); a sheet that was added has none.
     QStringList sheetNames() const;
+    // A reference after the renames and deletes of sheets made since the file was read or saved.
+    QString followSheetOps(const QString &ref) const;
+    void refreshRefs(Object &o) const;
     // The references the chart parts of the package read, by part (read once; a save makes them stale).
     const QStringList &partRefs(const QString &part);
     // Whether the chart, with the references it has now, would be drawn from other numbers and words than it was last given (`budget` is what is left to read for the answer: past it, yes).
@@ -182,6 +193,7 @@ private:
     const jp::grid::ValueStore *m_values = nullptr;
     std::unique_ptr<jp::grid::WorkbookChartCells> m_cells;
     EditsSource m_edits;
+    SheetOpsSource m_sheetOps;
     std::vector<jp::office::sheet::StructEdit> m_applied;   // the edits the objects have had worked in
     std::vector<Sheet> m_sheets;
     QHash<QString, int> m_chartSheet;                        // the sheet each chart part is on (by the drawing of the sheet), lower case

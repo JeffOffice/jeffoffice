@@ -26,6 +26,10 @@ void CrunchWindow::openObjects()
         static const std::vector<jp::office::sheet::StructEdit> none;
         return m_session ? m_session->structureEdits() : none;
     });
+    m_objects->setSheetOpsSource([this]() -> const std::vector<jp::office::sheet::SheetOp> & {
+        static const std::vector<jp::office::sheet::SheetOp> none;
+        return m_session ? m_session->sheetOperations() : none;
+    });
 }
 
 // The sheet is in the grid: a chart sheet has no cells to see (no headings or gridlines), and its objects are made a moment later, between events, so that the first screen is not held
@@ -72,6 +76,9 @@ void CrunchWindow::connectObjects()
     if (!m_objects || !m_session) return;
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, [this] {
         if (m_objects) m_objects->cellsMoved();
+    });
+    connect(m_session.get(), &crunch::EditSession::sheetsChanged, this, [this] {
+        if (m_objects) m_objects->sheetsChanged();
     });
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, [this](int sheet) {
         if (m_objects) m_objects->sizesChanged(sheet);
