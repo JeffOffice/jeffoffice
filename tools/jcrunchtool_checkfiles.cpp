@@ -1,5 +1,5 @@
 // The check files of jcrunchtool (docs/jeffcrunch.md): workbooks JeffCrunch saves, made to be opened by the common spreadsheet program on another machine, to see that none of them asks to be repaired.
-//   jcrunchtool make-check-files <out-dir>   builds a small workbook of its own, and from it a file for each feature the program writes (tables, charts of every kind, objects moved and pasted, notes,
+//   jcrunchtool make-check-files <out-dir>   (JC_CHECK_ONLY=part of a name makes only those files) builds a small workbook of its own, and from it a file for each feature the program writes (tables, charts of every kind, objects moved and pasted, notes,
 //                                            links, protection, names, filters and sorts, page setup with header pictures, views, sheets inserted, copied, moved, renamed, and deleted, merged cells, formats
 //                                            and styles, how it calculates, long text, many sheets), each made through the edit session and the window's own commands and saved; one line for each file:
 //                                            name, whether it was saved, and what went wrong if not. The seed itself is saved as seed.xlsx (a file nothing was done to).
@@ -377,6 +377,27 @@ std::vector<Scenario> scenarios()
                      c.check(c.s->makeTable(0, rng("A1:E12"), true, QStringLiteral("TableStyleMedium4"), &made), "table");
                      c.check(c.s->setTableHeaderRow(made, false), "header off");
                      c.check(c.s->setTableHeaderRow(made, true), "header on");
+                 }});
+    v.push_back({QStringLiteral("table-bad-column"), [](Ctx &c) {
+                     int made = -1;
+                     c.check(c.s->makeTable(2, rng("A1:E6"), true, QStringLiteral("TableStyleMedium2"), &made), "table");
+                     c.check(c.s->type(2, 8, 0, QStringLiteral("=SUM(Table1[Nope])")), "a column the table has not");
+                 }});
+    v.push_back({QStringLiteral("table-bad-table"), [](Ctx &c) {
+                     int made = -1;
+                     c.check(c.s->makeTable(2, rng("A1:E6"), true, QStringLiteral("TableStyleMedium2"), &made), "table");
+                     c.check(c.s->type(2, 9, 0, QStringLiteral("=SUM(Nope[Column3])")), "a table the workbook has not");
+                 }});
+    v.push_back({QStringLiteral("table-bad-bare"), [](Ctx &c) {
+                     int made = -1;
+                     c.check(c.s->makeTable(2, rng("A1:E6"), true, QStringLiteral("TableStyleMedium2"), &made), "table");
+                     c.check(c.s->type(2, 10, 0, QStringLiteral("=[Nope]")), "a bare column the table has not");
+                 }});
+    v.push_back({QStringLiteral("table-bad-total"), [](Ctx &c) {
+                     int made = -1;
+                     c.check(c.s->makeTable(2, rng("A1:E6"), true, QStringLiteral("TableStyleMedium2"), &made), "table");
+                     c.check(c.s->setTableTotalsRow(made, true), "totals row");
+                     c.check(c.s->setTableTotal(made, 3, QStringLiteral("custom"), QStringLiteral("SUBTOTAL(109,[Q3])*2")), "total naming a column the table has not");
                  }});
     v.push_back({QStringLiteral("table-resize-torange"), [](Ctx &c) {
                      c.check(c.s->makeTable(0, rng("A1:E12"), true, QStringLiteral("TableStyleMedium2")), "table");
@@ -878,6 +899,129 @@ std::vector<Scenario> scenarios()
                      c.check(c.s->fill(0, rng("B2:B2"), Session::FillDirection::Right, 3), "fill");
                      c.check(c.s->deleteColumns(0, 6, 1), "delete the column with the array formula");
                  }});
+    // ---- the edges of what the program accepts: each in a file of its own
+    v.push_back({QStringLiteral("edge-name-ref-error"), [](Ctx &c) {
+                     Session::NameDraft d;
+                     d.name = QStringLiteral("Gone");
+                     d.text = QStringLiteral("=#REF!");
+                     c.check(c.s->defineName(d), "name that is #REF!");
+                     Session::NameDraft e;
+                     e.name = QStringLiteral("Other_Sheet");
+                     e.text = QStringLiteral("=Nowhere!$A$1");
+                     c.check(c.s->defineName(e), "name on a sheet that is not there");
+                     Session::NameDraft f;
+                     f.name = QStringLiteral("R1C1x");
+                     f.text = QStringLiteral("=Data!$A$1:$B$2,Data!$D$1");
+                     c.check(c.s->defineName(f), "name of two blocks");
+                 }});
+    v.push_back({QStringLiteral("edge-header-text-long"), [](Ctx &c) {
+                     PageSetup p = pageOf(c, 0);
+                     p.headerFooter.oddHeader = QStringLiteral("&L") + QString(300, QLatin1Char('L')) + QStringLiteral("&C") + QString(300, QLatin1Char('C')) + QStringLiteral("&R") + QString(300, QLatin1Char('R'));
+                     p.headerFooter.oddFooter = QString(700, QLatin1Char('f'));
+                     c.check(c.s->setPageSetup(0, p, QStringLiteral("Page")), "long header and footer");
+                 }});
+    v.push_back({QStringLiteral("edge-note-long"), [](Ctx &c) {
+                     c.check(c.s->setNote(0, 1, 1, QString(32767, QLatin1Char('n')), QStringLiteral("Ann"), false, QStringLiteral("Note")), "a note of 32,767 characters");
+                     c.check(c.s->setNote(0, 2, 1, QStringLiteral("tab\there\nline\r\nline2 \x01 bell"), QString(), false, QStringLiteral("Note")), "a note with controls and no author");
+                     c.check(c.s->setNote(0, 3, 1, QString::fromUtf8("\xf0\x9f\x98\x80 emoji & <tags> \"quotes\""), QStringLiteral("A \"B\" <C>"), true, QStringLiteral("Note")), "a note with markup");
+                 }});
+    v.push_back({QStringLiteral("edge-link-long"), [](Ctx &c) {
+                     LinkSpec web;
+                     web.range = rng("A2");
+                     web.target = QStringLiteral("https://example.org/") + QString(2000, QLatin1Char('p'));
+                     web.display = QString(400, QLatin1Char('d'));
+                     web.tip = QString(400, QLatin1Char('t'));
+                     c.check(c.s->setLink(0, web.range, web, QStringLiteral("Link")), "a long link");
+                     LinkSpec place;
+                     place.range = rng("A3");
+                     place.location = QStringLiteral("'Nowhere sheet'!A1");
+                     c.check(c.s->setLink(0, place.range, place, QStringLiteral("Link")), "a link to a sheet that is not there");
+                 }});
+    v.push_back({QStringLiteral("edge-table-odd-headers"), [](Ctx &c) {
+                     c.check(c.s->type(2, 0, 0, QStringLiteral("A&B <x> \"q\"")), "header");
+                     c.check(c.s->type(2, 0, 1, QStringLiteral("[bracket]")), "header");
+                     c.check(c.s->type(2, 0, 2, QStringLiteral("a b")), "header");
+                     c.check(c.s->type(2, 0, 3, QStringLiteral("a b")), "header twice");
+                     c.check(c.s->type(2, 0, 4, QString(300, QLatin1Char('h'))), "header of 300 characters");
+                     c.check(c.s->makeTable(2, rng("A1:E6"), true, QStringLiteral("TableStyleBogus")), "table with an unknown look");
+                 }});
+    v.push_back({QStringLiteral("edge-page-extremes"), [](Ctx &c) {
+                     PageSetup p = pageOf(c, 0);
+                     p.scale = 400;
+                     p.paperSize = 119;
+                     p.margins.left = 0;
+                     p.margins.right = 0;
+                     p.margins.top = 0;
+                     p.margins.bottom = 0;
+                     p.margins.header = 0;
+                     p.margins.footer = 0;
+                     p.firstPageNumber = -5;
+                     p.useFirstPageNumber = true;
+                     c.check(c.s->setPageSetup(0, p, QStringLiteral("Page")), "extremes");
+                     PageSetup q = pageOf(c, 1);
+                     q.fitToPage = true;
+                     q.fitToWidth = 32767;
+                     q.fitToHeight = 0;
+                     q.printArea = {rng("A1:XFD1048576")};
+                     c.check(c.s->setPageSetup(1, q, QStringLiteral("Page")), "fit and a whole-sheet area");
+                     PageSetup r = pageOf(c, 2);
+                     r.titles.hasRows = true;
+                     r.titles.row1 = 0;
+                     r.titles.row2 = 1048575;
+                     r.titles.hasCols = true;
+                     r.titles.col1 = 0;
+                     r.titles.col2 = 16383;
+                     c.check(c.s->setPageSetup(2, r, QStringLiteral("Page")), "titles of everything");
+                 }});
+    v.push_back({QStringLiteral("edge-sheets-hidden"), [](Ctx &c) {
+                     c.check(c.s->setSheetHidden(1, true), "hide");
+                     c.check(c.s->setSheetHidden(2, true), "hide");
+                     c.check(c.s->setSheetHidden(3, true), "hide");
+                     c.check(c.s->renameSheet(0, QStringLiteral("history")), "rename to a reserved word");
+                 }});
+    v.push_back({QStringLiteral("edge-cells"), [](Ctx &c) {
+                     c.check(c.s->type(0, 1048575, 16383, QStringLiteral("corner")), "the last cell");
+                     c.check(c.s->type(0, 0, 16383, QStringLiteral("=XFD1048576+1")), "a formula to the last cell");
+                     c.check(c.s->type(0, 30, 0, QStringLiteral("1E+308")), "a huge number");
+                     c.check(c.s->type(0, 31, 0, QStringLiteral("-1E-308")), "a tiny number");
+                     c.check(c.s->type(0, 32, 0, QStringLiteral("=1/0")), "an error");
+                     c.check(c.s->type(0, 33, 0, QStringLiteral("=NOW()")), "a volatile formula");
+                     c.check(c.s->type(0, 34, 0, QStringLiteral("=INDIRECT(\"Data!A1\")+OFFSET(A1,1,1)")), "volatile references");
+                     c.check(c.s->type(0, 35, 0, QStringLiteral("=\"a\"&\"\"\"\"&CHAR(10)&\"b\"")), "quotes and a line break in text");
+                     c.check(c.s->type(0, 36, 0, QStringLiteral("=SUM(Lists!A1:Extra!B3)")), "a 3-D range");
+                     c.check(c.s->type(0, 37, 0, QStringLiteral("=SUM(Nowhere!A1)")), "a sheet that is not there");
+                 }});
+    v.push_back({QStringLiteral("edge-formula-limits"), [](Ctx &c) {
+                     QString args = QStringLiteral("=SUM(1");
+                     for (int i = 1; i < 256; ++i) args += QStringLiteral(",1");
+                     c.check(c.s->type(0, 30, 0, args + QLatin1Char(')')), "256 arguments");
+                     QString long8192 = QStringLiteral("=1");
+                     while (long8192.size() < 8191) long8192 += QStringLiteral("+1");
+                     c.check(c.s->type(0, 31, 0, long8192), "a formula of 8,191 characters");
+                     c.check(c.s->type(0, 32, 0, long8192 + QStringLiteral("+1")), "a formula of 8,193 characters");
+                 }});
+    v.push_back({QStringLiteral("edge-font-name"), [](Ctx &c) {
+                     FormatChange f;
+                     f.fontName = QString(32, QLatin1Char('F'));
+                     c.check(c.s->formatCells(0, rng("A1:B2"), f, QStringLiteral("Format")), "a font name of 32 characters");
+                     FormatChange g;
+                     g.numberFormat = QString(256, QLatin1Char('#'));
+                     c.check(c.s->formatCells(0, rng("A3:B4"), g, QStringLiteral("Format")), "a number format of 256 characters");
+                 }});
+    v.push_back({QStringLiteral("edge-page-breaks"), [](Ctx &c) {
+                     PageSetup p = pageOf(c, 0);
+                     for (int i = 1; i <= 1025; ++i) {
+                         PageBreak rb;
+                         rb.before = quint32(i);
+                         rb.max = 16383;
+                         p.rowBreaks.append(rb);
+                         PageBreak cb;
+                         cb.before = quint32(i);
+                         cb.max = 1048575;
+                         p.colBreaks.append(cb);
+                     }
+                     c.check(c.s->setPageSetup(0, p, QStringLiteral("Page")), "1,025 breaks of each kind");
+                 }});
     v.push_back({QStringLiteral("sheet-empty-edit"), [](Ctx &c) {
                      c.check(c.s->type(3, 0, 0, QStringLiteral("first")), "type into the empty sheet");
                      c.check(c.s->type(3, 5, 5, QStringLiteral("=A1&\"!\"")), "formula");
@@ -897,7 +1041,9 @@ int makeCheckFiles(const QString &dir)
     }
     QTemporaryDir tmp;
     int bad = 0;
+    const QString only = qEnvironmentVariable("JC_CHECK_ONLY");   // (a part of a name: make just those files)
     for (const Scenario &sc : scenarios()) {
+        if (!only.isEmpty() && !sc.name.contains(only)) continue;
         const QString in = tmp.filePath(sc.name + QStringLiteral(".xlsx"));
         {
             QFile f(in);
