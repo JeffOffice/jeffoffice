@@ -1176,7 +1176,6 @@ private Q_SLOTS:
         e.win.w.undoStack()->undo();                               // (the growth)
         QVERIFY(e.settle());
         QCOMPARE(valueOf(e, QStringLiteral("A10")), QStringLiteral("n:6"));
-        // pointing at a cell of a table from another row, or another sheet, is a plain reference
     }
 
     // A formula typed in an empty column of a table of very many rows fills it a slice at a time (no slice is more than a few thousand cells), as one step of Undo that takes the whole

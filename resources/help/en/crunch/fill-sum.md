@@ -18,6 +18,6 @@ Fill continues what you started. Select the cells you filled in, then drag the s
 
 ## AutoSum
 
-**Home > AutoSum** (**Alt and the equals sign**) puts a total in the cell you select. It looks at the numbers above the cell; if there are none, at the numbers to its left. The formula is put in the cell for you to check, and **Enter** keeps it. The arrow next to AutoSum gives the other totals: **Average**, **Count Numbers**, **Max**, and **Min**.
+**Home > AutoSum** (**Alt and the equals sign**) puts a total in the cell you select. It looks at the numbers above the cell; if there are none, at the numbers to its left. The formula is put in the cell for you to check, and **Enter** keeps it. The arrow next to AutoSum gives the other totals: **Average**, **How Many Numbers**, **Max**, and **Min**.
 
 Select a block first, and each column of the block gets its own formula in the empty cells under it (or, for a single row, to its right).

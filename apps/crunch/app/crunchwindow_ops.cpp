@@ -25,7 +25,7 @@ void CrunchWindow::createOpsActions()
     mk("edit.autosum", tr("AutoSum"), "sigma", crunch::autoSumKey(), [this] { autoSum(QStringLiteral("SUM")); });
     mk("edit.autosum.sum", tr("Sum"), "sigma", QKeySequence(), [this] { autoSum(QStringLiteral("SUM")); });
     mk("edit.autosum.average", tr("Average"), "", QKeySequence(), [this] { autoSum(QStringLiteral("AVERAGE")); });
-    mk("edit.autosum.count", tr("Count Numbers"), "", QKeySequence(), [this] { autoSum(QStringLiteral("COUNT")); });
+    mk("edit.autosum.count", tr("How Many Numbers"), "", QKeySequence(), [this] { autoSum(QStringLiteral("COUNT")); });
     mk("edit.autosum.max", tr("Max"), "", QKeySequence(), [this] { autoSum(QStringLiteral("MAX")); });
     mk("edit.autosum.min", tr("Min"), "", QKeySequence(), [this] { autoSum(QStringLiteral("MIN")); });
     // fill
@@ -42,7 +42,7 @@ void CrunchWindow::createOpsActions()
     updateEditActions();
 }
 
-// AutoSum (and Average, Count Numbers, Max, and Min): with one cell selected the formula is put in the cell to be edited, with the range it guessed; with a block of cells the formulas
+// AutoSum (and Average, How Many Numbers, Max, and Min): with one cell selected the formula is put in the cell to be edited, with the range it guessed; with a block of cells the formulas
 // are put in at once.
 void CrunchWindow::autoSum(const QString &function)
 {
