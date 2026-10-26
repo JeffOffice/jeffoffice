@@ -15027,11 +15027,38 @@ private Q_SLOTS:
             };
         };
         const PaginateWork small = workToPaginate(build(5000), 1 << 30), big = workToPaginate(build(20000), 1 << 30);
-        // (the characters read grow faster than the note: about 5.6 times here and 8.4 on macOS, whose lines break elsewhere, for 4 times the words; a note
-        // that is read again from its start on each page would be 16 times. The notes set stay in step.)
-        verifyInStep(small, big, 8, true, false);
-        QVERIFY2(big.chars < 12 * std::max<qint64>(small.chars, 1), qPrintable(QStringLiteral("%1 characters read for the smaller, %2 for the larger").arg(small.chars).arg(big.chars)));
+        verifyInStep(small, big, 8, true);
+        QVERIFY2(big.chars < 4.75 * std::max<qint64>(small.chars, 1), qPrintable(QStringLiteral("%1 characters read for the smaller, %2 for the larger").arg(small.chars).arg(big.chars)));
         //         QVERIFY2(big < 8 * std::max(small, 100.0), qPrintable(QStringLiteral("5000 words took %1 ms, 20000 words %2 ms").arg(small).arg(big)));
+    }
+
+    // The same note cited in a paragraph of the text, and in a cell of a table that is not in another: its pages read the note in step with its length too.
+    void aLongNoteInAParagraphOrACellTakesTimeInStepWithItsLength()
+    {
+        for (const bool inTable : {false, true}) {
+            auto build = [inTable](int words) {
+                return [words, inTable](FlowDocument &fd, TestNotes &notes) {
+                    addNote(&notes, QStringLiteral("long"), words, QStringLiteral("LONGNOTE"));
+                    fillStory(fd.story(), 2, 3, {}, 10, 14);
+                    int refAt = fd.story()->findBlockByNumber(1).position() + 3;
+                    if (inTable) {
+                        TestTable spec;
+                        spec.rows = 2;
+                        spec.cols = 2;
+                        spec.columnWidth = 140;
+                        addTable(fd, spec);
+                        for (QTextBlock b = fd.story()->begin(); b.isValid(); b = b.next())
+                            if (b.text() == QLatin1String("r1c1")) refAt = b.position() + 2;
+                    }
+                    appendParagraph(fd, QStringLiteral("zebra after"));
+                    addReference(fd.story(), refAt, QStringLiteral("long"));
+                };
+            };
+            const PaginateWork small = workToPaginate(build(5000), 1 << 30), big = workToPaginate(build(20000), 1 << 30);
+            verifyInStep(small, big, 8, true);
+            QVERIFY2(big.chars < 4.75 * std::max<qint64>(small.chars, 1),
+                     qPrintable(QStringLiteral("%1: %2 characters read for the smaller, %3 for the larger").arg(inTable ? "table" : "paragraph").arg(small.chars).arg(big.chars)));
+        }
     }
 
     // Objects anchored in the paragraphs of cells: making a page costs the paragraphs and the anchors, not their product.

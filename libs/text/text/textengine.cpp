@@ -1405,9 +1405,12 @@ static bool hasComplexScript(const QString &text)
 }
 
 // (Asked of the whole text of a paragraph for each page that holds a part of it: the answer for a long paragraph is kept while the same one is asked, or the pages of a paragraph of
-// hundreds of thousands of characters would read it all each. It is the document's revision and the paragraph's place and length that say it is the same.)
+// hundreds of thousands of characters would read it all each. It is the document's revision and the paragraph's place and length that say it is the same. A few are kept, for a
+// page with a long paragraph in a cell and a long note, each asked for in turn.)
 static bool paragraphHasComplexScript(const QTextBlock &b)
 {
+    // (The piece of a note laid out for a page is a copy made for it, and says when the note it is of has no such letter in it: it has none either.)
+    if (b.document()->property("jpNoComplexScript").toBool()) return false;
     if (b.length() < 4096) {
         g_paragraphCharsRead += b.length();
         return hasComplexScript(b.text());
@@ -1417,11 +1420,34 @@ static bool paragraphHasComplexScript(const QTextBlock &b)
         int revision = -1, position = -1, length = -1;
         bool complex = false;
     };
-    thread_local Kept kept;
-    if (kept.doc == b.document() && kept.revision == b.document()->revision() && kept.position == b.position() && kept.length == b.length()) return kept.complex;
+    thread_local Kept kept[4];
+    thread_local int next = 0;
+    for (const Kept &k : kept)
+        if (k.doc == b.document() && k.revision == b.document()->revision() && k.position == b.position() && k.length == b.length()) return k.complex;
     g_paragraphCharsRead += b.length();
-    kept = Kept{b.document(), b.document()->revision(), b.position(), b.length(), hasComplexScript(b.text())};
-    return kept.complex;
+    kept[next] = Kept{b.document(), b.document()->revision(), b.position(), b.length(), hasComplexScript(b.text())};
+    const bool complex = kept[next].complex;
+    next = (next + 1) % 4;
+    return complex;
+}
+
+// Whether no paragraph of a document has such a letter (kept for a few documents, by revision and size, as the answer for one paragraph is).
+static bool documentHasNoComplexScript(const QTextDocument *doc)
+{
+    struct Kept {
+        const QTextDocument *doc = nullptr;
+        int revision = -1, characters = -1;
+        bool none = false;
+    };
+    thread_local Kept kept[4];
+    thread_local int next = 0;
+    for (const Kept &k : kept)
+        if (k.doc == doc && k.revision == doc->revision() && k.characters == doc->characterCount()) return k.none;
+    bool none = true;
+    for (QTextBlock b = doc->begin(); b.isValid() && none; b = b.next()) none = !paragraphHasComplexScript(b);
+    kept[next] = Kept{doc, doc->revision(), doc->characterCount(), none};
+    next = (next + 1) % 4;
+    return none;
 }
 
 QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
@@ -2931,6 +2957,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 QTextBlockFormat bf = at.blockFormat();
                 if (from > at.position()) bf.setTextIndent(0);
                 QTextCursor(tail->begin()).setBlockFormat(bf);
+                if (documentHasNoComplexScript(nd)) tail->setProperty("jpNoComplexScript", true);
             }
             ++noteDepth;
             lay->build(tail ? tail.get() : nd, {noteFrame(n, width, room)}, env);
