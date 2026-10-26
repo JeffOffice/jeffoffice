@@ -1,19 +1,19 @@
 """JeffOffice's anonymous usage statistics: the collector and its stats page.
 
-JeffPub and JeffDeck each send at most one ping a day (see libs/shell/app/telemetry.cpp),
+Each JeffOffice app sends at most one ping a day (see libs/shell/app/telemetry.cpp),
 unless the person using them turned this off (one choice, for the whole suite):
 
     POST /v1/ping  {"app": "jeffdeck", "install": "<random UUID>", "version": "0.8.0",
                     "os": "windows", "osVersion": "10.0.22631", "lang": "en-US",
                     "launches": 2, "counts": {"file.open.pptx": 3, ...}}
 
-app is the program's file name, "jeffpub" or "jeffdeck"; a ping without it is JeffPub's
+app is the program's file name, "jeffpub", "jeffdeck", "jeffwrite", or "jeffcrunch"; a ping without it is JeffPub's
 (what JeffPub sent before JeffDeck did). The collector keeps one ping a day for each
 install and app, with that app's counts, and nothing is added up across apps.
 
 Nothing else is kept: no IP address (none is logged either), no file names,
 no text. The install id is made up by the apps and says nothing about the
-person or the computer; both apps send the same one.
+person or the computer; every app sends the same one.
 
 The same choice also sends crash reports: on the next start after a crash, the
 app sends where the program stopped, as file names and numeric positions:
@@ -72,7 +72,7 @@ CRASH_KINDS = ("signal", "exception")
 MAX_FRAMES = 64
 MAX_CRASH_AGE = 30  # days back that a crash's date may be
 MAX_CRASHES_PER_DAY = 10  # stored per install and app
-APPS = {"jeffpub": "JeffPub", "jeffdeck": "JeffDeck"}  # file name -> name shown; add an app here before it sends
+APPS = {"jeffpub": "JeffPub", "jeffdeck": "JeffDeck", "jeffwrite": "JeffWrite", "jeffcrunch": "JeffCrunch"}  # file name -> name shown; add an app here before it sends
 DEFAULT_APP = "jeffpub"  # whose a ping or report is when it doesn't say
 
 _lock = threading.Lock()
@@ -288,19 +288,19 @@ def record_crash(crash, today=None):
 ABOUT = """<!doctype html><meta charset="utf-8"><title>JeffOffice usage statistics</title>
 <style>body{font:16px/1.5 system-ui,sans-serif;max-width:40em;margin:2em auto;padding:0 1em}</style>
 <h1>JeffOffice usage statistics</h1>
-<p>JeffPub and JeffDeck share one choice about this. Unless you turn it off (in setup, when JeffPub or JeffDeck
-first starts, or under File &gt; Options in either), each of them sends the following once a day while it's in
+<p>The JeffOffice apps (JeffPub, JeffDeck, JeffWrite, and JeffCrunch) share one choice about this. Unless you turn it off (in setup, when
+one of them first starts, or under File &gt; Options in any of them), each of them sends the following once a day while it's in
 use, and once more the day it's updated:</p>
 <ul><li>a random number made up when JeffOffice was installed, which says nothing about you or your computer
-(JeffPub and JeffDeck send the same number, so someone who uses both is one person here);</li>
-<li>which app it comes from, JeffPub or JeffDeck, its version, your operating system and its version,
+(every app sends the same number, so someone who uses several is one person here);</li>
+<li>which app it comes from, its version, your operating system and its version,
 and the language it's set to;</li>
 <li>how many times it was started, and how many times each of its commands was used
-(for example "opened a .pub file" in JeffPub, "opened a .pptx file" in JeffDeck, or "exported a PDF").</li></ul>
+(for example "opened a .pub file" in JeffPub, "opened a .pptx file" in JeffDeck, "saved a .xlsx file" in JeffCrunch, or "exported a PDF").</li></ul>
 <p>Never your files, their names, or anything in them. Your IP address isn't kept.
-The numbers show how many people use JeffPub and JeffDeck and which parts matter most to them.</p>
+The numbers show how many people use each app and which parts matter most to them.</p>
 <h2>Crash reports</h2>
-<p>If usage statistics are on and JeffPub or JeffDeck crashes, it sends a crash report the next time it starts.
+<p>If usage statistics are on and one of the apps crashes, it sends a crash report the next time it starts.
 The report says where in the program it stopped (the names of program files, and numbers that give
 a position in each), what kind of failure it was (a number), the day it happened, which app it was and its
 version, your operating system, and the same random number as above. It never includes your documents, their
