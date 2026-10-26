@@ -15032,6 +15032,17 @@ private Q_SLOTS:
         //         QVERIFY2(big < 8 * std::max(small, 100.0), qPrintable(QStringLiteral("5000 words took %1 ms, 20000 words %2 ms").arg(small).arg(big)));
     }
 
+    // What is kept about a long paragraph belongs to its document: a new document made where a deleted one was, with a paragraph of the same place and
+    // length, is read again, not given the deleted one's answer (a kept answer is held by a guarded pointer, which a deletion empties).
+    void aNewDocumentIsNeverGivenADeletedOnesKeptAnswers()
+    {
+        const QString text = QString(5000, QLatin1Char('a'));
+        for (int round = 0; round < 20; ++round) {
+            const PaginateWork work = workToPaginate([&](FlowDocument &fd, TestNotes &) { appendParagraph(fd, text); });
+            QVERIFY2(work.chars >= text.size(), qPrintable(QStringLiteral("round %1 read %2 characters of %3").arg(round).arg(work.chars).arg(text.size())));
+        }
+    }
+
     // The same note cited in a paragraph of the text, and in a cell of a table that is not in another: its pages read the note in step with its length too.
     void aLongNoteInAParagraphOrACellTakesTimeInStepWithItsLength()
     {

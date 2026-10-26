@@ -101,7 +101,7 @@ class Collector(unittest.TestCase):
 
     def test_the_app_is_checked(self):
         install = str(uuid.uuid4())
-        for bad in ["", "JeffDeck", "jeffdeck1", "jeff-deck", "jeff deck", "jeffdeck\n", "jeffwrite", "x", "a" * 17,
+        for bad in ["", "JeffDeck", "jeffdeck1", "jeff-deck", "jeff deck", "jeffdeck\n", "jeffmail", "x", "a" * 17,
                     "../jeffpub", 5, None, True, ["jeffdeck"], {"jeffdeck": 1}]:
             with self.subTest(app=bad):
                 self.assertEqual(self.post(self.ping(install=install, app=bad)), 400)
@@ -132,13 +132,12 @@ class Collector(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertIn("Never your files", page)
 
-    def test_public_page_names_both_apps(self):
+    def test_public_page_names_every_app(self):
         code, page = self.get("/")
         self.assertEqual(code, 200)
         text = " ".join(page.split())
         self.assertIn("<title>JeffOffice usage statistics</title>", text)
-        self.assertEqual(page.count("JeffDeck") > 3, True)
-        self.assertIn("JeffPub and JeffDeck", text)
+        self.assertIn("JeffPub, JeffDeck, JeffWrite, and JeffCrunch", text)
         self.assertIn("which app", text)
         self.assertNotIn("JeffDeck sends no", text)
 
@@ -193,7 +192,7 @@ class Collector(unittest.TestCase):
         self.assertEqual(apps, {a: "jeffpub", b: "jeffpub", c: "jeffdeck"})
 
     def test_a_report_with_a_bad_app_is_refused(self):
-        for bad in ["", "JeffDeck", "jeffdeck1", "jeff deck", "jeffdeck\n", "jeffwrite", "x", "a" * 17, "../jeffpub", 5, None, True, ["jeffdeck"]]:
+        for bad in ["", "JeffDeck", "jeffdeck1", "jeff deck", "jeffdeck\n", "jeffmail", "x", "a" * 17, "../jeffpub", 5, None, True, ["jeffdeck"]]:
             with self.subTest(app=bad):
                 self.assertEqual(self.send(app=bad), 400)
         self.assertEqual(self.rows(), [])
@@ -417,7 +416,7 @@ class Collector(unittest.TestCase):
         self.assertLess(suite, sum(ever.values()))   # a uses both apps: counted once in the suite row
 
     def test_an_app_that_is_not_known_has_no_page(self):
-        for path in ("/stats?app=jeffwrite", "/stats?app=", "/stats?app=JeffDeck", "/stats?app=jeffdeck&app=x", "/crashes?app=jeffwrite", "/crashes?app=%00"):
+        for path in ("/stats?app=jeffmail", "/stats?app=", "/stats?app=JeffDeck", "/stats?app=jeffdeck&app=x", "/crashes?app=jeffmail", "/crashes?app=%00"):
             with self.subTest(path=path):
                 self.assertEqual(self.get(path, "secret")[0], 404)
         self.assertEqual(self.get("/stats?app=jeffdeck")[0], 401)   # the password still comes first

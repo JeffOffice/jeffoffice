@@ -1334,12 +1334,12 @@ static bool hasTrueSmallCaps(const QTextBlock &b)
 {
     if (b.length() < 4096) return hasTrueSmallCapsOf(b);
     struct Kept {
-        const QTextDocument *doc = nullptr;
+        QPointer<const QTextDocument> doc;   // (guarded: a deleted document is never mistaken for a new one at the same address)
         int revision = -1, position = -1, length = -1;
         bool small = false;
     };
     thread_local Kept kept;
-    if (kept.doc == b.document() && kept.revision == b.document()->revision() && kept.position == b.position() && kept.length == b.length()) return kept.small;
+    if (kept.doc && kept.doc == b.document() && kept.revision == b.document()->revision() && kept.position == b.position() && kept.length == b.length()) return kept.small;
     kept = Kept{b.document(), b.document()->revision(), b.position(), b.length(), hasTrueSmallCapsOf(b)};
     return kept.small;
 }
@@ -1415,15 +1415,16 @@ static bool paragraphHasComplexScript(const QTextBlock &b)
         g_paragraphCharsRead += b.length();
         return hasComplexScript(b.text());
     }
+    // (the document by a guarded pointer: one that is deleted is never mistaken for a new one made at the same address)
     struct Kept {
-        const QTextDocument *doc = nullptr;
+        QPointer<const QTextDocument> doc;
         int revision = -1, position = -1, length = -1;
         bool complex = false;
     };
     thread_local Kept kept[4];
     thread_local int next = 0;
     for (const Kept &k : kept)
-        if (k.doc == b.document() && k.revision == b.document()->revision() && k.position == b.position() && k.length == b.length()) return k.complex;
+        if (k.doc && k.doc == b.document() && k.revision == b.document()->revision() && k.position == b.position() && k.length == b.length()) return k.complex;
     g_paragraphCharsRead += b.length();
     kept[next] = Kept{b.document(), b.document()->revision(), b.position(), b.length(), hasComplexScript(b.text())};
     const bool complex = kept[next].complex;
@@ -1435,14 +1436,14 @@ static bool paragraphHasComplexScript(const QTextBlock &b)
 static bool documentHasNoComplexScript(const QTextDocument *doc)
 {
     struct Kept {
-        const QTextDocument *doc = nullptr;
+        QPointer<const QTextDocument> doc;   // (guarded, as above)
         int revision = -1, characters = -1;
         bool none = false;
     };
     thread_local Kept kept[4];
     thread_local int next = 0;
     for (const Kept &k : kept)
-        if (k.doc == doc && k.revision == doc->revision() && k.characters == doc->characterCount()) return k.none;
+        if (k.doc && k.doc == doc && k.revision == doc->revision() && k.characters == doc->characterCount()) return k.none;
     bool none = true;
     for (QTextBlock b = doc->begin(); b.isValid() && none; b = b.next()) none = !paragraphHasComplexScript(b);
     kept[next] = Kept{doc, doc->revision(), doc->characterCount(), none};
