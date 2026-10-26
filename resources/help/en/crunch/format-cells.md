@@ -17,7 +17,7 @@
 - **Top Align**, **Middle Align**, and **Bottom Align** place the text up and down in the cell.
 - **Align Left**, **Center**, and **Align Right** place it from side to side. A text that is not aligned reads from its own side: left for English, right for Arabic or Hebrew.
 - **Decrease Indent** and **Increase Indent** move the text in from the edge, one step at a time.
-- **Wrap Text** breaks a long text onto more lines inside the cell. The row does not grow by itself yet: use **Home > Format > AutoFit Row Height** to make it tall enough.
+- **Wrap Text** breaks a long text onto more lines inside the cell. A row you have not given a height of your own grows to show every line (see [Change the width of columns and the height of rows](sizes)).
 - **Orientation** turns the text: **Angle Counterclockwise**, **Angle Clockwise**, **Vertical Text** (the letters one under another), **Rotate Text Up**, **Rotate Text Down**, and **Horizontal Text** to put it back. The text turns inside the cell and stays where the alignment puts it.
 - **Merge and Center** joins the selected cells into one and centers what is in it. Its arrow also offers **Merge Across** (one merged cell for each row), **Merge Cells** (no centering), and **Unmerge Cells**. Only the top left cell keeps its value; if other cells hold something, JeffCrunch asks first.
 
@@ -40,7 +40,7 @@ Press **Ctrl+1** (on a Mac, **Command+1**) or use **Home > Format > Format Cells
 - **Font**: typeface, style, size, underline (single, double, and the two accounting kinds), color, strikethrough, superscript, and subscript, with a preview.
 - **Border**: pick a line style and color, then click the edges (or the presets **None**, **Outline**, and **Inside**) to put that line on them or take it away.
 - **Fill**: the background color, a pattern and its color, with a sample.
-- **Protection**: **Locked** and **Hidden**. They have no effect until the sheet is protected, and JeffCrunch does not protect sheets yet.
+- **Protection**: **Locked** and **Hidden**. They have no effect until the sheet is protected (see [Protect a sheet or the workbook](protect)).
 
 The window changes only what you changed. Open it on cells that differ, and a box you did not touch leaves each cell as it was.
 
