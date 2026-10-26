@@ -113,7 +113,7 @@ Help is built into each app (press F1). JeffPub's is also published to the proje
 
 ## Languages
 
-Both apps are in American English, German, Spanish, French, Italian, Dutch, and Portuguese (Brazil and Portugal). They follow your computer's language, or the one chosen in File > Options > General. The translations are in [translations](translations/README.md).
+All four apps, and their Help, are in American English, German, Spanish, French, Italian, Dutch, and Portuguese (Brazil and Portugal). They follow your computer's language, or the one chosen in File > Options > General. The translations are in [translations](translations/README.md).
 
 ## Built with
 
