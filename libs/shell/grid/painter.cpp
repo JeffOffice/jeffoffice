@@ -794,6 +794,7 @@ marked:
     bool anyFill = false, anyBorder = false, anyBar = false, anyIcon = false;
     const LookTable &looks = m_sheet->looks();
     const bool ruled = m_sheet->hasConditionalFormats();
+    const bool skinned = m_sheet->hasTableSkins();
     if (ruled) w.cond.assign(R * C, 0);
     for (size_t i = 0; i < R; ++i)
         for (size_t j = 0; j < C; ++j) {
@@ -824,6 +825,14 @@ marked:
             } else if (ruled && m_stats.condCells >= kMaxCondCells) {
                 m_stats.truncated = true;
                 m_sheet->conditional().reportTruncated();
+            }
+            if (skinned && !w.rows[i].ring && !w.cols[j].ring && m_sheet->inTableSkin(quint32(w.rows[i].index), quint32(w.cols[j].index))) {
+                // (a cell of a table: the look its style gives it, under what the cell has of its own)
+                const CellLook &look = m_sheet->lookOf(quint32(w.rows[i].index), quint32(w.cols[j].index), xf);
+                w.looks[i * C + j] = &look;
+                anyFill = anyFill || look.hasFill();
+                anyBorder = anyBorder || look.hasBorder();
+                continue;
             }
             if (xf == 0) continue;
             const CellLook &look = looks.look(xf);

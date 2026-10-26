@@ -3,6 +3,7 @@
 #include "core/editsession.h"
 
 #include "core/collation.h"
+#include "sheet/tables.h"
 
 #include "calc/dates.h"
 #include "calc/numfmt.h"
@@ -43,6 +44,7 @@ bool numberOf(const QString &text, double *out)
 
 struct EditSession::FilterPlan {
     int sheet = 0;
+    int table = -1;                          // the table whose filter it is (else the sheet's)
     AutoFilter before, after;
     quint32 firstRow = 0, lastRow = 0;       // the rows under the buttons
     // one per column that has a condition
@@ -102,9 +104,24 @@ bool EditSession::rowFilteredOut(int sheet, quint32 row) const
     return false;
 }
 
-AutoFilter EditSession::filterWith(int sheet, quint32 column, const FilterColumn &condition) const
+AutoFilter EditSession::tableFilter(int table) const
 {
-    AutoFilter f = m_book->calc->autoFilterOf(sheet);
+    AutoFilter f;
+    if (!m_book || !m_book->book || table < 0 || table >= m_book->book->tables().size()) return f;
+    const Table &t = m_book->book->tables()[table];
+    if (t.headerRows == 0 || !t.filterButtons) return f;
+    f = t.filter;
+    f.ref.valid = true;
+    f.ref.row1 = t.row1;
+    f.ref.col1 = t.col1;
+    f.ref.row2 = quint32(std::max<qint64>(t.dataLast(), t.row1));
+    f.ref.col2 = t.col2;
+    return f;
+}
+
+AutoFilter EditSession::filterWith(int sheet, quint32 column, const FilterColumn &condition, int table) const
+{
+    AutoFilter f = table >= 0 ? tableFilter(table) : m_book->calc->autoFilterOf(sheet);
     FilterColumn c = condition;
     c.column = column;
     for (int i = 0; i < f.columns.size(); ++i)
@@ -118,9 +135,9 @@ AutoFilter EditSession::filterWith(int sheet, quint32 column, const FilterColumn
     return f;
 }
 
-AutoFilter EditSession::filterCleared(int sheet) const
+AutoFilter EditSession::filterCleared(int sheet, int table) const
 {
-    AutoFilter f = m_book->calc->autoFilterOf(sheet);
+    AutoFilter f = table >= 0 ? tableFilter(table) : m_book->calc->autoFilterOf(sheet);
     QVector<FilterColumn> kept;
     for (FilterColumn c : f.columns) {
         if (!c.hideButton) continue;
@@ -137,7 +154,7 @@ AutoFilter EditSession::filterCleared(int sheet) const
     return f;
 }
 
-std::shared_ptr<EditSession::FilterPlan> EditSession::planFilter(int sheet, const AutoFilter &after, QString *why)
+std::shared_ptr<EditSession::FilterPlan> EditSession::planFilter(int sheet, const AutoFilter &after, QString *why, int table)
 {
     auto refuse = [&](const QString &problem) {
         if (why) *why = problem;
@@ -147,8 +164,23 @@ std::shared_ptr<EditSession::FilterPlan> EditSession::planFilter(int sheet, cons
     if (!canEdit(&reason) || !canEditSheet(sheet, &reason) || !allows(sheet, Allow::Filter, &reason)) return refuse(reason);
     auto plan = std::make_shared<FilterPlan>();
     plan->sheet = sheet;
+    plan->table = table;
     plan->after = after;
-    plan->before = m_book->calc->autoFilterOf(sheet);
+    plan->before = table >= 0 ? tableFilter(table) : m_book->calc->autoFilterOf(sheet);
+    if (table >= 0) {
+        // a table's filter hides whole rows of the sheet; another filter over the same rows would not know which rows are its
+        if (table >= m_book->book->tables().size() || m_book->book->tables()[table].sheet != sheet) return refuse(tr("There is no such table."));
+        const AutoFilter &sheetFilter = m_book->calc->autoFilterOf(sheet);
+        const Table &mine = m_book->book->tables()[table];
+        if (sheetFilter.active() && !(sheetFilter.ref.row2 <= mine.row1 || sheetFilter.ref.row1 > mine.row2))
+            return refuse(tr("The sheet's filter is on rows this table is on. Turn it off first, since two filters on the same rows would hide each other's rows."));
+        for (int i = 0; i < m_book->book->tables().size(); ++i) {
+            const Table &other = m_book->book->tables()[i];
+            if (i == table || other.sheet != sheet || !tableFilter(i).active()) continue;
+            if (!(other.row2 < mine.row1 || other.row1 > mine.row2))
+                return refuse(tr("The table %1 is filtered on rows this table is on. Clear its filter first, since two filters on the same rows would hide each other's rows.").arg(other.name));
+        }
+    }
     plan->system = m_book->book->info().dateSystem;
     // the rows to look at are those of the filter now and those it had (rows it hid are shown again if the range moves)
     const CellRange now = after.ref, was = plan->before.ref;
@@ -169,7 +201,7 @@ std::shared_ptr<EditSession::FilterPlan> EditSession::planFilter(int sheet, cons
         return plan;
     }
     // (a sheet's filter and a table's own cannot cover the same cells: a file that has both does not open in other programs)
-    if (after.ref.valid)
+    if (after.ref.valid && table < 0)
         for (const Table &t : m_book->book->tables())
             if (t.sheet == sheet && t.row1 <= after.ref.row2 && t.row2 >= after.ref.row1 && t.col1 <= after.ref.col2 && t.col2 >= after.ref.col1)
                 return refuse(tr("The cells are in the table %1, which has its own filter buttons. Use those, or filter cells outside the table.").arg(t.name));
@@ -553,7 +585,15 @@ EditSession::Outcome EditSession::applyFilter(FilterPlan &plan, const QString &t
     if (m_loader->changesMade() != plan.changesAtPlan || m_undo.index() != plan.undoIndexAtPlan)
         return refuse(tr("The cells were changed while the filter was being worked out, so it was not applied. Filter again."));
     Step step;
-    if (!(plan.after == plan.before) || !(plan.after.ref == plan.before.ref)) {
+    if (plan.table >= 0) {
+        if (plan.table >= m_book->book->tables().size()) return refuse(tr("There is no such table."));
+        TableEdit e;
+        e.index = plan.table;
+        e.before = m_book->book->tables()[plan.table];
+        e.after = e.before;
+        e.after.filter.columns = plan.after.columns;
+        if (tableSignature(e.after) != tableSignature(e.before)) step.tables.push_back(std::move(e));
+    } else if (!(plan.after == plan.before) || !(plan.after.ref == plan.before.ref)) {
         FilterEdit e;
         e.sheet = plan.sheet;
         e.before = plan.before;
@@ -577,11 +617,11 @@ EditSession::Outcome EditSession::applyFilter(FilterPlan &plan, const QString &t
 
 qint64 EditSession::filterWork(const FilterPlan &plan) { return plan.work; }
 
-EditSession::Outcome EditSession::setFilter(int sheet, const AutoFilter &after, const QString &text)
+EditSession::Outcome EditSession::setFilter(int sheet, const AutoFilter &after, const QString &text, int table)
 {
     Outcome out;
     QString why;
-    const std::shared_ptr<FilterPlan> plan = planFilter(sheet, after, &why);
+    const std::shared_ptr<FilterPlan> plan = planFilter(sheet, after, &why, table);
     if (!plan) {
         out.ok = false;
         out.problem = why;

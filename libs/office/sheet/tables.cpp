@@ -4,6 +4,7 @@
 
 #include <QCoreApplication>
 #include <QRegularExpression>
+#include <QSet>
 #include <QXmlStreamReader>
 
 #include <algorithm>
@@ -13,6 +14,8 @@ namespace jp::office::sheet {
 namespace {
 
 constexpr int kMaxTables = 20000;
+constexpr qint64 kMaxTablePartBytes = 8 << 20;        // a table part longer than this is not read
+constexpr qint64 kMaxTablePartsBytes = 128 << 20;     // and all the table parts of a workbook together
 constexpr int kMaxTableColumns = 16384;
 constexpr int kMaxColumnNameChars = 255;
 
@@ -126,6 +129,10 @@ QString renameInBracket(const QString &group, const Rename &rename, bool *change
 
 } // namespace
 
+QString escapeTableColumn(const QString &name) { return escapeColumn(name); }
+bool tableColumnNeedsDoubleBrackets(const QString &name) { return needsDoubleBrackets(name); }
+QString unescapeTableColumn(const QString &raw) { return unescapeColumn(raw); }
+
 QString renameColumnInFormula(const QString &formula, const QString &table, const QString &oldName, const QString &newName, bool insideTable)
 {
     if (!formula.contains(QLatin1Char('['))) return formula;
@@ -198,6 +205,21 @@ QString renameColumnInFormula(const QString &formula, const QString &table, cons
 
 QString uniqueColumnName(const QString &typedIn, const QStringList &columns, int column, bool *tooLong)
 {
+    QStringList others = columns;
+    if (column >= 0 && column < others.size()) others.removeAt(column);
+    ColumnNames names(others);
+    return names.unique(typedIn, tooLong);
+}
+
+ColumnNames::ColumnNames(const QStringList &existing)
+{
+    for (const QString &n : existing) m_lower.insert(n.toLower());
+}
+
+void ColumnNames::add(const QString &name) { m_lower.insert(name.toLower()); }
+
+QString ColumnNames::unique(const QString &typedIn, bool *tooLong)
+{
     if (tooLong) *tooLong = false;
     QString name = typedIn.trimmed();
     if (name.startsWith(QLatin1Char('\'')) && name.size() > 1) name = name.mid(1);
@@ -206,21 +228,40 @@ QString uniqueColumnName(const QString &typedIn, const QStringList &columns, int
         if (tooLong) *tooLong = true;
         return {};
     }
-    auto taken = [&](const QString &candidate) {
-        for (int i = 0; i < columns.size(); ++i)
-            if (i != column && columns[i].compare(candidate, Qt::CaseInsensitive) == 0) return true;
-        return false;
-    };
-    if (!taken(name)) return name;
-    for (int n = 2;; ++n) {
-        const QString candidate = name.left(kMaxColumnNameChars - 6) + QString::number(n);
-        if (!taken(candidate)) return candidate;
+    if (!taken(name)) {
+        add(name);
+        return name;
+    }
+    const QString base = name.left(kMaxColumnNameChars - 6);
+    int &n = m_next[base.toLower()];
+    if (n < 2) n = 2;
+    for (;; ++n) {
+        const QString candidate = base + QString::number(n);
+        if (!taken(candidate)) {
+            add(candidate);
+            return candidate;
+        }
     }
 }
 
-QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
+QString ColumnNames::fresh(int from)
+{
+    const QString word = QCoreApplication::translate("jp::office::sheet::Tables", "Column");
+    int &n = m_next[QStringLiteral("\x01") + word.toLower()];
+    if (n < std::max(1, from)) n = std::max(1, from);
+    for (;; ++n) {
+        const QString candidate = word + QString::number(n);
+        if (!taken(candidate)) {
+            add(candidate);
+            return candidate;
+        }
+    }
+}
+
+QVector<Table> readTables(const Package &package, const WorkbookInfo &info, QStringList *notes)
 {
     QVector<Table> tables;
+    qint64 total = 0;
     for (int sheet = 0; sheet < info.sheets.size(); ++sheet) {
         const SheetEntry &entry = info.sheets[sheet];
         if (entry.kind != SheetKind::Worksheet || entry.part.isEmpty()) continue;
@@ -228,7 +269,8 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
             if (rel.external || tables.size() >= kMaxTables) continue;
             const QString partName = resolvePartName(entry.part, rel.target);
             const QByteArray bytes = package.part(partName);
-            if (bytes.isEmpty()) continue;
+            if (bytes.isEmpty() || bytes.size() > kMaxTablePartBytes) continue;
+            if ((total += bytes.size()) > kMaxTablePartsBytes) return tables;
             Table t;
             t.part = partName;
             t.sheet = sheet;
@@ -236,9 +278,11 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
             QString displayName, name;
             QString ref;
             int headerRows = 1, totalsRows = 0;
+            bool rootSeen = false;   // (an extension of the part may hold an element called "table" of its own)
             while (!r.atEnd()) {
                 if (r.readNext() != QXmlStreamReader::StartElement) continue;
-                if (isTableElement(r, "table")) {
+                if (isTableElement(r, "table") && !rootSeen) {
+                    rootSeen = true;
                     const QXmlStreamAttributes a = r.attributes();
                     name = nameOf(a, "name");
                     displayName = nameOf(a, "displayName");
@@ -253,6 +297,8 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
             if (r.hasError() || t.columns.isEmpty()) continue;
             CellRange range;
             if (!parseRangeRef(ref, &range)) continue;
+            // (the columns are the cells' width: a part that says otherwise is not a table the program can work with)
+            if (qint64(t.columns.size()) != qint64(range.col2) - range.col1 + 1) continue;
             t.name = displayName.isEmpty() ? name : displayName;
             t.row1 = range.row1;
             t.col1 = range.col1;
@@ -265,8 +311,41 @@ QVector<Table> readTables(const Package &package, const WorkbookInfo &info)
             t.headerRows = headerRows > 0 ? 1 : 0;
             t.totalsRows = t.fileTotalsRows = totalsRows;
             t.fileColumns = t.columns;
+            if (!readTableModel(bytes, &t)) continue;
+            t.fileSignature = tableSignature(t);
             tables.append(t);
         }
+    }
+    // a table that has the name, the id, or cells of one before it is left out: the file is not valid, and two tables there would be taken for one another
+    {
+        QVector<Table> kept;
+        QSet<QString> names;
+        QSet<int> ids;
+        std::vector<std::vector<int>> onSheet(size_t(info.sheets.size()));
+        int dropped = 0;
+        QString first;
+        for (const Table &t : std::as_const(tables)) {
+            bool bad = names.contains(t.name.toLower()) || ids.contains(t.id);
+            if (!bad && t.sheet >= 0 && t.sheet < int(onSheet.size()))
+                for (const int k : onSheet[size_t(t.sheet)]) {
+                    const Table &o = kept[k];
+                    if (!(o.row2 < t.row1 || o.row1 > t.row2 || o.col2 < t.col1 || o.col1 > t.col2)) {
+                        bad = true;
+                        break;
+                    }
+                }
+            if (bad) {
+                if (dropped++ == 0) first = t.name;
+                continue;
+            }
+            names.insert(t.name.toLower());
+            ids.insert(t.id);
+            if (t.sheet >= 0 && t.sheet < int(onSheet.size())) onSheet[size_t(t.sheet)].push_back(int(kept.size()));
+            kept.append(t);
+        }
+        if (dropped > 0 && notes)
+            *notes << QCoreApplication::translate("jp::office::sheet::Tables", "%n table(s) that have the name, the number, or the cells of another table were not read (the first is %1).", nullptr, dropped).arg(first);
+        tables = kept;
     }
     return tables;
 }
@@ -339,7 +418,10 @@ TableFate tableAfter(const StructEdit &e, const Table &t, CellRange *out, QStrin
             out->col2 += c;
             return TableFate::Moved;
         }
-        if (f <= t.col2) return refuse(inside);
+        if (f <= t.col2) {
+            out->col2 += c;   // (inside: the table has more columns)
+            return TableFate::Moved;
+        }
         return TableFate::Same;
     case K::DeleteColumns: {
         const quint32 last = f + c - 1;
@@ -349,7 +431,14 @@ TableFate tableAfter(const StructEdit &e, const Table &t, CellRange *out, QStrin
             out->col2 -= c;
             return TableFate::Moved;
         }
-        return refuse(inside);
+        const quint32 from = std::max(f, t.col1), to = std::min(last, t.col2);
+        const quint32 gone = to - from + 1;
+        const quint32 left = t.col1 > f ? std::min(t.col1 - 1, last) - f + 1 : 0;   // (columns deleted left of the table)
+        const quint32 width = t.col2 - t.col1 + 1;
+        if (gone >= width) return refuse(QCoreApplication::translate("jp::office::sheet::Tables", "That would remove all of a table's columns. Select some of them, or change cells outside the table."));
+        out->col1 = t.col1 - left;
+        out->col2 = out->col1 + (width - gone) - 1;
+        return TableFate::Moved;
     }
     case K::InsertCellsDown:
     case K::DeleteCellsUp: {

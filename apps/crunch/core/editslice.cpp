@@ -5,6 +5,8 @@
 #include "sheet/notes.h"
 #include "sheet/refshift.h"
 
+#include <QElapsedTimer>
+
 #include <algorithm>
 
 namespace jp::crunch {
@@ -24,7 +26,24 @@ bool EditSession::continueSlicedPush(SlicedPush &push, qint64 budget)
 {
     if (!m_slicing) return true;
     Step &step = push.step;
+    auto fail = [&] {
+        m_slicing = false;
+        giveUpUndo(push.text, true);
+        return true;
+    };
+    // the tables the step changes come first (the cells of a table that grows are put in a table that has grown)
+    if (!push.tablesApplied) {
+        push.tablesApplied = true;
+        if (!step.tables.empty()) {
+            Step first;
+            first.tables = step.tables;
+            const bool ok = apply(&first, true);
+            step.tables = std::move(first.tables);   // (what applying made of them, the names that were rewritten, is kept for undoing)
+            if (!ok) return fail();
+        }
+    }
     const size_t total = step.cells.size();
+    qint64 left = budget;
     // the cells, a slice at a time (each slice is a step of its own as far as the model is concerned: the worker is held for it, and told what changed)
     if (push.next < total) {
         const size_t to = budget > 0 ? std::min<size_t>(total, push.next + size_t(budget)) : total;
@@ -34,13 +53,35 @@ bool EditSession::continueSlicedPush(SlicedPush &push, qint64 budget)
         m_longestSlice = std::max<qint64>(m_longestSlice, qint64(part.cells.size()));
         ++m_slicesPushed;
         std::move(part.cells.begin(), part.cells.end(), step.cells.begin() + std::ptrdiff_t(push.next));
-        if (!ok) {
-            m_slicing = false;
-            giveUpUndo(push.text, true);
-            return true;
-        }
+        if (!ok) return fail();
+        left -= qint64(to - push.next);
         push.next = to;
         if (push.next < total) return false;
+        if (budget > 0 && left <= 0 && !step.fills.empty()) return false;
+    }
+    // the cells that formulas are filled into, rows at a time
+    while (push.fillAt < step.fills.size()) {
+        const FillEdit &f = step.fills[push.fillAt];
+        if (push.fillRow < f.row1) push.fillRow = f.row1;
+        const qint64 rowsLeft = qint64(f.row2) - push.fillRow + 1;
+        const qint64 take = budget > 0 ? std::min<qint64>(rowsLeft, std::max<qint64>(left, 1)) : rowsLeft;
+        Step part;
+        FillEdit sub = f;
+        sub.row1 = push.fillRow;
+        sub.row2 = quint32(qint64(push.fillRow) + take - 1);
+        part.fills.push_back(std::move(sub));
+        const bool ok = apply(&part, true);
+        m_longestSlice = std::max<qint64>(m_longestSlice, take);
+        ++m_slicesPushed;
+        if (!ok) return fail();
+        left -= take;
+        if (take < rowsLeft) {
+            push.fillRow = quint32(qint64(push.fillRow) + take);
+            return false;
+        }
+        ++push.fillAt;
+        push.fillRow = 0;
+        if (budget > 0 && left <= 0 && push.fillAt < step.fills.size()) return false;
     }
     // what goes with the cells (the merged ranges, the filter, and the like) is put in with the last
     if (!push.began) {
@@ -53,16 +94,63 @@ bool EditSession::continueSlicedPush(SlicedPush &push, qint64 budget)
         rest.rowSpecs = step.rowSpecs;
         rest.permutes = step.permutes;
         if (!rest.empty()) {
-            if (!apply(&rest, true)) {
-                m_slicing = false;
-                giveUpUndo(push.text, true);
-                return true;
-            }
+            if (!apply(&rest, true)) return fail();
         }
     }
     m_slicing = false;
     pushStep(std::move(step), push.text, true);
     return true;
+}
+
+// A step that fills many cells: put in at once if it is small, else a slice at a time by a timer of the session's own, as one step of Undo.
+void EditSession::startFill(Step step, const QString &text)
+{
+    qint64 cells = qint64(step.cells.size());
+    for (const FillEdit &f : step.fills) cells += qint64(f.row2) - f.row1 + 1;
+    if (cells <= kFillAtOnce) {
+        pushStep(std::move(step), text);
+        return;
+    }
+    m_fill = beginSlicedPush(std::move(step), text);
+    m_fillBudget = 2000;
+    if (!m_fillTimer.isActive()) {
+        m_fillTimer.setInterval(0);
+        m_fillTimer.setSingleShot(false);
+        disconnect(&m_fillTimer, nullptr, this, nullptr);
+        connect(&m_fillTimer, &QTimer::timeout, this, [this] { stepFill(); });
+    }
+    m_fillTimer.start();
+}
+
+void EditSession::stepFill()
+{
+    if (!m_fill) {
+        m_fillTimer.stop();
+        return;
+    }
+    QElapsedTimer t;
+    t.start();
+    const bool done = continueSlicedPush(*m_fill, m_fillBudget);
+    // (the next slice is made to take about six milliseconds of the window's thread)
+    const qint64 us = std::max<qint64>(1, t.nsecsElapsed() / 1000);
+    m_fillBudget = std::clamp<qint64>(m_fillBudget * 6000 / us, 200, 20000);
+    if (done) {
+        m_fill.reset();
+        m_fillTimer.stop();
+        Q_EMIT fillFinished();
+    }
+}
+
+void EditSession::finishFills()
+{
+    while (m_fill) {
+        const bool done = continueSlicedPush(*m_fill, 0);
+        if (done) {
+            m_fill.reset();
+            m_fillTimer.stop();
+            Q_EMIT fillFinished();
+        }
+    }
 }
 
 const jp::calc::NumberFormat &EditSession::formatOfStyle(quint32 style) const

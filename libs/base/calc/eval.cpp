@@ -462,7 +462,19 @@ Item Machine::runProgram(const Program &p, bool)
             stack.push_back(evaluateText(formula, false, true, sheet, QString::number(scope) + QLatin1Char('|') + name.toUpper()));
             break;
         }
-        case Op::PushTable: unsupported |= 2; stack.push_back(Item::ofError(ErrorKind::Ref)); break;
+        case Op::PushTable: {
+            CellArea area;
+            ErrorKind e = ErrorKind::Ref;
+            switch (ctx.source->structuredRef(p.texts[size_t(in.operand)], ctx.sheet, ctx.row, ctx.col, &area, &e)) {
+            case StructuredAnswer::Area:
+                if (ctx.touched) ctx.touched->push_back(area);
+                stack.push_back(Item::ofRef(area));
+                break;
+            case StructuredAnswer::Error: stack.push_back(Item::ofError(e)); break;
+            case StructuredAnswer::NotKnown: unsupported |= 2; stack.push_back(Item::ofError(ErrorKind::Ref)); break;
+            }
+            break;
+        }
         case Op::PushExternal: unsupported |= 1; stack.push_back(Item::ofError(ErrorKind::Ref)); break;
         case Op::Add: case Op::Sub: case Op::Mul: case Op::Div: case Op::Pow: case Op::Concat:
         case Op::Eq: case Op::Ne: case Op::Lt: case Op::Le: case Op::Gt: case Op::Ge: {
@@ -622,7 +634,7 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     // What INDIRECT is given names a reference (a cell, a range, a name): a formula that works one out is not a reference to take.
     if (!relativeToA1 && !namesAReference(*program)) return Item::ofError(ErrorKind::Ref);
     if (program->external) unsupported |= 1;
-    if (program->structured) unsupported |= 2;
+    // (the columns of a table are worked out where the source knows tables: Op::PushTable says, when it is run, that it does not)
     if (!program->unknownFunctions.isEmpty()) unsupported |= 4;
     const int savedRows = ctx.shiftRows, savedCols = ctx.shiftCols;
     ctx.shiftRows = relativeToA1 ? int(ctx.row) : 0;

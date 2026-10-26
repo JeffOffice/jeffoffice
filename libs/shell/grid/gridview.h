@@ -225,6 +225,8 @@ public:
     bool cellsEnabled() const { return m_cellsEnabled; }
     // A hook asked before a click changes the selection: false, and the click is ignored (the window finishes an entry first, and does not go on when it can't).
     void setClickGuard(std::function<bool()> guard) { m_clickGuard = std::move(guard); }
+    // Asked first of a click on a cell (its row and column): true when it was used for something else (a cell pointed at while a formula is typed), and the click then does nothing more.
+    void setPointGuard(std::function<bool(qint64, qint64)> guard) { m_pointGuard = std::move(guard); }
 
 Q_SIGNALS:
     void selectionChanged();
@@ -376,6 +378,7 @@ private:
     void afterPaint();
     qint64 m_blits = 0, m_fullScrolls = 0;
     std::function<bool()> m_clickGuard;
+    std::function<bool(qint64, qint64)> m_pointGuard;
     GridOverlay *m_overlay = nullptr;
     bool m_cellsEnabled = true;
     std::vector<PageBreakLine> m_breakRows, m_breakCols;

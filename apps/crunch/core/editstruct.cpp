@@ -25,6 +25,8 @@ qint64 StructChange::bytes() const
     for (const auto &name : record.names) n += qint64(name.first.size() + name.second.size()) * 2;
     n += qint64(record.rewritten.size()) * qint64(sizeof(Calculation::EditRecord::Place));
     n += qint64(touchedGone.size() + touchedAdded.size()) * 8 + qint64(tables.size()) * qint64(sizeof(TablePlace));
+    for (const TablePlace &p : tables)
+        if (p.whole) n += tableBytes(*p.whole);
     n += qint64(resultsGone.size() + engineGone.size() + fileGone.size()) * qint64(sizeof(std::pair<quint64, Value>));
     if (anchors) n += anchors->bytes();   // (the notes and links it moved or took away)
     return n;
@@ -109,7 +111,9 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
 
 EditSession::Outcome EditSession::insertRows(int sheet, quint32 first, quint32 count)
 {
-    return structure(StructEdit::insertRows(sheet, first, count), count == 1 ? tr("Inserting a row") : tr("Inserting rows"));
+    const Outcome out = structure(StructEdit::insertRows(sheet, first, count), count == 1 ? tr("Inserting a row") : tr("Inserting rows"));
+    if (out.ok && !out.confirm) fillTableAfterInsert(sheet, true, first, count);
+    return out;
 }
 
 EditSession::Outcome EditSession::deleteRows(int sheet, quint32 first, quint32 count)
@@ -119,7 +123,9 @@ EditSession::Outcome EditSession::deleteRows(int sheet, quint32 first, quint32 c
 
 EditSession::Outcome EditSession::insertColumns(int sheet, quint32 first, quint32 count)
 {
-    return structure(StructEdit::insertColumns(sheet, first, count), count == 1 ? tr("Inserting a column") : tr("Inserting columns"));
+    const Outcome out = structure(StructEdit::insertColumns(sheet, first, count), count == 1 ? tr("Inserting a column") : tr("Inserting columns"));
+    if (out.ok && !out.confirm) fillTableAfterInsert(sheet, false, first, count);
+    return out;
 }
 
 EditSession::Outcome EditSession::deleteColumns(int sheet, quint32 first, quint32 count)
@@ -380,6 +386,7 @@ bool EditSession::applyStructure(Step *step, bool forward)
         if (ok) book.putTablesBack(sc.tables);
     }
     if (!ok) return false;
+    if (!sc.tables.empty()) calc->tablesChanged();   // (the formulas that name a table's columns read the table where it is now)
     sc.done = forward;
     const StructEdit now = forward ? sc.edit : sc.edit.inverse();   // what was done to the cells
     followEdit(sc.edit, &sc, forward);
@@ -421,6 +428,7 @@ bool EditSession::applyStructure(Step *step, bool forward)
     hold.reset();
     m_tracking = true;
     Q_EMIT cellsMoved(now);
+    if (!sc.tables.empty()) Q_EMIT tablesChanged(sc.edit.sheet);
     return true;
 }
 

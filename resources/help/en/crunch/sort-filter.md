@@ -32,7 +32,7 @@ A button with a funnel on it shows a column that has a filter. The rows that don
 
 Rows hidden by a filter are kept apart from rows you hid yourself: **Unhide Rows** does not show a row the filter hides, and clearing the filter does not show a row you hid. Sorting a filtered block puts only the rows that show in order, among themselves.
 
-A filter works on a whole sheet, up to 1,048,576 rows, a little at a time; **Clear** and turning the filter off work whatever the size. What a filter is asked to do is limited to 40 million checks (the rows times the columns that have a condition, with some for the values the conditions list); a filter that asks for more says so and is not made, and you can filter fewer rows or use fewer conditions. A filter does not cover cells of a table: a table has its own buttons.
+A filter works on a whole sheet, up to 1,048,576 rows, a little at a time; **Clear** and turning the filter off work whatever the size. What a filter is asked to do is limited to 40 million checks (the rows times the columns that have a condition, with some for the values the conditions list); a filter that asks for more says so and is not made, and you can filter fewer rows or use fewer conditions. A filter of the sheet does not cover cells of a table: a table has its own buttons, which work the same way (see [Tables](tables)).
 
 A list of values in a condition is kept as a file writes it, with no language in the numbers and dates (1,234.50), and a value matches a cell that shows it in your language or that way; a file filtered in one language filters the same cells in another.
 

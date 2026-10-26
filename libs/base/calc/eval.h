@@ -25,6 +25,9 @@ constexpr int kMaxNameDepth = 16;
 // The characters of text one evaluation may make as the elements of arrays (a text is two bytes a character): a column of long texts joined to itself is millions of them.
 constexpr qint64 kMaxMadeTextChars = 64000000;
 
+// What a source answers when asked for the cells a table's columns stand for.
+enum class StructuredAnswer : quint8 { NotKnown, Area, Error };
+
 class CellSource {
 public:
     virtual ~CellSource() = default;
@@ -41,6 +44,15 @@ public:
     // What a defined name stands for, as formula text ("Sheet1!$A$1:$B$9", "0.05", "OFFSET(...)"): the name of the sheet if it has one for that sheet, else the
     // workbook's. Empty if there is none.
     virtual QString definedName(int sheet, const QString &name) const { Q_UNUSED(sheet); Q_UNUSED(name); return {}; }
+    // The cells a reference to a table's columns stands for (as the formula writes it: "Sales[Amount]", "[@Amount]"), for a formula in the cell (sheet, row, col): Area, with the block in `area`;
+    // Error, with the kind of error in `error`, when the reference stands for none; NotKnown when the source knows no tables.
+    virtual StructuredAnswer structuredRef(const QString &text, int sheet, quint32 row, quint32 col, CellArea *area, ErrorKind *error) const
+    {
+        Q_UNUSED(text); Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); Q_UNUSED(area); Q_UNUSED(error);
+        return StructuredAnswer::NotKnown;
+    }
+    // Whether a row is hidden: 0 no, 1 by hand, 2 by a filter (what SUBTOTAL leaves out of what it adds up: 1 to 11 leave out the rows a filter hides, 101 to 111 every hidden row).
+    virtual int rowHiddenKind(int sheet, quint32 row) const { Q_UNUSED(sheet); Q_UNUSED(row); return 0; }
     // The cell holds a formula that is a SUBTOTAL, which SUBTOTAL leaves out of what it adds up.
     virtual bool isSubtotal(int sheet, quint32 row, quint32 col) const { Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); return false; }
     // Changes when the sheets or their names do, so a program re-reads which sheet each name is (a source that is replaced by another at the same address must

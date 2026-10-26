@@ -16,6 +16,7 @@
 #include <QHash>
 #include <QIODevice>
 #include <QMutex>
+#include <QSet>
 #include <QString>
 #include <QVector>
 
@@ -362,8 +363,29 @@ public:
     // Moves the tables for the edit (those it changes), and says where each was; putTablesBack puts them there again.
     std::vector<TablePlace> moveTables(const StructEdit &edit);
     void putTablesBack(const std::vector<TablePlace> &places);
-    // The table parts whose names are not the file's, as they would be written, by the part's name.
+    // The table parts of the file that are not as the file has them now (renamed, moved, restyled, ...), as they would be written, by the part's name.
     std::map<QString, QByteArray> changedTableParts() const;
+    // ---- tables a person makes and changes (the window's thread, the worker held back). A table is put in the list, replaced, or taken out whole, so that a step can be undone; the list of a
+    // workbook that is saved keeps its order (the places in it are what the steps name).
+    void setTableAt(int index, const Table &table);
+    int insertTable(int index, const Table &table);   // at `index` (-1 or past the end: last); the place it has
+    void eraseTable(int index);
+    // A part name no part of the package, and no table, has; an id no table has.
+    QString freshTablePart() const;
+    int freshTableId() const;
+    // For saving: the tables made here (the file has no part for them) with their parts as they will be written, and the parts of the file whose tables were taken out (with the sheet
+    // that had them).
+    struct TableAdd {
+        int sheet = 0;
+        QString part;
+        QByteArray xml;
+    };
+    std::vector<TableAdd> addedTables() const;
+    struct TableGone {
+        int sheet = 0;
+        QString part;
+    };
+    std::vector<TableGone> removedTables() const;
 
 private:
     bool openStream(const QByteArray &stream, bool hasMacros, QString *error, const Limits &limits);
@@ -419,6 +441,9 @@ private:
     Limits m_limits;
     mutable QVector<Table> m_tables;
     mutable bool m_tablesRead = false;
+    mutable QStringList m_tableNotes;   // what was left out of the tables when they were read (see readTables)
+    mutable QSet<QString> m_tablePartSet;   // the parts of the file that are tables' (by the part's name), for looking one up
+    mutable std::vector<std::pair<QString, int>> m_tablesInFile;   // the parts of the file that are tables' (by the part's name), and the sheet each is related to
     mutable std::map<int, QVector<CellRange>> m_pivots;
 };
 

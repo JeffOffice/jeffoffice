@@ -321,8 +321,48 @@ void GridSheet::setToday(double serial) const
     m_looks.clearDerived();
 }
 
+void GridSheet::setTableSkins(std::vector<TableSkin> skins)
+{
+    if (skins.size() > kMaxTableSkins) skins.resize(kMaxTableSkins);
+    m_skins = std::move(skins);
+    m_texts.clear();
+    m_looks.clearDerived();
+}
+
 const CellLook &GridSheet::lookOf(quint32 row, quint32 col, quint32 style) const
 {
+    if (!m_skins.empty()) {
+        for (size_t i = 0; i < m_skins.size(); ++i) {
+            const TableSkin &skin = m_skins[i];
+            const jp::office::sheet::Table &t = skin.table;
+            if (!skin.style || row < t.row1 || row > t.row2 || col < t.col1 || col > t.col2) continue;
+            quint32 parts = 0;
+            jp::office::sheet::DifferentialFormat d = jp::office::sheet::tableLookAt(*skin.style, t, row, col, &parts);
+            if (d.isEmpty()) break;
+            // (what the cell has of its own is kept: the style is under it)
+            const CellLook &base = m_looks.look(style);
+            int mask = 0;
+            if (base.hasFill() && d.hasFill) {
+                d.hasFill = false;
+                mask |= 1;
+            }
+            if (base.hasBorder() && d.hasBorder) {
+                d.hasBorder = false;
+                mask |= 2;
+            }
+            if (base.textColor != 0xFF000000 && d.fontColor.isSet()) {
+                d.fontColor = jp::office::sheet::ColorSpec();
+                mask |= 4;
+            }
+            if (base.bold && d.bold) {
+                d.bold.reset();
+                mask |= 8;
+            }
+            if (d.isEmpty()) break;
+            const int key = 0x40000000 | int((i & 0x3FF) << 17) | int((parts & 0x1FFF) << 4) | mask;
+            return m_looks.derived(style, key, d);
+        }
+    }
     if (!m_cond.any()) return m_looks.look(style);
     const CondCell c = m_cond.at(row, col);
     if (c.format < 0) return m_looks.look(style);

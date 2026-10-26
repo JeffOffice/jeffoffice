@@ -397,7 +397,7 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
         if (error) *error = why;
         return false;
     };
-    enum class Where { Other, NumFmts, CellXfs, StyleXfs, CellStyles, Fonts, Fills, Borders, Colors, Dxfs };
+    enum class Where { Other, NumFmts, CellXfs, StyleXfs, CellStyles, Fonts, Fills, Borders, Colors, Dxfs, TableStyles };
     enum class DxfPart { None, Font, Fill, Border } dxfPart = DxfPart::None;
     BorderSide *dxfSide = nullptr;
     Where where = Where::Other;
@@ -426,6 +426,7 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                         : isElement(r, "borders") ? Where::Borders
                         : isElement(r, "colors")  ? Where::Colors
                         : isElement(r, "dxfs")    ? Where::Dxfs
+                        : isElement(r, "tableStyles") ? Where::TableStyles
                                                   : Where::Other;
             } else if (depth == 3 && where == Where::NumFmts && isElement(r, "numFmt")) {
                 if (++numFmtElements > limits.numFmts) return fail(QCoreApplication::translate("Sheet", "The file has more number formats than any real file has."));
@@ -540,6 +541,31 @@ bool readStyles(QIODevice *in, const Limits &limits, Styles *out, QString *error
                 if (side) side->style = borderStyleOf(attribute(r, "style"));
             } else if (depth == 5 && where == Where::Borders && side && isElement(r, "color")) {
                 side->color = colorOf(r);
+            } else if (depth == 3 && where == Where::TableStyles && isElement(r, "tableStyle")) {
+                if (out->tableStyles.size() < 1000) {
+                    CustomTableStyle st;
+                    st.name = attribute(r, "name").toString();
+                    out->tableStyles.append(st);
+                }
+            } else if (depth == 4 && where == Where::TableStyles && !out->tableStyles.isEmpty() && isElement(r, "tableStyleElement")) {
+                CustomTableStyle &st = out->tableStyles.last();
+                static const struct { const char *name; TablePart part; } kinds[] = {
+                    {"wholeTable", TablePart::WholeTable}, {"headerRow", TablePart::HeaderRow}, {"totalRow", TablePart::TotalRow}, {"firstColumn", TablePart::FirstColumn},
+                    {"lastColumn", TablePart::LastColumn}, {"firstRowStripe", TablePart::FirstRowStripe}, {"secondRowStripe", TablePart::SecondRowStripe},
+                    {"firstColumnStripe", TablePart::FirstColumnStripe}, {"secondColumnStripe", TablePart::SecondColumnStripe}, {"firstHeaderCell", TablePart::FirstHeaderCell},
+                    {"lastHeaderCell", TablePart::LastHeaderCell}, {"firstTotalCell", TablePart::FirstTotalCell}, {"lastTotalCell", TablePart::LastTotalCell}};
+                const QStringView type = attribute(r, "type");
+                for (const auto &k : kinds)
+                    if (type == QLatin1String(k.name) && st.parts.size() < 64) {
+                        CustomTableStyle::Part part;
+                        part.part = k.part;
+                        bool good = false;
+                        const int dxf = attribute(r, "dxfId").toInt(&good);
+                        part.dxf = good ? dxf : -1;
+                        part.size = std::clamp(attribute(r, "size").toInt(), 1, 9);
+                        if (attribute(r, "size").isEmpty()) part.size = 1;
+                        st.parts.append(part);
+                    }
             } else if (depth == 3 && where == Where::Dxfs && isElement(r, "dxf")) {
                 if (out->dxfs.size() < 100000) out->dxfs.append(DifferentialFormat());
                 dxfPart = DxfPart::None;
@@ -2132,7 +2158,7 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
     return open(package, error, limits);
 }
 
-QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() : m_foreign ? m_foreign->skipped() : QStringList(); }
+QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() : m_foreign ? m_foreign->skipped() : m_tableNotes; }
 
 QStringList Workbook::changedFeatures() const { return m_foreign ? m_foreign->changed() : QStringList(); }
 
@@ -2470,8 +2496,14 @@ qint32 Workbook::styleNamed(const QString &name)
 const QVector<Table> &Workbook::tables() const
 {
     if (!m_tablesRead) {
-        m_tables = readTables(m_package, m_info);
+        m_tables = readTables(m_package, m_info, &m_tableNotes);
         m_tablesRead = true;
+        m_tablesInFile.clear();
+        m_tablePartSet.clear();
+        for (const Table &t : m_tables) {
+            m_tablesInFile.emplace_back(t.part, t.sheet);
+            m_tablePartSet.insert(t.part);
+        }
     }
     return m_tables;
 }
@@ -2525,7 +2557,15 @@ void Workbook::setTableColumnName(int table, int column, const QString &name)
 {
     tables();
     if (table < 0 || table >= m_tables.size() || column < 0 || column >= m_tables[table].columns.size()) return;
-    m_tables[table].columns[column] = name;
+    Table &t = m_tables[table];
+    const QString was = t.columns[column];
+    t.columns[column] = name;
+    // (the formulas the table's part keeps for its columns follow the name)
+    if (was != name)
+        for (TableColumnInfo &c : t.info) {
+            if (!c.calcFormula.isEmpty()) c.calcFormula = renameColumnInFormula(c.calcFormula, t.name, was, name, true);
+            if (!c.totalsFormula.isEmpty()) c.totalsFormula = renameColumnInFormula(c.totalsFormula, t.name, was, name, true);
+        }
 }
 
 bool Workbook::tablesAllow(const StructEdit &edit, QString *why) const
@@ -2546,12 +2586,56 @@ std::vector<TablePlace> Workbook::moveTables(const StructEdit &edit)
         CellRange where;
         int totals = t.totalsRows;
         if (tableAfter(edit, t, &where, nullptr, &totals) != TableFate::Moved) continue;
-        before.push_back({i, t.row1, t.col1, t.row2, t.col2, t.totalsRows});
+        TablePlace place{nullptr, i, t.row1, t.col1, t.row2, t.col2, t.totalsRows};
+        const Table was = t;
+        // columns inserted inside the table, or deleted from it: the lists of its columns follow
+        using K = StructEdit::Kind;
+        if (edit.sheet == t.sheet && edit.kind == K::InsertColumns && edit.first > was.col1 && edit.first <= was.col2) {
+            const int at = int(edit.first - was.col1);
+            for (quint32 k = 0; k < edit.count; ++k) {
+                int id = 0;
+                for (const TableColumnInfo &c : t.info) id = std::max(id, c.id);
+                t.columns.insert(at + int(k), freshTableColumnName(t.columns, int(t.columns.size()) + 1));
+                TableColumnInfo ci;
+                ci.id = id + 1;
+                t.info.insert(at + int(k), ci);
+            }
+            for (FilterColumn &fc : t.filter.columns)
+                if (int(fc.column) >= at) fc.column += edit.count;
+            place.whole = std::make_shared<Table>(was);
+        } else if (edit.sheet == t.sheet && edit.kind == K::DeleteColumns && edit.first <= was.col2 && edit.first + edit.count - 1 >= was.col1) {
+            const int from = int(std::max(edit.first, was.col1) - was.col1), to = int(std::min(edit.first + edit.count - 1, was.col2) - was.col1);
+            for (int k = to; k >= from; --k) {
+                t.columns.removeAt(k);
+                t.info.removeAt(k);
+            }
+            QVector<FilterColumn> kept;
+            for (FilterColumn fc : t.filter.columns) {
+                if (int(fc.column) >= from && int(fc.column) <= to) continue;
+                if (int(fc.column) > to) fc.column -= quint32(to - from + 1);
+                kept.append(fc);
+            }
+            t.filter.columns = kept;
+            place.whole = std::make_shared<Table>(was);
+        }
+        before.push_back(place);
         t.row1 = where.row1;
         t.col1 = where.col1;
         t.row2 = where.row2;
         t.col2 = where.col2;
         t.totalsRows = totals;
+        // a formula a column holds for its cells follows the cells it names (a reference to cells moves with them)
+        if (edit.kind != K::Move) {
+            QStringList names;
+            for (const SheetEntry &se : m_info.sheets) names << se.name;
+            for (TableColumnInfo &c : t.info) {
+                if (c.calcFormula.isEmpty() || edit.sheet != t.sheet) continue;
+                const QString moved = adjustFormula(c.calcFormula, t.sheet, names, edit, nullptr, false);
+                if (moved == c.calcFormula) continue;
+                if (!before.back().whole) before.back().whole = std::make_shared<Table>(was);
+                c.calcFormula = moved;
+            }
+        }
     }
     return before;
 }
@@ -2562,6 +2646,10 @@ void Workbook::putTablesBack(const std::vector<TablePlace> &places)
     for (const TablePlace &p : places) {
         if (p.table < 0 || p.table >= m_tables.size()) continue;
         Table &t = m_tables[p.table];
+        if (p.whole) {
+            t = *p.whole;
+            continue;
+        }
         t.row1 = p.row1;
         t.col1 = p.col1;
         t.row2 = p.row2;
@@ -2575,17 +2663,77 @@ std::map<QString, QByteArray> Workbook::changedTableParts() const
     std::map<QString, QByteArray> out;
     if (!m_tablesRead) return out;
     for (const Table &t : m_tables) {
-        const bool moved = t.row1 != t.fileRow1 || t.col1 != t.fileCol1 || t.row2 != t.fileRow2 || t.col2 != t.fileCol2 || t.totalsRows != t.fileTotalsRows;
-        if (t.columns == t.fileColumns && !moved) continue;
-        QByteArray renamed;
-        CellRange now;
-        now.valid = true;
-        now.row1 = t.row1;
-        now.col1 = t.col1;
-        now.row2 = t.row2;
-        now.col2 = t.col2;
-        if (renameTableXml(m_package.part(t.part), t.fileColumns, t.columns, t.name, &renamed, moved ? &now : nullptr, moved ? &t.totalsRows : nullptr)) out[t.part] = renamed;
+        if (t.fileSignature.isEmpty() || tableSignature(t) == t.fileSignature) continue;
+        if (!m_tablePartSet.contains(t.part)) continue;   // (a table made here: addedTables)
+        bool ok = false;
+        const QByteArray bytes = writeTablePart(t, m_package.part(t.part), &ok);
+        if (ok) out[t.part] = bytes;
     }
+    return out;
+}
+
+void Workbook::setTableAt(int index, const Table &table)
+{
+    tables();
+    if (index >= 0 && index < m_tables.size()) m_tables[index] = table;
+}
+
+int Workbook::insertTable(int index, const Table &table)
+{
+    tables();
+    if (index < 0 || index > m_tables.size()) index = int(m_tables.size());
+    m_tables.insert(index, table);
+    return index;
+}
+
+void Workbook::eraseTable(int index)
+{
+    tables();
+    if (index >= 0 && index < m_tables.size()) m_tables.removeAt(index);
+}
+
+QString Workbook::freshTablePart() const
+{
+    tables();
+    QSet<QString> taken;
+    for (const QString &n : m_package.partNames()) taken.insert(n.toLower());
+    for (const Table &t : m_tables) taken.insert(t.part.toLower());
+    for (const auto &p : m_tablesInFile) taken.insert(p.first.toLower());
+    for (int n = 1;; ++n) {
+        const QString part = QStringLiteral("/xl/tables/table%1.xml").arg(n);
+        if (!taken.contains(part.toLower())) return part;
+    }
+}
+
+int Workbook::freshTableId() const
+{
+    tables();
+    int id = 0;
+    for (const Table &t : m_tables) id = std::max(id, t.id);
+    return id + 1;
+}
+
+std::vector<Workbook::TableAdd> Workbook::addedTables() const
+{
+    std::vector<TableAdd> out;
+    if (!m_tablesRead) return out;
+    for (const Table &t : m_tables) {
+        if (m_tablePartSet.contains(t.part)) continue;
+        bool ok = false;
+        const QByteArray bytes = writeTablePart(t, t.copyOfPart.isEmpty() ? QByteArray() : m_package.part(t.copyOfPart), &ok, !t.copyOfPart.isEmpty());
+        if (ok) out.push_back({t.sheet, t.part, bytes});
+    }
+    return out;
+}
+
+std::vector<Workbook::TableGone> Workbook::removedTables() const
+{
+    std::vector<TableGone> out;
+    if (!m_tablesRead) return out;
+    QSet<QString> now;
+    for (const Table &t : m_tables) now.insert(t.part);
+    for (const auto &p : m_tablesInFile)
+        if (!now.contains(p.first)) out.push_back({p.second, p.first});
     return out;
 }
 
@@ -2600,9 +2748,23 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
         m_headerImages->images.clear();
         m_headerImages->bytes = 0;
     }
-    // (the tables are read again from the file just written, which has the names they have now)
-    m_tablesRead = false;
-    m_tables.clear();
+    // (the tables stay as they are, with the file's state now what they are; their places are what the steps of Undo name)
+    if (m_tablesRead) {
+        m_tablesInFile.clear();
+        m_tablePartSet.clear();
+        for (Table &t : m_tables) {
+            m_tablesInFile.emplace_back(t.part, t.sheet);
+            m_tablePartSet.insert(t.part);
+            t.fileSignature = tableSignature(t);
+            t.copyOfPart.clear();
+            t.fileColumns = t.columns;
+            t.fileRow1 = t.row1;
+            t.fileCol1 = t.col1;
+            t.fileRow2 = t.row2;
+            t.fileCol2 = t.col2;
+            t.fileTotalsRows = t.totalsRows;
+        }
+    }
     m_sharedInFile += strings;
     m_formatsInFile += cellFormats;
     m_fontsInFile += counts.fonts;
@@ -2694,6 +2856,15 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
     options.stopAfterRow = stopAfterRow;
     options.screenRows = screenRows;
     const bool ok = readSheetPart(device.get(), options, out);
+    // a row that is hidden among the rows of a table that has a filter with conditions was hidden by that filter, not by hand
+    for (const Table &t : tables()) {
+        if (t.sheet != index || !t.filterButtons || t.headerRows == 0 || t.filter.conditionColumns().isEmpty() || !t.hasData()) continue;
+        for (RowSpec &spec : out->rowSpecs)
+            if (spec.hidden && spec.row >= t.dataFirst() && qint64(spec.row) <= t.dataLast()) {
+                spec.filtered = true;
+                spec.hand = false;
+            }
+    }
     applyPrintNames(m_info, index, out);
     if (!out->page.headerFooter.drawingRel.isEmpty()) readHeaderPictures(entry.part, &out->page.headerFooter);
     if (!out->links.isEmpty()) {

@@ -25,6 +25,7 @@
 #include "grid/valuestore.h"
 #include "sheet/chartmake.h"
 #include "sheet/pagesetup.h"
+#include "sheet/tablestyle.h"
 
 #include <QElapsedTimer>
 #include <QHash>
@@ -163,6 +164,8 @@ public:
     // ---- the Formulas tab (crunchwindow_formulas.cpp, crunchwindow_names.cpp, crunchwindow_calc.cpp, crunchwindow_audit.cpp)
     // The help while a formula is typed (the list of functions and names that fit, and the arguments of the function being typed).
     FormulaHelper *formulaHelper() const { return m_helper; }
+    // How many times the sheet's whole picture was made again (a test counts them: a small change does not make it again).
+    int sheetShows() const { return m_sheetShows; }
     // Names: the list, a name made for the cells selected, names made from the labels around them, and a name put in the formula being typed (or begun). What the dialogs ask is
     // asked of these instead when a test sets them; false gives it up.
     void showNames();
@@ -198,9 +201,16 @@ public:
     // Turns the filter on (over the block around the cell with the cursor, or the cells selected) or off; and sets the sheet's filter to `filter`, as one step (a large one is worked out a
     // slice at a time; filterFinished says when it is over). The drop-down of a button of the filter is a FilterPopup, kept in `filterPopup` while it is up.
     void toggleFilter();
-    bool applyFilter(const jp::office::sheet::AutoFilter &filter, const QString &text);
+    bool applyFilter(const jp::office::sheet::AutoFilter &filter, const QString &text, int table = -1);
     bool isFiltering() const { return bool(m_filterPlan); }
     FilterPopup *filterPopup() const { return m_filterPopup; }
+    // ---- tables (crunchwindow_tables.cpp)
+    // The gallery of looks as a widget (what the Table Looks menus hold), and a choice from it. For tests: the questions Insert > Table and Change Table Size ask are answered by these.
+    QWidget *makeTableLooksPicker(QWidget *parent);
+    void tableGalleryChosen(const QString &style);
+    bool showTotalsMenu(qint64 row, qint64 col);
+    void setTableMakeAsker(std::function<bool(QString *, bool *)> asker) { m_tableMakeAsker = std::move(asker); }
+    void setTableSizeAsker(std::function<bool(jp::office::sheet::CellRange *)> asker) { m_tableSizeAsker = std::move(asker); }
     void showFilterPopup(qint64 row, qint64 col);
     // What the filters that ask (Equals…, Between…, Largest or Smallest…, Your Own Condition…) ask the person: given the question, the column's name, whether it holds dates, and the condition it has (or null),
     // the condition chosen. A dialog unless this stands in for it (tests); false gives it up.
@@ -564,6 +574,8 @@ private:
     FormulaHelper *m_helper = nullptr;
     crunch::CompletionIndex m_completions;
     qint64 m_completionsGeneration = -1;
+    int m_completionsUndo = -1;
+    int m_sheetShows = 0;
     int m_completionsSheet = -2;
     std::function<bool(crunch::EditSession::NameDraft *)> m_nameAsker;
     std::function<bool(int *)> m_edgesAsker;
@@ -576,6 +588,23 @@ private:
     void createFunctionActions();
     void insertFunctionCommand();
     std::function<bool(QString *)> m_functionAsker;
+    // tables (crunchwindow_tables.cpp): how they are drawn, their header buttons, the commands that change them, and their ribbon tab
+    void createTableActions();
+    void tableRibbonParts(RibbonParts &parts);
+    void updateTableLooks();                                   // the styles of the sheet's tables, given to the grid
+    void tableHeaderButtons(std::vector<jp::grid::GridView::HeaderButton> *buttons);
+    void onTablesChanged(int sheet);
+    void updateTableTab();                                     // the Table tab shows for a cell in a table, and its controls show that table
+    int selectedTable() const;                                 // the table the cursor is in, or -1
+    void insertTableCommand();
+    void tableDialog(int mode);
+    void addTableMenu(QMenu *menu);   // the table's commands in the cell menu, when the cursor is in a table
+    bool pointAtTableCell(qint64 row, qint64 col);   // a click on a cell of a table while a formula is typed writes a reference by the table's names
+    jp::office::sheet::TableStyleBook m_tableStyleBook;
+    bool m_tableStylesFor = false;
+    std::function<bool(QString *, bool *)> m_tableMakeAsker;    // test hook: the table's cells' header choice
+    std::function<bool(QString *)> m_tableNameAsker;
+    std::function<bool(jp::office::sheet::CellRange *)> m_tableSizeAsker;
     // the filter (crunchwindow_filter.cpp)
     void createFilterActions();
     void updateFilterButtons();
@@ -584,7 +613,7 @@ private:
     void cancelFilter();
     void stepList();
     void listFinished();
-    void askFilter(jp::FilterAsk what, quint32 column);
+    void askFilter(jp::FilterAsk what, quint32 column, int table = -1);
     jp::office::sheet::AutoFilter currentFilter() const;
     std::shared_ptr<jp::crunch::EditSession::FilterPlan> m_filterPlan;
     QString m_filterText;
@@ -597,7 +626,7 @@ private:
     // sorting (crunchwindow_sort.cpp)
     void createSortActions();
     void sortSelection(int mode);   // 0 A to Z, 1 Z to A, 2 the dialog
-    bool sortRangeOf(jp::office::sheet::CellRange *range, int *key, bool *expanded);
+    bool sortRangeOf(jp::office::sheet::CellRange *range, int *key, bool *expanded, int *header = nullptr);
     void stepSort();
     void finishSort(bool ordered);
     void cancelSort();

@@ -1,4 +1,5 @@
 #include "sheet/recalc.h"
+#include "sheet/structref.h"
 
 #include "sheet/calculation.h"
 
@@ -121,6 +122,85 @@ void WorkbookSource::usedExtent(int sheet, quint32 *rows, quint32 *cols) const
     }
     *rows = m_rows[size_t(sheet)];
     *cols = m_cols[size_t(sheet)];
+}
+
+jp::calc::StructuredAnswer WorkbookSource::structuredRef(const QString &text, int sheet, quint32 row, quint32 col, jp::calc::CellArea *area, jp::calc::ErrorKind *error) const
+{
+    using jp::calc::ErrorKind;
+    using jp::calc::StructuredAnswer;
+    const QVector<Table> &all = m_book.tables();
+    if (!m_tableIndexReady) {
+        m_tableByName.clear();
+        m_tablesOfSheet.assign(m_sheets.size(), {});
+        m_lastTableOfSheet.assign(m_sheets.size(), -1);
+        for (int i = 0; i < all.size(); ++i) {
+            m_tableByName.insert(all[i].name.toLower(), i);
+            if (all[i].sheet >= 0 && all[i].sheet < int(m_tablesOfSheet.size())) m_tablesOfSheet[size_t(all[i].sheet)].push_back(i);
+        }
+        m_tableIndexReady = true;
+    }
+    *error = ErrorKind::Ref;
+    QString tableName, inside;
+    if (!splitStructuredRef(text, &tableName, &inside)) return StructuredAnswer::Error;
+    const Table *table = nullptr;
+    if (tableName.isEmpty()) {
+        // no name: the table the formula's cell is in
+        if (sheet >= 0 && sheet < int(m_tablesOfSheet.size())) {
+            auto holds = [&](int i) { return i >= 0 && i < all.size() && row >= all[i].row1 && row <= all[i].row2 && col >= all[i].col1 && col <= all[i].col2; };
+            const int last = m_lastTableOfSheet[size_t(sheet)];
+            if (holds(last)) {
+                table = &all[last];
+            } else {
+                for (const int i : m_tablesOfSheet[size_t(sheet)])
+                    if (holds(i)) {
+                        table = &all[i];
+                        m_lastTableOfSheet[size_t(sheet)] = i;
+                        break;
+                    }
+            }
+        }
+    } else {
+        const auto it = m_tableByName.constFind(tableName.toLower());
+        if (it != m_tableByName.constEnd()) table = &all[*it];
+    }
+    if (!table) return StructuredAnswer::Error;
+    CellRange range;
+    switch (structuredArea(*table, inside, qint64(row), &range)) {
+    case StructResult::Ok: break;
+    case StructResult::Value:
+        *error = ErrorKind::Value;
+        return StructuredAnswer::Error;
+    case StructResult::Ref: return StructuredAnswer::Error;
+    }
+    area->sheet1 = area->sheet2 = table->sheet;
+    area->row1 = range.row1;
+    area->row2 = range.row2;
+    area->col1 = range.col1;
+    area->col2 = range.col2;
+    return StructuredAnswer::Area;
+}
+
+int WorkbookSource::rowHiddenKind(int sheet, quint32 row) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return 0;
+    if (m_hiddenRows.size() != m_sheets.size()) {
+        m_hiddenRows.assign(m_sheets.size(), {});
+        m_hiddenRowsReady.assign(m_sheets.size(), 0);
+    }
+    if (!m_hiddenRowsReady[size_t(sheet)]) {
+        auto &map = m_hiddenRows[size_t(sheet)];
+        map.clear();
+        for (const RowSpec &r : m_sheets[size_t(sheet)].rowSpecs)
+            if (r.hidden) map[r.row] = r.filtered ? 2 : 1;
+        m_hiddenRowsReady[size_t(sheet)] = 1;
+    }
+    const auto it = m_hiddenRows[size_t(sheet)].find(row);
+    return it == m_hiddenRows[size_t(sheet)].end() ? 0 : it->second;
+}
+
+void WorkbookSource::hiddenRowsChanged(int sheet) const
+{
+    if (sheet >= 0 && sheet < int(m_hiddenRowsReady.size())) m_hiddenRowsReady[size_t(sheet)] = 0;
 }
 
 bool WorkbookSource::isSubtotal(int sheet, quint32 row, quint32 col) const

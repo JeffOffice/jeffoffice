@@ -138,6 +138,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::placeEditor);
     connect(m_view, &grid::GridView::viewChanged, this, &CrunchWindow::scheduleAutoHeights);
     m_view->setClickGuard([this] { return commitEdit(CellEditor::Way::Stay); });
+    m_view->setPointGuard([this](qint64 row, qint64 col) { return pointAtTableCell(row, col); });
     connect(m_cellEditor, &CellEditor::finished, this, [this](CellEditor::Way way) { commitEdit(way); });
     connect(m_cellEditor, &CellEditor::cancelled, this, &CrunchWindow::cancelEdit);
     connect(m_cellEditor, &QLineEdit::textEdited, this, [this](const QString &text) {
@@ -425,6 +426,7 @@ void CrunchWindow::createActions()
     createViewActions();
     createPageLayoutActions();
     createChartActions();
+    createTableActions();
     createNoteActions();
     createProtectActions();
     createDisabledActions();
@@ -438,7 +440,7 @@ void CrunchWindow::createDisabledActions()
     };
     static const Command commands[] = {
         
-        {"insert.table", QT_TR_NOOP("Table"), "table"}, {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
+        {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
         {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"},
         {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"},
     };
@@ -465,6 +467,7 @@ void CrunchWindow::notice(const QString &title, const QString &text, bool warnin
 
 void CrunchWindow::updateBars()
 {
+    updateTableTab();
     updateDropDown();
     showNameInBox();
     if (m_edit.active) return;   // (the formula bar holds what is being typed)

@@ -98,6 +98,7 @@
           "name": "Styles",
           "keytip": "ZY",
           "items": [
+            {"large": {"id": "ribbon.tableLooks", "text": "Table Looks", "icon": "table"}, "keytip": "TL", "menu": "@tableLooks"},
             {"large": {"id": "ribbon.cellStyles", "text": "Cell Styles", "icon": "palette"}, "keytip": "J", "menu": "@cellStyles"}
           ]
         },
@@ -447,6 +448,45 @@
             {"large": "object.properties", "keytip": "PR"},
             {"small": "object.front", "keytip": "BF"},
             {"small": "object.back", "keytip": "SB"}
+          ]
+        }
+      ]
+    }    ,
+    {
+      "name": "Table",
+      "keytip": "JB",
+      "context": "Table",
+      "color": "tableDesign",
+      "groups": [
+        {
+          "name": "Properties",
+          "keytip": "ZN",
+          "items": [
+            {"row": [{"label": "Name"}, {"widget": "tableName", "keytip": "TN"}]},
+            {"small": "table.resize", "keytip": "TR"},
+            {"small": "table.toRange", "keytip": "TP"}
+          ]
+        },
+        {
+          "name": "Table Choices",
+          "keytip": "ZO",
+          "items": [
+            {"small": "table.header", "keytip": "TH"},
+            {"small": "table.totals", "keytip": "TT"},
+            {"small": "table.stripeRows", "keytip": "TS"},
+            {"column": true},
+            {"small": "table.firstCol", "keytip": "TF"},
+            {"small": "table.lastCol", "keytip": "TA"},
+            {"small": "table.stripeCols", "keytip": "TC"},
+            {"column": true},
+            {"small": "table.buttons", "keytip": "TU"}
+          ]
+        },
+        {
+          "name": "Looks",
+          "keytip": "ZL",
+          "items": [
+            {"large": {"id": "ribbon.tableLooks2", "text": "Table Looks", "icon": "table"}, "keytip": "TK", "menu": "@tableLooks"}
           ]
         }
       ]

@@ -1335,6 +1335,162 @@ int namesRoundtripOne(const QString &path)
     return diffs.isEmpty() ? 0 : 2;
 }
 
+// The tables of a workbook, edited and saved, and read back: a file that is only opened and saved leaves every table part as it was (to the byte); with a row put in each table, every table
+// comes back with its name, columns, totals, style, and filter, and every cell that held a constant holds it still (where the rows put in moved it).
+int tablesRoundtripOne(const QString &path)
+{
+    auto line = [&](const QString &result, qint64 tables = 0, qint64 tablesOk = 0, qint64 partsSame = 0, qint64 parts = 0, qint64 cells = 0, qint64 cellsSame = 0) {
+        out() << "tables-roundtrip\t" << path << '\t' << result << '\t' << tables << '\t' << tablesOk << '\t' << partsSame << '\t' << parts << '\t' << cells << '\t' << cellsSame << "\n";
+        out().flush();
+    };
+    QByteArray original;
+    QString why;
+    if (!readWholeFile(path, &original, &why)) {
+        line(QStringLiteral("not opened"));
+        return 1;
+    }
+    // (1) opened and saved with nothing changed: the table parts are the file's
+    qint64 parts = 0, partsSame = 0;
+    {
+        Read before(original);
+        if (!before.ok) {
+            line(QStringLiteral("not opened"));
+            return 1;
+        }
+        QByteArray saved;
+        if (!saveXlsx(before.book, SaveChanges(), &saved, &why)) {
+            line(QStringLiteral("save failed: ") + why);
+            return 3;
+        }
+        const QMap<QString, QByteArray> a = rawEntries(original), b = rawEntries(saved);
+        for (auto it = a.constBegin(); it != a.constEnd(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/tables/")) && !it.key().contains(QLatin1String("_rels"))) {
+                ++parts;
+                if (b.contains(it.key()) && b.value(it.key()) == it.value()) ++partsSame;
+            }
+    }
+    Opened w;
+    if (!w.open(path)) {
+        line(QStringLiteral("not opened"));
+        return 1;
+    }
+    if (!w.loader.result()->problem.isEmpty()) {
+        line(QStringLiteral("opened in part"));
+        return 2;
+    }
+    Workbook &book = *w.loader.result()->book;
+    const QVector<Table> tables = book.tables();
+    if (tables.isEmpty()) {
+        line(QStringLiteral("no tables"), 0, 0, partsSame, parts);
+        return 0;
+    }
+    crunch::EditSession *session = w.session.get();
+    session->setLocale(QLocale::c());
+    struct Insert {
+        int sheet;
+        quint32 row;
+    };
+    std::vector<Insert> inserted;
+    QStringList notes;
+    // a row put in each table (before its last row of data), from the table that is lowest on its sheet up
+    std::vector<int> order;
+    for (int i = 0; i < tables.size(); ++i) order.push_back(i);
+    std::sort(order.begin(), order.end(), [&](int a, int b) { return tables[a].sheet != tables[b].sheet ? tables[a].sheet < tables[b].sheet : tables[a].row1 > tables[b].row1; });
+    QSet<QString> grown;
+    for (const int i : order) {
+        const Table &now = book.tables()[i];
+        if (!now.hasData()) continue;
+        const quint32 at = quint32(now.dataLast());
+        const int sheet = now.sheet;
+        const QString name = now.name;
+        const auto o = session->insertRows(sheet, at, 1);
+        if (o.ok) {
+            inserted.push_back({sheet, at});
+            grown.insert(name);
+        } else {
+            notes << QStringLiteral("a row was refused: ") + o.problem.left(50);
+        }
+    }
+    if (!w.wait([&] {
+            if (!w.loader.result()->calcIdle.load()) return false;
+            auto hold = w.loader.hold();
+            return hold && !hold->calculation()->isDirty();
+        }, 280000)) {
+        line(QStringLiteral("the worker did not finish"));
+        return 3;
+    }
+    crunch::EditSession::Snapshot snap;
+    QByteArray bytes;
+    if (!session->takeSnapshot(&snap, &why)) {
+        line(QStringLiteral("snapshot: ") + why);
+        return 3;
+    }
+    if (!saveXlsx(book, snap.changes, &bytes, &why)) {
+        line(QStringLiteral("save failed: ") + why);
+        return 3;
+    }
+    if (const QString keep = qEnvironmentVariable("JC_TABLES_KEEP"); !keep.isEmpty()) {
+        QFile kept(keep);
+        if (kept.open(QIODevice::WriteOnly)) kept.write(bytes);
+    }
+    Read after(bytes);
+    if (!after.ok) {
+        line(QStringLiteral("the saved file does not open: ") + after.why);
+        return 3;
+    }
+    QStringList diffs = notes;
+    auto add = [&](const QString &what) {
+        if (diffs.size() < 4 && !diffs.contains(what)) diffs << what;
+    };
+    // every table, by name: as it was, longer by the row put in it
+    qint64 tablesOk = 0;
+    QSet<int> ids;
+    const QVector<Table> &back = after.book.tables();
+    if (back.size() != tables.size()) add(QStringLiteral("the number of tables"));
+    for (const Table &t : tables) {
+        const Table *r = nullptr;
+        for (const Table &c : back)
+            if (c.name == t.name) r = &c;
+        if (!r) {
+            add(QStringLiteral("a table went"));
+            continue;
+        }
+        bool ok = true;
+        if (r->columns != t.columns) ok = false, add(QStringLiteral("columns"));
+        if (r->totalsRows != t.totalsRows || r->headerRows != t.headerRows) ok = false, add(QStringLiteral("header or totals"));
+        if (r->styleName != t.styleName || r->showFirstColumn != t.showFirstColumn || r->showLastColumn != t.showLastColumn || r->showRowStripes != t.showRowStripes || r->showColumnStripes != t.showColumnStripes)
+            ok = false, add(QStringLiteral("style"));
+        if (r->filterButtons != t.filterButtons || r->filter.columns.size() != t.filter.columns.size()) ok = false, add(QStringLiteral("filter"));
+        if (r->col1 != t.col1 || r->col2 != t.col2 || r->row2 < t.row2 || r->row2 > t.row2 + quint32(inserted.size())) ok = false, add(QStringLiteral("range"));
+        if (grown.contains(t.name) && r->row2 == t.row2 && r->sheet == t.sheet && inserted.size() == 1) ok = false, add(QStringLiteral("the table did not grow"));
+        for (int c = 0; c < t.info.size() && c < r->info.size(); ++c)
+            if (r->info[c].totalsFunction != t.info[c].totalsFunction || r->info[c].totalsLabel != t.info[c].totalsLabel || r->info[c].totalsFormula != t.info[c].totalsFormula) ok = false, add(QStringLiteral("totals"));
+        if (ids.contains(r->id)) ok = false, add(QStringLiteral("two tables with one id"));
+        ids.insert(r->id);
+        if (ok) ++tablesOk;
+    }
+    // every constant of every sheet: still there, where the rows put in moved it
+    qint64 cells = 0, cellsSame = 0;
+    for (int si = 0; si < book.info().sheets.size(); ++si) {
+        if (book.info().sheets[si].kind != SheetKind::Worksheet) continue;
+        Sheet sa, sb;
+        book.readSheet(si, &sa);
+        after.book.readSheet(si, &sb);
+        sa.cells.forEach([&](const Cell &c) {
+            if (c.hasFormula()) return;
+            ++cells;
+            quint32 row = c.row;
+            for (const Insert &in : inserted)
+                if (in.sheet == si && row >= in.row) ++row;
+            const Cell *e = sb.cells.find(row, c.col);
+            if (e && !e->hasFormula() && hashCell(sa, book.sharedStrings(), c) == hashCell(sb, after.book.sharedStrings(), *e)) ++cellsSame;
+        });
+    }
+    if (cellsSame != cells) add(QStringLiteral("a cell changed"));
+    line(diffs.isEmpty() ? QStringLiteral("ok") : diffs.join(QStringLiteral("; ")), qint64(tables.size()), tablesOk, partsSame, parts, cells, cellsSame);
+    return diffs.isEmpty() ? 0 : 2;
+}
+
 } // namespace
 
 namespace jp::crunchtool {
@@ -1346,6 +1502,7 @@ int editMain(const QStringList &args)
         return editBench(QString(), args.value(4, QStringLiteral("200")).toInt(), args.value(1, QStringLiteral("100000")).toInt(), args.value(2, QStringLiteral("20")).toInt(), args.value(3, QStringLiteral("0")).toInt());
     if (args.size() == 2 && args[0] == QLatin1String("roundtrip-one")) return roundtripOne(args[1]);
     if (args.size() == 2 && args[0] == QLatin1String("edit-names-roundtrip")) return namesRoundtripOne(args[1]);
+    if (args.size() == 2 && args[0] == QLatin1String("edit-tables-roundtrip")) return tablesRoundtripOne(args[1]);
     if ((args.size() == 3 || args.size() == 4) && args[0] == QLatin1String("roundtrip")) return roundtripSweep(args[1], args[2], args.value(3));
     return -1;
 }

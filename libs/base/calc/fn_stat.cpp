@@ -344,12 +344,14 @@ Value fnRank(Call &c)
     return Value::number(double(ahead + 1));
 }
 
-// SUBTOTAL(function, ref1, ...): 1 to 11 for a function of the numbers (101 to 111 the same here; the hidden rows are not known to the cell source).
+// SUBTOTAL(function, ref1, ...): 1 to 11 for a function of the numbers, leaving out the rows a filter hides; 101 to 111 leave out every hidden row.
 Value fnSubtotal(Call &c)
 {
     double f;
     if (!c.number(0, &f)) return c.failure();
     int fn = int(std::trunc(f));
+    // (1 to 11 leave out the rows a filter hides; 101 to 111 leave out every hidden row)
+    const int hiddenRows = fn >= 101 && fn <= 111 ? 1 : 2;
     if (fn >= 101 && fn <= 111) fn -= 100;
     if (fn < 1 || fn > 11) return c.error(ErrorKind::Value);
     if (fn == 3) {
@@ -357,6 +359,7 @@ Value fnSubtotal(Call &c)
         for (int i = 1; i < c.argc(); ++i)
             if (!c.eachCell(i, [&](const Value &, int sheet, quint32 row, quint32 col) {
                     if (sheet >= 0 && c.machine().source().isSubtotal(sheet, row, col)) return true;
+                    if (sheet >= 0 && c.machine().source().rowHiddenKind(sheet, row) >= hiddenRows) return true;
                     ++n;
                     return true;
                 }))
@@ -365,7 +368,7 @@ Value fnSubtotal(Call &c)
     }
     std::vector<double> x;
     Value error;
-    if (!gatherNumbers(c, 1, &x, &error, true)) return error;
+    if (!gatherNumbers(c, 1, &x, &error, true, hiddenRows)) return error;
     const size_t n = x.size();
     double sum = 0;
     for (const double v : x) sum += v;
@@ -926,7 +929,7 @@ Value fnNormInv(Call &c)
 
 // The numbers of arguments from `first` on: in a reference or array the numbers; typed, a text read as a number, a boolean as 1 or 0. An error stops it. With
 // `skipSubtotals` the cells of references that hold a SUBTOTAL are left out.
-bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, bool skipSubtotals)
+bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, bool skipSubtotals, int hiddenRows)
 {
     for (int i = first; i < c.argc(); ++i) {
         bool ok = true;
@@ -934,6 +937,7 @@ bool gatherNumbers(Call &c, int first, std::vector<double> *out, Value *error, b
         const bool done = c.eachCell(i, [&](const Value &v, int sheet, quint32 row, quint32 col) {
             const bool typed = typedArgument;
             if (skipSubtotals && sheet >= 0 && c.machine().source().isSubtotal(sheet, row, col)) return true;
+            if (hiddenRows > 0 && sheet >= 0 && c.machine().source().rowHiddenKind(sheet, row) >= hiddenRows) return true;
             double x;
             switch (v.kind()) {
             case Value::Kind::Number: out->push_back(v.number()); break;

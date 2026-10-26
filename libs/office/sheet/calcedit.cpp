@@ -494,6 +494,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
             specs.append(r);
         }
         S.rowSpecs = specs;
+        hiddenRowsChanged(rec->sheet >= 0 ? rec->sheet : e.sheet);
     }
     if (e.kind == K::InsertColumns || e.kind == K::DeleteColumns) {
         QVector<ColumnSpan> spans;
@@ -730,6 +731,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
     S.mergeCount = rec.mergeCount;
     S.columns = rec.columns;
     S.rowSpecs = rec.rowSpecs;
+    hiddenRowsChanged(rec.sheet);
     S.extentRows = std::max(S.extentRows, rec.extentRows);
     S.extentCols = std::max(S.extentCols, rec.extentCols);
     m_rows[size_t(rec.sheet)] = std::max(m_rows[size_t(rec.sheet)], rec.rowsSeen);
@@ -793,6 +795,21 @@ std::vector<std::pair<QString, QString>> Calculation::renameColumnInNames(const 
     for (auto it = m_names.begin(); it != m_names.end(); ++it) {
         if (!it.value().contains(QLatin1Char('['))) continue;
         const QString now = renameColumnInFormula(it.value(), table, oldName, newName, false);
+        if (now == it.value()) continue;
+        was.push_back({it.key(), it.value()});
+        it.value() = now;
+    }
+    if (!was.empty()) nameTextsChanged();
+    return was;
+}
+
+std::vector<std::pair<QString, QString>> Calculation::rewriteNames(const std::function<QString(const QString &)> &rewrite)
+{
+    std::vector<std::pair<QString, QString>> was;
+    abandonNow();
+    for (auto it = m_names.begin(); it != m_names.end(); ++it) {
+        if (!it.value().contains(QLatin1Char('['))) continue;
+        const QString now = rewrite(it.value());
         if (now == it.value()) continue;
         was.push_back({it.key(), it.value()});
         it.value() = now;
@@ -936,6 +953,7 @@ void Calculation::setRowSpecs(int sheet, quint32 first, quint32 last, const std:
     for (const RowSpec &r : specs) now.append(r);
     std::stable_sort(now.begin(), now.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
     S.rowSpecs = now;
+    hiddenRowsChanged(sheet);
 }
 
 } // namespace jp::office::sheet

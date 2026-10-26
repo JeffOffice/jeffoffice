@@ -89,6 +89,7 @@ QString EditSession::nameProblem(const NameDraft &draft, int id) const
         if (draft.scope < 0) return QCoreApplication::translate("jp::crunch::EditSession", "There is already a name like that in this workbook. Choose another, or change that one.");
         return QCoreApplication::translate("jp::crunch::EditSession", "There is already a name like that on this sheet. Choose another, or change that one.");
     }
+    if (tableNamed(name)) return QCoreApplication::translate("jp::crunch::EditSession", "A table in this workbook is called that. Choose another name.");
     if (id < 0 && m_nameTable.aliveCount() >= int(jp::office::sheet::kMaxDefinedNames)) return QCoreApplication::translate("jp::crunch::EditSession", "This workbook has as many names as it can have.");
     if (draft.comment.size() > 255) return QCoreApplication::translate("jp::crunch::EditSession", "A comment can have at most 255 characters.");
     const QString text = fileText(draft.text, m_locale);
@@ -245,7 +246,7 @@ EditSession::Outcome EditSession::defineNamesFromLabels(int sheet, const CellRan
     Step step;
     int slot = m_nameTable.slots();
     for (const LabelName &n : found) {
-        if (m_nameTable.find(-1, n.name) >= 0 || int(m_nameTable.aliveCount()) + int(step.names.size()) >= int(jp::office::sheet::kMaxDefinedNames)) {
+        if (m_nameTable.find(-1, n.name) >= 0 || tableNamed(n.name) || int(m_nameTable.aliveCount()) + int(step.names.size()) >= int(jp::office::sheet::kMaxDefinedNames)) {
             ++left;
             continue;
         }

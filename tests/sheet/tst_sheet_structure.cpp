@@ -980,8 +980,13 @@ private Q_SLOTS:
         QCOMPARE(fate(StructEdit::insertColumns(0, 0, 2), &place), TableFate::Moved);
         QCOMPARE(place, QStringLiteral("D3:F7"));
         QCOMPARE(fate(StructEdit::insertColumns(0, 4, 2)), TableFate::Same);
-        QCOMPARE(fate(StructEdit::insertColumns(0, 2, 1)), TableFate::Refused);      // inside
-        QCOMPARE(fate(StructEdit::deleteColumns(0, 3, 1)), TableFate::Refused);
+        QCOMPARE(fate(StructEdit::insertColumns(0, 2, 1), &place), TableFate::Moved);   // inside: it has a column more
+        QCOMPARE(place, QStringLiteral("B3:E7"));
+        QCOMPARE(fate(StructEdit::deleteColumns(0, 3, 1), &place), TableFate::Moved);   // its last column
+        QCOMPARE(place, QStringLiteral("B3:C7"));
+        QCOMPARE(fate(StructEdit::deleteColumns(0, 0, 3), &place), TableFate::Moved);   // a column left of it, and the first two of its three
+        QCOMPARE(place, QStringLiteral("A3:A7"));
+        QCOMPARE(fate(StructEdit::deleteColumns(0, 1, 3)), TableFate::Refused);      // all of its columns
         QCOMPARE(fate(StructEdit::deleteColumns(0, 0, 1), &place), TableFate::Moved);
         QCOMPARE(place, QStringLiteral("A3:C7"));
         CellRange block;

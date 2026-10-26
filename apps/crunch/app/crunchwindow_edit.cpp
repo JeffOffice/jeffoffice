@@ -29,6 +29,7 @@ void CrunchWindow::createEditing()
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, &CrunchWindow::onSizesChanged);
     connect(m_session.get(), &crunch::EditSession::sheetsChanged, this, &CrunchWindow::onSheetsChanged);
+    connect(m_session.get(), &crunch::EditSession::tablesChanged, this, &CrunchWindow::onTablesChanged);
     connectObjects();
     connectPageSetup();
     connectAnchors();

@@ -31,13 +31,41 @@ void CrunchWindow::createSortActions()
 
 // The cells a sort on the selection is for: the selection, or with one cell the block around it; `key` is the column of the cell with the cursor in it. `expanded` says the block was taken in
 // place of what was selected.
-bool CrunchWindow::sortRangeOf(CellRange *range, int *key, bool *expanded)
+bool CrunchWindow::sortRangeOf(CellRange *range, int *key, bool *expanded, int *header)
 {
     *expanded = false;
+    if (header) *header = -1;
     const grid::Selection &sel = m_view->selection();
     const quint32 activeRow = quint32(std::max<qint64>(0, sel.activeRow)), activeCol = quint32(std::max<qint64>(0, sel.activeCol));
     CellRange picked = selectedRange();
     const bool oneCell = picked.row1 == picked.row2 && picked.col1 == picked.col2;
+    // in a table the rows of data are what is sorted: never its row of names, nor its row of totals, nor what is round it
+    if (const int ti = selectedTable(); ti >= 0) {
+        const jp::office::sheet::Table &t = m_session->workbook()->tables()[ti];
+        if (!t.hasData()) {
+            notice(tr("Sort"), tr("There is nothing to sort here."));
+            return false;
+        }
+        if (oneCell || sel.whole != grid::Selection::Whole::None) {
+            picked.col1 = t.col1;
+            picked.col2 = t.col2;
+            picked.row1 = t.headerRows > 0 ? t.row1 : t.dataFirst();
+            picked.row2 = quint32(t.dataLast());
+            if (header) *header = t.headerRows > 0 ? 1 : 0;
+            *expanded = true;
+        } else {
+            picked.row1 = std::max(picked.row1, t.dataFirst());
+            picked.row2 = std::min<quint32>(picked.row2, quint32(t.dataLast()));
+            if (picked.row1 > picked.row2) {
+                notice(tr("Sort"), tr("Select cells in the table's rows of data to put them in order."));
+                return false;
+            }
+            if (header) *header = 0;
+        }
+        *range = picked;
+        *key = int(std::clamp<qint64>(qint64(activeCol) - picked.col1, 0, qint64(picked.col2) - picked.col1));
+        return true;
+    }
     bool regionTruncated = false;
     const CellRange region = crunch::currentRegion(*m_session, m_sheet, activeRow, activeCol, &regionTruncated);
     if (oneCell || sel.whole != grid::Selection::Whole::None) {
@@ -88,9 +116,10 @@ void CrunchWindow::sortSelection(int mode)
     CellRange range;
     int key = 0;
     bool expanded = false;
-    if (!sortRangeOf(&range, &key, &expanded)) return;
+    int header = -1;
+    if (!sortRangeOf(&range, &key, &expanded, &header)) return;
     crunch::SortSpec spec;
-    spec.hasHeader = m_session->looksLikeHeader(m_sheet, range);
+    spec.hasHeader = header >= 0 ? header == 1 : m_session->looksLikeHeader(m_sheet, range);
     crunch::SortLevel level;
     level.key = key;
     level.descending = mode == 1;

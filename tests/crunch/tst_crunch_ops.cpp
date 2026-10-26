@@ -399,7 +399,7 @@ private Q_SLOTS:
         e.key(Qt::Key_Escape);
     }
 
-    // The menu of AutoSum: Average, Count Numbers, Max, and Min work the same way.
+    // The menu of AutoSum: Average, How Many Numbers, Max, and Min work the same way.
     void autoSumsMenuHasTheOtherFunctions()
     {
         EditWindow e;

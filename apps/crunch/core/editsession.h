@@ -22,6 +22,7 @@
 
 #include <QLocale>
 #include <QObject>
+#include <QTimer>
 #include <QUndoStack>
 
 #include <atomic>
@@ -70,6 +71,28 @@ struct TableRename {
     std::vector<std::pair<QString, QString>> names;   // the defined names that named the column, as they were (made when the step is first done)
 };
 
+// A table made, taken out, or changed by a step: its place in the workbook's tables, and the table as it was and as it is. A table taken out or renamed has the formulas that named it written
+// again (the cells' are in the step; the defined names' are made when the step is first done).
+struct TableEdit {
+    enum class Kind : quint8 { Replace, Insert, Erase } kind = Kind::Replace;
+    enum class Rewrite : quint8 { None, Rename, ToRange, Remove } rewrite = Rewrite::None;
+    int index = 0;
+    jp::office::sheet::Table before, after;
+    std::vector<std::pair<QString, QString>> names;   // the defined names that named the table, as they were (made when the step is first done)
+};
+
+// A formula put in the cells of a column of a sheet by a step, rows `row1` to `row2`, each as it reads in its own row (the text is written for the row `base`): what a calculated column fills. The cells
+// were empty, but those in `oldRuns` (runs of rows, from first to last), which held `oldFormula` (written for `oldBase`): it is the small description of very many cells, put in a slice at a time.
+struct FillEdit {
+    int sheet = 0;
+    quint32 col = 0, row1 = 0, row2 = 0;
+    QString formula;
+    quint32 base = 0;
+    QString oldFormula;
+    quint32 oldBase = 0;
+    std::vector<std::pair<quint32, quint32>> oldRuns;
+};
+
 // The width of columns or the height of rows changed by a step: the runs of columns (the specs of rows) in a range as they were and as they are.
 struct SizeEdit {
     int sheet = 0;
@@ -89,6 +112,7 @@ struct SheetEdit {
     jp::office::sheet::SheetState stateBefore = jp::office::sheet::SheetState::Visible, stateAfter = jp::office::sheet::SheetState::Visible;
     jp::office::sheet::ColorSpec colorBefore, colorAfter;
     int copyOf = -1;                                       // Copy: the sheet it is a copy of
+    std::vector<std::pair<QString, QString>> tableRenames;   // Copy: the tables that were copied, by the name they had and have (the copy's formulas name its own tables)
     jp::office::sheet::Calculation::SheetRewrite rewrite;  // Rename and Delete: what the formulas were (made when the step is done)
     // Whether the step changes what the file's parts name (and so can't be undone against a file that was saved after it).
     bool structural() const { return kind == Kind::Insert || kind == Kind::Copy || kind == Kind::Delete || kind == Kind::Rename || kind == Kind::Move; }
@@ -179,6 +203,8 @@ struct Step {
     std::vector<CellChange> cells;
     std::vector<StyleCell> styles;
     std::vector<TableRename> renames;
+    std::vector<TableEdit> tables;
+    std::vector<FillEdit> fills;
     std::vector<SizeEdit> sizes;
     std::vector<MergeEdit> merges;
     std::vector<FormatEdit> formats;
@@ -193,11 +219,13 @@ struct Step {
     std::vector<ProtectEdit> protections;      // or the protection of a sheet or the workbook
     std::vector<NameEdit> names;               // or defined names made, changed, or taken away
     std::vector<CalcEdit> calcs;               // or how the workbook calculates
-    bool empty() const { return protections.empty() && sides.empty() && cells.empty() && styles.empty() && renames.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
+    bool empty() const { return protections.empty() && sides.empty() && cells.empty() && styles.empty() && renames.empty() && tables.empty() && fills.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
 qint64 contentBytes(const jp::office::sheet::Calculation::CellContent &c);
+// And of a table (its names, columns, and filter).
+qint64 tableBytes(const jp::office::sheet::Table &t);
 
 class EditSession : public QObject {
     Q_OBJECT
@@ -303,6 +331,51 @@ public:
 
 
 
+    // ---- tables (edittables.cpp). A table is named by its place among the workbook's tables (Workbook::tables); each of these is one step of Undo, and nothing is changed when it is not ok.
+    // The table whose cells include the cell, or -1; and the one whose header row, data, or totals row it is in is the same table.
+    int tableAt(int sheet, quint32 row, quint32 col) const;
+    // Insert > Table: the cells of `range` become a table. With `hasHeaders` the first row holds the names of the columns (a cell that is not text becomes the text it shows, an empty one is
+    // named, and two of one name are numbered); without, the table has no header row and its columns are named Column1, Column2, and so on. A table needs a row of data: a single row
+    // with headers is given the empty row under it. `made` is the table's place.
+    Outcome makeTable(int sheet, const jp::office::sheet::CellRange &range, bool hasHeaders, const QString &style, int *made = nullptr);
+    // Why a name can't be a table's (not `except`'s own), in a sentence; empty when it can: not a valid name, or another table's or a defined name, in any case.
+    QString tableNameProblem(const QString &name, int except) const;
+    // Whether a table (on a sheet that is there) has the name (any case): a defined name can't be the same.
+    bool tableNamed(const QString &name) const;
+    // Turns the table back into plain cells: the cells keep what they hold and how they look (the style is drawn no more), and the formulas that named the table's columns name the cells.
+    Outcome tableToRange(int table);
+    Outcome renameTable(int table, const QString &name);
+    // The marks of a table's look and the filter buttons.
+    struct TableMarks {
+        QString style;
+        bool firstColumn = false, lastColumn = false, rowStripes = true, columnStripes = false, filterButtons = true;
+    };
+    Outcome setTableMarks(int table, const TableMarks &marks);
+    // The row of column names on or off. Off: the names' cells are cleared and the table begins at the row under them. On: the row above the table (which must be empty) is the table's, with
+    // the columns' names in it.
+    Outcome setTableHeaderRow(int table, bool on);
+    // The row of totals on or off. On: the row under the table (empty) holds a total for the last column and the word "Total" in the first; off: that row is cleared.
+    Outcome setTableTotalsRow(int table, bool on);
+    // What a column's total shows: one of the file's words (sum, average, count, countNums, max, min, stdDev, var), "custom" with its formula (no "="), or empty for none; the cell is written.
+    Outcome setTableTotal(int table, int column, const QString &function, const QString &custom = QString());
+    // A table's cells changed to `range` (it keeps its first cell and header row; it may grow or shrink down and right): the new rows get the calculated columns' formulas, new columns are
+    // named, the totals row moves with the last row.
+    Outcome resizeTable(int table, const jp::office::sheet::CellRange &range);
+    // What a table's cells would be if a cell was typed into (sheet, row, col): the table it would grow, and how, or -1: typing in the row under a table, or the column beside it, adds it.
+    struct TableGrowth {
+        int table = -1;
+        bool row = false, column = false;
+    };
+    TableGrowth growthByTyping(int sheet, quint32 row, quint32 col) const;
+    // Whether a formula typed in the table's cell would make its column a calculated column (the column has no formula, and the cells of its other rows are empty), and the choice not to: the
+    // last calculated column made by typing is undone (the cell keeps its formula).
+    bool lastEntryMadeCalculatedColumn() const { return m_lastCalculated; }
+    Outcome undoCalculatedColumn();
+    // The columns' calculated formulas of a table, for a row: the formula (as the cell holds it, with no "=") of the column for that row, or empty for none.
+    QString calculatedFormulaFor(const jp::office::sheet::Table &table, int column, quint32 row) const;
+    // The table names for a list to offer, and a table's column names; at most `limit`.
+    QStringList tableNames(int limit = 200) const;
+
     // ---- steps put in a slice at a time
     // A step of very many cells is put in a slice at a time (no turn of the window does more than a few thousand cells) and then lies on the undo stack as one step. While it is being put in, the
     // workbook is not changed by anything else (canEdit says so), and it cannot be saved.
@@ -311,11 +384,21 @@ public:
         QString text;
         size_t next = 0;
         bool began = false;
+        bool tablesApplied = false;
+        size_t fillAt = 0;         // the fill the slices are at, and its next row
+        quint32 fillRow = 0;
     };
     std::shared_ptr<SlicedPush> beginSlicedPush(Step step, const QString &text);
     // Puts in about `budget` more cells (0: all); true when the step is all in and is on the undo stack.
     bool continueSlicedPush(SlicedPush &push, qint64 budget);
     bool isSlicing() const { return m_slicing; }
+    // A step that fills a column with a formula (or changes a table, with many cells to fill) is put in a slice at a time by the session's own timer, as one step of Undo; a small one is put in at
+    // once. `fillPending` says one is going on, and `finishFills` puts in what is left at once (for a save, a test, or a tool).
+    void startFill(Step step, const QString &text);
+    bool fillPending() const { return bool(m_fill); }
+    void finishFills();
+    // The most cells a step is put in at once (more are put in by slices).
+    static constexpr qint64 kFillAtOnce = 2000;
     // What the slices did (a test counts them): how many cells the biggest slice put in, and how many slices there have been.
     qint64 longestSlice() const { return m_longestSlice; }
     int slicesPushed() const { return m_slicesPushed; }
@@ -426,7 +509,10 @@ public:
     static constexpr qint64 kMaxFilterWork = 40000000;
     // The plan for the filter `after` (its range, and the conditions of its columns); null, with the reason in `why`, if it cannot be: the work (rows times conditions) is past kMaxFilterWork, the range is in a table, a column's condition
     // is none that can be worked out, or the sheet cannot be changed. An `after` that is not valid takes the sheet's filter away (the rows it hid are shown).
-    std::shared_ptr<FilterPlan> planFilter(int sheet, const jp::office::sheet::AutoFilter &after, QString *why);
+    std::shared_ptr<FilterPlan> planFilter(int sheet, const jp::office::sheet::AutoFilter &after, QString *why, int table = -1);
+    // With a `table`, the filter is the table's own (its buttons and conditions, over its rows of data): the plan is of the table's filter, and it is put in the table (planFilter's other rules
+    // hold; a table's filter and another filter on the same rows are refused). tableFilter is the table's filter as a filter over cells (not valid for a table with no buttons).
+    jp::office::sheet::AutoFilter tableFilter(int table) const;
     // Works out which rows the conditions hide, a slice (about `budget` cells; 0 for all) at a time; true when it is done.
     bool prepareFilter(FilterPlan &plan, qint64 budget);
     // Puts the filter in, and shows and hides the rows: one step. Not ok if the plan is not done or the cells have been changed since it was made.
@@ -434,11 +520,11 @@ public:
     // How many things the plan does in all (rows and cells looked at): what a window decides by whether to work it out a slice at a time.
     static qint64 filterWork(const FilterPlan &plan);
     // All of it at once: the sheet's filter is `after`.
-    Outcome setFilter(int sheet, const jp::office::sheet::AutoFilter &after, const QString &text);
+    Outcome setFilter(int sheet, const jp::office::sheet::AutoFilter &after, const QString &text, int table = -1);
     // The sheet's filter with the condition of one column (from the first column of its range) put in (a condition of kind None takes the column's away).
-    jp::office::sheet::AutoFilter filterWith(int sheet, quint32 column, const jp::office::sheet::FilterColumn &condition) const;
+    jp::office::sheet::AutoFilter filterWith(int sheet, quint32 column, const jp::office::sheet::FilterColumn &condition, int table = -1) const;
     // The same with every column's condition taken away (the buttons stay).
-    jp::office::sheet::AutoFilter filterCleared(int sheet) const;
+    jp::office::sheet::AutoFilter filterCleared(int sheet, int table = -1) const;
     // Whether a row is hidden by the sheet's filter (and not by hand).
     bool rowFilteredOut(int sheet, quint32 row) const;
     // The color a color condition asks for, as a color: the one it names, or the one its format in the file has.
@@ -521,7 +607,7 @@ public:
     // its data bars; a sheet with a table can't be copied. What is left out (pictures, charts, notes, and the like) is said by the outcome's `problem`, with `ok` true.
     Outcome insertSheet(int before, const QString &name, int *made = nullptr);
     Outcome copySheet(int sheet, int before, const QString &name, int *made = nullptr);
-    // Deletes a sheet (the last that is shown, or one that has a table, can't be); the sheet and everything in it are kept for Undo.
+    // Deletes a sheet (the last that is shown can't be); the sheet and everything in it, its tables too, are kept for Undo, and what named a table of it on another sheet is #REF!.
     Outcome deleteSheet(int sheet);
     Outcome renameSheet(int sheet, const QString &name);
     // Puts a sheet before another in the order of the tabs (-1: at the end).
@@ -651,6 +737,10 @@ Q_SIGNALS:
     void sizesChanged(int sheet);
     // A step of the undo stack could not be undone or done again (the workbook could not be held, or the edit was refused): Undo and Redo of every step are given up, and this says so.
     void stepFailed(const QString &what);
+    // A fill that was put in slice by slice is all in (startFill).
+    void fillFinished();
+    // The tables of a sheet changed (made, taken out, resized, restyled, or renamed, by a step, Undo, or Redo): the window draws the sheet again.
+    void tablesChanged(int sheet);
     // How a sheet prints changed (a command, Undo or Redo of one, or an edit of rows, columns, or cells that moved its print area, titles, or breaks).
     void pageSetupChanged(int sheet);
     // The notes or the links of a sheet changed (a command, Undo, Redo, or rows or columns inserted or deleted).
@@ -703,6 +793,18 @@ private:
     void pushStep(Step step, const QString &text, bool alreadyDone = false);
     // A text typed in a cell of a table's header row: the column is renamed (the formulas that name it follow, and the table's part when the workbook is saved).
     Outcome typeInHeader(int sheet, quint32 row, quint32 col, int table, int column, const QString &typed);
+    // After a typed entry in a table's cell: the table grows, and a formula typed in an empty column becomes the column's (edittables.cpp).
+    void growTableAfterEntry(int sheet, quint32 row, quint32 col, const CellChange &entry);
+    void fillTableAfterInsert(int sheet, bool rows, quint32 first, quint32 count);
+    void calculatedColumnAfterEntry(int sheet, quint32 row, quint32 col, const CellChange &entry);
+    void applyTableEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book, std::set<int> *sheets);
+    Outcome pushTableStep(Step step, const QString &text);
+    // A change that puts text (never read as anything else) or a formula (as the file writes it) in a cell, or clears it.
+    CellChange textCell(int sheet, quint32 row, quint32 col, const QString &text);
+    CellChange formulaCell(int sheet, quint32 row, quint32 col, const QString &formula);
+    CellChange clearedCell(int sheet, quint32 row, quint32 col);
+    bool tableFree(int sheet, const jp::office::sheet::CellRange &range, int except, QString *why) const;
+    bool cellsEmpty(int sheet, const jp::office::sheet::CellRange &range) const;
     jp::office::sheet::EntryOptions entryOptions(int sheet, bool textFormat) const;
     // The change typing `typed` into a cell makes (not a header cell's, not checked against the cell's rule): false, with the problem, if it can't be put in; `none` if it changes nothing.
     bool typedChange(int sheet, quint32 row, quint32 col, const QString &typed, CellChange *change, bool *none, Outcome *problem);
@@ -752,7 +854,7 @@ private:
     void applyPermute(jp::office::sheet::CellPermute &p, bool forward);
     void forgetNotes();
     bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);
-    Outcome pushSheetEdit(SheetEdit edit, const QString &text);
+    Outcome pushSheetEdit(SheetEdit edit, const QString &text, std::vector<TableEdit> tables = {}, std::vector<CellChange> cells = {});
     bool sheetStepsRefused(QString *why);
     bool applyNameEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc);
     void applyCalcEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc);
@@ -785,6 +887,14 @@ private:
     std::vector<jp::office::sheet::SheetProtection> m_fileProtection;   // the protection of each sheet as the file has it now (read, or last saved)
     jp::office::sheet::WorkbookProtection m_fileBookProtection;
     std::vector<jp::office::sheet::ColumnRename> m_renames;   // and the table columns renamed, for the names, validations, rules, and charts that name them
+    std::vector<jp::office::sheet::TableRewrite> m_tableRewrites;   // and the tables renamed or made plain cells, for the same
+    std::shared_ptr<SlicedPush> m_fill;
+    QTimer m_fillTimer;
+    qint64 m_fillBudget = 2000;
+    void stepFill();
+    int m_opSeq = 0;                   // the order renames of columns and tables are made in
+    bool m_lastCalculated = false;     // the last entry made its column a calculated column (see lastEntryMadeCalculatedColumn)
+    int m_calculatedIndex = -1;        // the place on the undo stack of the step that made it
     bool m_bigStepAllowed = false;     // see allowNextBigStep
     int m_saveGen = 0;                 // how many times the workbook has been saved
     int m_forgotBySave = 0;            // the steps the last save made Undo forget (see forgetDeletesInFile)
