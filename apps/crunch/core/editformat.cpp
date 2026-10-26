@@ -240,6 +240,13 @@ EditSession::Outcome EditSession::restyleRange(int sheet, const CellRange &range
 
 EditSession::Outcome EditSession::formatCells(int sheet, const CellRange &range, const FormatChange &change, const QString &text)
 {
+    if (change.fontName && change.fontName->size() > jp::office::sheet::kMaxFontNameFileChars) {
+        // (the other program refuses a file with a font named by more than 31 characters)
+        Outcome out;
+        out.ok = false;
+        out.problem = tr("A font's name can have up to %1 characters in a workbook, and this one has %2. Choose another font.").arg(jp::office::sheet::kMaxFontNameFileChars).arg(change.fontName->size());
+        return out;
+    }
     return restyleRange(sheet, range, std::make_shared<FormatChange>(change), text);
 }
 

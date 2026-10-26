@@ -297,6 +297,33 @@ private Q_SLOTS:
         QCOMPARE(e.shownAt(QStringLiteral("F5")), QStringLiteral("the new page"));
     }
 
+    // The other program refuses a file whose link has an address of more than 2,083 characters or a screen tip of more than 255, so a person can't make one (the limit is a thing a sentence
+    // says, and the longest that is allowed is let through).
+    void aLinkTheFileCouldNotHoldIsRefused()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        crunch::EditSession *s = e.win.w.session();
+        const auto cell = [](const char *ref) {
+            jp::office::sheet::CellRange r;
+            jp::office::sheet::parseRangeRef(QString::fromLatin1(ref), &r);
+            return r;
+        };
+        LinkSpec link;
+        link.target = QStringLiteral("https://example.org/") + QString(jp::office::sheet::kMaxNewLinkAddress - 20, QLatin1Char('p'));
+        link.tip = QString(jp::office::sheet::kMaxNewLinkTip, QLatin1Char('t'));
+        QVERIFY(s->setLink(0, cell("A1"), link, QStringLiteral("Link")).ok);
+        link.target += QLatin1Char('p');
+        const auto longAddress = s->setLink(0, cell("A2"), link, QStringLiteral("Link"));
+        QVERIFY(!longAddress.ok);
+        QVERIFY2(longAddress.problem.contains(QString::number(jp::office::sheet::kMaxNewLinkAddress)), qPrintable(longAddress.problem));
+        link.target = QStringLiteral("https://example.org/");
+        link.tip += QLatin1Char('t');
+        const auto longTip = s->setLink(0, cell("A2"), link, QStringLiteral("Link"));
+        QVERIFY(!longTip.ok);
+        QVERIFY2(longTip.problem.contains(QString::number(jp::office::sheet::kMaxNewLinkTip)), qPrintable(longTip.problem));
+    }
+
     // A link on a protected sheet that allows links goes only where every cell of the range may be changed (each one looked at, the empty ones by the lock of their column), and a range that
     // is too large to look at is refused.
     void linksOnAProtectedSheetCheckEveryCellOfTheRange()

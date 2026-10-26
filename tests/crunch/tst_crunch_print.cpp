@@ -210,6 +210,51 @@ private Q_SLOTS:
         QVERIFY(!session->setPageSetup(7, landscape, QStringLiteral("x")).ok);
     }
 
+    // A header or footer of more than 255 characters is one the other program refuses the file for: it is not a step, a text of 255 is, and a text the file came with that is longer stays as it is
+    // when only something else of the sheet is changed.
+    void aHeaderTooLongForTheFileIsRefused()
+    {
+        EditWindow e;
+        QVERIFY(e.open(printBook()));
+        crunch::EditSession *session = e.win.w.session();
+        PageSetup p = session->pages().sheet(0);
+        p.headerFooter.oddHeader = QStringLiteral("&C") + QString(253, QLatin1Char('h'));
+        QVERIFY(session->setPageSetup(0, p, QStringLiteral("Header")).ok);
+        for (QString jp::office::sheet::HeaderFooter::*member : {&jp::office::sheet::HeaderFooter::oddHeader, &jp::office::sheet::HeaderFooter::oddFooter, &jp::office::sheet::HeaderFooter::evenHeader,
+                                                                 &jp::office::sheet::HeaderFooter::evenFooter, &jp::office::sheet::HeaderFooter::firstHeader, &jp::office::sheet::HeaderFooter::firstFooter}) {
+            PageSetup q = session->pages().sheet(0);
+            q.headerFooter.*member = QString(256, QLatin1Char('x'));
+            const auto refused = session->setPageSetup(0, q, QStringLiteral("Header"));
+            QVERIFY(!refused.ok);
+            QVERIFY2(refused.problem.contains(QStringLiteral("255")), qPrintable(refused.problem));
+        }
+        QCOMPARE(session->pages().sheet(0).headerFooter.oddHeader.size(), 255);
+    }
+
+    // A sheet has up to 1,024 manual breaks of each kind in a file the other program opens: more are refused, and a sheet that came with more keeps them when only something else changes.
+    void moreBreaksThanTheFileMayHoldAreRefused()
+    {
+        EditWindow e;
+        QVERIFY(e.open(printBook()));
+        crunch::EditSession *session = e.win.w.session();
+        PageSetup p = session->pages().sheet(0);
+        for (int i = 1; i <= jp::office::sheet::kMaxPageBreaks; ++i) {
+            jp::office::sheet::PageBreak b;
+            b.before = quint32(i);
+            b.max = 16383;
+            p.rowBreaks.append(b);
+        }
+        QVERIFY(session->setPageSetup(0, p, QStringLiteral("Breaks")).ok);
+        jp::office::sheet::PageBreak more;
+        more.before = 2000;
+        more.max = 16383;
+        p.rowBreaks.append(more);
+        const auto refused = session->setPageSetup(0, p, QStringLiteral("Breaks"));
+        QVERIFY(!refused.ok);
+        QVERIFY2(refused.problem.contains(QStringLiteral("1,024")) || refused.problem.contains(QStringLiteral("1024")), qPrintable(refused.problem));
+        QCOMPARE(session->pages().sheet(0).rowBreaks.size(), jp::office::sheet::kMaxPageBreaks);
+    }
+
     // The window is told when how a sheet prints changes: by the step, by Undo, and by rows inserted that move its print area.
     void theSessionTellsWhenASheetPrintsDifferently()
     {

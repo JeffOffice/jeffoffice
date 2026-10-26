@@ -2,6 +2,7 @@
 // memory (never a real-world file).
 #include "sheethelpers.h"
 
+#include "drawinghelpers.h"
 #include "io/zip.h"
 #include "sheet/notes.h"
 #include "sheet/notesave.h"
@@ -311,6 +312,39 @@ private Q_SLOTS:
         QVERIFY(parts.value(QStringLiteral("[Content_Types].xml")).contains("comments1.xml"));
         QVERIFY(parts.value(QStringLiteral("[Content_Types].xml")).contains("vmlDrawing1.vml"));
         QVERIFY(!notesDrawingPart(again->package, QStringLiteral("/xl/worksheets/sheet1.xml")).isEmpty());
+    }
+
+    // A sheet given a note and a header picture in one save has two legacy drawings, and they are two parts: the file has one name for one part (the program that reads it asks to repair a file in
+    // which two drawings take the same name, and a part named twice in the types).
+    void aNoteAndAHeaderPictureAddedTogetherGetDrawingsOfTheirOwn()
+    {
+        auto o = open(plainBook());
+        QVERIFY(o->ok);
+        SaveChanges changes;
+        changes.sheets[0].noteOps = {put(0, 1, QStringLiteral("Jo"), QStringLiteral("first"))};
+        changes.sheets[0].setPage = true;
+        HeaderPicture pic;
+        pic.place = QStringLiteral("CH");
+        pic.image = drawtest::pngBytes(8, 4, Qt::red);
+        pic.extension = QStringLiteral("png");
+        pic.width = 40;
+        pic.height = 20;
+        changes.sheets[0].page.headerFooter.oddHeader = QStringLiteral("&C&G");
+        changes.sheets[0].page.headerFooter.pictures.append(pic);
+        QString why;
+        auto again = saved(*o, changes, &why);
+        QVERIFY2(again, qPrintable(why));
+        const QVector<Relationship> drawings = again->package.relationshipsOfType(QStringLiteral("/xl/worksheets/sheet1.xml"), QStringLiteral("/vmlDrawing"));
+        QCOMPARE(drawings.size(), 2);
+        QVERIFY(drawings[0].target.compare(drawings[1].target, Qt::CaseInsensitive) != 0);
+        const QByteArray types = entriesOf(again->bytes).value(QStringLiteral("[Content_Types].xml"));
+        QCOMPARE(types.count("vmlDrawing1.vml"), 1);
+        QCOMPARE(types.count("vmlDrawing2.vml"), 1);
+        // both are in the notes' and the picture's own readers' hands
+        QCOMPARE(readSheetNoteInfos(again->book, 0).size(), size_t(1));
+        Sheet sheet;
+        QVERIFY(again->book.readSheet(0, &sheet));
+        QCOMPARE(sheet.page.headerFooter.pictures.size(), 1);
     }
 
     void editsAndDeletesToTheFilesNotesAreSavedAndTheThreadIsKept()

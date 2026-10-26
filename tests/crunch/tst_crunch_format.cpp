@@ -167,6 +167,22 @@ private Q_SLOTS:
         QCOMPARE(e.view()->sheet().textOf(*e.view()->sheet().cellAt(1, 1)), QStringLiteral("-1.234.567,89"));
     }
 
+    // A font named by more than 31 characters is one the other program will not open a file for: the command is refused (31 is fine) and changes nothing.
+    void aFontNameTooLongForTheFileIsRefused()
+    {
+        EditWindow e;
+        QVERIFY(e.open(formatBook()));
+        crunch::EditSession *s = e.win.w.session();
+        FormatChange change;
+        change.fontName = QString(32, QLatin1Char('F'));
+        const auto refused = s->formatCells(0, rangeOf(QStringLiteral("B2:C3")), change, QStringLiteral("Formatting"));
+        QVERIFY(!refused.ok);
+        QVERIFY2(refused.problem.contains(QStringLiteral("31")), qPrintable(refused.problem));
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        change.fontName = QString(31, QLatin1Char('F'));
+        QVERIFY(s->formatCells(0, rangeOf(QStringLiteral("B2:C3")), change, QStringLiteral("Formatting")).ok);
+    }
+
     // A formatting command is one step: the cells have the font and fill, the format is the same for the same change (never made twice), Undo and Redo give it and take it back, and the
     // saved file has the font, the fill, and the cell format, once.
     void formattingIsOneStepAndSavedOnce()

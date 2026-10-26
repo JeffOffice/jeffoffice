@@ -13,6 +13,9 @@ namespace jp::office::sheet {
 constexpr qint64 kMaxLinks = 20000;
 constexpr int kMaxLinkTarget = 8192;
 constexpr int kMaxLinkText = 1024;
+// The most characters the common spreadsheet program takes in a link a person made: an address (it refuses the file for a longer one), and a screen tip (the same).
+constexpr int kMaxNewLinkAddress = 2083;
+constexpr int kMaxNewLinkTip = 255;
 // The most bytes (counting two for each character, and 64 for each link) the links of all the sheets of a workbook hold; a link that would go past it is not read.
 constexpr qint64 kMaxLinkBytesPerBook = qint64(32) << 20;
 

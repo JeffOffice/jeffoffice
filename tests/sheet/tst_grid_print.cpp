@@ -732,6 +732,72 @@ private Q_SLOTS:
         QVERIFY(paginate(empty.request).pages.empty());
     }
 
+    // Measured against the original with empty cells far from the data: a fill (white too), a border on any side, and a merged range of more than one cell reach the printed range; a number
+    // format, an alignment, a font, wrapping, shrinking, an indent, a turn, unlocking, and a hidden formula do not.
+    void onlyWhatShowsReachesThePrintedRange()
+    {
+        const auto reach = [](const CellFormat &format, const FillSpec &fill, const BorderSpec &border) {
+            Fixture f(0, 0);
+            f.styles.fills = {FillSpec(), fill};
+            f.styles.borders = {BorderSpec(), border};
+            CellFormat shown = format;
+            if (fill.pattern != PatternKind::None) shown.fill = 1;
+            if (border.left.style != BorderStyle::None || border.right.style != BorderStyle::None || border.top.style != BorderStyle::None || border.bottom.style != BorderStyle::None) shown.border = 1;
+            f.styles.formats = {CellFormat(), shown};
+            f.styles.cellXfs = {0, 0};
+            Cell c = numberAt(60, 40);
+            c.type = CellType::Empty;
+            c.style = 1;
+            f.sheet.cells = CellStore();
+            f.sheet.cells.add(numberAt(0, 0));
+            f.sheet.cells.add(c);
+            f.sheet.cells.finish();
+            return printedBlocks(f.request)[0].row2;
+        };
+        FillSpec white;
+        white.pattern = PatternKind::Solid;
+        white.fg = ColorSpec::fromRgb(0xFFFFFF);
+        BorderSpec none, right, top;
+        right.right.style = BorderStyle::Hair;
+        top.top.style = BorderStyle::Thin;
+        top.top.color = ColorSpec::fromRgb(0xFFFFFF);
+        QCOMPARE(reach(CellFormat(), white, none), 60u);
+        QCOMPARE(reach(CellFormat(), FillSpec(), right), 60u);
+        QCOMPARE(reach(CellFormat(), FillSpec(), top), 60u);
+        CellFormat quiet;
+        quiet.numFmtId = 4;
+        quiet.horizontal = HAlign::Center;
+        quiet.vertical = VAlign::Top;
+        quiet.wrap = true;
+        quiet.shrink = true;
+        quiet.indent = 2;
+        quiet.rotation = 45;
+        quiet.locked = false;
+        quiet.formulaHidden = true;
+        quiet.font = 0;
+        QCOMPARE(reach(quiet, FillSpec(), none), 0u);
+    }
+
+    // A merged range of more than one cell is printed to its last cell wherever it is and whether or not its first cell holds anything; a merge of one cell is nothing.
+    void aMergedRangeOfEmptyCellsIsPrinted()
+    {
+        const auto merged = [](quint32 r1, quint32 c1, quint32 r2, quint32 c2) {
+            Fixture f(0, 0);
+            CellRange m;
+            m.valid = true;
+            m.row1 = r1;
+            m.col1 = c1;
+            m.row2 = r2;
+            m.col2 = c2;
+            f.sheet.merges.append(m);
+            const CellRange b = printedBlocks(f.request)[0];
+            return QStringLiteral("%1,%2").arg(b.row2).arg(b.col2);
+        };
+        QCOMPARE(merged(199, 3, 200, 4), QStringLiteral("200,4"));   // (far below and to the right of the only cell)
+        QCOMPARE(merged(0, 51, 0, 52), QStringLiteral("0,52"));
+        QCOMPARE(merged(7, 7, 7, 7), QStringLiteral("0,0"));
+    }
+
     // A merged range with its value in the first cell reaches to its last.
     void aMergedRangeIsPrintedWhole()
     {

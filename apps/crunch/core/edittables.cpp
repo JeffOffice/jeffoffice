@@ -724,8 +724,13 @@ EditSession::Outcome EditSession::setTableTotal(int table, int column, const QSt
         bool none = false;
         if (!typedChange(t.sheet, row, col, QLatin1Char('=') + text, &typed, &none, &out)) return out;
         if (!typed.after.isFormula) return refuse(tr("That is not a formula."));
+        const QString fileForm = fileFormOfStructuredRefs(typed.after.formula, t.name);
+        // (a reference to a column the table lacks stands for no cells: the total would be #REF!, which the file's table part may not hold)
+        const QString sheetName = book.info().sheets[t.sheet].name;
+        if (!fileForm.contains(QLatin1String("#REF!")) && structuredRefsToCells(fileForm, t, sheetName, sheetName, row, true).contains(QLatin1String("#REF!")))
+            return refuse(tr("The formula names a column the table does not have."));
         info.totalsFunction = QStringLiteral("custom");
-        info.totalsFormula = fileFormOfStructuredRefs(typed.after.formula, t.name);
+        info.totalsFormula = fileForm;
         info.totalsLabel.clear();
         step.cells.push_back(formulaCell(t.sheet, row, col, info.totalsFormula));
     } else {

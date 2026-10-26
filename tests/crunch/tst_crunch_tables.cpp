@@ -322,6 +322,16 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QCOMPARE(valueOf(e, QStringLiteral("C5")), QStringLiteral("n:20"));
         QVERIFY(!s->setTableTotal(0, 2, QStringLiteral("nonsense")).ok);
+        // a formula that names a column the table has is a total; one that names a column it has not is refused (the file would hold a total that is #REF!, which the other program will not open)
+        const auto lost = s->setTableTotal(0, 2, QStringLiteral("custom"), QStringLiteral("SUBTOTAL(109,[Q3])*2"));
+        QVERIFY(!lost.ok);
+        QVERIFY(!lost.problem.isEmpty());
+        QVERIFY(!s->setTableTotal(0, 2, QStringLiteral("custom"), QStringLiteral("SUM(Table1[Nope])")).ok);
+        QVERIFY(s->setTableTotal(0, 2, QStringLiteral("custom"), QStringLiteral("SUBTOTAL(109,[Q2])*2")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("C5")), QStringLiteral("n:120"));
+        QVERIFY(s->setTableTotal(0, 2, QStringLiteral("custom"), QStringLiteral("MAX(Table1[Q2])-MIN(Table1[Q2])")).ok);
+        QVERIFY(e.settle());
         QVERIFY(!s->setTableTotal(0, 9, QStringLiteral("sum")).ok);
         // the saved file keeps the functions
         QVERIFY(saveNow(e));

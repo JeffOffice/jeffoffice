@@ -68,6 +68,9 @@ private Q_SLOTS:
         for (const char *good : {"Rate", "_hidden", "Total.Rate_2", "\\path", "Tax_2024", "ABC"}) QVERIFY2(nameProblem(QString::fromLatin1(good)).isEmpty(), good);
         for (const char *bad : {"", "1abc", "my name", "A1", "XFD1048576", "R1C1", "R", "c", "RC", "R2", "a-b", "x/y"}) QVERIFY2(!nameProblem(QString::fromLatin1(bad)).isEmpty(), bad);
         QVERIFY(!nameProblem(QString(256, QLatin1Char('a'))).isEmpty());
+        // a name that begins as an address in the other style does (R, a number, then more; C and a number, then more; RC, a number, then more) is one the other program will not open the file for
+        for (const char *bad : {"R1x", "C1x", "R1Cx", "R1C1x", "R1C1_", "R2D2", "C3PO", "RC1x", "r1c1.a"}) QVERIFY2(!nameProblem(QString::fromLatin1(bad)).isEmpty(), bad);
+        for (const char *good : {"Rx", "Cx", "RCx", "RRC", "Rate2", "Cost1", "_R1x", "R_1x"}) QVERIFY2(nameProblem(QString::fromLatin1(good)).isEmpty(), good);
         QVERIFY(nameProblem(QString(255, QLatin1Char('a'))).isEmpty());
         QVERIFY(nameProblem(QStringLiteral("my name")).contains(QStringLiteral("space")));
     }

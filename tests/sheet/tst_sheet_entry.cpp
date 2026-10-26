@@ -251,6 +251,21 @@ private Q_SLOTS:
         QCOMPARE(readEntry(QStringLiteral("=1+2)"), o).problemAt, 4);
     }
 
+    // A call has up to 255 arguments, the most the other program reads in a file (it refuses a file with a formula that has more); 256 are refused with a sentence.
+    void aCallOfMoreThan255ArgumentsIsRefused()
+    {
+        const EntryOptions o = options(en);
+        auto sum = [](int n) {
+            QString text = QStringLiteral("=SUM(1");
+            for (int i = 1; i < n; ++i) text += QStringLiteral(",1");
+            return text + QLatin1Char(')');
+        };
+        QVERIFY(readEntry(sum(255), o).ok);
+        const EntryResult r = readEntry(sum(256), o);
+        QVERIFY(!r.ok);
+        QVERIFY2(r.problem.contains(QStringLiteral("255")), qPrintable(r.problem));
+    }
+
     // A formula is kept as a file writes it: functions in capitals, and those added after the format's first release with the prefix the other programs need.
     void aFormulaIsKeptAsAFileWritesIt()
     {
