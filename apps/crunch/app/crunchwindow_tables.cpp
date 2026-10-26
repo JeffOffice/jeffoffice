@@ -1,5 +1,6 @@
 // Tables on the window: how they are drawn (the style given to the grid), the buttons on their rows of names and of totals, Insert > Table, the Table Looks gallery, and the Table tab of the
 // ribbon with the commands that change the table the cursor is in. The changes themselves are the edit session's (core/edittables.cpp).
+#include "app/plaintext.h"
 #include "app/crunchwindow.h"
 
 #include "app/crunchinfo.h"
@@ -104,7 +105,7 @@ public:
                 b->setCheckable(true);
                 b->setChecked(name.compare(current, Qt::CaseInsensitive) == 0);
                 b->setAutoRaise(true);
-                b->setToolTip(QCoreApplication::translate("jp::CrunchWindow", "Table look %1").arg(name.mid(10)));
+                b->setToolTip(jp::plainToolTip(QCoreApplication::translate("jp::CrunchWindow", "Table look %1").arg(name.mid(10))));
                 b->setAccessibleName(QCoreApplication::translate("jp::CrunchWindow", "Table look %1").arg(name.mid(10)));
                 connect(b, &QToolButton::clicked, this, [choose, name, this] {
                     choose(name);
