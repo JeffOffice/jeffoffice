@@ -524,36 +524,36 @@ FunctionEnd
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
 !ifdef WITH_WRITE
 !ifdef WITH_CRUNCH
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} and ${DECK} are ready now, and ${WRITE} and ${CRUNCH} are previews; the others are coming soon."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready. ${WRITE} and ${CRUNCH} are previews."
 !else
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} and ${DECK} are ready now, and ${WRITE} is a preview; the others are coming soon."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready. ${WRITE} is a preview."
 !endif
 !else
 !ifdef WITH_CRUNCH
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} and ${DECK} are ready now, and ${CRUNCH} is a preview; the others are coming soon."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready. ${CRUNCH} is a preview."
 !else
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} and ${DECK} are ready now; the others are coming soon."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready now."
 !endif
 !endif
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Desktop publishing: flyers, newsletters, cards, and more. Opens .pub files."
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecDeck} "Presentations and slide shows. Opens and saves .pptx and .odp files, and opens .ppt."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Desktop publishing: flyers, newsletters, and cards. Opens .pub files."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecDeck} "Presentations and slide shows. Opens and saves .pptx and .odp."
 !ifdef WITH_WRITE
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents, letters, and reports. A preview: opens and saves .docx files. Some features are still being built."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents and reports. A preview: opens and saves .docx files."
 !else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents, letters, and reports. Coming soon: it can't be installed yet."
 !endif
 !ifdef WITH_CRUNCH
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. A preview: opens and saves .xlsx files. Some features are still being built."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. A preview: opens and saves .xlsx files."
 !else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. Coming soon: it can't be installed yet."
 !endif
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMail} "Email and calendars. Coming soon: it can't be installed yet."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecBase} "Databases. Coming soon: it can't be installed yet."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecOptions} "Shortcuts, file types, and usage statistics."
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecStats} "Sends the version, system, language, and command counts, and crash locations, once a day. Never your files. Change it in File > Options."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecStats} "Once a day: version, system, language, command counts, crashes. Never your files."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Adds shortcuts to the apps to your desktop."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecJpub} "Double-clicking a .jpub file opens it in ${APP}."
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecPub} "Double-clicking a .pub file opens it in ${APP}. Leave this off to keep your current program; ${APP} stays under Open with."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecPub} "Double-clicking a .pub file opens it in ${APP}. Off keeps your current program."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 Section "Uninstall"
