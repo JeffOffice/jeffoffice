@@ -96,17 +96,21 @@ def welcome():
         box = d.textbbox((0, 0), text, font=f)
         d.text(((W - (box[2] - box[0])) / 2 - box[0], y * SCALE), text, font=f, fill=fill)
 
-    centered("JeffOffice", font("Jost-Medium.ttf", 38), 232, (249, 250, 251))
-    centered("An office suite,", font("Lato-Regular.ttf", 20), 294, (255, 255, 255, 215))
-    centered("free and open.", font("Lato-Regular.ttf", 20), 320, (255, 255, 255, 215))
-    # The apps: JeffPub is ready; the others, dimmed, are coming.
+    # The panel is shown at half this size on a normal screen, so the type is
+    # large and bold, in pure white, to stay readable after the shrink.
+    centered("JeffOffice", font("Jost-Medium.ttf", 44), 226, (255, 255, 255))
+    centered("An office suite,", font("Lato-Bold.ttf", 25), 292, (255, 255, 255))
+    centered("free and open.", font("Lato-Bold.ttf", 25), 326, (255, 255, 255))
+    # The apps: JeffPub and JeffDeck are ready, JeffWrite and JeffCrunch are
+    # previews (a little dimmer), JeffMail and JeffBase are coming.
     size, gap = 34, 9
     x0 = (w - (len(APPS) * size + (len(APPS) - 1) * gap)) // 2
     for i, (letters, color) in enumerate(APPS):
-        im.alpha_composite(tile(size, letters, color, 255 if i == 0 else 110), ((x0 + i * (size + gap)) * SCALE, 470 * SCALE))
+        alpha = 255 if i < 2 else 190 if i < 4 else 110
+        im.alpha_composite(tile(size, letters, color, alpha), ((x0 + i * (size + gap)) * SCALE, 462 * SCALE))
     d = ImageDraw.Draw(im)
-    centered("JeffPub is ready.", font("Lato-Regular.ttf", 15), 520, (255, 255, 255, 190))
-    centered("More apps are coming.", font("Lato-Regular.ttf", 15), 541, (255, 255, 255, 190))
+    centered("2 ready, 2 previews,", font("Lato-Bold.ttf", 18), 515, (255, 255, 255))
+    centered("2 coming soon.", font("Lato-Bold.ttf", 18), 541, (255, 255, 255))
     im.convert("RGB").resize((w, h), Image.LANCZOS).save(os.path.join(OUT, "welcome.bmp"))
 
 
