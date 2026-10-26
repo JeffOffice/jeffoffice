@@ -14211,7 +14211,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Vervolg van pagina %1)</translation>
     </message>
     <message>
-        <location line="+5949"/>
+        <location line="+5950"/>
         <source>Notes</source>
         <translation type="unfinished">Notities</translation>
     </message>
@@ -16258,8 +16258,8 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is an early Preview: you can type into cells, undo, and save; formatting, copying and pasting, and more are still to come.</source>
-        <translation type="unfinished">Gratis opensourcespreadsheets voor Windows, macOS en Linux. Dit is een vroege voorbeeldversie: u kunt tekst in cellen typen, ongedaan maken en opslaan; opmaak, kopiëren en plakken en meer volgen nog.</translation>
+        <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is a Preview.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+7"/>

@@ -14211,7 +14211,7 @@ Publication assistée par ordinateur</translation>
         <translation type="unfinished">(Suite de la page %1)</translation>
     </message>
     <message>
-        <location line="+5949"/>
+        <location line="+5950"/>
         <source>Notes</source>
         <translation type="unfinished">Notes</translation>
     </message>
@@ -16258,8 +16258,8 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is an early Preview: you can type into cells, undo, and save; formatting, copying and pasting, and more are still to come.</source>
-        <translation type="unfinished">Tableur libre et open source pour Windows, macOS et Linux. Ceci est une première préversion : vous pouvez saisir du texte dans les cellules, annuler et enregistrer ; la mise en forme, le copier-coller et d&apos;autres fonctions arriveront plus tard.</translation>
+        <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is a Preview.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+7"/>

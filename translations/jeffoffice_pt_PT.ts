@@ -14211,7 +14211,7 @@ Paginação eletrónica</translation>
         <translation type="unfinished">(Continuação da página %1)</translation>
     </message>
     <message>
-        <location line="+5949"/>
+        <location line="+5950"/>
         <source>Notes</source>
         <translation type="unfinished">Notas</translation>
     </message>
@@ -16258,8 +16258,8 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is an early Preview: you can type into cells, undo, and save; formatting, copying and pasting, and more are still to come.</source>
-        <translation type="unfinished">Folhas de cálculo gratuitas e de código aberto para Windows, macOS e Linux. Esta é uma versão de pré-visualização inicial: pode escrever em células, anular e guardar; a formatação, copiar e colar e outras funcionalidades ainda estão para chegar.</translation>
+        <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is a Preview.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+7"/>

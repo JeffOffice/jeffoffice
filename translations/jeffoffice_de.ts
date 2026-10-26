@@ -14211,7 +14211,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">(Fortsetzung von Seite %1)</translation>
     </message>
     <message>
-        <location line="+5949"/>
+        <location line="+5950"/>
         <source>Notes</source>
         <translation type="unfinished">Notizen</translation>
     </message>
@@ -16258,8 +16258,8 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is an early Preview: you can type into cells, undo, and save; formatting, copying and pasting, and more are still to come.</source>
-        <translation type="unfinished">Kostenlose Open-Source-Tabellenkalkulation für Windows, macOS und Linux. Dies ist eine frühe Vorschauversion: Sie können Text in Zellen eingeben, Aktionen rückgängig machen und speichern; Formatierung, Kopieren und Einfügen und mehr folgen noch.</translation>
+        <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is a Preview.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+7"/>

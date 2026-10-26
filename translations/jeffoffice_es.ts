@@ -14211,7 +14211,7 @@ Autoedición</translation>
         <translation type="unfinished">(Viene de la página %1)</translation>
     </message>
     <message>
-        <location line="+5949"/>
+        <location line="+5950"/>
         <source>Notes</source>
         <translation type="unfinished">Notas</translation>
     </message>
@@ -16258,8 +16258,8 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is an early Preview: you can type into cells, undo, and save; formatting, copying and pasting, and more are still to come.</source>
-        <translation type="unfinished">Hojas de cálculo gratuitas y de código abierto para Windows, macOS y Linux. Esta es una versión preliminar: puede escribir en las celdas, deshacer y guardar; el formato, copiar y pegar, y más funciones llegarán más adelante.</translation>
+        <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is a Preview.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+7"/>

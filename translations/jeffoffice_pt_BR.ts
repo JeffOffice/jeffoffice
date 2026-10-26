@@ -14211,7 +14211,7 @@ Editoração eletrônica</translation>
         <translation type="unfinished">(Continuação da página %1)</translation>
     </message>
     <message>
-        <location line="+5949"/>
+        <location line="+5950"/>
         <source>Notes</source>
         <translation type="unfinished">Observações</translation>
     </message>
@@ -16258,8 +16258,8 @@ Fonte: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is an early Preview: you can type into cells, undo, and save; formatting, copying and pasting, and more are still to come.</source>
-        <translation type="unfinished">Planilhas gratuitas e de código aberto para Windows, macOS e Linux. Esta é uma versão prévia inicial: você pode digitar nas células, desfazer e salvar; formatação, copiar e colar e outros recursos ainda estão por vir.</translation>
+        <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is a Preview.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+7"/>
