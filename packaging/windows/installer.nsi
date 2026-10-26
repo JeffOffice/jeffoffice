@@ -449,14 +449,15 @@ Function ComponentsShow
   IntCmp $R9 $1 +2 +2 0
     StrCpy $R9 $1
   System::Call 'user32::SetWindowPos(p $R1, p 0, i 0, i 0, i $R6, i $R9, i 0x14)'
-  ; Under it: the description on the left, the space needed on the right.
+  ; Under it: the description on the left (with our own prompt until an item is chosen), the space needed on the right.
+  SendMessage $R2 ${WM_SETTEXT} 0 "STR:Click an item to see what it does."
   IntOp $1 $R8 / 8
   IntOp $2 $R9 + $1
   IntOp $3 $R7 - $2
-  IntOp $4 $R6 * 72
+  IntOp $4 $R6 * 63
   IntOp $4 $4 / 100
   System::Call 'user32::SetWindowPos(p $R2, p 0, i 0, i $2, i $4, i $3, i 0x14)'
-  IntOp $5 $R6 * 74
+  IntOp $5 $R6 * 66
   IntOp $5 $5 / 100
   IntOp $6 $R6 - $5
   System::Call 'user32::SetWindowPos(p $R3, p 0, i $5, i $2, i $6, i $3, i 0x14)'
