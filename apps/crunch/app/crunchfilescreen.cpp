@@ -162,7 +162,7 @@ QWidget *CrunchFileScreen::buildAbout()
     name->setFont(nf);
     iv->addWidget(name);
     iv->addWidget(mutedLabel(tr("Version %1 · Built with Qt %2").arg(QStringLiteral(JP_VERSION), QString::fromLatin1(qVersion())), id));
-    auto *tag = new QLabel(tr("Free, open-source spreadsheets for Windows, macOS, and Linux. This is an early Preview: you can type into cells, undo, and save; formatting, copying and pasting, and more are still to come."), id);
+    auto *tag = new QLabel(tr("Free, open-source spreadsheets for Windows, macOS, and Linux. This is a Preview."), id);
     tag->setWordWrap(true);
     fitHeight(tag);
     iv->addWidget(tag);

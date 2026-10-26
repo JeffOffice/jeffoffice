@@ -2,21 +2,22 @@
 
 > **JeffOffice is an independent project. It is not affiliated with, endorsed by, sponsored by, or supported by Microsoft Corporation.** See [Legal notices](#legal-notices).
 
-JeffOffice is a free, open-source office suite for **Windows, macOS, and Linux**. It has three apps today:
+JeffOffice is a free, open-source office suite for **Windows, macOS, and Linux**. It has four apps today:
 
 - **JeffPub**, for desktop publishing: flyers, newsletters, brochures, business cards, certificates, and other print pieces. It opens and saves Microsoft Publisher files.
 - **JeffDeck**, for presentations: it makes slides, plays slide shows, and opens PowerPoint files (`.pptx` and the older `.ppt`) and OpenDocument presentations (`.odp`), and saves `.pptx` and `.odp`.
 - **JeffWrite** (a preview), for documents: it opens Word files (`.docx` and the older `.doc`) and saves `.docx`, with tables, headers and footers, footnotes and endnotes, pictures and text boxes, spelling, printing, and PDF export.
+- **JeffCrunch** (a preview), for spreadsheets: it opens workbooks (`.xlsx` and `.xlsm`, the older `.xls`, OpenDocument `.ods`, and text files of values such as `.csv`) and saves `.xlsx`, with formulas, formatting, sorting and filtering, charts, and printing.
 
-More apps are on the way: JeffCrunch for spreadsheets, JeffMail for email and calendars, and JeffBase for databases. Each will come in an update once it's ready.
+More apps are on the way: JeffMail for email and calendars, and JeffBase for databases. Each will come in an update once it's ready.
 
 JeffOffice is an independent project. Its goals are compatibility and interoperability, so that it works with Office files and the people who use them, and then to do more, and to do it better.
 
-> **Status:** beta (0.9). JeffPub's and JeffDeck's features are in place and are being polished; JeffWrite is a preview, with the main features working and more still being built (see [JeffWrite](#jeffwrite)). Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases):
+> **Status:** beta (0.10). JeffPub's and JeffDeck's features are in place and are being polished; JeffWrite and JeffCrunch are previews, with the main features working and more still being built (see [JeffWrite](#jeffwrite) and [JeffCrunch](#jeffcrunch)). Downloads are on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases):
 >
-> - **Windows:** `JeffOffice-Setup.exe` installs JeffPub and JeffDeck (you can leave JeffDeck out), and JeffWrite if you tick it. No administrator rights are needed.
-> - **Mac:** `JeffOffice-<version>.dmg` holds all three apps. It isn't signed yet, so macOS asks before opening each one the first time.
-> - **Linux:** `jeffoffice_<version>_amd64.deb` installs all three apps on Debian, Ubuntu, and their relatives (`sudo apt install ./jeffoffice_<version>_amd64.deb`; it replaces an earlier `jeffpub` package). For most other distributions there's an AppImage of each app: make the file executable and run it.
+> - **Windows:** `JeffOffice-Setup.exe` installs JeffPub and JeffDeck (you can leave JeffDeck out), and JeffWrite and JeffCrunch if you tick them. No administrator rights are needed.
+> - **Mac:** `JeffOffice-<version>.dmg` holds all four apps. It isn't signed yet, so macOS asks before opening each one the first time.
+> - **Linux:** `jeffoffice_<version>_amd64.deb` installs all four apps on Debian, Ubuntu, and their relatives (`sudo apt install ./jeffoffice_<version>_amd64.deb`; it replaces an earlier `jeffpub` package). For most other distributions there's an AppImage of each app (`JeffPub-<version>-x86_64.AppImage`, `JeffDeck-<version>-x86_64.AppImage`, `JeffWrite-<version>-x86_64.AppImage`, and `JeffCrunch-<version>-x86_64.AppImage`): make the file executable and run it.
 
 ## JeffPub
 
@@ -77,6 +78,25 @@ JeffWrite writes and edits documents. It's a **preview**: it opens most document
 
 Pages drawn a little differently from the word processor's in places (most often where a line or a page breaks); editing the text of headers, footers, and notes; equations laid out as they are printed (they're shown as a line and kept); `.rtf` and `.odt` files; and the ruler. Help covers what JeffWrite does today, and [docs/jeffwrite.md](docs/jeffwrite.md) says where it stands.
 
+## JeffCrunch
+
+JeffCrunch makes and edits spreadsheets. It's a **preview**: it opens most workbooks the way they were laid out and works their formulas out, and some features are still being built.
+
+### What it does
+
+- **Sheets as they were saved**: column widths and row heights, fonts, colors, borders, merged cells, frozen panes, number formats that turn a stored number into a date, a percent, or a price, and conditional formats (color scales, data bars, and icons).
+- **Editing** with undo: typing numbers, text, and formulas, formatting cells and cell styles, cut, copy, and paste, filling cells, inserting and deleting rows, columns, and sheets, sizing, and finding and replacing.
+- **Formulas** worked out as you type, with more than 200 functions, names, and the other sheets of the workbook. A formula whose function isn't in JeffCrunch yet keeps the result the file stored.
+- **Sorting, filtering, and tables**, with a sort or filter kept in the file.
+- **Charts, pictures, and shapes**, made and changed in the sheet, and **notes and links**.
+- **Protection** of a sheet or the workbook, with or without a password.
+- **Print and export** to paper or PDF, with page setup, page breaks, headers and footers, and a preview.
+- **Workbook files.** Opens `.xlsx`, `.xlsm`, the older `.xls`, OpenDocument `.ods` and `.fods`, and text files of values (`.csv`, `.tsv`, and `.txt`, asking how their columns are read); saves `.xlsx`. A workbook opened from anything but `.xlsx` or `.xlsm` is saved as a new `.xlsx` file, and a workbook's macros are kept and never run. What JeffCrunch doesn't show or edit yet is kept and saved back as the file had it.
+
+### Not yet in the preview
+
+Making and changing conditional format rules and data validation rules (the ones a workbook has are shown and kept); making pivot tables (they're shown and kept); saving `.xls` and `.ods` files; and a few functions that JeffCrunch does not have yet. Help covers what JeffCrunch does today, and [docs/jeffcrunch.md](docs/jeffcrunch.md) says where it stands.
+
 ## Privacy
 
 JeffPub and JeffDeck each check GitHub for new versions when they start (you can turn that off in File > Options, for both); on Windows, the update installs the whole suite, and elsewhere it opens the release page. With both open, one of them tells you about a new version each day.
@@ -89,7 +109,7 @@ If usage statistics are on and JeffPub or JeffDeck crashes, it also sends a cras
 
 ## Help
 
-Help is built into each app (press F1). JeffPub's is also published to the project's [wiki](https://github.com/JeffOffice/jeffoffice/wiki). The topics are the Markdown files in [resources/help/en](resources/help/en) (JeffDeck's in its `deck` folder). Edit them there, not on the wiki: every push to `main` replaces the wiki's pages with JeffPub's. See [docs/help-wiki.md](docs/help-wiki.md).
+Help is built into each app (press F1). JeffPub's is also published to the project's [wiki](https://github.com/JeffOffice/jeffoffice/wiki). The topics are the Markdown files in [resources/help/en](resources/help/en) (JeffDeck's in its `deck` folder, JeffWrite's in `write`, and JeffCrunch's in `crunch`). Edit them there, not on the wiki: every push to `main` replaces the wiki's pages with JeffPub's. See [docs/help-wiki.md](docs/help-wiki.md).
 
 ## Languages
 

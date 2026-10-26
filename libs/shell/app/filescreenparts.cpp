@@ -210,7 +210,7 @@ QWidget *suiteCard(QWidget *parent, const QWidget *screen)
         {"JeffPub", "JP", "#9E1F63", QCoreApplication::translate("jp::FileScreen", "Publications"), Out},
         {"JeffDeck", "JD", "#B6420F", QCoreApplication::translate("jp::FileScreen", "Presentations"), Out},
         {"JeffWrite", "JW", "#1D55C4", QCoreApplication::translate("jp::FileScreen", "Documents"), Preview},
-        {"JeffCrunch", "JC", "#13773A", QCoreApplication::translate("jp::FileScreen", "Spreadsheets"), Soon},
+        {"JeffCrunch", "JC", "#13773A", QCoreApplication::translate("jp::FileScreen", "Spreadsheets"), Preview},
         {"JeffMail", "JM", "#0A6C8C", QCoreApplication::translate("jp::FileScreen", "Email and calendar"), Soon},
         {"JeffBase", "JB", "#5E2CA5", QCoreApplication::translate("jp::FileScreen", "Databases"), Soon},
     };
