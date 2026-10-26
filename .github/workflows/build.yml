@@ -11,9 +11,10 @@ on:
 jobs:
   build:
     env:
-      # JeffWrite is built and tested on every run. It goes into the installer, the Linux packages, and the Mac disk image only when this is
-      # "true": the owner decides when it ships.
+      # JeffWrite and JeffCrunch are built and tested on every run. Each goes into the installer, the Linux packages, and the Mac disk image only
+      # when its switch is "true": the owner decides when it ships.
       SHIP_WRITE: 'true'
+      SHIP_CRUNCH: 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -267,6 +268,8 @@ jobs:
           Copy-Item build/JeffPub.exe, build/JeffDeck.exe dist/JeffOffice/
           # JeffWrite needs the same Qt as JeffPub; it is packaged only when the switch at the top says so.
           if ($env:SHIP_WRITE -eq 'true') { Copy-Item build/JeffWrite.exe dist/JeffOffice/ }
+          # JeffCrunch needs the same Qt too.
+          if ($env:SHIP_CRUNCH -eq 'true') { Copy-Item build/JeffCrunch.exe dist/JeffOffice/ }
           # Also copies the GCC runtime DLLs beside the programs.
           windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/JeffOffice/JeffPub.exe
           windeployqt --release --no-translations --no-system-d3d-compiler --no-opengl-sw dist/JeffOffice/JeffDeck.exe
@@ -295,7 +298,10 @@ jobs:
         shell: pwsh
         run: |
           $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(JeffPub VERSION ([0-9.]+)').Matches[0].Groups[1].Value
-          if ($env:SHIP_WRITE -eq 'true') { makensis /DVERSION=$ver /DWITH_WRITE packaging/windows/installer.nsi } else { makensis /DVERSION=$ver packaging/windows/installer.nsi }
+          $defs = @("/DVERSION=$ver")
+          if ($env:SHIP_WRITE -eq 'true') { $defs += '/DWITH_WRITE' }
+          if ($env:SHIP_CRUNCH -eq 'true') { $defs += '/DWITH_CRUNCH' }
+          makensis @defs packaging/windows/installer.nsi
           New-Item -ItemType Directory -Force installer | Out-Null
           Move-Item packaging/windows/JeffOffice-Setup.exe installer/
 
@@ -327,6 +333,7 @@ jobs:
           mkdir -p dist/JeffOffice
           cp build/JeffPub build/JeffDeck LICENSE README.md dist/JeffOffice/
           if [ "$SHIP_WRITE" = true ]; then cp build/JeffWrite dist/JeffOffice/; fi
+          if [ "$SHIP_CRUNCH" = true ]; then cp build/JeffCrunch dist/JeffOffice/; fi
           cp -r resources/fonts resources/dict dist/JeffOffice/
 
       - name: Linux packages (.deb and AppImage)
@@ -347,6 +354,10 @@ jobs:
           if [ "$SHIP_WRITE" = true ]; then
             env -u LD_LIBRARY_PATH QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 deb-check/opt/jeffoffice/bin/JeffWrite --screenshot deb-check/write.png --size 800x600
             test -s deb-check/write.png
+          fi
+          if [ "$SHIP_CRUNCH" = true ]; then
+            env -u LD_LIBRARY_PATH QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 deb-check/opt/jeffoffice/bin/JeffCrunch --screenshot deb-check/crunch.png --size 800x600
+            test -s deb-check/crunch.png
           fi
           # PDFium is in the package, with the license texts.
           test -f deb-check/opt/jeffoffice/lib/libpdfium.so
@@ -373,6 +384,7 @@ jobs:
           mkdir -p dist macos-dmg
           apps="JeffPub JeffDeck"
           if [ "$SHIP_WRITE" = true ]; then apps="$apps JeffWrite"; fi
+          if [ "$SHIP_CRUNCH" = true ]; then apps="$apps JeffCrunch"; fi
           for app in $apps; do
             cp -R build/$app.app dist/
             "$QT_ROOT_DIR/bin/macdeployqt" dist/$app.app
@@ -407,6 +419,10 @@ jobs:
           if [ "$SHIP_WRITE" = true ]; then
             QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 dist/JeffWrite.app/Contents/MacOS/JeffWrite --screenshot dist/write.png --size 800x600
             test -s dist/write.png && rm dist/write.png
+          fi
+          if [ "$SHIP_CRUNCH" = true ]; then
+            QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 dist/JeffCrunch.app/Contents/MacOS/JeffCrunch --screenshot dist/crunch.png --size 800x600
+            test -s dist/crunch.png && rm dist/crunch.png
           fi
           mkdir dmg-root && cp -R dist/*.app LICENSE README.md dmg-root/ && ln -s /Applications dmg-root/Applications
           # hdiutil now and then fails with "Resource busy" on the hosted

@@ -1,10 +1,10 @@
 ; JeffOffice Windows installer (NSIS). Built by CI from dist\JeffOffice.
 ; Installs the suite's apps that are ready (JeffPub and JeffDeck, and
-; JeffWrite as a preview) into one folder, per user: no administrator rights needed. The
+; JeffWrite and JeffCrunch as previews) into one folder, per user: no administrator rights needed. The
 ; apps still being built are listed as coming soon and can't be chosen yet.
-; JeffWrite was one of those until the owner decided it ships: building with
-; /DWITH_WRITE (the workflow does, when its SHIP_WRITE is "true") makes it a
-; preview that is not ticked by default.
+; JeffWrite and JeffCrunch were among those until the owner decided each ships: building with
+; /DWITH_WRITE or /DWITH_CRUNCH (the workflow does, when its SHIP_WRITE or SHIP_CRUNCH is "true") makes
+; it a preview that is not ticked by default (it is ticked when it is already installed).
 Unicode true
 ManifestDPIAware true
 !include "MUI2.nsh"
@@ -28,6 +28,14 @@ ManifestDPIAware true
 !else
   !define NOTWRITE ""
 !endif
+!ifdef WITH_CRUNCH
+  !define CRUNCH "JeffCrunch"
+  !define CRUNCHEXE "JeffCrunch.exe"
+  ; The folder dist\JeffOffice then holds JeffCrunch.exe, which only its own section installs.
+  !define NOTCRUNCH '/x "${CRUNCHEXE}"'
+!else
+  !define NOTCRUNCH ""
+!endif
 !define UNKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\JeffOffice"
 ; Through 0.6.10, setup installed JeffPub on its own; this setup moves it in.
 !define PUBKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\JeffPub"
@@ -40,6 +48,9 @@ ManifestDPIAware true
 !define DECKSETKEY "Software\JeffOffice\JeffDeck"
 !ifdef WITH_WRITE
   !define WRITESETKEY "Software\JeffOffice\JeffWrite"
+!endif
+!ifdef WITH_CRUNCH
+  !define CRUNCHSETKEY "Software\JeffOffice\JeffCrunch"
 !endif
 ; Taskbar pins are shortcuts kept here.
 !define PINS "$APPDATA\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"
@@ -70,10 +81,20 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 !define MUI_HEADERIMAGE_BITMAP "header.bmp"
 !define MUI_HEADERIMAGE_UNBITMAP "header.bmp"
 !define MUI_WELCOMEPAGE_TITLE "Welcome to ${SUITE}"
+!define WEL_START "This will install ${SUITE} ${VERSION}, a free, open-source office suite.$\r$\n$\r$\n${APP}, for desktop publishing, and ${DECK}, for presentations, are ready now"
+!define WEL_END " If ${APP} is already installed, setup moves it into ${SUITE}, with your settings.$\r$\n$\r$\n${SUITE} is an independent open-source project.$\r$\n$\r$\nNo administrator rights are needed."
 !ifdef WITH_WRITE
-!define MUI_WELCOMEPAGE_TEXT "This will install ${SUITE} ${VERSION}, a free, open-source office suite.$\r$\n$\r$\n${APP}, for desktop publishing, and ${DECK}, for presentations, are ready now, and ${WRITE}, for documents, comes as a preview. JeffCrunch, JeffMail, and JeffBase are coming soon. If ${APP} is already installed, setup moves it into ${SUITE}, with your settings.$\r$\n$\r$\n${SUITE} is an independent open-source project.$\r$\n$\r$\nNo administrator rights are needed."
+!ifdef WITH_CRUNCH
+!define MUI_WELCOMEPAGE_TEXT "${WEL_START}, and ${WRITE}, for documents, and ${CRUNCH}, for spreadsheets, come as previews. JeffMail and JeffBase are coming soon.${WEL_END}"
 !else
-!define MUI_WELCOMEPAGE_TEXT "This will install ${SUITE} ${VERSION}, a free, open-source office suite.$\r$\n$\r$\n${APP}, for desktop publishing, and ${DECK}, for presentations, are ready now. JeffWrite, JeffCrunch, JeffMail, and JeffBase are coming soon. If ${APP} is already installed, setup moves it into ${SUITE}, with your settings.$\r$\n$\r$\n${SUITE} is an independent open-source project.$\r$\n$\r$\nNo administrator rights are needed."
+!define MUI_WELCOMEPAGE_TEXT "${WEL_START}, and ${WRITE}, for documents, comes as a preview. JeffCrunch, JeffMail, and JeffBase are coming soon.${WEL_END}"
+!endif
+!else
+!ifdef WITH_CRUNCH
+!define MUI_WELCOMEPAGE_TEXT "${WEL_START}, and ${CRUNCH}, for spreadsheets, comes as a preview. JeffWrite, JeffMail, and JeffBase are coming soon.${WEL_END}"
+!else
+!define MUI_WELCOMEPAGE_TEXT "${WEL_START}. JeffWrite, JeffCrunch, JeffMail, and JeffBase are coming soon.${WEL_END}"
+!endif
 !endif
 !insertmacro MUI_PAGE_WELCOME
 ; The GNU GPL v3.0: Next stays disabled until the box is checked.
@@ -124,6 +145,13 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
       StrCpy $R9 1
   no_write_mutex:
 !endif
+!ifdef WITH_CRUNCH
+    System::Call 'kernel32::OpenMutexW(i 0x00100000, i 0, w "JeffCrunchRunning") p .r1'
+    IntCmp $1 0 no_crunch_mutex
+      System::Call 'kernel32::CloseHandle(p r1)'
+      StrCpy $R9 1
+  no_crunch_mutex:
+!endif
     ; A virus scanner can hold the program for a moment after it closes,
     ; so a locked file is checked again for up to 5 seconds (unless a mutex
     ; already said it's running).
@@ -157,9 +185,17 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
   decide:
     IntCmp $R9 0 not_running
 !ifdef WITH_WRITE
+!ifdef WITH_CRUNCH
+      MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "${APP}, ${DECK}, ${WRITE}, or ${CRUNCH} is running.$\r$\n$\r$\nSave your work and close it, then click OK to continue. Click Cancel to stop." IDOK check_running
+!else
       MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "${APP}, ${DECK}, or ${WRITE} is running.$\r$\n$\r$\nSave your work and close it, then click OK to continue. Click Cancel to stop." IDOK check_running
+!endif
+!else
+!ifdef WITH_CRUNCH
+      MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "${APP}, ${DECK}, or ${CRUNCH} is running.$\r$\n$\r$\nSave your work and close it, then click OK to continue. Click Cancel to stop." IDOK check_running
 !else
       MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "${APP} or ${DECK} is running.$\r$\n$\r$\nSave your work and close it, then click OK to continue. Click Cancel to stop." IDOK check_running
+!endif
 !endif
       Abort
   not_running:
@@ -186,10 +222,22 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 !macroend
 !endif
 
+!ifdef WITH_CRUNCH
+; A workbook type lists JeffCrunch under "Open with", never as its default; uninstalling takes both away again.
+!macro CrunchOpensWith ext
+  WriteRegStr HKCU "Software\Classes\${ext}\OpenWithProgids" "JeffCrunch.Workbook" ""
+  WriteRegStr HKCU "Software\Classes\Applications\${CRUNCHEXE}\SupportedTypes" "${ext}" ""
+!macroend
+!macro un.CrunchOpensWith ext
+  DeleteRegValue HKCU "Software\Classes\${ext}\OpenWithProgids" "JeffCrunch.Workbook"
+!macroend
+!endif
+
 Function .onInit
   !insertmacro WaitForAppToClose
   Call ComingSoon
   Call PresetWrite
+  Call PresetCrunch
   Call PresetStats
 FunctionEnd
 
@@ -204,7 +252,7 @@ Section "${APP}: publications" SecMain
   Call MoveFromJeffPub
   Call RemoveJeffPub79
   SetOutPath "$INSTDIR"
-  File /r /x "${DECKEXE}" ${NOTWRITE} "..\..\dist\JeffOffice\*.*"
+  File /r /x "${DECKEXE}" ${NOTWRITE} ${NOTCRUNCH} "..\..\dist\JeffOffice\*.*"
   File "jeffoffice.ico"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   CreateShortcut "$SMPROGRAMS\${APP}.lnk" "$INSTDIR\${EXE}"
@@ -293,8 +341,29 @@ SectionEnd
 Section /o "JeffWrite: documents (coming soon)" SecWrite
 SectionEnd
 !endif
+!ifdef WITH_CRUNCH
+; A preview, not ticked until the person ticks it.
+Section /o "${CRUNCH}: spreadsheets (preview)" SecCrunch
+  SetOutPath "$INSTDIR"
+  File "..\..\dist\JeffOffice\${CRUNCHEXE}"
+  CreateShortcut "$SMPROGRAMS\${CRUNCH}.lnk" "$INSTDIR\${CRUNCHEXE}"
+  IfFileExists "${PINS}\${CRUNCH}.lnk" 0 +2
+    CreateShortcut "${PINS}\${CRUNCH}.lnk" "$INSTDIR\${CRUNCHEXE}"
+  ; Workbooks list JeffCrunch under "Open with" without it becoming their default.
+  WriteRegStr HKCU "Software\Classes\JeffCrunch.Workbook" "" "Workbook"
+  WriteRegStr HKCU "Software\Classes\JeffCrunch.Workbook\DefaultIcon" "" "$INSTDIR\${CRUNCHEXE},0"
+  WriteRegStr HKCU "Software\Classes\JeffCrunch.Workbook\shell\open\command" "" '"$INSTDIR\${CRUNCHEXE}" "%1"'
+  !insertmacro CrunchOpensWith ".xlsx"
+  !insertmacro CrunchOpensWith ".xlsm"
+  !insertmacro CrunchOpensWith ".xls"
+  !insertmacro CrunchOpensWith ".ods"
+  !insertmacro CrunchOpensWith ".csv"
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
+SectionEnd
+!else
 Section /o "JeffCrunch: spreadsheets (coming soon)" SecCrunch
 SectionEnd
+!endif
 Section /o "JeffMail: email and calendar (coming soon)" SecMail
 SectionEnd
 Section /o "JeffBase: databases (coming soon)" SecBase
@@ -312,6 +381,11 @@ Section "Desktop shortcuts" SecDesktop
 !ifdef WITH_WRITE
   ${If} ${SectionIsSelected} ${SecWrite}
     CreateShortcut "$DESKTOP\${WRITE}.lnk" "$INSTDIR\${WRITEEXE}"
+  ${EndIf}
+!endif
+!ifdef WITH_CRUNCH
+  ${If} ${SectionIsSelected} ${SecCrunch}
+    CreateShortcut "$DESKTOP\${CRUNCH}.lnk" "$INSTDIR\${CRUNCHEXE}"
   ${EndIf}
 !endif
 SectionEnd
@@ -342,7 +416,9 @@ Function ComingSoon
 !ifndef WITH_WRITE
   SectionSetFlags ${SecWrite} ${SF_RO}
 !endif
+!ifndef WITH_CRUNCH
   SectionSetFlags ${SecCrunch} ${SF_RO}
+!endif
   SectionSetFlags ${SecMail} ${SF_RO}
   SectionSetFlags ${SecBase} ${SF_RO}
 FunctionEnd
@@ -353,6 +429,14 @@ Function PresetWrite
 !ifdef WITH_WRITE
   IfFileExists "$INSTDIR\${WRITEEXE}" 0 +2
     SectionSetFlags ${SecWrite} ${SF_SELECTED}
+!endif
+FunctionEnd
+
+; The same for JeffCrunch.
+Function PresetCrunch
+!ifdef WITH_CRUNCH
+  IfFileExists "$INSTDIR\${CRUNCHEXE}" 0 +2
+    SectionSetFlags ${SecCrunch} ${SF_SELECTED}
 !endif
 FunctionEnd
 
@@ -437,9 +521,17 @@ FunctionEnd
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
 !ifdef WITH_WRITE
+!ifdef WITH_CRUNCH
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} and ${DECK} are ready now, and ${WRITE} and ${CRUNCH} are previews; the others are coming soon."
+!else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} and ${DECK} are ready now, and ${WRITE} is a preview; the others are coming soon."
+!endif
+!else
+!ifdef WITH_CRUNCH
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} and ${DECK} are ready now, and ${CRUNCH} is a preview; the others are coming soon."
 !else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} and ${DECK} are ready now; the others are coming soon."
+!endif
 !endif
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Desktop publishing: flyers, newsletters, cards, and more. Opens .pub files. Comes with its fonts and spelling dictionaries."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDeck} "Presentations and slide shows: it opens .pptx, .ppt, and .odp files, plays slide shows with their transitions and animations, and saves .pptx and .odp files."
@@ -448,7 +540,11 @@ FunctionEnd
 !else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents, letters, and reports. Coming soon: it can't be installed yet."
 !endif
+!ifdef WITH_CRUNCH
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. A preview: it opens and saves .xlsx workbooks, opens .xls, .ods, and .csv files, works out formulas, and keeps what it can't show yet. Some features are still being built."
+!else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. Coming soon: it can't be installed yet."
+!endif
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMail} "Email and calendars. Coming soon: it can't be installed yet."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecBase} "Databases. Coming soon: it can't be installed yet."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecOptions} "Shortcuts, file types, and usage statistics."
@@ -475,6 +571,18 @@ Section "Uninstall"
   DeleteRegKey HKCU "Software\Classes\JeffWrite.Document"
   DeleteRegKey HKCU "Software\Classes\Applications\${WRITEEXE}"
   DeleteRegKey HKCU "${WRITESETKEY}"
+!endif
+!ifdef WITH_CRUNCH
+  Delete "$SMPROGRAMS\${CRUNCH}.lnk"
+  Delete "$DESKTOP\${CRUNCH}.lnk"
+  !insertmacro un.CrunchOpensWith ".xlsx"
+  !insertmacro un.CrunchOpensWith ".xlsm"
+  !insertmacro un.CrunchOpensWith ".xls"
+  !insertmacro un.CrunchOpensWith ".ods"
+  !insertmacro un.CrunchOpensWith ".csv"
+  DeleteRegKey HKCU "Software\Classes\JeffCrunch.Workbook"
+  DeleteRegKey HKCU "Software\Classes\Applications\${CRUNCHEXE}"
+  DeleteRegKey HKCU "${CRUNCHSETKEY}"
 !endif
   !insertmacro un.DeckOpensWith ".pptx"
   !insertmacro un.DeckOpensWith ".potx"
