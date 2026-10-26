@@ -126,11 +126,11 @@ class Api:
             output["format"] = {"type": "json_schema", "schema": schema}
         import anthropic
         try:
-            return self._ask(system, user, output, max_tokens)
+            return self._ask(system, user, output, max_tokens, schema)
         except (anthropic.AuthenticationError, anthropic.PermissionDeniedError) as e:
             raise KeyRefused(str(e))
 
-    def _ask(self, system, user, output, max_tokens):
+    def _ask(self, system, user, output, max_tokens, schema):
         # Streamed: a long Help topic can take longer than a plain request may.
         with self.client.beta.messages.stream(
             model=MODEL,
@@ -775,7 +775,7 @@ def main():
     if args.report:
         with open(args.report, "w", encoding="utf-8") as f:
             f.write("# Translation run\n\n" + (f"{total}\n\n" if total else "") + "\n".join(r.markdown() for r in reports))
-    return 1 if any(r.problems for r in reports) else 0
+    return 3 if any(r.problems for r in reports) else 0   # (3: some text was left; 1 is what a crash exits with)
 
 
 if __name__ == "__main__":
