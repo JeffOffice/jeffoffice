@@ -258,7 +258,8 @@ PaperBox paperBox(const PageSetup &setup)
 
 namespace {
 
-// Whether a cell format shows anything by itself: a fill, or a border.
+// Whether a cell format shows anything by itself: a fill (any pattern, white or not), or a border on any side (the original counts these and nothing else of a format: not a number format, an
+// alignment, a font, a color of text, wrapping, protection, nor a note, a rule of conditional formatting, a validation, nor the width or height of its column or row).
 bool formatShows(const Styles &styles, quint32 xf)
 {
     const jp::office::sheet::CellFormat &f = styles.format(xf);
@@ -298,12 +299,14 @@ public:
             m_phase = 1;
         }
         if (m_phase == 1) {
-            // a merged range with its first cell in the block reaches to its last
-            while (any && m_at < size_t(m_q.sheet->merges.size())) {
+            // a merged range of more than one cell counts, where it is and whether or not its first cell has anything (measured against the original: a merge of empty cells far out is printed to its last cell,
+            // a merge of one cell is not)
+            while (m_at < size_t(m_q.sheet->merges.size())) {
                 if (work.spent()) return false;
                 const CellRange &m = m_q.sheet->merges[qsizetype(m_at++)];
                 work.add();
-                if (m.valid && m.row1 <= lastRow && m.col1 <= lastCol && m_q.sheet->cells.find(m.row1, m.col1)) {
+                if (m.valid && (m.row2 > m.row1 || m.col2 > m.col1)) {
+                    any = true;
                     lastRow = std::max(lastRow, m.row2);
                     lastCol = std::max(lastCol, m.col2);
                 }
