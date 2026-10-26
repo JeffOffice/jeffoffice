@@ -110,6 +110,10 @@ class Unusable(Exception):
     """A response that can't be used as it is (refused, cut short)."""
 
 
+class KeyRefused(BaseException):
+    """The service refused the key: nothing in this run can be translated, so the run stops and says so (it is not caught with the other failures)."""
+
+
 class Api:
     def __init__(self, effort):
         import anthropic
@@ -120,6 +124,13 @@ class Api:
         output = {"effort": self.effort}
         if schema:
             output["format"] = {"type": "json_schema", "schema": schema}
+        import anthropic
+        try:
+            return self._ask(system, user, output, max_tokens)
+        except (anthropic.AuthenticationError, anthropic.PermissionDeniedError) as e:
+            raise KeyRefused(str(e))
+
+    def _ask(self, system, user, output, max_tokens):
         # Streamed: a long Help topic can take longer than a plain request may.
         with self.client.beta.messages.stream(
             model=MODEL,
@@ -765,4 +776,8 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyRefused as e:
+        print(f"The translation service refused the key (ANTHROPIC_API_KEY): {e}", file=sys.stderr)
+        sys.exit(2)
