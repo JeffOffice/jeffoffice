@@ -20,6 +20,122 @@
 "en": "c65c1b6425be5e10",
 "out": "ef1885dd5d58d615"
 },
+"crunch/cell-styles": {
+"en": "e4ad540def0cf9ca",
+"out": "eeeb04413dc4cfd9"
+},
+"crunch/charts": {
+"en": "58be9e66dd3274a1",
+"out": "fb30a140cd618569"
+},
+"crunch/clipboard": {
+"en": "7cc72221295b517e",
+"out": "6b4cdb36ec212e14"
+},
+"crunch/conditional-formats": {
+"en": "b6b4711ca4a31245",
+"out": "9f9ab35ea30daa03"
+},
+"crunch/edit-cells": {
+"en": "cbc51a16c4375429",
+"out": "90131d774cab81be"
+},
+"crunch/fill-sum": {
+"en": "c6786deb383b2f29",
+"out": "9ba9edeb03da33bb"
+},
+"crunch/find-replace": {
+"en": "1ceeab9efe3777c4",
+"out": "baa3ed8cffb74e48"
+},
+"crunch/format-cells": {
+"en": "a13e87d94d35c623",
+"out": "2faed162e4dbf7a2"
+},
+"crunch/formulas": {
+"en": "6fcd4f06c12288e4",
+"out": "074e65cdf4ff77b2"
+},
+"crunch/index": {
+"en": "f3acd40271210e77",
+"out": "7374025d634575a0"
+},
+"crunch/insert-delete": {
+"en": "4845dc42cad48dce",
+"out": "67a84f22907adf1b"
+},
+"crunch/insert-function": {
+"en": "db9c835cde35ef2f",
+"out": "f222c3f7513a3397"
+},
+"crunch/keyboard": {
+"en": "245feb57b79f61ae",
+"out": "09697ed1a41bc2e6"
+},
+"crunch/names": {
+"en": "9d0219932422d9e6",
+"out": "990019635b4a85b2"
+},
+"crunch/notes-links": {
+"en": "e120bec6e44a8764",
+"out": "b79a946d015caecb"
+},
+"crunch/number-formats": {
+"en": "9b003e93322b0cf2",
+"out": "33e4d74c45fcc963"
+},
+"crunch/open-save": {
+"en": "d7b083f9555ac7c7",
+"out": "f5c54793f497a552"
+},
+"crunch/page-layout": {
+"en": "561d04720f4e58db",
+"out": "dcb3929f4e7de2d9"
+},
+"crunch/page-setup": {
+"en": "979e0b5f27f22ecb",
+"out": "bf1cac47753c60af"
+},
+"crunch/printing": {
+"en": "709358c9d6e3ce1f",
+"out": "8728d4de95cbd811"
+},
+"crunch/protect": {
+"en": "968802ff5d268ae8",
+"out": "31f1fe15cdb70dee"
+},
+"crunch/rules": {
+"en": "c4ee519d0ba36b35",
+"out": "22b08f8e2f665461"
+},
+"crunch/select-and-move": {
+"en": "dbd6add2df05d577",
+"out": "575cb1e0020de2f2"
+},
+"crunch/sheets": {
+"en": "85b039f884ee7d7b",
+"out": "04782ebb9d844b7b"
+},
+"crunch/sizes": {
+"en": "f761bcf7a597da3f",
+"out": "f139f62da596f662"
+},
+"crunch/sort-filter": {
+"en": "e2b45ecc294e83dc",
+"out": "0050ea046e3cdcb6"
+},
+"crunch/start": {
+"en": "4a6ae1d5bc8a8e49",
+"out": "aaec680f83012e07"
+},
+"crunch/tables": {
+"en": "fe1e03fdc0a47232",
+"out": "7e3d38e464bfadea"
+},
+"crunch/view": {
+"en": "b9b7de3a3b86de48",
+"out": "aa20aca32c3d8330"
+},
 "deck/animations": {
 "en": "0569edfa122f945e",
 "out": "72178599f8d0ee05"
@@ -327,6 +443,46 @@
 "wrap": {
 "en": "e2260ea2c023d763",
 "out": "8ea59a8f8a74ec73"
+},
+"write/find-replace": {
+"en": "cb0cab3f94ea667c",
+"out": "5bebeb44c6afe771"
+},
+"write/font": {
+"en": "5527814fdcc569a7",
+"out": "5c4f5dd1eec1aef2"
+},
+"write/footnotes-endnotes": {
+"en": "3906d435f5683419",
+"out": "c04ef2b61fb17708"
+},
+"write/headers-footers": {
+"en": "91c99499cb53fdd3",
+"out": "8fc443e4f45c1ccd"
+},
+"write/index": {
+"en": "074661531a81bffb",
+"out": "6a9a6b092bf4d15f"
+},
+"write/keyboard": {
+"en": "62882ed7b9faf46c",
+"out": "6486ca5832cbb675"
+},
+"write/open-save": {
+"en": "b3bba8581533a99d",
+"out": "5f0dda64ef6b31cb"
+},
+"write/print": {
+"en": "725135b4d6df13f3",
+"out": "518c1824ff033d06"
+},
+"write/spelling": {
+"en": "d9606ed40825cb6f",
+"out": "42edf337806ccd48"
+},
+"write/start": {
+"en": "3866ebab10534fa2",
+"out": "336ead64b4a61fe6"
 }
 },
 "ui": {
@@ -4689,6 +4845,7 @@
 "9b298352da4cecc2": "8d8593b2d7bab5ec",
 "9b35332f292fe218": "6283dbae47a03072",
 "9b36f4f0b00720b4": "64e1910953078306",
+"9b370dc09448e377": "83a63c3e1c442f0b",
 "9b4923466b686c8f": "fbb5bc7a164e6bd6",
 "9b6ac4f4d5ac79dc": "d284d402d7898714",
 "9b6b5c8e3c7b1474": "25ed06fda140ec63",

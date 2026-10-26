@@ -16259,7 +16259,7 @@ Origine: %3</translation>
     <message>
         <location line="+1"/>
         <source>Free, open-source spreadsheets for Windows, macOS, and Linux. This is a Preview.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fogli di calcolo gratuiti e open source per Windows, macOS e Linux. Questa è un&apos;anteprima.</translation>
     </message>
     <message>
         <location line="+7"/>
