@@ -103,9 +103,10 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 !define MUI_LICENSEPAGE_CHECKBOX
 !define MUI_LICENSEPAGE_CHECKBOX_TEXT "I accept the terms of the GNU General Public License v3.0"
 !insertmacro MUI_PAGE_LICENSE "..\..\LICENSE"
-; The description goes under the list, so the list is as wide as the page and every name reads in full.
+; The description goes under the list, so the list is as wide as the page (ComponentsShow lays the rest out).
 !define MUI_COMPONENTSPAGE_SMALLDESC
 !define MUI_COMPONENTSPAGE_TEXT_TOP "Choose what to install. Apps marked coming soon come in an update."
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW ComponentsShow
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
@@ -412,6 +413,55 @@ SectionEnd
 
 SectionGroupEnd
 
+; Lays the components page out so every option shows at once, with no scrolling: the list spans the
+; page and is as tall as its 12 rows, the description and the space needed sit under it, and the
+; top text and the list's label (the header says the same) are hidden. Sizes come from the page's
+; own client area and the list's row height, so it holds at any display scale.
+; Control ids: 1006 top text, 1021 and 1022 labels, 1023 space required, 1032 list,
+; 1042 description frame, 1043 description text.
+Function ComponentsShow
+  FindWindow $R0 "#32770" "" $HWNDPARENT
+  GetDlgItem $R1 $R0 1032
+  GetDlgItem $R2 $R0 1043
+  GetDlgItem $R3 $R0 1023
+  GetDlgItem $0 $R0 1006
+  ShowWindow $0 ${SW_HIDE}
+  GetDlgItem $0 $R0 1021
+  ShowWindow $0 ${SW_HIDE}
+  GetDlgItem $0 $R0 1022
+  ShowWindow $0 ${SW_HIDE}
+  GetDlgItem $0 $R0 1042
+  ShowWindow $0 ${SW_HIDE}
+  ; The page's width ($R6) and height ($R7).
+  System::Call '*(i 0, i 0, i 0, i 0) p .R5'
+  System::Call 'user32::GetClientRect(p $R0, p $R5)'
+  System::Call '*$R5(i, i, i .R6, i .R7)'
+  System::Free $R5
+  ; The list: 12 rows of its row height, plus its border; never so tall that under two lines of text is left below.
+  SendMessage $R1 0x111C 0 0 $R8
+  IntOp $R9 $R8 * 12
+  System::Call 'user32::GetSystemMetrics(i 46) i .r0'
+  IntOp $0 $0 * 2
+  IntOp $R9 $R9 + $0
+  IntOp $1 $R8 * 17
+  IntOp $1 $1 / 10
+  IntOp $1 $R7 - $1
+  IntCmp $R9 $1 +2 +2 0
+    StrCpy $R9 $1
+  System::Call 'user32::SetWindowPos(p $R1, p 0, i 0, i 0, i $R6, i $R9, i 0x14)'
+  ; Under it: the description on the left, the space needed on the right.
+  IntOp $1 $R8 / 8
+  IntOp $2 $R9 + $1
+  IntOp $3 $R7 - $2
+  IntOp $4 $R6 * 72
+  IntOp $4 $4 / 100
+  System::Call 'user32::SetWindowPos(p $R2, p 0, i 0, i $2, i $4, i $3, i 0x14)'
+  IntOp $5 $R6 * 74
+  IntOp $5 $5 / 100
+  IntOp $6 $R6 - $5
+  System::Call 'user32::SetWindowPos(p $R3, p 0, i $5, i $2, i $6, i $3, i 0x14)'
+FunctionEnd
+
 ; The apps not ready yet are listed, unticked, and can't be ticked.
 ; (After the sections: their ids are defined there.)
 Function ComingSoon
@@ -524,36 +574,36 @@ FunctionEnd
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
 !ifdef WITH_WRITE
 !ifdef WITH_CRUNCH
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} and ${DECK} are ready now, and ${WRITE} and ${CRUNCH} are previews; the others are coming soon."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready. ${WRITE} and ${CRUNCH} are previews."
 !else
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} and ${DECK} are ready now, and ${WRITE} is a preview; the others are coming soon."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready. ${WRITE} is a preview."
 !endif
 !else
 !ifdef WITH_CRUNCH
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} and ${DECK} are ready now, and ${CRUNCH} is a preview; the others are coming soon."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready. ${CRUNCH} is a preview."
 !else
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "The ${SUITE} apps. ${APP} and ${DECK} are ready now; the others are coming soon."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApps} "${APP} and ${DECK} are ready now."
 !endif
 !endif
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Desktop publishing: flyers, newsletters, cards, and more. Opens .pub files."
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecDeck} "Presentations and slide shows. Opens and saves .pptx and .odp files, and opens .ppt."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Desktop publishing: flyers, newsletters, and cards. Opens .pub files."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecDeck} "Presentations and slide shows. Opens and saves .pptx and .odp."
 !ifdef WITH_WRITE
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents, letters, and reports. A preview: opens and saves .docx files. Some features are still being built."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents and reports. A preview: opens and saves .docx files."
 !else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecWrite} "Documents, letters, and reports. Coming soon: it can't be installed yet."
 !endif
 !ifdef WITH_CRUNCH
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. A preview: opens and saves .xlsx files. Some features are still being built."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. A preview: opens and saves .xlsx files."
 !else
   !insertmacro MUI_DESCRIPTION_TEXT ${SecCrunch} "Spreadsheets and charts. Coming soon: it can't be installed yet."
 !endif
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMail} "Email and calendars. Coming soon: it can't be installed yet."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecBase} "Databases. Coming soon: it can't be installed yet."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecOptions} "Shortcuts, file types, and usage statistics."
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecStats} "Sends the version, system, language, and command counts, and crash locations, once a day. Never your files. Change it in File > Options."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecStats} "Once a day: version, system, language, command counts, crashes. Never your files."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Adds shortcuts to the apps to your desktop."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecJpub} "Double-clicking a .jpub file opens it in ${APP}."
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecPub} "Double-clicking a .pub file opens it in ${APP}. Leave this off to keep your current program; ${APP} stays under Open with."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecPub} "Double-clicking a .pub file opens it in ${APP}. Off keeps your current program."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 Section "Uninstall"
