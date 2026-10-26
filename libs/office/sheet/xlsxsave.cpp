@@ -1311,6 +1311,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 for (const QString &n : package.partNames()) taken.insert(n.toLower());
                 for (const SheetEntry &e : book.info().sheets)
                     if (!e.part.isEmpty()) taken.insert(e.part.toLower());   // (the parts the sheets that were added are to have)
+                // (and those the pictures of headers and footers are to have: a drawing of notes and one of pictures made in the same save are two parts, whatever their kinds)
+                for (const HeaderWrite &h : headerWrites) {
+                    if (!h.vmlPart.isEmpty()) taken.insert(h.vmlPart.toLower());
+                    for (const QString &image : h.imageParts) taken.insert(image.toLower());
+                }
                 takenFilled = true;
             }
             if (!sc.noteOps.empty()) {
@@ -1652,6 +1657,15 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     // ---- the objects a person put on sheets: their anchors at the end of the drawing, the parts they relate to, and the links and types that name them
     std::vector<std::pair<QString, QByteArray>> newEntries;   // parts the file did not have (the name without its first slash)
     std::map<int, QByteArray> newSheetRels;                   // for a sheet that was added: the relationship to its new drawing (its relationships part is made with it)
+    // The relationships part a block made for a sheet of the file that had none (the name without its first slash), if one did: what the next block that adds a relationship to the sheet starts from, and
+    // changes in place (two entries of one name would be two parts of one name in the file).
+    auto madeRelsOf = [&](const QString &sheetPart) -> std::pair<QString, QByteArray *> {
+        QString name = relationshipsPartOf(sheetPart);
+        if (name.startsWith(QLatin1Char('/'))) name = name.mid(1);
+        for (auto &e : newEntries)
+            if (e.first == name) return {name, &e.second};
+        return {name, nullptr};
+    };
     if (!changes.addedObjects.empty()) {
         int typesEntry = -1;
         for (int i = 0; i < directory.size(); ++i)
@@ -1822,9 +1836,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 const int sheetRelsEntry = relsEntryFor(se.part);
                 QByteArray sheetRels, r2;
                 if (sheetRelsEntry >= 0 && !(replaced.contains(sheetRelsEntry) ? (sheetRels = replaced.value(sheetRelsEntry), true) : inflate(sheetRelsEntry, &sheetRels))) return bad();
+                const auto made = madeRelsOf(se.part);
+                if (sheetRelsEntry < 0 && made.second) sheetRels = *made.second;
                 if (!addRelationship(sheetRels, w.relId, QStringLiteral("vmlDrawing"), target, &r2)) return bad();
                 if (sheetRelsEntry >= 0) replaced.insert(sheetRelsEntry, r2);
-                else newEntries.emplace_back(entryName(relationshipsPartOf(se.part)), r2);
+                else if (made.second) *made.second = r2;
+                else newEntries.emplace_back(made.first, r2);
             }
         }
         replaced.insert(typesEntry, types);
@@ -1931,6 +1948,8 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             if (index >= 0) {
                 if (replaced.contains(index)) data = replaced.value(index);
                 else inflate(index, &data);
+            } else if (const auto made = madeRelsOf(se.part); made.second) {
+                data = *made.second;   // (a part another block made for the sheet a moment ago)
             }
             return sheetRels[sheet] = data;
         };
@@ -1979,8 +1998,13 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 if (!addRel(sheet, l.id, QStringLiteral("hyperlink"), l.target, true)) return bad();
         for (auto &[sheet, data] : sheetRels) {
             const SheetEntry &se = book.info().sheets[sheet];
-            if (sheetRelsAreNew[sheet]) newEntries.emplace_back(entryName(relationshipsPartOf(se.part)), data);
-            else replaced.insert(relsEntryFor(se.part), data);
+            if (sheetRelsAreNew[sheet]) {
+                const auto made = madeRelsOf(se.part);
+                if (made.second) *made.second = data;
+                else newEntries.emplace_back(entryName(relationshipsPartOf(se.part)), data);
+            } else {
+                replaced.insert(relsEntryFor(se.part), data);
+            }
         }
         replaced.insert(typesEntry, types);
     }
