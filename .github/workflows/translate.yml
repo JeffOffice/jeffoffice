@@ -61,8 +61,12 @@ jobs:
           LANGUAGES: ${{ inputs.languages }}
         run: |
           pip install -q -r tools/translate/requirements.txt
-          python3 tools/translate/translate.py ${LANGUAGES:+--lang "$LANGUAGES"} --report report.md || echo "::warning::Some text was not translated; see the summary."
+          # (2: the service refused the key, so nothing can be translated: the run fails, to be noticed; 1: some text was left, as before)
+          rc=0
+          python3 tools/translate/translate.py ${LANGUAGES:+--lang "$LANGUAGES"} --report report.md || rc=$?
           cat report.md >> "$GITHUB_STEP_SUMMARY" || true
+          if [ "$rc" = 2 ]; then echo "::error::The translation service refused ANTHROPIC_API_KEY: replace the secret."; exit 1; fi
+          if [ "$rc" != 0 ]; then echo "::warning::Some text was not translated; see the summary."; fi
 
       - name: Commit
         if: steps.key.outputs.have == 'yes'

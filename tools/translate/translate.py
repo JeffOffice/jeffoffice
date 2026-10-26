@@ -4,7 +4,7 @@
 Two parts:
   ui    the program's strings, translations/jeffoffice_<language>.ts
   help  Help's topics, resources/help/<language>/<topic>.md (JeffPub's), and
-        resources/help/<language>/deck/<topic>.md (JeffDeck's)
+        resources/help/<language>/deck/<topic>.md (JeffDeck's), and write/ and crunch/ likewise
 
 Only what is new or changed is sent. Every translation then goes through
 automatic checks (placeholders, plural forms, links...) and a second pass
@@ -110,6 +110,10 @@ class Unusable(Exception):
     """A response that can't be used as it is (refused, cut short)."""
 
 
+class KeyRefused(BaseException):
+    """The service refused the key: nothing in this run can be translated, so the run stops and says so (it is not caught with the other failures)."""
+
+
 class Api:
     def __init__(self, effort):
         import anthropic
@@ -120,6 +124,13 @@ class Api:
         output = {"effort": self.effort}
         if schema:
             output["format"] = {"type": "json_schema", "schema": schema}
+        import anthropic
+        try:
+            return self._ask(system, user, output, max_tokens)
+        except (anthropic.AuthenticationError, anthropic.PermissionDeniedError) as e:
+            raise KeyRefused(str(e))
+
+    def _ask(self, system, user, output, max_tokens):
         # Streamed: a long Help topic can take longer than a plain request may.
         with self.client.beta.messages.stream(
             model=MODEL,
@@ -284,8 +295,9 @@ def term_list():
     terms = []
     with open(os.path.join(HERE, "terms.txt"), encoding="utf-8") as f:
         terms = [line.strip() for line in f if line.strip() and not line.startswith("#")]
-    # Each app's ribbon: JeffPub's, then JeffDeck's.
-    for path in (("resources", "ribbon.json"), ("apps", "deck", "resources", "ribbon.json")):
+    # Each app's ribbon: JeffPub's, then JeffDeck's, JeffWrite's, and JeffCrunch's.
+    for path in (("resources", "ribbon.json"), ("apps", "deck", "resources", "ribbon.json"), ("apps", "write", "resources", "ribbon.json"),
+                 ("apps", "crunch", "resources", "ribbon.json")):
         with open(os.path.join(ROOT, *path), encoding="utf-8") as f:
             ribbon = json.load(f)
         groups = list(ribbon.get("templates", {}).values())
@@ -535,6 +547,8 @@ def ui_table(lang):
 HELP_APPS = [
     ("", "JeffPub", "a free desktop publishing program"),
     ("deck", "JeffDeck", "a free presentation program"),
+    ("write", "JeffWrite", "a free word processor"),
+    ("crunch", "JeffCrunch", "a free spreadsheet program"),
 ]
 
 
@@ -765,4 +779,8 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyRefused as e:
+        print(f"The translation service refused the key (ANTHROPIC_API_KEY): {e}", file=sys.stderr)
+        sys.exit(2)

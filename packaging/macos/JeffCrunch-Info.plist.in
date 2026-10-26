@@ -38,7 +38,7 @@
             <key>CFBundleTypeName</key>
             <string>Workbook (.xlsx)</string>
             <key>CFBundleTypeRole</key>
-            <string>Viewer</string>
+            <string>Editor</string>
             <key>LSHandlerRank</key>
             <string>Alternate</string>
             <key>LSItemContentTypes</key>
@@ -54,12 +54,24 @@
             <key>CFBundleTypeName</key>
             <string>Macro-enabled workbook (.xlsm)</string>
             <key>CFBundleTypeRole</key>
-            <string>Viewer</string>
+            <string>Editor</string>
             <key>LSHandlerRank</key>
             <string>Alternate</string>
             <key>CFBundleTypeExtensions</key>
             <array>
                 <string>xlsm</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Older workbook (.xls)</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>xls</string>
             </array>
         </dict>
         <dict>
