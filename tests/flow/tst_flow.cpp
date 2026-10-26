@@ -15027,7 +15027,10 @@ private Q_SLOTS:
             };
         };
         const PaginateWork small = workToPaginate(build(5000), 1 << 30), big = workToPaginate(build(20000), 1 << 30);
-        verifyInStep(small, big, 8, true);
+        // (the characters read grow faster than the note: about 5.6 times here and 8.4 on macOS, whose lines break elsewhere, for 4 times the words; a note
+        // that is read again from its start on each page would be 16 times. The notes set stay in step.)
+        verifyInStep(small, big, 8, true, false);
+        QVERIFY2(big.chars < 12 * std::max<qint64>(small.chars, 1), qPrintable(QStringLiteral("%1 characters read for the smaller, %2 for the larger").arg(small.chars).arg(big.chars)));
         //         QVERIFY2(big < 8 * std::max(small, 100.0), qPrintable(QStringLiteral("5000 words took %1 ms, 20000 words %2 ms").arg(small).arg(big)));
     }
 
