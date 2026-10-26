@@ -4,7 +4,7 @@
 Two parts:
   ui    the program's strings, translations/jeffoffice_<language>.ts
   help  Help's topics, resources/help/<language>/<topic>.md (JeffPub's), and
-        resources/help/<language>/deck/<topic>.md (JeffDeck's)
+        resources/help/<language>/deck/<topic>.md (JeffDeck's), and write/ and crunch/ likewise
 
 Only what is new or changed is sent. Every translation then goes through
 automatic checks (placeholders, plural forms, links...) and a second pass
@@ -295,8 +295,9 @@ def term_list():
     terms = []
     with open(os.path.join(HERE, "terms.txt"), encoding="utf-8") as f:
         terms = [line.strip() for line in f if line.strip() and not line.startswith("#")]
-    # Each app's ribbon: JeffPub's, then JeffDeck's.
-    for path in (("resources", "ribbon.json"), ("apps", "deck", "resources", "ribbon.json")):
+    # Each app's ribbon: JeffPub's, then JeffDeck's, JeffWrite's, and JeffCrunch's.
+    for path in (("resources", "ribbon.json"), ("apps", "deck", "resources", "ribbon.json"), ("apps", "write", "resources", "ribbon.json"),
+                 ("apps", "crunch", "resources", "ribbon.json")):
         with open(os.path.join(ROOT, *path), encoding="utf-8") as f:
             ribbon = json.load(f)
         groups = list(ribbon.get("templates", {}).values())
@@ -546,6 +547,8 @@ def ui_table(lang):
 HELP_APPS = [
     ("", "JeffPub", "a free desktop publishing program"),
     ("deck", "JeffDeck", "a free presentation program"),
+    ("write", "JeffWrite", "a free word processor"),
+    ("crunch", "JeffCrunch", "a free spreadsheet program"),
 ]
 
 
