@@ -1044,7 +1044,7 @@ private:
         int count = 0;
         if (peek().kind != T::RParen) {
             for (;;) {
-                if (count >= kMaxFormulaArgs) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "This function has more arguments than JeffCrunch can read."));
+                if (count >= std::min(opt.maxArgs, kMaxFormulaArgs)) return fail(peek().pos, QCoreApplication::translate("jp::calc::Formula", "This function has more arguments than a workbook can hold (%1).").arg(std::min(opt.maxArgs, kMaxFormulaArgs)));
                 const char cls = fn ? paramClass(*fn, count) : 'r';
                 bool missing = false;
                 if (lazy) {

@@ -170,6 +170,10 @@ QString nameProblem(const QString &name)
     static const QRegularExpression rc(QStringLiteral("^(R(\\d+)?(C(\\d+)?)?|C(\\d+)?)$"), QRegularExpression::CaseInsensitiveOption);
     if (parseCellRef(name, &row, &col) || rc.match(name).hasMatch())
         return QCoreApplication::translate("jp::office::sheet::Names", "That is the address of a cell, so it can't be a name. Add a letter or an underscore to it.");
+    // (the other program refuses the whole file for a name that begins as an address of the other style does, as R2D2 does: R, C, or RC and a number, and then something more)
+    static const QRegularExpression rcMore(QStringLiteral("^(R\\d+|C\\d+|RC\\d+)."), QRegularExpression::CaseInsensitiveOption);
+    if (rcMore.match(name).hasMatch())
+        return QCoreApplication::translate("jp::office::sheet::Names", "A name that begins with R or C and a number can be taken for a row or a column. Add an underscore before it.");
     return QString();
 }
 

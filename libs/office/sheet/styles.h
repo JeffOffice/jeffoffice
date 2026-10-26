@@ -96,6 +96,9 @@ enum class HAlign : quint8 { General, Left, Center, Right, Fill, Justify, Center
 enum class VAlign : quint8 { Bottom, Center, Top, Justify, Distributed };
 
 // A cell format (one `xf` of the cell formats): its number format, its font, fill, and border by place, and how the text sits in the cell.
+// The most characters a font's name may have in a workbook the common spreadsheet program opens (it refuses a file with a longer one).
+constexpr int kMaxFontNameFileChars = 31;
+
 struct CellFormat {
     qint32 numFmtId = 0;
     quint32 font = 0, fill = 0, border = 0;

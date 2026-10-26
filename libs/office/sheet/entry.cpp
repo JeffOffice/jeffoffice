@@ -845,6 +845,7 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
         if (text.size() > kMaxFormulaTypedChars)
             return tooLong(kMaxFormulaTypedChars, QCoreApplication::translate("jp::office::sheet::Entry", "A formula can hold up to %1 characters, and this one has %2. Shorten it, and try again."));
         jp::calc::ParseOptions po;
+        po.maxArgs = 255;   // (the most the other program reads in a file)
         const QString fileText = formulaFromLocale(text, options.locale);
         const jp::calc::ParseResult p = jp::calc::parseFormula(fileText, po);
         if (!p.ok()) {

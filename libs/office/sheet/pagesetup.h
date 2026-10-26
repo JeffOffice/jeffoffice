@@ -16,13 +16,15 @@ class QXmlStreamAttributes;
 
 namespace jp::office::sheet {
 
-// The most manual breaks of one kind a sheet keeps (the format allows 1,026; the most found in a public workbook is far below), the most print areas, and the most characters in
+// The most manual breaks of one kind a sheet keeps (the common spreadsheet program refuses a file with more than 1,024 of one kind, though the format's own text says 1,026; the most found in a public workbook is far below), the most print areas, and the most characters in
 // a header or footer text (the format allows 255 in a part; a file's whole string, with all three parts and the codes, is bounded here).
-constexpr int kMaxPageBreaks = 4096;
+constexpr int kMaxPageBreaks = 1024;
 // The most `brk` elements of one kind that are looked at (a file that repeats one a million times is not read a million times over).
 constexpr int kMaxBreakElements = 4 * kMaxPageBreaks;
 constexpr int kMaxPrintAreas = 1024;
 constexpr int kMaxHeaderFooterChars = 8192;
+// The most characters the common spreadsheet program takes in one of the six texts (the header or footer for the pages in general, the even pages, and the first, each with its codes): it refuses a file with more.
+constexpr int kMaxHeaderFooterFileChars = 255;
 // The scale of a page, in percent.
 constexpr int kMinPageScale = 10;
 constexpr int kMaxPageScale = 400;

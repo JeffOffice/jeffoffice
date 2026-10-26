@@ -130,6 +130,9 @@ EditSession::Outcome EditSession::checkLink(int sheet, const CellRange &range, c
     if (link.target.isEmpty() && link.location.isEmpty()) return refused(tr("A link needs an address or a place to go to."));
     if (link.target.size() > jp::office::sheet::kMaxLinkTarget || link.location.size() > jp::office::sheet::kMaxLinkTarget)
         return refused(tr("That address is longer than a link can hold (%1 characters).").arg(jp::office::sheet::kMaxLinkTarget));
+    if (link.target.size() > jp::office::sheet::kMaxNewLinkAddress)
+        return refused(tr("That address is longer than a link can hold in files other programs open (%1 characters).").arg(jp::office::sheet::kMaxNewLinkAddress));
+    if (link.tip.size() > jp::office::sheet::kMaxNewLinkTip) return refused(tr("A screen tip can have up to %1 characters.").arg(jp::office::sheet::kMaxNewLinkTip));
     if (link.tip.size() > jp::office::sheet::kMaxLinkText || link.display.size() > jp::office::sheet::kMaxLinkText) return refused(tr("That text is too long for a link (up to %1 characters).").arg(jp::office::sheet::kMaxLinkText));
     if (jp::office::sheet::linkKind(link) == jp::office::sheet::LinkKind::Unsafe) return refused(tr("That kind of address runs a script or carries a page inside itself, so it can't be made a link."));
     const jp::office::sheet::Sheet &model = m_book->calc->sheet(sheet);

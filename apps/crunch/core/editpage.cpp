@@ -20,6 +20,24 @@ EditSession::Outcome EditSession::setPageSetup(int sheet, const PageSetup &setup
         return out;
     }
     if (m_pages.sheet(sheet) == setup) return out;   // (nothing to change)
+    {
+        // a text a person made longer than the file may hold is refused (one the file came with is let be, for the sheet's other settings)
+        const jp::office::sheet::HeaderFooter &now = m_pages.sheet(sheet).headerFooter, &want = setup.headerFooter;
+        const std::pair<const QString &, const QString &> texts[] = {{now.oddHeader, want.oddHeader}, {now.oddFooter, want.oddFooter}, {now.evenHeader, want.evenHeader},
+                                                                    {now.evenFooter, want.evenFooter}, {now.firstHeader, want.firstHeader}, {now.firstFooter, want.firstFooter}};
+        for (const auto &t : texts)
+            if (t.second.size() > jp::office::sheet::kMaxHeaderFooterFileChars && t.second != t.first) {
+                out.ok = false;
+                out.problem = tr("A header or footer can have up to %1 characters, counting the codes in it.").arg(jp::office::sheet::kMaxHeaderFooterFileChars);
+                return out;
+            }
+    }
+    if ((setup.rowBreaks.size() > jp::office::sheet::kMaxPageBreaks && setup.rowBreaks.size() > m_pages.sheet(sheet).rowBreaks.size())
+        || (setup.colBreaks.size() > jp::office::sheet::kMaxPageBreaks && setup.colBreaks.size() > m_pages.sheet(sheet).colBreaks.size())) {
+        out.ok = false;
+        out.problem = tr("A sheet can have up to %1 page breaks of each kind.").arg(jp::office::sheet::kMaxPageBreaks);
+        return out;
+    }
     Step step;
     PageEdit e;
     e.sheet = sheet;
