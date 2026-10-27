@@ -456,7 +456,7 @@ private:
         QString error;
         bool tried = false;
         bool traitsKnown = false;
-        bool usesNames = false, dynamic = false, reaches = false, changesByItself = false, iterative = false;
+        bool usesNames = false, dynamic = false, reaches = false, observes = false, changesByItself = false, iterative = false;
         std::vector<qint32> bound;
     };
     static constexpr qint32 kFreeFormula = -2;   // the text of a formula's place that is free to be used again

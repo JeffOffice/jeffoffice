@@ -397,6 +397,39 @@ private Q_SLOTS:
         QVERIFY(!e.win.w.session()->canUndo());
     }
 
+    // A formula that is its own row and column (ROW() and COLUMN()) shows the new place when an edit moves its cell, as it does for a cell that was moved by Undo, a cut, or a sort.
+    void aFormulaThatIsItsOwnPlaceIsWorkedOutAgainWhenAnEditMovesIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "C1==SUM(A1:A2)"})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, 2, 1, QStringLiteral("=ROW()*100+COLUMN()")).ok);   // B3
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("n:302"));
+        QVERIFY(s->insertRows(0, 0, 2).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B5")), QStringLiteral("n:502"));
+        QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("-"));
+        QVERIFY(s->insertColumns(0, 0, 1).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("C5")), QStringLiteral("n:503"));
+        QVERIFY(s->deleteRows(0, 1, 1).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("C4")), QStringLiteral("n:403"));
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("C5")), QStringLiteral("n:503"));
+        e.win.w.undoStack()->undo();
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("n:302"));
+        // the value the window holds is the calculation's, and a file saved now says the same
+        QVERIFY(storeDiffers(e).isEmpty());
+        e.win.w.undoStack()->redo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B5")), QStringLiteral("n:502"));
+    }
+
     // Many edits at random (rows, columns, and cells inserted and deleted on both sheets, with values and formulas typed between, some undone and done again), then saved and opened again:
     // the file always means what the window showed.
     void randomEditsSaveWhatTheWindowShows()
