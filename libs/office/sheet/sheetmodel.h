@@ -254,6 +254,8 @@ public:
         quint32 nextPos = 0;                     // the rows before this place are still to be walked
         std::vector<Span> rows, cols;     // (the runs of the rows and of the columns, kept while the order is as it was)
         quint64 rowsVersion = ~quint64(0), colsVersion = ~quint64(0);
+        quint64 seenRows = ~quint64(0), seenCols = ~quint64(0);   // (the order of the rows and of the columns at the last call)
+        bool restarted = false;   // the order was edited since the last call, so the walk began again from the end: what the caller took from the walk before is stale (the caller sets this false)
     };
     // Walks on from the cursor as forEachRowTail does, adding to `*steps` one for each row and each cell it looks at, and stops after the row it is in once `*steps` has reached `limit`
     // (so a slice takes at most a row's cells past it). True when every cell has been walked. A store changed between two calls is walked from what is there (never past it).
@@ -264,7 +266,13 @@ public:
         if (!cur->started) {
             cur->started = true;
             cur->nextPos = quint32(-1);
+        } else if (cur->seenRows != m_rows.version() || cur->seenCols != m_cols.version()) {
+            // (rows or columns were inserted or deleted since the last slice: a place is not the row it was)
+            cur->nextPos = quint32(-1);
+            cur->restarted = true;
         }
+        cur->seenRows = m_rows.version();
+        cur->seenCols = m_cols.version();
         quint32 next = cur->nextPos;
         if (plain()) {
             if (next == 0 || m_blocks.empty()) {
@@ -574,6 +582,8 @@ public:
     }
     // Cells held that are in rows or columns that are deleted, and the most that Undo can bring back.
     qint64 deadCount() const { return m_dead; }
+    // The same, counted cell by cell (for a check of deadCount and cellCount, which are kept as the order is edited).
+    qint64 deadCountByScan() const;
 
     // Puts the blocks that were added to out of order in order (the cells that were put in again by reshuffle).
     void reorder();

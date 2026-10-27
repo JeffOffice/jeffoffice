@@ -281,6 +281,34 @@ private Q_SLOTS:
         QCOMPARE(b.calc->sheet(0).rows().nextId().value(), next + 2);
     }
 
+    // A record that is let go of releases what it held: the copy of the cells its edit deleted, and the ids and dead cells of its rows or columns. That is so for a step that is dropped, and for a
+    // Redo the order does not take (the record is let go of, not left holding them).
+    void aRecordThatIsLetGoOfReleasesItsGoneCopyAndItsLines()
+    {
+        {
+            Book b;
+            QVERIFY(b.open({{"A1=1", "A2=2", "A3=3", "B1==SUM(A1:A3)"}}));
+            Calculation::EditRecord del;
+            QVERIFY(b.apply(StructEdit::deleteRows(0, 0, 2), &del));
+            QVERIFY(!del.gone.empty());
+            QCOMPARE(b.calc->sheet(0).cells.deadCount(), qint64(del.gone.size()));
+            b.calc->forgetLines(&del);
+            QVERIFY(del.gone.empty() && del.gone.capacity() == 0);
+            QCOMPARE(b.calc->sheet(0).cells.deadCount(), qint64(0));
+        }
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2", "A3=3", "B1==SUM(A1:A3)"}}));
+        Calculation::EditRecord a, other;
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 1), &a));
+        QVERIFY(b.calc->setValue(0, 0, 0, Value::number(9)));     // (a cell in the column that is made)
+        QVERIFY(b.calc->undoEdit(a));                             // (it dies with the column: held, dead)
+        QCOMPARE(b.calc->sheet(0).cells.deadCount(), qint64(1));
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 3, 1), &other));
+        QVERIFY(!b.apply(StructEdit::insertColumns(0, 0, 1), &a));   // (not the last edit made: the Redo is refused)
+        QCOMPARE(b.calc->sheet(0).cells.deadCount(), qint64(0));    // (and what the record held is let go of)
+        QCOMPARE(b.calc->sheet(0).cols().core().deadCount(), size_t(1));   // (only the records of the other edit's lines are left: its refill)
+    }
+
     // A row pushed off the end of the sheet is what Undo gives back: a formula in the last row is not pushed off (the edit is refused, in words), and a cell with a format only is, kept as a deleted
     // cell's is and put back.
     void aRowPushedOffTheEndOfTheSheetComesBackWithUndo()

@@ -418,6 +418,15 @@ jp::calc::LineStatus CellStore::rebaseLines(bool rows)
     return LineStatus::Ok;
 }
 
+qint64 CellStore::deadCountByScan() const
+{
+    qint64 n = 0;
+    for (const auto &entry : m_blocks)
+        for (const Cell &c : entry.second.cells)
+            if (rowPosOf(c.rowId) == kNoLine || colPosOf(c.colId) == kNoLine) ++n;
+    return n;
+}
+
 void CellStore::setLineLimits(const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols)
 {
     if (!plain()) return;

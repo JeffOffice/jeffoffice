@@ -372,9 +372,10 @@ private Q_SLOTS:
         QVERIFY(store.find(1048575, 3));
     }
 
-    // A walk from the end in slices goes on from the place it had got to when rows are inserted or deleted between two slices (the print layout walks a sheet a slice at a time while it is edited), whether
-    // the sheet had been edited before the walk began or not, and whether it has been edited since or not.
-    void aSlicedWalkFromTheEndGoesOnWhenRowsAreEditedBetweenSlices()
+    // A walk from the end in slices, with rows or columns inserted or deleted between two slices (the print layout walks a sheet a slice at a time while it is edited): the cursor sees that the order
+    // changed and starts again from the end, saying so (`restarted`), so that what the walk gave until then (a used range) can be let go of; what it gives after is exactly what a fresh walk gives,
+    // for an edit above the place it had got to, at it, or below it, in a store that was edited before or not, and in a store the order of which is one run again.
+    void aSlicedWalkFromTheEndStartsAgainWhenTheOrderIsEditedBetweenSlices()
     {
         auto build = [] {
             auto store = std::make_unique<CellStore>();
@@ -383,69 +384,59 @@ private Q_SLOTS:
             store->finish();
             return store;
         };
-        // (the rows still to be walked after a slice are those before the place it stopped at: an edit of the rows after that place does not change them)
-        auto walkAcross = [&](CellStore &store, const std::function<void()> &between, const char *what) {
+        auto walkAcross = [&](CellStore &store, const std::function<void()> &between, bool expectRestart, const char *what) {
             CellStore::RowTailCursor cursor;
             qint64 steps = 0;
-            std::vector<int> first, rest;
-            store.forEachRowTailSome(&cursor, 40, &steps, [&](quint32 r, quint32 c, const Cell &cell) {
-                first.push_back(int(cell.number));
+            int firstCount = 0;
+            store.forEachRowTailSome(&cursor, 40, &steps, [&](quint32, quint32, const Cell &) {
+                ++firstCount;
                 return false;
             });
-            QVERIFY2(!first.empty(), what);
-            const int lowest = int(first.back()) / 10;
+            QVERIFY2(firstCount > 0 && !cursor.restarted, what);
             between();
-            while (!store.forEachRowTailSome(&cursor, steps + 25, &steps, [&](quint32, quint32, const Cell &cell) {
-                rest.push_back(int(cell.number));
+            std::vector<std::pair<quint32, quint32>> rest, fresh;
+            quint32 lastRow = 0, lastCol = 0;
+            while (!store.forEachRowTailSome(&cursor, steps + 25, &steps, [&](quint32 r, quint32 c, const Cell &) {
+                rest.push_back({r, c});
+                lastRow = std::max(lastRow, r);
+                lastCol = std::max(lastCol, c);
                 return false;
             })) {}
-            // every row below the last one walked, from its last cell to its first, and no other
-            std::vector<int> want;
-            for (int r = lowest - 1; r >= 0; --r)
-                for (int c = 2; c >= 0; --c) want.push_back(r * 10 + c);
-            QVERIFY2(rest == want, qPrintable(QStringLiteral("%1: %2 cells after the first slice, expected %3").arg(QLatin1String(what)).arg(rest.size()).arg(want.size())));
+            store.forEachRowTail([&](quint32 r, quint32 c, const Cell &) {
+                fresh.push_back({r, c});
+                return false;
+            });
+            QVERIFY2(cursor.restarted == expectRestart, what);
+            if (!expectRestart) {
+                // (it goes on: what is left of the walk, after the cells of the first slice)
+                QVERIFY2(rest.size() + size_t(firstCount) == fresh.size() && std::equal(rest.begin(), rest.end(), fresh.begin() + firstCount), what);
+                return;
+            }
+            QVERIFY2(rest == fresh && !fresh.empty(), qPrintable(QStringLiteral("%1: %2 cells after the first slice, a fresh walk gives %3").arg(QLatin1String(what)).arg(rest.size()).arg(fresh.size())));
+            quint32 freshCol = 0;
+            for (const auto &p : fresh) freshCol = std::max(freshCol, p.second);
+            QVERIFY2(lastRow == fresh.front().first && lastCol == freshCol, what);   // (the used range of what was walked after)
         };
-        {
-            // an unedited sheet, edited (rows inserted and deleted among those already walked) between the slices
-            auto store = build();
-            QVERIFY(store->rows().isIdentity());
-            walkAcross(*store, [&] {
-                QCOMPARE(store->insertLines(true, 290, 2, nullptr), jp::calc::LineStatus::Ok);
-                QVERIFY(!store->rows().isIdentity());
-            }, "unedited, then rows inserted");
-            auto columns = build();
-            walkAcross(*columns, [&] { QCOMPARE(columns->insertLines(false, 1, 2, nullptr), jp::calc::LineStatus::Ok); }, "unedited, then columns inserted");
+        for (const quint32 at : {5u, 150u, 290u, 299u}) {
+            auto rowsInserted = build();
+            walkAcross(*rowsInserted, [&] { QCOMPARE(rowsInserted->insertLines(true, at, 2, nullptr), jp::calc::LineStatus::Ok); }, true, "rows inserted");
+            auto rowsDeleted = build();
+            walkAcross(*rowsDeleted, [&] { QCOMPARE(rowsDeleted->deleteLines(true, at, 2, nullptr), jp::calc::LineStatus::Ok); }, true, "rows deleted");
         }
-        {
-            // a sheet edited before the walk, and again between the slices
+        auto columns = build();
+        walkAcross(*columns, [&] { QCOMPARE(columns->insertLines(false, 1, 2, nullptr), jp::calc::LineStatus::Ok); }, true, "columns inserted");
+        // a store edited before the walk, and again between the slices
+        for (const bool insert : {true, false}) {
             auto store = build();
             QCOMPARE(store->insertLines(true, 100, 3, nullptr), jp::calc::LineStatus::Ok);
             QCOMPARE(store->deleteLines(true, 50, 2, nullptr), jp::calc::LineStatus::Ok);
-            // (the cells are known by their numbers: the walk is of the rows that are left, so the expectation is made from what the store holds)
-            CellStore::RowTailCursor cursor;
-            qint64 steps = 0;
-            std::vector<int> seen, expected;
-            store->forEachRowTailSome(&cursor, 40, &steps, [&](quint32, quint32, const Cell &cell) {
-                seen.push_back(int(cell.number));
-                return false;
-            });
-            QVERIFY(!seen.empty());
-            QCOMPARE(store->insertLines(true, 296, 1, nullptr), jp::calc::LineStatus::Ok);
-            std::vector<int> all;
-            store->forEachRowTail([&](quint32, quint32, const Cell &cell) {
-                all.push_back(int(cell.number));
-                return false;
-            });
-            std::vector<int> rest;
-            while (!store->forEachRowTailSome(&cursor, steps + 25, &steps, [&](quint32, quint32, const Cell &cell) {
-                rest.push_back(int(cell.number));
-                return false;
-            })) {}
-            // (the cells at places before the one the walk stopped at are the rest of the walk of the whole, after the cells already seen)
-            QVERIFY2(rest.size() + seen.size() == all.size() && std::equal(rest.begin(), rest.end(), all.begin() + std::ptrdiff_t(seen.size())), qPrintable(QStringLiteral("%1 after, %2 before, %3 in all").arg(rest.size()).arg(seen.size()).arg(all.size())));
+            walkAcross(*store, [&] {
+                if (insert) QCOMPARE(store->insertLines(true, 20, 1, nullptr), jp::calc::LineStatus::Ok);
+                else QCOMPARE(store->deleteLines(true, 20, 1, nullptr), jp::calc::LineStatus::Ok);
+            }, true, "edited before, and again");
         }
         {
-            // the order is one run again between the slices (the step that made the edit is let go of): the walk goes on from the same place
+            // the order is one run again between the slices (the step that made the edit is let go of)
             auto store = build();
             CellStore::LineEdits edit;
             QCOMPARE(store->insertLines(true, 295, 1, &edit), jp::calc::LineStatus::Ok);
@@ -454,7 +445,12 @@ private Q_SLOTS:
                 QCOMPARE(store->undoLines(true, edit), jp::calc::LineStatus::Ok);
                 store->forgetLines(true, &edit);
                 QVERIFY(store->rows().isIdentity());
-            }, "edited, then back to one run");
+            }, true, "edited, then back to one run");
+        }
+        {
+            // nothing edited between the slices: the walk goes on, and does not say it started again
+            auto store = build();
+            walkAcross(*store, [] {}, false, "not edited");
         }
     }
 
@@ -471,6 +467,14 @@ private Q_SLOTS:
         CellStore::RangeWalk none;
         store.forEachInRange(0, 5, 239, 6, [&](quint32, quint32, const Cell &) { return true; }, &none);
         QVERIFY2(none.stepped + none.compared >= 40, qPrintable(QStringLiteral("%1 stepped, %2 compared").arg(none.stepped).arg(none.compared)));
+        // and a range of rows that have no cell at all, across 40 runs: nothing is stepped over and nothing is searched for but the runs themselves, which are counted as steps
+        CellStore sparse;
+        for (quint32 r = 0; r < 4; ++r) sparse.add(makeCell(r, 0, r));
+        sparse.finish();
+        for (quint32 k = 0; k < 40; ++k) QCOMPARE(sparse.insertLines(true, 10 + k * 2, 1, nullptr), jp::calc::LineStatus::Ok);
+        CellStore::RangeWalk empty;
+        sparse.forEachInRange(5, 0, 150, 3, [&](quint32, quint32, const Cell &) { return true; }, &empty);
+        QVERIFY2(empty.stepped >= 40, qPrintable(QStringLiteral("%1 stepped, %2 compared").arg(empty.stepped).arg(empty.compared)));
         // a range with cells: what it holds is counted too
         CellStore::RangeWalk some;
         int seen = 0;

@@ -271,6 +271,7 @@ void Calculation::setLineLimitsForTest(int sheet, const jp::calc::LineLimits &ro
 void Calculation::forgetLines(EditRecord *rec)
 {
     bool rows = false;
+    std::vector<EditRecord::GoneCell>().swap(rec->gone);   // (the copy of the cells it deleted: nothing can bring them back now)
     if (!wholeLines(rec->edit, &rows)) return;
     // (the sheet that has the order the record names: the sheets may have been moved since)
     for (Sheet &s : m_sheets)
@@ -481,6 +482,8 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         if (made != jp::calc::LineStatus::Ok) {
             // (an Undo or a Redo that the order does not take is not made with other rows: it fails, and says so)
             if (undoOf || redoing) qWarning("Calculation::applyEdit: the order of the rows or columns does not take %s (status %d)", undoOf ? "Undo" : "Redo", int(made));
+            // (a record that was to be done again and is not is let go of: the ids and the dead cells it held are not held for nothing)
+            if (redoing) S.cells.forgetLines(rows, &again);
             Q_ASSERT_X(!(undoOf || redoing), "Calculation::applyEdit", "the order of the rows or columns does not take Undo or Redo");
             return false;
         }

@@ -282,6 +282,7 @@ public:
             qint64 steps = 0;
             const qint64 room = std::max<qint64>(1, work.limit - work.used);
             const bool done = m_q.sheet->cells.forEachRowTailSome(&m_cursor, room, &steps, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &cell) {
+                forgetWhatWasFound();
                 bool counts = cell.type != CellType::Empty || cell.hasFormula();
                 if (!counts && m_q.styles && cell.style != 0 && cell.style < quint32(m_shows.size())) {
                     signed char &s = m_shows[cell.style];
@@ -294,6 +295,7 @@ public:
                 lastCol = std::max<quint32>(lastCol, col);
                 return true;
             });
+            forgetWhatWasFound();   // (the walk began again and found nothing)
             work.add(steps);
             if (!done) return false;
             m_phase = 1;
@@ -334,6 +336,14 @@ public:
     quint32 lastRow = 0, lastCol = 0;
 
 private:
+    // The rows or columns were edited between two steps, so the walk began again from the end: the last row and column it had found are of the sheet as it was.
+    void forgetWhatWasFound()
+    {
+        if (!m_cursor.restarted) return;
+        m_cursor.restarted = false;
+        any = false;
+        lastRow = lastCol = 0;
+    }
     const PrintRequest &m_q;
     const Axis &m_rows, &m_cols;
     std::vector<signed char> m_shows;
