@@ -264,9 +264,11 @@ bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineM
     if (m_sheets[size_t(sheet)].cells.rebaseLines(rows, &table) != jp::calc::LineStatus::Ok) return false;
     if (out) *out = table;
     if (table.empty()) return true;   // (the order was one run: the ids are the places they were)
-    // the ids the nodes hold are renumbered with the cells, and what they worked out and told before is named by the old ids: it is let go of (the stamp of an epoch before this one), and they
-    // are worked out again
+    // the ids the nodes hold are renumbered with the cells, and what they worked out and told before is named by the old ids: every value of an epoch before this one is let go of (staleResult: the
+    // cells of an array are named too, and no stamp is made for each), and, if any is in flight, the formulas are worked out again
     ++m_state[size_t(sheet)].epoch;
+    m_state[size_t(sheet)].renumberEpoch = m_state[size_t(sheet)].epoch;
+    const bool again = resultsInFlight();
     for (auto it = m_stamps.begin(); it != m_stamps.end();)
         if (int(it->first >> 40) == sheet) it = m_stamps.erase(it);
         else ++it;
@@ -277,10 +279,9 @@ bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineM
         Q_ASSERT(now != CellStore::kNoLine);
         if (rows) n.rowId = now;
         else n.colId = quint16(now);
-        stampCell(sheet, n.rowId, n.colId);
-        if (!(n.flags & Kept)) redirty(id);
+        if (again && !(n.flags & Kept)) redirty(id);
     }
-    if (!m_running) beginRecalculation();
+    if (again && !m_running) beginRecalculation();
     return true;
 }
 
@@ -467,17 +468,18 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     // ---- the cells move; the nodes of the formulas among them go with them
     std::vector<PlacedCell> removed;
     SheetState &st = m_state[size_t(e.sheet)];
-    // (cells shifted one by one get new ids: a formula among them has its node told which cell it is in, the window's value for it is moved, and a value told for it before is let go of)
+    // (cells shifted one by one get new ids: a formula among them has its node told which cell it is in, the window's value for it is moved, and a value told for it before, if one is in flight, is
+    // let go of and the formula worked out again then; nothing is worked out again for a formula that has no value on its way)
     auto onFormulaMoved = [&](const PlacedCell &before, const PlacedCell &after) {
         rec->shifted.push_back({before.cell.rowId, quint32(before.cell.colId), after.cell.rowId, quint32(after.cell.colId)});
-        stampCell(e.sheet, before.cell.rowId, before.cell.colId);
-        stampCell(e.sheet, after.cell.rowId, after.cell.colId);
+        const Target redo{after.cell.rowId, quint32(after.cell.colId), true};
+        stampCell(e.sheet, before.cell.rowId, before.cell.colId, redo);
+        stampCell(e.sheet, after.cell.rowId, after.cell.colId, redo);
         if (!after.cell.hasFormula() || after.cell.formula < 0 || size_t(after.cell.formula) >= st.nodeOf.size()) return;
         const quint32 id = st.nodeOf[size_t(after.cell.formula)];
         if (id == kNone) return;
         m_nodes[id].rowId = after.cell.rowId;
         m_nodes[id].colId = after.cell.colId;
-        redirty(id);
     };
     auto onMoved = [&](const PlacedCell &before, const PlacedCell &after) {
         ++rec->cellsMoved;

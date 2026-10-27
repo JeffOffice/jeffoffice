@@ -300,6 +300,12 @@ void EditSession::forgetDeletesInFile()
     }
 }
 
+void EditSession::eachStepData(const std::function<void(Step *)> &f)
+{
+    for (int i = 0; i < m_undo.count(); ++i)
+        eachStep(m_undo.command(i), [&](ChangeCells *step) { f(step->step()); });
+}
+
 void EditSession::eachStructChange(const std::function<void(StructChange *)> &f)
 {
     for (int i = 0; i < m_undo.count(); ++i)
@@ -1140,6 +1146,28 @@ void EditSession::markRowResized(int sheet, quint32 row)
     if (id != CellStore::kNoLine && id < (quint32(1) << 24)) m_rowsResized.insert(keyOf(sheet, id, 0));
 }
 
+qint64 EditSession::changedCells() const
+{
+    qint64 n = 0;
+    m_touched.forEach([&](quint64 key) {
+        int sheet;
+        quint32 row, col;
+        n += placeOfMark(key, &sheet, &row, &col) ? 1 : 0;
+    });
+    return n;
+}
+
+qint64 EditSession::changedResults() const
+{
+    qint64 n = 0;
+    for (const auto &entry : m_results) {
+        int sheet;
+        quint32 row, col;
+        n += placeOfMark(entry.first, &sheet, &row, &col) ? 1 : 0;
+    }
+    return n;
+}
+
 bool EditSession::storedEquals(int sheet, quint32 rowId, quint32 colId, const Value &value) const
 {
     const Sheet &s = m_book->calc->sheet(sheet);
@@ -1460,11 +1488,14 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         }
         changes.sheets[sheet].rows.push_back(p);
     }
+    qint64 liveResults = 0;   // (the results of cells in rows or columns that are deleted are not the file's to keep)
     for (const auto &[key, v] : m_results) {
         if (m_touched.count(key)) continue;
         int sheet;
         quint32 row, col;
-        if (!placeOfMark(key, &sheet, &row, &col) || !written(sheet)) continue;
+        if (!placeOfMark(key, &sheet, &row, &col)) continue;
+        ++liveResults;
+        if (!written(sheet)) continue;
         SavedResult r;
         r.row = row;
         r.col = quint16(col);
@@ -1540,7 +1571,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     out->dxfs = int(changes.newDxfs.size());
     // The other program is asked to work every formula out again when this program could not: a formula it keeps apart that may read what changed, a result it did not get to, or a
     // formula it gave no result.
-    changes.fullCalcOnLoad = (!m_touched.empty() || !m_results.empty() || newSheets) && (calc->isDirty() || resultMissing || calc->keptCount() > 0);
+    changes.fullCalcOnLoad = (!touchedInOrder.empty() || liveResults > 0 || newSheets) && (calc->isDirty() || resultMissing || calc->keptCount() > 0);
     return true;
 }
 

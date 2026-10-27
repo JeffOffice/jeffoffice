@@ -289,6 +289,7 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     m_longestBatchItems = std::max<qint64>(m_longestBatchItems, qint64(batch->items.size()));
     // (the items name cells by the ids of their rows and columns, which edits of rows and columns leave as they are: what was in flight when one was made lands on the right cell; those for cells that
     // an edit moved one by one after they were worked out are let go of, and the formulas are worked out again)
+    if (m_loaded->calc) m_loaded->calc->valuesTaken(qint64(batch->items.size()));   // (what was told and is not taken is in flight: Calculation::resultsInFlight)
     if (m_session) m_session->dropStale(&batch->items);
     if (m_session) m_session->dropRemovedSheets(&batch->items);   // (results for a sheet that Undo took away while it was being worked out)
     if (m_session) m_session->noteResults(batch->items);   // (before the store has them: it says what the engine had before)

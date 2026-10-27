@@ -560,7 +560,7 @@ public:
     // The results the worker tells name cells by the ids of their rows and columns, which edits of rows and columns do not change, so a batch in flight when one is made lands on the right cells.
     // `dropStale` takes out of a batch those worked out under an epoch older than the stamp of the cell's formula (an edit moved cells one by one, or put the ids in order again, after they were
     // worked out: they name what was at the place then); the formula is worked out again.
-    void dropStale(std::vector<jp::grid::ValueStore::Item> *items) const;
+    void dropStale(std::vector<jp::grid::ValueStore::Item> *items);   // (the window counts the values it takes with Calculation::valuesTaken, before it calls this)
     // A batch of results (or items made from the ids of cells) with the places of the cells, in the order they are now, for the view to draw them again; those whose row or column is deleted are left out.
     std::vector<jp::grid::ValueStore::Item> placed(const std::vector<jp::grid::ValueStore::Item> &items) const;
     // The stamps of values in flight that no value still on its way is older than (a last batch of the worker's: `epochs` are the sheets' when it was sent) are let go of.
@@ -730,10 +730,13 @@ public:
     void saved(const Snapshot &snapshot, const jp::office::Package &package);
 
     // How many cells have been changed since the file was read or saved, and how many formulas' results differ from the file's (for tests and the status).
-    qint64 changedCells() const { return qint64(m_touched.size()); }
-    qint64 changedResults() const { return qint64(m_results.size()); }
+    // (the marks of cells in rows or columns that are deleted are held, for Undo brings them back; they are not counted, and are not in the file)
+    qint64 changedCells() const;
+    qint64 changedResults() const;
     // How many marks the session has gone through to follow edits of cells moved one by one (the cells marked as changed, the results kept by cell; whole rows and columns move none, for the marks are
     // by the ids of rows and columns: counted, for tests and tools). The marks themselves: how many of each kind (the columns and rows marked as resized by ids).
+    // The marks looked at to let go of those on dead ids (counted, for tests: it is 0 for edits that let go of no line).
+    qint64 marksSwept() const { return m_marksSwept; }
     qint64 resizedMarks() const { return qint64(m_columnsResized.size() + m_rowsResized.size()); }
     qint64 marksFollowed() const { return m_marksFollowed; }
     // The longest the window waited for the worker to let go (microseconds, by the wall), and the last wait: what an edit costs besides the work of putting the cell in.
@@ -912,8 +915,10 @@ private:
     std::set<quint64> m_columnsResized, m_rowsResized;   // the columns and rows (by sheet and id: keyOf(sheet, 0, column id) and keyOf(sheet, row id, 0)) whose size a step changed since the file was read or saved
     // Marks of cells that an edit of whole rows or columns would have left in the dead (a deleted row's) are let go of when nothing can name the id any more, and the ids of every mark of a sheet are renumbered
     // with the cells when the order is put back to one run.
+    void eachStepData(const std::function<void(Step *)> &f);              // (every step on the stack, done or undone)
     void eachStructChange(const std::function<void(StructChange *)> &f);   // (every step on the stack that edited rows, columns, or cells, done or undone)
-    void sweepMarks(int sheet);
+    void sweepMarks(int sheet, bool rows, const std::vector<jp::calc::IdRun> &released);   // (the marks on ids of these lines that nothing can name)
+    qint64 m_marksSwept = 0;
     void renumberMarks(int sheet, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table);
     ObjectHook m_objectHook;
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file

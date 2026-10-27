@@ -290,8 +290,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         if (rowId != CellStore::kNoLine && colId != CellStore::kNoLine) stampCell(sheet, rowId, colId);
     };
     for (const Moving &m : moving) {
-        if (!m.content.isFormula) continue;
-        stampPlace(e.sheet, m.row, m.col);
+        stampPlace(e.sheet, m.row, m.col);   // (every cell, not the formulas alone: the cells of an array are told too)
         stampPlace(e.toSheet, quint32(qint64(m.row) + dRow), quint32(qint64(m.col) + dCol));
     }
     for (const auto &p : overwritten) stampPlace(e.toSheet, p.first, p.second);

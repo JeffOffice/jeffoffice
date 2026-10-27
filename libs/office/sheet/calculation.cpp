@@ -478,21 +478,32 @@ Value Calculation::fitToRange(const Node &n, const Value &v) const
 // Tells the window the value of a node's cell (and of the cells of its array) by their ids. `fill`: an array formula whose value is no array shows it in every cell of its range.
 void Calculation::tellValue(const Node &n, const Value &v, bool fill) const
 {
+    auto one = [&](quint32 rowId, quint32 colId, const Value &x) {
+        m_valuesTold.fetch_add(1, std::memory_order_relaxed);
+        m_sink(n.sheet, rowId, colId, x);
+    };
+    // (a value that is no array is of the node's own cell, which the node names by ids: no place is looked up for it)
+    const bool many = v.isArray() || (fill && (n.flags & Array) && !(n.flags & Kept));
+    if (!many) {
+        one(n.rowId, n.colId, v);
+        return;
+    }
     // (the cells of an array are the rows and columns that follow the first one in the order, whose ids are not those of the first plus one)
     const CellStore &cells = m_sheets[size_t(n.sheet)].cells;
+    m_placeLookups.fetch_add(2, std::memory_order_relaxed);
     const quint32 row0 = rowOf(n), col0 = colOf(n);
     auto tell = [&](quint32 i, quint32 j, const Value &x) {
         if (i == 0 && j == 0) {
-            m_sink(n.sheet, n.rowId, n.colId, x);
+            one(n.rowId, n.colId, x);
             return;
         }
         const quint32 r = cells.rowIdAt(row0 + i), c = cells.colIdAt(col0 + j);
-        if (r != CellStore::kNoLine && c != CellStore::kNoLine) m_sink(n.sheet, r, c, x);
+        if (r != CellStore::kNoLine && c != CellStore::kNoLine) one(r, c, x);
     };
     if (v.isArray()) {
         for (int i = 0; i < v.rows(); ++i)
             for (int j = 0; j < v.cols(); ++j) tell(quint32(i), quint32(j), v.at(i, j));
-    } else if (fill && (n.flags & Array) && !(n.flags & Kept)) {
+    } else {
         // (the cells of one that is kept apart are the file's, not its)
         const CellArea a = areaOf(n);
         if (a.rows() * a.cols() > 1 && a.rows() * a.cols() <= kMaxArrayCellsMarked) {
@@ -501,8 +512,6 @@ void Calculation::tellValue(const Node &n, const Value &v, bool fill) const
         } else {
             tell(0, 0, v);
         }
-    } else {
-        tell(0, 0, v);
     }
 }
 
@@ -1320,6 +1329,9 @@ Value Calculation::runFormula(quint32 id, qint64 *work)
     m_ctx.source = this;
     m_ctx.sheet = n.sheet;
     m_ctx.transition = m_sheets[size_t(n.sheet)].transitionEvaluation;
+    // (the place is read by a formula that takes the cell it is in for its own, by implicit intersection, ROW(), and the like: every formula may)
+    m_placeLookups.fetch_add(2, std::memory_order_relaxed);
+    ++m_evaluations;
     m_ctx.row = rowOf(n);
     m_ctx.col = colOf(n);
     m_ctx.shiftRows = f.dRow;
@@ -2150,26 +2162,40 @@ quint32 Calculation::nodeAt(int sheet, quint32 row, quint32 col) const
     return size_t(c->formula) < st.nodeOf.size() ? st.nodeOf[size_t(c->formula)] : kNone;
 }
 
-bool Calculation::staleResult(int sheet, quint32 rowId, quint32 colId, quint32 epoch) const
+bool Calculation::staleResult(int sheet, quint32 rowId, quint32 colId, quint32 epoch, Target *redo) const
 {
+    if (sheet >= 0 && sheet < int(m_state.size()) && int(epoch - m_state[size_t(sheet)].renumberEpoch) < 0) return true;   // (named by ids that were renumbered since)
     if (m_stamps.empty()) return false;
     const auto at = m_stamps.find(stampKey(sheet, rowId, colId));
-    return at != m_stamps.end() && int(epoch - at->second) < 0;   // (epochs wrap: the difference says which is older)
+    if (at == m_stamps.end() || int(epoch - at->second.epoch) >= 0) return false;   // (epochs wrap: the difference says which is older)
+    if (redo) *redo = at->second.redo;
+    return true;
+}
+
+void Calculation::redirtyCell(int sheet, quint32 rowId, quint32 colId)
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return;
+    const Cell *c = m_sheets[size_t(sheet)].cells.findById(rowId, colId);
+    if (!c || !c->hasFormula() || c->formula < 0) return;
+    const SheetState &st = m_state[size_t(sheet)];
+    if (size_t(c->formula) >= st.nodeOf.size() || st.nodeOf[size_t(c->formula)] == kNone) return;
+    redirty(st.nodeOf[size_t(c->formula)]);
+    if (!m_running) beginRecalculation();
 }
 
 void Calculation::pruneStamps(const std::vector<quint32> &epochs)
 {
     for (auto it = m_stamps.begin(); it != m_stamps.end();) {
         const int sheet = int(it->first >> 40);
-        if (sheet < int(epochs.size()) && int(epochs[size_t(sheet)] - it->second) >= 0) it = m_stamps.erase(it);
+        if (sheet < int(epochs.size()) && int(epochs[size_t(sheet)] - it->second.epoch) >= 0) it = m_stamps.erase(it);
         else ++it;
     }
 }
 
-void Calculation::stampCell(int sheet, quint32 rowId, quint32 colId)
+void Calculation::stampCell(int sheet, quint32 rowId, quint32 colId, const Target &redo)
 {
-    if (sheet < 0 || sheet >= int(m_state.size())) return;
-    m_stamps[stampKey(sheet, rowId, colId)] = m_state[size_t(sheet)].epoch;
+    if (sheet < 0 || sheet >= int(m_state.size()) || !resultsInFlight()) return;
+    m_stamps[stampKey(sheet, rowId, colId)] = Stamp{m_state[size_t(sheet)].epoch, redo};
 }
 
 // A formula that is to be worked out again though nothing it reads was changed (its cell moved).

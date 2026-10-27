@@ -132,6 +132,8 @@ struct Opened {
             message = m;
         });
         c2 = QObject::connect(&loader, &crunch::WorkbookLoader::calcBatch, &loader, [this](const std::shared_ptr<crunch::CalcBatch> &b) {
+            if (loader.result() && loader.result()->calc) loader.result()->calc->valuesTaken(qint64(b->items.size()));
+            if (session) session->dropStale(&b->items);   // (as the window does: what an edit of cells moved after it was worked out is let go of)
             if (trackChanges)
                 for (const grid::ValueStore::Item &it : b->items) {
                     jp::calc::Value old;
