@@ -483,6 +483,47 @@ private Q_SLOTS:
         QCOMPARE(store.cellCount(), qint64(240));
     }
 
+    // Lines inserted so near the end of the sheet that they do not all fit push everything from there on off the sheet (the cells of those rows stay, dead, until Undo), and a delete that
+    // reaches past the end is cut to it; either way the sheet is as long as it was, and Undo gives back what was.
+    void linesNearTheEndOfTheSheetAreCutToIt()
+    {
+        CellStore store;
+        store.add(makeCell(10, 0, 1));
+        store.add(makeCell(1048574, 0, 2));
+        store.add(makeCell(1048575, 3, 3));
+        store.finish();
+        const quint32 rows = store.rows().size(), cols = store.cols().size();
+        QCOMPARE(rows, 1048576u);
+        CellStore::LineEdits insert;
+        QCOMPARE(store.insertLines(true, 1048574, 5, &insert), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.rows().size(), rows);
+        QVERIFY(store.find(10, 0) && !store.find(1048574, 0) && !store.find(1048575, 3));
+        QCOMPARE(store.cellCount(), qint64(1));
+        QVERIFY(store.set(makeCell(1048575, 3, 9)));   // (the rows at the end are there to be written to)
+        QVERIFY(store.erase(1048575, 3));
+        QCOMPARE(store.undoLines(true, insert), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.rows().size(), rows);
+        QVERIFY(store.find(1048574, 0) && store.find(1048575, 3));
+        QCOMPARE(store.cellCount(), qint64(3));
+        // a delete of more rows than there are left, and of the last column
+        CellStore::LineEdits erase, column;
+        QCOMPARE(store.deleteLines(true, 1048570, 100, &erase), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.rows().size(), rows);
+        QCOMPARE(store.cellCount(), qint64(1));
+        QVERIFY(store.set(makeCell(1048575, 0, 4)));
+        QVERIFY(store.erase(1048575, 0));
+        QCOMPARE(store.undoLines(true, erase), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.cellCount(), qint64(3));
+        QCOMPARE(store.deleteLines(false, 3, 1, &column), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.cols().size(), cols);
+        QCOMPARE(store.cellCount(), qint64(2));
+        QCOMPARE(store.redoLines(false, column), jp::calc::LineStatus::StaleStep);   // (it is done)
+        QCOMPARE(store.undoLines(false, column), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.cellCount(), qint64(3));
+        QCOMPARE(store.undoLines(false, column), jp::calc::LineStatus::StaleStep);   // (and it is undone)
+        QVERIFY(store.find(1048575, 3));
+    }
+
     // A store that was moved from is empty and has nothing of the one it was moved to: cells added to either go where they should.
     void aStoreMovedFromAndTheOneItWentToAreSeparate()
     {

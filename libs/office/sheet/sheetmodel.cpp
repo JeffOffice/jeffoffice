@@ -294,8 +294,21 @@ jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e)
 
 void CellStore::formulaCells(bool rows, quint32 first, std::vector<PlacedCell> *out) const
 {
-    const bool byId = rows && m_rows.isIdentity();
-    for (auto block = m_blocks.lower_bound(byId ? first / kBlockRows : 0u); block != m_blocks.end(); ++block)
+    if (rows && !m_rows.isIdentity()) {
+        // (the rows at the places from `first` on, in the order of their places: the blocks that hold them, and no others)
+        walkRows(first, quint32(-1), [&](quint32 row, std::vector<Cell>::const_iterator a, std::vector<Cell>::const_iterator b) {
+            std::size_t from = out->size();
+            for (; a != b; ++a) {
+                if (!(a->flags & (HasFormula | ArrayMember))) continue;
+                const quint32 col = colPosOf(a->colId);
+                if (col != kNoLine) out->push_back(PlacedCell{row, col, *a});
+            }
+            if (!m_cols.isIdentity()) std::sort(out->begin() + std::ptrdiff_t(from), out->end(), [](const PlacedCell &x, const PlacedCell &y) { return x.col < y.col; });
+            return true;
+        });
+        return;
+    }
+    for (auto block = m_blocks.lower_bound(rows ? first / kBlockRows : 0u); block != m_blocks.end(); ++block)
         for (const Cell &c : block->second.cells) {
             if (!(c.flags & (HasFormula | ArrayMember))) continue;
             const quint32 row = rowPosOf(c.rowId), col = colPosOf(c.colId);

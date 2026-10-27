@@ -53,7 +53,8 @@ enum CellFlag : quint8 {
 
 // One cell: 24 bytes. Its value is in number (and, for text, the pool it points
 // to), and its formula, if it has one, in the sheet's formulas. The ids of its
-// row and column are the store's: they equal the cell's place for now, and only
+// row and column are the store's (they are the cell's place until a row or column
+// is inserted or deleted before it, and then they stay as they were), and only
 // CellStore reads them. A cell is put in at a place (CellStore::add, set) and is
 // given its place by the store's walks, never by asking it.
 struct Cell {
