@@ -1,5 +1,6 @@
 #pragma once
-// The values a calculation has worked out, as the window holds them for the grid to show: by sheet and cell. The calculation runs on a worker thread and tells what it works out in
+// The values a calculation has worked out, as the window holds them for the grid to show: by sheet and cell, a cell being named by the ids of its row and of its column (a cell keeps them: `Cell::rowId` and
+// `colId`), so that rows and columns inserted or deleted move no value. The calculation runs on a worker thread and tells what it works out in
 // batches; the window puts each batch in a ValueStore (on its own thread, a few thousand at a time, so that it is never held up by it), and the grid shows a cell's value from here
 // when the store has one, and the value the file stored when it has not (a formula not yet worked out, or one the engine keeps apart).
 //
@@ -21,8 +22,9 @@ class ValueStore {
 public:
     struct Item {
         qint32 sheet = 0;
-        quint32 row = 0;
-        quint32 col = 0;
+        quint32 row = 0;       // the id of the cell's row (a place, in an Item the window tells the grid of: see EditSession::placed)
+        quint32 col = 0;       // and of its column
+        quint32 epoch = 0;     // for a value the calculation told: the sheet's structural epoch when it was worked out (Calculation::structEpoch)
         jp::calc::Value value;
     };
 
@@ -41,13 +43,18 @@ public:
     // a cell that has none there is none), `take` gives them back to put elsewhere (apply).
     void erase(int sheet, const std::vector<std::pair<quint32, quint32>> &cells);
     struct Move {
-        quint32 fromRow, fromCol, toRow, toCol;
+        quint32 fromRow, fromCol, toRow, toCol;   // (ids)
     };
     void relocate(int sheet, const std::vector<Move> &moves);
-    // How many values `relocate` has moved (counted, for tests and tools: an edit of rows or columns moves the values of the formulas that move).
+    // How many values `relocate` has moved (counted, for tests and tools: cells shifted one by one move the values of the formulas among them; whole rows and columns move none).
     qint64 relocated() const { return m_relocated; }
     // And a cell's value let go of, true if there was one.
     bool erase(int sheet, quint32 row, quint32 col);
+    // The ids of the rows (or columns) of a sheet were renumbered (`from` first id, `count` of them, to `to` first id, in order of `from`): the values of cells in rows or columns that were not renumbered are let go of.
+    struct Renumbering {
+        quint32 from, count, to;
+    };
+    void renumber(int sheet, bool rows, const std::vector<Renumbering> &table);
     // Lets go of every value of a sheet (a sheet that was added and is taken away again: when another is added in its place, it starts with none).
     void dropSheet(int sheet);
     // How many cells have values.

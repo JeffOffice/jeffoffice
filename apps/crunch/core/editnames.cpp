@@ -287,7 +287,7 @@ bool EditSession::applyNameEdits(Step *step, bool forward, Calculation *calc)
                     NameRename r{e.before.name, e.after.name, e.before.scope, e.before.scope < 0 ? shadowingSheets(e.before.name) : std::vector<int>()};
                     calc->renameName(e.before.scope, e.before.name, e.after.name, &e.rewrite);
                     for (const Calculation::EditRecord::Place &p : e.rewrite.rewritten)
-                        if (!p.dataTable) m_touched.insert(keyOf(p.sheet, p.row, p.col));
+                        if (!p.dataTable) markTouched(p.sheet, p.row, p.col);
                     m_nameRenames.push_back(std::move(r));
                 }
                 if (e.textBefore != e.textAfter) calc->setNameText(to.scope, to.name, e.textAfter);
@@ -297,7 +297,7 @@ bool EditSession::applyNameEdits(Step *step, bool forward, Calculation *calc)
                     NameRename inverse{e.after.name, e.before.name, e.after.scope, e.after.scope < 0 ? shadowingSheets(e.after.name) : std::vector<int>()};
                     calc->undoRenameName(e.before.scope, e.before.name, e.after.name, e.rewrite);
                     for (const Calculation::EditRecord::Place &p : e.rewrite.rewritten)
-                        if (!p.dataTable) m_touched.insert(keyOf(p.sheet, p.row, p.col));
+                        if (!p.dataTable) markTouched(p.sheet, p.row, p.col);
                     // (what the file is to follow: the rename taken off the list if it is the last, else a rename the other way)
                     NameRename was{e.before.name, e.after.name, e.before.scope, std::vector<int>()};
                     if (!m_nameRenames.empty() && m_nameRenames.back().oldName == was.oldName && m_nameRenames.back().newName == was.newName && m_nameRenames.back().scope == was.scope) m_nameRenames.pop_back();

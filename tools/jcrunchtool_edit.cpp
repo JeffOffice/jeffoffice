@@ -864,7 +864,8 @@ int roundtripOne(const QString &path)
                                     } else if (b1->cell->hasFormula() || arrayMember) {
                                         // a formula's result: the engine's now if the edit changed it, else the file's as it was
                                         const jp::calc::Value ours = calc->cell(si, b1->row, b1->col);
-                                        if (w.changedByEdit.count(crunch::EditSession::keyOf(si, b1->row, b1->col))) {
+                                        // (the results the engine changed are named by ids: those of the cell in the model, which is the live workbook)
+                                        if (model && w.changedByEdit.count(crunch::EditSession::keyOf(si, model->rowId, model->colId))) {
                                             if (!storedIs(sb, hb, *b1->cell, ours)) {
                                                 ++unexpected;
                                                 edited.add(QStringLiteral("a result is not the engine's"));

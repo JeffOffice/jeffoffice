@@ -68,8 +68,8 @@ void Calculation::renameName(int scope, const QString &oldName, const QString &n
                 if (f.text < 0 || size_t(f.text) >= changedSlot.size() || !changedSlot[size_t(f.text)]) continue;
                 if (size_t(fi) >= st.nodeOf.size() || st.nodeOf[size_t(fi)] == kNone) continue;
                 const quint32 id = st.nodeOf[size_t(fi)];
-                const Cell *c = s.cells.find(m_nodes[id].row, m_nodes[id].col);
-                record->rewritten.push_back({si, m_nodes[id].row, m_nodes[id].col, c && (c->flags & DataTable)});
+                const Cell *c = s.cells.findById(m_nodes[id].rowId, m_nodes[id].colId);
+                record->rewritten.push_back({si, rowOf(m_nodes[id]), colOf(m_nodes[id]), m_nodes[id].rowId, m_nodes[id].colId, c && (c->flags & DataTable)});
             }
         }
         // the rules of validation and of conditional formatting
@@ -188,12 +188,12 @@ void Calculation::nameTextsChangedFor(const QStringList &given)
             if (f.text < 0 || size_t(f.text) >= mention.size() || !mention[size_t(f.text)]) continue;
             if (size_t(fi) >= st.nodeOf.size() || st.nodeOf[size_t(fi)] == kNone) continue;
             const quint32 id = st.nodeOf[size_t(fi)];
-            Cell *c = s.cells.findMutable(m_nodes[id].row, m_nodes[id].col);
+            Cell *c = s.cells.findMutableById(m_nodes[id].rowId, m_nodes[id].colId);
             if (!c || !c->hasFormula()) continue;
             const qint32 formula = c->formula;
-            const quint32 row = m_nodes[id].row, col = m_nodes[id].col;
+            const quint32 rowId = m_nodes[id].rowId, colId = m_nodes[id].colId;
             dropNode(id);
-            const quint32 now = addNode(si, row, col, *c, formula);
+            const quint32 now = addNodeById(si, rowId, colId, *c, formula);
             queueDependents(areaOf(m_nodes[now]));
             ++m_nameRebuilds;
             ++rebuilt;

@@ -166,6 +166,52 @@ void ValueStore::dropSheet(int sheet)
     m_sheets[size_t(sheet)].reset();
 }
 
+void ValueStore::renumber(int sheet, bool rows, const std::vector<Renumbering> &table)
+{
+    if (sheet < 0 || size_t(sheet) >= m_sheets.size() || !m_sheets[size_t(sheet)]) return;
+    auto renumbered = [&](quint32 id) -> quint32 {
+        auto it = std::upper_bound(table.begin(), table.end(), id, [](quint32 v, const Renumbering &r) { return v < r.from; });
+        if (it == table.begin() || id - (it - 1)->from >= (it - 1)->count) return ~quint32(0);
+        return (it - 1)->to + (id - (it - 1)->from);
+    };
+    // each value is taken up before any is put down (the new ids are among the old)
+    struct Held {
+        quint32 row, col;
+        Slot slot;
+        QString text;
+    };
+    std::vector<Held> held;
+    for (Chunk &c : m_sheets[size_t(sheet)]->chunks)
+        for (const Slot &s : c.slots) {
+            if (s.key == kEmptyKey) continue;
+            Held h{quint32(s.key >> 16), quint32(s.key & 0xFFFF), s, QString()};
+            if (s.text >= 0) h.text = m_texts[size_t(s.text)];
+            held.push_back(std::move(h));
+        }
+    dropSheet(sheet);
+    std::vector<Item> items;
+    items.reserve(held.size());
+    for (const Held &h : held) {
+        Item it;
+        it.sheet = sheet;
+        it.row = h.row;
+        it.col = h.col;
+        quint32 &id = rows ? it.row : it.col;
+        id = renumbered(id);
+        if (id == ~quint32(0)) continue;
+        using jp::calc::Value;
+        switch (Value::Kind(h.slot.kind)) {
+        case Value::Kind::Number: it.value = Value::number(h.slot.number); break;
+        case Value::Kind::Bool: it.value = Value::boolean(h.slot.number != 0); break;
+        case Value::Kind::Error: it.value = Value::error(jp::calc::ErrorKind(h.slot.error)); break;
+        case Value::Kind::Text: it.value = Value::text(h.text); break;
+        default: it.value = Value(); break;
+        }
+        items.push_back(std::move(it));
+    }
+    apply(items);
+}
+
 void ValueStore::erase(int sheet, const std::vector<std::pair<quint32, quint32>> &cells)
 {
     for (const auto &cell : cells) erase(sheet, cell.first, cell.second);

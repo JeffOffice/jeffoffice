@@ -245,6 +245,12 @@ qint64 Calculation::programsHeld(int sheet) const
 
 quint32 Calculation::addNode(int sheet, quint32 row, quint32 col, const Cell &cell, qint32 formulaIndex)
 {
+    const CellStore &cells = m_sheets[size_t(sheet)].cells;
+    return addNodeById(sheet, cells.rowIdAt(row), cells.colIdAt(col), cell, formulaIndex);
+}
+
+quint32 Calculation::addNodeById(int sheet, quint32 rowId, quint32 colId, const Cell &cell, qint32 formulaIndex)
+{
     quint32 id;
     if (!m_freeNodes.empty()) {
         id = m_freeNodes.back();
@@ -263,8 +269,8 @@ quint32 Calculation::addNode(int sheet, quint32 row, quint32 col, const Cell &ce
     Node &n = m_nodes[id];
     n.sheet = sheet;
     n.formula = formulaIndex;
-    n.row = row;
-    n.col = col;
+    n.rowId = rowId;
+    n.colId = quint16(colId);
     SheetState &st = m_state[size_t(sheet)];
     if (st.nodeOf.size() <= size_t(formulaIndex)) st.nodeOf.resize(size_t(formulaIndex) + 1, kNone);
     st.nodeOf[size_t(formulaIndex)] = id;
@@ -292,7 +298,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
         } else {
             const Program &p = *slot.program;
             if (p.structured) m_structuredNodes.insert(id);
-            if (isSubtotal(n.sheet, n.row, n.col)) m_subtotalNodes.insert(id);
+            if (isSubtotal(n.sheet, rowOf(n), colOf(n))) m_subtotalNodes.insert(id);
             told = slot.usesNames || slot.dynamic || slot.reaches || slot.observes;
             always = slot.dynamic || slot.changesByItself;
             if (m_options.keepApart) {
@@ -346,7 +352,7 @@ void Calculation::keepStored(Node &n, char cls)
         return;
     }
     const Sheet &s = m_sheets[size_t(n.sheet)];
-    const Cell *c = s.cells.find(n.row, n.col);
+    const Cell *c = s.cells.findById(n.rowId, n.colId);
     storeResult(n, id, c ? valueOf(s, *c) : Value(), false);   // (what the file stored is what the grid shows already, and is not told)
 }
 
@@ -399,8 +405,8 @@ CellArea Calculation::areaOf(const Node &n) const
 {
     CellArea a;
     a.sheet1 = a.sheet2 = n.sheet;
-    a.row1 = a.row2 = n.row;
-    a.col1 = a.col2 = n.col;
+    a.row1 = a.row2 = rowOf(n);
+    a.col1 = a.col2 = colOf(n);
     if (n.flags & Array) {
         const Sheet &s = m_sheets[size_t(n.sheet)];
         const qint32 range = s.formulas[n.formula].range;
@@ -469,26 +475,41 @@ Value Calculation::fitToRange(const Node &n, const Value &v) const
     return out;
 }
 
+// Tells the window the value of a node's cell (and of the cells of its array) by their ids. `fill`: an array formula whose value is no array shows it in every cell of its range.
+void Calculation::tellValue(const Node &n, const Value &v, bool fill) const
+{
+    // (the cells of an array are the rows and columns that follow the first one in the order, whose ids are not those of the first plus one)
+    const CellStore &cells = m_sheets[size_t(n.sheet)].cells;
+    const quint32 row0 = rowOf(n), col0 = colOf(n);
+    auto tell = [&](quint32 i, quint32 j, const Value &x) {
+        if (i == 0 && j == 0) {
+            m_sink(n.sheet, n.rowId, n.colId, x);
+            return;
+        }
+        const quint32 r = cells.rowIdAt(row0 + i), c = cells.colIdAt(col0 + j);
+        if (r != CellStore::kNoLine && c != CellStore::kNoLine) m_sink(n.sheet, r, c, x);
+    };
+    if (v.isArray()) {
+        for (int i = 0; i < v.rows(); ++i)
+            for (int j = 0; j < v.cols(); ++j) tell(quint32(i), quint32(j), v.at(i, j));
+    } else if (fill && (n.flags & Array) && !(n.flags & Kept)) {
+        // (the cells of one that is kept apart are the file's, not its)
+        const CellArea a = areaOf(n);
+        if (a.rows() * a.cols() > 1 && a.rows() * a.cols() <= kMaxArrayCellsMarked) {
+            for (qint64 i = 0; i < a.rows(); ++i)
+                for (qint64 j = 0; j < a.cols(); ++j) tell(quint32(i), quint32(j), v);
+        } else {
+            tell(0, 0, v);
+        }
+    } else {
+        tell(0, 0, v);
+    }
+}
+
 void Calculation::storeResult(Node &n, quint32 id, const Value &given, bool publish)
 {
     const Value v = fitToRange(n, given);
-    if (publish && m_sink) {
-        if (v.isArray()) {
-            for (int i = 0; i < v.rows(); ++i)
-                for (int j = 0; j < v.cols(); ++j) m_sink(n.sheet, n.row + quint32(i), quint32(n.col) + quint32(j), v.at(i, j));
-        } else if ((n.flags & Array) && !(n.flags & Kept)) {
-            // (an array formula whose result is no array, an error or a single value, shows it in every cell of its range; the cells of one that is kept apart are the file's, not its)
-            const CellArea a = areaOf(n);
-            if (a.rows() * a.cols() > 1 && a.rows() * a.cols() <= kMaxArrayCellsMarked) {
-                for (qint64 i = 0; i < a.rows(); ++i)
-                    for (qint64 j = 0; j < a.cols(); ++j) m_sink(n.sheet, n.row + quint32(i), quint32(n.col) + quint32(j), v);
-            } else {
-                m_sink(n.sheet, n.row, n.col, v);
-            }
-        } else {
-            m_sink(n.sheet, n.row, n.col, v);
-        }
-    }
+    if (publish && m_sink) tellValue(n, v, true);
     const qint64 held = heldBy(n, id);
     struct Account {
         Calculation *c;
@@ -546,7 +567,7 @@ bool Calculation::formulaValue(int sheet, quint32 row, quint32 col, const Cell &
     if (n.flags & (Mismatch | Cascade)) m_readCascade = true;
     if (c.flags & ArrayMember) {
         const Value array = m_arrays.value(id);
-        *out = array.isArray() ? array.at(int(row - n.row), int(col) - int(n.col)) : nodeValue(n, id);
+        *out = array.isArray() ? array.at(int(row - rowOf(n)), int(col - colOf(n))) : nodeValue(n, id);
     } else {
         *out = nodeValue(n, id);
     }
@@ -662,7 +683,7 @@ bool Calculation::load()
         if (r.cellCount() <= 1 || r.cellCount() > kMaxArrayCellsMarked) continue;
         for (quint32 row = r.row1; row <= r.row2; ++row)
             for (quint32 col = r.col1; col <= r.col2; ++col) {
-                if (row == n.row && col == n.col) continue;
+                if (row == rowOf(n) && col == colOf(n)) continue;
                 Cell member;
                 if (const Cell *have = s.cells.find(row, col)) {
                     member = *have;
@@ -814,12 +835,12 @@ void Calculation::readdNode(quint32 id)
     if (m_nodes[id].flags & Dead) return;
     const int sheet = m_nodes[id].sheet;
     Sheet &s = m_sheets[size_t(sheet)];
-    Cell *c = s.cells.findMutable(m_nodes[id].row, m_nodes[id].col);
+    Cell *c = s.cells.findMutableById(m_nodes[id].rowId, m_nodes[id].colId);
     if (!c || !c->hasFormula() || c->formula < 0 || c->formula >= s.formulas.size()) return;
     const qint32 formula = c->formula;
-    const quint32 row = m_nodes[id].row, col = m_nodes[id].col;
+    const quint32 rowId = m_nodes[id].rowId, colId = m_nodes[id].colId;
     dropNode(id);
-    const quint32 now = addNode(sheet, row, col, *c, formula);
+    const quint32 now = addNodeById(sheet, rowId, colId, *c, formula);
     queueDependents(areaOf(m_nodes[now]));
 }
 
@@ -862,8 +883,8 @@ bool Calculation::rewriteSheetReferences(const QString &oldName, const QString &
                 if (f.text < 0 || size_t(f.text) >= changedSlot.size() || !changedSlot[size_t(f.text)]) continue;
                 if (size_t(fi) >= st.nodeOf.size() || st.nodeOf[size_t(fi)] == kNone) continue;
                 const quint32 id = st.nodeOf[size_t(fi)];
-                const Cell *c = s.cells.find(m_nodes[id].row, m_nodes[id].col);
-                record->rewritten.push_back({si, m_nodes[id].row, m_nodes[id].col, c && (c->flags & DataTable)});
+                const Cell *c = s.cells.findById(m_nodes[id].rowId, m_nodes[id].colId);
+                record->rewritten.push_back({si, rowOf(m_nodes[id]), colOf(m_nodes[id]), m_nodes[id].rowId, m_nodes[id].colId, c && (c->flags & DataTable)});
                 again.push_back(id);
             }
         }
@@ -1299,8 +1320,8 @@ Value Calculation::runFormula(quint32 id, qint64 *work)
     m_ctx.source = this;
     m_ctx.sheet = n.sheet;
     m_ctx.transition = m_sheets[size_t(n.sheet)].transitionEvaluation;
-    m_ctx.row = n.row;
-    m_ctx.col = n.col;
+    m_ctx.row = rowOf(n);
+    m_ctx.col = colOf(n);
     m_ctx.shiftRows = f.dRow;
     m_ctx.shiftCols = f.dCol;
     m_ctx.now = m_now;
@@ -1343,7 +1364,7 @@ bool Calculation::finishNode(Node &n, quint32 id, const Value &v)
         if (m_readCascade) n.flags |= Cascade;
         if (m_options.verify) {
             const Sheet &sh = m_sheets[size_t(n.sheet)];
-            const Cell *stored = sh.cells.find(n.row, n.col);
+            const Cell *stored = cellOf(n);
             if (stored && !m_options.verify(valueOf(sh, *stored), nodeValue(n, id))) n.flags |= Mismatch;
         }
     }
@@ -1556,7 +1577,7 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
                 // (a formula never worked out begins from the result its file stored, as a program going on from where the file was left would)
                 if (!(x.flags & Worked)) {
                     const Sheet &sheet = m_sheets[size_t(x.sheet)];
-                    if (const Cell *stored = sheet.cells.find(x.row, x.col)) {
+                    if (const Cell *stored = cellOf(x)) {
                         j.start[place] = valueOf(sheet, *stored);
                         j.fromFile[place] = 1;
                         storeResult(x, id, j.start[place], false);
@@ -1609,15 +1630,7 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
             if (!ck.next()) return false;
             const quint32 id = j.open[j.at++];
             Node &x = m_nodes[id];
-            if (m_sink) {
-                const Value v = x.kind == KindArray ? m_arrays.value(id) : nodeValue(x, id);
-                if (v.isArray()) {
-                    for (int r = 0; r < v.rows(); ++r)
-                        for (int c = 0; c < v.cols(); ++c) m_sink(x.sheet, x.row + quint32(r), quint32(x.col) + quint32(c), v.at(r, c));
-                } else {
-                    m_sink(x.sheet, x.row, x.col, v);
-                }
-            }
+            if (m_sink) tellValue(x, x.kind == KindArray ? m_arrays.value(id) : nodeValue(x, id), false);
             x.flags &= quint16(~(Iterating | Circular | Retried | NodeTainted));
             ++pr.recalculated;
         }
@@ -1650,8 +1663,8 @@ bool Calculation::formulaPlace(quint32 node, int *sheet, quint32 *row, quint32 *
 {
     if (node >= m_nodes.size() || (m_nodes[node].flags & Dead)) return false;
     *sheet = m_nodes[node].sheet;
-    *row = m_nodes[node].row;
-    *col = m_nodes[node].col;
+    *row = rowOf(m_nodes[node]);
+    *col = colOf(m_nodes[node]);
     return true;
 }
 
@@ -1887,7 +1900,7 @@ qint64 Calculation::circularCells(std::vector<CircularCell> *out, qint64 cap) co
             it = m_circle.erase(it);
             continue;
         }
-        if (n.state == Done) all.push_back({n.sheet, n.row, quint32(n.col)});
+        if (n.state == Done) all.push_back({n.sheet, rowOf(n), colOf(n)});
         ++it;
     }
     const qint64 found = qint64(all.size());
@@ -2135,6 +2148,40 @@ quint32 Calculation::nodeAt(int sheet, quint32 row, quint32 col) const
     if (!c || !c->hasFormula() || c->formula < 0) return kNone;
     const SheetState &st = m_state[size_t(sheet)];
     return size_t(c->formula) < st.nodeOf.size() ? st.nodeOf[size_t(c->formula)] : kNone;
+}
+
+bool Calculation::staleResult(int sheet, quint32 rowId, quint32 colId, quint32 epoch) const
+{
+    if (m_stamps.empty()) return false;
+    const auto at = m_stamps.find(stampKey(sheet, rowId, colId));
+    return at != m_stamps.end() && int(epoch - at->second) < 0;   // (epochs wrap: the difference says which is older)
+}
+
+void Calculation::pruneStamps(const std::vector<quint32> &epochs)
+{
+    for (auto it = m_stamps.begin(); it != m_stamps.end();) {
+        const int sheet = int(it->first >> 40);
+        if (sheet < int(epochs.size()) && int(epochs[size_t(sheet)] - it->second) >= 0) it = m_stamps.erase(it);
+        else ++it;
+    }
+}
+
+void Calculation::stampCell(int sheet, quint32 rowId, quint32 colId)
+{
+    if (sheet < 0 || sheet >= int(m_state.size())) return;
+    m_stamps[stampKey(sheet, rowId, colId)] = m_state[size_t(sheet)].epoch;
+}
+
+// A formula that is to be worked out again though nothing it reads was changed (its cell moved).
+void Calculation::redirty(quint32 id)
+{
+    Node &n = m_nodes[id];
+    if (n.flags & Dead) return;
+    if (n.state == Done) {
+        n.state = Dirty;
+        ++m_notDone;
+        m_dirty.push_back(id);
+    }
 }
 
 bool Calculation::isCircular(int sheet, quint32 row, quint32 col) const

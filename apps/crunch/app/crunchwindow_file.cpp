@@ -287,13 +287,19 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
     if (!m_loaded || !batch) return;
     const qint64 cpu0 = jp::threadCpuMicros();
     m_longestBatchItems = std::max<qint64>(m_longestBatchItems, qint64(batch->items.size()));
-    if (m_session && batch->generation < m_session->generation()) m_session->moveToNow(&batch->items, batch->generation);   // (made before cells were moved: they are named by where they were)
+    // (the items name cells by the ids of their rows and columns, which edits of rows and columns leave as they are: what was in flight when one was made lands on the right cell; those for cells that
+    // an edit moved one by one after they were worked out are let go of, and the formulas are worked out again)
+    if (m_session) m_session->dropStale(&batch->items);
     if (m_session) m_session->dropRemovedSheets(&batch->items);   // (results for a sheet that Undo took away while it was being worked out)
     if (m_session) m_session->noteResults(batch->items);   // (before the store has them: it says what the engine had before)
     m_values.apply(batch->items);
-    if (m_objects) m_objects->cellsChanged(batch->items);
+    // (the grid and the objects want places, as the cells are now)
+    const std::vector<jp::grid::ValueStore::Item> where = m_session ? m_session->placed(batch->items) : std::vector<jp::grid::ValueStore::Item>();
+    const std::vector<jp::grid::ValueStore::Item> &shown = m_session ? where : batch->items;
+    if (m_objects) m_objects->cellsChanged(shown);
     m_workerCpuMicros = batch->workerCpuMicros;
-    const bool active = m_view->valuesChanged(m_sheet, batch->items);
+    const bool active = m_view->valuesChanged(m_sheet, shown);
+    if (batch->last && m_session) m_session->pruneStamps(batch->epochs);
     if (m_viewKind == 2 && m_pageView && m_layoutPages) m_pageView->contentsChanged();   // (the pages show the values the calculation gave)
     if (active) updateBars();
     ++m_batches;

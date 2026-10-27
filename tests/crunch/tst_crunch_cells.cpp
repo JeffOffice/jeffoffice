@@ -109,7 +109,7 @@ QString storeDiffers(EditWindow &e)
         calc->sheet(s).cells.forEach([&](quint32 row, quint32 col, const office::sheet::Cell &c) {
             if (!problem.isEmpty() || !(c.hasFormula() || (c.flags & office::sheet::ArrayMember))) return;
             calc::Value held;
-            if (e.win.w.values().find(s, row, col, &held) && !sameValue(held, calc->cell(s, row, col)))
+            if (e.win.w.values().find(s, c.rowId, c.colId, &held) && !sameValue(held, calc->cell(s, row, col)))
                 problem = QStringLiteral("%1!%2 shows %3 and is %4").arg(s).arg(cellName(row, col), held.debug(), calc->cell(s, row, col).debug());
         });
         if (!problem.isEmpty()) return problem;
@@ -1021,13 +1021,13 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->count(), 2);
     }
 
-    // Results worked out before cells moved name them by where they were; they are put where the cells are now (and dropped with the cells that are gone).
-    void resultsMadeBeforeTheCellsMovedAreMovedToo()
+    // Results worked out before rows and columns were edited name cells by the ids of their rows and columns, which those edits do not change: put where the cells are now (`placed`), they are on
+    // the cells they were worked out for, and those of rows and columns that are deleted are left out.
+    void resultsInFlightWhenRowsAndColumnsAreEditedLandOnTheirCells()
     {
         EditWindow e;
         QVERIFY(e.open(sheetOf({"A1=1", "B1==A1"})));
         crunch::EditSession *s = e.win.w.session();
-        QCOMPARE(s->generation(), 0);
         auto item = [](quint32 row, quint32 col, double v) {
             grid::ValueStore::Item it;
             it.sheet = 0;
@@ -1036,24 +1036,331 @@ private Q_SLOTS:
             it.value = calc::Value::number(v);
             return it;
         };
+        // (before any edit the ids are the places: the worker tells these as it works them out)
+        std::vector<grid::ValueStore::Item> items{item(0, 1, 1), item(1, 1, 2), item(2, 1, 3), item(10, 1, 4), item(1, 5, 5), item(1, 6, 6)};
         QVERIFY(s->insertRows(0, 2, 3).ok);                                      // 3 rows at row 3
         QVERIFY(s->deleteColumns(0, 5, 1).ok);                                   // column F
-        QCOMPARE(s->generation(), 2);
-        std::vector<grid::ValueStore::Item> items{item(0, 1, 1), item(1, 1, 2), item(2, 1, 3), item(10, 1, 4), item(1, 5, 5), item(1, 6, 6)};
-        s->moveToNow(&items, 0);
-        QCOMPARE(int(items.size()), 5);
-        QCOMPARE(items[0].row, quint32(0));
-        QCOMPARE(items[2].row, quint32(5));
-        QCOMPARE(items[3].row, quint32(13));
-        QCOMPARE(items[4].col, quint32(5));                                       // (G moved to F)
-        // made after the first edit: only the second applies
-        std::vector<grid::ValueStore::Item> later{item(10, 1, 4), item(1, 6, 6)};
-        s->moveToNow(&later, 1);
-        QCOMPARE(later[0].row, quint32(10));
-        QCOMPARE(later[1].col, quint32(5));
+        s->dropStale(&items);
+        QCOMPARE(int(items.size()), 6);                                          // (nothing moved one by one: none is stale)
+        const std::vector<grid::ValueStore::Item> where = s->placed(items);
+        QCOMPARE(int(where.size()), 5);                                          // (the one in column F is of a column that is gone)
+        QCOMPARE(where[0].row, quint32(0));
+        QCOMPARE(where[2].row, quint32(5));                                      // (the third row's id is 2, and it is at row 6 now)
+        QCOMPARE(where[3].row, quint32(13));
+        QCOMPARE(where[4].col, quint32(5));                                      // (G moved to F)
+        // and the store's value for a formula is the one the cell shows after the edits: the cell's ids say where
+        QVERIFY(s->insertRows(0, 0, 2).ok);
         QVERIFY(e.settle());
-        // the generation is the loader's: results worked out now carry it
-        QCOMPARE(e.win.w.workbookLoader().structureGeneration(), 2);
+        const office::sheet::Cell *b = s->calculation()->sheet(0).cells.find(2, 1);
+        QVERIFY(b && b->hasFormula());
+        calc::Value held;
+        QVERIFY(e.win.w.values().find(0, b->rowId, b->colId, &held));
+        QCOMPARE(held.number(), 1.0);
+        QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("n:1"));
+        QCOMPARE(s->calculation()->structEpoch(0), quint32(3));
+    }
+
+    // A formula that an edit of cells (moved one by one) put in another cell is stamped with the epoch of the edit, at the place it left and the place it came to: a result worked out under an older
+    // epoch is let go of (it names the cell as it was), one worked out after it, and one for a cell the edit did not touch, are kept.
+    void aResultOlderThanTheStampOfMovedCellsIsDiscarded()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1==A1", "B2==A1*2", "C1=7"})));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const quint32 before = s->calculation()->structEpoch(0);
+        office::sheet::CellRange block;
+        block.valid = true;
+        block.row1 = block.row2 = 0;
+        block.col1 = block.col2 = 1;
+        QVERIFY(s->insertCells(0, block, true).ok);                             // B1 and B2 move down one
+        const quint32 now = s->calculation()->structEpoch(0);
+        QVERIFY(now > before);
+        QVERIFY(s->calculation()->stampCount() > 0);
+        auto item = [](quint32 row, quint32 col, quint32 epoch) {
+            grid::ValueStore::Item it;
+            it.sheet = 0;
+            it.row = row;
+            it.col = col;
+            it.epoch = epoch;
+            it.value = calc::Value::number(5);
+            return it;
+        };
+        // (the ids of B1 and B2 before the edit were (0,1) and (1,1); B2 is at (2,1) now, B1 at (1,1))
+        std::vector<grid::ValueStore::Item> items{item(0, 1, before), item(1, 1, before), item(2, 1, before), item(0, 0, before), item(1, 1, now), item(2, 1, now)};
+        s->dropStale(&items);
+        QCOMPARE(int(items.size()), 3);
+        QCOMPARE(items[0].row, quint32(0));
+        QCOMPARE(items[0].col, quint32(0));                                      // (A1, which the edit did not touch)
+        QCOMPARE(items[1].epoch, now);
+        QCOMPARE(items[2].epoch, now);
+        // the formulas that moved are worked out again, and what the worker then says is kept; once nothing older can be on its way the stamps are let go of
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("n:2"));
+        s->pruneStamps({now});
+        QCOMPARE(s->calculation()->stampCount(), qint64(0));
+    }
+
+    // Cells the person typed in are marked by the ids of their rows and columns: 200 edits of rows and columns later they are where adjusting each place edit by edit says, those whose row or column was
+    // deleted are not in the file, and what the file is made of is the same cells with the same values (and the file opened again is what the window shows).
+    void touchedCellsSurvive200RandomEdits()
+    {
+        using office::sheet::StructEdit;
+        int dead = 0;
+        for (const quint32 seed : {7u, 8u, 9u}) {
+            QRandomGenerator rng(seed);
+            EditWindow e;
+            QStringList specs;
+            for (int r = 1; r <= 12; ++r) specs << QStringLiteral("A%1=%2").arg(r).arg(r) << QStringLiteral("B%1==A%1*2").arg(r);
+            QVERIFY(e.open(sheetOf(specs)));
+            crunch::EditSession *s = e.win.w.session();
+            struct Typed {
+                quint32 row, col;
+                bool alive;
+                double value;
+            };
+            std::vector<Typed> typed, formulas;   // (the cells typed in, and the formulas of column B the file has: where each is after every edit, by adjusting its place edit by edit)
+            for (quint32 r = 0; r < 12; ++r) formulas.push_back({r, 1, true, 0});
+            for (quint32 r = 0; r < 12; r += 2)
+                for (quint32 c = 2; c < 8; c += 2) {
+                    typed.push_back({r, c, true, double(100 * r + c)});
+                    QVERIFY(s->type(0, r, c, QString::number(typed.back().value)).ok);
+                }
+            int made = 0;
+            for (int step = 0; step < 200; ++step) {
+                const quint32 at = quint32(rng.bounded(14)), count = 1 + quint32(rng.bounded(2));
+                StructEdit edit;
+                crunch::EditSession::Outcome o;
+                switch (rng.bounded(10)) {
+                case 0: case 1: case 2: case 8: case 9: edit = StructEdit::insertRows(0, at, count); o = s->insertRows(0, at, count); break;
+                case 3: edit = StructEdit::deleteRows(0, at, 1); o = s->deleteRows(0, at, 1); break;
+                case 4: case 5: case 6: edit = StructEdit::insertColumns(0, at % 7, count); o = s->insertColumns(0, at % 7, count); break;
+                default: edit = StructEdit::deleteColumns(0, at % 7, 1); o = s->deleteColumns(0, at % 7, 1); break;
+                }
+                if (!o.ok) continue;
+                ++made;
+                for (std::vector<Typed> *list : {&typed, &formulas})
+                    for (Typed &t : *list) {
+                        int sheet = 0;
+                        if (t.alive && office::sheet::adjustCell(edit, &sheet, &t.row, &t.col) == office::sheet::RefFate::Gone) t.alive = false;
+                    }
+            }
+            QVERIFY(made > 150);
+            QVERIFY(e.settle());
+            crunch::EditSession::Snapshot snap;
+            QString why;
+            QVERIFY2(s->takeSnapshot(&snap, &why), qPrintable(why));
+            const std::vector<office::sheet::SavedCell> &cells = snap.changes.sheets[0].cells;
+            // (the cells are in order of place, and each is a cell typed in that is alive, at its place, with its value, or a formula of the file's that is alive)
+            int constants = 0, aliveTyped = 0;
+            for (size_t i = 1; i < cells.size(); ++i) QVERIFY(cells[i - 1].row < cells[i].row || (cells[i - 1].row == cells[i].row && cells[i - 1].col < cells[i].col));
+            for (const Typed &t : typed) aliveTyped += t.alive ? 1 : 0;
+            for (const office::sheet::SavedCell &c : cells) {
+                if (c.isFormula) {
+                    bool known = false;
+                    for (const Typed &f : formulas) known = known || (f.alive && f.row == c.row && f.col == c.col);
+                    QVERIFY2(known, qPrintable(QStringLiteral("seed %1: a formula at %2 that is none of the file's").arg(seed).arg(cellName(c.row, c.col))));
+                    continue;
+                }
+                ++constants;
+                const Typed *at = nullptr;
+                for (const Typed &t : typed)
+                    if (t.alive && t.row == c.row && t.col == c.col) at = &t;
+                QVERIFY2(at, qPrintable(QStringLiteral("seed %1: a cell at %2 that was not typed in").arg(seed).arg(cellName(c.row, c.col))));
+                QCOMPARE(c.value.number, at->value);
+            }
+            QCOMPARE(constants, aliveTyped);
+            QVERIFY(aliveTyped > 0);
+            dead += int(typed.size()) - aliveTyped;
+            // and the file made of them is what the window shows
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY2(savedOk(saved, 20000), "the save failed");
+            Window second;
+            QVERIFY(second.open(e.copyOfFile()));
+            QVERIFY(differences(e.win.w.calculation(), second.w.calculation(), {}).isEmpty());
+            for (const Typed &t : typed)
+                if (t.alive) QCOMPARE(second.w.calculation()->content(0, t.row, t.col).value.number(), t.value);
+        }
+        QVERIFY(dead > 0);   // (some of the cells were deleted with their rows or columns, and are not in the file)
+    }
+
+    // The order of the columns is put back to one run and the ids are renumbered (small limits make it happen in a few edits): the values the window holds are on the cells they were for (at once, before
+    // the worker has told anything again), the marks of the cells typed in are on the cells they were for, and the rest of what was held by the ids is renumbered with them.
+    void valuesAndMarksSurviveACompaction()
+    {
+        using office::sheet::StructEdit;
+        EditWindow e;
+        QStringList specs;
+        for (int r = 1; r <= 6; ++r) specs << QStringLiteral("A%1=%2").arg(r).arg(r) << QStringLiteral("B%1==%2+0.5").arg(r).arg(r * 10);   // (formulas that read nothing: each has a value of its own)
+        QVERIFY(e.open(sheetOf(specs)));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        jp::calc::LineLimits cols = jp::calc::LineLimits::cols();
+        cols.idLimit = cols.firstNew + 40;
+        cols.rebaseRuns = 8;
+        cols.maxRuns = 100;
+        s->setLineLimitsForTest(0, jp::calc::LineLimits::rows(), cols);
+        struct Typed {
+            quint32 row, col;
+            bool alive;
+            double value;
+        };
+        std::vector<Typed> typed;
+        for (quint32 r = 0; r < 6; r += 2)
+            for (quint32 c = 2; c < 4; ++c) {
+                typed.push_back({r, c, true, double(10 * r + c)});
+                QVERIFY(s->type(0, r, c, QString::number(typed.back().value)).ok);
+            }
+        QVERIFY(e.settle());
+        QRandomGenerator rng(20261103);
+        int compactions = 0, edits = 0, formulasSeen = 0;
+        quint32 lastNext = s->calculation()->sheet(0).cols().nextId().value();
+        for (int step = 0; step < 120; ++step) {
+            const quint32 at = quint32(rng.bounded(7));
+            const bool insert = rng.bounded(10) < 7;   // (more are inserted than deleted: the cells typed in and the formulas drift right, out of the way of the deletes, and stay)
+            const StructEdit edit = insert ? StructEdit::insertColumns(0, at, 1) : StructEdit::deleteColumns(0, at, 1);
+            const crunch::EditSession::Outcome o = insert ? s->insertColumns(0, at, 1) : s->deleteColumns(0, at, 1);
+            if (!o.ok) continue;
+            ++edits;
+            for (Typed &t : typed) {
+                int sheet = 0;
+                if (t.alive && office::sheet::adjustCell(edit, &sheet, &t.row, &t.col) == office::sheet::RefFate::Gone) t.alive = false;
+            }
+            const quint32 next = s->calculation()->sheet(0).cols().nextId().value();
+            const bool compacted = next < lastNext;
+            lastNext = next;
+            compactions += compacted ? 1 : 0;
+            // (no event is processed: what the window holds is what the edit and the compaction left, with nothing the worker told since)
+            const office::sheet::Calculation *calc = s->calculation();
+            calc->sheet(0).cells.forEach([&](quint32 row, quint32 col, const office::sheet::Cell &c) {
+                if (!c.hasFormula()) return;
+                calc::Value held;
+                QVERIFY2(e.win.w.values().find(0, c.rowId, c.colId, &held), qPrintable(QStringLiteral("step %1: no value for %2").arg(step).arg(cellName(row, col))));
+                QVERIFY2(sameValue(held, calc->cell(0, row, col)), qPrintable(QStringLiteral("step %1: %2 shows %3").arg(step).arg(cellName(row, col), held.debug())));
+                ++formulasSeen;
+            });
+            if (QTest::currentTestFailed()) return;
+            if (compacted) {
+                // the cells typed in are where they were, with the marks they had
+                crunch::EditSession::Snapshot snap;
+                QString why;
+                QVERIFY2(s->takeSnapshot(&snap, &why), qPrintable(why));
+                int constants = 0, alive = 0;
+                for (const Typed &t : typed) alive += t.alive ? 1 : 0;
+                for (const office::sheet::SavedCell &c : snap.changes.sheets[0].cells) {
+                    if (c.isFormula) continue;
+                    ++constants;
+                    bool found = false;
+                    for (const Typed &t : typed) found = found || (t.alive && t.row == c.row && t.col == c.col && t.value == c.value.number);
+                    QVERIFY2(found, qPrintable(QStringLiteral("step %1: a marked cell at %2").arg(step).arg(cellName(c.row, c.col))));
+                }
+                QCOMPARE(constants, alive);
+            }
+            QVERIFY(e.settle());
+            QVERIFY(storeDiffers(e).isEmpty());
+        }
+        QVERIFY2(compactions >= 2, qPrintable(QString::number(compactions)));
+        QVERIFY(edits > 60);
+        QVERIFY2(formulasSeen > 60 * 3, qPrintable(QString::number(formulasSeen)));   // (the formulas were there to be looked at)
+    }
+
+    // Undo and Redo of edits of rows and columns put no mark and no value on another cell: after each, the cells typed in are where the edits done so far put them (adjusting each place edit by edit), the
+    // file made from them is those cells, and the window's values are the calculation's.
+    void undoAndRedoOfRowAndColumnEditsKeepValuesAndMarksOnTheirCells()
+    {
+        using office::sheet::StructEdit;
+        EditWindow e;
+        QStringList specs;
+        for (int r = 1; r <= 8; ++r) specs << QStringLiteral("A%1=%2").arg(r).arg(r) << QStringLiteral("B%1==A%1+C%1").arg(r);
+        QVERIFY(e.open(sheetOf(specs)));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        struct Typed {
+            quint32 row, col;
+            double value;
+        };
+        std::vector<Typed> typed;
+        for (quint32 r = 0; r < 8; r += 3)
+            for (quint32 c = 2; c < 4; ++c) {
+                typed.push_back({r, c, double(10 * r + c)});
+                QVERIFY(s->type(0, r, c, QString::number(typed.back().value)).ok);
+            }
+        QVERIFY(e.settle());
+        std::vector<StructEdit> done, undone;
+        QRandomGenerator rng(11);
+        auto check = [&](int step) -> void {
+            QVERIFY(e.settle());
+            std::vector<Typed> where = typed;
+            std::vector<bool> alive(where.size(), true);
+            for (const StructEdit &edit : done)
+                for (size_t i = 0; i < where.size(); ++i) {
+                    int sheet = 0;
+                    if (alive[i] && office::sheet::adjustCell(edit, &sheet, &where[i].row, &where[i].col) == office::sheet::RefFate::Gone) alive[i] = false;
+                }
+            crunch::EditSession::Snapshot snap;
+            QString why;
+            QVERIFY2(s->takeSnapshot(&snap, &why), qPrintable(why));
+            int constants = 0, expected = 0;
+            for (size_t i = 0; i < where.size(); ++i) expected += alive[i] ? 1 : 0;
+            for (const office::sheet::SavedCell &c : snap.changes.sheets[0].cells) {
+                if (c.isFormula) {
+                    // (the formulas the edits wrote again are written whole, and only those: with every edit undone, none is)
+                    QVERIFY2(!done.empty(), qPrintable(QStringLiteral("step %1: a formula at %2 is marked with no edit done").arg(step).arg(cellName(c.row, c.col))));
+                    continue;
+                }
+                ++constants;
+                bool found = false;
+                for (size_t i = 0; i < where.size(); ++i) found = found || (alive[i] && where[i].row == c.row && where[i].col == c.col && where[i].value == c.value.number);
+                QVERIFY2(found, qPrintable(QStringLiteral("step %1: a marked cell at %2 holding %3").arg(step).arg(cellName(c.row, c.col)).arg(c.value.number)));
+            }
+            QCOMPARE(constants, expected);
+            const QString stale = storeDiffers(e);
+            QVERIFY2(stale.isEmpty(), qPrintable(QStringLiteral("step %1: %2").arg(step).arg(stale)));
+        };
+        for (int step = 0; step < 60; ++step) {
+            const int roll = rng.bounded(10);
+            if (roll < 3 && !done.empty()) {
+                e.win.w.undoStack()->undo();
+                undone.push_back(done.back());
+                done.pop_back();
+            } else if (roll < 5 && !undone.empty()) {
+                e.win.w.undoStack()->redo();
+                done.push_back(undone.back());
+                undone.pop_back();
+            } else {
+                const quint32 at = quint32(rng.bounded(10));
+                StructEdit edit;
+                crunch::EditSession::Outcome o;
+                switch (rng.bounded(4)) {
+                case 0: edit = StructEdit::insertRows(0, at, 1); o = s->insertRows(0, at, 1); break;
+                case 1: edit = StructEdit::deleteRows(0, at, 1); o = s->deleteRows(0, at, 1); break;
+                case 2: edit = StructEdit::insertColumns(0, at % 5, 1); o = s->insertColumns(0, at % 5, 1); break;
+                default: edit = StructEdit::deleteColumns(0, at % 5, 1); o = s->deleteColumns(0, at % 5, 1); break;
+                }
+                if (!o.ok) continue;
+                done.push_back(edit);
+                undone.clear();
+            }
+            check(step);
+            if (QTest::currentTestFailed()) return;
+        }
+        QVERIFY(!done.empty());
+        // and every edit undone, then done again
+        while (!done.empty()) {
+            e.win.w.undoStack()->undo();
+            undone.push_back(done.back());
+            done.pop_back();
+        }
+        check(100);
+        if (QTest::currentTestFailed()) return;
+        while (!undone.empty()) {
+            e.win.w.undoStack()->redo();
+            done.push_back(undone.back());
+            undone.pop_back();
+        }
+        check(101);
     }
 };
 

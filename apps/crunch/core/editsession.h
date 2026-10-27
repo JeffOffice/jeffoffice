@@ -9,6 +9,7 @@
 
 #include "core/anchors.h"
 #include "core/clipdata.h"
+#include "core/keyset.h"
 #include "core/pagesettings.h"
 #include "core/loader.h"
 #include "core/nametable.h"
@@ -180,9 +181,8 @@ struct StructChange {
     jp::office::sheet::StructEdit edit;
     jp::office::sheet::Calculation::EditRecord record;
     std::vector<jp::office::sheet::TablePlace> tables;                   // the tables it moved, where they were
-    std::vector<quint64> touchedGone, touchedAdded;                     // cells marked as changed that it deleted, and those it marked
-    std::vector<std::pair<quint64, jp::calc::Value>> resultsGone, engineGone, fileGone;   // the results kept by cell that it deleted
-    std::vector<quint64> columnsGone, rowsGone;                          // the columns and rows marked as resized that it deleted
+    std::vector<quint64> touchedGone, touchedAdded;                     // cells marked as changed that it deleted (cells shifted one by one: whole rows and columns are marked by ids, which they do not change), and those it marked
+    std::vector<std::pair<quint64, jp::calc::Value>> resultsGone, engineGone, fileGone;   // the results kept by cell that it deleted (the same)
     qint64 bytes() const;
     std::shared_ptr<AnchorDelta> anchors;                                // what the edit moved or took away of the notes and links
     int savedGen = 0;                                                    // how many saves had been made when it was done (an Undo after a later save is made against the saved file)
@@ -557,10 +557,14 @@ public:
     Outcome deleteCells(int sheet, const jp::office::sheet::CellRange &block, bool shiftUp);
     // Whether the edit can be made now, and if not, why (a sentence).
     bool canMove(const jp::office::sheet::StructEdit &edit, QString *why = nullptr) const;
-    // The generation of the cells' places: how many times cells have been moved by an edit (Undo and Redo too). A batch of results made at an earlier generation names the cells by where they
-    // were; `moveToNow` puts the places in it where the cells are now.
-    int generation() const { return int(m_log.size()); }
-    void moveToNow(std::vector<jp::grid::ValueStore::Item> *items, int generation) const;
+    // The results the worker tells name cells by the ids of their rows and columns, which edits of rows and columns do not change, so a batch in flight when one is made lands on the right cells.
+    // `dropStale` takes out of a batch those worked out under an epoch older than the stamp of the cell's formula (an edit moved cells one by one, or put the ids in order again, after they were
+    // worked out: they name what was at the place then); the formula is worked out again.
+    void dropStale(std::vector<jp::grid::ValueStore::Item> *items) const;
+    // A batch of results (or items made from the ids of cells) with the places of the cells, in the order they are now, for the view to draw them again; those whose row or column is deleted are left out.
+    std::vector<jp::grid::ValueStore::Item> placed(const std::vector<jp::grid::ValueStore::Item> &items) const;
+    // The stamps of values in flight that no value still on its way is older than (a last batch of the worker's: `epochs` are the sheets' when it was sent) are let go of.
+    void pruneStamps(const std::vector<quint32> &epochs);
     // Takes out of a batch of results those for a sheet that is not there any more (a sheet added and taken away by Undo while the worker was still working out its formulas).
     void dropRemovedSheets(std::vector<jp::grid::ValueStore::Item> *items) const;
 
@@ -728,8 +732,9 @@ public:
     // How many cells have been changed since the file was read or saved, and how many formulas' results differ from the file's (for tests and the status).
     qint64 changedCells() const { return qint64(m_touched.size()); }
     qint64 changedResults() const { return qint64(m_results.size()); }
-    // How many marks the session has gone through to follow edits of rows, columns, and cells (the cells marked as changed, the results kept by cell, the columns and rows marked as resized;
-    // counted, for tests and tools).
+    // How many marks the session has gone through to follow edits of cells moved one by one (the cells marked as changed, the results kept by cell; whole rows and columns move none, for the marks are
+    // by the ids of rows and columns: counted, for tests and tools). The marks themselves: how many of each kind (the columns and rows marked as resized by ids).
+    qint64 resizedMarks() const { return qint64(m_columnsResized.size() + m_rowsResized.size()); }
     qint64 marksFollowed() const { return m_marksFollowed; }
     // The longest the window waited for the worker to let go (microseconds, by the wall), and the last wait: what an edit costs besides the work of putting the cell in.
     qint64 longestHoldWaitMicros() const { return m_longestHoldWait; }
@@ -740,7 +745,15 @@ public:
     void setBusy(bool busy) { m_busy = busy; }
     bool isBusy() const { return m_busy; }
 
-    static quint64 keyOf(int sheet, quint32 row, quint32 col) { return (quint64(sheet) << 40) | (quint64(row) << 16) | quint64(col); }
+    // The key of a mark or result kept by cell: the sheet and the ids of the cell's row and column (see Cell::rowId). A row id has 24 bits and a column id 16.
+    static quint64 keyOf(int sheet, quint32 rowId, quint32 colId) { return (quint64(sheet) << 40) | (quint64(rowId) << 16) | quint64(colId); }
+    static constexpr quint64 kNoKey = ~quint64(0);
+    // The key of the cell at a place (kNoKey if the place is off the sheet), and the place a key is at now (false if its row or column is deleted: the cell is not in the file as it is saved).
+    quint64 markOf(int sheet, quint32 row, quint32 col) const;
+    void markTouched(int sheet, quint32 row, quint32 col);   // the cell at the place is marked as changed (written whole when the file is made)
+    void markColumnResized(int sheet, quint32 col);
+    void markRowResized(int sheet, quint32 row);
+    bool placeOfMark(quint64 key, int *sheet, quint32 *row, quint32 *col) const;
 
 Q_SIGNALS:
     // The sheets were changed (added, deleted, renamed, moved, shown, hidden, or given a color) by a step, Undo, or Redo: the window makes its tabs again.
@@ -830,7 +843,7 @@ private:
     bool isLocked(int sheet, quint32 style) const;
     bool formulaHidden(int sheet, quint32 style) const;
     QString lockedMessage() const;
-    bool storedEquals(int sheet, quint32 row, quint32 col, const jp::calc::Value &value) const;
+    bool storedEquals(int sheet, quint32 rowId, quint32 colId, const jp::calc::Value &value) const;   // (the cell named by the ids of its row and column)
     void cleanChanged(bool clean);
     // The steps past the byte limit, oldest first, are forgotten (never the newest that is done).
     void trimUndo();
@@ -850,7 +863,7 @@ private:
     bool m_tracking = false;               // an edit has been made: results are compared with the file's
     bool m_sheetRemoved = false;                     // a sheet added was taken away by Undo (so results may come for sheets that are not there)
     void forgetSheet(int sheet);                     // what is kept by cell for a sheet taken away is let go of
-    std::unordered_set<quint64> m_touched;           // cells changed by the person (written whole), by sheet, row, column
+    KeySet m_touched;                                // cells changed by the person (written whole), by sheet, row id, column id
     std::map<quint64, jp::calc::Value> m_results;      // formulas whose value is not the file's
     std::map<quint64, jp::calc::Value> m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
     qint64 m_token;
@@ -896,8 +909,12 @@ private:
         std::shared_ptr<const std::map<quint64, QString>> notes;   // the texts of the sheet's notes now, for Find
     };
     mutable std::map<int, NotesOfSheet> m_notes;
-    std::set<quint64> m_columnsResized, m_rowsResized;   // the columns and rows (by sheet and place) whose size a step changed since the file was read or saved
-    std::vector<jp::office::sheet::StructEdit> m_log;  // every edit that moved cells (the place of a batch's results in time: see generation)
+    std::set<quint64> m_columnsResized, m_rowsResized;   // the columns and rows (by sheet and id: keyOf(sheet, 0, column id) and keyOf(sheet, row id, 0)) whose size a step changed since the file was read or saved
+    // Marks of cells that an edit of whole rows or columns would have left in the dead (a deleted row's) are let go of when nothing can name the id any more, and the ids of every mark of a sheet are renumbered
+    // with the cells when the order is put back to one run.
+    void eachStructChange(const std::function<void(StructChange *)> &f);   // (every step on the stack that edited rows, columns, or cells, done or undone)
+    void sweepMarks(int sheet);
+    void renumberMarks(int sheet, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table);
     ObjectHook m_objectHook;
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
     PageSettings m_pages;

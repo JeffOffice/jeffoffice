@@ -636,7 +636,7 @@ QString storeDiffers(Live &live)
             if (c.hasFormula() && calc->isCircular(s, row, col)) return;
             calc::Value held;
             const calc::Value now = calc->cell(s, row, col);
-            if (live.win->values().find(s, row, col, &held) && valueText(held) != valueText(now))
+            if (live.win->values().find(s, c.rowId, c.colId, &held) && valueText(held) != valueText(now))
                 problem = QStringLiteral("%1 shows %2 and is %3").arg(placeName(s, int(row), int(col)), valueText(held), valueText(now));
         });
         if (!problem.isEmpty()) return problem;

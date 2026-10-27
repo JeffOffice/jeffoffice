@@ -28,7 +28,7 @@ Value WorkbookChartCells::valueOf(int sheet, quint32 row, quint32 col, const Cel
     // what the grid shows: the value the calculation told for a formula, else what the file stored or the cell holds
     if (m_values && (cell.hasFormula() || (cell.flags & jp::office::sheet::ArrayMember))) {
         Value v;
-        if (m_values->find(sheet, row, col, &v)) return v;
+        if (m_values->find(sheet, cell.rowId, cell.colId, &v)) return v;
     }
     return m_source->valueOf(m_source->sheet(sheet), cell);
 }

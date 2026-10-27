@@ -62,8 +62,7 @@ struct CalcBatch {
     bool due = false;              // (a last batch) the workbook is set to be worked out by hand and has formulas waiting for it
     qint64 circular = 0;           // (a last batch) the formulas in circles, which a person is to be told of (0 when the workbook goes round them, or has none)
     std::vector<jp::office::sheet::Calculation::CircularCell> circleCells;   // and the first of them, in the order of the sheets and cells
-    int generation = 0;            // how many times rows, columns, or cells had been moved (WorkbookLoader::structureGeneration) when the values in it were worked out: cells they name are where
-                                   // they were then
+    std::vector<quint32> epochs;   // the structural epoch of each sheet when the batch was sent (Calculation::structEpoch): no value older than these is still on its way (each item has its own)
 };
 
 // A slice of the calculation (on the worker): the clock ends it after a formula once this many microseconds have passed, and the worker tells the window what it has worked out (a batch
@@ -129,8 +128,6 @@ public:
         jp::office::sheet::Calculation *calculation() const { return m_calc; }
         // Cells were changed: the worker works out what that makes when the hold is let go, and sends the first of it at once.
         void changed() { m_changed = true; }
-        // Rows, columns, or cells were moved: values the worker has worked out and not yet told, and batches on their way, name cells by where they were (see CalcBatch::generation).
-        void structureChanged();
 
     private:
         friend class WorkbookLoader;
@@ -149,8 +146,6 @@ public:
     qint64 holdsTaken() const;
     // How many changes have been made (holds let go with a change, and requests to work everything out again): a last batch whose epoch is this many has all of them worked out.
     qint64 changesMade() const;
-    // How many times cells have been moved by an edit (a hold let go after structureChanged).
-    int structureGeneration() const;
     // For tests: how long the worker waits (in microseconds) at each step of its work (every 4,096 cells read, and between slices of the calculation), so that a test can do what it does
     // while the worker is at work. 0 is no wait.
     void setPace(int micros);
@@ -185,7 +180,6 @@ private:
         std::atomic<qint64> changes{0};       // changes made (see changesMade)
         std::atomic<qint64> holdsMade{0};     // holds taken (see holdsTaken)
         std::atomic<int> refuse{0};           // holds to refuse (see refuseHolds)
-        std::atomic<int> structure{0};        // times cells were moved (see structureGeneration)
         std::atomic<bool> manual{false};      // the workbook is worked out by hand
         std::atomic<bool> manualAllowed{true};
         std::atomic<int> sheetCalc{-1};       // a sheet whose formulas are to be worked out (by hand)
