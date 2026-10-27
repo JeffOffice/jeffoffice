@@ -495,7 +495,7 @@ QString GridView::activeCellText() const
         const QString f = displayFormula(m_sheet.data().sheet->formulaText(*cell));
         if (!f.isEmpty()) return (cell->flags & jp::office::sheet::ArrayFormula) ? QStringLiteral("{=%1}").arg(f) : QStringLiteral("=%1").arg(f);
     }
-    const Value v = m_sheet.valueOf(*cell);
+    const Value v = m_sheet.valueOf(quint32(m_selection.activeRow), quint32(m_selection.activeCol), *cell);
     switch (v.kind()) {
     case Value::Kind::Text: return v.text();
     case Value::Kind::Bool: return v.boolean() ? QStringLiteral("TRUE") : QStringLiteral("FALSE");

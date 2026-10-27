@@ -23,12 +23,12 @@ const Cell *WorkbookChartCells::cellAt(int sheet, quint32 row, quint32 col) cons
     return m_source->sheet(sheet).cells.find(row, col);
 }
 
-Value WorkbookChartCells::valueOf(int sheet, const Cell &cell) const
+Value WorkbookChartCells::valueOf(int sheet, quint32 row, quint32 col, const Cell &cell) const
 {
     // what the grid shows: the value the calculation told for a formula, else what the file stored or the cell holds
     if (m_values && (cell.hasFormula() || (cell.flags & jp::office::sheet::ArrayMember))) {
         Value v;
-        if (m_values->find(sheet, cell.row, cell.col, &v)) return v;
+        if (m_values->find(sheet, row, col, &v)) return v;
     }
     return m_source->valueOf(m_source->sheet(sheet), cell);
 }
@@ -37,7 +37,7 @@ Value WorkbookChartCells::value(int sheet, quint32 row, quint32 col) const
 {
     ++m_reads;
     const Cell *c = cellAt(sheet, row, col);
-    return c ? valueOf(sheet, *c) : Value();
+    return c ? valueOf(sheet, row, col, *c) : Value();
 }
 
 QString WorkbookChartCells::text(int sheet, quint32 row, quint32 col) const
@@ -45,7 +45,7 @@ QString WorkbookChartCells::text(int sheet, quint32 row, quint32 col) const
     const Cell *c = cellAt(sheet, row, col);
     if (!c) return QString();
     m_looks.trim();   // (no look is held here between calls)
-    const Value v = valueOf(sheet, *c);
+    const Value v = valueOf(sheet, row, col, *c);
     switch (v.kind()) {
     case Value::Kind::Text: {
         const CellLook &look = m_looks.look(c->style);

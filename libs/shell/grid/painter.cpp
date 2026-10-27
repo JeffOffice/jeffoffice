@@ -674,6 +674,7 @@ struct GridPainter::PaneWork {
     std::vector<CondCell> condCells;           // what the rules did, held here by value (what the rules keep may be let go of while the paint goes on)
     std::vector<char> covered;                 // under a merged range
     std::vector<const Cell *> leftCandidate, rightCandidate;   // by row: the nearest cell with something in it outside the columns drawn, on each side
+    std::vector<qint64> leftCandidateCol, rightCandidateCol;   // (and the column each is in)
     size_t C = 0;
 };
 
@@ -745,6 +746,8 @@ void GridPainter::paintPane(QPainter *p, Pane which, const QRect &clip, const Pa
     w.cells.assign(R * C, nullptr);
     w.leftCandidate.assign(R, nullptr);
     w.rightCandidate.assign(R, nullptr);
+    w.leftCandidateCol.assign(R, 0);
+    w.rightCandidateCol.assign(R, 0);
     const qint64 marginLeft = scrollingCols ? kMaxSpill : 0, marginRight = scrollingCols ? kMaxSpill : 0;
     const bool wide = m_sheet->hasImplicitStyles();
     for (size_t i = 0; i < R; ++i) {
@@ -753,15 +756,20 @@ void GridPainter::paintPane(QPainter *p, Pane which, const QRect &clip, const Pa
         const qint64 lo = inMargin ? std::max<qint64>(0, w.cols.front().index - marginLeft) : w.cols.front().index;
         const qint64 hi = inMargin ? std::min<qint64>(colsAxis.count() - 1, w.cols.back().index + marginRight) : w.cols.back().index;
         const qint64 leftEdge = w.cols[c0].index, rightEdge = w.cols[c1 - 1].index;
-        m_sheet->data().sheet->cells.forEachInRange(quint32(row), quint32(lo), quint32(row), quint32(hi), [&](const Cell &cell) {
+        m_sheet->data().sheet->cells.forEachInRange(quint32(row), quint32(lo), quint32(row), quint32(hi), [&](quint32, quint32 cellCol, const Cell &cell) {
             ++m_stats.cellsLooked;
-            const qint64 col = cell.col;
+            const qint64 col = cellCol;
             const auto it = std::lower_bound(w.cols.begin(), w.cols.end(), col, [](const Span &s, qint64 v) { return s.index < v; });
             if (it != w.cols.end() && it->index == col) w.cells[i * C + size_t(it - w.cols.begin())] = &cell;
             const bool holds = cell.type != CellType::Empty || cell.hasFormula();
             if (holds && scrollingCols) {
-                if (col < leftEdge && !colsAxis.isHidden(col)) w.leftCandidate[i] = &cell;                       // (the last one met is the nearest)
-                else if (col > rightEdge && !w.rightCandidate[i] && !colsAxis.isHidden(col)) w.rightCandidate[i] = &cell;
+                if (col < leftEdge && !colsAxis.isHidden(col)) {                                                  // (the last one met is the nearest)
+                    w.leftCandidate[i] = &cell;
+                    w.leftCandidateCol[i] = col;
+                } else if (col > rightEdge && !w.rightCandidate[i] && !colsAxis.isHidden(col)) {
+                    w.rightCandidate[i] = &cell;
+                    w.rightCandidateCol[i] = col;
+                }
             }
             return true;
         });
@@ -852,13 +860,13 @@ marked:
     qint64 textBudget = kMaxTextRuns - m_stats.textRuns;
     // (a font too small to read is not drawn, so a cell in one has no text made for it)
     auto tooSmall = [&](const CellLook &look) { return fontFor(look).pixelSize() < kMinFontPixels; };
-    auto spillOfCell = [&](const Cell &cell, const CellLook &look, const Shown &sh, qint64 row) {
-        const double width = colsAxis.size(cell.col);
+    auto spillOfCell = [&](qint64 cellCol, const Cell &cell, const CellLook &look, const Shown &sh, qint64 row) {
+        const double width = colsAxis.size(cellCol);
         const bool centerContinuous = sh.align == HAlign::CenterContinuous;
         return spillOf(sh, look, width, [&](int step) -> double {
-            const qint64 col = qint64(cell.col) + step;
+            const qint64 col = cellCol + step;
             if (col < 0 || col >= colsAxis.count()) return -1;
-            if ((col < L.frozenCols()) != (qint64(cell.col) < L.frozenCols())) return -1;   // (not across the edge of the frozen columns)
+            if ((col < L.frozenCols()) != (cellCol < L.frozenCols())) return -1;   // (not across the edge of the frozen columns)
             const double w2 = colsAxis.size(col);
             if (w2 == 0) return 0;
             if (++m_stats.spillProbes > kMaxSpillProbes) return -1;
@@ -927,21 +935,21 @@ marked:
             const bool icon = iconSize > 0 && iconCount > 0 && w.cols[j].size >= iconSize + 4;
             if (icon) drawIcon(p, QRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size), iconName, std::min(cc->icon, iconCount - 1), iconCount, iconSize);
             if (cc && cc->hideValue && (cc->hasBar || icon)) continue;   // (the rule says to show the bar or the icon and not the value)
-            const Shown sh = m_sheet->shown(cell->row, cell->col, *cell);
+            const Shown sh = m_sheet->shown(quint32(rs.index), quint32(w.cols[j].index), *cell);
             if (sh.kind == Kind::Empty && !sh.hashes) continue;
             m_iconInset = icon ? iconSize + 4 : 0;
-            const Spill sp = spillOfCell(*cell, look, sh, rs.index);
+            const Spill sp = spillOfCell(w.cols[j].index, *cell, look, sh, rs.index);
             QRect box(w.cols[j].start, rs.start, w.cols[j].size, rs.size);
             if (o.gridlines && sp.left + sp.right > 0) {
                 // the gridlines between the cells the text runs over are under it: they are not drawn (those of cells with a fill are covered already)
                 auto plain = [&](size_t k) { return !w.looks[i * C + k] || !w.looks[i * C + k]->hasFill(); };
-                for (size_t k = j; k + 1 < c1 && sp.right > 0 && w.cols[k + 1].index <= qint64(cell->col) + sp.right; ++k)
+                for (size_t k = j; k + 1 < c1 && sp.right > 0 && w.cols[k + 1].index <= w.cols[j].index + sp.right; ++k)
                     if (plain(k) && plain(k + 1)) p->fillRect(QRect(w.cols[k].start + w.cols[k].size - 1, rs.start, 1, rs.size - 1), o.paper);
-                for (size_t k = j; k > c0 && sp.left > 0 && w.cols[k - 1].index >= qint64(cell->col) - sp.left; --k)
+                for (size_t k = j; k > c0 && sp.left > 0 && w.cols[k - 1].index >= w.cols[j].index - sp.left; --k)
                     if (plain(k) && plain(k - 1)) p->fillRect(QRect(w.cols[k - 1].start + w.cols[k - 1].size - 1, rs.start, 1, rs.size - 1), o.paper);
             }
             if (sp.left + sp.right > 0) {
-                const int x0 = L.xEdge(qint64(cell->col) - sp.left, frozenCols), x1 = L.xEdge(qint64(cell->col) + sp.right + 1, frozenCols);
+                const int x0 = L.xEdge(w.cols[j].index - sp.left, frozenCols), x1 = L.xEdge(w.cols[j].index + sp.right + 1, frozenCols);
                 box = QRect(x0, rs.start, x1 - x0, rs.size);
             }
             drawText(p, QRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size), box, area, look, sh, o);
@@ -949,16 +957,18 @@ marked:
             --textBudget;
         }
         if (textBudget <= 0 && !m_stats.truncated) m_stats.truncated = true;
-        for (const Cell *cand : {w.leftCandidate[i], w.rightCandidate[i]}) {
+        for (int side = 0; side < 2; ++side) {
+            const Cell *cand = side == 0 ? w.leftCandidate[i] : w.rightCandidate[i];
             if (!cand || textBudget <= 0) continue;
-            const CellLook &look = m_sheet->lookOf(cand->row, cand->col, cand->style);
+            const qint64 candCol = side == 0 ? w.leftCandidateCol[i] : w.rightCandidateCol[i];
+            const CellLook &look = m_sheet->lookOf(quint32(rs.index), quint32(candCol), cand->style);
             if (tooSmall(look)) continue;
-            const Shown sh = m_sheet->shown(cand->row, cand->col, *cand);
+            const Shown sh = m_sheet->shown(quint32(rs.index), quint32(candCol), *cand);
             if (sh.kind != Kind::Text || sh.hashes) continue;
-            const Spill sp = spillOfCell(*cand, look, sh, rs.index);
+            const Spill sp = spillOfCell(candCol, *cand, look, sh, rs.index);
             if (sp.left + sp.right == 0) continue;
-            const int cx0 = L.xEdge(cand->col, frozenCols), cx1 = L.xEdge(qint64(cand->col) + 1, frozenCols);
-            const int x0 = L.xEdge(qint64(cand->col) - sp.left, frozenCols), x1 = L.xEdge(qint64(cand->col) + sp.right + 1, frozenCols);
+            const int cx0 = L.xEdge(candCol, frozenCols), cx1 = L.xEdge(candCol + 1, frozenCols);
+            const int x0 = L.xEdge(candCol - sp.left, frozenCols), x1 = L.xEdge(candCol + sp.right + 1, frozenCols);
             const QRect box(x0, rs.start, x1 - x0, rs.size);
             if (!box.intersects(area)) continue;
             drawText(p, QRect(cx0, rs.start, cx1 - cx0, rs.size), box, area, look, sh, o);
@@ -1025,7 +1035,7 @@ marked:
             }
             const bool icon = iconSize > 0 && iconCount > 0 && rect.width() >= iconSize + 4;
             if (icon) drawIcon(p, rect, iconName, std::min(anchorCond->icon, iconCount - 1), iconCount, iconSize);
-            const Shown sh = m_sheet->shown(anchor->row, anchor->col, *anchor);
+            const Shown sh = m_sheet->shown(m.row1, m.col1, *anchor);
             if ((sh.kind != Kind::Empty || sh.hashes) && !(anchorCond && anchorCond->hideValue && (anchorCond->hasBar || icon))) {
                 m_iconInset = icon ? iconSize + 4 : 0;
                 drawText(p, rect, rect, area, look, sh, o);

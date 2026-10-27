@@ -66,7 +66,7 @@ public:
     // The cell, or null.
     const Cell *cellAt(quint32 row, quint32 col) const;
     // The value of a cell as it is shown.
-    jp::calc::Value valueOf(const Cell &cell) const;
+    jp::calc::Value valueOf(quint32 row, quint32 col, const Cell &cell) const;
     // The value of a cell of this sheet or of another (as it is shown; empty for none), and a sheet by its place (null for none).
     jp::calc::Value valueIn(int sheet, quint32 row, quint32 col) const;
     const Sheet *sheetAt(int sheet) const;
@@ -102,7 +102,7 @@ public:
     // What the cell shows. The width it is shown in is its column's, or its merged range's. Cached by the cell's place.
     Shown shown(quint32 row, quint32 col, const Cell &cell) const;
     // The text of a cell for a copy: what it holds as its format shows it, not cut to its cell (a number is never "#", a text keeps its line breaks and all its letters).
-    QString textOf(const Cell &cell) const;
+    QString textOf(quint32 row, quint32 col, const Cell &cell) const;
     // Forgets the texts (values or formats changed), or the text of one cell.
     void invalidateTexts() const;
     // How a cell that holds an error is shown (a printed page can show it as it is, blank, as "--", or as #N/A).
@@ -177,7 +177,7 @@ private:
     bool m_rtl = false;
     mutable CondFormats m_cond{this};
     std::vector<TableSkin> m_skins;
-    jp::calc::Value valueOfCell(int sheetIndex, const Sheet &sheet, const Cell &cell) const;
+    jp::calc::Value valueOfCell(int sheetIndex, quint32 row, quint32 col, const Sheet &sheet, const Cell &cell) const;
     std::shared_ptr<const GridGeometry> m_geometry;   // what the sheet's file gave (the layout above begins as a copy of its layout, which shares its places and merges), and the cell formats of the rows and columns, held where they were made
 };
 

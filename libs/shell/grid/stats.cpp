@@ -38,12 +38,12 @@ bool StatsWalk::step(qint64 budget)
         m_rowsLooked += row - m_next + 1;
         m_next = row + 1;
         ++spent;
-        data->cells.forEachInRange(quint32(row), quint32(m_range.col1), quint32(row), lastCol, [&](const jp::office::sheet::Cell &cell) {
+        data->cells.forEachInRange(quint32(row), quint32(m_range.col1), quint32(row), lastCol, [&](quint32, quint32 cellCol, const jp::office::sheet::Cell &cell) {
             ++spent;
             ++m_cellsLooked;
-            if (m_hidden[size_t(qint64(cell.col) - m_range.col1)]) return true;
+            if (m_hidden[size_t(qint64(cellCol) - m_range.col1)]) return true;
             if (cell.type == jp::office::sheet::CellType::Empty && !cell.hasFormula()) return true;
-            const jp::calc::Value v = m_sheet->valueOf(cell);
+            const jp::calc::Value v = m_sheet->valueOf(quint32(row), cellCol, cell);
             if (v.isEmpty()) return true;
             ++m_stats.count;
             if (v.isNumber()) {

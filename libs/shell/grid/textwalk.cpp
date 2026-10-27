@@ -30,7 +30,7 @@ bool TextWalk::step(qint64 budget)
                 continue;
             }
             m_looked += 8;
-            QString text = m_sheet->textOf(*c);
+            QString text = m_sheet->textOf(quint32(m_row), quint32(m_col), *c);
             m_looked += text.size() / 64;   // (a long text takes its length's time to copy)
             m_chars += text.size() + 1;
             if (m_chars > kMaxChars) {
