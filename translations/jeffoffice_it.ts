@@ -5072,6 +5072,11 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Un foglio può contenere fino a %1 interruzioni di pagina per ciascun tipo.</translation>
     </message>
     <message>
+        <location line="+12"/>
+        <source>A page break can&apos;t be before the first row or column.</source>
+        <translation type="unfinished">Non è possibile inserire un&apos;interruzione di pagina prima della prima riga o colonna.</translation>
+    </message>
+    <message>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-24"/>
         <source>That would go past the edge of the sheet. Select a cell nearer its start.</source>
         <translation type="unfinished">Si supererebbe il bordo del foglio. Selezionare una cella più vicina all&apos;inizio.</translation>
@@ -7142,6 +7147,24 @@ Aprili con il programma di posta elettronica per inviarli.</translation>
         <location line="+1"/>
         <source>White</source>
         <translation type="unfinished">Bianco</translation>
+    </message>
+</context>
+<context>
+    <name>LineMap</name>
+    <message>
+        <location filename="../libs/base/calc/linemap.cpp" line="+24"/>
+        <source>This sheet has been edited too many times. Save it and open it again.</source>
+        <translation type="unfinished">Questo foglio è stato modificato troppe volte. Salvarlo e riaprirlo.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Those rows or columns are not on the sheet.</source>
+        <translation type="unfinished">Le righe o colonne indicate non si trovano nel foglio.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This step can no longer be undone or redone.</source>
+        <translation type="unfinished">Non è più possibile annullare o ripetere questa operazione.</translation>
     </message>
 </context>
 <context>
@@ -11625,12 +11648,12 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <location line="+133"/>
         <location line="+226"/>
         <location line="+249"/>
-        <location line="+747"/>
+        <location line="+748"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">Il file inizia con istruzioni non consentite da questo programma, quindi non può essere letto.</translation>
     </message>
     <message>
-        <location line="-1354"/>
+        <location line="-1355"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Il file è danneggiato: non è scritto come dovrebbe esserlo un file di foglio di calcolo.</translation>
     </message>
@@ -11658,12 +11681,12 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <location line="+126"/>
         <location line="+226"/>
         <location line="+249"/>
-        <location line="+758"/>
+        <location line="+759"/>
         <source>The file has items inside items more deeply than any real file has.</source>
         <translation type="unfinished">Il file contiene elementi annidati più in profondità di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="-1231"/>
+        <location line="-1232"/>
         <location line="+84"/>
         <source>The part is not a list of shared strings.</source>
         <translation type="unfinished">La parte non è un elenco di stringhe condivise.</translation>
@@ -11680,13 +11703,13 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1508"/>
+        <location line="+1509"/>
         <location line="+3"/>
         <source>A string is longer than any real file has.</source>
         <translation type="unfinished">Una stringa è più lunga di quelle di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="-1360"/>
+        <location line="-1361"/>
         <location line="+223"/>
         <source>The part is not a list of styles.</source>
         <translation type="unfinished">La parte non è un elenco di stili.</translation>
@@ -11761,7 +11784,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">Il foglio richiederebbe più memoria di quella di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+91"/>
         <location line="+4"/>
         <source>A row is outside the sheet.</source>
         <translation type="unfinished">Una riga è al di fuori del foglio.</translation>
@@ -11778,7 +11801,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location line="+111"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1209"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1208"/>
         <source>The sheet has more merged ranges than any real file has.</source>
         <translation type="unfinished">Il foglio contiene più intervalli uniti di qualsiasi file reale.</translation>
     </message>
@@ -11795,7 +11818,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     <message>
         <location line="+80"/>
         <location line="+37"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+189"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+191"/>
         <source>The sheet has more shared formulas than any real file has.</source>
         <translation type="unfinished">Il foglio contiene più formule condivise di qualsiasi file reale.</translation>
     </message>
@@ -11807,8 +11830,8 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location line="+20"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-46"/>
-        <location line="+173"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-48"/>
+        <location line="+175"/>
         <location line="+10"/>
         <source>The formulas, all together, are longer than any real file has.</source>
         <translation type="unfinished">Le formule, nel complesso, sono più lunghe di quelle di qualsiasi file reale.</translation>
@@ -11873,7 +11896,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     <message>
         <location line="-28"/>
         <location line="+28"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1002"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1003"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+10"/>
@@ -11882,7 +11905,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location line="+693"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1646"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1647"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Il foglio non esiste.</translation>
     </message>
@@ -11893,7 +11916,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">La parte del foglio non è presente nel file.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1660"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1661"/>
         <location line="+13"/>
         <source>This workbook is in a file format older than this program reads.</source>
         <translation type="unfinished">Questa cartella di lavoro è in un formato di file più vecchio di quelli letti dal programma.</translation>
@@ -11995,7 +12018,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">Il foglio presenta un livello di annidamento superiore a quello di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+117"/>
         <source>The formulas of the sheet are more work to read than any real file&apos;s.</source>
         <translation type="unfinished">Le formule del foglio sono più complesse da leggere di quelle di qualsiasi file reale.</translation>
     </message>
@@ -12006,7 +12029,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">Il foglio è più grande di quello di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="-389"/>
+        <location line="-391"/>
         <source>The sheet has more rows with their own size than any real file has.</source>
         <translation type="unfinished">Il foglio contiene più righe con dimensioni personalizzate di qualsiasi file reale.</translation>
     </message>
@@ -16620,7 +16643,7 @@ Origine: %3</translation>
         <location line="+116"/>
         <location line="+10"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+729"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+204"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+214"/>
         <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+251"/>
         <location line="+22"/>
         <source>Ready</source>
@@ -36946,7 +36969,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::office::sheet::Csv</name>
     <message>
-        <location filename="../libs/office/sheet/csv.cpp" line="+675"/>
+        <location filename="../libs/office/sheet/csv.cpp" line="+671"/>
         <source>The sheet has more cells than any real file has.</source>
         <translation type="unfinished">Il foglio contiene più celle di qualsiasi file reale.</translation>
     </message>
@@ -36961,7 +36984,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">La lettura è stata interrotta.</translation>
     </message>
     <message>
-        <location line="+225"/>
+        <location line="+223"/>
         <source>This file is not a text file of values separated by commas, semicolons, or tabs.</source>
         <translation type="unfinished">Questo file non è un file di testo con valori separati da virgole, punti e virgola o tabulazioni.</translation>
     </message>
@@ -37271,7 +37294,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Il foglio è più grande di quelli di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="+189"/>
+        <location line="+187"/>
         <source>The sheet has more rows set apart than any real file has.</source>
         <translation type="unfinished">Il foglio ha più righe definite separatamente di qualsiasi file reale.</translation>
     </message>
@@ -37342,7 +37365,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+37"/>
         <location line="+267"/>
         <location line="+32"/>
-        <location filename="../libs/office/sheet/structsave.cpp" line="+711"/>
+        <location filename="../libs/office/sheet/structsave.cpp" line="+741"/>
         <source>The sheet&apos;s part is damaged.</source>
         <translation type="unfinished">La parte del foglio è danneggiata.</translation>
     </message>

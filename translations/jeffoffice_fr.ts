@@ -5072,6 +5072,11 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Une feuille peut contenir jusqu&apos;à %1 sauts de page de chaque type.</translation>
     </message>
     <message>
+        <location line="+12"/>
+        <source>A page break can&apos;t be before the first row or column.</source>
+        <translation type="unfinished">Un saut de page ne peut pas se trouver avant la première ligne ou colonne.</translation>
+    </message>
+    <message>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-24"/>
         <source>That would go past the edge of the sheet. Select a cell nearer its start.</source>
         <translation type="unfinished">Cela dépasserait le bord de la feuille. Sélectionnez une cellule plus proche de son début.</translation>
@@ -7142,6 +7147,24 @@ Ouvrez-les avec votre programme de messagerie pour les envoyer.</translation>
         <location line="+1"/>
         <source>White</source>
         <translation type="unfinished">Blanc</translation>
+    </message>
+</context>
+<context>
+    <name>LineMap</name>
+    <message>
+        <location filename="../libs/base/calc/linemap.cpp" line="+24"/>
+        <source>This sheet has been edited too many times. Save it and open it again.</source>
+        <translation type="unfinished">Cette feuille a été modifiée trop de fois. Enregistrez-la, puis rouvrez-la.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Those rows or columns are not on the sheet.</source>
+        <translation type="unfinished">Ces lignes ou colonnes ne figurent pas dans la feuille.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This step can no longer be undone or redone.</source>
+        <translation type="unfinished">Cette étape ne peut plus être annulée ni rétablie.</translation>
     </message>
 </context>
 <context>
@@ -11625,12 +11648,12 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <location line="+133"/>
         <location line="+226"/>
         <location line="+249"/>
-        <location line="+747"/>
+        <location line="+748"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">Le fichier commence par des instructions que ce programme n&apos;autorise pas, il ne peut donc pas être lu.</translation>
     </message>
     <message>
-        <location line="-1354"/>
+        <location line="-1355"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Le fichier est endommagé : il n&apos;est pas écrit comme doit l&apos;être un fichier de feuille de calcul.</translation>
     </message>
@@ -11658,12 +11681,12 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <location line="+126"/>
         <location line="+226"/>
         <location line="+249"/>
-        <location line="+758"/>
+        <location line="+759"/>
         <source>The file has items inside items more deeply than any real file has.</source>
         <translation type="unfinished">Le fichier contient des éléments imbriqués plus profondément que dans tout fichier réel.</translation>
     </message>
     <message>
-        <location line="-1231"/>
+        <location line="-1232"/>
         <location line="+84"/>
         <source>The part is not a list of shared strings.</source>
         <translation type="unfinished">La partie n&apos;est pas une liste de chaînes partagées.</translation>
@@ -11680,13 +11703,13 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1508"/>
+        <location line="+1509"/>
         <location line="+3"/>
         <source>A string is longer than any real file has.</source>
         <translation type="unfinished">Une chaîne est plus longue que dans tout fichier réel.</translation>
     </message>
     <message>
-        <location line="-1360"/>
+        <location line="-1361"/>
         <location line="+223"/>
         <source>The part is not a list of styles.</source>
         <translation type="unfinished">La partie n&apos;est pas une liste de styles.</translation>
@@ -11761,7 +11784,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">La feuille nécessiterait plus de mémoire que celle de tout fichier réel.</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+91"/>
         <location line="+4"/>
         <source>A row is outside the sheet.</source>
         <translation type="unfinished">Une ligne se trouve en dehors de la feuille.</translation>
@@ -11778,7 +11801,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     </message>
     <message>
         <location line="+111"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1209"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1208"/>
         <source>The sheet has more merged ranges than any real file has.</source>
         <translation type="unfinished">La feuille contient plus de plages fusionnées qu&apos;aucun fichier réel.</translation>
     </message>
@@ -11795,7 +11818,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     <message>
         <location line="+80"/>
         <location line="+37"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+189"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+191"/>
         <source>The sheet has more shared formulas than any real file has.</source>
         <translation type="unfinished">La feuille contient plus de formules partagées qu&apos;aucun fichier réel.</translation>
     </message>
@@ -11807,8 +11830,8 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     </message>
     <message>
         <location line="+20"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-46"/>
-        <location line="+173"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-48"/>
+        <location line="+175"/>
         <location line="+10"/>
         <source>The formulas, all together, are longer than any real file has.</source>
         <translation type="unfinished">Les formules, prises ensemble, sont plus longues que dans tout fichier réel.</translation>
@@ -11873,7 +11896,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     <message>
         <location line="-28"/>
         <location line="+28"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1002"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1003"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+10"/>
@@ -11882,7 +11905,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     </message>
     <message>
         <location line="+693"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1646"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1647"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Cette feuille n&apos;existe pas.</translation>
     </message>
@@ -11893,7 +11916,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">La partie de la feuille est absente du fichier.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1660"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1661"/>
         <location line="+13"/>
         <source>This workbook is in a file format older than this program reads.</source>
         <translation type="unfinished">Ce classeur utilise un format de fichier plus ancien que ceux que ce programme sait lire.</translation>
@@ -11995,7 +12018,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">La feuille est imbriquée plus profondément que dans aucun fichier réel.</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+117"/>
         <source>The formulas of the sheet are more work to read than any real file&apos;s.</source>
         <translation type="unfinished">Les formules de la feuille sont plus lourdes à lire que celles d&apos;aucun fichier réel.</translation>
     </message>
@@ -12006,7 +12029,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">La feuille est plus grande que celle d&apos;aucun fichier réel.</translation>
     </message>
     <message>
-        <location line="-389"/>
+        <location line="-391"/>
         <source>The sheet has more rows with their own size than any real file has.</source>
         <translation type="unfinished">La feuille contient plus de lignes de taille personnalisée qu&apos;aucun fichier réel.</translation>
     </message>
@@ -16620,7 +16643,7 @@ Source : %3</translation>
         <location line="+116"/>
         <location line="+10"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+729"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+204"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+214"/>
         <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+251"/>
         <location line="+22"/>
         <source>Ready</source>
@@ -36946,7 +36969,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
 <context>
     <name>jp::office::sheet::Csv</name>
     <message>
-        <location filename="../libs/office/sheet/csv.cpp" line="+675"/>
+        <location filename="../libs/office/sheet/csv.cpp" line="+671"/>
         <source>The sheet has more cells than any real file has.</source>
         <translation type="unfinished">La feuille contient plus de cellules que tout fichier réel.</translation>
     </message>
@@ -36961,7 +36984,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">La lecture a été interrompue.</translation>
     </message>
     <message>
-        <location line="+225"/>
+        <location line="+223"/>
         <source>This file is not a text file of values separated by commas, semicolons, or tabs.</source>
         <translation type="unfinished">Ce fichier n&apos;est pas un fichier texte de valeurs séparées par des virgules, des points-virgules ou des tabulations.</translation>
     </message>
@@ -37271,7 +37294,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">La feuille est plus grande que dans tout fichier réel.</translation>
     </message>
     <message>
-        <location line="+189"/>
+        <location line="+187"/>
         <source>The sheet has more rows set apart than any real file has.</source>
         <translation type="unfinished">La feuille contient plus de lignes distinctes que tout fichier réel.</translation>
     </message>
@@ -37342,7 +37365,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <location line="+37"/>
         <location line="+267"/>
         <location line="+32"/>
-        <location filename="../libs/office/sheet/structsave.cpp" line="+711"/>
+        <location filename="../libs/office/sheet/structsave.cpp" line="+741"/>
         <source>The sheet&apos;s part is damaged.</source>
         <translation type="unfinished">La partie de la feuille est endommagée.</translation>
     </message>

@@ -5072,6 +5072,11 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Een werkblad kan maximaal %1 pagina-einden van elk type bevatten.</translation>
     </message>
     <message>
+        <location line="+12"/>
+        <source>A page break can&apos;t be before the first row or column.</source>
+        <translation type="unfinished">Een pagina-einde kan niet vóór de eerste rij of kolom staan.</translation>
+    </message>
+    <message>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-24"/>
         <source>That would go past the edge of the sheet. Select a cell nearer its start.</source>
         <translation type="unfinished">Dan zou de rand van het werkblad worden overschreden. Selecteer een cel dichter bij het begin.</translation>
@@ -7142,6 +7147,24 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <location line="+1"/>
         <source>White</source>
         <translation type="unfinished">Wit</translation>
+    </message>
+</context>
+<context>
+    <name>LineMap</name>
+    <message>
+        <location filename="../libs/base/calc/linemap.cpp" line="+24"/>
+        <source>This sheet has been edited too many times. Save it and open it again.</source>
+        <translation type="unfinished">Dit werkblad is te vaak bewerkt. Sla het op en open het opnieuw.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Those rows or columns are not on the sheet.</source>
+        <translation type="unfinished">Die rijen of kolommen staan niet op het werkblad.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This step can no longer be undone or redone.</source>
+        <translation type="unfinished">Deze stap kan niet meer ongedaan worden gemaakt of opnieuw worden uitgevoerd.</translation>
     </message>
 </context>
 <context>
@@ -11625,12 +11648,12 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <location line="+133"/>
         <location line="+226"/>
         <location line="+249"/>
-        <location line="+747"/>
+        <location line="+748"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">Het bestand begint met instructies die dit programma niet toestaat. Het kan daarom niet worden gelezen.</translation>
     </message>
     <message>
-        <location line="-1354"/>
+        <location line="-1355"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Het bestand is beschadigd: het is niet opgebouwd zoals een spreadsheetbestand hoort te zijn.</translation>
     </message>
@@ -11658,12 +11681,12 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <location line="+126"/>
         <location line="+226"/>
         <location line="+249"/>
-        <location line="+758"/>
+        <location line="+759"/>
         <source>The file has items inside items more deeply than any real file has.</source>
         <translation type="unfinished">Het bestand bevat items die dieper in elkaar zijn genest dan in een echt bestand.</translation>
     </message>
     <message>
-        <location line="-1231"/>
+        <location line="-1232"/>
         <location line="+84"/>
         <source>The part is not a list of shared strings.</source>
         <translation type="unfinished">Het onderdeel is geen lijst met gedeelde tekenreeksen.</translation>
@@ -11680,13 +11703,13 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1508"/>
+        <location line="+1509"/>
         <location line="+3"/>
         <source>A string is longer than any real file has.</source>
         <translation type="unfinished">Een tekenreeks is langer dan in een echt bestand.</translation>
     </message>
     <message>
-        <location line="-1360"/>
+        <location line="-1361"/>
         <location line="+223"/>
         <source>The part is not a list of styles.</source>
         <translation type="unfinished">Het onderdeel is geen lijst met stijlen.</translation>
@@ -11761,7 +11784,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Het blad zou meer geheugen vergen dan een blad van een echt bestand.</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+91"/>
         <location line="+4"/>
         <source>A row is outside the sheet.</source>
         <translation type="unfinished">Een rij valt buiten het blad.</translation>
@@ -11778,7 +11801,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="+111"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1209"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1208"/>
         <source>The sheet has more merged ranges than any real file has.</source>
         <translation type="unfinished">Het blad bevat meer samengevoegde bereiken dan een echt bestand.</translation>
     </message>
@@ -11795,7 +11818,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+80"/>
         <location line="+37"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+189"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+191"/>
         <source>The sheet has more shared formulas than any real file has.</source>
         <translation type="unfinished">Het blad bevat meer gedeelde formules dan een echt bestand.</translation>
     </message>
@@ -11807,8 +11830,8 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="+20"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-46"/>
-        <location line="+173"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-48"/>
+        <location line="+175"/>
         <location line="+10"/>
         <source>The formulas, all together, are longer than any real file has.</source>
         <translation type="unfinished">De formules zijn samen langer dan in een echt bestand.</translation>
@@ -11873,7 +11896,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="-28"/>
         <location line="+28"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1002"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1003"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+10"/>
@@ -11882,7 +11905,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="+693"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1646"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1647"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Dit blad bestaat niet.</translation>
     </message>
@@ -11893,7 +11916,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Het onderdeel van het blad staat niet in het bestand.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1660"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1661"/>
         <location line="+13"/>
         <source>This workbook is in a file format older than this program reads.</source>
         <translation type="unfinished">Deze werkmap heeft een bestandsindeling die ouder is dan dit programma kan lezen.</translation>
@@ -11995,7 +12018,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Het blad is dieper genest dan in enig echt bestand.</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+117"/>
         <source>The formulas of the sheet are more work to read than any real file&apos;s.</source>
         <translation type="unfinished">De formules van het blad kosten meer werk om te lezen dan in enig echt bestand.</translation>
     </message>
@@ -12006,7 +12029,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Het blad is groter dan in enig echt bestand.</translation>
     </message>
     <message>
-        <location line="-389"/>
+        <location line="-391"/>
         <source>The sheet has more rows with their own size than any real file has.</source>
         <translation type="unfinished">Het blad bevat meer rijen met een eigen grootte dan enig echt bestand.</translation>
     </message>
@@ -16620,7 +16643,7 @@ Bron: %3</translation>
         <location line="+116"/>
         <location line="+10"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+729"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+204"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+214"/>
         <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+251"/>
         <location line="+22"/>
         <source>Ready</source>
@@ -36946,7 +36969,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::office::sheet::Csv</name>
     <message>
-        <location filename="../libs/office/sheet/csv.cpp" line="+675"/>
+        <location filename="../libs/office/sheet/csv.cpp" line="+671"/>
         <source>The sheet has more cells than any real file has.</source>
         <translation type="unfinished">Het blad heeft meer cellen dan in een echt bestand mogelijk is.</translation>
     </message>
@@ -36961,7 +36984,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Het lezen is gestopt.</translation>
     </message>
     <message>
-        <location line="+225"/>
+        <location line="+223"/>
         <source>This file is not a text file of values separated by commas, semicolons, or tabs.</source>
         <translation type="unfinished">Dit bestand is geen tekstbestand met waarden gescheiden door komma&apos;s, puntkomma&apos;s of tabs.</translation>
     </message>
@@ -37271,7 +37294,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Het blad is groter dan in een echt bestand.</translation>
     </message>
     <message>
-        <location line="+189"/>
+        <location line="+187"/>
         <source>The sheet has more rows set apart than any real file has.</source>
         <translation type="unfinished">Het blad heeft meer afzonderlijk ingestelde rijen dan een echt bestand.</translation>
     </message>
@@ -37342,7 +37365,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+37"/>
         <location line="+267"/>
         <location line="+32"/>
-        <location filename="../libs/office/sheet/structsave.cpp" line="+711"/>
+        <location filename="../libs/office/sheet/structsave.cpp" line="+741"/>
         <source>The sheet&apos;s part is damaged.</source>
         <translation type="unfinished">Het onderdeel van het blad is beschadigd.</translation>
     </message>
