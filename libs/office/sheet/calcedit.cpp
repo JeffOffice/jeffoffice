@@ -569,6 +569,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
                 g.record = int(rec->groups.size()) - 1;
             }
             rec->groups[size_t(g.record)].cells.push_back({places[i].row, places[i].col});
+            rec->groups[size_t(g.record)].offsets.push_back({f.dRow, f.dCol});
             const qint32 old = f.text;
             f.text = g.newIndex;
             releaseText(sheet, old);
@@ -699,16 +700,21 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
         if (g.sheet < 0 || g.sheet >= int(m_sheets.size())) continue;
         Sheet &sg = m_sheets[size_t(g.sheet)];
         qint32 index = -1;
-        for (const auto &place : g.cells) {
+        for (size_t k = 0; k < g.cells.size(); ++k) {
+            const auto &place = g.cells[k];
             Cell *c = sg.cells.findMutable(place.first, place.second);
             if (!c || !c->hasFormula() || c->formula < 0 || size_t(c->formula) >= size_t(sg.formulas.size())) continue;
             Formula &f = sg.formulas[c->formula];
             const qint32 old = f.text;
-            const bool already = old >= 0 && sg.formulaTexts[old] == g.oldText;
+            // (the cell is as far from the cell the text was written for as it was: a cell that has been deleted and put back since is a formula of its own, and is put as far as it was)
+            const qint32 dRow = k < g.offsets.size() ? g.offsets[k].first : f.dRow, dCol = k < g.offsets.size() ? g.offsets[k].second : f.dCol;
+            const bool already = old >= 0 && sg.formulaTexts[old] == g.oldText && f.dRow == dRow && f.dCol == dCol;
             if (already) continue;
             if (index < 0) index = internText(g.sheet, g.oldText);
             else holdText(g.sheet, index);
             f.text = index;
+            f.dRow = dRow;
+            f.dCol = dCol;
             releaseText(g.sheet, old);
             const quint32 id = nodeAt(g.sheet, place.first, place.second);
             const qint32 formula = c->formula;

@@ -201,6 +201,7 @@ public:
             int sheet;
             QString oldText;
             std::vector<std::pair<quint32, quint32>> cells;
+            std::vector<std::pair<qint32, qint32>> offsets;   // and how far (rows, columns) each was from the cell the text was written for
         };
         std::vector<RewrittenGroup> groups;
         // the sheet's other structures, as they were
