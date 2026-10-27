@@ -18,7 +18,7 @@ Value EditSession::valueAt(int sheet, quint32 row, quint32 col) const
     const Cell *c = s.cells.find(row, col);
     if (!c) return Value();
     Value v;
-    if ((c->hasFormula() || (c->flags & ArrayMember)) && m_values->find(sheet, row, col, &v)) return v;
+    if ((c->hasFormula() || (c->flags & ArrayMember)) && m_values->find(sheet, c->rowId, c->colId, &v)) return v;
     switch (c->type) {
     case CellType::Empty: return Value();
     case CellType::Number:

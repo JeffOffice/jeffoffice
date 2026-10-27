@@ -245,7 +245,7 @@ int EditSession::setAutoRowHeights(int sheet, const std::vector<std::pair<quint3
         spec.height = height;
         spec.customHeight = false;
         calc->setRowSpecs(sheet, row, row, {spec});
-        m_rowsResized.insert(keyOf(sheet, row, 0));
+        markRowResized(sheet, row);
         ++changed;
     }
     if (changed > 0) {

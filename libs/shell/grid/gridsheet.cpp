@@ -384,7 +384,7 @@ jp::calc::Value GridSheet::valueOfCell(int sheetIndex, quint32 row, quint32 col,
     using jp::calc::Value;
     if (m_data.values && (cell.hasFormula() || (cell.flags & jp::office::sheet::ArrayMember))) {
         Value v;
-        if (m_data.values->find(sheetIndex, row, col, &v)) return v;
+        if (m_data.values->find(sheetIndex, cell.rowId, cell.colId, &v)) return v;
     } else if (m_data.calc) {
         return m_data.calc->shown(sheetIndex, row, col);
     }

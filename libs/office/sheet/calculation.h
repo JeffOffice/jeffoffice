@@ -21,6 +21,7 @@
 
 #include <atomic>
 #include <memory>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -89,8 +90,33 @@ public:
     void setCancel(const std::atomic<bool> *cancel) { m_cancel = cancel; }
     // Called with each result a recalculation gives a cell: the value of a formula (and of each cell of an array it made), where the grid can show it. Not with the result of a formula
     // that is kept apart (the file's value is what is shown then). Called on the thread that recalculates.
-    using ResultSink = std::function<void(int sheet, quint32 row, quint32 col, const jp::calc::Value &value)>;
+    // Told each value as it is worked out (on the worker): the sheet and the ids of the cell's row and column (see CellStore::rowIdAt), which are the cell's wherever an edit of rows or columns has put it.
+    using ResultSink = std::function<void(int sheet, quint32 rowId, quint32 colId, const jp::calc::Value &value)>;
     void setResultSink(ResultSink sink) { m_sink = std::move(sink); }
+    // ---- results in flight. Every edit of rows, columns, or cells makes the sheet's structural epoch one more; a value told carries the epoch the sheet had when it was worked out. A formula that an
+    // edit of cells moved one by one is stamped with the epoch of the edit (by the ids of its cell, at the place it was and the place it is), and the window lets go of a value for it that was worked
+    // out under an older epoch (it names the cell as the edit found it), and has the formula worked out again (`redirtyCell`). A value is told by ids, so a value in flight needs no stamp unless
+    // such an edit is made while one is: **stamps are made only when some value has been told and not yet taken by the window** (`resultsInFlight`), which is not so for the edit of a sheet the
+    // worker has caught up with. The ids of a sheet that was renumbered (compactLines) name other cells than before: a value worked out under an epoch before that is let go of whatever its cell.
+    // Window thread only, and with the worker held back for the stamps' making.
+    quint32 structEpoch(int sheet) const { return sheet >= 0 && sheet < int(m_state.size()) ? m_state[size_t(sheet)].epoch : 0; }
+    struct Target {
+        quint32 rowId = 0, colId = 0;
+        bool valid = false;
+    };
+    bool staleResult(int sheet, quint32 rowId, quint32 colId, quint32 epoch, Target *redo = nullptr) const;
+    // The formula whose cell has these ids is worked out again (called with the worker held back).
+    void redirtyCell(int sheet, quint32 rowId, quint32 colId);
+    // The stamps that every value told up to the given epochs (by sheet) is past are let go of (a last batch of a calculation says nothing older is on its way).
+    void pruneStamps(const std::vector<quint32> &epochs);
+    qint64 stampCount() const { return qint64(m_stamps.size()); }
+    // How many values have been told (by the worker) and how many the window has taken (it says so with `valuesTaken`, for every item of a batch, those it lets go of too).
+    void valuesTaken(qint64 n) const { m_valuesTaken += n; }
+    bool resultsInFlight() const { return m_valuesTold.load(std::memory_order_relaxed) != m_valuesTaken; }
+    // Counted, for tests: the formulas worked out, and the places of cells looked up for a formula or a value told (a scalar told by a node needs none: it names its cell by ids).
+    qint64 evaluations() const { return m_evaluations.load(std::memory_order_relaxed); }
+    qint64 placeLookups() const { return m_placeLookups.load(std::memory_order_relaxed); }
+
     // The day number NOW and TODAY give from the next recalculation (0: the clock is read at each, as it is when the calculation is made without a time).
     void setNow(double serial) { m_options.now = serial; }
     // The tables changed (made, taken out, renamed, moved, resized, or a column renamed): the formulas that name a table's columns are worked out again. Call with the worker held back.
@@ -184,6 +210,7 @@ public:
             CellContent content;
             quint32 kind = 0;   // the cell's own flags that make it an array formula or a data table (put back as one, not as a formula)
             qint32 range = -1;  // and the index of its range in the sheet's list
+            quint32 rowId = 0, colId = 0;   // the ids of its row and column when it was taken (the window's values and marks are by them)
         };
         std::vector<GoneCell> gone;
         // formula cells whose text changed: where each was before the edit, and what it read
@@ -224,15 +251,18 @@ public:
         // where the formulas that were written again are now (after the edit), for what saving must write whole
         struct Place {
             int sheet;
-            quint32 row, col;
+            quint32 row, col;       // where the cell is (after the edit: Undo goes by places, which come back as they were)
+            quint32 rowId, colId;   // and the ids of its row and column then (what a mark of the session is by; only for use at once, for a rebase of the ids renumbers them)
             bool dataTable;   // the first cell of a data table (the file's own formula is moved with it)
         };
         std::vector<Place> rewritten;
-        // the formulas among the cells that moved, from where to where (the values the window holds for them follow); for a Move on to the sheet `toSheet`
-        struct MovedFormula {
-            quint32 fromRow, fromCol, toRow, toCol;
+        // cells shifted or moved one by one (not whole rows or columns, which move nothing): the formulas among them, by the ids of the cell they were in and the cell they are in (the values the window
+        // holds for them follow), and for a Move the places they went to on the sheet `toSheet`, for Undo
+        struct ShiftedFormula {
+            quint32 fromRowId, fromColId, toRowId, toColId;
         };
-        std::vector<MovedFormula> movedFormulas;
+        std::vector<ShiftedFormula> shifted;
+        std::vector<std::pair<quint32, quint32>> landed;
         // rows or columns inserted or deleted: what the edit did to the order of the sheet's rows or columns (Undo and Redo go by it, so the rows and columns come back with their cells)
         mutable CellStore::LineEdits lines;
         // a Move that carries whole arrays: the arrays it took apart (the place each had in the sheet's list of ranges, and the range), and the arrays it made where they went (and whether
@@ -258,7 +288,9 @@ public:
     bool linesNeedCompaction(const StructEdit &edit) const;
     // Puts the order of the sheet's rows (columns) back to one run, renumbering the cells and letting go of the dead ones. Every record of an edit of that order made before is stale after it: Undo of it
     // is refused, so the caller lets go of those first. False if it can't be done.
-    bool compactLines(int sheet, bool rows);
+    // `table`, if given, is how the ids were renumbered: the nodes of the sheet's formulas are renumbered with the cells, and the formulas are worked out again (a value told before is let go of; the window renumbers the
+    // values and marks it holds by the table).
+    bool compactLines(int sheet, bool rows, std::vector<jp::calc::LineMapCore::Renumber> *table = nullptr);
     // The record's edit of rows or columns will never be undone or done again: the cells that only it could bring back are let go of. The record's lines are empty after.
     void forgetLines(EditRecord *record);
     // The most runs and ids the order of a sheet's rows and columns may have (for a test of what happens at the caps; those of a sheet are jp::calc::LineLimits'). Only for a sheet whose order has no edit.
@@ -488,9 +520,9 @@ private:
         double number = 0;
         qint32 sheet = 0;
         qint32 formula = -1;
-        quint32 row = 0;
+        quint32 rowId = 0;   // the ids of the row and the column of the formula's cell (CellStore): not its place, which an edit of rows or columns changes and a node does not follow
         qint32 text = -1;
-        quint16 col = 0;
+        quint16 colId = 0;
         quint8 kind = KindEmpty;
         quint8 state = Dirty;
         char kept = 0;
@@ -506,6 +538,8 @@ private:
     };
     static constexpr qint32 kFreeFormula = -2;   // the text of a formula's place that is free to be used again
     struct SheetState {
+        quint32 epoch = 0;                    // the structural epoch (see structEpoch)
+        quint32 renumberEpoch = 0;            // the epoch of the last renumbering of its ids
         std::vector<quint32> nodeOf;          // by the formula's place in Sheet::formulas
         std::vector<Compiled> plain, array;   // by the formula's text
         // The texts and formulas that edits make are kept once and let go of when nothing has them: how many formulas have each text (made when an edit first needs it: textsCounted),
@@ -532,7 +566,19 @@ private:
     void registerSheet(int sheet);
     void setSlotText(int sheet, qint32 slot, const QString &text);
     void readdNode(quint32 id);
-    quint32 addNode(int sheet, quint32 row, quint32 col, const Cell &cell, qint32 formulaIndex);
+    quint32 addNode(int sheet, quint32 row, quint32 col, const Cell &cell, qint32 formulaIndex);   // (the place of the cell)
+    // The node of a formula whose cell is known by its ids (its own, when it is made again where it is).
+    quint32 addNodeById(int sheet, quint32 rowId, quint32 colId, const Cell &cell, qint32 formulaIndex);
+    // Where a node's cell is now (a node is of a live cell: its row and column are in the order), and the cell.
+    quint32 rowOf(const Node &n) const { return m_sheets[size_t(n.sheet)].cells.rowPlaceOf(n.rowId); }
+    quint32 colOf(const Node &n) const { return m_sheets[size_t(n.sheet)].cells.colPlaceOf(n.colId); }
+    const Cell *cellOf(const Node &n) const { return m_sheets[size_t(n.sheet)].cells.findById(n.rowId, n.colId); }
+    Cell *cellOfMutable(const Node &n) { return m_sheets[size_t(n.sheet)].cells.findMutableById(n.rowId, n.colId); }
+    static quint64 stampKey(int sheet, quint32 rowId, quint32 colId) { return (quint64(quint32(sheet)) << 40) | (quint64(rowId) << 16) | colId; }
+    void tellValue(const Node &n, const jp::calc::Value &v, bool fill) const;   // (counts the values it tells: m_valuesTold)
+    void stampCell(int sheet, quint32 rowId, quint32 colId) { stampCell(sheet, rowId, colId, Target()); }   // (only while a value is in flight)
+    void stampCell(int sheet, quint32 rowId, quint32 colId, const Target &redo);   // (a formula an edit wrote again or moved: see staleResult)
+    void redirty(quint32 id);
     // The text of an array formula's or a data table's first cell changed in place (its range's cells point to its formula); false if the cell is none.
     bool rewriteArrayText(int sheet, quint32 row, quint32 col, const QString &text);
     // An array formula's cells made ordinary ones (the range at `slot` of the sheet's list is no longer valid), to be cleared or written over; made an array again at a place: the formula cell
@@ -545,6 +591,7 @@ private:
     void adjustConditionalFormats(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
     // A cell that is deleted or written over, as it is, for Undo to put back (an array formula or a data table is put back as one: see putBackKinds).
     EditRecord::GoneCell goneCell(int sheet, quint32 row, quint32 col, const Cell &c) const;
+    EditRecord::GoneCell placeGone(int sheet, quint32 row, quint32 col) const;   // (a place, with no content: for the values of the cells there to be let go of)
     void putBackKinds(const EditRecord &record);
     jp::calc::Value ruleFormula(const Validation &rule, const QString &text, int sheet, quint32 row, quint32 col, const jp::calc::CellSource &source, bool asArray) const;
     bool canMoveCells(const StructEdit &edit, QString *why) const;
@@ -598,6 +645,15 @@ private:
     jp::calc::EvalContext m_ctx;
     std::vector<Node> m_nodes;
     std::vector<SheetState> m_state;
+    struct Stamp {
+        quint32 epoch;
+        Target redo;   // the cell whose formula is worked out again when a value for this one is let go of
+    };
+    std::unordered_map<quint64, Stamp> m_stamps;   // by sheet, row id, column id: the epoch of the edit that moved the formula there or away
+    mutable std::atomic<qint64> m_valuesTold{0};
+    mutable qint64 m_valuesTaken = 0;
+    std::atomic<qint64> m_evaluations{0};
+    mutable std::atomic<qint64> m_placeLookups{0};
     std::vector<quint32> m_freeNodes;
     qint64 m_editWork = 0;
     EditStats m_editStats;

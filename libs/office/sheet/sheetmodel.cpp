@@ -86,6 +86,12 @@ const Cell *CellStore::find(quint32 row, quint32 col) const
 {
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
     if (rowId == kNoLine || colId == kNoLine) return nullptr;
+    return findById(rowId, colId);
+}
+
+const Cell *CellStore::findById(quint32 rowId, quint32 colId) const
+{
+    if (rowId == kNoLine || colId >= 0x10000) return nullptr;
     const auto block = m_blocks.find(rowId / kBlockRows);
     if (block == m_blocks.end()) return nullptr;
     Cell key;
@@ -377,19 +383,24 @@ void CellStore::forgetLines(bool rows, LineEdits *edits)
     e = LineEdits();
 }
 
-jp::calc::LineStatus CellStore::rebaseLines(bool rows)
+quint32 CellStore::renumberLine(const std::vector<jp::calc::LineMapCore::Renumber> &table, quint32 id)
+{
+    auto it = std::upper_bound(table.begin(), table.end(), id, [](quint32 v, const auto &r) { return v < r.oldFirst; });
+    if (it == table.begin() || id - (it - 1)->oldFirst >= (it - 1)->count) return kNoLine;
+    return (it - 1)->newFirst + (id - (it - 1)->oldFirst);
+}
+
+jp::calc::LineStatus CellStore::rebaseLines(bool rows, std::vector<jp::calc::LineMapCore::Renumber> *out)
 {
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
     std::vector<jp::calc::LineMapCore::Renumber> table;
     const LineStatus st = map.rebase(&table);
+    if (out) out->clear();
     if (st != LineStatus::Ok || table.empty()) return st;
     std::sort(table.begin(), table.end(), [](const auto &a, const auto &b) { return a.oldFirst < b.oldFirst; });
-    auto renumber = [&](quint32 id) -> quint32 {
-        auto it = std::upper_bound(table.begin(), table.end(), id, [](quint32 v, const auto &r) { return v < r.oldFirst; });
-        if (it == table.begin() || id - (it - 1)->oldFirst >= (it - 1)->count) return kNoLine;
-        return (it - 1)->newFirst + (id - (it - 1)->oldFirst);
-    };
+    if (out) *out = table;
+    auto renumber = [&](quint32 id) -> quint32 { return renumberLine(table, id); };
     std::map<quint32, Block> blocks;
     qint64 gone = 0;
     for (auto &entry : m_blocks)

@@ -151,6 +151,8 @@ public:
     uint32_t idAt(uint32_t pos, LineHint *hint = nullptr, LineWork *work = nullptr) const;
     uint32_t posOf(uint32_t id, LineHint *hint = nullptr, LineWork *work = nullptr) const;
     bool isLive(uint32_t id) const { return posOf(id) != kNone; }
+    // Whether the id is of a line that was deleted and that a step could still bring back (a record of it is held).
+    bool holdsDead(uint32_t id) const { return deadFor(id, nullptr) != nullptr; }
 
     LineStatus insert(uint32_t at, uint32_t count, LineEdit *edit);
     LineStatus erase(uint32_t at, uint32_t count, LineEdit *edit);

@@ -34,7 +34,22 @@ void EditSession::letGoOfLines(Calculation *calc)
     }
     // (the newest first: the ids an insert took are given back when it is the last to have taken any)
     std::sort(list.begin(), list.end(), [](const Calculation::EditRecord &a, const Calculation::EditRecord &b) { return a.lines.edit.after > b.lines.edit.after; });
-    for (Calculation::EditRecord &r : list) calc->forgetLines(&r);
+    // (the cells those steps could bring back are gone, and the ids they took may be given again: a mark on an id that nothing can name is let go of first; a record that holds no id has nothing to sweep)
+    struct Released {
+        int sheet;
+        bool rows;
+        std::vector<jp::calc::IdRun> runs;
+    };
+    std::vector<Released> released;
+    for (Calculation::EditRecord &r : list) {
+        const bool rows = r.edit.kind == StructEdit::Kind::InsertRows || r.edit.kind == StructEdit::Kind::DeleteRows;
+        Released got{r.edit.sheet, rows, r.lines.edit.runs};
+        got.runs.insert(got.runs.end(), r.lines.edit.pushed.begin(), r.lines.edit.pushed.end());
+        got.runs.insert(got.runs.end(), r.lines.refill.runs.begin(), r.lines.refill.runs.end());
+        calc->forgetLines(&r);
+        if (!got.runs.empty()) released.push_back(std::move(got));
+    }
+    for (const Released &g : released) sweepMarks(g.sheet, g.rows, g.runs);
 }
 
 void EditSession::setLineLimitsForTest(int sheet, const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols)
@@ -57,7 +72,14 @@ void EditSession::compactLinesFor(const StructEdit &edit)
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
     if (!hold) return;
     letGoOfLines(hold->calculation());
-    hold->calculation()->compactLines(edit.sheet, rows);
+    std::vector<jp::calc::LineMapCore::Renumber> table;
+    if (!hold->calculation()->compactLines(edit.sheet, rows, &table) || table.empty()) return;
+    // (what is held by the ids of the order's lines is renumbered with them: the window's values, and the marks)
+    std::vector<ValueStore::Renumbering> renumbering;
+    for (const jp::calc::LineMapCore::Renumber &r : table) renumbering.push_back({r.oldFirst, r.count, r.newFirst});
+    m_values->renumber(edit.sheet, rows, renumbering);
+    renumberMarks(edit.sheet, rows, table);
+    hold->changed();   // (the formulas are worked out again, and told by the new ids)
 }
 
 qint64 StructChange::bytes() const
@@ -195,14 +217,25 @@ namespace {
 
 using K = StructEdit::Kind;
 
-// Where the key of a cell is after the edit: false if it is gone.
-bool movedKey(const StructEdit &e, quint64 key, quint64 *now)
+// Whole rows or whole columns: the edits that move no cell (the order of the sheet's rows or columns changes, and what is held by the ids of its rows and columns stays where it is).
+bool wholeLines(const StructEdit &e) { return e.kind == K::InsertRows || e.kind == K::DeleteRows || e.kind == K::InsertColumns || e.kind == K::DeleteColumns; }
+
+// Where the key of a cell is after the edit of cells (shifted one by one: they are given new ids as they go): false if it is gone.
+bool movedKey(const Calculation &calc, const StructEdit &e, quint64 key, quint64 *now)
 {
     int sheet = int(key >> 40);
-    quint32 row = quint32((key >> 16) & 0xFFFFFF), col = quint32(key & 0xFFFF);
+    const CellStore &was = calc.sheet(sheet).cells;
+    quint32 row = was.rowPlaceOf(quint32((key >> 16) & 0xFFFFFF)), col = was.colPlaceOf(quint32(key & 0xFFFF));
+    if (row == CellStore::kNoLine || col == CellStore::kNoLine) {
+        *now = key;   // (a cell in a row or column that is deleted is not moved by cells shifted)
+        return true;
+    }
     const RefFate fate = adjustCell(e, &sheet, &row, &col);
     if (fate == RefFate::Gone) return false;
-    *now = EditSession::keyOf(sheet, row, col);
+    const CellStore &after = calc.sheet(sheet).cells;
+    const quint32 rowId = after.rowIdAt(row), colId = after.colIdAt(col);
+    if (rowId == CellStore::kNoLine || colId == CellStore::kNoLine) return false;
+    *now = EditSession::keyOf(sheet, rowId, colId);
     return true;
 }
 
@@ -213,31 +246,25 @@ bool mayMove(const StructEdit &e, quint64 key)
 }
 
 // The marks of cells (a set) after the edit; the keys of those that are gone are given back.
-template <class Set>
-void followSet(Set *marks, const StructEdit &e, std::vector<quint64> *gone)
+void followSet(const Calculation &calc, KeySet *marks, const StructEdit &e, std::vector<quint64> *gone)
 {
     std::vector<quint64> moved;
-    for (auto it = marks->begin(); it != marks->end();) {
-        if (!mayMove(e, *it)) {
-            ++it;
-            continue;
-        }
+    for (const quint64 key : marks->keys()) {
+        if (!mayMove(e, key)) continue;
         quint64 now = 0;
-        if (!movedKey(e, *it, &now)) {
-            if (gone) gone->push_back(*it);
-            it = marks->erase(it);
-        } else if (now != *it) {
+        if (!movedKey(calc, e, key, &now)) {
+            if (gone) gone->push_back(key);
+            marks->erase(key);
+        } else if (now != key) {
             moved.push_back(now);
-            it = marks->erase(it);
-        } else {
-            ++it;
+            marks->erase(key);
         }
     }
-    marks->insert(moved.begin(), moved.end());
+    for (const quint64 key : moved) marks->insert(key);
 }
 
 // And the results kept by cell.
-void followMap(std::map<quint64, Value> *results, const StructEdit &e, std::vector<std::pair<quint64, Value>> *gone)
+void followMap(const Calculation &calc, std::map<quint64, Value> *results, const StructEdit &e, std::vector<std::pair<quint64, Value>> *gone)
 {
     std::vector<std::pair<quint64, Value>> moved;
     for (auto it = results->begin(); it != results->end();) {
@@ -246,7 +273,7 @@ void followMap(std::map<quint64, Value> *results, const StructEdit &e, std::vect
             continue;
         }
         quint64 now = 0;
-        if (!movedKey(e, it->first, &now)) {
+        if (!movedKey(calc, e, it->first, &now)) {
             if (gone) gone->push_back(*it);
             it = results->erase(it);
         } else if (now != it->first) {
@@ -259,55 +286,212 @@ void followMap(std::map<quint64, Value> *results, const StructEdit &e, std::vect
     for (auto &entry : moved) (*results)[entry.first] = std::move(entry.second);
 }
 
-// The marks of resized columns (`columns`) or rows after the edit that inserts or deletes columns or rows: those deleted are given back.
-void followLines(std::set<quint64> *marks, const StructEdit &e, bool columns, std::vector<quint64> *gone)
+} // namespace
+
+quint64 EditSession::markOf(int sheet, quint32 row, quint32 col) const
 {
-    const bool applies = columns ? (e.kind == K::InsertColumns || e.kind == K::DeleteColumns) : (e.kind == K::InsertRows || e.kind == K::DeleteRows);
-    if (!applies) return;
-    std::vector<quint64> moved;
-    for (auto it = marks->begin(); it != marks->end();) {
-        const quint64 key = *it;
-        if (int(key >> 40) != e.sheet) {
-            ++it;
-            continue;
-        }
-        const quint32 at = columns ? quint32(key & 0xFFFF) : quint32((key >> 16) & 0xFFFFFF);
-        quint32 now = at;
-        bool alive = true;
-        if (e.kind == K::InsertColumns || e.kind == K::InsertRows) {
-            if (at >= e.first) now = at + e.count;
-            alive = now < (columns ? kMaxColumns : kMaxRows);
-        } else if (at >= e.first) {
-            if (at < e.first + e.count) alive = false;
-            else now = at - e.count;
-        }
-        if (!alive) {
-            if (gone) gone->push_back(key);
-            it = marks->erase(it);
-        } else if (now != at) {
-            moved.push_back(columns ? EditSession::keyOf(e.sheet, 0, now) : EditSession::keyOf(e.sheet, now, 0));
-            it = marks->erase(it);
-        } else {
-            ++it;
-        }
-    }
-    marks->insert(moved.begin(), moved.end());
+    if (!m_book || !m_book->calc || sheet < 0 || sheet >= m_book->calc->sheetCount()) return kNoKey;
+    const CellStore &cells = m_book->calc->sheet(sheet).cells;
+    const quint32 rowId = cells.rowIdAt(row), colId = cells.colIdAt(col);
+    if (rowId == CellStore::kNoLine || colId == CellStore::kNoLine || rowId >= (quint32(1) << 24) || colId >= (quint32(1) << 16)) return kNoKey;
+    return keyOf(sheet, rowId, colId);
 }
 
-} // namespace
+bool EditSession::placeOfMark(quint64 key, int *sheet, quint32 *row, quint32 *col) const
+{
+    const int s = int(key >> 40);
+    if (!m_book || !m_book->calc || s < 0 || s >= m_book->calc->sheetCount()) return false;
+    const CellStore &cells = m_book->calc->sheet(s).cells;
+    const quint32 r = cells.rowPlaceOf(quint32((key >> 16) & 0xFFFFFF)), c = cells.colPlaceOf(quint32(key & 0xFFFF));
+    if (r == CellStore::kNoLine || c == CellStore::kNoLine) return false;
+    *sheet = s;
+    *row = r;
+    *col = c;
+    return true;
+}
+
+void EditSession::markTouched(int sheet, quint32 row, quint32 col)
+{
+    const quint64 key = markOf(sheet, row, col);
+    if (key != kNoKey) m_touched.insert(key);
+}
+
+void EditSession::sweepMarks(int sheet, bool rows, const std::vector<jp::calc::IdRun> &released)
+{
+    if (!m_book || !m_book->calc || sheet < 0 || sheet >= m_book->calc->sheetCount() || released.empty()) return;
+    const CellStore &cells = m_book->calc->sheet(sheet).cells;
+    // (only a mark on an id of a line the records let go of can have lost its line: the others are passed by with one look at the runs, and the id is asked about only then)
+    auto gone = [&](quint64 key, bool useRow, bool useCol) {
+        ++m_marksSwept;
+        if (int(key >> 40) != sheet) return false;
+        const bool byRow = rows ? useRow : false, byCol = !rows ? useCol : false;
+        if (!byRow && !byCol) return false;
+        const quint32 id = byRow ? quint32((key >> 16) & 0xFFFFFF) : quint32(key & 0xFFFF);
+        bool inRuns = false;
+        for (const jp::calc::IdRun &r : released) inRuns = inRuns || (id >= r.first && id - r.first < r.count);
+        return inRuns && !(byRow ? cells.rowIdKnown(id) : cells.colIdKnown(id));
+    };
+    std::vector<quint64> dead;
+    m_touched.forEach([&](quint64 key) {
+        if (gone(key, true, true)) dead.push_back(key);
+    });
+    for (const quint64 key : dead) m_touched.erase(key);
+    for (auto *map : {&m_results, &m_engineAtStart, &m_fileResults})
+        for (auto it = map->begin(); it != map->end();) it = gone(it->first, true, true) ? map->erase(it) : std::next(it);
+    for (auto it = m_columnsResized.begin(); it != m_columnsResized.end();) it = gone(*it, false, true) ? m_columnsResized.erase(it) : std::next(it);
+    for (auto it = m_rowsResized.begin(); it != m_rowsResized.end();) it = gone(*it, true, false) ? m_rowsResized.erase(it) : std::next(it);
+}
+
+void EditSession::renumberMarks(int sheet, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table)
+{
+    // (every key of the sheet has the id of its rows or columns made what the cells were given; a key whose line is not in the table is of a line that is gone)
+    auto renumbered = [&](quint64 key, bool useRow, bool useCol, quint64 *now) {
+        if (int(key >> 40) != sheet) {
+            *now = key;
+            return true;
+        }
+        quint32 row = quint32((key >> 16) & 0xFFFFFF), col = quint32(key & 0xFFFF);
+        if (rows && useRow) {
+            row = CellStore::renumberLine(table, row);
+            if (row == CellStore::kNoLine) return false;
+        } else if (!rows && useCol) {
+            col = CellStore::renumberLine(table, col);
+            if (col == CellStore::kNoLine) return false;
+        }
+        *now = keyOf(sheet, row, col);
+        return true;
+    };
+    {
+        KeySet kept;
+        kept.reserve(m_touched.size());
+        for (const quint64 key : m_touched.keys()) {
+            quint64 now;
+            if (renumbered(key, true, true, &now)) kept.insert(now);
+        }
+        m_touched.swap(kept);
+    }
+    for (auto *map : {&m_results, &m_engineAtStart, &m_fileResults}) {
+        std::map<quint64, Value> kept;
+        for (auto &entry : *map) {
+            quint64 now;
+            if (renumbered(entry.first, true, true, &now)) kept.emplace(now, std::move(entry.second));
+        }
+        map->swap(kept);
+    }
+    for (auto *set : {&m_columnsResized, &m_rowsResized}) {
+        std::set<quint64> kept;
+        for (const quint64 key : *set) {
+            quint64 now;
+            if (renumbered(key, set == &m_rowsResized, set == &m_columnsResized, &now)) kept.insert(now);
+        }
+        set->swap(kept);
+    }
+    // the ids that the steps' records hold: the cells they rewrote and deleted (`Place`, `GoneCell`, `ShiftedFormula`), for a step that is kept (an edit of the other axis, of cells, or of names) is
+    // undone after this and follows its marks by them
+    auto renumberId = [&](quint32 *id) {
+        const quint32 now = CellStore::renumberLine(table, *id);
+        *id = now;   // (kNoLine for a line that is gone: no cell is there to be found by it)
+    };
+    auto renumberPlaces = [&](std::vector<Calculation::EditRecord::Place> *places) {
+        for (Calculation::EditRecord::Place &p : *places) {
+            if (p.sheet != sheet) continue;
+            renumberId(rows ? &p.rowId : &p.colId);
+        }
+    };
+    eachStepData([&](Step *step) {
+        for (SheetEdit &e : step->sheets) renumberPlaces(&e.rewrite.rewritten);
+        for (NameEdit &e : step->names) renumberPlaces(&e.rewrite.rewritten);
+    });
+    // the steps' own keys (cells shifted by one step: what it deleted and marked, to put back if it is undone)
+    eachStructChange([&](StructChange *sc) {
+            renumberPlaces(&sc->record.rewritten);
+            for (Calculation::EditRecord::GoneCell &g : sc->record.gone)
+                if (g.sheet == sheet) renumberId(rows ? &g.rowId : &g.colId);
+            if (sc->record.edit.sheet == sheet)
+                for (Calculation::EditRecord::ShiftedFormula &m : sc->record.shifted) {
+                    renumberId(rows ? &m.fromRowId : &m.fromColId);
+                    renumberId(rows ? &m.toRowId : &m.toColId);
+                }
+            for (std::vector<quint64> *list : {&sc->touchedGone, &sc->touchedAdded}) {
+                std::vector<quint64> kept;
+                for (const quint64 key : *list) {
+                    quint64 now;
+                    if (renumbered(key, true, true, &now)) kept.push_back(now);
+                }
+                list->swap(kept);
+            }
+            for (std::vector<std::pair<quint64, Value>> *list : {&sc->resultsGone, &sc->engineGone, &sc->fileGone}) {
+                std::vector<std::pair<quint64, Value>> kept;
+                for (auto &entry : *list) {
+                    quint64 now;
+                    if (renumbered(entry.first, true, true, &now)) kept.push_back({now, std::move(entry.second)});
+                }
+                list->swap(kept);
+            }
+        });
+}
+
+void EditSession::dropStale(std::vector<ValueStore::Item> *items)
+{
+    if (!m_book || !m_book->calc) return;
+    Calculation &calc = *m_book->calc;
+    struct Redo {
+        int sheet;
+        Calculation::Target at;
+    };
+    std::vector<Redo> redo;
+    items->erase(std::remove_if(items->begin(), items->end(), [&](const ValueStore::Item &it) {
+        Calculation::Target again;
+        if (!calc.staleResult(it.sheet, it.row, it.col, it.epoch, &again)) return false;
+        if (again.valid) redo.push_back({it.sheet, again});
+        return true;
+    }), items->end());
+    if (redo.empty()) return;
+    // the formulas that moved and whose value was let go of are worked out again (the worker is held for it: a rare thing, and only what was in flight)
+    if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) {
+        for (const Redo &r : redo) hold->calculation()->redirtyCell(r.sheet, r.at.rowId, r.at.colId);
+        hold->changed();
+    }
+}
+
+void EditSession::pruneStamps(const std::vector<quint32> &epochs)
+{
+    if (m_book && m_book->calc) m_book->calc->pruneStamps(epochs);
+}
+
+std::vector<ValueStore::Item> EditSession::placed(const std::vector<ValueStore::Item> &items) const
+{
+    std::vector<ValueStore::Item> out;
+    if (!m_book || !m_book->calc) return out;
+    out.reserve(items.size());
+    const int sheets = m_book->calc->sheetCount();
+    for (const ValueStore::Item &it : items) {
+        if (it.sheet < 0 || it.sheet >= sheets) continue;
+        const CellStore &cells = m_book->calc->sheet(it.sheet).cells;
+        const quint32 row = cells.rowPlaceOf(it.row), col = cells.colPlaceOf(it.col);
+        if (row == CellStore::kNoLine || col == CellStore::kNoLine) continue;
+        ValueStore::Item p;
+        p.sheet = it.sheet;
+        p.row = row;
+        p.col = col;
+        out.push_back(std::move(p));
+    }
+    return out;
+}
 
 void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forward)
 {
-    using K = StructEdit::Kind;
     // cells moved one by one, across the rows or columns of the file's sheet, are written whole where they are now
+    const Calculation &calc = *m_book->calc;
+    const bool lines = wholeLines(edit);
     auto markShifted = [&](const StructEdit &e, const std::function<void(quint64)> &mark) {
         if (e.kind != K::InsertCellsDown && e.kind != K::DeleteCellsUp && e.kind != K::InsertCellsRight && e.kind != K::DeleteCellsLeft) return;
-        const Sheet &s = m_book->calc->sheet(e.sheet);
+        const Sheet &s = calc.sheet(e.sheet);
         const bool vertical = e.kind == K::InsertCellsDown || e.kind == K::DeleteCellsUp;
         const quint32 r1 = e.row1, c1 = e.col1;
         const quint32 r2 = vertical ? kMaxRows - 1 : e.row2, c2 = vertical ? e.col2 : kMaxColumns - 1;
-        s.cells.forEachInRange(r1, c1, r2, c2, [&](quint32 row, quint32 col, const Cell &c) {
-            mark(keyOf(e.sheet, row, col));
+        s.cells.forEachInRange(r1, c1, r2, c2, [&](quint32, quint32, const Cell &c) {
+            mark(keyOf(e.sheet, c.rowId, c.colId));
             return true;
         });
     };
@@ -318,35 +502,33 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
         sc->engineGone.clear();
         sc->fileGone.clear();
         sc->touchedAdded.clear();
-        m_marksFollowed += qint64(m_touched.size() + m_results.size() + m_engineAtStart.size() + m_fileResults.size() + m_columnsResized.size() + m_rowsResized.size());
-        // (the marks of a Move stay where they are: they say what differs from the file at a place, and the file's cells do not move with the cells)
-        if (edit.kind != K::Move) {
-            followSet(&m_touched, edit, &sc->touchedGone);
-            followMap(&m_results, edit, &sc->resultsGone);
-            followMap(&m_engineAtStart, edit, &sc->engineGone);
-            followMap(&m_fileResults, edit, &sc->fileGone);
+        // (whole rows and columns move no mark: they are by the ids of rows and columns, which an edit of them does not change; the marks of cells shifted or moved are followed)
+        if (!lines) {
+            m_marksFollowed += qint64(m_touched.size() + m_results.size() + m_engineAtStart.size() + m_fileResults.size());
+            // (the marks of a Move stay where they are: they say what differs from the file at a place, and the file's cells do not move with the cells)
+            if (edit.kind != K::Move) {
+                followSet(calc, &m_touched, edit, &sc->touchedGone);
+                followMap(calc, &m_results, edit, &sc->resultsGone);
+                followMap(calc, &m_engineAtStart, edit, &sc->engineGone);
+                followMap(calc, &m_fileResults, edit, &sc->fileGone);
+            }
         }
-        sc->columnsGone.clear();
-        sc->rowsGone.clear();
-        followLines(&m_columnsResized, edit, true, &sc->columnsGone);
-        followLines(&m_rowsResized, edit, false, &sc->rowsGone);
         auto mark = [&](quint64 key) {
-            if (m_touched.insert(key).second) sc->touchedAdded.push_back(key);
+            if (m_touched.insert(key)) sc->touchedAdded.push_back(key);
         };
         // the formulas that were written again are written whole when the file is made (what they read moved)
-        const Calculation *calc = m_book->calc.get();
         m_touched.reserve(m_touched.size() + sc->record.rewritten.size());
         for (const Calculation::EditRecord::Place &p : sc->record.rewritten) {
             if (p.dataTable) continue;   // (the file's own formula is moved with its cell)
-            mark(keyOf(p.sheet, p.row, p.col));
+            mark(keyOf(p.sheet, p.rowId, p.colId));
         }
         markShifted(edit, mark);
         if (edit.kind == K::Move) {
             // the places of the block and of what it went over are written whole: those that held cells, and the cells now in the new place
-            for (const Calculation::EditRecord::GoneCell &g : sc->record.gone) mark(keyOf(g.sheet, g.row, g.col));
+            for (const Calculation::EditRecord::GoneCell &g : sc->record.gone) mark(keyOf(g.sheet, g.rowId, g.colId));
             const quint32 toRow2 = edit.toRow + (edit.row2 - edit.row1), toCol2 = edit.toCol + (edit.col2 - edit.col1);
-            calc->sheet(edit.toSheet).cells.forEachInRange(edit.toRow, edit.toCol, toRow2, toCol2, [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
-                mark(keyOf(edit.toSheet, cellRow, cellCol));
+            calc.sheet(edit.toSheet).cells.forEachInRange(edit.toRow, edit.toCol, toRow2, toCol2, [&](quint32, quint32, const Cell &c) {
+                mark(keyOf(edit.toSheet, c.rowId, c.colId));
                 return true;
             });
             m_mergesChanged.insert(edit.sheet);
@@ -355,32 +537,39 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
         m_edits.push_back(edit);
         forgetNotes();
     } else if (sc->savedGen != m_saveGen) {
-        // The file was saved since the edit was done, so it has the edit: the edit that undoes it is made against the saved file (it goes in the list for the file), and the cells that
-        // come back, and those that were written over, are written whole. (A step that deleted cells is not undone after a save: see forgetDeletesInFile.)
+        // The file was saved since the edit was done, so it has the edit: the edit that undoes it is made against the saved file (it goes in the list for the file), and the cells that come back, and
+        // those that were written over, are written whole. (A step that deleted cells is not undone after a save: see forgetDeletesInFile.)
         const StructEdit back = edit.inverse();
-        m_marksFollowed += qint64(m_touched.size() + m_results.size() + m_engineAtStart.size() + m_fileResults.size() + m_columnsResized.size() + m_rowsResized.size());
-        if (edit.kind != K::Move) {
-            followSet(&m_touched, back, nullptr);
-            followMap(&m_results, back, nullptr);
-            followMap(&m_engineAtStart, back, nullptr);
-            followMap(&m_fileResults, back, nullptr);
-            followLines(&m_columnsResized, back, true, nullptr);
-            followLines(&m_rowsResized, back, false, nullptr);
+        if (!lines) {
+            m_marksFollowed += qint64(m_touched.size() + m_results.size() + m_engineAtStart.size() + m_fileResults.size());
+            if (edit.kind != K::Move) {
+                followSet(calc, &m_touched, back, nullptr);
+                followMap(calc, &m_results, back, nullptr);
+                followMap(calc, &m_engineAtStart, back, nullptr);
+                followMap(calc, &m_fileResults, back, nullptr);
+            }
         }
-        auto mark = [&](quint64 key) { m_touched.insert(key); };
-        for (const Calculation::EditRecord::GoneCell &g : sc->record.gone) mark(keyOf(g.sheet, g.row, g.col));
+        // (the places of the record are those of the edit done: the order is as it was then once the edit is undone, so the places and their cells are the same)
+        auto mark = [&](quint64 key) {
+            if (key != kNoKey) m_touched.insert(key);
+        };
+        for (const Calculation::EditRecord::GoneCell &g : sc->record.gone) mark(markOf(g.sheet, g.row, g.col));
         for (const Calculation::EditRecord::Place &p : sc->record.rewritten) {
             // (the formulas that were written again have the text they had: where they are now, after the edit is undone)
+            if (lines) {
+                if (p.rowId != CellStore::kNoLine && p.colId != CellStore::kNoLine) mark(keyOf(p.sheet, p.rowId, p.colId));
+                continue;
+            }
             int sheet = p.sheet;
             quint32 row = p.row, col = p.col;
-            if (edit.kind == K::Move || adjustCell(back, &sheet, &row, &col) != RefFate::Gone) mark(keyOf(sheet, row, col));
+            if (edit.kind == K::Move || adjustCell(back, &sheet, &row, &col) != RefFate::Gone) mark(markOf(sheet, row, col));
         }
-        markShifted(back, mark);
+        markShifted(back, [&](quint64 key) { mark(key); });
         if (edit.kind == K::Move) {
             // the cells that went to the new place are not there any more
             const qint64 dRow = qint64(edit.toRow) - edit.row1, dCol = qint64(edit.toCol) - edit.col1;
             for (const Calculation::EditRecord::GoneCell &g : sc->record.gone)
-                if (g.sheet == edit.sheet && g.row >= edit.row1 && g.row <= edit.row2 && g.col >= edit.col1 && g.col <= edit.col2) mark(keyOf(edit.toSheet, quint32(qint64(g.row) + dRow), quint32(qint64(g.col) + dCol)));
+                if (g.sheet == edit.sheet && g.row >= edit.row1 && g.row <= edit.row2 && g.col >= edit.col1 && g.col <= edit.col2) mark(markOf(edit.toSheet, quint32(qint64(g.row) + dRow), quint32(qint64(g.col) + dCol)));
             m_mergesChanged.insert(edit.sheet);
             m_mergesChanged.insert(edit.toSheet);
         } else {
@@ -393,16 +582,12 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
         for (const quint64 key : sc->touchedAdded) m_touched.erase(key);
         sc->touchedAdded.clear();
         const StructEdit back = edit.inverse();
-        if (edit.kind != K::Move) {
-            followSet(&m_touched, back, nullptr);
-            followMap(&m_results, back, nullptr);
-            followMap(&m_engineAtStart, back, nullptr);
-            followMap(&m_fileResults, back, nullptr);
+        if (!lines && edit.kind != K::Move) {
+            followSet(calc, &m_touched, back, nullptr);
+            followMap(calc, &m_results, back, nullptr);
+            followMap(calc, &m_engineAtStart, back, nullptr);
+            followMap(calc, &m_fileResults, back, nullptr);
         }
-        followLines(&m_columnsResized, back, true, nullptr);
-        followLines(&m_rowsResized, back, false, nullptr);
-        for (const quint64 key : sc->columnsGone) m_columnsResized.insert(key);
-        for (const quint64 key : sc->rowsGone) m_rowsResized.insert(key);
         for (const quint64 key : sc->touchedGone) m_touched.insert(key);
         for (auto &entry : sc->resultsGone) m_results[entry.first] = entry.second;
         for (auto &entry : sc->engineGone) m_engineAtStart[entry.first] = entry.second;
@@ -464,42 +649,27 @@ bool EditSession::applyStructure(Step *step, bool forward)
             Q_EMIT anchorsChanged(s);
         }
     }
-    // the values the window holds follow the cells: those of cells that are gone are let go of, and those of formulas that moved (with their cells) go with them
+    // the values the window holds follow the cells: those of cells that are gone are let go of, and, for cells shifted one by one, those of formulas that moved (with their cells) go with them. Whole
+    // rows and columns move no value: they are held by the ids of the cell's row and column.
     {
         const Calculation::EditRecord &done = forward ? sc.record : undone;
         std::map<int, std::vector<std::pair<quint32, quint32>>> gone;
-        for (const Calculation::EditRecord::GoneCell &g : done.gone) gone[g.sheet].emplace_back(g.row, g.col);
+        for (const Calculation::EditRecord::GoneCell &g : done.gone) gone[g.sheet].emplace_back(g.rowId, g.colId);
         for (const auto &entry : gone) m_values->erase(entry.first, entry.second);
-        if (now.kind != StructEdit::Kind::Move && !done.movedFormulas.empty()) {
+        if (now.kind != StructEdit::Kind::Move && !done.shifted.empty()) {
             std::vector<ValueStore::Move> moves;
-            moves.reserve(done.movedFormulas.size());
-            for (const Calculation::EditRecord::MovedFormula &m : done.movedFormulas) moves.push_back({m.fromRow, m.fromCol, m.toRow, m.toCol});
+            moves.reserve(done.shifted.size());
+            for (const Calculation::EditRecord::ShiftedFormula &m : done.shifted) moves.push_back({m.fromRowId, m.fromColId, m.toRowId, m.toColId});
             m_values->relocate(now.sheet, moves);
         }
     }
-    m_log.push_back(now);
-    hold->structureChanged();
+    hold->changed();
     if (m_holdHook) m_holdHook(calc, true);
     hold.reset();
     m_tracking = true;
     Q_EMIT cellsMoved(now);
     if (!sc.tables.empty()) Q_EMIT tablesChanged(sc.edit.sheet);
     return true;
-}
-
-void EditSession::moveToNow(std::vector<ValueStore::Item> *items, int generation) const
-{
-    for (size_t g = size_t(std::max(0, generation)); g < m_log.size(); ++g) {
-        const StructEdit &e = m_log[g];
-        auto last = std::remove_if(items->begin(), items->end(), [&](ValueStore::Item &it) {
-            int sheet = it.sheet;
-            const RefFate fate = adjustCell(e, &sheet, &it.row, &it.col);
-            if (fate == RefFate::Gone) return true;
-            it.sheet = sheet;
-            return false;
-        });
-        items->erase(last, items->end());
-    }
 }
 
 } // namespace jp::crunch

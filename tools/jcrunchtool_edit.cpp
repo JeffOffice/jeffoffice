@@ -132,6 +132,8 @@ struct Opened {
             message = m;
         });
         c2 = QObject::connect(&loader, &crunch::WorkbookLoader::calcBatch, &loader, [this](const std::shared_ptr<crunch::CalcBatch> &b) {
+            if (loader.result() && loader.result()->calc) loader.result()->calc->valuesTaken(qint64(b->items.size()));
+            if (session) session->dropStale(&b->items);   // (as the window does: what an edit of cells moved after it was worked out is let go of)
             if (trackChanges)
                 for (const grid::ValueStore::Item &it : b->items) {
                     jp::calc::Value old;
@@ -864,7 +866,8 @@ int roundtripOne(const QString &path)
                                     } else if (b1->cell->hasFormula() || arrayMember) {
                                         // a formula's result: the engine's now if the edit changed it, else the file's as it was
                                         const jp::calc::Value ours = calc->cell(si, b1->row, b1->col);
-                                        if (w.changedByEdit.count(crunch::EditSession::keyOf(si, b1->row, b1->col))) {
+                                        // (the results the engine changed are named by ids: those of the cell in the model, which is the live workbook)
+                                        if (model && w.changedByEdit.count(crunch::EditSession::keyOf(si, model->rowId, model->colId))) {
                                             if (!storedIs(sb, hb, *b1->cell, ours)) {
                                                 ++unexpected;
                                                 edited.add(QStringLiteral("a result is not the engine's"));
@@ -1187,6 +1190,14 @@ int structBench(const QString &path, const QString &label, const QString &only)
         cases.push_back({QStringLiteral("insert column %1").arg(QLatin1String(where[i])), [=] { return session->insertColumns(sheet, at, 1); }});
         cases.push_back({QStringLiteral("delete column %1").arg(QLatin1String(where[i])), [=] { return session->deleteColumns(sheet, at, 1); }});
     }
+    // (cells shifted one by one: the column of formulas moved down by one, which moves every formula in it and leaves what they read where it is)
+    cases.push_back({QStringLiteral("insert cells down"), [=] {
+        office::sheet::CellRange shifted;
+        shifted.valid = true;
+        shifted.row1 = shifted.row2 = 0;
+        shifted.col1 = shifted.col2 = cols - 1;
+        return session->insertCells(sheet, shifted, true);
+    }});
     // (counted work, besides the times: what the model, the session, and the window each did; the columns after used_cols are for the edit, and then for its Undo)
     out() << "label\tcase\tdo_cpu_ms\tdo_wall_ms\tworker_cpu_ms\tsettle_ms\twork_counted\ttexts_made\tundo_cpu_ms\tundo_wall_ms\tundo_work\tused_rows\tused_cols"
           << "\tcells_moved\tcells_gone\tformulas_visited\tformulas_rewritten\tnodes_remade\tgraph_work\tnames_rewritten\trules_rewritten\tmarks_followed\tvalues_moved\tview_cells\tundo_bytes\tgraph_entries"

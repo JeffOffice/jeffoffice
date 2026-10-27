@@ -729,7 +729,7 @@ private Q_SLOTS:
         QCOMPARE(s.categories, (QStringList{"Mar 15, 2024", "Mar 17, 2024"}));
         QVERIFY(sameNumbers(s.values, {4, 1}));
         // the calculation tells the window another result for the formula: the chart has it
-        store.apply({{0, 3, 1, Value::number(40)}});
+        store.apply({{0, 3, 1, 0, Value::number(40)}});
         applyChartCells(&l.chart, 0, cells);
         QVERIFY(sameNumbers(l.chart.plots[0].series[0].values, {4, 40}));
         // a row is shown again, and a column hidden

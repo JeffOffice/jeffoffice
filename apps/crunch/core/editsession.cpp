@@ -300,6 +300,20 @@ void EditSession::forgetDeletesInFile()
     }
 }
 
+void EditSession::eachStepData(const std::function<void(Step *)> &f)
+{
+    for (int i = 0; i < m_undo.count(); ++i)
+        eachStep(m_undo.command(i), [&](ChangeCells *step) { f(step->step()); });
+}
+
+void EditSession::eachStructChange(const std::function<void(StructChange *)> &f)
+{
+    for (int i = 0; i < m_undo.count(); ++i)
+        eachStep(m_undo.command(i), [&](ChangeCells *step) {
+            if (StructChange *sc = step->step()->structure.get()) f(sc);
+        });
+}
+
 void EditSession::forgetLineSteps(int sheet, bool rows)
 {
     using K = jp::office::sheet::StructEdit::Kind;
@@ -863,7 +877,7 @@ bool EditSession::apply(Step *step, bool forward)
                     calc->setValue(f.sheet, row, f.col, Value(), Calculation::Marking::Later);
                     calc->setStyle(f.sheet, row, f.col, style);
                 }
-                m_touched.insert(keyOf(f.sheet, row, f.col));
+                markTouched(f.sheet, row, f.col);
                 cells[f.sheet].push_back(it);
                 if (row == f.row2) break;
             }
@@ -893,7 +907,7 @@ bool EditSession::apply(Step *step, bool forward)
             if (ch.styleOnly) {
                 // only the cell's format changes: its value, its formula, and the array it may be part of are not touched
                 calc->setStyle(ch.sheet, ch.row, ch.col, c.style);
-                m_touched.insert(keyOf(ch.sheet, ch.row, ch.col));
+                markTouched(ch.sheet, ch.row, ch.col);
                 ValueStore::Item styled;
                 styled.sheet = ch.sheet;
                 styled.row = ch.row;
@@ -902,7 +916,7 @@ bool EditSession::apply(Step *step, bool forward)
                 continue;
             }
             calc->put(ch.sheet, ch.row, ch.col, c, Calculation::Marking::Later);
-            m_touched.insert(keyOf(ch.sheet, ch.row, ch.col));
+            markTouched(ch.sheet, ch.row, ch.col);
             ValueStore::Item it;
             it.sheet = ch.sheet;
             it.row = ch.row;
@@ -922,7 +936,7 @@ bool EditSession::apply(Step *step, bool forward)
         std::set<int> sheetsStyled;
         for (const StyleCell &sc : step->styles) {
             calc->setStyle(sc.sheet, sc.row, sc.col, forward ? sc.after : sc.before);
-            m_touched.insert(keyOf(sc.sheet, sc.row, sc.col));
+            markTouched(sc.sheet, sc.row, sc.col);
             sheetsStyled.insert(sc.sheet);
             if (many) continue;
             ValueStore::Item styled;
@@ -1001,7 +1015,20 @@ bool EditSession::apply(Step *step, bool forward)
     hold.reset();   // (the worker has the model again, and works out what these changes make)
     m_tracking = true;
     // a formula put in a cell has no value until the worker gives it one: it shows nothing, not the value of what was there
-    if (!formulas.empty()) m_values->apply(formulas);
+    if (!formulas.empty()) {
+        // (the store has values by the ids of rows and columns: these are at places)
+        std::vector<ValueStore::Item> byIds;
+        byIds.reserve(formulas.size());
+        for (ValueStore::Item &it : formulas) {
+            const CellStore &cells = m_book->calc->sheet(it.sheet).cells;
+            const quint32 rowId = cells.rowIdAt(it.row), colId = cells.colIdAt(it.col);
+            if (rowId == CellStore::kNoLine || colId == CellStore::kNoLine) continue;
+            it.row = rowId;
+            it.col = colId;
+            byIds.push_back(std::move(it));
+        }
+        m_values->apply(byIds);
+    }
     for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
     for (const SizeEdit &e : step->sizes) Q_EMIT sizesChanged(e.sheet);
     for (const int sheet : m_sheetsRestyled) Q_EMIT sizesChanged(sheet);
@@ -1087,7 +1114,7 @@ bool EditSession::widenLastStep(int index, int sheet, quint32 col, double width)
     if (!hold) return false;
     hold->calculation()->setColumnRuns(sheet, col, col, e.columnsAfter);
     hold.reset();
-    m_columnsResized.insert(keyOf(sheet, 0, col));
+    markColumnResized(sheet, col);
     cmd->step()->sizes.push_back(e);
     cmd->recount();
     Q_EMIT sizesChanged(sheet);
@@ -1099,18 +1126,52 @@ void EditSession::applySizes(Step *step, bool forward, Calculation *calc)
     for (const SizeEdit &e : step->sizes) {
         if (e.columns) {
             calc->setColumnRuns(e.sheet, e.first, e.last, forward ? e.columnsAfter : e.columnsBefore);
-            for (quint32 c = e.first; c <= e.last; ++c) m_columnsResized.insert(keyOf(e.sheet, 0, c));
+            for (quint32 c = e.first; c <= e.last; ++c) markColumnResized(e.sheet, c);
         } else {
             calc->setRowSpecs(e.sheet, e.first, e.last, forward ? e.rowsAfter : e.rowsBefore);
-            for (quint32 r = e.first; r <= e.last; ++r) m_rowsResized.insert(keyOf(e.sheet, r, 0));
+            for (quint32 r = e.first; r <= e.last; ++r) markRowResized(e.sheet, r);
         }
     }
 }
 
-bool EditSession::storedEquals(int sheet, quint32 row, quint32 col, const Value &value) const
+void EditSession::markColumnResized(int sheet, quint32 col)
+{
+    const quint32 id = m_book->calc->sheet(sheet).cells.colIdAt(col);
+    if (id != CellStore::kNoLine) m_columnsResized.insert(keyOf(sheet, 0, id));
+}
+
+void EditSession::markRowResized(int sheet, quint32 row)
+{
+    const quint32 id = m_book->calc->sheet(sheet).cells.rowIdAt(row);
+    if (id != CellStore::kNoLine && id < (quint32(1) << 24)) m_rowsResized.insert(keyOf(sheet, id, 0));
+}
+
+qint64 EditSession::changedCells() const
+{
+    qint64 n = 0;
+    m_touched.forEach([&](quint64 key) {
+        int sheet;
+        quint32 row, col;
+        n += placeOfMark(key, &sheet, &row, &col) ? 1 : 0;
+    });
+    return n;
+}
+
+qint64 EditSession::changedResults() const
+{
+    qint64 n = 0;
+    for (const auto &entry : m_results) {
+        int sheet;
+        quint32 row, col;
+        n += placeOfMark(entry.first, &sheet, &row, &col) ? 1 : 0;
+    }
+    return n;
+}
+
+bool EditSession::storedEquals(int sheet, quint32 rowId, quint32 colId, const Value &value) const
 {
     const Sheet &s = m_book->calc->sheet(sheet);
-    const Cell *c = s.cells.find(row, col);
+    const Cell *c = s.cells.findById(rowId, colId);
     if (!c) return false;
     switch (c->type) {
     case CellType::Empty: return value.isEmpty();
@@ -1132,7 +1193,7 @@ void EditSession::noteResults(const std::vector<ValueStore::Item> &items)
         const quint64 key = keyOf(it.sheet, it.row, it.col);
         if (m_touched.count(key)) continue;
         const Sheet &s = m_book->calc->sheet(it.sheet);
-        const Cell *c = s.cells.find(it.row, it.col);
+        const Cell *c = s.cells.findById(it.row, it.col);
         if (!c || !(c->hasFormula() || (c->flags & ArrayMember))) continue;
         // What the engine had for the cell before this (the store is told after): a result that is the same is not a change, and the file's own value stays (the engine's differences from the
         // program that wrote the file are not made into changes by a formula being worked out again). A result that comes back to the value the engine had before the first change is the file's again.
@@ -1175,13 +1236,24 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     const bool hasShared = !book.sharedStringsPart().isEmpty();
     const bool hasStyles = !book.stylesPart().isEmpty();
     bool resultMissing = false;
-    std::vector<quint64> touchedInOrder(m_touched.begin(), m_touched.end());
-    std::sort(touchedInOrder.begin(), touchedInOrder.end());
+    // the cells marked as changed are named by the ids of their rows and columns; the file wants places, in order (a cell in a row or column that is deleted is not in the file as it is saved)
+    struct Marked {
+        quint64 place;   // sheet, row, column, as keyOf says it for places
+        quint64 key;
+    };
+    std::vector<Marked> touchedInOrder;
+    touchedInOrder.reserve(m_touched.size());
+    m_touched.forEach([&](quint64 key) {
+        int sheet;
+        quint32 row, col;
+        if (placeOfMark(key, &sheet, &row, &col)) touchedInOrder.push_back({keyOf(sheet, row, col), key});
+    });
+    std::sort(touchedInOrder.begin(), touchedInOrder.end(), [](const Marked &a, const Marked &b) { return a.place < b.place; });
     // (a sheet that was added is made whole from the model, and one that was deleted is not in the file: the marks of their cells are not what is put in)
     const WorkbookInfo &listed = book.info();
     auto written = [&](int sheet) { return sheet >= 0 && sheet < listed.sheets.size() && !listed.sheets[sheet].deleted && !listed.sheets[sheet].isNew; };
     auto addCell = [&](int sheet, quint32 row, quint32 col) {
-        const quint64 key = keyOf(sheet, row, col);
+        const quint64 key = markOf(sheet, row, col);
         const Calculation::CellContent c = calc->content(sheet, row, col);
         SavedCell cell;
         cell.row = row;
@@ -1194,7 +1266,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
                 if (c.arrayRange.valid) cell.arrayRef = c.arrayRange.cellCount() > 1 ? rangeName(c.arrayRange) : cellName(c.arrayRange.row1, c.arrayRange.col1);
                 Value v;
                 // (a formula the engine keeps apart has the result it had, which the worker does not tell)
-                const bool known = m_values->find(sheet, row, col, &v) || (c.hasStored && ((v = c.stored), true));
+                const bool known = (key != kNoKey && m_values->find(sheet, quint32((key >> 16) & 0xFFFFFF), quint32(key & 0xFFFF), &v)) || (c.hasStored && ((v = c.stored), true));
                 if (known) {
                     cell.value = savedValue(v, -1);
                     out->touchedFormulas.push_back(key);
@@ -1209,10 +1281,10 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         }
         changes.sheets[sheet].cells.push_back(cell);
     };
-    for (const quint64 key : touchedInOrder) {
-        const int sheet = int(key >> 40);
+    for (const Marked &m : touchedInOrder) {
+        const int sheet = int(m.place >> 40);
         if (!written(sheet)) continue;
-        addCell(sheet, quint32((key >> 16) & 0xFFFFFF), quint32(key & 0xFFFF));
+        addCell(sheet, quint32((m.place >> 16) & 0xFFFFFF), quint32(m.place & 0xFFFF));
     }
     // the sheets a person added: every cell, and what the sheet has besides
     bool newSheets = false;
@@ -1373,7 +1445,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         sc.showFirst = range.first;
         sc.showLast = range.second;
         for (const RowSpec &spec : calc->rowSpecsIn(sheet, range.first, range.second)) {
-            if (m_rowsResized.count(keyOf(sheet, spec.row, 0))) continue;   // (the loop below writes it)
+            if (m_rowsResized.count(keyOf(sheet, calc->sheet(sheet).cells.rowIdAt(spec.row), 0))) continue;   // (the loop below writes it)
             RowProps p;
             p.row = spec.row;
             p.height = spec.height;
@@ -1388,10 +1460,18 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             sc.rows.push_back(p);
         }
     }
+    std::vector<std::pair<quint32, quint32>> rowsInOrder;   // (the rows marked as resized, by the places they are at now: sheet, row)
     for (const quint64 key : m_rowsResized) {
         const int sheet = int(key >> 40);
         if (!written(sheet)) continue;
-        const quint32 row = quint32((key >> 16) & 0xFFFFFF);
+        const quint32 row = calc->sheet(sheet).cells.rowPlaceOf(quint32((key >> 16) & 0xFFFFFF));
+        if (row == CellStore::kNoLine) continue;
+        rowsInOrder.push_back({quint32(sheet), row});
+    }
+    std::sort(rowsInOrder.begin(), rowsInOrder.end());
+    for (const auto &at : rowsInOrder) {
+        const int sheet = int(at.first);
+        const quint32 row = at.second;
         const std::vector<jp::office::sheet::RowSpec> specs = calc->rowSpecsIn(sheet, row, row);
         RowProps p;
         p.row = row;
@@ -1408,17 +1488,24 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         }
         changes.sheets[sheet].rows.push_back(p);
     }
+    qint64 liveResults = 0;   // (the results of cells in rows or columns that are deleted are not the file's to keep)
     for (const auto &[key, v] : m_results) {
         if (m_touched.count(key)) continue;
-        const int sheet = int(key >> 40);
+        int sheet;
+        quint32 row, col;
+        if (!placeOfMark(key, &sheet, &row, &col)) continue;
+        ++liveResults;
         if (!written(sheet)) continue;
         SavedResult r;
-        r.row = quint32((key >> 16) & 0xFFFFFF);
-        r.col = quint16(key & 0xFFFF);
+        r.row = row;
+        r.col = quint16(col);
         r.value = savedValue(v, -1);
         changes.sheets[sheet].results.push_back(r);
         out->results[key] = v;
     }
+    // (the results are kept in the order of the ids of cells: the file has them in order of place)
+    for (auto &entry : changes.sheets)
+        std::sort(entry.second.results.begin(), entry.second.results.end(), [](const SavedResult &a, const SavedResult &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; });
     if (hasShared) {
         changes.newSharedStrings = book.addedSharedStrings();
         changes.sharedStringsBefore = book.sharedStringsInFile();
@@ -1484,7 +1571,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     out->dxfs = int(changes.newDxfs.size());
     // The other program is asked to work every formula out again when this program could not: a formula it keeps apart that may read what changed, a result it did not get to, or a
     // formula it gave no result.
-    changes.fullCalcOnLoad = (!m_touched.empty() || !m_results.empty() || newSheets) && (calc->isDirty() || resultMissing || calc->keptCount() > 0);
+    changes.fullCalcOnLoad = (!touchedInOrder.empty() || liveResults > 0 || newSheets) && (calc->isDirty() || resultMissing || calc->keptCount() > 0);
     return true;
 }
 

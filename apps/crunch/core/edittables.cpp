@@ -857,7 +857,7 @@ EditSession::Outcome EditSession::resizeTable(int table, const CellRange &range)
         std::map<quint64, size_t> at;
         std::vector<CellChange> merged;
         for (CellChange &c : step.cells) {
-            const quint64 key = keyOf(c.sheet, c.row, c.col);
+            const quint64 key = (quint64(quint32(c.sheet)) << 40) | (quint64(c.row) << 16) | quint64(c.col);   // (places: the cells of the step before they are put in)
             const auto it = at.find(key);
             if (it == at.end()) {
                 at[key] = merged.size();

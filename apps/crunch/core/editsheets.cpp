@@ -515,7 +515,8 @@ void EditSession::forgetSheet(int sheet)
     m_sheetRemoved = true;
     if (m_values) m_values->dropSheet(sheet);
     auto of = [sheet](quint64 key) { return int(key >> 40) == sheet; };
-    for (auto it = m_touched.begin(); it != m_touched.end();) it = of(*it) ? m_touched.erase(it) : std::next(it);
+    for (const quint64 key : m_touched.keys())
+        if (of(key)) m_touched.erase(key);
     for (auto *map : {&m_results, &m_engineAtStart, &m_fileResults})
         for (auto it = map->begin(); it != map->end();) it = of(it->first) ? map->erase(it) : std::next(it);
 }
@@ -579,7 +580,7 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                 book.setSheetDeleted(e.sheet, true);
                 book.setSheetOrder(e.orderAfter);
                 for (const Calculation::EditRecord::Place &p : e.rewrite.rewritten)
-                    if (!p.dataTable) m_touched.insert(keyOf(p.sheet, p.row, p.col));
+                    if (!p.dataTable) markTouched(p.sheet, p.row, p.col);
                 SheetOp op;
                 op.kind = SheetOp::Kind::Delete;
                 op.name = e.nameBefore;
@@ -603,7 +604,7 @@ bool EditSession::applySheetEdits(Step *step, bool forward, Calculation *calc, W
                 }
                 book.setSheetName(e.sheet, e.nameAfter);
                 for (const Calculation::EditRecord::Place &p : e.rewrite.rewritten)
-                    if (!p.dataTable) m_touched.insert(keyOf(p.sheet, p.row, p.col));
+                    if (!p.dataTable) markTouched(p.sheet, p.row, p.col);
                 SheetOp op;
                 op.kind = SheetOp::Kind::Rename;
                 op.name = e.nameBefore;

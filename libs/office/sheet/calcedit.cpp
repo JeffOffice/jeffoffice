@@ -131,7 +131,7 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
         for (const quint32 id : m_special) {
             const Node &n = m_nodes[id];
             if ((n.flags & Dead) || n.sheet != e.sheet || n.kept != 'D') continue;
-            const Cell *c = s.cells.find(n.row, n.col);
+            const Cell *c = cellOf(n);
             if (!c || !c->hasFormula()) continue;
             if (names.isEmpty())
                 for (const SheetEntry &se : m_book.info().sheets) names << se.name;
@@ -256,11 +256,33 @@ bool Calculation::linesNeedCompaction(const StructEdit &e) const
     return m_sheets[size_t(e.sheet)].cells.needsCompaction(rows, e.count);
 }
 
-bool Calculation::compactLines(int sheet, bool rows)
+bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineMapCore::Renumber> *out)
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
     abandonNow();
-    return m_sheets[size_t(sheet)].cells.rebaseLines(rows) == jp::calc::LineStatus::Ok;
+    std::vector<jp::calc::LineMapCore::Renumber> table;
+    if (m_sheets[size_t(sheet)].cells.rebaseLines(rows, &table) != jp::calc::LineStatus::Ok) return false;
+    if (out) *out = table;
+    if (table.empty()) return true;   // (the order was one run: the ids are the places they were)
+    // the ids the nodes hold are renumbered with the cells, and what they worked out and told before is named by the old ids: every value of an epoch before this one is let go of (staleResult: the
+    // cells of an array are named too, and no stamp is made for each), and, if any is in flight, the formulas are worked out again
+    ++m_state[size_t(sheet)].epoch;
+    m_state[size_t(sheet)].renumberEpoch = m_state[size_t(sheet)].epoch;
+    const bool again = resultsInFlight();
+    for (auto it = m_stamps.begin(); it != m_stamps.end();)
+        if (int(it->first >> 40) == sheet) it = m_stamps.erase(it);
+        else ++it;
+    for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
+        Node &n = m_nodes[id];
+        if ((n.flags & Dead) || n.sheet != sheet) continue;
+        const quint32 now = CellStore::renumberLine(table, rows ? n.rowId : n.colId);
+        Q_ASSERT(now != CellStore::kNoLine);
+        if (rows) n.rowId = now;
+        else n.colId = quint16(now);
+        if (again && !(n.flags & Kept)) redirty(id);
+    }
+    if (again && !m_running) beginRecalculation();
+    return true;
 }
 
 void Calculation::setLineLimitsForTest(int sheet, const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols)
@@ -291,6 +313,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     if (!canApply(e, nullptr)) return false;
     if (e.kind == K::Move) return applyMove(e, rec);
     abandonNow();
+    ++m_state[size_t(e.sheet)].epoch;
     // (a record that is given with the lines of an edit that was undone is for that edit done again: its rows or columns come back as they were, and that needs no ids)
     CellStore::LineEdits again;
     bool redoing = false;
@@ -356,7 +379,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         const Node &n = m_nodes[id];
         if (n.flags & Dead) continue;
         const Sheet &sn = m_sheets[size_t(n.sheet)];
-        const Cell *c = sn.cells.find(n.row, n.col);
+        const Cell *c = cellOf(n);
         if (!c || !c->hasFormula()) continue;
         Rewrite r;
         r.id = id;
@@ -415,7 +438,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     };
     std::vector<Place> places;
     places.reserve(rewrites.size());
-    for (const Rewrite &r : rewrites) places.push_back({r.id, m_nodes[r.id].sheet, m_nodes[r.id].row, m_nodes[r.id].col});
+    for (const Rewrite &r : rewrites) places.push_back({r.id, m_nodes[r.id].sheet, rowOf(m_nodes[r.id]), colOf(m_nodes[r.id])});
 
     // ---- the cells that are deleted, as they are
     const quint32 count = shiftBy(e);
@@ -445,14 +468,21 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     // ---- the cells move; the nodes of the formulas among them go with them
     std::vector<PlacedCell> removed;
     SheetState &st = m_state[size_t(e.sheet)];
-    // (a formula that moves has its node told where it is, and the window's value for it is moved)
+    // (cells shifted one by one get new ids: a formula among them has its node told which cell it is in, the window's value for it is moved, and a value told for it before, if one is in flight, is
+    // let go of and the formula worked out again then; nothing is worked out again for a formula that has no value on its way)
+    const bool stamping = resultsInFlight();   // (the worker is held: what is in flight does not change while the cells move)
     auto onFormulaMoved = [&](const PlacedCell &before, const PlacedCell &after) {
-        rec->movedFormulas.push_back({before.row, before.col, after.row, after.col});
+        rec->shifted.push_back({before.cell.rowId, quint32(before.cell.colId), after.cell.rowId, quint32(after.cell.colId)});
+        if (stamping) {
+            const Target redo{after.cell.rowId, quint32(after.cell.colId), true};
+            stampCell(e.sheet, before.cell.rowId, before.cell.colId, redo);
+            stampCell(e.sheet, after.cell.rowId, after.cell.colId, redo);
+        }
         if (!after.cell.hasFormula() || after.cell.formula < 0 || size_t(after.cell.formula) >= st.nodeOf.size()) return;
         const quint32 id = st.nodeOf[size_t(after.cell.formula)];
         if (id == kNone) return;
-        m_nodes[id].row = after.row;
-        m_nodes[id].col = after.col;
+        m_nodes[id].rowId = after.cell.rowId;
+        m_nodes[id].colId = after.cell.colId;
     };
     auto onMoved = [&](const PlacedCell &before, const PlacedCell &after) {
         ++rec->cellsMoved;
@@ -463,8 +493,8 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     case K::DeleteRows:
     case K::InsertColumns:
     case K::DeleteColumns: {
-        // The order of the rows (columns) changes and no cell moves. The formulas among the cells that change places have their nodes told where they are (read after: the places a shift gives), and
-        // those that were in rows or columns that died are let go of below.
+        // The order of the rows (columns) changes and no cell moves: a node is of its cell by the ids of its row and column, which are the same, so nothing is told to the nodes; those of formulas that
+        // were in rows or columns that died are let go of below.
         const bool rows = e.kind == K::InsertRows || e.kind == K::DeleteRows;
         const bool inserts = e.kind == K::InsertRows || e.kind == K::InsertColumns;
         CellStore::LineShift shift;
@@ -488,7 +518,6 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             return false;
         }
         for (const Cell &c : dead) removed.push_back(PlacedCell{0, 0, c});
-        if (formulaEntriesInUse(e.sheet) > 0 || !S.ranges.isEmpty()) S.cells.forEachMoved(rows, shift, [&](const PlacedCell &was, const PlacedCell &now) { onFormulaMoved(was, now); });
         break;
     }
     case K::InsertCellsDown:
@@ -533,14 +562,13 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         const std::vector<quint32> again(m_threeD.begin(), m_threeD.end());   // (a copy: each is dropped and made again, which changes the set)
         for (const quint32 id : again) {
             const Node &n = m_nodes[id];
-            Sheet &sn = m_sheets[size_t(n.sheet)];
-            Cell *c = sn.cells.findMutable(n.row, n.col);
+            Cell *c = cellOfMutable(n);
             if (!c || !c->hasFormula()) continue;
             const int sheet = n.sheet;
             const qint32 formula = c->formula;
-            const quint32 row = n.row, col = n.col;
+            const quint32 rowId = n.rowId, colId = n.colId;
             dropNode(id);
-            const quint32 now = addNode(sheet, row, col, *c, formula);
+            const quint32 now = addNodeById(sheet, rowId, colId, *c, formula);
             ++m_editStats.nodesRemade;
             queueDependents(areaOf(m_nodes[now]));
         }
@@ -654,7 +682,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         if (r.now.isEmpty() && r.group < 0 && !told && !namesChanged) continue;
         const int sheet = n0.sheet;
         Sheet &sn = m_sheets[size_t(sheet)];
-        Cell *c = sn.cells.findMutable(n0.row, n0.col);
+        Cell *c = cellOfMutable(n0);
         if (!c || !c->hasFormula()) continue;
         if (r.group >= 0) {
             // a formula of a shared family: it keeps its share of the family's text, which is made once, and it is as far from the cell it was written for as it was
@@ -672,7 +700,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             f.text = g.newIndex;
             releaseText(sheet, old);
             ++rec->formulasRewritten;
-            rec->rewritten.push_back({sheet, n0.row, n0.col, false});
+            rec->rewritten.push_back({sheet, rowOf(n0), colOf(n0), n0.rowId, n0.colId, false});
         } else if (!r.now.isEmpty()) {
             EditRecord::FormulaWas was;
             was.sheet = places[i].sheet;
@@ -687,7 +715,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             rec->was.push_back(std::move(was));
             retext(sheet, c, r.now);   // (in place: the formula keeps its place, and a cell of a shared family has a text of its own from now)
             ++rec->formulasRewritten;
-            rec->rewritten.push_back({sheet, n0.row, n0.col, bool(c->flags & DataTable)});
+            rec->rewritten.push_back({sheet, rowOf(n0), colOf(n0), n0.rowId, n0.colId, bool(c->flags & DataTable)});
         }
         // A formula whose text only moved with what it reads (the graph has what it reads already) is worked out again in its place: its node stays, with its place in the graph. One that
         // reads where it is told, is kept apart, is an array, reads several sheets, or has a reference that is gone is made again.
@@ -703,9 +731,9 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         }
         const bool wasKeptForItsFunction = (n0.flags & Kept) && n0.kept == 'U';
         const Value resultItHad = wasKeptForItsFunction ? nodeValue(n0, r.id) : Value();
-        const quint32 nodeRow = n0.row, nodeCol = n0.col;
+        const quint32 nodeRow = n0.rowId, nodeCol = n0.colId;
         dropNode(r.id);
-        const quint32 id = addNode(sheet, nodeRow, nodeCol, *c, c->formula);
+        const quint32 id = addNodeById(sheet, nodeRow, nodeCol, *c, c->formula);
         ++m_editStats.nodesRemade;
         queueDependents(areaOf(m_nodes[id]));
         if (wasKeptForItsFunction && (m_nodes[id].flags & Kept) && m_nodes[id].kept == 'U') {
@@ -746,9 +774,20 @@ bool Calculation::rewriteArrayText(int sheet, quint32 row, quint32 col, const QS
     return true;
 }
 
+Calculation::EditRecord::GoneCell Calculation::placeGone(int sheet, quint32 row, quint32 col) const
+{
+    EditRecord::GoneCell g{sheet, row, col, CellContent()};
+    const CellStore &cells = m_sheets[size_t(sheet)].cells;
+    g.rowId = cells.rowIdAt(row);
+    g.colId = cells.colIdAt(col);
+    return g;
+}
+
 Calculation::EditRecord::GoneCell Calculation::goneCell(int sheet, quint32 row, quint32 col, const Cell &c) const
 {
     EditRecord::GoneCell g{sheet, row, col, content(sheet, row, col)};
+    g.rowId = c.rowId;
+    g.colId = c.colId;
     if ((c.flags & (ArrayFormula | DataTable)) && c.hasFormula() && c.formula >= 0) {
         const Sheet &s = m_sheets[size_t(sheet)];
         if (size_t(c.formula) < size_t(s.formulas.size())) {
@@ -865,14 +904,13 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
             const Node &n = m_nodes[id];
             if (n.flags & Dead) continue;
             if (!(n.flags & Told)) continue;
-            Sheet &sn = m_sheets[size_t(n.sheet)];
-            Cell *c = sn.cells.findMutable(n.row, n.col);
+            Cell *c = cellOfMutable(n);
             if (!c || !c->hasFormula()) continue;
             const int sheet = n.sheet;
             const qint32 formula = c->formula;
-            const quint32 row = n.row, col = n.col;
+            const quint32 rowId = n.rowId, colId = n.colId;
             dropNode(id);
-            addNode(sheet, row, col, *c, formula);
+            addNodeById(sheet, rowId, colId, *c, formula);
         }
     }
     if (!m_running) beginRecalculation();
@@ -890,14 +928,13 @@ void Calculation::nameTextsChanged()
     for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
         const Node &n = m_nodes[id];
         if ((n.flags & Dead) || !(n.flags & Told)) continue;
-        Sheet &sn = m_sheets[size_t(n.sheet)];
-        Cell *c = sn.cells.findMutable(n.row, n.col);
+        Cell *c = cellOfMutable(n);
         if (!c || !c->hasFormula()) continue;
         const int sheet = n.sheet;
         const qint32 formula = c->formula;
-        const quint32 row = n.row, col = n.col;
+        const quint32 rowId = n.rowId, colId = n.colId;
         dropNode(id);
-        addNode(sheet, row, col, *c, formula);
+        addNodeById(sheet, rowId, colId, *c, formula);
     }
     if (!m_running) beginRecalculation();
 }

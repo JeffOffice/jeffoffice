@@ -168,14 +168,6 @@ qint64 WorkbookLoader::changesMade() const { return m_state ? m_state->changes.l
 
 qint64 WorkbookLoader::holdsTaken() const { return m_state ? m_state->holdsMade.load() : 0; }
 
-int WorkbookLoader::structureGeneration() const { return m_state ? m_state->structure.load() : 0; }
-
-void WorkbookLoader::Hold::structureChanged()
-{
-    ++m_state->structure;
-    m_changed = true;
-}
-
 WorkbookLoader::Hold::Hold(std::shared_ptr<State> state, jp::office::sheet::Calculation *calc) : m_state(std::move(state)), m_calc(calc)
 {
     ++m_state->holds;
@@ -315,18 +307,18 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
     result->calcThread = quintptr(QThread::currentThreadId());
     std::vector<jp::grid::ValueStore::Item> items;
     calc->setCancel(&state->halt);
-    calc->setResultSink([&items](int sheet, quint32 row, quint32 col, const jp::calc::Value &v) {
+    calc->setResultSink([&items, calc](int sheet, quint32 rowId, quint32 colId, const jp::calc::Value &v) {
         jp::grid::ValueStore::Item it;
         it.sheet = sheet;
-        it.row = row;
-        it.col = col;
+        it.row = rowId;
+        it.col = colId;
+        it.epoch = calc->structEpoch(sheet);   // (the cell is named by ids, which an edit of rows or columns does not change: a value in flight lands where the cell is; an edit that moves cells stamps them)
         it.value = v;
         items.push_back(std::move(it));
     });
     QElapsedTimer sinceSent;
     sinceSent.start();
     std::unique_lock<std::mutex> lock(state->model);
-    int itemsGeneration = state->structure.load();   // the generation of the cells the values in `items` name
     bool everCircular = false, lastDue = false;
     qint64 lastCircular = 0;
     std::vector<Calculation::CircularCell> lastCells;
@@ -334,6 +326,8 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
     auto flush = [&](bool last, bool stopped, qint64 epoch) {
         const qint64 total = std::max<qint64>(1, calc->formulaCount());
         const qint64 dirty = calc->dirtyCount();
+        std::vector<quint32> epochs;   // (read with the model: the window changes the sheets and their epochs when it has it)
+        for (int i = 0; i < calc->sheetCount(); ++i) epochs.push_back(calc->structEpoch(i));
         lock.unlock();
         auto batch = std::make_shared<CalcBatch>();
         batch->items.swap(items);
@@ -342,7 +336,7 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         batch->stopped = stopped;
         batch->epoch = epoch;
         batch->workerCpuMicros = jp::threadCpuMicros();
-        batch->generation = itemsGeneration;
+        batch->epochs = std::move(epochs);
         batch->due = last && lastDue;
         batch->circular = last ? lastCircular : 0;
         if (last) batch->circleCells = lastCells;
@@ -351,26 +345,6 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         state->urgent = false;
         // (the window is given time to take what it has: a worker that is far ahead of it only makes more for it to hold)
         while (!last && state->pending.load() >= kMaxBatchesWaiting && !state->stopCalc.load() && !state->cancel.load() && state->holds.load() == 0) QThread::usleep(500);
-    };
-    // Rows, columns, or cells were moved while the model was let go: what was worked out before names cells by where they were, and is sent so (the window moves it to where the cells are now).
-    auto sealStale = [&] {
-        for (;;) {
-            const int now = state->structure.load();
-            if (now == itemsGeneration) return;
-            if (!items.empty()) {
-                const qint64 total = std::max<qint64>(1, calc->formulaCount());
-                const qint64 dirty = calc->dirtyCount();
-                auto batch = std::make_shared<CalcBatch>();
-                batch->items.swap(items);
-                batch->percent = int(std::max<qint64>(0, 100 - 100 * dirty / total));
-                batch->generation = itemsGeneration;
-                batch->workerCpuMicros = jp::threadCpuMicros();
-                lock.unlock();
-                sendBatch(batch);
-                lock.lock();
-            }
-            itemsGeneration = now;
-        }
     };
     bool first = true;   // (the first pass is made even when nothing is to be worked out, so that the window is told it is over)
     qint64 toldEpoch = -1, lastCalcEpoch = -1, circles = 0;   // (by hand: the changes the window has been told of; and the formulas found in circles since the pass began)
@@ -382,7 +356,6 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
                 return state->cancel.load() || state->redo.load() || state->sheetCalc.load() >= 0 || (state->manual.load() ? state->changes.load() != toldEpoch : !state->stopCalc.load() && calc->isDirty());
             });
         }
-        sealStale();
         if (state->cancel.load()) break;
         bool asked = false, askedAll = false;
         if (state->redo.exchange(false)) {
@@ -411,7 +384,6 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
                 lock.unlock();
                 while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);
                 lock.lock();
-                sealStale();
             }
         } else for (;;) {
             const Calculation::Progress p = calc->recalculate(0, nullptr, kSliceMicros);
@@ -426,7 +398,6 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
                 lock.unlock();
                 while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);
                 lock.lock();
-                sealStale();
                 continue;
             }
             if (state->redo.exchange(false)) {
@@ -447,7 +418,6 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
             if (const int pace = state->pace.load()) QThread::usleep(pace);
             while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);
             lock.lock();
-            sealStale();
             if (state->stopCalc.load() || state->cancel.load()) {
                 stopped = true;
                 break;
@@ -468,7 +438,6 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         result->calcIdle = true;
         while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);
         lock.lock();
-        sealStale();
     }
     calc->setResultSink(nullptr);
     calc->setCancel(nullptr);
