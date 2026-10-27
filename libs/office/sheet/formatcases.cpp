@@ -447,15 +447,15 @@ void FormatCaseFinder::addSheet(int index, const Sheet &sheet)
                       || f.contains(QLatin1String("DOLLAR("), Qt::CaseInsensitive) || f.contains(QLatin1Char('&')) || f.contains(QLatin1String("CONCAT"), Qt::CaseInsensitive);
     }
     const SharedStrings &shared = d->book.sharedStrings();
-    sheet.cells.forEach([&](const Cell &c) {
+    sheet.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
         if (!c.hasFormula() || (c.type != CellType::FormulaString && c.type != CellType::Number) || c.formula < 0) return;
         const int text = sheet.formulas[c.formula].text;
         if (text < 0 || !relevant[text]) return;
         if (d->candidates.size() >= kMaxCandidates) return;
         Impl::Candidate cand;
         cand.sheet = index;
-        cand.row = c.row;
-        cand.col = c.col;
+        cand.row = row;
+        cand.col = col;
         const QString formula = sheet.formulaText(c);
         if (formula.size() > 8192) return;
         Scanner scanner(formula);

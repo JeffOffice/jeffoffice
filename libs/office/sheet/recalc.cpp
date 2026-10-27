@@ -66,10 +66,10 @@ bool WorkbookSource::loadAll()
         }
         held += s.stats.heldBytes;
         quint32 rows = 0, cols = 0;
-        s.cells.forEach([&](const Cell &c) {
+        s.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
             if (c.type == CellType::Empty) return;
-            rows = std::max(rows, c.row + 1);
-            cols = std::max(cols, quint32(c.col) + 1);
+            rows = std::max(rows, row + 1);
+            cols = std::max(cols, col + 1);
         });
         m_rows[size_t(i)] = rows;
         m_cols[size_t(i)] = cols;
@@ -107,9 +107,9 @@ void WorkbookSource::visit(int sheet, quint32 row1, quint32 col1, quint32 row2, 
     if (sheet < 0 || sheet >= int(m_sheets.size())) return;
     const Sheet &s = m_sheets[size_t(sheet)];
     CellStore::RangeWalk walk;
-    s.cells.forEachInRange(row1, col1, row2, std::min<quint32>(col2, kMaxColumns - 1), [&](const Cell &c) {
+    s.cells.forEachInRange(row1, col1, row2, std::min<quint32>(col2, kMaxColumns - 1), [&](quint32 row, quint32 col, const Cell &c) {
         if (c.type == CellType::Empty) return true;
-        return f(c.row, c.col, valueOf(s, c));
+        return f(row, col, valueOf(s, c));
     }, &walk);
     jp::calc::budget::addWork((walk.compared + walk.stepped) / 4);   // (the rows walked over to find the cells are work too)
 }
@@ -316,7 +316,7 @@ bool recalcWorkbook(const Workbook &book, const RecalcOptions &options, const st
         std::vector<Compiled> plain(size_t(sheet.formulaTexts.size())), array(size_t(sheet.formulaTexts.size()));
         ctx.sheet = si;
         ctx.transition = sheet.transitionEvaluation;
-        sheet.cells.forEach([&](const Cell &c) {
+        sheet.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
             if (!c.hasFormula()) return;
             ++report->formulaCells;
             RecalcCell out;
@@ -332,7 +332,7 @@ bool recalcWorkbook(const Workbook &book, const RecalcOptions &options, const st
                 }
                 if (!each) return;
                 out.sheet = sheetName;
-                out.cell = cellName(c.row, c.col);
+                out.cell = cellName(row, col);
                 out.formula = sheet.formulaText(c);
                 if (haveValues) {
                     out.stored = display(storedValue);
@@ -412,8 +412,8 @@ bool recalcWorkbook(const Workbook &book, const RecalcOptions &options, const st
                 finish(RecalcClass::NoResult);
                 return;
             }
-            ctx.row = c.row;
-            ctx.col = c.col;
+            ctx.row = row;
+            ctx.col = col;
             ctx.shiftRows = f.dRow;
             ctx.shiftCols = f.dCol;
             Value ours = evaluator.evaluate(p, ctx);
@@ -515,7 +515,7 @@ bool recalcFull(const Workbook &book, const FullOptions &options, const std::fun
             }
             if (!each) return;
             out.sheet = book.info().sheets[fc.sheet].name;
-            out.cell = cellName(c.row, c.col);
+            out.cell = cellName(fc.row, fc.col);
             out.formula = sheet.formulaText(c);
             if (haveValues) {
                 out.stored = display(fc.stored);

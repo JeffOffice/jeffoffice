@@ -103,7 +103,7 @@ qint32 Calculation::makeArray(int sheet, quint32 row, quint32 col, const CellRan
     s.formulas[c->formula].range = slot;
     const quint32 id = nodeAt(sheet, row, col);
     if (id != kNone) dropNode(id);
-    const quint32 now = addNode(sheet, *c, c->formula);
+    const quint32 now = addNode(sheet, row, col, *c, c->formula);
     queueDependents(areaOf(m_nodes[now]));
     markArrayMembers(sheet, row, col);
     return slot;
@@ -128,9 +128,6 @@ void Calculation::markArrayMembers(int sheet, quint32 row, quint32 col)
             Cell member;
             if (const Cell *have = s.cells.find(rr, cc)) {
                 member = *have;
-            } else {
-                member.row = rr;
-                member.col = quint16(cc);
             }
             if (member.hasFormula()) continue;
             if (kept) {
@@ -139,7 +136,7 @@ void Calculation::markArrayMembers(int sheet, quint32 row, quint32 col)
                 member.flags |= ArrayMember;
                 member.formula = formula;
             }
-            s.cells.set(member);
+            s.cells.set(rr, cc, member);
             m_rows[size_t(sheet)] = std::max(m_rows[size_t(sheet)], rr + 1);
             m_cols[size_t(sheet)] = std::max(m_cols[size_t(sheet)], cc + 1);
         }
@@ -201,12 +198,12 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     };
     std::vector<Moving> moving;
     std::vector<std::pair<quint32, quint32>> overwritten;
-    S.cells.forEachInRange(e.row1, e.col1, e.row2, e.col2, [&](const Cell &c) {
+    S.cells.forEachInRange(e.row1, e.col1, e.row2, e.col2, [&](quint32 row, quint32 col, const Cell &c) {
         Moving m;
-        m.row = c.row;
-        m.col = c.col;
-        m.content = content(e.sheet, c.row, c.col);
-        rec->gone.push_back(goneCell(e.sheet, c));
+        m.row = row;
+        m.col = col;
+        m.content = content(e.sheet, row, col);
+        rec->gone.push_back(goneCell(e.sheet, row, col, c));
         if (m.content.isFormula) {
             bool changed = false;
             const QString now = adjustMovedFormula(m.content.formula, names, e, &changed);
@@ -215,10 +212,10 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         moving.push_back(std::move(m));
         return true;
     });
-    D.cells.forEachInRange(e.toRow, e.toCol, toRow2, toCol2, [&](const Cell &c) {
-        if (inSource(e.toSheet, c.row, c.col)) return true;   // (already counted: it is one of the block's)
-        rec->gone.push_back(goneCell(e.toSheet, c));
-        overwritten.push_back({c.row, c.col});
+    D.cells.forEachInRange(e.toRow, e.toCol, toRow2, toCol2, [&](quint32 row, quint32 col, const Cell &c) {
+        if (inSource(e.toSheet, row, col)) return true;   // (already counted: it is one of the block's)
+        rec->gone.push_back(goneCell(e.toSheet, row, col, c));
+        overwritten.push_back({row, col});
         return true;
     });
     rec->cellsMoved = qint64(moving.size());
@@ -372,8 +369,8 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         if (!r.now.isEmpty()) {
             EditRecord::FormulaWas was;
             was.sheet = sheet;
-            was.row = c->row;
-            was.col = c->col;
+            was.row = n0.row;
+            was.col = n0.col;
             was.text = r.was;
             was.hasStored = false;
             if (n0.flags & Kept) {
@@ -383,10 +380,11 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
             rec->was.push_back(std::move(was));
             retext(sheet, c, r.now);   // (in place: the formula keeps its place, and a cell of a shared family has a text of its own from now)
             ++rec->formulasRewritten;
-            rec->rewritten.push_back({sheet, c->row, c->col, bool(c->flags & DataTable)});
+            rec->rewritten.push_back({sheet, n0.row, n0.col, bool(c->flags & DataTable)});
         }
+        const quint32 row = n0.row, col = n0.col;
         dropNode(r.id);
-        const quint32 id = addNode(sheet, *c, c->formula);
+        const quint32 id = addNode(sheet, row, col, *c, c->formula);
         ++m_editStats.nodesRemade;
         queueDependents(areaOf(m_nodes[id]));
     }
@@ -423,8 +421,8 @@ bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
     const quint32 toRow2 = e.toRow + rows - 1, toCol2 = e.toCol + cols - 1;
     auto clearRange = [&](int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2) {
         std::vector<std::pair<quint32, quint32>> there;
-        m_sheets[size_t(sheet)].cells.forEachInRange(row1, col1, row2, col2, [&](const Cell &c) {
-            there.push_back({c.row, c.col});
+        m_sheets[size_t(sheet)].cells.forEachInRange(row1, col1, row2, col2, [&](quint32 row, quint32 col, const Cell &) {
+            there.push_back({row, col});
             return true;
         });
         for (const auto &p : there) {
@@ -486,8 +484,9 @@ bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
             if (!c || !c->hasFormula()) continue;
             const int sheet = n.sheet;
             const qint32 formula = c->formula;
+            const quint32 row = n.row, col = n.col;
             dropNode(id);
-            addNode(sheet, *c, formula);
+            addNode(sheet, row, col, *c, formula);
         }
     }
     if (!m_running) beginRecalculation();

@@ -191,8 +191,9 @@ void Calculation::nameTextsChangedFor(const QStringList &given)
             Cell *c = s.cells.findMutable(m_nodes[id].row, m_nodes[id].col);
             if (!c || !c->hasFormula()) continue;
             const qint32 formula = c->formula;
+            const quint32 row = m_nodes[id].row, col = m_nodes[id].col;
             dropNode(id);
-            const quint32 now = addNode(si, *c, formula);
+            const quint32 now = addNode(si, row, col, *c, formula);
             queueDependents(areaOf(m_nodes[now]));
             ++m_nameRebuilds;
             ++rebuilt;

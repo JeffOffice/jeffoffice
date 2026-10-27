@@ -1320,6 +1320,7 @@ private:
     bool m_haveSelection = false;
     bool m_holding = false;
     Cell m_heldCell;
+    quint32 m_heldRow = 0, m_heldCol = 0;   // (the place of the held cell)
     QHash<quint32, SharedDef> m_shared;
     QHash<quint32, ArrayDef> m_arrays;
     QHash<quint32, TableDef> m_tables;
@@ -1349,9 +1350,9 @@ private:
     quint32 style(quint32 xf) const { return mapXf(xf, m_book.m_xfCount); }
     static quint32 key(quint32 row, quint32 col) { return (row << 16) | col; }
 
-    bool addCell(Cell c, qint64 extraBytes = 0)
+    bool addCell(quint32 row, quint32 col, Cell c, qint64 extraBytes = 0)
     {
-        if (c.col >= 256) {
+        if (col >= 256) {
             ++m_outside;
             return true;
         }
@@ -1359,35 +1360,33 @@ private:
         if (++m_cells > m_lim.cellsPerSheet) return fail(QCoreApplication::translate("Sheet", "The sheet has more cells than any real file has."));
         m_held += 32 + extraBytes;
         if (m_held > m_lim.sheetBytes) return fail(QCoreApplication::translate("Sheet", "The sheet is larger than any real file's."));
-        m_s.cells.add(c);
-        m_s.extentRows = std::max(m_s.extentRows, c.row + 1);
-        m_s.extentCols = std::max(m_s.extentCols, quint32(c.col) + 1);
+        m_s.cells.add(row, col, c);
+        m_s.extentRows = std::max(m_s.extentRows, row + 1);
+        m_s.extentCols = std::max(m_s.extentCols, col + 1);
         if (m_progress && m_cells % 4096 == 0 && !m_progress(m_cells)) return fail(QCoreApplication::translate("Sheet", "The read was stopped."));
         return true;
     }
 
-    Cell makeCell(quint32 row, quint32 col, quint32 xf)
+    Cell makeCell(quint32 xf)
     {
         Cell c;
-        c.row = row;
-        c.col = quint16(std::min<quint32>(col, 0xFFFF));
         c.style = style(xf);
         return c;
     }
 
-    bool addText(Cell c, const QString &s, CellType type)
+    bool addText(quint32 row, quint32 col, Cell c, const QString &s, CellType type)
     {
         c.type = type;
         c.number = double(m_s.texts.size());
         m_s.texts.append(s);
         m_s.stats.longestString = std::max<qint64>(m_s.stats.longestString, s.size());
-        return addCell(c, s.size() * 2 + 32);
+        return addCell(row, col, c, s.size() * 2 + 32);
     }
 
     bool flushHeld()
     {
         m_holding = false;
-        return addCell(m_heldCell);
+        return addCell(m_heldRow, m_heldCol, m_heldCell);
     }
 
     bool handle(Scanner &sc, const Rec &r)
@@ -1421,19 +1420,19 @@ private:
             const quint16 row = b.u16(), col = b.u16(), xf = b.u16();
             const double v = b.f64();
             if (b.bad()) return true;
-            Cell c = makeCell(row, col, xf);
+            Cell c = makeCell(xf);
             c.type = CellType::Number;
             c.number = v;
-            return addCell(c);
+            return addCell(row, col, c);
         }
         case kRk: {
             const quint16 row = b.u16(), col = b.u16(), xf = b.u16();
             const quint32 rk = b.u32();
             if (b.bad()) return true;
-            Cell c = makeCell(row, col, xf);
+            Cell c = makeCell(xf);
             c.type = CellType::Number;
             c.number = rkValue(rk);
-            return addCell(c);
+            return addCell(row, col, c);
         }
         case kMulRk: {
             const quint16 row = b.u16(), first = b.u16();
@@ -1441,10 +1440,10 @@ private:
             for (qint64 i = 0; i < n; ++i) {
                 const quint16 xf = b.u16();
                 const quint32 rk = b.u32();
-                Cell c = makeCell(row, quint32(first) + quint32(i), xf);
+                Cell c = makeCell(xf);
                 c.type = CellType::Number;
                 c.number = rkValue(rk);
-                if (!addCell(c)) return false;
+                if (!addCell(row, quint32(first) + quint32(i), c)) return false;
             }
             return true;
         }
@@ -1452,10 +1451,10 @@ private:
             const quint16 row = b.u16(), col = b.u16(), xf = b.u16();
             const quint32 index = b.u32();
             if (b.bad()) return true;
-            Cell c = makeCell(row, col, xf);
+            Cell c = makeCell(xf);
             c.type = CellType::SharedString;
             c.number = double(index);
-            return addCell(c);
+            return addCell(row, col, c);
         }
         case kLabel:
         case kRString: {
@@ -1488,20 +1487,20 @@ private:
                     }
                 }
             }
-            Cell c = makeCell(row, col, xf);
-            return addText(c, s, CellType::InlineString);
+            Cell c = makeCell(xf);
+            return addText(row, col, c, s, CellType::InlineString);
         }
         case kBlank: {
             const quint16 row = b.u16(), col = b.u16(), xf = b.u16();
             if (b.bad()) return true;
-            return addCell(makeCell(row, col, xf));
+            return addCell(row, col, makeCell(xf));
         }
         case kMulBlank: {
             const quint16 row = b.u16(), first = b.u16();
             const qint64 n = (qint64(r.len) - 6) / 2;
             for (qint64 i = 0; i < n; ++i) {
                 const quint16 xf = b.u16();
-                if (!addCell(makeCell(row, quint32(first) + quint32(i), xf))) return false;
+                if (!addCell(row, quint32(first) + quint32(i), makeCell(xf))) return false;
             }
             return true;
         }
@@ -1509,7 +1508,7 @@ private:
             const quint16 row = b.u16(), col = b.u16(), xf = b.u16();
             const quint8 v = b.u8(), isError = b.u8();
             if (b.bad()) return true;
-            Cell c = makeCell(row, col, xf);
+            Cell c = makeCell(xf);
             if (isError) {
                 c.type = CellType::Error;
                 c.number = double(int(cellErrorFromCode(v)));
@@ -1517,7 +1516,7 @@ private:
                 c.type = CellType::Bool;
                 c.number = v ? 1 : 0;
             }
-            return addCell(c);
+            return addCell(row, col, c);
         }
         case kExternCount:
             if (!m_b8) {
@@ -1731,7 +1730,7 @@ private:
         b.skip(m_book.m_biff < 5 ? 2 : 6);   // the flags (BIFF5 and BIFF8 then have the chain)
         const int cce = b.u16();
         if (b.bad() || !res) return true;
-        Cell c = makeCell(row, col, xf);
+        Cell c = makeCell(xf);
         c.flags |= HasFormula;
         m_lastFormulaRow = row;
         m_lastFormulaCol = col;
@@ -1808,10 +1807,12 @@ private:
         }
         if (wantString) {
             m_heldCell = c;
+            m_heldRow = row;
+            m_heldCol = col;
             m_holding = true;
             return true;
         }
-        return addCell(c);
+        return addCell(row, col, c);
     }
 
     CellRange readRefU(Bytes &b) const

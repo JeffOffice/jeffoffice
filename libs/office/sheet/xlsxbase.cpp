@@ -504,9 +504,9 @@ private:
         }
     }
 
-    void cell(const Cell &c)
+    void cell(quint32 row, quint32 col, const Cell &c)
     {
-        QByteArray e = "<c" + attr("r", column(c.col) + num(qint64(c.row) + 1));
+        QByteArray e = "<c" + attr("r", column(col) + num(qint64(row) + 1));
         if (c.style) e += attr("s", num(c.style));
         const bool formula = c.hasFormula() && !(c.flags & ArrayMember);
         QByteArray f;
@@ -573,26 +573,26 @@ private:
         quint32 current = 0;
         bool any = false;
         qint64 done = 0;
-        m_sheet.cells.forEach([&](const Cell &c) {
+        m_sheet.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
             if (m_stopped) return;
             if (++done % 8192 == 0 && m_cancel && m_cancel->load(std::memory_order_relaxed)) {
                 m_stopped = true;
                 return;
             }
-            if (!any || c.row != current) {
+            if (!any || row != current) {
                 closeRow();
-                rowsWithoutCells(c.row);
+                rowsWithoutCells(row);
                 // (the row's own spec: the last the file gave it)
                 const RowSpec *spec = nullptr;
-                while (m_spec < m_specs.size() && m_specs[m_spec].row <= c.row) {
-                    if (m_specs[m_spec].row == c.row) spec = &m_specs[m_spec];
+                while (m_spec < m_specs.size() && m_specs[m_spec].row <= row) {
+                    if (m_specs[m_spec].row == row) spec = &m_specs[m_spec];
                     ++m_spec;
                 }
-                openRow(c.row, spec);
-                current = c.row;
+                openRow(row, spec);
+                current = row;
                 any = true;
             }
-            cell(c);
+            cell(row, col, c);
         });
         if (m_stopped) return false;
         closeRow();

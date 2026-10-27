@@ -102,7 +102,7 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
         if (e.kind == K::DeleteRows || e.kind == K::DeleteColumns) {
             const CellArea gone = affectedArea(e);
             bool locked = false;
-            s.cells.forEachInRange(gone.row1, gone.col1, gone.row2, gone.col2, [&](const Cell &c) {
+            s.cells.forEachInRange(gone.row1, gone.col1, gone.row2, gone.col2, [&](quint32, quint32, const Cell &c) {
                 locked = m_book.styles().format(c.style).locked;
                 return !locked;
             });
@@ -153,12 +153,12 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
         } else if (e.kind == K::InsertColumns) {
             if (s.extentCols > firstGone) pushed = true;
         } else if (e.kind == K::InsertCellsDown) {
-            s.cells.forEachInRange(firstGone, e.col1, kGridRows - 1, e.col2, [&](const Cell &c) {
+            s.cells.forEachInRange(firstGone, e.col1, kGridRows - 1, e.col2, [&](quint32, quint32, const Cell &c) {
                 if (c.type != CellType::Empty || c.hasFormula()) pushed = true;
                 return !pushed;
             });
         } else {
-            s.cells.forEachInRange(e.row1, firstGone, e.row2, kGridCols - 1, [&](const Cell &c) {
+            s.cells.forEachInRange(e.row1, firstGone, e.row2, kGridCols - 1, [&](quint32, quint32, const Cell &c) {
                 if (c.type != CellType::Empty || c.hasFormula()) pushed = true;
                 return !pushed;
             });
@@ -166,14 +166,14 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
         if (e.kind == K::InsertRows && pushed) {
             // (the extent says there are cells at the end: look for one that holds something)
             pushed = false;
-            s.cells.forEachInRange(firstGone, 0, kGridRows - 1, kGridCols - 1, [&](const Cell &c) {
+            s.cells.forEachInRange(firstGone, 0, kGridRows - 1, kGridCols - 1, [&](quint32, quint32, const Cell &c) {
                 if (c.type != CellType::Empty || c.hasFormula()) pushed = true;
                 return !pushed;
             });
         } else if (e.kind == K::InsertColumns && pushed) {
             pushed = false;
-            s.cells.forEach([&](const Cell &c) {
-                if (c.col >= firstGone && (c.type != CellType::Empty || c.hasFormula())) pushed = true;
+            s.cells.forEach([&](quint32, quint32 col, const Cell &c) {
+                if (col >= firstGone && (c.type != CellType::Empty || c.hasFormula())) pushed = true;
             });
         }
         if (pushed) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "That would push cells off the edge of the sheet. Delete the cells at the end first.")));
@@ -189,7 +189,7 @@ qint64 Calculation::estimateUndoBytes(const StructEdit &e, qint64 stopAt) const
     qint64 bytes = 0;
     auto countCells = [&](int sheet, quint32 r1, quint32 c1, quint32 r2, quint32 c2) {
         if (sheet < 0 || sheet >= int(m_sheets.size())) return;
-        m_sheets[size_t(sheet)].cells.forEachInRange(r1, c1, r2, c2, [&](const Cell &) {
+        m_sheets[size_t(sheet)].cells.forEachInRange(r1, c1, r2, c2, [&](quint32, quint32, const Cell &) {
             bytes += kPerCell;
             return bytes < stopAt;
         });
@@ -375,27 +375,27 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         case K::DeleteCellsUp: r1 = e.row1; r2 = e.row2; c1 = e.col1; c2 = e.col2; break;
         default: r1 = e.row1; r2 = e.row2; c1 = e.col1; c2 = e.col2; break;
         }
-        S.cells.forEachInRange(r1, c1, r2, c2, [&](const Cell &c) {
-            rec->gone.push_back(goneCell(e.sheet, c));
+        S.cells.forEachInRange(r1, c1, r2, c2, [&](quint32 row, quint32 col, const Cell &c) {
+            rec->gone.push_back(goneCell(e.sheet, row, col, c));
             return true;
         });
     }
 
     // ---- the cells move; the nodes of the formulas among them go with them
-    std::vector<Cell> removed;
+    std::vector<PlacedCell> removed;
     SheetState &st = m_state[size_t(e.sheet)];
     // (a formula that moves has its node told where it is, and the window's value for it is moved)
-    auto onFormulaMoved = [&](const Cell &before, const Cell &after) {
-        rec->movedFormulas.push_back({before.row, quint32(before.col), after.row, quint32(after.col)});
-        if (!after.hasFormula() || after.formula < 0 || size_t(after.formula) >= st.nodeOf.size()) return;
-        const quint32 id = st.nodeOf[size_t(after.formula)];
+    auto onFormulaMoved = [&](const PlacedCell &before, const PlacedCell &after) {
+        rec->movedFormulas.push_back({before.row, before.col, after.row, after.col});
+        if (!after.cell.hasFormula() || after.cell.formula < 0 || size_t(after.cell.formula) >= st.nodeOf.size()) return;
+        const quint32 id = st.nodeOf[size_t(after.cell.formula)];
         if (id == kNone) return;
         m_nodes[id].row = after.row;
         m_nodes[id].col = after.col;
     };
-    auto onMoved = [&](const Cell &before, const Cell &after) {
+    auto onMoved = [&](const PlacedCell &before, const PlacedCell &after) {
         ++rec->cellsMoved;
-        if (after.hasFormula() || (after.flags & ArrayMember)) onFormulaMoved(before, after);
+        if (after.cell.hasFormula() || (after.cell.flags & ArrayMember)) onFormulaMoved(before, after);
     };
     switch (e.kind) {
     case K::InsertRows: rec->cellsMoved = S.cells.shiftRows(e.first, qint64(count), kGridRows, onFormulaMoved, &removed); break;
@@ -403,33 +403,33 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     case K::InsertColumns: rec->cellsMoved = S.cells.shiftColumns(e.first, qint64(count), kGridCols, onFormulaMoved, &removed); break;
     case K::DeleteColumns: rec->cellsMoved = S.cells.shiftColumns(e.first, -qint64(count), kGridCols, onFormulaMoved, &removed); break;
     case K::InsertCellsDown:
-        S.cells.reshuffle(e.row1, [&](const Cell &c) { return c.row >= e.row1 && c.col >= e.col1 && c.col <= e.col2; }, [&](Cell *c) { c->row += count; return c->row < kGridRows; }, onMoved, &removed);
+        S.cells.reshuffle(e.row1, [&](quint32 row, quint32 col, const Cell &) { return row >= e.row1 && col >= e.col1 && col <= e.col2; }, [&](PlacedCell *c) { c->row += count; return c->row < kGridRows; }, onMoved, &removed);
         break;
     case K::DeleteCellsUp:
-        S.cells.reshuffle(e.row1, [&](const Cell &c) { return c.row >= e.row1 && c.col >= e.col1 && c.col <= e.col2; }, [&](Cell *c) {
+        S.cells.reshuffle(e.row1, [&](quint32 row, quint32 col, const Cell &) { return row >= e.row1 && col >= e.col1 && col <= e.col2; }, [&](PlacedCell *c) {
             if (c->row < e.row1 + count) return false;
             c->row -= count;
             return true;
         }, onMoved, &removed);
         break;
     case K::InsertCellsRight:
-        S.cells.reshuffle(e.row1, [&](const Cell &c) { return c.row >= e.row1 && c.row <= e.row2 && c.col >= e.col1; }, [&](Cell *c) {
-            const quint32 col = quint32(c->col) + count;
-            c->col = quint16(std::min<quint32>(col, 0xFFFF));
-            return col < kGridCols;
+        S.cells.reshuffle(e.row1, [&](quint32 row, quint32 col, const Cell &) { return row >= e.row1 && row <= e.row2 && col >= e.col1; }, [&](PlacedCell *c) {
+            c->col += count;
+            return c->col < kGridCols;
         }, onMoved, &removed);
         break;
     case K::DeleteCellsLeft:
-        S.cells.reshuffle(e.row1, [&](const Cell &c) { return c.row >= e.row1 && c.row <= e.row2 && c.col >= e.col1; }, [&](Cell *c) {
+        S.cells.reshuffle(e.row1, [&](quint32 row, quint32 col, const Cell &) { return row >= e.row1 && row <= e.row2 && col >= e.col1; }, [&](PlacedCell *c) {
             if (c->col < e.col1 + count) return false;
-            c->col = quint16(c->col - count);
+            c->col -= count;
             return true;
         }, onMoved, &removed);
         break;
     default: break;
     }
     // the formulas that were in cells that are gone
-    for (const Cell &c : removed) {
+    for (const PlacedCell &p : removed) {
+        const Cell &c = p.cell;
         if (!c.hasFormula() || c.formula < 0 || size_t(c.formula) >= st.nodeOf.size()) continue;
         const quint32 id = st.nodeOf[size_t(c.formula)];
         if (id != kNone) dropNode(id);
@@ -449,8 +449,9 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
             if (!c || !c->hasFormula()) continue;
             const int sheet = n.sheet;
             const qint32 formula = c->formula;
+            const quint32 row = n.row, col = n.col;
             dropNode(id);
-            const quint32 now = addNode(sheet, *c, formula);
+            const quint32 now = addNode(sheet, row, col, *c, formula);
             ++m_editStats.nodesRemade;
             queueDependents(areaOf(m_nodes[now]));
         }
@@ -582,7 +583,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
             f.text = g.newIndex;
             releaseText(sheet, old);
             ++rec->formulasRewritten;
-            rec->rewritten.push_back({sheet, c->row, c->col, false});
+            rec->rewritten.push_back({sheet, n0.row, n0.col, false});
         } else if (!r.now.isEmpty()) {
             EditRecord::FormulaWas was;
             was.sheet = places[i].sheet;
@@ -597,7 +598,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
             rec->was.push_back(std::move(was));
             retext(sheet, c, r.now);   // (in place: the formula keeps its place, and a cell of a shared family has a text of its own from now)
             ++rec->formulasRewritten;
-            rec->rewritten.push_back({sheet, c->row, c->col, bool(c->flags & DataTable)});
+            rec->rewritten.push_back({sheet, n0.row, n0.col, bool(c->flags & DataTable)});
         }
         // A formula whose text only moved with what it reads (the graph has what it reads already) is worked out again in its place: its node stays, with its place in the graph. One that
         // reads where it is told, is kept apart, is an array, reads several sheets, or has a reference that is gone is made again.
@@ -613,8 +614,9 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         }
         const bool wasKeptForItsFunction = (n0.flags & Kept) && n0.kept == 'U';
         const Value resultItHad = wasKeptForItsFunction ? nodeValue(n0, r.id) : Value();
+        const quint32 nodeRow = n0.row, nodeCol = n0.col;
         dropNode(r.id);
-        const quint32 id = addNode(sheet, *c, c->formula);
+        const quint32 id = addNode(sheet, nodeRow, nodeCol, *c, c->formula);
         ++m_editStats.nodesRemade;
         queueDependents(areaOf(m_nodes[id]));
         if (wasKeptForItsFunction && (m_nodes[id].flags & Kept) && m_nodes[id].kept == 'U') {
@@ -650,14 +652,14 @@ bool Calculation::rewriteArrayText(int sheet, quint32 row, quint32 col, const QS
         f.text = internText(sheet, text);
         releaseText(sheet, old);
     }
-    const quint32 id = addNode(sheet, *c, c->formula);
+    const quint32 id = addNode(sheet, row, col, *c, c->formula);
     queueDependents(areaOf(m_nodes[id]));
     return true;
 }
 
-Calculation::EditRecord::GoneCell Calculation::goneCell(int sheet, const Cell &c) const
+Calculation::EditRecord::GoneCell Calculation::goneCell(int sheet, quint32 row, quint32 col, const Cell &c) const
 {
-    EditRecord::GoneCell g{sheet, c.row, c.col, content(sheet, c.row, c.col)};
+    EditRecord::GoneCell g{sheet, row, col, content(sheet, row, col)};
     if ((c.flags & (ArrayFormula | DataTable)) && c.hasFormula() && c.formula >= 0) {
         const Sheet &s = m_sheets[size_t(sheet)];
         if (size_t(c.formula) < size_t(s.formulas.size())) {
@@ -681,7 +683,7 @@ void Calculation::putBackKinds(const EditRecord &rec)
         s.formulas[c->formula].range = g.range;
         const quint32 id = nodeAt(g.sheet, g.row, g.col);
         if (id != kNone) dropNode(id);
-        const quint32 now = addNode(g.sheet, *c, c->formula);
+        const quint32 now = addNode(g.sheet, g.row, g.col, *c, c->formula);
         queueDependents(areaOf(m_nodes[now]));
         if (g.kind & ArrayFormula) markArrayMembers(g.sheet, g.row, g.col);   // (an array of more cells has its members back)
     }
@@ -733,7 +735,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
             const quint32 id = nodeAt(g.sheet, place.first, place.second);
             const qint32 formula = c->formula;
             if (id != kNone) dropNode(id);
-            const quint32 now = addNode(g.sheet, *c, formula);
+            const quint32 now = addNode(g.sheet, place.first, place.second, *c, formula);
             ++m_editStats.nodesRemade;
             queueDependents(areaOf(m_nodes[now]));
         }
@@ -779,8 +781,9 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
             if (!c || !c->hasFormula()) continue;
             const int sheet = n.sheet;
             const qint32 formula = c->formula;
+            const quint32 row = n.row, col = n.col;
             dropNode(id);
-            addNode(sheet, *c, formula);
+            addNode(sheet, row, col, *c, formula);
         }
     }
     if (!m_running) beginRecalculation();
@@ -803,8 +806,9 @@ void Calculation::nameTextsChanged()
         if (!c || !c->hasFormula()) continue;
         const int sheet = n.sheet;
         const qint32 formula = c->formula;
+        const quint32 row = n.row, col = n.col;
         dropNode(id);
-        addNode(sheet, *c, formula);
+        addNode(sheet, row, col, *c, formula);
     }
     if (!m_running) beginRecalculation();
 }
