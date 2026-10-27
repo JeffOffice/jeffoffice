@@ -37,23 +37,23 @@ struct Book {
     }
     void number(quint32 row, quint32 col, double v, quint32 style = 0)
     {
-        Cell c;
+        PlacedCell c;
         c.row = row;
         c.col = quint16(col);
-        c.type = CellType::Number;
-        c.number = v;
-        c.style = style;
+        c.cell.type = CellType::Number;
+        c.cell.number = v;
+        c.cell.style = style;
         sheet.cells.add(c);
         sheet.extentRows = std::max(sheet.extentRows, row + 1);
         sheet.extentCols = std::max(sheet.extentCols, col + 1);
     }
     void text(quint32 row, quint32 col, const QString &t)
     {
-        Cell c;
+        PlacedCell c;
         c.row = row;
         c.col = quint16(col);
-        c.type = CellType::InlineString;
-        c.number = sheet.texts.size();
+        c.cell.type = CellType::InlineString;
+        c.cell.number = sheet.texts.size();
         sheet.texts.append(t);
         sheet.cells.add(c);
         sheet.extentRows = std::max(sheet.extentRows, row + 1);
@@ -400,13 +400,13 @@ private Q_SLOTS:
         b.number(0, 0, 0.1 + 0.2);
         b.number(1, 0, 45366, 1);
         b.text(2, 0, QStringLiteral("hello"));
-        Cell f;
+        PlacedCell f;
         f.row = 3;
         f.col = 0;
-        f.type = CellType::Number;
-        f.number = 7;
-        f.flags = jp::office::sheet::HasFormula;
-        f.formula = 0;
+        f.cell.type = CellType::Number;
+        f.cell.number = 7;
+        f.cell.flags = jp::office::sheet::HasFormula;
+        f.cell.formula = 0;
         b.sheet.formulaTexts.append(QStringLiteral("SUM(A1:A2)"));
         Formula fx;
         fx.text = 0;

@@ -452,6 +452,7 @@ public:
     // Every formula cell, in the order of the sheets and cells: what the yardstick compares.
     struct FormulaCell {
         int sheet;
+        quint32 row, col;
         const Cell *cell;
         jp::calc::Value stored, ours;
         char kept;
@@ -517,7 +518,7 @@ private:
     void registerSheet(int sheet);
     void setSlotText(int sheet, qint32 slot, const QString &text);
     void readdNode(quint32 id);
-    quint32 addNode(int sheet, const Cell &cell, qint32 formulaIndex);
+    quint32 addNode(int sheet, quint32 row, quint32 col, const Cell &cell, qint32 formulaIndex);
     // The text of an array formula's or a data table's first cell changed in place (its range's cells point to its formula); false if the cell is none.
     bool rewriteArrayText(int sheet, quint32 row, quint32 col, const QString &text);
     // An array formula's cells made ordinary ones (the range at `slot` of the sheet's list is no longer valid), to be cleared or written over; made an array again at a place: the formula cell
@@ -529,7 +530,7 @@ private:
     void adjustValidations(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
     void adjustConditionalFormats(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
     // A cell that is deleted or written over, as it is, for Undo to put back (an array formula or a data table is put back as one: see putBackKinds).
-    EditRecord::GoneCell goneCell(int sheet, const Cell &c) const;
+    EditRecord::GoneCell goneCell(int sheet, quint32 row, quint32 col, const Cell &c) const;
     void putBackKinds(const EditRecord &record);
     jp::calc::Value ruleFormula(const Validation &rule, const QString &text, int sheet, quint32 row, quint32 col, const jp::calc::CellSource &source, bool asArray) const;
     bool canMoveCells(const StructEdit &edit, QString *why) const;
@@ -539,7 +540,7 @@ private:
     jp::calc::Value nodeValue(const Node &n, quint32 id) const;
     void storeResult(Node &n, quint32 id, const jp::calc::Value &v, bool publish = true);
     void keepStored(Node &n, char cls);
-    bool formulaValue(int sheet, const Cell &c, jp::calc::Value *out) const;
+    bool formulaValue(int sheet, quint32 row, quint32 col, const Cell &c, jp::calc::Value *out) const;
     jp::calc::CellArea areaOf(const Node &n) const;
     void markDependents(std::vector<jp::calc::CellArea> *changed);
     void queueDependents(const jp::calc::CellArea &area);

@@ -27,8 +27,8 @@ void formulaCellsIn(const jp::office::sheet::Calculation &calc, const crunch::Tr
     if (b.sheet < 0 || b.sheet >= calc.sheetCount()) return;
     const jp::office::sheet::Sheet &s = calc.sheet(b.sheet);
     qint64 looked = 0;
-    s.cells.forEachInRange(b.cells.row1, b.cells.col1, b.cells.row2, b.cells.col2, [&](const jp::office::sheet::Cell &c) {
-        if (c.hasFormula() && out->size() < cap) out->push_back({b.sheet, c.row, quint32(c.col)});
+    s.cells.forEachInRange(b.cells.row1, b.cells.col1, b.cells.row2, b.cells.col2, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &c) {
+        if (c.hasFormula() && out->size() < cap) out->push_back({b.sheet, row, quint32(col)});
         return out->size() < cap && ++looked < 20000;
     });
 }

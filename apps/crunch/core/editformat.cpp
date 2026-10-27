@@ -161,9 +161,9 @@ EditSession::Outcome EditSession::restyleRange(int sheet, const CellRange &range
         } else {
             // (the cells that are there: one that is not has no format of its own to clear)
             qint64 seen = 0;
-            calc->sheet(sheet).cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](const Cell &cell) {
+            calc->sheet(sheet).cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](quint32 row, quint32 col, const Cell &cell) {
                 if (++seen > kMaxStyledCells) return false;
-                targets.push_back({cell.row, cell.col, nullptr});
+                targets.push_back({row, col, nullptr});
                 return true;
             });
             if (seen > kMaxStyledCells) {
@@ -176,9 +176,9 @@ EditSession::Outcome EditSession::restyleRange(int sheet, const CellRange &range
     }
     // whole columns or rows: the cells that have formats of their own are changed, and the columns' (rows') own format is
     qint64 seen = 0;
-    calc->sheet(sheet).cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](const Cell &cell) {
+    calc->sheet(sheet).cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](quint32 row, quint32 col, const Cell &cell) {
         if (++seen > kMaxStyledCells) return false;
-        if (cell.style != 0 || change) targets.push_back({cell.row, cell.col, change.get()});
+        if (cell.style != 0 || change) targets.push_back({row, col, change.get()});
         return true;
     });
     if (seen > kMaxStyledCells) {
@@ -368,8 +368,8 @@ EditSession::Outcome EditSession::clearAll(int sheet, const CellRange &range)
     const Sheet &s = calc->sheet(sheet);
     std::vector<CellChange> changes;
     bool array = false, locked = false, many = false;
-    s.cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](const Cell &c) {
-        const Calculation::CellContent before = calc->content(sheet, c.row, c.col);
+    s.cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
+        const Calculation::CellContent before = calc->content(sheet, cellRow, cellCol);
         if (!before.editable) {
             array = true;
             return false;
@@ -378,7 +378,7 @@ EditSession::Outcome EditSession::clearAll(int sheet, const CellRange &range)
             locked = true;
             return false;
         }
-        if (m_book->book->tableHeaderAt(sheet, c.row, c.col, nullptr) >= 0 && (before.isFormula || !before.value.isEmpty())) {
+        if (m_book->book->tableHeaderAt(sheet, cellRow, cellCol, nullptr) >= 0 && (before.isFormula || !before.value.isEmpty())) {
             locked = false;
         }
         if (qint64(changes.size()) >= kMaxCellsPerEdit) {
@@ -387,8 +387,8 @@ EditSession::Outcome EditSession::clearAll(int sheet, const CellRange &range)
         }
         CellChange ch;
         ch.sheet = sheet;
-        ch.row = c.row;
-        ch.col = c.col;
+        ch.row = cellRow;
+        ch.col = cellCol;
         ch.before = before;
         ch.after = Calculation::CellContent();   // nothing: no value, no formula, the first format
         changes.push_back(std::move(ch));
@@ -491,14 +491,14 @@ EditSession::Outcome EditSession::mergeCells(int sheet, const CellRange &range, 
     for (const CellRange &b : blocks) {
         qint64 seen = 0;
         bool bad = false;
-        s.cells.forEachInRange(b.row1, b.col1, b.row2, b.col2, [&](const Cell &c) {
+        s.cells.forEachInRange(b.row1, b.col1, b.row2, b.col2, [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
             if (++seen > kMaxCellsPerEdit) return false;
-            const Calculation::CellContent content = calc->content(sheet, c.row, c.col);
+            const Calculation::CellContent content = calc->content(sheet, cellRow, cellCol);
             if (!content.editable) {
                 bad = true;
                 return false;
             }
-            if (c.row == b.row1 && c.col == b.col1) return true;
+            if (cellRow == b.row1 && cellCol == b.col1) return true;
             if (!content.isFormula && content.value.isEmpty()) return true;
             needAsk = true;
             if (isLocked(sheet, content.style)) {
@@ -509,8 +509,8 @@ EditSession::Outcome EditSession::mergeCells(int sheet, const CellRange &range, 
             if (!discard) return true;
             CellChange ch;
             ch.sheet = sheet;
-            ch.row = c.row;
-            ch.col = c.col;
+            ch.row = cellRow;
+            ch.col = cellCol;
             ch.before = content;
             ch.after = content;
             ch.after.isFormula = false;

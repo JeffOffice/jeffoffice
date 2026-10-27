@@ -104,9 +104,9 @@ QString differences(const Workbook &a, const Sheet &x, const Workbook &b, const 
 {
     QStringList out;
     if (x.cells.cellCount() != y.cells.cellCount()) out << QStringLiteral("cell count %1 vs %2").arg(x.cells.cellCount()).arg(y.cells.cellCount());
-    x.cells.forEach([&](const Cell &c) {
-        const Cell *d = y.cells.find(c.row, c.col);
-        const QString ref = cellName(c.row, c.col);
+    x.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+        const Cell *d = y.cells.find(row, col);
+        const QString ref = cellName(row, col);
         if (!d) {
             out << ref + QStringLiteral(" missing");
             return;
@@ -140,8 +140,8 @@ QString differences(const Workbook &a, const Sheet &x, const Workbook &b, const 
     // the rows as they look: hidden or not, how tall, and the format their empty cells have (a sheet can hide the rows it does not list, so a row with no spec of its own is not the same
     // as one with a spec that says the defaults)
     QSet<quint32> rows;
-    x.cells.forEach([&](const Cell &c) { rows.insert(c.row); });
-    y.cells.forEach([&](const Cell &c) { rows.insert(c.row); });
+    x.cells.forEach([&](quint32 cellRow, quint32, const Cell &c) { rows.insert(cellRow); });
+    y.cells.forEach([&](quint32 cellRow, quint32, const Cell &c) { rows.insert(cellRow); });
     for (const RowSpec &r : x.rowSpecs) rows.insert(r.row);
     for (const RowSpec &r : y.rowSpecs) rows.insert(r.row);
     auto look = [](const Sheet &sh, quint32 row) {

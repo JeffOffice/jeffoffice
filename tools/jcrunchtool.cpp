@@ -165,7 +165,7 @@ int info(const QString &path, bool tsv)
         largest.take(sheet);
         // Each distinct text of a formula is looked at once, whatever number of cells have it.
         QVector<qint64> uses(sheet.formulaTexts.size(), 0);
-        sheet.cells.forEach([&](const Cell &c) {
+        sheet.cells.forEach([&](quint32, quint32, const Cell &c) {
             if (c.type != CellType::Empty) ++valued;
             if (c.hasFormula() && c.formula >= 0 && sheet.formulas[c.formula].text >= 0) ++uses[sheet.formulas[c.formula].text];
         });
@@ -255,7 +255,7 @@ int dump(const QString &path, int sheetNumber, qint64 most)
     Sheet sheet;
     if (!book.readSheet(sheetNumber - 1, &sheet)) err() << "problem: " << sheet.error << "\n";
     qint64 shown = 0;
-    sheet.cells.forEach([&](const Cell &c) {
+    sheet.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
         if (shown++ >= most) return;
         QString value;
         switch (c.type) {
@@ -266,7 +266,7 @@ int dump(const QString &path, int sheetNumber, qint64 most)
         default: value = sheet.text(c, book.sharedStrings()); break;
         }
         const QString formula = sheet.formulaText(c);
-        out() << cellName(c.row, c.col) << '\t' << typeName(c.type) << '\t' << value << '\t' << (c.hasFormula() ? QStringLiteral("=") + formula : QString()) << "\n";
+        out() << cellName(row, col) << '\t' << typeName(c.type) << '\t' << value << '\t' << (c.hasFormula() ? QStringLiteral("=") + formula : QString()) << "\n";
     });
     return sheet.error.isEmpty() ? 0 : 2;
 }
@@ -311,7 +311,7 @@ int formatsOne(const QString &path)
         if (book.info().sheets[i].kind == SheetKind::Chartsheet) continue;
         Sheet sheet;
         if (!book.readSheet(i, &sheet)) whole = false;
-        sheet.cells.forEach([&](const Cell &c) {
+        sheet.cells.forEach([&](quint32, quint32, const Cell &c) {
             if (c.type != CellType::Empty) ++styleCells[c.style];
         });
         finder.addSheet(i, sheet);
@@ -499,8 +499,8 @@ int mutate(const QString &path, int count, quint32 seed, double seconds)
         };
         std::vector<At> places;
         for (int si = 0; si < source.sheetCount() && places.size() < 4000; ++si)
-            calc.sheet(si).cells.forEach([&](const Cell &c) {
-                if (c.hasFormula() && places.size() < 4000) places.push_back({si, c.row, c.col});
+            calc.sheet(si).cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
+                if (c.hasFormula() && places.size() < 4000) places.push_back({si, cellRow, cellCol});
             });
         if (places.empty()) places.push_back({0, 0, 0});
         while (timer.elapsed() < seconds * 1000.0 && edits < count) {

@@ -9,7 +9,7 @@ namespace {
 const char *const kErrorTexts[] = {"#NULL!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "#GETTING_DATA", "#SPILL!", "#CALC!", "#FIELD!", "#BLOCKED!", "#CONNECT!", "#EXTERNAL!"};
 constexpr int kKnownErrors = int(sizeof(kErrorTexts) / sizeof(kErrorTexts[0]));
 
-bool before(const Cell &a, const Cell &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; }
+bool before(const Cell &a, const Cell &b) { return a.rowId != b.rowId ? a.rowId < b.rowId : a.colId < b.colId; }
 
 } // namespace
 
@@ -30,9 +30,12 @@ CellError errorFromText(QStringView text, bool *known)
     return CellError::Unknown;
 }
 
-void CellStore::add(const Cell &cell)
+void CellStore::add(quint32 row, quint32 col, const Cell &placed)
 {
-    const quint32 key = cell.row / kBlockRows;
+    Cell cell = placed;
+    cell.rowId = row;
+    cell.colId = quint16(col);
+    const quint32 key = row / kBlockRows;
     if (!m_last || m_lastKey != key) {
         m_last = &m_blocks[key];
         m_lastKey = key;
@@ -66,7 +69,7 @@ void CellStore::finish()
     m_last = nullptr;
 }
 
-qint64 CellStore::shiftRows(quint32 first, qint64 delta, quint32 limit, const std::function<void(const Cell &, const Cell &)> &formulaMoved, std::vector<Cell> *removed)
+qint64 CellStore::shiftRows(quint32 first, qint64 delta, quint32 limit, const std::function<void(const PlacedCell &, const PlacedCell &)> &formulaMoved, std::vector<PlacedCell> *removed)
 {
     m_last = nullptr;
     // the blocks from the one that holds row `first` are taken out, and their cells (in order of row and column, which a shift keeps) are made into blocks again as they come
@@ -88,18 +91,18 @@ qint64 CellStore::shiftRows(quint32 first, qint64 delta, quint32 limit, const st
         if (current.capacity() < hint) current.reserve(hint);
         for (Cell &c : block.cells) {
             const Cell before = c;
-            if (c.row >= first) {
-                const qint64 row = qint64(c.row) + delta;
-                if ((delta < 0 && qint64(c.row) < deletedEnd) || row >= qint64(limit) || row < 0) {
+            if (c.rowId >= first) {
+                const qint64 row = qint64(c.rowId) + delta;
+                if ((delta < 0 && qint64(c.rowId) < deletedEnd) || row >= qint64(limit) || row < 0) {
                     --m_count;
-                    if (removed) removed->push_back(before);
+                    if (removed) removed->push_back(PlacedCell{before.rowId, before.colId, before});
                     continue;
                 }
-                c.row = quint32(row);
+                c.rowId = quint32(row);
                 ++moved;
-                if (formulaMoved && (c.hasFormula() || (c.flags & ArrayMember))) formulaMoved(before, c);
+                if (formulaMoved && (c.hasFormula() || (c.flags & ArrayMember))) formulaMoved(PlacedCell{before.rowId, before.colId, before}, PlacedCell{c.rowId, c.colId, c});
             }
-            const quint32 key = c.row / kBlockRows;
+            const quint32 key = c.rowId / kBlockRows;
             if (!current.empty() && key != currentKey) {
                 flush();
                 current.reserve(hint);
@@ -112,7 +115,7 @@ qint64 CellStore::shiftRows(quint32 first, qint64 delta, quint32 limit, const st
     return moved;
 }
 
-qint64 CellStore::shiftColumns(quint32 first, qint64 delta, quint32 limit, const std::function<void(const Cell &, const Cell &)> &formulaMoved, std::vector<Cell> *removed)
+qint64 CellStore::shiftColumns(quint32 first, qint64 delta, quint32 limit, const std::function<void(const PlacedCell &, const PlacedCell &)> &formulaMoved, std::vector<PlacedCell> *removed)
 {
     m_last = nullptr;
     qint64 moved = 0;
@@ -122,19 +125,19 @@ qint64 CellStore::shiftColumns(quint32 first, qint64 delta, quint32 limit, const
         size_t keep = 0;
         for (size_t i = 0; i < cells.size(); ++i) {
             Cell &c = cells[i];
-            if (c.col >= first) {
-                const qint64 col = qint64(c.col) + delta;
-                if ((delta < 0 && qint64(c.col) < deletedEnd) || col >= qint64(limit) || col < 0) {
+            if (c.colId >= first) {
+                const qint64 col = qint64(c.colId) + delta;
+                if ((delta < 0 && qint64(c.colId) < deletedEnd) || col >= qint64(limit) || col < 0) {
                     --m_count;
-                    if (removed) removed->push_back(c);
+                    if (removed) removed->push_back(PlacedCell{c.rowId, c.colId, c});
                     continue;
                 }
                 if (formulaMoved && (c.hasFormula() || (c.flags & ArrayMember))) {
                     const Cell before = c;
-                    c.col = quint16(col);
-                    formulaMoved(before, c);
+                    c.colId = quint16(col);
+                    formulaMoved(PlacedCell{before.rowId, before.colId, before}, PlacedCell{c.rowId, c.colId, c});
                 } else {
-                    c.col = quint16(col);
+                    c.colId = quint16(col);
                 }
                 ++moved;
             }
@@ -164,21 +167,24 @@ const Cell *CellStore::find(quint32 row, quint32 col) const
     const auto block = m_blocks.find(row / kBlockRows);
     if (block == m_blocks.end()) return nullptr;
     Cell key;
-    key.row = row;
-    key.col = quint16(col);
+    key.rowId = row;
+    key.colId = quint16(col);
     const auto &cells = block->second.cells;
     const auto at = std::lower_bound(cells.begin(), cells.end(), key, before);
-    return at != cells.end() && at->row == row && at->col == col ? &*at : nullptr;
+    return at != cells.end() && at->rowId == row && at->colId == col ? &*at : nullptr;
 }
 
 Cell *CellStore::findMutable(quint32 row, quint32 col) { return const_cast<Cell *>(find(row, col)); }
 
-Cell *CellStore::set(const Cell &cell)
+Cell *CellStore::set(quint32 row, quint32 col, const Cell &placed)
 {
-    Block &block = m_blocks[cell.row / kBlockRows];
+    Cell cell = placed;
+    cell.rowId = row;
+    cell.colId = quint16(col);
+    Block &block = m_blocks[row / kBlockRows];
     m_last = nullptr;
     const auto at = std::lower_bound(block.cells.begin(), block.cells.end(), cell, before);
-    if (at != block.cells.end() && at->row == cell.row && at->col == cell.col) {
+    if (at != block.cells.end() && at->rowId == row && at->colId == col) {
         *at = cell;
         return &*at;
     }
@@ -191,11 +197,11 @@ bool CellStore::erase(quint32 row, quint32 col)
     const auto block = m_blocks.find(row / kBlockRows);
     if (block == m_blocks.end()) return false;
     Cell key;
-    key.row = row;
-    key.col = quint16(col);
+    key.rowId = row;
+    key.colId = quint16(col);
     auto &cells = block->second.cells;
     const auto at = std::lower_bound(cells.begin(), cells.end(), key, before);
-    if (at == cells.end() || at->row != row || at->col != col) return false;
+    if (at == cells.end() || at->rowId != row || at->colId != col) return false;
     cells.erase(at);
     --m_count;
     m_last = nullptr;

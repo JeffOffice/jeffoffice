@@ -45,7 +45,7 @@ QString differences(const office::sheet::Calculation *a, const office::sheet::Ca
     // (formulas in a circle have no value to agree on, and what reads them neither: the values are left out then)
     bool circular = false;
     for (int s = 0; s < a->sheetCount(); ++s)
-        a->sheet(s).cells.forEach([&](const office::sheet::Cell &c) { circular = circular || a->isCircular(s, c.row, c.col); });
+        a->sheet(s).cells.forEach([&](quint32 row, quint32 col, const office::sheet::Cell &c) { circular = circular || a->isCircular(s, row, col); });
     for (int s = 0; s < a->sheetCount() && out.size() < 12; ++s) {
         auto compareAt = [&](quint32 row, quint32 col) {
             const Calculation::CellContent x = a->content(s, row, col), y = b->content(s, row, col);
@@ -60,8 +60,8 @@ QString differences(const office::sheet::Calculation *a, const office::sheet::Ca
             }
             if (!circular && !sameValue(a->cell(s, row, col), b->cell(s, row, col))) out << QStringLiteral("%1 shows %2 against %3").arg(where, a->cell(s, row, col).debug(), b->cell(s, row, col).debug());
         };
-        a->sheet(s).cells.forEach([&](const office::sheet::Cell &c) { compareAt(c.row, c.col); });
-        b->sheet(s).cells.forEach([&](const office::sheet::Cell &c) { compareAt(c.row, c.col); });
+        a->sheet(s).cells.forEach([&](quint32 cellRow, quint32 cellCol, const office::sheet::Cell &c) { compareAt(cellRow, cellCol); });
+        b->sheet(s).cells.forEach([&](quint32 cellRow, quint32 cellCol, const office::sheet::Cell &c) { compareAt(cellRow, cellCol); });
         QVector<office::sheet::CellRange> ma = a->sheet(s).merges, mb = b->sheet(s).merges;
         auto less = [](const office::sheet::CellRange &p, const office::sheet::CellRange &q) { return p.row1 != q.row1 ? p.row1 < q.row1 : p.col1 < q.col1; };
         std::sort(ma.begin(), ma.end(), less);
@@ -103,14 +103,14 @@ QString storeDiffers(EditWindow &e)
     const office::sheet::Calculation *calc = e.win.w.calculation();
     for (int s = 0; s < calc->sheetCount(); ++s) {
         bool circular = false;
-        calc->sheet(s).cells.forEach([&](const office::sheet::Cell &c) { circular = circular || calc->isCircular(s, c.row, c.col); });
+        calc->sheet(s).cells.forEach([&](quint32 row, quint32 col, const office::sheet::Cell &c) { circular = circular || calc->isCircular(s, row, col); });
         if (circular) continue;
         QString problem;
-        calc->sheet(s).cells.forEach([&](const office::sheet::Cell &c) {
+        calc->sheet(s).cells.forEach([&](quint32 row, quint32 col, const office::sheet::Cell &c) {
             if (!problem.isEmpty() || !(c.hasFormula() || (c.flags & office::sheet::ArrayMember))) return;
             calc::Value held;
-            if (e.win.w.values().find(s, c.row, c.col, &held) && !sameValue(held, calc->cell(s, c.row, c.col)))
-                problem = QStringLiteral("%1!%2 shows %3 and is %4").arg(s).arg(cellName(c.row, c.col), held.debug(), calc->cell(s, c.row, c.col).debug());
+            if (e.win.w.values().find(s, row, col, &held) && !sameValue(held, calc->cell(s, row, col)))
+                problem = QStringLiteral("%1!%2 shows %3 and is %4").arg(s).arg(cellName(row, col), held.debug(), calc->cell(s, row, col).debug());
         });
         if (!problem.isEmpty()) return problem;
     }

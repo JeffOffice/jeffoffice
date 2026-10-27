@@ -161,7 +161,7 @@ private Q_SLOTS:
         grid::GridView *v = win.w.view();
         v->selectCell(2, 0);
         QCOMPARE(v->activeCellText(), QStringLiteral("=SUM(A1:A2)"));
-        QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(2, 0)).debug(), QStringLiteral("n:5"));
+        QCOMPARE(v->sheet().valueOf(2, 0, *v->sheet().cellAt(2, 0)).debug(), QStringLiteral("n:5"));
         QVERIFY2(win.told.isEmpty(), qPrintable(win.told.join(QLatin1Char('\n'))));
     }
 
@@ -225,12 +225,12 @@ private Q_SLOTS:
             QVERIFY(second.open(o.copyOfSaved(QStringLiteral("copy.xlsx"), QStringLiteral("again1.xlsx"))));
             grid::GridView *v = second.w.view();
             QCOMPARE(second.w.shownSheets().size(), 1);
-            QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:10"));
-            QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(1, 0)).debug(), QStringLiteral("n:3"));
+            QCOMPARE(v->sheet().valueOf(0, 0, *v->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:10"));
+            QCOMPARE(v->sheet().valueOf(1, 0, *v->sheet().cellAt(1, 0)).debug(), QStringLiteral("n:3"));
             v->selectCell(2, 0);
             QCOMPARE(v->activeCellText(), QStringLiteral("=SUM(A1:A2)"));
-            QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(2, 0)).debug(), QStringLiteral("n:13"));
-            QCOMPARE(v->sheet().textOf(*v->sheet().cellAt(0, 1)), QStringLiteral("hello"));
+            QCOMPARE(v->sheet().valueOf(2, 0, *v->sheet().cellAt(2, 0)).debug(), QStringLiteral("n:13"));
+            QCOMPARE(v->sheet().textOf(0, 1, *v->sheet().cellAt(0, 1)), QStringLiteral("hello"));
         }
         // the next edit is saved over the .xlsx, with no question and no explanation
         QVERIFY(o.activate());   // (the window that read the file closed, and no window is the active one)
@@ -248,9 +248,9 @@ private Q_SLOTS:
             Window third;
             QVERIFY(third.open(o.copyOfSaved(QStringLiteral("copy.xlsx"), QStringLiteral("again2.xlsx"))));
             grid::GridView *v = third.w.view();
-            QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:10"));
-            QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(1, 0)).debug(), QStringLiteral("n:20"));
-            QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(2, 0)).debug(), QStringLiteral("n:30"));
+            QCOMPARE(v->sheet().valueOf(0, 0, *v->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:10"));
+            QCOMPARE(v->sheet().valueOf(1, 0, *v->sheet().cellAt(1, 0)).debug(), QStringLiteral("n:20"));
+            QCOMPARE(v->sheet().valueOf(2, 0, *v->sheet().cellAt(2, 0)).debug(), QStringLiteral("n:30"));
         }
     }
 
@@ -341,7 +341,7 @@ private Q_SLOTS:
         QVERIFY(o.originalIsUntouched());
         Window second;
         QVERIFY(second.open(o.copyOfSaved(QStringLiteral("closing.xlsx"), QStringLiteral("again3.xlsx"))));
-        QCOMPARE(second.w.view()->sheet().valueOf(*second.w.view()->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:12"));
+        QCOMPARE(second.w.view()->sheet().valueOf(0, 0, *second.w.view()->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:12"));
     }
 
     // A file of the old form that has an .xlsx name is the file it came from all the same: it is never written, whatever name the person gives it.
@@ -428,9 +428,9 @@ private Q_SLOTS:
             QCOMPARE(info.sheets[0].name, QStringLiteral("Two"));
             QCOMPARE(info.sheets[2].name, QStringLiteral("Plan"));
             second.w.setActiveSheet(2);
-            QCOMPARE(second.w.view()->sheet().valueOf(*second.w.view()->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:2"));
+            QCOMPARE(second.w.view()->sheet().valueOf(0, 0, *second.w.view()->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:2"));
             second.w.setActiveSheet(0);
-            QCOMPARE(second.w.view()->sheet().valueOf(*second.w.view()->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:7"));
+            QCOMPARE(second.w.view()->sheet().valueOf(0, 0, *second.w.view()->sheet().cellAt(0, 0)).debug(), QStringLiteral("n:7"));
             QVERIFY(second.w.calculation()->sheet(0).tabColor.isSet());
         }
         // the next save patches the .xlsx: a sheet renamed again, and one added

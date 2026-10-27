@@ -388,7 +388,7 @@ public:
     {
         const jp::office::sheet::Sheet *s = m_g->sheetAt(sheet);
         if (!s) return;
-        s->cells.forEachInRange(row1, col1, row2, col2, [&](const Cell &c) { return f(c.row, c.col, m_g->valueIn(sheet, c.row, c.col)); });
+        s->cells.forEachInRange(row1, col1, row2, col2, [&](quint32 cellRow, quint32 cellCol, const Cell &c) { return f(cellRow, cellCol, m_g->valueIn(sheet, cellRow, cellCol)); });
     }
     void usedExtent(int sheet, quint32 *rows, quint32 *cols) const override
     {
@@ -488,7 +488,7 @@ void CondFormats::applyChange(RangeStats *rs, quint32 row, quint32 col) const
             --m_statCells;
         }
     } else {
-        const Value v = m_owner->valueOf(*cell);
+        const Value v = m_owner->valueOf(row, col, *cell);
         StatCell now;
         now.id = id;
         double x = 0;
@@ -662,15 +662,15 @@ qint64 CondFormats::advanceCells(RangeStats *rs, qint64 budget) const
             const CellRange &r = rs->ranges[rs->rangeAt];
             const quint32 startRow = rs->haveLast ? quint32(rs->lastId >> 16) : r.row1;
             bool stopped = false;
-            sheet->cells.forEachInRange(startRow, r.col1, r.row2, r.col2, [&](const Cell &c) {
-                const quint64 id = (quint64(c.row) << 16) | c.col;
+            sheet->cells.forEachInRange(startRow, r.col1, r.row2, r.col2, [&](quint32 row, quint32 col, const Cell &c) {
+                const quint64 id = (quint64(row) << 16) | col;
                 if (rs->haveLast && id <= rs->lastId) return true;
                 if (taken >= budget) {
                     stopped = true;
                     return false;
                 }
                 ++taken;
-                const Value v = m_owner->valueOf(c);
+                const Value v = m_owner->valueOf(row, col, c);
                 StatCell sc;
                 sc.id = id;
                 double x = 0;
@@ -1011,7 +1011,7 @@ CondCell CondFormats::compute(quint32 row, quint32 col, bool *incomplete) const
     DifferentialFormat merged;
     bool anyFormat = false;
     const Cell *cell = sheet->cells.find(row, col);
-    const Value value = cell ? m_owner->valueOf(*cell) : Value();
+    const Value value = cell ? m_owner->valueOf(row, col, *cell) : Value();
     const jp::office::sheet::Styles *styles = m_owner->data().styles;
     std::vector<int> rules;
     rulesAt(row, col, &rules);

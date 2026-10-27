@@ -281,7 +281,7 @@ public:
         if (m_phase == 0) {
             qint64 steps = 0;
             const qint64 room = std::max<qint64>(1, work.limit - work.used);
-            const bool done = m_q.sheet->cells.forEachRowTailSome(&m_cursor, room, &steps, [&](const jp::office::sheet::Cell &cell) {
+            const bool done = m_q.sheet->cells.forEachRowTailSome(&m_cursor, room, &steps, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &cell) {
                 bool counts = cell.type != CellType::Empty || cell.hasFormula();
                 if (!counts && m_q.styles && cell.style != 0 && cell.style < quint32(m_shows.size())) {
                     signed char &s = m_shows[cell.style];
@@ -290,8 +290,8 @@ public:
                 }
                 if (!counts) return false;
                 any = true;
-                lastRow = std::max(lastRow, cell.row);
-                lastCol = std::max<quint32>(lastCol, cell.col);
+                lastRow = std::max(lastRow, row);
+                lastCol = std::max<quint32>(lastCol, col);
                 return true;
             });
             work.add(steps);

@@ -631,22 +631,18 @@ public:
         }
         if (kind.kind == CsvColumn::Kind::Text) {
             Cell c;
-            c.row = quint32(row);
-            c.col = quint16(shown);
-            return addText(c, text.toString());
+            return addText(quint32(row), shown, c, text.toString());
         }
         if (kind.kind == CsvColumn::Kind::Date) {
             Cell c;
-            c.row = quint32(row);
-            c.col = quint16(shown);
             double serial = 0;
             if (dateInOrder(text.toString(), kind.dateOrder, &serial)) {
                 c.type = CellType::Number;
                 c.number = serial;
                 c.style = m_formats.value(QStringLiteral("yyyy-mm-dd"), 0);
-                return add(c, 0);
+                return add(quint32(row), shown, c, 0);
             }
-            return addText(c, text.toString());
+            return addText(quint32(row), shown, c, text.toString());
         }
         return addField(quint32(row), shown, text);
     }
@@ -669,7 +665,7 @@ public:
     qint64 heldBytes() const { return m_held; }
 
 private:
-    bool add(Cell c, qint64 extra)
+    bool add(quint32 row, quint32 col, Cell c, qint64 extra)
     {
         if (++m_cells > m_limits.cellsPerSheet) {
             m_s.error = QCoreApplication::translate("jp::office::sheet::Csv", "The sheet has more cells than any real file has.");
@@ -682,9 +678,9 @@ private:
             m_failed = true;
             return false;
         }
-        m_s.cells.add(c);
-        m_s.extentRows = std::max(m_s.extentRows, c.row + 1);
-        m_s.extentCols = std::max(m_s.extentCols, quint32(c.col) + 1);
+        m_s.cells.add(row, col, c);
+        m_s.extentRows = std::max(m_s.extentRows, row + 1);
+        m_s.extentCols = std::max(m_s.extentCols, col + 1);
         if (m_progress && m_cells % 4096 == 0 && !m_progress(m_cells)) {
             m_s.error = QCoreApplication::translate("jp::office::sheet::Csv", "The read was stopped.");
             m_failed = true;
@@ -693,13 +689,13 @@ private:
         return true;
     }
 
-    bool addText(Cell c, const QString &text)
+    bool addText(quint32 row, quint32 col, Cell c, const QString &text)
     {
         c.type = CellType::InlineString;
         c.number = double(m_s.texts.size());
         m_s.texts.append(text);
         m_s.stats.longestString = std::max<qint64>(m_s.stats.longestString, text.size());
-        return add(c, text.size() * 2 + 32);
+        return add(row, col, c, text.size() * 2 + 32);
     }
 
     bool couldBeValue(QStringView field) const
@@ -737,10 +733,8 @@ private:
     bool addField(quint32 row, quint32 col, QStringView field)
     {
         Cell c;
-        c.row = row;
-        c.col = quint16(col);
         // text that stays text: an apostrophe in front (kept as it is), and digits that a number would damage
-        if (field.front() == QLatin1Char('\'') || keepsAsText(field)) return addText(c, field.toString());
+        if (field.front() == QLatin1Char('\'') || keepsAsText(field)) return addText(row, col, c, field.toString());
         const bool formula = field.front() == QLatin1Char('=') && field.size() > 1;
         // true and false in the person's language (in English they are read by the typed entry)
         if (!m_true.isEmpty() && field.front().isLetter()) {
@@ -750,35 +744,35 @@ private:
                 if (folded == m_true || folded == m_false) {
                     c.type = CellType::Bool;
                     c.number = folded == m_true ? 1 : 0;
-                    return add(c, 0);
+                    return add(row, col, c, 0);
                 }
             }
         }
         if (!formula) {
             // (only what could be a number, a date, TRUE or FALSE, or an error is looked at; a text with a word of its own in it is text)
-            if (field.size() > 64 || !couldBeValue(field)) return addText(c, field.toString());
+            if (field.size() > 64 || !couldBeValue(field)) return addText(row, col, c, field.toString());
         }
         const QString typed = field.toString();
         const EntryResult r = readEntry(typed, m_options);
-        if (!r.ok) return addText(c, typed);
+        if (!r.ok) return addText(row, col, c, typed);
         switch (r.entry.kind) {
         case Entry::Kind::Number:
             // (a date is made of what was typed only when it has a year with it)
-            if (r.entry.formatCode.startsWith(QLatin1String("m/d/yyyy")) && !dateHasYear(typed, m_months)) return addText(c, typed);
+            if (r.entry.formatCode.startsWith(QLatin1String("m/d/yyyy")) && !dateHasYear(typed, m_months)) return addText(row, col, c, typed);
             c.type = CellType::Number;
             c.number = r.entry.number;
             if (!r.entry.formatCode.isEmpty()) c.style = m_formats.value(r.entry.formatCode, 0);
-            return add(c, 0);
+            return add(row, col, c, 0);
         case Entry::Kind::Bool:
             c.type = CellType::Bool;
             c.number = r.entry.number;
-            return add(c, 0);
+            return add(row, col, c, 0);
         case Entry::Kind::Error:
             c.type = CellType::Error;
             c.number = double(int(r.entry.error));
-            return add(c, 0);
+            return add(row, col, c, 0);
         case Entry::Kind::Formula: {
-            if (!formula) return addText(c, typed);   // (a sign and more that reads as a formula is text here: -hello, +49 30 1234)
+            if (!formula) return addText(row, col, c, typed);   // (a sign and more that reads as a formula is text here: -hello, +49 30 1234)
             c.flags |= HasFormula;
             m_s.formulaTexts.append(r.entry.text);
             Formula f;
@@ -787,9 +781,9 @@ private:
             c.formula = qint32(m_s.formulas.size() - 1);
             ++m_s.formulaCells;
             m_s.stats.longestFormula = std::max<qint64>(m_s.stats.longestFormula, r.entry.text.size());
-            return add(c, r.entry.text.size() * 2 + 64);
+            return add(row, col, c, r.entry.text.size() * 2 + 64);
         }
-        case Entry::Kind::Text: return addText(c, r.entry.text);
+        case Entry::Kind::Text: return addText(row, col, c, r.entry.text);
         case Entry::Kind::Empty: return true;
         }
         return true;

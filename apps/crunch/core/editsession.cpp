@@ -709,14 +709,14 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
     const Sheet &s = calc->sheet(sheet);
     std::vector<CellChange> changes;
     bool tooMany = false, array = false, locked = false, header = false;
-    s.cells.forEachInRange(quint32(row1), quint32(col1), quint32(row2), quint32(col2), [&](const Cell &c) {
-        const Calculation::CellContent before = calc->content(sheet, c.row, c.col);
+    s.cells.forEachInRange(quint32(row1), quint32(col1), quint32(row2), quint32(col2), [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
+        const Calculation::CellContent before = calc->content(sheet, cellRow, cellCol);
         if (!before.editable) {
             array = true;
             return false;
         }
         if (!before.isFormula && before.value.isEmpty()) return true;   // (only a format: it stays)
-        if (m_book->book->tableHeaderAt(sheet, c.row, c.col, nullptr) >= 0) {
+        if (m_book->book->tableHeaderAt(sheet, cellRow, cellCol, nullptr) >= 0) {
             header = true;
             return false;
         }
@@ -730,8 +730,8 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
         }
         CellChange ch;
         ch.sheet = sheet;
-        ch.row = c.row;
-        ch.col = c.col;
+        ch.row = cellRow;
+        ch.col = cellCol;
         ch.before = before;
         ch.after = before;
         ch.after.isFormula = false;
@@ -1192,7 +1192,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             newSheets = true;
             const Sheet &model = calc->sheet(sheet);
             changes.sheets[sheet];   // (made, though the sheet is empty)
-            model.cells.forEach([&](const Cell &c) { addCell(sheet, c.row, c.col); });
+            model.cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) { addCell(sheet, cellRow, cellCol); });
             SheetChanges &sc = changes.sheets[sheet];
             sc.skeleton = newSheetSkeleton(model);
             sc.isProtected = model.isProtected;

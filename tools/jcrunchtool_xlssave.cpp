@@ -46,8 +46,8 @@ bool sameNumber(double a, double b) { return a == b || (std::isnan(a) && std::is
 void compareSheets(const Workbook &a, const Sheet &x, const Workbook &b, const Sheet &y, Diffs *d)
 {
     if (x.cells.cellCount() != y.cells.cellCount()) d->add(QStringLiteral("cell count"));
-    x.cells.forEach([&](const Cell &c) {
-        const Cell *e = y.cells.find(c.row, c.col);
+    x.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+        const Cell *e = y.cells.find(row, col);
         if (!e) {
             d->add(QStringLiteral("a cell is missing"));
             return;
@@ -56,7 +56,7 @@ void compareSheets(const Workbook &a, const Sheet &x, const Workbook &b, const S
             // (a number that is not one is written as an error)
         } else if (c.type != e->type) {
             d->add(QStringLiteral("cell type"));
-            if (qEnvironmentVariableIsSet("XLS_SAVE_CHECK_VERBOSE")) QTextStream(stderr) << "cell " << cellName(c.row, c.col) << " type " << int(c.type) << " number " << c.number << " vs type " << int(e->type) << " number " << e->number << "\n";
+            if (qEnvironmentVariableIsSet("XLS_SAVE_CHECK_VERBOSE")) QTextStream(stderr) << "cell " << cellName(row, col) << " type " << int(c.type) << " number " << c.number << " vs type " << int(e->type) << " number " << e->number << "\n";
         } else if (c.type == CellType::SharedString || c.type == CellType::InlineString || c.type == CellType::FormulaString) {
             if (x.text(c, a.sharedStrings()) != y.text(*e, b.sharedStrings())) d->add(QStringLiteral("cell text"));
         } else if (!sameNumber(c.number, e->number)) {
@@ -79,7 +79,7 @@ void compareSheets(const Workbook &a, const Sheet &x, const Workbook &b, const S
     QSet<quint32> rows;
     for (auto it = sx.cbegin(); it != sx.cend(); ++it) rows.insert(it.key());
     for (auto it = sy.cbegin(); it != sy.cend(); ++it) rows.insert(it.key());
-    x.cells.forEach([&](const Cell &c) { rows.insert(c.row); });
+    x.cells.forEach([&](quint32 cellRow, quint32, const Cell &c) { rows.insert(cellRow); });
     auto look = [](const Sheet &sh, const QHash<quint32, RowSpec> &specs, quint32 row) {
         const auto it = specs.constFind(row);
         if (it == specs.cend()) return QStringLiteral("%1/%2/0/0").arg(sh.format.zeroHeight).arg(sh.format.defaultRowHeight);
@@ -174,12 +174,13 @@ int xlsSaveCheckMain(const QStringList &args)
         compareSheets(book, x, back, y, &diffs);
         if (firstSheetWithCell < 0 && x.cells.cellCount() > 0) {
             firstSheetWithCell = i;
-            const Cell *first = nullptr;
-            x.cells.forEach([&](const Cell &c) {
-                if (!first) first = &c;
+            bool found = false;
+            x.cells.forEach([&](quint32 row, quint32 col, const Cell &) {
+                if (found) return;
+                found = true;
+                changeRow = row;
+                changeCol = col;
             });
-            changeRow = first->row;
-            changeCol = first->col;
         }
     }
     // the same with one cell changed (the first cell of the first sheet that has one)

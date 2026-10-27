@@ -115,7 +115,7 @@ QString EditSession::calculatedFormulaFor(const Table &t, int column, quint32 ro
 bool EditSession::cellsEmpty(int sheet, const CellRange &range) const
 {
     bool empty = true;
-    m_book->calc->sheet(sheet).cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](const Cell &c) {
+    m_book->calc->sheet(sheet).cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](quint32, quint32, const Cell &c) {
         if (c.hasFormula() || c.type != CellType::Empty) {
             empty = false;
             return false;
@@ -310,7 +310,7 @@ EditSession::Outcome EditSession::makeTable(int sheet, const CellRange &range, b
     for (const CellRange &m : m_book->calc->mergesOf(sheet))
         if (!(m.row2 < r.row1 || m.row1 > r.row2 || m.col2 < r.col1 || m.col1 > r.col2)) return refuse(tr("Merged cells can't be in a table. Unmerge them first."));
     bool arrayInside = false;
-    m_book->calc->sheet(sheet).cells.forEachInRange(r.row1, r.col1, r.row2, r.col2, [&](const Cell &c) {
+    m_book->calc->sheet(sheet).cells.forEachInRange(r.row1, r.col1, r.row2, r.col2, [&](quint32, quint32, const Cell &c) {
         if (c.flags & (ArrayMember | ArrayFormula | DataTable)) {
             arrayInside = true;
             return false;
@@ -667,8 +667,8 @@ EditSession::Outcome EditSession::setTableTotalsRow(int table, bool on)
         // the last column adds up, or, if it holds no numbers, counts
         bool numbers = false;
         if (t.hasData())
-            m_book->calc->sheet(t.sheet).cells.forEachInRange(t.dataFirst(), t.col2, quint32(t.dataLast()), t.col2, [&](const Cell &c) {
-                if (c.type == CellType::Number || c.type == CellType::Date || (c.hasFormula() && valueAt(t.sheet, c.row, c.col).isNumber())) {
+            m_book->calc->sheet(t.sheet).cells.forEachInRange(t.dataFirst(), t.col2, quint32(t.dataLast()), t.col2, [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
+                if (c.type == CellType::Number || c.type == CellType::Date || (c.hasFormula() && valueAt(t.sheet, cellRow, cellCol).isNumber())) {
                     numbers = true;
                     return false;
                 }
@@ -836,8 +836,8 @@ EditSession::Outcome EditSession::resizeTable(int table, const CellRange &range)
             if (after.info[i].calcFormula.isEmpty()) continue;   // (a column with no formula has nothing to fill: its cells are not looked at)
             const quint32 col = t.col1 + quint32(i);
             std::vector<quint32> taken;
-            m_book->calc->sheet(t.sheet).cells.forEachInRange(quint32(oldDataLast + 1), col, quint32(newDataLast), col, [&](const Cell &c) {
-                if ((c.hasFormula() || c.type != CellType::Empty) && !(t.totalsRows > 0 && c.row == t.row2)) taken.push_back(c.row);
+            m_book->calc->sheet(t.sheet).cells.forEachInRange(quint32(oldDataLast + 1), col, quint32(newDataLast), col, [&](quint32 cellRow, quint32, const Cell &c) {
+                if ((c.hasFormula() || c.type != CellType::Empty) && !(t.totalsRows > 0 && cellRow == t.row2)) taken.push_back(cellRow);
                 return true;
             });
             for (const auto &run : runsWithout(quint32(oldDataLast + 1), quint32(newDataLast), taken)) {
@@ -984,18 +984,18 @@ void EditSession::calculatedColumnAfterEntry(int sheet, quint32 row, quint32 col
     std::vector<quint32> taken;
     std::vector<std::pair<quint32, quint32>> oldRuns;
     bool consistent = true;
-    m_book->calc->sheet(sheet).cells.forEachInRange(firstRow, col, lastRow, col, [&](const Cell &c) {
-        if (c.row == row) return true;
+    m_book->calc->sheet(sheet).cells.forEachInRange(firstRow, col, lastRow, col, [&](quint32 cellRow, quint32, const Cell &c) {
+        if (cellRow == row) return true;
         if (!c.hasFormula() && c.type == CellType::Empty) return true;
-        const Calculation::CellContent now = m_book->calc->content(sheet, c.row, col);
-        const bool old = !was.isEmpty() && now.isFormula && now.formula == shiftFormula(was, int(qint64(c.row) - qint64(firstRow)), 0);
+        const Calculation::CellContent now = m_book->calc->content(sheet, cellRow, col);
+        const bool old = !was.isEmpty() && now.isFormula && now.formula == shiftFormula(was, int(qint64(cellRow) - qint64(firstRow)), 0);
         if (!old) {
             consistent = false;
             return false;
         }
-        taken.push_back(c.row);
-        if (!oldRuns.empty() && oldRuns.back().second + 1 == c.row) oldRuns.back().second = c.row;
-        else oldRuns.emplace_back(c.row, c.row);
+        taken.push_back(cellRow);
+        if (!oldRuns.empty() && oldRuns.back().second + 1 == cellRow) oldRuns.back().second = cellRow;
+        else oldRuns.emplace_back(cellRow, cellRow);
         return true;
     });
     if (!consistent) return;

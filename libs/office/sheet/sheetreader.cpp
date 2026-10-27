@@ -836,6 +836,7 @@ private:
     quint32 m_nextCol = 0;           // where a cell with no address goes
     // the cell in the making
     Cell m_cell;
+    quint32 m_cellRow = 0, m_cellCol = 0;   // (where m_cell is)
     QString m_type;
     bool m_haveValue = false, m_haveInline = false;
     QString m_value, m_inline, m_formula;
@@ -1135,18 +1136,18 @@ bool SheetReader::startCell(const QXmlStreamReader &r)
     m_cell = Cell();
     quint32 row = 0, col = 0;
     if (present && parseCellRef(at, &row, &col)) {
-        m_cell.row = row;
-        m_cell.col = quint16(col);
+        m_cellRow = row;
+        m_cellCol = col;
     } else if (present && looksLikeAddress(at)) {
         // An address, but of a place past the sheet's last row or column.
         return fail(QCoreApplication::translate("Sheet", "A cell's address is outside the sheet."));
     } else {
         // No address, or one that is no address at all (some writers number cells another way): the cell follows the one before.
         if (m_nextCol >= kMaxColumns) return fail(QCoreApplication::translate("Sheet", "A cell is outside the sheet."));
-        m_cell.row = m_row;
-        m_cell.col = quint16(m_nextCol);
+        m_cellRow = m_row;
+        m_cellCol = m_nextCol;
     }
-    m_nextCol = quint32(m_cell.col) + 1;
+    m_nextCol = m_cellCol + 1;
     bool ok = false;
     const uint styleIndex = style.toUInt(&ok);
     m_cell.style = ok ? styleIndex : 0;
@@ -1209,8 +1210,8 @@ bool SheetReader::endFormula()
         const auto master = m_masters.constFind(m_si);
         if (master != m_masters.cend()) {
             text = master->text;
-            f.dRow = qint32(qint64(m_cell.row) - qint64(master->row));
-            f.dCol = qint32(qint64(m_cell.col) - qint64(master->col));
+            f.dRow = qint32(qint64(m_cellRow) - qint64(master->row));
+            f.dCol = qint32(qint64(m_cellCol) - qint64(master->col));
             m_sheet.stats.expandedFormulaChars += m_sheet.formulaTexts[text].size();
         }
     } else if (!blank) {
@@ -1229,15 +1230,15 @@ bool SheetReader::endFormula()
                     m_sheet.stats.largestSharedRange = std::max(m_sheet.stats.largestSharedRange, m_ref.cellCount());
                 }
                 if (!take(kMasterBytes)) return false;
-                m_masters.insert(m_si, {text, m_cell.row, m_cell.col});
+                m_masters.insert(m_si, {text, m_cellRow, m_cellCol});
                 // The cells that came before the first cell of the formula have it now.
                 const auto waiting = m_pending.find(m_si);
                 if (waiting != m_pending.end()) {
                     for (const Pending &p : std::as_const(*waiting)) {
                         Formula &g = m_sheet.formulas[p.formula];
                         g.text = text;
-                        g.dRow = qint32(qint64(p.row) - qint64(m_cell.row));
-                        g.dCol = qint32(qint64(p.col) - qint64(m_cell.col));
+                        g.dRow = qint32(qint64(p.row) - qint64(m_cellRow));
+                        g.dCol = qint32(qint64(p.col) - qint64(m_cellCol));
                         m_sheet.stats.expandedFormulaChars += length;
                     }
                     m_pending.erase(waiting);
@@ -1265,7 +1266,7 @@ bool SheetReader::endFormula()
         } else if (!take(kWaitingCellBytes)) {
             return false;
         }
-        waiting->append({m_cell.formula, m_cell.row, m_cell.col});
+        waiting->append({m_cell.formula, m_cellRow, m_cellCol});
     }
     return true;
 }
@@ -1351,10 +1352,10 @@ bool SheetReader::endCell()
     if (!take(kCellBytes)) return false;
     ++m_cells;
     if (c.type != CellType::Empty || c.hasFormula() || c.style != 0) {
-        m_sheet.extentRows = std::max(m_sheet.extentRows, c.row + 1);
-        m_sheet.extentCols = std::max(m_sheet.extentCols, quint32(c.col) + 1);
+        m_sheet.extentRows = std::max(m_sheet.extentRows, m_cellRow + 1);
+        m_sheet.extentCols = std::max(m_sheet.extentCols, m_cellCol + 1);
     }
-    m_sheet.cells.add(c);
+    m_sheet.cells.add(m_cellRow, m_cellCol, c);
     if (m_cells % kProgressEvery == 0 && m_options.progress && !m_options.progress(m_cells)) return fail(QCoreApplication::translate("Sheet", "The read was stopped."));
     return true;
 }

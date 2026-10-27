@@ -49,13 +49,15 @@ enum CellFlag : quint8 {
     Tainted = 32,        // a value the calculation could not check (a cell of a data table, or of an array whose formula it kept apart)
 };
 
-// One cell: 24 bytes. A cell always has its place in the grid; its value is
-// in number (and, for text, the pool it points to), and its formula, if it
-// has one, in the sheet's formulas.
+// One cell: 24 bytes. Its value is in number (and, for text, the pool it points
+// to), and its formula, if it has one, in the sheet's formulas. The ids of its
+// row and column are the store's: they equal the cell's place for now, and only
+// CellStore reads them. A cell is put in at a place (CellStore::add, set) and is
+// given its place by the store's walks, never by asking it.
 struct Cell {
     double number = 0;
-    quint32 row = 0;
-    quint16 col = 0;
+    quint32 rowId = 0;
+    quint16 colId = 0;
     CellType type = CellType::Empty;
     quint8 flags = 0;
     quint32 style = 0;       // the place of its format in the workbook's formats, as the file gives it
@@ -67,6 +69,13 @@ struct Cell {
     qint32 textIndex() const { return qint32(number); }
 };
 static_assert(sizeof(Cell) == 24, "a cell is 24 bytes");
+
+// A cell with the place it is at (what the store hands out where a cell is taken from it or moved).
+struct PlacedCell {
+    quint32 row = 0;
+    quint32 col = 0;
+    Cell cell;
+};
 
 // The cells of one sheet, kept in blocks of rows: a block holds the cells of
 // kBlockRows rows, in order of row and then column, and only blocks that have
@@ -105,9 +114,10 @@ public:
         return *this;
     }
 
-    // Adds a cell. A cell at a place that has one already replaces it (the
+    // Adds a cell at the place. A cell at a place that has one already replaces it (the
     // later one stands), as finish() decides.
-    void add(const Cell &cell);
+    void add(quint32 row, quint32 col, const Cell &cell);
+    void add(const PlacedCell &at) { add(at.row, at.col, at.cell); }
     // Puts every block in order and drops a cell a later one replaces. Reads
     // (find, forEach) are only right after this.
     void finish();
@@ -115,19 +125,20 @@ public:
     qint64 cellCount() const { return m_count; }
     // The cell at the place, or null.
     const Cell *find(quint32 row, quint32 col) const;
-    // Edits, for a store that is finished: the cell at the place, to be changed where it is (null if there is none); a cell put where it belongs, in place of the one that is
+    // Edits, for a store that is finished: the cell at the place, to be changed where it is (null if there is none); a cell put at the place, in place of the one that is
     // there, and the cell as it is held; a cell taken away (false if there was none). A cell is put in at the cost of moving the cells after it in its block of rows.
     Cell *findMutable(quint32 row, quint32 col);
-    Cell *set(const Cell &cell);
+    Cell *set(quint32 row, quint32 col, const Cell &cell);
+    Cell *set(const PlacedCell &at) { return set(at.row, at.col, at.cell); }
     bool erase(quint32 row, quint32 col);
-    // Calls f(cell) for each cell in order of row, then column.
+    // Calls f(row, col, cell) for each cell in order of row, then column.
     template <class F>
     void forEach(F f) const
     {
         for (const auto &block : m_blocks)
-            for (const Cell &c : block.second.cells) f(c);
+            for (const Cell &c : block.second.cells) f(quint32(c.rowId), quint32(c.colId), c);
     }
-    // Calls f(cell) for the cells of each row from its last cell backwards, until f gives true for one (then the next row up begins): for the last cell of each row that is of use,
+    // Calls f(row, col, cell) for the cells of each row from its last cell backwards, until f gives true for one (then the next row up begins): for the last cell of each row that is of use,
     // at the cost of the rows (and a search in a block for where each begins), not of every cell. Rows are visited from the last to the first.
     template <class F>
     void forEachRowTail(F f) const
@@ -137,15 +148,15 @@ public:
             const std::vector<Cell> &cells = block->second.cells;
             auto end = cells.end();
             while (end != cells.begin()) {
-                const quint32 row = (end - 1)->row;
+                const quint32 row = (end - 1)->rowId;
                 // (where the row begins: as far back as the last row had cells, if that is right, else a search)
                 auto first = end - std::min<std::ptrdiff_t>(guess, end - cells.begin());
-                if (!(first == cells.begin() || (first - 1)->row < row) || first->row != row)
-                    first = std::lower_bound(cells.begin(), end, row, [](const Cell &c, quint32 r) { return c.row < r; });
+                if (!(first == cells.begin() || (first - 1)->rowId < row) || first->rowId != row)
+                    first = std::lower_bound(cells.begin(), end, row, [](const Cell &c, quint32 r) { return c.rowId < r; });
                 guess = std::max<std::ptrdiff_t>(1, end - first);
                 for (auto at = end; at != first;) {
                     --at;
-                    if (f(*at)) break;
+                    if (f(quint32(at->rowId), quint32(at->colId), *at)) break;
                 }
                 end = first;
             }
@@ -191,13 +202,13 @@ public:
                 ++*steps;
                 continue;
             }
-            const quint32 row = cells[size_t(end - 1)].row;
-            const auto first = std::lower_bound(cells.begin(), cells.begin() + end, row, [](const Cell &c, quint32 r) { return c.row < r; });
+            const quint32 row = cells[size_t(end - 1)].rowId;
+            const auto first = std::lower_bound(cells.begin(), cells.begin() + end, row, [](const Cell &c, quint32 r) { return c.rowId < r; });
             ++*steps;
             for (auto at = cells.begin() + end; at != first;) {
                 --at;
                 ++*steps;
-                if (f(*at)) break;
+                if (f(quint32(at->rowId), quint32(at->colId), *at)) break;
             }
             cur->end = first - cells.begin();
         }
@@ -209,7 +220,7 @@ public:
         qint64 stepped = 0;
         qint64 compared = 0;
     };
-    // Calls f(cell) for each cell inside the rectangle (both ends in it), in order of row and then column; f gives false to stop. Only the rows and cells in it are
+    // Calls f(row, col, cell) for each cell inside the rectangle (both ends in it), in order of row and then column; f gives false to stop. Only the rows and cells in it are
     // looked at: a narrow range of a wide sheet costs what it holds, and a search for each row's first cell, not a walk over the cells before it. (`walk`, if given,
     // counts what was done: see RangeWalk.)
     template <class F>
@@ -242,20 +253,20 @@ public:
             Cursor pos(cells.begin(), walk);
             while (r <= last && pos.at() != cells.end()) {
                 Cell key;
-                key.row = r;
-                key.col = quint16(col1);
+                key.rowId = r;
+                key.colId = quint16(col1);
                 pos.jumpTo(std::lower_bound(pos.at(), cells.end(), key, [walk](const Cell &a, const Cell &b) {
                     if (walk) ++walk->compared;
-                    return a.row != b.row ? a.row < b.row : a.col < b.col;
+                    return a.rowId != b.rowId ? a.rowId < b.rowId : a.colId < b.colId;
                 }));
-                if (pos.at() == cells.end() || pos->row > last) break;
-                if (pos->row != r) {
+                if (pos.at() == cells.end() || pos->rowId > last) break;
+                if (pos->rowId != r) {
                     // that row has no cell at or after the first column: look for the first column again in the row that has one
-                    r = pos->row;
+                    r = pos->rowId;
                     continue;
                 }
-                while (pos.at() != cells.end() && pos->row == r && pos->col <= col2) {
-                    if (!f(*pos)) return;
+                while (pos.at() != cells.end() && pos->rowId == r && pos->colId <= col2) {
+                    if (!f(r, quint32(pos->colId), *pos)) return;
                     ++pos;
                 }
                 // the rest of this row's cells are right of the range: the search for the next row's first cell passes them
@@ -263,18 +274,18 @@ public:
             }
         }
     }
-    // Moves cells about, for rows and columns inserted and deleted and cells shifted: every cell for which `affected(cell)` is true (those of the blocks from the one of row
-    // `firstRow` on are looked at, and no others) is taken out; `map(cell)` changes the cell to what it is after (its place), and gives false for one that is gone (it is given to
-    // `removed`, as it was); `moved(before, after)` is told of each that stays; they are put in again, and the blocks are put in order. The cost is that of the cells taken out.
+    // Moves cells about, for rows and columns inserted and deleted and cells shifted: every cell for which `affected(row, col, cell)` is true (those of the blocks from the one of row
+    // `firstRow` on are looked at, and no others) is taken out; `map(placed)` changes the PlacedCell to what it is after (its place and the cell), and gives false for one that is gone (it is given to
+    // `removed`, as it was, with its place); `moved(before, after)` (PlacedCells) is told of each that stays; they are put in again, and the blocks are put in order. The cost is that of the cells taken out.
     template <class Affected, class Map, class Moved>
-    void reshuffle(quint32 firstRow, Affected affected, Map map, Moved moved, std::vector<Cell> *removed)
+    void reshuffle(quint32 firstRow, Affected affected, Map map, Moved moved, std::vector<PlacedCell> *removed)
     {
         std::vector<Cell> moving;
         for (auto it = m_blocks.lower_bound(firstRow / kBlockRows); it != m_blocks.end();) {
             std::vector<Cell> &cells = it->second.cells;
             size_t keep = 0;
             for (size_t i = 0; i < cells.size(); ++i) {
-                if (affected(cells[i])) moving.push_back(cells[i]);
+                if (affected(quint32(cells[i].rowId), quint32(cells[i].colId), cells[i])) moving.push_back(cells[i]);
                 else cells[keep++] = cells[i];
             }
             cells.resize(keep);
@@ -289,7 +300,7 @@ public:
         quint32 runKey = 0;
         auto flush = [&]() {
             if (run.empty()) return;
-            auto less = [](const Cell &a, const Cell &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; };
+            auto less = [](const Cell &a, const Cell &b) { return a.rowId != b.rowId ? a.rowId < b.rowId : a.colId < b.colId; };
             if (!std::is_sorted(run.begin(), run.end(), less)) std::sort(run.begin(), run.end(), less);
             Block &block = m_blocks[runKey];
             const size_t mid = block.cells.size();
@@ -299,16 +310,19 @@ public:
             run.clear();
         };
         for (const Cell &before : moving) {
-            Cell after = before;
+            PlacedCell was{before.rowId, before.colId, before};
+            PlacedCell after = was;
             if (!map(&after)) {
-                if (removed) removed->push_back(before);
+                if (removed) removed->push_back(was);
                 continue;
             }
-            moved(before, after);
+            moved(was, after);
+            after.cell.rowId = after.row;
+            after.cell.colId = quint16(after.col);
             const quint32 key = after.row / kBlockRows;
             if (!run.empty() && key != runKey) flush();
             runKey = key;
-            run.push_back(after);
+            run.push_back(after.cell);
         }
         flush();
         m_last = nullptr;
@@ -317,8 +331,8 @@ public:
     // rows [first, first - delta) are removed, those after move up); and columns the same way. Cells that move in a block of cells all at once, in one pass, without taking them out one by
     // one (the cost is the cells from `first` on, a few nanoseconds each, for rows; every cell for columns). `formulaMoved(before, after)` is told of each cell with a formula (and each
     // that is an array's) that moves. Gives the number of cells that moved; those removed are given to `removed`, as they were.
-    qint64 shiftRows(quint32 first, qint64 delta, quint32 limit, const std::function<void(const Cell &before, const Cell &after)> &formulaMoved, std::vector<Cell> *removed);
-    qint64 shiftColumns(quint32 first, qint64 delta, quint32 limit, const std::function<void(const Cell &before, const Cell &after)> &formulaMoved, std::vector<Cell> *removed);
+    qint64 shiftRows(quint32 first, qint64 delta, quint32 limit, const std::function<void(const PlacedCell &before, const PlacedCell &after)> &formulaMoved, std::vector<PlacedCell> *removed);
+    qint64 shiftColumns(quint32 first, qint64 delta, quint32 limit, const std::function<void(const PlacedCell &before, const PlacedCell &after)> &formulaMoved, std::vector<PlacedCell> *removed);
     // Puts the blocks that were added to out of order in order (the cells that were put in again by reshuffle).
     void reorder();
     int blockCount() const { return int(m_blocks.size()); }

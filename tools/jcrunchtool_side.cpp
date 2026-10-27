@@ -137,8 +137,8 @@ int sideRoundtripMain(const QStringList &args)
             else if (!(it->second == n.second)) add(QStringLiteral("a note's words, author, or shown flag"));
         }
         if (x.cells.cellCount() != y.cells.cellCount()) add(QStringLiteral("cell count"));
-        x.cells.forEach([&](const Cell &c) {
-            const Cell *e = y.cells.find(c.row, c.col);
+        x.cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
+            const Cell *e = y.cells.find(cellRow, cellCol);
             if (!e) {
                 add(QStringLiteral("a cell is missing"));
                 return;

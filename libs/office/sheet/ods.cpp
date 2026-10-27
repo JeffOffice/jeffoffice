@@ -1448,14 +1448,14 @@ private:
 
     // ---- making cells
 
-    bool add(Cell c, qint64 extra)
+    bool add(quint32 row, quint32 col, Cell c, qint64 extra)
     {
         if (++m_cells > m_limits.cellsPerSheet) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The sheet has more cells than any real file has."));
         m_held += 32 + extra;
         if (m_held > m_limits.sheetBytes) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The sheet is larger than any real file's."));
-        m_s.cells.add(c);
-        m_s.extentRows = std::max(m_s.extentRows, c.row + 1);
-        m_s.extentCols = std::max(m_s.extentCols, quint32(c.col) + 1);
+        m_s.cells.add(row, col, c);
+        m_s.extentRows = std::max(m_s.extentRows, row + 1);
+        m_s.extentCols = std::max(m_s.extentCols, col + 1);
         if (m_progress && m_cells % 4096 == 0 && !m_progress(m_cells)) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The read was stopped."));
         return true;
     }
@@ -1516,8 +1516,6 @@ private:
     {
         for (quint32 k = 0; k < count; ++k) {
             Cell c;
-            c.row = row;
-            c.col = quint16(col + k);
             c.style = p.styled ? p.xf : m_colXf[int(std::min<quint32>(col + k, kMaxColumns - 1))];
             qint64 extra = 0;
             switch (p.type) {
@@ -1567,7 +1565,7 @@ private:
                 if (c.type != CellType::Empty) ++m_s.storedResults;
                 extra += 48;
             }
-            if (!add(c, extra)) return false;
+            if (!add(row, col + k, c, extra)) return false;
             // a merged cell: for each of its copies (the copies of a row, and the repeats in a row); the copies of a cell that spans more than one place are placed one span apart, so that none overlaps another
             if ((p.colSpan > 1 || p.rowSpan > 1) && k % p.colSpan == 0 && rowCopy % p.rowSpan == 0 && !p.covered) {
                 CellRange r;

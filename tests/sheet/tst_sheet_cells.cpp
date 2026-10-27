@@ -5,13 +5,13 @@
 
 namespace {
 
-Cell makeCell(quint32 row, quint32 col, double number = 0)
+PlacedCell makeCell(quint32 row, quint32 col, double number = 0)
 {
-    Cell c;
+    PlacedCell c;
     c.row = row;
     c.col = quint16(col);
-    c.type = CellType::Number;
-    c.number = number;
+    c.cell.type = CellType::Number;
+    c.cell.number = number;
     return c;
 }
 
@@ -91,8 +91,8 @@ private Q_SLOTS:
         store.finish();
         QVector<QPair<quint32, quint32>> seen;
         QVector<double> numbers;
-        store.forEach([&](const Cell &c) {
-            seen.append({c.row, c.col});
+        store.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
+            seen.append({cellRow, cellCol});
             numbers.append(c.number);
         });
         const QVector<QPair<quint32, quint32>> expected = {{0, 1}, {0, 5}, {63, 0}, {64, 0}, {200, 3}, {1048575, 16383}};
@@ -137,18 +137,18 @@ private Q_SLOTS:
             if (r1 > r2) std::swap(r1, r2);
             if (c1 > c2) std::swap(c1, c2);
             QVector<QPair<quint32, quint32>> expected, got;
-            store.forEach([&](const Cell &c) {
-                if (c.row >= r1 && c.row <= r2 && c.col >= c1 && c.col <= c2) expected.append({c.row, c.col});
+            store.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
+                if (cellRow >= r1 && cellRow <= r2 && cellCol >= c1 && cellCol <= c2) expected.append({cellRow, cellCol});
             });
-            store.forEachInRange(r1, c1, r2, c2, [&](const Cell &c) {
-                got.append({c.row, c.col});
+            store.forEachInRange(r1, c1, r2, c2, [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
+                got.append({cellRow, cellCol});
                 return true;
             });
             QVERIFY2(got == expected, qPrintable(QStringLiteral("rows %1-%2, columns %3-%4: %5 cells, expected %6").arg(r1).arg(r2).arg(c1).arg(c2).arg(got.size()).arg(expected.size())));
         }
         // and it stops when asked
         int seen = 0;
-        store.forEachInRange(0, 0, 399, 39, [&](const Cell &) { return ++seen < 5; });
+        store.forEachInRange(0, 0, 399, 39, [&](quint32, quint32, const Cell &) { return ++seen < 5; });
         QCOMPARE(seen, 5);
     }
 
@@ -163,7 +163,7 @@ private Q_SLOTS:
         CellStore::RangeWalk walk;
         int seen = 0;
         double last = -1;
-        store.forEachInRange(0, 0, 63, 0, [&](const Cell &c) {
+        store.forEachInRange(0, 0, 63, 0, [&](quint32, quint32, const Cell &c) {
             ++seen;
             last = c.number;
             return true;
@@ -175,17 +175,17 @@ private Q_SLOTS:
         // a column in the middle, and a block of columns
         CellStore::RangeWalk middle;
         seen = 0;
-        store.forEachInRange(0, 8000, 63, 8003, [&](const Cell &) { return ++seen > 0; }, &middle);
+        store.forEachInRange(0, 8000, 63, 8003, [&](quint32, quint32, const Cell &) { return ++seen > 0; }, &middle);
         QCOMPARE(seen, 64 * 4);
         const QString saidMiddle = QStringLiteral("stepped over %1 cells and made %2 comparisons for 256 cells").arg(middle.stepped).arg(middle.compared);
         QVERIFY2(middle.stepped == 64 * 4 && middle.compared <= 64 * 22, qPrintable(saidMiddle));
         // the last column, and a range that holds nothing
         CellStore::RangeWalk edge, none;
         seen = 0;
-        store.forEachInRange(0, 16383, 63, 16383, [&](const Cell &) { return ++seen > 0; }, &edge);
+        store.forEachInRange(0, 16383, 63, 16383, [&](quint32, quint32, const Cell &) { return ++seen > 0; }, &edge);
         QCOMPARE(seen, 64);
         QVERIFY2(edge.stepped == 64 && edge.compared <= 64 * 22, qPrintable(QStringLiteral("%1 stepped, %2 compared").arg(edge.stepped).arg(edge.compared)));
-        store.forEachInRange(100, 0, 163, 5, [&](const Cell &) { return true; }, &none);
+        store.forEachInRange(100, 0, 163, 5, [&](quint32, quint32, const Cell &) { return true; }, &none);
         QVERIFY2(none.stepped == 0 && none.compared == 0, qPrintable(QStringLiteral("%1 stepped, %2 compared").arg(none.stepped).arg(none.compared)));
     }
 
@@ -207,7 +207,7 @@ private Q_SLOTS:
                 QCOMPARE(store.erase(r, c), want.erase({r, c}) == 1);
             } else {
                 const Cell *put = store.set(makeCell(r, c, 100000 + i));
-                QVERIFY(put && put->row == r && put->col == c && put->number == 100000 + i);
+                QVERIFY(put && put == store.find(r, c) && put->number == 100000 + i);
                 want[{r, c}] = 100000 + i;
             }
         }
@@ -221,13 +221,13 @@ private Q_SLOTS:
             }
         // the walk over the store is in order and holds every cell once
         std::vector<std::pair<quint32, quint32>> walked;
-        store.forEach([&](const Cell &cell) { walked.push_back({cell.row, cell.col}); });
+        store.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &cell) { walked.push_back({cellRow, cellCol}); });
         QVERIFY(std::is_sorted(walked.begin(), walked.end()));
         QCOMPARE(qint64(walked.size()), qint64(want.size()));
         // a rectangle of it
         QVector<QPair<quint32, quint32>> got, expected;
-        store.forEachInRange(50, 3, 250, 20, [&](const Cell &cell) {
-            got.append({cell.row, cell.col});
+        store.forEachInRange(50, 3, 250, 20, [&](quint32 cellRow, quint32 cellCol, const Cell &cell) {
+            got.append({cellRow, cellCol});
             return true;
         });
         for (const auto &entry : want)
@@ -367,7 +367,7 @@ private Q_SLOTS:
         QVERIFY2(readSheetXml(xml, &sheet), qPrintable(sheet.error));
         QCOMPARE(sheet.cells.cellCount(), qint64(3));
         QVector<QString> order;
-        sheet.cells.forEach([&](const Cell &c) { order.append(cellName(c.row, c.col) + ":" + QString::number(c.number)); });
+        sheet.cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) { order.append(cellName(cellRow, cellCol) + ":" + QString::number(c.number)); });
         QCOMPARE(order, (QVector<QString>{"A1:4", "A3:2", "B3:1"}));
     }
 

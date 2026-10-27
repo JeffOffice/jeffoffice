@@ -1112,9 +1112,9 @@ private:
             auto snapshot = [&](bool values) {
                 QStringList out;
                 for (int sheet = 0; sheet < 2; ++sheet)
-                    b.calc->sheet(sheet).cells.forEach([&](const Cell &c) {
-                        const auto content = b.calc->content(sheet, c.row, c.col);
-                        out << QStringLiteral("%1!%2,%3 %4 %5").arg(sheet).arg(c.row).arg(c.col).arg(content.isFormula ? QLatin1Char('=') + content.formula : content.value.debug(), values ? b.calc->cell(sheet, c.row, c.col).debug() : QString());
+                    b.calc->sheet(sheet).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+                        const auto content = b.calc->content(sheet, row, col);
+                        out << QStringLiteral("%1!%2,%3 %4 %5").arg(sheet).arg(row).arg(col).arg(content.isFormula ? QLatin1Char('=') + content.formula : content.value.debug(), values ? b.calc->cell(sheet, row, col).debug() : QString());
                     });
                 return out.join(QLatin1Char('\n'));
             };

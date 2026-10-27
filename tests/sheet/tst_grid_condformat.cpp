@@ -47,13 +47,13 @@ struct Book {
         styles.formats = {CellFormat()};
         styles.cellXfs = {0};
     }
-    static Cell numberCell(quint32 row, quint32 col, double v)
+    static PlacedCell numberCell(quint32 row, quint32 col, double v)
     {
-        Cell c;
+        PlacedCell c;
         c.row = row;
         c.col = quint16(col);
-        c.type = CellType::Number;
-        c.number = v;
+        c.cell.type = CellType::Number;
+        c.cell.number = v;
         return c;
     }
     void put(Sheet *s, const QString &ref, double v)
@@ -67,11 +67,11 @@ struct Book {
     {
         quint32 row = 0, col = 0;
         parseCellRef(ref, &row, &col);
-        Cell c;
+        PlacedCell c;
         c.row = row;
         c.col = quint16(col);
-        c.type = CellType::InlineString;
-        c.number = sheet.texts.size();
+        c.cell.type = CellType::InlineString;
+        c.cell.number = sheet.texts.size();
         sheet.texts.append(t);
         sheet.cells.add(c);
     }
@@ -79,11 +79,11 @@ struct Book {
     {
         quint32 row = 0, col = 0;
         parseCellRef(ref, &row, &col);
-        Cell c;
+        PlacedCell c;
         c.row = row;
         c.col = quint16(col);
-        c.type = CellType::Error;
-        c.number = double(int(jp::calc::ErrorKind::Div0));
+        c.cell.type = CellType::Error;
+        c.cell.number = double(int(jp::calc::ErrorKind::Div0));
         sheet.cells.add(c);
     }
     // A differential format with a fill (in the background color, where a differential format keeps its color), and the font color if given.
@@ -589,15 +589,15 @@ private Q_SLOTS:
         QCOMPARE(ruled.textColor, QRgb(0xFF9C5700));
         QCOMPARE(&b.grid.lookOf(row1, 0, 0), &ruled);
         // the number format of the second rule
-        QCOMPARE(b.grid.textOf(*b.sheet.cells.find(0, 0)), QStringLiteral("50%"));
-        QCOMPARE(b.grid.textOf(*b.sheet.cells.find(1, 0)), QStringLiteral("0.25"));
+        QCOMPARE(b.grid.textOf(0, 0, *b.sheet.cells.find(0, 0)), QStringLiteral("50%"));
+        QCOMPARE(b.grid.textOf(1, 0, *b.sheet.cells.find(1, 0)), QStringLiteral("0.25"));
         // new rules (a rule edited) let the looks go
         b.sheet.conditionalFormats.clear();
         b.grid.resetConditional();
         b.grid.invalidateTexts();
         QVERIFY(!b.grid.hasConditionalFormats());
         QCOMPARE(&b.grid.lookOf(row1, 0, 0), &b.grid.looks().look(0));
-        QCOMPARE(b.grid.textOf(*b.sheet.cells.find(0, 0)), QStringLiteral("0.5"));
+        QCOMPARE(b.grid.textOf(0, 0, *b.sheet.cells.find(0, 0)), QStringLiteral("0.5"));
     }
 
     // The cost: a sheet of a hundred thousand rows with two rules over all of them asks about the cells it is asked about only, and makes the figures once for both.

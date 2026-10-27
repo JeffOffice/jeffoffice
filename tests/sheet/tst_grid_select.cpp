@@ -468,11 +468,11 @@ private Q_SLOTS:
         const PinnedLocale english;
         Sheet sheet;
         auto num = [&](quint32 r, quint32 c, double v) {
-            Cell x;
+            jp::office::sheet::PlacedCell x;
             x.row = r;
             x.col = quint16(c);
-            x.type = CellType::Number;
-            x.number = v;
+            x.cell.type = CellType::Number;
+            x.cell.number = v;
             sheet.cells.add(x);
         };
         num(0, 0, 1);
@@ -480,29 +480,29 @@ private Q_SLOTS:
         num(2, 0, 3);
         num(3, 0, 100);   // (in a hidden row)
         num(0, 3, 1000);  // (in a hidden column)
-        Cell text;
+        jp::office::sheet::PlacedCell text;
         text.row = 0;
         text.col = 1;
-        text.type = CellType::InlineString;
-        text.number = 0;
+        text.cell.type = CellType::InlineString;
+        text.cell.number = 0;
         sheet.texts.append(QStringLiteral("x"));
         sheet.cells.add(text);
-        Cell flag;
+        jp::office::sheet::PlacedCell flag;
         flag.row = 1;
         flag.col = 1;
-        flag.type = CellType::Bool;
-        flag.number = 1;
+        flag.cell.type = CellType::Bool;
+        flag.cell.number = 1;
         sheet.cells.add(flag);
-        Cell err;
+        jp::office::sheet::PlacedCell err;
         err.row = 2;
         err.col = 1;
-        err.type = CellType::Error;
-        err.number = 1;
+        err.cell.type = CellType::Error;
+        err.cell.number = 1;
         sheet.cells.add(err);
-        Cell blank;   // (a cell with a format and nothing in it)
+        jp::office::sheet::PlacedCell blank;   // (a cell with a format and nothing in it)
         blank.row = 4;
         blank.col = 1;
-        blank.style = 2;
+        blank.cell.style = 2;
         sheet.cells.add(blank);
         sheet.cells.finish();
         jp::office::sheet::Styles styles;
@@ -570,13 +570,13 @@ private Q_SLOTS:
         double sum = 0;
         qint64 n = 0;
         for (quint32 r = 0; r < 1048576; r += 5) {
-            Cell x;
+            jp::office::sheet::PlacedCell x;
             x.row = r;
             x.col = 0;
-            x.type = CellType::Number;
-            x.number = r % 97;
+            x.cell.type = CellType::Number;
+            x.cell.number = r % 97;
             sheet.cells.add(x);
-            sum += x.number;
+            sum += x.cell.number;
             ++n;
         }
         sheet.cells.finish();
@@ -617,11 +617,11 @@ private Q_SLOTS:
         Sheet sheet;
         for (quint32 r = 0; r < 200; ++r)
             for (quint32 c = 0; c < 2000; ++c) {
-                Cell x;
+                jp::office::sheet::PlacedCell x;
                 x.row = r;
                 x.col = quint16(c);
-                x.type = CellType::Number;
-                x.number = 1;
+                x.cell.type = CellType::Number;
+                x.cell.number = 1;
                 sheet.cells.add(x);
             }
         sheet.cells.finish();
@@ -686,19 +686,19 @@ private Q_SLOTS:
     {
         Sheet sheet;
         auto num = [&](quint32 r, quint32 c, double v) {
-            Cell x;
+            jp::office::sheet::PlacedCell x;
             x.row = r;
             x.col = quint16(c);
-            x.type = CellType::Number;
-            x.number = v;
+            x.cell.type = CellType::Number;
+            x.cell.number = v;
             sheet.cells.add(x);
         };
         auto text = [&](quint32 r, quint32 c, const QString &t) {
-            Cell x;
+            jp::office::sheet::PlacedCell x;
             x.row = r;
             x.col = quint16(c);
-            x.type = CellType::InlineString;
-            x.number = sheet.texts.size();
+            x.cell.type = CellType::InlineString;
+            x.cell.number = sheet.texts.size();
             sheet.texts.append(t);
             sheet.cells.add(x);
         };
@@ -736,11 +736,11 @@ private Q_SLOTS:
     {
         Sheet sheet;
         for (quint32 r = 0; r < 200000; ++r) {
-            Cell x;
+            jp::office::sheet::PlacedCell x;
             x.row = r;
             x.col = 0;
-            x.type = CellType::Number;
-            x.number = r;
+            x.cell.type = CellType::Number;
+            x.cell.number = r;
             sheet.cells.add(x);
         }
         sheet.cells.finish();
@@ -790,11 +790,11 @@ private Q_SLOTS:
         Sheet sheet;
         sheet.texts.append(QString(100000, QLatin1Char('x')));
         for (quint32 r = 0; r < 1000; ++r) {
-            Cell x;
+            jp::office::sheet::PlacedCell x;
             x.row = r;
             x.col = 0;
-            x.type = CellType::InlineString;
-            x.number = 0;   // (every cell has the same text: 100 million characters in all)
+            x.cell.type = CellType::InlineString;
+            x.cell.number = 0;   // (every cell has the same text: 100 million characters in all)
             sheet.cells.add(x);
         }
         sheet.cells.finish();

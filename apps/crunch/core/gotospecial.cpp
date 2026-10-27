@@ -194,7 +194,7 @@ CellRange currentRegion(const EditSession &session, int sheet, quint32 row, quin
         if (c2 >= qint64(kMaxColumns)) c2 = kMaxColumns - 1;
         if (r1 > r2 || c1 > c2) return false;
         bool any = false;
-        s.cells.forEachInRange(quint32(r1), quint32(c1), quint32(r2), quint32(c2), [&](const Cell &c) {
+        s.cells.forEachInRange(quint32(r1), quint32(c1), quint32(r2), quint32(c2), [&](quint32, quint32, const Cell &c) {
             if (filled(c)) any = true;
             return !any;
         }, &walk);
@@ -447,11 +447,11 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
                 break;
             }
             quint32 next = region.col1;
-            s.cells.forEachInRange(row, region.col1, row, region.col2, [&](const Cell &c) {
+            s.cells.forEachInRange(row, region.col1, row, region.col2, [&](quint32, quint32 cellCol, const Cell &c) {
                 ++work;
                 if (c.type == CellType::Empty && !c.hasFormula()) return true;   // (a cell that is there and holds nothing is blank: it falls in the gap)
-                for (quint32 col = next; col < c.col; ++col) builder.add(row, col);
-                next = c.col + 1;
+                for (quint32 col = next; col < cellCol; ++col) builder.add(row, col);
+                next = cellCol + 1;
                 return true;
             });
             if (work > kMaxSpecialWork) {
@@ -467,7 +467,7 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
         if (out.ranges.isEmpty()) none();
         return out;
     }
-    s.cells.forEachInRange(region.row1, region.col1, region.row2, region.col2, [&](const Cell &c) {
+    s.cells.forEachInRange(region.row1, region.col1, region.row2, region.col2, [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
         if (++work > kMaxSpecialWork) {
             out.truncated = true;
             return false;
@@ -476,15 +476,15 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
         bool take = false;
         if (options.kind == SpecialKind::Constants) {
             if (!hasFormula && c.type != CellType::Empty) {
-                const Value v = session.valueAt(sheet, c.row, c.col);
+                const Value v = session.valueAt(sheet, cellRow, cellCol);
                 take = resultKindMatches(v, options);
             }
         } else if (options.kind == SpecialKind::Formulas) {
-            if (hasFormula) take = resultKindMatches(session.valueAt(sheet, c.row, c.col), options);
+            if (hasFormula) take = resultKindMatches(session.valueAt(sheet, cellRow, cellCol), options);
         } else if (options.kind == SpecialKind::Errors) {
-            take = session.valueAt(sheet, c.row, c.col).isError();
+            take = session.valueAt(sheet, cellRow, cellCol).isError();
         }
-        if (take) builder.add(c.row, c.col);
+        if (take) builder.add(cellRow, cellCol);
         return true;
     });
     builder.finish();

@@ -243,7 +243,7 @@ qint64 Calculation::programsHeld(int sheet) const
     return n;
 }
 
-quint32 Calculation::addNode(int sheet, const Cell &cell, qint32 formulaIndex)
+quint32 Calculation::addNode(int sheet, quint32 row, quint32 col, const Cell &cell, qint32 formulaIndex)
 {
     quint32 id;
     if (!m_freeNodes.empty()) {
@@ -263,8 +263,8 @@ quint32 Calculation::addNode(int sheet, const Cell &cell, qint32 formulaIndex)
     Node &n = m_nodes[id];
     n.sheet = sheet;
     n.formula = formulaIndex;
-    n.row = cell.row;
-    n.col = cell.col;
+    n.row = row;
+    n.col = col;
     SheetState &st = m_state[size_t(sheet)];
     if (st.nodeOf.size() <= size_t(formulaIndex)) st.nodeOf.resize(size_t(formulaIndex) + 1, kNone);
     st.nodeOf[size_t(formulaIndex)] = id;
@@ -528,7 +528,7 @@ void Calculation::storeResult(Node &n, quint32 id, const Value &given, bool publ
     }
 }
 
-bool Calculation::formulaValue(int sheet, const Cell &c, Value *out) const
+bool Calculation::formulaValue(int sheet, quint32 row, quint32 col, const Cell &c, Value *out) const
 {
     const SheetState &st = m_state[size_t(sheet)];
     const quint32 id = c.formula >= 0 && size_t(c.formula) < st.nodeOf.size() ? st.nodeOf[size_t(c.formula)] : kNone;
@@ -546,7 +546,7 @@ bool Calculation::formulaValue(int sheet, const Cell &c, Value *out) const
     if (n.flags & (Mismatch | Cascade)) m_readCascade = true;
     if (c.flags & ArrayMember) {
         const Value array = m_arrays.value(id);
-        *out = array.isArray() ? array.at(int(c.row - n.row), int(c.col) - int(n.col)) : nodeValue(n, id);
+        *out = array.isArray() ? array.at(int(row - n.row), int(col) - int(n.col)) : nodeValue(n, id);
     } else {
         *out = nodeValue(n, id);
     }
@@ -561,7 +561,7 @@ Value Calculation::cell(int sheet, quint32 row, quint32 col) const
     if (!c) return Value();
     if (c->hasFormula() || (c->flags & ArrayMember)) {
         Value v;
-        formulaValue(sheet, *c, &v);
+        formulaValue(sheet, row, col, *c, &v);
         return v;
     }
     if (c->flags & Tainted) m_readTaint = true;
@@ -579,7 +579,7 @@ Value Calculation::shown(int sheet, quint32 row, quint32 col) const
         const quint32 id = c->formula >= 0 && size_t(c->formula) < st.nodeOf.size() ? st.nodeOf[size_t(c->formula)] : kNone;
         if (id != kNone && m_nodes[id].state != Done && !(m_nodes[id].flags & Worked)) return valueOf(s, *c);
         Value v;
-        formulaValue(sheet, *c, &v);
+        formulaValue(sheet, row, col, *c, &v);
         return v;
     }
     return valueOf(s, *c);
@@ -591,15 +591,15 @@ void Calculation::visit(int sheet, quint32 row1, quint32 col1, quint32 row2, qui
     if (m_visitHook) m_visitHook();
     const Sheet &s = m_sheets[size_t(sheet)];
     CellStore::RangeWalk walk;
-    s.cells.forEachInRange(row1, col1, row2, std::min<quint32>(col2, kMaxColumns - 1), [&](const Cell &c) {
+    s.cells.forEachInRange(row1, col1, row2, std::min<quint32>(col2, kMaxColumns - 1), [&](quint32 row, quint32 col, const Cell &c) {
         if (c.hasFormula() || (c.flags & ArrayMember)) {
             Value v;
-            if (!formulaValue(sheet, c, &v) || v.isEmpty()) return true;
-            return f(c.row, c.col, v);
+            if (!formulaValue(sheet, row, col, c, &v) || v.isEmpty()) return true;
+            return f(row, col, v);
         }
         if (c.type == CellType::Empty) return true;
         if (c.flags & Tainted) m_readTaint = true;
-        return f(c.row, c.col, valueOf(s, c));
+        return f(row, col, valueOf(s, c));
     }, &walk);
     jp::calc::budget::addWork((walk.compared + walk.stepped) / 4);   // (the rows walked over to find the cells are work too: a column of a sheet of many rows is read row by row)
 }
@@ -632,7 +632,7 @@ bool Calculation::load()
         st.array.resize(size_t(s.formulaTexts.size()));
         quint32 rows = 0, cols = 0;
         qint64 visited = 0;
-        s.cells.forEach([&](const Cell &c) {
+        s.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
             if (cancelled) return;
             // (the flag is looked at every few thousand cells: a window that is closed does not wait for the formulas of a big sheet to be registered)
             if ((++visited & 4095) == 0 && m_cancel && m_cancel->load(std::memory_order_relaxed)) {
@@ -640,11 +640,11 @@ bool Calculation::load()
                 return;
             }
             if (c.type != CellType::Empty || c.hasFormula()) {
-                rows = std::max(rows, c.row + 1);
-                cols = std::max(cols, quint32(c.col) + 1);
+                rows = std::max(rows, row + 1);
+                cols = std::max(cols, col + 1);
             }
             if (!c.hasFormula() || c.formula < 0 || c.formula >= s.formulas.size()) return;
-            const quint32 id = addNode(si, c, c.formula);
+            const quint32 id = addNode(si, row, col, c, c.formula);
             if (m_nodes[id].flags & Array) masters.push_back(id);
         });
         m_rows[size_t(si)] = rows;
@@ -668,8 +668,6 @@ bool Calculation::load()
                     member = *have;
                 } else {
                     if (++added > kMaxMembersAdded) continue;
-                    member.row = row;
-                    member.col = quint16(col);
                 }
                 if (member.hasFormula()) continue;
                 if (n.flags & Kept) {
@@ -678,7 +676,7 @@ bool Calculation::load()
                     member.flags |= ArrayMember;
                     member.formula = n.formula;
                 }
-                s.cells.set(member);
+                s.cells.set(row, col, member);
                 m_rows[size_t(n.sheet)] = std::max(m_rows[size_t(n.sheet)], row + 1);
                 m_cols[size_t(n.sheet)] = std::max(m_cols[size_t(n.sheet)], col + 1);
             }
@@ -713,13 +711,13 @@ void Calculation::registerSheet(int si)
     st.array.resize(size_t(s.formulaTexts.size()));
     quint32 rows = 0, cols = 0;
     std::vector<quint32> masters;
-    s.cells.forEach([&](const Cell &c) {
+    s.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
         if (c.type != CellType::Empty || c.hasFormula()) {
-            rows = std::max(rows, c.row + 1);
-            cols = std::max(cols, quint32(c.col) + 1);
+            rows = std::max(rows, row + 1);
+            cols = std::max(cols, col + 1);
         }
         if (!c.hasFormula() || c.formula < 0 || c.formula >= s.formulas.size()) return;
-        const quint32 id = addNode(si, c, c.formula);
+        const quint32 id = addNode(si, row, col, c, c.formula);
         if (m_nodes[id].flags & Array) masters.push_back(id);
     });
     m_rows[size_t(si)] = rows;
@@ -816,8 +814,9 @@ void Calculation::readdNode(quint32 id)
     Cell *c = s.cells.findMutable(m_nodes[id].row, m_nodes[id].col);
     if (!c || !c->hasFormula() || c->formula < 0 || c->formula >= s.formulas.size()) return;
     const qint32 formula = c->formula;
+    const quint32 row = m_nodes[id].row, col = m_nodes[id].col;
     dropNode(id);
-    const quint32 now = addNode(sheet, *c, formula);
+    const quint32 now = addNode(sheet, row, col, *c, formula);
     queueDependents(areaOf(m_nodes[now]));
 }
 
@@ -1939,8 +1938,6 @@ bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, 
     if (found && ((found->flags & (ArrayMember | ArrayFormula)))) return false;   // (a cell of an array is not edited alone)
     abandonNow();
     Cell c = found ? *found : Cell();
-    c.row = row;
-    c.col = quint16(col);
     if (found && found->hasFormula()) {
         const SheetState &st = m_state[size_t(sheet)];
         if (found->formula >= 0 && size_t(found->formula) < st.nodeOf.size() && st.nodeOf[size_t(found->formula)] != kNone) dropNode(st.nodeOf[size_t(found->formula)]);
@@ -1969,7 +1966,7 @@ bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, 
     default: c.type = CellType::Empty; c.number = 0; break;
     }
     if (c.type == CellType::Empty && c.style == 0) s.cells.erase(row, col);
-    else s.cells.set(c);
+    else s.cells.set(row, col, c);
     if (c.type != CellType::Empty) {
         useExtent(sheet, row, col);
         s.extentRows = std::max(s.extentRows, row + 1);
@@ -2001,8 +1998,6 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
     abandonNow();
     SheetState &st = m_state[size_t(sheet)];
     Cell c = found ? *found : Cell();
-    c.row = row;
-    c.col = quint16(col);
     if (found && found->hasFormula() && found->formula >= 0) {
         if (size_t(found->formula) < st.nodeOf.size() && st.nodeOf[size_t(found->formula)] != kNone) dropNode(st.nodeOf[size_t(found->formula)]);
         releaseFormula(sheet, found->formula);   // (the cell had a formula: nothing has it now)
@@ -2026,11 +2021,11 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
         default: break;
         }
     }
-    s.cells.set(c);
+    s.cells.set(row, col, c);
     useExtent(sheet, row, col);
     s.extentRows = std::max(s.extentRows, row + 1);
     s.extentCols = std::max<quint32>(s.extentCols, col + 1);
-    const quint32 id = addNode(sheet, c, c.formula);
+    const quint32 id = addNode(sheet, row, col, c, c.formula);
     m_fresh.insert(id);
     const CellArea a = areaOf(m_nodes[id]);
     // a formula typed with a function the engine lacks has no result to keep: it has #NAME?, which the recalculation gives it
@@ -2055,10 +2050,8 @@ bool Calculation::setStyle(int sheet, quint32 row, quint32 col, quint32 style)
     if (!found) {
         if (style == 0) return true;
         Cell c;
-        c.row = row;
-        c.col = quint16(col);
         c.style = style;
-        s.cells.set(c);
+        s.cells.set(row, col, c);
     } else if (found->style != style) {
         found->style = style;
         if (found->type == CellType::Empty && !found->hasFormula() && style == 0) s.cells.erase(row, col);
@@ -2169,9 +2162,9 @@ void Calculation::forEachFormulaText(const std::function<void(int, quint32, quin
 {
     for (int si = 0; si < int(m_sheets.size()); ++si) {
         const Sheet &s = m_sheets[size_t(si)];
-        s.cells.forEach([&](const Cell &c) {
+        s.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
             if (!c.hasFormula() || (c.flags & (ArrayMember | ArrayFormula | DataTable))) return;
-            f(si, c.row, c.col, s.formulaText(c));
+            f(si, row, col, s.formulaText(c));
         });
     }
 }
@@ -2181,12 +2174,14 @@ void Calculation::forEachFormula(const std::function<void(const FormulaCell &)> 
     for (int si = 0; si < int(m_sheets.size()); ++si) {
         const Sheet &s = m_sheets[size_t(si)];
         const SheetState &st = m_state[size_t(si)];
-        s.cells.forEach([&](const Cell &c) {
+        s.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
             if (!c.hasFormula() || c.formula < 0 || size_t(c.formula) >= st.nodeOf.size() || st.nodeOf[size_t(c.formula)] == kNone) return;
             const quint32 id = st.nodeOf[size_t(c.formula)];
             const Node &n = m_nodes[id];
             FormulaCell out;
             out.sheet = si;
+            out.row = row;
+            out.col = col;
             out.cell = &c;
             out.stored = valueOf(s, c);
             out.ours = nodeValue(n, id);

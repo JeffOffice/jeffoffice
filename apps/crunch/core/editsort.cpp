@@ -117,13 +117,13 @@ std::shared_ptr<EditSession::SortPlan> EditSession::planSort(int sheet, const Ce
     const Sheet &s = calc->sheet(sheet);
     // the cells that cannot be moved
     QString bad;
-    s.cells.forEachInRange(plan->data.row1, plan->data.col1, plan->data.row2, plan->data.col2, [&](const Cell &c) {
+    s.cells.forEachInRange(plan->data.row1, plan->data.col1, plan->data.row2, plan->data.col2, [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
         if (c.flags & (ArrayFormula | ArrayMember | DataTable)) {
-            bad = tr("%1 is part of an array or a data table, so the cells can't be moved. Nothing was sorted.").arg(cellName(c.row, c.col));
+            bad = tr("%1 is part of an array or a data table, so the cells can't be moved. Nothing was sorted.").arg(cellName(cellRow, cellCol));
             return false;
         }
         if (s.isProtected && m_book->book->styles().format(c.style).locked) {
-            bad = tr("%1 is locked, and its sheet is protected, so the cells can't be moved. Nothing was sorted.").arg(cellName(c.row, c.col));
+            bad = tr("%1 is locked, and its sheet is protected, so the cells can't be moved. Nothing was sorted.").arg(cellName(cellRow, cellCol));
             return false;
         }
         return true;
@@ -533,7 +533,7 @@ std::vector<ColorSpec> EditSession::colorsIn(int sheet, const CellRange &range, 
     if (!range.valid || !m_book || !m_book->calc || !m_book->book) return out;
     const Sheet &s = m_book->calc->sheet(sheet);
     qint64 seen = 0;
-    s.cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](const Cell &c) {
+    s.cells.forEachInRange(range.row1, range.col1, range.row2, range.col2, [&](quint32, quint32, const Cell &c) {
         if (++seen > kMaxCellsPerEdit) return false;
         const CellFormat &format = m_book->book->styles().format(c.style);
         ColorSpec color;

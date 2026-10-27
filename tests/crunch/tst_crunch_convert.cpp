@@ -95,7 +95,7 @@ struct Win {
         QFile f(path);
         return f.open(QIODevice::ReadOnly) && f.readAll() == original;
     }
-    QString shown(quint32 row, quint32 col) { return view()->sheet().textOf(*view()->sheet().cellAt(row, col)); }
+    QString shown(quint32 row, quint32 col) { return view()->sheet().textOf(row, col, *view()->sheet().cellAt(row, col)); }
 };
 
 // An .ods: A1 = 2, A2 = 3, A3 = SUM(A1:A2) (its stored result wrong on purpose), B1 the text "hello".

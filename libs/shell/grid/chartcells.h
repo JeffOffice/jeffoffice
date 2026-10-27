@@ -42,7 +42,7 @@ private:
     };
     const Hidden &hidden(int sheet) const;
     const jp::office::sheet::Cell *cellAt(int sheet, quint32 row, quint32 col) const;
-    jp::calc::Value valueOf(int sheet, const jp::office::sheet::Cell &cell) const;
+    jp::calc::Value valueOf(int sheet, quint32 row, quint32 col, const jp::office::sheet::Cell &cell) const;
 
     const jp::office::sheet::WorkbookSource *m_source;
     const ValueStore *m_values;

@@ -608,7 +608,7 @@ private Q_SLOTS:
             QVERIFY(s.cells.cellCount() <= 10000);
             // What was read can be used: every formula and text it holds is reachable.
             SharedStrings none;
-            s.cells.forEach([&](const Cell &c) {
+            s.cells.forEach([&](quint32, quint32, const Cell &c) {
                 s.formulaText(c);
                 s.text(c, none);
                 s.formulaRange(c);
