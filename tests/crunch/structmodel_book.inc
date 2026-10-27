@@ -183,7 +183,11 @@ QByteArray baseWorkbook()
         vml += QStringLiteral("</xml>");
         w.addPart(commentsName, comments.toUtf8(), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"));
         w.addPart(vmlName, vml.toUtf8(), QString());
-        return QPair<QString, QString>(w.addRelationship(sheetPart, kRelBase + "comments", commentsName), w.addRelationship(sheetPart, kRelBase + "vmlDrawing", vmlName));
+        // (one at a time: the order of a call's arguments is not fixed in C++, and the ids are given in the order they are added; the drawing's comes
+        // first, as the golden digests were made)
+        const QString vmlId = w.addRelationship(sheetPart, kRelBase + "vmlDrawing", vmlName);
+        const QString commentsId = w.addRelationship(sheetPart, kRelBase + "comments", commentsName);
+        return QPair<QString, QString>(commentsId, vmlId);
     };
     // Data's rels: comments, vml, the drawing, and the table
     const auto dataNotes = notes(dataPart, 1, {{QStringLiteral("A3"), QStringLiteral("first note")}, {QStringLiteral("A4"), QStringLiteral("second note")}});

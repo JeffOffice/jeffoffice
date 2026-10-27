@@ -1655,14 +1655,7 @@ Result run(const std::vector<Step> &steps, const Options &options)
             jp::readZip(bytes, parts);
             quint64 all = 1469598103934665603ull;
             for (auto it = parts.constBegin(); it != parts.constEnd(); ++it) {
-                // (a sheet's widths and heights come from measured text where the steps fit them, and text measures a little differently on each
-                // system: they are left out of the digest, which is of the file's structure; the model's own state compares the sizes)
-                QByteArray body = it.value();
-                if (it.key().startsWith(QLatin1String("xl/worksheets/"))) {
-                    static const QRegularExpression measured(QStringLiteral(" (width|ht)=\"[^\"]*\""));
-                    body = QString::fromUtf8(body).remove(measured).toUtf8();
-                }
-                const quint64 h = fnv(body);
+                const quint64 h = fnv(it.value());
                 if (it.value().size() < 4096) result.smallParts[it.key()] = it.value();
                 all = fnv(it.key(), all);
                 all = fnv(QByteArray::number(h, 16), all);
