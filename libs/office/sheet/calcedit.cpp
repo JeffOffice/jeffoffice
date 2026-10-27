@@ -470,11 +470,14 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     SheetState &st = m_state[size_t(e.sheet)];
     // (cells shifted one by one get new ids: a formula among them has its node told which cell it is in, the window's value for it is moved, and a value told for it before, if one is in flight, is
     // let go of and the formula worked out again then; nothing is worked out again for a formula that has no value on its way)
+    const bool stamping = resultsInFlight();   // (the worker is held: what is in flight does not change while the cells move)
     auto onFormulaMoved = [&](const PlacedCell &before, const PlacedCell &after) {
         rec->shifted.push_back({before.cell.rowId, quint32(before.cell.colId), after.cell.rowId, quint32(after.cell.colId)});
-        const Target redo{after.cell.rowId, quint32(after.cell.colId), true};
-        stampCell(e.sheet, before.cell.rowId, before.cell.colId, redo);
-        stampCell(e.sheet, after.cell.rowId, after.cell.colId, redo);
+        if (stamping) {
+            const Target redo{after.cell.rowId, quint32(after.cell.colId), true};
+            stampCell(e.sheet, before.cell.rowId, before.cell.colId, redo);
+            stampCell(e.sheet, after.cell.rowId, after.cell.colId, redo);
+        }
         if (!after.cell.hasFormula() || after.cell.formula < 0 || size_t(after.cell.formula) >= st.nodeOf.size()) return;
         const quint32 id = st.nodeOf[size_t(after.cell.formula)];
         if (id == kNone) return;
