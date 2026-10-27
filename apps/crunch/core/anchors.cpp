@@ -173,7 +173,6 @@ std::shared_ptr<AnchorDelta> CellAnchors::followEdit(const StructEdit &edit, con
         // the links: those that move are changed in place, and those that go are taken out (a link that goes to another sheet goes to the end of that sheet's)
         delta->linkCounts[sheet] = d.links.size();
         std::vector<LinkSpec> kept;
-        bool any = false;
         for (size_t i = 0; i < d.links.size(); ++i) {
             LinkSpec &l = d.links[i];
             LinkSpec moved = l;
@@ -193,7 +192,6 @@ std::shared_ptr<AnchorDelta> CellAnchors::followEdit(const StructEdit &edit, con
                 kept.push_back(std::move(l));
                 continue;
             }
-            any = true;
             AnchorDelta::Link change;
             change.sheet = sheet;
             change.index = i;
@@ -210,7 +208,7 @@ std::shared_ptr<AnchorDelta> CellAnchors::followEdit(const StructEdit &edit, con
             }
             delta->links.push_back(std::move(change));
         }
-        if (any) d.links = std::move(kept);
+        d.links = std::move(kept);   // (the links that stayed were moved into `kept`: it is the list, whether or not another link moved)
         // the ranges marked as changed
         std::vector<std::pair<RangeKey, RangeKey>> touchedMoves;
         std::vector<RangeKey> touchedGone;

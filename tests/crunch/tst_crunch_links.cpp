@@ -421,6 +421,26 @@ private Q_SLOTS:
         QCOMPARE(second.w.session()->anchors().links(0).size(), size_t(5));
     }
 
+    // An edit that moves none of the links leaves them whole: what a link says (its address, its place, its text) is not lost.
+    void anEditThatMovesNoLinkKeepsWhatTheyAre()
+    {
+        EditWindow e;
+        QVERIFY(e.open(linksBook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->insertRows(0, 9, 2).ok);   // (below every link)
+        QCOMPARE(s->anchors().linkAt(0, 0, 0)->target, QStringLiteral("https://example.org/first"));
+        QCOMPARE(s->anchors().linkAt(0, 0, 0)->tip, QStringLiteral("The first page"));
+        QCOMPARE(s->anchors().linkAt(0, 0, 1)->location, QStringLiteral("Sheet2!C2"));
+        QCOMPARE(s->anchors().linkAt(0, 1, 3)->target, QStringLiteral("mailto:a@example.org"));
+        QVERIFY(s->deleteColumns(0, 8, 1).ok);   // (and to the right of them)
+        QCOMPARE(s->anchors().linkAt(0, 0, 3)->target, QStringLiteral("data/report.pdf"));
+        QCOMPARE(s->anchors().linkAt(0, 0, 1)->location, QStringLiteral("Sheet2!C2"));
+        e.win.w.undoStack()->undo();
+        e.win.w.undoStack()->undo();
+        QCOMPARE(s->anchors().links(0).size(), size_t(4 + 1));
+        QCOMPARE(s->anchors().linkAt(0, 0, 0)->target, QStringLiteral("https://example.org/first"));
+    }
+
     void theLinkDialogRefusesWhatCannotBeALink()
     {
         LinkRequest req;
