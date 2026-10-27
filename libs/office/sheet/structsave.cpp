@@ -120,6 +120,32 @@ bool followCell(const MoveContext &c, int sheet, quint32 *row, quint32 *col)
     return true;
 }
 
+// A range (a link's) after all the edits and the putting of cells in another order: the edits one by one, and a range that is one cell when cells are put in another order goes with its cell
+// (as the cells of a link on one cell do). False if it is gone.
+bool followLinkRange(const MoveContext &c, int sheet, CellRange *r)
+{
+    size_t next = 0;
+    auto permutesBefore = [&](size_t edit) {
+        for (; next < c.permutes.size() && c.permutes[next].after <= edit; ++next) {
+            const CellPermute &p = c.permutes[next];
+            if (p.sheet != sheet || r->row1 != r->row2 || r->col1 != r->col2) continue;
+            quint32 &line = p.columns ? r->col1 : r->row1;
+            const quint32 other = p.columns ? r->row1 : r->col1;
+            if (other < p.otherFirst || other > p.otherLast || line < p.first || line - p.first >= p.to.size()) continue;
+            line = p.to[line - p.first];
+            r->row2 = r->row1;
+            r->col2 = r->col1;
+        }
+    };
+    size_t i = 0;
+    for (const StructEdit &e : c.edits) {
+        permutesBefore(i++);
+        if (!adjustRange(e, sheet, r)) return false;
+    }
+    permutesBefore(i);
+    return true;
+}
+
 // What names a sheet that was renamed or deleted, after the edits.
 QString followSheetOps(QString f, const MoveContext &c, bool definedName)
 {
@@ -539,9 +565,13 @@ QByteArray movedTop(const QByteArray &xml, const Elem &e, const MoveContext &c, 
             if (found && now.isEmpty()) return QByteArray();
             // (a link on one cell goes with the cell when cells were put in another order)
             quint32 linkRow = 0, linkCol = 0;
+            CellRange block;
             if (found && !c.permutes.empty() && parseCellRef(ref, &linkRow, &linkCol)) {
                 if (!followCell(c, sheet, &linkRow, &linkCol)) return QByteArray();
                 now = cellName(linkRow, linkCol);
+            } else if (found && !c.permutes.empty() && parseRangeRef(ref, &block)) {
+                if (!followLinkRange(c, sheet, &block)) return QByteArray();
+                now = block.row1 == block.row2 && block.col1 == block.col2 ? cellName(block.row1, block.col1) : rangeName(block);
             }
             if (found && now != ref) setAttribute(&open, "ref", xmlscan::escapeAttribute(now));
             bool hasLocation = false;

@@ -184,6 +184,29 @@ private Q_SLOTS:
         QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
     }
 
+    // A page break before the first row or column is no break (the file cannot hold one): it is refused, so that what is kept is what is saved.
+    void aBreakBeforeTheFirstRowOrColumnIsRefused()
+    {
+        EditWindow e;
+        QVERIFY(e.open(printBook()));
+        crunch::EditSession *session = e.win.w.session();
+        PageSetup setup = session->pages().sheet(0);
+        jp::office::sheet::PageBreak first;
+        first.before = 0;
+        first.max = 16383;
+        setup.rowBreaks.append(first);
+        QVERIFY(!session->setPageSetup(0, setup, QStringLiteral("Break")).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        setup = session->pages().sheet(0);
+        first.max = 1048575;
+        setup.colBreaks.append(first);
+        QVERIFY(!session->setPageSetup(0, setup, QStringLiteral("Break")).ok);
+        first.before = 2;
+        setup = session->pages().sheet(0);
+        setup.rowBreaks.append(first);
+        QVERIFY(session->setPageSetup(0, setup, QStringLiteral("Break")).ok);
+    }
+
     // A change to how a sheet prints is one step: Undo puts it back, Redo does it again, and the window says it has changes; the same setup is no step.
     void aPageChangeIsOneStepOfUndo()
     {

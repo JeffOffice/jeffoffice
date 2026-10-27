@@ -123,6 +123,9 @@ std::shared_ptr<AnchorDelta> CellAnchors::followEdit(const StructEdit &edit, con
     if (edit.kind == K::Offset) return nullptr;
     std::set<int> sheets = {edit.sheet};
     if (edit.kind == K::Move) sheets.insert(edit.toSheet);
+    // (the links of the other sheets follow too, for the places they name; their notes and cells are not on the edit's sheets)
+    const std::set<int> editSheets = sheets;
+    for (int i = 0; i < int(m_sheets.size()); ++i) sheets.insert(i);
     auto delta = std::make_shared<AnchorDelta>();
     delta->saves = m_saves;
     struct Landing {
@@ -144,7 +147,9 @@ std::shared_ptr<AnchorDelta> CellAnchors::followEdit(const StructEdit &edit, con
             bool gone;
         };
         std::vector<Change> changes;
+        const bool onEditSheet = editSheets.count(sheet) > 0;
         for (const auto &n : d.notes) {
+            if (!onEditSheet) break;
             int s = sheet;
             quint32 row = quint32(n.first >> 32), col = quint32(n.first & 0xFFFFFFFFu);
             const RefFate fate = adjustCell(edit, &s, &row, &col);
@@ -159,6 +164,7 @@ std::shared_ptr<AnchorDelta> CellAnchors::followEdit(const StructEdit &edit, con
         // the cells marked as changed since the file was read or saved
         std::vector<Change> touchedChanges;
         for (const quint64 k : d.noteTouched) {
+            if (!onEditSheet) break;
             int s = sheet;
             quint32 row = quint32(k >> 32), col = quint32(k & 0xFFFFFFFFu);
             const RefFate fate = adjustCell(edit, &s, &row, &col);
