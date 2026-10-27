@@ -122,10 +122,10 @@ QString CrunchWindow::htmlOfClip(const ClipData &clip) const
             const grid::Cell *cell = gs.cellAt(row, col);
             QString text, style;
             if (cell) {
-                text = gs.textOf(*cell).toHtmlEscaped();
+                text = gs.textOf(row, col, *cell).toHtmlEscaped();
                 text.replace(QLatin1Char('\n'), QStringLiteral("<br>"));
                 const grid::CellLook &look = gs.looks().look(cell->style);
-                if (gs.valueOf(*cell).isNumber()) style += QStringLiteral("text-align:right;");
+                if (gs.valueOf(row, col, *cell).isNumber()) style += QStringLiteral("text-align:right;");
                 if (look.bold) style += QStringLiteral("font-weight:bold;");
                 if (look.italic) style += QStringLiteral("font-style:italic;");
                 if (look.pattern == jp::office::sheet::PatternKind::Solid) style += QStringLiteral("background:%1;").arg(QColor::fromRgba(look.fg).name());
@@ -340,10 +340,10 @@ void CrunchWindow::widenForCells(int sheet, const CellRange &cells)
     for (quint32 col = cells.col1; col <= lastCol; ++col) {
         double need = 0;
         qint64 seen = 0;
-        m_view->sheet().data().sheet->cells.forEachInRange(cells.row1, col, cells.row2, col, [&](const jp::office::sheet::Cell &c) {
+        m_view->sheet().data().sheet->cells.forEachInRange(cells.row1, col, cells.row2, col, [&](quint32 cellRow, quint32 cellCol, const jp::office::sheet::Cell &c) {
             if (++seen > 20000) return false;
-            if (c.hasFormula() || !m_view->sheet().valueOf(c).isNumber()) return true;
-            need = std::max(need, m_view->sheet().fitWidthOfCell(c.row, c.col));
+            if (c.hasFormula() || !m_view->sheet().valueOf(cellRow, cellCol, c).isNumber()) return true;
+            need = std::max(need, m_view->sheet().fitWidthOfCell(cellRow, cellCol));
             return true;
         });
         if (need > 0 && need * mdw > m_view->sheet().columnWidth(col) + 0.5) m_session->widenColumnWithEntry(sheet, col, need);

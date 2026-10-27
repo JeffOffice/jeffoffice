@@ -70,13 +70,13 @@ ClipData EditSession::copyCells(int sheet, const CellRange &range, bool cut) con
     d.rows = quint32(rows);
     d.cols = quint32(cols);
     const QLocale usual(QLocale::English, QLocale::UnitedStates);
-    s.cells.forEachInRange(range.row1, range.col1, lastRow, lastCol, [&](const Cell &c) {
+    s.cells.forEachInRange(range.row1, range.col1, lastRow, lastCol, [&](quint32 row, quint32 col, const Cell &c) {
         ClipCell cc;
-        cc.dRow = c.row - range.row1;
-        cc.dCol = c.col - range.col1;
-        cc.content = calc->content(sheet, c.row, c.col);
+        cc.dRow = row - range.row1;
+        cc.dCol = col - range.col1;
+        cc.content = calc->content(sheet, row, col);
         if (!cc.content.exists) return true;
-        cc.shown = valueAt(sheet, c.row, c.col);
+        cc.shown = valueAt(sheet, row, col);
         if (!cc.content.editable && !cc.content.isFormula) cc.content.value = cc.shown;   // (a cell of an array holds the result)
         // a formula the format hides on a protected sheet is not given away by copying: what is copied is what it is worth
         if (cc.content.isFormula && formulaHidden(sheet, cc.content.style)) {

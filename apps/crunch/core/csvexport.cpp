@@ -11,10 +11,10 @@ CsvExport::CsvExport(const jp::grid::GridSheet *sheet, QChar separator) : m_shee
 {
     // the last row and column that hold something
     if (const jp::office::sheet::Sheet *s = sheet->data().sheet) {
-        s->cells.forEach([&](const Cell &c) {
+        s->cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
             if (c.type == CellType::Empty && !c.hasFormula()) return;
-            m_lastRow = std::max<qint64>(m_lastRow, c.row);
-            m_lastCol = std::max<qint64>(m_lastCol, c.col);
+            m_lastRow = std::max<qint64>(m_lastRow, cellRow);
+            m_lastCol = std::max<qint64>(m_lastCol, cellCol);
         });
     }
 }
@@ -64,9 +64,9 @@ bool CsvExport::step(qint64 budget)
     qint64 looked = 0;
     while (s && m_row <= m_lastRow) {
         qint64 seps = 0;
-        s->cells.forEachInRange(quint32(m_row), 0, quint32(m_row), quint32(m_lastCol), [&](const Cell &c) {
-            for (; seps < qint64(c.col); ++seps) m_buffer += sep;
-            if (c.type != CellType::Empty || c.hasFormula()) field(m_sheet->textOf(c));
+        s->cells.forEachInRange(quint32(m_row), 0, quint32(m_row), quint32(m_lastCol), [&](quint32, quint32 col, const Cell &c) {
+            for (; seps < qint64(col); ++seps) m_buffer += sep;
+            if (c.type != CellType::Empty || c.hasFormula()) field(m_sheet->textOf(quint32(m_row), col, c));
             ++looked;
             return true;
         });

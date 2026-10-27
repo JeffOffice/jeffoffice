@@ -258,8 +258,8 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
         const bool vertical = e.kind == K::InsertCellsDown || e.kind == K::DeleteCellsUp;
         const quint32 r1 = e.row1, c1 = e.col1;
         const quint32 r2 = vertical ? kMaxRows - 1 : e.row2, c2 = vertical ? e.col2 : kMaxColumns - 1;
-        s.cells.forEachInRange(r1, c1, r2, c2, [&](const Cell &c) {
-            mark(keyOf(e.sheet, c.row, c.col));
+        s.cells.forEachInRange(r1, c1, r2, c2, [&](quint32 row, quint32 col, const Cell &c) {
+            mark(keyOf(e.sheet, row, col));
             return true;
         });
     };
@@ -297,8 +297,8 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
             // the places of the block and of what it went over are written whole: those that held cells, and the cells now in the new place
             for (const Calculation::EditRecord::GoneCell &g : sc->record.gone) mark(keyOf(g.sheet, g.row, g.col));
             const quint32 toRow2 = edit.toRow + (edit.row2 - edit.row1), toCol2 = edit.toCol + (edit.col2 - edit.col1);
-            calc->sheet(edit.toSheet).cells.forEachInRange(edit.toRow, edit.toCol, toRow2, toCol2, [&](const Cell &c) {
-                mark(keyOf(edit.toSheet, c.row, c.col));
+            calc->sheet(edit.toSheet).cells.forEachInRange(edit.toRow, edit.toCol, toRow2, toCol2, [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
+                mark(keyOf(edit.toSheet, cellRow, cellCol));
                 return true;
             });
             m_mergesChanged.insert(edit.sheet);

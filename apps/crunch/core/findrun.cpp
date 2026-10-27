@@ -209,17 +209,17 @@ bool FindRun::walkSheet(Sweep &sw, const Segment &segment, qint64 budget, qint64
         if (r1 > r2 || c1 > c2) return true;
     }
     bool stopped = false;
-    auto visit = [&](const Cell &c) {
-        if (afterEnd(c.row, c.col)) {
+    auto visit = [&](quint32 row, quint32 col, const Cell &c) {
+        if (afterEnd(row, col)) {
             sw.ended = true;
             return false;
         }
-        sw.row = c.row;
-        sw.col = c.col;
+        sw.row = row;
+        sw.col = col;
         sw.started = true;
         ++m_looked;
         qint64 work = 1;
-        if (c.type != CellType::Empty || c.hasFormula()) work = look(sw.sheet, c.row, c.col, nullptr);
+        if (c.type != CellType::Empty || c.hasFormula()) work = look(sw.sheet, row, col, nullptr);
         if (m_stop) {
             sw.ended = true;
             return false;
@@ -232,14 +232,14 @@ bool FindRun::walkSheet(Sweep &sw, const Segment &segment, qint64 budget, qint64
         return true;
     };
     // the cells after the one the walk stands on (all of them if it stands on none yet, or on a place before the cells looked at), within the bounds
-    auto walkAfter = [&](const std::function<bool(const Cell &)> &f) {
+    auto walkAfter = [&](const std::function<bool(quint32, quint32, const Cell &)> &f) {
         if (!sw.started || sw.row < r1) {
             s.cells.forEachInRange(r1, c1, r2, c2, f);
             return;
         }
         bool more = true;
-        auto stopOnFalse = [&](const Cell &c) {
-            more = f(c);
+        auto stopOnFalse = [&](quint32 row, quint32 col, const Cell &c) {
+            more = f(row, col, c);
             return more;
         };
         if (sw.row <= r2) {
@@ -253,7 +253,7 @@ bool FindRun::walkSheet(Sweep &sw, const Segment &segment, qint64 budget, qint64
     if (stopped) {
         // (stopped on the very last cell: the sheet is done)
         bool more = false;
-        walkAfter([&](const Cell &) {
+        walkAfter([&](quint32, quint32, const Cell &) {
             more = true;
             return false;
         });
@@ -293,17 +293,17 @@ bool FindRun::walkColumns(Sweep &sw, const Segment &segment, qint64 budget, qint
         if (segment.hasEnd && col > segment.endCol) return true;
         if (rowFrom > r2) continue;
         bool stopped = false, over = false;
-        s.cells.forEachInRange(rowFrom, col, r2, col, [&](const Cell &c) {
-            if (segment.hasEnd && col == segment.endCol && c.row > segment.endRow) {
+        s.cells.forEachInRange(rowFrom, col, r2, col, [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
+            if (segment.hasEnd && col == segment.endCol && cellRow > segment.endRow) {
                 over = true;
                 return false;
             }
-            sw.row = c.row;
-            sw.col = c.col;
+            sw.row = cellRow;
+            sw.col = cellCol;
             sw.started = true;
             ++m_looked;
             qint64 work = 1;
-            if (c.type != CellType::Empty || c.hasFormula()) work = look(sw.sheet, c.row, c.col, nullptr);
+            if (c.type != CellType::Empty || c.hasFormula()) work = look(sw.sheet, cellRow, cellCol, nullptr);
             if (m_stop) return false;
             *looked += work;
             if (budget && *looked >= budget) {
