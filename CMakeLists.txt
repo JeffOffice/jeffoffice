@@ -241,6 +241,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_fn_text.cpp
   tests/sheet/tst_sheet_formats.cpp
   tests/sheet/tst_sheet_graph.cpp
+  tests/sheet/tst_sheet_linemap.cpp
   tests/sheet/tst_sheet_formulas.cpp
   tests/sheet/tst_sheet_limits.cpp
   tests/sheet/tst_sheet_look.cpp
