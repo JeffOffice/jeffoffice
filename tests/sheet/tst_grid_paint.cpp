@@ -81,31 +81,31 @@ struct Fixture {
     }
     void text(quint32 row, quint32 col, const QString &t, quint32 style = 0)
     {
-        Cell c;
+        PlacedCell c;
         c.row = row;
         c.col = quint16(col);
-        c.type = CellType::InlineString;
-        c.number = sheet.texts.size();
-        c.style = style;
+        c.cell.type = CellType::InlineString;
+        c.cell.number = sheet.texts.size();
+        c.cell.style = style;
         sheet.texts.append(t);
         sheet.cells.add(c);
     }
     void number(quint32 row, quint32 col, double v, quint32 style = 0)
     {
-        Cell c;
+        PlacedCell c;
         c.row = row;
         c.col = quint16(col);
-        c.type = CellType::Number;
-        c.number = v;
-        c.style = style;
+        c.cell.type = CellType::Number;
+        c.cell.number = v;
+        c.cell.style = style;
         sheet.cells.add(c);
     }
     void blank(quint32 row, quint32 col, quint32 style)
     {
-        Cell c;
+        PlacedCell c;
         c.row = row;
         c.col = quint16(col);
-        c.style = style;
+        c.cell.style = style;
         sheet.cells.add(c);
     }
     void build()

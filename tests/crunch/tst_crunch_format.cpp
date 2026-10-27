@@ -164,7 +164,7 @@ private Q_SLOTS:
         }
         // a copy gives the text as shown
         e.win.w.setLocale(QLocale(QLocale::German, QLocale::Germany));
-        QCOMPARE(e.view()->sheet().textOf(*e.view()->sheet().cellAt(1, 1)), QStringLiteral("-1.234.567,89"));
+        QCOMPARE(e.view()->sheet().textOf(1, 1, *e.view()->sheet().cellAt(1, 1)), QStringLiteral("-1.234.567,89"));
     }
 
     // A font named by more than 31 characters is one the other program will not open a file for: the command is refused (31 is fine) and changes nothing.

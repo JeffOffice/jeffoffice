@@ -52,12 +52,12 @@ struct Page {
     }
     void cell(quint32 row, quint32 col, quint32 style = 0, double value = 1)
     {
-        Cell c;
+        PlacedCell c;
         c.row = row;
         c.col = quint16(col);
-        c.type = CellType::Number;
-        c.number = value;
-        c.style = style;
+        c.cell.type = CellType::Number;
+        c.cell.number = value;
+        c.cell.style = style;
         sheet.cells.add(c);
     }
     void open()
@@ -243,11 +243,11 @@ private Q_SLOTS:
     void errorsPrintAsTheSetupSays()
     {
         Page pg;
-        Cell c;
+        PlacedCell c;
         c.row = 0;
         c.col = 0;
-        c.type = CellType::Error;
-        c.number = double(int(CellError::Div0));
+        c.cell.type = CellType::Error;
+        c.cell.number = double(int(CellError::Div0));
         pg.sheet.cells.add(c);
         pg.open();
         const Cell *cell = pg.sheet.cells.find(0, 0);

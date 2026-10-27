@@ -58,8 +58,8 @@ bool readWith(const QByteArray &xml, bool skip, qint64 screenRows, Sheet *out, R
 QString describe(const Sheet &s)
 {
     QString out;
-    s.cells.forEach([&](const Cell &c) {
-        out += QStringLiteral("%1,%2 t%3 n%4 s%5 f%6 %7\n").arg(c.row).arg(c.col).arg(int(c.type)).arg(c.number).arg(c.style).arg(int(c.flags)).arg(s.formulaText(c));
+    s.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+        out += QStringLiteral("%1,%2 t%3 n%4 s%5 f%6 %7\n").arg(row).arg(col).arg(int(c.type)).arg(c.number).arg(c.style).arg(int(c.flags)).arg(s.formulaText(c));
         if (c.type == CellType::InlineString || c.type == CellType::FormulaString) out += s.texts.value(c.textIndex()) + QLatin1Char('\n');
     });
     for (const RowSpec &r : s.rowSpecs) out += QStringLiteral("row %1 h%2 hid%3 ch%4 cf%5 s%6\n").arg(r.row).arg(r.height).arg(r.hidden).arg(r.customHeight).arg(r.customFormat).arg(r.style);

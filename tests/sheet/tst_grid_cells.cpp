@@ -38,14 +38,14 @@ Shown show(const jp::calc::Value &v, const CellLook &look, double width)
     return showValue(v, look, jp::calc::DateSystem::Date1900, width, 7, kMeter);
 }
 
-Cell numberCell(quint32 row, quint32 col, double v, quint32 style = 0)
+PlacedCell numberCell(quint32 row, quint32 col, double v, quint32 style = 0)
 {
-    Cell c;
+    PlacedCell c;
     c.row = row;
     c.col = quint16(col);
-    c.type = CellType::Number;
-    c.number = v;
-    c.style = style;
+    c.cell.type = CellType::Number;
+    c.cell.number = v;
+    c.cell.style = style;
     return c;
 }
 
@@ -630,8 +630,8 @@ private Q_SLOTS:
         QCOMPARE(g.styleOf(4, 2, nullptr), 9u);   // the row's format wins over the column's
         QCOMPARE(g.styleOf(4, 0, nullptr), 9u);
         QCOMPARE(g.styleOf(8, 0, nullptr), 0u);
-        const Cell own = numberCell(4, 2, 1, 3);
-        QCOMPARE(g.styleOf(4, 2, &own), 3u);
+        const PlacedCell own = numberCell(4, 2, 1, 3);
+        QCOMPARE(g.styleOf(4, 2, &own.cell), 3u);
     }
 
     // The reach of the cells, from the sheet.
@@ -696,11 +696,11 @@ private Q_SLOTS:
     void showFormulasShowsTheFormulaOfFormulaCells()
     {
         Sheet sheet;
-        Cell constant = numberCell(0, 0, 5);
+        PlacedCell constant = numberCell(0, 0, 5);
         sheet.cells.add(constant);
-        Cell f = numberCell(0, 1, 10);
-        f.flags = jp::office::sheet::HasFormula;
-        f.formula = 0;
+        PlacedCell f = numberCell(0, 1, 10);
+        f.cell.flags = jp::office::sheet::HasFormula;
+        f.cell.formula = 0;
         sheet.cells.add(f);
         sheet.cells.finish();
         sheet.formulaTexts.append(QStringLiteral("A1*2"));
@@ -732,13 +732,13 @@ private Q_SLOTS:
     {
         Sheet sheet;
         sheet.texts = {QString(3000, QLatin1Char('x')) + QStringLiteral("\nend")};
-        Cell wide = numberCell(0, 0, 1234567.891, 1);
+        PlacedCell wide = numberCell(0, 0, 1234567.891, 1);
         sheet.cells.add(wide);
-        Cell longText;
+        PlacedCell longText;
         longText.row = 1;
         longText.col = 0;
-        longText.type = CellType::InlineString;
-        longText.number = 0;
+        longText.cell.type = CellType::InlineString;
+        longText.cell.number = 0;
         sheet.cells.add(longText);
         sheet.cells.finish();
         Styles styles;
@@ -756,8 +756,8 @@ private Q_SLOTS:
         g.setData(data);
         g.layout().cols.setSize(0, 30);
         QVERIFY(g.shown(0, 0, *g.cellAt(0, 0)).hashes);
-        QCOMPARE(g.textOf(*g.cellAt(0, 0)), QStringLiteral("1,234,567.89"));
-        const QString text = g.textOf(*g.cellAt(1, 0));
+        QCOMPARE(g.textOf(0, 0, *g.cellAt(0, 0)), QStringLiteral("1,234,567.89"));
+        const QString text = g.textOf(1, 0, *g.cellAt(1, 0));
         QCOMPARE(text.size(), 3004);
         QVERIFY(text.endsWith(QStringLiteral("\nend")));
         QVERIFY(g.shown(1, 0, *g.cellAt(1, 0)).text.size() <= 1024);
@@ -803,10 +803,10 @@ private Q_SLOTS:
         g.setData(d);
         const Cell *b1 = g.cellAt(0, 1);
         QVERIFY(b1);
-        QCOMPARE(g.valueOf(*b1).debug(), QStringLiteral("n:99"));   // (not worked out yet: what the file stored)
+        QCOMPARE(g.valueOf(0, 1, *b1).debug(), QStringLiteral("n:99"));   // (not worked out yet: what the file stored)
         QVERIFY(calc.recalculate().finished);
         g.invalidateTexts();
-        QCOMPARE(g.valueOf(*b1).debug(), QStringLiteral("n:10"));
+        QCOMPARE(g.valueOf(0, 1, *b1).debug(), QStringLiteral("n:10"));
         QCOMPARE(g.shown(0, 1, *b1).text, QStringLiteral("10"));
         // without a calculation, what the file stored
         GridData stored = d;
@@ -814,7 +814,7 @@ private Q_SLOTS:
         stored.sheet = &calc.sheet(0);
         GridSheet h;
         h.setData(stored);
-        QCOMPARE(h.valueOf(*b1).debug(), QStringLiteral("n:99"));
+        QCOMPARE(h.valueOf(0, 1, *b1).debug(), QStringLiteral("n:99"));
     }
 
     // The text a cell shows is made from what it shows: a text of millions of characters is cut before its line breaks are turned to spaces and its returns taken out, and what is

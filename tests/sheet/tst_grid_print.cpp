@@ -9,14 +9,14 @@ using namespace jp::grid;
 
 namespace {
 
-Cell numberAt(quint32 row, quint32 col, quint32 style = 0)
+PlacedCell numberAt(quint32 row, quint32 col, quint32 style = 0)
 {
-    Cell c;
+    PlacedCell c;
     c.row = row;
     c.col = quint16(col);
-    c.type = CellType::Number;
-    c.number = 1;
-    c.style = style;
+    c.cell.type = CellType::Number;
+    c.cell.number = 1;
+    c.cell.style = style;
     return c;
 }
 
@@ -253,14 +253,14 @@ private Q_SLOTS:
         quint32 lastRow = 0, lastCol = 0;
         qint64 rowsSeen = 0;
         quint32 previousRow = 0xFFFFFFFF;
-        sheet.cells.forEachRowTail([&](const Cell &cell) {
+        sheet.cells.forEachRowTail([&](quint32 cellRow, quint32 cellCol, const Cell &cell) {
             ++calls;
-            if (cell.row != previousRow) {
+            if (cellRow != previousRow) {
                 ++rowsSeen;
-                previousRow = cell.row;
-                lastRow = std::max(lastRow, cell.row);
+                previousRow = cellRow;
+                lastRow = std::max(lastRow, cellRow);
             }
-            lastCol = std::max<quint32>(lastCol, cell.col);
+            lastCol = std::max<quint32>(lastCol, cellCol);
             return true;
         });
         QCOMPARE(calls, qint64(3002));
@@ -269,9 +269,9 @@ private Q_SLOTS:
         QCOMPARE(lastCol, 199u);
         // asked to go back over a row until a cell is wanted: it does, and only that row
         qint64 steps = 0;
-        sheet.cells.forEachRowTail([&](const Cell &cell) {
+        sheet.cells.forEachRowTail([&](quint32 cellRow, quint32 cellCol, const Cell &cell) {
             ++steps;
-            return cell.row != 5001 || cell.col == 150;
+            return cellRow != 5001 || cellCol == 150;
         });
         QCOMPARE(steps, qint64(3001 + 50));
     }
@@ -693,18 +693,18 @@ private Q_SLOTS:
         f.styles.formats[1].border = 1;
         f.styles.formats[2].fill = 2;
         f.styles.formats[3].numFmtId = 10;
-        Cell c = numberAt(0, 0);
-        c.type = CellType::Empty;
-        Cell border = c, fill = c, plain = c;
+        PlacedCell c = numberAt(0, 0);
+        c.cell.type = CellType::Empty;
+        PlacedCell border = c, fill = c, plain = c;
         border.row = 20;
         border.col = 1;
-        border.style = 1;
+        border.cell.style = 1;
         fill.row = 10;
         fill.col = 12;
-        fill.style = 2;
+        fill.cell.style = 2;
         plain.row = 50;
         plain.col = 30;
-        plain.style = 3;
+        plain.cell.style = 3;
         f.sheet.cells.add(border);
         f.sheet.cells.add(fill);
         f.sheet.cells.add(plain);
@@ -745,9 +745,9 @@ private Q_SLOTS:
             if (border.left.style != BorderStyle::None || border.right.style != BorderStyle::None || border.top.style != BorderStyle::None || border.bottom.style != BorderStyle::None) shown.border = 1;
             f.styles.formats = {CellFormat(), shown};
             f.styles.cellXfs = {0, 0};
-            Cell c = numberAt(60, 40);
-            c.type = CellType::Empty;
-            c.style = 1;
+            PlacedCell c = numberAt(60, 40);
+            c.cell.type = CellType::Empty;
+            c.cell.style = 1;
             f.sheet.cells = CellStore();
             f.sheet.cells.add(numberAt(0, 0));
             f.sheet.cells.add(c);
@@ -853,7 +853,7 @@ private Q_SLOTS:
         Fixture f(0, 0);
         Sheet sheet;
         for (quint32 r = 0; r < 1000000; ++r) {
-            Cell e;
+            PlacedCell e;
             e.row = r;
             e.col = 0;
             sheet.cells.add(e);   // (empty, and no format: nothing to show)
@@ -968,20 +968,20 @@ private Q_SLOTS:
         for (quint32 r = 0; r < 700; ++r)
             for (quint32 c = 0; c <= r % 9; ++c) sheet.cells.add(numberAt(r * 3, c));   // (rows far apart, so there are many blocks)
         sheet.cells.finish();
-        auto key = [](const Cell &c) { return qint64(c.row) * 100 + c.col; };
+        auto key = [](quint32 row, quint32 col) { return qint64(row) * 100 + col; };
         QVector<qint64> whole, parts;
-        sheet.cells.forEachRowTail([&](const Cell &c) {
-            whole << key(c);
-            return c.col % 4 == 2;
+        sheet.cells.forEachRowTail([&](quint32 cellRow, quint32 cellCol, const Cell &) {
+            whole << key(cellRow, cellCol);
+            return cellCol % 4 == 2;
         });
         CellStore::RowTailCursor cursor;
         int calls = 0;
         for (;;) {
             qint64 steps = 0;
             ++calls;
-            const bool done = sheet.cells.forEachRowTailSome(&cursor, 30, &steps, [&](const Cell &c) {
-                parts << key(c);
-                return c.col % 4 == 2;
+            const bool done = sheet.cells.forEachRowTailSome(&cursor, 30, &steps, [&](quint32 cellRow, quint32 cellCol, const Cell &) {
+                parts << key(cellRow, cellCol);
+                return cellCol % 4 == 2;
             });
             QVERIFY(steps <= 30 + 9 + 1);
             if (done) break;

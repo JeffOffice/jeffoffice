@@ -502,7 +502,7 @@ void describe(Live &live, State *out)
     auto put = [&](const QString &key, const QString &text) { (*out)[key] = text; };
     for (int sheet = 0; sheet < calc->sheetCount(); ++sheet) {
         std::vector<std::pair<quint32, quint32>> cells;
-        calc->sheet(sheet).cells.forEach([&](const Cell &c) { cells.emplace_back(c.row, c.col); });
+        calc->sheet(sheet).cells.forEach([&](quint32 row, quint32 col, const Cell &c) { cells.emplace_back(row, col); });
         for (const auto &cell : cells) {
             const QString text = s->editText(sheet, cell.first, cell.second);
             const calc::Value v = s->valueAt(sheet, cell.first, cell.second);
@@ -625,13 +625,13 @@ QString storeDiffers(Live &live)
     const Calculation *calc = live.session()->calculation();
     for (int s = 0; s < calc->sheetCount(); ++s) {
         QString problem;
-        calc->sheet(s).cells.forEach([&](const Cell &c) {
+        calc->sheet(s).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
             if (!problem.isEmpty() || !(c.hasFormula() || (c.flags & ArrayMember))) return;
-            if (c.hasFormula() && calc->isCircular(s, c.row, c.col)) return;
+            if (c.hasFormula() && calc->isCircular(s, row, col)) return;
             calc::Value held;
-            const calc::Value now = calc->cell(s, c.row, c.col);
-            if (live.win->values().find(s, c.row, c.col, &held) && valueText(held) != valueText(now))
-                problem = QStringLiteral("%1 shows %2 and is %3").arg(placeName(s, int(c.row), int(c.col)), valueText(held), valueText(now));
+            const calc::Value now = calc->cell(s, row, col);
+            if (live.win->values().find(s, row, col, &held) && valueText(held) != valueText(now))
+                problem = QStringLiteral("%1 shows %2 and is %3").arg(placeName(s, int(row), int(col)), valueText(held), valueText(now));
         });
         if (!problem.isEmpty()) return problem;
     }
@@ -1311,9 +1311,9 @@ QSet<QString> circleTaint(Live &live)
     std::vector<Cellular> all;
     bool any = false;
     for (int s = 0; s < calc->sheetCount(); ++s)
-        calc->sheet(s).cells.forEach([&](const Cell &c) {
+        calc->sheet(s).cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
             if (!c.hasFormula()) return;
-            Cellular f{s, c.row, c.col, {}, calc->isCircular(s, c.row, c.col), false};
+            Cellular f{s, cellRow, cellCol, {}, calc->isCircular(s, cellRow, cellCol), false};
             any = any || f.tainted;
             all.push_back(std::move(f));
         });
@@ -1351,8 +1351,8 @@ QString graphMisses(Live &live, qint64 *formulas, qint64 *reads, bool fakeRead)
     const Calculation *calc = live.session()->calculation();
     for (int s = 0; s < calc->sheetCount(); ++s) {
         std::vector<std::pair<quint32, quint32>> cells;
-        calc->sheet(s).cells.forEach([&](const Cell &c) {
-            if (c.hasFormula()) cells.emplace_back(c.row, c.col);
+        calc->sheet(s).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+            if (c.hasFormula()) cells.emplace_back(row, col);
         });
         for (const auto &cell : cells) {
             const Calculation::CellContent content = calc->content(s, cell.first, cell.second);

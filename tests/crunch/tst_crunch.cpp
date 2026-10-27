@@ -165,7 +165,7 @@ private Q_SLOTS:
         QCOMPARE(win.w.formulaBar()->text(), QStringLiteral("=SUM(B3:B8)"));
         const grid::Cell *b9 = v->sheet().cellAt(8, 1);
         QVERIFY(b9);
-        QCOMPARE(v->sheet().valueOf(*b9).debug(), QStringLiteral("n:1155"));
+        QCOMPARE(v->sheet().valueOf(8, 1, *b9).debug(), QStringLiteral("n:1155"));
         QCOMPARE(v->sheet().shown(8, 1, *b9).text, QStringLiteral("$1,155.00"));
         // B11 = C9/B9 - 1, as a percent
         const grid::Cell *b11 = v->sheet().cellAt(10, 1);
@@ -178,7 +178,7 @@ private Q_SLOTS:
         QSignalSpy done(&win.w, &CrunchWindow::calculationFinished);
         win.w.act("formulas.calculate")->trigger();
         QVERIFY(done.wait(20000));
-        QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(8, 1)).debug(), QStringLiteral("n:1155"));
+        QCOMPARE(v->sheet().valueOf(8, 1, *v->sheet().cellAt(8, 1)).debug(), QStringLiteral("n:1155"));
     }
 
     // A file that is not a workbook is said to be unreadable, and the window stays empty and ready for another.
@@ -572,7 +572,7 @@ private Q_SLOTS:
         for (int k = 0; k < formulas.size(); ++k) {
             const grid::Cell *c = v->sheet().cellAt(quint32(k), 3);
             QVERIFY2(c, qPrintable(formulas[k]));
-            QVERIFY2(v->sheet().valueOf(*c).debug() == want[k], qPrintable(QStringLiteral("%1 is %2, not %3").arg(formulas[k], v->sheet().valueOf(*c).debug(), want[k])));
+            QVERIFY2(v->sheet().valueOf(quint32(k), 3, *c).debug() == want[k], qPrintable(QStringLiteral("%1 is %2, not %3").arg(formulas[k], v->sheet().valueOf(quint32(k), 3, *c).debug(), want[k])));
         }
     }
 
@@ -605,12 +605,12 @@ private Q_SLOTS:
         for (int r = 0; r < 30; ++r) {
             const grid::Cell *c = win.w.view()->sheet().cellAt(quint32(r), 3);
             QVERIFY(c);
-            QVERIFY2(win.w.view()->sheet().valueOf(*c).isNumber() && win.w.view()->sheet().valueOf(*c).number() > 1000, qPrintable(QStringLiteral("row %1 is %2").arg(r + 1).arg(win.w.view()->sheet().valueOf(*c).debug())));
+            QVERIFY2(win.w.view()->sheet().valueOf(quint32(r), 3, *c).isNumber() && win.w.view()->sheet().valueOf(quint32(r), 3, *c).number() > 1000, qPrintable(QStringLiteral("row %1 is %2").arg(r + 1).arg(win.w.view()->sheet().valueOf(quint32(r), 3, *c).debug())));
         }
         // (and the one that makes 400 texts of 24,000 characters, which took a slice of 35 milliseconds)
         const grid::Cell *text = win.w.view()->sheet().cellAt(30, 3);
         QVERIFY(text);
-        QCOMPARE(win.w.view()->sheet().valueOf(*text).debug(), QStringLiteral("n:9600000"));
+        QCOMPARE(win.w.view()->sheet().valueOf(30, 3, *text).debug(), QStringLiteral("n:9600000"));
         // What the window did is told, and bounded by what was counted, not by how quick the machine is: no batch had more values than a batch holds (taking a batch costs in proportion
         // to them), and the formulas were worked out on another thread than the window's, so that no formula of any size could hold it up. The thread's time is only printed.
         qInfo() << "the longest turn of the event loop" << meter.longestMicros() << "microseconds, the longest batch" << win.w.longestBatchMicros() << "microseconds of the thread's time";
@@ -677,15 +677,15 @@ private Q_SLOTS:
         // a cell that was reached shows its result, in its text too; one that was not shows the stored -1
         const grid::Cell *first = v->sheet().cellAt(0, 1), *last = v->sheet().cellAt(n - 1, 1);
         QVERIFY(first && last);
-        QCOMPARE(v->sheet().valueOf(*first).debug(), QStringLiteral("n:2"));
+        QCOMPARE(v->sheet().valueOf(0, 1, *first).debug(), QStringLiteral("n:2"));
         QCOMPARE(v->sheet().shown(0, 1, *first).text, QStringLiteral("2"));
-        QCOMPARE(v->sheet().valueOf(*last).debug(), QStringLiteral("n:-1"));
+        QCOMPARE(v->sheet().valueOf(n - 1, 1, *last).debug(), QStringLiteral("n:-1"));
         // and Calculate Now works everything out again
         win.w.setWorkerPace(0);
         win.w.act("formulas.calculate")->trigger();
         QVERIFY(win.w.isCalculating());
         QVERIFY(done.wait(60000));
-        QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(n - 1, 1)).debug(), QStringLiteral("n:400000"));
+        QCOMPARE(v->sheet().valueOf(n - 1, 1, *v->sheet().cellAt(n - 1, 1)).debug(), QStringLiteral("n:400000"));
     }
 
     // While a calculation goes on, only the cells whose values changed are drawn again, and the numbers of a selection are worked out again only when one of its values changed.
@@ -722,7 +722,7 @@ private Q_SLOTS:
         QApplication::processEvents();
         QVERIFY(paints.paints >= 1);
         QVERIFY(stats.count() >= 1);
-        QCOMPARE(v->sheet().valueOf(*v->sheet().cellAt(100000, 3)).debug(), QStringLiteral("n:300003"));
+        QCOMPARE(v->sheet().valueOf(100000, 3, *v->sheet().cellAt(100000, 3)).debug(), QStringLiteral("n:300003"));
     }
 
     // Freezing panes freezes from where the view begins: scrolled down to row 31 with the cursor in row 36, the rows 31 to 35 are frozen, the part that scrolls begins at row 36, and rows 1

@@ -744,7 +744,7 @@ private Q_SLOTS:
         for (const quint32 r : {0u, 1u, 15000u, quint32(n - 1)}) {
             const grid::Cell *c = gs.cellAt(r, 1);
             QVERIFY(c);
-            QCOMPARE(gs.valueOf(*c).debug(), QStringLiteral("n:%1").arg((r + 1) * 2 + 5));
+            QCOMPARE(gs.valueOf(r, 1, *c).debug(), QStringLiteral("n:%1").arg((r + 1) * 2 + 5));
         }
     }
 
@@ -824,7 +824,7 @@ private Q_SLOTS:
         QVERIFY(win.w.isCalculating());
         QVERIFY(QTest::qWaitFor([&] { return !win.w.isCalculating(); }, 60000));
         const grid::GridSheet &gs = win.w.view()->sheet();
-        for (const quint32 r : {0u, 30000u, quint32(n - 1)}) QCOMPARE(gs.valueOf(*gs.cellAt(r, 1)).debug(), QStringLiteral("n:%1").arg((r + 1) * 2 + 9));
+        for (const quint32 r : {0u, 30000u, quint32(n - 1)}) QCOMPARE(gs.valueOf(r, 1, *gs.cellAt(r, 1)).debug(), QStringLiteral("n:%1").arg((r + 1) * 2 + 9));
     }
 
     // Edits one after the other, before the worker has worked out the first: all of them are worked out, and the window says it is calculating until the last is.
@@ -1070,7 +1070,7 @@ private Q_SLOTS:
             // and it opens with the same values
             Window second;
             QVERIFY(second.open(e.copyOfFile()));
-            QCOMPARE(second.w.view()->sheet().valueOf(*second.w.view()->sheet().cellAt(0, 2)).debug(), QStringLiteral("n:11"));
+            QCOMPARE(second.w.view()->sheet().valueOf(0, 2, *second.w.view()->sheet().cellAt(0, 2)).debug(), QStringLiteral("n:11"));
         }
     }
 
@@ -1164,7 +1164,7 @@ private Q_SLOTS:
         // and it opens in this program, with the same values
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
-        QCOMPARE(second.w.view()->sheet().valueOf(*second.w.view()->sheet().cellAt(0, 1)).debug(), QStringLiteral("n:200"));
+        QCOMPARE(second.w.view()->sheet().valueOf(0, 1, *second.w.view()->sheet().cellAt(0, 1)).debug(), QStringLiteral("n:200"));
     }
 
     // The next save writes what changed since the last, over the file the last wrote; and a workbook that is back where it was saved has nothing to save.

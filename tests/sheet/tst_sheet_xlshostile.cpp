@@ -56,9 +56,9 @@ QString useAll(const QByteArray &bytes, const Limits &limits = Limits(), bool ca
         if (sheet.mergeCount > limits.merges || sheet.columns.size() > limits.columnSpans || sheet.rowSpecs.size() > limits.rowSpecs) return QStringLiteral("more merges, columns, or rows than the limit");
         if (sheet.stats.formulaWork > limits.formulaWork + 4096 * 64) return QStringLiteral("more formula work than the limit");
         QString problem;
-        sheet.cells.forEach([&](const Cell &c) {
+        sheet.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
             if (!problem.isEmpty()) return;
-            if (c.row > 65535 || c.col > 255) problem = QStringLiteral("a cell outside the old form's sheet");
+            if (row > 65535 || col > 255) problem = QStringLiteral("a cell outside the old form's sheet");
             else if (c.hasFormula() && (c.formula < 0 || c.formula >= sheet.formulas.size())) problem = QStringLiteral("a formula cell with no formula");
             else if (c.hasFormula() && sheet.formulas[c.formula].text >= sheet.formulaTexts.size()) problem = QStringLiteral("a formula whose text is not there");
             else if (c.hasFormula()) (void)sheet.formulaText(c);
