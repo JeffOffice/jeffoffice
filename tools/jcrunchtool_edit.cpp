@@ -23,6 +23,7 @@
 //                                           time the window's thread takes to put the cell in (and the time it waits for the worker to let go), to draw it again, and the time the worker takes to
 //                                           the first values and to work out all that depends: the middle, the 95th percentile, the 99th, and the longest of each, by the thread's own processor time
 //                                           where there is one and by the wall's besides
+//   jcrunchtool edit-walk-bench <file.xlsx> [row edits=1000] [column edits=10]   the time to walk all the cells of the first sheet and from the end in slices, before and after those edits of rows and columns
 //   jcrunchtool edit-struct-bench <file.xlsx> <label> [only]   one row and one column inserted and deleted at the top, the middle, and the end of the used cells (and undone), each timed (the window's
 //                                           thread, the worker, the wall until it settles, the model's counted work, the texts made); one tab-separated line each (docs/jeffcrunch-rowids.md).
 //                                           JC_UNDO_MB raises the limit that makes a big step ask first. tools/crunch_struct_bench_make.py makes the workbooks. After the times and the counted work come the
@@ -1051,6 +1052,71 @@ void structureBench(CrunchWindow &w, int sheet)
     Q_UNUSED(wallv);
 }
 
+// How fast the cells of the first sheet are walked, whole (forEach) and from the end in slices (the print layout's walk), when no row or column has been edited and after `colEdits` columns and `rowEdits`
+// rows have been inserted and deleted at random places (the records are let go of at once, as a history that is trimmed lets go of them). One tab-separated line for each, best of three.
+int walkBench(const QString &path, int rowEdits, int colEdits, const QString &label)
+{
+    QString why;
+    Workbook book;
+    if (!book.openFile(path, &why)) {
+        err() << path << ": " << why << "\n";
+        return 1;
+    }
+    CalcOptions options;
+    options.keepApart = true;
+    Calculation calc(book, options);
+    if (!calc.load()) {
+        err() << "edit-walk-bench: the workbook did not load\n";
+        return 1;
+    }
+    const Sheet &s = calc.sheet(0);
+    auto resident = [] {
+        QFile f(QStringLiteral("/proc/self/status"));
+        if (!f.open(QIODevice::ReadOnly)) return qint64(-1);
+        for (const QByteArray &line : f.readAll().split('\n'))
+            if (line.startsWith("VmRSS:")) return line.mid(6).trimmed().split(' ').value(0).toLongLong() / 1024;
+        return qint64(-1);
+    };
+    out() << "label\twhen\tcells\tfor_each_ms\ttail_sliced_ms\tslices\tresident_mb\tchecksum\n";
+    auto measure = [&](const char *when) {
+        double each = 1e18, tail = 1e18;
+        qint64 slices = 0;
+        double sum = 0;
+        for (int rep = 0; rep < 3; ++rep) {
+            QElapsedTimer t;
+            t.start();
+            sum = 0;
+            s.cells.forEach([&](quint32 row, quint32 col, const Cell &c) { sum += c.number + double(row) + double(col); });
+            each = std::min(each, double(t.nsecsElapsed()) / 1e6);
+            t.restart();
+            CellStore::RowTailCursor cursor;
+            qint64 steps = 0;
+            slices = 0;
+            while (!s.cells.forEachRowTailSome(&cursor, steps + 100000, &steps, [&](quint32 row, quint32 col, const Cell &c) {
+                sum += c.number + double(row) + double(col);
+                return false;
+            }))
+                ++slices;
+            tail = std::min(tail, double(t.nsecsElapsed()) / 1e6);
+        }
+        out() << label << '\t' << when << '\t' << s.cells.cellCount() << '\t' << QString::number(each, 'f', 1) << '\t' << QString::number(tail, 'f', 1) << '\t' << slices << '\t' << resident() << '\t' << QString::number(sum, 'f', 0) << "\n";
+    };
+    measure("start");
+    QRandomGenerator rng(7);
+    const quint32 usedRows = std::max<quint32>(2, s.extentRows), usedCols = std::max<quint32>(2, s.extentCols);
+    QElapsedTimer edits;
+    edits.start();
+    auto edit = [&](const StructEdit &e) {
+        Calculation::EditRecord rec;
+        if (calc.applyEdit(e, &rec)) calc.forgetLines(&rec);
+    };
+    for (int i = 0; i < colEdits; ++i) edit(rng.bounded(2) ? StructEdit::insertColumns(0, rng.bounded(usedCols), 1) : StructEdit::deleteColumns(0, rng.bounded(usedCols), 1));
+    for (int i = 0; i < rowEdits; ++i) edit(rng.bounded(2) ? StructEdit::insertRows(0, rng.bounded(usedRows), 1) : StructEdit::deleteRows(0, rng.bounded(usedRows), 1));
+    out() << "# " << colEdits << " column edits and " << rowEdits << " row edits took " << edits.elapsed() << " ms\n";
+    measure("after edits");
+    return 0;
+}
+
 // One structural edit at a time on an open workbook, at the top, in the middle, and at the end of the used cells, for rows and for columns: for each, the window's thread (its own processor time,
 // from the call to the sheet drawn again, and the wall), the worker's processor time and the wall until it has settled, the counted work the model reports (cells and formulas looked at or
 // moved, texts made), and the same for the undo of the edit. `label` names the workbook in each line. One tab-separated line per case, after a header.
@@ -1723,6 +1789,7 @@ int editMain(const QStringList &args)
     if (!args.isEmpty() && args[0].startsWith(QLatin1String("model-"))) return ::jp::structmodel::command(args);
     if (args.size() >= 2 && args.size() <= 3 && args[0] == QLatin1String("edit-bench")) return editBench(args[1], args.value(2, QStringLiteral("200")).toInt(), 0, 0, 0);
     if (args.size() == 3 && args[0] == QLatin1String("edit-save-struct-bench")) return saveStructBench(args[1], args[2]);
+    if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("edit-walk-bench")) return walkBench(args[1], args.value(2, QStringLiteral("1000")).toInt(), args.value(3, QStringLiteral("10")).toInt(), QStringLiteral("walk"));
     if (args.size() >= 3 && args.size() <= 4 && args[0] == QLatin1String("edit-struct-bench")) return structBench(args[1], args[2], args.value(3));
     if (args.size() >= 1 && args.size() <= 5 && args[0] == QLatin1String("edit-bench-make"))
         return editBench(QString(), args.value(4, QStringLiteral("200")).toInt(), args.value(1, QStringLiteral("100000")).toInt(), args.value(2, QStringLiteral("20")).toInt(), args.value(3, QStringLiteral("0")).toInt());

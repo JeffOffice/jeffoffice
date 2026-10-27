@@ -76,6 +76,8 @@ struct Result {
     int checks = 0;
     qint64 msSteps = 0, msOpen = 0, msDescribe = 0, msGraph = 0;   // where the time went: the steps, opening the saved workbook, describing the states, and the graph check
     int modelChecks = 0;             // edits of whole rows or columns that were held to the second opinion
+    int lineEdits = 0;               // rows or columns inserted or deleted that the workbook took, and the cells the engine moved to make them (none: a cell is held by the id of its row and column)
+    qint64 lineEditCellsMoved = 0;
     qint64 graphFormulas = 0, graphReads = 0;   // formulas the graph check worked out again, and what they read
     QMap<QString, QByteArray> smallParts;   // the bytes of the parts under 4 KB, to show in a report when one differs
     quint64 partsDigest = 0;         // the parts of the file a save would write after the last step (their bytes), as 64 bits

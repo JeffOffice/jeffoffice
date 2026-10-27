@@ -715,6 +715,7 @@ int usage()
              "       jcrunchtool charts-roundtrip <in.xlsx> <out.xlsx>\n"
              "       jcrunchtool charts-insert <in.xlsx> <out.xlsx> <sheet> <range> <kind> [kind...]\n"
              "       jcrunchtool charts-shots <in.xlsx> <out-dir>\n"
+             "       jcrunchtool edit-walk-bench <file.xlsx> [row edits=1000] [column edits=10]\n"
              "       jcrunchtool model-check <seeds> <steps> [first seed] [every=n] [nograph] [noshrink]\n"
              "       jcrunchtool model-golden <steps> <seed>...\n"
              "       jcrunchtool model-replay <file>\n"

@@ -386,6 +386,140 @@ private Q_SLOTS:
         QVERIFY2(saved(QStringLiteral("xl/worksheets/sheet1.xml")).contains(QLatin1String("<hyperlink ref=\"A2\"")), "link back");
     }
 
+    // Rows and columns inserted and deleted change where cells are, not the cells: a sort, a fill, a paste, a cut and paste, and a copy of the sheet made after them give the cells at the places
+    // a person sees, and the file saved after them holds the same cells at the same places (read again in a window of its own).
+    void sortFillPasteCutAndSheetCopyAfterRowsAndColumnsWereInsertedAndDeleted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=5", "A2=3", "A3=9", "A4=1", "B1==A1*2", "B2==A2*2", "B3==A3*2", "B4==A4*2", "C1=a", "C2=b", "C3=c", "C4=d"})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->insertRows(0, 1, 2).ok);        // two blank rows after the first
+        QVERIFY(s->deleteColumns(0, 2, 1).ok);     // the text goes
+        QVERIFY(s->insertColumns(0, 0, 1).ok);     // a blank column in front: values in B, formulas in C
+        QVERIFY(s->deleteRows(0, 2, 1).ok);        // and one of the blank rows
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("B1:C5")), QStringLiteral("5|10|||3|6|9|18|1|2"));
+        // sorted: the formulas go with their rows
+        QVERIFY(sortWith(e, QStringLiteral("B3:C5"), byColumn(0)).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("B3:C5")), QStringLiteral("1|2|3|6|9|18"));
+        QCOMPARE(s->calculation()->content(0, 2, 2).formula, QStringLiteral("B3*2"));
+        // filled down: the formula of C5 into C6 and C7, which read the blank cells beside them
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("C5")), crunch::EditSession::FillDirection::Down, 2).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("C5:C7")), QStringLiteral("18|0|0"));
+        QCOMPARE(s->calculation()->content(0, 6, 2).formula, QStringLiteral("B7*2"));
+        // text pasted over cells that were never there
+        QVERIFY(s->pasteText(0, rangeOf(QStringLiteral("E2")), {{QStringLiteral("x"), QStringLiteral("y")}, {QStringLiteral("z"), QStringLiteral("w")}}, crunch::EditSession::PasteOptions()).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("E2:F3")), QStringLiteral("x|y|z|w"));
+        // cut and pasted lower down
+        QVERIFY(s->moveCells(0, rangeOf(QStringLiteral("B3:C5")), 0, 8, 1).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("B9:C11")), QStringLiteral("1|2|3|6|9|18"));
+        QCOMPARE(shown(e, QStringLiteral("B3:C5")), QStringLiteral("|||||"));
+        QCOMPARE(s->calculation()->content(0, 8, 2).formula, QStringLiteral("B9*2"));
+        // the sheet copied is the same cells at the same places
+        int made = -1;
+        QVERIFY(s->copySheet(0, 1, QStringLiteral("Copy"), &made).ok);
+        QVERIFY(e.settle());
+        QVERIFY(made >= 0);
+        QStringList original, copied;
+        s->calculation()->sheet(0).cells.forEach([&](quint32 row, quint32 col, const jp::office::sheet::Cell &c) { original << QStringLiteral("%1,%2:%3").arg(row).arg(col).arg(c.number); });
+        s->calculation()->sheet(made).cells.forEach([&](quint32 row, quint32 col, const jp::office::sheet::Cell &c) { copied << QStringLiteral("%1,%2:%3").arg(row).arg(col).arg(c.number); });
+        QVERIFY(!original.isEmpty());
+        QCOMPARE(copied, original);
+        // (the copy has none of the rows and columns that were deleted in the sheet it is of, and its order is whole again)
+        QVERIFY(s->calculation()->sheet(0).cells.deadCount() > 0);
+        QCOMPARE(s->calculation()->sheet(made).cells.deadCount(), qint64(0));
+        QVERIFY(s->calculation()->sheet(made).rows().isIdentity() && s->calculation()->sheet(made).cols().isIdentity());
+        // saved, and read again in a window of its own: the same cells at the same places, and the formulas as they read where they are
+        QSignalSpy done(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(done, 20000), "the save failed");
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        EditWindow again;
+        QVERIFY(again.open(f.readAll(), QStringLiteral("again.xlsx")));
+        QVERIFY(again.settle());
+        for (const char *range : {"A1:G13"}) QCOMPARE(shown(again, QString::fromLatin1(range)), shown(e, QString::fromLatin1(range)));
+        QCOMPARE(shown(again, QStringLiteral("B9:C11")), QStringLiteral("1|2|3|6|9|18"));
+        QCOMPARE(again.win.w.session()->calculation()->content(0, 8, 2).formula, QStringLiteral("B9*2"));
+        QCOMPARE(again.win.w.session()->calculation()->content(0, 6, 2).formula, QStringLiteral("B7*2"));
+        QCOMPARE(again.win.w.session()->calculation()->sheet(0).cells.cellCount(), s->calculation()->sheet(0).cells.cellCount());
+    }
+
+    // A long session of edits of columns on the edit session, with Undo and Redo of them, small limits for the order of the columns: none is refused, the order is compacted (the ids it took are
+    // given up) and Undo goes back over what came after, what the window shows after every step is what it showed before (Undo) or after (Redo) it, and what is held of dead columns does not grow.
+    void aLongSessionOfEditsOfColumnsIsCompactedAndNeverRefused()
+    {
+        EditWindow e;
+        QStringList specs;
+        for (int r = 1; r <= 4; ++r)
+            for (int c = 0; c < 6; ++c) specs << QStringLiteral("%1%2=%3").arg(QLatin1Char(char('A' + c))).arg(r).arg(r * 10 + c);
+        QVERIFY(e.open(sheetOf(specs)));
+        crunch::EditSession *s = e.win.w.session();
+        jp::calc::LineLimits cols = jp::calc::LineLimits::cols();
+        cols.idLimit = cols.firstNew + 120;
+        cols.rebaseRuns = 20;
+        cols.maxRuns = 300;
+        s->setLineLimitsForTest(0, jp::calc::LineLimits::rows(), cols);
+        auto read = [&] {
+            QStringList out;
+            for (quint32 c = 0; c < 14; ++c) out << e.valueAt(cellName(0, c)) + QLatin1Char('/') + e.valueAt(cellName(3, c));
+            return out.join(QLatin1Char(' '));
+        };
+        std::map<const QUndoCommand *, QString> before, after;
+        std::mt19937 rng(20261102);
+        int refused = 0, undos = 0, redos = 0, edits = 0, resets = 0;
+        quint32 lastNext = s->calculation()->sheet(0).cols().nextId().value();
+        qint64 mostDead = 0;
+        QUndoStack *stack = e.win.w.undoStack();
+        for (int i = 0; i < 500; ++i) {
+            QVERIFY(e.settle());
+            const int roll = int(rng() % 10);
+            if (roll < 2 && s->canUndo()) {
+                const QUndoCommand *c = stack->command(stack->index() - 1);
+                pressUndo(&e.win.w);
+                QVERIFY(e.settle());
+                QVERIFY2(before.count(c), "an undone step that was not made by this test");
+                QCOMPARE(read(), before[c]);
+                ++undos;
+            } else if (roll < 3 && stack->canRedo()) {
+                const QUndoCommand *c = stack->command(stack->index());
+                pressRedo(&e.win.w);
+                QVERIFY(e.settle());
+                QVERIFY2(after.count(c), "a redone step that was not made by this test");
+                QCOMPARE(read(), after[c]);
+                ++redos;
+            } else {
+                const QString was = read();
+                const bool insert = rng() % 2 == 0;
+                const quint32 at = rng() % 8;
+                const crunch::EditSession::Outcome o = insert ? s->insertColumns(0, at, 1) : s->deleteColumns(0, at, 1);
+                if (!o.ok) {
+                    ++refused;
+                    continue;
+                }
+                QVERIFY(e.settle());
+                const QUndoCommand *c = stack->command(stack->index() - 1);
+                before[c] = was;
+                after[c] = read();
+                ++edits;
+                const quint32 next = s->calculation()->sheet(0).cols().nextId().value();
+                if (next < lastNext) ++resets;
+                lastNext = next;
+            }
+            mostDead = std::max(mostDead, s->calculation()->sheet(0).cells.deadCount());
+        }
+        QCOMPARE(refused, 0);
+        QVERIFY2(edits > 150 && undos > 20 && redos > 5, qPrintable(QStringLiteral("%1 edits, %2 undos, %3 redos").arg(edits).arg(undos).arg(redos)));
+        QVERIFY2(resets >= 2, qPrintable(QString::number(resets)));        // (the order was compacted)
+        QVERIFY(s->calculation()->sheet(0).cols().nextId().value() <= cols.idLimit);
+        // (what is held of dead columns is what the steps that are held could bring back, and no more)
+        QVERIFY2(mostDead < 4 * 8 * 200, qPrintable(QString::number(mostDead)));
+    }
+
     void aBigSortIsPutInASliceAtATimeAndIsOneStep()
     {
         QStringList cells;

@@ -625,6 +625,12 @@ QString storeDiffers(Live &live)
     const Calculation *calc = live.session()->calculation();
     for (int s = 0; s < calc->sheetCount(); ++s) {
         QString problem;
+        // the cells held that are in rows or columns that are deleted, and the cells that are not, are what the store says (kept as the order is edited, and as steps are let go of)
+        const CellStore &store = calc->sheet(s).cells;
+        qint64 walked = 0;
+        store.forEach([&](quint32, quint32, const Cell &) { ++walked; });
+        if (walked != store.cellCount()) return QStringLiteral("%1 holds %2 live cells and says %3").arg(sheetNameOf(s)).arg(walked).arg(store.cellCount());
+        if (store.deadCountByScan() != store.deadCount()) return QStringLiteral("%1 holds %2 dead cells and says %3").arg(sheetNameOf(s)).arg(store.deadCountByScan()).arg(store.deadCount());
         calc->sheet(s).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
             if (!problem.isEmpty() || !(c.hasFormula() || (c.flags & ArrayMember))) return;
             if (c.hasFormula() && calc->isCircular(s, row, col)) return;
@@ -1601,7 +1607,12 @@ Result run(const std::vector<Step> &steps, const Options &options)
             live = std::move(next);
             didSomething = true;
         } else {
+            const qint64 movedBefore = live->session()->calculation()->editStats().cellsMoved;
             const crunch::EditSession::Outcome o = execute(*live, st, &didSomething);
+            if (didSomething && (st.kind == Step::InsertRows || st.kind == Step::DeleteRows || st.kind == Step::InsertColumns || st.kind == Step::DeleteColumns)) {
+                ++result.lineEdits;
+                result.lineEditCellsMoved += live->session()->calculation()->editStats().cellsMoved - movedBefore;
+            }
             if (!o.ok) result.stepsText.back() += QStringLiteral("  [refused: %1]").arg(o.problem.left(60));
             else if (!didSomething && (st.kind == Step::Undo || st.kind == Step::Redo || st.kind == Step::Save)) result.stepsText.back() += QStringLiteral("  [nothing to do]");
             if (!o.ok && st.kind != Step::Undo && st.kind != Step::Redo && st.kind != Step::Save && st.kind != Step::Reopen) ++result.refused;

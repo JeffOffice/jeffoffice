@@ -14,6 +14,52 @@ using namespace jp::office::sheet;
 using jp::calc::Value;
 using jp::grid::ValueStore;
 
+StructChange::~StructChange()
+{
+    if (!drops || record.lines.edit.runs.empty()) return;
+    Calculation::EditRecord kept;
+    kept.edit = edit;
+    kept.sheet = edit.sheet;
+    kept.lines = std::move(record.lines);
+    std::lock_guard<std::mutex> guard(drops->lock);
+    drops->records.push_back(std::move(kept));
+}
+
+void EditSession::letGoOfLines(Calculation *calc)
+{
+    std::vector<Calculation::EditRecord> list;
+    {
+        std::lock_guard<std::mutex> guard(m_lineDrops->lock);
+        list.swap(m_lineDrops->records);
+    }
+    // (the newest first: the ids an insert took are given back when it is the last to have taken any)
+    std::sort(list.begin(), list.end(), [](const Calculation::EditRecord &a, const Calculation::EditRecord &b) { return a.lines.edit.after > b.lines.edit.after; });
+    for (Calculation::EditRecord &r : list) calc->forgetLines(&r);
+}
+
+void EditSession::setLineLimitsForTest(int sheet, const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols)
+{
+    if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) hold->calculation()->setLineLimitsForTest(sheet, rows, cols);
+}
+
+void EditSession::compactLinesFor(const StructEdit &edit)
+{
+    using K = StructEdit::Kind;
+    const bool rows = edit.kind == K::InsertRows || edit.kind == K::DeleteRows;
+    if (!rows && edit.kind != K::InsertColumns && edit.kind != K::DeleteColumns) return;
+    {
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) return;
+        letGoOfLines(hold->calculation());
+        if (!hold->calculation()->linesNeedCompaction(edit)) return;
+    }
+    forgetLineSteps(edit.sheet, rows);
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold) return;
+    letGoOfLines(hold->calculation());
+    hold->calculation()->compactLines(edit.sheet, rows);
+}
+
 qint64 StructChange::bytes() const
 {
     qint64 n = qint64(sizeof(*this));
@@ -74,6 +120,7 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
 {
     Outcome out;
     QString why;
+    compactLinesFor(edit);
     if (!canMove(edit, &why)) {
         out.ok = false;
         out.problem = why;
@@ -100,6 +147,7 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
     m_bigStepAllowed = false;
     Step step;
     step.structure = std::make_shared<StructChange>();
+    step.structure->drops = m_lineDrops;
     step.structure->edit = edit;
     pushStep(std::move(step), text);
     if (big) {
@@ -380,7 +428,12 @@ bool EditSession::applyStructure(Step *step, bool forward)
     bool ok;
     Calculation::EditRecord undone;   // what undoing did to the cells (the record of the edit it made)
     if (forward) {
+        // (an edit done again after Undo brings back the rows or columns it made, not new ones)
+        Calculation::EditRecord previous = std::move(sc.record);
         sc.record = Calculation::EditRecord();
+        sc.record.lines = std::move(previous.lines);
+        sc.record.edit = previous.edit;
+        sc.record.sheet = previous.sheet;
         ok = calc->applyEdit(sc.edit, &sc.record);
         if (ok) sc.tables = book.moveTables(sc.edit);
     } else {

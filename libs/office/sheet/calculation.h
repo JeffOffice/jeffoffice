@@ -233,6 +233,8 @@ public:
             quint32 fromRow, fromCol, toRow, toCol;
         };
         std::vector<MovedFormula> movedFormulas;
+        // rows or columns inserted or deleted: what the edit did to the order of the sheet's rows or columns (Undo and Redo go by it, so the rows and columns come back with their cells)
+        mutable CellStore::LineEdits lines;
         // a Move that carries whole arrays: the arrays it took apart (the place each had in the sheet's list of ranges, and the range), and the arrays it made where they went (and whether
         // the place in the list was added, not one a taken array left free)
         struct ArraySlot {
@@ -251,6 +253,16 @@ public:
     // Makes the edit and says what is needed to undo it. False, with nothing changed, if it can't be made. `moved` is the number of cells shifted and `rewritten` the formulas written again
     // (in the record).
     bool applyEdit(const StructEdit &edit, EditRecord *record);
+    // ---- the order of a sheet's rows and columns (see CellStore): an edit of whole rows or columns takes ids, which a long session could use up. An edit that is done again after Undo, and Undo itself, take none.
+    // Whether the order of the rows (columns) the edit is on is near what it may hold, so that it should be compacted (compactLines) first, with every record of an edit of it let go of (forgetLines).
+    bool linesNeedCompaction(const StructEdit &edit) const;
+    // Puts the order of the sheet's rows (columns) back to one run, renumbering the cells and letting go of the dead ones. Every record of an edit of that order made before is stale after it: Undo of it
+    // is refused, so the caller lets go of those first. False if it can't be done.
+    bool compactLines(int sheet, bool rows);
+    // The record's edit of rows or columns will never be undone or done again: the cells that only it could bring back are let go of. The record's lines are empty after.
+    void forgetLines(EditRecord *record);
+    // The most runs and ids the order of a sheet's rows and columns may have (for a test of what happens at the caps; those of a sheet are jp::calc::LineLimits'). Only for a sheet whose order has no edit.
+    void setLineLimitsForTest(int sheet, const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols);
     // Puts back what the edit changed (the record is the last applyEdit's).
     bool undoEdit(const EditRecord &record, EditRecord *done = nullptr);   // `done`, if given, is told what undoing moved and removed (as applyEdit's record is)
 
@@ -467,6 +479,8 @@ public:
     void forEachFormulaText(const std::function<void(int sheet, quint32 row, quint32 col, const QString &formula)> &f) const;
 
 private:
+    // (applyEdit, or the edit that undoes `undoOf`: the rows and columns it brought are taken out again, and the ones it took out are brought back)
+    bool applyEditImpl(const StructEdit &edit, EditRecord *record, const EditRecord *undoOf);
     enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3, Suspended = 4 };   // (Suspended: worked out, found to wait only for formulas on the way to it or in its own group)
     enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048, Worked = 4096, ThreeD = 8192, Iterating = 16384 };
     enum : quint8 { KindEmpty = 0, KindNumber, KindText, KindBool, KindError, KindArray };

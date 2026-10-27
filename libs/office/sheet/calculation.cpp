@@ -742,6 +742,9 @@ int Calculation::addSheet(const QString &name, int copyOf)
         content = m_sheets[size_t(copyOf)];
         content.view.tabSelected = false;
         content.partial = false;
+        // (the copy has no history: its order is put back to one run, and the cells of rows and columns that were deleted in the sheet it is of are not held again)
+        content.cells.rebaseLines(true);
+        content.cells.rebaseLines(false);
     }
     m_sheets.push_back(std::move(content));
     m_rows.push_back(0);
