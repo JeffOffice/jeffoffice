@@ -172,6 +172,7 @@ QStringList rebaseScript(bool limited, int kind, bool *rebased, QString *problem
     block.row2 = 2;
     block.col1 = 1;
     block.col2 = 1;
+    if (kind == 2) block.row1 = block.row2 = 0;   // (B1, a number that C1 reads: a block of cells with something in them; the rows that the inserts made are empty)
     switch (kind) {
     case 0: ok = ok && s->insertColumns(0, 1, 1).ok; break;
     case 1: ok = ok && s->insertCells(0, block, true).ok; break;
@@ -208,12 +209,26 @@ QStringList rebaseScript(bool limited, int kind, bool *rebased, QString *problem
         saved << digest + savedSheetText(e.path);
         return true;
     };
+    // (what the Move did, in absolute terms: B1's 3 is at I23 -- row 21 moved down by the two rows the last insert made -- B1 is empty, and C1, which read B1, reads I23)
+    auto content = [&](quint32 row, quint32 col) { return s->calculation()->content(0, row, col); };
+    if (kind == 2 && (content(22, 8).value.number() != 3 || content(0, 1).exists || content(0, 2).formula != QStringLiteral("I23+1"))) {
+        *problem = QStringLiteral("the cells were not moved: I23 holds %1, C1 holds %2").arg(content(22, 8).value.debug(), content(0, 2).formula);
+        return {};
+    }
     if (!save()) return {};
     e.win.w.undoStack()->undo();   // (the insert that put the order back to one run: the edit before it is kept, and is undone after it)
     e.win.w.undoStack()->undo();
+    if (kind == 2 && (content(0, 1).value.number() != 3 || content(22, 8).exists || content(0, 2).formula != QStringLiteral("B1+1"))) {
+        *problem = QStringLiteral("the Move was not undone: B1 holds %1, C1 holds %2").arg(content(0, 1).value.debug(), content(0, 2).formula);
+        return {};
+    }
     if (!save()) return {};
     e.win.w.undoStack()->redo();
     e.win.w.undoStack()->redo();
+    if (kind == 2 && (content(22, 8).value.number() != 3 || content(0, 1).exists || content(0, 2).formula != QStringLiteral("I23+1"))) {
+        *problem = QStringLiteral("the Move was not done again: I23 holds %1, C1 holds %2").arg(content(22, 8).value.debug(), content(0, 2).formula);
+        return {};
+    }
     if (!save()) return {};
     return saved;
 }
@@ -1313,6 +1328,72 @@ private Q_SLOTS:
         QCOMPARE(items[0].epoch, now);
         QVERIFY(e.settle());
         QVERIFY(storeDiffers(e).isEmpty());   // (and the formulas were worked out again: nothing stale stays)
+    }
+
+    // The cells of an array formula are told with it and never stamped: after the ids of the sheet are renumbered, a value in flight for one of them (named by the old ids) is let go of by the epoch,
+    // and one of the epoch the renumbering made is kept.
+    void anArrayFormulasMemberCellsGetNoValueOfBeforeARebase()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f t=\"array\" ref=\"B1:B3\">A1:A3*2</f><v>2</v></c></row>"
+                                            "<row r=\"2\"><c r=\"A2\"><v>2</v></c><c r=\"B2\"><v>4</v></c></row>"
+                                            "<row r=\"3\"><c r=\"A3\"><v>3</v></c><c r=\"B3\"><v>6</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray())));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const office::sheet::Cell *member = s->calculation()->sheet(0).cells.find(1, 1);   // B2, a cell of the array
+        QVERIFY(member && (member->flags & office::sheet::ArrayMember));
+        jp::calc::LineLimits rowLimits = jp::calc::LineLimits::rows();
+        rowLimits.idLimit = rowLimits.firstNew + 10;
+        s->setLineLimitsForTest(0, rowLimits, jp::calc::LineLimits::cols());
+        const quint32 old = s->calculation()->structEpoch(0);
+        QVERIFY(s->insertRows(0, 5, 3).ok);
+        QVERIFY(s->insertRows(0, 8, 3).ok);
+        const quint32 used = s->calculation()->sheet(0).rows().nextId().value();
+        QVERIFY(s->insertRows(0, 20, 3).ok);   // (too few ids are left: the order is put back to one run first)
+        QVERIFY2(s->calculation()->sheet(0).rows().nextId().value() < used, "the ids were not renumbered");
+        member = s->calculation()->sheet(0).cells.find(1, 1);
+        QVERIFY(member && (member->flags & office::sheet::ArrayMember));
+        auto item = [&](quint32 epoch) {
+            grid::ValueStore::Item it;
+            it.sheet = 0;
+            it.row = member->rowId;
+            it.col = member->colId;
+            it.epoch = epoch;
+            it.value = calc::Value::number(99);
+            return it;
+        };
+        std::vector<grid::ValueStore::Item> items{item(old), item(s->calculation()->structEpoch(0))};
+        s->dropStale(&items);
+        QCOMPARE(int(items.size()), 1);
+        QCOMPARE(items[0].epoch, s->calculation()->structEpoch(0));
+        QCOMPARE(s->calculation()->stampCount(), qint64(0));   // (no stamp was made for it: the epoch is what lets go of the value)
+    }
+
+    // Cells moved (a Move) over ten thousand formulas, with no value on its way, make no stamp. (The formulas it moves are made again where they land, as they always were, so they are worked out,
+    // once each: a shift keeps the formulas and works none out, a Move does not.)
+    void cellsMovedOverTenThousandFormulasMakeNoStamp()
+    {
+        EditWindow e;
+        QStringList specs;
+        for (int r = 1; r <= 10000; ++r) specs << QStringLiteral("A%1=%1").arg(r) << QStringLiteral("B%1==A%1*2").arg(r);
+        QVERIFY(e.open(sheetOf(specs)));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(!s->calculation()->resultsInFlight());
+        const qint64 evaluated = s->calculation()->evaluations();
+        office::sheet::CellRange block;
+        block.valid = true;
+        block.row1 = 0;
+        block.row2 = 9999;
+        block.col1 = block.col2 = 1;
+        QVERIFY(s->moveCells(0, block, 0, 0, 3).ok);   // column B to column D
+        QCOMPARE(s->calculation()->stampCount(), qint64(0));
+        QVERIFY(e.settle());
+        QCOMPARE(s->calculation()->evaluations() - evaluated, qint64(10000));   // (the formulas it moved, once each, and no other)
+        QCOMPARE(s->calculation()->stampCount(), qint64(0));
+        QCOMPARE(e.valueAt(QStringLiteral("D10000")), QStringLiteral("n:20000"));
+        QVERIFY(storeDiffers(e).isEmpty());
     }
 
     // A scalar result is told by the ids its node holds: no place is looked up for it. After edits of rows (a sheet whose order is no longer the identity), working out every formula again looks up
