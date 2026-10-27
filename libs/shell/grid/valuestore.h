@@ -44,6 +44,8 @@ public:
         quint32 fromRow, fromCol, toRow, toCol;
     };
     void relocate(int sheet, const std::vector<Move> &moves);
+    // How many values `relocate` has moved (counted, for tests and tools: an edit of rows or columns moves the values of the formulas that move).
+    qint64 relocated() const { return m_relocated; }
     // And a cell's value let go of, true if there was one.
     bool erase(int sheet, quint32 row, quint32 col);
     // Lets go of every value of a sheet (a sheet that was added and is taken away again: when another is added in its place, it starts with none).
@@ -60,6 +62,7 @@ private:
     std::deque<QString> m_texts;
     std::vector<qint32> m_freeTexts;
     qint64 m_count = 0;
+    qint64 m_relocated = 0;
 };
 
 } // namespace jp::grid

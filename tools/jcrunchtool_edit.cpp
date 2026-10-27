@@ -25,7 +25,10 @@
 //                                           where there is one and by the wall's besides
 //   jcrunchtool edit-struct-bench <file.xlsx> <label> [only]   one row and one column inserted and deleted at the top, the middle, and the end of the used cells (and undone), each timed (the window's
 //                                           thread, the worker, the wall until it settles, the model's counted work, the texts made); one tab-separated line each (docs/jeffcrunch-rowids.md).
-//                                           JC_UNDO_MB raises the limit that makes a big step ask first. tools/crunch_struct_bench_make.py makes the workbooks.
+//                                           JC_UNDO_MB raises the limit that makes a big step ask first. tools/crunch_struct_bench_make.py makes the workbooks. After the times and the counted work come the
+//                                           counters of what the edit did (cells moved and deleted, formulas visited and written again, formulas made again in the graph, the graph's work, names and rules
+//                                           written again, the session's marks followed, the window's values moved and sizes and texts rebuilt, the bytes of Undo, the graph's entries) and then the
+//                                           same for its Undo (the counters are in Calculation::editStats, EditSession::marksFollowed, ValueStore::relocated, GridSheet::viewCellsRebuiltForTest).
 //   jcrunchtool edit-save-struct-bench <file.xlsx> <label>   saves the workbook untouched and after structural edits at random places (JC_SAVE_EDITS=20,200 says how many), timing the session's snapshot and the save
 //   jcrunchtool edit-bench-make [rows=100000] [cols=20] [readers=0] [edits=200]   the same on a workbook made here: numbers in rows and columns, a formula in the last column of each row that reads the
 //                                           first, and, with readers, a cell that that many formulas read
@@ -1073,14 +1076,17 @@ int structBench(const QString &path, const QString &label, const QString &only)
     });
     if (qEnvironmentVariableIntValue("JC_UNDO_MB") > 0) session->setUndoByteLimit(qint64(qEnvironmentVariableIntValue("JC_UNDO_MB")) << 20);   // (the limit that makes a big step ask first)
     qint64 workBefore = 0, textsBefore = 0, workDelta = 0, textsDelta = 0;
+    Calculation::EditStats statsBefore, statsDelta;
     session->setHoldHook([&](Calculation *c, bool after) {
         const qint64 texts = c->sheet(sheet).formulaTexts.size();
         if (!after) {
             workBefore = c->editWork();
             textsBefore = texts;
+            statsBefore = c->editStats();
         } else {
             workDelta = c->editWork() - workBefore;
             textsDelta = texts - textsBefore;
+            statsDelta = c->editStats().since(statsBefore);
         }
     });
     const quint32 rows = std::max<quint32>(20, calc->sheet(sheet).extentRows), cols = std::max<quint32>(3, calc->sheet(sheet).extentCols);
@@ -1103,7 +1109,10 @@ int structBench(const QString &path, const QString &label, const QString &only)
         cases.push_back({QStringLiteral("insert column %1").arg(QLatin1String(where[i])), [=] { return session->insertColumns(sheet, at, 1); }});
         cases.push_back({QStringLiteral("delete column %1").arg(QLatin1String(where[i])), [=] { return session->deleteColumns(sheet, at, 1); }});
     }
-    out() << "label\tcase\tdo_cpu_ms\tdo_wall_ms\tworker_cpu_ms\tsettle_ms\twork_counted\ttexts_made\tundo_cpu_ms\tundo_wall_ms\tundo_work\tused_rows\tused_cols\n";
+    // (counted work, besides the times: what the model, the session, and the window each did; the columns after used_cols are for the edit, and then for its Undo)
+    out() << "label\tcase\tdo_cpu_ms\tdo_wall_ms\tworker_cpu_ms\tsettle_ms\twork_counted\ttexts_made\tundo_cpu_ms\tundo_wall_ms\tundo_work\tused_rows\tused_cols"
+          << "\tcells_moved\tcells_gone\tformulas_visited\tformulas_rewritten\tnodes_remade\tgraph_work\tnames_rewritten\trules_rewritten\tmarks_followed\tvalues_moved\tview_cells\tundo_bytes\tgraph_entries"
+          << "\tu_cells_moved\tu_formulas_visited\tu_formulas_rewritten\tu_nodes_remade\tu_graph_work\tu_marks_followed\tu_values_moved\tu_view_cells\n";
     auto settle = [&](QElapsedTimer &wall) {
         QElapsedTimer waiting;
         waiting.start();
@@ -1112,33 +1121,48 @@ int structBench(const QString &path, const QString &label, const QString &only)
     };
     for (const Case &c : cases) {
         if (!only.isEmpty() && !c.name.contains(only)) continue;
+        w.undoStack()->clear();   // (so that the bytes the stack holds after the edit are the edit's alone)
         const qint64 workerBefore = w.workerCpuMicros();
+        const qint64 marksBefore = session->marksFollowed(), movedBefore = w.values().relocated(), viewBefore = grid::GridSheet::viewCellsRebuiltForTest(), undoBytesBefore = session->undoBytes();
+        statsDelta = Calculation::EditStats();
         QElapsedTimer wall;
         wall.start();
         const qint64 c0 = jp::threadCpuMicros();
         const crunch::EditSession::Outcome o = c.run();
         v->viewport()->repaint();
         const qint64 c1 = jp::threadCpuMicros();
+        const Calculation::EditStats did = statsDelta;
+        const qint64 marks = session->marksFollowed() - marksBefore, moved = w.values().relocated() - movedBefore, viewCells = grid::GridSheet::viewCellsRebuiltForTest() - viewBefore;
+        const qint64 undoBytes = session->undoBytes() - undoBytesBefore, graphEntries = calc->graph().entryCount();
         const double wallMs = double(wall.nsecsElapsed()) / 1e6;
         const double settleMs = o.ok ? settle(wall) : 0.0;
         const double workerMs = double(w.workerCpuMicros() - workerBefore) / 1000.0;
         const qint64 work = workDelta, texts = textsDelta;
         double undoCpu = 0, undoWall = 0;
-        qint64 undoWork = 0;
+        qint64 undoWork = 0, uMarks = 0, uMoved = 0, uView = 0;
+        Calculation::EditStats undid;
         if (o.ok) {
             QElapsedTimer uw;
             uw.start();
+            const qint64 uMarksBefore = session->marksFollowed(), uMovedBefore = w.values().relocated(), uViewBefore = grid::GridSheet::viewCellsRebuiltForTest();
+            statsDelta = Calculation::EditStats();
             const qint64 u0 = jp::threadCpuMicros();
             w.undoStack()->undo();
             v->viewport()->repaint();
             undoCpu = double(jp::threadCpuMicros() - u0) / 1000.0;
             undoWall = double(uw.nsecsElapsed()) / 1e6;
             undoWork = workDelta;
+            undid = statsDelta;
+            uMarks = session->marksFollowed() - uMarksBefore;
+            uMoved = w.values().relocated() - uMovedBefore;
+            uView = grid::GridSheet::viewCellsRebuiltForTest() - uViewBefore;
             settle(uw);
         }
         out() << label << '\t' << c.name << (o.ok ? QString() : QStringLiteral(" (refused: %1)").arg(o.problem)) << '\t' << QString::number(double(c1 - c0) / 1000.0, 'f', 2) << '\t' << QString::number(wallMs, 'f', 2) << '\t'
               << QString::number(workerMs, 'f', 1) << '\t' << QString::number(settleMs, 'f', 1) << '\t' << work << '\t' << texts << '\t' << QString::number(undoCpu, 'f', 2) << '\t' << QString::number(undoWall, 'f', 2)
-              << '\t' << undoWork << '\t' << rows << '\t' << cols << '\n';
+              << '\t' << undoWork << '\t' << rows << '\t' << cols << '\t' << did.cellsMoved << '\t' << did.cellsGone << '\t' << did.formulasVisited << '\t' << did.formulasRewritten << '\t' << did.nodesRemade
+              << '\t' << did.graphWork << '\t' << did.namesRewritten << '\t' << did.rulesRewritten << '\t' << marks << '\t' << moved << '\t' << viewCells << '\t' << undoBytes << '\t' << graphEntries << '\t'
+              << undid.cellsMoved << '\t' << undid.formulasVisited << '\t' << undid.formulasRewritten << '\t' << undid.nodesRemade << '\t' << undid.graphWork << '\t' << uMarks << '\t' << uMoved << '\t' << uView << '\n';
         out().flush();
     }
     out() << "# after the edits: resident " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB\n";

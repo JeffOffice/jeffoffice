@@ -271,6 +271,9 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     std::sort(candidates.begin(), candidates.end());
     candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
     m_editWork += qint64(candidates.size()) + qint64(m_special.size());
+    const qint64 graphWorkBefore = m_graph->buildWork() + m_graph->queryWork();
+    ++m_editStats.edits;
+    m_editStats.formulasVisited += qint64(candidates.size());
     struct Rewrite {
         quint32 id;
         QString was, now;   // the text of the formula for its cell, and what it is to be (empty: as it was)
@@ -329,6 +332,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
                         Group g;
                         g.sheet = n.sheet;
                         g.newText = rw->second.apply(key);
+                        if (!g.newText.isEmpty()) ++m_editStats.textsMade;
                         g.failed = g.newText.isEmpty();
                         for (int k = 0; k < TextRewriter::kMaxRefs; ++k) g.hasGone = g.hasGone || key.v[k * 5] == 2;
                         groups.push_back(std::move(g));
@@ -348,6 +352,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         bool changed = false;
         r.now = adjustFormula(r.was, n.sheet, names, e, &changed);
         if (!changed) r.now.clear();
+        else ++m_editStats.textsMade;
         rewrites.push_back(std::move(r));
     }
     // the places the formulas are at now, to say where they were
@@ -446,6 +451,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
             const qint32 formula = c->formula;
             dropNode(id);
             const quint32 now = addNode(sheet, *c, formula);
+            ++m_editStats.nodesRemade;
             queueDependents(areaOf(m_nodes[now]));
         }
     }
@@ -522,6 +528,8 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     }
 
     m_editWork += rec->cellsMoved + qint64(rec->gone.size());
+    m_editStats.cellsMoved += rec->cellsMoved;
+    m_editStats.cellsGone += qint64(rec->gone.size());
 
     // ---- the rules of validation
     adjustValidations(e, names, rec);
@@ -607,6 +615,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         const Value resultItHad = wasKeptForItsFunction ? nodeValue(n0, r.id) : Value();
         dropNode(r.id);
         const quint32 id = addNode(sheet, *c, c->formula);
+        ++m_editStats.nodesRemade;
         queueDependents(areaOf(m_nodes[id]));
         if (wasKeptForItsFunction && (m_nodes[id].flags & Kept) && m_nodes[id].kept == 'U') {
             // (a formula kept apart for a function the engine lacks has the result it had, #NAME? if something it read changed; and #NAME? when a cell it read is deleted)
@@ -619,6 +628,10 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
     }
     // what reads cells that moved in or out of a range it reads (a text that is as it was, a whole column, or a block shifted inside a range) has its value again
     queueDependents(region);
+    m_editStats.formulasRewritten += rec->formulasRewritten;
+    m_editStats.namesRewritten += qint64(rec->names.size());
+    m_editStats.rulesRewritten += qint64(rec->validations.size() + rec->conditionalFormats.size());
+    m_editStats.graphWork += m_graph->buildWork() + m_graph->queryWork() - graphWorkBefore;
     if (!m_running) beginRecalculation();
     return true;
 }
@@ -716,10 +729,12 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
             f.dRow = dRow;
             f.dCol = dCol;
             releaseText(g.sheet, old);
+            ++m_editStats.formulasRewritten;
             const quint32 id = nodeAt(g.sheet, place.first, place.second);
             const qint32 formula = c->formula;
             if (id != kNone) dropNode(id);
             const quint32 now = addNode(g.sheet, *c, formula);
+            ++m_editStats.nodesRemade;
             queueDependents(areaOf(m_nodes[now]));
         }
     }

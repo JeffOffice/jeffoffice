@@ -713,6 +713,9 @@ public:
     // How many cells have been changed since the file was read or saved, and how many formulas' results differ from the file's (for tests and the status).
     qint64 changedCells() const { return qint64(m_touched.size()); }
     qint64 changedResults() const { return qint64(m_results.size()); }
+    // How many marks the session has gone through to follow edits of rows, columns, and cells (the cells marked as changed, the results kept by cell, the columns and rows marked as resized;
+    // counted, for tests and tools).
+    qint64 marksFollowed() const { return m_marksFollowed; }
     // The longest the window waited for the worker to let go (microseconds, by the wall), and the last wait: what an edit costs besides the work of putting the cell in.
     qint64 longestHoldWaitMicros() const { return m_longestHoldWait; }
     qint64 lastHoldWaitMicros() const { return m_lastHoldWait; }
@@ -883,6 +886,7 @@ private:
     ObjectHook m_objectHook;
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
     PageSettings m_pages;
+    qint64 m_marksFollowed = 0;
     CellAnchors m_anchors;
     std::vector<jp::office::sheet::SheetProtection> m_fileProtection;   // the protection of each sheet as the file has it now (read, or last saved)
     jp::office::sheet::WorkbookProtection m_fileBookProtection;

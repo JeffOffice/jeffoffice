@@ -173,6 +173,7 @@ void ValueStore::erase(int sheet, const std::vector<std::pair<quint32, quint32>>
 
 void ValueStore::relocate(int sheet, const std::vector<Move> &moves)
 {
+    m_relocated += qint64(moves.size());
     // each value is taken up before any is put down (a cell may move to where another was)
     std::vector<Item> items;
     items.reserve(moves.size());

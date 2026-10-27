@@ -190,6 +190,9 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     specialNodes(&candidates);
     std::sort(candidates.begin(), candidates.end());
     candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
+    const qint64 graphWorkBefore = m_graph->buildWork() + m_graph->queryWork();
+    ++m_editStats.edits;
+    m_editStats.formulasVisited += qint64(candidates.size());
 
     // ---- the cells of the block, with the formulas among them written to read where the cells will be
     struct Moving {
@@ -219,6 +222,8 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         return true;
     });
     rec->cellsMoved = qint64(moving.size());
+    m_editStats.cellsMoved += rec->cellsMoved;
+    m_editStats.cellsGone += qint64(rec->gone.size());
 
     // ---- the formulas outside the block that read it are written again (before the cells move, while the graph still knows who reads what)
     struct Rewrite {
@@ -239,6 +244,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         bool changed = false;
         r.now = adjustFormula(r.was, n.sheet, names, e, &changed);
         if (!changed) r.now.clear();
+        else ++m_editStats.textsMade;
         rewrites.push_back(std::move(r));
     }
 
@@ -381,8 +387,13 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         }
         dropNode(r.id);
         const quint32 id = addNode(sheet, *c, c->formula);
+        ++m_editStats.nodesRemade;
         queueDependents(areaOf(m_nodes[id]));
     }
+    m_editStats.formulasRewritten += rec->formulasRewritten;
+    m_editStats.namesRewritten += qint64(rec->names.size());
+    m_editStats.rulesRewritten += qint64(rec->validations.size() + rec->conditionalFormats.size());
+    m_editStats.graphWork += m_graph->buildWork() + m_graph->queryWork() - graphWorkBefore;
     // what read the places is worked out again
     queueDependents(area);
     CellArea dest = area;

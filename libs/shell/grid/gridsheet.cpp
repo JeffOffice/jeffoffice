@@ -3,9 +3,16 @@
 #include "sheet/cellref.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace jp::grid {
+
+namespace {
+std::atomic<qint64> g_viewCellsRebuilt{0};   // sizes put in layouts, and cached texts dropped
+} // namespace
+
+qint64 GridSheet::viewCellsRebuiltForTest() { return g_viewCellsRebuilt.load(std::memory_order_relaxed); }
 
 namespace {
 // The most characters of one cell's text that are measured for its height.
@@ -199,6 +206,7 @@ void GridSheet::setData(const GridData &data)
     m_data = data;
     m_rtl = data.sheet && data.sheet->view.rightToLeft;
     m_looks.setStyles(data.styles);
+    g_viewCellsRebuilt.fetch_add(qint64(m_texts.size()), std::memory_order_relaxed);
     m_texts.clear();
     resetConditional();
     std::shared_ptr<const GridGeometry> g = data.geometry;
@@ -237,6 +245,7 @@ std::shared_ptr<GridGeometry> GridSheet::makeGeometry(const Sheet &sheet, const 
             geometry->columnStyles.push_back(kept);
         }
     }
+    g_viewCellsRebuilt.fetch_add(qint64(places.size()), std::memory_order_relaxed);
     layout.cols.assign(std::move(places));
     // ---- rows
     const int defaultRow = std::max(1, rowPixels(sheet.format.defaultRowHeight > 0 ? sheet.format.defaultRowHeight : 15));
@@ -264,6 +273,7 @@ std::shared_ptr<GridGeometry> GridSheet::makeGeometry(const Sheet &sheet, const 
     } else {
         for (const RowSpec &s : unique) places.push_back({qint64(s.row), sizeOf(s)});
     }
+    g_viewCellsRebuilt.fetch_add(qint64(places.size()), std::memory_order_relaxed);
     layout.rows.assign(std::move(places));
     for (const RowSpec &s : unique)
         if (s.customFormat && s.style != 0) geometry->rowStyles.push_back(s);

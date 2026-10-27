@@ -137,6 +137,8 @@ public:
 
     // The geometry a sheet's file gives (the sheet's own view: its zoom, frozen panes, and where it was scrolled to); the work setData does when it is not given one.
     static std::shared_ptr<GridGeometry> makeGeometry(const Sheet &sheet, const Styles &styles);
+    // What showing a sheet again rebuilds, counted (for tests and tools): the sizes of rows and columns that makeGeometry has put in a layout, and the texts of cells that setData has let go of.
+    static qint64 viewCellsRebuiltForTest();
 
     // The column (row) a sheet's width (height) in characters (points) is, in the grid's units; the conversions the file's numbers go through.
     static int columnPixels(double chars, int maxDigitWidth);
