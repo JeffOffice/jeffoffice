@@ -418,6 +418,10 @@ private Q_SLOTS:
         QVERIFY(traitsOf(*parseFormula("SUM(A1:INDEX(C:C,3))", options).program).readsWhereItIsTold());   // a block made of references that a function gives
         QVERIFY(traitsOf(*parseFormula("SUMIF(A1:A3,\">0\",B1)", options).program).readsWhereItIsTold());   // a sum range of the shape of the range
         QVERIFY(!traitsOf(*parseFormula("SUM(A1:C3)+SUMIFS(B1:B3,A1:A3,\">0\")", options).program).readsWhereItIsTold());
+        // a formula that is its own row or column (ROW() and COLUMN() with nothing in the brackets) changes when an edit moves its cell; ROW(A1) reads the cell it names
+        QVERIFY(traitsOf(*parseFormula("ROW()+1", options).program).observesPlace);
+        QVERIFY(traitsOf(*parseFormula("IF(A1>0,COLUMN(),0)", options).program).readsWhereItIsTold());
+        QVERIFY(!traitsOf(*parseFormula("ROW(A1)+COLUMN(B2)+SUM(ROW(A1:A3))", options).program).observesPlace);
     }
 
     // A formula that reads where its values say tells, as it is worked out, what it read: through INDIRECT, OFFSET, and a defined name, as well as by its references.

@@ -22,8 +22,9 @@ struct ProgramTraits {
     bool iterative = false;       // calls a function found by trying numbers (IRR, XIRR): the digits are those of one program's iteration
     bool reachesBeyond = false;   // a block it reads is made as it is worked out: from references that functions give (the range operator, A1:INDEX(C:C,3)), or of the shape of another
                                   // (the sum range of SUMIF and AVERAGEIF is read as large as the range), so that the cells in it may be named by no reference of the formula
+    bool observesPlace = false;   // calls ROW or COLUMN with no argument: its value is its own row or column, which an edit that moves the cell changes with no reference of the formula in it
     // Whether where it reads is told as it is worked out, besides what its references name.
-    bool readsWhereItIsTold() const { return usesNames || dynamic || reachesBeyond; }
+    bool readsWhereItIsTold() const { return usesNames || dynamic || reachesBeyond || observesPlace; }
 };
 ProgramTraits traitsOf(const Program &program);
 

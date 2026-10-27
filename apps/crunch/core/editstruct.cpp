@@ -270,6 +270,7 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
         sc->engineGone.clear();
         sc->fileGone.clear();
         sc->touchedAdded.clear();
+        m_marksFollowed += qint64(m_touched.size() + m_results.size() + m_engineAtStart.size() + m_fileResults.size() + m_columnsResized.size() + m_rowsResized.size());
         // (the marks of a Move stay where they are: they say what differs from the file at a place, and the file's cells do not move with the cells)
         if (edit.kind != K::Move) {
             followSet(&m_touched, edit, &sc->touchedGone);
@@ -309,6 +310,7 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
         // The file was saved since the edit was done, so it has the edit: the edit that undoes it is made against the saved file (it goes in the list for the file), and the cells that
         // come back, and those that were written over, are written whole. (A step that deleted cells is not undone after a save: see forgetDeletesInFile.)
         const StructEdit back = edit.inverse();
+        m_marksFollowed += qint64(m_touched.size() + m_results.size() + m_engineAtStart.size() + m_fileResults.size() + m_columnsResized.size() + m_rowsResized.size());
         if (edit.kind != K::Move) {
             followSet(&m_touched, back, nullptr);
             followMap(&m_results, back, nullptr);

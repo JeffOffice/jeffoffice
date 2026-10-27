@@ -201,6 +201,7 @@ public:
             int sheet;
             QString oldText;
             std::vector<std::pair<quint32, quint32>> cells;
+            std::vector<std::pair<qint32, qint32>> offsets;   // and how far (rows, columns) each was from the cell the text was written for
         };
         std::vector<RewrittenGroup> groups;
         // the sheet's other structures, as they were
@@ -397,6 +398,35 @@ public:
     // The things edits of rows, columns, and cells have looked at (the formulas the graph named and those told where they read, the cells moved, the formulas written again): a test
     // counts it to see that an edit costs what moves and what refers to it, not the sheet.
     qint64 editWork() const { return m_editWork; }
+    // What the edits of rows, columns, and cells did, counted (never timed), so that a test can see what an edit costs: how many cells it moved and deleted, how many formulas it looked at
+    // and wrote again, how many texts of formulas it made, how many formulas were made again in the graph, how much the graph worked, and how many names and rules it followed. Undo, which
+    // is an edit too, counts as one. Take the difference of two readings (`since`) for one edit.
+    struct EditStats {
+        qint64 edits = 0;
+        qint64 cellsMoved = 0, cellsGone = 0;
+        qint64 formulasVisited = 0;      // the formulas the graph named as reading the cells that move, and those that read where they are told
+        qint64 formulasRewritten = 0;    // those whose text was written again (one of a shared family counts)
+        qint64 textsMade = 0;            // the texts that made (a shared family's once for each distinct way its references change)
+        qint64 nodesRemade = 0;          // formulas dropped from the graph and made again in it
+        qint64 graphWork = 0;            // the graph's own count of the entries it built, moved, and looked at, during the edits
+        qint64 namesRewritten = 0, rulesRewritten = 0;   // defined names, and lists of validations and conditional formats, written again
+        EditStats since(const EditStats &o) const
+        {
+            EditStats d;
+            d.edits = edits - o.edits;
+            d.cellsMoved = cellsMoved - o.cellsMoved;
+            d.cellsGone = cellsGone - o.cellsGone;
+            d.formulasVisited = formulasVisited - o.formulasVisited;
+            d.formulasRewritten = formulasRewritten - o.formulasRewritten;
+            d.textsMade = textsMade - o.textsMade;
+            d.nodesRemade = nodesRemade - o.nodesRemade;
+            d.graphWork = graphWork - o.graphWork;
+            d.namesRewritten = namesRewritten - o.namesRewritten;
+            d.rulesRewritten = rulesRewritten - o.rulesRewritten;
+            return d;
+        }
+    };
+    const EditStats &editStats() const { return m_editStats; }
     // For tests: whether an edit of rows is told to the graph at once (what every formula reads is moved where the cells are, and the formulas whose text is only moved are not told again), or
     // each formula that was written again tells it what it reads.
     static void setGraphShifts(bool on);
@@ -456,7 +486,7 @@ private:
         QString error;
         bool tried = false;
         bool traitsKnown = false;
-        bool usesNames = false, dynamic = false, reaches = false, changesByItself = false, iterative = false;
+        bool usesNames = false, dynamic = false, reaches = false, observes = false, changesByItself = false, iterative = false;
         std::vector<qint32> bound;
     };
     static constexpr qint32 kFreeFormula = -2;   // the text of a formula's place that is free to be used again
@@ -555,6 +585,7 @@ private:
     std::vector<SheetState> m_state;
     std::vector<quint32> m_freeNodes;
     qint64 m_editWork = 0;
+    EditStats m_editStats;
     std::vector<quint32> m_special;   // formulas that are told where they read (names, INDIRECT, ...) or kept apart: an edit that moves cells looks at these as well as at what the graph names (may hold gone and repeated ones)
     void specialNodes(std::vector<quint32> *out);
     QVector<QString> m_texts;

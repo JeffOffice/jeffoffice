@@ -102,6 +102,7 @@ Calculation::Compiled &Calculation::compiled(int sheet, qint32 text, bool array)
             slot.usesNames = t.usesNames;
             slot.dynamic = t.dynamic;
             slot.reaches = t.reachesBeyond;
+            slot.observes = t.observesPlace;
             slot.changesByItself = t.changesByItself;
             slot.iterative = t.iterative;
         }
@@ -292,7 +293,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
             const Program &p = *slot.program;
             if (p.structured) m_structuredNodes.insert(id);
             if (isSubtotal(n.sheet, n.row, n.col)) m_subtotalNodes.insert(id);
-            told = slot.usesNames || slot.dynamic || slot.reaches;
+            told = slot.usesNames || slot.dynamic || slot.reaches || slot.observes;
             always = slot.dynamic || slot.changesByItself;
             if (m_options.keepApart) {
                 if (!p.unknownFunctions.isEmpty()) kept = 'U';

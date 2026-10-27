@@ -714,6 +714,11 @@ int usage()
              "       jcrunchtool charts-roundtrip <in.xlsx> <out.xlsx>\n"
              "       jcrunchtool charts-insert <in.xlsx> <out.xlsx> <sheet> <range> <kind> [kind...]\n"
              "       jcrunchtool charts-shots <in.xlsx> <out-dir>\n"
+             "       jcrunchtool model-check <seeds> <steps> [first seed] [every=n] [nograph] [noshrink]\n"
+             "       jcrunchtool model-golden <steps> <seed>...\n"
+             "       jcrunchtool model-replay <file>\n"
+             "       jcrunchtool model-dump <seed> <steps>\n"
+             "       jcrunchtool model-book <out.xlsx>\n"
              "       jcrunchtool make-check-files <out-dir>\n"
              "       jcrunchtool check-files-practice <list.txt> <out-dir> [count=200] [step=40]\n";
     return 2;
@@ -735,7 +740,7 @@ int main(int argc, char **argv)
     qputenv("JP_NO_TELEMETRY", "1");
 #ifdef JC_GRID
     // the grid commands draw: they need the program's own window system parts (offscreen unless the person chose another)
-    if (argc > 1 && (QByteArray(argv[1]).startsWith("grid-") || QByteArray(argv[1]).startsWith("roundtrip") || QByteArray(argv[1]).startsWith("edit-") || QByteArray(argv[1]).startsWith("print-") || QByteArray(argv[1]).startsWith("charts-") || QByteArray(argv[1]).startsWith("make-check-") || QByteArray(argv[1]).startsWith("check-files-"))) {
+    if (argc > 1 && (QByteArray(argv[1]).startsWith("grid-") || QByteArray(argv[1]).startsWith("roundtrip") || QByteArray(argv[1]).startsWith("edit-") || QByteArray(argv[1]).startsWith("model-") || QByteArray(argv[1]).startsWith("print-") || QByteArray(argv[1]).startsWith("charts-") || QByteArray(argv[1]).startsWith("make-check-") || QByteArray(argv[1]).startsWith("check-files-"))) {
         if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM", "offscreen");
         Q_INIT_RESOURCE(resources);
         Q_INIT_RESOURCE(crunch);

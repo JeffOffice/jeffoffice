@@ -38,6 +38,19 @@ EditSession::Outcome EditSession::setPageSetup(int sheet, const PageSetup &setup
         out.problem = tr("A sheet can have up to %1 page breaks of each kind.").arg(jp::office::sheet::kMaxPageBreaks);
         return out;
     }
+    {
+        // a break before the first row or column is none (the file holds no such break, so it would be kept and not saved)
+        auto firstBreak = [](const QVector<jp::office::sheet::PageBreak> &now, const QVector<jp::office::sheet::PageBreak> &want) {
+            for (const jp::office::sheet::PageBreak &b : want)
+                if (b.before == 0 && !now.contains(b)) return true;
+            return false;
+        };
+        if (firstBreak(m_pages.sheet(sheet).rowBreaks, setup.rowBreaks) || firstBreak(m_pages.sheet(sheet).colBreaks, setup.colBreaks)) {
+            out.ok = false;
+            out.problem = tr("A page break can't be before the first row or column.");
+            return out;
+        }
+    }
     Step step;
     PageEdit e;
     e.sheet = sheet;

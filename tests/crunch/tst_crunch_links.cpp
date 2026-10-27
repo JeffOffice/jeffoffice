@@ -421,6 +421,71 @@ private Q_SLOTS:
         QCOMPARE(second.w.session()->anchors().links(0).size(), size_t(5));
     }
 
+    // An edit that moves none of the links leaves them whole: what a link says (its address, its place, its text) is not lost.
+    void anEditThatMovesNoLinkKeepsWhatTheyAre()
+    {
+        EditWindow e;
+        QVERIFY(e.open(linksBook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->insertRows(0, 9, 2).ok);   // (below every link)
+        QCOMPARE(s->anchors().linkAt(0, 0, 0)->target, QStringLiteral("https://example.org/first"));
+        QCOMPARE(s->anchors().linkAt(0, 0, 0)->tip, QStringLiteral("The first page"));
+        QCOMPARE(s->anchors().linkAt(0, 0, 1)->location, QStringLiteral("Sheet2!C2"));
+        QCOMPARE(s->anchors().linkAt(0, 1, 3)->target, QStringLiteral("mailto:a@example.org"));
+        QVERIFY(s->deleteColumns(0, 8, 1).ok);   // (and to the right of them)
+        QCOMPARE(s->anchors().linkAt(0, 0, 3)->target, QStringLiteral("data/report.pdf"));
+        QCOMPARE(s->anchors().linkAt(0, 0, 1)->location, QStringLiteral("Sheet2!C2"));
+        e.win.w.undoStack()->undo();
+        e.win.w.undoStack()->undo();
+        QCOMPARE(s->anchors().links(0).size(), size_t(4 + 1));
+        QCOMPARE(s->anchors().linkAt(0, 0, 0)->target, QStringLiteral("https://example.org/first"));
+    }
+
+    // A link whose place is on another sheet follows the cells of that sheet when rows or columns of it are inserted or deleted, and Undo gives it back: as the saved file has it.
+    void aLinkToAPlaceOnAnotherSheetFollowsEditsOfThatSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(linksBook()));   // (B1 goes to Sheet2!C2)
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->insertRows(1, 0, 2).ok);
+        QCOMPARE(s->anchors().linkAt(0, 0, 1)->location, QStringLiteral("Sheet2!C4"));
+        QVERIFY(s->insertColumns(1, 0, 1).ok);
+        QCOMPARE(s->anchors().linkAt(0, 0, 1)->location, QStringLiteral("Sheet2!D4"));
+        QVERIFY(s->deleteRows(1, 3, 1).ok);
+        QCOMPARE(s->anchors().linkAt(0, 0, 1)->location, QStringLiteral("Sheet2!#REF!"));
+        e.win.w.undoStack()->undo();
+        QCOMPARE(s->anchors().linkAt(0, 0, 1)->location, QStringLiteral("Sheet2!D4"));
+        e.win.w.undoStack()->undo();
+        e.win.w.undoStack()->undo();
+        QCOMPARE(s->anchors().linkAt(0, 0, 1)->location, QStringLiteral("Sheet2!C2"));
+        e.win.w.undoStack()->redo();
+        QCOMPARE(s->anchors().linkAt(0, 0, 1)->location, QStringLiteral("Sheet2!C4"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY(savedLinks(e.path).contains(QStringLiteral("B1=>Sheet2!C4")));
+    }
+
+    // A link on cells that an edit has left one cell goes with that cell when the cells are put in another order, in the session and in the saved file alike.
+    void aLinkOnABlockThatIsOneCellNowGoesWithItsCellInASort()
+    {
+        EditWindow e;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>4</v></c></row><row r=\"2\"><c r=\"A2\"><v>3</v></c></row><row r=\"3\"><c r=\"A3\"><v>2</v></c></row><row r=\"4\"><c r=\"A4\"><v>1</v></c></row>");
+        QVERIFY(e.open(buildXlsx({worksheet(rows, QStringLiteral("<hyperlinks><hyperlink ref=\"A3:A4\" location=\"Sheet1!C1\"/></hyperlinks>"))})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->deleteRows(0, 3, 1).ok);   // (the link is on A3 alone now)
+        crunch::SortSpec spec;
+        crunch::SortLevel level;
+        level.key = 0;
+        spec.levels.append(level);
+        QVERIFY(s->sortRange(0, rangeOf(QStringLiteral("A1:A3")), spec).ok);   // (2 goes to the first row)
+        QVERIFY(s->anchors().linkAt(0, 0, 0));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QCOMPARE(savedLinks(e.path), QStringList({QStringLiteral("A1=>Sheet1!C1")}));
+    }
+
     void theLinkDialogRefusesWhatCannotBeALink()
     {
         LinkRequest req;
