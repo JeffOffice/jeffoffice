@@ -1331,7 +1331,7 @@ Value Calculation::runFormula(quint32 id, qint64 *work)
     m_ctx.transition = m_sheets[size_t(n.sheet)].transitionEvaluation;
     // (the place is read by a formula that takes the cell it is in for its own, by implicit intersection, ROW(), and the like: every formula may)
     m_placeLookups.fetch_add(2, std::memory_order_relaxed);
-    ++m_evaluations;
+    m_evaluations.fetch_add(1, std::memory_order_relaxed);
     m_ctx.row = rowOf(n);
     m_ctx.col = colOf(n);
     m_ctx.shiftRows = f.dRow;

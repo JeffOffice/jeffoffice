@@ -1208,7 +1208,7 @@ private Q_SLOTS:
         QCOMPARE(items[1].epoch, now);
         QCOMPARE(items[2].epoch, now);
         // the formulas whose values were let go of are worked out again (those two, and no other), and what the worker then says is kept; once nothing older can be on its way the stamps are let go of
-        QCOMPARE(s->calculation()->evaluations(), evaluated);
+        // (no count is read before the worker has caught up: it may already have worked the two out)
         s->calculation()->valuesTaken(1);
         QVERIFY(e.settle());
         QCOMPARE(s->calculation()->evaluations() - evaluated, qint64(2));
@@ -1459,19 +1459,25 @@ private Q_SLOTS:
         block.row1 = block.row2 = 0;
         block.col1 = block.col2 = 1;
         // (the worker has told something and has not told it all; no event is handled while it works on and queues batches the window has not taken: they are on their way when the edits are made)
-        QVERIFY(QTest::qWaitFor([&] { return e.win.w.batchesTaken() > 0; }, 20000));
-        QThread::msleep(700);
-        QVERIFY(e.win.w.isCalculating());
         const office::sheet::Calculation *calc = s->calculation();
-        QVERIFY(calc->resultsInFlight());
+        // (waited for by looking at what was told and taken, which only the worker's telling changes while no event is handled: not for a time, which a loaded machine makes too short)
+        auto queued = [&](int extraMs) {
+            QElapsedTimer waited;
+            waited.start();
+            while (!calc->resultsInFlight() && waited.elapsed() < 30000) QThread::msleep(5);
+            QThread::msleep(ulong(extraMs));
+            return calc->resultsInFlight();
+        };
+        QVERIFY(QTest::qWaitFor([&] { return e.win.w.batchesTaken() > 0; }, 20000));
+        QVERIFY(queued(700));
+        QVERIFY(e.win.w.isCalculating());
         QVERIFY(s->insertRows(0, 5, 3).ok);                    // formulas are written again
         QVERIFY(calc->resultsInFlight());
         QThread::msleep(300);
         QVERIFY(s->insertRows(0, 2, 5).ok);                    // (ids are used up: the order is put back to one run first)
         QVERIFY(s->insertRows(0, 9, 5).ok);
         QTest::qWait(100);                                     // (the values that were on their way are taken: those of before the renumbering are let go of)
-        QThread::msleep(700);                                  // (and the worker queues values again, under the new ids, before the last edit)
-        QVERIFY(calc->resultsInFlight());
+        QVERIFY(queued(700));                                  // (and the worker queues values again, under the new ids, before the last edit)
         QVERIFY(s->insertCells(0, block, true).ok);            // the last: a cell shift (column B down by one), with nothing written again after it to put right a stale value
         QVERIFY(calc->stampCount() > 0);                       // (values in flight: the moved cells are stamped)
         e.win.w.workbookLoader().setPace(0);

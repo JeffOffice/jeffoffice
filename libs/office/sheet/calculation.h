@@ -114,7 +114,7 @@ public:
     void valuesTaken(qint64 n) const { m_valuesTaken += n; }
     bool resultsInFlight() const { return m_valuesTold.load(std::memory_order_relaxed) != m_valuesTaken; }
     // Counted, for tests: the formulas worked out, and the places of cells looked up for a formula or a value told (a scalar told by a node needs none: it names its cell by ids).
-    qint64 evaluations() const { return m_evaluations; }
+    qint64 evaluations() const { return m_evaluations.load(std::memory_order_relaxed); }
     qint64 placeLookups() const { return m_placeLookups.load(std::memory_order_relaxed); }
 
     // The day number NOW and TODAY give from the next recalculation (0: the clock is read at each, as it is when the calculation is made without a time).
@@ -652,7 +652,7 @@ private:
     std::unordered_map<quint64, Stamp> m_stamps;   // by sheet, row id, column id: the epoch of the edit that moved the formula there or away
     mutable std::atomic<qint64> m_valuesTold{0};
     mutable qint64 m_valuesTaken = 0;
-    qint64 m_evaluations = 0;
+    std::atomic<qint64> m_evaluations{0};
     mutable std::atomic<qint64> m_placeLookups{0};
     std::vector<quint32> m_freeNodes;
     qint64 m_editWork = 0;
