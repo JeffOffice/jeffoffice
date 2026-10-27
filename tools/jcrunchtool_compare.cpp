@@ -224,21 +224,21 @@ int compareMain(const QStringList &argsIn)
         a.readSheet(i, &sa);
         b.readSheet(i, &sb);
         QHash<quint64, Info> theirs;
-        sb.cells.forEach([&](const Cell &c) {
+        sb.cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
             const Info info = infoOf(b, sb, c);
             if (info.type == CellType::Empty && !info.formula) return;
-            theirs.insert((quint64(c.row) << 20) | c.col, info);
+            theirs.insert((quint64(cellRow) << 20) | cellCol, info);
         });
         QSet<quint64> seen;
-        sa.cells.forEach([&](const Cell &c) {
+        sa.cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
             const Info mine = infoOf(a, sa, c);
             if (mine.type == CellType::Empty && !mine.formula) return;
-            const quint64 key = (quint64(c.row) << 20) | c.col;
+            const quint64 key = (quint64(cellRow) << 20) | cellCol;
             ++inEither;
             const auto it = theirs.constFind(key);
             if (it == theirs.cend()) {
                 ++onlyOurs;
-                diff(i, c.row, c.col, 'A', valueText(mine) + (mine.formula ? QStringLiteral(" =") + mine.ftext : QString()), QString());
+                diff(i, cellRow, cellCol, 'A', valueText(mine) + (mine.formula ? QStringLiteral(" =") + mine.ftext : QString()), QString());
                 return;
             }
             seen.insert(key);
@@ -252,7 +252,7 @@ int compareMain(const QStringList &argsIn)
                 else if (near) ++fvalNear;
                 else {
                     ++fvalDiff;
-                    diff(i, c.row, c.col, 'W', valueText(mine), valueText(other));
+                    diff(i, cellRow, cellCol, 'W', valueText(mine), valueText(other));
                 }
                 if (!valuesOnly) {
                 const QString na = mine.formula ? normalizeFormula(mine.ftext) : QString(), nb = other.formula ? normalizeFormula(other.ftext) : QString();
@@ -265,11 +265,11 @@ int compareMain(const QStringList &argsIn)
                     if (na == nb) ++ftextSame;
                     else {
                         ++ftextDiff;
-                        diff(i, c.row, c.col, 'F', mine.ftext, other.ftext);
+                        diff(i, cellRow, cellCol, 'F', mine.ftext, other.ftext);
                     }
                 } else {
                     ++ftextDiff;
-                    diff(i, c.row, c.col, 'F', mine.formula ? mine.ftext : QStringLiteral("(a value)"), other.formula ? other.ftext : QStringLiteral("(a value)"));
+                    diff(i, cellRow, cellCol, 'F', mine.formula ? mine.ftext : QStringLiteral("(a value)"), other.formula ? other.ftext : QStringLiteral("(a value)"));
                 }
                 }
             } else if (exact) {
@@ -278,7 +278,7 @@ int compareMain(const QStringList &argsIn)
                 ++constNear;
             } else {
                 ++constDiff;
-                diff(i, c.row, c.col, 'V', valueText(mine), valueText(other));
+                diff(i, cellRow, cellCol, 'V', valueText(mine), valueText(other));
             }
             if (!valuesOnly && (mine.type == CellType::Number || mine.type == CellType::Date || mine.type == CellType::Empty)) {
                 const QString ca = a.styles().formatCode(mine.style), cb = b.styles().formatCode(other.style);
@@ -286,7 +286,7 @@ int compareMain(const QStringList &argsIn)
                 if (sameFormat(ca, cb)) ++fmtSame;
                 else {
                     ++fmtDiff;
-                    diff(i, c.row, c.col, 'N', ca, cb);
+                    diff(i, cellRow, cellCol, 'N', ca, cb);
                 }
             }
         });

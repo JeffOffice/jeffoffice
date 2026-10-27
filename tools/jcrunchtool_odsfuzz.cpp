@@ -224,7 +224,7 @@ int odsFuzzMain(const QStringList &args)
                 tick("whole sheet");
                 mostCells = std::max<qint64>(mostCells, sheet.cells.cellCount());
                 qint64 asked = 0;
-                sheet.cells.forEach([&](const Cell &c) {
+                sheet.cells.forEach([&](quint32, quint32, const Cell &c) {
                     if (c.hasFormula() && asked++ < 20000) (void)sheet.formulaText(c);
                     if (c.type == CellType::SharedString || c.type == CellType::InlineString || c.type == CellType::FormulaString) (void)sheet.text(c, book.sharedStrings());
                 });

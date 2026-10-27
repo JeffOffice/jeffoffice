@@ -95,8 +95,8 @@ int filterRoundtripMain(const QStringList &args)
         }
         if (!(x.autoFilter == y.autoFilter)) add(QStringLiteral("filter"));
         if (x.cells.cellCount() != y.cells.cellCount()) add(QStringLiteral("cell count"));
-        x.cells.forEach([&](const Cell &c) {
-            const Cell *e = y.cells.find(c.row, c.col);
+        x.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+            const Cell *e = y.cells.find(row, col);
             if (!e) {
                 add(QStringLiteral("a cell is missing"));
                 return;

@@ -106,6 +106,12 @@ double percentile(std::vector<double> v, double p)
     return v[std::min(v.size() - 1, size_t(std::floor(p * double(v.size()))))];
 }
 
+// A cell of a store's walk, with its place.
+struct PlacedRef {
+    quint32 row, col;
+    const Cell *cell;
+};
+
 // A workbook opened and calculated the way the window does it, driven by hand: the loader on its worker, the batches put in a store and told to the session.
 struct Opened {
     crunch::WorkbookLoader loader;
@@ -338,7 +344,7 @@ void compareModels(const Calculation *live, const Calculation *saved, const std:
     auto empty = [](const Calculation::CellContent &c) { return !c.exists || (!c.isFormula && c.value.isEmpty() && c.style == 0); };
     bool circular = false;
     for (int s = 0; s < live->sheetCount() && !circular; ++s)
-        live->sheet(s).cells.forEach([&](const Cell &c) { circular = circular || live->isCircular(s, c.row, c.col); });
+        live->sheet(s).cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) { circular = circular || live->isCircular(s, cellRow, cellCol); });
     if (live->sheetCount() != saved->sheetCount() || savedIndex.size() != size_t(live->sheetCount())) {
         r->differences.add(QStringLiteral("sheets"));
         return;
@@ -372,9 +378,9 @@ void compareModels(const Calculation *live, const Calculation *saved, const std:
             }
             ++r->right;
         };
-        live->sheet(s).cells.forEach([&](const Cell &c) { at(c.row, c.col); });
-        saved->sheet(t).cells.forEach([&](const Cell &c) {
-            if (!live->sheet(s).cells.find(c.row, c.col)) at(c.row, c.col);
+        live->sheet(s).cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) { at(cellRow, cellCol); });
+        saved->sheet(t).cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
+            if (!live->sheet(s).cells.find(cellRow, cellCol)) at(cellRow, cellCol);
         });
         QVector<CellRange> ma = live->mergesOf(s), mb = saved->mergesOf(t);
         auto less = [](const CellRange &p, const CellRange &q) { return p.row1 != q.row1 ? p.row1 < q.row1 : p.col1 < q.col1; };
@@ -717,13 +723,13 @@ int roundtripOne(const QString &path)
                     cellsSame = false;
                     continue;
                 }
-                std::vector<const Cell *> pa, pb;
+                std::vector<PlacedRef> pa, pb;
                 pa.reserve(size_t(sa.cells.cellCount()));
                 pb.reserve(size_t(sb.cells.cellCount()));
-                sa.cells.forEach([&](const Cell &c) { pa.push_back(&c); });
-                sb.cells.forEach([&](const Cell &c) { pb.push_back(&c); });
+                sa.cells.forEach([&](quint32 row, quint32 col, const Cell &c) { pa.push_back({row, col, &c}); });
+                sb.cells.forEach([&](quint32 row, quint32 col, const Cell &c) { pb.push_back({row, col, &c}); });
                 for (size_t k = 0; k < pa.size() && k < pb.size(); ++k) {
-                    if (pa[k]->row != pb[k]->row || pa[k]->col != pb[k]->col || hashCell(sa, before.book.sharedStrings(), *pa[k]) != hashCell(sb, after.book.sharedStrings(), *pb[k])) {
+                    if (pa[k].row != pb[k].row || pa[k].col != pb[k].col || hashCell(sa, before.book.sharedStrings(), *pa[k].cell) != hashCell(sb, after.book.sharedStrings(), *pb[k].cell)) {
                         untouched.add(QStringLiteral("a cell differs"));
                         cellsSame = false;
                         break;
@@ -769,18 +775,18 @@ int roundtripOne(const QString &path)
             for (int si = 0; si < sheetCount && sheet < 0; ++si) {
                 if (w.loader.result()->book->info().sheets[si].kind != SheetKind::Worksheet) continue;
                 qint64 looked = 0;
-                calc->sheet(si).cells.forEach([&](const Cell &c) {
+                calc->sheet(si).cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
                     if (sheet >= 0 || ++looked > 3000000) return;
                     if (c.type != CellType::Number || c.hasFormula() || (c.flags & (ArrayMember | ArrayFormula))) return;
-                    if (!w.session->canEditCell(si, c.row, c.col)) return;   // (a locked cell of a protected sheet is not changed)
+                    if (!w.session->canEditCell(si, cellRow, cellCol)) return;   // (a locked cell of a protected sheet is not changed)
                     if (pass == 0) {
                         std::vector<quint32> readers;
-                        calc->graph().dependentsOfCell(si, c.row, c.col, &readers);
+                        calc->graph().dependentsOfCell(si, cellRow, cellCol, &readers);
                         if (readers.empty()) return;
                     }
                     sheet = si;
-                    row = c.row;
-                    col = c.col;
+                    row = cellRow;
+                    col = cellCol;
                 });
             }
         if (sheet < 0)
@@ -839,38 +845,38 @@ int roundtripOne(const QString &path)
                             Sheet sa, sb;
                             before.book.readSheet(si, &sa);
                             after.book.readSheet(si, &sb);
-                            std::vector<const Cell *> pa, pb;
-                            sa.cells.forEach([&](const Cell &c) { pa.push_back(&c); });
-                            sb.cells.forEach([&](const Cell &c) { pb.push_back(&c); });
+                            std::vector<PlacedRef> pa, pb;
+                            sa.cells.forEach([&](quint32 row, quint32 col, const Cell &c) { pa.push_back({row, col, &c}); });
+                            sb.cells.forEach([&](quint32 row, quint32 col, const Cell &c) { pb.push_back({row, col, &c}); });
                             size_t i = 0, j = 0;
-                            auto key = [](const Cell *c) { return (quint64(c->row) << 16) | c->col; };
+                            auto key = [](const PlacedRef *c) { return (quint64(c->row) << 16) | c->col; };
                             const SharedStrings &ha = before.book.sharedStrings(), &hb = after.book.sharedStrings();
                             const quint64 editedKey = (quint64(row) << 16) | col;
                             while (i < pa.size() || j < pb.size()) {
-                                const Cell *a1 = i < pa.size() ? pa[i] : nullptr, *b1 = j < pb.size() ? pb[j] : nullptr;
+                                const PlacedRef *a1 = i < pa.size() ? &pa[i] : nullptr, *b1 = j < pb.size() ? &pb[j] : nullptr;
                                 if (a1 && b1 && key(a1) == key(b1)) {
                                     const bool isEdited = si == sheet && key(a1) == editedKey;
                                     const Cell *model = calc->sheet(si).cells.find(b1->row, b1->col);
                                     const bool arrayMember = model && (model->flags & ArrayMember);
                                     if (isEdited) {
-                                        cellRight = isTyped(*b1, sb, hb, newValue, typedText);
-                                    } else if (b1->hasFormula() || arrayMember) {
+                                        cellRight = isTyped(*b1->cell, sb, hb, newValue, typedText);
+                                    } else if (b1->cell->hasFormula() || arrayMember) {
                                         // a formula's result: the engine's now if the edit changed it, else the file's as it was
                                         const jp::calc::Value ours = calc->cell(si, b1->row, b1->col);
                                         if (w.changedByEdit.count(crunch::EditSession::keyOf(si, b1->row, b1->col))) {
-                                            if (!storedIs(sb, hb, *b1, ours)) {
+                                            if (!storedIs(sb, hb, *b1->cell, ours)) {
                                                 ++unexpected;
                                                 edited.add(QStringLiteral("a result is not the engine's"));
                                             }
-                                        } else if (!sameStored(sa, ha, *a1, sb, hb, *b1)) {
+                                        } else if (!sameStored(sa, ha, *a1->cell, sb, hb, *b1->cell)) {
                                             ++unexpected;
                                             edited.add(QStringLiteral("a result changed that the edit did not change"));
                                         }
-                                        if (a1->style != b1->style || a1->hasFormula() != b1->hasFormula() || (a1->hasFormula() && sa.formulaText(*a1) != sb.formulaText(*b1))) {
+                                        if (a1->cell->style != b1->cell->style || a1->cell->hasFormula() != b1->cell->hasFormula() || (a1->cell->hasFormula() && sa.formulaText(*a1->cell) != sb.formulaText(*b1->cell))) {
                                             ++unexpected;
                                             edited.add(QStringLiteral("a formula or format changed"));
                                         }
-                                    } else if (hashCell(sa, ha, *a1) != hashCell(sb, hb, *b1)) {
+                                    } else if (hashCell(sa, ha, *a1->cell) != hashCell(sb, hb, *b1->cell)) {
                                         ++unexpected;
                                         edited.add(QStringLiteral("a constant changed"));
                                     }
@@ -885,7 +891,7 @@ int roundtripOne(const QString &path)
                                         ++unexpected;
                                         edited.add(QStringLiteral("a cell came"));
                                     } else {
-                                        cellRight = isTyped(*b1, sb, hb, newValue, typedText);
+                                        cellRight = isTyped(*b1->cell, sb, hb, newValue, typedText);
                                     }
                                     ++j;
                                 }
@@ -1302,12 +1308,12 @@ int editBench(const QString &pathIn, int edits, int rows, int cols, int readers)
     } else {
         std::vector<Target> candidates;
         qint64 looked = 0;
-        calc->sheet(sheet).cells.forEach([&](const Cell &c) {
+        calc->sheet(sheet).cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
             if (candidates.size() >= 100000 || ++looked > 5000000) return;
             if (c.type != CellType::Number || c.hasFormula() || (c.flags & (ArrayMember | ArrayFormula))) return;
             std::vector<quint32> r;
-            calc->graph().dependentsOfCell(sheet, c.row, c.col, &r);
-            if (!r.empty()) candidates.push_back({c.row, c.col});
+            calc->graph().dependentsOfCell(sheet, cellRow, cellCol, &r);
+            if (!r.empty()) candidates.push_back({cellRow, cellCol});
         });
         if (candidates.empty()) {
             err() << "edit-bench: no number that a formula reads\n";
@@ -1540,9 +1546,9 @@ int namesRoundtripOne(const QString &path)
         Workbook &x = book;
         x.readSheet(si, &sa);
         after.book.readSheet(si, &sb);
-        sa.cells.forEach([&](const Cell &c) {
+        sa.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
             ++cells;
-            const Cell *e = sb.cells.find(c.row, c.col);
+            const Cell *e = sb.cells.find(row, col);
             if (e && hashCell(sa, x.sharedStrings(), c) == hashCell(sb, after.book.sharedStrings(), *e)) ++cellsSame;
         });
         if (sa.cells.cellCount() != sb.cells.cellCount()) add(QStringLiteral("cell count"));
@@ -1693,13 +1699,13 @@ int tablesRoundtripOne(const QString &path)
         Sheet sa, sb;
         book.readSheet(si, &sa);
         after.book.readSheet(si, &sb);
-        sa.cells.forEach([&](const Cell &c) {
+        sa.cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
             if (c.hasFormula()) return;
             ++cells;
-            quint32 row = c.row;
+            quint32 row = cellRow;
             for (const Insert &in : inserted)
                 if (in.sheet == si && row >= in.row) ++row;
-            const Cell *e = sb.cells.find(row, c.col);
+            const Cell *e = sb.cells.find(row, cellCol);
             if (e && !e->hasFormula() && hashCell(sa, book.sharedStrings(), c) == hashCell(sb, after.book.sharedStrings(), *e)) ++cellsSame;
         });
     }
