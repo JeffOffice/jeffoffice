@@ -14,6 +14,7 @@
 // seeds are kept in the repository (tests/crunch/structmodel_golden.txt), so that a change that keeps what the engine means can be compared with today's engine step by step.
 // The same code runs in the tests (a few seeds) and in `jcrunchtool model-check` (as many as asked for).
 
+#include <QMap>
 #include <QByteArray>
 #include <QString>
 #include <QStringList>
@@ -76,6 +77,7 @@ struct Result {
     qint64 msSteps = 0, msOpen = 0, msDescribe = 0, msGraph = 0;   // where the time went: the steps, opening the saved workbook, describing the states, and the graph check
     int modelChecks = 0;             // edits of whole rows or columns that were held to the second opinion
     qint64 graphFormulas = 0, graphReads = 0;   // formulas the graph check worked out again, and what they read
+    QMap<QString, QByteArray> smallParts;   // the bytes of the parts under 4 KB, to show in a report when one differs
     quint64 partsDigest = 0;         // the parts of the file a save would write after the last step (their bytes), as 64 bits
     QStringList parts;               // and each part's name and digest
     QString finalState;              // the state after the last step, one line for each thing (what `describe` makes; for a look at it)

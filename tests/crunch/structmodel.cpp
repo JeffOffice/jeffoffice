@@ -1663,6 +1663,7 @@ Result run(const std::vector<Step> &steps, const Options &options)
                     body = QString::fromUtf8(body).remove(measured).toUtf8();
                 }
                 const quint64 h = fnv(body);
+                if (it.value().size() < 4096) result.smallParts[it.key()] = it.value();
                 all = fnv(it.key(), all);
                 all = fnv(QByteArray::number(h, 16), all);
                 result.parts << QStringLiteral("%1 %2").arg(it.key()).arg(h, 16, 16, QLatin1Char('0'));

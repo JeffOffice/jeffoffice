@@ -244,8 +244,11 @@ private Q_SLOTS:
                 if (w.size() == 2) got[w[0]] = w[1];
             }
             const QMap<QString, QString> &want = eachPart.value(it.key());
-            for (auto p = want.constBegin(); p != want.constEnd(); ++p)
+            for (auto p = want.constBegin(); p != want.constEnd(); ++p) {
+                if (got.value(p.key()) != p.value() && r.smallParts.contains(p.key()))
+                    qInfo().noquote() << "the part as saved here:" << p.key() << "\n" << QString::fromUtf8(r.smallParts.value(p.key()));
                 QVERIFY2(got.value(p.key()) == p.value(), qPrintable(QStringLiteral("seed %1: the saved part %2 is not what the golden file has").arg(it.key()).arg(p.key())));
+            }
             for (auto p = got.constBegin(); p != got.constEnd(); ++p)
                 QVERIFY2(want.isEmpty() || want.contains(p.key()), qPrintable(QStringLiteral("seed %1: the save writes a part the golden file doesn't have: %2").arg(it.key()).arg(p.key())));
             QCOMPARE(QStringLiteral("%1").arg(r.partsDigest, 16, 16, QLatin1Char('0')), parts.value(it.key()));
