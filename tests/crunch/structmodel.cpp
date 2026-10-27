@@ -549,17 +549,10 @@ void describe(Live &live, State *out)
             QStringLiteral("%1 %2 %3").arg(page.titles.hasRows ? QStringLiteral("%1:%2").arg(page.titles.row1).arg(page.titles.row2) : QStringLiteral("-"),
                                            page.titles.hasCols ? QStringLiteral("%1:%2").arg(page.titles.col1).arg(page.titles.col2) : QStringLiteral("-"), QString()));
         for (const auto &note : s->anchors().notes(sheet)) put(QStringLiteral("note|%1|%2").arg(sheet).arg(cellName(quint32(note.first >> 32), quint32(note.first & 0xFFFFFFFF))), note.second.text);
-        // (a link whose place is on another sheet is `xlinks`: the saver follows it when rows or columns of that sheet are edited, and the session does not, which is a defect of today's engine
-        // that is listed in the report of round 0; the digest has it, the comparison with the file read again leaves it out)
-        QStringList links, farLinks;
-        for (const LinkSpec &l : s->anchors().links(sheet)) {
-            const QString place = l.location.contains(QLatin1Char('!')) && l.location.section(QLatin1Char('!'), 0, 0).compare(sheetNameOf(sheet), Qt::CaseInsensitive) != 0 ? QString() : l.location;
-            (place.isEmpty() && !l.location.isEmpty() ? farLinks : links) << QStringLiteral("%1>%2%3").arg(rangeName(l.range), l.location, l.target);
-        }
+        QStringList links;
+        for (const LinkSpec &l : s->anchors().links(sheet)) links << QStringLiteral("%1>%2%3").arg(rangeName(l.range), l.location, l.target);
         links.sort();
-        farLinks.sort();
         put(QStringLiteral("links|%1").arg(sheet), links.join(QLatin1Char(' ')));
-        put(QStringLiteral("xlinks|%1").arg(sheet), farLinks.join(QLatin1Char(' ')));
     }
     const crunch::NameTable &names = s->names();
     for (int id = 0; id < names.slots(); ++id) {
@@ -605,7 +598,6 @@ QStringList differences(const State &a, const State &b, const QSet<QString> &ski
     sorted.sort();
     for (const QString &key : sorted) {
         if (skip.contains(key)) continue;
-        if (key.startsWith(QLatin1String("xlinks|"))) continue;   // (a known defect: see describe)
         const bool ha = a.contains(key), hb = b.contains(key);
         if (ha && hb && a.value(key) == b.value(key)) continue;
         // (a cell that is just a number 0 against none is the same cell to everything that reads it)
@@ -1102,9 +1094,9 @@ Prediction predict(const State &before, const Plain &e)
                     bool gone = false;
                     range = rangeAfterText(range, e, &gone);
                     if (gone) continue;
-                    // (a place on this sheet follows the cells too)
-                    if (rest.contains(QLatin1Char('!'))) rest = textAfter(rest, sheet, e);
                 }
+                // (a place follows the cells it names, on whatever sheet the link is)
+                if (rest.contains(QLatin1Char('!'))) rest = textAfter(rest, sheet, e);
                 list << range + QLatin1Char('>') + rest;
             }
             list.sort();
@@ -1202,7 +1194,7 @@ bool modeled(const QString &key)
 QString comparable(const QString &key, const QString &value)
 {
     if (key.startsWith(QLatin1String("cell|")) && value.startsWith(QLatin1Char('='))) return canonical(value);
-    if (key.startsWith(QLatin1String("name|"))) return canonical(value);
+    if (key.startsWith(QLatin1String("name|")) || key.startsWith(QLatin1String("links|"))) return canonical(value);
     if (key.startsWith(QLatin1String("cf|")) || key.startsWith(QLatin1String("dv|"))) return value.section(QLatin1Char('|'), 0, 0);
     if (key.startsWith(QLatin1String("chart|"))) return value.section(QStringLiteral(" | "), 0, 0);
     if (key.startsWith(QLatin1String("val|"))) return QString();
