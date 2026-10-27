@@ -23,7 +23,7 @@
 //                                           time the window's thread takes to put the cell in (and the time it waits for the worker to let go), to draw it again, and the time the worker takes to
 //                                           the first values and to work out all that depends: the middle, the 95th percentile, the 99th, and the longest of each, by the thread's own processor time
 //                                           where there is one and by the wall's besides
-//   jcrunchtool walk-bench <file.xlsx> [row edits=1000] [column edits=10]   the time to walk all the cells of the first sheet and from the end in slices, before and after those edits of rows and columns
+//   jcrunchtool edit-walk-bench <file.xlsx> [row edits=1000] [column edits=10]   the time to walk all the cells of the first sheet and from the end in slices, before and after those edits of rows and columns
 //   jcrunchtool edit-struct-bench <file.xlsx> <label> [only]   one row and one column inserted and deleted at the top, the middle, and the end of the used cells (and undone), each timed (the window's
 //                                           thread, the worker, the wall until it settles, the model's counted work, the texts made); one tab-separated line each (docs/jeffcrunch-rowids.md).
 //                                           JC_UNDO_MB raises the limit that makes a big step ask first. tools/crunch_struct_bench_make.py makes the workbooks. After the times and the counted work come the
@@ -1066,7 +1066,7 @@ int walkBench(const QString &path, int rowEdits, int colEdits, const QString &la
     options.keepApart = true;
     Calculation calc(book, options);
     if (!calc.load()) {
-        err() << "walk-bench: the workbook did not load\n";
+        err() << "edit-walk-bench: the workbook did not load\n";
         return 1;
     }
     const Sheet &s = calc.sheet(0);
@@ -1789,7 +1789,7 @@ int editMain(const QStringList &args)
     if (!args.isEmpty() && args[0].startsWith(QLatin1String("model-"))) return ::jp::structmodel::command(args);
     if (args.size() >= 2 && args.size() <= 3 && args[0] == QLatin1String("edit-bench")) return editBench(args[1], args.value(2, QStringLiteral("200")).toInt(), 0, 0, 0);
     if (args.size() == 3 && args[0] == QLatin1String("edit-save-struct-bench")) return saveStructBench(args[1], args[2]);
-    if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("walk-bench")) return walkBench(args[1], args.value(2, QStringLiteral("1000")).toInt(), args.value(3, QStringLiteral("10")).toInt(), QStringLiteral("walk"));
+    if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("edit-walk-bench")) return walkBench(args[1], args.value(2, QStringLiteral("1000")).toInt(), args.value(3, QStringLiteral("10")).toInt(), QStringLiteral("walk"));
     if (args.size() >= 3 && args.size() <= 4 && args[0] == QLatin1String("edit-struct-bench")) return structBench(args[1], args[2], args.value(3));
     if (args.size() >= 1 && args.size() <= 5 && args[0] == QLatin1String("edit-bench-make"))
         return editBench(QString(), args.value(4, QStringLiteral("200")).toInt(), args.value(1, QStringLiteral("100000")).toInt(), args.value(2, QStringLiteral("20")).toInt(), args.value(3, QStringLiteral("0")).toInt());

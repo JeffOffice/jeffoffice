@@ -222,12 +222,17 @@ public:
                 for (const Cell &c : block.second.cells) f(quint32(c.rowId), quint32(c.colId), c);
             return;
         }
+        forEachByPlace(f);
+    }
+    template <class F>
+    Q_NEVER_INLINE void forEachByPlace(F f) const
+    {
         ColPlan plan;
         planFor(m_cols, 0, quint32(-1), &plan);
         SmallList<Seg, 8> segs;
         segs.resize(plan.spans.size());
         walkRows(0, quint32(-1), nullptr, [&](quint32 rowPos, CellIt a, CellIt b) {
-            return visitRow(a, b, plan, &segs, true, nullptr, [&](quint32 colPos, const Cell &c) {
+            return visitRow(a, b, plan, true, nullptr, segs.begin(), [&](quint32 colPos, const Cell &c) {
                 f(rowPos, colPos, c);
                 return true;
             });
@@ -300,11 +305,21 @@ public:
             cur->nextPos = next;
             return false;
         }
+        return tailSomeByPlace(cur, next, limit, steps, f);
+    }
+    template <class F>
+    Q_NEVER_INLINE bool tailSomeByPlace(RowTailCursor *cur, quint32 next, qint64 limit, qint64 *steps, F f) const
+    {
         refreshSpans(m_rows, &cur->rows, &cur->rowsVersion);
         refreshSpans(m_cols, &cur->cols, &cur->colsVersion);
         next = std::min(next, m_rows.size());
         const std::vector<Span> &rs = cur->rows;
         const std::vector<Span> &cs = cur->cols;
+        ColPlan plan;
+        for (const Span &c : cs) plan.spans.push_back(c);
+        plan.finish();
+        SmallList<Seg, 8> segs;
+        segs.resize(plan.spans.size());
         while (*steps < limit) {
             if (next == 0 || rs.empty()) {
                 cur->done = true;
@@ -314,42 +329,39 @@ public:
             const auto it = std::lower_bound(rs.begin(), rs.end(), next, [](const Span &s, quint32 v) { return s.base < v; });
             const Span &s = *(it - 1);
             const quint32 hiId = s.first + (next - 1 - s.base);
-            CellIt a, b;
-            bool found = false;
-            for (auto block = m_blocks.upper_bound(hiId / kBlockRows); block != m_blocks.begin() && !found;) {
+            const std::vector<Cell> *held = nullptr;
+            CellIt end;
+            for (auto block = m_blocks.upper_bound(hiId / kBlockRows); block != m_blocks.begin() && !held;) {
                 --block;
                 if (block->first * kBlockRows + kBlockRows - 1 < s.first) break;
                 const std::vector<Cell> &cells = block->second.cells;
                 ++*steps;
-                const auto above = std::upper_bound(cells.begin(), cells.end(), hiId, [](quint32 v, const Cell &c) { return v < c.rowId; });
-                if (above == cells.begin()) continue;
-                const quint32 id = (above - 1)->rowId;
-                if (id < s.first) break;
-                a = std::lower_bound(cells.begin(), above, id, [](const Cell &c, quint32 v) { return c.rowId < v; });
-                b = above;
-                found = true;
+                end = std::upper_bound(cells.begin(), cells.end(), hiId, [](quint32 v, const Cell &c) { return v < c.rowId; });
+                if (end == cells.begin()) continue;
+                if ((end - 1)->rowId < s.first) break;
+                held = &cells;
             }
-            if (!found) {
+            if (!held) {
                 next = s.base;
                 continue;
             }
-            const quint32 rowPos = s.base + (a->rowId - s.first);
-            ++*steps;
-            bool stop = false;
-            for (size_t j = cs.size(); j > 0 && !stop; --j) {
-                const Span &c = cs[j - 1];
-                const auto lo = std::lower_bound(a, b, c.first, [](const Cell &x, quint32 id) { return quint32(x.colId) < id; });
-                auto hi = std::lower_bound(lo, b, c.first + c.count, [](const Cell &x, quint32 id) { return quint32(x.colId) < id; });
-                while (hi != lo) {
-                    --hi;
-                    ++*steps;
-                    if (f(rowPos, c.base + (quint32(hi->colId) - c.first), *hi)) {
-                        stop = true;
-                        break;
-                    }
+            // (the rows of that block, from there down, while they are in this run of rows)
+            while (end != held->begin() && *steps < limit) {
+                const quint32 id = (end - 1)->rowId;
+                if (id < s.first) {
+                    next = s.base;
+                    break;
                 }
+                const CellIt first = std::lower_bound(held->begin(), end, id, [](const Cell &c, quint32 v) { return c.rowId < v; });
+                const quint32 rowPos = s.base + (id - s.first);
+                ++*steps;
+                visitRowBack(first, end, plan, segs.begin(), [&](quint32 colPos, const Cell &c) {
+                    ++*steps;
+                    return f(rowPos, colPos, c);
+                });
+                next = rowPos;
+                end = first;
             }
-            next = rowPos;
         }
         cur->nextPos = next;
         return false;
@@ -575,7 +587,6 @@ private:
         bool ordered = true;
     };
     using CellIt = std::vector<Cell>::const_iterator;
-    using Seg = std::pair<CellIt, CellIt>;
     // The columns of a walk: their runs in the order of their places, and the order of their ids (cells are in the order of ids).
     struct ColPlan {
         SmallList<Span, 8> spans;
@@ -650,57 +661,175 @@ private:
         }
         plan->finish();
     }
-    // Calls g(place, cell) for the cells of a row [a, b) in order of the columns' places (those of live columns only); g gives false to stop. `dense`: the row is walked whole anyway (one pass along it);
-    // else a search finds where each run of columns begins. The cost is the row's cells and the runs, not a search for each run in a row.
-    template <class G>
-    static bool visitRow(CellIt a, CellIt b, const ColPlan &plan, SmallList<Seg, 8> *segs, bool dense, RangeWalk *walk, G g)
+    using Seg = std::pair<CellIt, CellIt>;
+    static CellIt findFrom(CellIt from, CellIt b, quint32 id, bool dense, size_t runs, RangeWalk *walk)
+    {
+        if (dense || size_t(b - from) <= 16 * runs) {
+            while (from != b && quint32(from->colId) < id) {
+                ++from;
+                if (walk) ++walk->stepped;
+            }
+            return from;
+        }
+        return std::lower_bound(from, b, id, [walk](const Cell &c, quint32 v) {
+            if (walk) ++walk->compared;
+            return quint32(c.colId) < v;
+        });
+    }
+    // Where the cells of a row [a, b) are in each run of columns (`segs` has a place for each run), and which runs have some (a bit for each, the runs being at most 64). `dense`: the row is walked
+    // whole anyway (one pass along it, each cell looked at once); else a search finds where each run of columns begins (so a narrow range of a wide row costs what it holds).
+    static quint64 segmentsOf(CellIt a, CellIt b, const ColPlan &plan, bool dense, RangeWalk *walk, Seg *segs)
     {
         const size_t n = plan.spans.size();
-        auto find = [&](CellIt from, quint32 id) {
-            if (dense || size_t(b - from) <= 16 * n) {
-                while (from != b && quint32(from->colId) < id) {
-                    ++from;
-                    if (walk) ++walk->stepped;
+        const Span *sp = plan.spans.begin();
+        const quint32 *byId = plan.byId.begin();
+        quint64 mask = 0;
+        if (dense) {
+            size_t si = 0;
+            CellIt it = a;
+            while (it != b) {
+                const quint32 id = it->colId;
+                while (si < n && sp[byId[si]].first + sp[byId[si]].count <= id) ++si;
+                if (si == n) break;
+                const Span &s = sp[byId[si]];
+                if (id < s.first) {   // (a cell of a column that is deleted)
+                    ++it;
+                    continue;
                 }
-                return from;
+                const CellIt start = it;
+                while (it != b && quint32(it->colId) - s.first < s.count) ++it;
+                segs[byId[si]] = {start, it};
+                mask |= quint64(1) << byId[si];
+                ++si;
             }
-            return std::lower_bound(from, b, id, [walk](const Cell &c, quint32 v) {
-                if (walk) ++walk->compared;
-                return quint32(c.colId) < v;
-            });
-        };
-        if (n == 0) return true;
-        if (n == 1 || plan.inOrder) {
-            CellIt at = a;
-            for (size_t k = 0; k < n; ++k) {
-                const Span &s = plan.spans[k];
-                at = find(at, s.first);
-                for (; at != b && quint32(at->colId) - s.first < s.count; ++at) {
-                    if (walk) ++walk->stepped;
-                    if (!g(s.base + (quint32(at->colId) - s.first), *at)) return false;
-                }
-            }
-            return true;
+            return mask;
         }
-        // (the runs of columns are not in the order of their ids: the row is gone along once, in the order of ids, to find where the cells of each run are, and the runs are then given in the order of their places)
         CellIt at = a;
         for (size_t i = 0; i < n; ++i) {
-            const Span &s = plan.spans[plan.byId[i]];
-            at = find(at, s.first);
+            const Span &s = sp[byId[i]];
+            at = findFrom(at, b, s.first, false, n, walk);
             CellIt end = at;
             while (end != b && quint32(end->colId) - s.first < s.count) {
                 ++end;
                 if (walk) ++walk->stepped;
             }
-            (*segs)[plan.byId[i]] = {at, end};
+            if (end != at) {
+                segs[byId[i]] = {at, end};
+                mask |= quint64(1) << byId[i];
+            }
             at = end;
         }
-        for (size_t k = 0; k < n; ++k) {
+        return mask;
+    }
+    // The cells of a row [a, b) in each run of columns that has some, in the order of the ids, for orders of more than 64 runs of columns (a rare thing: a bit for each run is not kept).
+    struct Used {
+        quint32 span;
+        CellIt a, b;
+    };
+    static void usedOf(CellIt a, CellIt b, const ColPlan &plan, bool dense, RangeWalk *walk, std::vector<Used> *used)
+    {
+        const size_t n = plan.spans.size();
+        CellIt at = a;
+        if (dense) {
+            size_t si = 0;
+            while (at != b) {
+                const quint32 id = at->colId;
+                while (si < n && plan.spans[plan.byId[si]].first + plan.spans[plan.byId[si]].count <= id) ++si;
+                if (si == n) break;
+                const Span &s = plan.spans[plan.byId[si]];
+                if (id < s.first) {
+                    ++at;
+                    continue;
+                }
+                const CellIt start = at;
+                while (at != b && quint32(at->colId) - s.first < s.count) ++at;
+                used->push_back({plan.byId[si], start, at});
+                ++si;
+            }
+            return;
+        }
+        for (size_t i = 0; i < n; ++i) {
+            const Span &s = plan.spans[plan.byId[i]];
+            at = findFrom(at, b, s.first, false, n, walk);
+            CellIt end = at;
+            while (end != b && quint32(end->colId) - s.first < s.count) {
+                ++end;
+                if (walk) ++walk->stepped;
+            }
+            if (end != at) used->push_back({plan.byId[i], at, end});
+            at = end;
+        }
+    }
+    // Calls g(place, cell) for the cells of a row [a, b) in order of the columns' places (those of live columns only); g gives false to stop. The cost is the row's cells and the runs of columns, not a
+    // search for each run in each row. `segs` has a place for each run of columns.
+    template <class G>
+    static bool visitRow(CellIt a, CellIt b, const ColPlan &plan, bool dense, RangeWalk *walk, Seg *segs, G g)
+    {
+        const size_t n = plan.spans.size();
+        if (n == 0) return true;
+        if (n == 1) {
+            const Span &s = plan.spans[0];
+            for (CellIt at = findFrom(a, b, s.first, dense, 1, walk); at != b && quint32(at->colId) - s.first < s.count; ++at) {
+                if (walk) ++walk->stepped;
+                if (!g(s.base + (quint32(at->colId) - s.first), *at)) return false;
+            }
+            return true;
+        }
+        if (n > 64) {
+            std::vector<Used> used;
+            usedOf(a, b, plan, dense, walk, &used);
+            std::sort(used.begin(), used.end(), [](const Used &x, const Used &y) { return x.span < y.span; });
+            for (const Used &u : used) {
+                const Span &s = plan.spans[u.span];
+                for (CellIt it = u.a; it != u.b; ++it) {
+                    if (walk) ++walk->stepped;
+                    if (!g(s.base + (quint32(it->colId) - s.first), *it)) return false;
+                }
+            }
+            return true;
+        }
+        quint64 mask = segmentsOf(a, b, plan, dense, walk, segs);
+        while (mask) {
+            const unsigned k = unsigned(qCountTrailingZeroBits(mask));
+            mask &= mask - 1;
             const Span &s = plan.spans[k];
-            for (CellIt it = (*segs)[k].first; it != (*segs)[k].second; ++it)
+            for (CellIt it = segs[k].first; it != segs[k].second; ++it) {
+                if (walk) ++walk->stepped;
                 if (!g(s.base + (quint32(it->colId) - s.first), *it)) return false;
+            }
         }
         return true;
+    }
+    // The same from the last cell back: g gives true to stop (then the walk goes on with the next row).
+    template <class G>
+    static void visitRowBack(CellIt a, CellIt b, const ColPlan &plan, Seg *segs, G g)
+    {
+        const size_t n = plan.spans.size();
+        if (n == 0) return;
+        if (n > 64) {
+            std::vector<Used> used;
+            usedOf(a, b, plan, true, nullptr, &used);
+            std::sort(used.begin(), used.end(), [](const Used &x, const Used &y) { return x.span < y.span; });
+            for (size_t k = used.size(); k > 0; --k) {
+                const Used &u = used[k - 1];
+                const Span &s = plan.spans[u.span];
+                for (CellIt it = u.b; it != u.a;) {
+                    --it;
+                    if (g(s.base + (quint32(it->colId) - s.first), *it)) return;
+                }
+            }
+            return;
+        }
+        quint64 mask = segmentsOf(a, b, plan, true, nullptr, segs);
+        while (mask) {
+            const unsigned k = 63u - unsigned(qCountLeadingZeroBits(mask));
+            mask &= ~(quint64(1) << k);
+            const Span &s = plan.spans[k];
+            for (CellIt it = segs[k].second; it != segs[k].first;) {
+                --it;
+                if (g(s.base + (quint32(it->colId) - s.first), *it)) return;
+            }
+        }
     }
     // Calls h(row place, first cell of the row, end of its cells) for each row that has cells, in order of the rows' places, for the rows at the places from `first` to `last`; h gives false to stop.
     template <class H>
@@ -761,7 +890,7 @@ private:
                         if (walk) ++walk->stepped;
                     }
                     const quint32 rowPos = base + (r - s.first);
-                    if (!visitRow(pos, end, plan, &segs, false, walk, [&](quint32 colPos, const Cell &c) { return f(rowPos, colPos, c); })) return;
+                    if (!visitRow(pos, end, plan, false, walk, segs.begin(), [&](quint32 colPos, const Cell &c) { return f(rowPos, colPos, c); })) return;
                     pos = end;
                     ++r;
                 }
