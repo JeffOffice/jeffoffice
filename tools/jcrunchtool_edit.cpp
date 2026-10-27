@@ -29,6 +29,11 @@
 //                                           counters of what the edit did (cells moved and deleted, formulas visited and written again, formulas made again in the graph, the graph's work, names and rules
 //                                           written again, the session's marks followed, the window's values moved and sizes and texts rebuilt, the bytes of Undo, the graph's entries) and then the
 //                                           same for its Undo (the counters are in Calculation::editStats, EditSession::marksFollowed, ValueStore::relocated, GridSheet::viewCellsRebuiltForTest).
+//   jcrunchtool model-check <seeds> <steps> [first seed] [every=n] [nograph] [noshrink]   the model check of tests/crunch/structmodel.h: random steps on a small workbook, and after each the workbook is
+//                                           saved to memory, opened again, and every formula worked out from nothing, and all of it compared (values, text of formulas, conditional formats, validations, names, tables,
+//                                           charts, notes, links, merged cells, print areas, page breaks, filters, sizes); the graph must hold what each formula reads. A failure prints the seed and the fewest steps.
+//   jcrunchtool model-replay <file>   runs the steps of a failure's report again;  model-dump <seed> <steps>|<file>   prints the state after them;  model-book <out.xlsx>   writes the workbook it begins with;
+//   jcrunchtool model-golden <steps> <seed>...   prints the digests tests/crunch/structmodel_golden.txt keeps
 //   jcrunchtool edit-save-struct-bench <file.xlsx> <label>   saves the workbook untouched and after structural edits at random places (JC_SAVE_EDITS=20,200 says how many), timing the session's snapshot and the save
 //   jcrunchtool edit-bench-make [rows=100000] [cols=20] [readers=0] [edits=200]   the same on a workbook made here: numbers in rows and columns, a formula in the last column of each row that reads the
 //                                           first, and, with readers, a cell that that many formulas read
@@ -45,6 +50,7 @@
 
 #include "app/crunchwindow.h"
 #include "grid/gridview.h"
+#include "../tests/crunch/structmodel.h"
 
 #include <QApplication>
 #include <QElapsedTimer>
@@ -1708,6 +1714,7 @@ namespace jp::crunchtool {
 
 int editMain(const QStringList &args)
 {
+    if (!args.isEmpty() && args[0].startsWith(QLatin1String("model-"))) return ::jp::structmodel::command(args);
     if (args.size() >= 2 && args.size() <= 3 && args[0] == QLatin1String("edit-bench")) return editBench(args[1], args.value(2, QStringLiteral("200")).toInt(), 0, 0, 0);
     if (args.size() == 3 && args[0] == QLatin1String("edit-save-struct-bench")) return saveStructBench(args[1], args[2]);
     if (args.size() >= 3 && args.size() <= 4 && args[0] == QLatin1String("edit-struct-bench")) return structBench(args[1], args[2], args.value(3));

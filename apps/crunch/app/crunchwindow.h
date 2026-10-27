@@ -223,6 +223,9 @@ public:
     // Saves the workbook where it was read from (the file is made whole in a place of its own, and then put where the old one is), or, with a path, there. The work is done on a thread of its own;
     // `saved` says when it is over. False if it did not begin (nothing to save, or the reason is shown).
     bool save();
+    // For tests and tools: the bytes a save would write now, made at once on this thread from the same snapshot a save takes. Nothing is written, and the session is not told it was saved (Undo
+    // keeps all its steps), so it can be called after every edit; false, with the reason, when a save could not be made.
+    bool snapshotBytesForTest(QByteArray *bytes, QString *why);
     bool saveAs(const QString &path);
     // Writes the values of the sheet in view as a .csv file (see crunchwindow_csv.cpp); `csvExported` says when it is over. A path ending in .csv given to save() or saveAs() comes here.
     bool exportCsv(const QString &path);

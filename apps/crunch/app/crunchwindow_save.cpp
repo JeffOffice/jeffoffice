@@ -54,6 +54,16 @@ bool CrunchWindow::save()
     return startSave(m_path);
 }
 
+bool CrunchWindow::snapshotBytesForTest(QByteArray *bytes, QString *why)
+{
+    if (!m_session || !m_loaded) return false;
+    crunch::EditSession::Snapshot snapshot;
+    if (!m_session->takeSnapshot(&snapshot, why)) return false;
+    if (m_objects) m_objects->addToSave(&snapshot.changes);
+    SaveReport report;
+    return office::sheet::saveXlsx(*m_loaded->book, snapshot.changes, bytes, why, &report);
+}
+
 bool CrunchWindow::saveAs(const QString &pathIn)
 {
     if (!m_session || !m_loaded) return false;
