@@ -233,6 +233,8 @@ public:
             quint32 fromRow, fromCol, toRow, toCol;
         };
         std::vector<MovedFormula> movedFormulas;
+        // rows or columns inserted or deleted: what the edit did to the order of the sheet's rows or columns (Undo and Redo go by it, so the rows and columns come back with their cells)
+        mutable CellStore::LineEdits lines;
         // a Move that carries whole arrays: the arrays it took apart (the place each had in the sheet's list of ranges, and the range), and the arrays it made where they went (and whether
         // the place in the list was added, not one a taken array left free)
         struct ArraySlot {
@@ -467,6 +469,8 @@ public:
     void forEachFormulaText(const std::function<void(int sheet, quint32 row, quint32 col, const QString &formula)> &f) const;
 
 private:
+    // (applyEdit, or the edit that undoes `undoOf`: the rows and columns it brought are taken out again, and the ones it took out are brought back)
+    bool applyEditImpl(const StructEdit &edit, EditRecord *record, const EditRecord *undoOf);
     enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3, Suspended = 4 };   // (Suspended: worked out, found to wait only for formulas on the way to it or in its own group)
     enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048, Worked = 4096, ThreeD = 8192, Iterating = 16384 };
     enum : quint8 { KindEmpty = 0, KindNumber, KindText, KindBool, KindError, KindArray };

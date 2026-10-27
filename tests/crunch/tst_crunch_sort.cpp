@@ -386,6 +386,65 @@ private Q_SLOTS:
         QVERIFY2(saved(QStringLiteral("xl/worksheets/sheet1.xml")).contains(QLatin1String("<hyperlink ref=\"A2\"")), "link back");
     }
 
+    // Rows and columns inserted and deleted change where cells are, not the cells: a sort, a fill, a paste, a cut and paste, and a copy of the sheet made after them give the cells at the places
+    // a person sees, and the file saved after them holds the same cells at the same places (read again in a window of its own).
+    void sortFillPasteCutAndSheetCopyAfterRowsAndColumnsWereInsertedAndDeleted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=5", "A2=3", "A3=9", "A4=1", "B1==A1*2", "B2==A2*2", "B3==A3*2", "B4==A4*2", "C1=a", "C2=b", "C3=c", "C4=d"})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->insertRows(0, 1, 2).ok);        // two blank rows after the first
+        QVERIFY(s->deleteColumns(0, 2, 1).ok);     // the text goes
+        QVERIFY(s->insertColumns(0, 0, 1).ok);     // a blank column in front: values in B, formulas in C
+        QVERIFY(s->deleteRows(0, 2, 1).ok);        // and one of the blank rows
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("B1:C5")), QStringLiteral("5|10|||3|6|9|18|1|2"));
+        // sorted: the formulas go with their rows
+        QVERIFY(sortWith(e, QStringLiteral("B3:C5"), byColumn(0)).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("B3:C5")), QStringLiteral("1|2|3|6|9|18"));
+        QCOMPARE(s->calculation()->content(0, 2, 2).formula, QStringLiteral("B3*2"));
+        // filled down: the formula of C5 into C6 and C7, which read the blank cells beside them
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("C5")), crunch::EditSession::FillDirection::Down, 2).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("C5:C7")), QStringLiteral("18|0|0"));
+        QCOMPARE(s->calculation()->content(0, 6, 2).formula, QStringLiteral("B7*2"));
+        // text pasted over cells that were never there
+        QVERIFY(s->pasteText(0, rangeOf(QStringLiteral("E2")), {{QStringLiteral("x"), QStringLiteral("y")}, {QStringLiteral("z"), QStringLiteral("w")}}, crunch::EditSession::PasteOptions()).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("E2:F3")), QStringLiteral("x|y|z|w"));
+        // cut and pasted lower down
+        QVERIFY(s->moveCells(0, rangeOf(QStringLiteral("B3:C5")), 0, 8, 1).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("B9:C11")), QStringLiteral("1|2|3|6|9|18"));
+        QCOMPARE(shown(e, QStringLiteral("B3:C5")), QStringLiteral("|||||"));
+        QCOMPARE(s->calculation()->content(0, 8, 2).formula, QStringLiteral("B9*2"));
+        // the sheet copied is the same cells at the same places
+        int made = -1;
+        QVERIFY(s->copySheet(0, 1, QStringLiteral("Copy"), &made).ok);
+        QVERIFY(e.settle());
+        QVERIFY(made >= 0);
+        QStringList original, copied;
+        s->calculation()->sheet(0).cells.forEach([&](quint32 row, quint32 col, const jp::office::sheet::Cell &c) { original << QStringLiteral("%1,%2:%3").arg(row).arg(col).arg(c.number); });
+        s->calculation()->sheet(made).cells.forEach([&](quint32 row, quint32 col, const jp::office::sheet::Cell &c) { copied << QStringLiteral("%1,%2:%3").arg(row).arg(col).arg(c.number); });
+        QVERIFY(!original.isEmpty());
+        QCOMPARE(copied, original);
+        // saved, and read again in a window of its own: the same cells at the same places, and the formulas as they read where they are
+        QSignalSpy done(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(done, 20000), "the save failed");
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        EditWindow again;
+        QVERIFY(again.open(f.readAll(), QStringLiteral("again.xlsx")));
+        QVERIFY(again.settle());
+        for (const char *range : {"A1:G13"}) QCOMPARE(shown(again, QString::fromLatin1(range)), shown(e, QString::fromLatin1(range)));
+        QCOMPARE(shown(again, QStringLiteral("B9:C11")), QStringLiteral("1|2|3|6|9|18"));
+        QCOMPARE(again.win.w.session()->calculation()->content(0, 8, 2).formula, QStringLiteral("B9*2"));
+        QCOMPARE(again.win.w.session()->calculation()->content(0, 6, 2).formula, QStringLiteral("B7*2"));
+        QCOMPARE(again.win.w.session()->calculation()->sheet(0).cells.cellCount(), s->calculation()->sheet(0).cells.cellCount());
+    }
+
     void aBigSortIsPutInASliceAtATimeAndIsOneStep()
     {
         QStringList cells;

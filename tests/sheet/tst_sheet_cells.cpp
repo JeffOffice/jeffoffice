@@ -242,6 +242,247 @@ private Q_SLOTS:
         QVERIFY(!store.erase(100000, 3));
     }
 
+    // Rows and columns inserted and deleted, and Undo and Redo of them, move no cell: the store is what a map of places to cells would be after each (find, the walks over all of it, over a
+    // rectangle, and from the end, in slices too, and the count), the same cell is at its new place, and a deleted row or column comes back with its cells.
+    void rowsAndColumnsEditedMoveNoCellAndTheWalksGiveTheirPlaces()
+    {
+        struct Model {
+            std::map<std::pair<quint32, quint32>, double> cells;
+            void insert(bool rows, quint32 at, quint32 count)
+            {
+                std::map<std::pair<quint32, quint32>, double> out;
+                for (const auto &e : cells) {
+                    auto key = e.first;
+                    quint32 &line = rows ? key.first : key.second;
+                    if (line >= at) line += count;
+                    out[key] = e.second;
+                }
+                cells = out;
+            }
+            void erase(bool rows, quint32 at, quint32 count)
+            {
+                std::map<std::pair<quint32, quint32>, double> out;
+                for (const auto &e : cells) {
+                    auto key = e.first;
+                    quint32 &line = rows ? key.first : key.second;
+                    if (line >= at && line < at + count) continue;
+                    if (line >= at + count) line -= count;
+                    out[key] = e.second;
+                }
+                cells = out;
+            }
+        };
+        std::mt19937 rng(20261027);
+        CellStore store;
+        Model model;
+        for (int i = 0; i < 1500; ++i) {
+            const quint32 r = rng() % 120, c = rng() % 24;
+            store.add(makeCell(r, c, i));
+            model.cells[{r, c}] = i;
+        }
+        store.finish();
+        const Model start = model;
+        // one cell is followed: where it is held never changes
+        const Cell *tracked = store.find(model.cells.begin()->first.first, model.cells.begin()->first.second);
+        QVERIFY(tracked);
+        std::pair<quint32, quint32> trackedAt = model.cells.begin()->first;
+        bool trackedLive = true;
+        struct Done {
+            bool rows, insert;
+            CellStore::LineEdits edits;
+            Model before, after;
+            std::pair<quint32, quint32> trackedBefore, trackedAfter;
+            bool liveBefore, liveAfter;
+        };
+        std::vector<Done> done, undone;
+        auto check = [&](const char *what) {
+            const QString where = QStringLiteral("%1 (after %2 steps)").arg(QLatin1String(what)).arg(done.size());
+            QVERIFY2(store.cellCount() == qint64(model.cells.size()), qPrintable(where + QStringLiteral(": %1 cells, expected %2").arg(store.cellCount()).arg(model.cells.size())));
+            std::vector<std::pair<quint32, quint32>> walked, want;
+            store.forEach([&](quint32 r, quint32 c, const Cell &cell) {
+                walked.push_back({r, c});
+                const auto it = model.cells.find({r, c});
+                if (it == model.cells.end() || it->second != cell.number) walked.push_back({~0u, ~0u});
+            });
+            for (const auto &e : model.cells) want.push_back(e.first);
+            QVERIFY2(walked == want, qPrintable(where + QStringLiteral(": the walk over all of it")));
+            for (int trial = 0; trial < 12; ++trial) {
+                quint32 r1 = rng() % 140, r2 = rng() % 140, c1 = rng() % 30, c2 = rng() % 30;
+                if (r1 > r2) std::swap(r1, r2);
+                if (c1 > c2) std::swap(c1, c2);
+                std::vector<std::pair<quint32, quint32>> got, expected;
+                store.forEachInRange(r1, c1, r2, c2, [&](quint32 r, quint32 c, const Cell &) {
+                    got.push_back({r, c});
+                    return true;
+                });
+                for (const auto &e : model.cells)
+                    if (e.first.first >= r1 && e.first.first <= r2 && e.first.second >= c1 && e.first.second <= c2) expected.push_back(e.first);
+                QVERIFY2(got == expected, qPrintable(where + QStringLiteral(": rows %1-%2, columns %3-%4").arg(r1).arg(r2).arg(c1).arg(c2)));
+            }
+            // from the end: every cell of each row, last first; whole, and in slices of a few steps
+            std::vector<std::pair<quint32, quint32>> tail, expectedTail(want.rbegin(), want.rend());
+            store.forEachRowTail([&](quint32 r, quint32 c, const Cell &) {
+                tail.push_back({r, c});
+                return false;
+            });
+            QVERIFY2(tail == expectedTail, qPrintable(where + QStringLiteral(": the walk from the end")));
+            std::vector<std::pair<quint32, quint32>> sliced;
+            CellStore::RowTailCursor cursor;
+            qint64 steps = 0;
+            int slices = 0;
+            while (!store.forEachRowTailSome(&cursor, steps + 9, &steps, [&](quint32 r, quint32 c, const Cell &) {
+                sliced.push_back({r, c});
+                return false;
+            }))
+                ++slices;
+            QVERIFY2(sliced == expectedTail && slices > 1, qPrintable(where + QStringLiteral(": the walk from the end in slices")));
+            for (int probe = 0; probe < 40; ++probe) {
+                const quint32 r = rng() % 140, c = rng() % 30;
+                const Cell *found = store.find(r, c);
+                const auto it = model.cells.find({r, c});
+                QVERIFY2((found != nullptr) == (it != model.cells.end()) && (!found || found->number == it->second), qPrintable(where + QStringLiteral(": find %1,%2").arg(r).arg(c)));
+            }
+            // the cell that was followed is the very cell, if it is not in a deleted row or column
+            if (trackedLive) QVERIFY2(store.find(trackedAt.first, trackedAt.second) == tracked, qPrintable(where + QStringLiteral(": the followed cell moved")));
+        };
+        check("at the start");
+        for (int step = 0; step < 220; ++step) {
+            const int roll = int(rng() % 10);
+            if (roll >= 7 && !done.empty()) {
+                // Undo
+                Done d = std::move(done.back());
+                done.pop_back();
+                QCOMPARE(store.undoLines(d.rows, d.edits), jp::calc::LineStatus::Ok);
+                model = d.before;
+                trackedAt = d.trackedBefore;
+                trackedLive = d.liveBefore;
+                undone.push_back(std::move(d));
+                check("undo");
+            } else if (roll == 6 && !undone.empty()) {
+                // Redo
+                Done d = std::move(undone.back());
+                undone.pop_back();
+                QCOMPARE(store.redoLines(d.rows, d.edits), jp::calc::LineStatus::Ok);
+                model = d.after;
+                trackedAt = d.trackedAfter;
+                trackedLive = d.liveAfter;
+                done.push_back(std::move(d));
+                check("redo");
+            } else {
+                undone.clear();
+                Done d;
+                d.rows = rng() % 2 == 0;
+                d.insert = rng() % 2 == 0;
+                const quint32 at = rng() % (d.rows ? 130 : 26), count = 1 + rng() % 4;
+                d.before = model;
+                d.trackedBefore = trackedAt;
+                d.liveBefore = trackedLive;
+                if (d.insert) {
+                    QCOMPARE(store.insertLines(d.rows, at, count, &d.edits), jp::calc::LineStatus::Ok);
+                    model.insert(d.rows, at, count);
+                    quint32 &line = d.rows ? trackedAt.first : trackedAt.second;
+                    if (line >= at) line += count;
+                } else {
+                    QCOMPARE(store.deleteLines(d.rows, at, count, &d.edits), jp::calc::LineStatus::Ok);
+                    model.erase(d.rows, at, count);
+                    quint32 &line = d.rows ? trackedAt.first : trackedAt.second;
+                    if (trackedLive && line >= at && line < at + count) trackedLive = false;
+                    else if (line >= at + count) line -= count;
+                }
+                d.after = model;
+                d.trackedAfter = trackedAt;
+                d.liveAfter = trackedLive;
+                done.push_back(std::move(d));
+                check(done.back().insert ? "an insert" : "a delete");
+            }
+        }
+        // after all that, every edit undone gives the cells that were at the start, in the places they were
+        while (!done.empty()) {
+            Done d = std::move(done.back());
+            done.pop_back();
+            QCOMPARE(store.undoLines(d.rows, d.edits), jp::calc::LineStatus::Ok);
+            model = d.before;
+            trackedAt = d.trackedBefore;
+            trackedLive = d.liveBefore;
+        }
+        QVERIFY(trackedLive);
+        check("everything undone");
+        QVERIFY(model.cells == start.cells);
+        QCOMPARE(store.deadCount(), qint64(0));
+    }
+
+    // A walk across five or more runs of rows (and of columns) visits the cells in the order of their places, and a row that is deleted is never reached, though its cells are held until
+    // Undo (the count leaves them out).
+    void aWalkAcrossManyRunsVisitsCellsInOrderOfPlace()
+    {
+        CellStore store;
+        for (quint32 r = 0; r < 40; ++r)
+            for (quint32 c = 0; c < 6; ++c) store.add(makeCell(r, c, r * 100 + c));
+        store.finish();
+        QCOMPARE(store.cellCount(), qint64(240));
+        // the cells are known by their numbers: a row's number is 100 times the row it was
+        auto rowOf = [](const Cell &c) { return int(c.number) / 100; };
+        auto colOf = [](const Cell &c) { return int(c.number) % 100; };
+        CellStore::LineEdits e1, e2, e3, e4, e5;
+        QCOMPARE(store.insertLines(true, 30, 2, &e1), jp::calc::LineStatus::Ok);    // (two blank rows at 30, 31)
+        QCOMPARE(store.deleteLines(true, 20, 3, &e2), jp::calc::LineStatus::Ok);    // (rows 20 to 22 gone)
+        QCOMPARE(store.insertLines(false, 2, 1, &e3), jp::calc::LineStatus::Ok);    // (a blank column at 2)
+        QCOMPARE(store.deleteLines(true, 5, 1, &e4), jp::calc::LineStatus::Ok);     // (row 5 gone)
+        QCOMPARE(store.deleteLines(false, 4, 1, &e5), jp::calc::LineStatus::Ok);    // (what was column 3, now at 4, gone)
+        QVERIFY(store.rows().runCount() >= 5);
+        QVERIFY(store.cols().runCount() >= 3);
+        // 40 rows minus 4 deleted, of 6 columns minus one
+        std::vector<std::pair<quint32, quint32>> places;
+        std::vector<int> rowsSeen;
+        store.forEach([&](quint32 r, quint32 c, const Cell &cell) {
+            places.push_back({r, c});
+            rowsSeen.push_back(rowOf(cell));
+            QVERIFY(colOf(cell) != 3);
+            QVERIFY(rowOf(cell) < 20 || rowOf(cell) > 22);
+            QVERIFY(rowOf(cell) != 5);
+        });
+        QCOMPARE(qint64(places.size()), qint64(36 * 5));
+        QCOMPARE(store.cellCount(), qint64(36 * 5));
+        QVERIFY(std::is_sorted(places.begin(), places.end()));
+        QVERIFY(std::adjacent_find(places.begin(), places.end()) == places.end());
+        QCOMPARE(store.deadCount(), qint64(4 * 6 + 36));   // (the cells of 4 rows, and of the column in the rows left; the column's cells in the 4 rows are counted once)
+        // the cell that was row 6, column 1 is at row 5, column 1 now; and the one that was row 29 is at 29 - 3 - 1 = 25
+        QVERIFY(store.find(5, 1) && rowOf(*store.find(5, 1)) == 6 && colOf(*store.find(5, 1)) == 1);
+        QVERIFY(store.find(25, 0) && rowOf(*store.find(25, 0)) == 29);
+        QVERIFY(store.find(25, 4) && colOf(*store.find(25, 4)) == 4);   // (the blank column is at 2, so what was column 3 is gone and 4 is at 4)
+        QVERIFY(!store.find(25, 2));
+        // a rectangle across the runs gives the same cells as the whole walk does for it
+        std::vector<std::pair<quint32, quint32>> inRange;
+        store.forEachInRange(3, 1, 30, 4, [&](quint32 r, quint32 c, const Cell &) {
+            inRange.push_back({r, c});
+            return true;
+        });
+        std::vector<std::pair<quint32, quint32>> expected;
+        for (const auto &p : places)
+            if (p.first >= 3 && p.first <= 30 && p.second >= 1 && p.second <= 4) expected.push_back(p);
+        QVERIFY(inRange == expected && !inRange.empty());
+        // everything undone: the 240 cells, where they were
+        QCOMPARE(store.undoLines(false, e5), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.undoLines(true, e4), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.undoLines(false, e3), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.undoLines(true, e2), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.undoLines(true, e1), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.cellCount(), qint64(240));
+        QCOMPARE(store.deadCount(), qint64(0));
+        int seen = 0;
+        store.forEach([&](quint32 r, quint32 c, const Cell &cell) {
+            QVERIFY(rowOf(cell) == int(r) && colOf(cell) == int(c));
+            ++seen;
+        });
+        QCOMPARE(seen, 240);
+        // an Undo that is not the last one made is refused, and changes nothing
+        CellStore::LineEdits a, b;
+        QCOMPARE(store.insertLines(true, 1, 1, &a), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.insertLines(true, 1, 1, &b), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.undoLines(true, a), jp::calc::LineStatus::StaleStep);
+        QCOMPARE(store.cellCount(), qint64(240));
+    }
+
     // A store that was moved from is empty and has nothing of the one it was moved to: cells added to either go where they should.
     void aStoreMovedFromAndTheOneItWentToAreSeparate()
     {

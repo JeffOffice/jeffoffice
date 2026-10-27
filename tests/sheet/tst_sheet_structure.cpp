@@ -152,8 +152,152 @@ private Q_SLOTS:
         QVERIFY(b.calc->setValue(0, 2, 0, Value::number(1000)));                 // A3
         b.finish();
         QCOMPARE(b.at("B1"), QStringLiteral("n:1060"));
-        // counted: the cells at and below the row moved (A3-A5, B3, and nothing above)
-        QCOMPARE(rec.cellsMoved, qint64(4));
+        // counted: no cell moved (the rows are held by id, and the edit is a change to their order)
+        QCOMPARE(rec.cellsMoved, qint64(0));
+    }
+
+    // Rows and columns inserted and deleted move no cell: a cell is held by the id of its row and of its column, and the edit changes the order of those. A cell of a row that is deleted is held
+    // while the step can be undone and is the very cell that comes back; the count leaves it out; and the edit done again after Undo brings back the rows it made, so that edits undone and
+    // done again use no ids up.
+    void rowsAndColumnsInsertedAndDeletedMoveNoCellAndUndoBringsTheSameCellsBack()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2", "A3=3", "A4=4", "B1==SUM(A1:A4)", "B3==A3*2", "C2=text", "C4=more", "D3==B3+1"}}));
+        const Sheet &s = b.calc->sheet(0);
+        const qint64 cells = s.cells.cellCount();
+        QCOMPARE(cells, qint64(9));
+        const Cell *a3 = s.cells.find(2, 0);
+        const Cell *b3 = s.cells.find(2, 1);
+        const Cell *d3 = s.cells.find(2, 3);
+        QVERIFY(a3 && b3 && d3);
+        const qint64 movedBefore = b.calc->editStats().cellsMoved;
+        // a row above and a column before: every cell is where it was held, with a new place
+        Calculation::EditRecord rows, cols;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 2), &rows));
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 1), &cols));
+        QCOMPARE(rows.cellsMoved, qint64(0));
+        QCOMPARE(cols.cellsMoved, qint64(0));
+        QCOMPARE(b.calc->editStats().cellsMoved, movedBefore);
+        QVERIFY(s.cells.find(4, 1) == a3 && s.cells.find(4, 2) == b3 && s.cells.find(4, 4) == d3);
+        QCOMPARE(b.formula("C5", 0), QStringLiteral("B5*2"));                      // (the formula's node was told where it is)
+        QCOMPARE(b.at("C5"), QStringLiteral("n:6"));
+        QCOMPARE(b.at("E5"), QStringLiteral("n:7"));
+        QCOMPARE(s.cells.cellCount(), cells);
+        // rows deleted: the cells are held and left out of the count and of every walk
+        Calculation::EditRecord del;
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 4, 2), &del));                   // the rows of A3 and A4 (now 5 and 6)
+        QCOMPARE(del.cellsMoved, qint64(0));
+        QCOMPARE(s.cells.cellCount(), qint64(4));
+        QCOMPARE(s.cells.deadCount(), qint64(5));
+        qint64 walked = 0;
+        s.cells.forEach([&](quint32 row, quint32, const Cell &) {
+            ++walked;
+            QVERIFY(row != 4 && row != 5);
+        });
+        QCOMPARE(walked, qint64(4));
+        QVERIFY(!s.cells.find(4, 1));
+        const quint32 nextRowId = s.rows().nextId().value();
+        // Undo gives back the same cells, and the count; the edit done again with the same record brings back the same rows, and Undo of it, and so on, using no ids
+        QVERIFY(b.calc->undoEdit(del));
+        b.finish();
+        QCOMPARE(s.cells.cellCount(), cells);
+        QCOMPARE(s.cells.deadCount(), qint64(0));
+        QVERIFY(s.cells.find(4, 1) == a3 && s.cells.find(4, 2) == b3 && s.cells.find(4, 4) == d3);
+        QCOMPARE(b.at("C5"), QStringLiteral("n:6"));
+        QCOMPARE(b.formula("E5"), QStringLiteral("C5+1"));
+        for (int i = 0; i < 5; ++i) {
+            QVERIFY(b.apply(StructEdit::deleteRows(0, 4, 2), &del));
+            QCOMPARE(s.cells.cellCount(), qint64(4));
+            QVERIFY(b.calc->undoEdit(del));
+            b.finish();
+            QCOMPARE(s.cells.cellCount(), cells);
+        }
+        QCOMPARE(s.rows().nextId().value(), nextRowId);
+        QVERIFY(s.cells.find(4, 1) == a3);
+        // a column deleted, and an insert undone and done again
+        Calculation::EditRecord col;
+        QVERIFY(b.apply(StructEdit::deleteColumns(0, 1, 1), &col));
+        QCOMPARE(s.cells.cellCount(), qint64(cells - 4));
+        QVERIFY(b.calc->undoEdit(col));
+        b.finish();
+        QCOMPARE(s.cells.cellCount(), cells);
+        QVERIFY(s.cells.find(4, 1) == a3 && s.cells.find(4, 4) == d3);
+        const quint32 nextColId = s.cols().nextId().value();
+        for (int i = 0; i < 4; ++i) {
+            QVERIFY(b.calc->undoEdit(cols));
+            QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 1), &cols));
+        }
+        b.finish();
+        QCOMPARE(s.cols().nextId().value(), nextColId);
+        QVERIFY(s.cells.find(4, 1) == a3 && s.cells.find(4, 4) == d3);
+        QCOMPARE(b.at("E5"), QStringLiteral("n:7"));
+    }
+
+    // Cells put in another place after rows and columns were inserted and deleted (a block cut and pasted, cells shifted down and to the right, a sheet copied) are where the places say, and
+    // the sheet copied is the same cells in the same places, apart from the original.
+    void cellsMovedAndSheetsCopiedAfterStructuralEditsAreByPlace()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "B1==A1*10", "B3==A3*10", "B5==A5*10", "C2=x", "C4=y"}}));
+        Calculation::EditRecord r1, r2, r3, r4;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 1, 1), &r1));       // A2 blank; the values are in A1, A3 to A6
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 3, 1), &r2));       // the 3 (now at row 4) goes: 1, blank, 2, 4, 5
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 1, 1), &r3));    // B blank
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &r4));       // a row at the top
+        QCOMPARE(b.at("A2"), QStringLiteral("n:1"));
+        QCOMPARE(b.at("A4"), QStringLiteral("n:2"));
+        QCOMPARE(b.at("A5"), QStringLiteral("n:4"));
+        QCOMPARE(b.at("A6"), QStringLiteral("n:5"));
+        QCOMPARE(b.at("C2"), QStringLiteral("n:10"));
+        QCOMPARE(b.at("C6"), QStringLiteral("n:50"));
+        // the sheet copied is these cells in these places, and separate from the original
+        Sheet copy = b.calc->sheet(0);
+        QCOMPARE(copy.cells.cellCount(), b.calc->sheet(0).cells.cellCount());
+        QStringList original, copied;
+        b.calc->sheet(0).cells.forEach([&](quint32 row, quint32 col, const Cell &c) { original << QStringLiteral("%1,%2:%3:%4").arg(row).arg(col).arg(c.number).arg(int(c.type)); });
+        copy.cells.forEach([&](quint32 row, quint32 col, const Cell &c) { copied << QStringLiteral("%1,%2:%3:%4").arg(row).arg(col).arg(c.number).arg(int(c.type)); });
+        QCOMPARE(copied, original);
+        Cell extra;
+        extra.type = CellType::Number;
+        extra.number = 77;
+        copy.cells.set(3, 0, extra);
+        QCOMPARE(b.at("A4"), QStringLiteral("n:2"));
+        QCOMPARE(copy.cells.find(3, 0)->number, 77.0);
+        QVERIFY(copy.cells.find(2, 0) == nullptr && b.calc->sheet(0).cells.find(2, 0) == nullptr);
+        QVERIFY(copy.cells.find(5, 0) != b.calc->sheet(0).cells.find(5, 0));
+        // a block cut and pasted: A5:A6 (4 and 5) to E2, formulas that read the block follow it
+        Calculation::EditRecord cut;
+        CellRange block;
+        block.valid = true;
+        block.row1 = 4;
+        block.row2 = 5;
+        block.col1 = block.col2 = 0;
+        QVERIFY(b.apply(StructEdit::move(0, block, 0, 1, 4), &cut));
+        QCOMPARE(b.at("E2"), QStringLiteral("n:4"));
+        QCOMPARE(b.at("E3"), QStringLiteral("n:5"));
+        QVERIFY(!b.has("A5"));
+        QVERIFY(!b.has("A6"));
+        QCOMPARE(b.formula("C6"), QStringLiteral("E3*10"));
+        QCOMPARE(b.at("C6"), QStringLiteral("n:50"));
+        // cells shifted down in column A (the 1 and the 2 move), and Undo of both
+        Calculation::EditRecord down;
+        CellRange cellsDown;
+        cellsDown.valid = true;
+        cellsDown.row1 = 1;
+        cellsDown.row2 = 1;
+        cellsDown.col1 = cellsDown.col2 = 0;
+        QVERIFY(b.apply(StructEdit::insertCellsDown(0, cellsDown), &down));
+        QCOMPARE(b.at("A3"), QStringLiteral("n:1"));
+        QCOMPARE(b.at("A5"), QStringLiteral("n:2"));
+        QVERIFY(b.calc->undoEdit(down));
+        b.finish();
+        QCOMPARE(b.at("A2"), QStringLiteral("n:1"));
+        QCOMPARE(b.at("A4"), QStringLiteral("n:2"));
+        QVERIFY(b.calc->undoEdit(cut));
+        b.finish();
+        QCOMPARE(b.at("A5"), QStringLiteral("n:4"));
+        QCOMPARE(b.at("A6"), QStringLiteral("n:5"));
+        QVERIFY(!b.has("E2"));
     }
 
     // Rows deleted: the cells below move up, a range loses the rows deleted from it, a reference to a deleted cell is #REF!, and Undo puts everything back as it was (the cells, the
@@ -1045,8 +1189,8 @@ private Q_SLOTS:
         const qint64 workBefore = b.calc->editWork();
         Calculation::EditRecord rec;
         QVERIFY(b.apply(StructEdit::insertRows(0, 50000, 1), &rec));               // a row at 50,001
-        QVERIFY2(b.calc->editWork() - workBefore < qint64(n - 50000) * 2 + 100, qPrintable(QString::number(b.calc->editWork() - workBefore)));   // (the cells that moved, and the one formula)
-        QCOMPARE(rec.cellsMoved, qint64(n - 50000));
+        QVERIFY2(b.calc->editWork() - workBefore < 100, qPrintable(QString::number(b.calc->editWork() - workBefore)));   // (the one formula: no cell moves)
+        QCOMPARE(rec.cellsMoved, qint64(0));
         QCOMPARE(rec.formulasRewritten, qint64(1));                                 // (C1 reads A99999: B1 reads rows 1 to 100, and B2 reads A50000, which is above)
         QVERIFY2(b.calc->graph().queryWork() - queried < 5000, qPrintable(QString::number(b.calc->graph().queryWork() - queried)));
         QCOMPARE(b.formula("C1"), QStringLiteral("A100000*2"));
@@ -1055,7 +1199,7 @@ private Q_SLOTS:
         // an insert at the top moves everything, and rewrites the three formulas
         Calculation::EditRecord top;
         QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &top));
-        QCOMPARE(top.cellsMoved, qint64(n + 3));                                    // (every cell: the column of numbers and the three formulas')
+        QCOMPARE(top.cellsMoved, qint64(0));                                        // (no cell moves, though every cell has a new place)
         QCOMPARE(top.formulasRewritten, qint64(3));
         QCOMPARE(b.formula("B2"), QStringLiteral("SUM(A2:A101)"));
         QCOMPARE(b.at("B2"), QStringLiteral("n:%1").arg(5050));

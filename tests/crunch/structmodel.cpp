@@ -1601,7 +1601,12 @@ Result run(const std::vector<Step> &steps, const Options &options)
             live = std::move(next);
             didSomething = true;
         } else {
+            const qint64 movedBefore = live->session()->calculation()->editStats().cellsMoved;
             const crunch::EditSession::Outcome o = execute(*live, st, &didSomething);
+            if (didSomething && (st.kind == Step::InsertRows || st.kind == Step::DeleteRows || st.kind == Step::InsertColumns || st.kind == Step::DeleteColumns)) {
+                ++result.lineEdits;
+                result.lineEditCellsMoved += live->session()->calculation()->editStats().cellsMoved - movedBefore;
+            }
             if (!o.ok) result.stepsText.back() += QStringLiteral("  [refused: %1]").arg(o.problem.left(60));
             else if (!didSomething && (st.kind == Step::Undo || st.kind == Step::Redo || st.kind == Step::Save)) result.stepsText.back() += QStringLiteral("  [nothing to do]");
             if (!o.ok && st.kind != Step::Undo && st.kind != Step::Redo && st.kind != Step::Save && st.kind != Step::Reopen) ++result.refused;

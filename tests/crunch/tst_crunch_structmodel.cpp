@@ -111,6 +111,8 @@ private Q_SLOTS:
             QVERIFY2(r.failure.ok(), qPrintable(failureText(1, steps, Options(), r)));
             QVERIFY(r.undone >= 4 && r.redone >= 2);
             QCOMPARE(r.refused, 0);
+            QVERIFY(r.lineEdits >= 4);
+            QCOMPARE(r.lineEditCellsMoved, qint64(0));   // (no cell is moved by an edit of rows or columns)
         }
     }
 
@@ -188,7 +190,8 @@ private Q_SLOTS:
         const int seeds = qEnvironmentVariableIsSet("CRUNCH_MODEL_SEEDS") ? qEnvironmentVariableIntValue("CRUNCH_MODEL_SEEDS") : 4;
         const int stepCount = qEnvironmentVariableIsSet("CRUNCH_MODEL_STEPS") ? qEnvironmentVariableIntValue("CRUNCH_MODEL_STEPS") : 20;
         const int first = qEnvironmentVariableIsSet("CRUNCH_MODEL_FIRST") ? qEnvironmentVariableIntValue("CRUNCH_MODEL_FIRST") : 1;
-        int refused = 0, undone = 0, done = 0;
+        int refused = 0, undone = 0, done = 0, lineEdits = 0;
+        qint64 moved = 0;
         for (int seed = first; seed < first + seeds; ++seed) {
             const std::vector<Step> steps = generate(quint32(seed), stepCount);
             const Result r = run(steps, Options());
@@ -196,7 +199,11 @@ private Q_SLOTS:
             refused += r.refused;
             undone += r.undone;
             done += int(r.digests.size());
+            lineEdits += r.lineEdits;
+            moved += r.lineEditCellsMoved;
         }
+        QVERIFY(lineEdits > 0);
+        QCOMPARE(moved, qint64(0));
         // (the seeds make steps that are taken, steps that are refused, and Undo)
         QVERIFY(done >= seeds * stepCount);   // (and CRUNCH_MODEL_SEEDS, CRUNCH_MODEL_STEPS, and CRUNCH_MODEL_FIRST make it longer)
         QVERIFY(refused < done);

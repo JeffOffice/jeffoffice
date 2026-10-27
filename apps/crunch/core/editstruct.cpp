@@ -380,7 +380,12 @@ bool EditSession::applyStructure(Step *step, bool forward)
     bool ok;
     Calculation::EditRecord undone;   // what undoing did to the cells (the record of the edit it made)
     if (forward) {
+        // (an edit done again after Undo brings back the rows or columns it made, not new ones)
+        Calculation::EditRecord previous = std::move(sc.record);
         sc.record = Calculation::EditRecord();
+        sc.record.lines = std::move(previous.lines);
+        sc.record.edit = previous.edit;
+        sc.record.sheet = previous.sheet;
         ok = calc->applyEdit(sc.edit, &sc.record);
         if (ok) sc.tables = book.moveTables(sc.edit);
     } else {

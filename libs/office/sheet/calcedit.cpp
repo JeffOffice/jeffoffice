@@ -111,6 +111,10 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
     }
     const quint32 count = shiftBy(e);
     if (count == 0) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "There is nothing to insert or delete.")));
+    if (e.kind == K::InsertRows || e.kind == K::DeleteRows || e.kind == K::InsertColumns || e.kind == K::DeleteColumns) {
+        const jp::calc::LineStatus lines = s.cells.canEditLines(e.kind == K::InsertRows || e.kind == K::DeleteRows, count);
+        if (lines != jp::calc::LineStatus::Ok) return refuse(jp::calc::lineStatusText(lines));
+    }
     const CellArea region = affectedArea(e);
     // the cells of an array formula or a data table are not cut through, nor are they deleted
     for (const CellRange &r : s.ranges) {
@@ -240,12 +244,17 @@ void Calculation::specialNodes(std::vector<quint32> *out)
 
 void Calculation::setGraphShifts(bool on) { g_graphShifts = on; }
 
-bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
+bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec) { return applyEditImpl(e, rec, nullptr); }
+
+bool Calculation::applyEditImpl(const StructEdit &e, EditRecord *rec, const EditRecord *undoOf)
 {
     using K = StructEdit::Kind;
     if (!canApply(e, nullptr)) return false;
     if (e.kind == K::Move) return applyMove(e, rec);
     abandonNow();
+    // (a record that is given with the lines of an edit that was undone is for that edit done again: its rows or columns come back as they were)
+    CellStore::LineEdits again;
+    if (!undoOf && rec->lines.made == false && rec->lines.edit.runs.size() && rec->edit.kind == e.kind && rec->edit.sheet == e.sheet && rec->edit.first == e.first && rec->edit.count == e.count) again = rec->lines;
     *rec = EditRecord();
     rec->edit = e;
     rec->sheet = e.sheet;
@@ -398,10 +407,31 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec)
         if (after.cell.hasFormula() || (after.cell.flags & ArrayMember)) onFormulaMoved(before, after);
     };
     switch (e.kind) {
-    case K::InsertRows: rec->cellsMoved = S.cells.shiftRows(e.first, qint64(count), kGridRows, onFormulaMoved, &removed); break;
-    case K::DeleteRows: rec->cellsMoved = S.cells.shiftRows(e.first, -qint64(count), kGridRows, onFormulaMoved, &removed); break;
-    case K::InsertColumns: rec->cellsMoved = S.cells.shiftColumns(e.first, qint64(count), kGridCols, onFormulaMoved, &removed); break;
-    case K::DeleteColumns: rec->cellsMoved = S.cells.shiftColumns(e.first, -qint64(count), kGridCols, onFormulaMoved, &removed); break;
+    case K::InsertRows:
+    case K::DeleteRows:
+    case K::InsertColumns:
+    case K::DeleteColumns: {
+        // The order of the rows (columns) changes and no cell moves. The formulas among the cells that change places are found before, and their places read after: those that moved have their nodes told
+        // where they are; those whose row or column is deleted are let go of below.
+        const bool rows = e.kind == K::InsertRows || e.kind == K::DeleteRows;
+        const bool inserts = e.kind == K::InsertRows || e.kind == K::InsertColumns;
+        std::vector<PlacedCell> formulas;
+        if (formulaEntriesInUse(e.sheet) > 0 || !S.ranges.isEmpty()) S.cells.formulaCells(rows, e.first, &formulas);
+        jp::calc::LineStatus made = jp::calc::LineStatus::StaleStep;
+        if (undoOf) made = S.cells.undoLines(rows, undoOf->lines);
+        else if (again.made == false && again.edit.runs.size()) {
+            made = S.cells.redoLines(rows, again);
+            if (made == jp::calc::LineStatus::Ok) rec->lines = again;
+        }
+        if (made != jp::calc::LineStatus::Ok) made = inserts ? S.cells.insertLines(rows, e.first, count, &rec->lines) : S.cells.deleteLines(rows, e.first, count, &rec->lines);
+        if (made != jp::calc::LineStatus::Ok) return false;
+        for (const PlacedCell &was : formulas) {
+            PlacedCell now = was;
+            if (!S.cells.placeOf(was, &now.row, &now.col)) removed.push_back(was);
+            else if (now.row != was.row || now.col != was.col) onFormulaMoved(was, now);
+        }
+        break;
+    }
     case K::InsertCellsDown:
         S.cells.reshuffle(e.row1, [&](quint32 row, quint32 col, const Cell &) { return row >= e.row1 && col >= e.col1 && col <= e.col2; }, [&](PlacedCell *c) { c->row += count; return c->row < kGridRows; }, onMoved, &removed);
         break;
@@ -694,7 +724,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
     if (rec.edit.kind == StructEdit::Kind::Move) return undoMove(rec, done);
     EditRecord local;
     EditRecord &throwaway = done ? *done : local;
-    if (!applyEdit(rec.edit.inverse(), &throwaway)) return false;
+    if (!applyEditImpl(rec.edit.inverse(), &throwaway, &rec)) return false;
     BulkEdit bulk(this);
     Sheet &S = m_sheets[size_t(rec.sheet)];
     // the cells that were deleted are put back, and the formulas that were written again have the text they had
