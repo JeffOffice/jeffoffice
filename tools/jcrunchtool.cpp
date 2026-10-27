@@ -15,6 +15,7 @@
 //   jcrunchtool filter-roundtrip <file.xlsx> [out.xlsx]   a workbook with a filter written with its filters made again, read back, and compared (see jcrunchtool_filter.cpp)
 //   jcrunchtool xls-save-check <file.xls>   the workbook written as the XML form, read back, and compared with itself, and written again with one cell changed (see jcrunchtool_xlssave.cpp;
 //                                                tools/crunch_xls_savecheck.py runs it over a list)
+//   jcrunchtool linemap-bench [lines=1000000]   the time of each operation of the row/column id map (libs/base/calc/linemap.h) at 1, 1,000, and 20,000 runs (see jcrunchtool_linemap.cpp)
 //   jcrunchtool dump <file.xlsx|file.xls> [sheet=1] [max=100]   the first cells of a sheet (counting from 1), one to a line: address, type, value, and formula
 //   jcrunchtool scan <keys.txt> <out-dir> [jobs]   runs `info` on each workbook listed (one path to a line), each in a child process that has 120 seconds and 4 GB,
 //                                                  and writes <out-dir>/books.tsv: path, exit, seconds, peak MB, sheets, cells, formula cells, stored results, and
@@ -731,6 +732,7 @@ int compareMain(const QStringList &args);   // (jcrunchtool_compare.cpp)
 int xlsFuzzMain(const QStringList &args);   // (jcrunchtool_xlsfuzz.cpp)
 int odsFuzzMain(const QStringList &args);   // (jcrunchtool_odsfuzz.cpp)
 int xlsSaveCheckMain(const QStringList &args);   // (jcrunchtool_xlssave.cpp)
+int lineMapBenchMain(const QStringList &args);   // (jcrunchtool_linemap.cpp)
 int filterRoundtripMain(const QStringList &args);   // (jcrunchtool_filter.cpp)
 int sideRoundtripMain(const QStringList &args);   // (jcrunchtool_side.cpp)
 }
@@ -782,6 +784,7 @@ int main(int argc, char **argv)
         const int code = jp::crunchtool::sideRoundtripMain(args.mid(1));
         if (code >= 0) return code;
     }
+    if ((args.size() == 1 || args.size() == 2) && args[0] == QLatin1String("linemap-bench")) return jp::crunchtool::lineMapBenchMain(args.mid(1));
     if (args.size() == 2 && args[0] == QLatin1String("xls-save-check")) {
         const int code = jp::crunchtool::xlsSaveCheckMain(args.mid(1));
         if (code >= 0) return code;
