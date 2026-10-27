@@ -1,6 +1,6 @@
 # The state of the workbook after each step of the model check (docs/jeffcrunch-rowids.md, Round 0), as 64 bits, for a fixed set of seeds, made by
 # jcrunchtool model-golden. A change that keeps what the engine means leaves this file as it is; a change that does not says why in the commit that changes it.
-# seed <n> <steps>: one digest for each step; parts <n>: the parts a save writes after the last step.
+# seed <n> <steps>: one digest for each step; parts <n>: the parts a save writes after the last step; part <n> <name> <digest>: each of them.
 seed 1 40
  bef884fa95f760e4 49c9afe27317e2a2 8e8f55089262cc00 8e8f55089262cc00 7f26d3a66d3e6cba 390a7b730d501cf3 538dec466eaf8f7a 8c2109dc7747d4e8
  8a6521b26d131589 8a6521b26d131589 8a6521b26d131589 8a6521b26d131589 1a6c198e2b92171a 1a6c198e2b92171a 8a6521b26d131589 8a6521b26d131589
@@ -8,6 +8,24 @@ seed 1 40
  803a3d235842f7cf 803a3d235842f7cf 2ffe867435313920 27f19913faa37a6b 71f78619a8e48002 369d79981a6fb00d 24ce0b4594cb1c4f 24ce0b4594cb1c4f
  b0167244d99eb255 f5d90aa07f00bb23 f5d90aa07f00bb23 f5d90aa07f00bb23 516c42502702ed1a ff9165a91b2732b0 ff9165a91b2732b0 98c8e59bf8ba338e
 parts 1 df01e7b3eb28c390
+part 1 [Content_Types].xml 46668e8972f8bf34
+part 1 _rels/.rels 30039db5c6f1606c
+part 1 xl/_rels/workbook.xml.rels 73dd96b4434e7c47
+part 1 xl/charts/chart1.xml 141fa7d2bb74bb8c
+part 1 xl/comments1.xml 12434d892d07c1cc
+part 1 xl/comments2.xml 7e3c589b035a2285
+part 1 xl/drawings/_rels/drawing1.xml.rels 1d7f994a6abf1500
+part 1 xl/drawings/drawing1.xml ba1905bc17394b64
+part 1 xl/drawings/vmlDrawing1.vml ee95cb36fede4e71
+part 1 xl/drawings/vmlDrawing2.vml 4e0d859708e824ae
+part 1 xl/styles.xml d77bfa6659877263
+part 1 xl/tables/table1.xml aef2e0645b7f57d4
+part 1 xl/workbook.xml 9dd5be15113a8dba
+part 1 xl/worksheets/_rels/sheet1.xml.rels ed72bdb30778568a
+part 1 xl/worksheets/_rels/sheet2.xml.rels c40907a2db7b97a5
+part 1 xl/worksheets/sheet1.xml 909a56fb7df7f9e1
+part 1 xl/worksheets/sheet2.xml a669983889e6ac52
+part 1 xl/worksheets/sheet3.xml d40c3c85746e1009
 seed 2 40
  bef884fa95f760e4 fcaa58d6b98562e6 fcaa58d6b98562e6 fcaa58d6b98562e6 b959f0c9eecc176e ce5bd7599744bec9 b959f0c9eecc176e 00efe614bb3b6752
  00efe614bb3b6752 b638232d2ddec015 d0ec36d6443862b5 7d76d68ba9cef8c4 abdf52ceb314cb20 abdf52ceb314cb20 abdf52ceb314cb20 c751b9486bd18bc5
@@ -15,6 +33,24 @@ seed 2 40
  b584f440dd815239 dfd5b8316c08b501 bebdd31ade2e179e eec26ea4c023da14 b8ab7ade2d4e31c5 b8e7a69aa1e0b76c d1789d2445f2d0cb d1789d2445f2d0cb
  c5f5487d4cdcf2e2 3898ae23fb99f140 3898ae23fb99f140 547e45eb1addd121 1bbc9e8f637d4c8c fffde6c155d06560 fffde6c155d06560 c6266abadbc3baae
 parts 2 018419afeeb2bd23
+part 2 [Content_Types].xml 46668e8972f8bf34
+part 2 _rels/.rels 30039db5c6f1606c
+part 2 xl/_rels/workbook.xml.rels 73dd96b4434e7c47
+part 2 xl/charts/chart1.xml 4238a4c33fa93a6e
+part 2 xl/comments1.xml b585dc375abcc83c
+part 2 xl/comments2.xml 7e3c589b035a2285
+part 2 xl/drawings/_rels/drawing1.xml.rels 1d7f994a6abf1500
+part 2 xl/drawings/drawing1.xml 2b75a2152e1738ac
+part 2 xl/drawings/vmlDrawing1.vml 61585929bf8acc59
+part 2 xl/drawings/vmlDrawing2.vml 4e0d859708e824ae
+part 2 xl/styles.xml d77bfa6659877263
+part 2 xl/tables/table1.xml e658abe431176724
+part 2 xl/workbook.xml a986fd79059a5fa4
+part 2 xl/worksheets/_rels/sheet1.xml.rels ed72bdb30778568a
+part 2 xl/worksheets/_rels/sheet2.xml.rels 483ba44b6a5be67d
+part 2 xl/worksheets/sheet1.xml c411e42905b4c3a7
+part 2 xl/worksheets/sheet2.xml 76c6af4ccc152475
+part 2 xl/worksheets/sheet3.xml 3588360e0c2b2f24
 seed 3 40
  1c281252c4f51e00 71f7995a01c147c6 ccd03428cb5694da ccd03428cb5694da 62f079309daf96b6 08e50605386bc5d1 8c3af2c711a60e29 33b5fdc2bcf97989
  ae4ecff3f8f21ac6 ae4ecff3f8f21ac6 ae4ecff3f8f21ac6 ae4ecff3f8f21ac6 0a8133a12a9d5baf 0a8133a12a9d5baf ae4ecff3f8f21ac6 ae4ecff3f8f21ac6
@@ -22,6 +58,24 @@ seed 3 40
  d066c1d08e2f7676 d066c1d08e2f7676 2844ccd427de851f fac912d3a46a2102 024f20efebceb033 fb3ca8fa3f5d6f94 20c417a31b25ec0e 20c417a31b25ec0e
  14baac0b3d0e8b02 c9ee1e7fb74fa8c0 c9ee1e7fb74fa8c0 c9ee1e7fb74fa8c0 00cf0b746fcfcf5b 6020cbeaa2b56f17 6020cbeaa2b56f17 34a1eab2438391b1
 parts 3 715aed688b10893e
+part 3 [Content_Types].xml 46668e8972f8bf34
+part 3 _rels/.rels 30039db5c6f1606c
+part 3 xl/_rels/workbook.xml.rels 73dd96b4434e7c47
+part 3 xl/charts/chart1.xml 141fa7d2bb74bb8c
+part 3 xl/comments1.xml 12434d892d07c1cc
+part 3 xl/comments2.xml 7e3c589b035a2285
+part 3 xl/drawings/_rels/drawing1.xml.rels 1d7f994a6abf1500
+part 3 xl/drawings/drawing1.xml ba1905bc17394b64
+part 3 xl/drawings/vmlDrawing1.vml ee95cb36fede4e71
+part 3 xl/drawings/vmlDrawing2.vml 4e0d859708e824ae
+part 3 xl/styles.xml d77bfa6659877263
+part 3 xl/tables/table1.xml aef2e0645b7f57d4
+part 3 xl/workbook.xml 9dd5be15113a8dba
+part 3 xl/worksheets/_rels/sheet1.xml.rels ed72bdb30778568a
+part 3 xl/worksheets/_rels/sheet2.xml.rels c40907a2db7b97a5
+part 3 xl/worksheets/sheet1.xml 909a56fb7df7f9e1
+part 3 xl/worksheets/sheet2.xml 4dc2b3158106d611
+part 3 xl/worksheets/sheet3.xml d40c3c85746e1009
 seed 4 40
  5b9f9512e1e79dc0 4f04534b2a4a59d2 4f04534b2a4a59d2 4f04534b2a4a59d2 36acc0d13a82a2c6 792a2c0e9fc7c445 36acc0d13a82a2c6 54e2588547f7b256
  54e2588547f7b256 0b75d3e41bce98b5 08f284fde18ae2c1 36556d44a34ca30c 300b2225a536bf80 300b2225a536bf80 300b2225a536bf80 aef9192333ec4739
@@ -29,6 +83,24 @@ seed 4 40
  121ed236c20e6d0c 324c5352374fce18 19a5f19a4fc31f0f 731f61e7695c725d 95e79e5158ff0870 7913dc14f6f53845 9323b03c1aafd28a 9323b03c1aafd28a
  101d5091f3a7b21f cb295afae9e4a2b1 cb295afae9e4a2b1 483d17d66c3d9538 b417083c1f4861e3 ae9ab19d8d8c2057 ae9ab19d8d8c2057 b3eb96f1b6ff6a21
 parts 4 42c60997e7e577a6
+part 4 [Content_Types].xml 46668e8972f8bf34
+part 4 _rels/.rels 30039db5c6f1606c
+part 4 xl/_rels/workbook.xml.rels 73dd96b4434e7c47
+part 4 xl/charts/chart1.xml 4238a4c33fa93a6e
+part 4 xl/comments1.xml b585dc375abcc83c
+part 4 xl/comments2.xml 7e3c589b035a2285
+part 4 xl/drawings/_rels/drawing1.xml.rels 1d7f994a6abf1500
+part 4 xl/drawings/drawing1.xml 2b75a2152e1738ac
+part 4 xl/drawings/vmlDrawing1.vml 61585929bf8acc59
+part 4 xl/drawings/vmlDrawing2.vml 4e0d859708e824ae
+part 4 xl/styles.xml d77bfa6659877263
+part 4 xl/tables/table1.xml e658abe431176724
+part 4 xl/workbook.xml a986fd79059a5fa4
+part 4 xl/worksheets/_rels/sheet1.xml.rels ed72bdb30778568a
+part 4 xl/worksheets/_rels/sheet2.xml.rels 483ba44b6a5be67d
+part 4 xl/worksheets/sheet1.xml c411e42905b4c3a7
+part 4 xl/worksheets/sheet2.xml bdc03916bac40c00
+part 4 xl/worksheets/sheet3.xml 3588360e0c2b2f24
 seed 5 40
  bc72fc4415b7f79a fa075bde6cd2e42c fa075bde6cd2e42c fa075bde6cd2e42c 93fcd859c58a6efe a30589892c04f307 93fcd859c58a6efe ba67aea10fd83b3a
  ba67aea10fd83b3a c95d1b0501b9c20d 72006a3f2ac7e431 18398ba4ff148f0c f88cdf96066e4cd6 f88cdf96066e4cd6 f88cdf96066e4cd6 20e2dca702fc9fbb
@@ -36,6 +108,24 @@ seed 5 40
  9c08e65a03ba3dd5 e707349638c86221 4431d4746f7b20fa a65c3ae3b0d9da1b db580d2050113974 27ccaf0c89140269 c6af8b050769e35e c6af8b050769e35e
  3e0da63dee62153e 67fac1f21f26efa0 67fac1f21f26efa0 d2df81efe6e57387 b44f35ad1677704e 619ee297713a90d8 619ee297713a90d8 e74c37f765ea03a0
 parts 5 eb06a81d142b4bff
+part 5 [Content_Types].xml 46668e8972f8bf34
+part 5 _rels/.rels 30039db5c6f1606c
+part 5 xl/_rels/workbook.xml.rels 73dd96b4434e7c47
+part 5 xl/charts/chart1.xml 4238a4c33fa93a6e
+part 5 xl/comments1.xml b585dc375abcc83c
+part 5 xl/comments2.xml 7e3c589b035a2285
+part 5 xl/drawings/_rels/drawing1.xml.rels 1d7f994a6abf1500
+part 5 xl/drawings/drawing1.xml 3cf35fbcf617e0a1
+part 5 xl/drawings/vmlDrawing1.vml 61585929bf8acc59
+part 5 xl/drawings/vmlDrawing2.vml 4e0d859708e824ae
+part 5 xl/styles.xml d77bfa6659877263
+part 5 xl/tables/table1.xml e658abe431176724
+part 5 xl/workbook.xml 8cda3228279a7f9e
+part 5 xl/worksheets/_rels/sheet1.xml.rels ed72bdb30778568a
+part 5 xl/worksheets/_rels/sheet2.xml.rels 483ba44b6a5be67d
+part 5 xl/worksheets/sheet1.xml 90e1d2b798affd7f
+part 5 xl/worksheets/sheet2.xml 79cd4ac44266ba33
+part 5 xl/worksheets/sheet3.xml ca1c3345cc7de2ae
 seed 6 40
  bef884fa95f760e4 bef884fa95f760e4 9644a1783989279b 9644a1783989279b 9644a1783989279b 84d52d3c4ff8a397 ecb43702d4a2235a 84d52d3c4ff8a397
  9f2aeba504dc7ff0 9f2aeba504dc7ff0 3a199401c5377271 9f1a1b913768861f 7b304353eef59f5a 00cabc183c4d994f 00cabc183c4d994f 0cf0a0e598893d49
@@ -43,6 +133,24 @@ seed 6 40
  168ea29d66ddc2a1 a48e1b30baaf6e94 ddcaf006ba7294c5 f908e54476061526 af89f3631e239973 5b638f5fe2fb2329 cd7cb0e414214014 2b546d86dfa0f275
  2b546d86dfa0f275 816e4d1f38bb9775 2bfc352a002ab945 2bfc352a002ab945 e34e2682f7be867e 9b44561a96b0061d ce6f91a1673fe1bb ce6f91a1673fe1bb
 parts 6 cf9991242537af85
+part 6 [Content_Types].xml 46668e8972f8bf34
+part 6 _rels/.rels 30039db5c6f1606c
+part 6 xl/_rels/workbook.xml.rels 73dd96b4434e7c47
+part 6 xl/charts/chart1.xml 45edc7a4bf254ffd
+part 6 xl/comments1.xml dcd031b6e0d0ea66
+part 6 xl/comments2.xml 7e3c589b035a2285
+part 6 xl/drawings/_rels/drawing1.xml.rels 1d7f994a6abf1500
+part 6 xl/drawings/drawing1.xml 3dd9527ed0779d20
+part 6 xl/drawings/vmlDrawing1.vml dce390dc5ea143a5
+part 6 xl/drawings/vmlDrawing2.vml 4e0d859708e824ae
+part 6 xl/styles.xml d77bfa6659877263
+part 6 xl/tables/table1.xml 535beb5733e948ec
+part 6 xl/workbook.xml 1481bf8630d810f3
+part 6 xl/worksheets/_rels/sheet1.xml.rels ed72bdb30778568a
+part 6 xl/worksheets/_rels/sheet2.xml.rels 483ba44b6a5be67d
+part 6 xl/worksheets/sheet1.xml 6daa41081e6dbbee
+part 6 xl/worksheets/sheet2.xml 7a7d5204890bab09
+part 6 xl/worksheets/sheet3.xml 4377263c31cd5fa8
 seed 7 40
  bef884fa95f760e4 bef884fa95f760e4 bef884fa95f760e4 1e079c0a5afee343 1e079c0a5afee343 76724ce5ab466586 7e626b060ed60028 76724ce5ab466586
  308dc4f136c403f3 308dc4f136c403f3 2605d056bafa34db 6fe19b58605709c7 5dabc536b8e9da06 bebc91a05b72ad31 bebc91a05b72ad31 bebc91a05b72ad31
@@ -50,6 +158,24 @@ seed 7 40
  8ba55cf97d7745d5 5cd1b163b2ec8c60 4a818ed266e411b0 4a431236b4b734eb 4a431236b4b734eb 535fe8ad872e362f 6f9df0e349ff9712 df93071d8835c52d
  df93071d8835c52d 7a3d410984ea9869 e2534424800a3d8d e2534424800a3d8d 1391f5bac36e525b 887e8a69bed9ed12 aede091b514afba0 aede091b514afba0
 parts 7 72b8d03b9953f194
+part 7 [Content_Types].xml 46668e8972f8bf34
+part 7 _rels/.rels 30039db5c6f1606c
+part 7 xl/_rels/workbook.xml.rels 73dd96b4434e7c47
+part 7 xl/charts/chart1.xml 3cb63d2ec164adba
+part 7 xl/comments1.xml 0e360da766e8274c
+part 7 xl/comments2.xml 7e3c589b035a2285
+part 7 xl/drawings/_rels/drawing1.xml.rels 1d7f994a6abf1500
+part 7 xl/drawings/drawing1.xml 4193bd1a9c2b9581
+part 7 xl/drawings/vmlDrawing1.vml ffb040a83f52fde1
+part 7 xl/drawings/vmlDrawing2.vml 4e0d859708e824ae
+part 7 xl/styles.xml d77bfa6659877263
+part 7 xl/tables/table1.xml e371e9cc7a895b68
+part 7 xl/workbook.xml 2b0b2c6ad789881b
+part 7 xl/worksheets/_rels/sheet1.xml.rels ed72bdb30778568a
+part 7 xl/worksheets/_rels/sheet2.xml.rels 483ba44b6a5be67d
+part 7 xl/worksheets/sheet1.xml a763c7c176f88fb4
+part 7 xl/worksheets/sheet2.xml 4e272943ecbb7c53
+part 7 xl/worksheets/sheet3.xml 3e15cdfd2a0a8fdf
 seed 8 40
  bef884fa95f760e4 9644a1783989279b 9644a1783989279b 9644a1783989279b 84d52d3c4ff8a397 ecb43702d4a2235a 84d52d3c4ff8a397 9f2aeba504dc7ff0
  9f2aeba504dc7ff0 3a199401c5377271 9f1a1b913768861f 7b304353eef59f5a 00cabc183c4d994f 00cabc183c4d994f 0cf0a0e598893d49 f275775f0bbf8040
@@ -57,3 +183,21 @@ seed 8 40
  a48e1b30baaf6e94 ddcaf006ba7294c5 f908e54476061526 af89f3631e239973 5b638f5fe2fb2329 cd7cb0e414214014 2b546d86dfa0f275 2b546d86dfa0f275
  816e4d1f38bb9775 2bfc352a002ab945 2bfc352a002ab945 e34e2682f7be867e 9b44561a96b0061d ce6f91a1673fe1bb ce6f91a1673fe1bb ca702b7257ff37b2
 parts 8 adc0746ccfd8b959
+part 8 [Content_Types].xml 46668e8972f8bf34
+part 8 _rels/.rels 30039db5c6f1606c
+part 8 xl/_rels/workbook.xml.rels 73dd96b4434e7c47
+part 8 xl/charts/chart1.xml 9441d57e5f7ba0d3
+part 8 xl/comments1.xml 4fdd901e7e32f63a
+part 8 xl/comments2.xml 7e3c589b035a2285
+part 8 xl/drawings/_rels/drawing1.xml.rels 1d7f994a6abf1500
+part 8 xl/drawings/drawing1.xml e9b1c69d4449a410
+part 8 xl/drawings/vmlDrawing1.vml f69a37eaf3c460fd
+part 8 xl/drawings/vmlDrawing2.vml 4e0d859708e824ae
+part 8 xl/styles.xml d77bfa6659877263
+part 8 xl/tables/table1.xml 869b05c71d44bee0
+part 8 xl/workbook.xml 589a455f28fe606d
+part 8 xl/worksheets/_rels/sheet1.xml.rels ed72bdb30778568a
+part 8 xl/worksheets/_rels/sheet2.xml.rels 483ba44b6a5be67d
+part 8 xl/worksheets/sheet1.xml cba80287cc7f676c
+part 8 xl/worksheets/sheet2.xml f9bd0ec25f91769f
+part 8 xl/worksheets/sheet3.xml f76e5238c5030e2a

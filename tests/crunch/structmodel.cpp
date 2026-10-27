@@ -1713,7 +1713,7 @@ QString goldenText(const std::vector<quint32> &seeds, int stepCount)
 {
     QString out = QStringLiteral("# The state of the workbook after each step of the model check (docs/jeffcrunch-rowids.md, Round 0), as 64 bits, for a fixed set of seeds, made by\n"
                                  "# jcrunchtool model-golden. A change that keeps what the engine means leaves this file as it is; a change that does not says why in the commit that changes it.\n"
-                                 "# seed <n> <steps>: one digest for each step; parts <n>: the parts a save writes after the last step.\n");
+                                 "# seed <n> <steps>: one digest for each step; parts <n>: the parts a save writes after the last step; part <n> <name> <digest>: each of them.\n");
     Options options;
     options.check = false;
     for (const quint32 seed : seeds) {
@@ -1723,6 +1723,7 @@ QString goldenText(const std::vector<quint32> &seeds, int stepCount)
         out += QStringLiteral("seed %1 %2\n").arg(seed).arg(stepCount);
         for (int i = 0; i < digests.size(); i += 8) out += QStringLiteral(" ") + digests.mid(i, 8).join(QLatin1Char(' ')) + QLatin1Char('\n');
         out += QStringLiteral("parts %1 %2\n").arg(seed).arg(r.partsDigest, 16, 16, QLatin1Char('0'));
+        for (const QString &part : r.parts) out += QStringLiteral("part %1 %2\n").arg(seed).arg(part);   // (name and digest: a difference names its part)
     }
     return out;
 }

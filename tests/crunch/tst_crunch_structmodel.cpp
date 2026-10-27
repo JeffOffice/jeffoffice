@@ -211,6 +211,7 @@ private Q_SLOTS:
         QVERIFY2(f.open(QIODevice::ReadOnly), "the golden file is missing");
         QMap<quint32, QStringList> digests;
         QMap<quint32, QString> parts;
+        QMap<quint32, QMap<QString, QString>> eachPart;
         QMap<quint32, int> counts;
         quint32 seed = 0;
         for (const QString &line : QString::fromUtf8(f.readAll()).split(QLatin1Char('\n'))) {
@@ -221,6 +222,8 @@ private Q_SLOTS:
                 counts[seed] = w[2].toInt();
             } else if (w[0] == QLatin1String("parts")) {
                 parts[w[1].toUInt()] = w[2];
+            } else if (w[0] == QLatin1String("part") && w.size() == 4) {
+                eachPart[w[1].toUInt()][w[2]] = w[3];
             } else {
                 digests[seed] += w;
             }
@@ -234,6 +237,17 @@ private Q_SLOTS:
             QCOMPARE(int(r.digests.size()), it.value().size());
             for (int i = 0; i < it.value().size(); ++i)
                 QVERIFY2(QStringLiteral("%1").arg(r.digests[size_t(i)], 16, 16, QLatin1Char('0')) == it.value()[i], qPrintable(QStringLiteral("seed %1: the state after step %2 (%3) is not what the golden file has").arg(it.key()).arg(i + 1).arg(r.stepsText[size_t(i)])));
+            // (part by part first, so a difference names the part)
+            QMap<QString, QString> got;
+            for (const QString &line : r.parts) {
+                const QStringList w = line.split(QLatin1Char(' '));
+                if (w.size() == 2) got[w[0]] = w[1];
+            }
+            const QMap<QString, QString> &want = eachPart.value(it.key());
+            for (auto p = want.constBegin(); p != want.constEnd(); ++p)
+                QVERIFY2(got.value(p.key()) == p.value(), qPrintable(QStringLiteral("seed %1: the saved part %2 is not what the golden file has").arg(it.key()).arg(p.key())));
+            for (auto p = got.constBegin(); p != got.constEnd(); ++p)
+                QVERIFY2(want.isEmpty() || want.contains(p.key()), qPrintable(QStringLiteral("seed %1: the save writes a part the golden file doesn't have: %2").arg(it.key()).arg(p.key())));
             QCOMPARE(QStringLiteral("%1").arg(r.partsDigest, 16, 16, QLatin1Char('0')), parts.value(it.key()));
         }
     }
