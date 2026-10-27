@@ -199,6 +199,18 @@ public:
     qint64 cellCount() const { return m_count - m_dead; }
     // The cell at the place, or null.
     const Cell *find(quint32 row, quint32 col) const;
+    // The same by the ids of the cell's row and column (what a formula's node and the window's marks hold): no turning of places into ids, so the cell is found wherever its row and column
+    // are now (a deleted one is still found: it is held, dead).
+    const Cell *findById(quint32 rowId, quint32 colId) const;
+    Cell *findMutableById(quint32 rowId, quint32 colId) { return const_cast<Cell *>(findById(rowId, colId)); }
+    // Ids and places, one for the other (kNoLine for a place past the sheet's end, and for the id of a row or column that is deleted).
+    quint32 rowIdAt(quint32 place) const { return rowIdOf(place); }
+    quint32 colIdAt(quint32 place) const { return colIdOf(place); }
+    quint32 rowPlaceOf(quint32 id) const { return rowPosOf(id); }
+    quint32 colPlaceOf(quint32 id) const { return colPosOf(id); }
+    // Whether anything can still name the id: its line is in the order, or was deleted and a step could bring it back. (A mark of the window on an id that is not is let go of before the id is given again.)
+    bool rowIdKnown(quint32 id) const { return m_rows.isIdentity() ? id < m_rows.size() : (m_rows.core().posOf(id) != kNoLine || m_rows.core().holdsDead(id)); }
+    bool colIdKnown(quint32 id) const { return m_cols.isIdentity() ? id < m_cols.size() : (m_cols.core().posOf(id) != kNoLine || m_cols.core().holdsDead(id)); }
     // Edits, for a store that is finished: the cell at the place, to be changed where it is (null if there is none); a cell put at the place, in place of the one that is
     // there, and the cell as it is held; a cell taken away (false if there was none). A cell is put in at the cost of moving the cells after it in its block of rows.
     Cell *findMutable(quint32 row, quint32 col);
@@ -435,7 +447,7 @@ public:
     // Moves cells about, for cells shifted (inserted and deleted among the cells of some columns or rows; whole rows and columns are insertLines and deleteLines, which move nothing): every cell
     // for which `affected(row, col, cell)` is true (those of the blocks that hold rows from `firstRow` on are looked at, and no others) is taken out; `map(placed)` changes the PlacedCell to what it is
     // after (its place and the cell), and gives false for one that is gone (it is given to
-    // `removed`, as it was, with its place); `moved(before, after)` (PlacedCells) is told of each that stays; they are put in again, and the blocks are put in order. The cost is that of the cells taken out.
+    // `removed`, as it was, with its place); `moved(before, after)` (PlacedCells, each with the ids of the cell's row and column, before and after) is told of each that stays; they are put in again, and the blocks are put in order. The cost is that of the cells taken out.
     template <class Affected, class Map, class Moved>
     void reshuffle(quint32 firstRow, Affected affected, Map map, Moved moved, std::vector<PlacedCell> *removed)
     {
@@ -490,9 +502,9 @@ public:
                 if (removed) removed->push_back(was);
                 continue;
             }
-            moved(was, after);
             after.cell.rowId = rowId;
             after.cell.colId = quint16(colId);
+            moved(was, after);
             const quint32 key = rowId / kBlockRows;
             if (!run.empty() && key != runKey) flush();
             runKey = key;
@@ -539,7 +551,10 @@ public:
     void forgetLines(bool rows, LineEdits *edits);
     // Puts the order of the rows (columns) back to one run, from 0: the cells are given the new ids, those of dead lines are let go of, and every edit made to the order before is stale (Undo of it
     // is refused). The status if that cannot be done.
-    jp::calc::LineStatus rebaseLines(bool rows);
+    // `table`, if given, is how the ids of the live lines were renumbered (sorted by old first id): see renumberLine.
+    jp::calc::LineStatus rebaseLines(bool rows, std::vector<jp::calc::LineMapCore::Renumber> *table = nullptr);
+    // The new id of an id that a rebase renumbered by `table`, or kNoLine for a line that was dead (and is gone).
+    static quint32 renumberLine(const std::vector<jp::calc::LineMapCore::Renumber> &table, quint32 id);
     // Limits for the order of the rows and of the columns (for a test of the caps: the caps of a sheet are those of jp::calc::LineLimits). Only for a store whose order has no edit.
     void setLineLimits(const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols);
     // Calls f(before, after) (PlacedCells) for each cell with a formula, or that belongs to an array formula, whose place changed by `shift` (read after the edit).
