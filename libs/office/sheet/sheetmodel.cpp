@@ -145,6 +145,12 @@ qint64 CellStore::memoryBytes() const
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // whole rows and columns inserted and deleted
 
+quint64 CellStore::nextSerial()
+{
+    static std::atomic<quint64> next{1};
+    return next++;
+}
+
 namespace {
 
 // A cell of a deleted row or column holds no formula (the node of it is let go of, and Undo makes the formula again from the record): nothing that is not live may be read as one.
@@ -162,20 +168,23 @@ bool inRuns(const std::vector<jp::calc::IdRun> &sorted, quint32 id)
 
 } // namespace
 
-qint64 CellStore::liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &runs, bool kill)
+qint64 CellStore::liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &runs, bool kill, std::vector<Cell> *formulas)
 {
     qint64 live = 0;
     if (runs.empty()) return 0;
+    auto one = [&](Cell &c, bool otherLive) {
+        if (otherLive) ++live;
+        if (!kill) return;
+        if (formulas && (c.flags & HasFormula)) formulas->push_back(c);
+        letGoOfFormula(c);
+    };
     if (rows) {
         for (const jp::calc::IdRun &run : runs) {
             const quint32 last = run.first + run.count - 1;
             for (auto block = m_blocks.lower_bound(run.first / kBlockRows); block != m_blocks.end() && block->first <= last / kBlockRows; ++block) {
                 std::vector<Cell> &cells = block->second.cells;
                 auto at = std::lower_bound(cells.begin(), cells.end(), run.first, [](const Cell &c, quint32 id) { return c.rowId < id; });
-                for (; at != cells.end() && at->rowId <= last; ++at) {
-                    if (colPosOf(at->colId) != kNoLine) ++live;
-                    if (kill) letGoOfFormula(*at);
-                }
+                for (; at != cells.end() && at->rowId <= last; ++at) one(*at, colPosOf(at->colId) != kNoLine);
             }
         }
         return live;
@@ -183,32 +192,66 @@ qint64 CellStore::liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &run
     std::vector<jp::calc::IdRun> sorted = runs;
     std::sort(sorted.begin(), sorted.end(), [](const jp::calc::IdRun &a, const jp::calc::IdRun &b) { return a.first < b.first; });
     for (auto &entry : m_blocks)
-        for (Cell &c : entry.second.cells) {
-            if (!inRuns(sorted, c.colId)) continue;
-            if (rowPosOf(c.rowId) != kNoLine) ++live;
-            if (kill) letGoOfFormula(c);
-        }
+        for (Cell &c : entry.second.cells)
+            if (inRuns(sorted, c.colId)) one(c, rowPosOf(c.rowId) != kNoLine);
     return live;
 }
 
-jp::calc::LineStatus CellStore::insertLines(bool rows, quint32 at, quint32 count, LineEdits *edits)
+qint64 CellStore::purgeCells(bool rows, const std::vector<jp::calc::IdRun> &runs)
+{
+    qint64 gone = 0;
+    if (runs.empty()) return 0;
+    if (rows) {
+        for (const jp::calc::IdRun &run : runs) {
+            const quint32 last = run.first + run.count - 1;
+            for (auto block = m_blocks.lower_bound(run.first / kBlockRows); block != m_blocks.end() && block->first <= last / kBlockRows;) {
+                std::vector<Cell> &cells = block->second.cells;
+                const auto lo = std::lower_bound(cells.begin(), cells.end(), run.first, [](const Cell &c, quint32 id) { return c.rowId < id; });
+                const auto hi = std::upper_bound(lo, cells.end(), last, [](quint32 v, const Cell &c) { return v < c.rowId; });
+                gone += hi - lo;
+                cells.erase(lo, hi);
+                if (cells.empty()) block = m_blocks.erase(block);
+                else ++block;
+            }
+        }
+    } else {
+        std::vector<jp::calc::IdRun> sorted = runs;
+        std::sort(sorted.begin(), sorted.end(), [](const jp::calc::IdRun &a, const jp::calc::IdRun &b) { return a.first < b.first; });
+        for (auto block = m_blocks.begin(); block != m_blocks.end();) {
+            std::vector<Cell> &cells = block->second.cells;
+            const size_t before = cells.size();
+            cells.erase(std::remove_if(cells.begin(), cells.end(), [&](const Cell &c) { return inRuns(sorted, c.colId); }), cells.end());
+            gone += qint64(before - cells.size());
+            if (cells.empty()) block = m_blocks.erase(block);
+            else ++block;
+        }
+    }
+    m_count -= gone;
+    m_dead -= gone;
+    m_last = nullptr;
+    return gone;
+}
+
+jp::calc::LineStatus CellStore::insertLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift, std::vector<Cell> *deadFormulas)
 {
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
     if (count == 0 || at >= map.size()) return LineStatus::OutOfRange;
     // (lines inserted so near the end that they would not all fit: everything from `at` on is pushed off, and the new lines fill the place)
-    if (uint64_t(at) + count > map.limits().capacity) return deleteLines(rows, at, map.limits().capacity - at, edits);
+    if (uint64_t(at) + count > map.limits().capacity) return deleteLines(rows, at, map.limits().capacity - at, edits, shift, deadFormulas);
     LineEdits local;
     LineEdits &e = edits ? *edits : local;
     e = LineEdits();
     const LineStatus st = map.insert(at, count, &e.edit);
     if (st != LineStatus::Ok) return st;
     e.made = true;
-    m_dead += liveCellsIn(rows, e.edit.pushed, true);
+    e.owner = m_serial;
+    m_dead += liveCellsIn(rows, e.edit.pushed, true, deadFormulas);
+    if (shift) *shift = {at, qint64(count)};
     return LineStatus::Ok;
 }
 
-jp::calc::LineStatus CellStore::deleteLines(bool rows, quint32 at, quint32 count, LineEdits *edits)
+jp::calc::LineStatus CellStore::deleteLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift, std::vector<Cell> *deadFormulas)
 {
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -226,7 +269,9 @@ jp::calc::LineStatus CellStore::deleteLines(bool rows, quint32 at, quint32 count
     }
     e.refilled = true;
     e.made = true;
-    m_dead += liveCellsIn(rows, e.edit.runs, true);
+    e.owner = m_serial;
+    m_dead += liveCellsIn(rows, e.edit.runs, true, deadFormulas);
+    if (shift) *shift = {at, -qint64(count)};
     return LineStatus::Ok;
 }
 
@@ -240,12 +285,19 @@ jp::calc::LineStatus CellStore::canEditLines(bool rows, quint32 count) const
     return LineStatus::Ok;
 }
 
-jp::calc::LineStatus CellStore::undoLines(bool rows, LineEdits &e)
+bool CellStore::needsCompaction(bool rows, quint32 count) const
+{
+    const jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
+    const jp::calc::LineLimits &limits = map.limits();
+    return map.needsRebase() || map.deadCount() >= limits.rebaseRuns || canEditLines(rows, count) != jp::calc::LineStatus::Ok;
+}
+
+jp::calc::LineStatus CellStore::undoLines(bool rows, LineEdits &e, LineShift *shift, std::vector<Cell> *deadFormulas)
 {
     using jp::calc::LineStatus;
     using Kind = jp::calc::LineEdit::Kind;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
-    if (!e.made) return LineStatus::StaleStep;
+    if (!e.made || !ownEdit(e)) return LineStatus::StaleStep;
     if (e.refilled) {
         const LineStatus st = map.undo(e.refill);
         if (st != LineStatus::Ok) return st;
@@ -256,22 +308,24 @@ jp::calc::LineStatus CellStore::undoLines(bool rows, LineEdits &e)
         return st;
     }
     e.made = false;
-    if (e.refilled) m_dead += liveCellsIn(rows, e.refill.runs, true);
+    if (e.refilled) m_dead += liveCellsIn(rows, e.refill.runs, true, nullptr);
     if (e.edit.kind == Kind::Erase) {
         m_dead -= liveCellsIn(rows, e.edit.runs, false);
     } else {
-        m_dead += liveCellsIn(rows, e.edit.runs, true);
+        m_dead += liveCellsIn(rows, e.edit.runs, true, deadFormulas);
         m_dead -= liveCellsIn(rows, e.edit.pushed, false);
     }
+    if (shift) *shift = {e.edit.at, e.edit.kind == Kind::Erase ? qint64(e.lines()) : -qint64(e.lines())};
+    map.tryIdentity();
     return LineStatus::Ok;
 }
 
-jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e)
+jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e, LineShift *shift, std::vector<Cell> *deadFormulas)
 {
     using jp::calc::LineStatus;
     using Kind = jp::calc::LineEdit::Kind;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
-    if (e.made) return LineStatus::StaleStep;
+    if (e.made || !ownEdit(e)) return LineStatus::StaleStep;
     LineStatus st = map.redo(e.edit);
     if (st != LineStatus::Ok) return st;
     if (e.refilled) {
@@ -283,39 +337,92 @@ jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e)
     }
     e.made = true;
     if (e.edit.kind == Kind::Erase) {
-        m_dead += liveCellsIn(rows, e.edit.runs, true);
+        m_dead += liveCellsIn(rows, e.edit.runs, true, deadFormulas);
     } else {
         m_dead -= liveCellsIn(rows, e.edit.runs, false);
-        m_dead += liveCellsIn(rows, e.edit.pushed, true);
+        m_dead += liveCellsIn(rows, e.edit.pushed, true, deadFormulas);
     }
     if (e.refilled) m_dead -= liveCellsIn(rows, e.refill.runs, false);
+    if (shift) *shift = {e.edit.at, e.edit.kind == Kind::Erase ? -qint64(e.lines()) : qint64(e.lines())};
     return LineStatus::Ok;
 }
 
-void CellStore::formulaCells(bool rows, quint32 first, std::vector<PlacedCell> *out) const
+void CellStore::forgetLines(bool rows, LineEdits *edits)
 {
-    if (rows && !m_rows.isIdentity()) {
-        // (the rows at the places from `first` on, in the order of their places: the blocks that hold them, and no others)
-        walkRows(first, quint32(-1), [&](quint32 row, std::vector<Cell>::const_iterator a, std::vector<Cell>::const_iterator b) {
-            std::size_t from = out->size();
-            for (; a != b; ++a) {
-                if (!(a->flags & (HasFormula | ArrayMember))) continue;
-                const quint32 col = colPosOf(a->colId);
-                if (col != kNoLine) out->push_back(PlacedCell{row, col, *a});
-            }
-            if (!m_cols.isIdentity()) std::sort(out->begin() + std::ptrdiff_t(from), out->end(), [](const PlacedCell &x, const PlacedCell &y) { return x.col < y.col; });
-            return true;
-        });
+    using Kind = jp::calc::LineEdit::Kind;
+    LineEdits &e = *edits;
+    jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
+    if (!ownEdit(e) || e.edit.runs.empty()) {
+        e = LineEdits();
         return;
     }
-    for (auto block = m_blocks.lower_bound(rows ? first / kBlockRows : 0u); block != m_blocks.end(); ++block)
-        for (const Cell &c : block->second.cells) {
-            if (!(c.flags & (HasFormula | ArrayMember))) continue;
-            const quint32 row = rowPosOf(c.rowId), col = colPosOf(c.colId);
-            if (row == kNoLine || col == kNoLine || (rows ? row : col) < first) continue;
-            out->push_back(PlacedCell{row, col, c});
+    // the lines that only this step could bring back: what it killed, if it is done; what it made, if it is undone
+    if (e.refilled && !e.made) {
+        purgeCells(rows, e.refill.runs);
+        map.forget(e.refill);
+    }
+    if (e.edit.kind == Kind::Erase) {
+        if (e.made) {
+            purgeCells(rows, e.edit.runs);
+            map.dropDead(e.edit.runs);
         }
-    if (!plain()) std::sort(out->begin(), out->end(), [](const PlacedCell &a, const PlacedCell &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; });
+    } else if (e.made) {
+        purgeCells(rows, e.edit.pushed);
+        map.dropDead(e.edit.pushed);
+    } else {
+        purgeCells(rows, e.edit.runs);
+        map.forget(e.edit);
+    }
+    map.tryIdentity();
+    e = LineEdits();
+}
+
+jp::calc::LineStatus CellStore::rebaseLines(bool rows)
+{
+    using jp::calc::LineStatus;
+    jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
+    std::vector<jp::calc::LineMapCore::Renumber> table;
+    const LineStatus st = map.rebase(&table);
+    if (st != LineStatus::Ok || table.empty()) return st;
+    std::sort(table.begin(), table.end(), [](const auto &a, const auto &b) { return a.oldFirst < b.oldFirst; });
+    auto renumber = [&](quint32 id) -> quint32 {
+        auto it = std::upper_bound(table.begin(), table.end(), id, [](quint32 v, const auto &r) { return v < r.oldFirst; });
+        if (it == table.begin() || id - (it - 1)->oldFirst >= (it - 1)->count) return kNoLine;
+        return (it - 1)->newFirst + (id - (it - 1)->oldFirst);
+    };
+    std::map<quint32, Block> blocks;
+    qint64 gone = 0;
+    for (auto &entry : m_blocks)
+        for (Cell &c : entry.second.cells) {
+            const quint32 id = renumber(rows ? c.rowId : c.colId);
+            if (id == kNoLine) {
+                ++gone;
+                continue;
+            }
+            if (rows) c.rowId = id;
+            else c.colId = quint16(id);
+            Block &block = blocks[c.rowId / kBlockRows];
+            if (!block.cells.empty() && !before(block.cells.back(), c)) block.ordered = false;
+            block.cells.push_back(c);
+        }
+    for (auto &entry : blocks) {
+        Block &block = entry.second;
+        if (!block.ordered) std::sort(block.cells.begin(), block.cells.end(), before);
+        block.ordered = true;
+        block.cells.shrink_to_fit();
+    }
+    m_blocks = std::move(blocks);
+    m_count -= gone;
+    m_dead -= gone;
+    m_last = nullptr;
+    return LineStatus::Ok;
+}
+
+void CellStore::setLineLimits(const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols)
+{
+    if (!plain()) return;
+    m_rows = jp::calc::RowMap(rows, rows.capacity);
+    m_cols = jp::calc::ColMap(cols, cols.capacity);
 }
 
 QString Sheet::text(const Cell &cell, const SharedStrings &shared) const

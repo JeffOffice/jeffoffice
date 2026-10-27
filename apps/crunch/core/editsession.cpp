@@ -300,6 +300,31 @@ void EditSession::forgetDeletesInFile()
     }
 }
 
+void EditSession::forgetLineSteps(int sheet, bool rows)
+{
+    using K = jp::office::sheet::StructEdit::Kind;
+    auto edits = [&](ChangeCells *step) {
+        if (step->forgotten() || !step->step()->structure) return false;
+        const jp::office::sheet::StructEdit &e = step->step()->structure->edit;
+        if (e.sheet != sheet) return false;
+        return rows ? (e.kind == K::InsertRows || e.kind == K::DeleteRows) : (e.kind == K::InsertColumns || e.kind == K::DeleteColumns);
+    };
+    // (Undo goes back over the steps in order, so a step that is given up gives up every one before it that is done, and Redo every one after it that is undone)
+    int last = -1;
+    for (int i = m_undo.index() - 1; i >= 0 && last < 0; --i)
+        eachStep(m_undo.command(i), [&](ChangeCells *step) {
+            if (edits(step)) last = i;
+        });
+    for (int i = 0; i <= last; ++i) eachStep(m_undo.command(i), [](ChangeCells *step) { step->forget(); });
+    int first = -1;
+    for (int i = m_undo.index(); i < m_undo.count() && first < 0; ++i)
+        eachStep(m_undo.command(i), [&](ChangeCells *step) {
+            if (edits(step)) first = i;
+        });
+    if (first >= 0)
+        for (int i = first; i < m_undo.count(); ++i) eachStep(m_undo.command(i), [](ChangeCells *step) { step->forget(); });
+}
+
 void EditSession::forgetStepsDone()
 {
     for (int i = 0; i < m_undo.index(); ++i) eachStep(m_undo.command(i), [](ChangeCells *step) { step->forget(); });
@@ -600,6 +625,14 @@ void EditSession::pushStep(Step step, const QString &text, bool alreadyDone)
     if (alreadyDone) command->markDone();
     m_undo.push(command);
     trimUndo();
+    // (the steps the push dropped, and those the trim forgot, may have held rows or columns that only they could bring back)
+    bool dropped;
+    {
+        std::lock_guard<std::mutex> guard(m_lineDrops->lock);
+        dropped = !m_lineDrops->records.empty();
+    }
+    if (dropped)
+        if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) letGoOfLines(hold->calculation());
 }
 
 EditSession::Outcome EditSession::typeInHeader(int sheet, quint32 row, quint32 col, int table, int column, const QString &typed)

@@ -28,6 +28,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <memory>
 #include <set>
@@ -161,8 +162,20 @@ struct FilterEdit {
     jp::office::sheet::AutoFilter before, after;
 };
 
+// The records of edits of rows and columns whose steps are gone (the stack dropped them, or they were forgotten): the model lets go of what only those steps could bring back (the cells of
+// rows and columns they deleted, and the ids they took) the next time the session has the workbook to itself.
+struct LineDrops {
+    std::mutex lock;
+    std::vector<jp::office::sheet::Calculation::EditRecord> records;   // (the edit and its lines only)
+};
+
 // Rows, columns, or cells inserted or deleted by a step: the edit, what the model needs to undo it (made when it is first done), and the marks the session keeps by cell that it moved.
 struct StructChange {
+    StructChange() = default;
+    StructChange(const StructChange &) = delete;
+    StructChange &operator=(const StructChange &) = delete;
+    ~StructChange();
+    std::shared_ptr<LineDrops> drops;                                    // where the record of the edit of rows or columns goes when the step is gone
     bool done = false;                                                   // the cells are as the edit leaves them
     jp::office::sheet::StructEdit edit;
     jp::office::sheet::Calculation::EditRecord record;
@@ -291,6 +304,8 @@ public:
     };
     // The next step that moves cells is made though it is bigger than Undo holds (the person was asked, and said to go on).
     void allowNextBigStep() { m_bigStepAllowed = true; }
+    // The most runs and ids the order of a sheet's rows and columns may have (a test of a very long session sets them small).
+    void setLineLimitsForTest(int sheet, const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols);
     // Types text into a cell, as the person typed it: a number, a percent, a date, TRUE, a formula, or text; the cell takes the format the entry asks for if it has none of its own. The
     // change is one step on the undo stack. Not ok, and nothing changed, if the text is a formula that is not one, or is too long, or the cell cannot be changed.
     Outcome type(int sheet, quint32 row, quint32 col, const QString &typed, bool checkRule = true);
@@ -900,6 +915,12 @@ private:
     bool m_lastCalculated = false;     // the last entry made its column a calculated column (see lastEntryMadeCalculatedColumn)
     int m_calculatedIndex = -1;        // the place on the undo stack of the step that made it
     bool m_bigStepAllowed = false;     // see allowNextBigStep
+    std::shared_ptr<LineDrops> m_lineDrops = std::make_shared<LineDrops>();
+    // With the workbook held: lets go of what the steps that are gone held of the order of rows and columns.
+    void letGoOfLines(jp::office::sheet::Calculation *calc);
+    // Before an edit of whole rows or columns: if the order of them is near what it may hold, every step that edited it is forgotten and the order is put back to one run (Undo does not go back over those).
+    void compactLinesFor(const jp::office::sheet::StructEdit &edit);
+    void forgetLineSteps(int sheet, bool rows);
     int m_saveGen = 0;                 // how many times the workbook has been saved
     int m_forgotBySave = 0;            // the steps the last save made Undo forget (see forgetDeletesInFile)
     std::map<quint64, jp::calc::Value> m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)

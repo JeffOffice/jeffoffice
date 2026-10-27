@@ -178,6 +178,11 @@ public:
     uint64_t cacheMisses() const;
     size_t cacheEntries() const;
 
+    // The records of the lines at these ids are let go of (nothing can name them, or bring them back, any more: the caller has dropped the step that could). Ids already live are left alone.
+    void dropDead(const std::vector<IdRun> &runs);
+    // Back to identity (no map at all) if the order is that already: no records of dead lines, and the live lines are the ids from 0, in order. True if it is identity now.
+    bool tryIdentity();
+
     // Renumbers the live ids to their positions and forgets the dead ones (4.16): the caller renumbers whatever holds ids with `table`. Every older step is stale after it.
     LineStatus rebase(std::vector<Renumber> *table);
 

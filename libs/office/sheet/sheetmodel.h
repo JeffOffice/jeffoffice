@@ -17,6 +17,7 @@
 #include <QVector>
 
 #include <algorithm>
+#include <atomic>
 #include <functional>
 #include <limits>
 #include <map>
@@ -80,6 +81,50 @@ struct PlacedCell {
     Cell cell;
 };
 
+// A short list that lives on the stack up to N entries and on the heap past that (the runs of a walk are few, and a walk is made very often).
+template <class T, size_t N>
+class SmallList {
+public:
+    SmallList() = default;
+    SmallList(const SmallList &) = delete;
+    SmallList &operator=(const SmallList &) = delete;
+    size_t size() const { return m_n; }
+    bool empty() const { return m_n == 0; }
+    T &operator[](size_t i) { return data()[i]; }
+    const T &operator[](size_t i) const { return data()[i]; }
+    T *begin() { return data(); }
+    T *end() { return data() + m_n; }
+    const T *begin() const { return data(); }
+    const T *end() const { return data() + m_n; }
+    void push_back(const T &v)
+    {
+        if (!m_onHeap && m_n == N) {
+            m_heap.assign(m_inline, m_inline + N);
+            m_onHeap = true;
+        }
+        if (m_onHeap) m_heap.push_back(v);
+        else m_inline[m_n] = v;
+        ++m_n;
+    }
+    void resize(size_t n)
+    {
+        if (!m_onHeap && n > N) {
+            m_heap.assign(m_inline, m_inline + m_n);
+            m_onHeap = true;
+        }
+        if (m_onHeap) m_heap.resize(n);
+        m_n = n;
+    }
+
+private:
+    T *data() { return m_onHeap ? m_heap.data() : m_inline; }
+    const T *data() const { return m_onHeap ? m_heap.data() : m_inline; }
+    T m_inline[N];
+    std::vector<T> m_heap;
+    size_t m_n = 0;
+    bool m_onHeap = false;
+};
+
 // The cells of one sheet, kept in blocks of rows: a block holds the cells of
 // kBlockRows row ids, in order of row id and then column id, and only blocks
 // that have a cell exist. Cells may be added in any order; finish() puts each
@@ -90,15 +135,22 @@ struct PlacedCell {
 // that names a cell takes the place and turns it into ids on the way in; every walk gives the place
 // beside the cell, going along the live runs of the order. Rows and columns inserted or deleted are
 // operations on that order (insertLines and the others below), and no cell moves. A row or column
-// that is deleted leaves the order but keeps its cells (they come back with Undo); walks never
-// reach them, and cellCount() does not count them.
+// that is deleted leaves the order but keeps its cells (they come back with Undo) until the step that
+// could bring them back is let go of (forgetLines); walks never reach them, and cellCount() does not
+// count them. A sheet whose order has grown too many runs or used too many ids is put back to one run
+// (rebaseLines), which renumbers the cells and lets go of the dead ones.
 class CellStore {
 public:
     static constexpr quint32 kBlockRows = 64;
     static constexpr quint32 kNoLine = jp::calc::LineMapCore::kNone;
 
-    CellStore() = default;
-    CellStore(const CellStore &o) : m_blocks(o.m_blocks), m_count(o.m_count), m_dead(o.m_dead), m_rows(o.m_rows), m_cols(o.m_cols) {}
+    // Ids from `first`, `count` of them, at the places from `base`.
+    struct Span {
+        quint32 first, count, base;
+    };
+
+    CellStore() : m_serial(nextSerial()) {}
+    CellStore(const CellStore &o) : m_blocks(o.m_blocks), m_count(o.m_count), m_dead(o.m_dead), m_rows(o.m_rows), m_cols(o.m_cols), m_serial(nextSerial()) {}
     CellStore &operator=(const CellStore &o)
     {
         m_blocks = o.m_blocks;
@@ -106,11 +158,12 @@ public:
         m_dead = o.m_dead;
         m_rows = o.m_rows;
         m_cols = o.m_cols;
+        m_serial = nextSerial();
         m_last = nullptr;
         return *this;
     }
     // A move takes the blocks and leaves the store it was taken from empty, with no memory of where it last added a cell (that place is a block it no longer has).
-    CellStore(CellStore &&o) noexcept : m_blocks(std::move(o.m_blocks)), m_count(o.m_count), m_dead(o.m_dead), m_rows(std::move(o.m_rows)), m_cols(std::move(o.m_cols))
+    CellStore(CellStore &&o) noexcept : m_blocks(std::move(o.m_blocks)), m_count(o.m_count), m_dead(o.m_dead), m_rows(std::move(o.m_rows)), m_cols(std::move(o.m_cols)), m_serial(o.m_serial)
     {
         o.reset();
     }
@@ -122,6 +175,7 @@ public:
             m_dead = o.m_dead;
             m_rows = std::move(o.m_rows);
             m_cols = std::move(o.m_cols);
+            m_serial = o.m_serial;
             m_last = nullptr;
             o.reset();
         }
@@ -131,6 +185,8 @@ public:
     // The order of the sheet's rows and of its columns, as ids (see calc/linemap.h).
     const jp::calc::RowMap &rows() const { return m_rows; }
     const jp::calc::ColMap &cols() const { return m_cols; }
+    // A number that is this store's alone (a record of an edit of its rows or columns names it, so that it is never given to another sheet's order).
+    quint64 serial() const { return m_serial; }
 
     // Adds a cell at the place. A cell at a place that has one already replaces it (the
     // later one stands), as finish() decides.
@@ -150,6 +206,13 @@ public:
     Cell *set(const PlacedCell &at) { return set(at.row, at.col, at.cell); }
     bool erase(quint32 row, quint32 col);
 
+    // What a walk over a range did, counted as it did it: the cells it stepped over one by one (every move of the cursor along a row of a block is counted, and every run of rows or of columns it
+    // goes along), and the comparisons of its searches for the first cell of each row. A test counts them to see that a narrow range of a wide sheet costs what it holds.
+    struct RangeWalk {
+        qint64 stepped = 0;
+        qint64 compared = 0;
+    };
+
     // Calls f(row, col, cell) for each cell in order of row, then column.
     template <class F>
     void forEach(F f) const
@@ -159,10 +222,12 @@ public:
                 for (const Cell &c : block.second.cells) f(quint32(c.rowId), quint32(c.colId), c);
             return;
         }
-        std::vector<Span> cs;
-        spans(m_cols, 0, quint32(-1), &cs);
-        walkRows(0, quint32(-1), [&](quint32 rowPos, std::vector<Cell>::const_iterator a, std::vector<Cell>::const_iterator b) {
-            return visitRow(a, b, cs, [&](quint32 colPos, const Cell &c) {
+        ColPlan plan;
+        planFor(m_cols, 0, quint32(-1), &plan);
+        SmallList<Seg, 8> segs;
+        segs.resize(plan.spans.size());
+        walkRows(0, quint32(-1), nullptr, [&](quint32 rowPos, CellIt a, CellIt b) {
+            return visitRow(a, b, plan, &segs, true, nullptr, [&](quint32 colPos, const Cell &c) {
                 f(rowPos, colPos, c);
                 return true;
             });
@@ -173,91 +238,122 @@ public:
     template <class F>
     void forEachRowTail(F f) const
     {
-        if (!plain()) {
-            RowTailCursor cursor;
-            qint64 steps = 0;
-            forEachRowTailSome(&cursor, std::numeric_limits<qint64>::max(), &steps, f);
-            return;
-        }
-        std::ptrdiff_t guess = 1;
-        for (auto block = m_blocks.rbegin(); block != m_blocks.rend(); ++block) {
-            const std::vector<Cell> &cells = block->second.cells;
-            auto end = cells.end();
-            while (end != cells.begin()) {
-                const quint32 row = (end - 1)->rowId;
-                // (where the row begins: as far back as the last row had cells, if that is right, else a search)
-                auto first = end - std::min<std::ptrdiff_t>(guess, end - cells.begin());
-                if (!(first == cells.begin() || (first - 1)->rowId < row) || first->rowId != row)
-                    first = std::lower_bound(cells.begin(), end, row, [](const Cell &c, quint32 r) { return c.rowId < r; });
-                guess = std::max<std::ptrdiff_t>(1, end - first);
-                for (auto at = end; at != first;) {
-                    --at;
-                    if (f(quint32(at->rowId), quint32(at->colId), *at)) break;
-                }
-                end = first;
-            }
-        }
+        RowTailCursor cursor;
+        qint64 steps = 0;
+        forEachRowTailSome(&cursor, std::numeric_limits<qint64>::max(), &steps, f);
     }
-    // The same walk in slices: the place it has got to. Start with a fresh cursor; each call goes on from where the last stopped.
+    // The same walk in slices: the place it has got to. Start with a fresh cursor; each call goes on from where the last stopped. The place is a row's place, so rows or columns inserted or deleted between
+    // two calls (the walk of a store that was edited, or was not) go on from that place.
     struct RowTailCursor {
         bool started = false, done = false;
-        quint32 block = 0;           // the key of the block it is in
-        std::ptrdiff_t end = 0;      // the cells of that block before this place are still to be walked
-        quint32 nextPos = 0;         // (a store whose rows were edited: the rows before this place are still to be walked)
+        quint32 nextPos = 0;                     // the rows before this place are still to be walked
+        std::vector<Span> rows, cols;     // (the runs of the rows and of the columns, kept while the order is as it was)
+        quint64 rowsVersion = ~quint64(0), colsVersion = ~quint64(0);
     };
     // Walks on from the cursor as forEachRowTail does, adding to `*steps` one for each row and each cell it looks at, and stops after the row it is in once `*steps` has reached `limit`
     // (so a slice takes at most a row's cells past it). True when every cell has been walked. A store changed between two calls is walked from what is there (never past it).
     template <class F>
     bool forEachRowTailSome(RowTailCursor *cur, qint64 limit, qint64 *steps, F f) const
     {
-        if (!plain()) return tailSomeByPlace(cur, limit, steps, f);
         if (cur->done) return true;
         if (!cur->started) {
             cur->started = true;
-            if (m_blocks.empty()) {
+            cur->nextPos = quint32(-1);
+        }
+        quint32 next = cur->nextPos;
+        if (plain()) {
+            if (next == 0 || m_blocks.empty()) {
                 cur->done = true;
                 return true;
             }
-            cur->block = m_blocks.rbegin()->first;
-            cur->end = std::ptrdiff_t(m_blocks.rbegin()->second.cells.size());
-        }
-        auto block = m_blocks.find(cur->block);
-        if (block == m_blocks.end()) {
-            cur->done = true;
-            return true;
-        }
-        while (*steps < limit) {
-            const std::vector<Cell> &cells = block->second.cells;
-            const std::ptrdiff_t end = std::min<std::ptrdiff_t>(cur->end, std::ptrdiff_t(cells.size()));
-            if (end <= 0) {
-                if (block == m_blocks.begin()) {
-                    cur->done = true;
-                    return true;
+            // (where the walk is: in the last block that has a row before the place, at the cells before it)
+            auto block = m_blocks.upper_bound((next - 1) / kBlockRows);
+            if (block == m_blocks.begin()) {
+                cur->done = true;
+                return true;
+            }
+            --block;
+            std::ptrdiff_t end = std::lower_bound(block->second.cells.begin(), block->second.cells.end(), next, [](const Cell &c, quint32 r) { return c.rowId < r; }) - block->second.cells.begin();
+            while (*steps < limit) {
+                const std::vector<Cell> &cells = block->second.cells;
+                if (end <= 0) {
+                    if (block == m_blocks.begin()) {
+                        cur->done = true;
+                        return true;
+                    }
+                    --block;
+                    end = std::ptrdiff_t(block->second.cells.size());
+                    ++*steps;
+                    continue;
                 }
-                --block;
-                cur->block = block->first;
-                cur->end = std::ptrdiff_t(block->second.cells.size());
+                const quint32 row = cells[size_t(end - 1)].rowId;
+                const auto first = std::lower_bound(cells.begin(), cells.begin() + end, row, [](const Cell &c, quint32 r) { return c.rowId < r; });
                 ++*steps;
+                for (auto at = cells.begin() + end; at != first;) {
+                    --at;
+                    ++*steps;
+                    if (f(quint32(at->rowId), quint32(at->colId), *at)) break;
+                }
+                end = first - cells.begin();
+                next = row;
+            }
+            cur->nextPos = next;
+            return false;
+        }
+        refreshSpans(m_rows, &cur->rows, &cur->rowsVersion);
+        refreshSpans(m_cols, &cur->cols, &cur->colsVersion);
+        next = std::min(next, m_rows.size());
+        const std::vector<Span> &rs = cur->rows;
+        const std::vector<Span> &cs = cur->cols;
+        while (*steps < limit) {
+            if (next == 0 || rs.empty()) {
+                cur->done = true;
+                return true;
+            }
+            // the run of rows that holds the place before `next` (the last run that begins before it)
+            const auto it = std::lower_bound(rs.begin(), rs.end(), next, [](const Span &s, quint32 v) { return s.base < v; });
+            const Span &s = *(it - 1);
+            const quint32 hiId = s.first + (next - 1 - s.base);
+            CellIt a, b;
+            bool found = false;
+            for (auto block = m_blocks.upper_bound(hiId / kBlockRows); block != m_blocks.begin() && !found;) {
+                --block;
+                if (block->first * kBlockRows + kBlockRows - 1 < s.first) break;
+                const std::vector<Cell> &cells = block->second.cells;
+                ++*steps;
+                const auto above = std::upper_bound(cells.begin(), cells.end(), hiId, [](quint32 v, const Cell &c) { return v < c.rowId; });
+                if (above == cells.begin()) continue;
+                const quint32 id = (above - 1)->rowId;
+                if (id < s.first) break;
+                a = std::lower_bound(cells.begin(), above, id, [](const Cell &c, quint32 v) { return c.rowId < v; });
+                b = above;
+                found = true;
+            }
+            if (!found) {
+                next = s.base;
                 continue;
             }
-            const quint32 row = cells[size_t(end - 1)].rowId;
-            const auto first = std::lower_bound(cells.begin(), cells.begin() + end, row, [](const Cell &c, quint32 r) { return c.rowId < r; });
+            const quint32 rowPos = s.base + (a->rowId - s.first);
             ++*steps;
-            for (auto at = cells.begin() + end; at != first;) {
-                --at;
-                ++*steps;
-                if (f(quint32(at->rowId), quint32(at->colId), *at)) break;
+            bool stop = false;
+            for (size_t j = cs.size(); j > 0 && !stop; --j) {
+                const Span &c = cs[j - 1];
+                const auto lo = std::lower_bound(a, b, c.first, [](const Cell &x, quint32 id) { return quint32(x.colId) < id; });
+                auto hi = std::lower_bound(lo, b, c.first + c.count, [](const Cell &x, quint32 id) { return quint32(x.colId) < id; });
+                while (hi != lo) {
+                    --hi;
+                    ++*steps;
+                    if (f(rowPos, c.base + (quint32(hi->colId) - c.first), *hi)) {
+                        stop = true;
+                        break;
+                    }
+                }
             }
-            cur->end = first - cells.begin();
+            next = rowPos;
         }
+        cur->nextPos = next;
         return false;
     }
-    // What a walk over a range did, counted as it did it: the cells it stepped over one by one (every move of the cursor along a row of a block is counted), and the
-    // comparisons of its searches for the first cell of each row. A test counts them to see that a narrow range of a wide sheet costs what it holds.
-    struct RangeWalk {
-        qint64 stepped = 0;
-        qint64 compared = 0;
-    };
     // Calls f(row, col, cell) for each cell inside the rectangle (both ends in it), in order of row and then column; f gives false to stop. Only the rows and cells in it are
     // looked at: a narrow range of a wide sheet costs what it holds, and a search for each row's first cell, not a walk over the cells before it. (`walk`, if given,
     // counts what was done: see RangeWalk.)
@@ -317,15 +413,23 @@ public:
         }
     }
     // Moves cells about, for cells shifted (inserted and deleted among the cells of some columns or rows; whole rows and columns are insertLines and deleteLines, which move nothing): every cell
-    // for which `affected(row, col, cell)` is true (those of the blocks from the one of row `firstRow` on are looked at, and no others) is taken out; `map(placed)` changes the PlacedCell to what it is
+    // for which `affected(row, col, cell)` is true (those of the blocks that hold rows from `firstRow` on are looked at, and no others) is taken out; `map(placed)` changes the PlacedCell to what it is
     // after (its place and the cell), and gives false for one that is gone (it is given to
     // `removed`, as it was, with its place); `moved(before, after)` (PlacedCells) is told of each that stays; they are put in again, and the blocks are put in order. The cost is that of the cells taken out.
     template <class Affected, class Map, class Moved>
     void reshuffle(quint32 firstRow, Affected affected, Map map, Moved moved, std::vector<PlacedCell> *removed)
     {
         std::vector<PlacedCell> moving;
-        const bool byId = plain();
-        for (auto it = m_blocks.lower_bound(byId ? firstRow / kBlockRows : 0u); it != m_blocks.end();) {
+        quint32 firstKey = firstRow / kBlockRows;
+        if (!m_rows.isIdentity()) {
+            // (the rows from `firstRow` on are the runs of ids from that place: the block of the lowest id among them is where it begins)
+            std::vector<Span> rs;
+            spans(m_rows, firstRow, quint32(-1), &rs);
+            if (rs.empty()) return;
+            firstKey = ~0u;
+            for (const Span &s : rs) firstKey = std::min(firstKey, s.first / kBlockRows);
+        }
+        for (auto it = m_blocks.lower_bound(firstKey); it != m_blocks.end();) {
             std::vector<Cell> &cells = it->second.cells;
             size_t keep = 0;
             for (size_t i = 0; i < cells.size(); ++i) {
@@ -385,19 +489,71 @@ public:
         jp::calc::LineEdit refill;
         bool refilled = false;    // a delete: `refill` is the lines added at the end
         bool made = false;        // the edit has been made (undo and redo go by it)
+        quint64 owner = 0;        // the store whose order it is
+        quint32 lines() const
+        {
+            quint32 n = 0;
+            for (const jp::calc::IdRun &r : edit.runs) n += r.count;
+            return n;
+        }
     };
-    // `count` rows (columns) inserted at the place `at`; lines pushed off the end of the sheet are deleted (their cells stay with them). Else the status (nothing is changed).
-    jp::calc::LineStatus insertLines(bool rows, quint32 at, quint32 count, LineEdits *edits);
+    // How the places of lines changed: the lines at the places from `at` on (from `at` + delta on, after an insert) moved by `delta` (up when it is less than 0).
+    struct LineShift {
+        quint32 at = 0;
+        qint64 delta = 0;
+    };
+    // `count` rows (columns) inserted at the place `at`; lines pushed off the end of the sheet are deleted (their cells stay with them). Else the status (nothing is changed). `shift` is how the places
+    // changed, and `deadFormulas` is given the cells with a formula that were in lines that died.
+    jp::calc::LineStatus insertLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift = nullptr, std::vector<Cell> *deadFormulas = nullptr);
     // `count` rows (columns) deleted at the place `at` (a count past the end is cut to it): the sheet gets as many new, empty rows (columns) at its end, so it is as long as it was. Their cells stay, as dead cells.
-    jp::calc::LineStatus deleteLines(bool rows, quint32 at, quint32 count, LineEdits *edits);
+    jp::calc::LineStatus deleteLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift = nullptr, std::vector<Cell> *deadFormulas = nullptr);
     // Whether an edit of `count` rows (columns) can be made: the order is not full of runs or ids (else the status that says so).
     jp::calc::LineStatus canEditLines(bool rows, quint32 count) const;
-    // The order as it was before the edit was made, and as it was after it. Else the status (the edit is not the last one made to the order, and nothing is changed).
-    jp::calc::LineStatus undoLines(bool rows, LineEdits &edits);
-    jp::calc::LineStatus redoLines(bool rows, LineEdits &edits);
-    // The cells with a formula, or that belong to an array formula, in rows (columns) at or after the place `first`, with their places (read before an edit, to say where they are after it).
-    void formulaCells(bool rows, quint32 first, std::vector<PlacedCell> *out) const;
-    // Where a cell given by formulaCells is now (false if its row or column is deleted).
+    // Whether the order should be put back to one run (rebaseLines) before an edit of `count` lines is made: it is near the most runs, dead records, or ids it may have.
+    bool needsCompaction(bool rows, quint32 count) const;
+    // The order as it was before the edit was made, and as it was after it. Else the status (the edit is not the last one made to the order, or is not of this store's, and nothing is changed).
+    jp::calc::LineStatus undoLines(bool rows, LineEdits &edits, LineShift *shift = nullptr, std::vector<Cell> *deadFormulas = nullptr);
+    jp::calc::LineStatus redoLines(bool rows, LineEdits &edits, LineShift *shift = nullptr, std::vector<Cell> *deadFormulas = nullptr);
+    // The step that made the edit will never be undone or done again: the cells of the lines that only it could bring back are let go of, and so are the records of those lines (and the ids that
+    // nothing can name are given back if they were the last taken). The edits are empty after.
+    void forgetLines(bool rows, LineEdits *edits);
+    // Puts the order of the rows (columns) back to one run, from 0: the cells are given the new ids, those of dead lines are let go of, and every edit made to the order before is stale (Undo of it
+    // is refused). The status if that cannot be done.
+    jp::calc::LineStatus rebaseLines(bool rows);
+    // Limits for the order of the rows and of the columns (for a test of the caps: the caps of a sheet are those of jp::calc::LineLimits). Only for a store whose order has no edit.
+    void setLineLimits(const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols);
+    // Calls f(before, after) (PlacedCells) for each cell with a formula, or that belongs to an array formula, whose place changed by `shift` (read after the edit).
+    template <class F>
+    void forEachMoved(bool rows, const LineShift &shift, F f) const
+    {
+        if (shift.delta == 0) return;
+        const quint32 from = shift.delta > 0 ? shift.at + quint32(shift.delta) : shift.at;
+        auto emit = [&](quint32 row, quint32 col, const Cell &c) {
+            PlacedCell now{row, col, c};
+            PlacedCell was = now;
+            if (rows) was.row = quint32(qint64(row) - shift.delta);
+            else was.col = quint32(qint64(col) - shift.delta);
+            f(was, now);
+        };
+        if (rows) {
+            walkRows(from, quint32(-1), nullptr, [&](quint32 rowPos, CellIt a, CellIt b) {
+                for (; a != b; ++a) {
+                    if (!(a->flags & (HasFormula | ArrayMember))) continue;
+                    const quint32 col = colPosOf(a->colId);
+                    if (col != kNoLine) emit(rowPos, col, *a);
+                }
+                return true;
+            });
+            return;
+        }
+        for (const auto &block : m_blocks)
+            for (const Cell &c : block.second.cells) {
+                if (!(c.flags & (HasFormula | ArrayMember))) continue;
+                const quint32 col = colPosOf(c.colId), row = rowPosOf(c.rowId);
+                if (row != kNoLine && col != kNoLine && col >= from) emit(row, col, c);
+            }
+    }
+    // Where a cell given by a walk is now (false if its row or column is deleted).
     bool placeOf(const PlacedCell &was, quint32 *row, quint32 *col) const
     {
         *row = rowPosOf(was.cell.rowId);
@@ -418,26 +574,44 @@ private:
         std::vector<Cell> cells;
         bool ordered = true;
     };
-    // Ids from `first`, `count` of them, at the places from `base`.
-    struct Span {
-        quint32 first, count, base;
+    using CellIt = std::vector<Cell>::const_iterator;
+    using Seg = std::pair<CellIt, CellIt>;
+    // The columns of a walk: their runs in the order of their places, and the order of their ids (cells are in the order of ids).
+    struct ColPlan {
+        SmallList<Span, 8> spans;
+        SmallList<quint32, 8> byId;
+        bool inOrder = true;   // the ids go up with the places
+        void finish()
+        {
+            for (size_t i = 0; i < spans.size(); ++i) byId.push_back(quint32(i));
+            std::sort(byId.begin(), byId.end(), [&](quint32 a, quint32 b) { return spans[a].first < spans[b].first; });
+            for (size_t i = 0; i < byId.size(); ++i) inOrder = inOrder && byId[i] == i;
+        }
     };
+    static quint64 nextSerial();
     void reset()
     {
         m_blocks.clear();
         m_count = 0;
         m_dead = 0;
         m_last = nullptr;
+        m_serial = nextSerial();
         m_rows = jp::calc::RowMap(jp::calc::LineLimits::rows(), jp::calc::LineLimits::rows().capacity);
         m_cols = jp::calc::ColMap(jp::calc::LineLimits::cols(), jp::calc::LineLimits::cols().capacity);
     }
     // No row or column has been inserted or deleted: ids are places.
     bool plain() const { return m_rows.isIdentity() && m_cols.isIdentity(); }
-    // (a sheet with no edit has ids that are places, whatever the place)
-    quint32 rowIdOf(quint32 pos) const { return m_rows.isIdentity() ? pos : m_rows.core().idAt(pos); }
-    quint32 colIdOf(quint32 pos) const { return m_cols.isIdentity() ? pos : m_cols.core().idAt(pos); }
-    quint32 rowPosOf(quint32 id) const { return m_rows.isIdentity() ? id : m_rows.core().posOf(id); }
-    quint32 colPosOf(quint32 id) const { return m_cols.isIdentity() ? id : m_cols.core().posOf(id); }
+    // (a sheet with no edit has ids that are places, whatever the place; else the last place a thread looked up is where it looks first)
+    quint32 rowIdOf(quint32 pos) const { return m_rows.isIdentity() ? pos : m_rows.core().idAt(pos, &hint(0)); }
+    quint32 colIdOf(quint32 pos) const { return m_cols.isIdentity() ? pos : m_cols.core().idAt(pos, &hint(1)); }
+    quint32 rowPosOf(quint32 id) const { return m_rows.isIdentity() ? id : m_rows.core().posOf(id, &hint(2)); }
+    quint32 colPosOf(quint32 id) const { return m_cols.isIdentity() ? id : m_cols.core().posOf(id, &hint(3)); }
+    static jp::calc::LineHint &hint(int which)
+    {
+        thread_local jp::calc::LineHint hints[4];
+        return hints[which];
+    }
+    // The runs of ids at the places first..last (cut to the sheet), with the place each begins at.
     template <class Map>
     static void spans(const Map &map, quint32 first, quint32 last, std::vector<Span> *out)
     {
@@ -453,20 +627,84 @@ private:
             base += r.count;
         }
     }
-    // Calls g(place, cell) for the cells of a row in order of the columns' places (those of live columns only); g gives false to stop.
-    template <class G>
-    static bool visitRow(std::vector<Cell>::const_iterator a, std::vector<Cell>::const_iterator b, const std::vector<Span> &cols, G g)
+    // The runs of all the places, kept while the order is as it was.
+    template <class Map>
+    static void refreshSpans(const Map &map, std::vector<Span> *out, quint64 *version)
     {
-        for (const Span &s : cols) {
-            auto at = std::lower_bound(a, b, s.first, [](const Cell &c, quint32 id) { return quint32(c.colId) < id; });
-            for (; at != b && quint32(at->colId) - s.first < s.count; ++at)
-                if (!g(s.base + (quint32(at->colId) - s.first), *at)) return false;
+        if (*version == map.version() && !out->empty()) return;
+        spans(map, 0, quint32(-1), out);
+        *version = map.version();
+    }
+    // The runs of the columns at the places first..last, from the order's cache of them (a range read by many formulas is walked once).
+    template <class Map>
+    static void planFor(const Map &map, quint32 first, quint32 last, ColPlan *plan)
+    {
+        if (map.size() == 0) return;
+        last = std::min(last, map.size() - 1);
+        if (first > last) return;
+        const auto runs = map.core().runsFor(first, last);
+        quint32 base = first;
+        for (const jp::calc::IdRun &r : *runs) {
+            plan->spans.push_back({r.first, r.count, base});
+            base += r.count;
+        }
+        plan->finish();
+    }
+    // Calls g(place, cell) for the cells of a row [a, b) in order of the columns' places (those of live columns only); g gives false to stop. `dense`: the row is walked whole anyway (one pass along it);
+    // else a search finds where each run of columns begins. The cost is the row's cells and the runs, not a search for each run in a row.
+    template <class G>
+    static bool visitRow(CellIt a, CellIt b, const ColPlan &plan, SmallList<Seg, 8> *segs, bool dense, RangeWalk *walk, G g)
+    {
+        const size_t n = plan.spans.size();
+        auto find = [&](CellIt from, quint32 id) {
+            if (dense || size_t(b - from) <= 16 * n) {
+                while (from != b && quint32(from->colId) < id) {
+                    ++from;
+                    if (walk) ++walk->stepped;
+                }
+                return from;
+            }
+            return std::lower_bound(from, b, id, [walk](const Cell &c, quint32 v) {
+                if (walk) ++walk->compared;
+                return quint32(c.colId) < v;
+            });
+        };
+        if (n == 0) return true;
+        if (n == 1 || plan.inOrder) {
+            CellIt at = a;
+            for (size_t k = 0; k < n; ++k) {
+                const Span &s = plan.spans[k];
+                at = find(at, s.first);
+                for (; at != b && quint32(at->colId) - s.first < s.count; ++at) {
+                    if (walk) ++walk->stepped;
+                    if (!g(s.base + (quint32(at->colId) - s.first), *at)) return false;
+                }
+            }
+            return true;
+        }
+        // (the runs of columns are not in the order of their ids: the row is gone along once, in the order of ids, to find where the cells of each run are, and the runs are then given in the order of their places)
+        CellIt at = a;
+        for (size_t i = 0; i < n; ++i) {
+            const Span &s = plan.spans[plan.byId[i]];
+            at = find(at, s.first);
+            CellIt end = at;
+            while (end != b && quint32(end->colId) - s.first < s.count) {
+                ++end;
+                if (walk) ++walk->stepped;
+            }
+            (*segs)[plan.byId[i]] = {at, end};
+            at = end;
+        }
+        for (size_t k = 0; k < n; ++k) {
+            const Span &s = plan.spans[k];
+            for (CellIt it = (*segs)[k].first; it != (*segs)[k].second; ++it)
+                if (!g(s.base + (quint32(it->colId) - s.first), *it)) return false;
         }
         return true;
     }
     // Calls h(row place, first cell of the row, end of its cells) for each row that has cells, in order of the rows' places, for the rows at the places from `first` to `last`; h gives false to stop.
     template <class H>
-    bool walkRows(quint32 first, quint32 last, H h) const
+    bool walkRows(quint32 first, quint32 last, RangeWalk *walk, H h) const
     {
         std::vector<Span> rs;
         spans(m_rows, first, last, &rs);
@@ -474,10 +712,14 @@ private:
             const quint32 lastId = s.first + s.count - 1;
             for (auto block = m_blocks.lower_bound(s.first / kBlockRows); block != m_blocks.end() && block->first <= lastId / kBlockRows; ++block) {
                 const std::vector<Cell> &cells = block->second.cells;
-                auto at = std::lower_bound(cells.begin(), cells.end(), s.first, [](const Cell &c, quint32 id) { return c.rowId < id; });
+                auto at = std::lower_bound(cells.begin(), cells.end(), s.first, [walk](const Cell &c, quint32 id) {
+                    if (walk) ++walk->compared;
+                    return c.rowId < id;
+                });
                 while (at != cells.end() && at->rowId <= lastId) {
                     const quint32 id = at->rowId;
-                    auto end = std::upper_bound(at, cells.end(), id, [](quint32 v, const Cell &c) { return v < c.rowId; });
+                    auto end = at;
+                    while (end != cells.end() && end->rowId == id) ++end;
                     if (!h(s.base + (id - s.first), at, end)) return false;
                     at = end;
                 }
@@ -491,10 +733,14 @@ private:
         row2 = std::min(row2, m_rows.size() ? m_rows.size() - 1 : 0u);
         col2 = std::min(col2, m_cols.size() ? m_cols.size() - 1 : 0u);
         if (m_rows.size() == 0 || m_cols.size() == 0 || row1 > row2 || col1 > col2) return;
-        std::vector<Span> rs, cs;
-        spans(m_rows, row1, row2, &rs);
-        spans(m_cols, col1, col2, &cs);
-        for (const Span &s : rs) {
+        const auto rowRuns = m_rows.core().runsFor(row1, row2);
+        ColPlan plan;
+        planFor(m_cols, col1, col2, &plan);
+        SmallList<Seg, 8> segs;
+        segs.resize(plan.spans.size());
+        if (walk) walk->stepped += qint64(rowRuns->size() + plan.spans.size());
+        quint32 base = row1;
+        for (const jp::calc::IdRun &s : *rowRuns) {
             const quint32 lastId = s.first + s.count - 1;
             for (auto block = m_blocks.lower_bound(s.first / kBlockRows); block != m_blocks.end() && block->first <= lastId / kBlockRows; ++block) {
                 const std::vector<Cell> &cells = block->second.cells;
@@ -514,79 +760,21 @@ private:
                         ++end;
                         if (walk) ++walk->stepped;
                     }
-                    const quint32 rowPos = s.base + (r - s.first);
-                    if (!visitRow(pos, end, cs, [&](quint32 colPos, const Cell &c) { return f(rowPos, colPos, c); })) return;
+                    const quint32 rowPos = base + (r - s.first);
+                    if (!visitRow(pos, end, plan, &segs, false, walk, [&](quint32 colPos, const Cell &c) { return f(rowPos, colPos, c); })) return;
                     pos = end;
                     ++r;
                 }
             }
+            base += s.count;
         }
     }
-    template <class F>
-    bool tailSomeByPlace(RowTailCursor *cur, qint64 limit, qint64 *steps, F f) const
-    {
-        if (cur->done) return true;
-        if (!cur->started) {
-            cur->started = true;
-            cur->nextPos = m_rows.size();
-        }
-        std::vector<Span> rs, cs;
-        spans(m_rows, 0, quint32(-1), &rs);
-        spans(m_cols, 0, quint32(-1), &cs);
-        quint32 next = std::min(cur->nextPos, m_rows.size());
-        while (*steps < limit) {
-            if (next == 0 || rs.empty()) {
-                cur->done = true;
-                return true;
-            }
-            // the last row that has a cell, at a place before `next`: in the run of rows that holds the place before it, or in one before that
-            size_t k = rs.size();
-            while (k > 0 && rs[k - 1].base >= next) --k;
-            const Span &s = rs[k - 1];
-            const quint32 hiId = s.first + (next - 1 - s.base);
-            std::vector<Cell>::const_iterator a, b;
-            bool found = false;
-            for (auto block = m_blocks.upper_bound(hiId / kBlockRows); block != m_blocks.begin() && !found;) {
-                --block;
-                if (block->first * kBlockRows + kBlockRows - 1 < s.first) break;
-                const std::vector<Cell> &cells = block->second.cells;
-                ++*steps;
-                const auto above = std::upper_bound(cells.begin(), cells.end(), hiId, [](quint32 v, const Cell &c) { return v < c.rowId; });
-                if (above == cells.begin()) continue;
-                const quint32 id = (above - 1)->rowId;
-                if (id < s.first) break;
-                a = std::lower_bound(cells.begin(), above, id, [](const Cell &c, quint32 v) { return c.rowId < v; });
-                b = above;
-                found = true;
-            }
-            if (!found) {
-                next = s.base;
-                continue;
-            }
-            const quint32 rowPos = s.base + (a->rowId - s.first);
-            ++*steps;
-            bool stop = false;
-            for (size_t j = cs.size(); j > 0 && !stop; --j) {
-                const Span &c = cs[j - 1];
-                const auto lo = std::lower_bound(a, b, c.first, [](const Cell &x, quint32 id) { return quint32(x.colId) < id; });
-                auto hi = std::lower_bound(lo, b, c.first + c.count, [](const Cell &x, quint32 id) { return quint32(x.colId) < id; });
-                while (hi != lo) {
-                    --hi;
-                    ++*steps;
-                    if (f(rowPos, c.base + (quint32(hi->colId) - c.first), *hi)) {
-                        stop = true;
-                        break;
-                    }
-                }
-            }
-            next = rowPos;
-            cur->nextPos = next;
-        }
-        cur->nextPos = next;
-        return false;
-    }
-    // The ids of lines in `runs` that cells are in: how many of those cells are in a line of the other kind that is live, and (kill) their formulas let go of, since a cell of a deleted line holds none.
-    qint64 liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &runs, bool kill);
+    // How many of the cells in the lines at these ids are in a line of the other kind that is live. `kill`: the lines die, the cells with a formula are given to `formulas`, and every cell in them
+    // is made one with no formula (a cell of a deleted line holds none).
+    qint64 liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &runs, bool kill, std::vector<Cell> *formulas = nullptr);
+    // The cells in the lines at these ids are let go of; how many.
+    qint64 purgeCells(bool rows, const std::vector<jp::calc::IdRun> &runs);
+    bool ownEdit(const LineEdits &e) const { return e.owner == m_serial; }
 
     std::map<quint32, Block> m_blocks;
     qint64 m_count = 0;
@@ -595,6 +783,7 @@ private:
     quint32 m_lastKey = 0;
     jp::calc::RowMap m_rows{jp::calc::LineLimits::rows(), jp::calc::LineLimits::rows().capacity};
     jp::calc::ColMap m_cols{jp::calc::LineLimits::cols(), jp::calc::LineLimits::cols().capacity};
+    quint64 m_serial = 0;
 };
 
 // What a formula cell holds. Cells of a shared formula point at one text (the

@@ -429,6 +429,10 @@ private Q_SLOTS:
         s->calculation()->sheet(made).cells.forEach([&](quint32 row, quint32 col, const jp::office::sheet::Cell &c) { copied << QStringLiteral("%1,%2:%3").arg(row).arg(col).arg(c.number); });
         QVERIFY(!original.isEmpty());
         QCOMPARE(copied, original);
+        // (the copy has none of the rows and columns that were deleted in the sheet it is of, and its order is whole again)
+        QVERIFY(s->calculation()->sheet(0).cells.deadCount() > 0);
+        QCOMPARE(s->calculation()->sheet(made).cells.deadCount(), qint64(0));
+        QVERIFY(s->calculation()->sheet(made).rows().isIdentity() && s->calculation()->sheet(made).cols().isIdentity());
         // saved, and read again in a window of its own: the same cells at the same places, and the formulas as they read where they are
         QSignalSpy done(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
@@ -443,6 +447,77 @@ private Q_SLOTS:
         QCOMPARE(again.win.w.session()->calculation()->content(0, 8, 2).formula, QStringLiteral("B9*2"));
         QCOMPARE(again.win.w.session()->calculation()->content(0, 6, 2).formula, QStringLiteral("B7*2"));
         QCOMPARE(again.win.w.session()->calculation()->sheet(0).cells.cellCount(), s->calculation()->sheet(0).cells.cellCount());
+    }
+
+    // A long session of edits of columns on the edit session, with Undo and Redo of them, small limits for the order of the columns: none is refused, the order is compacted (the ids it took are
+    // given up) and Undo goes back over what came after, what the window shows after every step is what it showed before (Undo) or after (Redo) it, and what is held of dead columns does not grow.
+    void aLongSessionOfEditsOfColumnsIsCompactedAndNeverRefused()
+    {
+        EditWindow e;
+        QStringList specs;
+        for (int r = 1; r <= 4; ++r)
+            for (int c = 0; c < 6; ++c) specs << QStringLiteral("%1%2=%3").arg(QLatin1Char(char('A' + c))).arg(r).arg(r * 10 + c);
+        QVERIFY(e.open(sheetOf(specs)));
+        crunch::EditSession *s = e.win.w.session();
+        jp::calc::LineLimits cols = jp::calc::LineLimits::cols();
+        cols.idLimit = cols.firstNew + 120;
+        cols.rebaseRuns = 20;
+        cols.maxRuns = 300;
+        s->setLineLimitsForTest(0, jp::calc::LineLimits::rows(), cols);
+        auto read = [&] {
+            QStringList out;
+            for (quint32 c = 0; c < 14; ++c) out << e.valueAt(cellName(0, c)) + QLatin1Char('/') + e.valueAt(cellName(3, c));
+            return out.join(QLatin1Char(' '));
+        };
+        std::map<const QUndoCommand *, QString> before, after;
+        std::mt19937 rng(20261102);
+        int refused = 0, undos = 0, redos = 0, edits = 0, resets = 0;
+        quint32 lastNext = s->calculation()->sheet(0).cols().nextId().value();
+        qint64 mostDead = 0;
+        QUndoStack *stack = e.win.w.undoStack();
+        for (int i = 0; i < 500; ++i) {
+            QVERIFY(e.settle());
+            const int roll = int(rng() % 10);
+            if (roll < 2 && s->canUndo()) {
+                const QUndoCommand *c = stack->command(stack->index() - 1);
+                pressUndo(&e.win.w);
+                QVERIFY(e.settle());
+                QVERIFY2(before.count(c), "an undone step that was not made by this test");
+                QCOMPARE(read(), before[c]);
+                ++undos;
+            } else if (roll < 3 && stack->canRedo()) {
+                const QUndoCommand *c = stack->command(stack->index());
+                pressRedo(&e.win.w);
+                QVERIFY(e.settle());
+                QVERIFY2(after.count(c), "a redone step that was not made by this test");
+                QCOMPARE(read(), after[c]);
+                ++redos;
+            } else {
+                const QString was = read();
+                const bool insert = rng() % 2 == 0;
+                const quint32 at = rng() % 8;
+                const crunch::EditSession::Outcome o = insert ? s->insertColumns(0, at, 1) : s->deleteColumns(0, at, 1);
+                if (!o.ok) {
+                    ++refused;
+                    continue;
+                }
+                QVERIFY(e.settle());
+                const QUndoCommand *c = stack->command(stack->index() - 1);
+                before[c] = was;
+                after[c] = read();
+                ++edits;
+                const quint32 next = s->calculation()->sheet(0).cols().nextId().value();
+                if (next < lastNext) ++resets;
+                lastNext = next;
+            }
+            mostDead = std::max(mostDead, s->calculation()->sheet(0).cells.deadCount());
+        }
+        QCOMPARE(refused, 0);
+        QVERIFY2(edits > 150 && undos > 20 && redos > 5, qPrintable(QStringLiteral("%1 edits, %2 undos, %3 redos").arg(edits).arg(undos).arg(redos)));
+        QVERIFY2(resets >= 2, qPrintable(QString::number(resets)));        // (the order was compacted)
+        QVERIFY(s->calculation()->sheet(0).cols().nextId().value() <= cols.idLimit);
+        // (what is held of dead columns is what the steps that are held could bring back, and no more)
+        QVERIFY2(mostDead < 4 * 8 * 200, qPrintable(QString::number(mostDead)));
     }
 
     void aBigSortIsPutInASliceAtATimeAndIsOneStep()

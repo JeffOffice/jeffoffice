@@ -233,6 +233,173 @@ private Q_SLOTS:
         QCOMPARE(b.at("E5"), QStringLiteral("n:7"));
     }
 
+    // Undo, and an edit done again after Undo, take no ids and no runs, so the limits of the order never refuse them (an edit that is new may be refused at the limit, until the order is compacted).
+    void undoAndRedoNeedNoIdsSoTheLimitsNeverRefuseThem()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2", "A3=3", "B1==SUM(A1:A3)"}}));
+        jp::calc::LineLimits cols = jp::calc::LineLimits::cols();
+        cols.idLimit = cols.firstNew + 10;
+        b.calc->setLineLimitsForTest(0, jp::calc::LineLimits::rows(), cols);
+        std::vector<Calculation::EditRecord> recs(10);
+        int made = 0;
+        while (made < 10 && b.apply(StructEdit::insertColumns(0, 0, 1), &recs[size_t(made)])) ++made;
+        QVERIFY2(made >= 3 && made < 10, qPrintable(QString::number(made)));
+        const quint32 next = b.calc->sheet(0).cols().nextId().value();
+        Calculation::EditRecord fresh;
+        QVERIFY(!b.apply(StructEdit::insertColumns(0, 0, 1), &fresh));    // (a new edit is refused: the ids are used up)
+        for (int i = made - 1; i >= 0; --i) {
+            QVERIFY2(b.calc->undoEdit(recs[size_t(i)]), qPrintable(QString::number(i)));
+            b.finish();
+        }
+        QCOMPARE(b.at("B1"), QStringLiteral("n:6"));
+        for (int i = 0; i < made; ++i) QVERIFY2(b.apply(StructEdit::insertColumns(0, 0, 1), &recs[size_t(i)]), qPrintable(QString::number(i)));
+        QCOMPARE(b.calc->sheet(0).cols().nextId().value(), next);
+        QCOMPARE(b.at(QStringLiteral("%1%2").arg(QLatin1Char(char('A' + made + 1))).arg(1)), QStringLiteral("n:6"));
+    }
+
+    // An Undo or a Redo that the order does not take (the edit is not the last made to it) is refused, and makes no other rows or columns in their place.
+    void aRedoThatTheOrderDoesNotTakeIsRefusedAndMakesNoNewIds()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2", "A3=3", "B1==SUM(A1:A3)"}}));
+        Calculation::EditRecord a, other;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 1, 1), &a));
+        QVERIFY(b.calc->undoEdit(a));
+        QVERIFY(b.apply(StructEdit::insertRows(0, 2, 1), &other));
+        const quint32 next = b.calc->sheet(0).rows().nextId().value();
+        const qint64 cells = b.calc->sheet(0).cells.cellCount();
+        QVERIFY(!b.apply(StructEdit::insertRows(0, 1, 1), &a));      // (a is not the last edit made: its Redo is refused, not made again with new rows)
+        QCOMPARE(b.calc->sheet(0).rows().nextId().value(), next);
+        QCOMPARE(b.calc->sheet(0).cells.cellCount(), cells);
+        QCOMPARE(b.at("A2"), QStringLiteral("n:2"));
+        // and the Undo of an edit that is not the last made
+        Calculation::EditRecord first, second;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &first));
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &second));
+        QVERIFY(!b.calc->undoEdit(first));
+        QCOMPARE(b.calc->sheet(0).rows().nextId().value(), next + 2);
+    }
+
+    // A row pushed off the end of the sheet is what Undo gives back: a formula in the last row is not pushed off (the edit is refused, in words), and a cell with a format only is, kept as a deleted
+    // cell's is and put back.
+    void aRowPushedOffTheEndOfTheSheetComesBackWithUndo()
+    {
+        {
+            Book b;
+            QVERIFY(b.open({{"A1=1", "A1048576==A1*2"}}));
+            QCOMPARE(b.at("A1048576"), QStringLiteral("n:2"));
+            QString why;
+            QVERIFY(!b.calc->canApply(StructEdit::insertRows(0, 1, 1), &why));
+            QVERIFY2(why.contains(QLatin1String("push")), qPrintable(why));
+            Calculation::EditRecord rec;
+            QVERIFY(!b.apply(StructEdit::insertRows(0, 1, 1), &rec));
+            QCOMPARE(b.formula("A1048576"), QStringLiteral("A1*2"));
+        }
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2"}}));
+        QVERIFY(b.calc->setStyle(0, 1048575, 0, 1));
+        QVERIFY(b.calc->setStyle(0, 5, 16383, 2));
+        Calculation::EditRecord rows, cols;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 1, 1), &rows));
+        QCOMPARE(rows.gone.size(), size_t(1));                       // (the cell that was pushed off)
+        QVERIFY(!b.calc->content(0, 1048575, 0).exists || b.calc->content(0, 1048575, 0).style == 0);
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 1, 1), &cols));
+        QCOMPARE(cols.gone.size(), size_t(1));
+        QVERIFY(b.calc->undoEdit(cols));
+        QVERIFY(b.calc->undoEdit(rows));
+        b.finish();
+        QCOMPARE(b.calc->content(0, 1048575, 0).style, quint32(1));
+        QCOMPARE(b.calc->content(0, 5, 16383).style, quint32(2));
+    }
+
+    // A long session of edits of columns, with Undo, Redo, and new edits that drop what was undone, the way the session does it: every record that is dropped is let go of, the order is compacted (and
+    // every record let go of) when it is near its limits, no edit is refused, and the sheet is always the sheet that a calculation with no limits gives for the same edits.
+    void aLongSessionOfEditsOfColumnsNeverRunsOutAndStaysRight()
+    {
+        QStringList specs;
+        for (int r = 1; r <= 6; ++r)
+            for (int c = 0; c < 8; ++c) specs << QStringLiteral("%1%2=%3").arg(QLatin1Char(char('A' + c))).arg(r).arg(r * 10 + c);
+        for (int r = 1; r <= 6; ++r) specs << QStringLiteral("I%1==SUM(A%1:H%1)").arg(r);
+        Book limited, plain;
+        QVERIFY(limited.open({specs}));
+        QVERIFY(plain.open({specs}));
+        jp::calc::LineLimits cols = jp::calc::LineLimits::cols();
+        cols.idLimit = cols.firstNew + 300;
+        cols.rebaseRuns = 30;
+        cols.maxRuns = 500;
+        limited.calc->setLineLimitsForTest(0, jp::calc::LineLimits::rows(), cols);
+        struct Pair {
+            Calculation::EditRecord a, b;
+        };
+        std::vector<Pair> done, undone;
+        auto snapshot = [](Book &book) {
+            QStringList out;
+            for (quint32 r = 0; r < 7; ++r)
+                for (quint32 c = 0; c < 24; ++c) {
+                    const Calculation::CellContent content = book.calc->content(0, r, c);
+                    if (content.exists) out << QStringLiteral("%1,%2 %3 %4").arg(r).arg(c).arg(content.formula, book.calc->cell(0, r, c).debug());
+                }
+            return out.join(QLatin1Char('\n'));
+        };
+        std::mt19937 rng(20261101);
+        QStringList log;
+        int compactions = 0, undos = 0, redos = 0, edits = 0;
+        qint64 mostDead = 0;
+        for (int i = 0; i < 3000; ++i) {
+            const int roll = int(rng() % 10);
+            log << QStringLiteral("%1 roll %2 state %3 done %4 undone %5").arg(i).arg(roll).arg(limited.calc->sheet(0).cols().state()).arg(done.size()).arg(undone.size());
+            if (log.size() > 12) log.removeFirst();
+            if (roll < 2 && !done.empty()) {
+                Pair p = std::move(done.back());
+                done.pop_back();
+                QVERIFY(limited.calc->undoEdit(p.a));
+                QVERIFY(plain.calc->undoEdit(p.b));
+                undone.push_back(std::move(p));
+                ++undos;
+            } else if (roll < 3 && !undone.empty()) {
+                Pair p = std::move(undone.back());
+                undone.pop_back();
+                QVERIFY2(limited.apply(p.a.edit, &p.a), qPrintable(log.join(QLatin1Char('\n'))));
+                QVERIFY(plain.apply(p.b.edit, &p.b));
+                done.push_back(std::move(p));
+                ++redos;
+            } else {
+                while (!undone.empty()) {
+                    limited.calc->forgetLines(&undone.back().a);
+                    undone.pop_back();
+                }
+                const quint32 at = rng() % 10, count = 1 + rng() % 2;
+                const StructEdit e = rng() % 2 ? StructEdit::insertColumns(0, at, count) : StructEdit::deleteColumns(0, at, count);
+                if (limited.calc->linesNeedCompaction(e)) {
+                    for (Pair &p : done) limited.calc->forgetLines(&p.a);
+                    done.clear();
+                    QVERIFY(limited.calc->compactLines(0, false));
+                    ++compactions;
+                }
+                Pair p;
+                const bool ok = limited.apply(e, &p.a);
+                const bool okPlain = plain.apply(e, &p.b);
+                QVERIFY2(ok == okPlain, qPrintable(QStringLiteral("edit %1: %2 with limits, %3 without").arg(i).arg(ok).arg(okPlain)));
+                if (ok) {
+                    done.push_back(std::move(p));
+                    ++edits;
+                }
+                while (done.size() > 40) {
+                    limited.calc->forgetLines(&done.front().a);
+                    done.erase(done.begin());
+                }
+            }
+            if (i % 50 == 0) QCOMPARE(snapshot(limited), snapshot(plain));
+            mostDead = std::max(mostDead, limited.calc->sheet(0).cells.deadCount());
+        }
+        QCOMPARE(snapshot(limited), snapshot(plain));
+        QVERIFY2(compactions > 5 && undos > 100 && redos > 30 && edits > 1500, qPrintable(QStringLiteral("%1 %2 %3 %4").arg(compactions).arg(undos).arg(redos).arg(edits)));
+        // (what is held of lines that are dead is what the steps that are still held could bring back, and no more: 40 steps of 2 columns of 7 rows, and the 12 formulas that read them)
+        QVERIFY2(mostDead <= 40 * 2 * 7 + 100, qPrintable(QString::number(mostDead)));
+        QVERIFY(limited.calc->sheet(0).cols().nextId().value() <= cols.idLimit);
+    }
+
     // Cells put in another place after rows and columns were inserted and deleted (a block cut and pasted, cells shifted down and to the right, a sheet copied) are where the places say, and
     // the sheet copied is the same cells in the same places, apart from the original.
     void cellsMovedAndSheetsCopiedAfterStructuralEditsAreByPlace()

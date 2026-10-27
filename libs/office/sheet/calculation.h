@@ -253,6 +253,16 @@ public:
     // Makes the edit and says what is needed to undo it. False, with nothing changed, if it can't be made. `moved` is the number of cells shifted and `rewritten` the formulas written again
     // (in the record).
     bool applyEdit(const StructEdit &edit, EditRecord *record);
+    // ---- the order of a sheet's rows and columns (see CellStore): an edit of whole rows or columns takes ids, which a long session could use up. An edit that is done again after Undo, and Undo itself, take none.
+    // Whether the order of the rows (columns) the edit is on is near what it may hold, so that it should be compacted (compactLines) first, with every record of an edit of it let go of (forgetLines).
+    bool linesNeedCompaction(const StructEdit &edit) const;
+    // Puts the order of the sheet's rows (columns) back to one run, renumbering the cells and letting go of the dead ones. Every record of an edit of that order made before is stale after it: Undo of it
+    // is refused, so the caller lets go of those first. False if it can't be done.
+    bool compactLines(int sheet, bool rows);
+    // The record's edit of rows or columns will never be undone or done again: the cells that only it could bring back are let go of. The record's lines are empty after.
+    void forgetLines(EditRecord *record);
+    // The most runs and ids the order of a sheet's rows and columns may have (for a test of what happens at the caps; those of a sheet are jp::calc::LineLimits'). Only for a sheet whose order has no edit.
+    void setLineLimitsForTest(int sheet, const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols);
     // Puts back what the edit changed (the record is the last applyEdit's).
     bool undoEdit(const EditRecord &record, EditRecord *done = nullptr);   // `done`, if given, is told what undoing moved and removed (as applyEdit's record is)
 

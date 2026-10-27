@@ -543,11 +543,49 @@ bool LineMapCore::forget(LineEdit &e)
     return true;
 }
 
+void LineMapCore::dropDead(const std::vector<IdRun> &runs)
+{
+    if (m_dead.empty()) return;
+    size_t out = 0;
+    for (size_t i = 0; i < m_dead.size(); ++i) {
+        bool drop = false;
+        for (const IdRun &r : runs)
+            if (m_dead[i].first >= r.first && m_dead[i].first - r.first < r.count) {
+                drop = true;
+                break;
+            }
+        if (!drop) m_dead[out++] = m_dead[i];
+    }
+    if (out != m_dead.size()) {
+        m_work.entriesMoved += m_dead.size();
+        m_dead.resize(out);
+        ++m_version;
+    }
+}
+
+bool LineMapCore::tryIdentity()
+{
+    if (m_identity) return true;
+    if (!m_dead.empty() || m_byPos.size() > 1) return false;
+    if (m_live && (m_byPos.empty() || m_byPos[0].first != 0 || m_byPos[0].count != m_live)) return false;
+    m_identity = true;
+    std::vector<PosRun>().swap(m_byPos);
+    std::vector<IdEntry>().swap(m_byId);
+    ++m_version;
+    return true;
+}
+
 LineStatus LineMapCore::rebase(std::vector<Renumber> *table)
 {
     m_work = LineWork();
     if (table) table->clear();
-    if (m_identity) return LineStatus::Ok;
+    if (m_identity) {
+        // (no order to renumber; the ids taken since, if the order came back to identity, are given back, and every step made before is stale)
+        m_next = m_limits.firstNew;
+        ++m_version;
+        m_state = ++m_stateSeq;
+        return LineStatus::Ok;
+    }
     if (overSoftCap(m_live ? 1 : 0, 0)) return LineStatus::StillOverCap;
     if (table)
         for (const PosRun &r : m_byPos) table->push_back({r.first, r.count, r.pre});
