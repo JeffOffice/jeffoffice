@@ -23,6 +23,10 @@
 //                                           time the window's thread takes to put the cell in (and the time it waits for the worker to let go), to draw it again, and the time the worker takes to
 //                                           the first values and to work out all that depends: the middle, the 95th percentile, the 99th, and the longest of each, by the thread's own processor time
 //                                           where there is one and by the wall's besides
+//   jcrunchtool edit-struct-bench <file.xlsx> <label> [only]   one row and one column inserted and deleted at the top, the middle, and the end of the used cells (and undone), each timed (the window's
+//                                           thread, the worker, the wall until it settles, the model's counted work, the texts made); one tab-separated line each (docs/jeffcrunch-rowids.md).
+//                                           JC_UNDO_MB raises the limit that makes a big step ask first. tools/crunch_struct_bench_make.py makes the workbooks.
+//   jcrunchtool edit-save-struct-bench <file.xlsx> <label>   saves the workbook untouched and after structural edits at random places (JC_SAVE_EDITS=20,200 says how many), timing the session's snapshot and the save
 //   jcrunchtool edit-bench-make [rows=100000] [cols=20] [readers=0] [edits=200]   the same on a workbook made here: numbers in rows and columns, a formula in the last column of each row that reads the
 //                                           first, and, with readers, a cell that that many formulas read
 
@@ -46,6 +50,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QProcess>
+#include <QRandomGenerator>
 #include <QRegularExpression>
 #include <QTemporaryDir>
 #include <QTextStream>
@@ -1031,6 +1036,188 @@ void structureBench(CrunchWindow &w, int sheet)
     Q_UNUSED(wallv);
 }
 
+// One structural edit at a time on an open workbook, at the top, in the middle, and at the end of the used cells, for rows and for columns: for each, the window's thread (its own processor time,
+// from the call to the sheet drawn again, and the wall), the worker's processor time and the wall until it has settled, the counted work the model reports (cells and formulas looked at or
+// moved, texts made), and the same for the undo of the edit. `label` names the workbook in each line. One tab-separated line per case, after a header.
+int structBench(const QString &path, const QString &label, const QString &only)
+{
+    CrunchWindow w;
+    w.setNotifier([](const QString &, const QString &) {});
+    w.resize(1280, 800);
+    w.show();
+    bool done = false;
+    QObject::connect(&w, &CrunchWindow::calculationFinished, &w, [&] { done = true; });
+    QElapsedTimer open;
+    open.start();
+    if (!w.openFile(path)) return 1;
+    while (!done && open.elapsed() < 600000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    if (!done) {
+        err() << "edit-struct-bench: the workbook was not worked out in time\n";
+        return 1;
+    }
+    auto vm = [](const char *key) {
+        QFile f(QStringLiteral("/proc/self/status"));
+        if (!f.open(QIODevice::ReadOnly)) return qint64(-1);
+        for (const QByteArray &line : f.readAll().split('\n'))
+            if (line.startsWith(key)) return line.mid(int(strlen(key)) + 1).trimmed().split(' ').value(0).toLongLong() / 1024;
+        return qint64(-1);
+    };
+    out() << "# opened and worked out by " << open.elapsed() << " ms; resident " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB\n";
+    crunch::EditSession *session = w.session();
+    const Calculation *calc = w.calculation();
+    grid::GridView *v = w.view();
+    const int sheet = w.activeSheet();
+    qint64 lastEpoch = -1;
+    QObject::connect(&w.workbookLoader(), &crunch::WorkbookLoader::calcBatch, &w, [&](const std::shared_ptr<crunch::CalcBatch> &b) {
+        if (b->last && !b->stopped) lastEpoch = b->epoch;
+    });
+    if (qEnvironmentVariableIntValue("JC_UNDO_MB") > 0) session->setUndoByteLimit(qint64(qEnvironmentVariableIntValue("JC_UNDO_MB")) << 20);   // (the limit that makes a big step ask first)
+    qint64 workBefore = 0, textsBefore = 0, workDelta = 0, textsDelta = 0;
+    session->setHoldHook([&](Calculation *c, bool after) {
+        const qint64 texts = c->sheet(sheet).formulaTexts.size();
+        if (!after) {
+            workBefore = c->editWork();
+            textsBefore = texts;
+        } else {
+            workDelta = c->editWork() - workBefore;
+            textsDelta = texts - textsBefore;
+        }
+    });
+    const quint32 rows = std::max<quint32>(20, calc->sheet(sheet).extentRows), cols = std::max<quint32>(3, calc->sheet(sheet).extentCols);
+    // (the data columns end where the sum column begins: the middle and the end are inside the data)
+    struct Case {
+        QString name;
+        std::function<crunch::EditSession::Outcome()> run;
+    };
+    std::vector<Case> cases;
+    const quint32 rowPlaces[3] = {0, rows / 2, rows - 2};
+    const char *where[3] = {"top", "middle", "end"};
+    for (int i = 0; i < 3; ++i) {
+        const quint32 at = rowPlaces[i];
+        cases.push_back({QStringLiteral("insert row %1").arg(QLatin1String(where[i])), [=] { return session->insertRows(sheet, at, 1); }});
+        cases.push_back({QStringLiteral("delete row %1").arg(QLatin1String(where[i])), [=] { return session->deleteRows(sheet, at, 1); }});
+    }
+    const quint32 colPlaces[3] = {0, cols / 2, cols - 2};
+    for (int i = 0; i < 3; ++i) {
+        const quint32 at = colPlaces[i];
+        cases.push_back({QStringLiteral("insert column %1").arg(QLatin1String(where[i])), [=] { return session->insertColumns(sheet, at, 1); }});
+        cases.push_back({QStringLiteral("delete column %1").arg(QLatin1String(where[i])), [=] { return session->deleteColumns(sheet, at, 1); }});
+    }
+    out() << "label\tcase\tdo_cpu_ms\tdo_wall_ms\tworker_cpu_ms\tsettle_ms\twork_counted\ttexts_made\tundo_cpu_ms\tundo_wall_ms\tundo_work\tused_rows\tused_cols\n";
+    auto settle = [&](QElapsedTimer &wall) {
+        QElapsedTimer waiting;
+        waiting.start();
+        while ((lastEpoch < w.workbookLoader().changesMade()) && waiting.elapsed() < 300000) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+        return double(wall.nsecsElapsed()) / 1e6;
+    };
+    for (const Case &c : cases) {
+        if (!only.isEmpty() && !c.name.contains(only)) continue;
+        const qint64 workerBefore = w.workerCpuMicros();
+        QElapsedTimer wall;
+        wall.start();
+        const qint64 c0 = jp::threadCpuMicros();
+        const crunch::EditSession::Outcome o = c.run();
+        v->viewport()->repaint();
+        const qint64 c1 = jp::threadCpuMicros();
+        const double wallMs = double(wall.nsecsElapsed()) / 1e6;
+        const double settleMs = o.ok ? settle(wall) : 0.0;
+        const double workerMs = double(w.workerCpuMicros() - workerBefore) / 1000.0;
+        const qint64 work = workDelta, texts = textsDelta;
+        double undoCpu = 0, undoWall = 0;
+        qint64 undoWork = 0;
+        if (o.ok) {
+            QElapsedTimer uw;
+            uw.start();
+            const qint64 u0 = jp::threadCpuMicros();
+            w.undoStack()->undo();
+            v->viewport()->repaint();
+            undoCpu = double(jp::threadCpuMicros() - u0) / 1000.0;
+            undoWall = double(uw.nsecsElapsed()) / 1e6;
+            undoWork = workDelta;
+            settle(uw);
+        }
+        out() << label << '\t' << c.name << (o.ok ? QString() : QStringLiteral(" (refused: %1)").arg(o.problem)) << '\t' << QString::number(double(c1 - c0) / 1000.0, 'f', 2) << '\t' << QString::number(wallMs, 'f', 2) << '\t'
+              << QString::number(workerMs, 'f', 1) << '\t' << QString::number(settleMs, 'f', 1) << '\t' << work << '\t' << texts << '\t' << QString::number(undoCpu, 'f', 2) << '\t' << QString::number(undoWall, 'f', 2)
+              << '\t' << undoWork << '\t' << rows << '\t' << cols << '\n';
+        out().flush();
+    }
+    out() << "# after the edits: resident " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB\n";
+    return 0;
+}
+
+// What saving costs after structural edits: the workbook is saved untouched, then after 20 and after 200 more structural edits (a row or a column inserted or deleted at random places, none undone),
+// each time timing the session's snapshot (what it has changed) and the save itself (the file made from the old file and the changes), and the size of the file.
+int saveStructBench(const QString &path, const QString &label)
+{
+    CrunchWindow w;
+    w.setNotifier([](const QString &, const QString &) {});
+    w.resize(1280, 800);
+    w.show();
+    bool done = false;
+    QObject::connect(&w, &CrunchWindow::calculationFinished, &w, [&] { done = true; });
+    QElapsedTimer open;
+    open.start();
+    if (!w.openFile(path)) return 1;
+    while (!done && open.elapsed() < 900000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    if (!done) return 1;
+    crunch::EditSession *session = w.session();
+    const Calculation *calc = w.calculation();
+    const int sheet = w.activeSheet();
+    const quint32 rows = std::max<quint32>(20, calc->sheet(sheet).extentRows), cols = std::max<quint32>(3, calc->sheet(sheet).extentCols);
+    out() << "label\tstructural_edits\tsnapshot_ms\tsave_ms\tbytes\tpeak_mb\n";
+    QRandomGenerator rng(7);
+    int made = 0;
+    auto measure = [&] {
+        crunch::EditSession::Snapshot snap;
+        QByteArray bytes;
+        QString why;
+        SaveReport report;
+        QElapsedTimer t;
+        t.start();
+        if (!session->takeSnapshot(&snap, &why)) {
+            out() << label << '\t' << made << "\tsnapshot failed: " << why << '\n';
+            return;
+        }
+        const double snapMs = double(t.nsecsElapsed()) / 1e6;
+        t.restart();
+        if (!saveXlsx(*w.workbookLoader().result()->book, snap.changes, &bytes, &why, &report)) {
+            out() << label << '\t' << made << "\tsave failed: " << why << '\n';
+            return;
+        }
+        QFile st(QStringLiteral("/proc/self/status"));
+        qint64 peak = -1;
+        if (st.open(QIODevice::ReadOnly))
+            for (const QByteArray &line : st.readAll().split('\n'))
+                if (line.startsWith("VmHWM:")) peak = line.mid(6).trimmed().split(' ').value(0).toLongLong() / 1024;
+        out() << label << '\t' << made << '\t' << QString::number(snapMs, 'f', 1) << '\t' << QString::number(double(t.nsecsElapsed()) / 1e6, 'f', 1) << '\t' << bytes.size() << '\t' << peak << '\n';
+        out().flush();
+    };
+    measure();
+    if (qEnvironmentVariableIntValue("JC_UNDO_MB") > 0) session->setUndoByteLimit(qint64(qEnvironmentVariableIntValue("JC_UNDO_MB")) << 20);
+    std::vector<int> stops;
+    for (const QString &part : qEnvironmentVariable("JC_SAVE_EDITS", QStringLiteral("20,200")).split(QLatin1Char(','))) stops.push_back(part.toInt());
+    for (const int upTo : stops) {
+        while (made < upTo) {
+            const quint32 at = quint32(rng.bounded(int(rows - 5)));
+            const quint32 colAt = quint32(rng.bounded(int(cols - 2)));
+            crunch::EditSession::Outcome o;
+            switch (rng.bounded(4)) {
+            case 0: o = session->insertRows(sheet, at, 1); break;
+            case 1: o = session->deleteRows(sheet, at, 1); break;
+            case 2: o = session->insertColumns(sheet, colAt, 1); break;
+            default: o = session->deleteColumns(sheet, colAt, 1); break;
+            }
+            if (o.ok) ++made;
+            else if (rng.bounded(50) == 0) break;
+        }
+        QElapsedTimer waiting;
+        waiting.start();
+        while (w.isCalculating() && waiting.elapsed() < 600000) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+        measure();
+    }
+    return 0;
+}
+
 // Edits in the window: each is a number typed over a cell that is on the screen, as a person types it, and finished with Enter. What is measured is what a person waits for: from the Enter key to
 // the cell drawn again (the window's thread: its own processor time, and the wall besides, which has the wait for the worker to let go in it), and the worker's: its processor time, and the wall
 // until every formula that depends has its value.
@@ -1498,6 +1685,8 @@ namespace jp::crunchtool {
 int editMain(const QStringList &args)
 {
     if (args.size() >= 2 && args.size() <= 3 && args[0] == QLatin1String("edit-bench")) return editBench(args[1], args.value(2, QStringLiteral("200")).toInt(), 0, 0, 0);
+    if (args.size() == 3 && args[0] == QLatin1String("edit-save-struct-bench")) return saveStructBench(args[1], args[2]);
+    if (args.size() >= 3 && args.size() <= 4 && args[0] == QLatin1String("edit-struct-bench")) return structBench(args[1], args[2], args.value(3));
     if (args.size() >= 1 && args.size() <= 5 && args[0] == QLatin1String("edit-bench-make"))
         return editBench(QString(), args.value(4, QStringLiteral("200")).toInt(), args.value(1, QStringLiteral("100000")).toInt(), args.value(2, QStringLiteral("20")).toInt(), args.value(3, QStringLiteral("0")).toInt());
     if (args.size() == 2 && args[0] == QLatin1String("roundtrip-one")) return roundtripOne(args[1]);
