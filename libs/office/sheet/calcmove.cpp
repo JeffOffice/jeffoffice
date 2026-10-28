@@ -175,7 +175,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     area.col1 = e.col1;
     area.col2 = e.col2;
     std::vector<quint32> candidates;
-    m_graph->dependentsOfArea(area, &candidates);
+    readersOf(area, &candidates);
     {
         // (and those that read the cells that are written over: a reference to them has no cell to name)
         CellArea written = area;
@@ -184,7 +184,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         written.row2 = e.toRow + rows - 1;
         written.col1 = e.toCol;
         written.col2 = e.toCol + cols - 1;
-        m_graph->dependentsOfArea(written, &candidates);
+        readersOf(written, &candidates);
     }
     specialNodes(&candidates);
     std::sort(candidates.begin(), candidates.end());

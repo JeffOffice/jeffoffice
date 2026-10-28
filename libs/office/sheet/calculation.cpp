@@ -3,6 +3,7 @@
 #include "calc/budget.h"
 #include "calc/formula.h"
 #include "calc/functions.h"
+#include "calc/idframe.h"
 #include "calc/refs.h"
 
 #include <QDateTime>
@@ -387,7 +388,12 @@ void Calculation::registerNode(quint32 id, const std::vector<CellArea> *told)
         n.flags &= quint16(~ThreeD);
         m_threeD.erase(id);
     }
-    const bool tracked = m_graph->setPrecedents(id, m_areas);
+    // (the graph holds ids: the blocks the text names, which are places, are turned into the ids of their lines, a sheet at a time, as a reader is told: see calc/idframe.h)
+    m_idAreas.clear();
+    for (const CellArea &a : m_areas) idAreasOn(a, true, &m_idAreas);
+    std::sort(m_idAreas.begin(), m_idAreas.end());
+    m_idAreas.erase(std::unique(m_idAreas.begin(), m_idAreas.end()), m_idAreas.end());
+    const bool tracked = m_graph->setPrecedents(id, m_idAreas);
     m_toldHash[id] = tracked ? toldHash : 0;   // (a formula the graph refused is told again next time)
     if (!tracked) {
         if (!(n.flags & Untracked)) {
@@ -399,6 +405,60 @@ void Calculation::registerNode(quint32 id, const std::vector<CellArea> *told)
             listAlways(id);
         }
     }
+}
+
+// A block of places as the ids the graph is told it as (reading: a formula's block) or asked it as (a change), one area for each sheet of the block: each sheet has the order of its own lines.
+void Calculation::idAreasOn(const CellArea &places, bool reading, std::vector<CellArea> *out) const
+{
+    const qint32 last = std::min<qint32>(places.sheet2, qint32(m_sheets.size()) - 1);
+    for (qint32 sheet = std::max<qint32>(0, places.sheet1); sheet <= last; ++sheet) out->push_back(idAreaOnSheet(sheet, places, reading));
+}
+
+CellArea Calculation::idAreaOnSheet(int sheet, const CellArea &places, bool reading) const
+{
+    const CellStore &cells = m_sheets[size_t(sheet)].cells;
+    CellArea a = idArea(cells.rows(), cells.cols(), places, reading);
+    a.sheet1 = a.sheet2 = sheet;
+    return a;
+}
+
+// The block a change in a formula's cell (and the cells of its array) is asked as. A line that was inserted has an id the graph has no interval for: it is asked as the original lines either side.
+CellArea Calculation::idAreaOfNode(const Node &n) const
+{
+    if (n.flags & Array) return idAreaOnSheet(n.sheet, areaOf(n), false);
+    const CellStore &cells = m_sheets[size_t(n.sheet)].cells;
+    CellArea a;
+    a.sheet1 = a.sheet2 = n.sheet;
+    if (n.rowId < cells.rows().core().limits().firstNew) {
+        a.row1 = a.row2 = n.rowId;
+    } else {
+        const quint32 at = cells.rowPlaceOf(n.rowId);
+        const IdSpan r = idSpan(cells.rows().core(), at, at, kGridRows - 1, kMaxRowId, false);
+        a.row1 = r.lo;
+        a.row2 = r.hi;
+    }
+    if (n.colId < cells.cols().core().limits().firstNew) {
+        a.col1 = a.col2 = n.colId;
+    } else {
+        const quint32 at = cells.colPlaceOf(n.colId);
+        const IdSpan c = idSpan(cells.cols().core(), at, at, kGridCols - 1, kMaxColId, false);
+        a.col1 = c.lo;
+        a.col2 = c.hi;
+    }
+    return a;
+}
+
+bool Calculation::readersOf(const CellArea &places, std::vector<quint32> *out, const std::atomic<bool> *stop) const
+{
+    std::vector<CellArea> ids;
+    idAreasOn(places, false, &ids);
+    bool whole = true;
+    for (const CellArea &a : ids) {
+        if (a.single()) whole = m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, out, stop) && whole;
+        else whole = m_graph->dependentsOfArea(a, out, stop) && whole;
+        if (!whole) break;
+    }
+    return whole;
 }
 
 CellArea Calculation::areaOf(const Node &n) const
@@ -1013,7 +1073,7 @@ void Calculation::markDirty(quint32 id, std::vector<CellArea> *changed)
     n.state = Dirty;
     ++m_notDone;
     m_dirty.push_back(id);
-    changed->push_back(areaOf(n));
+    changed->push_back(idAreaOfNode(n));
 }
 
 // A formula with a function the engine lacks, found to read a cell that has changed: its result is #NAME? from now (what the file stored is no longer right, and the engine can't say what is), and
@@ -1023,12 +1083,18 @@ void Calculation::giveName(quint32 id, std::vector<CellArea> *changed)
     Node &n = m_nodes[id];
     if (n.kind == KindError && int(n.number) == int(ErrorKind::Name)) return;
     storeResult(n, id, Value::error(ErrorKind::Name));
-    changed->push_back(areaOf(n));
+    changed->push_back(idAreaOfNode(n));
 }
 
+// Marks what reads the blocks of places given, and what reads those, to be worked out. (Inside, `changed` holds the ids of the lines, as the graph is asked.)
 void Calculation::markDependents(std::vector<CellArea> *changed)
 {
     std::vector<quint32> found;
+    {
+        std::vector<CellArea> ids;
+        for (const CellArea &a : *changed) idAreasOn(a, false, &ids);
+        changed->swap(ids);
+    }
     while (!changed->empty()) {
         const CellArea a = changed->back();
         changed->pop_back();
@@ -1194,10 +1260,10 @@ void Calculation::invalidateSheet(int sheet)
     CellArea whole;
     whole.sheet1 = whole.sheet2 = sheet;
     whole.row1 = 0;
-    whole.row2 = kGridRows - 1;
+    whole.row2 = kMaxRowId;
     whole.col1 = 0;
-    whole.col2 = kGridCols - 1;
-    m_sheetArea = whole;
+    whole.col2 = kMaxColId;
+    m_sheetArea = whole;   // (in ids, as the graph is asked)
     m_sheetAreaPending = sheet;
     m_invalidate.active = true;
     m_invalidate.at = 0;
@@ -1882,7 +1948,8 @@ void Calculation::releaseDeferred(bool discardSheetArea)
     m_dirtyCursor = 0;
     const std::vector<CellArea> areas = std::move(m_deferredAreas);
     m_deferredAreas.clear();
-    for (const CellArea &a : areas) queueDependents(a);
+    if (!areas.empty() && !m_running) beginRecalculation();
+    for (const CellArea &a : areas) m_begin.changed.push_back(a);   // (these are ids already)
 }
 
 void Calculation::setIteration(bool on, int count, double delta)
@@ -1955,7 +2022,7 @@ void Calculation::dropNode(quint32 id)
 void Calculation::queueDependents(const CellArea &area)
 {
     if (!m_running) beginRecalculation();
-    m_begin.changed.push_back(area);
+    idAreasOn(area, false, &m_begin.changed);   // (the places are turned into ids now: an edit before the worker gets to it changes none)
 }
 
 bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, Marking marking, qint32 sharedString)

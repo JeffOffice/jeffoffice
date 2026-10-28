@@ -213,7 +213,7 @@ qint64 Calculation::estimateUndoBytes(const StructEdit &e, qint64 stopAt) const
     if (bytes >= stopAt) return bytes;
     // the formulas that read what moves are written again: the graph says how many
     std::vector<quint32> readers;
-    m_graph->dependentsOfArea(region, &readers);
+    readersOf(region, &readers);
     bytes += (qint64(readers.size()) + qint64(m_special.size())) * kPerFormula;
     return bytes;
 }
@@ -281,8 +281,29 @@ bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineM
         else n.colId = quint16(now);
         if (again && !(n.flags & Kept)) redirty(id);
     }
-    if (again && !m_running) beginRecalculation();
+    // the graph holds the old ids too
+    const bool told = rebuildGraph();
+    if ((again || told) && !m_running) beginRecalculation();
     return true;
+}
+
+// The graph holds ids, and the ids of a sheet's lines were renumbered: every formula tells it again what it reads, by the places its text names. What a formula that reads where it is told
+// touched as it was worked out is told again when it is worked out, which it is made to be.
+bool Calculation::rebuildGraph()
+{
+    bool worked = false;
+    for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
+        Node &n = m_nodes[id];
+        if (n.flags & Dead) continue;
+        if ((n.flags & Kept) && n.kept != 'U') continue;
+        m_toldHash[id] = 0;
+        registerNode(id, nullptr);
+        if ((n.flags & Told) && !(n.flags & Kept)) {
+            redirty(id);
+            worked = true;
+        }
+    }
+    return worked;
 }
 
 void Calculation::setLineLimitsForTest(int sheet, const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols)
@@ -341,7 +362,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     // ---- what reads the cells that move: the graph says (before anything moves), and the formulas the graph does not follow (those kept apart, those that read where they are told)
     const CellArea region = affectedArea(e);
     std::vector<quint32> candidates;
-    m_graph->dependentsOfArea(region, &candidates);
+    readersOf(region, &candidates);
     specialNodes(&candidates);
     std::sort(candidates.begin(), candidates.end());
     candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
@@ -553,12 +574,12 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         if (id != kNone) dropNode(id);
         releaseFormula(e.sheet, c.formula);   // (nothing has the formula of a cell that is gone; Undo makes it again from the record)
     }
-    // Rows inserted or deleted: what every formula reads on the sheet is where its cells are now, told to the graph at once; so a formula whose text is only moved with what it reads need
-    // not tell the graph again (it is worked out again, as every formula that was written again is).
-    const bool shiftedGraph = g_graphShifts.load(std::memory_order_relaxed) && (e.kind == K::InsertRows || e.kind == K::DeleteRows);
-    if (shiftedGraph) {
-        m_graph->shiftRows(e.sheet, e.first, e.kind == K::InsertRows ? qint64(count) : -qint64(count), kGridRows);
-        // (a formula that reads a block of several sheets is not rewritten for a change of one of them: it is made again, and tells the graph what it reads)
+    // Rows or columns inserted or deleted: the graph holds the ids of the lines, which an edit does not change, so what every formula reads is where its cells are with nothing told to the graph; a
+    // formula whose text is only moved with what it reads need not be made again (it is worked out again, as every formula that was written again is). A formula that reads a block of several
+    // sheets is not rewritten for a change of one of them, and has the ids of each sheet's lines: it is made again, and tells the graph what it reads.
+    const bool wholeLine = e.kind == K::InsertRows || e.kind == K::DeleteRows || e.kind == K::InsertColumns || e.kind == K::DeleteColumns;
+    const bool shiftedGraph = g_graphShifts.load(std::memory_order_relaxed) && wholeLine;
+    if (wholeLine) {
         const std::vector<quint32> again(m_threeD.begin(), m_threeD.end());   // (a copy: each is dropped and made again, which changes the set)
         for (const quint32 id : again) {
             const Node &n = m_nodes[id];

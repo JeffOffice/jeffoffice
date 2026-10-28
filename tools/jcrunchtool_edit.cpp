@@ -79,6 +79,16 @@ using namespace jp::office::sheet;
 
 namespace {
 
+// The cell at a place, as a block of one cell (what the graph is asked about, through Calculation::readersOf).
+jp::calc::CellArea placeArea(int sheet, quint32 row, quint32 col)
+{
+    jp::calc::CellArea a;
+    a.sheet1 = a.sheet2 = sheet;
+    a.row1 = a.row2 = row;
+    a.col1 = a.col2 = col;
+    return a;
+}
+
 QTextStream &out()
 {
     static QTextStream s(stdout);
@@ -784,7 +794,7 @@ int roundtripOne(const QString &path)
                     if (!w.session->canEditCell(si, cellRow, cellCol)) return;   // (a locked cell of a protected sheet is not changed)
                     if (pass == 0) {
                         std::vector<quint32> readers;
-                        calc->graph().dependentsOfCell(si, cellRow, cellCol, &readers);
+                        calc->readersOf(placeArea(si, cellRow, cellCol), &readers);
                         if (readers.empty()) return;
                     }
                     sheet = si;
@@ -803,7 +813,7 @@ int roundtripOne(const QString &path)
             const Calculation::CellContent old = calc->content(sheet, row, col);
             const double newValue = old.value.isNumber() ? old.value.number() + 1 : 12345;
             std::vector<quint32> readers;
-            calc->graph().dependentsOfCell(sheet, row, col, &readers);
+            calc->readersOf(placeArea(sheet, row, col), &readers);
             dependents = qint64(readers.size());
             typedText = QString::number(newValue, 'g', 17);
             w.session->setLocale(QLocale::c());
@@ -1389,7 +1399,7 @@ int editBench(const QString &pathIn, int edits, int rows, int cols, int readers)
             if (candidates.size() >= 100000 || ++looked > 5000000) return;
             if (c.type != CellType::Number || c.hasFormula() || (c.flags & (ArrayMember | ArrayFormula))) return;
             std::vector<quint32> r;
-            calc->graph().dependentsOfCell(sheet, cellRow, cellCol, &r);
+            calc->readersOf(placeArea(sheet, cellRow, cellCol), &r);
             if (!r.empty()) candidates.push_back({cellRow, cellCol});
         });
         if (candidates.empty()) {

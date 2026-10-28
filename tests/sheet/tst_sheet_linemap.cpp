@@ -119,6 +119,17 @@ QString differences(const LineMapCore &m, const Ref &r, QRandomGenerator &rng)
         if (m.posOf(r.ids[p], &hint) != p) return QStringLiteral("hinted position of %1").arg(r.ids[p]);
     }
     if (m.idAt(uint32_t(r.ids.size())) != kNone) return QStringLiteral("an id past the end");
+    // the original lines next to a position: the last at or before it, the first at or after it
+    {
+        uint32_t before = kNone;
+        std::vector<uint32_t> after(r.ids.size() + 1, kNone);
+        for (size_t p = r.ids.size(); p-- > 0;) after[p] = r.ids[p] < r.lim.firstNew ? r.ids[p] : after[p + 1];
+        for (uint32_t p = 0; p < r.ids.size(); ++p) {
+            if (r.ids[p] < r.lim.firstNew) before = r.ids[p];
+            if (m.origBefore(p) != before) return QStringLiteral("origBefore(%1): %2 against %3").arg(p).arg(m.origBefore(p)).arg(before);
+            if (m.origAfter(p) != after[p]) return QStringLiteral("origAfter(%1): %2 against %3").arg(p).arg(m.origAfter(p)).arg(after[p]);
+        }
+    }
     std::map<uint32_t, uint32_t> position;
     for (uint32_t p = 0; p < r.ids.size(); ++p) position[r.ids[p]] = p;
     for (uint32_t id = 0; id < r.next + 3; ++id) {

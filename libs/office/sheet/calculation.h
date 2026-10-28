@@ -482,6 +482,9 @@ public:
     qint64 registrations() const { return m_registrations; }   // times a formula has told the graph what it reads (counted, so that a test can see that one that reads the same is not told again)
     qint64 alwaysListed() const { return qint64(m_always.size()); }   // formulas on the list of those worked out in every recalculation
     const jp::calc::DependencyGraph &graph() const { return *m_graph; }
+    // The formulas the graph says read the block of places (asked as a change of those cells is), added to `out`; for what holds places and not the ids the graph holds. With `stop`, the search
+    // ends when the flag is set (see DependencyGraph::dependentsOfCell); false is returned then.
+    bool readersOf(const jp::calc::CellArea &places, std::vector<quint32> *out, const std::atomic<bool> *stop = nullptr) const;
     // The number of the formula in the cell (the graph's name for it); 0xFFFFFFFF if the cell holds none.
     quint32 nodeAt(int sheet, quint32 row, quint32 col) const;
     // Where the formula numbered `node` is (false if the number is none, or the formula is gone): for what the graph names.
@@ -603,6 +606,13 @@ private:
     void keepStored(Node &n, char cls);
     bool formulaValue(int sheet, quint32 row, quint32 col, const Cell &c, jp::calc::Value *out) const;
     jp::calc::CellArea areaOf(const Node &n) const;
+    // The graph holds the ids of rows and columns (calc/idframe.h): a block of places as the ids it is told as (`reading`) or asked as, a sheet at a time; the block a change in a formula's cell
+    // is asked as; and every formula told to the graph again (a sheet's lines were renumbered).
+    void idAreasOn(const jp::calc::CellArea &places, bool reading, std::vector<jp::calc::CellArea> *out) const;
+    jp::calc::CellArea idAreaOnSheet(int sheet, const jp::calc::CellArea &places, bool reading) const;
+    jp::calc::CellArea idAreaOfNode(const Node &n) const;
+    bool rebuildGraph();   // (true if some formula is to be worked out again for it)
+    std::vector<jp::calc::CellArea> m_idAreas;
     void markDependents(std::vector<jp::calc::CellArea> *changed);
     void queueDependents(const jp::calc::CellArea &area);
     void giveName(quint32 id, std::vector<jp::calc::CellArea> *changed);
