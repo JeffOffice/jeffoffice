@@ -612,24 +612,31 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         releaseFormula(e.sheet, c.formula);   // (nothing has the formula of a cell that is gone; Undo makes it again from the record)
     }
     // ---- what the worker is asked (4.6): of the formulas the edit leaves it to find, in ids, once. An edit that is rigid for every formula (what each reads and where it is, as far as it can see, are as
-    // they were) asks nothing and leaves the epoch as it is. Bringing lines back (Undo of a delete) is not asked but done as it was: every formula that was written again is made again and worked out.
-    const bool reviving = !lc.revived.empty();
-    const bool useQuestions = wholeLine && g_graphShifts.load(std::memory_order_relaxed) && !reviving;
+    // they were) asks nothing and leaves the epoch as it is.
+    const bool useQuestions = wholeLine && g_graphShifts.load(std::memory_order_relaxed);
     if (wholeLine) {
-        bool nonRigid = true;
         if (useQuestions) {
             const jp::calc::LineMapCore &map = lc.rows ? S.cells.rows().core() : S.cells.cols().core();
             const quint32 firstNew = map.limits().firstNew;
             Question q;
             q.sheet = e.sheet;
             q.rows = lc.rows;
-            bool killedInserted = false;
-            for (const jp::calc::IdRun &r : lc.killed) {
-                if (r.first < firstNew) q.dead.push_back({r.first, std::min(r.count, firstNew - r.first)});
-                if (r.first + r.count > firstNew) killedInserted = true;
-            }
-            // set 1: the gap of lines put in, or of inserted lines that died (a block that holds the original lines either side holds it)
-            if (!lc.inserted.empty()) {
+            // the lines whose readers are asked: those that died and those that came back, the original ones as runs of ids and the inserted ones (no block holds their ids) as the original lines either side
+            bool insertedLines = false, killedInserted = false;
+            auto touch = [&](const std::vector<jp::calc::IdRun> &runs, bool *inserted) {
+                for (const jp::calc::IdRun &r : runs) {
+                    if (r.first < firstNew) q.dead.push_back({r.first, std::min(r.count, firstNew - r.first)});
+                    if (r.first + r.count > firstNew) {
+                        *inserted = true;
+                        insertedLines = true;
+                    }
+                }
+            };
+            touch(lc.killed, &killedInserted);
+            bool revivedInserted = false;
+            touch(lc.revived, &revivedInserted);
+            // set 1: the gap of lines put in (or brought back), or of inserted lines that died: a block that holds the original lines either side holds it
+            if (!lc.inserted.empty() || !lc.revived.empty()) {
                 const jp::calc::IdGap g = jp::calc::idGap(map, e.first + count);
                 q.gapBefore = g.before;
                 q.gapAfter = g.after;
@@ -638,20 +645,19 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
                 q.gapBefore = g.before;
                 q.gapAfter = g.after;
             }
-            // set 3: inserted lines that held cells have ids no block holds: the readers of the original lines either side are asked
-            q.deadPair = killedInserted && S.cells.deadCount() > deadBefore;
+            // set 3: inserted lines that held cells are gone or back
+            q.deadPair = insertedLines && S.cells.deadCount() != deadBefore;
             // set 2
             q.observers = !m_seen.empty() && anObserverSawAnotherPlace();
             const bool ask = questionHasAnAnswer(q);
-            nonRigid = ask || !specials.empty();
-            if (nonRigid) ++m_state[size_t(e.sheet)].epoch;
+            if (ask || !specials.empty()) ++m_state[size_t(e.sheet)].epoch;
             q.epoch = m_state[size_t(e.sheet)].epoch;
             if (ask) {
                 m_questions.push_back(q);
                 if (!m_running) beginRecalculation();
             }
         } else {
-            // (everything is done as for an edit of cells: the epoch grows, and what was written again is made again and worked out; the formulas that see where cells are are looked at too)
+            // (the oracle: everything is done as for an edit of cells, the epoch grows, and what was written again is made again and worked out; the formulas that see where cells are are looked at too)
             ++m_state[size_t(e.sheet)].epoch;
             if (!m_seen.empty() && anObserverSawAnotherPlace()) {
                 Question q;

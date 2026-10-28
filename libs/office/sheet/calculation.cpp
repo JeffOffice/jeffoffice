@@ -1240,7 +1240,7 @@ bool Calculation::questionHasAnAnswer(const Question &q) const
 }
 
 // The formulas a question names, sets 3 and 1 (set 2 is looked at by the places the formulas saw): in ids, through the graph. False if a stop ended the search.
-bool Calculation::buildAsked(const Question &q, std::vector<Asked> *out) const
+bool Calculation::buildAsked(const Question &q, std::vector<quint32> *out) const
 {
     const std::atomic<bool> *stop = m_ctx.cancel;
     std::vector<quint32> found, other;
@@ -1252,27 +1252,27 @@ bool Calculation::buildAsked(const Question &q, std::vector<Asked> *out) const
         a->col1 = q.rows ? 0 : first;
         a->col2 = q.rows ? kMaxColId : last;
     };
-    auto take = [&](bool onlySensitive, bool again) {
+    auto take = [&](bool onlySensitive) {
         for (const quint32 node : found) {
             const Node &n = m_nodes[node];
             if ((n.flags & Dead) || (onlySensitive && (n.traits & Insensitive))) continue;
-            out->push_back({node, again});
+            out->push_back(node);
         }
         found.clear();
     };
-    // set 3: the readers of the lines that died, from outside them (a formula in one of them is gone with it: the graph does not hold it any more)
+    // set 3: the readers of the lines that died or came back, from outside them (a formula in one of them is gone with it: the graph does not hold it any more)
     for (const IdRun &r : q.dead) {
         CellArea a;
         lines(r.first, r.first + r.count - 1, &a);
         if (!m_graph->dependentsOfArea(a, &found, stop)) return false;
-        take(false, true);
+        take(false);
     }
     if (q.deadPair) {
-        // (inserted lines that held cells died: the blocks that held them hold the original lines either side)
+        // (inserted lines that held cells are gone or back: the blocks that held them hold the original lines either side)
         CellArea a;
         lines(q.gapBefore == LineMapCore::kNone ? 0 : q.gapBefore, q.gapAfter == LineMapCore::kNone ? (q.rows ? kMaxRowId : kMaxColId) : q.gapAfter, &a);
         if (!m_graph->dependentsOfArea(a, &found, stop)) return false;
-        take(false, false);
+        take(false);
     }
     // set 1: the formulas that can notice an empty line, of which a block holds the gap
     if (q.gapBefore != LineMapCore::kNone && q.gapAfter != LineMapCore::kNone) {
@@ -1291,23 +1291,18 @@ bool Calculation::buildAsked(const Question &q, std::vector<Asked> *out) const
             std::set_intersection(found.begin(), found.end(), other.begin(), other.end(), std::back_inserter(both));
             found.swap(both);
         }
-        take(true, false);
+        take(true);
     }
     return true;
 }
 
-// A formula a question names is worked out again (if it is done and not kept apart), after being told the graph again if the lines its blocks end in are gone; what it was worked out as is let
-// go of if it is still on its way to the window.
-void Calculation::markAsked(const Asked &a, const Question &q, std::vector<CellArea> *changed)
+// A formula a question names is worked out again (if it is done and not kept apart); what it was worked out as is let go of if it is still on its way to the window.
+void Calculation::markAsked(quint32 node, const Question &q, std::vector<CellArea> *changed)
 {
-    Node &n = m_nodes[a.node];
+    Node &n = m_nodes[node];
     if (n.flags & Dead) return;
-    if (a.again && !(n.flags & (Told | Kept | Array | ThreeD))) {
-        m_toldHash[a.node] = 0;
-        registerNode(a.node, nullptr);
-    }
     if ((n.flags & Kept) && n.kept == 'U' && n.state == Done) {
-        giveName(a.node, changed);
+        giveName(node, changed);
         ++m_formulasAsked;
         return;
     }
@@ -1316,7 +1311,7 @@ void Calculation::markAsked(const Asked &a, const Question &q, std::vector<CellA
         n.kept = 0;
     }
     if ((n.flags & Kept) || n.state != Done) return;
-    markDirty(a.node, changed);
+    markDirty(node, changed);
     ++m_formulasAsked;
     if (n.sheet == q.sheet) stampAsked(n, q.epoch);
 }
@@ -1381,7 +1376,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
             const Compiled &slot = compiled(n.sheet, sheet.formulas[n.formula].text, n.flags & Array);
             if (slot.program) resolveReferences(*slot.program, slot.bound, sheetCount(), n.sheet, sheet.formulas[n.formula].dRow, sheet.formulas[n.formula].dCol, &m_areas);
             recordSeen(id, m_areas);
-            markAsked({id, false}, q, &j.changed);
+            markAsked(id, q, &j.changed);
         }
         ++m_questionsAnswered;
         m_questions.pop_front();

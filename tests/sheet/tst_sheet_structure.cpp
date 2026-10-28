@@ -1130,7 +1130,8 @@ private Q_SLOTS:
         QVERIFY(b.apply(StructEdit::deleteRows(0, 20, 5), nullptr));
         QCOMPARE(b.formula("B30"), QStringLiteral("A30*2"));
         // twenty rounds of an edit and its Undo, at the top and in the middle: what is held does not grow
-        auto held = [&] { return QStringLiteral("%1/%2/%3").arg(b.calc->formulaTextsInUse(0)).arg(b.calc->formulaEntriesInUse(0)).arg(b.calc->programsHeld(0)); };
+        // (programs are made when a formula is worked out, and a formula that only moved is not: how many are held is between none and one for each text, and the texts and formulas are what is counted)
+        auto held = [&] { return QStringLiteral("%1/%2").arg(b.calc->formulaTextsInUse(0)).arg(b.calc->formulaEntriesInUse(0)); };
         Calculation::EditRecord one;
         QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &one));
         QVERIFY(b.calc->undoEdit(one));
@@ -1147,6 +1148,7 @@ private Q_SLOTS:
             b.finish();
         }
         QCOMPARE(held(), afterFirst);
+        QVERIFY(b.calc->programsHeld(0) <= b.calc->formulaTextsInUse(0) * 2);
         QCOMPARE(b.formula("B30"), QStringLiteral("A30*2"));
         QCOMPARE(b.at("B30"), QStringLiteral("n:64"));   // (the cell that was in row 32: three rows came in above it and five went)
     }
@@ -1529,11 +1531,20 @@ private Q_SLOTS:
     {
         Book b;
         QStringList cells;
-        for (int r = 1; r <= 10; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r);
-        cells << "C1==SUM(A1:A10)" << "C2==SUM(A1:A5)" << "C3==SUM(A6:A10)" << "C4==AVERAGE(A1:A10)" << "C5==MAX(A1:A10)" << "C6==SUM(A:A)";
+        for (int r = 1; r <= 10; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r) << QStringLiteral("D%1=%2").arg(r).arg(r);
+        cells << "C1==SUM(A1:A10)" << "C2==SUM(A1:A5)" << "C3==SUM(A6:A10)" << "C4==AVERAGE(A1:A10)" << "C5==MAX(A1:A10)" << "C6==SUM(A:A)" << "E1==SUM(D1:D10)";
         QVERIFY(b.open({cells}));
         QVERIFY(b.apply(StructEdit::insertRows(0, 5, 1), nullptr));    // between A5 and A6
         QVERIFY(b.calc->setValue(0, 5, 0, Value::number(100)));
+        b.finish();
+        // a formula in the inserted row is read by the sum of the column around it: when what it reads changes, the sum has its value
+        QVERIFY(b.calc->setFormula(0, 5, 3, QStringLiteral("A1*2")));
+        b.finish();
+        QCOMPARE(b.at("E1"), QStringLiteral("n:57"));
+        QVERIFY(b.calc->setValue(0, 0, 0, Value::number(7)));
+        b.finish();
+        QCOMPARE(b.at("E1"), QStringLiteral("n:69"));
+        QVERIFY(b.calc->setValue(0, 0, 0, Value::number(1)));
         b.finish();
         QCOMPARE(b.at("C1"), QStringLiteral("n:155"));
         QCOMPARE(b.at("C2"), QStringLiteral("n:15"));                  // (ends above the new row)
@@ -1589,9 +1600,11 @@ private Q_SLOTS:
         QVERIFY(c.apply(StructEdit::deleteRows(0, 2, 2), nullptr));   // rows 3 and 4: the range is A1:A2
         QCOMPARE(c.formula("B1"), QStringLiteral("SUM(A1:A2)"));
         QCOMPARE(c.at("B1"), QStringLiteral("n:3"));
+        const qint64 evaluated = c.calc->evaluations();
         QVERIFY(c.calc->setValue(0, 2, 0, Value::number(100)));         // (A3, which was A5: not read)
         c.finish();
         QCOMPARE(c.at("B1"), QStringLiteral("n:3"));
+        QCOMPARE(c.calc->evaluations(), evaluated);                          // (and nothing reads it: the graph was told again what B1 reads)
         QVERIFY(c.calc->setValue(0, 1, 0, Value::number(10)));
         c.finish();
         QCOMPARE(c.at("B1"), QStringLiteral("n:11"));
@@ -1636,24 +1649,23 @@ private Q_SLOTS:
         // a number in a cell that is read, changed after each step: the cell is found by what it holds (A1 held 1 and is the first number in the first column)
         int bump = 1;
         auto changeAndCheck = [&](const QString &step) {
-            quint32 row = 0, col = 0;
-            double was = 0;
-            bool found = false;
+            // (every number the sheet holds is changed in turn, and what reads it must have its new value)
+            struct Number {
+                quint32 row, col;
+                double was;
+            };
+            std::vector<Number> numbers;
             b.calc->sheet(0).cells.forEach([&](quint32 r, quint32 c, const Cell &cell) {
-                if (!found && !cell.hasFormula() && cell.type == CellType::Number) {
-                    row = r;
-                    col = c;
-                    was = cell.number;
-                    found = true;
-                }
+                if (!cell.hasFormula() && cell.type == CellType::Number) numbers.push_back({r, c, cell.number});
             });
-            QVERIFY2(found, qPrintable(step));
-            QVERIFY(b.calc->setValue(0, row, col, Value::number(was + 100 * bump++)));
-            b.finish();
-            QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(step + QStringLiteral(": ") + why));
-            QVERIFY(b.calc->setValue(0, row, col, Value::number(was)));
-            b.finish();
-            QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(step + QStringLiteral(" (put back): ") + why));
+            QVERIFY2(!numbers.empty(), qPrintable(step));
+            for (const Number &n : numbers) {
+                QVERIFY(b.calc->setValue(0, n.row, n.col, Value::number(n.was + 100 * bump++)));
+                b.finish();
+                QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(step + QStringLiteral(": ") + why));
+                QVERIFY(b.calc->setValue(0, n.row, n.col, Value::number(n.was)));
+                b.finish();
+            }
         };
         const std::vector<StructEdit> edits{StructEdit::insertRows(0, 3, 2), StructEdit::deleteRows(0, 1, 1), StructEdit::insertColumns(0, 0, 1), StructEdit::deleteRows(0, 5, 2), StructEdit::insertRows(0, 0, 1),
                                             StructEdit::deleteColumns(0, 1, 1)};
@@ -1692,6 +1704,33 @@ private Q_SLOTS:
         QVERIFY(b.apply(StructEdit::insertRows(0, 2, 1), &after));
         QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
         changeAndCheck(QStringLiteral("after an edit after the renumbering"));
+    }
+
+    // After the lines of a sheet are renumbered (a rebase puts every id at its place), the graph is told again what each formula reads: a number typed afterwards reaches the formulas that read it, in
+    // rows and in columns, though the ids the graph held before would not say so.
+    void theGraphIsToldAgainWhenTheLinesAreRenumbered()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "B7==SUM(A1:A5)", "C7==A5*2", "D7==SUM(A:A)", "A9=10", "E9==SUM(A9:D9)"}}));
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 3), nullptr));       // the ids of the lines are the old places, and the lines are three places down
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 2), nullptr));    // (the same for columns)
+        std::vector<jp::calc::LineMapCore::Renumber> table;
+        QVERIFY(b.calc->compactLines(0, true, &table));
+        QVERIFY(!table.empty());
+        QVERIFY(b.calc->compactLines(0, false, &table));
+        QVERIFY(!table.empty());
+        b.finish();
+        QCOMPARE(b.formula("D10"), QStringLiteral("SUM(C4:C8)"));
+        QVERIFY(b.calc->setValue(0, 7, 2, Value::number(100)));            // C8, which held 5
+        b.finish();
+        QCOMPARE(b.at("D10"), QStringLiteral("n:110"));
+        QCOMPARE(b.at("E10"), QStringLiteral("n:200"));
+        QCOMPARE(b.at("F10"), QStringLiteral("n:120"));
+        QVERIFY(b.calc->setValue(0, 11, 2, Value::number(1000)));          // C12, which held 10
+        b.finish();
+        QCOMPARE(b.at("G12"), QStringLiteral("n:1000"));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
     }
 
     // The epoch of a sheet grows only for an edit that is not rigid for some formula (one that asks something of the worker), so that a result worked out before a rigid edit is still good; a

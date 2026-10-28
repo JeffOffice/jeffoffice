@@ -488,7 +488,7 @@ public:
     // ---- what the worker is asked after an edit of whole rows or columns (docs/jeffcrunch-rowids.md, 4.6), counted: the questions answered (an edit that is rigid for every formula asks none) and the
     // formulas they marked to be worked out again. Four sets are asked of: (1) the formulas that can notice an empty row or column put inside a block they read (`blankInsensitive` is an allowlist of
     // functions) and whose block holds the gap; (2) the formulas that can see where cells are and whose places changed (`observesPosition`; each keeps the places it last saw); (3) the formulas that read
-    // the rows or columns that died, from outside them (they are told the graph again what they read, the ids of the lines a block ends in being gone); (4) the formulas kept apart or told where they
+    // the rows or columns that died or came back, from outside them (a block that ended in a line that died keeps its id: too wide is never too narrow); (4) the formulas kept apart or told where they
     // read, which are made again with the edit itself.
     qint64 questionsAnswered() const { return m_questionsAnswered.load(std::memory_order_relaxed); }
     qint64 formulasAsked() const { return m_formulasAsked.load(std::memory_order_relaxed); }
@@ -710,19 +710,15 @@ private:
         bool rows = true;
         quint32 epoch = 0;                              // the sheet's epoch the edit made, for the stamps
         quint32 gapBefore = 0xFFFFFFFFu, gapAfter = 0xFFFFFFFFu;   // set 1: the original lines either side of lines put in (or of inserted lines that died); none for no gap that a block can hold
-        std::vector<jp::calc::IdRun> dead;              // set 3: original lines that died, as runs of ids
-        bool deadPair = false;                          // set 3: inserted lines that held cells died, between the original lines of the gap
+        std::vector<jp::calc::IdRun> dead;              // set 3: original lines that died or came back, as runs of ids
+        bool deadPair = false;                          // set 3: inserted lines that held cells died or came back, between the original lines of the gap
         bool observers = false;                         // set 2
-    };
-    struct Asked {
-        quint32 node;
-        bool again;   // told the graph again what it reads (its blocks lost lines)
     };
     std::deque<Question> m_questions;
     std::atomic<qint64> m_questionsAnswered{0}, m_formulasAsked{0};
     bool questionHasAnAnswer(const Question &q) const;
-    bool buildAsked(const Question &q, std::vector<Asked> *out) const;
-    void markAsked(const Asked &a, const Question &q, std::vector<jp::calc::CellArea> *changed);
+    bool buildAsked(const Question &q, std::vector<quint32> *out) const;
+    void markAsked(quint32 node, const Question &q, std::vector<jp::calc::CellArea> *changed);
     void stampAsked(const Node &n, quint32 epoch);
     std::vector<quint32> m_special;   // formulas that are told where they read (names, INDIRECT, ...) or kept apart: an edit that moves cells looks at these as well as at what the graph names (may hold gone and repeated ones)
     void specialNodes(std::vector<quint32> *out);
@@ -798,7 +794,7 @@ private:
         jp::calc::CellArea queried;   // the block `found` is the readers of
         // The question at the front of m_questions, turned into the formulas it names (built), the ones of them marked so far, and the formulas that keep places they saw, looked at so far.
         bool built = false;
-        std::vector<Asked> asked;
+        std::vector<quint32> asked;
         size_t askedAt = 0;
         std::vector<quint32> observers;
         size_t observersAt = 0;
