@@ -844,7 +844,7 @@ QString textAfter(const QString &text, int formulaSheet, const Plain &e)
             if (p->colAbs) ++k;
             const int l0 = k;
             while (k < n && text[k].isLetter() && text[k].unicode() < 128) ++k;
-            if (k == l0 || k - l0 > 3) return false;
+            if (k == l0 || k - l0 > 3 || columnNumber(text.mid(l0, k - l0)) > 16383) return false;   // (a word past XFD is a name)
             p->letters = text.mid(l0, k - l0);
             p->rowAbs = k < n && text[k] == QLatin1Char('$');
             if (p->rowAbs) ++k;
@@ -862,7 +862,7 @@ QString textAfter(const QString &text, int formulaSheet, const Plain &e)
             if (p->colAbs) ++k;
             const int l0 = k;
             while (k < n && text[k].isLetter() && text[k].unicode() < 128) ++k;
-            if (k == l0 || k - l0 > 3) return false;
+            if (k == l0 || k - l0 > 3 || columnNumber(text.mid(l0, k - l0)) > 16383) return false;   // (a word past XFD is a name)
             p->letters = text.mid(l0, k - l0);
             *at = k;
             return true;
@@ -996,7 +996,20 @@ QString canonical(QString text)
     static const QRegularExpression sheetRef(QStringLiteral("(?:'[^']+'|[A-Za-z0-9_.]+)!#REF!"));
     text.replace(sheetRef, QStringLiteral("#REF!"));
     for (int i = 0; i < 4; ++i) text.replace(same, QStringLiteral("\\1"));
-    return text;
+    // a block written back to front is written in order when the engine's longer way of reading a text writes it again (and as it was when the shorter way does): the same cells, so in order here (the "$"
+    // of its corners left out)
+    static const QRegularExpression block(QStringLiteral("\\$?([A-Z]+)\\$?([0-9]+):\\$?([A-Z]+)\\$?([0-9]+)"));
+    QString out;
+    int at = 0;
+    for (QRegularExpressionMatchIterator it = block.globalMatch(text); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        if (m.capturedStart() > 0 && (text[m.capturedStart() - 1].isLetterOrNumber() || text[m.capturedStart() - 1] == QLatin1Char('_') || text[m.capturedStart() - 1] == QLatin1Char('.'))) continue;
+        const int c1 = columnNumber(m.captured(1)), c2 = columnNumber(m.captured(3)), r1 = m.captured(2).toInt(), r2 = m.captured(4).toInt();
+        if (c1 <= c2 && r1 <= r2) continue;
+        out += text.mid(at, m.capturedStart() - at) + columnName(quint32(std::min(c1, c2))) + QString::number(std::min(r1, r2)) + QLatin1Char(':') + columnName(quint32(std::max(c1, c2))) + QString::number(std::max(r1, r2));
+        at = m.capturedEnd();
+    }
+    return out + text.mid(at);
 }
 
 QStringList splitRanges(const QString &text, QChar separator)
