@@ -230,9 +230,10 @@ qint32 Calculation::internText(int sheet, const QString &text, TextClass cls)
     countTexts(sheet);
     SheetState &st = m_state[size_t(sheet)];
     Sheet &s = m_sheets[size_t(sheet)];
-    const QString key = internKey(text, cls);
-    const auto found = st.internOf.constFind(key);
-    if (found != st.internOf.constEnd()) {
+    QHash<QString, qint32> &known = cls == TextClass::Plain ? st.internOf : st.internOther;
+    const QString key = cls == TextClass::Plain ? text : internKey(text, cls);
+    const auto found = known.constFind(key);
+    if (found != known.constEnd()) {
         ++st.textRefs[size_t(*found)];
         return *found;
     }
@@ -250,7 +251,7 @@ qint32 Calculation::internText(int sheet, const QString &text, TextClass cls)
     if (size_t(index) < st.plain.size()) st.plain[size_t(index)] = Compiled();
     if (size_t(index) < st.array.size()) st.array[size_t(index)] = Compiled();
     forgetTextFacts(sheet, index);
-    st.internOf.insert(key, index);
+    known.insert(key, index);
     s.positionalTexts.remove(index);
     s.wideTexts.remove(index);
     if (cls == TextClass::Positional) s.positionalTexts.insert(index);
@@ -274,8 +275,10 @@ void Calculation::releaseText(int sheet, qint32 text)
     if (size_t(text) >= st.textRefs.size() || st.textRefs[size_t(text)] == 0) return;
     if (--st.textRefs[size_t(text)] > 0) return;
     // (nothing has the text now: it and the program worked out for it are let go of, and the place is for the next text)
-    const auto at = st.internOf.find(internKey(s.formulaTexts[text], textClass(s, text)));
-    if (at != st.internOf.end() && *at == text) st.internOf.erase(at);
+    const TextClass cls = textClass(s, text);
+    QHash<QString, qint32> &known = cls == TextClass::Plain ? st.internOf : st.internOther;
+    const auto at = known.find(cls == TextClass::Plain ? s.formulaTexts[text] : internKey(s.formulaTexts[text], cls));
+    if (at != known.end() && *at == text) known.erase(at);
     s.formulaTexts[text] = QString();
     s.positionalTexts.remove(text);
     s.wideTexts.remove(text);
@@ -1060,10 +1063,12 @@ void Calculation::setSlotText(int sheet, qint32 slot, const QString &text)
     Sheet &s = m_sheets[size_t(sheet)];
     SheetState &st = m_state[size_t(sheet)];
     const TextClass cls = textClass(s, slot);
-    const auto at = st.internOf.find(internKey(s.formulaTexts[slot], cls));
-    if (at != st.internOf.end() && *at == slot) st.internOf.erase(at);
+    QHash<QString, qint32> &known = cls == TextClass::Plain ? st.internOf : st.internOther;
+    const auto at = known.find(cls == TextClass::Plain ? s.formulaTexts[slot] : internKey(s.formulaTexts[slot], cls));
+    if (at != known.end() && *at == slot) known.erase(at);
     s.formulaTexts[slot] = text;
-    if (!st.internOf.contains(internKey(text, cls)) && st.textsCounted) st.internOf.insert(internKey(text, cls), slot);
+    const QString key = cls == TextClass::Plain ? text : internKey(text, cls);
+    if (!known.contains(key) && st.textsCounted) known.insert(key, slot);
     if (size_t(slot) < st.plain.size()) st.plain[size_t(slot)] = Compiled();
     if (size_t(slot) < st.array.size()) st.array[size_t(slot)] = Compiled();
     forgetTextFacts(sheet, slot);

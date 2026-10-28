@@ -502,7 +502,7 @@ public:
     static bool idFrameDefault();
     // For tests: whether a word of the text is one that cannot be held in ids as it is (a name that could be read as a cell past XFD).
     static bool textHasWideLookingWord(const QString &text);
-    // How a text is held (idFrame): in ids (Plain, with the numbers of the grid; Wide, with ids past it) or in places (Positional). The key a text is shared by, which no other class's text can have.
+    // How a text is held (idFrame): in ids (Plain, with the numbers of the grid; Wide, with ids past it) or in places (Positional). The key a text of the class Wide or Positional is shared by (the Plain ones are by their characters alone, in a map of their own), which no other class's text can have.
     enum class TextClass : quint8 { Plain, Wide, Positional };
     static QString internKey(const QString &text, TextClass cls);
     bool idFrame() const { return m_options.idFrame; }
@@ -599,7 +599,8 @@ private:
         // the texts the edits made by their characters, and the places of the texts and formulas that are free to be used again.
         std::vector<quint32> textRefs;
         bool textsCounted = false;
-        QHash<QString, qint32> internOf;
+        QHash<QString, qint32> internOf;      // the texts of the class Plain, by their characters
+        QHash<QString, qint32> internOther;   // the others, by internKey (so that a text of one class is not another's)
         std::vector<qint32> freeTexts, freeFormulas;
     };
 

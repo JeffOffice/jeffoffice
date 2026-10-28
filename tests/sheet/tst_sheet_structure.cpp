@@ -2579,12 +2579,13 @@ private Q_SLOTS:
         QCOMPARE(b.formula("E1"), QStringLiteral("B1+Grand"));
     }
 
-    // The key a text is shared by says its class and nothing of the text's own characters can say another: no two different (text, class) have the same key.
+    // The key a text of the class Wide or Positional is shared by says its class and nothing of the text's own characters can say another: no two different (text, class) have the same key (the texts of
+    // the class Plain have a map of their own, by their characters).
     void theKeyATextIsSharedByIsUnambiguous()
     {
         const QStringList texts = {QString(), QStringLiteral("A1"), QStringLiteral("0|A1"), QStringLiteral("1|A1"), QStringLiteral("2|A1"), QString(QChar(1)) + QStringLiteral("A1"), QString(QChar(2)) + QStringLiteral("A1"),
                                    QString(QChar(1)) + QString(QChar(2)) + QStringLiteral("A1"), QStringLiteral("|"), QStringLiteral("0|")};
-        const Calculation::TextClass classes[3] = {Calculation::TextClass::Plain, Calculation::TextClass::Wide, Calculation::TextClass::Positional};
+        const Calculation::TextClass classes[2] = {Calculation::TextClass::Wide, Calculation::TextClass::Positional};
         QSet<QString> keys;
         int n = 0;
         for (const QString &t : texts)
