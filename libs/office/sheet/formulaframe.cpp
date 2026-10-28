@@ -33,19 +33,6 @@ void order(RefLit *lit)
     flip(&lit->col1, &lit->col2, jp::calc::kRefCol1Abs, jp::calc::kRefCol2Abs);
 }
 
-void flipRows(RefLit *lit)
-{
-    std::swap(lit->row1, lit->row2);
-    const bool x = lit->flags & jp::calc::kRefRow1Abs, y = lit->flags & jp::calc::kRefRow2Abs;
-    lit->flags = quint8((lit->flags & ~(jp::calc::kRefRow1Abs | jp::calc::kRefRow2Abs)) | (y ? jp::calc::kRefRow1Abs : 0) | (x ? jp::calc::kRefRow2Abs : 0));
-}
-void flipCols(RefLit *lit)
-{
-    std::swap(lit->col1, lit->col2);
-    const bool x = lit->flags & jp::calc::kRefCol1Abs, y = lit->flags & jp::calc::kRefCol2Abs;
-    lit->flags = quint8((lit->flags & ~(jp::calc::kRefCol1Abs | jp::calc::kRefCol2Abs)) | (y ? jp::calc::kRefCol1Abs : 0) | (x ? jp::calc::kRefCol2Abs : 0));
-}
-
 bool sameCells(const RefLit &a, const RefLit &b)
 {
     return a.row1 == b.row1 && a.row2 == b.row2 && a.col1 == b.col1 && a.col2 == b.col2 && a.flags == b.flags;
@@ -87,10 +74,6 @@ bool mapReferences(const FrameSheets &sheets, int ownSheet, const QString &text,
             result += QStringLiteral("#REF!");
         } else {
             order(&lit);
-            // (a range written back to front is given back to front)
-            if (r.ref.written & 1) flipRows(&lit);
-            if (r.ref.written & 2) flipCols(&lit);
-            lit.written = r.ref.written;
             if (sameCells(lit, r.ref)) {
                 result += text.mid(r.body, r.end - r.body);
             } else {

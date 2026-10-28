@@ -9,6 +9,7 @@
 #include "structmodel.h"
 
 #include <QFile>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -62,6 +63,13 @@ Step cells(Step::Kind kind, int sheet, int row1, int col1, int row2, int col2)
     s.row2 = row2;
     s.col2 = col2;
     return s;
+}
+
+QString line(const std::vector<Step> &steps)
+{
+    QStringList l;
+    for (const Step &s : steps) l << s.line();
+    return l.join(QLatin1Char('\n'));
 }
 
 QString failureText(quint32 seed, const std::vector<Step> &steps, const Options &options, const Result &r)
@@ -207,6 +215,35 @@ private Q_SLOTS:
         }
     }
 
+    // The seeds that also type ranges written back to front, ATAN2, and a word that could be a cell past XFD (another list of steps for the same seed, so the golden seeds are as they were): in places and in ids.
+    void rangesBackToFrontAndWordsLikeCellsAgreeInBothModes()
+    {
+        PinnedLocale pin;
+        const int seeds = qEnvironmentVariableIsSet("CRUNCH_MODEL_SEEDS") ? qEnvironmentVariableIntValue("CRUNCH_MODEL_SEEDS") : 4;
+        // (the seeds make the kinds of formula the others do not, which is looked for in many more steps than are run)
+        bool backToFront = false, wordsLikeCells = false;
+        const QRegularExpression range(QStringLiteral("SUM\\((?:Calc!)?[A-D](\\d+):[A-D](\\d+)\\)"));
+        for (int seed = 1; seed <= 40; ++seed)
+            for (const Step &s : generate(quint32(seed), 60, true)) {
+                const QRegularExpressionMatch m = range.match(s.text);
+                backToFront = backToFront || (m.hasMatch() && m.captured(1).toInt() > m.captured(2).toInt());
+                wordsLikeCells = wordsLikeCells || s.text.contains(QStringLiteral("ATAN2")) || s.text.contains(QStringLiteral("XFE"));
+            }
+        QVERIFY(backToFront && wordsLikeCells);
+        for (int seed = 1; seed <= seeds; ++seed) {
+            const std::vector<Step> steps = generate(quint32(seed), 30, true);
+            for (const bool ids : {false, true}) {
+                Options options;
+                options.idFrame = ids;
+                options.forceOff = !ids;
+                const Result r = run(steps, options);
+                QVERIFY2(r.failure.ok(), qPrintable(failureText(quint32(seed), steps, options, r)));
+            }
+        }
+        QCOMPARE(generate(5, 20, false).size(), size_t(20));   // (and a seed that types more than a little is another list with the option)
+        QVERIFY(line(generate(5, 200, false)) != line(generate(5, 200, true)));
+    }
+
     // Seeds of random steps. A failure is told with the seed and the fewest steps that still fail.
     void randomStepsAgreeWithTheFileSavedAndReadAgain()
     {
@@ -265,6 +302,7 @@ private Q_SLOTS:
         Options options;
         options.check = false;
         options.idFrame = idFrame;
+        options.forceOff = !idFrame;
         for (auto it = digests.constBegin(); it != digests.constEnd(); ++it) {
             const Result r = run(generate(it.key(), counts[it.key()]), options);
             QVERIFY(r.failure.ok());

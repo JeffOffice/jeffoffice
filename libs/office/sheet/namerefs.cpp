@@ -1,5 +1,7 @@
 #include "sheet/namerefs.h"
 
+#include "sheet/formulaframe.h"
+
 #include "sheet/cellref.h"
 
 #include <QCoreApplication>
@@ -121,7 +123,7 @@ void eachNameUse(const QString &s, F use)
 
 } // namespace
 
-QString renameNameInFormula(const QString &formula, const QString &oldName, const QString &newName, const std::function<bool(const QString &)> &applies, bool *changed)
+QString renameNameInFormula(const QString &formula, const QString &oldName, const QString &newName, const std::function<bool(const QString &)> &applies, bool *changed, bool wideText)
 {
     if (changed) *changed = false;
     if (formula.size() < oldName.size() || oldName.isEmpty()) return formula;
@@ -131,6 +133,7 @@ QString renameNameInFormula(const QString &formula, const QString &oldName, cons
     std::vector<Hit> hits;
     eachNameUse(formula, [&](int start, int end, const QString &sheet) {
         if (end - start != oldName.size() || formula.mid(start, end - start).compare(oldName, Qt::CaseInsensitive) != 0) return;
+        if (wideText && nameLooksWide(formula.mid(start, end - start))) return;   // (an id past the grid: a cell of the text, no name)
         if (applies && !applies(sheet)) return;
         hits.push_back({start, end});
     });

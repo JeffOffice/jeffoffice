@@ -68,18 +68,23 @@ constexpr qint64 kMaxMembersAdded = 200000;        // the cells of arrays that t
 // (JC_ID_FRAME=1 in the environment turns it on for every calculation of the process: how the tools, and the whole of the tests, are run in the id frame)
 std::atomic<bool> g_idFrameDefault{qEnvironmentVariableIntValue("JC_ID_FRAME") == 1};
 
-// Whether a word of the text could be read as a cell past XFD (or past the last row) under the wide limits, and so cannot be held in ids as it is: a name "ABCD1". A word in a text in quotes is looked at
-// too (a text that is held in places is no harm done).
+// Whether a word of the text could be read as a cell past XFD (or past the last row) under the wide limits, and so cannot be held in ids as it is: a name "ABCD1". A word that a "(" (a function:
+// ATAN2), a "[" (a table), or a "!" (a sheet) goes on from is none, as the parser reads it; nor is one in quotes.
 bool hasWideLookingWord(const QString &text)
 {
     const int n = int(text.size());
     int i = 0;
     while (i < n) {
         const QChar c = text[i];
-        if (c.isLetter() || c == QLatin1Char('$') || c == QLatin1Char('_')) {
+        if (c == QLatin1Char('"') || c == QLatin1Char('\'')) {
+            int j = i + 1;
+            while (j < n && text[j] != c) ++j;   // (a quote doubled inside reads as two texts, which is the same)
+            i = j + 1;
+        } else if (c.isLetter() || c == QLatin1Char('$') || c == QLatin1Char('_')) {
             int j = i + 1;
             while (j < n && (text[j].isLetterOrNumber() || text[j] == QLatin1Char('$') || text[j] == QLatin1Char('_') || text[j] == QLatin1Char('.'))) ++j;
-            if (j - i <= 16 && nameLooksWide(text.mid(i, j - i))) return true;
+            const bool goesOn = j < n && (text[j] == QLatin1Char('(') || text[j] == QLatin1Char('[') || text[j] == QLatin1Char('!'));
+            if (!goesOn && j - i <= 16 && nameLooksWide(text.mid(i, j - i))) return true;
             i = j;
         } else if (c.isDigit()) {
             int j = i + 1;
@@ -94,12 +99,15 @@ bool hasWideLookingWord(const QString &text)
 
 } // namespace
 
+bool Calculation::textHasWideLookingWord(const QString &text) { return hasWideLookingWord(text); }
+
 void Calculation::setIdFrameDefault(bool on) { g_idFrameDefault = on; }
 bool Calculation::idFrameDefault() { return g_idFrameDefault.load(std::memory_order_relaxed); }
 
 Calculation::Calculation(const Workbook &book, const CalcOptions &options) : WorkbookSource(book, options.workbookBytes), m_options(options), m_graph(new DependencyGraph(options.maxGraphBytes))
 {
-    if (g_idFrameDefault.load(std::memory_order_relaxed)) m_options.idFrame = true;
+    if (g_idFrameDefault.load(std::memory_order_relaxed) && !options.idFrameOff) m_options.idFrame = true;
+    if (options.idFrameOff) m_options.idFrame = false;
     m_evaluator.seedRandom(quint64(QDateTime::currentMSecsSinceEpoch()) * 0x9E3779B97F4A7C15ull + 12345);
     if (options.workLimit > 0) m_evaluator.setWorkLimit(options.workLimit);
     m_iterate = book.info().iterate;
@@ -159,8 +167,8 @@ void Calculation::countTexts(int sheet)
 
 QString Calculation::internKey(const QString &text, TextClass cls)
 {
-    // (the same characters may be a text in ids and a text in places: they are two texts)
-    return cls == TextClass::Plain ? text : QString(QChar(cls == TextClass::Wide ? 0x2 : 0x1)) + text;
+    // (the same characters may be a text in ids and a text in places: they are two texts, and a text is the whole of what follows the class and the bar, whatever characters it starts with)
+    return QString(QChar(char16_t('0' + int(cls)))) + QLatin1Char('|') + text;
 }
 
 Calculation::TextClass Calculation::textClass(const Sheet &s, qint32 text) const
@@ -170,9 +178,22 @@ Calculation::TextClass Calculation::textClass(const Sheet &s, qint32 text) const
     return s.wideTexts.contains(text) ? TextClass::Wide : TextClass::Plain;
 }
 
+// Whether the text has a range written back to front (C9:A9): a text that is shown as it was written until an edit writes it again, and then in order, which only the code that writes it again can
+// say; it stays in places.
+static bool hasBackToFrontRange(const QString &text)
+{
+    if (!text.contains(QLatin1Char(':'))) return false;
+    std::vector<ReferenceAt> refs;
+    if (!findReferences(text, ParseOptions(), &refs)) return false;
+    for (const ReferenceAt &r : refs)
+        if (r.ref.written) return true;
+    return false;
+}
+
 Calculation::TextClass Calculation::classOfLoaded(const QString &text) const
 {
     if (!m_options.idFrame) return TextClass::Plain;
+    if (hasBackToFrontRange(text)) return TextClass::Positional;
     // (a text the file has has no id past the grid; what makes it stay in places is a reference through several sheets or a word that is a cell past XFD in the wide limits)
     if (hasWideLookingWord(text)) return TextClass::Positional;
     if (text.contains(QLatin1Char('!')) && text.contains(QLatin1Char(':')) && formulaHasThreeD(text)) return TextClass::Positional;
@@ -184,7 +205,7 @@ Calculation::Held Calculation::heldText(int sheet, const QString &typed, const j
     Held h;
     h.text = typed;
     if (!m_options.idFrame) return h;
-    bool positional = hasWideLookingWord(typed);
+    bool positional = hasWideLookingWord(typed) || hasBackToFrontRange(typed);
     if (!positional && program) {
         for (const RefLit &r : program->refs)
             if (r.sheet2 >= 0 && r.sheet2 != r.sheet1) positional = true;
@@ -973,8 +994,9 @@ int Calculation::addSheet(const QString &name, int copyOf)
         content.view.tabSelected = false;
         content.partial = false;
         // (the copy has no history: its order is put back to one run, and the cells of rows and columns that were deleted in the sheet it is of are not held again)
-        content.cells.rebaseLines(true, &rowTable);
-        content.cells.rebaseLines(false, &colTable);
+        // (the tables say how the ids were renumbered, for the texts in ids: with the id frame off nothing asks for them)
+        content.cells.rebaseLines(true, m_options.idFrame ? &rowTable : nullptr);
+        content.cells.rebaseLines(false, m_options.idFrame ? &colTable : nullptr);
     }
     if (m_options.idFrame) {
         content.frame = this;

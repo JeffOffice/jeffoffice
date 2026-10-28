@@ -1,5 +1,6 @@
 // The defined names of an open workbook, and how it calculates, changed by a person: each change is one step of Undo (see EditSession::defineName and core/nametable.h).
 #include "core/editsession.h"
+#include "sheet/formulaframe.h"
 
 #include "calc/eval.h"
 #include "core/namesfromcells.h"
@@ -80,6 +81,9 @@ QString EditSession::nameProblem(const NameDraft &draft, int id) const
 {
     const QString name = draft.name.trimmed();
     if (const QString why = jp::office::sheet::nameProblem(name); !why.isEmpty()) return why;
+    // (with the formulas held in ids, the ids past the grid are written as cells there, so a name that could be read as one would be taken for one)
+    if (m_book && m_book->calc && m_book->calc->idFrame() && jp::office::sheet::nameLooksWide(name))
+        return tr("A name that looks like an address past the last column or row, such as %1, can't be used here. Add an underscore to it.").arg(name.left(24));
     if (draft.scope >= 0) {
         QString why;
         if (!canEditSheet(draft.scope, &why)) return why;

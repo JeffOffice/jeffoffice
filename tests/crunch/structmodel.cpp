@@ -197,9 +197,21 @@ int pickSheet(Rng &r)
 }
 
 // A formula to type; it is typed in a column from E on, and reads cells of the columns A to D (and other sheets), so that few of them read themselves.
-QString randomFormula(Rng &r)
+// With `extra` (and only then does it draw anything more) one in five is of another kind: a range written back to front, a function whose name could be a cell past XFD (ATAN2), or a name that could be.
+QString randomFormula(Rng &r, bool extra)
 {
     auto row = [&] { return 1 + r.bounded(30); };
+    if (extra && r.bounded(5) == 0) {
+        const int a = row(), b = row();
+        switch (r.bounded(6)) {
+        case 0: return QStringLiteral("=SUM(A%1:A%2)").arg(a + 3).arg(a);
+        case 1: return QStringLiteral("=SUM(B%1:C%2)+A%3").arg(b + 4).arg(b).arg(a);
+        case 2: return QStringLiteral("=SUM(Calc!A%1:A%2)").arg(a + 2).arg(a);
+        case 3: return QStringLiteral("=ATAN2(A%1,B%2)").arg(a).arg(b);
+        case 4: return QStringLiteral("=A%1+XFE%2").arg(a).arg(b);
+        default: return QStringLiteral("=SUM(D%1:A%1)").arg(a);
+        }
+    }
     auto pair = [&](int *a, int *b) {
         *a = row();
         *b = *a + r.bounded(8);
@@ -238,7 +250,7 @@ QString randomFormula(Rng &r)
 // The weights of the kinds of step (out of 100), in the order of Step::Kind.
 const int kWeights[Step::KindCount] = {8, 8, 5, 5, 3, 3, 3, 3, 14, 5, 6, 5, 3, 11, 2, 1, 1, 2, 2, 2, 2, 2, 2, 3};
 
-Step makeStep(Rng &r, bool afterUndo)
+Step makeStep(Rng &r, bool afterUndo, bool extra)
 {
     Step s;
     s.sheet = pickSheet(r);
@@ -302,7 +314,7 @@ Step makeStep(Rng &r, bool afterUndo)
             s.text = QStringLiteral("txt%1").arg(r.bounded(8));
         } else {
             s.col1 = 4 + r.bounded(8);
-            s.text = randomFormula(r);
+            s.text = randomFormula(r, extra);
         }
         break;
     }
@@ -411,21 +423,29 @@ struct Live {
     qint64 lastEpoch = -1;
     int serial = 0;
     bool saveFinished = false, saveOk = false;
+    QString problem;   // what open, settle, or recalculateAll waited for and did not get
 
     bool open(const QByteArray &bytes, bool visible = true)
     {
+        problem.clear();
         path = dir.filePath(QStringLiteral("book%1.xlsx").arg(++serial));
         QFile f(path);
-        if (!f.open(QIODevice::WriteOnly)) return false;
+        if (!f.open(QIODevice::WriteOnly)) {
+            problem = QStringLiteral("the file %1 could not be written").arg(path);
+            return false;
+        }
         f.write(bytes);
         f.close();
         win = std::make_unique<CrunchWindow>();
         win->setNotifier([this](const QString &title, const QString &text) { told << title + QStringLiteral(": ") + text; });
         win->resize(1100, 640);
         if (visible) win->show();
-        bool first = false, loaded = false, done = false;
+        bool first = false, loaded = false, loadedOk = true, done = false;
         const QMetaObject::Connection c1 = QObject::connect(win.get(), &CrunchWindow::firstScreenShown, win.get(), [&] { first = true; });
-        const QMetaObject::Connection c2 = QObject::connect(win.get(), &CrunchWindow::loadFinished, win.get(), [&](bool) { loaded = true; });
+        const QMetaObject::Connection c2 = QObject::connect(win.get(), &CrunchWindow::loadFinished, win.get(), [&](bool ok) {
+            loaded = true;
+            loadedOk = ok;
+        });
         const QMetaObject::Connection c3 = QObject::connect(win.get(), &CrunchWindow::calculationFinished, win.get(), [&] { done = true; });
         QObject::connect(&win->workbookLoader(), &crunch::WorkbookLoader::calcBatch, win.get(), [this](const std::shared_ptr<crunch::CalcBatch> &b) {
             if (b->last && !b->stopped) lastEpoch = b->epoch;
@@ -439,7 +459,13 @@ struct Live {
         QObject::disconnect(c1);
         QObject::disconnect(c2);
         QObject::disconnect(c3);
-        if (!ok || !win->session()) return false;
+        if (!ok || !loadedOk || !win->session()) {
+            problem = !started ? QStringLiteral("the window did not start the open")
+                      : !loadedOk && loaded ? QStringLiteral("the load finished with failure")
+                      : QStringLiteral("after 60 s: first screen %1, load %2, calculation %3").arg(first ? "shown" : "NOT shown", loaded ? "finished" : "NOT finished", done ? "finished" : "NOT finished");
+            if (ok && loadedOk) problem = QStringLiteral("the window has no session");
+            return false;
+        }
         win->session()->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
         win->session()->setToday(QDate(2026, 10, 26));
         return settle();
@@ -447,7 +473,10 @@ struct Live {
     // Waits until the worker has worked out what the edits made, and the window has taken what it sent.
     bool settle()
     {
-        if (!waitFor([&] { return !win->isCalculating(); }, 60000)) return false;
+        if (!waitFor([&] { return !win->isCalculating(); }, 60000)) {
+            problem = QStringLiteral("the window was still calculating after 60 s");
+            return false;
+        }
         auto &loader = win->workbookLoader();
         if (!loader.result()) return true;
         QElapsedTimer waited;
@@ -461,7 +490,10 @@ struct Live {
                 done = !hold || !hold->calculation()->isDirty();
             }
             if (done) break;
-            if (waited.elapsed() > 60000) return false;
+            if (waited.elapsed() > 60000) {
+                problem = QStringLiteral("the worker had not gone idle after 60 s");
+                return false;
+            }
         }
         QCoreApplication::processEvents();
         return true;
@@ -469,8 +501,14 @@ struct Live {
     // Every formula worked out again from nothing.
     bool recalculateAll()
     {
-        if (!win->workbookLoader().recalculate()) return false;
-        if (!waitFor([&] { return lastEpoch >= win->workbookLoader().changesMade(); }, 60000)) return false;
+        if (!win->workbookLoader().recalculate()) {
+            problem = QStringLiteral("the loader refused a whole calculation");
+            return false;
+        }
+        if (!waitFor([&] { return lastEpoch >= win->workbookLoader().changesMade(); }, 60000)) {
+            problem = QStringLiteral("the whole calculation did not finish after 60 s");
+            return false;
+        }
         return settle();
     }
     crunch::EditSession *session() const { return win->session(); }
@@ -1517,11 +1555,11 @@ QString modelRewrite(const QString &formula, int formulaSheet, const Step &edit)
     return plainOf(edit, &e) ? textAfter(formula, formulaSheet, e) : formula;
 }
 
-std::vector<Step> generate(quint32 seed, int count)
+std::vector<Step> generate(quint32 seed, int count, bool extra)
 {
     Rng r(seed);
     std::vector<Step> steps;
-    for (int i = 0; i < count; ++i) steps.push_back(makeStep(r, !steps.empty() && (steps.back().kind == Step::Undo || steps.back().kind == Step::Redo)));
+    for (int i = 0; i < count; ++i) steps.push_back(makeStep(r, !steps.empty() && (steps.back().kind == Step::Undo || steps.back().kind == Step::Redo), extra));
     return steps;
 }
 
@@ -1530,12 +1568,13 @@ Result run(const std::vector<Step> &steps, const Options &options)
     // (every workbook the run opens, the one that is edited and the ones read again, holds its formulas as the options say)
     struct FrameScope {
         bool was;
-        explicit FrameScope(bool on) : was(jp::office::sheet::Calculation::idFrameDefault())
+        FrameScope(bool on, bool off) : was(jp::office::sheet::Calculation::idFrameDefault())
         {
             if (on) jp::office::sheet::Calculation::setIdFrameDefault(true);
+            if (off) jp::office::sheet::Calculation::setIdFrameDefault(false);
         }
         ~FrameScope() { jp::office::sheet::Calculation::setIdFrameDefault(was); }
-    } frameScope(options.idFrame);
+    } frameScope(options.idFrame, options.forceOff);
     Result result;
     auto fail = [&](int step, const QString &kind, const QString &what) {
         if (result.failure.ok()) {
@@ -1547,7 +1586,7 @@ Result run(const std::vector<Step> &steps, const Options &options)
     };
     auto live = std::make_unique<Live>();
     if (!live->open(baseWorkbook())) {
-        fail(0, QStringLiteral("open"), QStringLiteral("the base workbook did not open"));
+        fail(0, QStringLiteral("open"), QStringLiteral("the base workbook did not open: ") + live->problem);
         return result;
     }
     State before;
@@ -1572,7 +1611,7 @@ Result run(const std::vector<Step> &steps, const Options &options)
         timer.start();
         Live again;
         if (!again.open(bytes, false) || !again.recalculateAll()) {
-            fail(index, QStringLiteral("open"), QStringLiteral("the saved workbook did not open and work out"));
+            fail(index, QStringLiteral("open"), QStringLiteral("the saved workbook did not open and work out: ") + again.problem);
             return;
         }
         result.msOpen += timer.restart();
@@ -1610,7 +1649,7 @@ Result run(const std::vector<Step> &steps, const Options &options)
             }
             auto next = std::make_unique<Live>();
             if (!next->open(bytes)) {
-                fail(index, QStringLiteral("open"), QStringLiteral("the saved workbook did not open"));
+                fail(index, QStringLiteral("open"), QStringLiteral("the saved workbook did not open: ") + next->problem);
                 break;
             }
             live = std::move(next);
@@ -1753,14 +1792,15 @@ int command(const QStringList &args)
         return code;
     };
     if (args.size() >= 3 && args[0] == QLatin1String("model-check")) {
-        // model-check <seeds> <steps> [first seed] [every=n] [nograph] [idframe] [noshrink]
+        // model-check <seeds> <steps> [first seed] [every=n] [nograph] [idframe] [wide] [noshrink]
         const int seeds = args[1].toInt(), stepCount = args[2].toInt();
-        const quint32 first = args.size() > 3 && !args[3].contains(QLatin1Char('=')) && args[3] != QLatin1String("nograph") && args[3] != QLatin1String("idframe") && args[3] != QLatin1String("noshrink") ? args[3].toUInt() : 1;
+        const quint32 first = args.size() > 3 && !args[3].contains(QLatin1Char('=')) && args[3] != QLatin1String("nograph") && args[3] != QLatin1String("idframe") && args[3] != QLatin1String("wide") && args[3] != QLatin1String("noshrink") ? args[3].toUInt() : 1;
         Options options;
-        bool shrinkIt = true;
+        bool shrinkIt = true, wide = false;
         for (const QString &a : args.mid(3)) {
             if (a == QLatin1String("nograph")) options.graph = false;
             else if (a == QLatin1String("idframe")) options.idFrame = true;
+            else if (a == QLatin1String("wide")) wide = true;
             else if (a == QLatin1String("noshrink")) shrinkIt = false;
             else if (a.startsWith(QLatin1String("every="))) options.checkEvery = std::max(1, a.mid(6).toInt());
         }
@@ -1769,7 +1809,7 @@ int command(const QStringList &args)
         QElapsedTimer clock;
         clock.start();
         for (quint32 seed = first; seed < first + quint32(seeds); ++seed) {
-            const std::vector<Step> list = generate(seed, stepCount);
+            const std::vector<Step> list = generate(seed, stepCount, wide);
             const Result r = run(list, options);
             steps += qint64(r.digests.size());
             refused += r.refused;
@@ -1847,7 +1887,7 @@ int command(const QStringList &args)
         out << r.finalState;
         return finish(0);
     }
-    err << "usage: jcrunchtool model-check <seeds> <steps> [first seed] [every=n] [nograph] [idframe] [noshrink] | model-golden <steps> <seed>... | model-replay <file> | model-dump <seed> <steps>|<file> | model-book <out.xlsx>\n";
+    err << "usage: jcrunchtool model-check <seeds> <steps> [first seed] [every=n] [nograph] [idframe] [wide] [noshrink] | model-golden <steps> <seed>... | model-replay <file> | model-dump <seed> <steps>|<file> | model-book <out.xlsx>\n";
     return finish(2);
 }
 

@@ -57,6 +57,7 @@ struct CalcOptions {
     // but those of the formulas that are not held so (and the ones that read a row or column that died). Off, a formula's text is in places and an edit writes the ones that move again. Round 5a ships it
     // dark: tests, and the tools with JC_ID_FRAME=1, turn it on (see Calculation::setIdFrameDefault).
     bool idFrame = false;
+    bool idFrameOff = false;   // and the process's default (JC_ID_FRAME, setIdFrameDefault) is not looked at: this one holds its formulas in places (a test that compares the two ways)
     // If set, called with the result the file stored for a formula and the one worked out; false marks the formula a mismatch, and every formula that reads one, directly or
     // through others, a cascade (isCascaded): the yardstick tells the formulas that are wrong of their own from those that follow a wrong one.
     std::function<bool(const jp::calc::Value &stored, const jp::calc::Value &ours)> verify;
@@ -499,6 +500,11 @@ public:
     // The switch of CalcOptions::idFrame for every calculation made after this call (a test, or a tool, turns it on for the workbooks it opens; the default is off).
     static void setIdFrameDefault(bool on);
     static bool idFrameDefault();
+    // For tests: whether a word of the text is one that cannot be held in ids as it is (a name that could be read as a cell past XFD).
+    static bool textHasWideLookingWord(const QString &text);
+    // How a text is held (idFrame): in ids (Plain, with the numbers of the grid; Wide, with ids past it) or in places (Positional). The key a text is shared by, which no other class's text can have.
+    enum class TextClass : quint8 { Plain, Wide, Positional };
+    static QString internKey(const QString &text, TextClass cls);
     bool idFrame() const { return m_options.idFrame; }
     // Formulas whose text is in places and not in ids, though the workbook holds its formulas in ids: a reference through several sheets, a name that could be read as a cell past XFD (each is rewritten
     // by an edit as it was before ids). Counted over the formulas: for tests, and the bench.
@@ -602,7 +608,6 @@ private:
     // for it), a formula's place made with a text it keeps a hold of, a text that one formula less has, and a formula that is not any cell's now.
     void countTexts(int sheet);
     // How a text is held (idFrame): in ids (Plain, with the numbers of the grid; Wide, with ids past it) or in places (Positional).
-    enum class TextClass : quint8 { Plain, Wide, Positional };
     struct Held {
         QString text;
         TextClass cls = TextClass::Plain;
@@ -612,7 +617,6 @@ private:
     // The class of a text the workbook has read from a file (its numbers are those of the grid, which are ids too).
     TextClass classOfLoaded(const QString &text) const;
     qint32 internText(int sheet, const QString &text, TextClass cls = TextClass::Plain);
-    static QString internKey(const QString &text, TextClass cls);
     TextClass textClass(const Sheet &s, qint32 text) const;
     // Whether the formula's references are ids (the sheet is of a workbook that holds them so, and the text is not one that stays in places).
     static bool inIds(const Sheet &s, qint32 text) { return s.frame && !s.positionalTexts.contains(text); }

@@ -11,7 +11,7 @@ namespace jp::office::sheet {
 // The formula with each use of the name `oldName` (any case) written `newName`. `applies` is asked for each use with the sheet written in front of it (empty when none is), and says
 // whether that use is of the name that is being renamed (a name that belongs to a sheet hides the workbook's of the same name on that sheet, and is reached from the others by writing
 // the sheet in front of it). Everything else in the text is as it was; `changed` says whether anything was.
-QString renameNameInFormula(const QString &formula, const QString &oldName, const QString &newName, const std::function<bool(const QString &sheet)> &applies, bool *changed = nullptr);
+QString renameNameInFormula(const QString &formula, const QString &oldName, const QString &newName, const std::function<bool(const QString &sheet)> &applies, bool *changed = nullptr, bool wideText = false);
 
 // Whether the formula uses the name at all (any case, with or without a sheet in front).
 bool formulaUsesName(const QString &formula, const QString &name);
