@@ -91,7 +91,31 @@ bool Machine::resolveRef(const Program &p, const RefLit &r, RefArea *area, Error
     qint64 r2 = (r.flags & kRefRow2Abs) ? qint64(r.row2) : qint64(r.row2) + dr;
     qint64 c1 = (r.flags & kRefCol1Abs) ? qint64(r.col1) : qint64(r.col1) + dc;
     qint64 c2 = (r.flags & kRefCol2Abs) ? qint64(r.col2) : qint64(r.col2) + dc;
-    if (wrapRefs) {
+    if (ctx.idFrame && !wrapRefs) {
+        // (the numbers are ids: a row or column whole is every place, and the others are the places the ids have now; one that was deleted is gone)
+        const bool wholeCols = r.flags & kRefWholeCols, wholeRows = r.flags & kRefWholeRows;
+        auto place = [&](bool rows, qint64 id, qint64 *out) {
+            if (id < 0 || id > qint64(0xFFFFFF)) return false;
+            const quint32 p = rows ? ctx.source->rowPlace(s1, quint32(id)) : ctx.source->colPlace(s1, quint32(id));
+            if (p == CellSource::kNoPlace) return false;
+            *out = qint64(p);
+            return true;
+        };
+        if (wholeCols) {
+            r1 = 0;
+            r2 = qint64(kGridRows) - 1;
+        } else if (!place(true, r1, &r1) || !place(true, r2, &r2)) {
+            *error = ErrorKind::Ref;
+            return false;
+        }
+        if (wholeRows) {
+            c1 = 0;
+            c2 = qint64(kGridCols) - 1;
+        } else if (!place(false, c1, &c1) || !place(false, c2, &c2)) {
+            *error = ErrorKind::Ref;
+            return false;
+        }
+    } else if (wrapRefs) {
         // the references of a defined name come round the other side of the sheet
         auto wrap = [](qint64 v, qint64 n) { return v >= 0 ? v % n : ((v % n) + n) % n; };
         if (!(r.flags & kRefRow1Abs)) r1 = wrap(r1, kGridRows);
@@ -637,6 +661,8 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     // (the columns of a table are worked out where the source knows tables: Op::PushTable says, when it is run, that it does not)
     if (!program->unknownFunctions.isEmpty()) unsupported |= 4;
     const int savedRows = ctx.shiftRows, savedCols = ctx.shiftCols;
+    const bool savedFrame = ctx.idFrame;
+    ctx.idFrame = false;   // (what a name or a text says is in places)
     ctx.shiftRows = relativeToA1 ? int(ctx.row) : 0;
     ctx.shiftCols = relativeToA1 ? int(ctx.col) : 0;
     const bool savedWrap = wrapRefs;
@@ -649,6 +675,7 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     wrapRefs = savedWrap;
     ctx.shiftRows = savedRows;
     ctx.shiftCols = savedCols;
+    ctx.idFrame = savedFrame;
     return r;
 }
 

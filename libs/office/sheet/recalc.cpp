@@ -180,6 +180,18 @@ jp::calc::StructuredAnswer WorkbookSource::structuredRef(const QString &text, in
     return StructuredAnswer::Area;
 }
 
+quint32 WorkbookSource::rowPlace(int sheet, quint32 rowId) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return kNoPlace;
+    return m_sheets[size_t(sheet)].cells.rowPlaceOf(rowId);
+}
+
+quint32 WorkbookSource::colPlace(int sheet, quint32 colId) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return kNoPlace;
+    return m_sheets[size_t(sheet)].cells.colPlaceOf(colId);
+}
+
 int WorkbookSource::rowHiddenKind(int sheet, quint32 row) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return 0;

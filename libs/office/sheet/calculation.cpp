@@ -65,10 +65,41 @@ struct Chunker {
 
 constexpr qint64 kMaxMembersAdded = 200000;        // the cells of arrays that the file has no cell for, which are put in (each costs the cells after it in its block of rows)
 
+// (JC_ID_FRAME=1 in the environment turns it on for every calculation of the process: how the tools, and the whole of the tests, are run in the id frame)
+std::atomic<bool> g_idFrameDefault{qEnvironmentVariableIntValue("JC_ID_FRAME") == 1};
+
+// Whether a word of the text could be read as a cell past XFD (or past the last row) under the wide limits, and so cannot be held in ids as it is: a name "ABCD1". A word in a text in quotes is looked at
+// too (a text that is held in places is no harm done).
+bool hasWideLookingWord(const QString &text)
+{
+    const int n = int(text.size());
+    int i = 0;
+    while (i < n) {
+        const QChar c = text[i];
+        if (c.isLetter() || c == QLatin1Char('$') || c == QLatin1Char('_')) {
+            int j = i + 1;
+            while (j < n && (text[j].isLetterOrNumber() || text[j] == QLatin1Char('$') || text[j] == QLatin1Char('_') || text[j] == QLatin1Char('.'))) ++j;
+            if (j - i <= 16 && nameLooksWide(text.mid(i, j - i))) return true;
+            i = j;
+        } else if (c.isDigit()) {
+            int j = i + 1;
+            while (j < n && (text[j].isLetterOrNumber() || text[j] == QLatin1Char('.'))) ++j;
+            i = j;
+        } else {
+            ++i;
+        }
+    }
+    return false;
+}
+
 } // namespace
+
+void Calculation::setIdFrameDefault(bool on) { g_idFrameDefault = on; }
+bool Calculation::idFrameDefault() { return g_idFrameDefault.load(std::memory_order_relaxed); }
 
 Calculation::Calculation(const Workbook &book, const CalcOptions &options) : WorkbookSource(book, options.workbookBytes), m_options(options), m_graph(new DependencyGraph(options.maxGraphBytes))
 {
+    if (g_idFrameDefault.load(std::memory_order_relaxed)) m_options.idFrame = true;
     m_evaluator.seedRandom(quint64(QDateTime::currentMSecsSinceEpoch()) * 0x9E3779B97F4A7C15ull + 12345);
     if (options.workLimit > 0) m_evaluator.setWorkLimit(options.workLimit);
     m_iterate = book.info().iterate;
@@ -94,6 +125,7 @@ Calculation::Compiled &Calculation::compiled(int sheet, qint32 text, bool array)
         slot.tried = true;
         ParseOptions po;
         po.arrayFormula = array;
+        po.limits = limitsOf(m_sheets[size_t(sheet)], text);
         const ParseResult pr = parseFormula(m_sheets[size_t(sheet)].formulaTexts[text], po);
         slot.program = pr.program;
         slot.error = pr.error;
@@ -125,12 +157,60 @@ void Calculation::countTexts(int sheet)
     st.textsCounted = true;
 }
 
-qint32 Calculation::internText(int sheet, const QString &text)
+QString Calculation::internKey(const QString &text, TextClass cls)
+{
+    // (the same characters may be a text in ids and a text in places: they are two texts)
+    return cls == TextClass::Plain ? text : QString(QChar(cls == TextClass::Wide ? 0x2 : 0x1)) + text;
+}
+
+Calculation::TextClass Calculation::textClass(const Sheet &s, qint32 text) const
+{
+    if (!s.frame) return TextClass::Plain;
+    if (s.positionalTexts.contains(text)) return TextClass::Positional;
+    return s.wideTexts.contains(text) ? TextClass::Wide : TextClass::Plain;
+}
+
+Calculation::TextClass Calculation::classOfLoaded(const QString &text) const
+{
+    if (!m_options.idFrame) return TextClass::Plain;
+    // (a text the file has has no id past the grid; what makes it stay in places is a reference through several sheets or a word that is a cell past XFD in the wide limits)
+    if (hasWideLookingWord(text)) return TextClass::Positional;
+    if (text.contains(QLatin1Char('!')) && text.contains(QLatin1Char(':')) && formulaHasThreeD(text)) return TextClass::Positional;
+    return TextClass::Plain;
+}
+
+Calculation::Held Calculation::heldText(int sheet, const QString &typed, const jp::calc::Program *program)
+{
+    Held h;
+    h.text = typed;
+    if (!m_options.idFrame) return h;
+    bool positional = hasWideLookingWord(typed);
+    if (!positional && program) {
+        for (const RefLit &r : program->refs)
+            if (r.sheet2 >= 0 && r.sheet2 != r.sheet1) positional = true;
+    }
+    if (!positional && typed.contains(QLatin1Char('!')) && typed.contains(QLatin1Char(':')) && formulaHasThreeD(typed)) positional = true;
+    if (!positional) {
+        QString held;
+        bool wide = false;
+        if (placesToIds(*this, sheet, typed, &held, &wide)) {
+            if (held != typed) ++m_editStats.textsToIds;
+            h.text = held;
+            h.cls = wide ? TextClass::Wide : TextClass::Plain;
+            return h;
+        }
+    }
+    h.cls = TextClass::Positional;
+    return h;
+}
+
+qint32 Calculation::internText(int sheet, const QString &text, TextClass cls)
 {
     countTexts(sheet);
     SheetState &st = m_state[size_t(sheet)];
     Sheet &s = m_sheets[size_t(sheet)];
-    const auto found = st.internOf.constFind(text);
+    const QString key = internKey(text, cls);
+    const auto found = st.internOf.constFind(key);
     if (found != st.internOf.constEnd()) {
         ++st.textRefs[size_t(*found)];
         return *found;
@@ -149,7 +229,11 @@ qint32 Calculation::internText(int sheet, const QString &text)
     if (size_t(index) < st.plain.size()) st.plain[size_t(index)] = Compiled();
     if (size_t(index) < st.array.size()) st.array[size_t(index)] = Compiled();
     forgetTextFacts(sheet, index);
-    st.internOf.insert(text, index);
+    st.internOf.insert(key, index);
+    s.positionalTexts.remove(index);
+    s.wideTexts.remove(index);
+    if (cls == TextClass::Positional) s.positionalTexts.insert(index);
+    else if (cls == TextClass::Wide) s.wideTexts.insert(index);
     return index;
 }
 
@@ -169,9 +253,11 @@ void Calculation::releaseText(int sheet, qint32 text)
     if (size_t(text) >= st.textRefs.size() || st.textRefs[size_t(text)] == 0) return;
     if (--st.textRefs[size_t(text)] > 0) return;
     // (nothing has the text now: it and the program worked out for it are let go of, and the place is for the next text)
-    const auto at = st.internOf.find(s.formulaTexts[text]);
+    const auto at = st.internOf.find(internKey(s.formulaTexts[text], textClass(s, text)));
     if (at != st.internOf.end() && *at == text) st.internOf.erase(at);
     s.formulaTexts[text] = QString();
+    s.positionalTexts.remove(text);
+    s.wideTexts.remove(text);
     if (size_t(text) < st.plain.size()) st.plain[size_t(text)] = Compiled();
     if (size_t(text) < st.array.size()) st.array[size_t(text)] = Compiled();
     forgetTextFacts(sheet, text);
@@ -218,9 +304,10 @@ void Calculation::releaseFormula(int sheet, qint32 formula)
 
 void Calculation::retext(int sheet, Cell *cell, const QString &text)
 {
+    const Held held = heldText(sheet, text);
     Formula &f = m_sheets[size_t(sheet)].formulas[cell->formula];
     const qint32 old = f.text;
-    f.text = internText(sheet, text);
+    f.text = internText(sheet, held.text, held.cls);
     f.dRow = f.dCol = 0;
     releaseText(sheet, old);
 }
@@ -278,6 +365,7 @@ quint32 Calculation::addNodeById(int sheet, quint32 rowId, quint32 colId, const 
     if (st.nodeOf.size() <= size_t(formulaIndex)) st.nodeOf.resize(size_t(formulaIndex) + 1, kNone);
     st.nodeOf[size_t(formulaIndex)] = id;
     ++m_formulaCount;
+    if (m_sheets[size_t(sheet)].frame && !inIds(m_sheets[size_t(sheet)], m_sheets[size_t(sheet)].formulas[formulaIndex].text)) m_positionalNodes.insert(id);
     classify(id, cell, m_sheets[size_t(sheet)].formulas[formulaIndex]);
     return id;
 }
@@ -383,7 +471,7 @@ void Calculation::registerNode(quint32 id, const std::vector<CellArea> *told)
     const Formula &f = s.formulas[n.formula];
     const Compiled &slot = compiled(n.sheet, f.text, n.flags & Array);
     m_areas.clear();
-    if (slot.program) resolveReferences(*slot.program, slot.bound, sheetCount(), n.sheet, f.dRow, f.dCol, &m_areas);
+    if (slot.program) resolveReferences(*slot.program, slot.bound, sheetCount(), n.sheet, f.dRow, f.dCol, &m_areas, inIds(s, f.text) ? this : nullptr);
     if (told) m_areas.insert(m_areas.end(), m_toldSet.begin(), m_toldSet.end());
     std::sort(m_areas.begin(), m_areas.end());
     m_areas.erase(std::unique(m_areas.begin(), m_areas.end()), m_areas.end());
@@ -748,8 +836,10 @@ bool Calculation::load()
     m_always.clear();
     m_threeD.clear();
     m_threeDSpan.clear();
+    m_positionalNodes.clear();
     std::vector<quint32> masters;   // array formulas, whose cells are then made members of them
     bool cancelled = false;
+    for (int si = 0; si < sheets; ++si) frameSheet(si);
     for (int si = 0; si < sheets; ++si) {
         Sheet &s = m_sheets[size_t(si)];
         SheetState &st = m_state[size_t(si)];
@@ -828,6 +918,19 @@ bool Calculation::load()
 // the sheets
 
 // Registers the formulas of a sheet that is there (its cells are in place): a node for each, and the cells of its arrays and data tables marked as load() does.
+// The sheet's formula texts are held in the id frame (CalcOptions::idFrame): it knows the workbook it is in, and which of its texts stay in places.
+void Calculation::frameSheet(int si)
+{
+    if (!m_options.idFrame) return;
+    Sheet &s = m_sheets[size_t(si)];
+    s.frame = this;
+    s.frameIndex = si;
+    s.positionalTexts.clear();
+    s.wideTexts.clear();
+    for (qint32 t = 0; t < s.formulaTexts.size(); ++t)
+        if (classOfLoaded(s.formulaTexts[t]) == TextClass::Positional) s.positionalTexts.insert(t);
+}
+
 void Calculation::registerSheet(int si)
 {
     Sheet &s = m_sheets[size_t(si)];
@@ -864,19 +967,28 @@ int Calculation::addSheet(const QString &name, int copyOf)
     abandonNow();
     const int index = int(m_sheets.size());
     Sheet content;
+    std::vector<jp::calc::LineMapCore::Renumber> rowTable, colTable;
     if (copyOf >= 0 && copyOf < index) {
         content = m_sheets[size_t(copyOf)];
         content.view.tabSelected = false;
         content.partial = false;
         // (the copy has no history: its order is put back to one run, and the cells of rows and columns that were deleted in the sheet it is of are not held again)
-        content.cells.rebaseLines(true);
-        content.cells.rebaseLines(false);
+        content.cells.rebaseLines(true, &rowTable);
+        content.cells.rebaseLines(false, &colTable);
+    }
+    if (m_options.idFrame) {
+        content.frame = this;
+        content.frameIndex = index;
     }
     m_sheets.push_back(std::move(content));
     m_rows.push_back(0);
     m_cols.push_back(0);
     m_subtotalTexts.emplace_back();
     m_state.emplace_back();
+    if (copyOf >= 0 && copyOf < index) {
+        renumberTexts(index, true, rowTable, index);
+        renumberTexts(index, false, colTable, index);
+    }
     forgetRuleIndex();
     if (!name.isEmpty()) m_byName.insert(name.toCaseFolded(), index);
     registerSheet(index);
@@ -925,10 +1037,11 @@ void Calculation::setSlotText(int sheet, qint32 slot, const QString &text)
 {
     Sheet &s = m_sheets[size_t(sheet)];
     SheetState &st = m_state[size_t(sheet)];
-    const auto at = st.internOf.find(s.formulaTexts[slot]);
+    const TextClass cls = textClass(s, slot);
+    const auto at = st.internOf.find(internKey(s.formulaTexts[slot], cls));
     if (at != st.internOf.end() && *at == slot) st.internOf.erase(at);
     s.formulaTexts[slot] = text;
-    if (!st.internOf.contains(text) && st.textsCounted) st.internOf.insert(text, slot);
+    if (!st.internOf.contains(internKey(text, cls)) && st.textsCounted) st.internOf.insert(internKey(text, cls), slot);
     if (size_t(slot) < st.plain.size()) st.plain[size_t(slot)] = Compiled();
     if (size_t(slot) < st.array.size()) st.array[size_t(slot)] = Compiled();
     forgetTextFacts(sheet, slot);
@@ -962,8 +1075,8 @@ bool Calculation::rewriteSheetReferences(const QString &oldName, const QString &
     if (hasThreeDReferences()) return false;
     abandonNow();
     BulkEdit bulk(this);
-    auto rewrite = [&](const QString &text, bool definedName, bool *changed) {
-        return newName.isEmpty() ? deleteSheetInFormula(text, oldName, changed, definedName) : renameSheetInFormula(text, oldName, newName, changed, definedName);
+    auto rewrite = [&](const QString &text, bool definedName, bool *changed, const jp::calc::ParseLimits &limits = jp::calc::ParseLimits()) {
+        return newName.isEmpty() ? deleteSheetInFormula(text, oldName, changed, definedName, limits) : renameSheetInFormula(text, oldName, newName, changed, definedName, limits);
     };
     std::vector<quint32> again;
     for (int si = 0; si < int(m_sheets.size()); ++si) {
@@ -975,7 +1088,7 @@ bool Calculation::rewriteSheetReferences(const QString &oldName, const QString &
             const QString text = s.formulaTexts[slot];
             if (text.isEmpty()) continue;
             bool changed = false;
-            const QString now = rewrite(text, false, &changed);
+            const QString now = rewrite(text, false, &changed, limitsOf(s, slot));
             if (!changed) continue;
             record->texts.push_back({si, slot, text});
             setSlotText(si, slot, now);
@@ -1462,7 +1575,9 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
             const Sheet &sheet = m_sheets[size_t(n.sheet)];
             m_areas.clear();
             const Compiled &slot = compiled(n.sheet, sheet.formulas[n.formula].text, n.flags & Array);
-            if (slot.program) resolveReferences(*slot.program, slot.bound, sheetCount(), n.sheet, sheet.formulas[n.formula].dRow, sheet.formulas[n.formula].dCol, &m_areas);
+            if (slot.program)
+                resolveReferences(*slot.program, slot.bound, sheetCount(), n.sheet, sheet.formulas[n.formula].dRow, sheet.formulas[n.formula].dCol, &m_areas,
+                                  inIds(sheet, sheet.formulas[n.formula].text) ? this : nullptr);
             recordSeen(id, m_areas);
             markAsked(id, q, &j.changed);
         }
@@ -1732,6 +1847,7 @@ Value Calculation::runFormula(quint32 id, qint64 *work)
     m_ctx.col = colOf(n);
     m_ctx.shiftRows = f.dRow;
     m_ctx.shiftCols = f.dCol;
+    m_ctx.idFrame = inIds(s, f.text);
     m_ctx.now = m_now;
     m_touched.clear();
     m_ctx.touched = (n.flags & Told) ? &m_touched : nullptr;
@@ -2338,6 +2454,7 @@ void Calculation::dropNode(quint32 id)
     if (n.kind == KindText && n.text >= 0) freeTextSlot(n.text);
     m_arrays.remove(id);
     m_graph->clearPrecedents(id);
+    if (!m_positionalNodes.empty()) m_positionalNodes.erase(id);
     if (n.flags & ThreeD) {
         m_threeD.erase(id);
         m_threeDSpan.erase(id);
@@ -2440,7 +2557,10 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
         releaseFormula(sheet, found->formula);   // (the cell had a formula: nothing has it now)
     }
     Formula f;
-    f.text = internText(sheet, formula);
+    {
+        const Held held = heldText(sheet, formula, parsed.program.get());
+        f.text = internText(sheet, held.text, held.cls);
+    }
     c.flags = quint8((c.flags & ~(SharedFormula | DataTable | Tainted)) | HasFormula);
     c.formula = allocFormula(sheet, f);
     c.type = CellType::Empty;
@@ -2553,6 +2673,8 @@ bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c,
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // about the formulas
+
+qint64 Calculation::positionalFormulas() const { return qint64(m_positionalNodes.size()); }
 
 qint64 Calculation::keptCount() const
 {

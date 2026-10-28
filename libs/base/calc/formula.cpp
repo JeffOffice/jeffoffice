@@ -146,6 +146,9 @@ private:
         return int(prog.sheetNames.size()) - 1;
     }
 
+    // The most letters a column may have (XFD, or with wide limits CRXP).
+    int maxLetters() const { return opt.limits.cols > 18278 ? 4 : 3; }
+
     // $?LETTERS$?DIGITS at i, a cell of the grid, with no word going on from it. `end` is where it ends.
     bool cellAt(int i, int *end, quint32 *row, quint32 *col, bool *rowAbs, bool *colAbs) const
     {
@@ -157,11 +160,11 @@ private:
         }
         const int l0 = j;
         quint32 c = 0;
-        while (j < n && isAsciiLetter(s[j]) && j - l0 < 4) {
+        while (j < n && isAsciiLetter(s[j]) && j - l0 < 5) {
             c = c * 26 + quint32(s[j].toUpper().unicode() - 'A' + 1);
             ++j;
         }
-        if (j == l0 || j - l0 > 3 || c > kGridCols) return false;
+        if (j == l0 || j - l0 > maxLetters() || c > opt.limits.cols) return false;
         if (j < n && s[j] == QLatin1Char('$')) {
             ra = true;
             ++j;
@@ -172,7 +175,7 @@ private:
             r = r * 10 + quint32(s[j].unicode() - '0');
             ++j;
         }
-        if (j == d0 || r < 1 || r > kGridRows) return false;
+        if (j == d0 || r < 1 || r > opt.limits.rows) return false;
         if (j < n && (isIdent(s[j]) || s[j] == QLatin1Char('(') || s[j] == QLatin1Char('[') || s[j] == QLatin1Char('!') || s[j] == QLatin1Char('$'))) return false;
         *end = j;
         *row = r - 1;
@@ -193,11 +196,11 @@ private:
         }
         const int l0 = j;
         quint32 c = 0;
-        while (j < n && isAsciiLetter(s[j]) && j - l0 < 4) {
+        while (j < n && isAsciiLetter(s[j]) && j - l0 < 5) {
             c = c * 26 + quint32(s[j].toUpper().unicode() - 'A' + 1);
             ++j;
         }
-        if (j == l0 || j - l0 > 3 || c > kGridCols) return false;
+        if (j == l0 || j - l0 > maxLetters() || c > opt.limits.cols) return false;
         if (j < n && (isIdent(s[j]) || s[j] == QLatin1Char('(') || s[j] == QLatin1Char('[') || s[j] == QLatin1Char('!') || s[j] == QLatin1Char('$'))) return false;
         *end = j;
         *col = c - 1;
@@ -220,7 +223,7 @@ private:
             r = r * 10 + quint32(s[j].unicode() - '0');
             ++j;
         }
-        if (j == d0 || r < 1 || r > kGridRows) return false;
+        if (j == d0 || r < 1 || r > opt.limits.rows) return false;
         if (j < n && (isIdent(s[j]) || s[j] == QLatin1Char('(') || s[j] == QLatin1Char('['))) return false;
         *end = j;
         *row = r - 1;
@@ -269,13 +272,16 @@ private:
 
     static void fillArea(RefLit *ref, quint32 r1, quint32 c1, bool ra1, bool ca1, quint32 r2, quint32 c2, bool ra2, bool ca2)
     {
+        ref->written = 0;
         if (r1 > r2) {
             std::swap(r1, r2);
             std::swap(ra1, ra2);
+            ref->written |= 1;
         }
         if (c1 > c2) {
             std::swap(c1, c2);
             std::swap(ca1, ca2);
+            ref->written |= 2;
         }
         ref->row1 = r1;
         ref->col1 = c1;

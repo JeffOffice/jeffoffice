@@ -12,6 +12,7 @@
 #include "sheet/styles.h"
 
 #include <QHash>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -24,6 +25,8 @@
 #include <vector>
 
 namespace jp::office::sheet {
+
+class FrameSheets;
 
 enum class CellType : quint8 {
     Empty,           // the cell is there (it has a style, or a formula with no result stored) but holds no value
@@ -208,6 +211,8 @@ public:
     quint32 colIdAt(quint32 place) const { return colIdOf(place); }
     quint32 rowPlaceOf(quint32 id) const { return rowPosOf(id); }
     quint32 colPlaceOf(quint32 id) const { return colPosOf(id); }
+    // Whether no row and no column of the sheet has been inserted or deleted: every id is its place.
+    bool isPlain() const { return plain(); }
     // Whether anything can still name the id: its line is in the order, or was deleted and a step could bring it back. (A mark of the window on an id that is not is let go of before the id is given again.)
     bool rowIdKnown(quint32 id) const { return m_rows.isIdentity() ? id < m_rows.size() : (m_rows.core().posOf(id) != kNoLine || m_rows.core().holdsDead(id)); }
     bool colIdKnown(quint32 id) const { return m_cols.isIdentity() ? id < m_cols.size() : (m_cols.core().posOf(id) != kNoLine || m_cols.core().holdsDead(id)); }
@@ -1177,6 +1182,12 @@ struct Sheet {
     QVector<FontSpec> richFonts;         // the fonts the runs of `richTexts` name
     QVector<QString> formulaTexts;    // as written, and no "=" in front
     QVector<Formula> formulas;
+    // A workbook that holds its formulas in the id frame (sheet/formulaframe.h; CalcOptions::idFrame) gives each of its sheets the workbook it is in (`frame`) and its own place there: the texts name
+    // rows and columns by ids, which formulaText turns into places. Of the texts, `positionalTexts` are those held in places (a reference through several sheets, a name that could be read as a
+    // cell past XFD) and `wideTexts` those that have ids past the grid in them. Empty for every other sheet.
+    const FrameSheets *frame = nullptr;
+    int frameIndex = -1;
+    QSet<qint32> positionalTexts, wideTexts;
     QVector<CellRange> ranges;        // the cells of array formulas and data tables
     CellRange dimension;              // what the part says the used cells are (it may be wrong, or missing)
     qint64 mergeCount = 0;            // merged ranges

@@ -53,6 +53,10 @@ struct CalcOptions {
     qint64 maxGraphBytes = jp::calc::DependencyGraph::kDefaultBytes;   // what the graph may take; the formulas past it are not tracked and are worked out in every recalculation
     double now = 0;                   // 0: the clock is read at each recalculation; else the day number NOW and TODAY give
     qint64 workbookBytes = kMaxWorkbookBytes;
+    // Hold the formulas in the id frame (docs/jeffcrunch-rowids.md, 4.4; sheet/formulaframe.h): the texts name rows and columns by their ids, so that an edit of whole rows or columns writes no text again
+    // but those of the formulas that are not held so (and the ones that read a row or column that died). Off, a formula's text is in places and an edit writes the ones that move again. Round 5a ships it
+    // dark: tests, and the tools with JC_ID_FRAME=1, turn it on (see Calculation::setIdFrameDefault).
+    bool idFrame = false;
     // If set, called with the result the file stored for a formula and the one worked out; false marks the formula a mismatch, and every formula that reads one, directly or
     // through others, a cascade (isCascaded): the yardstick tells the formulas that are wrong of their own from those that follow a wrong one.
     std::function<bool(const jp::calc::Value &stored, const jp::calc::Value &ours)> verify;
@@ -460,6 +464,11 @@ public:
         qint64 nodesRemade = 0;          // formulas dropped from the graph and made again in it
         qint64 graphWork = 0;            // the graph's own count of the entries it built, moved, and looked at, during the edits
         qint64 namesRewritten = 0, rulesRewritten = 0;   // defined names, and lists of validations and conditional formats, written again
+        // With the id frame (CalcOptions::idFrame): the formulas an edit of whole rows or columns, or of cells, had to write again through their places, which an edit that moves them and what they read
+        // alike does not: they read a row or column that died, their text is in places (positionalFormulas), or the edit moves cells one by one. And the texts made by turning places into ids, and ids
+        // into places (a text typed, a text shown), counted so that a test can see that an edit of rows makes none for the formulas it leaves.
+        qint64 eagerFormulas = 0;
+        qint64 textsToIds = 0, textsToPlaces = 0;
         // The window thread's time in the phases of an edit of rows or columns, in microseconds (for the bench's report; never asserted): setup, candidates, text rewrite, cells, graph (what is told it or asked
         // of the worker), the other structures, and the formulas written again.
         qint64 phaseMicros[7] = {0, 0, 0, 0, 0, 0, 0};
@@ -476,6 +485,9 @@ public:
             d.graphWork = graphWork - o.graphWork;
             d.namesRewritten = namesRewritten - o.namesRewritten;
             d.rulesRewritten = rulesRewritten - o.rulesRewritten;
+            d.eagerFormulas = eagerFormulas - o.eagerFormulas;
+            d.textsToIds = textsToIds - o.textsToIds;
+            d.textsToPlaces = textsToPlaces - o.textsToPlaces;
             for (int i = 0; i < 7; ++i) d.phaseMicros[i] = phaseMicros[i] - o.phaseMicros[i];
             return d;
         }
@@ -484,6 +496,13 @@ public:
     // For tests: whether an edit of whole rows or columns asks the worker (the formulas whose text only moved keep their nodes and are worked out only if the edit could change them), or every formula
     // that was written again is made again and worked out, as an edit of cells does (the oracle the other is compared with).
     static void setGraphShifts(bool on);
+    // The switch of CalcOptions::idFrame for every calculation made after this call (a test, or a tool, turns it on for the workbooks it opens; the default is off).
+    static void setIdFrameDefault(bool on);
+    static bool idFrameDefault();
+    bool idFrame() const { return m_options.idFrame; }
+    // Formulas whose text is in places and not in ids, though the workbook holds its formulas in ids: a reference through several sheets, a name that could be read as a cell past XFD (each is rewritten
+    // by an edit as it was before ids). Counted over the formulas: for tests, and the bench.
+    qint64 positionalFormulas() const;
     // Formulas the engine cannot work out and keeps apart (they keep the result the file stored); it walks the formulas, so it is for the times it is needed (a save).
     qint64 keptCount() const;
     qint64 untrackedCount() const { return m_untracked; }      // formulas the graph was too full to hold
@@ -582,16 +601,38 @@ private:
     // Texts and formulas, shared and let go of (see SheetState): the place of a text (a new one, or the one an edit made before with the same characters; it counts one more formula
     // for it), a formula's place made with a text it keeps a hold of, a text that one formula less has, and a formula that is not any cell's now.
     void countTexts(int sheet);
-    qint32 internText(int sheet, const QString &text);
+    // How a text is held (idFrame): in ids (Plain, with the numbers of the grid; Wide, with ids past it) or in places (Positional).
+    enum class TextClass : quint8 { Plain, Wide, Positional };
+    struct Held {
+        QString text;
+        TextClass cls = TextClass::Plain;
+    };
+    // The text a person typed (places) as it is held: turned into ids when the workbook holds ids and the text can be. `program`, if the caller has parsed the text, is looked at for what makes it stay in places.
+    Held heldText(int sheet, const QString &typed, const jp::calc::Program *program = nullptr);
+    // The class of a text the workbook has read from a file (its numbers are those of the grid, which are ids too).
+    TextClass classOfLoaded(const QString &text) const;
+    qint32 internText(int sheet, const QString &text, TextClass cls = TextClass::Plain);
+    static QString internKey(const QString &text, TextClass cls);
+    TextClass textClass(const Sheet &s, qint32 text) const;
+    // Whether the formula's references are ids (the sheet is of a workbook that holds them so, and the text is not one that stays in places).
+    static bool inIds(const Sheet &s, qint32 text) { return s.frame && !s.positionalTexts.contains(text); }
+    jp::calc::ParseLimits limitsOf(const Sheet &s, qint32 text) const { return s.wideTexts.contains(text) ? jp::calc::ParseLimits::ids() : jp::calc::ParseLimits::grid(); }
     void holdText(int sheet, qint32 text);
     void forgetTextFacts(int sheet, qint32 text);
     void releaseText(int sheet, qint32 text);
     qint32 allocFormula(int sheet, const Formula &f);
     void releaseFormula(int sheet, qint32 formula);
     // The text of the formula of this cell is now `text` for the cell itself (in place: the formula keeps its place, and a shared formula's cell is its own text from now).
+    // (the text is as a person writes it, in places; the workbook turns it into what it holds)
     void retext(int sheet, Cell *cell, const QString &text);
     void classify(quint32 id, const Cell &cell, const Formula &f);
+    bool readsDeadLine(const Node &n, int sheet, bool rows, quint32 first, quint32 last) const;
+    std::unordered_set<quint32> m_positionalNodes;   // (with the id frame) the formulas whose text is held in places: an edit of whole lines writes them again as it did before ids
     void registerSheet(int sheet);
+    void frameSheet(int sheet);
+    // The ids of one sheet's rows (columns) were renumbered by `table` (a rebase): the texts in ids that name them are written again with the new ids, and a family of formulas that shared a text keeps it where
+    // its members are as far from each other in the new ids as they were (a run of the order), and is split where they are not. `onlySheet`: only the texts of that sheet (a copy made of a sheet).
+    void renumberTexts(int target, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table, int onlySheet = -1);
     void setSlotText(int sheet, qint32 slot, const QString &text);
     void readdNode(quint32 id);
     quint32 addNode(int sheet, quint32 row, quint32 col, const Cell &cell, qint32 formulaIndex);   // (the place of the cell)

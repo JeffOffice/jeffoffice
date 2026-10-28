@@ -272,7 +272,7 @@ std::vector<qint32> bindSheetNames(const Program &program, const CellSource &sou
     return bound;
 }
 
-void resolveReferences(const Program &p, const std::vector<qint32> &bound, int sheetCount, int sheet, int shiftRows, int shiftCols, std::vector<CellArea> *out)
+void resolveReferences(const Program &p, const std::vector<qint32> &bound, int sheetCount, int sheet, int shiftRows, int shiftCols, std::vector<CellArea> *out, const CellSource *places)
 {
     for (const RefLit &r : p.refs) {
         qint32 s1 = r.sheet1 >= 0 ? bound[size_t(r.sheet1)] : sheet;
@@ -283,6 +283,30 @@ void resolveReferences(const Program &p, const std::vector<qint32> &bound, int s
         qint64 r2 = (r.flags & kRefRow2Abs) ? qint64(r.row2) : qint64(r.row2) + shiftRows;
         qint64 c1 = (r.flags & kRefCol1Abs) ? qint64(r.col1) : qint64(r.col1) + shiftCols;
         qint64 c2 = (r.flags & kRefCol2Abs) ? qint64(r.col2) : qint64(r.col2) + shiftCols;
+        if (places) {
+            // (the same as Machine::resolveRef does for a formula in the id frame)
+            auto place = [&](bool rows, qint64 id, qint64 *at) {
+                if (id < 0 || id > qint64(0xFFFFFF)) return false;
+                const quint32 q = rows ? places->rowPlace(s1, quint32(id)) : places->colPlace(s1, quint32(id));
+                if (q == CellSource::kNoPlace) return false;
+                *at = qint64(q);
+                return true;
+            };
+            bool ok = true;
+            if (r.flags & kRefWholeCols) {
+                r1 = 0;
+                r2 = qint64(kGridRows) - 1;
+            } else {
+                ok = place(true, r1, &r1) && place(true, r2, &r2);
+            }
+            if (r.flags & kRefWholeRows) {
+                c1 = 0;
+                c2 = qint64(kGridCols) - 1;
+            } else {
+                ok = ok && place(false, c1, &c1) && place(false, c2, &c2);
+            }
+            if (!ok) continue;
+        }
         if (r1 > r2) std::swap(r1, r2);
         if (c1 > c2) std::swap(c1, c2);
         if (r1 < 0 || r2 >= qint64(kGridRows) || c1 < 0 || c2 >= qint64(kGridCols)) continue;
