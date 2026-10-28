@@ -1,6 +1,8 @@
 // Rows, columns, and cells inserted and deleted in a calculation: the cells move, and every formula that reads cells that moved is written again with its references following them.
 // See Calculation::applyEdit.
 #include "sheet/calculation.h"
+
+#include "calc/idframe.h"
 #include "sheet/tables.h"
 
 #include <QCoreApplication>
@@ -269,9 +271,13 @@ bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineM
     ++m_state[size_t(sheet)].epoch;
     m_state[size_t(sheet)].renumberEpoch = m_state[size_t(sheet)].epoch;
     const bool again = resultsInFlight();
-    for (auto it = m_stamps.begin(); it != m_stamps.end();)
-        if (int(it->first >> 40) == sheet) it = m_stamps.erase(it);
-        else ++it;
+    {
+        std::lock_guard<std::mutex> guard(m_stampLock);
+        for (auto it = m_stamps.begin(); it != m_stamps.end();)
+            if (int(it->first >> 40) == sheet) it = m_stamps.erase(it);
+            else ++it;
+        m_stampCount.store(m_stamps.size(), std::memory_order_relaxed);
+    }
     for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
         Node &n = m_nodes[id];
         if ((n.flags & Dead) || n.sheet != sheet) continue;
@@ -334,7 +340,9 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     if (!canApply(e, nullptr)) return false;
     if (e.kind == K::Move) return applyMove(e, rec);
     abandonNow();
-    ++m_state[size_t(e.sheet)].epoch;
+    const bool wholeLine = e.kind == K::InsertRows || e.kind == K::DeleteRows || e.kind == K::InsertColumns || e.kind == K::DeleteColumns;
+    // (an edit of cells makes the epoch one more; an edit of whole lines does if it is not rigid for some formula, which is known when it is made)
+    if (!wholeLine) ++m_state[size_t(e.sheet)].epoch;
     // (a record that is given with the lines of an edit that was undone is for that edit done again: its rows or columns come back as they were, and that needs no ids)
     CellStore::LineEdits again;
     bool redoing = false;
@@ -361,9 +369,10 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
 
     // ---- what reads the cells that move: the graph says (before anything moves), and the formulas the graph does not follow (those kept apart, those that read where they are told)
     const CellArea region = affectedArea(e);
-    std::vector<quint32> candidates;
+    std::vector<quint32> candidates, specials;
     readersOf(region, &candidates);
-    specialNodes(&candidates);
+    specialNodes(&specials);
+    candidates.insert(candidates.end(), specials.begin(), specials.end());
     std::sort(candidates.begin(), candidates.end());
     candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
     m_editWork += qint64(candidates.size()) + qint64(m_special.size());
@@ -489,6 +498,12 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     // ---- the cells move; the nodes of the formulas among them go with them
     std::vector<PlacedCell> removed;
     SheetState &st = m_state[size_t(e.sheet)];
+    // (for an edit of whole lines: the ids of the lines it put in, killed, and brought back, for what the worker is asked below)
+    struct LineChange {
+        bool rows = true;
+        std::vector<jp::calc::IdRun> inserted, killed, revived;
+    } lc;
+    const qint64 deadBefore = S.cells.deadCount();
     // (cells shifted one by one get new ids: a formula among them has its node told which cell it is in, the window's value for it is moved, and a value told for it before, if one is in flight, is
     // let go of and the formula worked out again then; nothing is worked out again for a formula that has no value on its way)
     const bool stamping = resultsInFlight();   // (the worker is held: what is in flight does not change while the cells move)
@@ -504,6 +519,11 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         if (id == kNone) return;
         m_nodes[id].rowId = after.cell.rowId;
         m_nodes[id].colId = after.cell.colId;
+        // (a formula that sees where cells are, for which the places it kept were of the ids it had: it is looked at again)
+        if (m_nodes[id].traits & Observes) {
+            const auto seen = m_seen.find(id);
+            if (seen != m_seen.end()) seen->second.always = true;
+        }
     };
     auto onMoved = [&](const PlacedCell &before, const PlacedCell &after) {
         ++rec->cellsMoved;
@@ -539,6 +559,23 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             return false;
         }
         for (const Cell &c : dead) removed.push_back(PlacedCell{0, 0, c});
+        // (what the order did: an insert puts its lines in and kills those it pushed off the end; a delete kills its lines; Undo of an insert kills the lines and brings the pushed ones back; Undo of
+        // a delete brings the lines back)
+        const CellStore::LineEdits &done = undoOf ? undoOf->lines : rec->lines;
+        lc.rows = rows;
+        if (!undoOf) {
+            if (inserts) {
+                lc.inserted = done.edit.runs;
+                lc.killed = done.edit.pushed;
+            } else {
+                lc.killed = done.edit.runs;
+            }
+        } else if (inserts) {
+            lc.revived = done.edit.runs;
+        } else {
+            lc.killed = done.edit.runs;
+            lc.revived = done.edit.pushed;
+        }
         break;
     }
     case K::InsertCellsDown:
@@ -574,11 +611,71 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         if (id != kNone) dropNode(id);
         releaseFormula(e.sheet, c.formula);   // (nothing has the formula of a cell that is gone; Undo makes it again from the record)
     }
+    // ---- what the worker is asked (4.6): of the formulas the edit leaves it to find, in ids, once. An edit that is rigid for every formula (what each reads and where it is, as far as it can see, are as
+    // they were) asks nothing and leaves the epoch as it is. Bringing lines back (Undo of a delete) is not asked but done as it was: every formula that was written again is made again and worked out.
+    const bool reviving = !lc.revived.empty();
+    const bool useQuestions = wholeLine && g_graphShifts.load(std::memory_order_relaxed) && !reviving;
+    if (wholeLine) {
+        bool nonRigid = true;
+        if (useQuestions) {
+            const jp::calc::LineMapCore &map = lc.rows ? S.cells.rows().core() : S.cells.cols().core();
+            const quint32 firstNew = map.limits().firstNew;
+            Question q;
+            q.sheet = e.sheet;
+            q.rows = lc.rows;
+            bool killedInserted = false;
+            for (const jp::calc::IdRun &r : lc.killed) {
+                if (r.first < firstNew) q.dead.push_back({r.first, std::min(r.count, firstNew - r.first)});
+                if (r.first + r.count > firstNew) killedInserted = true;
+            }
+            // set 1: the gap of lines put in, or of inserted lines that died (a block that holds the original lines either side holds it)
+            if (!lc.inserted.empty()) {
+                const jp::calc::IdGap g = jp::calc::idGap(map, e.first + count);
+                q.gapBefore = g.before;
+                q.gapAfter = g.after;
+            } else if (killedInserted) {
+                const jp::calc::IdGap g = jp::calc::idGap(map, e.first);
+                q.gapBefore = g.before;
+                q.gapAfter = g.after;
+            }
+            // set 3: inserted lines that held cells have ids no block holds: the readers of the original lines either side are asked
+            q.deadPair = killedInserted && S.cells.deadCount() > deadBefore;
+            // set 2
+            q.observers = !m_seen.empty() && anObserverSawAnotherPlace();
+            const bool ask = questionHasAnAnswer(q);
+            nonRigid = ask || !specials.empty();
+            if (nonRigid) ++m_state[size_t(e.sheet)].epoch;
+            q.epoch = m_state[size_t(e.sheet)].epoch;
+            if (ask) {
+                m_questions.push_back(q);
+                if (!m_running) beginRecalculation();
+            }
+        } else {
+            // (everything is done as for an edit of cells: the epoch grows, and what was written again is made again and worked out; the formulas that see where cells are are looked at too)
+            ++m_state[size_t(e.sheet)].epoch;
+            if (!m_seen.empty() && anObserverSawAnotherPlace()) {
+                Question q;
+                q.sheet = e.sheet;
+                q.rows = lc.rows;
+                q.observers = true;
+                q.epoch = m_state[size_t(e.sheet)].epoch;
+                m_questions.push_back(q);
+                if (!m_running) beginRecalculation();
+            }
+        }
+    }
+    // (an edit of cells moves cells one by one: the formulas that see where cells are are looked at too)
+    if (!wholeLine && !m_seen.empty() && anObserverSawAnotherPlace()) {
+        Question q;
+        q.sheet = e.sheet;
+        q.observers = true;
+        q.epoch = m_state[size_t(e.sheet)].epoch;
+        m_questions.push_back(q);
+        if (!m_running) beginRecalculation();
+    }
     // Rows or columns inserted or deleted: the graph holds the ids of the lines, which an edit does not change, so what every formula reads is where its cells are with nothing told to the graph; a
     // formula whose text is only moved with what it reads need not be made again (it is worked out again, as every formula that was written again is). A formula that reads a block of several
     // sheets is not rewritten for a change of one of them, and has the ids of each sheet's lines: it is made again, and tells the graph what it reads.
-    const bool wholeLine = e.kind == K::InsertRows || e.kind == K::DeleteRows || e.kind == K::InsertColumns || e.kind == K::DeleteColumns;
-    const bool shiftedGraph = g_graphShifts.load(std::memory_order_relaxed) && wholeLine;
     if (wholeLine) {
         const std::vector<quint32> again(m_threeD.begin(), m_threeD.end());   // (a copy: each is dropped and made again, which changes the set)
         for (const quint32 id : again) {
@@ -738,16 +835,11 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             ++rec->formulasRewritten;
             rec->rewritten.push_back({sheet, rowOf(n0), colOf(n0), n0.rowId, n0.colId, bool(c->flags & DataTable)});
         }
-        // A formula whose text only moved with what it reads (the graph has what it reads already) is worked out again in its place: its node stays, with its place in the graph. One that
-        // reads where it is told, is kept apart, is an array, reads several sheets, or has a reference that is gone is made again.
-        if (shiftedGraph && (r.group >= 0 || !r.now.isEmpty()) && !told && !(n0.flags & (Kept | Array | ThreeD)) && !(c->flags & (ArrayFormula | DataTable))
+        // A formula whose text only moved with what it reads (the graph holds the ids of the lines it reads, which are the same) keeps its node and its entries; the worker is asked about it if the edit
+        // could change its value (a gap in a block it reads, a place it saw, a line it read that died), and it is not worked out again for being written again. One that reads where it is told, is kept
+        // apart, is an array, reads several sheets, or has a reference that is gone is made again.
+        if (useQuestions && (r.group >= 0 || !r.now.isEmpty()) && !told && !(n0.flags & (Kept | Array | ThreeD)) && !(c->flags & (ArrayFormula | DataTable))
             && (r.group >= 0 ? !groups[size_t(r.group)].hasGone : !(r.now.contains(QLatin1String("#REF!")) && !r.was.contains(QLatin1String("#REF!"))))) {
-            if (n0.state == Done) {
-                n0.state = Dirty;
-                ++m_notDone;
-                m_dirty.push_back(r.id);
-            }
-            queueDependents(areaOf(n0));
             continue;
         }
         const bool wasKeptForItsFunction = (n0.flags & Kept) && n0.kept == 'U';
@@ -766,8 +858,8 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             }
         }
     }
-    // what reads cells that moved in or out of a range it reads (a text that is as it was, a whole column, or a block shifted inside a range) has its value again
-    queueDependents(region);
+    // what reads cells that moved in or out of a range it reads (a text that is as it was, a whole column, or a block shifted inside a range) has its value again (an edit of whole lines asked the worker)
+    if (!useQuestions) queueDependents(region);
     m_editStats.formulasRewritten += rec->formulasRewritten;
     m_editStats.namesRewritten += qint64(rec->names.size());
     m_editStats.rulesRewritten += qint64(rec->validations.size() + rec->conditionalFormats.size());

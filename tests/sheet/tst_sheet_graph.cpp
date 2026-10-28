@@ -696,6 +696,169 @@ private Q_SLOTS:
         QVERIFY(holding.empty());
     }
 
+    // The traits that say what an edit of whole lines can change in a formula: whether a call can notice an empty row or column put inside a block it reads (blank-insensitive: every block goes
+    // to a function on the allowlist, and nowhere else; the default is sensitive), and whether a call can see where cells are, at any depth.
+    void theTraitsSayWhichFormulasNoticeAnEmptyLineAndWhichSeeWhereCellsAre()
+    {
+        ParseOptions options;
+        auto insensitive = [&](const char *text) {
+            const ParseResult p = parseFormula(QString::fromLatin1(text), options);
+            Q_ASSERT(p.ok());
+            return traitsOf(*p.program).blankInsensitive;
+        };
+        auto sees = [&](const char *text) {
+            const ParseResult p = parseFormula(QString::fromLatin1(text), options);
+            Q_ASSERT(p.ok());
+            return traitsOf(*p.program).observesPosition;
+        };
+        for (const char *text : {"SUM(A1:E1)", "SUM(A1:A5,C1:C5)+MAX(B1:B3)*2", "IF(A1>0,SUM(B1:B10),0)", "IFERROR(SUM(A1:A5),0)", "IFNA(AVERAGE(A1:A5),MIN(B1:B2))", "CHOOSE(2,SUM(A1:A3),MAX(B1:B3))",
+                                 "SUM(IF(A1>0,A1:A5,B1:B5))", "LARGE(A1:A9,2)", "SUBTOTAL(9,A1:A5)", "SUM(A1:A5)/COUNT(A1:A5)", "A1+1", "5", "SUM(A:A)", "SUM(1:1)", "COUNTA(A1:A5)&\"x\"",
+                                 "IF(SUM(A1:A5)>1,IF(A1>0,MAX(B1:B5),MIN(B1:B5)),SUM(C1:C5))", "SUM(Sheet2!A1:A5)"})
+            QVERIFY2(insensitive(text), text);
+        // sensitive: a function that counts or places, a block under an operator or as the answer, a block given where it is taken by its place, a name, a table, a function nobody classified
+        for (const char *text : {"COUNTBLANK(A1:A5)", "ROWS(A1:A5)", "COLUMNS(A1:E1)", "INDEX(A1:A5,2)", "MATCH(3,A1:A5,0)", "VLOOKUP(2,A1:B5,2,FALSE)", "SUMPRODUCT(A1:A5,B1:B5)", "SUMIF(A1:A5,\">0\")",
+                                 "SUMIFS(B1:B3,A1:A3,\">0\")", "COUNTIF(A1:A5,\"\")", "SUM(A1:A5*2)", "SUM(A1:A5)+A1:A5", "IF(A1>0,A1:A5,0)", "SUM(A1:A5)&COUNTBLANK(B1:B5)", "Total", "SUM(Total)",
+                                 "SUM(A1:INDEX(C:C,3))", "LARGE(A1:A9,B1:B3)", "OFFSET(A1,1,1)", "SUM(A1:A5,(C1:C5,D1:D5))", "SUM(IF(A1>0,A1:A5,B1:B5))*COUNTBLANK(A1:A3)", "SUM(-A1:A5)",
+                                 "CHOOSE(2,SUM(A1:A3),COUNTBLANK(B1:B3))", "IFERROR(COUNTBLANK(A1:A5),0)", "UNKNOWNFUNCTION(A1:A5)", "SUM(TRANSPOSE(A1:A5))"})
+            QVERIFY2(!insensitive(text), text);
+        for (const char *text : {"ROW(B5)", "COLUMN()", "SUMPRODUCT(ROW(A1:A10))", "IF(A1>0,ADDRESS(1,1),0)", "CELL(\"row\",A1)", "OFFSET(A1,1,1)", "INDIRECT(\"A1\")", "SUM(IF(A1>0,COLUMN(B2:D2),0))", "ROW()"})
+            QVERIFY2(sees(text), text);
+        for (const char *text : {"A1+1", "SUM(A1:A5)", "ROWS(A1:A5)", "INDEX(A1:A5,2)", "COUNTBLANK(A1:A5)", "MATCH(3,A1:A5,0)", "5"})
+            QVERIFY2(!sees(text), text);
+        // a name stands for what it stands for: one that has ROW() in it is seen through, and a formula that uses a name is never blank-insensitive
+        Grid g;
+        g.name("MyRow", "ROW(Sheet1!$A$5)");
+        g.name("Plain", "Sheet1!$A$1:$A$5");
+        const ParseResult p = parseFormula(QStringLiteral("MyRow+1"), options);
+        QVERIFY(p.ok());
+        const ProgramTraits t = traitsFollowingNames(*p.program, bindSheetNames(*p.program, g), 0, g);
+        QVERIFY(t.observesPosition);
+        QVERIFY(!t.blankInsensitive);
+        const ParseResult q = parseFormula(QStringLiteral("SUM(Plain)"), options);
+        const ProgramTraits u = traitsFollowingNames(*q.program, bindSheetNames(*q.program, g), 0, g);
+        QVERIFY(!u.observesPosition && !u.blankInsensitive);
+    }
+
+    // The allowlist is the functions that skip the empty cells they are given and do not count where they are: each is shown to give the same value for a block with an empty row or column put
+    // inside it, over random cells (numbers, empty cells, text, logical values); and the same test shows COUNTBLANK and ROWS (not on the list) can tell.
+    void theFunctionsOnTheBlankInsensitiveListSkipAnEmptyLinePutInsideTheirBlocks()
+    {
+        QStringList listed;
+        for (int i = 0; i < functionCount(); ++i)
+            if (blankInsensitiveFunction(functionAt(i).name)) listed << QString::fromLatin1(functionAt(i).name);
+        listed.sort();
+        QCOMPARE(listed, (QStringList{"AVERAGE", "AVERAGEA", "COUNT", "COUNTA", "LARGE", "MAX", "MAXA", "MEDIAN", "MIN", "MINA", "PRODUCT", "SMALL", "STDEV", "STDEV.P", "STDEV.S", "STDEVP", "SUBTOTAL", "SUM",
+                                      "SUMSQ", "VAR", "VAR.P", "VAR.S", "VARP"}));
+        QRandomGenerator rng(20261028);
+        auto fill = [&](Grid &g, const QStringList &cells, const std::vector<int> &kinds, const std::vector<double> &numbers) {
+            for (size_t i = 0; i < cells.size(); ++i) {
+                switch (kinds[i]) {
+                case 0:
+                case 1:
+                case 2: g.n(cells[int(i)], numbers[i]); break;
+                case 3: g.s(cells[int(i)], QStringLiteral("x")); break;
+                case 4: g.b(cells[int(i)], numbers[i] > 25); break;
+                default: break;   // (empty)
+                }
+            }
+        };
+        auto cellName = [](bool down, int line, int offset) { return down ? QStringLiteral("%1%2").arg(QChar(char('A' + offset))).arg(line + 1) : QStringLiteral("%1%2").arg(QChar(char('A' + line))).arg(offset + 1); };
+        int compared = 0, countBlankDiffers = 0, rowsDiffers = 0;
+        for (int trial = 0; trial < 300; ++trial) {
+            const bool down = rng.bounded(2) == 0;
+            const int n = 6, at = 1 + int(rng.bounded(n - 1));   // (the empty line goes between line at - 1 and line at)
+            std::vector<int> kinds;
+            std::vector<double> numbers;
+            for (int k = 0; k < 2 * n; ++k) {
+                kinds.push_back(int(rng.bounded(6)));
+                numbers.push_back(double(1 + rng.bounded(50)));
+            }
+            QStringList before, after, beforeOther, afterOther;
+            for (int line = 0; line < n; ++line) {
+                before << cellName(down, line, 0);
+                beforeOther << cellName(down, line, 1);
+                after << cellName(down, line < at ? line : line + 1, 0);
+                afterOther << cellName(down, line < at ? line : line + 1, 1);
+            }
+            Grid g1, g2;
+            std::vector<int> kinds1(kinds.begin(), kinds.begin() + n), kinds2(kinds.begin() + n, kinds.end());
+            std::vector<double> numbers1(numbers.begin(), numbers.begin() + n), numbers2(numbers.begin() + n, numbers.end());
+            fill(g1, before, kinds1, numbers1);
+            fill(g1, beforeOther, kinds2, numbers2);
+            fill(g2, after, kinds1, numbers1);
+            fill(g2, afterOther, kinds2, numbers2);
+            const QString block1 = down ? QStringLiteral("A1:A%1").arg(n) : QStringLiteral("A1:%1").arg(cellName(false, n - 1, 0)), block2 = down ? QStringLiteral("A1:A%1").arg(n + 1) : QStringLiteral("A1:%1").arg(cellName(false, n, 0));
+            const QString other1 = down ? QStringLiteral("B1:B%1").arg(n) : QStringLiteral("A2:%1").arg(cellName(false, n - 1, 1)), other2 = down ? QStringLiteral("B1:B%1").arg(n + 1) : QStringLiteral("A2:%1").arg(cellName(false, n, 1));
+            QStringList calls1, calls2;
+            for (const QString &name : listed) {
+                if (name == QLatin1String("SUBTOTAL")) {
+                    for (const int k : {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111}) {
+                        calls1 << QStringLiteral("SUBTOTAL(%1,%2)").arg(k).arg(block1);
+                        calls2 << QStringLiteral("SUBTOTAL(%1,%2)").arg(k).arg(block2);
+                    }
+                } else if (name == QLatin1String("LARGE") || name == QLatin1String("SMALL")) {
+                    calls1 << QStringLiteral("%1(%2,2)").arg(name, block1);
+                    calls2 << QStringLiteral("%1(%2,2)").arg(name, block2);
+                } else {
+                    calls1 << QStringLiteral("%1(%2)").arg(name, block1) << QStringLiteral("%1(%2,%3)").arg(name, block1, other1);
+                    calls2 << QStringLiteral("%1(%2)").arg(name, block2) << QStringLiteral("%1(%2,%3)").arg(name, block2, other2);
+                }
+            }
+            for (int i = 0; i < calls1.size(); ++i) {
+                QCOMPARE(ev(calls2[i], g2), ev(calls1[i], g1));
+                ++compared;
+            }
+            if (ev(QStringLiteral("COUNTBLANK(%1)").arg(block2), g2) != ev(QStringLiteral("COUNTBLANK(%1)").arg(block1), g1)) ++countBlankDiffers;
+            if (ev(QStringLiteral("%1(%2)").arg(down ? "ROWS" : "COLUMNS", block2), g2) != ev(QStringLiteral("%1(%2)").arg(down ? "ROWS" : "COLUMNS", block1), g1)) ++rowsDiffers;
+        }
+        QVERIFY(compared > 15000);
+        QCOMPARE(countBlankDiffers, 300);   // (a function that is not on the list can tell)
+        QCOMPARE(rowsDiffers, 300);
+    }
+
+    // A formula can be marked as it is told, and a query can leave the marked out: asking for the others answers what the others are, whether one in ten or all but one is marked, and a formula
+    // that is told again with another mark has it from then on.
+    void aQueryCanLeaveOutMarkedFormulas()
+    {
+        DependencyGraph graph;
+        std::set<quint32> others;
+        for (quint32 n = 0; n < 1000; ++n) {
+            QVERIFY(graph.setPrecedents(n, {blockArea(0, 0, 2, 100, 5)}, n % 10 != 0));
+            if (n % 10 == 0) others.insert(n);
+        }
+        std::vector<quint32> got;
+        QVERIFY(graph.dependentsOfArea(blockArea(0, 3, 4, 4, 6), &got, nullptr, true));
+        QCOMPARE(asSet(got), others);
+        got.clear();
+        QVERIFY(graph.dependentsOfCell(0, 50, 5, &got, nullptr, true));
+        QCOMPARE(asSet(got), others);
+        got.clear();
+        QVERIFY(graph.dependentsHoldingRows(0, 10, 20, &got, nullptr, true));
+        QCOMPARE(asSet(got), others);
+        got.clear();
+        QVERIFY(graph.dependentsOfCell(0, 50, 5, &got));
+        QCOMPARE(got.size(), size_t(1000));   // (the marked are found when the query does not leave them out)
+        std::set<quint32> seen;
+        QVERIFY(graph.forEachDependent(blockArea(0, 3, 4, 4, 6), [&](quint32 n) { return seen.insert(n).second; }, true));
+        QCOMPARE(seen, others);
+        // told again with another mark (the areas are the same: it is not taken for what it told before)
+        QVERIFY(graph.setPrecedents(0, {blockArea(0, 0, 2, 100, 5)}, true));
+        QVERIFY(graph.setPrecedents(1, {blockArea(0, 0, 2, 100, 5)}, false));
+        others.erase(0);
+        others.insert(1);
+        got.clear();
+        QVERIFY(graph.dependentsOfCell(0, 50, 5, &got, nullptr, true));
+        QCOMPARE(asSet(got), others);
+        // dropped formulas are in neither
+        graph.clearPrecedents(1);
+        graph.clearPrecedents(10);
+        others.erase(1);
+        others.erase(10);
+        got.clear();
+        QVERIFY(graph.dependentsOfCell(0, 50, 5, &got, nullptr, true));
+        QCOMPARE(asSet(got), others);
+    }
+
     // The column tree has a leaf for each of the 65,536 column ids: a block of the columns that inserted columns were given is found, and a whole row is one node.
     void theColumnTreeHoldsTheIdsOfInsertedColumns()
     {

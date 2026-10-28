@@ -1211,7 +1211,8 @@ int structBench(const QString &path, const QString &label, const QString &only)
     // (counted work, besides the times: what the model, the session, and the window each did; the columns after used_cols are for the edit, and then for its Undo)
     out() << "label\tcase\tdo_cpu_ms\tdo_wall_ms\tworker_cpu_ms\tsettle_ms\twork_counted\ttexts_made\tundo_cpu_ms\tundo_wall_ms\tundo_work\tused_rows\tused_cols"
           << "\tcells_moved\tcells_gone\tformulas_visited\tformulas_rewritten\tnodes_remade\tgraph_work\tnames_rewritten\trules_rewritten\tmarks_followed\tvalues_moved\tview_cells\tundo_bytes\tgraph_entries"
-          << "\tu_cells_moved\tu_formulas_visited\tu_formulas_rewritten\tu_nodes_remade\tu_graph_work\tu_marks_followed\tu_values_moved\tu_view_cells\n";
+          << "\tu_cells_moved\tu_formulas_visited\tu_formulas_rewritten\tu_nodes_remade\tu_graph_work\tu_marks_followed\tu_values_moved\tu_view_cells"
+          << "\tevals\tsettle_after_ms\tu_evals\tgraph_bytes\n";
     auto settle = [&](QElapsedTimer &wall) {
         QElapsedTimer waiting;
         waiting.start();
@@ -1221,6 +1222,7 @@ int structBench(const QString &path, const QString &label, const QString &only)
     for (const Case &c : cases) {
         if (!only.isEmpty() && !c.name.contains(only)) continue;
         w.undoStack()->clear();   // (so that the bytes the stack holds after the edit are the edit's alone)
+        const qint64 evalsBefore = calc->evaluations();
         const qint64 workerBefore = w.workerCpuMicros();
         const qint64 marksBefore = session->marksFollowed(), movedBefore = w.values().relocated(), viewBefore = grid::GridSheet::viewCellsRebuiltForTest(), undoBytesBefore = session->undoBytes();
         statsDelta = Calculation::EditStats();
@@ -1235,16 +1237,18 @@ int structBench(const QString &path, const QString &label, const QString &only)
         const qint64 undoBytes = session->undoBytes() - undoBytesBefore, graphEntries = calc->graph().entryCount();
         const double wallMs = double(wall.nsecsElapsed()) / 1e6;
         const double settleMs = o.ok ? settle(wall) : 0.0;
+        const qint64 evals = calc->evaluations() - evalsBefore;   // (the formulas the worker worked out for the edit)
         const double workerMs = double(w.workerCpuMicros() - workerBefore) / 1000.0;
         const qint64 work = workDelta, texts = textsDelta;
         double undoCpu = 0, undoWall = 0;
-        qint64 undoWork = 0, uMarks = 0, uMoved = 0, uView = 0;
+        qint64 undoWork = 0, uMarks = 0, uMoved = 0, uView = 0, uEvals = 0;
         Calculation::EditStats undid;
         if (o.ok) {
             QElapsedTimer uw;
             uw.start();
             const qint64 uMarksBefore = session->marksFollowed(), uMovedBefore = w.values().relocated(), uViewBefore = grid::GridSheet::viewCellsRebuiltForTest();
             statsDelta = Calculation::EditStats();
+            const qint64 uEvalsBefore = calc->evaluations();
             const qint64 u0 = jp::threadCpuMicros();
             w.undoStack()->undo();
             v->viewport()->repaint();
@@ -1256,12 +1260,14 @@ int structBench(const QString &path, const QString &label, const QString &only)
             uMoved = w.values().relocated() - uMovedBefore;
             uView = grid::GridSheet::viewCellsRebuiltForTest() - uViewBefore;
             settle(uw);
+            uEvals = calc->evaluations() - uEvalsBefore;
         }
         out() << label << '\t' << c.name << (o.ok ? QString() : QStringLiteral(" (refused: %1)").arg(o.problem)) << '\t' << QString::number(double(c1 - c0) / 1000.0, 'f', 2) << '\t' << QString::number(wallMs, 'f', 2) << '\t'
               << QString::number(workerMs, 'f', 1) << '\t' << QString::number(settleMs, 'f', 1) << '\t' << work << '\t' << texts << '\t' << QString::number(undoCpu, 'f', 2) << '\t' << QString::number(undoWall, 'f', 2)
               << '\t' << undoWork << '\t' << rows << '\t' << cols << '\t' << did.cellsMoved << '\t' << did.cellsGone << '\t' << did.formulasVisited << '\t' << did.formulasRewritten << '\t' << did.nodesRemade
               << '\t' << did.graphWork << '\t' << did.namesRewritten << '\t' << did.rulesRewritten << '\t' << marks << '\t' << moved << '\t' << viewCells << '\t' << undoBytes << '\t' << graphEntries << '\t'
-              << undid.cellsMoved << '\t' << undid.formulasVisited << '\t' << undid.formulasRewritten << '\t' << undid.nodesRemade << '\t' << undid.graphWork << '\t' << uMarks << '\t' << uMoved << '\t' << uView << '\n';
+              << undid.cellsMoved << '\t' << undid.formulasVisited << '\t' << undid.formulasRewritten << '\t' << undid.nodesRemade << '\t' << undid.graphWork << '\t' << uMarks << '\t' << uMoved << '\t' << uView
+              << '\t' << evals << '\t' << QString::number(settleMs - wallMs, 'f', 1) << '\t' << uEvals << '\t' << calc->graph().memoryBytes() << '\n';
         out().flush();
     }
     out() << "# after the edits: resident " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB\n";

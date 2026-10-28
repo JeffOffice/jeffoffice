@@ -36,20 +36,22 @@ public:
 
     // Says what `node` reads: each area is a cell, or a block of one sheet or of several (a 3-D reference); whatever the node was told before is dropped. False, with the
     // node told nothing, if the graph would take more bytes than it may.
-    bool setPrecedents(Node node, const std::vector<CellArea> &areas);
+    // `marked`: the caller marks the formula (the calculation marks those that cannot notice an empty row or column put inside a block they read), and a query can leave the marked out, at the cost
+    // of looking at their entries and not at the formulas: asking for the others costs what they are, however many are marked.
+    bool setPrecedents(Node node, const std::vector<CellArea> &areas, bool marked = false);
     // The node reads nothing now.
     void clearPrecedents(Node node);
     // The formulas that read the cell, or a cell of the block (one sheet), added to `out`: one may come more than once if it reads the cell in more than one way.
     // With `stop`, the flag is looked at as the answer is made (every few thousand formulas found: a cell that two hundred thousand formulas read is one query of that many): if it is set the query
     // ends there, false is returned, and `out` holds some of the answer. True when all of it was found.
-    bool dependentsOfCell(qint32 sheet, quint32 row, quint32 col, std::vector<Node> *out, const std::atomic<bool> *stop = nullptr) const;
-    bool dependentsOfArea(const CellArea &area, std::vector<Node> *out, const std::atomic<bool> *stop = nullptr) const;
+    bool dependentsOfCell(qint32 sheet, quint32 row, quint32 col, std::vector<Node> *out, const std::atomic<bool> *stop = nullptr, bool skipMarked = false) const;
+    bool dependentsOfArea(const CellArea &area, std::vector<Node> *out, const std::atomic<bool> *stop = nullptr, bool skipMarked = false) const;
     // The same, one formula at a time to `visit`, which says false to end the search (false is returned then): to ask whether there is any without finding all.
-    bool forEachDependent(const CellArea &area, const std::function<bool(Node)> &visit) const;
+    bool forEachDependent(const CellArea &area, const std::function<bool(Node)> &visit, bool skipMarked = false) const;
     // The formulas that read a block of rows of `sheet` (any columns) that holds both of two rows: begins at or before `before` and ends at or after `after`. A gap between two rows (rows
     // inserted there) is inside the blocks this gives, and not inside the others, whichever columns they are in. Nothing for `before` at or past `after`.
-    bool dependentsHoldingRows(qint32 sheet, quint32 before, quint32 after, std::vector<Node> *out, const std::atomic<bool> *stop = nullptr) const;
-    bool forEachHoldingRows(qint32 sheet, quint32 before, quint32 after, const std::function<bool(Node)> &visit) const;
+    bool dependentsHoldingRows(qint32 sheet, quint32 before, quint32 after, std::vector<Node> *out, const std::atomic<bool> *stop = nullptr, bool skipMarked = false) const;
+    bool forEachHoldingRows(qint32 sheet, quint32 before, quint32 after, const std::function<bool(Node)> &visit, bool skipMarked = false) const;
 
     // What the graph holds: the entries the formulas' latest reads take (a block is one for each node of the tree it is put in), and the bytes it takes.
     qint64 entryCount() const;
