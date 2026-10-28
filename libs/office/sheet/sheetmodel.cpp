@@ -1,5 +1,8 @@
 #include "sheet/sheetmodel.h"
 
+#include "sheet/formulaframe.h"
+#include "sheet/refshift.h"
+
 #include <algorithm>
 
 namespace jp::office::sheet {
@@ -461,6 +464,13 @@ QString Sheet::formulaText(const Cell &cell) const
     const Formula &f = formulas[cell.formula];
     if (f.text < 0 || f.text >= formulaTexts.size()) return {};
     const QString &text = formulaTexts[f.text];
+    if (frame && !positionalTexts.contains(f.text)) {
+        // (held in ids: the text for the cell, then the places the ids are at now)
+        const bool wide = wideTexts.contains(f.text);
+        const jp::calc::ParseLimits limits = wide ? jp::calc::ParseLimits::ids() : jp::calc::ParseLimits::grid();
+        const QString own = f.dRow == 0 && f.dCol == 0 ? text : wide ? offsetFormula(text, f.dRow, f.dCol, nullptr, limits) : shiftFormula(text, f.dRow, f.dCol);
+        return frame->allPlain() ? own : idsToPlaces(*frame, frameIndex, own, limits);
+    }
     return f.dRow == 0 && f.dCol == 0 ? text : shiftFormula(text, f.dRow, f.dCol);
 }
 

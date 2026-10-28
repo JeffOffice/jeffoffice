@@ -55,7 +55,8 @@ void Calculation::renameName(int scope, const QString &oldName, const QString &n
             const QString text = s.formulaTexts[slot];
             if (text.isEmpty() || !text.contains(oldName, Qt::CaseInsensitive)) continue;
             bool changed = false;
-            const QString now = renameNameInFormula(text, oldName, newName, applies, &changed);
+            // (a text with ids past the grid in it has words that are cells there and no names: a name that could be read as a cell is never held in ids)
+            const QString now = renameNameInFormula(text, oldName, newName, applies, &changed, s.wideTexts.contains(slot));
             if (!changed) continue;
             record->texts.push_back({si, slot, text});
             setSlotText(si, slot, now);

@@ -48,6 +48,8 @@ std::vector<qint32> bindSheetNames(const Program &program, const CellSource &sou
 
 // The blocks the program's references name, for the cell (sheet, row, col) that is shiftRows and shiftCols from the cell the text was written for. A reference to a sheet
 // that is not there, or off the edge of the grid, names nothing. A 3-D reference is one block of several sheets. The blocks are added to `out`.
-void resolveReferences(const Program &program, const std::vector<qint32> &boundSheets, int sheetCount, int sheet, int shiftRows, int shiftCols, std::vector<CellArea> *out);
+// `places`, for a formula held in the id frame (EvalContext::idFrame): its references are ids, and shiftRows and shiftCols are distances in ids; the blocks are of the places the ids have now (a
+// whole row or column is every place, and a reference to a row or column that was deleted names nothing).
+void resolveReferences(const Program &program, const std::vector<qint32> &boundSheets, int sheetCount, int sheet, int shiftRows, int shiftCols, std::vector<CellArea> *out, const CellSource *places = nullptr);
 
 } // namespace jp::calc

@@ -10,6 +10,7 @@
 // stopped.
 
 #include "calc/eval.h"
+#include "sheet/formulaframe.h"
 #include "sheet/sheetreader.h"
 
 #include <QMap>
@@ -29,7 +30,7 @@ namespace jp::office::sheet {
 constexpr qint64 kMaxWorkbookBytes = 2000000000;
 
 // The cells of a whole workbook, read into memory, as the formula engine asks for them.
-class WorkbookSource : public jp::calc::CellSource {
+class WorkbookSource : public jp::calc::CellSource, public FrameSheets {
 public:
     explicit WorkbookSource(const Workbook &book, qint64 maxBytes = kMaxWorkbookBytes);
     // Reads every sheet. False if one could not be read whole (what was read stays, and notWhole() says which).
@@ -46,6 +47,13 @@ public:
     QString definedName(int sheet, const QString &name) const override;
     bool isSubtotal(int sheet, quint32 row, quint32 col) const override;
     int rowHiddenKind(int sheet, quint32 row) const override;
+    // The places of rows and columns held by id (see CellSource::rowPlace) are the order of the sheet's lines.
+    quint32 rowPlace(int sheet, quint32 rowId) const override;
+    quint32 colPlace(int sheet, quint32 colId) const override;
+    // What the conversions of formula texts between places and ids ask of the workbook (sheet/formulaframe.h).
+    int frameSheetCount() const override { return int(m_sheets.size()); }
+    int frameSheetIndex(const QString &name) const override { return sheetIndex(name); }
+    const CellStore &frameCells(int sheet) const override { return m_sheets[size_t(sheet)].cells; }
     // The rows hidden on the sheet changed (hidden, shown, filtered): they are looked up again.
     void hiddenRowsChanged(int sheet) const;
     jp::calc::StructuredAnswer structuredRef(const QString &text, int sheet, quint32 row, quint32 col, jp::calc::CellArea *area, jp::calc::ErrorKind *error) const override;

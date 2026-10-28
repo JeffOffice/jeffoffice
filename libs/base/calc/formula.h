@@ -13,6 +13,7 @@
 // Everything a file controls is bounded: the text's length, how deep parentheses, calls, and arrays nest, the arguments of a call, and the cells of an array constant.
 // A formula past a bound is not parsed.
 
+#include "calc/parselimits.h"
 #include "calc/value.h"
 
 #include <QString>
@@ -23,10 +24,6 @@
 #include <vector>
 
 namespace jp::calc {
-
-// The grid's size: 16,384 columns (A to XFD) and 1,048,576 rows.
-constexpr quint32 kGridCols = 16384;
-constexpr quint32 kGridRows = 1048576;
 
 // Characters of a formula (the format allows 8,192; 943 found), depth of nesting (the format allows 64), arguments of a call (255), cells of an array constant, instructions of a program.
 constexpr int kMaxFormulaChars = 32768;
@@ -78,6 +75,7 @@ struct RefLit {
     qint32 sheet1 = -1, sheet2 = -1;   // places in Program::sheetNames of the sheet it names, and of the last sheet of a 3-D reference; -1: the formula's own sheet, and none
     quint32 row1 = 0, col1 = 0, row2 = 0, col2 = 0;   // 0-based; row2 and col2 equal row1 and col1 for one cell
     quint8 flags = 0;
+    quint8 written = 0;   // bits that say the corners were written back to front (1: rows, 2: columns) and put in order: the text can be given as it was written (see sheet/formulaframe.h)
 };
 
 struct Program {
@@ -112,6 +110,7 @@ struct ParseOptions {
     bool definedName = false;   // the text of a defined name: a union ("A1,B2") may stand at the top level
     quint32 row = 0, col = 0;   // the cell the text is written for (r1c1: what "R[1]C[1]" is relative to)
     int maxArgs = kMaxFormulaArgs;   // the most arguments a call may have (a formula that is typed: 255, the most a file may have)
+    ParseLimits limits;              // how far the rows and columns of its references reach (A1 form only)
 };
 
 struct ParseResult {

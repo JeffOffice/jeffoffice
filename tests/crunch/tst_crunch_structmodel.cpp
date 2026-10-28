@@ -9,6 +9,7 @@
 #include "structmodel.h"
 
 #include <QFile>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -62,6 +63,13 @@ Step cells(Step::Kind kind, int sheet, int row1, int col1, int row2, int col2)
     s.row2 = row2;
     s.col2 = col2;
     return s;
+}
+
+QString line(const std::vector<Step> &steps)
+{
+    QStringList l;
+    for (const Step &s : steps) l << s.line();
+    return l.join(QLatin1Char('\n'));
 }
 
 QString failureText(quint32 seed, const std::vector<Step> &steps, const Options &options, const Result &r)
@@ -183,6 +191,59 @@ private Q_SLOTS:
         QVERIFY(r.undone >= 2 && r.redone >= 1);
     }
 
+    // The same sequences and seeds with the formulas held in the id frame (round 5a; dark): every check passes, and no cell is moved.
+    void theNamedSequencesAndSeedsAgreeWithTheFormulasHeldInIds()
+    {
+        PinnedLocale pin;
+        Options ids;
+        ids.idFrame = true;
+        for (const bool byRow : {false, true}) {
+            const Step::Kind del = byRow ? Step::DeleteRows : Step::DeleteColumns, ins = byRow ? Step::InsertRows : Step::InsertColumns;
+            auto at = [&](Step::Kind k, int sheet, int pos, int count = 1) { return byRow ? rows(k, sheet, pos, count) : columns(k, sheet, pos, count); };
+            const int pos = byRow ? 4 : 1;
+            std::vector<Step> steps = {at(del, 0, pos), at(del, 0, pos), plain(Step::Undo), plain(Step::Redo), at(ins, 0, pos), plain(Step::Undo), plain(Step::Undo), plain(Step::Undo), plain(Step::Redo), plain(Step::Redo),
+                                       at(ins, 0, pos + 1, 2), at(del, 0, pos - 1), typed(0, byRow ? 6 : 3, byRow ? 7 : 8, QStringLiteral("=SUM(A1:A5)+Calc!B3")), plain(Step::Save), at(ins, 0, 0), plain(Step::Reopen)};
+            const Result r = run(steps, ids);
+            QVERIFY2(r.failure.ok(), qPrintable(failureText(1, steps, ids, r)));
+            QCOMPARE(r.lineEditCellsMoved, qint64(0));
+        }
+        const int seeds = qEnvironmentVariableIsSet("CRUNCH_MODEL_SEEDS") ? qEnvironmentVariableIntValue("CRUNCH_MODEL_SEEDS") : 4;
+        for (int seed = 1; seed <= seeds; ++seed) {
+            const std::vector<Step> steps = generate(quint32(seed), 25);
+            const Result r = run(steps, ids);
+            QVERIFY2(r.failure.ok(), qPrintable(failureText(quint32(seed), steps, ids, r)));
+        }
+    }
+
+    // The seeds that also type ranges written back to front, ATAN2, and a word that could be a cell past XFD (another list of steps for the same seed, so the golden seeds are as they were): in places and in ids.
+    void rangesBackToFrontAndWordsLikeCellsAgreeInBothModes()
+    {
+        PinnedLocale pin;
+        const int seeds = qEnvironmentVariableIsSet("CRUNCH_MODEL_SEEDS") ? qEnvironmentVariableIntValue("CRUNCH_MODEL_SEEDS") : 4;
+        // (the seeds make the kinds of formula the others do not, which is looked for in many more steps than are run)
+        bool backToFront = false, wordsLikeCells = false;
+        const QRegularExpression range(QStringLiteral("SUM\\((?:Calc!)?[A-D](\\d+):[A-D](\\d+)\\)"));
+        for (int seed = 1; seed <= 40; ++seed)
+            for (const Step &s : generate(quint32(seed), 60, true)) {
+                const QRegularExpressionMatch m = range.match(s.text);
+                backToFront = backToFront || (m.hasMatch() && m.captured(1).toInt() > m.captured(2).toInt());
+                wordsLikeCells = wordsLikeCells || s.text.contains(QStringLiteral("ATAN2")) || s.text.contains(QStringLiteral("XFE"));
+            }
+        QVERIFY(backToFront && wordsLikeCells);
+        for (int seed = 1; seed <= seeds; ++seed) {
+            const std::vector<Step> steps = generate(quint32(seed), 30, true);
+            for (const bool ids : {false, true}) {
+                Options options;
+                options.idFrame = ids;
+                options.forceOff = !ids;
+                const Result r = run(steps, options);
+                QVERIFY2(r.failure.ok(), qPrintable(failureText(quint32(seed), steps, options, r)));
+            }
+        }
+        QCOMPARE(generate(5, 20, false).size(), size_t(20));   // (and a seed that types more than a little is another list with the option)
+        QVERIFY(line(generate(5, 200, false)) != line(generate(5, 200, true)));
+    }
+
     // Seeds of random steps. A failure is told with the seed and the fewest steps that still fail.
     void randomStepsAgreeWithTheFileSavedAndReadAgain()
     {
@@ -236,14 +297,19 @@ private Q_SLOTS:
             }
         }
         QVERIFY(digests.size() >= 4);
+        // (with the formulas held in the id frame the state after every step is the same; the parts a save writes are not, until the saver is the next round's: it writes every formula whole)
+        for (const bool idFrame : {false, true}) {
         Options options;
         options.check = false;
+        options.idFrame = idFrame;
+        options.forceOff = !idFrame;
         for (auto it = digests.constBegin(); it != digests.constEnd(); ++it) {
             const Result r = run(generate(it.key(), counts[it.key()]), options);
             QVERIFY(r.failure.ok());
             QCOMPARE(int(r.digests.size()), it.value().size());
             for (int i = 0; i < it.value().size(); ++i)
                 QVERIFY2(QStringLiteral("%1").arg(r.digests[size_t(i)], 16, 16, QLatin1Char('0')) == it.value()[i], qPrintable(QStringLiteral("seed %1: the state after step %2 (%3) is not what the golden file has").arg(it.key()).arg(i + 1).arg(r.stepsText[size_t(i)])));
+            if (idFrame) continue;
             // (part by part first, so a difference names the part)
             QMap<QString, QString> got;
             for (const QString &line : r.parts) {
@@ -259,6 +325,7 @@ private Q_SLOTS:
             for (auto p = got.constBegin(); p != got.constEnd(); ++p)
                 QVERIFY2(want.isEmpty() || want.contains(p.key()), qPrintable(QStringLiteral("seed %1: the save writes a part the golden file doesn't have: %2").arg(it.key()).arg(p.key())));
             QCOMPARE(QStringLiteral("%1").arg(r.partsDigest, 16, 16, QLatin1Char('0')), parts.value(it.key()));
+        }
         }
     }
 

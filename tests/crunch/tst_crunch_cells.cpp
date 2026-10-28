@@ -1327,6 +1327,36 @@ private Q_SLOTS:
         QCOMPARE(s->changedCells(), qint64(1));
     }
 
+    // With the formulas held in ids a save writes every formula whole once rows were inserted or deleted (the saver is a later round's), which asks for no calculation of the file that the formulas in places
+    // did not ask for: a row inserted below everything, and one above it, with a formula the engine keeps apart in the sheet.
+    void theSaveStopgapOfTheIdFrameAsksForNoMoreCalculation()
+    {
+        const bool was = jp::office::sheet::Calculation::idFrameDefault();
+        QList<bool> asks;
+        QList<qint64> cellsWritten;
+        for (const bool at0 : {false, true})
+            for (const bool ids : {false, true}) {
+                jp::office::sheet::Calculation::setIdFrameDefault(ids);
+                EditWindow e;
+                QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "B1==NOSUCHFUNCTION(A1)", "C1==A2+1", "C2==SUM(A1:A2)"})));
+                QVERIFY(e.settle());
+                crunch::EditSession *s = e.win.w.session();
+                QCOMPARE(s->calculation()->idFrame(), ids);
+                QVERIFY(s->insertRows(0, at0 ? 0 : 30, 1).ok);
+                QVERIFY(e.settle());
+                crunch::EditSession::Snapshot snap;
+                QString why;
+                QVERIFY2(s->takeSnapshot(&snap, &why), qPrintable(why));
+                asks << snap.changes.fullCalcOnLoad;
+                cellsWritten << qint64(snap.changes.sheets.count(0) ? snap.changes.sheets[0].cells.size() : 0);
+            }
+        jp::office::sheet::Calculation::setIdFrameDefault(was);
+        QCOMPARE(asks[1], asks[0]);   // (below)
+        QCOMPARE(asks[3], asks[2]);   // (above)
+        QVERIFY(cellsWritten[1] >= 3);   // (the stopgap: every formula whole)
+        QVERIFY(cellsWritten[0] <= cellsWritten[1]);
+    }
+
     // Cells shifted down under ten thousand formulas, with no value on its way, work none of them out again and make no stamp (the formulas read cells that did not move).
     void cellsShiftedOverTenThousandFormulasWorkNoneOfThemOutAgain()
     {

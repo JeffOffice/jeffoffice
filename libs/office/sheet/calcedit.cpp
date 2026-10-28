@@ -243,6 +243,36 @@ void Calculation::specialNodes(std::vector<quint32> *out)
 
 void Calculation::setGraphShifts(bool on) { g_graphShifts = on; }
 
+// Whether a formula held in ids has a reference with an end in the lines (rows or columns of `sheet`) at the places [first, last] that are about to die, or one to a line that is dead already: its text
+// must be written again (a single cell there is #REF!, a range that loses an end has another). A range with both ends alive that has lines dying inside it needs no new text: it is the same ids.
+bool Calculation::readsDeadLine(const Node &n, int sheet, bool rows, quint32 first, quint32 last) const
+{
+    const Sheet &s = m_sheets[size_t(n.sheet)];
+    if (n.formula < 0 || n.formula >= s.formulas.size()) return false;
+    const Formula &f = s.formulas[n.formula];
+    if (f.text < 0 || f.text >= s.formulaTexts.size()) return false;
+    const std::vector<Compiled> &slots = (n.flags & Array) ? m_state[size_t(n.sheet)].array : m_state[size_t(n.sheet)].plain;
+    const Compiled *slot = size_t(f.text) < slots.size() && slots[size_t(f.text)].tried ? &slots[size_t(f.text)] : nullptr;
+    if (!slot) slot = &const_cast<Calculation *>(this)->compiled(n.sheet, f.text, n.flags & Array);
+    if (!slot->program) return false;
+    const CellStore &cells = m_sheets[size_t(sheet)].cells;
+    for (const jp::calc::RefLit &r : slot->program->refs) {
+        const qint32 s1 = r.sheet1 >= 0 ? slot->bound[size_t(r.sheet1)] : n.sheet;
+        if (s1 != sheet) continue;
+        if (r.flags & (rows ? jp::calc::kRefWholeCols : jp::calc::kRefWholeRows)) continue;   // (every place of the other kind: no id to be dead)
+        const qint64 shift = rows ? f.dRow : f.dCol;
+        const quint8 abs1 = rows ? jp::calc::kRefRow1Abs : jp::calc::kRefCol1Abs, abs2 = rows ? jp::calc::kRefRow2Abs : jp::calc::kRefCol2Abs;
+        const qint64 a = (r.flags & abs1) ? qint64(rows ? r.row1 : r.col1) : qint64(rows ? r.row1 : r.col1) + shift;
+        const qint64 b = (r.flags & abs2) ? qint64(rows ? r.row2 : r.col2) : qint64(rows ? r.row2 : r.col2) + shift;
+        for (const qint64 id : {a, b}) {
+            if (id < 0 || id > qint64(0xFFFFFF)) return true;
+            const quint32 at = rows ? cells.rowPlaceOf(quint32(id)) : cells.colPlaceOf(quint32(id));
+            if (at == CellStore::kNoLine || (at >= first && at <= last)) return true;
+        }
+    }
+    return false;
+}
+
 namespace {
 bool wholeLines(const StructEdit &e, bool *rows)
 {
@@ -293,10 +323,94 @@ bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineM
         else n.colId = quint16(now);
         if (again && !(n.flags & Kept)) redirty(id);
     }
+    // the texts in ids that name the lines are written again with the new ids
+    renumberTexts(sheet, rows, table);
     // the graph holds the old ids too
     const bool told = rebuildGraph();
     if ((again || told || drained) && !m_running) beginRecalculation();
     return true;
+}
+
+void Calculation::renumberTexts(int target, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table, int onlySheet)
+{
+    if (!m_options.idFrame || table.empty()) return;
+    using jp::calc::ParseLimits;
+    for (int si = 0; si < int(m_sheets.size()); ++si) {
+        if (onlySheet >= 0 && si != onlySheet) continue;
+        Sheet &s = m_sheets[size_t(si)];
+        if (!s.frame || s.formulaTexts.isEmpty() || s.formulas.isEmpty()) continue;
+        countTexts(si);
+        // the formulas that have each text, and, for the sheet whose ids changed, the ids of the cell each is in (now)
+        std::vector<std::vector<qint32>> members(size_t(s.formulaTexts.size()));
+        for (qint32 fi = 0; fi < s.formulas.size(); ++fi) {
+            const qint32 t = s.formulas[fi].text;
+            if (t >= 0 && t < s.formulaTexts.size() && !s.positionalTexts.contains(t)) members[size_t(t)].push_back(fi);
+        }
+        std::vector<quint32> cellLine;
+        if (si == target) {
+            cellLine.assign(size_t(s.formulas.size()), CellStore::kNoLine);
+            s.cells.forEach([&](quint32, quint32, const Cell &c) {
+                if (c.hasFormula() && c.formula >= 0 && c.formula < s.formulas.size()) cellLine[size_t(c.formula)] = rows ? c.rowId : c.colId;
+            });
+        }
+        for (qint32 t = 0; t < qint32(members.size()); ++t) {   // (the texts made below are not looked at)
+            const std::vector<qint32> &users = members[size_t(t)];
+            if (users.empty()) continue;
+            const QString text = s.formulaTexts[t];
+            const ParseLimits was = limitsOf(s, t);
+            // the text of one formula in ids, as the new ids say it; whether it has an id past the grid
+            auto renumbered = [&](qint32 fi, QString *out, bool *wide) {
+                const Formula &f = s.formulas[fi];
+                const QString own = f.dRow == 0 && f.dCol == 0 ? text : offsetFormula(text, f.dRow, f.dCol, nullptr, was);
+                *wide = false;
+                const auto map = [&](int sheet, jp::calc::RefLit *lit) {
+                    MapResult result = MapResult::Same;
+                    if (sheet == target) {
+                        const bool whole = lit->flags & (rows ? jp::calc::kRefWholeCols : jp::calc::kRefWholeRows);
+                        quint32 &a = rows ? lit->row1 : lit->col1;
+                        quint32 &b = rows ? lit->row2 : lit->col2;
+                        if (!whole) {
+                            const quint32 x = CellStore::renumberLine(table, a), y = CellStore::renumberLine(table, b);
+                            if (x == CellStore::kNoLine || y == CellStore::kNoLine) return MapResult::Gone;
+                            if (x != a || y != b) result = MapResult::Changed;
+                            a = x;
+                            b = y;
+                        }
+                    }
+                    *wide = *wide || lit->row1 >= jp::calc::kGridRows || lit->row2 >= jp::calc::kGridRows || lit->col1 >= jp::calc::kGridCols || lit->col2 >= jp::calc::kGridCols;
+                    return result;
+                };
+                return mapReferences(*this, si, own, was, map, out);
+            };
+            QString first;
+            bool firstWide = false;
+            qint32 origin = users.front();
+            if (!renumbered(origin, &first, &firstWide)) continue;
+            const ParseLimits now = firstWide ? ParseLimits::ids() : ParseLimits::grid();
+            const Formula f0 = s.formulas[origin];
+            for (const qint32 fi : users) {
+                const Formula f = s.formulas[fi];
+                // how far the formula is from the origin's cell, in the new ids
+                qint32 dRow = f.dRow - f0.dRow, dCol = f.dCol - f0.dCol;
+                if (si == target && cellLine[size_t(fi)] != CellStore::kNoLine && cellLine[size_t(origin)] != CellStore::kNoLine) {
+                    const qint32 d = qint32(qint64(cellLine[size_t(fi)]) - qint64(cellLine[size_t(origin)]));
+                    (rows ? dRow : dCol) = d;
+                }
+                QString mine;
+                bool mineWide = false;
+                const bool ok = renumbered(fi, &mine, &mineWide);
+                if (!ok) continue;
+                const QString family = dRow == 0 && dCol == 0 ? first : offsetFormula(first, dRow, dCol, nullptr, now);
+                const bool shared = family == mine && mineWide == firstWide;
+                const TextClass cls = (shared ? firstWide : mineWide) ? TextClass::Wide : TextClass::Plain;
+                const qint32 old = s.formulas[fi].text;
+                s.formulas[fi].text = internText(si, shared ? first : mine, cls);
+                s.formulas[fi].dRow = shared ? dRow : 0;
+                s.formulas[fi].dCol = shared ? dCol : 0;
+                releaseText(si, old);
+            }
+        }
+    }
 }
 
 // The graph holds ids, and the ids of a sheet's lines were renumbered: every formula tells it again what it reads, by the places its text names. What a formula that reads where it is told
@@ -427,7 +541,26 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     // ---- what reads the cells that move: the graph says (before anything moves), and the formulas the graph does not follow (those kept apart, those that read where they are told)
     const CellArea region = affectedArea(e);
     std::vector<quint32> candidates, specials;
-    readersOf(region, &candidates);
+    // With the id frame an edit of whole lines writes no text again for a formula that is held in ids and reads no line that dies: what it names is the same ids, which are where they are now. The
+    // formulas it looks at are those that read what dies, those kept in places, and those the graph does not follow (kept apart, told where they read).
+    const bool idLines = m_options.idFrame && wholeLine;
+    const bool linesAreRows = e.kind == K::InsertRows || e.kind == K::DeleteRows;
+    quint32 deadFirst = 0, deadLast = 0;   // the places, before the edit, of the lines that die
+    if (idLines) {
+        const quint32 limit = linesAreRows ? kGridRows : kGridCols;
+        deadFirst = deletes(e) ? e.first : std::max(e.first, limit - std::min(e.count, limit));
+        deadLast = deletes(e) ? std::min(limit, e.first + e.count) - 1 : limit - 1;
+        CellArea dead = region;
+        (linesAreRows ? dead.row1 : dead.col1) = deadFirst;
+        (linesAreRows ? dead.row2 : dead.col2) = deadLast;
+        // (a formula kept apart for a function the engine lacks can't be told what the function makes of a text it reads: it has #NAME? when the text of a formula it reads is written again. So while the
+        // workbook has one, every formula that reads what moves is looked at, and the ones whose text as shown changed are as good as written again)
+        if (m_hasUnknown) readersOf(region, &candidates);
+        else readersOf(dead, &candidates);
+        for (const quint32 id : m_positionalNodes) candidates.push_back(id);
+    } else {
+        readersOf(region, &candidates);
+    }
     specialNodes(&specials);
     candidates.insert(candidates.end(), specials.begin(), specials.end());
     std::sort(candidates.begin(), candidates.end());
@@ -440,6 +573,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     struct Rewrite {
         quint32 id;
         QString was, now;   // the text of the formula for its cell, and what it is to be (empty: as it was)
+        bool shownOnly = false;   // (id frame) its text is held as it was; what it is shown as is looked at again when the edit is made, and `now` is that if it changed
         int group = -1;     // or the group of formulas of a shared family that are written again alike, and keep their share of one text
     };
     struct Group {
@@ -471,7 +605,15 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         if (!c || !c->hasFormula()) continue;
         Rewrite r;
         r.id = id;
-        if (rowsOrColumns && !(c->flags & (ArrayFormula | DataTable)) && !(n.flags & Kept) && c->formula >= 0 && size_t(c->formula) < size_t(sn.formulas.size())) {
+        if (idLines && c->formula >= 0 && size_t(c->formula) < size_t(sn.formulas.size()) && inIds(sn, sn.formulas[c->formula].text) && !readsDeadLine(n, e.sheet, linesAreRows, deadFirst, deadLast)) {
+            if (m_hasUnknown) {
+                r.shownOnly = true;
+                r.was = sn.formulaText(*c);
+            }
+            rewrites.push_back(std::move(r));   // (its text is as it is: the ones among these that are told where they read are made again below)
+            continue;
+        }
+        if (rowsOrColumns && !m_options.idFrame && !(c->flags & (ArrayFormula | DataTable)) && !(n.flags & Kept) && c->formula >= 0 && size_t(c->formula) < size_t(sn.formulas.size())) {
             const Formula &f = sn.formulas[c->formula];
             countTexts(n.sheet);
             if (f.text >= 0 && (f.dRow != 0 || f.dCol != 0 || m_state[size_t(n.sheet)].textRefs[size_t(f.text)] > 1)) {
@@ -887,10 +1029,18 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     lap(4);
     // ---- the formulas that read what moved are written again, with what they read followed; those that read where they are told are made again too
     for (size_t i = 0; i < rewrites.size(); ++i) {
-        const Rewrite &r = rewrites[i];
+        Rewrite &r = rewrites[i];
         Node &n0 = m_nodes[r.id];
         if (n0.flags & Dead) continue;
         const bool told = n0.flags & Told;
+        if (r.shownOnly) {
+            // (the text it is shown as is the one it was written again to before ids: a formula kept apart for its function has #NAME? when the text of what it reads changed)
+            const Cell *shownCell = cellOf(n0);
+            if (shownCell && shownCell->hasFormula()) {
+                const QString shown = m_sheets[size_t(n0.sheet)].formulaText(*shownCell);
+                if (shown != r.was) r.now = shown;
+            }
+        }
         if (r.now.isEmpty() && r.group < 0 && !told && !namesChanged) continue;
         const int sheet = n0.sheet;
         Sheet &sn = m_sheets[size_t(sheet)];
@@ -926,6 +1076,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             }
             rec->was.push_back(std::move(was));
             retext(sheet, c, r.now);   // (in place: the formula keeps its place, and a cell of a shared family has a text of its own from now)
+            if (m_options.idFrame) ++m_editStats.eagerFormulas;
             ++rec->formulasRewritten;
             rec->rewritten.push_back({sheet, rowOf(n0), colOf(n0), n0.rowId, n0.colId, bool(c->flags & DataTable)});
         }
@@ -973,9 +1124,10 @@ bool Calculation::rewriteArrayText(int sheet, quint32 row, quint32 col, const QS
     SheetState &st = m_state[size_t(sheet)];
     if (size_t(c->formula) < st.nodeOf.size() && st.nodeOf[size_t(c->formula)] != kNone) dropNode(st.nodeOf[size_t(c->formula)]);
     {
+        const Held held = heldText(sheet, text);
         Formula &f = s.formulas[c->formula];
         const qint32 old = f.text;
-        f.text = internText(sheet, text);
+        f.text = internText(sheet, held.text, held.cls);
         releaseText(sheet, old);
     }
     const quint32 id = addNode(sheet, row, col, *c, c->formula);

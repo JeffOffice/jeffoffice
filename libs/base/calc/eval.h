@@ -53,6 +53,11 @@ public:
     }
     // Whether a row is hidden: 0 no, 1 by hand, 2 by a filter (what SUBTOTAL leaves out of what it adds up: 1 to 11 leave out the rows a filter hides, 101 to 111 every hidden row).
     virtual int rowHiddenKind(int sheet, quint32 row) const { Q_UNUSED(sheet); Q_UNUSED(row); return 0; }
+    // For a formula held in the id frame (EvalContext::idFrame), whose references name rows and columns by id: the place now of the row or column with that id on the sheet, kNoPlace if it
+    // was deleted. A source whose rows and columns have no ids (a test's grid) is its own order: the id is the place.
+    static constexpr quint32 kNoPlace = 0xFFFFFFFFu;
+    virtual quint32 rowPlace(int sheet, quint32 rowId) const { Q_UNUSED(sheet); return rowId; }
+    virtual quint32 colPlace(int sheet, quint32 colId) const { Q_UNUSED(sheet); return colId; }
     // The cell holds a formula that is a SUBTOTAL, which SUBTOTAL leaves out of what it adds up.
     virtual bool isSubtotal(int sheet, quint32 row, quint32 col) const { Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); return false; }
     // Changes when the sheets or their names do, so a program re-reads which sheet each name is (a source that is replaced by another at the same address must
@@ -65,6 +70,9 @@ struct EvalContext {
     int sheet = 0;                       // the sheet of the cell the formula is in, and the cell (counting from 0)
     quint32 row = 0, col = 0;
     int shiftRows = 0, shiftCols = 0;    // how far that cell is from the one the formula's text was written for (a shared formula)
+    // The formula is held in the id frame (docs/jeffcrunch-rowids.md, 4.4): the rows and columns in its references are ids, and `shiftRows` and `shiftCols` are distances in ids. A reference is turned
+    // into places through the source (rowPlace, colPlace) as it is read; whole rows and whole columns are every place. A text a formula works out (a name, INDIRECT) is in places whatever this says.
+    bool idFrame = false;
     DateSystem dateSystem = DateSystem::Date1900;
     bool transition = false;             // the formula's sheet asks for the old rules ("transition formula evaluation"): a text that is not a number counts as 0 in arithmetic
     double now = 0;                      // the day number NOW() and TODAY() give; 0 reads the clock, once for the evaluation (see clockSerial)

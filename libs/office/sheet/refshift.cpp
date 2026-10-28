@@ -740,12 +740,13 @@ bool sameSheet(const QString &a, const QString &b) { return a.compare(b, Qt::Cas
 
 } // namespace
 
-QString renameSheetInFormula(const QString &formula, const QString &oldName, const QString &newName, bool *changed, bool definedName)
+QString renameSheetInFormula(const QString &formula, const QString &oldName, const QString &newName, bool *changed, bool definedName, const jp::calc::ParseLimits &limits)
 {
     if (changed) *changed = false;
     if (!formula.contains(QLatin1Char('!'))) return formula;
     jp::calc::ParseOptions po;
     po.definedName = definedName;
+    po.limits = limits;
     std::vector<jp::calc::ReferenceAt> refs;
     if (!jp::calc::findReferences(formula, po, &refs, true) || refs.empty()) return formula;
     QString out;
@@ -766,12 +767,13 @@ QString renameSheetInFormula(const QString &formula, const QString &oldName, con
     return out;
 }
 
-QString deleteSheetInFormula(const QString &formula, const QString &name, bool *changed, bool definedName)
+QString deleteSheetInFormula(const QString &formula, const QString &name, bool *changed, bool definedName, const jp::calc::ParseLimits &limits)
 {
     if (changed) *changed = false;
     if (!formula.contains(QLatin1Char('!'))) return formula;
     jp::calc::ParseOptions po;
     po.definedName = definedName;
+    po.limits = limits;
     std::vector<jp::calc::ReferenceAt> refs;
     if (!jp::calc::findReferences(formula, po, &refs, true) || refs.empty()) return formula;
     QString out;
@@ -802,11 +804,12 @@ bool formulaHasThreeD(const QString &formula, bool definedName)
     return false;
 }
 
-QString offsetFormula(const QString &formula, qint32 dRow, qint32 dCol, bool *changed)
+QString offsetFormula(const QString &formula, qint32 dRow, qint32 dCol, bool *changed, const jp::calc::ParseLimits &limits)
 {
     if (changed) *changed = false;
     if ((dRow == 0 && dCol == 0) || formula.isEmpty()) return formula;
     jp::calc::ParseOptions po;
+    po.limits = limits;
     std::vector<jp::calc::ReferenceAt> refs;
     if (!jp::calc::findReferences(formula, po, &refs) || refs.empty()) return formula;
     QString out;
@@ -829,7 +832,7 @@ QString offsetFormula(const QString &formula, qint32 dRow, qint32 dCol, bool *ch
         any = true;
         out += formula.mid(at, r.body - at);
         // (a corner that goes off the grid makes the reference #REF!; the corners may cross, and are put in order)
-        if (r1 < 0 || r2 < 0 || c1 < 0 || c2 < 0 || r1 >= qint64(kGridRows) || r2 >= qint64(kGridRows) || c1 >= qint64(kGridCols) || c2 >= qint64(kGridCols)) {
+        if (r1 < 0 || r2 < 0 || c1 < 0 || c2 < 0 || r1 >= qint64(limits.rows) || r2 >= qint64(limits.rows) || c1 >= qint64(limits.cols) || c2 >= qint64(limits.cols)) {
             out += QStringLiteral("#REF!");
         } else {
             lit.row1 = quint32(r1);
