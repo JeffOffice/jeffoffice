@@ -643,7 +643,8 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
                     }
                 }
             };
-            touch(lc.killed, &killedInserted);
+            // (the lines an insert pushed off the end of the sheet change nothing a formula holds if no cell was in them: a block to the end of the sheet gains the new lines and loses those)
+            if (lc.inserted.empty() || S.cells.deadCount() != deadBefore) touch(lc.killed, &killedInserted);
             bool revivedInserted = false;
             touch(lc.revived, &revivedInserted);
             // set 1: the gap of lines put in (or brought back), or of inserted lines that died: a block that holds the original lines either side holds it

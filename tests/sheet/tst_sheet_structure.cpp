@@ -1815,6 +1815,7 @@ private Q_SLOTS:
         Book b;
         QStringList cells;
         for (int r = 1; r <= 100; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r) << QStringLiteral("B%1==A%1*2").arg(r);
+        cells << "D1==SUM(A:A)" << "D2==COUNT(A5:A1048576)";   // (read to the end of the sheet: the row an insert pushes off its end is not one they hold anything of)
         QVERIFY(b.open({cells}));
         const qint64 asked = b.calc->questionsAnswered(), marked = b.calc->formulasAsked();
         QVERIFY(b.apply(StructEdit::insertRows(0, 10, 1), nullptr));
