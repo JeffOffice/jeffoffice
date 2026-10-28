@@ -2486,6 +2486,19 @@ private Q_SLOTS:
             QCOMPARE(b->at("B2"), QStringLiteral("e:#NAME?"));
         }
         QCOMPARE(state(on), state(off));
+        // what it reads is another formula whose text is written again, though neither moves: the row is put between A1 and A2, and C1 reads A2
+        for (const bool far : {false, true}) {
+            QString was[2];
+            for (Book *b : {&off, &on}) {
+                QVERIFY(b->open({{"A1=1", "A2=2", "B1==NOSUCHFN(C1)", "C1==A2+1"}}));
+                was[b == &on] = b->at("B1");
+                QVERIFY(b->apply(StructEdit::insertRows(0, far ? 30 : 1, 1), nullptr));
+                QCOMPARE(b->formula("C1"), far ? QStringLiteral("A2+1") : QStringLiteral("A3+1"));
+                if (!far) QCOMPARE(b->at("B1"), QStringLiteral("e:#NAME?"));
+                else QCOMPARE(b->at("B1"), was[b == &on]);
+            }
+            QCOMPARE(was[1], was[0]);
+        }
     }
 
     // A word of a formula that could be read as a cell past XFD is what keeps a text in places; a function whose name looks like one (ATAN2) is none, and neither is any other of the functions there are.

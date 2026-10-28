@@ -553,12 +553,11 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         CellArea dead = region;
         (linesAreRows ? dead.row1 : dead.col1) = deadFirst;
         (linesAreRows ? dead.row2 : dead.col2) = deadLast;
-        readersOf(dead, &candidates);
+        // (a formula kept apart for a function the engine lacks can't be told what the function makes of a text it reads: it has #NAME? when the text of a formula it reads is written again. So while the
+        // workbook has one, every formula that reads what moves is looked at, and the ones whose text as shown changed are as good as written again)
+        if (m_hasUnknown) readersOf(region, &candidates);
+        else readersOf(dead, &candidates);
         for (const quint32 id : m_positionalNodes) candidates.push_back(id);
-        // (a formula kept apart for a function the engine lacks is worked out for nothing, and gives #NAME? when the text it is shown as changes: nothing is known of what the function makes of it)
-        if (m_hasUnknown)
-            for (quint32 id = 0; id < quint32(m_nodes.size()); ++id)
-                if (!(m_nodes[id].flags & Dead) && (m_nodes[id].flags & Kept) && m_nodes[id].kept == 'U') candidates.push_back(id);
     } else {
         readersOf(region, &candidates);
     }
@@ -607,7 +606,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         Rewrite r;
         r.id = id;
         if (idLines && c->formula >= 0 && size_t(c->formula) < size_t(sn.formulas.size()) && inIds(sn, sn.formulas[c->formula].text) && !readsDeadLine(n, e.sheet, linesAreRows, deadFirst, deadLast)) {
-            if ((n.flags & Kept) && n.kept == 'U') {
+            if (m_hasUnknown) {
                 r.shownOnly = true;
                 r.was = sn.formulaText(*c);
             }
@@ -1034,20 +1033,19 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         Node &n0 = m_nodes[r.id];
         if (n0.flags & Dead) continue;
         const bool told = n0.flags & Told;
+        if (r.shownOnly) {
+            // (the text it is shown as is the one it was written again to before ids: a formula kept apart for its function has #NAME? when the text of what it reads changed)
+            const Cell *shownCell = cellOf(n0);
+            if (shownCell && shownCell->hasFormula()) {
+                const QString shown = m_sheets[size_t(n0.sheet)].formulaText(*shownCell);
+                if (shown != r.was) r.now = shown;
+            }
+        }
         if (r.now.isEmpty() && r.group < 0 && !told && !namesChanged) continue;
         const int sheet = n0.sheet;
         Sheet &sn = m_sheets[size_t(sheet)];
         Cell *c = cellOfMutable(n0);
         if (!c || !c->hasFormula()) continue;
-        if (r.shownOnly) {
-            // (the text it is shown as is the one it was written again to before ids: a formula kept apart for its function has #NAME? when that changed)
-            const QString shown = sn.formulaText(*c);
-            if (shown == r.was) {
-                if (!told && !namesChanged) continue;
-            } else {
-                r.now = shown;
-            }
-        }
         if (r.group >= 0) {
             // a formula of a shared family: it keeps its share of the family's text, which is made once, and it is as far from the cell it was written for as it was
             Group &g = groups[size_t(r.group)];
