@@ -55,6 +55,7 @@ struct Options {
     bool check = true;        // the checks after every step (else the steps are run and only the digests are made)
     bool graph = true;        // and the check of the graph
     int checkEvery = 1;       // the checks are made after every nth step (and after the last)
+    bool idFrame = false;     // the workbooks hold their formulas in the id frame (CalcOptions::idFrame: docs/jeffcrunch-rowids.md, round 5); else as the process says (JC_ID_FRAME)
     int fault = 0;            // for the tests of the harness itself: 1 to 16 change what the file read again holds of one thing (see the .cpp), 100 makes the graph check ask for a cell nothing reads, 101 changes what the model says
 };
 
@@ -101,7 +102,7 @@ QString modelRewrite(const QString &formula, int formulaSheet, const Step &edit)
 // Digests: the golden file's contents for the seeds (`steps` each), made by running without the checks.
 QString goldenText(const std::vector<quint32> &seeds, int steps);
 
-// `jcrunchtool model-check <seeds> <steps> [first seed]`, `model-golden`, `model-replay <file>`, and `model-dump <seed> <steps>` (see tools/jcrunchtool_edit.cpp).
+// `jcrunchtool model-check <seeds> <steps> [first seed] [idframe]`, `model-golden`, `model-replay <file>`, and `model-dump <seed> <steps>` (see tools/jcrunchtool_edit.cpp).
 int command(const QStringList &args);
 
 } // namespace jp::structmodel

@@ -11,6 +11,7 @@
 #include "io/zip.h"
 #include "office/package.h"
 #include "sheet/cellref.h"
+#include "sheet/calculation.h"
 #include "sheet/chartdata.h"
 
 #include <QCoreApplication>
@@ -1526,6 +1527,15 @@ std::vector<Step> generate(quint32 seed, int count)
 
 Result run(const std::vector<Step> &steps, const Options &options)
 {
+    // (every workbook the run opens, the one that is edited and the ones read again, holds its formulas as the options say)
+    struct FrameScope {
+        bool was;
+        explicit FrameScope(bool on) : was(jp::office::sheet::Calculation::idFrameDefault())
+        {
+            if (on) jp::office::sheet::Calculation::setIdFrameDefault(true);
+        }
+        ~FrameScope() { jp::office::sheet::Calculation::setIdFrameDefault(was); }
+    } frameScope(options.idFrame);
     Result result;
     auto fail = [&](int step, const QString &kind, const QString &what) {
         if (result.failure.ok()) {
@@ -1743,13 +1753,14 @@ int command(const QStringList &args)
         return code;
     };
     if (args.size() >= 3 && args[0] == QLatin1String("model-check")) {
-        // model-check <seeds> <steps> [first seed] [every=n] [nograph] [noshrink]
+        // model-check <seeds> <steps> [first seed] [every=n] [nograph] [idframe] [noshrink]
         const int seeds = args[1].toInt(), stepCount = args[2].toInt();
-        const quint32 first = args.size() > 3 && !args[3].contains(QLatin1Char('=')) && args[3] != QLatin1String("nograph") && args[3] != QLatin1String("noshrink") ? args[3].toUInt() : 1;
+        const quint32 first = args.size() > 3 && !args[3].contains(QLatin1Char('=')) && args[3] != QLatin1String("nograph") && args[3] != QLatin1String("idframe") && args[3] != QLatin1String("noshrink") ? args[3].toUInt() : 1;
         Options options;
         bool shrinkIt = true;
         for (const QString &a : args.mid(3)) {
             if (a == QLatin1String("nograph")) options.graph = false;
+            else if (a == QLatin1String("idframe")) options.idFrame = true;
             else if (a == QLatin1String("noshrink")) shrinkIt = false;
             else if (a.startsWith(QLatin1String("every="))) options.checkEvery = std::max(1, a.mid(6).toInt());
         }
@@ -1836,7 +1847,7 @@ int command(const QStringList &args)
         out << r.finalState;
         return finish(0);
     }
-    err << "usage: jcrunchtool model-check <seeds> <steps> [first seed] [every=n] [nograph] [noshrink] | model-golden <steps> <seed>... | model-replay <file> | model-dump <seed> <steps>|<file> | model-book <out.xlsx>\n";
+    err << "usage: jcrunchtool model-check <seeds> <steps> [first seed] [every=n] [nograph] [idframe] [noshrink] | model-golden <steps> <seed>... | model-replay <file> | model-dump <seed> <steps>|<file> | model-book <out.xlsx>\n";
     return finish(2);
 }
 
