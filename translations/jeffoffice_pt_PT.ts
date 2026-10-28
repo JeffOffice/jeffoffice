@@ -4905,10 +4905,10 @@ Artigo da contracapa	4</translation>
         <location line="+11"/>
         <location line="+200"/>
         <location line="+271"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+641"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+688"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+246"/>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="+89"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+158"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="+404"/>
         <location line="+89"/>
         <source>The workbook is busy. Try again in a moment.</source>
@@ -4969,8 +4969,8 @@ Artigo da contracapa	4</translation>
     <message>
         <location line="+83"/>
         <location filename="../apps/crunch/core/editpaste.cpp" line="+147"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-251"/>
-        <location line="+357"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-259"/>
+        <location line="+365"/>
         <source>You can&apos;t change part of an array or a data table.</source>
         <translation type="unfinished">Não é possível alterar parte de uma matriz ou de uma tabela de dados.</translation>
     </message>
@@ -5104,7 +5104,7 @@ Artigo da contracapa	4</translation>
     <message>
         <location line="+5"/>
         <location line="+91"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-400"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-408"/>
         <source>The workbook is still being opened. It can be changed when it is open.</source>
         <translation type="unfinished">O livro ainda está a ser aberto. Poderá ser alterado quando estiver aberto.</translation>
     </message>
@@ -5285,7 +5285,7 @@ Artigo da contracapa	4</translation>
     </message>
     <message>
         <location line="+34"/>
-        <location line="+106"/>
+        <location line="+114"/>
         <source>Typing in %1</source>
         <translation type="unfinished">A escrever em %1</translation>
     </message>
@@ -5315,12 +5315,12 @@ Artigo da contracapa	4</translation>
         <translation type="unfinished">A limpar %1</translation>
     </message>
     <message>
-        <location line="+258"/>
+        <location line="+271"/>
         <source>the workbook</source>
         <translation type="unfinished">o livro</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+142"/>
         <source>There is no workbook to save.</source>
         <translation type="unfinished">Não há nenhum livro para guardar.</translation>
     </message>
@@ -5548,17 +5548,17 @@ Artigo da contracapa	4</translation>
         <translation type="unfinished">A ajustar linhas ao conteúdo</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="-23"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="-24"/>
         <source>That would move or change a pivot table, which JeffCrunch can&apos;t do yet. Change cells that are not part of it.</source>
         <translation type="unfinished">Isso moveria ou alteraria uma tabela dinâmica, o que o JeffCrunch ainda não consegue fazer. Altere células que não façam parte dela.</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+32"/>
         <source>This can&apos;t be undone, and neither can what you did before it. Do you want to go on?</source>
         <translation type="unfinished">Esta ação não pode ser anulada, nem as ações anteriores. Pretende continuar?</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>Inserting a row</source>
         <translation type="unfinished">A inserir uma linha</translation>
     </message>
@@ -16636,7 +16636,7 @@ Origem: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+131"/>
         <location line="+129"/>
         <location line="+14"/>
-        <location line="+32"/>
+        <location line="+39"/>
         <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="+199"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+152"/>
         <location line="+19"/>
@@ -16661,7 +16661,7 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-259"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-266"/>
         <location line="+86"/>
         <location line="+20"/>
         <location line="+3"/>
@@ -19147,7 +19147,7 @@ O ficheiro não existe.</translation>
         <translation type="unfinished">O cálculo foi interrompido, pelo que a gravação foi cancelada. Guarde novamente quando pretender.</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+51"/>
         <source>Calculating… %1%</source>
         <translation type="unfinished">A calcular… %1%</translation>
     </message>
@@ -35047,7 +35047,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="-370"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-417"/>
         <source>Clearing %n cell(s)</source>
         <translation type="unfinished">
             <numerusform>A limpar %n célula</numerusform>
@@ -36365,7 +36365,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+234"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+226"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">O livro não tem folhas.</translation>
     </message>
@@ -36862,7 +36862,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::office::sheet::Calculation</name>
     <message>
-        <location filename="../libs/office/sheet/calcedit.cpp" line="+85"/>
+        <location filename="../libs/office/sheet/calcedit.cpp" line="+88"/>
         <location filename="../libs/office/sheet/calcmove.cpp" line="+30"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Essa folha não existe.</translation>
