@@ -723,8 +723,11 @@ private Q_SLOTS:
             QVERIFY2(!insensitive(text), text);
         for (const char *text : {"ROW(B5)", "COLUMN()", "SUMPRODUCT(ROW(A1:A10))", "IF(A1>0,ADDRESS(1,1),0)", "CELL(\"row\",A1)", "OFFSET(A1,1,1)", "INDIRECT(\"A1\")", "SUM(IF(A1>0,COLUMN(B2:D2),0))", "ROW()"})
             QVERIFY2(sees(text), text);
-        for (const char *text : {"A1+1", "SUM(A1:A5)", "ROWS(A1:A5)", "INDEX(A1:A5,2)", "COUNTBLANK(A1:A5)", "MATCH(3,A1:A5,0)", "5"})
+        for (const char *text : {"A1+1", "SUM(A1:A5)", "ROWS(A1:A5)", "INDEX(A1:A5,2)", "COUNTBLANK(A1:A5)", "MATCH(3,A1:A5,0)", "5", "SUMPRODUCT(A1:A5,B1:B5)", "IF(A1>0,SUM(B1:B5),0)"})
             QVERIFY2(!sees(text), text);
+        // a block taken for one value of it, the one in the row or the column of the cell the formula is in (implicit intersection), sees where that cell is
+        for (const char *text : {"Sheet2!A3:C3", "A1:A5*2", "IF(A1:A5>1,1,0)", "LARGE(A1:A9,B1:B3)", "A1:A5", "SUM(A1:A5*2)", "ABS(A1:A5)", "-A1:A5", "CHOOSE(2,1,A1:A5)"})
+            QVERIFY2(sees(text), text);
         // a name stands for what it stands for: one that has ROW() in it is seen through, and a formula that uses a name is never blank-insensitive
         Grid g;
         g.name("MyRow", "ROW(Sheet1!$A$5)");
@@ -736,7 +739,7 @@ private Q_SLOTS:
         QVERIFY(!t.blankInsensitive);
         const ParseResult q = parseFormula(QStringLiteral("SUM(Plain)"), options);
         const ProgramTraits u = traitsFollowingNames(*q.program, bindSheetNames(*q.program, g), 0, g);
-        QVERIFY(!u.observesPosition && !u.blankInsensitive);
+        QVERIFY(!u.blankInsensitive);   // (and what a name stands for may be a block that is taken for one value: the formula is looked at, which is more and not less)
     }
 
     // The allowlist is the functions that skip the empty cells they are given and do not count where they are: each is shown to give the same value for a block with an empty row or column put

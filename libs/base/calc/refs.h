@@ -26,7 +26,8 @@ struct ProgramTraits {
     // Whether where it reads is told as it is worked out, besides what its references name.
     bool readsWhereItIsTold() const { return usesNames || dynamic || reachesBeyond || observesPlace; }
     // Edits of whole rows and columns change the places of cells and nothing the cells hold (docs/jeffcrunch-rowids.md, 4.6); two traits say which formulas can notice:
-    bool observesPosition = false;   // a call can see the position of its own cell or of a cell or block it is given: ROW and COLUMN (with or without an argument), ADDRESS, CELL, OFFSET, INDIRECT, at any depth
+    bool observesPosition = false;   // a call can see the position of its own cell or of a cell or block it is given: ROW and COLUMN (with or without an argument), ADDRESS, CELL, OFFSET, INDIRECT, at any depth;
+                                     // and a block that is taken for one value of it, the one in the row or column of the formula's cell (implicit intersection), which a cell that moves alone picks another of
     bool blankInsensitive = false;   // no call can notice an empty row or column put inside a block it reads: every block of more than a cell is an argument of a function on the list (blankInsensitiveFunction)
                                      // and goes nowhere else. The default is false: a function nobody classified, a block under an operator, and a name make a formula sensitive.
 };

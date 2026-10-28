@@ -23,6 +23,9 @@
 //                                           time the window's thread takes to put the cell in (and the time it waits for the worker to let go), to draw it again, and the time the worker takes to
 //                                           the first values and to work out all that depends: the middle, the 95th percentile, the 99th, and the longest of each, by the thread's own processor time
 //                                           where there is one and by the wall's besides
+//   jcrunchtool edit-recalc-check <file.xlsx> [edits=6] [seed=1]   opens the workbook, makes that many random edits of whole rows and columns (the window's way, each worked out by the worker), and
+//                                           compares the value of every formula with a whole new calculation of the same cells (formulas that differ between two whole calculations with no edit, the
+//                                           time and RAND, are left out). One line: path, formulas, edits made, refused, left out, compared, mismatches, the first mismatch; the exit code is 3 for a mismatch.
 //   jcrunchtool edit-walk-bench <file.xlsx> [row edits=1000] [column edits=10]   the time to walk all the cells of the first sheet and from the end in slices, before and after those edits of rows and columns
 //   jcrunchtool edit-struct-bench <file.xlsx> <label> [only]   one row and one column inserted and deleted at the top, the middle, and the end of the used cells (and undone), each timed (the window's
 //                                           thread, the worker, the wall until it settles, the model's counted work, the texts made); one tab-separated line each (docs/jeffcrunch-rowids.md).
@@ -1811,6 +1814,99 @@ int tablesRoundtripOne(const QString &path)
 
 namespace jp::crunchtool {
 
+// jcrunchtool edit-recalc-check <file> [edits=6] [seed=1]: the workbook is opened as the window does and worked out; a few edits of whole rows and columns (inserted and deleted, in and past the used cells)
+// are made through the session, each worked out by the worker; then every formula's value is compared with a whole new calculation of the same cells. What the edits left stale shows as a mismatch.
+// Formulas whose value differs between two whole calculations with no edit between (the time, RAND, and what reads them) are left out. One tab-separated line: path, formulas, edits made, refused,
+// formulas left out, compared, mismatches, and the first mismatch.
+int editRecalcCheck(const QString &path, int edits, quint32 seed)
+{
+    Opened o;
+    if (!o.open(path)) {
+        out() << path << "\tnot opened\n";
+        return 1;
+    }
+    Calculation *calc = o.loader.result()->calc.get();
+    auto snapshot = [&] {
+        std::unordered_map<quint64, jp::calc::Value> values;
+        calc->forEachFormula([&](const Calculation::FormulaCell &f) {
+            if (f.cell) values[crunch::EditSession::keyOf(f.sheet, f.cell->rowId, f.cell->colId)] = f.ours;
+        });
+        return values;
+    };
+    auto sameValue = [](const jp::calc::Value &a, const jp::calc::Value &b) { return (a.isNumber() && b.isNumber() && jp::calc::sameTo15Digits(a.number(), b.number())) || a == b; };
+    auto workOutAgain = [&] {
+        o.beginEdit();
+        o.loader.recalculate();
+        return o.settle();
+    };
+    const std::unordered_map<quint64, jp::calc::Value> first = snapshot();
+    if (!workOutAgain()) {
+        out() << path << "\tnot settled\n";
+        return 1;
+    }
+    std::unordered_set<quint64> unstable;
+    const std::unordered_map<quint64, jp::calc::Value> second = snapshot();
+    for (const auto &entry : first) {
+        const auto again = second.find(entry.first);
+        if (again == second.end() || !sameValue(entry.second, again->second)) unstable.insert(entry.first);
+    }
+    const bool verbose = qEnvironmentVariableIsSet("JC_ERC_VERBOSE");
+    QRandomGenerator rng(seed);
+    std::vector<int> sheets;
+    for (int si = 0; si < calc->sheetCount(); ++si)
+        if (o.loader.result()->book->info().sheets[si].kind == SheetKind::Worksheet && calc->sheet(si).extentRows > 0) sheets.push_back(si);
+    int made = 0, refused = 0;
+    for (int i = 0; i < edits && !sheets.empty(); ++i) {
+        const int sheet = sheets[size_t(rng.bounded(quint32(sheets.size())))];
+        const quint32 usedRows = std::max<quint32>(3, calc->sheet(sheet).extentRows), usedCols = std::max<quint32>(3, calc->sheet(sheet).extentCols);
+        const quint32 count = 1 + rng.bounded(2);
+        const bool rows = rng.bounded(2) == 0;
+        const quint32 at = rows ? rng.bounded(usedRows + 2) : rng.bounded(usedCols + 2);
+        const bool insert = rng.bounded(5) < 3;
+        o.beginEdit();
+        crunch::EditSession::Outcome result;
+        if (rows) result = insert ? o.session->insertRows(sheet, at, count) : o.session->deleteRows(sheet, at, count);
+        else result = insert ? o.session->insertColumns(sheet, at, count) : o.session->deleteColumns(sheet, at, count);
+        if (verbose) err() << (rows ? "row" : "column") << (insert ? " insert " : " delete ") << "sheet " << sheet << " at " << at << " count " << count << (result.ok ? "" : " (refused)") << '\n';
+        if (!result.ok) {
+            ++refused;
+            continue;
+        }
+        ++made;
+        if (!o.settle()) {
+            out() << path << "\tnot settled after an edit\n";
+            return 1;
+        }
+    }
+    const std::unordered_map<quint64, jp::calc::Value> edited = snapshot();
+    if (!workOutAgain()) {
+        out() << path << "\tnot settled\n";
+        return 1;
+    }
+    const std::unordered_map<quint64, jp::calc::Value> whole = snapshot();
+    qint64 compared = 0, mismatches = 0;
+    QString firstMismatch;
+    for (const auto &entry : edited) {
+        if (unstable.count(entry.first)) continue;
+        const auto again = whole.find(entry.first);
+        if (again == whole.end()) continue;
+        ++compared;
+        if (!sameValue(entry.second, again->second)) {
+            if (++mismatches == 1 || (verbose && mismatches <= 5)) {
+                const int sheet = int(entry.first >> 40);
+                const Cell *cell = calc->sheet(sheet).cells.findById(quint32((entry.first >> 16) & 0xFFFFFF), quint32(entry.first & 0xFFFF));
+                const quint32 row = calc->sheet(sheet).cells.rowPlaceOf(quint32((entry.first >> 16) & 0xFFFFFF)), col = calc->sheet(sheet).cells.colPlaceOf(quint32(entry.first & 0xFFFF));
+                const QString text = cell && row != CellStore::kNoLine && col != CellStore::kNoLine ? calc->content(sheet, row, col).formula : QString();
+                const QString what = QStringLiteral("sheet %1 %2 (=%3): %4 against %5").arg(sheet).arg(row == CellStore::kNoLine ? QStringLiteral("?") : cellName(row, col), text, entry.second.debug(), again->second.debug());
+                if (mismatches == 1) firstMismatch = what;
+                if (verbose) err() << "mismatch: " << what << '\n';
+            }
+        }
+    }
+    out() << path << '\t' << first.size() << '\t' << made << '\t' << refused << '\t' << unstable.size() << '\t' << compared << '\t' << mismatches << '\t' << firstMismatch << '\n';
+    return mismatches == 0 ? 0 : 3;
+}
+
 int editMain(const QStringList &args)
 {
     if (!args.isEmpty() && args[0].startsWith(QLatin1String("model-"))) return ::jp::structmodel::command(args);
@@ -1820,6 +1916,7 @@ int editMain(const QStringList &args)
     if (args.size() >= 3 && args.size() <= 4 && args[0] == QLatin1String("edit-struct-bench")) return structBench(args[1], args[2], args.value(3));
     if (args.size() >= 1 && args.size() <= 5 && args[0] == QLatin1String("edit-bench-make"))
         return editBench(QString(), args.value(4, QStringLiteral("200")).toInt(), args.value(1, QStringLiteral("100000")).toInt(), args.value(2, QStringLiteral("20")).toInt(), args.value(3, QStringLiteral("0")).toInt());
+    if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("edit-recalc-check")) return editRecalcCheck(args[1], args.value(2, QStringLiteral("6")).toInt(), args.value(3, QStringLiteral("1")).toUInt());
     if (args.size() == 2 && args[0] == QLatin1String("roundtrip-one")) return roundtripOne(args[1]);
     if (args.size() == 2 && args[0] == QLatin1String("edit-names-roundtrip")) return namesRoundtripOne(args[1]);
     if (args.size() == 2 && args[0] == QLatin1String("edit-tables-roundtrip")) return tablesRoundtripOne(args[1]);

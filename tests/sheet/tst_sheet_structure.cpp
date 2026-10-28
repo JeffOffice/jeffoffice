@@ -1465,6 +1465,29 @@ private Q_SLOTS:
         QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
     }
 
+    // A block taken for one value of it by the cell the formula is in (a row of another sheet, picked by the formula's column) picks another when the cell moves and the block does not: the formula is
+    // worked out again, though it reads cells that did not move. (Found by working a workbook out again after edits.)
+    void aBlockTakenForOneValueByTheCellItIsInIsWorkedOutAgainWhenOnlyTheCellMoves()
+    {
+        Book b;
+        QVERIFY(b.open({{"A3==Sheet2!A3:C3", "B1==A3"}, {"A3=11", "B3=22", "C3=33"}}));
+        QCOMPARE(b.at("A3"), QStringLiteral("n:11"));
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 2), nullptr));   // on the first sheet: the formula is in column C now, and the block is where it was
+        QCOMPARE(b.at("C3"), QStringLiteral("n:33"));
+        QCOMPARE(b.at("D1"), QStringLiteral("n:33"));
+        QVERIFY(b.apply(StructEdit::deleteColumns(0, 0, 1), nullptr));
+        QCOMPARE(b.at("B3"), QStringLiteral("n:22"));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        // the same on the sheet itself: the block and the cell move together, and the formula is worked out again for no gain, and is right
+        Book c;
+        QVERIFY(c.open({{"A1=1", "B1=2", "C1=3", "B2==A1:C1"}}));
+        QCOMPARE(c.at("B2"), QStringLiteral("n:2"));
+        QVERIFY(c.apply(StructEdit::insertColumns(0, 0, 1), nullptr));
+        QCOMPARE(c.at("C2"), QStringLiteral("n:2"));
+        QVERIFY2(sameAsAWholeNewCalculation(c, &why), qPrintable(why));
+    }
+
     // A column put inside a thousand row sums asks for none of them (a sum skips the empty cells it is given and does not count where they are); the same range under COUNTBLANK, and a sum of
     // a block under an operator, are asked for all. None of them is made again in the graph: the sums read the same lines.
     void aColumnInsertedInsideRowSumsAsksForNoneOfThemAndCountBlankAsksForAll()

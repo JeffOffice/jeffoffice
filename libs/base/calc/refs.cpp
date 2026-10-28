@@ -26,14 +26,21 @@ bool observesPositionFunction(const char *name)
 
 bool isBlock(const RefLit &r) { return r.row1 != r.row2 || r.col1 != r.col2 || (r.flags & (kRefWholeCols | kRefWholeRows)); }
 
-// Whether every block the program reads goes to a function on the list and nowhere else. The program is postfix, so the stack is followed: for each value, whether it is a block. The
-// branches of IF, IFERROR, IFNA, and CHOOSE leave the stack as it was before them, and meet again after them (the block-ness of what each leaves is joined). Anything the walk cannot
-// follow (a stack that does not agree, a name, a table, a union) makes the program sensitive.
-bool blankInsensitiveProgram(const Program &p)
+// What the program does with the blocks it reads, found without working it out. The program is postfix, so the stack is followed: for each value, whether it is a block. The branches of
+// IF, IFERROR, IFNA, and CHOOSE leave the stack as it was before them, and meet again after them (the block-ness of what each leaves is joined). `insensitive`: every block goes to a function
+// on the list and nowhere else. `intersects`: a block is taken for one value of it, the one in the row or the column of the formula's own cell (implicit intersection: a block under an
+// operator, given where a function takes a value, or the answer of a formula that is not an array), which sees where the cell is. Anything the walk cannot follow (a stack that does not
+// agree, a name, a table, a union) makes the program sensitive and an observer.
+struct BlockUse {
+    bool insensitive = false;
+    bool intersects = false;
+};
+
+BlockUse blockUseOf(const Program &p)
 {
     std::vector<char> st;
     std::map<size_t, std::vector<char>> restore, join;   // by instruction: the stack to go back to (the else of an IF, a branch of CHOOSE), and the stack that joins what falls through
-    bool ok = true;
+    bool sensitive = false, intersects = false, broken = false;
     auto joinAt = [&](size_t at, const std::vector<char> &stack) {
         auto it = join.find(at);
         if (it == join.end()) {
@@ -41,26 +48,29 @@ bool blankInsensitiveProgram(const Program &p)
             return;
         }
         if (it->second.size() != stack.size()) {
-            ok = false;
+            broken = true;
             return;
         }
         for (size_t i = 0; i < stack.size(); ++i) it->second[i] = char(it->second[i] | stack[i]);
     };
     auto pop = [&]() -> char {
         if (st.empty()) {
-            ok = false;
+            broken = true;
             return 0;
         }
         const char top = st.back();
         st.pop_back();
         return top;
     };
-    for (size_t i = 0; i < p.code.size() && ok; ++i) {
+    auto taken = [&](char block) {   // (a block is taken for one value)
+        if (block) sensitive = intersects = true;
+    };
+    for (size_t i = 0; i < p.code.size() && !broken; ++i) {
         const Instr &in = p.code[i];
         if (const auto r = restore.find(i); r != restore.end()) st = r->second;
         if (const auto j = join.find(i); j != join.end()) {
             if (j->second.size() != st.size()) {
-                ok = false;
+                broken = true;
                 break;
             }
             for (size_t k = 0; k < st.size(); ++k) st[k] = char(st[k] | j->second[k]);
@@ -79,17 +89,18 @@ bool blankInsensitiveProgram(const Program &p)
         case Op::Range:
         case Op::Union:
         case Op::Intersect:
-        case Op::Spill: ok = false; break;
+        case Op::Spill: sensitive = intersects = true; broken = true; break;
         case Op::Add: case Op::Sub: case Op::Mul: case Op::Div: case Op::Pow: case Op::Concat: case Op::Eq: case Op::Ne: case Op::Lt: case Op::Le: case Op::Gt: case Op::Ge: {
             const char b = pop(), a = pop();
-            if (a || b) ok = false;
+            taken(a);
+            taken(b);
             st.push_back(0);
             break;
         }
         case Op::Neg:
         case Op::Percent:
         case Op::Single: {
-            if (pop()) ok = false;
+            taken(pop());
             st.push_back(0);
             break;
         }
@@ -99,14 +110,17 @@ bool blankInsensitiveProgram(const Program &p)
             bool block = false;
             for (char a : args) block = block || a;
             if (block) {
-                if (in.operand < 0 || (in.flags & kInstrArray)) {
-                    ok = false;
+                if (in.operand < 0) {
+                    sensitive = intersects = true;
                 } else {
                     const FunctionInfo &f = functionAt(in.operand);
-                    if (!blankInsensitiveFunction(f.name)) ok = false;
-                    // (a block is given where the function takes it as it is, and not where it is taken by implicit intersection)
-                    for (size_t k = 0; k < args.size() && ok; ++k)
-                        if (args[k] && paramClass(f, int(k)) != 'r') ok = false;
+                    if (!blankInsensitiveFunction(f.name) || (in.flags & kInstrArray)) sensitive = true;
+                    for (size_t k = 0; k < args.size(); ++k) {
+                        if (!args[k]) continue;
+                        const char kind = paramClass(f, int(k));
+                        if (kind == 'v') taken(1);   // (a block where a function takes a value: the one value of it in the cell's row or column)
+                        else if (kind != 'r') sensitive = true;
+                    }
                 }
             }
             st.push_back(0);
@@ -114,7 +128,7 @@ bool blankInsensitiveProgram(const Program &p)
         }
         case Op::Jump: joinAt(i + 1 + size_t(in.operand), st); break;
         case Op::IfJump: {
-            if (pop()) ok = false;
+            taken(pop());
             restore[i + 1 + size_t(in.operand)] = st;
             std::vector<char> failed = st;
             failed.push_back(0);
@@ -127,7 +141,7 @@ bool blankInsensitiveProgram(const Program &p)
             break;
         }
         case Op::Choose: {
-            if (pop()) ok = false;
+            taken(pop());
             // the next `argc` instructions are jumps to the branches: each branch begins with the stack as it is now
             std::vector<char> failed = st;
             failed.push_back(0);
@@ -135,7 +149,7 @@ bool blankInsensitiveProgram(const Program &p)
             for (size_t k = 1; k <= in.argc && i + k < p.code.size(); ++k) {
                 const Instr &to = p.code[i + k];
                 if (to.op != Op::Jump) {
-                    ok = false;
+                    broken = true;
                     break;
                 }
                 restore[i + k + 1 + size_t(to.operand)] = st;
@@ -145,12 +159,21 @@ bool blankInsensitiveProgram(const Program &p)
         }
         }
     }
-    if (!ok) return false;
-    if (const auto j = join.find(p.code.size()); j != join.end()) {
-        if (j->second.size() != st.size()) return false;
-        for (size_t k = 0; k < st.size(); ++k) st[k] = char(st[k] | j->second[k]);
+    if (!broken) {
+        if (const auto j = join.find(p.code.size()); j != join.end()) {
+            if (j->second.size() != st.size()) broken = true;
+            else
+                for (size_t k = 0; k < st.size(); ++k) st[k] = char(st[k] | j->second[k]);
+        }
     }
-    return st.size() == 1 && !st.back();   // (a block as the answer is a formula that gives an array, or picks a cell by where it is)
+    if (broken) return {false, true};
+    if (st.size() != 1) return {false, true};
+    // (a block as the answer is an array if the formula is one, else its one value)
+    if (st.back()) {
+        sensitive = true;
+        intersects = intersects || !p.arrayFormula;
+    }
+    return {!sensitive, intersects};
 }
 
 } // namespace
@@ -181,8 +204,10 @@ ProgramTraits traitsOf(const Program &program)
         if (std::strcmp(f.name, "SUMIF") == 0 || std::strcmp(f.name, "AVERAGEIF") == 0) t.reachesBeyond = true;
         if (observesPositionFunction(f.name)) t.observesPosition = true;
     }
+    const BlockUse use = blockUseOf(program);
     // (a block that is found as the formula is worked out, by a name or by OFFSET or INDIRECT or the range operator, may hold an empty line that nothing here saw)
-    t.blankInsensitive = !t.usesNames && !t.dynamic && !t.reachesBeyond && blankInsensitiveProgram(program);
+    t.blankInsensitive = !t.usesNames && !t.dynamic && !t.reachesBeyond && use.insensitive;
+    t.observesPosition = t.observesPosition || use.intersects;
     return t;
 }
 
