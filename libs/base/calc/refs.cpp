@@ -221,6 +221,7 @@ void merge(ProgramTraits *into, const ProgramTraits &from)
     into->reachesBeyond = into->reachesBeyond || from.reachesBeyond;
     into->observesPlace = into->observesPlace || from.observesPlace;
     into->observesPosition = into->observesPosition || from.observesPosition;
+    into->positionalNames = into->positionalNames || from.positionalNames;
 }
 
 // The traits of the names the program uses (not of the program itself), added to `into`.
@@ -234,19 +235,23 @@ void followNames(const Program &p, const std::vector<qint32> &bound, int sheet, 
             if (s < 0) continue;
         }
         const QString &name = p.texts[size_t(in.operand)];
-        const QString formula = source.definedName(s, name);
+        bool inIds = false, workbookIds = false;
+        const QString formula = source.heldName(s, name, &inIds);
         if (formula.isEmpty()) continue;
         // (a name is known by its scope, as the evaluation knows it)
-        const QString key = QString::number(formula == source.definedName(-1, name) ? -1 : s) + QLatin1Char('|') + name.toUpper();
+        const QString key = QString::number(formula == source.heldName(-1, name, &workbookIds) ? -1 : s) + QLatin1Char('|') + name.toUpper();
         if (cache->contains(key)) {
             merge(into, cache->value(key));
             continue;
         }
         cache->insert(key, ProgramTraits());   // (a name that reads itself, through others or not, adds nothing the second time)
         if (depth >= kMaxNameDepth) continue;
-        const ParseResult parsed = parseFormula(formula, ParseOptions());
+        ParseOptions options;
+        if (inIds) options.limits = ParseLimits::ids();
+        const ParseResult parsed = parseFormula(formula, options);
         if (!parsed.program) continue;
         ProgramTraits t = traitsOf(*parsed.program);
+        t.positionalNames = !inIds;
         followNames(*parsed.program, bindSheetNames(*parsed.program, source), s, source, cache, depth + 1, &t);
         cache->insert(key, t);
         merge(into, t);
@@ -285,25 +290,28 @@ void resolveReferences(const Program &p, const std::vector<qint32> &bound, int s
         qint64 c2 = (r.flags & kRefCol2Abs) ? qint64(r.col2) : qint64(r.col2) + shiftCols;
         if (places) {
             // (the same as Machine::resolveRef does for a formula in the id frame)
-            auto place = [&](bool rows, qint64 id, qint64 *at) {
-                if (id < 0 || id > qint64(0xFFFFFF)) return false;
-                const quint32 q = rows ? places->rowPlace(s1, quint32(id)) : places->colPlace(s1, quint32(id));
-                if (q == CellSource::kNoPlace) return false;
-                *at = qint64(q);
+            auto lines = [&](bool rows, qint64 a, qint64 b, qint64 *first, qint64 *last) {
+                if (a < 0 || b < 0 || a > qint64(0xFFFFFF) || b > qint64(0xFFFFFF)) return false;
+                quint32 x = 0, y = 0;
+                if (!(rows ? places->rowRange(s1, quint32(a), quint32(b), &x, &y) : places->colRange(s1, quint32(a), quint32(b), &x, &y))) return false;
+                *first = qint64(x);
+                *last = qint64(y);
                 return true;
             };
             bool ok = true;
+            if (r.written & 1) std::swap(r1, r2);   // (the ends in the order the text names them: see refEnds)
+            if (r.written & 2) std::swap(c1, c2);
             if (r.flags & kRefWholeCols) {
                 r1 = 0;
                 r2 = qint64(kGridRows) - 1;
             } else {
-                ok = place(true, r1, &r1) && place(true, r2, &r2);
+                ok = lines(true, r1, r2, &r1, &r2);
             }
             if (r.flags & kRefWholeRows) {
                 c1 = 0;
                 c2 = qint64(kGridCols) - 1;
             } else {
-                ok = ok && place(false, c1, &c1) && place(false, c2, &c2);
+                ok = ok && lines(false, c1, c2, &c1, &c2);
             }
             if (!ok) continue;
         }

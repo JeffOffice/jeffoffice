@@ -17,6 +17,8 @@
 #include <QString>
 #include <QStringList>
 
+#include <QSet>
+
 #include <deque>
 #include <unordered_map>
 #include <functional>
@@ -44,12 +46,14 @@ public:
     jp::calc::Value cell(int sheet, quint32 row, quint32 col) const override;
     void visit(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2, const std::function<bool(quint32, quint32, const jp::calc::Value &)> &f) const override;
     void usedExtent(int sheet, quint32 *rows, quint32 *cols) const override;
+    // What a name stands for, in places (the text the workbook holds for a name held in ids is turned into places); heldName gives the held text and whether it is in ids.
     QString definedName(int sheet, const QString &name) const override;
+    QString heldName(int sheet, const QString &name, bool *inIds) const override;
     bool isSubtotal(int sheet, quint32 row, quint32 col) const override;
     int rowHiddenKind(int sheet, quint32 row) const override;
-    // The places of rows and columns held by id (see CellSource::rowPlace) are the order of the sheet's lines.
-    quint32 rowPlace(int sheet, quint32 rowId) const override;
-    quint32 colPlace(int sheet, quint32 colId) const override;
+    // The places of the lines a reference holds by their ids (see CellSource::rowRange) are the order of the sheet's lines.
+    bool rowRange(int sheet, quint32 startId, quint32 endId, quint32 *first, quint32 *last) const override;
+    bool colRange(int sheet, quint32 startId, quint32 endId, quint32 *first, quint32 *last) const override;
     // What the conversions of formula texts between places and ids ask of the workbook (sheet/formulaframe.h).
     int frameSheetCount() const override { return int(m_sheets.size()); }
     int frameSheetIndex(const QString &name) const override { return sheetIndex(name); }
@@ -61,7 +65,7 @@ public:
     void tablesChanged() const { m_tableIndexReady = false; }
 
     // The defined names by "<sheet>|<NAME>" (the sheet counted from 0, or -1), and what each stands for (for the yardstick of saving).
-    const QHash<QString, QString> &definedNameTexts() const { return m_names; }
+    QHash<QString, QString> definedNameTexts() const;   // (in places)
     const Sheet &sheet(int i) const { return m_sheets[size_t(i)]; }
     const SharedStrings &shared() const { return m_book.sharedStrings(); }
     jp::calc::Value valueOf(const Sheet &sheet, const Cell &cell) const;
@@ -79,6 +83,7 @@ protected:
     mutable std::vector<std::vector<int>> m_tablesOfSheet;       // by the sheet, the places of its tables
     QHash<QString, int> m_byName;
     QHash<QString, QString> m_names;   // "<sheet>|<NAME>" -> what it stands for; the sheet counted from 0, or -1
+    QSet<QString> m_idNames;           // the keys of the names whose text is held in ids (the id frame: Calculation::nameCanBeHeldInIds); the others are in places
     QStringList m_notWhole;
     qint64 m_maxBytes;
     std::function<bool(int, qint64)> m_progress;

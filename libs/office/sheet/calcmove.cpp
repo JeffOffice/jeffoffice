@@ -149,6 +149,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     ++m_state[size_t(e.sheet)].epoch;
     if (e.toSheet != e.sheet) ++m_state[size_t(e.toSheet)].epoch;
     *rec = EditRecord();
+    if (m_options.idFrame) rec->renumberEpochs = renumberEpochs();
     rec->edit = e;
     rec->sheet = e.sheet;
     Sheet &S = m_sheets[size_t(e.sheet)];
@@ -205,7 +206,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         m.row = row;
         m.col = col;
         m.content = content(e.sheet, row, col);
-        rec->gone.push_back(goneCell(e.sheet, row, col, c));
+        pushGone(rec, e.sheet, row, col, c);
         if (m.content.isFormula) {
             bool changed = false;
             const QString now = adjustMovedFormula(m.content.formula, names, e, &changed);
@@ -216,7 +217,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     });
     D.cells.forEachInRange(e.toRow, e.toCol, toRow2, toCol2, [&](quint32 row, quint32 col, const Cell &c) {
         if (inSource(e.toSheet, row, col)) return true;   // (already counted: it is one of the block's)
-        rec->gone.push_back(goneCell(e.toSheet, row, col, c));
+        pushGone(rec, e.toSheet, row, col, c);
         overwritten.push_back({row, col});
         return true;
     });
@@ -349,16 +350,26 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     adjustValidations(e, names, rec);
     adjustConditionalFormats(e, names, rec);
 
-    // ---- the defined names
+    // ---- the defined names (one held in ids is looked at by its places)
     bool namesChanged = false;
+    QStringList idNamesChanged;
     for (auto it = m_names.begin(); it != m_names.end(); ++it) {
+        const bool inIds = m_idNames.contains(it.key());
         const int bar = int(it.key().indexOf(QLatin1Char('|')));
         const int scope = bar > 0 ? it.key().left(bar).toInt() : -1;
         bool changed = false;
-        const QString now = adjustFormula(it.value(), scope >= 0 ? scope : 0, names, e, &changed, true);
+        const QString places = inIds ? namePlaces(it.key(), it.value()) : it.value();
+        const QString now = adjustFormula(places, scope >= 0 ? scope : 0, names, e, &changed, true);
         if (!changed) continue;
-        rec->names.push_back({it.key(), it.value()});
-        it.value() = now;
+        rec->names.push_back({it.key(), taggedName(it.key())});
+        if (inIds) {
+            bool stillInIds = false;
+            it.value() = heldNameText(scope, now, &stillInIds);
+            if (!stillInIds) m_idNames.remove(it.key());
+            idNamesChanged << it.key().mid(bar + 1);
+        } else {
+            it.value() = now;
+        }
         namesChanged = true;
     }
     if (namesChanged) {
@@ -373,7 +384,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     for (const Rewrite &r : rewrites) {
         Node &n0 = m_nodes[r.id];
         if (n0.flags & Dead) continue;
-        const bool told = n0.flags & Told;
+        const bool told = (n0.flags & Told) && !(n0.traits & IdTold);
         if (r.now.isEmpty() && !told && !namesChanged) continue;
         const int sheet = n0.sheet;
         Sheet &sn = m_sheets[size_t(sheet)];
@@ -390,7 +401,13 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
                 was.hasStored = true;
                 was.stored = nodeValue(n0, r.id);
             }
+            EditRecord::HeldText held;
+            if (m_options.idFrame) held.has = heldOf(sheet, *c, &held.text, &held.dRow, &held.dCol, &held.cls);
             rec->was.push_back(std::move(was));
+            if (m_options.idFrame) {
+                rec->wasHeld.resize(rec->was.size());
+                rec->wasHeld.back() = std::move(held);
+            }
             retext(sheet, c, r.now);   // (in place: the formula keeps its place, and a cell of a shared family has a text of its own from now)
             ++rec->formulasRewritten;
             rec->rewritten.push_back({sheet, rowOf(n0), colOf(n0), n0.rowId, n0.colId, bool(c->flags & DataTable)});
@@ -402,6 +419,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         ++m_editStats.nodesRemade;
         queueDependents(areaOf(m_nodes[id]));
     }
+    if (!idNamesChanged.isEmpty()) nameTextsChangedFor(idNamesChanged);   // (a name held in ids that the move wrote again stands for other cells: what uses it is made again)
     m_editStats.formulasRewritten += rec->formulasRewritten;
     m_editStats.namesRewritten += qint64(rec->names.size());
     m_editStats.rulesRewritten += qint64(rec->validations.size() + rec->conditionalFormats.size());
@@ -463,13 +481,23 @@ bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
     clearRange(e.toSheet, e.toRow, e.toCol, toRow2, toCol2);
     clearRange(e.sheet, e.row1, e.col1, e.row2, e.col2);
     for (const EditRecord::GoneCell &g : rec.gone) put(g.sheet, g.row, g.col, g.content, Marking::Later);
+    const bool heldCurrent = recordIdsAreCurrent(rec);
+    if (heldCurrent)
+        for (size_t k = 0; k < rec.gone.size() && k < rec.goneHeld.size(); ++k)
+            if (rec.goneHeld[k].has) restoreHeldFormula(rec.gone[k].sheet, rec.gone[k].row, rec.gone[k].col, rec.goneHeld[k].text, rec.goneHeld[k].dRow, rec.goneHeld[k].dCol, rec.goneHeld[k].cls);
     for (const EditRecord::ArraySlot &taken : rec.arraysTaken) {
         QVector<CellRange> &list = m_sheets[size_t(taken.sheet)].ranges;
         if (taken.slot >= 0 && taken.slot < list.size()) list[taken.slot] = taken.range;
     }
     putBackKinds(rec);
-    for (const EditRecord::FormulaWas &w : rec.was) {
+    for (size_t wk = 0; wk < rec.was.size(); ++wk) {
+        const EditRecord::FormulaWas &w = rec.was[wk];
         const Value *stored = w.hasStored ? &w.stored : nullptr;
+        if (heldCurrent && !w.hasStored && wk < rec.wasHeld.size() && rec.wasHeld[wk].has) {
+            const EditRecord::HeldText &h = rec.wasHeld[wk];
+            restoreHeldFormula(w.sheet, w.row, w.col, h.text, h.dRow, h.dCol, h.cls);
+            continue;
+        }
         if (rewriteArrayText(w.sheet, w.row, w.col, w.text)) continue;
         setFormula(w.sheet, w.row, w.col, w.text, Marking::Later, stored);
     }
@@ -490,7 +518,7 @@ bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
     }
     bool changed = false;
     for (const auto &entry : rec.names) {
-        m_names[entry.first] = entry.second;
+        restoreTaggedName(entry.first, entry.second);
         changed = true;
     }
     if (changed) {

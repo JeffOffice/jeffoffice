@@ -91,27 +91,32 @@ bool Machine::resolveRef(const Program &p, const RefLit &r, RefArea *area, Error
     qint64 r2 = (r.flags & kRefRow2Abs) ? qint64(r.row2) : qint64(r.row2) + dr;
     qint64 c1 = (r.flags & kRefCol1Abs) ? qint64(r.col1) : qint64(r.col1) + dc;
     qint64 c2 = (r.flags & kRefCol2Abs) ? qint64(r.col2) : qint64(r.col2) + dc;
-    if (ctx.idFrame && !wrapRefs) {
-        // (the numbers are ids: a row or column whole is every place, and the others are the places the ids have now; one that was deleted is gone)
+    if (ctx.idFrame) {
+        // (the numbers are ids: a row or column whole is every place, and the others are the places the ids have now, an end that was deleted being the line next to where it was; a reference with
+        // nothing left of it is gone)
         const bool wholeCols = r.flags & kRefWholeCols, wholeRows = r.flags & kRefWholeRows;
-        auto place = [&](bool rows, qint64 id, qint64 *out) {
-            if (id < 0 || id > qint64(0xFFFFFF)) return false;
-            const quint32 p = rows ? ctx.source->rowPlace(s1, quint32(id)) : ctx.source->colPlace(s1, quint32(id));
-            if (p == CellSource::kNoPlace) return false;
-            *out = qint64(p);
+        auto lines = [&](bool rows, qint64 a, qint64 b, qint64 *first, qint64 *last) {
+            if (a < 0 || b < 0 || a > qint64(0xFFFFFF) || b > qint64(0xFFFFFF)) return false;
+            quint32 x = 0, y = 0;
+            if (!(rows ? ctx.source->rowRange(s1, quint32(a), quint32(b), &x, &y) : ctx.source->colRange(s1, quint32(a), quint32(b), &x, &y))) return false;
+            *first = qint64(x);
+            *last = qint64(y);
             return true;
         };
+        // (the ends in the order the text names them: the corners of a range were put in the order of their numbers, which for ids is not always that of the places)
+        if (r.written & 1) std::swap(r1, r2);
+        if (r.written & 2) std::swap(c1, c2);
         if (wholeCols) {
             r1 = 0;
             r2 = qint64(kGridRows) - 1;
-        } else if (!place(true, r1, &r1) || !place(true, r2, &r2)) {
+        } else if (!lines(true, r1, r2, &r1, &r2)) {
             *error = ErrorKind::Ref;
             return false;
         }
         if (wholeRows) {
             c1 = 0;
             c2 = qint64(kGridCols) - 1;
-        } else if (!place(false, c1, &c1) || !place(false, c2, &c2)) {
+        } else if (!lines(false, c1, c2, &c1, &c2)) {
             *error = ErrorKind::Ref;
             return false;
         }
@@ -476,14 +481,15 @@ Item Machine::runProgram(const Program &p, bool)
                     break;
                 }
             }
-            const QString formula = ctx.source->definedName(sheet, name);
+            bool inIds = false, workbookIds = false;
+            const QString formula = ctx.source->heldName(sheet, name, &inIds);
             if (formula.isEmpty()) {
                 stack.push_back(Item::ofError(ErrorKind::Name));
                 break;
             }
             // The name is known by what it is: the sheet whose own name it is, or the workbook's (when the sheet has none of its own, the workbook's is the one that answers).
-            const int scope = formula == ctx.source->definedName(-1, name) ? -1 : sheet;
-            stack.push_back(evaluateText(formula, false, true, sheet, QString::number(scope) + QLatin1Char('|') + name.toUpper()));
+            const int scope = formula == ctx.source->heldName(-1, name, &workbookIds) ? -1 : sheet;
+            stack.push_back(evaluateText(formula, false, true, sheet, QString::number(scope) + QLatin1Char('|') + name.toUpper(), inIds));
             break;
         }
         case Op::PushTable: {
@@ -616,7 +622,7 @@ Item Machine::runProgram(const Program &p, bool)
     return pop();
 }
 
-Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, int, const QString &identity)
+Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, int, const QString &identity, bool inIds)
 {
     // Looking a text up takes as long as it is (its key is made and hashed).
     if (!charge(2 + qint64(text.size()) / 64)) return Item::ofError(ErrorKind::Value);
@@ -625,7 +631,7 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
         return Item::ofError(ErrorKind::Ref);
     }
     // (A text in R1C1 form means what it says relative to the cell it is worked out for, so it is kept for that cell.)
-    QString key = QString(r1c1 ? QLatin1Char('R') : QLatin1Char('A')) + (relativeToA1 ? QLatin1Char('n') : QLatin1Char('t'));
+    QString key = QString(r1c1 ? QLatin1Char('R') : QLatin1Char('A')) + (relativeToA1 ? QLatin1Char('n') : QLatin1Char('t')) + (inIds ? QLatin1Char('i') : QLatin1Char('p'));
     if (r1c1) key += QString::number(ctx.row) + QLatin1Char(',') + QString::number(ctx.col) + QLatin1Char(':');
     key += text;
     // A text that is asked for while it is being worked out is a circle: a name that stands for itself, directly or through others. It is no number, and is not worked out
@@ -647,6 +653,7 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
         options.definedName = relativeToA1;
         options.row = ctx.row;
         options.col = ctx.col;
+        if (inIds) options.limits = ParseLimits::ids();   // (a text held in ids may name rows and columns past the grid)
         Cached c;
         const ParseResult r = parseFormula(text, options);
         if (r.ok()) c.program = r.program;
@@ -662,7 +669,7 @@ Item Machine::evaluateText(const QString &text, bool r1c1, bool relativeToA1, in
     if (!program->unknownFunctions.isEmpty()) unsupported |= 4;
     const int savedRows = ctx.shiftRows, savedCols = ctx.shiftCols;
     const bool savedFrame = ctx.idFrame;
-    ctx.idFrame = false;   // (what a name or a text says is in places)
+    ctx.idFrame = inIds;   // (what a name held in ids says is in ids; what INDIRECT is given, and a name held in places, is in places)
     ctx.shiftRows = relativeToA1 ? int(ctx.row) : 0;
     ctx.shiftCols = relativeToA1 ? int(ctx.col) : 0;
     const bool savedWrap = wrapRefs;

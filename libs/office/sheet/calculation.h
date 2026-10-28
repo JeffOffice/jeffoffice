@@ -132,6 +132,10 @@ public:
     void setNow(double serial) { m_options.now = serial; }
     // The tables changed (made, taken out, renamed, moved, resized, or a column renamed): the formulas that name a table's columns are worked out again. Call with the worker held back.
     void tablesChanged();
+    // The tables were moved by an edit of whole rows or columns (the workbook has moved them, and the edit was made here just before): with the id frame, only the formulas that name a table whose ids
+    // changed (its header row, its first and last row of data, its totals row, its first and last column, or how many columns it has) are made again, so a table that moves, or that has a row put in or
+    // taken out inside it, makes none (docs/jeffcrunch-rowids.md, 4.14). Without it, as tablesChanged.
+    void tablesMovedByEdit();
     // The rows hidden on a sheet changed: the formulas that call SUBTOTAL are worked out again (they leave out hidden rows). Call with the worker held back.
     void hiddenRowsAndSubtotals(int sheet);
     // Marks every formula to be worked out again (the next recalculation is a whole one).
@@ -224,6 +228,17 @@ public:
             quint32 rowId = 0, colId = 0;   // the ids of its row and column when it was taken (the window's values and marks are by them)
         };
         std::vector<GoneCell> gone;
+        // (id frame) The formula of a cell as the workbook held it, in ids, with its distance from the cell its text was written for: a reference to a line that was deleted before is still a reference to
+        // that line (it comes back when that deletion is undone), which the text a person reads, with the line next to it, can't say. Undo puts it back if no sheet's ids were renumbered since
+        // (`renumberEpochs`, each sheet's renumber epoch when the edit was made). `goneHeld` and `wasHeld` are by the place in `gone` and in `was`, and empty with the switch off.
+        struct HeldText {
+            QString text;
+            qint32 dRow = 0, dCol = 0;
+            quint8 cls = 0;
+            bool has = false;
+        };
+        std::vector<HeldText> goneHeld, wasHeld;
+        std::vector<quint32> renumberEpochs;
         // formula cells whose text changed: where each was before the edit, and what it read
         struct FormulaWas {
             int sheet;
@@ -465,6 +480,9 @@ public:
         qint64 nodesRemade = 0;          // formulas dropped from the graph and made again in it
         qint64 graphWork = 0;            // the graph's own count of the entries it built, moved, and looked at, during the edits
         qint64 namesRewritten = 0, rulesRewritten = 0;   // defined names, and lists of validations and conditional formats, written again
+        // With the id frame: the formulas made again (told the graph again) because a defined name's text changed, and because a table's ids changed (docs/jeffcrunch-rowids.md, 4.14). An edit of whole
+        // rows or columns that touches no end of a name or a table makes none; counted by the formulas, never by the names or the tables.
+        qint64 namesRegisteredAgain = 0, tablesRegisteredAgain = 0;
         // With the id frame (CalcOptions::idFrame): the formulas an edit of whole rows or columns, or of cells, had to write again through their places, which an edit that moves them and what they read
         // alike does not: they read a row or column that died, their text is in places (positionalFormulas), or the edit moves cells one by one. And the texts made by turning places into ids, and ids
         // into places (a text typed, a text shown), counted so that a test can see that an edit of rows makes none for the formulas it leaves.
@@ -486,6 +504,8 @@ public:
             d.graphWork = graphWork - o.graphWork;
             d.namesRewritten = namesRewritten - o.namesRewritten;
             d.rulesRewritten = rulesRewritten - o.rulesRewritten;
+            d.namesRegisteredAgain = namesRegisteredAgain - o.namesRegisteredAgain;
+            d.tablesRegisteredAgain = tablesRegisteredAgain - o.tablesRegisteredAgain;
             d.eagerFormulas = eagerFormulas - o.eagerFormulas;
             d.textsToIds = textsToIds - o.textsToIds;
             d.textsToPlaces = textsToPlaces - o.textsToPlaces;
@@ -579,7 +599,7 @@ private:
         quint16 flags = 0;
     };
     // Node::traits. The default, none, is a formula that can notice an empty line put inside a block it reads and does not see where cells are.
-    enum : quint8 { Insensitive = 1, Observes = 2, OwnOnly = 4 };   // (OwnOnly: it sees only its own cell, ROW() and COLUMN() with nothing in the brackets: no places are kept for it, an edit of lines asks the formulas at or past it)
+    enum : quint8 { Insensitive = 1, Observes = 2, OwnOnly = 4, IdTold = 8 };   // (OwnOnly: it sees only its own cell, ROW() and COLUMN() with nothing in the brackets: no places are kept for it, an edit of lines asks the formulas at or past it)
     struct Compiled {
         std::shared_ptr<const jp::calc::Program> program;
         QString error;
@@ -587,6 +607,7 @@ private:
         bool traitsKnown = false;
         bool usesNames = false, dynamic = false, reaches = false, changesByItself = false, iterative = false;
         bool insensitive = false, observesPosition = false;   // see ProgramTraits::blankInsensitive and observesPosition
+        bool positionalNames = false;                         // see ProgramTraits::positionalNames
         std::vector<qint32> bound;
     };
     static constexpr qint32 kFreeFormula = -2;   // the text of a formula's place that is free to be used again
@@ -631,13 +652,48 @@ private:
     // (the text is as a person writes it, in places; the workbook turns it into what it holds)
     void retext(int sheet, Cell *cell, const QString &text);
     void classify(quint32 id, const Cell &cell, const Formula &f);
-    bool readsDeadLine(const Node &n, int sheet, bool rows, quint32 first, quint32 last) const;
+    // The formulas held in ids that have an inserted line at an end of a reference, by the line (the sheet, rows or columns, and its id): no interval of the graph holds an inserted line's id (a reader of
+    // one is told as the original line next to it), and what such a formula reads changes when the line is deleted, even if the line is empty (a single cell is #REF!, a range may have nothing left).
+    static quint64 insertedKey(int sheet, bool rows, quint32 id) { return (quint64(quint32(sheet)) << 40) | (rows ? (quint64(1) << 39) : 0) | id; }
+    void forgetInsertedEnds(quint32 node);
+    void noteInsertedEnds(quint32 node, const std::vector<quint64> &keys);
+    std::unordered_map<quint64, std::vector<quint32>> m_readersOfInserted;
+    std::unordered_map<quint32, std::vector<quint64>> m_insertedEndsOf;
+    // Whether a defined name's text (as a person writes it, in places) can be held in ids: every reference in it names its sheet and is absolute (a relative reference means a place relative to the cell
+    // that uses the name, which ids can't say), no reference runs through several sheets, no word is a cell past XFD, and no range is written back to front. The others are held in places, and an edit of
+    // whole lines writes them again as it did before ids. A name's text typed in places, as the workbook holds it (`inIds` says which), and the held one as a person reads it.
+    bool nameCanBeHeldInIds(const QString &text) const;
+    QString heldNameText(int scope, const QString &typed, bool *inIds) const;
+    QString namePlaces(const QString &key, const QString &held) const;
+    // For a record: the text a name has, with a mark in front if it is held in ids; restored by restoreTaggedName.
+    QString taggedName(const QString &key) const;
+    void restoreTaggedName(const QString &key, const QString &tagged);
+    // Formulas that use a name or a table and nothing that reads where they are (no INDIRECT, no OFFSET, no range operator): what they read is the names' and the tables' ids, which an edit of whole lines
+    // does not change, so such an edit does not tell the graph about them again (they are not on the list of those it looks at)
+    std::unordered_set<quint32> m_idToldNodes;
+    // The ids a table stands for, as the order of its sheet's rows and columns says: the formulas that name it are told the graph again when these change.
+    struct TableIds {
+        int sheet = -1;
+        quint32 header = 0, first = 0, last = 0, bottom = 0, left = 0, right = 0;
+        int columns = 0, headerRows = 0, totalsRows = 0;
+        bool operator==(const TableIds &o) const { return sheet == o.sheet && header == o.header && first == o.first && last == o.last && bottom == o.bottom && left == o.left && right == o.right && columns == o.columns && headerRows == o.headerRows && totalsRows == o.totalsRows; }
+        bool operator!=(const TableIds &o) const { return !(*this == o); }
+    };
+    TableIds idsOfTable(const Table &table) const;
+    void snapshotTableIds();
+    bool heldOf(int sheet, const Cell &c, QString *held, qint32 *dRow, qint32 *dCol, quint8 *cls) const;
+    void restoreHeldFormula(int sheet, quint32 row, quint32 col, const QString &held, qint32 dRow, qint32 dCol, quint8 cls);
+    bool recordIdsAreCurrent(const EditRecord &rec) const { return m_options.idFrame && !rec.renumberEpochs.empty() && rec.renumberEpochs == renumberEpochs(); }
+    std::vector<quint32> renumberEpochs() const;
+    void tablesChangedFor(const QSet<QString> &changed);
+    QHash<QString, TableIds> m_tableIdsBefore;   // by the table's name in lower case, made just before an edit of whole lines
     std::unordered_set<quint32> m_positionalNodes;   // (with the id frame) the formulas whose text is held in places: an edit of whole lines writes them again as it did before ids
     void registerSheet(int sheet);
     void frameSheet(int sheet);
     // The ids of one sheet's rows (columns) were renumbered by `table` (a rebase): the texts in ids that name them are written again with the new ids, and a family of formulas that shared a text keeps it where
     // its members are as far from each other in the new ids as they were (a run of the order), and is split where they are not. `onlySheet`: only the texts of that sheet (a copy made of a sheet).
-    void renumberTexts(int target, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table, int onlySheet = -1);
+    // `before` is the order as it was before the renumbering: a reference to a line that was deleted is the line next to where it was in it (docs/jeffcrunch-rowids.md, 4.4), and gone if nothing is.
+    void renumberTexts(int target, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table, const jp::calc::LineMapCore &before, int onlySheet = -1);
     void setSlotText(int sheet, qint32 slot, const QString &text);
     void readdNode(quint32 id);
     quint32 addNode(int sheet, quint32 row, quint32 col, const Cell &cell, qint32 formulaIndex);   // (the place of the cell)
@@ -665,6 +721,7 @@ private:
     void adjustConditionalFormats(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
     // A cell that is deleted or written over, as it is, for Undo to put back (an array formula or a data table is put back as one: see putBackKinds).
     EditRecord::GoneCell goneCell(int sheet, quint32 row, quint32 col, const Cell &c) const;
+    void pushGone(EditRecord *rec, int sheet, quint32 row, quint32 col, const Cell &c) const;   // (a cell that is deleted or written over, in the record; and with the id frame the formula as it is held)
     EditRecord::GoneCell placeGone(int sheet, quint32 row, quint32 col) const;   // (a place, with no content: for the values of the cells there to be let go of)
     void putBackKinds(const EditRecord &record);
     jp::calc::Value ruleFormula(const Validation &rule, const QString &text, int sheet, quint32 row, quint32 col, const jp::calc::CellSource &source, bool asArray) const;
@@ -681,6 +738,9 @@ private:
     // is asked as; and every formula told to the graph again (a sheet's lines were renumbered).
     void idAreasOn(const jp::calc::CellArea &places, bool reading, std::vector<jp::calc::CellArea> *out) const;
     jp::calc::CellArea idAreaOnSheet(int sheet, const jp::calc::CellArea &places, bool reading) const;
+    // The blocks a formula held in ids reads, as the ids the graph is told them (from the ids at the ends of its references, deleted ones too: see calc/idframe.h, idSpanOfEnds); added to `out`.
+    // `insertedEnds`, if given, gets the keys (insertedKey) of the inserted lines at the ends of its references.
+    void idAreasOfFormula(const jp::calc::Program &program, const std::vector<qint32> &bound, int sheet, qint32 dRow, qint32 dCol, std::vector<jp::calc::CellArea> *out, std::vector<quint64> *insertedEnds = nullptr) const;
     jp::calc::CellArea idAreaOfNode(const Node &n) const;
     bool rebuildGraph();   // (true if some formula is to be worked out again for it)
     std::vector<jp::calc::CellArea> m_idAreas;
@@ -775,6 +835,7 @@ private:
         std::vector<jp::calc::IdRun> deadBlank;         // set 3, lines pushed off the end of the sheet that held no cell: the formulas that can notice an empty line, of which a block holds them
         std::vector<jp::calc::IdRun> dead;              // set 3: original lines that died or came back, as runs of ids
         bool deadPair = false;                          // set 3: inserted lines that held cells died or came back, between the original lines of the gap
+        std::vector<quint32> nodes;                     // set 3: formulas that have an inserted line that died (deleted) or came back (Undo of a delete) at an end of a reference: no block holds those ids
         bool observers = false;                         // set 2
         bool ownOnly = false;                           // set 2, for the formulas that see only their own cell: those of the sheet at or past `ownFirst` (a row or a column)
         quint32 ownFirst = 0;

@@ -16,7 +16,7 @@ bool Calculation::nameText(int scope, const QString &name, QString *text) const
 {
     const auto at = m_names.constFind(keyOf(scope, name));
     if (at == m_names.constEnd()) return false;
-    if (text) *text = at.value();
+    if (text) *text = namePlaces(at.key(), at.value());
     return true;
 }
 
@@ -24,8 +24,15 @@ void Calculation::setNameText(int scope, const QString &name, const QString &tex
 {
     abandonNow();
     const QString key = keyOf(scope, name);
-    if (text.isEmpty()) m_names.remove(key);
-    else m_names[key] = text;
+    if (text.isEmpty()) {
+        m_names.remove(key);
+        m_idNames.remove(key);
+    } else {
+        bool inIds = false;
+        m_names[key] = heldNameText(scope, text, &inIds);   // (the text a person writes is in places; the workbook holds what it can in ids)
+        if (inIds) m_idNames.insert(key);
+        else m_idNames.remove(key);
+    }
     nameTextsChangedFor({name});
 }
 
@@ -111,9 +118,9 @@ void Calculation::renameName(int scope, const QString &oldName, const QString &n
         const int bar = int(it.key().indexOf(QLatin1Char('|')));
         const int own = bar > 0 ? it.key().left(bar).toInt() : -1;
         bool changed = false;
-        const QString now = renameNameInFormula(it.value(), oldName, newName, appliesOn(own), &changed);
+        const QString now = renameNameInFormula(it.value(), oldName, newName, appliesOn(own), &changed, m_idNames.contains(it.key()));
         if (!changed) continue;
-        record->names.push_back({it.key(), it.value()});
+        record->names.push_back({it.key(), taggedName(it.key())});
         it.value() = now;
     }
     // the name itself
@@ -123,6 +130,7 @@ void Calculation::renameName(int scope, const QString &oldName, const QString &n
         const QString text = at.value();
         m_names.erase(at);
         m_names[newKey] = text;
+        if (m_idNames.remove(oldKey)) m_idNames.insert(newKey);
     }
     nameTextsChangedFor({oldName, newName});
 }
@@ -138,6 +146,7 @@ void Calculation::undoRenameName(int scope, const QString &oldName, const QStrin
         const QString text = at.value();
         m_names.erase(at);
         m_names[oldKey] = text;
+        if (m_idNames.remove(newKey)) m_idNames.insert(oldKey);
     }
     undoSheetRewrite(record);
     nameTextsChangedFor({oldName, newName});
@@ -197,6 +206,7 @@ void Calculation::nameTextsChangedFor(const QStringList &given)
             const quint32 now = addNodeById(si, rowId, colId, *c, formula);
             queueDependents(areaOf(m_nodes[now]));
             ++m_nameRebuilds;
+            ++m_editStats.namesRegisteredAgain;
             ++rebuilt;
         }
     }

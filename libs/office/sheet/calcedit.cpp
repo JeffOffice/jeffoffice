@@ -231,47 +231,17 @@ void Calculation::specialNodes(std::vector<quint32> *out)
         size_t keep = 0;
         for (const quint32 id : m_special) {
             const Node &n = m_nodes[id];
-            if (!(n.flags & Dead) && ((n.flags & Told) || ((n.flags & Kept) && n.kept != 'U'))) m_special[keep++] = id;
+            if (!(n.flags & Dead) && (((n.flags & Told) && !(n.traits & IdTold)) || ((n.flags & Kept) && n.kept != 'U'))) m_special[keep++] = id;
         }
         m_special.resize(keep);
     }
     for (const quint32 id : m_special) {
         const Node &n = m_nodes[id];
-        if (!(n.flags & Dead) && ((n.flags & Told) || ((n.flags & Kept) && n.kept != 'U'))) out->push_back(id);
+        if (!(n.flags & Dead) && (((n.flags & Told) && !(n.traits & IdTold)) || ((n.flags & Kept) && n.kept != 'U'))) out->push_back(id);
     }
 }
 
 void Calculation::setGraphShifts(bool on) { g_graphShifts = on; }
-
-// Whether a formula held in ids has a reference with an end in the lines (rows or columns of `sheet`) at the places [first, last] that are about to die, or one to a line that is dead already: its text
-// must be written again (a single cell there is #REF!, a range that loses an end has another). A range with both ends alive that has lines dying inside it needs no new text: it is the same ids.
-bool Calculation::readsDeadLine(const Node &n, int sheet, bool rows, quint32 first, quint32 last) const
-{
-    const Sheet &s = m_sheets[size_t(n.sheet)];
-    if (n.formula < 0 || n.formula >= s.formulas.size()) return false;
-    const Formula &f = s.formulas[n.formula];
-    if (f.text < 0 || f.text >= s.formulaTexts.size()) return false;
-    const std::vector<Compiled> &slots = (n.flags & Array) ? m_state[size_t(n.sheet)].array : m_state[size_t(n.sheet)].plain;
-    const Compiled *slot = size_t(f.text) < slots.size() && slots[size_t(f.text)].tried ? &slots[size_t(f.text)] : nullptr;
-    if (!slot) slot = &const_cast<Calculation *>(this)->compiled(n.sheet, f.text, n.flags & Array);
-    if (!slot->program) return false;
-    const CellStore &cells = m_sheets[size_t(sheet)].cells;
-    for (const jp::calc::RefLit &r : slot->program->refs) {
-        const qint32 s1 = r.sheet1 >= 0 ? slot->bound[size_t(r.sheet1)] : n.sheet;
-        if (s1 != sheet) continue;
-        if (r.flags & (rows ? jp::calc::kRefWholeCols : jp::calc::kRefWholeRows)) continue;   // (every place of the other kind: no id to be dead)
-        const qint64 shift = rows ? f.dRow : f.dCol;
-        const quint8 abs1 = rows ? jp::calc::kRefRow1Abs : jp::calc::kRefCol1Abs, abs2 = rows ? jp::calc::kRefRow2Abs : jp::calc::kRefCol2Abs;
-        const qint64 a = (r.flags & abs1) ? qint64(rows ? r.row1 : r.col1) : qint64(rows ? r.row1 : r.col1) + shift;
-        const qint64 b = (r.flags & abs2) ? qint64(rows ? r.row2 : r.col2) : qint64(rows ? r.row2 : r.col2) + shift;
-        for (const qint64 id : {a, b}) {
-            if (id < 0 || id > qint64(0xFFFFFF)) return true;
-            const quint32 at = rows ? cells.rowPlaceOf(quint32(id)) : cells.colPlaceOf(quint32(id));
-            if (at == CellStore::kNoLine || (at >= first && at <= last)) return true;
-        }
-    }
-    return false;
-}
 
 namespace {
 bool wholeLines(const StructEdit &e, bool *rows)
@@ -296,6 +266,8 @@ bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineM
     // what is waiting for the worker names ids that are renumbered below: it is done now, with the ids it has (the formulas it names are marked to be worked out, and what reads them)
     const bool drained = drainBeforeRenumbering(sheet);
     std::vector<jp::calc::LineMapCore::Renumber> table;
+    // (the order as it is, with the records of the lines that were deleted: formulas held in ids may name them)
+    const jp::calc::LineMapCore before = rows ? m_sheets[size_t(sheet)].cells.rows().core() : m_sheets[size_t(sheet)].cells.cols().core();
     if (m_sheets[size_t(sheet)].cells.rebaseLines(rows, &table) != jp::calc::LineStatus::Ok) return false;
     if (out) *out = table;
     if (table.empty()) {
@@ -324,17 +296,42 @@ bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineM
         if (again && !(n.flags & Kept)) redirty(id);
     }
     // the texts in ids that name the lines are written again with the new ids
-    renumberTexts(sheet, rows, table);
-    // the graph holds the old ids too
+    renumberTexts(sheet, rows, table, before);
+    // the graph holds the old ids too, and so do the lists of the formulas that have an inserted line at an end (rebuildGraph makes them again: no line is inserted now)
+    m_readersOfInserted.clear();
+    m_insertedEndsOf.clear();
     const bool told = rebuildGraph();
     if ((again || told || drained) && !m_running) beginRecalculation();
     return true;
 }
 
-void Calculation::renumberTexts(int target, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table, int onlySheet)
+void Calculation::renumberTexts(int target, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table, const jp::calc::LineMapCore &before, int onlySheet)
 {
     if (!m_options.idFrame || table.empty()) return;
     using jp::calc::ParseLimits;
+    // One reference as the new ids say it: the sheet whose ids changed has its lines renumbered, and a line that was deleted is the line next to where it was in the order before.
+    const auto mapLine = [&](int sheet, jp::calc::RefLit *lit) {
+        MapResult result = MapResult::Same;
+        if (sheet == target) {
+            const bool whole = lit->flags & (rows ? jp::calc::kRefWholeCols : jp::calc::kRefWholeRows);
+            if (!whole) {
+                // (the ends as the text names them; one that was deleted is the line next to where it was, by the order before the renumbering, and nothing may be left of the reference)
+                quint32 a, b;
+                bool aAbs, bAbs;
+                jp::calc::refEnds(*lit, rows, &a, &b, &aAbs, &bAbs);
+                quint32 ia = a, ib = b;
+                if (before.posOf(a) == CellStore::kNoLine) ia = before.resolveStart(a);
+                if (before.posOf(b) == CellStore::kNoLine) ib = before.resolveEnd(b);
+                if (ia == CellStore::kNoLine || ib == CellStore::kNoLine) return MapResult::Gone;
+                if ((ia != a || ib != b) && before.posOf(ia) > before.posOf(ib)) return MapResult::Gone;
+                const quint32 x = CellStore::renumberLine(table, ia), y = CellStore::renumberLine(table, ib);
+                if (x == CellStore::kNoLine || y == CellStore::kNoLine) return MapResult::Gone;
+                if (x != a || y != b || (lit->written & (rows ? 1 : 2))) result = MapResult::Changed;
+                jp::calc::setRefEnds(lit, rows, x, y, aAbs, bAbs);
+            }
+        }
+        return result;
+    };
     for (int si = 0; si < int(m_sheets.size()); ++si) {
         if (onlySheet >= 0 && si != onlySheet) continue;
         Sheet &s = m_sheets[size_t(si)];
@@ -364,19 +361,8 @@ void Calculation::renumberTexts(int target, bool rows, const std::vector<jp::cal
                 const QString own = f.dRow == 0 && f.dCol == 0 ? text : offsetFormula(text, f.dRow, f.dCol, nullptr, was);
                 *wide = false;
                 const auto map = [&](int sheet, jp::calc::RefLit *lit) {
-                    MapResult result = MapResult::Same;
-                    if (sheet == target) {
-                        const bool whole = lit->flags & (rows ? jp::calc::kRefWholeCols : jp::calc::kRefWholeRows);
-                        quint32 &a = rows ? lit->row1 : lit->col1;
-                        quint32 &b = rows ? lit->row2 : lit->col2;
-                        if (!whole) {
-                            const quint32 x = CellStore::renumberLine(table, a), y = CellStore::renumberLine(table, b);
-                            if (x == CellStore::kNoLine || y == CellStore::kNoLine) return MapResult::Gone;
-                            if (x != a || y != b) result = MapResult::Changed;
-                            a = x;
-                            b = y;
-                        }
-                    }
+                    const MapResult result = mapLine(sheet, lit);
+                    if (result == MapResult::Gone) return result;
                     *wide = *wide || lit->row1 >= jp::calc::kGridRows || lit->row2 >= jp::calc::kGridRows || lit->col1 >= jp::calc::kGridCols || lit->col2 >= jp::calc::kGridCols;
                     return result;
                 };
@@ -409,6 +395,16 @@ void Calculation::renumberTexts(int target, bool rows, const std::vector<jp::cal
                 s.formulas[fi].dCol = shared ? dCol : 0;
                 releaseText(si, old);
             }
+        }
+    }
+    // the defined names held in ids
+    if (onlySheet < 0) {
+        for (auto it = m_names.begin(); it != m_names.end(); ++it) {
+            if (!m_idNames.contains(it.key())) continue;
+            const int bar = int(it.key().indexOf(QLatin1Char('|')));
+            const int scope = bar > 0 ? it.key().left(bar).toInt() : -1;
+            QString now;
+            if (mapReferences(*this, scope >= 0 ? scope : 0, it.value(), ParseLimits::ids(), mapLine, &now)) it.value() = now;
         }
     }
 }
@@ -489,7 +485,7 @@ void Calculation::forgetLines(EditRecord *rec)
     // (the sheet that has the order the record names: the sheets may have been moved since)
     for (Sheet &s : m_sheets)
         if (s.cells.serial() == rec->lines.owner) {
-            s.cells.forgetLines(rows, &rec->lines);
+            s.cells.forgetLines(rows, &rec->lines, m_options.idFrame);
             return;
         }
     rec->lines = CellStore::LineEdits();
@@ -504,6 +500,9 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     if (!canApply(e, nullptr)) return false;
     if (e.kind == K::Move) return applyMove(e, rec);
     abandonNow();
+    // (the ids the tables stand for now, to see after the edit which tables it changed)
+    bool linesEdit = false;
+    if (m_options.idFrame && wholeLines(e, &linesEdit) && !m_book.tables().isEmpty()) snapshotTableIds();
     auto lapAt = std::chrono::steady_clock::now();
     auto lap = [&](int phase) {
         const auto now = std::chrono::steady_clock::now();
@@ -523,6 +522,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     *rec = EditRecord();
     rec->edit = e;
     rec->sheet = e.sheet;
+    if (m_options.idFrame) rec->renumberEpochs = renumberEpochs();
     Sheet &S = m_sheets[size_t(e.sheet)];
     rec->ranges = S.ranges;
     rec->merges = S.merges;
@@ -540,23 +540,16 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     lap(6);
     // ---- what reads the cells that move: the graph says (before anything moves), and the formulas the graph does not follow (those kept apart, those that read where they are told)
     const CellArea region = affectedArea(e);
-    std::vector<quint32> candidates, specials;
-    // With the id frame an edit of whole lines writes no text again for a formula that is held in ids and reads no line that dies: what it names is the same ids, which are where they are now. The
-    // formulas it looks at are those that read what dies, those kept in places, and those the graph does not follow (kept apart, told where they read).
+    std::vector<quint32> candidates, specials, oracleReaders;
+    // With the id frame an edit of whole lines writes no text again for a formula that is held in ids: what it names is the same ids, which are where they are now, and one with an end in a line that
+    // died reads the line next to it (docs/jeffcrunch-rowids.md, 4.4). The formulas it looks at are those held in places and those the graph does not follow (kept apart, told where they read).
     const bool idLines = m_options.idFrame && wholeLine;
-    const bool linesAreRows = e.kind == K::InsertRows || e.kind == K::DeleteRows;
-    quint32 deadFirst = 0, deadLast = 0;   // the places, before the edit, of the lines that die
     if (idLines) {
-        const quint32 limit = linesAreRows ? kGridRows : kGridCols;
-        deadFirst = deletes(e) ? e.first : std::max(e.first, limit - std::min(e.count, limit));
-        deadLast = deletes(e) ? std::min(limit, e.first + e.count) - 1 : limit - 1;
-        CellArea dead = region;
-        (linesAreRows ? dead.row1 : dead.col1) = deadFirst;
-        (linesAreRows ? dead.row2 : dead.col2) = deadLast;
         // (a formula kept apart for a function the engine lacks can't be told what the function makes of a text it reads: it has #NAME? when the text of a formula it reads is written again. So while the
         // workbook has one, every formula that reads what moves is looked at, and the ones whose text as shown changed are as good as written again)
         if (m_hasUnknown) readersOf(region, &candidates);
-        else readersOf(dead, &candidates);
+        // (the oracle, an edit that asks no question of the worker: every formula that reads what moves or dies is worked out again, which the questions do otherwise)
+        if (!g_graphShifts.load(std::memory_order_relaxed)) readersOf(region, &oracleReaders);
         for (const quint32 id : m_positionalNodes) candidates.push_back(id);
     } else {
         readersOf(region, &candidates);
@@ -605,7 +598,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         if (!c || !c->hasFormula()) continue;
         Rewrite r;
         r.id = id;
-        if (idLines && c->formula >= 0 && size_t(c->formula) < size_t(sn.formulas.size()) && inIds(sn, sn.formulas[c->formula].text) && !readsDeadLine(n, e.sheet, linesAreRows, deadFirst, deadLast)) {
+        if (idLines && c->formula >= 0 && size_t(c->formula) < size_t(sn.formulas.size()) && inIds(sn, sn.formulas[c->formula].text)) {
             if (m_hasUnknown) {
                 r.shownOnly = true;
                 r.was = sn.formulaText(*c);
@@ -682,7 +675,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         default: r1 = e.row1; r2 = e.row2; c1 = e.col1; c2 = e.col2; break;
         }
         S.cells.forEachInRange(r1, c1, r2, c2, [&](quint32 row, quint32 col, const Cell &c) {
-            rec->gone.push_back(goneCell(e.sheet, row, col, c));
+            pushGone(rec, e.sheet, row, col, c);
             return true;
         });
     } else if (e.kind == K::InsertRows || e.kind == K::InsertColumns) {
@@ -691,7 +684,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         const quint32 limit = rowsEdit ? kGridRows : kGridCols;
         const quint32 from = std::max(e.first, limit - std::min(count, limit));
         S.cells.forEachInRange(rowsEdit ? from : 0, rowsEdit ? 0 : from, kGridRows - 1, kGridCols - 1, [&](quint32 row, quint32 col, const Cell &c) {
-            rec->gone.push_back(goneCell(e.sheet, row, col, c));
+            pushGone(rec, e.sheet, row, col, c);
             return true;
         });
     }
@@ -854,7 +847,8 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             bool revivedInserted = false;
             touch(lc.revived, &revivedInserted);
             // set 1: the gap of lines put in (or brought back), or of inserted lines that died: a block that holds the original lines either side holds it
-            if (!lc.inserted.empty() || !lc.revived.empty()) {
+            // (lines that come back by Undo of a delete are in their place; those an Undo of an insert brings back from the end of the sheet are not, and the inserted lines it kills were at the place of the edit)
+            if (!lc.inserted.empty() || (undoOf && !deletes(e))) {
                 const jp::calc::IdGap g = jp::calc::idGap(map, e.first + count);
                 q.gapBefore = g.before;
                 q.gapAfter = g.after;
@@ -865,6 +859,30 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             }
             // set 3: inserted lines that held cells are gone or back
             q.deadPair = insertedLines && S.cells.deadCount() != deadBefore;
+            // and the formulas that have such a line at an end of a reference, if there can be any (the lines an Undo of an insert kills are named by no formula: what named them was undone first)
+            if (!m_readersOfInserted.empty()) {
+                auto collect = [&](const std::vector<jp::calc::IdRun> &runs) {
+                    for (const jp::calc::IdRun &r : runs) {
+                        if (r.first + r.count <= firstNew) continue;
+                        const quint32 from = std::max(r.first, firstNew);
+                        const quint32 count = r.first + r.count - from;
+                        if (count <= m_readersOfInserted.size()) {
+                            for (quint32 k = 0; k < count; ++k) {
+                                const auto at = m_readersOfInserted.find(insertedKey(e.sheet, lc.rows, from + k));
+                                if (at != m_readersOfInserted.end()) q.nodes.insert(q.nodes.end(), at->second.begin(), at->second.end());
+                            }
+                        } else {
+                            for (const auto &entry : m_readersOfInserted)
+                                if (int(entry.first >> 40) == e.sheet && bool((entry.first >> 39) & 1) == lc.rows && quint32(entry.first & 0x7FFFFFFFFFull) >= from && quint32(entry.first & 0x7FFFFFFFFFull) < from + count)
+                                    q.nodes.insert(q.nodes.end(), entry.second.begin(), entry.second.end());
+                        }
+                    }
+                };
+                if (!undoOf) collect(lc.killed);
+                collect(lc.revived);
+                std::sort(q.nodes.begin(), q.nodes.end());
+                q.nodes.erase(std::unique(q.nodes.begin(), q.nodes.end()), q.nodes.end());
+            }
             // set 2
             bool own = false;
             q.observers = (!m_seen.empty() || m_ownOnly > 0) && anObserverSawAnotherPlace(e.sheet, lc.rows, e.first, &own);
@@ -904,6 +922,16 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         q.epoch = m_state[size_t(e.sheet)].epoch;
         m_questions.push_back(q);
         if (!m_running) beginRecalculation();
+    }
+    // A formula that uses names and tables tells the graph what it touched as it was worked out, which is places: where an end of a name or of a table was a line that died, what it touched were the lines
+    // next to it, and the line that comes back is in no interval of its. So when lines come back every such formula is worked out again (a formula that reads where it is told is made again by every edit).
+    if (idLines && !lc.revived.empty() && !m_idToldNodes.empty()) {
+        for (const quint32 id : m_idToldNodes) {
+            if (m_nodes[id].flags & Dead) continue;
+            redirty(id);
+            queueDependents(areaOf(m_nodes[id]));
+        }
+        m_editStats.formulasVisited += qint64(m_idToldNodes.size());
     }
     // Rows or columns inserted or deleted: the graph holds the ids of the lines, which an edit does not change, so what every formula reads is where its cells are with nothing told to the graph; a
     // formula whose text is only moved with what it reads need not be made again (it is worked out again, as every formula that was written again is). A formula that reads a block of several
@@ -1006,16 +1034,27 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     adjustValidations(e, names, rec);
     adjustConditionalFormats(e, names, rec);
 
-    // ---- the defined names
+    // ---- the defined names (one held in ids is as it was for an edit of whole lines: the same ids; for an edit of cells it is looked at by its places)
     bool namesChanged = false;
+    QStringList idNamesChanged;
     for (auto it = m_names.begin(); it != m_names.end(); ++it) {
+        const bool inIds = m_idNames.contains(it.key());
+        if (inIds && wholeLine) continue;
         const int bar = int(it.key().indexOf(QLatin1Char('|')));
         const int scope = bar > 0 ? it.key().left(bar).toInt() : -1;
         bool changed = false;
-        const QString now = adjustFormula(it.value(), scope >= 0 ? scope : 0, names, e, &changed, true);
+        const QString places = inIds ? namePlaces(it.key(), it.value()) : it.value();
+        const QString now = adjustFormula(places, scope >= 0 ? scope : 0, names, e, &changed, true);
         if (!changed) continue;
-        rec->names.push_back({it.key(), it.value()});
-        it.value() = now;
+        rec->names.push_back({it.key(), taggedName(it.key())});
+        if (inIds) {
+            bool stillInIds = false;
+            it.value() = heldNameText(scope, now, &stillInIds);
+            if (!stillInIds) m_idNames.remove(it.key());
+            idNamesChanged << it.key().mid(bar + 1);
+        } else {
+            it.value() = now;
+        }
         namesChanged = true;
     }
     if (namesChanged) {
@@ -1032,7 +1071,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         Rewrite &r = rewrites[i];
         Node &n0 = m_nodes[r.id];
         if (n0.flags & Dead) continue;
-        const bool told = n0.flags & Told;
+        const bool told = (n0.flags & Told) && !(n0.traits & IdTold);   // (with the id frame, a formula that uses names and tables only is not made again by an edit of whole lines)
         if (r.shownOnly) {
             // (the text it is shown as is the one it was written again to before ids: a formula kept apart for its function has #NAME? when the text of what it reads changed)
             const Cell *shownCell = cellOf(n0);
@@ -1046,6 +1085,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         Sheet &sn = m_sheets[size_t(sheet)];
         Cell *c = cellOfMutable(n0);
         if (!c || !c->hasFormula()) continue;
+        if (namesChanged && !told && r.now.isEmpty() && r.group < 0) ++m_editStats.namesRegisteredAgain;
         if (r.group >= 0) {
             // a formula of a shared family: it keeps its share of the family's text, which is made once, and it is as far from the cell it was written for as it was
             Group &g = groups[size_t(r.group)];
@@ -1074,7 +1114,13 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
                 was.hasStored = true;
                 was.stored = nodeValue(n0, r.id);
             }
+            EditRecord::HeldText held;
+            if (m_options.idFrame) held.has = heldOf(sheet, *c, &held.text, &held.dRow, &held.dCol, &held.cls);
             rec->was.push_back(std::move(was));
+            if (m_options.idFrame) {
+                rec->wasHeld.resize(rec->was.size());
+                rec->wasHeld.back() = std::move(held);
+            }
             retext(sheet, c, r.now);   // (in place: the formula keeps its place, and a cell of a shared family has a text of its own from now)
             if (m_options.idFrame) ++m_editStats.eagerFormulas;
             ++rec->formulasRewritten;
@@ -1106,6 +1152,13 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     }
     // what reads cells that moved in or out of a range it reads (a text that is as it was, a whole column, or a block shifted inside a range) has its value again (an edit of whole lines asked the worker)
     if (!useQuestions) queueDependents(region);
+    for (const quint32 id : oracleReaders) {
+        if (m_nodes[id].flags & Dead) continue;
+        redirty(id);
+        queueDependents(areaOf(m_nodes[id]));
+    }
+    // (a name held in ids that an edit of cells wrote again stands for other cells: what uses it is made again)
+    if (!idNamesChanged.isEmpty()) nameTextsChangedFor(idNamesChanged);
     lap(5);
     m_editStats.formulasRewritten += rec->formulasRewritten;
     m_editStats.namesRewritten += qint64(rec->names.size());
@@ -1178,6 +1231,62 @@ void Calculation::putBackKinds(const EditRecord &rec)
     }
 }
 
+std::vector<quint32> Calculation::renumberEpochs() const
+{
+    std::vector<quint32> out;
+    out.reserve(m_state.size());
+    for (const SheetState &st : m_state) out.push_back(st.renumberEpoch);
+    return out;
+}
+
+void Calculation::pushGone(EditRecord *rec, int sheet, quint32 row, quint32 col, const Cell &c) const
+{
+    rec->gone.push_back(goneCell(sheet, row, col, c));
+    if (!m_options.idFrame) return;
+    rec->goneHeld.resize(rec->gone.size());
+    EditRecord::HeldText &h = rec->goneHeld.back();
+    if (!(c.flags & (ArrayFormula | DataTable))) h.has = heldOf(sheet, c, &h.text, &h.dRow, &h.dCol, &h.cls);
+}
+
+// The formula of the cell as the workbook holds it (false if it has none, or its text is held in places): the text in ids, how far the cell is from the one it was written for, and its class.
+bool Calculation::heldOf(int sheet, const Cell &c, QString *held, qint32 *dRow, qint32 *dCol, quint8 *cls) const
+{
+    if (!c.hasFormula() || c.formula < 0) return false;
+    const Sheet &s = m_sheets[size_t(sheet)];
+    if (size_t(c.formula) >= size_t(s.formulas.size())) return false;
+    const Formula &f = s.formulas[c.formula];
+    if (f.text < 0 || f.text >= s.formulaTexts.size() || !inIds(s, f.text)) return false;
+    *held = s.formulaTexts[f.text];
+    *dRow = f.dRow;
+    *dCol = f.dCol;
+    *cls = quint8(textClass(s, f.text));
+    return true;
+}
+
+// A formula put back in a cell it was in, as it was held: the text in ids and how far the cell is from the one it was written for.
+void Calculation::restoreHeldFormula(int sheet, quint32 row, quint32 col, const QString &held, qint32 dRow, qint32 dCol, quint8 cls)
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return;
+    Sheet &s = m_sheets[size_t(sheet)];
+    Cell *c = s.cells.findMutable(row, col);
+    if (!c || !c->hasFormula() || c->formula < 0 || c->formula >= s.formulas.size() || (c->flags & (ArrayFormula | DataTable))) return;
+    Formula &f = s.formulas[c->formula];
+    const qint32 text = internText(sheet, held, TextClass(cls));
+    if (text == f.text && f.dRow == dRow && f.dCol == dCol) {
+        releaseText(sheet, text);   // (it is what it was: the one more hold on it that making it took is let go of)
+        return;
+    }
+    SheetState &st = m_state[size_t(sheet)];
+    if (size_t(c->formula) < st.nodeOf.size() && st.nodeOf[size_t(c->formula)] != kNone) dropNode(st.nodeOf[size_t(c->formula)]);
+    const qint32 old = f.text;
+    f.text = text;
+    f.dRow = dRow;
+    f.dCol = dCol;
+    releaseText(sheet, old);
+    const quint32 id = addNode(sheet, row, col, *c, c->formula);
+    queueDependents(areaOf(m_nodes[id]));
+}
+
 bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
 {
     if (rec.edit.kind == StructEdit::Kind::Move) return undoMove(rec, done);
@@ -1188,8 +1297,19 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
     Sheet &S = m_sheets[size_t(rec.sheet)];
     // the cells that were deleted are put back, and the formulas that were written again have the text they had
     for (const EditRecord::GoneCell &g : rec.gone) put(g.sheet, g.row, g.col, g.content, Marking::Later);
-    for (const EditRecord::FormulaWas &w : rec.was) {
+    // (the formulas that were in them are the ones they were, in ids, unless the ids were renumbered since: the text a person read is not enough for a reference to a line that had died before)
+    const bool heldCurrent = recordIdsAreCurrent(rec);
+    if (heldCurrent)
+        for (size_t k = 0; k < rec.gone.size() && k < rec.goneHeld.size(); ++k)
+            if (rec.goneHeld[k].has) restoreHeldFormula(rec.gone[k].sheet, rec.gone[k].row, rec.gone[k].col, rec.goneHeld[k].text, rec.goneHeld[k].dRow, rec.goneHeld[k].dCol, rec.goneHeld[k].cls);
+    for (size_t wk = 0; wk < rec.was.size(); ++wk) {
+        const EditRecord::FormulaWas &w = rec.was[wk];
         const jp::calc::Value *stored = w.hasStored ? &w.stored : nullptr;
+        if (heldCurrent && !w.hasStored && wk < rec.wasHeld.size() && rec.wasHeld[wk].has) {
+            const EditRecord::HeldText &h = rec.wasHeld[wk];
+            restoreHeldFormula(w.sheet, w.row, w.col, h.text, h.dRow, h.dCol, h.cls);
+            continue;
+        }
         if (!w.hasStored && w.sheet >= 0 && w.sheet < int(m_sheets.size())) {
             // (the inverse edit has most of them as they were: those that do are left alone)
             const Sheet &sw = m_sheets[size_t(w.sheet)];
@@ -1251,7 +1371,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
     // the names (by the key they are kept by)
     bool changed = false;
     for (const auto &entry : rec.names) {
-        m_names[entry.first] = entry.second;
+        restoreTaggedName(entry.first, entry.second);
         changed = true;
     }
     if (changed) {
@@ -1272,6 +1392,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
             const quint32 rowId = n.rowId, colId = n.colId;
             dropNode(id);
             addNodeById(sheet, rowId, colId, *c, formula);
+            ++m_editStats.namesRegisteredAgain;
         }
     }
     if (!m_running) beginRecalculation();
@@ -1296,23 +1417,14 @@ void Calculation::nameTextsChanged()
         const quint32 rowId = n.rowId, colId = n.colId;
         dropNode(id);
         addNodeById(sheet, rowId, colId, *c, formula);
+        ++m_editStats.namesRegisteredAgain;
     }
     if (!m_running) beginRecalculation();
 }
 
 std::vector<std::pair<QString, QString>> Calculation::renameColumnInNames(const QString &table, const QString &oldName, const QString &newName)
 {
-    std::vector<std::pair<QString, QString>> was;
-    abandonNow();
-    for (auto it = m_names.begin(); it != m_names.end(); ++it) {
-        if (!it.value().contains(QLatin1Char('['))) continue;
-        const QString now = renameColumnInFormula(it.value(), table, oldName, newName, false);
-        if (now == it.value()) continue;
-        was.push_back({it.key(), it.value()});
-        it.value() = now;
-    }
-    if (!was.empty()) nameTextsChanged();
-    return was;
+    return rewriteNames([&](const QString &text) { return renameColumnInFormula(text, table, oldName, newName, false); });
 }
 
 std::vector<std::pair<QString, QString>> Calculation::rewriteNames(const std::function<QString(const QString &)> &rewrite)
@@ -1321,10 +1433,20 @@ std::vector<std::pair<QString, QString>> Calculation::rewriteNames(const std::fu
     abandonNow();
     for (auto it = m_names.begin(); it != m_names.end(); ++it) {
         if (!it.value().contains(QLatin1Char('['))) continue;
-        const QString now = rewrite(it.value());
-        if (now == it.value()) continue;
-        was.push_back({it.key(), it.value()});
-        it.value() = now;
+        // (a name held in ids is given in places to what rewrites it, and held again as it comes back)
+        const bool inIds = m_idNames.contains(it.key());
+        const QString places = inIds ? namePlaces(it.key(), it.value()) : it.value();
+        const QString now = rewrite(places);
+        if (now == places) continue;
+        was.push_back({it.key(), taggedName(it.key())});
+        if (inIds) {
+            const int bar = int(it.key().indexOf(QLatin1Char('|')));
+            bool stillInIds = false;
+            it.value() = heldNameText(bar > 0 ? it.key().left(bar).toInt() : -1, now, &stillInIds);
+            if (!stillInIds) m_idNames.remove(it.key());
+        } else {
+            it.value() = now;
+        }
     }
     if (!was.empty()) nameTextsChanged();
     return was;
@@ -1334,7 +1456,7 @@ void Calculation::restoreNames(const std::vector<std::pair<QString, QString>> &n
 {
     if (names.empty()) return;
     abandonNow();
-    for (const auto &entry : names) m_names[entry.first] = entry.second;
+    for (const auto &entry : names) restoreTaggedName(entry.first, entry.second);
     nameTextsChanged();
 }
 
