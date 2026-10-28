@@ -498,6 +498,8 @@ public:
     qint64 formulasAsked() const { return m_formulasAsked.load(std::memory_order_relaxed); }
     qint64 questionsPending() const { return qint64(m_questions.size()); }
     qint64 observerCount() const { return qint64(m_seen.size()); }   // formulas that keep the places they saw
+    qint64 ownOnlyCount() const { return m_ownOnly; }                // formulas that see only their own cell (none keeps a place)
+    qint64 observersLooked() const { return m_observersLooked; }     // places of those looked at by edits of lines, counted
     qint64 registrations() const { return m_registrations; }   // times a formula has told the graph what it reads (counted, so that a test can see that one that reads the same is not told again)
     qint64 alwaysListed() const { return qint64(m_always.size()); }   // formulas on the list of those worked out in every recalculation
     const jp::calc::DependencyGraph &graph() const { return *m_graph; }
@@ -552,7 +554,7 @@ private:
         quint16 flags = 0;
     };
     // Node::traits. The default, none, is a formula that can notice an empty line put inside a block it reads and does not see where cells are.
-    enum : quint8 { Insensitive = 1, Observes = 2 };
+    enum : quint8 { Insensitive = 1, Observes = 2, OwnOnly = 4 };   // (OwnOnly: it sees only its own cell, ROW() and COLUMN() with nothing in the brackets: no places are kept for it, an edit of lines asks the formulas at or past it)
     struct Compiled {
         std::shared_ptr<const jp::calc::Program> program;
         QString error;
@@ -637,6 +639,8 @@ private:
     bool rebuildGraph();   // (true if some formula is to be worked out again for it)
     std::vector<jp::calc::CellArea> m_idAreas;
     void markDependents(std::vector<jp::calc::CellArea> *changed);
+    void markDependentsOfIds(std::vector<jp::calc::CellArea> *changed);   // (the same, for blocks that are ids already)
+    bool drainBeforeRenumbering(int sheet);
     void queueDependents(const jp::calc::CellArea &area);
     void giveName(quint32 id, std::vector<jp::calc::CellArea> *changed);
     void markDirty(quint32 id, std::vector<jp::calc::CellArea> *changed);
@@ -704,24 +708,35 @@ private:
         bool always = false;   // more blocks than are kept: it is worked out again after every edit of lines
     };
     std::unordered_map<quint32, Seen> m_seen;
+    bool m_hasUnknown = false;   // some formula is kept apart for a function the engine lacks (it may read the text of a formula): a formula written again by an edit of lines queues what reads it
     qint64 m_seenPlaces = 0;   // all the places kept (the sizes of the lists in m_seen)
     void recordSeen(quint32 id, const std::vector<jp::calc::CellArea> &blocks);
     bool seenDiffers(const Seen &s) const;
-    bool anObserverSawAnotherPlace() const;
+    // With `sheet`, only an edit of its lines from the place `first` on (rows or columns) is looked at: a formula all of whose places are before it cannot have moved.
+    bool anObserverSawAnotherPlace(int sheet = -1, bool rows = true, quint32 first = 0, bool *own = nullptr) const;
+    void noteSeenPlace(int sheet, quint32 row, quint32 col);
+    qint64 m_ownOnly = 0;
+    void setSeenAlways(Seen &s, bool on);
+    mutable std::vector<quint32> m_seenMaxRow, m_seenMaxCol;   // by sheet: past the largest place any formula kept (an upper bound: it is not lowered)
+    mutable qint64 m_observersLooked = 0;
+    qint64 m_seenAlways = 0;                                    // formulas worked out after every edit of lines (more blocks than are kept, or a cell that moved alone)
     // What an edit of whole rows or columns asks of the worker (the sets of `questionsAnswered`), in ids: they stay true whatever edit comes next. The worker answers it a chunk at a time.
     struct Question {
         int sheet = 0;
         bool rows = true;
         quint32 epoch = 0;                              // the sheet's epoch the edit made, for the stamps
         quint32 gapBefore = 0xFFFFFFFFu, gapAfter = 0xFFFFFFFFu;   // set 1: the original lines either side of lines put in (or of inserted lines that died); none for no gap that a block can hold
+        std::vector<jp::calc::IdRun> deadBlank;         // set 3, lines pushed off the end of the sheet that held no cell: the formulas that can notice an empty line, of which a block holds them
         std::vector<jp::calc::IdRun> dead;              // set 3: original lines that died or came back, as runs of ids
         bool deadPair = false;                          // set 3: inserted lines that held cells died or came back, between the original lines of the gap
         bool observers = false;                         // set 2
+        bool ownOnly = false;                           // set 2, for the formulas that see only their own cell: those of the sheet at or past `ownFirst` (a row or a column)
+        quint32 ownFirst = 0;
     };
     std::deque<Question> m_questions;
     std::atomic<qint64> m_questionsAnswered{0}, m_formulasAsked{0};
     bool questionHasAnAnswer(const Question &q) const;
-    bool buildAsked(const Question &q, std::vector<quint32> *out) const;
+    bool buildAsked(const Question &q, std::vector<quint32> *out, const std::atomic<bool> *stop) const;
     void markAsked(quint32 node, const Question &q, std::vector<jp::calc::CellArea> *changed);
     void stampAsked(const Node &n, quint32 epoch);
     std::vector<quint32> m_special;   // formulas that are told where they read (names, INDIRECT, ...) or kept apart: an edit that moves cells looks at these as well as at what the graph names (may hold gone and repeated ones)
@@ -732,6 +747,7 @@ private:
     std::unordered_set<quint32> m_subtotalNodes;     // the formulas that call SUBTOTAL (a place may be stale)
     std::unordered_set<quint32> m_structuredNodes;   // the formulas that name a table's columns (a place may be stale: tablesChanged looks at each)
     jp::calc::NameTraitsCache m_nameTraits;   // what each defined name calls (by its scope and name)
+    std::unordered_map<quint32, std::pair<qint32, qint32>> m_threeDSpan;   // the sheets a 3-D formula's blocks span, first to last
     std::unordered_set<quint32> m_threeD;     // formulas that read a block of several sheets (a node on it has ThreeD); one leaves it when its formula goes or reads no more than one sheet
     std::vector<quint32> m_always;            // formulas worked out in every recalculation, each once (a node on it has AlwaysListed); those that are not, or are gone, are left out at the next
     void listAlways(quint32 id);
@@ -802,6 +818,7 @@ private:
         size_t askedAt = 0;
         std::vector<quint32> observers;
         size_t observersAt = 0;
+        size_t ownAt = 0;   // the node the look for formulas that see only their own cell has got to
     } m_begin;
     int m_onlySheet = -1;   // a recalculation of one sheet is going (invalidateSheet): the formulas of the others are left, and noted here for the next
     std::vector<quint32> m_deferredRoots;

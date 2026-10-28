@@ -129,6 +129,51 @@ class CrunchChartTests : public QObject {
 private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
 
+    // A chart reads the values its cells hold now, wherever rows and columns put them: after a row is put in the middle of what it reads, a number is typed in it, a row is taken out, and all of it is undone.
+    void aChartHasTheValuesOfItsCellsAfterEditsAndUndo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(objectsShown(e, 0));
+        selectRange(e, QStringLiteral("A1:C4"));
+        QVERIFY(e.win.w.insertChart(ChartKind::Column));
+        crunch::EditSession *s = e.win.w.session();
+        auto values = [&](int series) {
+            const QVector<ChartSeries> all = seriesOf(chartOf(e));
+            return all.value(series).values;
+        };
+        QCOMPARE(values(0), (QVector<double>{10, 20, 30}));
+        QVERIFY(s->insertRows(0, 2, 1).ok);   // between Q1 and Q2
+        QVERIFY(e.settle());
+        QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("Sheet1!$B$2:$B$5"));
+        QCOMPARE(values(0).size(), 4);
+        QCOMPARE(values(0).first(), 10.0);
+        QCOMPARE(values(0).last(), 30.0);
+        QVERIFY(s->type(0, 2, 1, QStringLiteral("15")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(values(0), (QVector<double>{10, 15, 20, 30}));
+        QCOMPARE(values(1).size(), 4);   // (the empty cell of the row put in is not a number)
+        QCOMPARE(values(1).first(), 5.0);
+        QVERIFY(std::isnan(values(1)[1]));
+        QCOMPARE(values(1).last(), 15.0);
+        QVERIFY(s->deleteRows(0, 1, 1).ok);    // the first row of data
+        QVERIFY(e.settle());
+        QCOMPARE(values(0), (QVector<double>{15, 20, 30}));
+        pressUndo(&e.win.w);
+        QVERIFY(e.settle());
+        QCOMPARE(values(0), (QVector<double>{10, 15, 20, 30}));
+        pressUndo(&e.win.w);
+        pressUndo(&e.win.w);
+        QVERIFY(e.settle());
+        QCOMPARE(values(0), (QVector<double>{10, 20, 30}));
+        QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("Sheet1!$B$2:$B$4"));
+        QVERIFY(s->insertColumns(0, 0, 1).ok);   // the columns move right: the series read column C
+        QVERIFY(e.settle());
+        QCOMPARE(values(0), (QVector<double>{10, 20, 30}));
+        QCOMPARE(seriesOf(chartOf(e))[0].valueRef, QStringLiteral("Sheet1!$C$2:$C$4"));
+    }
+
     // New Chart makes a chart from the cells selected: headers found, the chart over the cells in view, picked, one step of Undo, and Redo puts it back.
     void aChartIsMadeFromTheCellsSelected()
     {

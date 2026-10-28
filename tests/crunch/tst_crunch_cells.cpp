@@ -1500,11 +1500,8 @@ private Q_SLOTS:
         QStringList specs;
         for (int r = 1; r <= 12000; ++r) specs << QStringLiteral("A%1=%1").arg(r) << QStringLiteral("B%1==A%1*2").arg(r) << QStringLiteral("C%1==B%1+1").arg(r);
         EditWindow e;
-        e.path = e.folder.write(QStringLiteral("book.xlsx"), sheetOf(specs));
-        e.win.w.workbookLoader().setPace(150000);   // (a row put in over formulas that only moved works nothing out again, so the first pass must last through the edits: a slice, then a tenth of a second)
-        QSignalSpy loaded(&e.win.w, &CrunchWindow::loadFinished);
-        QVERIFY(e.win.w.openFile(e.path));
-        QVERIFY(loaded.count() > 0 || loaded.wait(20000));
+        QVERIFY(e.open(sheetOf(specs)));
+        QVERIFY(e.settle());
         crunch::EditSession *s = e.win.w.session();
         QVERIFY(s);
         jp::calc::LineLimits rows = jp::calc::LineLimits::rows();
@@ -1514,29 +1511,17 @@ private Q_SLOTS:
         block.valid = true;
         block.row1 = block.row2 = 0;
         block.col1 = block.col2 = 1;
-        // (the worker has told something and has not told it all; no event is handled while it works on and queues batches the window has not taken: they are on their way when the edits are made)
+        // (a value told and not taken is a batch on its way: one is made so, by the count the window keeps, whatever the worker has got to, so that nothing here waits for a time or for the worker)
         const office::sheet::Calculation *calc = s->calculation();
-        // (waited for by looking at what was told and taken, which only the worker's telling changes while no event is handled: not for a time, which a loaded machine makes too short)
-        auto queued = [&](int extraMs) {
-            QElapsedTimer waited;
-            waited.start();
-            while (!calc->resultsInFlight() && waited.elapsed() < 30000) QThread::msleep(5);
-            QThread::msleep(ulong(extraMs));
-            return calc->resultsInFlight();
-        };
-        QVERIFY(QTest::qWaitFor([&] { return e.win.w.batchesTaken() > 0; }, 20000));
-        QVERIFY(queued(700));
-        QVERIFY(e.win.w.isCalculating());
+        calc->valuesTaken(-1);
+        QVERIFY(calc->resultsInFlight());
         QVERIFY(s->insertRows(0, 5, 3).ok);                    // formulas are written again
         QVERIFY(calc->resultsInFlight());
-        QThread::msleep(300);
         QVERIFY(s->insertRows(0, 2, 5).ok);                    // (ids are used up: the order is put back to one run first)
         QVERIFY(s->insertRows(0, 9, 5).ok);
-        QTest::qWait(100);                                     // (the values that were on their way are taken: those of before the renumbering are let go of)
-        QVERIFY(queued(700));                                  // (and the worker queues values again, under the new ids, before the last edit)
+        QVERIFY(calc->resultsInFlight());
         QVERIFY(s->insertCells(0, block, true).ok);            // the last: a cell shift (column B down by one), with nothing written again after it to put right a stale value
         QVERIFY(calc->stampCount() > 0);                       // (values in flight: the moved cells are stamped)
-        e.win.w.workbookLoader().setPace(0);
         QVERIFY(e.settle());
         QVERIFY(storeDiffers(e).isEmpty());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);

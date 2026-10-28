@@ -1203,6 +1203,8 @@ int structBench(const QString &path, const QString &label, const QString &only)
         cases.push_back({QStringLiteral("insert column %1").arg(QLatin1String(where[i])), [=] { return session->insertColumns(sheet, at, 1); }});
         cases.push_back({QStringLiteral("delete column %1").arg(QLatin1String(where[i])), [=] { return session->deleteColumns(sheet, at, 1); }});
     }
+    // (a row put in past every cell: nothing is read or seen there, so for formulas that only see their own row it is rigid)
+    cases.push_back({QStringLiteral("insert row past the end"), [=] { return session->insertRows(sheet, rows + 5, 1); }});
     // (cells shifted one by one: the column of formulas moved down by one, which moves every formula in it and leaves what they read where it is)
     cases.push_back({QStringLiteral("insert cells down"), [=] {
         office::sheet::CellRange shifted;

@@ -325,7 +325,12 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
         keepStored(n, kept);
         n.state = Done;
         // A formula with a function the engine lacks keeps the result the file stored until something it reads changes: then it has #NAME?. It is told to the graph, so that an edit finds it.
-        if (kept == 'U') registerNode(id, nullptr);
+        if (kept == 'U') {
+            // (nothing is known of what a function the engine lacks reads: where cells are, or the text of a formula; it is sensitive, and an observer, and a formula that was written again is a change)
+            n.traits = Observes;
+            m_hasUnknown = true;
+            registerNode(id, nullptr);
+        }
         return;
     }
     if (always) {
@@ -382,17 +387,41 @@ void Calculation::registerNode(quint32 id, const std::vector<CellArea> *told)
     if (told) m_areas.insert(m_areas.end(), m_toldSet.begin(), m_toldSet.end());
     std::sort(m_areas.begin(), m_areas.end());
     m_areas.erase(std::unique(m_areas.begin(), m_areas.end()), m_areas.end());
-    if (n.traits & Observes) recordSeen(id, m_areas);
+    if (n.traits & Observes) {
+        if (m_areas.empty() && !told && !(n.flags & (Told | Kept))) {
+            // (it sees its own cell and nothing else: no list of places is kept for it, and an edit of lines asks the formulas at or past it)
+            if (!(n.traits & OwnOnly)) {
+                n.traits |= OwnOnly;
+                ++m_ownOnly;
+            }
+            noteSeenPlace(n.sheet, rowOf(n), colOf(n));
+            m_seen.erase(id);
+        } else {
+            if (n.traits & OwnOnly) {
+                n.traits &= quint8(~OwnOnly);
+                --m_ownOnly;
+            }
+            recordSeen(id, m_areas);
+        }
+    }
     ++m_registrations;
     // (a formula that reads a block of several sheets is not rewritten for a change to one of them, so the graph is told again what it reads when rows move on one)
     bool threeD = false;
-    for (const CellArea &a : m_areas) threeD = threeD || a.sheet1 != a.sheet2;
-    if (threeD && !(n.flags & ThreeD)) {
+    qint32 spanFirst = 1 << 30, spanLast = -1;
+    for (const CellArea &a : m_areas)
+        if (a.sheet1 != a.sheet2) {
+            threeD = true;
+            spanFirst = std::min(spanFirst, a.sheet1);
+            spanLast = std::max(spanLast, a.sheet2);
+        }
+    if (threeD) {
         n.flags |= ThreeD;
         m_threeD.insert(id);
-    } else if (!threeD && (n.flags & ThreeD)) {
+        m_threeDSpan[id] = {spanFirst, spanLast};
+    } else if (n.flags & ThreeD) {
         n.flags &= quint16(~ThreeD);
         m_threeD.erase(id);
+        m_threeDSpan.erase(id);
     }
     // (the graph holds ids: the blocks the text names, which are places, are turned into the ids of their lines, a sheet at a time, as a reader is told: see calc/idframe.h)
     m_idAreas.clear();
@@ -718,6 +747,7 @@ bool Calculation::load()
     m_dirty.clear();
     m_always.clear();
     m_threeD.clear();
+    m_threeDSpan.clear();
     std::vector<quint32> masters;   // array formulas, whose cells are then made members of them
     bool cancelled = false;
     for (int si = 0; si < sheets; ++si) {
@@ -1095,12 +1125,17 @@ void Calculation::giveName(quint32 id, std::vector<CellArea> *changed)
 // Marks what reads the blocks of places given, and what reads those, to be worked out. (Inside, `changed` holds the ids of the lines, as the graph is asked.)
 void Calculation::markDependents(std::vector<CellArea> *changed)
 {
-    std::vector<quint32> found;
     {
         std::vector<CellArea> ids;
         for (const CellArea &a : *changed) idAreasOn(a, false, &ids);
         changed->swap(ids);
     }
+    markDependentsOfIds(changed);
+}
+
+void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
+{
+    std::vector<quint32> found;
     while (!changed->empty()) {
         const CellArea a = changed->back();
         changed->pop_back();
@@ -1146,7 +1181,7 @@ void Calculation::recordSeen(quint32 id, const std::vector<CellArea> &blocks)
     Seen &s = m_seen[id];
     m_seenPlaces -= qint64(s.at.size());
     s.at.clear();
-    s.always = false;
+    setSeenAlways(s, false);
     const CellStore &own = m_sheets[size_t(n.sheet)].cells;
     s.at.push_back({n.sheet, n.rowId, n.colId, own.rowPlaceOf(n.rowId), own.colPlaceOf(n.colId)});
     struct Count {
@@ -1154,19 +1189,24 @@ void Calculation::recordSeen(quint32 id, const std::vector<CellArea> &blocks)
         const Seen &s;
         ~Count() { total += qint64(s.at.size()); }
     } count{m_seenPlaces, s};
+    auto bound = [&](qint32 sheet, quint32 row, quint32 col) { noteSeenPlace(sheet, row, col); };
+    bound(n.sheet, own.rowPlaceOf(n.rowId), own.colPlaceOf(n.colId));
     if (m_seenPlaces > kMostSeenPlaces) {
-        s.always = true;
+        setSeenAlways(s, true);
         return;
     }
     auto corner = [&](qint32 sheet, quint32 row, quint32 col) {
         const CellStore &cells = m_sheets[size_t(sheet)].cells;
         const quint32 r = cells.rowIdAt(row), c = cells.colIdAt(col);
-        if (r != CellStore::kNoLine && c != CellStore::kNoLine) s.at.push_back({sheet, r, c, row, col});
+        if (r != CellStore::kNoLine && c != CellStore::kNoLine) {
+            s.at.push_back({sheet, r, c, row, col});
+            bound(sheet, row, col);
+        }
     };
     for (const CellArea &a : blocks) {
         for (qint32 sheet = std::max<qint32>(0, a.sheet1); sheet <= a.sheet2 && sheet < qint32(m_sheets.size()); ++sheet) {
             if (s.at.size() + 2 > kMostPlaces) {
-                s.always = true;
+                setSeenAlways(s, true);
                 return;
             }
             corner(sheet, a.row1, a.col1);
@@ -1186,10 +1226,44 @@ bool Calculation::seenDiffers(const Seen &s) const
     return false;
 }
 
-bool Calculation::anObserverSawAnotherPlace() const
+void Calculation::noteSeenPlace(int sheet, quint32 row, quint32 col)
 {
-    for (const auto &entry : m_seen)
+    if (row == CellStore::kNoLine || col == CellStore::kNoLine) return;
+    if (size_t(sheet) >= m_seenMaxRow.size()) {
+        m_seenMaxRow.resize(m_sheets.size(), 0);
+        m_seenMaxCol.resize(m_sheets.size(), 0);
+    }
+    m_seenMaxRow[size_t(sheet)] = std::max(m_seenMaxRow[size_t(sheet)], row + 1);
+    m_seenMaxCol[size_t(sheet)] = std::max(m_seenMaxCol[size_t(sheet)], col + 1);
+}
+
+void Calculation::setSeenAlways(Seen &s, bool on)
+{
+    if (s.always == on) return;
+    s.always = on;
+    m_seenAlways += on ? 1 : -1;
+}
+
+bool Calculation::anObserverSawAnotherPlace(int sheet, bool rows, quint32 first, bool *own) const
+{
+    if (own) *own = false;
+    // (no formula keeps a place at or past the edit, and none is worked out after every edit: nothing moved that any formula saw)
+    if (sheet >= 0 && m_seenAlways == 0 && size_t(sheet) < m_seenMaxRow.size() && (rows ? m_seenMaxRow : m_seenMaxCol)[size_t(sheet)] <= first) return false;
+    if (sheet >= 0 && m_ownOnly > 0) {
+        for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
+            const Node &n = m_nodes[id];
+            if (!(n.traits & OwnOnly) || (n.flags & Dead) || n.sheet != sheet) continue;
+            ++m_observersLooked;
+            if ((rows ? rowOf(n) : colOf(n)) >= first) {
+                if (own) *own = true;
+                break;
+            }
+        }
+    }
+    for (const auto &entry : m_seen) {
+        ++m_observersLooked;
         if (!(m_nodes[entry.first].flags & Dead) && seenDiffers(entry.second)) return true;
+    }
     return false;
 }
 
@@ -1218,6 +1292,15 @@ bool Calculation::questionHasAnAnswer(const Question &q) const
         });
         if (answer) return true;
     }
+    for (const IdRun &r : q.deadBlank) {
+        CellArea a;
+        lines(r.first, r.first + r.count - 1, &a);
+        m_graph->forEachDependent(a, [&](quint32 node) {
+            if (live(node)) answer = true;
+            return !answer;
+        }, true);
+        if (answer) return true;
+    }
     if (q.deadPair) return true;
     // set 1: a block that holds the gap, of a formula that can notice an empty line. (For columns the blocks that hold both columns are not asked for alone: those that read the column before the gap are
     // looked at, which is more, and enough to say that something may be asked.)
@@ -1236,13 +1319,12 @@ bool Calculation::questionHasAnAnswer(const Question &q) const
         if (answer) return true;
     }
     // set 2
-    return q.observers;
+    return q.observers || q.ownOnly;
 }
 
 // The formulas a question names, sets 3 and 1 (set 2 is looked at by the places the formulas saw): in ids, through the graph. False if a stop ended the search.
-bool Calculation::buildAsked(const Question &q, std::vector<quint32> *out) const
+bool Calculation::buildAsked(const Question &q, std::vector<quint32> *out, const std::atomic<bool> *stop) const
 {
-    const std::atomic<bool> *stop = m_ctx.cancel;
     std::vector<quint32> found, other;
     auto lines = [&](quint32 first, quint32 last, CellArea *a) {
         *a = CellArea();
@@ -1266,6 +1348,12 @@ bool Calculation::buildAsked(const Question &q, std::vector<quint32> *out) const
         lines(r.first, r.first + r.count - 1, &a);
         if (!m_graph->dependentsOfArea(a, &found, stop)) return false;
         take(false);
+    }
+    for (const IdRun &r : q.deadBlank) {
+        CellArea a;
+        lines(r.first, r.first + r.count - 1, &a);
+        if (!m_graph->dependentsOfArea(a, &found, stop, true)) return false;
+        take(true);
     }
     if (q.deadPair) {
         // (inserted lines that held cells are gone or back: the blocks that held them hold the original lines either side)
@@ -1347,7 +1435,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
             if (!ck.next()) return false;
             j.asked.clear();
             j.askedAt = 0;
-            if (!buildAsked(q, &j.asked)) {
+            if (!buildAsked(q, &j.asked, m_ctx.cancel)) {
                 j.asked.clear();
                 return false;
             }
@@ -1378,8 +1466,17 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
             recordSeen(id, m_areas);
             markAsked(id, q, &j.changed);
         }
+        // (the formulas that see only their own cell: those of the sheet at or past the place, the node's own place being all they saw)
+        while (q.ownOnly && j.ownAt < m_nodes.size()) {
+            if (!ck.next()) return false;
+            const quint32 id = quint32(j.ownAt++);
+            const Node &n = m_nodes[id];
+            if (!(n.traits & OwnOnly) || (n.flags & Dead) || n.sheet != q.sheet) continue;
+            if ((q.rows ? rowOf(n) : colOf(n)) >= q.ownFirst) markAsked(id, q, &j.changed);
+        }
         ++m_questionsAnswered;
         m_questions.pop_front();
+        j.ownAt = 0;
         j.built = false;
         j.asked.clear();
         j.observers.clear();
@@ -2241,11 +2338,16 @@ void Calculation::dropNode(quint32 id)
     if (n.kind == KindText && n.text >= 0) freeTextSlot(n.text);
     m_arrays.remove(id);
     m_graph->clearPrecedents(id);
-    if (n.flags & ThreeD) m_threeD.erase(id);
+    if (n.flags & ThreeD) {
+        m_threeD.erase(id);
+        m_threeDSpan.erase(id);
+    }
+    if (n.traits & OwnOnly) --m_ownOnly;
     if (n.traits & Observes) {
         const auto seen = m_seen.find(id);
         if (seen != m_seen.end()) {
             m_seenPlaces -= qint64(seen->second.at.size());
+            if (seen->second.always) --m_seenAlways;
             m_seen.erase(seen);
         }
     }
