@@ -201,6 +201,35 @@ bool LineMapCore::wholeRange(uint32_t *first, uint32_t *last) const
     return true;
 }
 
+uint32_t LineMapCore::origBefore(uint32_t pos) const
+{
+    if (m_live == 0) return kNone;
+    if (pos >= m_live) pos = m_live - 1;
+    if (m_identity) return pos;
+    const size_t r = runAtPos(pos, nullptr);
+    const PosRun &run = m_byPos[r];
+    const uint32_t id = run.first + (pos - run.pre);
+    if (id < m_limits.firstNew) return id;
+    // (ids in a run go up by one: a run that began among the originals and reaches this one holds the last original, firstNew - 1, before it)
+    if (run.first < m_limits.firstNew) return m_limits.firstNew - 1;
+    for (size_t k = r; k-- > 0;)
+        if (m_byPos[k].first < m_limits.firstNew) return std::min(m_byPos[k].first + m_byPos[k].count - 1, m_limits.firstNew - 1);
+    return kNone;
+}
+
+uint32_t LineMapCore::origAfter(uint32_t pos) const
+{
+    if (pos >= m_live) return kNone;
+    if (m_identity) return pos;
+    const size_t r = runAtPos(pos, nullptr);
+    const PosRun &run = m_byPos[r];
+    const uint32_t id = run.first + (pos - run.pre);
+    if (id < m_limits.firstNew) return id;
+    for (size_t k = r + 1; k < m_byPos.size(); ++k)
+        if (m_byPos[k].first < m_limits.firstNew) return m_byPos[k].first;
+    return kNone;
+}
+
 void LineMapCore::walk(uint32_t first, uint32_t last, std::vector<IdRun> *out, LineWork *w) const
 {
     out->clear();

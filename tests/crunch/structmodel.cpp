@@ -1377,8 +1377,7 @@ QString graphMisses(Live &live, qint64 *formulas, qint64 *reads, bool fakeRead)
             for (const calc::CellArea &a : areas) {
                 ++*reads;
                 std::vector<quint32> readers;
-                if (a.single()) calc->graph().dependentsOfCell(a.sheet1, a.row1, a.col1, &readers);
-                else calc->graph().dependentsOfArea(a, &readers);
+                calc->readersOf(a, &readers);
                 if (std::find(readers.begin(), readers.end(), node) == readers.end())
                     return QStringLiteral("%1 (=%2) reads %3!%4:%5, which the graph does not say it reads")
                         .arg(placeName(s, int(cell.first), int(cell.second)), content.formula, sheetNameOf(a.sheet1), cellName(a.row1, a.col1), cellName(a.row2, a.col2));

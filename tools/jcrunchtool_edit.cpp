@@ -23,6 +23,9 @@
 //                                           time the window's thread takes to put the cell in (and the time it waits for the worker to let go), to draw it again, and the time the worker takes to
 //                                           the first values and to work out all that depends: the middle, the 95th percentile, the 99th, and the longest of each, by the thread's own processor time
 //                                           where there is one and by the wall's besides
+//   jcrunchtool edit-recalc-check <file.xlsx> [edits=6] [seed=1]   opens the workbook, makes that many random edits of whole rows and columns (the window's way, each worked out by the worker), and
+//                                           compares the value of every formula with a whole new calculation of the same cells (formulas that differ between two whole calculations with no edit, the
+//                                           time and RAND, are left out). One line: path, formulas, edits made, refused, left out, compared, mismatches, the first mismatch; the exit code is 3 for a mismatch.
 //   jcrunchtool edit-walk-bench <file.xlsx> [row edits=1000] [column edits=10]   the time to walk all the cells of the first sheet and from the end in slices, before and after those edits of rows and columns
 //   jcrunchtool edit-struct-bench <file.xlsx> <label> [only]   one row and one column inserted and deleted at the top, the middle, and the end of the used cells (and undone), each timed (the window's
 //                                           thread, the worker, the wall until it settles, the model's counted work, the texts made); one tab-separated line each (docs/jeffcrunch-rowids.md).
@@ -78,6 +81,16 @@ using namespace jp::office;
 using namespace jp::office::sheet;
 
 namespace {
+
+// The cell at a place, as a block of one cell (what the graph is asked about, through Calculation::readersOf).
+jp::calc::CellArea placeArea(int sheet, quint32 row, quint32 col)
+{
+    jp::calc::CellArea a;
+    a.sheet1 = a.sheet2 = sheet;
+    a.row1 = a.row2 = row;
+    a.col1 = a.col2 = col;
+    return a;
+}
 
 QTextStream &out()
 {
@@ -784,7 +797,7 @@ int roundtripOne(const QString &path)
                     if (!w.session->canEditCell(si, cellRow, cellCol)) return;   // (a locked cell of a protected sheet is not changed)
                     if (pass == 0) {
                         std::vector<quint32> readers;
-                        calc->graph().dependentsOfCell(si, cellRow, cellCol, &readers);
+                        calc->readersOf(placeArea(si, cellRow, cellCol), &readers);
                         if (readers.empty()) return;
                     }
                     sheet = si;
@@ -803,7 +816,7 @@ int roundtripOne(const QString &path)
             const Calculation::CellContent old = calc->content(sheet, row, col);
             const double newValue = old.value.isNumber() ? old.value.number() + 1 : 12345;
             std::vector<quint32> readers;
-            calc->graph().dependentsOfCell(sheet, row, col, &readers);
+            calc->readersOf(placeArea(sheet, row, col), &readers);
             dependents = qint64(readers.size());
             typedText = QString::number(newValue, 'g', 17);
             w.session->setLocale(QLocale::c());
@@ -1190,6 +1203,8 @@ int structBench(const QString &path, const QString &label, const QString &only)
         cases.push_back({QStringLiteral("insert column %1").arg(QLatin1String(where[i])), [=] { return session->insertColumns(sheet, at, 1); }});
         cases.push_back({QStringLiteral("delete column %1").arg(QLatin1String(where[i])), [=] { return session->deleteColumns(sheet, at, 1); }});
     }
+    // (a row put in past every cell: nothing is read or seen there, so for formulas that only see their own row it is rigid)
+    cases.push_back({QStringLiteral("insert row past the end"), [=] { return session->insertRows(sheet, rows + 5, 1); }});
     // (cells shifted one by one: the column of formulas moved down by one, which moves every formula in it and leaves what they read where it is)
     cases.push_back({QStringLiteral("insert cells down"), [=] {
         office::sheet::CellRange shifted;
@@ -1201,7 +1216,8 @@ int structBench(const QString &path, const QString &label, const QString &only)
     // (counted work, besides the times: what the model, the session, and the window each did; the columns after used_cols are for the edit, and then for its Undo)
     out() << "label\tcase\tdo_cpu_ms\tdo_wall_ms\tworker_cpu_ms\tsettle_ms\twork_counted\ttexts_made\tundo_cpu_ms\tundo_wall_ms\tundo_work\tused_rows\tused_cols"
           << "\tcells_moved\tcells_gone\tformulas_visited\tformulas_rewritten\tnodes_remade\tgraph_work\tnames_rewritten\trules_rewritten\tmarks_followed\tvalues_moved\tview_cells\tundo_bytes\tgraph_entries"
-          << "\tu_cells_moved\tu_formulas_visited\tu_formulas_rewritten\tu_nodes_remade\tu_graph_work\tu_marks_followed\tu_values_moved\tu_view_cells\n";
+          << "\tu_cells_moved\tu_formulas_visited\tu_formulas_rewritten\tu_nodes_remade\tu_graph_work\tu_marks_followed\tu_values_moved\tu_view_cells"
+          << "\tevals\tsettle_after_ms\tu_evals\tgraph_bytes\tph_setup\tph_candidates\tph_rewrite\tph_cells\tph_graph\tph_other\tph_write\n";
     auto settle = [&](QElapsedTimer &wall) {
         QElapsedTimer waiting;
         waiting.start();
@@ -1211,6 +1227,7 @@ int structBench(const QString &path, const QString &label, const QString &only)
     for (const Case &c : cases) {
         if (!only.isEmpty() && !c.name.contains(only)) continue;
         w.undoStack()->clear();   // (so that the bytes the stack holds after the edit are the edit's alone)
+        const qint64 evalsBefore = calc->evaluations();
         const qint64 workerBefore = w.workerCpuMicros();
         const qint64 marksBefore = session->marksFollowed(), movedBefore = w.values().relocated(), viewBefore = grid::GridSheet::viewCellsRebuiltForTest(), undoBytesBefore = session->undoBytes();
         statsDelta = Calculation::EditStats();
@@ -1225,16 +1242,18 @@ int structBench(const QString &path, const QString &label, const QString &only)
         const qint64 undoBytes = session->undoBytes() - undoBytesBefore, graphEntries = calc->graph().entryCount();
         const double wallMs = double(wall.nsecsElapsed()) / 1e6;
         const double settleMs = o.ok ? settle(wall) : 0.0;
+        const qint64 evals = calc->evaluations() - evalsBefore;   // (the formulas the worker worked out for the edit)
         const double workerMs = double(w.workerCpuMicros() - workerBefore) / 1000.0;
         const qint64 work = workDelta, texts = textsDelta;
         double undoCpu = 0, undoWall = 0;
-        qint64 undoWork = 0, uMarks = 0, uMoved = 0, uView = 0;
+        qint64 undoWork = 0, uMarks = 0, uMoved = 0, uView = 0, uEvals = 0;
         Calculation::EditStats undid;
         if (o.ok) {
             QElapsedTimer uw;
             uw.start();
             const qint64 uMarksBefore = session->marksFollowed(), uMovedBefore = w.values().relocated(), uViewBefore = grid::GridSheet::viewCellsRebuiltForTest();
             statsDelta = Calculation::EditStats();
+            const qint64 uEvalsBefore = calc->evaluations();
             const qint64 u0 = jp::threadCpuMicros();
             w.undoStack()->undo();
             v->viewport()->repaint();
@@ -1246,12 +1265,17 @@ int structBench(const QString &path, const QString &label, const QString &only)
             uMoved = w.values().relocated() - uMovedBefore;
             uView = grid::GridSheet::viewCellsRebuiltForTest() - uViewBefore;
             settle(uw);
+            uEvals = calc->evaluations() - uEvalsBefore;
         }
         out() << label << '\t' << c.name << (o.ok ? QString() : QStringLiteral(" (refused: %1)").arg(o.problem)) << '\t' << QString::number(double(c1 - c0) / 1000.0, 'f', 2) << '\t' << QString::number(wallMs, 'f', 2) << '\t'
               << QString::number(workerMs, 'f', 1) << '\t' << QString::number(settleMs, 'f', 1) << '\t' << work << '\t' << texts << '\t' << QString::number(undoCpu, 'f', 2) << '\t' << QString::number(undoWall, 'f', 2)
               << '\t' << undoWork << '\t' << rows << '\t' << cols << '\t' << did.cellsMoved << '\t' << did.cellsGone << '\t' << did.formulasVisited << '\t' << did.formulasRewritten << '\t' << did.nodesRemade
               << '\t' << did.graphWork << '\t' << did.namesRewritten << '\t' << did.rulesRewritten << '\t' << marks << '\t' << moved << '\t' << viewCells << '\t' << undoBytes << '\t' << graphEntries << '\t'
-              << undid.cellsMoved << '\t' << undid.formulasVisited << '\t' << undid.formulasRewritten << '\t' << undid.nodesRemade << '\t' << undid.graphWork << '\t' << uMarks << '\t' << uMoved << '\t' << uView << '\n';
+              << undid.cellsMoved << '\t' << undid.formulasVisited << '\t' << undid.formulasRewritten << '\t' << undid.nodesRemade << '\t' << undid.graphWork << '\t' << uMarks << '\t' << uMoved << '\t' << uView
+              << '\t' << evals << '\t' << QString::number(settleMs - wallMs, 'f', 1) << '\t' << uEvals << '\t' << calc->graph().memoryBytes()
+              << '\t' << QString::number(double(did.phaseMicros[6]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[0]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[1]) / 1000.0, 'f', 1)
+              << '\t' << QString::number(double(did.phaseMicros[2]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[3]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[4]) / 1000.0, 'f', 1)
+              << '\t' << QString::number(double(did.phaseMicros[5]) / 1000.0, 'f', 1) << '\n';
         out().flush();
     }
     out() << "# after the edits: resident " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB\n";
@@ -1389,7 +1413,7 @@ int editBench(const QString &pathIn, int edits, int rows, int cols, int readers)
             if (candidates.size() >= 100000 || ++looked > 5000000) return;
             if (c.type != CellType::Number || c.hasFormula() || (c.flags & (ArrayMember | ArrayFormula))) return;
             std::vector<quint32> r;
-            calc->graph().dependentsOfCell(sheet, cellRow, cellCol, &r);
+            calc->readersOf(placeArea(sheet, cellRow, cellCol), &r);
             if (!r.empty()) candidates.push_back({cellRow, cellCol});
         });
         if (candidates.empty()) {
@@ -1795,6 +1819,99 @@ int tablesRoundtripOne(const QString &path)
 
 namespace jp::crunchtool {
 
+// jcrunchtool edit-recalc-check <file> [edits=6] [seed=1]: the workbook is opened as the window does and worked out; a few edits of whole rows and columns (inserted and deleted, in and past the used cells)
+// are made through the session, each worked out by the worker; then every formula's value is compared with a whole new calculation of the same cells. What the edits left stale shows as a mismatch.
+// Formulas whose value differs between two whole calculations with no edit between (the time, RAND, and what reads them) are left out. One tab-separated line: path, formulas, edits made, refused,
+// formulas left out, compared, mismatches, and the first mismatch.
+int editRecalcCheck(const QString &path, int edits, quint32 seed)
+{
+    Opened o;
+    if (!o.open(path)) {
+        out() << path << "\tnot opened\n";
+        return 1;
+    }
+    Calculation *calc = o.loader.result()->calc.get();
+    auto snapshot = [&] {
+        std::unordered_map<quint64, jp::calc::Value> values;
+        calc->forEachFormula([&](const Calculation::FormulaCell &f) {
+            if (f.cell) values[crunch::EditSession::keyOf(f.sheet, f.cell->rowId, f.cell->colId)] = f.ours;
+        });
+        return values;
+    };
+    auto sameValue = [](const jp::calc::Value &a, const jp::calc::Value &b) { return (a.isNumber() && b.isNumber() && jp::calc::sameTo15Digits(a.number(), b.number())) || a == b; };
+    auto workOutAgain = [&] {
+        o.beginEdit();
+        o.loader.recalculate();
+        return o.settle();
+    };
+    const std::unordered_map<quint64, jp::calc::Value> first = snapshot();
+    if (!workOutAgain()) {
+        out() << path << "\tnot settled\n";
+        return 1;
+    }
+    std::unordered_set<quint64> unstable;
+    const std::unordered_map<quint64, jp::calc::Value> second = snapshot();
+    for (const auto &entry : first) {
+        const auto again = second.find(entry.first);
+        if (again == second.end() || !sameValue(entry.second, again->second)) unstable.insert(entry.first);
+    }
+    const bool verbose = qEnvironmentVariableIsSet("JC_ERC_VERBOSE");
+    QRandomGenerator rng(seed);
+    std::vector<int> sheets;
+    for (int si = 0; si < calc->sheetCount(); ++si)
+        if (o.loader.result()->book->info().sheets[si].kind == SheetKind::Worksheet && calc->sheet(si).extentRows > 0) sheets.push_back(si);
+    int made = 0, refused = 0;
+    for (int i = 0; i < edits && !sheets.empty(); ++i) {
+        const int sheet = sheets[size_t(rng.bounded(quint32(sheets.size())))];
+        const quint32 usedRows = std::max<quint32>(3, calc->sheet(sheet).extentRows), usedCols = std::max<quint32>(3, calc->sheet(sheet).extentCols);
+        const quint32 count = 1 + rng.bounded(2);
+        const bool rows = rng.bounded(2) == 0;
+        const quint32 at = rows ? rng.bounded(usedRows + 2) : rng.bounded(usedCols + 2);
+        const bool insert = rng.bounded(5) < 3;
+        o.beginEdit();
+        crunch::EditSession::Outcome result;
+        if (rows) result = insert ? o.session->insertRows(sheet, at, count) : o.session->deleteRows(sheet, at, count);
+        else result = insert ? o.session->insertColumns(sheet, at, count) : o.session->deleteColumns(sheet, at, count);
+        if (verbose) err() << (rows ? "row" : "column") << (insert ? " insert " : " delete ") << "sheet " << sheet << " at " << at << " count " << count << (result.ok ? "" : " (refused)") << '\n';
+        if (!result.ok) {
+            ++refused;
+            continue;
+        }
+        ++made;
+        if (!o.settle()) {
+            out() << path << "\tnot settled after an edit\n";
+            return 1;
+        }
+    }
+    const std::unordered_map<quint64, jp::calc::Value> edited = snapshot();
+    if (!workOutAgain()) {
+        out() << path << "\tnot settled\n";
+        return 1;
+    }
+    const std::unordered_map<quint64, jp::calc::Value> whole = snapshot();
+    qint64 compared = 0, mismatches = 0;
+    QString firstMismatch;
+    for (const auto &entry : edited) {
+        if (unstable.count(entry.first)) continue;
+        const auto again = whole.find(entry.first);
+        if (again == whole.end()) continue;
+        ++compared;
+        if (!sameValue(entry.second, again->second)) {
+            if (++mismatches == 1 || (verbose && mismatches <= 5)) {
+                const int sheet = int(entry.first >> 40);
+                const Cell *cell = calc->sheet(sheet).cells.findById(quint32((entry.first >> 16) & 0xFFFFFF), quint32(entry.first & 0xFFFF));
+                const quint32 row = calc->sheet(sheet).cells.rowPlaceOf(quint32((entry.first >> 16) & 0xFFFFFF)), col = calc->sheet(sheet).cells.colPlaceOf(quint32(entry.first & 0xFFFF));
+                const QString text = cell && row != CellStore::kNoLine && col != CellStore::kNoLine ? calc->content(sheet, row, col).formula : QString();
+                const QString what = QStringLiteral("sheet %1 %2 (=%3): %4 against %5").arg(sheet).arg(row == CellStore::kNoLine ? QStringLiteral("?") : cellName(row, col), text, entry.second.debug(), again->second.debug());
+                if (mismatches == 1) firstMismatch = what;
+                if (verbose) err() << "mismatch: " << what << '\n';
+            }
+        }
+    }
+    out() << path << '\t' << first.size() << '\t' << made << '\t' << refused << '\t' << unstable.size() << '\t' << compared << '\t' << mismatches << '\t' << firstMismatch << '\n';
+    return mismatches == 0 ? 0 : 3;
+}
+
 int editMain(const QStringList &args)
 {
     if (!args.isEmpty() && args[0].startsWith(QLatin1String("model-"))) return ::jp::structmodel::command(args);
@@ -1804,6 +1921,7 @@ int editMain(const QStringList &args)
     if (args.size() >= 3 && args.size() <= 4 && args[0] == QLatin1String("edit-struct-bench")) return structBench(args[1], args[2], args.value(3));
     if (args.size() >= 1 && args.size() <= 5 && args[0] == QLatin1String("edit-bench-make"))
         return editBench(QString(), args.value(4, QStringLiteral("200")).toInt(), args.value(1, QStringLiteral("100000")).toInt(), args.value(2, QStringLiteral("20")).toInt(), args.value(3, QStringLiteral("0")).toInt());
+    if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("edit-recalc-check")) return editRecalcCheck(args[1], args.value(2, QStringLiteral("6")).toInt(), args.value(3, QStringLiteral("1")).toUInt());
     if (args.size() == 2 && args[0] == QLatin1String("roundtrip-one")) return roundtripOne(args[1]);
     if (args.size() == 2 && args[0] == QLatin1String("edit-names-roundtrip")) return namesRoundtripOne(args[1]);
     if (args.size() == 2 && args[0] == QLatin1String("edit-tables-roundtrip")) return tablesRoundtripOne(args[1]);

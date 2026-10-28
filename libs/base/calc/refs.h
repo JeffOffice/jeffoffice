@@ -25,7 +25,16 @@ struct ProgramTraits {
     bool observesPlace = false;   // calls ROW or COLUMN with no argument: its value is its own row or column, which an edit that moves the cell changes with no reference of the formula in it
     // Whether where it reads is told as it is worked out, besides what its references name.
     bool readsWhereItIsTold() const { return usesNames || dynamic || reachesBeyond || observesPlace; }
+    // Edits of whole rows and columns change the places of cells and nothing the cells hold (docs/jeffcrunch-rowids.md, 4.6); two traits say which formulas can notice:
+    bool observesPosition = false;   // a call can see the position of its own cell or of a cell or block it is given: ROW and COLUMN (with or without an argument), ADDRESS, CELL, OFFSET, INDIRECT, at any depth;
+                                     // and a block that is taken for one value of it, the one in the row or column of the formula's cell (implicit intersection), which a cell that moves alone picks another of
+    bool blankInsensitive = false;   // no call can notice an empty row or column put inside a block it reads: every block of more than a cell is an argument of a function on the list (blankInsensitiveFunction)
+                                     // and goes nowhere else. The default is false: a function nobody classified, a block under an operator, and a name make a formula sensitive.
 };
+// Whether the function (by name, upper case) gives the same value for a block with a blank row or column put inside it, whatever the block holds: the functions that skip the empty cells they
+// are given and do not count where they are. A function that counts cells (COUNTBLANK, ROWS, COLUMNS), that gives a place (MATCH, INDEX, the lookups), that pairs cells of two blocks by
+// their place (SUMPRODUCT, SUMIF with blocks of other shapes), or that makes an array is not on the list. Nothing is on it by default.
+bool blankInsensitiveFunction(const char *name);
 ProgramTraits traitsOf(const Program &program);
 
 // What the traits are for what the program is, and what every defined name it uses stands for, and every name those use (a name that calls RAND makes every formula that uses it

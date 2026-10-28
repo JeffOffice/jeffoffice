@@ -1165,7 +1165,63 @@ private Q_SLOTS:
         QVERIFY(e.win.w.values().find(0, b->rowId, b->colId, &held));
         QCOMPARE(held.number(), 1.0);
         QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("n:1"));
-        QCOMPARE(s->calculation()->structEpoch(0), epochBefore + 3);   // (each of the three edits made it one more)
+        QCOMPARE(s->calculation()->structEpoch(0), epochBefore);   // (none of the three edits could change what any formula holds or sees: each is rigid, and a result worked out before them is good)
+    }
+
+    // A result worked out before a rigid edit (nothing a formula reads or sees changed) is good after it: the epoch stays, the worker is asked nothing, and the window keeps it. An edit that is not
+    // rigid for some formula makes the epoch one more, asks the worker once, and the formula it names is stamped: a result of it worked out before is let go of. (Counts are read after the worker
+    // has settled.)
+    void aResultWorkedOutBeforeARigidEditIsKeptAndOneForAFormulaTheWorkerIsAskedAboutIsLetGoOf()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "B1==SUM(A1:A5)", "B2==COUNTBLANK(A1:A5)", "B3==A2*2"})));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const office::sheet::Calculation *calc = s->calculation();
+        QVERIFY(!calc->resultsInFlight());
+        calc->valuesTaken(-1);   // (a value told and not taken is on its way)
+        QVERIFY(calc->resultsInFlight());
+        const quint32 before = calc->structEpoch(0);
+        const qint64 evaluated = calc->evaluations(), asked = calc->questionsAnswered();
+        auto item = [](quint32 rowId, quint32 epoch) {
+            grid::ValueStore::Item it;
+            it.sheet = 0;
+            it.row = rowId;
+            it.col = 1;   // (column B, whose id is 1)
+            it.epoch = epoch;
+            it.value = calc::Value::number(5);
+            return it;
+        };
+        // (the ids of the rows of B1, B2, and B3 are 0, 1, and 2 for as long as the sheet is open)
+        QVERIFY(s->insertRows(0, 0, 1).ok);   // above everything: the blocks move down and take nothing in
+        QVERIFY(e.settle());
+        QCOMPARE(calc->structEpoch(0), before);
+        QCOMPARE(calc->evaluations() - evaluated, qint64(0));
+        QCOMPARE(calc->questionsAnswered(), asked);
+        std::vector<grid::ValueStore::Item> items{item(0, before), item(1, before), item(2, before)};
+        s->dropStale(&items);
+        QCOMPARE(int(items.size()), 3);   // (all of them are good)
+        QVERIFY(s->insertRows(0, 3, 1).ok);   // inside A2:A6, the blocks that were A1:A5: COUNTBLANK holds the gap and the sum does not mind
+        const quint32 now = calc->structEpoch(0);
+        QCOMPARE(now, before + 1);
+        // (the worker answers on its own thread; no event is handled until it has, so the window has not yet been told it is done and the stamps are there: waited for by what it has answered)
+        QElapsedTimer waited;
+        waited.start();
+        while (calc->questionsAnswered() == asked && waited.elapsed() < 30000) QThread::msleep(2);
+        QCOMPARE(calc->questionsAnswered(), asked + 1);
+        QVERIFY(calc->stampCount() > 0);
+        items = {item(0, before), item(1, before), item(2, before), item(1, now)};
+        s->dropStale(&items);
+        QCOMPARE(int(items.size()), 3);   // (the one for B2 worked out before the edit is gone; the sum's, B3's, and B2's of the new epoch are kept)
+        QCOMPARE(items[0].row, quint32(0));
+        QCOMPARE(items[1].row, quint32(2));
+        QCOMPARE(items[2].epoch, now);
+        QVERIFY(e.settle());
+        QCOMPARE(calc->evaluations() - evaluated, qint64(1));   // (COUNTBLANK, and no other)
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:15"));   // (the sum, which moved down a row)
+        QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("n:1"));    // (COUNTBLANK counts the row put in)
+        s->pruneStamps({now});
+        QCOMPARE(calc->stampCount(), qint64(0));
     }
 
     // A formula that an edit of cells (moved one by one) put in another cell is stamped with the epoch of the edit, at the place it left and the place it came to: a result worked out under an older
@@ -1444,11 +1500,8 @@ private Q_SLOTS:
         QStringList specs;
         for (int r = 1; r <= 12000; ++r) specs << QStringLiteral("A%1=%1").arg(r) << QStringLiteral("B%1==A%1*2").arg(r) << QStringLiteral("C%1==B%1+1").arg(r);
         EditWindow e;
-        e.path = e.folder.write(QStringLiteral("book.xlsx"), sheetOf(specs));
-        e.win.w.workbookLoader().setPace(15000);
-        QSignalSpy loaded(&e.win.w, &CrunchWindow::loadFinished);
-        QVERIFY(e.win.w.openFile(e.path));
-        QVERIFY(loaded.count() > 0 || loaded.wait(20000));
+        QVERIFY(e.open(sheetOf(specs)));
+        QVERIFY(e.settle());
         crunch::EditSession *s = e.win.w.session();
         QVERIFY(s);
         jp::calc::LineLimits rows = jp::calc::LineLimits::rows();
@@ -1458,29 +1511,17 @@ private Q_SLOTS:
         block.valid = true;
         block.row1 = block.row2 = 0;
         block.col1 = block.col2 = 1;
-        // (the worker has told something and has not told it all; no event is handled while it works on and queues batches the window has not taken: they are on their way when the edits are made)
+        // (a value told and not taken is a batch on its way: one is made so, by the count the window keeps, whatever the worker has got to, so that nothing here waits for a time or for the worker)
         const office::sheet::Calculation *calc = s->calculation();
-        // (waited for by looking at what was told and taken, which only the worker's telling changes while no event is handled: not for a time, which a loaded machine makes too short)
-        auto queued = [&](int extraMs) {
-            QElapsedTimer waited;
-            waited.start();
-            while (!calc->resultsInFlight() && waited.elapsed() < 30000) QThread::msleep(5);
-            QThread::msleep(ulong(extraMs));
-            return calc->resultsInFlight();
-        };
-        QVERIFY(QTest::qWaitFor([&] { return e.win.w.batchesTaken() > 0; }, 20000));
-        QVERIFY(queued(700));
-        QVERIFY(e.win.w.isCalculating());
+        calc->valuesTaken(-1);
+        QVERIFY(calc->resultsInFlight());
         QVERIFY(s->insertRows(0, 5, 3).ok);                    // formulas are written again
         QVERIFY(calc->resultsInFlight());
-        QThread::msleep(300);
         QVERIFY(s->insertRows(0, 2, 5).ok);                    // (ids are used up: the order is put back to one run first)
         QVERIFY(s->insertRows(0, 9, 5).ok);
-        QTest::qWait(100);                                     // (the values that were on their way are taken: those of before the renumbering are let go of)
-        QVERIFY(queued(700));                                  // (and the worker queues values again, under the new ids, before the last edit)
+        QVERIFY(calc->resultsInFlight());
         QVERIFY(s->insertCells(0, block, true).ok);            // the last: a cell shift (column B down by one), with nothing written again after it to put right a stale value
         QVERIFY(calc->stampCount() > 0);                       // (values in flight: the moved cells are stamped)
-        e.win.w.workbookLoader().setPace(0);
         QVERIFY(e.settle());
         QVERIFY(storeDiffers(e).isEmpty());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);

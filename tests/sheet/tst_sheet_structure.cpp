@@ -1130,7 +1130,8 @@ private Q_SLOTS:
         QVERIFY(b.apply(StructEdit::deleteRows(0, 20, 5), nullptr));
         QCOMPARE(b.formula("B30"), QStringLiteral("A30*2"));
         // twenty rounds of an edit and its Undo, at the top and in the middle: what is held does not grow
-        auto held = [&] { return QStringLiteral("%1/%2/%3").arg(b.calc->formulaTextsInUse(0)).arg(b.calc->formulaEntriesInUse(0)).arg(b.calc->programsHeld(0)); };
+        // (programs are made when a formula is worked out, and a formula that only moved is not: how many are held is between none and one for each text, and the texts and formulas are what is counted)
+        auto held = [&] { return QStringLiteral("%1/%2").arg(b.calc->formulaTextsInUse(0)).arg(b.calc->formulaEntriesInUse(0)); };
         Calculation::EditRecord one;
         QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &one));
         QVERIFY(b.calc->undoEdit(one));
@@ -1147,6 +1148,7 @@ private Q_SLOTS:
             b.finish();
         }
         QCOMPARE(held(), afterFirst);
+        QVERIFY(b.calc->programsHeld(0) <= b.calc->formulaTextsInUse(0) * 2);
         QCOMPARE(b.formula("B30"), QStringLiteral("A30*2"));
         QCOMPARE(b.at("B30"), QStringLiteral("n:64"));   // (the cell that was in row 32: three rows came in above it and five went)
     }
@@ -1418,7 +1420,715 @@ private Q_SLOTS:
         runRandomEdits(qEnvironmentVariableIsSet("STRUCT_SEEDS") ? quint32(qEnvironmentVariableIntValue("STRUCT_SEEDS")) : 40, true, false);
     }
 
+    // ---- the graph by id, and what the worker is asked after an edit of whole rows or columns (docs/jeffcrunch-rowids.md, 4.6). A formula is worked out again only if the edit could change its
+    // value: counted as the formulas worked out (Calculation::evaluations), never timed.
+
+    // Formulas that can see where cells are (ROW and COLUMN, with an argument or without, at any depth) are worked out again when a place they saw changes; a formula that only reads
+    // cells (A1+1, a sum) is not, whatever the edit moved.
+    void formulasThatSeeWhereCellsAreAreWorkedOutAgainWhenTheirPlacesChangeAndOthersAreNot()
+    {
+        Book b;
+        QStringList cells;
+        for (int r = 1; r <= 10; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r);
+        cells << "C1==ROW(B5)" << "C2==COLUMN()" << "C3==SUMPRODUCT(ROW(A1:A10))" << "C4==A1+1" << "C5==ROW()" << "C6==SUM(A1:A10)" << "C7==IF(A1>0,ROW(A3),0)";
+        QVERIFY(b.open({cells}));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:5"));
+        QCOMPARE(b.at("C2"), QStringLiteral("n:3"));
+        QCOMPARE(b.at("C3"), QStringLiteral("n:55"));
+        QCOMPARE(b.at("C4"), QStringLiteral("n:2"));
+        QCOMPARE(b.at("C5"), QStringLiteral("n:5"));
+        QCOMPARE(b.at("C7"), QStringLiteral("n:3"));
+        // a row put in at the top: everything below moves, and the five that see a place are worked out again (the sum and A1+1 read the same cells and are not)
+        qint64 before = b.calc->evaluations();
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), nullptr));
+        QCOMPARE(b.calc->evaluations() - before, qint64(5));
+        QCOMPARE(b.at("C2"), QStringLiteral("n:6"));    // (ROW(B6))
+        QCOMPARE(b.at("C3"), QStringLiteral("n:3"));
+        QCOMPARE(b.at("C4"), QStringLiteral("n:65"));   // (SUMPRODUCT(ROW(A2:A11)))
+        QCOMPARE(b.at("C5"), QStringLiteral("n:2"));    // (A2+1)
+        QCOMPARE(b.at("C6"), QStringLiteral("n:6"));    // (ROW() in its new row)
+        QCOMPARE(b.at("C7"), QStringLiteral("n:55"));
+        QCOMPARE(b.at("C8"), QStringLiteral("n:4"));
+        // a row put in past everything moves nothing that is read or seen: nothing is asked
+        before = b.calc->evaluations();
+        const quint32 epoch = b.calc->structEpoch(0);
+        QVERIFY(b.apply(StructEdit::insertRows(0, 200, 1), nullptr));
+        QCOMPARE(b.calc->evaluations() - before, qint64(0));
+        QCOMPARE(b.calc->structEpoch(0), epoch);
+        // a column put in at the left: the same five see a place that moved (their column), and the others do not
+        before = b.calc->evaluations();
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 1), nullptr));
+        QCOMPARE(b.calc->evaluations() - before, qint64(5));
+        QCOMPARE(b.at("D3"), QStringLiteral("n:4"));    // (COLUMN())
+        QCOMPARE(b.at("D5"), QStringLiteral("n:2"));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+    }
+
+    // ---- review of round 4
+
+    // A function the engine lacks may read the text of a formula or the place of a cell (FORMULATEXT, ISFORMULA): a formula that uses one is not kept as it was when the formula it reads is written
+    // again or moves, but has #NAME? as before; one whose inputs are untouched keeps its result.
+    void anUnknownFunctionThatReadsTheTextOrPlaceOfACellIsNotKeptWhenThatChanges()
+    {
+        const QStringList cells{"A10=5", "C5==A10", "D1==FORMULATEXT(C5)", "D2==ISFORMULA(C5)"};
+        QString why;
+        {
+            Book b;
+            QVERIFY(b.open({cells}));
+            QCOMPARE(b.at("D1"), QStringLiteral("n:0"));
+            QVERIFY(b.apply(StructEdit::insertRows(0, 2, 1), nullptr));   // C5 moves to C6, and the formulas that read it do not
+            QCOMPARE(b.at("D1"), QStringLiteral("e:#NAME?"));
+            QCOMPARE(b.at("D2"), QStringLiteral("e:#NAME?"));
+        }
+        {
+            Book b;
+            QVERIFY(b.open({cells}));
+            QVERIFY(b.apply(StructEdit::insertRows(0, 7, 1), nullptr));   // C5 stays and its text is A11 now
+            QCOMPARE(b.formula("C5"), QStringLiteral("A11"));
+            QCOMPARE(b.at("D1"), QStringLiteral("e:#NAME?"));
+            QCOMPARE(b.at("D2"), QStringLiteral("e:#NAME?"));
+        }
+        {
+            Book b;
+            QVERIFY(b.open({cells}));
+            QVERIFY(b.apply(StructEdit::insertRows(0, 40, 1), nullptr));   // past everything: nothing it reads changed
+            QCOMPARE(b.at("D1"), QStringLiteral("n:0"));
+            QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 1), nullptr));   // the cell moves right
+            QCOMPARE(b.at("E1"), QStringLiteral("e:#NAME?"));
+        }
+    }
+
+    // Lines an insert pushes off the end of the sheet are asked of the formulas that can notice an empty line and read a block that reaches them, though no cell was in them: the block is cut, and
+    // COUNTBLANK and ROWS have another value. Rows and columns.
+    void linesPushedOffTheEndOfTheSheetAreAskedOfTheFormulasThatCanNoticeThem()
+    {
+        QString why;
+        {
+            Book b;
+            QVERIFY(b.open({{"C1==ROWS(A1048570:A1048576)", "C2==COUNTBLANK(A1048570:A1048576)", "C3==SUM(A:A)", "C4==COUNTBLANK(A1048560:A1048576)"}}));
+            const qint64 before = b.calc->evaluations();
+            const QString wasC4 = b.at("C4");
+            QVERIFY(b.apply(StructEdit::insertRows(0, 0, 3), nullptr));
+            QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+            QVERIFY(b.at("C4") != wasC4);   // (the block is cut at the end by the rows pushed off, and has another number of empty cells)
+            QVERIFY(b.calc->evaluations() - before >= 3);
+        }
+        {
+            Book b;
+            QVERIFY(b.open({{"A1==COLUMNS(XFA1:XFD1)", "A2==COUNTBLANK(XFA2:XFD2)", "A3==SUM(1:1)"}}));
+            const qint64 before = b.calc->evaluations();
+            QVERIFY(b.apply(StructEdit::insertColumns(0, 3, 2), nullptr));
+            QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+            QVERIFY(b.calc->evaluations() - before >= 2);
+        }
+    }
+
+    // What is waiting for the worker when the lines of a sheet are renumbered (a change queued for later, a question) is answered first, with the ids it has: the formula on another sheet that read
+    // the cell has its value.
+    void aRebaseWithAChangeQueuedAndAQuestionWaitingLeavesTheFormulasOnOtherSheetsRight()
+    {
+        Book b;
+        QVERIFY(b.open({{"A5=1", "C1==COUNTBLANK(A1:A9)"}, {"A1==Sheet1!A5*2", "B1==Sheet1!C1"}}));
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 3), nullptr));          // A5 is A8 now, with an id that is not its place
+        QVERIFY(b.calc->setValue(0, 7, 0, Value::number(21), Calculation::Marking::Later));   // queued for the worker, which has not got to it
+        Calculation::EditRecord rec;
+        QVERIFY(b.calc->applyEdit(StructEdit::insertRows(0, 5, 1), &rec));  // a question is waiting too (COUNTBLANK holds the gap)
+        std::vector<jp::calc::LineMapCore::Renumber> table;
+        QVERIFY(b.calc->compactLines(0, true, &table));
+        QVERIFY(!table.empty());
+        b.finish();
+        QCOMPARE(b.at("A1", 1), QStringLiteral("n:42"));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+    }
+
+    // A formula kept apart after it was worked out (a circle) has graph entries, and a rebase tells them again with the others.
+    void aCircleKeptApartAfterItWasWorkedOutKeepsItsEntriesThroughARebase()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1==B1+1", "B1==A1+1", "D1=3", "E1==D1*2"}}));
+        QVERIFY(b.calc->keptClass(0, 0, 0) != 0);   // (kept apart after it was worked out)
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 3), nullptr));
+        auto readers = [&](quint32 row, quint32 col) {
+            CellArea a;
+            a.sheet1 = a.sheet2 = 0;
+            a.row1 = a.row2 = row;
+            a.col1 = a.col2 = col;
+            std::vector<quint32> out;
+            b.calc->readersOf(a, &out);
+            return out.size();
+        };
+        const size_t before = readers(3, 1);   // what reads B1 (now B4): A1's formula
+        QVERIFY(before >= 1);
+        std::vector<jp::calc::LineMapCore::Renumber> table;
+        QVERIFY(b.calc->compactLines(0, true, &table));
+        QVERIFY(!table.empty());
+        b.finish();
+        QCOMPARE(readers(3, 1), before);
+    }
+
+    // A 3-D formula is made again only by an edit of a sheet its blocks span.
+    void aThreeDFormulaIsMadeAgainOnlyByAnEditOfASheetItSpans()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1==SUM(Sheet1:Sheet3!B2)", "B2=1"}, {"B2=2"}, {"B2=3"}, {"B2=4"}}));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:6"));
+        qint64 remade = b.calc->editStats().nodesRemade;
+        QVERIFY(b.apply(StructEdit::insertColumns(3, 0, 1), nullptr));
+        QCOMPARE(b.calc->editStats().nodesRemade - remade, qint64(0));
+        QVERIFY(b.apply(StructEdit::insertColumns(1, 5, 1), nullptr));
+        QCOMPARE(b.calc->editStats().nodesRemade - remade, qint64(1));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+    }
+
+    // The places formulas saw are looked at only when an edit could have moved one: a row put in past every place any formula kept looks at none.
+    void anEditPastEveryPlaceFormulasSawLooksAtNoneOfThem()
+    {
+        QStringList cells;
+        for (int r = 1; r <= 200; ++r) cells << QStringLiteral("B%1==ROW()-1").arg(r);
+        Book b;
+        QVERIFY(b.open({cells}));
+        QCOMPARE(b.calc->ownOnlyCount(), qint64(200));   // (they see their own cells and nothing else: no place is kept for them)
+        QCOMPARE(b.calc->observerCount(), qint64(0));
+        const qint64 looked = b.calc->observersLooked(), evaluated = b.calc->evaluations();
+        QVERIFY(b.apply(StructEdit::insertRows(0, 5000, 1), nullptr));
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 9, 1), nullptr));   // (columns: none of them is at or past the tenth either)
+        QCOMPARE(b.calc->observersLooked(), looked);
+        QCOMPARE(b.calc->evaluations(), evaluated);
+        QVERIFY(b.apply(StructEdit::insertRows(0, 100, 1), nullptr));   // inside them: they are looked at, and the lower ones are worked out again
+        QVERIFY(b.calc->observersLooked() > looked);
+        QCOMPARE(b.calc->evaluations() - evaluated, qint64(100));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+    }
+
+    // The largest place a formula saw moves on with the lines put in before it: formulas pushed down by a hundred rows are still looked at by an edit that is past where they were.
+    void aFormulaPushedDownIsStillLookedAtByALaterEditAboveIt()
+    {
+        Book b;
+        QVERIFY(b.open({{"B1==ROW()", "B2==ROW()", "B3==ROW()"}}));
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 100), nullptr));
+        const qint64 evaluated = b.calc->evaluations();
+        QVERIFY(b.apply(StructEdit::insertRows(0, 50, 1), nullptr));   // above them, where they were not when they were told
+        QCOMPARE(b.calc->evaluations() - evaluated, qint64(3));
+        QCOMPARE(b.at("B102"), QStringLiteral("n:102"));
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 30), nullptr));
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 10, 1), nullptr));
+        QCOMPARE(b.at("AG102"), QStringLiteral("n:102"));   // (ROW() and not COLUMN(): worked out again for being in a column that moved, which is more and not less)
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+    }
+
+    // An array over cells, and what reads it, are right after rows and columns are put in and taken out around and through its neighbors, and after Undo of all of it.
+    void anArrayFormulaAndItsReadersAreRightAfterEditsAroundItAndTheirUndo()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c><c r=\"C2\"><f t=\"array\" ref=\"C2:C4\">A2:A4*2</f><v>4</v></c><c r=\"E1\"><f>SUM(C2:C4)</f><v>18</v></c></row>"
+                                            "<row r=\"3\"><c r=\"A3\"><v>3</v></c><c r=\"C3\"><v>6</v></c></row><row r=\"4\"><c r=\"A4\"><v>4</v></c><c r=\"C4\"><v>8</v></c></row>");
+        Book b;
+        QVERIFY(b.openXml(worksheet(rows)));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:18"));
+        QString why;
+        Calculation::EditRecord one, two, three, four;
+        Calculation::EditRecord refused;
+        QVERIFY(!b.apply(StructEdit::deleteRows(0, 1, 3), &refused));   // (the rows it is in: an array is not cut or deleted, and nothing changes)
+        QCOMPARE(b.at("E1"), QStringLiteral("n:18"));
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &one));        // above it
+        QCOMPARE(b.at("C3"), QStringLiteral("n:4"));
+        QCOMPARE(b.at("C5"), QStringLiteral("n:8"));
+        QCOMPARE(b.at("E2"), QStringLiteral("n:18"));
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 8, 2), &two));        // below it
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 1, 1), &three));   // between A and the array
+        QCOMPARE(b.at("D5"), QStringLiteral("n:8"));
+        QCOMPARE(b.at("F2"), QStringLiteral("n:18"));
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        QVERIFY(b.calc->setValue(0, 2, 0, Value::number(10)));          // A3, which the first element reads
+        b.finish();
+        QCOMPARE(b.at("D3"), QStringLiteral("n:20"));
+        QCOMPARE(b.at("F2"), QStringLiteral("n:34"));
+        QVERIFY(b.calc->setValue(0, 2, 0, Value::number(2)));
+        QVERIFY(b.calc->setValue(0, 4, 0, Value::number(7)));           // A5, which the last element reads
+        b.finish();
+        QCOMPARE(b.at("D5"), QStringLiteral("n:14"));
+        QCOMPARE(b.at("F2"), QStringLiteral("n:24"));
+        QVERIFY(b.calc->setValue(0, 4, 0, Value::number(4)));
+        b.finish();
+        QVERIFY(b.apply(StructEdit::deleteColumns(0, 5, 1), &four));    // an empty column
+        QVERIFY(b.calc->undoEdit(four));
+        QVERIFY(b.calc->undoEdit(three));
+        QVERIFY(b.calc->undoEdit(two));
+        QVERIFY(b.calc->undoEdit(one));
+        b.finish();
+        QCOMPARE(b.at("C2"), QStringLiteral("n:4"));
+        QCOMPARE(b.at("C4"), QStringLiteral("n:8"));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:18"));
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+    }
+
+    // A rule of validation and a rule of conditional formatting that read cells that moved give the answers for the cells they are for: after a row and a column are put in and taken out, and after Undo.
+    void rulesOfValidationAndFormattingGiveTheRightAnswersAfterEditsAndUndo()
+    {
+        QString rows;
+        for (int r = 1; r <= 12; ++r)
+            rows += r == 5 ? QStringLiteral("<row r=\"5\"><c r=\"A5\" t=\"inlineStr\"><is><t>x</t></is></c></row>") : QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c>%2</row>").arg(r).arg(r == 8 ? QStringLiteral("<c r=\"D8\"><v>5</v></c>") : QString());
+        const QString after = QStringLiteral("<conditionalFormatting sqref=\"B3:B10\"><cfRule type=\"expression\" dxfId=\"0\" priority=\"1\"><formula>$A3&gt;$D$8</formula></cfRule></conditionalFormatting>"
+                                             "<dataValidations count=\"1\"><dataValidation type=\"custom\" allowBlank=\"1\" showErrorMessage=\"1\" sqref=\"C2:C10\"><formula1>ISNUMBER($A2)</formula1></dataValidation></dataValidations>");
+        Book b;
+        QVERIFY(b.openXml(worksheet(rows, after)));
+        // the answers, for every cell of the ranges, against the cells the rules read (found by what they hold)
+        auto check = [&](const QString &step) {
+            const CondRule &cf = b.calc->sheet(0).conditionalFormats.first();
+            const CellRange first = cf.ranges.first();
+            quint32 dRow = 0, dCol = 0;
+            b.calc->sheet(0).cells.forEach([&](quint32 r, quint32 c, const Cell &cell) {
+                if (cell.type == CellType::Number && cell.number == 5 && !cell.hasFormula() && c > 0) {
+                    dRow = r;
+                    dCol = c;
+                }
+            });
+            for (quint32 row = first.row1; row <= first.row2; ++row) {
+                ParseOptions po;
+                const ParseResult p = parseFormula(cf.formula1, po);
+                QVERIFY2(p.ok(), qPrintable(step));
+                jp::calc::EvalContext ctx;
+                ctx.source = b.calc.get();
+                ctx.sheet = 0;
+                ctx.row = row;
+                ctx.col = first.col1;
+                ctx.shiftRows = int(row) - int(first.row1);
+                ctx.shiftCols = 0;
+                ctx.now = 45366.5;
+                jp::calc::Evaluator ev;
+                const Value got = ev.evaluate(*p.program, ctx);
+                const Value a = b.calc->cell(0, row, 0);
+                const Value d = b.calc->cell(0, dRow, dCol);
+                const bool expected = a.isText() || (a.isNumber() && d.isNumber() && a.number() > d.number());   // (a text is more than a number)
+                QVERIFY2(got.isBool() && got.boolean() == expected, qPrintable(QStringLiteral("%1: row %2 gives %3").arg(step).arg(row + 1).arg(got.debug())));
+            }
+            const Validation &dv = b.calc->sheet(0).validations.first();
+            const CellRange range = dv.ranges.first();
+            for (quint32 row = range.row1; row <= range.row2; ++row) {
+                const Validation *rule = b.calc->validationAt(0, row, range.col1);
+                QVERIFY2(rule, qPrintable(step));
+                const bool numeric = b.calc->cell(0, row, 0).isNumber();
+                QVERIFY2(b.calc->entryAllowed(0, row, range.col1, *rule, Value::number(1), QStringLiteral("1")) == numeric, qPrintable(QStringLiteral("%1: validation at row %2").arg(step).arg(row + 1)));
+            }
+        };
+        check(QStringLiteral("opened"));
+        Calculation::EditRecord one, two, three, four;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 4, 2), &one));
+        check(QStringLiteral("two rows in"));
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 1, 1), &two));
+        check(QStringLiteral("a column in"));
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 8, 1), &three));
+        check(QStringLiteral("a row out"));
+        QVERIFY(b.apply(StructEdit::deleteColumns(0, 2, 1), &four));   // the column the validation is for: its range is gone
+        QVERIFY(b.calc->undoEdit(four));
+        QVERIFY(b.calc->undoEdit(three));
+        check(QStringLiteral("two undone"));
+        QVERIFY(b.calc->undoEdit(two));
+        QVERIFY(b.calc->undoEdit(one));
+        check(QStringLiteral("all undone"));
+    }
+
+    // A block taken for one value of it by the cell the formula is in (a row of another sheet, picked by the formula's column) picks another when the cell moves and the block does not: the formula is
+    // worked out again, though it reads cells that did not move. (Found by working a workbook out again after edits.)
+    void aBlockTakenForOneValueByTheCellItIsInIsWorkedOutAgainWhenOnlyTheCellMoves()
+    {
+        Book b;
+        QVERIFY(b.open({{"A3==Sheet2!A3:C3", "B1==A3"}, {"A3=11", "B3=22", "C3=33"}}));
+        QCOMPARE(b.at("A3"), QStringLiteral("n:11"));
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 2), nullptr));   // on the first sheet: the formula is in column C now, and the block is where it was
+        QCOMPARE(b.at("C3"), QStringLiteral("n:33"));
+        QCOMPARE(b.at("D1"), QStringLiteral("n:33"));
+        QVERIFY(b.apply(StructEdit::deleteColumns(0, 0, 1), nullptr));
+        QCOMPARE(b.at("B3"), QStringLiteral("n:22"));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        // the same on the sheet itself: the block and the cell move together, and the formula is worked out again for no gain, and is right
+        Book c;
+        QVERIFY(c.open({{"A1=1", "B1=2", "C1=3", "B2==A1:C1"}}));
+        QCOMPARE(c.at("B2"), QStringLiteral("n:2"));
+        QVERIFY(c.apply(StructEdit::insertColumns(0, 0, 1), nullptr));
+        QCOMPARE(c.at("C2"), QStringLiteral("n:2"));
+        QVERIFY2(sameAsAWholeNewCalculation(c, &why), qPrintable(why));
+    }
+
+    // A column put inside a thousand row sums asks for none of them (a sum skips the empty cells it is given and does not count where they are); the same range under COUNTBLANK, and a sum of
+    // a block under an operator, are asked for all. None of them is made again in the graph: the sums read the same lines.
+    void aColumnInsertedInsideRowSumsAsksForNoneOfThemAndCountBlankAsksForAll()
+    {
+        const int n = 1000;
+        Book b;
+        QStringList cells;
+        for (int r = 1; r <= n; ++r) {
+            for (int c = 0; c < 5; ++c) cells << QStringLiteral("%1%2=%3").arg(QChar(char('A' + c))).arg(r).arg(r + c);
+            cells << QStringLiteral("G%1==SUM(A%1:E%1)").arg(r) << QStringLiteral("H%1==COUNTBLANK(A%1:E%1)").arg(r) << QStringLiteral("I%1==IF(A%1>0,AVERAGE(A%1:E%1),0)").arg(r)
+                  << QStringLiteral("J%1==SUM(A%1:E%1*2)").arg(r);
+        }
+        QVERIFY(b.open({cells}));
+        QCOMPARE(b.at("G5"), QStringLiteral("n:35"));
+        QCOMPARE(b.at("H5"), QStringLiteral("n:0"));
+        const qint64 before = b.calc->evaluations(), remade = b.calc->editStats().nodesRemade;
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 2, 1), nullptr));   // a column between B and C
+        QCOMPARE(b.calc->evaluations() - before, qint64(2 * n));         // (the COUNTBLANKs and the sums of an array: not the sums, not the average)
+        QCOMPARE(b.calc->editStats().nodesRemade, remade);
+        QCOMPARE(b.formula("H5"), QStringLiteral("SUM(A5:F5)"));
+        QCOMPARE(b.at("H5"), QStringLiteral("n:35"));
+        QCOMPARE(b.at("I5"), QStringLiteral("n:1"));                     // (COUNTBLANK counts the new empty cell)
+        QCOMPARE(b.at("J5"), QStringLiteral("n:7"));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        // and the same for a row put into a column of sums, which the sums are not asked about either
+        Book c;
+        QStringList column;
+        for (int r = 1; r <= n; ++r) column << QStringLiteral("A%1=%2").arg(r).arg(r);
+        for (int k = 0; k < n; ++k) column << QStringLiteral("C%1==SUM(A1:A%2)").arg(k + 1).arg(n) << QStringLiteral("D%1==COUNTBLANK(A1:A%2)").arg(k + 1).arg(n);
+        QVERIFY(c.open({column}));
+        const qint64 beforeRows = c.calc->evaluations();
+        QVERIFY(c.apply(StructEdit::insertRows(0, n / 2, 1), nullptr));
+        QCOMPARE(c.calc->evaluations() - beforeRows, qint64(n));
+        QVERIFY2(sameAsAWholeNewCalculation(c, &why), qPrintable(why));
+    }
+
+    // A row put inside a range: the formulas whose blocks hold the gap and can notice an empty row are worked out again (COUNTBLANK, ROWS, INDEX, MATCH here), and no other: not the sum of the
+    // same range, not the formulas whose ranges end above the gap or begin below it, not a single cell.
+    void aRowInsertedInsideARangeAsksForTheSensitiveFormulasThatHoldItAndNoOthers()
+    {
+        Book b;
+        QStringList cells;
+        for (int r = 1; r <= 10; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r * 10);
+        cells << "C1==SUM(A1:A10)" << "C2==COUNTBLANK(A1:A10)" << "C3==ROWS(A1:A10)" << "C4==INDEX(A1:A10,5)" << "C5==MATCH(50,A1:A10,0)" << "C6==SUM(A1:A4)" << "C7==COUNTBLANK(A6:A10)"
+              << "C8==A7*2" << "C9==COUNTBLANK(A1:A4)";
+        QVERIFY(b.open({cells}));
+        const qint64 before = b.calc->evaluations();
+        QVERIFY(b.apply(StructEdit::insertRows(0, 4, 1), nullptr));   // between A4 and A5
+        QCOMPARE(b.calc->evaluations() - before, qint64(4));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:550"));
+        QCOMPARE(b.at("C2"), QStringLiteral("n:1"));                   // (COUNTBLANK counts the new row)
+        QCOMPARE(b.at("C3"), QStringLiteral("n:11"));
+        QCOMPARE(b.at("C6"), QStringLiteral("n:6"));                   // (MATCH: the fifth is the sixth now; the formula moved down with the row it is in)
+        QCOMPARE(b.at("C7"), QStringLiteral("n:100"));                 // (SUM(A1:A4), which ends above the new row)
+        QCOMPARE(b.at("C8"), QStringLiteral("n:0"));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+    }
+
+    // A change in a cell of an inserted row or column reaches the formulas that read a range around it (the row has an id no interval holds: it is asked as the lines either side), and the
+    // formulas whose ranges do not take it in are not changed by it.
+    void aValueTypedInAnInsertedLineReachesTheFormulasThatReadARangeAroundIt()
+    {
+        Book b;
+        QStringList cells;
+        for (int r = 1; r <= 10; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r) << QStringLiteral("D%1=%2").arg(r).arg(r);
+        cells << "C1==SUM(A1:A10)" << "C2==SUM(A1:A5)" << "C3==SUM(A6:A10)" << "C4==AVERAGE(A1:A10)" << "C5==MAX(A1:A10)" << "C6==SUM(A:A)" << "E1==SUM(D1:D10)";
+        QVERIFY(b.open({cells}));
+        QVERIFY(b.apply(StructEdit::insertRows(0, 5, 1), nullptr));    // between A5 and A6
+        QVERIFY(b.calc->setValue(0, 5, 0, Value::number(100)));
+        b.finish();
+        // a formula in the inserted row is read by the sum of the column around it: when what it reads changes, the sum has its value
+        QVERIFY(b.calc->setFormula(0, 5, 3, QStringLiteral("A1*2")));
+        b.finish();
+        QCOMPARE(b.at("E1"), QStringLiteral("n:57"));
+        QVERIFY(b.calc->setValue(0, 0, 0, Value::number(7)));
+        b.finish();
+        QCOMPARE(b.at("E1"), QStringLiteral("n:69"));
+        QVERIFY(b.calc->setValue(0, 0, 0, Value::number(1)));
+        b.finish();
+        QCOMPARE(b.at("C1"), QStringLiteral("n:155"));
+        QCOMPARE(b.at("C2"), QStringLiteral("n:15"));                  // (ends above the new row)
+        QCOMPARE(b.at("C3"), QStringLiteral("n:40"));                  // (begins below it)
+        QCOMPARE(b.at("C5"), QStringLiteral("n:100"));
+        QCOMPARE(b.at("C7"), QStringLiteral("n:155"));                 // (SUM(A:A), which moved down with the row it is in)
+        // at the top, the range shifts down and does not take the new row in; a value typed there changes none of them
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), nullptr));
+        QVERIFY(b.calc->setValue(0, 0, 0, Value::number(1000)));
+        b.finish();
+        QCOMPARE(b.at("C3"), QStringLiteral("n:15"));
+        QCOMPARE(b.at("C8"), QStringLiteral("n:1155"));                // (the whole column does)
+        // a column put inside a row of numbers, then a number typed in it
+        Book c;
+        QVERIFY(c.open({{"A1=1", "B1=2", "C1=3", "D1=4", "F1==SUM(A1:D1)", "F2==MAX(A1:D1)", "F3==SUM(A1:B1)", "F4==COUNT(A1:D1)"}}));
+        QVERIFY(c.apply(StructEdit::insertColumns(0, 2, 1), nullptr));   // between B and C
+        QVERIFY(c.calc->setValue(0, 0, 2, Value::number(50)));
+        c.finish();
+        QCOMPARE(c.at("G1"), QStringLiteral("n:60"));
+        QCOMPARE(c.at("G2"), QStringLiteral("n:50"));
+        QCOMPARE(c.at("G3"), QStringLiteral("n:3"));
+        QCOMPARE(c.at("G4"), QStringLiteral("n:5"));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        QVERIFY2(sameAsAWholeNewCalculation(c, &why), qPrintable(why));
+    }
+
+    // Rows deleted: the formulas that read them from outside are worked out again (and told the graph again what they read), the formulas in the rows are not worked out, and the formulas that
+    // read other cells are not.
+    void aRowDeletedAsksForTheReadersOfItFromOutsideAndNotTheFormulasInIt()
+    {
+        Book b;
+        QStringList cells;
+        for (int r = 1; r <= 12; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r);
+        cells << "B1==SUM(A1:A10)" << "B2==SUM(A1:A3)" << "B3==A12+1" << "B4==A5*2" << "C5==A5+1" << "D1==SUM(A6:A10)" << "D2==COUNTBLANK(A6:A12)";
+        QVERIFY(b.open({cells}));
+        const qint64 before = b.calc->evaluations();
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 4, 1), nullptr));   // row 5
+        QCOMPARE(b.calc->evaluations() - before, qint64(2));          // (B1, and B4, which is #REF! now)
+        QCOMPARE(b.at("B1"), QStringLiteral("n:50"));
+        QCOMPARE(b.at("B4"), QStringLiteral("e:#REF!"));
+        QCOMPARE(b.formula("B1"), QStringLiteral("SUM(A1:A9)"));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        // what B1 reads now is told to the graph: a number it still reads reaches it, and the row it read no more does not
+        QVERIFY(b.calc->setValue(0, 8, 0, Value::number(1000)));
+        b.finish();
+        QCOMPARE(b.at("B1"), QStringLiteral("n:1040"));
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        // and a range that loses its last rows does not read the rows that come after
+        Book c;
+        QVERIFY(c.open({{"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "B1==SUM(A1:A4)"}}));
+        QVERIFY(c.apply(StructEdit::deleteRows(0, 2, 2), nullptr));   // rows 3 and 4: the range is A1:A2
+        QCOMPARE(c.formula("B1"), QStringLiteral("SUM(A1:A2)"));
+        QCOMPARE(c.at("B1"), QStringLiteral("n:3"));
+        const qint64 evaluated = c.calc->evaluations();
+        QVERIFY(c.calc->setValue(0, 2, 0, Value::number(100)));         // (A3, which was A5: not read)
+        c.finish();
+        QCOMPARE(c.at("B1"), QStringLiteral("n:3"));
+        QCOMPARE(c.calc->evaluations(), evaluated);                          // (and nothing reads it: the graph was told again what B1 reads)
+        QVERIFY(c.calc->setValue(0, 1, 0, Value::number(10)));
+        c.finish();
+        QCOMPARE(c.at("B1"), QStringLiteral("n:11"));
+    }
+
+    // OFFSET, INDIRECT, INDEX, MATCH, a lookup, and a name that has ROW() in it are each worked out again when the edit could change them, and are what a whole new calculation gives.
+    void formulasThatReadByPlaceAreWorkedOutAgainWhenAnEditCouldChangeThem()
+    {
+        Book b;
+        QStringList cells;
+        for (int r = 1; r <= 10; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r * 10) << QStringLiteral("B%1=%2").arg(r).arg(r);
+        cells << "D1==INDIRECT(\"A5\")" << "D2==OFFSET(A1,4,0)" << "D3==INDEX(A1:A10,5)" << "D4==MATCH(50,A1:A10,0)" << "D5==VLOOKUP(50,A1:B10,2,FALSE)" << "D6==MyRow" << "D7==ROW(A5)+MyRow";
+        QVERIFY(b.open({cells}, QString(), QStringLiteral("<definedName name=\"MyRow\">ROW(Sheet1!$A$5)</definedName>")));
+        QCOMPARE(b.at("D1"), QStringLiteral("n:50"));
+        QCOMPARE(b.at("D6"), QStringLiteral("n:5"));
+        QVERIFY(b.apply(StructEdit::insertRows(0, 2, 1), nullptr));   // above A3
+        QCOMPARE(b.at("D1"), QStringLiteral("n:40"));                  // (INDIRECT("A5") reads the fifth row, which holds what the fourth did)
+        QCOMPARE(b.at("D2"), QStringLiteral("n:40"));                  // (OFFSET(A1,4,0), the fifth row)
+        QCOMPARE(b.at("D4"), QStringLiteral("n:40"));                  // (INDEX(A1:A11,5); the formulas from the third row down moved down)
+        QCOMPARE(b.at("D5"), QStringLiteral("n:6"));
+        QCOMPARE(b.at("D6"), QStringLiteral("n:5"));
+        QCOMPARE(b.at("D7"), QStringLiteral("n:6"));                   // (the name stands for ROW(Sheet1!$A$6) now)
+        QCOMPARE(b.at("D8"), QStringLiteral("n:12"));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 0, 2), nullptr));
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 1), nullptr));
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+    }
+
+    // After Undo and Redo of edits of rows and columns, and after the lines are renumbered (a rebase), the graph is right: a number changed afterwards reaches what reads it, which is what a
+    // whole new calculation gives.
+    void theGraphIsRightAfterUndoRedoAndARebaseOfRowAndColumnEdits()
+    {
+        Book b;
+        QStringList cells;
+        for (int r = 1; r <= 8; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r) << QStringLiteral("B%1=%2").arg(r).arg(r * 2);
+        cells << "D1==SUM(A1:A8)" << "D2==A4*2" << "D3==COUNTBLANK(A1:A8)" << "D4==SUM(A:A)" << "D5==INDEX(A1:A8,4)" << "D6==SUM(A2:B6)" << "D7==SUMPRODUCT(A1:A8,B1:B8)" << "E1==D1+D2";
+        QVERIFY(b.open({cells}));
+        QString why;
+        // a number in a cell that is read, changed after each step: the cell is found by what it holds (A1 held 1 and is the first number in the first column)
+        int bump = 1;
+        auto changeAndCheck = [&](const QString &step) {
+            // (every number the sheet holds is changed in turn, and what reads it must have its new value)
+            struct Number {
+                quint32 row, col;
+                double was;
+            };
+            std::vector<Number> numbers;
+            b.calc->sheet(0).cells.forEach([&](quint32 r, quint32 c, const Cell &cell) {
+                if (!cell.hasFormula() && cell.type == CellType::Number) numbers.push_back({r, c, cell.number});
+            });
+            QVERIFY2(!numbers.empty(), qPrintable(step));
+            for (const Number &n : numbers) {
+                QVERIFY(b.calc->setValue(0, n.row, n.col, Value::number(n.was + 100 * bump++)));
+                b.finish();
+                QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(step + QStringLiteral(": ") + why));
+                QVERIFY(b.calc->setValue(0, n.row, n.col, Value::number(n.was)));
+                b.finish();
+            }
+        };
+        const std::vector<StructEdit> edits{StructEdit::insertRows(0, 3, 2), StructEdit::deleteRows(0, 1, 1), StructEdit::insertColumns(0, 0, 1), StructEdit::deleteRows(0, 5, 2), StructEdit::insertRows(0, 0, 1),
+                                            StructEdit::deleteColumns(0, 1, 1)};
+        std::vector<Calculation::EditRecord> records(edits.size());
+        for (size_t i = 0; i < edits.size(); ++i) {
+            QVERIFY(b.apply(edits[i], &records[i]));
+            QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(QStringLiteral("edit %1: %2").arg(i).arg(why)));
+            changeAndCheck(QStringLiteral("after edit %1").arg(i));
+        }
+        for (size_t i = edits.size(); i-- > 0;) {
+            QVERIFY(b.calc->undoEdit(records[i], nullptr));
+            b.finish();
+            QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(QStringLiteral("undo %1: %2").arg(i).arg(why)));
+            changeAndCheck(QStringLiteral("after undo %1").arg(i));
+        }
+        QCOMPARE(b.formula("D1"), QStringLiteral("SUM(A1:A8)"));
+        QCOMPARE(b.at("D1"), QStringLiteral("n:36"));
+        for (size_t i = 0; i < edits.size(); ++i) {
+            QVERIFY(b.apply(edits[i], &records[i]));
+            QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(QStringLiteral("redo %1: %2").arg(i).arg(why)));
+            changeAndCheck(QStringLiteral("after redo %1").arg(i));
+        }
+        // the lines are put back to one run: every id is renumbered, and the graph is told again what each formula reads
+        std::vector<jp::calc::LineMapCore::Renumber> table;
+        QVERIFY(b.calc->compactLines(0, true, &table));
+        QVERIFY(!table.empty());
+        b.finish();
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        changeAndCheck(QStringLiteral("after the rows were renumbered"));
+        QVERIFY(b.calc->compactLines(0, false, &table));
+        b.finish();
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        changeAndCheck(QStringLiteral("after the columns were renumbered"));
+        // and edits go on after it
+        Calculation::EditRecord after;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 2, 1), &after));
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        changeAndCheck(QStringLiteral("after an edit after the renumbering"));
+    }
+
+    // After the lines of a sheet are renumbered (a rebase puts every id at its place), the graph is told again what each formula reads: a number typed afterwards reaches the formulas that read it, in
+    // rows and in columns, though the ids the graph held before would not say so.
+    void theGraphIsToldAgainWhenTheLinesAreRenumbered()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "B7==SUM(A1:A5)", "C7==A5*2", "D7==SUM(A:A)", "A9=10", "E9==SUM(A9:D9)"}}));
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 3), nullptr));       // the ids of the lines are the old places, and the lines are three places down
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 2), nullptr));    // (the same for columns)
+        std::vector<jp::calc::LineMapCore::Renumber> table;
+        QVERIFY(b.calc->compactLines(0, true, &table));
+        QVERIFY(!table.empty());
+        QVERIFY(b.calc->compactLines(0, false, &table));
+        QVERIFY(!table.empty());
+        b.finish();
+        QCOMPARE(b.formula("D10"), QStringLiteral("SUM(C4:C8)"));
+        QVERIFY(b.calc->setValue(0, 7, 2, Value::number(100)));            // C8, which held 5
+        b.finish();
+        QCOMPARE(b.at("D10"), QStringLiteral("n:110"));
+        QCOMPARE(b.at("E10"), QStringLiteral("n:200"));
+        QCOMPARE(b.at("F10"), QStringLiteral("n:120"));
+        QVERIFY(b.calc->setValue(0, 11, 2, Value::number(1000)));          // C12, which held 10
+        b.finish();
+        QCOMPARE(b.at("G12"), QStringLiteral("n:1000"));
+        QString why;
+        QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+    }
+
+    // The epoch of a sheet grows only for an edit that is not rigid for some formula (one that asks something of the worker), so that a result worked out before a rigid edit is still good; a
+    // formula the questions mark to be worked out again is stamped with the epoch (while a value is in flight), and a result older than the stamp is let go of.
+    void theEpochGrowsOnlyForAnEditThatIsNotRigidAndTheFormulasAskedAreStamped()
+    {
+        auto bookOf = [](Book &b) {
+            QStringList cells;
+            for (int r = 1; r <= 10; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r);
+            cells << "B1==SUM(A1:A10)" << "B2==COUNTBLANK(A1:A10)" << "B3==A3+1" << "B4==SUM(A1:A3)";
+            return b.open({cells});
+        };
+        {
+            Book b;
+            QVERIFY(bookOf(b));
+            const quint32 e0 = b.calc->structEpoch(0);
+            QVERIFY(b.apply(StructEdit::insertRows(0, 200, 1), nullptr));   // past everything
+            QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), nullptr));     // above everything: the ranges shift and take nothing in
+            QVERIFY(b.apply(StructEdit::insertColumns(0, 5, 1), nullptr));  // past the columns that are read
+            QVERIFY(b.apply(StructEdit::deleteRows(0, 100, 1), nullptr));   // an empty row nothing reads
+            QCOMPARE(b.calc->structEpoch(0), e0);
+            QVERIFY(b.apply(StructEdit::insertRows(0, 5, 1), nullptr));     // inside A1:A10: COUNTBLANK holds the gap
+            QCOMPARE(b.calc->structEpoch(0), e0 + 1);
+            QVERIFY(b.apply(StructEdit::deleteRows(0, 3, 1), nullptr));     // a row the sum reads
+            QCOMPARE(b.calc->structEpoch(0), e0 + 2);
+        }
+        {
+            // a sheet with a formula that sees a place: an edit that moves the place is not rigid, one that does not is
+            Book b;
+            QVERIFY(b.open({{"A1=1", "B1==ROW(A5)", "B2==SUM(A1:A3)"}}));
+            const quint32 e0 = b.calc->structEpoch(0);
+            QVERIFY(b.apply(StructEdit::insertRows(0, 100, 1), nullptr));
+            QCOMPARE(b.calc->structEpoch(0), e0);
+            QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), nullptr));
+            QCOMPARE(b.calc->structEpoch(0), e0 + 1);
+        }
+        // stamps: with a value in flight, the formulas asked are stamped and a result older than the stamp is discarded; the others are kept
+        Book b;
+        QVERIFY(bookOf(b));
+        const quint32 before = b.calc->structEpoch(0);
+        b.calc->valuesTaken(-1);   // (a value told and not taken: one is on its way)
+        QVERIFY(b.calc->resultsInFlight());
+        QVERIFY(b.apply(StructEdit::insertRows(0, 5, 1), nullptr));   // COUNTBLANK (B2) holds the gap; the sum (B1) does not mind
+        const quint32 now = b.calc->structEpoch(0);
+        QCOMPARE(now, before + 1);
+        const CellStore &store = b.calc->sheet(0).cells;
+        const quint32 col = store.colIdAt(1);
+        QVERIFY(b.calc->staleResult(0, store.rowIdAt(1), col, before));    // B2
+        QVERIFY(!b.calc->staleResult(0, store.rowIdAt(1), col, now));      // (a result worked out after the edit is good)
+        QVERIFY(!b.calc->staleResult(0, store.rowIdAt(0), col, before));   // B1, the sum
+        QVERIFY(!b.calc->staleResult(0, store.rowIdAt(3), col, before));   // B4... (moved by one, not asked: rigid)
+        b.calc->pruneStamps({now});
+        QCOMPARE(b.calc->stampCount(), qint64(0));
+    }
+
+    // The questions are counted: an edit asks the worker once, of the sets it needs, and a rigid edit asks nothing.
+    void anEditOfWholeLinesAsksTheWorkerOnceAndARigidEditAsksNothing()
+    {
+        Book b;
+        QStringList cells;
+        for (int r = 1; r <= 100; ++r) cells << QStringLiteral("A%1=%2").arg(r).arg(r) << QStringLiteral("B%1==A%1*2").arg(r);
+        cells << "D1==SUM(A:A)" << "D2==COUNT(A5:A1048576)";   // (read to the end of the sheet: the row an insert pushes off its end is not one they hold anything of)
+        QVERIFY(b.open({cells}));
+        const qint64 asked = b.calc->questionsAnswered(), marked = b.calc->formulasAsked();
+        QVERIFY(b.apply(StructEdit::insertRows(0, 10, 1), nullptr));
+        QVERIFY(b.apply(StructEdit::insertColumns(0, 1, 1), nullptr));
+        QVERIFY(b.apply(StructEdit::deleteColumns(0, 4, 1), nullptr));
+        QCOMPARE(b.calc->questionsAnswered(), asked);   // (nothing here can notice the edits)
+        QCOMPARE(b.calc->formulasAsked(), marked);
+        QCOMPARE(b.calc->editStats().nodesRemade, qint64(0));
+        // a row deleted that a formula reads from outside is one question, and the formula is the one it names
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 20, 1), nullptr));
+        QVERIFY(b.calc->questionsAnswered() == asked);   // (B21 read A21 and went with it: no one reads a cell of the row from outside)
+        Book c;
+        QVERIFY(c.open({{"A1=1", "A2=2", "A3=3", "B1==SUM(A1:A3)", "B2==A2*2"}}));
+        const qint64 askedC = c.calc->questionsAnswered();
+        QVERIFY(c.apply(StructEdit::deleteRows(0, 1, 1), nullptr));
+        QCOMPARE(c.calc->questionsAnswered(), askedC + 1);
+        QCOMPARE(c.calc->formulasAsked(), qint64(1));   // (B1, which read the row; B2 was in it)
+    }
+
 private:
+    // Every formula, in the order of the sheets and cells, with its value: what a whole new calculation of the same cells must leave as it is.
+    static QStringList formulaValues(Book &b)
+    {
+        QStringList out;
+        for (int sheet = 0; sheet < b.calc->sheetCount(); ++sheet)
+            b.calc->sheet(sheet).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+                if (c.hasFormula()) out << QStringLiteral("%1!%2,%3 %4").arg(sheet).arg(row).arg(col).arg(b.calc->cell(sheet, row, col).debug());
+            });
+        return out;
+    }
+    static bool sameAsAWholeNewCalculation(Book &b, QString *why)
+    {
+        const QStringList now = formulaValues(b);
+        b.calc->invalidateAll();
+        b.finish();
+        const QStringList again = formulaValues(b);
+        if (now == again) return true;
+        for (int i = 0; i < std::min(now.size(), again.size()); ++i)
+            if (now[i] != again[i]) {
+                *why = QStringLiteral("a formula was left stale: %1 against %2 in a whole new calculation").arg(now[i], again[i]);
+                return false;
+            }
+        *why = QStringLiteral("%1 formulas against %2").arg(now.size()).arg(again.size());
+        return false;
+    }
+
     void runRandomEdits(quint32 seeds, bool valuesToo, bool undoThem)
     {
         const quint32 only = quint32(qEnvironmentVariableIntValue("STRUCT_SEED"));   // (one seed, and what it does)

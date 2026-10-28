@@ -574,6 +574,53 @@ private Q_SLOTS:
         QCOMPARE(valueOf(e, QStringLiteral("F8")), QStringLiteral("e:#REF!"));
     }
 
+    // A table grows when a row is put in it, and the formulas that name its columns have the cells it has: after a row is put in, a number typed in it, a row is taken out, a column put in before the table,
+    // and all of it undone.
+    void aStructuredReferenceFollowsATableThatGrowsAndShrinks()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(s->type(0, 7, 0, QStringLiteral("=SUM(Table1[Q1])")).ok);
+        QVERIFY(s->type(0, 7, 1, QStringLiteral("=ROWS(Table1[#Data])")).ok);
+        QVERIFY(s->type(0, 7, 2, QStringLiteral("=SUM(Table1[[Q1]:[Q2]])")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:6"));
+        QVERIFY(s->insertRows(0, 2, 1).ok);   // inside the table
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("B9")), QStringLiteral("n:4"));
+        QCOMPARE(valueOf(e, QStringLiteral("A9")), QStringLiteral("n:6"));
+        QVERIFY(s->type(0, 2, 1, QStringLiteral("5")).ok);
+        QVERIFY(s->type(0, 2, 2, QStringLiteral("50")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A9")), QStringLiteral("n:11"));
+        QCOMPARE(valueOf(e, QStringLiteral("C9")), QStringLiteral("n:121"));
+        QVERIFY(s->type(0, 4, 1, QStringLiteral("9")).ok);   // the last row of the table, which was the third
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A9")), QStringLiteral("n:17"));
+        QCOMPARE(valueOf(e, QStringLiteral("C9")), QStringLiteral("n:127"));
+        QVERIFY(s->deleteRows(0, 1, 1).ok);   // the first row of data
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("B8")), QStringLiteral("n:3"));
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:16"));
+        QVERIFY(s->insertColumns(0, 0, 1).ok);   // before the table
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("B8")), QStringLiteral("n:16"));
+        QCOMPARE(valueOf(e, QStringLiteral("C8")), QStringLiteral("n:3"));
+        for (int i = 0; i < 2; ++i) e.win.w.undoStack()->undo();   // the column, and the row taken out
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A9")), QStringLiteral("n:17"));
+        QCOMPARE(valueOf(e, QStringLiteral("B9")), QStringLiteral("n:4"));
+        for (int i = 0; i < 4; ++i) e.win.w.undoStack()->undo();   // the number typed in the last row, the two typed in the new one, and the row put in
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:6"));
+        QCOMPARE(valueOf(e, QStringLiteral("B8")), QStringLiteral("n:3"));
+        QCOMPARE(valueOf(e, QStringLiteral("C8")), QStringLiteral("n:66"));
+    }
+
     // Formulas typed inside the table with the short form are kept as the file writes them, and shown as they were typed.
     void theShortFormOfARowReferenceIsKeptAsTheFileWritesIt()
     {

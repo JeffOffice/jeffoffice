@@ -3,6 +3,8 @@
 #include "calchelpers.h"
 
 #include "calc/graph.h"
+#include "calc/idframe.h"
+#include "calc/linemap.h"
 #include "calc/refs.h"
 
 #include <QRandomGenerator>
@@ -455,142 +457,444 @@ private Q_SLOTS:
         QCOMPARE(touched("SUM(Far)"), (std::vector<CellArea>{blockArea(0, 4, 2, 5, 2)}));
         QCOMPARE(touched("5+1"), (std::vector<CellArea>{}));
     }
-    // Rows inserted or deleted on a sheet move what every formula reads there (a block that has a row put in it grows, one that has rows deleted loses them, what was in the rows deleted is
-    // read no more, a whole column stays one, and the other sheets are as they were): what reads a cell afterwards is what asking each formula gives, over many shifts one after another.
-    void shiftingRowsMovesWhatEveryFormulaReads()
+    // Rows and columns inserted and deleted one after another, with the graph told nothing: it holds the ids of the lines, and an edit changes none. After every edit, what reads a cell (or a
+    // block) is what asking each formula gives, if the formulas were told what they read as ids (a block that ends in an inserted line is told as the original line at that end); and
+    // for a change in an inserted line, which has an id no interval has, it is a superset (the original lines either side of it are asked). A query that names no inserted line, of
+    // formulas that were told no inserted line, is answered exactly. Inserted lines and deleted lines are in rows and in columns, over many edits.
+    void idsKeepWhatEveryFormulaReadsThroughInsertsAndDeletes()
     {
-        QRandomGenerator rng(20261025);
+        QRandomGenerator rng(20261027);
+        struct Axis {
+            LineMapCore map;
+            quint32 last, maxId;
+            std::vector<quint32> ids;   // the live ids in the order of their places
+            Axis(const LineLimits &l, quint32 lastPlace, quint32 largest) : map(l, l.capacity), last(lastPlace), maxId(largest) { refresh(); }
+            void refresh()
+            {
+                std::vector<IdRun> runs;
+                map.walk(0, map.size() - 1, &runs);
+                ids.clear();
+                for (const IdRun &r : runs)
+                    for (uint32_t i = 0; i < r.count; ++i) ids.push_back(r.first + i);
+            }
+            bool original(quint32 place) const { return place < ids.size() && ids[place] < map.limits().firstNew; }
+        };
+        Axis rows(LineLimits::rows(), 1048575, 0xFFFFFF), cols(LineLimits::cols(), 16383, 0xFFFF);
+        const int nodes = 600;
+        struct Reading {
+            std::vector<CellArea> places;   // what each formula reads now, in places, as the edits so far have made it (the sheet is 0)
+            bool inexact = false;           // told with an end in an inserted line, or read lines that are deleted (the graph still holds their ids)
+        };
+        std::vector<Reading> reads(static_cast<size_t>(nodes));
         DependencyGraph graph;
-        const int nodes = 800;
-        // what each formula reads, one cell, block, or run of cells by sheet (an area through several sheets is one for each, as the graph keeps it)
-        std::vector<std::vector<CellArea>> reads(static_cast<size_t>(nodes));
-        const quint32 limit = 1048576;
         auto randomArea = [&]() {
             CellArea a;
             const int kind = int(rng.bounded(10));
-            a.sheet1 = a.sheet2 = int(rng.bounded(3));
-            a.row1 = rng.bounded(300);
-            a.col1 = rng.bounded(40);
+            a.sheet1 = a.sheet2 = 0;
+            a.row1 = rng.bounded(60);
+            a.col1 = rng.bounded(14);
             a.row2 = a.row1;
             a.col2 = a.col1;
-            if (kind >= 4 && kind < 7) {
-                a.row2 = a.row1 + rng.bounded(60);
-                a.col2 = a.col1 + rng.bounded(3);
-            } else if (kind == 7) {
+            if (kind >= 3 && kind < 6) {
+                a.row2 = a.row1 + rng.bounded(30);
+                a.col2 = a.col1 + rng.bounded(4);
+            } else if (kind == 6) {
                 a.row1 = 0;
-                a.row2 = limit - 1;   // a whole column
+                a.row2 = 1048575;   // a whole column
                 a.col2 = a.col1;
-            } else if (kind == 8) {
+            } else if (kind == 7) {
                 a.col1 = 0;
-                a.col2 = 16383;       // a whole row
+                a.col2 = 16383;     // a whole row
                 a.row2 = a.row1;
-            } else if (kind == 9) {
-                a.sheet2 = std::min(2, a.sheet1 + 1 + int(rng.bounded(2)));
-                a.row2 = a.row1 + rng.bounded(5);
-                a.col2 = a.col1 + rng.bounded(5);
+            } else if (kind == 8) {
+                a.row2 = 1048575;   // to the end of the sheet
             }
             return a;
         };
-        for (int node = 0; node < nodes; ++node) {
-            std::vector<CellArea> areas;
-            const int n = 1 + int(rng.bounded(4));
-            for (int i = 0; i < n; ++i) areas.push_back(randomArea());
-            QVERIFY(graph.setPrecedents(quint32(node), areas));
-            for (const CellArea &a : areas)
-                for (int sh = a.sheet1; sh <= a.sheet2; ++sh) {
-                    CellArea one = a;
-                    one.sheet1 = one.sheet2 = sh;
-                    reads[size_t(node)].push_back(one);
-                }
-        }
-        // the rule for an area on the sheet that is shifted, written out from what a person expects of references
-        auto shifted = [&](const CellArea &a, quint32 first, qint64 delta, CellArea *out) {
-            *out = a;
+        auto tell = [&](int node) {
+            Reading r;
+            const int n = 1 + int(rng.bounded(3));
+            std::vector<CellArea> told;
+            for (int i = 0; i < n; ++i) {
+                const CellArea a = randomArea();
+                r.places.push_back(a);
+                r.inexact = r.inexact || !rows.original(a.row1) || !rows.original(a.row2) || !cols.original(a.col1) || !cols.original(a.col2);
+            }
+            for (const CellArea &a : r.places) {
+                CellArea t = a;
+                const IdSpan rr = idSpan(rows.map, a.row1, a.row2, rows.last, rows.maxId, true), cc = idSpan(cols.map, a.col1, a.col2, cols.last, cols.maxId, true);
+                t.row1 = rr.lo;
+                t.row2 = rr.hi;
+                t.col1 = cc.lo;
+                t.col2 = cc.hi;
+                told.push_back(t);
+            }
+            QVERIFY(graph.setPrecedents(quint32(node), told));
+            reads[size_t(node)] = r;
+        };
+        for (int node = 0; node < nodes; ++node) tell(node);
+        // what an edit of lines does to a block of places: the rule a person expects of references
+        auto moved = [&](quint32 lo, quint32 hi, quint32 first, qint64 delta, quint32 last, quint32 *nlo, quint32 *nhi) {
             const quint32 count = quint32(delta < 0 ? -delta : delta), end = first + count;
-            if (a.row2 < first) return true;
-            const bool toTheEnd = a.row2 >= limit - 1;
-            if (toTheEnd && a.row1 == 0) return true;   // (a whole column is read as it was)
+            *nlo = lo;
+            *nhi = hi;
+            if (hi < first) return true;
+            const bool toTheEnd = hi >= last;
             if (delta > 0) {
-                const quint64 lo = a.row1 >= first ? quint64(a.row1) + count : quint64(a.row1);
-                if (lo >= limit) return false;
-                quint64 hi = quint64(a.row2) + count;
-                if (toTheEnd || hi >= limit) hi = limit - 1;
-                out->row1 = quint32(lo);
-                out->row2 = quint32(hi);
+                const quint64 l = lo >= first ? quint64(lo) + count : quint64(lo);
+                if (l > last) return false;
+                quint64 h = quint64(hi) + count;
+                if (toTheEnd || h > last) h = last;
+                *nlo = quint32(l);
+                *nhi = quint32(h);
                 return true;
             }
-            if (a.row1 >= first && a.row2 < end) return false;
-            out->row1 = a.row1 < first ? a.row1 : (a.row1 < end ? first : a.row1 - count);
-            out->row2 = toTheEnd ? limit - 1 : (a.row2 < end ? first - 1 : a.row2 - count);
+            if (lo >= first && hi < end) return false;
+            *nlo = lo < first ? lo : (lo < end ? first : lo - count);
+            *nhi = toTheEnd ? last : (hi < end ? first - 1 : hi - count);
             return true;
         };
-        for (int round = 0; round < 25; ++round) {
-            const int sheet = int(rng.bounded(3));
-            const quint32 first = rng.bounded(6) == 0 ? 0 : rng.bounded(rng.bounded(5) ? 340 : 1048000);
-            const qint64 delta = rng.bounded(2) ? qint64(1 + rng.bounded(4)) : -qint64(1 + rng.bounded(4));
-            graph.shiftRows(sheet, first, delta, limit);
-            for (auto &list : reads) {
+        int insertedCells = 0, exactChecks = 0, inexactChecks = 0;
+        for (int round = 0; round < 60; ++round) {
+            const bool onRows = rng.bounded(2) == 0;
+            Axis &axis = onRows ? rows : cols;
+            const quint32 size = axis.map.size();
+            const quint32 at = rng.bounded(8) == 0 ? 0 : (rng.bounded(10) == 0 ? size - 1 - rng.bounded(3) : rng.bounded(onRows ? 70 : 16));
+            const quint32 count = 1 + rng.bounded(3);
+            const bool insert = rng.bounded(5) < 3;
+            LineEdit edit;
+            qint64 delta;
+            if (insert) {
+                QCOMPARE(axis.map.insert(at, count, &edit), LineStatus::Ok);
+                delta = count;
+            } else {
+                QCOMPARE(axis.map.erase(at, count, &edit), LineStatus::Ok);
+                LineEdit refill;
+                QCOMPARE(axis.map.insert(axis.map.size(), count, &refill), LineStatus::Ok);   // (the sheet is as long as it was: lines are added at its end)
+                delta = -qint64(count);
+            }
+            axis.refresh();
+            for (Reading &r : reads) {
                 std::vector<CellArea> now;
-                for (const CellArea &a : list) {
-                    if (a.sheet1 != sheet) {
-                        now.push_back(a);
-                        continue;
-                    }
-                    CellArea moved;
-                    if (shifted(a, first, delta, &moved)) now.push_back(moved);
+                for (const CellArea &a : r.places) {
+                    CellArea m = a;
+                    bool keep;
+                    if (onRows) keep = moved(a.row1, a.row2, at, delta, rows.last, &m.row1, &m.row2);
+                    else keep = moved(a.col1, a.col2, at, delta, cols.last, &m.col1, &m.col2);
+                    if (keep) now.push_back(m);
+                    else r.inexact = true;   // (what it read is gone, and the graph keeps the ids: a block asked about that spans the dead lines still names it, until it is told what it reads again)
                 }
-                list = std::move(now);
+                r.places = std::move(now);
             }
-            for (int trial = 0; trial < 500; ++trial) {
-                const int sh = int(rng.bounded(3));
-                const quint32 row = rng.bounded(rng.bounded(4) ? 350 : 1048576), col = rng.bounded(rng.bounded(4) ? 45 : 16384);
-                std::vector<quint32> got;
-                graph.dependentsOfCell(sh, row, col, &got);
-                std::set<quint32> expected;
-                for (int n = 0; n < nodes; ++n)
-                    for (const CellArea &a : reads[size_t(n)])
-                        if (covers(a, sh, row, col)) expected.insert(quint32(n));
-                QVERIFY2(asSet(got) == expected, qPrintable(QStringLiteral("round %1: cell %2:%3:%4 after %5 rows at %6 on sheet %7 is read by %8 formulas, and by %9 in the check").arg(round).arg(sh).arg(row).arg(col).arg(delta).arg(first).arg(sheet).arg(asSet(got).size()).arg(expected.size())));
+            // some formulas are told again what they read, now that lines have been inserted among the places (and some read nothing)
+            for (int i = 0; i < 40; ++i) tell(int(rng.bounded(quint32(nodes))));
+            for (int i = 0; i < 4; ++i) {
+                const int node = int(rng.bounded(quint32(nodes)));
+                graph.clearPrecedents(quint32(node));
+                reads[size_t(node)] = Reading();
             }
-            // a block, too
-            for (int trial = 0; trial < 60; ++trial) {
-                CellArea q = randomArea();
-                q.sheet2 = q.sheet1;
+            auto covers = [&](const CellArea &a, quint32 r1, quint32 c1, quint32 r2, quint32 c2) { return a.row1 <= r2 && r1 <= a.row2 && a.col1 <= c2 && c1 <= a.col2; };
+            for (int trial = 0; trial < 400; ++trial) {
+                quint32 r1 = rng.bounded(rng.bounded(4) ? 80 : 1048576), c1 = rng.bounded(rng.bounded(4) ? 20 : 16384);
+                quint32 r2 = r1, c2 = c1;
+                if (rng.bounded(4) == 0) {
+                    r2 = std::min<quint32>(1048575, r1 + rng.bounded(40));
+                    c2 = std::min<quint32>(16383, c1 + rng.bounded(5));
+                }
+                bool named = true;   // (the query names only lines that were not inserted)
+                for (quint32 r = r1; r <= std::min(r2, r1 + 80); ++r) named = named && rows.original(r);
+                named = named && rows.original(r2);
+                for (quint32 c = c1; c <= c2; ++c) named = named && cols.original(c);
+                if (!named) ++insertedCells;
+                CellArea q;
+                q.sheet1 = q.sheet2 = 0;
+                q.row1 = r1;
+                q.row2 = r2;
+                q.col1 = c1;
+                q.col2 = c2;
+                const IdSpan rr = idSpan(rows.map, r1, r2, rows.last, rows.maxId, false), cc = idSpan(cols.map, c1, c2, cols.last, cols.maxId, false);
+                CellArea ids = q;
+                ids.row1 = rr.lo;
+                ids.row2 = rr.hi;
+                ids.col1 = cc.lo;
+                ids.col2 = cc.hi;
                 std::vector<quint32> got;
-                graph.dependentsOfArea(q, &got);
-                std::set<quint32> expected;
-                for (int n = 0; n < nodes; ++n)
-                    for (const CellArea &a : reads[size_t(n)])
-                        if (meets(a, q)) expected.insert(quint32(n));
-                QVERIFY2(asSet(got) == expected, qPrintable(QStringLiteral("round %1: a block is read by %2 formulas, and by %3 in the check").arg(round).arg(asSet(got).size()).arg(expected.size())));
+                graph.dependentsOfArea(ids, &got);
+                std::set<quint32> expected, inexact;
+                for (int n = 0; n < nodes; ++n) {
+                    for (const CellArea &a : reads[size_t(n)].places)
+                        if (covers(a, r1, c1, r2, c2)) expected.insert(quint32(n));
+                    if (reads[size_t(n)].inexact) inexact.insert(quint32(n));
+                }
+                const std::set<quint32> have = asSet(got);
+                for (const quint32 n : expected)
+                    QVERIFY2(have.count(n), qPrintable(QStringLiteral("round %1: formula %2 reads %3:%4 (%5 rows by %6 columns) and the graph does not say so (rows %7 columns %8, %9 edit at %10 by %11)")
+                                                           .arg(round).arg(n).arg(r1).arg(c1).arg(r2 - r1 + 1).arg(c2 - c1 + 1).arg(named).arg(ids.row1).arg(onRows ? "rows" : "columns").arg(at).arg(delta)));
+                if (named) {
+                    for (const quint32 n : have)
+                    {
+                        QString what;
+                        for (const CellArea &a : reads[size_t(n)].places) what += QStringLiteral(" [%1..%2 x %3..%4]").arg(a.row1).arg(a.row2).arg(a.col1).arg(a.col2);
+                        QVERIFY2(expected.count(n) || inexact.count(n), qPrintable(QStringLiteral("round %1 (%2 at %3 by %4): the graph says formula %5 reads %6:%7 (ids rows %8..%9 columns %10..%11), which it does not (it reads%12), and it was told no inserted line").arg(round).arg(onRows ? "rows" : "columns").arg(at).arg(delta).arg(n).arg(r1).arg(c1).arg(ids.row1).arg(ids.row2).arg(ids.col1).arg(ids.col2).arg(what)));
+                    }
+                    ++exactChecks;
+                } else {
+                    ++inexactChecks;
+                }
             }
         }
-        // what the graph holds is not more than what is read
-        qint64 held = 0;
-        for (const auto &list : reads) held += qint64(list.size());
-        QVERIFY(graph.entryCount() >= 0);
+        QVERIFY(exactChecks > 3000);
+        QVERIFY(inexactChecks > 500);
+        QVERIFY(insertedCells > 500);
     }
 
-    // Rows put in above everything: the readers of the first row move down with it, and a whole column, which does not move, is still read at its first row. (They were in one run in an
-    // order by their first rows, which the whole column, left where it was, was not in any more, and a search then missed it.)
-    void aWholeColumnIsStillFoundAtItsFirstRowAfterRowsAreInsertedAbove()
+    // A change in an inserted line reaches a formula that reads a range around it: the line has an id no interval holds, so it is asked as the original lines either side, and the
+    // formulas whose blocks hold both of them are the ones that hold the gap. Blocks that end at the gap, or begin after it, are asked about it by the cell query and not by the gap.
+    void aChangeInAnInsertedLineReachesTheRangeAroundIt()
+    {
+        RowMap rows(LineLimits::rows(), 1048576);
+        ColMap cols(LineLimits::cols(), 16384);
+        DependencyGraph graph;
+        auto told = [&](quint32 node, quint32 r1, quint32 r2, quint32 col) {
+            CellArea a = cellArea(0, r1, col);
+            a.row2 = r2;
+            QVERIFY(graph.setPrecedents(node, {idArea(rows, cols, a, true)}));
+        };
+        told(1, 0, 9, 0);    // A1:A10, which the row is put into
+        told(2, 0, 4, 0);    // A1:A5, which ends above it
+        told(3, 5, 9, 0);    // A6:A10, which begins at the row it is put before
+        told(4, 5, 5, 0);    // A6
+        told(5, 0, 1048575, 0);   // the whole column
+        told(6, 0, 9, 3);    // D1:D10, another column
+        RowMap::Edit edit;
+        QCOMPARE(rows.insert(RowPos(5), 2, &edit), LineStatus::Ok);   // two rows between A5 and A6
+        // a cell in the first inserted row (place 5), asked as the original rows on either side
+        auto ask = [&](quint32 place, quint32 col) {
+            std::vector<quint32> got;
+            CellArea q = cellArea(0, place, col);
+            graph.dependentsOfArea(idArea(rows, cols, q, false), &got);
+            return asSet(got);
+        };
+        QCOMPARE(ask(5, 0), (std::set<quint32>{1, 2, 3, 4, 5}));   // (a superset: the blocks that end at A5 or begin at A6 are asked as well)
+        QCOMPARE(ask(6, 0), (std::set<quint32>{1, 2, 3, 4, 5}));
+        QCOMPARE(ask(5, 3), (std::set<quint32>{6}));
+        // the formulas that hold the gap are those whose blocks contain the row either side of it
+        const IdGap gap = idGap(rows.core(), 5 + 2);
+        QVERIFY(gap.holdable());
+        std::vector<quint32> holding;
+        graph.dependentsHoldingRows(0, gap.before, gap.after, &holding);
+        QCOMPARE(asSet(holding), (std::set<quint32>{1, 5, 6}));   // (any column: D1:D10 has the gap in it too)
+        // a cell of an original row is asked as itself
+        QCOMPARE(ask(4, 0), (std::set<quint32>{1, 2, 5}));
+        QCOMPARE(ask(7, 0), (std::set<quint32>{1, 3, 4, 5}));
+        // a gap at the top, or at the end, is inside no block
+        QCOMPARE(rows.insert(RowPos(0), 1, &edit), LineStatus::Ok);
+        const IdGap top = idGap(rows.core(), 1);
+        QVERIFY(!top.holdable());
+        holding.clear();
+        graph.dependentsHoldingRows(0, top.before, top.after, &holding);
+        QVERIFY(holding.empty());
+    }
+
+    // The traits that say what an edit of whole lines can change in a formula: whether a call can notice an empty row or column put inside a block it reads (blank-insensitive: every block goes
+    // to a function on the allowlist, and nowhere else; the default is sensitive), and whether a call can see where cells are, at any depth.
+    void theTraitsSayWhichFormulasNoticeAnEmptyLineAndWhichSeeWhereCellsAre()
+    {
+        ParseOptions options;
+        auto insensitive = [&](const char *text) {
+            const ParseResult p = parseFormula(QString::fromLatin1(text), options);
+            Q_ASSERT(p.ok());
+            return traitsOf(*p.program).blankInsensitive;
+        };
+        auto sees = [&](const char *text) {
+            const ParseResult p = parseFormula(QString::fromLatin1(text), options);
+            Q_ASSERT(p.ok());
+            return traitsOf(*p.program).observesPosition;
+        };
+        for (const char *text : {"SUM(A1:E1)", "SUM(A1:A5,C1:C5)+MAX(B1:B3)*2", "IF(A1>0,SUM(B1:B10),0)", "IFERROR(SUM(A1:A5),0)", "IFNA(AVERAGE(A1:A5),MIN(B1:B2))", "CHOOSE(2,SUM(A1:A3),MAX(B1:B3))",
+                                 "SUM(IF(A1>0,A1:A5,B1:B5))", "LARGE(A1:A9,2)", "SUBTOTAL(9,A1:A5)", "SUM(A1:A5)/COUNT(A1:A5)", "A1+1", "5", "SUM(A:A)", "SUM(1:1)", "COUNTA(A1:A5)&\"x\"",
+                                 "IF(SUM(A1:A5)>1,IF(A1>0,MAX(B1:B5),MIN(B1:B5)),SUM(C1:C5))", "SUM(Sheet2!A1:A5)"})
+            QVERIFY2(insensitive(text), text);
+        // sensitive: a function that counts or places, a block under an operator or as the answer, a block given where it is taken by its place, a name, a table, a function nobody classified
+        for (const char *text : {"COUNTBLANK(A1:A5)", "ROWS(A1:A5)", "COLUMNS(A1:E1)", "INDEX(A1:A5,2)", "MATCH(3,A1:A5,0)", "VLOOKUP(2,A1:B5,2,FALSE)", "SUMPRODUCT(A1:A5,B1:B5)", "SUMIF(A1:A5,\">0\")",
+                                 "SUMIFS(B1:B3,A1:A3,\">0\")", "COUNTIF(A1:A5,\"\")", "SUM(A1:A5*2)", "SUM(A1:A5)+A1:A5", "IF(A1>0,A1:A5,0)", "SUM(A1:A5)&COUNTBLANK(B1:B5)", "Total", "SUM(Total)",
+                                 "SUM(A1:INDEX(C:C,3))", "LARGE(A1:A9,B1:B3)", "OFFSET(A1,1,1)", "SUM(A1:A5,(C1:C5,D1:D5))", "SUM(IF(A1>0,A1:A5,B1:B5))*COUNTBLANK(A1:A3)", "SUM(-A1:A5)",
+                                 "CHOOSE(2,SUM(A1:A3),COUNTBLANK(B1:B3))", "IFERROR(COUNTBLANK(A1:A5),0)", "UNKNOWNFUNCTION(A1:A5)", "SUM(TRANSPOSE(A1:A5))"})
+            QVERIFY2(!insensitive(text), text);
+        for (const char *text : {"ROW(B5)", "COLUMN()", "SUMPRODUCT(ROW(A1:A10))", "IF(A1>0,ADDRESS(1,1),0)", "CELL(\"row\",A1)", "OFFSET(A1,1,1)", "INDIRECT(\"A1\")", "SUM(IF(A1>0,COLUMN(B2:D2),0))", "ROW()"})
+            QVERIFY2(sees(text), text);
+        for (const char *text : {"A1+1", "SUM(A1:A5)", "ROWS(A1:A5)", "INDEX(A1:A5,2)", "COUNTBLANK(A1:A5)", "MATCH(3,A1:A5,0)", "5", "SUMPRODUCT(A1:A5,B1:B5)", "IF(A1>0,SUM(B1:B5),0)"})
+            QVERIFY2(!sees(text), text);
+        // a block taken for one value of it, the one in the row or the column of the cell the formula is in (implicit intersection), sees where that cell is
+        for (const char *text : {"Sheet2!A3:C3", "A1:A5*2", "IF(A1:A5>1,1,0)", "LARGE(A1:A9,B1:B3)", "A1:A5", "SUM(A1:A5*2)", "ABS(A1:A5)", "-A1:A5", "CHOOSE(2,1,A1:A5)"})
+            QVERIFY2(sees(text), text);
+        // a name stands for what it stands for: one that has ROW() in it is seen through, and a formula that uses a name is never blank-insensitive
+        Grid g;
+        g.name("MyRow", "ROW(Sheet1!$A$5)");
+        g.name("Plain", "Sheet1!$A$1:$A$5");
+        const ParseResult p = parseFormula(QStringLiteral("MyRow+1"), options);
+        QVERIFY(p.ok());
+        const ProgramTraits t = traitsFollowingNames(*p.program, bindSheetNames(*p.program, g), 0, g);
+        QVERIFY(t.observesPosition);
+        QVERIFY(!t.blankInsensitive);
+        const ParseResult q = parseFormula(QStringLiteral("SUM(Plain)"), options);
+        const ProgramTraits u = traitsFollowingNames(*q.program, bindSheetNames(*q.program, g), 0, g);
+        QVERIFY(!u.blankInsensitive);   // (and what a name stands for may be a block that is taken for one value: the formula is looked at, which is more and not less)
+    }
+
+    // The allowlist is the functions that skip the empty cells they are given and do not count where they are: each is shown to give the same value for a block with an empty row or column put
+    // inside it, over random cells (numbers, empty cells, text, logical values); and the same test shows COUNTBLANK and ROWS (not on the list) can tell.
+    void theFunctionsOnTheBlankInsensitiveListSkipAnEmptyLinePutInsideTheirBlocks()
+    {
+        QStringList listed;
+        for (int i = 0; i < functionCount(); ++i)
+            if (blankInsensitiveFunction(functionAt(i).name)) listed << QString::fromLatin1(functionAt(i).name);
+        listed.sort();
+        QCOMPARE(listed, (QStringList{"AVERAGE", "AVERAGEA", "COUNT", "COUNTA", "LARGE", "MAX", "MAXA", "MEDIAN", "MIN", "MINA", "PRODUCT", "SMALL", "STDEV", "STDEV.P", "STDEV.S", "STDEVP", "SUBTOTAL", "SUM",
+                                      "SUMSQ", "VAR", "VAR.P", "VAR.S", "VARP"}));
+        QRandomGenerator rng(20261028);
+        auto fill = [&](Grid &g, const QStringList &cells, const std::vector<int> &kinds, const std::vector<double> &numbers) {
+            for (size_t i = 0; i < cells.size(); ++i) {
+                switch (kinds[i]) {
+                case 0:
+                case 1:
+                case 2: g.n(cells[int(i)], numbers[i]); break;
+                case 3: g.s(cells[int(i)], QStringLiteral("x")); break;
+                case 4: g.b(cells[int(i)], numbers[i] > 25); break;
+                default: break;   // (empty)
+                }
+            }
+        };
+        auto cellName = [](bool down, int line, int offset) { return down ? QStringLiteral("%1%2").arg(QChar(char('A' + offset))).arg(line + 1) : QStringLiteral("%1%2").arg(QChar(char('A' + line))).arg(offset + 1); };
+        int compared = 0, countBlankDiffers = 0, rowsDiffers = 0;
+        for (int trial = 0; trial < 300; ++trial) {
+            const bool down = rng.bounded(2) == 0;
+            const int n = 6, at = 1 + int(rng.bounded(n - 1));   // (the empty line goes between line at - 1 and line at)
+            std::vector<int> kinds;
+            std::vector<double> numbers;
+            for (int k = 0; k < 2 * n; ++k) {
+                kinds.push_back(int(rng.bounded(6)));
+                numbers.push_back(double(1 + rng.bounded(50)));
+            }
+            QStringList before, after, beforeOther, afterOther;
+            for (int line = 0; line < n; ++line) {
+                before << cellName(down, line, 0);
+                beforeOther << cellName(down, line, 1);
+                after << cellName(down, line < at ? line : line + 1, 0);
+                afterOther << cellName(down, line < at ? line : line + 1, 1);
+            }
+            Grid g1, g2;
+            std::vector<int> kinds1(kinds.begin(), kinds.begin() + n), kinds2(kinds.begin() + n, kinds.end());
+            std::vector<double> numbers1(numbers.begin(), numbers.begin() + n), numbers2(numbers.begin() + n, numbers.end());
+            fill(g1, before, kinds1, numbers1);
+            fill(g1, beforeOther, kinds2, numbers2);
+            fill(g2, after, kinds1, numbers1);
+            fill(g2, afterOther, kinds2, numbers2);
+            const QString block1 = down ? QStringLiteral("A1:A%1").arg(n) : QStringLiteral("A1:%1").arg(cellName(false, n - 1, 0)), block2 = down ? QStringLiteral("A1:A%1").arg(n + 1) : QStringLiteral("A1:%1").arg(cellName(false, n, 0));
+            const QString other1 = down ? QStringLiteral("B1:B%1").arg(n) : QStringLiteral("A2:%1").arg(cellName(false, n - 1, 1)), other2 = down ? QStringLiteral("B1:B%1").arg(n + 1) : QStringLiteral("A2:%1").arg(cellName(false, n, 1));
+            QStringList calls1, calls2;
+            for (const QString &name : listed) {
+                if (name == QLatin1String("SUBTOTAL")) {
+                    for (const int k : {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111}) {
+                        calls1 << QStringLiteral("SUBTOTAL(%1,%2)").arg(k).arg(block1);
+                        calls2 << QStringLiteral("SUBTOTAL(%1,%2)").arg(k).arg(block2);
+                    }
+                } else if (name == QLatin1String("LARGE") || name == QLatin1String("SMALL")) {
+                    calls1 << QStringLiteral("%1(%2,2)").arg(name, block1);
+                    calls2 << QStringLiteral("%1(%2,2)").arg(name, block2);
+                } else {
+                    calls1 << QStringLiteral("%1(%2)").arg(name, block1) << QStringLiteral("%1(%2,%3)").arg(name, block1, other1);
+                    calls2 << QStringLiteral("%1(%2)").arg(name, block2) << QStringLiteral("%1(%2,%3)").arg(name, block2, other2);
+                }
+            }
+            for (int i = 0; i < calls1.size(); ++i) {
+                QCOMPARE(ev(calls2[i], g2), ev(calls1[i], g1));
+                ++compared;
+            }
+            if (ev(QStringLiteral("COUNTBLANK(%1)").arg(block2), g2) != ev(QStringLiteral("COUNTBLANK(%1)").arg(block1), g1)) ++countBlankDiffers;
+            if (ev(QStringLiteral("%1(%2)").arg(down ? "ROWS" : "COLUMNS", block2), g2) != ev(QStringLiteral("%1(%2)").arg(down ? "ROWS" : "COLUMNS", block1), g1)) ++rowsDiffers;
+        }
+        QVERIFY(compared > 15000);
+        QCOMPARE(countBlankDiffers, 300);   // (a function that is not on the list can tell)
+        QCOMPARE(rowsDiffers, 300);
+    }
+
+    // A formula can be marked as it is told, and a query can leave the marked out: asking for the others answers what the others are, whether one in ten or all but one is marked, and a formula
+    // that is told again with another mark has it from then on.
+    void aQueryCanLeaveOutMarkedFormulas()
     {
         DependencyGraph graph;
-        const quint32 whole = 70;
-        for (quint32 n = 0; n < 140; ++n) {
-            if (n == whole) QVERIFY(graph.setPrecedents(n, {blockArea(0, 0, 0, 1048575, 0)}));
-            else QVERIFY(graph.setPrecedents(n, {cellArea(0, 0, 0)}));
+        std::set<quint32> others;
+        for (quint32 n = 0; n < 1000; ++n) {
+            QVERIFY(graph.setPrecedents(n, {blockArea(0, 0, 2, 100, 5)}, n % 10 != 0));
+            if (n % 10 == 0) others.insert(n);
         }
-        graph.shiftRows(0, 0, 2, 1048576);
-        std::vector<quint32> first, third;
-        graph.dependentsOfCell(0, 0, 0, &first);
-        QVERIFY(asSet(first) == std::set<quint32>{whole});
-        graph.dependentsOfCell(0, 2, 0, &third);
-        QCOMPARE(asSet(third).size(), size_t(140));
-        graph.shiftRows(0, 0, -2, 1048576);
-        first.clear();
-        graph.dependentsOfCell(0, 0, 0, &first);
-        QCOMPARE(asSet(first).size(), size_t(140));
+        std::vector<quint32> got;
+        QVERIFY(graph.dependentsOfArea(blockArea(0, 3, 4, 4, 6), &got, nullptr, true));
+        QCOMPARE(asSet(got), others);
+        got.clear();
+        QVERIFY(graph.dependentsOfCell(0, 50, 5, &got, nullptr, true));
+        QCOMPARE(asSet(got), others);
+        got.clear();
+        QVERIFY(graph.dependentsHoldingRows(0, 10, 20, &got, nullptr, true));
+        QCOMPARE(asSet(got), others);
+        got.clear();
+        QVERIFY(graph.dependentsOfCell(0, 50, 5, &got));
+        QCOMPARE(got.size(), size_t(1000));   // (the marked are found when the query does not leave them out)
+        std::set<quint32> seen;
+        QVERIFY(graph.forEachDependent(blockArea(0, 3, 4, 4, 6), [&](quint32 n) { return seen.insert(n).second; }, true));
+        QCOMPARE(seen, others);
+        // told again with another mark (the areas are the same: it is not taken for what it told before)
+        QVERIFY(graph.setPrecedents(0, {blockArea(0, 0, 2, 100, 5)}, true));
+        QVERIFY(graph.setPrecedents(1, {blockArea(0, 0, 2, 100, 5)}, false));
+        others.erase(0);
+        others.insert(1);
+        got.clear();
+        QVERIFY(graph.dependentsOfCell(0, 50, 5, &got, nullptr, true));
+        QCOMPARE(asSet(got), others);
+        // dropped formulas are in neither
+        graph.clearPrecedents(1);
+        graph.clearPrecedents(10);
+        others.erase(1);
+        others.erase(10);
+        got.clear();
+        QVERIFY(graph.dependentsOfCell(0, 50, 5, &got, nullptr, true));
+        QCOMPARE(asSet(got), others);
+    }
+
+    // The column tree has a leaf for each of the 65,536 column ids: a block of the columns that inserted columns were given is found, and a whole row is one node.
+    void theColumnTreeHoldsTheIdsOfInsertedColumns()
+    {
+        DependencyGraph graph;
+        QVERIFY(graph.setPrecedents(1, {blockArea(0, 5, 16384, 6, 16390)}));    // columns with ids past the grid's
+        QVERIFY(graph.setPrecedents(2, {blockArea(0, 5, 0, 5, 65535)}));         // a whole row
+        QVERIFY(graph.setPrecedents(3, {cellArea(0, 5, 65535)}));
+        std::vector<quint32> got;
+        graph.dependentsOfCell(0, 5, 16387, &got);
+        QCOMPARE(asSet(got), (std::set<quint32>{1, 2}));
+        got.clear();
+        graph.dependentsOfCell(0, 5, 65535, &got);
+        QCOMPARE(asSet(got), (std::set<quint32>{2, 3}));
+        got.clear();
+        graph.dependentsOfCell(0, 5, 70000, &got);
+        QVERIFY(got.empty());
+        QVERIFY2(graph.entryCount() <= 8, qPrintable(QString::number(graph.entryCount())));
+    }
+
+    // Asking one at a time ends where the visitor says: whether anything reads a block costs the first one found, not all of them.
+    void aVisitorEndsTheSearchAtTheFirstFormula()
+    {
+        DependencyGraph graph;
+        for (quint32 n = 0; n < 5000; ++n) QVERIFY(graph.setPrecedents(n, {blockArea(0, 0, 0, 100, 0)}));
+        qint64 before = graph.queryWork();
+        int seen = 0;
+        QVERIFY(!graph.forEachDependent(blockArea(0, 3, 0, 4, 0), [&](quint32) { return ++seen < 1; }));
+        QCOMPARE(seen, 1);
+        QVERIFY2(graph.queryWork() - before < 100, qPrintable(QString::number(graph.queryWork() - before)));
+        seen = 0;
+        before = graph.queryWork();
+        QVERIFY(graph.forEachDependent(blockArea(0, 3, 0, 4, 0), [&](quint32) { return ++seen > 0; }));
+        QCOMPARE(seen, 5000);
     }
 
 };

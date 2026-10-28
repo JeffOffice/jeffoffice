@@ -87,7 +87,11 @@ std::vector<TraceCell> readersOf(const jp::office::sheet::Calculation &calc, int
     std::vector<quint32> nodes;
     // (the graph is told to stop at once: it ends the answer after a few thousand formulas, so that a cell that two hundred thousand formulas read costs no more than one that four thousand do)
     static const std::atomic<bool> enough{true};
-    const bool whole = calc.graph().dependentsOfCell(sheet, row, col, &nodes, &enough);
+    jp::calc::CellArea at;
+    at.sheet1 = at.sheet2 = sheet;
+    at.row1 = at.row2 = row;
+    at.col1 = at.col2 = col;
+    const bool whole = calc.readersOf(at, &nodes, &enough);
     std::vector<TraceCell> all;
     all.reserve(nodes.size());
     for (const quint32 node : nodes) {

@@ -171,6 +171,11 @@ public:
     bool resolveRange(uint32_t startId, uint32_t endId, uint32_t *first, uint32_t *last, LineWork *work = nullptr) const;
     // A whole row or column: the first and the last live position (false if there is none).
     bool wholeRange(uint32_t *first, uint32_t *last) const;
+    // The original lines (the ids below limits.firstNew, which are in the order of position whatever is inserted among them) next to a position: the id of the last original line at a live
+    // position up to `pos`, and of the first at one from `pos` on; kNone if there is none. The graph tells a reader of an inserted line as the original line at that end, and asks about a
+    // change in an inserted line as the original lines on either side of it (docs/jeffcrunch-rowids.md, 4.6). Cost: a search, and a step for each run of inserted lines passed over.
+    uint32_t origBefore(uint32_t pos) const;
+    uint32_t origAfter(uint32_t pos) const;
 
     // The id runs that the positions first..last cover, in order; `out` is cleared first.
     void walk(uint32_t first, uint32_t last, std::vector<IdRun> *out, LineWork *work = nullptr) const;
@@ -307,6 +312,8 @@ public:
         if (out) *out = {Pos(a), Pos(b)};
         return true;
     }
+    Id origBefore(Pos p) const { return Id(m_core.origBefore(p.value())); }
+    Id origAfter(Pos p) const { return Id(m_core.origAfter(p.value())); }
 
     std::vector<Run> walk(Pos first, Pos last, LineWork *w = nullptr) const
     {

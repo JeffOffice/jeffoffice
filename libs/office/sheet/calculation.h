@@ -13,6 +13,7 @@
 
 #include "calc/eval.h"
 #include "calc/graph.h"
+#include "calc/linemap.h"
 #include "calc/refs.h"
 #include "sheet/recalc.h"
 #include "sheet/refshift.h"
@@ -20,7 +21,9 @@
 #include <QHash>
 
 #include <atomic>
+#include <deque>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -93,7 +96,10 @@ public:
     // Told each value as it is worked out (on the worker): the sheet and the ids of the cell's row and column (see CellStore::rowIdAt), which are the cell's wherever an edit of rows or columns has put it.
     using ResultSink = std::function<void(int sheet, quint32 rowId, quint32 colId, const jp::calc::Value &value)>;
     void setResultSink(ResultSink sink) { m_sink = std::move(sink); }
-    // ---- results in flight. Every edit of rows, columns, or cells makes the sheet's structural epoch one more; a value told carries the epoch the sheet had when it was worked out. A formula that an
+    // ---- results in flight. Every edit of cells, and every edit of whole rows or columns that is not rigid for some formula (one that asks something of the worker: see `questions` below), makes the
+    // sheet's structural epoch one more; a value told carries the epoch the sheet had when it was worked out. A result worked out before a rigid edit is good after it, and is not discarded: its ids name the
+    // same cells and nothing it read changed. A formula that the worker's questions mark to be worked out again is stamped with the epoch of the edit (while a value is in flight), and the window
+    // lets go of a value for it that was worked out under an older epoch; that is the worker's to do, so the stamps are kept under a lock. A formula that an
     // edit of cells moved one by one is stamped with the epoch of the edit (by the ids of its cell, at the place it was and the place it is), and the window lets go of a value for it that was worked
     // out under an older epoch (it names the cell as the edit found it), and has the formula worked out again (`redirtyCell`). A value is told by ids, so a value in flight needs no stamp unless
     // such an edit is made while one is: **stamps are made only when some value has been told and not yet taken by the window** (`resultsInFlight`), which is not so for the edit of a sheet the
@@ -109,10 +115,10 @@ public:
     void redirtyCell(int sheet, quint32 rowId, quint32 colId);
     // The stamps that every value told up to the given epochs (by sheet) is past are let go of (a last batch of a calculation says nothing older is on its way).
     void pruneStamps(const std::vector<quint32> &epochs);
-    qint64 stampCount() const { return qint64(m_stamps.size()); }
+    qint64 stampCount() const { return qint64(m_stampCount.load(std::memory_order_relaxed)); }
     // How many values have been told (by the worker) and how many the window has taken (it says so with `valuesTaken`, for every item of a batch, those it lets go of too).
-    void valuesTaken(qint64 n) const { m_valuesTaken += n; }
-    bool resultsInFlight() const { return m_valuesTold.load(std::memory_order_relaxed) != m_valuesTaken; }
+    void valuesTaken(qint64 n) const { m_valuesTaken.fetch_add(n, std::memory_order_relaxed); }
+    bool resultsInFlight() const { return m_valuesTold.load(std::memory_order_relaxed) != m_valuesTaken.load(std::memory_order_relaxed); }
     // Counted, for tests: the formulas worked out, and the places of cells looked up for a formula or a value told (a scalar told by a node needs none: it names its cell by ids).
     qint64 evaluations() const { return m_evaluations.load(std::memory_order_relaxed); }
     qint64 placeLookups() const { return m_placeLookups.load(std::memory_order_relaxed); }
@@ -454,6 +460,9 @@ public:
         qint64 nodesRemade = 0;          // formulas dropped from the graph and made again in it
         qint64 graphWork = 0;            // the graph's own count of the entries it built, moved, and looked at, during the edits
         qint64 namesRewritten = 0, rulesRewritten = 0;   // defined names, and lists of validations and conditional formats, written again
+        // The window thread's time in the phases of an edit of rows or columns, in microseconds (for the bench's report; never asserted): setup, candidates, text rewrite, cells, graph (what is told it or asked
+        // of the worker), the other structures, and the formulas written again.
+        qint64 phaseMicros[7] = {0, 0, 0, 0, 0, 0, 0};
         EditStats since(const EditStats &o) const
         {
             EditStats d;
@@ -467,21 +476,36 @@ public:
             d.graphWork = graphWork - o.graphWork;
             d.namesRewritten = namesRewritten - o.namesRewritten;
             d.rulesRewritten = rulesRewritten - o.rulesRewritten;
+            for (int i = 0; i < 7; ++i) d.phaseMicros[i] = phaseMicros[i] - o.phaseMicros[i];
             return d;
         }
     };
     const EditStats &editStats() const { return m_editStats; }
-    // For tests: whether an edit of rows is told to the graph at once (what every formula reads is moved where the cells are, and the formulas whose text is only moved are not told again), or
-    // each formula that was written again tells it what it reads.
+    // For tests: whether an edit of whole rows or columns asks the worker (the formulas whose text only moved keep their nodes and are worked out only if the edit could change them), or every formula
+    // that was written again is made again and worked out, as an edit of cells does (the oracle the other is compared with).
     static void setGraphShifts(bool on);
     // Formulas the engine cannot work out and keeps apart (they keep the result the file stored); it walks the formulas, so it is for the times it is needed (a save).
     qint64 keptCount() const;
     qint64 untrackedCount() const { return m_untracked; }      // formulas the graph was too full to hold
     qint64 textSlotBytes() const;   // what the strings in the slots that hold the formulas' texts take, the free slots' too (a free slot holds none)
     qint64 heldBytes() const { return m_heldBytes; }   // what the texts and arrays that formulas gave take (the bound: CalcOptions::maxHeldBytes)
+    // ---- what the worker is asked after an edit of whole rows or columns (docs/jeffcrunch-rowids.md, 4.6), counted: the questions answered (an edit that is rigid for every formula asks none) and the
+    // formulas they marked to be worked out again. Four sets are asked of: (1) the formulas that can notice an empty row or column put inside a block they read (`blankInsensitive` is an allowlist of
+    // functions) and whose block holds the gap; (2) the formulas that can see where cells are and whose places changed (`observesPosition`; each keeps the places it last saw); (3) the formulas that read
+    // the rows or columns that died or came back, from outside them (a block that ended in a line that died keeps its id: too wide is never too narrow); (4) the formulas kept apart or told where they
+    // read, which are made again with the edit itself.
+    qint64 questionsAnswered() const { return m_questionsAnswered.load(std::memory_order_relaxed); }
+    qint64 formulasAsked() const { return m_formulasAsked.load(std::memory_order_relaxed); }
+    qint64 questionsPending() const { return qint64(m_questions.size()); }
+    qint64 observerCount() const { return qint64(m_seen.size()); }   // formulas that keep the places they saw
+    qint64 ownOnlyCount() const { return m_ownOnly; }                // formulas that see only their own cell (none keeps a place)
+    qint64 observersLooked() const { return m_observersLooked; }     // places of those looked at by edits of lines, counted
     qint64 registrations() const { return m_registrations; }   // times a formula has told the graph what it reads (counted, so that a test can see that one that reads the same is not told again)
     qint64 alwaysListed() const { return qint64(m_always.size()); }   // formulas on the list of those worked out in every recalculation
     const jp::calc::DependencyGraph &graph() const { return *m_graph; }
+    // The formulas the graph says read the block of places (asked as a change of those cells is), added to `out`; for what holds places and not the ids the graph holds. With `stop`, the search
+    // ends when the flag is set (see DependencyGraph::dependentsOfCell); false is returned then.
+    bool readersOf(const jp::calc::CellArea &places, std::vector<quint32> *out, const std::atomic<bool> *stop = nullptr) const;
     // The number of the formula in the cell (the graph's name for it); 0xFFFFFFFF if the cell holds none.
     quint32 nodeAt(int sheet, quint32 row, quint32 col) const;
     // Where the formula numbered `node` is (false if the number is none, or the formula is gone): for what the graph names.
@@ -526,14 +550,18 @@ private:
         quint8 kind = KindEmpty;
         quint8 state = Dirty;
         char kept = 0;
+        quint8 traits = 0;   // what the formula can notice of an edit of whole lines (Insensitive, Observes)
         quint16 flags = 0;
     };
+    // Node::traits. The default, none, is a formula that can notice an empty line put inside a block it reads and does not see where cells are.
+    enum : quint8 { Insensitive = 1, Observes = 2, OwnOnly = 4 };   // (OwnOnly: it sees only its own cell, ROW() and COLUMN() with nothing in the brackets: no places are kept for it, an edit of lines asks the formulas at or past it)
     struct Compiled {
         std::shared_ptr<const jp::calc::Program> program;
         QString error;
         bool tried = false;
         bool traitsKnown = false;
-        bool usesNames = false, dynamic = false, reaches = false, observes = false, changesByItself = false, iterative = false;
+        bool usesNames = false, dynamic = false, reaches = false, changesByItself = false, iterative = false;
+        bool insensitive = false, observesPosition = false;   // see ProgramTraits::blankInsensitive and observesPosition
         std::vector<qint32> bound;
     };
     static constexpr qint32 kFreeFormula = -2;   // the text of a formula's place that is free to be used again
@@ -603,7 +631,16 @@ private:
     void keepStored(Node &n, char cls);
     bool formulaValue(int sheet, quint32 row, quint32 col, const Cell &c, jp::calc::Value *out) const;
     jp::calc::CellArea areaOf(const Node &n) const;
+    // The graph holds the ids of rows and columns (calc/idframe.h): a block of places as the ids it is told as (`reading`) or asked as, a sheet at a time; the block a change in a formula's cell
+    // is asked as; and every formula told to the graph again (a sheet's lines were renumbered).
+    void idAreasOn(const jp::calc::CellArea &places, bool reading, std::vector<jp::calc::CellArea> *out) const;
+    jp::calc::CellArea idAreaOnSheet(int sheet, const jp::calc::CellArea &places, bool reading) const;
+    jp::calc::CellArea idAreaOfNode(const Node &n) const;
+    bool rebuildGraph();   // (true if some formula is to be worked out again for it)
+    std::vector<jp::calc::CellArea> m_idAreas;
     void markDependents(std::vector<jp::calc::CellArea> *changed);
+    void markDependentsOfIds(std::vector<jp::calc::CellArea> *changed);   // (the same, for blocks that are ids already)
+    bool drainBeforeRenumbering(int sheet);
     void queueDependents(const jp::calc::CellArea &area);
     void giveName(quint32 id, std::vector<jp::calc::CellArea> *changed);
     void markDirty(quint32 id, std::vector<jp::calc::CellArea> *changed);
@@ -649,14 +686,59 @@ private:
         quint32 epoch;
         Target redo;   // the cell whose formula is worked out again when a value for this one is let go of
     };
-    std::unordered_map<quint64, Stamp> m_stamps;   // by sheet, row id, column id: the epoch of the edit that moved the formula there or away
+    std::unordered_map<quint64, Stamp> m_stamps;   // by sheet, row id, column id: the epoch of the edit that moved the formula there or away, or that the worker's questions marked it for
+    mutable std::mutex m_stampLock;                // (the window reads the stamps as it takes results, and the worker makes them as it answers questions)
+    mutable std::atomic<size_t> m_stampCount{0};
     mutable std::atomic<qint64> m_valuesTold{0};
-    mutable qint64 m_valuesTaken = 0;
+    mutable std::atomic<qint64> m_valuesTaken{0};
     std::atomic<qint64> m_evaluations{0};
     mutable std::atomic<qint64> m_placeLookups{0};
     std::vector<quint32> m_freeNodes;
     qint64 m_editWork = 0;
     EditStats m_editStats;
+    // The places a formula that can see where cells are saw when it was told the graph what it reads (its own cell, and the first and last cell of each block it names): after an edit of whole
+    // lines the places are looked at again, and a formula for which one differs is worked out again. The size of the formulas that have the trait, not of the sheet.
+    struct SeenPlace {
+        qint32 sheet;
+        quint32 rowId, colId;   // the ids of the cell,
+        quint32 row, col;       // and its place then
+    };
+    struct Seen {
+        std::vector<SeenPlace> at;
+        bool always = false;   // more blocks than are kept: it is worked out again after every edit of lines
+    };
+    std::unordered_map<quint32, Seen> m_seen;
+    bool m_hasUnknown = false;   // some formula is kept apart for a function the engine lacks (it may read the text of a formula): a formula written again by an edit of lines queues what reads it
+    qint64 m_seenPlaces = 0;   // all the places kept (the sizes of the lists in m_seen)
+    void recordSeen(quint32 id, const std::vector<jp::calc::CellArea> &blocks);
+    bool seenDiffers(const Seen &s) const;
+    // With `sheet`, only an edit of its lines from the place `first` on (rows or columns) is looked at: a formula all of whose places are before it cannot have moved.
+    bool anObserverSawAnotherPlace(int sheet = -1, bool rows = true, quint32 first = 0, bool *own = nullptr) const;
+    void noteSeenPlace(int sheet, quint32 row, quint32 col);
+    qint64 m_ownOnly = 0;
+    void setSeenAlways(Seen &s, bool on);
+    mutable std::vector<quint32> m_seenMaxRow, m_seenMaxCol;   // by sheet: past the largest place any formula kept (an upper bound: it is not lowered)
+    mutable qint64 m_observersLooked = 0;
+    qint64 m_seenAlways = 0;                                    // formulas worked out after every edit of lines (more blocks than are kept, or a cell that moved alone)
+    // What an edit of whole rows or columns asks of the worker (the sets of `questionsAnswered`), in ids: they stay true whatever edit comes next. The worker answers it a chunk at a time.
+    struct Question {
+        int sheet = 0;
+        bool rows = true;
+        quint32 epoch = 0;                              // the sheet's epoch the edit made, for the stamps
+        quint32 gapBefore = 0xFFFFFFFFu, gapAfter = 0xFFFFFFFFu;   // set 1: the original lines either side of lines put in (or of inserted lines that died); none for no gap that a block can hold
+        std::vector<jp::calc::IdRun> deadBlank;         // set 3, lines pushed off the end of the sheet that held no cell: the formulas that can notice an empty line, of which a block holds them
+        std::vector<jp::calc::IdRun> dead;              // set 3: original lines that died or came back, as runs of ids
+        bool deadPair = false;                          // set 3: inserted lines that held cells died or came back, between the original lines of the gap
+        bool observers = false;                         // set 2
+        bool ownOnly = false;                           // set 2, for the formulas that see only their own cell: those of the sheet at or past `ownFirst` (a row or a column)
+        quint32 ownFirst = 0;
+    };
+    std::deque<Question> m_questions;
+    std::atomic<qint64> m_questionsAnswered{0}, m_formulasAsked{0};
+    bool questionHasAnAnswer(const Question &q) const;
+    bool buildAsked(const Question &q, std::vector<quint32> *out, const std::atomic<bool> *stop) const;
+    void markAsked(quint32 node, const Question &q, std::vector<jp::calc::CellArea> *changed);
+    void stampAsked(const Node &n, quint32 epoch);
     std::vector<quint32> m_special;   // formulas that are told where they read (names, INDIRECT, ...) or kept apart: an edit that moves cells looks at these as well as at what the graph names (may hold gone and repeated ones)
     void specialNodes(std::vector<quint32> *out);
     QVector<QString> m_texts;
@@ -665,6 +747,7 @@ private:
     std::unordered_set<quint32> m_subtotalNodes;     // the formulas that call SUBTOTAL (a place may be stale)
     std::unordered_set<quint32> m_structuredNodes;   // the formulas that name a table's columns (a place may be stale: tablesChanged looks at each)
     jp::calc::NameTraitsCache m_nameTraits;   // what each defined name calls (by its scope and name)
+    std::unordered_map<quint32, std::pair<qint32, qint32>> m_threeDSpan;   // the sheets a 3-D formula's blocks span, first to last
     std::unordered_set<quint32> m_threeD;     // formulas that read a block of several sheets (a node on it has ThreeD); one leaves it when its formula goes or reads no more than one sheet
     std::vector<quint32> m_always;            // formulas worked out in every recalculation, each once (a node on it has AlwaysListed); those that are not, or are gone, are left out at the next
     void listAlways(quint32 id);
@@ -729,6 +812,13 @@ private:
         std::vector<quint32> found;
         size_t foundAt = 0;
         jp::calc::CellArea queried;   // the block `found` is the readers of
+        // The question at the front of m_questions, turned into the formulas it names (built), the ones of them marked so far, and the formulas that keep places they saw, looked at so far.
+        bool built = false;
+        std::vector<quint32> asked;
+        size_t askedAt = 0;
+        std::vector<quint32> observers;
+        size_t observersAt = 0;
+        size_t ownAt = 0;   // the node the look for formulas that see only their own cell has got to
     } m_begin;
     int m_onlySheet = -1;   // a recalculation of one sheet is going (invalidateSheet): the formulas of the others are left, and noted here for the next
     std::vector<quint32> m_deferredRoots;
