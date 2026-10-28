@@ -460,6 +460,9 @@ public:
         qint64 nodesRemade = 0;          // formulas dropped from the graph and made again in it
         qint64 graphWork = 0;            // the graph's own count of the entries it built, moved, and looked at, during the edits
         qint64 namesRewritten = 0, rulesRewritten = 0;   // defined names, and lists of validations and conditional formats, written again
+        // The window thread's time in the phases of an edit of rows or columns, in microseconds (for the bench's report; never asserted): setup, candidates, text rewrite, cells, graph (what is told it or asked
+        // of the worker), the other structures, and the formulas written again.
+        qint64 phaseMicros[7] = {0, 0, 0, 0, 0, 0, 0};
         EditStats since(const EditStats &o) const
         {
             EditStats d;
@@ -473,6 +476,7 @@ public:
             d.graphWork = graphWork - o.graphWork;
             d.namesRewritten = namesRewritten - o.namesRewritten;
             d.rulesRewritten = rulesRewritten - o.rulesRewritten;
+            for (int i = 0; i < 7; ++i) d.phaseMicros[i] = phaseMicros[i] - o.phaseMicros[i];
             return d;
         }
     };

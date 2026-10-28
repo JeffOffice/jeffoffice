@@ -1215,7 +1215,7 @@ int structBench(const QString &path, const QString &label, const QString &only)
     out() << "label\tcase\tdo_cpu_ms\tdo_wall_ms\tworker_cpu_ms\tsettle_ms\twork_counted\ttexts_made\tundo_cpu_ms\tundo_wall_ms\tundo_work\tused_rows\tused_cols"
           << "\tcells_moved\tcells_gone\tformulas_visited\tformulas_rewritten\tnodes_remade\tgraph_work\tnames_rewritten\trules_rewritten\tmarks_followed\tvalues_moved\tview_cells\tundo_bytes\tgraph_entries"
           << "\tu_cells_moved\tu_formulas_visited\tu_formulas_rewritten\tu_nodes_remade\tu_graph_work\tu_marks_followed\tu_values_moved\tu_view_cells"
-          << "\tevals\tsettle_after_ms\tu_evals\tgraph_bytes\n";
+          << "\tevals\tsettle_after_ms\tu_evals\tgraph_bytes\tph_setup\tph_candidates\tph_rewrite\tph_cells\tph_graph\tph_other\tph_write\n";
     auto settle = [&](QElapsedTimer &wall) {
         QElapsedTimer waiting;
         waiting.start();
@@ -1270,7 +1270,10 @@ int structBench(const QString &path, const QString &label, const QString &only)
               << '\t' << undoWork << '\t' << rows << '\t' << cols << '\t' << did.cellsMoved << '\t' << did.cellsGone << '\t' << did.formulasVisited << '\t' << did.formulasRewritten << '\t' << did.nodesRemade
               << '\t' << did.graphWork << '\t' << did.namesRewritten << '\t' << did.rulesRewritten << '\t' << marks << '\t' << moved << '\t' << viewCells << '\t' << undoBytes << '\t' << graphEntries << '\t'
               << undid.cellsMoved << '\t' << undid.formulasVisited << '\t' << undid.formulasRewritten << '\t' << undid.nodesRemade << '\t' << undid.graphWork << '\t' << uMarks << '\t' << uMoved << '\t' << uView
-              << '\t' << evals << '\t' << QString::number(settleMs - wallMs, 'f', 1) << '\t' << uEvals << '\t' << calc->graph().memoryBytes() << '\n';
+              << '\t' << evals << '\t' << QString::number(settleMs - wallMs, 'f', 1) << '\t' << uEvals << '\t' << calc->graph().memoryBytes()
+              << '\t' << QString::number(double(did.phaseMicros[6]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[0]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[1]) / 1000.0, 'f', 1)
+              << '\t' << QString::number(double(did.phaseMicros[2]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[3]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[4]) / 1000.0, 'f', 1)
+              << '\t' << QString::number(double(did.phaseMicros[5]) / 1000.0, 'f', 1) << '\n';
         out().flush();
     }
     out() << "# after the edits: resident " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB\n";

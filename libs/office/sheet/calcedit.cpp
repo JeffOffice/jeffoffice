@@ -8,6 +8,7 @@
 #include <QCoreApplication>
 
 #include <algorithm>
+#include <chrono>
 #include <unordered_map>
 
 namespace jp::office::sheet {
@@ -340,6 +341,12 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     if (!canApply(e, nullptr)) return false;
     if (e.kind == K::Move) return applyMove(e, rec);
     abandonNow();
+    auto lapAt = std::chrono::steady_clock::now();
+    auto lap = [&](int phase) {
+        const auto now = std::chrono::steady_clock::now();
+        m_editStats.phaseMicros[phase] += std::chrono::duration_cast<std::chrono::microseconds>(now - lapAt).count();
+        lapAt = now;
+    };
     const bool wholeLine = e.kind == K::InsertRows || e.kind == K::DeleteRows || e.kind == K::InsertColumns || e.kind == K::DeleteColumns;
     // (an edit of cells makes the epoch one more; an edit of whole lines does if it is not rigid for some formula, which is known when it is made)
     if (!wholeLine) ++m_state[size_t(e.sheet)].epoch;
@@ -367,6 +374,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     QStringList names;
     for (const SheetEntry &se : m_book.info().sheets) names << se.name;
 
+    lap(6);
     // ---- what reads the cells that move: the graph says (before anything moves), and the formulas the graph does not follow (those kept apart, those that read where they are told)
     const CellArea region = affectedArea(e);
     std::vector<quint32> candidates, specials;
@@ -375,6 +383,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     candidates.insert(candidates.end(), specials.begin(), specials.end());
     std::sort(candidates.begin(), candidates.end());
     candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
+    lap(0);
     m_editWork += qint64(candidates.size()) + qint64(m_special.size());
     const qint64 graphWorkBefore = m_graph->buildWork() + m_graph->queryWork();
     ++m_editStats.edits;
@@ -470,6 +479,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     places.reserve(rewrites.size());
     for (const Rewrite &r : rewrites) places.push_back({r.id, m_nodes[r.id].sheet, rowOf(m_nodes[r.id]), colOf(m_nodes[r.id])});
 
+    lap(1);
     // ---- the cells that are deleted, as they are
     const quint32 count = shiftBy(e);
     if (deletes(e)) {
@@ -611,6 +621,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         if (id != kNone) dropNode(id);
         releaseFormula(e.sheet, c.formula);   // (nothing has the formula of a cell that is gone; Undo makes it again from the record)
     }
+    lap(2);
     // ---- what the worker is asked (4.6): of the formulas the edit leaves it to find, in ids, once. An edit that is rigid for every formula (what each reads and where it is, as far as it can see, are as
     // they were) asks nothing and leaves the epoch as it is.
     const bool useQuestions = wholeLine && g_graphShifts.load(std::memory_order_relaxed);
@@ -698,6 +709,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         }
     }
 
+    lap(3);
     // ---- the sheet's other structures
     for (CellRange &r : S.ranges)
         if (!adjustRange(e, e.sheet, &r)) r.valid = false;   // (the range of an array formula or a data table of one cell that was deleted: its place in the list stays, for Undo)
@@ -797,6 +809,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         }
     }
 
+    lap(4);
     // ---- the formulas that read what moved are written again, with what they read followed; those that read where they are told are made again too
     for (size_t i = 0; i < rewrites.size(); ++i) {
         const Rewrite &r = rewrites[i];
@@ -866,6 +879,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     }
     // what reads cells that moved in or out of a range it reads (a text that is as it was, a whole column, or a block shifted inside a range) has its value again (an edit of whole lines asked the worker)
     if (!useQuestions) queueDependents(region);
+    lap(5);
     m_editStats.formulasRewritten += rec->formulasRewritten;
     m_editStats.namesRewritten += qint64(rec->names.size());
     m_editStats.rulesRewritten += qint64(rec->validations.size() + rec->conditionalFormats.size());
