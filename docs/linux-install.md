@@ -26,7 +26,7 @@ gpg --show-keys --with-fingerprint /etc/apt/keyrings/jeffoffice.gpg
 The fingerprint is:
 
 ```
-FINGERPRINT-TO-BE-FILLED-IN-WHEN-THE-SIGNING-KEY-IS-MADE
+141F 304F 0AD9 E63E DB9D  4444 63DA A97B ACDF 2F2A
 ```
 
 `jeffoffice.sources` is the repository entry:

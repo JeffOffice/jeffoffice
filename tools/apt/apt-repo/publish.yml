@@ -1,0 +1,139 @@
+name: publish
+
+# Goes in JeffOffice/apt as .github/workflows/publish.yml. It adds a released
+# .deb of JeffOffice (from JeffOffice/jeffoffice's releases) to this apt
+# repository, signs the indexes, saves them here, and publishes the site with
+# GitHub Pages (Settings > Pages > Source: GitHub Actions). Run it by hand
+# (Actions > publish > Run workflow) once a release's assets are final; running
+# it again for a tag rebuilds the index from that release's current .deb.
+#
+# The .deb is about 300 MB, and GitHub refuses a git push of any file over
+# 100 MB, so this repository holds only the signed indexes, the key, the page,
+# and kept.txt (the tags whose .deb files are served); the .deb files are taken
+# from the releases each time the site is published, and each is checked
+# against the SHA-256 in the signed index. GitHub Pages sites are limited to
+# 1 GB (and about 100 GB of traffic a month), so "keep" is 1: the newest
+# version only. That suits early users; it won't carry many.
+#
+# Everything happens in this repository, so it needs no key or token for
+# another one: the workflow writes to its own repository with its own token.
+#
+# Secrets (of JeffOffice/apt):
+#   APT_SIGNING_KEY         the private signing key, ASCII-armored
+#   APT_SIGNING_PASSPHRASE  its passphrase, if it has one (optional)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag whose .deb to add, e.g. v0.10.0"
+        required: true
+      keep:
+        description: "How many versions to keep in the repository"
+        required: false
+        default: "1"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Two runs would write over each other.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      TAG: ${{ inputs.tag }}
+      KEEP: ${{ inputs.keep }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Only from main
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != refs/heads/main ]; then
+            echo "::error::This workflow holds the signing key and runs only from main, not from $REF."
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          path: apt
+
+      # The publishing script, from the project's main branch (public).
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: JeffOffice/jeffoffice
+          ref: main
+          path: src
+          sparse-checkout: tools/apt
+          persist-credentials: false
+
+      - name: Fetch the .deb files
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "::error::tag must look like v0.10.0"; exit 1; }
+          case "$KEEP" in ''|*[!0-9]*|0) echo "::error::keep must be a positive number"; exit 1 ;; esac
+          # This tag first, then the ones kept before it, newest kept first, up to KEEP in all.
+          { echo "$TAG"; cat apt/kept.txt 2>/dev/null || true; } | awk 'NF && !seen[$0]++' | head -n "$KEEP" > kept.new
+          mkdir debs
+          while read -r t; do
+            gh release download "$t" -R JeffOffice/jeffoffice -p '*_amd64.deb' -D debs
+          done < kept.new
+          ls -la debs
+
+      - name: Sign the indexes
+        env:
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+          APT_SIGNING_PASSPHRASE: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          printf 'pool/\n' > apt/.gitignore
+          src/tools/apt/publish.sh -n "$KEEP" apt debs/*.deb
+          cp kept.new apt/kept.txt
+
+      - name: Save the indexes here
+        working-directory: apt
+        run: |
+          set -euo pipefail
+          git add -A
+          if git diff --cached --quiet; then echo "Nothing changed."; exit 0; fi
+          git -c user.name="JeffOffice LLC" -c user.email=info@jeffoffice.com commit -m "Add $TAG"
+          git push origin HEAD:main
+
+      - name: Assemble the site
+        working-directory: apt
+        run: |
+          set -euo pipefail
+          packages=dists/stable/main/binary-amd64/Packages
+          fail() { echo "::error::$1 Run this workflow again for that tag."; exit 1; }
+          mkdir -p ../site
+          cp -r dists index.html jeffoffice.gpg jeffoffice.asc jeffoffice.sources ../site/
+          touch ../site/.nojekyll
+          # "sha256 pool-path" for every package the signed index lists; each .deb goes where the index says, and only if it is the file the index describes.
+          awk '/^Filename:/ {f=$2} /^SHA256:/ {print $2, f}' "$packages" > ../index.txt
+          for f in ../debs/*.deb; do
+            sum=$(sha256sum "$f" | cut -d' ' -f1)
+            path=$(awk -v s="$sum" '$1 == s {print $2; exit}' ../index.txt)
+            [ -n "$path" ] || fail "$(basename "$f") is not a file the index describes."
+            mkdir -p "../site/$(dirname "$path")"
+            cp "$f" "../site/$path"
+          done
+          while read -r _ path; do
+            test -f "../site/$path" || fail "$path is in the index but no release has it."
+          done < ../index.txt
+          du -sh ../site
+
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

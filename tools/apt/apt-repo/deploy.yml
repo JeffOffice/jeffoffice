@@ -2,7 +2,7 @@ name: deploy
 
 # Goes in JeffOffice/apt as .github/workflows/deploy.yml (and Settings > Pages >
 # Source: GitHub Actions). It serves the repository: the signed indexes pushed
-# by JeffOffice/jeffoffice's apt.yml, plus the .deb files of the tags in
+# by its own publish.yml, plus the .deb files of the tags in
 # kept.txt, taken from that project's releases. Each .deb is checked against
 # the SHA-256 in the signed Packages index before the site goes up.
 
@@ -37,7 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           packages=dists/stable/main/binary-amd64/Packages
-          fail() { echo "::error::$1 Run the apt workflow in JeffOffice/jeffoffice again for that tag."; exit 1; }
+          fail() { echo "::error::$1 Run the publish workflow (Actions > publish) again for that tag."; exit 1; }
           mkdir -p site dl
           cp -r dists index.html jeffoffice.gpg jeffoffice.asc jeffoffice.sources site/
           touch site/.nojekyll
