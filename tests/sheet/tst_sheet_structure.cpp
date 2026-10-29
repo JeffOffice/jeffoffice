@@ -3688,6 +3688,24 @@ public:
                 *failStep = int(step);
                 return QStringLiteral("ok %1/%2%3").arg(ok[0]).arg(ok[1]).arg(why.left(1200));
             }
+            // What both books show is what a whole new calculation of the same cells shows (a stale value in both would not tell in the comparison): at the end, and every JO_FUZZ_TRUTH steps
+            const int every = qEnvironmentVariableIntValue("JO_FUZZ_TRUTH");
+            if (step + 1 == ops.size() || (every > 0 && int(step) % every == every - 1)) {
+                for (int m = 0; m < 2; ++m) {
+                    Book &b = m ? on : off;
+                    const QStringList now = state(b);
+                    b.calc->invalidateAll();
+                    b.finish();
+                    const QStringList fresh = state(b);
+                    if (now != fresh) {
+                        QString why;
+                        for (const QString &x : now) if (!fresh.contains(x)) why += QStringLiteral("\n  [%1 incremental] ").arg(m ? "ids" : "places") + x;
+                        for (const QString &x : fresh) if (!now.contains(x)) why += QStringLiteral("\n  [%1 whole calculation] ").arg(m ? "ids" : "places") + x;
+                        *failStep = int(step);
+                        return QStringLiteral("stale%1").arg(why.left(1200));
+                    }
+                }
+            }
         }
         (void)oneWay;
         return QString();
