@@ -135,7 +135,7 @@ QString styleNameOf(const QString &display)
     QString out;
     for (const QChar c : display) {
         if (c.isLetterOrNumber() || c == QLatin1Char('-') || c == QLatin1Char('.') || (c == QLatin1Char('_') && false)) out += c;
-        else out += QStringLiteral("_%1_").arg(c.unicode(), 2, 16, QLatin1Char('0'));
+        else out += QStringLiteral("_%1_").arg(uint(c.unicode()), 2, 16, QLatin1Char('0'));
     }
     if (out.isEmpty()) out = QStringLiteral("Style");
     if (out[0].isDigit() || out[0] == QLatin1Char('-') || out[0] == QLatin1Char('.')) out.prepend(QLatin1Char('_'));
