@@ -830,6 +830,7 @@ QWidget *Backstage::buildPrint()
     // Preview with page navigation.
     auto *right = new QVBoxLayout();
     auto *preview = new QLabel(w);
+    preview->setObjectName(QStringLiteral("printPreview"));
     preview->setMinimumSize(420, 520);
     preview->setAlignment(Qt::AlignCenter);
     auto *nav = new QHBoxLayout();
