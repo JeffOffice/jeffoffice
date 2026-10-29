@@ -528,10 +528,10 @@ public:
         // into places (a text typed, a text shown), counted so that a test can see that an edit of rows makes none for the formulas it leaves.
         qint64 eagerFormulas = 0;
         qint64 textsToIds = 0, textsToPlaces = 0;
-        qint64 formulasRebased = 0;   // formulas put in a cell by a fill, paste, move, or sort that took the text of the cell they came from and its distance (no text was read or made)
         // The window thread's time in the phases of an edit of rows or columns, in microseconds (for the bench's report; never asserted): setup, candidates, text rewrite, cells, graph (what is told it or asked
         // of the worker), the other structures, and the formulas written again.
         qint64 phaseMicros[7] = {0, 0, 0, 0, 0, 0, 0};
+        qint64 formulasRebased = 0;   // formulas put in a cell by a fill, paste, move, or sort that took the text of the cell they came from and its distance (no text was read or made)
         EditStats since(const EditStats &o) const
         {
             EditStats d;
@@ -731,7 +731,6 @@ private:
     void snapshotTableIds();
     bool heldOf(int sheet, const Cell &c, QString *held, qint32 *dRow, qint32 *dCol, quint8 *cls) const;
     void restoreHeldFormula(int sheet, quint32 row, quint32 col, const QString &held, qint32 dRow, qint32 dCol, quint8 cls);
-    quint64 m_structStamp = 1;
     bool recordIdsAreCurrent(const EditRecord &rec) const { return m_options.idFrame && !rec.renumberEpochs.empty() && rec.renumberEpochs == renumberEpochs(); }
     std::vector<quint32> renumberEpochs() const;
     void tablesChangedFor(const QSet<QString> &changed);
@@ -1020,6 +1019,7 @@ private:
     mutable std::vector<quint32> m_pending;   // formulas it read that were not worked out yet
     mutable bool m_readTaint = false, m_readCascade = false;
     std::vector<jp::calc::CellArea> m_touched, m_areas;
+    quint64 m_structStamp = 1;   // (last, so that the members the edits and the worker read keep the places they had)
 };
 
 } // namespace jp::office::sheet
