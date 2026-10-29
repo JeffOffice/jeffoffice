@@ -5,7 +5,7 @@
 Add the repository once, and apt installs JeffOffice and keeps it up to date.
 
 - **Needs:** Ubuntu 22.04 or newer, or Debian 12 or newer (any system with glibc 2.35 or newer), on a 64-bit Intel or AMD computer (amd64).
-- **Size:** about 320 MB to download, about 1.2 GB once installed.
+- **Size:** about 100 MB to download, about 320 MB once installed.
 - **Hosting:** the repository is hosted on GitHub Pages, which suits early users. It serves the newest version only (older ones stay on the [Releases page](https://github.com/JeffOffice/jeffoffice/releases)), and it has a monthly traffic limit.
 
 ```sh

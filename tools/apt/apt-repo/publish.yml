@@ -7,7 +7,7 @@ name: publish
 # (Actions > publish > Run workflow) once a release's assets are final; running
 # it again for a tag rebuilds the index from that release's current .deb.
 #
-# The .deb is about 300 MB, and GitHub refuses a git push of any file over
+# The .deb is about 100 MB, and GitHub refuses a git push of any file over
 # 100 MB, so this repository holds only the signed indexes, the key, the page,
 # and kept.txt (the tags whose .deb files are served); the .deb files are taken
 # from the releases each time the site is published, and each is checked

@@ -160,7 +160,7 @@ cat > "$repo/index.html" <<HTML
 </head>
 <body>
 <h1>JeffOffice for Debian and Ubuntu</h1>
-<p>JeffOffice is a free, open-source office suite: JeffPub, JeffDeck, JeffWrite, and JeffCrunch. Add this repository once, and apt installs it and keeps it up to date. The current version is $latest. It needs Ubuntu 22.04 or newer, or Debian 12 or newer, on a 64-bit Intel or AMD computer (amd64). The download is about 320 MB (about 1.2 GB installed). This repository serves the newest version only.</p>
+<p>JeffOffice is a free, open-source office suite: JeffPub, JeffDeck, JeffWrite, and JeffCrunch. Add this repository once, and apt installs it and keeps it up to date. The current version is $latest. It needs Ubuntu 22.04 or newer, or Debian 12 or newer, on a 64-bit Intel or AMD computer (amd64). The download is about 100 MB (about 320 MB once installed). This repository serves the newest version only.</p>
 <h2>Add the repository</h2>
 <pre>sudo apt install wget    # skip this if wget is already installed
 sudo install -d -m 0755 /etc/apt/keyrings
