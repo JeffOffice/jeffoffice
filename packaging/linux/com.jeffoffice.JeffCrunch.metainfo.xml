@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.jeffoffice.JeffCrunch</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>JeffCrunch</name>
+  <summary>Make and edit spreadsheets (preview)</summary>
+  <description>
+    <p>JeffCrunch makes spreadsheets, and is still a preview. It has formulas, formatting, sorting and filtering, charts, and printing.</p>
+    <p>It opens .xlsx, .xls, .ods, and .csv files and saves .xlsx.</p>
+  </description>
+  <launchable type="desktop-id">jeffcrunch.desktop</launchable>
+  <developer id="com.jeffoffice">
+    <name>JeffOffice LLC</name>
+  </developer>
+  <url type="homepage">https://github.com/JeffOffice/jeffoffice</url>
+  <url type="bugtracker">https://github.com/JeffOffice/jeffoffice/issues</url>
+  <categories>
+    <category>Office</category>
+  </categories>
+  <keywords>
+    <keyword>spreadsheet</keyword>
+    <keyword>workbook</keyword>
+    <keyword>formulas</keyword>
+    <keyword>xlsx</keyword>
+    <keyword>csv</keyword>
+  </keywords>
+  <provides>
+    <binary>jeffcrunch</binary>
+    <mediatype>application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</mediatype>
+    <mediatype>application/vnd.ms-excel</mediatype>
+    <mediatype>application/vnd.oasis.opendocument.spreadsheet</mediatype>
+    <mediatype>text/csv</mediatype>
+  </provides>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.10.0" date="2026-10-26">
+      <description>
+        <p>JeffWrite and JeffCrunch join the suite as previews.</p>
+      </description>
+    </release>
+  </releases>
+</component>

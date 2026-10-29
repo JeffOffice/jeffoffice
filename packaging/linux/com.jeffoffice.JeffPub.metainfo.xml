@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.jeffoffice.JeffPub</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>JeffPub</name>
+  <summary>Design flyers, newsletters, brochures, and cards</summary>
+  <description>
+    <p>JeffPub lays out print pieces: flyers, newsletters, brochures, business cards, certificates, and more. It starts you from templates, merges names and addresses from a list, and exports PDF for the print shop.</p>
+    <p>It opens and saves .pub publications, and has its own format for new work.</p>
+  </description>
+  <launchable type="desktop-id">jeffpub.desktop</launchable>
+  <developer id="com.jeffoffice">
+    <name>JeffOffice LLC</name>
+  </developer>
+  <url type="homepage">https://github.com/JeffOffice/jeffoffice</url>
+  <url type="bugtracker">https://github.com/JeffOffice/jeffoffice/issues</url>
+  <categories>
+    <category>Office</category>
+  </categories>
+  <keywords>
+    <keyword>publisher</keyword>
+    <keyword>pub</keyword>
+    <keyword>newsletter</keyword>
+    <keyword>flyer</keyword>
+    <keyword>brochure</keyword>
+    <keyword>layout</keyword>
+  </keywords>
+  <provides>
+    <binary>jeffpub</binary>
+    <mediatype>application/x-jeffpub</mediatype>
+    <mediatype>application/vnd.ms-publisher</mediatype>
+  </provides>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.10.0" date="2026-10-26">
+      <description>
+        <p>JeffWrite and JeffCrunch join the suite as previews.</p>
+      </description>
+    </release>
+  </releases>
+</component>

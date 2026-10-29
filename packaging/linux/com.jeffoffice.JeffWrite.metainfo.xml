@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.jeffoffice.JeffWrite</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>JeffWrite</name>
+  <summary>Write letters, reports, and other documents (preview)</summary>
+  <description>
+    <p>JeffWrite is a word processor, still a preview. It has tables, headers and footers, footnotes and endnotes, pictures, text boxes, spelling, printing, and PDF export.</p>
+    <p>It opens .docx and .doc documents and saves .docx.</p>
+  </description>
+  <launchable type="desktop-id">jeffwrite.desktop</launchable>
+  <developer id="com.jeffoffice">
+    <name>JeffOffice LLC</name>
+  </developer>
+  <url type="homepage">https://github.com/JeffOffice/jeffoffice</url>
+  <url type="bugtracker">https://github.com/JeffOffice/jeffoffice/issues</url>
+  <categories>
+    <category>Office</category>
+  </categories>
+  <keywords>
+    <keyword>word processor</keyword>
+    <keyword>document</keyword>
+    <keyword>letter</keyword>
+    <keyword>report</keyword>
+    <keyword>docx</keyword>
+  </keywords>
+  <provides>
+    <binary>jeffwrite</binary>
+    <mediatype>application/vnd.openxmlformats-officedocument.wordprocessingml.document</mediatype>
+    <mediatype>application/msword</mediatype>
+  </provides>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.10.0" date="2026-10-26">
+      <description>
+        <p>JeffWrite and JeffCrunch join the suite as previews.</p>
+      </description>
+    </release>
+  </releases>
+</component>
