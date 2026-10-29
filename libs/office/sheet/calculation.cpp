@@ -2966,7 +2966,12 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
         }
         if (m_options.idFrame && !(c->flags & (ArrayFormula | DataTable | ArrayMember)))
             out.hasHeld = heldOf(sheet, *c, &out.held, &out.heldDRow, &out.heldDCol, &out.heldCls);
-        if (out.hasHeld) out.heldEpochs = renumberEpochsText();
+        if (out.hasHeld) {
+            out.heldEpochs = renumberEpochsText();
+            out.heldSheet = sheet;
+            out.heldRow = row;
+            out.heldCol = col;
+        }
         return out;
     }
     switch (c->type) {
@@ -2992,7 +2997,11 @@ bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c,
         return setStyle(sheet, row, col, 0);
     }
     const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr) : setValue(sheet, row, col, c.value, marking, c.sharedString);
-    if (ok && c.isFormula && c.hasHeld && m_options.idFrame && c.heldEpochs == renumberEpochsText()) restoreHeldFormula(sheet, row, col, c.held, c.heldDRow, c.heldDCol, c.heldCls);
+    if (ok && c.isFormula && c.hasHeld && m_options.idFrame && c.heldSheet == sheet && c.heldRow == row && c.heldCol == col && c.heldEpochs == renumberEpochsText()) {
+        restoreHeldFormula(sheet, row, col, c.held, c.heldDRow, c.heldDCol, c.heldCls);
+        const Cell *now = m_sheets[size_t(sheet)].cells.find(row, col);
+        if (!now || !now->hasFormula() || m_sheets[size_t(sheet)].formulaText(*now) != c.formula) setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr);   // (it does not read as the text: the text is the cell's)
+    }
     return ok && setStyle(sheet, row, col, c.style);
 }
 

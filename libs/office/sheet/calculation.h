@@ -207,10 +207,13 @@ public:
         bool dataTable = false;
         // A formula held in the id frame, as it is held (the text with the ids of the lines it reads, the dead ones too) and the renumber epochs of the sheets then: put back with the formula, so that an edit
         // undone gives the cell the lines it read, a dead end still a dead end that comes back with its line. If the ids were renumbered since (a rebase), the shown text is parsed anew.
+        // It is given back only to the cell it was read from, and only if it reads as the text does.
         bool hasHeld = false;
         QString held, heldEpochs;
         qint32 heldDRow = 0, heldDCol = 0;
         quint8 heldCls = 0;
+        qint32 heldSheet = -1;
+        quint32 heldRow = 0, heldCol = 0;
         bool operator==(const CellContent &o) const
         {
             return exists == o.exists && isFormula == o.isFormula && formula == o.formula && value == o.value && sharedString == o.sharedString && style == o.style;

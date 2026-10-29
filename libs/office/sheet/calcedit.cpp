@@ -856,20 +856,21 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             // The gap is asked of the blocks that hold the original lines either side of it. Where the lines between those two (deleted ones) or a side with no original line at all can be an end of a reference
             // (a reference whose end died stays as wide as it was while the line it reads is one that was put in, and one that starts or ends on lines put in at the front or the back has no original line
             // beyond them), the blocks that meet the ids between the two are asked: they hold the references that may have the gap inside.
-            auto gapAt = [&](quint32 place) {
+            auto gapAt = [&](quint32 place, bool linesBothSides) {
                 constexpr quint32 kNone = jp::calc::LineMapCore::kNone;
                 const jp::calc::IdGap g = jp::calc::idGap(map, place);
                 q.gapBefore = g.before;
                 q.gapAfter = g.after;
-                if (place == 0 || (g.before != kNone && g.after != kNone && g.after == g.before + 1)) return;
+                // (lines put in at the top of the sheet, or at its end, are the start or the end of no reference that was there: a gap with lines on only one side is asked of nobody)
+                if (!linesBothSides || (g.before != kNone && g.after != kNone && g.after == g.before + 1)) return;
                 const quint32 maxId = lc.rows ? jp::calc::kMaxRowId : jp::calc::kMaxColId;
                 q.gapLo = g.before == kNone ? 0 : g.before + 1;
                 q.gapHi = g.after == kNone ? maxId : (g.after > 0 ? g.after - 1 : 0);
                 if (q.gapHi < q.gapLo) q.gapHi = q.gapLo;
                 q.gapWide = true;
             };
-            if (!lc.inserted.empty() || (undoOf && !deletes(e))) gapAt(e.first + count);
-            else if (killedInserted) gapAt(e.first);
+            if (!lc.inserted.empty() || (undoOf && !deletes(e))) gapAt(e.first + count, e.first > 0 && e.first + count < map.size());
+            else if (killedInserted) gapAt(e.first, e.first > 0 && e.first < map.size());
             // set 3: inserted lines that held cells are gone or back
             q.deadPair = insertedLines && S.cells.deadCount() != deadBefore;
             // The inserted lines that died by a delete (or were pushed off the end), or came back by Undo of a delete (the lines an Undo of an insert kills are named by no formula: what named them was
