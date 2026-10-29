@@ -4908,7 +4908,7 @@ Artikel achterpagina	4</translation>
         <location filename="../apps/crunch/core/editsession.cpp" line="+688"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+246"/>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="+158"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+162"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="+404"/>
         <location line="+89"/>
         <source>The workbook is busy. Try again in a moment.</source>
@@ -5712,18 +5712,23 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Vervangen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnames.cpp" line="+141"/>
+        <location filename="../apps/crunch/core/editnames.cpp" line="+86"/>
+        <source>A name that looks like an address past the last column or row, such as %1, can&apos;t be used here. Add an underscore to it.</source>
+        <translation type="unfinished">Een naam die eruitziet als een adres voorbij de laatste kolom of rij, zoals %1, kan hier niet worden gebruikt. Voeg er een onderstrepingsteken aan toe.</translation>
+    </message>
+    <message>
+        <location line="+59"/>
         <source>New Name</source>
         <translation type="unfinished">Nieuwe naam</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+51"/>
+        <location line="+52"/>
         <source>There is no such name.</source>
         <translation type="unfinished">Deze naam bestaat niet.</translation>
     </message>
     <message>
-        <location line="-36"/>
+        <location line="-37"/>
         <source>A sheet has a name of its own like that. Renaming would change which name some formulas on that sheet read. Choose another name.</source>
         <translation type="unfinished">Een werkblad heeft zelf al zo&apos;n naam. Door de naam te wijzigen, verandert welke naam sommige formules op dat werkblad lezen. Kies een andere naam.</translation>
     </message>
@@ -5733,12 +5738,12 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">De werkmap heeft al zo&apos;n naam. Door de naam te wijzigen, verandert welke naam formules op dit werkblad lezen. Kies een andere naam.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Change Name</source>
         <translation type="unfinished">Naam wijzigen</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+29"/>
         <source>Delete Name</source>
         <translation type="unfinished">Naam verwijderen</translation>
     </message>
@@ -5753,7 +5758,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Naam uit cellen</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+127"/>
         <source>How Formulas Are Worked Out</source>
         <translation type="unfinished">Hoe formules worden berekend</translation>
     </message>
@@ -34778,7 +34783,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location filename="../libs/base/calc/formula.cpp" line="+69"/>
         <location line="+16"/>
-        <location line="+435"/>
+        <location line="+441"/>
         <location line="+14"/>
         <location line="+14"/>
         <location line="+20"/>
@@ -35055,7 +35060,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         </translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnames.cpp" line="-292"/>
+        <location filename="../apps/crunch/core/editnames.cpp" line="-306"/>
         <source>There is already a name like that in this workbook. Choose another, or change that one.</source>
         <translation type="unfinished">Er bestaat al zo&apos;n naam in deze werkmap. Kies een andere naam of wijzig de bestaande.</translation>
     </message>
@@ -36365,12 +36370,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+226"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+227"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">De werkmap bevat geen bladen.</translation>
     </message>
     <message>
-        <location line="+40"/>
+        <location line="+42"/>
         <source>Some of the workbook could not be read whole: %1.</source>
         <translation type="unfinished">Een deel van de werkmap kon niet volledig worden gelezen: %1.</translation>
     </message>
@@ -37052,7 +37057,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::office::sheet::Names</name>
     <message>
-        <location filename="../libs/office/sheet/namerefs.cpp" line="+161"/>
+        <location filename="../libs/office/sheet/namerefs.cpp" line="+164"/>
         <source>A name needs at least one character.</source>
         <translation type="unfinished">Een naam moet minstens één teken bevatten.</translation>
     </message>

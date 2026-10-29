@@ -4908,7 +4908,7 @@ Article de dernière page	4</translation>
         <location filename="../apps/crunch/core/editsession.cpp" line="+688"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+246"/>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="+158"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+162"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="+404"/>
         <location line="+89"/>
         <source>The workbook is busy. Try again in a moment.</source>
@@ -5712,18 +5712,23 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Remplacement</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnames.cpp" line="+141"/>
+        <location filename="../apps/crunch/core/editnames.cpp" line="+86"/>
+        <source>A name that looks like an address past the last column or row, such as %1, can&apos;t be used here. Add an underscore to it.</source>
+        <translation type="unfinished">Un nom qui ressemble à une adresse située au-delà de la dernière colonne ou ligne, comme %1, ne peut pas être utilisé ici. Ajoutez-y un trait de soulignement.</translation>
+    </message>
+    <message>
+        <location line="+59"/>
         <source>New Name</source>
         <translation type="unfinished">Nouveau nom</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+51"/>
+        <location line="+52"/>
         <source>There is no such name.</source>
         <translation type="unfinished">Ce nom n&apos;existe pas.</translation>
     </message>
     <message>
-        <location line="-36"/>
+        <location line="-37"/>
         <source>A sheet has a name of its own like that. Renaming would change which name some formulas on that sheet read. Choose another name.</source>
         <translation type="unfinished">Une feuille possède déjà son propre nom identique. Le renommage modifierait le nom lu par certaines formules de cette feuille. Choisissez un autre nom.</translation>
     </message>
@@ -5733,12 +5738,12 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Le classeur possède déjà un nom identique. Le renommage modifierait le nom lu par les formules de cette feuille. Choisissez un autre nom.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Change Name</source>
         <translation type="unfinished">Modifier le nom</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+29"/>
         <source>Delete Name</source>
         <translation type="unfinished">Supprimer le nom</translation>
     </message>
@@ -5753,7 +5758,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Noms à partir des cellules</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+127"/>
         <source>How Formulas Are Worked Out</source>
         <translation type="unfinished">Calcul des formules</translation>
     </message>
@@ -34778,7 +34783,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location filename="../libs/base/calc/formula.cpp" line="+69"/>
         <location line="+16"/>
-        <location line="+435"/>
+        <location line="+441"/>
         <location line="+14"/>
         <location line="+14"/>
         <location line="+20"/>
@@ -35055,7 +35060,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         </translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnames.cpp" line="-292"/>
+        <location filename="../apps/crunch/core/editnames.cpp" line="-306"/>
         <source>There is already a name like that in this workbook. Choose another, or change that one.</source>
         <translation type="unfinished">Ce nom existe déjà dans ce classeur. Choisissez-en un autre ou modifiez celui-ci.</translation>
     </message>
@@ -36365,12 +36370,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+226"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+227"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">Le classeur ne contient aucune feuille.</translation>
     </message>
     <message>
-        <location line="+40"/>
+        <location line="+42"/>
         <source>Some of the workbook could not be read whole: %1.</source>
         <translation type="unfinished">Une partie du classeur n&apos;a pas pu être lue entièrement : %1.</translation>
     </message>
@@ -37052,7 +37057,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
 <context>
     <name>jp::office::sheet::Names</name>
     <message>
-        <location filename="../libs/office/sheet/namerefs.cpp" line="+161"/>
+        <location filename="../libs/office/sheet/namerefs.cpp" line="+164"/>
         <source>A name needs at least one character.</source>
         <translation type="unfinished">Un nom doit comporter au moins un caractère.</translation>
     </message>
