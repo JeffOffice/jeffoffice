@@ -1624,6 +1624,24 @@ private Q_SLOTS:
     }
 
     // A workbook with macros is saved as a .xlsm with its macros as they were, and cannot be given another ending.
+    // What Undo of an edit of lines holds of the formulas as they were held (the id frame's `goneHeld` and `wasHeld`) is counted in the step's bytes, else the limit that makes a big step ask first
+    // would not see them.
+    void theBytesOfAStructuralStepCountTheFormulasHeldInIds()
+    {
+        const QString text(1000, QLatin1Char('x'));
+        for (const int which : {0, 1}) {
+            jp::crunch::StructChange change;
+            const qint64 empty = change.bytes();
+            jp::office::sheet::Calculation::EditRecord::HeldText held;
+            held.text = text;
+            held.has = true;
+            std::vector<jp::office::sheet::Calculation::EditRecord::HeldText> &list = which == 0 ? change.record.goneHeld : change.record.wasHeld;
+            list.push_back(held);
+            list.push_back(held);
+            QVERIFY2(change.bytes() - empty >= 2 * (qint64(sizeof(held)) + 2000), qPrintable(QStringLiteral("held %1: %2 bytes more").arg(which).arg(change.bytes() - empty)));
+        }
+    }
+
     void aWorkbookWithMacrosKeepsThem()
     {
         QByteArray macroBook;

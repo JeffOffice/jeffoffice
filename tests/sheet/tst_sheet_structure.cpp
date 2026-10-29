@@ -2982,7 +2982,9 @@ private Q_SLOTS:
         off.forceOff = true;
         QStringList s1;
         for (int r = 1; r <= 16; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(r);
-        for (Book *b : {&off, &on}) QVERIFY(b->open({s1, {"A1=1", "B1=2", "C1=3"}}));
+        QStringList s2{"B1=2", "C1=3"};
+        for (int r = 1; r <= 12; ++r) s2 << QStringLiteral("A%1=%2").arg(r).arg(r);
+        for (Book *b : {&off, &on}) QVERIFY(b->open({s1, s2}));
         for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::insertColumns(1, 0, 2), nullptr));
         for (Book *b : {&off, &on}) {
             QVERIFY(b->calc->setFormula(0, 7, 9, QStringLiteral("SUM(Sheet2!A12:A1)")));   // (back to front: held in places)
@@ -2991,7 +2993,12 @@ private Q_SLOTS:
         QCOMPARE(on.calc->positionalFormulas(), qint64(1));
         for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::insertColumns(1, 0, 2), nullptr));
         QCOMPARE(on.calc->positionalFormulas(), qint64(0));   // (written in order, it is held in ids)
+        QCOMPARE(off.at("J8"), QStringLiteral("n:0"));
+        QCOMPARE(on.at("J8"), QStringLiteral("n:0"));
         for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::deleteColumns(1, 2, 2), nullptr));
+        // (the shown value, before anything is worked out again: both ends were the same column put in, and it is gone)
+        QCOMPARE(off.at("J8"), QStringLiteral("e:#REF!"));
+        QCOMPARE(on.at("J8"), QStringLiteral("e:#REF!"));
         QCOMPARE(state(on), state(off));
         for (Book *b : {&off, &on}) {
             b->calc->invalidateAll();
