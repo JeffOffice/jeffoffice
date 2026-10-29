@@ -3262,6 +3262,19 @@ private Q_SLOTS:
         const std::vector<Op> front2 = {op(0, 0, 4), op(7, 0, 4, 1), op(0, 2, 3)};
         QCOMPARE(runOps(front2, &at), QString());
         // the same after many edits: lines deleted between the neighbours of the gap, and the start of the reference one of those
+        // a column put in at the top, a size typed that starts on it, and the column deleted: the range starts on the next column (found by the model check's wide option)
+        Op typed = op(8, 0, 1);
+        typed.typed = QStringLiteral("COLUMNS(A1:C1)");
+        typed.row = 0;
+        typed.col = 10;
+        const std::vector<Op> top = {op(4, 0, 2), typed, op(5, 0, 2)};
+        QCOMPARE(runOps(top, &at), QString());
+        Op typedRows = op(8, 0, 1);
+        typedRows.typed = QStringLiteral("ROWS(A1:A3)");
+        typedRows.row = 0;
+        typedRows.col = 10;
+        const std::vector<Op> topRows = {op(0, 0, 1), typedRows, op(2, 0, 1)};
+        QCOMPARE(runOps(topRows, &at), QString());
         const std::vector<Op> many = {op(1, 0, 3), op(6, 3, 2, 1), op(4, 6, 1, 1), op(0, 1, 4), op(0, 11, 1, 1), op(1, 8, 4, 1), op(0, 12, 3), op(3, 12, 2, 1), op(3, 1, 3, 1), op(3, 10, 3), op(10, 13, 4, 0, 1), op(7, 1, 4, 1), op(0, 11, 3, 1)};
         QCOMPARE(runOps(many, &at), QString());
     }

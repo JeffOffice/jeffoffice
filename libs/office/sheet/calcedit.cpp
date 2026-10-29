@@ -870,7 +870,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
                 q.gapWide = true;
             };
             if (!lc.inserted.empty() || (undoOf && !deletes(e))) gapAt(e.first + count, e.first > 0 && e.first + count < map.size());
-            else if (killedInserted) gapAt(e.first, e.first > 0 && e.first < map.size());
+            else if (killedInserted) gapAt(e.first, true);   // (lines that were there and are gone: a reference that started or ended on one of them has another end now, even at the top)
             // set 3: inserted lines that held cells are gone or back
             q.deadPair = insertedLines && S.cells.deadCount() != deadBefore;
             // The inserted lines that died by a delete (or were pushed off the end), or came back by Undo of a delete (the lines an Undo of an insert kills are named by no formula: what named them was
