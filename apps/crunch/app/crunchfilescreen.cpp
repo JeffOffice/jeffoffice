@@ -24,6 +24,7 @@ CrunchFileScreen::CrunchFileScreen(CrunchWindow *win) : FileScreen(win), m_win(w
     setBackButton(tr("Back to workbook"), tr("Return to your workbook (Esc)"));
     setPageBuilder([this](const QString &key) { return buildPage(key); });
     addSection(tr("Start"));
+    addPage(QStringLiteral("new"), QStringLiteral("file-plus"), tr("New"));
     addPage(QStringLiteral("open"), QStringLiteral("folder-open"), tr("Open"));
     addSection(tr("This workbook"));
     addCommand(QStringLiteral("save"), QStringLiteral("save"), tr("Save"), [this] {
@@ -45,11 +46,37 @@ CrunchFileScreen::CrunchFileScreen(CrunchWindow *win) : FileScreen(win), m_win(w
 // The pages are built when they are shown, so they show what is now.
 QWidget *CrunchFileScreen::buildPage(const QString &key)
 {
+    if (key == "new") return buildNew();
     if (key == "open") return buildOpen();
     if (key == "print") return buildPrint();
     if (key == "export") return buildExport();
     if (key == "about") return buildAbout();
     return nullptr;
+}
+
+// ---------------- New ----------------
+void CrunchFileScreen::startBlank()
+{
+    // A new workbook nobody has changed is already what is asked for; any other stays, and the new one opens in a window of its own (as Open does).
+    if (!m_win->isUntouchedBlank()) m_win->act("file.new")->trigger();
+    Q_EMIT closeRequested();
+}
+
+QWidget *CrunchFileScreen::buildNew()
+{
+    auto *w = new QWidget();
+    auto *v = new QVBoxLayout(w);
+    v->setContentsMargins(40, 30, 40, 30);
+    v->addWidget(heading(tr("New"), w));
+    auto *cards = new QHBoxLayout();
+    cards->setSpacing(12);
+    auto *blank = new ActionCard(QStringLiteral("file-spreadsheet"), tr("Blank Workbook"), tr("Start with an empty workbook that has one sheet."), w);
+    connect(blank, &QAbstractButton::clicked, this, [this] { startBlank(); });
+    cards->addWidget(blank, 1);
+    cards->addStretch(1);
+    v->addLayout(cards);
+    v->addStretch(1);
+    return w;
 }
 
 // ---------------- Open ----------------

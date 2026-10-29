@@ -30,6 +30,13 @@ struct Window {
         if (!w.openFile(path)) return false;
         return first.wait(20000) && (loaded.count() > 0 || loaded.wait(20000)) && (done.count() > 0 || done.wait(20000));
     }
+    // Makes the window's new, empty workbook and waits until it is ready.
+    bool openBlank()
+    {
+        QSignalSpy loaded(&w, &CrunchWindow::loadFinished), done(&w, &CrunchWindow::calculationFinished);
+        if (!w.newBlank()) return false;
+        return (loaded.count() > 0 || loaded.wait(20000)) && loaded.last().first().toBool() && (done.count() > 0 || done.wait(20000));
+    }
 };
 
 // How long the program's event loop did not answer, by the processor time of its thread (which counts only the time the thread was working, not the time it was waiting, or the
