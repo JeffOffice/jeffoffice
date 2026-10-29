@@ -33,6 +33,9 @@
 //                                           counters of what the edit did (cells moved and deleted, formulas visited and written again, formulas made again in the graph, the graph's work, names and rules
 //                                           written again, the session's marks followed, the window's values moved and sizes and texts rebuilt, the bytes of Undo, the graph's entries) and then the
 //                                           same for its Undo (the counters are in Calculation::editStats, EditSession::marksFollowed, ValueStore::relocated, GridSheet::viewCellsRebuiltForTest).
+//   jcrunchtool edit-fill-bench <file.xlsx> <label> [edits=1000] [only]   after that many rows put in at places spread over the first half of the sheet, times a formula typed and filled down all the rows, a
+//                                           block of values (rows by 10 columns) pasted, and the rows sorted by the first column, each by the window's thread (the step made and put in) and the wall until the worker settles, with
+//                                           the counters of what it did (texts turned into ids, formulas written again, formulas rebased)
 //   jcrunchtool model-check <seeds> <steps> [first seed] [every=n] [nograph] [noshrink]   the model check of tests/crunch/structmodel.h: random steps on a small workbook, and after each the workbook is
 //                                           saved to memory, opened again, and every formula worked out from nothing, and all of it compared (values, text of formulas, conditional formats, validations, names, tables,
 //                                           charts, notes, links, merged cells, print areas, page breaks, filters, sizes); the graph must hold what each formula reads. A failure prints the seed and the fewest steps.
@@ -1287,6 +1290,109 @@ int structBench(const QString &path, const QString &label, const QString &only)
     return 0;
 }
 
+// What fill, paste, and sort cost on the real store after many edits of rows (docs/jeffcrunch-rowids.md, 4.15).
+int fillBench(const QString &path, const QString &label, int edits, const QString &only)
+{
+    CrunchWindow w;
+    w.setNotifier([](const QString &, const QString &) {});
+    w.resize(1280, 800);
+    w.show();
+    bool done = false;
+    QObject::connect(&w, &CrunchWindow::calculationFinished, &w, [&] { done = true; });
+    QElapsedTimer open;
+    open.start();
+    if (!w.openFile(path)) return 1;
+    while (!done && open.elapsed() < 600000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+    if (!done) {
+        err() << "edit-fill-bench: the workbook was not worked out in time\n";
+        return 1;
+    }
+    crunch::EditSession *session = w.session();
+    const Calculation *calc = w.calculation();
+    const int sheet = w.activeSheet();
+    qint64 lastEpoch = -1;
+    QObject::connect(&w.workbookLoader(), &crunch::WorkbookLoader::calcBatch, &w, [&](const std::shared_ptr<crunch::CalcBatch> &b) {
+        if (b->last && !b->stopped) lastEpoch = b->epoch;
+    });
+    session->setUndoByteLimit(qint64(64000) << 20);
+    auto settle = [&] {
+        QElapsedTimer waiting;
+        waiting.start();
+        while ((lastEpoch < w.workbookLoader().changesMade()) && waiting.elapsed() < 600000) QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+    };
+    const quint32 rows0 = std::max<quint32>(20, calc->sheet(sheet).extentRows), cols = std::max<quint32>(3, calc->sheet(sheet).extentCols);
+    QElapsedTimer all;
+    all.start();
+    QRandomGenerator rng(12345);
+    int made = 0;
+    for (int i = 0; i < edits; ++i) {
+        const quint32 at = 1 + rng.bounded(rows0 / 2);
+        const crunch::EditSession::Outcome o = (i % 3 == 2) ? session->deleteRows(sheet, at, 1) : session->insertRows(sheet, at, 1 + rng.bounded(2));
+        if (o.ok) ++made;
+        if (i % 50 == 49) settle();
+    }
+    settle();
+    const quint32 rows = std::max<quint32>(20, calc->sheet(sheet).extentRows);
+    out() << "# " << made << " row edits made in " << all.elapsed() << " ms; rows now " << rows << "; runs " << calc->sheet(sheet).cells.rowRunCount() << "\n";
+    out() << "label\tcase\twindow_cpu_ms\twall_ms\tsettle_ms\ttexts_to_ids\tformulas_rewritten\tformulas_rebased\tok\n";
+    auto run = [&](const QString &name, const std::function<crunch::EditSession::Outcome()> &f) {
+        if (!only.isEmpty() && !name.contains(only)) return;
+        const Calculation::EditStats before = calc->editStats();
+        QElapsedTimer wall;
+        wall.start();
+        const qint64 c0 = jp::threadCpuMicros();
+        const crunch::EditSession::Outcome o = f();
+        const qint64 c1 = jp::threadCpuMicros();
+        const double wallMs = double(wall.nsecsElapsed()) / 1e6;
+        settle();
+        const double settleMs = double(wall.nsecsElapsed()) / 1e6;
+        const Calculation::EditStats d = calc->editStats().since(before);
+        out() << label << '\t' << name << '\t' << QString::number(double(c1 - c0) / 1000.0, 'f', 1) << '\t' << QString::number(wallMs, 'f', 1) << '\t' << QString::number(settleMs, 'f', 1) << '\t' << d.textsToIds << '\t'
+              << d.formulasRewritten << '\t' << d.formulasRebased << '\t' << (o.ok ? QStringLiteral("ok") : o.problem) << '\n';
+        out().flush();
+    };
+    const quint32 fcol = cols + 8, pcol = cols + 12;
+    run(QStringLiteral("type"), [&] { return session->type(sheet, 0, fcol, QStringLiteral("=A1*2+B1")); });
+    run(QStringLiteral("fill formula down"), [&] {
+        office::sheet::CellRange src;
+        src.valid = true;
+        src.row1 = src.row2 = 0;
+        src.col1 = src.col2 = fcol;
+        return session->fill(sheet, src, crunch::EditSession::FillDirection::Down, std::min<quint32>(rows - 1, 99999));   // (the most one step takes: 100,000 cells)
+    });
+    run(QStringLiteral("paste values"), [&] {
+        QVector<QStringList> table;
+        const quint32 pasteRows = std::min<quint32>(rows, 10000);   // (10 columns: the most one step takes is 100,000 cells)
+        table.reserve(int(pasteRows));
+        for (quint32 r = 0; r < pasteRows; ++r) {
+            QStringList line;
+            for (int c = 0; c < 10; ++c) line << QString::number(qint64((r * 7 + quint32(c) * 13) % 1000));
+            table.push_back(line);
+        }
+        office::sheet::CellRange target;
+        target.valid = true;
+        target.row1 = target.row2 = 0;
+        target.col1 = target.col2 = pcol;
+        return session->pasteText(sheet, target, table, crunch::EditSession::PasteOptions());
+    });
+    run(QStringLiteral("sort descending"), [&] {
+        office::sheet::CellRange range;
+        range.valid = true;
+        range.row1 = 0;
+        range.row2 = std::min<quint32>(rows, 100000 / (cols + 1)) - 1;   // (the most one step takes is 100,000 cells)
+        range.col1 = 0;
+        range.col2 = cols;   // (the data and the column of sums that reads each row)
+        crunch::SortSpec spec;
+        crunch::SortLevel level;
+        level.key = 0;
+        level.descending = true;
+        spec.levels.push_back(level);
+        return session->sortRange(sheet, range, spec);
+    });
+    out() << "# done in " << all.elapsed() << " ms\n";
+    return 0;
+}
+
 // What saving costs after structural edits: the workbook is saved untouched, then after 20 and after 200 more structural edits (a row or a column inserted or deleted at random places, none undone),
 // each time timing the session's snapshot (what it has changed) and the save itself (the file made from the old file and the changes), and the size of the file.
 int saveStructBench(const QString &path, const QString &label)
@@ -1862,6 +1968,8 @@ int editRecalcCheck(const QString &path, int edits, quint32 seed)
     }
     const bool verbose = qEnvironmentVariableIsSet("JC_ERC_VERBOSE");
     QRandomGenerator rng(seed);
+    QRandomGenerator cells(seed ^ 0x9E3779B9u);
+    const bool cellEdits = qEnvironmentVariable("JC_ERC_CELLS") != QLatin1String("0");
     std::vector<int> sheets;
     for (int si = 0; si < calc->sheetCount(); ++si)
         if (o.loader.result()->book->info().sheets[si].kind == SheetKind::Worksheet && calc->sheet(si).extentRows > 0) sheets.push_back(si);
@@ -1873,16 +1981,72 @@ int editRecalcCheck(const QString &path, int edits, quint32 seed)
         const bool rows = rng.bounded(2) == 0;
         const quint32 at = rows ? rng.bounded(usedRows + 2) : rng.bounded(usedCols + 2);
         const bool insert = rng.bounded(5) < 3;
+        // Every other edit is of cells (a sort, a fill, a paste, a cut and paste, cells shifted), from a generator of its own so that the others are the seed's as they were (JC_ERC_CELLS=0 leaves them out).
+        const int cellKind = cellEdits && cells.bounded(2) == 0 ? 1 + int(cells.bounded(7)) : 0;
         o.beginEdit();
+        const auto changesBefore = o.loader.changesMade();
         crunch::EditSession::Outcome result;
-        if (rows) result = insert ? o.session->insertRows(sheet, at, count) : o.session->deleteRows(sheet, at, count);
-        else result = insert ? o.session->insertColumns(sheet, at, count) : o.session->deleteColumns(sheet, at, count);
-        if (verbose) err() << (rows ? "row" : "column") << (insert ? " insert " : " delete ") << "sheet " << sheet << " at " << at << " count " << count << (result.ok ? "" : " (refused)") << '\n';
+        QString words;
+        if (cellKind != 0) {
+            const quint32 r1 = cells.bounded(std::min<quint32>(usedRows, 3000)), c1 = cells.bounded(std::min<quint32>(usedCols, 30));
+            const quint32 h = 2 + cells.bounded(40), w = 1 + cells.bounded(4);
+            office::sheet::CellRange block;
+            block.valid = true;
+            block.row1 = r1;
+            block.col1 = c1;
+            block.row2 = std::min<quint32>(r1 + h - 1, jp::calc::kGridRows - 1);
+            block.col2 = std::min<quint32>(c1 + w - 1, jp::calc::kGridCols - 1);
+            const quint32 tr = cells.bounded(std::min<quint32>(usedRows + 5, 3000)), tc = cells.bounded(std::min<quint32>(usedCols + 3, 30));
+            const bool flag = cells.bounded(2) == 0;
+            switch (cellKind) {
+            case 1: {
+                crunch::SortSpec spec;
+                crunch::SortLevel level;
+                level.key = int(cells.bounded(w));
+                level.descending = flag;
+                spec.levels.push_back(level);
+                words = QStringLiteral("sort");
+                result = o.session->sortRange(sheet, block, spec);
+                break;
+            }
+            case 2: case 3: {
+                office::sheet::CellRange src = block;
+                const bool down = flag;
+                if (down) src.row2 = src.row1 + (cellKind == 2 ? 0 : 1);
+                else src.col2 = src.col1 + (cellKind == 2 ? 0 : 1);
+                words = QStringLiteral("fill");
+                result = o.session->fill(sheet, src, down ? crunch::EditSession::FillDirection::Down : crunch::EditSession::FillDirection::Right, h);
+                break;
+            }
+            case 4: {
+                const crunch::ClipData clip = o.session->copyCells(sheet, block, false);
+                office::sheet::CellRange target = block;
+                target.row1 = target.row2 = tr;
+                target.col1 = target.col2 = tc;
+                words = QStringLiteral("paste");
+                result = o.session->paste(sheet, target, clip, crunch::EditSession::PasteOptions());
+                break;
+            }
+            case 5: {
+                words = QStringLiteral("cut and paste");
+                result = o.session->moveCells(sheet, block, sheet, tr, tc);
+                break;
+            }
+            case 6: words = QStringLiteral("insert cells"); result = o.session->insertCells(sheet, block, flag); break;
+            default: words = QStringLiteral("delete cells"); result = o.session->deleteCells(sheet, block, flag); break;
+            }
+            if (verbose) err() << words << " sheet " << sheet << " rows " << block.row1 << '-' << block.row2 << " columns " << block.col1 << '-' << block.col2 << (result.ok ? "" : " (refused)") << '\n';
+        } else {
+            if (rows) result = insert ? o.session->insertRows(sheet, at, count) : o.session->deleteRows(sheet, at, count);
+            else result = insert ? o.session->insertColumns(sheet, at, count) : o.session->deleteColumns(sheet, at, count);
+            if (verbose) err() << (rows ? "row" : "column") << (insert ? " insert " : " delete ") << "sheet " << sheet << " at " << at << " count " << count << (result.ok ? "" : " (refused)") << '\n';
+        }
         if (!result.ok) {
             ++refused;
             continue;
         }
         ++made;
+        if (cellKind != 0 && o.loader.changesMade() == changesBefore) continue;   // (a sort of cells in order, a fill of what is there: nothing was changed, so no batch comes)
         if (!o.settle()) {
             out() << path << "\tnot settled after an edit\n";
             return 1;
@@ -1921,6 +2085,7 @@ int editMain(const QStringList &args)
 {
     if (!args.isEmpty() && args[0].startsWith(QLatin1String("model-"))) return ::jp::structmodel::command(args);
     if (args.size() >= 2 && args.size() <= 3 && args[0] == QLatin1String("edit-bench")) return editBench(args[1], args.value(2, QStringLiteral("200")).toInt(), 0, 0, 0);
+    if (args.size() >= 3 && args.size() <= 5 && args[0] == QLatin1String("edit-fill-bench")) return fillBench(args[1], args[2], args.value(3, QStringLiteral("1000")).toInt(), args.value(4));
     if (args.size() == 3 && args[0] == QLatin1String("edit-save-struct-bench")) return saveStructBench(args[1], args[2]);
     if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("edit-walk-bench")) return walkBench(args[1], args.value(2, QStringLiteral("1000")).toInt(), args.value(3, QStringLiteral("10")).toInt(), QStringLiteral("walk"));
     if (args.size() >= 3 && args.size() <= 4 && args[0] == QLatin1String("edit-struct-bench")) return structBench(args[1], args[2], args.value(3));
