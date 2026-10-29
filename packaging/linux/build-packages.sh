@@ -49,6 +49,8 @@ appdir() {
     # The desktop entry runs the lower-case command.
     ln -s "$name" "$dir/usr/bin/$lower"
     install -Dm644 "$here/$lower.desktop" "$dir/usr/share/applications/$lower.desktop"
+    # AppStream data: software centers and the snap listing read it.
+    "$here/gen-metainfo.sh" "$here/com.jeffoffice.$name.metainfo.xml" "$dir/usr/share/metainfo/com.jeffoffice.$name.metainfo.xml"
   done
   case " $* " in *" JeffPub "*)
     install -Dm644 "$src/resources/app.png" "$dir/usr/share/icons/hicolor/256x256/apps/jeffpub.png"
@@ -113,7 +115,7 @@ mkdir -p "$deb/opt/jeffoffice" "$deb/usr/bin" "$deb/DEBIAN"
 cp -a "$work/suite/usr/." "$deb/opt/jeffoffice/"
 rm -f "$deb/opt/jeffoffice/bin/jeffpub" "$deb/opt/jeffoffice/bin/jeffdeck" "$deb/opt/jeffoffice/bin/jeffwrite" "$deb/opt/jeffoffice/bin/jeffcrunch"
 mkdir -p "$deb/usr/share"
-mv "$deb/opt/jeffoffice/share/applications" "$deb/opt/jeffoffice/share/icons" "$deb/opt/jeffoffice/share/mime" "$deb/usr/share/"
+mv "$deb/opt/jeffoffice/share/applications" "$deb/opt/jeffoffice/share/icons" "$deb/opt/jeffoffice/share/mime" "$deb/opt/jeffoffice/share/metainfo" "$deb/usr/share/"
 mkdir -p "$deb/usr/share/doc"
 mv "$deb/opt/jeffoffice/share/doc/jeffoffice" "$deb/usr/share/doc/"
 ln -s /opt/jeffoffice/bin/JeffPub "$deb/usr/bin/jeffpub"

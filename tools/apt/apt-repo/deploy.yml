@@ -1,0 +1,69 @@
+name: deploy
+
+# Goes in JeffOffice/apt as .github/workflows/deploy.yml (and Settings > Pages >
+# Source: GitHub Actions). It serves the repository: the signed indexes pushed
+# by JeffOffice/jeffoffice's apt.yml, plus the .deb files of the tags in
+# kept.txt, taken from that project's releases. Each .deb is checked against
+# the SHA-256 in the signed Packages index before the site goes up.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Assemble the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          packages=dists/stable/main/binary-amd64/Packages
+          fail() { echo "::error::$1 Run the apt workflow in JeffOffice/jeffoffice again for that tag."; exit 1; }
+          mkdir -p site dl
+          cp -r dists index.html jeffoffice.gpg jeffoffice.asc jeffoffice.sources site/
+          touch site/.nojekyll
+          # "sha256 pool-path" for every package the signed index lists.
+          awk '/^Filename:/ {f=$2} /^SHA256:/ {print $2, f}' "$packages" > index.txt
+          while read -r t; do
+            [ -n "$t" ] || continue
+            gh release download "$t" -R JeffOffice/jeffoffice -p '*_amd64.deb' -D dl || fail "The .deb for $t could not be downloaded."
+          done < kept.txt
+          # Each .deb goes where the index says (its Filename), and only if it is the file the index describes.
+          for f in dl/*.deb; do
+            sum=$(sha256sum "$f" | cut -d' ' -f1)
+            path=$(awk -v s="$sum" '$1 == s {print $2; exit}' index.txt)
+            [ -n "$path" ] || fail "$(basename "$f") is not a file the index describes."
+            mkdir -p "site/$(dirname "$path")"
+            cp "$f" "site/$path"
+          done
+          # Every package the index lists is there.
+          while read -r _ path; do
+            test -f "site/$path" || fail "$path is in the index but no release has it."
+          done < index.txt
+          du -sh site
+
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

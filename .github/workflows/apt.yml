@@ -1,0 +1,125 @@
+name: apt
+
+# Adds a published release's .deb to JeffOffice's apt repository (JeffOffice/apt,
+# served at https://jeffoffice.github.io/apt) and signs it. Run it by hand
+# (Actions > apt > Run workflow) once the release exists, or call it from
+# release.yml (see the comment at the bottom).
+#
+# The .deb is about 300 MB, and GitHub refuses a git push of any file over
+# 100 MB, so the packages are NOT stored in the apt repository. It holds only
+# the signed indexes, the key, the page, and kept.txt (the tags whose .deb files
+# are served). Its own deploy.yml (tools/apt/apt-repo/deploy.yml here) fetches
+# those .deb files from the releases and publishes the site with GitHub Pages
+# (Settings > Pages > Source: GitHub Actions). GitHub Pages sites are limited
+# to 1 GB (and about 100 GB of traffic a month), so "keep" is 1: the repository
+# serves the newest version only. That suits early users; it won't carry many.
+#
+# Run it only after the release's assets are final: it takes the .deb that is
+# attached to the tag at that moment. Running it again for a tag rebuilds the
+# index from the release's current .deb (and signs it again).
+#
+# It refuses to run from any ref but main (or, when release.yml calls it from a
+# tag's own run, that tag), because it holds the signing key.
+#
+# Secrets (repository secrets of JeffOffice/jeffoffice):
+#   APT_REPO_TOKEN          a token that can push to JeffOffice/apt (a fine-grained token with Contents: read and write on that repository only)
+#   APT_SIGNING_KEY         the private signing key, ASCII-armored (gpg --armor --export-secret-keys)
+#   APT_SIGNING_PASSPHRASE  its passphrase, if it has one (optional)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag whose .deb to add, e.g. v0.10.0"
+        required: true
+      keep:
+        description: "How many versions to keep in the repository"
+        required: false
+        default: "1"
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      keep:
+        required: false
+        type: string
+        default: "1"
+    secrets:
+      APT_REPO_TOKEN:
+        required: true
+      APT_SIGNING_KEY:
+        required: true
+      APT_SIGNING_PASSPHRASE:
+        required: false
+
+permissions:
+  contents: read
+
+# Two runs would push over each other.
+concurrency:
+  group: apt-repository
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    env:
+      TAG: ${{ inputs.tag }}
+      KEEP: ${{ inputs.keep }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Only from main
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != refs/heads/main ] && [ "$REF" != "refs/tags/$TAG" ]; then
+            echo "::error::This workflow holds the signing key and runs only from main (or from the tag it publishes), not from $REF."
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          path: src
+          sparse-checkout: tools/apt
+          persist-credentials: false
+
+      # The apt repository is public: read it without a token. The token appears only in the Push step.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: JeffOffice/apt
+          path: apt
+          persist-credentials: false
+
+      - name: Fetch the .deb files
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "tag must look like v0.10.0"; exit 1; }
+          case "$KEEP" in ''|*[!0-9]*|0) echo "keep must be a positive number"; exit 1 ;; esac
+          # This tag first, then the ones kept before it, newest kept first, up to KEEP in all.
+          { echo "$TAG"; cat apt/kept.txt 2>/dev/null || true; } | awk 'NF && !seen[$0]++' | head -n "$KEEP" > kept.new
+          mkdir debs
+          while read -r t; do
+            gh release download "$t" -R "$GITHUB_REPOSITORY" -p '*_amd64.deb' -D debs
+          done < kept.new
+          ls -la debs
+
+      - name: Sign and publish the indexes
+        env:
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+          APT_SIGNING_PASSPHRASE: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          printf 'pool/\n' > apt/.gitignore
+          src/tools/apt/publish.sh -n "$KEEP" apt debs/*.deb
+          cp kept.new apt/kept.txt
+
+      - name: Push
+        working-directory: apt
+        env:
+          APT_REPO_TOKEN: ${{ secrets.APT_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          git add -A
+          git -c user.name="JeffOffice LLC" -c user.email=info@jeffoffice.com commit -m "Add $TAG"
+          git push "https://x-access-token:${APT_REPO_TOKEN}@github.com/JeffOffice/apt.git" HEAD:main
