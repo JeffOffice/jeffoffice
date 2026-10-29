@@ -19,6 +19,7 @@
 #include <QMessageBox>
 
 #include <algorithm>
+#include <utility>
 
 namespace jp {
 
@@ -44,6 +45,15 @@ void CrunchWindow::dropWorkbook()
 {
     cancelPageBreaks();
     dropLayoutJob();
+    m_loader.cancel();
+    // (what was waiting for the old workbook is not done to the next: a save that waited for its calculation, a close that waited for that save, what was typed before it was ready)
+    m_saveAfterCalculation.clear();
+    m_closeAfterSave = false;
+    m_pendingTyping.clear();
+    m_findRun.reset();
+    m_replacePlan.reset();
+    m_sortPlan.reset();
+    m_values.clear();
     m_path.clear();
     m_originalPath.clear();
     m_blank = false;
@@ -63,6 +73,7 @@ void CrunchWindow::dropWorkbook()
 bool CrunchWindow::newBlank()
 {
     if (m_loaded || m_loading) return false;
+    if (m_untitled.isEmpty()) m_untitled = nextUntitledName();
     m_blank = true;
     m_loading = true;
     m_haveFirstScreen = m_haveCalc = false;
@@ -78,7 +89,7 @@ bool CrunchWindow::newBlank()
 
 bool CrunchWindow::isUntouchedBlank() const
 {
-    if (!m_blank || !m_path.isEmpty() || m_saving || m_edit.active) return false;
+    if (!m_blank || !m_path.isEmpty() || m_saving || m_edit.active || m_applying || m_findRun || m_replacePlan || m_sortPlan) return false;
     return !m_session || (!m_session->isModified() && !m_session->viewsChanged());
 }
 
@@ -105,13 +116,16 @@ bool CrunchWindow::openFile(const QString &path)
     if ((m_loaded || m_loading) && !replacing) {
         auto *w = new CrunchWindow();
         w->setAttribute(Qt::WA_DeleteOnClose);
+        w->m_closeIfOpenFails = true;
         w->setNotifier(m_notifier);
         w->m_promptForText = m_promptForText;
         w->m_forceTextPrompt = m_forceTextPrompt;
         w->m_anchorHooks = m_anchorHooks;
         m_forceTextPrompt = false;
         w->show();
-        return w->openFile(path);
+        if (w->openFile(path)) return true;
+        w->close();   // (it was made for this file: a window with nothing in it is not left)
+        return false;
     }
     // a text file of values: how it is read is asked first (the window that opens it asks)
     std::shared_ptr<const jp::office::sheet::CsvImport> csv;
@@ -119,11 +133,7 @@ bool CrunchWindow::openFile(const QString &path)
         m_forceTextPrompt = false;
         if (!askTextImport(path, &csv)) return false;
     }
-    if (replacing) {
-        m_loader.cancel();
-        dropWorkbook();
-        m_restoreBlank = true;
-    }
+    if (replacing) dropWorkbook();
     m_path = path;
     m_loading = true;
     m_haveFirstScreen = m_haveCalc = false;
@@ -172,19 +182,18 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     if (!ok) {
         const QString name = QFileInfo(m_path).fileName();
         dropWorkbook();
-        // (a window that had a new workbook before the file is asked for has one again)
-        const bool again = m_restoreBlank;
-        m_restoreBlank = false;
-        if (again) newBlank();
+        // (a window made for the file goes; any other has a new workbook: no window is left that cannot be changed)
+        const bool goes = m_closeIfOpenFails;
+        if (!goes) newBlank();
         else setStatus(tr("Ready"));
         updateTitle();
         notice(tr("Open"), tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, message));
         Q_EMIT loadFinished(false);
+        if (goes) close();
         return;
     }
     m_loaded = m_loader.result();
     m_haveCalc = true;
-    m_restoreBlank = false;
     // (a workbook read from a file of another form: that file is the one never written, whatever the workbook is saved as)
     m_originalPath = m_loaded->book->isConverted() ? m_path : QString();
     createEditing();
@@ -204,6 +213,11 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     const QStringList changed = m_loaded->book->changedFeatures();
     if (!m_loaded->notRead.isEmpty() || !changed.isEmpty()) notice(tr("Open"), crunch::notReadNotice(m_loaded->notRead, changed));
     Q_EMIT loadFinished(true);
+    // (what was typed while the new workbook was getting ready)
+    if (!m_pendingTyping.isEmpty() && m_session) {
+        const QString typed = std::exchange(m_pendingTyping, QString());
+        beginEdit(typed, CellEditor::Mode::Typing, false);
+    }
 }
 
 // ---- the sheets

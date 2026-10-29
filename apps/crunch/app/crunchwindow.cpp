@@ -87,7 +87,6 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         p->setPen(Qt::white);
         p->drawText(r, Qt::AlignCenter, appInfo().badge);
     }));
-    m_untitled = tr("Book%1").arg(++s_untitledCount);
     m_emptyStyles.fonts = {jp::office::sheet::FontSpec()};
     m_emptyStyles.fills = {jp::office::sheet::FillSpec()};
     m_emptyStyles.borders = {jp::office::sheet::BorderSpec()};
@@ -128,7 +127,15 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         if (!m_finishing) m_tabOriginCol = m_tabRow = -1;
     });
     // editing: a key that types starts an entry in the cell, F2 and a double click edit what it holds, Delete clears
-    connect(m_view, &grid::GridView::typingStarted, this, [this](const QString &text) { beginEdit(text, CellEditor::Mode::Typing, false); });
+    connect(m_view, &grid::GridView::typingStarted, this, [this](const QString &text) {
+        // (a new workbook that is not ready yet keeps what is typed, and the entry begins with it when it is)
+        if (!m_session && m_blank && m_loading) {
+            m_pendingTyping += text;
+            setStatus(tr("The new workbook is getting ready. It can be changed in a moment."));
+            return;
+        }
+        beginEdit(text, CellEditor::Mode::Typing, false);
+    });
     connect(m_view, &grid::GridView::editRequested, this, [this] {
         if (m_edit.active || !editingAllowed()) return;
         const grid::Selection &sel = m_view->selection();
@@ -553,10 +560,13 @@ void CrunchWindow::goToName()
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
+// The next name for a new workbook: the numbers keep rising, and one is not used again when its window is closed.
+QString CrunchWindow::nextUntitledName() { return tr("Book%1").arg(++s_untitledCount); }
+
 void CrunchWindow::updateTitle()
 {
     const QString name = m_path.isEmpty() ? m_untitled : QFileInfo(m_path).fileName();
-    setWindowTitle(QStringLiteral("%1[*] - %2").arg(name, appInfo().name));
+    setWindowTitle(name.isEmpty() ? appInfo().name : QStringLiteral("%1[*] - %2").arg(name, appInfo().name));
 }
 
 QString CrunchWindow::displayName() const { return m_path.isEmpty() ? m_untitled : QFileInfo(m_path).completeBaseName(); }

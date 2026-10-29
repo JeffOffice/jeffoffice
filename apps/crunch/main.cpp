@@ -44,13 +44,18 @@ public:
         for (QWidget *top : QApplication::topLevelWidgets())
             if (auto *w = qobject_cast<jp::CrunchWindow *>(top))
                 if (w->isVisible() && ((!w->hasWorkbook() && !w->isLoading()) || w->isUntouchedBlank())) target = w;
+        const bool made = !target;
         if (!target) {
             target = new jp::CrunchWindow();
             target->setAttribute(Qt::WA_DeleteOnClose);
+            target->setClosesIfOpenFails(true);
             target->setPromptForText(true);
             target->show();
         }
-        target->openFile(path);
+        if (!target->openFile(path) && made) {
+            target->close();   // (a window made for the file goes if the file can't be read)
+            return true;
+        }
         target->raise();
         target->activateWindow();
         return true;
@@ -131,10 +136,6 @@ int main(int argc, char **argv)
     if (files.isEmpty()) {
         w->newBlank();
     } else {
-        // (a first file that can't be read leaves a new workbook in the window)
-        QObject::connect(w, &jp::CrunchWindow::loadFinished, w, [w](bool ok) {
-            if (!ok) w->newBlank();
-        }, Qt::SingleShotConnection);
         if (!w->openFile(files.first())) w->newBlank();
         for (int i = 1; i < files.size(); ++i) w->openFile(files[i]);   // (each in a window of its own)
     }
