@@ -266,21 +266,42 @@ QString Calculation::namePlaces(const QString &key, const QString &held) const
     return idsToPlaces(*this, scope >= 0 ? scope : 0, held, jp::calc::ParseLimits::ids());
 }
 
+QString Calculation::renumberEpochsText() const
+{
+    QString out;
+    for (const SheetState &st : m_state) out += QString::number(st.renumberEpoch) + QLatin1Char(',');
+    return out;
+}
+
+// A name as a record keeps it. One held in ids is the mark, the renumber epochs of the sheets, the held text, and the text as a person reads it: the held text is put back if no sheet's ids were
+// renumbered since (a rebase), else the text in places, which is held anew.
 QString Calculation::taggedName(const QString &key) const
 {
     const QString text = m_names.value(key);
-    return m_idNames.contains(key) ? QString(QChar(1)) + text : text;
+    if (!m_idNames.contains(key)) return text;
+    return QString(QChar(1)) + renumberEpochsText() + QChar(2) + text + QChar(2) + namePlaces(key, text);
 }
 
 void Calculation::restoreTaggedName(const QString &key, const QString &tagged)
 {
     if (!tagged.isEmpty() && tagged[0] == QChar(1)) {
-        m_names[key] = tagged.mid(1);
-        m_idNames.insert(key);
-    } else {
-        m_names[key] = tagged;
-        m_idNames.remove(key);
+        const QStringList parts = tagged.mid(1).split(QChar(2));
+        if (parts.size() == 3) {
+            if (parts[0] == renumberEpochsText()) {
+                m_names[key] = parts[1];
+                m_idNames.insert(key);
+                return;
+            }
+            const int bar = int(key.indexOf(QLatin1Char('|')));
+            bool inIds = false;
+            m_names[key] = heldNameText(bar > 0 ? key.left(bar).toInt() : -1, parts[2], &inIds);
+            if (inIds) m_idNames.insert(key);
+            else m_idNames.remove(key);
+            return;
+        }
     }
+    m_names[key] = tagged;
+    m_idNames.remove(key);
 }
 
 qint32 Calculation::internText(int sheet, const QString &text, TextClass cls)
@@ -683,9 +704,9 @@ void Calculation::forgetInsertedEnds(quint32 node)
     for (const quint64 key : at->second) {
         const auto readers = m_readersOfInserted.find(key);
         if (readers == m_readersOfInserted.end()) continue;
-        auto &list = readers->second;
-        list.erase(std::remove(list.begin(), list.end(), node), list.end());
-        if (list.empty()) m_readersOfInserted.erase(readers);
+        ++m_insertedEndsWork;
+        readers->second.erase(node);
+        if (readers->second.empty()) m_readersOfInserted.erase(readers);
     }
     m_insertedEndsOf.erase(at);
 }
@@ -697,7 +718,10 @@ void Calculation::noteInsertedEnds(quint32 node, const std::vector<quint64> &key
     std::vector<quint64> unique = keys;
     std::sort(unique.begin(), unique.end());
     unique.erase(std::unique(unique.begin(), unique.end()), unique.end());
-    for (const quint64 key : unique) m_readersOfInserted[key].push_back(node);
+    for (const quint64 key : unique) {
+        ++m_insertedEndsWork;
+        m_readersOfInserted[key].insert(node);
+    }
     m_insertedEndsOf[node] = std::move(unique);
 }
 
@@ -1139,8 +1163,10 @@ int Calculation::addSheet(const QString &name, int copyOf)
         content.partial = false;
         // (the copy has no history: its order is put back to one run, and the cells of rows and columns that were deleted in the sheet it is of are not held again)
         // (the tables say how the ids were renumbered, for the texts in ids: with the id frame off nothing asks for them)
-        rowsBefore = content.cells.rows().core();
-        colsBefore = content.cells.cols().core();
+        if (m_options.idFrame) {   // (the orders as they were, to read the references that name a deleted line: only the id frame has any)
+            rowsBefore = content.cells.rows().core();
+            colsBefore = content.cells.cols().core();
+        }
         content.cells.rebaseLines(true, m_options.idFrame ? &rowTable : nullptr);
         content.cells.rebaseLines(false, m_options.idFrame ? &colTable : nullptr);
     }
@@ -1589,7 +1615,16 @@ bool Calculation::questionHasAnAnswer(const Question &q) const
         if (live(node)) return true;
     // set 1: a block that holds the gap, of a formula that can notice an empty line. (For columns the blocks that hold both columns are not asked for alone: those that read the column before the gap are
     // looked at, which is more, and enough to say that something may be asked.)
-    if (q.gapBefore != LineMapCore::kNone && q.gapAfter != LineMapCore::kNone) {
+    if (q.gapWide) {
+        auto visit = [&](quint32 node) {
+            if (++looked > kLooks || (live(node) && !(m_nodes[node].traits & Insensitive))) answer = true;
+            return !answer;
+        };
+        CellArea a;
+        lines(q.gapLo, q.gapHi, &a);
+        m_graph->forEachDependent(a, visit, true);
+        if (answer) return true;
+    } else if (q.gapBefore != LineMapCore::kNone && q.gapAfter != LineMapCore::kNone) {
         auto visit = [&](quint32 node) {
             if (++looked > kLooks || (live(node) && !(m_nodes[node].traits & Insensitive))) answer = true;
             return !answer;
@@ -1650,7 +1685,12 @@ bool Calculation::buildAsked(const Question &q, std::vector<quint32> *out, const
         take(false);
     }
     // set 1: the formulas that can notice an empty line, of which a block holds the gap
-    if (q.gapBefore != LineMapCore::kNone && q.gapAfter != LineMapCore::kNone) {
+    if (q.gapWide) {
+        CellArea a;
+        lines(q.gapLo, q.gapHi, &a);
+        if (!m_graph->dependentsOfArea(a, &found, stop, true)) return false;
+        take(true);
+    } else if (q.gapBefore != LineMapCore::kNone && q.gapAfter != LineMapCore::kNone) {
         if (q.rows) {
             if (!m_graph->dependentsHoldingRows(q.sheet, q.gapBefore, q.gapAfter, &found, stop, true)) return false;
         } else {
@@ -2924,6 +2964,9 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
             out.hasStored = true;
             out.stored = nodeValue(m_nodes[id], id);
         }
+        if (m_options.idFrame && !(c->flags & (ArrayFormula | DataTable | ArrayMember)))
+            out.hasHeld = heldOf(sheet, *c, &out.held, &out.heldDRow, &out.heldDCol, &out.heldCls);
+        if (out.hasHeld) out.heldEpochs = renumberEpochsText();
         return out;
     }
     switch (c->type) {
@@ -2949,6 +2992,7 @@ bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c,
         return setStyle(sheet, row, col, 0);
     }
     const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr) : setValue(sheet, row, col, c.value, marking, c.sharedString);
+    if (ok && c.isFormula && c.hasHeld && m_options.idFrame && c.heldEpochs == renumberEpochsText()) restoreHeldFormula(sheet, row, col, c.held, c.heldDRow, c.heldDCol, c.heldCls);
     return ok && setStyle(sheet, row, col, c.style);
 }
 

@@ -36,6 +36,26 @@ void Calculation::setNameText(int scope, const QString &name, const QString &tex
     nameTextsChangedFor({name});
 }
 
+QString Calculation::nameTagged(int scope, const QString &name, bool *has) const
+{
+    const QString key = keyOf(scope, name);
+    *has = m_names.contains(key);
+    return *has ? taggedName(key) : QString();
+}
+
+void Calculation::setNameTagged(int scope, const QString &name, bool has, const QString &tagged)
+{
+    abandonNow();
+    const QString key = keyOf(scope, name);
+    if (!has) {
+        m_names.remove(key);
+        m_idNames.remove(key);
+    } else {
+        restoreTaggedName(key, tagged);
+    }
+    nameTextsChangedFor({name});
+}
+
 void Calculation::renameName(int scope, const QString &oldName, const QString &newName, SheetRewrite *record)
 {
     if (oldName.toUpper() == newName.toUpper()) return;   // (only the capitals differ: formulas read it the same)

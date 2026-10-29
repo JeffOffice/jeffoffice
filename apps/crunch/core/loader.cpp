@@ -124,6 +124,7 @@ void WorkbookLoader::start(const QString &path, const std::shared_ptr<const jp::
     cancel();
     m_state = std::make_shared<State>();
     m_state->manualAllowed = m_manualAllowed;
+    m_state->idFrame = m_idFrame;
     m_state->pace = m_pace;
     m_result = std::make_shared<LoadedBook>();
     m_result->path = path;
@@ -236,7 +237,7 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     return true;
 }
 
-bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const std::function<void(int, qint64)> &progress, const std::atomic<bool> *cancelFlag, const std::atomic<int> *pace)
+bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const std::function<void(int, qint64)> &progress, const std::atomic<bool> *cancelFlag, const std::atomic<int> *pace, int idFrame)
 {
     QElapsedTimer total;
     total.start();
@@ -245,6 +246,8 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     options.workOutWhatHasNoResult = true;     // and a formula the file stored no result for is worked out (a program that wrote the file may not have)
     options.goRoundCircles = true;             // and a circle is gone round when the workbook is set to
     options.workOutTables = true;              // and the columns of tables are worked out (a formula that names them is no longer kept as the file has it)
+    if (idFrame > 0) options.idFrame = true;
+    if (idFrame < 0) options.idFrameOff = true;
     auto calc = std::make_unique<Calculation>(*out->book, options);
     calc->setCancel(cancelFlag);
     QElapsedTimer sinceTold;
@@ -464,7 +467,7 @@ void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::of
     }
     if (cancelled()) return;
     send([self] { if (self) Q_EMIT self->firstScreen(); });
-    if (!loadWhole(result.get(), cancelled, [&](int sheet, qint64 cells) { send([self, sheet, cells] { if (self) Q_EMIT self->progress(sheet, cells); }); }, &state->cancel, &state->pace)) return;
+    if (!loadWhole(result.get(), cancelled, [&](int sheet, qint64 cells) { send([self, sheet, cells] { if (self) Q_EMIT self->progress(sheet, cells); }); }, &state->cancel, &state->pace, state->idFrame)) return;
     // (a workbook that is worked out by hand is shown with the results its file holds, unless the file asks for them to be worked out when it is opened)
     state->manual = state->manualAllowed.load() && result->book && result->book->info().calcMode == jp::office::sheet::CalcMode::Manual && !result->book->info().fullCalcOnLoad && !result->book->info().calcUnfinished;
     state->serving = true;

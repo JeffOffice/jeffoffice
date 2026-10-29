@@ -402,7 +402,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
                 was.stored = nodeValue(n0, r.id);
             }
             EditRecord::HeldText held;
-            if (m_options.idFrame) held.has = heldOf(sheet, *c, &held.text, &held.dRow, &held.dCol, &held.cls);
+            if (m_options.idFrame) held.has = !(c->flags & (ArrayFormula | DataTable)) && heldOf(sheet, *c, &held.text, &held.dRow, &held.dCol, &held.cls);
             rec->was.push_back(std::move(was));
             if (m_options.idFrame) {
                 rec->wasHeld.resize(rec->was.size());
@@ -493,13 +493,14 @@ bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
     for (size_t wk = 0; wk < rec.was.size(); ++wk) {
         const EditRecord::FormulaWas &w = rec.was[wk];
         const Value *stored = w.hasStored ? &w.stored : nullptr;
-        if (heldCurrent && !w.hasStored && wk < rec.wasHeld.size() && rec.wasHeld[wk].has) {
-            const EditRecord::HeldText &h = rec.wasHeld[wk];
-            restoreHeldFormula(w.sheet, w.row, w.col, h.text, h.dRow, h.dCol, h.cls);
+        const EditRecord::HeldText *held = heldCurrent && wk < rec.wasHeld.size() && rec.wasHeld[wk].has ? &rec.wasHeld[wk] : nullptr;
+        if (held && !w.hasStored) {
+            restoreHeldFormula(w.sheet, w.row, w.col, held->text, held->dRow, held->dCol, held->cls);
             continue;
         }
         if (rewriteArrayText(w.sheet, w.row, w.col, w.text)) continue;
         setFormula(w.sheet, w.row, w.col, w.text, Marking::Later, stored);
+        if (held) restoreHeldFormula(w.sheet, w.row, w.col, held->text, held->dRow, held->dCol, held->cls);
     }
     for (const auto &entry : rec.validations)
         if (entry.first >= 0 && entry.first < int(m_sheets.size())) {

@@ -189,6 +189,7 @@ EditSession::Outcome EditSession::changeName(int id, const NameDraft &draft)
     e.after.comment = d.comment;
     e.after.hidden = d.hidden;
     m_book->calc->nameText(was.scope, was.name, &e.textBefore);
+    { bool has = false; e.taggedBefore = m_book->calc->nameTagged(was.scope, was.name, &has); }
     e.textAfter = fileText(d.text, m_locale);
     if (e.before == e.after && e.textBefore == e.textAfter) return out;   // (nothing to change)
     Step step;
@@ -217,7 +218,9 @@ EditSession::Outcome EditSession::removeName(int id)
     e.after = e.before;
     e.after.alive = false;
     m_book->calc->nameText(e.before.scope, e.before.name, &e.textBefore);
+    { bool has = false; e.taggedBefore = m_book->calc->nameTagged(e.before.scope, e.before.name, &has); }
     e.textAfter = e.textBefore;
+    e.taggedAfter = e.taggedBefore;
     Step step;
     step.names.push_back(std::move(e));
     pushStep(std::move(step), tr("Delete Name"));
@@ -276,6 +279,12 @@ bool EditSession::applyNameEdits(Step *step, bool forward, Calculation *calc)
     for (NameEdit &e : step->names) {
         const NameEntry &from = forward ? e.before : e.after, &to = forward ? e.after : e.before;
         const QString &textTo = forward ? e.textAfter : e.textBefore;
+        const QString &taggedTo = forward ? e.taggedAfter : e.taggedBefore;
+        // (a name is put back as it was held when the step has it: its text in places has no line to name if the line was deleted, and a text typed is held anew)
+        auto putName = [&](const NameEntry &at, const QString &text, const QString &tagged) {
+            if (!tagged.isEmpty()) calc->setNameTagged(at.scope, at.name, true, tagged);
+            else calc->setNameText(at.scope, at.name, text);
+        };
         if (e.id == m_nameTable.slots() && !e.before.alive && forward) {
             m_nameTable.add(e.before);   // (the place a name made by this step is to have)
         }
@@ -283,7 +292,8 @@ bool EditSession::applyNameEdits(Step *step, bool forward, Calculation *calc)
         if (from.alive && !to.alive) {
             calc->setNameText(from.scope, from.name, QString());
         } else if (!from.alive && to.alive) {
-            calc->setNameText(to.scope, to.name, textTo);
+            putName(to, textTo, taggedTo);
+            if (forward) { bool has = false; e.taggedAfter = calc->nameTagged(to.scope, to.name, &has); }
         } else if (from.alive && to.alive) {
             if (forward) {
                 if (e.renamed()) {
@@ -294,9 +304,13 @@ bool EditSession::applyNameEdits(Step *step, bool forward, Calculation *calc)
                         if (!p.dataTable) markTouched(p.sheet, p.row, p.col);
                     m_nameRenames.push_back(std::move(r));
                 }
-                if (e.textBefore != e.textAfter) calc->setNameText(to.scope, to.name, e.textAfter);
+                if (e.textBefore != e.textAfter) {
+                    putName(to, e.textAfter, e.taggedAfter);
+                    bool has = false;
+                    e.taggedAfter = calc->nameTagged(to.scope, to.name, &has);
+                }
             } else {
-                if (e.textBefore != e.textAfter) calc->setNameText(from.scope, from.name, e.textBefore);
+                if (e.textBefore != e.textAfter) putName(from, e.textBefore, e.taggedBefore);
                 if (e.renamed()) {
                     NameRename inverse{e.after.name, e.before.name, e.after.scope, e.after.scope < 0 ? shadowingSheets(e.after.name) : std::vector<int>()};
                     calc->undoRenameName(e.before.scope, e.before.name, e.after.name, e.rewrite);

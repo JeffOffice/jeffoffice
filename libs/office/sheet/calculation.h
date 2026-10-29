@@ -161,6 +161,7 @@ public:
     // For tests: the formulas looked at to answer circularCells (it looks at those that were found in circles, not at every formula), and the formulas a change of a name read again.
     qint64 circleWork() const { return m_circleWork; }
     qint64 nameRebuilds() const { return m_nameRebuilds; }
+    qint64 insertedEndsWork() const { return m_insertedEndsWork; }
     // Works out the formulas typed or edited since the last recalculation, and what they need that is not worked out; what reads them is left as it is. For a workbook worked out by hand.
     Progress recalculateFresh(qint64 workBudget = 0, const std::atomic<bool> *cancel = nullptr, qint64 timeBudgetMicros = 0);
     // Formulas that have yet to be worked out.
@@ -204,6 +205,12 @@ public:
         // The first cell of an array formula: the cells it covers (valid), else not valid. A data table's first cell is marked with `dataTable`.
         CellRange arrayRange;
         bool dataTable = false;
+        // A formula held in the id frame, as it is held (the text with the ids of the lines it reads, the dead ones too) and the renumber epochs of the sheets then: put back with the formula, so that an edit
+        // undone gives the cell the lines it read, a dead end still a dead end that comes back with its line. If the ids were renumbered since (a rebase), the shown text is parsed anew.
+        bool hasHeld = false;
+        QString held, heldEpochs;
+        qint32 heldDRow = 0, heldDCol = 0;
+        quint8 heldCls = 0;
         bool operator==(const CellContent &o) const
         {
             return exists == o.exists && isFormula == o.isFormula && formula == o.formula && value == o.value && sharedString == o.sharedString && style == o.style;
@@ -447,6 +454,10 @@ public:
     bool nameText(int scope, const QString &name, QString *text) const;
     // Gives the name that text (a name that is not there is made), or takes it away when the text is empty; what uses it is worked out again.
     void setNameText(int scope, const QString &name, const QString &text);
+    // The name as it is held, for putting it back as it was (Undo of an edit of a name after a line it names was deleted: the text in places has no line to name): an opaque text, kept with the renumber
+    // epochs, and put back by setNameTagged (a name that was not there is put back with `has` false). If a sheet's ids were renumbered since, the text in places is held anew.
+    QString nameTagged(int scope, const QString &name, bool *has) const;
+    void setNameTagged(int scope, const QString &name, bool has, const QString &tagged);
     // The name given another name: every formula (the cells', the rules', the other names') that uses it follows, and `record` says what they were, for undoRenameName. A change of capitals alone
     // changes nothing (formulas read a name in any case).
     void renameName(int scope, const QString &oldName, const QString &newName, SheetRewrite *record);
@@ -657,7 +668,8 @@ private:
     static quint64 insertedKey(int sheet, bool rows, quint32 id) { return (quint64(quint32(sheet)) << 40) | (rows ? (quint64(1) << 39) : 0) | id; }
     void forgetInsertedEnds(quint32 node);
     void noteInsertedEnds(quint32 node, const std::vector<quint64> &keys);
-    std::unordered_map<quint64, std::vector<quint32>> m_readersOfInserted;
+    std::unordered_map<quint64, std::unordered_set<quint32>> m_readersOfInserted;
+    qint64 m_insertedEndsWork = 0;   // the entries looked at or changed in those lists (counted, so that a test can see that dropping 160,000 readers of one line is not quadratic)
     std::unordered_map<quint32, std::vector<quint64>> m_insertedEndsOf;
     // Whether a defined name's text (as a person writes it, in places) can be held in ids: every reference in it names its sheet and is absolute (a relative reference means a place relative to the cell
     // that uses the name, which ids can't say), no reference runs through several sheets, no word is a cell past XFD, and no range is written back to front. The others are held in places, and an edit of
@@ -667,6 +679,7 @@ private:
     QString namePlaces(const QString &key, const QString &held) const;
     // For a record: the text a name has, with a mark in front if it is held in ids; restored by restoreTaggedName.
     QString taggedName(const QString &key) const;
+    QString renumberEpochsText() const;
     void restoreTaggedName(const QString &key, const QString &tagged);
     // Formulas that use a name or a table and nothing that reads where they are (no INDIRECT, no OFFSET, no range operator): what they read is the names' and the tables' ids, which an edit of whole lines
     // does not change, so such an edit does not tell the graph about them again (they are not on the list of those it looks at)
@@ -831,7 +844,8 @@ private:
         int sheet = 0;
         bool rows = true;
         quint32 epoch = 0;                              // the sheet's epoch the edit made, for the stamps
-        quint32 gapBefore = 0xFFFFFFFFu, gapAfter = 0xFFFFFFFFu;   // set 1: the original lines either side of lines put in (or of inserted lines that died); none for no gap that a block can hold
+        quint32 gapBefore = 0xFFFFFFFFu, gapAfter = 0xFFFFFFFFu, gapLo = 0, gapHi = 0;
+        bool gapWide = false;   // the gap lies where a reference with a dead end or an end put in can have it inside: the blocks that meet the ids gapLo..gapHi are asked   // set 1: the original lines either side of lines put in (or of inserted lines that died); none for no gap that a block can hold
         std::vector<jp::calc::IdRun> deadBlank;         // set 3, lines pushed off the end of the sheet that held no cell: the formulas that can notice an empty line, of which a block holds them
         std::vector<jp::calc::IdRun> dead;              // set 3: original lines that died or came back, as runs of ids
         bool deadPair = false;                          // set 3: inserted lines that held cells died or came back, between the original lines of the gap
