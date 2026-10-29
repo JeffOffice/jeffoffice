@@ -21,18 +21,6 @@ bool FrameSheets::allPlain() const
 
 namespace {
 
-void order(RefLit *lit)
-{
-    auto flip = [&](quint32 *a, quint32 *b, quint8 abs1, quint8 abs2) {
-        if (*a <= *b) return;
-        std::swap(*a, *b);
-        const bool x = lit->flags & abs1, y = lit->flags & abs2;
-        lit->flags = quint8((lit->flags & ~(abs1 | abs2)) | (y ? abs1 : 0) | (x ? abs2 : 0));
-    };
-    flip(&lit->row1, &lit->row2, jp::calc::kRefRow1Abs, jp::calc::kRefRow2Abs);
-    flip(&lit->col1, &lit->col2, jp::calc::kRefCol1Abs, jp::calc::kRefCol2Abs);
-}
-
 bool sameCells(const RefLit &a, const RefLit &b)
 {
     return a.row1 == b.row1 && a.row2 == b.row2 && a.col1 == b.col1 && a.col2 == b.col2 && a.flags == b.flags;
@@ -69,11 +57,13 @@ bool mapReferences(const FrameSheets &sheets, int ownSheet, const QString &text,
         const MapResult m = map(sheet, &lit);
         if (m == MapResult::Fail) return false;
         if (m == MapResult::Same) continue;
-        result += text.mid(at, (m == MapResult::Gone ? r.start : r.body) - at);
+        // (a range that closed up to one cell is written as one cell)
+        if (m == MapResult::Changed && !(lit.flags & (jp::calc::kRefWholeCols | jp::calc::kRefWholeRows)) && lit.row1 == lit.row2 && lit.col1 == lit.col2 && (r.ref.row1 != r.ref.row2 || r.ref.col1 != r.ref.col2))
+            lit.flags &= quint8(~jp::calc::kRefArea);
+        result += text.mid(at, r.body - at);   // (what is gone keeps the sheet it was written with: "Sheet2!#REF!")
         if (m == MapResult::Gone) {
             result += QStringLiteral("#REF!");
         } else {
-            order(&lit);
             if (sameCells(lit, r.ref)) {
                 result += text.mid(r.body, r.end - r.body);
             } else {
@@ -128,17 +118,21 @@ bool placesToIds(const FrameSheets &sheets, int ownSheet, const QString &typed, 
         if (cells.isPlain()) return MapResult::Same;
         const bool wholeCols = lit->flags & jp::calc::kRefWholeCols, wholeRows = lit->flags & jp::calc::kRefWholeRows;
         if (!wholeCols) {
-            const quint32 a = cells.rowIdAt(lit->row1), b = cells.rowIdAt(lit->row2);
+            quint32 s0, e0;
+            bool sa, ea;
+            jp::calc::refEnds(*lit, true, &s0, &e0, &sa, &ea);
+            const quint32 a = cells.rowIdAt(s0), b = cells.rowIdAt(e0);
             if (a == CellStore::kNoLine || b == CellStore::kNoLine) return MapResult::Fail;
-            lit->row1 = a;
-            lit->row2 = b;
+            jp::calc::setRefEnds(lit, true, a, b, sa, ea);
             tooWide = tooWide || a >= kGridRows || b >= kGridRows;
         }
         if (!wholeRows) {
-            const quint32 a = cells.colIdAt(lit->col1), b = cells.colIdAt(lit->col2);
+            quint32 s0, e0;
+            bool sa, ea;
+            jp::calc::refEnds(*lit, false, &s0, &e0, &sa, &ea);
+            const quint32 a = cells.colIdAt(s0), b = cells.colIdAt(e0);
             if (a == CellStore::kNoLine || b == CellStore::kNoLine) return MapResult::Fail;
-            lit->col1 = a;
-            lit->col2 = b;
+            jp::calc::setRefEnds(lit, false, a, b, sa, ea);
             tooWide = tooWide || a >= kGridCols || b >= kGridCols;
         }
         return MapResult::Changed;
@@ -158,17 +152,20 @@ QString idsToPlaces(const FrameSheets &sheets, int ownSheet, const QString &held
         const CellStore &cells = sheets.frameCells(sheet);
         if (cells.isPlain()) return MapResult::Same;
         const bool wholeCols = lit->flags & jp::calc::kRefWholeCols, wholeRows = lit->flags & jp::calc::kRefWholeRows;
+        // (an end that was deleted is the line next to where it was; a reference with nothing left of it is gone)
         if (!wholeCols) {
-            const quint32 a = cells.rowPlaceOf(lit->row1), b = cells.rowPlaceOf(lit->row2);
-            if (a == CellStore::kNoLine || b == CellStore::kNoLine) return MapResult::Gone;
-            lit->row1 = a;
-            lit->row2 = b;
+            quint32 s0, e0, a = 0, b = 0;
+            bool sa, ea;
+            jp::calc::refEnds(*lit, true, &s0, &e0, &sa, &ea);
+            if (!cells.rowRangeOf(s0, e0, &a, &b)) return MapResult::Gone;
+            jp::calc::setRefEnds(lit, true, a, b, sa, ea);
         }
         if (!wholeRows) {
-            const quint32 a = cells.colPlaceOf(lit->col1), b = cells.colPlaceOf(lit->col2);
-            if (a == CellStore::kNoLine || b == CellStore::kNoLine) return MapResult::Gone;
-            lit->col1 = a;
-            lit->col2 = b;
+            quint32 s0, e0, a = 0, b = 0;
+            bool sa, ea;
+            jp::calc::refEnds(*lit, false, &s0, &e0, &sa, &ea);
+            if (!cells.colRangeOf(s0, e0, &a, &b)) return MapResult::Gone;
+            jp::calc::setRefEnds(lit, false, a, b, sa, ea);
         }
         return MapResult::Changed;
     };

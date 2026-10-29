@@ -1,4 +1,6 @@
 #include "sheet/recalc.h"
+
+#include "sheet/formulaframe.h"
 #include "sheet/structref.h"
 
 #include "sheet/calculation.h"
@@ -180,16 +182,16 @@ jp::calc::StructuredAnswer WorkbookSource::structuredRef(const QString &text, in
     return StructuredAnswer::Area;
 }
 
-quint32 WorkbookSource::rowPlace(int sheet, quint32 rowId) const
+bool WorkbookSource::rowRange(int sheet, quint32 startId, quint32 endId, quint32 *first, quint32 *last) const
 {
-    if (sheet < 0 || sheet >= int(m_sheets.size())) return kNoPlace;
-    return m_sheets[size_t(sheet)].cells.rowPlaceOf(rowId);
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
+    return m_sheets[size_t(sheet)].cells.rowRangeOf(startId, endId, first, last);
 }
 
-quint32 WorkbookSource::colPlace(int sheet, quint32 colId) const
+bool WorkbookSource::colRange(int sheet, quint32 startId, quint32 endId, quint32 *first, quint32 *last) const
 {
-    if (sheet < 0 || sheet >= int(m_sheets.size())) return kNoPlace;
-    return m_sheets[size_t(sheet)].cells.colPlaceOf(colId);
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
+    return m_sheets[size_t(sheet)].cells.colRangeOf(startId, endId, first, last);
 }
 
 int WorkbookSource::rowHiddenKind(int sheet, quint32 row) const
@@ -230,14 +232,48 @@ bool WorkbookSource::isSubtotal(int sheet, quint32 row, quint32 col) const
     return known[size_t(text)] == 1;
 }
 
-QString WorkbookSource::definedName(int sheet, const QString &name) const
+QString WorkbookSource::heldName(int sheet, const QString &name, bool *inIds) const
 {
     const QString upper = name.toUpper();
     if (sheet >= 0) {
-        const auto own = m_names.constFind(QString::number(sheet) + QLatin1Char('|') + upper);
-        if (own != m_names.constEnd()) return own.value();
+        const QString key = QString::number(sheet) + QLatin1Char('|') + upper;
+        const auto own = m_names.constFind(key);
+        if (own != m_names.constEnd()) {
+            *inIds = m_idNames.contains(key);
+            return own.value();
+        }
     }
-    return m_names.value(QStringLiteral("-1|") + upper);
+    const QString key = QStringLiteral("-1|") + upper;
+    const auto at = m_names.constFind(key);
+    if (at == m_names.constEnd()) {
+        *inIds = false;
+        return QString();
+    }
+    *inIds = m_idNames.contains(key);
+    return at.value();
+}
+
+QString WorkbookSource::definedName(int sheet, const QString &name) const
+{
+    bool inIds = false;
+    const QString held = heldName(sheet, name, &inIds);
+    return inIds ? idsToPlaces(*this, std::max(sheet, 0), held, jp::calc::ParseLimits::ids()) : held;
+}
+
+QHash<QString, QString> WorkbookSource::definedNameTexts() const
+{
+    if (m_idNames.isEmpty()) return m_names;
+    QHash<QString, QString> out;
+    for (auto it = m_names.constBegin(); it != m_names.constEnd(); ++it) {
+        if (!m_idNames.contains(it.key())) {
+            out.insert(it.key(), it.value());
+            continue;
+        }
+        const int bar = int(it.key().indexOf(QLatin1Char('|')));
+        const int scope = bar > 0 ? it.key().left(bar).toInt() : -1;
+        out.insert(it.key(), idsToPlaces(*this, std::max(scope, 0), it.value(), jp::calc::ParseLimits::ids()));
+    }
+    return out;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------

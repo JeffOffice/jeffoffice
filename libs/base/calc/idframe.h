@@ -28,6 +28,11 @@ struct IdSpan {
 };
 IdSpan idSpan(const LineMapCore &map, quint32 first, quint32 last, quint32 lastPlace, quint32 maxId, bool reading);
 
+// The ids [lo, hi] a reference held by the ids at its two ends is told as (`startId` is the end that was written first). An original line (below `firstNew`) is its own id, whether it is alive or was
+// deleted: the interval of a formula whose end died stays as wide as it was, so that bringing the line back finds the formula. An inserted line is the original line next to it (the one before it for the
+// start, after it for the end; a dead one, next to the line it resolves to). False for an id past `maxId`.
+bool idSpanOfEnds(const LineMapCore &map, qint64 startId, qint64 endId, quint32 maxId, IdSpan *out);
+
 // A block of one sheet in places, as the ids it is told or asked as (the sheets of the area are not looked at: the caller says which sheet's order these are).
 CellArea idArea(const RowMap &rows, const ColMap &cols, const CellArea &places, bool reading);
 

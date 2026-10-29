@@ -146,6 +146,32 @@ private Q_SLOTS:
         QVERIFY2(r.failure.ok(), qPrintable(failureText(2, steps, Options(), r)));
     }
 
+    // The same rows and columns put in at the first, at the last, and past the last of the cells, with the formulas held in ids: the whole columns and rows (flags, not ids) read what is put in, and every
+    // check passes; and with ends of references deleted and brought back by Undo and Redo between them.
+    void insertsAtTheFirstAtTheLastAndPastTheLastOfTheCellsInIds()
+    {
+        PinnedLocale pin;
+        std::vector<Step> steps;
+        for (const int sheet : {0, 1}) {
+            steps.push_back(rows(Step::InsertRows, sheet, 0));
+            steps.push_back(rows(Step::InsertRows, sheet, 40, 2));
+            steps.push_back(rows(Step::InsertRows, sheet, 60, 3));
+            steps.push_back(columns(Step::InsertColumns, sheet, 0));
+            steps.push_back(columns(Step::InsertColumns, sheet, 12));
+            steps.push_back(columns(Step::InsertColumns, sheet, 20, 2));
+            steps.push_back(rows(Step::DeleteRows, sheet, 40, 2));
+            steps.push_back(columns(Step::DeleteColumns, sheet, 0));
+            steps.push_back(rows(Step::DeleteRows, sheet, 0));
+        }
+        for (int i = 0; i < 6; ++i) steps.push_back(plain(Step::Undo));
+        for (int i = 0; i < 3; ++i) steps.push_back(plain(Step::Redo));
+        Options ids;
+        ids.idFrame = true;
+        const Result r = run(steps, ids);
+        QVERIFY2(r.failure.ok(), qPrintable(failureText(2, steps, ids, r)));
+        QCOMPARE(r.lineEditCellsMoved, qint64(0));
+    }
+
     // One step of every kind, with saves in between: cells shifted in all four ways, fill, copy and paste, cut and paste, sort, typing of formulas of every kind, and a workbook saved and opened again
     // (its shared formulas are the ones the saver writes).
     void oneStepOfEveryKind()

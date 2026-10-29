@@ -197,6 +197,41 @@ private Q_SLOTS:
         QVERIFY(s->nameListed(made));
     }
 
+    // A name that was changed after a column it names was deleted: Undo of the change, then Undo of the delete, give the name back as the file had it. (In the id frame the name is held by the
+    // column's id, and the step of a change has to keep it so, or the delete's Undo has no column to bring back to it.)
+    void undoOfANameChangeAfterADeleteThenOfTheDeleteGivesTheNameBack()
+    {
+        for (const bool ids : {false, true}) {
+            EditWindow e;
+            e.win.w.workbookLoader().setIdFrame(ids ? 1 : -1);
+            QVERIFY(e.open(namesBook()));
+            crunch::EditSession *s = e.win.w.session();
+            s->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+            QVERIFY(e.settle());
+            QCOMPARE(s->calculation()->idFrame(), ids);
+            QUndoStack *u = e.win.w.undoStack();
+            const int rate = s->names().find(-1, QStringLiteral("Rate"));
+            QVERIFY(rate >= 0);
+            QVERIFY(s->deleteColumns(0, 2, 1).ok);   // the column Rate names (C)
+            QVERIFY(e.settle());
+            QVERIFY2(s->nameTextOf(rate).contains(QLatin1String("#REF!")), qPrintable(s->nameTextOf(rate)));
+            QVERIFY(s->changeName(rate, draft(QStringLiteral("Rate"), QStringLiteral("Sheet1!$A$1"), -1, QStringLiteral("the rate"))).ok);
+            QVERIFY(e.settle());
+            QCOMPARE(s->nameTextOf(rate), QStringLiteral("=Sheet1!$A$1"));
+            u->undo();   // the change
+            QVERIFY(e.settle());
+            QVERIFY2(s->nameTextOf(rate).contains(QLatin1String("#REF!")), qPrintable(s->nameTextOf(rate)));
+            u->undo();   // the delete
+            QVERIFY(e.settle());
+            QCOMPARE(s->nameTextOf(rate), QStringLiteral("=Sheet1!$C$1"));
+            QCOMPARE(s->nameValueOf(rate), QStringLiteral("5"));
+            u->redo();
+            u->redo();
+            QVERIFY(e.settle());
+            QCOMPARE(s->nameTextOf(rate), QStringLiteral("=Sheet1!$A$1"));
+        }
+    }
+
     void aNameThatBreaksTheRulesIsRefusedWithAReason()
     {
         EditWindow e;

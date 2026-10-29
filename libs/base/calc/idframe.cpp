@@ -2,6 +2,8 @@
 
 #include "calc/formula.h"
 
+#include <utility>
+
 namespace jp::calc {
 
 IdSpan idSpan(const LineMapCore &map, quint32 first, quint32 last, quint32 lastPlace, quint32 maxId, bool reading)
@@ -21,6 +23,37 @@ IdSpan idSpan(const LineMapCore &map, quint32 first, quint32 last, quint32 lastP
         if (s.hi == kNone) s.hi = maxId;
     }
     return s;
+}
+
+bool idSpanOfEnds(const LineMapCore &map, qint64 startId, qint64 endId, quint32 maxId, IdSpan *out)
+{
+    constexpr quint32 kNone = LineMapCore::kNone;
+    if (startId < 0 || endId < 0 || startId > qint64(maxId) || endId > qint64(maxId)) return false;
+    quint32 a = quint32(startId), b = quint32(endId);
+    const quint32 firstNew = map.limits().firstNew;
+    // (the ends are in the order of the places, but a reference written before ids is put in the order of its ids; both alive and the other way round is the same range)
+    const quint32 pa = map.posOf(a), pb = map.posOf(b);
+    if (pa != kNone && pb != kNone && pa > pb) std::swap(a, b);
+    auto lineOf = [&](quint32 id, bool start) -> quint32 {
+        if (map.posOf(id) != kNone) return id;
+        return start ? map.resolveStart(id) : map.resolveEnd(id);
+    };
+    if (a < firstNew) {
+        out->lo = a;
+    } else {
+        const quint32 l = lineOf(a, true);
+        const quint32 o = l == kNone ? kNone : map.origBefore(map.posOf(l));
+        out->lo = o == kNone ? 0 : o;
+    }
+    if (b < firstNew) {
+        out->hi = b;
+    } else {
+        const quint32 l = lineOf(b, false);
+        const quint32 o = l == kNone ? kNone : map.origAfter(map.posOf(l));
+        out->hi = o == kNone ? maxId : o;
+    }
+    if (out->lo > out->hi) std::swap(out->lo, out->hi);
+    return true;
 }
 
 CellArea idArea(const RowMap &rows, const ColMap &cols, const CellArea &places, bool reading)

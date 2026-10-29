@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Makes the workbooks that `jcrunchtool edit-struct-bench` measures structural edits on.
 
-Usage: crunch_struct_bench_make.py OUT.xlsx ROWS NUMERIC_COLS [--cross] [--cf] [--dv] [--table] [--chart] [--names] [--all] [--plain]
+Usage: crunch_struct_bench_make.py OUT.xlsx ROWS NUMERIC_COLS [--cross] [--cf] [--dv] [--table] [--chart] [--names] [--all] [--plain] [--usename] [--usetable] [--threed]
 
 The sheet has ROWS rows of NUMERIC_COLS numbers and, in the next column, a formula that adds the row up (written as one shared formula
 unless --plain). Then, by flag:
@@ -11,6 +11,9 @@ unless --plain). Then, by flag:
   --table  a table of 1,000 rows by 3 columns to the right of the data
   --chart  a drawing with a column chart whose series read 200 rows of the data, and another that reads all of a column
   --names  fifty defined names over cells, rows, and the whole data
+  --usename   a formula in every row that uses one defined name (UseRate: the first 100 rows of the first column)
+  --usetable  a formula in every row that reads a column of the table (Table1[H0]; makes the table as --table does)
+  --threed    two more sheets and a thousand formulas that read a cell of all three (SUM(Sheet1:Sheet3!A2))
 """
 import sys
 import zipfile
@@ -34,6 +37,8 @@ def main():
     if '--all' in flags:
         flags |= {'--cross', '--cf', '--dv', '--table', '--chart', '--names'}
     out, rows, cols = args[0], int(args[1]), int(args[2])
+    if '--usetable' in flags:
+        flags.add('--table')
     plain = '--plain' in flags
     sumc = cols  # the column of the row sums
     lastdata = col(cols - 1)
@@ -68,6 +73,12 @@ def main():
                 fs = ['SUM(%s$1:%s$%d)' % (sumcol, sumcol, rows), 'SUM(A$1:A$%d)' % rows, 'INDEX(A$1:A$%d,%d)' % (rows, min(rows, 50 + r)),
                       'AVERAGE(%s$1:%s$%d)' % (sumcol, sumcol, rows), 'MAX(B$1:B$%d)' % rows, 'COUNT(A:A)']
                 row.append('<c r="%s%d"><f>%s</f><v>0</v></c>' % (tot, r, fs[r - 1]))
+        if '--usename' in flags:
+            row.append('<c r="%s%d"><f>MAX(UseRate)+A%d</f><v>0</v></c>' % (col(sumc + 8), r, r))
+        if '--usetable' in flags:
+            row.append('<c r="%s%d"><f>SUM(Table1[H0])+A%d</f><v>0</v></c>' % (col(sumc + 9), r, r))
+        if '--threed' in flags and r <= 1000:
+            row.append('<c r="%s%d"><f>SUM(Sheet1:Sheet3!A%d)</f><v>0</v></c>' % (col(sumc + 10), r, 2 + r % 50))
         if '--table' in flags and r <= 1001:
             if r == 1:
                 for i in range(3):
@@ -105,19 +116,26 @@ def main():
     if '--table' in flags:
         ct.append('<Override PartName="/xl/tables/table1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"/>')
         srels.append('<Relationship Id="rId2" Type="%s/table" Target="../tables/table1.xml"/>' % REL)
+    if '--threed' in flags:
+        for n in (2, 3):
+            ct.insert(-1 if False else len(ct), '<Override PartName="/xl/worksheets/sheet%d.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' % n)
     ct.append('</Types>')
 
     names = ''
+    items = []
+    if '--usename' in flags:
+        items.append('<definedName name="UseRate">Sheet1!$A$1:$A$100</definedName>')
     if '--names' in flags:
-        items = ['<definedName name="Data">Sheet1!$A$1:$%s$%d</definedName>' % (lastdata, rows),
-                 '<definedName name="Totals">Sheet1!$%s$1:$%s$%d</definedName>' % (sumcol, sumcol, rows),
-                 '<definedName name="FirstRow">Sheet1!$1:$1</definedName>', '<definedName name="WholeA">Sheet1!$A:$A</definedName>']
+        items += ['<definedName name="Data">Sheet1!$A$1:$%s$%d</definedName>' % (lastdata, rows),
+                  '<definedName name="Totals">Sheet1!$%s$1:$%s$%d</definedName>' % (sumcol, sumcol, rows),
+                  '<definedName name="FirstRow">Sheet1!$1:$1</definedName>', '<definedName name="WholeA">Sheet1!$A:$A</definedName>']
         for i in range(46):
             items.append('<definedName name="N%d">Sheet1!$%s$%d</definedName>' % (i, col(i % cols), 1 + (i * rows) // 46))
+    if items:
         names = '<definedNames>' + ''.join(items) + '</definedNames>'
-    workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="%s" xmlns:r="%s"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>%s</workbook>' % (NS, REL, names)
+    workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="%s" xmlns:r="%s"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/>%s</sheets>%s</workbook>' % (NS, REL, ('<sheet name="Sheet2" sheetId="2" r:id="rId3"/><sheet name="Sheet3" sheetId="3" r:id="rId4"/>' if '--threed' in flags else ''), names)
     wbrels = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-              '<Relationship Id="rId1" Type="%s/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="%s/styles" Target="styles.xml"/></Relationships>' % (REL, REL))
+              '<Relationship Id="rId1" Type="%s/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="%s/styles" Target="styles.xml"/>%s</Relationships>' % (REL, REL, ('<Relationship Id="rId3" Type="%s/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId4" Type="%s/worksheet" Target="worksheets/sheet3.xml"/>' % (REL, REL)) if '--threed' in flags else ''))
     styles = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="%s"><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>'
               '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
               '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>'
@@ -130,6 +148,10 @@ def main():
         z.writestr('xl/_rels/workbook.xml.rels', wbrels)
         z.writestr('xl/styles.xml', styles)
         z.writestr('xl/worksheets/sheet1.xml', sheet)
+        if '--threed' in flags:
+            for n in (2, 3):
+                rowsx = ''.join('<row r="%d"><c r="A%d"><v>%d</v></c></row>' % (r, r, r * n) for r in range(1, 61))
+                z.writestr('xl/worksheets/sheet%d.xml' % n, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="%s"><sheetData>%s</sheetData></worksheet>' % (NS, rowsx))
         if srels:
             z.writestr('xl/worksheets/_rels/sheet1.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">%s</Relationships>' % ''.join(srels))
         if '--table' in flags:

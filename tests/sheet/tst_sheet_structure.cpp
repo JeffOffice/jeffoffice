@@ -59,6 +59,7 @@ struct Book {
     std::unique_ptr<Calculation> calc;
     bool idFrame = false;   // the formulas are held in the id frame (CalcOptions::idFrame)
     bool forceOff = false;  // held in places whatever the process says (JC_ID_FRAME): for the books a test compares with ones in ids
+    QStringList tableParts;   // the XML of the tables of the first sheet (see withTables)
     // `after` is what follows the cells in the first sheet (merged ranges), `names` the inside of definedNames.
     bool open(const QVector<QStringList> &sheets, const QString &after = QString(), const QString &names = QString())
     {
@@ -69,11 +70,13 @@ struct Book {
             parts << xml;
         }
         QString why;
-        const QByteArray zip = buildXlsx(parts, QByteArray(), QString(), QString(), QByteArray(), QStringList(), names);
+        QByteArray zip = buildXlsx(parts, QByteArray(), QString(), QString(), QByteArray(), QStringList(), names);
+        if (!tableParts.isEmpty()) zip = withTables(zip, tableParts);
         if (!package.readLazy(zip, &why) || !book.open(package, &why)) return false;
         CalcOptions options;
         options.keepApart = true;
         options.workOutWhatHasNoResult = true;
+        options.workOutTables = !tableParts.isEmpty();
         options.idFrame = idFrame;
         options.idFrameOff = forceOff;
         calc.reset(new Calculation(book, options));
@@ -114,6 +117,34 @@ struct Book {
     QString formula(const QString &ref, int sheet = 0) const { return calc->content(sheet, row(ref), col(ref)).formula; }
     bool has(const QString &ref, int sheet = 0) const { return calc->content(sheet, row(ref), col(ref)).exists; }
     void finish() { while (!calc->recalculate().finished) {} }
+    // As the session does an edit of the structure: the tables of the workbook follow the cells, and the formulas that name a table read it where it is now.
+    bool applyWithTables(const StructEdit &e, Calculation::EditRecord *rec, std::vector<TablePlace> *places)
+    {
+        const bool ok = calc->applyEdit(e, rec);
+        if (ok) {
+            *places = book.moveTables(e);
+            if (!places->empty()) calc->tablesMovedByEdit();
+        }
+        finish();
+        return ok;
+    }
+    bool undoWithTables(const Calculation::EditRecord &rec, const std::vector<TablePlace> &places)
+    {
+        const bool ok = calc->undoEdit(rec);
+        if (ok) {
+            book.putTablesBack(places);
+            if (!places.empty()) calc->tablesMovedByEdit();
+        }
+        finish();
+        return ok;
+    }
+    QStringList tablePlaces() const
+    {
+        QStringList out;
+        for (const Table &t : book.tables())
+            out << QStringLiteral("%1 sheet %2 %3,%4:%5,%6 totals %7 columns %8").arg(t.name).arg(t.sheet).arg(t.row1).arg(t.col1).arg(t.row2).arg(t.col2).arg(t.totalsRows).arg(t.columns.join(QLatin1Char('|')));
+        return out;
+    }
     bool apply(const StructEdit &e, Calculation::EditRecord *rec)
     {
         Calculation::EditRecord local;
@@ -2388,29 +2419,128 @@ private Q_SLOTS:
         QCOMPARE(state(on), state(off));
     }
 
-    // A formula that reads a row that is deleted is written again (it is #REF!, or its range loses an end) as it was before ids, and Undo puts the text back; the others are not touched.
-    void aDeleteWritesAgainOnlyTheFormulasThatReadWhatDies()
+    // A formula that reads a row that is deleted is not written again: a single cell there is #REF!, and an end of a range that dies is the line next to where it was (a start the one that followed, an
+    // end the one that preceded), by the order. The text a person reads is what it was when the text was written again, and Undo brings the same rows back.
+    void aDeleteWritesNoTextAgainAndAnEndThatDiesIsTheLineNextToIt()
     {
-        Book b;
-        b.idFrame = true;
-        QVERIFY(b.open({data()}));
-        const QStringList before = state(b);
-        Calculation::EditRecord rec;
-        const Calculation::EditStats s0 = b.calc->editStats();
-        QVERIFY(b.apply(StructEdit::deleteRows(0, 4, 1), &rec));   // row 5: A$5 in B3 and the end of the range in B2
-        const Calculation::EditStats d = b.calc->editStats().since(s0);
-        QCOMPARE(b.formula("B3"), QStringLiteral("#REF!+$A2"));
-        QCOMPARE(b.formula("B2"), QStringLiteral("SUM(A1:A4)"));
-        QVERIFY(d.eagerFormulas >= 2 && d.eagerFormulas <= 3);
-        QVERIFY(b.calc->undoEdit(rec));
-        b.finish();
-        QCOMPARE(state(b), before);
-        // a row inside a range dies and no text is written for it
-        const Calculation::EditStats s1 = b.calc->editStats();
-        QVERIFY(b.apply(StructEdit::deleteRows(0, 2, 1), &rec));
-        QCOMPARE(b.formula("B1"), QStringLiteral("A1*2"));
-        QCOMPARE(b.formula("B2"), QStringLiteral("SUM(A1:A4)"));
-        QCOMPARE(b.calc->editStats().since(s1).eagerFormulas, qint64(1));   // (only C1, whose range B1:B3 loses its end; B2's range loses a row inside it and is the same ids)
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        for (Book *b : {&off, &on}) QVERIFY(b->open({data()}));
+        const QStringList before = state(on);
+        QCOMPARE(before, state(off));
+        Calculation::EditRecord rec[2];
+        const Calculation::EditStats s0 = on.calc->editStats();
+        QVERIFY(off.apply(StructEdit::deleteRows(0, 4, 1), &rec[0]));   // row 5: A$5 in B3 and the end of the range in B2
+        QVERIFY(on.apply(StructEdit::deleteRows(0, 4, 1), &rec[1]));
+        const Calculation::EditStats d = on.calc->editStats().since(s0);
+        QCOMPARE(on.formula("B3"), QStringLiteral("#REF!+$A2"));
+        QCOMPARE(on.formula("B2"), QStringLiteral("SUM(A1:A4)"));
+        QCOMPARE(on.at("B3"), QStringLiteral("e:#REF!"));
+        QCOMPARE(on.at("B2"), QStringLiteral("n:10"));
+        QCOMPARE(state(on), state(off));
+        QCOMPARE(d.eagerFormulas, qint64(0));
+        QCOMPARE(d.formulasRewritten, qint64(0));
+        QCOMPARE(d.textsMade, qint64(0));
+        QCOMPARE(d.nodesRemade, qint64(0));
+        QVERIFY(on.calc->undoEdit(rec[1]));
+        QVERIFY(off.calc->undoEdit(rec[0]));
+        on.finish();
+        off.finish();
+        QCOMPARE(state(on), before);
+        QCOMPARE(state(off), before);
+        // a row inside a range dies: the same ids, no text
+        const Calculation::EditStats s1 = on.calc->editStats();
+        QVERIFY(on.apply(StructEdit::deleteRows(0, 2, 1), &rec[1]));
+        QVERIFY(off.apply(StructEdit::deleteRows(0, 2, 1), &rec[0]));
+        QCOMPARE(on.formula("B1"), QStringLiteral("A1*2"));
+        QCOMPARE(on.formula("B2"), QStringLiteral("SUM(A1:A4)"));
+        QCOMPARE(on.calc->editStats().since(s1).eagerFormulas, qint64(0));
+        QCOMPARE(state(on), state(off));
+    }
+
+    // A start that dies is the line that followed it, an end the line that preceded it; a range whose lines are all gone is #REF!; and Undo brings the same lines back and every reference reads them
+    // again. A line put in next to the dead ones afterwards is outside the range (docs/jeffcrunch-rowids.md, 4.4). Checked against the formulas in places after every step.
+    void aDeadStartAndEndAndARangeWhoseRowsAreAllGone()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        const QStringList data = {"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "A6=6"};
+        const QStringList reads = {"A1==SUM(Sheet1!A2:A5)", "A2==Sheet1!A3+Sheet1!A$4", "A3==SUM(Sheet1!A$3:A4)", "A4==COUNT(Sheet1!A3:A3)", "A5==SUM(Sheet1!A:A)", "A6==SUM(Sheet1!$A$2:$A$3)+ROWS(Sheet1!A2:A5)"};
+        for (Book *b : {&off, &on}) QVERIFY(b->open({data, reads}));
+        std::vector<Calculation::EditRecord> recs[2];
+        auto same = [&]() { QCOMPARE(state(on), state(off)); };
+        auto text = [&](const char *cell, const QString &want) { QCOMPARE(on.formula(QString::fromLatin1(cell), 1), want); QCOMPARE(off.formula(QString::fromLatin1(cell), 1), want); };
+        auto both = [&](const StructEdit &e) {
+            for (Book *b : {&off, &on}) {
+                recs[b == &on].emplace_back();
+                QVERIFY(b->apply(e, &recs[b == &on].back()));
+            }
+            same();
+        };
+        auto undo = [&]() {
+            for (Book *b : {&off, &on}) {
+                QVERIFY(b->calc->undoEdit(recs[b == &on].back()));
+                recs[b == &on].pop_back();
+                b->finish();
+            }
+            same();
+        };
+        auto redo = [&](const StructEdit &e) {
+            for (Book *b : {&off, &on}) {
+                recs[b == &on].emplace_back();
+                QVERIFY(b->calc->applyEdit(e, &recs[b == &on].back()));
+                b->finish();
+            }
+            same();
+        };
+        const Calculation::EditStats s0 = on.calc->editStats();
+        // the named sequence: delete a (the start), delete b (the start goes on to c), Undo (b is the start), Redo, Undo twice, do both again, put a row between the live neighbors of the dead ones
+        both(StructEdit::deleteRows(0, 1, 1));
+        text("A1", QStringLiteral("SUM(Sheet1!A2:A4)"));
+        text("A6", QStringLiteral("SUM(Sheet1!$A$2)+ROWS(Sheet1!A2:A4)"));   // (A$2:A$3 lost its start and closed up to the one cell)
+        both(StructEdit::deleteRows(0, 1, 1));
+        text("A1", QStringLiteral("SUM(Sheet1!A2:A3)"));
+        text("A6", QStringLiteral("SUM(Sheet1!#REF!)+ROWS(Sheet1!A2:A3)"));
+        undo();
+        text("A1", QStringLiteral("SUM(Sheet1!A2:A4)"));
+        redo(StructEdit::deleteRows(0, 1, 1));
+        text("A1", QStringLiteral("SUM(Sheet1!A2:A3)"));
+        undo();
+        undo();
+        text("A1", QStringLiteral("SUM(Sheet1!A2:A5)"));
+        QCOMPARE(on.at("A1", 1), QStringLiteral("n:14"));
+        redo(StructEdit::deleteRows(0, 1, 1));
+        redo(StructEdit::deleteRows(0, 1, 1));
+        both(StructEdit::insertRows(0, 1, 1));   // (between the live neighbors of the dead rows: before the start)
+        text("A1", QStringLiteral("SUM(Sheet1!A3:A4)"));
+        both(StructEdit::insertRows(0, 4, 1));   // (after the end: outside as well)
+        text("A1", QStringLiteral("SUM(Sheet1!A3:A4)"));
+        undo();
+        undo();
+        undo();
+        undo();
+        text("A1", QStringLiteral("SUM(Sheet1!A2:A5)"));
+        // every row of a range gone
+        both(StructEdit::deleteRows(0, 1, 4));
+        text("A1", QStringLiteral("SUM(Sheet1!#REF!)"));
+        QCOMPARE(on.at("A1", 1), QStringLiteral("e:#REF!"));
+        QCOMPARE(on.at("A6", 1), QStringLiteral("e:#REF!"));
+        undo();
+        QCOMPARE(on.at("A1", 1), QStringLiteral("n:14"));
+        // a range that closes up to one cell is shown as one cell
+        both(StructEdit::deleteRows(0, 3, 1));
+        text("A1", QStringLiteral("SUM(Sheet1!A2:A4)"));
+        both(StructEdit::deleteRows(0, 2, 1));
+        text("A1", QStringLiteral("SUM(Sheet1!A2:A3)"));
+        text("A4", QStringLiteral("COUNT(Sheet1!#REF!)"));   // (its one cell went with the second of those rows)
+        // the work: no formula's text was written again or made again for any of it
+        const Calculation::EditStats d = on.calc->editStats().since(s0);
+        QCOMPARE(d.formulasRewritten, qint64(0));
+        QCOMPARE(d.textsMade, qint64(0));
+        QCOMPARE(d.eagerFormulas, qint64(0));
+        QCOMPARE(d.nodesRemade, qint64(0));
     }
 
     // The order of the ids is renumbered by a rebase (compaction): the texts are written again with the new ids and every formula reads and shows what it did, and a family of cells that shared one
@@ -2498,6 +2628,777 @@ private Q_SLOTS:
                 else QCOMPARE(b->at("B1"), was[b == &on]);
             }
             QCOMPARE(was[1], was[0]);
+        }
+    }
+
+    // A whole column (SUM(A:A)) reads every row: the rows put in at the top, after the data, and far past it as well, and a whole row every column. They are flags of the reference, not ids, so no formula
+    // is written again or made again for any of the inserts, and every value is what it is with the formulas in places.
+    void aWholeColumnAndAWholeRowReadWhatIsPutInAtTheTopAtTheEndAndPastIt()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        for (Book *b : {&off, &on}) QVERIFY(b->open({{"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "B3=10", "C3=20", "D1==SUM(A:A)", "D2==SUM(3:3)", "E1==COUNTA(A:A)+ROWS(A:A)*0"}}));
+        QCOMPARE(on.at("D1"), QStringLiteral("n:15"));
+        QCOMPARE(on.at("D2"), QStringLiteral("n:33"));
+        const Calculation::EditStats s0 = on.calc->editStats();
+        auto both = [&](const StructEdit &e) {
+            for (Book *b : {&off, &on}) QVERIFY(b->apply(e, nullptr));
+            QCOMPARE(state(on), state(off));
+        };
+        auto type = [&](quint32 row, quint32 col, double v) {
+            for (Book *b : {&off, &on}) {
+                QVERIFY(b->calc->setValue(0, row, col, jp::calc::Value::number(v)));
+                b->finish();
+            }
+            QCOMPARE(state(on), state(off));
+        };
+        both(StructEdit::insertRows(0, 0, 1));              // at the top: the formulas are in rows 2 to 4 now
+        type(0, 0, 100);
+        QCOMPARE(on.at("D2"), QStringLiteral("n:115"));
+        both(StructEdit::insertRows(0, 6, 1));              // after the last row of data (row 6)
+        type(6, 0, 1000);
+        QCOMPARE(on.at("D2"), QStringLiteral("n:1115"));
+        both(StructEdit::insertRows(0, 500, 1));            // past it
+        type(500, 0, 10000);
+        QCOMPARE(on.at("D2"), QStringLiteral("n:11115"));
+        QCOMPARE(on.formula("D2"), QStringLiteral("SUM(A:A)"));
+        QCOMPARE(on.formula("D3"), QStringLiteral("SUM(4:4)"));   // (the whole row followed its cells)
+        QCOMPARE(on.at("E2"), QStringLiteral("n:8"));              // (COUNTA(A:A): the three numbers typed in the rows put in and the five of the data)
+        QCOMPARE(on.at("D3"), QStringLiteral("n:33"));
+        // columns at the first column, after the data, and past it, read by the whole row
+        both(StructEdit::insertColumns(0, 0, 1));
+        type(3, 0, 100);                                    // (row 4 of the sheet, which row 3 became)
+        QCOMPARE(on.at("E3"), QStringLiteral("n:133"));
+        both(StructEdit::insertColumns(0, 20, 1));
+        type(3, 20, 1000);
+        QCOMPARE(on.at("E3"), QStringLiteral("n:1133"));
+        const Calculation::EditStats d = on.calc->editStats().since(s0);
+        QCOMPARE(d.formulasRewritten, qint64(0));
+        QCOMPARE(d.eagerFormulas, qint64(0));
+        QCOMPARE(d.nodesRemade, qint64(0));
+        QCOMPARE(d.textsMade, qint64(0));
+        // a whole column loses the column that dies (an end of the reference dies: nothing is written again for it), the others are the same, and Undo brings it back
+        std::vector<Calculation::EditRecord> recs(2);
+        const Calculation::EditStats s1 = on.calc->editStats();
+        for (size_t m = 0; m < 2; ++m) {
+            Book &b = m ? on : off;
+            QVERIFY(b.apply(StructEdit::deleteColumns(0, 1, 1), &recs[m]));   // the column of A (now B)
+        }
+        QCOMPARE(on.calc->editStats().since(s1).eagerFormulas, qint64(0));
+        QCOMPARE(on.calc->editStats().since(s1).formulasRewritten, qint64(0));
+        QCOMPARE(state(on), state(off));
+        QCOMPARE(on.at("D2"), QStringLiteral("e:#REF!"));   // (SUM(A:A) lost its column: it is in the column before now)
+        for (size_t m = 0; m < 2; ++m) {
+            Book &b = m ? on : off;
+            QVERIFY(b.calc->undoEdit(recs[m]));
+            b.finish();
+        }
+        QCOMPARE(state(on), state(off));
+        QCOMPARE(on.at("E3"), QStringLiteral("n:1133"));
+    }
+
+    // A reference through several sheets (Sheet1:Sheet3!A2) names the same place on every sheet, and the sheets have each an order of their own, so it is held in places: an edit of a sheet it spans
+    // makes it again, one of another sheet does not, and with the formulas in places or in ids every value and every text is the same.
+    void aReferenceThroughSeveralSheetsIsTheSameInBothModes()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        const QStringList s1 = {"A1=1", "A2=2", "A3=3", "B1==SUM(Sheet1:Sheet3!A2)", "B2==SUM(Sheet2:Sheet3!A1:A3)+A1"};
+        const QStringList s2 = {"A1=10", "A2=20", "A3=30"};
+        const QStringList s3 = {"A1=100", "A2=200", "A3=300"};
+        const QStringList s4 = {"A1=5", "A2=6", "B1==Sheet3!A2+Sheet4!A1"};
+        for (Book *b : {&off, &on}) QVERIFY(b->open({s1, s2, s3, s4}));
+        QCOMPARE(on.at("B1"), QStringLiteral("n:222"));
+        QCOMPARE(on.calc->positionalFormulas(), qint64(2));
+        QCOMPARE(off.calc->positionalFormulas(), qint64(0));
+        std::vector<Calculation::EditRecord> recs[2];
+        auto both = [&](const StructEdit &e) {
+            for (Book *b : {&off, &on}) {
+                recs[b == &on].emplace_back();
+                QVERIFY(b->apply(e, &recs[b == &on].back()));
+            }
+            QCOMPARE(state(on), state(off));
+        };
+        const qint64 remade0 = on.calc->editStats().nodesRemade;
+        both(StructEdit::insertRows(1, 0, 1));      // Sheet2, which the reference spans: A2 of it is the old A1
+        QCOMPARE(on.at("B1"), QStringLiteral("n:212"));
+        QCOMPARE(on.formula("B1"), QStringLiteral("SUM(Sheet1:Sheet3!A2)"));
+        both(StructEdit::deleteRows(2, 1, 1));      // Sheet3
+        both(StructEdit::insertColumns(0, 0, 1));   // Sheet1: its own cells move; the reference reads A2 of every sheet, which is not where Sheet1's A2 went
+        both(StructEdit::deleteRows(1, 0, 2));
+        QVERIFY(on.calc->editStats().nodesRemade - remade0 >= 4);   // (made again: each of the two that spans the edited sheet, as before ids)
+        // an edit of a sheet that no reference spans leaves them alone
+        const qint64 remade1 = on.calc->editStats().nodesRemade;
+        both(StructEdit::insertRows(3, 0, 2));
+        QCOMPARE(on.calc->editStats().nodesRemade, remade1);
+        while (!recs[1].empty()) {
+            for (Book *b : {&off, &on}) {
+                QVERIFY(b->calc->undoEdit(recs[b == &on].back()));
+                recs[b == &on].pop_back();
+                b->finish();
+            }
+            QCOMPARE(state(on), state(off));
+        }
+        QCOMPARE(on.at("B1"), QStringLiteral("n:222"));
+    }
+
+    // Defined names are held in ids like formulas: an edit of whole rows or columns writes no name again and makes no formula that uses one again (counted by the formulas, 4.14), the text a person
+    // reads for a name (Names, Find) is in places, a single cell or a range whose lines die is #REF! or the lines next to them, Undo and a rebase keep every name, and the values and texts are those of the
+    // workbook with the names in places. A name with a relative reference (a place relative to the cell that uses it) stays in places and is written again as before ids.
+    void definedNamesAreHeldByIdAndFollowEveryEdit()
+    {
+        const QString names = QStringLiteral("<definedName name=\"Data\">Sheet1!$A$1:$A$10</definedName><definedName name=\"Last\">Sheet1!$A$10</definedName><definedName name=\"Total\">Sheet1!$A$3</definedName>"
+                                             "<definedName name=\"Cols\">Sheet1!$A$2:$C$2</definedName><definedName name=\"Other\">Sheet2!$B$1</definedName>");
+        QStringList cells = {"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "A6=6", "A7=7", "A8=8", "A9=9", "A10=10", "B2=20", "C2=30", "B1==Last*2", "B3==Total+1", "B4==SUM(Cols)+Other", "B5==SUM(Data)+Sheet2!A2"};
+        for (int r = 1; r <= 400; ++r) cells << QStringLiteral("D%1==SUM(Data)+A%1").arg(r + 11);
+        const QStringList other = {"A1=100", "A2=200", "B1=7"};
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        for (Book *b : {&off, &on}) QVERIFY(b->open({cells, other}, QString(), names));
+        QCOMPARE(on.at("B5"), QStringLiteral("n:255"));
+        auto textsOf = [&](Book &b) {
+            QStringList out;
+            for (const char *name : {"Data", "Last", "Total", "Cols", "Other"}) {
+                QString t;
+                b.calc->nameText(-1, QString::fromLatin1(name), &t);
+                out << QStringLiteral("%1=%2").arg(QString::fromLatin1(name), t);
+            }
+            return out;
+        };
+        QCOMPARE(textsOf(on), textsOf(off));
+        std::vector<Calculation::EditRecord> recs[2];
+        const Calculation::EditStats s0 = on.calc->editStats();
+        auto both = [&](const StructEdit &e) {
+            for (Book *b : {&off, &on}) {
+                recs[b == &on].emplace_back();
+                QVERIFY(b->apply(e, &recs[b == &on].back()));
+            }
+            QCOMPARE(state(on), state(off));
+            QCOMPARE(textsOf(on), textsOf(off));
+        };
+        // edits that touch the cells of a name, an end of it, and the whole of it; none writes a name or makes a formula that uses one again
+        both(StructEdit::insertRows(0, 0, 1));
+        QCOMPARE(textsOf(on)[0], QStringLiteral("Data=Sheet1!$A$2:$A$11"));
+        both(StructEdit::insertRows(0, 6, 2));      // inside Data
+        QCOMPARE(textsOf(on)[0], QStringLiteral("Data=Sheet1!$A$2:$A$13"));
+        both(StructEdit::insertColumns(0, 1, 1));   // inside Cols
+        QCOMPARE(textsOf(on)[3], QStringLiteral("Cols=Sheet1!$A$3:$D$3"));
+        both(StructEdit::deleteRows(0, 12, 1));     // the last row of Data and the cell Last is
+        QCOMPARE(textsOf(on)[0], QStringLiteral("Data=Sheet1!$A$2:$A$12"));
+        QCOMPARE(textsOf(on)[1], QStringLiteral("Last=Sheet1!#REF!"));
+        both(StructEdit::deleteRows(0, 3, 1));      // the cell Total is
+        QCOMPARE(textsOf(on)[2], QStringLiteral("Total=Sheet1!#REF!"));
+        const Calculation::EditStats d = on.calc->editStats().since(s0);
+        QCOMPARE(d.namesRewritten, qint64(0));
+        QCOMPARE(d.namesRegisteredAgain, qint64(0));
+        QCOMPARE(d.nodesRemade, qint64(0));
+        QCOMPARE(d.formulasRewritten, qint64(0));
+        QVERIFY(on.calc->nameCount() == 5);
+        // Undo brings every name and what it stands for back, and Redo takes it away again
+        for (int i = 0; i < 5; ++i) {
+            for (Book *b : {&off, &on}) {
+                QVERIFY(b->calc->undoEdit(recs[b == &on].back()));
+                recs[b == &on].pop_back();
+                b->finish();
+            }
+            QCOMPARE(state(on), state(off));
+            QCOMPARE(textsOf(on), textsOf(off));
+        }
+        QCOMPARE(textsOf(on)[0], QStringLiteral("Data=Sheet1!$A$1:$A$10"));
+        QCOMPARE(on.at("B5"), QStringLiteral("n:255"));
+        // a name typed in places after edits is held by ids, and a rebase renumbers it with the rest
+        both(StructEdit::insertRows(0, 0, 2));
+        both(StructEdit::deleteRows(0, 4, 1));
+        for (Book *b : {&off, &on}) {
+            b->calc->setNameText(-1, QStringLiteral("Later"), QStringLiteral("Sheet1!$A$5:$A$6"));
+            QVERIFY(b->calc->setFormula(0, 20, 5, QStringLiteral("SUM(Later)+SUM(Data)")));
+            b->finish();
+        }
+        QCOMPARE(state(on), state(off));
+        std::vector<jp::calc::LineMapCore::Renumber> table;
+        QVERIFY(on.calc->compactLines(0, true, &table));
+        QVERIFY(on.calc->compactLines(0, false, &table));
+        on.finish();
+        QCOMPARE(state(on), state(off));
+        QCOMPARE(textsOf(on), textsOf(off));
+        QString later[2];
+        on.calc->nameText(-1, QStringLiteral("Later"), &later[1]);
+        off.calc->nameText(-1, QStringLiteral("Later"), &later[0]);
+        QCOMPARE(later[1], later[0]);
+        both(StructEdit::insertRows(0, 0, 1));
+    }
+
+    // A name that is relative to the cell that uses it (a row that is not absolute), a name through several sheets, and a word of a formula that could be a cell past XFD are held in places, as before ids:
+    // the first is written again by an edit of columns, and the values and texts are those of the workbook with every name in places.
+    void namesThatIdsCannotHoldStayInPlaces()
+    {
+        const QString names = QStringLiteral("<definedName name=\"Rel\">Sheet1!A2</definedName><definedName name=\"Mixed\">Sheet1!$A2</definedName><definedName name=\"Span\">SUM(Sheet1:Sheet2!$A$1)</definedName>"
+                                             "<definedName name=\"ABCD1\">Sheet1!$A$3</definedName><definedName name=\"Abs\">Sheet1!$A$4</definedName>");
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        for (Book *b : {&off, &on}) QVERIFY(b->open({{"A1=1", "A2=2", "A3=3", "A4=4", "C1==Rel*10", "C2==Span+ABCD1", "C3==Abs*2", "C4==Mixed*3"}, {"A1=5"}}, QString(), names));
+        const Calculation::EditStats s0 = on.calc->editStats();
+        for (Book *b : {&off, &on}) {
+            QVERIFY(b->apply(StructEdit::insertColumns(0, 0, 1), nullptr));
+            QVERIFY(b->apply(StructEdit::insertRows(0, 0, 1), nullptr));
+            QVERIFY(b->apply(StructEdit::deleteRows(0, 2, 1), nullptr));
+            QVERIFY(b->apply(StructEdit::deleteColumns(0, 3, 1), nullptr));
+        }
+        QCOMPARE(state(on), state(off));
+        for (const char *name : {"Rel", "Mixed", "Span", "ABCD1", "Abs"}) {
+            QString a, b;
+            on.calc->nameText(-1, QString::fromLatin1(name), &a);
+            off.calc->nameText(-1, QString::fromLatin1(name), &b);
+            QCOMPARE(a, b);
+        }
+        const Calculation::EditStats d = on.calc->editStats().since(s0);
+        QVERIFY(d.namesRewritten >= 1);   // (Mixed is written again by the column put in; Abs, in ids, is not)
+        QVERIFY(d.namesRewritten < off.calc->editStats().namesRewritten);
+    }
+
+    // A line put inside a block, and taken away again by Undo, changes what a formula that counts or picks lines reads (INDEX, COLUMNS): it is worked out again when the line dies, as it is when it comes.
+    void anInsertedLineThatIsUndoneAsksTheFormulasThatCanNoticeIt()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        for (Book *b : {&off, &on}) QVERIFY(b->open({{"A1=1", "B1=2", "C1=3", "A2=4", "B2=5", "C2=6", "E1==INDEX(A1:C2,1,2)", "E2==COLUMNS(A1:C2)", "E3==SUM(A1:C2)"}}));
+        std::vector<Calculation::EditRecord> recs[2];
+        auto both = [&](const StructEdit &e) {
+            for (Book *b : {&off, &on}) {
+                recs[b == &on].emplace_back();
+                QVERIFY(b->apply(e, &recs[b == &on].back()));
+            }
+            QCOMPARE(state(on), state(off));
+        };
+        auto undo = [&]() {
+            for (Book *b : {&off, &on}) {
+                QVERIFY(b->calc->undoEdit(recs[b == &on].back()));
+                recs[b == &on].pop_back();
+                b->finish();
+            }
+            QCOMPARE(state(on), state(off));
+        };
+        both(StructEdit::insertColumns(0, 0, 2));
+        both(StructEdit::deleteColumns(0, 3, 1));    // the second column of the block
+        both(StructEdit::insertColumns(0, 3, 1));    // one put between what is left of it
+        QCOMPARE(on.at("G1"), QStringLiteral("n:0"));
+        undo();
+        QCOMPARE(on.at("F1"), QStringLiteral("n:3"));
+        QCOMPARE(on.at("F2"), QStringLiteral("n:2"));
+        undo();
+        undo();
+        QCOMPARE(on.at("E1"), QStringLiteral("n:2"));
+    }
+
+    // A formula that is deleted, or written again by cells that shift, after a line it reads died: Undo of both, one after the other, gives it back reading that line (the text a person read had the line next
+    // to it, or #REF!); with the formulas in places the record of the first step has the old text.
+    void aFormulaWrittenOrDeletedAfterItsLineDiedReadsTheLineAgainWhenBothAreUndone()
+    {
+        for (const int variant : {0, 1}) {
+            Book on, off;
+            on.idFrame = true;
+            off.forceOff = true;
+            for (Book *b : {&off, &on}) QVERIFY(b->open({{"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "C6==SUM(A2:A4)+A2", "D1==SUM(A1:A5)", "D2==A3*2"}}));
+            const QStringList start = state(on);
+            QCOMPARE(start, state(off));
+            std::vector<Calculation::EditRecord> recs[2];
+            CellRange block;
+            block.valid = true;
+            block.row1 = 2;
+            block.row2 = 3;
+            block.col1 = 0;
+            block.col2 = 0;
+            const QVector<StructEdit> edits = {StructEdit::deleteRows(0, 1, 1),   // the first row C6 reads
+                                               variant == 0 ? StructEdit::deleteRows(0, 4, 1)   // and the row C6 is in
+                                                            : StructEdit::insertCellsDown(0, block)};   // or cells that C6 reads are shifted: its text is written again
+            for (const StructEdit &e : edits)
+                for (Book *b : {&off, &on}) {
+                    recs[b == &on].emplace_back();
+                    QVERIFY(b->apply(e, &recs[b == &on].back()));
+                }
+            QCOMPARE(state(on), state(off));
+            for (int i = 0; i < 2; ++i) {
+                for (Book *b : {&off, &on}) {
+                    QVERIFY(b->calc->undoEdit(recs[b == &on].back()));
+                    recs[b == &on].pop_back();
+                    b->finish();
+                }
+                QCOMPARE(state(on), state(off));
+            }
+            QCOMPARE(state(on), start);
+            QCOMPARE(on.formula("C6"), QStringLiteral("SUM(A2:A4)+A2"));
+        }
+    }
+
+    // A range whose start died and now resolves to a line that was inserted: when that line goes, the range has other lines (COLUMNS(A1:C1) over a column put in at B, then column A deleted twice). The
+    // question after an edit named only the formulas whose block holds the lines either side of the gap, and a dead end is not in any block. Both modes, and the same as a calculation from nothing.
+    void aRangeWhoseEndDiedAndNowResolvesToAnInsertedLineIsAskedWhenThatLineGoes()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        for (Book *b : {&off, &on}) QVERIFY(b->open({{"A1=1", "B1=2", "C1=3", "D1=4", "E1==COLUMNS(A1:C1)", "E2==SUM(A1:C1)", "E3==INDEX(A1:C1,1,2)"}}));
+        std::vector<Calculation::EditRecord> recs[2];
+        auto both = [&](const StructEdit &e) {
+            for (Book *b : {&off, &on}) {
+                recs[b == &on].emplace_back();
+                QVERIFY(b->apply(e, &recs[b == &on].back()));
+            }
+            QCOMPARE(state(on), state(off));
+        };
+        both(StructEdit::insertColumns(0, 1, 1));
+        QCOMPARE(on.at("F1"), QStringLiteral("n:4"));
+        both(StructEdit::deleteColumns(0, 0, 1));
+        QCOMPARE(on.at("E1"), QStringLiteral("n:3"));
+        both(StructEdit::deleteColumns(0, 0, 1));
+        QCOMPARE(on.at("D1"), QStringLiteral("n:2"));
+        QCOMPARE(off.at("D1"), QStringLiteral("n:2"));
+        QCOMPARE(on.at("D3"), QStringLiteral("n:3"));
+        for (Book *b : {&off, &on}) {
+            b->calc->invalidateAll();
+            b->finish();
+        }
+        QCOMPARE(on.at("D1"), QStringLiteral("n:2"));
+        // and Undo of the second delete, which brings the line back
+        for (Book *b : {&off, &on}) {
+            QVERIFY(b->calc->undoEdit(recs[b == &on].back()));
+            b->finish();
+        }
+        QCOMPARE(state(on), state(off));
+        QCOMPARE(on.at("E1"), QStringLiteral("n:3"));
+    }
+
+    // A text in places that is written again by an edit as a text that ids can hold (a range written back to front is put in order) is held in ids from then on: its node tells the graph again and is in the
+    // list of the formulas that have an inserted line at an end, so that the line going is asked of it.
+    void aFormulaThatIsHeldInIdsOnceItIsWrittenAgainIsAskedWhenAnEndGoes()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        QStringList s1;
+        for (int r = 1; r <= 16; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(r);
+        for (Book *b : {&off, &on}) QVERIFY(b->open({s1, {"A1=1", "B1=2", "C1=3"}}));
+        for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::insertColumns(1, 0, 2), nullptr));
+        for (Book *b : {&off, &on}) {
+            QVERIFY(b->calc->setFormula(0, 7, 9, QStringLiteral("SUM(Sheet2!A12:A1)")));   // (back to front: held in places)
+            b->finish();
+        }
+        QCOMPARE(on.calc->positionalFormulas(), qint64(1));
+        for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::insertColumns(1, 0, 2), nullptr));
+        QCOMPARE(on.calc->positionalFormulas(), qint64(0));   // (written in order, it is held in ids)
+        for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::deleteColumns(1, 2, 2), nullptr));
+        QCOMPARE(state(on), state(off));
+        for (Book *b : {&off, &on}) {
+            b->calc->invalidateAll();
+            b->finish();
+        }
+        QCOMPARE(state(on), state(off));
+    }
+
+    // A rebase of the rows keeps the order of the ends of a reference on the columns, as the text names them (a range from a column that was inserted to one before it): else a dead end is read the wrong way.
+    void aRebaseOfOneKindOfLineKeepsTheOrderOfTheEndsOnTheOther()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        QStringList s1;
+        for (int r = 1; r <= 8; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(r) << QStringLiteral("B%1=%2").arg(r).arg(r * 10);
+        for (Book *b : {&off, &on}) QVERIFY(b->open({s1}));
+        for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::insertColumns(0, 1, 1), nullptr));   // a column between A and B
+        for (Book *b : {&off, &on}) {
+            QVERIFY(b->calc->setFormula(0, 9, 0, QStringLiteral("SUM(C1:B3)")));   // written back to front, from a column of the file's to the inserted one
+            b->finish();
+        }
+        std::vector<jp::calc::LineMapCore::Renumber> table;
+        QVERIFY(on.calc->compactLines(0, true, &table));   // a rebase of the rows
+        on.finish();
+        QCOMPARE(state(on), state(off));
+        QCOMPARE(on.formula("A10"), off.formula("A10"));   // (the columns are still named as they were written)
+        for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::deleteColumns(0, 1, 1), nullptr));   // the column that was put in goes
+        QCOMPARE(state(on), state(off));
+        QCOMPARE(on.formula("A10"), off.formula("A10"));
+    }
+
+    // A formula kept apart (a function the engine lacks) is put back by Undo as it was held, a line that had died before still being that line.
+    void aFormulaKeptApartIsPutBackReadingTheLineThatHadDied()
+    {
+        for (const int variant : {0, 1}) {
+            Book on, off;
+            on.idFrame = true;
+            off.forceOff = true;
+            QStringList cells = {"A5=1", "B5=2", "C5=3", "A6=4", "B6=5", "C6=6", "A7=7", "B7=8", "C7=9"};
+            cells << (variant == 0 ? "H1==NOSUCHFN(A5:C7)" : "H1==H1+SUM(A5:C7)");
+            for (Book *b : {&off, &on}) QVERIFY(b->open({cells}));
+            const QStringList start = state(on);
+            std::vector<Calculation::EditRecord> recs[2];
+            for (const StructEdit &e : {StructEdit::deleteColumns(0, 0, 1), StructEdit::insertColumns(0, 0, 1)})
+                for (Book *b : {&off, &on}) {
+                    recs[b == &on].emplace_back();
+                    QVERIFY(b->apply(e, &recs[b == &on].back()));
+                }
+            QCOMPARE(state(on), state(off));
+            for (int i = 0; i < 2; ++i)
+                for (Book *b : {&off, &on}) {
+                    QVERIFY(b->calc->undoEdit(recs[b == &on].back()));
+                    recs[b == &on].pop_back();
+                    b->finish();
+                }
+            QCOMPARE(state(on), state(off));
+            QCOMPARE(on.formula("H1"), off.formula("H1"));
+            QVERIFY2(on.formula("H1").contains(QLatin1String("A5:C7")), qPrintable(on.formula("H1")));
+        }
+    }
+
+    // The formula the review found (a block of cells put in below inside the columns a range reads, after a column it starts on was deleted): Undo of the cells and then of the column delete shows the range
+    // from the column that came back, as before.
+    void undoOfAnEditPutsBackTheDeadEndOfAFormulaItRewrote()
+    {
+      for (const char *text : {"E2==SUM(A2:C4)", "E2==NOSUCHFN(A2:C4)", "E2==SUM(A2:C4)+E2"}) {   // (a formula that is worked out, one the engine lacks, and a circle: the last two are kept apart)
+        QStringList s1;
+        for (int r = 1; r <= 16; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(r);
+        s1 << QString::fromLatin1(text);
+        Book off, on;
+        on.idFrame = true;
+        off.forceOff = true;
+        for (Book *b : {&off, &on}) QVERIFY(b->open({s1, {"A1=1"}}));
+        std::vector<Calculation::EditRecord> recs[2];
+        auto both = [&](const StructEdit &e) {
+            for (Book *b : {&off, &on}) {
+                recs[b == &on].emplace_back();
+                QVERIFY(b->apply(e, &recs[b == &on].back()));
+            }
+            QCOMPARE(state(on), state(off));
+        };
+        auto undo = [&]() {
+            for (Book *b : {&off, &on}) {
+                QVERIFY(b->calc->undoEdit(recs[b == &on].back()));
+                recs[b == &on].pop_back();
+                b->finish();
+            }
+            QCOMPARE(state(on), state(off));
+        };
+        both(StructEdit::insertRows(0, 0, 3));
+        both(StructEdit::deleteColumns(0, 0, 1));
+        CellRange blk;
+        blk.valid = true;
+        blk.row1 = 6;
+        blk.row2 = 9;
+        blk.col1 = 0;
+        blk.col2 = 1;
+        both(StructEdit::insertCellsDown(0, blk));
+        undo();
+        undo();
+        QCOMPARE(on.formula("E5"), off.formula("E5"));
+        QVERIFY2(on.formula("E5").contains(QLatin1String("A5:C7")), qPrintable(on.formula("E5")));
+      }
+    }
+
+    // The edits the differential test found that flipped the ends of a reference on the other axis at a rebase (seeds 167 and 213 of the first 600): the first rebases the rows of a book whose columns are
+    // named back to front by a name and a formula, the second a name.
+    void aRebaseKeepsTheOrderOfTheEndsOfWhatItDoesNotRenumber()
+    {
+        auto mk = [](int kind, int sheet, quint32 at, quint32 count, const char *typed, quint32 row, quint32 col, const char *nm, const char *nameTxt, quint32 bcol2) {
+            Op o;
+            o.kind = kind;
+            o.sheet = sheet;
+            o.at = at;
+            o.count = count;
+            o.typed = QString::fromLatin1(typed);
+            o.row = row;
+            o.col = col;
+            o.nm = QString::fromLatin1(nm);
+            o.nameTxt = QString::fromLatin1(nameTxt);
+            o.bcol2 = bcol2;
+            return o;
+        };
+        int at = -1;
+        const std::vector<Op> first = {
+        mk(4, 0, 0, 2, "SUM(Sheet1!A4:A9)+N1", 4, 7, "N3", "Sheet1!$B$1:$B$4", 0),
+        mk(1, 0, 1, 4, "SUM(Sheet1!A5:A11)+N1", 5, 9, "N1", "Sheet1!$A$5:$A$12", 1),
+        mk(9, 1, 7, 2, "SUM(Sheet1!A3:A13)", 3, 9, "N2", "Sheet1!$B$1:$B$4", 0),
+        mk(3, 0, 1, 2, "SUM(Sheet1!A2:A6)+N1", 11, 7, "N2", "Sheet1!$B$1:$B$4", 1),
+        mk(16, 0, 2, 1, "SUM(Sheet1!A6:A6)", 5, 7, "N3", "Sheet1!$A$3:$A$9", 0)
+        };
+        QCOMPARE(runOps(first, &at), QString());
+        const std::vector<Op> second = {
+        mk(5, 0, 0, 1, "SUM(Sheet2!A10:A2)", 11, 9, "N4", "Sheet1!$A$5:$A$12", 1),
+        mk(0, 0, 4, 2, "SUM(Sheet1!A1:A2)", 7, 9, "N2", "Sheet2!$A$1:$A$3", 1),
+        mk(2, 0, 0, 3, "SUM(Sheet1!A1:A10)+N1", 9, 7, "N3", "Sheet1!$A$3:$A$9", 1),
+        mk(11, 0, 7, 2, "SUM(Sheet1!A1:A8)", 4, 8, "N3", "Sheet1!$A$3:$A$9", 0),
+        mk(16, 0, 0, 2, "SUM(Sheet1!A10:A13)", 10, 8, "N1", "Sheet1!$A$5:$A$12", 0),
+        mk(3, 0, 1, 4, "SUM(Sheet2!A4:A12)", 7, 7, "N2", "Sheet1!$A$3:$A$9", 1)
+        };
+        QCOMPARE(runOps(second, &at), QString());
+    }
+
+    // A name edited after a line it names was deleted: Undo of the edit puts the name back as it was held, and Undo of the delete then brings the line back to it.
+    void undoOfANameEditAfterADeleteKeepsTheNameForTheUndoOfTheDelete()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        QStringList s1;
+        for (int r = 1; r <= 12; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(r) << QStringLiteral("B%1=%2").arg(r).arg(r * 2);
+        s1 << "D1==SUM(N1)";
+        for (Book *b : {&off, &on}) {
+            QVERIFY(b->open({s1}));
+            b->calc->setNameText(-1, QStringLiteral("N1"), QStringLiteral("Sheet1!$A$3:$A$9"));
+            b->finish();
+        }
+        Calculation::EditRecord rec[2];
+        for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::deleteColumns(0, 0, 1), &rec[b == &on]));
+        QString was[2], now[2];
+        bool has[2];
+        for (Book *b : {&off, &on}) {
+            const int m = b == &on;
+            was[m] = b->calc->nameTagged(-1, QStringLiteral("N1"), &has[m]);
+            b->calc->setNameText(-1, QStringLiteral("N1"), QStringLiteral("Sheet1!$B$1:$B$3"));   // redefined
+            b->finish();
+            b->calc->setNameTagged(-1, QStringLiteral("N1"), has[m], was[m]);   // Undo
+            b->finish();
+            QVERIFY(b->calc->undoEdit(rec[m]));   // Undo of the delete
+            b->finish();
+            b->calc->nameText(-1, QStringLiteral("N1"), &now[m]);
+        }
+        QCOMPARE(now[1], QStringLiteral("Sheet1!$A$3:$A$9"));
+        QCOMPARE(now[0], now[1]);
+        QCOMPARE(state(on), state(off));
+    }
+
+    // A name's record (the text Undo puts back) is held in ids with the renumber epochs of the sheets: after a rebase it is the text in places, held anew. For an edit that shifts cells, deletes cells, and a move.
+    void aNameRestoredByUndoAfterARebaseIsHeldAnew()
+    {
+        for (int variant = 0; variant < 3; ++variant) {
+            Book off, on;
+            on.idFrame = true;
+            off.forceOff = true;
+            QStringList s1;
+            for (int r = 1; r <= 16; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(r);
+            s1 << "B4==SUM(N1)" << "B5==N2*2";
+            QStringList out;
+            for (Book *b : {&off, &on}) {
+                QVERIFY(b->open({s1, {"A1=1"}}));
+                b->calc->setNameText(-1, QStringLiteral("N1"), QStringLiteral("Sheet1!$A$3:$A$9"));
+                b->calc->setNameText(-1, QStringLiteral("N2"), QStringLiteral("Sheet1!$A$6"));
+                b->finish();
+                QVERIFY(b->apply(StructEdit::deleteRows(0, 0, 1), nullptr));
+                CellRange blk;
+                blk.valid = true;
+                blk.row1 = 1;
+                blk.row2 = 2;
+                blk.col1 = 0;
+                blk.col2 = 0;
+                Calculation::EditRecord rec;
+                if (variant == 0) QVERIFY(b->apply(StructEdit::insertCellsDown(0, blk), &rec));
+                else if (variant == 1) QVERIFY(b->apply(StructEdit::deleteCellsUp(0, blk), &rec));
+                else QVERIFY(b->apply(StructEdit::move(0, blk, 0, 0, 3), &rec));
+                if (b == &on) {
+                    std::vector<jp::calc::LineMapCore::Renumber> table;
+                    QVERIFY(on.calc->compactLines(0, true, &table));
+                    on.finish();
+                }
+                QVERIFY(b->calc->undoEdit(rec));
+                b->finish();
+                QString t1, t2;
+                b->calc->nameText(-1, QStringLiteral("N1"), &t1);
+                b->calc->nameText(-1, QStringLiteral("N2"), &t2);
+                out << (QStringLiteral("variant %1 ").arg(variant) + t1 + QStringLiteral(" / ") + t2 + QStringLiteral(" B4=") + b->at("B4") + QStringLiteral(" B5=") + b->at("B5"));
+            }
+            QVERIFY2(out[0] == out[1], qPrintable(out.join(QLatin1Char('\n'))));
+        }
+    }
+
+    // 20,000 formulas that end on one line that was inserted: dropping them all (their column goes) looks at each entry of the list once, not at the whole list for each.
+    void formulasThatEndOnOneInsertedLineAreLetGoOfInLinearWork()
+    {
+        Book on;
+        on.idFrame = true;
+        QStringList s1;
+        for (int r = 1; r <= 8; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(r);
+        QVERIFY(on.open({s1}));
+        QVERIFY(on.apply(StructEdit::insertRows(0, 4, 1), nullptr));
+        const int n = 20000;
+        for (int i = 0; i < n; ++i) on.calc->setFormula(0, quint32(i), 3, QStringLiteral("SUM($A$1:$A$5)"));
+        on.finish();
+        const qint64 before = on.calc->insertedEndsWork();
+        QVERIFY(before >= n);
+        QVERIFY(on.apply(StructEdit::deleteColumns(0, 3, 1), nullptr));
+        QVERIFY(on.calc->insertedEndsWork() - before <= 4 * qint64(n));
+        QVERIFY(on.apply(StructEdit::deleteRows(0, 4, 1), nullptr));   // and the line itself going, with nothing left to ask
+        QCOMPARE(on.calc->insertedEndsWork() - before <= 5 * qint64(n), true);
+    }
+
+    // The lines put in at the front of the sheet are the start of a reference that has no original line before it, and a reference whose end died stays as wide as it was while the line it reads
+    // is one that was put in: an insert inside either is asked of them, in places as in ids (found by the differential test, seeds 487 and 803 of the first 1,000).
+    void aReferenceWithAnInsertedEndIsAskedWhenLinesAreAddedInsideIt()
+    {
+        auto op = [](int kind, quint32 at, quint32 count, quint32 bcol2 = 0, int sheet = 0) {
+            Op o;
+            o.kind = kind;
+            o.sheet = sheet;
+            o.at = at;
+            o.count = count;
+            o.bcol2 = bcol2;
+            o.nm = QStringLiteral("N1");
+            o.nameTxt = QStringLiteral("Sheet1!$B$1:$B$4");
+            return o;
+        };
+        int at = -1;
+        // columns: put in at C, A and B deleted, put in at C again (COLUMNS(A1:C1) reads from the first inserted column)
+        const std::vector<Op> columns = {op(4, 8, 3), op(5, 0, 3), op(16, 6, 1), op(4, 2, 1)};
+        QCOMPARE(runOps(columns, &at), QString());
+        // rows: lines put in inside a range, some before and the end of the range deleted, then a line put in inside what is left
+        const std::vector<Op> rows = {op(1, 8, 3), op(16, 1, 1), op(3, 3, 3), op(3, 6, 4), op(1, 5, 1)};
+        QCOMPARE(runOps(rows, &at), QString());
+        // lines put in at the front (and cells shifted up under them), then a line put in among them: the references that start on a line put in at the front have the gap inside
+        // (the sheet's first original line is the end of the gap)
+        const std::vector<Op> front = {op(0, 0, 3), op(7, 0, 4, 1), op(0, 3, 4)};
+        QCOMPARE(runOps(front, &at), QString());
+        const std::vector<Op> front2 = {op(0, 0, 4), op(7, 0, 4, 1), op(0, 2, 3)};
+        QCOMPARE(runOps(front2, &at), QString());
+        // the same after many edits: lines deleted between the neighbours of the gap, and the start of the reference one of those
+        // a column put in at the top, a size typed that starts on it, and the column deleted: the range starts on the next column (found by the model check's wide option)
+        Op typed = op(8, 0, 1);
+        typed.typed = QStringLiteral("COLUMNS(A1:C1)");
+        typed.row = 0;
+        typed.col = 10;
+        const std::vector<Op> top = {op(4, 0, 2), typed, op(5, 0, 2)};
+        QCOMPARE(runOps(top, &at), QString());
+        Op typedRows = op(8, 0, 1);
+        typedRows.typed = QStringLiteral("ROWS(A1:A3)");
+        typedRows.row = 0;
+        typedRows.col = 10;
+        const std::vector<Op> topRows = {op(0, 0, 1), typedRows, op(2, 0, 1)};
+        QCOMPARE(runOps(topRows, &at), QString());
+        const std::vector<Op> many = {op(1, 0, 3), op(6, 3, 2, 1), op(4, 6, 1, 1), op(0, 1, 4), op(0, 11, 1, 1), op(1, 8, 4, 1), op(0, 12, 3), op(3, 12, 2, 1), op(3, 1, 3, 1), op(3, 10, 3), op(10, 13, 4, 0, 1), op(7, 1, 4, 1), op(0, 11, 3, 1)};
+        QCOMPARE(runOps(many, &at), QString());
+    }
+
+    // A formula typed over a cell whose formula read lines that were deleted, and Undo of the typing then of the delete: the cell has the formula as it was held, so that the lines come back to it (the
+    // session keeps a cell's content for Undo, with the formula as it is held).
+    void undoOfTypingOverAFormulaWithADeadEndGivesItBackItsLines()
+    {
+        auto op = [](int kind, int sheet, quint32 at, quint32 count, const char *typed = "", quint32 row = 0, quint32 col = 7) {
+            Op o;
+            o.kind = kind;
+            o.sheet = sheet;
+            o.at = at;
+            o.count = count;
+            o.typed = QString::fromLatin1(typed);
+            o.row = row;
+            o.col = col;
+            o.nm = QStringLiteral("N1");
+            o.nameTxt = QStringLiteral("Sheet1!$A$3:$A$9");
+            return o;
+        };
+        int at = -1;
+        const std::vector<Op> ops = {op(8, 1, 11, 2, "SUM(Sheet1!A9:A13)", 1, 8), op(2, 0, 11, 2), op(9, 1, 1, 2, "SUM(Sheet2!A8:A9)", 1, 8), op(12, 1, 11, 3), op(12, 0, 9, 1)};
+        QCOMPARE(runOps(ops, &at), QString());
+    }
+
+    // Real edits of a workbook with a table, in places and in ids, one after the other with the tables following the cells as the session does it: rows and columns put in and taken out inside the table, at
+    // its edges, and around it; cells shifted in its columns; Undo and Redo of them; and a rebase. The formulas that name the table (its columns, a cell of its row, its totals, its whole data) are on its sheet
+    // and on another, and everything they show and the table's place must be the same in both. Without totals and with.
+    void tablesGrowAndShrinkTheSameInPlacesAndIds()
+    {
+        for (const bool totals : {false, true}) {
+            const QString nsUrl = QStringLiteral("http://schemas.openxmlformats.org/spreadsheetml/2006/main");
+            const QString part = totals
+                ? QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"%1\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:C7\" totalsRowCount=\"1\"><autoFilter ref=\"A1:C6\"/>"
+                                 "<tableColumns count=\"3\"><tableColumn id=\"1\" name=\"Region\" totalsRowLabel=\"Total\"/><tableColumn id=\"2\" name=\"Q1\" totalsRowFunction=\"sum\"/>"
+                                 "<tableColumn id=\"3\" name=\"Twice\"><calculatedColumnFormula>Sales[[#This Row],[Q1]]*2</calculatedColumnFormula></tableColumn></tableColumns></table>").arg(nsUrl)
+                : QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"%1\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:C6\"><autoFilter ref=\"A1:C6\"/>"
+                                 "<tableColumns count=\"3\"><tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/>"
+                                 "<tableColumn id=\"3\" name=\"Twice\"><calculatedColumnFormula>Sales[[#This Row],[Q1]]*2</calculatedColumnFormula></tableColumn></tableColumns></table>").arg(nsUrl);
+            QStringList s1 = {"A1=Region", "B1=Q1", "C1=Twice"};
+            for (int r = 2; r <= (totals ? 6 : 6); ++r)
+                s1 << QStringLiteral("A%1=R%1").arg(r) << QStringLiteral("B%1=%2").arg(r).arg(r * 3) << QStringLiteral("C%1==Sales[[#This Row],[Q1]]*2").arg(r);
+            if (totals) s1 << "A7=Total" << "B7==SUBTOTAL(109,Sales[Q1])";
+            s1 << "E1==SUM(Sales[Q1])" << "E2==ROWS(Sales[Region])" << "E3==SUM(Sales[Twice])+COUNTA(Sales[Region])" << "E4==INDEX(Sales[Q1],2)" << "F1==SUM(B2:B4)" << "F2==SUM(A1:C3)";
+            if (totals) s1 << "E5==SUM(Sales[[#Totals],[Q1]])" << "E6==ROWS(Sales[#All])";
+            const QStringList s2 = {"A1==SUM(Sheet1!Sales[Q1])", "A2==ROWS(Sales)", "A3==SUM(Sheet1!B2:B4)", "A4==SUM(Sales[[#Headers],[Q1]])"};
+            for (quint32 seed = 0; seed < 30; ++seed) {
+                Book off, on;
+                on.idFrame = true;
+                off.forceOff = true;
+                for (Book *b : {&off, &on}) {
+                    b->tableParts = {part};
+                    QVERIFY(b->open({s1, s2}));
+                }
+                QCOMPARE(state(on), state(off));
+                QCOMPARE(on.at("E1"), QStringLiteral("n:%1").arg(totals ? 60 : 60));
+                struct Done {
+                    Calculation::EditRecord rec;
+                    std::vector<TablePlace> places;
+                };
+                std::vector<Done> done[2], undone[2];
+                QRandomGenerator rng(seed * 104729u + 7u);
+                for (int step = 0; step < 14; ++step) {
+                    const quint32 kind = rng.bounded(9u);
+                    const quint32 at = rng.bounded(9u);
+                    const quint32 count = 1 + rng.bounded(2u);
+                    const QString what = QStringLiteral("totals %1 seed %2 step %3 kind %4 at %5 count %6").arg(totals).arg(seed).arg(step).arg(kind).arg(at).arg(count);
+                    CellRange blk;
+                    blk.valid = true;
+                    blk.row1 = at;
+                    blk.row2 = at + count - 1;
+                    blk.col1 = 0;
+                    blk.col2 = 1 + rng.bounded(2u);
+                    bool ok[2] = {true, true};
+                    for (int m = 0; m < 2; ++m) {
+                        Book &b = m ? on : off;
+                        Done d;
+                        switch (kind) {
+                        case 0: case 1: ok[m] = b.applyWithTables(StructEdit::insertRows(0, at, count), &d.rec, &d.places); break;
+                        case 2: ok[m] = b.applyWithTables(StructEdit::deleteRows(0, at, count), &d.rec, &d.places); break;
+                        case 3: ok[m] = b.applyWithTables(StructEdit::insertColumns(0, at % 5, count), &d.rec, &d.places); break;
+                        case 4: ok[m] = b.applyWithTables(StructEdit::deleteColumns(0, at % 5, count), &d.rec, &d.places); break;
+                        case 5: ok[m] = b.applyWithTables(StructEdit::insertCellsDown(0, blk), &d.rec, &d.places); break;
+                        case 6:
+                            if (!done[m].empty()) {
+                                ok[m] = b.undoWithTables(done[m].back().rec, done[m].back().places);
+                                undone[m].push_back(std::move(done[m].back()));
+                                done[m].pop_back();
+                            }
+                            continue;
+                        case 7:
+                            if (!undone[m].empty()) {
+                                Done again = std::move(undone[m].back());
+                                undone[m].pop_back();
+                                ok[m] = b.applyWithTables(again.rec.edit, &again.rec, &again.places);
+                                done[m].push_back(std::move(again));
+                            }
+                            continue;
+                        default:
+                            if (m == 1) {
+                                QVERIFY2(on.calc->compactLines(0, at % 2 != 0), qPrintable(what));
+                                on.finish();
+                            }
+                            done[m].clear();
+                            undone[m].clear();
+                            continue;
+                        }
+                        if (ok[m]) {
+                            done[m].push_back(std::move(d));
+                            undone[m].clear();
+                        }
+                    }
+                    QVERIFY2(ok[0] == ok[1], qPrintable(what));
+                    QVERIFY2(state(on) == state(off), qPrintable(what + QStringLiteral("\nplaces: ") + state(off).join(QLatin1Char('\n')) + QStringLiteral("\nids: ") + state(on).join(QLatin1Char('\n'))));
+                    QVERIFY2(on.tablePlaces() == off.tablePlaces(), qPrintable(what + QStringLiteral(": ") + off.tablePlaces().join(QLatin1Char(';')) + QStringLiteral(" vs ") + on.tablePlaces().join(QLatin1Char(';'))));
+                }
+                // and worked out from nothing, the same
+                for (Book *b : {&off, &on}) {
+                    b->calc->invalidateAll();
+                    b->finish();
+                }
+                QVERIFY2(state(on) == state(off), qPrintable(QStringLiteral("totals %1 seed %2 at the end").arg(totals).arg(seed)));
+            }
         }
     }
 
@@ -2608,6 +3509,7 @@ private Q_SLOTS:
             off.forceOff = true;
             for (Book *b : {&off, &on}) QVERIFY(b->open({sheet1, sheet2}));
             QRandomGenerator rng(seed);
+            QStringList history;
             std::vector<Calculation::EditRecord> done[2];
             std::vector<Calculation::EditRecord> undone[2];
             for (int step = 0; step < 200; ++step) {
@@ -2622,6 +3524,7 @@ private Q_SLOTS:
                 const QString typed = QStringLiteral("SUM(A%1:A%2)").arg(first).arg(second) + plusCell + plusSheet + plusColumn;
                 const quint32 row = rng.bounded(12), col = 7 + rng.bounded(3);   // (typed away from the columns read, so that no formula reads itself: what a circle gives depends on where the work began)
                 const double number = double(rng.bounded(9));
+                history << QStringLiteral("%1: kind %2 sheet %3 at %4 count %5 row %6 col %7 typed %8").arg(step).arg(kind).arg(sheet).arg(at).arg(count).arg(row).arg(col).arg(typed);
                 bool ok[2];
                 for (int m = 0; m < 2; ++m) {
                     Book &b = m ? on : off;
@@ -2648,10 +3551,231 @@ private Q_SLOTS:
                     if (!c.contains(x)) why += QStringLiteral(" [places: ") + x + QLatin1Char(']');
                 for (const QString &x : c)
                     if (!a.contains(x)) why += QStringLiteral(" [ids: ") + x + QLatin1Char(']');
-                QVERIFY2(a == c, qPrintable(QStringLiteral("seed %1, step %2 (kind %3): the formulas differ:%4").arg(seed).arg(step).arg(kind).arg(why.left(600) + QStringLiteral(" [sheet %1 at %2 count %3 row %4 col %5 typed %6]").arg(sheet).arg(at).arg(count).arg(row).arg(col).arg(typed))));
+                QVERIFY2(a == c, qPrintable(QStringLiteral("seed %1, step %2 (kind %3): the formulas differ:%4").arg(seed).arg(step).arg(kind).arg(history.mid(std::max(0, int(history.size()) - 40)).join(QLatin1Char('\n')) + QLatin1Char('\n') + why.left(600) + QStringLiteral(" [sheet %1 at %2 count %3 row %4 col %5 typed %6]").arg(sheet).arg(at).arg(count).arg(row).arg(col).arg(typed))));
             }
         }
     }
+    // ---- the differential fuzz: the same edits, typed formulas, names, Undo and Redo, and rebases on a book with the formulas in places and one in ids; the text, the value, and the names must be equal
+public:
+    struct Act {
+        int kind = 0;   // 0 structure, 1 formula, 2 name
+        Calculation::EditRecord rec;
+        int sheet = 0; quint32 row = 0, col = 0;
+        QString before, after; bool hadBefore = false;
+        Calculation::CellContent contentBefore, contentAfter;   // (a typed formula: as the session keeps it for Undo, with the formula as it was held)
+        QString name;
+    };
+    static QStringList namesOf(const Book &b)
+    {
+        QStringList out;
+        for (const char *n : {"N1", "N2", "N3", "N4"}) {
+            QString t;
+            const bool has = b.calc->nameText(-1, QString::fromLatin1(n), &t);
+            out << QStringLiteral("%1=%2:%3").arg(QString::fromLatin1(n), has ? QStringLiteral("y") : QStringLiteral("n"), t);
+        }
+        return out;
+    }
+
+public:
+    struct Op {
+        int kind = 0, sheet = 0;
+        quint32 at = 0, count = 1, row = 0, col = 7, bcol2 = 0;
+        QString typed, nm, nameTxt;
+        QString str() const { return QStringLiteral("kind %1 sheet %2 at %3 count %4 typed %5 row %6 col %7 name %8=%9 bcol2 %10").arg(kind).arg(sheet).arg(at).arg(count).arg(typed).arg(row).arg(col).arg(nm, nameTxt).arg(bcol2); }
+    };
+    // runs the ops on a places book and an ids book; returns the report of the first divergence ("" if none) and the step
+    static QString runOps(const std::vector<Op> &ops, int *failStep, bool oneWay = false)
+    {
+        QStringList s1, s2;
+        for (int r = 1; r <= 16; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(r);
+        s1 << "B1==SUM(A1:A10)" << "B2==SUM(A3:A5)" << "B3==A2" << "B4==SUM(N1)" << "B5==N2*2" << "B6==INDEX(N1,2)" << "B7==SUM(N3)" << "B8==ROWS(A1:A10)" << "B9==COUNT(A8:A12)" << "B10==SUM(A:A)" << "B11==SUM(N4)";
+        s1 << "C1==COLUMNS(A1:C1)" << "C2==SUM(A2:C4)";
+        s2 << "A1==SUM(Sheet1!A1:A10)" << "A2==SUM(Sheet1!N1)" << "A3==INDEX(Sheet1!A1:A10,3)" << "A4=5" << "A5=6" << "A6=7";
+        Book off, on;
+        on.idFrame = true;
+        off.forceOff = true;
+        for (Book *b : {&off, &on}) {
+            if (!b->open({s1, s2}, QString(), QString())) return QStringLiteral("open");
+            b->calc->setNameText(-1, QStringLiteral("N1"), QStringLiteral("Sheet1!$A$3:$A$9"));
+            b->calc->setNameText(-1, QStringLiteral("N2"), QStringLiteral("Sheet1!$A$2"));
+            b->calc->setNameText(-1, QStringLiteral("N3"), QStringLiteral("Sheet1!A2:A4"));
+            b->calc->setNameText(-1, QStringLiteral("N4"), QStringLiteral("Sheet2!$A$4:$A$6"));
+            b->finish();
+        }
+        std::vector<Act> done[2], undone[2];
+        for (size_t step = 0; step < ops.size(); ++step) {
+            const Op &o = ops[step];
+            CellRange blk;
+            blk.valid = true; blk.row1 = o.at; blk.row2 = o.at + o.count - 1; blk.col1 = 0; blk.col2 = o.bcol2;
+            bool ok[2] = {true, true};
+            for (int m = 0; m < 2; ++m) {
+                Book &b = m ? on : off;
+                Act act;
+                act.sheet = o.sheet; act.row = o.row; act.col = o.col; act.name = o.nm;
+                int pushed = 0;
+                switch (o.kind) {
+                case 0: case 1: ok[m] = b.apply(StructEdit::insertRows(o.sheet, o.at, o.count), &act.rec); pushed = ok[m]; break;
+                case 2: case 3: ok[m] = b.apply(StructEdit::deleteRows(o.sheet, o.at, o.count), &act.rec); pushed = ok[m]; break;
+                case 4: ok[m] = b.apply(StructEdit::insertColumns(o.sheet, o.at % 6, 1 + o.count % 2), &act.rec); pushed = ok[m]; break;
+                case 5: ok[m] = b.apply(StructEdit::deleteColumns(o.sheet, o.at % 6, 1 + o.count % 2), &act.rec); pushed = ok[m]; break;
+                case 6: ok[m] = b.apply(StructEdit::insertCellsDown(o.sheet, blk), &act.rec); pushed = ok[m]; break;
+                case 7: ok[m] = b.apply(StructEdit::deleteCellsUp(o.sheet, blk), &act.rec); pushed = ok[m]; break;
+                case 8: case 9: {
+                    act.kind = 1;
+                    const Calculation::CellContent cc = b.calc->content(o.sheet, o.row, o.col);
+                    act.hadBefore = cc.exists; act.before = cc.formula; act.after = o.typed;
+                    act.contentBefore = cc;
+                    act.contentAfter.exists = true;
+                    act.contentAfter.isFormula = true;
+                    act.contentAfter.formula = o.typed;
+                    ok[m] = b.calc->setFormula(o.sheet, o.row, o.col, o.typed); b.finish(); pushed = 1; break;
+                }
+                case 10: case 11: {
+                    act.kind = 2;
+                    QString t;
+                    act.hadBefore = b.calc->nameText(-1, o.nm, &t);
+                    { bool h = false; act.before = b.calc->nameTagged(-1, o.nm, &h); }   // (as the session keeps it: held, with the epochs)
+                    b.calc->setNameText(-1, o.nm, o.nameTxt); b.finish();
+                    { bool h = false; act.after = b.calc->nameTagged(-1, o.nm, &h); }
+                    pushed = 1; break;
+                }
+                case 12: case 13: {
+                    if (!done[m].empty()) {
+                        Act &top = done[m].back();
+                        if (top.kind == 0) ok[m] = b.calc->undoEdit(top.rec);
+                        else if (top.kind == 1) { if (top.hadBefore) b.calc->put(top.sheet, top.row, top.col, top.contentBefore); else b.calc->clearCell(top.sheet, top.row, top.col); }
+                        else b.calc->setNameTagged(-1, top.name, top.hadBefore, top.before);
+                        b.finish();
+                        undone[m].push_back(std::move(top)); done[m].pop_back();
+                    }
+                    break;
+                }
+                case 14: case 15: {
+                    if (!undone[m].empty()) {
+                        Act top = std::move(undone[m].back()); undone[m].pop_back();
+                        if (top.kind == 0) { Calculation::EditRecord again = top.rec; ok[m] = b.calc->applyEdit(again.edit, &again); top.rec = again; }
+                        else if (top.kind == 1) b.calc->put(top.sheet, top.row, top.col, top.contentAfter);
+                        else b.calc->setNameTagged(-1, top.name, true, top.after);
+                        b.finish();
+                        done[m].push_back(std::move(top));
+                    }
+                    break;
+                }
+                default: {
+                    if (m == 1) { b.calc->compactLines(o.sheet, o.at % 2 != 0); b.finish(); }
+                    done[m].clear(); undone[m].clear();
+                    break;
+                }
+                }
+                if (pushed && ok[m]) { done[m].push_back(std::move(act)); undone[m].clear(); }
+            }
+            if (qEnvironmentVariableIntValue("JO_FUZZ_FULL")) { off.calc->invalidateAll(); off.finish(); on.calc->invalidateAll(); on.finish(); }
+            QStringList a = state(off), c = state(on);
+            if (qEnvironmentVariableIsSet("JO_FUZZ_DUMP")) { static QFile rawDump(qEnvironmentVariable("JO_FUZZ_DUMP")); if (!rawDump.isOpen()) rawDump.open(QIODevice::WriteOnly | QIODevice::Truncate); rawDump.write(QStringLiteral("STEP %1 ok%2\n%3\n").arg(step).arg(ok[0]).arg(a.join(QLatin1Char('\n'))).toUtf8()); rawDump.flush(); }
+            {
+                auto split = [](const QString &x, QString *k, QString *v) { const int i = int(x.lastIndexOf(QStringLiteral(" -> "))); *k = x.left(i); *v = x.mid(i + 4); };
+                QHash<QString, QString> av, cv;
+                for (const QString &x : a) { QString k, v; split(x, &k, &v); av.insert(k, v); }
+                for (const QString &x : c) { QString k, v; split(x, &k, &v); cv.insert(k, v); }
+                for (QString &x : a) { QString k, v; split(x, &k, &v); if (cv.value(k) == QStringLiteral("?") || v == QStringLiteral("?")) x = k + QStringLiteral(" -> ?"); }
+                for (QString &x : c) { QString k, v; split(x, &k, &v); if (av.value(k) == QStringLiteral("?") || v == QStringLiteral("?")) x = k + QStringLiteral(" -> ?"); }
+            }
+            a << namesOf(off); c << namesOf(on);
+            if (ok[0] != ok[1] || a != c) {
+                QString why;
+                for (const QString &x : a) if (!c.contains(x)) why += QStringLiteral("\n  [places] ") + x;
+                for (const QString &x : c) if (!a.contains(x)) why += QStringLiteral("\n  [ids]    ") + x;
+                *failStep = int(step);
+                return QStringLiteral("ok %1/%2%3").arg(ok[0]).arg(ok[1]).arg(why.left(1200));
+            }
+            // What both books show is what a whole new calculation of the same cells shows (a stale value in both would not tell in the comparison): at the end, and every JO_FUZZ_TRUTH steps
+            const int every = qEnvironmentVariableIntValue("JO_FUZZ_TRUTH");
+            if (step + 1 == ops.size() || (every > 0 && int(step) % every == every - 1)) {
+                for (int m = 0; m < 2; ++m) {
+                    Book &b = m ? on : off;
+                    const QStringList now = state(b);
+                    b.calc->invalidateAll();
+                    b.finish();
+                    const QStringList fresh = state(b);
+                    if (now != fresh) {
+                        QString why;
+                        for (const QString &x : now) if (!fresh.contains(x)) why += QStringLiteral("\n  [%1 incremental] ").arg(m ? "ids" : "places") + x;
+                        for (const QString &x : fresh) if (!now.contains(x)) why += QStringLiteral("\n  [%1 whole calculation] ").arg(m ? "ids" : "places") + x;
+                        *failStep = int(step);
+                        return QStringLiteral("stale%1").arg(why.left(1200));
+                    }
+                }
+            }
+        }
+        (void)oneWay;
+        return QString();
+    }
+    static std::vector<Op> makeOps(int seed, int n, bool compact)
+    {
+        QRandomGenerator rng(quint32(seed) * 7919u + 13u);
+        std::vector<Op> ops;
+        for (int step = 0; step < n; ++step) {
+            Op o;
+            o.kind = int(rng.bounded(compact ? 17 : 16));
+            if (qEnvironmentVariableIntValue("JO_FUZZ_NOUNDO") && o.kind >= 12 && o.kind <= 15) o.kind = 3;
+            if (qEnvironmentVariableIntValue("JO_FUZZ_NONAMES") && (o.kind == 10 || o.kind == 11)) o.kind = 2;
+            o.sheet = int(rng.bounded(2));
+            o.at = rng.bounded(14);
+            o.count = 1 + rng.bounded(4);
+            quint32 ra = 1 + rng.bounded(14), c2 = 1 + rng.bounded(14);
+            const bool back = rng.bounded(5) == 0 && !qEnvironmentVariableIntValue("JO_FUZZ_NOBACK");
+            if (!back && c2 < ra) std::swap(ra, c2);
+            const int sh = 1 + int(rng.bounded(2));
+            o.typed = QStringLiteral("SUM(Sheet%1!A%2:A%3)").arg(sh).arg(ra).arg(c2) + (rng.bounded(3) == 0 ? QStringLiteral("+N1") : QString());
+            o.row = rng.bounded(14);
+            o.col = 7 + rng.bounded(3);
+            o.nm = QStringLiteral("N%1").arg(1 + rng.bounded(4));
+            const QStringList texts = {"Sheet1!$A$3:$A$9", "Sheet1!$A$2", "Sheet1!$A$5:$A$12", "Sheet2!$A$1:$A$3", "Sheet1!A2:A4", "Sheet1!$B$1:$B$4"};
+            o.nameTxt = texts[int(rng.bounded(quint32(texts.size())))];
+            o.bcol2 = rng.bounded(2);
+            ops.push_back(o);
+        }
+        return ops;
+    }
+private Q_SLOTS:
+    // The same edits to a book in places and a book in ids: 24 seeds of 60 steps (JO_FUZZ_SEEDS, JO_FUZZ_STEPS, JO_FUZZ_FIRST for the long run; JO_FUZZ_NOBACK, JO_FUZZ_NONAMES, JO_FUZZ_FULL to narrow it down).
+    void differentialFuzzOfPlacesAndIds()
+    {
+        const int seeds = qEnvironmentVariableIntValue("JO_FUZZ_SEEDS") ? qEnvironmentVariableIntValue("JO_FUZZ_SEEDS") : 24;
+        const int first = qEnvironmentVariableIntValue("JO_FUZZ_FIRST");
+        const bool compact = qEnvironmentVariableIsSet("JO_FUZZ_COMPACT") ? qEnvironmentVariableIntValue("JO_FUZZ_COMPACT") != 0 : true;   // (rebases are in the steps)
+        const int steps = qEnvironmentVariableIntValue("JO_FUZZ_STEPS") ? qEnvironmentVariableIntValue("JO_FUZZ_STEPS") : 60;
+        int fails = 0;
+        QString report;
+        for (int seed = first; seed < first + seeds && fails < 4; ++seed) {
+            std::vector<Op> ops = makeOps(seed, steps, compact);
+            int at = -1;
+            QString why = runOps(ops, &at);
+            if (why.isEmpty()) continue;
+            ++fails;
+            ops.resize(size_t(at + 1));
+            // delta-debug: drop chunks while some divergence remains
+            for (size_t chunk = ops.size() / 2; chunk >= 1;) {
+                bool shrunk = false;
+                for (size_t i = 0; i + chunk <= ops.size();) {
+                    std::vector<Op> t = ops;
+                    t.erase(t.begin() + qint64(i), t.begin() + qint64(i + chunk));
+                    int a2 = -1;
+                    const QString w2 = runOps(t, &a2);
+                    if (!w2.isEmpty()) { t.resize(size_t(a2 + 1)); ops = t; why = w2; shrunk = true; }
+                    else i += chunk;
+                }
+                if (!shrunk) chunk /= 2;
+                if (chunk == 0) break;
+            }
+            report += QStringLiteral("\nSEED %1 minimal (%2 ops):\n").arg(seed).arg(ops.size());
+            for (const Op &o : ops) report += QStringLiteral("  ") + o.str() + QLatin1Char('\n');
+            report += why;
+        }
+        QVERIFY2(fails == 0, qPrintable(report));
+    }
+
+
 };
 
 JP_TEST_CLASS(SheetStructureTests)

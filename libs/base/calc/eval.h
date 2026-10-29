@@ -13,6 +13,7 @@
 
 #include <QString>
 
+#include <algorithm>
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -53,11 +54,33 @@ public:
     }
     // Whether a row is hidden: 0 no, 1 by hand, 2 by a filter (what SUBTOTAL leaves out of what it adds up: 1 to 11 leave out the rows a filter hides, 101 to 111 every hidden row).
     virtual int rowHiddenKind(int sheet, quint32 row) const { Q_UNUSED(sheet); Q_UNUSED(row); return 0; }
-    // For a formula held in the id frame (EvalContext::idFrame), whose references name rows and columns by id: the place now of the row or column with that id on the sheet, kNoPlace if it
-    // was deleted. A source whose rows and columns have no ids (a test's grid) is its own order: the id is the place.
-    static constexpr quint32 kNoPlace = 0xFFFFFFFFu;
-    virtual quint32 rowPlace(int sheet, quint32 rowId) const { Q_UNUSED(sheet); return rowId; }
-    virtual quint32 colPlace(int sheet, quint32 colId) const { Q_UNUSED(sheet); return colId; }
+    // For a formula held in the id frame (EvalContext::idFrame), whose references name rows and columns by id: the places now of the lines a reference names by the ids at its two ends (`startId` is
+    // the end that was written first). Both ends alive: their places, in order. An end that was deleted is what the lines that were next to it when it died are (docs/jeffcrunch-rowids.md, 4.4):
+    // a start is the line that followed, an end the line that preceded; false when nothing is left of the range (a single line that was deleted, an end with no line to go to, the start after the
+    // end). A source whose rows and columns have no ids (a test's grid) is its own order: the id is the place.
+    virtual bool rowRange(int sheet, quint32 startId, quint32 endId, quint32 *first, quint32 *last) const
+    {
+        Q_UNUSED(sheet);
+        if (startId >= kGridRows || endId >= kGridRows) return false;
+        *first = std::min(startId, endId);
+        *last = std::max(startId, endId);
+        return true;
+    }
+    virtual bool colRange(int sheet, quint32 startId, quint32 endId, quint32 *first, quint32 *last) const
+    {
+        Q_UNUSED(sheet);
+        if (startId >= kGridCols || endId >= kGridCols) return false;
+        *first = std::min(startId, endId);
+        *last = std::max(startId, endId);
+        return true;
+    }
+    // What a defined name stands for as the evaluator is to run it: `definedName` gives the text in places (for what shows it), and this the text the workbook holds, which for a name held in ids
+    // (Calculation::nameCanBeHeldInIds) has the ids of rows and columns in it, and `inIds` says so. A source that has no ids gives the same text and false.
+    virtual QString heldName(int sheet, const QString &name, bool *inIds) const
+    {
+        *inIds = false;
+        return definedName(sheet, name);
+    }
     // The cell holds a formula that is a SUBTOTAL, which SUBTOTAL leaves out of what it adds up.
     virtual bool isSubtotal(int sheet, quint32 row, quint32 col) const { Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); return false; }
     // Changes when the sheets or their names do, so a program re-reads which sheet each name is (a source that is replaced by another at the same address must

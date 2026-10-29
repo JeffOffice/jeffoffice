@@ -5,6 +5,8 @@
 #include "calc/functions.h"
 #include "calc/idframe.h"
 #include "calc/refs.h"
+#include "sheet/structref.h"
+#include "sheet/tables.h"
 
 #include <QDateTime>
 
@@ -116,6 +118,10 @@ Calculation::Calculation(const Workbook &book, const CalcOptions &options) : Wor
     m_ctx.dateSystem = book.info().dateSystem;
     if (options.recalcWorkLimit > 0) m_workLimit = options.recalcWorkLimit;
     if (options.maxHeldBytes > 0) m_heldLimit = options.maxHeldBytes;
+    // (the sheets are as the file has them: ids are places, and a name that can be held in ids is)
+    if (m_options.idFrame)
+        for (auto it = m_names.constBegin(); it != m_names.constEnd(); ++it)
+            if (nameCanBeHeldInIds(it.value())) m_idNames.insert(it.key());
 }
 
 Calculation::~Calculation() = default;
@@ -147,6 +153,7 @@ Calculation::Compiled &Calculation::compiled(int sheet, qint32 text, bool array)
             slot.changesByItself = t.changesByItself;
             slot.insensitive = t.blankInsensitive;
             slot.observesPosition = t.observesPosition;
+            slot.positionalNames = t.positionalNames;
             slot.iterative = t.iterative;
         }
         slot.traitsKnown = true;
@@ -223,6 +230,78 @@ Calculation::Held Calculation::heldText(int sheet, const QString &typed, const j
     }
     h.cls = TextClass::Positional;
     return h;
+}
+
+bool Calculation::nameCanBeHeldInIds(const QString &text) const
+{
+    if (!m_options.idFrame) return false;
+    if (hasWideLookingWord(text) || hasBackToFrontRange(text)) return false;
+    ParseOptions po;
+    po.definedName = true;
+    const ParseResult pr = parseFormula(text, po);
+    if (!pr.program || pr.program->external) return false;
+    for (const RefLit &r : pr.program->refs) {
+        if (r.sheet1 < 0 || (r.sheet2 >= 0 && r.sheet2 != r.sheet1) || (r.flags & 15) != 15) return false;
+        if (sheetIndex(pr.program->sheetNames[r.sheet1]) < 0) return false;
+    }
+    return true;
+}
+
+QString Calculation::heldNameText(int scope, const QString &typed, bool *inIds) const
+{
+    *inIds = false;
+    if (!nameCanBeHeldInIds(typed)) return typed;
+    QString held;
+    bool wide = false;
+    if (!placesToIds(*this, scope >= 0 ? scope : 0, typed, &held, &wide)) return typed;
+    *inIds = true;
+    return held;
+}
+
+QString Calculation::namePlaces(const QString &key, const QString &held) const
+{
+    if (!m_idNames.contains(key)) return held;
+    const int bar = int(key.indexOf(QLatin1Char('|')));
+    const int scope = bar > 0 ? key.left(bar).toInt() : -1;
+    return idsToPlaces(*this, scope >= 0 ? scope : 0, held, jp::calc::ParseLimits::ids());
+}
+
+QString Calculation::renumberEpochsText() const
+{
+    QString out;
+    for (const SheetState &st : m_state) out += QString::number(st.renumberEpoch) + QLatin1Char(',');
+    return out;
+}
+
+// A name as a record keeps it. One held in ids is the mark, the renumber epochs of the sheets, the held text, and the text as a person reads it: the held text is put back if no sheet's ids were
+// renumbered since (a rebase), else the text in places, which is held anew.
+QString Calculation::taggedName(const QString &key) const
+{
+    const QString text = m_names.value(key);
+    if (!m_idNames.contains(key)) return text;
+    return QString(QChar(1)) + renumberEpochsText() + QChar(2) + text + QChar(2) + namePlaces(key, text);
+}
+
+void Calculation::restoreTaggedName(const QString &key, const QString &tagged)
+{
+    if (!tagged.isEmpty() && tagged[0] == QChar(1)) {
+        const QStringList parts = tagged.mid(1).split(QChar(2));
+        if (parts.size() == 3) {
+            if (parts[0] == renumberEpochsText()) {
+                m_names[key] = parts[1];
+                m_idNames.insert(key);
+                return;
+            }
+            const int bar = int(key.indexOf(QLatin1Char('|')));
+            bool inIds = false;
+            m_names[key] = heldNameText(bar > 0 ? key.left(bar).toInt() : -1, parts[2], &inIds);
+            if (inIds) m_idNames.insert(key);
+            else m_idNames.remove(key);
+            return;
+        }
+    }
+    m_names[key] = tagged;
+    m_idNames.remove(key);
 }
 
 qint32 Calculation::internText(int sheet, const QString &text, TextClass cls)
@@ -417,7 +496,9 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
             if (isSubtotal(n.sheet, rowOf(n), colOf(n))) m_subtotalNodes.insert(id);
             // (a formula that sees where cells are, ROW() and COLUMN() with nothing in the brackets among them, is not told where it reads: an edit of lines looks at the places it saw)
             told = slot.usesNames || slot.dynamic || slot.reaches;
-            n.traits = quint8((slot.insensitive ? Insensitive : 0) | (slot.observesPosition ? Observes : 0));
+            // (with the id frame, a formula that uses names and tables and nothing that reads where it is: their ids are the same after an edit of whole lines, and so is what it reads)
+            const bool idTold = m_options.idFrame && slot.usesNames && !slot.dynamic && !slot.reaches && !slot.positionalNames;
+            n.traits = quint8((slot.insensitive ? Insensitive : 0) | (slot.observesPosition ? Observes : 0) | (idTold ? IdTold : 0));
             always = slot.dynamic || slot.changesByItself;
             if (m_options.keepApart) {
                 if (!p.unknownFunctions.isEmpty()) kept = 'U';
@@ -451,7 +532,8 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
     }
     if (told) {
         n.flags |= Told;
-        m_special.push_back(id);
+        if (n.traits & IdTold) m_idToldNodes.insert(id);
+        else m_special.push_back(id);
     }
     n.state = Dirty;
     ++m_notDone;
@@ -535,9 +617,18 @@ void Calculation::registerNode(quint32 id, const std::vector<CellArea> *told)
         m_threeD.erase(id);
         m_threeDSpan.erase(id);
     }
-    // (the graph holds ids: the blocks the text names, which are places, are turned into the ids of their lines, a sheet at a time, as a reader is told: see calc/idframe.h)
+    // (the graph holds ids: a formula held in ids tells the ids its references name, an end that was deleted too, so that the line coming back is found; the blocks of the others, and of what a formula
+    // touched as it was worked out, are places, which are turned into the ids of their lines, a sheet at a time, as a reader is told: see calc/idframe.h)
     m_idAreas.clear();
-    for (const CellArea &a : m_areas) idAreasOn(a, true, &m_idAreas);
+    if (slot.program && inIds(s, f.text)) {
+        std::vector<quint64> insertedEnds;
+        idAreasOfFormula(*slot.program, slot.bound, n.sheet, f.dRow, f.dCol, &m_idAreas, &insertedEnds);
+        if (!insertedEnds.empty() || m_insertedEndsOf.count(id)) noteInsertedEnds(id, insertedEnds);
+        if (told)
+            for (const CellArea &a : m_toldSet) idAreasOn(a, true, &m_idAreas);
+    } else {
+        for (const CellArea &a : m_areas) idAreasOn(a, true, &m_idAreas);
+    }
     std::sort(m_idAreas.begin(), m_idAreas.end());
     m_idAreas.erase(std::unique(m_idAreas.begin(), m_idAreas.end()), m_idAreas.end());
     const bool tracked = m_graph->setPrecedents(id, m_idAreas, n.traits & Insensitive);   // (marked, a formula that cannot notice an empty line is left out when the graph is asked for those that can)
@@ -559,6 +650,79 @@ void Calculation::idAreasOn(const CellArea &places, bool reading, std::vector<Ce
 {
     const qint32 last = std::min<qint32>(places.sheet2, qint32(m_sheets.size()) - 1);
     for (qint32 sheet = std::max<qint32>(0, places.sheet1); sheet <= last; ++sheet) out->push_back(idAreaOnSheet(sheet, places, reading));
+}
+
+void Calculation::idAreasOfFormula(const Program &p, const std::vector<qint32> &bound, int sheet, qint32 dRow, qint32 dCol, std::vector<CellArea> *out, std::vector<quint64> *insertedEnds) const
+{
+    for (const jp::calc::RefLit &r : p.refs) {
+        const qint32 s1 = r.sheet1 >= 0 ? bound[size_t(r.sheet1)] : sheet;
+        const qint32 s2 = r.sheet2 >= 0 ? bound[size_t(r.sheet2)] : s1;
+        if (s1 < 0 || s2 < 0 || s1 >= qint32(m_sheets.size()) || s1 != s2) continue;
+        qint64 r1 = (r.flags & jp::calc::kRefRow1Abs) ? qint64(r.row1) : qint64(r.row1) + dRow;
+        qint64 r2 = (r.flags & jp::calc::kRefRow2Abs) ? qint64(r.row2) : qint64(r.row2) + dRow;
+        qint64 c1 = (r.flags & jp::calc::kRefCol1Abs) ? qint64(r.col1) : qint64(r.col1) + dCol;
+        qint64 c2 = (r.flags & jp::calc::kRefCol2Abs) ? qint64(r.col2) : qint64(r.col2) + dCol;
+        if (r.written & 1) std::swap(r1, r2);   // (the ends in the order the text names them: see refEnds)
+        if (r.written & 2) std::swap(c1, c2);
+        const CellStore &cells = m_sheets[size_t(s1)].cells;
+        CellArea a;
+        a.sheet1 = a.sheet2 = s1;
+        if (r.flags & jp::calc::kRefWholeCols) {
+            a.row1 = 0;
+            a.row2 = jp::calc::kMaxRowId;
+        } else {
+            jp::calc::IdSpan rows;
+            if (!jp::calc::idSpanOfEnds(cells.rows().core(), r1, r2, jp::calc::kMaxRowId, &rows)) continue;
+            a.row1 = rows.lo;
+            a.row2 = rows.hi;
+        }
+        if (r.flags & jp::calc::kRefWholeRows) {
+            a.col1 = 0;
+            a.col2 = jp::calc::kMaxColId;
+        } else {
+            jp::calc::IdSpan cols;
+            if (!jp::calc::idSpanOfEnds(cells.cols().core(), c1, c2, jp::calc::kMaxColId, &cols)) continue;
+            a.col1 = cols.lo;
+            a.col2 = cols.hi;
+        }
+        out->push_back(a);
+        if (insertedEnds) {
+            auto note = [&](bool rows, qint64 a, qint64 b, quint32 firstNew) {
+                for (const qint64 id : {a, b})
+                    if (id >= qint64(firstNew)) insertedEnds->push_back(insertedKey(s1, rows, quint32(id)));
+            };
+            if (!(r.flags & jp::calc::kRefWholeCols)) note(true, r1, r2, cells.rows().core().limits().firstNew);
+            if (!(r.flags & jp::calc::kRefWholeRows)) note(false, c1, c2, cells.cols().core().limits().firstNew);
+        }
+    }
+}
+
+void Calculation::forgetInsertedEnds(quint32 node)
+{
+    const auto at = m_insertedEndsOf.find(node);
+    if (at == m_insertedEndsOf.end()) return;
+    for (const quint64 key : at->second) {
+        const auto readers = m_readersOfInserted.find(key);
+        if (readers == m_readersOfInserted.end()) continue;
+        ++m_insertedEndsWork;
+        readers->second.erase(node);
+        if (readers->second.empty()) m_readersOfInserted.erase(readers);
+    }
+    m_insertedEndsOf.erase(at);
+}
+
+void Calculation::noteInsertedEnds(quint32 node, const std::vector<quint64> &keys)
+{
+    forgetInsertedEnds(node);
+    if (keys.empty()) return;
+    std::vector<quint64> unique = keys;
+    std::sort(unique.begin(), unique.end());
+    unique.erase(std::unique(unique.begin(), unique.end()), unique.end());
+    for (const quint64 key : unique) {
+        ++m_insertedEndsWork;
+        m_readersOfInserted[key].insert(node);
+    }
+    m_insertedEndsOf[node] = std::move(unique);
 }
 
 CellArea Calculation::idAreaOnSheet(int sheet, const CellArea &places, bool reading) const
@@ -992,12 +1156,17 @@ int Calculation::addSheet(const QString &name, int copyOf)
     const int index = int(m_sheets.size());
     Sheet content;
     std::vector<jp::calc::LineMapCore::Renumber> rowTable, colTable;
+    jp::calc::LineMapCore rowsBefore(jp::calc::LineLimits::rows(), 0), colsBefore(jp::calc::LineLimits::cols(), 0);   // (the orders of the sheet copied, as they were: references to deleted lines)
     if (copyOf >= 0 && copyOf < index) {
         content = m_sheets[size_t(copyOf)];
         content.view.tabSelected = false;
         content.partial = false;
         // (the copy has no history: its order is put back to one run, and the cells of rows and columns that were deleted in the sheet it is of are not held again)
         // (the tables say how the ids were renumbered, for the texts in ids: with the id frame off nothing asks for them)
+        if (m_options.idFrame) {   // (the orders as they were, to read the references that name a deleted line: only the id frame has any)
+            rowsBefore = content.cells.rows().core();
+            colsBefore = content.cells.cols().core();
+        }
         content.cells.rebaseLines(true, m_options.idFrame ? &rowTable : nullptr);
         content.cells.rebaseLines(false, m_options.idFrame ? &colTable : nullptr);
     }
@@ -1011,8 +1180,8 @@ int Calculation::addSheet(const QString &name, int copyOf)
     m_subtotalTexts.emplace_back();
     m_state.emplace_back();
     if (copyOf >= 0 && copyOf < index) {
-        renumberTexts(index, true, rowTable, index);
-        renumberTexts(index, false, colTable, index);
+        renumberTexts(index, true, rowTable, rowsBefore, index);
+        renumberTexts(index, false, colTable, colsBefore, index);
     }
     forgetRuleIndex();
     if (!name.isEmpty()) m_byName.insert(name.toCaseFolded(), index);
@@ -1169,9 +1338,9 @@ bool Calculation::rewriteSheetReferences(const QString &oldName, const QString &
     bool namesChanged = false;
     for (auto it = m_names.begin(); it != m_names.end(); ++it) {
         bool changed = false;
-        const QString now = rewrite(it.value(), true, &changed);
+        const QString now = rewrite(it.value(), true, &changed, m_idNames.contains(it.key()) ? jp::calc::ParseLimits::ids() : jp::calc::ParseLimits());
         if (!changed) continue;
-        record->names.push_back({it.key(), it.value()});
+        record->names.push_back({it.key(), taggedName(it.key())});
         it.value() = now;
         namesChanged = true;
     }
@@ -1209,7 +1378,7 @@ void Calculation::undoSheetRewrite(const SheetRewrite &record)
         if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].conditionalFormats = entry.second;
     bool namesChanged = false;
     for (const auto &entry : record.names) {
-        m_names[entry.first] = entry.second;
+        restoreTaggedName(entry.first, entry.second);
         namesChanged = true;
     }
     for (const EditRecord::Place &p : record.rewritten) {
@@ -1442,9 +1611,20 @@ bool Calculation::questionHasAnAnswer(const Question &q) const
         if (answer) return true;
     }
     if (q.deadPair) return true;
+    for (const quint32 node : q.nodes)
+        if (live(node)) return true;
     // set 1: a block that holds the gap, of a formula that can notice an empty line. (For columns the blocks that hold both columns are not asked for alone: those that read the column before the gap are
     // looked at, which is more, and enough to say that something may be asked.)
-    if (q.gapBefore != LineMapCore::kNone && q.gapAfter != LineMapCore::kNone) {
+    if (q.gapWide) {
+        auto visit = [&](quint32 node) {
+            if (++looked > kLooks || (live(node) && !(m_nodes[node].traits & Insensitive))) answer = true;
+            return !answer;
+        };
+        CellArea a;
+        lines(q.gapLo, q.gapHi, &a);
+        m_graph->forEachDependent(a, visit, true);
+        if (answer) return true;
+    } else if (q.gapBefore != LineMapCore::kNone && q.gapAfter != LineMapCore::kNone) {
         auto visit = [&](quint32 node) {
             if (++looked > kLooks || (live(node) && !(m_nodes[node].traits & Insensitive))) answer = true;
             return !answer;
@@ -1495,6 +1675,8 @@ bool Calculation::buildAsked(const Question &q, std::vector<quint32> *out, const
         if (!m_graph->dependentsOfArea(a, &found, stop, true)) return false;
         take(true);
     }
+    for (const quint32 node : q.nodes)
+        if (!(m_nodes[node].flags & Dead)) out->push_back(node);
     if (q.deadPair) {
         // (inserted lines that held cells are gone or back: the blocks that held them hold the original lines either side)
         CellArea a;
@@ -1503,7 +1685,12 @@ bool Calculation::buildAsked(const Question &q, std::vector<quint32> *out, const
         take(false);
     }
     // set 1: the formulas that can notice an empty line, of which a block holds the gap
-    if (q.gapBefore != LineMapCore::kNone && q.gapAfter != LineMapCore::kNone) {
+    if (q.gapWide) {
+        CellArea a;
+        lines(q.gapLo, q.gapHi, &a);
+        if (!m_graph->dependentsOfArea(a, &found, stop, true)) return false;
+        take(true);
+    } else if (q.gapBefore != LineMapCore::kNone && q.gapAfter != LineMapCore::kNone) {
         if (q.rows) {
             if (!m_graph->dependentsHoldingRows(q.sheet, q.gapBefore, q.gapAfter, &found, stop, true)) return false;
         } else {
@@ -1697,7 +1884,112 @@ void Calculation::tablesChanged()
     std::sort(ids.begin(), ids.end());
     ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
     for (const quint32 id : ids)
-        if (id < m_nodes.size()) readdNode(id);
+        if (id < m_nodes.size()) {
+            readdNode(id);
+            ++m_editStats.tablesRegisteredAgain;
+        }
+    m_tableIdsBefore.clear();
+    if (!m_running) beginRecalculation();
+}
+
+Calculation::TableIds Calculation::idsOfTable(const Table &t) const
+{
+    TableIds ids;
+    ids.sheet = t.sheet;
+    if (t.sheet < 0 || t.sheet >= int(m_sheets.size())) return ids;
+    const CellStore &cells = m_sheets[size_t(t.sheet)].cells;
+    ids.header = cells.rowIdAt(t.row1);
+    ids.first = cells.rowIdAt(t.dataFirst());
+    ids.last = t.dataLast() >= 0 ? cells.rowIdAt(quint32(t.dataLast())) : CellStore::kNoLine;
+    ids.bottom = cells.rowIdAt(t.row2);
+    ids.left = cells.colIdAt(t.col1);
+    ids.right = cells.colIdAt(t.col2);
+    ids.columns = int(t.columns.size());
+    ids.headerRows = t.headerRows;
+    ids.totalsRows = t.totalsRows;
+    return ids;
+}
+
+void Calculation::snapshotTableIds()
+{
+    m_tableIdsBefore.clear();
+    for (const Table &t : m_book.tables()) m_tableIdsBefore.insert(t.name.toLower(), idsOfTable(t));
+}
+
+void Calculation::tablesMovedByEdit()
+{
+    if (!m_options.idFrame || m_tableIdsBefore.isEmpty()) {
+        tablesChanged();
+        return;
+    }
+    WorkbookSource::tablesChanged();   // (the next reference by a table's name looks the tables up where they are)
+    QSet<QString> changed;
+    QSet<QString> present;
+    for (const Table &t : m_book.tables()) {
+        const QString key = t.name.toLower();
+        present.insert(key);
+        const auto before = m_tableIdsBefore.constFind(key);
+        if (before == m_tableIdsBefore.constEnd() || *before != idsOfTable(t)) changed.insert(key);
+    }
+    for (auto it = m_tableIdsBefore.constBegin(); it != m_tableIdsBefore.constEnd(); ++it)
+        if (!present.contains(it.key())) changed.insert(it.key());
+    m_tableIdsBefore.clear();
+    if (!changed.isEmpty()) tablesChangedFor(changed);
+}
+
+// The formulas that name one of the tables (by its name, or with none, from a cell on its sheet) are made again.
+void Calculation::tablesChangedFor(const QSet<QString> &changed)
+{
+    abandonNow();
+    BulkEdit bulk(this);
+    QSet<int> sheets;
+    for (const Table &t : m_book.tables())
+        if (changed.contains(t.name.toLower())) sheets.insert(t.sheet);
+    std::vector<quint32> ids;
+    for (const quint32 id : m_structuredNodes) {
+        if (id >= m_nodes.size() || (m_nodes[id].flags & Dead)) continue;
+        const Node &n = m_nodes[id];
+        const Sheet &s = m_sheets[size_t(n.sheet)];
+        if (n.formula < 0 || n.formula >= s.formulas.size()) continue;
+        const Compiled &slot = compiled(n.sheet, s.formulas[n.formula].text, n.flags & Array);
+        if (!slot.program) continue;
+        const jp::calc::Program &p = *slot.program;
+        bool names = false;
+        for (const jp::calc::Instr &in : p.code) {
+            if (in.op != jp::calc::Op::PushTable) continue;
+            QString tableName, inside;
+            if (!splitStructuredRef(p.texts[size_t(in.operand)], &tableName, &inside)) {
+                names = true;   // (one that can't be read is looked at again)
+                break;
+            }
+            if (tableName.isEmpty() ? sheets.contains(n.sheet) || sheets.isEmpty() : changed.contains(tableName.toLower())) {
+                names = true;
+                break;
+            }
+        }
+        if (names) ids.push_back(id);
+    }
+    // (a defined name that names a table's columns stands for other cells now: what uses a name is looked at again)
+    bool namesOfTables = false;
+    for (auto it = m_names.constBegin(); it != m_names.constEnd() && !namesOfTables; ++it) namesOfTables = it.value().contains(QLatin1Char('['));
+    if (namesOfTables) {
+        m_nameTraits.clear();
+        for (SheetState &state : m_state) {
+            for (Compiled &slot : state.plain) slot.tried = false;
+            for (Compiled &slot : state.array) slot.tried = false;
+        }
+        for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
+            const Node &n = m_nodes[id];
+            if (!(n.flags & Dead) && (n.flags & Told)) ids.push_back(id);
+        }
+    }
+    std::sort(ids.begin(), ids.end());
+    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+    for (const quint32 id : ids) {
+        m_structuredNodes.erase(id);   // (made again, it lists itself anew, perhaps under another number)
+        readdNode(id);
+        ++m_editStats.tablesRegisteredAgain;
+    }
     if (!m_running) beginRecalculation();
 }
 
@@ -2482,6 +2774,8 @@ void Calculation::dropNode(quint32 id)
     m_arrays.remove(id);
     m_graph->clearPrecedents(id);
     if (!m_positionalNodes.empty()) m_positionalNodes.erase(id);
+    if (!m_idToldNodes.empty()) m_idToldNodes.erase(id);
+    if (!m_insertedEndsOf.empty()) forgetInsertedEnds(id);
     if (n.flags & ThreeD) {
         m_threeD.erase(id);
         m_threeDSpan.erase(id);
@@ -2670,6 +2964,14 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
             out.hasStored = true;
             out.stored = nodeValue(m_nodes[id], id);
         }
+        if (m_options.idFrame && !(c->flags & (ArrayFormula | DataTable | ArrayMember)))
+            out.hasHeld = heldOf(sheet, *c, &out.held, &out.heldDRow, &out.heldDCol, &out.heldCls);
+        if (out.hasHeld) {
+            out.heldEpochs = renumberEpochsText();
+            out.heldSheet = sheet;
+            out.heldRow = row;
+            out.heldCol = col;
+        }
         return out;
     }
     switch (c->type) {
@@ -2695,6 +2997,11 @@ bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c,
         return setStyle(sheet, row, col, 0);
     }
     const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr) : setValue(sheet, row, col, c.value, marking, c.sharedString);
+    if (ok && c.isFormula && c.hasHeld && m_options.idFrame && c.heldSheet == sheet && c.heldRow == row && c.heldCol == col && c.heldEpochs == renumberEpochsText()) {
+        restoreHeldFormula(sheet, row, col, c.held, c.heldDRow, c.heldDCol, c.heldCls);
+        const Cell *now = m_sheets[size_t(sheet)].cells.find(row, col);
+        if (!now || !now->hasFormula() || m_sheets[size_t(sheet)].formulaText(*now) != c.formula) setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr);   // (it does not read as the text: the text is the cell's)
+    }
     return ok && setStyle(sheet, row, col, c.style);
 }
 

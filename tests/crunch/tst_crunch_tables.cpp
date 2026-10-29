@@ -22,6 +22,7 @@
 #include <QTreeWidget>
 
 #include <QMenu>
+#include <functional>
 #include <QRegularExpression>
 #include <QSignalSpy>
 #include <QToolButton>
@@ -1370,6 +1371,58 @@ private Q_SLOTS:
         QCOMPARE(w.session()->workbook()->tables().first().totalsRows, 1);
         menuAction(QStringLiteral("Back to Plain Cells"))->trigger();
         QVERIFY(w.session()->workbook()->tables().isEmpty());
+    }
+
+    // With the formulas in the id frame a table is its ids (docs/jeffcrunch-rowids.md, 4.14): a table that moves, or has a row put in or taken out inside it, makes none of the formulas that name it again;
+    // an edit that changes where it begins or ends makes those that name it again, and only those. Without the id frame every edit of rows makes every one of them again.
+    void aTableThatMovesOrHasRowsInsideMakesNoFormulaAgain()
+    {
+        qint64 again[2][4] = {};
+        for (const bool ids : {false, true}) {
+            EditWindow e;
+            e.win.w.workbookLoader().setIdFrame(ids ? 1 : -1);   // (this window's own: the process's default is not touched, so that no other worker is raced)
+            QVERIFY(e.open(buildXlsx({salesRows()})));
+            crunch::EditSession *s = e.win.w.session();
+            s->setLocale(kUs);
+            QVERIFY(e.settle());
+            QCOMPARE(s->calculation()->idFrame(), ids);
+            QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);   // Table1: three rows of data
+            QVERIFY(s->type(0, 0, 4, QStringLiteral("X")).ok);
+            QVERIFY(s->type(0, 0, 5, QStringLiteral("Y")).ok);
+            for (int r = 1; r <= 2; ++r) {
+                QVERIFY(s->type(0, quint32(r), 4, QString::number(r * 10)).ok);
+                QVERIFY(s->type(0, quint32(r), 5, QString::number(r * 100)).ok);
+            }
+            QVERIFY(s->makeTable(0, rangeText(QStringLiteral("E1:F3")), true, QString()).ok);   // Table2: two rows
+            for (quint32 r = 10; r < 110; ++r) {
+                QVERIFY(s->type(0, r, 0, QStringLiteral("=SUM(Table1[Q1])")).ok);
+                QVERIFY(s->type(0, r, 1, QStringLiteral("=SUM(Table2[Y])")).ok);
+            }
+            QVERIFY(e.settle());
+            QCOMPARE(valueOf(e, QStringLiteral("A11")), QStringLiteral("n:6"));
+            QCOMPARE(valueOf(e, QStringLiteral("B11")), QStringLiteral("n:300"));
+            const Calculation *calc = s->calculation();
+            auto count = [&](int step, const std::function<void()> &edit) {
+                const qint64 before = calc->editStats().tablesRegisteredAgain;
+                edit();
+                QVERIFY(e.settle());
+                again[ids][step] = calc->editStats().tablesRegisteredAgain - before;
+            };
+            count(0, [&] { QVERIFY(s->insertRows(0, 0, 1).ok); });   // above both: they move
+            count(1, [&] { QVERIFY(s->insertRows(0, 3, 1).ok); });   // inside both (between rows of data)
+            QCOMPARE(valueOf(e, QStringLiteral("A13")), QStringLiteral("n:6"));
+            QCOMPARE(valueOf(e, QStringLiteral("B13")), QStringLiteral("n:300"));
+            count(2, [&] { QVERIFY(s->deleteRows(0, 5, 1).ok); });   // the last row of data of Table1, which Table2 does not have
+            QCOMPARE(valueOf(e, QStringLiteral("A12")), QStringLiteral("n:3"));
+            QCOMPARE(valueOf(e, QStringLiteral("B12")), QStringLiteral("n:300"));
+            count(3, [&] { e.win.w.undoStack()->undo(); });          // and brought back
+            QCOMPARE(valueOf(e, QStringLiteral("A13")), QStringLiteral("n:6"));
+        }
+        QVERIFY(again[0][0] >= 200 && again[0][1] >= 200);        // (in places: every formula that names a table, for every edit)
+        QCOMPARE(again[1][0], qint64(0));
+        QCOMPARE(again[1][1], qint64(0));
+        QCOMPARE(again[1][2], qint64(100));                        // (Table1's formulas, and not Table2's)
+        QCOMPARE(again[1][3], qint64(100));
     }
 
     // A small change to a table does not make the sheet's whole picture again (a row added by typing under it), and a subtotal is worked out again when a row is hidden or shown, not when a row

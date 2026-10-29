@@ -839,16 +839,22 @@ QString offsetFormula(const QString &formula, qint32 dRow, qint32 dCol, bool *ch
             lit.row2 = quint32(r2);
             lit.col1 = quint32(c1);
             lit.col2 = quint32(c2);
-            if (lit.row1 > lit.row2) {
+            // (a range the parser put in the order of its numbers is given in the order its text names the ends: for ids that is the order of the places, see jp::calc::refEnds; the others cross and are put in order)
+            auto swapRows = [&]() {
                 std::swap(lit.row1, lit.row2);
                 const quint8 a = (lit.flags & jp::calc::kRefRow1Abs) ? 1 : 0, b = (lit.flags & jp::calc::kRefRow2Abs) ? 1 : 0;
                 lit.flags = quint8((lit.flags & ~(jp::calc::kRefRow1Abs | jp::calc::kRefRow2Abs)) | (b ? jp::calc::kRefRow1Abs : 0) | (a ? jp::calc::kRefRow2Abs : 0));
-            }
-            if (lit.col1 > lit.col2) {
+            };
+            auto swapCols = [&]() {
                 std::swap(lit.col1, lit.col2);
                 const quint8 a = (lit.flags & jp::calc::kRefCol1Abs) ? 1 : 0, b = (lit.flags & jp::calc::kRefCol2Abs) ? 1 : 0;
                 lit.flags = quint8((lit.flags & ~(jp::calc::kRefCol1Abs | jp::calc::kRefCol2Abs)) | (b ? jp::calc::kRefCol1Abs : 0) | (a ? jp::calc::kRefCol2Abs : 0));
-            }
+            };
+            const bool idsText = limits.wide();
+            if (idsText && (lit.written & 1)) swapRows();
+            else if (lit.row1 > lit.row2) swapRows();
+            if (idsText && (lit.written & 2)) swapCols();
+            else if (lit.col1 > lit.col2) swapCols();
             out += jp::calc::referenceCellsText(lit);
         }
         at = r.end;

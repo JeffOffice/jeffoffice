@@ -167,7 +167,7 @@ public:
         for (const FillEdit &f : m_step.fills) n += qint64(sizeof(f)) + qint64(f.formula.size() + f.oldFormula.size()) * 2 + qint64(f.oldRuns.size()) * qint64(sizeof(std::pair<quint32, quint32>));
         for (const MergeEdit &m : m_step.merges) n += qint64(sizeof(m)) + qint64(m.before.size() + m.after.size()) * qint64(sizeof(jp::office::sheet::CellRange));
         for (const FilterEdit &f : m_step.filters) n += qint64(sizeof(f)) + filterBytes(f.before) + filterBytes(f.after);
-        for (const NameEdit &e : m_step.names) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.before.name.size() + e.after.name.size() + e.textBefore.size() + e.textAfter.size()) * 2;
+        for (const NameEdit &e : m_step.names) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.before.name.size() + e.after.name.size() + e.textBefore.size() + e.textAfter.size() + e.taggedBefore.size() + e.taggedAfter.size()) * 2;
         n += qint64(m_step.calcs.size()) * qint64(sizeof(CalcEdit));
         for (const SheetEdit &e : m_step.sheets) n += qint64(sizeof(e)) + e.rewrite.bytes() + qint64(e.orderBefore.size() + e.orderAfter.size()) * qint64(sizeof(int));
         for (const SizeEdit &e : m_step.sizes)

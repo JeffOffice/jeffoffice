@@ -126,6 +126,7 @@ struct NameEdit {
     int id = 0;
     NameEntry before, after;
     QString textBefore, textAfter;
+    QString taggedBefore, taggedAfter;   // and as the calculation holds them (Calculation::nameTagged), empty for none: Undo and Redo put these back, which a text in places can't do for a line that was deleted
     jp::office::sheet::Calculation::SheetRewrite rewrite;
     bool renamed() const { return before.alive && after.alive && before.name.compare(after.name, Qt::CaseInsensitive) != 0; }
 };

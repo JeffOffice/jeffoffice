@@ -78,6 +78,29 @@ struct RefLit {
     quint8 written = 0;   // bits that say the corners were written back to front (1: rows, 2: columns) and put in order: the text can be given as it was written (see sheet/formulaframe.h)
 };
 
+// The ends of a reference to rows (or to columns) in the order its text names them. The parser puts the corners of a range in the order of their numbers and says in `written` that it did; for a text
+// held in ids that is the order of the places the ids were made for, which an id past the grid (a line that was inserted) does not follow: a range from an inserted line to an original one is written
+// with its larger number first. What an end that was deleted stands for depends on which is the start and which the end (docs/jeffcrunch-rowids.md, 4.4).
+inline void refEnds(const RefLit &r, bool rows, quint32 *start, quint32 *end, bool *startAbs = nullptr, bool *endAbs = nullptr)
+{
+    const quint32 a = rows ? r.row1 : r.col1, b = rows ? r.row2 : r.col2;
+    const bool aAbs = r.flags & (rows ? 1 : 2), bAbs = r.flags & (rows ? 4 : 8);
+    const bool back = r.written & (rows ? 1 : 2);
+    *start = back ? b : a;
+    *end = back ? a : b;
+    if (startAbs) *startAbs = back ? bAbs : aAbs;
+    if (endAbs) *endAbs = back ? aAbs : bAbs;
+}
+// The same, set: the reference names `start` first and `end` second, with those absolute marks (the text is made from the corners in this order, so a larger number may come first).
+inline void setRefEnds(RefLit *r, bool rows, quint32 start, quint32 end, bool startAbs, bool endAbs)
+{
+    (rows ? r->row1 : r->col1) = start;
+    (rows ? r->row2 : r->col2) = end;
+    const quint8 one = rows ? 1 : 2, two = rows ? 4 : 8;
+    r->flags = quint8((r->flags & ~(one | two)) | (startAbs ? one : 0) | (endAbs ? two : 0));
+    r->written = quint8(r->written & ~(rows ? 1 : 2));
+}
+
 struct Program {
     std::vector<Instr> code;
     std::vector<double> numbers;

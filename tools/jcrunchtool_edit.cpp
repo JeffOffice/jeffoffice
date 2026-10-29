@@ -1203,6 +1203,9 @@ int structBench(const QString &path, const QString &label, const QString &only)
         cases.push_back({QStringLiteral("insert column %1").arg(QLatin1String(where[i])), [=] { return session->insertColumns(sheet, at, 1); }});
         cases.push_back({QStringLiteral("delete column %1").arg(QLatin1String(where[i])), [=] { return session->deleteColumns(sheet, at, 1); }});
     }
+    // (a row put in, and one taken out, inside the first thousand rows: where the table of the workbooks that have one is, and, for the others, a row near the top)
+    cases.push_back({QStringLiteral("insert row inside"), [=] { return session->insertRows(sheet, 500, 1); }});
+    cases.push_back({QStringLiteral("delete row inside"), [=] { return session->deleteRows(sheet, 500, 1); }});
     // (a row put in past every cell: nothing is read or seen there, so for formulas that only see their own row it is rigid)
     cases.push_back({QStringLiteral("insert row past the end"), [=] { return session->insertRows(sheet, rows + 5, 1); }});
     // (cells shifted one by one: the column of formulas moved down by one, which moves every formula in it and leaves what they read where it is)
@@ -1217,7 +1220,8 @@ int structBench(const QString &path, const QString &label, const QString &only)
     out() << "label\tcase\tdo_cpu_ms\tdo_wall_ms\tworker_cpu_ms\tsettle_ms\twork_counted\ttexts_made\tundo_cpu_ms\tundo_wall_ms\tundo_work\tused_rows\tused_cols"
           << "\tcells_moved\tcells_gone\tformulas_visited\tformulas_rewritten\tnodes_remade\tgraph_work\tnames_rewritten\trules_rewritten\tmarks_followed\tvalues_moved\tview_cells\tundo_bytes\tgraph_entries"
           << "\tu_cells_moved\tu_formulas_visited\tu_formulas_rewritten\tu_nodes_remade\tu_graph_work\tu_marks_followed\tu_values_moved\tu_view_cells"
-          << "\tevals\tsettle_after_ms\tu_evals\tgraph_bytes\tph_setup\tph_candidates\tph_rewrite\tph_cells\tph_graph\tph_other\tph_write\n";
+          << "\tevals\tsettle_after_ms\tu_evals\tgraph_bytes\tph_setup\tph_candidates\tph_rewrite\tph_cells\tph_graph\tph_other\tph_write"
+          << "\teager\tnames_again\ttables_again\ttexts_to_ids\tu_eager\tu_names_again\tu_tables_again\n";
     auto settle = [&](QElapsedTimer &wall) {
         QElapsedTimer waiting;
         waiting.start();
@@ -1275,7 +1279,8 @@ int structBench(const QString &path, const QString &label, const QString &only)
               << '\t' << evals << '\t' << QString::number(settleMs - wallMs, 'f', 1) << '\t' << uEvals << '\t' << calc->graph().memoryBytes()
               << '\t' << QString::number(double(did.phaseMicros[6]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[0]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[1]) / 1000.0, 'f', 1)
               << '\t' << QString::number(double(did.phaseMicros[2]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[3]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[4]) / 1000.0, 'f', 1)
-              << '\t' << QString::number(double(did.phaseMicros[5]) / 1000.0, 'f', 1) << '\n';
+              << '\t' << QString::number(double(did.phaseMicros[5]) / 1000.0, 'f', 1) << '\t' << did.eagerFormulas << '\t' << did.namesRegisteredAgain << '\t' << did.tablesRegisteredAgain << '\t' << did.textsToIds
+              << '\t' << undid.eagerFormulas << '\t' << undid.namesRegisteredAgain << '\t' << undid.tablesRegisteredAgain << '\n';
         out().flush();
     }
     out() << "# after the edits: resident " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB\n";

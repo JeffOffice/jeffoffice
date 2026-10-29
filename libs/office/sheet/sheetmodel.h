@@ -211,6 +211,11 @@ public:
     quint32 colIdAt(quint32 place) const { return colIdOf(place); }
     quint32 rowPlaceOf(quint32 id) const { return rowPosOf(id); }
     quint32 colPlaceOf(quint32 id) const { return colPosOf(id); }
+    // The places of the lines a reference names by the ids at its ends (`startId` is the end written first): both alive, their places in order; an end that is dead, the line next to where it was (a
+    // start is the line that followed it, an end the one that preceded it: docs/jeffcrunch-rowids.md, 4.4). False when nothing is left of it: a single line that is dead, an end with no line to go
+    // to, the start after the end.
+    bool rowRangeOf(quint32 startId, quint32 endId, quint32 *first, quint32 *last) const { return lineRangeOf(m_rows, startId, endId, first, last); }
+    bool colRangeOf(quint32 startId, quint32 endId, quint32 *first, quint32 *last) const { return lineRangeOf(m_cols, startId, endId, first, last); }
     // Whether no row and no column of the sheet has been inserted or deleted: every id is its place.
     bool isPlain() const { return plain(); }
     // Whether anything can still name the id: its line is in the order, or was deleted and a step could bring it back. (A mark of the window on an id that is not is let go of before the id is given again.)
@@ -552,8 +557,9 @@ public:
     jp::calc::LineStatus undoLines(bool rows, LineEdits &edits, LineShift *shift = nullptr, std::vector<Cell> *deadFormulas = nullptr);
     jp::calc::LineStatus redoLines(bool rows, LineEdits &edits, LineShift *shift = nullptr, std::vector<Cell> *deadFormulas = nullptr);
     // The step that made the edit will never be undone or done again: the cells of the lines that only it could bring back are let go of, and so are the records of those lines (and the ids that
-    // nothing can name are given back if they were the last taken). The edits are empty after.
-    void forgetLines(bool rows, LineEdits *edits);
+    // nothing can name are given back if they were the last taken). The edits are empty after. `keepDead`: the records of lines that were deleted stay, for formulas held in ids that name them by id
+    // (an end that was deleted is the line next to where it was); a rebase is what lets go of them.
+    void forgetLines(bool rows, LineEdits *edits, bool keepDead = false);
     // Puts the order of the rows (columns) back to one run, from 0: the cells are given the new ids, those of dead lines are let go of, and every edit made to the order before is stale (Undo of it
     // is refused). The status if that cannot be done.
     // `table`, if given, is how the ids of the live lines were renumbered (sorted by old first id): see renumberLine.
@@ -647,6 +653,24 @@ private:
     quint32 colIdOf(quint32 pos) const { return m_cols.isIdentity() ? pos : m_cols.core().idAt(pos, &hint(1)); }
     quint32 rowPosOf(quint32 id) const { return m_rows.isIdentity() ? id : m_rows.core().posOf(id, &hint(2)); }
     quint32 colPosOf(quint32 id) const { return m_cols.isIdentity() ? id : m_cols.core().posOf(id, &hint(3)); }
+    template <class Map>
+    static bool lineRangeOf(const Map &map, quint32 startId, quint32 endId, quint32 *first, quint32 *last)
+    {
+        if (map.isIdentity()) {
+            if (startId >= map.size() || endId >= map.size()) return false;
+            *first = std::min(startId, endId);
+            *last = std::max(startId, endId);
+            return true;
+        }
+        const jp::calc::LineMapCore &core = map.core();
+        const uint32_t a = core.posOf(startId), b = core.posOf(endId);
+        if (a != kNoLine && b != kNoLine) {
+            *first = std::min(a, b);
+            *last = std::max(a, b);
+            return true;
+        }
+        return core.resolveRange(startId, endId, first, last);
+    }
     static jp::calc::LineHint &hint(int which)
     {
         thread_local jp::calc::LineHint hints[4];

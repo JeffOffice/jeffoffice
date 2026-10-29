@@ -197,13 +197,18 @@ int pickSheet(Rng &r)
 }
 
 // A formula to type; it is typed in a column from E on, and reads cells of the columns A to D (and other sheets), so that few of them read themselves.
-// With `extra` (and only then does it draw anything more) one in five is of another kind: a range written back to front, a function whose name could be a cell past XFD (ATAN2), or a name that could be.
+// With `extra` (and only then does it draw anything more) one in five is of another kind: a range written back to front, a function whose name could be a cell past XFD (ATAN2), or a name that could be, and the size of a range (ROWS, COLUMNS) that an insert and a delete at its ends change.
 QString randomFormula(Rng &r, bool extra)
 {
     auto row = [&] { return 1 + r.bounded(30); };
     if (extra && r.bounded(5) == 0) {
         const int a = row(), b = row();
-        switch (r.bounded(6)) {
+        switch (r.bounded(10)) {
+        // (the size of a range shows at once what its ends did: an end that died, the lines put in and taken out around it)
+        case 6: return QStringLiteral("=ROWS(A%1:A%2)").arg(a).arg(a + 1 + r.bounded(4));
+        case 7: return QStringLiteral("=COLUMNS(A%1:C%1)").arg(a);
+        case 8: return QStringLiteral("=COLUMNS(B%1:D%1)+ROWS(A%2:A%3)").arg(a).arg(b).arg(b + 2 + r.bounded(6));
+        case 9: return QStringLiteral("=ROWS(B%1:C%2)*COLUMNS(A%3:D%3)").arg(a).arg(a + 3).arg(b);
         case 0: return QStringLiteral("=SUM(A%1:A%2)").arg(a + 3).arg(a);
         case 1: return QStringLiteral("=SUM(B%1:C%2)+A%3").arg(b + 4).arg(b).arg(a);
         case 2: return QStringLiteral("=SUM(Calc!A%1:A%2)").arg(a + 2).arg(a);
@@ -441,15 +446,23 @@ struct Live {
         win->resize(1100, 640);
         if (visible) win->show();
         bool first = false, loaded = false, loadedOk = true, done = false;
-        const QMetaObject::Connection c1 = QObject::connect(win.get(), &CrunchWindow::firstScreenShown, win.get(), [&] { first = true; });
+        QString lastSignal = QStringLiteral("none");   // (for the report of a wait that ran out: the last thing the worker told the window)
+        qint64 batches = 0, progresses = 0;
+        const QMetaObject::Connection c1 = QObject::connect(win.get(), &CrunchWindow::firstScreenShown, win.get(), [&] { first = true; lastSignal = QStringLiteral("firstScreenShown"); });
         const QMetaObject::Connection c2 = QObject::connect(win.get(), &CrunchWindow::loadFinished, win.get(), [&](bool ok) {
             loaded = true;
             loadedOk = ok;
+            lastSignal = QStringLiteral("loadFinished(%1)").arg(ok);
         });
-        const QMetaObject::Connection c3 = QObject::connect(win.get(), &CrunchWindow::calculationFinished, win.get(), [&] { done = true; });
+        const QMetaObject::Connection c3 = QObject::connect(win.get(), &CrunchWindow::calculationFinished, win.get(), [&] { done = true; lastSignal = QStringLiteral("calculationFinished"); });
         QObject::connect(&win->workbookLoader(), &crunch::WorkbookLoader::calcBatch, win.get(), [this](const std::shared_ptr<crunch::CalcBatch> &b) {
             if (b->last && !b->stopped) lastEpoch = b->epoch;
         });
+        const QMetaObject::Connection c4 = QObject::connect(&win->workbookLoader(), &crunch::WorkbookLoader::calcBatch, win.get(), [&lastSignal, &batches](const std::shared_ptr<crunch::CalcBatch> &b) {
+            ++batches;
+            lastSignal = QStringLiteral("calcBatch(epoch %1, last %2, stopped %3)").arg(b->epoch).arg(b->last).arg(b->stopped);
+        });
+        const QMetaObject::Connection c5 = QObject::connect(&win->workbookLoader(), &crunch::WorkbookLoader::progress, win.get(), [&](int, qint64) { ++progresses; });
         QObject::connect(win.get(), &CrunchWindow::saved, win.get(), [this](const QString &, bool ok) {
             saveFinished = true;
             saveOk = ok;
@@ -459,10 +472,31 @@ struct Live {
         QObject::disconnect(c1);
         QObject::disconnect(c2);
         QObject::disconnect(c3);
+        QObject::disconnect(c4);
+        QObject::disconnect(c5);
         if (!ok || !loadedOk || !win->session()) {
             problem = !started ? QStringLiteral("the window did not start the open")
                       : !loadedOk && loaded ? QStringLiteral("the load finished with failure")
                       : QStringLiteral("after 60 s: first screen %1, load %2, calculation %3").arg(first ? "shown" : "NOT shown", loaded ? "finished" : "NOT finished", done ? "finished" : "NOT finished");
+            if (!ok) {
+                // what the worker was doing, so that the next time this happens it can be told from a worker that never began, one that ended, and one that waits for something
+                auto &loader = win->workbookLoader();
+                const std::shared_ptr<crunch::LoadedBook> book = loader.result();
+                problem += QStringLiteral("; loader %1, last signal %2, %3 batches and %4 progress reports taken, %5 holds taken, %6 changes made, window %7")
+                               .arg(loader.isRunning() ? "running" : "not running", lastSignal)
+                               .arg(batches)
+                               .arg(progresses)
+                               .arg(loader.holdsTaken())
+                               .arg(loader.changesMade())
+                               .arg(win->isCalculating() ? "calculating" : "idle");
+                if (book)
+                    problem += QStringLiteral("; worker %1, calculation %2, %3 cells read, calculation thread %4, workbook %5")
+                                   .arg(book->workerEnded.load() ? "ended" : "alive", book->calcIdle.load() ? "idle" : "busy")
+                                   .arg(book->cellsRead.load())
+                                   .arg(quintptr(book->calcThread.load()) ? "begun" : "not begun", book->book ? "read" : "not read");
+                else
+                    problem += QStringLiteral("; no result");
+            }
             if (ok && loadedOk) problem = QStringLiteral("the window has no session");
             return false;
         }
@@ -1568,11 +1602,68 @@ QString modelRewrite(const QString &formula, int formulaSheet, const Step &edit)
     return plainOf(edit, &e) ? textAfter(formula, formulaSheet, e) : formula;
 }
 
+namespace {
+
+// With `extra`, now and then a short run of steps that gives a range an end that died and a line put in where it was, and takes lines away around them: the size of a range typed (ROWS, COLUMNS),
+// lines put in inside it or at its edge, and the lines at its start or its end deleted, one after the other (and sometimes undone). What the formula shows is the size of the range, so a
+// formula that was not worked out again when its range changed is seen at once.
+void appendRangePattern(Rng &r, std::vector<Step> *steps)
+{
+    const int sheet = pickSheet(r);
+    const bool rows = r.bounded(2) == 0;
+    const int at = r.bounded(25), shape = r.bounded(3), repeat = 1 + r.bounded(2);
+    auto edit = [&](Step::Kind kind, int first, int count) {
+        Step s;
+        s.kind = kind;
+        s.sheet = sheet;
+        s.row1 = rows ? first : 0;
+        s.col1 = rows ? 0 : first;
+        s.count = count;
+        steps->push_back(s);
+    };
+    Step typed;
+    typed.kind = Step::Type;
+    typed.sheet = sheet;
+    typed.row1 = rows ? r.bounded(40) : at;
+    typed.col1 = 4 + r.bounded(8);
+    typed.text = rows ? QStringLiteral("=ROWS(A%1:A%2)").arg(at + 1).arg(at + 3) : QStringLiteral("=COLUMNS(A%1:C%1)").arg(at + 1);
+    steps->push_back(typed);
+    const Step::Kind put = rows ? Step::InsertRows : Step::InsertColumns, take = rows ? Step::DeleteRows : Step::DeleteColumns;
+    const int base = rows ? at : 0;   // (the first line of the range: the first row of the rows, column A)
+    switch (shape) {
+    case 0:   // a line put in at the second line, the first line deleted (as many times as lines were put in)
+        edit(put, base + 1, repeat);
+        for (int i = 0; i < repeat + 1; ++i) edit(take, base, 1);
+        break;
+    case 1:   // a line put in before the last line of the range, then the last line and the one before it deleted
+        edit(put, base + 2, 1);
+        edit(take, base + 3, 1);
+        edit(take, base + 2, 1);
+        break;
+    default:  // the first line deleted, a line put in where it was, deleted again, and all of it undone
+        edit(take, base, 1);
+        edit(put, base, 1);
+        edit(take, base, 1);
+        for (int i = 0; i < 1 + r.bounded(3); ++i) {
+            Step u;
+            u.kind = Step::Undo;
+            steps->push_back(u);
+        }
+        break;
+    }
+}
+
+} // namespace
+
 std::vector<Step> generate(quint32 seed, int count, bool extra)
 {
     Rng r(seed);
     std::vector<Step> steps;
-    for (int i = 0; i < count; ++i) steps.push_back(makeStep(r, !steps.empty() && (steps.back().kind == Step::Undo || steps.back().kind == Step::Redo), extra));
+    while (int(steps.size()) < count) {
+        if (extra && r.bounded(12) == 0) appendRangePattern(r, &steps);
+        else steps.push_back(makeStep(r, !steps.empty() && (steps.back().kind == Step::Undo || steps.back().kind == Step::Redo), extra));
+    }
+    steps.resize(size_t(count));
     return steps;
 }
 

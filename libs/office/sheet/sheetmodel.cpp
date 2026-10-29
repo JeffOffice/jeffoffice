@@ -356,7 +356,7 @@ jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e, LineShift *sh
     return LineStatus::Ok;
 }
 
-void CellStore::forgetLines(bool rows, LineEdits *edits)
+void CellStore::forgetLines(bool rows, LineEdits *edits, bool keepDead)
 {
     using Kind = jp::calc::LineEdit::Kind;
     LineEdits &e = *edits;
@@ -373,11 +373,11 @@ void CellStore::forgetLines(bool rows, LineEdits *edits)
     if (e.edit.kind == Kind::Erase) {
         if (e.made) {
             purgeCells(rows, e.edit.runs);
-            map.dropDead(e.edit.runs);
+            if (!keepDead) map.dropDead(e.edit.runs);
         }
     } else if (e.made) {
         purgeCells(rows, e.edit.pushed);
-        map.dropDead(e.edit.pushed);
+        if (!keepDead) map.dropDead(e.edit.pushed);
     } else {
         purgeCells(rows, e.edit.runs);
         map.forget(e.edit);
