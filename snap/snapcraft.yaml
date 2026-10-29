@@ -21,8 +21,13 @@ description: |
 
   The apps run as jeffoffice.jeffpub, jeffoffice.jeffdeck, jeffoffice.jeffwrite,
   and jeffoffice.jeffcrunch, and each has its own entry in the application menu.
-  Files in your home folder and on removable media open directly; files
-  elsewhere open through the file dialog.
+
+  Files in your home folder open directly. For files on a USB drive or another
+  removable disk, allow access once with:
+  sudo snap connect jeffoffice:removable-media
+  Files elsewhere open through the file dialog. Printing goes through the
+  system's print service (the cups interface). If printing doesn't work, run
+  sudo snap connect jeffoffice:cups and try again; saving a PDF always works.
 license: GPL-3.0-only
 contact: https://github.com/JeffOffice/jeffoffice/issues
 website: https://github.com/JeffOffice/jeffoffice
@@ -36,6 +41,13 @@ platforms:
     build-on: [amd64]
     build-for: [amd64]
 
+# Printing: the apps plug "cups", the interface other desktop snaps use for printing
+# (it reaches the host's CUPS socket and is connected automatically when the system
+# or the cups snap provides it). "cups-control" would also let an app manage printers
+# and queues, which the apps never do, and the store reviews it by hand. If the
+# interface doesn't connect by itself, the description tells users the one command.
+# "removable-media" is never connected automatically; the description says how.
+#
 # The suite's four apps, one snap. The KDE Neon extension supplies Qt 6 and the
 # desktop integration (fonts, themes, the file-dialog portal, Wayland and X11).
 apps:
@@ -53,7 +65,7 @@ apps:
       - home
       - removable-media
       - network        # the daily statistics ping and the update check; every app works offline
-      - cups           # printing
+      - cups           # printing; see the comment at the top of the apps
   jeffdeck:
     command: usr/bin/JeffDeck
     extensions: [kde-neon-6]
@@ -146,7 +158,7 @@ parts:
         # The desktop entry: the snap rewrites Exec; the icon must be a path inside the snap.
         install -Dm644 "$here/$lower.desktop" "$d/usr/share/applications/$lower.desktop"
         sed -i "s|^Icon=.*|Icon=\${SNAP}/usr/share/icons/hicolor/256x256/apps/$lower.png|" "$d/usr/share/applications/$lower.desktop"
-        install -Dm644 "$here/com.jeffoffice.$name.metainfo.xml" "$d/usr/share/metainfo/com.jeffoffice.$name.metainfo.xml"
+        "$here/gen-metainfo.sh" "$here/com.jeffoffice.$name.metainfo.xml" "$d/usr/share/metainfo/com.jeffoffice.$name.metainfo.xml"
       done
       install -Dm644 "$CRAFT_PART_SRC/resources/app.png" "$d/usr/share/icons/hicolor/256x256/apps/jeffpub.png"
       install -Dm644 "$CRAFT_PART_SRC/apps/deck/resources/app.png" "$d/usr/share/icons/hicolor/256x256/apps/jeffdeck.png"

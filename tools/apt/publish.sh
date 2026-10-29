@@ -5,7 +5,7 @@
 #
 # <repo dir> is a checkout of JeffOffice/apt (an empty folder starts a new
 # repository). The script puts the packages in pool/, keeps the newest KEEP
-# versions of each package (default 3), rebuilds dists/stable/main/binary-amd64
+# versions of each package (default 1), rebuilds dists/stable/main/binary-amd64
 # (Packages, Packages.gz) and dists/stable (Release, InRelease, Release.gpg),
 # and writes the public key, the .sources file, and index.html at the top.
 # Needs apt-ftparchive, dpkg-deb, and gpg. Nothing else.
@@ -19,7 +19,7 @@
 # https://jeffoffice.github.io/apt); it goes into index.html and the .sources file.
 set -euo pipefail
 
-keep=3
+keep=1
 while getopts n: opt; do
   case $opt in
     n) keep=$OPTARG ;;
@@ -90,7 +90,25 @@ rm -f "$repo/dists/$suite/Release" "$repo/dists/$suite/InRelease" "$repo/dists/$
 ( cd "$repo" && apt-ftparchive --arch "$arch" packages pool > "dists/$suite/$comp/binary-$arch/Packages" )
 gzip -9nc "$bin/Packages" > "$bin/Packages.gz"
 
-# 4. The signed Release: its checksums cover the indexes above.
+# 4. By-hash copies of the indexes (Acquire-By-Hash). A cached or CDN-served site can show apt an old Packages.gz beside a new
+#    InRelease for a while; apt then fetches by-hash/SHA256/<hash>, which never changes. The copies from the last publish stay
+#    for one more publish, for clients that read the older InRelease.
+stash=$gnupg/by-hash-stash
+mkdir -p "$bin/by-hash" "$stash/new"
+mv "$bin/by-hash" "$stash/by-hash"      # (kept out of Release's file list)
+prev=$(cat "$stash/by-hash/current" 2>/dev/null || true)
+cur=
+# apt uses the strongest hash Release lists (SHA512), so both are written.
+for f in Packages Packages.gz; do
+  for algo in SHA256 SHA512; do
+    h=$("${algo,,}sum" "$bin/$f" | cut -d' ' -f1)
+    mkdir -p "$stash/new/$algo"
+    cp "$bin/$f" "$stash/new/$algo/$h"
+    cur="$cur$algo/$h"$'\n'
+  done
+done
+
+# 5. The signed Release: its checksums cover the indexes above.
 ( cd "$repo" && apt-ftparchive \
     -o APT::FTPArchive::Release::Origin=JeffOffice \
     -o APT::FTPArchive::Release::Label=JeffOffice \
@@ -98,13 +116,21 @@ gzip -9nc "$bin/Packages" > "$bin/Packages.gz"
     -o APT::FTPArchive::Release::Codename=$suite \
     -o APT::FTPArchive::Release::Architectures=$arch \
     -o APT::FTPArchive::Release::Components=$comp \
+    -o APT::FTPArchive::Release::Acquire-By-Hash=yes \
     -o "APT::FTPArchive::Release::Description=JeffOffice, a free, open-source office suite" \
     release "dists/$suite" > "$gnupg/Release" )
+# Put the by-hash directory back: this publish's copies, and last publish's (nothing older).
+mkdir -p "$bin/by-hash/SHA256" "$bin/by-hash/SHA512"
+for e in $cur $prev; do
+  if [ -f "$stash/new/$e" ]; then cp "$stash/new/$e" "$bin/by-hash/$e"
+  elif [ -f "$stash/by-hash/$e" ]; then cp "$stash/by-hash/$e" "$bin/by-hash/$e"; fi
+done
+printf '%s' "$cur" > "$bin/by-hash/current"
 mv "$gnupg/Release" "$repo/dists/$suite/Release"
 "${sign[@]}" --clearsign -o "$repo/dists/$suite/InRelease" "$repo/dists/$suite/Release"
 "${sign[@]}" --armor --detach-sign -o "$repo/dists/$suite/Release.gpg" "$repo/dists/$suite/Release"
 
-# 5. The public key (a binary keyring for Signed-By, and the same as text),
+# 6. The public key (a binary keyring for Signed-By, and the same as text),
 #    the .sources file, and the page that explains both.
 gpg --batch --export "$fpr" > "$repo/jeffoffice.gpg"
 gpg --batch --armor --export "$fpr" > "$repo/jeffoffice.asc"
@@ -134,11 +160,12 @@ cat > "$repo/index.html" <<HTML
 </head>
 <body>
 <h1>JeffOffice for Debian and Ubuntu</h1>
-<p>JeffOffice is a free, open-source office suite: JeffPub, JeffDeck, JeffWrite, and JeffCrunch. Add this repository once, and apt installs it and keeps it up to date. The current version is $latest. It is for 64-bit Intel and AMD computers (amd64).</p>
+<p>JeffOffice is a free, open-source office suite: JeffPub, JeffDeck, JeffWrite, and JeffCrunch. Add this repository once, and apt installs it and keeps it up to date. The current version is $latest. It needs Ubuntu 22.04 or newer, or Debian 12 or newer, on a 64-bit Intel or AMD computer (amd64). The download is about 320 MB (about 1.2 GB installed). This repository serves the newest version only.</p>
 <h2>Add the repository</h2>
-<pre>sudo install -d -m 0755 /etc/apt/keyrings
-sudo curl -fsSL $base/jeffoffice.gpg -o /etc/apt/keyrings/jeffoffice.gpg
-sudo curl -fsSL $base/jeffoffice.sources -o /etc/apt/sources.list.d/jeffoffice.sources
+<pre>sudo apt install wget    # skip this if wget is already installed
+sudo install -d -m 0755 /etc/apt/keyrings
+sudo wget -O /etc/apt/keyrings/jeffoffice.gpg $base/jeffoffice.gpg
+sudo wget -O /etc/apt/sources.list.d/jeffoffice.sources $base/jeffoffice.sources
 sudo apt update</pre>
 <h2>Install JeffOffice</h2>
 <pre>sudo apt install jeffoffice</pre>
@@ -150,7 +177,8 @@ sudo apt update</pre>
 </ul>
 <h2>Remove it</h2>
 <pre>sudo apt remove jeffoffice
-sudo rm /etc/apt/sources.list.d/jeffoffice.sources /etc/apt/keyrings/jeffoffice.gpg</pre>
+sudo rm /etc/apt/sources.list.d/jeffoffice.sources /etc/apt/keyrings/jeffoffice.gpg
+sudo apt update</pre>
 <p><a href="https://github.com/JeffOffice/jeffoffice">JeffOffice on GitHub</a></p>
 </body>
 </html>

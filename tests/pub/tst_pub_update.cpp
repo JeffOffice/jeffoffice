@@ -211,6 +211,19 @@ private Q_SLOTS:
         for (const char *k : {"offered", "offeredOn", "offeredBy"}) st.setValue(QStringLiteral("updates/") + QString::fromLatin1(k), QVariant());
     }
 
+    // A snap or the .deb install is updated by the system, never by a download from GitHub; an AppImage and a loose build update themselves.
+    void snapAndAptInstallsAreUpdatedBySystem()
+    {
+        using jp::Updater;
+        const QByteArray none;
+        QCOMPARE(Updater::updatedBySystem("/snap/jeffoffice/5", none, QStringLiteral("/snap/jeffoffice/5/usr/bin/JeffPub")), QStringLiteral("snap"));
+        QCOMPARE(Updater::updatedBySystem(none, none, QStringLiteral("/opt/jeffoffice/bin/JeffPub")), QStringLiteral("apt"));
+        QCOMPARE(Updater::updatedBySystem(none, none, QStringLiteral("/usr/bin/jeffpub")), QStringLiteral("apt"));
+        QVERIFY(Updater::updatedBySystem(none, "/home/a/JeffPub.AppImage", QStringLiteral("/tmp/.mount_x/usr/bin/JeffPub")).isEmpty());
+        QVERIFY(Updater::updatedBySystem(none, none, QStringLiteral("/usr/local/bin/JeffPub")).isEmpty());
+        QVERIFY(Updater::updatedBySystem(none, none, QStringLiteral("/home/a/build/JeffPub")).isEmpty());
+    }
+
     // A crash leaves a report of where it stopped: the module and offset of
     // each step of the stack, the version, the day, and the signal or
     // exception. Checked by crashing a small program (tests/crashtest.cpp).

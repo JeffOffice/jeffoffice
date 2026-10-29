@@ -27,32 +27,43 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4 # TODO(pin): replace with the full commit SHA of the v4 release
+        with:
+          persist-credentials: false
 
       - name: Assemble the site
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p site/pool/main/j/jeffoffice dl
+          packages=dists/stable/main/binary-amd64/Packages
+          fail() { echo "::error::$1 Run the apt workflow in JeffOffice/jeffoffice again for that tag."; exit 1; }
+          mkdir -p site dl
           cp -r dists index.html jeffoffice.gpg jeffoffice.asc jeffoffice.sources site/
           touch site/.nojekyll
+          # "sha256 pool-path" for every package the signed index lists.
+          awk '/^Filename:/ {f=$2} /^SHA256:/ {print $2, f}' "$packages" > index.txt
           while read -r t; do
             [ -n "$t" ] || continue
-            gh release download "$t" -R JeffOffice/jeffoffice -p '*_amd64.deb' -D dl
+            gh release download "$t" -R JeffOffice/jeffoffice -p '*_amd64.deb' -D dl || fail "The .deb for $t could not be downloaded."
           done < kept.txt
+          # Each .deb goes where the index says (its Filename), and only if it is the file the index describes.
           for f in dl/*.deb; do
-            cp "$f" "site/pool/main/j/jeffoffice/$(basename "$f")"
             sum=$(sha256sum "$f" | cut -d' ' -f1)
-            grep -q "^SHA256: $sum\$" site/dists/stable/main/binary-amd64/Packages || { echo "$f is not the file the index describes"; exit 1; }
+            path=$(awk -v s="$sum" '$1 == s {print $2; exit}' index.txt)
+            [ -n "$path" ] || fail "$(basename "$f") is not a file the index describes."
+            mkdir -p "site/$(dirname "$path")"
+            cp "$f" "site/$path"
           done
           # Every package the index lists is there.
-          for p in $(sed -n 's/^Filename: //p' site/dists/stable/main/binary-amd64/Packages); do test -f "site/$p"; done
+          while read -r _ path; do
+            test -f "site/$path" || fail "$path is in the index but no release has it."
+          done < index.txt
           du -sh site
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v3 # TODO(pin): replace with the full commit SHA of the v3 release
         with:
           path: site
 
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v4 # TODO(pin): replace with the full commit SHA of the v4 release

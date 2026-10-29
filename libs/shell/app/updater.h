@@ -36,6 +36,11 @@ public:
     static bool offeredByAnotherAppToday(const QString &tag);
     static void noteOffered(const QString &tag);
 
+    // Who updates this copy when it isn't the app itself: "snap" for a snap ($SNAP is set), "apt" for the .deb install (the program is
+    // under /opt/jeffoffice or /usr, and isn't an AppImage), otherwise empty. Those copies are never offered a download.
+    static QString updatedBySystem(const QByteArray &snapEnv, const QByteArray &appImageEnv, const QString &exePath);
+    static QString updatedBySystem();
+
     // Version strings like "0.1.6" or tags like "v0.1.0-preview5", compared numerically.
     static bool isNewer(const QString &candidate, const QString &current);
     // Whether an installer from the releases list may be downloaded and run:

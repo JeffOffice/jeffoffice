@@ -7,6 +7,7 @@
 #include "app/settings.h"
 
 #include <QApplication>
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QSaveFile>
 #include <QDate>
@@ -114,9 +115,35 @@ void Updater::checkOnStartup()
     if (checksOnStartup()) QTimer::singleShot(1500, this, [this] { check(false); });
 }
 
+QString Updater::updatedBySystem(const QByteArray &snapEnv, const QByteArray &appImageEnv, const QString &exePath)
+{
+    if (!snapEnv.isEmpty()) return QStringLiteral("snap");
+    if (!appImageEnv.isEmpty()) return QString();
+    if (exePath.startsWith(QLatin1String("/opt/jeffoffice/")) || (exePath.startsWith(QLatin1String("/usr/")) && !exePath.startsWith(QLatin1String("/usr/local/"))))
+        return QStringLiteral("apt");
+    return QString();
+}
+
+QString Updater::updatedBySystem()
+{
+#ifdef Q_OS_LINUX
+    return updatedBySystem(qgetenv("SNAP"), qgetenv("APPIMAGE"), QCoreApplication::applicationFilePath());
+#else
+    return QString();
+#endif
+}
+
 void Updater::check(bool interactive)
 {
     if (m_busy) return;
+    // A snap or the .deb is updated by the system's software updates: no download is offered, and nothing is asked of GitHub.
+    if (const QString by = updatedBySystem(); !by.isEmpty()) {
+        if (interactive)
+            jp::plainInformation(m_win, tr("Check for Updates"),
+                                     by == QLatin1String("snap") ? tr("This copy of %1 is a snap. It is updated with your system's software updates, so there is nothing to download here.").arg(appInfo().name)
+                                                                 : tr("This copy of %1 was installed with apt. It is updated with your system's software updates, so there is nothing to download here.").arg(appInfo().name));
+        return;
+    }
     m_busy = true;
     QNetworkRequest req{QUrl(releasesUrl())};
     req.setHeader(QNetworkRequest::UserAgentHeader, appInfo().name + QStringLiteral("/") + QStringLiteral(JP_VERSION));

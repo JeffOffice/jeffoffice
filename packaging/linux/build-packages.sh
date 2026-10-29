@@ -50,7 +50,7 @@ appdir() {
     ln -s "$name" "$dir/usr/bin/$lower"
     install -Dm644 "$here/$lower.desktop" "$dir/usr/share/applications/$lower.desktop"
     # AppStream data: software centers and the snap listing read it.
-    install -Dm644 "$here/com.jeffoffice.$name.metainfo.xml" "$dir/usr/share/metainfo/com.jeffoffice.$name.metainfo.xml"
+    "$here/gen-metainfo.sh" "$here/com.jeffoffice.$name.metainfo.xml" "$dir/usr/share/metainfo/com.jeffoffice.$name.metainfo.xml"
   done
   case " $* " in *" JeffPub "*)
     install -Dm644 "$src/resources/app.png" "$dir/usr/share/icons/hicolor/256x256/apps/jeffpub.png"
