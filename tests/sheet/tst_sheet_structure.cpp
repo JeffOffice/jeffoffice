@@ -3771,7 +3771,7 @@ public:
                 }
                 case 24: case 25: {   // cells shifted right or left
                     CellRange blk2;
-                    blk2.valid = true; blk2.row1 = o.at; blk2.row2 = o.at + o.count - 1; blk2.col1 = o.bcol2; blk2.col2 = o.bcol2 + o.w - 1;
+                    blk2.valid = true; blk2.row1 = o.at; blk2.row2 = o.at + o.count - 1; blk2.col1 = 1 + o.bcol2; blk2.col2 = 1 + o.bcol2 + o.w - 1;
                     ok[m] = o.kind == 24 ? b.apply(StructEdit::insertCellsRight(o.sheet, blk2), &act.rec) : b.apply(StructEdit::deleteCellsLeft(o.sheet, blk2), &act.rec);
                     pushed = ok[m];
                     break;
@@ -3886,7 +3886,7 @@ public:
                 o.h = 1 + moves.bounded(3);
                 o.w = 1 + moves.bounded(2);
                 o.tr = moves.bounded(30);
-                o.tc = moves.bounded(10);
+                o.tc = 1 + moves.bounded(9);   // (never in the first column, the sort's key: a formula there would read itself, and what a circle gives depends on where the work began)
                 o.tiles = 1 + moves.bounded(4);
                 o.desc = moves.bounded(2) != 0;
                 o.bcol2 = moves.bounded(3);
@@ -4008,6 +4008,39 @@ private Q_SLOTS:
         putCells(off, sorted[0], true);
         putCells(on, sorted[1], true);
         QVERIFY(on.calc->editStats().since(beforeSort).formulasRebased > 0);
+        QCOMPARE(state(on), state(off));
+    }
+
+
+    // A formula sorted into a row that was put in (its id is past the grid's) reads the row it should, and is shown as the book in places shows it: the text of the grid's numbers is held in the wide class
+    // once the distance takes it past the grid.
+    void aFormulaSortedIntoARowPutInIsHeldWithTheWideLimits()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        QStringList s1;
+        for (int r = 1; r <= 8; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(9 - r) << QStringLiteral("B%1==A%1*2+A$1").arg(r);
+        for (Book *b : {&off, &on}) QVERIFY(b->open({s1}));
+        for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::insertRows(0, 0, 3), nullptr));   // three rows with ids past the grid, above the data
+        for (Book *b : {&off, &on}) {
+            QVERIFY(b->calc->setValue(0, 0, 0, jp::calc::Value::number(100)));   // (the first of them is the smallest key... or the largest)
+            b->finish();
+        }
+        const Calculation::EditStats before = on.calc->editStats();
+        const std::vector<Act::Ch> changes[2] = {sortChanges(off, 0, 0, 10, 1, false), sortChanges(on, 0, 0, 10, 1, false)};
+        QVERIFY(!changes[0].empty());
+        putCells(off, changes[0], true);
+        putCells(on, changes[1], true);
+        QVERIFY(on.calc->editStats().since(before).formulasRebased > 0);
+        QCOMPARE(state(on), state(off));
+        QCOMPARE(on.formula("B1"), off.formula("B1"));
+        QCOMPARE(on.formula("B2"), off.formula("B2"));
+        QCOMPARE(on.at("B3"), off.at("B3"));
+        for (Book *b : {&off, &on}) {
+            b->calc->invalidateAll();
+            b->finish();
+        }
         QCOMPARE(state(on), state(off));
     }
 

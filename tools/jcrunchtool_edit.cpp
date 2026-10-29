@@ -494,6 +494,7 @@ void compareOthers(const Read &before, const Read &after, const Workbook &liveBo
             const int sheetOf = bar > 0 ? key.left(bar).toInt(&numeric) : -1;
             if (numeric && sheetOf >= 0 && size_t(sheetOf) < savedIndex.size()) key = QString::number(savedIndex[size_t(sheetOf)]) + key.mid(bar);
             note(b.value(key) == it.value(), "a defined name differs");
+            if (qEnvironmentVariableIntValue("JC_ROUNDTRIP_SHOW") == 2) qWarning().noquote() << "defined name:" << it.key() << "live" << it.value() << "saved" << b.value(key);
             if (show && b.value(key) != it.value()) qWarning().noquote() << "defined name differs:" << it.key() << "live" << it.value() << "saved" << b.value(key);
         }
     }
@@ -588,6 +589,7 @@ void runScript(Opened &w, const QByteArray &original, ScriptResult *r)
     auto step = [&](const crunch::EditSession::Outcome &o) {
         if (o.ok) ++r->done;
         else ++r->refused;
+        if (!o.ok && qEnvironmentVariableIntValue("JC_ROUNDTRIP_SHOW") != 0) qWarning().noquote() << "script step" << (r->done + r->refused) << "refused:" << o.problem;
         w.settle();
     };
     auto block = [&](quint32 r1, quint32 c1, quint32 r2, quint32 c2) {
