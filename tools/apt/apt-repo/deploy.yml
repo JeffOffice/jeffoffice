@@ -1,0 +1,58 @@
+name: deploy
+
+# Goes in JeffOffice/apt as .github/workflows/deploy.yml (and Settings > Pages >
+# Source: GitHub Actions). It serves the repository: the signed indexes pushed
+# by JeffOffice/jeffoffice's apt.yml, plus the .deb files of the tags in
+# kept.txt, taken from that project's releases. Each .deb is checked against
+# the SHA-256 in the signed Packages index before the site goes up.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p site/pool/main/j/jeffoffice dl
+          cp -r dists index.html jeffoffice.gpg jeffoffice.asc jeffoffice.sources site/
+          touch site/.nojekyll
+          while read -r t; do
+            [ -n "$t" ] || continue
+            gh release download "$t" -R JeffOffice/jeffoffice -p '*_amd64.deb' -D dl
+          done < kept.txt
+          for f in dl/*.deb; do
+            cp "$f" "site/pool/main/j/jeffoffice/$(basename "$f")"
+            sum=$(sha256sum "$f" | cut -d' ' -f1)
+            grep -q "^SHA256: $sum\$" site/dists/stable/main/binary-amd64/Packages || { echo "$f is not the file the index describes"; exit 1; }
+          done
+          # Every package the index lists is there.
+          for p in $(sed -n 's/^Filename: //p' site/dists/stable/main/binary-amd64/Packages); do test -f "site/$p"; done
+          du -sh site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
