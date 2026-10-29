@@ -144,6 +144,7 @@ void Calculation::markArrayMembers(int sheet, quint32 row, quint32 col)
 
 bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
 {
+    ++m_structStamp;
     abandonNow();
     BulkEdit bulk(this);
     ++m_state[size_t(e.sheet)].epoch;
@@ -439,6 +440,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
 
 bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
 {
+    ++m_structStamp;
     const StructEdit &e = rec.edit;
     ++m_state[size_t(e.sheet)].epoch;
     if (e.toSheet != e.sheet) ++m_state[size_t(e.toSheet)].epoch;

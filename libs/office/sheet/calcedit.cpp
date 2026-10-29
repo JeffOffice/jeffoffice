@@ -261,6 +261,7 @@ bool Calculation::linesNeedCompaction(const StructEdit &e) const
 
 bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineMapCore::Renumber> *out)
 {
+    ++m_structStamp;
     if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
     abandonNow();
     // what is waiting for the worker names ids that are renumbered below: it is done now, with the ids it has (the formulas it names are marked to be worked out, and what reads them)
@@ -500,6 +501,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec) { return apply
 
 bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const EditRecord *undoOf)
 {
+    ++m_structStamp;
     using K = StructEdit::Kind;
     const StructEdit e = edit;   // (a copy: it may be the edit of the record, which is made again below)
     if (!canApply(e, nullptr)) return false;

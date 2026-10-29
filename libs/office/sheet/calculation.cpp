@@ -1152,6 +1152,7 @@ void Calculation::registerSheet(int si)
 
 int Calculation::addSheet(const QString &name, int copyOf)
 {
+    ++m_structStamp;
     abandonNow();
     const int index = int(m_sheets.size());
     Sheet content;
@@ -1192,6 +1193,7 @@ int Calculation::addSheet(const QString &name, int copyOf)
 
 void Calculation::removeLastSheet()
 {
+    ++m_structStamp;
     abandonNow();
     if (m_sheets.empty()) return;
     const int last = int(m_sheets.size()) - 1;
@@ -1211,6 +1213,7 @@ void Calculation::removeLastSheet()
 
 void Calculation::setSheetNames(int sheet, const QString &oldName, const QString &newName)
 {
+    ++m_structStamp;
     if (!oldName.isEmpty()) {
         const auto it = m_byName.find(oldName.toCaseFolded());
         if (it != m_byName.end() && it.value() == sheet) m_byName.erase(it);
@@ -1268,6 +1271,7 @@ bool Calculation::hasThreeDReferences() const
 
 bool Calculation::rewriteSheetReferences(const QString &oldName, const QString &newName, SheetRewrite *record)
 {
+    ++m_structStamp;
     if (hasThreeDReferences()) return false;
     abandonNow();
     BulkEdit bulk(this);
@@ -1365,6 +1369,7 @@ bool Calculation::rewriteSheetReferences(const QString &oldName, const QString &
 
 void Calculation::undoSheetRewrite(const SheetRewrite &record)
 {
+    ++m_structStamp;
     abandonNow();
     BulkEdit bulk(this);
     std::vector<quint32> again;
@@ -2882,8 +2887,16 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
         const Held held = heldText(sheet, formula, parsed.program.get());
         f.text = internText(sheet, held.text, held.cls);
     }
+    return installFormula(sheet, row, col, c, f, marking, stored);
+}
+
+// The cell `c` (a copy of what the place holds, its old formula let go of) given the formula `f`, whose text is held once for it: registered in the graph and marked.
+bool Calculation::installFormula(int sheet, quint32 row, quint32 col, Cell c, const Formula &f, Marking marking, const Value *stored)
+{
+    Sheet &s = m_sheets[size_t(sheet)];
+    Formula own = f;
     c.flags = quint8((c.flags & ~(SharedFormula | DataTable | Tainted)) | HasFormula);
-    c.formula = allocFormula(sheet, f);
+    c.formula = allocFormula(sheet, own);
     c.type = CellType::Empty;
     c.number = 0;
     if (stored) {
@@ -2918,6 +2931,85 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
     if (needsName) giveName(id, &changed);
     markDependents(&changed);
     return true;
+}
+
+// A formula read from a cell and put in another cell of the same sheet as a copy of it (a fill, a sort, a paste) is held as it was, with its distance from the cell the text was written for changed by the
+// distance of the rows and columns in ids: no text is read or made. That is the text the place would give, passed through the ids, when every line the formula reads is the line it would be read to
+// be after the copy: a reference reads the line `distance` places from the one it read, and the ids of the two cells and of the line (that line's id plus the cells' distance in ids) are the
+// same when the ids from one to the other are consecutive, which an edit of rows leaves as it finds them in a run. Else (a run ends between them, a line it reads is dead) the text goes the long way.
+bool Calculation::rebaseCopy(int sheet, quint32 row, quint32 col, const CellContent &c, Marking marking)
+{
+    if (!m_options.idFrame || !c.hasHeld || c.heldSheet != sheet || c.heldStamp != m_structStamp) return false;
+    if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return false;
+    if (row == c.heldRow && col == c.heldCol) return false;
+    if (c.heldEpochs != renumberEpochsText()) return false;
+    Sheet &s = m_sheets[size_t(sheet)];
+    const Cell *found = s.cells.find(row, col);
+    if (found && (found->flags & (ArrayMember | ArrayFormula | DataTable))) return false;
+    const quint32 rowId = s.cells.rowIdAt(row), colId = s.cells.colIdAt(col);
+    if (rowId == CellStore::kNoLine || colId == CellStore::kNoLine || c.heldRowId == CellStore::kNoLine || c.heldColId == CellStore::kNoLine) return false;
+    const qint64 idRows = qint64(rowId) - qint64(c.heldRowId), idCols = qint64(colId) - qint64(c.heldColId);
+    const qint64 placeRows = qint64(row) - qint64(c.heldRow), placeCols = qint64(col) - qint64(c.heldCol);
+    abandonNow();
+    const qint32 text = internText(sheet, c.held, TextClass(c.heldCls));
+    bool same = true, needWide = false;
+    {
+        const Compiled &cp = compiled(sheet, text, false);
+        if (!cp.program || cp.program->external) same = false;
+        else {
+            for (const RefLit &r : cp.program->refs) {
+                int target = sheet;
+                if (r.sheet1 >= 0) {
+                    target = size_t(r.sheet1) < cp.bound.size() ? cp.bound[size_t(r.sheet1)] : -1;
+                    if (r.sheet2 >= 0 && r.sheet2 != r.sheet1) target = -1;
+                }
+                if (target < 0 || target >= int(m_sheets.size())) {
+                    same = false;
+                    break;
+                }
+                const CellStore &tc = m_sheets[size_t(target)].cells;
+                // an end that is a number of the text and a distance (a relative one), or the number alone (an absolute one): the line must be live, and the line the text would find for it after the copy
+                // must be the one its id and the cells' distance in ids give
+                auto endOk = [&](quint32 number, bool absolute, qint32 held, bool rows) {
+                    const qint64 id = absolute ? qint64(number) : qint64(number) + held;
+                    if (id < 0 || id >= (rows ? qint64(1) << 24 : qint64(1) << 16)) return false;
+                    const quint32 place = rows ? tc.rowPlaceOf(quint32(id)) : tc.colPlaceOf(quint32(id));
+                    if (place == CellStore::kNoLine) return false;
+                    if (absolute) return true;
+                    const qint64 moved = qint64(place) + (rows ? placeRows : placeCols);
+                    if (moved < 0 || moved >= (rows ? qint64(kGridRows) : qint64(kMaxColumns))) return false;
+                    const quint32 now = rows ? tc.rowIdAt(quint32(moved)) : tc.colIdAt(quint32(moved));
+                    if (now == CellStore::kNoLine || qint64(now) != id + (rows ? idRows : idCols)) return false;
+                    if (now >= (rows ? kGridRows : kGridCols)) needWide = true;   // (a text of the grid's numbers reads past the grid with this distance)
+                    return true;
+                };
+                if (!(r.flags & jp::calc::kRefWholeCols) && !(endOk(r.row1, r.flags & 1, c.heldDRow, true) && endOk(r.row2, r.flags & 4, c.heldDRow, true))) same = false;
+                if (same && !(r.flags & jp::calc::kRefWholeRows) && !(endOk(r.col1, r.flags & 2, c.heldDCol, false) && endOk(r.col2, r.flags & 8, c.heldDCol, false))) same = false;
+                if (!same) break;
+            }
+        }
+    }
+    if (!same) {
+        releaseText(sheet, text);
+        return false;
+    }
+    qint32 useText = text;
+    if (needWide && TextClass(c.heldCls) == TextClass::Plain) {
+        releaseText(sheet, text);
+        useText = internText(sheet, c.held, TextClass::Wide);
+    }
+    SheetState &st = m_state[size_t(sheet)];
+    Cell cell = found ? *found : Cell();
+    if (found && found->hasFormula() && found->formula >= 0) {
+        if (size_t(found->formula) < st.nodeOf.size() && st.nodeOf[size_t(found->formula)] != kNone) dropNode(st.nodeOf[size_t(found->formula)]);
+        releaseFormula(sheet, found->formula);
+    }
+    Formula f;
+    f.text = useText;
+    f.dRow = qint32(qint64(c.heldDRow) + idRows);
+    f.dCol = qint32(qint64(c.heldDCol) + idCols);
+    ++m_editStats.formulasRebased;
+    return installFormula(sheet, row, col, cell, f, marking, c.hasStored ? &c.stored : nullptr);
 }
 
 bool Calculation::setStyle(int sheet, quint32 row, quint32 col, quint32 style)
@@ -2971,6 +3063,9 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
             out.heldSheet = sheet;
             out.heldRow = row;
             out.heldCol = col;
+            out.heldRowId = s.cells.rowIdAt(row);
+            out.heldColId = s.cells.colIdAt(col);
+            out.heldStamp = m_structStamp;
         }
         return out;
     }
@@ -2996,6 +3091,7 @@ bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c,
         if (!setValue(sheet, row, col, Value(), marking)) return false;
         return setStyle(sheet, row, col, 0);
     }
+    if (c.isFormula && c.copied && rebaseCopy(sheet, row, col, c, marking)) return setStyle(sheet, row, col, c.style);
     const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr) : setValue(sheet, row, col, c.value, marking, c.sharedString);
     if (ok && c.isFormula && c.hasHeld && m_options.idFrame && c.heldSheet == sheet && c.heldRow == row && c.heldCol == col && c.heldEpochs == renumberEpochsText()) {
         restoreHeldFormula(sheet, row, col, c.held, c.heldDRow, c.heldDCol, c.heldCls);

@@ -218,6 +218,9 @@ public:
     bool colRangeOf(quint32 startId, quint32 endId, quint32 *first, quint32 *last) const { return lineRangeOf(m_cols, startId, endId, first, last); }
     // Whether no row and no column of the sheet has been inserted or deleted: every id is its place.
     bool isPlain() const { return plain(); }
+    // How many runs of consecutive ids the rows (the columns) are in; for the bench and the tests.
+    size_t rowRunCount() const { return m_rows.runCount(); }
+    size_t colRunCount() const { return m_cols.runCount(); }
     // Whether anything can still name the id: its line is in the order, or was deleted and a step could bring it back. (A mark of the window on an id that is not is let go of before the id is given again.)
     bool rowIdKnown(quint32 id) const { return m_rows.isIdentity() ? id < m_rows.size() : (m_rows.core().posOf(id) != kNoLine || m_rows.core().holdsDead(id)); }
     bool colIdKnown(quint32 id) const { return m_cols.isIdentity() ? id < m_cols.size() : (m_cols.core().posOf(id) != kNoLine || m_cols.core().holdsDead(id)); }

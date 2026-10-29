@@ -13,6 +13,7 @@
 #include <QRandomGenerator>
 
 #include <memory>
+#include <numeric>
 
 namespace {
 
@@ -3571,7 +3572,96 @@ public:
         QString before, after; bool hadBefore = false;
         Calculation::CellContent contentBefore, contentAfter;   // (a typed formula: as the session keeps it for Undo, with the formula as it was held)
         QString name;
+        struct Ch { int sheet; quint32 row, col; Calculation::CellContent before, after; };
+        std::vector<Ch> cells;   // kind 3: cells given other contents (a sort, a fill, a paste), as the session's step holds them
     };
+    // The values of the cells that are not formulas, and the formats: a sort, a fill, a paste, and a move change these, which the formulas' state does not show.
+    static QStringList valuesOf(const Book &b)
+    {
+        QStringList out;
+        for (int sheet = 0; sheet < 2; ++sheet)
+            for (quint32 r = 0; r < 44; ++r)
+                for (quint32 c = 0; c < 12; ++c) {
+                    const Calculation::CellContent cc = b.calc->content(sheet, r, c);
+                    if (!cc.exists || cc.isFormula) continue;
+                    out << QStringLiteral("v%1!%2,%3 -> %4 style %5").arg(sheet).arg(r).arg(c).arg(b.calc->cell(sheet, r, c).debug()).arg(cc.style);
+                }
+        return out;
+    }
+    // The cells of a sort as the session makes them (apps/crunch/core/editsort.cpp): the contents of the rows in the order of the keys in column 0, a formula written as if copied to its new row.
+    static std::vector<Act::Ch> sortChanges(const Book &b, int sheet, quint32 r1, quint32 r2, quint32 c2, bool descending)
+    {
+        const size_t n = size_t(r2 - r1) + 1;
+        std::vector<double> key(n);
+        std::vector<char> has(n);
+        for (size_t i = 0; i < n; ++i) {
+            const QString shown = b.calc->cell(sheet, r1 + quint32(i), 0).debug();
+            has[i] = shown.startsWith(QLatin1String("n:")) ? 1 : 0;
+            key[i] = has[i] ? shown.mid(2).toDouble() : 0;
+        }
+        std::vector<size_t> order(n);
+        std::iota(order.begin(), order.end(), size_t(0));
+        std::stable_sort(order.begin(), order.end(), [&](size_t x, size_t y) {
+            if (has[x] != has[y]) return has[x] != 0;   // (blanks last)
+            return descending ? key[x] > key[y] : key[x] < key[y];
+        });
+        std::vector<Act::Ch> out;
+        for (size_t i = 0; i < n; ++i) {
+            const size_t from = order[i];
+            if (from == i) continue;
+            for (quint32 c = 0; c <= c2; ++c) {
+                Act::Ch ch;
+                ch.sheet = sheet;
+                ch.row = r1 + quint32(i);
+                ch.col = c;
+                ch.before = b.calc->content(sheet, ch.row, c);
+                const Calculation::CellContent src = b.calc->content(sheet, r1 + quint32(from), c);
+                ch.after = src;
+                if (src.exists && src.isFormula) {
+                    ch.after.formula = offsetFormula(src.formula, qint32(qint64(i) - qint64(from)), 0);
+                    ch.after.hasStored = false;
+                    ch.after.stored = jp::calc::Value();
+                    ch.after.copied = src.hasHeld;
+                }
+                out.push_back(std::move(ch));
+            }
+        }
+        return out;
+    }
+    // A block copied to another place (a paste, or a fill when it is one cell and the target is a strip): the formulas are written for the cell they land in.
+    static std::vector<Act::Ch> copyChanges(const Book &b, int sheet, quint32 r1, quint32 c1, quint32 rows, quint32 cols, int toSheet, quint32 tr, quint32 tc, quint32 tileRows, quint32 tileCols)
+    {
+        std::vector<Act::Ch> out;
+        for (quint32 tr_ = 0; tr_ < tileRows; ++tr_)
+            for (quint32 tc_ = 0; tc_ < tileCols; ++tc_)
+                for (quint32 dr = 0; dr < rows; ++dr)
+                    for (quint32 dc = 0; dc < cols; ++dc) {
+                        Act::Ch ch;
+                        ch.sheet = toSheet;
+                        ch.row = tr + tr_ * rows + dr;
+                        ch.col = tc + tc_ * cols + dc;
+                        if (ch.row >= 200 || ch.col >= 12) continue;
+                        ch.before = b.calc->content(toSheet, ch.row, ch.col);
+                        ch.after = b.calc->content(sheet, r1 + dr, c1 + dc);
+                        if (ch.after.exists && ch.after.isFormula) {
+                            ch.after.formula = offsetFormula(ch.after.formula, qint32(qint64(ch.row) - qint64(r1 + dr)), qint32(qint64(ch.col) - qint64(c1 + dc)));
+                            ch.after.hasStored = false;
+                            ch.after.stored = jp::calc::Value();
+                            ch.after.copied = ch.after.hasHeld;
+                        }
+                        if ((ch.before.exists && !ch.before.editable) || (ch.after.exists && !ch.after.editable)) return {};   // (an array or a data table is refused)
+                        out.push_back(std::move(ch));
+                    }
+        return out;
+    }
+    static void putCells(Book &b, const std::vector<Act::Ch> &cells, bool after)
+    {
+        for (size_t k = 0; k < cells.size(); ++k) {
+            const Act::Ch &ch = cells[after ? k : cells.size() - 1 - k];
+            b.calc->put(ch.sheet, ch.row, ch.col, after ? ch.after : ch.before);
+        }
+        b.finish();
+    }
     static QStringList namesOf(const Book &b)
     {
         QStringList out;
@@ -3587,8 +3677,11 @@ public:
     struct Op {
         int kind = 0, sheet = 0;
         quint32 at = 0, count = 1, row = 0, col = 7, bcol2 = 0;
+        quint32 h = 1, w = 1, tr = 0, tc = 0, tiles = 1;   // (kinds 20 and up: the block's rows and columns, where it goes, and how many times a fill or paste repeats it)
+        int toSheet = 0;
+        bool desc = false;
         QString typed, nm, nameTxt;
-        QString str() const { return QStringLiteral("kind %1 sheet %2 at %3 count %4 typed %5 row %6 col %7 name %8=%9 bcol2 %10").arg(kind).arg(sheet).arg(at).arg(count).arg(typed).arg(row).arg(col).arg(nm, nameTxt).arg(bcol2); }
+        QString str() const { return QStringLiteral("kind %1 sheet %2 at %3 count %4 typed %5 row %6 col %7 name %8=%9 bcol2 %10 h %11 w %12 to %13:%14,%15 tiles %16 desc %17").arg(kind).arg(sheet).arg(at).arg(count).arg(typed).arg(row).arg(col).arg(nm, nameTxt).arg(bcol2).arg(h).arg(w).arg(toSheet).arg(tr).arg(tc).arg(tiles).arg(desc); }
     };
     // runs the ops on a places book and an ids book; returns the report of the first divergence ("" if none) and the step
     static QString runOps(const std::vector<Op> &ops, int *failStep, bool oneWay = false)
@@ -3646,10 +3739,48 @@ public:
                     { bool h = false; act.after = b.calc->nameTagged(-1, o.nm, &h); }
                     pushed = 1; break;
                 }
+                case 20: {   // a sort of rows at..at+count in the columns up to bcol2 by the first column
+                    act.kind = 3;
+                    act.cells = sortChanges(b, o.sheet, o.at, o.at + o.count, o.bcol2 + 1, o.desc);
+                    putCells(b, act.cells, true);
+                    pushed = !act.cells.empty();
+                    break;
+                }
+                case 21: {   // a fill: the cell at (row, col) down or right, o.tiles cells
+                    act.kind = 3;
+                    act.cells = copyChanges(b, o.sheet, o.row, o.col, 1, 1, o.sheet, o.desc ? o.row : o.row + 1, o.desc ? o.col + 1 : o.col, o.desc ? 1 : o.tiles, o.desc ? o.tiles : 1);
+                    ok[m] = !act.cells.empty();
+                    if (ok[m]) putCells(b, act.cells, true);
+                    pushed = ok[m];
+                    break;
+                }
+                case 22: {   // a paste of the block h by w at (row, col) to (tr, tc) on toSheet, o.tiles times down
+                    act.kind = 3;
+                    act.cells = copyChanges(b, o.sheet, o.row, o.col % 6, o.h, o.w, o.toSheet, o.tr, o.tc, o.tiles, 1);
+                    ok[m] = !act.cells.empty();
+                    if (ok[m]) putCells(b, act.cells, true);
+                    pushed = ok[m];
+                    break;
+                }
+                case 23: {   // cut and paste (a move) of the block h by w at (row, col) to (tr, tc) on toSheet
+                    CellRange blk2;
+                    blk2.valid = true; blk2.row1 = o.row; blk2.row2 = o.row + o.h - 1; blk2.col1 = o.col % 6; blk2.col2 = o.col % 6 + o.w - 1;
+                    ok[m] = b.apply(StructEdit::move(o.sheet, blk2, o.toSheet, o.tr, o.tc), &act.rec);
+                    pushed = ok[m];
+                    break;
+                }
+                case 24: case 25: {   // cells shifted right or left
+                    CellRange blk2;
+                    blk2.valid = true; blk2.row1 = o.at; blk2.row2 = o.at + o.count - 1; blk2.col1 = o.bcol2; blk2.col2 = o.bcol2 + o.w - 1;
+                    ok[m] = o.kind == 24 ? b.apply(StructEdit::insertCellsRight(o.sheet, blk2), &act.rec) : b.apply(StructEdit::deleteCellsLeft(o.sheet, blk2), &act.rec);
+                    pushed = ok[m];
+                    break;
+                }
                 case 12: case 13: {
                     if (!done[m].empty()) {
                         Act &top = done[m].back();
-                        if (top.kind == 0) ok[m] = b.calc->undoEdit(top.rec);
+                        if (top.kind == 3) putCells(b, top.cells, false);
+                        else if (top.kind == 0) ok[m] = b.calc->undoEdit(top.rec);
                         else if (top.kind == 1) { if (top.hadBefore) b.calc->put(top.sheet, top.row, top.col, top.contentBefore); else b.calc->clearCell(top.sheet, top.row, top.col); }
                         else b.calc->setNameTagged(-1, top.name, top.hadBefore, top.before);
                         b.finish();
@@ -3660,7 +3791,8 @@ public:
                 case 14: case 15: {
                     if (!undone[m].empty()) {
                         Act top = std::move(undone[m].back()); undone[m].pop_back();
-                        if (top.kind == 0) { Calculation::EditRecord again = top.rec; ok[m] = b.calc->applyEdit(again.edit, &again); top.rec = again; }
+                        if (top.kind == 3) putCells(b, top.cells, true);
+                        else if (top.kind == 0) { Calculation::EditRecord again = top.rec; ok[m] = b.calc->applyEdit(again.edit, &again); top.rec = again; }
                         else if (top.kind == 1) b.calc->put(top.sheet, top.row, top.col, top.contentAfter);
                         else b.calc->setNameTagged(-1, top.name, true, top.after);
                         b.finish();
@@ -3678,6 +3810,7 @@ public:
             }
             if (qEnvironmentVariableIntValue("JO_FUZZ_FULL")) { off.calc->invalidateAll(); off.finish(); on.calc->invalidateAll(); on.finish(); }
             QStringList a = state(off), c = state(on);
+            a << valuesOf(off); c << valuesOf(on);
             if (qEnvironmentVariableIsSet("JO_FUZZ_DUMP")) { static QFile rawDump(qEnvironmentVariable("JO_FUZZ_DUMP")); if (!rawDump.isOpen()) rawDump.open(QIODevice::WriteOnly | QIODevice::Truncate); rawDump.write(QStringLiteral("STEP %1 ok%2\n%3\n").arg(step).arg(ok[0]).arg(a.join(QLatin1Char('\n'))).toUtf8()); rawDump.flush(); }
             {
                 auto split = [](const QString &x, QString *k, QString *v) { const int i = int(x.lastIndexOf(QStringLiteral(" -> "))); *k = x.left(i); *v = x.mid(i + 4); };
@@ -3720,6 +3853,7 @@ public:
     static std::vector<Op> makeOps(int seed, int n, bool compact)
     {
         QRandomGenerator rng(quint32(seed) * 7919u + 13u);
+        QRandomGenerator moves(quint32(seed) * 104729u + 7u);
         std::vector<Op> ops;
         for (int step = 0; step < n; ++step) {
             Op o;
@@ -3740,6 +3874,23 @@ public:
             const QStringList texts = {"Sheet1!$A$3:$A$9", "Sheet1!$A$2", "Sheet1!$A$5:$A$12", "Sheet2!$A$1:$A$3", "Sheet1!A2:A4", "Sheet1!$B$1:$B$4"};
             o.nameTxt = texts[int(rng.bounded(quint32(texts.size())))];
             o.bcol2 = rng.bounded(2);
+            // Sorts, fills, pastes, cuts, and cells shifted sideways (JO_FUZZ_NOMOVES leaves them out): drawn from a generator of their own, so that the steps above are the seed's as they were.
+            if (!qEnvironmentVariableIntValue("JO_FUZZ_NOMOVES") && moves.bounded(3) == 0) {
+                o.kind = 20 + int(moves.bounded(6));   // 20 sort, 21 fill, 22 paste, 23 cut, 24 and 25 cells shifted right and left
+                o.sheet = int(moves.bounded(2));
+                o.toSheet = int(moves.bounded(2));
+                o.at = moves.bounded(12);
+                o.count = 1 + moves.bounded(6);
+                o.row = moves.bounded(14);
+                o.col = moves.bounded(10);
+                o.h = 1 + moves.bounded(3);
+                o.w = 1 + moves.bounded(2);
+                o.tr = moves.bounded(30);
+                o.tc = moves.bounded(10);
+                o.tiles = 1 + moves.bounded(4);
+                o.desc = moves.bounded(2) != 0;
+                o.bcol2 = moves.bounded(3);
+            }
             ops.push_back(o);
         }
         return ops;
@@ -3780,6 +3931,84 @@ private Q_SLOTS:
             report += why;
         }
         QVERIFY2(fails == 0, qPrintable(report));
+    }
+
+
+    // A formula filled down, sorted, or pasted in the id frame is held as the text of the cell it came from with its distance changed, when every line it reads is the line the text would give: no text is read or
+    // made, and the cells share one text. Where a run of rows ends between the cell and what it reads, the text goes the long way. Either way the cells are what the book in places has.
+    void aFilledColumnIsHeldAsOneTextWhereTheRowsAreInOneRun()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        QStringList s1;
+        for (int r = 1; r <= 40; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(r % 7) << QStringLiteral("B%1=%2").arg(r).arg(r % 5);
+        s1 << "D1==A1+A3*B2-$A$1";
+        for (Book *b : {&off, &on}) QVERIFY(b->open({s1}));
+        // rows put in and taken out first, so that the ids are in runs
+        for (Book *b : {&off, &on}) {
+            QVERIFY(b->apply(StructEdit::insertRows(0, 10, 2), nullptr));
+            QVERIFY(b->apply(StructEdit::deleteRows(0, 25, 1), nullptr));
+        }
+        const qint64 sharedTextsBefore = on.calc->sheet(0).formulaTexts.size();
+        const Calculation::EditStats before = on.calc->editStats();
+        std::vector<Act::Ch> cells[2];
+        for (int m = 0; m < 2; ++m) {
+            Book &b = m ? on : off;
+            cells[m] = copyChanges(b, 0, 0, 3, 1, 1, 0, 1, 3, 30, 1);   // D1 down 30 rows
+            QCOMPARE(cells[m].size(), size_t(30));
+            putCells(b, cells[m], true);
+        }
+        const Calculation::EditStats did = on.calc->editStats().since(before);
+        QCOMPARE(state(on), state(off));
+        // a run of rows ends at the rows put in and at the one taken out: some of the 30 copies are rebased and the others were turned into ids from their text
+        QVERIFY2(did.formulasRebased > 0 && did.formulasRebased < 30, qPrintable(QString::number(did.formulasRebased)));
+        QCOMPARE(did.formulasRebased + did.textsToIds, qint64(30));
+        // each text is held once for all its cells: the copies that were rebased added no text
+        QVERIFY2(on.calc->sheet(0).formulaTexts.size() - sharedTextsBefore <= 1 + (30 - did.formulasRebased), qPrintable(QString::number(on.calc->sheet(0).formulaTexts.size() - sharedTextsBefore)));
+        for (Book *b : {&off, &on}) {
+            b->calc->invalidateAll();
+            b->finish();
+        }
+        QCOMPARE(state(on), state(off));
+        // Undo puts the cells back as they were
+        for (Book *b : {&off, &on}) putCells(*b, b == &on ? cells[1] : cells[0], false);
+        QCOMPARE(state(on), state(off));
+    }
+
+    // With the rows in one run (nothing put in or taken out) every copy is rebased: no text is turned into ids, and the 100 copies share one text.
+    void aFillDownInOneRunReadsAndMakesNoText()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        QStringList s1;
+        for (int r = 1; r <= 120; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(r % 7);
+        s1 << "D1==A1+A3-$A$1+SUM(A1:A2)";
+        for (Book *b : {&off, &on}) QVERIFY(b->open({s1}));
+        for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::insertRows(0, 0, 1), nullptr));   // (not the file's order any more: the ids are 1 run and one more)
+        for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::deleteRows(0, 0, 1), nullptr));
+        const qint64 textsBefore = on.calc->sheet(0).formulaTexts.size();
+        const Calculation::EditStats before = on.calc->editStats();
+        std::vector<Act::Ch> cells[2];
+        for (int m = 0; m < 2; ++m) {
+            Book &b = m ? on : off;
+            cells[m] = copyChanges(b, 0, 0, 3, 1, 1, 0, 1, 3, 100, 1);
+            putCells(b, cells[m], true);
+        }
+        const Calculation::EditStats did = on.calc->editStats().since(before);
+        QCOMPARE(did.formulasRebased, qint64(100));
+        QCOMPARE(did.textsToIds, qint64(0));
+        QVERIFY2(on.calc->sheet(0).formulaTexts.size() <= textsBefore + 1, qPrintable(QString::number(on.calc->sheet(0).formulaTexts.size())));   // (the text the file read is not found by its characters: one more, and the 100 copies share it)
+        QCOMPARE(state(on), state(off));
+        // a sort of the same cells is rebased as well, and shows what the book in places shows
+        const std::vector<Act::Ch> sorted[2] = {sortChanges(off, 0, 0, 100, 3, true), sortChanges(on, 0, 0, 100, 3, true)};
+        QVERIFY(!sorted[1].empty());
+        const Calculation::EditStats beforeSort = on.calc->editStats();
+        putCells(off, sorted[0], true);
+        putCells(on, sorted[1], true);
+        QVERIFY(on.calc->editStats().since(beforeSort).formulasRebased > 0);
+        QCOMPARE(state(on), state(off));
     }
 
 

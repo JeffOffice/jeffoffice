@@ -214,12 +214,38 @@ public:
         quint8 heldCls = 0;
         qint32 heldSheet = -1;
         quint32 heldRow = 0, heldCol = 0;
+        // Where the formula was read from, for a formula that is to be put in another cell of the same sheet as a copy of it (a fill, a sort, a paste): the ids of the cell's row and column, and the
+        // workbook's structure stamp (`structStamp`) when it was read. `copied` is set by whoever wrote `formula` as the held text offset by the distance from `heldRow`, `heldCol` to the cell it is put
+        // in (offsetFormula), and nothing else: then `put` may take the held text with the distance changed by the ids' (counted as `formulasRebased`) when every line the formula reads is the
+        // same line either way, and reads and writes it as the text says when it is not.
+        quint32 heldRowId = 0, heldColId = 0;
+        quint64 heldStamp = 0;
+        bool copied = false;
+        // This content is a copy of `src`'s formula for another cell: its held text and where it was read from, `formula` being written by the caller for the new place.
+        void copyHeldFrom(const CellContent &src)
+        {
+            hasHeld = src.hasHeld;
+            held = src.held;
+            heldEpochs = src.heldEpochs;
+            heldDRow = src.heldDRow;
+            heldDCol = src.heldDCol;
+            heldCls = src.heldCls;
+            heldSheet = src.heldSheet;
+            heldRow = src.heldRow;
+            heldCol = src.heldCol;
+            heldRowId = src.heldRowId;
+            heldColId = src.heldColId;
+            heldStamp = src.heldStamp;
+            copied = src.hasHeld;
+        }
         bool operator==(const CellContent &o) const
         {
             return exists == o.exists && isFormula == o.isFormula && formula == o.formula && value == o.value && sharedString == o.sharedString && style == o.style;
         }
     };
     CellContent content(int sheet, quint32 row, quint32 col) const;
+    // Changes whenever an edit could change what a text of a formula names (rows, columns, cells, sheets inserted, deleted, moved, renamed): what a copy made before is checked against.
+    quint64 structStamp() const { return m_structStamp; }
     // Puts the content in the cell (the cell taken away if it does not exist): its constant or formula, then its format. False if the cell cannot be changed, or the formula is no formula.
     bool put(int sheet, quint32 row, quint32 col, const CellContent &content, Marking marking = Marking::Now);
     // ---- structure: rows, columns, and cells inserted and deleted (see sheet/refshift.h). The cells move, every formula of every sheet that reads cells that moved is written again with
@@ -502,6 +528,7 @@ public:
         // into places (a text typed, a text shown), counted so that a test can see that an edit of rows makes none for the formulas it leaves.
         qint64 eagerFormulas = 0;
         qint64 textsToIds = 0, textsToPlaces = 0;
+        qint64 formulasRebased = 0;   // formulas put in a cell by a fill, paste, move, or sort that took the text of the cell they came from and its distance (no text was read or made)
         // The window thread's time in the phases of an edit of rows or columns, in microseconds (for the bench's report; never asserted): setup, candidates, text rewrite, cells, graph (what is told it or asked
         // of the worker), the other structures, and the formulas written again.
         qint64 phaseMicros[7] = {0, 0, 0, 0, 0, 0, 0};
@@ -523,6 +550,7 @@ public:
             d.eagerFormulas = eagerFormulas - o.eagerFormulas;
             d.textsToIds = textsToIds - o.textsToIds;
             d.textsToPlaces = textsToPlaces - o.textsToPlaces;
+            d.formulasRebased = formulasRebased - o.formulasRebased;
             for (int i = 0; i < 7; ++i) d.phaseMicros[i] = phaseMicros[i] - o.phaseMicros[i];
             return d;
         }
@@ -640,6 +668,10 @@ private:
     };
 
     Compiled &compiled(int sheet, qint32 text, bool array);
+    // A formula put in a cell as it is held (installFormula), and the copy of a held formula to another cell of its sheet with only its distance changed (rebaseCopy: false, with nothing changed,
+    // when the content is not a fresh copy or some line the formula reads is not the same line as the text would give).
+    bool installFormula(int sheet, quint32 row, quint32 col, Cell c, const Formula &f, Marking marking, const jp::calc::Value *stored);
+    bool rebaseCopy(int sheet, quint32 row, quint32 col, const CellContent &c, Marking marking);
     // Texts and formulas, shared and let go of (see SheetState): the place of a text (a new one, or the one an edit made before with the same characters; it counts one more formula
     // for it), a formula's place made with a text it keeps a hold of, a text that one formula less has, and a formula that is not any cell's now.
     void countTexts(int sheet);
@@ -699,6 +731,7 @@ private:
     void snapshotTableIds();
     bool heldOf(int sheet, const Cell &c, QString *held, qint32 *dRow, qint32 *dCol, quint8 *cls) const;
     void restoreHeldFormula(int sheet, quint32 row, quint32 col, const QString &held, qint32 dRow, qint32 dCol, quint8 cls);
+    quint64 m_structStamp = 1;
     bool recordIdsAreCurrent(const EditRecord &rec) const { return m_options.idFrame && !rec.renumberEpochs.empty() && rec.renumberEpochs == renumberEpochs(); }
     std::vector<quint32> renumberEpochs() const;
     void tablesChangedFor(const QSet<QString> &changed);
