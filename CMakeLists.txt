@@ -503,6 +503,21 @@ add_test(NAME crunchtests COMMAND crunchtests)
 set_tests_properties(crunchtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
 
+# The checks every app's window must pass, one program for each app (they share tests/appchecks/appchecks.h): the first five minutes of a person who
+# launches the app with no file, the standard commands of every app, and every command run once on a blank document and on one opened from a file.
+function(jo_app_checks name core source)
+  qt_add_executable(${name} tests/testrunner.cpp tests/appchecks/appchecks.cpp tests/appchecks/${source})
+  target_link_libraries(${name} PRIVATE ${core} Qt6::Test)
+  target_include_directories(${name} PRIVATE ${CMAKE_SOURCE_DIR}/tests)
+  target_compile_definitions(${name} PRIVATE JP_TEST_DATA="${CMAKE_SOURCE_DIR}/tests/data")
+  set_target_properties(${name} PROPERTIES WIN32_EXECUTABLE OFF)
+  add_test(NAME ${name} COMMAND ${name})
+  set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endfunction()
+if(TARGET jwcore)
+  jo_app_checks(writechecks jwcore tst_appchecks_write.cpp)
+endif()
+
 # Translations of the apps' own text, one set for the suite. `cmake --build
 # build --target jeffoffice_lupdate` gathers every string marked for
 # translation (tr(), QCoreApplication::translate()) in the shared libraries,

@@ -57,6 +57,8 @@ public:
     QStringList actionIds() const override;
     Ribbon *ribbon() const override { return m_ribbon; }
     write::PageView *view() const { return m_view; }
+    // Brings the commands up to date with the selection at once (the window does it a moment after a change; a test does not wait for the moment).
+    void refreshNow() { refreshUi(); }
     write::WriteDoc *document() const { return m_doc.get(); }
     QString ribbonErrors() const { return m_ribbonErrors; }
 
