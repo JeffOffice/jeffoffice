@@ -33,15 +33,15 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v4 # TODO(pin): replace with the full commit SHA of the v4 release
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
 
       - name: Build the snap
         id: build
-        uses: snapcore/action-build@v1.3.0 # TODO(pin): replace with the full commit SHA of v1.3.0
+        uses: snapcore/action-build@3bdaa03e1ba6bf59a65f84a751d943d549a54e79 # v1.3.0
 
-      - uses: actions/upload-artifact@v4 # TODO(pin): replace with the full commit SHA of the v4 release
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: JeffOffice-snap
           path: ${{ steps.build.outputs.snap }}
@@ -73,7 +73,7 @@ jobs:
             echo "have=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/download-artifact@v4 # TODO(pin): replace with the full commit SHA of the v4 release
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         if: steps.creds.outputs.have == 'true'
         with:
           name: JeffOffice-snap
@@ -84,7 +84,7 @@ jobs:
         id: file
         run: echo "snap=$(ls snap-out/*.snap)" >> "$GITHUB_OUTPUT"
 
-      - uses: snapcore/action-publish@v1.2.0 # TODO(pin): replace with the full commit SHA of v1.2.0
+      - uses: snapcore/action-publish@214b86e5ca036ead1668c79afb81e550e6c54d40 # v1.2.0
         if: steps.creds.outputs.have == 'true'
         with:
           snap: ${{ steps.file.outputs.snap }}
