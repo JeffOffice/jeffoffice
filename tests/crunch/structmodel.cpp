@@ -203,9 +203,12 @@ QString randomFormula(Rng &r, bool extra)
     auto row = [&] { return 1 + r.bounded(30); };
     if (extra && r.bounded(5) == 0) {
         const int a = row(), b = row();
-        switch (r.bounded(8)) {
-        case 6: return QStringLiteral("=ROWS(A%1:A%2)").arg(a).arg(a + 4 + r.bounded(8));   // (the size of a range: its end that died, and the lines put in and taken out at it, are seen at once)
-        case 7: return QStringLiteral("=COLUMNS(A%1:C%1)+COLUMNS(B%2:D%2)").arg(a).arg(b);
+        switch (r.bounded(10)) {
+        // (the size of a range shows at once what its ends did: an end that died, the lines put in and taken out around it)
+        case 6: return QStringLiteral("=ROWS(A%1:A%2)").arg(a).arg(a + 1 + r.bounded(4));
+        case 7: return QStringLiteral("=COLUMNS(A%1:C%1)").arg(a);
+        case 8: return QStringLiteral("=COLUMNS(B%1:D%1)+ROWS(A%2:A%3)").arg(a).arg(b).arg(b + 2 + r.bounded(6));
+        case 9: return QStringLiteral("=ROWS(B%1:C%2)*COLUMNS(A%3:D%3)").arg(a).arg(a + 3).arg(b);
         case 0: return QStringLiteral("=SUM(A%1:A%2)").arg(a + 3).arg(a);
         case 1: return QStringLiteral("=SUM(B%1:C%2)+A%3").arg(b + 4).arg(b).arg(a);
         case 2: return QStringLiteral("=SUM(Calc!A%1:A%2)").arg(a + 2).arg(a);
@@ -1599,11 +1602,68 @@ QString modelRewrite(const QString &formula, int formulaSheet, const Step &edit)
     return plainOf(edit, &e) ? textAfter(formula, formulaSheet, e) : formula;
 }
 
+namespace {
+
+// With `extra`, now and then a short run of steps that gives a range an end that died and a line put in where it was, and takes lines away around them: the size of a range typed (ROWS, COLUMNS),
+// lines put in inside it or at its edge, and the lines at its start or its end deleted, one after the other (and sometimes undone). What the formula shows is the size of the range, so a
+// formula that was not worked out again when its range changed is seen at once.
+void appendRangePattern(Rng &r, std::vector<Step> *steps)
+{
+    const int sheet = pickSheet(r);
+    const bool rows = r.bounded(2) == 0;
+    const int at = r.bounded(25), shape = r.bounded(3), repeat = 1 + r.bounded(2);
+    auto edit = [&](Step::Kind kind, int first, int count) {
+        Step s;
+        s.kind = kind;
+        s.sheet = sheet;
+        s.row1 = rows ? first : 0;
+        s.col1 = rows ? 0 : first;
+        s.count = count;
+        steps->push_back(s);
+    };
+    Step typed;
+    typed.kind = Step::Type;
+    typed.sheet = sheet;
+    typed.row1 = rows ? r.bounded(40) : at;
+    typed.col1 = 4 + r.bounded(8);
+    typed.text = rows ? QStringLiteral("=ROWS(A%1:A%2)").arg(at + 1).arg(at + 3) : QStringLiteral("=COLUMNS(A%1:C%1)").arg(at + 1);
+    steps->push_back(typed);
+    const Step::Kind put = rows ? Step::InsertRows : Step::InsertColumns, take = rows ? Step::DeleteRows : Step::DeleteColumns;
+    const int base = rows ? at : 0;   // (the first line of the range: the first row of the rows, column A)
+    switch (shape) {
+    case 0:   // a line put in at the second line, the first line deleted (as many times as lines were put in)
+        edit(put, base + 1, repeat);
+        for (int i = 0; i < repeat + 1; ++i) edit(take, base, 1);
+        break;
+    case 1:   // a line put in before the last line of the range, then the last line and the one before it deleted
+        edit(put, base + 2, 1);
+        edit(take, base + 3, 1);
+        edit(take, base + 2, 1);
+        break;
+    default:  // the first line deleted, a line put in where it was, deleted again, and all of it undone
+        edit(take, base, 1);
+        edit(put, base, 1);
+        edit(take, base, 1);
+        for (int i = 0; i < 1 + r.bounded(3); ++i) {
+            Step u;
+            u.kind = Step::Undo;
+            steps->push_back(u);
+        }
+        break;
+    }
+}
+
+} // namespace
+
 std::vector<Step> generate(quint32 seed, int count, bool extra)
 {
     Rng r(seed);
     std::vector<Step> steps;
-    for (int i = 0; i < count; ++i) steps.push_back(makeStep(r, !steps.empty() && (steps.back().kind == Step::Undo || steps.back().kind == Step::Redo), extra));
+    while (int(steps.size()) < count) {
+        if (extra && r.bounded(12) == 0) appendRangePattern(r, &steps);
+        else steps.push_back(makeStep(r, !steps.empty() && (steps.back().kind == Step::Undo || steps.back().kind == Step::Redo), extra));
+    }
+    steps.resize(size_t(count));
     return steps;
 }
 
