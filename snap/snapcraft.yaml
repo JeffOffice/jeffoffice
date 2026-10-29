@@ -139,8 +139,8 @@ parts:
       suite="JeffPub JeffDeck"
       [ "$SHIP_WRITE" = true ] && suite="$suite JeffWrite"
       [ "$SHIP_CRUNCH" = true ] && suite="$suite JeffCrunch"
-      # Only the apps: the tests use parts of Qt that are not in the snap's SDK, and are run by the main build.
-      cmake --build "$CRAFT_PART_BUILD" --parallel "$CRAFT_PARALLEL_BUILD_COUNT" --target $suite
+      # Only the apps (and every compile error at once, -k 0): the tests use parts of Qt that are not in the snap's SDK, and are run by the main build.
+      cmake --build "$CRAFT_PART_BUILD" --parallel "$CRAFT_PARALLEL_BUILD_COUNT" --target $suite -- -k 0
       here=$CRAFT_PART_SRC/packaging/linux
       d=$CRAFT_PART_INSTALL
       mkdir -p "$d/usr/lib/jeffoffice" "$d/usr/share/doc/jeffoffice/pdfium" "$d/usr/share/doc/jeffoffice/ffmpeg"
