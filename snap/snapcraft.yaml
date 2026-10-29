@@ -1,0 +1,155 @@
+name: jeffoffice
+title: JeffOffice
+base: core24
+adopt-info: jeffoffice      # the version, from CMakeLists.txt
+summary: Free, open-source office suite
+description: |
+  JeffOffice is a free, open-source office suite, with four apps.
+
+  JeffPub lays out flyers, newsletters, brochures, business cards, and other
+  print pieces, with templates, mail merge, and PDF export. It opens and saves
+  .pub files.
+
+  JeffDeck makes slides and runs slide shows. It opens .pptx, .ppt, and .odp
+  presentations and saves .pptx and .odp.
+
+  JeffWrite (a preview) writes letters, reports, and other documents. It opens
+  .docx and .doc files and saves .docx.
+
+  JeffCrunch (a preview) makes spreadsheets. It opens .xlsx, .xls, .ods, and
+  .csv files and saves .xlsx.
+
+  The apps run as jeffoffice.jeffpub, jeffoffice.jeffdeck, jeffoffice.jeffwrite,
+  and jeffoffice.jeffcrunch, and each has its own entry in the application menu.
+  Files in your home folder and on removable media open directly; files
+  elsewhere open through the file dialog.
+license: GPL-3.0-only
+contact: https://github.com/JeffOffice/jeffoffice/issues
+website: https://github.com/JeffOffice/jeffoffice
+source-code: https://github.com/JeffOffice/jeffoffice
+issues: https://github.com/JeffOffice/jeffoffice/issues
+icon: resources/app.png
+grade: devel           # "stable" once the first reviewed release is out; devel can only go to edge or beta
+confinement: strict
+platforms:
+  amd64:
+    build-on: [amd64]
+    build-for: [amd64]
+
+# The suite's four apps, one snap. The KDE Neon extension supplies Qt 6 and the
+# desktop integration (fonts, themes, the file-dialog portal, Wayland and X11).
+apps:
+  jeffpub:
+    command: usr/bin/JeffPub
+    extensions: [kde-neon-6]
+    desktop: usr/share/applications/jeffpub.desktop
+    common-id: com.jeffoffice.JeffPub
+    plugs: &plugs
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+      - home
+      - removable-media
+      - network        # the daily statistics ping and the update check; every app works offline
+      - cups           # printing
+  jeffdeck:
+    command: usr/bin/JeffDeck
+    extensions: [kde-neon-6]
+    desktop: usr/share/applications/jeffdeck.desktop
+    common-id: com.jeffoffice.JeffDeck
+    plugs:
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+      - home
+      - removable-media
+      - network
+      - cups
+      - audio-playback   # sound and video in slide shows
+  jeffwrite:
+    command: usr/bin/JeffWrite
+    extensions: [kde-neon-6]
+    desktop: usr/share/applications/jeffwrite.desktop
+    common-id: com.jeffoffice.JeffWrite
+    plugs: *plugs
+  jeffcrunch:
+    command: usr/bin/JeffCrunch
+    extensions: [kde-neon-6]
+    desktop: usr/share/applications/jeffcrunch.desktop
+    common-id: com.jeffoffice.JeffCrunch
+    plugs: *plugs
+
+parts:
+  jeffoffice:
+    plugin: nil
+    source: .
+    build-packages:
+      - cmake
+      - ninja-build
+      - g++
+      - pkg-config
+      - patchelf
+      - libgl-dev
+      - libxkbcommon-dev
+    stage-packages:
+      # Printing, JeffDeck's sound and video (Qt Multimedia's FFmpeg backend),
+      # and the X11 platform plugin's cursor library. The Qt content snap may
+      # carry some of these already; a second copy costs a little space only.
+      - libcups2t64
+      - libpulse0
+      - libxcb-cursor0
+      - libavcodec60
+      - libavformat60
+      - libavutil58
+      - libswscale7
+      - libswresample4
+    build-environment:
+      # What ships, as in .github/workflows/build.yml. The apps below need both "true";
+      # turning one off means dropping its app entry as well.
+      - SHIP_WRITE: 'true'
+      - SHIP_CRUNCH: 'true'
+    override-pull: |
+      craftctl default
+      craftctl set version="$(sed -n 's/^project(JeffPub VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
+    override-build: |
+      set -eu
+      # The same switches as the .deb: JeffWrite and JeffCrunch ship when "true".
+      SHIP_WRITE=${SHIP_WRITE:-true}
+      SHIP_CRUNCH=${SHIP_CRUNCH:-true}
+      # PDFium is downloaded (and its SHA-256 checked) by the CMake build, as for the .deb.
+      cmake -S "$CRAFT_PART_SRC" -B "$CRAFT_PART_BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+        -DJP_BUILD_WRITE="$([ "$SHIP_WRITE" = true ] && echo ON || echo OFF)" \
+        -DJP_BUILD_CRUNCH="$([ "$SHIP_CRUNCH" = true ] && echo ON || echo OFF)"
+      cmake --build "$CRAFT_PART_BUILD" --parallel "$CRAFT_PARALLEL_BUILD_COUNT"
+
+      suite="JeffPub JeffDeck"
+      [ "$SHIP_WRITE" = true ] && suite="$suite JeffWrite"
+      [ "$SHIP_CRUNCH" = true ] && suite="$suite JeffCrunch"
+      here=$CRAFT_PART_SRC/packaging/linux
+      d=$CRAFT_PART_INSTALL
+      mkdir -p "$d/usr/lib/jeffoffice" "$d/usr/share/doc/jeffoffice/pdfium" "$d/usr/share/doc/jeffoffice/ffmpeg"
+      install -Dm644 "$CRAFT_PART_BUILD/_deps/pdfium/lib/libpdfium.so" "$d/usr/lib/jeffoffice/libpdfium.so"
+      mkdir -p "$d/usr/share/jeffoffice"
+      cp -r "$CRAFT_PART_SRC/resources/fonts" "$CRAFT_PART_SRC/resources/dict" "$d/usr/share/jeffoffice/"
+      { printf 'JeffOffice\nCopyright (c) 2026 JeffOffice LLC\nLicense: GPL-3.0 (below)\n\n'; cat "$CRAFT_PART_SRC/LICENSE"; } > "$d/usr/share/doc/jeffoffice/copyright"
+      cp "$CRAFT_PART_SRC/third_party/pdfium/licenses/"* "$d/usr/share/doc/jeffoffice/pdfium/"
+      cp "$CRAFT_PART_SRC/third_party/ffmpeg/licenses/"* "$d/usr/share/doc/jeffoffice/ffmpeg/"
+      for name in $suite; do
+        lower=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+        install -Dm755 "$CRAFT_PART_BUILD/$name" "$d/usr/bin/$name"
+        # PDFium sits beside the programs' other libraries.
+        patchelf --add-rpath '$ORIGIN/../lib/jeffoffice' "$d/usr/bin/$name"
+        # The desktop entry: the snap rewrites Exec; the icon must be a path inside the snap.
+        install -Dm644 "$here/$lower.desktop" "$d/usr/share/applications/$lower.desktop"
+        sed -i "s|^Icon=.*|Icon=\${SNAP}/usr/share/icons/hicolor/256x256/apps/$lower.png|" "$d/usr/share/applications/$lower.desktop"
+        install -Dm644 "$here/com.jeffoffice.$name.metainfo.xml" "$d/usr/share/metainfo/com.jeffoffice.$name.metainfo.xml"
+      done
+      install -Dm644 "$CRAFT_PART_SRC/resources/app.png" "$d/usr/share/icons/hicolor/256x256/apps/jeffpub.png"
+      install -Dm644 "$CRAFT_PART_SRC/apps/deck/resources/app.png" "$d/usr/share/icons/hicolor/256x256/apps/jeffdeck.png"
+      [ "$SHIP_WRITE" = true ] && install -Dm644 "$CRAFT_PART_SRC/apps/write/resources/app.png" "$d/usr/share/icons/hicolor/256x256/apps/jeffwrite.png"
+      [ "$SHIP_CRUNCH" = true ] && install -Dm644 "$CRAFT_PART_SRC/apps/crunch/resources/app.png" "$d/usr/share/icons/hicolor/256x256/apps/jeffcrunch.png"
+      install -Dm644 "$here/jeffpub-mime.xml" "$d/usr/share/mime/packages/jeffpub.xml"

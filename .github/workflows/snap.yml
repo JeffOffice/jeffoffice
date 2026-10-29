@@ -1,0 +1,71 @@
+name: snap
+
+# Builds the JeffOffice snap (snap/snapcraft.yaml) from the chosen ref and keeps
+# the .snap as an artifact. By hand only for now: Actions > snap > Run workflow.
+#
+# The second job sends the snap to the Snap Store's edge channel. It does
+# nothing unless "upload_to_edge" is ticked AND the repository secret
+# SNAPCRAFT_STORE_CREDENTIALS exists (made with `snapcraft export-login`,
+# limited to the jeffoffice name and the edge channel, once the store has
+# approved the name).
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_to_edge:
+        description: "After the build, upload the snap to the store's edge channel"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the snap
+        id: build
+        uses: snapcore/action-build@v1.3.0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JeffOffice-snap
+          path: ${{ steps.build.outputs.snap }}
+          if-no-files-found: error
+
+  upload-edge:
+    needs: build
+    if: ${{ inputs.upload_to_edge }}
+    runs-on: ubuntu-24.04
+    env:
+      SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+    steps:
+      - name: Check for the store credentials
+        id: creds
+        run: |
+          if [ -n "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::SNAPCRAFT_STORE_CREDENTIALS is not set, so nothing was uploaded."
+            echo "have=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@v4
+        if: steps.creds.outputs.have == 'true'
+        with:
+          name: JeffOffice-snap
+          path: snap-out
+
+      - name: Find the snap
+        if: steps.creds.outputs.have == 'true'
+        id: file
+        run: echo "snap=$(ls snap-out/*.snap)" >> "$GITHUB_OUTPUT"
+
+      - uses: snapcore/action-publish@v1.2.0
+        if: steps.creds.outputs.have == 'true'
+        with:
+          snap: ${{ steps.file.outputs.snap }}
+          release: edge
