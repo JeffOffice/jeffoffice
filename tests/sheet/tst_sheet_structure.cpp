@@ -3596,7 +3596,8 @@ public:
         std::vector<char> has(n);
         for (size_t i = 0; i < n; ++i) {
             const QString shown = b.calc->cell(sheet, r1 + quint32(i), 0).debug();
-            has[i] = shown.startsWith(QLatin1String("n:")) ? 1 : 0;
+            // (a number typed there, not a formula's: a column deleted can bring a formula into the key column, and one that reads itself has the value of whichever way the work went)
+            has[i] = shown.startsWith(QLatin1String("n:")) && !b.calc->content(sheet, r1 + quint32(i), 0).isFormula ? 1 : 0;
             key[i] = has[i] ? shown.mid(2).toDouble() : 0;
         }
         std::vector<size_t> order(n);
@@ -3952,6 +3953,7 @@ private Q_SLOTS:
         }
         const qint64 sharedTextsBefore = on.calc->sheet(0).formulaTexts.size();
         const Calculation::EditStats before = on.calc->editStats();
+        const qint64 rebasedBefore = on.calc->formulasRebased();
         std::vector<Act::Ch> cells[2];
         for (int m = 0; m < 2; ++m) {
             Book &b = m ? on : off;
@@ -3962,10 +3964,10 @@ private Q_SLOTS:
         const Calculation::EditStats did = on.calc->editStats().since(before);
         QCOMPARE(state(on), state(off));
         // a run of rows ends at the rows put in and at the one taken out: some of the 30 copies are rebased and the others were turned into ids from their text
-        QVERIFY2(did.formulasRebased > 0 && did.formulasRebased < 30, qPrintable(QString::number(did.formulasRebased)));
-        QCOMPARE(did.formulasRebased + did.textsToIds, qint64(30));
+        QVERIFY2((on.calc->formulasRebased() - rebasedBefore) > 0 && (on.calc->formulasRebased() - rebasedBefore) < 30, qPrintable(QString::number((on.calc->formulasRebased() - rebasedBefore))));
+        QCOMPARE((on.calc->formulasRebased() - rebasedBefore) + did.textsToIds, qint64(30));
         // each text is held once for all its cells: the copies that were rebased added no text
-        QVERIFY2(on.calc->sheet(0).formulaTexts.size() - sharedTextsBefore <= 1 + (30 - did.formulasRebased), qPrintable(QString::number(on.calc->sheet(0).formulaTexts.size() - sharedTextsBefore)));
+        QVERIFY2(on.calc->sheet(0).formulaTexts.size() - sharedTextsBefore <= 1 + (30 - (on.calc->formulasRebased() - rebasedBefore)), qPrintable(QString::number(on.calc->sheet(0).formulaTexts.size() - sharedTextsBefore)));
         for (Book *b : {&off, &on}) {
             b->calc->invalidateAll();
             b->finish();
@@ -3990,6 +3992,7 @@ private Q_SLOTS:
         for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::deleteRows(0, 0, 1), nullptr));
         const qint64 textsBefore = on.calc->sheet(0).formulaTexts.size();
         const Calculation::EditStats before = on.calc->editStats();
+        const qint64 rebasedBefore = on.calc->formulasRebased();
         std::vector<Act::Ch> cells[2];
         for (int m = 0; m < 2; ++m) {
             Book &b = m ? on : off;
@@ -3997,17 +4000,17 @@ private Q_SLOTS:
             putCells(b, cells[m], true);
         }
         const Calculation::EditStats did = on.calc->editStats().since(before);
-        QCOMPARE(did.formulasRebased, qint64(100));
+        QCOMPARE((on.calc->formulasRebased() - rebasedBefore), qint64(100));
         QCOMPARE(did.textsToIds, qint64(0));
         QVERIFY2(on.calc->sheet(0).formulaTexts.size() <= textsBefore + 1, qPrintable(QString::number(on.calc->sheet(0).formulaTexts.size())));   // (the text the file read is not found by its characters: one more, and the 100 copies share it)
         QCOMPARE(state(on), state(off));
         // a sort of the same cells is rebased as well, and shows what the book in places shows
         const std::vector<Act::Ch> sorted[2] = {sortChanges(off, 0, 0, 100, 3, true), sortChanges(on, 0, 0, 100, 3, true)};
         QVERIFY(!sorted[1].empty());
-        const Calculation::EditStats beforeSort = on.calc->editStats();
+        const qint64 rebasedBeforeSort = on.calc->formulasRebased();
         putCells(off, sorted[0], true);
         putCells(on, sorted[1], true);
-        QVERIFY(on.calc->editStats().since(beforeSort).formulasRebased > 0);
+        QVERIFY(on.calc->formulasRebased() > rebasedBeforeSort);
         QCOMPARE(state(on), state(off));
     }
 
@@ -4027,12 +4030,12 @@ private Q_SLOTS:
             QVERIFY(b->calc->setValue(0, 0, 0, jp::calc::Value::number(100)));   // (the first of them is the smallest key... or the largest)
             b->finish();
         }
-        const Calculation::EditStats before = on.calc->editStats();
+        const qint64 rebasedBeforeWide = on.calc->formulasRebased();
         const std::vector<Act::Ch> changes[2] = {sortChanges(off, 0, 0, 10, 1, false), sortChanges(on, 0, 0, 10, 1, false)};
         QVERIFY(!changes[0].empty());
         putCells(off, changes[0], true);
         putCells(on, changes[1], true);
-        QVERIFY(on.calc->editStats().since(before).formulasRebased > 0);
+        QVERIFY(on.calc->formulasRebased() > rebasedBeforeWide);
         QCOMPARE(state(on), state(off));
         QCOMPARE(on.formula("B1"), off.formula("B1"));
         QCOMPARE(on.formula("B2"), off.formula("B2"));
@@ -4043,7 +4046,6 @@ private Q_SLOTS:
         }
         QCOMPARE(state(on), state(off));
     }
-
 
 };
 

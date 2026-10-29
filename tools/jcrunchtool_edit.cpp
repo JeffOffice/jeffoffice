@@ -34,7 +34,7 @@
 //                                           written again, the session's marks followed, the window's values moved and sizes and texts rebuilt, the bytes of Undo, the graph's entries) and then the
 //                                           same for its Undo (the counters are in Calculation::editStats, EditSession::marksFollowed, ValueStore::relocated, GridSheet::viewCellsRebuiltForTest).
 //   jcrunchtool edit-fill-bench <file.xlsx> <label> [edits=1000] [only]   after that many rows put in at places spread over the first half of the sheet, times a formula typed and filled down all the rows, a
-//                                           block of values (rows by 10 columns) pasted, and the rows sorted by the first column, each by the window's thread (the step made and put in) and the wall until the worker settles, with
+//                                           block of values (all the rows by 10 columns) pasted (a step takes 100,000 cells, so in as many steps), and some rows sorted by the first column, each by the window's thread (the step made and put in) and the wall until the worker settles, with
 //                                           the counters of what it did (texts turned into ids, formulas written again, formulas rebased)
 //   jcrunchtool model-check <seeds> <steps> [first seed] [every=n] [nograph] [noshrink]   the model check of tests/crunch/structmodel.h: random steps on a small workbook, and after each the workbook is
 //                                           saved to memory, opened again, and every formula worked out from nothing, and all of it compared (values, text of formulas, conditional formats, validations, names, tables,
@@ -1340,6 +1340,7 @@ int fillBench(const QString &path, const QString &label, int edits, const QStrin
     auto run = [&](const QString &name, const std::function<crunch::EditSession::Outcome()> &f) {
         if (!only.isEmpty() && !name.contains(only)) return;
         const Calculation::EditStats before = calc->editStats();
+        const qint64 rebasedBefore = calc->formulasRebased();
         QElapsedTimer wall;
         wall.start();
         const qint64 c0 = jp::threadCpuMicros();
@@ -1350,32 +1351,46 @@ int fillBench(const QString &path, const QString &label, int edits, const QStrin
         const double settleMs = double(wall.nsecsElapsed()) / 1e6;
         const Calculation::EditStats d = calc->editStats().since(before);
         out() << label << '\t' << name << '\t' << QString::number(double(c1 - c0) / 1000.0, 'f', 1) << '\t' << QString::number(wallMs, 'f', 1) << '\t' << QString::number(settleMs, 'f', 1) << '\t' << d.textsToIds << '\t'
-              << d.formulasRewritten << '\t' << d.formulasRebased << '\t' << (o.ok ? QStringLiteral("ok") : o.problem) << '\n';
+              << d.formulasRewritten << '\t' << (calc->formulasRebased() - rebasedBefore) << '\t' << (o.ok ? QStringLiteral("ok") : o.problem) << '\n';
         out().flush();
     };
     const quint32 fcol = cols + 8, pcol = cols + 12;
     run(QStringLiteral("type"), [&] { return session->type(sheet, 0, fcol, QStringLiteral("=A1*2+B1")); });
-    run(QStringLiteral("fill formula down"), [&] {
-        office::sheet::CellRange src;
-        src.valid = true;
-        src.row1 = src.row2 = 0;
-        src.col1 = src.col2 = fcol;
-        return session->fill(sheet, src, crunch::EditSession::FillDirection::Down, std::min<quint32>(rows - 1, 99999));   // (the most one step takes: 100,000 cells)
-    });
-    run(QStringLiteral("paste values"), [&] {
-        QVector<QStringList> table;
-        const quint32 pasteRows = std::min<quint32>(rows, 10000);   // (10 columns: the most one step takes is 100,000 cells)
-        table.reserve(int(pasteRows));
-        for (quint32 r = 0; r < pasteRows; ++r) {
-            QStringList line;
-            for (int c = 0; c < 10; ++c) line << QString::number(qint64((r * 7 + quint32(c) * 13) % 1000));
-            table.push_back(line);
+    // (one step takes at most 100,000 cells: a column filled down all the rows, and a block of all the rows by 10 columns, are made in as many steps as that takes, each from the end of the last)
+    run(QStringLiteral("fill formula down all rows"), [&] {
+        crunch::EditSession::Outcome o;
+        for (quint32 done = 0; done + 1 < rows;) {
+            const quint32 chunk = std::min<quint32>(rows - 1 - done, 99999);
+            office::sheet::CellRange src;
+            src.valid = true;
+            src.row1 = src.row2 = done;
+            src.col1 = src.col2 = fcol;
+            o = session->fill(sheet, src, crunch::EditSession::FillDirection::Down, chunk);
+            if (!o.ok) break;
+            done += chunk;
         }
-        office::sheet::CellRange target;
-        target.valid = true;
-        target.row1 = target.row2 = 0;
-        target.col1 = target.col2 = pcol;
-        return session->pasteText(sheet, target, table, crunch::EditSession::PasteOptions());
+        return o;
+    });
+    run(QStringLiteral("paste values all rows x 10"), [&] {
+        crunch::EditSession::Outcome o;
+        for (quint32 at = 0; at < rows;) {
+            const quint32 pasteRows = std::min<quint32>(rows - at, 10000);   // (10 columns: 100,000 cells a step)
+            QVector<QStringList> table;
+            table.reserve(int(pasteRows));
+            for (quint32 r = 0; r < pasteRows; ++r) {
+                QStringList line;
+                for (int c = 0; c < 10; ++c) line << QString::number(qint64(((at + r) * 7 + quint32(c) * 13) % 1000));
+                table.push_back(line);
+            }
+            office::sheet::CellRange target;
+            target.valid = true;
+            target.row1 = target.row2 = at;
+            target.col1 = target.col2 = pcol;
+            o = session->pasteText(sheet, target, table, crunch::EditSession::PasteOptions());
+            if (!o.ok) break;
+            at += pasteRows;
+        }
+        return o;
     });
     run(QStringLiteral("sort descending"), [&] {
         office::sheet::CellRange range;

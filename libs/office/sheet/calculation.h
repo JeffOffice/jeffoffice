@@ -531,7 +531,6 @@ public:
         // The window thread's time in the phases of an edit of rows or columns, in microseconds (for the bench's report; never asserted): setup, candidates, text rewrite, cells, graph (what is told it or asked
         // of the worker), the other structures, and the formulas written again.
         qint64 phaseMicros[7] = {0, 0, 0, 0, 0, 0, 0};
-        qint64 formulasRebased = 0;   // formulas put in a cell by a fill, paste, move, or sort that took the text of the cell they came from and its distance (no text was read or made)
         EditStats since(const EditStats &o) const
         {
             EditStats d;
@@ -550,12 +549,13 @@ public:
             d.eagerFormulas = eagerFormulas - o.eagerFormulas;
             d.textsToIds = textsToIds - o.textsToIds;
             d.textsToPlaces = textsToPlaces - o.textsToPlaces;
-            d.formulasRebased = formulasRebased - o.formulasRebased;
             for (int i = 0; i < 7; ++i) d.phaseMicros[i] = phaseMicros[i] - o.phaseMicros[i];
             return d;
         }
     };
     const EditStats &editStats() const { return m_editStats; }
+    // Formulas put in a cell by a fill, paste, or sort that took the text of the cell they came from and its distance (no text was read or made); kept apart from editStats so that it adds nothing to the size of what the edits count.
+    qint64 formulasRebased() const { return m_formulasRebased; }
     // For tests: whether an edit of whole rows or columns asks the worker (the formulas whose text only moved keep their nodes and are worked out only if the edit could change them), or every formula
     // that was written again is made again and worked out, as an edit of cells does (the oracle the other is compared with).
     static void setGraphShifts(bool on);
@@ -1019,6 +1019,7 @@ private:
     mutable std::vector<quint32> m_pending;   // formulas it read that were not worked out yet
     mutable bool m_readTaint = false, m_readCascade = false;
     std::vector<jp::calc::CellArea> m_touched, m_areas;
+    qint64 m_formulasRebased = 0;
     quint64 m_structStamp = 1;   // (last, so that the members the edits and the worker read keep the places they had)
 };
 

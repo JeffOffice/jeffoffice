@@ -3008,7 +3008,7 @@ bool Calculation::rebaseCopy(int sheet, quint32 row, quint32 col, const CellCont
     f.text = useText;
     f.dRow = qint32(qint64(c.heldDRow) + idRows);
     f.dCol = qint32(qint64(c.heldDCol) + idCols);
-    ++m_editStats.formulasRebased;
+    ++m_formulasRebased;
     return installFormula(sheet, row, col, cell, f, marking, c.hasStored ? &c.stored : nullptr);
 }
 
