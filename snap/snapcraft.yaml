@@ -135,7 +135,9 @@ parts:
       # PDFium is downloaded (and its SHA-256 checked) by the CMake build, as for the .deb.
       cmake -S "$CRAFT_PART_SRC" -B "$CRAFT_PART_BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release \
         -DJP_BUILD_WRITE="$([ "$SHIP_WRITE" = true ] && echo ON || echo OFF)" \
-        -DJP_BUILD_CRUNCH="$([ "$SHIP_CRUNCH" = true ] && echo ON || echo OFF)"
+        -DJP_BUILD_CRUNCH="$([ "$SHIP_CRUNCH" = true ] && echo ON || echo OFF)" \
+        -DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link,/snap/kde-qt6-core24-sdk/current/usr/lib/x86_64-linux-gnu/pulseaudio"
+      # (the SDK's libpulse needs its private libpulsecommon, which sits in a folder of its own: JeffDeck links Qt Multimedia, which links libpulse)
       suite="JeffPub JeffDeck"
       [ "$SHIP_WRITE" = true ] && suite="$suite JeffWrite"
       [ "$SHIP_CRUNCH" = true ] && suite="$suite JeffCrunch"
