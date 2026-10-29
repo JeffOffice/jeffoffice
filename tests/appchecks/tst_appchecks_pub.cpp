@@ -373,6 +373,15 @@ private Q_SLOTS:
         QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
     }
 
+    // Redo answers to Ctrl+Y (as Publisher's does) and to the system's own key for it (Cmd+Shift+Z on a Mac).
+    void redoHasBothKeys()
+    {
+        std::unique_ptr<AppWindow> w(m_app.launch());
+        const QList<QKeySequence> keys = w->act(QStringLiteral("edit.redo"))->shortcuts();
+        QVERIFY(keys.contains(QKeySequence(Qt::CTRL | Qt::Key_Y)));
+        QVERIFY2(keys.contains(QKeySequence(QKeySequence::Redo)), "the system's key for Redo does not work");
+    }
+
     // ---- 2. the standard commands
     void standardCommands()
     {

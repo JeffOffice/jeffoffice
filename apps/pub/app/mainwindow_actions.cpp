@@ -83,7 +83,9 @@ void MainWindow::createActions()
     mk("file.properties", tr("Properties"), "info", QKeySequence(), [this] { documentPropertiesDialog(this, m_ed); });
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] { optionsDialog(this, m_ed); });
     mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [ed] { ed->undo(); });
+    // Ctrl+Y is Publisher's, and the system's own key (Cmd+Shift+Z on a Mac) works as well.
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence(Qt::CTRL | Qt::Key_Y), [ed] { ed->redo(); });
+    if (const QKeySequence systemRedo(QKeySequence::Redo); systemRedo != QKeySequence(Qt::CTRL | Qt::Key_Y)) act("edit.redo")->setShortcuts({QKeySequence(Qt::CTRL | Qt::Key_Y), systemRedo});
 
     // ---------------- Clipboard ----------------
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [ed] { ed->cut(); });
