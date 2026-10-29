@@ -1377,15 +1377,10 @@ private Q_SLOTS:
     // an edit that changes where it begins or ends makes those that name it again, and only those. Without the id frame every edit of rows makes every one of them again.
     void aTableThatMovesOrHasRowsInsideMakesNoFormulaAgain()
     {
-        struct IdFrame {
-            const bool was = Calculation::idFrameDefault();
-            explicit IdFrame(bool on) { Calculation::setIdFrameDefault(on); }
-            ~IdFrame() { Calculation::setIdFrameDefault(was); }
-        };
         qint64 again[2][4] = {};
         for (const bool ids : {false, true}) {
-            IdFrame frame(ids);
             EditWindow e;
+            e.win.w.workbookLoader().setIdFrame(ids ? 1 : -1);   // (this window's own: the process's default is not touched, so that no other worker is raced)
             QVERIFY(e.open(buildXlsx({salesRows()})));
             crunch::EditSession *s = e.win.w.session();
             s->setLocale(kUs);

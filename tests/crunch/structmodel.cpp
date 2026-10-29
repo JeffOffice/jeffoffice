@@ -197,13 +197,15 @@ int pickSheet(Rng &r)
 }
 
 // A formula to type; it is typed in a column from E on, and reads cells of the columns A to D (and other sheets), so that few of them read themselves.
-// With `extra` (and only then does it draw anything more) one in five is of another kind: a range written back to front, a function whose name could be a cell past XFD (ATAN2), or a name that could be.
+// With `extra` (and only then does it draw anything more) one in five is of another kind: a range written back to front, a function whose name could be a cell past XFD (ATAN2), or a name that could be, and the size of a range (ROWS, COLUMNS) that an insert and a delete at its ends change.
 QString randomFormula(Rng &r, bool extra)
 {
     auto row = [&] { return 1 + r.bounded(30); };
     if (extra && r.bounded(5) == 0) {
         const int a = row(), b = row();
-        switch (r.bounded(6)) {
+        switch (r.bounded(8)) {
+        case 6: return QStringLiteral("=ROWS(A%1:A%2)").arg(a).arg(a + 4 + r.bounded(8));   // (the size of a range: its end that died, and the lines put in and taken out at it, are seen at once)
+        case 7: return QStringLiteral("=COLUMNS(A%1:C%1)+COLUMNS(B%2:D%2)").arg(a).arg(b);
         case 0: return QStringLiteral("=SUM(A%1:A%2)").arg(a + 3).arg(a);
         case 1: return QStringLiteral("=SUM(B%1:C%2)+A%3").arg(b + 4).arg(b).arg(a);
         case 2: return QStringLiteral("=SUM(Calc!A%1:A%2)").arg(a + 2).arg(a);
@@ -441,15 +443,23 @@ struct Live {
         win->resize(1100, 640);
         if (visible) win->show();
         bool first = false, loaded = false, loadedOk = true, done = false;
-        const QMetaObject::Connection c1 = QObject::connect(win.get(), &CrunchWindow::firstScreenShown, win.get(), [&] { first = true; });
+        QString lastSignal = QStringLiteral("none");   // (for the report of a wait that ran out: the last thing the worker told the window)
+        qint64 batches = 0, progresses = 0;
+        const QMetaObject::Connection c1 = QObject::connect(win.get(), &CrunchWindow::firstScreenShown, win.get(), [&] { first = true; lastSignal = QStringLiteral("firstScreenShown"); });
         const QMetaObject::Connection c2 = QObject::connect(win.get(), &CrunchWindow::loadFinished, win.get(), [&](bool ok) {
             loaded = true;
             loadedOk = ok;
+            lastSignal = QStringLiteral("loadFinished(%1)").arg(ok);
         });
-        const QMetaObject::Connection c3 = QObject::connect(win.get(), &CrunchWindow::calculationFinished, win.get(), [&] { done = true; });
+        const QMetaObject::Connection c3 = QObject::connect(win.get(), &CrunchWindow::calculationFinished, win.get(), [&] { done = true; lastSignal = QStringLiteral("calculationFinished"); });
         QObject::connect(&win->workbookLoader(), &crunch::WorkbookLoader::calcBatch, win.get(), [this](const std::shared_ptr<crunch::CalcBatch> &b) {
             if (b->last && !b->stopped) lastEpoch = b->epoch;
         });
+        const QMetaObject::Connection c4 = QObject::connect(&win->workbookLoader(), &crunch::WorkbookLoader::calcBatch, win.get(), [&lastSignal, &batches](const std::shared_ptr<crunch::CalcBatch> &b) {
+            ++batches;
+            lastSignal = QStringLiteral("calcBatch(epoch %1, last %2, stopped %3)").arg(b->epoch).arg(b->last).arg(b->stopped);
+        });
+        const QMetaObject::Connection c5 = QObject::connect(&win->workbookLoader(), &crunch::WorkbookLoader::progress, win.get(), [&](int, qint64) { ++progresses; });
         QObject::connect(win.get(), &CrunchWindow::saved, win.get(), [this](const QString &, bool ok) {
             saveFinished = true;
             saveOk = ok;
@@ -459,10 +469,31 @@ struct Live {
         QObject::disconnect(c1);
         QObject::disconnect(c2);
         QObject::disconnect(c3);
+        QObject::disconnect(c4);
+        QObject::disconnect(c5);
         if (!ok || !loadedOk || !win->session()) {
             problem = !started ? QStringLiteral("the window did not start the open")
                       : !loadedOk && loaded ? QStringLiteral("the load finished with failure")
                       : QStringLiteral("after 60 s: first screen %1, load %2, calculation %3").arg(first ? "shown" : "NOT shown", loaded ? "finished" : "NOT finished", done ? "finished" : "NOT finished");
+            if (!ok) {
+                // what the worker was doing, so that the next time this happens it can be told from a worker that never began, one that ended, and one that waits for something
+                auto &loader = win->workbookLoader();
+                const std::shared_ptr<crunch::LoadedBook> book = loader.result();
+                problem += QStringLiteral("; loader %1, last signal %2, %3 batches and %4 progress reports taken, %5 holds taken, %6 changes made, window %7")
+                               .arg(loader.isRunning() ? "running" : "not running", lastSignal)
+                               .arg(batches)
+                               .arg(progresses)
+                               .arg(loader.holdsTaken())
+                               .arg(loader.changesMade())
+                               .arg(win->isCalculating() ? "calculating" : "idle");
+                if (book)
+                    problem += QStringLiteral("; worker %1, calculation %2, %3 cells read, calculation thread %4, workbook %5")
+                                   .arg(book->workerEnded.load() ? "ended" : "alive", book->calcIdle.load() ? "idle" : "busy")
+                                   .arg(book->cellsRead.load())
+                                   .arg(quintptr(book->calcThread.load()) ? "begun" : "not begun", book->book ? "read" : "not read");
+                else
+                    problem += QStringLiteral("; no result");
+            }
             if (ok && loadedOk) problem = QStringLiteral("the window has no session");
             return false;
         }
