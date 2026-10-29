@@ -22,7 +22,7 @@ name: apt
 # tag's own run, that tag), because it holds the signing key.
 #
 # Secrets (repository secrets of JeffOffice/jeffoffice):
-#   APT_REPO_TOKEN          a token that can push to JeffOffice/apt (a fine-grained token with Contents: read and write on that repository only)
+#   APT_REPO_DEPLOY_KEY     the private half of a deploy key with write access on JeffOffice/apt only (an SSH key)
 #   APT_SIGNING_KEY         the private signing key, ASCII-armored (gpg --armor --export-secret-keys)
 #   APT_SIGNING_PASSPHRASE  its passphrase, if it has one (optional)
 
@@ -46,7 +46,7 @@ on:
         type: string
         default: "1"
     secrets:
-      APT_REPO_TOKEN:
+      APT_REPO_DEPLOY_KEY:
         required: true
       APT_SIGNING_KEY:
         required: true
@@ -117,9 +117,16 @@ jobs:
       - name: Push
         working-directory: apt
         env:
-          APT_REPO_TOKEN: ${{ secrets.APT_REPO_TOKEN }}
+          APT_REPO_DEPLOY_KEY: ${{ secrets.APT_REPO_DEPLOY_KEY }}
         run: |
           set -euo pipefail
           git add -A
           git -c user.name="JeffOffice LLC" -c user.email=info@jeffoffice.com commit -m "Add $TAG"
-          git push "https://x-access-token:${APT_REPO_TOKEN}@github.com/JeffOffice/apt.git" HEAD:main
+          # (the deploy key goes to a file only this step can read, and is removed when the step ends)
+          key="$RUNNER_TEMP/apt-deploy-key"
+          hosts="$RUNNER_TEMP/github-known-hosts"
+          trap 'rm -f "$key" "$hosts"' EXIT
+          (umask 077; printf '%s\n' "$APT_REPO_DEPLOY_KEY" > "$key")
+          # (GitHub's published host key, so the push can't be sent elsewhere)
+          echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" > "$hosts"
+          GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$hosts" git push git@github.com:JeffOffice/apt.git HEAD:main
