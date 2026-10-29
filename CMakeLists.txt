@@ -521,6 +521,12 @@ endif()
 if(TARGET jwcore)
   jo_app_checks(writechecks jwcore tst_appchecks_write.cpp)
 endif()
+if(TARGET jccore)
+  jo_app_checks(crunchchecks jccore tst_appchecks_crunch.cpp)
+  # (it builds the workbooks it opens as the window's tests do)
+  target_sources(crunchchecks PRIVATE tests/sheet/sheethelpers.cpp)
+  target_compile_definitions(crunchchecks PRIVATE JC_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+endif()
 
 # Translations of the apps' own text, one set for the suite. `cmake --build
 # build --target jeffoffice_lupdate` gathers every string marked for
