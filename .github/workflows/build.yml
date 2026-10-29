@@ -218,6 +218,21 @@ jobs:
           echo "--- writetests-results.txt"; cat writetests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
           echo "writetests exit code: $jcode"
           if [ "$code" -eq 0 ]; then code=$jcode; fi
+          # What every app's window must pass (tests/appchecks): the first five minutes of a person who launches it with no file, its standard commands, and every one of its
+          # commands run once on a blank document and once on one opened from a file. The four programs run side by side (they wait on conditions, not on time, so a busy machine
+          # only makes them slower), each with its own results file.
+          for N in pubchecks deckchecks writechecks crunchchecks; do
+            if [ "$RUNNER_OS" = "Windows" ]; then P=build/$N.exe; else P=build/$N; fi
+            ( "$P" -v1 -o $N-results.txt,txt -o -,txt > $N.log 2>&1; echo $? > $N.code ) &
+          done
+          wait
+          for N in pubchecks deckchecks writechecks crunchchecks; do
+            echo "--- $N-results.txt"; cat $N-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
+            ncode=$(cat $N.code 2>/dev/null || echo 1)
+            echo "$N exit code: $ncode"
+            if [ "$ncode" -ne 0 ]; then echo "--- $N.log (the end)"; tail -60 $N.log; fi
+            if [ "$code" -eq 0 ]; then code=$ncode; fi
+          done
           exit $code
         env:
           QT_QPA_PLATFORM: offscreen
