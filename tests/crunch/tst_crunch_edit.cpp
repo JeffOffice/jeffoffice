@@ -1504,6 +1504,184 @@ private Q_SLOTS:
         QVERIFY(second.w.isLoading() || second.w.hasWorkbook());
     }
 
+    // ---- a new workbook
+
+    // A window with no file holds a real, empty workbook: one sheet named Sheet1, a name like Book1, an editing session; typing and formulas work, the status never says it is being opened.
+    void aNewWorkbookTakesTypingAndFormulas()
+    {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        QVERIFY(e.win.w.hasWorkbook() && !e.win.w.isLoading());
+        QVERIFY(e.win.w.session() != nullptr);
+        QVERIFY(e.win.w.filePath().isEmpty());
+        QVERIFY2(e.win.w.windowTitle().contains(e.win.w.displayName()), qPrintable(e.win.w.windowTitle()));
+        QVERIFY(e.win.w.displayName().startsWith(QLatin1String("Book")));
+        QCOMPARE(e.win.w.statusText(), QStringLiteral("Ready"));
+        QCOMPARE(e.win.w.loadedBook()->book->info().sheets.size(), 1);
+        QCOMPARE(e.win.w.loadedBook()->book->info().sheets[0].name, QStringLiteral("Sheet1"));
+        QVERIFY(!e.win.w.isModified());
+        QVERIFY(e.win.w.act(QStringLiteral("file.save"))->isEnabled());
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("21"));
+        QVERIFY(e.win.w.isModified());
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QStringLiteral("21"));
+        e.select(QStringLiteral("B1"));
+        e.enter(QStringLiteral("=A1*2"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("B1")), QStringLiteral("42"));
+        QVERIFY(!e.win.w.statusText().contains(QLatin1String("still being opened")));
+        QCOMPARE(e.win.told.size(), 0);
+    }
+
+    // Undo takes a typed value back; and typing at once, before the new workbook is ready, is told apart from a file being opened.
+    void undoWorksOnANewWorkbook()
+    {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("5"));
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QStringLiteral("5"));
+        QVERIFY(e.win.w.act(QStringLiteral("edit.undo"))->isEnabled());
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QString());
+        QVERIFY(!e.win.w.isModified());
+        QVERIFY(e.win.w.act(QStringLiteral("edit.redo"))->isEnabled());
+        Window early;
+        QVERIFY(early.w.newBlank());
+        QTest::keyClick(early.w.view(), Qt::Key_7);
+        QVERIFY(!early.w.statusText().contains(QLatin1String("still being opened")));
+    }
+
+    // Save on a workbook that was never saved asks for a name (as Save As does) and writes an .xlsx; opening it again gives the same cells, and the window then has that file.
+    void saveOnANewWorkbookGoesToSaveAs()
+    {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("12"));
+        e.select(QStringLiteral("A2"));
+        e.enter(QStringLiteral("hello"));
+        e.select(QStringLiteral("B1"));
+        e.enter(QStringLiteral("=A1+1"));
+        QVERIFY(e.settle());
+        const QString name = e.win.w.displayName();
+        const QString target = e.folder.dir.filePath(QStringLiteral("made"));   // (no ending: .xlsx is added)
+        QString startName;
+        e.win.w.setSavePicker([&](const QString &start, const QString &) {
+            startName = start;
+            return target;
+        });
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        e.win.w.act(QStringLiteral("file.save"))->trigger();
+        QVERIFY(savedOk(saved));
+        QCOMPARE(startName, name + QStringLiteral(".xlsx"));
+        const QString written = target + QStringLiteral(".xlsx");
+        QVERIFY(QFileInfo::exists(written));
+        QCOMPARE(e.win.w.filePath(), written);
+        QVERIFY(!e.win.w.isModified());
+        QCOMPARE(savedCell(written, QStringLiteral("A1")), QStringLiteral("n:12"));
+        QCOMPARE(savedCell(written, QStringLiteral("A2")).mid(2), QStringLiteral("hello"));
+        QVERIFY(savedCell(written, QStringLiteral("B1")).startsWith(QLatin1String("t:")) || savedCell(written, QStringLiteral("B1")).startsWith(QLatin1String("n:")));
+        QFile file(written);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QString copy = e.folder.write(QStringLiteral("copy.xlsx"), file.readAll());   // (a file that is open in a window is not opened in a second: its copy is)
+        file.close();
+        Window again;
+        QVERIFY(again.open(copy));
+        QCOMPARE(again.w.view()->sheet().textOf(0, 0, *again.w.view()->sheet().cellAt(0, 0)), QStringLiteral("12"));
+        QCOMPARE(again.w.view()->sheet().textOf(0, 1, *again.w.view()->sheet().cellAt(0, 1)), QStringLiteral("13"));
+    }
+
+    // File > New makes a second window with a new workbook of its own, named after the first; closing a new workbook nobody changed asks nothing, and a changed one asks.
+    void fileNewMakesAnotherWindowWithABlankWorkbook()
+    {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        const QString first = e.win.w.displayName();
+        QVERIFY(first.startsWith(QLatin1String("Book")));
+        const QList<QWidget *> before = QApplication::topLevelWidgets();
+        e.win.w.act(QStringLiteral("file.new"))->trigger();
+        CrunchWindow *second = nullptr;
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *c = qobject_cast<CrunchWindow *>(top); c && c != &e.win.w && !before.contains(top)) second = c;
+        QVERIFY(second);
+        QPointer<CrunchWindow> guard(second);
+        second->setNotifier([](const QString &, const QString &) {});
+        QVERIFY(QTest::qWaitFor([&] { return second->session() != nullptr && !second->isCalculating(); }, 20000));
+        QCOMPARE(second->displayName(), QStringLiteral("Book%1").arg(first.mid(4).toInt() + 1));
+        QVERIFY(second->windowTitle().startsWith(second->displayName()));
+        QCOMPARE(e.win.w.displayName(), first);
+        second->view()->selectCell(0, 0);
+        QTest::keyClick(second->view(), Qt::Key_9);
+        QVERIFY(second->isEditing());
+        QTest::keyClick(second->cellEditor(), Qt::Key_Return);
+        QVERIFY(second->isModified());
+        QVERIFY(!e.win.w.isModified());
+        // the changed one asks before it closes; the other one does not
+        int asked = 0;
+        second->setAsker([&](const QString &, const QString &) {
+            ++asked;
+            return CrunchWindow::Answer::Cancel;
+        });
+        QVERIFY(!second->close());
+        QCOMPARE(asked, 1);
+        second->setAsker([&](const QString &, const QString &) {
+            ++asked;
+            return CrunchWindow::Answer::Discard;
+        });
+        QVERIFY(second->close());
+        QCOMPARE(asked, 2);
+        QTRY_VERIFY(guard.isNull());
+        e.win.w.setAsker([&](const QString &, const QString &) {
+            ++asked;
+            return CrunchWindow::Answer::Cancel;
+        });
+        e.win.w.setAttribute(Qt::WA_DeleteOnClose, false);
+        QVERIFY(e.win.w.close());
+        QCOMPARE(asked, 2);
+    }
+
+    // A file opened in a new window nobody has changed takes its place; once the new workbook has been changed, the file opens in a window of its own. A file that can't be read
+    // leaves the window with a new workbook again.
+    void aFileOpenedInAnUnchangedNewWorkbookReplacesIt()
+    {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        QVERIFY(e.win.w.isUntouchedBlank());
+        const QString book = e.folder.write(QStringLiteral("budget.xlsx"), editBook());
+        QVERIFY(e.win.open(book));
+        QVERIFY(!e.win.w.isUntouchedBlank());
+        QCOMPARE(e.win.w.filePath(), book);
+        QCOMPARE(e.shownAt(QStringLiteral("A2")), QStringLiteral("10"));
+        QCOMPARE(e.win.w.displayName(), QStringLiteral("budget"));
+        QVERIFY(e.win.w.windowTitle().startsWith(QStringLiteral("budget.xlsx")));
+        // a changed new workbook keeps its window
+        Window changed;
+        QVERIFY(changed.openBlank());
+        changed.w.view()->selectCell(0, 0);
+        QTest::keyClick(changed.w.view(), Qt::Key_3);
+        QTest::keyClick(changed.w.cellEditor(), Qt::Key_Return);
+        QVERIFY(!changed.w.isUntouchedBlank());
+        const QList<QWidget *> before = QApplication::topLevelWidgets();
+        QVERIFY(changed.w.openFile(book));
+        QVERIFY(changed.w.filePath().isEmpty());
+        QVERIFY(changed.w.isModified());
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *c = qobject_cast<CrunchWindow *>(top); c && !before.contains(top)) {
+                c->setAttribute(Qt::WA_DeleteOnClose, false);
+                QVERIFY(c->filePath() == book);
+                delete c;
+            }
+        // a file that is not a workbook: the new workbook comes back
+        Window broken;
+        QVERIFY(broken.openBlank());
+        QSignalSpy bad(&broken.w, &CrunchWindow::loadFinished);
+        QVERIFY(broken.w.openFile(e.folder.write(QStringLiteral("broken.xlsx"), QByteArray("not a zip"))));
+        QVERIFY(bad.wait(20000));
+        QVERIFY(bad.first().first().toBool() == false);
+        QTRY_VERIFY(broken.w.session() != nullptr && broken.w.isUntouchedBlank());
+    }
+
     // Esc while a save waits for the calculation stops the calculation and cancels the save, and says so; the save does not happen later when something finishes a calculation. A close that
     // was waiting for that save asks again.
     void escCancelsASaveThatWaitsForTheCalculation()

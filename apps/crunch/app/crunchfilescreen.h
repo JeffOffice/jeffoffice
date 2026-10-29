@@ -1,6 +1,6 @@
 #pragma once
 #include <memory>
-// JeffCrunch's File screen: Open (with the workbooks opened lately), Print (with a preview of the pages), Export to PDF, Close, Options, and About, on the frame every app's File screen shares.
+// JeffCrunch's File screen: New (a blank workbook), Open (with the workbooks opened lately), Print (with a preview of the pages), Export to PDF, Close, Options, and About, on the frame every app's File screen shares.
 
 #include "app/filescreen.h"
 
@@ -18,6 +18,8 @@ public:
 
 private:
     QWidget *buildPage(const QString &key);
+    QWidget *buildNew();
+    void startBlank();
     QWidget *buildOpen();
     QWidget *buildPrint();    // (crunchprintpage.cpp)
     QWidget *buildExport();

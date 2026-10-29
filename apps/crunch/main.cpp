@@ -43,7 +43,7 @@ public:
         jp::CrunchWindow *target = nullptr;
         for (QWidget *top : QApplication::topLevelWidgets())
             if (auto *w = qobject_cast<jp::CrunchWindow *>(top))
-                if (w->isVisible() && !w->hasWorkbook() && !w->isLoading()) target = w;
+                if (w->isVisible() && ((!w->hasWorkbook() && !w->isLoading()) || w->isUntouchedBlank())) target = w;
         if (!target) {
             target = new jp::CrunchWindow();
             target->setAttribute(Qt::WA_DeleteOnClose);
@@ -99,7 +99,8 @@ int main(int argc, char **argv)
         const QStringList wh = cli.value(sizeOpt).split('x');
         w->resize(wh.value(0).toInt() > 0 ? wh.value(0).toInt() : 1440, wh.value(1).toInt() > 0 ? wh.value(1).toInt() : 900);
         w->show();
-        if (!files.isEmpty()) w->openFile(files.first());
+        if (files.isEmpty()) w->newBlank();
+        else w->openFile(files.first());
         if (cli.isSet(stageOpt)) w->showFileScreen(cli.value(stageOpt));
         const QString out = cli.value(shotOpt);
         auto shoot = [w, out, &cli, &zoomOpt, &sheetOpt] {
@@ -127,8 +128,14 @@ int main(int argc, char **argv)
 #endif
     w->setPromptForText(true);   // (a text file asks how it is read)
     w->show();
-    if (!files.isEmpty()) {
-        w->openFile(files.first());
+    if (files.isEmpty()) {
+        w->newBlank();
+    } else {
+        // (a first file that can't be read leaves a new workbook in the window)
+        QObject::connect(w, &jp::CrunchWindow::loadFinished, w, [w](bool ok) {
+            if (!ok) w->newBlank();
+        }, Qt::SingleShotConnection);
+        if (!w->openFile(files.first())) w->newBlank();
         for (int i = 1; i < files.size(); ++i) w->openFile(files[i]);   // (each in a window of its own)
     }
     if (cli.isSet(zoomOpt) && cli.value(zoomOpt).toDouble() > 0) w->view()->setZoom(cli.value(zoomOpt).toDouble() / 100.0);

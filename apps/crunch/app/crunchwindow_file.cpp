@@ -39,6 +39,49 @@ void CrunchWindow::showBlank()
     if (!m_actions.isEmpty()) updateEditActions();
 }
 
+// The window holds no workbook: the grid is empty and nothing of the one before is left.
+void CrunchWindow::dropWorkbook()
+{
+    cancelPageBreaks();
+    dropLayoutJob();
+    m_path.clear();
+    m_originalPath.clear();
+    m_blank = false;
+    m_session.reset();
+    m_loaded.reset();
+    m_haveFirstScreen = m_haveCalc = false;
+    m_calculating = false;
+    m_views.clear();
+    m_sheet = -1;
+    if (m_objects) m_objects->open(nullptr);   // (nothing opened: no object is left over the blank grid)
+    m_view->setCellsEnabled(true);
+    showBlank();
+    fillTabs();
+    setWindowModified(false);
+}
+
+bool CrunchWindow::newBlank()
+{
+    if (m_loaded || m_loading) return false;
+    m_blank = true;
+    m_loading = true;
+    m_haveFirstScreen = m_haveCalc = false;
+    m_calculating = false;
+    m_values.clear();
+    m_longestBatchMicros = m_batches = m_longestBatchItems = 0;
+    m_loadProblem.clear();
+    m_loader.startBlank();
+    setStatus(tr("Ready"));
+    updateTitle();
+    return true;
+}
+
+bool CrunchWindow::isUntouchedBlank() const
+{
+    if (!m_blank || !m_path.isEmpty() || m_saving || m_edit.active) return false;
+    return !m_session || (!m_session->isModified() && !m_session->viewsChanged());
+}
+
 bool CrunchWindow::openFile(const QString &path)
 {
     const QFileInfo info(path);
@@ -56,8 +99,10 @@ bool CrunchWindow::openFile(const QString &path)
         Q_EMIT have->broughtForward();
         return true;
     }
+    // A new workbook nobody has changed gives way to the file (and comes back if the file can't be read).
+    const bool replacing = isUntouchedBlank();
     // A window that shows a workbook, or is reading one, stays; the new one opens in a window of its own.
-    if (m_loaded || m_loading) {
+    if ((m_loaded || m_loading) && !replacing) {
         auto *w = new CrunchWindow();
         w->setAttribute(Qt::WA_DeleteOnClose);
         w->setNotifier(m_notifier);
@@ -73,6 +118,11 @@ bool CrunchWindow::openFile(const QString &path)
     if ((m_promptForText && jp::office::sheet::isDelimitedName(path)) || m_forceTextPrompt) {
         m_forceTextPrompt = false;
         if (!askTextImport(path, &csv)) return false;
+    }
+    if (replacing) {
+        m_loader.cancel();
+        dropWorkbook();
+        m_restoreBlank = true;
     }
     m_path = path;
     m_loading = true;
@@ -102,7 +152,7 @@ void CrunchWindow::onFirstScreen()
     m_sheet = m_loaded->previewSheet;
     fillTabs();
     showSheet(m_sheet, false);
-    setStatus(tr("Loading the rest of %1…").arg(QFileInfo(m_path).fileName()));
+    if (!m_blank) setStatus(tr("Loading the rest of %1…").arg(QFileInfo(m_path).fileName()));
     updateTitle();
     updateBars();
     Q_EMIT firstScreenShown();
@@ -110,7 +160,7 @@ void CrunchWindow::onFirstScreen()
 
 void CrunchWindow::onProgress(int sheet, qint64 cells)
 {
-    if (!m_loaded || !m_loaded->book || sheet < 0 || sheet >= m_loaded->book->info().sheets.size()) return;
+    if (m_blank || !m_loaded || !m_loaded->book || sheet < 0 || sheet >= m_loaded->book->info().sheets.size()) return;
     setStatus(tr("Reading %1 (%2 cells)…").arg(m_loaded->book->info().sheets[sheet].name, QLocale().toString(cells)));
 }
 
@@ -121,14 +171,12 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     dropLayoutJob();
     if (!ok) {
         const QString name = QFileInfo(m_path).fileName();
-        m_path.clear();
-        m_session.reset();
-        m_loaded.reset();
-        if (m_objects) m_objects->open(nullptr);   // (nothing opened: no object is left over the blank grid)
-        m_view->setCellsEnabled(true);
-        showBlank();
-        fillTabs();
-        setStatus(tr("Ready"));
+        dropWorkbook();
+        // (a window that had a new workbook before the file is asked for has one again)
+        const bool again = m_restoreBlank;
+        m_restoreBlank = false;
+        if (again) newBlank();
+        else setStatus(tr("Ready"));
         updateTitle();
         notice(tr("Open"), tr("%1 can't open \"%2\".\n%3").arg(appInfo().name, name, message));
         Q_EMIT loadFinished(false);
@@ -136,6 +184,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     }
     m_loaded = m_loader.result();
     m_haveCalc = true;
+    m_restoreBlank = false;
     // (a workbook read from a file of another form: that file is the one never written, whatever the workbook is saved as)
     m_originalPath = m_loaded->book->isConverted() ? m_path : QString();
     createEditing();
@@ -149,7 +198,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     m_loadProblem = m_loaded->problem;
     // (the worker goes on to work the formulas out, and tells what it has as it has it: onCalcBatch)
     m_calculating = true;
-    setStatus(tr("Calculating…"));
+    setStatus(m_blank ? tr("Ready") : tr("Calculating…"));
     if (!m_loadProblem.isEmpty()) notice(tr("Open"), m_loadProblem, true);
     // (what had to be changed is known once every sheet is read: sheet names the .xlsx form does not allow, and formulas that could not be converted)
     const QStringList changed = m_loaded->book->changedFeatures();

@@ -1,5 +1,7 @@
 # Open and save workbooks
-<!-- keywords: open, save, save as, file, workbook, xlsx, xlsm, xls, ods, csv, tsv, text file, delimited, import, export, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain -->
+<!-- keywords: new, blank, book1, untitled, open, save, save as, file, workbook, xlsx, xlsm, xls, ods, csv, tsv, text file, delimited, import, export, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain -->
+
+When JeffCrunch starts with no file to open, the window holds a new, empty workbook with one sheet, named Book1 (the next window is Book2, and so on). To start another one, press **{key:New}**, or click **File**, then **New**, and choose **Blank Workbook**; it opens in a window of its own. A new workbook that you have not changed gives way when you open a file in its window; one you have changed stays, and the file opens in another window. **Save** on a new workbook asks for a name, as **Save As** does, and saves it as a .xlsx file. Closing a new workbook you have not changed asks nothing.
 
 To open a workbook, press **{key:Open}**, or click **File** and then **Open**, and choose **Browse**. You can also drag a workbook from your file manager onto the window. A workbook that is already open in a window is not opened a second time: that window comes to the front.
 

@@ -102,6 +102,11 @@ public:
     // reason shown, if the file can't be read at all.
     bool openFile(const QString &path);
     bool isLoading() const { return m_loading; }
+    // Makes the window hold a new, empty workbook (one sheet, "Sheet1", and a name like "Book1" until it is saved), read the way a file is: the calculation, the worker and the editing session
+    // are the same. loadFinished says when it is ready. A window that is already showing a workbook is not changed (false).
+    bool newBlank();
+    // Whether the window holds a new workbook nobody has changed or saved (or is still getting it ready): a file opened in it takes its place.
+    bool isUntouchedBlank() const;
     // The path a Save writes to: the file's own for a workbook of the XML form. For one read from the older binary form (.xls) it is a new name with the ending .xlsx: the person is told
     // in plain words that workbooks are saved as .xlsx and the file is not changed, and asked for the name (the file dialog, or the picker a test sets); the file it was read from is never
     // the answer. Empty if there is no workbook or the person cancels.
@@ -430,6 +435,7 @@ private:
     void updateTitle();
     void updateBars();
     void showBlank();
+    void dropWorkbook();
     void showSheet(int sheetIndex, bool keepView);
     void rememberView();
     void fillTabs();
@@ -884,6 +890,9 @@ private:
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QString m_path;
+    QString m_untitled;       // the name of a workbook that has no file yet ("Book1")
+    bool m_blank = false;     // the workbook is a new one (made by newBlank) that has not been saved
+    bool m_restoreBlank = false;   // a file that is opened in place of an untouched new workbook and can't be read leaves a new one again
     QString m_originalPath;   // the file a converted workbook was read from, kept after the first save moves m_path to the .xlsx
     // the workbook, as it is read
     crunch::WorkbookLoader m_loader;

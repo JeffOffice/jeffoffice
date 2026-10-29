@@ -11,6 +11,7 @@
 #include "sheet/notes.h"
 #include "sheet/sheetreader.h"
 
+#include <QByteArray>
 #include <QObject>
 #include <QPointer>
 #include <QString>
@@ -79,12 +80,16 @@ constexpr qint64 kFirstScreenRows = 1000;
 
 // The two steps of a read, as the worker does them (and a tool does them one after the other). `cancelled` is asked every few thousand cells: true stops it.
 // The first: opens the package and the workbook's own parts, and reads the first kFirstScreenRows rows of the sheet to show first. False, with a message, if the file can't be opened.
-bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv = nullptr);
+// `blank`, if not empty, is the package of a workbook made in memory (see blankWorkbookBytes) and is read in place of the file at `path`.
+bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv = nullptr, const QByteArray &blank = QByteArray());
 // The second: reads every sheet whole and registers the formulas in the calculation (out->calc). `progress` is told the sheet being read and the cells read of it. False if
 // stopped; what could not be read whole is in out->problem. `cancelFlag`, if given, is looked at as the formulas are registered too; `pace`, if given and above 0, is the microseconds
 // to wait at each step of the read (see WorkbookLoader::setPace).
 bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const std::function<void(int sheet, qint64 cells)> &progress, const std::atomic<bool> *cancelFlag = nullptr,
                const std::atomic<int> *pace = nullptr, int idFrame = 0);
+
+// The package of a new, empty workbook: one worksheet named "Sheet1" and the styles a workbook starts with. It is read as a file is (WorkbookLoader::startBlank).
+QByteArray blankWorkbookBytes();
 
 // What a file's suffix is called in the usage statistics: one of the formats JeffCrunch opens, else "other" (never the suffix as it is: it is whatever the file is called).
 QString fileKind(const QString &path);
@@ -101,6 +106,8 @@ public:
     // Stops the read and the calculation; the signals of one that was stopped are not sent. It does not wait for the worker (which sees it within a few thousand cells, or in the
     // step of a formula it is taking); a worker that is still going when the program ends is waited for then.
     void cancel();
+    // Begins reading a new, empty workbook (blankWorkbookBytes) the way a file is read: the same signals, the same calculation and worker; its path is empty.
+    void startBlank();
     bool isRunning() const;
     // Stops the calculation only (what it has worked out is told; the rest keeps what the file stored); calculationStopped is then the last batch's `stopped`.
     void stopCalculation();
@@ -190,8 +197,9 @@ private:
         std::atomic<bool> urgent{false};      // a change was made: the first values it makes go to the window as soon as they are there
         void updateHalt() { halt.store(stopCalc.load() || holds.load() > 0 || cancel.load()); }
     };
-    static void run(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self);
+    static void run(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self);
     static void serve(const std::shared_ptr<LoadedBook> &result, const std::shared_ptr<State> &state, const QPointer<WorkbookLoader> &self);
+    void begin(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank);
     void startThread(std::function<void()> work, const std::shared_ptr<State> &state);
     // Everything the worker does stops (and it is woken to see so).
     static void stopAll(State &state);
