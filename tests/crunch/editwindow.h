@@ -42,6 +42,7 @@ struct EditWindow {
         path = folder.write(name, bytes);
         return win.open(path);
     }
+    bool openBlank() { return win.openBlank(); }
     grid::GridView *view() { return win.w.view(); }
     void select(const QString &ref)
     {

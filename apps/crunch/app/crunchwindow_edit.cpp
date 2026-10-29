@@ -91,7 +91,7 @@ bool CrunchWindow::editingAllowed()
 {
     QString why;
     if (!m_session) {
-        setStatus(tr("The workbook is still being opened. It can be changed when it is open."));
+        setStatus(m_blank ? tr("The new workbook is getting ready. It can be changed in a moment.") : tr("The workbook is still being opened. It can be changed when it is open."));
         return false;
     }
     if (m_applying) {

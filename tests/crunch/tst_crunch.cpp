@@ -70,8 +70,8 @@ private Q_SLOTS:
         QCOMPARE(tabs, (QStringList{"Home", "Insert", "Page Layout", "Formulas", "Review", "View", "Header and Footer", "Chart", "Table"}));
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffCrunch")));
-        QVERIFY(w.windowTitle().startsWith(QLatin1String("Book")));
-        for (const char *id : {"file.open", "file.close", "file.options", "edit.copy", "view.gridlines", "view.headings", "view.formulaBar", "view.formulas", "view.freeze", "view.unfreeze",
+        QCOMPARE(w.windowTitle(), QStringLiteral("JeffCrunch"));   // (no workbook yet: a name is taken when a new workbook is made)
+        for (const char *id : {"file.new", "file.open", "file.close", "file.options", "edit.copy", "view.gridlines", "view.headings", "view.formulaBar", "view.formulas", "view.freeze", "view.unfreeze",
                                "zoom.in", "zoom.out", "zoom.100", "formulas.calculate", "help.show"}) {
             QVERIFY2(w.act(QString::fromLatin1(id)), id);
             QVERIFY2(w.act(QString::fromLatin1(id))->isEnabled(), id);
@@ -190,10 +190,11 @@ private Q_SLOTS:
         QVERIFY(win.w.openFile(folder.write(QStringLiteral("broken.xlsx"), QByteArray("this is not a zip file at all"))));
         QVERIFY(loaded.wait(20000));
         QCOMPARE(loaded.first().first().toBool(), false);
-        QVERIFY(!win.w.hasWorkbook() && !win.w.isLoading());
         QCOMPARE(win.told.size(), 1);
         QVERIFY2(win.told.first().contains(QLatin1String("broken.xlsx")), qPrintable(win.told.first()));
         QVERIFY(win.w.filePath().isEmpty());
+        // (the window is left with a new workbook that can be changed, not with nothing)
+        QTRY_VERIFY(win.w.session() != nullptr && win.w.isUntouchedBlank());
         // a file that isn't there
         QVERIFY(!win.w.openFile(folder.dir.filePath(QStringLiteral("nothing.xlsx"))));
         QCOMPARE(win.told.size(), 2);

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.jeffoffice.JeffDeck</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>JeffDeck</name>
+  <summary>Make and show presentations</summary>
+  <description>
+    <p>JeffDeck makes slides and runs slide shows, with themes, transitions, animations, pictures, charts, and sound and video.</p>
+    <p>It opens .pptx, .ppt, and .odp presentations, and saves .pptx and .odp.</p>
+  </description>
+  <launchable type="desktop-id">jeffdeck.desktop</launchable>
+  <developer id="com.jeffoffice">
+    <name>JeffOffice LLC</name>
+  </developer>
+  <url type="homepage">https://github.com/JeffOffice/jeffoffice</url>
+  <url type="bugtracker">https://github.com/JeffOffice/jeffoffice/issues</url>
+  <categories>
+    <category>Office</category>
+  </categories>
+  <keywords>
+    <keyword>presentation</keyword>
+    <keyword>slides</keyword>
+    <keyword>slide show</keyword>
+    <keyword>pptx</keyword>
+    <keyword>odp</keyword>
+  </keywords>
+  <provides>
+    <binary>jeffdeck</binary>
+    <mediatype>application/vnd.openxmlformats-officedocument.presentationml.presentation</mediatype>
+    <mediatype>application/vnd.ms-powerpoint</mediatype>
+    <mediatype>application/vnd.oasis.opendocument.presentation</mediatype>
+  </provides>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.10.0" date="2026-10-26"/>
+  </releases>
+</component>

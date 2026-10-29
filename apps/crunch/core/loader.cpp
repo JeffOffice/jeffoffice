@@ -119,7 +119,11 @@ void WorkbookLoader::startThread(std::function<void()> work, const std::shared_p
     m_thread->start();
 }
 
-void WorkbookLoader::start(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv)
+void WorkbookLoader::start(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv) { begin(path, csv, QByteArray()); }
+
+void WorkbookLoader::startBlank() { begin(QString(), nullptr, blankWorkbookBytes()); }
+
+void WorkbookLoader::begin(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank)
 {
     cancel();
     m_state = std::make_shared<State>();
@@ -131,7 +135,7 @@ void WorkbookLoader::start(const QString &path, const std::shared_ptr<const jp::
     const std::shared_ptr<LoadedBook> result = m_result;
     const std::shared_ptr<State> state = m_state;
     const QPointer<WorkbookLoader> self(this);
-    startThread([path, csv, result, state, self] { run(path, csv, result, state, self); }, state);
+    startThread([path, csv, blank, result, state, self] { run(path, csv, blank, result, state, self); }, state);
 }
 
 bool WorkbookLoader::recalculate()
@@ -208,7 +212,7 @@ std::unique_ptr<WorkbookLoader::Hold> WorkbookLoader::hold()
     return std::unique_ptr<Hold>(new Hold(m_state, m_result->calc.get()));
 }
 
-bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv)
+bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<bool()> &cancelled, QString *why, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank)
 {
     QElapsedTimer total;
     total.start();
@@ -218,7 +222,12 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
     Limits limits;
     limits.cancelled = cancelled;
     limits.csv = csv;
-    if (!book->openFile(path, why, limits)) return false;   // (any kind: the package of XML parts, the older binary form, or another format)
+    if (!blank.isEmpty()) {
+        office::Package package;
+        if (!package.readLazy(blank, why) || !book->open(package, why, limits)) return false;
+    } else if (!book->openFile(path, why, limits)) {
+        return false;   // (any kind: the package of XML parts, the older binary form, or another format)
+    }
     book->tables();   // (read now: the worker looks at the tables as it works formulas out, and the window changes them, neither of which may be the first to read them)
     out->book = book;
     out->notRead = book->skippedFeatures();
@@ -284,6 +293,35 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     out->calc = std::move(calc);
     out->loadMs = out->firstScreenMs + total.elapsed();
     return true;
+}
+
+QByteArray blankWorkbookBytes()
+{
+    using office::PackageWriter;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    const QString main = QStringLiteral("http://schemas.openxmlformats.org/spreadsheetml/2006/main");
+    const QByteArray head = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
+    PackageWriter w;
+    w.addPart(QStringLiteral("/xl/workbook.xml"), QByteArray(), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/xl/workbook.xml"));
+    w.addPart(QStringLiteral("/xl/worksheets/sheet1.xml"),
+              head + "<worksheet xmlns=\"" + main.toUtf8() + "\"><sheetViews><sheetView workbookViewId=\"0\"/></sheetViews><sheetFormatPr defaultRowHeight=\"15\"/><sheetData/></worksheet>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
+    const QString sheetId = w.addRelationship(QStringLiteral("/xl/workbook.xml"), rel + QStringLiteral("worksheet"), QStringLiteral("/xl/worksheets/sheet1.xml"));
+    w.addPart(QStringLiteral("/xl/styles.xml"),
+              head + "<styleSheet xmlns=\"" + main.toUtf8() + "\"><fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/></font></fonts>"
+                     "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
+                     "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"
+                     "<cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs>"
+                     "<cellXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/></cellXfs>"
+                     "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles></styleSheet>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"));
+    w.addRelationship(QStringLiteral("/xl/workbook.xml"), rel + QStringLiteral("styles"), QStringLiteral("/xl/styles.xml"));
+    w.addPart(QStringLiteral("/xl/workbook.xml"),
+              head + "<workbook xmlns=\"" + main.toUtf8() + "\" xmlns:r=\"" + rel.chopped(1).toUtf8() + "\"><bookViews><workbookView/></bookViews><sheets><sheet name=\"Sheet1\" sheetId=\"1\" r:id=\""
+                     + sheetId.toUtf8() + "\"/></sheets><calcPr calcId=\"191029\"/></workbook>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
+    return w.finish();
 }
 
 QString fileKind(const QString &path)
@@ -446,7 +484,7 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
     calc->setCancel(nullptr);
 }
 
-void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self)
+void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self)
 {
     // A signal goes to the window only if the read has not been stopped (and the loader is still there), and is sent from the window's own thread.
     auto send = [state, self](const std::function<void()> &fn) {
@@ -461,7 +499,7 @@ void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::of
         ~Done() { book->workerEnded = true; }
     } done{result};
     QString why;
-    if (!loadFirstScreen(path, result.get(), cancelled, &why, csv)) {
+    if (!loadFirstScreen(path, result.get(), cancelled, &why, csv, blank)) {
         send([self, why] { if (self) Q_EMIT self->finished(false, why); });
         return;
     }

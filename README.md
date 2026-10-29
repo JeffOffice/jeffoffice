@@ -17,7 +17,7 @@ JeffOffice is an independent project. Its goals are compatibility and interopera
 >
 > - **Windows:** `JeffOffice-Setup.exe` installs JeffPub and JeffDeck (you can leave JeffDeck out), and JeffWrite and JeffCrunch if you tick them. No administrator rights are needed.
 > - **Mac:** `JeffOffice-<version>.dmg` holds all four apps. It isn't signed yet, so macOS asks before opening each one the first time.
-> - **Linux:** `jeffoffice_<version>_amd64.deb` installs all four apps on Debian, Ubuntu, and their relatives (`sudo apt install ./jeffoffice_<version>_amd64.deb`; it replaces an earlier `jeffpub` package). For most other distributions there's an AppImage of each app (`JeffPub-<version>-x86_64.AppImage`, `JeffDeck-<version>-x86_64.AppImage`, `JeffWrite-<version>-x86_64.AppImage`, and `JeffCrunch-<version>-x86_64.AppImage`): make the file executable and run it.
+> - **Linux:** `jeffoffice_<version>_amd64.deb` installs all four apps on Debian, Ubuntu, and their relatives (`sudo apt install ./jeffoffice_<version>_amd64.deb`; it replaces an earlier `jeffpub` package). To get updates with apt, add our repository once ([steps, minimum versions, and the signing key's fingerprint](docs/linux-install.md); Ubuntu 22.04+ or Debian 12+). For most other distributions there's an AppImage of each app (`JeffPub-<version>-x86_64.AppImage`, `JeffDeck-<version>-x86_64.AppImage`, `JeffWrite-<version>-x86_64.AppImage`, and `JeffCrunch-<version>-x86_64.AppImage`): make the file executable and run it.
 
 ## JeffPub
 

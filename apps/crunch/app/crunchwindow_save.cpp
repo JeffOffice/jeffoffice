@@ -43,7 +43,7 @@ bool CrunchWindow::save()
     if (!m_session || !m_loaded) return false;
     if (m_path.isEmpty()) {
         act("file.saveAs")->trigger();
-        return false;
+        return m_saving || !m_saveAfterCalculation.isNull();   // (a new workbook has no file to save to: Save asks for one, as Save As does)
     }
     // A workbook read from the older binary form is saved under a new name, as .xlsx: the person is told, and asked for the name (the file it came from is never written).
     if (savesAsANewFile()) {
@@ -201,6 +201,7 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
         }
         if (!crunch::sameFile(path, m_path)) {
             m_path = path;
+            m_blank = false;
             updateTitle();
         }
         Settings::get().addRecentFile(path);
