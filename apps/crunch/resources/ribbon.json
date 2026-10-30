@@ -161,16 +161,7 @@
           "name": "Tables",
           "keytip": "ZT",
           "items": [
-            {"large": "insert.table", "keytip": "T"},
-            {"large": "insert.pivot", "keytip": "V"}
-          ]
-        },
-        {
-          "name": "Illustrations",
-          "keytip": "ZI",
-          "items": [
-            {"large": "insert.picture", "keytip": "P"},
-            {"large": "insert.shape", "keytip": "SH"}
+            {"large": "insert.table", "keytip": "T"}
           ]
         },
         {
@@ -194,13 +185,6 @@
           "keytip": "ZK",
           "items": [
             {"large": "insert.link", "keytip": "K"}
-          ]
-        },
-        {
-          "name": "Text",
-          "keytip": "ZX",
-          "items": [
-            {"large": "insert.text", "keytip": "X"}
           ]
         }
       ]

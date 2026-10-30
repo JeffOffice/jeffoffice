@@ -21,6 +21,7 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QLabel>
+#include <QToolButton>
 #include <QStatusBar>
 #include <memory>
 
@@ -321,6 +322,16 @@ private Q_SLOTS:
         m_app.settle(w.get());
         const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 300);
         QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
+    }
+
+    // No command on the ribbon is a stub that never works (a button that is dimmed for good, its tip saying it is not there yet), and no command that works says it does not.
+    void noRibbonCommandIsAStub()
+    {
+        std::unique_ptr<AppWindow> w(m_app.launch());
+        QStringList stubs;
+        for (const QToolButton *b : w->ribbon()->findChildren<QToolButton *>())
+            if (const QAction *a = b->defaultAction(); a && a->toolTip().contains(QLatin1String("not available in JeffCrunch yet"))) stubs << a->objectName();
+        QVERIFY2(stubs.isEmpty(), qPrintable(stubs.join(QLatin1Char(' '))));
     }
 
     // ---- 2. the standard commands (NEEDS crunch-new: Save, Save As, Undo, and Redo are dimmed with no workbook, and there is no New)

@@ -229,7 +229,6 @@ QAction *CrunchWindow::mk(const QString &id, const QString &text, const QString 
     }
     a->setCheckable(checkable);
     a->setEnabled(enabled);
-    if (!enabled) a->setToolTip(jp::plainToolTip(tr("%1: not available in JeffCrunch yet").arg(QString(text).remove('&'))));
     // Each command counts by its id for the usage statistics (when they're on).
     connect(a, &QAction::triggered, this, [fn, id] {
         telemetry::count(id);
@@ -445,22 +444,6 @@ void CrunchWindow::createActions()
     createTableActions();
     createNoteActions();
     createProtectActions();
-    createDisabledActions();
-}
-
-// The commands of the ribbon that come with editing (and the later parts of JeffCrunch): they are on the ribbon, and disabled, until they work.
-void CrunchWindow::createDisabledActions()
-{
-    struct Command {
-        const char *id, *text, *icon;
-    };
-    static const Command commands[] = {
-        
-        {"insert.picture", QT_TR_NOOP("Picture"), "image"}, {"insert.shape", QT_TR_NOOP("Shapes"), "shapes"},
-        {"insert.pivot", QT_TR_NOOP("PivotTable"), "table-2"},
-        {"insert.text", QT_TR_NOOP("Text Box"), "text-cursor"},
-    };
-    for (const Command &c : commands) mk(QString::fromLatin1(c.id), QCoreApplication::translate("jp::CrunchWindow", c.text), c.icon, QKeySequence(), nullptr, false, false);
 }
 
 void CrunchWindow::freezeAtSelection()
