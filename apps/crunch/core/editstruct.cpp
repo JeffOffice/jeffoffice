@@ -20,6 +20,7 @@ StructChange::~StructChange()
     Calculation::EditRecord kept;
     kept.edit = edit;
     kept.sheet = edit.sheet;
+    kept.dormant = record.dormant;
     kept.lines = std::move(record.lines);
     std::lock_guard<std::mutex> guard(drops->lock);
     drops->records.push_back(std::move(kept));
@@ -46,10 +47,47 @@ void EditSession::letGoOfLines(Calculation *calc)
         Released got{r.edit.sheet, rows, r.lines.edit.runs};
         got.runs.insert(got.runs.end(), r.lines.edit.pushed.begin(), r.lines.edit.pushed.end());
         got.runs.insert(got.runs.end(), r.lines.refill.runs.begin(), r.lines.refill.runs.end());
-        calc->forgetLines(&r);
-        if (!got.runs.empty()) released.push_back(std::move(got));
+        // (the cells of a delete that kept them, and the nodes of their formulas, are let go of in slices when the window is idle, and the marks on them then)
+        const bool later = r.dormant && r.lines.made;
+        calc->forgetLinesLater(&r);
+        if (!got.runs.empty() && !later) released.push_back(std::move(got));
     }
     for (const Released &g : released) sweepMarks(g.sheet, g.rows, g.runs);
+    if (calc->purgePending()) schedulePurge();
+}
+
+void EditSession::schedulePurge()
+{
+    if (!m_purgeTimer.isActive()) m_purgeTimer.start();
+}
+
+// One slice of the purge, with the worker held back: the values the window holds for the formulas it let go of go too, and the marks on lines that are gone.
+bool EditSession::purgeSliceHeld(Calculation *calc, qint64 budget, bool *dropped)
+{
+    Calculation::PurgeStep step;
+    if (!calc->purgeSome(budget, &step)) return false;
+    if (step.sheet >= 0 && !step.formulaCells.empty()) {
+        m_values->erase(step.sheet, step.formulaCells);
+        if (dropped) *dropped = true;
+    }
+    if (step.finished && step.sheet >= 0) sweepMarks(step.sheet, step.rows, step.runs);
+    return calc->purgePending();
+}
+
+bool EditSession::purgeSome(qint64 budget)
+{
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold) return false;
+    letGoOfLines(hold->calculation());   // (the records of the steps that were forgotten since)
+    bool dropped = false;
+    const bool more = purgeSliceHeld(hold->calculation(), budget, &dropped);
+    if (dropped) hold->changed();   // (nodes were dropped: the worker goes on from where it was)
+    return more;
+}
+
+qint64 EditSession::purgeWaiting() const
+{
+    return m_book && m_book->calc ? m_book->calc->purgeWaiting() : 0;
 }
 
 void EditSession::setLineLimitsForTest(int sheet, const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols)
@@ -72,6 +110,12 @@ void EditSession::compactLinesFor(const StructEdit &edit)
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
     if (!hold) return;
     letGoOfLines(hold->calculation());
+    // (the order is about to be numbered again: the dead cells that wait to be let go of go first)
+    {
+        bool dropped = false;
+        while (purgeSliceHeld(hold->calculation(), qint64(1) << 40, &dropped)) {}
+        if (dropped) hold->changed();
+    }
     if (hold->calculation()->idFrame() && !m_fileOrderLost) {
         // (the ids are about to be numbered by the places they are at: the formulas whose text is not the file's now are marked, as the file will have them written whole; the numbering is the file's no more)
         const Calculation *calc = hold->calculation();
@@ -93,6 +137,8 @@ void EditSession::compactLinesFor(const StructEdit &edit)
 qint64 StructChange::bytes() const
 {
     qint64 n = qint64(sizeof(*this));
+    // (the change to the order of the lines: a few runs, never a cell)
+    for (const auto *runs : {&record.lines.edit.runs, &record.lines.edit.pushed, &record.lines.refill.runs, &record.lines.refill.pushed}) n += qint64(runs->size()) * qint64(sizeof(jp::calc::IdRun));
     for (const Calculation::EditRecord::GoneCell &g : record.gone) n += qint64(sizeof(g)) + contentBytes(g.content);
     for (const Calculation::EditRecord::FormulaWas &w : record.was) n += qint64(sizeof(w)) + qint64(w.text.size()) * 2;
     // (the formulas as they were held, in ids: the texts of a family are shared, but each entry is counted whole, as the record's other texts are)
@@ -102,6 +148,7 @@ qint64 StructChange::bytes() const
     for (const Calculation::EditRecord::RewrittenGroup &g : record.groups) n += qint64(sizeof(g)) + qint64(g.oldText.size()) * 2 + qint64(g.cells.size()) * qint64(sizeof(std::pair<quint32, quint32>));
     n += qint64(record.ranges.size() + record.merges.size()) * qint64(sizeof(CellRange));
     n += qint64(record.columns.size()) * qint64(sizeof(ColumnSpan)) + qint64(record.rowSpecs.size()) * qint64(sizeof(RowSpec));
+    n += qint64(record.autoFilter.columns.size()) * 64;
     for (const auto &name : record.names) n += qint64(name.first.size() + name.second.size()) * 2;
     n += qint64(record.rewritten.size()) * qint64(sizeof(Calculation::EditRecord::Place));
     n += qint64(touchedGone.size() + touchedAdded.size()) * 8 + qint64(tables.size()) * qint64(sizeof(TablePlace));
@@ -170,7 +217,8 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
             out.problem = tr("The workbook is busy. Try again in a moment.");
             return out;
         }
-        big = hold->calculation()->estimateUndoBytes(edit, m_undoByteLimit + 1) > m_undoByteLimit;
+        // (a delete of rows or columns in the id frame copies no cell, and an insert none: there is nothing for Undo to hold that could be too big, and nothing to ask about)
+        if (!hold->calculation()->undoKeepsNoCells(edit)) big = hold->calculation()->estimateUndoBytes(edit, m_undoByteLimit + 1) > m_undoByteLimit;
     }
     if (big && !m_bigStepAllowed) {
         out.ok = false;

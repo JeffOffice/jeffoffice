@@ -183,10 +183,12 @@ public:
     // Lets go of what the step holds: it can't be undone (nor done again) any more.
     void forget()
     {
+        const bool lines = m_step.structure && !m_step.structure->record.lines.edit.runs.empty();
         m_step = Step();
         *m_total -= m_bytes;
         m_bytes = 0;
         m_forgotten = true;
+        if (lines) m_session->schedulePurge();   // (what only the step could bring back is let go of when the window is idle)
     }
 
 private:
@@ -212,6 +214,12 @@ EditSession::EditSession(WorkbookLoader *loader, const std::shared_ptr<LoadedBoo
 {
     m_undo.setUndoLimit(kUndoSteps);
     connect(&m_undo, &QUndoStack::cleanChanged, this, [this](bool clean) { cleanChanged(clean); });
+    // (the dead cells of the steps that were forgotten are let go of a slice at a time, when the loop has nothing else to do)
+    m_purgeTimer.setSingleShot(true);
+    m_purgeTimer.setInterval(2);
+    connect(&m_purgeTimer, &QTimer::timeout, this, [this] {
+        if (purgeSome(kPurgeSliceCells)) m_purgeTimer.start();
+    });
     if (m_book && m_book->calc) {
         m_pages.open(*m_book->calc);
         std::vector<std::vector<jp::office::sheet::LinkSpec>> links;

@@ -49,6 +49,8 @@ constexpr qint64 kMaxCellsLockLooked = 50000;
 constexpr int kUndoSteps = 1000;
 // The most memory the steps hold, by an estimate of the bytes of the cells in them (as they were and as they are): past it the oldest steps are forgotten, the newest never.
 constexpr qint64 kUndoBytes = 128 << 20;
+// The dead cells (and the nodes of their formulas) one slice of the purge of forgotten steps lets go of.
+constexpr qint64 kPurgeSliceCells = 20000;
 
 struct CellChange {
     int sheet = 0;
@@ -307,6 +309,12 @@ public:
     void allowNextBigStep() { m_bigStepAllowed = true; }
     // The most runs and ids the order of a sheet's rows and columns may have (a test of a very long session sets them small).
     void setLineLimitsForTest(int sheet, const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols);
+    // The dead cells and the nodes of the formulas in them that the steps that were forgotten held (the rows and columns they deleted kept their cells while the step could be undone) are let go of
+    // a few blocks at a time while the window is idle. `purgeSome` does one slice of about `budget` cells (with the worker held back), true if more is waiting; `purgeWaiting` is the number of dead cells
+    // not let go of yet. A new edit of rows or columns does not wait for them (a compaction does).
+    bool purgeSome(qint64 budget);
+    qint64 purgeWaiting() const;
+    void schedulePurge();   // (a step was forgotten, or dead cells wait: the slices begin when the loop is idle)
     // Types text into a cell, as the person typed it: a number, a percent, a date, TRUE, a formula, or text; the cell takes the format the entry asks for if it has none of its own. The
     // change is one step on the undo stack. Not ok, and nothing changed, if the text is a formula that is not one, or is too long, or the cell cannot be changed.
     Outcome type(int sheet, quint32 row, quint32 col, const QString &typed, bool checkRule = true);
@@ -942,6 +950,9 @@ private:
     std::shared_ptr<LineDrops> m_lineDrops = std::make_shared<LineDrops>();
     // With the workbook held: lets go of what the steps that are gone held of the order of rows and columns.
     void letGoOfLines(jp::office::sheet::Calculation *calc);
+    // With the workbook held: one slice of the purge of dead cells (see purgeSome), and the window's values and the session's marks of what it let go of.
+    bool purgeSliceHeld(jp::office::sheet::Calculation *calc, qint64 budget, bool *dropped);
+    QTimer m_purgeTimer;
     // Before an edit of whole rows or columns: if the order of them is near what it may hold, every step that edited it is forgotten and the order is put back to one run (Undo does not go back over those).
     void compactLinesFor(const jp::office::sheet::StructEdit &edit);
     void forgetLineSteps(int sheet, bool rows);
