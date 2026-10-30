@@ -248,6 +248,21 @@ private Q_SLOTS:
         QCOMPARE(formulaIn(two, QStringLiteral("A1")), QStringLiteral("Sheet1!A4+Sheet1!B5"));
     }
 
+    // A sheet that names a sheet that moved but reads nothing that moved is the file's, byte for byte (its shared formula stays shared); one that reads a row that moved is written.
+    void aSheetThatNamesAMovedSheetButReadsNothingThatMovedIsCopied()
+    {
+        QMap<QString, QByteArray> original;
+        jp::readZip(book(), original);
+        const Saved far = saveWith(book(), {StructEdit::insertRows(0, 30, 1)}, true);   // below every row the other sheet reads
+        QVERIFY2(far.error.isEmpty(), qPrintable(far.error));
+        QCOMPARE(far.parts.value(QStringLiteral("xl/worksheets/sheet2.xml")), original.value(QStringLiteral("xl/worksheets/sheet2.xml")));
+        QVERIFY(far.parts.value(QStringLiteral("xl/worksheets/sheet1.xml")) != original.value(QStringLiteral("xl/worksheets/sheet1.xml")));   // (the sheet edited is renumbered)
+        const Saved near = saveWith(book(), {StructEdit::insertRows(0, 0, 1)}, true);
+        QVERIFY2(near.error.isEmpty(), qPrintable(near.error));
+        QVERIFY(near.parts.value(QStringLiteral("xl/worksheets/sheet2.xml")) != original.value(QStringLiteral("xl/worksheets/sheet2.xml")));
+        QCOMPARE(formulaIn(QString::fromUtf8(near.parts.value(QStringLiteral("xl/worksheets/sheet2.xml"))), QStringLiteral("A1")), QStringLiteral("Sheet1!A5+Sheet1!B6"));
+    }
+
     // A sheet that names no sheet that moved is not read for its cells: the part is the file's, though the sheet it reads from is edited, and a name that is not plain text is looked for everywhere.
     void aSheetThatNamesNoMovedSheetIsCopied()
     {

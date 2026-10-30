@@ -37,8 +37,9 @@ bool movesCellsOf(const MoveContext &ctx, int sheet);
 bool sheetPartMayNameSheets(QIODevice *in, const QStringList &names, bool *found, QString *error, const std::atomic<bool> *cancel);
 
 // A worksheet part with the edits made: `in` is read to its end and the new XML written to `out` (null: nothing is written, and `changed` says only whether the part would be). The rows
-// are renumbered only for a sheet the edits move cells on; any sheet has what refers to cells (in the part after its cells) followed.
-bool moveSheetPart(QIODevice *in, PartSink *out, const MoveContext &ctx, int sheet, bool *changed, QString *error, const std::atomic<bool> *cancel);
+// are renumbered only for a sheet the edits move cells on; any sheet has what refers to cells (in the part after its cells) followed. `formulasChanged` says whether a formula was given another text (with
+// `ctx.replay`).
+bool moveSheetPart(QIODevice *in, PartSink *out, const MoveContext &ctx, int sheet, bool *changed, QString *error, const std::atomic<bool> *cancel, bool *formulasChanged = nullptr);
 
 // What a copy of a sheet takes from the file of the sheet it was copied from, of what the program keeps no model of: the namespaces its elements use, the properties of the sheet (how it is
 // outlined and printed), what follows the cells (the protection, protected ranges, filter, and sort), and what ends the sheet (links, print options, margins, page setup, headers and footers,

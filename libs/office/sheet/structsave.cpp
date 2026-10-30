@@ -712,6 +712,7 @@ public:
         return tail(m_tailAt);
     }
     bool changed() const { return m_changed; }
+    bool formulasChanged() const { return m_formulasChanged; }   // (with the replay: a formula was given another text)
 
 private:
     bool fail(const QString &why)
@@ -1079,7 +1080,7 @@ private:
     }
 
     // The element `f` (its open tag `fo`) with the text of the formula as the edits leave it, and `open` for its open tag; false if the text is not changed, or there is none.
-    bool rewrittenText(const QByteArray &f, const Tag &fo, const QByteArray &open, QByteArray *out) const
+    bool rewrittenText(const QByteArray &f, const Tag &fo, const QByteArray &open, QByteArray *out)
     {
         if (!m_rewrite || fo.selfClosing) return false;
         const qsizetype close = f.lastIndexOf('<');
@@ -1135,7 +1136,7 @@ private:
         const QByteArray now = movedTail(rest, m_ctx, m_sheet, &m_changed);
         emit(now);
         m_buf.clear();
-        if (m_positional || m_rewrite) m_changed = true;
+        if (m_positional || m_formulasChanged) m_changed = true;
         return true;
     }
 
@@ -1154,7 +1155,13 @@ private:
         }
         return mapStreamCell(m_ctx, m_sheet, row, col);
     }
-    QString rewritten(const QString &text) const { return m_rewrite ? m_ctx.replay->rewrite(text, m_sheet) : text; }
+    QString rewritten(const QString &text)
+    {
+        if (!m_rewrite) return text;
+        QString now = m_ctx.replay->rewrite(text, m_sheet);
+        if (now != text) m_formulasChanged = true;
+        return now;
+    }
 
     QIODevice *m_in;
     PartSink *m_out;
@@ -1162,7 +1169,7 @@ private:
     int m_sheet;
     const std::atomic<bool> *m_cancel;
     QString *m_error = nullptr;
-    bool m_columnEdits = false, m_positional = false, m_cellLevel = false, m_hasShared = true, m_cellsShifted = false, m_rewrite = false, m_byReplay = false;
+    bool m_columnEdits = false, m_positional = false, m_cellLevel = false, m_hasShared = true, m_cellsShifted = false, m_rewrite = false, m_byReplay = false, m_formulasChanged = false;
     std::vector<qint32> m_columnsNow;   // (with the replay, and columns edited, no cells shifted: where each column of the file is now, -1 if gone)
     bool m_eof = false, m_failed = false, m_selfClosed = false, m_changed = false;
     QByteArray m_buf, m_prefix;
@@ -1179,13 +1186,14 @@ bool movesCellsOf(const MoveContext &ctx, int sheet)
     return false;
 }
 
-bool moveSheetPart(QIODevice *in, PartSink *out, const MoveContext &ctx, int sheet, bool *changed, QString *error, const std::atomic<bool> *cancel)
+bool moveSheetPart(QIODevice *in, PartSink *out, const MoveContext &ctx, int sheet, bool *changed, QString *error, const std::atomic<bool> *cancel, bool *formulasChanged)
 {
     if (error) error->clear();
     SheetMover mover(in, out, ctx, sheet, cancel);
     QString why;
     const bool ok = mover.run(&why);
     if (changed) *changed = mover.changed();
+    if (formulasChanged) *formulasChanged = mover.formulasChanged();
     if (!ok && error) *error = why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "The sheet could not be saved.") : why;
     return ok;
 }

@@ -1515,8 +1515,14 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 bool names = false;
                 if (!sheetPartMayNameSheets(&device, ctx.replay->movedSheetNames(), &names, &why, cancel)) return fail(why);
                 if (names) {
+                    // (and one that is looked at to see that a formula of it reads cells that moved: else it is left as it is, shared formulas and all)
                     ctx.rewriteSheets.insert(sheet);
-                    needed = true;
+                    ZipEntryDevice again(bytes, directory[index]);
+                    if (!again.open(QIODevice::ReadOnly)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A sheet of the file could not be read to be saved."));
+                    bool formulasChanged = false;
+                    if (!moveSheetPart(&again, nullptr, ctx, sheet, nullptr, &why, cancel, &formulasChanged)) return fail(why);
+                    if (formulasChanged) needed = true;
+                    else ctx.rewriteSheets.remove(sheet);
                 }
             }
             if (!needed) continue;
