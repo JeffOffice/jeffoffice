@@ -749,7 +749,6 @@ public:
     // by the ids of rows and columns: counted, for tests and tools). The marks themselves: how many of each kind (the columns and rows marked as resized by ids).
     // The marks looked at to let go of those on dead ids (counted, for tests: it is 0 for edits that let go of no line).
     qint64 marksSwept() const { return m_marksSwept; }
-    qint64 resultMarks() const { return qint64(m_results.size() + m_engineAtStart.size()); }   // the formulas' results kept for the saver (two maps, by cell)
     qint64 resizedMarks() const { return qint64(m_columnsResized.size() + m_rowsResized.size()); }
     qint64 marksFollowed() const { return m_marksFollowed; }
     // The longest the window waited for the worker to let go (microseconds, by the wall), and the last wait: what an edit costs besides the work of putting the cell in.
