@@ -42,6 +42,7 @@
 //   jcrunchtool model-replay <file>   runs the steps of a failure's report again;  model-dump <seed> <steps>|<file>   prints the state after them;  model-book <out.xlsx>   writes the workbook it begins with;
 //   jcrunchtool model-golden <steps> <seed>...   prints the digests tests/crunch/structmodel_golden.txt keeps
 //   jcrunchtool edit-save-struct-bench <file.xlsx> <label>   saves the workbook untouched and after structural edits at random places (JC_SAVE_EDITS=20,200 says how many), timing the session's snapshot and the save
+//                                           (JC_SAVE_KEEP=<prefix> keeps each file saved as <prefix>-<edits>.xlsx)
 //   jcrunchtool edit-bench-make [rows=100000] [cols=20] [readers=0] [edits=200]   the same on a workbook made here: numbers in rows and columns, a formula in the last column of each row that reads the
 //                                           first, and, with readers, a cell that that many formulas read
 
@@ -1498,6 +1499,10 @@ int saveStructBench(const QString &path, const QString &label)
         if (!saveXlsx(*w.workbookLoader().result()->book, snap.changes, &bytes, &why, &report)) {
             out() << label << '\t' << made << "\tsave failed: " << why << '\n';
             return;
+        }
+        if (const QString keep = qEnvironmentVariable("JC_SAVE_KEEP"); !keep.isEmpty()) {   // (a prefix: each file saved is kept as <prefix>-<edits>.xlsx, for a look at it)
+            QFile kept(keep + QLatin1Char('-') + QString::number(made) + QStringLiteral(".xlsx"));
+            if (kept.open(QIODevice::WriteOnly)) kept.write(bytes);
         }
         QFile st(QStringLiteral("/proc/self/status"));
         qint64 peak = -1;
