@@ -1487,6 +1487,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     // (the file's own names: the edits to rows and columns say which sheet by its place, and the file has not been told of the renames yet)
     for (const SheetEntry &se : book.info().sheets) ctx.sheetNames << (se.isNew ? QString() : se.fileName);
     ctx.sheetOps = changes.sheetOps;
+    if (changes.rewriteFormulas) {
+        auto replay = std::make_shared<LineReplay>(ctx.edits, ctx.sheetNames);
+        if (!replay->ok()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The rows and columns of a sheet were changed too often to be saved."));
+        ctx.replay = replay;
+    }
     const bool moves = !ctx.edits.empty() || !ctx.renames.empty() || !ctx.tableRewrites.empty() || !ctx.nameRenames.empty() || !ctx.sheetOps.empty() || !ctx.permutes.empty();
     QSet<int> moveSheets;   // the sheets (by their place) whose part is made by the mover
     if (moves) {
@@ -1502,6 +1507,17 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 ZipEntryDevice device(bytes, directory[index]);
                 if (!device.open(QIODevice::ReadOnly)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A sheet of the file could not be read to be saved."));
                 if (!moveSheetPart(&device, nullptr, ctx, sheet, &needed, &why, cancel)) return fail(why);
+            }
+            if (!movesCellsOf(ctx, sheet) && ctx.replay && ctx.replay->movesAnything()) {
+                // (a sheet whose formulas name a sheet that has rows or columns moved is written, with the text they have now, whatever else of it the edits change)
+                ZipEntryDevice device(bytes, directory[index]);
+                if (!device.open(QIODevice::ReadOnly)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A sheet of the file could not be read to be saved."));
+                bool names = false;
+                if (!sheetPartMayNameSheets(&device, ctx.replay->movedSheetNames(), &names, &why, cancel)) return fail(why);
+                if (names) {
+                    ctx.rewriteSheets.insert(sheet);
+                    needed = true;
+                }
             }
             if (!needed) continue;
             moveSheets.insert(sheet);

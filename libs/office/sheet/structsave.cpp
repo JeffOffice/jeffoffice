@@ -685,6 +685,20 @@ public:
             if (shiftsColumns(e.kind)) m_columnEdits = true;
             if (shiftsRows(e.kind) || shiftsColumns(e.kind) || shiftsCells(e.kind)) m_positional = true;
             if (shiftsCells(e.kind) || shiftsColumns(e.kind)) m_cellLevel = true;
+            if (shiftsCells(e.kind)) m_cellsShifted = true;
+        }
+        // (the formulas are written with the text the edits give them: on a sheet the edits move cells on, and on one that names a sheet they move cells of)
+        m_rewrite = ctx.replay && ctx.replay->ok() && ctx.replay->movesAnything() && (m_positional || ctx.rewriteSheets.contains(sheet));
+        if (m_positional && ctx.replay && ctx.replay->ok()) {
+            // (where the file's rows and columns are now is one lookup each, not a walk of the list of edits)
+            m_byReplay = true;
+            if (m_columnEdits && !m_cellsShifted) {
+                m_columnsNow.assign(kMaxColumns, -1);
+                for (quint32 c = 0; c < kMaxColumns; ++c) {
+                    quint32 now;
+                    if (ctx.replay->columnNow(sheet, c, &now)) m_columnsNow[c] = qint32(now);
+                }
+            }
         }
     }
 
@@ -693,7 +707,7 @@ public:
         m_error = error;
         if (!head()) return false;
         if (m_selfClosed) return tail(0);
-        const bool ok = m_positional ? rows() : copyRows();
+        const bool ok = m_positional || m_rewrite ? rows() : copyRows();
         if (!ok) return false;
         return tail(m_tailAt);
     }
@@ -902,7 +916,7 @@ private:
             }
             emit(m_buf.constData(), t.start);   // (the white space between rows)
             quint32 newRow = rowIdx;
-            const bool alive = mapRowOnly(m_ctx, m_sheet, &newRow);
+            const bool alive = rowNow(&newRow);
             // (a row that is gone may hold the formula that cells after it share)
             if (alive || m_hasShared) {
                 const QByteArray row = m_buf.mid(t.start, rowEnd - t.start);
@@ -973,7 +987,7 @@ private:
             if (!selfClosingCell(t) && cell.indexOf("shared") >= 0) noteMaster(cell, t.end - t.start, origRow, col);
             if (!alive) continue;
             quint32 newCol = col, checkRow = origRow;
-            if (m_cellLevel && !mapStreamCell(m_ctx, m_sheet, &checkRow, &newCol)) continue;
+            if (m_cellLevel && !cellNow(&checkRow, &newCol)) continue;
             body += movedCell(cell, t.end - t.start, t.selfClosing, origRow, col, newRow, newCol);
         }
         *out = alive ? openTag + body + rest : QByteArray();
@@ -1034,6 +1048,7 @@ private:
                 if (master == m_masters.constEnd()) return cell.mid(openEnd);
                 text = shiftFormula(master->text, int(origRow) - int(master->row), int(origCol) - int(master->col));
             }
+            text = rewritten(text);
             QByteArray tag = "<" + m_prefix + "f";
             bool ca = false;
             const QByteArrayView caValue = xmlscan::attribute(fTag, "ca", &ca);
@@ -1048,10 +1063,32 @@ private:
                 if (adjustRangeAll(m_ctx, m_sheet, &v, true)) setAttribute(&tag, name, v.toLatin1());
             }
             replacement = tag + f.mid(fo.end);
+            if (type == "array") {
+                QByteArray now;
+                if (rewrittenText(f, fo, tag, &now)) replacement = now;
+            }
+        } else if (type.isEmpty() || type == "normal") {
+            // (a formula of the cell alone: its bytes are the file's unless what it reads moved)
+            QByteArray now;
+            if (!m_rewrite || !rewrittenText(f, fo, fTag, &now)) return cell.mid(openEnd);
+            replacement = now;
         } else {
             return cell.mid(openEnd);
         }
         return cell.mid(openEnd, fs - openEnd) + replacement + cell.mid(fe);
+    }
+
+    // The element `f` (its open tag `fo`) with the text of the formula as the edits leave it, and `open` for its open tag; false if the text is not changed, or there is none.
+    bool rewrittenText(const QByteArray &f, const Tag &fo, const QByteArray &open, QByteArray *out) const
+    {
+        if (!m_rewrite || fo.selfClosing) return false;
+        const qsizetype close = f.lastIndexOf('<');
+        if (close <= fo.end) return false;
+        const QString text = xmlscan::unescape(QByteArrayView(f).sliced(fo.end, close - fo.end));
+        const QString now = rewritten(text);
+        if (now == text) return false;
+        *out = open + xmlscan::escapeText(now) + f.mid(close);
+        return true;
     }
 
     static bool findChild(const QByteArray &cell, qsizetype from, QByteArrayView local, qsizetype *start, qsizetype *end)
@@ -1098,9 +1135,26 @@ private:
         const QByteArray now = movedTail(rest, m_ctx, m_sheet, &m_changed);
         emit(now);
         m_buf.clear();
-        if (m_positional) m_changed = true;
+        if (m_positional || m_rewrite) m_changed = true;
         return true;
     }
+
+    // A row of the file where it is now (false: deleted), and a cell's column.
+    bool rowNow(quint32 *row) const
+    {
+        if (m_byReplay) return m_ctx.replay->rowNow(m_sheet, *row, row);
+        return mapRowOnly(m_ctx, m_sheet, row);
+    }
+    bool cellNow(quint32 *row, quint32 *col) const
+    {
+        if (!m_columnsNow.empty()) {
+            if (*col >= kMaxColumns || m_columnsNow[*col] < 0) return false;   // (the row is known to be alive)
+            *col = quint32(m_columnsNow[*col]);
+            return true;
+        }
+        return mapStreamCell(m_ctx, m_sheet, row, col);
+    }
+    QString rewritten(const QString &text) const { return m_rewrite ? m_ctx.replay->rewrite(text, m_sheet) : text; }
 
     QIODevice *m_in;
     PartSink *m_out;
@@ -1108,7 +1162,8 @@ private:
     int m_sheet;
     const std::atomic<bool> *m_cancel;
     QString *m_error = nullptr;
-    bool m_columnEdits = false, m_positional = false, m_cellLevel = false, m_hasShared = true;
+    bool m_columnEdits = false, m_positional = false, m_cellLevel = false, m_hasShared = true, m_cellsShifted = false, m_rewrite = false, m_byReplay = false;
+    std::vector<qint32> m_columnsNow;   // (with the replay, and columns edited, no cells shifted: where each column of the file is now, -1 if gone)
     bool m_eof = false, m_failed = false, m_selfClosed = false, m_changed = false;
     QByteArray m_buf, m_prefix;
     qsizetype m_tailAt = 0;
@@ -1133,6 +1188,54 @@ bool moveSheetPart(QIODevice *in, PartSink *out, const MoveContext &ctx, int she
     if (changed) *changed = mover.changed();
     if (!ok && error) *error = why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "The sheet could not be saved.") : why;
     return ok;
+}
+
+bool sheetPartMayNameSheets(QIODevice *in, const QStringList &names, bool *found, QString *error, const std::atomic<bool> *cancel)
+{
+    *found = false;
+    // a reference to a sheet is its name, and "!" (the name quoted, a quote and "!"); a name with anything but letters, digits, spaces, underscores, and dots may be written in other ways, and
+    // the part is taken to name it
+    std::vector<QByteArray> needles;
+    for (const QString &name : names) {
+        if (name.isEmpty()) continue;
+        bool plain = true;
+        for (const QChar c : name)
+            if (!(c.unicode() < 128 && (c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char(' ') || c == QLatin1Char('.')))) plain = false;
+        if (!plain) {
+            *found = true;
+            return true;
+        }
+        const QByteArray lower = name.toLatin1().toLower();
+        needles.push_back(lower + "!");
+        needles.push_back(lower + "'!");
+        needles.push_back(lower + "&apos;!");
+        needles.push_back(lower + "&#39;!");
+    }
+    if (needles.empty()) return true;
+    qsizetype longest = 0;
+    for (const QByteArray &n : needles) longest = std::max(longest, n.size());
+    QByteArray buf, chunk(kChunk, 0);
+    for (;;) {
+        if (cancel && cancel->load(std::memory_order_relaxed)) {
+            if (error) *error = QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped.");
+            return false;
+        }
+        const qint64 n = in->read(chunk.data(), chunk.size());
+        if (n < 0) {
+            if (error) *error = QCoreApplication::translate("jp::office::sheet::Save", "The sheet's part is damaged.");
+            return false;
+        }
+        if (n == 0) return true;
+        const qsizetype keep = std::min<qsizetype>(buf.size(), longest - 1);
+        buf = buf.right(keep) + chunk.left(qsizetype(n));
+        for (char *p = buf.data(), *e = p + buf.size(); p < e; ++p)
+            if (*p >= 'A' && *p <= 'Z') *p = char(*p + ('a' - 'A'));
+        for (const QByteArray &needle : needles)
+            if (buf.contains(needle)) {
+                *found = true;
+                return true;
+            }
+    }
 }
 
 // ---- the other parts

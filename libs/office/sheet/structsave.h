@@ -4,10 +4,14 @@
 // workbook (print areas and titles among them), charts, the anchors of drawings, notes, and the sources of PivotTables. The edits are a list, in the order they were made, applied to
 // each part in turn. The cells that the workbook changed (and the formulas whose text changed because of an edit) are not here: they are put in whole afterwards (see xlsxsave.h).
 
+#include "sheet/linereplay.h"
 #include "sheet/refshift.h"
 #include "sheet/xlsxsave.h"
 
+#include <QSet>
+
 #include <atomic>
+#include <memory>
 #include <vector>
 
 namespace jp::office::sheet {
@@ -20,10 +24,17 @@ struct MoveContext {
     QStringList sheetNames;   // the workbook's, in order
     std::vector<NameRename> nameRenames;   // defined names given other names, in the order made (the formulas that use them follow)
     std::vector<SheetOp> sheetOps;       // sheets renamed or deleted, in the order made, after the edits above (what names a sheet follows them)
+    // The formulas of the file are written with the text the edits to rows and columns give them (the saver does the rewriting: the cells that the workbook changed are not the only ones that
+    // read cells that moved). Set, `replay` is the edits made on the maps of the file's lines; `rewriteSheets` are the sheets the edits do not move cells on that name a sheet they do.
+    std::shared_ptr<const LineReplay> replay;
+    QSet<int> rewriteSheets;
 };
 
 // Whether an edit of the list moves cells on the sheet (inserted or deleted rows or columns, cells shifted).
 bool movesCellsOf(const MoveContext &ctx, int sheet);
+
+// Whether the part's bytes may hold a reference to a sheet of `names` (a name and "!" in the text of a formula, as a file writes it; a name that is not plain text is taken to be there). The part is read to its end.
+bool sheetPartMayNameSheets(QIODevice *in, const QStringList &names, bool *found, QString *error, const std::atomic<bool> *cancel);
 
 // A worksheet part with the edits made: `in` is read to its end and the new XML written to `out` (null: nothing is written, and `changed` says only whether the part would be). The rows
 // are renumbered only for a sheet the edits move cells on; any sheet has what refers to cells (in the part after its cells) followed.
