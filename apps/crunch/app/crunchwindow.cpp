@@ -299,6 +299,7 @@ void CrunchWindow::buildCentral()
     setCentralWidget(central);
     connect(m_nameBox, &QLineEdit::returnPressed, this, &CrunchWindow::goToName);
     m_formulaBar->installEventFilter(this);
+    m_view->installEventFilter(this);   // (Tab and Enter on the grid)
     createFormulaHelper();
 }
 
@@ -600,6 +601,38 @@ bool CrunchWindow::eventFilter(QObject *o, QEvent *e)
             if (m_edit.active) cancelEdit();
             else m_view->setFocus(Qt::OtherFocusReason);
             return true;
+        }
+    }
+    // Tab and Enter on the grid itself (not typing): a run of Tabs counts as when typing, so Enter then goes down to the column the run began in
+    if (o == m_view && e->type() == QEvent::KeyPress && !m_edit.active && m_view->selection().isOneCell()) {
+        auto *k = static_cast<QKeyEvent *>(e);
+        const bool shift = k->modifiers() & Qt::ShiftModifier;
+        if (!(k->modifiers() & ~(Qt::ShiftModifier | Qt::KeypadModifier))) {
+            const qint64 row = m_view->selection().activeRow, col = m_view->selection().activeCol;
+            const bool tab = k->key() == Qt::Key_Tab || k->key() == Qt::Key_Backtab;
+            const bool enter = (k->key() == Qt::Key_Return || k->key() == Qt::Key_Enter) && !shift && m_tabOriginCol >= 0 && m_tabRow == row;
+            if (tab) {
+                if (m_tabOriginCol < 0 || m_tabRow != row) {
+                    m_tabOriginCol = col;
+                    m_tabRow = row;
+                }
+                m_finishing = true;
+                m_view->moveAfterTab(k->key() == Qt::Key_Backtab || shift);
+                m_tabRow = m_view->selection().activeRow;
+                m_finishing = false;
+                updateBars();
+                return true;
+            }
+            if (enter) {
+                const qint64 origin = m_tabOriginCol;
+                m_finishing = true;
+                m_view->moveAfterEnter(false);
+                if (m_view->selection().isOneCell()) m_view->selectCell(m_view->selection().activeRow, origin);
+                m_tabOriginCol = m_tabRow = -1;
+                m_finishing = false;
+                updateBars();
+                return true;
+            }
         }
     }
     // Escape closes the File screen from anywhere in the window.
