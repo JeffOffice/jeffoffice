@@ -1322,7 +1322,7 @@ private Q_SLOTS:
         QString why;
         QVERIFY2(s->takeSnapshot(&snap, &why), qPrintable(why));
         QVERIFY(!snap.changes.fullCalcOnLoad);
-        QVERIFY(snap.changes.sheets[0].cells.empty());   // (in both ways of holding the formulas: the formula above the deleted row reads nothing that moved, so it is not written)
+        QVERIFY(snap.changes.sheets[0].cells.empty());   // (the formula above the deleted row reads nothing that moved, so it is not written; the suites run with the formulas in ids and in places, and this holds in both)
         e.win.w.undoStack()->undo();   // (the row comes back with its mark)
         QCOMPARE(s->changedCells(), qint64(1));
     }

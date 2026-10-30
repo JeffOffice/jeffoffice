@@ -12,6 +12,7 @@
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
 #include "grid/gridview.h"
+#include "grid/valuestore.h"
 #include "io/zipindex.h"
 
 #include <QAction>
@@ -1709,6 +1710,68 @@ private Q_SLOTS:
             QCOMPARE(savedFormula(e.path, QStringLiteral("B7")), QStringLiteral("A7+1"));
         }
         QCOMPARE(sheets[1], sheets[0]);
+    }
+    // A formula written whole whose result the window does not have (the worker has not told it) asks for a full calculation when the file is opened, and the saved workbook says so; in both ways of holding the
+    // formulas.
+    void aFormulaWrittenWholeWithNoKnownResultAsksForAFullCalculationOnLoad()
+    {
+        for (const int ids : {0, 1}) {
+            IdFrameScope scope(ids != 0);
+            const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f>A1*2</f><v>2</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c><c r=\"C2\"><f>A2+1</f><v>3</v></c></row>");
+            EditWindow e;
+            QVERIFY(e.open(sheettest::buildXlsx({sheettest::worksheet(rows)})));
+            QVERIFY(e.settle());
+            QCOMPARE(e.win.w.session()->calculation()->idFrame(), ids != 0);
+            // (the result of B1 is not in the window's store: the places of the cell are its ids, which are its places in a file nothing has been done to)
+            QVERIFY(const_cast<jp::grid::ValueStore &>(e.win.w.values()).erase(0, 0, 1));
+            QVERIFY(e.win.w.session()->insertRows(0, 0, 1).ok);   // (both formulas read cells that moved: both are written whole)
+            QVERIFY(e.settle());
+            crunch::EditSession::Snapshot snap;
+            QString why;
+            QVERIFY2(e.win.w.session()->takeSnapshot(&snap, &why), qPrintable(why));
+            bool withoutResult = false;
+            for (const auto &c : snap.changes.sheets[0].cells) withoutResult = withoutResult || (c.isFormula && !c.hasResult);
+            QVERIFY2(withoutResult, qPrintable(QString::number(ids)));
+            QVERIFY2(snap.changes.fullCalcOnLoad, qPrintable(QString::number(ids)));
+            QMap<QString, QByteArray> parts;
+            QVERIFY(saveParts(e, &parts));
+            QVERIFY2(parts.value(QStringLiteral("xl/workbook.xml")).contains("fullCalcOnLoad=\"1\""), parts.value(QStringLiteral("xl/workbook.xml")).constData());
+            QVERIFY2(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("<f>A3+1</f>"), parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).constData());
+        }
+    }
+    // A name with every line of it deleted and the sheet renamed after is the same text before the save and after the file is read again (`Sheet1!#REF!`: the dead part keeps the title it was written with), in both
+    // ways of holding the formulas; a name that is alive follows the rename.
+    void aNameWithDeadLinesIsTheSameTextAfterASaveAndReopeningAsBefore()
+    {
+        for (const int ids : {0, 1}) {
+            IdFrameScope scope(ids != 0);
+            QStringList cells;
+            const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"3\"><c r=\"A3\"><v>3</v></c></row><row r=\"4\"><c r=\"A4\"><v>4</v></c></row><row r=\"5\"><c r=\"A5\"><v>5</v></c></row><row r=\"7\"><c r=\"A7\"><v>7</v></c></row>");
+            EditWindow e;
+            QVERIFY(e.open(sheettest::buildXlsx({sheettest::worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(),
+                                                QStringLiteral("<definedName name=\"Dead\">Sheet1!$A$3:$A$5</definedName><definedName name=\"Live\">Sheet1!$A$7</definedName>"))));
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            QCOMPARE(s->calculation()->idFrame(), ids != 0);
+            QVERIFY(s->deleteRows(0, 2, 3).ok);
+            QVERIFY(s->renameSheet(0, QStringLiteral("Edited Sheet")).ok);
+            QVERIFY(e.settle());
+            QString deadBefore, liveBefore;
+            QVERIFY(s->calculation()->nameText(-1, QStringLiteral("Dead"), &deadBefore));
+            QVERIFY(s->calculation()->nameText(-1, QStringLiteral("Live"), &liveBefore));
+            QCOMPARE(deadBefore, QStringLiteral("Sheet1!#REF!"));
+            QMap<QString, QByteArray> parts;
+            QVERIFY(saveParts(e, &parts));
+            Window second;
+            QVERIFY(second.open(e.copyOfFile()));
+            QVERIFY(second.w.session() && second.w.session()->calculation());
+            QString deadAfter, liveAfter;
+            QVERIFY(second.w.session()->calculation()->nameText(-1, QStringLiteral("Dead"), &deadAfter));
+            QVERIFY(second.w.session()->calculation()->nameText(-1, QStringLiteral("Live"), &liveAfter));
+            QCOMPARE(deadAfter, deadBefore);
+            QCOMPARE(liveAfter, liveBefore);
+            QVERIFY2(liveBefore.contains(QLatin1String("Edited Sheet")), qPrintable(liveBefore));
+        }
     }
     // Which sheets are written: only those whose formulas can have changed (the sheet edited, and those that name it), and not a sheet where the rows were put in and taken out again.
     void aSaveWritesNoFormulaOfASheetThatTheEditDidNotMoveNorOfOnePutBack()

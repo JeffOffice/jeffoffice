@@ -643,6 +643,56 @@ void runScript(Opened &w, const QByteArray &original, ScriptResult *r)
     step(session->renameSheet(sheet, QStringLiteral("Edited Sheet")));
     step(session->moveSheet(sheet, -1));
     step(session->setTabColor(sheet, ColorSpec::fromRgb(0x00B050)));
+    if (qEnvironmentVariableIntValue("JC_ROUNDTRIP_CELL") != 0) {
+        // (JC_ROUNDTRIP_CELL=1: where the formulas of one text are, and the state of each and of what it reads)
+        const QString want = qEnvironmentVariable("JC_ROUNDTRIP_TEXT");
+        calc->forEachFormula([&](const Calculation::FormulaCell &f) {
+            if (!f.cell) return;
+            const quint32 row = calc->sheet(f.sheet).cells.rowPlaceOf(f.cell->rowId), col = calc->sheet(f.sheet).cells.colPlaceOf(f.cell->colId);
+            const QString text = calc->content(f.sheet, row, col).formula;
+            if (text != want) return;
+            qWarning().noquote() << "cell:" << f.sheet << cellName(row, col) << text << "value" << f.ours.debug() << "circular" << calc->isCircular(f.sheet, row, col) << "tainted" << calc->isTainted(f.sheet, row, col);
+        });
+    }
+    // (JC_ROUNDTRIP_STORE=1: the formulas whose value the window's store holds is not the calculation's)
+    if (qEnvironmentVariableIntValue("JC_ROUNDTRIP_STORE") != 0) {
+        int said = 0;
+        qint64 differ = 0;
+        calc->forEachFormula([&](const Calculation::FormulaCell &f) {
+            if (!f.cell) return;
+            const quint32 row = calc->sheet(f.sheet).cells.rowPlaceOf(f.cell->rowId), col = calc->sheet(f.sheet).cells.colPlaceOf(f.cell->colId);
+            jp::calc::Value shown;
+            const bool has = w.values.find(f.sheet, f.cell->rowId, f.cell->colId, &shown);
+            if (!has && !(f.sheet == 0 && row == 94 && col == 4)) return;   // (a value the worker did not send is none)
+            if (has && (shown == f.ours || (shown.isNumber() && f.ours.isNumber() && jp::calc::sameTo15Digits(shown.number(), f.ours.number())))) return;
+            ++differ;
+            if (said++ < 8) qWarning().noquote() << "store differs:" << f.sheet << cellName(row, col) << "store" << (has ? shown.debug() : QStringLiteral("(none)")) << "calculation" << f.ours.debug();
+        });
+        qWarning().noquote() << "formulas whose value in the window's store is not the calculation's:" << differ;
+    }
+    // (JC_ROUNDTRIP_RECALC=1: every formula is worked out again from nothing, and the first that the window had another value for are written to the error output)
+    if (qEnvironmentVariableIntValue("JC_ROUNDTRIP_RECALC") != 0) {
+        std::unordered_map<quint64, jp::calc::Value> before;
+        calc->forEachFormula([&](const Calculation::FormulaCell &f) {
+            if (f.cell) before[crunch::EditSession::keyOf(f.sheet, f.cell->rowId, f.cell->colId)] = f.ours;
+        });
+        w.beginEdit();
+        w.loader.recalculate();
+        w.settle();
+        int said = 0;
+        qint64 stale = 0;
+        calc->forEachFormula([&](const Calculation::FormulaCell &f) {
+            if (!f.cell) return;
+            const auto it = before.find(crunch::EditSession::keyOf(f.sheet, f.cell->rowId, f.cell->colId));
+            if (it == before.end() || (it->second.isNumber() && f.ours.isNumber() && jp::calc::sameTo15Digits(it->second.number(), f.ours.number())) || it->second == f.ours) return;
+            ++stale;
+            if (said++ < 12) {
+                const quint32 row = calc->sheet(f.sheet).cells.rowPlaceOf(f.cell->rowId), col = calc->sheet(f.sheet).cells.colPlaceOf(f.cell->colId);
+                qWarning().noquote() << "stale in the window:" << f.sheet << cellName(row, col) << calc->content(f.sheet, row, col).formula << "had" << it->second.debug() << "whole calculation" << f.ours.debug();
+            }
+        });
+        qWarning().noquote() << "formulas the window had another value for than a whole calculation gives:" << stale;
+    }
     // saved, and read again
     crunch::EditSession::Snapshot snap;
     QByteArray bytes;

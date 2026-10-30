@@ -1248,7 +1248,6 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         quint32 row, col;
         if (placeOfMark(key, &sheet, &row, &col)) touchedInOrder.push_back({keyOf(sheet, row, col), key});
     });
-    const bool anyTouched = !touchedInOrder.empty();
     if (calc->idFrame()) {
         // The formulas are held in ids, and an edit of whole rows or columns writes none of them again: the texts the file should have are those of the places the ids are at now. Until the saver rewrites
         // them from the order of the lines (docs/jeffcrunch-rowids.md, round 7), a formula is written whole when its text is no longer the file's: those of a sheet whose rows or columns are not in the
@@ -1278,6 +1277,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             }
         }
     }
+    const bool anyTouched = !touchedInOrder.empty();   // (the formulas written whole because their text moved are changes)
     std::sort(touchedInOrder.begin(), touchedInOrder.end(), [](const Marked &a, const Marked &b) { return a.place < b.place; });
     // (a sheet that was added is made whole from the model, and one that was deleted is not in the file: the marks of their cells are not what is put in)
     const WorkbookInfo &listed = book.info();
