@@ -72,8 +72,10 @@ QtMessageHandler g_previous = nullptr;
 void handleMessage(QtMsgType type, const QMessageLogContext &context, const QString &message)
 {
     if (g_watch && (type == QtWarningMsg || type == QtCriticalMsg || type == QtFatalMsg)) {
-        // The offscreen display can't size native windows, and a machine without the fonts says so once; neither is a fault of the program.
-        const bool harmless = message.contains(QLatin1String("This plugin does not support")) || message.contains(QLatin1String("Populating font family aliases"));
+        // The offscreen display can't size native windows, a machine without the fonts says so once, and one without video drivers or a sound server
+        // (a CI machine) says so when a sound is played; none is a fault of the program.
+        const bool noMediaDevices = (message.startsWith(QLatin1String("Couldn't load va")) || message.startsWith(QLatin1String("Couldn't resolve va")) || message.startsWith(QLatin1String("PulseAudioService:")));
+        const bool harmless = message.contains(QLatin1String("This plugin does not support")) || message.contains(QLatin1String("Populating font family aliases")) || noMediaDevices;
         if (!harmless) g_watch->warnings << message;
         if (harmless) return;
     }
