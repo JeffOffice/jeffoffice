@@ -310,6 +310,18 @@ bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineM
         else n.colId = quint16(now);
         if (again && !(n.flags & Kept)) redirty(id);
     }
+    // the specs of rows are held by the ids of the rows: they are renumbered with them (those of rows that are gone go), and what the worker knows of the hidden rows is by the old ids
+    if (rows && m_sheets[size_t(sheet)].rowSpecsAreIds) {
+        QVector<RowSpec> kept;
+        kept.reserve(m_sheets[size_t(sheet)].rowSpecs.size());
+        for (RowSpec r : std::as_const(m_sheets[size_t(sheet)].rowSpecs)) {
+            r.row = CellStore::renumberLine(table, r.row);
+            if (r.row != CellStore::kNoLine) kept.append(r);
+        }
+        std::stable_sort(kept.begin(), kept.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
+        m_sheets[size_t(sheet)].rowSpecs = kept;
+        hiddenRowsChanged(sheet);
+    }
     // the texts in ids that name the lines are written again with the new ids
     renumberTexts(sheet, rows, table, before);
     // the graph holds the old ids too, and so do the lists of the formulas that have an inserted line at an end (rebuildGraph makes them again: no line is inserted now)
@@ -538,6 +550,8 @@ bool Calculation::undoKeepsNoCells(const StructEdit &e) const
 {
     bool rows = false;
     if (!m_options.idFrame || !wholeLines(e, &rows) || e.sheet < 0 || e.sheet >= int(m_sheets.size())) return false;
+    // (many formulas held in places or told where they read: an edit writes them again, and the record of that is not small)
+    if (m_positionalNodes.size() + m_special.size() > 20000) return false;
     if (e.kind == StructEdit::Kind::InsertRows || e.kind == StructEdit::Kind::InsertColumns) return true;
     return !deadLinesHoldSpecials(e, e.count);
 }
@@ -598,12 +612,16 @@ bool Calculation::purgeSome(qint64 budget, PurgeStep *step)
     Sheet &S = m_sheets[size_t(sheet)];
     SheetState &st = m_state[size_t(sheet)];
     step->sheet = sheet;
-    abandonNow();
+    bool abandoned = false;   // (the worker's lists are put right once, by the first formula that is dropped: a slice of cells with none does not touch them)
     qint64 dropped = 0;
     const bool done = S.cells.purgeSome(job.rows, job.runs, &job.cursor, budget, &step->work, [&](const Cell &c) {
         if (!c.hasFormula() || c.formula < 0) return;
         step->formulaCells.push_back({c.rowId, quint32(c.colId)});
         if (size_t(c.formula) < st.nodeOf.size() && st.nodeOf[size_t(c.formula)] != kNone) {
+            if (!abandoned) {
+                abandonNow();
+                abandoned = true;
+            }
             dropNode(st.nodeOf[size_t(c.formula)]);
             ++dropped;
         }
@@ -909,6 +927,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         for (const Cell &c : dead) removed.push_back(PlacedCell{0, 0, c});
         if (dormantDelete) {
             rec->dormant = true;
+            rec->deadCells = S.cells.deadCount() - deadBefore;
             ++m_dormantLines;
         } else if (undoOf && undoOf->dormant) {
             --m_dormantLines;   // (the lines are back: the formulas in them are asked about below)
@@ -1111,6 +1130,32 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     // Lines that came back with their formulas (Undo of a delete that kept them): the formulas in them are worked out again, one job for the worker (what they read may have changed while they were dead;
     // the values they had are what the sheet shows until then)
     if (undoOf && undoOf->dormant && !lc.revived.empty()) {
+        // The formulas that tell the graph what they read by what a table, a name, a hidden row, or a sheet stands for were passed by the edits made while their lines were dead (those that were undone since
+        // were undone in order, but the table, name, or row they stand for was not asked about for them): the ones in the lines that came back are registered again, as those edits do for the live.
+        {
+            std::vector<jp::calc::IdRun> sorted = lc.revived;
+            std::sort(sorted.begin(), sorted.end(), [](const jp::calc::IdRun &a, const jp::calc::IdRun &b) { return a.first < b.first; });
+            auto inRevived = [&](quint32 id) {
+                auto it = std::upper_bound(sorted.begin(), sorted.end(), id, [](quint32 v, const jp::calc::IdRun &r) { return v < r.first; });
+                return it != sorted.begin() && id - (it - 1)->first < (it - 1)->count;
+            };
+            std::vector<quint32> again;
+            auto consider = [&](quint32 id) {
+                if (id >= m_nodes.size()) return;
+                const Node &n = m_nodes[id];
+                if ((n.flags & Dead) || n.sheet != e.sheet || !inRevived(lc.rows ? n.rowId : n.colId)) return;
+                again.push_back(id);
+            };
+            for (const quint32 id : m_structuredNodes) consider(id);
+            for (const quint32 id : m_subtotalNodes) consider(id);
+            for (const quint32 id : m_idToldNodes) consider(id);
+            for (const quint32 id : m_special) consider(id);
+            std::sort(again.begin(), again.end());
+            again.erase(std::unique(again.begin(), again.end()), again.end());
+            for (const quint32 id : again) {
+                if ((m_nodes[id].flags & Told) || m_structuredNodes.count(id) || m_subtotalNodes.count(id) || m_idToldNodes.count(id)) readdNode(id);
+            }
+        }
         Question q;
         q.sheet = e.sheet;
         q.rows = lc.rows;

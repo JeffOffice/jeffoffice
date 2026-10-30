@@ -104,6 +104,10 @@ void EditSession::compactLinesFor(const StructEdit &edit)
         std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
         if (!hold) return;
         letGoOfLines(hold->calculation());
+        // (a session with no loop of its own to purge in slices: each edit of lines lets go of some of what waits, so that what forgotten steps held stays bounded)
+        bool dropped = false;
+        purgeSliceHeld(hold->calculation(), 4 * kPurgeSliceCells, &dropped);
+        if (dropped) hold->changed();
         if (!hold->calculation()->linesNeedCompaction(edit)) return;
     }
     forgetLineSteps(edit.sheet, rows);
@@ -149,6 +153,8 @@ qint64 StructChange::bytes() const
     n += qint64(record.ranges.size() + record.merges.size()) * qint64(sizeof(CellRange));
     n += qint64(record.columns.size()) * qint64(sizeof(ColumnSpan)) + qint64(record.rowSpecs.size()) * qint64(sizeof(RowSpec));
     n += qint64(record.autoFilter.columns.size()) * 64;
+    // (the cells a delete left dead stay in the store, with the value the window holds for a formula in them, until the step is forgotten: 24 bytes of cell and as many of value)
+    n += record.deadCells * 48;
     for (const auto &name : record.names) n += qint64(name.first.size() + name.second.size()) * 2;
     n += qint64(record.rewritten.size()) * qint64(sizeof(Calculation::EditRecord::Place));
     n += qint64(touchedGone.size() + touchedAdded.size()) * 8 + qint64(tables.size()) * qint64(sizeof(TablePlace));

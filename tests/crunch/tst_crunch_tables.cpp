@@ -682,6 +682,44 @@ private Q_SLOTS:
         QVERIFY(e.settle());
     }
 
+    // Round 6: formulas that name a table and one that reads the hidden rows are in a row that is deleted; the table is renamed and made smaller and a row is hidden while they are dead; all of it is undone,
+    // and then the rows come back: the formulas read what they read, and a change reaches them (they tell the graph what they read, as those of live rows do).
+    void formulasThatNameATableAreRegisteredAgainWhenTheirRowsComeBackAfterTheTableChanged()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(s->type(0, 7, 0, QStringLiteral("=SUM(Table1[Q1])")).ok);
+        QVERIFY(s->type(0, 7, 1, QStringLiteral("=SUBTOTAL(109,B2:B4)")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:6"));
+        QUndoStack *u = e.win.w.undoStack();
+        QVERIFY(s->deleteRows(0, 7, 1).ok);
+        QVERIFY(s->renameTable(0, QStringLiteral("Sales")).ok);
+        QVERIFY(s->resizeTable(0, rangeText(QStringLiteral("A1:C3"))).ok);
+        crunch::EditSession::SizeChange hide;
+        hide.setHidden = hide.hidden = true;
+        QVERIFY(s->resizeRows(0, 2, 2, hide, QStringLiteral("Hide")).ok);
+        QVERIFY(e.settle());
+        for (int i = 0; i < 3; ++i) u->undo();
+        QVERIFY(e.settle());
+        u->undo();   // the rows come back
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:6"));
+        QCOMPARE(valueOf(e, QStringLiteral("B8")), QStringLiteral("n:6"));
+        QVERIFY(s->type(0, 1, 1, QStringLiteral("100")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:105"));
+        QCOMPARE(valueOf(e, QStringLiteral("B8")), QStringLiteral("n:105"));
+        QVERIFY(s->resizeRows(0, 2, 2, hide, QStringLiteral("Hide")).ok);   // (row 3, 2 in B, is left out of the subtotal now)
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("B8")), QStringLiteral("n:103"));
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:105"));
+    }
+
     // Formulas typed inside the table with the short form are kept as the file writes them, and shown as they were typed.
     void theShortFormOfARowReferenceIsKeptAsTheFileWritesIt()
     {

@@ -973,7 +973,8 @@ private Q_SLOTS:
         const qint64 base = s->undoBytes();
         const crunch::EditSession::Outcome o = s->deleteRows(0, 20000, 500000);
         QVERIFY2(o.ok && !o.confirm, qPrintable(o.problem));
-        QVERIFY2(s->undoBytes() - base < 64 * 1024, qPrintable(QString::number(s->undoBytes() - base)));
+        // (the record is the change to the order and the dead cells it left in the store, 1,000,000 of them at 48 bytes counted: 48 MB, not the 320 MB their copies took)
+        QVERIFY2(s->undoBytes() - base < 1000000 * 48 + 64 * 1024, qPrintable(QString::number(s->undoBytes() - base)));
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("A20001")), QStringLiteral("n:520001"));
         QCOMPARE(e.valueAt(QStringLiteral("B20001")), QStringLiteral("n:1040002"));
@@ -1134,6 +1135,83 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("B1003")), QStringLiteral("n:32002"));   // (the row of A16001 before, two rows lower: 16001 * 2)
         QVERIFY(storeDiffers(e).isEmpty());
+    }
+
+    // Round 6, the budget: the cells a delete of rows leaves dead are counted in its step's bytes, so that the undo limit bounds them (older steps are forgotten past it), and a session that never runs
+    // its loop (headless) lets go of what forgotten steps held at its next edit of rows, a slice at a time: a loop of deleting and putting back stays bounded.
+    void deadCellsAreCountedInTheUndoLimitAndLetGoOfWithoutTheLoop()
+    {
+        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the formulas are held in places: a delete of rows copies the cells, and they are counted as before ids");
+        QString xml;
+        for (int r = 1; r <= 40000; ++r) xml += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2</f><v>0</v></c></row>").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(xml)})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        const qint64 base = s->undoBytes();
+        s->setUndoByteLimit(base + 600 * 1000);   // (a step of 1,000 rows leaves 2,000 cells: 96,000 bytes counted)
+        QVERIFY(s->deleteRows(0, 0, 1000).ok);
+        QVERIFY2(s->undoBytes() - base >= 90 * 1000, qPrintable(QString::number(s->undoBytes() - base)));
+        const office::sheet::Calculation *calc = s->calculation();
+        for (int i = 0; i < 30; ++i) {
+            QVERIFY(s->deleteRows(0, 0, 1000).ok);   // (no loop runs: nothing here waits for the window)
+            QVERIFY2(s->undoBytes() - base <= 600 * 1000, qPrintable(QString::number(s->undoBytes() - base)));
+        }
+        // (30 steps of 2,000 cells were made; the limit holds six of them, and what the forgotten ones left was let go of by the edits that followed them, at most a few slices behind)
+        QVERIFY2(calc->sheet(0).cells.deadCount() < 40000, qPrintable(QString::number(calc->sheet(0).cells.deadCount())));
+        QVERIFY(e.settle());
+    }
+
+    // Round 6: the specs of rows are renumbered when the order of rows is put back to one run (a hidden row, a height, an outline level), and what is saved after has them at their rows.
+    void theSpecsOfRowsSurviveAnOrderPutBackToOneRunAndTheirSave()
+    {
+        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the specs of rows are held by place: there are no ids to renumber");
+        QStringList cells;
+        for (int r = 1; r <= 12; ++r) cells << QStringLiteral("A%1=%1").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(cells)));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        crunch::EditSession::SizeChange hide, tall;
+        hide.setHidden = hide.hidden = true;
+        tall.setSize = true;
+        tall.size = 40;
+        // (the order may hold few ids: edits of rows until it is near that, and the steps are forgotten and the order is put back to one run)
+        s->setLineLimitsForTest(0, [] {
+            jp::calc::LineLimits tight = jp::calc::LineLimits::rows();
+            tight.idLimit = tight.firstNew + 12;
+            return tight;
+        }(), jp::calc::LineLimits::cols());
+        QVERIFY(s->resizeRows(0, 7, 7, hide, QStringLiteral("Hide")).ok);   // row 8
+        QVERIFY(s->resizeRows(0, 9, 9, tall, QStringLiteral("Taller")).ok);  // row 10
+        QVERIFY(s->insertRows(0, 0, 3).ok);
+        QVERIFY(s->deleteRows(0, 0, 2).ok);
+        for (int i = 0; i < 10; ++i) QVERIFY(s->insertRows(0, 20, 1).ok);
+        QVERIFY(e.settle());
+        // (the ids of the rows were put back to their places: the specs, which are held by id, are at the ids that are the places of their rows)
+        QCOMPARE(s->calculation()->sheet(0).rowSpecs.size(), 2);
+        QCOMPARE(s->calculation()->sheet(0).rowSpecs[0].row, quint32(8));
+        QCOMPARE(s->calculation()->sheet(0).rowSpecs[1].row, quint32(10));
+        auto at = [&](quint32 row) { return s->calculation()->rowSpecsIn(0, row, row); };
+        QVERIFY(at(8).size() == 1 && at(8).front().hidden);    // (A8 is at place 8 now: one row put in net)
+        QCOMPARE(at(10).size(), size_t(1));
+        QCOMPARE(at(10).front().height, 40.0);
+        QCOMPARE(s->calculation()->rowSpecsIn(0, 0, 100).size(), size_t(2));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        Workbook b;
+        QVERIFY(b.open(p, &why));
+        office::sheet::Sheet sheet;
+        QVERIFY(b.readSheet(0, &sheet));
+        QCOMPARE(sheet.rowSpecs.size(), 2);
+        QCOMPARE(sheet.rowSpecs[0].row, quint32(8));
+        QVERIFY(sheet.rowSpecs[0].hidden);
+        QCOMPARE(sheet.rowSpecs[1].row, quint32(10));
+        QCOMPARE(sheet.rowSpecs[1].height, 40.0);
     }
 
     // Undo and a save: a step of rows put in before a save is undone after it (the saved file has the rows, so the edit that takes them out is made against the saved file), and a step of rows deleted

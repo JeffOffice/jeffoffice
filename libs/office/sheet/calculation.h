@@ -317,6 +317,7 @@ public:
         // (id frame) A delete of whole rows or columns that copied no cell: the cells stay where they are, dead, with their formulas and the nodes of those, which no one works out (Calculation::dormant);
         // Undo brings the lines back and has the worker work the formulas in them out again, and the step that is let go of has them purged in slices (forgetLinesLater).
         bool dormant = false;
+        qint64 deadCells = 0;   // (dormant) the cells that were left dead: what the step holds in the store, counted in its bytes
         quint32 extentRows = 0, extentCols = 0, rowsSeen = 0, colsSeen = 0;
         // defined names whose text changed, with the text they had (by the key the source keeps them by)
         std::vector<std::pair<QString, QString>> names;
