@@ -94,6 +94,7 @@ private Q_SLOTS:
             }
             return w;
         };
+        m_app.newDocument = {QStringLiteral("win.new"), QStringLiteral("file.blank")};
         m_app.type = [](AppWindow *w) {
             startTextBox(asPub(w));
             typeInto(asPub(w)->canvas(), QStringLiteral("Some words"));
@@ -504,6 +505,13 @@ private Q_SLOTS:
     }
 
     // ---- 1. the first five minutes
+    // A new window, and one from File > New, take typing without a click first (a blank page has no text box until one is made: until then typing must do nothing).
+    void typingNeedsNoClick()
+    {
+        const QStringList failed = checkTypingWithoutAClick(m_app);
+        QVERIFY2(failed.isEmpty(), qPrintable(failed.join(QLatin1Char('\n'))));
+    }
+
     void firstFiveMinutes()
     {
         Watch watch;

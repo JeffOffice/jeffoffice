@@ -79,6 +79,11 @@ struct Adapter {
     std::function<void(jp::AppWindow *)> type;
     // Reads a file the program wrote again, as the program would open it (the reason it can't, or nothing when it can or when the program has no way to open that kind).
     std::function<QString(const QString &path)> reopen;
+    // The text a person sees the typing land in, in a window as launched (the cell editor's line, the document's words); not set for an app whose blank document needs a click first
+    // (a placeholder to click into): there, typing without a click must do nothing at all.
+    std::function<QString(jp::AppWindow *)> typedText;
+    // The commands that make a new blank document in a window of its own, the first run in the window as launched and each next one in the window it opened (File > New alone when not set).
+    QStringList newDocument;
     // Shows the File screen's Print page of the window, and gives the screen.
     std::function<QWidget *(jp::AppWindow *)> showPrint;
     // The commands whose shortcut is not tried (pressing it twice is not safe), with the reason.
@@ -176,6 +181,10 @@ QString quietBecause(const Adapter &app, const QString &id, bool fromFile, bool 
 QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report);
 // After both states have been run: the commands that no state ran, each of which must have a reason in `neverRun`.
 QStringList checkNeverRun(Adapter &app, QStringList *report);
+
+// A new window, and the window File > New opens, are typed into with no click first: the window is made active, plain letter keys go to the widget that has the focus, and the typing
+// lands in the document (or, for an app that needs a click first, does nothing: no command, dialog, or screen). Failures are returned as lines.
+QStringList checkTypingWithoutAClick(Adapter &app);
 
 // Shared by the first-five-minutes tests: a window that was closed, and whether it asked.
 struct CloseResult {

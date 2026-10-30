@@ -97,6 +97,7 @@ private Q_SLOTS:
             return w;
         };
         m_app.type = [](AppWindow *w) { enter(asCrunch(w), 0, 0, QStringLiteral("12")); };
+        m_app.typedText = [](AppWindow *w) { return asCrunch(w)->isEditing() ? asCrunch(w)->cellEditor()->text() : QString(); };
         m_app.showPrint = [](AppWindow *w) -> QWidget * {
             w->act(QStringLiteral("file.print"))->trigger();
             return w->findChild<FileScreen *>();
@@ -343,6 +344,13 @@ private Q_SLOTS:
     }
 
     // ---- 1. the first five minutes
+    // A new window, and one from File > New, take typing without a click first.
+    void typingNeedsNoClick()
+    {
+        const QStringList failed = checkTypingWithoutAClick(m_app);
+        QVERIFY2(failed.isEmpty(), qPrintable(failed.join(QLatin1Char('\n'))));
+    }
+
     void firstFiveMinutes()
     {
         Watch watch;

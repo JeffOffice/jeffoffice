@@ -358,6 +358,75 @@ void isolateSettings()
     });
 }
 
+QStringList checkTypingWithoutAClick(Adapter &app)
+{
+    QStringList failures;
+    Watch watch;
+    const auto typeIn = [&](jp::AppWindow *w, const QString &which) {
+        if (!w) {
+            failures << which + QStringLiteral(": no window");
+            return;
+        }
+        w->activateWindow();
+        if (!QTest::qWaitForWindowActive(w)) failures << which + QStringLiteral(": the window did not become active");
+        if (app.settle) app.settle(w);
+        QWidget *focus = QApplication::focusWidget();
+        if (!focus) {
+            failures << which + QStringLiteral(": nothing has the keyboard focus");
+            return;
+        }
+        QString where = QString::fromLatin1(focus->metaObject()->className());
+        if (!focus->objectName().isEmpty()) where += QStringLiteral(" \"%1\"").arg(focus->objectName());
+        if (auto *button = qobject_cast<QAbstractButton *>(focus)) where += QStringLiteral(" (%1)").arg(button->text());
+        const QString state = app.docState ? app.docState(w) : QString();
+        const QString before = fingerprint(w);
+        watch.begin();
+        for (const QChar ch : QStringLiteral("ab c")) {
+            QWidget *to = QApplication::focusWidget();   // (the focus may move as the keys come: the first letter of a cell's entry starts its editor)
+            if (to) QTest::keyClick(to, ch.toLatin1());
+        }
+        drain();
+        if (app.settle) app.settle(w);
+        if (app.typedText) {
+            if (!app.typedText(w).contains(QStringLiteral("ab c"))) failures << which + QStringLiteral(": typing with the focus on a %1 did not land in the document (it holds \"%2\")").arg(where, app.typedText(w));
+        } else {
+            if (!watch.dialogs.isEmpty()) failures << which + QStringLiteral(": typing with the focus on a %1 opened %2").arg(where, watch.dialogs.join(QStringLiteral("; ")));
+            if (app.docState && app.docState(w) != state) failures << which + QStringLiteral(": typing with the focus on a %1 changed the document or the view").arg(where);
+            if (fingerprint(w) != before) failures << which + QStringLiteral(": typing with the focus on a %1 changed what the window shows (a command, or a screen)").arg(where);
+        }
+    };
+    std::unique_ptr<jp::AppWindow> first(app.launch());
+    typeIn(first.get(), app.name + QStringLiteral(" as launched"));
+    if (first) {
+        const int windows = jp::AppWindow::windows().size();
+        const QStringList newCommands = app.newDocument.isEmpty() ? QStringList{QStringLiteral("file.new")} : app.newDocument;
+        QAction *fileNew = first->act(newCommands.first());
+        if (!fileNew) {
+            failures << app.name + QStringLiteral(" has no ") + newCommands.first();
+        } else {
+            fileNew->trigger();
+            drain();
+            jp::AppWindow *second = nullptr;
+            for (jp::AppWindow *other : jp::AppWindow::windows())
+                if (other != first.get()) second = other;
+            if (jp::AppWindow::windows().size() != windows + 1 || !second) {
+                failures << app.name + QStringLiteral(": ") + newCommands.first() + QStringLiteral(" opened no window");
+            } else {
+                for (int i = 1; i < newCommands.size(); ++i)
+                    if (QAction *step = second->act(newCommands.at(i))) step->trigger();
+                drain();
+                QPointer<jp::AppWindow> guard(second);
+                typeIn(second, app.name + QStringLiteral(" after File > New"));
+                if (guard) {
+                    second->setAttribute(Qt::WA_DeleteOnClose, false);
+                    delete second;
+                }
+            }
+        }
+    }
+    return failures;
+}
+
 CloseResult closeWindow(jp::AppWindow *w, Watch &watch)
 {
     CloseResult r;

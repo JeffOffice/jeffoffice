@@ -60,6 +60,7 @@ private Q_SLOTS:
             return w;
         };
         m_app.type = [](AppWindow *w) { typeInto(asWrite(w)->view(), QStringLiteral("Some words")); };
+        m_app.typedText = [](AppWindow *w) { return asWrite(w)->document() ? asWrite(w)->document()->story()->toPlainText() : QString(); };
         m_app.settle = [](AppWindow *w) {
             asWrite(w)->refreshNow();
             drain();
@@ -165,6 +166,13 @@ private Q_SLOTS:
     }
 
     // ---- 1. the first five minutes
+    // A new window, and one from File > New, take typing without a click first.
+    void typingNeedsNoClick()
+    {
+        const QStringList failed = checkTypingWithoutAClick(m_app);
+        QVERIFY2(failed.isEmpty(), qPrintable(failed.join(QLatin1Char('\n'))));
+    }
+
     void firstFiveMinutes()
     {
         Watch watch;
