@@ -54,8 +54,8 @@ struct CalcOptions {
     double now = 0;                   // 0: the clock is read at each recalculation; else the day number NOW and TODAY give
     qint64 workbookBytes = kMaxWorkbookBytes;
     // Hold the formulas in the id frame (docs/jeffcrunch-rowids.md, 4.4; sheet/formulaframe.h): the texts name rows and columns by their ids, so that an edit of whole rows or columns writes no text again
-    // but those of the formulas that are not held so (and the ones that read a row or column that died). Off, a formula's text is in places and an edit writes the ones that move again. Round 5a ships it
-    // dark: tests, and the tools with JC_ID_FRAME=1, turn it on (see Calculation::setIdFrameDefault).
+    // but those of the formulas that are not held so (and the ones that read a row or column that died). Off, a formula's text is in places and an edit writes the ones that move again. Round 5c turned it
+    // on for every calculation (see Calculation::setIdFrameDefault); the places are kept until the last round, for the tests that compare the two and for JC_ID_FRAME=0.
     bool idFrame = false;
     bool idFrameOff = false;   // and the process's default (JC_ID_FRAME, setIdFrameDefault) is not looked at: this one holds its formulas in places (a test that compares the two ways)
     // If set, called with the result the file stored for a formula and the one worked out; false marks the formula a mismatch, and every formula that reads one, directly or
@@ -573,7 +573,7 @@ public:
     // For tests: whether an edit of whole rows or columns asks the worker (the formulas whose text only moved keep their nodes and are worked out only if the edit could change them), or every formula
     // that was written again is made again and worked out, as an edit of cells does (the oracle the other is compared with).
     static void setGraphShifts(bool on);
-    // The switch of CalcOptions::idFrame for every calculation made after this call (a test, or a tool, turns it on for the workbooks it opens; the default is off).
+    // The switch of CalcOptions::idFrame for every calculation made after this call (a test, or a tool, says which way the workbooks it opens hold their formulas; the default is on, and JC_ID_FRAME=0 in the environment makes it off).
     static void setIdFrameDefault(bool on);
     static bool idFrameDefault();
     // For tests: whether a word of the text is one that cannot be held in ids as it is (a name that could be read as a cell past XFD).

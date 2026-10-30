@@ -1159,7 +1159,7 @@ private Q_SLOTS:
         QCOMPARE(b.formula("B303"), QStringLiteral("A303*2"));
         QCOMPARE(b.at("B303"), QStringLiteral("n:600"));
         QCOMPARE(b.calc->formulaEntriesInUse(0), entries0);
-        QCOMPARE(rec.formulasRewritten, qint64(2 * n));
+        QCOMPARE(rec.formulasRewritten, b.calc->idFrame() ? qint64(0) : qint64(2 * n));   // (in the id frame no text is written again: the ids stay)
         QVERIFY2(b.calc->formulaTextsInUse(0) <= texts0 + 1 + n, qPrintable(QString::number(b.calc->formulaTextsInUse(0))));   // (the sums, each its own text, are written one by one; the family is one)
         const qint64 familyPrograms = b.calc->programsHeld(0);
         QVERIFY2(familyPrograms <= 1 + n + 1, qPrintable(QString::number(familyPrograms)));
@@ -1179,6 +1179,7 @@ private Q_SLOTS:
         QVERIFY(b.calc->undoEdit(one));
         b.finish();
         const QString afterFirst = held();
+        QString steady;
         for (int round = 0; round < 20; ++round) {
             Calculation::EditRecord top, middle, del;
             QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1 + round % 3), &top));
@@ -1188,8 +1189,10 @@ private Q_SLOTS:
             QVERIFY(b.calc->undoEdit(middle));
             QVERIFY(b.calc->undoEdit(top));
             b.finish();
+            if (round == 0) steady = held();   // (the first round of these edits has made all that the later ones find again: the family split by the middle insert, and the like)
         }
-        QCOMPARE(held(), afterFirst);
+        QCOMPARE(held(), steady);   // (twenty rounds hold what the first did, exactly)
+        if (!b.calc->idFrame()) QCOMPARE(held(), afterFirst);
         QVERIFY(b.calc->programsHeld(0) <= b.calc->formulaTextsInUse(0) * 2);
         QCOMPARE(b.formula("B30"), QStringLiteral("A30*2"));
         QCOMPARE(b.at("B30"), QStringLiteral("n:64"));   // (the cell that was in row 32: three rows came in above it and five went)
@@ -1218,6 +1221,7 @@ private Q_SLOTS:
         QString rows;
         for (int r = 1; r <= n; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2+%1</f><v>0</v></c></row>").arg(r);
         Book b;
+        b.forceOff = true;   // (the formulas are written again only when they are held in places: the id frame writes none, and this is the work of the one that does)
         QVERIFY(b.openXml(worksheet(rows)));
         Calculation::EditRecord rec;
         QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &rec));
@@ -1430,7 +1434,7 @@ private Q_SLOTS:
         QVERIFY(b.apply(StructEdit::insertRows(0, 50000, 1), &rec));               // a row at 50,001
         QVERIFY2(b.calc->editWork() - workBefore < 100, qPrintable(QString::number(b.calc->editWork() - workBefore)));   // (the one formula: no cell moves)
         QCOMPARE(rec.cellsMoved, qint64(0));
-        QCOMPARE(rec.formulasRewritten, qint64(1));                                 // (C1 reads A99999: B1 reads rows 1 to 100, and B2 reads A50000, which is above)
+        QCOMPARE(rec.formulasRewritten, b.calc->idFrame() ? qint64(0) : qint64(1));   // (in ids none)  (C1 reads A99999: B1 reads rows 1 to 100, and B2 reads A50000, which is above)
         QVERIFY2(b.calc->graph().queryWork() - queried < 5000, qPrintable(QString::number(b.calc->graph().queryWork() - queried)));
         QCOMPARE(b.formula("C1"), QStringLiteral("A100000*2"));
         QCOMPARE(b.formula("B2"), QStringLiteral("A50000*2"));
@@ -1439,7 +1443,7 @@ private Q_SLOTS:
         Calculation::EditRecord top;
         QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &top));
         QCOMPARE(top.cellsMoved, qint64(0));                                        // (no cell moves, though every cell has a new place)
-        QCOMPARE(top.formulasRewritten, qint64(3));
+        QCOMPARE(top.formulasRewritten, b.calc->idFrame() ? qint64(0) : qint64(3));   // (in ids the formulas are not written again)
         QCOMPARE(b.formula("B2"), QStringLiteral("SUM(A2:A101)"));
         QCOMPARE(b.at("B2"), QStringLiteral("n:%1").arg(5050));
     }
@@ -4159,6 +4163,18 @@ private Q_SLOTS:
         QCOMPARE(dead[1], dead[0]);
         QCOMPARE(live[1], live[0]);
         QVERIFY2(live[0].contains(QLatin1String("Edited Sheet")), qPrintable(live[0]));
+    }
+
+    // The formulas of a workbook are held in ids unless JC_ID_FRAME=0 is in the environment (the way a person who wants the old one gets it), and a book that says it holds them in places does.
+    void theIdFrameIsOnUnlessTheEnvironmentSaysNo()
+    {
+        const bool expected = !qEnvironmentVariableIsSet("JC_ID_FRAME") || qEnvironmentVariableIntValue("JC_ID_FRAME") != 0;
+        QCOMPARE(Calculation::idFrameDefault(), expected);
+        Book plain, places;
+        places.forceOff = true;
+        for (Book *b : {&plain, &places}) QVERIFY(b->open({{"A1=1", "B1==A1+1"}}));
+        QCOMPARE(plain.calc->idFrame(), expected);
+        QVERIFY(!places.calc->idFrame());
     }
 
 

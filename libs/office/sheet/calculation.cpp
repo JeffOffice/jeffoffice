@@ -67,8 +67,8 @@ struct Chunker {
 
 constexpr qint64 kMaxMembersAdded = 200000;        // the cells of arrays that the file has no cell for, which are put in (each costs the cells after it in its block of rows)
 
-// (JC_ID_FRAME=1 in the environment turns it on for every calculation of the process: how the tools, and the whole of the tests, are run in the id frame)
-std::atomic<bool> g_idFrameDefault{qEnvironmentVariableIntValue("JC_ID_FRAME") == 1};
+// (On unless JC_ID_FRAME=0 is in the environment, which holds every formula of every calculation of the process in places, as before round 5c: how the tools and the tests are run in the old way)
+std::atomic<bool> g_idFrameDefault{!qEnvironmentVariableIsSet("JC_ID_FRAME") || qEnvironmentVariableIntValue("JC_ID_FRAME") != 0};
 
 // Whether a word of the text could be read as a cell past XFD (or past the last row) under the wide limits, and so cannot be held in ids as it is: a name "ABCD1". A word that a "(" (a function:
 // ATAN2), a "[" (a table), or a "!" (a sheet) goes on from is none, as the parser reads it; nor is one in quotes.
