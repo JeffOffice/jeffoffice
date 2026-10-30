@@ -23,8 +23,6 @@ Para imprimir las diapositivas con sus notas debajo, elija **Páginas de notas**
 
 Una diapositiva que duplica, o que reutiliza de otra presentación, conserva sus notas. Consulte [Agregar, cambiar y eliminar diapositivas](slides) y [Reutilizar diapositivas de otra presentación](reuse).
 
-**Página de notas**, en la pestaña **Vista**, sirve para trabajar las notas con la forma de una página impresa. Todavía no está disponible.
-
 ## Temas relacionados
 
 - [Reproducir la presentación con diapositivas y usar la Vista Moderador](show)

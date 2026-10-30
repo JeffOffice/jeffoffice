@@ -23,8 +23,6 @@ Para imprimir os slides com as anotações abaixo deles, escolha **Anotações**
 
 Um slide que você duplica ou reutiliza de outra apresentação leva as anotações junto. Consulte [Adicionar, alterar e excluir slides](slides) e [Reutilizar slides de outra apresentação](reuse).
 
-O comando **Anotações** na guia **Exibir** serve para trabalhar nas anotações no formato de uma página impressa. Ele ainda não está disponível.
-
 ## Relacionados
 
 - [Reproduzir a apresentação de slides e usar o Modo de Exibição do Apresentador](show)
