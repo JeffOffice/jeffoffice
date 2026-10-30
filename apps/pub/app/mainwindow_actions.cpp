@@ -168,10 +168,20 @@ void MainWindow::createActions()
     }, true);
     const QString caseNames[] = {tr("Sentence case."), tr("lowercase"), tr("UPPERCASE"), tr("Capitalize Each Word"), tr("tOGGLE cASE")};
     for (int i = 0; i < 5; ++i) mk(QStringLiteral("case.%1").arg(i), caseNames[i], "", QKeySequence(), [ed, i] { ed->changeCase(i); });
-    mk("case.cycle", tr("Change Case"), "case-sensitive", QKeySequence(Qt::SHIFT | Qt::Key_F3), [ed] {
-        static int next = 0;
-        ed->changeCase(next);
-        next = (next + 1) % 3;
+    // Shift+F3 goes lower case, UPPER CASE, then Sentence case, from what the words are now (one press of it always changes them, whatever was done before, in this
+    // window or another). With no words being edited, the objects selected go round in that order.
+    mk("case.cycle", tr("Change Case"), "case-sensitive", QKeySequence(Qt::SHIFT | Qt::Key_F3), [ed, objectStep = std::make_shared<int>(0)] {
+        int mode = *objectStep;
+        if (ed->isEditingText()) {
+            QTextCursor c = ed->cursor();
+            if (!c.hasSelection()) c.select(QTextCursor::WordUnderCursor);
+            const QString text = c.selectedText();
+            // lower goes to UPPER, UPPER to Sentence, and anything else to lower
+            mode = text.isEmpty() ? 1 : text == text.toLower() ? 2 : text == text.toUpper() ? 0 : 1;
+        } else {
+            *objectStep = (*objectStep + 1) % 3;
+        }
+        ed->changeCase(mode);
     });
     // Tracking presets, as percentages of normal letter spacing.
     struct Spacing { const char *id; QString name; double pct; };

@@ -604,6 +604,31 @@ private Q_SLOTS:
         QVERIFY2(keys.contains(QKeySequence(QKeySequence::Redo)), "the system's key for Redo does not work");
     }
 
+    // Shift+F3 changes the words each time it is pressed, from what they are now: lower case, UPPER CASE, then Sentence case; what was done in another window does not decide it.
+    void changeCaseGoesRoundFromWhatTheWordsAre()
+    {
+        for (int round = 0; round < 2; ++round) {   // (the second window begins as the first did, whatever the first went through)
+            std::unique_ptr<MainWindow> w(static_cast<MainWindow *>(m_app.launch()));
+            startTextBox(w.get());
+            typeInto(w->canvas(), QStringLiteral("Hello world"));
+            w->editor()->flushTyping();
+            auto select = [&] {
+                QTextCursor c = w->editor()->cursor();
+                c.select(QTextCursor::Document);
+                w->editor()->setCursor(c);
+            };
+            select();
+            w->act(QStringLiteral("case.cycle"))->trigger();
+            QCOMPARE(allText(w.get()), QStringLiteral("hello world|"));
+            select();
+            w->act(QStringLiteral("case.cycle"))->trigger();
+            QCOMPARE(allText(w.get()), QStringLiteral("HELLO WORLD|"));
+            select();
+            w->act(QStringLiteral("case.cycle"))->trigger();
+            QCOMPARE(allText(w.get()), QStringLiteral("Hello world|"));
+        }
+    }
+
     // ---- 2. the standard commands
     void standardCommands()
     {
