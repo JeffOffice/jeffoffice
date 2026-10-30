@@ -468,6 +468,22 @@ private Q_SLOTS:
         QVERIFY2(!w->canvas()->findChild<AnimationPreview *>(), "the preview goes on playing a presentation that is gone");
     }
 
+    // Choosing the transition a slide has (or the way it goes) changes nothing, and must leave its mark as it was: on (the menu showed it off, with the slide still having it).
+    void choosingWhatTheSlideHasKeepsTheMark()
+    {
+        std::unique_ptr<DeckWindow> w(launchBlank());
+        w->refreshNow();
+        w->act(QStringLiteral("transition.push"))->trigger();
+        w->refreshNow();
+        QAction *direction = w->act(QStringLiteral("transition.dir.l"));   // (a push comes from the right)
+        QVERIFY(direction->isChecked());
+        direction->trigger();
+        QVERIFY2(direction->isChecked(), "choosing the direction the slide has turns its mark off");
+        QAction *push = w->act(QStringLiteral("transition.push"));
+        push->trigger();
+        QVERIFY2(push->isChecked(), "choosing the transition the slide has turns its mark off");
+    }
+
     // ---- 2. the standard commands
     void standardCommands()
     {

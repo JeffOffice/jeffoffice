@@ -305,6 +305,9 @@ void DeckWindow::createShowActions()
     connect(ed, &Editor::pageChanged, this, sync);
     connect(ed, &Editor::documentReplaced, this, sync);
     sync();
+    // Choosing what the slide has already changes nothing, so nothing makes the commands show it: the choice's own mark would stay turned over (off, for a choice that is made).
+    for (const QString &id : actionIds())
+        if (id.startsWith(QLatin1String("transition.")) && act(id)->isCheckable()) connect(act(id), &QAction::triggered, this, sync);
 
     // The slide thumbnails mark the slides that have one.
     m_slides->setItemDelegate(new TransitionMarkDelegate(ed, m_slides->itemDelegate(), m_slides));
