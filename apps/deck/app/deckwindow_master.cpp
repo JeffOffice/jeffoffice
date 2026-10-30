@@ -70,10 +70,6 @@ void DeckWindow::createMasterActions()
     mk(QStringLiteral("master.footers"), tr("Footers"), QString(), QKeySequence(), [this] { setLayoutFooters(act("master.footers")->isChecked()); }, true);
     mk(QStringLiteral("master.hideBackground"), tr("Hide Background Graphics"), QStringLiteral("eye-off"), QKeySequence(),
        [this] { hideBackgroundGraphics(act("master.hideBackground")->isChecked()); }, true);
-    // Theme effects (shadows and lines of the theme's shapes) wait.
-    QAction *effects = mk(QStringLiteral("master.effects"), tr("Effects"), QStringLiteral("sparkles"), QKeySequence(), [] {});
-    effects->setEnabled(false);
-    effects->setToolTip(tr("Effects are coming."));
     mk(QStringLiteral("master.close"), tr("Close Master View"), QStringLiteral("x"), QKeySequence(), [this] { closeMasters(); });
 
     m_masterPane->setMenuActions({act("master.insertMaster"), act("master.insertLayout"), nullptr, act("master.rename"), act("master.delete"), act("master.preserve")});

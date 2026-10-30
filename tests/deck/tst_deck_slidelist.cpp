@@ -1041,8 +1041,8 @@ private Q_SLOTS:
         fillSlides(w, {"Quarterly Review", "Plan", "Budget"}, {{"Subtitle text"}, {"Goals", "Risks"}, {"Spend"}});
         QVERIFY(w.outlineView()->isHidden());
         QVERIFY(w.act("view.outline")->isEnabled());
-        QVERIFY(!w.act("view.notesPage")->isEnabled() && w.act("view.notesPage")->toolTip().contains(QStringLiteral("coming")));
-        QVERIFY(!w.act("view.reading")->isEnabled() && w.act("view.reading")->toolTip().contains(QStringLiteral("coming")));
+        // (the views that are not made yet are not on the View tab)
+        QVERIFY(!w.act("view.notesPage") && !w.act("view.reading"));
         w.act("view.outline")->trigger();
         OutlineView *o = w.outlineView();
         QCOMPARE(w.view(), DeckWindow::View::Outline);
@@ -1333,7 +1333,7 @@ private Q_SLOTS:
         // The status bar's buttons are the same commands; only one view is checked.
         w.act("view.sorter")->trigger();
         int checked = 0;
-        for (const char *id : {"view.normal", "view.outline", "view.sorter", "view.notesPage", "view.reading"}) checked += w.act(QString::fromLatin1(id))->isChecked();
+        for (const char *id : {"view.normal", "view.outline", "view.sorter"}) checked += w.act(QString::fromLatin1(id))->isChecked();
         QCOMPARE(checked, 1);
         // Slides added in one view show in the others.
         w.act("view.normal")->trigger();
