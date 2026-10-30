@@ -1787,6 +1787,35 @@ private Q_SLOTS:
         QCOMPARE(s->changedCells(), qint64(1));
     }
 
+    // A formula the engine keeps apart, in a row that is deleted, is not in the file any more: it is no reason to ask for a calculation when the file is opened (the node stays registered, flagged dead, so
+    // that Undo can bring the row back).
+    void aKeptFormulaInADeletedRowAsksForNoCalculation()
+    {
+        for (const bool ids : {true, false}) {
+            struct Scope {
+                bool was = jp::office::sheet::Calculation::idFrameDefault();
+                ~Scope() { jp::office::sheet::Calculation::setIdFrameDefault(was); }
+            } scope;
+            jp::office::sheet::Calculation::setIdFrameDefault(ids);
+            EditWindow e;
+            QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "B2==NOSUCHFUNCTION(A1)", "C1==A1+1"})));
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            QVERIFY(s->calculation()->keptCount() > 0);
+            QVERIFY(s->type(0, 0, 0, QStringLiteral("5")).ok);
+            QVERIFY(s->deleteRows(0, 1, 1).ok);
+            QVERIFY(e.settle());
+            QCOMPARE(s->calculation()->keptCount(), qint64(0));
+            crunch::EditSession::Snapshot snap;
+            QString why;
+            QVERIFY2(s->takeSnapshot(&snap, &why), qPrintable(why));
+            QVERIFY2(!snap.changes.fullCalcOnLoad, ids ? "ids" : "places");
+            e.win.w.undoStack()->undo();   // (the row comes back with its formula, which is kept apart again)
+            QVERIFY(e.settle());
+            QVERIFY(s->calculation()->keptCount() > 0);
+        }
+    }
+
     // With the formulas held in ids the saver gives the formulas that read what moved their new text; the file is asked to be worked out when the formulas in places ask it, and not otherwise: a row
     // inserted below everything, and one above it, with a formula the engine keeps apart in the sheet.
     void theSaverOfTheIdFrameAsksForNoMoreCalculation()

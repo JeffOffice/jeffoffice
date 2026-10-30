@@ -3261,8 +3261,15 @@ qint64 Calculation::positionalFormulas() const { return qint64(m_positionalNodes
 qint64 Calculation::keptCount() const
 {
     qint64 n = 0;
-    for (const Node &node : m_nodes)
-        if (!(node.flags & Dead) && (node.flags & Kept)) ++n;
+    for (const Node &node : m_nodes) {
+        if ((node.flags & Dead) || !(node.flags & Kept)) continue;
+        // (a formula in a row or column that is deleted stays registered, and is not in the file: it is no reason to ask for a calculation)
+        if (node.sheet >= 0 && node.sheet < int(m_sheets.size())) {
+            const CellStore &cells = m_sheets[size_t(node.sheet)].cells;
+            if (cells.rowPlaceOf(node.rowId) == CellStore::kNoLine || cells.colPlaceOf(node.colId) == CellStore::kNoLine) continue;
+        }
+        ++n;
+    }
     return n;
 }
 
