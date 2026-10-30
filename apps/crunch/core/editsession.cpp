@@ -1209,12 +1209,12 @@ void EditSession::noteResults(const std::vector<ValueStore::Item> &items)
         } else if (hadBefore && sameValue(before, it.value)) {
             continue;
         } else if (hadBefore) {
-            m_engineAtStart[key] = before;
+            m_engineAtStart.set(key, before);
         }
         const auto file = m_fileResults.find(key);
         const bool same = file != m_fileResults.end() ? sameValue(file->second, it.value) : storedEquals(it.sheet, it.row, it.col, it.value);
         if (same) m_results.erase(key);
-        else m_results[key] = it.value;
+        else m_results.set(key, it.value);
     }
 }
 
@@ -1640,8 +1640,8 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     counts.styles = snapshot.styles;
     counts.dxfs = snapshot.dxfs;
     m_book->book->savedTo(package, counts);
-    for (const auto &[key, v] : snapshot.results) m_fileResults[key] = v;
-    for (const auto &[key, v] : snapshot.touchedResults) m_fileResults[key] = v;
+    for (const auto &[key, v] : snapshot.results) m_fileResults.set(key, v);
+    for (const auto &[key, v] : snapshot.touchedResults) m_fileResults.set(key, v);
     m_touched.clear();
     m_columnsResized.clear();
     m_rowsResized.clear();

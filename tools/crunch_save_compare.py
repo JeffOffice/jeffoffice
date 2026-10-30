@@ -28,9 +28,28 @@ def run(tool, env_extra, path, keep):
 
 def formula_and_value(cell):
     f = re.search(rb'<f[^>]*?(?:/>|>(.*?)</f>)', cell, re.S)
-    v = re.search(rb'<v>(.*?)</v>', cell, re.S)
+    v = re.search(rb'<v>(.*?)</v>|<v/>', cell, re.S)
     t = re.search(rb' t="([a-zA-Z]+)"', cell.split(b'>', 1)[0])
-    return (f is not None, html.unescape(f.group(1).decode('utf-8', 'replace')) if f and f.group(1) is not None else None, v.group(1) if v else None, t.group(1) if t else None)
+    return (f is not None, html.unescape(f.group(1).decode('utf-8', 'replace')) if f and f.group(1) is not None else None, (v.group(1) or b'') if v else None, t.group(1) if t else None)
+
+
+def same_value(a, b):
+    """The same value as a number (the digits written may differ: 6.425 and 6.4249999999999998) or the same bytes."""
+    if a == b:
+        return True
+    try:
+        return float(a) == float(b)
+    except (TypeError, ValueError):
+        return False
+
+
+def close_value(a, b):
+    """Numbers that agree to 1e-9 (a value another calculation gave: the sum added in another order)."""
+    try:
+        x, y = float(a), float(b)
+    except (TypeError, ValueError):
+        return False
+    return abs(x - y) <= 1e-9 * max(abs(x), abs(y), 1e-300)
 
 
 def compare(a_path, b_path):
@@ -59,13 +78,19 @@ def compare(a_path, b_path):
             for ref in ca:
                 if ca[ref] == cb[ref]:
                     continue
+                where = name + " " + ref.decode()
                 fa, fb = formula_and_value(ca[ref]), formula_and_value(cb[ref])
                 if not fa[0] and not fb[0]:
-                    diffs.append(("a cell without a formula differs", name + " " + ref))
-                elif fa[0] != fb[0] or fa[1] != fb[1]:
-                    diffs.append(("formula text differs", name + " " + ref + " " + repr(fa[1])[:60] + " / " + repr(fb[1])[:60]))
-                elif fa[2] != fb[2] or fa[3] != fb[3]:
-                    diffs.append(("formula value differs", name + " " + ref + " " + repr(fa[2])[:30] + " / " + repr(fb[2])[:30]))
+                    diffs.append(("a cell without a formula differs", where))
+                elif fa[0] != fb[0]:
+                    diffs.append(("formula in one and not the other", where))
+                elif fa[1] is None or fb[1] is None:
+                    # (a member of a shared formula has no text of its own: the sheet is not compared by text there)
+                    diffs.append(("formula shared in one, with its text in the other (not compared)", name))
+                elif fa[1] != fb[1]:
+                    diffs.append(("formula text differs", where + " " + repr(fa[1])[:60] + " / " + repr(fb[1])[:60]))
+                elif not same_value(fa[2], fb[2]) or fa[3] != fb[3]:
+                    diffs.append(("formula value differs" + ("" if not close_value(fa[2], fb[2]) or fa[3] != fb[3] else " in the last digits"), where + " " + repr(fa[2])[:30] + " / " + repr(fb[2])[:30]))
                 else:
                     diffs.append(("formula cell written another way (same text and value)", name))
     return diffs

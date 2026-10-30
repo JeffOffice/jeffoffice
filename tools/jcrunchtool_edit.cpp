@@ -75,6 +75,9 @@
 #include <QTimer>
 
 #include <algorithm>
+#ifdef __GLIBC__
+#include <malloc.h>
+#endif
 #include <cmath>
 #include <functional>
 #include <unordered_map>
@@ -1340,6 +1343,34 @@ int structBench(const QString &path, const QString &label, const QString &only)
         out().flush();
     }
     out() << "# after the edits: resident " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB\n";
+    if (qEnvironmentVariableIntValue("JC_BENCH_TWELVE") > 0) {
+        // twelve edits of rows and columns, none undone: what the process holds after them (the allocator's free memory given back), and the results the session keeps for the saver
+        w.undoStack()->clear();
+        const quint32 r = std::max<quint32>(200, calc->sheet(sheet).extentRows), c = std::max<quint32>(4, calc->sheet(sheet).extentCols);
+        const std::function<crunch::EditSession::Outcome()> twelve[12] = {
+            [=] { return session->insertRows(sheet, 10, 2); },     [=] { return session->deleteRows(sheet, r / 2, 1); },    [=] { return session->insertColumns(sheet, 1, 1); },
+            [=] { return session->deleteColumns(sheet, 1, 1); },   [=] { return session->insertRows(sheet, r - 100, 3); }, [=] { return session->deleteRows(sheet, 20, 3); },
+            [=] { return session->insertRows(sheet, 5, 1); },      [=] { return session->insertColumns(sheet, 0, 1); },     [=] { return session->deleteColumns(sheet, c / 2, 1); },
+            [=] { return session->deleteRows(sheet, r / 4, 5); },  [=] { return session->insertRows(sheet, r / 3, 1); },    [=] { return session->insertRows(sheet, 3, 1); }};
+        auto trimmed = [&] {
+#ifdef __GLIBC__
+            malloc_trim(0);
+#endif
+            return vm("VmRSS");
+        };
+        const qint64 residentBefore = trimmed();
+        int refused = 0;
+        QElapsedTimer all;
+        all.start();
+        for (const auto &edit : twelve) {
+            if (!edit().ok) ++refused;
+            QElapsedTimer wall;
+            wall.start();
+            settle(wall);
+        }
+        out() << "# twelve edits (" << refused << " refused): resident " << residentBefore << " -> " << trimmed() << " MB after the allocator gives back what is free, peak " << vm("VmHWM") << " MB; results kept by the session "
+              << session->resultMarks() << "; " << all.elapsed() << " ms\n";
+    }
     return 0;
 }
 
