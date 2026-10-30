@@ -18,6 +18,7 @@
 #include <QFileInfo>
 #include <QGridLayout>
 #include <QGuiApplication>
+#include <QPrintDialog>
 #include <QLabel>
 #include <QRegularExpression>
 #include <QStandardPaths>
@@ -32,10 +33,21 @@
 namespace jp {
 
 namespace {
-std::function<QString(const QString &, const QString &, const QString &)> g_savePathStandIn;
+std::function<QString(const QString &, const QString &, const QString &, QString *)> g_savePathStandIn;
 }
 
-void setSavePathStandIn(const std::function<QString(const QString &caption, const QString &suggested, const QString &filter)> &standIn) { g_savePathStandIn = standIn; }
+std::function<int(QPrintDialog &)> g_printStandIn;
+
+void setPrintDialogStandIn(const std::function<int(QPrintDialog &)> &standIn) { g_printStandIn = standIn; }
+
+int execPrintDialog(QPrintDialog &dialog)
+{
+    if (g_printStandIn) return g_printStandIn(dialog);
+    if (QGuiApplication::platformName() == QLatin1String("offscreen")) return QDialog::Rejected;
+    return dialog.exec();
+}
+
+void setSavePathStandIn(const std::function<QString(const QString &caption, const QString &suggested, const QString &filter, QString *selectedFilter)> &standIn) { g_savePathStandIn = standIn; }
 
 #ifdef Q_OS_WIN
 // The system's dialogs need a screen to be shown on and a person to answer them; the offscreen display (the tests) has neither, so its windows use Qt's own, which can be closed.
@@ -99,7 +111,7 @@ static bool windowsSaveDialog(QWidget *parent, const QString &caption, const QSt
 
 QString askSavePath(QWidget *parent, const QString &caption, const QString &suggested, const QString &filter, QString *selectedFilter)
 {
-    if (g_savePathStandIn) return g_savePathStandIn(caption, suggested, filter);
+    if (g_savePathStandIn) return g_savePathStandIn(caption, suggested, filter, selectedFilter);
     auto exists = [](const QString &d) { return !d.isEmpty() && QDir(d).exists(); };
     const QFileInfo fi(suggested);
     QString dir = suggested.contains('/') || suggested.contains('\\') ? fi.absolutePath() : QString();

@@ -8,32 +8,59 @@
 
 #include <QAbstractButton>
 #include <QAbstractSlider>
+#include <QAbstractItemView>
 #include <QAbstractSpinBox>
 #include <QApplication>
 #include <QComboBox>
 #include <QCryptographicHash>
 #include <QClipboard>
 #include <QDesktopServices>
+#include <QDir>
+#include <QDirIterator>
 #include <QElapsedTimer>
 #include <QGuiApplication>
 #include <QDialog>
 #include <QFileInfo>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListView>
 #include <QListWidget>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QPrintDialog>
 #include <QStackedWidget>
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QTabBar>
 #include <QTemporaryDir>
+#include <QPlainTextEdit>
 #include <QTextEdit>
 #include <QTimer>
 #include <QToolButton>
 #include <cstring>
 #include <memory>
+
+#if defined(__linux__)
+#include <csignal>
+#include <execinfo.h>
+#include <unistd.h>
+namespace {
+// (a stack for a crash, printed while the checks are being written)
+struct CrashStack {
+    CrashStack()
+    {
+        if (!qEnvironmentVariableIsSet("JP_CHECKS_STACK")) return;
+        std::signal(SIGSEGV, [](int) {
+            void *frames[40];
+            const int n = backtrace(frames, 40);
+            backtrace_symbols_fd(frames, n, 2);
+            _exit(139);
+        });
+    }
+} g_crashStack;
+}
+#endif
 
 namespace appchecks {
 
@@ -64,17 +91,30 @@ Watch::Watch()
         urls << url.toString();
         return true;
     };
-    // Save As and every export write to a new file of the kind the dialog asked for, in a folder of the test's.
-    jp::setSavePathStandIn([this](const QString &, const QString &suggested, const QString &filter) {
+    // Save As and every export write to a new file of the kind the dialog asked for, in a folder of the test's; the filter it names is the one `pickFilter` says.
+    jp::setSavePathStandIn([this](const QString &, const QString &suggested, const QString &filter, QString *selectedFilter) {
         static int n = 0;
-        QString ending = QFileInfo(suggested).suffix();
+        if (!asked) {
+            asked = true;
+            beforeWrite = filesNow();
+        }
+        offered = filter.split(QLatin1String(";;"), Qt::SkipEmptyParts);
+        const QString chosen = pickFilter < offered.size() ? offered.at(pickFilter) : QString();
+        if (selectedFilter && !chosen.isEmpty()) *selectedFilter = chosen;
+        QString ending = chosen.isEmpty() ? QFileInfo(suggested).suffix() : QString();
         if (ending.isEmpty()) {
-            const auto m = QRegularExpression(QStringLiteral("\\*\\.([A-Za-z0-9]+)")).match(filter);
+            const auto m = QRegularExpression(QStringLiteral("\\*\\.([A-Za-z0-9]+)")).match(chosen.isEmpty() ? filter : chosen);
             ending = m.hasMatch() ? m.captured(1) : QStringLiteral("out");
         }
-        const QString path = tempFile(QStringLiteral("saved-%1.%2").arg(++n).arg(ending));
+        static const QString run = QString::number(QCoreApplication::applicationPid());
+        const QString path = tempFile(QStringLiteral("saved-%1-%2.%3").arg(run).arg(++n).arg(ending));
         saved << path;
         return path;
+    });
+    // A print dialog is not shown; that it was asked for is what a test sees.
+    jp::setPrintDialogStandIn([this](QPrintDialog &) {
+        dialogs << QStringLiteral("QPrintDialog: ");
+        return int(QDialog::Rejected);
     });
     // (the program's own addresses go to the system's browser; here they are only kept)
     for (const char *scheme : {"http", "https", "mailto", "file"})
@@ -85,6 +125,7 @@ Watch::~Watch()
 {
     qApp->removeEventFilter(this);
     jp::setSavePathStandIn({});
+    jp::setPrintDialogStandIn({});
     for (const char *scheme : {"http", "https", "mailto", "file"}) QDesktopServices::unsetUrlHandler(QString::fromLatin1(scheme));
     jp::help::openUrl = [](const QUrl &u) { return QDesktopServices::openUrl(u); };
     qInstallMessageHandler(g_previous);
@@ -99,6 +140,10 @@ void Watch::begin()
     warnings.clear();
     urls.clear();
     saved.clear();
+    beforeWrite.clear();
+    asked = false;
+    offered.clear();
+    notices.clear();
     said.clear();
     told.clear();
 }
@@ -115,7 +160,12 @@ bool Watch::eventFilter(QObject *o, QEvent *e)
     if (auto *box = qobject_cast<QMessageBox *>(w)) words = box->text() + QLatin1Char(' ') + box->informativeText();
     else
         for (const QLabel *label : w->findChildren<QLabel *>()) words += label->text() + QLatin1Char(' ');
-    dialogs << QString::fromLatin1(w->metaObject()->className()) + QLatin1String(": ") + words.simplified().left(200);
+    // A message box that only tells (an information, warning, or error box) is a notice; one that asks is a dialog.
+    const auto *box = qobject_cast<QMessageBox *>(w);
+    if (box && box->buttons().size() <= 1)
+        notices << words.simplified();
+    else
+        dialogs << QString::fromLatin1(w->metaObject()->className()) + QLatin1String(": ") + words.simplified().left(200);
     said << words;
     // (closed once the call that opened it is waiting on it: a person would have answered by then)
     QPointer<QWidget> guard(w);
@@ -165,8 +215,10 @@ QString fingerprint(jp::AppWindow *w, const QAction *skip)
     out.reserve(1 << 16);
     out += w->windowTitle() + QLatin1Char('\n');
     out += QString::number(w->isVisible()) + QLatin1Char('\n');
+    const QWidget *status = w->statusBar();
     for (const QWidget *c : w->findChildren<QWidget *>()) {
-        // The ribbon's own buttons show what an action does; the action is looked at below.
+        // (the status bar says what a command made of itself: its words and counts follow the change and are not one)
+        if (status && (c == status || status->isAncestorOf(c))) continue;
         out += QString::number(c->isVisibleTo(w)) + QString::number(c->isEnabled());
         if (const auto *label = qobject_cast<const QLabel *>(c)) out += label->text();
         else if (const auto *button = qobject_cast<const QAbstractButton *>(c)) out += button->text();
@@ -177,9 +229,16 @@ QString fingerprint(jp::AppWindow *w, const QAction *skip)
         else if (const auto *tabs = qobject_cast<const QTabBar *>(c)) out += QString::number(tabs->currentIndex());
         else if (const auto *stack = qobject_cast<const QStackedWidget *>(c)) out += QString::number(stack->currentIndex());
         else if (const auto *text = qobject_cast<const QTextEdit *>(c)) out += text->toPlainText();
+        else if (const auto *plain = qobject_cast<const QPlainTextEdit *>(c)) out += plain->toPlainText();
+        else if (const auto *view = qobject_cast<const QAbstractItemView *>(c)) {
+            // the row the cursor is on, how many are chosen, and (in a list) how many are folded away
+            out += QString::number(view->currentIndex().row()) + QLatin1Char('/') + QString::number(view->selectionModel() ? view->selectionModel()->selectedIndexes().size() : 0);
+            if (const auto *list = qobject_cast<const QListView *>(c))
+                for (int row = 0, n = view->model() ? view->model()->rowCount() : 0; row < n; ++row)
+                    if (list->isRowHidden(row)) out += QLatin1Char('h');
+        }
         out += QLatin1Char('|');
     }
-    if (const QStatusBar *bar = w->statusBar()) out += bar->currentMessage();
     // What the commands are now (enabled, shown checked, named): except the one being run, whose own check mark is its answer.
     for (const QString &id : w->actionIds()) {
         const QAction *a = w->act(id);
@@ -189,26 +248,15 @@ QString fingerprint(jp::AppWindow *w, const QAction *skip)
     return out;
 }
 
-QImage documentPixels(Adapter &app, jp::AppWindow *w)
+bool hasDrawnContent(const QPixmap &picture)
 {
-    QWidget *view = app.documentView ? app.documentView(w) : nullptr;
-    return pixels(view ? view : w);
-}
-
-QImage pixels(QWidget *w) { return w->grab().toImage().convertToFormat(QImage::Format_ARGB32); }
-
-bool differByMoreThanACaret(const QImage &a, const QImage &b)
-{
-    if (a.size() != b.size()) return true;
-    QRect box;
-    for (int y = 0; y < a.height(); ++y) {
-        const auto *p = reinterpret_cast<const QRgb *>(a.constScanLine(y));
-        const auto *q = reinterpret_cast<const QRgb *>(b.constScanLine(y));
-        if (std::memcmp(p, q, size_t(a.width()) * sizeof(QRgb)) == 0) continue;
-        for (int x = 0; x < a.width(); ++x)
-            if (p[x] != q[x]) box = box.united(QRect(x, y, 1, 1));
-    }
-    return !box.isNull() && (box.width() > 3 || box.height() > 48);
+    const QImage image = picture.toImage();
+    if (image.isNull()) return false;
+    const QRgb first = image.pixel(0, 0);
+    for (int y = 0; y < image.height(); ++y)
+        for (int x = 0; x < image.width(); ++x)
+            if (image.pixel(x, y) != first) return true;
+    return false;
 }
 
 bool waitFor(const std::function<bool()> &done, int ceiling) { return QTest::qWaitFor(done, ceiling); }
@@ -250,6 +298,20 @@ bool listsRecentFile(QWidget *screen, const QString &path)
     return false;
 }
 
+QStringList filesNow()
+{
+    QStringList files;
+    for (const QString &root : {QFileInfo(tempFile(QStringLiteral("x"))).absolutePath(), QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)}) {
+        QDirIterator it(root, QDir::Files, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            it.next();
+            files << it.filePath() + QLatin1Char(':') + QString::number(it.fileInfo().size());
+        }
+    }
+    files.sort();
+    return files;
+}
+
 QString tempFile(const QString &name)
 {
     static QTemporaryDir dir;
@@ -262,6 +324,12 @@ void isolateSettings()
     QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, settings.path());
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
     QStandardPaths::setTestModeEnabled(true);
+    // (what the runs save as templates goes to the program's data folder: taken away again when the program ends)
+    qAddPostRoutine([] {
+        const QString run = QString::number(QCoreApplication::applicationPid());
+        QDir templates(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/Templates"));
+        for (const QString &name : templates.entryList({QStringLiteral("saved-%1-*").arg(run)}, QDir::Files)) templates.remove(name);
+    });
 }
 
 CloseResult closeWindow(jp::AppWindow *w, Watch &watch)
@@ -394,7 +462,7 @@ QStringList checkStandardCommands(Adapter &app, const QHash<QString, QList<QKeyS
             continue;
         }
         const Outcome o = observe(app, w.get(), a, watch, [a] { a->trigger(); });
-        if (!o.changed) fail(QStringLiteral("did nothing a person could see"));
+        if (!o.changed) fail(QStringLiteral("did nothing a person could see") + (o.refusal.isEmpty() ? QString() : QLatin1String(", and said: ") + o.refusal.left(160)));
         if (!o.warnings.isEmpty()) fail(QStringLiteral("made Qt warn: ") + o.warnings.join(QLatin1String(" / ")).left(300));
         if (saysNotYet(o.words)) fail(QStringLiteral("said it can't yet: ") + o.words.simplified().left(200));
         // And its shortcut reaches it: pressed in a window of its own, the same thing happens.
@@ -416,7 +484,11 @@ QStringList checkStandardCommands(Adapter &app, const QHash<QString, QList<QKeyS
                 continue;
             }
             const Outcome p = observe(app, k.get(), b, watch, [&] { QTest::keySequence(k.get(), key); });
-            if (!p.changed) fail(QStringLiteral("does nothing when its shortcut ") + key.toString(QKeySequence::PortableText) + QLatin1String(" is pressed"));
+            const QString pressed = key.toString(QKeySequence::PortableText);
+            if (!p.changed) fail(QStringLiteral("does nothing when its shortcut ") + pressed + QLatin1String(" is pressed"));
+            // (the same thing as the command: the same kind of change, the same dialogs, the same windows)
+            else if (p.how != o.how || p.windows != o.windows || QStringList(p.dialogs).replaceInStrings(QRegularExpression(QStringLiteral(": .*")), QString()) != QStringList(o.dialogs).replaceInStrings(QRegularExpression(QStringLiteral(": .*")), QString()))
+                fail(QStringLiteral("does something else when its shortcut ") + pressed + QLatin1String(" is pressed (") + p.how + QLatin1String(", not ") + o.how + QLatin1Char(')'));
             k->hide();
         }
         w->hide();
@@ -437,10 +509,8 @@ QString firstDifference(const QString &a, const QString &b)
     return QStringLiteral("... %1 => %2").arg(a.mid(from, 80).simplified(), b.mid(from, 80).simplified());
 }
 
-} // namespace
-
 // What the clipboard holds, as text (a copy or a cut is seen by its change).
-static QString clipboardState()
+QString clipboardState()
 {
     const QMimeData *data = QGuiApplication::clipboard()->mimeData();
     if (!data) return {};
@@ -449,68 +519,74 @@ static QString clipboardState()
     return s;
 }
 
+} // namespace
+
 Outcome observe(Adapter &app, jp::AppWindow *w, const QAction *skip, Watch &watch, const std::function<void()> &doIt, bool quiet, int ceiling)
 {
     Outcome out;
-    QElapsedTimer clock;
-    clock.start();
     const QList<QWidget *> before = QApplication::topLevelWidgets();
     const QString screen = fingerprint(w, skip);
-    const qint64 tScreen = clock.restart();
     const QString doc = app.docState(w);
-    const qint64 tDoc = clock.restart();
-    const QImage look = documentPixels(app, w);
     const QString clip = clipboardState();
-    const qint64 tLook = clock.restart();
+    const bool wasVisible = w->isVisible();
+    const QString statusBefore = w->statusBar() ? w->statusBar()->currentMessage() : QString();
     watch.begin();
     doIt();
     drain();
-    const qint64 tDo = clock.restart();
-    if (qEnvironmentVariableIsSet("JP_CHECKS_TIMING")) std::fprintf(stderr, "timing: fingerprint %lld ms, document %lld ms, pixels %lld ms, run %lld ms\n", tScreen, tDoc, tLook, tDo);
     QPointer<jp::AppWindow> guard(w);
-    // A person sees: a dialog or menu, an address sent to the browser, a message, a window, the window itself going, or a change of what it shows or holds.
+    // (the window brings its commands up to date a moment after a change: done now, a test need not wait for the moment)
+    if (guard && guard->isVisible()) app.settle(guard.data());
+    // A person sees: a dialog or menu that asks, an address sent to the browser, a file written, a window, the window itself going, the clipboard, a setting turned over, or a change of what the
+    // window holds (the document, the selection, the view) or shows. A notice and a line in the status bar are only what the command said about itself.
     auto why = [&]() -> QString {
         if (!watch.dialogs.isEmpty()) return QStringLiteral("opened a dialog");
         if (!watch.urls.isEmpty()) return QStringLiteral("opened an address");
-        if (!watch.saved.isEmpty()) return QStringLiteral("asked where to save a file");
-        if (!watch.told.isEmpty()) return QStringLiteral("told something");
+        if (watch.asked) {
+            const QStringList now = filesNow();
+            if (now != watch.beforeWrite) {
+                if (qEnvironmentVariableIsSet("JP_CHECKS_DEBUG")) {
+                    QStringList added = now, gone = watch.beforeWrite;
+                    for (const QString &f : watch.beforeWrite) added.removeOne(f);
+                    for (const QString &f : now) gone.removeOne(f);
+                    std::fprintf(stderr, "files: new %s; gone %s\n", qPrintable(added.join('|')), qPrintable(gone.join('|')));
+                }
+                return QStringLiteral("wrote a file");
+            }
+        }
+        if (false) std::fprintf(stderr, "no new file; %d files; saved=%s\n", int(watch.beforeWrite.size()), qPrintable(watch.saved.join('|')));
         for (QWidget *top : QApplication::topLevelWidgets())
             if (!before.contains(top) && top->isVisible()) return QStringLiteral("opened a window");
-        if (!guard || !guard->isVisible()) return QStringLiteral("closed the window");
+        if (wasVisible && (!guard || !guard->isVisible())) return QStringLiteral("closed the window");
         if (clipboardState() != clip) return QStringLiteral("changed the clipboard");
         if (const QString now = app.docState(guard.data()); now != doc) {
             out.detail = firstDifference(doc, now);
-            return QStringLiteral("changed the document");
+            return QStringLiteral("changed the document, the selection, or the view");
         }
         if (const QString now = fingerprint(guard.data(), skip); now != screen) {
             out.detail = firstDifference(screen, now);
             return QStringLiteral("changed what the window shows");
-        }
-        if (const QImage now = documentPixels(app, guard.data()); differByMoreThanACaret(look, now)) {
-            if (const QByteArray dir = qgetenv("JP_CHECKS_SAVE"); !dir.isEmpty()) {
-                static int n = 0;
-                look.save(QString::fromLocal8Bit(dir) + QStringLiteral("/%1-before.png").arg(++n));
-                now.save(QString::fromLocal8Bit(dir) + QStringLiteral("/%1-after.png").arg(n));
-                out.detail = QStringLiteral("pictures %1").arg(n);
-            }
-            return QStringLiteral("redrew the window");
         }
         return {};
     };
     out.how = why();
     // (JP_CHECKS_CEILING shortens the wait while the checks are being written; the tests run with the default)
     if (const int shorter = qEnvironmentVariableIntValue("JP_CHECKS_CEILING"); shorter > 0) ceiling = shorter;
-    if (out.how.isEmpty() && !quiet) {
-        waitFor([&] { return !(out.how = why()).isEmpty(); }, ceiling);
-    }
+    if (out.how.isEmpty() && !quiet) waitFor([&] { return !(out.how = why()).isEmpty(); }, ceiling);
     out.changed = !out.how.isEmpty();
+    // What it said: notices, message boxes, the notifier, and the line in the status bar if that is new.
     out.words = watch.said.join(QLatin1Char(' ')) + QLatin1Char(' ') + watch.told.join(QLatin1Char(' '));
-    if (guard) {
-        out.words += QLatin1Char(' ') + guard->statusBar()->currentMessage();
-        for (const QLabel *label : guard->statusBar()->findChildren<QLabel *>()) out.words += QLatin1Char(' ') + label->text();
+    if (guard && guard->statusBar()) {
+        const QString now = guard->statusBar()->currentMessage();
+        if (now != statusBefore) out.words += QLatin1Char(' ') + now;
+    }
+    if (!out.changed) {
+        out.refusal = (watch.notices + watch.told).join(QLatin1Char(' '));
+        if (guard && guard->statusBar() && guard->statusBar()->currentMessage() != statusBefore) out.refusal += QLatin1Char(' ') + guard->statusBar()->currentMessage();
+        out.refusal = out.refusal.simplified();
     }
     out.warnings = watch.warnings;
     out.dialogs = watch.dialogs;
+    out.offered = watch.offered;
     out.windows = watch.closeNewWindows(before);
     drain();
     return out;
@@ -546,6 +622,7 @@ QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report)
         app.settle(probe.get());
         ids = probe->actionIds();
     }
+    app.allIds = ids;
     const QString state = fromFile ? QStringLiteral("opened from a file") : QStringLiteral("blank");
     auto fail = [&](const QString &id, const QString &what) { fails << app.name + QLatin1String(" (") + state + QLatin1String(") ") + id + QLatin1String(": ") + what; };
     Pool pool(app, fromFile);
@@ -556,23 +633,9 @@ QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report)
     auto ready = [&]() -> bool {
         if (w && !fresh && !dirty) return true;
         if (w && !fresh && app.reset && usedAgain < 40) {
-            QElapsedTimer clock;
-            clock.start();
             app.reset(w.get(), fromFile);
-            const qint64 tReset = clock.restart();
             app.settle(w.get());
-            if (qEnvironmentVariableIsSet("JP_CHECKS_TIMING")) std::fprintf(stderr, "timing: reset %lld ms, settle %lld ms\n", tReset, clock.elapsed());
             ++usedAgain;
-            // (JP_CHECKS_RESIDUE says what a window put back still shows of what was done in it, against a window made new)
-            if (qEnvironmentVariableIsSet("JP_CHECKS_RESIDUE")) {
-                static QString baseline;
-                if (baseline.isEmpty()) {
-                    std::unique_ptr<jp::AppWindow> made = pool.take();
-                    baseline = made ? fingerprint(made.get()) : QString();
-                }
-                const QString now = fingerprint(w.get());
-                if (now != baseline) std::fprintf(stderr, "residue: %s\n", qPrintable(firstDifference(baseline, now)));
-            }
         } else {
             w.reset();
             drain();
@@ -590,6 +653,10 @@ QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report)
     for (const Adapter::Context *c : contexts) {
         QSet<QString> on;
         if (ready()) {
+            if (qEnvironmentVariableIsSet("JP_TEST_TRACE")) {
+                std::fprintf(stderr, "context %s (%s)\n", qPrintable(c->name), qPrintable(state));
+                std::fflush(stderr);
+            }
             c->enter(w.get(), fromFile);
             app.settle(w.get());
             for (const QString &id : ids)
@@ -598,7 +665,15 @@ QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report)
         enabledIn << on;
         dirty = true;
     }
-    int enabled = 0;
+    int enabled = 0, attempts = 0;
+    // The commands that changed something in each place (0 is the window as launched): the ones that set what is set already are tried again after another of their family, there.
+    QVector<QSet<QString>> workedIn(int(contexts.size()) + 1);
+    struct Deferred {
+        QString id, where;
+        bool quiet = false;
+        Outcome last;
+    };
+    QList<Deferred> deferred;
     // (JP_CHECKS_ONLY names the commands to run, by their starts and commas, while the checks are being written)
     const QStringList only = QString::fromLocal8Bit(qgetenv("JP_CHECKS_ONLY")).split(QLatin1Char(','), Qt::SkipEmptyParts);
     for (const QString &id : ids) {
@@ -613,58 +688,171 @@ QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report)
         }
         bool wildcard = false;
         const bool quiet = !quietBecause(app, id, fromFile, &wildcard).isEmpty();
-        // The window as launched first, then each place that has the command (until it does something).
-        bool wasEnabled = false, did = false;
+        const int triesBefore = attempts;
+        bool wasEnabled = false, did = false, silent = false;
         Outcome last;
-        QString where;
-        for (int k = -1; k < int(contexts.size()) && !did; ++k) {
-            if (k >= 0 && !enabledIn[k].contains(id)) continue;
+        QString where, said;
+        int offered = 0, usedContext = -1;
+        // One try: the window put back, the context entered, the command run. False when it was dimmed there.
+        auto attempt = [&](int k, int pickFilter, bool waits, const QString &before = QString()) -> bool {
+            ++attempts;
             if (!ready()) {
                 fail(id, QStringLiteral("no window to run it in"));
-                break;
+                return false;
             }
             QAction *a = w->act(id);
             if (!a) {
                 fail(id, QStringLiteral("the window lists it but has no such command"));
                 fresh = true;
-                break;
+                return false;
             }
             if (app.listen) app.listen(w.get(), &watch);
             if (app.prepare) app.prepare(w.get(), id, fromFile);
             if (k >= 0) {
+                if (qEnvironmentVariableIsSet("JP_TEST_TRACE")) std::fprintf(stderr, "  in %s\n", qPrintable(contexts[k]->name));
                 contexts[k]->enter(w.get(), fromFile);
                 dirty = true;
             }
             app.settle(w.get());
-            if (!a->isEnabled()) continue;
+            if (!a->isEnabled()) return false;
+            // A command that sets something to a value has nothing to do when it is so already: another of its family is run first, which changes it.
+            if (!before.isEmpty()) {
+                QAction *other = w->act(before);
+                if (!other || !other->isEnabled()) return false;
+                other->trigger();
+                drain();
+                watch.closeNewWindows(QApplication::topLevelWidgets());
+                app.settle(w.get());
+                if (!a->isEnabled()) return false;
+            }
             dirty = true;
             wasEnabled = true;
-            const bool lastTry = k + 1 >= int(contexts.size()) || std::none_of(enabledIn.begin() + (k + 1), enabledIn.end(), [&](const QSet<QString> &on) { return on.contains(id); });
-            const QString at = k < 0 ? QString() : QLatin1String(" (") + contexts[k]->name + QLatin1Char(')');
-            // (a wait for something to change is made only in the last place it can be tried, or the command is not expected to change anything)
-            const Outcome o = observe(app, w.get(), a, watch, [a] { a->trigger(); }, quiet || !lastTry);
-            last = o;
-            where = at;
-            if (!o.warnings.isEmpty()) fail(id, QStringLiteral("Qt warned") + at + QLatin1String(": ") + o.warnings.join(QLatin1String(" / ")).left(300));
-            if (saysNotYet(o.words)) fail(id, QStringLiteral("said it can't yet") + at + QLatin1String(": ") + o.words.simplified().left(200));
-            did = o.changed && o.how != QLatin1String("redrew the window");
-            // A window that was closed, or that opened others, is not used again.
-            if (!w->isVisible() || o.windows > 0) fresh = true;
-            if (o.changed && !did && lastTry) did = true;   // (a redraw is all there is to see, and it is the last place to look)
-            if (did && quiet && !wildcard && o.how != QLatin1String("redrew the window"))
-                fail(id, QStringLiteral("is listed as doing nothing visible, but it ") + o.how + at + QLatin1String(": take it off the list of quiet commands"));
+            watch.pickFilter = pickFilter;
+            where = k < 0 ? QString() : QLatin1String(" (") + contexts[k]->name + QLatin1Char(')');
+            last = observe(app, w.get(), a, watch, [a] { a->trigger(); }, quiet || !waits);
+            offered = std::max(offered, int(last.offered.size()));
+            if (last.changed) workedIn[k + 1].insert(id);
+            if (!last.changed && last.refusal.isEmpty()) silent = true;
+            if (!last.warnings.isEmpty()) fail(id, QStringLiteral("Qt warned") + where + QLatin1String(": ") + last.warnings.join(QLatin1String(" / ")).left(300));
+            if (saysNotYet(last.words)) said = QStringLiteral("said it can't yet") + where + QLatin1String(": ") + last.words.simplified().left(200);
+            if (!w->isVisible() || last.windows > 0) fresh = true;
+            return true;
+        };
+        // The window as launched first, then each place that has the command, until it does something (a refusal sends it on to the next). The places where commands have done something
+        // most often come first, and a place the app names for this command comes before them; a command that is listed as doing nothing is run where it is enabled first, and no further.
+        QVector<int> order;
+        {
+            for (int k = 0; k < int(contexts.size()); ++k)
+                if (enabledIn[k].contains(id)) order.append(k);
+            auto hinted = [&](int k) {
+                for (auto it = app.hints.cbegin(); it != app.hints.cend(); ++it)
+                    if (id.startsWith(it.key()) && it.value().contains(contexts[k]->name)) return true;
+                return false;
+            };
+            std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+                if (hinted(a) != hinted(b)) return hinted(a);
+                return workedIn[a + 1].size() > workedIn[b + 1].size();
+            });
+        }
+        order.prepend(-1);
+        for (int at = 0; at < int(order.size()) && !did && !(quiet && wasEnabled); ++at) {
+            const int k = order[at];
+            const bool lastTry = at + 1 >= int(order.size());
+            if (!attempt(k, 0, lastTry)) continue;
+            did = last.changed;
+            usedContext = k;
+            if (did && quiet && !wildcard) fail(id, QStringLiteral("is listed as doing nothing visible, but it ") + last.how + where + QLatin1String(": take it off the list of quiet commands"));
+        }
+        // A save dialog that offers several kinds of file: the command is run again for each, so each way of saving is tried.
+        for (int f = 1; did && f < offered; ++f) {
+            const bool ok = attempt(usedContext, f, true);
+            if (qEnvironmentVariableIsSet("JP_CHECKS_REPORT") && ok) std::fprintf(stderr, "filter %d of %s: %s [%s] dialogs=%s saved=%s\n", f + 1, qPrintable(id), qPrintable(last.how), qPrintable(last.offered.value(f)), qPrintable(last.dialogs.join('|')), qPrintable(watch.saved.join('|')));
+            if (ok && !last.changed) fail(id, QStringLiteral("saves nothing when the dialog's kind of file number %1 is chosen").arg(f + 1));
         }
         if (!wasEnabled) {
             if (report) *report << id + QLatin1String(": dimmed");
             continue;
         }
+        app.ran.insert(id);
         ++enabled;
-        if (!did && !quiet) fail(id, QStringLiteral("is enabled and did nothing a person could see"));
-        if (report) *report << id + QLatin1String(": ") + (did ? last.how : QStringLiteral("did nothing visible")) + where + (last.detail.isEmpty() ? QString() : QLatin1String("   [") + last.detail + QLatin1Char(']'));
+        // Nothing happened, and nothing was said: it may be set to what it sets already. It is tried again after another of its family, once the places where those do something are known.
+        if (!did && !quiet && silent) {
+            deferred.append({id, where, quiet, last});
+            continue;
+        }
+        if (!did && !quiet) fail(id, QStringLiteral("is enabled and did nothing a person could see") + (last.refusal.isEmpty() ? QString() : QLatin1String(", and said: ") + last.refusal.left(160)));
+        if (!did || said.contains(QLatin1String("still being opened"))) {
+            if (!said.isEmpty() && !quiet) fail(id, said);
+        }
+        if (report) *report << id + QLatin1String(": ") + (did ? last.how : last.refusal.isEmpty() ? QStringLiteral("did nothing visible") : QStringLiteral("refused: ") + last.refusal.left(100)) + where + (last.detail.isEmpty() ? QString() : QLatin1String("   [") + last.detail + QLatin1Char(']')) + QStringLiteral("  {%1 tries}").arg(attempts - triesBefore);
+    }
+    for (const Deferred &item : deferred) {
+        const QString &id = item.id;
+        const QString family = id.left(std::max(0, int(id.lastIndexOf(QLatin1Char('.')))));
+        bool did = false;
+        QString how, where;
+        for (int k = -1; k < int(contexts.size()) && !did; ++k) {
+            if (k >= 0 && !enabledIn[k].contains(id)) continue;
+            QStringList others;
+            for (const QString &candidate : ids)
+                if (candidate != id && !family.isEmpty() && candidate.startsWith(family + QLatin1Char('.')) && candidate.indexOf(QLatin1Char('.'), family.size() + 1) < 0 && workedIn[k + 1].contains(candidate)) others << candidate;
+            // (the ones that set the same thing as this are tried first: those that share the longest start of the name)
+            std::stable_sort(others.begin(), others.end(), [&](const QString &a, const QString &b) {
+                auto common = [&](const QString &x) { int n = 0; while (n < x.size() && n < id.size() && x[n] == id[n]) ++n; return n; };
+                return common(a) > common(b);
+            });
+            for (const QString &other : others.mid(0, 6)) {
+                if (did) break;
+                if (!ready()) break;
+                QAction *a = w->act(id);
+                if (!a) break;
+                if (app.listen) app.listen(w.get(), &watch);
+                if (app.prepare) app.prepare(w.get(), id, fromFile);
+                if (k >= 0) contexts[k]->enter(w.get(), fromFile);
+                app.settle(w.get());
+                QAction *first = w->act(other);
+                dirty = true;
+                if (!a->isEnabled() || !first || !first->isEnabled()) continue;
+                first->trigger();
+                drain();
+                if (!w->isVisible()) {
+                    fresh = true;
+                    continue;
+                }
+                app.settle(w.get());
+                if (!a->isEnabled()) continue;
+                const Outcome o = observe(app, w.get(), a, watch, [a] { a->trigger(); }, false);
+                if (!o.warnings.isEmpty()) fail(id, QStringLiteral("Qt warned after ") + other + QLatin1String(": ") + o.warnings.join(QLatin1String(" / ")).left(300));
+                if (!w->isVisible() || o.windows > 0) fresh = true;
+                if (o.changed) {
+                    did = true;
+                    how = o.how;
+                    where = QLatin1String(" after ") + other + (k < 0 ? QString() : QLatin1String(" (") + contexts[k]->name + QLatin1Char(')'));
+                }
+            }
+        }
+        if (!did) fail(id, QStringLiteral("is enabled and did nothing a person could see, in any place, or after another of its family"));
+        if (report) *report << id + QLatin1String(": ") + (did ? how : QStringLiteral("did nothing visible")) + where;
     }
     w.reset();
     drain();
-    if (report) *report << QStringLiteral("%1 (%2): %3 commands, %4 enabled and run").arg(app.name, state).arg(ids.size()).arg(enabled);
+    if (report) *report << QStringLiteral("%1 (%2): %3 commands, %4 enabled and run").arg(app.name, state).arg(ids.size()).arg(enabled) + QStringLiteral(", %1 tries in %2 places").arg(attempts).arg(contexts.size());
+    return fails;
+}
+
+QStringList checkNeverRun(Adapter &app, QStringList *report)
+{
+    QStringList fails, left;
+    for (const QString &id : app.allIds)
+        if (!app.ran.contains(id) && !app.skipped.contains(id)) left << id;
+    left.sort();
+    if (report) *report << QStringLiteral("%1: %2 of %3 commands are never run in either state").arg(app.name).arg(left.size()).arg(app.allIds.size());
+    for (const QString &id : left) {
+        if (!app.neverRun.contains(id)) fails << app.name + QLatin1String(": ") + id + QLatin1String(" is dimmed in every place a test puts the window in, and has no reason listed for it");
+        if (report) *report << id + QLatin1String(": ") + app.neverRun.value(id, QStringLiteral("(no reason)"));
+    }
+    for (auto it = app.neverRun.cbegin(); it != app.neverRun.cend(); ++it)
+        if (app.ran.contains(it.key())) fails << app.name + QLatin1String(": ") + it.key() + QLatin1String(" is listed as never run, but it is: take it off the list");
     return fails;
 }
 

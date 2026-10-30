@@ -3,7 +3,6 @@
 
 #include "app/backstage.h"
 #include "app/mainwindow.h"
-#include "app/pagespane.h"
 #include "app/pubinfo.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
@@ -98,24 +97,10 @@ private Q_SLOTS:
             typeInto(asPub(w)->canvas(), QStringLiteral("Some words"));
             asPub(w)->editor()->flushTyping();   // (as a pause in typing does)
         };
-        m_app.documentView = [](AppWindow *w) -> QWidget * { return asPub(w)->canvas()->viewport(); };
         m_app.settle = [](AppWindow *w) {
             // (the window brings its commands up to date 30 ms after a change: done now, the timer finds nothing to change)
             drain();
             asPub(w)->refreshUi();
-            // (and draws the thumbnails of the pages one at a time, when the window is idle)
-            if (auto *pages = w->findChild<PagesPane *>())
-                waitFor([&] {
-                    // (a thumbnail not yet drawn is a picture of nothing)
-                    for (int i = 0; i < pages->count(); ++i) {
-                        const QImage thumbnail = pages->item(i)->icon().pixmap(110, 110).toImage();
-                        bool drawn = false;
-                        for (int y = 0; y < thumbnail.height() && !drawn; ++y)
-                            for (int x = 0; x < thumbnail.width() && !drawn; ++x) drawn = qAlpha(thumbnail.pixel(x, y)) > 0;
-                        if (!drawn) return false;
-                    }
-                    return true;
-                });
             drain();
         };
         m_app.docState = [](AppWindow *aw) {
@@ -124,14 +109,52 @@ private Q_SLOTS:
             QString s = QString::fromLatin1(QCryptographicHash::hash(publicationBytes(*ed->doc(), QImage()), QCryptographicHash::Md5).toHex());
             s += QStringLiteral("|%1|%2|%3|%4|%5|%6").arg(ed->selection().join(QLatin1Char(','))).arg(ed->isEditingText()).arg(ed->undoStack()->index()).arg(ed->currentPage()).arg(w->canvas()->zoom()).arg(int(ed->tool()));
             if (ed->isEditingText()) s += QStringLiteral("|%1,%2").arg(ed->cursor().position()).arg(ed->cursor().anchor());
+            const ViewOptions &v = ed->view;
+            s += QStringLiteral("|v%1%2%3%4%5%6%7%8%9%10%11%12%13|%14|%15").arg(v.boundaries).arg(v.guides).arg(v.fields).arg(v.rulers).arg(v.pageNav).arg(v.scratch).arg(v.baselines).arg(v.special).arg(v.snapGuides).arg(v.snapObjects).arg(v.snapRuler).arg(v.spelling).arg(v.gridlines).arg(ed->masterView()).arg(ed->twoPageSpread());
+            s += QStringLiteral("|m%1c%2|crop%3").arg(ed->mergeRecord()).arg(ed->hasCopiedFormatting()).arg(ed->cropItem);
             return s + QLatin1Char('|') + ed->filePath() + QString::number(ed->isModified());
         };
-        // The sample: a flyer from the program's own designs with a table added (a picture, shapes, Text Art, text, and a table: what the commands act on), saved by the program.
+        // The sample: a flyer from the program's own designs, with what the commands act on added to it: a table and a second page, a line, a text box with a misspelled word, two pictures (one
+        // an SVG drawing), a group of two shapes, a mail merge list, and an object that is off the page (Extra Content), saved by the program.
         {
             std::unique_ptr<MainWindow> w(launchBlank());
-            w->editor()->setDocument(findTemplate(QStringLiteral("flyer-event"))->build(TemplateOptions()));
-            w->editor()->addItem(w->editor()->newTable(QRectF(72, 560, 300, 90), 3, 3));
-            w->editor()->doc()->addPage(1, w->editor()->doc()->pages[0]->masterId);
+            Editor *ed = w->editor();
+            ed->setDocument(findTemplate(QStringLiteral("flyer-event"))->build(TemplateOptions()));
+            Document *d = ed->doc();
+            ed->addItem(ed->newTable(QRectF(72, 560, 300, 90), 3, 3));
+            d->addPage(1, d->pages[0]->masterId);
+            ed->addItem(ed->newTextBox(QRectF(72, 440, 300, 60), QStringLiteral("Teh quikc brown fox jumps over the lazy dog. A second sentence follows.")));
+            auto line = std::make_shared<LineItem>();
+            line->p1 = QPointF(72, 520);
+            line->p2 = QPointF(300, 540);
+            ed->addItem(line);
+            QImage red(60, 40, QImage::Format_RGB32);
+            red.fill(Qt::red);
+            QVERIFY(red.save(tempFile(QStringLiteral("red.png"))));
+            QImage blue(40, 60, QImage::Format_RGB32);
+            blue.fill(Qt::blue);
+            QVERIFY(blue.save(tempFile(QStringLiteral("blue.png"))));
+            QFile svg(tempFile(QStringLiteral("drawing.svg")));
+            QVERIFY(svg.open(QIODevice::WriteOnly));
+            svg.write("<svg xmlns='http://www.w3.org/2000/svg' width='60' height='40' viewBox='0 0 60 40'><rect x='4' y='4' width='52' height='32' fill='#2a6' stroke='#000' stroke-width='2'/></svg>");
+            svg.close();
+            w->insertFiles({tempFile(QStringLiteral("red.png"))}, QPointF(400, 60));
+            w->insertFiles({tempFile(QStringLiteral("drawing.svg"))}, QPointF(400, 160));
+            QStringList shapes;
+            for (const auto &it : d->pages[0]->items)
+                if (it->type() == ItemType::Shape && shapes.size() < 2) shapes << it->id;
+            ed->select(shapes);
+            w->refreshUi();
+            w->act(QStringLiteral("arr.group"))->trigger();
+            {
+                const QString first = ed->addItem(ed->newTextBox(QRectF(400, 300, 150, 40), QStringLiteral("A story that runs")));
+                const QString second = ed->addItem(ed->newTextBox(QRectF(400, 360, 150, 40)));
+                ed->linkFrames(first, second);
+            }
+            d->merge.fields = {QStringLiteral("Name"), QStringLiteral("City")};
+            d->merge.rows = {{QStringLiteral("Ann"), QStringLiteral("Oslo")}, {QStringLiteral("Bo"), QStringLiteral("Rome")}, {QStringLiteral("Cy"), QStringLiteral("Lima")}};
+            d->merge.include = {true, true, true};
+            d->extra.push_back(ed->newTextBox(QRectF(0, 0, 120, 40), QStringLiteral("Left over")));
             m_app.sampleFile = tempFile(QStringLiteral("sample.jpub"));
             QVERIFY(w->saveTo(m_app.sampleFile));
         }
@@ -145,7 +168,7 @@ private Q_SLOTS:
             w->editor()->setTool(Tool::Select);
             w->editor()->clearSelection();
             QString error;
-            if (fromFile) w->newPublication(loadPublication(m_app.sampleFile, &error));
+            if (fromFile) w->editor()->setDocument(loadPublication(m_app.sampleFile, &error), m_app.sampleFile);
             else w->newPublication(Document::blank(QSizeF(612, 792)));
             w->editor()->setCurrentPage(0);
             w->editor()->setMasterView(QString());
@@ -156,42 +179,52 @@ private Q_SLOTS:
             if (RibbonTab *home = w->ribbon()->tab(QStringLiteral("Home"))) w->ribbon()->showTab(home);
         };
         // A command needs the thing it acts on selected: a picture, a shape, Text Art, a table, or words (selected inside a text box).
-        m_app.prepare = [](AppWindow *aw, const QString &id, bool fromFile) {
+        m_app.prepare = [this](AppWindow *aw, const QString &id, bool fromFile) {
             auto *w = asPub(aw);
             if (id == QLatin1String("edit.paste") || id == QLatin1String("edit.pasteText")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
+            if (id == QLatin1String("file.save")) m_app.type(w);   // (Save has something to save once something was changed)
+            if (id == QLatin1String("zoom.page") || id == QLatin1String("zoom.width")) w->canvas()->setZoom(0.9);
+            if (id == QLatin1String("page.prev") || id == QLatin1String("page.moveUp")) {   // (the first page has no page before it)
+                if (w->editor()->doc()->pages.size() < 2) w->editor()->doc()->addPage(1, w->editor()->doc()->pages[0]->masterId);
+                w->editor()->setCurrentPage(1);
+            }
             if (!fromFile || id == QLatin1String("edit.undo") || id == QLatin1String("edit.redo")) return;
             Editor *ed = w->editor();
-            auto firstOf = [&](ItemType t) -> QString {
+            auto items = [&](ItemType t) {
+                QStringList ids;
                 for (const auto &it : ed->doc()->pages[ed->currentPage()]->items)
-                    if (it->type() == t) return it->id;
-                return {};
+                    if (it->type() == t) ids << it->id;
+                return ids;
             };
+            auto firstOf = [&](ItemType t) -> QString { return items(t).value(0); };
             const QString cat = id == QLatin1String("ins.pageCount") ? id : id.section(QLatin1Char('.'), 0, 0);
             static const QSet<QString> pictures = {"pic", "corr", "recolor"}, textArt = {"wa", "waalign", "waspace"},
-                                       shapes = {"shape", "fill", "line", "shadow", "obj", "arr", "wrap", "glow", "bevel", "refl", "rot3d", "soft", "dash", "weight", "arrowStart", "arrowEnd"},
-                                       tables = {"tbl", "border"},
+                                       shapes = {"shape", "fill", "line", "shadow", "obj", "wrap", "glow", "bevel", "refl", "rot3d", "soft"},
+                                       lines = {"dash", "weight", "arrowStart", "arrowEnd"}, tables = {"tbl", "border"},
                                        words = {"fmt", "ins.pageCount", "para", "case", "dropcap", "style", "fit", "cols", "edit", "rev", "tb", "bullet", "number", "numstyle", "numspacing", "ls", "spacing", "lig", "ss", "valign", "tbmargin"};
-            if (id == QLatin1String("page.prev") || id == QLatin1String("page.moveUp")) ed->setCurrentPage(1);   // (the first page has no page before it)
             if (cat == QLatin1String("mp")) ed->setMasterView(ed->doc()->masters.first()->id);
             if (id == QLatin1String("zoom.selection")) ed->select(firstOf(ItemType::Shape));
-            if (cat == QLatin1String("arr")) {   // (aligning and spacing are for several objects)
-                QStringList shapes;
-                for (const auto &it : ed->doc()->pages[ed->currentPage()]->items)
-                    if (it->type() == ItemType::Shape && shapes.size() < 3) shapes << it->id;
-                ed->select(shapes);
+            if (id == QLatin1String("pic.swap")) ed->select(items(ItemType::Picture).mid(0, 2));
+            if (id == QLatin1String("pd.bgImage") || id == QLatin1String("pic.toShapes")) {
+                // (the SVG drawing is the last picture)
+                ed->select(items(ItemType::Picture).last());
             }
-            if (tables.contains(cat)) {
+            if (cat == QLatin1String("arr")) {   // (aligning and spacing are for several objects)
+                ed->select(items(ItemType::Shape).mid(0, 3));
+            } else if (id == QLatin1String("pic.swap") || id == QLatin1String("pd.bgImage") || id == QLatin1String("pic.toShapes")) {
+            } else if (tables.contains(cat)) {
                 ed->select(firstOf(ItemType::Table));
                 if (cat == QLatin1String("tbl")) ed->beginTextEdit(firstOf(ItemType::Table), 0, 0, 0);   // (the cursor in a cell)
-            }
-            else if (pictures.contains(cat)) ed->select(firstOf(ItemType::Picture));
+            } else if (pictures.contains(cat)) ed->select(items(ItemType::Picture).value(0));
             else if (textArt.contains(cat)) ed->select(firstOf(ItemType::TextArt));
-            else if (shapes.contains(cat) && cat != QLatin1String("arr")) ed->select(firstOf(ItemType::Shape));
+            else if (lines.contains(cat)) ed->select(firstOf(ItemType::Line));
+            else if (shapes.contains(cat)) ed->select(firstOf(ItemType::Shape));
             else if (words.contains(cat)) {
-                QString t = firstOf(ItemType::Text);
-                for (const auto &it : ed->doc()->pages[ed->currentPage()]->items)   // (the box with the most words)
+                // (the box with the misspelled words)
+                QString t;
+                for (const auto &it : ed->doc()->pages[ed->currentPage()]->items)
                     if (it->type() == ItemType::Text)
-                        if (QTextDocument *story = ed->doc()->storyDoc(static_cast<TextItem *>(it.get())->storyId); story && story->characterCount() > ed->doc()->storyDoc(static_cast<TextItem *>(ed->doc()->item(t))->storyId)->characterCount()) t = it->id;
+                        if (QTextDocument *story = ed->doc()->storyDoc(static_cast<TextItem *>(it.get())->storyId); story && story->toPlainText().startsWith(QLatin1String("Teh quikc"))) t = it->id;
                 ed->select(t);
                 ed->beginTextEdit(t, 0);
                 QTextCursor c = ed->cursor();
@@ -199,56 +232,242 @@ private Q_SLOTS:
                 ed->setCursor(c);
             }
         };
-        // A blank publication has no object, no words, and no second page for these to act on.
-        const QString nothing = QStringLiteral("a blank publication has nothing of the kind selected for it to act on");
-        m_app.quiet = {};
-        for (const char *prefix : {"arr.", "arrowStart.", "arrowEnd.", "bevel.", "border.", "bullet.", "case.", "cols.", "corr.", "dash.", "dropcap.", "fit.", "glow.", "lig.", "ls.", "number.",
-                                   "numspacing.", "numstyle.", "recolor.", "refl.", "rot3d.", "shadow.", "soft.", "spacing.", "ss.", "tb.", "tbmargin.", "valign.", "waalign.", "waspace.",
-                                   "weight.", "tbl.", "pic.", "wa.", "wrap.", "shape.", "fill.", "line.", "obj.", "fmt.", "para.", "sel.", "mp.", "pd."})
-            m_app.quiet.insert(QString::fromLatin1(prefix) + QLatin1String("*@blank"), nothing);
-        // What a command may leave as it is, in a publication where it has nothing to change.
-        m_app.quiet.insert(QStringLiteral("view.boundaries@blank"), QStringLiteral("it outlines the objects, and a blank page has none"));
-        m_app.quiet.insert(QStringLiteral("view.gridlines@blank"), QStringLiteral("it shows the layout grid, and a new publication has none"));
-        m_app.quiet.insert(QStringLiteral("view.scratch"), QStringLiteral("it shows what lies off the page, and nothing does"));
-        m_app.quiet.insert(QStringLiteral("pd.alignGuides"), QStringLiteral("a setting for how objects snap while they are dragged"));
-        m_app.quiet.insert(QStringLiteral("pd.alignObjects"), QStringLiteral("a setting for how objects snap while they are dragged"));
-        m_app.quiet.insert(QStringLiteral("pd.clearGuides"), QStringLiteral("there are no guides to clear"));
-        m_app.quiet.insert(QStringLiteral("pd.bgNone"), QStringLiteral("the page has no background to take away"));
-        m_app.quiet.insert(QStringLiteral("pd.bgAllPages"), QStringLiteral("the pages all have the same background already"));
-        m_app.quiet.insert(QStringLiteral("pd.portrait"), QStringLiteral("the page is portrait already"));
-        m_app.quiet.insert(QStringLiteral("pd.updateFonts"), QStringLiteral("no style sets a font of its own"));
-        m_app.quiet.insert(QStringLiteral("margins.Moderate"), QStringLiteral("a new page has these margins already"));
-        m_app.quiet.insert(QStringLiteral("mp.applyAll"), QStringLiteral("every page has the master page already"));
-        m_app.quiet.insert(QStringLiteral("mp.applyCurrent"), QStringLiteral("the page has the master page already"));
-        m_app.quiet.insert(QStringLiteral("win.cascade"), QStringLiteral("it places the open windows, and there is one"));
-        m_app.quiet.insert(QStringLiteral("edit.pasteFormat"), QStringLiteral("nothing has been copied with Copy Formatting"));
-        m_app.quiet.insert(QStringLiteral("edit.selectAll"), QStringLiteral("a blank publication has nothing to select; in the sample the words are all selected already"));
-        m_app.quiet.insert(QStringLiteral("edit.selectObjects@blank"), QStringLiteral("a blank page has no objects"));
-        m_app.quiet.insert(QStringLiteral("edit.selectText"), QStringLiteral("a blank page has no text; in the sample the words are all selected already"));
-        m_app.quiet.insert(QStringLiteral("ins.pageCount@blank"), QStringLiteral("it goes in a text box that has the cursor, and a blank page has none"));
-        m_app.quiet.insert(QStringLiteral("page.moveDown@blank"), QStringLiteral("a blank publication has one page, with no page to move past"));
-        m_app.quiet.insert(QStringLiteral("page.moveUp@blank"), QStringLiteral("a blank publication has one page, with no page to move past"));
-        m_app.quiet.insert(QStringLiteral("page.next@blank"), QStringLiteral("a blank publication has one page"));
-        m_app.quiet.insert(QStringLiteral("page.prev@blank"), QStringLiteral("a blank publication has one page"));
-        m_app.quiet.insert(QStringLiteral("rev.checkAsType"), QStringLiteral("it shows wavy lines under misspelled words, and the words are spelled right"));
-        m_app.quiet.insert(QStringLiteral("view.fields"), QStringLiteral("it shows the codes of fields, and a blank page has none"));
-        m_app.quiet.insert(QStringLiteral("view.normal"), QStringLiteral("a window begins in the normal view"));
-        m_app.quiet.insert(QStringLiteral("zoom.selection@blank"), QStringLiteral("nothing is selected to zoom to"));
-        m_app.quiet.insert(QStringLiteral("arr.relMargins"), QStringLiteral("a setting for the next Align, not a change of the page"));
-        m_app.quiet.insert(QStringLiteral("arrowStart.*"), QStringLiteral("the sample has no line to put an arrow on"));
-        m_app.quiet.insert(QStringLiteral("arrowEnd.*"), QStringLiteral("the sample has no line to put an arrow on"));
-        for (const char *none : {"bevel.0", "glow.0", "refl.0", "shadow.0", "soft.0", "line.none", "corr.0.0", "fit.none", "ls.1", "para.spaceBefore0", "recolor.0", "pic.clearCrop", "pic.shapeRect", "rot3d.No Rotation", "tbl.distributeCols", "tbl.distributeRows", "tbmargin.Narrow", "valign.0", "waspace.n", "wrap.none"})
-            m_app.quiet.insert(QString::fromLatin1(none), QStringLiteral("the sample's object has nothing of this kind to take away, or has it already"));
-        m_app.quiet.insert(QStringLiteral("tbl.selectCell"), QStringLiteral("the cell with the cursor is the only one, and selecting it shows nothing more"));
-        m_app.quiet.insert(QStringLiteral("cols.*"), QStringLiteral("the box has that many columns already"));
-        m_app.quiet.insert(QStringLiteral("fmt.clear"), QStringLiteral("the sample's words carry no formatting of their own to clear"));
-        m_app.quiet.insert(QStringLiteral("dash.*"), QStringLiteral("the sample's shape has no outline to dash"));
-        m_app.quiet.insert(QStringLiteral("tb.textFit"), QStringLiteral("the name of a menu: its choices are the commands, and it has none of its own"));
-        m_app.quiet.insert(QStringLiteral("pic.arrangeThumbs"), QStringLiteral("the Graphics Manager is not open"));
-        m_app.quiet.insert(QStringLiteral("waalign.1"), QStringLiteral("the sample's Text Art is aligned that way already"));
-        m_app.quiet.insert(QStringLiteral("view.single"), QStringLiteral("a window begins with one page shown"));
-        m_app.quiet.insert(QStringLiteral("zoom.page"), QStringLiteral("a window begins as the whole page"));
+        // The places a person is in when a command is there to use. (Where a command only sets something that is set already, the others of its family are run first.)
+        auto aBox = [](AppWindow *aw, bool fromFile, bool selected) {
+            auto *w = asPub(aw);
+            Editor *ed = w->editor();
+            if (!fromFile) {
+                startTextBox(w);
+                typeInto(w->canvas(), QStringLiteral("Teh quikc words here"));
+                ed->flushTyping();
+            } else {
+                QString t;
+                for (const auto &it : ed->doc()->pages[0]->items)
+                    if (it->type() == ItemType::Text)
+                        if (QTextDocument *story = ed->doc()->storyDoc(static_cast<TextItem *>(it.get())->storyId); story && story->toPlainText().startsWith(QLatin1String("Teh quikc"))) t = it->id;
+                ed->select(t);
+                ed->beginTextEdit(t, 0);
+            }
+            if (selected) {
+                QTextCursor c = ed->cursor();
+                c.select(QTextCursor::Document);
+                ed->setCursor(c);
+            }
+        };
+        m_app.contexts = {
+            {QStringLiteral("the cursor in words"), [aBox](AppWindow *w, bool f) { aBox(w, f, false); }, false},
+            {QStringLiteral("words selected"), [aBox](AppWindow *w, bool f) { aBox(w, f, true); }, false},
+            {QStringLiteral("a shape selected"), [](AppWindow *aw, bool f) {
+                 Editor *ed = asPub(aw)->editor();
+                 if (!f) {
+                     auto shape = std::make_shared<ShapeItem>();
+                     shape->rect = QRectF(100, 300, 120, 80);
+                     ed->addItem(shape);
+                 } else ed->select(ed->doc()->pages[0]->items.at(0)->id);
+             }, false},
+            {QStringLiteral("a shape over a text box"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 ed->addItem(ed->newTextBox(QRectF(60, 300, 240, 120), QStringLiteral("Some words that the shape sits over.")));
+                 auto shape = std::make_shared<ShapeItem>();
+                 shape->rect = QRectF(80, 320, 40, 40);
+                 ed->addItem(shape);
+             }, false},
+            {QStringLiteral("three shapes selected"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 QStringList ids;
+                 for (int i = 0; i < 3; ++i) {
+                     auto shape = std::make_shared<ShapeItem>();
+                     shape->rect = QRectF(60 + i * 140 + (i == 2 ? 30 : 0), 300 + (i == 2 ? 220 : i * 30), 120, 80);
+                     ids << ed->addItem(shape);
+                 }
+                 ed->select(ids);
+             }, false},
+            {QStringLiteral("a line selected"), [](AppWindow *aw, bool) {
+                 auto line = std::make_shared<LineItem>();
+                 line->p1 = QPointF(80, 600);
+                 line->p2 = QPointF(300, 640);
+                 asPub(aw)->editor()->addItem(line);
+             }, false},
+            {QStringLiteral("a picture selected"), [](AppWindow *aw, bool) {
+                 auto *w = asPub(aw);
+                 w->insertFiles({tempFile(QStringLiteral("red.png"))}, QPointF(300, 300));
+             }, false},
+            {QStringLiteral("a table selected"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 const QString id = ed->addItem(ed->newTable(QRectF(72, 300, 300, 90), 3, 3));
+                 ed->beginTextEdit(id, 0, 0, 0);
+             }, false},
+            {QStringLiteral("a recipient list chosen"), [](AppWindow *aw, bool) {
+                 Document *d = asPub(aw)->editor()->doc();
+                 if (d->merge.isEmpty()) {
+                     d->merge.fields = {QStringLiteral("Name"), QStringLiteral("City")};
+                     d->merge.rows = {{QStringLiteral("Ann"), QStringLiteral("Oslo")}, {QStringLiteral("Bo"), QStringLiteral("Rome")}};
+                     d->merge.include = {true, true};
+                 }
+             }, false},
+            {QStringLiteral("a table of contents in the publication"), [](AppWindow *aw, bool) {
+                 asPub(aw)->act(QStringLiteral("ins.toc"))->trigger();
+             }, false},
+            {QStringLiteral("two pictures selected"), [](AppWindow *aw, bool) {
+                 auto *w = asPub(aw);
+                 w->insertFiles({tempFile(QStringLiteral("red.png"))}, QPointF(300, 300));
+                 w->insertFiles({tempFile(QStringLiteral("blue.png"))}, QPointF(420, 330));
+                 QStringList ids;
+                 for (const auto &it : w->editor()->doc()->pages[w->editor()->currentPage()]->items)
+                     if (it->type() == ItemType::Picture) ids << it->id;
+                 w->editor()->select(ids.mid(ids.size() - 2));
+             }, false},
+            {QStringLiteral("a cropped picture in a shape, with a tint"), [](AppWindow *aw, bool) {
+                 auto *w = asPub(aw);
+                 Editor *ed = w->editor();
+                 w->insertFiles({tempFile(QStringLiteral("red.png"))}, QPointF(300, 300));
+                 QString id;
+                 for (const auto &it : ed->doc()->pages[ed->currentPage()]->items)
+                     if (it->type() == ItemType::Picture) id = it->id;
+                 ed->change(QStringLiteral("Picture"), [&] {
+                     auto *p = static_cast<PictureItem *>(ed->doc()->item(id));
+                     p->imgRect = p->imgRect.translated(-10, -6);
+                     p->maskShape = QStringLiteral("ellipse");
+                     p->brightness = 20;
+                     p->recolor = PictureItem::Grayscale;
+                 });
+                 ed->select(id);
+             }, false},
+            {QStringLiteral("Text Art selected"), [](AppWindow *aw, bool) { asPub(aw)->editor()->addItem(std::make_shared<TextArtItem>()); }, false},
+            {QStringLiteral("a whole table selected"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 ed->addItem(ed->newTable(QRectF(72, 300, 300, 90), 3, 3));
+             }, false},
+            {QStringLiteral("a table with uneven columns and rows"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 auto table = ed->newTable(QRectF(72, 300, 300, 90), 3, 3);
+                 auto *t = static_cast<TableItem *>(table.get());
+                 t->colW = {50, 100, 150};
+                 t->rowH = {20, 30, 40};
+                 const QString id = ed->addItem(table);
+                 ed->beginTextEdit(id, 0, 0, 0);
+             }, false},
+            {QStringLiteral("a story in two linked boxes"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 const QString first = ed->addItem(ed->newTextBox(QRectF(60, 300, 150, 40), QStringLiteral("A story that runs on")));
+                 const QString second = ed->addItem(ed->newTextBox(QRectF(60, 360, 150, 40)));
+                 ed->linkFrames(first, second);
+                 ed->select(first);
+             }, false},
+            {QStringLiteral("the second of two linked boxes"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 const QString first = ed->addItem(ed->newTextBox(QRectF(60, 300, 150, 40), QStringLiteral("A story that runs on")));
+                 const QString second = ed->addItem(ed->newTextBox(QRectF(60, 360, 150, 40)));
+                 ed->linkFrames(first, second);
+                 ed->select(second);
+             }, false},
+            {QStringLiteral("pictures in the scratch area"), [](AppWindow *aw, bool) {
+                 auto picture = std::make_shared<PictureItem>();
+                 picture->rect = QRectF(700, 20, 300, 200);
+                 asPub(aw)->editor()->doc()->scratch.push_back(picture);
+             }, false},
+            {QStringLiteral("two pages, the first with a background, and a style that sets a font"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 if (ed->doc()->pages.size() < 2) ed->doc()->addPage(1, ed->doc()->pages[0]->masterId);
+                 ed->change(QStringLiteral("Background"), [ed] {
+                     ed->doc()->pages[0]->background = Fill::solid(ColorRef::rgb(QColor(Qt::cyan)));
+                     for (auto &st : ed->doc()->styles) st.chr.setFontFamilies({QStringLiteral("Arial")});
+                 });
+             }, false},
+            {QStringLiteral("formatting copied"), [aBox](AppWindow *aw, bool f) {
+                 aBox(aw, f, true);
+                 asPub(aw)->refreshUi();
+                 asPub(aw)->act(QStringLiteral("edit.copyFormat"))->trigger();
+             }, false},
+            {QStringLiteral("a change to undo"), [](AppWindow *aw, bool) {
+                 auto shape = std::make_shared<ShapeItem>();
+                 shape->rect = QRectF(100, 300, 120, 80);
+                 asPub(aw)->editor()->addItem(shape);
+             }, false},
+            {QStringLiteral("a change undone"), [](AppWindow *aw, bool) {
+                 auto shape = std::make_shared<ShapeItem>();
+                 shape->rect = QRectF(100, 300, 120, 80);
+                 asPub(aw)->editor()->addItem(shape);
+                 asPub(aw)->editor()->undo();
+             }, false},
+            {QStringLiteral("two master pages"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 ed->addMaster(false);
+                 ed->setMasterView(ed->doc()->masters.last()->id);
+             }, false},
+            {QStringLiteral("a page with a background"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 ed->change(QStringLiteral("Background"), [ed] {
+                     for (auto &page : ed->doc()->pages) page->background = Fill::solid(ColorRef::rgb(QColor(Qt::yellow)));
+                 });
+             }, false},
+            {QStringLiteral("a landscape page"), [](AppWindow *aw, bool) { asPub(aw)->act(QStringLiteral("pd.landscape"))->trigger(); }, false},
+            {QStringLiteral("a line with arrows and dashes"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 const QString id = [&] {
+                     for (const auto &it : ed->doc()->pages[0]->items)
+                         if (it->type() == ItemType::Line) return it->id;
+                     return QString();
+                 }();
+                 ed->change(QStringLiteral("Line"), [&] {
+                     auto *l = static_cast<LineItem *>(ed->doc()->item(id));
+                     l->stroke.dash = Stroke::DashLine;
+                     l->stroke.endArrow = Arrow::Triangle;
+                     l->stroke.startArrow = Arrow::Triangle;
+                 });
+                 ed->select(id);
+             }, true},
+            {QStringLiteral("a group selected"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 for (const auto &it : ed->doc()->pages[0]->items)
+                     if (it->type() == ItemType::Group) ed->select(it->id);
+             }, true},
+            {QStringLiteral("objects just ungrouped"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 for (const auto &it : ed->doc()->pages[0]->items)
+                     if (it->type() == ItemType::Group) {
+                         ed->select(it->id);
+                         break;
+                     }
+                 asPub(aw)->refreshUi();
+                 asPub(aw)->act(QStringLiteral("arr.group"))->trigger();   // (Group is Ungroup while a group is selected)
+             }, true},
+            {QStringLiteral("a merge preview"), [](AppWindow *aw, bool) {
+                 asPub(aw)->refreshUi();
+                 asPub(aw)->act(QStringLiteral("mm.preview"))->trigger();
+             }, true},
+        };
+        // (where a command is best tried first: the others come after, so the hints only make the run quicker)
+        const QString aStyledPage = QStringLiteral("two pages, the first with a background, and a style that sets a font");
+        m_app.hints = {
+            {QStringLiteral("wa"), {QStringLiteral("Text Art selected")}},
+            {QStringLiteral("pic."), {QStringLiteral("a picture selected"), QStringLiteral("two pictures selected"), QStringLiteral("a cropped picture in a shape, with a tint"), QStringLiteral("pictures in the scratch area")}},
+            {QStringLiteral("corr"), {QStringLiteral("a cropped picture in a shape, with a tint")}},
+            {QStringLiteral("recolor"), {QStringLiteral("a cropped picture in a shape, with a tint")}},
+            {QStringLiteral("tbl."), {QStringLiteral("a table with uneven columns and rows"), QStringLiteral("a table selected")}},
+            {QStringLiteral("border"), {QStringLiteral("a whole table selected")}},
+            {QStringLiteral("mp."), {QStringLiteral("two master pages")}},
+            {QStringLiteral("mm."), {QStringLiteral("a recipient list chosen"), QStringLiteral("a merge preview")}},
+            {QStringLiteral("pd.bg"), {aStyledPage, QStringLiteral("a page with a background")}},
+            {QStringLiteral("pd.portrait"), {QStringLiteral("a landscape page")}},
+            {QStringLiteral("pd.updateFonts"), {aStyledPage}},
+            {QStringLiteral("arr."), {QStringLiteral("three shapes selected"), QStringLiteral("a group selected"), QStringLiteral("objects just ungrouped")}},
+            {QStringLiteral("page."), {aStyledPage}},
+            {QStringLiteral("tb."), {QStringLiteral("a story in two linked boxes"), QStringLiteral("the second of two linked boxes")}},
+            {QStringLiteral("edit.pasteFormat"), {QStringLiteral("formatting copied")}},
+            {QStringLiteral("dash"), {QStringLiteral("a line with arrows and dashes"), QStringLiteral("a line selected")}},
+            {QStringLiteral("arrow"), {QStringLiteral("a line with arrows and dashes"), QStringLiteral("a line selected")}},
+            {QStringLiteral("ins.updateToc"), {QStringLiteral("a table of contents in the publication")}},
+        };
         m_app.skipped = {};
+        m_app.quiet = {
+            {QStringLiteral("rev.wordCount"), QStringLiteral("it tells the counts in a message and changes nothing")},
+            {QStringLiteral("tb.textFit"), QStringLiteral("the name of a menu: its choices are the commands, and it has none of its own")},
+            {QStringLiteral("arr.relMargins"), QStringLiteral("a setting that only the next Align reads: its check mark is all of it")},
+            {QStringLiteral("win.cascade"), QStringLiteral("it places the open windows, and there is one")},
+            {QStringLiteral("ins.updateToc"), QStringLiteral("a table of contents that is up to date has nothing to change")},
+        };
+        m_app.neverRun = {};
     }
 
     // ---- 1. the first five minutes
@@ -352,7 +571,7 @@ private Q_SLOTS:
         QCOMPARE(backstage->currentPage(), QStringLiteral("print"));
         QVERIFY(waitFor([&] {
             const QLabel *preview = backstage->findChild<QLabel *>(QStringLiteral("printPreview"));
-            return preview && !preview->pixmap().isNull();
+            return preview && hasDrawnContent(preview->pixmap());
         }));
         again->hideBackstage();
 
@@ -367,10 +586,13 @@ private Q_SLOTS:
     void aCallThatDoesNothingChangesNothing()
     {
         Watch watch;
-        std::unique_ptr<AppWindow> w(m_app.launch());
-        m_app.settle(w.get());
-        const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 300);
-        QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
+        for (bool fromFile : {false, true}) {
+            std::unique_ptr<AppWindow> w(fromFile ? m_app.launchWith(m_app.sampleFile) : m_app.launch());
+            QVERIFY(w);
+            m_app.settle(w.get());
+            const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 3000);
+            QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
+        }
     }
 
     // Redo answers to Ctrl+Y (as Publisher's does) and to the system's own key for it (Cmd+Shift+Z on a Mac).
@@ -404,6 +626,15 @@ private Q_SLOTS:
         QStringList report;
         const QStringList fails = runEveryAction(m_app, true, &report);
         qInfo("%s", qPrintable(report.last()));
+        if (qEnvironmentVariableIsSet("JP_CHECKS_REPORT")) qInfo("%s", qPrintable(report.join('\n')));
+        QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
+    }
+    // The commands that no test could enable in either state are named, each with the reason, and no more of them than the list says.
+    void commandsNeverRun()
+    {
+        QStringList report;
+        const QStringList fails = checkNeverRun(m_app, &report);
+        qInfo("%s", qPrintable(report.first()));
         if (qEnvironmentVariableIsSet("JP_CHECKS_REPORT")) qInfo("%s", qPrintable(report.join('\n')));
         QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
     }

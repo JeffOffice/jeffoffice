@@ -60,23 +60,13 @@ private Q_SLOTS:
             return w;
         };
         m_app.type = [](AppWindow *w) { typeInto(asWrite(w)->view(), QStringLiteral("Some words")); };
-        // (the word count is filled in by a timer after the window is first shown: the window is quiet when it has)
-        m_app.documentView = [](AppWindow *w) -> QWidget * { return asWrite(w)->view(); };
         m_app.settle = [](AppWindow *w) {
-            waitFor([&] {
-                for (const QLabel *label : w->statusBar()->findChildren<QLabel *>())
-                    if (label->text().contains(QLatin1String("word"))) return true;
-                return false;
-            }, 5000);
+            asWrite(w)->refreshNow();
             drain();
         };
         m_app.listen = [](AppWindow *w, Watch *watch) {
             asWrite(w)->setNotifier([watch](const QString &title, const QString &text) { watch->told << title + QLatin1String(": ") + text; });
-            // (Save As goes to the system's file dialog, which the watch closes; here nothing is picked)
-            asWrite(w)->setSavePathChooser([](const QString &, const QString &filter) {
-                static int n = 0;
-                return tempFile(QStringLiteral("every-%1%2").arg(++n).arg(filter.contains(QLatin1String("dotx")) ? QStringLiteral(".dotx") : QStringLiteral(".docx")));
-            });
+            // (Save As and the exports ask the save dialog, which the watch stands in for)
         };
         m_app.docState = [](AppWindow *aw) {
             auto *w = asWrite(aw);
@@ -87,13 +77,17 @@ private Q_SLOTS:
                 s += QLatin1Char('|') + QString::number(w->document()->canUndo()) + QString::number(w->document()->canRedo());
             }
             const QTextCursor c = w->view()->cursor();
-            s += QStringLiteral("|%1,%2|%3|%4|%5").arg(c.position()).arg(c.anchor()).arg(w->view()->zoom()).arg(w->isModified()).arg(w->filePath());
+            s += QStringLiteral("|%1,%2|%3|%4|%5|%6|%7|%8|%9").arg(c.position()).arg(c.anchor()).arg(w->view()->zoom()).arg(w->isModified()).arg(w->filePath()).arg(int(w->view()->zoomMode())).arg(w->view()->showMarks()).arg(w->view()->spellingEnabled()).arg(w->view()->pagesAcross());
             return s;
         };
         // The sample: a few paragraphs, saved by the program itself.
         {
             std::unique_ptr<WriteWindow> w(launchBlank());
             typeInto(w->view(), QStringLiteral("A sample letter.\nIts second line has more words in it."));
+            w->act(QStringLiteral("edit.selectAll"))->trigger();
+            w->act(QStringLiteral("fmt.alignCenter"))->trigger();
+            w->act(QStringLiteral("para.indentInc"))->trigger();
+            w->view()->setZoom(1.0);
             w->setSavePathChooser([](const QString &, const QString &) { return tempFile(QStringLiteral("sample.docx")); });
             QVERIFY(w->saveAs());
         }
@@ -101,20 +95,60 @@ private Q_SLOTS:
         QVERIFY(QFileInfo::exists(m_app.sampleFile));
         // Commands that end the program or leave it for another one.
         m_app.skipped = {};
-        m_app.prepare = [](AppWindow *w, const QString &id, bool fromFile) {
+        m_app.prepare = [this](AppWindow *w, const QString &id, bool fromFile) {
+            // A zoom command has something to do when the window is not at that zoom.
+            if (id == QLatin1String("zoom.100")) asWrite(w)->view()->setZoom(1.5);
+            // Save has something to save once something was changed.
+            if (id == QLatin1String("file.save") && fromFile) m_app.type(w);
             if (id == QLatin1String("edit.paste")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
             // A format is for the words a person has selected.
             if (fromFile && (id.startsWith(QLatin1String("fmt.")) || id.startsWith(QLatin1String("para.")) || id.startsWith(QLatin1String("ls.")) || id.startsWith(QLatin1String("style."))))
                 w->act(QStringLiteral("edit.selectAll"))->trigger();
         };
-        m_app.quiet = {
-            {QStringLiteral("edit.selectAll@blank"), QStringLiteral("a blank document has nothing to select")},
-            {QStringLiteral("fmt.alignLeft"), QStringLiteral("the paragraphs are aligned left already")},
-            {QStringLiteral("view.printLayout"), QStringLiteral("a window begins in the print layout")},
-            {QStringLiteral("zoom.100"), QStringLiteral("the window is at 100% already")},
-            {QStringLiteral("para.indentDec@blank"), QStringLiteral("a paragraph with no indent has none to take away")},
-            {QStringLiteral("review.checkAsType"), QStringLiteral("its only effect is the wavy lines under misspelled words, and the sample has none")},
+        // The places a person is in when a command is there to use: words selected, something to undo or to redo, a paragraph with an indent, and a header being edited.
+        auto typed = [](AppWindow *w, bool fromFile) {
+            if (!fromFile) typeInto(asWrite(w)->view(), QStringLiteral("Some words\nand a second line"));
         };
+        m_app.contexts = {
+            {QStringLiteral("words selected"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 w->act(QStringLiteral("edit.selectAll"))->trigger();
+             }, false},
+            {QStringLiteral("something to undo"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 typeInto(asWrite(w)->view(), QStringLiteral("more"));
+             }, false},
+            {QStringLiteral("something undone"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 typeInto(asWrite(w)->view(), QStringLiteral("more"));
+                 asWrite(w)->refreshNow();
+                 w->act(QStringLiteral("edit.undo"))->trigger();
+             }, false},
+            {QStringLiteral("a paragraph with an indent"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 w->act(QStringLiteral("edit.selectAll"))->trigger();
+                 w->act(QStringLiteral("para.indentInc"))->trigger();
+             }, false},
+            {QStringLiteral("a centered paragraph"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 w->act(QStringLiteral("edit.selectAll"))->trigger();
+                 w->act(QStringLiteral("fmt.alignCenter"))->trigger();
+             }, false},
+            {QStringLiteral("the header of a second section"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 w->act(QStringLiteral("layout.sectionBreak"))->trigger();
+                 typeInto(asWrite(w)->view(), QStringLiteral("In the second section"));
+                 asWrite(w)->view()->paginateAll();
+                 asWrite(w)->view()->goToPage(asWrite(w)->view()->pageCount() - 1);
+                 asWrite(w)->refreshNow();
+                 w->act(QStringLiteral("insert.header"))->trigger();
+             }, false},
+            {QStringLiteral("a header being edited"), [](AppWindow *w, bool) { w->act(QStringLiteral("insert.header"))->trigger(); }, false},
+        };
+        m_app.quiet = {
+            {QStringLiteral("view.printLayout"), QStringLiteral("the print layout is the only layout JeffWrite has, and the window begins in it")},
+        };
+        m_app.neverRun = {};
     }
 
     // ---- 1. the first five minutes
@@ -200,7 +234,7 @@ private Q_SLOTS:
         QCOMPARE(screen->currentPage(), QStringLiteral("print"));
         QVERIFY(waitFor([&] {
             const QLabel *preview = screen->findChild<QLabel *>(QStringLiteral("printPreview"));
-            return preview && !preview->pixmap().isNull();
+            return preview && hasDrawnContent(preview->pixmap());
         }));
         again->hideFileScreen();
 
@@ -215,10 +249,13 @@ private Q_SLOTS:
     void aCallThatDoesNothingChangesNothing()
     {
         Watch watch;
-        std::unique_ptr<AppWindow> w(m_app.launch());
-        m_app.settle(w.get());
-        const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 300);
-        QVERIFY2(!o.changed, qPrintable(o.how));
+        for (bool fromFile : {false, true}) {
+            std::unique_ptr<AppWindow> w(fromFile ? m_app.launchWith(m_app.sampleFile) : m_app.launch());
+            QVERIFY(w);
+            m_app.settle(w.get());
+            const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 3000);
+            QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
+        }
     }
 
     // ---- 2. the standard commands
@@ -243,6 +280,15 @@ private Q_SLOTS:
         QStringList report;
         const QStringList fails = runEveryAction(m_app, true, &report);
         qInfo("%s", qPrintable(report.last()));
+        if (qEnvironmentVariableIsSet("JP_CHECKS_REPORT")) qInfo("%s", qPrintable(report.join('\n')));
+        QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
+    }
+    // The commands that no test could enable in either state are named, each with the reason, and no more of them than the list says.
+    void commandsNeverRun()
+    {
+        QStringList report;
+        const QStringList fails = checkNeverRun(m_app, &report);
+        qInfo("%s", qPrintable(report.first()));
         if (qEnvironmentVariableIsSet("JP_CHECKS_REPORT")) qInfo("%s", qPrintable(report.join('\n')));
         QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
     }

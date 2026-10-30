@@ -8,9 +8,14 @@
 #include "app/filescreen.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/slideshow.h"
 #include "app/slidespane.h"
 #include "core/appinfo.h"
+#include "app/commentspane.h"
+#include "core/comments.h"
 #include "core/deck.h"
+#include "core/media.h"
+#include "core/sections.h"
 #include "core/fonts.h"
 #include "io/pptxexport.h"
 #include "io/pptximport.h"
@@ -88,11 +93,9 @@ private Q_SLOTS:
             typeInto(asDeck(w)->canvas(), QStringLiteral("Some words"));
             asDeck(w)->editor()->flushTyping();   // (as a pause in typing does)
         };
-        m_app.documentView = [](AppWindow *w) -> QWidget * { return asDeck(w)->canvas()->viewport(); };
         m_app.settle = [](AppWindow *w) {
             drain();
             asDeck(w)->refreshNow();
-            asDeck(w)->slidesPane()->refresh(false);
             drain();
         };
         m_app.docState = [](AppWindow *aw) {
@@ -101,6 +104,10 @@ private Q_SLOTS:
             QString s = zipDigest(deck::exportPresentation(*ed->doc()));
             s += QStringLiteral("|%1|%2|%3|%4|%5|%6|%7").arg(ed->selection().join(QLatin1Char(','))).arg(ed->isEditingText()).arg(ed->undoStack()->index()).arg(ed->currentPage()).arg(w->canvas()->zoom()).arg(int(w->view())).arg(int(ed->tool()));
             if (ed->isEditingText()) s += QStringLiteral("|%1,%2").arg(ed->cursor().position()).arg(ed->cursor().anchor());
+            s += QLatin1String("|comment ") + w->commentsPane()->currentComment();
+            s += QStringLiteral("|view%1%2|presenter%3").arg(w->canvas()->gridlines()).arg(w->canvas()->guides()).arg(SlideShow::usePresenterView());
+            const auto block = ed->cellBlock();
+            s += QStringLiteral("|cells%1,%2,%3,%4").arg(block.range.valid()).arg(block.range.r0).arg(block.range.c0).arg(block.range.r1 * 100 + block.range.c1);
             return s + QLatin1Char('|') + ed->filePath() + QString::number(ed->isModified());
         };
         // The sample: the title slide, and a second slide with its words, a shape, a picture, and a table, all made and saved by the program.
@@ -114,7 +121,7 @@ private Q_SLOTS:
             Document *d = ed->doc();
             ed->setCurrentPage(1);
             QTextCursor(d->storyDoc(static_cast<TextItem *>(d->pages[1]->items[0].get())->storyId)).insertText(QStringLiteral("second SLIDE here"));
-            if (d->pages[1]->items.size() > 1) QTextCursor(d->storyDoc(static_cast<TextItem *>(d->pages[1]->items[1].get())->storyId)).insertText(QStringLiteral("First point\nSecond point\nThird point"));
+            if (d->pages[1]->items.size() > 1) QTextCursor(d->storyDoc(static_cast<TextItem *>(d->pages[1]->items[1].get())->storyId)).insertText(QStringLiteral("First point\nTeh second point\nThird point"));
             auto shape = std::make_shared<ShapeItem>();
             shape->shape = QStringLiteral("rect");
             shape->rect = QRectF(60, 400, 200, 80);
@@ -134,6 +141,8 @@ private Q_SLOTS:
             auto *w = asDeck(aw);
             w->showNormal();
             w->resize(1100, 700);   // (a window command may have made it another size)
+            if (w->slideShow()) w->slideShow()->close();   // (a show or a preview still going on would play the presentation that is taken away)
+            drain();
             w->hideFileScreen();
             w->setView(DeckWindow::View::Normal);
             for (QDockWidget *dock : w->findChildren<QDockWidget *>()) dock->hide();
@@ -151,6 +160,7 @@ private Q_SLOTS:
         auto onSlide = [](AppWindow *aw, bool fromFile, ItemType type) {
             Editor *ed = asDeck(aw)->editor();
             if (fromFile) ed->setCurrentPage(1);
+            if (!fromFile && type == ItemType::Table) asDeck(aw)->insertTable(2, 2);   // (a blank slide has none)
             for (const auto &it : ed->doc()->pages[ed->currentPage()]->items)
                 if (it->type() == type) {
                     ed->select(it->id);
@@ -178,41 +188,154 @@ private Q_SLOTS:
                  onSlide(aw, f, ItemType::Table);
                  Editor *ed = asDeck(aw)->editor();
                  ed->beginTextEdit(ed->selection().first(), 0, 0, 0);
-             }, true},
+             }, false},
             {QStringLiteral("cells of a table selected"), [onSlide](AppWindow *aw, bool f) {
                  onSlide(aw, f, ItemType::Table);
                  Editor *ed = asDeck(aw)->editor();
                  ed->selectCells(ed->selection().first(), 0, 0, 1, 1);
-             }, true},
+             }, false},
+        };
+        auto addShape = [](AppWindow *aw, const QRectF &rect) {
+            auto shape = std::make_shared<ShapeItem>();
+            shape->shape = QStringLiteral("rect");
+            shape->rect = rect;
+            return asDeck(aw)->editor()->addItem(shape);
+        };
+        auto effectOn = [](AppWindow *aw, const QString &id) {
+            asDeck(aw)->editor()->select(id);
+            asDeck(aw)->refreshNow();
+            aw->act(QStringLiteral("anim.add.entr.fade"))->trigger();
+        };
+        m_app.contexts += QList<Adapter::Context>{
+            {QStringLiteral("a change to undo"), [](AppWindow *aw, bool) {
+                 clickTitle(asDeck(aw));
+                 typeInto(asDeck(aw)->canvas(), QStringLiteral("more"));
+                 asDeck(aw)->editor()->flushTyping();
+             }, false},
+            {QStringLiteral("a change undone"), [](AppWindow *aw, bool) {
+                 clickTitle(asDeck(aw));
+                 typeInto(asDeck(aw)->canvas(), QStringLiteral("more"));
+                 asDeck(aw)->editor()->flushTyping();
+                 asDeck(aw)->refreshNow();
+                 aw->act(QStringLiteral("edit.undo"))->trigger();
+             }, false},
+            {QStringLiteral("two shapes selected"), [addShape](AppWindow *aw, bool) {
+                 const QString a = addShape(aw, QRectF(60, 300, 120, 80)), b = addShape(aw, QRectF(260, 340, 120, 80));
+                 asDeck(aw)->editor()->select(QStringList{a, b});
+             }, false},
+            {QStringLiteral("a group selected"), [addShape](AppWindow *aw, bool) {
+                 const QString a = addShape(aw, QRectF(60, 300, 120, 80)), b = addShape(aw, QRectF(260, 340, 120, 80));
+                 asDeck(aw)->editor()->select(QStringList{a, b});
+                 asDeck(aw)->refreshNow();
+                 aw->act(QStringLiteral("arr.group"))->trigger();
+             }, false},
+            {QStringLiteral("the first of two effects selected"), [addShape, effectOn](AppWindow *aw, bool) {
+                 const QString a = addShape(aw, QRectF(60, 300, 120, 80)), b = addShape(aw, QRectF(260, 340, 120, 80));
+                 effectOn(aw, a);
+                 effectOn(aw, b);
+                 asDeck(aw)->editor()->select(a);
+             }, false},
+            {QStringLiteral("the second of two effects selected"), [addShape, effectOn](AppWindow *aw, bool) {
+                 const QString a = addShape(aw, QRectF(60, 300, 120, 80)), b = addShape(aw, QRectF(260, 340, 120, 80));
+                 effectOn(aw, a);
+                 effectOn(aw, b);
+                 asDeck(aw)->editor()->select(b);
+             }, false},
+            {QStringLiteral("Slide Master view on a layout"), [](AppWindow *aw, bool) { asDeck(aw)->editMasters(); }, false},
+            {QStringLiteral("Slide Master view on a slide master"), [](AppWindow *aw, bool) { asDeck(aw)->editMasters(asDeck(aw)->editor()->doc()->masters.first()->id); }, false},
+            {QStringLiteral("a comment, chosen"), [](AppWindow *aw, bool) {
+                 auto *w = asDeck(aw);
+                 Page &slide = *w->editor()->doc()->pages[w->editor()->currentPage()];
+                 const QString id = deck::addComment(slide, deck::CommentAuthor{QStringLiteral("Test Writer"), QStringLiteral("TW")}, QStringLiteral("A note"), QPointF(100, 100));
+                 w->showComments(true);
+                 w->refreshNow();
+                 w->commentsPane()->setCurrentComment(id);
+                 w->refreshNow();
+             }, false},
+            {QStringLiteral("a section"), [](AppWindow *aw, bool) {
+                 auto *w = asDeck(aw);
+                 Document *d = w->editor()->doc();
+                 w->editor()->change(QStringLiteral("Add Section"), [d] { deck::addSection(*d, 0, QStringLiteral("Part one")); });
+                 w->refreshNow();
+             }, false},
+            {QStringLiteral("two slide masters"), [](AppWindow *aw, bool) {
+                 auto *w = asDeck(aw);
+                 w->editMasters();
+                 w->insertSlideMaster();
+             }, false},
+            {QStringLiteral("a misspelled word in the title"), [](AppWindow *aw, bool) {
+                 clickTitle(asDeck(aw));
+                 typeInto(asDeck(aw)->canvas(), QStringLiteral("Teh quikc brown fox"));
+                 asDeck(aw)->editor()->flushTyping();
+             }, false},
+            {QStringLiteral("two comments, the first chosen"), [](AppWindow *aw, bool) {
+                 auto *w = asDeck(aw);
+                 Page &slide = *w->editor()->doc()->pages[w->editor()->currentPage()];
+                 const deck::CommentAuthor who{QStringLiteral("Test Writer"), QStringLiteral("TW")};
+                 const QString first = deck::addComment(slide, who, QStringLiteral("One"), QPointF(100, 100));
+                 deck::addComment(slide, who, QStringLiteral("Two"), QPointF(200, 100));
+                 w->showComments(true);
+                 w->refreshNow();
+                 w->commentsPane()->setCurrentComment(first);
+                 w->refreshNow();
+             }, false},
+            {QStringLiteral("a zoomed window"), [](AppWindow *aw, bool) { asDeck(aw)->canvas()->setZoom(0.3); }, false},
+            {QStringLiteral("a table with uneven columns and rows"), [](AppWindow *aw, bool) {
+                 auto *w = asDeck(aw);
+                 w->insertTable(2, 2);
+                 Editor *ed = w->editor();
+                 for (const auto &it : ed->doc()->pages[ed->currentPage()]->items)
+                     if (it->type() == ItemType::Table) {
+                         auto *t = static_cast<TableItem *>(it.get());
+                         t->colW = {80, 300};
+                         t->rowH = {30, 90};
+                         ed->select(it->id);
+                     }
+             }, false},
+            {QStringLiteral("a push transition"), [](AppWindow *aw, bool) {
+                 asDeck(aw)->refreshNow();
+                 aw->act(QStringLiteral("transition.push"))->trigger();
+             }, false},
+            {QStringLiteral("a zoom transition"), [](AppWindow *aw, bool) {
+                 asDeck(aw)->refreshNow();
+                 aw->act(QStringLiteral("transition.zoom"))->trigger();
+             }, false},
+            {QStringLiteral("a split transition"), [](AppWindow *aw, bool) {
+                 asDeck(aw)->refreshNow();
+                 aw->act(QStringLiteral("transition.split"))->trigger();
+             }, false},
+            {QStringLiteral("a morph transition"), [](AppWindow *aw, bool) {
+                 asDeck(aw)->refreshNow();
+                 aw->act(QStringLiteral("transition.morph"))->trigger();
+             }, false},
+            {QStringLiteral("a transition on the slide"), [](AppWindow *aw, bool) {
+                 asDeck(aw)->refreshNow();
+                 aw->act(QStringLiteral("transition.fade"))->trigger();
+             }, false},
+            {QStringLiteral("a 4:3 slide"), [](AppWindow *aw, bool) { asDeck(aw)->setSlideSize(QSizeF(720, 540)); }, false},
+            {QStringLiteral("a sound on the slide, chosen"), [](AppWindow *aw, bool) {
+                 auto *w = asDeck(aw);
+                 QByteArray wav("RIFF");
+                 auto le = [&](quint32 v, int n) { for (int i = 0; i < n; ++i) wav.append(char((v >> (8 * i)) & 0xff)); };
+                 le(36 + 200, 4); wav += "WAVEfmt "; le(16, 4); le(1, 2); le(1, 2); le(8000, 4); le(16000, 4); le(2, 2); le(16, 2); wav += "data"; le(200, 4); wav += QByteArray(200, '\0');
+                 Document *d = w->editor()->doc();
+                 auto pic = deck::newMediaPicture(*d, *d->pages[w->editor()->currentPage()], wav, QStringLiteral("tone.wav"), QImage(), 1000);
+                 if (pic) {
+                     w->editor()->surfaceItems().push_back(pic);
+                     w->editor()->select(pic->id);
+                 }
+             }, false},
         };
         m_app.prepare = [](AppWindow *, const QString &id, bool) {
             if (id == QLatin1String("edit.paste")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
         };
         m_app.skipped = {};
-        // What a command may leave as it is, where what it sets is so already.
         m_app.quiet = {
             {QStringLiteral("design.slideSize"), QStringLiteral("the name of the Slide Size menu: its choices are the commands, and it has none of its own")},
-            {QStringLiteral("design.sizeWidescreen"), QStringLiteral("the slides are widescreen already")},
-            {QStringLiteral("show.usePresenterView"), QStringLiteral("a setting for the next show")},
-            {QStringLiteral("view.fit"), QStringLiteral("a window begins with the slide fitted")},
-            {QStringLiteral("view.normal"), QStringLiteral("a window begins in Normal view")},
-            {QStringLiteral("transition.none"), QStringLiteral("no slide has a transition to take away")},
-            {QStringLiteral("cols.1"), QStringLiteral("a box has one column already")},
-            {QStringLiteral("ls.1"), QStringLiteral("the lines are single spaced already")},
-            {QStringLiteral("valign.*"), QStringLiteral("a box is aligned one of these ways already, and the command for that way has nothing to change")},
-            {QStringLiteral("tb.dirHorizontal"), QStringLiteral("the words run across already")},
-            {QStringLiteral("arr.back@blank"), QStringLiteral("the title is at the back already")},
-            {QStringLiteral("arr.backward@blank"), QStringLiteral("the title is at the back already")},
-            {QStringLiteral("para.indentDec@file"), QStringLiteral("a paragraph with no indent has none to take away")},
-            {QStringLiteral("pic.aspect.4x3"), QStringLiteral("the sample's picture is 4 by 3 already")},
-            {QStringLiteral("pic.clearCrop"), QStringLiteral("the picture is not cropped")},
-            {QStringLiteral("pic.fill"), QStringLiteral("the picture fills its frame already")},
-            {QStringLiteral("pic.fit"), QStringLiteral("the picture fits its frame already")},
-            {QStringLiteral("tbl.alignTop"), QStringLiteral("the cells are aligned to the top already")},
-            {QStringLiteral("tbl.marginNarrow"), QStringLiteral("the cells have these margins already")},
-            {QStringLiteral("tbl.distributeCols"), QStringLiteral("the sample's columns are equal already")},
-            {QStringLiteral("tbl.distributeRows"), QStringLiteral("the sample's rows are equal already")},
+            {QStringLiteral("anim.painter"), QStringLiteral("it arms the animation painter, and nothing shows until a shape is clicked")},
+            {QStringLiteral("review.wordCount"), QStringLiteral("it tells the counts in a message and changes nothing")},
         };
+        m_app.neverRun = {};
     }
 
     // ---- 1. the first five minutes
@@ -303,7 +426,7 @@ private Q_SLOTS:
         QCOMPARE(screen->currentPage(), QStringLiteral("print"));
         QVERIFY(waitFor([&] {
             const QLabel *preview = screen->findChild<QLabel *>(QStringLiteral("printPreview"));
-            return preview && !preview->pixmap().isNull();
+            return preview && hasDrawnContent(preview->pixmap());
         }));
         again->hideFileScreen();
 
@@ -318,10 +441,13 @@ private Q_SLOTS:
     void aCallThatDoesNothingChangesNothing()
     {
         Watch watch;
-        std::unique_ptr<AppWindow> w(m_app.launch());
-        m_app.settle(w.get());
-        const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 300);
-        QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
+        for (bool fromFile : {false, true}) {
+            std::unique_ptr<AppWindow> w(fromFile ? m_app.launchWith(m_app.sampleFile) : m_app.launch());
+            QVERIFY(w);
+            m_app.settle(w.get());
+            const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 3000);
+            QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
+        }
     }
 
     // A preview of the effects plays the presentation in the window; when another is put in its place, the preview ends (it would play what is gone).
@@ -364,6 +490,15 @@ private Q_SLOTS:
         QStringList report;
         const QStringList fails = runEveryAction(m_app, true, &report);
         qInfo("%s", qPrintable(report.last()));
+        if (qEnvironmentVariableIsSet("JP_CHECKS_REPORT")) qInfo("%s", qPrintable(report.join('\n')));
+        QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
+    }
+    // The commands that no test could enable in either state are named, each with the reason, and no more of them than the list says.
+    void commandsNeverRun()
+    {
+        QStringList report;
+        const QStringList fails = checkNeverRun(m_app, &report);
+        qInfo("%s", qPrintable(report.first()));
         if (qEnvironmentVariableIsSet("JP_CHECKS_REPORT")) qInfo("%s", qPrintable(report.join('\n')));
         QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
     }

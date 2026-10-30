@@ -16,6 +16,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPrintDialog>
+#include "app/filedialogs.h"
 #include <QPrinter>
 #include <QPrinterInfo>
 #include <QPushButton>
@@ -390,7 +391,7 @@ QWidget *CrunchFileScreen::buildPrint()
         const QString name = printer->currentData(Qt::UserRole + 1).toBool() ? QString() : printer->currentData().toString();
         if (!name.isEmpty()) p.setPrinterName(name);
         QPrintDialog dialog(&p, this);
-        if (dialog.exec() == QDialog::Accepted) {
+        if (execPrintDialog(dialog) == QDialog::Accepted) {
             const int at = printer->findData(p.printerName());
             if (at >= 0) printer->setCurrentIndex(at);
             copies->setValue(std::max(1, p.copyCount()));

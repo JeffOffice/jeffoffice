@@ -41,6 +41,7 @@
 #include <QListWidget>
 #include <QPainter>
 #include <QPrintDialog>
+#include "app/filedialogs.h"
 #include <QPrinter>
 #include <QPrinterInfo>
 #include <QPushButton>
@@ -1006,7 +1007,7 @@ QWidget *Backstage::buildPrint()
         QPrinter p(QPrinter::HighResolution);
         if (!setup(p)) return;
         QPrintDialog dlg(&p, this);
-        dlg.exec();
+        execPrintDialog(dlg);
     });
     connect(printBtn, &QPushButton::clicked, this, [=] {
         QPrinter p(QPrinter::HighResolution);

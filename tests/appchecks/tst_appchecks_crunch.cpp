@@ -1,8 +1,7 @@
 // The checks every app's window must pass, for JeffCrunch (see appchecks.h): its first five minutes, its standard commands, and every command it has.
 //
-// A new window with no file must hold a blank workbook that takes typing (JeffCrunch 0.10.0 shipped without one: its window was an empty grid that said the workbook "is still being
-// opened", and nothing tested a window that was not opening a file). What these checks need of that fix is marked "NEEDS crunch-new" (the change that makes a blank workbook and File > New): they
-// fail on a program without it, which is what they are for.
+// A new window with no file must hold a blank workbook that takes typing and a name like Book1 (JeffCrunch 0.10.0 shipped without one: its window was an empty grid that said the workbook "is still
+// being opened", and nothing tested a window that was not opening a file).
 #include "appchecks.h"
 
 #include "app/crunchinfo.h"
@@ -15,6 +14,7 @@
 #include "core/editsession.h"
 #include "crunch/editwindow.h"
 #include "grid/gridview.h"
+#include "grid/pagelayoutview.h"
 #include "testrunner.h"
 
 #include <QClipboard>
@@ -32,17 +32,6 @@ namespace {
 
 CrunchWindow *asCrunch(AppWindow *w) { return static_cast<CrunchWindow *>(w); }
 
-// What the program does when it is started with no file: a new workbook. (A window of a program that has no way to make one is left empty, which is what the person then gets.)
-template <class W>
-auto startBlank(W &w, int) -> decltype(w.newBlank(), void())
-{
-    w.newBlank();
-}
-template <class W>
-void startBlank(W &, long)
-{
-}
-
 // Whether the window is ready for a person: nothing opening, nothing being worked out.
 bool quiet(CrunchWindow *w) { return !w->isLoading() && !w->isCalculating() && !w->isSaving(); }
 
@@ -51,7 +40,7 @@ CrunchWindow *launchBlank()
     auto *w = new CrunchWindow();
     w->resize(1100, 640);
     w->show();
-    startBlank(*w, 0);
+    w->newBlank();   // (what the program does when it is started with no file)
     waitFor([&] { return quiet(w); });
     return w;
 }
@@ -106,7 +95,6 @@ private Q_SLOTS:
             return w;
         };
         m_app.type = [](AppWindow *w) { enter(asCrunch(w), 0, 0, QStringLiteral("12")); };
-        m_app.documentView = [](AppWindow *w) -> QWidget * { return asCrunch(w)->view()->viewport(); };
         m_app.settle = [](AppWindow *w) {
             waitFor([&] { return quiet(asCrunch(w)); });
             drain();
@@ -123,13 +111,14 @@ private Q_SLOTS:
         };
         m_app.docState = [](AppWindow *aw) {
             auto *w = asCrunch(aw);
-            QString s = QStringLiteral("%1%2%3|%4|%5|%6|%7").arg(w->hasWorkbook()).arg(w->isLoading()).arg(w->isModified()).arg(w->filePath(), w->statusText(), w->view()->selectionName()).arg(w->isEditing());
+            QString s = QStringLiteral("%1%2%3|%4|%5|%6").arg(w->hasWorkbook()).arg(w->isLoading()).arg(w->isModified()).arg(w->filePath(), w->view()->selectionName()).arg(w->isEditing());
             if (w->session()) {
                 QByteArray bytes;
                 QString why;
                 s += w->snapshotBytesForTest(&bytes, &why) ? QLatin1Char('|') + zipDigest(bytes) : QLatin1Char('|') + why;
             }
             const grid::GridView::ViewState v = w->view()->viewState();
+            s += QStringLiteral("|arrows%1|formulas%2").arg(w->arrowCount()).arg(w->view()->sheet().showFormulas());
             return s + QStringLiteral("|%1|%2,%3|%4,%5|%6,%7|%8").arg(w->view()->zoom()).arg(v.frozenRows).arg(v.frozenCols).arg(v.scrollX).arg(v.scrollY).arg(v.gridlines).arg(v.headings).arg(w->view()->rangeName());
         };
         // The sample: a small workbook built here (numbers, text, formulas), written to a file.
@@ -139,67 +128,190 @@ private Q_SLOTS:
             f.write(crunchtest::editBook());
         }
         m_app.sampleFile = tempFile(QStringLiteral("sample.xlsx"));
-        // The places a person is in when a command is there to use: cells selected (a block, rows, columns), a formula's cell, cells copied, and a cell being typed in.
+        // The places a person is in when a command is there to use. A blank workbook has nothing in it, so a few cells are typed first (the sample has its own).
+        auto fill = [](CrunchWindow *w) {
+            if (w->view()->sheet().cellAt(0, 0) != nullptr) return;
+            enter(w, 0, 0, QStringLiteral("3"));
+            enter(w, 0, 1, QStringLiteral("5"));
+            enter(w, 0, 2, QStringLiteral("=A1+B1"));
+            enter(w, 1, 0, QStringLiteral("1"));
+            enter(w, 1, 1, QStringLiteral("2"));
+            enter(w, 1, 2, QStringLiteral("=A2+B2"));
+            enter(w, 2, 0, QStringLiteral("text"));
+            waitFor([&] { return quiet(w); });
+        };
+        using Ctx = Adapter::Context;
+        auto in = [fill](const QString &name, std::function<void(CrunchWindow *)> enterIt, bool fileOnly = false) {
+            return Ctx{name, [fill, enterIt](AppWindow *aw, bool) {
+                           auto *w = asCrunch(aw);
+                           fill(w);
+                           enterIt(w);
+                       }, fileOnly};
+        };
         m_app.contexts = {
-            {QStringLiteral("a block of cells selected"), [](AppWindow *w, bool) { asCrunch(w)->view()->selectRange(0, 0, 2, 2); }, false},
-            {QStringLiteral("whole rows selected"), [](AppWindow *w, bool) { asCrunch(w)->view()->selectRows(0, 1); }, false},
-            {QStringLiteral("whole columns selected"), [](AppWindow *w, bool) { asCrunch(w)->view()->selectColumns(0, 1); }, false},
-            {QStringLiteral("a formula's cell selected"), [](AppWindow *w, bool) { asCrunch(w)->view()->selectCell(0, 1); }, false},
-            {QStringLiteral("cells copied"), [](AppWindow *aw, bool) {
-                 auto *w = asCrunch(aw);
-                 w->view()->selectRange(0, 0, 1, 1);
-                 w->act(QStringLiteral("edit.copy"))->trigger();
-                 waitFor([&] { return !w->isCopying(); });
-                 w->view()->selectCell(5, 5);
-             }, false},
-            {QStringLiteral("a cell below and right of the first"), [](AppWindow *w, bool) { asCrunch(w)->view()->selectCell(3, 2); }, false},
-            {QStringLiteral("the cursor in a table"), [](AppWindow *aw, bool) {
-                 auto *w = asCrunch(aw);
-                 w->setTableMakeAsker([](QString *, bool *headers) {
-                     *headers = true;
-                     return true;
-                 });
-                 // (a blank workbook has nothing to make a table of: a few cells are typed first)
-                 if (!w->session() || w->view()->sheet().cellAt(0, 0) == nullptr) {
-                     enter(w, 0, 0, QStringLiteral("Name"));
-                     enter(w, 0, 1, QStringLiteral("Count"));
-                     enter(w, 1, 0, QStringLiteral("a"));
-                     enter(w, 1, 1, QStringLiteral("3"));
-                     waitFor([&] { return quiet(w); });
-                 }
-                 w->view()->selectCell(1, 1);
-                 w->act(QStringLiteral("insert.table"))->trigger();
-                 waitFor([&] { return quiet(w); });
-             }, false},
-            {QStringLiteral("a cell being typed in"), [](AppWindow *aw, bool) {
-                 auto *w = asCrunch(aw);
-                 w->view()->selectCell(5, 5);
-                 QTest::keyClick(w->view(), Qt::Key_Equal);
-             }, false},
+            in(QStringLiteral("a block of cells selected"), [](CrunchWindow *w) { w->view()->selectRange(0, 0, 2, 2); }),
+            in(QStringLiteral("whole rows selected"), [](CrunchWindow *w) { w->view()->selectRows(0, 1); }),
+            in(QStringLiteral("whole columns selected"), [](CrunchWindow *w) { w->view()->selectColumns(0, 1); }),
+            in(QStringLiteral("a formula's cell selected"), [](CrunchWindow *w) { w->view()->selectCell(0, 1); }),
+            in(QStringLiteral("cells copied"), [](CrunchWindow *w) {
+                w->view()->selectRange(0, 0, 1, 1);
+                w->act(QStringLiteral("edit.copy"))->trigger();
+                waitFor([&] { return !w->isCopying(); });
+                w->view()->selectCell(5, 5);
+            }),
+            in(QStringLiteral("a cell below and right of the first"), [](CrunchWindow *w) { w->view()->selectCell(3, 2); }),
+            in(QStringLiteral("a change to undo"), [](CrunchWindow *w) { enter(w, 4, 4, QStringLiteral("9")); }),
+            in(QStringLiteral("a change undone"), [](CrunchWindow *w) {
+                enter(w, 4, 4, QStringLiteral("9"));
+                waitFor([&] { return quiet(w); });
+                w->act(QStringLiteral("edit.undo"))->trigger();
+                waitFor([&] { return quiet(w); });
+            }),
+            in(QStringLiteral("the cursor in a table"), [](CrunchWindow *w) {
+                w->setTableMakeAsker([](QString *, bool *headers) {
+                    *headers = true;
+                    return true;
+                });
+                w->view()->selectCell(1, 1);
+                w->act(QStringLiteral("insert.table"))->trigger();
+                waitFor([&] { return quiet(w); });
+            }),
+            in(QStringLiteral("a chart selected"), [](CrunchWindow *w) {
+                w->view()->selectRange(0, 0, 1, 1);
+                w->insertChart(jp::office::sheet::ChartKind::Column);
+                waitFor([&] { return quiet(w); });
+            }),
+            in(QStringLiteral("two charts, the later one selected"), [](CrunchWindow *w) {
+                w->view()->selectRange(0, 0, 1, 1);
+                w->insertChart(jp::office::sheet::ChartKind::Column);
+                waitFor([&] { return quiet(w); });
+                w->insertChart(jp::office::sheet::ChartKind::Line);
+                waitFor([&] { return quiet(w); });
+            }),
+            in(QStringLiteral("a note in two cells, the later one selected"), [](CrunchWindow *w) {
+                w->session()->setNote(0, 0, 0, QStringLiteral("A note"), QStringLiteral("me"), false, QStringLiteral("Add Note"));
+                w->session()->setNote(0, 1, 1, QStringLiteral("Another"), QStringLiteral("me"), false, QStringLiteral("Add Note"));
+                w->view()->selectCell(1, 1);
+            }),
+            in(QStringLiteral("a note in two cells, the earlier one selected"), [](CrunchWindow *w) {
+                w->session()->setNote(0, 0, 0, QStringLiteral("A note"), QStringLiteral("me"), false, QStringLiteral("Add Note"));
+                w->session()->setNote(0, 1, 1, QStringLiteral("Another"), QStringLiteral("me"), false, QStringLiteral("Add Note"));
+                w->view()->selectCell(0, 0);
+            }),
+            in(QStringLiteral("a filter on"), [](CrunchWindow *w) {
+                jp::office::sheet::AutoFilter f;
+                jp::office::sheet::parseRangeRef(QStringLiteral("A1:C3"), &f.ref);
+                jp::office::sheet::FilterColumn c;
+                c.column = 0;
+                c.kind = jp::office::sheet::FilterColumn::Kind::Values;
+                c.values = {QStringLiteral("1"), QStringLiteral("3")};
+                f.columns.append(c);
+                w->applyFilter(f, QStringLiteral("Filtering"));
+                waitFor([&] { return !w->isFiltering() && quiet(w); });
+                w->view()->selectCell(0, 0);
+            }),
+            in(QStringLiteral("a filter on, and a value changed after"), [](CrunchWindow *w) {
+                jp::office::sheet::AutoFilter f;
+                jp::office::sheet::parseRangeRef(QStringLiteral("A1:C3"), &f.ref);
+                jp::office::sheet::FilterColumn c;
+                c.column = 0;
+                c.kind = jp::office::sheet::FilterColumn::Kind::Values;
+                c.values = {QStringLiteral("1"), QStringLiteral("3")};
+                f.columns.append(c);
+                w->applyFilter(f, QStringLiteral("Filtering"));
+                waitFor([&] { return !w->isFiltering() && quiet(w); });
+                enter(w, 1, 0, shown(w, 1, 0) == QLatin1String("1") ? QStringLiteral("9") : QStringLiteral("1"));   // (what the filter lets through, or does not: the other)
+                waitFor([&] { return quiet(w); });
+                w->view()->selectCell(0, 0);
+            }),
+            in(QStringLiteral("arrows drawn to a formula's cells"), [](CrunchWindow *w) {
+                w->view()->selectCell(0, 2);
+                w->act(QStringLiteral("formulas.tracePrecedents"))->trigger();
+            }),
+            in(QStringLiteral("a print area set"), [](CrunchWindow *w) {
+                w->view()->selectRange(0, 0, 1, 1);
+                w->act(QStringLiteral("printarea.set"))->trigger();
+            }),
+            in(QStringLiteral("a cell with a note"), [](CrunchWindow *w) {
+                w->session()->setNote(0, 0, 0, QStringLiteral("A note"), QStringLiteral("me"), false, QStringLiteral("Add Note"));
+                w->view()->selectCell(0, 0);
+            }),
+            in(QStringLiteral("a cell with a link"), [](CrunchWindow *w) {
+                jp::office::sheet::CellRange cell;
+                jp::office::sheet::parseRangeRef(QStringLiteral("B2"), &cell);
+                jp::office::sheet::LinkSpec link;
+                link.target = QStringLiteral("https://example.org/");
+                w->session()->setLink(0, cell, link, QStringLiteral("Link"));
+                w->view()->selectCell(1, 1);
+            }),
+            in(QStringLiteral("a formula that refers to itself"), [](CrunchWindow *w) {
+                enter(w, 4, 0, QStringLiteral("=A5+1"));
+                waitFor([&] { return quiet(w); });
+                w->view()->selectCell(4, 0);
+            }),
+            in(QStringLiteral("a hidden row and column, around them selected"), [](CrunchWindow *w) {
+                w->view()->selectRows(1, 1);
+                w->act(QStringLiteral("format.hideRows"))->trigger();
+                w->view()->selectColumns(1, 1);
+                w->act(QStringLiteral("format.hideColumns"))->trigger();
+                w->view()->selectRange(0, 0, 3, 3);
+            }),
+            in(QStringLiteral("a merged block"), [](CrunchWindow *w) {
+                w->setConfirmAsker([](const QString &, const QString &) { return true; });
+                w->view()->selectRange(0, 0, 0, 1);
+                w->act(QStringLiteral("fmt.merge.cells"))->trigger();
+                waitFor([&] { return quiet(w); });
+            }),
+            in(QStringLiteral("a second sheet"), [](CrunchWindow *w) {
+                w->act(QStringLiteral("sheet.insertEnd"))->trigger();
+                waitFor([&] { return quiet(w); });
+            }),
+            in(QStringLiteral("a hidden sheet"), [](CrunchWindow *w) {
+                w->act(QStringLiteral("sheet.insertEnd"))->trigger();
+                waitFor([&] { return quiet(w); });
+                w->act(QStringLiteral("sheet.hide"))->trigger();
+                waitFor([&] { return quiet(w); });
+            }),
+            in(QStringLiteral("the header of a page being typed in"), [](CrunchWindow *w) {
+                w->act(QStringLiteral("view.pageLayout"))->trigger();
+                auto *pages = w->findChild<grid::PageLayoutView *>();
+                if (!pages) return;
+                waitFor([&] { return !pages->zoneRect(0, true, 1).isEmpty(); });
+                Q_EMIT pages->zoneClicked(0, true, 1);
+            }),
+            in(QStringLiteral("a cell being typed in"), [](CrunchWindow *w) {
+                w->view()->selectCell(5, 5);
+                QTest::keyClick(w->view(), Qt::Key_Equal);
+            }),
+        };
+        // (where a command is best tried first: the others come after, so the hints only make the run quicker)
+        m_app.hints = {
+            {QStringLiteral("hf."), {QStringLiteral("the header of a page being typed in")}},
+            {QStringLiteral("notes."), {QStringLiteral("a note in two cells, the later one selected"), QStringLiteral("a note in two cells, the earlier one selected"), QStringLiteral("a cell with a note")}},
+            {QStringLiteral("object."), {QStringLiteral("two charts, the later one selected")}},
+            {QStringLiteral("chartdesign."), {QStringLiteral("a chart selected")}},
+            {QStringLiteral("link."), {QStringLiteral("a cell with a link")}},
+            {QStringLiteral("filter."), {QStringLiteral("a filter on"), QStringLiteral("a filter on, and a value changed after")}},
+            {QStringLiteral("printarea."), {QStringLiteral("a print area set")}},
+            {QStringLiteral("sheet."), {QStringLiteral("a second sheet"), QStringLiteral("a hidden sheet")}},
+            {QStringLiteral("formulas.trace"), {QStringLiteral("a formula's cell selected")}},
+            {QStringLiteral("formulas.removeArrows"), {QStringLiteral("arrows drawn to a formula's cells")}},
+            {QStringLiteral("formulas.circular"), {QStringLiteral("a formula that refers to itself")}},
+            {QStringLiteral("format.unhide"), {QStringLiteral("a hidden row and column, around them selected")}},
+            {QStringLiteral("fmt.merge"), {QStringLiteral("a merged block"), QStringLiteral("a block of cells selected")}},
+            {QStringLiteral("table."), {QStringLiteral("the cursor in a table")}},
         };
         m_app.skipped = {};
         // What a command may leave as it is, where what it does has nothing to do.
         const QString menu = QStringLiteral("the name of a menu: its choices are the commands, and it has none of its own");
         m_app.quiet = {
-            {QStringLiteral("view.formulas@blank"), QStringLiteral("it shows the formulas in place of their values, and a blank sheet has none")},
             {QStringLiteral("cells.format"), menu},
             {QStringLiteral("formulas.options"), menu},
             {QStringLiteral("sheet.tabColor"), menu},
-            {QStringLiteral("filter.clear"), QStringLiteral("no filter is on, so none can be cleared")},
-            {QStringLiteral("filter.reapply"), QStringLiteral("no filter is on, so none can be applied again")},
-            {QStringLiteral("fmt.decimalDec"), QStringLiteral("the cells show no decimals to take one away from")},
-            {QStringLiteral("fmt.indentDec"), QStringLiteral("the cells have no indent to take away")},
-            {QStringLiteral("formulas.calcAuto"), QStringLiteral("the workbook calculates by itself already")},
-            {QStringLiteral("formulas.calculate"), QStringLiteral("every value is up to date, so a calculation changes none")},
-            {QStringLiteral("formulas.calculateSheet"), QStringLiteral("every value is up to date, so a calculation changes none")},
-            {QStringLiteral("formulas.removeArrows"), QStringLiteral("no arrows are drawn")},
-            {QStringLiteral("printarea.clear"), QStringLiteral("no print area is set")},
-            {QStringLiteral("sheet.unhide"), QStringLiteral("no sheet is hidden")},
-            {QStringLiteral("view.normal"), QStringLiteral("a window begins in the normal view")},
-            {QStringLiteral("view.pageBreaks"), QStringLiteral("the page lines are worked out for the printed pages, and a workbook this small has none to show")},
-            {QStringLiteral("view.unfreeze"), QStringLiteral("no rows or columns are held in place")},
-            {QStringLiteral("zoom.100"), QStringLiteral("a window begins at 100%")},
+            {QStringLiteral("sheet.unhide"), menu},
+            {QStringLiteral("view.pageBreaks"), QStringLiteral("the page lines it shows are drawn where a printed page ends, and what the sample holds fits one page")},
         };
+        m_app.neverRun = {};
     }
 
     // ---- 1. the first five minutes
@@ -209,17 +321,17 @@ private Q_SLOTS:
         std::unique_ptr<CrunchWindow> w(launchBlank());
         QStringList told;
         w->setNotifier([&](const QString &title, const QString &text) { told << title + QLatin1String(": ") + text; });
-        // A new window holds a workbook that is ready (NEEDS crunch-new: a real blank workbook), named for what it is.
-        QVERIFY2(w->hasWorkbook(), "NEEDS crunch-new: a window with no file holds no workbook, only an empty grid");
+        // A new window holds a workbook that is ready, named for what it is.
+        QVERIFY2(w->hasWorkbook(), "a window with no file holds no workbook, only an empty grid");
         QVERIFY(w->session() != nullptr);
         QVERIFY2(w->windowTitle().contains(w->displayName()), qPrintable(w->windowTitle()));
         QVERIFY(w->windowTitle().contains(QLatin1String("JeffCrunch")));
-        QVERIFY2(!saysNotYet(w->statusText()), qPrintable(QStringLiteral("NEEDS crunch-new: the status line says ") + w->statusText()));
+        QVERIFY2(!saysNotYet(w->statusText()), qPrintable(QStringLiteral("the status line says ") + w->statusText()));
         QVERIFY(!w->isModified());
 
         // Typing goes into the cells, a formula works, and the title shows the change.
         enter(w.get(), 0, 0, QStringLiteral("21"));
-        QVERIFY2(w->isModified(), "NEEDS crunch-new: typing into a window with no file changes nothing");
+        QVERIFY2(w->isModified(), "typing into a window with no file changes nothing");
         enter(w.get(), 0, 1, QStringLiteral("=A1*2"));
         QVERIFY(waitFor([&] { return quiet(w.get()); }));
         QCOMPARE(shown(w.get(), 0, 0), QStringLiteral("21"));
@@ -274,10 +386,10 @@ private Q_SLOTS:
         QVERIFY(!again->isModified());
         QCOMPARE(again->filePath(), path);
 
-        // File > New: a second window with a blank workbook of its own that takes typing (NEEDS crunch-new: there is no File > New).
+        // File > New: a second window with a blank workbook of its own that takes typing.
         const int windows = AppWindow::windows().size();
         QAction *fileNew = again->act(QStringLiteral("file.new"));
-        QVERIFY2(fileNew, "NEEDS crunch-new: JeffCrunch has no File > New");
+        QVERIFY2(fileNew, "JeffCrunch has no File > New");
         fileNew->trigger();
         drain();
         QCOMPARE(AppWindow::windows().size(), windows + 1);
@@ -303,7 +415,7 @@ private Q_SLOTS:
         QCOMPARE(screen->currentPage(), QStringLiteral("print"));
         QVERIFY(waitFor([&] {
             const QLabel *preview = screen->findChild<QLabel *>(QStringLiteral("printPreview"));
-            return preview && !preview->pixmap().isNull();
+            return preview && hasDrawnContent(preview->pixmap());
         }));
         again->hideFileScreen();
 
@@ -318,13 +430,16 @@ private Q_SLOTS:
     void aCallThatDoesNothingChangesNothing()
     {
         Watch watch;
-        std::unique_ptr<AppWindow> w(m_app.launch());
-        m_app.settle(w.get());
-        const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 300);
-        QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
+        for (bool fromFile : {false, true}) {
+            std::unique_ptr<AppWindow> w(fromFile ? m_app.launchWith(m_app.sampleFile) : m_app.launch());
+            QVERIFY(w);
+            m_app.settle(w.get());
+            const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 3000);
+            QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
+        }
     }
 
-    // No command on the ribbon is a stub that never works (a button that is dimmed for good, its tip saying it is not there yet), and no command that works says it does not.
+    // No command on the ribbon is a stub that never works (a button that is dimmed for good, its tip saying it is not there yet).
     void noRibbonCommandIsAStub()
     {
         std::unique_ptr<AppWindow> w(m_app.launch());
@@ -334,14 +449,14 @@ private Q_SLOTS:
         QVERIFY2(stubs.isEmpty(), qPrintable(stubs.join(QLatin1Char(' '))));
     }
 
-    // ---- 2. the standard commands (NEEDS crunch-new: Save, Save As, Undo, and Redo are dimmed with no workbook, and there is no New)
+    // ---- 2. the standard commands
     void standardCommands()
     {
         const QStringList fails = checkStandardCommands(m_app);
-        QVERIFY2(fails.isEmpty(), qPrintable(QStringLiteral("NEEDS crunch-new for what is about File > New and the dimmed commands of a window with no workbook:\n") + fails.join('\n')));
+        QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
     }
 
-    // ---- 3. every command (the blank window's commands NEED crunch-new: with no workbook they are dimmed, or say the workbook is still being opened)
+    // ---- 3. every command
     void everyCommandOnABlankDocument()
     {
         QStringList report;
@@ -356,6 +471,20 @@ private Q_SLOTS:
         QStringList report;
         const QStringList fails = runEveryAction(m_app, true, &report);
         qInfo("%s", qPrintable(report.last()));
+        if (qEnvironmentVariableIsSet("JP_CHECKS_REPORT")) qInfo("%s", qPrintable(report.join('\n')));
+        QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
+    }
+    // The commands that no test could enable in either state are named, each with the reason, and no more of them than the list says.
+    void commandsNeverRun()
+    {
+        QStringList report;
+        QStringList fails = checkNeverRun(m_app, &report);
+        // And none of them is on the ribbon, where a button that never works is a stub.
+        std::unique_ptr<AppWindow> w(m_app.launch());
+        for (const QToolButton *b : w->ribbon()->findChildren<QToolButton *>())
+            if (const QAction *a = b->defaultAction(); a && m_app.allIds.contains(a->objectName()) && !m_app.ran.contains(a->objectName()) && !m_app.skipped.contains(a->objectName()))
+                fails << QStringLiteral("%1 is on the ribbon, and no test could ever enable it").arg(a->objectName());
+        qInfo("%s", qPrintable(report.first()));
         if (qEnvironmentVariableIsSet("JP_CHECKS_REPORT")) qInfo("%s", qPrintable(report.join('\n')));
         QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
     }
