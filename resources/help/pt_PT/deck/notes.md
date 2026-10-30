@@ -23,8 +23,6 @@ Para imprimir os diapositivos com as respetivas notas por baixo, escolha **Pági
 
 Um diapositivo que duplique, ou que reutilize de outra apresentação, leva as notas consigo. Consulte [Adicionar, alterar e eliminar diapositivos](slides) e [Reutilizar diapositivos de outra apresentação](reuse).
 
-A **Página de Notas** no separador **Ver** destina-se a trabalhar nas notas com o formato de uma página impressa. Ainda não está disponível.
-
 ## Tópicos relacionados
 
 - [Reproduzir a apresentação de diapositivos e utilizar a Vista de Apresentador](show)

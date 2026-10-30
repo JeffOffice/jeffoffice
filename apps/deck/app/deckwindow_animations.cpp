@@ -345,6 +345,8 @@ void DeckWindow::createAnimationActions()
             m_animPane->setPlaying(shown);
         });
         connect(preview, &AnimationPreview::finished, preview, &QObject::deleteLater);
+        // (it plays the presentation it was made for: another one in its place ends it)
+        connect(m_ed, &Editor::documentReplaced, preview, &AnimationPreview::cancel);
         if (!preview->play(m_ed->currentPage(), area, row < 0 ? 0 : stepOfRow(seq, row))) {
             delete preview;
             statusBar()->showMessage(tr("This slide has no animation to play."), 4000);

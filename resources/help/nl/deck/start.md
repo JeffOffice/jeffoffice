@@ -37,7 +37,6 @@ Deze versie van JeffDeck is een **voorbeeldversie** (Preview). U kunt hem al voo
 
 - U kunt nog geen grafieken, SmartArt-diagrammen of vergelijkingen toevoegen of bewerken. Als een bestand ze bevat, toont JeffDeck ze en blijven ze behouden.
 - Animaties die starten wanneer u op een object klikt, animaties met geluid en kleuranimaties zijn niet beschikbaar. Als een bestand ze bevat, blijven ze behouden.
-- **Notitiepagina** en **Leesweergave** staan op het tabblad Beeld, maar zijn nog niet beschikbaar.
 - Sommige dia's zien er iets anders uit dan in het oorspronkelijke programma, meestal in oudere .ppt-bestanden.
 
 Wat JeffDeck niet kan weergeven, blijft bewaard. Bij het opslaan schrijft JeffDeck die onderdelen terug, zodat een bestand ze niet kwijtraakt.

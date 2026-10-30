@@ -23,8 +23,6 @@ To print the slides with their notes under them, choose **Notes Pages** on the P
 
 A slide you duplicate, or reuse from another presentation, takes its notes along. See [Add, change, and delete slides](slides) and [Reuse slides from another presentation](reuse).
 
-**Notes Page** on the **View** tab is for working on the notes in the shape of a printed page. It is not available yet.
-
 ## Related
 
 - [Play the slide show and use Presenter View](show)

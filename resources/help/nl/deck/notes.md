@@ -23,8 +23,6 @@ Als u de dia's wilt afdrukken met de notities eronder, kiest u **Notitiepagina's
 
 Een dia die u dupliceert of uit een andere presentatie opnieuw gebruikt, neemt de notities mee. Zie [Dia's toevoegen, wijzigen en verwijderen](slides) en [Dia's uit een andere presentatie opnieuw gebruiken](reuse).
 
-Met **Notitiepagina** op het tabblad **Beeld** werkt u aan de notities in de vorm van een afgedrukte pagina. Deze functie is nog niet beschikbaar.
-
 ## Verwante onderwerpen
 
 - [De diavoorstelling afspelen en de presentatorweergave gebruiken](show)

@@ -37,7 +37,6 @@ Esta versão do JeffDeck é uma versão de **Visualização**. Ela está pronta 
 
 - Não é possível adicionar nem editar gráficos, diagramas SmartArt ou equações. Se um arquivo os tiver, o JeffDeck os mostra e os mantém.
 - Animações que começam quando você clica em um objeto, animações com sons e animações de cor não estão disponíveis. Se um arquivo as tiver, o JeffDeck as mantém.
-- **Anotações** e **Modo de Exibição de Leitura** estão na guia Exibir, mas ainda não estão disponíveis.
 - Alguns slides ficam um pouco diferentes do modo como o programa original os desenha, principalmente em arquivos .ppt mais antigos.
 
 O JeffDeck mantém o que não consegue mostrar. Ele grava essas partes de volta ao salvar, para que um arquivo que as contenha não as perca.

@@ -23,8 +23,6 @@ Pour imprimer les diapositives avec leurs commentaires en dessous, choisissez **
 
 Une diapositive que vous dupliquez, ou que vous réutilisez depuis une autre présentation, conserve ses commentaires. Consultez [Ajouter, modifier et supprimer des diapositives](slides) et [Réutiliser des diapositives d'une autre présentation](reuse).
 
-La commande **Page de notes** de l'onglet **Affichage** permet de travailler sur les commentaires sous la forme d'une page imprimée. Elle n'est pas encore disponible.
-
 ## Voir aussi
 
 - [Lancer le diaporama et utiliser le mode Présentateur](show)

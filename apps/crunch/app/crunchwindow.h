@@ -429,7 +429,6 @@ protected:
 private:
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn, bool checkable = false, bool enabled = true);
     void createActions();
-    void createDisabledActions();
     void buildRibbon();
     void ribbonParts(RibbonParts &parts);
     void buildCentral();

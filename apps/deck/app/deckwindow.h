@@ -75,6 +75,8 @@ public:
     Editor *editor() const { return m_ed; }
     DeckCanvas *canvas() const { return m_canvas; }
     SlidesPane *slidesPane() const { return m_slides; }
+    // Brings the commands up to date with the selection at once (the window does it a moment after a change; a test does not wait for the moment).
+    void refreshNow() { refreshUi(); }
     NotesPane *notesPane() const { return m_notes; }
     CommentsPane *commentsPane() const { return m_comments; }
     SlideShow *slideShow() const { return m_show; }

@@ -23,8 +23,6 @@ Per stampare le diapositive con le relative note sotto, scegliere **Pagine note*
 
 Una diapositiva duplicata o riutilizzata da un'altra presentazione porta con sé le proprie note. Vedere [Aggiungere, modificare ed eliminare diapositive](slides) e [Riutilizzare diapositive da un'altra presentazione](reuse).
 
-Il comando **Pagina note** nella scheda **Visualizza** serve a lavorare sulle note nel formato di una pagina stampata. Non è ancora disponibile.
-
 ## Argomenti correlati
 
 - [Avviare la presentazione e usare la Visualizzazione Relatore](show)

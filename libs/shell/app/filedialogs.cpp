@@ -17,6 +17,8 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QGridLayout>
+#include <QGuiApplication>
+#include <QPrintDialog>
 #include <QLabel>
 #include <QRegularExpression>
 #include <QStandardPaths>
@@ -30,7 +32,27 @@
 
 namespace jp {
 
+namespace {
+std::function<QString(const QString &, const QString &, const QString &, QString *)> g_savePathStandIn;
+}
+
+std::function<int(QPrintDialog &)> g_printStandIn;
+
+void setPrintDialogStandIn(const std::function<int(QPrintDialog &)> &standIn) { g_printStandIn = standIn; }
+
+int execPrintDialog(QPrintDialog &dialog)
+{
+    if (g_printStandIn) return g_printStandIn(dialog);
+    if (QGuiApplication::platformName() == QLatin1String("offscreen")) return QDialog::Rejected;
+    return dialog.exec();
+}
+
+void setSavePathStandIn(const std::function<QString(const QString &caption, const QString &suggested, const QString &filter, QString *selectedFilter)> &standIn) { g_savePathStandIn = standIn; }
+
 #ifdef Q_OS_WIN
+// The system's dialogs need a screen to be shown on and a person to answer them; the offscreen display (the tests) has neither, so its windows use Qt's own, which can be closed.
+static bool systemDialogs() { return QGuiApplication::platformName() != QLatin1String("offscreen"); }
+
 // Returns false only when the system dialog couldn't be created at all.
 static bool windowsSaveDialog(QWidget *parent, const QString &caption, const QString &dir, const QString &name, const QString &filter,
                               const QString &suffix, QString *selectedFilter, QString *out)
@@ -89,6 +111,7 @@ static bool windowsSaveDialog(QWidget *parent, const QString &caption, const QSt
 
 QString askSavePath(QWidget *parent, const QString &caption, const QString &suggested, const QString &filter, QString *selectedFilter)
 {
+    if (g_savePathStandIn) return g_savePathStandIn(caption, suggested, filter, selectedFilter);
     auto exists = [](const QString &d) { return !d.isEmpty() && QDir(d).exists(); };
     const QFileInfo fi(suggested);
     QString dir = suggested.contains('/') || suggested.contains('\\') ? fi.absolutePath() : QString();
@@ -104,7 +127,7 @@ QString askSavePath(QWidget *parent, const QString &caption, const QString &sugg
         if (m.hasMatch()) suffix = m.captured(1);
     }
 #ifdef Q_OS_WIN
-    {
+    if (systemDialogs()) {
         QString out;
         if (windowsSaveDialog(parent, caption, dir, name, filter, suffix, selectedFilter, &out)) {
             if (!out.isEmpty()) Settings::get().setValue(QStringLiteral("ui/lastSaveDir"), QFileInfo(out).absolutePath());
@@ -207,7 +230,7 @@ QStringList askPicturePaths(QWidget *parent, const QString &caption, const QStri
     const QStringList choices{QCoreApplication::translate("FileDialogs", "Insert"), QCoreApplication::translate("FileDialogs", "Link to File"),
                               QCoreApplication::translate("FileDialogs", "Insert and Link")};
 #ifdef Q_OS_WIN
-    if (how) {
+    if (how && systemDialogs()) {
         QStringList files;
         int choice = 0;
         if (windowsPictureDialog(parent, caption, dir, filter, several, label, choices, &choice, &files)) {

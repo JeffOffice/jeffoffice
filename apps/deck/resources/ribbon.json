@@ -886,14 +886,6 @@
             {
               "large": "view.sorter",
               "keytip": "SB"
-            },
-            {
-              "large": "view.notesPage",
-              "keytip": "PN"
-            },
-            {
-              "large": "view.reading",
-              "keytip": "RV"
             }
           ]
         },
@@ -1079,10 +1071,6 @@
               },
               "keytip": "FN",
               "menu": "@masterFonts"
-            },
-            {
-              "large": "master.effects",
-              "keytip": "EF"
             }
           ]
         },

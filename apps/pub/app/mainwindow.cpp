@@ -66,6 +66,7 @@
 #include <QPainter>
 #include <QPdfWriter>
 #include <QPrintDialog>
+#include "app/filedialogs.h"
 #include <QPrinter>
 #include <QSlider>
 #include <QSplitter>
@@ -1354,7 +1355,7 @@ void MainWindow::printPublication()
     QPrintDialog dlg(&printer, this);
     dlg.setOption(QAbstractPrintDialog::PrintPageRange);
     dlg.setOption(QAbstractPrintDialog::PrintCurrentPage);
-    if (dlg.exec() != QDialog::Accepted) return;
+    if (execPrintDialog(dlg) != QDialog::Accepted) return;
     printDocument(m_ed, &printer, QJsonObject());
 }
 

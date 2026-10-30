@@ -51,10 +51,6 @@ void DeckWindow::createViewModeActions()
     view("view.outline", tr("Outline View"), "list-tree", View::Outline);
     view("view.sorter", tr("Slide Sorter"), "layout-grid", View::Sorter);
     view("view.master", tr("Slide Master"), "layout-template", View::Master);
-    for (QAction *a : {view("view.notesPage", tr("Notes Page"), "notebook-text", View::Normal), view("view.reading", tr("Reading View"), "book-open", View::Normal)}) {
-        a->setEnabled(false);
-        a->setToolTip(jp::plainToolTip(tr("%1 is coming.").arg(a->text())));
-    }
 
     connect(m_sorter, &SlideSorter::openRequested, this, [this](int slide) {
         m_ed->setCurrentPage(slide);

@@ -36,7 +36,6 @@ The file you work on is called a **presentation**. It is a set of **slides**. Je
 
 - You can't add or edit charts, SmartArt diagrams, or equations. If a file has them, JeffDeck shows them and keeps them.
 - Animations that start when you click an object, animations with sounds, and color animations are not available. If a file has them, JeffDeck keeps them.
-- **Notes Page** and **Reading View** are on the View tab, but they are not available yet.
 - Some slides look a little different from the way the original program draws them.
 
 JeffDeck keeps what it can't show. It writes those parts back when you save, so a file that has them does not lose them.

@@ -83,7 +83,9 @@ void MainWindow::createActions()
     mk("file.properties", tr("Properties"), "info", QKeySequence(), [this] { documentPropertiesDialog(this, m_ed); });
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] { optionsDialog(this, m_ed); });
     mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [ed] { ed->undo(); });
+    // Ctrl+Y is Publisher's, and the system's own key (Cmd+Shift+Z on a Mac) works as well.
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence(Qt::CTRL | Qt::Key_Y), [ed] { ed->redo(); });
+    if (const QKeySequence systemRedo(QKeySequence::Redo); systemRedo != QKeySequence(Qt::CTRL | Qt::Key_Y)) act("edit.redo")->setShortcuts({QKeySequence(Qt::CTRL | Qt::Key_Y), systemRedo});
 
     // ---------------- Clipboard ----------------
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [ed] { ed->cut(); });
@@ -166,10 +168,20 @@ void MainWindow::createActions()
     }, true);
     const QString caseNames[] = {tr("Sentence case."), tr("lowercase"), tr("UPPERCASE"), tr("Capitalize Each Word"), tr("tOGGLE cASE")};
     for (int i = 0; i < 5; ++i) mk(QStringLiteral("case.%1").arg(i), caseNames[i], "", QKeySequence(), [ed, i] { ed->changeCase(i); });
-    mk("case.cycle", tr("Change Case"), "case-sensitive", QKeySequence(Qt::SHIFT | Qt::Key_F3), [ed] {
-        static int next = 0;
-        ed->changeCase(next);
-        next = (next + 1) % 3;
+    // Shift+F3 goes lower case, UPPER CASE, then Sentence case, from what the words are now (one press of it always changes them, whatever was done before, in this
+    // window or another). With no words being edited, the objects selected go round in that order.
+    mk("case.cycle", tr("Change Case"), "case-sensitive", QKeySequence(Qt::SHIFT | Qt::Key_F3), [ed, objectStep = std::make_shared<int>(0)] {
+        int mode = *objectStep;
+        if (ed->isEditingText()) {
+            QTextCursor c = ed->cursor();
+            if (!c.hasSelection()) c.select(QTextCursor::WordUnderCursor);
+            const QString text = c.selectedText();
+            // lower goes to UPPER, UPPER to Sentence, and anything else to lower
+            mode = text.isEmpty() ? 1 : text == text.toLower() ? 2 : text == text.toUpper() ? 0 : 1;
+        } else {
+            *objectStep = (*objectStep + 1) % 3;
+        }
+        ed->changeCase(mode);
     });
     // Tracking presets, as percentages of normal letter spacing.
     struct Spacing { const char *id; QString name; double pct; };

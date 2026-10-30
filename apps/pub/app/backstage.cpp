@@ -41,6 +41,7 @@
 #include <QListWidget>
 #include <QPainter>
 #include <QPrintDialog>
+#include "app/filedialogs.h"
 #include <QPrinter>
 #include <QPrinterInfo>
 #include <QPushButton>
@@ -830,6 +831,7 @@ QWidget *Backstage::buildPrint()
     // Preview with page navigation.
     auto *right = new QVBoxLayout();
     auto *preview = new QLabel(w);
+    preview->setObjectName(QStringLiteral("printPreview"));
     preview->setMinimumSize(420, 520);
     preview->setAlignment(Qt::AlignCenter);
     auto *nav = new QHBoxLayout();
@@ -1005,7 +1007,7 @@ QWidget *Backstage::buildPrint()
         QPrinter p(QPrinter::HighResolution);
         if (!setup(p)) return;
         QPrintDialog dlg(&p, this);
-        dlg.exec();
+        execPrintDialog(dlg);
     });
     connect(printBtn, &QPushButton::clicked, this, [=] {
         QPrinter p(QPrinter::HighResolution);

@@ -37,7 +37,6 @@ Diese Version von JeffDeck ist eine **Vorschauversion** (Preview). Sie können s
 
 - Sie können keine Diagramme, SmartArt-Grafiken oder Formeln hinzufügen oder bearbeiten. Wenn eine Datei solche enthält, zeigt JeffDeck sie an und behält sie bei.
 - Animationen, die beim Klicken auf ein Objekt starten, Animationen mit Sounds und Farbanimationen sind nicht verfügbar. Wenn eine Datei solche enthält, behält JeffDeck sie bei.
-- **Notizenseite** und **Leseansicht** befinden sich auf der Registerkarte **Ansicht**, sind aber noch nicht verfügbar.
 - Manche Folien sehen etwas anders aus als im ursprünglichen Programm, am häufigsten in älteren PPT-Dateien.
 
 JeffDeck behält bei, was es nicht anzeigen kann. Es schreibt diese Teile beim Speichern zurück, sodass sie in der Datei nicht verloren gehen.

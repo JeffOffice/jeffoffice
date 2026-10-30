@@ -23,8 +23,6 @@ Um die Folien mit den Notizen darunter zu drucken, wählen Sie auf der Seite „
 
 Eine Folie, die Sie duplizieren oder aus einer anderen Präsentation wiederverwenden, nimmt ihre Notizen mit. Siehe [Folien hinzufügen, ändern und löschen](slides) und [Folien aus einer anderen Präsentation wiederverwenden](reuse).
 
-**Notizenseite** auf der Registerkarte **Ansicht** dient dazu, die Notizen in Form einer gedruckten Seite zu bearbeiten. Diese Funktion ist noch nicht verfügbar.
-
 ## Verwandte Themen
 
 - [Bildschirmpräsentation vorführen und Referentenansicht verwenden](show)

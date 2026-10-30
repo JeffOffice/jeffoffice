@@ -321,7 +321,7 @@ bool DeckWindow::printOutput(const deck::OutputOptions &options)
     setUpPrinter(&printer, doc, options);
     QPrintDialog dlg(&printer, this);
     dlg.setWindowTitle(tr("Print"));
-    if (dlg.exec() != QDialog::Accepted) return false;
+    if (execPrintDialog(dlg) != QDialog::Accepted) return false;
     QApplication::setOverrideCursor(Qt::WaitCursor);
     paintOnPrinter(&printer, doc, &m_ed->cache(), options);
     QApplication::restoreOverrideCursor();
