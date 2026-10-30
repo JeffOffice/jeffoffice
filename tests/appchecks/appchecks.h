@@ -77,6 +77,12 @@ struct Adapter {
     std::function<QString(jp::AppWindow *)> docState;
     // Types a few words into the document, as a person does: the cells of a sheet, the text of a page.
     std::function<void(jp::AppWindow *)> type;
+    // Reads a file the program wrote again, as the program would open it (the reason it can't, or nothing when it can or when the program has no way to open that kind).
+    std::function<QString(const QString &path)> reopen;
+    // Shows the File screen's Print page of the window, and gives the screen.
+    std::function<QWidget *(jp::AppWindow *)> showPrint;
+    // The commands whose shortcut is not tried (pressing it twice is not safe), with the reason.
+    QHash<QString, QString> keySkipped;
     // Waits until the window has nothing going on.
     std::function<void(jp::AppWindow *)> settle;
     // Puts the app's message boxes of "told" kind (the notifier) into the watch.
@@ -157,6 +163,7 @@ struct Outcome {
     QStringList warnings;
     QStringList dialogs;
     QStringList offered;    // the kinds of file a save dialog offered
+    QStringList written;    // the files it wrote (with something in them)
     int windows = 0;        // windows it opened (closed again)
 };
 // Runs `doIt` and watches the window: it waits (on conditions, to `ceiling` ms) for something to change unless `quiet`. What counts as a change is what a person could act on: a dialog that asks, a file
@@ -189,6 +196,9 @@ QStringList filesNow();
 
 // Whether the picture has something drawn on it (more than one color).
 bool hasDrawnContent(const QPixmap &picture);
+// The print preview of the window (its Print page shown, the page waited for), and whether it shows more than the preview of a blank document of the app does.
+QPixmap printPreviewOf(Adapter &app, jp::AppWindow *w);
+bool previewShowsTheDocument(Adapter &app, jp::AppWindow *w);
 
 // Whether a File screen's Open page lists the file among the recent ones (a list whose entries carry the file's path).
 bool listsRecentFile(QWidget *screen, const QString &path);

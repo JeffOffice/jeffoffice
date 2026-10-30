@@ -11,7 +11,9 @@
 #include "core/document.h"
 #include "core/fonts.h"
 #include "io/jpubfile.h"
+#include "io/pubimport.h"
 #include "templates/templates.h"
+#include "text/textprops.h"
 #include "testrunner.h"
 
 #include <QClipboard>
@@ -97,6 +99,17 @@ private Q_SLOTS:
             typeInto(asPub(w)->canvas(), QStringLiteral("Some words"));
             asPub(w)->editor()->flushTyping();   // (as a pause in typing does)
         };
+        m_app.showPrint = [](AppWindow *w) -> QWidget * {
+            w->act(QStringLiteral("file.print"))->trigger();
+            return w->findChild<Backstage *>();
+        };
+        m_app.reopen = [](const QString &path) -> QString {
+            const QString ending = QFileInfo(path).suffix().toLower();
+            QString err;
+            if (ending == QLatin1String("jpub")) return loadPublication(path, &err) ? QString() : err.isEmpty() ? QStringLiteral("it is not read") : err;
+            if (ending == QLatin1String("pub")) return importPublisherFile(path, &err) ? QString() : err.isEmpty() ? QStringLiteral("it is not read") : err;
+            return {};
+        };
         m_app.settle = [](AppWindow *w) {
             // (the window brings its commands up to date 30 ms after a change: done now, the timer finds nothing to change)
             drain();
@@ -167,6 +180,8 @@ private Q_SLOTS:
             w->editor()->endTextEdit();
             w->editor()->setTool(Tool::Select);
             w->editor()->clearSelection();
+            w->editor()->painterItem = QJsonObject();   // (formatting copied in the window that was put back)
+            w->editor()->painterHasText = false;
             QString error;
             if (fromFile) w->editor()->setDocument(loadPublication(m_app.sampleFile, &error), m_app.sampleFile);
             else w->newPublication(Document::blank(QSizeF(612, 792)));
@@ -305,8 +320,17 @@ private Q_SLOTS:
                      d->merge.include = {true, true};
                  }
              }, false},
-            {QStringLiteral("a table of contents in the publication"), [](AppWindow *aw, bool) {
+            {QStringLiteral("a table of contents out of date"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
                  asPub(aw)->act(QStringLiteral("ins.toc"))->trigger();
+                 // (a heading is written after the table was made)
+                 const QString id = ed->addItem(ed->newTextBox(QRectF(60, 600, 300, 40), QStringLiteral("Chapter one")));
+                 QTextDocument *story = ed->doc()->storyDoc(static_cast<TextItem *>(ed->doc()->item(id))->storyId);
+                 QTextCursor c(story);
+                 QTextBlockFormat bf = c.blockFormat();
+                 bf.setProperty(tp::StyleName, QStringLiteral("Heading 1"));
+                 c.setBlockFormat(bf);
+                 ed->select(id);
              }, false},
             {QStringLiteral("two pictures selected"), [](AppWindow *aw, bool) {
                  auto *w = asPub(aw);
@@ -374,10 +398,20 @@ private Q_SLOTS:
                      for (auto &st : ed->doc()->styles) st.chr.setFontFamilies({QStringLiteral("Arial")});
                  });
              }, false},
-            {QStringLiteral("formatting copied"), [aBox](AppWindow *aw, bool f) {
+            {QStringLiteral("formatting copied from bold words"), [aBox](AppWindow *aw, bool f) {
+                 auto *w = asPub(aw);
                  aBox(aw, f, true);
-                 asPub(aw)->refreshUi();
-                 asPub(aw)->act(QStringLiteral("edit.copyFormat"))->trigger();
+                 w->refreshUi();
+                 w->act(QStringLiteral("fmt.bold"))->trigger();
+                 w->refreshUi();
+                 w->act(QStringLiteral("edit.copyFormat"))->trigger();
+                 // (and other words, which have none of it)
+                 Editor *ed = w->editor();
+                 const QString other = ed->addItem(ed->newTextBox(QRectF(300, 500, 200, 40), QStringLiteral("Other words")));
+                 ed->beginTextEdit(other, 0);
+                 QTextCursor c = ed->cursor();
+                 c.select(QTextCursor::Document);
+                 ed->setCursor(c);
              }, false},
             {QStringLiteral("a change to undo"), [](AppWindow *aw, bool) {
                  auto shape = std::make_shared<ShapeItem>();
@@ -454,10 +488,10 @@ private Q_SLOTS:
             {QStringLiteral("arr."), {QStringLiteral("three shapes selected"), QStringLiteral("a group selected"), QStringLiteral("objects just ungrouped")}},
             {QStringLiteral("page."), {aStyledPage}},
             {QStringLiteral("tb."), {QStringLiteral("a story in two linked boxes"), QStringLiteral("the second of two linked boxes")}},
-            {QStringLiteral("edit.pasteFormat"), {QStringLiteral("formatting copied")}},
+            {QStringLiteral("edit.pasteFormat"), {QStringLiteral("formatting copied from bold words")}},
             {QStringLiteral("dash"), {QStringLiteral("a line with arrows and dashes"), QStringLiteral("a line selected")}},
             {QStringLiteral("arrow"), {QStringLiteral("a line with arrows and dashes"), QStringLiteral("a line selected")}},
-            {QStringLiteral("ins.updateToc"), {QStringLiteral("a table of contents in the publication")}},
+            {QStringLiteral("ins.updateToc"), {QStringLiteral("a table of contents out of date")}},
         };
         m_app.skipped = {};
         m_app.quiet = {
@@ -465,7 +499,6 @@ private Q_SLOTS:
             {QStringLiteral("tb.textFit"), QStringLiteral("the name of a menu: its choices are the commands, and it has none of its own")},
             {QStringLiteral("arr.relMargins"), QStringLiteral("a setting that only the next Align reads: its check mark is all of it")},
             {QStringLiteral("win.cascade"), QStringLiteral("it places the open windows, and there is one")},
-            {QStringLiteral("ins.updateToc"), QStringLiteral("a table of contents that is up to date has nothing to change")},
         };
         m_app.neverRun = {};
     }
@@ -564,15 +597,11 @@ private Q_SLOTS:
         second->setAttribute(Qt::WA_DeleteOnClose, false);
         delete second;
 
-        // The print layout: the File screen's Print page, with the page drawn.
-        again->act(QStringLiteral("file.print"))->trigger();
+        // The print layout: the File screen's Print page, with the publication's page drawn (not a blank one).
+        QVERIFY2(previewShowsTheDocument(m_app, again.get()), "the print preview shows no more than a blank page");
         backstage = again->findChild<Backstage *>();
         QVERIFY(backstage && backstage->isVisible());
         QCOMPARE(backstage->currentPage(), QStringLiteral("print"));
-        QVERIFY(waitFor([&] {
-            const QLabel *preview = backstage->findChild<QLabel *>(QStringLiteral("printPreview"));
-            return preview && hasDrawnContent(preview->pixmap());
-        }));
         again->hideBackstage();
 
         // An unchanged publication goes without a question.

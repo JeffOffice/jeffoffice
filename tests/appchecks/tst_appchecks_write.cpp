@@ -64,6 +64,19 @@ private Q_SLOTS:
             asWrite(w)->refreshNow();
             drain();
         };
+        m_app.showPrint = [](AppWindow *w) -> QWidget * {
+            w->act(QStringLiteral("file.print"))->trigger();
+            return w->findChild<FileScreen *>();
+        };
+        m_app.reopen = [](const QString &path) -> QString {
+            const QString ending = QFileInfo(path).suffix().toLower();
+            if (ending != QLatin1String("docx") && ending != QLatin1String("dotx")) return {};
+            QFile f(path);
+            if (!f.open(QIODevice::ReadOnly)) return QStringLiteral("it can't be opened");
+            QString err;
+            QStringList notes;
+            return write::WriteDoc::fromFile(f.readAll(), &err, &notes) ? QString() : err.isEmpty() ? QStringLiteral("it is not read") : err;
+        };
         m_app.listen = [](AppWindow *w, Watch *watch) {
             asWrite(w)->setNotifier([watch](const QString &title, const QString &text) { watch->told << title + QLatin1String(": ") + text; });
             // (Save As and the exports ask the save dialog, which the watch stands in for)
@@ -227,15 +240,11 @@ private Q_SLOTS:
         second->setAttribute(Qt::WA_DeleteOnClose, false);
         delete second;
 
-        // The print layout: the File screen's Print page, with the page drawn.
-        again->act(QStringLiteral("file.print"))->trigger();
+        // The print layout: the File screen's Print page, with the document's page drawn (not a blank one).
+        QVERIFY2(previewShowsTheDocument(m_app, again.get()), "the print preview shows no more than a blank page");
         auto *screen = again->findChild<FileScreen *>();
         QVERIFY(screen);
         QCOMPARE(screen->currentPage(), QStringLiteral("print"));
-        QVERIFY(waitFor([&] {
-            const QLabel *preview = screen->findChild<QLabel *>(QStringLiteral("printPreview"));
-            return preview && hasDrawnContent(preview->pixmap());
-        }));
         again->hideFileScreen();
 
         // An unchanged document goes without a question.

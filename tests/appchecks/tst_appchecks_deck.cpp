@@ -93,6 +93,15 @@ private Q_SLOTS:
             typeInto(asDeck(w)->canvas(), QStringLiteral("Some words"));
             asDeck(w)->editor()->flushTyping();   // (as a pause in typing does)
         };
+        m_app.showPrint = [](AppWindow *w) -> QWidget * {
+            w->act(QStringLiteral("file.print"))->trigger();
+            return w->findChild<FileScreen *>();
+        };
+        m_app.reopen = [](const QString &path) -> QString {
+            if (QFileInfo(path).suffix().toLower() != QLatin1String("pptx")) return {};
+            QString err;
+            return deck::importPresentationFile(path, &err) ? QString() : err.isEmpty() ? QStringLiteral("it is not read") : err;
+        };
         m_app.settle = [](AppWindow *w) {
             drain();
             asDeck(w)->refreshNow();
@@ -326,7 +335,8 @@ private Q_SLOTS:
                  }
              }, false},
         };
-        m_app.prepare = [](AppWindow *, const QString &id, bool) {
+        m_app.prepare = [](AppWindow *w, const QString &id, bool) {
+            asDeck(w)->showFormatPane(false);   // (the pane is open or shut as the person left it, in the next window too)
             if (id == QLatin1String("edit.paste")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
         };
         m_app.skipped = {};
@@ -419,15 +429,11 @@ private Q_SLOTS:
         second->setAttribute(Qt::WA_DeleteOnClose, false);
         delete second;
 
-        // The print layout: the File screen's Print page, with the slide drawn.
-        again->act(QStringLiteral("file.print"))->trigger();
+        // The print layout: the File screen's Print page, with the slide drawn (not a blank one).
+        QVERIFY2(previewShowsTheDocument(m_app, again.get()), "the print preview shows no more than a blank slide");
         auto *screen = again->findChild<FileScreen *>();
         QVERIFY(screen && screen->isVisible());
         QCOMPARE(screen->currentPage(), QStringLiteral("print"));
-        QVERIFY(waitFor([&] {
-            const QLabel *preview = screen->findChild<QLabel *>(QStringLiteral("printPreview"));
-            return preview && hasDrawnContent(preview->pixmap());
-        }));
         again->hideFileScreen();
 
         // An unchanged presentation goes without a question.

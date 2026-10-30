@@ -12,6 +12,8 @@
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "core/editsession.h"
+#include "office/package.h"
+#include "sheet/sheetreader.h"
 #include "crunch/editwindow.h"
 #include "grid/gridview.h"
 #include "grid/pagelayoutview.h"
@@ -95,6 +97,19 @@ private Q_SLOTS:
             return w;
         };
         m_app.type = [](AppWindow *w) { enter(asCrunch(w), 0, 0, QStringLiteral("12")); };
+        m_app.showPrint = [](AppWindow *w) -> QWidget * {
+            w->act(QStringLiteral("file.print"))->trigger();
+            return w->findChild<FileScreen *>();
+        };
+        m_app.reopen = [](const QString &path) -> QString {
+            const QString ending = QFileInfo(path).suffix().toLower();
+            if (ending != QLatin1String("xlsx") && ending != QLatin1String("xlsm")) return {};
+            jp::office::Package p;
+            QString why;
+            if (!p.readLazyFile(path, &why)) return why.isEmpty() ? QStringLiteral("it is not read") : why;
+            jp::office::sheet::Workbook b;
+            return b.open(p, &why) ? QString() : why.isEmpty() ? QStringLiteral("it is not a workbook") : why;
+        };
         m_app.settle = [](AppWindow *w) {
             waitFor([&] { return quiet(asCrunch(w)); });
             drain();
@@ -118,7 +133,7 @@ private Q_SLOTS:
                 s += w->snapshotBytesForTest(&bytes, &why) ? QLatin1Char('|') + zipDigest(bytes) : QLatin1Char('|') + why;
             }
             const grid::GridView::ViewState v = w->view()->viewState();
-            s += QStringLiteral("|arrows%1|formulas%2").arg(w->arrowCount()).arg(w->view()->sheet().showFormulas());
+            s += QStringLiteral("|arrows%1|formulas%2|breaks%3,%4|painter%5").arg(w->arrowCount()).arg(w->view()->sheet().showFormulas()).arg(w->view()->pageBreakRows().size()).arg(w->view()->pageBreakCols().size()).arg(w->formatPainterActive());
             return s + QStringLiteral("|%1|%2,%3|%4,%5|%6,%7|%8").arg(w->view()->zoom()).arg(v.frozenRows).arg(v.frozenCols).arg(v.scrollX).arg(v.scrollY).arg(v.gridlines).arg(v.headings).arg(w->view()->rangeName());
         };
         // The sample: a small workbook built here (numbers, text, formulas), written to a file.
@@ -232,6 +247,19 @@ private Q_SLOTS:
                 w->view()->selectRange(0, 0, 1, 1);
                 w->act(QStringLiteral("printarea.set"))->trigger();
             }),
+            in(QStringLiteral("a sheet that runs over a page"), [](CrunchWindow *w) {
+                w->setSizeAsker([](CrunchWindow::SizeRequest *r) {
+                    r->value = 400;
+                    return true;
+                });
+                w->view()->selectRows(0, 5);
+                w->act(QStringLiteral("format.rowHeight"))->trigger();
+                waitFor([&] { return quiet(w); });
+                // (the page layout, seen once, has the page lines worked out)
+                w->act(QStringLiteral("view.pageLayout"))->trigger();
+                w->act(QStringLiteral("view.normal"))->trigger();
+                waitFor([&] { return quiet(w); });
+            }),
             in(QStringLiteral("a cell with a note"), [](CrunchWindow *w) {
                 w->session()->setNote(0, 0, 0, QStringLiteral("A note"), QStringLiteral("me"), false, QStringLiteral("Add Note"));
                 w->view()->selectCell(0, 0);
@@ -300,6 +328,7 @@ private Q_SLOTS:
             {QStringLiteral("format.unhide"), {QStringLiteral("a hidden row and column, around them selected")}},
             {QStringLiteral("fmt.merge"), {QStringLiteral("a merged block"), QStringLiteral("a block of cells selected")}},
             {QStringLiteral("table."), {QStringLiteral("the cursor in a table")}},
+            {QStringLiteral("view.pageBreaks"), {QStringLiteral("a sheet that runs over a page")}},
         };
         m_app.skipped = {};
         // What a command may leave as it is, where what it does has nothing to do.
@@ -309,7 +338,6 @@ private Q_SLOTS:
             {QStringLiteral("formulas.options"), menu},
             {QStringLiteral("sheet.tabColor"), menu},
             {QStringLiteral("sheet.unhide"), menu},
-            {QStringLiteral("view.pageBreaks"), QStringLiteral("the page lines it shows are drawn where a printed page ends, and what the sample holds fits one page")},
         };
         m_app.neverRun = {};
     }
@@ -408,15 +436,11 @@ private Q_SLOTS:
         second->setAttribute(Qt::WA_DeleteOnClose, false);
         delete second;
 
-        // The print layout: the File screen's Print page, with the sheet drawn.
-        again->act(QStringLiteral("file.print"))->trigger();
+        // The print layout: the File screen's Print page, with the sheet drawn (not a blank one).
+        QVERIFY2(previewShowsTheDocument(m_app, again.get()), "the print preview shows no more than a blank page");
         auto *screen = again->findChild<FileScreen *>();
         QVERIFY(screen && screen->isVisible());
         QCOMPARE(screen->currentPage(), QStringLiteral("print"));
-        QVERIFY(waitFor([&] {
-            const QLabel *preview = screen->findChild<QLabel *>(QStringLiteral("printPreview"));
-            return preview && hasDrawnContent(preview->pixmap());
-        }));
         again->hideFileScreen();
 
         // An unchanged workbook goes without a question.

@@ -139,6 +139,7 @@ jobs:
           if command -v ccache >/dev/null 2>&1; then ccache --show-stats; fi
 
       - name: Test
+        timeout-minutes: 45
         shell: bash
         run: |
           # Windows runners drop this program's console output, so results also go to a file.
@@ -160,7 +161,8 @@ jobs:
           echo "jptests exit code: $code"
           # A crash: the tests again under the system's debugger, for the
           # stack (a crash can depend on the tests before it).
-          if [ "$code" -ge 128 ]; then
+          # (a crash is a failure with no QtTest totals line: the exit code of a native crash can reach bash cut short, so it is not what says so)
+          if [ "$code" -ne 0 ] && ! grep -q "Totals:" test-results.txt 2>/dev/null; then
             echo "--- stack of the crash"
             if [ "$RUNNER_OS" = "macOS" ]; then
               lldb --batch -o run -k "thread backtrace all -c 30" -- "$T" -silent 2>&1 | tail -120
@@ -243,7 +245,7 @@ jobs:
             echo "$N exit code: $ncode"
             if [ "$ncode" -ne 0 ]; then echo "--- $N.log (the end)"; tail -60 $N.log; fi
             # A crash: the program again under the system's debugger, for the stack (a crash can depend on the commands before it; the stack of the first one is in the log).
-            if [ "$ncode" -ge 128 ]; then
+            if [ "$ncode" -ne 0 ] && ! grep -q "Totals:" $N-results.txt 2>/dev/null; then
               echo "--- stack of the crash of $N"
               if [ "$RUNNER_OS" = "Windows" ]; then P=build/$N.exe; else P=build/$N; fi
               if [ "$RUNNER_OS" = "macOS" ]; then
