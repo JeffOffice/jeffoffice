@@ -72,16 +72,9 @@ void EditSession::compactLinesFor(const StructEdit &edit)
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
     if (!hold) return;
     letGoOfLines(hold->calculation());
-    if (hold->calculation()->idFrame() && !m_fileOrderLost) {
-        // (the ids are about to be numbered by the places they are at: the formulas whose text is not the file's now are marked, as the file will have them written whole; the numbering is the file's no more)
-        const Calculation *calc = hold->calculation();
-        for (int sheet = 0; sheet < calc->sheetCount(); ++sheet)
-            calc->sheet(sheet).cells.forEach([&](quint32, quint32, const Cell &c) {
-                if (c.hasFormula() && calc->formulaTextDiffersFromTheFile(sheet, c)) m_touched.insert(keyOf(sheet, c.rowId, c.colId));
-            });
-    }
     std::vector<jp::calc::LineMapCore::Renumber> table;
     if (!hold->calculation()->compactLines(edit.sheet, rows, &table) || table.empty()) return;
+    m_fileOrderLost = true;   // (the ids are numbered by the places they are at: the text of a formula is the file's no more, as far as the ids can tell)
     // (what is held by the ids of the order's lines is renumbered with them: the window's values, and the marks)
     std::vector<ValueStore::Renumbering> renumbering;
     for (const jp::calc::LineMapCore::Renumber &r : table) renumbering.push_back({r.oldFirst, r.count, r.newFirst});

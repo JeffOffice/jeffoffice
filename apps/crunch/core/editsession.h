@@ -922,8 +922,8 @@ private:
     qint64 m_marksSwept = 0;
     void renumberMarks(int sheet, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table);
     ObjectHook m_objectHook;
-    bool m_fileOrderLost = false;   // the file was saved with rows or columns edited: its formulas are no longer the text of the ids as they were numbered (see takeSnapshot)
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
+    bool m_fileOrderLost = false;   // the file was saved with rows or columns edited (or the ids were numbered again by their places): its formulas are no longer the text of the ids as they were numbered (see takeSnapshot)
     PageSettings m_pages;
     qint64 m_marksFollowed = 0;
     CellAnchors m_anchors;
