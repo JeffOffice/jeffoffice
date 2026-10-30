@@ -1031,7 +1031,12 @@ private:
     double m_iterDelta = 0.001;
     // while a formula is being worked out
     mutable bool m_evaluating = false;
-    mutable bool m_iterating = false;   // a round of a circle is being worked out: a formula outside it that is not worked out yet is read as it is (what it last gave, else what the file stored), not as empty
+    mutable bool m_iterating = false;
+    // The formulas outside a circle that a round of it read before they were worked out, with what it read (an array's cell: the whole array): when one is worked out later and is not what was read, what read it
+    // is worked out again (staleReadSettled), a limited number of times in a recalculation.
+    mutable std::unordered_map<quint32, jp::calc::Value> m_staleReads;
+    qint64 m_staleCorrections = 0;
+    void staleReadSettled(quint32 id);   // a round of a circle is being worked out: a formula outside it that is not worked out yet is read as it is (what it last gave, else what the file stored), not as empty
     mutable std::vector<quint32> m_pending;   // formulas it read that were not worked out yet
     mutable bool m_readTaint = false, m_readCascade = false;
     std::vector<jp::calc::CellArea> m_touched, m_areas;

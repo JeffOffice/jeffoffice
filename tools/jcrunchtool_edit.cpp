@@ -632,6 +632,19 @@ void runScript(Opened &w, const QByteArray &original, ScriptResult *r)
                 qWarning().noquote() << "root:" << f.sheet << cellName(row, col) << "=" + text << f.ours.debug();
             }
         });
+        // (the formulas the engine keeps apart for a function it lacks, by the functions their texts call: what a text names that no other formula of the sheet's functions explains is for the reader to see)
+        QHash<QString, int> keptBy;
+        calc->forEachFormula([&](const Calculation::FormulaCell &f) {
+            if (!f.cell) return;
+            const quint32 row = calc->sheet(f.sheet).cells.rowPlaceOf(f.cell->rowId), col = calc->sheet(f.sheet).cells.colPlaceOf(f.cell->colId);
+            const char kept = calc->keptClass(f.sheet, row, col);
+            if (kept != 'U') return;
+            static const QRegularExpression call(QStringLiteral("([A-Za-z_][A-Za-z0-9_.]*)\\("));
+            const QString text = calc->content(f.sheet, row, col).formula;
+            QRegularExpressionMatchIterator it = call.globalMatch(text);
+            while (it.hasNext()) keptBy[it.next().captured(1).toUpper()]++;
+        });
+        for (auto it = keptBy.constBegin(); it != keptBy.constEnd(); ++it) qWarning().noquote() << "kept for an unknown function, formulas that call" << it.key() << ":" << it.value();
         qWarning().noquote() << "formulas with an error where the file had none:" << count;
     }
     // (JC_ROUNDTRIP_ROW=sheet,row: the cells of that row at the start, with their formulas, values, and the file's stored values)
