@@ -1340,9 +1340,37 @@ bool Calculation::rewriteSheetReferences(const QString &oldName, const QString &
         }
     }
     bool namesChanged = false;
+    // (The sheet is already called by its new name: a text that still names it by the old one is read through this.)
+    struct RenamedView : FrameSheets {
+        const FrameSheets &in;
+        QString oldName;
+        int index;
+        RenamedView(const FrameSheets &frame, const QString &old, int at) : in(frame), oldName(old), index(at) {}
+        int frameSheetCount() const override { return in.frameSheetCount(); }
+        int frameSheetIndex(const QString &name) const override { return name.compare(oldName, Qt::CaseInsensitive) == 0 ? index : in.frameSheetIndex(name); }
+        const CellStore &frameCells(int sheet) const override { return in.frameCells(sheet); }
+    };
+    const int renamed = newName.isEmpty() ? -1 : sheetIndex(newName);
     for (auto it = m_names.begin(); it != m_names.end(); ++it) {
         bool changed = false;
-        const QString now = rewrite(it.value(), true, &changed, m_idNames.contains(it.key()) ? jp::calc::ParseLimits::ids() : jp::calc::ParseLimits());
+        const bool inIds = m_idNames.contains(it.key());
+        if (inIds && renamed >= 0) {
+            // A name held in ids with a line of it dead keeps the sheet it was written with for that part when the sheet is renamed, as the name in places does (`Sheet1!#REF!` is no reference to a sheet to
+            // rename), and the saver, which writes names from the file's text, writes it so: the name is made from the places it stands for, renamed, and held again.
+            const int bar = int(it.key().indexOf(QLatin1Char('|')));
+            const int scope = bar > 0 ? it.key().left(bar).toInt() : -1;
+            const QString places = idsToPlaces(RenamedView(*this, oldName, renamed), scope >= 0 ? scope : 0, it.value(), jp::calc::ParseLimits::ids());
+            if (places.contains(QLatin1String("#REF!"))) {
+                const QString renamedPlaces = rewrite(places, true, &changed);
+                bool stillInIds = false;
+                record->names.push_back({it.key(), taggedName(it.key())});
+                it.value() = heldNameText(scope, renamedPlaces, &stillInIds);
+                if (!stillInIds) m_idNames.remove(it.key());
+                namesChanged = true;
+                continue;
+            }
+        }
+        const QString now = rewrite(it.value(), true, &changed, inIds ? jp::calc::ParseLimits::ids() : jp::calc::ParseLimits());
         if (!changed) continue;
         record->names.push_back({it.key(), taggedName(it.key())});
         it.value() = now;
@@ -2933,6 +2961,32 @@ bool Calculation::installFormula(int sheet, quint32 row, quint32 col, Cell c, co
     return true;
 }
 
+bool Calculation::anyIdsRenumbered() const
+{
+    for (const SheetState &st : m_state)
+        if (st.renumberEpoch != 0) return true;
+    return false;
+}
+
+bool Calculation::formulaTextDiffersFromTheFile(int sheet, const Cell &cell) const
+{
+    if (!m_options.idFrame || sheet < 0 || sheet >= int(m_sheets.size()) || (cell.flags & (DataTable | ArrayMember))) return false;
+    const Sheet &s = m_sheets[size_t(sheet)];
+    const QString file = s.formulaTextOfTheFile(cell);
+    return !file.isEmpty() && file != s.formulaText(cell);
+}
+
+bool Calculation::formulasNameSheets(int sheet, const QStringList &names) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
+    for (const QString &text : m_sheets[size_t(sheet)].formulaTexts) {
+        if (text.isEmpty()) continue;
+        for (const QString &name : names)
+            if (text.contains(name, Qt::CaseInsensitive)) return true;
+    }
+    return false;
+}
+
 // A formula read from a cell and put in another cell of the same sheet as a copy of it (a fill, a sort, a paste) is held as it was, with its distance from the cell the text was written for changed by the
 // distance of the rows and columns in ids: no text is read or made. That is the text the place would give, passed through the ids, when every line the formula reads is the line it would be read to
 // be after the copy: a reference reads the line `distance` places from the one it read, and the ids of the two cells and of the line (that line's id plus the cells' distance in ids) are the
@@ -2942,7 +2996,7 @@ bool Calculation::rebaseCopy(int sheet, quint32 row, quint32 col, const CellCont
     if (!m_options.idFrame || !c.hasHeld || c.heldSheet != sheet || c.heldStamp != m_structStamp) return false;
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return false;
     if (row == c.heldRow && col == c.heldCol) return false;
-    if (c.heldEpochs != renumberEpochsText()) return false;
+    if (!renumberEpochsAre(c.heldEpochs)) return false;
     Sheet &s = m_sheets[size_t(sheet)];
     const Cell *found = s.cells.find(row, col);
     if (found && (found->flags & (ArrayMember | ArrayFormula | DataTable))) return false;
@@ -3059,7 +3113,7 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
         if (m_options.idFrame && !(c->flags & (ArrayFormula | DataTable | ArrayMember)))
             out.hasHeld = heldOf(sheet, *c, &out.held, &out.heldDRow, &out.heldDCol, &out.heldCls);
         if (out.hasHeld) {
-            out.heldEpochs = renumberEpochsText();
+            out.heldEpochs = renumberEpochs();
             out.heldSheet = sheet;
             out.heldRow = row;
             out.heldCol = col;
@@ -3093,7 +3147,7 @@ bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c,
     }
     if (c.isFormula && c.copied && rebaseCopy(sheet, row, col, c, marking)) return setStyle(sheet, row, col, c.style);
     const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr) : setValue(sheet, row, col, c.value, marking, c.sharedString);
-    if (ok && c.isFormula && c.hasHeld && m_options.idFrame && c.heldSheet == sheet && c.heldRow == row && c.heldCol == col && c.heldEpochs == renumberEpochsText()) {
+    if (ok && c.isFormula && c.hasHeld && m_options.idFrame && c.heldSheet == sheet && c.heldRow == row && c.heldCol == col && renumberEpochsAre(c.heldEpochs)) {
         restoreHeldFormula(sheet, row, col, c.held, c.heldDRow, c.heldDCol, c.heldCls);
         const Cell *now = m_sheets[size_t(sheet)].cells.find(row, col);
         if (!now || !now->hasFormula() || m_sheets[size_t(sheet)].formulaText(*now) != c.formula) setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr);   // (it does not read as the text: the text is the cell's)

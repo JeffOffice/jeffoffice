@@ -3622,38 +3622,62 @@ public:
                     ch.after.formula = offsetFormula(src.formula, qint32(qint64(i) - qint64(from)), 0);
                     ch.after.hasStored = false;
                     ch.after.stored = jp::calc::Value();
-                    ch.after.copied = src.hasHeld;
+                    ch.after.copyOf(src, sheet, ch.row, ch.col, qint64(i) - qint64(from), 0);
                 }
                 out.push_back(std::move(ch));
             }
         }
         return out;
     }
-    // A block copied to another place (a paste, or a fill when it is one cell and the target is a strip): the formulas are written for the cell they land in.
-    static std::vector<Act::Ch> copyChanges(const Book &b, int sheet, quint32 r1, quint32 c1, quint32 rows, quint32 cols, int toSheet, quint32 tr, quint32 tc, quint32 tileRows, quint32 tileCols)
+    // A block as a copy takes it: the contents of its cells when it was copied, which a paste may make long after, with edits of rows and columns between.
+    struct Clip {
+        int sheet = 0;
+        quint32 row1 = 0, col1 = 0, rows = 0, cols = 0;
+        std::vector<Calculation::CellContent> cells;   // by row, then column
+    };
+    static Clip copyClip(const Book &b, int sheet, quint32 r1, quint32 c1, quint32 rows, quint32 cols)
+    {
+        Clip clip;
+        clip.sheet = sheet;
+        clip.row1 = r1;
+        clip.col1 = c1;
+        clip.rows = rows;
+        clip.cols = cols;
+        for (quint32 dr = 0; dr < rows; ++dr)
+            for (quint32 dc = 0; dc < cols; ++dc) clip.cells.push_back(b.calc->content(sheet, r1 + dr, c1 + dc));
+        return clip;
+    }
+    // The clip pasted (the formulas written for the cell they land in, and marked as copies by the same call the session's paste, fill, and sort use): the cells it changes. Empty if a cell is part of an array or a data table.
+    static std::vector<Act::Ch> pasteClip(const Book &b, const Clip &clip, int toSheet, quint32 tr, quint32 tc, quint32 tileRows, quint32 tileCols)
     {
         std::vector<Act::Ch> out;
         for (quint32 tr_ = 0; tr_ < tileRows; ++tr_)
             for (quint32 tc_ = 0; tc_ < tileCols; ++tc_)
-                for (quint32 dr = 0; dr < rows; ++dr)
-                    for (quint32 dc = 0; dc < cols; ++dc) {
+                for (quint32 dr = 0; dr < clip.rows; ++dr)
+                    for (quint32 dc = 0; dc < clip.cols; ++dc) {
                         Act::Ch ch;
                         ch.sheet = toSheet;
-                        ch.row = tr + tr_ * rows + dr;
-                        ch.col = tc + tc_ * cols + dc;
+                        ch.row = tr + tr_ * clip.rows + dr;
+                        ch.col = tc + tc_ * clip.cols + dc;
                         if (ch.row >= 200 || ch.col >= 12) continue;
                         ch.before = b.calc->content(toSheet, ch.row, ch.col);
-                        ch.after = b.calc->content(sheet, r1 + dr, c1 + dc);
-                        if (ch.after.exists && ch.after.isFormula) {
-                            ch.after.formula = offsetFormula(ch.after.formula, qint32(qint64(ch.row) - qint64(r1 + dr)), qint32(qint64(ch.col) - qint64(c1 + dc)));
+                        const Calculation::CellContent &src = clip.cells[size_t(dr * clip.cols + dc)];
+                        ch.after = src;
+                        if (src.exists && src.isFormula) {
+                            const qint64 dRow = qint64(ch.row) - qint64(clip.row1 + dr), dCol = qint64(ch.col) - qint64(clip.col1 + dc);
+                            ch.after.formula = offsetFormula(src.formula, qint32(dRow), qint32(dCol));
                             ch.after.hasStored = false;
                             ch.after.stored = jp::calc::Value();
-                            ch.after.copied = ch.after.hasHeld;
+                            ch.after.copyOf(src, toSheet, ch.row, ch.col, dRow, dCol);
                         }
                         if ((ch.before.exists && !ch.before.editable) || (ch.after.exists && !ch.after.editable)) return {};   // (an array or a data table is refused)
                         out.push_back(std::move(ch));
                     }
         return out;
+    }
+    static std::vector<Act::Ch> copyChanges(const Book &b, int sheet, quint32 r1, quint32 c1, quint32 rows, quint32 cols, int toSheet, quint32 tr, quint32 tc, quint32 tileRows, quint32 tileCols)
+    {
+        return pasteClip(b, copyClip(b, sheet, r1, c1, rows, cols), toSheet, tr, tc, tileRows, tileCols);
     }
     static void putCells(Book &b, const std::vector<Act::Ch> &cells, bool after)
     {
@@ -3704,6 +3728,8 @@ public:
             b->finish();
         }
         std::vector<Act> done[2], undone[2];
+        Clip clips[2];
+        bool haveClip[2] = {false, false};
         for (size_t step = 0; step < ops.size(); ++step) {
             const Op &o = ops[step];
             CellRange blk;
@@ -3759,6 +3785,20 @@ public:
                     act.kind = 3;
                     act.cells = copyChanges(b, o.sheet, o.row, o.col % 6, o.h, o.w, o.toSheet, o.tr, o.tc, o.tiles, 1);
                     ok[m] = !act.cells.empty();
+                    if (ok[m]) putCells(b, act.cells, true);
+                    pushed = ok[m];
+                    break;
+                }
+                case 26: {   // a block copied now, to be pasted later (after other edits)
+                    clips[m] = copyClip(b, o.sheet, o.row, o.col % 6, o.h, o.w);
+                    haveClip[m] = true;
+                    break;
+                }
+                case 27: {   // the clip pasted at (tr, tc) on toSheet, whatever has been done since it was copied
+                    act.kind = 3;
+                    ok[m] = haveClip[m];
+                    if (ok[m]) act.cells = pasteClip(b, clips[m], o.toSheet, o.tr, o.tc, 1, 1);
+                    ok[m] = ok[m] && !act.cells.empty();
                     if (ok[m]) putCells(b, act.cells, true);
                     pushed = ok[m];
                     break;
@@ -3877,7 +3917,7 @@ public:
             o.bcol2 = rng.bounded(2);
             // Sorts, fills, pastes, cuts, and cells shifted sideways (JO_FUZZ_NOMOVES leaves them out): drawn from a generator of their own, so that the steps above are the seed's as they were.
             if (!qEnvironmentVariableIntValue("JO_FUZZ_NOMOVES") && moves.bounded(3) == 0) {
-                o.kind = 20 + int(moves.bounded(6));   // 20 sort, 21 fill, 22 paste, 23 cut, 24 and 25 cells shifted right and left
+                o.kind = 20 + int(moves.bounded(8));   // 20 sort, 21 fill, 22 paste, 23 cut, 24 and 25 cells shifted right and left, 26 copy and 27 paste what was copied (any time after)
                 o.sheet = int(moves.bounded(2));
                 o.toSheet = int(moves.bounded(2));
                 o.at = moves.bounded(12);
@@ -4046,6 +4086,81 @@ private Q_SLOTS:
         }
         QCOMPARE(state(on), state(off));
     }
+
+    // A paste made right after the copy is rebased; one made after an edit of rows is not (the clip is stale), and either way the book in ids is the book in places.
+    void aCopyThatIsPastedAfterAnEditOfRowsIsNotRebased()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        QStringList s1;
+        for (int r = 1; r <= 30; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(r) << QStringLiteral("B%1==A%1*2+A%2").arg(r).arg(r + 1);
+        for (Book *b : {&off, &on}) QVERIFY(b->open({s1}));
+        Clip fresh[2] = {copyClip(off, 0, 0, 1, 3, 1), copyClip(on, 0, 0, 1, 3, 1)};
+        const qint64 before0 = on.calc->formulasRebased();
+        putCells(off, pasteClip(off, fresh[0], 0, 10, 4, 1, 1), true);
+        putCells(on, pasteClip(on, fresh[1], 0, 10, 4, 1, 1), true);
+        QCOMPARE(on.calc->formulasRebased() - before0, qint64(3));
+        QCOMPARE(state(on), state(off));
+        Clip stale[2] = {copyClip(off, 0, 0, 1, 3, 1), copyClip(on, 0, 0, 1, 3, 1)};
+        for (Book *b : {&off, &on}) QVERIFY(b->apply(StructEdit::insertRows(0, 1, 2), nullptr));
+        const qint64 before1 = on.calc->formulasRebased();
+        putCells(off, pasteClip(off, stale[0], 0, 20, 4, 1, 1), true);
+        putCells(on, pasteClip(on, stale[1], 0, 20, 4, 1, 1), true);
+        QCOMPARE(on.calc->formulasRebased() - before1, qint64(0));
+        QCOMPARE(state(on), state(off));
+        for (Book *b : {&off, &on}) {
+            b->calc->invalidateAll();
+            b->finish();
+        }
+        QCOMPARE(state(on), state(off));
+    }
+
+    // The fuzz's first case without the stamp: a block copied, rows put in inside a range it reads, and the block pasted over its own rows. The two books must agree (the ids book took the held text of a
+    // source that had moved on).
+    void aCopyPastedOverItsOwnRowsAfterRowsWerePutInsideARangeItReadsAgrees()
+    {
+        std::vector<Op> ops(3);
+        ops[0].kind = 26; ops[0].sheet = 0; ops[0].row = 6; ops[0].col = 1; ops[0].h = 3; ops[0].w = 2;
+        ops[1].kind = 0; ops[1].sheet = 0; ops[1].at = 10; ops[1].count = 2;
+        ops[2].kind = 27; ops[2].sheet = 0; ops[2].toSheet = 0; ops[2].tr = 7; ops[2].tc = 1;
+        int at = -1;
+        const QString why = runOps(ops, &at);
+        QVERIFY2(why.isEmpty(), qPrintable(why));
+    }
+
+    // A name with every line of it deleted, and the sheet renamed after: in ids as in places the dead part keeps the sheet it was written with (`Sheet1!#REF!`), as the saver writes it, so that the name is the same
+    // after a save and a reopening; a name that is alive follows the rename.
+    void aNameWithDeadLinesKeepsTheOldSheetNameWhenTheSheetIsRenamedAsInPlaces()
+    {
+        Book on, off;
+        on.idFrame = true;
+        off.forceOff = true;
+        QStringList s1;
+        for (int r = 1; r <= 8; ++r) s1 << QStringLiteral("A%1=%2").arg(r).arg(r);
+        for (Book *b : {&off, &on}) {
+            QVERIFY(b->open({s1}));
+            b->calc->setNameText(-1, QStringLiteral("Dead"), QStringLiteral("Sheet1!$A$3:$A$5"));
+            b->calc->setNameText(-1, QStringLiteral("Live"), QStringLiteral("Sheet1!$A$7"));
+            b->finish();
+            QVERIFY(b->apply(StructEdit::deleteRows(0, 2, 3), nullptr));
+            b->calc->setSheetNames(0, QStringLiteral("Sheet1"), QStringLiteral("Edited Sheet"));
+            Calculation::SheetRewrite record;
+            QVERIFY(b->calc->rewriteSheetReferences(QStringLiteral("Sheet1"), QStringLiteral("Edited Sheet"), &record));
+            b->finish();
+        }
+        QString dead[2], live[2];
+        for (int m = 0; m < 2; ++m) {
+            Book &b = m ? on : off;
+            QVERIFY(b.calc->nameText(-1, QStringLiteral("Dead"), &dead[m]));
+            QVERIFY(b.calc->nameText(-1, QStringLiteral("Live"), &live[m]));
+        }
+        QCOMPARE(dead[0], QStringLiteral("Sheet1!#REF!"));
+        QCOMPARE(dead[1], dead[0]);
+        QCOMPARE(live[1], live[0]);
+        QVERIFY2(live[0].contains(QLatin1String("Edited Sheet")), qPrintable(live[0]));
+    }
+
 
 };
 

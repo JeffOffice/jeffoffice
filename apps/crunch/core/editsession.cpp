@@ -68,7 +68,7 @@ SavedValue savedValue(const Value &v, qint32 sharedString)
 // One step of the undo stack: cells put in the state they come to, and back.
 qint64 contentBytes(const Calculation::CellContent &c)
 {
-    qint64 n = qint64(sizeof(c)) + qint64(c.formula.size()) * 2;
+    qint64 n = qint64(sizeof(c)) + qint64(c.formula.size()) * 2 + qint64(c.held.size()) * 2 + qint64(c.heldEpochs.size()) * qint64(sizeof(quint32));   // (the formula as it is held, in the id frame, is the same size again)
     if (c.value.isText()) n += qint64(c.value.text().size()) * 2;
     if (c.hasStored && c.stored.isText()) n += qint64(c.stored.text().size()) * 2;
     return n;
@@ -1240,7 +1240,6 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     struct Marked {
         quint64 place;   // sheet, row, column, as keyOf says it for places
         quint64 key;
-        bool stopgap = false;   // written whole only because the formulas are held in ids (below): it is no change a person made
     };
     std::vector<Marked> touchedInOrder;
     touchedInOrder.reserve(m_touched.size());
@@ -1251,25 +1250,38 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     });
     const bool anyTouched = !touchedInOrder.empty();
     if (calc->idFrame()) {
-        // The formulas are held in ids, and an edit of whole rows or columns writes none of them again: their texts as the file should have them are those of the places the ids are at now, which are not
-        // the file's for any formula that reads, or is in, a line that moved. Until the saver rewrites them from the order of the lines (docs/jeffcrunch-rowids.md, round 7), every formula is written whole
-        // when rows or columns were inserted or deleted since the file was made.
-        bool lines = false;
-        for (const StructEdit &ed : m_edits) lines = lines || ed.changesRows() || ed.changesColumns();
-        if (lines) {
-            for (int sheet = 0; sheet < calc->sheetCount(); ++sheet)
+        // The formulas are held in ids, and an edit of whole rows or columns writes none of them again: the texts the file should have are those of the places the ids are at now. Until the saver rewrites
+        // them from the order of the lines (docs/jeffcrunch-rowids.md, round 7), a formula is written whole when its text is no longer the file's: those of a sheet whose rows or columns are not in the
+        // file's order (put in or taken out and not put back), and of the sheets that name it. A formula whose text is the file's is not written: it keeps its bytes (shared, its volatile mark, its
+        // result), and moves with its cell. Once any ids were renumbered (a rebase) the file's order is lost, and every formula of those sheets is written.
+        QSet<int> moved;
+        for (const StructEdit &ed : m_edits)
+            if (ed.changesRows() || ed.changesColumns()) moved.insert(ed.sheet);
+        const bool renumbered = calc->anyIdsRenumbered();
+        QStringList movedNames;
+        for (auto it = moved.begin(); it != moved.end();) {
+            if (!renumbered && calc->linesAreTheFiles(*it)) it = moved.erase(it);   // (put in and taken out again: the order is the file's)
+            else {
+                if (*it >= 0 && *it < book.info().sheets.size()) movedNames << book.info().sheets[*it].name;
+                ++it;
+            }
+        }
+        if (!moved.isEmpty()) {
+            for (int sheet = 0; sheet < calc->sheetCount(); ++sheet) {
+                if (!moved.contains(sheet) && !calc->formulasNameSheets(sheet, movedNames)) continue;
                 calc->sheet(sheet).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
-                    if (!c.hasFormula() || (c.flags & ArrayMember)) return;
+                    if (!c.hasFormula() || (c.flags & (ArrayMember | DataTable))) return;
+                    if (!renumbered && !calc->formulaTextDiffersFromTheFile(sheet, c)) return;
                     const quint64 key = keyOf(sheet, c.rowId, c.colId);
-                    if (!m_touched.count(key)) touchedInOrder.push_back({keyOf(sheet, row, col), key, true});
+                    if (!m_touched.count(key)) touchedInOrder.push_back({keyOf(sheet, row, col), key});
                 });
+            }
         }
     }
     std::sort(touchedInOrder.begin(), touchedInOrder.end(), [](const Marked &a, const Marked &b) { return a.place < b.place; });
     // (a sheet that was added is made whole from the model, and one that was deleted is not in the file: the marks of their cells are not what is put in)
     const WorkbookInfo &listed = book.info();
     auto written = [&](int sheet) { return sheet >= 0 && sheet < listed.sheets.size() && !listed.sheets[sheet].deleted && !listed.sheets[sheet].isNew; };
-    bool stopgapCell = false;
     auto addCell = [&](int sheet, quint32 row, quint32 col) {
         const quint64 key = markOf(sheet, row, col);
         const Calculation::CellContent c = calc->content(sheet, row, col);
@@ -1291,7 +1303,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
                     out->touchedResults[key] = v;
                 } else {
                     cell.hasResult = false;
-                    if (!stopgapCell) resultMissing = true;
+                    resultMissing = true;
                 }
             } else {
                 cell.value = savedValue(c.value, hasShared ? c.sharedString : -1);
@@ -1302,9 +1314,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     for (const Marked &m : touchedInOrder) {
         const int sheet = int(m.place >> 40);
         if (!written(sheet)) continue;
-        stopgapCell = m.stopgap;
         addCell(sheet, quint32((m.place >> 16) & 0xFFFFFF), quint32(m.place & 0xFFFF));
-        stopgapCell = false;
     }
     // the sheets a person added: every cell, and what the sheet has besides
     bool newSheets = false;

@@ -403,7 +403,7 @@ EditSession::Outcome EditSession::applySort(SortPlan &plan, qint64 budget)
                         ch.after.formula = offsetFormula(src.formula, plan.columns ? 0 : int(d), plan.columns ? int(d) : 0);
                         ch.after.hasStored = false;
                         ch.after.stored = Value();
-                        ch.after.copied = src.hasHeld;   // (and its held text is the source's: put takes it with the distance changed when it can)
+                        ch.after.copyOf(src, plan.sheet, ch.row, ch.col, plan.columns ? 0 : d, plan.columns ? d : 0);   // (put takes the held text of the cell it came from, with the distance changed, when it can)
                     } else if (src.value.isText()) {
                         ch.after.sharedString = -1;
                         ch.textToShare = hasShared;

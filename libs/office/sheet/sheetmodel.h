@@ -218,6 +218,9 @@ public:
     bool colRangeOf(quint32 startId, quint32 endId, quint32 *first, quint32 *last) const { return lineRangeOf(m_cols, startId, endId, first, last); }
     // Whether no row and no column of the sheet has been inserted or deleted: every id is its place.
     bool isPlain() const { return plain(); }
+    // Whether the order of the rows and of the columns is the file's, as far as a formula can tell: the live lines are the ids from 0 in order, and no line the file had is dead (lines put in and taken out
+    // again leave records of ids no file formula reads). A formula's text is then the text the file has for it.
+    bool linesAreTheFiles() const { return linesOfTheFile(m_rows) && linesOfTheFile(m_cols); }
     // How many runs of consecutive ids the rows (the columns) are in; for the bench and the tests.
     size_t rowRunCount() const { return m_rows.runCount(); }
     size_t colRunCount() const { return m_cols.runCount(); }
@@ -673,6 +676,17 @@ private:
             return true;
         }
         return core.resolveRange(startId, endId, first, last);
+    }
+    template <class Map>
+    static bool linesOfTheFile(const Map &map)
+    {
+        if (map.isIdentity()) return true;
+        const jp::calc::LineMapCore &core = map.core();
+        const std::vector<jp::calc::IdRun> live = core.liveRuns();
+        if (live.size() > 1 || (live.size() == 1 && live[0].first != 0)) return false;
+        for (const jp::calc::LineDead &d : core.deadRecords())
+            if (d.first < core.limits().firstNew) return false;
+        return true;
     }
     static jp::calc::LineHint &hint(int which)
     {
@@ -1255,6 +1269,8 @@ struct Sheet {
     // has it, relative references moved to where it is. Empty for a cell with
     // no formula.
     QString formulaText(const Cell &cell) const;
+    // The text of a formula held in ids as the ids are numbered, which is the file's text while the order of the lines is the file's (empty if the formula is held in places or is none).
+    QString formulaTextOfTheFile(const Cell &cell) const;
     // The cells an array formula (or a data table) covers; not valid for any other cell.
     CellRange formulaRange(const Cell &cell) const;
 };

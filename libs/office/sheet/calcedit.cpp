@@ -1290,6 +1290,14 @@ std::vector<quint32> Calculation::renumberEpochs() const
     return out;
 }
 
+bool Calculation::renumberEpochsAre(const std::vector<quint32> &epochs) const
+{
+    if (epochs.size() != m_state.size()) return false;
+    for (size_t i = 0; i < epochs.size(); ++i)
+        if (epochs[i] != m_state[i].renumberEpoch) return false;
+    return true;
+}
+
 void Calculation::pushGone(EditRecord *rec, int sheet, quint32 row, quint32 col, const Cell &c) const
 {
     rec->gone.push_back(goneCell(sheet, row, col, c));

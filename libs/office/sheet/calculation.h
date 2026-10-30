@@ -209,7 +209,8 @@ public:
         // undone gives the cell the lines it read, a dead end still a dead end that comes back with its line. If the ids were renumbered since (a rebase), the shown text is parsed anew.
         // It is given back only to the cell it was read from, and only if it reads as the text does.
         bool hasHeld = false;
-        QString held, heldEpochs;
+        QString held;
+        std::vector<quint32> heldEpochs;   // each sheet's renumber epoch when it was read
         qint32 heldDRow = 0, heldDCol = 0;
         quint8 heldCls = 0;
         qint32 heldSheet = -1;
@@ -238,6 +239,13 @@ public:
             heldStamp = src.heldStamp;
             copied = src.hasHeld;
         }
+        // For a copy of `src`'s formula made by offsetting its text by (dRow, dCol) to the cell (row, col) of `sheet`: it may be rebased by put only if `src` was read from this sheet and from the place that
+        // distance leads from; else it is a plain formula, put by its text.
+        void copyOf(const CellContent &src, int sheet, quint32 row, quint32 col, qint64 dRow, qint64 dCol)
+        {
+            copied = false;
+            if (src.hasHeld && src.heldSheet == sheet && qint64(row) - qint64(src.heldRow) == dRow && qint64(col) - qint64(src.heldCol) == dCol) copyHeldFrom(src);
+        }
         bool operator==(const CellContent &o) const
         {
             return exists == o.exists && isFormula == o.isFormula && formula == o.formula && value == o.value && sharedString == o.sharedString && style == o.style;
@@ -246,6 +254,13 @@ public:
     CellContent content(int sheet, quint32 row, quint32 col) const;
     // Changes whenever an edit could change what a text of a formula names (rows, columns, cells, sheets inserted, deleted, moved, renamed): what a copy made before is checked against.
     quint64 structStamp() const { return m_structStamp; }
+    // For a save of a workbook whose formulas are held in ids, before the saver writes them from the order of the lines (round 7): which formulas have a text other than the file's. Whether any sheet's
+    // ids were renumbered (then no id is the file's place); whether a sheet's rows and columns are in the file's order; whether a formula's text as a person reads it differs from the text of the ids
+    // numbered as they were (a data table's formula is moved with its cell by the saver and is never one); and whether a formula of a sheet names one of the sheets (by a part of its text).
+    bool anyIdsRenumbered() const;
+    bool linesAreTheFiles(int sheet) const { return sheet < 0 || sheet >= int(m_sheets.size()) || m_sheets[size_t(sheet)].cells.linesAreTheFiles(); }
+    bool formulaTextDiffersFromTheFile(int sheet, const Cell &cell) const;
+    bool formulasNameSheets(int sheet, const QStringList &names) const;
     // Puts the content in the cell (the cell taken away if it does not exist): its constant or formula, then its format. False if the cell cannot be changed, or the formula is no formula.
     bool put(int sheet, quint32 row, quint32 col, const CellContent &content, Marking marking = Marking::Now);
     // ---- structure: rows, columns, and cells inserted and deleted (see sheet/refshift.h). The cells move, every formula of every sheet that reads cells that moved is written again with
@@ -733,6 +748,7 @@ private:
     void restoreHeldFormula(int sheet, quint32 row, quint32 col, const QString &held, qint32 dRow, qint32 dCol, quint8 cls);
     bool recordIdsAreCurrent(const EditRecord &rec) const { return m_options.idFrame && !rec.renumberEpochs.empty() && rec.renumberEpochs == renumberEpochs(); }
     std::vector<quint32> renumberEpochs() const;
+    bool renumberEpochsAre(const std::vector<quint32> &epochs) const;   // (without making the vector)
     void tablesChangedFor(const QSet<QString> &changed);
     QHash<QString, TableIds> m_tableIdsBefore;   // by the table's name in lower case, made just before an edit of whole lines
     std::unordered_set<quint32> m_positionalNodes;   // (with the id frame) the formulas whose text is held in places: an edit of whole lines writes them again as it did before ids
