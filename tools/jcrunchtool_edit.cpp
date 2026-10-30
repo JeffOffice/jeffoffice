@@ -59,6 +59,9 @@
 #include "grid/gridview.h"
 #include "../tests/crunch/structmodel.h"
 
+#ifdef __GLIBC__
+#include <malloc.h>
+#endif
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -1349,20 +1352,41 @@ int structBench(const QString &path, const QString &label, const QString &only)
         const std::function<crunch::EditSession::Outcome()> twelve[12] = {
             [=] { return session->insertRows(sheet, 10, 2); },       [=] { return session->deleteRows(sheet, r / 2, 1); },     [=] { return session->insertColumns(sheet, 1, 1); },
             [=] { return session->deleteColumns(sheet, 1, 1); },     [=] { return session->insertRows(sheet, r - 100, 3); },   [=] { return session->deleteRows(sheet, 20, 3); },
-            [=] { return session->insertRows(sheet, 5, 1); },        [=] { return session->insertColumns(sheet, 0, 1); },     [=] { return session->deleteColumns(sheet, c / 2, 1); },
+            [=] { return session->insertRows(sheet, 5, 1); },        [=] { return session->insertColumns(sheet, 0, 1); },     [=] { return session->deleteColumns(sheet, qEnvironmentVariableIntValue("JC_BENCH_TWELVE") > 2 ? c + 3 : c / 2, 1); },
             [=] { return session->deleteRows(sheet, r / 4, 5); },    [=] { return session->insertRows(sheet, r / 3, 1); },    [=] { return session->insertRows(sheet, 3, 1); }};
         QElapsedTimer all;
         all.start();
-        int refused = 0;
+        int refused = 0, number = 0;
+        QElapsedTimer wall;
         for (const auto &edit : twelve) {
             const crunch::EditSession::Outcome o = edit();
             if (!o.ok) ++refused;
+            wall.start();
+            settle(wall);
+            if (qEnvironmentVariableIntValue("JC_BENCH_TWELVE") > 1) {
+                const qint64 resident = vm("VmRSS");
+#ifdef __GLIBC__
+                malloc_trim(0);   // (what the allocator holds and nothing uses is given back: what is left is what the workbook holds)
+#endif
+                out() << "#   edit " << ++number << ": resident " << resident << " MB, " << vm("VmRSS") << " MB after the allocator gives back what is free, the steps hold " << (session->undoBytes() - heldBefore) / 1024 << " KB; stamps " << calc->stampCount() << ", graph " << calc->graph().memoryBytes() / (1 << 20)
+                      << " MB, values " << w.values().count() << "\n";
+            }
         }
-        QElapsedTimer wall;
         wall.start();
         settle(wall);
         out() << "# twelve edits (" << refused << " refused): resident " << residentBefore << " -> " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB; the steps hold " << (session->undoBytes() - heldBefore) / 1024
               << " KB; made and settled in " << all.elapsed() << " ms\n";
+        if (qEnvironmentVariableIntValue("JC_BENCH_TWELVE") > 1) {
+            // (the steps let go of, the dead cells they held let go of, and the allocator's free memory given back: what is left is what the edited workbook itself holds)
+            w.undoStack()->clear();
+            while (session->purgeSome(qint64(1) << 40)) {}
+            wall.start();
+            settle(wall);
+#ifdef __GLIBC__
+            malloc_trim(0);
+#endif
+            out() << "# the steps let go of: resident " << vm("VmRSS") << " MB\n";
+        }
     }
     return 0;
 }
