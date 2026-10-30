@@ -938,6 +938,12 @@ bool Calculation::formulaValue(int sheet, quint32 row, quint32 col, const Cell &
         return true;
     }
     const Node &n = m_nodes[id];
+    if (m_evaluating && n.state != Done && m_iterating && !(n.flags & Iterating)) {
+        // (a round of a circle reads a formula outside it that is not worked out yet as a program going round the circle would: by what it had, which is what it gave last, or what the file stored; reading it as empty
+        // made an error of a formula that divides by it, and the circle fed on the error for ever)
+        *out = (n.flags & Worked) ? nodeValue(n, id) : valueOf(m_sheets[size_t(sheet)], c);
+        return true;
+    }
     if (m_evaluating && n.state != Done) {
         m_pending.push_back(id);
         *out = Value();
@@ -2489,7 +2495,9 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
             Node &x = m_nodes[id];
             const Value was = x.kind == KindArray ? m_arrays.value(id) : nodeValue(x, id);
             qint64 work = 0;
+            m_iterating = true;
             const Value v = runFormula(id, &work);
+            m_iterating = false;
             if (m_evaluator.status() == EvalStatus::Cancelled) return false;   // (stopped in the middle of it: it is worked out again)
             ++j.at;
             *spent += work;

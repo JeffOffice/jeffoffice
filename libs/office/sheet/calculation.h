@@ -1031,6 +1031,7 @@ private:
     double m_iterDelta = 0.001;
     // while a formula is being worked out
     mutable bool m_evaluating = false;
+    mutable bool m_iterating = false;   // a round of a circle is being worked out: a formula outside it that is not worked out yet is read as it is (what it last gave, else what the file stored), not as empty
     mutable std::vector<quint32> m_pending;   // formulas it read that were not worked out yet
     mutable bool m_readTaint = false, m_readCascade = false;
     std::vector<jp::calc::CellArea> m_touched, m_areas;
