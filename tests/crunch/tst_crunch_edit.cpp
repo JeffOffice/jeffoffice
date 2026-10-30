@@ -168,6 +168,87 @@ private Q_SLOTS:
         QCOMPARE(e.selected(), QStringLiteral("B11"));
     }
 
+    // Enter after a run of Tabs goes down to the column the run began in; an arrow, a click, or Go To ends the run; Enter with no Tabs goes straight down.
+    void enterAfterTabsGoesBackToTheStartColumn()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.select(QStringLiteral("C3"));
+        e.type(QStringLiteral("1"));
+        e.key(Qt::Key_Tab);
+        e.type(QStringLiteral("2"));
+        e.key(Qt::Key_Tab);
+        e.type(QStringLiteral("3"));
+        e.key(Qt::Key_Return);
+        QCOMPARE(e.selected(), QStringLiteral("C4"));
+        // an arrow in between ends the run
+        e.type(QStringLiteral("1"));
+        e.key(Qt::Key_Tab);
+        QCOMPARE(e.selected(), QStringLiteral("D4"));
+        QTest::keyClick(e.view(), Qt::Key_Right);
+        QCOMPARE(e.selected(), QStringLiteral("E4"));
+        e.type(QStringLiteral("2"));
+        e.key(Qt::Key_Return);
+        QCOMPARE(e.selected(), QStringLiteral("E5"));
+        // Enter with no Tabs goes straight down
+        e.type(QStringLiteral("3"));
+        e.key(Qt::Key_Return);
+        QCOMPARE(e.selected(), QStringLiteral("E6"));
+        // Shift+Tab goes left inside the run, and Enter goes to where the run began
+        e.type(QStringLiteral("4"));
+        e.key(Qt::Key_Tab);
+        e.type(QStringLiteral("5"));
+        e.key(Qt::Key_Tab);
+        e.type(QStringLiteral("6"));
+        e.key(Qt::Key_Backtab, Qt::ShiftModifier);
+        QCOMPARE(e.selected(), QStringLiteral("F6"));
+        e.type(QStringLiteral("7"));
+        e.key(Qt::Key_Return);
+        QCOMPARE(e.selected(), QStringLiteral("E7"));
+        // a click ends the run
+        e.type(QStringLiteral("8"));
+        e.key(Qt::Key_Tab);
+        e.select(QStringLiteral("H2"));
+        e.type(QStringLiteral("9"));
+        e.key(Qt::Key_Return);
+        QCOMPARE(e.selected(), QStringLiteral("H3"));
+    }
+
+    // Moving without typing counts too: Tab, Tab, Enter on the grid goes down to the column the Tabs began in, and an arrow ends the run.
+    void enterAfterMovingByTabsGoesBackToTheStartColumn()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.select(QStringLiteral("C3"));
+        QTest::keyClick(e.view(), Qt::Key_Tab);
+        QTest::keyClick(e.view(), Qt::Key_Tab);
+        QCOMPARE(e.selected(), QStringLiteral("E3"));
+        QTest::keyClick(e.view(), Qt::Key_Return);
+        QCOMPARE(e.selected(), QStringLiteral("C4"));
+        QTest::keyClick(e.view(), Qt::Key_Return);
+        QCOMPARE(e.selected(), QStringLiteral("C5"));
+        QTest::keyClick(e.view(), Qt::Key_Tab);
+        QTest::keyClick(e.view(), Qt::Key_Backtab, Qt::ShiftModifier);
+        QTest::keyClick(e.view(), Qt::Key_Tab);
+        QTest::keyClick(e.view(), Qt::Key_Down);
+        QCOMPARE(e.selected(), QStringLiteral("D6"));
+        QTest::keyClick(e.view(), Qt::Key_Return);
+        QCOMPARE(e.selected(), QStringLiteral("D7"));
+        // typing after moving by Tab keeps the run
+        QTest::keyClick(e.view(), Qt::Key_Tab);
+        e.type(QStringLiteral("1"));
+        e.key(Qt::Key_Tab);
+        e.type(QStringLiteral("2"));
+        e.key(Qt::Key_Return);
+        QCOMPARE(e.selected(), QStringLiteral("D8"));
+        // a range keeps the way Tab and Enter go inside it
+        e.view()->selectRange(10, 0, 11, 1);
+        QTest::keyClick(e.view(), Qt::Key_Tab);
+        QCOMPARE(e.selected(), QStringLiteral("B11"));
+        QTest::keyClick(e.view(), Qt::Key_Return);
+        QCOMPARE(e.selected(), QStringLiteral("B12"));
+    }
+
     // F2 and a double click edit what the cell holds, in the cell, with the cursor at the end; the arrows then move in the text (they do not finish the entry), and F2 changes that.
     void f2AndADoubleClickEditWhatTheCellHolds()
     {

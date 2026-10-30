@@ -172,6 +172,8 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     refreshUi();
     // The Format Shape pane is open if it was when the last window closed it.
     if (Settings::get().value(QStringLiteral("view/formatPane"), false).toBool()) showFormatPane(true);
+    // (the keys go to the slide: a window that opens with the focus on its File button, the first in the tab order, would take typing as presses of it)
+    m_canvas->setFocus();
 }
 
 DeckWindow::~DeckWindow()

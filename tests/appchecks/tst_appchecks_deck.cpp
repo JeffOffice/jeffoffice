@@ -349,6 +349,13 @@ private Q_SLOTS:
     }
 
     // ---- 1. the first five minutes
+    // A new window, and one from File > New, take typing without a click first (the slide's title is a placeholder that a click starts: until then typing must do nothing).
+    void typingNeedsNoClick()
+    {
+        const QStringList failed = checkTypingWithoutAClick(m_app);
+        QVERIFY2(failed.isEmpty(), qPrintable(failed.join(QLatin1Char('\n'))));
+    }
+
     void firstFiveMinutes()
     {
         Watch watch;
