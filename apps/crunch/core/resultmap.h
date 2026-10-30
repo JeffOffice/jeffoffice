@@ -1,13 +1,16 @@
 #pragma once
-// The results the edit session keeps by cell for the saver (docs/jeffcrunch-rowids.md, round 7): a hash table of 24-byte slots (the key, a number or the place of a text, and the kind), not a tree of
-// nodes holding whole values (about 106 bytes an entry: 2 million entries after one column delete at a million rows were 213 MB). It has the part of std::map's interface the session uses; an array is
-// kept as its first element, which is what a file holds for it. No GUI.
+// The results the edit session keeps by cell for the saver (docs/jeffcrunch-rowids.md, round 7): a hash table with linear probing, in three parallel arrays (the key, 8 bytes; a number or the place of a
+// text, 8; the kind and the error, 1), 17 bytes a slot, at most 3/4 full and rebuilt to half full, so between 23 and 45 bytes an entry, not a tree of nodes holding whole values (about 106 bytes an entry).
+// It has the part of std::map's interface the session uses; an array is kept as its first element, which is what a file holds for it. A text lives in a list beside the table, and the place of a
+// text that is overwritten or taken out is used again. No GUI.
 
 #include "calc/value.h"
 
 #include <QString>
+#include <QtGlobal>
 
 #include <cstddef>
+#include <cstring>
 #include <iterator>
 #include <utility>
 #include <vector>
@@ -17,6 +20,8 @@ namespace jp::crunch {
 class ResultMap {
 public:
     using Pair = std::pair<quint64, jp::calc::Value>;
+    // Keys that are not kept: the two values the table uses for a slot that is free or has been (a key has the sheet in its top bits, and is never one of them).
+    static constexpr quint64 kEmptyKey = ~quint64(0), kDeadKey = ~quint64(0) - 1;
 
     class iterator {
     public:
@@ -56,16 +61,25 @@ public:
 
     size_t size() const { return m_used; }
     bool empty() const { return m_used == 0; }
+    // The places in the list of texts (used or free), and the bytes the table holds: for a test that sees that texts that come and go do not pile up.
+    size_t textPlaces() const { return m_texts.size(); }
+    size_t slotCount() const { return m_keys.size(); }
     void clear()
     {
-        std::vector<Slot>().swap(m_slots);
+        std::vector<quint64>().swap(m_keys);
+        std::vector<quint64>().swap(m_bits);
+        std::vector<quint8>().swap(m_meta);
         std::vector<QString>().swap(m_texts);
+        std::vector<quint32>().swap(m_freeTexts);
         m_used = m_taken = 0;
     }
     void swap(ResultMap &o)
     {
-        m_slots.swap(o.m_slots);
+        m_keys.swap(o.m_keys);
+        m_bits.swap(o.m_bits);
+        m_meta.swap(o.m_meta);
         m_texts.swap(o.m_texts);
+        m_freeTexts.swap(o.m_freeTexts);
         std::swap(m_used, o.m_used);
         std::swap(m_taken, o.m_taken);
     }
@@ -75,7 +89,7 @@ public:
         skip(&at);
         return iterator(this, at);
     }
-    iterator end() const { return iterator(this, m_slots.size()); }
+    iterator end() const { return iterator(this, m_keys.size()); }
     iterator find(quint64 key) const
     {
         const size_t at = slotOf(key);
@@ -86,17 +100,22 @@ public:
     jp::calc::Value value(quint64 key) const
     {
         const size_t at = slotOf(key);
-        return at == kNone ? jp::calc::Value() : valueOf(m_slots[at]);
+        return at == kNone ? jp::calc::Value() : valueAt(at);
     }
-    void set(quint64 key, const jp::calc::Value &v)
+    // Keeps the value for the key. The two keys the table uses for itself are refused (false).
+    bool set(quint64 key, const jp::calc::Value &v)
     {
+        if (!isKey(key)) return false;
         size_t at = slotOf(key);
         if (at == kNone) {
-            if ((m_taken + 1) * 4 > m_slots.size() * 3) grow();
+            if ((m_taken + 1) * 4 > m_keys.size() * 3) grow();
             at = place(key);
             ++m_used;
+        } else {
+            freeText(at);
         }
-        fill(&m_slots[at], v);
+        fill(at, v);
+        return true;
     }
     size_t erase(quint64 key)
     {
@@ -114,105 +133,125 @@ public:
     }
 
 private:
-    static constexpr quint64 kEmpty = ~quint64(0), kDead = ~quint64(0) - 1;   // (no key is either: a key has the sheet in its top bits)
     static constexpr size_t kNone = ~size_t(0);
-    struct Slot {
-        quint64 key = kEmpty;
-        union {
-            double num;
-            quint32 text;
-        };
-        quint8 kind = 0, error = 0;
-        Slot() : num(0) {}
-    };
-    static_assert(sizeof(Slot) == 24, "a slot is 24 bytes");
+    static constexpr quint8 kText = 2;   // (jp::calc::Value::Kind::Text)
+    static bool isKey(quint64 key) { return key < kDeadKey; }
 
     static size_t hashOf(quint64 k)
     {
         k ^= k >> 33;
         k *= 0xff51afd7ed558ccdull;
         k ^= k >> 33;
+        k *= 0xc4ceb9fe1a85ec53ull;
+        k ^= k >> 33;
         return size_t(k);
     }
     void skip(size_t *at) const
     {
-        while (*at < m_slots.size() && m_slots[*at].key >= kDead) ++*at;
+        while (*at < m_keys.size() && !isKey(m_keys[*at])) ++*at;
     }
     size_t slotOf(quint64 key) const
     {
-        if (m_slots.empty()) return kNone;
-        const size_t mask = m_slots.size() - 1;
+        if (m_keys.empty() || !isKey(key)) return kNone;
+        const size_t mask = m_keys.size() - 1;
         for (size_t i = hashOf(key) & mask;; i = (i + 1) & mask) {
-            if (m_slots[i].key == key) return i;
-            if (m_slots[i].key == kEmpty) return kNone;
+            if (m_keys[i] == key) return i;
+            if (m_keys[i] == kEmptyKey) return kNone;
         }
     }
     size_t place(quint64 key)
     {
-        const size_t mask = m_slots.size() - 1;
+        const size_t mask = m_keys.size() - 1;
         size_t i = hashOf(key) & mask;
-        while (m_slots[i].key < kDead) i = (i + 1) & mask;   // (a free or dead slot)
-        if (m_slots[i].key == kEmpty) ++m_taken;
-        m_slots[i].key = key;
+        while (isKey(m_keys[i])) i = (i + 1) & mask;   // (a free or dead slot)
+        if (m_keys[i] == kEmptyKey) ++m_taken;
+        m_keys[i] = key;
         return i;
     }
     void kill(size_t at)
     {
-        m_slots[at].key = kDead;
+        freeText(at);
+        m_keys[at] = kDeadKey;
         --m_used;
+    }
+    void freeText(size_t at)
+    {
+        if ((m_meta[at] & 7) != kText) return;
+        const quint32 place = quint32(m_bits[at]);
+        m_texts[place] = QString();
+        m_freeTexts.push_back(place);
+        m_meta[at] = 0;
     }
     void grow()
     {
-        std::vector<Slot> old;
-        old.swap(m_slots);
-        std::vector<QString> oldTexts;
-        oldTexts.swap(m_texts);
+        std::vector<quint64> keys, bits;
+        std::vector<quint8> meta;
+        keys.swap(m_keys);
+        bits.swap(m_bits);
+        meta.swap(m_meta);
+        std::vector<QString> texts;
+        texts.swap(m_texts);
+        m_freeTexts.clear();
         size_t cap = 16;
-        while (cap * 3 < (m_used + 1) * 4 * 2) cap *= 2;   // (at most 3/8 full when rebuilt: tombstones are let go of)
-        m_slots.assign(cap, Slot());
+        while (cap < (m_used + 1) * 2) cap *= 2;   // (half full or less when rebuilt; tombstones are let go of)
+        m_keys.assign(cap, kEmptyKey);
+        m_bits.assign(cap, 0);
+        m_meta.assign(cap, 0);
         m_taken = 0;
-        for (const Slot &s : old) {
-            if (s.key >= kDead) continue;
-            Slot &n = m_slots[place(s.key)];
-            n.kind = s.kind;
-            n.error = s.error;
-            if (s.kind == kText) {
-                n.text = quint32(m_texts.size());
-                m_texts.push_back(oldTexts[s.text]);
+        for (size_t i = 0; i < keys.size(); ++i) {
+            if (!isKey(keys[i])) continue;
+            const size_t n = place(keys[i]);
+            m_meta[n] = meta[i];
+            if ((meta[i] & 7) == kText) {
+                m_bits[n] = quint32(m_texts.size());
+                m_texts.push_back(std::move(texts[quint32(bits[i])]));
             } else {
-                n.num = s.num;
+                m_bits[n] = bits[i];
             }
         }
     }
-    static constexpr quint8 kText = 2;
-    void fill(Slot *s, const jp::calc::Value &v0)
+    void fill(size_t at, const jp::calc::Value &v0)
     {
         using K = jp::calc::Value::Kind;
         const jp::calc::Value v = v0.isArray() ? v0.at(0, 0) : v0;
-        s->kind = quint8(v.kind());
-        s->error = quint8(v.errorKind());
+        m_meta[at] = quint8(quint8(v.kind()) | (quint8(v.errorKind()) << 3));
         if (v.kind() == K::Text) {
-            s->text = quint32(m_texts.size());
-            m_texts.push_back(v.text());
+            quint32 place;
+            if (!m_freeTexts.empty()) {
+                place = m_freeTexts.back();
+                m_freeTexts.pop_back();
+                m_texts[place] = v.text();
+            } else {
+                place = quint32(m_texts.size());
+                m_texts.push_back(v.text());
+            }
+            m_bits[at] = place;
         } else {
-            s->num = v.number();
+            const double d = v.number();
+            quint64 b;
+            std::memcpy(&b, &d, sizeof b);
+            m_bits[at] = b;
         }
     }
-    jp::calc::Value valueOf(const Slot &s) const
+    jp::calc::Value valueAt(size_t at) const
     {
         using K = jp::calc::Value::Kind;
-        switch (K(s.kind)) {
-        case K::Number: return jp::calc::Value::number(s.num);
-        case K::Bool: return jp::calc::Value::boolean(s.num != 0);
-        case K::Text: return jp::calc::Value::text(m_texts[s.text]);
-        case K::Error: return jp::calc::Value::error(jp::calc::ErrorKind(s.error));
+        double d = 0;
+        if ((m_meta[at] & 7) != kText) std::memcpy(&d, &m_bits[at], sizeof d);
+        switch (K(m_meta[at] & 7)) {
+        case K::Number: return jp::calc::Value::number(d);
+        case K::Bool: return jp::calc::Value::boolean(d != 0);
+        case K::Text: return jp::calc::Value::text(m_texts[quint32(m_bits[at])]);
+        case K::Error: return jp::calc::Value::error(jp::calc::ErrorKind(m_meta[at] >> 3));
         default: return jp::calc::Value();
         }
     }
-    Pair entry(size_t at) const { return {m_slots[at].key, valueOf(m_slots[at])}; }
+    Pair entry(size_t at) const { return {m_keys[at], valueAt(at)}; }
 
-    std::vector<Slot> m_slots;
+    std::vector<quint64> m_keys, m_bits;
+    std::vector<quint8> m_meta;       // the kind (3 bits) and the error (4 bits)
     std::vector<QString> m_texts;
+    std::vector<quint32> m_freeTexts;
     size_t m_used = 0, m_taken = 0;   // entries, and slots that are not empty (entries and tombstones)
 };
 

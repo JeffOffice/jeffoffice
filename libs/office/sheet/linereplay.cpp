@@ -177,6 +177,8 @@ QString LineReplay::rewrite(const QString &text, int ownSheet) const
     if (!d->any || text.isEmpty()) return text;
     NoCells frame(d->byName, int(d->sheets.size()));
     QString out;
+    // (a reference through several sheets is left as it is, in the window as in the file: the sheets have each an order of their own, so it is not held in ids and an edit of rows does not move it; the
+    // other references of the formula are followed)
     if (!mapReferences(frame, ownSheet, text, jp::calc::ParseLimits::grid(), [this](int sheet, RefLit *lit) { return d->map(sheet, lit); }, &out)) return text;
     return out;
 }

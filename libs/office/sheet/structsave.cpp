@@ -673,6 +673,7 @@ QByteArray movedTail(const QByteArray &tail, const MoveContext &c, int sheet, bo
 struct SharedMaster {
     quint32 row = 0, col = 0;
     QString text;
+    QString now;   // the text with the edits made (a sheet whose cells stay where they are keeps its families shared)
 };
 
 class SheetMover {
@@ -1012,7 +1013,7 @@ private:
         const qsizetype close = f.lastIndexOf('<');
         if (!found || close <= fo.end) return;
         const QString text = xmlscan::unescape(QByteArrayView(f).sliced(fo.end, close - fo.end));
-        if (!text.isEmpty()) m_masters.insert(si, SharedMaster{origRow, origCol, text});
+        if (!text.isEmpty()) m_masters.insert(si, SharedMaster{origRow, origCol, text, keepsShared() ? rewritten(text) : text});
     }
 
     QByteArray movedCell(const QByteArray &cell, qsizetype openEnd, bool selfClosing, quint32 origRow, quint32 origCol, quint32 newRow, quint32 newCol)
@@ -1049,12 +1050,29 @@ private:
                 if (master == m_masters.constEnd()) return cell.mid(openEnd);
                 text = shiftFormula(master->text, int(origRow) - int(master->row), int(origCol) - int(master->col));
             }
-            text = rewritten(text);
-            QByteArray tag = "<" + m_prefix + "f";
-            bool ca = false;
-            const QByteArrayView caValue = xmlscan::attribute(fTag, "ca", &ca);
-            if (ca) tag += " ca=\"" + QByteArray(caValue) + "\"";
-            replacement = tag + ">" + xmlscan::escapeText(text) + "</" + m_prefix + "f>";
+            if (keepsShared()) {
+                // (the cells stay where they are: a cell keeps its share of the family while its text is what the family's new text gives it; the first cell has the new text, with the attributes it had)
+                const auto master = m_masters.constFind(si);
+                if (master == m_masters.constEnd()) return cell.mid(openEnd);
+                if (!fo.selfClosing) {
+                    if (master->now == master->text) return cell.mid(openEnd);
+                    const qsizetype close = f.lastIndexOf('<');
+                    replacement = fTag + xmlscan::escapeText(master->now) + f.mid(close);
+                    return cell.mid(openEnd, fs - openEnd) + replacement + cell.mid(fe);
+                }
+                const QString now = rewritten(text);
+                if (now == shiftFormula(master->now, int(origRow) - int(master->row), int(origCol) - int(master->col))) return cell.mid(openEnd);
+                text = now;
+            } else {
+                text = rewritten(text);
+            }
+            // (written out, with the attributes it had but the share)
+            QByteArray tag = fTag;
+            removeAttribute(&tag, "t");
+            removeAttribute(&tag, "si");
+            removeAttribute(&tag, "ref");
+            if (tag.endsWith("/>")) tag = tag.left(tag.size() - 2).trimmed() + ">";
+            replacement = tag + xmlscan::escapeText(text) + "</" + m_prefix + "f>";
         } else if (type == "array" || type == "dataTable") {
             QByteArray tag = fTag;
             for (const char *name : {"ref", "r1", "r2"}) {
@@ -1155,6 +1173,7 @@ private:
         }
         return mapStreamCell(m_ctx, m_sheet, row, col);
     }
+    bool keepsShared() const { return m_rewrite && !m_positional; }
     QString rewritten(const QString &text)
     {
         if (!m_rewrite) return text;

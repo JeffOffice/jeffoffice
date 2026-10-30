@@ -10,6 +10,7 @@
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
+#include "core/resultmap.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
@@ -23,6 +24,7 @@
 #include <QFileInfo>
 #include <QLineEdit>
 #include <QPointer>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QThread>
@@ -2194,7 +2196,7 @@ private Q_SLOTS:
             QVERIFY(saveParts(e, &parts));
             QVERIFY2(parts.value(QStringLiteral("xl/workbook.xml")).contains("fullCalcOnLoad=\"1\""), parts.value(QStringLiteral("xl/workbook.xml")).constData());
             QVERIFY2(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("<f>A3+1</f>"), parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).constData());
-            QVERIFY2(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("<f>A2*2</f><v>2</v>") || ids == 0, parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).constData());   // (the saver's: the file's result)
+            QVERIFY2(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("<f>A2*2</f><v>2</v>"), parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).constData());   // (the saver's: the file's result)
         }
     }
     // A name with every line of it deleted and the sheet renamed after is the same text before the save and after the file is read again (`Sheet1!#REF!`: the dead part keeps the title it was written with), in both
@@ -2443,6 +2445,162 @@ private Q_SLOTS:
             }
         }
         QCOMPARE(last[1], last[0]);
+    }
+
+    // ---- round 7 review: reference through several sheets, cached values, and the families a sheet keeps
+    // The cached value of a cell as the saved sheet's XML has it (the bytes, not what the program reads from them); "" for none.
+    static QString rawValue(const QMap<QString, QByteArray> &parts, const QString &ref, int sheet = 1)
+    {
+        const QString xml = QString::fromUtf8(parts.value(QStringLiteral("xl/worksheets/sheet%1.xml").arg(sheet)));
+        const QRegularExpression re(QStringLiteral("<c r=\"%1\"[^>]*>(?:(?!</c>).)*?<v>([^<]*)</v>").arg(ref), QRegularExpression::DotMatchesEverythingOption);
+        const QRegularExpressionMatch m = re.match(xml);
+        return m.hasMatch() ? m.captured(1) : QString();
+    }
+    static QByteArray sumBook()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row><row r=\"3\"><c r=\"A3\"><v>3</v></c></row>"
+                                            "<row r=\"4\"><c r=\"A4\"><f>SUM(A1:A3)</f><v>6</v></c><c r=\"B4\"><f>A4*2</f><v>12</v></c></row>");
+        return sheettest::buildXlsx({sheettest::worksheet(rows)});
+    }
+private Q_SLOTS:
+    // A reference through several sheets ("Sheet1:Sheet3!A1:A3") follows the rows put in and taken out of the sheets it spans, in the file as it does in the window (the saver follows it edit by edit, as the
+    // window does, since the sheets have each an order of their own).
+    void aReferenceThroughSeveralSheetsFollowsTheEditsInTheSavedFile()
+    {
+        for (const bool ids : {true, false}) {
+            IdFrameScope scope(ids);
+            const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row><row r=\"3\"><c r=\"A3\"><v>3</v></c></row>");
+            const QString third = rows + QStringLiteral("<row r=\"4\"><c r=\"B4\"><f>SUM(Sheet1:Sheet3!A1:A3)</f><v>18</v></c><c r=\"C4\"><f>Sheet1:Sheet3!A2+A1</f><v>5</v></c></row>");
+            EditWindow e;
+            QVERIFY(e.open(sheettest::buildXlsx({sheettest::worksheet(rows), sheettest::worksheet(rows), sheettest::worksheet(third)})));
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            QVERIFY(s->insertRows(1, 1, 1).ok);   // inside the range, on the sheet between
+            QVERIFY(s->deleteRows(0, 0, 1).ok);   // the first row of the first sheet
+            QVERIFY(s->insertColumns(2, 0, 1).ok);
+            QVERIFY(e.settle());
+            QMap<QString, QByteArray> parts;
+            QVERIFY(saveParts(e, &parts));
+            const Dump live = dumpOfWindow(e), file = dumpOfFile(e.path);
+            QVERIFY(live.formulas.size() >= 2);
+            QCOMPARE(live.formulas.value(QStringLiteral("2 3 3")), QStringLiteral("Sheet1:Sheet3!A2+B1"));   // (the reference through the sheets stays; the plain one follows the column put in)
+            for (auto it = live.formulas.begin(); it != live.formulas.end(); ++it)
+                QVERIFY2(file.formulas.value(it.key(), QStringLiteral("-")) == it.value(), qPrintable(QStringLiteral("ids %1, cell %2: the window has '%3', the file '%4'").arg(ids).arg(it.key(), it.value(), file.formulas.value(it.key(), QStringLiteral("-")))));
+        }
+    }
+    // The cached value of a formula in the file is the window's: a number typed into a row put in inside a sum, and a summed row deleted (read from the bytes of the saved sheet).
+    void theCachedValueOfAMovedFormulaIsTheWindowsAfterATypedRowAndADeletedRow()
+    {
+        for (const bool ids : {true, false}) {
+            IdFrameScope scope(ids);
+            {
+                EditWindow e;
+                QVERIFY(e.open(sumBook()));
+                QVERIFY(e.settle());
+                crunch::EditSession *s = e.win.w.session();
+                QVERIFY(s->insertRows(0, 1, 1).ok);
+                QVERIFY(s->type(0, 1, 0, QStringLiteral("10")).ok);
+                QVERIFY(e.settle());
+                QCOMPARE(e.valueAt(QStringLiteral("A5")), QStringLiteral("n:16"));
+                QMap<QString, QByteArray> parts;
+                QVERIFY(saveParts(e, &parts));
+                QVERIFY2(rawValue(parts, QStringLiteral("A5"), 1) == QStringLiteral("16") && rawValue(parts, QStringLiteral("B5"), 1) == QStringLiteral("32"), qPrintable(QStringLiteral("ids %1: %2 %3").arg(ids).arg(rawValue(parts, QStringLiteral("A5"), 1), rawValue(parts, QStringLiteral("B5"), 1))));
+            }
+            {
+                EditWindow e;
+                QVERIFY(e.open(sumBook()));
+                QVERIFY(e.settle());
+                QVERIFY(e.win.w.session()->deleteRows(0, 1, 1).ok);
+                QVERIFY(e.settle());
+                QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:4"));
+                QMap<QString, QByteArray> parts;
+                QVERIFY(saveParts(e, &parts));
+                QVERIFY2(rawValue(parts, QStringLiteral("A3"), 1) == QStringLiteral("4") && rawValue(parts, QStringLiteral("B3"), 1) == QStringLiteral("8"), qPrintable(QStringLiteral("ids %1: %2 %3").arg(ids).arg(rawValue(parts, QStringLiteral("A3"), 1), rawValue(parts, QStringLiteral("B3"), 1))));
+            }
+        }
+    }
+    // With the calculation by hand the worker does not work a moved formula out again: the file either holds the window's value or asks to be worked out when it is opened.
+    void aFormulaNotWorkedOutAfterAMoveHasTheRightValueOrAsksForACalculation()
+    {
+        for (const bool ids : {true, false}) {
+            IdFrameScope scope(ids);
+            EditWindow e;
+            QVERIFY(e.open(sumBook()));
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            crunch::CalcSettings now = s->calcSettings();
+            now.mode = jp::office::sheet::CalcMode::Manual;
+            QVERIFY(s->setCalcSettings(now).ok);
+            QVERIFY(s->insertRows(0, 1, 1).ok);
+            QVERIFY(s->type(0, 1, 0, QStringLiteral("10")).ok);
+            QVERIFY(s->deleteRows(0, 0, 1).ok);
+            QCoreApplication::processEvents();   // (the worker does not work in manual mode: there is nothing to wait for)
+            QMap<QString, QByteArray> parts;
+            QVERIFY(saveParts(e, &parts));
+            const bool asks = parts.value(QStringLiteral("xl/workbook.xml")).contains("fullCalcOnLoad=\"1\"");
+            const QString window = e.valueAt(QStringLiteral("A4")).mid(2);   // (the sum, now in row 4)
+            const QString file = rawValue(parts, QStringLiteral("A4"), 1);
+            QVERIFY2(asks || file == window, qPrintable(QStringLiteral("ids %1: the file has %2, the window %3, and does not ask for a calculation").arg(ids).arg(file, window)));
+        }
+    }
+
+private Q_SLOTS:
+    // ---- the results the session keeps for the saver
+    // A text that is overwritten, or taken out, gives its place back: texts that come and go (a formula that gives a new text at every calculation) do not pile up.
+    void theResultTableReusesThePlaceOfATextThatIsOverwrittenOrTakenOut()
+    {
+        using jp::calc::Value;
+        jp::crunch::ResultMap m;
+        for (int i = 0; i < 100000; ++i) m.set(42, Value::text(QStringLiteral("text number %1").arg(i)));
+        QCOMPARE(m.size(), size_t(1));
+        QCOMPARE(m.value(42).text(), QStringLiteral("text number 99999"));
+        QVERIFY2(m.textPlaces() <= 2, qPrintable(QString::number(m.textPlaces())));
+        for (int i = 0; i < 100000; ++i) {
+            m.set(quint64(1000 + i % 50), Value::text(QStringLiteral("t%1").arg(i)));
+            if (i % 3 == 0) m.erase(quint64(1000 + (i + 7) % 50));
+        }
+        QVERIFY2(m.textPlaces() <= 60, qPrintable(QString::number(m.textPlaces())));
+        for (int i = 0; i < 100000; ++i) m.set(5, Value::number(i));   // (a number over a text frees the text)
+        QVERIFY(m.textPlaces() <= 60);
+        QCOMPARE(m.value(5).number(), 99999.0);
+    }
+    // The values it keeps come back as they were, an entry taken out while walking the table does not hide the next, and the two keys it uses for itself are refused, not found, and not erased.
+    void theResultTableKeepsValuesAndRefusesItsOwnKeys()
+    {
+        using jp::calc::Value;
+        using jp::calc::ErrorKind;
+        jp::crunch::ResultMap m;
+        QVERIFY(m.set(1, Value::number(2.5)));
+        QVERIFY(m.set(2, Value::boolean(true)));
+        QVERIFY(m.set(3, Value::error(ErrorKind::Ref)));
+        QVERIFY(m.set(4, Value::text(QStringLiteral("x"))));
+        QVERIFY(m.set(5, Value()));
+        QVERIFY(m.find(1)->second == Value::number(2.5) && m.find(2)->second == Value::boolean(true) && m.find(3)->second == Value::error(ErrorKind::Ref) && m.find(4)->second == Value::text(QStringLiteral("x")) && m.find(5)->second.isEmpty());
+        QVERIFY(!m.set(jp::crunch::ResultMap::kEmptyKey, Value::number(1)));
+        QVERIFY(!m.set(jp::crunch::ResultMap::kDeadKey, Value::number(1)));
+        for (const quint64 k : {jp::crunch::ResultMap::kEmptyKey, jp::crunch::ResultMap::kDeadKey}) {
+            QVERIFY(m.find(k) == m.end());
+            QCOMPARE(m.count(k), size_t(0));
+            QCOMPARE(m.erase(k), size_t(0));
+        }
+        QCOMPARE(m.size(), size_t(5));
+        for (quint64 k = 100; k < 5000; ++k) m.set(k, Value::number(double(k)));
+        size_t seen = 0;
+        for (auto it = m.begin(); it != m.end();) {
+            ++seen;
+            it = it->first % 2 == 0 ? m.erase(it) : std::next(it);
+        }
+        QCOMPARE(seen, size_t(4905));
+        QCOMPARE(m.size(), size_t(4905 - 2450 - 2));   // (the even keys of 100 to 4999, and the keys 2 and 4)
+        for (quint64 k = 100; k < 5000; ++k) QCOMPARE(m.count(k), size_t(k % 2));
+    }
+    // What a million entries cost: at most 45 bytes an entry (a node of a tree holding a whole value is about 106).
+    void theResultTableCostsUnderHalfWhatATreeOfValuesDoes()
+    {
+        jp::crunch::ResultMap m;
+        for (quint64 k = 0; k < 1000000; ++k) m.set((quint64(1) << 40) | k, jp::calc::Value::number(double(k)));
+        const double perEntry = double(m.slotCount()) * 17.0 / double(m.size());
+        QVERIFY2(perEntry <= 45.0, qPrintable(QString::number(perEntry)));
     }
 
     void aWorkbookWithMacrosKeepsThem()

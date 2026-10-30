@@ -89,7 +89,7 @@ private Q_SLOTS:
         const QStringList formulas = {
             QStringLiteral("A1"), QStringLiteral("$B$2"), QStringLiteral("B$3*$C4"), QStringLiteral("SUM(A1:A10)"), QStringLiteral("SUM(A$2:C$6)"), QStringLiteral("SUM(B:B)"), QStringLiteral("SUM(3:5)"),
             QStringLiteral("Calc!C3+Data!A5"), QStringLiteral("SUM('Calc'!A1:B3)"), QStringLiteral("IF(A5>0,A6,A7)"), QStringLiteral("A2:C4"), QStringLiteral("Data!A1:A4"), QStringLiteral("SUM(Calc!B2:D9)*2"),
-            QStringLiteral("A10+B10+C10-D10"), QStringLiteral("COUNT(A1:Z1)"), QStringLiteral("SUM(A5:A5)"), QStringLiteral("Calc!A:C"), QStringLiteral("SUM(Data!2:4)"), QStringLiteral("MAX(C2:C30,Calc!E5)"),
+            QStringLiteral("A10+B10+C10-D10"), QStringLiteral("COUNT(A1:Z1)"), QStringLiteral("SUM(A5:A5)"), QStringLiteral("Calc!A:C"), QStringLiteral("SUM(Data!2:4)"), QStringLiteral("MAX(C2:C30,Calc!E5)"), QStringLiteral("SUM(Data:Calc!A1:A5)"), QStringLiteral("Data:Calc!B2+A1"), QStringLiteral("SUM(Data:Calc!3:4,B2)"),
         };
         for (quint32 seed = 1; seed <= 400; ++seed) {
             Random r(seed);
@@ -261,6 +261,30 @@ private Q_SLOTS:
         QVERIFY2(near.error.isEmpty(), qPrintable(near.error));
         QVERIFY(near.parts.value(QStringLiteral("xl/worksheets/sheet2.xml")) != original.value(QStringLiteral("xl/worksheets/sheet2.xml")));
         QCOMPARE(formulaIn(QString::fromUtf8(near.parts.value(QStringLiteral("xl/worksheets/sheet2.xml"))), QStringLiteral("A1")), QStringLiteral("Sheet1!A5+Sheet1!B6"));
+    }
+
+    // A sheet that is written because one formula of it reads a row that moved keeps its other formulas as they were: a family stays shared while each cell has the text the family's gives it, a cell that
+    // no longer has it is written out with the attributes it had, and the first cell has the new text with its attributes.
+    void aSheetWrittenForOneFormulaKeepsItsFamiliesAndAttributes()
+    {
+        const QString one = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row><row r=\"3\"><c r=\"A3\"><v>3</v></c></row>");
+        const QString two = QStringLiteral(
+            "<row r=\"1\"><c r=\"C1\"><f t=\"shared\" ref=\"C1:C3\" si=\"0\">B1*2</f><v>2</v></c><c r=\"D1\"><f aca=\"1\" ca=\"1\">Sheet1!A3+1</f><v>4</v></c>"
+            "<c r=\"E1\"><f t=\"shared\" ref=\"E1:E3\" si=\"1\" ca=\"1\">Sheet1!A1</f><v>1</v></c></row>"
+            "<row r=\"2\"><c r=\"C2\"><f t=\"shared\" si=\"0\"/><v>4</v></c><c r=\"E2\"><f t=\"shared\" si=\"1\" ca=\"1\"/><v>2</v></c></row>"
+            "<row r=\"3\"><c r=\"C3\"><f t=\"shared\" si=\"0\"/><v>6</v></c><c r=\"E3\"><f t=\"shared\" si=\"1\" ca=\"1\"/><v>3</v></c></row>");
+        const Saved s = saveWith(buildXlsx({worksheet(one), worksheet(two)}), {StructEdit::insertRows(0, 1, 1)}, true);
+        QVERIFY2(s.error.isEmpty(), qPrintable(s.error));
+        const QString xml = QString::fromUtf8(s.parts.value(QStringLiteral("xl/worksheets/sheet2.xml")));
+        // the family that reads nothing that moved is the file's bytes
+        QVERIFY2(xml.contains(QStringLiteral("<f t=\"shared\" ref=\"C1:C3\" si=\"0\">B1*2</f>")) && xml.contains(QStringLiteral("<c r=\"C2\"><f t=\"shared\" si=\"0\"/>")) && xml.contains(QStringLiteral("<c r=\"C3\"><f t=\"shared\" si=\"0\"/>")), qPrintable(xml));
+        // the plain formula has its new text and both its attributes
+        QVERIFY2(xml.contains(QStringLiteral("<f aca=\"1\" ca=\"1\">Sheet1!A4+1</f>")), qPrintable(xml));
+        // the family that reads the rows: the first cell has the text it has now (A1 is above the row put in: the same), the second reads the row that moved and so does not follow the family any more
+        QVERIFY2(xml.contains(QStringLiteral("<f t=\"shared\" ref=\"E1:E3\" si=\"1\" ca=\"1\">Sheet1!A1</f>")), qPrintable(xml));
+        QCOMPARE(formulaIn(xml, QStringLiteral("E2")), QStringLiteral("Sheet1!A3"));
+        QCOMPARE(formulaIn(xml, QStringLiteral("E3")), QStringLiteral("Sheet1!A4"));
+        QVERIFY2(cellElement(xml, QStringLiteral("E2")).contains(QStringLiteral("<f ca=\"1\">")) && !cellElement(xml, QStringLiteral("E2")).contains(QStringLiteral("shared")), qPrintable(xml));
     }
 
     // A sheet that names no sheet that moved is not read for its cells: the part is the file's, though the sheet it reads from is edited, and a name that is not plain text is looked for everywhere.
