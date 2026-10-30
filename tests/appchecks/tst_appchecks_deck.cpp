@@ -1,6 +1,7 @@
 // The checks every app's window must pass, for JeffDeck (see appchecks.h): its first five minutes, its standard commands, and every command it has.
 #include "appchecks.h"
 
+#include "app/animationpane.h"
 #include "app/deckcanvas.h"
 #include "app/deckinfo.h"
 #include "app/deckwindow.h"
@@ -321,6 +322,24 @@ private Q_SLOTS:
         m_app.settle(w.get());
         const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 300);
         QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
+    }
+
+    // A preview of the effects plays the presentation in the window; when another is put in its place, the preview ends (it would play what is gone).
+    void aPreviewEndsWhenThePresentationIsReplaced()
+    {
+        std::unique_ptr<DeckWindow> w(launchBlank());
+        auto shape = std::make_shared<ShapeItem>();
+        shape->shape = QStringLiteral("rect");
+        shape->rect = QRectF(60, 300, 120, 80);
+        w->editor()->select(w->editor()->addItem(shape));
+        w->refreshNow();
+        w->act(QStringLiteral("anim.add.entr.fade"))->trigger();
+        w->refreshNow();
+        w->act(QStringLiteral("anim.preview"))->trigger();
+        QVERIFY(w->canvas()->findChild<AnimationPreview *>());
+        w->editor()->setDocument(deck::newPresentation());
+        drain();
+        QVERIFY2(!w->canvas()->findChild<AnimationPreview *>(), "the preview goes on playing a presentation that is gone");
     }
 
     // ---- 2. the standard commands

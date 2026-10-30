@@ -106,6 +106,13 @@ public:
     // False when the slide has nothing to play.
     bool play(int slide, const QRect &area, int fromStep = 0);
     bool isPlaying() const { return m_timer.isActive(); }
+    // Ends it at once (the presentation it plays is gone): no step is drawn after this.
+    void cancel()
+    {
+        m_timer.stop();
+        hide();
+        deleteLater();
+    }
     // The click step playing.
     int step() const { return m_step; }
 
