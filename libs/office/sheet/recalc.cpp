@@ -208,7 +208,11 @@ int WorkbookSource::rowHiddenKind(int sheet, quint32 row) const
             if (r.hidden) map[r.row] = r.filtered ? 2 : 1;
         m_hiddenRowsReady[size_t(sheet)] = 1;
     }
-    const auto it = m_hiddenRows[size_t(sheet)].find(row);
+    // (the specs of rows are kept by the id of the row in the id frame, which no edit of rows changes)
+    const Sheet &s = m_sheets[size_t(sheet)];
+    const quint32 key = s.rowSpecsAreIds ? s.cells.rowIdAt(row) : row;
+    if (key == CellStore::kNoLine) return 0;
+    const auto it = m_hiddenRows[size_t(sheet)].find(key);
     return it == m_hiddenRows[size_t(sheet)].end() ? 0 : it->second;
 }
 

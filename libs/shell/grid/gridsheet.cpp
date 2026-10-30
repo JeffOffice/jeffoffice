@@ -251,7 +251,8 @@ std::shared_ptr<GridGeometry> GridSheet::makeGeometry(const Sheet &sheet, const 
     const int defaultRow = std::max(1, rowPixels(sheet.format.defaultRowHeight > 0 ? sheet.format.defaultRowHeight : 15));
     layout.rows.setCount(qint64(jp::office::sheet::kMaxRows));
     layout.rows.setDefaultSize(defaultRow);
-    std::vector<RowSpec> specs(sheet.rowSpecs.begin(), sheet.rowSpecs.end());
+    const QVector<RowSpec> placedSpecs = sheet.placedRowSpecs();   // (a sheet that holds the specs of its rows by id gives them by the places the rows are at)
+    std::vector<RowSpec> specs(placedSpecs.begin(), placedSpecs.end());
     std::stable_sort(specs.begin(), specs.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
     // (a row the file gives twice has its last)
     std::vector<RowSpec> unique;

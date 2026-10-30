@@ -48,7 +48,7 @@ const char *kThreads =
     "<text>Is the date right?</text></threadedComment></ThreadedComments>";
 
 // editBook() (A1:D3) with notes on A1 (by Ann), C3 (by Bob, shown), and D2 (a conversation of comments).
-QByteArray bookWithNotes()
+QByteArray bookWithNotes(const QByteArray &extraRows = QByteArray())
 {
     QVector<ExtraPart> parts;
     parts.push_back({QStringLiteral("xl/comments1.xml"), QByteArray(kComments), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"), 0, QStringLiteral("rId11"),
@@ -58,7 +58,7 @@ QByteArray bookWithNotes()
     parts.push_back({QStringLiteral("xl/threadedComments/threadedComment1.xml"), QByteArray(kThreads), QStringLiteral("application/vnd.ms-excel.threadedcomments+xml"), 0, QStringLiteral("rId13"),
                      QStringLiteral("threadedComment"), QStringLiteral("../threadedComments/threadedComment1.xml")});
     QMap<QString, QByteArray> all;
-    jp::readZip(withParts(editBook(), parts), all);
+    jp::readZip(withParts(editBook(extraRows), parts), all);
     QByteArray sheetRels = all.value(QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels"));
     sheetRels.replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/threadedComment", "http://schemas.microsoft.com/office/2017/10/relationships/threadedComment");
     all[QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")] = sheetRels;
@@ -265,6 +265,51 @@ private Q_SLOTS:
         e.win.w.undoStack()->redo();
         QVERIFY(s->anchors().noteAt(0, 2, 0));
         QCOMPARE(e.view()->noteCellCount(), size_t(3));
+    }
+
+    // Round 6: notes and links go with their cells through edits of rows and columns, and come back whole with Undo and Redo, over and over; what the steps hold is the notes and links they moved or
+    // took away, and no cell (counted: the bytes of the steps stay under what a few cells' copies would take).
+    void notesAndLinksComeBackWholeWithUndoAndRedoOfRowsAndColumns()
+    {
+        // (and 100,000 rows below with a height of their own each: what the steps hold is what the edits changed)
+        QString tall;
+        for (int r = 6; r <= 100000; ++r) tall += QStringLiteral("<row r=\"%1\" ht=\"%2\" customHeight=\"1\"><c r=\"F%1\"><v>%1</v></c></row>").arg(r).arg(15 + r % 5);
+        EditWindow e;
+        QVERIFY(e.open(bookWithNotes(tall.toUtf8())));
+        crunch::EditSession *s = e.win.w.session();
+        jp::office::sheet::LinkSpec link;
+        link.range.valid = true;
+        link.range.row1 = link.range.row2 = 2;
+        link.range.col1 = link.range.col2 = 0;
+        link.location = QStringLiteral("Sheet1!B1");
+        link.tip = QStringLiteral("to B1");
+        QVERIFY(s->setLink(0, link.range, link, QStringLiteral("Making a link")).ok);   // on A3
+        QVERIFY(e.settle());
+        const qint64 base = s->undoBytes();
+        auto state = [&] {
+            QStringList out;
+            for (const auto &n : s->anchors().notes(0))
+                out << QStringLiteral("note %1: %2|%3|%4|%5").arg(n.first).arg(n.second.author, n.second.text).arg(n.second.shown).arg(n.second.threaded);
+            for (const auto &l : s->anchors().links(0)) out << QStringLiteral("link %1:%2 %3 %4 %5").arg(l.range.row1).arg(l.range.col1).arg(l.target, l.location, l.tip);
+            return out.join(QLatin1Char('\n'));
+        };
+        const QString start = state();
+        QVERIFY(s->insertRows(0, 0, 2).ok);
+        QVERIFY(s->insertColumns(0, 1, 1).ok);
+        QVERIFY(s->deleteRows(0, 4, 1).ok);   // (the row of A3 is row 5 now; its link and its note are on cells that go)
+        QVERIFY(s->deleteColumns(0, 3, 1).ok);
+        QVERIFY(e.settle());
+        const QString done = state();
+        QVERIFY(done != start);
+        QVERIFY2(s->undoBytes() - base < 24 * 1024 || !jp::office::sheet::Calculation::idFrameDefault(), qPrintable(QString::number(s->undoBytes() - base)));   // (in places an edit of rows writes the specs of rows again, and Undo holds them)
+        for (int round = 0; round < 3; ++round) {
+            for (int i = 0; i < 4; ++i) e.win.w.undoStack()->undo();
+            QCOMPARE(state(), start);
+            for (int i = 0; i < 4; ++i) e.win.w.undoStack()->redo();
+            QCOMPARE(state(), done);
+        }
+        QVERIFY(e.settle());
+        QVERIFY2(s->undoBytes() - base < 24 * 1024 || !jp::office::sheet::Calculation::idFrameDefault(), qPrintable(QString::number(s->undoBytes() - base)));   // (in places an edit of rows writes the specs of rows again, and Undo holds them)
     }
 
     void notesFollowASort()

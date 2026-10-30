@@ -622,6 +622,104 @@ private Q_SLOTS:
         QCOMPARE(valueOf(e, QStringLiteral("C8")), QStringLiteral("n:66"));
     }
 
+    // Round 6: a row put in a table, with the fill of its calculated column that follows it as a step of its own, and a row taken out of it: each is undone and done again whole (the table, the
+    // cells, the formulas), over and over, and the steps hold a few kilobytes (the table's places, and no cell).
+    void aTableEditAndItsFillAreUndoneAndDoneAgainWhole()
+    {
+        // (below the table, 100,000 rows that each have a height of their own: what the steps hold stays what the edits changed, not what the sheet has)
+        QByteArray sheet = salesRows();
+        QString tall;
+        for (int r = 10; r <= 100000; ++r) tall += QStringLiteral("<row r=\"%1\" ht=\"%2\" customHeight=\"1\"><c r=\"F%1\"><v>%1</v></c></row>").arg(r).arg(15 + r % 5);
+        sheet.replace("</sheetData>", tall.toUtf8() + "</sheetData>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({sheet})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(s->type(0, 1, 3, QStringLiteral("=[@Q1]*5")).ok);
+        QVERIFY(s->type(0, 7, 0, QStringLiteral("=SUM(Table1[Q1])")).ok);
+        QVERIFY(e.settle());
+        QUndoStack *u = e.win.w.undoStack();
+        const int steps = u->count();
+        const qint64 base = s->undoBytes();
+        auto state = [&] {
+            QStringList out;
+            const Table &t = s->workbook()->tables().first();
+            out << QStringLiteral("table %1:%2").arg(t.row1).arg(t.row2);
+            for (const char *ref : {"A1", "A2", "A3", "A4", "A5", "A8", "A9", "B2", "B3", "B4", "C3", "C4", "D2", "D3", "D4", "D5"})
+                out << QString::fromLatin1(ref) + QLatin1Char('=') + valueOf(e, QString::fromLatin1(ref)) + QLatin1Char(' ') + editOf(e, QString::fromLatin1(ref));
+            return out.join(QLatin1Char('|'));
+        };
+        const QString start = state();
+        QVERIFY(s->insertRows(0, 2, 1).ok);   // inside the table: the row, and the fill
+        QVERIFY(e.settle());
+        QCOMPARE(u->count(), steps + 2);
+        QCOMPARE(editOf(e, QStringLiteral("D3")), QStringLiteral("=Table1[[#This Row],[Q1]]*5"));
+        const QString grown = state();
+        QVERIFY2(s->undoBytes() - base < 16 * 1024 || !jp::office::sheet::Calculation::idFrameDefault(), qPrintable(QString::number(s->undoBytes() - base)));   // (in places an edit of rows writes the specs of rows again, and Undo holds them)
+        QVERIFY(s->deleteRows(0, 1, 1).ok);   // the first row of data
+        QVERIFY(e.settle());
+        QCOMPARE(u->count(), steps + 3);
+        const QString shrunk = state();
+        QVERIFY2(s->undoBytes() - base < 16 * 1024 || !jp::office::sheet::Calculation::idFrameDefault(), qPrintable(QString::number(s->undoBytes() - base)));   // (in places an edit of rows writes the specs of rows again, and Undo holds them)
+        for (int round = 0; round < 3; ++round) {
+            u->undo();
+            QVERIFY(e.settle());
+            QCOMPARE(state(), grown);
+            u->undo();   // the fill
+            u->undo();   // the row
+            QVERIFY(e.settle());
+            QCOMPARE(state(), start);
+            u->redo();
+            u->redo();
+            QVERIFY(e.settle());
+            QCOMPARE(state(), grown);
+            u->redo();
+            QVERIFY(e.settle());
+            QCOMPARE(state(), shrunk);
+        }
+        QVERIFY(e.settle());
+    }
+
+    // Round 6: formulas that name a table and one that reads the hidden rows are in a row that is deleted; the table is renamed and made smaller and a row is hidden while they are dead; all of it is undone,
+    // and then the rows come back: the formulas read what they read, and a change reaches them (they tell the graph what they read, as those of live rows do).
+    void formulasThatNameATableAreRegisteredAgainWhenTheirRowsComeBackAfterTheTableChanged()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({salesRows()})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);
+        QVERIFY(s->type(0, 7, 0, QStringLiteral("=SUM(Table1[Q1])")).ok);
+        QVERIFY(s->type(0, 7, 1, QStringLiteral("=SUBTOTAL(109,B2:B4)")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:6"));
+        QUndoStack *u = e.win.w.undoStack();
+        QVERIFY(s->deleteRows(0, 7, 1).ok);
+        QVERIFY(s->renameTable(0, QStringLiteral("Sales")).ok);
+        QVERIFY(s->resizeTable(0, rangeText(QStringLiteral("A1:C3"))).ok);
+        crunch::EditSession::SizeChange hide;
+        hide.setHidden = hide.hidden = true;
+        QVERIFY(s->resizeRows(0, 2, 2, hide, QStringLiteral("Hide")).ok);
+        QVERIFY(e.settle());
+        for (int i = 0; i < 3; ++i) u->undo();
+        QVERIFY(e.settle());
+        u->undo();   // the rows come back
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:6"));
+        QCOMPARE(valueOf(e, QStringLiteral("B8")), QStringLiteral("n:6"));
+        QVERIFY(s->type(0, 1, 1, QStringLiteral("100")).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:105"));
+        QCOMPARE(valueOf(e, QStringLiteral("B8")), QStringLiteral("n:105"));
+        QVERIFY(s->resizeRows(0, 2, 2, hide, QStringLiteral("Hide")).ok);   // (row 3, 2 in B, is left out of the subtotal now)
+        QVERIFY(e.settle());
+        QCOMPARE(valueOf(e, QStringLiteral("B8")), QStringLiteral("n:103"));
+        QCOMPARE(valueOf(e, QStringLiteral("A8")), QStringLiteral("n:105"));
+    }
+
     // Formulas typed inside the table with the short form are kept as the file writes them, and shown as they were typed.
     void theShortFormOfARowReferenceIsKeptAsTheFileWritesIt()
     {

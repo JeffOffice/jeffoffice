@@ -332,8 +332,14 @@ private Q_SLOTS:
             QVERIFY(b.open({{"A1=1", "A2=2", "A3=3", "B1==SUM(A1:A3)"}}));
             Calculation::EditRecord del;
             QVERIFY(b.apply(StructEdit::deleteRows(0, 0, 2), &del));
-            QVERIFY(!del.gone.empty());
-            QCOMPARE(b.calc->sheet(0).cells.deadCount(), qint64(del.gone.size()));
+            // (in the id frame the cells of the rows stay where they are, dead, and the record holds none of them)
+            if (b.calc->idFrame()) {
+                QVERIFY(del.gone.empty());
+                QCOMPARE(b.calc->sheet(0).cells.deadCount(), qint64(3));
+            } else {
+                QVERIFY(!del.gone.empty());
+                QCOMPARE(b.calc->sheet(0).cells.deadCount(), qint64(del.gone.size()));
+            }
             b.calc->forgetLines(&del);
             QVERIFY(del.gone.empty() && del.gone.capacity() == 0);
             QCOMPARE(b.calc->sheet(0).cells.deadCount(), qint64(0));
@@ -562,7 +568,7 @@ private Q_SLOTS:
         QCOMPARE(b.formula("B2"), QStringLiteral("#REF!*2"));
         QCOMPARE(b.at("B2"), QStringLiteral("e:#REF!"));
         QCOMPARE(b.at("C1"), QStringLiteral("e:#REF!"));                         // what reads it has the error too
-        QCOMPARE(rec.gone.size(), size_t(4));                                    // A3, B3, A4, B4 (B3 has a formula)
+        QCOMPARE(rec.gone.size(), b.calc->idFrame() ? size_t(0) : size_t(4));    // A3, B3, A4, B4 (B3 has a formula): the cells of rows that are deleted stay, dead, in the id frame, and the record has none
         // Undo: all as it was
         QVERIFY(b.calc->undoEdit(rec));
         b.finish();
@@ -1448,6 +1454,111 @@ private Q_SLOTS:
         QCOMPARE(b.at("B2"), QStringLiteral("n:%1").arg(5050));
     }
 
+    // Round 6 (docs/jeffcrunch-rowids.md, 4.7): rows deleted in the id frame cost what the blocks of cells cost, not what the cells and the formulas in them cost. The record holds no cell and no
+    // formula (the cells stay where they are, dead, with their nodes: they are worked out by no one), Undo makes no node (counted: formulas registered), the values the formulas had are what the
+    // sheet shows at once, and what was in the rows is worked out again by the worker after.
+    void aDeleteOfHalfAMillionRowsAndItsUndoCostWhatTheBlocksCost()
+    {
+        const int n = 600000;
+        QString rows;
+        rows.reserve(n * 60);
+        // (every formula reads a live cell, D1, besides its own row: a change to it while the rows are dead is one the revived formulas have not seen)
+        for (int r = 1; r <= n; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2+$D$1</f><v>0</v></c>%2</row>").arg(r).arg(r == 1 ? QStringLiteral("<c r=\"D1\"><v>0</v></c>") : QString());
+        Book b;
+        QVERIFY(b.openXml(worksheet(rows)));
+        if (!b.calc->idFrame()) QSKIP("the formulas are held in places: a delete of rows copies the cells it deletes, as before ids");
+        QCOMPARE(b.at("B100000"), QStringLiteral("n:200000"));
+        const qint64 registered = b.calc->registrations(), work = b.calc->editWork(), formulas = b.calc->formulaCount();
+        Calculation::EditRecord del;
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 50000, 500000), &del));   // rows 50,001 to 550,000
+        QVERIFY2(del.gone.empty(), qPrintable(QString::number(del.gone.size())));
+        QVERIFY2(b.calc->editWork() - work < 1000, qPrintable(QString::number(b.calc->editWork() - work)));
+        QCOMPARE(b.calc->registrations(), registered);
+        QCOMPARE(b.calc->formulaCount(), formulas);   // (the formulas in the rows are registered still, dead)
+        QCOMPARE(b.calc->sheet(0).cells.cellCount(), qint64(200001));   // (and D1)
+        QCOMPARE(b.calc->sheet(0).cells.deadCount(), qint64(1000000));
+        QCOMPARE(b.at("A50001"), QStringLiteral("n:550001"));
+        QCOMPARE(b.at("B50001"), QStringLiteral("n:1100002"));
+        QVERIFY(b.calc->setValue(0, 0, 3, Value::number(5)));   // D1, while the rows are dead
+        b.finish();
+        QCOMPARE(b.at("B50001"), QStringLiteral("n:1100007"));
+        // Undo: no formula is made, and the values are the sheet's at once, before the worker has done anything
+        const qint64 evaluated = b.calc->evaluations();
+        QVERIFY(b.calc->undoEdit(del));
+        QCOMPARE(b.calc->registrations(), registered);
+        QVERIFY2(b.calc->editWork() - work < 1000, qPrintable(QString::number(b.calc->editWork() - work)));
+        QCOMPARE(b.calc->evaluations(), evaluated);
+        QCOMPARE(b.at("B100000"), QStringLiteral("n:200000"));   // (the value it had: it is the sheet's at once; the worker has not been to it)
+        QCOMPARE(b.at("B550000"), QStringLiteral("n:1100000"));
+        QCOMPARE(b.calc->sheet(0).cells.cellCount(), qint64(1200001));
+        QCOMPARE(b.calc->sheet(0).cells.deadCount(), qint64(0));
+        // (and the formulas that were in the rows are worked out again, after)
+        b.finish();
+        QVERIFY2(b.calc->evaluations() - evaluated >= 500000, qPrintable(QString::number(b.calc->evaluations() - evaluated)));
+        QCOMPARE(b.at("B300000"), QStringLiteral("n:600005"));   // (and now what D1 is: the formulas that came back were worked out again)
+        QCOMPARE(b.at("B100000"), QStringLiteral("n:200005"));
+        // done again after Undo, undone again: the same rows, the same cells
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 50000, 500000), &del));
+        QVERIFY(del.gone.empty());
+        QCOMPARE(b.calc->sheet(0).cells.deadCount(), qint64(1000000));
+        QVERIFY(b.calc->undoEdit(del));
+        b.finish();
+        QCOMPARE(b.at("B300000"), QStringLiteral("n:600005"));
+        QCOMPARE(b.calc->registrations(), registered);
+    }
+
+    // Round 6: the specs of rows (height, hidden, outline) are held by the id of the row in the id frame: rows put in and taken out move none and record none, the spec of a row that is deleted comes back with
+    // it, and what reads them by the places of the rows (rowSpecsIn, the sheet's placedRowSpecs) has them where the rows are now.
+    void theSpecsOfRowsAreHeldByIdAndFollowTheirRowsWithNothingRecorded()
+    {
+        Book b;
+        QVERIFY(b.open({{"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "B1==SUM(A1:A5)"}}));
+        if (!b.calc->idFrame()) QSKIP("the formulas are held in places: the specs of rows are rewritten by the edit, and recorded, as before ids");
+        RowSpec tall;
+        tall.row = 3;
+        tall.height = 30;
+        tall.customHeight = true;
+        RowSpec hidden;
+        hidden.row = 4;
+        hidden.hidden = true;
+        b.calc->setRowSpecs(0, 3, 4, {tall, hidden});
+        Calculation::EditRecord ins;
+        QVERIFY(b.apply(StructEdit::insertRows(0, 1, 2), &ins));
+        QVERIFY(ins.rowSpecs.isEmpty());
+        QCOMPARE(b.calc->sheet(0).rowSpecs[0].row, quint32(3));   // (the id of the row: it is where it was held)
+        QCOMPARE(b.calc->sheet(0).rowSpecs[1].row, quint32(4));
+        QCOMPARE(b.calc->rowSpecsIn(0, 0, 10).size(), size_t(2));
+        QCOMPARE(b.calc->rowSpecsIn(0, 5, 5).front().height, 30.0);   // (the row of A4 is the sixth)
+        QVERIFY(b.calc->rowSpecsIn(0, 6, 6).front().hidden);
+        QVERIFY(b.calc->rowSpecsIn(0, 3, 3).empty());
+        QCOMPARE(b.calc->sheet(0).placedRowSpecs().size(), 2);
+        QCOMPARE(b.calc->sheet(0).placedRowSpecs()[0].row, quint32(5));
+        // a row taken out takes its spec out of sight, and Undo gives it back
+        Calculation::EditRecord del;
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 5, 1), &del));
+        QVERIFY(del.rowSpecs.isEmpty());
+        QCOMPARE(b.calc->rowSpecsIn(0, 0, 10).size(), size_t(1));
+        QVERIFY(b.calc->rowSpecsIn(0, 5, 5).front().hidden);   // (the hidden row is the one before the end now)
+        QVERIFY(b.calc->undoEdit(del));
+        b.finish();
+        QCOMPARE(b.calc->rowSpecsIn(0, 5, 5).front().height, 30.0);
+        QVERIFY(b.calc->undoEdit(ins));
+        b.finish();
+        QCOMPARE(b.calc->rowSpecsIn(0, 3, 3).front().height, 30.0);
+        QVERIFY(b.calc->rowSpecsIn(0, 4, 4).front().hidden);
+        QVERIFY(b.calc->rowSpecsIn(0, 5, 5).empty());
+        // a whole list put back by places (a step of the filter's) is held by the ids of the rows
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), &ins));
+        const QVector<RowSpec> placed = b.calc->rowSpecsOf(0);
+        QCOMPARE(placed[0].row, quint32(4));
+        b.calc->setRowSpecsOf(0, QVector<RowSpec>());
+        QCOMPARE(b.calc->rowSpecsOf(0).size(), 0);
+        b.calc->setRowSpecsOf(0, placed);
+        QCOMPARE(b.calc->rowSpecsOf(0).size(), 2);
+        QCOMPARE(b.calc->rowSpecsOf(0)[0].row, quint32(4));
+        QCOMPARE(b.calc->sheet(0).rowSpecs[0].row, quint32(3));
+    }
+
     // What the edits do is what a calculation made again from the cells would give: after each of many random edits (rows, columns, and cells, inserted and deleted, on two sheets)
     // every value is what a whole new calculation of the same cells gives (the graph has not gone stale), and Undo of them all gives back the cells and formulas that were.
     void randomEditsKeepTheGraphRightAndUndoesBack() { runRandomEdits(qEnvironmentVariableIsSet("STRUCT_SEEDS") ? quint32(qEnvironmentVariableIntValue("STRUCT_SEEDS")) : 24, false, true); }
@@ -1587,6 +1698,51 @@ private Q_SLOTS:
         QCOMPARE(b.at("A1", 1), QStringLiteral("n:42"));
         QString why;
         QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+    }
+
+    // The specs of rows are held by the id of the row: when the order is put back to one run, the ids are renumbered, and so are the specs (hidden, height, outline), and what the worker knows of the hidden
+    // rows (a SUBTOTAL leaves out the rows that are hidden).
+    void theSpecsOfRowsAreRenumberedWhenTheOrderOfRowsIsPutBackToOneRun()
+    {
+        QStringList cells;
+        for (int r = 1; r <= 20; ++r) cells << QStringLiteral("A%1=%1").arg(r);
+        cells << QStringLiteral("C1==SUBTOTAL(109,A1:A20)");
+        Book b;
+        QVERIFY(b.open({cells}));
+        if (!b.calc->idFrame()) QSKIP("the specs of rows are held by place: there are no ids to renumber");
+        RowSpec hidden, tall, outlined;
+        hidden.row = 9;   // the row of A10
+        hidden.hidden = hidden.hand = true;
+        tall.row = 11;
+        tall.height = 40;
+        tall.customHeight = true;
+        outlined.row = 13;
+        outlined.outline = 2;
+        b.calc->setRowSpecs(0, 9, 13, {hidden, tall, outlined});
+        b.calc->hiddenRowsAndSubtotals(0);   // (as the session does it when a row is hidden)
+        b.finish();
+        QVERIFY(b.apply(StructEdit::insertRows(0, 0, 3), nullptr));    // (the ids of the rows are not their places)
+        QVERIFY(b.apply(StructEdit::deleteRows(0, 0, 2), nullptr));    // (nor are the places of the rows the ones before: A10 is the row at place 10)
+        QCOMPARE(b.at("C2"), QStringLiteral("n:%1").arg(210 - 10));   // (C1 is C2 now: the hidden row is left out)
+        std::vector<jp::calc::LineMapCore::Renumber> table;
+        QVERIFY(b.calc->compactLines(0, true, &table));
+        QVERIFY(!table.empty());
+        b.finish();
+        auto at = [&](quint32 row) { return b.calc->rowSpecsIn(0, row, row); };
+        QVERIFY(at(10).size() == 1 && at(10).front().hidden);
+        QCOMPARE(at(12).size(), size_t(1));
+        QCOMPARE(at(12).front().height, 40.0);
+        QCOMPARE(at(14).size(), size_t(1));
+        QCOMPARE(int(at(14).front().outline), 2);
+        QCOMPARE(b.calc->rowSpecsIn(0, 0, 100).size(), size_t(3));
+        QCOMPARE(b.calc->sheet(0).placedRowSpecs().size(), 3);
+        // (what the worker knows of the hidden rows is by the ids too: the sum still leaves out that row, and one that is hidden now is left out)
+        QVERIFY(b.calc->setValue(0, 10, 0, Value::number(1000)));
+        b.finish();
+        QCOMPARE(b.at("C2"), QStringLiteral("n:%1").arg(210 - 10));
+        QVERIFY(b.calc->setValue(0, 11, 0, Value::number(1)));
+        b.finish();
+        QCOMPARE(b.at("C2"), QStringLiteral("n:190"));
     }
 
     // A formula kept apart after it was worked out (a circle) has graph entries, and a rebase tells them again with the others.
@@ -2270,7 +2426,13 @@ private:
                 QVERIFY(b.calc->undoEdit(done[i]));
                 b.finish();
             }
-            QCOMPARE(snapshot(false), cellsAtStart);
+            if (snapshot(false) != cellsAtStart) {
+                const QStringList x = snapshot(false).split(QLatin1Char('\n')), y = cellsAtStart.split(QLatin1Char('\n'));
+                QStringList differ;
+                for (int i = 0; i < std::max(x.size(), y.size()); ++i)
+                    if (x.value(i) != y.value(i)) differ << x.value(i) + QStringLiteral("  ==>  ") + y.value(i);
+                QFAIL(qPrintable(QStringLiteral("seed %1: Undo of all of them does not give the cells back: %2 lines differ: %3").arg(seed).arg(differ.size()).arg(differ.mid(0, 6).join(QStringLiteral(" | ")))));
+            }
             // and what is changed after the undoes reaches what reads it (Undo left the graph right too)
             for (int k = 0; k < 6; ++k) {
                 QVERIFY(b.calc->setValue(int(rng.bounded(2)), rng.bounded(14), rng.bounded(3), Value::number(rng.bounded(100))));

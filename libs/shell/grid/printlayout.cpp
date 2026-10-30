@@ -85,11 +85,13 @@ struct RowAxisTask::Impl {
     bool zeroHeight = false;
     qint64 nextRow = 0, lastRow = 0;
     size_t listed = 0;
+    QVector<jp::office::sheet::RowSpec> source;   // the specs of the rows by the places of the rows (a sheet may hold them by id)
 
     Impl(const Sheet &s, int f)
         : sheet(&s), fine(std::clamp(f, 1, 64)), defaultRow(std::max(1, sizeFor(s.format.defaultRowHeight > 0 ? s.format.defaultRowHeight : 15))), rows(qint64(jp::office::sheet::kMaxRows), defaultRow)
     {
         specs.reserve(size_t(s.rowSpecs.size()));
+        source = s.placedRowSpecs();
     }
     int sizeFor(double points) const { return int(std::lround(std::clamp(points, 0.0, 1000.0) / kPointsPerPixel * fine)); }
     int sizeOf(const RowSpec &s) const { return s.hidden ? 0 : s.height >= 0 ? sizeFor(s.height) : defaultRow; }
@@ -102,8 +104,8 @@ struct RowAxisTask::Impl {
             if (w.spent()) return false;
             switch (stage) {
             case Stage::Copy:
-                if (at < size_t(sheet->rowSpecs.size())) {
-                    const RowSpec &s = sheet->rowSpecs[qsizetype(at++)];
+                if (at < size_t(source.size())) {
+                    const RowSpec &s = source[qsizetype(at++)];
                     if (!specs.empty() && s.row < specs.back().row) sorted = false;
                     specs.push_back(s);
                     w.add();

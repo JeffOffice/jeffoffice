@@ -59,6 +59,9 @@
 #include "grid/gridview.h"
 #include "../tests/crunch/structmodel.h"
 
+#ifdef __GLIBC__
+#include <malloc.h>
+#endif
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -1343,6 +1346,8 @@ int structBench(const QString &path, const QString &label, const QString &only)
         shifted.col1 = shifted.col2 = cols - 1;
         return session->insertCells(sheet, shifted, true);
     }});
+    // (JC_BENCH_BIG=1: rows deleted in their hundreds of thousands, which Undo of used to hold whole: a quarter of the sheet down, half the sheet or 500,000 rows, whichever is fewer)
+    if (qEnvironmentVariableIntValue("JC_BENCH_BIG") > 0) cases.push_back({QStringLiteral("delete 500000 rows"), [=] { return session->deleteRows(sheet, rows / 4, std::min<quint32>(500000, rows / 2)); }});
     // (counted work, besides the times: what the model, the session, and the window each did; the columns after used_cols are for the edit, and then for its Undo)
     out() << "label\tcase\tdo_cpu_ms\tdo_wall_ms\tworker_cpu_ms\tsettle_ms\twork_counted\ttexts_made\tundo_cpu_ms\tundo_wall_ms\tundo_work\tused_rows\tused_cols"
           << "\tcells_moved\tcells_gone\tformulas_visited\tformulas_rewritten\tnodes_remade\tgraph_work\tnames_rewritten\trules_rewritten\tmarks_followed\tvalues_moved\tview_cells\tundo_bytes\tgraph_entries"
@@ -1411,6 +1416,81 @@ int structBench(const QString &path, const QString &label, const QString &only)
         out().flush();
     }
     out() << "# after the edits: resident " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB\n";
+    if (qEnvironmentVariableIntValue("JC_BENCH_RECALC") > 0) {
+        // a whole recalculation, with a delete that can still be undone present (2) or not (1): the worker's processor time, and the resident memory before and after (the allocator's free memory given back)
+        if (qEnvironmentVariableIntValue("JC_BENCH_RECALC") > 1) {
+            // (2: rows deleted, which keep their formulas while the step can be undone; 3: rows put in, which leave the order of the rows not the file's and nothing dead)
+            const crunch::EditSession::Outcome o = qEnvironmentVariableIntValue("JC_BENCH_RECALC") > 2 ? session->insertRows(sheet, 100, 2) : session->deleteRows(sheet, 100, 2);
+            QElapsedTimer quiet;
+            quiet.start();
+            settle(quiet);
+            if (!o.ok) err() << "delete refused\n";
+        }
+#ifdef __GLIBC__
+        malloc_trim(0);
+#endif
+        const qint64 before = vm("VmRSS");
+        const qint64 cpu0 = w.workerCpuMicros();
+        QElapsedTimer all;
+        all.start();
+        if (std::unique_ptr<crunch::WorkbookLoader::Hold> hold = w.workbookLoader().hold()) {
+            hold->calculation()->invalidateAll();
+            hold->changed();
+        }
+        settle(all);
+#ifdef __GLIBC__
+        malloc_trim(0);
+#endif
+        out() << "# whole recalculation: worker " << (w.workerCpuMicros() - cpu0) / 1000 << " ms, wall " << all.elapsed() << " ms; resident " << before << " -> " << vm("VmRSS") << " MB\n";
+    }
+    if (qEnvironmentVariableIntValue("JC_BENCH_TWELVE") > 0) {
+        // twelve edits of rows and columns, none undone, and what the process holds after them and the steps hold (the table of 4.13: resident memory after 12 structural edits)
+        w.undoStack()->clear();
+        const qint64 residentBefore = vm("VmRSS"), heldBefore = session->undoBytes();
+        const quint32 r = rows, c = cols;
+        const std::function<crunch::EditSession::Outcome()> twelve[12] = {
+            [=] { return session->insertRows(sheet, 10, 2); },       [=] { return session->deleteRows(sheet, r / 2, 1); },     [=] { return session->insertColumns(sheet, 1, 1); },
+            [=] { return session->deleteColumns(sheet, 1, 1); },     [=] { return session->insertRows(sheet, r - 100, 3); },   [=] { return session->deleteRows(sheet, 20, 3); },
+            [=] { return session->insertRows(sheet, 5, 1); },        [=] { return session->insertColumns(sheet, 0, 1); },     [=] { return session->deleteColumns(sheet, qEnvironmentVariableIntValue("JC_BENCH_TWELVE") > 2 ? c + 3 : c / 2, 1); },
+            [=] { return session->deleteRows(sheet, r / 4, 5); },    [=] { return session->insertRows(sheet, r / 3, 1); },    [=] { return session->insertRows(sheet, 3, 1); }};
+        QElapsedTimer all;
+        all.start();
+        int refused = 0, number = 0;
+        QElapsedTimer wall;
+        for (const auto &edit : twelve) {
+            const crunch::EditSession::Outcome o = edit();
+            if (!o.ok) ++refused;
+            wall.start();
+            settle(wall);
+            if (qEnvironmentVariableIntValue("JC_BENCH_TWELVE") > 1) {
+                const qint64 resident = vm("VmRSS");
+#ifdef __GLIBC__
+                malloc_trim(0);   // (what the allocator holds and nothing uses is given back: what is left is what the workbook holds)
+#endif
+#ifdef __GLIBC__
+                const struct mallinfo2 mi = mallinfo2();
+                out() << "#   heap in use " << (mi.uordblks + mi.hblkhd) / (1 << 20) << " MB (small " << mi.uordblks / (1 << 20) << ", large " << mi.hblkhd / (1 << 20) << ")\n";
+#endif
+                out() << "#   edit " << ++number << ": resident " << resident << " MB, " << vm("VmRSS") << " MB after the allocator gives back what is free, the steps hold " << (session->undoBytes() - heldBefore) / 1024 << " KB; stamps " << calc->stampCount() << ", graph " << calc->graph().memoryBytes() / (1 << 20)
+                      << " MB, values " << w.values().count() << ", results kept by the session " << session->resultMarks() << "\n";
+            }
+        }
+        wall.start();
+        settle(wall);
+        out() << "# twelve edits (" << refused << " refused): resident " << residentBefore << " -> " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB; the steps hold " << (session->undoBytes() - heldBefore) / 1024
+              << " KB; made and settled in " << all.elapsed() << " ms\n";
+        if (qEnvironmentVariableIntValue("JC_BENCH_TWELVE") > 1) {
+            // (the steps let go of, the dead cells they held let go of, and the allocator's free memory given back: what is left is what the edited workbook itself holds)
+            w.undoStack()->clear();
+            while (session->purgeSome(qint64(1) << 40)) {}
+            wall.start();
+            settle(wall);
+#ifdef __GLIBC__
+            malloc_trim(0);
+#endif
+            out() << "# the steps let go of: resident " << vm("VmRSS") << " MB\n";
+        }
+    }
     return 0;
 }
 
@@ -2226,6 +2306,34 @@ int editMain(const QStringList &args)
     if (args.size() >= 2 && args.size() <= 3 && args[0] == QLatin1String("edit-bench")) return editBench(args[1], args.value(2, QStringLiteral("200")).toInt(), 0, 0, 0);
     if (args.size() >= 3 && args.size() <= 5 && args[0] == QLatin1String("edit-fill-bench")) return fillBench(args[1], args[2], args.value(3, QStringLiteral("1000")).toInt(), args.value(4));
     if (args.size() == 3 && args[0] == QLatin1String("edit-save-struct-bench")) return saveStructBench(args[1], args[2]);
+    if (args.size() == 2 && args[0] == QLatin1String("edit-mem-model")) {
+        // the heap in use after a column in the middle of the data is deleted, in the model alone (no window, no session): where the memory the edit leaves is
+        QString why;
+        Workbook book;
+        if (!book.openFile(args[1], &why)) return 1;
+        CalcOptions options;
+        options.keepApart = true;
+        Calculation calc(book, options);
+        if (!calc.load()) return 1;
+        auto heap = [](const char *what) {
+#ifdef __GLIBC__
+            malloc_trim(0);
+            const struct mallinfo2 mi = mallinfo2();
+            out() << what << ": heap in use " << (mi.uordblks + mi.hblkhd) / (1 << 20) << " MB\n";
+#else
+            Q_UNUSED(what);
+#endif
+        };
+        auto finish = [&] { while (!calc.recalculate().finished) {} };
+        finish();
+        heap("worked out");
+        Calculation::EditRecord rec;
+        calc.applyEdit(StructEdit::deleteColumns(0, 2, 1), &rec);
+        heap("column deleted");
+        finish();
+        heap("worked out again");
+        return 0;
+    }
     if (args.size() >= 2 && args.size() <= 4 && args[0] == QLatin1String("edit-walk-bench")) return walkBench(args[1], args.value(2, QStringLiteral("1000")).toInt(), args.value(3, QStringLiteral("10")).toInt(), QStringLiteral("walk"));
     if (args.size() >= 3 && args.size() <= 4 && args[0] == QLatin1String("edit-struct-bench")) return structBench(args[1], args[2], args.value(3));
     if (args.size() >= 1 && args.size() <= 5 && args[0] == QLatin1String("edit-bench-make"))

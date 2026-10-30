@@ -567,7 +567,7 @@ private:
 
     bool cells()
     {
-        m_specs = m_sheet.rowSpecs;
+        m_specs = m_sheet.placedRowSpecs();
         std::stable_sort(m_specs.begin(), m_specs.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
         m_out += "<sheetData>";
         quint32 current = 0;

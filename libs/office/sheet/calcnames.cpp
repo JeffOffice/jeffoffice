@@ -96,6 +96,7 @@ void Calculation::renameName(int scope, const QString &oldName, const QString &n
                 if (f.text < 0 || size_t(f.text) >= changedSlot.size() || !changedSlot[size_t(f.text)]) continue;
                 if (size_t(fi) >= st.nodeOf.size() || st.nodeOf[size_t(fi)] == kNone) continue;
                 const quint32 id = st.nodeOf[size_t(fi)];
+                if (dormant(m_nodes[id])) continue;   // (a formula in a line that is deleted: its text slot is rewritten and put back with the rest)
                 const Cell *c = s.cells.findById(m_nodes[id].rowId, m_nodes[id].colId);
                 record->rewritten.push_back({si, rowOf(m_nodes[id]), colOf(m_nodes[id]), m_nodes[id].rowId, m_nodes[id].colId, c && (c->flags & DataTable)});
             }
@@ -218,6 +219,7 @@ void Calculation::nameTextsChangedFor(const QStringList &given)
             if (f.text < 0 || size_t(f.text) >= mention.size() || !mention[size_t(f.text)]) continue;
             if (size_t(fi) >= st.nodeOf.size() || st.nodeOf[size_t(fi)] == kNone) continue;
             const quint32 id = st.nodeOf[size_t(fi)];
+            if (dormant(m_nodes[id])) continue;
             Cell *c = s.cells.findMutableById(m_nodes[id].rowId, m_nodes[id].colId);
             if (!c || !c->hasFormula()) continue;
             const qint32 formula = c->formula;
