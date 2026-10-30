@@ -191,6 +191,15 @@ qint64 Calculation::estimateUndoBytes(const StructEdit &e, qint64 stopAt) const
     constexpr qint64 kPerCell = 320, kPerFormula = 320;   // (what a cell of the record and a formula written again take: see StructChange::bytes)
     if (e.sheet < 0 || e.sheet >= int(m_sheets.size())) return 0;
     qint64 bytes = 0;
+    // (id frame) An edit of whole rows or columns holds the formulas it writes again, which are those held in places and those told where they read (the rest are not written again), and for a delete
+    // that keeps its cells (no array, data table, or formula held in places in its lines) the cells it leaves dead, at the figure the step counts them at.
+    const bool wholeRows = e.kind == K::InsertRows || e.kind == K::DeleteRows;
+    if (m_options.idFrame && (wholeRows || e.kind == K::InsertColumns || e.kind == K::DeleteColumns)) {
+        bytes = (qint64(m_positionalNodes.size()) + qint64(m_special.size())) * kPerFormula;
+        if (e.kind == K::InsertRows || e.kind == K::InsertColumns) return bytes;
+        if (!deadLinesHoldSpecials(e, e.count)) return bytes + m_sheets[size_t(e.sheet)].cells.cellsInLines(wholeRows, e.first, e.count) * kUndoBytesPerDeadCell;
+        bytes = 0;   // (it copies the cells, as before ids: counted below)
+    }
     auto countCells = [&](int sheet, quint32 r1, quint32 c1, quint32 r2, quint32 c2) {
         if (sheet < 0 || sheet >= int(m_sheets.size())) return;
         m_sheets[size_t(sheet)].cells.forEachInRange(r1, c1, r2, c2, [&](quint32, quint32, const Cell &) {
@@ -544,16 +553,6 @@ bool Calculation::deadLinesHoldSpecials(const StructEdit &e, quint32 count) cons
     for (const CellRange &r : m_sheets[size_t(e.sheet)].ranges)
         if (r.valid && (rows ? !(r.row2 < first || r.row1 > last) : !(r.col2 < first || r.col1 > last))) return true;
     return false;
-}
-
-bool Calculation::undoKeepsNoCells(const StructEdit &e) const
-{
-    bool rows = false;
-    if (!m_options.idFrame || !wholeLines(e, &rows) || e.sheet < 0 || e.sheet >= int(m_sheets.size())) return false;
-    // (many formulas held in places or told where they read: an edit writes them again, and the record of that is not small)
-    if (m_positionalNodes.size() + m_special.size() > 20000) return false;
-    if (e.kind == StructEdit::Kind::InsertRows || e.kind == StructEdit::Kind::InsertColumns) return true;
-    return !deadLinesHoldSpecials(e, e.count);
 }
 
 bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec) { return applyEditImpl(e, rec, nullptr); }
@@ -1146,12 +1145,29 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
                 if ((n.flags & Dead) || n.sheet != e.sheet || !inRevived(lc.rows ? n.rowId : n.colId)) return;
                 again.push_back(id);
             };
-            for (const quint32 id : m_structuredNodes) consider(id);
-            for (const quint32 id : m_subtotalNodes) consider(id);
-            for (const quint32 id : m_idToldNodes) consider(id);
-            for (const quint32 id : m_special) consider(id);
+            // (bounded by the smaller of the two: the nodes registered in the lines that came back, found by their cells, or the lists of those that are told, structured, or subtotals, looked at for the
+            // lines: a one-row Undo in a workbook of 100,000 table formulas looks at the row)
+            const size_t listed = m_structuredNodes.size() + m_subtotalNodes.size() + m_idToldNodes.size() + m_special.size();
+            qint64 lines = 0;
+            for (const jp::calc::IdRun &r : lc.revived) lines += r.count;
+            if (listed == 0) {
+                // (none)
+            } else if (qint64(listed) > 64 * lines) {
+                const SheetState &stateOfSheet = m_state[size_t(e.sheet)];
+                S.cells.forEachInIdRuns(lc.rows, lc.revived, [&](const Cell &c) {
+                    if (c.hasFormula() && c.formula >= 0 && size_t(c.formula) < stateOfSheet.nodeOf.size() && stateOfSheet.nodeOf[size_t(c.formula)] != kNone) consider(stateOfSheet.nodeOf[size_t(c.formula)]);
+                    return true;
+                });
+            } else {
+                for (const quint32 id : m_structuredNodes) consider(id);
+                for (const quint32 id : m_subtotalNodes) consider(id);
+                for (const quint32 id : m_idToldNodes) consider(id);
+                for (const quint32 id : m_special) consider(id);
+            }
             std::sort(again.begin(), again.end());
             again.erase(std::unique(again.begin(), again.end()), again.end());
+            // (a formula kept apart for what the engine lacks, and not told, is not registered again: it has the graph entries of what it reads, which a table, a name, or a hidden row does not change, and keeps the
+            // result it had, as one made again from the record did; a kept formula that is told is registered again with the rest)
             for (const quint32 id : again) {
                 if ((m_nodes[id].flags & Told) || m_structuredNodes.count(id) || m_subtotalNodes.count(id) || m_idToldNodes.count(id)) readdNode(id);
             }

@@ -720,6 +720,8 @@ public:
     }
     // How many cells purgeSome has let go of (counted, for tests).
     qint64 purged() const { return m_purged; }
+    // How many cells are in the lines at the places first .. first + count - 1 (live or not in the other kind of line): a search a block of 64 rows for rows, a look at each cell for columns.
+    qint64 cellsInLines(bool rows, quint32 first, quint32 count) const;
     // Cells held that are in rows or columns that are deleted, and the most that Undo can bring back.
     qint64 deadCount() const { return m_dead; }
     // The same, counted cell by cell (for a check of deadCount and cellCount, which are kept as the order is edited).

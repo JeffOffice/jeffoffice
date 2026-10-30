@@ -403,6 +403,31 @@ void CellStore::forgetLines(bool rows, LineEdits *edits, bool keepDead)
     e = LineEdits();
 }
 
+qint64 CellStore::cellsInLines(bool rows, quint32 first, quint32 count) const
+{
+    if (count == 0) return 0;
+    std::vector<jp::calc::IdRun> runs;
+    (rows ? m_rows.core() : m_cols.core()).walk(first, first + count - 1, &runs);
+    qint64 n = 0;
+    if (rows) {
+        for (const jp::calc::IdRun &run : runs) {
+            const quint32 last = run.first + run.count - 1;
+            for (auto block = m_blocks.lower_bound(run.first / kBlockRows); block != m_blocks.end() && block->first <= last / kBlockRows; ++block) {
+                const std::vector<Cell> &cells = block->second.cells;
+                const auto lo = std::lower_bound(cells.begin(), cells.end(), run.first, [](const Cell &c, quint32 id) { return c.rowId < id; });
+                const auto hi = std::upper_bound(lo, cells.end(), last, [](quint32 v, const Cell &c) { return v < c.rowId; });
+                n += hi - lo;
+            }
+        }
+        return n;
+    }
+    forEachInIdRuns(false, runs, [&](const Cell &) {
+        ++n;
+        return true;
+    });
+    return n;
+}
+
 void CellStore::finishForgetLines(bool rows, LineEdits *edits, bool keepDead)
 {
     using Kind = jp::calc::LineEdit::Kind;

@@ -1214,6 +1214,84 @@ private Q_SLOTS:
         QCOMPARE(sheet.rowSpecs[1].height, 40.0);
     }
 
+    // Round 6: what a delete of rows is asked about by is what its step will hold: its dead cells at 48 bytes each (the same figure the estimate and `StructChange::bytes` use). A delete of 500,000 rows of 5
+    // columns leaves 2,500,000 cells, 120,000,000 bytes, which is under the 134,217,728 of the undo limit: it is not asked about, and it holds 120 MB of the 128, so the steps older than it are forgotten as
+    // far as they must be. Here the same in small: 5 columns, a limit of 800,000 bytes, a delete of 3,000 rows (15,000 cells: 720,000) and then one of 700 rows (3,500 cells: 168,000).
+    void aDeleteOfRowsIsAskedAboutByWhatItsStepWillHoldAndTheBudgetForgetsTheOlderStep()
+    {
+        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the formulas are held in places: a delete of rows copies the cells at 320 bytes each, as before ids");
+        QString xml;
+        for (int r = 1; r <= 5000; ++r) xml += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><v>2</v></c><c r=\"C%1\"><v>3</v></c><c r=\"D%1\"><v>4</v></c><c r=\"E%1\"><f>SUM(A%1:D%1)</f><v>0</v></c></row>").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(xml)})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        const qint64 base = s->undoBytes();
+        s->setUndoByteLimit(base + 700 * 1000);
+        crunch::EditSession::Outcome o = s->deleteRows(0, 0, 3000);
+        QVERIFY2(!o.ok && o.confirm, "720,000 bytes against 700,000: it is asked about");
+        s->setUndoByteLimit(base + 800 * 1000);
+        o = s->deleteRows(0, 0, 3000);
+        QVERIFY2(o.ok && !o.confirm, qPrintable(o.problem));
+        QVERIFY2(s->undoBytes() - base >= 720 * 1000 && s->undoBytes() - base < 730 * 1000, qPrintable(QString::number(s->undoBytes() - base)));
+        QVERIFY(s->canUndo());
+        o = s->deleteRows(0, 0, 700);   // 168,000 more: past the limit, so the older step is forgotten (the newest never is)
+        QVERIFY2(o.ok && !o.confirm, qPrintable(o.problem));
+        QVERIFY2(s->undoBytes() - base <= 800 * 1000, qPrintable(QString::number(s->undoBytes() - base)));
+        QVERIFY2(s->undoBytes() - base >= 168 * 1000, qPrintable(QString::number(s->undoBytes() - base)));
+        QVERIFY(s->canUndo());
+        e.win.w.undoStack()->undo();   // the second delete comes back
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:3001"));
+        QVERIFY(!s->canUndo());       // and the first was forgotten
+    }
+
+    // Round 6: a row that has a spec (hidden) is deleted, the order is put back to one run: the spec is gone, and is not on another row, in the model and in the saved file; the spec of a row that is left is where
+    // its row is.
+    void theSpecOfADeletedRowIsGoneAfterAnOrderPutBackToOneRunAndDoesNotMoveToAnotherRow()
+    {
+        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the specs of rows are held by place: there are no ids to renumber");
+        QStringList cells;
+        for (int r = 1; r <= 12; ++r) cells << QStringLiteral("A%1=%1").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(cells)));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        crunch::EditSession::SizeChange hide, tall;
+        hide.setHidden = hide.hidden = true;
+        tall.setSize = true;
+        tall.size = 40;
+        s->setLineLimitsForTest(0, [] {
+            jp::calc::LineLimits tight = jp::calc::LineLimits::rows();
+            tight.idLimit = tight.firstNew + 12;
+            return tight;
+        }(), jp::calc::LineLimits::cols());
+        QVERIFY(s->resizeRows(0, 7, 7, hide, QStringLiteral("Hide")).ok);    // row 8
+        QVERIFY(s->resizeRows(0, 9, 9, tall, QStringLiteral("Taller")).ok);  // row 10
+        QVERIFY(s->deleteRows(0, 7, 1).ok);                                  // the hidden row
+        for (int i = 0; i < 10; ++i) QVERIFY(s->insertRows(0, 20, 1).ok);   // (until the order is compacted, with the steps forgotten)
+        QVERIFY(e.settle());
+        auto at = [&](quint32 row) { return s->calculation()->rowSpecsIn(0, row, row); };
+        QVERIFY(at(7).empty());                                  // (A10 is at place 8 now, with its height; nothing is hidden on any row)
+        QVERIFY(at(8).size() == 1 && at(8).front().height == 40.0 && !at(8).front().hidden);
+        QCOMPARE(s->calculation()->rowSpecsIn(0, 0, 100).size(), size_t(1));
+        QCOMPARE(s->calculation()->sheet(0).rowSpecs.size(), 1);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        Package p;
+        QString why;
+        QVERIFY(p.readLazyFile(e.path, &why));
+        Workbook b;
+        QVERIFY(b.open(p, &why));
+        office::sheet::Sheet sheet;
+        QVERIFY(b.readSheet(0, &sheet));
+        QCOMPARE(sheet.rowSpecs.size(), 1);
+        QCOMPARE(sheet.rowSpecs[0].row, quint32(8));
+        QCOMPARE(sheet.rowSpecs[0].height, 40.0);
+        QVERIFY(!sheet.rowSpecs[0].hidden);
+    }
+
     // Undo and a save: a step of rows put in before a save is undone after it (the saved file has the rows, so the edit that takes them out is made against the saved file), and a step of rows deleted
     // after a save is undone, and the file saved again is the one that was first; what was deleted before a save is the one thing Undo does not go back over (the m_saveGen rules are as they were).
     void undoAcrossASaveKeepsTheRulesOfTheSavedFile()

@@ -154,7 +154,7 @@ qint64 StructChange::bytes() const
     n += qint64(record.columns.size()) * qint64(sizeof(ColumnSpan)) + qint64(record.rowSpecs.size()) * qint64(sizeof(RowSpec));
     n += qint64(record.autoFilter.columns.size()) * 64;
     // (the cells a delete left dead stay in the store, with the value the window holds for a formula in them, until the step is forgotten: 24 bytes of cell and as many of value)
-    n += record.deadCells * 48;
+    n += record.deadCells * Calculation::kUndoBytesPerDeadCell;
     for (const auto &name : record.names) n += qint64(name.first.size() + name.second.size()) * 2;
     n += qint64(record.rewritten.size()) * qint64(sizeof(Calculation::EditRecord::Place));
     n += qint64(touchedGone.size() + touchedAdded.size()) * 8 + qint64(tables.size()) * qint64(sizeof(TablePlace));
@@ -223,8 +223,8 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
             out.problem = tr("The workbook is busy. Try again in a moment.");
             return out;
         }
-        // (a delete of rows or columns in the id frame copies no cell, and an insert none: there is nothing for Undo to hold that could be too big, and nothing to ask about)
-        if (!hold->calculation()->undoKeepsNoCells(edit)) big = hold->calculation()->estimateUndoBytes(edit, m_undoByteLimit + 1) > m_undoByteLimit;
+        // (the estimate is of what the step will hold, at the figures StructChange::bytes counts it at: in the id frame a delete of rows or columns holds its dead cells at 48 bytes, not copies at 320)
+        big = hold->calculation()->estimateUndoBytes(edit, m_undoByteLimit + 1) > m_undoByteLimit;
     }
     if (big && !m_bigStepAllowed) {
         out.ok = false;

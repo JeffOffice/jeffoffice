@@ -358,10 +358,9 @@ public:
     };
     // Whether the edit can be made; if not, why, in a sentence for the person (it would cut through an array formula or a data table, push cells off the sheet, or the sheet is protected).
     bool canApply(const StructEdit &edit, QString *why) const;
-    // (id frame) Whether the edit is of whole rows or columns and keeps every cell where it is, so that what Undo holds of it is the change to the order of the lines and no cell (the cells of a delete stay,
-    // dead, with their formulas): then there is nothing to count and nothing to ask about. False for the edits that copy cells (a delete that has an array, a data table, or a formula held in places in its
-    // lines, and every edit of cells), and in a workbook that holds its formulas in places.
-    bool undoKeepsNoCells(const StructEdit &edit) const;
+    // What a cell that a delete of whole rows or columns left dead (in the id frame) counts for in its step's bytes: the cell and the value the window holds for a formula in it. The estimate of
+    // `estimateUndoBytes` and `StructChange::bytes` use this one figure, so that what is asked about is what the step will hold.
+    static constexpr qint64 kUndoBytesPerDeadCell = 48;
     // About how many bytes the record that undoes the edit would hold (the cells it deletes or writes over, whole, and the formulas it writes again), worked out without doing it: it
     // stops counting past `stopAt`, and says that much.
     qint64 estimateUndoBytes(const StructEdit &edit, qint64 stopAt) const;
