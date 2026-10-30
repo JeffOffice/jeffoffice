@@ -120,16 +120,9 @@ void EditSession::compactLinesFor(const StructEdit &edit)
         while (purgeSliceHeld(hold->calculation(), qint64(1) << 40, &dropped)) {}
         if (dropped) hold->changed();
     }
-    if (hold->calculation()->idFrame() && !m_fileOrderLost) {
-        // (the ids are about to be numbered by the places they are at: the formulas whose text is not the file's now are marked, as the file will have them written whole; the numbering is the file's no more)
-        const Calculation *calc = hold->calculation();
-        for (int sheet = 0; sheet < calc->sheetCount(); ++sheet)
-            calc->sheet(sheet).cells.forEach([&](quint32, quint32, const Cell &c) {
-                if (c.hasFormula() && calc->formulaTextDiffersFromTheFile(sheet, c)) m_touched.insert(keyOf(sheet, c.rowId, c.colId));
-            });
-    }
     std::vector<jp::calc::LineMapCore::Renumber> table;
     if (!hold->calculation()->compactLines(edit.sheet, rows, &table) || table.empty()) return;
+    m_fileOrderLost = true;   // (the ids are numbered by the places they are at: the text of a formula is the file's no more, as far as the ids can tell)
     // (what is held by the ids of the order's lines is renumbered with them: the window's values, and the marks)
     std::vector<ValueStore::Renumbering> renumbering;
     for (const jp::calc::LineMapCore::Renumber &r : table) renumbering.push_back({r.oldFirst, r.count, r.newFirst});
@@ -330,7 +323,7 @@ void followSet(const Calculation &calc, KeySet *marks, const StructEdit &e, std:
 }
 
 // And the results kept by cell.
-void followMap(const Calculation &calc, std::map<quint64, Value> *results, const StructEdit &e, std::vector<std::pair<quint64, Value>> *gone)
+void followMap(const Calculation &calc, ResultMap *results, const StructEdit &e, std::vector<std::pair<quint64, Value>> *gone)
 {
     std::vector<std::pair<quint64, Value>> moved;
     for (auto it = results->begin(); it != results->end();) {
@@ -349,7 +342,7 @@ void followMap(const Calculation &calc, std::map<quint64, Value> *results, const
             ++it;
         }
     }
-    for (auto &entry : moved) (*results)[entry.first] = std::move(entry.second);
+    for (auto &entry : moved) results->set(entry.first, entry.second);
 }
 
 } // namespace
@@ -437,10 +430,10 @@ void EditSession::renumberMarks(int sheet, bool rows, const std::vector<jp::calc
         m_touched.swap(kept);
     }
     for (auto *map : {&m_results, &m_engineAtStart, &m_fileResults}) {
-        std::map<quint64, Value> kept;
-        for (auto &entry : *map) {
+        ResultMap kept;
+        for (const auto entry : *map) {
             quint64 now;
-            if (renumbered(entry.first, true, true, &now)) kept.emplace(now, std::move(entry.second));
+            if (renumbered(entry.first, true, true, &now)) kept.set(now, entry.second);
         }
         map->swap(kept);
     }
@@ -655,9 +648,9 @@ void EditSession::followEdit(const StructEdit &edit, StructChange *sc, bool forw
             followMap(calc, &m_fileResults, back, nullptr);
         }
         for (const quint64 key : sc->touchedGone) m_touched.insert(key);
-        for (auto &entry : sc->resultsGone) m_results[entry.first] = entry.second;
-        for (auto &entry : sc->engineGone) m_engineAtStart[entry.first] = entry.second;
-        for (auto &entry : sc->fileGone) m_fileResults[entry.first] = entry.second;
+        for (auto &entry : sc->resultsGone) m_results.set(entry.first, entry.second);
+        for (auto &entry : sc->engineGone) m_engineAtStart.set(entry.first, entry.second);
+        for (auto &entry : sc->fileGone) m_fileResults.set(entry.first, entry.second);
         if (!m_edits.empty() && m_edits.back().kind == edit.kind && m_edits.back().sheet == edit.sheet) m_edits.pop_back();
         forgetNotes();
     }

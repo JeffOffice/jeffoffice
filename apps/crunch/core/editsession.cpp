@@ -1,4 +1,5 @@
 #include "core/editsession.h"
+#include "sheet/linereplay.h"
 #include "sheet/structref.h"
 
 #include "sheet/xlsxbase.h"
@@ -1216,12 +1217,12 @@ void EditSession::noteResults(const std::vector<ValueStore::Item> &items)
         } else if (hadBefore && sameValue(before, it.value)) {
             continue;
         } else if (hadBefore) {
-            m_engineAtStart[key] = before;
+            m_engineAtStart.set(key, before);
         }
         const auto file = m_fileResults.find(key);
         const bool same = file != m_fileResults.end() ? sameValue(file->second, it.value) : storedEquals(it.sheet, it.row, it.col, it.value);
         if (same) m_results.erase(key);
-        else m_results[key] = it.value;
+        else m_results.set(key, it.value);
     }
 }
 
@@ -1256,36 +1257,39 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         quint32 row, col;
         if (placeOfMark(key, &sheet, &row, &col)) touchedInOrder.push_back({keyOf(sheet, row, col), key});
     });
+    bool bySaver = false;   // (the saver writes the formulas that the edits changed: see below)
     if (calc->idFrame()) {
-        // The formulas are held in ids, and an edit of whole rows or columns writes none of them again: the texts the file should have are those of the places the ids are at now. Until the saver rewrites
-        // them from the order of the lines (docs/jeffcrunch-rowids.md, round 7), a formula is written whole when its text is no longer the file's: those of a sheet whose rows or columns are not in the
-        // file's order (put in or taken out and not put back), and of the sheets that name it. A formula whose text is the file's is not written: it keeps its bytes (shared, its volatile mark, its
-        // result), and moves with its cell. Once the file was saved with rows or columns edited its text is no longer that of the ids as they were numbered, and every formula of those sheets is written; a rebase, which numbers the ids by their places, marks the formulas that differ first.
-        QSet<int> moved;
-        for (const StructEdit &ed : m_edits)
-            if (ed.changesRows() || ed.changesColumns()) moved.insert(ed.sheet);
-        const bool renumbered = m_fileOrderLost;   // (then no formula's file text is known from the ids: every formula of the sheets that can have changed is written)
-        QStringList movedNames;
-        for (auto it = moved.begin(); it != moved.end();) {
-            if (!renumbered && calc->linesAreTheFiles(*it)) it = moved.erase(it);   // (put in and taken out again: the order is the file's)
-            else {
-                if (*it >= 0 && *it < book.info().sheets.size()) movedNames << book.info().sheets[*it].name;
-                ++it;
-            }
-        }
-        if (!moved.isEmpty()) {
-            for (int sheet = 0; sheet < calc->sheetCount(); ++sheet) {
-                if (!moved.contains(sheet) && !calc->formulasNameSheets(sheet, movedNames)) continue;
-                calc->sheet(sheet).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
-                    if (!c.hasFormula() || (c.flags & (ArrayMember | DataTable))) return;
-                    if (!renumbered && !calc->formulaTextDiffersFromTheFile(sheet, c)) return;
-                    const quint64 key = keyOf(sheet, c.rowId, c.colId);
-                    if (!m_touched.count(key)) touchedInOrder.push_back({keyOf(sheet, row, col), key});
-                });
+        // The formulas are held in ids, and an edit of whole rows or columns writes none of them again: the text of a formula that read what moved is made when the file is written, from the file's own
+        // text and the edits (the saver replays them on the order of the file's rows and columns: docs/jeffcrunch-rowids.md, round 7), so none is among the cells that changed, and a formula that
+        // reads nothing that moved keeps its bytes (shared, its volatile mark, its result). (An Undo made after a save is of rows that were put in, since a step that deleted is let go of by the save:
+        // it is a delete in the list, and the window's lines it kills are those the replay deletes.) A map that cannot take an edit (it is full: the window makes its order again then) cannot be
+        // replayed, and the formulas of the sheets whose rows or columns were edited, and of those that name them, are written whole, from the window.
+        QStringList fileNames;
+        for (const jp::office::sheet::SheetEntry &se : book.info().sheets) fileNames << (se.isNew ? QString() : se.fileName);
+        jp::office::sheet::LineReplay replay(m_edits, fileNames);
+        if (replay.ok()) {
+            changes.rewriteFormulas = true;
+            bySaver = replay.movesAnything();
+        } else {
+            QSet<int> moved;
+            for (const StructEdit &ed : m_edits)
+                if (ed.changesRows() || ed.changesColumns()) moved.insert(ed.sheet);
+            QStringList movedNames;
+            for (const int sheet : moved)
+                if (sheet >= 0 && sheet < book.info().sheets.size()) movedNames << book.info().sheets[sheet].name;
+            if (!moved.isEmpty()) {
+                for (int sheet = 0; sheet < calc->sheetCount(); ++sheet) {
+                    if (!moved.contains(sheet) && !calc->formulasNameSheets(sheet, movedNames)) continue;
+                    calc->sheet(sheet).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+                        if (!c.hasFormula() || (c.flags & (ArrayMember | DataTable))) return;
+                        const quint64 key = keyOf(sheet, c.rowId, c.colId);
+                        if (!m_touched.count(key)) touchedInOrder.push_back({keyOf(sheet, row, col), key});
+                    });
+                }
             }
         }
     }
-    const bool anyTouched = !touchedInOrder.empty();   // (the formulas written whole because their text moved are changes)
+    bool anyTouched = !touchedInOrder.empty();   // (the formulas written whole because what they read moved are changes, and those the saver gives another text are: see the end)
     std::sort(touchedInOrder.begin(), touchedInOrder.end(), [](const Marked &a, const Marked &b) { return a.place < b.place; });
     // (a sheet that was added is made whole from the model, and one that was deleted is not in the file: the marks of their cells are not what is put in)
     const WorkbookInfo &listed = book.info();
@@ -1609,7 +1613,26 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
     out->dxfs = int(changes.newDxfs.size());
     // The other program is asked to work every formula out again when this program could not: a formula it keeps apart that may read what changed, a result it did not get to, or a
     // formula it gave no result.
-    changes.fullCalcOnLoad = (anyTouched || liveResults > 0 || newSheets) && (calc->isDirty() || resultMissing || calc->keptCount() > 0);
+    const bool needsCalc = calc->isDirty() || resultMissing || calc->keptCount() > 0;
+    if (!anyTouched && bySaver && needsCalc && liveResults == 0 && !newSheets) {
+        // (a formula the saver gives another text is a change, as a formula written whole is: the formulas whose text is not the file's are those that read what moved. The text of the file is that of the ids
+        // as they were numbered unless the file was saved with rows or columns edited since, and then a formula of the sheets that moved, or that name them, may be one)
+        QSet<int> moved;
+        QStringList movedNames;
+        for (const StructEdit &ed : m_edits)
+            if ((ed.changesRows() || ed.changesColumns()) && !moved.contains(ed.sheet)) {
+                moved.insert(ed.sheet);
+                if (ed.sheet >= 0 && ed.sheet < book.info().sheets.size()) movedNames << book.info().sheets[ed.sheet].name;
+            }
+        for (int sheet = 0; sheet < calc->sheetCount() && !anyTouched; ++sheet) {
+            if (!moved.contains(sheet) && !calc->formulasNameSheets(sheet, movedNames)) continue;
+            calc->sheet(sheet).cells.forEach([&](quint32, quint32, const Cell &c) {
+                if (anyTouched || !c.hasFormula() || (c.flags & (ArrayMember | DataTable))) return;
+                if (m_fileOrderLost || calc->formulaTextDiffersFromTheFile(sheet, c)) anyTouched = true;
+            });
+        }
+    }
+    changes.fullCalcOnLoad = (anyTouched || liveResults > 0 || newSheets) && needsCalc;
     return true;
 }
 
@@ -1625,8 +1648,8 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     counts.styles = snapshot.styles;
     counts.dxfs = snapshot.dxfs;
     m_book->book->savedTo(package, counts);
-    for (const auto &[key, v] : snapshot.results) m_fileResults[key] = v;
-    for (const auto &[key, v] : snapshot.touchedResults) m_fileResults[key] = v;
+    for (const auto &[key, v] : snapshot.results) m_fileResults.set(key, v);
+    for (const auto &[key, v] : snapshot.touchedResults) m_fileResults.set(key, v);
     m_touched.clear();
     m_columnsResized.clear();
     m_rowsResized.clear();

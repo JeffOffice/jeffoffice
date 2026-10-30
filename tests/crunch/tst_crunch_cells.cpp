@@ -1787,9 +1787,9 @@ private Q_SLOTS:
         QCOMPARE(s->changedCells(), qint64(1));
     }
 
-    // With the formulas held in ids a save writes the formulas whose text is no longer the file's, whole (the saver is a later round's), which asks for no calculation of the file that the formulas in places
-    // did not ask for: a row inserted below everything, and one above it, with a formula the engine keeps apart in the sheet.
-    void theSaveStopgapOfTheIdFrameAsksForNoMoreCalculation()
+    // With the formulas held in ids the saver gives the formulas that read what moved their new text; the file is asked to be worked out when the formulas in places ask it, and not otherwise: a row
+    // inserted below everything, and one above it, with a formula the engine keeps apart in the sheet.
+    void theSaverOfTheIdFrameAsksForNoMoreCalculation()
     {
         struct Scope {
             bool was = jp::office::sheet::Calculation::idFrameDefault();
@@ -1815,8 +1815,8 @@ private Q_SLOTS:
             }
         QCOMPARE(asks[1], asks[0]);   // (below)
         QCOMPARE(asks[3], asks[2]);   // (above)
-        // the formulas held in ids are written whole when their text is no longer the file's, which are the cells the formulas in places write again: none for a row put in below everything, and the three that
-        // read the rows that moved for one put in above
+        // the formulas that read the rows that moved are written whole (none for a row put in below everything, the three that read them for one put in above) when the workbook has a function the engine does not
+        // know, in both ways of holding them: the text a formula is shown as is then looked at after every edit of rows, and a formula whose text changed is a change of the workbook's
         QCOMPARE(cellsWritten[1], cellsWritten[0]);
         QCOMPARE(cellsWritten[3], cellsWritten[2]);
         QCOMPARE(cellsWritten[1], qint64(0));

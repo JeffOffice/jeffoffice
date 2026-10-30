@@ -251,6 +251,9 @@ struct SaveChanges {
     // Rows, columns, and cells inserted and deleted since the file was read, in the order they were made. Every part of the file that has cells in it, or names them, is changed by them
     // (see structsave.h) before the cells above are put in, which are in the places the edits leave.
     std::vector<StructEdit> edits;
+    // The formulas that read rows and columns that these edits moved are written by the saver with the text they have now (see sheet/linereplay.h), and the model does not list them among the cells
+    // that changed. Without, a formula the edits changed is among the cells.
+    bool rewriteFormulas = false;
     // And the columns of tables renamed since, in order.
     std::vector<ColumnRename> renames;
     // And the tables renamed or made plain cells since, in order.

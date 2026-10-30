@@ -7,6 +7,7 @@
 // of the formulas that depend (they are worked out again), so the memory it takes is what the edits changed. A cell typed into is one step. The session also keeps what saving needs: the
 // cells that changed, and the formulas whose result is not what the file has (known from the batches the worker sends).
 
+#include "core/resultmap.h"
 #include "core/anchors.h"
 #include "core/clipdata.h"
 #include "core/keyset.h"
@@ -742,6 +743,8 @@ public:
     // (the marks of cells in rows or columns that are deleted are held, for Undo brings them back; they are not counted, and are not in the file)
     qint64 changedCells() const;
     qint64 changedResults() const;
+    // How many results the session keeps by cell for the saver (what differs from the file, what the engine had before, and what the file holds).
+    qint64 resultMarks() const { return qint64(m_results.size() + m_engineAtStart.size() + m_fileResults.size()); }
     // How many marks the session has gone through to follow edits of cells moved one by one (the cells marked as changed, the results kept by cell; whole rows and columns move none, for the marks are
     // by the ids of rows and columns: counted, for tests and tools). The marks themselves: how many of each kind (the columns and rows marked as resized by ids).
     // The marks looked at to let go of those on dead ids (counted, for tests: it is 0 for edits that let go of no line).
@@ -877,8 +880,8 @@ private:
     bool m_sheetRemoved = false;                     // a sheet added was taken away by Undo (so results may come for sheets that are not there)
     void forgetSheet(int sheet);                     // what is kept by cell for a sheet taken away is let go of
     KeySet m_touched;                                // cells changed by the person (written whole), by sheet, row id, column id
-    std::map<quint64, jp::calc::Value> m_results;      // formulas whose value is not the file's
-    std::map<quint64, jp::calc::Value> m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
+    ResultMap m_results;      // formulas whose value is not the file's
+    ResultMap m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
     qint64 m_token;
     std::set<int> m_formatsChanged;  // the sheets whose default sizes a step changed since the file was read or saved
     bool m_sheetsListed = false;                          // a step changed the list of sheets since the file was read or saved
@@ -931,7 +934,7 @@ private:
     qint64 m_marksSwept = 0;
     void renumberMarks(int sheet, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table);
     ObjectHook m_objectHook;
-    bool m_fileOrderLost = false;   // the file was saved with rows or columns edited: its formulas are no longer the text of the ids as they were numbered (see takeSnapshot)
+    bool m_fileOrderLost = false;   // the file was saved with rows or columns edited (or the ids were numbered again by their places): its formulas are no longer the text of the ids as they were numbered (see takeSnapshot)
     std::vector<jp::office::sheet::StructEdit> m_edits;   // those since the file was read or saved that are done (not undone), for the file
     PageSettings m_pages;
     qint64 m_marksFollowed = 0;
@@ -959,7 +962,7 @@ private:
     void forgetLineSteps(int sheet, bool rows);
     int m_saveGen = 0;                 // how many times the workbook has been saved
     int m_forgotBySave = 0;            // the steps the last save made Undo forget (see forgetDeletesInFile)
-    std::map<quint64, jp::calc::Value> m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)
+    ResultMap m_fileResults;  // what the file holds for formulas whose value there is not the one the workbook was read with (after a save)
 };
 
 } // namespace jp::crunch
