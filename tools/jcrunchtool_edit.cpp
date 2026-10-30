@@ -586,11 +586,82 @@ void runScript(Opened &w, const QByteArray &original, ScriptResult *r)
     if (sheet < 0) return;
     r->ran = true;
     const quint32 rows = std::max<quint32>(2, calc->sheet(sheet).extentRows), cols = std::max<quint32>(2, calc->sheet(sheet).extentCols);
+    // (JC_ROUNDTRIP_WATCH=text: after each step, the formulas with that text: their value, and whether the engine finds them in a circle or reading one)
+    const QString watch = qEnvironmentVariable("JC_ROUNDTRIP_WATCH");
+    auto watched = [&](int number) {
+        if (watch.isEmpty()) return;
+        calc->forEachFormula([&](const Calculation::FormulaCell &f) {
+            if (!f.cell) return;
+            const quint32 row = calc->sheet(f.sheet).cells.rowPlaceOf(f.cell->rowId), col = calc->sheet(f.sheet).cells.colPlaceOf(f.cell->colId);
+            if (row == CellStore::kNoLine || col == CellStore::kNoLine || calc->content(f.sheet, row, col).formula != watch) return;
+            qWarning().noquote() << "step" << number << "watch:" << f.sheet << cellName(row, col) << f.ours.debug() << "circular" << calc->isCircular(f.sheet, row, col) << "tainted" << calc->isTainted(f.sheet, row, col);
+        });
+    };
+    // (JC_ROUNDTRIP_ERRORS=1: the formulas with an error now that the file stored a number for, the first of each text)
+    if (qEnvironmentVariableIntValue("JC_ROUNDTRIP_ERRORS") != 0) {
+        QSet<QString> seen;
+        int count = 0;
+        calc->forEachFormula([&](const Calculation::FormulaCell &f) {
+            if (!f.cell || !f.ours.isError() || f.cell->type == CellType::Error) return;
+            const quint32 row = calc->sheet(f.sheet).cells.rowPlaceOf(f.cell->rowId), col = calc->sheet(f.sheet).cells.colPlaceOf(f.cell->colId);
+            const QString text = calc->content(f.sheet, row, col).formula;
+            ++count;
+            if (seen.size() < 3000 && !seen.contains(text)) {
+                seen.insert(text);
+                qWarning().noquote() << "error:" << f.sheet << cellName(row, col) << "=" + text << f.ours.debug();
+            }
+        });
+        // (the roots: those that read no cell with an error)
+        int roots = 0;
+        calc->forEachFormula([&](const Calculation::FormulaCell &f) {
+            if (!f.cell || !f.ours.isError() || f.cell->type == CellType::Error || roots >= 12) return;
+            const quint32 row = calc->sheet(f.sheet).cells.rowPlaceOf(f.cell->rowId), col = calc->sheet(f.sheet).cells.colPlaceOf(f.cell->colId);
+            const QString text = calc->content(f.sheet, row, col).formula;
+            std::vector<jp::calc::ReferenceAt> refs;
+            if (!jp::calc::findReferences(text, jp::calc::ParseOptions(), &refs)) return;
+            bool readsError = false;
+            for (const jp::calc::ReferenceAt &r : refs) {
+                const int sh = r.sheet1.isEmpty() ? f.sheet : calc->sheetIndex(r.sheet1);
+                if (sh < 0) continue;
+                for (quint32 rr = r.ref.row1; rr <= r.ref.row2 && !readsError && rr - r.ref.row1 < 300; ++rr)
+                    for (quint32 cc = r.ref.col1; cc <= r.ref.col2 && !readsError && cc - r.ref.col1 < 300; ++cc)
+                        if (calc->cell(sh, rr, cc).isError() && !(sh == f.sheet && rr == row && cc == col)) readsError = true;
+            }
+            if (!readsError) {
+                ++roots;
+                qWarning().noquote() << "root:" << f.sheet << cellName(row, col) << "=" + text << f.ours.debug();
+            }
+        });
+        // (the formulas the engine keeps apart for a function it lacks, by the functions their texts call: what a text names that no other formula of the sheet's functions explains is for the reader to see)
+        QHash<QString, int> keptBy;
+        calc->forEachFormula([&](const Calculation::FormulaCell &f) {
+            if (!f.cell) return;
+            const quint32 row = calc->sheet(f.sheet).cells.rowPlaceOf(f.cell->rowId), col = calc->sheet(f.sheet).cells.colPlaceOf(f.cell->colId);
+            const char kept = calc->keptClass(f.sheet, row, col);
+            if (kept != 'U') return;
+            static const QRegularExpression call(QStringLiteral("([A-Za-z_][A-Za-z0-9_.]*)\\("));
+            const QString text = calc->content(f.sheet, row, col).formula;
+            QRegularExpressionMatchIterator it = call.globalMatch(text);
+            while (it.hasNext()) keptBy[it.next().captured(1).toUpper()]++;
+        });
+        for (auto it = keptBy.constBegin(); it != keptBy.constEnd(); ++it) qWarning().noquote() << "kept for an unknown function, formulas that call" << it.key() << ":" << it.value();
+        qWarning().noquote() << "formulas with an error where the file had none:" << count;
+    }
+    // (JC_ROUNDTRIP_ROW=sheet,row: the cells of that row at the start, with their formulas, values, and the file's stored values)
+    if (const QString where = qEnvironmentVariable("JC_ROUNDTRIP_ROW"); !where.isEmpty()) {
+        const int rsheet = where.section(QLatin1Char(','), 0, 0).toInt(), rrow = where.section(QLatin1Char(','), 1, 1).toInt() - 1;
+        calc->sheet(rsheet).cells.forEachInRange(quint32(rrow), 0, quint32(rrow), 40, [&](quint32 row, quint32 col, const Cell &c) {
+            const Calculation::CellContent cc = calc->content(rsheet, row, col);
+            qWarning().noquote() << "row cell:" << cellName(row, col) << (cc.isFormula ? "=" + cc.formula : QStringLiteral("(value)")) << calc->cell(rsheet, row, col).debug() << "stored" << (c.hasFormula() ? QString::number(c.number) : QString()) << "circular" << calc->isCircular(rsheet, row, col);
+            return true;
+        });
+    }
     auto step = [&](const crunch::EditSession::Outcome &o) {
         if (o.ok) ++r->done;
         else ++r->refused;
         if (!o.ok && qEnvironmentVariableIntValue("JC_ROUNDTRIP_SHOW") != 0) qWarning().noquote() << "script step" << (r->done + r->refused) << "refused:" << o.problem;
         w.settle();
+        watched(r->done + r->refused);
     };
     auto block = [&](quint32 r1, quint32 c1, quint32 r2, quint32 c2) {
         CellRange b;
@@ -601,6 +672,7 @@ void runScript(Opened &w, const QByteArray &original, ScriptResult *r)
         b.col2 = c2;
         return b;
     };
+    watched(0);
     step(session->insertRows(sheet, rows / 2, 1));
     step(session->insertColumns(sheet, cols / 2, 1));
     const quint32 r2 = std::min<quint32>(rows - 1, 4), c2 = std::min<quint32>(cols - 1, 4);

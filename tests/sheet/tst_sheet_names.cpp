@@ -360,6 +360,175 @@ private Q_SLOTS:
         QVERIFY(std::fabs(c.calc->cell(0, 0, 0).number() - 2) < 0.001);
     }
 
+    // ---- circles of a workbook that goes round them (iteration on): the values of the file stand while nothing they read changes, and a change is gone round from them, never worked out once as an ordinary
+    // formula (a read of a formula not worked out yet as empty made errors that a circle fed itself for ever)
+    static QByteArray circleBook(const QString &rows, bool iterate = true)
+    {
+        return buildXlsx({worksheet(rows)}, QByteArray(), QString(), iterate ? QStringLiteral("iterate=\"1\" iterateCount=\"100\" iterateDelta=\"0.00001\"") : QString());
+    }
+    // A1 = IF(B1=0, 0, 1/C1) + 1 and B1 = A1*0 + 3 + D1*0 are a circle; C1 = F1*2 is outside it (F1 = 2.5). The first working out of the circle reads B1 as empty and never reads C1; going round from the file's
+    // results reads C1, which may not be worked out yet. The file has A1 = 1.2, B1 = 3, C1 = 5, and E1 = A1+B1 (a reader).
+    static QString circleRows(const QString &c1 = cellXml("C1", "F1*2", "5"))
+    {
+        return rowXml(1, cellXml("A1", "IF(B1=0,0,1/C1)+1", "1.2") + cellXml("B1", "A1*0+3+D1*0", "3") + c1 + constant("D1", "0") + cellXml("E1", "A1+B1", "4.2") + constant("F1", "2.5"));
+    }
+    // The edit of the review's trigger: D1, which B1 reads, and F1, which C1 reads, are changed together, so that the circle is worked out before C1 (the readers of what was changed last come first in the order).
+    static void changeBoth(Book &b, double d1, double f1)
+    {
+        QVERIFY(b.calc->setValue(0, 0, 5, Value::number(f1), Calculation::Marking::Later));
+        QVERIFY(b.calc->setValue(0, 0, 3, Value::number(d1), Calculation::Marking::Later));
+        QVERIFY(b.settle());
+    }
+    void aCircleThatReadsAFormulaOutsideItOnlyOnceItIsGoneRoundFromTheFilesResultsStaysAsTheFileHasIt()
+    {
+        Book b;
+        QVERIFY(b.open(circleBook(circleRows())));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.2"));
+        QCOMPARE(b.at("B1"), QStringLiteral("n:3"));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:5"));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:4.2"));   // (what reads the circle reads its values)
+    }
+    // What the circle read of a formula that was not worked out yet is put right when that formula is: F1 5 makes C1 10 after the circle was gone round with 5, and the circle goes round again to 1.1.
+    void aFormulaTheCircleReadBeforeItWasWorkedOutAndIsAnotherValueIsReadAgain()
+    {
+        Book b;
+        QVERIFY(b.open(circleBook(circleRows())));
+        const qint64 before = b.calc->staleReadCorrections();
+        changeBoth(b, 1, 5);
+        // (C1 was worked out after the circle, which read it as it was: the count says so, so that a change to the order of the work that makes it come first fails here and does not make the test empty)
+        QVERIFY2(b.calc->staleReadCorrections() > before, qPrintable(QString::number(b.calc->staleReadCorrections() - before)));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:10"));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.1"));
+        QCOMPARE(b.at("B1"), QStringLiteral("n:3"));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:4.1"));
+        // and back: the circle and its reader are as the file had them
+        changeBoth(b, 0, 2.5);
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.2"));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:4.2"));
+    }
+    // The formula outside is a member of another circle that is worked out after the first: G1 = C1*0+1 and C1 = IF(G1=0,0,F1*2).
+    void aSecondCircleThatFeedsTheFirstAndIsWorkedOutAfterItIsReadAgain()
+    {
+        const QString rows = circleRows(cellXml("C1", "IF(G1=0,0,F1*2)", "5") + cellXml("G1", "C1*0+1", "1"));
+        Book b;
+        QVERIFY(b.open(circleBook(rows)));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.2"));
+        changeBoth(b, 1, 5);
+        QCOMPARE(b.at("C1"), QStringLiteral("n:10"));
+        QCOMPARE(b.at("G1"), QStringLiteral("n:1"));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.1"));
+    }
+    // A formula the file stored no result for, outside the circle: it is read as the empty cell it is until it is worked out, and the circle is gone round again, not left with the error that 1/empty made.
+    void aFormulaOutsideACircleWithNoStoredResultIsReadAgainWhenItIsWorkedOut()
+    {
+        Book b;
+        QVERIFY(b.open(circleBook(circleRows(QStringLiteral("<c r=\"C1\"><f>F1*2</f></c>")))));
+        // (the circle read C1 before it had a result, and was gone round again when it had one: the count says so, and the values are the file's)
+        QVERIFY(b.calc->staleReadCorrections() >= 1);
+        QCOMPARE(b.at("C1"), QStringLiteral("n:5"));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.2"));
+        QCOMPARE(b.at("B1"), QStringLiteral("n:3"));
+        // an edit after that goes round from what the circle has
+        changeBoth(b, 1, 5);
+        QCOMPARE(b.at("C1"), QStringLiteral("n:10"));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.1"));
+    }
+    // More circles to go round again than a recalculation does (the limit, lowered here): the workbook is left asking to be worked out again whole, and when it is, it is right.
+    void aRecalculationThatReachesTheLimitOfCorrectionsLeavesTheWorkbookAskingForAFullRecalculation()
+    {
+        Book b;
+        QVERIFY(b.open(circleBook(circleRows())));
+        b.calc->setStaleCorrectionLimitForTest(0);
+        changeBoth(b, 1, 5);
+        QVERIFY(b.calc->isDirty());                     // (asked for: every formula is to be worked out again)
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.2"));  // (what the circle read, until then)
+        b.calc->setStaleCorrectionLimitForTest(10000);
+        QVERIFY(b.settle());
+        QVERIFY(b.settle());
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.1"));
+        QVERIFY(!b.calc->isDirty());
+    }
+    // The formula outside is a cell of an array: it is read by its place in the array, not as the array's first cell.
+    void aCellOfAnArrayTheCircleReadBeforeItWasWorkedOutIsReadByItsPlace()
+    {
+        const QString rows = rowXml(1, cellXml("A1", "IF(B1=0,0,1/C2)+1", "1.125") + cellXml("B1", "A1*0+3+D1*0", "3") + constant("D1", "0") + constant("F1", "2.5")
+                                           + QStringLiteral("<c r=\"C1\"><f t=\"array\" ref=\"C1:C2\">F1:F2*2+D1*0</f><v>5</v></c>"))
+                             + rowXml(2, constant("C2", "8") + constant("F2", "4"));
+        Book b;
+        QVERIFY(b.open(circleBook(rows)));
+        QCOMPARE(b.at("C2"), QStringLiteral("n:8"));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.125"));
+        // D1 is changed: the circle reads it, and so does the array (+D1*0), which is worked out again after the circle and is what it was, so that nothing corrects what the circle read of it
+        const qint64 before = b.calc->evaluations();
+        QVERIFY(b.calc->setValue(0, 0, 3, Value::number(1), Calculation::Marking::Later));
+        QVERIFY(b.settle());
+        // (what the circle read of the array is what the array is: nothing corrects it, and the circle is gone round once: 9 formulas worked out, where reading the array whole and correcting it makes 21)
+        QVERIFY2(b.calc->evaluations() - before <= 12, qPrintable(QString::number(b.calc->evaluations() - before)));
+        QCOMPARE(b.at("C2"), QStringLiteral("n:8"));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.125"));   // (1/C2 + 1: the second cell of the array, 8)
+        // and with the array changed too, the circle is read again
+        QVERIFY(b.calc->setValue(0, 1, 5, Value::number(2), Calculation::Marking::Later));
+        QVERIFY(b.calc->setValue(0, 0, 3, Value::number(0), Calculation::Marking::Later));
+        QVERIFY(b.settle());
+        QCOMPARE(b.at("C2"), QStringLiteral("n:4"));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.25"));
+    }
+    // With iteration off a circle gives 0 and is marked as one, as it did (a round is gone only when the workbook asks for it).
+    void aCircleOfAWorkbookWithIterationOffGivesZeroAsItDid()
+    {
+        Book b;
+        QVERIFY(b.open(circleBook(circleRows(), false)));
+        QVERIFY(!b.calc->iterating());
+        QCOMPARE(b.at("A1"), QStringLiteral("n:0"));
+        QCOMPARE(b.at("B1"), QStringLiteral("n:0"));
+        QVERIFY(b.calc->isCircular(0, 0, 0));
+        changeBoth(b, 1, 5);
+        QCOMPARE(b.at("C1"), QStringLiteral("n:10"));
+        QVERIFY(b.calc->isCircular(0, 0, 0));
+    }
+    // Guards (they passed before the change of the round, and say what a circle is to give): an edit of a cell nothing reads leaves the circle alone, an edit of what it reads is gone round from what it had, put back it
+    // is as it was, and one that breaks the circle makes it an ordinary formula.
+    void guardEditsOfACircleAndOfWhatItReadsGoRoundFromTheValuesItHad()
+    {
+        Book b;
+        QVERIFY(b.open(circleBook(circleRows())));
+        QVERIFY(b.calc->setValue(0, 5, 5, Value::number(9)));
+        QVERIFY(b.settle());
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.2"));
+        QVERIFY(b.calc->setFormula(0, 0, 2, QStringLiteral("2+2")));
+        QVERIFY(b.settle());
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.25"));
+        QVERIFY(b.calc->setFormula(0, 0, 2, QStringLiteral("F1*2")));
+        QVERIFY(b.settle());
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.2"));
+        QVERIFY(b.calc->setValue(0, 0, 1, Value::number(4)));   // B1 is a number: no circle
+        QVERIFY(b.settle());
+        QVERIFY(!b.calc->isCircular(0, 0, 0));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.2"));
+        QVERIFY(b.calc->setFormula(0, 0, 1, QStringLiteral("A1*0+3+D1*0")));   // and the circle is made again
+        QVERIFY(b.settle());
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.2"));
+        QCOMPARE(b.at("B1"), QStringLiteral("n:3"));
+    }
+    void guardACircleThatConvergesIsGoneRoundFromTheFilesResultsWhenAnInputOfItChanges()
+    {
+        // A1 = B1+C1 and B1 = A1*0.5, with C1 = 1 (the file's results are the fixed point 2 and 1) and E1 reading A1
+        const QString rows = rowXml(1, cellXml("A1", "B1+C1", "2") + cellXml("B1", "A1*0.5", "1") + constant("C1", "1") + cellXml("E1", "A1*10", "20"));
+        Book b;
+        QVERIFY(b.open(circleBook(rows)));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:2"));
+        QCOMPARE(b.at("E1"), QStringLiteral("n:20"));
+        QVERIFY(b.calc->setValue(0, 0, 2, Value::number(3)));   // an input of the circle: it goes round to A1 = 6, B1 = 3
+        QVERIFY(b.settle());
+        QVERIFY(std::fabs(b.calc->cell(0, 0, 0).number() - 6) < 0.001);
+        QVERIFY(std::fabs(b.calc->cell(0, 0, 1).number() - 3) < 0.001);
+        QVERIFY(std::fabs(b.calc->cell(0, 0, 4).number() - 60) < 0.01);
+        QVERIFY(b.calc->setValue(0, 0, 2, Value::number(1)));   // put back
+        QVERIFY(b.settle());
+        QVERIFY(std::fabs(b.calc->cell(0, 0, 0).number() - 2) < 0.001);
+        QVERIFY(std::fabs(b.calc->cell(0, 0, 4).number() - 20) < 0.01);
+    }
+
     void aChangeOfANameReadsAgainOnlyTheFormulasThatMentionIt()
     {
         QString rows = rowXml(1, constant("C1", "5") + cellXml("A1", "Rate*2") + cellXml("B1", "Twice+1") + cellXml("D1", "Other*3"));

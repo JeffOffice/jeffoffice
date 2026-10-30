@@ -938,6 +938,26 @@ bool Calculation::formulaValue(int sheet, quint32 row, quint32 col, const Cell &
         return true;
     }
     const Node &n = m_nodes[id];
+    if (m_evaluating && n.state != Done && m_iterating && !(n.flags & Iterating)) {
+        // (a round of a circle reads a formula outside it that is not worked out yet as a program going round the circle would: by what it had, which is what it gave last, or what the file stored; reading it as empty
+        // made an error of a formula that divides by it, and the circle fed on the error for ever. What it read is kept: when the formula is worked out and is another value, the circle is gone round again)
+        if (n.flags & NodeTainted) m_readTaint = true;
+        if (n.flags & (Mismatch | Cascade)) m_readCascade = true;
+        if (n.flags & Worked) {
+            if (c.flags & ArrayMember) {
+                const Value array = m_arrays.value(id);   // (an array is shared, not copied)
+                *out = array.isArray() ? array.at(int(row - rowOf(n)), int(col - colOf(n))) : nodeValue(n, id);
+                m_staleReads.emplace(id, array.isArray() ? array : *out);
+            } else {
+                *out = nodeValue(n, id);
+                m_staleReads.emplace(id, *out);
+            }
+        } else {
+            *out = valueOf(m_sheets[size_t(sheet)], c);
+            m_staleReads.emplace(id, *out);
+        }
+        return true;
+    }
     if (m_evaluating && n.state != Done) {
         m_pending.push_back(id);
         *out = Value();
@@ -1503,6 +1523,8 @@ void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
 
 void Calculation::beginRecalculation()
 {
+    m_staleReads.clear();
+    m_staleCorrections = 0;
     m_running = true;
     m_workUsed = 0;
     m_now = m_options.now > 0 ? m_options.now : clockSerial(m_ctx.dateSystem);
@@ -2214,6 +2236,29 @@ Value Calculation::runFormula(quint32 id, qint64 *work)
 }
 
 // What a formula worked out is: its result, whether it read anything kept apart, and whether it is a mismatch with what the file stored (or reads one).
+// A formula that a round of a circle read before it was worked out is worked out: if it is not what was read, the formulas that read it (the circle's, and what reads them) are worked out again, which goes
+// round the circle from the values it has. Once for each formula, and no more than a bounded number of times in a recalculation.
+void Calculation::staleReadSettled(quint32 id)
+{
+    const auto it = m_staleReads.find(id);
+    if (it == m_staleReads.end()) return;
+    const Value was = it->second;
+    m_staleReads.erase(it);
+    const Node &n = m_nodes[id];
+    const Value now = n.kind == KindArray ? m_arrays.value(id) : nodeValue(n, id);
+    const bool same = (was.isNumber() && now.isNumber()) ? jp::calc::sameTo15Digits(was.number(), now.number()) : was.debug() == now.debug();
+    if (same) return;
+    if (m_staleCorrections >= m_staleLimit) {
+        m_staleOverflow = true;
+        return;
+    }
+    ++m_staleCorrections;
+    ++m_staleTotal;
+    std::vector<CellArea> changed;
+    changed.push_back(idAreaOfNode(n));
+    markDependentsOfIds(&changed);
+}
+
 bool Calculation::finishNode(Node &n, quint32 id, const Value &v)
 {
     bool refused = false;
@@ -2233,6 +2278,7 @@ bool Calculation::finishNode(Node &n, quint32 id, const Value &v)
         refused = true;
     } else {
         storeResult(n, id, v);
+        if (!m_staleReads.empty()) staleReadSettled(id);
         n.flags &= quint16(~Circular);
         if (m_readTaint) n.flags |= NodeTainted;
         else n.flags &= quint16(~NodeTainted);
@@ -2459,6 +2505,16 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
                         storeResult(x, id, j.start[place], false);
                     }
                     x.flags &= quint16(~Worked);
+                } else if (x.kind == KindError) {
+                    // (a formula that has an error from an earlier working out begins from the file's result if that was not an error: an error that circles feeds itself for ever, and goes round only when it is the answer)
+                    if (const Cell *stored = cellOf(x)) {
+                        const Value fromFile = valueOf(m_sheets[size_t(x.sheet)], *stored);
+                        if (!fromFile.isError() && !fromFile.isEmpty()) {
+                            j.start[place] = fromFile;
+                            j.fromFile[place] = 1;
+                            storeResult(x, id, fromFile, false);
+                        }
+                    }
                 }
             }
             j.stage = 1;
@@ -2489,7 +2545,9 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
             Node &x = m_nodes[id];
             const Value was = x.kind == KindArray ? m_arrays.value(id) : nodeValue(x, id);
             qint64 work = 0;
+            m_iterating = true;
             const Value v = runFormula(id, &work);
+            m_iterating = false;
             if (m_evaluator.status() == EvalStatus::Cancelled) return false;   // (stopped in the middle of it: it is worked out again)
             ++j.at;
             *spent += work;
@@ -2508,6 +2566,7 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
             Node &x = m_nodes[id];
             if (m_sink) tellValue(x, x.kind == KindArray ? m_arrays.value(id) : nodeValue(x, id), false);
             x.flags &= quint16(~(Iterating | Circular | Retried | NodeTainted));
+            if (!m_staleReads.empty()) staleReadSettled(id);
             ++pr.recalculated;
         }
         ck.finish();
@@ -2714,6 +2773,17 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
     m_fresh.clear();
     m_onlyFresh = false;
     releaseDeferred();
+    if (m_staleOverflow) {
+        // (more circles were to be gone round again than a recalculation does: every formula is worked out again by the next, which begins with none of that count; it is asked for a few times at most)
+        m_staleOverflow = false;
+        if (++m_overflowRuns <= 3) {
+            m_invalidate.active = true;
+            m_invalidate.at = 0;
+            m_invalidate.sheet = -1;
+        }
+    } else {
+        m_overflowRuns = 0;
+    }
     pr.finished = true;
     return pr;
 }

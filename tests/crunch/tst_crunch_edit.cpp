@@ -2268,6 +2268,34 @@ private Q_SLOTS:
         for (int sheet = 0; sheet < 3; ++sheet) QVERIFY2(!after.changes.sheets.count(sheet) || after.changes.sheets[sheet].cells.empty(), qPrintable(QString::number(sheet)));
     }
 
+    // A circle of a workbook with iteration on, an edit of what it reads, and the edit undone and done again through the session: the circle is gone round from the values it had each time (A1 = IF(B1=0,0,1/C1)+1
+    // and B1 = A1*0+3 are the circle, C1 = F1*2 is read by it), never given an error that it would feed itself.
+    void anEditOfWhatACircleReadsAndItsUndoAndRedoGoRoundFromTheValuesItHad()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>IF(B1=0,0,1/C1)+1</f><v>1.2</v></c><c r=\"B1\"><f>A1*0+3+F1*0</f><v>3</v></c><c r=\"C1\"><f>F1*2</f><v>5</v></c><c r=\"E1\"><f>A1+B1</f><v>4.2</v></c><c r=\"F1\"><v>2.5</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(sheettest::buildXlsx({sheettest::worksheet(rows)}, QByteArray(), QString(), QStringLiteral("iterate=\"1\" iterateCount=\"100\" iterateDelta=\"0.00001\""))));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1.2"));
+        const qint64 before = e.win.w.session()->calculation()->staleReadCorrections();
+        QVERIFY(e.win.w.session()->type(0, 0, 5, QStringLiteral("5")).ok);   // F1 = 5: C1 = 10, A1 = 1.1 (the circle reads F1 as well as C1, and is worked out first)
+        QVERIFY(e.settle());
+        QVERIFY2(e.win.w.session()->calculation()->staleReadCorrections() > before, "the circle read C1 before it was worked out");
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:10"));
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1.1"));
+        QCOMPARE(e.valueAt(QStringLiteral("E1")), QStringLiteral("n:4.1"));
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1.2"));
+        QCOMPARE(e.valueAt(QStringLiteral("E1")), QStringLiteral("n:4.2"));
+        e.win.w.undoStack()->redo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1.1"));
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1.2"));
+    }
+
     void aWorkbookWithMacrosKeepsThem()
     {
         QByteArray macroBook;
