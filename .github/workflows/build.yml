@@ -142,86 +142,17 @@ jobs:
         timeout-minutes: 45
         shell: bash
         run: |
-          # Windows runners drop this program's console output, so results also go to a file.
           if [ "$RUNNER_OS" = "Windows" ]; then
-            T=build/jptests.exe
             # Programs in the build folder find the GCC runtime through PATH,
             # which can hold another GCC's copy first (the 20261004 runner
             # image crashed in the first test). Use the compiler's own copy,
             # beside the programs, as the packaged program does.
             echo "GCC runtimes on PATH:"; which -a libstdc++-6.dll || true
             cp "$(cygpath -u "$IQTA_TOOLS")/mingw1310_64/bin/"{libgcc_s_seh-1,libstdc++-6,libwinpthread-1}.dll build/
-          else
-            T=build/jptests
           fi
-          set +e
-          "$T" -v1 -o test-results.txt,txt -o -,txt
-          code=$?
-          echo "--- test-results.txt"; cat test-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
-          echo "jptests exit code: $code"
-          # A crash: the tests again under the system's debugger, for the
-          # stack (a crash can depend on the tests before it).
-          # (a crash is a failure with no QtTest totals line: the exit code of a native crash can reach bash cut short, so it is not what says so)
-          if [ "$code" -ne 0 ] && ! grep -q "Totals:" test-results.txt 2>/dev/null; then
-            echo "--- stack of the crash"
-            if [ "$RUNNER_OS" = "macOS" ]; then
-              lldb --batch -o run -k "thread backtrace all -c 30" -- "$T" -silent 2>&1 | tail -120
-            else
-              G=gdb
-              if [ "$RUNNER_OS" = "Windows" ]; then G="$(cygpath -u "$IQTA_TOOLS")/mingw1310_64/bin/gdb.exe"; fi
-              "$G" -q -batch -ex run -ex "thread apply all bt 30" --args "$T" -silent 2>&1 | grep -v '^\[' | tail -120
-            fi
-          fi
-          # The shared file-format library's own tests, the same way; the
-          # step fails if either program does.
-          if [ "$RUNNER_OS" = "Windows" ]; then O=build/officetests.exe; else O=build/officetests; fi
-          "$O" -v1 -o officetests-results.txt,txt -o -,txt
-          ocode=$?
-          echo "--- officetests-results.txt"; cat officetests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
-          echo "officetests exit code: $ocode"
-          if [ "$code" -eq 0 ]; then code=$ocode; fi
-          # The spreadsheet readers' tests (libs/office/sheet), and those of the package reader that inflates a part when it is asked for.
-          if [ "$RUNNER_OS" = "Windows" ]; then S=build/sheettests.exe; else S=build/sheettests; fi
-          "$S" -v1 -o sheettests-results.txt,txt -o -,txt
-          scode=$?
-          echo "--- sheettests-results.txt"; cat sheettests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
-          echo "sheettests exit code: $scode"
-          if [ "$code" -eq 0 ]; then code=$scode; fi
-          # JeffCrunch's tests (the window, the grid it shows, and the calculation behind it).
-          if [ "$RUNNER_OS" = "Windows" ]; then C=build/crunchtests.exe; else C=build/crunchtests; fi
-          "$C" -v1 -o crunchtests-results.txt,txt -o -,txt
-          ccode=$?
-          echo "--- crunchtests-results.txt"; cat crunchtests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
-          echo "crunchtests exit code: $ccode"
-          if [ "$code" -eq 0 ]; then code=$ccode; fi
-          # JeffDeck's tests.
-          if [ "$RUNNER_OS" = "Windows" ]; then D=build/jdtests.exe; else D=build/jdtests; fi
-          "$D" -v1 -o jdtests-results.txt,txt -o -,txt
-          dcode=$?
-          echo "--- jdtests-results.txt"; cat jdtests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
-          echo "jdtests exit code: $dcode"
-          if [ "$code" -eq 0 ]; then code=$dcode; fi
-          # The flowing document's tests (libs/flow, and what it needs of the layers below).
-          if [ "$RUNNER_OS" = "Windows" ]; then W=build/flowtests.exe; else W=build/flowtests; fi
-          "$W" -v1 -o flowtests-results.txt,txt -o -,txt
-          wcode=$?
-          echo "--- flowtests-results.txt"; cat flowtests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
-          echo "flowtests exit code: $wcode"
-          if [ "$code" -eq 0 ]; then code=$wcode; fi
-          # The word processing XML's tests (libs/office/wml), and JeffWrite's.
-          if [ "$RUNNER_OS" = "Windows" ]; then X=build/wmltests.exe; else X=build/wmltests; fi
-          "$X" -v1 -o wmltests-results.txt,txt -o -,txt
-          xcode=$?
-          echo "--- wmltests-results.txt"; cat wmltests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
-          echo "wmltests exit code: $xcode"
-          if [ "$code" -eq 0 ]; then code=$xcode; fi
-          if [ "$RUNNER_OS" = "Windows" ]; then J=build/writetests.exe; else J=build/writetests; fi
-          "$J" -v1 -o writetests-results.txt,txt -o -,txt
-          jcode=$?
-          echo "--- writetests-results.txt"; cat writetests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
-          echo "writetests exit code: $jcode"
-          if [ "$code" -eq 0 ]; then code=$jcode; fi
-          exit $code
+          # The programs run side by side, longest first, each with its own results file (Windows runners drop their console output)
+          # (tools/ci_tests.sh): one after another they took 12 to 17 minutes.
+          bash tools/ci_tests.sh flowtests crunchtests jdtests writetests sheettests jptests officetests wmltests
         env:
           QT_QPA_PLATFORM: offscreen
           JP_TEST_TRACE: '1'
