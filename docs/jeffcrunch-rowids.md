@@ -697,7 +697,7 @@ Tests that asserted the counters of the old way and are mode-aware now (named in
 - **The version stamp** (4.4) was already what Undo and Redo go by (`recordIdsAreCurrent`), and Undo and Redo already ran the inverse by the order's own record; this round did not change that.
 
 
-**Tests** (each of the first six failed on the base with the tests added and nothing else, `b1c0d95e`; the stand-ins the base needed to compile the two that use new calls are not in the commit):
+**Tests** (the seven tests of the first six rows failed on the base, `b1c0d95e`, with the tests added and nothing else; the stand-ins the base needed to compile the two that use new calls are not in the commit; the last row is three tests that pass on both):
 
 | Test | On the base | Now |
 |---|---|---|
