@@ -854,8 +854,8 @@ private Q_SLOTS:
         QVERIFY(s->insertRows(0, 100, 1).ok);   // fits: nothing is lost by it
         QVERIFY(e.settle());
         const int steps = e.win.w.undoStack()->count();
-        // too big: not done, and the person is asked
-        crunch::EditSession::Outcome o = s->deleteRows(0, 19, 41);
+        // too big: not done, and the person is asked (cells shifted up: a delete of whole rows is not asked about in the id frame, where Undo of it holds no cell)
+        crunch::EditSession::Outcome o = s->deleteCells(0, rangeOf(QStringLiteral("A20:A60")), true);
         QVERIFY(!o.ok && o.confirm);
         QVERIFY2(o.problem.contains(QStringLiteral("can't be undone")), qPrintable(o.problem));
         QCOMPARE(e.win.w.undoStack()->count(), steps);
@@ -874,7 +874,8 @@ private Q_SLOTS:
             cursorBusy = cursorBusy || QGuiApplication::overrideCursor() != nullptr;
             statusDuring = e.win.w.statusText();
         });
-        e.view()->selectRows(19, 59);
+        e.win.w.setShiftAsker([](CrunchWindow::ShiftRequest *) { return true; });   // (the way is Up, which the request has to begin with)
+        e.view()->selectRange(19, 0, 59, 0);
         e.win.w.act(QStringLiteral("cells.delete"))->trigger();
         QCOMPARE(asked.size(), 1);
         QCOMPARE(e.win.w.undoStack()->count(), steps);
@@ -895,6 +896,309 @@ private Q_SLOTS:
         QVERIFY(s->insertRows(0, 2, 1).ok);
         QCOMPARE(asked.size(), 2);
         QVERIFY(s->canUndo());
+    }
+
+    // ---- round 6 (docs/jeffcrunch-rowids.md, 4.7): what Undo holds of an edit of rows or columns is the change to their order and the before-images of what the edit changed, kilobytes whatever the
+    // size of the sheet; no question "this can't be undone" for them.
+private:
+    // 100,000 rows that each have their own height, a number in A and a formula in B, three merged ranges, and a width for the first two columns.
+    static QByteArray tallBook(int rows)
+    {
+        QString xml;
+        xml.reserve(rows * 110);
+        for (int r = 1; r <= rows; ++r)
+            xml += QStringLiteral("<row r=\"%1\" ht=\"%2\" customHeight=\"1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2</f><v>0</v></c></row>").arg(r).arg(15 + r % 7);
+        const QString merges = QStringLiteral("<mergeCells count=\"3\"><mergeCell ref=\"D5:E6\"/><mergeCell ref=\"D500:F501\"/><mergeCell ref=\"D60000:E60002\"/></mergeCells>");
+        return buildXlsx({worksheet(xml, merges, QStringLiteral("<cols><col min=\"1\" max=\"2\" width=\"14\" customWidth=\"1\"/></cols>"))});
+    }
+
+private Q_SLOTS:
+    // Twelve edits of rows and columns in a sheet of 100,000 rows with a height for each: the steps hold under 64 KB between them (counted), and Undo and Redo of all twelve put it right.
+    void twelveEditsOfRowsAndColumnsAt100000RowsHoldUnder64KbOfUndo()
+    {
+        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the formulas are held in places: the edits of rows write the specs of rows again, and Undo holds them, as before ids");
+        EditWindow e;
+        QVERIFY(e.open(tallBook(100000)));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        const qint64 base = s->undoBytes();
+        auto rowHeight = [&](quint32 row) {
+            const auto specs = s->calculation()->rowSpecsIn(0, row, row);
+            return specs.empty() ? -1.0 : specs.front().height;
+        };
+        const double h50000 = rowHeight(49999);   // (the row of A50000)
+        QVERIFY(h50000 > 0);
+        QVERIFY(s->insertRows(0, 10, 2).ok);
+        QVERIFY(s->deleteRows(0, 50000, 1).ok);
+        QVERIFY(s->insertColumns(0, 3, 1).ok);
+        QVERIFY(s->deleteColumns(0, 3, 1).ok);
+        QVERIFY(s->insertRows(0, 99000, 1).ok);
+        QVERIFY(s->deleteRows(0, 20, 3).ok);
+        QVERIFY(s->insertRows(0, 5, 1).ok);
+        QVERIFY(s->insertColumns(0, 0, 1).ok);
+        QVERIFY(s->deleteColumns(0, 0, 1).ok);
+        QVERIFY(s->deleteRows(0, 70000, 5).ok);
+        QVERIFY(s->insertRows(0, 60000, 1).ok);
+        QVERIFY(s->insertRows(0, 3, 1).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->count(), 12);
+        QVERIFY2(s->undoBytes() - base < 64 * 1024, qPrintable(QString::number(s->undoBytes() - base)));
+        // (A99999 is the one that was at A100000: two rows and one row and a row put in above it, three taken out, a row put in and five taken out, ...)
+        const QString before = e.valueAt(QStringLiteral("B100"));
+        for (int i = 0; i < 12; ++i) e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A50000")), QStringLiteral("n:50000"));
+        QCOMPARE(e.valueAt(QStringLiteral("B100000")), QStringLiteral("n:200000"));
+        QCOMPARE(rowHeight(49999), h50000);
+        QCOMPARE(s->calculation()->sheet(0).merges.size(), 3);
+        QCOMPARE(s->calculation()->sheet(0).merges[2].row1, quint32(59999));
+        for (int i = 0; i < 12; ++i) e.win.w.undoStack()->redo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B100")), before);
+        QVERIFY2(s->undoBytes() - base < 64 * 1024, qPrintable(QString::number(s->undoBytes() - base)));
+    }
+
+    // A delete of 500,000 rows is not asked about (nothing it holds is big) and is undone at once: the values are the window's before the worker has worked anything out again.
+    void aDeleteOfHalfAMillionRowsIsNotAskedAboutAndIsUndoneAtOnce()
+    {
+        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the formulas are held in places: a delete of rows holds the cells it deletes, as before ids");
+        const int n = 550000;
+        QString xml;
+        xml.reserve(n * 60);
+        for (int r = 1; r <= n; ++r) xml += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2</f><v>0</v></c></row>").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(xml)})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        const qint64 base = s->undoBytes();
+        const crunch::EditSession::Outcome o = s->deleteRows(0, 20000, 500000);
+        QVERIFY2(o.ok && !o.confirm, qPrintable(o.problem));
+        QVERIFY2(s->undoBytes() - base < 64 * 1024, qPrintable(QString::number(s->undoBytes() - base)));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A20001")), QStringLiteral("n:520001"));
+        QCOMPARE(e.valueAt(QStringLiteral("B20001")), QStringLiteral("n:1040002"));
+        e.win.w.undoStack()->undo();
+        QCoreApplication::processEvents();   // (the grid takes what the undo told it; the worker is not waited for)
+        QCOMPARE(e.valueAt(QStringLiteral("B400000")), QStringLiteral("n:800000"));
+        QCOMPARE(e.valueAt(QStringLiteral("A20001")), QStringLiteral("n:20001"));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B300000")), QStringLiteral("n:600000"));
+        QVERIFY(storeDiffers(e).isEmpty());
+        e.win.w.undoStack()->redo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A20001")), QStringLiteral("n:520001"));
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B549999")), QStringLiteral("n:1099998"));
+        QVERIFY(storeDiffers(e).isEmpty());
+    }
+
+    // Redo after Undo after Redo: each time the sheet is as it was after the edit (cells, formulas, heights), and the steps hold what they held.
+    void redoAfterUndoAfterRedoGivesTheSameSheetEachTime()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "A4=4", "A5=5", "B1==SUM(A1:A5)", "B3==A3*2", "C2==B3+A5", "D4=text"})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        const qint64 base = s->undoBytes();
+        auto state = [&] {
+            QStringList out;
+            for (const char *ref : {"A1", "A2", "A3", "A4", "A5", "A6", "A7", "B1", "B2", "B3", "B4", "B5", "C2", "C3", "C4", "D4", "D5", "E4"})
+                out << QString::fromLatin1(ref) + QLatin1Char('=') + e.valueAt(QString::fromLatin1(ref)) + QLatin1Char(' ') + formulaOf(e, QString::fromLatin1(ref));
+            return out.join(QLatin1Char('|'));
+        };
+        const QString start = state();
+        QVERIFY(s->insertRows(0, 2, 2).ok);
+        QVERIFY(s->deleteRows(0, 5, 1).ok);
+        QVERIFY(s->insertColumns(0, 1, 1).ok);
+        QVERIFY(s->deleteColumns(0, 0, 1).ok);
+        QVERIFY(e.settle());
+        const QString done = state();
+        const qint64 held = s->undoBytes();
+        QVERIFY(done != start);
+        for (int round = 0; round < 3; ++round) {
+            for (int i = 0; i < 4; ++i) e.win.w.undoStack()->undo();
+            QVERIFY(e.settle());
+            QCOMPARE(state(), start);
+            if (office::sheet::Calculation::idFrameDefault()) QCOMPARE(s->undoBytes(), held);   // (the steps hold the same after: they are the same steps)
+            for (int i = 0; i < 4; ++i) e.win.w.undoStack()->redo();
+            QVERIFY(e.settle());
+            QCOMPARE(state(), done);
+            if (office::sheet::Calculation::idFrameDefault()) QCOMPARE(s->undoBytes(), held);
+        }
+        QVERIFY(storeDiffers(e).isEmpty());
+        // an Undo that stops half way, then a new edit: the steps that were undone are let go of, and the rows they took are given back
+        for (int i = 0; i < 2; ++i) e.win.w.undoStack()->undo();
+        QVERIFY(s->insertRows(0, 0, 1).ok);
+        QVERIFY(!e.win.w.undoStack()->canRedo());
+        e.win.w.undoStack()->undo();
+        for (int i = 0; i < 2; ++i) e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(state(), start);
+        QVERIFY(storeDiffers(e).isEmpty());
+    }
+
+    // Round 6: the formulas in rows that were deleted are as they were when the rows come back, whatever was done in between and undone before: rows put in, a sheet renamed, a name made, a cell typed.
+    // (They stay in the workbook while the step can be undone, and nothing that is done is written for them: a sheet name, a name, a table, and the places formulas see are not theirs to change.)
+    void formulasInDeletedRowsComeBackAsTheyWereAfterOtherEditsAreUndone()
+    {
+        auto cell = [](const char *ref, const QString &formula, int value = 0) {
+            return QStringLiteral("<c r=\"%1\"><f>%2</f><v>%3</v></c>").arg(QString::fromLatin1(ref), formula.toHtmlEscaped()).arg(value);
+        };
+        const QString sheet1 = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>5</v></c></row>")
+            + QStringLiteral("<row r=\"2\"><c r=\"A2\"><v>6</v></c></row>")
+            + QStringLiteral("<row r=\"3\"><c r=\"A3\"><v>7</v></c>") + cell("B3", QStringLiteral("A3*2")) + cell("C3", QStringLiteral("Sheet2!A1+1")) + cell("D3", QStringLiteral("INDIRECT(\"A1\")")) + cell("E3", QStringLiteral("Rate*A3")) + QStringLiteral("</row>")
+            + QStringLiteral("<row r=\"4\"><c r=\"A4\"><v>8</v></c>") + cell("B4", QStringLiteral("SUM(A1:A4)")) + cell("C4", QStringLiteral("ROW()")) + cell("D4", QStringLiteral("Sheet2!A1+Sheet2!A2")) + QStringLiteral("</row>")
+            + QStringLiteral("<row r=\"5\"><c r=\"A5\"><v>9</v></c>") + cell("B5", QStringLiteral("SUM(A3:A4)")) + QStringLiteral("</row>");
+        const QString sheet2 = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>100</v></c></row><row r=\"2\"><c r=\"A2\"><v>200</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(sheet1), worksheet(sheet2)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QStringLiteral("<definedName name=\"Rate\">Sheet1!$A$1</definedName>"))));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        auto state = [&] {
+            QStringList out;
+            for (const char *ref : {"A1", "A2", "A3", "A4", "A5", "A6", "B1", "B2", "B3", "B4", "B5", "C3", "C4", "D3", "D4", "E3"})
+                out << QString::fromLatin1(ref) + QLatin1Char('=') + e.valueAt(QString::fromLatin1(ref)) + QLatin1Char(' ') + formulaOf(e, QString::fromLatin1(ref));
+            return out.join(QLatin1Char('|'));
+        };
+        const QString start = state();
+        QVERIFY(start.contains(QStringLiteral("C3=n:101")));
+        QUndoStack *u = e.win.w.undoStack();
+        QVERIFY(s->deleteRows(0, 2, 2).ok);   // rows 3 and 4: their formulas are dead
+        QVERIFY(e.settle());
+        QVERIFY(s->insertRows(0, 0, 1).ok);   // (a row put in above)
+        QVERIFY(s->renameSheet(1, QStringLiteral("Facts")).ok);
+        QVERIFY(s->type(1, 0, 0, QStringLiteral("500")).ok);
+        crunch::EditSession::NameDraft draft;
+        draft.name = QStringLiteral("Other");
+        draft.text = QStringLiteral("=Facts!$A$2");
+        QVERIFY(s->defineName(draft).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(u->count(), 5);
+        for (int i = 0; i < 4; ++i) u->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->info().sheets[1].name, QStringLiteral("Sheet2"));
+        u->undo();   // the rows come back
+        QVERIFY(e.settle());
+        QCOMPARE(state(), start);
+        QVERIFY(storeDiffers(e).isEmpty());
+        // and the whole of it again, and back
+        for (int i = 0; i < 5; ++i) u->redo();
+        QVERIFY(e.settle());
+        for (int i = 0; i < 5; ++i) u->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(state(), start);
+        QVERIFY(storeDiffers(e).isEmpty());
+    }
+
+    // Round 6: what a forgotten delete of rows left (the dead cells, and the nodes of the formulas in them) is let go of a slice at a time: the step that is let go of does none of it, each slice does about as
+    // many cells as it is given (counted), and when the last is done the cells, the nodes, and the values the window held for them are gone.
+    void theDeadCellsOfAForgottenDeleteAreLetGoOfInSlices()
+    {
+        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the formulas are held in places: a delete of rows holds the cells it deletes in the step, as before ids");
+        const int n = 20000;
+        QString xml;
+        for (int r = 1; r <= n; ++r) xml += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2</f><v>0</v></c></row>").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(xml)})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        const office::sheet::Calculation *calc = s->calculation();
+        const qint64 formulas = calc->formulaCount(), values = e.win.w.values().count();
+        QCOMPARE(values, qint64(n));
+        QVERIFY(s->deleteRows(0, 1000, 15000).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(calc->sheet(0).cells.deadCount(), qint64(30000));
+        QCOMPARE(calc->formulaCount(), formulas);   // (the nodes are kept while the step can be undone)
+        QCOMPARE(e.win.w.values().count(), values);
+        e.win.w.undoStack()->clear();   // the step is let go of
+        QVERIFY(s->type(0, 0, 5, QStringLiteral("1")).ok);   // (the next step takes the records of the steps that went)
+        QVERIFY(s->purgeWaiting() > 0);
+        QCOMPARE(calc->sheet(0).cells.deadCount(), qint64(30000));   // (nothing is let go of yet)
+        QCOMPARE(calc->formulaCount(), formulas);
+        int slices = 0;
+        qint64 last = s->purgeWaiting();
+        while (s->purgeSome(2000)) {
+            ++slices;
+            const qint64 now = s->purgeWaiting();
+            QVERIFY2(last - now <= 2000 + 64 * 2, qPrintable(QString::number(last - now)));   // (a block is not cut: it is a slice and at most a block more)
+            last = now;
+        }
+        QVERIFY2(slices >= 10, qPrintable(QString::number(slices)));
+        QCOMPARE(s->purgeWaiting(), qint64(0));
+        QCOMPARE(calc->sheet(0).cells.deadCount(), qint64(0));
+        QCOMPARE(calc->formulaCount(), formulas - 15000);
+        QCOMPARE(e.win.w.values().count(), values - 15000);
+        // the ids may be used again, and the sheet is as the edits left it
+        QVERIFY(s->insertRows(0, 5, 2).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B1003")), QStringLiteral("n:32002"));   // (the row of A16001 before, two rows lower: 16001 * 2)
+        QVERIFY(storeDiffers(e).isEmpty());
+    }
+
+    // Undo and a save: a step of rows put in before a save is undone after it (the saved file has the rows, so the edit that takes them out is made against the saved file), and a step of rows deleted
+    // after a save is undone, and the file saved again is the one that was first; what was deleted before a save is the one thing Undo does not go back over (the m_saveGen rules are as they were).
+    void undoAcrossASaveKeepsTheRulesOfTheSavedFile()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "A4=4", "B1==SUM(A1:A4)", "B3==A3*2"})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        auto save = [&] {
+            QSignalSpy spy(&e.win.w, &CrunchWindow::saved);
+            return e.win.w.save() && savedOk(spy, 20000);
+        };
+        QVERIFY(s->type(0, 0, 5, QStringLiteral("9")).ok);   // (a file that is not changed is not saved)
+        QVERIFY(e.settle());
+        QVERIFY(save());
+        // (what the saved file holds of the cells, by place: its numbers, and the text of its formulas; the results the file stores for formulas are the saver's, and are not compared)
+        auto view = [&] {
+            QStringList out;
+            for (int row = 1; row <= 8; ++row)
+                for (const char col : {'A', 'B', 'F'}) {
+                    const QString ref = QString(QLatin1Char(col)) + QString::number(row);
+                    out << ref + QLatin1Char('=') + (col == 'B' ? savedFormula(e.path, ref) : savedCell(e.path, ref));
+                }
+            return out.join(QLatin1Char('|'));
+        };
+        const QString first = view();
+        QVERIFY(s->insertRows(0, 1, 2).ok);
+        QVERIFY(e.settle());
+        QVERIFY(save());
+        QVERIFY(view() != first);
+        QVERIFY(s->canUndo());   // (an insert is undone after a save)
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:3"));
+        QVERIFY(save());
+        QCOMPARE(view(), first);
+        e.win.w.undoStack()->redo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A5")), QStringLiteral("n:3"));
+        QVERIFY(save());
+        QVERIFY(view() != first);
+        // a delete after the save: undone, and the file saved after is as it was
+        const QString inserted = view();
+        QVERIFY(s->deleteRows(0, 0, 2).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("-"));
+        QVERIFY(save());
+        QVERIFY(view() != inserted);
+        QVERIFY(s->stepsForgottenBySave() > 0);   // (a delete before a save is not undone after it)
+        QVERIFY(!s->canUndo());
+        QVERIFY(s->insertRows(0, 0, 1).ok);       // (what is done after the save is undone as ever)
+        QVERIFY(e.settle());
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("-"));
+        QVERIFY(s->deleteRows(0, 1, 1).ok);       // (a delete after this save)
+        QVERIFY(e.settle());
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QVERIFY(s->type(0, 0, 6, QStringLiteral("3")).ok);   // (as it was saved, the sheet is not modified: a file that is not changed is not saved)
+        QVERIFY(e.settle());
+        QVERIFY(save());
+        QVERIFY(storeDiffers(e).isEmpty());
     }
 
     // Tables: rows inserted inside one make it longer, rows or columns before it move it, the header row and the columns can't be cut through; the saved part has its place.
