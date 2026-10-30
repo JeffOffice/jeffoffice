@@ -4,6 +4,7 @@
 
 #include "sheet/csv.h"
 
+#include "app/crunchfilescreen.h"
 #include "app/oldformat.h"
 #include "app/settings.h"
 #include "app/sheettabs.h"
@@ -13,6 +14,7 @@
 #include "core/threadtime.h"
 
 #include <QApplication>
+#include <QAbstractButton>
 #include <QFileInfo>
 #include <QLabel>
 #include <QLocale>
@@ -162,6 +164,8 @@ void CrunchWindow::onFirstScreen()
     m_sheet = m_loaded->previewSheet;
     fillTabs();
     showSheet(m_sheet, false);
+    // (the keys go to the grid: a window that opens with the focus on its File button, the first in the tab order, would take a person's typing as presses of it)
+    if (!m_fileScreen->isVisible() && (!focusWidget() || qobject_cast<QAbstractButton *>(focusWidget()))) m_view->setFocus(Qt::OtherFocusReason);
     if (!m_blank) setStatus(tr("Loading the rest of %1…").arg(QFileInfo(m_path).fileName()));
     updateTitle();
     updateBars();

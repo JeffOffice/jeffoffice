@@ -1564,6 +1564,20 @@ private Q_SLOTS:
         QVERIFY(e.settle());
     }
 
+    // A new window takes typing at once: the keys go to the grid, not to the File button, so a person who starts typing sees the cell fill (and Enter does not open the File screen).
+    void aNewWindowTakesTypingWithoutAClick()
+    {
+        Window w;
+        w.w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&w.w));
+        QVERIFY(w.openBlank());
+        QWidget *focus = QApplication::focusWidget();
+        QVERIFY(focus != nullptr);
+        QTest::keyClick(focus, Qt::Key_7);
+        QVERIFY2(w.w.isEditing(), focus->metaObject()->className());
+        QCOMPARE(w.w.cellEditor()->text(), QStringLiteral("7"));
+    }
+
     // Save on a workbook that was never saved asks for a name (as Save As does) and writes an .xlsx; opening it again gives the same cells, and the window then has that file.
     void saveOnANewWorkbookGoesToSaveAs()
     {
