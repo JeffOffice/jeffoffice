@@ -28,6 +28,7 @@ jobs:
           - os: macos-14
             name: macos
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -218,19 +219,41 @@ jobs:
           echo "--- writetests-results.txt"; cat writetests-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
           echo "writetests exit code: $jcode"
           if [ "$code" -eq 0 ]; then code=$jcode; fi
-          # What every app's window must pass (tests/appchecks): the first five minutes of a person who launches it with no file, its standard commands, and every one of its
-          # commands run once on a blank document and once on one opened from a file. The four programs run side by side (they wait on conditions, not on time, so a busy machine
-          # only makes them slower), each with its own results file.
+          exit $code
+        env:
+          QT_QPA_PLATFORM: offscreen
+          JP_TEST_TRACE: '1'
+
+      # What every app's window must pass (tests/appchecks): the first five minutes of a person who launches it with no file, its standard commands, and every one of its commands run
+      # once on a blank document and once on one opened from a file. The four programs run side by side (they wait on conditions, not on time, so a busy machine only makes them
+      # slower), each with its own results file. A hang fails in minutes, not hours.
+      - name: App checks
+        timeout-minutes: 25
+        shell: bash
+        run: |
           for N in pubchecks deckchecks writechecks crunchchecks; do
             if [ "$RUNNER_OS" = "Windows" ]; then P=build/$N.exe; else P=build/$N; fi
             ( "$P" -v1 -o $N-results.txt,txt -o -,txt > $N.log 2>&1; echo $? > $N.code ) &
           done
           wait
+          code=0
           for N in pubchecks deckchecks writechecks crunchchecks; do
             echo "--- $N-results.txt"; cat $N-results.txt 2>/dev/null || echo "(no results file: the program did not start)"
             ncode=$(cat $N.code 2>/dev/null || echo 1)
             echo "$N exit code: $ncode"
             if [ "$ncode" -ne 0 ]; then echo "--- $N.log (the end)"; tail -60 $N.log; fi
+            # A crash: the program again under the system's debugger, for the stack (a crash can depend on the commands before it; the stack of the first one is in the log).
+            if [ "$ncode" -ge 128 ]; then
+              echo "--- stack of the crash of $N"
+              if [ "$RUNNER_OS" = "Windows" ]; then P=build/$N.exe; else P=build/$N; fi
+              if [ "$RUNNER_OS" = "macOS" ]; then
+                timeout 600 lldb --batch -o run -k "thread backtrace all -c 30" -- "$P" -silent 2>&1 | tail -120
+              else
+                G=gdb
+                if [ "$RUNNER_OS" = "Windows" ]; then G="$(cygpath -u "$IQTA_TOOLS")/mingw1310_64/bin/gdb.exe"; fi
+                timeout 600 "$G" -q -batch -ex run -ex "thread apply all bt 30" --args "$P" -silent 2>&1 | grep -v '^\[' | tail -120
+              fi
+            fi
             if [ "$code" -eq 0 ]; then code=$ncode; fi
           done
           exit $code
@@ -468,6 +491,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write
     concurrency: wiki
