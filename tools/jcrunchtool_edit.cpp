@@ -1271,6 +1271,8 @@ int structBench(const QString &path, const QString &label, const QString &only)
         shifted.col1 = shifted.col2 = cols - 1;
         return session->insertCells(sheet, shifted, true);
     }});
+    // (JC_BENCH_BIG=1: rows deleted in their hundreds of thousands, which Undo of used to hold whole: a quarter of the sheet down, half the sheet or 500,000 rows, whichever is fewer)
+    if (qEnvironmentVariableIntValue("JC_BENCH_BIG") > 0) cases.push_back({QStringLiteral("delete 500000 rows"), [=] { return session->deleteRows(sheet, rows / 4, std::min<quint32>(500000, rows / 2)); }});
     // (counted work, besides the times: what the model, the session, and the window each did; the columns after used_cols are for the edit, and then for its Undo)
     out() << "label\tcase\tdo_cpu_ms\tdo_wall_ms\tworker_cpu_ms\tsettle_ms\twork_counted\ttexts_made\tundo_cpu_ms\tundo_wall_ms\tundo_work\tused_rows\tused_cols"
           << "\tcells_moved\tcells_gone\tformulas_visited\tformulas_rewritten\tnodes_remade\tgraph_work\tnames_rewritten\trules_rewritten\tmarks_followed\tvalues_moved\tview_cells\tundo_bytes\tgraph_entries"
@@ -1339,6 +1341,29 @@ int structBench(const QString &path, const QString &label, const QString &only)
         out().flush();
     }
     out() << "# after the edits: resident " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB\n";
+    if (qEnvironmentVariableIntValue("JC_BENCH_TWELVE") > 0) {
+        // twelve edits of rows and columns, none undone, and what the process holds after them and the steps hold (the table of 4.13: resident memory after 12 structural edits)
+        w.undoStack()->clear();
+        const qint64 residentBefore = vm("VmRSS"), heldBefore = session->undoBytes();
+        const quint32 r = rows, c = cols;
+        const std::function<crunch::EditSession::Outcome()> twelve[12] = {
+            [=] { return session->insertRows(sheet, 10, 2); },       [=] { return session->deleteRows(sheet, r / 2, 1); },     [=] { return session->insertColumns(sheet, 1, 1); },
+            [=] { return session->deleteColumns(sheet, 1, 1); },     [=] { return session->insertRows(sheet, r - 100, 3); },   [=] { return session->deleteRows(sheet, 20, 3); },
+            [=] { return session->insertRows(sheet, 5, 1); },        [=] { return session->insertColumns(sheet, 0, 1); },     [=] { return session->deleteColumns(sheet, c / 2, 1); },
+            [=] { return session->deleteRows(sheet, r / 4, 5); },    [=] { return session->insertRows(sheet, r / 3, 1); },    [=] { return session->insertRows(sheet, 3, 1); }};
+        QElapsedTimer all;
+        all.start();
+        int refused = 0;
+        for (const auto &edit : twelve) {
+            const crunch::EditSession::Outcome o = edit();
+            if (!o.ok) ++refused;
+        }
+        QElapsedTimer wall;
+        wall.start();
+        settle(wall);
+        out() << "# twelve edits (" << refused << " refused): resident " << residentBefore << " -> " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB; the steps hold " << (session->undoBytes() - heldBefore) / 1024
+              << " KB; made and settled in " << all.elapsed() << " ms\n";
+    }
     return 0;
 }
 
