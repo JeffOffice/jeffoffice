@@ -1896,14 +1896,15 @@ int command(const QStringList &args)
         return code;
     };
     if (args.size() >= 3 && args[0] == QLatin1String("model-check")) {
-        // model-check <seeds> <steps> [first seed] [every=n] [nograph] [idframe] [wide] [noshrink]
+        // model-check <seeds> <steps> [first seed] [every=n] [nograph] [idframe] [places] [wide] [noshrink]  (idframe or places says how the formulas are held; else as the process does: in ids unless JC_ID_FRAME=0)
         const int seeds = args[1].toInt(), stepCount = args[2].toInt();
-        const quint32 first = args.size() > 3 && !args[3].contains(QLatin1Char('=')) && args[3] != QLatin1String("nograph") && args[3] != QLatin1String("idframe") && args[3] != QLatin1String("wide") && args[3] != QLatin1String("noshrink") ? args[3].toUInt() : 1;
+        const quint32 first = args.size() > 3 && !args[3].contains(QLatin1Char('=')) && args[3] != QLatin1String("nograph") && args[3] != QLatin1String("idframe") && args[3] != QLatin1String("places") && args[3] != QLatin1String("wide") && args[3] != QLatin1String("noshrink") ? args[3].toUInt() : 1;
         Options options;
         bool shrinkIt = true, wide = false;
         for (const QString &a : args.mid(3)) {
             if (a == QLatin1String("nograph")) options.graph = false;
             else if (a == QLatin1String("idframe")) options.idFrame = true;
+            else if (a == QLatin1String("places")) options.forceOff = true;
             else if (a == QLatin1String("wide")) wide = true;
             else if (a == QLatin1String("noshrink")) shrinkIt = false;
             else if (a.startsWith(QLatin1String("every="))) options.checkEvery = std::max(1, a.mid(6).toInt());

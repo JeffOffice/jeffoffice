@@ -120,7 +120,7 @@ public:
     void setManual(bool manual);
     // Before start(): whether a workbook that its file sets to be worked out by hand is (true, the default); the tools that compare every formula with the file's result say false.
     void setManualAllowed(bool allowed) { m_manualAllowed = allowed; }
-    // Before start(): how this loader's calculation holds its formulas: 0 as the process does (jp::office::sheet::Calculation::idFrameDefault), 1 in the id frame, -1 in places. Tests that compare the
+    // Before start(): how this loader's calculation holds its formulas: 0 as the process does (jp::office::sheet::Calculation::idFrameDefault: in ids, unless JC_ID_FRAME=0), 1 in the id frame, -1 in places. Tests that compare the
     // two say so for the window they open, and no other window's worker is looked at.
     void setIdFrame(int mode) { m_idFrame = mode; }
 

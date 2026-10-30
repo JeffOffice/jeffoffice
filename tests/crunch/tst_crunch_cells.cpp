@@ -1322,16 +1322,19 @@ private Q_SLOTS:
         QString why;
         QVERIFY2(s->takeSnapshot(&snap, &why), qPrintable(why));
         QVERIFY(!snap.changes.fullCalcOnLoad);
-        QVERIFY(snap.changes.sheets[0].cells.empty());
+        QVERIFY(snap.changes.sheets[0].cells.empty());   // (the formula above the deleted row reads nothing that moved, so it is not written; the suites run with the formulas in ids and in places, and this holds in both)
         e.win.w.undoStack()->undo();   // (the row comes back with its mark)
         QCOMPARE(s->changedCells(), qint64(1));
     }
 
-    // With the formulas held in ids a save writes every formula whole once rows were inserted or deleted (the saver is a later round's), which asks for no calculation of the file that the formulas in places
+    // With the formulas held in ids a save writes the formulas whose text is no longer the file's, whole (the saver is a later round's), which asks for no calculation of the file that the formulas in places
     // did not ask for: a row inserted below everything, and one above it, with a formula the engine keeps apart in the sheet.
     void theSaveStopgapOfTheIdFrameAsksForNoMoreCalculation()
     {
-        const bool was = jp::office::sheet::Calculation::idFrameDefault();
+        struct Scope {
+            bool was = jp::office::sheet::Calculation::idFrameDefault();
+            ~Scope() { jp::office::sheet::Calculation::setIdFrameDefault(was); }   // (put back whatever fails)
+        } scope;
         QList<bool> asks;
         QList<qint64> cellsWritten;
         for (const bool at0 : {false, true})
@@ -1350,11 +1353,14 @@ private Q_SLOTS:
                 asks << snap.changes.fullCalcOnLoad;
                 cellsWritten << qint64(snap.changes.sheets.count(0) ? snap.changes.sheets[0].cells.size() : 0);
             }
-        jp::office::sheet::Calculation::setIdFrameDefault(was);
         QCOMPARE(asks[1], asks[0]);   // (below)
         QCOMPARE(asks[3], asks[2]);   // (above)
-        QVERIFY(cellsWritten[1] >= 3);   // (the stopgap: every formula whole)
-        QVERIFY(cellsWritten[0] <= cellsWritten[1]);
+        // the formulas held in ids are written whole when their text is no longer the file's, which are the cells the formulas in places write again: none for a row put in below everything, and the three that
+        // read the rows that moved for one put in above
+        QCOMPARE(cellsWritten[1], cellsWritten[0]);
+        QCOMPARE(cellsWritten[3], cellsWritten[2]);
+        QCOMPARE(cellsWritten[1], qint64(0));
+        QCOMPARE(cellsWritten[3], qint64(3));
     }
 
     // Cells shifted down under ten thousand formulas, with no value on its way, work none of them out again and make no stamp (the formulas read cells that did not move).

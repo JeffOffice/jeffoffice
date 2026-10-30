@@ -257,6 +257,8 @@ EditSession::Outcome EditSession::paste(int sheet, const CellRange &target, cons
             } else {
                 after.isFormula = src->content.isFormula;
                 after.formula = src->content.isFormula ? offsetFormula(src->content.formula, int(dRow), int(dCol)) : QString();
+                // (a copy made in this workbook carries the formula as it is held, for put to take with the distance changed: only if the text was offset by the distance from the cell it was read from)
+                if (same && src->content.isFormula) after.copyOf(src->content, sheet, spot.row, spot.col, dRow, dCol);
                 after.value = src->content.isFormula ? Value() : src->content.value;
                 after.sharedString = -1;
                 after.hasStored = false;

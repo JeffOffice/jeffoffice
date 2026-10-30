@@ -474,6 +474,16 @@ QString Sheet::formulaText(const Cell &cell) const
     return f.dRow == 0 && f.dCol == 0 ? text : shiftFormula(text, f.dRow, f.dCol);
 }
 
+QString Sheet::formulaTextOfTheFile(const Cell &cell) const
+{
+    if (!frame || !cell.hasFormula() || cell.formula < 0 || cell.formula >= formulas.size()) return {};
+    const Formula &f = formulas[cell.formula];
+    if (f.text < 0 || f.text >= formulaTexts.size() || positionalTexts.contains(f.text)) return {};
+    const QString &text = formulaTexts[f.text];
+    const bool wide = wideTexts.contains(f.text);
+    return f.dRow == 0 && f.dCol == 0 ? text : wide ? offsetFormula(text, f.dRow, f.dCol, nullptr, jp::calc::ParseLimits::ids()) : shiftFormula(text, f.dRow, f.dCol);
+}
+
 CellRange Sheet::formulaRange(const Cell &cell) const
 {
     if (!cell.hasFormula() || cell.formula < 0 || cell.formula >= formulas.size()) return {};

@@ -54,8 +54,8 @@ struct CalcOptions {
     double now = 0;                   // 0: the clock is read at each recalculation; else the day number NOW and TODAY give
     qint64 workbookBytes = kMaxWorkbookBytes;
     // Hold the formulas in the id frame (docs/jeffcrunch-rowids.md, 4.4; sheet/formulaframe.h): the texts name rows and columns by their ids, so that an edit of whole rows or columns writes no text again
-    // but those of the formulas that are not held so (and the ones that read a row or column that died). Off, a formula's text is in places and an edit writes the ones that move again. Round 5a ships it
-    // dark: tests, and the tools with JC_ID_FRAME=1, turn it on (see Calculation::setIdFrameDefault).
+    // but those of the formulas that are not held so (and the ones that read a row or column that died). Off, a formula's text is in places and an edit writes the ones that move again. Round 5c turned it
+    // on for every calculation (see Calculation::setIdFrameDefault); the places are kept until the last round, for the tests that compare the two and for JC_ID_FRAME=0.
     bool idFrame = false;
     bool idFrameOff = false;   // and the process's default (JC_ID_FRAME, setIdFrameDefault) is not looked at: this one holds its formulas in places (a test that compares the two ways)
     // If set, called with the result the file stored for a formula and the one worked out; false marks the formula a mismatch, and every formula that reads one, directly or
@@ -209,17 +209,57 @@ public:
         // undone gives the cell the lines it read, a dead end still a dead end that comes back with its line. If the ids were renumbered since (a rebase), the shown text is parsed anew.
         // It is given back only to the cell it was read from, and only if it reads as the text does.
         bool hasHeld = false;
-        QString held, heldEpochs;
+        QString held;
+        std::vector<quint32> heldEpochs;   // each sheet's renumber epoch when it was read
         qint32 heldDRow = 0, heldDCol = 0;
         quint8 heldCls = 0;
         qint32 heldSheet = -1;
         quint32 heldRow = 0, heldCol = 0;
+        // Where the formula was read from, for a formula that is to be put in another cell of the same sheet as a copy of it (a fill, a sort, a paste): the ids of the cell's row and column, and the
+        // workbook's structure stamp (`structStamp`) when it was read. `copied` is set by whoever wrote `formula` as the held text offset by the distance from `heldRow`, `heldCol` to the cell it is put
+        // in (offsetFormula), and nothing else: then `put` may take the held text with the distance changed by the ids' (counted as `formulasRebased`) when every line the formula reads is the
+        // same line either way, and reads and writes it as the text says when it is not.
+        quint32 heldRowId = 0, heldColId = 0;
+        quint64 heldStamp = 0;
+        bool copied = false;
+        // This content is a copy of `src`'s formula for another cell: its held text and where it was read from, `formula` being written by the caller for the new place.
+        void copyHeldFrom(const CellContent &src)
+        {
+            hasHeld = src.hasHeld;
+            held = src.held;
+            heldEpochs = src.heldEpochs;
+            heldDRow = src.heldDRow;
+            heldDCol = src.heldDCol;
+            heldCls = src.heldCls;
+            heldSheet = src.heldSheet;
+            heldRow = src.heldRow;
+            heldCol = src.heldCol;
+            heldRowId = src.heldRowId;
+            heldColId = src.heldColId;
+            heldStamp = src.heldStamp;
+            copied = src.hasHeld;
+        }
+        // For a copy of `src`'s formula made by offsetting its text by (dRow, dCol) to the cell (row, col) of `sheet`: it may be rebased by put only if `src` was read from this sheet and from the place that
+        // distance leads from; else it is a plain formula, put by its text.
+        void copyOf(const CellContent &src, int sheet, quint32 row, quint32 col, qint64 dRow, qint64 dCol)
+        {
+            copied = false;
+            if (src.hasHeld && src.heldSheet == sheet && qint64(row) - qint64(src.heldRow) == dRow && qint64(col) - qint64(src.heldCol) == dCol) copyHeldFrom(src);
+        }
         bool operator==(const CellContent &o) const
         {
             return exists == o.exists && isFormula == o.isFormula && formula == o.formula && value == o.value && sharedString == o.sharedString && style == o.style;
         }
     };
     CellContent content(int sheet, quint32 row, quint32 col) const;
+    // Changes whenever an edit could change what a text of a formula names (rows, columns, cells, sheets inserted, deleted, moved, renamed): what a copy made before is checked against.
+    quint64 structStamp() const { return m_structStamp; }
+    // For a save of a workbook whose formulas are held in ids, before the saver writes them from the order of the lines (round 7): which formulas have a text other than the file's. Whether a sheet's
+    // rows and columns are in the file's order; whether a formula's text as a person reads it differs from the text of the ids
+    // numbered as they were (a data table's formula is moved with its cell by the saver and is never one); and whether a formula of a sheet names one of the sheets (by a part of its text).
+    bool linesAreTheFiles(int sheet) const { return sheet < 0 || sheet >= int(m_sheets.size()) || m_sheets[size_t(sheet)].cells.linesAreTheFiles(); }
+    bool formulaTextDiffersFromTheFile(int sheet, const Cell &cell) const;
+    bool formulasNameSheets(int sheet, const QStringList &names) const;
     // Puts the content in the cell (the cell taken away if it does not exist): its constant or formula, then its format. False if the cell cannot be changed, or the formula is no formula.
     bool put(int sheet, quint32 row, quint32 col, const CellContent &content, Marking marking = Marking::Now);
     // ---- structure: rows, columns, and cells inserted and deleted (see sheet/refshift.h). The cells move, every formula of every sheet that reads cells that moved is written again with
@@ -528,10 +568,12 @@ public:
         }
     };
     const EditStats &editStats() const { return m_editStats; }
+    // Formulas put in a cell by a fill, paste, or sort that took the text of the cell they came from and its distance (no text was read or made); kept apart from editStats so that it adds nothing to the size of what the edits count.
+    qint64 formulasRebased() const { return m_formulasRebased; }
     // For tests: whether an edit of whole rows or columns asks the worker (the formulas whose text only moved keep their nodes and are worked out only if the edit could change them), or every formula
     // that was written again is made again and worked out, as an edit of cells does (the oracle the other is compared with).
     static void setGraphShifts(bool on);
-    // The switch of CalcOptions::idFrame for every calculation made after this call (a test, or a tool, turns it on for the workbooks it opens; the default is off).
+    // The switch of CalcOptions::idFrame for every calculation made after this call (a test, or a tool, says which way the workbooks it opens hold their formulas; the default is on, and JC_ID_FRAME=0 in the environment makes it off).
     static void setIdFrameDefault(bool on);
     static bool idFrameDefault();
     // For tests: whether a word of the text is one that cannot be held in ids as it is (a name that could be read as a cell past XFD).
@@ -640,6 +682,10 @@ private:
     };
 
     Compiled &compiled(int sheet, qint32 text, bool array);
+    // A formula put in a cell as it is held (installFormula), and the copy of a held formula to another cell of its sheet with only its distance changed (rebaseCopy: false, with nothing changed,
+    // when the content is not a fresh copy or some line the formula reads is not the same line as the text would give).
+    bool installFormula(int sheet, quint32 row, quint32 col, Cell c, const Formula &f, Marking marking, const jp::calc::Value *stored);
+    bool rebaseCopy(int sheet, quint32 row, quint32 col, const CellContent &c, Marking marking);
     // Texts and formulas, shared and let go of (see SheetState): the place of a text (a new one, or the one an edit made before with the same characters; it counts one more formula
     // for it), a formula's place made with a text it keeps a hold of, a text that one formula less has, and a formula that is not any cell's now.
     void countTexts(int sheet);
@@ -701,6 +747,7 @@ private:
     void restoreHeldFormula(int sheet, quint32 row, quint32 col, const QString &held, qint32 dRow, qint32 dCol, quint8 cls);
     bool recordIdsAreCurrent(const EditRecord &rec) const { return m_options.idFrame && !rec.renumberEpochs.empty() && rec.renumberEpochs == renumberEpochs(); }
     std::vector<quint32> renumberEpochs() const;
+    bool renumberEpochsAre(const std::vector<quint32> &epochs) const;   // (without making the vector)
     void tablesChangedFor(const QSet<QString> &changed);
     QHash<QString, TableIds> m_tableIdsBefore;   // by the table's name in lower case, made just before an edit of whole lines
     std::unordered_set<quint32> m_positionalNodes;   // (with the id frame) the formulas whose text is held in places: an edit of whole lines writes them again as it did before ids
@@ -987,6 +1034,8 @@ private:
     mutable std::vector<quint32> m_pending;   // formulas it read that were not worked out yet
     mutable bool m_readTaint = false, m_readCascade = false;
     std::vector<jp::calc::CellArea> m_touched, m_areas;
+    qint64 m_formulasRebased = 0;
+    quint64 m_structStamp = 1;   // (last, so that the members the edits and the worker read keep the places they had)
 };
 
 } // namespace jp::office::sheet

@@ -450,7 +450,10 @@ EditSession::Outcome EditSession::fill(int sheet, const CellRange &source, FillD
             ch.after.hasStored = false;
             ch.after.stored = Value();
             if (mode == Mode::Cycle || from.content.isFormula) {
-                if (ch.after.isFormula) ch.after.formula = offsetFormula(from.content.formula, qint32(qint64(row) - qint64(from.row)), qint32(qint64(col) - qint64(from.col)));
+                if (ch.after.isFormula) {
+                    ch.after.formula = offsetFormula(from.content.formula, qint32(qint64(row) - qint64(from.row)), qint32(qint64(col) - qint64(from.col)));
+                    ch.after.copyOf(from.content, sheet, row, col, qint64(row) - qint64(from.row), qint64(col) - qint64(from.col));   // (put takes the held text of the cell it was copied from)
+                }
             } else {
                 ch.after.sharedString = -1;
                 const double kk = double(k);
