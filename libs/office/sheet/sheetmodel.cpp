@@ -177,13 +177,14 @@ bool inRuns(const std::vector<jp::calc::IdRun> &sorted, quint32 id)
 
 } // namespace
 
-qint64 CellStore::liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &runs, bool kill, std::vector<Cell> *formulas)
+qint64 CellStore::liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &runs, bool kill, std::vector<Cell> *formulas, bool keep)
 {
     qint64 live = 0;
     if (runs.empty()) return 0;
+    if (keep) kill = false;   // (the cells are only counted: a cell of a dead line keeps its formula, which keeps its node)
     auto one = [&](Cell &c, bool otherLive) {
         if (otherLive) ++live;
-        if (!kill) return;
+        if (!kill || !otherLive) return;   // (a cell that is in a dead line of the other kind already is as that left it: its formula is kept, with its node, if the other edit kept it)
         if (formulas && (c.flags & HasFormula)) formulas->push_back(c);
         letGoOfFormula(c);
     };
@@ -193,6 +194,12 @@ qint64 CellStore::liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &run
             for (auto block = m_blocks.lower_bound(run.first / kBlockRows); block != m_blocks.end() && block->first <= last / kBlockRows; ++block) {
                 std::vector<Cell> &cells = block->second.cells;
                 auto at = std::lower_bound(cells.begin(), cells.end(), run.first, [](const Cell &c, quint32 id) { return c.rowId < id; });
+                if (!kill && m_cols.isIdentity()) {
+                    // (every column is live: the cells of the run in this block are the count, by two searches)
+                    const auto end = std::upper_bound(at, cells.end(), last, [](quint32 v, const Cell &c) { return v < c.rowId; });
+                    live += end - at;
+                    continue;
+                }
                 for (; at != cells.end() && at->rowId <= last; ++at) one(*at, colPosOf(at->colId) != kNoLine);
             }
         }
@@ -260,7 +267,7 @@ jp::calc::LineStatus CellStore::insertLines(bool rows, quint32 at, quint32 count
     return LineStatus::Ok;
 }
 
-jp::calc::LineStatus CellStore::deleteLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift, std::vector<Cell> *deadFormulas)
+jp::calc::LineStatus CellStore::deleteLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift, std::vector<Cell> *deadFormulas, bool keepFormulas)
 {
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -279,7 +286,7 @@ jp::calc::LineStatus CellStore::deleteLines(bool rows, quint32 at, quint32 count
     e.refilled = true;
     e.made = true;
     e.owner = m_serial;
-    m_dead += liveCellsIn(rows, e.edit.runs, true, deadFormulas);
+    m_dead += liveCellsIn(rows, e.edit.runs, true, deadFormulas, keepFormulas);
     if (shift) *shift = {at, -qint64(count)};
     return LineStatus::Ok;
 }
@@ -329,7 +336,7 @@ jp::calc::LineStatus CellStore::undoLines(bool rows, LineEdits &e, LineShift *sh
     return LineStatus::Ok;
 }
 
-jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e, LineShift *shift, std::vector<Cell> *deadFormulas)
+jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e, LineShift *shift, std::vector<Cell> *deadFormulas, bool keepFormulas)
 {
     using jp::calc::LineStatus;
     using Kind = jp::calc::LineEdit::Kind;
@@ -346,7 +353,7 @@ jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e, LineShift *sh
     }
     e.made = true;
     if (e.edit.kind == Kind::Erase) {
-        m_dead += liveCellsIn(rows, e.edit.runs, true, deadFormulas);
+        m_dead += liveCellsIn(rows, e.edit.runs, true, deadFormulas, keepFormulas);
     } else {
         m_dead -= liveCellsIn(rows, e.edit.runs, false);
         m_dead += liveCellsIn(rows, e.edit.pushed, true, deadFormulas);
@@ -382,6 +389,16 @@ void CellStore::forgetLines(bool rows, LineEdits *edits, bool keepDead)
         purgeCells(rows, e.edit.runs);
         map.forget(e.edit);
     }
+    map.tryIdentity();
+    e = LineEdits();
+}
+
+void CellStore::finishForgetLines(bool rows, LineEdits *edits, bool keepDead)
+{
+    using Kind = jp::calc::LineEdit::Kind;
+    LineEdits &e = *edits;
+    jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
+    if (ownEdit(e) && !e.edit.runs.empty() && e.edit.kind == Kind::Erase && e.made && !keepDead) map.dropDead(e.edit.runs);
     map.tryIdentity();
     e = LineEdits();
 }
@@ -456,6 +473,21 @@ QString Sheet::text(const Cell &cell, const SharedStrings &shared) const
     case CellType::FormulaString: return texts.value(cell.textIndex());
     default: return {};
     }
+}
+
+QVector<RowSpec> Sheet::placedRowSpecs() const
+{
+    if (!rowSpecsAreIds || cells.rows().isIdentity()) return rowSpecs;
+    QVector<RowSpec> out;
+    out.reserve(rowSpecs.size());
+    for (RowSpec r : rowSpecs) {
+        const quint32 place = cells.rowPlaceOf(r.row);
+        if (place == CellStore::kNoLine) continue;   // (the row is deleted: its spec comes back with it)
+        r.row = place;
+        out.append(r);
+    }
+    std::stable_sort(out.begin(), out.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
+    return out;
 }
 
 QString Sheet::formulaText(const Cell &cell) const

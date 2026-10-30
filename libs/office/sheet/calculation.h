@@ -307,12 +307,16 @@ public:
             std::vector<std::pair<qint32, qint32>> offsets;   // and how far (rows, columns) each was from the cell the text was written for
         };
         std::vector<RewrittenGroup> groups;
-        // the sheet's other structures, as they were
+        // the sheet's other structures, as they were: only those the edit changed (a copy is made when it does: `…Saved` says which), so that an edit that moves none of them holds none
         QVector<CellRange> ranges, merges;
         AutoFilter autoFilter;
         qint64 mergeCount = 0;
         QVector<ColumnSpan> columns;
         QVector<RowSpec> rowSpecs;
+        bool rangesSaved = false, mergesSaved = false, filterSaved = false, columnsSaved = false, rowSpecsSaved = false;
+        // (id frame) A delete of whole rows or columns that copied no cell: the cells stay where they are, dead, with their formulas and the nodes of those, which no one works out (Calculation::dormant);
+        // Undo brings the lines back and has the worker work the formulas in them out again, and the step that is let go of has them purged in slices (forgetLinesLater).
+        bool dormant = false;
         quint32 extentRows = 0, extentCols = 0, rowsSeen = 0, colsSeen = 0;
         // defined names whose text changed, with the text they had (by the key the source keeps them by)
         std::vector<std::pair<QString, QString>> names;
@@ -353,6 +357,10 @@ public:
     };
     // Whether the edit can be made; if not, why, in a sentence for the person (it would cut through an array formula or a data table, push cells off the sheet, or the sheet is protected).
     bool canApply(const StructEdit &edit, QString *why) const;
+    // (id frame) Whether the edit is of whole rows or columns and keeps every cell where it is, so that what Undo holds of it is the change to the order of the lines and no cell (the cells of a delete stay,
+    // dead, with their formulas): then there is nothing to count and nothing to ask about. False for the edits that copy cells (a delete that has an array, a data table, or a formula held in places in its
+    // lines, and every edit of cells), and in a workbook that holds its formulas in places.
+    bool undoKeepsNoCells(const StructEdit &edit) const;
     // About how many bytes the record that undoes the edit would hold (the cells it deletes or writes over, whole, and the formulas it writes again), worked out without doing it: it
     // stops counting past `stopAt`, and says that much.
     qint64 estimateUndoBytes(const StructEdit &edit, qint64 stopAt) const;
@@ -369,6 +377,26 @@ public:
     bool compactLines(int sheet, bool rows, std::vector<jp::calc::LineMapCore::Renumber> *table = nullptr);
     // The record's edit of rows or columns will never be undone or done again: the cells that only it could bring back are let go of. The record's lines are empty after.
     void forgetLines(EditRecord *record);
+    // The same, but the cells of a delete that kept its formulas (EditRecord::dormant) and the nodes of those are let go of a few blocks at a time by purgeSome (the rest is done at once). The record's
+    // lines are empty after. A new edit of those lines' sheet does not wait for it, except a compaction (which finishes it first).
+    void forgetLinesLater(EditRecord *record);
+    // What one slice of the purge did: the cells with formulas it let go of (by the ids of their rows and columns on `sheet`: the values a window holds for them are let go of too), and, when the
+    // job is done, the lines it was for (their ids are given back, and the marks of the session on them are let go of).
+    struct PurgeStep {
+        int sheet = -1;
+        std::vector<std::pair<quint32, quint32>> formulaCells;
+        bool finished = false;
+        bool rows = true;
+        std::vector<jp::calc::IdRun> runs;
+        qint64 work = 0;
+    };
+    // Lets go of what is waiting to be, for about `budget` cells (a block is not cut). False if nothing was waiting. Called with the worker held back.
+    bool purgeSome(qint64 budget, PurgeStep *step);
+    bool purgePending() const { return !m_purges.empty(); }
+    // Finishes all that is waiting (or what is waiting for the sheet) at once.
+    void finishPurges(int sheet = -1);
+    // Cells of the dead lines that waiting purges will let go of (a count, for the tests; not the work).
+    qint64 purgeWaiting() const;
     // The most runs and ids the order of a sheet's rows and columns may have (for a test of what happens at the caps; those of a sheet are jp::calc::LineLimits'). Only for a sheet whose order has no edit.
     void setLineLimitsForTest(int sheet, const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols);
     // Puts back what the edit changed (the record is the last applyEdit's).
@@ -379,13 +407,25 @@ public:
     std::vector<ColumnSpan> columnRuns(int sheet, quint32 first, quint32 last) const;
     std::vector<RowSpec> rowSpecsIn(int sheet, quint32 first, quint32 last) const;
     // All the rows' specs of a sheet, in order of row (shared, not copied), and putting a whole list back (it must be in order of row).
-    QVector<RowSpec> rowSpecsOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].rowSpecs : QVector<RowSpec>(); }
+    QVector<RowSpec> rowSpecsOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].placedRowSpecs() : QVector<RowSpec>(); }
     void setRowSpecsOf(int sheet, const QVector<RowSpec> &specs)
     {
-        if (sheet >= 0 && sheet < int(m_sheets.size())) {
-            m_sheets[size_t(sheet)].rowSpecs = specs;
-            hiddenRowsChanged(sheet);
+        if (sheet < 0 || sheet >= int(m_sheets.size())) return;
+        Sheet &S = m_sheets[size_t(sheet)];
+        if (S.rowSpecsAreIds && !S.cells.rows().isIdentity()) {
+            // (a whole list by places is held by the ids of the rows: those of deleted rows, which the list does not have, stay)
+            QVector<RowSpec> now;
+            for (const RowSpec &r : S.rowSpecs)
+                if (S.cells.rowPlaceOf(r.row) == CellStore::kNoLine) now.append(r);
+            for (RowSpec r : specs) {
+                r.row = S.cells.rowIdAt(r.row);
+                if (r.row != CellStore::kNoLine) now.append(r);
+            }
+            S.rowSpecs = now;
+        } else {
+            S.rowSpecs = specs;
         }
+        hiddenRowsChanged(sheet);
     }
     // The merged ranges of a sheet (and how many it has, which may be more than are kept), and putting them back.
     QVector<CellRange> mergesOf(int sheet) const { return sheet >= 0 && sheet < int(m_sheets.size()) ? m_sheets[size_t(sheet)].merges : QVector<CellRange>(); }
@@ -638,6 +678,8 @@ public:
 private:
     // (applyEdit, or the edit that undoes `undoOf`: the rows and columns it brought are taken out again, and the ones it took out are brought back)
     bool applyEditImpl(const StructEdit &edit, EditRecord *record, const EditRecord *undoOf);
+    // Whether the lines a delete of whole rows or columns takes out hold a formula whose text is in places, or an array or a data table (see applyEditImpl).
+    bool deadLinesHoldSpecials(const StructEdit &edit, quint32 count) const;
     enum : quint8 { Dirty = 0, Queued = 1, Waiting = 2, Done = 3, Suspended = 4 };   // (Suspended: worked out, found to wait only for formulas on the way to it or in its own group)
     enum : quint16 { Kept = 1, NodeTainted = 2, Circular = 4, Always = 8, Untracked = 16, Told = 32, Array = 64, Dead = 128, Mismatch = 256, Cascade = 512, AlwaysListed = 1024, Retried = 2048, Worked = 4096, ThreeD = 8192, Iterating = 16384 };
     enum : quint8 { KindEmpty = 0, KindNumber, KindText, KindBool, KindError, KindArray };
@@ -766,6 +808,7 @@ private:
     quint32 rowOf(const Node &n) const { return m_sheets[size_t(n.sheet)].cells.rowPlaceOf(n.rowId); }
     quint32 colOf(const Node &n) const { return m_sheets[size_t(n.sheet)].cells.colPlaceOf(n.colId); }
     const Cell *cellOf(const Node &n) const { return m_sheets[size_t(n.sheet)].cells.findById(n.rowId, n.colId); }
+    bool dormant(const Node &n) const { return dormant(n.sheet, n.rowId, n.colId); }   // (its cell is in a line that is deleted, and the step that did it can still be undone: nothing is made of it)
     Cell *cellOfMutable(const Node &n) { return m_sheets[size_t(n.sheet)].cells.findMutableById(n.rowId, n.colId); }
     static quint64 stampKey(int sheet, quint32 rowId, quint32 colId) { return (quint64(quint32(sheet)) << 40) | (quint64(rowId) << 16) | colId; }
     void tellValue(const Node &n, const jp::calc::Value &v, bool fill) const;   // (counts the values it tells: m_valuesTold)
@@ -837,6 +880,24 @@ private:
 
     Progress recalculateSlice(qint64 workBudget, const std::atomic<bool> *cancel, qint64 timeBudgetMicros);
     CalcOptions m_options;
+    // Lines of cells that are dead with their formulas kept (EditRecord::dormant) and not let go of yet: the nodes of those cells are asked about by `dormant`, which says no at once when there are none.
+    qint64 m_dormantLines = 0;
+    struct PurgeJob {
+        int sheet = -1;
+        bool rows = true;
+        std::vector<jp::calc::IdRun> runs;
+        CellStore::PurgeCursor cursor;
+        CellStore::LineEdits lines;
+        bool keepDead = false;
+        qint64 cells = 0;
+    };
+    std::deque<PurgeJob> m_purges;
+    bool dormant(int sheet, quint32 rowId, quint32 colId) const
+    {
+        if (m_dormantLines == 0) return false;
+        const CellStore &cells = m_sheets[size_t(sheet)].cells;
+        return cells.rowPlaceOf(rowId) == CellStore::kNoLine || cells.colPlaceOf(colId) == CellStore::kNoLine;
+    }
     qint64 m_items = 0;                       // everything the chunked steps have done (Progress::jobItems is the part of it in one call)
     std::function<void()> m_visitHook;
     const std::atomic<bool> *m_cancel = nullptr;
@@ -901,6 +962,7 @@ private:
         bool deadPair = false;                          // set 3: inserted lines that held cells died or came back, between the original lines of the gap
         std::vector<quint32> nodes;                     // set 3: formulas that have an inserted line that died (deleted) or came back (Undo of a delete) at an end of a reference: no block holds those ids
         bool observers = false;                         // set 2
+        std::vector<jp::calc::IdRun> revive;            // set 4: the lines that came back with their formulas (Undo of a delete that kept them): the formulas in them are worked out again
         bool ownOnly = false;                           // set 2, for the formulas that see only their own cell: those of the sheet at or past `ownFirst` (a row or a column)
         quint32 ownFirst = 0;
     };

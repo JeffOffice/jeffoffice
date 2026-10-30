@@ -1113,6 +1113,7 @@ void Calculation::frameSheet(int si)
     Sheet &s = m_sheets[size_t(si)];
     s.frame = this;
     s.frameIndex = si;
+    s.rowSpecsAreIds = true;   // (the ids of the rows are their places until the first edit of rows, and the specs of rows are kept by them from now)
     s.positionalTexts.clear();
     s.wideTexts.clear();
     for (qint32 t = 0; t < s.formulaTexts.size(); ++t)
@@ -1249,7 +1250,7 @@ void Calculation::setSlotText(int sheet, qint32 slot, const QString &text)
 // A formula's node made again from the cell (its text changed): it is read again for what it reads, and worked out.
 void Calculation::readdNode(quint32 id)
 {
-    if (m_nodes[id].flags & Dead) return;
+    if ((m_nodes[id].flags & Dead) || dormant(m_nodes[id])) return;
     const int sheet = m_nodes[id].sheet;
     Sheet &s = m_sheets[size_t(sheet)];
     Cell *c = s.cells.findMutableById(m_nodes[id].rowId, m_nodes[id].colId);
@@ -1301,6 +1302,7 @@ bool Calculation::rewriteSheetReferences(const QString &oldName, const QString &
                 if (f.text < 0 || size_t(f.text) >= changedSlot.size() || !changedSlot[size_t(f.text)]) continue;
                 if (size_t(fi) >= st.nodeOf.size() || st.nodeOf[size_t(fi)] == kNone) continue;
                 const quint32 id = st.nodeOf[size_t(fi)];
+                if (dormant(m_nodes[id])) continue;   // (a formula in a line that is deleted is as it was: its text slot is rewritten and put back with the rest)
                 const Cell *c = s.cells.findById(m_nodes[id].rowId, m_nodes[id].colId);
                 record->rewritten.push_back({si, rowOf(m_nodes[id]), colOf(m_nodes[id]), m_nodes[id].rowId, m_nodes[id].colId, c && (c->flags & DataTable)});
                 again.push_back(id);
@@ -1384,7 +1386,7 @@ bool Calculation::rewriteSheetReferences(const QString &oldName, const QString &
         }
         for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
             const Node &n = m_nodes[id];
-            if ((n.flags & Dead) || !(n.flags & Told)) continue;
+            if ((n.flags & Dead) || !(n.flags & Told) || dormant(n)) continue;
             again.push_back(id);
         }
     }
@@ -1426,7 +1428,7 @@ void Calculation::undoSheetRewrite(const SheetRewrite &record)
         }
         for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
             const Node &n = m_nodes[id];
-            if ((n.flags & Dead) || !(n.flags & Told)) continue;
+            if ((n.flags & Dead) || !(n.flags & Told) || dormant(n)) continue;
             again.push_back(id);
         }
     }
@@ -1486,7 +1488,7 @@ void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
         else m_graph->dependentsOfArea(a, &found);
         for (const quint32 id : found) {
             Node &n = m_nodes[id];
-            if (n.flags & Dead) continue;
+            if ((n.flags & Dead) || dormant(n)) continue;
             if ((n.flags & Kept) && n.kept == 'U' && n.state == Done) {
                 giveName(id, changed);
                 continue;
@@ -1594,7 +1596,7 @@ bool Calculation::anObserverSawAnotherPlace(int sheet, bool rows, quint32 first,
     if (sheet >= 0 && m_ownOnly > 0) {
         for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
             const Node &n = m_nodes[id];
-            if (!(n.traits & OwnOnly) || (n.flags & Dead) || n.sheet != sheet) continue;
+            if (!(n.traits & OwnOnly) || (n.flags & Dead) || n.sheet != sheet || dormant(n)) continue;
             ++m_observersLooked;
             if ((rows ? rowOf(n) : colOf(n)) >= first) {
                 if (own) *own = true;
@@ -1604,7 +1606,7 @@ bool Calculation::anObserverSawAnotherPlace(int sheet, bool rows, quint32 first,
     }
     for (const auto &entry : m_seen) {
         ++m_observersLooked;
-        if (!(m_nodes[entry.first].flags & Dead) && seenDiffers(entry.second)) return true;
+        if (!(m_nodes[entry.first].flags & Dead) && !dormant(m_nodes[entry.first]) && seenDiffers(entry.second)) return true;
     }
     return false;
 }
@@ -1615,7 +1617,8 @@ bool Calculation::questionHasAnAnswer(const Question &q) const
     constexpr int kLooks = 1024;
     int looked = 0;
     bool answer = false;
-    auto live = [&](quint32 node) { return !(m_nodes[node].flags & Dead); };
+    auto live = [&](quint32 node) { return !(m_nodes[node].flags & Dead) && !dormant(m_nodes[node]); };
+    if (!q.revive.empty()) return true;
     auto lines = [&](quint32 first, quint32 last, CellArea *a) {
         *a = CellArea();
         a->sheet1 = a->sheet2 = q.sheet;
@@ -1624,12 +1627,12 @@ bool Calculation::questionHasAnAnswer(const Question &q) const
         a->col1 = q.rows ? 0 : first;
         a->col2 = q.rows ? kMaxColId : last;
     };
-    // set 3: the lines that died are read
+    // set 3: the lines that died are read (the formulas in them that were kept, which read their own lines, are passed over: past a count of those the worker is left to find out)
     for (const IdRun &r : q.dead) {
         CellArea a;
         lines(r.first, r.first + r.count - 1, &a);
         m_graph->forEachDependent(a, [&](quint32 node) {
-            if (live(node)) answer = true;
+            if (++looked > kLooks || live(node)) answer = true;
             return !answer;
         });
         if (answer) return true;
@@ -1638,7 +1641,7 @@ bool Calculation::questionHasAnAnswer(const Question &q) const
         CellArea a;
         lines(r.first, r.first + r.count - 1, &a);
         m_graph->forEachDependent(a, [&](quint32 node) {
-            if (live(node)) answer = true;
+            if (++looked > kLooks || live(node)) answer = true;
             return !answer;
         }, true);
         if (answer) return true;
@@ -1690,7 +1693,7 @@ bool Calculation::buildAsked(const Question &q, std::vector<quint32> *out, const
     auto take = [&](bool onlySensitive) {
         for (const quint32 node : found) {
             const Node &n = m_nodes[node];
-            if ((n.flags & Dead) || (onlySensitive && (n.traits & Insensitive))) continue;
+            if ((n.flags & Dead) || (onlySensitive && (n.traits & Insensitive)) || dormant(n)) continue;
             out->push_back(node);
         }
         found.clear();
@@ -1709,7 +1712,20 @@ bool Calculation::buildAsked(const Question &q, std::vector<quint32> *out, const
         take(true);
     }
     for (const quint32 node : q.nodes)
-        if (!(m_nodes[node].flags & Dead)) out->push_back(node);
+        if (!(m_nodes[node].flags & Dead) && !dormant(m_nodes[node])) out->push_back(node);
+    // set 4: the formulas in the lines that came back
+    if (!q.revive.empty()) {
+        const CellStore &cells = m_sheets[size_t(q.sheet)].cells;
+        const SheetState &st = m_state[size_t(q.sheet)];
+        qint64 looked = 0;
+        const bool whole = cells.forEachInIdRuns(q.rows, q.revive, [&](const Cell &c) {
+            if (++looked % 4096 == 0 && stop && stop->load(std::memory_order_relaxed)) return false;
+            if (!c.hasFormula() || c.formula < 0 || size_t(c.formula) >= st.nodeOf.size() || st.nodeOf[size_t(c.formula)] == kNone) return true;
+            out->push_back(st.nodeOf[size_t(c.formula)]);
+            return true;
+        });
+        if (!whole) return false;
+    }
     if (q.deadPair) {
         // (inserted lines that held cells are gone or back: the blocks that held them hold the original lines either side)
         CellArea a;
@@ -1748,8 +1764,9 @@ bool Calculation::buildAsked(const Question &q, std::vector<quint32> *out, const
 void Calculation::markAsked(quint32 node, const Question &q, std::vector<CellArea> *changed)
 {
     Node &n = m_nodes[node];
-    if (n.flags & Dead) return;
-    if ((n.flags & Kept) && n.kept == 'U' && n.state == Done) {
+    if ((n.flags & Dead) || dormant(n)) return;
+    // (a formula that came back with its line keeps the result it had if it is kept apart for its function: nothing it read is known to have changed)
+    if ((n.flags & Kept) && n.kept == 'U' && n.state == Done && q.revive.empty()) {
         giveName(node, changed);
         ++m_formulasAsked;
         return;
@@ -1779,6 +1796,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
             continue;
         }
         m_always[j.listed++] = id;
+        if (dormant(n)) continue;   // (it stays on the list: it is worked out again when its line is back)
         if (m_onlySheet >= 0 && n.sheet != m_onlySheet) continue;   // (left for the next recalculation: it stays on the list)
         if ((n.flags & Kept) || n.state != Done) continue;
         markDirty(id, &j.changed);
@@ -1817,7 +1835,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
             if (!ck.next()) return false;
             const quint32 id = j.observers[j.observersAt++];
             const auto seen = m_seen.find(id);
-            if (seen == m_seen.end() || (m_nodes[id].flags & Dead) || !seenDiffers(seen->second)) continue;
+            if (seen == m_seen.end() || (m_nodes[id].flags & Dead) || dormant(m_nodes[id]) || !seenDiffers(seen->second)) continue;
             const Node &n = m_nodes[id];
             const Sheet &sheet = m_sheets[size_t(n.sheet)];
             m_areas.clear();
@@ -1833,7 +1851,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
             if (!ck.next()) return false;
             const quint32 id = quint32(j.ownAt++);
             const Node &n = m_nodes[id];
-            if (!(n.traits & OwnOnly) || (n.flags & Dead) || n.sheet != q.sheet) continue;
+            if (!(n.traits & OwnOnly) || (n.flags & Dead) || n.sheet != q.sheet || dormant(n)) continue;
             if ((q.rows ? rowOf(n) : colOf(n)) >= q.ownFirst) markAsked(id, q, &j.changed);
         }
         ++m_questionsAnswered;
@@ -1849,7 +1867,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
             if (!ck.next()) return false;
             const quint32 id = j.found[j.foundAt++];
             Node &n = m_nodes[id];
-            if (n.flags & Dead) continue;
+            if ((n.flags & Dead) || dormant(n)) continue;
             if (m_sheetAreaOwner >= 0 && n.sheet == m_sheetAreaOwner && j.queried == m_sheetArea) continue;   // (the sheet's own formulas were worked out whole)
             if (m_onlySheet >= 0 && n.sheet != m_onlySheet) {
                 // (a formula of another sheet: it is not marked now; the block it reads is read again by the next recalculation)
@@ -1900,6 +1918,12 @@ void Calculation::tablesChanged()
     // (the formulas that name a table's columns: each is registered again, which works it out and what reads it; the ones it finds are listed anew)
     std::vector<quint32> ids(m_structuredNodes.begin(), m_structuredNodes.end());
     m_structuredNodes.clear();
+    // (a formula in a line that is deleted stays on the list: it is looked at when its line is back)
+    ids.erase(std::remove_if(ids.begin(), ids.end(), [&](quint32 id) {
+        if (id >= m_nodes.size() || !dormant(m_nodes[id])) return false;
+        m_structuredNodes.insert(id);
+        return true;
+    }), ids.end());
     // (a defined name that names a table's columns stands for other cells now: what uses a name is registered again, with what each name stands for looked at anew)
     bool namesOfTables = false;
     for (auto it = m_names.constBegin(); it != m_names.constEnd() && !namesOfTables; ++it) namesOfTables = it.value().contains(QLatin1Char('['));
@@ -1911,7 +1935,7 @@ void Calculation::tablesChanged()
         }
         for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
             const Node &n = m_nodes[id];
-            if (!(n.flags & Dead) && (n.flags & Told)) ids.push_back(id);
+            if (!(n.flags & Dead) && (n.flags & Told) && !dormant(n)) ids.push_back(id);
         }
     }
     std::sort(ids.begin(), ids.end());
@@ -1980,7 +2004,7 @@ void Calculation::tablesChangedFor(const QSet<QString> &changed)
         if (changed.contains(t.name.toLower())) sheets.insert(t.sheet);
     std::vector<quint32> ids;
     for (const quint32 id : m_structuredNodes) {
-        if (id >= m_nodes.size() || (m_nodes[id].flags & Dead)) continue;
+        if (id >= m_nodes.size() || (m_nodes[id].flags & Dead) || dormant(m_nodes[id])) continue;
         const Node &n = m_nodes[id];
         const Sheet &s = m_sheets[size_t(n.sheet)];
         if (n.formula < 0 || n.formula >= s.formulas.size()) continue;
@@ -2013,7 +2037,7 @@ void Calculation::tablesChangedFor(const QSet<QString> &changed)
         }
         for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
             const Node &n = m_nodes[id];
-            if (!(n.flags & Dead) && (n.flags & Told)) ids.push_back(id);
+            if (!(n.flags & Dead) && (n.flags & Told) && !dormant(n)) ids.push_back(id);
         }
     }
     std::sort(ids.begin(), ids.end());
@@ -2033,6 +2057,11 @@ void Calculation::hiddenRowsAndSubtotals(int sheet)
     BulkEdit bulk(this);
     std::vector<quint32> ids(m_subtotalNodes.begin(), m_subtotalNodes.end());
     m_subtotalNodes.clear();
+    ids.erase(std::remove_if(ids.begin(), ids.end(), [&](quint32 id) {
+        if (id >= m_nodes.size() || !dormant(m_nodes[id])) return false;
+        m_subtotalNodes.insert(id);
+        return true;
+    }), ids.end());
     std::sort(ids.begin(), ids.end());
     for (const quint32 id : ids)
         if (id < m_nodes.size()) readdNode(id);
@@ -2622,7 +2651,13 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
             quint32 root = kNone;
             while (m_dirtyCursor < m_dirty.size()) {
                 const quint32 id = m_dirty[m_dirtyCursor++];
-                const Node &n = m_nodes[id];
+                Node &n = m_nodes[id];
+                if (n.state == Dirty && !(n.flags & Dead) && dormant(n)) {
+                    // (a formula in a line that is deleted is worked out by no one: it is done as it is, and worked out again when its line is back)
+                    n.state = Done;
+                    --m_notDone;
+                    continue;
+                }
                 if (n.state == Dirty && !(n.flags & Dead)) {
                     if ((m_onlySheet >= 0 && n.sheet != m_onlySheet) || (m_onlyFresh && !m_fresh.count(id))) {
                         m_deferredRoots.push_back(id);   // (it waits for the next recalculation)
@@ -2777,7 +2812,7 @@ qint64 Calculation::circularCells(std::vector<CircularCell> *out, qint64 cap) co
             it = m_circle.erase(it);
             continue;
         }
-        if (n.state == Done) all.push_back({n.sheet, rowOf(n), colOf(n)});
+        if (n.state == Done && !dormant(n)) all.push_back({n.sheet, rowOf(n), colOf(n)});
         ++it;
     }
     const qint64 found = qint64(all.size());

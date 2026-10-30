@@ -82,7 +82,7 @@ const WorkbookChartCells::Hidden &WorkbookChartCells::hidden(int sheet) const
     h.made = true;
     if (!m_source || sheet < 0 || sheet >= m_source->sheetCount()) return h;
     const jp::office::sheet::Sheet &s = m_source->sheet(sheet);
-    for (const jp::office::sheet::RowSpec &r : s.rowSpecs)
+    for (const jp::office::sheet::RowSpec &r : s.placedRowSpecs())
         if (r.hidden) h.rows.insert(r.row);
     for (const jp::office::sheet::ColumnSpan &c : s.columns)
         if (c.hidden) h.columns.emplace_back(c.first, c.last);

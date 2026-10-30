@@ -234,7 +234,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     std::vector<Rewrite> rewrites;
     for (const quint32 id : candidates) {
         const Node &n = m_nodes[id];
-        if (n.flags & Dead) continue;
+        if ((n.flags & Dead) || dormant(n)) continue;
         if (inSource(n.sheet, rowOf(n), colOf(n)) || inDestination(n.sheet, rowOf(n), colOf(n))) continue;
         const Sheet &sn = m_sheets[size_t(n.sheet)];
         const Cell *c = cellOf(n);
@@ -532,7 +532,7 @@ bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
         }
         for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
             const Node &n = m_nodes[id];
-            if ((n.flags & Dead) || !(n.flags & Told)) continue;
+            if ((n.flags & Dead) || !(n.flags & Told) || dormant(n)) continue;
             Cell *c = cellOfMutable(n);
             if (!c || !c->hasFormula()) continue;
             const int sheet = n.sheet;

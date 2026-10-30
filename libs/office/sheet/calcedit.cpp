@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <set>
 #include <unordered_map>
 
 namespace jp::office::sheet {
@@ -244,6 +245,18 @@ void Calculation::specialNodes(std::vector<quint32> *out)
 void Calculation::setGraphShifts(bool on) { g_graphShifts = on; }
 
 namespace {
+bool sameColumns(const QVector<ColumnSpan> &a, const QVector<ColumnSpan> &b)
+{
+    if (a.size() != b.size()) return false;
+    for (int i = 0; i < a.size(); ++i) {
+        const ColumnSpan &x = a[i], &y = b[i];
+        if (x.first != y.first || x.last != y.last || x.width != y.width || x.hidden != y.hidden || x.customWidth != y.customWidth || x.style != y.style || x.outline != y.outline || x.collapsed != y.collapsed
+            || x.bestFit != y.bestFit || x.phonetic != y.phonetic)
+            return false;
+    }
+    return true;
+}
+
 bool wholeLines(const StructEdit &e, bool *rows)
 {
     using K = StructEdit::Kind;
@@ -263,6 +276,7 @@ bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineM
 {
     ++m_structStamp;
     if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
+    finishPurges(sheet);   // (the dead cells that are waiting to be let go of, and their nodes, are numbered by the ids that are renumbered below)
     abandonNow();
     // what is waiting for the worker names ids that are renumbered below: it is done now, with the ids it has (the formulas it names are marked to be worked out, and what reads them)
     const bool drained = drainBeforeRenumbering(sheet);
@@ -488,6 +502,12 @@ void Calculation::forgetLines(EditRecord *rec)
     bool rows = false;
     std::vector<EditRecord::GoneCell>().swap(rec->gone);   // (the copy of the cells it deleted: nothing can bring them back now)
     if (!wholeLines(rec->edit, &rows)) return;
+    if (rec->dormant && rec->lines.made) {
+        // (the cells of the lines that were deleted are still there, with their formulas and the nodes of those: they are let go of one slice after another, now)
+        forgetLinesLater(rec);
+        finishPurges();
+        return;
+    }
     // (the sheet that has the order the record names: the sheets may have been moved since)
     for (Sheet &s : m_sheets)
         if (s.cells.serial() == rec->lines.owner) {
@@ -497,7 +517,125 @@ void Calculation::forgetLines(EditRecord *rec)
     rec->lines = CellStore::LineEdits();
 }
 
+// Whether the lines (places `first` to `first + count - 1`) a delete of whole rows or columns takes out hold a formula whose text is held in places (what an edit writes again is not written for a
+// formula in a dead line, which would then come back with Undo as it was before the edits after it), or a cell of an array or a data table.
+bool Calculation::deadLinesHoldSpecials(const StructEdit &e, quint32 count) const
+{
+    const bool rows = e.kind == StructEdit::Kind::DeleteRows;
+    const quint32 first = e.first, last = e.first + count - 1;
+    for (const quint32 id : m_positionalNodes) {
+        const Node &n = m_nodes[id];
+        if ((n.flags & Dead) || n.sheet != e.sheet) continue;
+        const quint32 place = rows ? rowOf(n) : colOf(n);
+        if (place != CellStore::kNoLine && place >= first && place <= last) return true;
+    }
+    for (const CellRange &r : m_sheets[size_t(e.sheet)].ranges)
+        if (r.valid && (rows ? !(r.row2 < first || r.row1 > last) : !(r.col2 < first || r.col1 > last))) return true;
+    return false;
+}
+
+bool Calculation::undoKeepsNoCells(const StructEdit &e) const
+{
+    bool rows = false;
+    if (!m_options.idFrame || !wholeLines(e, &rows) || e.sheet < 0 || e.sheet >= int(m_sheets.size())) return false;
+    if (e.kind == StructEdit::Kind::InsertRows || e.kind == StructEdit::Kind::InsertColumns) return true;
+    return !deadLinesHoldSpecials(e, e.count);
+}
+
 bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec) { return applyEditImpl(e, rec, nullptr); }
+
+// ---- letting go of the dead cells (and the nodes of their formulas) of a delete that kept them: when its step is forgotten, a few blocks at a time
+void Calculation::forgetLinesLater(EditRecord *rec)
+{
+    bool rows = false;
+    if (!rec->dormant || !wholeLines(rec->edit, &rows) || !rec->lines.made) {
+        forgetLines(rec);
+        return;
+    }
+    // (the cells of the dead lines are the ones to let go of, in slices; what the order holds of them is let go of when the last is gone)
+    std::vector<EditRecord::GoneCell>().swap(rec->gone);
+    PurgeJob job;
+    job.sheet = -1;
+    for (int i = 0; i < int(m_sheets.size()); ++i)
+        if (m_sheets[size_t(i)].cells.serial() == rec->lines.owner) job.sheet = i;
+    if (job.sheet < 0) {
+        --m_dormantLines;   // (its sheet is gone: so are its cells)
+        rec->lines = CellStore::LineEdits();
+        return;
+    }
+    job.rows = rows;
+    job.runs = rec->lines.edit.runs;
+    job.lines = std::move(rec->lines);
+    job.keepDead = m_options.idFrame;
+    rec->lines = CellStore::LineEdits();
+    m_purges.push_back(std::move(job));
+}
+
+qint64 Calculation::purgeWaiting() const
+{
+    qint64 n = 0;
+    std::set<int> seen;
+    for (const PurgeJob &j : m_purges)
+        if (seen.insert(j.sheet).second) n += m_sheets[size_t(j.sheet)].cells.deadCount();
+    return n;
+}
+
+bool Calculation::purgeSome(qint64 budget, PurgeStep *step)
+{
+    *step = PurgeStep();
+    if (m_purges.empty()) return false;
+    PurgeJob &job = m_purges.front();
+    // (the sheet is found by the order it has: the sheets may have been moved or taken away since)
+    int sheet = -1;
+    for (int i = 0; i < int(m_sheets.size()); ++i)
+        if (m_sheets[size_t(i)].cells.serial() == job.lines.owner) sheet = i;
+    if (sheet < 0) {
+        --m_dormantLines;
+        m_purges.pop_front();
+        step->finished = true;
+        return true;
+    }
+    Sheet &S = m_sheets[size_t(sheet)];
+    SheetState &st = m_state[size_t(sheet)];
+    step->sheet = sheet;
+    abandonNow();
+    qint64 dropped = 0;
+    const bool done = S.cells.purgeSome(job.rows, job.runs, &job.cursor, budget, &step->work, [&](const Cell &c) {
+        if (!c.hasFormula() || c.formula < 0) return;
+        step->formulaCells.push_back({c.rowId, quint32(c.colId)});
+        if (size_t(c.formula) < st.nodeOf.size() && st.nodeOf[size_t(c.formula)] != kNone) {
+            dropNode(st.nodeOf[size_t(c.formula)]);
+            ++dropped;
+        }
+        releaseFormula(sheet, c.formula);   // (nothing has the formula of a cell that is gone)
+    });
+    m_editWork += step->work;
+    if (!done) return true;
+    // the cells are gone: the order lets go of the lines (their ids are given back if they were the last taken), and the specs of the rows that went with them
+    S.cells.finishForgetLines(job.rows, &job.lines, job.keepDead);
+    if (job.rows && S.rowSpecsAreIds) {
+        QVector<RowSpec> kept;
+        kept.reserve(S.rowSpecs.size());
+        for (const RowSpec &r : std::as_const(S.rowSpecs))
+            if (S.cells.rowIdKnown(r.row)) kept.append(r);
+        if (kept.size() != S.rowSpecs.size()) S.rowSpecs = kept;
+    }
+    step->finished = true;
+    step->rows = job.rows;
+    step->runs = job.runs;
+    --m_dormantLines;
+    m_purges.pop_front();
+    return true;
+}
+
+void Calculation::finishPurges(int sheet)
+{
+    PurgeStep step;
+    while (!m_purges.empty()) {
+        if (sheet >= 0 && std::none_of(m_purges.begin(), m_purges.end(), [&](const PurgeJob &j) { return j.sheet == sheet; })) return;
+        purgeSome(qint64(1) << 40, &step);
+    }
+}
 
 bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const EditRecord *undoOf)
 {
@@ -531,12 +669,12 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     rec->sheet = e.sheet;
     if (m_options.idFrame) rec->renumberEpochs = renumberEpochs();
     Sheet &S = m_sheets[size_t(e.sheet)];
-    rec->ranges = S.ranges;
-    rec->merges = S.merges;
-    rec->autoFilter = S.autoFilter;
-    rec->mergeCount = S.mergeCount;
-    rec->columns = S.columns;
-    rec->rowSpecs = S.rowSpecs;
+    // (what the edit changes of the sheet's other structures is kept as it was: the lists are shared with these copies, which cost nothing, and a list that the edit does not change is not made again)
+    const QVector<CellRange> rangesBefore = S.ranges, mergesBefore = S.merges;
+    const AutoFilter filterBefore = S.autoFilter;
+    const qint64 mergeCountBefore = S.mergeCount;
+    const QVector<ColumnSpan> columnsBefore = S.columns;
+    const QVector<RowSpec> rowSpecsBefore = S.rowSpecs;
     rec->extentRows = S.extentRows;
     rec->extentCols = S.extentCols;
     rec->rowsSeen = m_rows[size_t(e.sheet)];
@@ -599,7 +737,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     const bool rowsOrColumns = e.kind == K::InsertRows || e.kind == K::DeleteRows || e.kind == K::InsertColumns || e.kind == K::DeleteColumns;
     for (const quint32 id : candidates) {
         const Node &n = m_nodes[id];
-        if (n.flags & Dead) continue;
+        if ((n.flags & Dead) || dormant(n)) continue;   // (a formula in a line that is deleted is as it was when the line went: nothing is written for it, and Undo brings the line back)
         const Sheet &sn = m_sheets[size_t(n.sheet)];
         const Cell *c = cellOf(n);
         if (!c || !c->hasFormula()) continue;
@@ -673,7 +811,11 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     lap(1);
     // ---- the cells that are deleted, as they are
     const quint32 count = shiftBy(e);
-    if (deletes(e)) {
+    // (id frame) Whole rows or columns deleted keep their cells where they are, dead, with their formulas and the nodes of those (docs/jeffcrunch-rowids.md, 4.7): no cell is copied, and Undo brings them back
+    // as they are. A formula whose text is in places, and an array or a data table, can't be left so (what is written again for the edits after would not be written for them), and the edit that has
+    // one in its lines copies the cells, as it did before.
+    const bool dormantDelete = idLines && !undoOf && (e.kind == K::DeleteRows || e.kind == K::DeleteColumns) && !deadLinesHoldSpecials(e, count);
+    if (deletes(e) && !dormantDelete) {
         quint32 r1 = 0, c1 = 0, r2 = kGridRows - 1, c2 = kGridCols - 1;
         switch (e.kind) {
         case K::DeleteRows: r1 = e.first; r2 = e.first + count - 1; break;
@@ -750,11 +892,11 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         if (undoOf) {
             made = S.cells.undoLines(rows, undoOf->lines, &shift, &dead);
         } else if (redoing) {
-            made = S.cells.redoLines(rows, again, &shift, &dead);
+            made = S.cells.redoLines(rows, again, &shift, &dead, dormantDelete);
             if (made == jp::calc::LineStatus::Ok) rec->lines = again;
         } else {
             made = S.cells.canEditLines(rows, count);
-            if (made == jp::calc::LineStatus::Ok) made = inserts ? S.cells.insertLines(rows, e.first, count, &rec->lines, &shift, &dead) : S.cells.deleteLines(rows, e.first, count, &rec->lines, &shift, &dead);
+            if (made == jp::calc::LineStatus::Ok) made = inserts ? S.cells.insertLines(rows, e.first, count, &rec->lines, &shift, &dead) : S.cells.deleteLines(rows, e.first, count, &rec->lines, &shift, &dead, dormantDelete);
         }
         if (made != jp::calc::LineStatus::Ok) {
             // (an Undo or a Redo that the order does not take is not made with other rows: it fails, and says so)
@@ -765,6 +907,12 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             return false;
         }
         for (const Cell &c : dead) removed.push_back(PlacedCell{0, 0, c});
+        if (dormantDelete) {
+            rec->dormant = true;
+            ++m_dormantLines;
+        } else if (undoOf && undoOf->dormant) {
+            --m_dormantLines;   // (the lines are back: the formulas in them are asked about below)
+        }
         // (what the order did: an insert puts its lines in and kills those it pushed off the end; a delete kills its lines; Undo of an insert kills the lines and brings the pushed ones back; Undo of
         // a delete brings the lines back)
         const CellStore::LineEdits &done = undoOf ? undoOf->lines : rec->lines;
@@ -960,6 +1108,17 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             }
         }
     }
+    // Lines that came back with their formulas (Undo of a delete that kept them): the formulas in them are worked out again, one job for the worker (what they read may have changed while they were dead;
+    // the values they had are what the sheet shows until then)
+    if (undoOf && undoOf->dormant && !lc.revived.empty()) {
+        Question q;
+        q.sheet = e.sheet;
+        q.rows = lc.rows;
+        q.revive = lc.revived;
+        q.epoch = m_state[size_t(e.sheet)].epoch;
+        m_questions.push_back(std::move(q));
+        if (!m_running) beginRecalculation();
+    }
     // (an edit of cells moves cells one by one: the formulas that see where cells are are looked at too)
     if (!wholeLine && ((!m_seen.empty() && anObserverSawAnotherPlace()) || ownMoved)) {
         Question q;
@@ -974,7 +1133,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     // next to it, and the line that comes back is in no interval of its. So when lines come back every such formula is worked out again (a formula that reads where it is told is made again by every edit).
     if (idLines && !lc.revived.empty() && !m_idToldNodes.empty()) {
         for (const quint32 id : m_idToldNodes) {
-            if (m_nodes[id].flags & Dead) continue;
+            if ((m_nodes[id].flags & Dead) || dormant(m_nodes[id])) continue;
             redirty(id);
             queueDependents(areaOf(m_nodes[id]));
         }
@@ -989,6 +1148,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             if (e.sheet >= entry.second.first && e.sheet <= entry.second.second) again.push_back(entry.first);
         for (const quint32 id : again) {
             const Node &n = m_nodes[id];
+            if (dormant(n)) continue;
             Cell *c = cellOfMutable(n);
             if (!c || !c->hasFormula()) continue;
             const int sheet = n.sheet;
@@ -1002,15 +1162,46 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     }
 
     lap(3);
-    // ---- the sheet's other structures
-    for (CellRange &r : S.ranges)
-        if (!adjustRange(e, e.sheet, &r)) r.valid = false;   // (the range of an array formula or a data table of one cell that was deleted: its place in the list stays, for Undo)
+    // ---- the sheet's other structures (each is kept as it was only if the edit changes it)
+    {
+        auto adjusted = [&](const CellRange &r0) {
+            CellRange r = r0;
+            if (!adjustRange(e, e.sheet, &r)) r.valid = false;   // (the range of an array formula or a data table of one cell that was deleted: its place in the list stays, for Undo)
+            return r;
+        };
+        bool changed = false;
+        for (const CellRange &r : std::as_const(S.ranges))
+            if (!(adjusted(r) == r)) {
+                changed = true;
+                break;
+            }
+        if (changed) {
+            rec->ranges = rangesBefore;
+            rec->rangesSaved = true;
+            for (CellRange &r : S.ranges) r = adjusted(r);
+        }
+    }
     {
         QVector<CellRange> kept;
-        for (CellRange r : S.merges)
-            if (adjustRange(e, e.sheet, &r) && r.cellCount() > 1) kept.append(r);
-            else --S.mergeCount;
-        S.merges = kept;
+        qint64 dropped = 0;
+        bool changed = false;
+        for (const CellRange &r0 : std::as_const(S.merges)) {
+            CellRange r = r0;
+            if (adjustRange(e, e.sheet, &r) && r.cellCount() > 1) {
+                if (!(r == r0)) changed = true;
+                kept.append(r);
+            } else {
+                ++dropped;
+                changed = true;
+            }
+        }
+        if (changed) {
+            rec->merges = mergesBefore;
+            rec->mergeCount = mergeCountBefore;
+            rec->mergesSaved = true;
+            S.mergeCount -= dropped;
+            S.merges = kept;
+        }
     }
     // the filter goes with its cells: its range follows them, and the conditions of its columns follow the columns (a filter whose range is deleted is gone)
     if (S.autoFilter.ref.valid) {
@@ -1032,9 +1223,14 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             moved.ref = ref;
             moved.columns = columns;
         }
-        S.autoFilter = moved;
+        if (!(moved == S.autoFilter) || !(moved.ref == S.autoFilter.ref)) {
+            rec->autoFilter = filterBefore;
+            rec->filterSaved = true;
+            S.autoFilter = moved;
+        }
     }
-    if (e.kind == K::InsertRows || e.kind == K::DeleteRows) {
+    // (the specs of rows are held by the id of the row in the id frame: no edit of rows moves one, and none has one to put back)
+    if ((e.kind == K::InsertRows || e.kind == K::DeleteRows) && !S.rowSpecsAreIds) {
         QVector<RowSpec> specs;
         for (RowSpec r : S.rowSpecs) {
             if (e.kind == K::InsertRows) {
@@ -1045,14 +1241,22 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             }
             specs.append(r);
         }
-        S.rowSpecs = specs;
-        hiddenRowsChanged(rec->sheet >= 0 ? rec->sheet : e.sheet);
+        if (specs.size() != rowSpecsBefore.size() || !std::equal(specs.begin(), specs.end(), rowSpecsBefore.begin(), [](const RowSpec &a, const RowSpec &b) { return a.row == b.row; })) {
+            rec->rowSpecs = rowSpecsBefore;
+            rec->rowSpecsSaved = true;
+            S.rowSpecs = specs;
+            hiddenRowsChanged(rec->sheet >= 0 ? rec->sheet : e.sheet);
+        }
     }
     if (e.kind == K::InsertColumns || e.kind == K::DeleteColumns) {
         QVector<ColumnSpan> spans;
         for (ColumnSpan c : S.columns)
             if (adjustColumnRun(e, &c.first, &c.last)) spans.append(c);
-        S.columns = spans;
+        if (!sameColumns(spans, columnsBefore)) {
+            rec->columns = columnsBefore;
+            rec->columnsSaved = true;
+            S.columns = spans;
+        }
     }
     auto shiftExtent = [&](quint32 *extent, quint32 at, quint32 limit) {
         if (*extent <= at) return;
@@ -1117,7 +1321,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     for (size_t i = 0; i < rewrites.size(); ++i) {
         Rewrite &r = rewrites[i];
         Node &n0 = m_nodes[r.id];
-        if (n0.flags & Dead) continue;
+        if ((n0.flags & Dead) || dormant(n0)) continue;
         const bool told = (n0.flags & Told) && !(n0.traits & IdTold);   // (with the id frame, a formula that uses names and tables only is not made again by an edit of whole lines)
         if (r.shownOnly) {
             // (the text it is shown as is the one it was written again to before ids: a formula kept apart for its function has #NAME? when the text of what it reads changed)
@@ -1417,14 +1621,25 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
         }
     for (const auto &entry : rec.conditionalFormats)
         if (entry.first >= 0 && entry.first < int(m_sheets.size())) m_sheets[size_t(entry.first)].conditionalFormats = entry.second;
-    S.ranges = rec.ranges;
+    // (a list the edit did not change is as it was; if the edit that undoes it changed one, that one is put back as it was before that: what the edit left)
+    if (rec.rangesSaved) S.ranges = rec.ranges;
+    else if (throwaway.rangesSaved) S.ranges = throwaway.ranges;
     putBackKinds(rec);
-    S.merges = rec.merges;
-    S.autoFilter = rec.autoFilter;
-    S.mergeCount = rec.mergeCount;
-    S.columns = rec.columns;
-    S.rowSpecs = rec.rowSpecs;
-    hiddenRowsChanged(rec.sheet);
+    if (rec.mergesSaved) {
+        S.merges = rec.merges;
+        S.mergeCount = rec.mergeCount;
+    } else if (throwaway.mergesSaved) {
+        S.merges = throwaway.merges;
+        S.mergeCount = throwaway.mergeCount;
+    }
+    if (rec.filterSaved) S.autoFilter = rec.autoFilter;
+    else if (throwaway.filterSaved) S.autoFilter = throwaway.autoFilter;
+    if (rec.columnsSaved) S.columns = rec.columns;
+    else if (throwaway.columnsSaved) S.columns = throwaway.columns;
+    if (rec.rowSpecsSaved || throwaway.rowSpecsSaved) {
+        S.rowSpecs = rec.rowSpecsSaved ? rec.rowSpecs : throwaway.rowSpecs;
+        hiddenRowsChanged(rec.sheet);
+    }
     S.extentRows = std::max(S.extentRows, rec.extentRows);
     S.extentCols = std::max(S.extentCols, rec.extentCols);
     m_rows[size_t(rec.sheet)] = std::max(m_rows[size_t(rec.sheet)], rec.rowsSeen);
@@ -1444,7 +1659,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
         // (what uses a name is made again)
         for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
             const Node &n = m_nodes[id];
-            if (n.flags & Dead) continue;
+            if ((n.flags & Dead) || dormant(n)) continue;
             if (!(n.flags & Told)) continue;
             Cell *c = cellOfMutable(n);
             if (!c || !c->hasFormula()) continue;
@@ -1470,7 +1685,7 @@ void Calculation::nameTextsChanged()
     }
     for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
         const Node &n = m_nodes[id];
-        if ((n.flags & Dead) || !(n.flags & Told)) continue;
+        if ((n.flags & Dead) || !(n.flags & Told) || dormant(n)) continue;
         Cell *c = cellOfMutable(n);
         if (!c || !c->hasFormula()) continue;
         const int sheet = n.sheet;
@@ -1604,9 +1819,16 @@ std::vector<RowSpec> Calculation::rowSpecsIn(int sheet, quint32 first, quint32 l
 {
     std::vector<RowSpec> out;
     if (sheet < 0 || sheet >= int(m_sheets.size())) return out;
-    for (const RowSpec &r : m_sheets[size_t(sheet)].rowSpecs)
+    const Sheet &s = m_sheets[size_t(sheet)];
+    const bool ids = s.rowSpecsAreIds && !s.cells.rows().isIdentity();
+    for (RowSpec r : s.rowSpecs) {
+        if (ids) {
+            r.row = s.cells.rowPlaceOf(r.row);   // (a row that is deleted has no place)
+            if (r.row == CellStore::kNoLine) continue;
+        }
         if (r.row >= first && r.row <= last) out.push_back(r);
-    std::sort(out.begin(), out.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
+    }
+    std::stable_sort(out.begin(), out.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
     return out;
 }
 
@@ -1643,10 +1865,23 @@ void Calculation::setRowSpecs(int sheet, quint32 first, quint32 last, const std:
     Sheet &S = m_sheets[size_t(sheet)];
     QVector<RowSpec> now;
     now.reserve(S.rowSpecs.size() + int(specs.size()));
-    for (const RowSpec &r : S.rowSpecs)
-        if (r.row < first || r.row > last) now.append(r);
-    for (const RowSpec &r : specs) now.append(r);
-    std::stable_sort(now.begin(), now.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
+    if (S.rowSpecsAreIds && !S.cells.rows().isIdentity()) {
+        // (held by id: those of the rows between `first` and `last` (by place) are taken out, the new ones are put in by the ids of the rows they are for; the specs of rows that are deleted stay)
+        for (const RowSpec &r : S.rowSpecs) {
+            const quint32 place = S.cells.rowPlaceOf(r.row);
+            if (place == CellStore::kNoLine || place < first || place > last) now.append(r);
+        }
+        for (RowSpec r : specs) {
+            r.row = S.cells.rowIdAt(r.row);
+            if (r.row != CellStore::kNoLine) now.append(r);
+        }
+        std::stable_sort(now.begin(), now.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
+    } else {
+        for (const RowSpec &r : S.rowSpecs)
+            if (r.row < first || r.row > last) now.append(r);
+        for (const RowSpec &r : specs) now.append(r);
+        std::stable_sort(now.begin(), now.end(), [](const RowSpec &a, const RowSpec &b) { return a.row < b.row; });
+    }
     S.rowSpecs = now;
     hiddenRowsChanged(sheet);
 }

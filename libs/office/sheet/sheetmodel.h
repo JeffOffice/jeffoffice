@@ -554,18 +554,21 @@ public:
     // changed, and `deadFormulas` is given the cells with a formula that were in lines that died.
     jp::calc::LineStatus insertLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift = nullptr, std::vector<Cell> *deadFormulas = nullptr);
     // `count` rows (columns) deleted at the place `at` (a count past the end is cut to it): the sheet gets as many new, empty rows (columns) at its end, so it is as long as it was. Their cells stay, as dead cells.
-    jp::calc::LineStatus deleteLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift = nullptr, std::vector<Cell> *deadFormulas = nullptr);
+    // `keepFormulas` (a delete whose formulas keep their nodes while their lines are dead: Calculation's dormant delete): the cells in the lines are left as they are, formulas and all, and are only counted.
+    jp::calc::LineStatus deleteLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift = nullptr, std::vector<Cell> *deadFormulas = nullptr, bool keepFormulas = false);
     // Whether an edit of `count` rows (columns) can be made: the order is not full of runs or ids (else the status that says so).
     jp::calc::LineStatus canEditLines(bool rows, quint32 count) const;
     // Whether the order should be put back to one run (rebaseLines) before an edit of `count` lines is made: it is near the most runs, dead records, or ids it may have.
     bool needsCompaction(bool rows, quint32 count) const;
     // The order as it was before the edit was made, and as it was after it. Else the status (the edit is not the last one made to the order, or is not of this store's, and nothing is changed).
     jp::calc::LineStatus undoLines(bool rows, LineEdits &edits, LineShift *shift = nullptr, std::vector<Cell> *deadFormulas = nullptr);
-    jp::calc::LineStatus redoLines(bool rows, LineEdits &edits, LineShift *shift = nullptr, std::vector<Cell> *deadFormulas = nullptr);
+    jp::calc::LineStatus redoLines(bool rows, LineEdits &edits, LineShift *shift = nullptr, std::vector<Cell> *deadFormulas = nullptr, bool keepFormulas = false);
     // The step that made the edit will never be undone or done again: the cells of the lines that only it could bring back are let go of, and so are the records of those lines (and the ids that
     // nothing can name are given back if they were the last taken). The edits are empty after. `keepDead`: the records of lines that were deleted stay, for formulas held in ids that name them by id
     // (an end that was deleted is the line next to where it was); a rebase is what lets go of them.
     void forgetLines(bool rows, LineEdits *edits, bool keepDead = false);
+    // What forgetLines does but let go of the cells: for a step whose cells were let go of one slice after another (purgeSome); the edits are empty after.
+    void finishForgetLines(bool rows, LineEdits *edits, bool keepDead = false);
     // Puts the order of the rows (columns) back to one run, from 0: the cells are given the new ids, those of dead lines are let go of, and every edit made to the order before is stale (Undo of it
     // is refused). The status if that cannot be done.
     // `table`, if given, is how the ids of the live lines were renumbered (sorted by old first id): see renumberLine.
@@ -612,6 +615,107 @@ public:
         *col = colPosOf(was.cell.colId);
         return *row != kNoLine && *col != kNoLine;
     }
+    // The cells in the lines at these ids, live or dead (a revival, or a purge, looks at them): `f(const Cell &)` for each, in no promised order; false to stop. True if it was not stopped.
+    template <class F>
+    bool forEachInIdRuns(bool rows, const std::vector<jp::calc::IdRun> &runs, F f) const
+    {
+        if (runs.empty()) return true;
+        if (rows) {
+            for (const jp::calc::IdRun &run : runs) {
+                const quint32 last = run.first + run.count - 1;
+                for (auto block = m_blocks.lower_bound(run.first / kBlockRows); block != m_blocks.end() && block->first <= last / kBlockRows; ++block) {
+                    const std::vector<Cell> &cells = block->second.cells;
+                    auto at = std::lower_bound(cells.begin(), cells.end(), run.first, [](const Cell &c, quint32 id) { return c.rowId < id; });
+                    for (; at != cells.end() && at->rowId <= last; ++at)
+                        if (!f(*at)) return false;
+                }
+            }
+            return true;
+        }
+        std::vector<jp::calc::IdRun> sorted = runs;
+        std::sort(sorted.begin(), sorted.end(), [](const jp::calc::IdRun &a, const jp::calc::IdRun &b) { return a.first < b.first; });
+        for (const auto &block : m_blocks)
+            for (const Cell &c : block.second.cells)
+                if (idInRuns(sorted, c.colId) && !f(c)) return false;
+        return true;
+    }
+    // Where a purge (below) is.
+    struct PurgeCursor {
+        size_t run = 0;       // (rows) the run it is in
+        quint32 block = 0;    // the block it will look at next (the key of a block: the row id / kBlockRows)
+        bool started = false;
+        bool done = false;
+    };
+    // Lets go of the cells in the lines at these ids, a few blocks at a time: `onCell(const Cell &)` is called for each before it is let go of, and the blocks are looked at until `budget` cells have
+    // been (a block is not cut). The cursor says where it is; true when everything is done. The work is counted in cells (the blocks passed over count one each).
+    template <class F>
+    bool purgeSome(bool rows, const std::vector<jp::calc::IdRun> &runs, PurgeCursor *cursor, qint64 budget, qint64 *work, F onCell)
+    {
+        if (cursor->done || runs.empty()) {
+            cursor->done = true;
+            return true;
+        }
+        qint64 spent = 0;
+        auto purgeBlock = [&](std::map<quint32, Block>::iterator block, auto &&inRun) {
+            std::vector<Cell> &cells = block->second.cells;
+            size_t keep = 0;
+            for (size_t i = 0; i < cells.size(); ++i) {
+                if (inRun(cells[i])) {
+                    onCell(cells[i]);
+                    ++m_purged;
+                    continue;
+                }
+                if (keep != i) cells[keep] = cells[i];
+                ++keep;
+            }
+            const qint64 gone = qint64(cells.size() - keep);
+            spent += qint64(cells.size()) + 1;
+            cells.resize(keep);
+            m_count -= gone;
+            m_dead -= gone;
+            m_last = nullptr;
+            if (cells.empty()) return m_blocks.erase(block);
+            return std::next(block);
+        };
+        if (rows) {
+            while (cursor->run < runs.size()) {
+                const jp::calc::IdRun &run = runs[cursor->run];
+                const quint32 last = run.first + run.count - 1;
+                if (!cursor->started) {
+                    cursor->block = run.first / kBlockRows;
+                    cursor->started = true;
+                }
+                auto block = m_blocks.lower_bound(cursor->block);
+                while (block != m_blocks.end() && block->first <= last / kBlockRows) {
+                    if (spent >= budget) {
+                        cursor->block = block->first;
+                        if (work) *work += spent;
+                        return false;
+                    }
+                    block = purgeBlock(block, [&](const Cell &c) { return c.rowId >= run.first && c.rowId <= last; });
+                }
+                ++cursor->run;
+                cursor->started = false;
+            }
+        } else {
+            std::vector<jp::calc::IdRun> sorted = runs;
+            std::sort(sorted.begin(), sorted.end(), [](const jp::calc::IdRun &a, const jp::calc::IdRun &b) { return a.first < b.first; });
+            auto block = m_blocks.lower_bound(cursor->block);
+            while (block != m_blocks.end()) {
+                if (spent >= budget) {
+                    cursor->block = block->first;
+                    if (work) *work += spent;
+                    return false;
+                }
+                block = purgeBlock(block, [&](const Cell &c) { return idInRuns(sorted, c.colId); });
+            }
+        }
+        cursor->done = true;
+        if (work) *work += spent;
+        return true;
+    }
+    // How many cells purgeSome has let go of (counted, for tests).
+    qint64 purged() const { return m_purged; }
     // Cells held that are in rows or columns that are deleted, and the most that Undo can bring back.
     qint64 deadCount() const { return m_dead; }
     // The same, counted cell by cell (for a check of deadCount and cellCount, which are kept as the order is edited).
@@ -971,7 +1075,13 @@ private:
     }
     // How many of the cells in the lines at these ids are in a line of the other kind that is live. `kill`: the lines die, the cells with a formula are given to `formulas`, and every cell in them
     // is made one with no formula (a cell of a deleted line holds none).
-    qint64 liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &runs, bool kill, std::vector<Cell> *formulas = nullptr);
+    // `keep`: the lines die (or come back) and the cells in them are counted and left as they are.
+    qint64 liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &runs, bool kill, std::vector<Cell> *formulas = nullptr, bool keep = false);
+    static bool idInRuns(const std::vector<jp::calc::IdRun> &sorted, quint32 id)
+    {
+        auto it = std::upper_bound(sorted.begin(), sorted.end(), id, [](quint32 v, const jp::calc::IdRun &r) { return v < r.first; });
+        return it != sorted.begin() && id - (it - 1)->first < (it - 1)->count;
+    }
     // The cells in the lines at these ids are let go of; how many.
     qint64 purgeCells(bool rows, const std::vector<jp::calc::IdRun> &runs);
     bool ownEdit(const LineEdits &e) const { return e.owner == m_serial; }
@@ -979,6 +1089,7 @@ private:
     std::map<quint32, Block> m_blocks;
     qint64 m_count = 0;
     qint64 m_dead = 0;
+    qint64 m_purged = 0;
     Block *m_last = nullptr;
     quint32 m_lastKey = 0;
     jp::calc::RowMap m_rows{jp::calc::LineLimits::rows(), jp::calc::LineLimits::rows().capacity};
@@ -1234,7 +1345,8 @@ struct Sheet {
     qint64 mergeCount = 0;            // merged ranges
     QVector<CellRange> merges;        // the merged ranges read (as many as the limit allows), in the order of the file
     QVector<ColumnSpan> columns;      // in the order of the file
-    QVector<RowSpec> rowSpecs;        // the rows that are not as the default, in the order of the file
+    QVector<RowSpec> rowSpecs;        // the rows that are not as the default, in the order of the file; when `rowSpecsAreIds` each `row` is the id of the row (cells.rows()), which no edit of rows changes
+    bool rowSpecsAreIds = false;      // (a workbook that holds its formulas in the id frame keeps the specs of rows by id: an insert or delete of rows moves none, and Undo has none to put back)
     AutoFilter autoFilter;            // the sheet's filter (not valid when it has none)
     QVector<Validation> validations;  // the rules for what may be put in cells
     QVector<CondRule> conditionalFormats;   // the rules of conditional formatting, by priority
@@ -1262,6 +1374,8 @@ struct Sheet {
     // The order of the sheet's rows and of its columns (as ids: calc/linemap.h); the cells are held by those ids.
     const jp::calc::RowMap &rows() const { return cells.rows(); }
     const jp::calc::ColMap &cols() const { return cells.cols(); }
+    // The specs of the rows by the places the rows are at, in order of place (those of rows that are deleted are left out): what `rowSpecs` is when it is not held by id.
+    QVector<RowSpec> placedRowSpecs() const;
     // The cell's text: that of a shared, inline, or formula string; for any
     // other the empty string.
     QString text(const Cell &cell, const SharedStrings &shared) const;
