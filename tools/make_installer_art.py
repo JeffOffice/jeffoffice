@@ -5,7 +5,9 @@
 
 Writes packaging/windows/welcome.bmp (the side panel of the Welcome and
 Finish pages) and packaging/windows/header.bmp (the banner on the other
-pages), both at twice NSIS's size so they stay sharp on high-DPI screens.
+pages), both at twice NSIS's size so they stay sharp on high-DPI screens,
+and resources/brand/jeffoffice-icon.png (512 px, the suite's own icon: the
+snap's in the Snap Store).
 The mark is the one in resources/brand: a pinwheel of the six apps' colors on
 a white tile. Needs Python 3 with Pillow.
 """
@@ -123,6 +125,11 @@ def header():
     im.convert("RGB").resize((w, h), Image.LANCZOS).save(os.path.join(OUT, "header.bmp"))
 
 
+def suite_icon():
+    mark(512).resize((512, 512), Image.LANCZOS).save(os.path.join(ROOT, "resources", "brand", "jeffoffice-icon.png"))
+
+
 if __name__ == "__main__":
     welcome()
     header()
+    suite_icon()

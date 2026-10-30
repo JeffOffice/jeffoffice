@@ -33,7 +33,7 @@ contact: https://github.com/JeffOffice/jeffoffice/issues
 website: https://github.com/JeffOffice/jeffoffice
 source-code: https://github.com/JeffOffice/jeffoffice
 issues: https://github.com/JeffOffice/jeffoffice/issues
-icon: resources/app.png
+icon: resources/brand/jeffoffice-icon.png
 grade: devel           # "stable" once the first reviewed release is out; devel can only go to edge or beta
 confinement: strict
 platforms:
