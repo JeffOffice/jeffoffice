@@ -634,9 +634,11 @@ public:
         }
         std::vector<jp::calc::IdRun> sorted = runs;
         std::sort(sorted.begin(), sorted.end(), [](const jp::calc::IdRun &a, const jp::calc::IdRun &b) { return a.first < b.first; });
+        const bool single = sorted.size() == 1;
+        const quint32 first = sorted[0].first, count = sorted[0].count;
         for (const auto &block : m_blocks)
             for (const Cell &c : block.second.cells)
-                if (idInRuns(sorted, c.colId) && !f(c)) return false;
+                if ((single ? quint32(c.colId) - first < count : idInRuns(sorted, c.colId)) && !f(c)) return false;
         return true;
     }
     // Where a purge (below) is.
@@ -700,6 +702,8 @@ public:
         } else {
             std::vector<jp::calc::IdRun> sorted = runs;
             std::sort(sorted.begin(), sorted.end(), [](const jp::calc::IdRun &a, const jp::calc::IdRun &b) { return a.first < b.first; });
+            const bool single = sorted.size() == 1;
+            const quint32 first = sorted[0].first, count = sorted[0].count;
             auto block = m_blocks.lower_bound(cursor->block);
             while (block != m_blocks.end()) {
                 if (spent >= budget) {
@@ -707,7 +711,7 @@ public:
                     if (work) *work += spent;
                     return false;
                 }
-                block = purgeBlock(block, [&](const Cell &c) { return idInRuns(sorted, c.colId); });
+                block = purgeBlock(block, [&](const Cell &c) { return single ? quint32(c.colId) - first < count : idInRuns(sorted, c.colId); });
             }
         }
         cursor->done = true;

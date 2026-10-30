@@ -207,6 +207,14 @@ qint64 CellStore::liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &run
     }
     std::vector<jp::calc::IdRun> sorted = runs;
     std::sort(sorted.begin(), sorted.end(), [](const jp::calc::IdRun &a, const jp::calc::IdRun &b) { return a.first < b.first; });
+    if (sorted.size() == 1) {
+        // (one run of columns, the common case: two compares a cell, not a search)
+        const quint32 first = sorted[0].first, count = sorted[0].count;
+        for (auto &entry : m_blocks)
+            for (Cell &c : entry.second.cells)
+                if (quint32(c.colId) - first < count) one(c, rowPosOf(c.rowId) != kNoLine);
+        return live;
+    }
     for (auto &entry : m_blocks)
         for (Cell &c : entry.second.cells)
             if (inRuns(sorted, c.colId)) one(c, rowPosOf(c.rowId) != kNoLine);
@@ -233,10 +241,12 @@ qint64 CellStore::purgeCells(bool rows, const std::vector<jp::calc::IdRun> &runs
     } else {
         std::vector<jp::calc::IdRun> sorted = runs;
         std::sort(sorted.begin(), sorted.end(), [](const jp::calc::IdRun &a, const jp::calc::IdRun &b) { return a.first < b.first; });
+        const bool single = sorted.size() == 1;
+        const quint32 first = sorted[0].first, count = sorted[0].count;
         for (auto block = m_blocks.begin(); block != m_blocks.end();) {
             std::vector<Cell> &cells = block->second.cells;
             const size_t before = cells.size();
-            cells.erase(std::remove_if(cells.begin(), cells.end(), [&](const Cell &c) { return inRuns(sorted, c.colId); }), cells.end());
+            cells.erase(std::remove_if(cells.begin(), cells.end(), [&](const Cell &c) { return single ? quint32(c.colId) - first < count : inRuns(sorted, c.colId); }), cells.end());
             gone += qint64(before - cells.size());
             if (cells.empty()) block = m_blocks.erase(block);
             else ++block;
