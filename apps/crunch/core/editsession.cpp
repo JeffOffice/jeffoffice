@@ -1253,11 +1253,11 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         // The formulas are held in ids, and an edit of whole rows or columns writes none of them again: the texts the file should have are those of the places the ids are at now. Until the saver rewrites
         // them from the order of the lines (docs/jeffcrunch-rowids.md, round 7), a formula is written whole when its text is no longer the file's: those of a sheet whose rows or columns are not in the
         // file's order (put in or taken out and not put back), and of the sheets that name it. A formula whose text is the file's is not written: it keeps its bytes (shared, its volatile mark, its
-        // result), and moves with its cell. Once any ids were renumbered (a rebase) the file's order is lost, and every formula of those sheets is written.
+        // result), and moves with its cell. Once the file was saved with rows or columns edited its text is no longer that of the ids as they were numbered, and every formula of those sheets is written; a rebase, which numbers the ids by their places, marks the formulas that differ first.
         QSet<int> moved;
         for (const StructEdit &ed : m_edits)
             if (ed.changesRows() || ed.changesColumns()) moved.insert(ed.sheet);
-        const bool renumbered = calc->anyIdsRenumbered();
+        const bool renumbered = m_fileOrderLost;   // (then no formula's file text is known from the ids: every formula of the sheets that can have changed is written)
         QStringList movedNames;
         for (auto it = moved.begin(); it != moved.end();) {
             if (!renumbered && calc->linesAreTheFiles(*it)) it = moved.erase(it);   // (put in and taken out again: the order is the file's)
@@ -1631,6 +1631,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_sheetOps.clear();
     m_copies.clear();
     m_engineAtStart.clear();
+    for (const StructEdit &ed : m_edits) m_fileOrderLost = m_fileOrderLost || ed.changesRows() || ed.changesColumns();
     m_edits.clear();
     m_permutes.clear();
     m_filterRows.clear();

@@ -254,10 +254,9 @@ public:
     CellContent content(int sheet, quint32 row, quint32 col) const;
     // Changes whenever an edit could change what a text of a formula names (rows, columns, cells, sheets inserted, deleted, moved, renamed): what a copy made before is checked against.
     quint64 structStamp() const { return m_structStamp; }
-    // For a save of a workbook whose formulas are held in ids, before the saver writes them from the order of the lines (round 7): which formulas have a text other than the file's. Whether any sheet's
-    // ids were renumbered (then no id is the file's place); whether a sheet's rows and columns are in the file's order; whether a formula's text as a person reads it differs from the text of the ids
+    // For a save of a workbook whose formulas are held in ids, before the saver writes them from the order of the lines (round 7): which formulas have a text other than the file's. Whether a sheet's
+    // rows and columns are in the file's order; whether a formula's text as a person reads it differs from the text of the ids
     // numbered as they were (a data table's formula is moved with its cell by the saver and is never one); and whether a formula of a sheet names one of the sheets (by a part of its text).
-    bool anyIdsRenumbered() const;
     bool linesAreTheFiles(int sheet) const { return sheet < 0 || sheet >= int(m_sheets.size()) || m_sheets[size_t(sheet)].cells.linesAreTheFiles(); }
     bool formulaTextDiffersFromTheFile(int sheet, const Cell &cell) const;
     bool formulasNameSheets(int sheet, const QStringList &names) const;

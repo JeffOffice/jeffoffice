@@ -2961,13 +2961,6 @@ bool Calculation::installFormula(int sheet, quint32 row, quint32 col, Cell c, co
     return true;
 }
 
-bool Calculation::anyIdsRenumbered() const
-{
-    for (const SheetState &st : m_state)
-        if (st.renumberEpoch != 0) return true;
-    return false;
-}
-
 bool Calculation::formulaTextDiffersFromTheFile(int sheet, const Cell &cell) const
 {
     if (!m_options.idFrame || sheet < 0 || sheet >= int(m_sheets.size()) || (cell.flags & (DataTable | ArrayMember))) return false;
