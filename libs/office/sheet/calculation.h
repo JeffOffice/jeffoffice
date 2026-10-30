@@ -165,6 +165,9 @@ public:
     // Works out the formulas typed or edited since the last recalculation, and what they need that is not worked out; what reads them is left as it is. For a workbook worked out by hand.
     Progress recalculateFresh(qint64 workBudget = 0, const std::atomic<bool> *cancel = nullptr, qint64 timeBudgetMicros = 0);
     // Formulas that have yet to be worked out.
+    // How many times a circle was gone round again because what a round read before it was worked out was another value after it (for tests), and a lower limit than the usual for a test of what a run that reaches it does.
+    qint64 staleReadCorrections() const { return m_staleTotal; }
+    void setStaleCorrectionLimitForTest(qint64 limit) { m_staleLimit = limit; }
     bool isDirty() const { return m_notDone > 0 || m_running || m_invalidate.active; }
     // The formulas still to be worked out (while all of them are being marked, the ones not marked yet are counted, those that cannot be worked out among them).
     qint64 dirtyCount() const { return m_notDone + (m_invalidate.active ? qint64(m_nodes.size()) - qint64(m_invalidate.at) : 0); }
@@ -1035,7 +1038,9 @@ private:
     // The formulas outside a circle that a round of it read before they were worked out, with what it read (an array's cell: the whole array): when one is worked out later and is not what was read, what read it
     // is worked out again (staleReadSettled), a limited number of times in a recalculation.
     mutable std::unordered_map<quint32, jp::calc::Value> m_staleReads;
-    qint64 m_staleCorrections = 0;
+    qint64 m_staleCorrections = 0, m_staleTotal = 0, m_staleLimit = 10000;
+    bool m_staleOverflow = false;   // the limit was reached in this recalculation: when it ends, every formula is marked to be worked out again (a few times at most)
+    int m_overflowRuns = 0;
     void staleReadSettled(quint32 id);   // a round of a circle is being worked out: a formula outside it that is not worked out yet is read as it is (what it last gave, else what the file stored), not as empty
     mutable std::vector<quint32> m_pending;   // formulas it read that were not worked out yet
     mutable bool m_readTaint = false, m_readCascade = false;

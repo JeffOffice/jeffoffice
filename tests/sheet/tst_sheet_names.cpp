@@ -393,7 +393,10 @@ private Q_SLOTS:
     {
         Book b;
         QVERIFY(b.open(circleBook(circleRows())));
+        const qint64 before = b.calc->staleReadCorrections();
         changeBoth(b, 1, 5);
+        // (C1 was worked out after the circle, which read it as it was: the count says so, so that a change to the order of the work that makes it come first fails here and does not make the test empty)
+        QVERIFY2(b.calc->staleReadCorrections() > before, qPrintable(QString::number(b.calc->staleReadCorrections() - before)));
         QCOMPARE(b.at("C1"), QStringLiteral("n:10"));
         QCOMPARE(b.at("A1"), QStringLiteral("n:1.1"));
         QCOMPARE(b.at("B1"), QStringLiteral("n:3"));
@@ -420,9 +423,30 @@ private Q_SLOTS:
     {
         Book b;
         QVERIFY(b.open(circleBook(circleRows(QStringLiteral("<c r=\"C1\"><f>F1*2</f></c>")))));
+        // (the circle read C1 before it had a result, and was gone round again when it had one: the count says so, and the values are the file's)
+        QVERIFY(b.calc->staleReadCorrections() >= 1);
         QCOMPARE(b.at("C1"), QStringLiteral("n:5"));
         QCOMPARE(b.at("A1"), QStringLiteral("n:1.2"));
         QCOMPARE(b.at("B1"), QStringLiteral("n:3"));
+        // an edit after that goes round from what the circle has
+        changeBoth(b, 1, 5);
+        QCOMPARE(b.at("C1"), QStringLiteral("n:10"));
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.1"));
+    }
+    // More circles to go round again than a recalculation does (the limit, lowered here): the workbook is left asking to be worked out again whole, and when it is, it is right.
+    void aRecalculationThatReachesTheLimitOfCorrectionsLeavesTheWorkbookAskingForAFullRecalculation()
+    {
+        Book b;
+        QVERIFY(b.open(circleBook(circleRows())));
+        b.calc->setStaleCorrectionLimitForTest(0);
+        changeBoth(b, 1, 5);
+        QVERIFY(b.calc->isDirty());                     // (asked for: every formula is to be worked out again)
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.2"));  // (what the circle read, until then)
+        b.calc->setStaleCorrectionLimitForTest(10000);
+        QVERIFY(b.settle());
+        QVERIFY(b.settle());
+        QCOMPARE(b.at("A1"), QStringLiteral("n:1.1"));
+        QVERIFY(!b.calc->isDirty());
     }
     // The formula outside is a cell of an array: it is read by its place in the array, not as the array's first cell.
     void aCellOfAnArrayTheCircleReadBeforeItWasWorkedOutIsReadByItsPlace()

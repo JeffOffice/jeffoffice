@@ -943,7 +943,6 @@ bool Calculation::formulaValue(int sheet, quint32 row, quint32 col, const Cell &
         // made an error of a formula that divides by it, and the circle fed on the error for ever. What it read is kept: when the formula is worked out and is another value, the circle is gone round again)
         if (n.flags & NodeTainted) m_readTaint = true;
         if (n.flags & (Mismatch | Cascade)) m_readCascade = true;
-        if (c.flags & Tainted) m_readTaint = true;
         if (n.flags & Worked) {
             if (c.flags & ArrayMember) {
                 const Value array = m_arrays.value(id);   // (an array is shared, not copied)
@@ -2248,8 +2247,13 @@ void Calculation::staleReadSettled(quint32 id)
     const Node &n = m_nodes[id];
     const Value now = n.kind == KindArray ? m_arrays.value(id) : nodeValue(n, id);
     const bool same = (was.isNumber() && now.isNumber()) ? jp::calc::sameTo15Digits(was.number(), now.number()) : was.debug() == now.debug();
-    if (same || m_staleCorrections >= 10000) return;
+    if (same) return;
+    if (m_staleCorrections >= m_staleLimit) {
+        m_staleOverflow = true;
+        return;
+    }
     ++m_staleCorrections;
+    ++m_staleTotal;
     std::vector<CellArea> changed;
     changed.push_back(idAreaOfNode(n));
     markDependentsOfIds(&changed);
@@ -2769,6 +2773,17 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
     m_fresh.clear();
     m_onlyFresh = false;
     releaseDeferred();
+    if (m_staleOverflow) {
+        // (more circles were to be gone round again than a recalculation does: every formula is worked out again by the next, which begins with none of that count; it is asked for a few times at most)
+        m_staleOverflow = false;
+        if (++m_overflowRuns <= 3) {
+            m_invalidate.active = true;
+            m_invalidate.at = 0;
+            m_invalidate.sheet = -1;
+        }
+    } else {
+        m_overflowRuns = 0;
+    }
     pr.finished = true;
     return pr;
 }
