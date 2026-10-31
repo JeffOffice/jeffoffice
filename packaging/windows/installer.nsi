@@ -238,6 +238,13 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 
 Function .onInit
   !insertmacro WaitForAppToClose
+  ; (the folder of an earlier install, read back from the registry, can come with a backslash at its end: the folder page then shows "...\JeffOffice\")
+  ; (not a drive's own folder, "C:\", whose backslash is part of it)
+  StrLen $1 $INSTDIR
+  StrCpy $0 $INSTDIR 1 -1
+  IntCmp $1 3 +3 +3 0
+  StrCmp $0 "\" 0 +2
+    StrCpy $INSTDIR $INSTDIR -1
   Call ComingSoon
   Call PresetWrite
   Call PresetCrunch
