@@ -51,6 +51,14 @@ public:
     };
     ViewState viewState() const;
     void setViewState(const ViewState &state);
+    // Rows or columns of the sheet were put in or taken out (its cells already are): the picture follows in place. The sizes move with their lines; the selection follows the cells it was
+    // on (rows put in at the selection are selected, as the lines taken out of it are replaced by the lines that move up); the part that scrolls stays at the row (column) it began at; and
+    // only what the edit changed is drawn again (the lines from the one before the first changed to the end of the window; nothing for an edit below the window). False, with nothing
+    // changed, when the sheet has to be shown again with setData.
+    bool followEdit(const jp::office::sheet::StructEdit &edit);
+    // What the paints have drawn, for a test: the rectangle the last asked for, and the pixels of all of them.
+    QRect lastPaintRect() const { return m_lastPaintRect; }
+    qint64 paintedPixels() const { return m_paintedPixels; }
 
     double zoom() const { return m_sheet.layout().zoom(); }
     void setZoom(double zoom);
@@ -377,6 +385,8 @@ private:
     void conditionalWork();
     void afterPaint();
     qint64 m_blits = 0, m_fullScrolls = 0;
+    QRect m_lastPaintRect;
+    qint64 m_paintedPixels = 0;
     std::function<bool()> m_clickGuard;
     std::function<bool(qint64, qint64)> m_pointGuard;
     GridOverlay *m_overlay = nullptr;

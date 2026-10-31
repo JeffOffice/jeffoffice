@@ -1,10 +1,12 @@
 #include "grid/axis.h"
 
 #include <algorithm>
+#include <atomic>
 
 namespace jp::grid {
 
 namespace {
+std::atomic<qint64> g_axisBuilds{0};   // full builds of the sums (buildSome from the first place)
 int boundedSize(int size) { return std::min(std::max(size, 0), Axis::kMaxSize); }
 }
 
@@ -148,6 +150,7 @@ bool Axis::buildSome(Work &work) const
     if (!d.dirty && d.before.size() == d.places.size() + 1) return true;
     const size_t n = d.places.size();
     if (!d.building) {
+        g_axisBuilds.fetch_add(1, std::memory_order_relaxed);
         d.before.clear();
         d.hiddenEnd.clear();
         d.hiddenStart.clear();
@@ -183,6 +186,15 @@ bool Axis::buildSome(Work &work) const
     d.building = false;
     return true;
 }
+
+qint64 Axis::buildsForTest() { return g_axisBuilds.load(std::memory_order_relaxed); }
+
+std::vector<Axis::Place> Axis::places() const { return m_d->places; }
+
+
+void Axis::insertPlaces(qint64, qint64, const std::vector<Place> &) {}
+
+void Axis::erasePlaces(qint64, qint64) {}
 
 void Axis::setSkipped(qint64 count) { m_skip = std::max<qint64>(0, std::min(count, m_count)); }
 

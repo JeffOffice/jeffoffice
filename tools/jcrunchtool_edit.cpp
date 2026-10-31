@@ -1305,8 +1305,11 @@ int structBench(const QString &path, const QString &label, const QString &only)
     if (qEnvironmentVariableIntValue("JC_UNDO_MB") > 0) session->setUndoByteLimit(qint64(qEnvironmentVariableIntValue("JC_UNDO_MB")) << 20);   // (the limit that makes a big step ask first)
     qint64 workBefore = 0, textsBefore = 0, workDelta = 0, textsDelta = 0;
     Calculation::EditStats statsBefore, statsDelta;
+    // (the window's thread, by its processor time, at the edges of an edit: the hold taken and the hold let go; what follows is the window's response, and then the repaint)
+    qint64 tHoldBefore = 0, tHoldAfter = 0, tMoved = 0;
     session->setHoldHook([&](Calculation *c, bool after) {
         const qint64 texts = c->sheet(sheet).formulaTexts.size();
+        (after ? tHoldAfter : tHoldBefore) = jp::threadCpuMicros();
         if (!after) {
             workBefore = c->editWork();
             textsBefore = texts;
@@ -1357,7 +1360,8 @@ int structBench(const QString &path, const QString &label, const QString &only)
           << "\tcells_moved\tcells_gone\tformulas_visited\tformulas_rewritten\tnodes_remade\tgraph_work\tnames_rewritten\trules_rewritten\tmarks_followed\tvalues_moved\tview_cells\tundo_bytes\tgraph_entries"
           << "\tu_cells_moved\tu_formulas_visited\tu_formulas_rewritten\tu_nodes_remade\tu_graph_work\tu_marks_followed\tu_values_moved\tu_view_cells"
           << "\tevals\tsettle_after_ms\tu_evals\tgraph_bytes\tph_setup\tph_candidates\tph_rewrite\tph_cells\tph_graph\tph_other\tph_write"
-          << "\teager\tnames_again\ttables_again\ttexts_to_ids\tu_eager\tu_names_again\tu_tables_again\n";
+          << "\teager\tnames_again\ttables_again\ttexts_to_ids\tu_eager\tu_names_again\tu_tables_again"
+          << "\tw_pre\tw_model\tw_window\tw_paint\tu_pre\tu_model\tu_window\tu_paint\n";
     auto settle = [&](QElapsedTimer &wall) {
         QElapsedTimer waiting;
         waiting.start();
@@ -1374,9 +1378,13 @@ int structBench(const QString &path, const QString &label, const QString &only)
         QElapsedTimer wall;
         wall.start();
         const qint64 c0 = jp::threadCpuMicros();
+        tHoldBefore = tHoldAfter = tMoved = c0;
         const crunch::EditSession::Outcome o = c.run();
+        const qint64 cRun = jp::threadCpuMicros();
         v->viewport()->repaint();
         const qint64 c1 = jp::threadCpuMicros();
+        const double wPre = double(tHoldBefore - c0) / 1000.0, wModel = double(tHoldAfter - tHoldBefore) / 1000.0, wWindow = double(cRun - tHoldAfter) / 1000.0, wPaint = double(c1 - cRun) / 1000.0;
+        Q_UNUSED(tMoved);
         const Calculation::EditStats did = statsDelta;
         const qint64 marks = session->marksFollowed() - marksBefore, moved = w.values().relocated() - movedBefore, viewCells = grid::GridSheet::viewCellsRebuiltForTest() - viewBefore;
         const qint64 undoBytes = session->undoBytes() - undoBytesBefore, graphEntries = calc->graph().entryCount();
@@ -1385,7 +1393,7 @@ int structBench(const QString &path, const QString &label, const QString &only)
         const qint64 evals = calc->evaluations() - evalsBefore;   // (the formulas the worker worked out for the edit)
         const double workerMs = double(w.workerCpuMicros() - workerBefore) / 1000.0;
         const qint64 work = workDelta, texts = textsDelta;
-        double undoCpu = 0, undoWall = 0;
+        double undoCpu = 0, undoWall = 0, uPre = 0, uModel = 0, uWindow = 0, uPaint = 0;
         qint64 undoWork = 0, uMarks = 0, uMoved = 0, uView = 0, uEvals = 0;
         Calculation::EditStats undid;
         if (o.ok) {
@@ -1395,9 +1403,16 @@ int structBench(const QString &path, const QString &label, const QString &only)
             statsDelta = Calculation::EditStats();
             const qint64 uEvalsBefore = calc->evaluations();
             const qint64 u0 = jp::threadCpuMicros();
+            tHoldBefore = tHoldAfter = tMoved = u0;
             w.undoStack()->undo();
+            const qint64 uRun = jp::threadCpuMicros();
             v->viewport()->repaint();
-            undoCpu = double(jp::threadCpuMicros() - u0) / 1000.0;
+            const qint64 u1 = jp::threadCpuMicros();
+            undoCpu = double(u1 - u0) / 1000.0;
+            uPre = double(tHoldBefore - u0) / 1000.0;
+            uModel = double(tHoldAfter - tHoldBefore) / 1000.0;
+            uWindow = double(uRun - tHoldAfter) / 1000.0;
+            uPaint = double(u1 - uRun) / 1000.0;
             undoWall = double(uw.nsecsElapsed()) / 1e6;
             undoWork = workDelta;
             undid = statsDelta;
@@ -1416,7 +1431,9 @@ int structBench(const QString &path, const QString &label, const QString &only)
               << '\t' << QString::number(double(did.phaseMicros[6]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[0]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[1]) / 1000.0, 'f', 1)
               << '\t' << QString::number(double(did.phaseMicros[2]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[3]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[4]) / 1000.0, 'f', 1)
               << '\t' << QString::number(double(did.phaseMicros[5]) / 1000.0, 'f', 1) << '\t' << did.eagerFormulas << '\t' << did.namesRegisteredAgain << '\t' << did.tablesRegisteredAgain << '\t' << did.textsToIds
-              << '\t' << undid.eagerFormulas << '\t' << undid.namesRegisteredAgain << '\t' << undid.tablesRegisteredAgain << '\n';
+              << '\t' << undid.eagerFormulas << '\t' << undid.namesRegisteredAgain << '\t' << undid.tablesRegisteredAgain
+              << '\t' << QString::number(wPre, 'f', 2) << '\t' << QString::number(wModel, 'f', 2) << '\t' << QString::number(wWindow, 'f', 2) << '\t' << QString::number(wPaint, 'f', 2)
+              << '\t' << QString::number(uPre, 'f', 2) << '\t' << QString::number(uModel, 'f', 2) << '\t' << QString::number(uWindow, 'f', 2) << '\t' << QString::number(uPaint, 'f', 2) << '\n';
         out().flush();
     }
     out() << "# after the edits: resident " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB\n";

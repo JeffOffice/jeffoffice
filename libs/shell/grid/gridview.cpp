@@ -636,8 +636,15 @@ PaintOptions GridView::paintOptions() const
     return o;
 }
 
+bool GridView::followEdit(const jp::office::sheet::StructEdit &)
+{
+    return false;
+}
+
 void GridView::paintEvent(QPaintEvent *e)
 {
+    m_lastPaintRect = e->rect();
+    m_paintedPixels += qint64(e->rect().width()) * e->rect().height();
     QElapsedTimer t;
     t.start();
     const qint64 cpu0 = jp::threadCpuMicros();

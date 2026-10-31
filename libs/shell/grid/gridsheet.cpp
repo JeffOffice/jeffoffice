@@ -215,6 +215,11 @@ void GridSheet::setData(const GridData &data)
     m_geometry = g;
 }
 
+bool GridSheet::followEdit(const jp::office::sheet::StructEdit &)
+{
+    return false;
+}
+
 std::shared_ptr<GridGeometry> GridSheet::makeGeometry(const Sheet &sheet, const Styles &styles)
 {
     auto geometry = std::make_shared<GridGeometry>();

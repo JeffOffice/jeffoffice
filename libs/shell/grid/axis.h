@@ -62,6 +62,17 @@ public:
     bool buildSome(Work &work) const;
     int placeCount() const;
 
+    // Rows put in (or taken out) in the middle of the sheet, for an axis whose sums are built: the places after move on (back) by `count`, and what was worked out of the places is moved
+    // with them by a memory move and a sum added (the run of hidden places the edit cuts or joins is worked out again, and no more), not worked out again from the first place. The count
+    // of rows stays what it was: places pushed past the last row are dropped, and the rows at the end after a take are the default size. `own` are the new rows that are not the default
+    // size (their indexes are in the new rows, in order, with none twice; a size equal to the default is dropped).
+    void insertPlaces(qint64 at, qint64 count, const std::vector<Place> &own = {});
+    void erasePlaces(qint64 at, qint64 count);
+    // The places that differ, all of them, in order (a copy, for a test that compares two axes).
+    std::vector<Place> places() const;
+    // How many times an axis has worked its sums out from the first place, in all (a test counts them to see that an insert or a delete worked none out).
+    static qint64 buildsForTest();
+
     int size(qint64 index) const;
     bool isHidden(qint64 index) const { return size(index) == 0; }
     // Where the row begins, from the first row's top; position(count()) is total().

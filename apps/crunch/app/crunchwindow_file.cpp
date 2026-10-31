@@ -280,15 +280,25 @@ void CrunchWindow::showSheet(int sheetIndex, bool keepView)
     m_view->setData(d, keepView);
     if (!keepView && m_views.contains(sheetIndex)) m_view->setViewState(m_views.value(sheetIndex));
     m_showingSheet = false;
-    m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
-    // (the colors the buttons of the ribbon offer are the workbook's theme)
-    if (m_fillButton) m_fillButton->setScheme(workbookColors());
-    if (m_fontColorButton) m_fontColorButton->setScheme(workbookColors());
+    afterSheetShown(sheetIndex, false);
+}
+
+// What the window shows beside the grid for the sheet in view. `inPlace`: the grid kept its settings and was moved by an edit of rows or columns, not given the sheet again (the formulas
+// it shows and the colors of the buttons are as they were).
+void CrunchWindow::afterSheetShown(int sheetIndex, bool inPlace)
+{
+    const jp::office::sheet::Sheet *shown = m_view->sheet().data().sheet;
+    if (!inPlace) {
+        m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
+        // (the colors the buttons of the ribbon offer are the workbook's theme)
+        if (m_fillButton) m_fillButton->setScheme(workbookColors());
+        if (m_fontColorButton) m_fontColorButton->setScheme(workbookColors());
+    }
     prepareObjects(sheetIndex);
     act("view.gridlines")->setChecked(m_view->showGridlines());
     act("view.headings")->setChecked(m_view->showHeadings());
     updateFilterButtons();
-    showViewKind(d.sheet ? (m_session ? m_session->pages().viewKind(sheetIndex) : int(d.sheet->view.kind)) : 0);
+    showViewKind(shown ? (m_session ? m_session->pages().viewKind(sheetIndex) : int(shown->view.kind)) : 0);
     updatePageActions();
     refreshAnchors();
     scheduleAutoHeights();
