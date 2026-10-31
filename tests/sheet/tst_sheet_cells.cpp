@@ -729,7 +729,7 @@ private Q_SLOTS:
     }
 
     // A sheet whose order has as many runs as it may (a million, at the real cap) is refused with the words a person can act on, and nothing is lost: the refused edit changes nothing, the cells are where they
-    // were, and putting the order back to one run (rebaseLines) takes the cap away. (Measured when this was written: the cap is reached after 499,996 inserts that each split a run near the end, in about a second.)
+    // were, and putting the order back to one run (rebaseLines) takes the cap away. (Measured when this was written: the cap is reached after 999,980 inserts near the end, each of which pushes a last row off the sheet and leaves a record of it: 10 runs and 999,983 dead records, in 0.6 seconds.)
     void aMillionRunsAreRefusedWithTheMessageAndNothingIsLost()
     {
         CellStore store;
@@ -749,7 +749,7 @@ private Q_SLOTS:
             if (st != jp::calc::LineStatus::Ok) break;
             ++made;
         }
-        QVERIFY2(made > 100000 && made < 1000000, qPrintable(QString::number(made)));
+        QVERIFY2(made > 900000 && made < 1000000, qPrintable(QString::number(made)));
         QCOMPARE(store.canEditLines(true, 1), jp::calc::LineStatus::TooManyRuns);
         QVERIFY(store.rows().runCount() + store.rows().core().deadCount() + 8 > 1000000u);
         QCOMPARE(jp::calc::lineStatusText(store.canEditLines(true, 1)), QStringLiteral("This sheet has been edited too many times. Save it and open it again."));
