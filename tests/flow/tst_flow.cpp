@@ -3877,6 +3877,34 @@ private Q_SLOTS:
         QVERIFY(count(QString(30, QLatin1Char('M')) + QString(40, QLatin1Char(' ')), true) >= 2);
     }
 
+    // A word processor's line does not break after a slash, in the text the file shows for a field (a link's address) as in any other: whatever the room left on the line
+    // before it, no line ends at one.
+    void aLineDoesNotBreakAfterASlashInAFieldsText()
+    {
+        for (int words = 14; words < 48; ++words) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(12);
+            c.setBlockCharFormat(cf);
+            c.insertText(QStringLiteral("ab ").repeated(words), cf);
+            QTextCharFormat link = cf;
+            link.setProperty(tp::Field, QStringLiteral("raw:www.example.gov/aaaaaaaaaa/bbbbbbbbbb/cc.htm"));
+            c.insertText(QString(QChar::ObjectReplacementCharacter), link);
+            c.insertText(QStringLiteral("."), cf);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(300, 700)}, env);
+            for (const auto &line : lay.lineInfo(0)) {
+                QString shown = line.text;
+                shown.remove(QChar(0x2060));
+                QVERIFY2(!shown.endsWith(QLatin1Char('/')), qPrintable(QStringLiteral("%1 words: a line ends at a slash: %2").arg(words).arg(line.text)));
+            }
+        }
+    }
+
     // The stand-in a file's font table names for a family (the environment's stand-ins, LayoutEnv::standIns) is the line a missing family is set in.
     void missingFamilyStandsInAsTheFileSays()
     {

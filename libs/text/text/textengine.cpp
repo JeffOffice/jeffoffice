@@ -3262,6 +3262,15 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // Multi-line values (an address) break lines inside the paragraph.
                     QString v = ctx.resolve(field);
                     v.replace(QLatin1String("\r\n"), QString(QChar::LineSeparator)).replace(QLatin1Char('\n'), QChar::LineSeparator);
+                    // (A word processor's line does not break after a slash in what a field shows, a link's address, as in its text: a word joiner after it keeps Qt's rules from breaking there.)
+                    if (env.wordLines && v.contains(QLatin1Char('/'))) {
+                        QString joined;
+                        for (int k = 0; k < v.size(); ++k) {
+                            joined += v[k];
+                            if (v[k] == QLatin1Char('/') && k + 1 < v.size() && !v[k + 1].isSpace() && v[k + 1] != QChar::LineSeparator) joined += QChar(0x2060);
+                        }
+                        v = joined;
+                    }
                     B->map << Seg{rel + i, 1, int(B->disp.size()), int(v.size()), env.wordLines && v.isEmpty()};
                     if (!(env.wordLines && v.isEmpty() && !ranges.isEmpty())) ranges << QTextLayout::FormatRange{int(B->disp.size()), int(v.size()), env.wordLines ? withEastAsianFaces(rf, v) : rf};
                     B->fieldRanges << qMakePair(int(B->disp.size()), int(v.size()));
