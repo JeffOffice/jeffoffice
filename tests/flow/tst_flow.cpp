@@ -4069,6 +4069,38 @@ private Q_SLOTS:
         QVERIFY2(std::abs(courier[0].rect.height() - single) < 0.01, qPrintable(QString::number(courier[0].rect.height())));
     }
 
+    // A level whose number is followed by a space or by nothing (w:suff, tp::NumberSuffixKind) has the text of its item begin right after the number, and one that is followed by a tab
+    // (the usual) at the stop the indents and the stops give.
+    void aNumberFollowedByASpaceOrNothingIsFollowedByTheText()
+    {
+        auto textStart = [](int kind) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextBlockFormat bf;
+            c.setBlockFormat(bf);
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(12);
+            c.setBlockCharFormat(cf);
+            c.insertText(QStringLiteral("Introduction"), cf);
+            QTextListFormat lf;
+            lf.setStyle(QTextListFormat::ListDecimal);
+            lf.setNumberSuffix(QStringLiteral("."));
+            if (kind > 0) lf.setProperty(tp::NumberSuffixKind, kind);
+            c.createList(lf);
+            LayoutEnv env;
+            env.wordLines = true;
+            env.defaultTab = 36;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(300, 200)}, env);
+            const auto lines = lay.lineInfo(0);
+            return lines.isEmpty() ? -1.0 : lines[0].rect.left();
+        };
+        const double tab = textStart(0), space = textStart(1), nothing = textStart(2);
+        QVERIFY2(tab > space + 5 && space > nothing + 1.5 && nothing > 2, qPrintable(QStringLiteral("text starts at %1 after a tab, %2 after a space, %3 after nothing").arg(tab).arg(space).arg(nothing)));
+        QVERIFY2(space - nothing < 6, qPrintable(QStringLiteral("a space is %1 wide").arg(space - nothing)));
+    }
+
     // A number set in less room than it needs (the text after it is held to the line's end) stays at its indent: the number is not pushed back by as much as the text was held.
     void aNumberInARoomTooNarrowStaysAtItsIndent()
     {

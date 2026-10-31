@@ -985,6 +985,8 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
     const int outlineKey = numbered && numbered->levelOverrides.contains(level) ? (1 << 28) + numId * 16 + level : m_wml.numbering.definitionOf(numId) * 16 + level;
     if (levelIsOutlined(l, outlineKey)) lf.setProperty(tp::BulletOutline, true);   // (the numbers of a level are drawn hollow as well as its bullets)
     if (l.legacy) lf.setProperty(tp::LegacyNumber, true);
+    if (l.suff == QLatin1String("space")) lf.setProperty(tp::NumberSuffixKind, 1);
+    else if (l.suff == QLatin1String("nothing")) lf.setProperty(tp::NumberSuffixKind, 2);
     // What the level says of its marker's run (the rest is the paragraph mark's): bold and italic, and a color.
     if (l.rPr.bold || l.rPr.italic || l.rPr.color) {
         const QTextCharFormat run = charFormatOf(l.rPr, theme());

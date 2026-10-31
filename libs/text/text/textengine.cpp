@@ -3704,6 +3704,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             markerW = B->markerAdv + B->markerGap;
             if (lf.hasProperty(tp::BulletTab)) {
                 markerW = std::max(markerW, lf.property(tp::BulletTab).toDouble() * scale - (leftM + textIndent));
+            } else if (env.wordLines && lf.intProperty(tp::NumberSuffixKind) > 0) {
+                // (A level that puts a space after its number, or nothing, has the text follow at once: no tab, whatever the indents and stops.)
+                markerW = B->markerAdv + (lf.intProperty(tp::NumberSuffixKind) == 1 ? advanceOf(B->markerFont, QStringLiteral(" ")) : 0.0);
             } else if (env.wordLines && (textIndent >= 0 || B->markerSkipsIndent)) {
                 // A word processor's number or bullet is followed by a tab: the text begins at the next stop past it, one of the paragraph's own or,
                 // past the last of those, a default one (from the text area's edge). (A hanging indent is that stop unless the file says it is not, and
