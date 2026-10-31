@@ -1745,6 +1745,40 @@ private Q_SLOTS:
         QCOMPARE(b.at("C2"), QStringLiteral("n:190"));
     }
 
+    // Rows or columns are deleted and the step that could bring them back is not forgotten, then the order is put back to one run: the cells of the dead lines go with the renumbering, and so do the nodes of
+    // the formulas in them (not one is left with a line that has no number); the formulas that are left are right, and are worked out right after.
+    void aRebaseWithADeleteThatCouldStillBeUndoneLetsGoOfTheFormulasInTheDeadLines()
+    {
+        for (const bool rows : {true, false}) {
+            Book b;
+            QStringList cells;
+            for (int r = 1; r <= 8; ++r) cells << QStringLiteral("A%1=%1").arg(r) << QStringLiteral("B%1==A%1*2").arg(r) << QStringLiteral("C%1==B%1+1").arg(r);
+            cells << QStringLiteral("E1==SUM(A1:A8)") << QStringLiteral("E2==SUM(B1:C8)");
+            QVERIFY(b.open({cells}));
+            if (!b.calc->idFrame()) QSKIP("the formulas are held in places: a delete of rows drops the nodes of its cells, as before ids");
+            Calculation::EditRecord del;   // (kept: the step is not forgotten)
+            QVERIFY(b.apply(StructEdit::insertRows(0, 0, 1), nullptr));   // (the ids of the rows are not their places)
+            QVERIFY(b.apply(StructEdit::insertColumns(0, 0, 1), nullptr));
+            QVERIFY(b.apply(rows ? StructEdit::deleteRows(0, 3, 2) : StructEdit::deleteColumns(0, 2, 1), &del));
+            QVERIFY(del.dormant);
+            qint64 live = 0;
+            b.calc->sheet(0).cells.forEach([&](quint32, quint32, const Cell &c) { live += c.hasFormula() ? 1 : 0; });
+            QVERIFY(b.calc->formulaCount() > live);   // (the dead lines' formulas are still registered)
+            std::vector<jp::calc::LineMapCore::Renumber> table;
+            QVERIFY(b.calc->compactLines(0, rows, &table));
+            QVERIFY(!table.empty());
+            b.finish();
+            QCOMPARE(b.calc->formulaCount(), live);   // (and now they are not: every formula that is registered is in a cell that is there)
+            QCOMPARE(b.calc->sheet(0).cells.deadCount(), qint64(0));
+            QString why;
+            QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+            // a formula typed in a row or column that is there, and a change to what it reads
+            QVERIFY(b.calc->setValue(0, 1, 1, Value::number(100)));
+            b.finish();
+            QVERIFY2(sameAsAWholeNewCalculation(b, &why), qPrintable(why));
+        }
+    }
+
     // A formula kept apart after it was worked out (a circle) has graph entries, and a rebase tells them again with the others.
     void aCircleKeptApartAfterItWasWorkedOutKeepsItsEntriesThroughARebase()
     {

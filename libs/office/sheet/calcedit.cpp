@@ -287,6 +287,24 @@ bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineM
     if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
     finishPurges(sheet);   // (the dead cells that are waiting to be let go of, and their nodes, are numbered by the ids that are renumbered below)
     abandonNow();
+    // The lines that are dead now go with the renumbering (every step that could bring them back is stale after it: Undo of it is refused), and so do the cells in them. The nodes of the formulas in those
+    // cells, which a delete that kept them left registered (a caller that has not forgotten the step, as the session does, may not have let them go of), are finished as a purge finishes them: dropped, with
+    // their formulas; else they would be left with a line that has no number.
+    if (m_dormantLines > 0) {
+        const CellStore &cs = m_sheets[size_t(sheet)].cells;
+        std::vector<quint32> gone;
+        for (quint32 id = 0; id < quint32(m_nodes.size()); ++id) {
+            const Node &n = m_nodes[id];
+            if ((n.flags & Dead) || n.sheet != sheet) continue;
+            if ((rows ? cs.rowPlaceOf(n.rowId) : cs.colPlaceOf(n.colId)) == CellStore::kNoLine) gone.push_back(id);
+        }
+        SheetState &st = m_state[size_t(sheet)];
+        for (const quint32 id : gone) {
+            const qint32 formula = m_nodes[id].formula;
+            dropNode(id);
+            if (formula >= 0 && size_t(formula) < st.nodeOf.size()) releaseFormula(sheet, formula);
+        }
+    }
     // what is waiting for the worker names ids that are renumbered below: it is done now, with the ids it has (the formulas it names are marked to be worked out, and what reads them)
     const bool drained = drainBeforeRenumbering(sheet);
     std::vector<jp::calc::LineMapCore::Renumber> table;
@@ -920,7 +938,6 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             if (undoOf || redoing) qWarning("Calculation::applyEdit: the order of the rows or columns does not take %s (status %d)", undoOf ? "Undo" : "Redo", int(made));
             // (a record that was to be done again and is not is let go of: the ids and the dead cells it held are not held for nothing)
             if (redoing) S.cells.forgetLines(rows, &again);
-            Q_ASSERT_X(!(undoOf || redoing), "Calculation::applyEdit", "the order of the rows or columns does not take Undo or Redo");
             return false;
         }
         for (const Cell &c : dead) removed.push_back(PlacedCell{0, 0, c});
