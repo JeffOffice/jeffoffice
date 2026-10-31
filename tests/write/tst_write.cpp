@@ -5432,6 +5432,43 @@ private Q_SLOTS:
         }
     }
 
+    // Only a link's field has the mark that keeps a line from breaking after a slash in its result (tp::LinkResult): the atom of a HYPERLINK field has it, and a DATE field, whose
+    // result has slashes too, has not.
+    void onlyALinksFieldResultCarriesTheNoBreakMark()
+    {
+        auto field = [](const QByteArray &instruction, const QByteArray &result) {
+            return "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> " + instruction + " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                   "<w:r><w:t>" + result + "</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        };
+        const QByteArray body = "<w:p>" + field("HYPERLINK \"http://www.example.gov/a/b.htm\"", "www.example.gov/a/b.htm") + "<w:r><w:t xml:space=\"preserve\"> and </w:t></w:r>" +
+                                field("DATE \\@ \"M/d/yyyy\"", "10/31/2026") + "</w:p>";
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("fields.docx"));
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(makeDocxWithParts(body, "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>", {}));
+        file.close();
+        QByteArray bytes;
+        {
+            QFile in(path);
+            QVERIFY(in.open(QIODevice::ReadOnly));
+            bytes = in.readAll();
+        }
+        auto doc = open(bytes);
+        QVERIFY(doc);
+        int links = 0, others = 0;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat f = it.fragment().charFormat();
+                if (f.stringProperty(tp::Field).isEmpty()) continue;
+                if (f.boolProperty(tp::LinkResult)) ++links;
+                else ++others;
+            }
+        QVERIFY2(links >= 1, "the link's field has the mark");
+        QVERIFY2(others >= 1, "the date's field is there and has no mark");
+    }
+
     // The view follows an undo or a redo into the header or footer the step was in, and out of it for a step in the text; a burst of typing in a header is one step.
     void theViewFollowsTheHistoryIntoAndOutOfAHeader()
     {
