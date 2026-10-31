@@ -2410,18 +2410,25 @@ private:
     // Two sheets with formulas of every kind of reference, a shared family on each, and the other sheet read.
     static QByteArray editsBook()
     {
+        // (built by plain appends: the macOS compiler planted a trap in the earlier form, chained arg() calls inside a conditional appended to the row)
         QString one, two;
         for (int r = 1; r <= 12; ++r) {
-            QString row = QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><v>%2</v></c>").arg(r).arg(r * 2);
-            row += r == 1 ? QStringLiteral("<c r=\"C1\"><f t=\"shared\" ref=\"C1:C12\" si=\"0\">A1+B1</f><v>3</v></c>") : QStringLiteral("<c r=\"C%1\"><f t=\"shared\" si=\"0\"/><v>%2</v></c>").arg(r).arg(r * 3);
-            row += QStringLiteral("<c r=\"D%1\"><f>SUM(A$1:A%1)</f><v>1</v></c><c r=\"E%1\"><f>Sheet2!A%2*2</f><v>1</v></c>").arg(r).arg(1 + r % 8);
-            one += row + QStringLiteral("</row>");
+            const QString n = QString::number(r);
+            one += QLatin1String("<row r=\"") + n + QLatin1String("\"><c r=\"A") + n + QLatin1String("\"><v>") + n + QLatin1String("</v></c><c r=\"B") + n + QLatin1String("\"><v>")
+                + QString::number(r * 2) + QLatin1String("</v></c>");
+            if (r == 1) one += QLatin1String("<c r=\"C1\"><f t=\"shared\" ref=\"C1:C12\" si=\"0\">A1+B1</f><v>3</v></c>");
+            else one += QLatin1String("<c r=\"C") + n + QLatin1String("\"><f t=\"shared\" si=\"0\"/><v>") + QString::number(r * 3) + QLatin1String("</v></c>");
+            one += QLatin1String("<c r=\"D") + n + QLatin1String("\"><f>SUM(A$1:A") + n + QLatin1String(")</f><v>1</v></c><c r=\"E") + n + QLatin1String("\"><f>Sheet2!A")
+                + QString::number(1 + r % 8) + QLatin1String("*2</f><v>1</v></c></row>");
         }
         one += QStringLiteral("<row r=\"13\"><c r=\"A13\"><f>SUM(Sheet2!A:A)</f><v>1</v></c><c r=\"B13\"><f>SUM(B1:B12)</f><v>1</v></c><c r=\"C13\"><f>$A$1+C$5</f><v>1</v></c><c r=\"D13\"><f ca=\"1\">IF(A1&gt;5,B2,B3)+NOW()</f><v>1</v></c><c r=\"E13\"><f>COUNT(2:4)</f><v>1</v></c></row>");
         for (int r = 1; r <= 8; ++r) {
-            two += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c>").arg(r);
-            two += r == 1 ? QStringLiteral("<c r=\"B1\"><f t=\"shared\" ref=\"B1:B8\" si=\"0\">Sheet1!A1+A1</f><v>2</v></c>") : QStringLiteral("<c r=\"B%1\"><f t=\"shared\" si=\"0\"/><v>%2</v></c>").arg(r).arg(r * 2);
-            two += QStringLiteral("<c r=\"C%1\"><f>SUM(Sheet1!B1:B12)+A%1</f><v>1</v></c><c r=\"D%1\"><f>A%1+B%1</f><v>1</v></c></row>").arg(r);
+            const QString n = QString::number(r);
+            two += QLatin1String("<row r=\"") + n + QLatin1String("\"><c r=\"A") + n + QLatin1String("\"><v>") + n + QLatin1String("</v></c>");
+            if (r == 1) two += QLatin1String("<c r=\"B1\"><f t=\"shared\" ref=\"B1:B8\" si=\"0\">Sheet1!A1+A1</f><v>2</v></c>");
+            else two += QLatin1String("<c r=\"B") + n + QLatin1String("\"><f t=\"shared\" si=\"0\"/><v>") + QString::number(r * 2) + QLatin1String("</v></c>");
+            two += QLatin1String("<c r=\"C") + n + QLatin1String("\"><f>SUM(Sheet1!B1:B12)+A") + n + QLatin1String("</f><v>1</v></c><c r=\"D") + n + QLatin1String("\"><f>A") + n + QLatin1String("+B") + n
+                + QLatin1String("</f><v>1</v></c></row>");
         }
         return sheettest::buildXlsx({sheettest::worksheet(one), sheettest::worksheet(two)});
     }
