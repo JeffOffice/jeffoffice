@@ -4986,6 +4986,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         if (it.key() % 64 == 0 && it.key() / 64 >= 0 && it.key() / 64 < nF) m_noteReserves[it.key() / 64] = it.value();
     // Footnotes: stacked at the bottom of their column, under a short rule,
     // or, when one goes on from the column before, as wide as the column.
+    QHash<int, double> bodyEnds;   // the bottom of the lowest line of each column, by frame * 64 + column (when a column's notes hang)
     for (auto it = reserve.cbegin(); it != reserve.cend(); ++it) {
         const int fi = it.key() / 64, ci = it.key() % 64;
         if (fi < 0 || fi >= nF) continue;
@@ -4994,11 +4995,16 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // (Where the text of the column goes over the room the notes were counted to take, by what the space after the last note could hang below the foot, the notes go down by that
         // much, and the space hangs below the column.)
         if (lastTrail.value(it.key()) > 0) {
-            double bodyEnd = areaTop;
-            for (const auto &B : m_blocks)
-                for (const Line &l : B->lines)
-                    if (l.frame == fi && l.column == ci) bodyEnd = std::max(bodyEnd, l.rect.bottom() - l.below);
-            areaTop = std::min(bodyEnd, areaTop + lastTrail.value(it.key()));
+            // (The lowest text of each column, found for all the columns in one pass over the lines.)
+            if (bodyEnds.isEmpty()) {
+                for (const auto &B : m_blocks)
+                    for (const Line &l : B->lines) {
+                        double &low = bodyEnds[rkey(l.frame, l.column)];
+                        low = std::max(low, l.rect.bottom() - l.below);
+                    }
+                bodyEnds.insert(-1, 0.0);   // (made, even for a story with no lines)
+            }
+            areaTop = std::min(std::max(areaTop, bodyEnds.value(it.key())), areaTop + lastTrail.value(it.key()));
         }
         const double gap = gapOf.value(it.key(), ruleGap);
         double ny = areaTop + gap - noticeGap;
