@@ -409,6 +409,8 @@ private Q_SLOTS:
         // a column put in a few columns into the window
         scrollToLine(e, true, 0);
         px = drawn([&] { QVERIFY(run(e, {"insert a column", false, true, 6, 1}).ok); }, true);
+        // (a text that spills left from the columns after the first changed can change what is left of it: the whole window is asked for)
+        QCOMPARE(e.view()->lastEditBand(), QRect(QPoint(0, 0), vp));
         QVERIFY2(px > 0 && px >= whole * 3 / 4, qPrintable(QStringLiteral("column: drew %1 of %2 pixels").arg(px).arg(whole)));
     }
     // The line before the first changed that is shown is drawn again with the band, whatever hidden lines lie between (it shares its border with the first line that moves).
@@ -419,14 +421,11 @@ private Q_SLOTS:
         QVERIFY(e.open(viewBook()));   // (rows 12 and 13 are hidden)
         QVERIFY(e.settle());
         scrollToLine(e, true, 0);
-        e.view()->selectCell(0, 0);
-        flushPaints(e.view());
         const int shownAbove = e.view()->sheet().layout().yOf(10);
-        e.view()->clearPaintedRegion();
         QVERIFY(run(e, {"insert under the hidden rows", true, true, 13, 1}).ok);
-        QTest::qWaitFor([&] { return !e.view()->paintedRegion().isEmpty(); }, 10000);
-        flushPaints(e.view());
-        QVERIFY2(!e.view()->paintedRegion().isEmpty() && e.view()->paintedRegion().boundingRect().top() <= shownAbove, qPrintable(QStringLiteral("drew from %1, the line above is at %2").arg(e.view()->paintedRegion().boundingRect().top()).arg(shownAbove)));
+        // (what the edit asked to have drawn, not what happened to be drawn by then)
+        const QRect band = e.view()->lastEditBand();
+        QVERIFY2(!band.isEmpty() && band.top() <= shownAbove && band.top() > 0, qPrintable(QStringLiteral("asked for the window from %1, the line above is at %2").arg(band.top()).arg(shownAbove)));
     }
 
     // Texts held for cells of a merged range are made again when the range is cut or grown (the number is shown in the width the range has).

@@ -60,6 +60,8 @@ public:
     QRect lastPaintRect() const { return m_lastPaintRect; }
     qint64 paintedPixels() const { return m_paintedPixels; }
     // Everything drawn since the log was cleared, as a region.
+    // The rectangle the last followEdit asked to have drawn (empty for none).
+    QRect lastEditBand() const { return m_lastEditBand; }
     QRegion paintedRegion() const { return m_paintedRegion; }
     void clearPaintedRegion() { m_paintedRegion = QRegion(); }
 
@@ -390,6 +392,7 @@ private:
     qint64 m_blits = 0, m_fullScrolls = 0;
     QRect m_lastPaintRect;
     QRegion m_paintedRegion;
+    QRect m_lastEditBand;
     qint64 m_paintedPixels = 0;
     std::function<bool()> m_clickGuard;
     std::function<bool(qint64, qint64)> m_pointGuard;

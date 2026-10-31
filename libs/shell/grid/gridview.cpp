@@ -758,6 +758,7 @@ bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
     L.setViewport(vp);
     updateScrollBars();
     if (m_overlay) m_overlay->layoutChanged();
+    m_lastEditBand = dirty;
     if (!dirty.isEmpty()) viewport()->update(dirty);
     Q_EMIT viewChanged();
     if (!(m_selection == was)) Q_EMIT selectionChanged();
