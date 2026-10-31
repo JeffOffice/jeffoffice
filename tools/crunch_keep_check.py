@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Checks that a save keeps everything a cell edit did not touch (the keep-on-save audit: docs/jeffcrunch.md, beta wave 1).
 
-    python3 tools/crunch_keep_check.py BUILD_DIR LIST [--jobs N] [--max N] [--max-bytes N] [--out FILE]
+    python3 tools/crunch_keep_check.py BUILD_DIR LIST [--jobs N] [--max N] [--out FILE]
 
 For each workbook in LIST (one path on a line) it runs `jcrunchtool roundtrip-one` with JC_ROUNDTRIP_KEEP, which types one number in a cell and saves, and compares the saved package
 with the old one:
   - every part that is not a worksheet must be the old bytes, or be one the save is meant to rewrite (the styles, the shared strings, the calculation chain, the workbook part);
   - every worksheet part, with its cells taken out (`<c>` elements), must be the old bytes but for the `dimension` and the `spans` of rows; what is left is the skeleton: the rows, columns,
     merged ranges, outlines, validations, conditional formats, hyperlinks, drawings, form controls, and extension lists. A difference is named by the element it falls in.
-A workbook whose package cannot be read is counted as unreadable, one over --max-bytes (200 MB; a part over a quarter of that) as too large, a run that did not start (systemd-run or the tool
-missing or failing) as a runner failure, and one that ran and wrote no file as not saved; none stops the run.
+A workbook whose package cannot be read is counted as unreadable, one over 200 MB (a part over a quarter of that) as too large, a run that did not start or did not finish in its time (systemd-run or the tool
+missing or failing, or the time out) as a runner failure, and one that ran and wrote no file as not saved; none stops the run.
 Prints one summary: workbooks saved and compared, parts and skeletons compared and changed, and the commonest differences with an example path each.
 """
 import collections, os, re, subprocess, sys, tempfile, zipfile
@@ -90,9 +90,7 @@ def one(build, path, tmp, k):
     try:
         run = subprocess.run(["systemd-run", "--user", "--scope", "-p", "MemoryMax=6G", "-p", "MemorySwapMax=0", "-q", "timeout", "-k", "5", "300", build + "/jcrunchtool", "roundtrip-one", path],
                              env=env, capture_output=True, timeout=330)
-    except subprocess.TimeoutExpired:
-        return {"status": "nosave"}
-    except OSError:
+    except (subprocess.TimeoutExpired, OSError):   # (a run that did not finish in its time did not run to the end: it is a failure of the runner)
         return {"status": "runner"}
     if not os.path.exists(out):
         # (systemd-run itself failing says so on its stderr and never started the tool)

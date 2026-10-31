@@ -37,10 +37,6 @@ QString workbookKindFilter(const QString &kind)
         return QCoreApplication::translate("jp::crunch::OtherFormats", "Templates (*.xltx)") + QStringLiteral(";;") + QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
     if (kind == QLatin1String("xlsm"))
         return QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled workbooks (*.xlsm)") + QStringLiteral(";;") + QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
-    if (kind == QLatin1String("xlsm")) return QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled workbooks (*.xlsm)");
-    if (kind == QLatin1String("xltx")) return QCoreApplication::translate("jp::crunch::OtherFormats", "Templates (*.xltx)");
-    if (kind == QLatin1String("xltm")) return QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled templates (*.xltm)");
-    if (kind == QLatin1String("xlam")) return QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled add-ins (*.xlam)");
     return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
 }
 

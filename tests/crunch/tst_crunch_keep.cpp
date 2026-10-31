@@ -470,7 +470,7 @@ private Q_SLOTS:
         QCOMPARE(crunch::workbookKindOfType(QStringLiteral("application/vnd.ms-excel.template.macroEnabled.main+xml")), QStringLiteral("xltm"));
         QCOMPARE(crunch::workbookKindOfType(QStringLiteral("application/vnd.ms-excel.addin.macroEnabled.main+xml")), QStringLiteral("xlam"));
         QCOMPARE(crunch::workbookKindOfType(QString()), QStringLiteral("xlsx"));
-        QVERIFY(crunch::openFilter().contains(QLatin1String("*.xltx")) && crunch::openFilter().contains(QLatin1String("*.xltm")));
+        QVERIFY(crunch::openFilter().contains(QLatin1String("*.xltx")) && crunch::openFilter().contains(QLatin1String("*.xltm")) && crunch::openFilter().contains(QLatin1String("*.xlam")));
         for (const char *name : {"a.xltx", "a.xltm", "a.xlam", "A.XLTM"}) QVERIFY2(crunch::fileKind(QString::fromLatin1(name)) != QLatin1String("other"), name);
         for (const QString &kind : {QStringLiteral("xlsx"), QStringLiteral("xlsm"), QStringLiteral("xltx"), QStringLiteral("xltm"), QStringLiteral("xlam")}) {
             QVERIFY2(crunch::workbookKindFilter(kind).contains(QLatin1String("*.") + kind), qPrintable(kind));
@@ -606,9 +606,16 @@ private Q_SLOTS:
         container.entries[0].type = cfb::Entry::Root;
         container.entries[0].name = QStringLiteral("Root Entry");
         container.entries[0].children = {1};
-        container.entries[1].type = cfb::Entry::Storage;   // (a workbook that is there, and is no stream)
-        container.entries[1].name = QStringLiteral("Workbook");
-        const QString said = refusalOf(cfb::write(container), QStringLiteral("odd.xls"));
+        container.entries[1].name = QStringLiteral("Workbook");   // (a real stream, of regular sectors)
+        container.entries[1].data = QByteArray(8192, 'x');
+        QByteArray file = cfb::write(container);
+        // its first sector is moved past the end of the file: the stream is there, and its sectors are not
+        QByteArray name;
+        for (QChar c : QStringLiteral("Workbook")) name.append(char(c.unicode() & 0xFF)), name.append('\0');
+        const qsizetype entry = file.indexOf(name);
+        QVERIFY(entry >= 0);
+        qToLittleEndian<quint32>(0x00FFFF00u, file.data() + entry + 116);
+        const QString said = refusalOf(file, QStringLiteral("odd.xls"));
         QVERIFY2(said.contains(QLatin1String("damaged")) && !said.contains(QLatin1String("no workbook in it")), qPrintable(said));
     }
 
