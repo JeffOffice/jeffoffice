@@ -634,6 +634,8 @@ public:
     const jp::calc::DependencyGraph &graph() const { return *m_graph; }
     // The formulas the graph named as readers of the blocks that changed, over the life of the calculation (counted, so that a test can see a block asked again and again: docs/jeffcrunch-rowids.md, round 9).
     qint64 readersFound() const { return m_readersFound; }
+    // The most blocks a recalculation held to ask the graph of only once (a count for the test of its bound).
+    qint64 askedAreasPeak() const { return m_askedPeak; }
     // The formulas the graph says read the block of places (asked as a change of those cells is), added to `out`; for what holds places and not the ids the graph holds. With `stop`, the search
     // ends when the flag is set (see DependencyGraph::dependentsOfCell); false is returned then.
     bool readersOf(const jp::calc::CellArea &places, std::vector<quint32> *out, const std::atomic<bool> *stop = nullptr) const;
@@ -1044,7 +1046,7 @@ private:
         size_t observersAt = 0;
         size_t ownAt = 0;   // the node the look for formulas that see only their own cell has got to
     } m_begin;
-    qint64 m_readersFound = 0;
+    qint64 m_readersFound = 0, m_askedPeak = 0;
     int m_onlySheet = -1;   // a recalculation of one sheet is going (invalidateSheet): the formulas of the others are left, and noted here for the next
     std::vector<quint32> m_deferredRoots;
     std::vector<jp::calc::CellArea> m_deferredAreas;

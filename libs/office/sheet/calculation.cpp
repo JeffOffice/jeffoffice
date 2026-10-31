@@ -65,6 +65,10 @@ struct Chunker {
     }
 };
 
+// The blocks a recalculation remembers to ask the graph of only once (a change in rows put in is the same block for every cell put there: a block of more than one cell; a cell asked twice is a
+// small query, and one for every cell of a fill would be a set as big as the fill). The memory is a few megabytes at most; past it the blocks are asked again, as before the memory was.
+constexpr size_t kMaxAskedAreas = 16384;
+
 constexpr qint64 kMaxMembersAdded = 200000;        // the cells of arrays that the file has no cell for, which are put in (each costs the cells after it in its block of rows)
 
 // Whether a word of the text could be read as a cell past XFD (or past the last row) under the wide limits, and so cannot be held in ids as it is: a name "ABCD1". A word that a "(" (a function:
@@ -1487,7 +1491,9 @@ void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
     while (!changed->empty()) {
         const CellArea a = changed->back();
         changed->pop_back();
-        if (!asked.insert(a).second) continue;   // (the same block again: what reads it is marked)
+        if (!a.single() && asked.count(a)) continue;   // (the same block again: what reads it is marked)
+        if (!a.single() && asked.size() < kMaxAskedAreas) asked.insert(a);
+        m_askedPeak = std::max<qint64>(m_askedPeak, qint64(asked.size()));
         found.clear();
         if (a.single()) m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &found);
         else m_graph->dependentsOfArea(a, &found);
@@ -1897,7 +1903,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         if (!ck.next()) return false;
         const CellArea a = j.changed.back();
         j.changed.pop_back();
-        if (j.askedAreas.count(a)) continue;   // (its readers were marked when it was asked)
+        if (!a.single() && j.askedAreas.count(a)) continue;   // (its readers were marked when it was asked)
         j.found.clear();
         j.foundAt = 0;
         j.queried = a;
@@ -1911,7 +1917,8 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         // (what the graph gave: a cell that very many formulas read is one query of that many, which is as small as the step can be made. The slice may be over after it: the formulas it found are
         // marked by the next, from where they are kept. The answer of this call is not to be dropped: it is the one place in the loop where a chunk ends, when the areas found have none.)
         m_readersFound += qint64(j.found.size());
-        j.askedAreas.insert(a);
+        if (!a.single() && j.askedAreas.size() < kMaxAskedAreas) j.askedAreas.insert(a);
+        m_askedPeak = std::max<qint64>(m_askedPeak, qint64(j.askedAreas.size()));
         if (!ck.next(j.found.size())) return false;
     }
     ck.finish();

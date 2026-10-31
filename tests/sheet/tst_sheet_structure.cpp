@@ -4164,6 +4164,21 @@ public:
         return ops;
     }
 private Q_SLOTS:
+    // The blocks a recalculation remembers to ask the graph of only once are few: 20,000 cells changed one by one (each a block of its own, and so are the formulas that read them) leave the memory of
+    // them under a bound, whatever the number of cells (it was a set that grew with every one: 64 bytes each, 66 MB for a million cells filled).
+    void theBlocksRememberedForOneRecalculationAreBounded()
+    {
+        const int n = 20000;
+        Book b;
+        QStringList cells;
+        for (int r = 1; r <= n; ++r) cells << QStringLiteral("A%1=%1").arg(r) << QStringLiteral("B%1==A%1*2").arg(r);
+        QVERIFY(b.open({cells}));
+        for (int r = 0; r < n; ++r) QVERIFY(b.calc->setValue(0, quint32(r), 0, jp::calc::Value::number(r + 1.5), Calculation::Marking::Later));
+        b.finish();
+        QCOMPARE(b.at(QStringLiteral("B%1").arg(n)), QStringLiteral("n:%1").arg(2 * (n + 0.5)));
+        QVERIFY2(b.calc->askedAreasPeak() <= 16384, qPrintable(QString::number(b.calc->askedAreasPeak())));
+    }
+
     // Formulas typed one after another into rows that were put in, before the calculation has worked any of them out, are looked for as readers of the same block of the graph over and over (a change in an
     // inserted row is asked as the original rows on either side of it, which is the same block for every row put in at one place): the formulas the graph names grow with the square of the rows. Each
     // block is asked once in a recalculation, so they grow with the rows.
