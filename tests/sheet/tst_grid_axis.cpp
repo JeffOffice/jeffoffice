@@ -3,6 +3,7 @@
 
 #include "grid/axis.h"
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "../testrunner.h"
@@ -274,6 +275,82 @@ private Q_SLOTS:
         Axis b = a;
         QCOMPARE(b.skipped(), qint64(5));
         QCOMPARE(b.position(6), qint64(20));
+    }
+
+    // Rows put in and taken out in place give the axis a rebuild from the shifted list would: every size, start, and search, the runs of hidden rows cut and joined, places pushed off the end,
+    // and none of the sums worked out again from the first place.
+    void rowsPutInAndTakenOutInPlaceAreWhatARebuildGives()
+    {
+        const qint64 count = 240;
+        for (int seed = 1; seed <= 12; ++seed) {
+            std::srand(unsigned(seed));
+            auto pick = [](int n) { return std::rand() % n; };
+            Axis a(count, 20);
+            std::vector<Axis::Place> list;
+            for (qint64 i = 0; i < count; ++i)
+                if (pick(3) == 0) list.push_back({i, pick(3) == 0 ? 20 + pick(4) : pick(2) ? 0 : 10 + 10 * pick(4)});
+            a.assign(list);
+            a.total();   // (built)
+            for (int step = 0; step < 60; ++step) {
+                const qint64 at = pick(int(count)), n = 1 + pick(step % 7 == 0 ? 40 : 4);
+                const bool insert = pick(2) == 0;
+                std::vector<Axis::Place> own;
+                std::vector<Axis::Place> expected;
+                for (const Axis::Place &p : a.places()) {
+                    if (insert) expected.push_back({p.index >= at ? p.index + n : p.index, p.size});
+                    else if (p.index < at) expected.push_back(p);
+                    else if (p.index >= at + n) expected.push_back({p.index - n, p.size});
+                }
+                if (insert) {
+                    for (qint64 i = at; i < at + n; ++i)
+                        if (pick(4) == 0) own.push_back({i, pick(2) ? 0 : 35});
+                    for (const Axis::Place &o : own) expected.push_back(o);
+                    std::sort(expected.begin(), expected.end(), [](const Axis::Place &x, const Axis::Place &y) { return x.index < y.index; });
+                }
+                expected.erase(std::remove_if(expected.begin(), expected.end(), [&](const Axis::Place &p) { return p.index >= count || p.size == 20; }), expected.end());
+                Axis ref(count, 20);
+                ref.assign(expected);
+                ref.total();
+                const qint64 builds = a.buildsForTest();
+                if (insert) a.insertPlaces(at, n, own);
+                else a.erasePlaces(at, n);
+                a.total();
+                QCOMPARE(a.buildsForTest(), builds);   // (the sums were moved, not worked out again)
+                const std::vector<Axis::Place> got = a.places();
+                QVERIFY2(got.size() == expected.size(), qPrintable(QStringLiteral("seed %1 step %2: %3 places, wanted %4").arg(seed).arg(step).arg(got.size()).arg(expected.size())));
+                for (size_t i = 0; i < got.size(); ++i) QVERIFY(got[i].index == expected[i].index && got[i].size == expected[i].size);
+                QCOMPARE(a.total(), ref.total());
+                for (qint64 r = 0; r <= count; ++r) {
+                    QVERIFY2(a.position(r) == ref.position(r), qPrintable(QStringLiteral("seed %1 step %2 row %3").arg(seed).arg(step).arg(r)));
+                    if (r < count) {
+                        QCOMPARE(a.size(r), ref.size(r));
+                        QVERIFY2(a.nextVisible(r) == ref.nextVisible(r), qPrintable(QStringLiteral("next, seed %1 step %2 row %3").arg(seed).arg(step).arg(r)));
+                        QVERIFY2(a.previousVisible(r) == ref.previousVisible(r), qPrintable(QStringLiteral("previous, seed %1 step %2 row %3").arg(seed).arg(step).arg(r)));
+                    }
+                }
+                for (qint64 y = 0; y <= a.total(); y += 7) QVERIFY2(a.indexAt(y) == ref.indexAt(y), qPrintable(QStringLiteral("indexAt, seed %1 step %2 at %3").arg(seed).arg(step).arg(y)));
+            }
+        }
+    }
+
+    // The same at a million rows with a few places of their own: one put in at the top moves each a row on, and the cost is that of the places, not of the rows.
+    void aRowPutInAtAMillionRowsMovesOnlyThePlaces()
+    {
+        Axis a(1048576, 20);
+        a.assign({{10, 40}, {500000, 0}, {500001, 0}, {1048575, 30}});
+        a.total();
+        const qint64 builds = a.buildsForTest();
+        a.insertPlaces(0, 1);
+        QCOMPARE(a.size(11), 40);
+        QCOMPARE(a.size(500001), 0);
+        QCOMPARE(a.size(500002), 0);
+        QCOMPARE(a.size(1048575), 20);   // (the place that was on the last row is pushed off with the row)
+        QCOMPARE(a.position(12), qint64(12 * 20 + 20));
+        QCOMPARE(a.nextVisible(500000), qint64(500003));   // (500001 and 500002 are hidden)
+        a.erasePlaces(500001, 1);                                          // (one of the two hidden rows is taken out: the run is a row)
+        QCOMPARE(a.nextVisible(500001), qint64(500002));
+        QCOMPARE(a.previousVisible(500002), qint64(500000));   // (past the one hidden row)
+        QCOMPARE(a.buildsForTest(), builds);
     }
 };
 

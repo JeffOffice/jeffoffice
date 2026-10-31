@@ -215,38 +215,140 @@ void GridSheet::setData(const GridData &data)
     m_geometry = g;
 }
 
-std::shared_ptr<GridGeometry> GridSheet::makeGeometry(const Sheet &sheet, const Styles &styles)
+namespace {
+
+// The sizes and formats of the columns as the sheet's runs give them, for the columns of the layout and for the cell formats that columns give.
+struct ColumnsOf {
+    int defaultSize = 1;
+    std::vector<Axis::Place> places;
+    std::vector<ColumnSpan> styles;
+};
+
+ColumnsOf columnsOf(const Sheet &sheet, int mdw)
 {
-    auto geometry = std::make_shared<GridGeometry>();
-    GridLayout &layout = geometry->layout;
-    const int mdw = LookTable(&styles).maxDigitWidth();
-    // ---- columns: the sheet's default, then each run (sorted; a run that overlaps one before it keeps what that one left)
+    ColumnsOf out;
     int defaultCol = 0;
-    if (sheet.format.defaultColWidth > 0) defaultCol = columnPixels(sheet.format.defaultColWidth, mdw);
+    if (sheet.format.defaultColWidth > 0) defaultCol = GridSheet::columnPixels(sheet.format.defaultColWidth, mdw);
     if (defaultCol <= 0) defaultCol = (sheet.format.baseColWidth * mdw + 5 + 7) / 8 * 8;
-    layout.cols.setCount(qint64(kMaxColumns));
-    layout.cols.setDefaultSize(std::max(1, defaultCol));
+    out.defaultSize = std::max(1, defaultCol);
     std::vector<ColumnSpan> runs(sheet.columns.begin(), sheet.columns.end());
     std::stable_sort(runs.begin(), runs.end(), [](const ColumnSpan &a, const ColumnSpan &b) { return a.first < b.first; });
-    std::vector<Axis::Place> places;
     quint32 next = 0;
     for (const ColumnSpan &run : runs) {
         const quint32 first = std::max(run.first, next);
         if (first > run.last || first >= kMaxColumns) continue;
         const quint32 last = std::min(run.last, kMaxColumns - 1);
         next = last + 1;
-        const int size = run.hidden ? 0 : run.width >= 0 ? columnPixels(run.width, mdw) : 0;
+        const int size = run.hidden ? 0 : run.width >= 0 ? GridSheet::columnPixels(run.width, mdw) : 0;
         if (run.hidden || run.width >= 0)
-            for (quint32 c = first; c <= last; ++c) places.push_back({qint64(c), size});
+            for (quint32 c = first; c <= last; ++c) out.places.push_back({qint64(c), size});
         if (run.style != 0) {
             ColumnSpan kept = run;
             kept.first = first;
             kept.last = last;
-            geometry->columnStyles.push_back(kept);
+            out.styles.push_back(kept);
         }
     }
-    g_viewCellsRebuilt.fetch_add(qint64(places.size()), std::memory_order_relaxed);
-    layout.cols.assign(std::move(places));
+    return out;
+}
+
+} // namespace
+
+bool GridSheet::followEdit(const jp::office::sheet::StructEdit &edit)
+{
+    using Kind = jp::office::sheet::StructEdit::Kind;
+    const bool rows = edit.changesRows(), cols = edit.changesColumns();
+    if ((!rows && !cols) || !m_data.sheet || !m_data.styles || !m_geometry || edit.sheet != m_data.sheetIndex || edit.count == 0) return false;
+    Axis &axis = rows ? m_layout.rows : m_layout.cols;
+    // (a sheet that ends at its last listed row has fewer rows than a sheet has: it is made again)
+    if (axis.count() != qint64(rows ? jp::office::sheet::kMaxRows : kMaxColumns) || edit.first >= quint32(axis.count())) return false;
+    const bool insert = edit.kind == Kind::InsertRows || edit.kind == Kind::InsertColumns;
+    const Sheet &sheet = *m_data.sheet;
+    const qint64 first = qint64(edit.first), count = qint64(edit.count);
+    std::vector<Axis::Place> own;   // the sizes of the lines put in that are not the default (lines that come back with their sizes; columns put in inside a run of them)
+    // (the formats of rows and columns are copied; the sizes of the first showing are not held beside the layout)
+    auto geometry = std::make_shared<GridGeometry>();
+    geometry->columnStyles = m_geometry->columnStyles;
+    geometry->rowStyles = m_geometry->rowStyles;
+    if (rows) {
+        const int defaultRow = axis.defaultSize();
+        const bool specs = !sheet.rowSpecs.isEmpty();
+        if (insert && specs) {
+            // (only the rows the specs name: one that was put in has none; one that comes back has its own)
+            const bool ids = sheet.rowSpecsAreIds && !sheet.cells.rows().isIdentity();
+            for (const RowSpec &spec : sheet.rowSpecs) {
+                quint32 place = spec.row;
+                if (ids) {
+                    place = sheet.cells.rowPlaceOf(spec.row);
+                    if (place == jp::office::sheet::CellStore::kNoLine) continue;
+                }
+                if (qint64(place) < first || qint64(place) >= first + count) continue;
+                own.push_back({qint64(place), spec.hidden ? 0 : spec.height >= 0 ? rowPixels(spec.height) : defaultRow});
+            }
+            // (a row the file gives twice has its last)
+            std::stable_sort(own.begin(), own.end(), [](const Axis::Place &a, const Axis::Place &b) { return a.index < b.index; });
+            std::vector<Axis::Place> unique;
+            for (const Axis::Place &p : own) {
+                if (!unique.empty() && unique.back().index == p.index) unique.back() = p;
+                else unique.push_back(p);
+            }
+            own = std::move(unique);
+        }
+        // (the formats rows give the cells that are not there: a list by place, made again from the specs when the sheet has any)
+        geometry->rowStyles.clear();
+        if (specs) {
+            const QVector<RowSpec> placed = sheet.placedRowSpecs();
+            std::vector<RowSpec> unique;
+            for (const RowSpec &spec : placed) {
+                if (!unique.empty() && unique.back().row == spec.row) unique.back() = spec;
+                else unique.push_back(spec);
+            }
+            for (const RowSpec &spec : unique)
+                if (spec.customFormat && spec.style != 0) geometry->rowStyles.push_back(spec);
+        }
+    } else {
+        // (the runs of columns are by place and fewer than the columns of a sheet: the sizes of the columns put in, and the formats, are read from them)
+        ColumnsOf columns = columnsOf(sheet, m_looks.maxDigitWidth());
+        for (const Axis::Place &p : columns.places)
+            if (p.index >= first && p.index < first + count) own.push_back(p);
+        geometry->columnStyles = std::move(columns.styles);
+    }
+    if (insert) axis.insertPlaces(first, count, own);
+    else axis.erasePlaces(first, count);
+    m_geometry = std::move(geometry);
+    // the merged ranges follow the cells (the sheet's list is the edit's; the index is made again from it)
+    const MergeIndex oldMerges = m_layout.merges;
+    if (m_layout.merges.count() > 0 || !sheet.merges.isEmpty()) m_layout.merges.assign(sheet.merges);
+    // the texts held for the cells at and after the first line changed are of cells that are elsewhere now
+    qint64 dropped = 0;
+    for (auto it = m_texts.begin(); it != m_texts.end();) {
+        const qint64 line = rows ? qint64(it->first >> 16) : qint64(it->first & 0xFFFF);
+        // (a cell in a merged range, as it was or as it is, is shown in the range's width, which the edit may have changed)
+        const quint32 r = quint32(it->first >> 16), c = quint32(it->first & 0xFFFF);
+        if (line >= first || oldMerges.at(r, c) >= 0 || m_layout.merges.at(r, c) >= 0) {
+            it = m_texts.erase(it);
+            ++dropped;
+        } else {
+            ++it;
+        }
+    }
+    g_viewCellsRebuilt.fetch_add(dropped, std::memory_order_relaxed);
+    resetConditional();
+    return true;
+}
+std::shared_ptr<GridGeometry> GridSheet::makeGeometry(const Sheet &sheet, const Styles &styles)
+{
+    auto geometry = std::make_shared<GridGeometry>();
+    GridLayout &layout = geometry->layout;
+    const int mdw = LookTable(&styles).maxDigitWidth();
+    std::vector<Axis::Place> places;
+    // ---- columns: the sheet's default, then each run (sorted; a run that overlaps one before it keeps what that one left)
+    ColumnsOf columns = columnsOf(sheet, mdw);
+    layout.cols.setCount(qint64(kMaxColumns));
+    layout.cols.setDefaultSize(columns.defaultSize);
+    geometry->columnStyles = std::move(columns.styles);
+    g_viewCellsRebuilt.fetch_add(qint64(columns.places.size()), std::memory_order_relaxed);
+    layout.cols.assign(std::move(columns.places));
     // ---- rows
     const int defaultRow = std::max(1, rowPixels(sheet.format.defaultRowHeight > 0 ? sheet.format.defaultRowHeight : 15));
     layout.rows.setCount(qint64(jp::office::sheet::kMaxRows));

@@ -219,7 +219,26 @@ void CrunchWindow::onCellsMoved(const StructEdit &edit)
     if (!m_loaded) return;
     for (const int sheet : {edit.sheet, edit.toSheet})
         if (sheet >= 0 && size_t(sheet) < m_loaded->geometry.size()) m_loaded->geometry[size_t(sheet)].reset();   // (the one made ahead is of the sheet as it was)
-    if (m_sheet == edit.sheet || (edit.kind == StructEdit::Kind::Move && m_sheet == edit.toSheet)) showSheet(m_sheet, true);
+    if (m_sheet == edit.sheet && (edit.changesRows() || edit.changesColumns()) && m_haveCalc && m_view->followEdit(edit)) {
+        // (whole rows or columns: the grid moved its sizes, selection, and scroll in place; what else a sheet shown has to show is made again)
+        ++m_inPlaceUpdates;
+        if (m_edit.active && m_edit.sheet == edit.sheet) {
+            // (an entry open on a cell goes with the cell; one on a cell that is gone is let go of)
+            int sheet = edit.sheet;
+            quint32 row = m_edit.row, col = m_edit.col;
+            if (jp::office::sheet::adjustCell(edit, &sheet, &row, &col) == jp::office::sheet::RefFate::Gone) {
+                cancelEdit();
+            } else {
+                m_edit.row = row;
+                m_edit.col = col;
+            }
+        }
+        placeEditor();
+        afterSheetShown(m_sheet, true);   // (which ends with the bars)
+        return;
+    } else if (m_sheet == edit.sheet || (edit.kind == StructEdit::Kind::Move && m_sheet == edit.toSheet)) {
+        showSheet(m_sheet, true);
+    }
     updateBars();
 }
 

@@ -41,6 +41,9 @@ void GridView::setBreakPages(std::vector<GridRange> areas, std::vector<BreakPage
 {
     if (areas.size() > kMaxBreakAreas) areas.resize(kMaxBreakAreas);
     if (pages.size() > kMaxBreakPages) pages.resize(kMaxBreakPages);
+    // (the same pages and areas again, as a sheet shown again gives with none: nothing to draw)
+    const auto samePage = [](const BreakPage &a, const BreakPage &b) { return a.row1 == b.row1 && a.row2 == b.row2 && a.col1 == b.col1 && a.col2 == b.col2 && a.number == b.number; };
+    if (editable == m_breakEditable && areas == m_breakAreas && pages.size() == m_breakPageList.size() && std::equal(pages.begin(), pages.end(), m_breakPageList.begin(), samePage)) return;
     m_breakAreas = std::move(areas);
     m_breakPageList = std::move(pages);
     m_breakEditable = editable;

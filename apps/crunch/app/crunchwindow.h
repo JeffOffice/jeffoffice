@@ -173,6 +173,8 @@ public:
     FormulaHelper *formulaHelper() const { return m_helper; }
     // How many times the sheet's whole picture was made again (a test counts them: a small change does not make it again).
     int sheetShows() const { return m_sheetShows; }
+    // How many edits of whole rows or columns the grid followed in place (the sheet was not shown again).
+    int inPlaceUpdates() const { return m_inPlaceUpdates; }
     // Names: the list, a name made for the cells selected, names made from the labels around them, and a name put in the formula being typed (or begun). What the dialogs ask is
     // asked of these instead when a test sets them; false gives it up.
     void showNames();
@@ -439,6 +441,7 @@ private:
     void dropWorkbook();
     static QString nextUntitledName();
     void showSheet(int sheetIndex, bool keepView);
+    void afterSheetShown(int sheetIndex, bool inPlace);
     void rememberView();
     void fillTabs();
     void onFirstScreen();
@@ -587,6 +590,7 @@ private:
     qint64 m_completionsGeneration = -1;
     int m_completionsUndo = -1;
     int m_sheetShows = 0;
+    int m_inPlaceUpdates = 0;
     int m_completionsSheet = -2;
     std::function<bool(crunch::EditSession::NameDraft *)> m_nameAsker;
     std::function<bool(int *)> m_edgesAsker;

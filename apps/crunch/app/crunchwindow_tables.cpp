@@ -152,6 +152,11 @@ void CrunchWindow::updateTableLooks()
             skins.push_back(std::move(skin));
             if (skins.size() >= grid::GridSheet::kMaxTableSkins) break;
         }
+    // (no skin before and none now, as for most sheets: nothing changes and nothing is drawn again)
+    if (skins.empty() && !m_view->sheet().hasTableSkins()) {
+        updateTableTab();
+        return;
+    }
     m_view->sheet().setTableSkins(std::move(skins));
     m_view->viewport()->update();
     updateTableTab();

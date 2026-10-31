@@ -1305,8 +1305,11 @@ int structBench(const QString &path, const QString &label, const QString &only)
     if (qEnvironmentVariableIntValue("JC_UNDO_MB") > 0) session->setUndoByteLimit(qint64(qEnvironmentVariableIntValue("JC_UNDO_MB")) << 20);   // (the limit that makes a big step ask first)
     qint64 workBefore = 0, textsBefore = 0, workDelta = 0, textsDelta = 0;
     Calculation::EditStats statsBefore, statsDelta;
+    // (the window's thread, by its processor time, at the edges of an edit: the hold taken and the hold let go; what follows is the window's response, and then the repaint)
+    qint64 tHoldBefore = 0, tHoldAfter = 0, tMoved = 0;
     session->setHoldHook([&](Calculation *c, bool after) {
         const qint64 texts = c->sheet(sheet).formulaTexts.size();
+        (after ? tHoldAfter : tHoldBefore) = jp::threadCpuMicros();
         if (!after) {
             workBefore = c->editWork();
             textsBefore = texts;
@@ -1357,7 +1360,67 @@ int structBench(const QString &path, const QString &label, const QString &only)
           << "\tcells_moved\tcells_gone\tformulas_visited\tformulas_rewritten\tnodes_remade\tgraph_work\tnames_rewritten\trules_rewritten\tmarks_followed\tvalues_moved\tview_cells\tundo_bytes\tgraph_entries"
           << "\tu_cells_moved\tu_formulas_visited\tu_formulas_rewritten\tu_nodes_remade\tu_graph_work\tu_marks_followed\tu_values_moved\tu_view_cells"
           << "\tevals\tsettle_after_ms\tu_evals\tgraph_bytes\tph_setup\tph_candidates\tph_rewrite\tph_cells\tph_graph\tph_other\tph_write"
-          << "\teager\tnames_again\ttables_again\ttexts_to_ids\tu_eager\tu_names_again\tu_tables_again\n";
+          << "\teager\tnames_again\ttables_again\ttexts_to_ids\tu_eager\tu_names_again\tu_tables_again"
+          << "\tw_pre\tw_model\tw_window\tw_paint\tu_pre\tu_model\tu_window\tu_paint\tw_paints\tw_drawn\tu_paints\tu_drawn\n";
+    // (the window draws what the edit left to draw: the events are taken until a paint has come and none follows, or nothing was drawn for a while; the thread sleeps between turns, which its processor time does not count)
+    // (JC_BENCH_EVENTS=1: the processor time of each kind of event the window takes while it waits to draw, by the object's class and the event's type, told at the end)
+    struct EventSpy : QObject {
+        bool on = false;
+        qint64 last = 0;
+        QString lastKey;
+        QMap<QString, qint64> cpu;
+        QMap<QString, int> count;
+        bool eventFilter(QObject *o, QEvent *e) override
+        {
+            const qint64 now = jp::threadCpuMicros();
+            if (on && last) {
+                cpu[lastKey] += now - last;
+                ++count[lastKey];
+            }
+            lastKey = QString::fromLatin1(o->metaObject()->className()) + QLatin1Char(':') + QString::number(int(e->type()));
+            if (e->type() == QEvent::Paint && o->parent()) lastKey += QStringLiteral(" in ") + QString::fromLatin1(o->parent()->metaObject()->className()) + QLatin1Char(' ') + o->objectName();
+            last = now;
+            return false;
+        }
+    } spy;
+    if (qEnvironmentVariableIntValue("JC_BENCH_EVENTS") > 0) QCoreApplication::instance()->installEventFilter(&spy);
+    double paintCpuSeen = 0;   // (the processor time the grid's own paints took in the last wait, and how many there were)
+    size_t paintsSeen = 0;
+    auto paintPending = [&] {
+        const size_t paints = v->paintTimes().size();
+        spy.on = true;
+        spy.last = 0;
+        struct SpyOff {
+            EventSpy *s;
+            ~SpyOff() { s->on = false; }
+        } spyOff{&spy};
+        struct Tally {
+            grid::GridView *view;
+            size_t before;
+            double *cpu;
+            size_t *count;
+            ~Tally()
+            {
+                *cpu = 0;
+                for (size_t i = before; i < view->paintCpuTimes().size(); ++i) *cpu += view->paintCpuTimes()[i];
+                *count = view->paintCpuTimes().size() - before;
+            }
+        } tally{v, v->paintCpuTimes().size(), &paintCpuSeen, &paintsSeen};
+        QElapsedTimer t;
+        t.start();
+        size_t seen = paints;
+        qint64 quietSince = 0;
+        while (t.elapsed() < 120) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+            if (v->paintTimes().size() != seen) {
+                seen = v->paintTimes().size();
+                quietSince = t.elapsed();
+            } else if (seen != paints && t.elapsed() - quietSince > 25) {
+                break;
+            }
+            QThread::msleep(2);
+        }
+    };
     auto settle = [&](QElapsedTimer &wall) {
         QElapsedTimer waiting;
         waiting.start();
@@ -1374,9 +1437,15 @@ int structBench(const QString &path, const QString &label, const QString &only)
         QElapsedTimer wall;
         wall.start();
         const qint64 c0 = jp::threadCpuMicros();
+        tHoldBefore = tHoldAfter = tMoved = c0;
         const crunch::EditSession::Outcome o = c.run();
-        v->viewport()->repaint();
+        const qint64 cRun = jp::threadCpuMicros();
+        paintPending();
         const qint64 c1 = jp::threadCpuMicros();
+        const double wDrawn = paintCpuSeen;
+        const size_t wPaints = paintsSeen;
+        const double wPre = double(tHoldBefore - c0) / 1000.0, wModel = double(tHoldAfter - tHoldBefore) / 1000.0, wWindow = double(cRun - tHoldAfter) / 1000.0, wPaint = double(c1 - cRun) / 1000.0;
+        Q_UNUSED(tMoved);
         const Calculation::EditStats did = statsDelta;
         const qint64 marks = session->marksFollowed() - marksBefore, moved = w.values().relocated() - movedBefore, viewCells = grid::GridSheet::viewCellsRebuiltForTest() - viewBefore;
         const qint64 undoBytes = session->undoBytes() - undoBytesBefore, graphEntries = calc->graph().entryCount();
@@ -1385,7 +1454,8 @@ int structBench(const QString &path, const QString &label, const QString &only)
         const qint64 evals = calc->evaluations() - evalsBefore;   // (the formulas the worker worked out for the edit)
         const double workerMs = double(w.workerCpuMicros() - workerBefore) / 1000.0;
         const qint64 work = workDelta, texts = textsDelta;
-        double undoCpu = 0, undoWall = 0;
+        double undoCpu = 0, undoWall = 0, uPre = 0, uModel = 0, uWindow = 0, uPaint = 0, uDrawn = 0;
+        size_t uPaints = 0;
         qint64 undoWork = 0, uMarks = 0, uMoved = 0, uView = 0, uEvals = 0;
         Calculation::EditStats undid;
         if (o.ok) {
@@ -1395,9 +1465,18 @@ int structBench(const QString &path, const QString &label, const QString &only)
             statsDelta = Calculation::EditStats();
             const qint64 uEvalsBefore = calc->evaluations();
             const qint64 u0 = jp::threadCpuMicros();
+            tHoldBefore = tHoldAfter = tMoved = u0;
             w.undoStack()->undo();
-            v->viewport()->repaint();
-            undoCpu = double(jp::threadCpuMicros() - u0) / 1000.0;
+            const qint64 uRun = jp::threadCpuMicros();
+            paintPending();
+            const qint64 u1 = jp::threadCpuMicros();
+            undoCpu = double(u1 - u0) / 1000.0;
+            uPre = double(tHoldBefore - u0) / 1000.0;
+            uModel = double(tHoldAfter - tHoldBefore) / 1000.0;
+            uWindow = double(uRun - tHoldAfter) / 1000.0;
+            uPaint = double(u1 - uRun) / 1000.0;
+            uDrawn = paintCpuSeen;
+            uPaints = paintsSeen;
             undoWall = double(uw.nsecsElapsed()) / 1e6;
             undoWork = workDelta;
             undid = statsDelta;
@@ -1416,8 +1495,17 @@ int structBench(const QString &path, const QString &label, const QString &only)
               << '\t' << QString::number(double(did.phaseMicros[6]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[0]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[1]) / 1000.0, 'f', 1)
               << '\t' << QString::number(double(did.phaseMicros[2]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[3]) / 1000.0, 'f', 1) << '\t' << QString::number(double(did.phaseMicros[4]) / 1000.0, 'f', 1)
               << '\t' << QString::number(double(did.phaseMicros[5]) / 1000.0, 'f', 1) << '\t' << did.eagerFormulas << '\t' << did.namesRegisteredAgain << '\t' << did.tablesRegisteredAgain << '\t' << did.textsToIds
-              << '\t' << undid.eagerFormulas << '\t' << undid.namesRegisteredAgain << '\t' << undid.tablesRegisteredAgain << '\n';
+              << '\t' << undid.eagerFormulas << '\t' << undid.namesRegisteredAgain << '\t' << undid.tablesRegisteredAgain
+              << '\t' << QString::number(wPre, 'f', 2) << '\t' << QString::number(wModel, 'f', 2) << '\t' << QString::number(wWindow, 'f', 2) << '\t' << QString::number(wPaint, 'f', 2)
+              << '\t' << QString::number(uPre, 'f', 2) << '\t' << QString::number(uModel, 'f', 2) << '\t' << QString::number(uWindow, 'f', 2) << '\t' << QString::number(uPaint, 'f', 2)
+              << '\t' << wPaints << '\t' << QString::number(wDrawn, 'f', 2) << '\t' << uPaints << '\t' << QString::number(uDrawn, 'f', 2) << '\n';
         out().flush();
+    }
+    if (qEnvironmentVariableIntValue("JC_BENCH_EVENTS") > 0) {
+        std::vector<std::pair<qint64, QString>> sorted;
+        for (auto it = spy.cpu.begin(); it != spy.cpu.end(); ++it) sorted.push_back({it.value(), it.key()});
+        std::sort(sorted.rbegin(), sorted.rend());
+        for (size_t i = 0; i < sorted.size() && i < 14; ++i) out() << "# event " << sorted[i].second << ": " << QString::number(double(sorted[i].first) / 1000.0, 'f', 1) << " ms in " << spy.count.value(sorted[i].second) << " events\n";
     }
     out() << "# after the edits: resident " << vm("VmRSS") << " MB, peak " << vm("VmHWM") << " MB\n";
     if (qEnvironmentVariableIntValue("JC_BENCH_RECALC") > 0) {

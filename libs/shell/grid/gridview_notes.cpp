@@ -32,6 +32,8 @@ void GridView::setShownNotes(std::vector<ShownNote> notes)
     // (what is drawn of a note is cut, as the note that appears beside a cell is: a note of millions of characters is not laid out)
     for (ShownNote &n : notes)
         if (n.text.size() > kMaxShownNoteChars) n.text = n.text.left(kMaxShownNoteChars) + QChar(0x2026);
+    const auto sameNote = [](const ShownNote &a, const ShownNote &b) { return a.row == b.row && a.col == b.col && a.text == b.text; };
+    if (notes.size() == m_shownNotes.size() && std::equal(notes.begin(), notes.end(), m_shownNotes.begin(), sameNote)) return;   // (the same notes again: nothing to draw)
     m_shownNotes = std::move(notes);
     m_shownSizes.assign(m_shownNotes.size(), QSize());
     viewport()->update();

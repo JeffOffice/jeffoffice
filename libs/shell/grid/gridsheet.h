@@ -9,6 +9,7 @@
 #include "grid/text.h"
 #include "grid/valuestore.h"
 #include "sheet/calculation.h"
+#include "sheet/refshift.h"
 #include "sheet/sheetmodel.h"
 #include "sheet/styles.h"
 #include "sheet/tablestyle.h"
@@ -139,6 +140,12 @@ public:
     static std::shared_ptr<GridGeometry> makeGeometry(const Sheet &sheet, const Styles &styles);
     // What showing a sheet again rebuilds, counted (for tests and tools): the sizes of rows and columns that makeGeometry has put in a layout, and the texts of cells that setData has let go of.
     static qint64 viewCellsRebuiltForTest();
+
+    // Rows or columns were put in or taken out of the sheet (its cells, merges, and sizes already are): the layout follows in place, the sizes of the places moved and the sizes of the lines
+    // that came back read from the sheet, the merges, the formats of rows and columns, and the texts held made again where they changed, and none of the sheet's sizes made again from the
+    // first. False, with nothing changed, if the edit is not one of whole rows or columns of this sheet or the layout is not the usual one (a sheet that ends at its last listed row):
+    // setData is then needed.
+    bool followEdit(const jp::office::sheet::StructEdit &edit);
 
     // The column (row) a sheet's width (height) in characters (points) is, in the grid's units; the conversions the file's numbers go through.
     static int columnPixels(double chars, int maxDigitWidth);

@@ -14,6 +14,7 @@ struct Axis::Data {
     std::vector<qint64> hiddenEnd;   // for a hidden place, the index of the first row after the run of hidden rows it begins (its own index + 1 for a place of its own size)
     std::vector<qint64> hiddenStart; // for a hidden place, the index of the first row of the run of hidden rows it is in
     bool dirty = false;
+    qint64 builds = 0;   // full builds of the sums (buildSome from the first place)
     // where a build in slices has got to (the places that have been passed in the first pass, and those in the second, which goes back from the last)
     bool building = false;
     size_t forward = 0, backward = 0;
@@ -148,6 +149,7 @@ bool Axis::buildSome(Work &work) const
     if (!d.dirty && d.before.size() == d.places.size() + 1) return true;
     const size_t n = d.places.size();
     if (!d.building) {
+        ++d.builds;
         d.before.clear();
         d.hiddenEnd.clear();
         d.hiddenStart.clear();
@@ -182,6 +184,107 @@ bool Axis::buildSome(Work &work) const
     d.dirty = false;
     d.building = false;
     return true;
+}
+
+qint64 Axis::buildsForTest() const { return m_d->builds; }
+
+std::vector<Axis::Place> Axis::places() const { return m_d->places; }
+
+namespace {
+// Whether the place and the next in the list are both hidden and in one run of hidden rows.
+bool chained(const std::vector<Axis::Place> &places, size_t a) { return places[a].size == 0 && places[a + 1].size == 0 && places[a].index + 1 == places[a + 1].index; }
+
+// Works the runs of hidden places out again for the places from `lo` to `hi` and the whole runs they are parts of (the places outside have the right ones already).
+void fixRuns(const std::vector<Axis::Place> &places, std::vector<qint64> &hiddenEnd, std::vector<qint64> &hiddenStart, size_t lo, size_t hi)
+{
+    if (places.empty()) return;
+    hi = std::min(hi, places.size() - 1);
+    lo = std::min(lo, hi);
+    while (lo > 0 && chained(places, lo - 1)) --lo;
+    while (hi + 1 < places.size() && chained(places, hi)) ++hi;
+    for (size_t k = lo; k <= hi; ++k) {
+        hiddenEnd[k] = places[k].index + 1;
+        hiddenStart[k] = places[k].size == 0 && k > lo && chained(places, k - 1) ? hiddenStart[k - 1] : places[k].index;
+    }
+    for (size_t k = hi + 1; k-- > lo;)
+        if (places[k].size == 0 && k < hi && chained(places, k)) hiddenEnd[k] = hiddenEnd[k + 1];
+}
+} // namespace
+
+void Axis::insertPlaces(qint64 at, qint64 count, const std::vector<Place> &own)
+{
+    if (count <= 0 || at < 0 || at >= m_count) return;
+    Data &d = writable();
+    const bool built = !d.dirty && !d.building && d.before.size() == d.places.size() + 1;
+    auto lower = [&](qint64 index) { return size_t(std::lower_bound(d.places.begin(), d.places.end(), index, [](const Place &p, qint64 i) { return p.index < i; }) - d.places.begin()); };
+    const size_t p = lower(at);
+    const size_t q = std::max(p, lower(m_count - count));   // the places that fall off the end
+    std::vector<Place> mid;
+    for (Place o : own) {
+        o.size = boundedSize(o.size);
+        if (o.index < at || o.index >= at + count || o.index >= m_count || o.size == m_default || (!mid.empty() && o.index <= mid.back().index)) continue;
+        mid.push_back(o);
+    }
+    const size_t m = mid.size();
+    d.places.resize(q);
+    d.places.insert(d.places.begin() + std::ptrdiff_t(p), mid.begin(), mid.end());
+    for (size_t k = p + m; k < d.places.size(); ++k) d.places[k].index += count;
+    d.building = false;
+    if (!built) {
+        d.dirty = true;
+        return;
+    }
+    qint64 added = 0;
+    std::vector<qint64> sums(m);
+    for (size_t i = 0; i < m; ++i) {
+        sums[i] = d.before[p] + added;
+        added += mid[i].size - m_default;
+    }
+    d.before.resize(q + 1);
+    d.before.insert(d.before.begin() + std::ptrdiff_t(p), sums.begin(), sums.end());
+    for (size_t k = p + m; k < d.before.size(); ++k) d.before[k] += added;
+    d.hiddenEnd.resize(q);
+    d.hiddenStart.resize(q);
+    d.hiddenEnd.insert(d.hiddenEnd.begin() + std::ptrdiff_t(p), m, 0);
+    d.hiddenStart.insert(d.hiddenStart.begin() + std::ptrdiff_t(p), m, 0);
+    for (size_t k = p + m; k < d.places.size(); ++k) {
+        d.hiddenEnd[k] += count;
+        d.hiddenStart[k] += count;
+    }
+    // (a run of hidden rows that went past the last row ends at it)
+    for (size_t k = d.places.size(); k-- > p + m && d.hiddenEnd[k] > m_count;) d.hiddenEnd[k] = m_count;
+    // (a run of hidden rows the new rows were put in the middle of is two runs now, and new hidden rows may join what is on either side)
+    fixRuns(d.places, d.hiddenEnd, d.hiddenStart, p > 0 ? p - 1 : 0, p + m);
+    d.sum = d.before.back();
+}
+
+void Axis::erasePlaces(qint64 at, qint64 count)
+{
+    if (count <= 0 || at < 0 || at >= m_count) return;
+    count = std::min(count, m_count - at);
+    Data &d = writable();
+    const bool built = !d.dirty && !d.building && d.before.size() == d.places.size() + 1;
+    auto lower = [&](qint64 index) { return size_t(std::lower_bound(d.places.begin(), d.places.end(), index, [](const Place &p, qint64 i) { return p.index < i; }) - d.places.begin()); };
+    const size_t p = lower(at), q = lower(at + count);
+    const qint64 taken = built ? d.before[q] - d.before[p] : 0;
+    d.places.erase(d.places.begin() + std::ptrdiff_t(p), d.places.begin() + std::ptrdiff_t(q));
+    for (size_t k = p; k < d.places.size(); ++k) d.places[k].index -= count;
+    d.building = false;
+    if (!built) {
+        d.dirty = true;
+        return;
+    }
+    d.before.erase(d.before.begin() + std::ptrdiff_t(p), d.before.begin() + std::ptrdiff_t(q));
+    for (size_t k = p; k < d.before.size(); ++k) d.before[k] -= taken;
+    d.hiddenEnd.erase(d.hiddenEnd.begin() + std::ptrdiff_t(p), d.hiddenEnd.begin() + std::ptrdiff_t(q));
+    d.hiddenStart.erase(d.hiddenStart.begin() + std::ptrdiff_t(p), d.hiddenStart.begin() + std::ptrdiff_t(q));
+    for (size_t k = p; k < d.places.size(); ++k) {
+        d.hiddenEnd[k] -= count;
+        d.hiddenStart[k] -= count;
+    }
+    // (the two ends of a run of hidden rows that rows between were taken out of are one run now)
+    fixRuns(d.places, d.hiddenEnd, d.hiddenStart, p > 0 ? p - 1 : 0, p);
+    d.sum = d.before.back();
 }
 
 void Axis::setSkipped(qint64 count) { m_skip = std::max<qint64>(0, std::min(count, m_count)); }
