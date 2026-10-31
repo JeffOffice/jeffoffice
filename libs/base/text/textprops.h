@@ -106,6 +106,7 @@ enum : int {
     AlignTab,                                    // QString (on a tab): a word processor's absolute position tab, "right|center|left:margin|indent:none|dot|hyphen|underscore|middleDot": the text after it goes to that place, whatever the paragraph's stops (LayoutEnv::wordLines)
     DisplayAlignment,                            // int (block): layout only, the paragraph is set with this horizontal alignment (Qt::Alignment) where its format does not say (an equation alone in its paragraph is centered): never written to a file (LayoutEnv::wordLines)
     PageSideAlign,                               // int (block): the paragraph is aligned to the side of the page's outside (1) or inside (2) by the page's number: the right and the left, or the left and the right, of a page with an odd and an even number (LayoutEnv::wordLines)
+    LinkResult,                                  // bool (char format): a field's result text is a link's address (HYPERLINK): a line does not break after a slash in it (LayoutEnv::wordLines)
     NumberSuffixKind,                            // int (list format): what follows the number or bullet where it is not a tab: 1 a space, 2 nothing (a word processor's w:suff); absent: a tab (LayoutEnv::wordLines)
 };
 

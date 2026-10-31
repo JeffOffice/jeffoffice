@@ -1213,6 +1213,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             // the settings give (lower case roman numerals, a word processor's own).
             QString field = in.kind == Inline::RunAtom && in.tag == QLatin1String("pgNum") ? liveFieldOf(QStringLiteral("PAGE")) : QStringLiteral("raw:") + (formShown.contains(inAt) ? formShown.value(inAt).text : in.display);
             if (formShown.contains(inAt)) setFormLook(&af, formShown.value(inAt));
+            if (in.raw.contains("HYPERLINK") || in.raw.contains("hyperlink")) af.setProperty(tp::LinkResult, true);   // (a link's address: no line breaks after its slashes)
             // (The mark that begins a note's text shows the number the pages give it.)
             if (in.kind == Inline::RunAtom && in.tag == QLatin1String("footnoteRef") && !append) field = QStringLiteral("notemark");
             if (in.kind == Inline::ParaAtom && in.tag == kFieldGroupTag && !in.key.isEmpty()) field = in.key;   // (a field the pages answer: the page's number, the count of pages...)

@@ -3901,11 +3901,36 @@ private Q_SLOTS:
         QVERIFY(count(QString(30, QLatin1Char('M')) + QString(40, QLatin1Char(' ')), true) >= 2);
     }
 
-    // A word processor's line does not break after a slash, in the text the file shows for a field (a link's address) as in any other: whatever the room left on the line
-    // before it, no line ends at one.
-    void aLineDoesNotBreakAfterASlashInAFieldsText()
+    // A word processor's line does not break after a slash in the text a link's field shows (its address), whatever the room left on the line before it; in the text another field
+    // shows (a date's slashes), a line does break there, so the rule is the link's (the control: without it a line does end at a slash), and it adds no width, in the face a missing one
+    // stands in for as in any other.
+    void aLineDoesNotBreakAfterASlashInALinksAddress()
     {
-        for (int words = 14; words < 48; ++words) {
+        auto addressEnd = [&](int words, bool link, const QString &family, double *width) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({family});
+            cf.setFontPointSize(12);
+            c.setBlockCharFormat(cf);
+            c.insertText(QStringLiteral("ab ").repeated(words), cf);
+            QTextCharFormat field = cf;
+            field.setProperty(tp::Field, QStringLiteral("raw:www.example.gov/aaaaaaaaaa/bbbbbbbbbb/cc.htm"));
+            if (link) field.setProperty(tp::LinkResult, true);
+            c.insertText(QString(QChar::ObjectReplacementCharacter), field);
+            c.insertText(QStringLiteral("."), cf);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(8000, 700)}, env);
+            {
+                int frame = -1;
+                QRectF r;
+                lay.caretRect(int(QString(QStringLiteral("ab ")).size()) * words + 1, &frame, &r);
+                *width = r.x();
+            }
+        };
+        auto endsAtSlash = [&](int words, bool link) {
             auto doc = std::make_unique<QTextDocument>();
             QTextCursor c(doc.get());
             QTextCharFormat cf;
@@ -3913,9 +3938,10 @@ private Q_SLOTS:
             cf.setFontPointSize(12);
             c.setBlockCharFormat(cf);
             c.insertText(QStringLiteral("ab ").repeated(words), cf);
-            QTextCharFormat link = cf;
-            link.setProperty(tp::Field, QStringLiteral("raw:www.example.gov/aaaaaaaaaa/bbbbbbbbbb/cc.htm"));
-            c.insertText(QString(QChar::ObjectReplacementCharacter), link);
+            QTextCharFormat field = cf;
+            field.setProperty(tp::Field, QStringLiteral("raw:www.example.gov/aaaaaaaaaa/bbbbbbbbbb/cc.htm"));
+            if (link) field.setProperty(tp::LinkResult, true);
+            c.insertText(QString(QChar::ObjectReplacementCharacter), field);
             c.insertText(QStringLiteral("."), cf);
             LayoutEnv env;
             env.wordLines = true;
@@ -3924,8 +3950,21 @@ private Q_SLOTS:
             for (const auto &line : lay.lineInfo(0)) {
                 QString shown = line.text;
                 shown.remove(QChar(0x2060));
-                QVERIFY2(!shown.endsWith(QLatin1Char('/')), qPrintable(QStringLiteral("%1 words: a line ends at a slash: %2").arg(words).arg(line.text)));
+                if (shown.endsWith(QLatin1Char('/'))) return true;
             }
+            return false;
+        };
+        bool broke = false;
+        for (int words = 14; words < 48; ++words) {
+            QVERIFY2(!endsAtSlash(words, true), qPrintable(QStringLiteral("%1 words: a line of a link's address ends at a slash").arg(words)));
+            broke |= endsAtSlash(words, false);
+        }
+        QVERIFY2(broke, "control: where the field is no link's, some line ends at a slash");
+        for (const QString &family : {QStringLiteral("Times New Roman"), QStringLiteral("Arial"), QStringLiteral("Calibri"), QStringLiteral("Courier New")}) {
+            double with = 0, without = 0;
+            addressEnd(3, true, family, &with);
+            addressEnd(3, false, family, &without);
+            QVERIFY2(without > 0 && std::abs(with - without) < 0.01, qPrintable(QStringLiteral("%1: the address is %2 wide with the rule, %3 without").arg(family).arg(with).arg(without)));
         }
     }
 

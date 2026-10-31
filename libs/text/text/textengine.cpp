@@ -3280,8 +3280,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // Multi-line values (an address) break lines inside the paragraph.
                     QString v = ctx.resolve(field);
                     v.replace(QLatin1String("\r\n"), QString(QChar::LineSeparator)).replace(QLatin1Char('\n'), QChar::LineSeparator);
-                    // (A word processor's line does not break after a slash in what a field shows, a link's address, as in its text: a word joiner after it keeps Qt's rules from breaking there.)
-                    if (env.wordLines && v.contains(QLatin1Char('/'))) {
+                    // (A word processor's line does not break after a slash in what a link's field shows, its address, as in its text (not in a date's, whose slashes the word processor breaks at): a word joiner after it keeps Qt's rules from breaking there.)
+                    if (env.wordLines && cf.boolProperty(tp::LinkResult) && v.contains(QLatin1Char('/'))) {
                         QString joined;
                         for (int k = 0; k < v.size(); ++k) {
                             joined += v[k];
