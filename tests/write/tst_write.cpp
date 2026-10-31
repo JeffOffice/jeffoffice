@@ -5388,6 +5388,26 @@ private Q_SLOTS:
         QCOMPARE(doc->pager().pageCount(), pagesBefore);
     }
 
+    // A header's paragraph that has no style, in a file that defines no Header style, is set as the built-in header paragraph is, which has no size of its own: the line of an
+    // empty one is the document's default size (10 points) and not the Normal style's. A file that defines the Header style, and a footer where it defines no Footer, differ only
+    // by that style. (Where the file defines the style, the paragraph is of Normal as it was.)
+    void anEmptyHeaderParagraphWithNoStyleHasTheDefaultSizeWhereTheFileHasNoHeaderStyle()
+    {
+        const QByteArray normal = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/><w:rPr><w:sz w:val=\"24\"/></w:rPr></w:style>";
+        const QByteArray header = "<w:style w:type=\"paragraph\" w:styleId=\"Header\"><w:name w:val=\"header\"/><w:basedOn w:val=\"Normal\"/></w:style>";
+        auto bodyTop = [&](const QByteArray &styles) {
+            const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                    "<w:pgMar w:top=\"720\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+            auto doc = open(makeDocxWithParts(paragraphs(2, 10), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"", "", ""})}}, QByteArray(), styles));
+            if (!doc) return -1.0;
+            const auto p = doc->pager().materialize(0);
+            return p ? p->doc->item(p->boxes.first())->rect.top() : -1.0;
+        };
+        const double without = bodyTop(normal) - 36, with = bodyTop(normal + header) - 36;
+        QVERIFY(without > 0 && with > 0);
+        QVERIFY2(std::abs(with / without - 1.2) < 0.03, qPrintable(QStringLiteral("three empty lines are %1 high with no Header style and %2 with it").arg(without).arg(with)));
+    }
+
     // The view follows an undo or a redo into the header or footer the step was in, and out of it for a step in the text; a burst of typing in a header is one step.
     void theViewFollowsTheHistoryIntoAndOutOfAHeader()
     {

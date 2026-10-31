@@ -913,6 +913,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             mark.extra = direct.markRun->extra;
             mark.style = direct.markRun->style;
         }
+        // (A header's or a footer's paragraph that has no style, in a file that defines no Header or Footer style, is the built-in one, which has no size of its own: the mark is the
+        // document's default size, and not the Normal style's, as the empty lines of such a header are.)
+        if (headerFooter && !append && direct.style.isEmpty() && !(direct.markRun && direct.markRun->size) && !sheet.find(part.contains(QLatin1String("footer"), Qt::CaseInsensitive) ? QStringLiteral("Footer") : QStringLiteral("Header")))
+            mark.size = sheet.defaultRun.size.value_or(20);
         QTextCharFormat markFormat = charFormatOf(mark, thm, direct.markRun ? &*direct.markRun : nullptr);
         // A paragraph whose mark a tracked change deleted is joined to the next as the text stands (and ends no section).
         if (!direct.section && markIsDeleted(direct)) markFormat = asDeleted(markFormat);
