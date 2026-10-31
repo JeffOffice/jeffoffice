@@ -78,12 +78,17 @@ bool sameAsShownAgain(EditWindow &e, QString *why)
     return same(gs.layout().rows, fresh->layout.rows, "rows") && same(gs.layout().cols, fresh->layout.cols, "columns");
 }
 
-// The window draws what is waiting to be drawn.
-void flushPaints()
+// The window draws what is waiting to be drawn: the events are taken until the view has drawn nothing for a few turns.
+void flushPaints(grid::GridView *view)
 {
-    for (int i = 0; i < 3; ++i) {
+    int quiet = 0;
+    qint64 seen = view->paintedPixels();
+    for (int turns = 0; quiet < 4 && turns < 400; ++turns) {
         QCoreApplication::sendPostedEvents(nullptr, QEvent::UpdateRequest);
         QCoreApplication::processEvents();
+        QTest::qWait(5);
+        quiet = view->paintedPixels() == seen ? quiet + 1 : 0;
+        seen = view->paintedPixels();
     }
 }
 
@@ -361,39 +366,41 @@ private Q_SLOTS:
         scrollToLine(e, true, 100);
         scrollToLine(e, false, 0);
         e.view()->selectCell(100, 0);
-        flushPaints();
+        flushPaints(e.view());
         const QSize vp = e.view()->viewport()->size();
         const qint64 whole = qint64(vp.width()) * vp.height();
-        auto drawn = [&](const std::function<void()> &edit) {
-            flushPaints();
+        // (what an edit draws: when it is to draw something, the paint is waited for; when it is to draw nothing, the turns of the loop that follow show it)
+        auto drawn = [&](const std::function<void()> &edit, bool something) {
+            flushPaints(e.view());
             const qint64 before = e.view()->paintedPixels();
             edit();
-            flushPaints();
+            if (something) QTest::qWaitFor([&] { return e.view()->paintedPixels() > before; }, 10000);
+            flushPaints(e.view());
             return e.view()->paintedPixels() - before;
         };
         // a row put in 12 rows down the window
         const grid::GridLayout &L = e.view()->sheet().layout();
         const int midRow = 112;
         const int bandTop = L.yOf(midRow - 1);
-        qint64 px = drawn([&] { QVERIFY(run(e, {"insert in the window", true, true, midRow, 1}).ok); });
+        qint64 px = drawn([&] { QVERIFY(run(e, {"insert in the window", true, true, midRow, 1}).ok); }, true);
         QVERIFY2(px > 0 && px < whole * 3 / 4, qPrintable(QStringLiteral("drew %1 of %2 pixels").arg(px).arg(whole)));
         QVERIFY2(e.view()->lastPaintRect().top() >= bandTop - 1 && e.view()->lastPaintRect().top() > vp.height() / 4, qPrintable(QStringLiteral("drew from %1, band from %2").arg(e.view()->lastPaintRect().top()).arg(bandTop)));
         QCOMPARE(e.view()->lastPaintRect().bottom() + 1, vp.height());
-        px = drawn([&] { e.win.w.undoStack()->undo(); });
+        px = drawn([&] { e.win.w.undoStack()->undo(); }, true);
         QVERIFY2(px > 0 && px < whole * 3 / 4, qPrintable(QStringLiteral("undone, drew %1 of %2 pixels").arg(px).arg(whole)));
         // a row put in far below the window
-        px = drawn([&] { QVERIFY(run(e, {"insert below the window", true, true, 250, 1}).ok); });
+        px = drawn([&] { QVERIFY(run(e, {"insert below the window", true, true, 250, 1}).ok); }, false);
         QCOMPARE(px, qint64(0));
-        px = drawn([&] { e.win.w.undoStack()->undo(); });
+        px = drawn([&] { e.win.w.undoStack()->undo(); }, false);
         QCOMPARE(px, qint64(0));
         // a row put in above the part in view: all of it moves
-        px = drawn([&] { QVERIFY(run(e, {"insert above the window", true, true, 5, 1}).ok); });
+        px = drawn([&] { QVERIFY(run(e, {"insert above the window", true, true, 5, 1}).ok); }, true);
         QVERIFY2(px >= whole * 3 / 4, qPrintable(QStringLiteral("above: drew %1 of %2 pixels").arg(px).arg(whole)));
         e.win.w.undoStack()->undo();
         // a column put in a few columns into the window
         scrollToLine(e, true, 0);
         const int bandLeft = L.xOf(5);
-        px = drawn([&] { QVERIFY(run(e, {"insert a column", false, true, 6, 1}).ok); });
+        px = drawn([&] { QVERIFY(run(e, {"insert a column", false, true, 6, 1}).ok); }, true);
         QVERIFY2(px > 0 && px < whole * 9 / 10, qPrintable(QStringLiteral("column: drew %1 of %2 pixels").arg(px).arg(whole)));
         QVERIFY2(e.view()->lastPaintRect().left() >= bandLeft - 1 && e.view()->lastPaintRect().left() > vp.width() / 5, qPrintable(QStringLiteral("drew from %1, band from %2").arg(e.view()->lastPaintRect().left()).arg(bandLeft)));
         QCOMPARE(e.view()->lastPaintRect().right() + 1, vp.width());

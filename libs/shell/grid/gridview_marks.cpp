@@ -34,6 +34,8 @@ void GridView::setCheckMarks(std::vector<GridRange> circles, std::vector<CheckAr
 void GridView::setHeaderButtons(std::vector<HeaderButton> buttons)
 {
     if (buttons.size() > kMaxHeaderButtons) buttons.resize(kMaxHeaderButtons);
+    const auto sameButton = [](const HeaderButton &a, const HeaderButton &b) { return a.row == b.row && a.col == b.col && a.filtered == b.filtered && a.sort == b.sort; };
+    if (buttons.size() == m_headerButtons.size() && std::equal(buttons.begin(), buttons.end(), m_headerButtons.begin(), sameButton)) return;   // (the same buttons again: nothing to draw)
     m_headerButtons = std::move(buttons);
     viewport()->update();
 }

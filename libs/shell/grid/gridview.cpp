@@ -636,14 +636,131 @@ PaintOptions GridView::paintOptions() const
     return o;
 }
 
-bool GridView::followEdit(const jp::office::sheet::StructEdit &)
+namespace {
+
+// A selection's extent along one side (rows or columns), and where its active and moving cells are along it.
+struct Reach {
+    qint64 first, last, active, head;
+};
+
+// Where the selection goes when `count` lines are put in at `at`, or taken out from there: lines put in above it, or taken out above it, move it; lines put in where it begins are selected
+// (as the ones that come back are, with Undo); lines put in inside it grow it; lines taken out that hold all of it leave it where the lines after them are; lines taken out of its start or
+// end make it shorter. `whole`: the selection reaches every line (whole columns, for the rows), which no edit of this side changes. `limit`: the number of lines.
+Reach followLines(Reach in, bool insert, qint64 at, qint64 count, qint64 limit, bool whole)
 {
-    return false;
+    Reach out = in;
+    auto clip = [&](qint64 p) { return std::max<qint64>(0, std::min(p, limit - 1)); };
+    if (insert) {
+        const bool straddles = in.first < at && in.last >= at;
+        const bool after = in.first >= at + count;   // (a selection that begins in the new lines is on them, and stays)
+        auto move = [&](qint64 p) { return after || (straddles && p >= at) ? p + count : p; };
+        out.active = move(in.active);
+        out.head = move(in.head);
+        if (!whole) {
+            if (after) {
+                out.first += count;
+                out.last += count;
+            } else if (straddles) {
+                out.last += count;
+            }
+        }
+    } else {
+        const bool inside = in.first >= at && in.last < at + count;
+        if (!whole && !inside && in.last >= at) {
+            out.first = in.first >= at + count ? in.first - count : std::min(in.first, at);
+            out.last = in.last >= at + count ? in.last - count : at - 1;
+        }
+        auto move = [&](qint64 p) {
+            if (p < at) return p;
+            if (p >= at + count) return p - count;
+            return inside ? p : std::max(out.first, std::min(at, out.last));   // (a line that is gone: the line that took its place)
+        };
+        out.active = move(in.active);
+        out.head = move(in.head);
+    }
+    if (!whole) {
+        out.first = clip(out.first);
+        out.last = clip(out.last);
+    }
+    out.active = clip(out.active);
+    out.head = clip(out.head);
+    return out;
+}
+
+} // namespace
+
+bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
+{
+    GridLayout &L = m_sheet.layout();
+    const bool rows = edit.changesRows(), cols = edit.changesColumns();
+    if (!rows && !cols) return false;
+    const bool insert = edit.kind == jp::office::sheet::StructEdit::Kind::InsertRows || edit.kind == jp::office::sheet::StructEdit::Kind::InsertColumns;
+    const qint64 first = qint64(edit.first), count = qint64(edit.count);
+    // where the part that scrolls begins, as a line and how far into it: the view stays at the line (the row or column number) it was at, whatever the sizes above it have become
+    const Axis &axis = rows ? L.rows : L.cols;
+    const qint64 frozen = rows ? L.frozenRows() : L.frozenCols();
+    const qint64 scroll = rows ? L.scrollY() : L.scrollX();
+    const qint64 origin = axis.position(frozen);
+    const qint64 top = axis.indexAt(origin + scroll);
+    const qint64 into = top >= 0 ? origin + scroll - axis.position(top) : 0;
+    if (!m_sheet.followEdit(edit)) return false;
+    m_jump.reset();
+    m_statsWalk.reset();
+    // the selection
+    const Selection was = m_selection;
+    const bool whole = m_selection.whole == Selection::Whole::All || m_selection.whole == (rows ? Selection::Whole::Columns : Selection::Whole::Rows);
+    if (rows) {
+        const Reach r = followLines({m_selection.range.row1, m_selection.range.row2, m_selection.activeRow, m_selection.headRow}, insert, first, count, L.rows.count(), whole);
+        m_selection.range.row1 = r.first;
+        m_selection.range.row2 = r.last;
+        m_selection.activeRow = r.active;
+        m_selection.headRow = r.head;
+    } else {
+        const Reach r = followLines({m_selection.range.col1, m_selection.range.col2, m_selection.activeCol, m_selection.headCol}, insert, first, count, L.cols.count(), whole);
+        m_selection.range.col1 = r.first;
+        m_selection.range.col2 = r.last;
+        m_selection.activeCol = r.active;
+        m_selection.headCol = r.head;
+    }
+    // the scroll
+    if (top >= 0) {
+        const Axis &now = rows ? L.rows : L.cols;
+        const qint64 by = now.position(top) + std::min(into, std::max<qint64>(0, now.size(top) - 1)) - now.position(frozen);
+        if (rows) L.setScroll(L.scrollX(), by);
+        else L.setScroll(by, L.scrollY());
+    }
+    // what is drawn again: from the line before the first that changed (it shares a border with it) to the end of the window; none of it when that is below the window, and all of the part that
+    // scrolls when it is above the part in view. Things that are drawn from more than their own lines (merged ranges, rules of formatting, the borders of a copy) draw the whole window.
+    QRect dirty;
+    const QSize vp = viewport()->size();
+    const bool wholeWindow = mirrored() || m_breakView || L.merges.count() > 0 || m_sheet.hasConditionalFormats() || m_sheet.hasTableSkins() || m_copyBorder.row1 >= 0 || !m_marks.empty();
+    if (wholeWindow) {
+        dirty = QRect(QPoint(0, 0), vp);
+    } else {
+        const qint64 line = std::max<qint64>(0, first - 1);
+        const PaneView body = L.pane(Pane::Body);
+        const int edge = rows ? L.yOf(line) : L.xOf(line);
+        const int bodyStart = rows ? body.rect.top() : body.rect.left();
+        const int from = line < frozen ? edge : std::max(edge, bodyStart);
+        if (rows && from < vp.height()) dirty = QRect(0, from, vp.width(), vp.height() - from);
+        else if (!rows && from < vp.width()) dirty = QRect(from, 0, vp.width() - from, vp.height());
+    }
+    updateHeaderWidth();
+    L.setViewport(vp);
+    updateScrollBars();
+    if (m_overlay) m_overlay->layoutChanged();
+
+    if (!dirty.isEmpty()) viewport()->update(dirty);
+    Q_EMIT viewChanged();
+    if (!(m_selection == was)) Q_EMIT selectionChanged();
+    startStats();
+    return true;
 }
 
 void GridView::paintEvent(QPaintEvent *e)
 {
     m_lastPaintRect = e->rect();
+
     m_paintedPixels += qint64(e->rect().width()) * e->rect().height();
     QElapsedTimer t;
     t.start();

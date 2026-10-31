@@ -196,6 +196,7 @@ void ObjectLayer::setFillsView(bool fills)
 void ObjectLayer::layoutChanged()
 {
     m_boxesValid = false;
+    if (m_entries.empty()) return;   // (nothing is drawn: the window is not drawn again for it)
     requestRepaint();
 }
 
