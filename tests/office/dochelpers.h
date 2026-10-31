@@ -104,6 +104,7 @@ public:
     QVector<ShapeSpec> shapes;
     QVector<QVector<ListLevelSpec>> lists;   // each list's levels; the instance of list i is number i + 1
     bool evenAndOddHeaders = false;
+    int compatByte84 = -1;   // the first of the document settings' compatibility bytes (at 84), where not -1 (the settings then reach it)
     int defaultTab = 720;
     QByteArray data;                   // the data stream: pictures
     bool password = false;             // the header says the file is protected

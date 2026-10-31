@@ -239,6 +239,27 @@ private Q_SLOTS:
         QCOMPARE(d.compatMode, 11);
     }
 
+    // The older compatibility bits are in the byte at 84 of the document's settings ([MS-DOC] DopBase): bit 3 is fWrapTrailSpaces, the spaces that end a paragraph wrapping to the next
+    // line (w:wrapTrailSpaces), and bit 0 the hanging indent that is no tab stop (w:noTabHangInd); a file that sets neither has neither.
+    void trailingSpacesThatWrapAreSaid()
+    {
+        auto compat = [&](int byte84) {
+            DocWriter w = simple(QStringLiteral("x\r"));
+            w.compatByte84 = byte84;
+            QString why;
+            const QByteArray zip = doc::toDocxPackage(w.build(), &why);
+            Package pkg;
+            if (!pkg.read(zip)) return QByteArray();
+            return pkg.part(QStringLiteral("/word/settings.xml"));
+        };
+        const QByteArray both = compat(0x08 | 0x01), one = compat(0x01), none = compat(0);
+        QVERIFY(!both.isEmpty());
+        QVERIFY2(wml::readCompatOptions(both).wrapTrailSpaces, both.constData());
+        QVERIFY(both.contains("noTabHangInd"));
+        QVERIFY(!wml::readCompatOptions(one).wrapTrailSpaces && one.contains("noTabHangInd"));
+        QVERIFY(!wml::readCompatOptions(none).wrapTrailSpaces);
+    }
+
     // ---- properties
 
     void characterProperties()

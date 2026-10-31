@@ -830,7 +830,8 @@ QByteArray DocWriter::build() const
     }
     // The document's own settings.
     {
-        QByteArray dop(84, '\0');
+        QByteArray dop(compatByte84 >= 0 ? 88 : 84, '\0');
+        if (compatByte84 >= 0) dop[84] = char(compatByte84);
         dop[0] = char(evenAndOddHeaders ? 1 : 0);
         put16(dop, 10, defaultTab);
         put16(dop, 54, (footnoteFormat << 2) | (2 << 6) | 0x1000);
