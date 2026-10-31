@@ -2987,6 +2987,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     // whole, then the first that doesn't, cut where the room ends. That fails
     // (ok is false) when not even a line of it fits, unless `force`.
     struct Cut { bool ok = true; int at = -1; std::shared_ptr<StoryLayout> layout; double height = 0, used = 0; int rest = -1; };
+    // (Whether the first paragraph of a note has widow and orphan control: a note of one that has none may be cut after any line.)
+    auto widowControlled = [&](const Note &n) {
+        const QTextDocument *nd = notesDoc ? notesDoc->storyDoc(n.storyId) : nullptr;
+        return !nd || nd->begin().blockFormat().boolProperty(tp::WidowControl);
+    };
     auto cutNotes = [&](const QVector<int> &ids, double room, double width, bool force) {
         Cut cut;
         for (int k = 0; k < ids.size(); ++k) {
@@ -3003,6 +3008,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             cut.height = std::max(heightOf(n.numberFont), cut.layout->usedHeight(0) + (cut.rest < 0 ? cut.layout->trailingSpace() : 0.0));
             if (force && cut.rest < 0 && cut.layout->usedHeight(0) + noteGap <= room + 0.01) cut.height = std::min(cut.height, std::max(room - noteGap, cut.layout->usedHeight(0)));   // (the space after its last line is let go at the foot)
             cut.ok = force || cut.height + noteGap <= room + 0.01;
+            // (A word processor that controls widows and orphans cuts a note only where two lines of it are on each page.)
+            if (!force && cut.ok && env.wordLines && cut.rest >= 0 && widowControlled(n)) {
+                const int first = int(cut.layout->lineInfo(0).size()), total = n.layout ? int(n.layout->lineInfo(0).size()) : 0;
+                if (first < 2 || (total > 0 && total - first < 2)) cut.ok = false;
+            }
             cut.used += cut.height + noteGap;
             break;
         }
@@ -4419,9 +4429,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         if (!lineNotes.isEmpty() && (env.wordLines || fitH + ruleGap + notesH > col.height() + fitTol)) {
                             // Room here for the line and a line of the note?
                             // (A word processor cuts a note that does not fit where three of its lines do, or one of them where its first paragraph has no widow and orphan control.)
-                            const QTextDocument *noteDoc = notesDoc ? notesDoc->storyDoc(m_notes[lineNotes.first()].storyId) : nullptr;
-                            const bool controlled = !noteDoc || noteDoc->begin().blockFormat().boolProperty(tp::WidowControl);
-                            const double least = heightOf(m_notes[lineNotes.first()].numberFont) * (env.wordLines && controlled ? 3 : 1) + noteGap;
+                            const double least = heightOf(m_notes[lineNotes.first()].numberFont) * (env.wordLines && widowControlled(m_notes[lineNotes.first()]) ? (noticeGap > 0 && env.wordWholePointLines ? 2 : 3) : 1) + noteGap;   // (where a file asks for the older spacing, the notice that a note goes on is in the room the notes take, and is the third)
                             cutting = firstInColumn || col.top() + y + fitH + (reserve.contains(rkey(f, c)) ? 0 : ruleGap) + least <= col.bottom() - reserve.value(rkey(f, c)) + fitTol;
                         }
                         if (!cutting && !firstInColumn) {

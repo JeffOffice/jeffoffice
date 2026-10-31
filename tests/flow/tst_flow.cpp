@@ -139,8 +139,9 @@ struct TestNotes : FieldSource {
     QList<const QTextDocument *> storyDocs() const override { QList<const QTextDocument *> l; for (auto &p : docs) l << p.second.get(); return l; }
     double noteSeparatorHeight() const override { return separator; }
     double noteContinuationHeight() const override { return continuation; }
+    double noteNoticeHeight() const override { return notice; }
     std::map<QString, std::unique_ptr<QTextDocument>> docs;
-    double separator = 0, continuation = 0;   // (the heights of a file's separator, and of its own for the part of a note that goes on)
+    double separator = 0, continuation = 0, notice = 0;   // (the heights of a file's separator, and of its own for the part of a note that goes on)
 };
 
 bool sameBrief(const StoryLayout::LineBrief &a, const StoryLayout::LineBrief &b, int frameShift = 0, int posShift = 0)
@@ -10645,6 +10646,72 @@ private Q_SLOTS:
         QVERIFY2(std::abs(leastHeight(10, false) - leastHeight(0, false)) < 0.5, qPrintable(QStringLiteral("%1 with space after the note, %2 without").arg(leastHeight(10, false)).arg(leastHeight(0, false))));
         QVERIFY2(leastHeight(10, false, false) - leastHeight(0, false, false) > 9.5, qPrintable(QStringLiteral("%1 with space after the note, %2 without").arg(leastHeight(10, false, false)).arg(leastHeight(0, false, false))));
         QVERIFY2(leastHeight(10, true) - leastHeight(0, true) > 9.5, qPrintable(QStringLiteral("%1 with space after the notes, %2 without").arg(leastHeight(10, true)).arg(leastHeight(0, true))));
+    }
+
+    // A note of a file with a notice that it goes on (the room for the notice is kept under the notes) and the older word processor's spacing (w:suppressTopSpacingWP) is cut where two
+    // of its lines fit under the line that cites it, not three, when the file has widow and orphan control: the notice is the third. A note of fewer than four lines is not cut at all then (a line of it would be left alone on a page), and goes
+    // whole to the next page with its line.
+    void aNoteWithAWidowControlIsCutAfterTwoLinesAndNeverLeavesOne()
+    {
+        // The least height of a frame with the paragraph's last line on it, the line citing a note of `lines` lines, the file's notice `notice` high; and whether that note was cut.
+        auto least = [&](int lines, double notice, bool *cut) {
+            TestNotes notes;
+            notes.notice = notice;
+            auto note = std::make_unique<QTextDocument>();
+            {
+                QTextCursor nc(note.get());
+                QTextBlockFormat nf;
+                nf.setProperty(tp::WidowControl, true);
+                nc.setBlockFormat(nf);
+                QTextCharFormat cf;
+                cf.setFontFamilies({QStringLiteral("Times New Roman")});
+                cf.setFontPointSize(10);
+                QString text = QStringLiteral("one");
+                for (int i = 1; i < lines; ++i) text += QChar(QChar::LineSeparator) + QStringLiteral("line");
+                nc.insertText(text, cf);
+            }
+            notes.docs[QStringLiteral("n1")] = std::move(note);
+            auto onFirst = [&](double height, bool *wasCut) {
+                QTextDocument doc;
+                QTextCursor c(&doc);
+                QTextCharFormat run;
+                run.setFontFamilies({QStringLiteral("Times New Roman")});
+                run.setFontPointSize(12);
+                QTextBlockFormat bf;
+                c.setBlockFormat(bf);
+                c.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three"), run);
+                QTextCharFormat ref = run;
+                ref.setProperty(tp::Field, QStringLiteral("footnote:n1"));
+                c.insertText(QString(QChar::ObjectReplacementCharacter), ref);
+                LayoutEnv env;
+                env.wordLines = true;
+                env.wordWholePointLines = true;
+                FrameSpec fs = plainFrame(300, height);
+                fs.ctx.doc = &notes;
+                FrameSpec rest = plainFrame(300, 300);
+                rest.ctx.doc = &notes;
+                StoryLayout lay;
+                lay.build(&doc, {fs, rest}, env);
+                const auto briefs = lay.lineBriefs();
+                if (wasCut) *wasCut = lay.notes().size() == 1 && !lay.notes().first().more.isEmpty();
+                return !briefs.isEmpty() && briefs.last().frame == 0;
+            };
+            double low = 20, high = 400;
+            for (int i = 0; i < 40; ++i) {
+                const double mid = (low + high) / 2;
+                (onFirst(mid, nullptr) ? high : low) = mid;
+            }
+            onFirst(high, cut);
+            return high;
+        };
+        bool cutWith = false, cutWithout = false, cutShort = false, cutShortWhole = false;
+        const double with = least(6, 10, &cutWith), without = least(6, 0, &cutWithout);
+        QVERIFY2(cutWith, "a note of six lines is cut where the room is the least that the line and two lines of the note ask for");
+        QVERIFY2(with < without, qPrintable(QStringLiteral("%1 high with the notice, %2 without").arg(with).arg(without)));
+        // A note of three lines is whole where it is on the page, whatever the room.
+        least(3, 10, &cutShort);
+        QVERIFY(!cutShort);
+        Q_UNUSED(cutShortWhole);
     }
 
     // The part of a note that goes on from the page before is set under the file's own separator for it, when the file has one: the room above it is that paragraph's height (and the
