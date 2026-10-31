@@ -630,6 +630,7 @@ private:
     QString m_filterText;
     QTimer m_filterTimer, m_listTimer;
     QPointer<FilterPopup> m_filterPopup;
+    const QObject *m_listPopup = nullptr;   // (the popup the listing belongs to, as a plain address: read while that popup is being destroyed, when it is no longer a FilterPopup)
     std::unique_ptr<jp::crunch::FilterListRun> m_listRun;
     qint64 m_listChanges = 0;
     int m_listSteps = 0;

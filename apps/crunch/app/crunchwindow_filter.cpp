@@ -225,6 +225,7 @@ void CrunchWindow::showFilterPopup(qint64 row, qint64 col)
     auto *popup = new FilterPopup(input, this);
     popup->setAttribute(Qt::WA_DeleteOnClose);
     m_filterPopup = popup;
+    m_listPopup = popup;
     popup->setLoading(true);
     // the column's values are listed a slice at a time
     m_listRun = std::make_unique<crunch::FilterListRun>(m_session.get(), m_sheet, f, column);
@@ -234,7 +235,8 @@ void CrunchWindow::showFilterPopup(qint64 row, qint64 col)
     // (a popup that is gone takes the listing with it, unless another has been made since: the listing is the other's then)
     const QObject *raw = popup;
     connect(popup, &QObject::destroyed, this, [this, raw] {
-        if (m_filterPopup && m_filterPopup.data() != raw) return;
+        if (m_listPopup != raw) return;
+        m_listPopup = nullptr;
         m_listTimer.stop();
         m_listRun.reset();
     });

@@ -18,6 +18,7 @@
 #include <QDoubleSpinBox>
 #include <QLineEdit>
 #include <QMenu>
+#include <QPointer>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSettings>
@@ -1038,6 +1039,24 @@ private Q_SLOTS:
         QCOMPARE(int(c.dates[2].unit), int(FilterColumn::DateGroup::Unit::Month));                // February
         QCOMPARE(c.column, quint32(2));
         QCOMPARE(shownRows(e), QStringLiteral("3 5 8 9"));
+    }
+
+    // A window that goes with its dropdown open takes the dropdown and its listing with it (the dropdown's destroyed signal reaches nothing of the window that is gone).
+    void aWindowDeletedWithItsDropdownOpenTakesTheDropdownWithIt()
+    {
+        for (const bool listed : {false, true}) {
+            auto e = std::make_unique<EditWindow>();
+            QVERIFY(e->open(bookOfSheets({fruit()})));
+            CrunchWindow &w = e->win.w;
+            e->select(QStringLiteral("A3"));
+            w.act(QStringLiteral("filter.toggle"))->trigger();
+            w.showFilterPopup(0, 1);
+            QPointer<FilterPopup> popup = w.filterPopup();
+            QVERIFY(popup);
+            if (listed) QTRY_VERIFY(popup->listed());
+            e.reset();
+            QVERIFY(!popup);
+        }
     }
 
     void theFiltersByConditionAskAndPutTheConditionOnTheColumn()

@@ -199,6 +199,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 
 CrunchWindow::~CrunchWindow()
 {
+    delete m_filterPopup.data();   // (while the window is whole: its going stops the listing, which the window's own timer and run are for)
     stopPasswordJob();   // (a password being worked on is given up with the window)
     if (m_tabs) m_tabs->cancelRename();   // (a name being typed is given up with the window, not given to a window that is going)
     if (m_view) m_view->setOverlay(nullptr);   // (the objects over the cells go before the grid does)
