@@ -6757,7 +6757,7 @@ Oder speichern Sie in einem Ordner, der nicht geschützt ist.</translation>
 <context>
     <name>GridView</name>
     <message>
-        <location filename="../libs/shell/grid/gridview_breaks.cpp" line="+201"/>
+        <location filename="../libs/shell/grid/gridview_breaks.cpp" line="+204"/>
         <source>Page %1</source>
         <translation type="unfinished">Seite %1</translation>
     </message>
@@ -16656,7 +16656,7 @@ Quelle: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+87"/>
         <location line="+105"/>
         <location line="+22"/>
-        <location line="+113"/>
+        <location line="+123"/>
         <location line="+14"/>
         <location line="+39"/>
         <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="+199"/>
@@ -16688,7 +16688,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-277"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-287"/>
         <location line="+91"/>
         <location line="+21"/>
         <location line="+3"/>
@@ -16801,7 +16801,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Alles neu berechnen</translation>
     </message>
     <message>
-        <location line="+84"/>
+        <location line="+87"/>
         <source>An object&apos;s name is one to 255 characters.</source>
         <translation type="unfinished">Der Name eines Objekts umfasst 1 bis 255 Zeichen.</translation>
     </message>
@@ -17139,7 +17139,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Das Diagramm wurde mit den angezeigten Zahlen eingefügt: Es liest nicht die Zellen dieser Arbeitsmappe.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-116"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-119"/>
         <source>Select All</source>
         <translation type="unfinished">Alles auswählen</translation>
     </message>
@@ -17253,7 +17253,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+26"/>
-        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+456"/>
+        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+461"/>
         <source>Sum</source>
         <translation type="unfinished">Summe</translation>
     </message>
@@ -18438,7 +18438,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Zellen nach oben verschieben</translation>
     </message>
     <message>
-        <location line="+78"/>
+        <location line="+97"/>
         <source>Message for this cell</source>
         <translation type="unfinished">Meldung für diese Zelle</translation>
     </message>
@@ -18578,13 +18578,13 @@ Quelle: %3</translation>
         <translation type="unfinished">Sortieren</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-347"/>
+        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-352"/>
         <location line="+1"/>
         <source>Table look %1</source>
         <translation type="unfinished">Tabellenformat %1</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+95"/>
         <location line="+8"/>
         <location line="+18"/>
         <location line="+16"/>
@@ -19065,7 +19065,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Leerzellen überspringen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+115"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+118"/>
         <source>&quot;%1&quot; is not an address JeffCrunch can go to.</source>
         <translation type="unfinished">„%1“ ist keine Adresse, zu der JeffCrunch wechseln kann.</translation>
     </message>
@@ -19152,7 +19152,7 @@ Die Datei ist nicht vorhanden.</translation>
 %3</translation>
     </message>
     <message>
-        <location line="+147"/>
+        <location line="+157"/>
         <source>The calculation was stopped, so the save was cancelled. Save again when you want to.</source>
         <translation type="unfinished">Die Berechnung wurde angehalten, daher wurde das Speichern abgebrochen. Speichern Sie erneut, wenn Sie möchten.</translation>
     </message>
