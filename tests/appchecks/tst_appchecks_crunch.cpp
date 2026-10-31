@@ -118,6 +118,10 @@ private Q_SLOTS:
         m_app.listen = [](AppWindow *aw, Watch *watch) {
             auto *w = asCrunch(aw);
             w->setNotifier([watch](const QString &title, const QString &text) { watch->told << title + QLatin1String(": ") + text; });
+            w->setLossAsker([watch](const QString &title, const QString &text) {
+                watch->told << title + QLatin1String(": ") + text;
+                return CrunchWindow::LossAnswer::Continue;
+            });
             w->setSavePicker([](const QString &start, const QString &filter) {
                 static int n = 0;
                 const QString ending = filter.contains(QLatin1String("*.csv")) && !filter.contains(QLatin1String("*.xlsx")) ? QStringLiteral(".csv") : QStringLiteral(".xlsx");

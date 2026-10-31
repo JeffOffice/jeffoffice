@@ -7,6 +7,6 @@ Exec=jeffcrunch %F
 Icon=jeffcrunch
 Terminal=false
 Categories=Office;Spreadsheet;
-MimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.ms-excel;application/vnd.oasis.opendocument.spreadsheet;text/csv;
+MimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.openxmlformats-officedocument.spreadsheetml.template;application/vnd.ms-excel.template.macroEnabled.12;application/vnd.ms-excel;application/vnd.oasis.opendocument.spreadsheet;text/csv;
 Keywords=spreadsheet;workbook;formulas;xlsx;csv;
 StartupWMClass=JeffCrunch

@@ -30,12 +30,13 @@ namespace jp {
 
 using jp::office::sheet::SaveReport;
 
-// The kind of file this workbook is: a workbook that has macros in it (and is a .xlsm), or not (.xlsx).
+// The kind of file this workbook is, from the type of its main part, which is in the file: a workbook (.xlsx), one with macros in it (.xlsm), a template (.xltx), a template with macros
+// (.xltm), or an add-in (.xlam).
 QString CrunchWindow::saveKind() const
 {
     if (!m_loaded || !m_loaded->book) return QStringLiteral("xlsx");
     const office::Package &p = m_loaded->book->package();
-    return p.contentType(m_loaded->book->mainPart()).contains(QLatin1String("macroEnabled"), Qt::CaseInsensitive) ? QStringLiteral("xlsm") : QStringLiteral("xlsx");
+    return crunch::workbookKindOfType(p.contentType(m_loaded->book->mainPart()));
 }
 
 bool CrunchWindow::save()
@@ -72,10 +73,18 @@ bool CrunchWindow::saveAs(const QString &pathIn)
     const QString kind = saveKind();
     const QString ending = QFileInfo(path).suffix().toLower();
     if (ending.isEmpty()) path += QLatin1Char('.') + kind;
-    else if (ending != kind) {
-        notice(tr("Save"), kind == QLatin1String("xlsm") ? tr("This workbook has macros in it, so it is saved as a .xlsm file. Give the file a name that ends in .xlsm.")
-                                                           : tr("%1 saves workbooks as .xlsx files. Give the file a name that ends in .xlsx.").arg(appInfo().name));
+    else if (!crunch::workbookKindsSavedAs(kind).contains(ending)) {
+        notice(tr("Save"), crunch::workbookKindNotice(kind, appInfo().name));
         return false;
+    } else if (crunch::workbookKindHoldsMacros(kind) && !crunch::workbookKindHoldsMacros(ending)
+               && !m_loaded->book->package().relationshipsOfType(m_loaded->book->mainPart(), QStringLiteral("/vbaProject")).isEmpty()) {
+        // (the kind chosen holds no macros: the person is told that the copy will not have them, before anything is written)
+        const LossAnswer answer = askBeforeLosing(tr("Save"), tr("A .%1 file can't hold macros. The macros of this workbook will not be in the copy you are saving. The workbook open here keeps them.").arg(ending),
+                                                  tr("Save Without Macros"), QString());
+        if (answer != LossAnswer::Continue) {
+            m_closeAfterSave = false;
+            return false;
+        }
     }
     return startSave(path);
 }
@@ -158,6 +167,11 @@ bool CrunchWindow::startSave(const QString &path)
     if (!m_session->takeSnapshot(snapshot.get(), &why)) {
         notice(tr("Save"), why);
         return false;
+    }
+    // (the kind of the file follows the ending chosen: a template may be saved as a workbook, and an add-in or a macro template as a workbook with macros)
+    {
+        const QString ending = QFileInfo(path).suffix().toLower();
+        if (ending != saveKind() && crunch::workbookKindsSavedAs(saveKind()).contains(ending)) snapshot->changes.targetKind = ending;
     }
     if (m_objects) m_objects->addToSave(&snapshot->changes);
     m_saving = true;
@@ -252,7 +266,8 @@ bool CrunchWindow::askAboutChanges()
     if (answer == Answer::Discard) return true;
     if (answer == Answer::Save) {
         m_closeAfterSave = true;
-        if (!save()) m_closeAfterSave = false;
+        // (a save that says no may still have handed the person on to another one, as the .csv question does; the close waits for that, and is given up if none was started)
+        if (!save() && !m_saving && m_saveAfterCalculation.isNull()) m_closeAfterSave = false;
     }
     return false;
 }

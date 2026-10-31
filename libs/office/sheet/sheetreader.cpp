@@ -18,6 +18,7 @@
 
 #include <QCoreApplication>
 #include <QFile>
+#include <QFileInfo>
 #include <QSet>
 #include <QXmlStreamReader>
 #include <algorithm>
@@ -2067,6 +2068,59 @@ QString plainKindOfText(const QByteArray &bytes)
     return QString();
 }
 
+// The message for a workbook that asks for a password (an encrypted package, or an encrypted .xls): the same words for both.
+QString encryptedMessage() { return QCoreApplication::translate("Sheet", "The workbook is encrypted, and this program can't open an encrypted workbook yet."); }
+
+// What a file that is none of the kinds this program opens says it is, from its first bytes, in words for the person (never empty: a file nothing is known of is said to be that).
+QString notAWorkbookMessage(const QByteArray &head, qint64 size)
+{
+    if (size == 0) return QCoreApplication::translate("Sheet", "The file is empty.");
+    auto starts = [&](QByteArrayView magic) { return QByteArrayView(head).startsWith(magic); };
+    if (starts("%PDF")) return QCoreApplication::translate("Sheet", "This file is a PDF document, not a workbook.");
+    if (starts("\x89PNG") || starts("\xFF\xD8\xFF") || starts("GIF8") || starts(QByteArrayView("II*\0", 4)) || starts(QByteArrayView("MM\0*", 4)))
+        return QCoreApplication::translate("Sheet", "This file is a picture, not a workbook.");
+    if (starts("{\\rtf")) return QCoreApplication::translate("Sheet", "This file is a text document (.rtf), not a workbook.");
+    return QCoreApplication::translate("Sheet", "This file is not a workbook: it does not start like any kind of file this program opens (.xlsx, .xlsm, .xls, .ods, .csv). It may be damaged, or have the wrong name.");
+}
+
+// A zip package that could not be read, said as what is wrong with it: no end to its list of parts (a copy cut short), the zip64 form, a way of packing it does not know, or damage. When the
+// zip itself is fine, the package's own message stays.
+QString damagedPackageMessage(const QByteArray &bytes, const QString &why)
+{
+    switch (jp::zipFault(bytes)) {
+    case jp::ZipFault::NoEnd:
+        return QCoreApplication::translate("Sheet", "The file is damaged: it starts like a zip package (.xlsx or .xlsm), but its contents can't be read. It may have been cut short when it was downloaded or copied. "
+                                                    "If you have the original, copy it again.");
+    case jp::ZipFault::Zip64:
+        return QCoreApplication::translate("Sheet", "The file is a zip package in a format this program can't read yet (the zip64 form, for files over 4 GB or with more than 65,535 parts).");
+    case jp::ZipFault::UnsupportedMethod:
+        return QCoreApplication::translate("Sheet", "The file is a zip package with a part packed in a way this program can't read yet.");
+    case jp::ZipFault::Damaged:
+        return QCoreApplication::translate("Sheet", "The file is damaged: the list of parts in this zip package is broken, or a part is not all there.");
+    case jp::ZipFault::None:
+        break;
+    }
+    return why;
+}
+
+// A package that is not a workbook, by what its main part is: a text document or a presentation (also with macros), named so; else empty.
+QString otherPackageMessage(const Package &package)
+{
+    const QString type = package.contentType(package.mainPart());
+    if (type.contains(QLatin1String("wordprocessingml"))) {
+        const bool macros = type.contains(QLatin1String("macroEnabled"), Qt::CaseInsensitive);
+        return macros ? QCoreApplication::translate("Sheet", "This file is a text document with macros (.docm), not a workbook.") : QCoreApplication::translate("Sheet", "This file is a text document (.docx), not a workbook.");
+    }
+    if (type.contains(QLatin1String("presentationml"))) {
+        const bool macros = type.contains(QLatin1String("macroEnabled"), Qt::CaseInsensitive);
+        return macros ? QCoreApplication::translate("Sheet", "This file is a presentation with macros (.pptm), not a workbook.") : QCoreApplication::translate("Sheet", "This file is a presentation (.pptx), not a workbook.");
+    }
+    // (the macro-enabled forms of both name themselves by the program and not by the markup: ms-word and ms-powerpoint)
+    if (type.contains(QLatin1String("ms-word"), Qt::CaseInsensitive)) return QCoreApplication::translate("Sheet", "This file is a text document with macros (.docm), not a workbook.");
+    if (type.contains(QLatin1String("ms-powerpoint"), Qt::CaseInsensitive)) return QCoreApplication::translate("Sheet", "This file is a presentation with macros (.pptm), not a workbook.");
+    return QString();
+}
+
 } // namespace
 
 bool Workbook::openBinary(const QByteArray &file, QString *error, const Limits &limits)
@@ -2096,7 +2150,11 @@ bool Workbook::openBinary(const QByteArray &file, QString *error, const Limits &
     QByteArray stream = container.stream(QStringLiteral("Workbook"));
     if (stream.isEmpty()) stream = container.stream(QStringLiteral("Book"));
     if (stream.isEmpty()) {
-        if (error) *error = QCoreApplication::translate("Sheet", "The file has no workbook in it.");
+        // (a workbook that is there and can't be read is damaged; the file that has none is another thing)
+        const bool there = container.find(QStringLiteral("Workbook")) >= 0 || container.find(QStringLiteral("Book")) >= 0;
+        if (error) *error = !container.stream(QStringLiteral("EncryptionInfo")).isEmpty() ? encryptedMessage()
+                            : there ? QCoreApplication::translate("Sheet", "The file is damaged: the workbook in it can't be read.")
+                                    : QCoreApplication::translate("Sheet", "This file is a compound file, but it has no workbook in it.");
         return false;
     }
     const bool macros = holdsMacroProject([&](const QString &path) { return !container.stream(path).isEmpty(); });
@@ -2120,11 +2178,21 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
     // (a stream with no container: the forms before BIFF5, and a bare BIFF8 or BIFF5 stream, begin with the record of the start of a workbook)
     const bool raw = head.size() >= 4 && quint8(head[0]) == 0x09 && (quint8(head[1]) == 0x00 || quint8(head[1]) == 0x02 || quint8(head[1]) == 0x04 || quint8(head[1]) == 0x08);
     if (startsCompoundFile(head)) {
-        QString why;
+        QString why, whyBook;
         QByteArray stream = jp::cfb::readStream(path, QStringLiteral("Workbook"), &why);
-        if (stream.isEmpty()) stream = jp::cfb::readStream(path, QStringLiteral("Book"));
+        if (stream.isEmpty()) stream = jp::cfb::readStream(path, QStringLiteral("Book"), &whyBook);
         if (stream.isEmpty()) {
-            if (error) *error = why.startsWith(QLatin1String("no stream")) || why.isEmpty() ? QCoreApplication::translate("Sheet", "The file has no workbook in it.") : QCoreApplication::translate("Sheet", "The file is damaged: %1").arg(why);
+            if (error) {
+                const bool workbookMissing = why.startsWith(QLatin1String("no stream")), bookMissing = whyBook.startsWith(QLatin1String("no stream"));
+                if (workbookMissing && bookMissing)
+                    *error = !jp::cfb::readStream(path, QStringLiteral("EncryptionInfo")).isEmpty() ? encryptedMessage()
+                                                                                                    : QCoreApplication::translate("Sheet", "This file is a compound file, but it has no workbook in it.");
+                else {
+                    // (one of them is there and can't be read: with no reason given, it is still damaged)
+                    const QString reason = !workbookMissing ? why : whyBook;
+                    *error = reason.isEmpty() ? QCoreApplication::translate("Sheet", "The file is damaged: the workbook in it can't be read.") : QCoreApplication::translate("Sheet", "The file is damaged: %1").arg(reason);
+                }
+            }
             return false;
         }
         const bool macros = holdsMacroProject([&](const QString &stream) { return !jp::cfb::readStream(path, stream).isEmpty(); });
@@ -2150,13 +2218,24 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
             if (error) *error = kind;
             return false;
         }
+        // (nothing is known of it: it is said to be what it looks like, and not a damaged workbook)
+        if (error) *error = notAWorkbookMessage(head, QFileInfo(path).size());
+        return false;
     }
     QByteArray bytes;
     if (!readWholeFile(path, &bytes, error, limits.fileBytes)) return false;
     if (zip && looksLikeOpenDocumentZip(bytes)) return openOpenDocument(bytes, false, error, limits);
     Package package;
-    if (!package.readLazy(bytes, error)) return false;
-    return open(package, error, limits);
+    QString why;
+    if (!package.readLazy(bytes, &why)) {
+        if (error) *error = damagedPackageMessage(bytes, why);
+        return false;
+    }
+    if (!open(package, &why, limits)) {
+        if (error) *error = otherPackageMessage(package).isEmpty() ? why : otherPackageMessage(package);
+        return false;
+    }
+    return true;
 }
 
 QStringList Workbook::skippedFeatures() const { return m_xls ? m_xls->skipped() : m_foreign ? m_foreign->skipped() : m_tableNotes; }

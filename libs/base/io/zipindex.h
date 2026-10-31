@@ -42,6 +42,10 @@ enum class ZipFailure { None, Damaged, TooLarge, OverBudget };
 // be read or an entry isn't inside the data or isn't stored or deflated.
 // Nothing is inflated.
 bool readZipDirectory(const QByteArray &zip, QVector<ZipEntry> *out);
+// Why readZipDirectory cannot read the zip (None if it can): no end-of-directory record (a copy cut short), the zip64 form, a way of packing other than stored and deflate, or a directory or
+// entry that is broken (a header that is not one, data past the end of the file).
+enum class ZipFault { None, NoEnd, Zip64, UnsupportedMethod, Damaged };
+ZipFault zipFault(const QByteArray &zip);
 
 // What all the entries of a package may come to when inflated, over its whole life:
 // each byte that comes out of an inflater is counted, and no entry is begun that

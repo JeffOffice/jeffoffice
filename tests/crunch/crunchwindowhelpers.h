@@ -20,6 +20,11 @@ struct Window {
     Window()
     {
         w.setNotifier([this](const QString &title, const QString &text) { told << title + QStringLiteral(": ") + text; });
+        // (the question before a save that leaves something out is told as a notice is, and answered "go on")
+        w.setLossAsker([this](const QString &title, const QString &text) {
+            told << title + QStringLiteral(": ") + text;
+            return CrunchWindow::LossAnswer::Continue;
+        });
         w.resize(1100, 640);
         w.show();
     }

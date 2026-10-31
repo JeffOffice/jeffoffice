@@ -6,6 +6,10 @@
 #include <QString>
 #include <QStringList>
 
+namespace jp::office::sheet {
+class Workbook;
+}
+
 namespace jp::crunch {
 
 // Whether the file's name ends in .csv (any case): the name of the one other kind of file the program writes.
@@ -14,6 +18,18 @@ bool isCsvName(const QString &path);
 // The filter of the Open dialog (the kinds of workbook the program opens, together), and of the Save As dialog for .csv.
 QString openFilter();
 QString csvFilter();
+
+// The kind of workbook file a main part's content type makes: "xlsx" (a workbook), "xlsm" (with macros), "xltx" (a template), "xltm" (a template with macros), or "xlam" (an add-in).
+// A workbook is saved as the kind it came from, because the kind is in the file.
+QString workbookKindOfType(const QString &mainContentType);
+// The filter the Save As dialog shows for a kind, and what the person is told when a name ends in another kind's ending.
+QString workbookKindFilter(const QString &kind);
+QString workbookKindNotice(const QString &kind, const QString &programName);
+// The endings a workbook of this kind may be saved under, its own first: a template may become a workbook, a macro template a workbook with or without macros, and an add-in a workbook
+// with macros. (The kind of the file follows the ending that is chosen.)
+QStringList workbookKindsSavedAs(const QString &kind);
+// Whether files of the kind can hold a macro project.
+bool workbookKindHoldsMacros(const QString &kind);
 
 // What the program writes between the values of a .csv: the semicolon where the person's language writes a comma in its numbers, else the comma (the list separator of the system).
 QChar csvSeparatorFor(const QLocale &locale);
@@ -24,6 +40,13 @@ QString saveAsExplanation(const QString &fileName, const QString &kind, const QS
 
 // What the person is told when a sheet is saved as a .csv: that it is the values of this sheet only, as the cells show them.
 QString csvExportNote(const QString &sheetName, QChar separator, bool partial = false);
+
+// What a workbook has that a .csv file cannot hold, in words for the person, for the sheet in view: the other sheets, the formulas (the file has their results), the pictures, charts, notes,
+// PivotTables, form controls, links to other workbooks, and macros that its parts show, and always the formats. `formulas` is how many formula cells the workbook has.
+QStringList leftOutOfCsv(const jp::office::sheet::Workbook &book, qint64 formulas);
+
+// The note of csvExportNote and, if `leftOut` is not empty, what this workbook has that the file will not.
+QString csvExportWarning(const QString &sheetName, QChar separator, bool partial, const QStringList &leftOut);
 
 // Whether two paths are one file: the same place whatever the spelling (a link, a "." or a ".." in the name), also when one of them is not there yet (its folder is looked at). Empty is none.
 bool sameFile(const QString &a, const QString &b);

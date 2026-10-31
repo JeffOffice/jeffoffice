@@ -2757,7 +2757,7 @@ private Q_SLOTS:
         e.enter(QStringLiteral("2"));
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-        QVERIFY(!e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("macros.xlsx"))));
+        QVERIFY(!e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("macros.xlsb"))));
         QVERIFY(e.win.told.last().contains(QLatin1String(".xlsm")));
         QVERIFY(e.win.w.save());
         QVERIFY2(savedOk(saved, 20000), "the save failed");

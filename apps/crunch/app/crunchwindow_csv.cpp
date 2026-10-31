@@ -10,11 +10,31 @@
 #include "core/csvexport.h"
 
 #include <QElapsedTimer>
+#include <QMessageBox>
+#include <QPushButton>
 #include <QFileInfo>
 #include <QLocale>
 #include <QTimer>
 
 namespace jp {
+
+CrunchWindow::LossAnswer CrunchWindow::askBeforeLosing(const QString &title, const QString &text, const QString &goLabel, const QString &otherLabel, bool defaultIsOther)
+{
+    if (m_lossAsker) return m_lossAsker(title, text);
+    QMessageBox box(QMessageBox::Warning, appInfo().name, title, QMessageBox::NoButton, this);
+    box.setObjectName(QStringLiteral("lossBox"));
+    box.setText(text);
+    box.setTextFormat(Qt::PlainText);
+    QPushButton *go = box.addButton(goLabel.isEmpty() ? tr("Save Values Only") : goLabel, QMessageBox::AcceptRole);
+    QPushButton *other = nullptr;
+    if (goLabel.isEmpty() || !otherLabel.isEmpty()) other = box.addButton(otherLabel.isEmpty() ? tr("Save as .xlsx…") : otherLabel, QMessageBox::ActionRole);
+    QPushButton *cancel = box.addButton(tr("Cancel"), QMessageBox::RejectRole);
+    box.setDefaultButton(defaultIsOther && other ? other : go);
+    box.setEscapeButton(cancel);
+    box.exec();
+    QAbstractButton *clicked = box.clickedButton();
+    return clicked == go ? LossAnswer::Continue : (other && clicked == other) ? LossAnswer::SaveXlsx : LossAnswer::Cancel;
+}
 
 bool CrunchWindow::exportCsv(const QString &path)
 {
@@ -41,7 +61,20 @@ bool CrunchWindow::exportCsv(const QString &path)
     const QString sheetName = m_loaded->book->info().sheets.value(m_sheet).name;
     // (a sheet that was read only in part is written in part: the person is told)
     const bool partial = m_loaded->calc && m_loaded->calc->notWhole().contains(sheetName);
-    notice(tr("Save"), crunch::csvExportNote(sheetName, separator, partial), false);
+    // (the person is told what the file will not have, naming what this workbook has of it, and may save the workbook as .xlsx instead)
+    const LossAnswer answer = askBeforeLosing(tr("Save"), crunch::csvExportWarning(sheetName, separator, partial, crunch::leftOutOfCsv(*m_loaded->book, m_loaded->calc ? m_loaded->calc->formulaCount() : 0)));
+    if (answer != LossAnswer::Continue) {
+        if (answer == LossAnswer::SaveXlsx) {
+            // (a window being closed is closed once the workbook is saved; if no save was started, the person gave it up, and the window stays)
+            const bool closing = m_closeAfterSave;
+            setStatus(tr("Not saved as .csv."));
+            act("file.saveAs")->trigger();
+            m_closeAfterSave = closing && (m_saving || !m_saveAfterCalculation.isNull());
+        } else {
+            m_closeAfterSave = false;
+        }
+        return false;
+    }
     // the sheet in view, in a model of its own
     auto model = std::make_shared<grid::GridSheet>();
     model->setData(m_view->sheet().data());
