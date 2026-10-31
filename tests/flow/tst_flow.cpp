@@ -2852,6 +2852,26 @@ private Q_SLOTS:
         QVERIFY(std::abs(QFontMetricsF(font).horizontalAdvance(QLatin1Char('M')) - 1000 * 1229 / 2048.0) < 0.2);
     }
 
+    // The light stroke of the Courier New stand-in (tp::HandBold kind 3) is a picture's alone: it takes no part in how the letters are set, so each letter of a run is where
+    // Courier New's 0.6 em puts it (as in a PDF and in print), with or without the stroke, in a run of words and of spaces, and a bold run is set the same, with the stroke.
+    void theCourierStrokeLeavesTheLettersWhereTheyAre()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Courier New"))) QSKIP("Courier New is installed");
+        const QString text = QStringLiteral("Time_Period_of_Content: Single Date/Time   Calendar_Date: 2005");
+        const auto line = letterLineOf(QStringLiteral("Courier New"), text, 10, true, false);
+        for (int i = 0; i <= text.size(); ++i)
+            QVERIFY2(std::abs(line.x[i] - i * 6.0) < 0.15, qPrintable(QStringLiteral("letter %1 is at %2, not %3").arg(i).arg(line.x[i]).arg(i * 6.0)));
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Courier New")});
+        cf.setFontPointSize(10);
+        LayoutEnv word;
+        word.wordLines = true;
+        for (const int weight : {int(QFont::Normal), int(QFont::Bold)}) {
+            cf.setFontWeight(weight);
+            QCOMPARE(resolveCharFormat(cf, word).intProperty(tp::HandBold), 3);   // (a bold run has a real bold face, and is not by hand: it keeps the light stroke)
+        }
+    }
+
     // A word processor's missing face, measured, is drawn in a stand-in whose letters take the original's widths, the difference from the stand-in's going into the
     // spacing after each letter. Where the stand-in's capital I is much narrower than the original's, the letters of a word shared that difference unevenly (the first
     // letter of a run kept all of its own after it), and the gap beside the I was wide enough for a reader of the page's text to take "I llinois", "I ncludes", and

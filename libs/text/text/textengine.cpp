@@ -668,6 +668,8 @@ QPair<int, int> underlineSpan(const QList<QTextLayout::FormatRange> &fmts, int n
     return {std::max(fmts[n].start, ls), std::min(e, le)};
 }
 
+// (Kind 3 of tp::HandBold is not bold: the light stroke of the Courier New stand-in, drawn in pictures only; in a PDF and in print it draws nothing, and in no output does it
+// take part in setting letters: applyLetterWidthsTo leaves it out of the runs it sets by hand.)
 // Bold drawn by hand (tp::HandBold): the letters of a font with no bold face
 // take a stroke in their own color, whose width is what the stems grow by.
 // Publisher draws it by where the text goes (measured Oct 11 in Arial Black,
@@ -1222,7 +1224,7 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
             // list marker's, or the next paragraph's.)
             fams.insert(0, kThinCourier);
             r.setFontFamilies(fams);
-            r.setProperty(tp::HandBold, 3);   // (drawn with a light stroke in pictures, as the reference letters are a little darker than the face is)
+            if (!r.hasProperty(tp::HandBold)) r.setProperty(tp::HandBold, 3);   // (kind 3: a light stroke drawn in pictures only, as the reference letters are a little darker than the face is; it changes no letter's place, and a stroke by hand that the run already has stays)
         } else if (const WordStandIn standIn = wordStandInOf(lower); !standIn.family.isEmpty() && !hasFamilyCached(fams.first()) && hasFamilyCached(standIn.family)) {
             fams.insert(0, standIn.family);
             r.setFontFamilies(fams);
@@ -2415,7 +2417,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         const QStringList k = key.split(QLatin1Char('|'));
         const bool ofSymbols = isSymbolFont(k.value(0)) && !hasFamilyCached(k.value(0));
         const bool words = evenWords && !ofSymbols;   // (a symbol font's pictures are no words)
-        const bool byHand = r.format.hasProperty(tp::HandBold);   // (a stand-in drawn with a stroke by hand: see the stretches below)
+        const bool byHand = r.format.hasProperty(tp::HandBold) && r.format.intProperty(tp::HandBold) != 3;   // (a stand-in drawn with a stroke by hand: see the stretches below; the light stroke of the Courier New stand-in, kind 3, is a picture's alone and sets no letters)
         const QHash<char16_t, double> *table = ofSymbols ? symbolFontLetterWidths(k.value(0))
                                                : originalLetterWidths(k.value(0), k.value(1) == QLatin1String("1"), k.value(2) == QLatin1String("1"));
         QFont plain = r.format.font();
@@ -5997,7 +5999,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
             B->tl->draw(p, QPointF(0, 0), {}, QRectF(clip.topLeft() * kFine, clip.size() * kFine));
             const QList<QTextLayout::FormatRange> fmts = B->tl->formats();
             for (const auto &r : fmts) {
-                if (!r.format.hasProperty(tp::HandBold)) continue;
+                if (!r.format.hasProperty(tp::HandBold)) continue;   // (the stroke's width is 0 but in a picture for kind 3: see handBoldWidth)
                 for (int i = 0; i < B->lines.size(); ++i) {
                     if (B->lines[i].frame != frame) continue;
                     const QTextLine line = B->tl->lineAt(i);
