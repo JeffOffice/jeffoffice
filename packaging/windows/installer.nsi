@@ -108,6 +108,8 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 !define MUI_COMPONENTSPAGE_TEXT_TOP "Choose what to install. Apps marked coming soon come in an update."
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW ComponentsShow
 !insertmacro MUI_PAGE_COMPONENTS
+!define MUI_PAGE_CUSTOMFUNCTION_PRE DirPre
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW DirShow
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_TITLE "${SUITE} is ready"
@@ -236,15 +238,39 @@ VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 JeffOffice LLC. Free softwa
 !macroend
 !endif
 
-Function .onInit
-  !insertmacro WaitForAppToClose
-  ; (the folder of an earlier install, read back from the registry, can come with a backslash at its end: the folder page then shows "...\JeffOffice\")
-  ; (not a drive's own folder, "C:\", whose backslash is part of it)
+; The folder of an earlier install, read back from the registry, can come with a backslash at its end (the folder page then showed
+; "...\JeffOffice\"): it is taken off, but not from a drive's own folder ("C:\"), whose backslash is part of it.
+Function TrimInstDir
+  Push $0
+  Push $1
   StrLen $1 $INSTDIR
   StrCpy $0 $INSTDIR 1 -1
-  IntCmp $1 3 +3 +3 0
-  StrCmp $0 "\" 0 +2
+  IntCmp $1 3 done done 0
+  StrCmp $0 "\" 0 done
     StrCpy $INSTDIR $INSTDIR -1
+  done:
+  Pop $1
+  Pop $0
+FunctionEnd
+
+; The folder page: the folder is trimmed again just before the page is made (after everything the installer does when it starts), and its box
+; is given the trimmed folder once the page is shown (the box is the page's control 1019).
+Function DirPre
+  Call TrimInstDir
+FunctionEnd
+Function DirShow
+  Push $0
+  Push $1
+  FindWindow $0 "#32770" "" $HWNDPARENT
+  GetDlgItem $1 $0 1019
+  SendMessage $1 ${WM_SETTEXT} 0 "STR:$INSTDIR"
+  Pop $1
+  Pop $0
+FunctionEnd
+
+Function .onInit
+  !insertmacro WaitForAppToClose
+  Call TrimInstDir
   Call ComingSoon
   Call PresetWrite
   Call PresetCrunch
