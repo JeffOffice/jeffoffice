@@ -25,6 +25,11 @@ QString workbookKindOfType(const QString &mainContentType);
 // The filter the Save As dialog shows for a kind, and what the person is told when a name ends in another kind's ending.
 QString workbookKindFilter(const QString &kind);
 QString workbookKindNotice(const QString &kind, const QString &programName);
+// The endings a workbook of this kind may be saved under, its own first: a template may become a workbook, a macro template a workbook with or without macros, and an add-in a workbook
+// with macros. (The kind of the file follows the ending that is chosen.)
+QStringList workbookKindsSavedAs(const QString &kind);
+// Whether files of the kind can hold a macro project.
+bool workbookKindHoldsMacros(const QString &kind);
 
 // What the program writes between the values of a .csv: the semicolon where the person's language writes a comma in its numbers, else the comma (the list separator of the system).
 QChar csvSeparatorFor(const QLocale &locale);

@@ -15,7 +15,7 @@ namespace jp::crunch {
 
 bool isCsvName(const QString &path) { return QFileInfo(path).suffix().compare(QLatin1String("csv"), Qt::CaseInsensitive) == 0; }
 
-QString openFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx *.xlsm *.xltx *.xltm *.xls *.ods *.fods *.csv *.tsv *.txt)"); }
+QString openFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx *.xlsm *.xltx *.xltm *.xlam *.xls *.ods *.fods *.csv *.tsv *.txt)"); }
 
 QString workbookKindOfType(const QString &mainContentType)
 {
@@ -28,6 +28,15 @@ QString workbookKindOfType(const QString &mainContentType)
 
 QString workbookKindFilter(const QString &kind)
 {
+    if (kind == QLatin1String("xltm"))
+        return QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled templates (*.xltm)") + QStringLiteral(";;") + QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled workbooks (*.xlsm)") + QStringLiteral(";;")
+               + QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
+    if (kind == QLatin1String("xlam"))
+        return QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled add-ins (*.xlam)") + QStringLiteral(";;") + QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled workbooks (*.xlsm)");
+    if (kind == QLatin1String("xltx"))
+        return QCoreApplication::translate("jp::crunch::OtherFormats", "Templates (*.xltx)") + QStringLiteral(";;") + QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
+    if (kind == QLatin1String("xlsm"))
+        return QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled workbooks (*.xlsm)") + QStringLiteral(";;") + QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
     if (kind == QLatin1String("xlsm")) return QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled workbooks (*.xlsm)");
     if (kind == QLatin1String("xltx")) return QCoreApplication::translate("jp::crunch::OtherFormats", "Templates (*.xltx)");
     if (kind == QLatin1String("xltm")) return QCoreApplication::translate("jp::crunch::OtherFormats", "Macro-enabled templates (*.xltm)");
@@ -35,15 +44,30 @@ QString workbookKindFilter(const QString &kind)
     return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx)");
 }
 
+QStringList workbookKindsSavedAs(const QString &kind)
+{
+    if (kind == QLatin1String("xlsm")) return {QStringLiteral("xlsm"), QStringLiteral("xlsx")};
+    if (kind == QLatin1String("xltx")) return {QStringLiteral("xltx"), QStringLiteral("xlsx")};
+    if (kind == QLatin1String("xltm")) return {QStringLiteral("xltm"), QStringLiteral("xlsm"), QStringLiteral("xlsx")};
+    if (kind == QLatin1String("xlam")) return {QStringLiteral("xlam"), QStringLiteral("xlsm")};
+    return {QStringLiteral("xlsx")};
+}
+
+bool workbookKindHoldsMacros(const QString &kind) { return kind == QLatin1String("xlsm") || kind == QLatin1String("xltm") || kind == QLatin1String("xlam"); }
+
 QString workbookKindNotice(const QString &kind, const QString &programName)
 {
+    QStringList endings;
+    for (const QString &k : workbookKindsSavedAs(kind)) endings << QLatin1Char('.') + k;
+    const QString list = QLocale().createSeparatedList(endings);
     if (kind == QLatin1String("xlsm"))
-        return QCoreApplication::translate("jp::crunch::OtherFormats", "This workbook has macros in it, so it is saved as a .xlsm file. Give the file a name that ends in .xlsm.");
-    if (kind == QLatin1String("xltx")) return QCoreApplication::translate("jp::crunch::OtherFormats", "This workbook is a template, so it is saved as a .xltx file. Give the file a name that ends in .xltx.");
+        return QCoreApplication::translate("jp::crunch::OtherFormats", "This workbook has macros in it. It can be saved as %1. Give the file a name that ends in one of them.").arg(list);
+    if (kind == QLatin1String("xltx"))
+        return QCoreApplication::translate("jp::crunch::OtherFormats", "This workbook is a template. It can be saved as %1. Give the file a name that ends in one of them.").arg(list);
     if (kind == QLatin1String("xltm"))
-        return QCoreApplication::translate("jp::crunch::OtherFormats", "This workbook is a template with macros in it, so it is saved as a .xltm file. Give the file a name that ends in .xltm.");
+        return QCoreApplication::translate("jp::crunch::OtherFormats", "This workbook is a template with macros in it. It can be saved as %1. Give the file a name that ends in one of them.").arg(list);
     if (kind == QLatin1String("xlam"))
-        return QCoreApplication::translate("jp::crunch::OtherFormats", "This workbook is an add-in with macros in it, so it is saved as a .xlam file. Give the file a name that ends in .xlam.");
+        return QCoreApplication::translate("jp::crunch::OtherFormats", "This workbook is an add-in with macros in it. It can be saved as %1. Give the file a name that ends in one of them.").arg(list);
     return QCoreApplication::translate("jp::crunch::OtherFormats", "%1 saves workbooks as .xlsx files. Give the file a name that ends in .xlsx.").arg(programName);
 }
 
@@ -112,11 +136,20 @@ QStringList leftOutOfCsv(const jp::office::sheet::Workbook &book, qint64 formula
 {
     using jp::office::sheet::SheetState;
     QStringList out;
-    int shown = 0;
-    for (const auto &sheet : book.info().sheets)
-        if (!sheet.deleted && sheet.state == SheetState::Visible) ++shown;
-    if (shown > 1) out << QCoreApplication::translate("jp::crunch::OtherFormats", "%n other sheet(s)", nullptr, shown - 1);
+    int others = 0, hidden = 0;   // the other sheets that show, and those that are hidden or very hidden (the sheet in view is one of the shown)
+    bool seenView = false;
+    for (const auto &sheet : book.info().sheets) {
+        if (sheet.deleted) continue;
+        if (sheet.state != SheetState::Visible) ++hidden;
+        else if (seenView) ++others;
+        else seenView = true;
+    }
+    if (others == 1) out << QCoreApplication::translate("jp::crunch::OtherFormats", "1 other sheet");
+    else if (others > 1) out << QCoreApplication::translate("jp::crunch::OtherFormats", "%1 other sheets").arg(others);
+    if (hidden == 1) out << QCoreApplication::translate("jp::crunch::OtherFormats", "1 hidden sheet");
+    else if (hidden > 1) out << QCoreApplication::translate("jp::crunch::OtherFormats", "%1 hidden sheets").arg(hidden);
     if (formulas > 0) out << QCoreApplication::translate("jp::crunch::OtherFormats", "formulas (the file has their results)");
+    // what the parts show, found by one look at each sheet's relationships (their types end in these words), and the kinds already found are not looked for again
     struct Kind {
         const char *type;
         QString what;
@@ -128,14 +161,20 @@ QStringList leftOutOfCsv(const jp::office::sheet::Workbook &book, qint64 formula
                           {"/ctrlProp", QCoreApplication::translate("jp::crunch::OtherFormats", "form controls")}, {"/control", QCoreApplication::translate("jp::crunch::OtherFormats", "form controls")},
                           {"/oleObject", QCoreApplication::translate("jp::crunch::OtherFormats", "embedded objects")}, {"/package", QCoreApplication::translate("jp::crunch::OtherFormats", "embedded objects")},
                           {"/slicer", QCoreApplication::translate("jp::crunch::OtherFormats", "slicers")}, {"/timeline", QCoreApplication::translate("jp::crunch::OtherFormats", "slicers")}};
+    constexpr int kKinds = int(sizeof(kinds) / sizeof(kinds[0]));
     // (a workbook read from another kind of file has no parts of its own to look in)
     if (!book.isConverted() && book.package().isLazy()) {
         const jp::office::Package &package = book.package();
+        QStringList found;
         for (const auto &sheet : book.info().sheets) {
             if (sheet.deleted || sheet.part.isEmpty()) continue;
-            for (const Kind &k : kinds)
-                if (!out.contains(k.what) && !package.relationshipsOfType(sheet.part, QString::fromLatin1(k.type)).isEmpty()) out << k.what;
+            for (const jp::office::Relationship &r : package.relationships(sheet.part)) {
+                for (int i = 0; i < kKinds; ++i)
+                    if (r.type.endsWith(QLatin1String(kinds[i].type)) && !found.contains(kinds[i].what)) found << kinds[i].what;
+            }
+            if (found.size() == 7) break;   // (every kind there is)
         }
+        out << found;
         const QString main = book.mainPart();
         if (!package.relationshipsOfType(main, QStringLiteral("/externalLink")).isEmpty()) out << QCoreApplication::translate("jp::crunch::OtherFormats", "links to other workbooks");
         if (!package.relationshipsOfType(main, QStringLiteral("/vbaProject")).isEmpty()) out << QCoreApplication::translate("jp::crunch::OtherFormats", "macros");

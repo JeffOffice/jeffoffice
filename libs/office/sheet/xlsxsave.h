@@ -197,6 +197,9 @@ struct CellPermute {
 };
 
 struct SaveChanges {
+    // The kind the file is saved as when it is not the kind it was read as ("xlsx", "xlsm", "xltx", "xltm", or "xlam"; empty: the same kind). The main part's type follows it; going to a kind
+    // that holds no macros leaves the macro project, its signature, and what names them out.
+    QString targetKind;
     std::vector<CellPermute> permutes;
     std::map<int, SheetChanges> sheets;           // by the sheet's place in the workbook
     // The print area and titles of the sheets whose page setup may differ from the file's: the workbook's names are changed where they differ from these.

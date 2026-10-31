@@ -945,7 +945,7 @@ private:
     std::function<Answer(const QString &, const QString &)> m_asker;
     std::function<ChangedAnswer(const QString &)> m_changedAsker;
     std::function<LossAnswer(const QString &, const QString &)> m_lossAsker;
-    LossAnswer askBeforeLosing(const QString &title, const QString &text);
+    LossAnswer askBeforeLosing(const QString &title, const QString &text, const QString &goLabel = QString(), const QString &otherLabel = QString(), bool defaultIsOther = true);
     std::function<bool(SeriesRequest *)> m_seriesAsker;
     std::function<QString(const QString &, const QString &)> m_savePicker;
     QString m_pickedFilter;

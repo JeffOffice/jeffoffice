@@ -8,12 +8,16 @@
 #include "core/fonts.h"
 #include "editwindow.h"
 #include "io/cfb.h"
+#include "office/package.h"
+#include "sheet/sheetreader.h"
 #include "io/zip.h"
 #include "io/zipindex.h"
 #include "savedok.h"
 #include "testrunner.h"
 
 #include <QBuffer>
+#include <QElapsedTimer>
+#include <QtEndian>
 #include <QImage>
 #include <QRegularExpression>
 #include <QSettings>
@@ -329,9 +333,9 @@ private Q_SLOTS:
         e.select(QStringLiteral("D1"));
         e.enter(QStringLiteral("5"));
         QVERIFY(e.settle());
-        // the ending of its kind is accepted, the ending of another kind is refused with the kind named
+        // the ending of its kind is accepted, an ending of no kind it may become is refused with the kind named
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-        QVERIFY(!e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("model.xlsm"))));
+        QVERIFY(!e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("model.xlam"))));
         QVERIFY2(e.win.told.last().contains(QLatin1String(".xltm")), qPrintable(e.win.told.last()));
         QVERIFY(e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("copy.xltm"))));
         QVERIFY2(savedOk(saved), "the save failed");
@@ -343,8 +347,8 @@ private Q_SLOTS:
     // A template without macros is saved as a template, and one with an add-in's type as an add-in.
     void templatesAndAddInsKeepTheirEnding()
     {
-        for (const auto &[type, ending, other] : {std::tuple<QString, QString, QString>{QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml"), QStringLiteral("xltx"), QStringLiteral("xlsx")},
-                                                  {QStringLiteral("application/vnd.ms-excel.addin.macroEnabled.main+xml"), QStringLiteral("xlam"), QStringLiteral("xlsm")}}) {
+        for (const auto &[type, ending, other] : {std::tuple<QString, QString, QString>{QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml"), QStringLiteral("xltx"), QStringLiteral("xls")},
+                                                  {QStringLiteral("application/vnd.ms-excel.addin.macroEnabled.main+xml"), QStringLiteral("xlam"), QStringLiteral("xlsb")}}) {
             const QByteArray book = repack(editBook(), [&](Parts &p) { p[QStringLiteral("[Content_Types].xml")].replace("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml", type.toUtf8()); });
             EditWindow e;
             QVERIFY(e.open(book, QStringLiteral("model.") + ending));
@@ -448,7 +452,10 @@ private Q_SLOTS:
         const int told = e.win.told.size();
         e.win.w.openFile(broken);
         QTRY_COMPARE(e.win.told.size(), told + 1);
-        QVERIFY2(e.win.told.last().contains(QLatin1String("broken.xlsx")) && e.win.told.last().contains(QLatin1String("damaged")), qPrintable(e.win.told.last()));
+        QVERIFY2(e.win.told.last().contains(QLatin1String("broken.xlsx")), qPrintable(e.win.told.last()));
+        QVERIFY2(e.win.told.last().contains(QLatin1String("The file is damaged: it starts like a zip package (.xlsx or .xlsm), but its contents can't be read. It may have been cut short when it was downloaded or copied. "
+                                                         "If you have the original, copy it again.")),
+                 qPrintable(e.win.told.last()));
         QVERIFY(e.win.w.hasWorkbook());
         QVERIFY(e.win.w.isModified());
         QCOMPARE(e.valueAt(QStringLiteral("D1")), QStringLiteral("n:5"));
@@ -471,7 +478,237 @@ private Q_SLOTS:
         }
     }
 
+
+    // ---- the kind of the file follows the ending chosen: a template may become a workbook
+
+    void aTemplateIsSavedAsAWorkbookWithTheWorkbooksType()
+    {
+        const QString sheetType = QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml");
+        const QString macroSheetType = QStringLiteral("application/vnd.ms-excel.sheet.macroEnabled.main+xml");
+        const QByteArray xltx = repack(editBook(), [](Parts &p) { p[QStringLiteral("[Content_Types].xml")].replace("sheet.main+xml", "template.main+xml"); });
+        QString asked;
+        QVERIFY(saveAsKind(xltx, QStringLiteral("model.xltx"), QStringLiteral("book.xlsx"), &asked));
+        KindOf k = m_kind;
+        QCOMPARE(k.type, sheetType);
+        QVERIFY(k.reads && !k.project && !k.signature);
+        QVERIFY2(asked.isEmpty(), "a template with no macros has nothing to say about them");
+        // .xltm as .xlsm keeps the project, its signature, and what names them
+        const QByteArray xltm = macroBookOf(QStringLiteral("application/vnd.ms-excel.template.macroEnabled.main+xml"), true);
+        QVERIFY(saveAsKind(xltm, QStringLiteral("model.xltm"), QStringLiteral("book.xlsm"), &asked));
+        k = m_kind;
+        QCOMPARE(k.type, macroSheetType);
+        QVERIFY(k.reads && k.project && k.signature && k.projectLink && k.projectType);
+        QCOMPARE(m_project, readRaw(xltm).value(QStringLiteral("xl/vbaProject.bin")));
+        QVERIFY2(asked.isEmpty(), "nothing is lost, so nothing is asked");
+        // .xltm as .xlsx: the person is told, and the copy has no project, no signature, and no link or type that names them
+        asked.clear();
+        QVERIFY(saveAsKind(xltm, QStringLiteral("model.xltm"), QStringLiteral("book.xlsx"), &asked));
+        k = m_kind;
+        QCOMPARE(k.type, sheetType);
+        QVERIFY(k.reads && !k.project && !k.signature && !k.projectLink && !k.projectType);
+        QVERIFY2(asked.contains(QLatin1String("macros")) && asked.contains(QLatin1String(".xlsx")), qPrintable(asked));
+        // the answer "no" writes nothing
+        {
+            EditWindow e;
+            QVERIFY(e.open(xltm, QStringLiteral("model.xltm")));
+            e.win.w.setLossAsker([](const QString &, const QString &) { return CrunchWindow::LossAnswer::Cancel; });
+            e.select(QStringLiteral("D1"));
+            e.enter(QStringLiteral("5"));
+            QVERIFY(e.settle());
+            QVERIFY(!e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("no.xlsx"))));
+            QVERIFY(!QFileInfo::exists(e.folder.dir.filePath(QStringLiteral("no.xlsx"))));
+        }
+        // an add-in as .xlsm keeps its project; a workbook with macros as .xlsx loses it, with the question
+        const QByteArray xlam = macroBookOf(QStringLiteral("application/vnd.ms-excel.addin.macroEnabled.main+xml"), false);
+        asked.clear();
+        QVERIFY(saveAsKind(xlam, QStringLiteral("tool.xlam"), QStringLiteral("tool.xlsm"), &asked));
+        k = m_kind;
+        QCOMPARE(k.type, macroSheetType);
+        QVERIFY(k.reads && k.project && k.projectLink && asked.isEmpty());
+        asked.clear();
+        QVERIFY(saveAsKind(macroBookOf(macroSheetType, true), QStringLiteral("m.xlsm"), QStringLiteral("m.xlsx"), &asked));
+        k = m_kind;
+        QCOMPARE(k.type, sheetType);
+        QVERIFY(k.reads && !k.project && !k.signature && !k.projectLink && !k.projectType);
+        QVERIFY(asked.contains(QLatin1String("macros")));
+        // a template cannot become an add-in, nor a workbook a template: refused, with the kinds it may be named
+        EditWindow e;
+        QVERIFY(e.open(xltx, QStringLiteral("model.xltx")));
+        QVERIFY(!e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("x.xlam"))));
+        QVERIFY2(e.win.told.last().contains(QLatin1String(".xltx")) && e.win.told.last().contains(QLatin1String(".xlsx")), qPrintable(e.win.told.last()));
+    }
+
+    // After a template is saved as a workbook the window holds a workbook: Save writes a workbook again.
+    void afterSavingATemplateAsAWorkbookSaveWritesAWorkbook()
+    {
+        const QByteArray xltx = repack(editBook(), [](Parts &p) { p[QStringLiteral("[Content_Types].xml")].replace("sheet.main+xml", "template.main+xml"); });
+        EditWindow e;
+        QVERIFY(e.open(xltx, QStringLiteral("model.xltx")));
+        e.select(QStringLiteral("D1"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        const QString target = e.folder.dir.filePath(QStringLiteral("book.xlsx"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.saveAs(target));
+        QVERIFY(savedOk(saved));
+        e.select(QStringLiteral("D2"));
+        e.enter(QStringLiteral("6"));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.save());
+        QVERIFY(savedOk(saved));
+        const QString type = kindOf(target).type;
+        QVERIFY2(type.contains(QLatin1String("sheet.main+xml")) && !type.contains(QLatin1String("template")), qPrintable(type));
+    }
+
+    // ---- the words for a file that can't be read, each true to what is wrong
+
+    void zipThatIsNotWholeIsToldAsWhatIsWrongWithIt()
+    {
+        const QByteArray whole = editBook();
+        // zip64: the record at the end says to look in the other record
+        QString said = refusalOf(patched(whole, [](QByteArray &z) {
+                                     const qsizetype eocd = findLast(z, "PK\x05\x06");
+                                     z[eocd + 10] = char(0xFF);
+                                     z[eocd + 11] = char(0xFF);
+                                 }),
+                                 QStringLiteral("big.xlsx"));
+        QVERIFY2(said.contains(QLatin1String("can't read yet")) && said.contains(QLatin1String("zip64")) && !said.contains(QLatin1String("cut short")), qPrintable(said));
+        // a part packed by method 9 (deflate64)
+        said = refusalOf(patched(whole, [](QByteArray &z) { z[findLast(z, "PK\x01\x02") + 10] = char(9); }), QStringLiteral("nine.xlsx"));
+        QVERIFY2(said.contains(QLatin1String("packed in a way")) && !said.contains(QLatin1String("cut short")), qPrintable(said));
+        // a local header that is not one
+        said = refusalOf(patched(whole, [](QByteArray &z) {
+                             const qsizetype central = findLast(z, "PK\x01\x02");
+                             const qsizetype local = qFromLittleEndian<quint32>(z.constData() + central + 42);
+                             z[local] = 'X';
+                         }),
+                         QStringLiteral("local.xlsx"));
+        QVERIFY2(said.contains(QLatin1String("list of parts")) && said.contains(QLatin1String("damaged")) && !said.contains(QLatin1String("cut short")), qPrintable(said));
+        // an entry whose data goes past the end of the file
+        said = refusalOf(patched(whole, [](QByteArray &z) {
+                             const qsizetype central = findLast(z, "PK\x01\x02");
+                             z[central + 20] = char(0xF0);
+                             z[central + 21] = char(0xFF);
+                             z[central + 22] = char(0xFF);
+                             z[central + 23] = char(0x0F);
+                         }),
+                         QStringLiteral("long.xlsx"));
+        QVERIFY2(said.contains(QLatin1String("damaged")) && said.contains(QLatin1String("not all there")) && !said.contains(QLatin1String("cut short")), qPrintable(said));
+        // the end of the file gone: cut short
+        said = refusalOf(whole.left(whole.size() - 30), QStringLiteral("cut.xlsx"));
+        QVERIFY2(said.contains(QLatin1String("cut short")), qPrintable(said));
+    }
+
+    void aCompoundFileWhoseWorkbookCantBeReadIsDamagedNotWithoutOne()
+    {
+        cfb::File container;
+        container.entries.resize(2);
+        container.entries[0].type = cfb::Entry::Root;
+        container.entries[0].name = QStringLiteral("Root Entry");
+        container.entries[0].children = {1};
+        container.entries[1].type = cfb::Entry::Storage;   // (a workbook that is there, and is no stream)
+        container.entries[1].name = QStringLiteral("Workbook");
+        const QString said = refusalOf(cfb::write(container), QStringLiteral("odd.xls"));
+        QVERIFY2(said.contains(QLatin1String("damaged")) && !said.contains(QLatin1String("no workbook in it")), qPrintable(said));
+    }
+
+    void textDocumentsAndPresentationsWithMacrosAreNamedToo()
+    {
+        for (const auto &[type, word] : {std::pair<QString, QString>{QStringLiteral("application/vnd.ms-word.document.macroEnabled.main+xml"), QStringLiteral(".docm")},
+                                         {QStringLiteral("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"), QStringLiteral(".pptm")}}) {
+            const QByteArray other = repack(editBook(), [&](Parts &p) {
+                p[QStringLiteral("[Content_Types].xml")].replace("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml", type.toUtf8());
+                p[QStringLiteral("xl/workbook.xml")] = "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body/></w:document>";
+            });
+            const QString said = refusalOf(other, QStringLiteral("x.xlsx"));
+            QVERIFY2(said.contains(word) && said.contains(QLatin1String("not a workbook")), qPrintable(said));
+        }
+    }
+
+    // A workbook of 1,000 sheets (the most a workbook may have) is asked about before a .csv is written, and the question does not make the window wait.
+    void theQuestionBeforeACsvOfAHugeWorkbookIsQuick()
+    {
+        QVector<QByteArray> sheets;
+        for (int i = 0; i < 1000; ++i) sheets << worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>%1</v></c></row>").arg(i));
+        const QByteArray book = repack(buildXlsx(sheets), [](Parts &p) {
+            for (int i = 1; i <= 1000; ++i) {
+                relate(p, QStringLiteral("xl/worksheets/_rels/sheet%1.xml.rels").arg(i), QStringLiteral("rId1"), QStringLiteral("printerSettings"), QStringLiteral("../printerSettings/p.bin"));
+                relate(p, QStringLiteral("xl/worksheets/_rels/sheet%1.xml.rels").arg(i), QStringLiteral("rId2"), QStringLiteral("hyperlink"), QStringLiteral("https://example.test/"), true);
+            }
+            relate(p, QStringLiteral("xl/worksheets/_rels/sheet1000.xml.rels"), QStringLiteral("rId3"), QStringLiteral("comments"), QStringLiteral("../comments1.xml"));
+        });
+        if (qEnvironmentVariableIsSet("JC_KEEP_DUMP")) {
+            QFile dump(qEnvironmentVariable("JC_KEEP_DUMP") + QStringLiteral("/huge.xlsx"));
+            if (dump.open(QIODevice::WriteOnly)) dump.write(book);
+        }
+        EditWindow e;
+        QVERIFY(e.open(book, QStringLiteral("huge.xlsx")));
+        QString text;
+        e.win.w.setLossAsker([&](const QString &, const QString &t) {
+            text = t;
+            return CrunchWindow::LossAnswer::Cancel;
+        });
+        QElapsedTimer clock;
+        clock.start();
+        e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("huge.csv")));
+        qInfo("the question about a .csv of 1,000 sheets took %lld ms", clock.elapsed());
+        QVERIFY2(text.contains(QLatin1String("999 other sheets")) && text.contains(QLatin1String("notes")), qPrintable(text));
+    }
+
 private:
+    // What a saved file says of its kind: the type of its main part, whether the project is there (the part, its signature, the links and types that name them), and that it reads.
+    struct KindOf {
+        QString type;
+        bool project = false, signature = false, projectLink = false, projectType = false;
+        bool reads = false;
+    };
+    static KindOf kindOf(const QString &path)
+    {
+        KindOf k;
+        const Parts p = readParts(path);
+        const QString types = QString::fromUtf8(p.value(QStringLiteral("[Content_Types].xml")));
+        static const QRegularExpression main(QStringLiteral("PartName=\"/xl/workbook\\.xml\"\\s+ContentType=\"([^\"]*)\""));
+        k.type = main.match(types).captured(1);
+        k.project = p.contains(QStringLiteral("xl/vbaProject.bin"));
+        k.signature = p.contains(QStringLiteral("xl/vbaProjectSignature.bin")) || p.contains(QStringLiteral("xl/_rels/vbaProject.bin.rels"));
+        k.projectLink = QString::fromUtf8(p.value(kBookRels)).contains(QLatin1String("vbaProject"));
+        k.projectType = types.contains(QLatin1String("vbaProject"));
+        jp::office::Package package;
+        QString why;
+        jp::office::sheet::Workbook book;
+        k.reads = package.readLazyFile(path, &why) && book.open(package, &why);
+        return k;
+    }
+    // Opens `book` under `name`, edits a cell, saves it as `target` (answering the question about macros as `answer`), and says whether it was written.
+    bool saveAsKind(const QByteArray &book, const QString &name, const QString &target, QString *asked, CrunchWindow::LossAnswer answer = CrunchWindow::LossAnswer::Continue)
+    {
+        EditWindow e;
+        if (!e.open(book, name)) return false;
+        e.win.w.setLossAsker([&](const QString &, const QString &text) {
+            if (asked) *asked = text;
+            return answer;
+        });
+        e.select(QStringLiteral("D1"));
+        e.enter(QStringLiteral("5"));
+        if (!e.settle()) return false;
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        const QString path = e.folder.dir.filePath(target);
+        if (!e.win.w.saveAs(path)) return false;
+        if (!savedOk(saved)) return false;
+        m_kind = kindOf(path);
+        m_project = rawOf(path).value(QStringLiteral("xl/vbaProject.bin"));
+        return true;
+    }
+    KindOf m_kind;
+    QByteArray m_project;
+
+    static QByteArray patched(QByteArray zip, const std::function<void(QByteArray &)> &change)
+    {
+        change(zip);
+        return zip;
+    }
+    static qsizetype findLast(const QByteArray &zip, const char *signature) { return zip.lastIndexOf(QByteArray(signature, 4)); }
+
     static Parts readParts(const QString &path)
     {
         QFile f(path);

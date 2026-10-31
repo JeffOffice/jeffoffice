@@ -2085,6 +2085,78 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             }
         }
     }
+    // ---- another kind of workbook file: the main part's type is the new kind's, and a kind with no macros has no project
+    if (!changes.targetKind.isEmpty()) {
+        QString newType;
+        bool macros = false;
+        const QString kind = changes.targetKind;
+        if (kind == QLatin1String("xlsx")) newType = QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml");
+        else if (kind == QLatin1String("xlsm")) newType = QStringLiteral("application/vnd.ms-excel.sheet.macroEnabled.main+xml"), macros = true;
+        else if (kind == QLatin1String("xltx")) newType = QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml");
+        else if (kind == QLatin1String("xltm")) newType = QStringLiteral("application/vnd.ms-excel.template.macroEnabled.main+xml"), macros = true;
+        else if (kind == QLatin1String("xlam")) newType = QStringLiteral("application/vnd.ms-excel.addin.macroEnabled.main+xml"), macros = true;
+        else return fail(QCoreApplication::translate("jp::office::sheet::Save", "This kind of workbook file can't be written."));
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        QByteArray types;
+        if (typesEntry < 0 || !(replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types)))
+            return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file's list of types is not in the file."));
+        // the main part's Override: its ContentType is the new kind's
+        {
+            Tag t;
+            qsizetype pos = 0;
+            bool done = false;
+            const QString want = plain(book.mainPart());
+            while (xmlscan::nextTag(types, pos, &t)) {
+                pos = t.end;
+                if (t.closing || t.local != "Override") continue;
+                const QByteArray tag = types.mid(t.start, t.end - t.start);
+                bool found = false;
+                const QByteArrayView name = xmlscan::attribute(QByteArrayView(tag), "PartName", &found);
+                if (!found || plain(xmlscan::unescape(name)) != want) continue;
+                found = false;
+                const QByteArrayView old = xmlscan::attribute(QByteArrayView(tag), "ContentType", &found);
+                if (!found) continue;
+                const qsizetype at = t.start + (old.data() - tag.constData());
+                types = types.left(at) + newType.toUtf8() + types.mid(at + old.size());
+                done = true;
+                break;
+            }
+            if (!done) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook part has no type in the file."));
+        }
+        if (!macros) {
+            const QString mainEntryName = package.entryName(book.mainPart());
+            const int slash = mainEntryName.lastIndexOf(QLatin1Char('/'));
+            const QString relsName = (slash < 0 ? QString() : mainEntryName.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? mainEntryName : mainEntryName.mid(slash + 1)) + QStringLiteral(".rels");
+            const int relsEntry = entryAt.value(plain(relsName), -1);
+            const QVector<Relationship> projects = package.relationshipsOfType(book.mainPart(), QStringLiteral("/vbaProject"));
+            for (const Relationship &project : projects) {
+                if (project.external) continue;
+                const QString signaturePart = [&] {
+                    const QVector<Relationship> sig = package.relationshipsOfType(project.target, QStringLiteral("/vbaProjectSignature"));
+                    return sig.isEmpty() || sig.first().external ? QString() : sig.first().target;
+                }();
+                QByteArray rels, out2;
+                if (relsEntry >= 0 && (replaced.contains(relsEntry) ? (rels = replaced.value(relsEntry), true) : inflate(relsEntry, &rels)) && removeRelationshipOfType(rels, QStringLiteral("/vbaProject"), &out2))
+                    replaced.insert(relsEntry, out2);
+                for (const QString &part : {project.target, signaturePart}) {
+                    if (part.isEmpty()) continue;
+                    if (removeContentTypeOverride(types, part, &out2)) types = out2;
+                    const int e = entryOfPart(part);
+                    if (e >= 0) dropped.insert(e);
+                    const QString name = package.entryName(part);
+                    const int s2 = name.lastIndexOf(QLatin1Char('/'));
+                    const int r = entryAt.value(plain((s2 < 0 ? QString() : name.left(s2 + 1)) + QStringLiteral("_rels/") + (s2 < 0 ? name : name.mid(s2 + 1)) + QStringLiteral(".rels")), -1);
+                    if (r >= 0) dropped.insert(r);
+                }
+            }
+        }
+        replaced.insert(typesEntry, types);
+    }
     // ---- the sheets: added (made whole, below), deleted (their parts, and what only they use, are left out), renamed, moved, hidden, and shown
     struct NewSheet {
         int sheet;

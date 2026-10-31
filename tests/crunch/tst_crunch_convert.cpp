@@ -13,6 +13,11 @@
 #include "grid/gridview.h"
 
 #include <QApplication>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QTimer>
+#include "io/zip.h"
+#include "io/zipindex.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -71,13 +76,14 @@ struct Win {
         // (the question before a save that leaves something out is told like the notices are, and answered as the test says)
         w.setLossAsker([this](const QString &title, const QString &text) {
             told << title + QStringLiteral(": ") + text;
-            if (lossAnswer == CrunchWindow::LossAnswer::SaveXlsx && !answerAfterLoss.isEmpty()) answer = answerAfterLoss;
+            if (lossAnswer == CrunchWindow::LossAnswer::SaveXlsx && (!answerAfterLoss.isEmpty() || cancelAfterLoss)) answer = answerAfterLoss;
             return lossAnswer;
         });
         w.resize(1100, 640);
         w.show();
     }
     CrunchWindow::LossAnswer lossAnswer = CrunchWindow::LossAnswer::Continue;
+    bool cancelAfterLoss = false;   // the file dialog that follows gives up (answers no name)
     QString answerAfterLoss;   // the name the file dialog answers once the person chose to save as .xlsx instead
     bool open(const QByteArray &bytes, const QString &name)
     {
@@ -348,6 +354,128 @@ private Q_SLOTS:
             QVERIFY2(o.filters.first().contains(QLatin1String("*.xlsx")), qPrintable(o.filters.first()));
             QVERIFY(QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("copy.xlsx"))));
         }
+    }
+
+    // Sheets that are hidden, and very hidden, are named as such in the question: one that shows and five that do not are "5 hidden sheets", not "other sheets".
+    void hiddenSheetsAreNamedInTheQuestionBeforeACsv()
+    {
+        QVector<QByteArray> sheets;
+        for (int i = 0; i < 6; ++i) sheets << worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>%1</v></c></row>").arg(i));
+        QByteArray book = buildXlsx(sheets, QByteArray(), QString(), QString(), QByteArray(), QStringList(), QString(), QByteArray(), QString(), {1, 2, 3, 4, 5});
+        // (one of them very hidden)
+        QMap<QString, QByteArray> parts;
+        readZip(book, parts);
+        QByteArray &workbook = parts[QStringLiteral("xl/workbook.xml")];
+        const qsizetype first = workbook.indexOf("state=\"hidden\"");
+        QVERIFY(first >= 0);
+        workbook.replace(first, 14, "state=\"veryHidden\"");
+        ZipWriter z;
+        for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+        book = z.finish();
+        Win o;
+        QVERIFY(o.open(book, QStringLiteral("hidden.xlsx")));
+        o.lossAnswer = CrunchWindow::LossAnswer::Cancel;
+        QVERIFY(!o.w.saveAs(o.folder.dir.filePath(QStringLiteral("out.csv"))));
+        QCOMPARE(o.told.size(), 1);
+        const QString said = o.told.first().mid(o.told.first().indexOf(QLatin1String("In this workbook")));
+        QVERIFY2(said.contains(QLatin1String("5 hidden sheets")) && !said.contains(QLatin1String("other sheet")), qPrintable(o.told.first()));
+    }
+
+    // From the question asked when the window is closed with changes, "Save as .xlsx" saves the workbook and then closes the window; if the Save As is given up, or the question
+    // is, the window stays, and a later save does not close it.
+    void savingAsXlsxFromTheCsvQuestionOnCloseFinishesTheClose()
+    {
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        auto start = [&](Win &o) {
+            QVERIFY(o.open("a,b\n1,2\n", QStringLiteral("values.csv")));
+            o.select(0, 0);
+            o.enter(QStringLiteral("5"));
+            QVERIFY(o.settle());
+            o.w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Save; });
+            o.answer = o.folder.dir.filePath(QStringLiteral("values.out.csv"));
+            o.lossAnswer = CrunchWindow::LossAnswer::SaveXlsx;
+        };
+        {
+            Win o;
+            start(o);
+            o.answerAfterLoss = o.folder.dir.filePath(QStringLiteral("book.xlsx"));
+            QSignalSpy saved(&o.w, &CrunchWindow::saved);
+            o.w.close();
+            QVERIFY(savedOk(saved));
+            QTRY_VERIFY(!o.w.isVisible());
+            QVERIFY(QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("book.xlsx"))));
+            QVERIFY(!QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("values.out.csv"))));
+        }
+        {
+            Win o;
+            start(o);
+            o.cancelAfterLoss = true;
+            o.w.close();
+            QVERIFY(o.w.isVisible());
+            QVERIFY(o.w.isModified());
+            // a save that follows is only a save: the window stays
+            o.lossAnswer = CrunchWindow::LossAnswer::Continue;
+            QSignalSpy saved(&o.w, &CrunchWindow::saved);
+            QVERIFY(o.w.saveAs(o.folder.dir.filePath(QStringLiteral("later.xlsx"))));
+            QVERIFY(savedOk(saved));
+            QTest::qWait(50);
+            QVERIFY(o.w.isVisible());
+        }
+        {
+            Win o;
+            start(o);
+            o.lossAnswer = CrunchWindow::LossAnswer::Cancel;
+            o.w.close();
+            QVERIFY(o.w.isVisible());
+            QVERIFY(o.w.isModified());
+            QVERIFY(!QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("values.out.csv"))));
+            o.lossAnswer = CrunchWindow::LossAnswer::Continue;
+            QSignalSpy exported(&o.w, &CrunchWindow::csvExported);
+            QVERIFY(o.w.saveAs(o.folder.dir.filePath(QStringLiteral("again.csv"))));
+            QVERIFY(exported.wait(20000));
+            QTest::qWait(50);
+            QVERIFY(o.w.isVisible());
+        }
+    }
+
+    // The question itself, as a person sees it: the default is to save the workbook as .xlsx (nothing is lost), Esc and the close box are Cancel, and each button does what it says.
+    void theRealQuestionBeforeACsvDefaultsToXlsxAndEscapeCancels()
+    {
+        const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>")), worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>5</v></c></row>"))});
+        auto ask = [&](const std::function<void(QMessageBox *)> &act, QString *defaultText, QString *answerAsked) {
+            Win o;
+            if (!o.open(book, QStringLiteral("book.xlsx"))) return QStringLiteral("(no open)");
+            o.w.setLossAsker(nullptr);   // (the box itself)
+            o.answer = o.folder.dir.filePath(QStringLiteral("picked.xlsx"));
+            QTimer finder;
+            finder.setInterval(10);
+            bool acted = false;
+            QObject::connect(&finder, &QTimer::timeout, &finder, [&] {
+                if (acted) return;
+                auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+                if (!box) return;
+                acted = true;
+                if (defaultText && box->defaultButton()) *defaultText = box->defaultButton()->text();
+                act(box);
+            });
+            finder.start();
+            QSignalSpy exported(&o.w, &CrunchWindow::csvExported);
+            const bool started = o.w.saveAs(o.folder.dir.filePath(QStringLiteral("out.csv")));
+            if (answerAsked) *answerAsked = o.asked.isEmpty() ? QString() : o.asked.first();
+            if (started) exported.wait(20000);
+            return started ? (QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("out.csv"))) ? QStringLiteral("csv") : QStringLiteral("started")) : (o.asked.isEmpty() ? QStringLiteral("cancel") : QStringLiteral("xlsx"));
+        };
+        QString defaultText, asked;
+        QCOMPARE(ask([](QMessageBox *b) { QTest::keyClick(b, Qt::Key_Escape); }, &defaultText, &asked), QStringLiteral("cancel"));
+        QVERIFY2(defaultText.contains(QLatin1String(".xlsx")), qPrintable(defaultText));
+        QCOMPARE(ask([](QMessageBox *b) { b->close(); }, nullptr, nullptr), QStringLiteral("cancel"));
+        QCOMPARE(ask([](QMessageBox *b) { QTest::keyClick(b, Qt::Key_Return); }, nullptr, &asked), QStringLiteral("xlsx"));   // the default: the file dialog for the workbook follows
+        QCOMPARE(ask([](QMessageBox *b) {
+                      for (QAbstractButton *button : b->buttons())
+                          if (b->buttonRole(button) == QMessageBox::AcceptRole) button->click();
+                  },
+                  nullptr, nullptr),
+                 QStringLiteral("csv"));
     }
 
     // The separator is the semicolon where the language writes a comma in its numbers; the sheet in view is the one that is written.
