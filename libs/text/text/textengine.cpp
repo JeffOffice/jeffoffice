@@ -3010,10 +3010,18 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             cut.height = std::max(heightOf(n.numberFont), cut.layout->usedHeight(0) + (cut.rest < 0 ? cut.layout->trailingSpace() : 0.0));
             if (force && cut.rest < 0 && cut.layout->usedHeight(0) + noteGap <= room + 0.01) cut.height = std::min(cut.height, std::max(room - noteGap, cut.layout->usedHeight(0)));   // (the space after its last line is let go at the foot)
             cut.ok = force || cut.height + noteGap <= room + 0.01;
-            // (A word processor that controls widows and orphans cuts a note only where two lines of it are on each page.)
-            if (!force && cut.ok && env.wordLines && cut.rest >= 0 && widowControlled(n)) {
-                const int first = int(cut.layout->lineInfo(0).size()), total = n.layout ? int(n.layout->lineInfo(0).size()) : 0;
-                if (first < 2 || (total > 0 && total - first < 2)) cut.ok = false;
+            // (A word processor that controls widows and orphans cuts a note inside a paragraph only where two lines of that paragraph are on each page: the paragraph the cut is in,
+            // not the note's first.)
+            if (!force && cut.ok && env.wordLines && cut.rest >= 0) {
+                const QTextDocument *nd = notesDoc ? notesDoc->storyDoc(n.storyId) : nullptr;
+                const QTextBlock split = nd ? nd->findBlock(cut.rest) : QTextBlock();
+                if (split.isValid() && split.position() < cut.rest && split.blockFormat().boolProperty(tp::WidowControl)) {
+                    int first = 0, whole = 0;
+                    for (const auto &li : cut.layout->lineInfo(0)) first += li.docStart == split.position();
+                    if (n.layout)
+                        for (const auto &li : n.layout->lineInfo(0)) whole += li.docStart == split.position();
+                    if (first < 2 || (whole > 0 && whole - first < 2)) cut.ok = false;
+                }
             }
             cut.used += cut.height + noteGap;
             break;
@@ -3038,6 +3046,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             double h = std::max(heightOf(n.numberFont), lay->usedHeight(0) + (rest < 0 ? lay->trailingSpace() : 0.0));
             if (rest < 0 && lay->usedHeight(0) <= room + 0.01) h = std::min(h, std::max(room, lay->usedHeight(0)));   // (the space after its last line is let go at the foot)
             if (h > room + 0.01 && used > continuedGap) break;   // not even a line fits under the notes before it
+            // (A paragraph with widow and orphan control is not left with one line at the foot of the column: the note goes on whole at the next, unless it begins the column. The one line that
+            // its rest may leave is not looked for: the rest is set where it is placed, at the next column.)
+            if (rest >= 0 && used > continuedGap && env.wordLines) {
+                const QTextDocument *nd = notesDoc ? notesDoc->storyDoc(n.storyId) : nullptr;
+                const QTextBlock split = nd ? nd->findBlock(rest) : QTextBlock();
+                if (split.isValid() && split.position() < rest && split.blockFormat().boolProperty(tp::WidowControl) && lay->lineInfo(0).size() < 2) break;
+            }
             if (n.frame == -1) {   // a note of the same line that hadn't begun
                 n.frame = f;
                 n.column = c;

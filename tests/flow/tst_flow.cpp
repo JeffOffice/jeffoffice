@@ -10773,6 +10773,58 @@ private Q_SLOTS:
         Q_UNUSED(cutShortWhole);
     }
 
+    // The widow and orphan control that counts in cutting a note is that of the paragraph the cut is in, not the note's first: a note whose first paragraph has none and whose second has it
+    // is never cut so as to leave one line of the second on a page (in a frame of any height).
+    void aNoteIsCutByTheControlOfTheParagraphItIsCutIn()
+    {
+        TestNotes notes;
+        auto note = std::make_unique<QTextDocument>();
+        {
+            QTextCursor nc(note.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(10);
+            QTextBlockFormat first;   // (no widow and orphan control)
+            nc.setBlockFormat(first);
+            nc.insertText(QStringLiteral("first"), cf);
+            QTextBlockFormat second;
+            second.setProperty(tp::WidowControl, true);
+            nc.insertBlock(second);
+            nc.insertText(QStringLiteral("a") + (QChar(QChar::LineSeparator) + QStringLiteral("b")).repeated(5), cf);
+        }
+        notes.docs[QStringLiteral("n1")] = std::move(note);
+        int cuts = 0;
+        for (double height = 70; height < 130; height += 0.5) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three"), run);
+            QTextCharFormat ref = run;
+            ref.setProperty(tp::Field, QStringLiteral("footnote:n1"));
+            c.insertText(QString(QChar::ObjectReplacementCharacter), ref);
+            LayoutEnv env;
+            env.wordLines = true;
+            FrameSpec fs = plainFrame(300, height);
+            fs.ctx.doc = &notes;
+            FrameSpec rest = plainFrame(300, 300);
+            rest.ctx.doc = &notes;
+            StoryLayout lay;
+            lay.build(&doc, {fs, rest}, env);
+            if (lay.notes().size() != 1 || lay.notes().first().more.isEmpty() || !lay.notes().first().layout) continue;
+            const auto lines = lay.notes().first().layout->lineInfo(0);
+            int ofSecond = 0;
+            for (const auto &l : lines) ofSecond += l.docStart > 0;
+            if (ofSecond == 0) continue;   // (cut at the end of the first paragraph)
+            ++cuts;
+            QVERIFY2(ofSecond >= 2, qPrintable(QStringLiteral("a frame %1 high has %2 line of the second paragraph at its foot").arg(height).arg(ofSecond)));
+        }
+        QVERIFY2(cuts > 0, "the note is cut inside its second paragraph in some frame");
+    }
+
     // The part of a note that goes on from the page before is set under the file's own separator for it, when the file has one: the room above it is that paragraph's height (and the
     // rule is drawn in it), not the separator's of the first part.
     void theContinuedPartOfANoteHasTheRoomOfTheFilesOwnSeparatorForIt()
