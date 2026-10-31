@@ -1736,6 +1736,20 @@ private Q_SLOTS:
         QCOMPARE(ed->undoStack()->index(), base);
     }
 
+    // A shown pane that is deleted while its window is active is hidden in ~QWidget; the application's focus change must not reach it then.
+    void aShownPaneDeletedWhileActiveIsNotCalledByTheFocusChange()
+    {
+        Rig r(1);
+        r.select({0});
+        r.pane->activateWindow();
+        QTRY_VERIFY(QApplication::activeWindow() == r.pane.get());
+        const int base = r.steps();
+        r.pane->session()->apply(QStringLiteral("Fill"), [](Item &it) { it.rect.translate(1, 0); }, FormatSession::Scope::Selected, false);
+        QVERIFY(r.pane->session()->isOpen());
+        r.pane.reset();
+        QCOMPARE(r.steps(), base);   // the focus change does not end it: the pane is going
+    }
+
     // The Alt Text button finds its section by name, not by the words on it, so it works in any language.
     void altTextButtonWorksWhateverTheLanguage()
     {
