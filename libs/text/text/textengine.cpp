@@ -260,7 +260,7 @@ QString FieldContext::key(bool withClock) const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (wordWholePointLines ? "|u" : "") + (wordNoLeading ? "|z" : "") + (wordSpaceShrink > 0 ? QStringLiteral("|p%1").arg(wordSpaceShrink) : QString()) + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (wordWholePointLines ? "|u" : "") + (wordNoLeading ? "|z" : "") + (wordWrapTrailSpaces ? "|t" : "") + (wordSpaceShrink > 0 ? QStringLiteral("|p%1").arg(wordSpaceShrink) : QString()) + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (auto it = standIns.cbegin(); it != standIns.cend(); ++it) k += QStringLiteral("|i") + it.key() + QLatin1Char('=') + it.value();
@@ -3488,6 +3488,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             const QTextCharFormat mf = resolveCharFormat(b.charFormat(), env);
             markFont = mf.font();
             markSize = mf.hasProperty(tp::LineSize) ? mf.property(tp::LineSize).toDouble() : markFont.pointSizeF();
+        }
+        // The spaces that end a paragraph wrap where a file asks for it (w:wrapTrailSpaces): all but the first, which stays a space where a line may break, are no-break spaces, which are
+        // counted in the line's width and go on to the next line as a run where they do not fit (the same length, so that no place in the text moves).
+        if (env.wordLines && env.wordWrapTrailSpaces) {
+            int end = int(B->disp.size());
+            while (end > 0 && B->disp[end - 1] == QLatin1Char(' ')) --end;
+            for (int i = end + 1; i < B->disp.size(); ++i) B->disp[i] = QChar(0x00A0);
         }
         B->tl = std::make_unique<ParagraphLayout>(B->disp, fineFont(base));
         bool adjusted = false;

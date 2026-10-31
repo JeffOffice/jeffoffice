@@ -602,7 +602,7 @@ bool compatOption(const QByteArray &settings, const char *name);
 // The compatibility options the layout reads, from one reading of the settings part (compatOption reads the whole part for each one, and a part may be very large).
 struct CompatOptions {
     bool useFELayout = false, doNotWrapTextWithPunct = false, doNotUseHTMLParagraphAutoSpacing = false, noTabHangInd = false;
-    bool doNotUseIndentAsNumberingTabStop = false, splitPgBreakAndParaMark = false, suppressTopSpacingWP = false, noLeading = false, suppressSpBfAfterPgBrk = false, wpJustification = false;
+    bool doNotUseIndentAsNumberingTabStop = false, splitPgBreakAndParaMark = false, suppressTopSpacingWP = false, noLeading = false, suppressSpBfAfterPgBrk = false, wpJustification = false, wrapTrailSpaces = false;
     // Automatic hyphenation (w:autoHyphenation: on when stated and not turned off, and w:hyphenationZone: the room in twentieths of a point that a word is not hyphenated to fill, 360
     // where the part says none), which are the settings' own, beside the options.
     bool autoHyphenation = false;

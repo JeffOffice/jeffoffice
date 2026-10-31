@@ -1352,11 +1352,11 @@ private Q_SLOTS:
     {
         auto settings = [](const QByteArray &inner) { return xmlDoc(QByteArray("<w:settings ") + kW + "><w:compat>" + inner + "</w:compat></w:settings>"); };
         const CompatOptions all = readCompatOptions(settings("<w:useFELayout/><w:doNotWrapTextWithPunct w:val=\"1\"/><w:doNotUseHTMLParagraphAutoSpacing/><w:noTabHangInd/>"
-                                                             "<w:doNotUseIndentAsNumberingTabStop/><w:splitPgBreakAndParaMark w:val=\"true\"/><w:suppressTopSpacingWP/><w:noLeading/>"));
+                                                             "<w:doNotUseIndentAsNumberingTabStop/><w:splitPgBreakAndParaMark w:val=\"true\"/><w:suppressTopSpacingWP/><w:noLeading/><w:wrapTrailSpaces/>"));
         QVERIFY(all.useFELayout && all.doNotWrapTextWithPunct && all.doNotUseHTMLParagraphAutoSpacing && all.noTabHangInd);
-        QVERIFY(all.doNotUseIndentAsNumberingTabStop && all.splitPgBreakAndParaMark && all.suppressTopSpacingWP && all.noLeading);
+        QVERIFY(all.doNotUseIndentAsNumberingTabStop && all.splitPgBreakAndParaMark && all.suppressTopSpacingWP && all.noLeading && all.wrapTrailSpaces);
         const CompatOptions off = readCompatOptions(settings("<w:suppressTopSpacingWP w:val=\"0\"/><w:noLeading w:val=\"false\"/><w:noTabHangInd w:val=\"off\"/><w:useFELayout/>"));
-        QVERIFY(!off.suppressTopSpacingWP && !off.noLeading && !off.noTabHangInd && off.useFELayout);
+        QVERIFY(!off.suppressTopSpacingWP && !off.noLeading && !off.noTabHangInd && off.useFELayout && !off.wrapTrailSpaces);
         const CompatOptions outside = readCompatOptions(xmlDoc(QByteArray("<w:settings ") + kW + "><w:noLeading/><w:suppressTopSpacingWP/></w:settings>"));
         QVERIFY(!outside.noLeading && !outside.suppressTopSpacingWP);
         const CompatOptions bad = readCompatOptions("not xml");

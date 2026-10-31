@@ -220,6 +220,9 @@ struct LayoutEnv {
     // (w:noLeading) (LayoutEnv::wordLines).
     bool wordWholePointLines = false;
     bool wordNoLeading = false;
+    // The spaces that end a paragraph are text that wraps, not hung past the margin where they do not fit (a file's compatibility option, w:wrapTrailSpaces)
+    // (LayoutEnv::wordLines).
+    bool wordWrapTrailSpaces = false;
     // How much of each space a justified line of a word processor's text may give up to take in one more word (a share of the space; the older word processor's full
     // justification, a file's compatibility option w:wpJustification), 0 for none (LayoutEnv::wordLines).
     double wordSpaceShrink = 0;

@@ -1403,6 +1403,7 @@ CompatOptions readCompatOptions(const QByteArray &settings)
     o.noLeading = on("noLeading");
     o.suppressSpBfAfterPgBrk = on("suppressSpBfAfterPgBrk");
     o.wpJustification = on("wpJustification");
+    o.wrapTrailSpaces = on("wrapTrailSpaces");
     return o;
 }
 

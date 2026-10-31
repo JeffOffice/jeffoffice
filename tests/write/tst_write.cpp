@@ -8309,7 +8309,7 @@ private Q_SLOTS:
             return QByteArray("<w:compat><w:suppressTopSpacingWP/><w:noLeading/><w:compatSetting w:name=\"compatibilityMode\" w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"") +
                    QByteArray::number(mode) + "\"/></w:compat>";
         };
-        struct Seen { bool wholeFlow, noLeadingFlow, wholePage, noLeadingPage, tableEmpty; double shrinkFlow, shrinkPage; };
+        struct Seen { bool wholeFlow, noLeadingFlow, wholePage, noLeadingPage, tableEmpty, wrapFlow, wrapPage; double shrinkFlow, shrinkPage; };
         auto seen = [&](const QByteArray &settings) {
             auto doc = open(makeDocxWithParts(paragraphs(1, 5), QByteArray(), {}, settings));
             Seen s{};
@@ -8317,12 +8317,14 @@ private Q_SLOTS:
             const auto &env = doc->flow().env;
             s.wholeFlow = env.wordWholePointLines;
             s.noLeadingFlow = env.wordNoLeading;
+            s.wrapFlow = env.wordWrapTrailSpaces;
             s.tableEmpty = env.standIns.isEmpty();
             s.shrinkFlow = env.wordSpaceShrink;
             if (const auto page = doc->pager().materialize(0)) {
                 const LayoutEnv pageEnv = Renderer::layoutEnv(*page->doc);
                 s.wholePage = pageEnv.wordWholePointLines;
                 s.noLeadingPage = pageEnv.wordNoLeading;
+                s.wrapPage = pageEnv.wordWrapTrailSpaces;
                 s.shrinkPage = pageEnv.wordSpaceShrink;
             }
             return s;
@@ -8343,6 +8345,9 @@ private Q_SLOTS:
         const Seen j = seen("<w:compat><w:wpJustification/></w:compat>");
         QVERIFY2(j.shrinkFlow > 0 && j.shrinkPage == j.shrinkFlow, qPrintable(QString::number(j.shrinkFlow) + " and " + QString::number(j.shrinkPage)));
         QVERIFY(c.shrinkFlow == 0 && c.shrinkPage == 0 && a.shrinkFlow == 0 && a.shrinkPage == 0);
+        // w:wrapTrailSpaces reaches both layouts too.
+        const Seen w = seen("<w:compat><w:wrapTrailSpaces/></w:compat>");
+        QVERIFY(w.wrapFlow && w.wrapPage && !c.wrapFlow && !c.wrapPage && !a.wrapFlow);
         Document made;
         made.wordSpaceShrink = 0.25;
         QCOMPARE(Renderer::layoutEnv(made).wordSpaceShrink, 0.25);

@@ -3848,6 +3848,35 @@ private Q_SLOTS:
         for (int i = 0; i < 4; ++i) QVERIFY2(std::abs(none[i].rect.height() - noLeading[i]) < 0.01, qPrintable(QStringLiteral("line %1 is %2 tall").arg(i).arg(none[i].rect.height())));
     }
 
+    // A file that asks for trailing spaces to wrap (w:wrapTrailSpaces, LayoutEnv::wordWrapTrailSpaces) sets the spaces that end a paragraph as text: where they do not fit the
+    // line the paragraph's last words are on, they go on to the lines after it. Without it they hang past the margin and make no line. A few that fit make none either way.
+    void aFileCanAskForTrailingSpacesToWrap()
+    {
+        auto count = [&](const QString &text, bool wrap) {
+            auto doc = std::make_unique<QTextDocument>();
+            QTextCursor c(doc.get());
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(12);
+            c.setBlockCharFormat(cf);
+            c.insertText(text, cf);
+            LayoutEnv env;
+            env.wordLines = true;
+            env.wordWrapTrailSpaces = wrap;
+            StoryLayout lay;
+            lay.build(doc.get(), {plainFrame(400, 700)}, env);
+            return int(lay.lineInfo(0).size());
+        };
+        const QString words = QStringLiteral("Released: December 20, 1999");
+        QCOMPARE(count(words + QString(2000, QLatin1Char(' ')), false), 1);
+        QVERIFY(count(words + QString(2000, QLatin1Char(' ')), true) >= 3);
+        QCOMPARE(count(words + QStringLiteral("  "), true), 1);
+        QCOMPARE(count(words, true), 1);
+        // (A word that all but fills the line, and spaces after it, put them on a line of their own.)
+        QCOMPARE(count(QString(30, QLatin1Char('M')) + QString(40, QLatin1Char(' ')), false), 1);
+        QVERIFY(count(QString(30, QLatin1Char('M')) + QString(40, QLatin1Char(' ')), true) >= 2);
+    }
+
     // The stand-in a file's font table names for a family (the environment's stand-ins, LayoutEnv::standIns) is the line a missing family is set in.
     void missingFamilyStandsInAsTheFileSays()
     {
