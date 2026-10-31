@@ -160,7 +160,14 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock firs
         // The paragraph mark's own formatting: the last paragraph's.
         {
             RunProps mark = runPropsOf(markFormat(lastPart));
-            const RunProps base = sheet.run(styleId, mark.style, layer);
+            RunProps base = sheet.run(styleId, mark.style, layer);
+            // (A header's or a footer's paragraph with no style, in a file that has no Header or Footer style, has the document's default size as its mark: the pages gave it that, as
+            // the built-in paragraph has none of its own, and it is not written back as a size the file never had.)
+            for (const HeaderPart &hp : m_headerParts)
+                if (hp.story.get() == story && !asNote && styleId == defaultStyle && !sheet.find(hp.footer ? QStringLiteral("Footer") : QStringLiteral("Header"))) {
+                    base.size = sheet.defaultRun.size.value_or(20);
+                    break;
+                }
             settleKinds(&mark, base);
             RunProps diff = mark.differences(base);
             diff.style = mark.style;

@@ -5408,6 +5408,30 @@ private Q_SLOTS:
         QVERIFY2(std::abs(with / without - 1.2) < 0.03, qPrintable(QStringLiteral("three empty lines are %1 high with no Header style and %2 with it").arg(without).arg(with)));
     }
 
+    // The mark size given to an unstyled header paragraph is the layout's alone: a file that is opened and saved, with its header opened for editing or not, has no size written
+    // into the paragraphs that had none.
+    void theHeaderMarkSizeIsNotWrittenBack()
+    {
+        const QByteArray normal = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/><w:rPr><w:sz w:val=\"24\"/></w:rPr></w:style>";
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                                "<w:pgMar w:top=\"720\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        for (const bool edit : {false, true}) {
+            auto doc = open(makeDocxWithParts(paragraphs(2, 10), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"", "<w:r><w:t>text</w:t></w:r>", ""})}}, QByteArray(), normal));
+            QVERIFY(doc);
+            if (edit) {
+                QTextDocument *header = doc->editableHeaderFooter(0, false, 0);
+                QVERIFY(header);
+                QTextCursor c(header);
+                c.movePosition(QTextCursor::End);
+                c.insertText(QStringLiteral("!"));
+                c.deletePreviousChar();   // (the header is in its edited form and has changed, with the text it had)
+            }
+            const QByteArray out = partOf(doc->toDocx(), QStringLiteral("/word/header1.xml"));
+            QVERIFY(!out.isEmpty());
+            QVERIFY2(!out.contains("w:sz "), qPrintable(QString(edit ? "edited: " : "unedited: ") + QString::fromUtf8(out)));
+        }
+    }
+
     // The view follows an undo or a redo into the header or footer the step was in, and out of it for a step in the text; a burst of typing in a header is one step.
     void theViewFollowsTheHistoryIntoAndOutOfAHeader()
     {
