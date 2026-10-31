@@ -105,7 +105,11 @@ FormatPane::FormatPane(Editor *ed, QWidget *parent) : QWidget(parent), m_ed(ed)
     reload();
 }
 
-FormatPane::~FormatPane() = default;
+FormatPane::~FormatPane()
+{
+    // (a shown pane that goes hides in ~QWidget, where the application's focus change would call it as a plain QWidget)
+    disconnect(qApp, nullptr, this, nullptr);
+}
 
 QString FormatPane::title() const { return m_frame->title(); }
 
