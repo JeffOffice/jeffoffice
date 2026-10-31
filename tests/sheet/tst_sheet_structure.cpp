@@ -4137,6 +4137,31 @@ public:
         return ops;
     }
 private Q_SLOTS:
+    // Formulas typed one after another into rows that were put in, before the calculation has worked any of them out, are looked for as readers of the same block of the graph over and over (a change in an
+    // inserted row is asked as the original rows on either side of it, which is the same block for every row put in at one place): the formulas the graph names grow with the square of the rows. Each
+    // block is asked once in a recalculation, so they grow with the rows.
+    void aBlockOfChangesInRowsPutInIsAskedOncePerRecalculation()
+    {
+        qint64 named[2] = {0, 0};
+        const int sizes[2] = {1000, 4000};
+        for (int k = 0; k < 2; ++k) {
+            Book b;
+            QStringList cells;
+            for (int r = 1; r <= 10; ++r) cells << QStringLiteral("A%1=%1").arg(r) << QStringLiteral("B%1==A%1*2").arg(r);
+            QVERIFY(b.open({cells}));
+            QVERIFY(b.apply(StructEdit::insertRows(0, 5, quint32(sizes[k])), nullptr));
+            const qint64 before = b.calc->readersFound();
+            for (int r = 0; r < sizes[k]; ++r) {
+                QVERIFY(b.calc->setValue(0, quint32(5 + r), 0, jp::calc::Value::number(r), Calculation::Marking::Later));
+                QVERIFY(b.calc->setFormula(0, quint32(5 + r), 1, QStringLiteral("A%1*2").arg(6 + r), Calculation::Marking::Later));
+            }
+            b.finish();
+            QCOMPARE(b.at(QStringLiteral("B%1").arg(sizes[k] + 5)), QStringLiteral("n:%1").arg(2 * (sizes[k] - 1)));
+            named[k] = b.calc->readersFound() - before;
+        }
+        QVERIFY2(named[0] > 0 && named[1] <= 6 * named[0], qPrintable(QStringLiteral("%1 readers named for 1,000 rows and %2 for 4,000").arg(named[0]).arg(named[1])));
+    }
+
     // The same edits to a book in places and a book in ids: 24 seeds of 60 steps (JO_FUZZ_SEEDS, JO_FUZZ_STEPS, JO_FUZZ_FIRST for the long run; JO_FUZZ_NOBACK, JO_FUZZ_NONAMES, JO_FUZZ_FULL to narrow it down).
     void differentialFuzzOfPlacesAndIds()
     {

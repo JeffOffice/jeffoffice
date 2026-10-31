@@ -1500,12 +1500,15 @@ void Calculation::markDependents(std::vector<CellArea> *changed)
 void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
 {
     std::vector<quint32> found;
+    std::set<CellArea> asked;
     while (!changed->empty()) {
         const CellArea a = changed->back();
         changed->pop_back();
+        if (!asked.insert(a).second) continue;   // (the same block again: what reads it is marked)
         found.clear();
         if (a.single()) m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &found);
         else m_graph->dependentsOfArea(a, &found);
+        m_readersFound += qint64(found.size());
         for (const quint32 id : found) {
             Node &n = m_nodes[id];
             if ((n.flags & Dead) || dormant(n)) continue;
@@ -1911,6 +1914,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         if (!ck.next()) return false;
         const CellArea a = j.changed.back();
         j.changed.pop_back();
+        if (j.askedAreas.count(a)) continue;   // (its readers were marked when it was asked)
         j.found.clear();
         j.foundAt = 0;
         j.queried = a;
@@ -1923,6 +1927,8 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         }
         // (what the graph gave: a cell that very many formulas read is one query of that many, which is as small as the step can be made. The slice may be over after it: the formulas it found are
         // marked by the next, from where they are kept. The answer of this call is not to be dropped: it is the one place in the loop where a chunk ends, when the areas found have none.)
+        m_readersFound += qint64(j.found.size());
+        j.askedAreas.insert(a);
         if (!ck.next(j.found.size())) return false;
     }
     ck.finish();

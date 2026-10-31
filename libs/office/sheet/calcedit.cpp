@@ -281,6 +281,13 @@ bool Calculation::linesNeedCompaction(const StructEdit &e) const
     return m_sheets[size_t(e.sheet)].cells.needsCompaction(rows, e.count);
 }
 
+QString Calculation::linesRefusal(const StructEdit &e) const
+{
+    bool rows = false;
+    if (!wholeLines(e, &rows) || e.sheet < 0 || e.sheet >= int(m_sheets.size())) return QString();
+    return jp::calc::lineStatusText(m_sheets[size_t(e.sheet)].cells.canEditLines(rows, e.count));
+}
+
 bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineMapCore::Renumber> *out)
 {
     ++m_structStamp;
@@ -858,19 +865,23 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         case K::DeleteCellsUp: r1 = e.row1; r2 = e.row2; c1 = e.col1; c2 = e.col2; break;
         default: r1 = e.row1; r2 = e.row2; c1 = e.col1; c2 = e.col2; break;
         }
-        S.cells.forEachInRange(r1, c1, r2, c2, [&](quint32 row, quint32 col, const Cell &c) {
-            pushGone(rec, e.sheet, row, col, c);
-            return true;
-        });
+        // (columns that hold no cell are counted, not walked to: a walk looks at every cell of the sheet)
+        if (e.kind != K::DeleteColumns || S.cells.cellsInLines(false, e.first, count) > 0)
+            S.cells.forEachInRange(r1, c1, r2, c2, [&](quint32 row, quint32 col, const Cell &c) {
+                pushGone(rec, e.sheet, row, col, c);
+                return true;
+            });
     } else if (e.kind == K::InsertRows || e.kind == K::InsertColumns) {
         // the rows (columns) that are pushed off the end of the sheet are deleted: what is in them is kept as a deleted cell's is, to be put back
         const bool rowsEdit = e.kind == K::InsertRows;
         const quint32 limit = rowsEdit ? kGridRows : kGridCols;
         const quint32 from = std::max(e.first, limit - std::min(count, limit));
-        S.cells.forEachInRange(rowsEdit ? from : 0, rowsEdit ? 0 : from, kGridRows - 1, kGridCols - 1, [&](quint32 row, quint32 col, const Cell &c) {
-            pushGone(rec, e.sheet, row, col, c);
-            return true;
-        });
+        // (columns at the end that hold no cell are counted, not walked to: a walk looks at every cell of the sheet)
+        if (rowsEdit || S.cells.cellsInLines(false, from, limit - from) > 0)
+            S.cells.forEachInRange(rowsEdit ? from : 0, rowsEdit ? 0 : from, kGridRows - 1, kGridCols - 1, [&](quint32 row, quint32 col, const Cell &c) {
+                pushGone(rec, e.sheet, row, col, c);
+                return true;
+            });
     }
 
     // ---- the cells move; the nodes of the formulas among them go with them

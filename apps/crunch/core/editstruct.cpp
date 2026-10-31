@@ -206,6 +206,16 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
         out.problem = why;
         return out;
     }
+    // (an order that has as many runs or ids as it may, and could not be put back to one run: the edit is refused in words, with nothing done)
+    {
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (hold) why = hold->calculation()->linesRefusal(edit);
+        if (!why.isEmpty()) {
+            out.ok = false;
+            out.problem = why;
+            return out;
+        }
+    }
     // a step that would hold more than Undo can is asked about first (what it deletes or writes over, and what it writes again, are kept to undo it)
     bool big = false;
     {

@@ -163,6 +163,7 @@ public:
         m_cols = o.m_cols;
         m_serial = nextSerial();
         m_last = nullptr;
+        m_colCellsValid = false;
         return *this;
     }
     // A move takes the blocks and leaves the store it was taken from empty, with no memory of where it last added a cell (that place is a block it no longer has).
@@ -180,6 +181,7 @@ public:
             m_cols = std::move(o.m_cols);
             m_serial = o.m_serial;
             m_last = nullptr;
+            m_colCellsValid = false;
             o.reset();
         }
         return *this;
@@ -491,6 +493,7 @@ public:
             else ++it;
         }
         m_last = nullptr;
+        m_colCellsValid = false;   // (cells change columns)
         m_count -= qint64(moving.size());
         // (the cells come in order of row and column, and a shift keeps that order: they are put into the blocks they come to a run at a time, and each run is merged with what the block
         // kept, which costs the cells of the block and not a sort of them)
@@ -665,6 +668,7 @@ public:
                 if (inRun(cells[i])) {
                     onCell(cells[i]);
                     ++m_purged;
+                    if (m_colCellsValid) --m_colCells[cells[i].colId];
                     continue;
                 }
                 if (keep != i) cells[keep] = cells[i];
@@ -722,6 +726,13 @@ public:
     qint64 purged() const { return m_purged; }
     // How many cells are in the lines at the places first .. first + count - 1 (live or not in the other kind of line): a search a block of 64 rows for rows, a look at each cell for columns.
     qint64 cellsInLines(bool rows, quint32 first, quint32 count) const;
+    // How many cells are held by the columns with these ids, in any row (the count is made by one walk of the cells when it is first wanted, and kept up as cells come and go: a delete or an
+    // Undo of columns asks it and does not walk the sheet). For the thread that edits the sheet's lines.
+    qint64 cellsInColumnRuns(const std::vector<jp::calc::IdRun> &runs) const;
+    // How many times the count by column was made by a walk of every cell (counted, for tests).
+    qint64 columnCountBuilds() const { return m_colCellsBuilds; }
+    // Of those, the cells in a row that is dead (the runs are sorted).
+    qint64 cellsInDeadRowsOfColumns(const std::vector<jp::calc::IdRun> &sortedRuns) const;
     // Cells held that are in rows or columns that are deleted, and the most that Undo can bring back.
     qint64 deadCount() const { return m_dead; }
     // The same, counted cell by cell (for a check of deadCount and cellCount, which are kept as the order is edited).
@@ -758,6 +769,7 @@ private:
         m_count = 0;
         m_dead = 0;
         m_last = nullptr;
+        m_colCellsValid = false;
         m_serial = nextSerial();
         m_rows = jp::calc::RowMap(jp::calc::LineLimits::rows(), jp::calc::LineLimits::rows().capacity);
         m_cols = jp::calc::ColMap(jp::calc::LineLimits::cols(), jp::calc::LineLimits::cols().capacity);
@@ -1094,6 +1106,9 @@ private:
 
     std::map<quint32, Block> m_blocks;
     qint64 m_count = 0;
+    mutable std::vector<quint32> m_colCells;   // cells by the id of their column (all rows, live or dead): made when wanted (cellsInColumnRuns), true until the cells are changed in a way that is not kept up
+    mutable bool m_colCellsValid = false;
+    mutable qint64 m_colCellsBuilds = 0;
     qint64 m_dead = 0;
     qint64 m_purged = 0;
     Block *m_last = nullptr;

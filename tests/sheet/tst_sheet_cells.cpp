@@ -728,6 +728,193 @@ private Q_SLOTS:
         QVERIFY(same());
     }
 
+    // A sheet whose order has as many runs as it may (a million, at the real cap) is refused with the words a person can act on, and nothing is lost: the refused edit changes nothing, the cells are where they
+    // were, and putting the order back to one run (rebaseLines) takes the cap away. (Measured when this was written: the cap is reached after 499,996 inserts that each split a run near the end, in about a second.)
+    void aMillionRunsAreRefusedWithTheMessageAndNothingIsLost()
+    {
+        CellStore store;
+        for (quint32 r = 0; r < 100; ++r)
+            for (quint32 c = 0; c < 4; ++c) store.add(makeCell(r, c, r * 10 + c));
+        store.finish();
+        // (a few edits among the cells, so that the rebase has ids to renumber)
+        for (quint32 at : {10u, 40u, 70u}) QCOMPARE(store.insertLines(true, at, 2, nullptr), jp::calc::LineStatus::Ok);
+        std::map<std::pair<quint32, quint32>, double> placed;
+        store.forEach([&](quint32 r, quint32 c, const Cell &cell) { placed[{r, c}] = cell.number; });
+        QCOMPARE(qint64(placed.size()), qint64(400));
+        jp::calc::LineStatus st = jp::calc::LineStatus::Ok;
+        qint64 made = 0;
+        while (made < 1100000) {
+            if (store.canEditLines(true, 1) != jp::calc::LineStatus::Ok) break;
+            st = store.insertLines(true, store.rows().size() - 3, 1, nullptr);
+            if (st != jp::calc::LineStatus::Ok) break;
+            ++made;
+        }
+        QVERIFY2(made > 100000 && made < 1000000, qPrintable(QString::number(made)));
+        QCOMPARE(store.canEditLines(true, 1), jp::calc::LineStatus::TooManyRuns);
+        QVERIFY(store.rows().runCount() + store.rows().core().deadCount() + 8 > 1000000u);
+        QCOMPARE(jp::calc::lineStatusText(store.canEditLines(true, 1)), QStringLiteral("This sheet has been edited too many times. Save it and open it again."));
+        QVERIFY(store.needsCompaction(true, 1));
+        // the order is whole, and the cells are where they were
+        const qint64 live = store.cellCount();
+        QVERIFY(store.rows().core().selfCheck());
+        QCOMPARE(live, qint64(400));
+        std::map<std::pair<quint32, quint32>, double> got;
+        store.forEach([&](quint32 r, quint32 c, const Cell &cell) { got[{r, c}] = cell.number; });
+        QVERIFY(got == placed);
+        // the relief: one run again, the same cells at the same places, and edits are taken
+        QCOMPARE(store.rebaseLines(true), jp::calc::LineStatus::Ok);
+        QVERIFY(store.rows().runCount() <= 1);
+        QCOMPARE(store.canEditLines(true, 1), jp::calc::LineStatus::Ok);
+        QVERIFY(!store.needsCompaction(true, 1));
+        got.clear();
+        store.forEach([&](quint32 r, quint32 c, const Cell &cell) { got[{r, c}] = cell.number; });
+        QVERIFY(got == placed);
+        QCOMPARE(store.insertLines(true, 5, 1, nullptr), jp::calc::LineStatus::Ok);
+        QVERIFY(store.rows().core().selfCheck());
+    }
+
+    // The count of cells by column is what a walk of every cell gives, through any run of edits of rows and columns, cells typed and erased, Undo and Redo, steps let go of, and the order put back to one
+    // run; and it is made by a walk once (and again only after cells are moved about or the ids are renumbered), not for each edit of columns.
+    void theCountOfCellsByColumnIsWhatAWalkGivesAndIsMadeOnce()
+    {
+        std::mt19937 rng(20261101);
+        CellStore store;
+        for (quint32 r = 0; r < 60; ++r)
+            for (quint32 c = 0; c < 9; ++c)
+                if ((r * 7 + c * 3) % 5 != 0) store.add(makeCell(r, c, r * 100 + c));
+        store.finish();
+        struct Step {
+            bool rows;
+            CellStore::LineEdits edits;
+        };
+        std::vector<Step> done, undone;
+        auto forgetAll = [&] {
+            while (!undone.empty()) {
+                store.forgetLines(undone.back().rows, &undone.back().edits);
+                undone.pop_back();
+            }
+            while (!done.empty()) {
+                store.forgetLines(done.back().rows, &done.back().edits);
+                done.pop_back();
+            }
+        };
+        auto check = [&](int i) {   // (a failure ends the test: the caller looks)
+            QVERIFY2(store.deadCount() == store.deadCountByScan(), qPrintable(QStringLiteral("step %1: %2 dead, %3 by a scan").arg(i).arg(store.deadCount()).arg(store.deadCountByScan())));
+            // (the cells of each live column, by a walk of the places, and the cells of that column in dead rows are what is left of the count)
+            for (quint32 c = 0; c < store.cols().size() && c < 14; ++c) {
+                qint64 walked = 0;
+                store.forEachInRange(0, c, store.rows().size() - 1, c, [&](quint32, quint32, const Cell &) {
+                    ++walked;
+                    return true;
+                });
+                std::vector<jp::calc::IdRun> runs;
+                store.cols().core().walk(c, c, &runs);
+                const qint64 counted = store.cellsInColumnRuns(runs);
+                QVERIFY2(counted >= walked, qPrintable(QStringLiteral("step %1, column %2: %3 counted, %4 walked").arg(i).arg(c).arg(counted).arg(walked)));
+                QVERIFY2(counted == store.cellsInLines(false, c, 1), qPrintable(QString::number(i)));
+            }
+        };
+        qint64 compactions = 0, steps = 0;
+        for (int i = 0; i < 1500; ++i) {
+            const int roll = int(rng() % 20);
+            if (roll < 3 && !done.empty()) {
+                Step s = std::move(done.back());
+                done.pop_back();
+                QCOMPARE(store.undoLines(s.rows, s.edits), jp::calc::LineStatus::Ok);
+                undone.push_back(std::move(s));
+            } else if (roll < 5 && !undone.empty()) {
+                Step s = std::move(undone.back());
+                undone.pop_back();
+                QCOMPARE(store.redoLines(s.rows, s.edits), jp::calc::LineStatus::Ok);
+                done.push_back(std::move(s));
+            } else if (roll < 9) {
+                const quint32 r = rng() % 70, c = rng() % 12;
+                if (store.find(r, c) && rng() % 2) store.erase(r, c);
+                else store.set(makeCell(r, c, 7));
+            } else if (roll < 10 && done.size() > 8) {
+                store.forgetLines(done.front().rows, &done.front().edits);   // (the oldest step is let go of, with its dead cells)
+                done.erase(done.begin());
+            } else {
+                while (!undone.empty()) {
+                    store.forgetLines(undone.back().rows, &undone.back().edits);
+                    undone.pop_back();
+                }
+                const bool rows = rng() % 3 == 0, insert = rng() % 2 == 0;
+                const quint32 at = rng() % (rows ? 60 : 9), count = 1 + rng() % 2;
+                if (store.needsCompaction(rows, count) || rng() % 90 == 0) {
+                    // (every record is let go of before the order is renumbered)
+                    std::vector<Step> all = std::move(done);
+                    done.clear();
+                    for (Step &s : all) store.forgetLines(s.rows, &s.edits);
+                    QCOMPARE(store.rebaseLines(rows), jp::calc::LineStatus::Ok);
+                    QCOMPARE(store.rebaseLines(!rows), jp::calc::LineStatus::Ok);
+                    ++compactions;
+                }
+                Step s;
+                s.rows = rows;
+                const jp::calc::LineStatus st = insert ? store.insertLines(rows, at, count, &s.edits) : store.deleteLines(rows, at, count, &s.edits);
+                if (st == jp::calc::LineStatus::Ok) {
+                    done.push_back(std::move(s));
+                    ++steps;
+                }
+            }
+            check(i);
+            if (QTest::currentTestFailed()) return;
+        }
+        QVERIFY(steps > 600 && compactions >= 1);
+        // made by a walk of the cells only now and then, not for each of the hundreds of edits of columns
+        QVERIFY2(store.columnCountBuilds() < 60, qPrintable(QString::number(store.columnCountBuilds())));
+        forgetAll();
+        QCOMPARE(store.deadCount(), qint64(0));
+    }
+
+    // Twenty thousand runs of rows: a walk of the whole sheet goes along them once, a lookup of a place costs the logarithm of the runs, and the whole walk of the cells costs what the cells and the runs are,
+    // counted (not timed).
+    void twentyThousandRunsAreWalkedAndLookedUpInCountedSteps()
+    {
+        CellStore store;
+        for (quint32 r = 0; r < 4000; ++r) store.add(makeCell(r, 0, r));
+        store.finish();
+        std::mt19937 rng(77);
+        for (int i = 0; i < 10000; ++i) QCOMPARE(store.insertLines(true, quint32(2 * i + 1), 1, nullptr), jp::calc::LineStatus::Ok);   // (each cuts the run it is in: two runs for each)
+        QVERIFY2(store.rows().runCount() >= 20000, qPrintable(QString::number(store.rows().runCount())));
+        QVERIFY(store.rows().core().selfCheck());
+        // the whole column, once
+        CellStore::RangeWalk walk;
+        qint64 cells = 0;
+        quint32 last = 0;
+        bool ordered = true;
+        store.forEachInRange(0, 0, 4000 + 10000, 0, [&](quint32 r, quint32, const Cell &) {
+            ordered = ordered && (cells == 0 || r > last);
+            last = r;
+            ++cells;
+            return true;
+        }, &walk);
+        QCOMPARE(cells, qint64(4000));
+        QVERIFY(ordered);
+        const qint64 runs = qint64(store.rows().runCount());
+        QVERIFY2(walk.stepped + walk.compared <= 8 * (cells + runs), qPrintable(QStringLiteral("%1 stepped and %2 compared for %3 cells in %4 runs").arg(walk.stepped).arg(walk.compared).arg(cells).arg(runs)));
+        // a lookup of a place, from nothing remembered
+        jp::calc::LineWork work;
+        for (int i = 0; i < 200; ++i) store.rows().core().idAt(rng() % 14000, nullptr, &work);
+        QVERIFY2(work.comparisons <= 200 * 20, qPrintable(QString::number(work.comparisons)));   // (log2 of 20,000 is 15)
+        // a narrow range costs what it holds, not what the sheet has
+        CellStore::RangeWalk narrow;
+        qint64 few = 0;
+        store.forEachInRange(7000, 0, 7010, 0, [&](quint32, quint32, const Cell &) {
+            ++few;
+            return true;
+        }, &narrow);
+        QVERIFY2(narrow.stepped + narrow.compared <= 400, qPrintable(QStringLiteral("%1 stepped and %2 compared for %3 cells").arg(narrow.stepped).arg(narrow.compared).arg(few)));
+        // and put back to one run it is the same cells
+        QCOMPARE(store.cellCount(), qint64(4000));
+        QCOMPARE(store.rebaseLines(true), jp::calc::LineStatus::Ok);
+        QCOMPARE(store.rows().runCount(), size_t(0));
+        QCOMPARE(store.cellCount(), qint64(4000));
+        QVERIFY(store.find(0, 0) && store.find(0, 0)->number == 0);
+        QVERIFY(!store.find(0, 1));
+    }
+
     // A store that was moved from is empty and has nothing of the one it was moved to: cells added to either go where they should.
     void aStoreMovedFromAndTheOneItWentToAreSeparate()
     {

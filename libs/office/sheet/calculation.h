@@ -25,6 +25,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <set>
 #include <unordered_set>
 #include <vector>
 
@@ -373,6 +374,8 @@ public:
     // ---- the order of a sheet's rows and columns (see CellStore): an edit of whole rows or columns takes ids, which a long session could use up. An edit that is done again after Undo, and Undo itself, take none.
     // Whether the order of the rows (columns) the edit is on is near what it may hold, so that it should be compacted (compactLines) first, with every record of an edit of it let go of (forgetLines).
     bool linesNeedCompaction(const StructEdit &edit) const;
+    // The words for a person if the order of the rows (columns) the edit is on can't take it (it has as many runs or ids as it may, and putting it back to one run did not help); empty if it can.
+    QString linesRefusal(const StructEdit &edit) const;
     // Puts the order of the sheet's rows (columns) back to one run, renumbering the cells and letting go of the dead ones. Every record of an edit of that order made before is stale after it: Undo of it
     // is refused, so the caller lets go of those first. False if it can't be done.
     // `table`, if given, is how the ids were renumbered: the nodes of the sheet's formulas are renumbered with the cells, and the formulas are worked out again (a value told before is let go of; the window renumbers the
@@ -647,6 +650,8 @@ public:
     qint64 registrations() const { return m_registrations; }   // times a formula has told the graph what it reads (counted, so that a test can see that one that reads the same is not told again)
     qint64 alwaysListed() const { return qint64(m_always.size()); }   // formulas on the list of those worked out in every recalculation
     const jp::calc::DependencyGraph &graph() const { return *m_graph; }
+    // The formulas the graph named as readers of the blocks that changed, over the life of the calculation (counted, so that a test can see a block asked again and again: docs/jeffcrunch-rowids.md, round 9).
+    qint64 readersFound() const { return m_readersFound; }
     // The formulas the graph says read the block of places (asked as a change of those cells is), added to `out`; for what holds places and not the ids the graph holds. With `stop`, the search
     // ends when the flag is set (see DependencyGraph::dependentsOfCell); false is returned then.
     bool readersOf(const jp::calc::CellArea &places, std::vector<quint32> *out, const std::atomic<bool> *stop = nullptr) const;
@@ -1045,6 +1050,7 @@ private:
         size_t alwaysAt = 0, listed = 0;
         bool dependents = false;
         std::vector<jp::calc::CellArea> changed;
+        std::set<jp::calc::CellArea> askedAreas;   // the blocks the graph was asked the readers of, whole: a change in rows put in at one place is the same block for each (asked once)
         std::vector<quint32> found;
         size_t foundAt = 0;
         jp::calc::CellArea queried;   // the block `found` is the readers of
@@ -1056,6 +1062,7 @@ private:
         size_t observersAt = 0;
         size_t ownAt = 0;   // the node the look for formulas that see only their own cell has got to
     } m_begin;
+    qint64 m_readersFound = 0;
     int m_onlySheet = -1;   // a recalculation of one sheet is going (invalidateSheet): the formulas of the others are left, and noted here for the next
     std::vector<quint32> m_deferredRoots;
     std::vector<jp::calc::CellArea> m_deferredAreas;
