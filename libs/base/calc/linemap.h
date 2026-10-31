@@ -195,7 +195,7 @@ public:
 
     // Checks the map's own bookkeeping (counts, order, links, the dead records); for tests.
     bool selfCheck() const;
-    std::vector<LineDead> deadRecords() const { return m_dead; }
+    const std::vector<LineDead> &deadRecords() const { return m_dead; }
     std::vector<IdRun> liveRuns() const;
 
 private:
