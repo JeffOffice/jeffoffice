@@ -54,6 +54,33 @@ bool readZipDirectory(const QByteArray &zip, QVector<ZipEntry> *out)
     return true;
 }
 
+ZipFault zipFault(const QByteArray &zip)
+{
+    QVector<ZipEntry> unused;
+    if (readZipDirectory(zip, &unused)) return ZipFault::None;
+    if (zip.size() < 22) return ZipFault::NoEnd;
+    qsizetype eocd = -1;
+    for (qsizetype i = zip.size() - 22; i >= std::max<qsizetype>(0, zip.size() - 65557); --i)
+        if (get32(zip, i) == 0x06054b50) {
+            eocd = i;
+            break;
+        }
+    if (eocd < 0) return ZipFault::NoEnd;
+    // the zip64 form: a locator before the record, or a field of the record that holds "look in the zip64 record"
+    if ((eocd >= 20 && get32(zip, eocd - 20) == 0x07064b50) || get16(zip, eocd + 10) == 0xFFFF || get32(zip, eocd + 16) == 0xFFFFFFFFu) return ZipFault::Zip64;
+    const int count = get16(zip, eocd + 10);
+    qint64 p = get32(zip, eocd + 16);
+    for (int i = 0; i < count; ++i) {
+        if (p + 46 > zip.size() || get32(zip, p) != 0x02014b50) return ZipFault::Damaged;
+        const quint16 method = get16(zip, p + 10);
+        if (get32(zip, p + 20) == 0xFFFFFFFFu || get32(zip, p + 24) == 0xFFFFFFFFu || get32(zip, p + 42) == 0xFFFFFFFFu) return ZipFault::Zip64;
+        if (method != 0 && method != 8) return ZipFault::UnsupportedMethod;
+        const quint16 nlen = get16(zip, p + 28), xlen = get16(zip, p + 30), clen = get16(zip, p + 32);
+        p += 46 + qint64(nlen) + xlen + clen;
+    }
+    return ZipFault::Damaged;
+}
+
 namespace {
 
 // No deflate stream makes more than about 1,032 bytes of each byte it has; a size past this is no size one of that length could have.
