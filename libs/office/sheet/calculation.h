@@ -54,11 +54,6 @@ struct CalcOptions {
     qint64 maxGraphBytes = jp::calc::DependencyGraph::kDefaultBytes;   // what the graph may take; the formulas past it are not tracked and are worked out in every recalculation
     double now = 0;                   // 0: the clock is read at each recalculation; else the day number NOW and TODAY give
     qint64 workbookBytes = kMaxWorkbookBytes;
-    // Hold the formulas in the id frame (docs/jeffcrunch-rowids.md, 4.4; sheet/formulaframe.h): the texts name rows and columns by their ids, so that an edit of whole rows or columns writes no text again
-    // but those of the formulas that are not held so (and the ones that read a row or column that died). Off, a formula's text is in places and an edit writes the ones that move again. Round 5c turned it
-    // on for every calculation (see Calculation::setIdFrameDefault); the places are kept until the last round, for the tests that compare the two and for JC_ID_FRAME=0.
-    bool idFrame = false;
-    bool idFrameOff = false;   // and the process's default (JC_ID_FRAME, setIdFrameDefault) is not looked at: this one holds its formulas in places (a test that compares the two ways)
     // If set, called with the result the file stored for a formula and the one worked out; false marks the formula a mismatch, and every formula that reads one, directly or
     // through others, a cascade (isCascaded): the yardstick tells the formulas that are wrong of their own from those that follow a wrong one.
     std::function<bool(const jp::calc::Value &stored, const jp::calc::Value &ours)> verify;
@@ -302,15 +297,6 @@ public:
             jp::calc::Value stored;
         };
         std::vector<FormulaWas> was;
-        // formulas of a shared family that were written again alike (one text for all of them, kept shared): the text they had (for the first cell the family was written for), and where
-        // each was before the edit
-        struct RewrittenGroup {
-            int sheet;
-            QString oldText;
-            std::vector<std::pair<quint32, quint32>> cells;
-            std::vector<std::pair<qint32, qint32>> offsets;   // and how far (rows, columns) each was from the cell the text was written for
-        };
-        std::vector<RewrittenGroup> groups;
         // the sheet's other structures, as they were: only those the edit changed (a copy is made when it does: `…Saved` says which), so that an edit that moves none of them holds none
         QVector<CellRange> ranges, merges;
         AutoFilter autoFilter;
@@ -583,7 +569,7 @@ public:
         // With the id frame: the formulas made again (told the graph again) because a defined name's text changed, and because a table's ids changed (docs/jeffcrunch-rowids.md, 4.14). An edit of whole
         // rows or columns that touches no end of a name or a table makes none; counted by the formulas, never by the names or the tables.
         qint64 namesRegisteredAgain = 0, tablesRegisteredAgain = 0;
-        // With the id frame (CalcOptions::idFrame): the formulas an edit of whole rows or columns, or of cells, had to write again through their places, which an edit that moves them and what they read
+        // The formulas an edit of whole rows or columns, or of cells, had to write again through their places, which an edit that moves them and what they read
         // alike does not: they read a row or column that died, their text is in places (positionalFormulas), or the edit moves cells one by one. And the texts made by turning places into ids, and ids
         // into places (a text typed, a text shown), counted so that a test can see that an edit of rows makes none for the formulas it leaves.
         qint64 eagerFormulas = 0;
@@ -619,15 +605,11 @@ public:
     // For tests: whether an edit of whole rows or columns asks the worker (the formulas whose text only moved keep their nodes and are worked out only if the edit could change them), or every formula
     // that was written again is made again and worked out, as an edit of cells does (the oracle the other is compared with).
     static void setGraphShifts(bool on);
-    // The switch of CalcOptions::idFrame for every calculation made after this call (a test, or a tool, says which way the workbooks it opens hold their formulas; the default is on, and JC_ID_FRAME=0 in the environment makes it off).
-    static void setIdFrameDefault(bool on);
-    static bool idFrameDefault();
     // For tests: whether a word of the text is one that cannot be held in ids as it is (a name that could be read as a cell past XFD).
     static bool textHasWideLookingWord(const QString &text);
-    // How a text is held (idFrame): in ids (Plain, with the numbers of the grid; Wide, with ids past it) or in places (Positional). The key a text of the class Wide or Positional is shared by (the Plain ones are by their characters alone, in a map of their own), which no other class's text can have.
+    // How a text is held: in ids (Plain, with the numbers of the grid; Wide, with ids past it) or in places (Positional). The key a text of the class Wide or Positional is shared by (the Plain ones are by their characters alone, in a map of their own), which no other class's text can have.
     enum class TextClass : quint8 { Plain, Wide, Positional };
     static QString internKey(const QString &text, TextClass cls);
-    bool idFrame() const { return m_options.idFrame; }
     // Formulas whose text is in places and not in ids, though the workbook holds its formulas in ids: a reference through several sheets, a name that could be read as a cell past XFD (each is rewritten
     // by an edit as it was before ids). Counted over the formulas: for tests, and the bench.
     qint64 positionalFormulas() const;
@@ -739,7 +721,7 @@ private:
     // Texts and formulas, shared and let go of (see SheetState): the place of a text (a new one, or the one an edit made before with the same characters; it counts one more formula
     // for it), a formula's place made with a text it keeps a hold of, a text that one formula less has, and a formula that is not any cell's now.
     void countTexts(int sheet);
-    // How a text is held (idFrame): in ids (Plain, with the numbers of the grid; Wide, with ids past it) or in places (Positional).
+    // How a text is held: in ids (Plain, with the numbers of the grid; Wide, with ids past it) or in places (Positional).
     struct Held {
         QString text;
         TextClass cls = TextClass::Plain;
@@ -795,7 +777,7 @@ private:
     void snapshotTableIds();
     bool heldOf(int sheet, const Cell &c, QString *held, qint32 *dRow, qint32 *dCol, quint8 *cls) const;
     void restoreHeldFormula(int sheet, quint32 row, quint32 col, const QString &held, qint32 dRow, qint32 dCol, quint8 cls);
-    bool recordIdsAreCurrent(const EditRecord &rec) const { return m_options.idFrame && !rec.renumberEpochs.empty() && rec.renumberEpochs == renumberEpochs(); }
+    bool recordIdsAreCurrent(const EditRecord &rec) const { return !rec.renumberEpochs.empty() && rec.renumberEpochs == renumberEpochs(); }
     std::vector<quint32> renumberEpochs() const;
     bool renumberEpochsAre(const std::vector<quint32> &epochs) const;   // (without making the vector)
     void tablesChangedFor(const QSet<QString> &changed);

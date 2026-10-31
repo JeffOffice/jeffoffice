@@ -150,7 +150,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     ++m_state[size_t(e.sheet)].epoch;
     if (e.toSheet != e.sheet) ++m_state[size_t(e.toSheet)].epoch;
     *rec = EditRecord();
-    if (m_options.idFrame) rec->renumberEpochs = renumberEpochs();
+    rec->renumberEpochs = renumberEpochs();
     rec->edit = e;
     rec->sheet = e.sheet;
     Sheet &S = m_sheets[size_t(e.sheet)];
@@ -403,12 +403,10 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
                 was.stored = nodeValue(n0, r.id);
             }
             EditRecord::HeldText held;
-            if (m_options.idFrame) held.has = !(c->flags & (ArrayFormula | DataTable)) && heldOf(sheet, *c, &held.text, &held.dRow, &held.dCol, &held.cls);
+            held.has = !(c->flags & (ArrayFormula | DataTable)) && heldOf(sheet, *c, &held.text, &held.dRow, &held.dCol, &held.cls);
             rec->was.push_back(std::move(was));
-            if (m_options.idFrame) {
-                rec->wasHeld.resize(rec->was.size());
-                rec->wasHeld.back() = std::move(held);
-            }
+            rec->wasHeld.resize(rec->was.size());
+            rec->wasHeld.back() = std::move(held);
             retext(sheet, c, r.now);   // (in place: the formula keeps its place, and a cell of a shared family has a text of its own from now)
             ++rec->formulasRewritten;
             rec->rewritten.push_back({sheet, rowOf(n0), colOf(n0), n0.rowId, n0.colId, bool(c->flags & DataTable)});

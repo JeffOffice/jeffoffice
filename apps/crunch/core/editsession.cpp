@@ -1258,34 +1258,32 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         if (placeOfMark(key, &sheet, &row, &col)) touchedInOrder.push_back({keyOf(sheet, row, col), key});
     });
     bool bySaver = false;   // (the saver writes the formulas that the edits changed: see below)
-    if (calc->idFrame()) {
-        // The formulas are held in ids, and an edit of whole rows or columns writes none of them again: the text of a formula that read what moved is made when the file is written, from the file's own
-        // text and the edits (the saver replays them on the order of the file's rows and columns: docs/jeffcrunch-rowids.md, round 7), so none is among the cells that changed, and a formula that
-        // reads nothing that moved keeps its bytes (shared, its volatile mark, its result). (An Undo made after a save is of rows that were put in, since a step that deleted is let go of by the save:
-        // it is a delete in the list, and the window's lines it kills are those the replay deletes.) A map that cannot take an edit (it is full: the window makes its order again then) cannot be
-        // replayed, and the formulas of the sheets whose rows or columns were edited, and of those that name them, are written whole, from the window.
-        QStringList fileNames;
-        for (const jp::office::sheet::SheetEntry &se : book.info().sheets) fileNames << (se.isNew ? QString() : se.fileName);
-        jp::office::sheet::LineReplay replay(m_edits, fileNames);
-        if (replay.ok()) {
-            changes.rewriteFormulas = true;
-            bySaver = replay.movesAnything();
-        } else {
-            QSet<int> moved;
-            for (const StructEdit &ed : m_edits)
-                if (ed.changesRows() || ed.changesColumns()) moved.insert(ed.sheet);
-            QStringList movedNames;
-            for (const int sheet : moved)
-                if (sheet >= 0 && sheet < book.info().sheets.size()) movedNames << book.info().sheets[sheet].name;
-            if (!moved.isEmpty()) {
-                for (int sheet = 0; sheet < calc->sheetCount(); ++sheet) {
-                    if (!moved.contains(sheet) && !calc->formulasNameSheets(sheet, movedNames)) continue;
-                    calc->sheet(sheet).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
-                        if (!c.hasFormula() || (c.flags & (ArrayMember | DataTable))) return;
-                        const quint64 key = keyOf(sheet, c.rowId, c.colId);
-                        if (!m_touched.count(key)) touchedInOrder.push_back({keyOf(sheet, row, col), key});
-                    });
-                }
+    // The formulas are held in ids, and an edit of whole rows or columns writes none of them again: the text of a formula that read what moved is made when the file is written, from the file's own
+    // text and the edits (the saver replays them on the order of the file's rows and columns: docs/jeffcrunch-rowids.md, round 7), so none is among the cells that changed, and a formula that
+    // reads nothing that moved keeps its bytes (shared, its volatile mark, its result). (An Undo made after a save is of rows that were put in, since a step that deleted is let go of by the save:
+    // it is a delete in the list, and the window's lines it kills are those the replay deletes.) A map that cannot take an edit (it is full: the window makes its order again then) cannot be
+    // replayed, and the formulas of the sheets whose rows or columns were edited, and of those that name them, are written whole, from the window.
+    QStringList fileNames;
+    for (const jp::office::sheet::SheetEntry &se : book.info().sheets) fileNames << (se.isNew ? QString() : se.fileName);
+    jp::office::sheet::LineReplay replay(m_edits, fileNames);
+    if (replay.ok()) {
+        changes.rewriteFormulas = true;
+        bySaver = replay.movesAnything();
+    } else {
+        QSet<int> moved;
+        for (const StructEdit &ed : m_edits)
+            if (ed.changesRows() || ed.changesColumns()) moved.insert(ed.sheet);
+        QStringList movedNames;
+        for (const int sheet : moved)
+            if (sheet >= 0 && sheet < book.info().sheets.size()) movedNames << book.info().sheets[sheet].name;
+        if (!moved.isEmpty()) {
+            for (int sheet = 0; sheet < calc->sheetCount(); ++sheet) {
+                if (!moved.contains(sheet) && !calc->formulasNameSheets(sheet, movedNames)) continue;
+                calc->sheet(sheet).cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+                    if (!c.hasFormula() || (c.flags & (ArrayMember | DataTable))) return;
+                    const quint64 key = keyOf(sheet, c.rowId, c.colId);
+                    if (!m_touched.count(key)) touchedInOrder.push_back({keyOf(sheet, row, col), key});
+                });
             }
         }
     }

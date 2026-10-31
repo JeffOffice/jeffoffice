@@ -194,7 +194,7 @@ qint64 Calculation::estimateUndoBytes(const StructEdit &e, qint64 stopAt) const
     // (id frame) An edit of whole rows or columns holds the formulas it writes again, which are those held in places and those told where they read (the rest are not written again), and for a delete
     // that keeps its cells (no array, data table, or formula held in places in its lines) the cells it leaves dead, at the figure the step counts them at.
     const bool wholeRows = e.kind == K::InsertRows || e.kind == K::DeleteRows;
-    if (m_options.idFrame && (wholeRows || e.kind == K::InsertColumns || e.kind == K::DeleteColumns)) {
+    if (wholeRows || e.kind == K::InsertColumns || e.kind == K::DeleteColumns) {
         bytes = (qint64(m_positionalNodes.size()) + qint64(m_special.size())) * kPerFormula;
         if (e.kind == K::InsertRows || e.kind == K::InsertColumns) return bytes;
         if (!deadLinesHoldSpecials(e, e.count)) return bytes + m_sheets[size_t(e.sheet)].cells.cellsInLines(wholeRows, e.first, e.count) * kUndoBytesPerDeadCell;
@@ -368,7 +368,7 @@ bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineM
 
 void Calculation::renumberTexts(int target, bool rows, const std::vector<jp::calc::LineMapCore::Renumber> &table, const jp::calc::LineMapCore &before, int onlySheet)
 {
-    if (!m_options.idFrame || table.empty()) return;
+    if (table.empty()) return;
     using jp::calc::ParseLimits;
     // One reference as the new ids say it: the sheet whose ids changed has its lines renumbered, and a line that was deleted is the line next to where it was in the order before.
     const auto mapLine = [&](int sheet, jp::calc::RefLit *lit) {
@@ -557,7 +557,7 @@ void Calculation::forgetLines(EditRecord *rec)
     // (the sheet that has the order the record names: the sheets may have been moved since)
     for (Sheet &s : m_sheets)
         if (s.cells.serial() == rec->lines.owner) {
-            s.cells.forgetLines(rows, &rec->lines, m_options.idFrame);
+            s.cells.forgetLines(rows, &rec->lines, true);
             return;
         }
     rec->lines = CellStore::LineEdits();
@@ -604,7 +604,7 @@ void Calculation::forgetLinesLater(EditRecord *rec)
     job.rows = rows;
     job.runs = rec->lines.edit.runs;
     job.lines = std::move(rec->lines);
-    job.keepDead = m_options.idFrame;
+    job.keepDead = true;
     rec->lines = CellStore::LineEdits();
     m_purges.push_back(std::move(job));
 }
@@ -689,7 +689,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     abandonNow();
     // (the ids the tables stand for now, to see after the edit which tables it changed)
     bool linesEdit = false;
-    if (m_options.idFrame && wholeLines(e, &linesEdit) && !m_book.tables().isEmpty()) snapshotTableIds();
+    if (wholeLines(e, &linesEdit) && !m_book.tables().isEmpty()) snapshotTableIds();
     auto lapAt = std::chrono::steady_clock::now();
     auto lap = [&](int phase) {
         const auto now = std::chrono::steady_clock::now();
@@ -709,7 +709,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     *rec = EditRecord();
     rec->edit = e;
     rec->sheet = e.sheet;
-    if (m_options.idFrame) rec->renumberEpochs = renumberEpochs();
+    rec->renumberEpochs = renumberEpochs();
     Sheet &S = m_sheets[size_t(e.sheet)];
     // (what the edit changes of the sheet's other structures is kept as it was: the lists are shared with these copies, which cost nothing, and a list that the edit does not change is not made again)
     const QVector<CellRange> rangesBefore = S.ranges, mergesBefore = S.merges;
@@ -730,7 +730,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     std::vector<quint32> candidates, specials, oracleReaders;
     // With the id frame an edit of whole lines writes no text again for a formula that is held in ids: what it names is the same ids, which are where they are now, and one with an end in a line that
     // died reads the line next to it (docs/jeffcrunch-rowids.md, 4.4). The formulas it looks at are those held in places and those the graph does not follow (kept apart, told where they read).
-    const bool idLines = m_options.idFrame && wholeLine;
+    const bool idLines = wholeLine;
     if (idLines) {
         // (a formula kept apart for a function the engine lacks can't be told what the function makes of a text it reads: it has #NAME? when the text of a formula it reads is written again. So while the
         // workbook has one, every formula that reads what moves is looked at, and the ones whose text as shown changed are as good as written again)
@@ -754,29 +754,9 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         quint32 id;
         QString was, now;   // the text of the formula for its cell, and what it is to be (empty: as it was)
         bool shownOnly = false;   // (id frame) its text is held as it was; what it is shown as is looked at again when the edit is made, and `now` is that if it changed
-        int group = -1;     // or the group of formulas of a shared family that are written again alike, and keep their share of one text
-    };
-    struct Group {
-        int sheet;
-        QString newText;
-        qint32 newIndex = -1;   // its place, once it is made
-        int record = -1;        // and where the group is in the record
-        bool failed = false;    // the text could not be made: the cells are written one by one
-        bool hasGone = false;   // a reference of it is to cells that are deleted (it is #REF! now)
     };
     std::vector<Rewrite> rewrites;
     rewrites.reserve(candidates.size());
-    std::vector<Group> groups;
-    // (the formulas of a shared family are told apart by what the edit does to the references each has, and the new text is made once for those it does alike)
-    struct GroupKey {
-        int sheet;
-        qint32 text;
-        TextRewriter::Key key;
-    };
-    std::vector<GroupKey> groupKeys;
-    std::unordered_multimap<quint64, int> groupsByHash;
-    std::unordered_map<quint64, TextRewriter> rewriters;
-    const bool rowsOrColumns = e.kind == K::InsertRows || e.kind == K::DeleteRows || e.kind == K::InsertColumns || e.kind == K::DeleteColumns;
     for (const quint32 id : candidates) {
         const Node &n = m_nodes[id];
         if ((n.flags & Dead) || dormant(n)) continue;   // (a formula in a line that is deleted is as it was when the line went: nothing is written for it, and Undo brings the line back)
@@ -792,46 +772,6 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             }
             rewrites.push_back(std::move(r));   // (its text is as it is: the ones among these that are told where they read are made again below)
             continue;
-        }
-        if (rowsOrColumns && !m_options.idFrame && !(c->flags & (ArrayFormula | DataTable)) && !(n.flags & Kept) && c->formula >= 0 && size_t(c->formula) < size_t(sn.formulas.size())) {
-            const Formula &f = sn.formulas[c->formula];
-            countTexts(n.sheet);
-            if (f.text >= 0 && (f.dRow != 0 || f.dCol != 0 || m_state[size_t(n.sheet)].textRefs[size_t(f.text)] > 1)) {
-                const quint64 textKey = (quint64(quint32(n.sheet)) << 32) | quint32(f.text);
-                auto rw = rewriters.find(textKey);
-                if (rw == rewriters.end()) rw = rewriters.emplace(textKey, TextRewriter(sn.formulaTexts[f.text], n.sheet, names)).first;
-                TextRewriter::Key key;
-                const TextRewriter::Fate fate = rw->second.fate(e, f.dRow, f.dCol, &key);
-                if (fate == TextRewriter::Fate::Same) {
-                    rewrites.push_back(std::move(r));
-                    continue;
-                }
-                if (fate == TextRewriter::Fate::Changed) {
-                    const quint64 hash = key.hash() ^ (textKey * 0x9E3779B97F4A7C15ull);
-                    int found = -1;
-                    for (auto range = groupsByHash.equal_range(hash); range.first != range.second && found < 0; ++range.first) {
-                        const GroupKey &k = groupKeys[size_t(range.first->second)];
-                        if (k.sheet == n.sheet && k.text == f.text && k.key == key) found = range.first->second;
-                    }
-                    if (found < 0) {
-                        Group g;
-                        g.sheet = n.sheet;
-                        g.newText = rw->second.apply(key);
-                        if (!g.newText.isEmpty()) ++m_editStats.textsMade;
-                        g.failed = g.newText.isEmpty();
-                        for (int k = 0; k < TextRewriter::kMaxRefs; ++k) g.hasGone = g.hasGone || key.v[k * 5] == 2;
-                        groups.push_back(std::move(g));
-                        groupKeys.push_back({n.sheet, f.text, key});
-                        found = int(groups.size()) - 1;
-                        groupsByHash.emplace(hash, found);
-                    }
-                    if (!groups[size_t(found)].failed) {
-                        r.group = found;
-                        rewrites.push_back(std::move(r));
-                        continue;
-                    }
-                }
-            }
         }
         r.was = sn.formulaText(*c);
         bool changed = false;
@@ -1420,31 +1360,14 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
                 if (shown != r.was) r.now = shown;
             }
         }
-        if (r.now.isEmpty() && r.group < 0 && !told && !namesChanged) continue;
+        if (r.now.isEmpty() && !told && !namesChanged) continue;
         const int sheet = n0.sheet;
         Sheet &sn = m_sheets[size_t(sheet)];
         Cell *c = cellOfMutable(n0);
         if (!c || !c->hasFormula()) continue;
-        if (namesChanged && !told && r.now.isEmpty() && r.group < 0) ++m_editStats.namesRegisteredAgain;
+        if (namesChanged && !told && r.now.isEmpty()) ++m_editStats.namesRegisteredAgain;
         bool classChanged = false;
-        if (r.group >= 0) {
-            // a formula of a shared family: it keeps its share of the family's text, which is made once, and it is as far from the cell it was written for as it was
-            Group &g = groups[size_t(r.group)];
-            Formula &f = sn.formulas[c->formula];
-            if (g.newIndex < 0) g.newIndex = internText(sheet, g.newText);
-            else holdText(sheet, g.newIndex);
-            if (g.record < 0) {
-                rec->groups.push_back({sheet, sn.formulaTexts[f.text], {}});
-                g.record = int(rec->groups.size()) - 1;
-            }
-            rec->groups[size_t(g.record)].cells.push_back({places[i].row, places[i].col});
-            rec->groups[size_t(g.record)].offsets.push_back({f.dRow, f.dCol});
-            const qint32 old = f.text;
-            f.text = g.newIndex;
-            releaseText(sheet, old);
-            ++rec->formulasRewritten;
-            rec->rewritten.push_back({sheet, rowOf(n0), colOf(n0), n0.rowId, n0.colId, false});
-        } else if (!r.now.isEmpty()) {
+        if (!r.now.isEmpty()) {
             EditRecord::FormulaWas was;
             was.sheet = places[i].sheet;
             was.row = places[i].row;
@@ -1456,25 +1379,23 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
                 was.stored = nodeValue(n0, r.id);
             }
             EditRecord::HeldText held;
-            if (m_options.idFrame) held.has = !(c->flags & (ArrayFormula | DataTable)) && heldOf(sheet, *c, &held.text, &held.dRow, &held.dCol, &held.cls);
+            held.has = !(c->flags & (ArrayFormula | DataTable)) && heldOf(sheet, *c, &held.text, &held.dRow, &held.dCol, &held.cls);
             rec->was.push_back(std::move(was));
-            if (m_options.idFrame) {
-                rec->wasHeld.resize(rec->was.size());
-                rec->wasHeld.back() = std::move(held);
-            }
-            const bool wasPositional = m_options.idFrame && m_positionalNodes.count(r.id);
+            rec->wasHeld.resize(rec->was.size());
+            rec->wasHeld.back() = std::move(held);
+            const bool wasPositional = m_positionalNodes.count(r.id);
             retext(sheet, c, r.now);   // (in place: the formula keeps its place, and a cell of a shared family has a text of its own from now)
             // (a text that was in places can be held in ids once it is written again, and the other way: its node tells the graph and the lists again)
-            if (m_options.idFrame && c->formula >= 0 && c->formula < sn.formulas.size()) classChanged = wasPositional != !inIds(sn, sn.formulas[c->formula].text);
-            if (m_options.idFrame) ++m_editStats.eagerFormulas;
+            if (c->formula >= 0 && c->formula < sn.formulas.size()) classChanged = wasPositional != !inIds(sn, sn.formulas[c->formula].text);
+            ++m_editStats.eagerFormulas;
             ++rec->formulasRewritten;
             rec->rewritten.push_back({sheet, rowOf(n0), colOf(n0), n0.rowId, n0.colId, bool(c->flags & DataTable)});
         }
         // A formula whose text only moved with what it reads (the graph holds the ids of the lines it reads, which are the same) keeps its node and its entries; the worker is asked about it if the edit
         // could change its value (a gap in a block it reads, a place it saw, a line it read that died), and it is not worked out again for being written again. One that reads where it is told, is kept
         // apart, is an array, reads several sheets, or has a reference that is gone is made again.
-        if (useQuestions && !classChanged && (r.group >= 0 || !r.now.isEmpty()) && !told && !(n0.flags & (Kept | Array | ThreeD)) && !(c->flags & (ArrayFormula | DataTable))
-            && (r.group >= 0 ? !groups[size_t(r.group)].hasGone : !(r.now.contains(QLatin1String("#REF!")) && !r.was.contains(QLatin1String("#REF!"))))) {
+        if (useQuestions && !classChanged && !r.now.isEmpty() && !told && !(n0.flags & (Kept | Array | ThreeD)) && !(c->flags & (ArrayFormula | DataTable))
+            && !(r.now.contains(QLatin1String("#REF!")) && !r.was.contains(QLatin1String("#REF!")))) {
             if (m_hasUnknown) queueDependents(areaOf(n0));   // (what reads its text, FORMULATEXT, is not known to be rigid)
             continue;
         }
@@ -1488,7 +1409,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         if (wasKeptForItsFunction && (m_nodes[id].flags & Kept) && m_nodes[id].kept == 'U') {
             // (a formula kept apart for a function the engine lacks has the result it had, #NAME? if something it read changed; and #NAME? when a cell it read is deleted)
             storeResult(m_nodes[id], id, resultItHad, false);
-            if (r.group >= 0 || !r.now.isEmpty()) {   // (its text changed: it read cells that moved or went, and nothing can be said of what the function makes of them)
+            if (!r.now.isEmpty()) {   // (its text changed: it read cells that moved or went, and nothing can be said of what the function makes of them)
                 std::vector<CellArea> given;
                 giveName(id, &given);
             }
@@ -1594,7 +1515,6 @@ bool Calculation::renumberEpochsAre(const std::vector<quint32> &epochs) const
 void Calculation::pushGone(EditRecord *rec, int sheet, quint32 row, quint32 col, const Cell &c) const
 {
     rec->gone.push_back(goneCell(sheet, row, col, c));
-    if (!m_options.idFrame) return;
     rec->goneHeld.resize(rec->gone.size());
     EditRecord::HeldText &h = rec->goneHeld.back();
     if (!(c.flags & (ArrayFormula | DataTable))) h.has = heldOf(sheet, c, &h.text, &h.dRow, &h.dCol, &h.cls);
@@ -1672,36 +1592,6 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
         setFormula(w.sheet, w.row, w.col, w.text, Marking::Later, stored);
         // (a formula kept apart has the result it had; its text is the one it was held as, a line that had died before still being that line)
         if (held) restoreHeldFormula(w.sheet, w.row, w.col, held->text, held->dRow, held->dCol, held->cls);
-    }
-    // the formulas of shared families have the text they had (the inverse edit has most of them so already: those that have it are left as they are)
-    for (const EditRecord::RewrittenGroup &g : rec.groups) {
-        if (g.sheet < 0 || g.sheet >= int(m_sheets.size())) continue;
-        Sheet &sg = m_sheets[size_t(g.sheet)];
-        qint32 index = -1;
-        for (size_t k = 0; k < g.cells.size(); ++k) {
-            const auto &place = g.cells[k];
-            Cell *c = sg.cells.findMutable(place.first, place.second);
-            if (!c || !c->hasFormula() || c->formula < 0 || size_t(c->formula) >= size_t(sg.formulas.size())) continue;
-            Formula &f = sg.formulas[c->formula];
-            const qint32 old = f.text;
-            // (the cell is as far from the cell the text was written for as it was: a cell that has been deleted and put back since is a formula of its own, and is put as far as it was)
-            const qint32 dRow = k < g.offsets.size() ? g.offsets[k].first : f.dRow, dCol = k < g.offsets.size() ? g.offsets[k].second : f.dCol;
-            const bool already = old >= 0 && sg.formulaTexts[old] == g.oldText && f.dRow == dRow && f.dCol == dCol;
-            if (already) continue;
-            if (index < 0) index = internText(g.sheet, g.oldText);
-            else holdText(g.sheet, index);
-            f.text = index;
-            f.dRow = dRow;
-            f.dCol = dCol;
-            releaseText(g.sheet, old);
-            ++m_editStats.formulasRewritten;
-            const quint32 id = nodeAt(g.sheet, place.first, place.second);
-            const qint32 formula = c->formula;
-            if (id != kNone) dropNode(id);
-            const quint32 now = addNode(g.sheet, place.first, place.second, *c, formula);
-            ++m_editStats.nodesRemade;
-            queueDependents(areaOf(m_nodes[now]));
-        }
     }
     for (const auto &entry : rec.validations)
         if (entry.first >= 0 && entry.first < int(m_sheets.size())) {

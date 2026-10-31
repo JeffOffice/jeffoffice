@@ -301,7 +301,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         const QString done = state();
         QVERIFY(done != start);
-        QVERIFY2(s->undoBytes() - base < 24 * 1024 || !jp::office::sheet::Calculation::idFrameDefault(), qPrintable(QString::number(s->undoBytes() - base)));   // (in places an edit of rows writes the specs of rows again, and Undo holds them)
+        QVERIFY2(s->undoBytes() - base < 24 * 1024, qPrintable(QString::number(s->undoBytes() - base)));
         for (int round = 0; round < 3; ++round) {
             for (int i = 0; i < 4; ++i) e.win.w.undoStack()->undo();
             QCOMPARE(state(), start);
@@ -309,7 +309,7 @@ private Q_SLOTS:
             QCOMPARE(state(), done);
         }
         QVERIFY(e.settle());
-        QVERIFY2(s->undoBytes() - base < 24 * 1024 || !jp::office::sheet::Calculation::idFrameDefault(), qPrintable(QString::number(s->undoBytes() - base)));   // (in places an edit of rows writes the specs of rows again, and Undo holds them)
+        QVERIFY2(s->undoBytes() - base < 24 * 1024, qPrintable(QString::number(s->undoBytes() - base)));
     }
 
     void notesFollowASort()

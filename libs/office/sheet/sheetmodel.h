@@ -1355,7 +1355,7 @@ struct Sheet {
     QVector<FontSpec> richFonts;         // the fonts the runs of `richTexts` name
     QVector<QString> formulaTexts;    // as written, and no "=" in front
     QVector<Formula> formulas;
-    // A workbook that holds its formulas in the id frame (sheet/formulaframe.h; CalcOptions::idFrame) gives each of its sheets the workbook it is in (`frame`) and its own place there: the texts name
+    // A workbook that holds its formulas in the id frame (sheet/formulaframe.h) gives each of its sheets the workbook it is in (`frame`) and its own place there: the texts name
     // rows and columns by ids, which formulaText turns into places. Of the texts, `positionalTexts` are those held in places (a reference through several sheets, a name that could be read as a
     // cell past XFD) and `wideTexts` those that have ids past the grid in them. Empty for every other sheet.
     const FrameSheets *frame = nullptr;

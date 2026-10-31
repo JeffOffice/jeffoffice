@@ -916,7 +916,6 @@ private Q_SLOTS:
     // Twelve edits of rows and columns in a sheet of 100,000 rows with a height for each: the steps hold under 64 KB between them (counted), and Undo and Redo of all twelve put it right.
     void twelveEditsOfRowsAndColumnsAt100000RowsHoldUnder64KbOfUndo()
     {
-        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the formulas are held in places: the edits of rows write the specs of rows again, and Undo holds them, as before ids");
         EditWindow e;
         QVERIFY(e.open(tallBook(100000)));
         crunch::EditSession *s = e.win.w.session();
@@ -961,7 +960,6 @@ private Q_SLOTS:
     // A delete of 500,000 rows is not asked about (nothing it holds is big) and is undone at once: the values are the window's before the worker has worked anything out again.
     void aDeleteOfHalfAMillionRowsIsNotAskedAboutAndIsUndoneAtOnce()
     {
-        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the formulas are held in places: a delete of rows holds the cells it deletes, as before ids");
         const int n = 550000;
         QString xml;
         xml.reserve(n * 60);
@@ -1021,11 +1019,11 @@ private Q_SLOTS:
             for (int i = 0; i < 4; ++i) e.win.w.undoStack()->undo();
             QVERIFY(e.settle());
             QCOMPARE(state(), start);
-            if (office::sheet::Calculation::idFrameDefault()) QCOMPARE(s->undoBytes(), held);   // (the steps hold the same after: they are the same steps)
+            QCOMPARE(s->undoBytes(), held);   // (the steps hold the same after: they are the same steps)
             for (int i = 0; i < 4; ++i) e.win.w.undoStack()->redo();
             QVERIFY(e.settle());
             QCOMPARE(state(), done);
-            if (office::sheet::Calculation::idFrameDefault()) QCOMPARE(s->undoBytes(), held);
+            QCOMPARE(s->undoBytes(), held);
         }
         QVERIFY(storeDiffers(e).isEmpty());
         // an Undo that stops half way, then a new edit: the steps that were undone are let go of, and the rows they took are given back
@@ -1096,7 +1094,6 @@ private Q_SLOTS:
     // many cells as it is given (counted), and when the last is done the cells, the nodes, and the values the window held for them are gone.
     void theDeadCellsOfAForgottenDeleteAreLetGoOfInSlices()
     {
-        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the formulas are held in places: a delete of rows holds the cells it deletes in the step, as before ids");
         const int n = 20000;
         QString xml;
         for (int r = 1; r <= n; ++r) xml += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2</f><v>0</v></c></row>").arg(r);
@@ -1141,7 +1138,6 @@ private Q_SLOTS:
     // its loop (headless) lets go of what forgotten steps held at its next edit of rows, a slice at a time: a loop of deleting and putting back stays bounded.
     void deadCellsAreCountedInTheUndoLimitAndLetGoOfWithoutTheLoop()
     {
-        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the formulas are held in places: a delete of rows copies the cells, and they are counted as before ids");
         QString xml;
         for (int r = 1; r <= 40000; ++r) xml += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><f>A%1*2</f><v>0</v></c></row>").arg(r);
         EditWindow e;
@@ -1165,7 +1161,6 @@ private Q_SLOTS:
     // Round 6: the specs of rows are renumbered when the order of rows is put back to one run (a hidden row, a height, an outline level), and what is saved after has them at their rows.
     void theSpecsOfRowsSurviveAnOrderPutBackToOneRunAndTheirSave()
     {
-        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the specs of rows are held by place: there are no ids to renumber");
         QStringList cells;
         for (int r = 1; r <= 12; ++r) cells << QStringLiteral("A%1=%1").arg(r);
         EditWindow e;
@@ -1219,7 +1214,6 @@ private Q_SLOTS:
     // far as they must be. Here the same in small: 5 columns, a limit of 800,000 bytes, a delete of 3,000 rows (15,000 cells: 720,000) and then one of 700 rows (3,500 cells: 168,000).
     void aDeleteOfRowsIsAskedAboutByWhatItsStepWillHoldAndTheBudgetForgetsTheOlderStep()
     {
-        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the formulas are held in places: a delete of rows copies the cells at 320 bytes each, as before ids");
         QString xml;
         for (int r = 1; r <= 5000; ++r) xml += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><v>2</v></c><c r=\"C%1\"><v>3</v></c><c r=\"D%1\"><v>4</v></c><c r=\"E%1\"><f>SUM(A%1:D%1)</f><v>0</v></c></row>").arg(r);
         EditWindow e;
@@ -1250,7 +1244,6 @@ private Q_SLOTS:
     // its row is.
     void theSpecOfADeletedRowIsGoneAfterAnOrderPutBackToOneRunAndDoesNotMoveToAnotherRow()
     {
-        if (!office::sheet::Calculation::idFrameDefault()) QSKIP("the specs of rows are held by place: there are no ids to renumber");
         QStringList cells;
         for (int r = 1; r <= 12; ++r) cells << QStringLiteral("A%1=%1").arg(r);
         EditWindow e;
@@ -1791,12 +1784,7 @@ private Q_SLOTS:
     // that Undo can bring the row back).
     void aKeptFormulaInADeletedRowAsksForNoCalculation()
     {
-        for (const bool ids : {true, false}) {
-            struct Scope {
-                bool was = jp::office::sheet::Calculation::idFrameDefault();
-                ~Scope() { jp::office::sheet::Calculation::setIdFrameDefault(was); }
-            } scope;
-            jp::office::sheet::Calculation::setIdFrameDefault(ids);
+        {
             EditWindow e;
             QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "B2==NOSUCHFUNCTION(A1)", "C1==A1+1"})));
             QVERIFY(e.settle());
@@ -1809,47 +1797,38 @@ private Q_SLOTS:
             crunch::EditSession::Snapshot snap;
             QString why;
             QVERIFY2(s->takeSnapshot(&snap, &why), qPrintable(why));
-            QVERIFY2(!snap.changes.fullCalcOnLoad, ids ? "ids" : "places");
+            QVERIFY(!snap.changes.fullCalcOnLoad);
             e.win.w.undoStack()->undo();   // (the row comes back with its formula, which is kept apart again)
             QVERIFY(e.settle());
             QVERIFY(s->calculation()->keptCount() > 0);
         }
     }
 
-    // With the formulas held in ids the saver gives the formulas that read what moved their new text; the file is asked to be worked out when the formulas in places ask it, and not otherwise: a row
-    // inserted below everything, and one above it, with a formula the engine keeps apart in the sheet.
-    void theSaverOfTheIdFrameAsksForNoMoreCalculation()
+    // The saver gives the formulas that read what moved their new text; the file is asked to be worked out when a formula written whole has no result to give (not for a row put in below everything,
+    // and for one above it, with a formula the engine keeps apart in the sheet): a row inserted below everything, and one above it.
+    void theSaverAsksForNoMoreCalculationThanItNeeds()
     {
-        struct Scope {
-            bool was = jp::office::sheet::Calculation::idFrameDefault();
-            ~Scope() { jp::office::sheet::Calculation::setIdFrameDefault(was); }   // (put back whatever fails)
-        } scope;
         QList<bool> asks;
         QList<qint64> cellsWritten;
-        for (const bool at0 : {false, true})
-            for (const bool ids : {false, true}) {
-                jp::office::sheet::Calculation::setIdFrameDefault(ids);
-                EditWindow e;
-                QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "B1==NOSUCHFUNCTION(A1)", "C1==A2+1", "C2==SUM(A1:A2)"})));
-                QVERIFY(e.settle());
-                crunch::EditSession *s = e.win.w.session();
-                QCOMPARE(s->calculation()->idFrame(), ids);
-                QVERIFY(s->insertRows(0, at0 ? 0 : 30, 1).ok);
-                QVERIFY(e.settle());
-                crunch::EditSession::Snapshot snap;
-                QString why;
-                QVERIFY2(s->takeSnapshot(&snap, &why), qPrintable(why));
-                asks << snap.changes.fullCalcOnLoad;
-                cellsWritten << qint64(snap.changes.sheets.count(0) ? snap.changes.sheets[0].cells.size() : 0);
-            }
-        QCOMPARE(asks[1], asks[0]);   // (below)
-        QCOMPARE(asks[3], asks[2]);   // (above)
-        // the formulas that read the rows that moved are written whole (none for a row put in below everything, the three that read them for one put in above) when the workbook has a function the engine does not
-        // know, in both ways of holding them: the text a formula is shown as is then looked at after every edit of rows, and a formula whose text changed is a change of the workbook's
-        QCOMPARE(cellsWritten[1], cellsWritten[0]);
-        QCOMPARE(cellsWritten[3], cellsWritten[2]);
-        QCOMPARE(cellsWritten[1], qint64(0));
-        QCOMPARE(cellsWritten[3], qint64(3));
+        for (const bool at0 : {false, true}) {
+            EditWindow e;
+            QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "B1==NOSUCHFUNCTION(A1)", "C1==A2+1", "C2==SUM(A1:A2)"})));
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            QVERIFY(s->insertRows(0, at0 ? 0 : 30, 1).ok);
+            QVERIFY(e.settle());
+            crunch::EditSession::Snapshot snap;
+            QString why;
+            QVERIFY2(s->takeSnapshot(&snap, &why), qPrintable(why));
+            asks << snap.changes.fullCalcOnLoad;
+            cellsWritten << qint64(snap.changes.sheets.count(0) ? snap.changes.sheets[0].cells.size() : 0);
+        }
+        // the formulas that read the rows that moved are written whole (none for a row put in below everything, the three that read them for one put in above) when the workbook has a function the
+        // engine does not know: the text a formula is shown as is then looked at after every edit of rows, and a formula whose text changed is a change of the workbook's
+        QCOMPARE(cellsWritten[0], qint64(0));
+        QCOMPARE(cellsWritten[1], qint64(3));
+        QVERIFY(!asks[0]);   // (the formulas that read what moved have the results the file gave them, or the window's)
+        QVERIFY(asks[1]);
     }
 
     // Cells shifted down under ten thousand formulas, with no value on its way, work none of them out again and make no stamp (the formulas read cells that did not move).

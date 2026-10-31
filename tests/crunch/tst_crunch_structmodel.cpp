@@ -165,8 +165,7 @@ private Q_SLOTS:
         }
         for (int i = 0; i < 6; ++i) steps.push_back(plain(Step::Undo));
         for (int i = 0; i < 3; ++i) steps.push_back(plain(Step::Redo));
-        Options ids;
-        ids.idFrame = true;
+        const Options ids;
         const Result r = run(steps, ids);
         QVERIFY2(r.failure.ok(), qPrintable(failureText(2, steps, ids, r)));
         QCOMPARE(r.lineEditCellsMoved, qint64(0));
@@ -217,12 +216,11 @@ private Q_SLOTS:
         QVERIFY(r.undone >= 2 && r.redone >= 1);
     }
 
-    // The same sequences and seeds with the formulas held in the id frame (round 5a; dark): every check passes, and no cell is moved.
+    // The named sequences and seeds, with the formulas held in ids: every check passes, and no cell is moved.
     void theNamedSequencesAndSeedsAgreeWithTheFormulasHeldInIds()
     {
         PinnedLocale pin;
-        Options ids;
-        ids.idFrame = true;
+        const Options ids;
         for (const bool byRow : {false, true}) {
             const Step::Kind del = byRow ? Step::DeleteRows : Step::DeleteColumns, ins = byRow ? Step::InsertRows : Step::InsertColumns;
             auto at = [&](Step::Kind k, int sheet, int pos, int count = 1) { return byRow ? rows(k, sheet, pos, count) : columns(k, sheet, pos, count); };
@@ -241,8 +239,8 @@ private Q_SLOTS:
         }
     }
 
-    // The seeds that also type ranges written back to front, ATAN2, and a word that could be a cell past XFD (another list of steps for the same seed, so the golden seeds are as they were): in places and in ids.
-    void rangesBackToFrontAndWordsLikeCellsAgreeInBothModes()
+    // The seeds that also type ranges written back to front, ATAN2, and a word that could be a cell past XFD (another list of steps for the same seed, so the golden seeds are as they were)s.
+    void rangesBackToFrontAndWordsLikeCellsAgreeWithTheModel()
     {
         PinnedLocale pin;
         const int seeds = qEnvironmentVariableIsSet("CRUNCH_MODEL_SEEDS") ? qEnvironmentVariableIntValue("CRUNCH_MODEL_SEEDS") : 4;
@@ -258,13 +256,9 @@ private Q_SLOTS:
         QVERIFY(backToFront && wordsLikeCells);
         for (int seed = 1; seed <= seeds; ++seed) {
             const std::vector<Step> steps = generate(quint32(seed), 30, true);
-            for (const bool ids : {false, true}) {
-                Options options;
-                options.idFrame = ids;
-                options.forceOff = !ids;
-                const Result r = run(steps, options);
-                QVERIFY2(r.failure.ok(), qPrintable(failureText(quint32(seed), steps, options, r)));
-            }
+            const Options options;
+            const Result r = run(steps, options);
+            QVERIFY2(r.failure.ok(), qPrintable(failureText(quint32(seed), steps, options, r)));
         }
         QCOMPARE(generate(5, 20, false).size(), size_t(20));   // (and a seed that types more than a little is another list with the option)
         QVERIFY(line(generate(5, 200, false)) != line(generate(5, 200, true)));
@@ -323,35 +317,16 @@ private Q_SLOTS:
             }
         }
         QVERIFY(digests.size() >= 4);
-        // (with the formulas held in the id frame the state after every step is the same; the parts a save writes are not, until the saver is the next round's: it writes every formula whole)
-        for (const bool idFrame : {false, true}) {
+        // (the state after every step is what the engine with the formulas in places gave, to the bit; the parts a save writes are not compared: the saver writes the formulas that only moved as the file had
+        // them, renumbered, and not whole)
         Options options;
         options.check = false;
-        options.idFrame = idFrame;
-        options.forceOff = !idFrame;
         for (auto it = digests.constBegin(); it != digests.constEnd(); ++it) {
             const Result r = run(generate(it.key(), counts[it.key()]), options);
             QVERIFY(r.failure.ok());
             QCOMPARE(int(r.digests.size()), it.value().size());
             for (int i = 0; i < it.value().size(); ++i)
                 QVERIFY2(QStringLiteral("%1").arg(r.digests[size_t(i)], 16, 16, QLatin1Char('0')) == it.value()[i], qPrintable(QStringLiteral("seed %1: the state after step %2 (%3) is not what the golden file has").arg(it.key()).arg(i + 1).arg(r.stepsText[size_t(i)])));
-            if (idFrame) continue;
-            // (part by part first, so a difference names the part)
-            QMap<QString, QString> got;
-            for (const QString &line : r.parts) {
-                const QStringList w = line.split(QLatin1Char(' '));
-                if (w.size() == 2) got[w[0]] = w[1];
-            }
-            const QMap<QString, QString> &want = eachPart.value(it.key());
-            for (auto p = want.constBegin(); p != want.constEnd(); ++p) {
-                if (got.value(p.key()) != p.value() && r.smallParts.contains(p.key()))
-                    qInfo().noquote() << "the part as saved here:" << p.key() << "\n" << QString::fromUtf8(r.smallParts.value(p.key()));
-                QVERIFY2(got.value(p.key()) == p.value(), qPrintable(QStringLiteral("seed %1: the saved part %2 is not what the golden file has").arg(it.key()).arg(p.key())));
-            }
-            for (auto p = got.constBegin(); p != got.constEnd(); ++p)
-                QVERIFY2(want.isEmpty() || want.contains(p.key()), qPrintable(QStringLiteral("seed %1: the save writes a part the golden file doesn't have: %2").arg(it.key()).arg(p.key())));
-            QCOMPARE(QStringLiteral("%1").arg(r.partsDigest, 16, 16, QLatin1Char('0')), parts.value(it.key()));
-        }
         }
     }
 

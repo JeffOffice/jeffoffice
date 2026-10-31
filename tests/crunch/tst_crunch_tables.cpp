@@ -657,12 +657,12 @@ private Q_SLOTS:
         QCOMPARE(u->count(), steps + 2);
         QCOMPARE(editOf(e, QStringLiteral("D3")), QStringLiteral("=Table1[[#This Row],[Q1]]*5"));
         const QString grown = state();
-        QVERIFY2(s->undoBytes() - base < 16 * 1024 || !jp::office::sheet::Calculation::idFrameDefault(), qPrintable(QString::number(s->undoBytes() - base)));   // (in places an edit of rows writes the specs of rows again, and Undo holds them)
+        QVERIFY2(s->undoBytes() - base < 16 * 1024, qPrintable(QString::number(s->undoBytes() - base)));
         QVERIFY(s->deleteRows(0, 1, 1).ok);   // the first row of data
         QVERIFY(e.settle());
         QCOMPARE(u->count(), steps + 3);
         const QString shrunk = state();
-        QVERIFY2(s->undoBytes() - base < 16 * 1024 || !jp::office::sheet::Calculation::idFrameDefault(), qPrintable(QString::number(s->undoBytes() - base)));   // (in places an edit of rows writes the specs of rows again, and Undo holds them)
+        QVERIFY2(s->undoBytes() - base < 16 * 1024, qPrintable(QString::number(s->undoBytes() - base)));
         for (int round = 0; round < 3; ++round) {
             u->undo();
             QVERIFY(e.settle());
@@ -1471,19 +1471,17 @@ private Q_SLOTS:
         QVERIFY(w.session()->workbook()->tables().isEmpty());
     }
 
-    // With the formulas in the id frame a table is its ids (docs/jeffcrunch-rowids.md, 4.14): a table that moves, or has a row put in or taken out inside it, makes none of the formulas that name it again;
-    // an edit that changes where it begins or ends makes those that name it again, and only those. Without the id frame every edit of rows makes every one of them again.
+    // A table is its ids (docs/jeffcrunch-rowids.md, 4.14): a table that moves, or has a row put in or taken out inside it, makes none of the formulas that name it again;
+    // an edit that changes where it begins or ends makes those that name it again, and only those.
     void aTableThatMovesOrHasRowsInsideMakesNoFormulaAgain()
     {
-        qint64 again[2][4] = {};
-        for (const bool ids : {false, true}) {
+        qint64 again[4] = {};
+        {
             EditWindow e;
-            e.win.w.workbookLoader().setIdFrame(ids ? 1 : -1);   // (this window's own: the process's default is not touched, so that no other worker is raced)
             QVERIFY(e.open(buildXlsx({salesRows()})));
             crunch::EditSession *s = e.win.w.session();
             s->setLocale(kUs);
             QVERIFY(e.settle());
-            QCOMPARE(s->calculation()->idFrame(), ids);
             QVERIFY(s->makeTable(0, rangeText(QStringLiteral("A1:C4")), true, QString()).ok);   // Table1: three rows of data
             QVERIFY(s->type(0, 0, 4, QStringLiteral("X")).ok);
             QVERIFY(s->type(0, 0, 5, QStringLiteral("Y")).ok);
@@ -1504,7 +1502,7 @@ private Q_SLOTS:
                 const qint64 before = calc->editStats().tablesRegisteredAgain;
                 edit();
                 QVERIFY(e.settle());
-                again[ids][step] = calc->editStats().tablesRegisteredAgain - before;
+                again[step] = calc->editStats().tablesRegisteredAgain - before;
             };
             count(0, [&] { QVERIFY(s->insertRows(0, 0, 1).ok); });   // above both: they move
             count(1, [&] { QVERIFY(s->insertRows(0, 3, 1).ok); });   // inside both (between rows of data)
@@ -1516,11 +1514,10 @@ private Q_SLOTS:
             count(3, [&] { e.win.w.undoStack()->undo(); });          // and brought back
             QCOMPARE(valueOf(e, QStringLiteral("A13")), QStringLiteral("n:6"));
         }
-        QVERIFY(again[0][0] >= 200 && again[0][1] >= 200);        // (in places: every formula that names a table, for every edit)
-        QCOMPARE(again[1][0], qint64(0));
-        QCOMPARE(again[1][1], qint64(0));
-        QCOMPARE(again[1][2], qint64(100));                        // (Table1's formulas, and not Table2's)
-        QCOMPARE(again[1][3], qint64(100));
+        QCOMPARE(again[0], qint64(0));
+        QCOMPARE(again[1], qint64(0));
+        QCOMPARE(again[2], qint64(100));                        // (Table1's formulas, and not Table2's)
+        QCOMPARE(again[3], qint64(100));
     }
 
     // A small change to a table does not make the sheet's whole picture again (a row added by typing under it), and a subtotal is worked out again when a row is hidden or shown, not when a row
