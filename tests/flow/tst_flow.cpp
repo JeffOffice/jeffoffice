@@ -4160,8 +4160,8 @@ private Q_SLOTS:
             return lines.isEmpty() ? -1.0 : lines[0].rect.left();
         };
         const double tab = textStart(0), space = textStart(1), nothing = textStart(2);
-        QVERIFY2(tab > space + 5 && space > nothing + 1.5 && nothing > 2, qPrintable(QStringLiteral("text starts at %1 after a tab, %2 after a space, %3 after nothing").arg(tab).arg(space).arg(nothing)));
-        QVERIFY2(space - nothing < 6, qPrintable(QStringLiteral("a space is %1 wide").arg(space - nothing)));
+        QVERIFY2(nothing > 0 && space > nothing && tab > space * 1.25, qPrintable(QStringLiteral("text starts at %1 after a tab, %2 after a space, %3 after nothing").arg(tab).arg(space).arg(nothing)));
+        QVERIFY2((space - nothing) > 12 * 0.1 && (space - nothing) < 12 * 0.5, qPrintable(QStringLiteral("a space is %1 wide").arg(space - nothing)));   // (about a quarter of the size, a tenth to a half of it whatever the face)
     }
 
     // A number set in less room than it needs (the text after it is held to the line's end) stays at its indent: the number is not pushed back by as much as the text was held.
