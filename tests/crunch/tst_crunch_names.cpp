@@ -201,14 +201,12 @@ private Q_SLOTS:
     // column's id, and the step of a change has to keep it so, or the delete's Undo has no column to bring back to it.)
     void undoOfANameChangeAfterADeleteThenOfTheDeleteGivesTheNameBack()
     {
-        for (const bool ids : {false, true}) {
+        {
             EditWindow e;
-            e.win.w.workbookLoader().setIdFrame(ids ? 1 : -1);
             QVERIFY(e.open(namesBook()));
             crunch::EditSession *s = e.win.w.session();
             s->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
             QVERIFY(e.settle());
-            QCOMPARE(s->calculation()->idFrame(), ids);
             QUndoStack *u = e.win.w.undoStack();
             const int rate = s->names().find(-1, QStringLiteral("Rate"));
             QVERIFY(rate >= 0);

@@ -33,7 +33,9 @@ struct Window {
     {
         QSignalSpy first(&w, &CrunchWindow::firstScreenShown), done(&w, &CrunchWindow::calculationFinished), loaded(&w, &CrunchWindow::loadFinished);
         if (!w.openFile(path)) return false;
-        return first.wait(20000) && (loaded.count() > 0 || loaded.wait(20000)) && (done.count() > 0 || done.wait(20000));
+        // (JP_TEST_WAIT_MS: how long each stage may take; a build without optimization is slow on the biggest sheets)
+        const int ms = qEnvironmentVariableIntValue("JP_TEST_WAIT_MS") > 0 ? qEnvironmentVariableIntValue("JP_TEST_WAIT_MS") : 20000;
+        return first.wait(ms) && (loaded.count() > 0 || loaded.wait(ms)) && (done.count() > 0 || done.wait(ms));
     }
     // Makes the window's new, empty workbook and waits until it is ready.
     bool openBlank()

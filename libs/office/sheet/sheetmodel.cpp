@@ -49,11 +49,13 @@ void CellStore::add(quint32 row, quint32 col, const Cell &placed)
     if (!block.cells.empty() && !before(block.cells.back(), cell)) block.ordered = false;
     block.cells.push_back(cell);
     ++m_count;
+    if (m_colCellsValid) ++m_colCells[colId];
 }
 
 void CellStore::finish()
 {
     m_count = 0;
+    m_colCellsValid = false;   // (a cell added twice for one place stands once)
     for (auto &entry : m_blocks) {
         Block &block = entry.second;
         if (!block.ordered) {
@@ -122,6 +124,7 @@ Cell *CellStore::set(quint32 row, quint32 col, const Cell &placed)
         return &*at;
     }
     ++m_count;
+    if (m_colCellsValid) ++m_colCells[colId];
     return &*block.cells.insert(at, cell);
 }
 
@@ -139,6 +142,7 @@ bool CellStore::erase(quint32 row, quint32 col)
     if (at == cells.end() || at->rowId != rowId || at->colId != colId) return false;
     cells.erase(at);
     --m_count;
+    if (m_colCellsValid) --m_colCells[colId];
     m_last = nullptr;
     if (cells.empty()) m_blocks.erase(block);
     return true;
@@ -207,6 +211,10 @@ qint64 CellStore::liveCellsIn(bool rows, const std::vector<jp::calc::IdRun> &run
     }
     std::vector<jp::calc::IdRun> sorted = runs;
     std::sort(sorted.begin(), sorted.end(), [](const jp::calc::IdRun &a, const jp::calc::IdRun &b) { return a.first < b.first; });
+    // (the cells of these columns are counted, not walked to: columns with none have nothing to count or to kill, and a count alone is the cells there are less those in a row that is dead)
+    const qint64 held = cellsInColumnRuns(sorted);
+    if (held == 0) return 0;
+    if (!kill) return held - cellsInDeadRowsOfColumns(sorted);
     if (sorted.size() == 1) {
         // (one run of columns, the common case: two compares a cell, not a search)
         const quint32 first = sorted[0].first, count = sorted[0].count;
@@ -233,6 +241,8 @@ qint64 CellStore::purgeCells(bool rows, const std::vector<jp::calc::IdRun> &runs
                 const auto lo = std::lower_bound(cells.begin(), cells.end(), run.first, [](const Cell &c, quint32 id) { return c.rowId < id; });
                 const auto hi = std::upper_bound(lo, cells.end(), last, [](quint32 v, const Cell &c) { return v < c.rowId; });
                 gone += hi - lo;
+                if (m_colCellsValid)
+                    for (auto it = lo; it != hi; ++it) --m_colCells[it->colId];
                 cells.erase(lo, hi);
                 if (cells.empty()) block = m_blocks.erase(block);
                 else ++block;
@@ -243,6 +253,9 @@ qint64 CellStore::purgeCells(bool rows, const std::vector<jp::calc::IdRun> &runs
         std::sort(sorted.begin(), sorted.end(), [](const jp::calc::IdRun &a, const jp::calc::IdRun &b) { return a.first < b.first; });
         const bool single = sorted.size() == 1;
         const quint32 first = sorted[0].first, count = sorted[0].count;
+        if (m_colCellsValid)   // (every cell of these columns goes)
+            for (const jp::calc::IdRun &run : sorted)
+                for (quint32 id = run.first, end = std::min<quint64>(quint64(run.first) + run.count, m_colCells.size()); id < end; ++id) m_colCells[id] = 0;
         for (auto block = m_blocks.begin(); block != m_blocks.end();) {
             std::vector<Cell> &cells = block->second.cells;
             const size_t before = cells.size();
@@ -421,10 +434,38 @@ qint64 CellStore::cellsInLines(bool rows, quint32 first, quint32 count) const
         }
         return n;
     }
-    forEachInIdRuns(false, runs, [&](const Cell &) {
-        ++n;
-        return true;
-    });
+    return cellsInColumnRuns(runs);
+}
+
+qint64 CellStore::cellsInColumnRuns(const std::vector<jp::calc::IdRun> &runs) const
+{
+    if (!m_colCellsValid) {
+        m_colCells.assign(0x10000, 0);
+        for (const auto &entry : m_blocks)
+            for (const Cell &c : entry.second.cells) ++m_colCells[c.colId];
+        m_colCellsValid = true;
+        ++m_colCellsBuilds;
+    }
+    qint64 n = 0;
+    for (const jp::calc::IdRun &run : runs)
+        for (quint32 id = run.first, end = std::min<quint64>(quint64(run.first) + run.count, m_colCells.size()); id < end; ++id) n += m_colCells[id];
+    return n;
+}
+
+qint64 CellStore::cellsInDeadRowsOfColumns(const std::vector<jp::calc::IdRun> &sortedRuns) const
+{
+    const jp::calc::LineMapCore &map = m_rows.core();
+    if (map.deadCount() == 0) return 0;
+    qint64 n = 0;
+    for (const jp::calc::LineDead &d : map.deadRecords()) {
+        const quint32 last = d.first + d.count - 1;
+        for (auto block = m_blocks.lower_bound(d.first / kBlockRows); block != m_blocks.end() && block->first <= last / kBlockRows; ++block) {
+            const std::vector<Cell> &cells = block->second.cells;
+            auto at = std::lower_bound(cells.begin(), cells.end(), d.first, [](const Cell &c, quint32 id) { return c.rowId < id; });
+            for (; at != cells.end() && at->rowId <= last; ++at)
+                if (inRuns(sortedRuns, at->colId) && rowPosOf(at->rowId) == kNoLine) ++n;
+        }
+    }
     return n;
 }
 
@@ -481,6 +522,7 @@ jp::calc::LineStatus CellStore::rebaseLines(bool rows, std::vector<jp::calc::Lin
     m_count -= gone;
     m_dead -= gone;
     m_last = nullptr;
+    m_colCellsValid = false;
     return LineStatus::Ok;
 }
 

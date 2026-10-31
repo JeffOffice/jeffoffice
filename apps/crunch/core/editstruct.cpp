@@ -142,7 +142,6 @@ qint64 StructChange::bytes() const
     for (const Calculation::EditRecord::HeldText &h : record.goneHeld) n += qint64(sizeof(h)) + qint64(h.text.size()) * 2;
     for (const Calculation::EditRecord::HeldText &h : record.wasHeld) n += qint64(sizeof(h)) + qint64(h.text.size()) * 2;
     n += qint64(record.renumberEpochs.size()) * qint64(sizeof(quint32));
-    for (const Calculation::EditRecord::RewrittenGroup &g : record.groups) n += qint64(sizeof(g)) + qint64(g.oldText.size()) * 2 + qint64(g.cells.size()) * qint64(sizeof(std::pair<quint32, quint32>));
     n += qint64(record.ranges.size() + record.merges.size()) * qint64(sizeof(CellRange));
     n += qint64(record.columns.size()) * qint64(sizeof(ColumnSpan)) + qint64(record.rowSpecs.size()) * qint64(sizeof(RowSpec));
     n += qint64(record.autoFilter.columns.size()) * 64;
@@ -200,11 +199,22 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
 {
     Outcome out;
     QString why;
-    compactLinesFor(edit);
+    // (every check that can refuse the edit comes first: putting the order back to one run lets go of the Undo steps of the sheet's rows or columns, which a refusal must not cost)
     if (!canMove(edit, &why)) {
         out.ok = false;
         out.problem = why;
         return out;
+    }
+    compactLinesFor(edit);
+    // (an order that has as many runs or ids as it may, and could not be put back to one run: the edit is refused in words, with nothing done)
+    {
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (hold) why = hold->calculation()->linesRefusal(edit);
+        if (!why.isEmpty()) {
+            out.ok = false;
+            out.problem = why;
+            return out;
+        }
     }
     // a step that would hold more than Undo can is asked about first (what it deletes or writes over, and what it writes again, are kept to undo it)
     bool big = false;

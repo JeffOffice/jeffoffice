@@ -56,8 +56,6 @@ struct Options {
     bool check = true;        // the checks after every step (else the steps are run and only the digests are made)
     bool graph = true;        // and the check of the graph
     int checkEvery = 1;       // the checks are made after every nth step (and after the last)
-    bool forceOff = false;    // the formulas are held in places whatever the process says
-    bool idFrame = false;     // the workbooks hold their formulas in the id frame (CalcOptions::idFrame: docs/jeffcrunch-rowids.md, round 5); else as the process says (in ids unless JC_ID_FRAME=0)
     int fault = 0;            // for the tests of the harness itself: 1 to 16 change what the file read again holds of one thing (see the .cpp), 100 makes the graph check ask for a cell nothing reads, 101 changes what the model says
 };
 

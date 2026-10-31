@@ -65,10 +65,11 @@ struct Chunker {
     }
 };
 
-constexpr qint64 kMaxMembersAdded = 200000;        // the cells of arrays that the file has no cell for, which are put in (each costs the cells after it in its block of rows)
+// The blocks a recalculation remembers to ask the graph of only once (a change in rows put in is the same block for every cell put there: a block of more than one cell; a cell asked twice is a
+// small query, and one for every cell of a fill would be a set as big as the fill). The memory is a few megabytes at most; past it the blocks are asked again, as before the memory was.
+constexpr size_t kMaxAskedAreas = 16384;
 
-// (On unless JC_ID_FRAME=0 is in the environment, which holds every formula of every calculation of the process in places, as before round 5c: how the tools and the tests are run in the old way)
-std::atomic<bool> g_idFrameDefault{!qEnvironmentVariableIsSet("JC_ID_FRAME") || qEnvironmentVariableIntValue("JC_ID_FRAME") != 0};
+constexpr qint64 kMaxMembersAdded = 200000;        // the cells of arrays that the file has no cell for, which are put in (each costs the cells after it in its block of rows)
 
 // Whether a word of the text could be read as a cell past XFD (or past the last row) under the wide limits, and so cannot be held in ids as it is: a name "ABCD1". A word that a "(" (a function:
 // ATAN2), a "[" (a table), or a "!" (a sheet) goes on from is none, as the parser reads it; nor is one in quotes.
@@ -103,13 +104,8 @@ bool hasWideLookingWord(const QString &text)
 
 bool Calculation::textHasWideLookingWord(const QString &text) { return hasWideLookingWord(text); }
 
-void Calculation::setIdFrameDefault(bool on) { g_idFrameDefault = on; }
-bool Calculation::idFrameDefault() { return g_idFrameDefault.load(std::memory_order_relaxed); }
-
 Calculation::Calculation(const Workbook &book, const CalcOptions &options) : WorkbookSource(book, options.workbookBytes), m_options(options), m_graph(new DependencyGraph(options.maxGraphBytes))
 {
-    if (g_idFrameDefault.load(std::memory_order_relaxed) && !options.idFrameOff) m_options.idFrame = true;
-    if (options.idFrameOff) m_options.idFrame = false;
     m_evaluator.seedRandom(quint64(QDateTime::currentMSecsSinceEpoch()) * 0x9E3779B97F4A7C15ull + 12345);
     if (options.workLimit > 0) m_evaluator.setWorkLimit(options.workLimit);
     m_iterate = book.info().iterate;
@@ -119,9 +115,8 @@ Calculation::Calculation(const Workbook &book, const CalcOptions &options) : Wor
     if (options.recalcWorkLimit > 0) m_workLimit = options.recalcWorkLimit;
     if (options.maxHeldBytes > 0) m_heldLimit = options.maxHeldBytes;
     // (the sheets are as the file has them: ids are places, and a name that can be held in ids is)
-    if (m_options.idFrame)
-        for (auto it = m_names.constBegin(); it != m_names.constEnd(); ++it)
-            if (nameCanBeHeldInIds(it.value())) m_idNames.insert(it.key());
+    for (auto it = m_names.constBegin(); it != m_names.constEnd(); ++it)
+        if (nameCanBeHeldInIds(it.value())) m_idNames.insert(it.key());
 }
 
 Calculation::~Calculation() = default;
@@ -199,7 +194,6 @@ static bool hasBackToFrontRange(const QString &text)
 
 Calculation::TextClass Calculation::classOfLoaded(const QString &text) const
 {
-    if (!m_options.idFrame) return TextClass::Plain;
     if (hasBackToFrontRange(text)) return TextClass::Positional;
     // (a text the file has has no id past the grid; what makes it stay in places is a reference through several sheets or a word that is a cell past XFD in the wide limits)
     if (hasWideLookingWord(text)) return TextClass::Positional;
@@ -211,7 +205,6 @@ Calculation::Held Calculation::heldText(int sheet, const QString &typed, const j
 {
     Held h;
     h.text = typed;
-    if (!m_options.idFrame) return h;
     bool positional = hasWideLookingWord(typed) || hasBackToFrontRange(typed);
     if (!positional && program) {
         for (const RefLit &r : program->refs)
@@ -234,7 +227,6 @@ Calculation::Held Calculation::heldText(int sheet, const QString &typed, const j
 
 bool Calculation::nameCanBeHeldInIds(const QString &text) const
 {
-    if (!m_options.idFrame) return false;
     if (hasWideLookingWord(text) || hasBackToFrontRange(text)) return false;
     ParseOptions po;
     po.definedName = true;
@@ -497,7 +489,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
             // (a formula that sees where cells are, ROW() and COLUMN() with nothing in the brackets among them, is not told where it reads: an edit of lines looks at the places it saw)
             told = slot.usesNames || slot.dynamic || slot.reaches;
             // (with the id frame, a formula that uses names and tables and nothing that reads where it is: their ids are the same after an edit of whole lines, and so is what it reads)
-            const bool idTold = m_options.idFrame && slot.usesNames && !slot.dynamic && !slot.reaches && !slot.positionalNames;
+            const bool idTold = slot.usesNames && !slot.dynamic && !slot.reaches && !slot.positionalNames;
             n.traits = quint8((slot.insensitive ? Insensitive : 0) | (slot.observesPosition ? Observes : 0) | (idTold ? IdTold : 0));
             always = slot.dynamic || slot.changesByItself;
             if (m_options.keepApart) {
@@ -1126,10 +1118,9 @@ bool Calculation::load()
 // the sheets
 
 // Registers the formulas of a sheet that is there (its cells are in place): a node for each, and the cells of its arrays and data tables marked as load() does.
-// The sheet's formula texts are held in the id frame (CalcOptions::idFrame): it knows the workbook it is in, and which of its texts stay in places.
+// The sheet's formula texts are held in the id frame (docs/jeffcrunch-rowids.md, 4.4): it knows the workbook it is in, and which of its texts stay in places.
 void Calculation::frameSheet(int si)
 {
-    if (!m_options.idFrame) return;
     Sheet &s = m_sheets[size_t(si)];
     s.frame = this;
     s.frameIndex = si;
@@ -1184,18 +1175,14 @@ int Calculation::addSheet(const QString &name, int copyOf)
         content.view.tabSelected = false;
         content.partial = false;
         // (the copy has no history: its order is put back to one run, and the cells of rows and columns that were deleted in the sheet it is of are not held again)
-        // (the tables say how the ids were renumbered, for the texts in ids: with the id frame off nothing asks for them)
-        if (m_options.idFrame) {   // (the orders as they were, to read the references that name a deleted line: only the id frame has any)
-            rowsBefore = content.cells.rows().core();
-            colsBefore = content.cells.cols().core();
-        }
-        content.cells.rebaseLines(true, m_options.idFrame ? &rowTable : nullptr);
-        content.cells.rebaseLines(false, m_options.idFrame ? &colTable : nullptr);
+        // (the tables say how the ids were renumbered, for the texts in ids; the orders as they were, to read the references that name a deleted line)
+        rowsBefore = content.cells.rows().core();
+        colsBefore = content.cells.cols().core();
+        content.cells.rebaseLines(true, &rowTable);
+        content.cells.rebaseLines(false, &colTable);
     }
-    if (m_options.idFrame) {
-        content.frame = this;
-        content.frameIndex = index;
-    }
+    content.frame = this;
+    content.frameIndex = index;
     m_sheets.push_back(std::move(content));
     m_rows.push_back(0);
     m_cols.push_back(0);
@@ -1500,12 +1487,17 @@ void Calculation::markDependents(std::vector<CellArea> *changed)
 void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
 {
     std::vector<quint32> found;
+    std::set<CellArea> asked;
     while (!changed->empty()) {
         const CellArea a = changed->back();
         changed->pop_back();
+        if (!a.single() && asked.count(a)) continue;   // (the same block again: what reads it is marked)
+        if (!a.single() && asked.size() < kMaxAskedAreas) asked.insert(a);
+        m_askedPeak = std::max<qint64>(m_askedPeak, qint64(asked.size()));
         found.clear();
         if (a.single()) m_graph->dependentsOfCell(a.sheet1, a.row1, a.col1, &found);
         else m_graph->dependentsOfArea(a, &found);
+        m_readersFound += qint64(found.size());
         for (const quint32 id : found) {
             Node &n = m_nodes[id];
             if ((n.flags & Dead) || dormant(n)) continue;
@@ -1911,6 +1903,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         if (!ck.next()) return false;
         const CellArea a = j.changed.back();
         j.changed.pop_back();
+        if (!a.single() && j.askedAreas.count(a)) continue;   // (its readers were marked when it was asked)
         j.found.clear();
         j.foundAt = 0;
         j.queried = a;
@@ -1923,6 +1916,9 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         }
         // (what the graph gave: a cell that very many formulas read is one query of that many, which is as small as the step can be made. The slice may be over after it: the formulas it found are
         // marked by the next, from where they are kept. The answer of this call is not to be dropped: it is the one place in the loop where a chunk ends, when the areas found have none.)
+        m_readersFound += qint64(j.found.size());
+        if (!a.single() && j.askedAreas.size() < kMaxAskedAreas) j.askedAreas.insert(a);
+        m_askedPeak = std::max<qint64>(m_askedPeak, qint64(j.askedAreas.size()));
         if (!ck.next(j.found.size())) return false;
     }
     ck.finish();
@@ -1997,7 +1993,7 @@ void Calculation::snapshotTableIds()
 
 void Calculation::tablesMovedByEdit()
 {
-    if (!m_options.idFrame || m_tableIdsBefore.isEmpty()) {
+    if (m_tableIdsBefore.isEmpty()) {
         tablesChanged();
         return;
     }
@@ -3068,7 +3064,7 @@ bool Calculation::installFormula(int sheet, quint32 row, quint32 col, Cell c, co
 
 bool Calculation::formulaTextDiffersFromTheFile(int sheet, const Cell &cell) const
 {
-    if (!m_options.idFrame || sheet < 0 || sheet >= int(m_sheets.size()) || (cell.flags & (DataTable | ArrayMember))) return false;
+    if (sheet < 0 || sheet >= int(m_sheets.size()) || (cell.flags & (DataTable | ArrayMember))) return false;
     const Sheet &s = m_sheets[size_t(sheet)];
     const QString file = s.formulaTextOfTheFile(cell);
     return !file.isEmpty() && file != s.formulaText(cell);
@@ -3091,7 +3087,7 @@ bool Calculation::formulasNameSheets(int sheet, const QStringList &names) const
 // same when the ids from one to the other are consecutive, which an edit of rows leaves as it finds them in a run. Else (a run ends between them, a line it reads is dead) the text goes the long way.
 bool Calculation::rebaseCopy(int sheet, quint32 row, quint32 col, const CellContent &c, Marking marking)
 {
-    if (!m_options.idFrame || !c.hasHeld || c.heldSheet != sheet || c.heldStamp != m_structStamp) return false;
+    if (!c.hasHeld || c.heldSheet != sheet || c.heldStamp != m_structStamp) return false;
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return false;
     if (row == c.heldRow && col == c.heldCol) return false;
     if (!renumberEpochsAre(c.heldEpochs)) return false;
@@ -3208,7 +3204,7 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
             out.hasStored = true;
             out.stored = nodeValue(m_nodes[id], id);
         }
-        if (m_options.idFrame && !(c->flags & (ArrayFormula | DataTable | ArrayMember)))
+        if (!(c->flags & (ArrayFormula | DataTable | ArrayMember)))
             out.hasHeld = heldOf(sheet, *c, &out.held, &out.heldDRow, &out.heldDCol, &out.heldCls);
         if (out.hasHeld) {
             out.heldEpochs = renumberEpochs();
@@ -3245,7 +3241,7 @@ bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c,
     }
     if (c.isFormula && c.copied && rebaseCopy(sheet, row, col, c, marking)) return setStyle(sheet, row, col, c.style);
     const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr) : setValue(sheet, row, col, c.value, marking, c.sharedString);
-    if (ok && c.isFormula && c.hasHeld && m_options.idFrame && c.heldSheet == sheet && c.heldRow == row && c.heldCol == col && renumberEpochsAre(c.heldEpochs)) {
+    if (ok && c.isFormula && c.hasHeld && c.heldSheet == sheet && c.heldRow == row && c.heldCol == col && renumberEpochsAre(c.heldEpochs)) {
         restoreHeldFormula(sheet, row, col, c.held, c.heldDRow, c.heldDCol, c.heldCls);
         const Cell *now = m_sheets[size_t(sheet)].cells.find(row, col);
         if (!now || !now->hasFormula() || m_sheets[size_t(sheet)].formulaText(*now) != c.formula) setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr);   // (it does not read as the text: the text is the cell's)

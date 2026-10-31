@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/sheettests">
+        <file alias="structure_places_golden.txt">structure_places_golden.txt</file>
+    </qresource>
+</RCC>

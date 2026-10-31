@@ -3,8 +3,8 @@
 
     python3 tools/crunch_save_compare.py LIST OUTDIR JOBS A_TOOL A_ENV B_TOOL B_ENV
 
-LIST has a path to a workbook on each line. A is the reference (an older build, or the formulas held in places), B the new one; the ENV arguments are `NAME=value,NAME=value` (or empty), set for
-that build, such as JC_ID_FRAME=0. Every part must be the same bytes, but for the cells of the sheets that have a formula, which may be written another way (whole from the window, or as the file
+LIST has a path to a workbook on each line. A is the reference (an older build), B the new one; the ENV arguments are `NAME=value,NAME=value` (or empty), set for
+that build. Every part must be the same bytes, but for the cells of the sheets that have a formula, which may be written another way (whole from the window, or as the file
 had them); for those the text of the formula and its value are compared. A line for each workbook that differs goes to OUTDIR/diffs.txt, and the counts, with an example of each, to OUTDIR/summary.txt.
 """
 import collections, os, re, subprocess, sys, tempfile, zipfile, html

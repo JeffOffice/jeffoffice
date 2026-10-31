@@ -384,6 +384,8 @@ private Q_SLOTS:
         QCOMPARE(m.redo(e2), LineStatus::StaleStep);   // (it is applied; e3 is the next to redo)
         // (4) records are never edited: what the dead resolve to does not depend on what is inserted or erased next to them afterwards
         QVERIFY(m.core().forget(e3.raw()));   // (a new edit is coming: the redo of e3 is dropped)
+        QVERIFY(!m.core().deadRecords().empty());
+        QVERIFY2(m.core().deadRecords().data() == m.core().deadRecords().data(), "the dead records are copied for each look");
         const std::vector<LineDead> records = m.core().deadRecords();
         const uint32_t startOfE1 = m.resolveStart(RowId(5)).value();
         RowMap::Edit x;

@@ -86,7 +86,7 @@ bool loadFirstScreen(const QString &path, LoadedBook *out, const std::function<b
 // stopped; what could not be read whole is in out->problem. `cancelFlag`, if given, is looked at as the formulas are registered too; `pace`, if given and above 0, is the microseconds
 // to wait at each step of the read (see WorkbookLoader::setPace).
 bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const std::function<void(int sheet, qint64 cells)> &progress, const std::atomic<bool> *cancelFlag = nullptr,
-               const std::atomic<int> *pace = nullptr, int idFrame = 0);
+               const std::atomic<int> *pace = nullptr);
 
 // The package of a new, empty workbook: one worksheet named "Sheet1" and the styles a workbook starts with. It is read as a file is (WorkbookLoader::startBlank).
 QByteArray blankWorkbookBytes();
@@ -120,9 +120,6 @@ public:
     void setManual(bool manual);
     // Before start(): whether a workbook that its file sets to be worked out by hand is (true, the default); the tools that compare every formula with the file's result say false.
     void setManualAllowed(bool allowed) { m_manualAllowed = allowed; }
-    // Before start(): how this loader's calculation holds its formulas: 0 as the process does (jp::office::sheet::Calculation::idFrameDefault: in ids, unless JC_ID_FRAME=0), 1 in the id frame, -1 in places. Tests that compare the
-    // two say so for the window they open, and no other window's worker is looked at.
-    void setIdFrame(int mode) { m_idFrame = mode; }
 
     // ---- changing the cells, on the window's thread
     // The calculation and the cells are the worker's while it works the formulas out; the window reads the cells directly to draw them (reading beside the worker is no
@@ -192,7 +189,6 @@ private:
         std::atomic<int> refuse{0};           // holds to refuse (see refuseHolds)
         std::atomic<bool> manual{false};      // the workbook is worked out by hand
         std::atomic<bool> manualAllowed{true};
-        int idFrame = 0;                      // see setIdFrame (set before the worker begins)
         std::atomic<int> sheetCalc{-1};       // a sheet whose formulas are to be worked out (by hand)
         std::atomic<bool> urgent{false};      // a change was made: the first values it makes go to the window as soon as they are there
         void updateHalt() { halt.store(stopCalc.load() || holds.load() > 0 || cancel.load()); }
@@ -208,7 +204,6 @@ private:
     std::shared_ptr<State> m_state;
     int m_pace = 0;
     bool m_manualAllowed = true;
-    int m_idFrame = 0;
 };
 
 } // namespace jp::crunch

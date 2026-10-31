@@ -2209,11 +2209,6 @@ private Q_SLOTS:
 
     // ---- the save of a workbook whose formulas are held in ids, after rows were put in (the saver is round 7's: until then a formula is written whole only when its text is no longer the file's)
 private:
-    struct IdFrameScope {
-        bool was = jp::office::sheet::Calculation::idFrameDefault();
-        explicit IdFrameScope(bool on) { jp::office::sheet::Calculation::setIdFrameDefault(on); }
-        ~IdFrameScope() { jp::office::sheet::Calculation::setIdFrameDefault(was); }   // (put back whatever fails)
-    };
     // Saves the window's workbook and reads the saved file's parts.
     static bool saveParts(EditWindow &e, QMap<QString, QByteArray> *parts)
     {
@@ -2235,44 +2230,35 @@ private:
         return sheettest::buildXlsx({sheettest::worksheet(rows)});
     }
 private Q_SLOTS:
-    // A row put in below the first rows, and the file saved: the sheet is what the workbook with the formulas in places saves, byte for byte; a formula that reads only the rows above keeps its volatile mark and
-    // its result; the one that moved is written whole, with its result; and a data table is still one (read back).
-    void aSaveAfterARowWasPutInIsWhatTheFormulasInPlacesSave()
+    // A row put in below the first rows, and the file saved: a formula that reads only the rows above keeps its volatile mark and its result; the one that moved is written whole, with its result; and a
+    // data table is still one (read back).
+    void aSaveAfterARowWasPutInKeepsWhatDidNotMoveAndWritesWhatDid()
     {
-        QByteArray sheets[2];
-        for (const int ids : {0, 1}) {
-            IdFrameScope scope(ids != 0);
-            EditWindow e;
-            QVERIFY(e.open(stopgapBook()));
-            QVERIFY(e.settle());
-            QCOMPARE(e.win.w.session()->calculation()->idFrame(), ids != 0);
-            QVERIFY(e.win.w.session()->insertRows(0, 4, 1).ok);
-            QVERIFY(e.settle());
-            QMap<QString, QByteArray> parts;
-            QVERIFY(saveParts(e, &parts));
-            sheets[ids] = parts.value(QStringLiteral("xl/worksheets/sheet1.xml"));
-            QVERIFY(!sheets[ids].isEmpty());
-            QVERIFY2(sheets[ids].contains("ca=\"1\""), sheets[ids].constData());                      // (the volatile formula)
-            QVERIFY2(sheets[ids].contains("<f>SUM(A1:A3)</f><v>6</v>"), sheets[ids].constData());       // (and the result the file had)
-            QVERIFY2(sheets[ids].contains("<f>A7+1</f><v>7</v>"), sheets[ids].constData());             // (the one that moved with its row: written whole, with its result)
-            QVERIFY2(sheets[ids].contains("t=\"dataTable\"") && !sheets[ids].contains("TABLE("), sheets[ids].constData());   // (a data table stays one)
-            Window second;
-            QVERIFY(second.open(e.copyOfFile()));
-            QCOMPARE(savedFormula(e.path, QStringLiteral("B7")), QStringLiteral("A7+1"));
-        }
-        QCOMPARE(sheets[1], sheets[0]);
+        EditWindow e;
+        QVERIFY(e.open(stopgapBook()));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.session()->insertRows(0, 4, 1).ok);
+        QVERIFY(e.settle());
+        QMap<QString, QByteArray> parts;
+        QVERIFY(saveParts(e, &parts));
+        const QByteArray sheet = parts.value(QStringLiteral("xl/worksheets/sheet1.xml"));
+        QVERIFY(!sheet.isEmpty());
+        QVERIFY2(sheet.contains("ca=\"1\""), sheet.constData());                      // (the volatile formula)
+        QVERIFY2(sheet.contains("<f>SUM(A1:A3)</f><v>6</v>"), sheet.constData());       // (and the result the file had)
+        QVERIFY2(sheet.contains("<f>A7+1</f><v>7</v>"), sheet.constData());             // (the one that moved with its row: written whole, with its result)
+        QVERIFY2(sheet.contains("t=\"dataTable\"") && !sheet.contains("TABLE("), sheet.constData());   // (a data table stays one)
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QCOMPARE(savedFormula(e.path, QStringLiteral("B7")), QStringLiteral("A7+1"));
     }
-    // A formula written whole whose result the window does not have (the worker has not told it) asks for a full calculation when the file is opened, and the saved workbook says so; in both ways of holding the
-    // formulas. A formula the saver rewrites (it reads cells that moved) keeps the result the file has for it, and a workbook the worker has worked out does not ask.
+    // A formula written whole whose result the window does not have (the worker has not told it) asks for a full calculation when the file is opened, and the saved workbook says so; A formula the saver rewrites (it reads cells that moved) keeps the result the file has for it, and a workbook the worker has worked out does not ask.
     void aFormulaWrittenWholeWithNoKnownResultAsksForAFullCalculationOnLoad()
     {
-        for (const int ids : {0, 1}) {
-            IdFrameScope scope(ids != 0);
+        {
             const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f>A1*2</f><v>2</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c><c r=\"C2\"><f>A2+1</f><v>3</v></c></row>");
             EditWindow e;
             QVERIFY(e.open(sheettest::buildXlsx({sheettest::worksheet(rows)})));
             QVERIFY(e.settle());
-            QCOMPARE(e.win.w.session()->calculation()->idFrame(), ids != 0);
             // a formula typed (written whole), the result of which the window's store does not have
             e.select(QStringLiteral("D5"));
             e.enter(QStringLiteral("=A1+A2"));
@@ -2285,8 +2271,8 @@ private Q_SLOTS:
             QVERIFY2(e.win.w.session()->takeSnapshot(&snap, &why), qPrintable(why));
             bool withoutResult = false;
             for (const auto &c : snap.changes.sheets[0].cells) withoutResult = withoutResult || (c.isFormula && !c.hasResult);
-            QVERIFY2(withoutResult, qPrintable(QString::number(ids)));
-            QVERIFY2(snap.changes.fullCalcOnLoad, qPrintable(QString::number(ids)));
+            QVERIFY(withoutResult);
+            QVERIFY(snap.changes.fullCalcOnLoad);
             QMap<QString, QByteArray> parts;
             QVERIFY(saveParts(e, &parts));
             QVERIFY2(parts.value(QStringLiteral("xl/workbook.xml")).contains("fullCalcOnLoad=\"1\""), parts.value(QStringLiteral("xl/workbook.xml")).constData());
@@ -2298,8 +2284,7 @@ private Q_SLOTS:
     // ways of holding the formulas; a name that is alive follows the rename.
     void aNameWithDeadLinesIsTheSameTextAfterASaveAndReopeningAsBefore()
     {
-        for (const int ids : {0, 1}) {
-            IdFrameScope scope(ids != 0);
+        {
             QStringList cells;
             const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"3\"><c r=\"A3\"><v>3</v></c></row><row r=\"4\"><c r=\"A4\"><v>4</v></c></row><row r=\"5\"><c r=\"A5\"><v>5</v></c></row><row r=\"7\"><c r=\"A7\"><v>7</v></c></row>");
             EditWindow e;
@@ -2307,7 +2292,6 @@ private Q_SLOTS:
                                                 QStringLiteral("<definedName name=\"Dead\">Sheet1!$A$3:$A$5</definedName><definedName name=\"Live\">Sheet1!$A$7</definedName>"))));
             QVERIFY(e.settle());
             crunch::EditSession *s = e.win.w.session();
-            QCOMPARE(s->calculation()->idFrame(), ids != 0);
             QVERIFY(s->deleteRows(0, 2, 3).ok);
             QVERIFY(s->renameSheet(0, QStringLiteral("Edited Sheet")).ok);
             QVERIFY(e.settle());
@@ -2332,7 +2316,6 @@ private Q_SLOTS:
     // rewrites the formulas, so none is among the cells the workbook lists as changed, and the sheet that reads nothing that moved is the file's, byte for byte.
     void aSaveWritesNoFormulaOfASheetThatTheEditDidNotMoveNorOfOnePutBack()
     {
-        IdFrameScope scope(true);
         EditWindow e;
         const QByteArray one = sheettest::worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f>A1+1</f><v>2</v></c></row><row r=\"2\"><c r=\"A2\"><v>5</v></c><c r=\"B2\"><f>A2*2</f><v>10</v></c></row>"));
         const QByteArray reader = sheettest::worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>Sheet1!A2+1</f><v>6</v></c></row>"));
@@ -2434,14 +2417,12 @@ private:
     }
     // Makes `count` random edits of rows and columns in the window (Undo and Redo among them), the file saved after every `saveEvery` of them (0: only at the end); returns whether the file read again
     // has the formulas and numbers the window has. With the formulas in ids and no save before the end, no formula is among the cells the workbook lists as changed.
-    void randomEditsThenSave(bool ids, quint32 seed, int count, int saveEvery)
+    void randomEditsThenSave(quint32 seed, int count, int saveEvery)
     {
-        IdFrameScope scope(ids);
         EditWindow e;
         QVERIFY(e.open(editsBook()));
         QVERIFY(e.settle());
         crunch::EditSession *s = e.win.w.session();
-        QCOMPARE(s->calculation()->idFrame(), ids);
         quint32 state = seed * 2654435761u + 12345u;
         auto next = [&](quint32 below) {
             state = state * 1664525u + 1013904223u;
@@ -2459,14 +2440,14 @@ private:
             else if (pick < 14) e.win.w.undoStack()->undo();
             else e.win.w.undoStack()->redo();
             if (saveEvery > 0 && i % saveEvery == saveEvery - 1 && i + 1 < count) {
-                QVERIFY2(e.settle(), qPrintable(QStringLiteral("ids %1, seed %2, after edit %3: calculating %4").arg(ids).arg(seed).arg(i).arg(e.win.w.isCalculating())));
+                QVERIFY2(e.settle(), qPrintable(QStringLiteral("seed %1, after edit %2: calculating %3").arg(seed).arg(i).arg(e.win.w.isCalculating())));
                 QMap<QString, QByteArray> parts;
                 QVERIFY(saveParts(e, &parts));
             }
         }
         QVERIFY(made > count / 4);
         QVERIFY(e.settle());
-        if (ids && saveEvery == 0) {
+        if (saveEvery == 0) {
             crunch::EditSession::Snapshot snap;
             QString why;
             QVERIFY2(s->takeSnapshot(&snap, &why), qPrintable(why));
@@ -2484,25 +2465,21 @@ private:
         QCOMPARE(file.numbers, live.numbers);
     }
 private Q_SLOTS:
-    // Five hundred random edits of rows and columns on a small workbook, saved once and read again, in both ways of holding the formulas: every formula and every number of the file is the window's. In ids
-    // the workbook lists no formula among the cells it changed (the saver writes them).
+    // Five hundred random edits of rows and columns on a small workbook, saved once and read again, every formula and every number of the file is the window's. The workbook lists no formula among the cells it changed (the saver writes them).
     void fiveHundredRandomEditsSavedAndReadAgainAreTheWindowsState()
     {
-        for (const bool ids : {true, false})
-            for (const quint32 seed : {1u, 2u}) randomEditsThenSave(ids, seed, 500, 0);
+        for (const quint32 seed : {1u, 2u}) randomEditsThenSave(seed, 500, 0);
     }
     // The same with the file saved every thirty edits: each save is of the edits since the one before, from the file as that left it, and Undo made after a save is of the rows the file lost.
     void editsSavedInStagesGiveTheWindowsStateEachTime()
     {
-        for (const bool ids : {true, false})
-            for (const quint32 seed : {3u, 4u}) randomEditsThenSave(ids, seed, 300, 30);
+        for (const quint32 seed : {3u, 4u}) randomEditsThenSave(seed, 300, 30);
     }
     // A row put in and the file saved, and the row taken out again by Undo: the next save has the formulas as they were before it (a delete that a save has seen cannot be undone, so only a put-in row comes
     // out this way).
     void aRowPutInAndSavedThenUndoneWritesTheFormulasAsTheyWere()
     {
-        for (const bool ids : {true, false}) {
-            IdFrameScope scope(ids);
+        {
             EditWindow e;
             const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f>SUM(A1:A5)</f><v>15</v></c><c r=\"C1\"><f>A3*2</f><v>6</v></c></row>"
                                                 "<row r=\"2\"><c r=\"A2\"><v>2</v></c></row><row r=\"3\"><c r=\"A3\"><v>3</v></c></row><row r=\"4\"><c r=\"A4\"><v>4</v></c></row><row r=\"5\"><c r=\"A5\"><v>5</v></c></row>");
@@ -2517,16 +2494,15 @@ private Q_SLOTS:
             e.win.w.undoStack()->undo();
             QVERIFY(e.settle());
             QVERIFY(saveParts(e, &parts));
-            QVERIFY2(savedFormula(e.path, QStringLiteral("C1")) == QStringLiteral("A3*2"), qPrintable(QStringLiteral("ids %1: %2").arg(ids).arg(savedFormula(e.path, QStringLiteral("C1")))));
+            QVERIFY2(savedFormula(e.path, QStringLiteral("C1")) == QStringLiteral("A3*2"), qPrintable(savedFormula(e.path, QStringLiteral("C1"))));
             QCOMPARE(savedFormula(e.path, QStringLiteral("B1")), QStringLiteral("SUM(A1:A5)"));
         }
     }
     // After a save the next edits are made against the file as it is: a row put in, saved, and another put in, saved, is what one save of both would give.
     void twoSavesOfRowsPutInGiveWhatOneSaveGives()
     {
-        QByteArray last[2];
-        for (const int ids : {0, 1}) {
-            IdFrameScope scope(ids != 0);
+        QByteArray last;
+        {
             for (const int stages : {1, 2}) {
                 EditWindow e;
                 QVERIFY(e.open(stopgapBook()));
@@ -2542,11 +2518,10 @@ private Q_SLOTS:
                 QVERIFY(saveParts(e, &parts));
                 const QByteArray sheet = parts.value(QStringLiteral("xl/worksheets/sheet1.xml"));
                 QVERIFY2(sheet.contains("<f>A9+1</f><v>7</v>") && sheet.contains("<f>SUM(A3:A5)</f><v>6</v>") && sheet.contains("ca=\"1\""), sheet.constData());
-                if (stages == 1) last[ids] = sheet;
-                else QCOMPARE(sheet, last[ids]);
+                if (stages == 1) last = sheet;
+                else QCOMPARE(sheet, last);
             }
         }
-        QCOMPARE(last[1], last[0]);
     }
 
     // ---- round 7 review: reference through several sheets, cached values, and the families a sheet keeps
@@ -2569,8 +2544,7 @@ private Q_SLOTS:
     // window does, since the sheets have each an order of their own).
     void aReferenceThroughSeveralSheetsFollowsTheEditsInTheSavedFile()
     {
-        for (const bool ids : {true, false}) {
-            IdFrameScope scope(ids);
+        {
             const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row><row r=\"3\"><c r=\"A3\"><v>3</v></c></row>");
             const QString third = rows + QStringLiteral("<row r=\"4\"><c r=\"B4\"><f>SUM(Sheet1:Sheet3!A1:A3)</f><v>18</v></c><c r=\"C4\"><f>Sheet1:Sheet3!A2+A1</f><v>5</v></c></row>");
             EditWindow e;
@@ -2587,14 +2561,13 @@ private Q_SLOTS:
             QVERIFY(live.formulas.size() >= 2);
             QCOMPARE(live.formulas.value(QStringLiteral("2 3 3")), QStringLiteral("Sheet1:Sheet3!A2+B1"));   // (the reference through the sheets stays; the plain one follows the column put in)
             for (auto it = live.formulas.begin(); it != live.formulas.end(); ++it)
-                QVERIFY2(file.formulas.value(it.key(), QStringLiteral("-")) == it.value(), qPrintable(QStringLiteral("ids %1, cell %2: the window has '%3', the file '%4'").arg(ids).arg(it.key(), it.value(), file.formulas.value(it.key(), QStringLiteral("-")))));
+                QVERIFY2(file.formulas.value(it.key(), QStringLiteral("-")) == it.value(), qPrintable(QStringLiteral("cell %1: the window has '%2', the file '%3'").arg(it.key(), it.value(), file.formulas.value(it.key(), QStringLiteral("-")))));
         }
     }
     // The cached value of a formula in the file is the window's: a number typed into a row put in inside a sum, and a summed row deleted (read from the bytes of the saved sheet).
     void theCachedValueOfAMovedFormulaIsTheWindowsAfterATypedRowAndADeletedRow()
     {
-        for (const bool ids : {true, false}) {
-            IdFrameScope scope(ids);
+        {
             {
                 EditWindow e;
                 QVERIFY(e.open(sumBook()));
@@ -2606,7 +2579,7 @@ private Q_SLOTS:
                 QCOMPARE(e.valueAt(QStringLiteral("A5")), QStringLiteral("n:16"));
                 QMap<QString, QByteArray> parts;
                 QVERIFY(saveParts(e, &parts));
-                QVERIFY2(rawValue(parts, QStringLiteral("A5"), 1) == QStringLiteral("16") && rawValue(parts, QStringLiteral("B5"), 1) == QStringLiteral("32"), qPrintable(QStringLiteral("ids %1: %2 %3").arg(ids).arg(rawValue(parts, QStringLiteral("A5"), 1), rawValue(parts, QStringLiteral("B5"), 1))));
+                QVERIFY2(rawValue(parts, QStringLiteral("A5"), 1) == QStringLiteral("16") && rawValue(parts, QStringLiteral("B5"), 1) == QStringLiteral("32"), qPrintable(QStringLiteral("%1 %2").arg(rawValue(parts, QStringLiteral("A5"), 1), rawValue(parts, QStringLiteral("B5"), 1))));
             }
             {
                 EditWindow e;
@@ -2617,15 +2590,14 @@ private Q_SLOTS:
                 QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:4"));
                 QMap<QString, QByteArray> parts;
                 QVERIFY(saveParts(e, &parts));
-                QVERIFY2(rawValue(parts, QStringLiteral("A3"), 1) == QStringLiteral("4") && rawValue(parts, QStringLiteral("B3"), 1) == QStringLiteral("8"), qPrintable(QStringLiteral("ids %1: %2 %3").arg(ids).arg(rawValue(parts, QStringLiteral("A3"), 1), rawValue(parts, QStringLiteral("B3"), 1))));
+                QVERIFY2(rawValue(parts, QStringLiteral("A3"), 1) == QStringLiteral("4") && rawValue(parts, QStringLiteral("B3"), 1) == QStringLiteral("8"), qPrintable(QStringLiteral("%1 %2").arg(rawValue(parts, QStringLiteral("A3"), 1), rawValue(parts, QStringLiteral("B3"), 1))));
             }
         }
     }
     // With the calculation by hand the worker does not work a moved formula out again: the file either holds the window's value or asks to be worked out when it is opened.
     void aFormulaNotWorkedOutAfterAMoveHasTheRightValueOrAsksForACalculation()
     {
-        for (const bool ids : {true, false}) {
-            IdFrameScope scope(ids);
+        {
             EditWindow e;
             QVERIFY(e.open(sumBook()));
             QVERIFY(e.settle());
@@ -2642,7 +2614,7 @@ private Q_SLOTS:
             const bool asks = parts.value(QStringLiteral("xl/workbook.xml")).contains("fullCalcOnLoad=\"1\"");
             const QString window = e.valueAt(QStringLiteral("A4")).mid(2);   // (the sum, now in row 4)
             const QString file = rawValue(parts, QStringLiteral("A4"), 1);
-            QVERIFY2(asks || file == window, qPrintable(QStringLiteral("ids %1: the file has %2, the window %3, and does not ask for a calculation").arg(ids).arg(file, window)));
+            QVERIFY2(asks || file == window, qPrintable(QStringLiteral("the file has %1, the window %2, and does not ask for a calculation").arg(file, window)));
         }
     }
 
