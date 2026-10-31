@@ -237,6 +237,7 @@ struct Book {
     // As the session does an edit of the structure: the tables of the workbook follow the cells, and the formulas that name a table read it where it is now.
     bool applyWithTables(const StructEdit &e, Calculation::EditRecord *rec, std::vector<TablePlace> *places)
     {
+        if (!book.tablesAllow(e, nullptr)) return false;   // (the session asks before it edits: an edit through a table's header is refused)
         const bool ok = calc->applyEdit(e, rec);
         if (ok) {
             *places = book.moveTables(e);
@@ -3606,7 +3607,7 @@ private Q_SLOTS:
                     std::vector<TablePlace> places;
                 };
                 std::vector<Done> done[2], undone[2];
-                QRandomGenerator rng(seed * 104729u + 7u);
+                SplitMix rng(seed * 104729u + 7u);
                 for (int step = 0; step < 14; ++step) {
                     const quint32 kind = rng.bounded(9u);
                     const quint32 at = rng.bounded(9u);
@@ -3770,7 +3771,7 @@ private Q_SLOTS:
         for (const quint32 seed : {7u, 21u, 1234u}) {
             Book on;
             for (Book *b : {&on}) QVERIFY(b->open({sheet1, sheet2}));
-            QRandomGenerator rng(seed);
+            SplitMix rng(seed);
             QStringList history;
             std::vector<Calculation::EditRecord> done[2];
             std::vector<Calculation::EditRecord> undone[2];
