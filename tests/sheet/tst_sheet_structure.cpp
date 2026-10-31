@@ -108,6 +108,7 @@ struct PlacesGolden {
         const char *tag = QTest::currentDataTag();
         base = QString::fromLatin1(QTest::currentTestFunction()) + (tag && *tag ? QLatin1Char('/') + QString::fromLatin1(tag) : QString());
         counts.clear();
+        used.clear();
         recordedNow = false;
     }
     QString key(char kind) { return QStringLiteral("%1/%2%3").arg(base).arg(QLatin1Char(kind)).arg(++counts[kind]); }
@@ -4164,18 +4165,19 @@ public:
         return ops;
     }
 private Q_SLOTS:
-    // The blocks a recalculation remembers to ask the graph of only once are few: 20,000 cells changed one by one (each a block of its own, and so are the formulas that read them) leave the memory of
-    // them under a bound, whatever the number of cells (it was a set that grew with every one: 64 bytes each, 66 MB for a million cells filled).
+    // The blocks a recalculation remembers to ask the graph of only once are few: 17,000 rows put in at 17,000 places and a number typed in each, all in one recalculation, are 17,000 blocks of their own
+    // (the original rows either side of each), and the memory of them stops at its bound (it was a set that grew with every block, and with every cell of a fill: 64 bytes each).
     void theBlocksRememberedForOneRecalculationAreBounded()
     {
-        const int n = 20000;
+        const int n = 17000;
         Book b;
         QStringList cells;
-        for (int r = 1; r <= n; ++r) cells << QStringLiteral("A%1=%1").arg(r) << QStringLiteral("B%1==A%1*2").arg(r);
+        for (int r = 1; r <= n + 1; ++r) cells << QStringLiteral("A%1=%1").arg(r) << QStringLiteral("B%1==A%1*2").arg(r);
         QVERIFY(b.open({cells}));
-        for (int r = 0; r < n; ++r) QVERIFY(b.calc->setValue(0, quint32(r), 0, jp::calc::Value::number(r + 1.5), Calculation::Marking::Later));
+        for (int k = 0; k < n; ++k) QVERIFY(b.apply(StructEdit::insertRows(0, quint32(2 * k + 1), 1), nullptr));   // (a row after each original row: the places 1, 3, 5, ...)
+        for (int k = 0; k < n; ++k) QVERIFY(b.calc->setValue(0, quint32(2 * k + 1), 0, jp::calc::Value::number(7), Calculation::Marking::Later));
         b.finish();
-        QCOMPARE(b.at(QStringLiteral("B%1").arg(n)), QStringLiteral("n:%1").arg(2 * (n + 0.5)));
+        QVERIFY2(b.calc->askedAreasPeak() > 1000, qPrintable(QStringLiteral("the test asked only %1 blocks").arg(b.calc->askedAreasPeak())));
         QVERIFY2(b.calc->askedAreasPeak() <= 16384, qPrintable(QString::number(b.calc->askedAreasPeak())));
     }
 

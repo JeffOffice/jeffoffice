@@ -956,6 +956,7 @@ An Undo of a column delete is now **one tenth of the edit** (3.5 to 5.4 ms again
 - `compactLinesFor` lets go of the Undo steps of the sheet's rows (columns) before it tries the rebase; if the rebase is refused (`StillOverCap`, which the real caps cannot make: a rebase leaves one run) the steps are lost for nothing. The test sees it (`canUndo` false after the refused edit); not changed.
 - A column edit with a large delete of rows still held (the cells of the dead rows) counts those cells by looking at them (`cellsInDeadRowsOfColumns`): its cost is the cells of the dead rows, not of the sheet.
 - The places-mode oracle of the structure tests is now data: if the engine means something else on purpose, the golden entries have to be written again (`JC_RECORD_GOLDEN=<file>` appends what the book gives), by hand and with a reason.
+- A `linesRefusal` after compaction (`StillOverCap`) can still drop the sheet's Undo steps, because the steps are let go of before the rebase is tried. Every other refusal is decided before compaction. Only artificial limits (`setLineLimitsForTest`) can reach it; the real caps leave one run after a rebase. Not changed.
 - `filledRowsPutInCostInProportionToTheirNumber` waits for the worker's race and its sizes (4,000 and 16,000) are where the race is seldom lost; the counted test in `SheetIdFrameTests` is the one that fails every time without the change.
 
 
