@@ -1,11 +1,11 @@
 # Open and save workbooks
-<!-- keywords: new, blank, book1, untitled, open, save, save as, file, workbook, xlsx, xlsm, xls, ods, csv, tsv, text file, delimited, import, export, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain -->
+<!-- keywords: new, blank, book1, untitled, open, save, save as, file, workbook, xlsx, xlsm, xls, ods, csv, tsv, text file, delimited, import, export, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain, template, xltx, xltm, cannot open, damaged, encrypted, password -->
 
 When JeffCrunch starts with no file to open, the window holds a new, empty workbook with one sheet, named Book1. Each new workbook takes the next number (Book2, Book3, and so on), and a number is not used again after its window is closed. To start another one, press **{key:New}**, or click **File**, then **New**, and choose **Blank Workbook**; it opens in a window of its own. A new workbook that you have not changed gives way when you open a file in its window; one you have changed stays, and the file opens in another window. **Save** on a new workbook asks for a name, as **Save As** does, and saves it as a .xlsx file. Closing a new workbook you have not changed asks nothing.
 
 To open a workbook, press **{key:Open}**, or click **File** and then **Open**, and choose **Browse**. You can also drag a workbook from your file manager onto the window. A workbook that is already open in a window is not opened a second time: that window comes to the front.
 
-JeffCrunch opens **.xlsx** workbooks and **.xlsm** workbooks (those that hold macros). It does not run macros, and it keeps them untouched.
+JeffCrunch opens **.xlsx** workbooks and **.xlsm** workbooks (those that hold macros), and the templates **.xltx** and **.xltm** (a template that holds macros). It does not run macros, and it keeps them untouched: the macro project, its signature, and the parts that name them are written back exactly as they were. A template is saved as a template, and a workbook with macros as a workbook with macros, because the kind is part of the file.
 
 ## Other kinds of files
 
@@ -17,7 +17,7 @@ A text file is one sheet. JeffCrunch finds out how its values are separated (by 
 
 When you open a text file, a window first shows its first rows and asks how it is read: what separates the fields (any of a comma, semicolon, tab, space, bar, or a character you type, with several in a row counted as one if you like), what quotes a field that holds a separator, the text encoding, and the row to begin at. Above each column you choose how it is read: **As typed**, **Text** (to keep a part number like 007 or a long account number as it is), a **Date** in the order you say, or **Leave out**. The preview follows every change, and shows at most the first 200 rows and 100 columns, but the whole file is opened. **File > Open > Open a Text File** asks even when the file's name is unusual.
 
-To keep only the values of the sheet you are looking at, click **File**, then **Save As**, and choose the **.csv** kind of file. JeffCrunch writes the values as the cells show them, in UTF-8, with a semicolon between them where your language writes a comma in its numbers and a comma elsewhere, and text in quotes when it needs them. The other sheets, the formulas, the formats, and the settings are not in a .csv file, and your workbook is not changed by writing one.
+To keep only the values of the sheet you are looking at, click **File**, then **Save As**, and choose the **.csv** kind of file. JeffCrunch writes the values as the cells show them, in UTF-8, with a semicolon between them where your language writes a comma in its numbers and a comma elsewhere, and text in quotes when it needs them. The other sheets, the formulas, the formats, and the settings are not in a .csv file, and your workbook is not changed by writing one. Before it writes the file, JeffCrunch says what your workbook has that the file will not hold (the other sheets, formulas, pictures, charts, notes, and macros, for example), and asks whether to **Save Values Only**, to **Save as .xlsx** instead and keep everything, or to **Cancel**.
 
 ## Large workbooks
 
@@ -25,13 +25,17 @@ JeffCrunch reads a workbook in the background. The first rows of the sheet that 
 
 You can scroll, select, and copy while it reads. The other sheets' tabs turn on when they are read. A workbook that is damaged is opened as far as it can be read, and a message says what was left out.
 
+## If a file does not open
+
+When JeffCrunch cannot open a file, it says why in plain words and leaves the workbooks you have open as they are. It tells a file that is empty from one that is not a workbook at all (a PDF document, a picture, a text document, or a presentation, for example); a zip package that was cut short or damaged, which usually means a download or a copy was interrupted, so copy it again from the original; a workbook that is encrypted with a password, which JeffCrunch cannot open yet; and a compound file that holds no workbook.
+
 ## Recent workbooks
 
 The **Open** page of the File screen lists the workbooks you opened lately. Right-click one to **pin** it to the top of the list or to remove it from the list.
 
 ## Saving
 
-Press **{key:Save}**, or click **File** and then **Save**, to save your changes into the workbook you opened. To keep the original and make a new file, click **File** and then **Save As**, and choose a name. A workbook with macros is saved as a **.xlsm** file, and one without as a **.xlsx** file.
+Press **{key:Save}**, or click **File** and then **Save**, to save your changes into the workbook you opened. To keep the original and make a new file, click **File** and then **Save As**, and choose a name. A workbook with macros is saved as a **.xlsm** file, a template as a **.xltx** or **.xltm** file, and any other as a **.xlsx** file. A name that ends in another kind is not accepted, and the message says which ending to use.
 
 JeffCrunch saves only what you changed. Everything else in the file, such as the other sheets, the charts, the pictures, the macros, and the settings that JeffCrunch does not show, is copied as it was, byte for byte. In a sheet you changed, only the cells you changed are written again, along with the formulas that depend on them, which get their new values. If you changed no cell, the file is left alone.
 
