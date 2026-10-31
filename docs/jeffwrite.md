@@ -194,3 +194,30 @@ follows the references as the story changes (`followEndnoteReferences`), so an e
 - Documents: our own collection, the US government documents in Govdocs1 and Apache POI's test
   files, with a held-out half that no helper sees until the final check, as for JeffDeck.
 - JeffPub's render-compare must stay at 0 differences after every change below libs/flow.
+
+### Scoring the pages (beta wave A, October 31, 2026)
+
+Run `sh ~/jo-scratch/wscore.sh BUILD/writetool LABEL dev` (the 95 tuning documents) or `... word2` (practice set 2, 200 documents); each prints one line (pages, median, share
+under 2, page counts that match, words missing) and leaves `scores.tsv` (a row for each page) and `pages.tsv` (a row for each document) in `~/jo-scratch/score-SET-LABEL/`. The
+held-out half is not scored or looked at until a gate.
+
+| | Practice set 2 before | after | Dev before | after |
+|---|---|---|---|---|
+| Pages under 2 | 76.2% (1,513 of 1,986) | 82.1% | 91.0% | 91.8% |
+| Page counts that match | 188 of 200 | 190 of 200 | 93 of 95 | 93 of 95 |
+| Words missing | 0.18% | 0.18% | 0.15% | 0.15% |
+
+Triage of the 473 pages of practice set 2 that scored 2 or more before the wave (78 documents), by cause, with what the wave did:
+
+| Cause | Documents (pages) | Done |
+|---|---|---|
+| Space after the last note at the foot, cuts of notes (widow and orphan control), no break after a slash in a link's address, spaces at a paragraph's end that wrap | V106 (27), V073 (22), V041, V181 | V106 8, V073 4 pages left |
+| Empty header and footer paragraphs of a file with no Header style are the default size, not Normal's | V179 (35) | 9 left |
+| The thin stand-in for Courier New is lighter than the reference letters (pictures only) | V070 (43), V095 (5), V166 (2), V182 (1) | 0 left |
+| A numbering level that follows its number with a space or nothing | V059 (4), V056 (12, some), V084 | V059 1 left |
+| A cover of continuous sections with unequal columns and a picture whose wrap cycles | V014 (47) | not done |
+| Tables and frames that go over a page, and list columns in a continuous section | V107 (24), V011 (16), V113 (10), V024 (9) | not done |
+| Pictures, drawn text, WordArt, and fields the reference page printed at another time, not line or page breaks | V158 (9), V183 (8), V017 (7), V083 (6), V084 (6), V099, V105, V185 (4 each) | not done |
+| Heading and paragraph spacing of a few documents, and the rest | V056, V063, V088, V153, and 40 more documents of 1 to 6 pages each | not done |
+
+What is left is under 1% of the pages for each cause except the cover of V014 (2.4%), and tables and frames over a page (V107, V011, V113, V024: 2.8% together).
