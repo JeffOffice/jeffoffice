@@ -800,6 +800,100 @@ The list of edits is replayed once on `LineMap`s and the old file's rows and cel
 
 `Axis` gets `insertPlaces` and `erasePlaces` (the sizes shift in a memory move; no rebuild), `showSheet(…, true)` after a structural edit is replaced by the in-place update, the selection and scroll position follow, and the viewport repaints only the changed band when the edit is at the bottom of the view. The floor at a million rows, which has not been split out yet, is measured first. The test of `hold()` of 4.9. Tests first: an axis insert and erase equal a rebuild (random); the view after an edit equals a view made again; a paint count after an edit at the end of the sheet. Gate: the floor, 8 ms to under 5; the whole bar of 4.13 on `edit-struct-bench` at both sizes.
 
+**As built (October 30, 2026).** On, with the switch on or off (the grid does not care how the model holds its rows).
+
+**The floor, measured first** (`edit-struct-bench` on the base, `4f8194aa`; the window's thread, by its processor time; `w_pre`, `w_model`, `w_window`, `w_paint` in the bench's last columns, and `JC_BENCH_EVENTS=1` for the events of the window by class). Phases of one edit, lower half of four runs, in ms:
+
+| Phase | 1,000,000 rows by 5, a row | same, a column | 100,000 rows by 21, a row | same, a column |
+|---|--:|--:|--:|--:|
+| before the hold (the session: sizes, the undo question, the count of cells) | 0.03 to 0.06 | 0 to 55 | 0.03 to 0.06 | 0 to 14 |
+| in the hold (the model, the session's marks, the window's values) | 0.1 | 13 to 54 | 0.1 | 6 to 14 |
+| the window's response (`onCellsMoved`: `showSheet(…, true)`, the buttons, the bars) | 0.3 to 0.5 | 0.3 to 0.4 | 0.3 to 0.4 | 0.4 |
+| the paint and the other events the edit leaves for the loop | 3.6 to 6.0 (the grid's paint 1.7 to 2.9) | 3.9 to 4.2 (grid 1.7 to 1.9) | 4.8 to 6.0 (grid 3.0 to 3.6) | 5.8 to 12.7 (grid 3.4 to 4.9) |
+| **Total** | **4.0 to 6.6** | **44 to 100** | **5.3 to 6.5** | **20 to 37** |
+
+So the floor at a million rows is 4 to 6.6 ms, not the 8 ms the plan feared: the model's part of a row edit is 0.15 ms, the window's response 0.3 ms (the sheet at a million rows with no row of its own size is a layout of nothing), and what is left is drawing: the grid's whole window (1.7 to 2.9 ms at 1,086 by 386 pixels, and 3.0 to 3.6 at the sizes of the 100,000-row sheet's window), and 1.5 to 3 ms for the other widgets of the window that the edit draws again (the vertical scroll bar, whose range moved; the buttons of the ribbon, whose states the tail of `showSheet` sets; the formula bar, whose text is set again). The grid was not where Undo of a column delete spends its time (below).
+
+**What was built.**
+
+- **`Axis::insertPlaces` and `Axis::erasePlaces`** (`libs/shell/grid/axis.h`): the places that differ after the edit move on (back) by the count with the sums they keep (`before`, and the ends and starts of the runs of hidden rows) moved by a memory move and a number added, and only the runs the edit cuts or joins are worked out again (`fixRuns`, as long as the run). The count of rows stays, so places pushed past the last row go (and the end of a run that reached the last row is cut to it), and the rows at the end after a take are the default size. An axis whose sums were not built stays unbuilt. `Axis::buildsForTest()` counts the builds from the first place; a test checks that an edit adds none.
+- **`GridSheet::followEdit`**: for an edit of whole rows or columns of the sheet shown, in a layout that has a sheet's rows (a sheet that ends at its last listed row is shown again): the axis is changed in place; the sizes of the lines put in are read from the sheet (the specs of rows by the place their rows are at, the runs of columns), which is nothing for a fresh insert and what comes back with an Undo; the formats that rows and columns give the cells that are not there are made again from the specs and runs (nothing if the sheet has none); the merged ranges are put in the index again from the sheet's list; the texts held for the lines from the first one changed are dropped (the ones above stay); the rules of conditional formatting are reset. `makeGeometry` and `followEdit` read the columns through one function (`columnsOf`), so they cannot disagree.
+- **`GridView::followEdit`**: the above, then the selection, the scroll, and the band.
+  - The selection goes with the cells it is on (`followLines`): lines put in or taken out above it move it; lines put in where it begins (inside the span put in) are selected, which is what the command does and what Undo of a delete gives back; lines put in inside it make it longer; lines taken out that hold all of it leave it where the lines after them come; lines taken out of its start or its end make it shorter, and its cursor goes to the line that took the place of its own. Whole rows or columns stay whole. Before, the selection stayed at its address in every case, which is the same for the command and different for everything else (Undo of a delete of rows above it).
+  - The part that scrolls stays at the row (column) it began at, with the same distance into it, whatever the sizes above it became. Before, it stayed at the same pixel, which is another row when a tall or hidden row was above it.
+  - Only the band the edit changed is drawn again: from the line before the first changed (it shares a border) to the end of the window; nothing for an edit below the window; the part that scrolls, whole, for an edit above it. The whole window is drawn when the numbers of the rows change their width, when the sheet has merged ranges, rules of formatting, a table skin, marks, the break view, a copy marked with dashes, or reads right to left. `GridView::lastPaintRect` and `paintedPixels` are what the tests read.
+- **The window** (`CrunchWindow::onCellsMoved`): for an edit of whole rows or columns of the sheet in view, `m_view->followEdit` replaces `showSheet(m_sheet, true)`; what `showSheet` did besides giving the grid its data is `afterSheetShown` (objects, buttons, page view, anchors, bars), called in both ways (the formulas shown and the colors of the buttons only when the sheet is given to the grid again). Cells shifted and moved cells still show the sheet again. `CrunchWindow::inPlaceUpdates()` counts the edits followed.
+- **Nothing is drawn for what did not change.** The setters the tail calls (`setBreakPages`, `setShownNotes`, `setHeaderButtons`, the layer of objects with none, the table skins with none before and none now, the formula bar with the text it has) used to draw the whole window whatever they were given; they do nothing for what they have. Without them the band was drawn but so was everything else.
+- **The bench** tells the window thread's phases (`w_pre`, `w_model`, `w_window`, `w_paint`, and the same for Undo), the grid's paints and their time, and, with `JC_BENCH_EVENTS=1`, the events by class. It waits for the paint the edit left (the events are taken until one has come and none follows) in place of painting the whole window itself.
+
+**Tests** (9 new tests, 7 of which fail with the tests and stand-ins that do nothing; `tests/sheet/tst_grid_axis.cpp` and `tests/crunch/tst_crunch_viewedit.cpp`):
+
+| Test | On the stand-ins | Now |
+|---|---|---|
+| `rowsPutInAndTakenOutInPlaceAreWhatARebuildGives` (12 seeds of 60 random inserts and takes in an axis of 240 rows with hidden runs, sizes, and places pushed off the end: every place, size, start, search, and no build from the first place) | fails: 68 places, wanted 70 | passes |
+| `aRowPutInAtAMillionRowsMovesOnlyThePlaces` | fails | passes |
+| `anEditOfRowsOrColumnsMakesNoneOfTheViewAgain` (3,000 rows with a height each; edit, Undo, Redo: no showing of the sheet, no axis built from its first place, under 500 cells of the view made again) | fails: the sheet was shown again | passes |
+| `frozenPanesStayWhereTheyWere` | fails: not followed in place | passes |
+| `theSelectionFollowsTheCellsItIsOn` (13 cases of rows and columns put in and taken out above, at, inside, and below the selection, one that holds it, one that cuts its start; Undo and Redo) | fails: rows put in above leave it where it was | passes |
+| `theScrollStaysAtTheRowAndColumnAtTheTop` (a tall row above the first row in view, a wide column left of the first column in view; an edit above, below, Undo, Redo) | fails: the view is 40 pixels into the row | passes |
+| `anEditDrawsOnlyTheBandItChanged` (rows in the window, below it, above the part in view, and columns: the pixels of the paint and the rectangle) | fails: 419,196 of 419,196 pixels | passes |
+| `everyHeightWidthAndHiddenLineGoWithItsLine` (12 edits at the top, middle, inside a hidden run, and past the cells; sizes by hand and the sizes the sheet would be shown with again; Undo and Redo of each) and `wholeRowsAndColumnsSelectedStayWhole` | pass: they guard what the change could break | pass |
+
+In places (`JC_ID_FRAME=0`) the five window tests fail before and pass now in the same way.
+
+**Counts.** `sheettests` 1,308 pass (the base: 1,306), `crunchtests` 750 pass (the base: 741, the new tests with their `initTestCase` and `cleanupTestCase`), with the switch on; with `JC_ID_FRAME=0`, 1,305 and 743 pass and 3 and 7 skip, none fail. `crunchchecks`: 10 pass (the commands, the menus, and the keys; 0 of 269 commands never run).
+
+**The gate**, on this round's commits:
+
+1. `jcrunchtool model-check 60 300` with `idframe` and with `places`, plain and `wide`: 0 failed in each of the four (18,000 steps each: 639 refused, 2,243 undone, 1,068 redone, plain; 153, 1,790, 864, wide; the same counts as before the round), the window's values being the calculation's after every step.
+2. `edit-struct-bench`, the window thread's processor time from the call to the paint, in ms, base (`4f8194aa` with the bench's new columns) against now, ABBAABBA (four runs of each; the machine's noise is 5 to 14%, so the lower half of the runs is taken), the switch on:
+
+1,000,000 rows by 5 columns (4 runs of each, ABBAABBA; lower half of the runs, ms)
+
+| Edit | Edit: base to now | Undo: base to now | Edit now: model, window, other events and paint | Grid drawn (edit): base to now |
+|---|--:|--:|--:|--:|
+| insert row top | 4.0 to 3.5 | 4.8 to 3.8 | 0.2, 0.29, 3.1 | 1.6 to 1.6 |
+| delete row top | 6.6 to 3.7 | 4.2 to 4.4 | 0.1, 0.29, 3.3 | 2.9 to 1.5 |
+| insert row middle | 4.9 to 3.0 | 4.4 to 3.6 | 0.1, 0.26, 2.6 | 2.1 to 0.0 |
+| delete row middle | 4.3 to 3.8 | 4.5 to 3.4 | 0.2, 0.27, 3.3 | 1.8 to 0.0 |
+| insert row end | 4.5 to 3.1 | 4.8 to 3.9 | 0.1, 0.24, 2.6 | 1.8 to 0.0 |
+| delete row end | 4.6 to 3.3 | 4.2 to 3.4 | 0.2, 0.24, 2.9 | 2.0 to 0.0 |
+| insert column top | 47.1 to 49.6 | 76.8 to 79.0 | 45.7, 0.29, 3.4 | 1.7 to 1.7 |
+| delete column top | 44.3 to 44.3 | 90.7 to 75.3 | 39.8, 0.34, 3.3 | 1.8 to 1.5 |
+| insert column middle | 98.8 to 97.2 | 83.1 to 77.4 | 93.5, 0.29, 2.9 | 1.9 to 1.5 |
+| delete column middle | 73.3 to 75.4 | 67.5 to 64.1 | 71.1, 0.33, 2.9 | 1.9 to 1.5 |
+| insert column end | 98.2 to 94.8 | 78.6 to 78.0 | 91.1, 0.28, 3.1 | 1.9 to 1.5 |
+| delete column end | 73.0 to 69.8 | 65.6 to 63.9 | 66.5, 0.27, 2.7 | 1.7 to 1.2 |
+
+100,000 rows by 21 columns (plain) (4 runs of each, ABBAABBA; lower half of the runs, ms)
+
+| Edit | Edit: base to now | Undo: base to now | Edit now: model, window, other events and paint | Grid drawn (edit): base to now |
+|---|--:|--:|--:|--:|
+| insert row top | 5.3 to 4.8 | 6.8 to 5.2 | 0.2, 0.32, 4.2 | 3.0 to 2.9 |
+| delete row top | 6.5 to 5.5 | 6.4 to 5.9 | 0.1, 0.33, 5.0 | 3.5 to 3.4 |
+| insert row middle | 6.5 to 3.0 | 6.8 to 3.3 | 0.1, 0.23, 2.6 | 3.6 to 0.0 |
+| delete row middle | 6.0 to 3.1 | 6.8 to 3.2 | 0.1, 0.37, 2.6 | 3.3 to 0.0 |
+| insert row end | 6.5 to 3.2 | 5.9 to 4.1 | 0.1, 0.29, 2.7 | 3.6 to 0.0 |
+| delete row end | 5.6 to 3.0 | 6.1 to 4.1 | 0.1, 0.26, 2.7 | 3.2 to 0.0 |
+| insert column top | 19.9 to 18.7 | 33.0 to 30.0 | 13.7, 0.29, 4.6 | 2.8 to 3.0 |
+| delete column top | 30.6 to 21.5 | 33.7 to 30.0 | 15.8, 0.38, 4.9 | 4.8 to 3.1 |
+| insert column middle | 29.6 to 25.7 | 33.5 to 29.1 | 21.6, 0.31, 3.2 | 3.4 to 1.7 |
+| delete column middle | 35.7 to 23.4 | 32.2 to 27.9 | 19.2, 0.32, 3.3 | 4.5 to 1.9 |
+| insert column end | 28.3 to 24.5 | 32.1 to 27.4 | 22.3, 0.28, 1.9 | 3.1 to 0.5 |
+| delete column end | 37.2 to 30.8 | 33.5 to 25.8 | 18.4, 0.30, 7.8 | 4.9 to 2.0 |
+
+Where the edit is below the top of the window, a row edit costs 3.0 to 3.8 ms at a million rows (4.3 to 4.9 before) and 3.0 to 3.3 at 100,000 (5.6 to 6.5): the 1.7 to 3.6 ms of the grid's paint is gone, and what is left is the other widgets (1.5 to 3 ms) and the model's 0.1. A row edit above the window draws all of it, as before. The column edits are the model's (the part in the hold and before it: 14 to 100 ms), and the grid's part of them fell by the paint of the band (3.4 to 1.7 ms at 100,000 rows).
+
+**Not done, or not certain.**
+
+- **Undo of a delete of columns at a million rows did not improve, and it is not the grid's.** It is 64 to 91 ms now, not the 218 to 297 round 6 noted, and the split by phase puts 59 to 89 ms of it inside `Calculation::undoEdit` (timers inside `applyStructure`: the call 79 ms, the tables, `followEdit`, the pages, anchors, and values 0.1 ms, the hold 0.01, the signal to the window 0.3), the window's response 0.3 to 0.5 ms and the paint 3.4 ms. So the grid was 4% of it before and is 2% now. What is left is in `libs/office/sheet` (the walks of the 5,000,000 cells that round 6 names: a count of cells by column would take them away), which this round's scope left alone. The round 6 figure of 218 to 297 ms was not reproduced, by this bench or by the base's, so the "rest is the grid's" of that note was a guess from a sum.
+- **The floor of 3 ms is the window's other widgets.** The vertical scroll bar is drawn again whenever the range moves (0.7 to 0.9 ms in this window, for a thumb that did not change by a pixel), the ribbon's buttons (two paints an edit, 0.3 to 0.6 ms), and the ribbon's tab strip; `QScrollBar` offers no way to set a range without drawing, so a scroll bar of its own that skips a range change smaller than a pixel of its thumb is the next step, if it is wanted. The bench's window has 1,086 by 386 pixels of grid; a larger window draws more in the band.
+- **Rows with specs are not free.** For a sheet whose rows have sizes of their own, an insert reads the specs once (a scan of the list and a sort of the placed ones for the formats of rows): the cost is the number of specs, not of rows, and was not measured past the test's 3,000.
+- **The selection after Undo of a delete that cut the start of the selection** is not given back (the selection is made shorter by the delete and the Undo puts the lines in at its start, which are selected); a selection that held all the lines deleted, or lay above or below, is. Common programs restore the selection from the step; this goes by the cells and not by the step's record.
+- **A selection inside a merged range** is not made whole again after the edit (it was not before).
+- **The test of `hold()` of 4.9** (an edit made through a hold hook while the worker is inside a long `SUM`) was not made: the view does not touch the hold, and the existing model check runs the hold on every edit.
+- The paint tests wait for a paint with `qWaitFor` and look for none after a few turns of the loop, so a very slow machine could see a late paint of an earlier edit; they passed 12 runs of 12 here, in both modes.
+
 ### Round 9: hardening and clean-up (4 days)
 
 The hostile tests: a million runs refused with the message, column ids exhausted and a rebase (4.16), a delete of the whole sheet and its Undo, ten thousand edits at the top and a save, a sheet with 100,000 rows inserted and filled (all id-held: formula visits counted), a session of random edits under the memory cap, 20,000 runs. The capped rebase. The yardsticks of section 6, `check_stable_saves.py`, and the bench at both sizes with the final numbers written into this note. The old eager paths and the switch are deleted, `docs/jeffcrunch.md` and `docs/features/jeffcrunch.md` (the "speed" line of the first release) are updated, and the report.
@@ -824,7 +918,7 @@ The hostile tests: a million runs refused with the message, column ids exhausted
 7. **The saver** must write new text for every moved formula; a family cut by an edit is the hard case; the comparison with the old saver on the dev list's edit script is the check.
 8. **Dead cells and nodes held** until the step is forgotten. Counted in the undo byte limit, purged in slices; a delete of 500,000 rows holds about 12 MB of cells until then.
 9. **Caps and rebase.** Rows 2^24 ids, columns 49,152, runs 100,000: rebase in round 9 with a message and no undo; the refusal before it.
-10. **The floor at a million rows is not split out yet.** An edit at the end of the million-row sheet took 15 to 54 ms, of which 12 to 17 are the graph's pass; the rest is the view and the repaint. Round 8 starts by measuring it, and the 16 ms bar depends on it. The spike measured the core only.
+10. **The floor at a million rows** was measured in round 8: a row edit costs 4 to 6.6 ms on the window's thread before and 3.0 to 3.8 after (0.15 ms the model, 0.3 ms the window's response, the rest drawing); a column edit costs the model's 14 to 100 ms, which round 8 did not touch.
 11. **The spike's limits.** Three formula kinds, no sparse lists, no session, no view, no saver, new columns' ids kept inside the graph's old 16,384. It says that the core is a microsecond and that the rival's graph pass is 40 to 80 ms at a million rows; it does not say the rest is easy.
 12. **Estimates.** 41 days is for a helper who knows these files, with a range of 6 to 10 weeks; the plan can stop after rounds 4 and 5c with a product that is better than now and no worse.
 
