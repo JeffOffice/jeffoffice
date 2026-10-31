@@ -128,9 +128,8 @@ QStringList leftOutOfCsv(const jp::office::sheet::Workbook &book, qint64 formula
                           {"/ctrlProp", QCoreApplication::translate("jp::crunch::OtherFormats", "form controls")}, {"/control", QCoreApplication::translate("jp::crunch::OtherFormats", "form controls")},
                           {"/oleObject", QCoreApplication::translate("jp::crunch::OtherFormats", "embedded objects")}, {"/package", QCoreApplication::translate("jp::crunch::OtherFormats", "embedded objects")},
                           {"/slicer", QCoreApplication::translate("jp::crunch::OtherFormats", "slicers")}, {"/timeline", QCoreApplication::translate("jp::crunch::OtherFormats", "slicers")}};
-    if (book.isConverted() || !book.package().isLazy()) {
-        // (a workbook read from another kind of file has no parts of its own to look in)
-    } else {
+    // (a workbook read from another kind of file has no parts of its own to look in)
+    if (!book.isConverted() && book.package().isLazy()) {
         const jp::office::Package &package = book.package();
         for (const auto &sheet : book.info().sheets) {
             if (sheet.deleted || sheet.part.isEmpty()) continue;

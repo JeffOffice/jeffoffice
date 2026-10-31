@@ -2083,10 +2083,12 @@ QString notAWorkbookMessage(const QByteArray &head, qint64 size)
     return QCoreApplication::translate("Sheet", "This file is not a workbook: it does not start like any kind of file this program opens (.xlsx, .xlsm, .xls, .ods, .csv). It may be damaged, or have the wrong name.");
 }
 
-// A zip package that could not be read: said as a copy cut short or a file damaged, which is what it is, when the package's own message is the general one.
-QString damagedPackageMessage(const QString &why)
+// A zip package that could not be read: when it has no directory of its entries to read (the end of a zip is where its directory is, so a copy cut short has none), it is said to be cut
+// short; any other message the package gave stays.
+QString damagedPackageMessage(const QByteArray &bytes, const QString &why)
 {
-    if (why.startsWith(QLatin1String("The file is damaged, or is not a package")))
+    QVector<ZipEntry> directory;
+    if (!jp::readZipDirectory(bytes, &directory))
         return QCoreApplication::translate("Sheet", "The file is damaged: it starts like a zip package (.xlsx or .xlsm), but its contents can't be read. It may have been cut short when it was downloaded or copied. "
                                                     "If you have the original, copy it again.");
     return why;
@@ -2201,7 +2203,7 @@ bool Workbook::openFile(const QString &path, QString *error, const Limits &limit
     Package package;
     QString why;
     if (!package.readLazy(bytes, &why)) {
-        if (error) *error = damagedPackageMessage(why);
+        if (error) *error = damagedPackageMessage(bytes, why);
         return false;
     }
     if (!open(package, &why, limits)) {
