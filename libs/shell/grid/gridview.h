@@ -393,6 +393,12 @@ private:
     QRect m_lastPaintRect;
     QRegion m_paintedRegion;
     QRect m_lastEditBand;
+    // The edits of rows and columns followed, with the selection before and after each, so that Undo gives the selection back where it was and Redo where it went (an edit that is the inverse of the last followed, with the selection still where that left it).
+    struct FollowedEdit {
+        jp::office::sheet::StructEdit edit;
+        Selection before, after;
+    };
+    std::vector<FollowedEdit> m_followed, m_unfollowed;
     qint64 m_paintedPixels = 0;
     std::function<bool()> m_clickGuard;
     std::function<bool(qint64, qint64)> m_pointGuard;

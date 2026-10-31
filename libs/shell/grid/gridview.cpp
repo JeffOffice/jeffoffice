@@ -128,6 +128,10 @@ void GridView::setData(const GridData &data, bool keepView)
     m_jump.reset();
     m_statsWalk.reset();
     m_sheet.setData(data);
+    if (!keepView) {
+        m_followed.clear();
+        m_unfollowed.clear();
+    }
     m_painter->resetFonts();
     if (data.sheet) {
         m_gridlines = data.sheet->view.showGridLines;
@@ -725,6 +729,25 @@ bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
         m_selection.range.col2 = r.last;
         m_selection.activeCol = r.active;
         m_selection.headCol = r.head;
+    }
+    {
+        const auto same = [](const jp::office::sheet::StructEdit &a, const jp::office::sheet::StructEdit &b) { return a.kind == b.kind && a.sheet == b.sheet && a.first == b.first && a.count == b.count; };
+        if (!m_followed.empty() && same(edit, m_followed.back().edit.inverse()) && was == m_followed.back().after) {
+            // Undo of the last edit followed: the selection is where it was before it
+            m_selection = m_followed.back().before;
+            m_unfollowed.push_back(std::move(m_followed.back()));
+            m_followed.pop_back();
+        } else if (!m_unfollowed.empty() && same(edit, m_unfollowed.back().edit) && was == m_unfollowed.back().before) {
+            m_selection = m_unfollowed.back().after;
+            m_followed.push_back(std::move(m_unfollowed.back()));
+            m_unfollowed.pop_back();
+        } else {
+            m_unfollowed.clear();
+            if (m_followed.size() >= 200) m_followed.erase(m_followed.begin());
+            m_followed.push_back({edit, was, m_selection});
+        }
+        m_selection.activeRow = std::min(m_selection.activeRow, L.rows.count() - 1);
+        m_selection.activeCol = std::min(m_selection.activeCol, L.cols.count() - 1);
     }
     // the scroll
     if (top >= 0) {

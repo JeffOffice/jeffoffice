@@ -269,13 +269,13 @@ private Q_SLOTS:
             {"rows put in below", true, 9, 3, 9, 3, true, 50, 2, 9, 3, 9, 3, true},
             {"rows taken out above", true, 9, 3, 9, 3, false, 3, 2, 7, 3, 7, 3, true},
             {"rows taken out below", true, 9, 3, 9, 3, false, 50, 2, 9, 3, 9, 3, true},
-            {"rows taken out that hold the cells selected", true, 9, 3, 11, 4, false, 8, 6, 9, 3, 11, 4, false},
-            {"rows taken out of the top of the cells selected", true, 9, 3, 20, 4, false, 4, 10, 4, 3, 10, 4, false},
+            {"rows taken out that hold the cells selected", true, 9, 3, 11, 4, false, 8, 6, 9, 3, 11, 4, true},
+            {"rows taken out of the top of the cells selected", true, 9, 3, 20, 4, false, 4, 10, 4, 3, 10, 4, true},
             {"columns put in left", false, 9, 8, 9, 9, true, 1, 2, 9, 10, 9, 11, true},
             {"columns put in at the cell", false, 9, 8, 9, 8, true, 8, 1, 9, 8, 9, 8, true},
             {"a column put in with several columns put in before it", false, 9, 7, 9, 7, true, 5, 3, 9, 10, 9, 10, true},
             {"columns taken out left", false, 9, 8, 9, 9, false, 2, 3, 9, 5, 9, 6, true},
-            {"columns taken out that hold the cells selected", false, 9, 8, 9, 9, false, 7, 5, 9, 8, 9, 9, false},
+            {"columns taken out that hold the cells selected", false, 9, 8, 9, 9, false, 7, 5, 9, 8, 9, 9, true},
             {"columns put in right", false, 9, 1, 9, 2, true, 6, 2, 9, 1, 9, 2, true},
         };
         for (const Case &c : cases) {
@@ -376,6 +376,7 @@ private Q_SLOTS:
         e.view()->selectCell(100, 0);
         flushPaints(e.view());
         const QSize vp = e.view()->viewport()->size();
+        QVERIFY2(vp.width() >= 1000 && vp.height() >= 300, qPrintable(QStringLiteral("the viewport is %1 by %2").arg(vp.width()).arg(vp.height())));
         const qint64 whole = qint64(vp.width()) * vp.height();
         // (what an edit draws, as everything drawn since: when it is to draw something, the paint is waited for; when it is to draw nothing, the turns of the loop that follow show it)
         auto drawn = [&](const std::function<void()> &edit, bool something) {
@@ -421,6 +422,7 @@ private Q_SLOTS:
         QVERIFY(e.open(viewBook()));   // (rows 12 and 13 are hidden)
         QVERIFY(e.settle());
         scrollToLine(e, true, 0);
+        QVERIFY(e.view()->viewport()->width() >= 1000 && e.view()->viewport()->height() >= 300);
         const int shownAbove = e.view()->sheet().layout().yOf(10);
         QVERIFY(run(e, {"insert under the hidden rows", true, true, 13, 1}).ok);
         // (what the edit asked to have drawn, not what happened to be drawn by then)
@@ -470,6 +472,20 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.cellEditor()->geometry().topLeft(), e.view()->cellRect(7, 0).topLeft());
         QVERIFY(run(e, {"delete the entry's row", true, false, 6, 3}).ok);
         QVERIFY(!e.win.w.cellEditor()->isVisible());
+    }
+    // The note that appears when the pointer rests on a cell is let go of when rows move under it.
+    void theHoverCellIsResetWhenRowsMove()
+    {
+        EditWindow e;
+        e.win.w.resize(1100, 640);
+        QVERIFY(e.open(viewBook()));
+        scrollToLine(e, true, 0);
+        const QPoint at = e.view()->cellRect(3, 1).center();
+        QMouseEvent move(QEvent::MouseMove, QPointF(at), QPointF(e.view()->viewport()->mapToGlobal(at)), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(e.view()->viewport(), &move);
+        QCOMPARE(e.view()->hoverRow(), qint64(3));
+        QVERIFY(run(e, {"insert above", true, true, 1, 1}).ok);
+        QCOMPARE(e.view()->hoverRow(), qint64(-1));
     }
 };
 
