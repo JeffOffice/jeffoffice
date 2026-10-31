@@ -180,7 +180,7 @@ jobs:
               echo "--- stack of the crash of $N"
               if [ "$RUNNER_OS" = "Windows" ]; then P=build/$N.exe; else P=build/$N; fi
               if [ "$RUNNER_OS" = "macOS" ]; then
-                timeout 600 lldb --batch -o run -k "thread backtrace all -c 30" -- "$P" -silent 2>&1 | tail -120
+                T=$(command -v timeout || command -v gtimeout || true); $T ${T:+600} lldb --batch -o run -k "thread backtrace all -c 30" -- "$P" -silent 2>&1 | tail -120
               else
                 G=gdb
                 if [ "$RUNNER_OS" = "Windows" ]; then G="$(cygpath -u "$IQTA_TOOLS")/mingw1310_64/bin/gdb.exe"; fi

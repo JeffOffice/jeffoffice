@@ -14,6 +14,9 @@ jobs=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
 printf '%s\n' "$@" | xargs -P "$jobs" -I '{}' \
     bash -c 'started=$(date +%s); "build/$1$2" -v1 -o "$1-results.txt,txt" -o -,txt > "$1.log" 2>&1; echo $? > "$1.code"; echo "$1 finished in $(( $(date +%s) - started )) s"' _ '{}' "$ext"
 
+# (macOS has no timeout command; Homebrew's coreutils name it gtimeout; without either, the debugger runs unbounded under the step's own time limit)
+T=$(command -v timeout || command -v gtimeout || true)
+
 code=0
 for N in "$@"; do
     P=build/$N$ext
@@ -28,11 +31,11 @@ for N in "$@"; do
     if [ "$ncode" -ne 0 ] && [ "$failed" -eq 0 ]; then
         echo "--- stack of the crash of $N"
         if [ "${RUNNER_OS:-}" = "macOS" ]; then
-            timeout 900 lldb --batch -o run -k "thread backtrace all -c 30" -- "$P" -silent 2>&1 | tail -120
+            $T ${T:+900} lldb --batch -o run -k "thread backtrace all -c 30" -- "$P" -silent 2>&1 | tail -120
         else
             G=gdb
             if [ "${RUNNER_OS:-}" = "Windows" ]; then G="$(cygpath -u "$IQTA_TOOLS")/mingw1310_64/bin/gdb.exe"; fi
-            timeout 900 "$G" -q -batch -ex run -ex "thread apply all bt 30" --args "$P" -silent 2>&1 | grep -v '^\[' | tail -120
+            $T ${T:+900} "$G" -q -batch -ex run -ex "thread apply all bt 30" --args "$P" -silent 2>&1 | grep -v '^\[' | tail -120
         fi
     fi
     if [ "$code" -eq 0 ]; then code=$ncode; fi
