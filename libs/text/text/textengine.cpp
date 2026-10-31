@@ -2857,6 +2857,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     const FieldSource *notesDoc = nF > 0 ? frames.first().ctx.doc : nullptr;
     int footCount = m_span.footnotesBefore + (notesDoc ? notesDoc->footnotesBefore() : 0), endCount = m_span.endnotesBefore + (notesDoc ? notesDoc->endnotesBefore() : 0);
     QHash<int, double> reserve;   // a column's room for footnotes, by frame * 64 + column
+    QHash<int, double> lastTrail;   // the space after the last whole note of a column (a word processor's): it hangs below the column's foot where there is no room for it, by the same key
     auto rkey = [](int fi, int ci) { return fi * 64 + ci; };
     for (int k = 0; k < m_span.noteReserves.size() && k < nF; ++k)
         if (m_span.noteReserves[k] > 0) reserve[rkey(k, 0)] = m_span.noteReserves[k];
@@ -2988,7 +2989,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         Cut cut;
         for (int k = 0; k < ids.size(); ++k) {
             const Note &n = m_notes[ids[k]];
-            if (n.height + noteGap <= room + 0.01) {
+            // (The space after the last note of a column is not counted where it does not fit: it hangs below the foot.)
+            const double hang = env.wordLines && env.wordWholePointLines && k + 1 == ids.size() && n.layout ? n.layout->trailingSpace() : 0.0;
+            if (n.height - hang + noteGap <= room + 0.01) {
                 room -= n.height + noteGap;
                 cut.used += n.height + noteGap;
                 continue;
@@ -3011,6 +3014,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         const QRectF col = colRect(f, c);
         double used = continuedGap;
         gapOf[rkey(f, c)] = continuedGap;
+        lastTrail.remove(rkey(f, c));
         while (!carry.isEmpty()) {
             Note &n = m_notes[carry.first()];
             measureNote(n, col.width(), n.frame != -2 && !n.layout);   // (the rest of a note that began on the page before need not be measured whole)
@@ -4398,7 +4402,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         for (int ni : lineNotes) notesH += measureNote(m_notes[ni], col.width()) + noteGap;
                         pending += notesH;
                     }
-                    double bottom = col.bottom() - reserve.value(rkey(f, c)) - pending;
+                    // (The space after the last note of the column hangs below its foot where there is no room for it: a note that is whole is as tall as its text.)
+                    double hang = 0;
+                    if (env.wordLines && env.wordWholePointLines) {
+                        if (!lineNotes.isEmpty())
+                            if (const Note &lastNote = m_notes[lineNotes.last()]; lastNote.layout) hang = lastNote.layout->trailingSpace();
+                    }
+                    double bottom = col.bottom() - reserve.value(rkey(f, c)) - pending + hang;
                     bool cutting = false;
                     if (col.top() + y + fitH > bottom + fitTol) {
                         if (!lineNotes.isEmpty() && (env.wordLines || fitH + ruleGap + notesH > col.height() + fitTol)) {
@@ -4515,6 +4525,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                                 if (cut.rest >= 0) carry << lineNotes[k];
                             }
                             room += n.height + noteGap;
+                            if (env.wordLines && env.wordWholePointLines) {
+                                if (k + 1 == lineNotes.size() && n.layout && !(k == cut.at && cut.rest >= 0)) lastTrail[rkey(f, c)] = n.layout->trailingSpace();
+                                else lastTrail.remove(rkey(f, c));
+                            }
                         }
                     }
                     m_used[f] = std::max(m_used[f], col.top() + y + textH);
@@ -4963,7 +4977,16 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         const int fi = it.key() / 64, ci = it.key() % 64;
         if (fi < 0 || fi >= nF) continue;
         const QRectF col = colRect(fi, ci);
-        const double areaTop = col.bottom() - it.value();
+        double areaTop = col.bottom() - it.value();
+        // (Where the text of the column goes over the room the notes were counted to take, by what the space after the last note could hang below the foot, the notes go down by that
+        // much, and the space hangs below the column.)
+        if (lastTrail.value(it.key()) > 0) {
+            double bodyEnd = areaTop;
+            for (const auto &B : m_blocks)
+                for (const Line &l : B->lines)
+                    if (l.frame == fi && l.column == ci) bodyEnd = std::max(bodyEnd, l.rect.bottom() - l.below);
+            areaTop = std::min(bodyEnd, areaTop + lastTrail.value(it.key()));
+        }
         const double gap = gapOf.value(it.key(), ruleGap);
         double ny = areaTop + gap - noticeGap;
         bool goesOn = false, first = true;

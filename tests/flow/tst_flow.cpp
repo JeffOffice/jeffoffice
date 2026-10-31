@@ -10553,6 +10553,65 @@ private Q_SLOTS:
         }
     }
 
+    // A line that cites a note whole at the foot of a page, in a file that asks for the older word processor's spacing (w:suppressTopSpacingWP, LayoutEnv::wordWholePointLines), is on
+    // the page when the note's text fits, though the space after the note's last paragraph does not: that space hangs below the foot. (The least room for the line and its note is the
+    // same with and without that space; a note before it that is not the last has its space. A file that does not ask has the space counted.)
+    void theSpaceAfterTheLastNoteOnAPageMayHangBelowTheFoot()
+    {
+        // The least height of a frame that has the paragraph's last line on it, when the line cites a note of one line with `after` points after it (and, with `before`, an earlier
+        // line cites a note of the same kind).
+        auto leastHeight = [&](double after, bool before, bool older = true) {
+            TestNotes notes;
+            auto note = std::make_unique<QTextDocument>();
+            {
+                QTextCursor nc(note.get());
+                QTextBlockFormat nf;
+                nf.setBottomMargin(after);
+                nc.setBlockFormat(nf);
+                QTextCharFormat cf;
+                cf.setFontFamilies({QStringLiteral("Times New Roman")});
+                cf.setFontPointSize(10);
+                nc.insertText(QStringLiteral("one"), cf);
+            }
+            notes.docs[QStringLiteral("n1")] = std::move(note);
+            auto onFirst = [&](double height) {
+                QTextDocument doc;
+                QTextCursor c(&doc);
+                QTextCharFormat run;
+                run.setFontFamilies({QStringLiteral("Times New Roman")});
+                run.setFontPointSize(12);
+                QTextCharFormat ref = run;
+                ref.setProperty(tp::Field, QStringLiteral("footnote:n1"));
+                QTextBlockFormat bf;
+                c.setBlockFormat(bf);
+                c.insertText(QStringLiteral("one"), run);
+                if (before) c.insertText(QString(QChar::ObjectReplacementCharacter), ref);
+                c.insertText(QString(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three"), run);
+                c.insertText(QString(QChar::ObjectReplacementCharacter), ref);
+                LayoutEnv env;
+                env.wordLines = true;
+                env.wordWholePointLines = older;
+                FrameSpec fs = plainFrame(300, height);
+                fs.ctx.doc = &notes;
+                FrameSpec rest = plainFrame(300, 300);
+                rest.ctx.doc = &notes;
+                StoryLayout lay;
+                lay.build(&doc, {fs, rest}, env);
+                const auto lines = lay.lineBriefs();
+                return !lines.isEmpty() && lines.last().frame == 0;
+            };
+            double low = 20, high = 400;
+            for (int i = 0; i < 40; ++i) {
+                const double mid = (low + high) / 2;
+                (onFirst(mid) ? high : low) = mid;
+            }
+            return high;
+        };
+        QVERIFY2(std::abs(leastHeight(10, false) - leastHeight(0, false)) < 0.5, qPrintable(QStringLiteral("%1 with space after the note, %2 without").arg(leastHeight(10, false)).arg(leastHeight(0, false))));
+        QVERIFY2(leastHeight(10, false, false) - leastHeight(0, false, false) > 9.5, qPrintable(QStringLiteral("%1 with space after the note, %2 without").arg(leastHeight(10, false, false)).arg(leastHeight(0, false, false))));
+        QVERIFY2(leastHeight(10, true) - leastHeight(0, true) > 9.5, qPrintable(QStringLiteral("%1 with space after the notes, %2 without").arg(leastHeight(10, true)).arg(leastHeight(0, true))));
+    }
+
     // The part of a note that goes on from the page before is set under the file's own separator for it, when the file has one: the room above it is that paragraph's height (and the
     // rule is drawn in it), not the separator's of the first part.
     void theContinuedPartOfANoteHasTheRoomOfTheFilesOwnSeparatorForIt()

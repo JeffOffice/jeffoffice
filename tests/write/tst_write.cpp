@@ -235,7 +235,7 @@ QStringList boxLines(WriteDoc &doc, int pageNumber = 0, int box = 0)
     StoryLayout layout;
     layout.build(page->doc->story(item->storyId)->doc.get(), {fs}, doc.flow().env);
     QStringList lines;
-    for (const auto &l : layout.lineInfo(0)) lines << l.text.trimmed();
+    for (const auto &l : layout.lineInfo(0)) lines << QString(l.text).remove(QChar(0x2060)).trimmed();   // (the mark that joins is not shown)
     return lines;
 }
 
