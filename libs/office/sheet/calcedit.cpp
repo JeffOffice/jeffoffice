@@ -938,7 +938,6 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             if (undoOf || redoing) qWarning("Calculation::applyEdit: the order of the rows or columns does not take %s (status %d)", undoOf ? "Undo" : "Redo", int(made));
             // (a record that was to be done again and is not is let go of: the ids and the dead cells it held are not held for nothing)
             if (redoing) S.cells.forgetLines(rows, &again);
-            Q_ASSERT_X(!(undoOf || redoing), "Calculation::applyEdit", "the order of the rows or columns does not take Undo or Redo");
             return false;
         }
         for (const Cell &c : dead) removed.push_back(PlacedCell{0, 0, c});
