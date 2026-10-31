@@ -4905,10 +4905,10 @@ Articolo dell&apos;ultima pagina	4</translation>
         <location line="+11"/>
         <location line="+200"/>
         <location line="+271"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+688"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+697"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+246"/>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="+170"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+216"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="+404"/>
         <location line="+89"/>
         <source>The workbook is busy. Try again in a moment.</source>
@@ -5553,7 +5553,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">L&apos;operazione sposterebbe o modificherebbe una tabella pivot, cosa che JeffCrunch non è ancora in grado di fare. Modificare celle che non ne fanno parte.</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+33"/>
         <source>This can&apos;t be undone, and neither can what you did before it. Do you want to go on?</source>
         <translation type="unfinished">Questa operazione non può essere annullata, così come quelle eseguite in precedenza. Continuare?</translation>
     </message>
@@ -16596,18 +16596,18 @@ Origine: %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+227"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+228"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="-93"/>
+        <location line="-94"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+94"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">La nuova cartella di lavoro è in preparazione. Sarà possibile modificarla tra un istante.</translation>
     </message>
     <message>
-        <location line="+132"/>
+        <location line="+133"/>
         <source>Name box</source>
         <translation type="unfinished">Casella Nome</translation>
     </message>
@@ -16647,14 +16647,14 @@ Origine: %3</translation>
         <translation type="unfinished">La cella in cui si sta digitando. Invio e Tab completano l&apos;immissione; Esc la annulla.</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+109"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+97"/>
         <location line="+103"/>
         <location line="+5"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+82"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+85"/>
-        <location line="+103"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+87"/>
+        <location line="+105"/>
         <location line="+22"/>
         <location line="+113"/>
         <location line="+14"/>
@@ -16688,8 +16688,8 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-275"/>
-        <location line="+89"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-277"/>
+        <location line="+91"/>
         <location line="+21"/>
         <location line="+3"/>
         <location filename="../apps/crunch/app/crunchwindow_text.cpp" line="+22"/>
@@ -19075,7 +19075,7 @@ Origine: %3</translation>
         <translation type="unfinished">Cartel%1</translation>
     </message>
     <message>
-        <location line="+101"/>
+        <location line="+133"/>
         <source>Calculation stopped</source>
         <translation type="unfinished">Calcolo interrotto</translation>
     </message>
@@ -19123,7 +19123,7 @@ Origine: %3</translation>
         <translation type="unfinished">Annullato: %1</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-109"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-111"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 The file isn&apos;t there.</source>
         <translation type="unfinished">%1 non può aprire &quot;%2&quot;.
@@ -19135,7 +19135,7 @@ Il file non esiste.</translation>
         <translation type="unfinished">Apertura di %1…</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+22"/>
         <source>Loading the rest of %1…</source>
         <translation type="unfinished">Caricamento della parte restante di %1…</translation>
     </message>
@@ -19891,7 +19891,7 @@ Il file esistente non è stato modificato.</translation>
     </message>
     <message>
         <location line="+38"/>
-        <location line="+98"/>
+        <location line="+100"/>
         <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="-131"/>
         <source>Column %1</source>
         <translation type="unfinished">Colonna %1</translation>
@@ -21033,7 +21033,7 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Presentazione1</translation>
     </message>
     <message>
-        <location line="+129"/>
+        <location line="+131"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -25607,12 +25607,12 @@ Impossibile leggere il file.</translation>
     <name>jp::FormatPane</name>
     <message>
         <location filename="../libs/page/app/formatpane.cpp" line="+76"/>
-        <location line="+121"/>
+        <location line="+125"/>
         <source>Format Shape</source>
         <translation type="unfinished">Formato forma</translation>
     </message>
     <message>
-        <location line="-120"/>
+        <location line="-124"/>
         <source>Format pane</source>
         <translation type="unfinished">Riquadro Formato</translation>
     </message>
@@ -25638,7 +25638,7 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Immagine</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+47"/>
         <source>All Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf)</source>
         <translation type="unfinished">Tutte le immagini (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf)</translation>
     </message>
@@ -36858,7 +36858,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::office::sheet::Calculation</name>
     <message>
-        <location filename="../libs/office/sheet/calcedit.cpp" line="+88"/>
+        <location filename="../libs/office/sheet/calcedit.cpp" line="+89"/>
         <location filename="../libs/office/sheet/calcmove.cpp" line="+30"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Il foglio non esiste.</translation>
@@ -37361,13 +37361,14 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+37"/>
         <location line="+267"/>
         <location line="+32"/>
-        <location filename="../libs/office/sheet/structsave.cpp" line="+741"/>
+        <location filename="../libs/office/sheet/structsave.cpp" line="+757"/>
+        <location line="+495"/>
         <source>The sheet&apos;s part is damaged.</source>
         <translation type="unfinished">La parte del foglio è danneggiata.</translation>
     </message>
     <message>
         <location line="-410"/>
-        <location filename="../libs/office/sheet/structsave.cpp" line="+9"/>
+        <location filename="../libs/office/sheet/structsave.cpp" line="-486"/>
         <source>The sheet&apos;s file has no place for cells in it, so it can&apos;t be saved.</source>
         <translation type="unfinished">Il file del foglio non ha spazio per le celle, quindi non può essere salvato.</translation>
     </message>
@@ -37377,11 +37378,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+31"/>
         <location filename="../libs/office/sheet/structsave.cpp" line="+76"/>
         <location line="+47"/>
-        <location line="+221"/>
+        <location line="+261"/>
+        <location line="+97"/>
         <location filename="../libs/office/sheet/xlsxbase.cpp" line="+682"/>
         <location line="+9"/>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+1498"/>
-        <location line="+733"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+1503"/>
+        <location line="+750"/>
         <location line="+49"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Il salvataggio è stato interrotto.</translation>
@@ -37392,7 +37394,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+3"/>
         <location line="+37"/>
         <location line="+55"/>
-        <location filename="../libs/office/sheet/structsave.cpp" line="-254"/>
+        <location filename="../libs/office/sheet/structsave.cpp" line="-391"/>
         <location line="+35"/>
         <location line="+23"/>
         <location line="+2"/>
@@ -37410,12 +37412,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+377"/>
-        <location filename="../libs/office/sheet/structsave.cpp" line="+392"/>
+        <location filename="../libs/office/sheet/structsave.cpp" line="+458"/>
         <source>The sheet could not be saved.</source>
         <translation type="unfinished">Impossibile salvare il foglio.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-2179"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-2201"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">La parte delle stringhe condivise non è nel formato modificabile da questo programma.</translation>
@@ -37428,24 +37430,24 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+242"/>
         <location line="+120"/>
-        <location line="+1509"/>
+        <location line="+1531"/>
         <location line="+5"/>
         <source>The workbook part is not in the form this program changes.</source>
         <translation type="unfinished">La parte della cartella di lavoro non è nel formato modificabile da questo programma.</translation>
     </message>
     <message>
-        <location line="-1073"/>
+        <location line="-1095"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">La cartella di lavoro non è stata aperta da un file che questo programma può sovrascrivere.</translation>
     </message>
     <message>
         <location line="+312"/>
-        <location line="+822"/>
+        <location line="+844"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Il file da cui è stata aperta questa cartella di lavoro è danneggiato.</translation>
     </message>
     <message>
-        <location line="-1124"/>
+        <location line="-1146"/>
         <location line="+147"/>
         <location line="+134"/>
         <location line="+41"/>
@@ -37458,7 +37460,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Un foglio modificato non ha una parte corrispondente nel file.</translation>
     </message>
     <message>
-        <location line="+541"/>
+        <location line="+563"/>
         <source>The shared strings part is not in the file.</source>
         <translation type="unfinished">La parte delle stringhe condivise non è presente nel file.</translation>
     </message>
@@ -37473,13 +37475,15 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Una tabella modificata non ha una parte corrispondente nel file.</translation>
     </message>
     <message>
-        <location line="-527"/>
-        <location line="+758"/>
+        <location line="-544"/>
+        <location line="+6"/>
+        <location line="+7"/>
+        <location line="+762"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Impossibile leggere un foglio del file per salvarlo.</translation>
     </message>
     <message>
-        <location line="-1112"/>
+        <location line="-1134"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Sono stati inseriti oggetti in un foglio in cui questo programma non può inserirli.</translation>
     </message>
@@ -37499,7 +37503,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">È stata creata una tabella che questo programma non può inserire nel file.</translation>
     </message>
     <message>
-        <location line="+248"/>
+        <location line="+62"/>
+        <source>The rows and columns of a sheet were changed too often to be saved.</source>
+        <translation type="unfinished">Le righe e le colonne di un foglio sono state modificate troppe volte per poter essere salvate.</translation>
+    </message>
+    <message>
+        <location line="+208"/>
         <location line="+102"/>
         <location line="+79"/>
         <location line="+71"/>
