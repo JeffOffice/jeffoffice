@@ -2839,6 +2839,8 @@ private Q_SLOTS:
         const QTextCharFormat drawn = resolveCharFormat(cf, word);
         QCOMPARE(drawn.fontFamilies().toStringList().value(0), QStringLiteral("TeX Gyre Cursor"));
         QCOMPARE(drawn.foreground().color(), QColor(10, 20, 30));   // (opaque: printed, it is as black as the text says)
+        QCOMPARE(drawn.intProperty(tp::HandBold), 3);   // (and drawn with a light stroke in pictures: the reference letters are a little darker than the face is)
+        QVERIFY(!resolveCharFormat(cf, LayoutEnv()).hasProperty(tp::HandBold));
         QCOMPARE(resolveCharFormat(cf, LayoutEnv()).fontFamilies().toStringList().value(0), QStringLiteral("Courier New"));
         // (The line is Courier New's, not the face it is drawn in: 1.1328 em.)
         const auto lines = wordLinesOf({{QStringLiteral("Courier New"), 20}});
@@ -3142,8 +3144,8 @@ private Q_SLOTS:
         QVERIFY2(std::abs(lines.value(0).rect.height() - 3426 / 2048.0 * 11) < 0.01, qPrintable(QString::number(lines.value(0).rect.height())));
     }
 
-    // Text is never drawn partly transparent, nor with a stroke by hand, to make a stand-in as light or as heavy as the face it stands for: it is printed and exported as the
-    // text's color says (black is black), and a page paints and exports as light as a plain run of text.
+    // Text is never drawn partly transparent, nor with a stroke by hand in print or in a PDF, to make a stand-in as light or as heavy as the face it stands for: it is printed and
+    // exported as the text's color says (black is black). The one stroke there is is the thin stand-in for Courier New's, a light one in pictures only (kind 3 of tp::HandBold).
     void aStandInIsDrawnInTheTextsOwnColorAndWithNoStroke()
     {
         LayoutEnv word;
@@ -3158,7 +3160,8 @@ private Q_SLOTS:
                 cf.setFontWeight(weight);
                 const QTextCharFormat drawn = resolveCharFormat(cf, word);
                 QVERIFY2(drawn.foreground().color() == QColor(200, 0, 0), qPrintable(family + QStringLiteral(": ") + drawn.foreground().color().name(QColor::HexArgb)));
-                QVERIFY2(!drawn.hasProperty(tp::HandBold), qPrintable(family + QStringLiteral(" has a stroke by hand")));
+                const bool lightStroke = family == QLatin1String("Courier New") && drawn.intProperty(tp::HandBold) == 3;
+                QVERIFY2(!drawn.hasProperty(tp::HandBold) || lightStroke, qPrintable(family + QStringLiteral(" has a stroke by hand")));
             }
         }
     }

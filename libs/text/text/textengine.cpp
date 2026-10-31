@@ -680,8 +680,9 @@ QPair<int, int> underlineSpan(const QList<QTextLayout::FormatRange> &fmts, int n
 // 30 pixels to the em (10 point text at 96 dpi grows 1 pixel, not 0.2).
 double handBoldWidth(int kind, double em, TextOutput out, double pxPerPt)
 {
-    constexpr double kOutlinesFrom = 216, kScreen = 0.017, kPdf = 1.0 / 35, kPaper = 0.01;
+    constexpr double kOutlinesFrom = 216, kScreen = 0.017, kPdf = 1.0 / 35, kPaper = 0.01, kThin = 0.012;   // (kThin: the stroke that the thin Courier stand-in has in pictures, kind 3)
     const bool outlines = em >= kOutlinesFrom;
+    if (kind == 3) return out == TextOutput::Picture ? em * kThin : 0.0;
     if (!outlines && out == TextOutput::Pdf) return em * kPdf;
     if (!outlines && out == TextOutput::Print) return em * kPaper;
     if (kind != 1) return 0;
@@ -1221,6 +1222,7 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
             // list marker's, or the next paragraph's.)
             fams.insert(0, kThinCourier);
             r.setFontFamilies(fams);
+            r.setProperty(tp::HandBold, 3);   // (drawn with a light stroke in pictures, as the reference letters are a little darker than the face is)
         } else if (const WordStandIn standIn = wordStandInOf(lower); !standIn.family.isEmpty() && !hasFamilyCached(fams.first()) && hasFamilyCached(standIn.family)) {
             fams.insert(0, standIn.family);
             r.setFontFamilies(fams);
