@@ -476,9 +476,12 @@ void CrunchWindow::updateBars()
     constexpr int kShown = 2000;
     m_formulaFull = m_view->activeCellText();
     if (m_session && m_loaded) m_formulaFull = m_session->barText(m_sheet, quint32(std::max<qint64>(0, m_view->selection().activeRow)), quint32(std::max<qint64>(0, m_view->selection().activeCol)), m_formulaFull);
-    if (m_formulaFull.size() <= kShown || m_formulaBar->hasFocus()) m_formulaBar->setText(m_formulaFull);
-    else m_formulaBar->setText(m_formulaFull.left(kShown) + QChar(0x2026));
-    m_formulaBar->setCursorPosition(0);
+    const QString barText = m_formulaFull.size() <= kShown || m_formulaBar->hasFocus() ? m_formulaFull : m_formulaFull.left(kShown) + QChar(0x2026);
+    // (the same text with the cursor at its start and nothing selected, as an edit that moved the cell leaves it: the bar is not drawn again for it)
+    if (m_formulaBar->text() != barText || m_formulaBar->cursorPosition() != 0 || m_formulaBar->hasSelectedText()) {
+        m_formulaBar->setText(barText);
+        m_formulaBar->setCursorPosition(0);
+    }
     updateFormatState(false);
 }
 

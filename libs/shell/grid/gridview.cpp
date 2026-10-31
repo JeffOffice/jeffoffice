@@ -745,11 +745,12 @@ bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
         if (rows && from < vp.height()) dirty = QRect(0, from, vp.width(), vp.height() - from);
         else if (!rows && from < vp.width()) dirty = QRect(from, 0, vp.width() - from, vp.height());
     }
+    const int digits = m_headerDigits;
     updateHeaderWidth();
+    if (digits != m_headerDigits) dirty = QRect(QPoint(0, 0), vp);   // (the numbers of the rows are wider or narrower: everything moves)
     L.setViewport(vp);
     updateScrollBars();
     if (m_overlay) m_overlay->layoutChanged();
-
     if (!dirty.isEmpty()) viewport()->update(dirty);
     Q_EMIT viewChanged();
     if (!(m_selection == was)) Q_EMIT selectionChanged();

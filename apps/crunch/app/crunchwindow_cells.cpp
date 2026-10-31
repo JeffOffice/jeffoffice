@@ -222,7 +222,8 @@ void CrunchWindow::onCellsMoved(const StructEdit &edit)
     if (m_sheet == edit.sheet && (edit.changesRows() || edit.changesColumns()) && m_haveCalc && m_view->followEdit(edit)) {
         // (whole rows or columns: the grid moved its sizes, selection, and scroll in place; what else a sheet shown has to show is made again)
         ++m_inPlaceUpdates;
-        afterSheetShown(m_sheet, true);
+        afterSheetShown(m_sheet, true);   // (which ends with the bars)
+        return;
     } else if (m_sheet == edit.sheet || (edit.kind == StructEdit::Kind::Move && m_sheet == edit.toSheet)) {
         showSheet(m_sheet, true);
     }
