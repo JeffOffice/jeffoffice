@@ -14,6 +14,8 @@
 #include <QFile>
 #include <QMap>
 #include <QRandomGenerator>
+#include <QRegularExpression>
+#include <QSet>
 
 #include <memory>
 #include <numeric>
@@ -58,27 +60,62 @@ QByteArray sheetXml(const QStringList &specs)
 }
 
 
-// What the formulas of the book in places gave, once, for each place a test compared the book in ids with it (the places are gone; tests/sheet/structure_places_golden.txt holds what they gave): the
-// state of the book after each step, or a text, keyed by the test and by how many times it has looked. JC_RECORD_GOLDEN=<file> appends what the book in ids gives to a file instead of comparing.
+// A generator of our own for the tests whose edit script a golden entry depends on (QRandomGenerator may change with Qt): splitmix64, the same on every platform.
+struct SplitMix {
+    quint64 state;
+    explicit SplitMix(quint64 seed) : state(seed) {}
+    quint64 next()
+    {
+        quint64 z = (state += 0x9E3779B97F4A7C15ull);
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+        return z ^ (z >> 31);
+    }
+    quint32 bounded(quint32 n) { return quint32(next() >> 33) % n; }   // (n is small: the bias of the modulo is of no matter here)
+};
+
+// The numbers of a book's text at twelve significant digits, whatever the platform's last digits are: "n:0.300000000000000" and "n:0.3" are the same value.
+QString roundNumbers(const QString &text)
+{
+    static const QRegularExpression number(QStringLiteral("(?<=n:)-?[0-9]+(?:\\.[0-9]+)?(?:e[-+]?[0-9]+)?"));
+    QString out;
+    qsizetype at = 0;
+    for (auto it = number.globalMatch(text); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        out += text.mid(at, m.capturedStart() - at) + QString::number(m.captured().toDouble(), 'g', 12);
+        at = m.capturedEnd();
+    }
+    return out + text.mid(at);
+}
+QStringList roundNumbers(const QStringList &lines)
+{
+    QStringList out;
+    for (const QString &x : lines) out << roundNumbers(x);
+    return out;
+}
+
+// What the formulas of the book in places gave, once, for each place a test compared the book in ids with it (the places are gone; tests/sheet/structure_places_golden.txt, a resource of the
+// binary, holds what they gave): the state of the book after each step, or a text, keyed by the test (and its data tag) and by how many times it has looked, of each kind. A test that does not
+// look as many times as the file has entries fails (cleanup()). JC_RECORD_GOLDEN=<file> writes what the book gives to a new file instead, and fails the test: it never makes the suite pass.
 struct PlacesGolden {
-    QString test;
+    QString base;
     QMap<char, int> counts;
     QMap<QString, QStringList> entries;
-    bool loaded = false;
-    QString key(char kind)
+    QSet<QString> used;
+    bool loaded = false, recordedNow = false, started = false;
+    void begin()
     {
-        const QString now = QString::fromLatin1(QTest::currentTestFunction());
-        if (now != test) {
-            test = now;
-            counts.clear();
-        }
-        return QStringLiteral("%1%2%3").arg(now).arg(QLatin1Char(kind)).arg(++counts[kind]);
+        const char *tag = QTest::currentDataTag();
+        base = QString::fromLatin1(QTest::currentTestFunction()) + (tag && *tag ? QLatin1Char('/') + QString::fromLatin1(tag) : QString());
+        counts.clear();
+        recordedNow = false;
     }
+    QString key(char kind) { return QStringLiteral("%1/%2%3").arg(base).arg(QLatin1Char(kind)).arg(++counts[kind]); }
     void load()
     {
         if (loaded) return;
         loaded = true;
-        QFile f(QStringLiteral(JC_SOURCE_DIR "/tests/sheet/structure_places_golden.txt"));
+        QFile f(QStringLiteral(":/sheettests/structure_places_golden.txt"));
         if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return;
         QString at;
         for (const QString &line : QString::fromUtf8(f.readAll()).split(QLatin1Char('\n'))) {
@@ -90,32 +127,51 @@ struct PlacesGolden {
             }
         }
     }
-    // Compares `actual` with the golden entry for the next look of this kind (or records it).
-    bool check(char kind, const QStringList &actual, QString *why)
+    // Compares `actual` (its numbers rounded) with the golden entry for the next look of this kind.
+    bool check(char kind, const QStringList &raw, QString *why)
     {
+        const QStringList actual = kind == 'd' ? raw : roundNumbers(raw);
         const QString k = key(kind);
         const QByteArray path = qgetenv("JC_RECORD_GOLDEN");
         if (!path.isEmpty()) {
             QFile f(QString::fromLocal8Bit(path));
-            if (f.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+            if (f.open(QIODevice::WriteOnly | QIODevice::Text | (started ? QIODevice::Append : QIODevice::Truncate))) {
+                started = true;
                 f.write(("### " + k + "\n").toUtf8());
                 for (const QString &line : actual) f.write((line + QLatin1Char('\n')).toUtf8());
             }
+            recordedNow = true;
             return true;
         }
         load();
+        used.insert(k);
         if (!entries.contains(k)) {
             *why = QStringLiteral("the golden file has no entry %1").arg(k);
             return false;
         }
-        if (entries[k] != actual) {
-            QStringList extra, missing;
-            for (const QString &x : actual) if (!entries[k].contains(x)) extra << x;
-            for (const QString &x : entries[k]) if (!actual.contains(x)) missing << x;
-            *why = QStringLiteral("%1 differs from what the formulas in places gave. Now and not then: %2. Then and not now: %3").arg(k, extra.mid(0, 12).join(QStringLiteral(" | ")), missing.mid(0, 12).join(QStringLiteral(" | ")));
+        QStringList want = entries[k];
+        if (kind != 'd') want = roundNumbers(want);
+        if (want == actual) return true;
+        int i = 0;
+        while (i < want.size() && i < actual.size() && want[i] == actual[i]) ++i;
+        *why = QStringLiteral("%1 differs from what the formulas in places gave, first at line %2.\nNow:  %3\nThen: %4").arg(k).arg(i + 1).arg(i < actual.size() ? actual[i] : QStringLiteral("(no line)"), i < want.size() ? want[i] : QStringLiteral("(no line)"));
+        return false;
+    }
+    // After a test: the entries of the test were all looked at, and nothing was recorded.
+    bool finish(QString *why)
+    {
+        if (recordedNow) {
+            *why = QStringLiteral("recorded, run again without JC_RECORD_GOLDEN");
             return false;
         }
-        return true;
+        if (QTest::currentTestFailed() || !qgetenv("JC_RECORD_GOLDEN").isEmpty()) return true;
+        load();
+        QStringList unused;
+        for (auto it = entries.constBegin(); it != entries.constEnd(); ++it)
+            if (it.key().startsWith(base + QLatin1Char('/')) && !used.contains(it.key())) unused << it.key();
+        if (unused.isEmpty()) return true;
+        *why = QStringLiteral("%1 golden entries were not looked at, the first %2").arg(unused.size()).arg(unused.first());
+        return false;
     }
 };
 PlacesGolden g_golden;
@@ -2537,17 +2593,29 @@ class SheetIdFrameTests : public QObject {
         QString why;
         QVERIFY2(g_golden.check('l', actual, &why), qPrintable(why));
     }
-    // The state of the book (and what else is given) has the digest the formulas in places gave at this look: a step of a long run, where the whole state is too much to keep.
+    // The state of the book (and what else is given) has the digest the formulas in places gave at this look (the numbers at twelve digits): a step of a long run, where the whole state is too
+    // much to keep.
     static void sameDigest(const QStringList &actual)
     {
         QString why;
-        const QString digest = QString::fromLatin1(QCryptographicHash::hash(actual.join(QLatin1Char('\n')).toUtf8(), QCryptographicHash::Md5).toHex());
-        if (!qgetenv("JC_RECORD_GOLDEN").isEmpty()) {
-            g_golden.check('d', {digest}, &why);
-            return;
-        }
-        QString full;
-        QVERIFY2(g_golden.check('d', {digest}, &why), qPrintable(why + QStringLiteral("\n") + actual.join(QLatin1Char('\n'))));
+        const QString digest = QString::fromLatin1(QCryptographicHash::hash(roundNumbers(actual).join(QLatin1Char('\n')).toUtf8(), QCryptographicHash::Md5).toHex());
+        QVERIFY2(g_golden.check('d', {digest}, &why), qPrintable(why + QStringLiteral("\nthe state:\n") + roundNumbers(actual).mid(0, 40).join(QLatin1Char('\n'))));
+    }
+    // What the book shows is what a whole new calculation of its cells shows (a stale value would not be seen by a golden entry made from the same stale book).
+    static bool freshAsAWholeCalculation(Book &b, QString *why)
+    {
+        const QStringList now = roundNumbers(state(b) + valuesOf(b));
+        b.calc->invalidateAll();
+        b.finish();
+        const QStringList again = roundNumbers(state(b) + valuesOf(b));
+        if (now == again) return true;
+        for (int i = 0; i < std::min(now.size(), again.size()); ++i)
+            if (now[i] != again[i]) {
+                *why = QStringLiteral("stale: %1 against %2 in a whole new calculation").arg(now[i], again[i]);
+                return false;
+            }
+        *why = QStringLiteral("%1 lines against %2").arg(now.size()).arg(again.size());
+        return false;
     }
     // A text (a formula, a value) is what the formulas in places gave at this look.
     static void sameText(const QString &actual)
@@ -2561,6 +2629,13 @@ class SheetIdFrameTests : public QObject {
     }
 
 private Q_SLOTS:
+    void init() { g_golden.begin(); }
+    void cleanup()
+    {
+        QString why;
+        QVERIFY2(g_golden.finish(&why), qPrintable(why));
+    }
+
     // The parser reads rows to 2^24 and columns to CRXP when it is told to, and takes only the grid's otherwise (a word that is not a cell there is a name).
     void wideLimitsReadReferencesPastTheGrid()
     {
@@ -3583,6 +3658,7 @@ private Q_SLOTS:
                         }
                     }
                     sameDigest(state(on) + on.tablePlaces());
+                    { QString stale; QVERIFY2(freshAsAWholeCalculation(on, &stale), qPrintable(what + QLatin1Char(' ') + stale)); }
                 }
                 // and worked out from nothing, the same
                 for (Book *b : {&on}) {
@@ -3731,6 +3807,7 @@ private Q_SLOTS:
                     if (kind >= 6 && kind != 9 && kind != 10) { done[m].clear(); undone[m].clear(); }
                 }
                 sameDigest(state(on));
+                { QString stale; QVERIFY2(freshAsAWholeCalculation(on, &stale), qPrintable(QStringLiteral("seed %1 step %2 ").arg(seed).arg(step) + stale)); }
             }
         }
     }

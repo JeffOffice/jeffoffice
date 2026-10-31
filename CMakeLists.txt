@@ -281,9 +281,9 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_odsreview.cpp
   tests/sheet/tst_sheet_csvreview.cpp
   tests/sheet/tst_sheet_textmatch.cpp
-  tests/sheet/tst_sheet_filter.cpp)
+  tests/sheet/tst_sheet_filter.cpp
+  tests/sheet/sheettests.qrc)
 target_link_libraries(sheettests PRIVATE jo_shell Qt6::Test)
-target_compile_definitions(sheettests PRIVATE JC_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME sheettests COMMAND sheettests)
 set_tests_properties(sheettests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
