@@ -115,6 +115,9 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
     }
     const quint32 count = shiftBy(e);
     if (count == 0) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "There is nothing to insert or delete.")));
+    // more rows or columns than a sheet has: no edit is that big (and the arithmetic below, and the order's ids, are for counts that fit)
+    if ((e.kind == K::InsertRows || e.kind == K::DeleteRows) && count > kGridRows) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "That is more rows or columns than a sheet has.")));
+    if ((e.kind == K::InsertColumns || e.kind == K::DeleteColumns) && count > kGridCols) return refuse(say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "That is more rows or columns than a sheet has.")));
     const CellArea region = affectedArea(e);
     // the cells of an array formula or a data table are not cut through, nor are they deleted
     for (const CellRange &r : s.ranges) {

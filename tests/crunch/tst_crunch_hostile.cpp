@@ -140,6 +140,52 @@ private Q_SLOTS:
         }
     }
 
+    // A refusal never costs the person their Undo: the checks that can refuse an edit come before the order is put back to one run (which lets go of the steps of the sheet's rows or columns).
+    // A count past the sheet's size is refused; so is an edit of a protected sheet, with a rebase due.
+    void aRefusedEditKeepsTheUndoStepsEvenWhenARebaseIsDue()
+    {
+        for (const bool huge : {true, false}) {
+            EditWindow e;
+            QVERIFY(e.open(tallBook(20)));
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            const QStringList original = cellsOf(s->calculation());
+            QVERIFY(s->insertRows(0, 3, 2).ok);
+            QVERIFY(s->insertRows(0, 5, 1).ok);
+            QVERIFY(e.settle());
+            if (!huge) {
+                jp::calc::LineLimits tight = jp::calc::LineLimits::rows();
+                tight.rebaseRuns = 1;   // (a rebase is due at once: the dead records the inserts left are over it)
+                s->setLineLimitsForTest(0, tight, jp::calc::LineLimits::cols());
+                jp::office::sheet::SheetProtection p;
+                p.enabled = true;
+                QVERIFY(s->setSheetProtection(0, p, QStringLiteral("Protect Sheet")).ok);
+                QVERIFY(e.settle());
+            }
+            const QStringList before = cellsOf(s->calculation());
+            QUndoStack *u = e.win.w.undoStack();
+            const int steps = u->count();
+            const crunch::EditSession::Outcome o = huge ? s->insertRows(0, 10, 10000000) : s->insertRows(0, 10, 1);
+            QVERIFY2(!o.ok, huge ? "ten million rows were put in" : "a protected sheet took a row");
+            QVERIFY(!o.problem.isEmpty());
+            QCOMPARE(cellsOf(s->calculation()), before);
+            QCOMPARE(u->count(), steps);
+            QVERIFY(e.settle());
+            // the steps before the refusal can still be undone, all the way
+            if (!huge) {
+                u->undo();   // the protection
+                QVERIFY(e.settle());
+            }
+            QVERIFY(u->canUndo());
+            u->undo();
+            QVERIFY(e.settle());
+            u->undo();
+            QVERIFY(e.settle());
+            QVERIFY(!u->canUndo());
+            QCOMPARE(cellsOf(s->calculation()), original);
+        }
+    }
+
     // Column ids run short at the real caps (49,152 spare ids, rebased at four fifths of them): a hundred columns put in and taken out again, over and over, takes 200 ids each time, so the sheet is put back
     // to one run three times in 600 pairs. No edit is refused, every edit lands where it should, what came before the rebase can no longer be undone (and says so by not being offered), and what came
     // after can.

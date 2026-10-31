@@ -199,12 +199,13 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
 {
     Outcome out;
     QString why;
-    compactLinesFor(edit);
+    // (every check that can refuse the edit comes first: putting the order back to one run lets go of the Undo steps of the sheet's rows or columns, which a refusal must not cost)
     if (!canMove(edit, &why)) {
         out.ok = false;
         out.problem = why;
         return out;
     }
+    compactLinesFor(edit);
     // (an order that has as many runs or ids as it may, and could not be put back to one run: the edit is refused in words, with nothing done)
     {
         std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
