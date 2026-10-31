@@ -652,7 +652,7 @@ Reach followLines(Reach in, bool insert, qint64 at, qint64 count, qint64 limit, 
     auto clip = [&](qint64 p) { return std::max<qint64>(0, std::min(p, limit - 1)); };
     if (insert) {
         const bool straddles = in.first < at && in.last >= at;
-        const bool after = in.first >= at + count;   // (a selection that begins in the new lines is on them, and stays)
+        const bool after = in.first > at;   // (a selection that begins at the first new line is on the new lines, and stays; one that begins after it is on cells that move)
         auto move = [&](qint64 p) { return after || (straddles && p >= at) ? p + count : p; };
         out.active = move(in.active);
         out.head = move(in.head);
@@ -706,6 +706,10 @@ bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
     if (!m_sheet.followEdit(edit)) return false;
     m_jump.reset();
     m_statsWalk.reset();
+    if (m_hoverRow >= 0 || m_hoverCol >= 0) {
+        m_hoverRow = m_hoverCol = -1;
+        Q_EMIT hoverCellChanged(-1, -1);
+    }
     // the selection
     const Selection was = m_selection;
     const bool whole = m_selection.whole == Selection::Whole::All || m_selection.whole == (rows ? Selection::Whole::Columns : Selection::Whole::Rows);
@@ -733,11 +737,14 @@ bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
     // scrolls when it is above the part in view. Things that are drawn from more than their own lines (merged ranges, rules of formatting, the borders of a copy) draw the whole window.
     QRect dirty;
     const QSize vp = viewport()->size();
-    const bool wholeWindow = mirrored() || m_breakView || L.merges.count() > 0 || m_sheet.hasConditionalFormats() || m_sheet.hasTableSkins() || m_copyBorder.row1 >= 0 || !m_marks.empty();
+    // (columns: a text that spills over empty cells to the left, right-aligned or centered, can change in cells left of the first column changed, so the whole window is drawn)
+    const bool wholeWindow = !rows || mirrored() || m_breakView || L.merges.count() > 0 || m_sheet.hasConditionalFormats() || m_sheet.hasTableSkins() || m_copyBorder.row1 >= 0 || !m_marks.empty();
     if (wholeWindow) {
         dirty = QRect(QPoint(0, 0), vp);
     } else {
-        const qint64 line = std::max<qint64>(0, first - 1);
+        // (the last shown line before the first changed: it shares a border with it, and hidden lines between have none)
+        qint64 line = std::max<qint64>(0, first - 1);
+        while (line > 0 && axis.isHidden(line)) --line;
         const PaneView body = L.pane(Pane::Body);
         const int edge = rows ? L.yOf(line) : L.xOf(line);
         const int bodyStart = rows ? body.rect.top() : body.rect.left();
@@ -761,6 +768,7 @@ bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
 void GridView::paintEvent(QPaintEvent *e)
 {
     m_lastPaintRect = e->rect();
+    m_paintedRegion += e->rect();
 
     m_paintedPixels += qint64(e->rect().width()) * e->rect().height();
     QElapsedTimer t;

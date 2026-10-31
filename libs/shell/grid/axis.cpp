@@ -1,12 +1,10 @@
 #include "grid/axis.h"
 
 #include <algorithm>
-#include <atomic>
 
 namespace jp::grid {
 
 namespace {
-std::atomic<qint64> g_axisBuilds{0};   // full builds of the sums (buildSome from the first place)
 int boundedSize(int size) { return std::min(std::max(size, 0), Axis::kMaxSize); }
 }
 
@@ -16,6 +14,7 @@ struct Axis::Data {
     std::vector<qint64> hiddenEnd;   // for a hidden place, the index of the first row after the run of hidden rows it begins (its own index + 1 for a place of its own size)
     std::vector<qint64> hiddenStart; // for a hidden place, the index of the first row of the run of hidden rows it is in
     bool dirty = false;
+    qint64 builds = 0;   // full builds of the sums (buildSome from the first place)
     // where a build in slices has got to (the places that have been passed in the first pass, and those in the second, which goes back from the last)
     bool building = false;
     size_t forward = 0, backward = 0;
@@ -150,7 +149,7 @@ bool Axis::buildSome(Work &work) const
     if (!d.dirty && d.before.size() == d.places.size() + 1) return true;
     const size_t n = d.places.size();
     if (!d.building) {
-        g_axisBuilds.fetch_add(1, std::memory_order_relaxed);
+        ++d.builds;
         d.before.clear();
         d.hiddenEnd.clear();
         d.hiddenStart.clear();
@@ -187,7 +186,7 @@ bool Axis::buildSome(Work &work) const
     return true;
 }
 
-qint64 Axis::buildsForTest() { return g_axisBuilds.load(std::memory_order_relaxed); }
+qint64 Axis::buildsForTest() const { return m_d->builds; }
 
 std::vector<Axis::Place> Axis::places() const { return m_d->places; }
 

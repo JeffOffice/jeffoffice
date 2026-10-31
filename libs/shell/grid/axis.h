@@ -70,8 +70,8 @@ public:
     void erasePlaces(qint64 at, qint64 count);
     // The places that differ, all of them, in order (a copy, for a test that compares two axes).
     std::vector<Place> places() const;
-    // How many times an axis has worked its sums out from the first place, in all (a test counts them to see that an insert or a delete worked none out).
-    static qint64 buildsForTest();
+    // How many times this axis has worked its sums out from the first place (a test counts them to see that an insert or a delete worked none out).
+    qint64 buildsForTest() const;
 
     int size(qint64 index) const;
     bool isHidden(qint64 index) const { return size(index) == 0; }

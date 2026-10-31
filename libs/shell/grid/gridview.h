@@ -59,6 +59,9 @@ public:
     // What the paints have drawn, for a test: the rectangle the last asked for, and the pixels of all of them.
     QRect lastPaintRect() const { return m_lastPaintRect; }
     qint64 paintedPixels() const { return m_paintedPixels; }
+    // Everything drawn since the log was cleared, as a region.
+    QRegion paintedRegion() const { return m_paintedRegion; }
+    void clearPaintedRegion() { m_paintedRegion = QRegion(); }
 
     double zoom() const { return m_sheet.layout().zoom(); }
     void setZoom(double zoom);
@@ -386,6 +389,7 @@ private:
     void afterPaint();
     qint64 m_blits = 0, m_fullScrolls = 0;
     QRect m_lastPaintRect;
+    QRegion m_paintedRegion;
     qint64 m_paintedPixels = 0;
     std::function<bool()> m_clickGuard;
     std::function<bool(qint64, qint64)> m_pointGuard;

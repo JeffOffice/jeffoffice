@@ -311,11 +311,11 @@ private Q_SLOTS:
                 Axis ref(count, 20);
                 ref.assign(expected);
                 ref.total();
-                const qint64 builds = Axis::buildsForTest();
+                const qint64 builds = a.buildsForTest();
                 if (insert) a.insertPlaces(at, n, own);
                 else a.erasePlaces(at, n);
                 a.total();
-                QCOMPARE(Axis::buildsForTest(), builds);   // (the sums were moved, not worked out again)
+                QCOMPARE(a.buildsForTest(), builds);   // (the sums were moved, not worked out again)
                 const std::vector<Axis::Place> got = a.places();
                 QVERIFY2(got.size() == expected.size(), qPrintable(QStringLiteral("seed %1 step %2: %3 places, wanted %4").arg(seed).arg(step).arg(got.size()).arg(expected.size())));
                 for (size_t i = 0; i < got.size(); ++i) QVERIFY(got[i].index == expected[i].index && got[i].size == expected[i].size);
@@ -339,7 +339,7 @@ private Q_SLOTS:
         Axis a(1048576, 20);
         a.assign({{10, 40}, {500000, 0}, {500001, 0}, {1048575, 30}});
         a.total();
-        const qint64 builds = Axis::buildsForTest();
+        const qint64 builds = a.buildsForTest();
         a.insertPlaces(0, 1);
         QCOMPARE(a.size(11), 40);
         QCOMPARE(a.size(500001), 0);
@@ -350,7 +350,7 @@ private Q_SLOTS:
         a.erasePlaces(500001, 1);                                          // (one of the two hidden rows is taken out: the run is a row)
         QCOMPARE(a.nextVisible(500001), qint64(500002));
         QCOMPARE(a.previousVisible(500002), qint64(500000));   // (past the one hidden row)
-        QCOMPARE(Axis::buildsForTest(), builds);
+        QCOMPARE(a.buildsForTest(), builds);
     }
 };
 

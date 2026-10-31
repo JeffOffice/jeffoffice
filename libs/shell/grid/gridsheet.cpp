@@ -317,12 +317,15 @@ bool GridSheet::followEdit(const jp::office::sheet::StructEdit &edit)
     else axis.erasePlaces(first, count);
     m_geometry = std::move(geometry);
     // the merged ranges follow the cells (the sheet's list is the edit's; the index is made again from it)
+    const MergeIndex oldMerges = m_layout.merges;
     if (m_layout.merges.count() > 0 || !sheet.merges.isEmpty()) m_layout.merges.assign(sheet.merges);
     // the texts held for the cells at and after the first line changed are of cells that are elsewhere now
     qint64 dropped = 0;
     for (auto it = m_texts.begin(); it != m_texts.end();) {
         const qint64 line = rows ? qint64(it->first >> 16) : qint64(it->first & 0xFFFF);
-        if (line >= first) {
+        // (a cell in a merged range, as it was or as it is, is shown in the range's width, which the edit may have changed)
+        const quint32 r = quint32(it->first >> 16), c = quint32(it->first & 0xFFFF);
+        if (line >= first || oldMerges.at(r, c) >= 0 || m_layout.merges.at(r, c) >= 0) {
             it = m_texts.erase(it);
             ++dropped;
         } else {

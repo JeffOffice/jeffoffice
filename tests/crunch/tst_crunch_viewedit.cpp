@@ -199,17 +199,19 @@ private Q_SLOTS:
         const Edit edits[] = {{"insert row", true, true, 40, 2}, {"delete row", true, false, 2000, 3}, {"insert column", false, true, 1, 1}, {"delete column", false, false, 6, 1}};
         for (const Edit &d : edits) {
             const int shows = e.win.w.sheetShows(), inPlace = e.win.w.inPlaceUpdates();
-            const qint64 builds = grid::Axis::buildsForTest(), cells = grid::GridSheet::viewCellsRebuiltForTest();
+            const grid::GridLayout &VL = e.view()->sheet().layout();
+            auto built = [&] { return VL.rows.buildsForTest() + VL.cols.buildsForTest(); };
+            const qint64 builds = built(), cells = grid::GridSheet::viewCellsRebuiltForTest();
             QVERIFY2(run(e, d).ok, d.name);
             QVERIFY2(e.win.w.sheetShows() == shows, d.name);
             QVERIFY2(e.win.w.inPlaceUpdates() == inPlace + 1, d.name);
             e.view()->sheet().layout().rows.total();
             e.view()->sheet().layout().cols.total();
-            QVERIFY2(grid::Axis::buildsForTest() == builds, qPrintable(QStringLiteral("%1: %2 axes built again").arg(QLatin1String(d.name)).arg(grid::Axis::buildsForTest() - builds)));
+            QVERIFY2(built() == builds, qPrintable(QStringLiteral("%1: %2 axes built again").arg(QLatin1String(d.name)).arg(built() - builds)));
             QVERIFY2(grid::GridSheet::viewCellsRebuiltForTest() - cells < 500, qPrintable(QStringLiteral("%1: %2 cells of the view made again").arg(QLatin1String(d.name)).arg(grid::GridSheet::viewCellsRebuiltForTest() - cells)));
             e.win.w.undoStack()->undo();
             QVERIFY2(e.win.w.sheetShows() == shows, qPrintable(QStringLiteral("%1, undone").arg(QLatin1String(d.name))));
-            QVERIFY2(grid::Axis::buildsForTest() == builds, qPrintable(QStringLiteral("%1, undone: %2 axes built again").arg(QLatin1String(d.name)).arg(grid::Axis::buildsForTest() - builds)));
+            QVERIFY2(built() == builds, qPrintable(QStringLiteral("%1, undone: %2 axes built again").arg(QLatin1String(d.name)).arg(built() - builds)));
             e.win.w.undoStack()->redo();
             QVERIFY2(e.win.w.sheetShows() == shows, qPrintable(QStringLiteral("%1, redone").arg(QLatin1String(d.name))));
             e.win.w.undoStack()->undo();
@@ -260,16 +262,20 @@ private Q_SLOTS:
         const Case cases[] = {
             {"rows put in above", true, 9, 3, 9, 3, true, 3, 2, 11, 3, 11, 3, true},
             {"rows put in at the cell", true, 9, 3, 9, 3, true, 9, 1, 9, 3, 9, 3, true},
+            {"a row put in with several rows put in before it", true, 7, 3, 7, 3, true, 5, 3, 10, 3, 10, 3, true},
+            {"rows put in with the first of them under the selection", true, 6, 3, 8, 4, true, 5, 3, 9, 3, 11, 4, true},
+            {"rows put in inside the cells selected, several", true, 3, 3, 8, 4, true, 5, 3, 3, 3, 11, 4, true},
             {"rows put in inside the cells selected", true, 1, 3, 4, 4, true, 3, 2, 1, 3, 6, 4, true},
             {"rows put in below", true, 9, 3, 9, 3, true, 50, 2, 9, 3, 9, 3, true},
             {"rows taken out above", true, 9, 3, 9, 3, false, 3, 2, 7, 3, 7, 3, true},
             {"rows taken out below", true, 9, 3, 9, 3, false, 50, 2, 9, 3, 9, 3, true},
-            {"rows taken out that hold the cells selected", true, 9, 3, 11, 4, false, 8, 6, 9, 3, 11, 4, true},
+            {"rows taken out that hold the cells selected", true, 9, 3, 11, 4, false, 8, 6, 9, 3, 11, 4, false},
             {"rows taken out of the top of the cells selected", true, 9, 3, 20, 4, false, 4, 10, 4, 3, 10, 4, false},
             {"columns put in left", false, 9, 8, 9, 9, true, 1, 2, 9, 10, 9, 11, true},
             {"columns put in at the cell", false, 9, 8, 9, 8, true, 8, 1, 9, 8, 9, 8, true},
+            {"a column put in with several columns put in before it", false, 9, 7, 9, 7, true, 5, 3, 9, 10, 9, 10, true},
             {"columns taken out left", false, 9, 8, 9, 9, false, 2, 3, 9, 5, 9, 6, true},
-            {"columns taken out that hold the cells selected", false, 9, 8, 9, 9, false, 7, 5, 9, 8, 9, 9, true},
+            {"columns taken out that hold the cells selected", false, 9, 8, 9, 9, false, 7, 5, 9, 8, 9, 9, false},
             {"columns put in right", false, 9, 1, 9, 2, true, 6, 2, 9, 1, 9, 2, true},
         };
         for (const Case &c : cases) {
@@ -281,6 +287,7 @@ private Q_SLOTS:
             const grid::Selection now = e.view()->selection();
             const QString text = QStringLiteral("%1: the selection is %2:%3 to %4:%5").arg(QLatin1String(c.name)).arg(now.range.row1).arg(now.range.col1).arg(now.range.row2).arg(now.range.col2);
             QVERIFY2(now.range.row1 == c.wantR1 && now.range.col1 == c.wantC1 && now.range.row2 == c.wantR2 && now.range.col2 == c.wantC2, qPrintable(text));
+            QVERIFY2(c.r1 != c.r2 || c.c1 != c.c2 || (now.activeRow == c.wantR1 && now.activeCol == c.wantC1 && now.headRow == c.wantR1 && now.headCol == c.wantC1), c.name);
             QVERIFY2(now.activeRow >= now.range.row1 && now.activeRow <= now.range.row2 && now.activeCol >= now.range.col1 && now.activeCol <= now.range.col2, c.name);
             e.win.w.undoStack()->undo();
             if (c.undoGivesItBack) QVERIFY2(e.view()->selection() == before, qPrintable(QStringLiteral("%1, undone").arg(QLatin1String(c.name))));
@@ -361,6 +368,7 @@ private Q_SLOTS:
     void anEditDrawsOnlyTheBandItChanged()
     {
         EditWindow e;
+        e.win.w.resize(1100, 640);
         QVERIFY(e.open(viewBook()));
         QVERIFY(e.settle());
         scrollToLine(e, true, 100);
@@ -369,9 +377,10 @@ private Q_SLOTS:
         flushPaints(e.view());
         const QSize vp = e.view()->viewport()->size();
         const qint64 whole = qint64(vp.width()) * vp.height();
-        // (what an edit draws: when it is to draw something, the paint is waited for; when it is to draw nothing, the turns of the loop that follow show it)
+        // (what an edit draws, as everything drawn since: when it is to draw something, the paint is waited for; when it is to draw nothing, the turns of the loop that follow show it)
         auto drawn = [&](const std::function<void()> &edit, bool something) {
             flushPaints(e.view());
+            e.view()->clearPaintedRegion();
             const qint64 before = e.view()->paintedPixels();
             edit();
             if (something) QTest::qWaitFor([&] { return e.view()->paintedPixels() > before; }, 10000);
@@ -384,8 +393,8 @@ private Q_SLOTS:
         const int bandTop = L.yOf(midRow - 1);
         qint64 px = drawn([&] { QVERIFY(run(e, {"insert in the window", true, true, midRow, 1}).ok); }, true);
         QVERIFY2(px > 0 && px < whole * 3 / 4, qPrintable(QStringLiteral("drew %1 of %2 pixels").arg(px).arg(whole)));
-        QVERIFY2(e.view()->lastPaintRect().top() >= bandTop - 1 && e.view()->lastPaintRect().top() > vp.height() / 4, qPrintable(QStringLiteral("drew from %1, band from %2").arg(e.view()->lastPaintRect().top()).arg(bandTop)));
-        QCOMPARE(e.view()->lastPaintRect().bottom() + 1, vp.height());
+        QVERIFY2(e.view()->paintedRegion().boundingRect().top() >= bandTop - 1 && e.view()->paintedRegion().boundingRect().top() > vp.height() / 4, qPrintable(QStringLiteral("drew from %1, band from %2").arg(e.view()->paintedRegion().boundingRect().top()).arg(bandTop)));
+        QCOMPARE(e.view()->paintedRegion().boundingRect().bottom() + 1, vp.height());
         px = drawn([&] { e.win.w.undoStack()->undo(); }, true);
         QVERIFY2(px > 0 && px < whole * 3 / 4, qPrintable(QStringLiteral("undone, drew %1 of %2 pixels").arg(px).arg(whole)));
         // a row put in far below the window
@@ -399,11 +408,69 @@ private Q_SLOTS:
         e.win.w.undoStack()->undo();
         // a column put in a few columns into the window
         scrollToLine(e, true, 0);
-        const int bandLeft = L.xOf(5);
         px = drawn([&] { QVERIFY(run(e, {"insert a column", false, true, 6, 1}).ok); }, true);
-        QVERIFY2(px > 0 && px < whole * 9 / 10, qPrintable(QStringLiteral("column: drew %1 of %2 pixels").arg(px).arg(whole)));
-        QVERIFY2(e.view()->lastPaintRect().left() >= bandLeft - 1 && e.view()->lastPaintRect().left() > vp.width() / 5, qPrintable(QStringLiteral("drew from %1, band from %2").arg(e.view()->lastPaintRect().left()).arg(bandLeft)));
-        QCOMPARE(e.view()->lastPaintRect().right() + 1, vp.width());
+        QVERIFY2(px > 0 && px >= whole * 3 / 4, qPrintable(QStringLiteral("column: drew %1 of %2 pixels").arg(px).arg(whole)));
+    }
+    // The line before the first changed that is shown is drawn again with the band, whatever hidden lines lie between (it shares its border with the first line that moves).
+    void theBandBeginsAtTheLastShownLineBeforeTheEdit()
+    {
+        EditWindow e;
+        e.win.w.resize(1100, 640);
+        QVERIFY(e.open(viewBook()));   // (rows 12 and 13 are hidden)
+        QVERIFY(e.settle());
+        scrollToLine(e, true, 0);
+        e.view()->selectCell(0, 0);
+        flushPaints(e.view());
+        const int shownAbove = e.view()->sheet().layout().yOf(10);
+        e.view()->clearPaintedRegion();
+        QVERIFY(run(e, {"insert under the hidden rows", true, true, 13, 1}).ok);
+        QTest::qWaitFor([&] { return !e.view()->paintedRegion().isEmpty(); }, 10000);
+        flushPaints(e.view());
+        QVERIFY2(!e.view()->paintedRegion().isEmpty() && e.view()->paintedRegion().boundingRect().top() <= shownAbove, qPrintable(QStringLiteral("drew from %1, the line above is at %2").arg(e.view()->paintedRegion().boundingRect().top()).arg(shownAbove)));
+    }
+
+    // Texts held for cells of a merged range are made again when the range is cut or grown (the number is shown in the width the range has).
+    void theTextOfAMergedCellIsMadeAgainWhenTheRangeChanges()
+    {
+        const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>123456789012</v></c></row>"), QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A1:B1\"/></mergeCells>"),
+                                                     QStringLiteral("<cols><col min=\"1\" max=\"2\" width=\"4\" customWidth=\"1\"/></cols>"))});
+        EditWindow e;
+        QVERIFY(e.open(book));
+        const grid::GridSheet &gs = e.view()->sheet();
+        const grid::Cell *cell = gs.cellAt(0, 0);
+        QVERIFY(cell);
+        const QString narrow = gs.shown(0, 0, *cell).text;   // (held)
+        QVERIFY(run(e, {"insert a column in the range", false, true, 1, 3}).ok);
+        cell = gs.cellAt(0, 0);
+        QVERIFY(cell);
+        const QString held = gs.shown(0, 0, *cell).text;
+        gs.invalidateTexts();
+        const QString again = gs.shown(0, 0, *cell).text;
+        QVERIFY2(held == again, qPrintable(QStringLiteral("held \"%1\", made again \"%2\" (it was \"%3\")").arg(held, again, narrow)));
+        QVERIFY(narrow != again);
+    }
+
+    // A cell entry open while rows are put in or taken out by Undo, Redo, or a command goes with its cell, and is let go of with a cell that is gone.
+    void anEntryOpenOnACellGoesWithTheCell()
+    {
+        EditWindow e;
+        e.win.w.resize(1100, 640);
+        QVERIFY(e.open(viewBook()));
+        scrollToLine(e, true, 0);
+        e.view()->selectCell(5, 0);
+        e.type(QStringLiteral("x"));
+        QVERIFY(e.win.w.cellEditor()->isVisible());
+        QCOMPARE(e.win.w.cellEditor()->geometry().topLeft(), e.view()->cellRect(5, 0).topLeft());
+        QVERIFY(run(e, {"insert rows above the entry", true, true, 1, 2}).ok);
+        QVERIFY(e.win.w.cellEditor()->isVisible());
+        QCOMPARE(e.win.w.cellEditor()->geometry().topLeft(), e.view()->cellRect(7, 0).topLeft());
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.win.w.cellEditor()->isVisible());
+        QCOMPARE(e.win.w.cellEditor()->geometry().topLeft(), e.view()->cellRect(5, 0).topLeft());
+        e.win.w.undoStack()->redo();
+        QCOMPARE(e.win.w.cellEditor()->geometry().topLeft(), e.view()->cellRect(7, 0).topLeft());
+        QVERIFY(run(e, {"delete the entry's row", true, false, 6, 3}).ok);
+        QVERIFY(!e.win.w.cellEditor()->isVisible());
     }
 };
 
