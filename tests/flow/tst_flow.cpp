@@ -10494,13 +10494,18 @@ private Q_SLOTS:
     }
 
     // A word processor's note that does not fit whole under its line at the foot of a page is cut there when room for three of its lines is left under the line (a page is
-    // not cut for want of that): the line stays and the rest of the note goes on at the next page. With less room the line goes on to the next page with its note whole.
+    // not cut for want of that): the line stays and the rest of the note goes on at the next page. With less room the line goes on to the next page with its note whole. A note
+    // whose first paragraph has no widow and orphan control is cut where one of its lines fits, and goes on whole to the next page with its line only when not even one does.
     void aNoteThatDoesNotFitIsCutWhenThreeOfItsLinesDo()
     {
+        for (const bool controlled : {true, false}) {
         TestNotes notes;
         auto note = std::make_unique<QTextDocument>();
         {
             QTextCursor nc(note.get());
+            QTextBlockFormat noteFormat;
+            if (controlled) noteFormat.setProperty(tp::WidowControl, true);
+            nc.setBlockFormat(noteFormat);
             QTextCharFormat cf;
             cf.setFontFamilies({QStringLiteral("Times New Roman")});
             cf.setFontPointSize(10);
@@ -10536,13 +10541,16 @@ private Q_SLOTS:
             }
             return out;
         };
-        const auto room = layout(100), tight = layout(93);
+        const auto room = layout(100), tight = layout(93), least = layout(60);
         QCOMPARE(room.lastLineFrame, 0);
         QCOMPARE(room.noteFrame, 0);
         QVERIFY2(room.cut, "the note is cut at the foot of the page");
-        QCOMPARE(tight.lastLineFrame, 1);
-        QCOMPARE(tight.noteFrame, 1);
-        QVERIFY(!tight.cut);
+        QCOMPARE(tight.lastLineFrame, controlled ? 1 : 0);
+        QCOMPARE(tight.noteFrame, controlled ? 1 : 0);
+        QCOMPARE(tight.cut, !controlled);
+        QCOMPARE(least.lastLineFrame, 1);
+        QVERIFY(!least.cut);
+        }
     }
 
     // The part of a note that goes on from the page before is set under the file's own separator for it, when the file has one: the room above it is that paragraph's height (and the

@@ -4403,7 +4403,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     if (col.top() + y + fitH > bottom + fitTol) {
                         if (!lineNotes.isEmpty() && (env.wordLines || fitH + ruleGap + notesH > col.height() + fitTol)) {
                             // Room here for the line and a line of the note?
-                            const double least = heightOf(m_notes[lineNotes.first()].numberFont) * (env.wordLines ? 3 : 1) + noteGap;   // (a word processor cuts a note that does not fit where three of its lines do)
+                            // (A word processor cuts a note that does not fit where three of its lines do, or one of them where its first paragraph has no widow and orphan control.)
+                            const QTextDocument *noteDoc = notesDoc ? notesDoc->storyDoc(m_notes[lineNotes.first()].storyId) : nullptr;
+                            const bool controlled = !noteDoc || noteDoc->begin().blockFormat().boolProperty(tp::WidowControl);
+                            const double least = heightOf(m_notes[lineNotes.first()].numberFont) * (env.wordLines && controlled ? 3 : 1) + noteGap;
                             cutting = firstInColumn || col.top() + y + fitH + (reserve.contains(rkey(f, c)) ? 0 : ruleGap) + least <= col.bottom() - reserve.value(rkey(f, c)) + fitTol;
                         }
                         if (!cutting && !firstInColumn) {
