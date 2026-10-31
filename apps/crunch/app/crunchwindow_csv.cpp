@@ -10,11 +10,28 @@
 #include "core/csvexport.h"
 
 #include <QElapsedTimer>
+#include <QMessageBox>
+#include <QPushButton>
 #include <QFileInfo>
 #include <QLocale>
 #include <QTimer>
 
 namespace jp {
+
+CrunchWindow::LossAnswer CrunchWindow::askBeforeLosing(const QString &title, const QString &text)
+{
+    if (m_lossAsker) return m_lossAsker(title, text);
+    QMessageBox box(QMessageBox::Warning, appInfo().name, title, QMessageBox::NoButton, this);
+    box.setText(text);
+    box.setTextFormat(Qt::PlainText);
+    QPushButton *go = box.addButton(tr("Save Values Only"), QMessageBox::AcceptRole);
+    QPushButton *xlsx = box.addButton(tr("Save as .xlsx…"), QMessageBox::ActionRole);
+    box.addButton(tr("Cancel"), QMessageBox::RejectRole);
+    box.setDefaultButton(xlsx);
+    box.exec();
+    QAbstractButton *clicked = box.clickedButton();
+    return clicked == go ? LossAnswer::Continue : clicked == xlsx ? LossAnswer::SaveXlsx : LossAnswer::Cancel;
+}
 
 bool CrunchWindow::exportCsv(const QString &path)
 {
@@ -41,7 +58,16 @@ bool CrunchWindow::exportCsv(const QString &path)
     const QString sheetName = m_loaded->book->info().sheets.value(m_sheet).name;
     // (a sheet that was read only in part is written in part: the person is told)
     const bool partial = m_loaded->calc && m_loaded->calc->notWhole().contains(sheetName);
-    notice(tr("Save"), crunch::csvExportNote(sheetName, separator, partial), false);
+    // (the person is told what the file will not have, naming what this workbook has of it, and may save the workbook as .xlsx instead)
+    const LossAnswer answer = askBeforeLosing(tr("Save"), crunch::csvExportWarning(sheetName, separator, partial, crunch::leftOutOfCsv(*m_loaded->book, m_loaded->calc ? m_loaded->calc->formulaCount() : 0)));
+    if (answer != LossAnswer::Continue) {
+        m_closeAfterSave = false;
+        if (answer == LossAnswer::SaveXlsx) {
+            setStatus(tr("Not saved as .csv."));
+            act("file.saveAs")->trigger();
+        }
+        return false;
+    }
     // the sheet in view, in a model of its own
     auto model = std::make_shared<grid::GridSheet>();
     model->setData(m_view->sheet().data());

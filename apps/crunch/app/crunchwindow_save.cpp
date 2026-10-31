@@ -30,12 +30,13 @@ namespace jp {
 
 using jp::office::sheet::SaveReport;
 
-// The kind of file this workbook is: a workbook that has macros in it (and is a .xlsm), or not (.xlsx).
+// The kind of file this workbook is, from the type of its main part, which is in the file: a workbook (.xlsx), one with macros in it (.xlsm), a template (.xltx), a template with macros
+// (.xltm), or an add-in (.xlam).
 QString CrunchWindow::saveKind() const
 {
     if (!m_loaded || !m_loaded->book) return QStringLiteral("xlsx");
     const office::Package &p = m_loaded->book->package();
-    return p.contentType(m_loaded->book->mainPart()).contains(QLatin1String("macroEnabled"), Qt::CaseInsensitive) ? QStringLiteral("xlsm") : QStringLiteral("xlsx");
+    return crunch::workbookKindOfType(p.contentType(m_loaded->book->mainPart()));
 }
 
 bool CrunchWindow::save()
@@ -73,8 +74,7 @@ bool CrunchWindow::saveAs(const QString &pathIn)
     const QString ending = QFileInfo(path).suffix().toLower();
     if (ending.isEmpty()) path += QLatin1Char('.') + kind;
     else if (ending != kind) {
-        notice(tr("Save"), kind == QLatin1String("xlsm") ? tr("This workbook has macros in it, so it is saved as a .xlsm file. Give the file a name that ends in .xlsm.")
-                                                           : tr("%1 saves workbooks as .xlsx files. Give the file a name that ends in .xlsx.").arg(appInfo().name));
+        notice(tr("Save"), crunch::workbookKindNotice(kind, appInfo().name));
         return false;
     }
     return startSave(path);

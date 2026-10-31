@@ -326,7 +326,7 @@ QByteArray blankWorkbookBytes()
 
 QString fileKind(const QString &path)
 {
-    static const QStringList kinds = {QStringLiteral("xlsx"), QStringLiteral("xlsm"), QStringLiteral("xls"), QStringLiteral("ods"), QStringLiteral("fods"), QStringLiteral("csv"), QStringLiteral("tsv"), QStringLiteral("txt")};
+    static const QStringList kinds = {QStringLiteral("xlsx"), QStringLiteral("xlsm"), QStringLiteral("xltx"), QStringLiteral("xltm"), QStringLiteral("xlam"), QStringLiteral("xls"), QStringLiteral("ods"), QStringLiteral("fods"), QStringLiteral("csv"), QStringLiteral("tsv"), QStringLiteral("txt")};
     const QString ending = QFileInfo(path).suffix().toLower();
     return kinds.contains(ending) ? ending : QStringLiteral("other");
 }

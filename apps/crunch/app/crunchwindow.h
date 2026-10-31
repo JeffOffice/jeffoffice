@@ -246,6 +246,8 @@ public:
     // What is asked when the file to be saved over was changed by another program since it was read: save a copy instead (Save As), write over it, or give the save up. The name is the
     // file's. A message box with the three, unless this stands in for it (tests).
     enum class ChangedAnswer { SaveCopy, Overwrite, Cancel };
+    // The answer to the question before a save that would leave something out of the file: go on and save what the file can hold, save the workbook as .xlsx instead, or give it up.
+    enum class LossAnswer { Continue, SaveXlsx, Cancel };
     // What Fill > Series asks for: the way the series goes, its kind, the unit of a date series, the step, and where to stop; a message dialog unless this stands in for it (tests).
     struct SeriesRequest {
         bool inRows = false;
@@ -287,6 +289,8 @@ public:
     // And Paste Special: how to paste. A dialog unless this stands in for it (tests); false gives it up.
     void setPasteAsker(const std::function<bool(crunch::EditSession::PasteOptions *)> &asker) { m_pasteOptionsAsker = asker; }
     void setChangedAsker(const std::function<ChangedAnswer(const QString &name)> &asker) { m_changedAsker = asker; }
+    // The question before a save to a kind of file that cannot hold something in the workbook (`text` names what it will leave out). Tests answer it; without one a box asks.
+    void setLossAsker(const std::function<LossAnswer(const QString &title, const QString &text)> &asker) { m_lossAsker = asker; }
     // What Format Cells asks: given the format of the cell with the cursor, what the person changed (a dialog unless this stands in for it: tests); false gives it up.
     void setFormatAsker(const std::function<bool(const FormatCellsDialog::Input &, FormatCellsDialog::Result *)> &asker) { m_formatAsker = asker; }
     // What is asked before a step that throws something away (merging cells that hold values): the title and the sentence; true goes on. A message box unless this stands in for it (tests).
@@ -940,6 +944,8 @@ private:
     QPointer<QObject> m_csvRun;   // a .csv being written
     std::function<Answer(const QString &, const QString &)> m_asker;
     std::function<ChangedAnswer(const QString &)> m_changedAsker;
+    std::function<LossAnswer(const QString &, const QString &)> m_lossAsker;
+    LossAnswer askBeforeLosing(const QString &title, const QString &text);
     std::function<bool(SeriesRequest *)> m_seriesAsker;
     std::function<QString(const QString &, const QString &)> m_savePicker;
     QString m_pickedFilter;
