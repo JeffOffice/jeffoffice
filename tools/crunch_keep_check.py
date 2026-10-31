@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Checks that a save keeps everything a cell edit did not touch (the keep-on-save audit: docs/jeffcrunch.md, beta wave 1).
 
-    python3 tools/crunch_keep_check.py BUILD_DIR LIST [--jobs N] [--max N] [--out DIR]
+    python3 tools/crunch_keep_check.py BUILD_DIR LIST [--jobs N] [--max N] [--max-bytes N] [--out FILE]
 
 For each workbook in LIST (one path on a line) it runs `jcrunchtool roundtrip-one` with JC_ROUNDTRIP_KEEP, which types one number in a cell and saves, and compares the saved package
 with the old one:
   - every part that is not a worksheet must be the old bytes, or be one the save is meant to rewrite (the styles, the shared strings, the calculation chain, the workbook part);
   - every worksheet part, with its cells taken out (`<c>` elements), must be the old bytes but for the `dimension` and the `spans` of rows; what is left is the skeleton: the rows, columns,
     merged ranges, outlines, validations, conditional formats, hyperlinks, drawings, form controls, and extension lists. A difference is named by the element it falls in.
+A workbook whose package cannot be read is counted as unreadable, one over --max-bytes (200 MB; a part over a quarter of that) as too large, a run that did not start (systemd-run or the tool
+missing or failing) as a runner failure, and one that ran and wrote no file as not saved; none stops the run.
 Prints one summary: workbooks saved and compared, parts and skeletons compared and changed, and the commonest differences with an example path each.
 """
 import collections, os, re, subprocess, sys, tempfile, zipfile
@@ -15,7 +17,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 REWRITTEN = re.compile(r"^(xl/(styles|sharedStrings|calcChain)\.xml|xl/workbook\.xml|docProps/(core|app)\.xml|\[Content_Types\]\.xml|xl/_rels/workbook\.xml\.rels)$")
 SHEET = re.compile(r"^xl[/\\](worksheets|macrosheets|dialogsheets)[/\\][^/\\]+\.xml$", re.I)
-CELL = re.compile(rb"<((?:[A-Za-z0-9]+:)?)c(?=[\s/>])[^>]*?/>|<((?:[A-Za-z0-9]+:)?)c(?=[\s/>])[^>]*>.*?</\2c>", re.S)
+CELL_OPEN = re.compile(rb"<((?:[A-Za-z0-9]+:)?)c(?=[\s/>])[^>]*>")
+MAX_BYTES = 200 * 1024 * 1024
 VOLATILE = re.compile(rb'(<(?:[A-Za-z0-9]+:)?dimension ref=")[^"]*|( spans=")[^"]*')
 TAG = re.compile(rb"<([A-Za-z0-9:_]+)")
 
@@ -32,10 +35,32 @@ def row_without_auto_height(m):
     return tag if b"customHeight" in tag else re.sub(rb' ht="[^"]*"', b"", tag)
 
 
+def strip_cells(data):
+    """The sheet without its `<c>` elements. One pass over the bytes: each opening tag is found by a pattern that cannot run past its own `>`, and its end by a plain search for the closing
+    tag (cells do not nest), so the cost is in the size of the sheet and no pattern is tried again from the same place."""
+    out = []
+    at = 0
+    while True:
+        m = CELL_OPEN.search(data, at)
+        if not m:
+            out.append(data[at:])
+            break
+        out.append(data[at:m.start()])
+        if m.group(0).endswith(b"/>"):
+            at = m.end()
+            continue
+        close = data.find(b"</" + m.group(1) + b"c>", m.end())
+        if close < 0:   # (a cell that is never closed: the rest of the sheet is left as it is)
+            out.append(data[m.start():])
+            break
+        at = close + len(m.group(1)) + 4
+    return b"".join(out)
+
+
 def skeleton(data):
     """The sheet with its cells out, and what a cell edit may rightly change out too: a row's spans, the sheet's dimension, the height of a row with no height of its own, a row written
     as <row/> or <row></row>, a row with nothing in it but its number (the edit made it), and <sheetData/> against an empty <sheetData></sheetData>."""
-    text = CELL.sub(b"", data)
+    text = strip_cells(data)
     text = BETWEEN_TAGS.sub(b"><", text)
     text = ROOT.sub(lambda m: re.sub(rb"\s+", b" ", m.group(0)), text)
     text = VOLATILE.sub(lambda m: (m.group(1) or m.group(2)), text)
@@ -54,16 +79,27 @@ def first_difference(a, b):
 
 
 def one(build, path, tmp, k):
+    """The result for one workbook: a dict with "status" ok, nosave (ran, wrote no file), runner (did not run), unreadable (the package or its saved copy is not a zip), or toolarge."""
+    try:
+        if os.path.getsize(path) > MAX_BYTES:
+            return {"status": "toolarge"}
+    except OSError:
+        return {"status": "unreadable"}
     out = os.path.join(tmp, "%d.xlsx" % k)
     env = dict(os.environ, JP_NO_TELEMETRY="1", QT_QPA_PLATFORM="offscreen", JC_ROUNDTRIP_KEEP=out)
     try:
-        subprocess.run(["systemd-run", "--user", "--scope", "-p", "MemoryMax=6G", "-p", "MemorySwapMax=0", "-q", "timeout", "-k", "5", "300", build + "/jcrunchtool", "roundtrip-one", path],
-                       env=env, capture_output=True, timeout=330)
-    except Exception:
-        return None
+        run = subprocess.run(["systemd-run", "--user", "--scope", "-p", "MemoryMax=6G", "-p", "MemorySwapMax=0", "-q", "timeout", "-k", "5", "300", build + "/jcrunchtool", "roundtrip-one", path],
+                             env=env, capture_output=True, timeout=330)
+    except subprocess.TimeoutExpired:
+        return {"status": "nosave"}
+    except OSError:
+        return {"status": "runner"}
     if not os.path.exists(out):
-        return None
-    result = {"parts": 0, "partsChanged": [], "sheets": 0, "skeletonChanged": []}
+        # (systemd-run itself failing says so on its stderr and never started the tool)
+        if run.returncode != 0 and (b"Failed to" in run.stderr or b"systemd-run" in run.stderr or b"Running scope" in run.stderr):
+            return {"status": "runner"}
+        return {"status": "nosave"}
+    result = {"status": "ok", "parts": 0, "partsChanged": [], "sheets": 0, "skeletonChanged": []}
     try:
         with zipfile.ZipFile(path) as old, zipfile.ZipFile(out) as new:
             names = {i.filename for i in new.infolist()}
@@ -73,6 +109,8 @@ def one(build, path, tmp, k):
                     continue
                 if n not in names:
                     result["partsChanged"].append((n, "gone" if not n.endswith("calcChain.xml") else "calcChain dropped (by design: the formulas' order is worked out again)"))
+                    continue
+                if info.file_size > MAX_BYTES // 4:   # (a part this large is not read: it is not compared, and not counted)
                     continue
                 a, b = old.read(n), new.read(n)
                 if SHEET.match(n):
@@ -89,9 +127,19 @@ def one(build, path, tmp, k):
                         result["partsChanged"].append((n, "bytes"))
             for n in names - {i.filename for i in old.infolist()}:
                 result["partsChanged"].append((n, "new"))
+    except Exception:   # (a bad zip, a bad entry, a part that will not inflate: this workbook is counted, the run goes on)
+        return {"status": "unreadable"}
     finally:
-        os.remove(out)
+        if os.path.exists(out):
+            os.remove(out)
     return result
+
+
+def safe_one(build, path, tmp, k):
+    try:
+        return one(build, path, tmp, k)
+    except Exception:
+        return {"status": "unreadable"}
 
 
 def main():
@@ -106,9 +154,10 @@ def main():
     paths = [l.strip() for l in open(lst) if l.strip() and not l.startswith("#")][:mx]
     tmp = tempfile.mkdtemp()
     with ThreadPoolExecutor(jobs) as ex:
-        results = list(ex.map(lambda ik: (ik[1], one(build, ik[1], tmp, ik[0])), enumerate(paths)))
-    ok = [(p, r) for p, r in results if r]
-    failed = [p for p, r in results if not r]
+        results = list(ex.map(lambda ik: (ik[1], safe_one(build, ik[1], tmp, ik[0])), enumerate(paths)))
+    ok = [(p, r) for p, r in results if r["status"] == "ok"]
+    failed = [p for p, r in results if r["status"] == "nosave"]
+    by_status = collections.Counter(r["status"] for _, r in results)
     parts = sum(r["parts"] for _, r in ok)
     sheets = sum(r["sheets"] for _, r in ok)
     pc = collections.Counter()
@@ -130,7 +179,8 @@ def main():
     for _, r in ok:
         rw.update(r.get("rewritten", {}))
     print("rewritten parts the save may change (workbooks where the bytes differ):", dict(rw))
-    print("workbooks saved and compared: %d of %d (%d did not save)" % (len(ok), len(paths), len(failed)))
+    print("workbooks saved and compared: %d of %d (%d did not save, %d unreadable, %d too large, %d runner failures)"
+          % (len(ok), len(paths), len(failed), by_status["unreadable"], by_status["toolarge"], by_status["runner"]))
     print("parts that are not sheets and not meant to change: %d compared, in %d workbooks some differ" % (parts, badp))
     print("worksheet parts compared by skeleton (cells taken out): %d, in %d workbooks some differ" % (sheets, bads))
     for key, n in pc.most_common(15):
@@ -141,6 +191,8 @@ def main():
     if show:
         with open(show, "w") as f:
             for p in failed: f.write("nosave\t%s\n" % p)
+            for p, r in results:
+                if r["status"] in ("unreadable", "toolarge", "runner"): f.write("%s\t%s\n" % (r["status"], p))
             for p, r in ok:
                 for n, why in r["partsChanged"]: f.write("part\t%s\t%s\t%s\n" % (p, n, why))
                 for n, tag, x, y in r["skeletonChanged"]: f.write("skeleton\t%s\t%s\t%s\n" % (p, n, tag))
