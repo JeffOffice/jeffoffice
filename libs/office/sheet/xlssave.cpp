@@ -185,19 +185,25 @@ public:
         }
         setUpFormats();
         setUpNames();
-        QVector<QByteArray> sheets;
+        // (the sheets are built one after another into a single buffer; the globals, which need what the sheets turned up, are built after, and the two put together once)
+        QByteArray sheetBytes;
+        QVector<qsizetype> sheetSizes;
         for (size_t i = 0; i < m_written.size(); ++i) {
             if (m_cancelled && m_cancelled()) {
                 *error = QCoreApplication::translate("Sheet", "The save was stopped.");
                 return false;
             }
-            sheets.append(buildSheet(int(i), error));
+            const qsizetype before = sheetBytes.size();
+            if (!buildSheet(int(i), &sheetBytes, error)) return false;
             if (!error->isEmpty()) return false;
+            sheetSizes.append(sheetBytes.size() - before);
         }
         const QByteArray names = namesRecords();
-        const QByteArray globals = buildGlobals(names, sheets);
-        QByteArray stream = globals;
-        for (const QByteArray &s : sheets) stream.append(s);
+        QByteArray stream = buildGlobals(names, sheetSizes);
+        stream.reserve(stream.size() + sheetBytes.size() + 4096);
+        stream.append(sheetBytes);
+        sheetBytes.clear();
+        sheetBytes.squeeze();
         if (stream.size() > (qint64(1) << 30)) {
             *error = QCoreApplication::translate("Sheet", "The workbook is larger than the old format can hold.");
             return false;
@@ -621,7 +627,7 @@ private:
 
     void put(QByteArray *out, quint16 id, const W &w) { putRecord(out, id, w.bytes()); }
 
-    QByteArray buildSheet(int index, QString *error)
+    bool buildSheet(int index, QByteArray *dst, QString *error)
     {
         const Written &w = m_written[size_t(index)];
         m_currentSheet = index;
@@ -630,11 +636,11 @@ private:
             m_book.readSheet(w.place, &sheet);
             if (!sheet.error.isEmpty() && sheet.cells.cellCount() == 0 && sheet.error.contains(QLatin1String("not in the file"))) {
                 *error = oldsave::sheetNote(w.name, sheet.error);
-                return QByteArray();
+                return false;
             }
             m_features.note(sheet);
         }
-        QByteArray out;
+        QByteArray &out = *dst;
         out += bof(0x0010);
         const WorkbookInfo &info = m_book.info();
         // how the workbook calculates (kept with the first sheet, where the other program has it)
@@ -687,7 +693,8 @@ private:
             }
         }
         // the cells and rows
-        const std::vector<PlacedCell> cells = oldsave::sortedCells(sheet);
+        qint64 cellsPastCap = 0;
+        const std::vector<PlacedCell> cells = oldsave::sortedCells(sheet, std::max<qint64>(0, kMaxCopyCells - m_cellsWritten) + 2000000, &cellsPastCap);
         QMap<quint32, RowSpec> specs;
         qint64 rowsCut = 0;
         for (const RowSpec &s : sheet.placedRowSpecs()) {
@@ -721,7 +728,9 @@ private:
             for (quint32 rr = r.range.row1; rr <= r.range.row2; ++rr)
                 for (quint32 cc = r.range.col1; cc <= r.range.col2; ++cc) regionOf[(quint64(rr) << 16) | cc] = int(regions.size()) - 1;
         }
-        QByteArray body;
+        // (the used area is known when the rows are done: its record is put in now, and filled in then)
+        const qsizetype dimensionsAt = out.size();
+        put(&out, 0x0200, W().u32(0).u32(0).u16(0).u16(0).u16(0));
         qint64 cellsCut = 0, textsCut = 0, firstRow = -1, lastRow = -1, firstCol = kXlsMaxCols, lastCol = -1;
         {
             size_t i = 0;
@@ -764,7 +773,7 @@ private:
             while (r < rowList.size()) {
                 if (m_cancelled && (r % 4096 == 0) && m_cancelled()) {
                     *error = QCoreApplication::translate("Sheet", "The save was stopped.");
-                    return QByteArray();
+                    return false;
                 }
                 // a block of up to 32 rows: their ROW records, then their cells
                 const quint32 blockStart = rowList[r] / 32 * 32;
@@ -778,7 +787,7 @@ private:
                         writeRowCells(sheet, cells, sp->first, sp->second, regions, regionOf, &rowCellBytes, &minCol, &maxCol, &cellsCut, &textsCut);
                         if (m_stopped) {
                             *error = QCoreApplication::translate("Sheet", "The save was stopped.");
-                            return QByteArray();
+                            return false;
                         }
                     }
                     const auto spec = specs.constFind(row);
@@ -804,17 +813,15 @@ private:
                         lastCol = std::max<qint64>(lastCol, maxCol);
                     }
                 }
-                body += rows;
-                body += cellBytes;
+                out += rows;
+                out += cellBytes;
             }
         }
-        // (the used area, then the rows)
         {
             W d;
             d.u32(firstRow >= 0 ? quint32(firstRow) : 0).u32(lastRow >= 0 ? quint32(lastRow + 1) : 0).u16(lastCol >= 0 ? int(firstCol) : 0).u16(lastCol >= 0 ? int(lastCol + 1) : 0).u16(0);
-            put(&out, 0x0200, d);
+            out.replace(dimensionsAt + 4, int(d.size()), d.bytes());
         }
-        out += body;
         // the view
         {
             const SheetView &v = sheet.view;
@@ -898,9 +905,10 @@ private:
         }
         put(&out, 0x000A, W());
         if (cellsCut > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%1 cells past row 65,536 or column IV (the format's last)").arg(cellsCut)));
+        if (cellsPastCap > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%1 cells past the limit on cells in a copy").arg(cellsPastCap)));
         if (textsCut > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%1 texts cut to 32,767 characters").arg(textsCut)));
         if (rowsCut > 0 || colsCut > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%1 row and column sizes past the format's grid").arg(rowsCut + colsCut)));
-        return out;
+        return true;
     }
 
     // How the sheet prints: the breaks, the header and footer, centering, margins, and the paper (the records that follow WSBOOL).
@@ -1198,7 +1206,7 @@ private:
         return std::max(0, int(m_written.size()) - 1);
     }
 
-    QByteArray buildGlobals(const QByteArray &names, const QVector<QByteArray> &sheets)
+    QByteArray buildGlobals(const QByteArray &names, const QVector<qsizetype> &sheetSizes)
     {
         QByteArray g;
         g += bof(0x0005);
@@ -1220,7 +1228,7 @@ private:
         {
             // (TABID holds the numbers of the sheets, one each)
             QByteArray data;
-            for (qsizetype i = 0; i < sheets.size(); ++i) {
+            for (qsizetype i = 0; i < sheetSizes.size(); ++i) {
                 data.append(char((i + 1) & 0xFF));
                 data.append(char(((i + 1) >> 8) & 0xFF));
             }
@@ -1309,7 +1317,7 @@ private:
                 else b.u8(ch.unicode());
             }
             putRecord(&g, 0x0085, b.bytes());
-            offset += sheets[qsizetype(i)].size();
+            offset += sheetSizes[qsizetype(i)];
         }
         putRecord(&g, 0x008C, country);
         g += extern_;

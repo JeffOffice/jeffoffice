@@ -169,6 +169,20 @@ int copyCheckMain(const QStringList &args)
     timer.start();
     QByteArray bytes;
     CopyReport report;
+    if (qEnvironmentVariable("COPY_CHECK_WRITE_ONLY") == QLatin1String("open")) {   // (the memory of opening the workbook alone, to take away from the write's)
+        for (int place : book.info().order) {
+            Sheet sheet;
+            book.readSheet(place, &sheet);
+        }
+        qint64 peakKb = -1;
+        QFile status(QStringLiteral("/proc/self/status"));
+        if (status.open(QIODevice::ReadOnly | QIODevice::Text))
+            for (const QByteArray &l : status.readAll().split('\n'))
+                if (l.startsWith("VmHWM:")) peakKb = l.mid(6).trimmed().split(' ').value(0).toLongLong();
+        out() << "copy-open\t" << path << "\t" << peakKb << "\n";
+        out().flush();
+        return 0;
+    }
     bool ok;
     if (format == QLatin1String("xls")) ok = saveXls(book, &bytes, &report, &why);
     else if (format == QLatin1String("ods")) ok = saveOds(book, &bytes, &report, &why);
@@ -177,6 +191,16 @@ int copyCheckMain(const QStringList &args)
     if (!ok) {
         line(QStringLiteral("save failed: ") + why);
         return 3;
+    }
+    if (qEnvironmentVariableIsSet("COPY_CHECK_WRITE_ONLY")) {   // (the cost of the write alone: the bytes, the milliseconds, and the most memory the program held, in kilobytes, from the system)
+        qint64 peakKb = -1;
+        QFile status(QStringLiteral("/proc/self/status"));
+        if (status.open(QIODevice::ReadOnly | QIODevice::Text))
+            for (const QByteArray &l : status.readAll().split('\n'))
+                if (l.startsWith("VmHWM:")) peakKb = l.mid(6).trimmed().split(' ').value(0).toLongLong();
+        out() << "copy-write\t" << path << '\t' << format << "\t" << bytes.size() << '\t' << writeMs << '\t' << peakKb << "\n";
+        out().flush();
+        return 0;
     }
     if (const QString keepAs = qEnvironmentVariable("COPY_CHECK_KEEP"); !keepAs.isEmpty()) {   // (the copy, for a look at it)
         QFile kept(keepAs);
@@ -201,7 +225,7 @@ int copyCheckMain(const QStringList &args)
                 written.push_back(w);
             }
     } else {
-        written = oldsave::sheetsToWrite(book, format == QLatin1String("xls") ? kMaxXlsSheets : kMaxSheets, &scratch);
+        written = oldsave::sheetsToWrite(book, format == QLatin1String("xls") ? kMaxXlsSheets : kMaxSheets, 31, &scratch);
     }
     // the sheets of the copy that are worksheets, in order
     std::vector<int> backPlaces;

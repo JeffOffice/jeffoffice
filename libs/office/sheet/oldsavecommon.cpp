@@ -69,11 +69,17 @@ std::vector<Written> sheetsToWrite(const Workbook &book, int limit, int maxName,
     return out;
 }
 
-std::vector<PlacedCell> sortedCells(const Sheet &sheet)
+std::vector<PlacedCell> sortedCells(const Sheet &sheet, qint64 maxCells, qint64 *notCopied)
 {
     std::vector<PlacedCell> cells;
-    cells.reserve(size_t(std::min<qint64>(sheet.cells.cellCount(), 50000000)));
-    sheet.cells.forEach([&](quint32 row, quint32 col, const Cell &c) { cells.push_back(PlacedCell{row, col, c}); });
+    const qint64 total = sheet.cells.cellCount();
+    const qint64 keep = std::max<qint64>(0, std::min(total, maxCells));
+    cells.reserve(size_t(std::min<qint64>(keep, 50000000)));
+    qint64 seen = 0;
+    sheet.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+        if (seen++ < keep) cells.push_back(PlacedCell{row, col, c});
+    });
+    if (notCopied) *notCopied = std::max<qint64>(0, seen - qint64(cells.size()));
     const bool sorted = std::is_sorted(cells.begin(), cells.end(), [](const PlacedCell &a, const PlacedCell &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; });
     if (!sorted) std::sort(cells.begin(), cells.end(), [](const PlacedCell &a, const PlacedCell &b) { return a.row != b.row ? a.row < b.row : a.col < b.col; });
     return cells;

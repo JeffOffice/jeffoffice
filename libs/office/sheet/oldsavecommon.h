@@ -24,7 +24,8 @@ struct Written {
 std::vector<Written> sheetsToWrite(const Workbook &book, int limit, int maxName, CopyReport *report);
 
 // The cells of a sheet in the order of rows, then columns.
-std::vector<PlacedCell> sortedCells(const Sheet &sheet);
+// The cells of the sheet in order of row, then column: at most `maxCells` of them are copied (the first in that order), and `notCopied` (if given) is how many were left out.
+std::vector<PlacedCell> sortedCells(const Sheet &sheet, qint64 maxCells, qint64 *notCopied = nullptr);
 
 // The text cut to `kMaxCopyTextChars` characters (not between the two halves of a pair); `cut` is set when it was.
 QString cutText(const QString &text, bool *cut);

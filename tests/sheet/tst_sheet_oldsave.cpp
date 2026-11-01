@@ -5,6 +5,7 @@
 
 #include "io/cfb.h"
 #include "sheet/oldsave.h"
+#include "sheet/oldsavecommon.h"
 #include "sheet/xlscompile.h"
 
 #include <QRegularExpression>
@@ -874,6 +875,32 @@ private Q_SLOTS:
         const QString content = QString::fromUtf8(parts.value(QStringLiteral("content.xml")));
         QCOMPARE(content.count(QLatin1String("table:number-matrix-rows-spanned")), 2);   // (B and C, which fit; A is past the size one may have, and D past the total)
         QCOMPARE(c.odsReport.formulasAsValues, qint64(2));
+    }
+
+    // The cap on cells is applied as the cells are taken from the sheet, not after all of them are copied: a sheet of 1,000 cells with a cap of 100 gives the first 100 in order and counts the rest.
+    void theCellsOfASheetAreCopiedOnlyUpToTheCap()
+    {
+        QString rows;
+        for (int r = 1; r <= 100; ++r) {
+            QString cells;
+            for (int col = 0; col < 10; ++col) cells += num(columnName(quint32(col)) + QString::number(r), r * 100 + col);
+            rows += row(r, cells);
+        }
+        Workbook wb;
+        QString why;
+        QVERIFY2(openXlsx(simple(rows), &wb, &why), qPrintable(why));
+        Sheet sheet;
+        wb.readSheet(0, &sheet);
+        qint64 left = -1;
+        const std::vector<PlacedCell> few = oldsave::sortedCells(sheet, 100, &left);
+        QCOMPARE(qint64(few.size()), qint64(100));
+        QCOMPARE(left, qint64(900));
+        QCOMPARE(few.front().row, quint32(0));
+        QCOMPARE(few.back().row, quint32(9));
+        QCOMPARE(few.back().col, quint32(9));
+        const std::vector<PlacedCell> all = oldsave::sortedCells(sheet, 5000, &left);
+        QCOMPARE(qint64(all.size()), qint64(1000));
+        QCOMPARE(left, qint64(0));
     }
 
     void theFormulaCompilerRefusesWhatItCannotWrite()

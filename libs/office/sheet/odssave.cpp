@@ -28,6 +28,41 @@ namespace {
 
 std::atomic<qint64> g_coveredWork{0};
 
+// The XML of the document body as it is made: kept deflated (lightly) in pieces of about a megabyte, so that a very large sheet does not hold its whole XML in memory (the document's
+// head is not known until the sheets are done, and must come first), and written out to the file in the same pieces.
+class Spool {
+public:
+    void add(const QByteArray &bytes)
+    {
+        if (bytes.isEmpty()) return;
+        m_raw += bytes.size();
+        m_pending += bytes;
+        if (m_pending.size() >= (1 << 20)) seal();
+    }
+    qint64 size() const { return m_raw; }
+    // Writes everything to the entry that is being streamed, and lets go of it as it goes.
+    void writeTo(jp::ZipWriter *zip)
+    {
+        seal();
+        while (!m_parts.isEmpty()) {
+            const QByteArray raw = qUncompress(m_parts.takeFirst());
+            zip->write(raw.constData(), raw.size());
+        }
+        m_raw = 0;
+    }
+
+private:
+    void seal()
+    {
+        if (m_pending.isEmpty()) return;
+        m_parts.append(qCompress(m_pending, 1));
+        m_pending.clear();
+    }
+    QList<QByteArray> m_parts;
+    QByteArray m_pending;
+    qint64 m_raw = 0;
+};
+
 constexpr qint64 kMaxContentBytes = qint64(700) << 20;
 
 QString esc(const QString &s)
@@ -113,8 +148,7 @@ public:
         zip.add(QStringLiteral("mimetype"), QByteArray("application/vnd.oasis.opendocument.spreadsheet"), false);
         // content.xml is written in pieces; its automatic styles are not known until the sheets have been read, so the sheets are written to a part of their own first
         const QString globalNames = names();
-        QByteArray bodyXml;
-        if (!writeBody(&bodyXml, error)) return false;
+        if (!writeBody(error)) return false;
         QByteArray head;
         {
             QString h = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document-content") + QLatin1String(kNamespaces) + QStringLiteral(" office:version=\"1.2\">");
@@ -130,7 +164,11 @@ public:
             head = h.toUtf8();
         }
         QByteArray tail = globalNames.toUtf8() + "</office:spreadsheet></office:body></office:document-content>";
-        zip.add(QStringLiteral("content.xml"), head + bodyXml + tail, true);
+        zip.beginStream(QStringLiteral("content.xml"), true);
+        zip.write(head.constData(), head.size());
+        m_body.writeTo(&zip);
+        zip.write(tail.constData(), tail.size());
+        zip.endStream();
         zip.add(QStringLiteral("styles.xml"), stylesXml().toUtf8(), true);
         zip.add(QStringLiteral("settings.xml"), settingsXml().toUtf8(), true);
         zip.add(QStringLiteral("meta.xml"), (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document-meta") + QLatin1String(kNamespaces)
@@ -162,6 +200,7 @@ private:
     const Workbook &m_book;
     CopyReport *m_report;
     std::function<bool()> m_cancelled;
+    Spool m_body;
     QSet<quint64> m_arraysAsValues;   // (the first cells of the arrays of this sheet that are written as values)
     int m_sinceLook = 0;
     bool m_stopped = false;
@@ -699,29 +738,25 @@ private:
 
     // ---- the sheets
 
-    bool writeBody(QByteArray *bodyXml, QString *error)
+    bool writeBody(QString *error)
     {
-        QByteArray all;
         for (size_t i = 0; i < m_written.size(); ++i) {
             if (m_cancelled && m_cancelled()) {
                 *error = QCoreApplication::translate("Sheet", "The save was stopped.");
                 return false;
             }
-            QByteArray sheetXml;
-            if (!writeSheet(int(i), &sheetXml, error)) return false;
-            all += sheetXml;
-            if (all.size() > kMaxContentBytes) {
+            if (!writeSheet(int(i), &m_body, error)) return false;
+            if (m_body.size() > kMaxContentBytes) {
                 trim(QCoreApplication::translate("Sheet", "the sheets after %1 (the document would be larger than any program reads)").arg(m_written[i].name));
                 break;
             }
         }
         if (m_badFormats > 0) trim(QCoreApplication::translate("Sheet", "%1 number formats OpenDocument can't say (they show as General)").arg(m_badFormats));
         if (m_cellsCut > 0) trim(QCoreApplication::translate("Sheet", "%1 cells past the limit on cells in a copy").arg(m_cellsCut));
-        *bodyXml = all;
         return true;
     }
 
-    bool writeSheet(int index, QByteArray *xml, QString *error)
+    bool writeSheet(int index, Spool *spool, QString *error)
     {
         const oldsave::Written &w = m_written[size_t(index)];
         Sheet sheet;
@@ -750,7 +785,9 @@ private:
         if (sheet.isProtected) head += QStringLiteral(" table:protected=\"true\"");
         head += QStringLiteral(">");
         // the used area
-        const std::vector<PlacedCell> cells = oldsave::sortedCells(sheet);
+        qint64 cellsPastCap = 0;
+        const std::vector<PlacedCell> cells = oldsave::sortedCells(sheet, std::max<qint64>(0, kMaxCopyCells - m_cells) + 2000000, &cellsPastCap);
+        m_cellsCut += cellsPastCap;
         m_linkOf.clear();
         {
             qint64 spread = 0;
@@ -819,6 +856,18 @@ private:
             }
             gap(lastCol + 1);
         }
+        // print areas: the ranges the sheet prints (the head of the table is complete with them, and goes out with the columns before the rows)
+        {
+            QString print;
+            if (sheet.page.hasPrintArea()) {
+                for (const CellRange &r : sheet.page.printArea) {
+                    if (!r.valid || r.row2 > 1048575 || r.col2 > 16383) continue;
+                    print += (print.isEmpty() ? QString() : QStringLiteral(" ")) + quoteSheet(w.name) + QLatin1Char('.') + cellName(r.row1, r.col1) + QLatin1Char(':') + quoteSheet(w.name) + QLatin1Char('.') + cellName(r.row2, r.col2);
+                }
+            }
+            if (!print.isEmpty()) head.insert(head.size() - 1, QStringLiteral(" table:print-ranges=\"%1\"").arg(esc(print)));
+        }
+        spool->add(head.toUtf8() + columns.toUtf8());
         QMap<quint32, RowSpec> specs;
         for (const RowSpec &s : sheet.placedRowSpecs()) specs.insert(s.row, s);
         m_explicitDefault = false;
@@ -858,7 +907,6 @@ private:
         }
         // the rows
         QString rowsXml;
-        QByteArray rowsBytes;
         {
             // the rows that matter: those with cells, with a size, with part of a merged range, or at the top of a page
             QVector<quint32> rowList;
@@ -915,11 +963,11 @@ private:
                     return false;
                 }
                 const quint32 row = rowList[ri];
-                if (rowsXml.size() > (1 << 20)) {
-                    rowsBytes += rowsXml.toUtf8();
+                if (rowsXml.size() > (1 << 19)) {
+                    spool->add(rowsXml.toUtf8());
                     rowsXml.clear();
                 }
-                if (rowsBytes.size() > kMaxContentBytes) {
+                if (spool->size() > kMaxContentBytes) {
                     trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "the rows from %1 on (the document would be larger than any program reads)").arg(row + 1)));
                     break;
                 }
@@ -1031,20 +1079,11 @@ private:
                 nextRow = row + 1;
             }
         }
-        rowsBytes += rowsXml.toUtf8();
+        spool->add(rowsXml.toUtf8());
         QString tail;
-        // print areas: the ranges the sheet prints
-        QString print;
-        if (sheet.page.hasPrintArea()) {
-            for (const CellRange &r : sheet.page.printArea) {
-                if (!r.valid || r.row2 > 1048575 || r.col2 > 16383) continue;
-                print += (print.isEmpty() ? QString() : QStringLiteral(" ")) + quoteSheet(w.name) + QLatin1Char('.') + cellName(r.row1, r.col1) + QLatin1Char(':') + quoteSheet(w.name) + QLatin1Char('.') + cellName(r.row2, r.col2);
-            }
-        }
-        if (!print.isEmpty()) head.insert(head.size() - 1, QStringLiteral(" table:print-ranges=\"%1\"").arg(esc(print)));
         const QString localNames = m_localNames.value(index);
         if (!localNames.isEmpty()) tail += QStringLiteral("<table:named-expressions>") + localNames + QStringLiteral("</table:named-expressions>");
-        *xml = head.toUtf8() + columns.toUtf8() + rowsBytes + tail.toUtf8() + "</table:table>";
+        spool->add(tail.toUtf8() + "</table:table>");
         return true;
     }
 
