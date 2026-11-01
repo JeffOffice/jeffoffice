@@ -6,6 +6,7 @@
 
 #include "io/cfb.h"
 #include "sheet/calculation.h"
+#include "io/zip.h"
 #include "sheet/oldsave.h"
 #include "sheet/xlsxbase.h"
 #include "sheet/xlscodepage.h"
@@ -136,6 +137,12 @@ private Q_SLOTS:
         QCOMPARE(copy.info().sheets.size(), 3);
         QCOMPARE(copy.info().sheets[copy.info().activeTab].name, QStringLiteral("B"));
         QCOMPARE(copy.info().sheets[copy.info().firstSheet].name, QStringLiteral("B"));
+        // (and the document of the other form opens on it too)
+        QByteArray ods;
+        QVERIFY2(saveOds(wb, &ods, &report, &why), qPrintable(why));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(ods, parts));
+        QVERIFY2(parts.value(QStringLiteral("settings.xml")).contains("config:name=\"ActiveTable\" config:type=\"string\">B<"), parts.value(QStringLiteral("settings.xml")).right(600).constData());
     }
 
     // The UNCALCED record says the workbook was saved before its calculation finished, in every form that has it.

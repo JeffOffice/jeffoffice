@@ -182,6 +182,7 @@ private:
     struct SheetViewInfo {
         QString name;
         SheetView view;
+        int place = -1;
     };
     QVector<SheetViewInfo> m_views;
 
@@ -377,7 +378,13 @@ private:
                     + QStringLiteral(" office:version=\"1.2\"><office:settings><config:config-item-set config:name=\"ooo:view-settings\"><config:config-item-map-indexed config:name=\"Views\"><config:config-item-map-entry>");
         x += item(QStringLiteral("ViewId"), "string", QStringLiteral("view1"));
         x += QStringLiteral("<config:config-item-map-named config:name=\"Tables\">");
-        const int active = std::max(0, std::min<int>(m_book.info().activeTab, int(m_views.size()) - 1));
+        // (the active sheet is numbered among all the book's: the first written at or after it, or the last)
+        int active = std::max(0, int(m_views.size()) - 1);
+        for (int i = 0; i < m_views.size(); ++i)
+            if (m_views[i].place >= m_book.info().activeTab) {
+                active = i;
+                break;
+            }
         for (const SheetViewInfo &v : m_views) {
             x += QStringLiteral("<config:config-item-map-entry config:name=\"%1\">").arg(esc(v.name));
             const SheetView &s = v.view;
@@ -710,7 +717,7 @@ private:
             }
             m_features.note(sheet);
         }
-        m_views.append({w.name, sheet.view});
+        m_views.append({w.name, sheet.view, w.place});
         const SheetEntry entry = m_book.info().sheets.value(w.place);
         QString tableStyle = QStringLiteral("ta%1").arg(index + 1);
         {
