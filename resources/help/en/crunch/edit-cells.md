@@ -15,13 +15,23 @@ When you type over a cell, an arrow key finishes the entry and moves the selecti
 
 | Keys | What they do |
 | --- | --- |
-| Enter | Keep the entry, and move down |
-| Shift+Enter | Keep the entry, and move up |
+| Enter | Keep the entry, and move down (or where **File > Options > Editing** says) |
+| Shift+Enter | Keep the entry, and move the other way |
+| Ctrl+Enter | Put the entry in every selected cell, and stay where you are |
 | Tab | Keep the entry, and move right |
 | Shift+Tab | Keep the entry, and move left |
 | Arrow keys | Keep the entry, and move one cell (only when you typed over the cell) |
 | Esc | Give the entry up |
 | Alt+Enter | Start a new line inside the cell |
+| Ctrl+; | Put in today's date (in the entry, when you are typing one) |
+| Ctrl+Shift+; | Put in the time now |
+| Alt+Down | List the words already in the column, and choose one |
+
+**Ctrl+Enter** with several cells selected puts what you typed in all of them. A formula is written for the cell you typed in, and in each of the others it reads as a copy of it would: typing **=A1** with the block E6:F7 selected gives **=B2** in F7. It is one step of Undo.
+
+**Alt+Down** on a cell lists, in order and once each, the words in the cells above and below it that are not separated by an empty cell. Choosing one types it. A cell with a list of its own shows that list instead.
+
+In **File > Options > Editing**, choose whether **Enter** moves down, right, up, or left, or does not move.
 
 If you type in several cells along a row with **Tab**, then press **Enter**, the selection goes down to the next row, in the column where you started. If you select a block of cells first, **Enter** and **Tab** move through the block.
 
@@ -34,6 +44,7 @@ JeffCrunch reads what you type the way your computer's settings say. The decimal
 | 1234.5 | the number 1234.5 | 1234.5 |
 | 5% | the number 0.05 | 5% |
 | $12.50 | the number 12.5 | $12.50 |
+| 1 1/2 | the number 1.5 | 1 1/2 |
 | 3/4/2025 | the date, as a number of days | 3/4/2025 |
 | 10:30 PM | the time, as a part of a day | 10:30 PM |
 | TRUE | the logical value true | TRUE |

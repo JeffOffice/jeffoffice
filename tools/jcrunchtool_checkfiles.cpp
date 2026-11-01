@@ -312,7 +312,7 @@ DrawingAnchor cellAnchor(int col1, int row1, int col2, int row2)
 }
 
 const ChartKind kAllKinds[] = {ChartKind::Column, ChartKind::ColumnStacked, ChartKind::ColumnPercent, ChartKind::Bar, ChartKind::BarStacked, ChartKind::BarPercent, ChartKind::Line, ChartKind::LineMarkers,
-                               ChartKind::LineStacked, ChartKind::Pie, ChartKind::Doughnut, ChartKind::Area, ChartKind::AreaStacked, ChartKind::Scatter, ChartKind::ScatterLines, ChartKind::Combo};
+                               ChartKind::LineStacked, ChartKind::Pie, ChartKind::Doughnut, ChartKind::Area, ChartKind::AreaStacked, ChartKind::Scatter, ChartKind::ScatterLines, ChartKind::ScatterSmooth, ChartKind::Combo};
 
 void charts(Ctx &c, int from, int to)
 {

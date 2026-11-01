@@ -4,6 +4,7 @@
 #include "odshelpers.h"
 
 #include "sheet/csv.h"
+#include "sheet/xlscodepage.h"
 
 namespace {
 
@@ -118,6 +119,69 @@ private Q_SLOTS:
         QCOMPARE(show(s, wb.sharedStrings(), QStringLiteral("B2")), QStringLiteral("i:31/31/2024"));   // (not a date in that order: the text stays)
         QVERIFY(!at(s, QStringLiteral("D1")));
         QCOMPARE(s.extentCols, quint32(3));
+    }
+
+    // The ISO 8859 pages and the Macintosh page can be chosen as the encoding of a file, and a text goes back to the bytes of its page (a letter the page lacks is a question mark, counted).
+    void theIsoAndMacintoshPagesAreRead()
+    {
+        LocaleScope locale(QLocale::c());
+        const struct {
+            int page;
+            const char *bytes;
+            QString text;
+        } cases[] = {{28592, "\xB3\xF1", QString::fromUtf8("\xC5\x82\xC5\x84")},         // Latin-2: the Polish l with a stroke and n with an acute
+                     {28595, "\xD6\xD0", QString::fromUtf8("\xD0\xB6\xD0\xB0")},         // Cyrillic: zhe, a
+                     {28597, "\xE1\xE2", QString::fromUtf8("\xCE\xB1\xCE\xB2")},         // Greek: alpha, beta
+                     {28599, "\xF0\xFD", QString::fromUtf8("\xC4\x9F\xC4\xB1")},         // Latin-5: g breve, dotless i
+                     {28605, "\xA4\xBD", QString::fromUtf8("\xE2\x82\xAC\xC5\x93")},   // Latin-9: the euro sign, oe
+                     {10000, "\x8E\x9F", QString::fromUtf8("\xC3\xA9\xC3\xBC")},         // Macintosh Roman: e acute, u diaeresis
+                     {28591, "\xE9\xFC", QString::fromUtf8("\xC3\xA9\xC3\xBC")}};
+        for (const auto &c : cases) {
+            auto choice = choices();
+            choice->separators = QStringLiteral(",");
+            choice->encodingSet = true;
+            choice->encoding = CsvEncoding::Legacy;
+            choice->codePage = c.page;
+            Workbook wb;
+            QVERIFY(openWith(QByteArray(c.bytes) + ",1\n", choice, &wb));
+            QCOMPARE(shown(wb, read(wb), QLatin1String("A1")), QStringLiteral("i:") + c.text);
+            QByteArray back;
+            qsizetype lost = -1;
+            QVERIFY(xlsTextToBytes(c.page, c.text, &back, &lost));
+            QCOMPARE(back, QByteArray(c.bytes));
+            QCOMPARE(lost, qsizetype(0));
+        }
+        QByteArray out;
+        qsizetype lost = 0;
+        QVERIFY(xlsTextToBytes(1252, QString::fromUtf8("a\xE2\x82\xAC\xCE\xB1z"), &out, &lost));   // the euro sign is in 1252; alpha is not
+        QCOMPARE(out, QByteArray("a\x80?z"));
+        QCOMPARE(lost, qsizetype(1));
+        QVERIFY(!xlsTextToBytes(1361, QStringLiteral("a"), &out, &lost) || !out.isEmpty());   // (a double-byte page is the system's: written when it has the converter)
+    }
+
+    // A double-byte page (Japanese here) can be written when the system has it: the characters go to the bytes of the page, and a letter the page lacks is a question mark.
+    void aDoubleBytePageIsWrittenWhenTheSystemHasIt()
+    {
+        if (!xlsCanConvert(932, CodePageBackend::Qt)) QSKIP("this machine has no converter for the Japanese page");
+        QByteArray out;
+        qsizetype lost = 0;
+        QVERIFY(xlsTextToBytes(932, QString::fromUtf8("\xE6\x97\xA5\xE6\x9C\xAC a"), &out, &lost));
+        QCOMPARE(out, QByteArray("\x93\xFA\x96\x7B a"));
+        QCOMPARE(lost, qsizetype(0));
+        QVERIFY(xlsTextToBytes(932, QString::fromUtf8("\xCE\xB1\xF0\x9F\x98\x80"), &out, &lost));   // (a Greek letter is in the page; the face is not)
+        QVERIFY(out.endsWith("?"));
+        QCOMPARE(lost, qsizetype(1));
+    }
+
+    // How a file's lines end is told from its first line, and kept in the form.
+    void theLineEndsOfAFileAreKept()
+    {
+        const QLocale c = QLocale::c();
+        QCOMPARE(detectCsvForm("a,b\n1,2\n", QStringLiteral("x.csv"), c).lineEnd, QStringLiteral("\n"));
+        QCOMPARE(detectCsvForm("a,b\r\n1,2\r\n", QStringLiteral("x.csv"), c).lineEnd, QStringLiteral("\r\n"));
+        QCOMPARE(detectCsvForm("a,b\r1,2\r", QStringLiteral("x.csv"), c).lineEnd, QStringLiteral("\r"));
+        QCOMPARE(detectCsvForm("a,b", QStringLiteral("x.csv"), c).lineEnd, QStringLiteral("\r\n"));
+        QCOMPARE(detectCsvForm("sep=;\na;b\n", QStringLiteral("x.csv"), c).lineEnd, QStringLiteral("\n"));
     }
 
     void aCodePageCanBeChosenForAFileThatSaysNothing()

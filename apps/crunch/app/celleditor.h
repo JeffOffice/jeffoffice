@@ -18,7 +18,7 @@ public:
     void setMode(Mode mode) { m_mode = mode; }
 
     // How an entry was finished: the key, and so the way the selection goes.
-    enum class Way { Stay, Enter, ShiftEnter, Tab, ShiftTab, Up, Down, Left, Right };
+    enum class Way { Stay, Enter, ShiftEnter, Tab, ShiftTab, Up, Down, Left, Right, Fill };
 
 Q_SIGNALS:
     void finished(jp::CellEditor::Way way);

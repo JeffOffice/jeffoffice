@@ -4,12 +4,15 @@
 // cell, in it with F2 or a double click, or in the formula bar), clears them with Delete, undoes and redoes, and saves the workbook as it was read with only what changed put in.
 
 #include "app/appwindow.h"
+
+#include <tuple>
 #include "app/anchordialogs.h"
 #include "app/celleditor.h"
 #include "app/filterpopup.h"
 #include "app/finddialog.h"
 #include "app/slicetuner.h"
 #include "app/sortdialog.h"
+#include "core/csvexport.h"
 #include "app/formatdialog.h"
 #include "app/widgets.h"
 #include "core/color.h"
@@ -53,6 +56,9 @@ class QPlainTextEdit;
 class QSlider;
 class QVBoxLayout;
 class QToolButton;
+namespace jp {
+class OutlineGutter;
+}
 class QUrl;
 
 namespace jp {
@@ -237,7 +243,8 @@ public:
     bool snapshotBytesForTest(QByteArray *bytes, QString *why);
     bool saveAs(const QString &path);
     // Writes the values of the sheet in view as a .csv file (see crunchwindow_csv.cpp); `csvExported` says when it is over. A path ending in .csv given to save() or saveAs() comes here.
-    bool exportCsv(const QString &path);
+    // `how` gives the choices (for tests and tools); without it they are those the ending of the name and the file the workbook came from say, and the person may change them in the question.
+    bool exportCsv(const QString &path, const crunch::CsvWrite *how = nullptr);
     bool isModified() const { return m_session && m_session->isModified(); }
     bool isSaving() const { return m_saving; }
     // What the person is asked when the window is closed with changes that are not saved: Save, Don't Save, or Cancel (a message box, unless this stands in for it: tests).
@@ -369,6 +376,10 @@ public:
     // where they begin and the edges of the printed cells dragged), 2 the pages themselves. What the person chose for each sheet is kept with the workbook and saved.
     void setViewKind(int kind);
     int viewKind() const { return m_viewKind; }
+    // Where the selection goes after Enter finishes an entry (Shift+Enter goes the other way); kept in the person's settings.
+    enum class EnterMove { Down, Right, Up, Left, Stay };
+    EnterMove enterMove() const { return m_enterMove; }
+    void setEnterMove(EnterMove move);
     // For tests: a line where a page begins is dragged from a row (column) to another, as the mouse would ask.
     void moveBreakForTest(bool column, qint64 from, qint64 to) { breakLineMoved(column, from, to); }
     // For tests and the window: the view of the pages, and the strip of text being typed in a header or footer.
@@ -458,6 +469,43 @@ private:
     QStringList m_opsActions;   // the commands that work when a workbook is open and nothing is being saved
     void autoSum(const QString &function);
     void fillSelection(crunch::EditSession::FillDirection direction);
+public:
+    // The small button that offers how the cells were filled after the fill handle was dragged (visible while the offer stands), and Fill > Across Worksheets for the sheets given.
+    QToolButton *fillOptionsButton() const { return m_fillOptions; }
+    bool fillAcrossSheets(const std::vector<int> &targets, crunch::EditSession::FillWhat what);
+private:
+    // The fill the handle made last, which the button's choices do again another way.
+    struct LastFill {
+        bool valid = false;
+        int sheet = 0, index = 0;   // the sheet, and the place in the undo stack once the fill was made
+        jp::office::sheet::CellRange from;
+        crunch::EditSession::FillDirection direction = crunch::EditSession::FillDirection::Down;
+        quint32 count = 0;
+        crunch::EditSession::FillKind kind = crunch::EditSession::FillKind::Auto;
+        bool dates = false, single = false;
+        jp::grid::GridRange extent;
+    };
+    LastFill m_lastFill;
+    bool m_fillRedoing = false;
+    void offerFillOptions();
+    void hideFillOptions();
+    void refill(const QString &id);
+    void fillStackChanged();
+    void justifySelection();
+    void fillAcrossDialog();
+    // the outline of the rows and columns (crunchwindow_outline.cpp)
+    void createOutlineActions();
+    QWidget *buildOutlineGutters(QWidget *parent);
+    void refreshOutline(bool force = false);
+    std::tuple<const void *, int, qint64> m_outlineSeen{nullptr, -1, -1};
+    void outlineGroupClicked(bool columns, const crunch::Outline::Group &group);
+    void outlineLevelClicked(bool columns, int level);
+    void groupSelected(bool columns, bool group);
+    OutlineGutter *m_rowGutter = nullptr, *m_columnGutter = nullptr;
+public:
+    OutlineGutter *rowGutter() const { return m_rowGutter; }
+    OutlineGutter *columnGutter() const { return m_columnGutter; }
+private:
     void fillDragged(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
     void fillSeriesDialog();
     // inserting and deleting rows, columns, and cells (crunchwindow_cells.cpp)
@@ -483,6 +531,8 @@ private:
     void updateInputMessage();
     QPointer<QWidget> m_inputMessage;
     void showChoices();
+    void insertNow(bool time);
+    crunch::CsvWrite csvWriteFor(const QString &path) const;
     // what Paste Special asks for: the options (a dialog unless this stands in for it: tests); false gives it up
     std::function<bool(crunch::EditSession::PasteOptions *)> m_pasteOptionsAsker;
     crunch::ClipData m_clip, m_pendingClip;   // the last copy or cut made here that the clipboard still holds, and the one being made
@@ -676,6 +726,7 @@ private:
     void widenForCells(int sheet, const jp::office::sheet::CellRange &cells);
     QString htmlOfClip(const crunch::ClipData &clip) const;
     void freezeAtSelection();
+    void syncPanes();
     // the sheets (crunchwindow_sheets.cpp): the tabs, and the commands that add, copy, rename, delete, move, hide, and color them
     void createSheetActions();
     void onSheetsChanged();
@@ -770,6 +821,8 @@ private:
     void dropLayoutJob();
     void syncPageViewSelection();
     void zoneClicked(int page, bool header, int zone);
+    void openHeaderToType();
+    bool m_headerWanted = false;
     void endZoneEdit(bool keep);
     void insertHeaderCode(const QString &code);
     void insertHeaderPicture();
@@ -936,6 +989,8 @@ private:
         QString original;      // what the formula bar showed before (Esc puts it back)
     } m_edit;
     bool m_syncingEditors = false, m_undoing = false, m_finishing = false;
+    EnterMove m_enterMove = EnterMove::Down;
+    QPointer<QToolButton> m_fillOptions;
     qint64 m_tabOriginCol = -1, m_tabRow = -1;   // where a run of Tabs began (Enter then goes back to that column)
     // saving
     bool m_saving = false, m_closeAfterSave = false, m_closing = false;

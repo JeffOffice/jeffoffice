@@ -181,6 +181,28 @@ private Q_SLOTS:
         QCOMPARE(QLocale().name(), m_localeBefore.name());
     }
 
+    // A filter hides rows by what their cells hold, as the original does: the first row of a merged area holds the area's value and the rows below it hold nothing, so they are shown only by a list
+    // that lets the empty cells through. The rows are hidden whole, and the merged area itself is not changed.
+    void aMergedAreaIsFilteredByTheCellsItsRowsHold()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=Group", "B1=Number", "A2=one", "B2=1", "A3=two", "B3=2", "B4=3", "A5=three", "B5=4"}}, {{0, QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A3:A4\"/></mergeCells>")}})));
+        QCOMPARE(e.win.w.session()->calculation()->mergesOf(0).size(), qsizetype(1));
+        AutoFilter f = range(QStringLiteral("A1:B5"));
+        FilterColumn c = values({"two"});
+        c.column = 0;
+        f.columns.append(c);
+        QVERIFY(filterWith(e, f));
+        QCOMPARE(shownRows(e, 2, 5), QStringLiteral("3"));
+        QCOMPARE(e.win.w.session()->calculation()->mergesOf(0).size(), qsizetype(1));
+        FilterColumn withBlank = values({"two"}, true);
+        withBlank.column = 0;
+        AutoFilter g = range(QStringLiteral("A1:B5"));
+        g.columns.append(withBlank);
+        QVERIFY(filterWith(e, g));
+        QCOMPARE(shownRows(e, 2, 5), QStringLiteral("3 4"));
+    }
+
     void aListOfValuesLetsThroughTheCellsThatShowThem()
     {
         EditWindow e;

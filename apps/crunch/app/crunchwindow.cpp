@@ -21,6 +21,9 @@
 #include "core/appinfo.h"
 #include "sheet/cellref.h"
 
+#include <QComboBox>
+#include <QFormLayout>
+#include <QPointer>
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
@@ -284,7 +287,7 @@ void CrunchWindow::buildCentral()
     m_view = new grid::GridView(central);
     m_view->setAccessibleName(tr("Sheet"));
     m_view->setAccessibleDescription(tr("The cells of the sheet. The arrow keys move the selection; Ctrl and an arrow go to the edge of the data."));
-    v->addWidget(m_view, 1);
+    v->addWidget(buildOutlineGutters(central), 1);
     buildPageLayoutView(central, v);
     m_cellEditor = new CellEditor(m_view->viewport());
     m_cellEditor->hide();
@@ -385,7 +388,7 @@ void CrunchWindow::createActions()
         }
         const QString kind = saveKind();
         const QString start = m_path.isEmpty() ? displayName() + QLatin1Char('.') + kind : m_path;
-        const QString filter = crunch::workbookKindFilter(kind) + QStringLiteral(";;") + crunch::csvFilter();
+        const QString filter = crunch::workbookKindFilter(kind) + QStringLiteral(";;") + crunch::csvFilter() + QStringLiteral(";;") + crunch::tabFilter();
         const QString p = askForSavePath(tr("Save Workbook As"), start, filter);
         if (!p.isEmpty()) saveAs(p);
     }, false, false);
@@ -393,18 +396,40 @@ void CrunchWindow::createActions()
     mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [this] { undoRedo(false); }, false, false);
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [this] { undoRedo(true); }, false, false);
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
-        // The shared pages (General, Proofing); JeffCrunch has no pages of its own yet.
+        // The shared pages (General, Proofing), then Editing: where the selection goes after Enter.
         Editor stand;
-        optionsDialog(this, &stand, {});
+        auto choice = std::make_shared<QPointer<QComboBox>>();
+        QVector<OptionsPage> pages;
+        pages << OptionsPage{tr("Editing"), [this, choice] {
+            auto *page = new QWidget;
+            auto *layout = new QFormLayout(page);
+            auto *box = new QComboBox(page);
+            box->setObjectName(QStringLiteral("optionEnterMove"));
+            box->setAccessibleName(tr("After pressing Enter, move the selection"));
+            for (const auto &item : {std::pair<QString, EnterMove>{tr("Down"), EnterMove::Down}, {tr("Right"), EnterMove::Right}, {tr("Up"), EnterMove::Up}, {tr("Left"), EnterMove::Left}, {tr("Don't move"), EnterMove::Stay}})
+                box->addItem(item.first, int(item.second));
+            box->setCurrentIndex(box->findData(int(m_enterMove)));
+            layout->addRow(tr("After pressing Enter, move the selection:"), box);
+            *choice = box;
+            return static_cast<QWidget *>(page);
+        }, [this, choice] {
+            if (*choice) setEnterMove(EnterMove((*choice)->currentData().toInt()));
+        }};
+        optionsDialog(this, &stand, pages);
     });
     mk("edit.selectAll", tr("Select All"), "", QKeySequence(), [this] { m_view->selectAll(); });
+    mk("edit.insertDate", tr("Today's Date"), "calendar", QKeySequence(Qt::CTRL | Qt::Key_Semicolon), [this] { insertNow(false); }, false, false);
+    mk("edit.insertTime", tr("The Time Now"), "clock", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Semicolon), [this] { insertNow(true); }, false, false);
+    act("edit.insertTime")->setShortcuts({QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Semicolon), QKeySequence(Qt::CTRL | Qt::Key_Colon)});
+    m_opsActions << QStringLiteral("edit.insertDate") << QStringLiteral("edit.insertTime");
+    m_enterMove = EnterMove(std::clamp(Settings::get().value(QStringLiteral("crunch/enterMove"), 0).toInt(), 0, 4));
     // ---- view
     mk("view.gridlines", tr("Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("view.gridlines")->isChecked()); }, true)->setChecked(true);
     mk("view.headings", tr("Headings"), "table-properties", QKeySequence(), [this] { m_view->setShowHeadings(act("view.headings")->isChecked()); }, true)->setChecked(true);
     mk("view.formulaBar", tr("Formula Bar"), "text-cursor-input", QKeySequence(), [this] { m_formulaRow->setVisible(act("view.formulaBar")->isChecked()); }, true)->setChecked(true);
     mk("view.pageBreaks", tr("Page Lines"), "separator-horizontal", QKeySequence(), [this] { updatePageBreaks(); }, true)->setChecked(true);
     mk("view.formulas", tr("Show Formulas"), "square-function", crunch::showFormulasKey(), [this] {
-        m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
+        m_view->setShowFormulas(act("view.formulas")->isChecked());
         m_view->invalidateValues();
     }, true);
     mk("zoom.in", tr("Zoom In"), "zoom-in", QKeySequence(), [this] { setViewZoom(std::round(viewZoom() * 10 + 1) / 10); });
@@ -414,9 +439,9 @@ void CrunchWindow::createActions()
     }
     act("zoom.100")->setText(tr("100%"));
     mk("view.freeze", tr("Freeze Panes"), "snowflake", QKeySequence(), [this] { freezeAtSelection(); });
-    mk("view.freezeRow", tr("Freeze Top Row"), "panel-top", QKeySequence(), [this] { m_view->freezeTopRow(); });
-    mk("view.freezeCol", tr("Freeze First Column"), "panel-left", QKeySequence(), [this] { m_view->freezeFirstColumn(); });
-    mk("view.unfreeze", tr("Unfreeze Panes"), "panels-top-left", QKeySequence(), [this] { m_view->unfreeze(); });
+    mk("view.freezeRow", tr("Freeze Top Row"), "panel-top", QKeySequence(), [this] { m_view->freezeTopRow(); syncPanes(); });
+    mk("view.freezeCol", tr("Freeze First Column"), "panel-left", QKeySequence(), [this] { m_view->freezeFirstColumn(); syncPanes(); });
+    mk("view.unfreeze", tr("Unfreeze Panes"), "panels-top-left", QKeySequence(), [this] { m_view->unfreeze(); syncPanes(); });
     // ---- formulas
     mk("formulas.calculate", tr("Recalculate All"), "calculator", QKeySequence(Qt::Key_F9), [this] {
         // (the calculation is the worker's: it is asked to work everything out again, and does)
@@ -442,6 +467,7 @@ void CrunchWindow::createActions()
     createPageActions();
     createViewActions();
     createPageLayoutActions();
+    createOutlineActions();
     createChartActions();
     createTableActions();
     createNoteActions();
@@ -453,6 +479,29 @@ void CrunchWindow::freezeAtSelection()
     // the rows above the cell with the cursor that are in view, and the columns to its left that are (what was scrolled out of sight stays out of sight)
     const grid::Selection &s = m_view->selection();
     m_view->freezeAt(s.activeRow, s.activeCol);
+    syncPanes();
+}
+
+// The panes the grid holds now are the sheet's for the file (not a step of Undo: it is how the window looks), with the cell the cursor is on.
+void CrunchWindow::syncPanes()
+{
+    if (!m_session || m_sheet < 0) return;
+    const grid::GridView::ViewState st = m_view->viewState();
+    jp::office::sheet::SheetView v;
+    v.frozenRows = quint32(std::max<qint64>(0, st.frozenRows - st.skipRows));
+    v.frozenCols = quint32(std::max<qint64>(0, st.frozenCols - st.skipCols));
+    v.frozen = v.frozenRows || v.frozenCols;
+    // where the view is now: the lines in view first (a direction that is not frozen is scrolled as it is), and for a frozen direction where the frozen part begins and where the part that scrolls does
+    const grid::PaneView body = m_view->sheet().layout().pane(grid::Pane::Body);
+    const quint32 firstRow = quint32(std::max<qint64>(0, m_view->firstRowInView())), firstCol = quint32(std::max<qint64>(0, m_view->firstColInView()));
+    v.topRow = v.frozenRows ? quint32(st.skipRows) : firstRow;
+    v.leftCol = v.frozenCols ? quint32(st.skipCols) : firstCol;
+    v.paneRow = v.frozenRows ? quint32(std::max<qint64>(st.frozenRows, body.isEmpty() ? 0 : body.firstRow)) : firstRow;
+    v.paneCol = v.frozenCols ? quint32(std::max<qint64>(st.frozenCols, body.isEmpty() ? 0 : body.firstCol)) : firstCol;
+    const grid::Selection &sel = m_view->selection();
+    v.activeRow = quint32(std::max<qint64>(0, sel.activeRow));
+    v.activeCol = quint32(std::max<qint64>(0, sel.activeCol));
+    m_session->setSheetPane(m_sheet, v);
 }
 
 void CrunchWindow::notice(const QString &title, const QString &text, bool warning)

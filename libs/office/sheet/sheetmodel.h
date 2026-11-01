@@ -1205,6 +1205,7 @@ struct SheetFormat {
     bool customHeight = false;
     quint8 outlineLevelRow = 0;     // the deepest outline levels of the rows and of the columns (what the buttons of the outline show)
     quint8 outlineLevelCol = 0;
+    bool summaryBelow = true, summaryRight = true;   // the lines that sum up an outline's groups are below the rows and to the right of the columns (`outlinePr` of `sheetPr`)
 };
 
 // `sheetView`: how the sheet was left on the screen.

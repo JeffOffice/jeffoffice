@@ -28,7 +28,7 @@ std::unique_ptr<crunch::PrintJob> CrunchWindow::makePrintJob(crunch::PrintJobOpt
     options.fileName = m_path.isEmpty() ? displayName() : QFileInfo(m_path).fileName();
     options.folder = m_path.isEmpty() ? QString() : QFileInfo(m_path).absolutePath();
     if (options.what == crunch::PrintWhat::Selection && !options.selection.valid) options.selection = selectedRange();
-    auto source = std::make_unique<crunch::BookPrintSource>(m_loaded.get(), &m_values, m_session ? &m_session->pages() : nullptr, m_objects.get());
+    auto source = std::make_unique<crunch::BookPrintSource>(m_loaded.get(), &m_values, m_session ? &m_session->pages() : nullptr, m_objects.get(), m_session ? &m_session->anchors() : nullptr);
     auto job = std::make_unique<crunch::PrintJob>(std::move(source), options);
     if (!job->build(why)) return nullptr;
     return job;

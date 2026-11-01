@@ -153,6 +153,21 @@ bool currencyBefore(const QLocale &l)
     return at < 0 || digit < 0 || at < digit;
 }
 
+// "1 1/2", "-2 3/4": a whole number and a fraction of it (a denominator of 0 is no fraction), shown as a fraction with as many places as the denominator typed has.
+bool readMixedFraction(const QString &typed, double *value, QString *code)
+{
+    static const QRegularExpression shape(QStringLiteral("^([+-]?)(\\d{1,15})\\s+(\\d{1,5})/(\\d{1,5})$"));
+    const QRegularExpressionMatch m = shape.match(typed.trimmed());
+    if (!m.hasMatch()) return false;
+    const double den = m.captured(4).toDouble();
+    if (den == 0) return false;
+    const double v = m.captured(2).toDouble() + m.captured(3).toDouble() / den;
+    *value = m.captured(1) == QLatin1String("-") ? -v : v;
+    const int places = int(m.captured(4).size()) <= 1 ? 1 : int(m.captured(4).size()) == 2 ? 2 : 3;
+    *code = QStringLiteral("# ") + QString(places, QLatin1Char('?')) + QLatin1Char('/') + QString(places, QLatin1Char('?'));
+    return true;
+}
+
 // "+5", "-1,234.50", "(5)", "5%", "$5", "$-5", "1.5E3": a number with the format that shows it as typed.
 bool readNumber(const QString &typed, const QLocale &locale, double *value, QString *code)
 {
@@ -887,7 +902,7 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
         double v = 0;
         QString code;
         const QString plain = normalizeNative(typed);
-        if (readNumber(plain, options.locale, &v, &code)) {
+        if (readMixedFraction(plain, &v, &code) || readNumber(plain, options.locale, &v, &code)) {
             r.entry.kind = Entry::Kind::Number;
             r.entry.number = v;
             r.entry.formatCode = code;

@@ -28,6 +28,8 @@
 #include <QUndoStack>
 
 #include <atomic>
+#include "core/outline.h"
+
 #include <functional>
 #include <map>
 #include <mutex>
@@ -319,6 +321,9 @@ public:
     // Types text into a cell, as the person typed it: a number, a percent, a date, TRUE, a formula, or text; the cell takes the format the entry asks for if it has none of its own. The
     // change is one step on the undo stack. Not ok, and nothing changed, if the text is a formula that is not one, or is too long, or the cell cannot be changed.
     Outcome type(int sheet, quint32 row, quint32 col, const QString &typed, bool checkRule = true);
+    // The same entry in every cell of the block (Ctrl+Enter): a formula is written for the cell the cursor is on (`activeRow`, `activeCol`) and reads, in each of the others, as a copy of it
+    // would. One step; nothing is changed if a cell cannot be, or the block is larger than kMaxCellsPerEdit.
+    Outcome typeInto(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2, quint32 activeRow, quint32 activeCol, const QString &typed, bool checkRule = true);
     // Clears the contents of the cells in the range (their formats stay): one step. Not ok, and nothing changed, if a cell in it is part of an array, or there are more cells than
     // kMaxCellsPerEdit.
     Outcome clear(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2);
@@ -342,8 +347,12 @@ public:
     enum class FillDirection { Down, Right, Up, Left };
     enum class FillKind { Auto, Copy, Linear, Growth, Date };
     enum class DateUnit { Day, Weekday, Month, Year };
+    // What a fill carries over from the cells it goes from: the contents and the formats (as always), just the formats (the cells keep what they hold), or just the contents (the cells keep
+    // their formats).
+    enum class FillWhat { All, FormatsOnly, ValuesOnly };
     struct FillOptions {
         FillKind kind = FillKind::Auto;
+        FillWhat what = FillWhat::All;
         DateUnit unit = DateUnit::Day;
         bool hasStep = false;
         double step = 1;
@@ -353,6 +362,13 @@ public:
     // Fills `count` cells past `source` in the direction (one step); nothing changed and the problem told if a cell there can't be changed.
     Outcome fill(int sheet, const jp::office::sheet::CellRange &source, FillDirection direction, quint32 count, const FillOptions &options);
     Outcome fill(int sheet, const jp::office::sheet::CellRange &source, FillDirection direction, quint32 count);   // (as the fill handle: Auto)
+    // Fill > Justify: the text of the cells of one column of `range`, put into lines no wider than `width` (as `measure` says a text is wide), in the cells from the first one down, the cells of the
+    // range left over emptied. A text that needs more cells than the range has is not put in (confirm, with a question in `problem`) unless `extend`; it then goes into the cells below.
+    // Not ok, and nothing changed, if the range is of more than one column or a cell holds a number, a formula, or something that is not text.
+    Outcome justify(int sheet, const jp::office::sheet::CellRange &range, double width, const std::function<double(const QString &)> &measure, bool extend = false);
+    // Fill > Across Worksheets: the cells of `range` on `sheet` copied to the same cells of the sheets in `targets` (the places of the sheets), as one step: everything, just the formats, or
+    // just the contents. Not ok, and nothing changed, if there is no sheet to copy to or one cannot be changed.
+    Outcome fillAcrossSheets(int sheet, const jp::office::sheet::CellRange &range, const std::vector<int> &targets, FillWhat what);
 
 
 
@@ -609,6 +625,14 @@ public:
         bool setHidden = false;
         bool hidden = false;
     };
+    // The outline of the rows or columns changed (see outline.h): the levels, which lines are hidden, and which summary lines say their group is collapsed; one step.
+    Outcome changeOutline(int sheet, bool columns, const std::vector<OutlineChange> &changes, const QString &text);
+    // The outline the rows (or the columns) of a sheet have now.
+    Outline outlineOf(int sheet, bool columns) const;
+    // How many outlines have been made so far (counted, for tests), and a number that changes whenever the rows' or columns' sizes, hiding, or outline, or their places, may have (a step
+    // done, undone, or redone): an outline made at one number is the outline until the number changes.
+    qint64 outlinesBuilt() const { return m_outlinesBuilt; }
+    qint64 outlineRevision() const { return m_outlineRevision; }
     Outcome resizeColumns(int sheet, quint32 first, quint32 last, const SizeChange &change, const QString &text);
     Outcome resizeRows(int sheet, quint32 first, quint32 last, const SizeChange &change, const QString &text);
     // Columns each given its width in one step (a fit to the contents of several): the column and the width.
@@ -684,6 +708,7 @@ public:
     Outcome setPageSetup(int sheet, const jp::office::sheet::PageSetup &setup, const QString &text);
     // How a sheet is shown (0 the cells, 1 the page breaks, 2 the pages) and at what zoom in percent: kept for saving, not a step of Undo.
     void setSheetView(int sheet, int kind, int zoom) { m_pages.setView(sheet, kind, zoom); }
+    void setSheetPane(int sheet, const jp::office::sheet::SheetView &pane) { m_pages.setPane(sheet, pane); }
     bool viewsChanged() const { return m_pages.viewsChanged(); }
 
     // The edits that insert or delete rows, columns, or cells since the file was read or saved that are done (not undone), in order: what the objects over the cells are moved by.
@@ -882,6 +907,8 @@ private:
     ResultMap m_results;      // formulas whose value is not the file's
     ResultMap m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
     qint64 m_token;
+    mutable qint64 m_outlinesBuilt = 0;
+    qint64 m_outlineRevision = 0;
     std::set<int> m_formatsChanged;  // the sheets whose default sizes a step changed since the file was read or saved
     bool m_sheetsListed = false;                          // a step changed the list of sheets since the file was read or saved
     std::set<int> m_sheetsRestyled;                       // the sheets a step gave the format of very many cells (drawn again whole)

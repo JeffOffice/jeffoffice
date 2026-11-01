@@ -85,6 +85,7 @@ struct SheetChanges {
     // The default sizes (`sheetFormatPr`), when a person changed them: the default height of rows (and whether it is a person's), and the default width of columns (none when 0).
     bool replaceFormat = false;
     SheetFormat format;
+    bool formatOutline = false;   // `format` also says how deep the outline of the rows and of the columns goes (`outlineLevelRow` and `outlineLevelCol`): they are written; else the file's stay
     std::vector<RowProps> rows;         // sorted by row
     // The color of the sheet's tab, when a person changed it (none: the sheet has no color).
     bool replaceTabColor = false;
@@ -101,6 +102,10 @@ struct SheetChanges {
     int viewKind = -1;
     int viewZoom = 0;
     int viewNormalZoom = 0;   // the zoom of the cells as they are, kept in the view's own attribute whichever view the sheet is left in (0: the file's stays)
+    // The panes of the first view, when a person froze or unfroze them: the view's `pane` (and its `selection` of each pane, with the cell the cursor is on) is made from this, in place of
+    // the file's; `frozenRows` and `frozenCols` count the rows and columns held, `topRow` and `leftCol` are where they begin, `paneRow` and `paneCol` where the part that scrolls does.
+    bool setPane = false;
+    SheetView pane;
     // The relationship the sheet's `legacyDrawingHF` is to name (empty: the element is taken out), when the pictures of its headers and footers are not as the file has them (saving sets
     // this from the page setup's pictures; whoever asks for a save does not).
     bool hfSet = false;
@@ -136,7 +141,7 @@ struct SheetChanges {
     QString drawingRelId;
     // The links from the sheet to its tables' parts: the ids of the relationships of tables made here (saving sets them, from SaveChanges::addedTables), and of tables taken out.
     std::vector<QString> addTableRels, removeTableRels;
-    bool empty() const { return drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !hfSet && noteOps.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    bool empty() const { return drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && noteOps.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.

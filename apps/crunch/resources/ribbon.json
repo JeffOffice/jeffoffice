@@ -145,7 +145,7 @@
               "split": true,
               "menu": ["edit.autosum.sum", "edit.autosum.average", "edit.autosum.count", "edit.autosum.max", "edit.autosum.min", "-", "edit.autosum.more"]
             },
-            {"small": "edit.fill", "keytip": "FI", "split": true, "menu": ["fill.down", "fill.right", "fill.up", "fill.left", "-", "fill.series"]},
+            {"small": "edit.fill", "keytip": "FI", "split": true, "menu": ["fill.down", "fill.right", "fill.up", "fill.left", "-", "fill.series", "fill.across", "fill.justify"]},
             {"small": "edit.clear", "keytip": "E", "split": true, "menu": ["edit.clear.all", "edit.clear.formats", "edit.clear.contents"]},
             {"large": "edit.sort", "keytip": "SS", "menu": ["sort.ascending", "sort.descending", "sort.custom", "-", "filter.toggle", "filter.clear", "filter.reapply"]},
             {"large": "edit.find", "keytip": "FD", "split": true, "menu": ["find.find", "find.replace", "-", "find.goto", "find.gotoSpecial"]}
@@ -175,7 +175,7 @@
             {"column": true},
             {"small": "chart.bar", "keytip": "CB", "split": true, "menu": ["chart.bar.clustered", "chart.bar.stacked", "chart.bar.percent"]},
             {"small": "chart.area", "keytip": "CA", "split": true, "menu": ["chart.area.plain", "chart.area.stacked"]},
-            {"small": "chart.scatter", "keytip": "CS", "split": true, "menu": ["chart.scatter.points", "chart.scatter.joined"]},
+            {"small": "chart.scatter", "keytip": "CS", "split": true, "menu": ["chart.scatter.points", "chart.scatter.joined", "chart.scatter.smooth"]},
             {"column": true},
             {"small": "chart.combo", "keytip": "CO"}
           ]
@@ -185,6 +185,13 @@
           "keytip": "ZK",
           "items": [
             {"large": "insert.link", "keytip": "K"}
+          ]
+        },
+        {
+          "name": "Text",
+          "keytip": "ZX",
+          "items": [
+            {"large": "insert.headerFooter", "keytip": "H"}
           ]
         }
       ]
@@ -283,6 +290,23 @@
       ]
     },
     {
+      "name": "Data",
+      "keytip": "A",
+      "groups": [
+        {
+          "name": "Outline",
+          "keytip": "ZU",
+          "items": [
+            {"small": "outline.groupRows", "keytip": "GR"},
+            {"small": "outline.ungroupRows", "keytip": "UR"},
+            {"column": true},
+            {"small": "outline.groupColumns", "keytip": "GC"},
+            {"small": "outline.ungroupColumns", "keytip": "UC"}
+          ]
+        }
+      ]
+    },
+    {
       "name": "Review",
       "keytip": "R",
       "groups": [
@@ -328,7 +352,8 @@
             {"small": "view.gridlines", "keytip": "SG"},
             {"small": "view.headings", "keytip": "SH"},
             {"small": "view.formulaBar", "keytip": "SF"},
-            {"small": "view.pageBreaks", "keytip": "SB"}
+            {"small": "view.pageBreaks", "keytip": "SB"},
+            {"small": "view.outline", "keytip": "SO"}
           ]
         },
         {

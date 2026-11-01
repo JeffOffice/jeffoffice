@@ -1011,7 +1011,7 @@ bool SheetReader::startColumns(const QXmlStreamReader &r)
     bool styleOk = false;
     const uint style = attribute(r, "style").toUInt(&styleOk);
     c.style = styleOk ? style : 0;
-    c.outline = quint8(std::min(7, attribute(r, "outlineLevel").toInt()));
+    c.outline = quint8(std::clamp(attribute(r, "outlineLevel").toInt(), 0, 7));
     c.collapsed = parseBool(attribute(r, "collapsed").toString());
     c.bestFit = parseBool(attribute(r, "bestFit").toString());
     c.phonetic = parseBool(attribute(r, "phonetic").toString());
@@ -1648,6 +1648,10 @@ bool SheetReader::read(QIODevice *in)
                 ok = startColumns(r);
             } else if (depth == 3 && inSheetPr && isElement(r, "tabColor")) {
                 m_sheet.tabColor = colorOf(r);
+            } else if (depth == 3 && inSheetPr && isElement(r, "outlinePr")) {
+                const QString below = attribute(r, "summaryBelow").toString().trimmed(), right = attribute(r, "summaryRight").toString().trimmed();
+                m_sheet.format.summaryBelow = below.isEmpty() || parseBool(below);
+                m_sheet.format.summaryRight = right.isEmpty() || parseBool(right);
             } else if (depth == 3 && inSheetPr && isElement(r, "pageSetUpPr")) {
                 readFitToPageAttributes(r.attributes(), &m_sheet.page);
             } else if (depth == 3 && inHeaderFooter) {

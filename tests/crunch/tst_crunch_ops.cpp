@@ -2,18 +2,23 @@
 // columns, and the rules of validation. Every workbook is built here, in a temporary folder; each step is one on the undo stack.
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "app/filldialogs.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
+#include "findbooks.h"
 #include "grid/gridview.h"
 
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
 #include <QLineEdit>
+#include <QListWidget>
+#include <QMenu>
+#include <QToolButton>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QUndoStack>
@@ -313,6 +318,443 @@ private Q_SLOTS:
         copy.kind = Kind::Copy;
         QVERIFY(s->fill(0, rangeOf(QStringLiteral("F1:F2")), Dir::Down, 3, copy).ok);
         QCOMPARE(shown(e, QStringLiteral("F1:F5")), QStringLiteral("1|2|1|2|1"));
+    }
+
+    // A fill never goes into or out of a merged area: it would leave values in cells the area hides. The cells outside any merged area fill as always.
+    void fillRefusesMergedCells()
+    {
+        using Dir = crunch::EditSession::FillDirection;
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>5</v></c><c r=\"C1\"><v>7</v></c></row>"),
+                                            QStringLiteral("<mergeCells count=\"2\"><mergeCell ref=\"A3:B3\"/><mergeCell ref=\"D1:D2\"/></mergeCells>"))})));
+        crunch::EditSession *s = e.win.w.session();
+        const int steps = e.win.w.undoStack()->count();
+        crunch::EditSession::Outcome o = s->fill(0, rangeOf(QStringLiteral("A1")), Dir::Down, 3);   // A2:A4: A3 is in a merged area
+        QVERIFY(!o.ok);
+        QVERIFY2(o.problem.contains(QLatin1String("merged")), qPrintable(o.problem));
+        o = s->fill(0, rangeOf(QStringLiteral("C1")), Dir::Right, 1);                               // D1 is in a merged area
+        QVERIFY(!o.ok);
+        o = s->fill(0, rangeOf(QStringLiteral("D1")), Dir::Down, 2);                                // from a merged area
+        QVERIFY(!o.ok);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(shown(e, QStringLiteral("A2:A4")), QStringLiteral("||"));
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("A1")), Dir::Down, 1).ok);                        // A2 is clear of them
+        QCOMPARE(shown(e, QStringLiteral("A1:A2")), QStringLiteral("5|5"));
+    }
+
+    // A fill is refused only where a merged area would be left wrong: one that straddles the edge between the cells filled from and those filled, one that is cut by either, and one in the cells
+    // filled that is not the size of the area in the same place of the cells filled from. A merged area wholly inside the cells filled from fills as the values are, with or without a like area
+    // where it goes.
+    void fillGoesPastMergedAreasThatMatch()
+    {
+        using Dir = crunch::EditSession::FillDirection;
+        auto book = [](const QString &merges) {
+            const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>x</t></is></c><c r=\"B1\"><v>1</v></c></row><row r=\"2\"><c r=\"B2\"><v>2</v></c></row>");
+            return buildXlsx({worksheet(rows, merges.isEmpty() ? QString() : QStringLiteral("<mergeCells count=\"%1\">%2</mergeCells>").arg(merges.count(QLatin1String("<mergeCell "))).arg(merges))});
+        };
+        auto cell = [](const char *ref) { return QStringLiteral("<mergeCell ref=\"%1\"/>").arg(QLatin1String(ref)); };
+        {
+            EditWindow e;   // the area in the cells filled from, and a like area where the fill goes
+            QVERIFY(e.open(book(cell("A1:A2") + cell("A3:A4"))));
+            QVERIFY(e.win.w.session()->fill(0, rangeOf(QStringLiteral("A1:B2")), Dir::Down, 2).ok);
+            QCOMPARE(shown(e, QStringLiteral("A3:B4")), QStringLiteral("x|3||4"));   // (the numbers go on as a series)
+        }
+        {
+            EditWindow e;   // the area in the cells filled from only
+            QVERIFY(e.open(book(cell("A1:A2"))));
+            QVERIFY(e.win.w.session()->fill(0, rangeOf(QStringLiteral("A1:B2")), Dir::Down, 2).ok);
+            QCOMPARE(shown(e, QStringLiteral("A3:B4")), QStringLiteral("x|3||4"));   // (the numbers go on as a series)
+        }
+        {
+            EditWindow e;   // an area where it goes that is not the size of the one it is copied from
+            QVERIFY(e.open(book(cell("A1:A2") + cell("A3:B3"))));
+            const auto o = e.win.w.session()->fill(0, rangeOf(QStringLiteral("A1:B2")), Dir::Down, 2);
+            QVERIFY(!o.ok);
+            QVERIFY(o.problem.contains(QLatin1String("merged")));
+            QCOMPARE(e.win.w.undoStack()->count(), 0);
+        }
+        {
+            EditWindow e;   // an area that begins in the cells filled and goes on past them
+            QVERIFY(e.open(book(cell("A3:A4"))));
+            QVERIFY(!e.win.w.session()->fill(0, rangeOf(QStringLiteral("A1:B2")), Dir::Down, 1).ok);
+        }
+        {
+            EditWindow e;   // an area that is cut by the cells filled from
+            QVERIFY(e.open(book(cell("A2:A3"))));
+            QVERIFY(!e.win.w.session()->fill(0, rangeOf(QStringLiteral("A1:B2")), Dir::Down, 1).ok);
+        }
+    }
+
+    // At the edges of the sheet: a fill that is asked to go past the last row (or the first) stops there, and a merged area on the edge is judged by the cells that are filled, with no arithmetic that
+    // wraps.
+    void fillAtTheEdgesOfTheSheetStopsAndJudgesMergedAreas()
+    {
+        using Dir = crunch::EditSession::FillDirection;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row>"
+                                            "<row r=\"1048575\"><c r=\"A1048575\"><v>9</v></c></row>");
+        auto book = [&](const QString &merge) {
+            return buildXlsx({worksheet(rows, merge.isEmpty() ? QString() : QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"%1\"/></mergeCells>").arg(merge))});
+        };
+        {
+            EditWindow e;
+            QVERIFY(e.open(book(QString())));
+            crunch::EditSession *s = e.win.w.session();
+            QVERIFY(s->fill(0, rangeOf(QStringLiteral("A1048575")), Dir::Down, 4000000000u, crunch::EditSession::FillOptions()).ok);   // (one row is left)
+            QCOMPARE(s->calculation()->content(0, 1048575, 0).value.number(), 9.0);
+            QVERIFY(s->fill(0, rangeOf(QStringLiteral("A2")), Dir::Up, 4000000000u).ok);               // (one row is above)
+            QCOMPARE(s->calculation()->content(0, 0, 0).value.number(), 2.0);
+        }
+        {
+            EditWindow e;   // the last row is in an area wider than the cells filled from
+            QVERIFY(e.open(book(QStringLiteral("A1048576:B1048576"))));
+            QVERIFY(!e.win.w.session()->fill(0, rangeOf(QStringLiteral("A1048575")), Dir::Down, 4000000000u).ok);
+        }
+        {
+            EditWindow e;
+            QVERIFY(e.open(book(QStringLiteral("A1:B1"))));
+            QVERIFY(!e.win.w.session()->fill(0, rangeOf(QStringLiteral("A2")), Dir::Up, 4000000000u).ok);
+        }
+    }
+
+    // Across Worksheets keeps to the rules of a fill: it does not write over the header row of a table on a sheet it goes to, and it does not go into a merged area on a sheet unless the sheet it is
+    // copied from has a like area in the same cells.
+    void fillAcrossWorksheetsKeepsToTheRulesOfAFill()
+    {
+        using What = crunch::EditSession::FillWhat;
+        const QString merged = QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A1:B1\"/></mergeCells>");
+        {
+            EditWindow e;   // a table's header row on the sheet it goes to
+            QVERIFY(e.open(bookOfSheets({{"A1=5", "B1=6"}, {"A1=head1", "B1=head2", "A2=1", "B2=2"}})));
+            crunch::EditSession *s = e.win.w.session();
+            QVERIFY(s->makeTable(1, rangeOf(QStringLiteral("A1:B2")), true, QStringLiteral("TableStyleMedium2")).ok);
+            const int steps = e.win.w.undoStack()->count();
+            const auto o = s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1:B1")), {1}, What::All);
+            QVERIFY(!o.ok);
+            QVERIFY2(o.problem.contains(QLatin1String("table")), qPrintable(o.problem));
+            QCOMPARE(e.win.w.undoStack()->count(), steps);
+        }
+        {
+            EditWindow e;   // a merged area on the sheet it goes to that the sheet it comes from does not have
+            QVERIFY(e.open(bookOfSheets({{"A1=5", "B1=6"}, {"C1=1"}}, {{1, merged}})));
+            const int steps = e.win.w.undoStack()->count();
+            const auto o = e.win.w.session()->fillAcrossSheets(0, rangeOf(QStringLiteral("A1:B1")), {1}, What::All);
+            QVERIFY(!o.ok);
+            QVERIFY2(o.problem.contains(QLatin1String("merged")), qPrintable(o.problem));
+            QCOMPARE(e.win.w.undoStack()->count(), steps);
+        }
+        {
+            EditWindow e;   // the same area on both
+            QVERIFY(e.open(bookOfSheets({{"A1=5", "B1=6"}, {"C1=1"}}, {{0, merged}, {1, merged}})));
+            QVERIFY(e.win.w.session()->fillAcrossSheets(0, rangeOf(QStringLiteral("A1:B1")), {1}, What::All).ok);
+            QCOMPARE(e.win.w.session()->calculation()->content(1, 0, 0).value.number(), 5.0);
+        }
+        {
+            EditWindow e;   // an area on the sheet it comes from that the range cuts
+            QVERIFY(e.open(bookOfSheets({{"A1=5", "B1=6"}, {"C1=1"}}, {{0, merged}})));
+            QVERIFY(!e.win.w.session()->fillAcrossSheets(0, rangeOf(QStringLiteral("A1:A1")), {1}, What::All).ok);
+        }
+    }
+
+    // A fill can copy just the formats, or just the contents, of the cells it goes from.
+    void fillCanCopyJustTheFormatsOrJustTheContents()
+    {
+        using Dir = crunch::EditSession::FillDirection;
+        using What = crunch::EditSession::FillWhat;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=%0.25", "A2=7", "B1=%0.5", "C1=%0.75"})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        crunch::EditSession::FillOptions copy;
+        copy.kind = crunch::EditSession::FillKind::Copy;
+        copy.what = What::FormatsOnly;
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("A1")), Dir::Down, 2, copy).ok);   // A2 keeps its 7, now as a percent; A3 gets the format and nothing in it
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("25%|700%|"));
+        QCOMPARE(s->calculation()->content(0, 2, 0).style, s->calculation()->content(0, 0, 0).style);
+        copy.what = What::ValuesOnly;
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("B1")), Dir::Down, 2, copy).ok);   // B2 and B3 are General cells: they take 0.5 and are shown so
+        QCOMPARE(shown(e, QStringLiteral("B1:B3")), QStringLiteral("50%|0.5|0.5"));
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("C1")), Dir::Right, 1, crunch::EditSession::FillOptions()).ok);   // (and the usual copies both)
+        QCOMPARE(shown(e, QStringLiteral("C1:D1")), QStringLiteral("75%|75%"));
+        QCOMPARE(e.win.w.undoStack()->count(), 3);
+    }
+
+    // Justify puts the text of a column's cells into lines no wider than the width given, in the cells from the first one down; a text that needs more cells than were selected is
+    // only put in when asked for.
+    void justifyRefillsTheLines()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=The quick brown fox", "A2=jumps over", "A3=the lazy dog", "B1=x", "C1=5", "D1=text", "D2=more"})));
+        crunch::EditSession *s = e.win.w.session();
+        const auto measure = [](const QString &t) { return double(t.size()); };
+        crunch::EditSession::Outcome o = s->justify(0, rangeOf(QStringLiteral("A1:A3")), 12, measure);   // four lines in three cells: more room is asked for
+        QVERIFY(!o.ok && o.confirm);
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        QVERIFY(s->justify(0, rangeOf(QStringLiteral("A1:A3")), 12, measure, true).ok);
+        QCOMPARE(shown(e, QStringLiteral("A1:A4")), QStringLiteral("The quick|brown fox|jumps over|the lazy dog"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        // wider: the lines are fewer, and the cells left over are emptied
+        QVERIFY(s->justify(0, rangeOf(QStringLiteral("A1:A4")), 50, measure).ok);
+        QCOMPARE(shown(e, QStringLiteral("A1:A4")), QStringLiteral("The quick brown fox jumps over the lazy dog|||"));
+        // a word longer than the width has a line to itself
+        QVERIFY(s->justify(0, rangeOf(QStringLiteral("D1:D2")), 3, measure, true).ok);
+        QCOMPARE(shown(e, QStringLiteral("D1:D3")), QStringLiteral("text|more|"));
+        // numbers, and more than one column, are refused
+        QVERIFY(!s->justify(0, rangeOf(QStringLiteral("C1")), 12, measure).ok);
+        QVERIFY(!s->justify(0, rangeOf(QStringLiteral("A1:B1")), 12, measure).ok);
+        pressUndo(e.view());
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("D1:D2")), QStringLiteral("text|more"));
+    }
+
+    // Fill > Across Worksheets copies the cells selected to the same places on the sheets chosen (everything, the contents, or the formats), as one step of Undo.
+    void fillAcrossWorksheets()
+    {
+        using What = crunch::EditSession::FillWhat;
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=5~1", "B1=x", "A2==A1*2"}, {"A1=9", "C1=keep"}, {}})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1:B2")), {1, 2}, What::All).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        for (const int sheet : {1, 2}) {
+            QCOMPARE(s->calculation()->content(sheet, 0, 0).value.number(), 5.0);
+            QCOMPARE(s->calculation()->content(sheet, 0, 0).style, s->calculation()->content(0, 0, 0).style);
+            QCOMPARE(s->calculation()->content(sheet, 0, 1).value.text(), QStringLiteral("x"));
+            QCOMPARE(s->calculation()->content(sheet, 1, 0).formula, QStringLiteral("A1*2"));
+        }
+        QCOMPARE(s->calculation()->content(1, 0, 2).value.text(), QStringLiteral("keep"));   // (outside the cells: untouched)
+        pressUndo(e.view());
+        QVERIFY(e.settle());
+        QTRY_COMPARE(s->calculation()->content(1, 0, 0).value.number(), 9.0);
+        QVERIFY(!s->calculation()->content(2, 0, 1).exists);
+        // just the formats: the cells keep what they hold
+        QVERIFY(s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1")), {1}, What::FormatsOnly).ok);
+        QCOMPARE(s->calculation()->content(1, 0, 0).value.number(), 9.0);
+        QCOMPARE(s->calculation()->content(1, 0, 0).style, s->calculation()->content(0, 0, 0).style);
+        // just the contents: the formats stay
+        QVERIFY(s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1")), {2}, What::ValuesOnly).ok);
+        QCOMPARE(s->calculation()->content(2, 0, 0).value.number(), 5.0);
+        QCOMPARE(s->calculation()->content(2, 0, 0).style, quint32(0));
+        // not the sheet it is on, a sheet that is not there, or none
+        QVERIFY(!s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1")), {0}, What::All).ok);
+        QVERIFY(!s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1")), {7}, What::All).ok);
+        QVERIFY(!s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1")), {}, What::All).ok);
+    }
+
+    // After the fill handle is dragged, a small button offers how the cells were filled: copied, as a series, just the formats, without the formats, and (for dates) by days, weekdays, months, or
+    // years. Choosing one takes the fill back and does it again that way, so the fill is still one step; any other edit takes the button away.
+    void theFillHandleOffersHowTheCellsWereFilled()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=%0.25", "C1=@2024-03-01"})));
+        e.win.w.session()->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        QVERIFY(!e.win.w.fillOptionsButton() || !e.win.w.fillOptionsButton()->isVisible());
+        auto drag = [&](qint64 col, qint64 lastRow) {
+            grid::GridRange source, extent;
+            source.row1 = source.row2 = 0;
+            source.col1 = source.col2 = col;
+            extent = source;
+            extent.row2 = lastRow;
+            Q_EMIT e.view()->fillRequested(source, extent, false);
+        };
+        auto choices = [&] {
+            QStringList out;
+            QToolButton *b = e.win.w.fillOptionsButton();
+            if (b && b->menu())
+                for (QAction *a : b->menu()->actions()) out << a->text();
+            return out;
+        };
+        auto choose = [&](const char *id) {
+            QToolButton *b = e.win.w.fillOptionsButton();
+            QAction *found = nullptr;
+            if (b && b->menu())
+                for (QAction *a : b->menu()->actions())
+                    if (a->objectName() == QLatin1String(id)) found = a;
+            if (!found) return false;
+            found->trigger();
+            return true;
+        };
+        drag(0, 2);
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("25%|25%|25%"));
+        QVERIFY(e.win.w.fillOptionsButton() && e.win.w.fillOptionsButton()->isVisible());
+        QCOMPARE(choices(), (QStringList{"Copy Cells", "Fill Series", "Fill Formatting Only", "Fill Without Formatting"}));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QVERIFY(choose("fillOpt.valuesOnly"));
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("25%|0.25|0.25"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QVERIFY(choose("fillOpt.formatsOnly"));
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("25%||"));
+        QCOMPARE(e.win.w.session()->calculation()->content(0, 2, 0).style, e.win.w.session()->calculation()->content(0, 0, 0).style);
+        QVERIFY(choose("fillOpt.copy"));
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("25%|25%|25%"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QVERIFY(e.win.w.fillOptionsButton()->isVisible());
+        e.select(QStringLiteral("E1"));
+        e.enter(QStringLiteral("1"));
+        QVERIFY(!e.win.w.fillOptionsButton()->isVisible());
+        // a date: by days at first; the unit can be changed
+        drag(2, 2);
+        QCOMPARE(shown(e, QStringLiteral("C1:C3")), QStringLiteral("3/1/2024|3/2/2024|3/3/2024"));
+        QVERIFY(choices().contains(QStringLiteral("Fill Months")) && choices().contains(QStringLiteral("Fill Weekdays")));
+        QVERIFY(choose("fillOpt.months"));
+        QCOMPARE(shown(e, QStringLiteral("C1:C3")), QStringLiteral("3/1/2024|4/1/2024|5/1/2024"));
+        QVERIFY(choose("fillOpt.years"));
+        QCOMPARE(shown(e, QStringLiteral("C1:C3")), QStringLiteral("3/1/2024|3/1/2025|3/1/2026"));
+        QCOMPARE(e.win.w.undoStack()->count(), 3);
+        pressUndo(e.view());
+        QVERIFY(!e.win.w.fillOptionsButton()->isVisible());
+    }
+
+    // Fill > Justify and Fill > Across Worksheets are in the Fill menu; Justify breaks a long text into the cells of its column to the width of the column; the dialog of Across Worksheets
+    // lists the other sheets and what to copy.
+    void justifyAndAcrossWorksheetsAreCommandsOfTheFillMenu()
+    {
+        {
+            EditWindow e;
+            QVERIFY(e.open(sheetOf({"A1=alpha beta gamma delta epsilon zeta eta theta iota kappa lambda", "B1=x"})));
+            QVERIFY(e.win.w.act(QStringLiteral("fill.justify")) && e.win.w.act(QStringLiteral("fill.across")));
+            e.select(QStringLiteral("A1"));
+            e.win.w.act(QStringLiteral("fill.justify"))->trigger();
+            QStringList lines;
+            for (int r = 1; r <= 12; ++r)
+                if (const QString t = e.shownAt(QStringLiteral("A%1").arg(r)); !t.isEmpty()) lines << t;
+            QVERIFY2(lines.size() >= 3, qPrintable(lines.join(QLatin1Char('|'))));
+            QCOMPARE(lines.join(QLatin1Char(' ')), QStringLiteral("alpha beta gamma delta epsilon zeta eta theta iota kappa lambda"));
+            QCOMPARE(e.shownAt(QStringLiteral("B1")), QStringLiteral("x"));
+            QCOMPARE(e.win.w.undoStack()->count(), 1);
+            // a number cannot be justified
+            e.select(QStringLiteral("D1"));
+            e.type(QStringLiteral("5"));
+            e.key(Qt::Key_Return);
+            e.select(QStringLiteral("D1"));
+            e.win.w.act(QStringLiteral("fill.justify"))->trigger();
+            QVERIFY(!e.win.told.isEmpty());
+        }
+        {
+            EditWindow e;
+            QVERIFY(e.open(bookOfSheets({{"A1=5", "B1=x"}, {}, {}})));
+            e.view()->selectRange(0, 0, 0, 1);
+            QVERIFY(e.win.w.fillAcrossSheets({1}, crunch::EditSession::FillWhat::All));
+            QCOMPARE(e.win.w.session()->calculation()->content(1, 0, 1).value.text(), QStringLiteral("x"));
+            QVERIFY(!e.win.w.session()->calculation()->content(2, 0, 1).exists);
+            FillAcrossDialog d(QStringList{"Sheet1", "Sheet2", "Sheet3"}, 0);
+            auto *list = d.findChild<QListWidget *>(QStringLiteral("fillAcrossSheets"));
+            QVERIFY(list);
+            QCOMPARE(list->count(), 2);
+            QCOMPARE(list->item(0)->text(), QStringLiteral("Sheet2"));
+            QVERIFY(d.sheets().empty());
+            list->item(1)->setCheckState(Qt::Checked);
+            QCOMPARE(d.sheets(), (std::vector<int>{2}));
+            auto *what = d.findChild<QComboBox *>(QStringLiteral("fillAcrossWhat"));
+            QVERIFY(what);
+            QCOMPARE(d.what(), crunch::EditSession::FillWhat::All);
+            what->setCurrentIndex(what->findText(QStringLiteral("Formats")));
+            QCOMPARE(d.what(), crunch::EditSession::FillWhat::FormatsOnly);
+            what->setCurrentIndex(what->findText(QStringLiteral("Contents")));
+            QCOMPARE(d.what(), crunch::EditSession::FillWhat::ValuesOnly);
+        }
+    }
+
+    // Show Formulas widens the columns that hold formulas so the formulas show whole, and puts the widths back when it is turned off; it is a change of the view, not of the workbook.
+    void showFormulasWidensTheColumnsThatNeedIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "C1==SUM(A1:A2)+SUM(A1:A2)*100+A1/A2+SUM(A1:A2)*3", "D1=7", "E1==A1"})));
+        const double c = e.view()->sheet().columnWidth(2), d = e.view()->sheet().columnWidth(3), colE = e.view()->sheet().columnWidth(4);
+        e.win.w.act(QStringLiteral("view.formulas"))->trigger();
+        QVERIFY(e.view()->sheet().showFormulas());
+        QVERIFY2(e.view()->sheet().columnWidth(2) > c + 40, qPrintable(QString::number(e.view()->sheet().columnWidth(2))));
+        QCOMPARE(e.view()->sheet().columnWidth(3), d);                   // (no formula in it)
+        QCOMPARE(e.view()->sheet().columnWidth(4), colE);                // (a short one fits already)
+        QCOMPARE(e.view()->sheet().shown(0, 2, *e.view()->sheet().cellAt(0, 2)).text, QStringLiteral("=SUM(A1:A2)+SUM(A1:A2)*100+A1/A2+SUM(A1:A2)*3"));
+        QVERIFY(!e.win.w.isModified());
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        e.win.w.act(QStringLiteral("view.formulas"))->trigger();
+        QVERIFY(!e.view()->sheet().showFormulas());
+        QCOMPARE(e.view()->sheet().columnWidth(2), c);
+    }
+
+    // Showing the formulas measures the cells of the columns in view, up to a limit for each, once; an edit does not measure them again, except the column of a formula that was typed. A sheet of 200
+    // columns of 500 formulas is 100,000 cells and fewer than a tenth of that are measured.
+    void showFormulasMeasuresOnlyTheColumnsInView()
+    {
+        QString rows;
+        for (int r = 1; r <= 500; ++r) {
+            rows += QStringLiteral("<row r=\"%1\">").arg(r);
+            for (int c = 0; c < 200; ++c) rows += QStringLiteral("<c r=\"%1%2\"><f>SUM(A1:A2)+%3</f><v>1</v></c>").arg(columnName(quint32(c))).arg(r).arg(r * 7 + c);
+            rows += QStringLiteral("</row>");
+        }
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        e.win.w.resize(1000, 600);
+        const grid::GridSheet &gs = e.view()->sheet();
+        const qint64 before = gs.cellsMeasured();
+        e.win.w.act(QStringLiteral("view.formulas"))->trigger();
+        const qint64 turnedOn = gs.cellsMeasured() - before;
+        QVERIFY2(turnedOn > 0 && turnedOn < 10000, qPrintable(QString::number(turnedOn)));
+        QVERIFY(gs.columnWidth(0) > 64);
+        // an edit somewhere else is not measured again
+        e.select(QStringLiteral("C2"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        QCOMPARE(gs.cellsMeasured() - before, turnedOn);
+        // a formula typed in a column in view makes that column measured again, and no other
+        e.select(QStringLiteral("B7"));
+        e.enter(QStringLiteral("=SUM(A1:A2)+SUM(A1:A2)+SUM(A1:A2)+SUM(A1:A2)+SUM(A1:A2)+SUM(A1:A2)"));
+        QVERIFY(e.settle());
+        const qint64 after = gs.cellsMeasured() - before - turnedOn;
+        QVERIFY2(after > 0 && after <= 600, qPrintable(QString::number(after)));
+    }
+
+    // While the formulas show, a column that scrolls into view for the first time is widened then, from at most 2,000 of its cells; the columns in view when they were turned on are not measured again.
+    void showFormulasWidensColumnsWhenTheyFirstScrollIntoView()
+    {
+        QString rows;
+        for (int r = 1; r <= 50; ++r) {
+            rows += QStringLiteral("<row r=\"%1\">").arg(r);
+            for (int c = 0; c < 200; ++c) rows += QStringLiteral("<c r=\"%1%2\"><f>SUM(A1:A2)+SUM(A1:A2)+%3</f><v>1</v></c>").arg(columnName(quint32(c))).arg(r).arg(r * 7 + c);
+            rows += QStringLiteral("</row>");
+        }
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        e.win.w.resize(1000, 600);
+        const grid::GridSheet &gs = e.view()->sheet();
+        e.win.w.act(QStringLiteral("view.formulas"))->trigger();
+        const double near = gs.columnWidth(1), far = gs.columnWidth(150);
+        QVERIFY(near > 64);
+        QCOMPARE(far, 64.0);                                // (never shown: not measured, not widened)
+        const qint64 before = gs.cellsMeasured();
+        e.select(QStringLiteral("EW1"));                    // (column 152: scrolled to, with column 150 beside it)
+        QVERIFY2(gs.columnWidth(150) > 64, qPrintable(QString::number(gs.columnWidth(150))));
+        const qint64 measured = gs.cellsMeasured() - before;
+        QVERIFY2(measured > 0 && measured <= 64 * 50, qPrintable(QString::number(measured)));
+        // and back: nothing is measured again
+        const qint64 mid = gs.cellsMeasured();
+        e.select(QStringLiteral("A1"));
+        QCOMPARE(gs.cellsMeasured(), mid);
+    }
+
+    // Zoomed out so that 100 columns or more are in view, every one of them is widened when the formulas are shown (each from its own cells, at most 2,000), and nothing is measured past the columns in view.
+    void showFormulasWidensEveryColumnInView()
+    {
+        QString rows;
+        for (int r = 1; r <= 20; ++r) {
+            rows += QStringLiteral("<row r=\"%1\">").arg(r);
+            for (int c = 0; c < 300; ++c) rows += QStringLiteral("<c r=\"%1%2\"><f>SUM(A1:A2)+SUM(A1:A2)+%3</f><v>1</v></c>").arg(columnName(quint32(c))).arg(r).arg(r * 7 + c);
+            rows += QStringLiteral("</row>");
+        }
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        e.win.w.resize(1000, 600);
+        e.view()->setZoom(0.1);
+        const grid::GridSheet &gs = e.view()->sheet();
+        const grid::PaneView body = gs.layout().pane(grid::Pane::Body);
+        const qint64 shown = body.lastCol - body.firstCol + 1;
+        QVERIFY2(shown >= 100, qPrintable(QString::number(shown)));
+        const qint64 before = gs.cellsMeasured();
+        e.win.w.act(QStringLiteral("view.formulas"))->trigger();
+        for (qint64 c = body.firstCol; c <= body.lastCol; ++c) QVERIFY2(gs.columnWidth(c) > 64, qPrintable(QString::number(c)));
+        const qint64 measured = gs.cellsMeasured() - before;
+        QVERIFY2(measured <= shown * 20 + 20 * 20, qPrintable(QString::number(measured)));   // (the columns in view, 20 cells each; one more turn of the layout may add a column)
     }
 
     // A fill that would change a cell that can't be changed (a locked cell of a protected sheet, a table's header) changes nothing and says why; a fill past the edge of the sheet stops

@@ -146,6 +146,15 @@ private Q_SLOTS:
         encoding->setCurrentIndex(encoding->findText(QStringLiteral("Cyrillic (1251)")));
         QVERIFY(dialog.choices().encodingSet);
         QCOMPARE(dialog.choices().codePage, 1251);
+        // the ISO 8859 pages and the Macintosh page are among the choices
+        for (const auto &page : {std::pair<const char *, int>{"Central European (ISO 8859-2)", 28592}, {"Cyrillic (ISO 8859-5)", 28595}, {"Greek (ISO 8859-7)", 28597},
+                                 {"Turkish (ISO 8859-9)", 28599}, {"Western European (ISO 8859-15)", 28605}, {"Western European (ISO 8859-1)", 28591}, {"Mac Roman", 10000}}) {
+            const int at = encoding->findText(QString::fromLatin1(page.first));
+            QVERIFY2(at >= 0, page.first);
+            encoding->setCurrentIndex(at);
+            QCOMPARE(dialog.choices().codePage, page.second);
+            QCOMPARE(dialog.choices().encoding, jp::office::sheet::CsvEncoding::Legacy);
+        }
         // every control has a name a screen reader says
         for (QWidget *w : dialog.findChildren<QComboBox *>()) QVERIFY2(!w->accessibleName().isEmpty(), qPrintable(w->objectName()));
         QVERIFY(!dialog.findChild<QSpinBox *>(QStringLiteral("textImportStart"))->accessibleName().isEmpty());

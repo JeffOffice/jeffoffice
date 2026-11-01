@@ -178,7 +178,7 @@ ChartKind kindNamed(const QString &name, bool *ok)
     static const QHash<QString, ChartKind> kinds = {{"column", ChartKind::Column}, {"column-stacked", ChartKind::ColumnStacked}, {"column-percent", ChartKind::ColumnPercent},
                                                     {"bar", ChartKind::Bar}, {"bar-stacked", ChartKind::BarStacked}, {"bar-percent", ChartKind::BarPercent}, {"line", ChartKind::Line},
                                                     {"line-markers", ChartKind::LineMarkers}, {"line-stacked", ChartKind::LineStacked}, {"pie", ChartKind::Pie}, {"doughnut", ChartKind::Doughnut},
-                                                    {"area", ChartKind::Area}, {"area-stacked", ChartKind::AreaStacked}, {"scatter", ChartKind::Scatter}, {"scatter-lines", ChartKind::ScatterLines},
+                                                    {"area", ChartKind::Area}, {"area-stacked", ChartKind::AreaStacked}, {"scatter", ChartKind::Scatter}, {"scatter-lines", ChartKind::ScatterLines}, {"scatter-smooth", ChartKind::ScatterSmooth},
                                                     {"combo", ChartKind::Combo}};
     *ok = kinds.contains(name);
     return kinds.value(name, ChartKind::Column);

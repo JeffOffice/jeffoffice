@@ -16,6 +16,10 @@ enum class CodePageBackend { Automatic, System, Qt };
 // The characters the bytes stand for in the code page (its number, as the format's code page record gives it); Latin-1 for a page this does not know (or the converter lacks).
 QString xlsBytesToText(int codepage, const char *bytes, qsizetype count, CodePageBackend backend = CodePageBackend::Automatic);
 
+// The bytes the characters are in a single-byte code page (a character the page has no byte for is written as "?", and counted in `replaced`); false for a page that is not a table of this
+// program's own (the double-byte pages), with nothing written.
+bool xlsTextToBytes(int codepage, const QString &text, QByteArray *out, qsizetype *replaced = nullptr);
+
 // Whether the converter has the double-byte page on this machine.
 bool xlsCanConvert(int codepage, CodePageBackend backend);
 

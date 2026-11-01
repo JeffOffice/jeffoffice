@@ -29,4 +29,4 @@ After you open the Print screen, the sheet on your screen shows where the pages 
 
 ## What is not printed yet
 
-Notes (comments) are not read or printed. Conditional formats are not shown on the screen yet, so they are not printed either.
+Notes (comments) print after the sheet's last page when the sheet's Page Setup says **List them after the last page**; they are not printed where they are on the cells yet. Conditional formats are not shown on the screen yet, so they are not printed either.

@@ -33,6 +33,7 @@ struct CsvForm {
     QChar delimiter = QLatin1Char(',');
     bool sepLine = false;      // the first line is `sep=x`: it names the delimiter and holds no data
     int codePage = 1252;       // for Legacy
+    QString lineEnd = QStringLiteral("\r\n");   // the lines end as the first one of the file does: "\r\n", "\n", or "\r"
 };
 
 // Whether the file name ends as a file of delimited values does (.csv, .tsv, .txt, any case).
@@ -60,6 +61,9 @@ public:
     QStringList skipped() const override { return QStringList(); }
     QString kind() const override { return QStringLiteral(".csv"); }
     const CsvForm &form() const { return m_form; }
+    // The file as it was read, and the quote it was read with (null for none): what a save of the sheet unchanged is made from.
+    const QByteArray &bytes() const { return m_data; }
+    QChar quote() const { return m_import.quote; }
 
 private:
     CsvBook() = default;

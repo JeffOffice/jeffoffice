@@ -289,12 +289,13 @@ void CrunchWindow::afterSheetShown(int sheetIndex, bool inPlace)
 {
     const jp::office::sheet::Sheet *shown = m_view->sheet().data().sheet;
     if (!inPlace) {
-        m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
+        m_view->setShowFormulas(act("view.formulas")->isChecked());
         // (the colors the buttons of the ribbon offer are the workbook's theme)
         if (m_fillButton) m_fillButton->setScheme(workbookColors());
         if (m_fontColorButton) m_fontColorButton->setScheme(workbookColors());
     }
     prepareObjects(sheetIndex);
+    refreshOutline();
     act("view.gridlines")->setChecked(m_view->showGridlines());
     act("view.headings")->setChecked(m_view->showHeadings());
     updateFilterButtons();
@@ -308,12 +309,14 @@ void CrunchWindow::afterSheetShown(int sheetIndex, bool inPlace)
 void CrunchWindow::rememberView()
 {
     if (m_sheet >= 0) m_views.insert(m_sheet, m_view->viewState());
+    syncPanes();   // (a sheet that is left keeps the scroll and the cursor it had)
 }
 
 void CrunchWindow::setActiveSheet(int sheetIndex)
 {
     if (!m_loaded || !m_loaded->book || sheetIndex == m_sheet || sheetIndex < 0 || sheetIndex >= m_loaded->book->info().sheets.size()) return;
     if (!m_haveCalc && sheetIndex != m_loaded->previewSheet) return;   // (the other sheets are not read yet)
+    hideFillOptions();
     if (!commitEdit()) {
         // (the entry could not be finished: the tab goes back to the sheet it is for)
         const int back = m_tabSheets.indexOf(m_sheet);

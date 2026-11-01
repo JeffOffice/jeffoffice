@@ -44,6 +44,7 @@ const QVector<ChartKindEntry> &chartKindEntries()
         {ChartKind::AreaStacked, QT_TRANSLATE_NOOP("jp::ChartKinds", "Stacked area")},
         {ChartKind::Scatter, QT_TRANSLATE_NOOP("jp::ChartKinds", "Scatter, points")},
         {ChartKind::ScatterLines, QT_TRANSLATE_NOOP("jp::ChartKinds", "Scatter, joined points")},
+        {ChartKind::ScatterSmooth, QT_TRANSLATE_NOOP("jp::ChartKinds", "Scatter, smooth lines")},
         {ChartKind::Combo, QT_TRANSLATE_NOOP("jp::ChartKinds", "Columns with a line")},
     };
     return entries;

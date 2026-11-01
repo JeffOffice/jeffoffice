@@ -7,11 +7,14 @@
 #include "app/otherformats.h"
 #include "app/oldformat.h"
 #include "core/appinfo.h"
+#include "app/csvsavedialog.h"
 #include "core/csvexport.h"
+#include "sheet/csv.h"
 
 #include <QElapsedTimer>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSaveFile>
 #include <QFileInfo>
 #include <QLocale>
 #include <QTimer>
@@ -36,7 +39,32 @@ CrunchWindow::LossAnswer CrunchWindow::askBeforeLosing(const QString &title, con
     return clicked == go ? LossAnswer::Continue : (other && clicked == other) ? LossAnswer::SaveXlsx : LossAnswer::Cancel;
 }
 
-bool CrunchWindow::exportCsv(const QString &path)
+// How the sheet is written to a name: by its ending (a .csv with the person's separator, a .tsv or .txt with tabs), or, for a workbook that came from a file of values with the same ending, in
+// the form that file had (its separator, line ends, and encoding).
+crunch::CsvWrite CrunchWindow::csvWriteFor(const QString &path) const
+{
+    crunch::CsvWrite how;
+    how.separator = crunch::csvSeparatorFor(QLocale());
+    const QString ending = QFileInfo(path).suffix().toLower();
+    if (ending != QLatin1String("csv")) how.separator = QLatin1Char('\t');
+    const auto *csv = m_loaded && m_loaded->book ? dynamic_cast<const jp::office::sheet::CsvBook *>(m_loaded->book->foreignBook()) : nullptr;
+    if (csv && !m_originalPath.isEmpty() && QFileInfo(m_originalPath).suffix().toLower() == ending) {
+        using jp::office::sheet::CsvEncoding;
+        const jp::office::sheet::CsvForm &form = csv->form();
+        how.separator = form.delimiter;
+        how.lineEnd = form.lineEnd;
+        how.encoding = form.encoding == CsvEncoding::Utf8 ? crunch::CsvWrite::Encoding::Utf8
+                       : form.encoding == CsvEncoding::Utf16Le ? crunch::CsvWrite::Encoding::Utf16Le
+                       : form.encoding == CsvEncoding::Utf16Be ? crunch::CsvWrite::Encoding::Utf16Be
+                       : form.encoding == CsvEncoding::Legacy && crunch::csvCanWriteCodePage(form.codePage) ? crunch::CsvWrite::Encoding::CodePage
+                                                                                                          : crunch::CsvWrite::Encoding::Utf8Mark;
+        how.codePage = form.codePage;
+        how.sameAsFile = true;
+    }
+    return how;
+}
+
+bool CrunchWindow::exportCsv(const QString &path, const crunch::CsvWrite *forced)
 {
     if (!m_session || !m_loaded || !m_loaded->book || m_saving) return false;
     if (!commitEdit()) return false;
@@ -57,12 +85,42 @@ bool CrunchWindow::exportCsv(const QString &path)
         setStatus(tr("Saving when the calculation is done…"));
         return true;
     }
-    const QChar separator = crunch::csvSeparatorFor(QLocale());
+    crunch::CsvWrite how = forced ? *forced : csvWriteFor(path);
     const QString sheetName = m_loaded->book->info().sheets.value(m_sheet).name;
+    // After a save (or a failure) the window is told the same way, whichever way the file was made.
+    auto finish = [this, path](bool ok, const QString &message, qint64 replaced) {
+        if (ok) {
+            QString status = tr("Saved the values of %1 in %2").arg(m_loaded ? m_loaded->book->info().sheets.value(m_sheet).name : QString(), QFileInfo(path).fileName());
+            if (replaced > 0) status += QLatin1Char(' ') + tr("(%1 characters the encoding has no letter for were written as \"?\")").arg(replaced);
+            setStatus(status);
+        } else {
+            notice(tr("Save"), tr("%1 couldn't save \"%2\".\n%3\nThe file that was there is as it was.").arg(appInfo().name, QFileInfo(path).fileName(), message));
+            setStatus(tr("Ready"));
+        }
+        Q_EMIT csvExported(path, ok);
+        // (the window was being closed: a .csv written from that question was the answer to it, and the window closes; one that failed leaves the window as it is, and the close is given up)
+        if (m_closeAfterSave) {
+            m_closeAfterSave = false;
+            if (ok) {
+                m_closing = true;
+                close();
+                m_closing = false;
+            }
+        }
+    };
     // (a sheet that was read only in part is written in part: the person is told)
     const bool partial = m_loaded->calc && m_loaded->calc->notWhole().contains(sheetName);
-    // (the person is told what the file will not have, naming what this workbook has of it, and may save the workbook as .xlsx instead)
-    const LossAnswer answer = askBeforeLosing(tr("Save"), crunch::csvExportWarning(sheetName, separator, partial, crunch::leftOutOfCsv(*m_loaded->book, m_loaded->calc ? m_loaded->calc->formulaCount() : 0)));
+    // (the person is told what the file will not have, naming what this workbook has of it, and may choose how it is written, or save the workbook as .xlsx instead)
+    const QString explanation = crunch::csvExportWarning(sheetName, how.separator, partial, crunch::leftOutOfCsv(*m_loaded->book, m_loaded->calc ? m_loaded->calc->formulaCount() : 0));
+    LossAnswer answer = LossAnswer::Continue;
+    if (forced || m_lossAsker) {
+        answer = askBeforeLosing(tr("Save"), explanation);
+    } else {
+        CsvSaveDialog dialog(explanation, how, this);
+        dialog.exec();
+        answer = dialog.answer() == CsvSaveDialog::Answer::SaveValues ? LossAnswer::Continue : dialog.answer() == CsvSaveDialog::Answer::SaveXlsx ? LossAnswer::SaveXlsx : LossAnswer::Cancel;
+        if (answer == LossAnswer::Continue) how = dialog.options();
+    }
     if (answer != LossAnswer::Continue) {
         if (answer == LossAnswer::SaveXlsx) {
             // (a window being closed is closed once the workbook is saved; if no save was started, the person gave it up, and the window stays)
@@ -75,10 +133,18 @@ bool CrunchWindow::exportCsv(const QString &path)
         }
         return false;
     }
+    // A workbook read from a file of values and not changed, saved with the choices that are the file's own, is written as the file's own bytes; any other choice is written as asked.
+    const auto *csv = m_loaded->book->foreignBook() ? dynamic_cast<const jp::office::sheet::CsvBook *>(m_loaded->book->foreignBook()) : nullptr;
+    if (csv && how.sameAsFile && !m_session->isModified() && m_sheet == 0) {
+        QSaveFile file(path);
+        const bool ok = file.open(QIODevice::WriteOnly) && file.write(csv->bytes()) == csv->bytes().size() && file.commit();
+        finish(ok, file.errorString(), 0);
+        return ok;
+    }
     // the sheet in view, in a model of its own
     auto model = std::make_shared<grid::GridSheet>();
     model->setData(m_view->sheet().data());
-    auto exporter = std::make_shared<crunch::CsvExport>(model.get(), separator);
+    auto exporter = std::make_shared<crunch::CsvExport>(model.get(), how);
     QString why;
     if (!exporter->begin(path, &why)) {
         m_closeAfterSave = false;
@@ -92,7 +158,7 @@ bool CrunchWindow::exportCsv(const QString &path)
     auto *run = new QObject(this);
     m_csvRun = run;
     auto *timer = new QTimer(run);
-    connect(timer, &QTimer::timeout, run, [this, run, timer, model, exporter, path] {
+    connect(timer, &QTimer::timeout, run, [this, run, timer, model, exporter, finish] {
         QElapsedTimer clock;
         clock.start();
         bool done = false;
@@ -108,22 +174,7 @@ bool CrunchWindow::exportCsv(const QString &path)
         m_csvRun = nullptr;
         run->deleteLater();
         updateEditActions();
-        if (ok) {
-            setStatus(tr("Saved the values of %1 in %2").arg(m_loaded ? m_loaded->book->info().sheets.value(m_sheet).name : QString(), QFileInfo(path).fileName()));
-        } else {
-            notice(tr("Save"), tr("%1 couldn't save \"%2\".\n%3\nThe file that was there is as it was.").arg(appInfo().name, QFileInfo(path).fileName(), message));
-            setStatus(tr("Ready"));
-        }
-        Q_EMIT csvExported(path, ok);
-        // (the window was being closed: a .csv written from that question was the answer to it, and the window closes; one that failed leaves the window as it is, and the close is given up)
-        if (m_closeAfterSave) {
-            m_closeAfterSave = false;
-            if (ok) {
-                m_closing = true;
-                close();
-                m_closing = false;
-            }
-        }
+        finish(ok, message, ok ? exporter->replaced() : 0);
     });
     timer->start(0);
     return true;

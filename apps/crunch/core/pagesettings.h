@@ -50,7 +50,13 @@ public:
     // The view of a sheet and its zoom; in the view of the cells as they are, that zoom is also the zoom of the cells.
     void setView(int index, int kind, int zoom);
     // Whether a sheet is shown in another view, or at another zoom, than the file has (a save has something to write, though no cell changed).
-    bool viewsChanged() const { return m_kinds != m_fileKinds || m_zooms != m_fileZooms || m_normals != m_fileNormals; }
+    bool viewsChanged() const { return m_kinds != m_fileKinds || m_zooms != m_fileZooms || m_normals != m_fileNormals || panesChanged(); }
+
+    // The panes held in place on a sheet (`frozen` with the counts of rows and columns held and the cells they begin and the scrolling part begins at), as the window shows them. Not a step of
+    // Undo (it is how the window looks); a sheet whose panes differ from the file's has them written, with the cell the cursor was on.
+    const jp::office::sheet::SheetView &pane(int index) const;
+    void setPane(int index, const jp::office::sheet::SheetView &pane);
+    bool panesChanged() const;
 
     // What saving needs: the setup of each sheet that may differ from the file's (a command changed it, or an edit moved what it names), and the names of its print area and titles.
     // `sheetNames` are the sheets' names by place (empty for one that is deleted) and `order` the places in the order of the tabs.
@@ -70,6 +76,7 @@ private:
     std::vector<jp::office::sheet::PageSetup> m_sheets;
     std::set<int> m_touched;
     std::vector<int> m_kinds, m_zooms, m_normals, m_fileKinds, m_fileZooms, m_fileNormals;
+    std::vector<jp::office::sheet::SheetView> m_panes, m_filePanes;
     std::vector<Kept> m_kept;
 };
 

@@ -13,6 +13,7 @@
 #include <QWheelEvent>
 
 #include <algorithm>
+#include <set>
 #include <climits>
 #include <cmath>
 
@@ -138,17 +139,89 @@ void GridView::setData(const GridData &data, bool keepView)
         m_headings = data.sheet->view.showHeadings;
     }
     m_sheet.layout().setViewport(viewport()->size());
+    m_widened.clear();   // (the sizes are the data's again)
+    if (!keepView) m_formulaFit.clear();
     if (keepView) {
         setViewState(kept);
+        widenForFormulas();
         return;
     }
     Navigator nav(&m_sheet.layout(), m_nav.get());
     const jp::office::sheet::SheetView v = data.sheet ? data.sheet->view : jp::office::sheet::SheetView();
     m_selection = nav.click(qint64(v.activeRow), qint64(v.activeCol));
+    widenForFormulas();
     layoutChanged();
     Q_EMIT zoomChanged(zoom());
     Q_EMIT selectionChanged();
     startStats();
+}
+
+void GridView::setShowFormulas(bool on)
+{
+    // (the widths the sheet has come back before the formulas go)
+    GridLayout &L = m_sheet.layout();
+    for (const Widened &w : m_widened)
+        if (L.cols.size(w.column) == w.to) L.cols.setSize(w.column, w.from);
+    m_widened.clear();
+    m_formulaFit.clear();
+    m_sheet.setShowFormulas(on);
+    widenForFormulas();
+    m_sheet.invalidateTexts();
+    layoutChanged();
+}
+
+void GridView::applyFormulaFit(qint64 column, int wanted)
+{
+    GridLayout &L = m_sheet.layout();
+    const int now = L.cols.size(column);
+    if (now <= 0 || wanted <= now) return;   // (a hidden column stays hidden, and a column that is wide enough is left)
+    L.cols.setSize(column, wanted);
+    m_widened.push_back({column, now, wanted});
+}
+
+// While the formulas show, the columns in view that hold formulas are as wide as the longest needs (to at most 400 pixels): every column in view is measured once for the sheet shown (the work is bounded by the columns in view), from at most 2,000 of its
+// cells, and what was measured is used again when the sheet is read again after an edit.
+void GridView::widenForFormulas()
+{
+    if (!m_sheet.showFormulas() || !m_sheet.data().sheet) return;
+    const GridLayout &L = m_sheet.layout();
+    int seen = 0;
+    for (Pane which : {Pane::Left, Pane::Body}) {
+        const PaneView pv = L.pane(which);
+        for (qint64 col = pv.firstCol; !pv.isEmpty() && col <= pv.lastCol; ++col, ++seen)
+            if (!m_formulaFit.count(col)) m_formulaFit[col] = int(std::min(400.0, std::ceil(m_sheet.fitPixels(quint32(col), 2000, true))));
+    }
+    for (const auto &fit : m_formulaFit) applyFormulaFit(fit.first, fit.second);
+}
+
+void GridView::formulaCellsChanged(const std::vector<std::pair<quint32, quint32>> &cells)
+{
+    if (!m_sheet.showFormulas() || !m_sheet.data().sheet) return;
+    bool changed = false;
+    for (const auto &cell : cells) {
+        const double px = m_sheet.formulaPixels(cell.first, cell.second);
+        if (px <= 0) continue;
+        const int wanted = int(std::min(400.0, std::ceil(px)));
+        int &fit = m_formulaFit[qint64(cell.second)];
+        if (wanted <= fit) continue;
+        fit = wanted;
+        const std::size_t before = m_widened.size();
+        applyFormulaFit(qint64(cell.second), wanted);
+        // (a column widened before is widened further: its entry keeps the width it began with)
+        if (m_widened.size() > before) {
+            for (std::size_t i = 0; i + 1 < m_widened.size(); ++i)
+                if (m_widened[i].column == qint64(cell.second)) {
+                    m_widened[i].to = wanted;
+                    m_widened.pop_back();
+                    break;
+                }
+            changed = true;
+        }
+    }
+    if (changed) {
+        m_sheet.invalidateTexts();
+        layoutChanged();
+    }
 }
 
 void GridView::layoutChanged()
@@ -209,6 +282,16 @@ void GridView::scrollTo(qint64 x, qint64 y)
     const qint64 ox = L.scrollX(), oy = L.scrollY();
     L.setScroll(x, y);
     if (L.scrollX() == ox && L.scrollY() == oy) return;
+    // while the formulas show, a column is widened the first time it is in view (measured once, from at most 2,000 of its cells); the columns then stand elsewhere, so the view is drawn anew
+    if (m_sheet.showFormulas()) {
+        const std::size_t measured = m_formulaFit.size();
+        widenForFormulas();
+        if (m_formulaFit.size() != measured) {
+            m_sheet.invalidateTexts();
+            layoutChanged();
+            return;
+        }
+    }
     const int digits = m_headerDigits;
     updateHeaderWidth();
     updateScrollBars();
@@ -1278,7 +1361,7 @@ void GridView::keyPressEvent(QKeyEvent *e)
         m_jump.reset();
         if (e->key() == Qt::Key_Escape) return;
     }
-    if (e->key() == Qt::Key_Down && (e->modifiers() & Qt::AltModifier) && !dropDownRect().isEmpty()) {
+    if (e->key() == Qt::Key_Down && (e->modifiers() & Qt::AltModifier)) {   // (a cell with no list of its own: the window may offer the words of its column)
         Q_EMIT dropDownRequested();
         return;
     }

@@ -13,7 +13,11 @@
 
 namespace jp::crunch {
 
-bool isCsvName(const QString &path) { return QFileInfo(path).suffix().compare(QLatin1String("csv"), Qt::CaseInsensitive) == 0; }
+bool isCsvName(const QString &path)
+{
+    const QString ending = QFileInfo(path).suffix();
+    return ending.compare(QLatin1String("csv"), Qt::CaseInsensitive) == 0 || ending.compare(QLatin1String("tsv"), Qt::CaseInsensitive) == 0 || ending.compare(QLatin1String("txt"), Qt::CaseInsensitive) == 0;
+}
 
 QString openFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx *.xlsm *.xltx *.xltm *.xlam *.xls *.ods *.fods *.csv *.tsv *.txt)"); }
 
@@ -68,6 +72,7 @@ QString workbookKindNotice(const QString &kind, const QString &programName)
 }
 
 QString csvFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Text files of values (*.csv)"); }
+QString tabFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Text files, tab-separated (*.tsv *.txt)"); }
 
 namespace {
 
@@ -215,8 +220,8 @@ bool sameFile(const QString &a, const QString &b)
 
 QString withPickedEnding(const QString &chosen, const QString &pickedFilter)
 {
-    if (chosen.isEmpty() || pickedFilter != csvFilter()) return chosen;
-    return QFileInfo(chosen).suffix().isEmpty() ? chosen + QLatin1String(".csv") : chosen;
+    if (chosen.isEmpty() || (pickedFilter != csvFilter() && pickedFilter != tabFilter())) return chosen;
+    return QFileInfo(chosen).suffix().isEmpty() ? chosen + (pickedFilter == csvFilter() ? QLatin1String(".csv") : QLatin1String(".tsv")) : chosen;
 }
 
 } // namespace jp::crunch

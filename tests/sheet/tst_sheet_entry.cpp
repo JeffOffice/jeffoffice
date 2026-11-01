@@ -99,6 +99,21 @@ private Q_SLOTS:
         QCOMPARE(read(QStringLiteral("(5%)"), o), n(-0.05, QStringLiteral("0%")));
     }
 
+    // A whole number and a fraction of it, "1 1/2", is a number shown as a fraction, with as many places in the fraction as the denominator typed has; "3/4" alone is still a date.
+    void fractions()
+    {
+        const EntryOptions o = options(en);
+        QCOMPARE(read(QStringLiteral("1 1/2"), o), n(1.5, QStringLiteral("# ?/?")));
+        QCOMPARE(read(QStringLiteral("-2 3/4"), o), n(-2.75, QStringLiteral("# ?/?")));
+        QCOMPARE(read(QStringLiteral("0 1/8"), o), n(0.125, QStringLiteral("# ?/?")));
+        QCOMPARE(read(QStringLiteral("  12   5/16 "), o), n(12.3125, QStringLiteral("# ??/??")));
+        QCOMPARE(read(QStringLiteral("1 1/128"), o), n(1 + 1.0 / 128, QStringLiteral("# ???/???")));
+        QCOMPARE(read(QStringLiteral("1 5/4"), o), n(2.25, QStringLiteral("# ?/?")));
+        QCOMPARE(read(QStringLiteral("3/4"), o), n(serial(2025, 3, 4), QStringLiteral("m/d/yyyy")));
+        for (const QString &text : {"1 a/2", "1.5 1/2", "1 1/123456"})
+            QVERIFY2(read(text, o).startsWith(QLatin1String("t:")), qPrintable(text + " -> " + read(text, o)));
+    }
+
     void money()
     {
         const EntryOptions o = options(en);

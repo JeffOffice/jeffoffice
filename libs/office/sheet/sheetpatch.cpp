@@ -262,7 +262,7 @@ QByteArray columnsFromRuns(const QByteArray &head, const std::vector<ColumnSpan>
 
 // The head of a sheet with its `sheetFormatPr` made to say the sheet's default sizes: the file's element with those attributes changed (what else it says stays), or one made before the
 // columns (or before the cells) if the file has none.
-QByteArray formatFromChange(const QByteArray &head, const SheetFormat &f, const QByteArray &defaultPrefix)
+QByteArray formatFromChange(const QByteArray &head, const SheetFormat &f, const QByteArray &defaultPrefix, bool outlineLevels)
 {
     Tag t;
     qsizetype pos = 0, found = -1, foundEnd = -1, colsAt = -1;
@@ -283,6 +283,13 @@ QByteArray formatFromChange(const QByteArray &head, const SheetFormat &f, const 
         setFlag(tag, "customHeight", f.customHeight);
         if (f.defaultColWidth > 0) setAttr(tag, "defaultColWidth", numberText(f.defaultColWidth));
         else dropAttr(tag, "defaultColWidth");
+        // (the deepest levels of the outline, when the change says them: the buttons in the margins show that many)
+        if (outlineLevels) {
+            if (f.outlineLevelRow > 0) setAttr(tag, "outlineLevelRow", QByteArray::number(f.outlineLevelRow));
+            else dropAttr(tag, "outlineLevelRow");
+            if (f.outlineLevelCol > 0) setAttr(tag, "outlineLevelCol", QByteArray::number(f.outlineLevelCol));
+            else dropAttr(tag, "outlineLevelCol");
+        }
     };
     if (found >= 0) {
         QByteArray tag = head.mid(found, foundEnd - found);
@@ -428,6 +435,108 @@ QByteArray viewKindFromChange(const QByteArray &head, int kind, int zoom, int no
     apply(&tag);
     const qsizetype at = insertAt >= 0 ? insertAt : head.size();
     return head.left(at) + "<" + prefix + "sheetViews>" + tag + "</" + prefix + "sheetViews>" + head.mid(at);
+}
+
+// The head of a sheet with the panes of its first view made from `v` (frozen or not, and the cell the cursor is on): the view's `pane` and `selection` elements are put in place of the
+// file's (what else the view holds, such as the selection of a pivot table, stays as it is), and its `topLeftCell` is where the held part begins. A sheet with no view is given one.
+QByteArray paneFromChange(const QByteArray &head, const SheetView &v, const QByteArray &defaultPrefix)
+{
+    Tag t;
+    qsizetype pos = 0, viewAt = -1, viewTagEnd = -1, viewEnd = -1, closeAt = -1, insertAt = -1;
+    bool selfClosing = false;
+    QByteArray prefix = defaultPrefix;
+    bool first = true;
+    while (xmlscan::nextTag(head, pos, &t)) {
+        pos = t.end;
+        if (t.closing) continue;
+        if (first) {
+            first = false;
+            prefix = QByteArray(xmlscan::prefixOf(t.name));
+            continue;
+        }
+        if (t.local == "sheetView" && viewAt < 0) {
+            viewAt = t.start;
+            viewTagEnd = t.end;
+            selfClosing = t.selfClosing;
+            break;
+        }
+        if ((t.local == "sheetFormatPr" || t.local == "cols" || t.local == "sheetData") && insertAt < 0) insertAt = t.start;
+    }
+    QByteArray others;
+    if (viewAt >= 0 && !selfClosing) {
+        qsizetype p = viewTagEnd, childStart = -1;
+        QByteArray childName;
+        int depth = 0;
+        auto finish = [&](qsizetype end) {
+            if (childName != "pane" && childName != "selection") others += head.mid(childStart, end - childStart);
+            childStart = -1;
+        };
+        Tag c;
+        while (xmlscan::nextTag(head, p, &c)) {
+            p = c.end;
+            if (c.closing) {
+                if (depth == 0) {
+                    closeAt = c.start;
+                    viewEnd = c.end;
+                    break;
+                }
+                if (--depth == 0) finish(c.end);
+                continue;
+            }
+            if (depth == 0) {
+                childStart = c.start;
+                childName = QByteArray(c.local);
+                if (c.selfClosing) finish(c.end);
+                else depth = 1;
+            } else if (!c.selfClosing) {
+                ++depth;
+            }
+        }
+        if (viewEnd < 0) return head;   // (a view never closed: left as it is)
+    }
+    const bool frozen = v.frozen && (v.frozenRows || v.frozenCols);
+    auto cell = [](quint32 r, quint32 c) { return cellName(r, c).toLatin1(); };
+    auto sel = [&](const QByteArray &pane, const QByteArray &at) {
+        QByteArray e = "<" + prefix + "selection";
+        if (!pane.isEmpty()) e += " pane=\"" + pane + "\"";
+        return e + " activeCell=\"" + at + "\" sqref=\"" + at + "\"/>";
+    };
+    QByteArray inner;
+    if (frozen) {
+        const QByteArray active = v.frozenRows && v.frozenCols ? "bottomRight" : v.frozenRows ? "bottomLeft" : "topRight";
+        inner += "<" + prefix + "pane";
+        if (v.frozenCols) inner += " xSplit=\"" + QByteArray::number(v.frozenCols) + "\"";
+        if (v.frozenRows) inner += " ySplit=\"" + QByteArray::number(v.frozenRows) + "\"";
+        inner += " topLeftCell=\"" + cell(v.paneRow, v.paneCol) + "\" activePane=\"" + active + "\" state=\"frozen\"/>";
+        if (v.frozenRows && v.frozenCols) {
+            inner += sel("topRight", cell(v.topRow, v.paneCol));
+            inner += sel("bottomLeft", cell(v.paneRow, v.leftCol));
+        }
+        inner += sel(active, cell(v.activeRow, v.activeCol));
+    } else {
+        inner += sel(QByteArray(), cell(v.activeRow, v.activeCol));
+    }
+    inner += others;
+    auto startTag = [&](QByteArray tag) {
+        if (v.topRow || v.leftCol) setAttr(&tag, "topLeftCell", cell(v.topRow, v.leftCol));
+        else dropAttr(&tag, "topLeftCell");
+        return tag;
+    };
+    if (viewAt >= 0) {
+        QByteArray tag = head.mid(viewAt, viewTagEnd - viewAt);
+        if (selfClosing) {
+            tag.chop(2);
+            while (!tag.isEmpty() && isSpaceByte(tag.back())) tag.chop(1);
+            tag += ">";
+        }
+        tag = startTag(tag);
+        const qsizetype end = selfClosing ? viewTagEnd : viewEnd;
+        return head.left(viewAt) + tag + inner + "</" + prefix + "sheetView>" + head.mid(end);
+    }
+    if (!frozen) return head;
+    const QByteArray tag = startTag("<" + prefix + "sheetView workbookViewId=\"0\">");
+    const qsizetype at = insertAt >= 0 ? insertAt : head.size();
+    return head.left(at) + "<" + prefix + "sheetViews>" + tag + inner + "</" + prefix + "sheetView></" + prefix + "sheetViews>" + head.mid(at);
 }
 
 // What follows a sheet's cells (from after "</sheetData>" to the end) with its merged ranges made from `merges`: in place of the element the file has, or where the format puts it.
@@ -895,6 +1004,7 @@ public:
         m_addTables = &changes.addTableRels;
         m_removeTables = &changes.removeTableRels;
         if (changes.replaceFormat) m_format = &changes.format;
+        m_formatOutline = changes.formatOutline;
         if (changes.replaceTabColor) m_tabColor = &changes.tabColor;
         if (changes.replaceAutoFilter) m_filter = &changes.autoFilter;
         m_showRows = changes.showRows;
@@ -903,6 +1013,7 @@ public:
         m_filterMode = changes.filterMode;
         m_tabSelected = changes.tabSelected;
         m_viewKind = changes.viewKind;
+        if (changes.setPane) m_pane = &changes.pane;
         m_hfSet = changes.hfSet;
         m_hfRel = changes.hfRel.toLatin1();
         m_legacyId = changes.legacyRelId.toLatin1();
@@ -1061,7 +1172,8 @@ private:
         if (m_filterMode >= 0) before = filterModeFromChange(before, m_filterMode != 0, m_prefix);
         if (m_tabSelected >= 0) before = tabSelectedFromChange(before, m_tabSelected != 0, m_prefix);
         if (m_viewKind >= 0) before = viewKindFromChange(before, m_viewKind, m_viewZoom, m_viewNormalZoom, m_prefix);
-        if (m_format) before = formatFromChange(before, *m_format, m_prefix);
+        if (m_pane) before = paneFromChange(before, *m_pane, m_prefix);
+        if (m_format) before = formatFromChange(before, *m_format, m_prefix, m_formatOutline);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
         if (m_page) before = patchFitToPageHead(before, *m_page);
         put(before);
@@ -1485,6 +1597,8 @@ private:
     int m_filterMode = -1;
     int m_tabSelected = -1;
     int m_viewKind = -1, m_viewZoom = 0, m_viewNormalZoom = 0;
+    const SheetView *m_pane = nullptr;
+    bool m_formatOutline = false;
     bool m_hfSet = false;
     QByteArray m_hfRel;
     QByteArray m_legacyId;

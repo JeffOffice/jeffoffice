@@ -5,6 +5,7 @@
 //
 // Bounded: the pages of a job (kMaxJobPages; a sheet that needs more is cut short and the job says so), and the grids kept (the sheet being drawn and the one before).
 
+#include "core/anchors.h"
 #include "core/loader.h"
 #include "core/pagesettings.h"
 #include "core/printobjects.h"
@@ -28,6 +29,7 @@ class QPrinter;
 namespace jp::crunch {
 
 class SheetObjects;
+
 
 constexpr int kMaxJobPages = 100000;
 // The most pixels a preview image has (16 million: 64 MB), whatever the zoom and the screen; a page asked for larger is drawn with fewer pixels to the point.
@@ -67,6 +69,12 @@ struct PrintChoices {
     bool toFile = false;        // a PDF file, not a printer
 };
 
+// A note on a cell, for the pages of notes that print at the end of a sheet.
+struct PrintNote {
+    quint32 row = 0, col = 0;
+    QString author, text;
+};
+
 // What a job reads of a workbook.
 class PrintSource {
 public:
@@ -81,6 +89,8 @@ public:
     virtual jp::grid::GridData data(int sheet) const = 0;
     virtual jp::office::sheet::PageSetup page(int sheet) const = 0;
     virtual std::vector<jp::grid::LayerObject> objects(int sheet) = 0;
+    // The notes on the cells of a sheet, in the order of the cells (down the rows, across each).
+    virtual std::vector<PrintNote> notes(int sheet) const { Q_UNUSED(sheet); return {}; }
     // The font the header and footer begin in.
     virtual QString baseFontFamily() const = 0;
     virtual double baseFontPoints() const = 0;
@@ -90,7 +100,8 @@ public:
 // directly), and the objects SheetObjects lists. None of the pointers is owned.
 class BookPrintSource : public PrintSource {
 public:
-    BookPrintSource(LoadedBook *book, const jp::grid::ValueStore *values, const PageSettings *pages, SheetObjects *objects) : m_book(book), m_values(values), m_pages(pages), m_objects(objects) {}
+    BookPrintSource(LoadedBook *book, const jp::grid::ValueStore *values, const PageSettings *pages, SheetObjects *objects, const CellAnchors *anchors = nullptr)
+        : m_book(book), m_values(values), m_pages(pages), m_objects(objects), m_anchors(anchors) {}
     int sheetCount() const override;
     QString sheetName(int sheet) const override;
     bool printable(int sheet) const override;
@@ -99,6 +110,7 @@ public:
     jp::grid::GridData data(int sheet) const override;
     jp::office::sheet::PageSetup page(int sheet) const override;
     std::vector<jp::grid::LayerObject> objects(int sheet) override;
+    std::vector<PrintNote> notes(int sheet) const override;
     QString baseFontFamily() const override;
     double baseFontPoints() const override;
 
@@ -107,6 +119,7 @@ private:
     const jp::grid::ValueStore *m_values;
     const PageSettings *m_pages;
     SheetObjects *m_objects;
+    const CellAnchors *m_anchors;
 };
 
 class PrintJob {
@@ -138,6 +151,8 @@ public:
     int pagesOfSheet(int sheet) const;
     // The first page of a sheet in the job's list, or -1.
     int firstPageOf(int sheet) const;
+    // The lines of a page of notes (a sheet whose comments print at the end has them after its last page), or none for any other page.
+    QStringList noteLines(int page) const;
 
     // Where the cells of a page are, for a view of the pages: the cell's place on the page in points from the paper's corner (false if the page does not show it), the cell at a point of the paper
     // (false if the point is not on a cell of the page), the cells' own area, the range's part on the page, and the first page that shows a cell.
@@ -189,6 +204,7 @@ private:
         jp::grid::Axis cols;                    // the columns as they are on paper, in the grid's pixels (what the page is drawn by)
         int firstNumber = 1;
         int firstPage = 0;
+        std::vector<QStringList> notePages;     // the lines of the pages of notes after the sheet's pages (comments printed at the end)
     };
     struct Context {
         int sheet = -1;
@@ -201,6 +217,7 @@ private:
         int info = 0;       // the place in m_sheets
         int index = 0;      // the place among the sheet's pages
         int number = 1;
+        int note = -1;      // for a page of notes, its place among the sheet's pages of notes
     };
     struct Build;
     Context &contextFor(int infoIndex);

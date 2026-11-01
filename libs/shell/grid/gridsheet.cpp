@@ -2,6 +2,9 @@
 
 #include "sheet/cellref.h"
 
+#include <QLocale>
+#include <QTime>
+
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -100,6 +103,23 @@ double GridSheet::fitWidthOfCell(quint32 row, quint32 col) const
 
 double GridSheet::fitWidth(quint32 col, qint64 limit) const
 {
+    const double widest = fitPixels(col, limit);
+    return widest > 0 ? widthForPixels(int(std::ceil(widest)), m_looks.maxDigitWidth()) : 0;
+}
+
+double GridSheet::formulaPixels(quint32 row, quint32 col) const
+{
+    const Cell *cell = cellAt(row, col);
+    if (!cell || !cell->hasFormula() || !m_data.sheet || m_data.sheet->formulaText(*cell).isEmpty()) return 0;
+    const CellLook &look = lookOf(row, col, cell->style);
+    if (look.wrap) return 0;
+    ++m_measured;
+    const Shown s = showValue(jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(*cell))), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
+    return s.kind != Kind::Empty && s.width > 0 ? neededPixels(s, look, m_looks.maxDigitWidth()) : 0;
+}
+
+double GridSheet::fitPixels(quint32 col, qint64 limit, bool formulasOnly) const
+{
     if (!m_data.sheet) return 0;
     double widest = 0;
     qint64 seen = 0;
@@ -107,13 +127,18 @@ double GridSheet::fitWidth(quint32 col, qint64 limit) const
         if (++seen > limit) return false;
         if (cell.type == jp::office::sheet::CellType::Empty && !cell.hasFormula()) return true;
         if (m_layout.merges.at(cellRow, cellCol) >= 0) return true;   // (a merged cell does not decide)
+        if (formulasOnly && !cell.hasFormula()) return true;
         const CellLook &look = lookOf(cellRow, cellCol, cell.style);
         if (look.wrap) return true;
-        const Shown s = showValue(valueOf(cellRow, cellCol, cell), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
+        ++m_measured;
+        // (with the formulas shown, a formula is the text of it)
+        const bool formula = m_showFormulas && cell.hasFormula() && !m_data.sheet->formulaText(cell).isEmpty();
+        const Shown s = showValue(formula ? jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(cell))) : valueOf(cellRow, cellCol, cell), look, m_data.dateSystem, 1e9,
+                                  m_looks.maxDigitWidth(), *m_meter, &m_symbols);
         if (s.kind != Kind::Empty && s.width > 0) widest = std::max(widest, neededPixels(s, look, m_looks.maxDigitWidth()));
         return true;
     });
-    return widest > 0 ? widthForPixels(int(std::ceil(widest)), m_looks.maxDigitWidth()) : 0;
+    return widest;
 }
 
 double GridSheet::fitHeight(quint32 row, qint64 limit) const
@@ -594,6 +619,35 @@ QString GridSheet::textOf(quint32 row, quint32 col, const Cell &cell) const
     case Value::Kind::Number: {
         const jp::calc::Formatted f = look.format.format(v.number(), m_data.dateSystem, 0, &m_symbols);
         return f.failed ? jp::calc::numberToText(v.number()) : f.text;
+    }
+    case Value::Kind::Bool: return v.boolean() ? QStringLiteral("TRUE") : QStringLiteral("FALSE");
+    case Value::Kind::Error: return jp::calc::errorKindText(v.errorKind());
+    default: return QString();
+    }
+}
+
+QString GridSheet::storedTextOf(quint32 row, quint32 col, const Cell &cell) const
+{
+    using jp::calc::Value;
+    const Value v = valueOf(row, col, cell);
+    switch (v.kind()) {
+    case Value::Kind::Text: return v.text();
+    case Value::Kind::Number: {
+        const double n = v.number();
+        if (lookOf(row, col, cell.style).format.kind() == jp::calc::FormatKind::Date && std::isfinite(n) && n >= 0) {
+            const double whole = std::floor(n);
+            double fraction = n - whole;
+            int y = 0, m = 0, d = 0;
+            const bool isDate = n >= 1 && jp::calc::serialToDate(whole, m_data.dateSystem, &y, &m, &d);
+            if (isDate || n < 1) {
+                const qint64 seconds = qint64(std::llround(fraction * 86400.0));
+                const QTime time = QTime::fromMSecsSinceStartOfDay(int(std::min<qint64>(seconds, 86399) * 1000));
+                if (!isDate) return time.toString(QStringLiteral("HH:mm:ss"));
+                const QString day = QStringLiteral("%1-%2-%3").arg(y, 4, 10, QLatin1Char('0')).arg(m, 2, 10, QLatin1Char('0')).arg(d, 2, 10, QLatin1Char('0'));
+                return seconds == 0 ? day : day + QLatin1Char('T') + time.toString(QStringLiteral("HH:mm:ss"));
+            }
+        }
+        return QString::number(n, 'g', QLocale::FloatingPointShortest);
     }
     case Value::Kind::Bool: return v.boolean() ? QStringLiteral("TRUE") : QStringLiteral("FALSE");
     case Value::Kind::Error: return jp::calc::errorKindText(v.errorKind());

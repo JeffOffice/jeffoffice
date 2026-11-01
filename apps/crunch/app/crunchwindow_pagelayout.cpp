@@ -24,6 +24,7 @@
 #include <QLocale>
 #include <QPlainTextEdit>
 #include <QScrollBar>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -111,6 +112,8 @@ void CrunchWindow::createPageLayoutActions()
     QAction *layout = mk(QStringLiteral("view.pageLayout"), tr("Page Layout"), QStringLiteral("file-text"), QKeySequence(), [this] { setViewKind(2); }, true);
     if (QAction *normal = act(QStringLiteral("view.normal")); normal && normal->actionGroup()) normal->actionGroup()->addAction(layout);
     m_opsActions << QStringLiteral("view.pageLayout");
+    mk(QStringLiteral("insert.headerFooter"), tr("Header and Footer"), QStringLiteral("layout-panel-top"), QKeySequence(), [this] { openHeaderToType(); });
+    m_opsActions << QStringLiteral("insert.headerFooter");
     // the Header and Footer tab: what is put in the part being typed in, and the choices that are the whole header's
     struct Code {
         const char *id, *text, *icon, *code;
@@ -221,6 +224,7 @@ void CrunchWindow::showPageLayout(bool on)
     m_cellEditor->setParent(on ? m_pageView->viewport() : m_view->viewport());
     m_cellEditor->hide();
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Header and Footer"), false);
+    refreshOutline(true);   // (the margins of the outline are the grid's, not the pages')
     if (on) {
         syncPageViewSelection();
         m_pageView->setFocus(Qt::OtherFocusReason);
@@ -253,6 +257,22 @@ void CrunchWindow::takeLayoutJob(std::unique_ptr<crunch::PrintJob> job)
     m_layoutJob = shared;
     m_layoutSheet = m_sheet;
     syncPageViewSelection();
+    if (m_headerWanted) QTimer::singleShot(0, this, [this] { openHeaderToType(); });
+}
+
+// Insert > Header & Footer: the pages are shown (when they are not), and the middle of the first page's header is opened to type in.
+void CrunchWindow::openHeaderToType()
+{
+    if (!m_session || !m_loaded || m_sheet < 0) return;
+    if (m_viewKind != 2) setViewKind(2);
+    if (m_viewKind != 2) return;
+    if (!m_layoutPages) {
+        m_headerWanted = true;   // (the pages are cut in the background: it is opened once they are)
+        return;
+    }
+    m_headerWanted = false;
+    m_pageView->verticalScrollBar()->setValue(0);
+    zoneClicked(0, true, 1);
 }
 
 // ---- the header and footer, typed in place

@@ -641,6 +641,68 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
     return out;
 }
 
+EditSession::Outcome EditSession::typeInto(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2, quint32 activeRow, quint32 activeCol, const QString &typed, bool checkRule_)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    row1 = std::max<qint64>(0, row1);
+    col1 = std::max<qint64>(0, col1);
+    row2 = std::min<qint64>(row2, jp::calc::kGridRows - 1);
+    col2 = std::min<qint64>(col2, jp::calc::kGridCols - 1);
+    if (row2 < row1 || col2 < col1) return out;
+    if ((row2 - row1 + 1) * (col2 - col1 + 1) > kMaxCellsPerEdit) {
+        out.ok = false;
+        out.problem = tr("That is more cells than JeffCrunch changes at once (%1). Select fewer cells.").arg(QLocale().toString(kMaxCellsPerEdit));
+        return out;
+    }
+    if (row1 == row2 && col1 == col2) return type(sheet, quint32(row1), quint32(col1), typed, checkRule_);
+    // the entry as the cell with the cursor takes it; a formula of it is moved to each of the others
+    CellChange first;
+    bool none = false;
+    if (!typedChange(sheet, activeRow, activeCol, typed, &first, &none, &out)) return out;
+    // the cells a merged area hides (all but its top left) are left as they are
+    std::set<quint64> hidden;
+    for (const CellRange &m : m_book->calc->mergesOf(sheet)) {
+        if (qint64(m.row1) > row2 || qint64(m.row2) < row1 || qint64(m.col1) > col2 || qint64(m.col2) < col1) continue;
+        for (qint64 r = std::max<qint64>(m.row1, row1); r <= std::min<qint64>(m.row2, row2); ++r)
+            for (qint64 c = std::max<qint64>(m.col1, col1); c <= std::min<qint64>(m.col2, col2); ++c)
+                if (r != qint64(m.row1) || c != qint64(m.col1)) hidden.insert((quint64(r) << 32) | quint64(c));
+    }
+    Step step;
+    for (qint64 r = row1; r <= row2; ++r) {
+        for (qint64 c = col1; c <= col2; ++c) {
+            if (!hidden.empty() && hidden.count((quint64(r) << 32) | quint64(c))) continue;
+            if (!canEditCell(sheet, quint32(r), quint32(c), &why)) {
+                out.ok = false;
+                out.problem = why;
+                return out;
+            }
+            int headerColumn = -1;
+            if (m_book->book->tableHeaderAt(sheet, quint32(r), quint32(c), &headerColumn) >= 0) {
+                out.ok = false;
+                out.problem = tr("The first row of a table holds the names of its columns, so the same entry can't be put in every cell there.");
+                return out;
+            }
+            CellChange ch;
+            if (!typedChange(sheet, quint32(r), quint32(c), typed, &ch, &none, &out)) return out;
+            if (ch.after.isFormula) ch.after.formula = jp::office::sheet::shiftFormula(first.after.formula, int(r - qint64(activeRow)), int(c - qint64(activeCol)));
+            if (checkRule_) {
+                const Outcome rule = checkRule(sheet, quint32(r), quint32(c), ch.after.value, ch.after.isFormula, typed.trimmed());
+                if (!rule.ok) return rule;
+            }
+            if (!none || ch.after.isFormula) step.cells.push_back(std::move(ch));
+        }
+    }
+    if (step.cells.empty()) return out;
+    pushStep(std::move(step), tr("Typing in %1").arg(rangeName(jp::office::sheet::CellRange{quint32(row1), quint32(col1), quint32(row2), quint32(col2), true})));
+    return out;
+}
+
 void EditSession::pushStep(Step step, const QString &text, bool alreadyDone)
 {
     m_lastCalculated = false;
@@ -847,7 +909,10 @@ bool EditSession::apply(Step *step, bool forward)
     }
     // (a step of objects, of page setups, or of notes and links alone changes no cell: the worker is not held for it)
     if ((!step->objects.empty() || !step->pages.empty() || !step->sides.empty() || !step->protections.empty()) && step->cells.empty() && step->renames.empty() && step->sizes.empty() && step->merges.empty() && !step->structure) return true;
-    if (step->structure) return applyStructure(step, forward);
+    if (step->structure) {
+        ++m_outlineRevision;   // (rows or columns put in or taken out move the lines)
+        return applyStructure(step, forward);
+    }
     QElapsedTimer waited;
     waited.start();
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
@@ -1039,6 +1104,7 @@ bool EditSession::apply(Step *step, bool forward)
         m_values->apply(byIds);
     }
     for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
+    if (!step->sizes.empty() || !step->filters.empty() || !step->rowSpecs.empty()) ++m_outlineRevision;   // (the lines' sizes, hiding, or outline may be other than they were)
     for (const SizeEdit &e : step->sizes) Q_EMIT sizesChanged(e.sheet);
     for (const int sheet : m_sheetsRestyled) Q_EMIT sizesChanged(sheet);
     m_sheetsRestyled.clear();
@@ -1136,9 +1202,15 @@ void EditSession::applySizes(Step *step, bool forward, Calculation *calc)
         if (e.columns) {
             calc->setColumnRuns(e.sheet, e.first, e.last, forward ? e.columnsAfter : e.columnsBefore);
             for (quint32 c = e.first; c <= e.last; ++c) markColumnResized(e.sheet, c);
+            for (const auto *list : {&e.columnsBefore, &e.columnsAfter})
+                for (const ColumnSpan &c : *list)
+                    if (c.outline != 0 || c.collapsed) m_formatsChanged.insert(e.sheet);   // (the file says how deep the outline goes: see the save)
         } else {
             calc->setRowSpecs(e.sheet, e.first, e.last, forward ? e.rowsAfter : e.rowsBefore);
             for (quint32 r = e.first; r <= e.last; ++r) markRowResized(e.sheet, r);
+            for (const auto *list : {&e.rowsBefore, &e.rowsAfter})
+                for (const RowSpec &r : *list)
+                    if (r.outline != 0 || r.collapsed) m_formatsChanged.insert(e.sheet);
         }
     }
 }
@@ -1445,6 +1517,12 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         SheetChanges &sc = changes.sheets[sheet];
         sc.replaceFormat = true;
         sc.format = calc->sheetFormatOf(sheet);
+        // (how deep the outline of the rows and of the columns goes: the buttons in the margins show that many levels)
+        sc.formatOutline = true;
+        sc.format.outlineLevelRow = 0;
+        sc.format.outlineLevelCol = 0;
+        for (const RowSpec &spec : calc->rowSpecsIn(sheet, 0, kMaxRows - 1)) sc.format.outlineLevelRow = std::max(sc.format.outlineLevelRow, spec.outline);
+        for (const ColumnSpan &c : calc->columnRuns(sheet, 0, kMaxColumns - 1)) sc.format.outlineLevelCol = std::max(sc.format.outlineLevelCol, c.outline);
     }
     for (const int sheet : m_mergesChanged) {
         if (!written(sheet)) continue;
@@ -1525,7 +1603,10 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             p.customHeight = specs.front().customHeight;
             p.customFormat = specs.front().customFormat;
             p.style = specs.front().style;
+            p.outline = specs.front().outline;
+            p.collapsed = specs.front().collapsed;
         }
+        p.outlineKnown = true;
         changes.sheets[sheet].rows.push_back(p);
     }
     qint64 liveResults = 0;   // (the results of cells in rows or columns that are deleted are not the file's to keep)

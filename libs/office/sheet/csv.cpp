@@ -887,6 +887,17 @@ CsvForm detectCsvForm(const QByteArray &bytes, const QString &fileName, const QL
         form.codePage = legacyCodePageFor(locale);
     }
     const QString sample = decodeSample(bytes, skip, 1 << 16, form);
+    // the lines end as the first one does (a line break inside quotes is not told from one that ends a line, which a file has few of)
+    for (qsizetype i = 0; i < sample.size(); ++i) {
+        if (sample[i] == QLatin1Char('\n')) {
+            form.lineEnd = QStringLiteral("\n");
+            break;
+        }
+        if (sample[i] == QLatin1Char('\r')) {
+            form.lineEnd = i + 1 < sample.size() && sample[i + 1] == QLatin1Char('\n') ? QStringLiteral("\r\n") : QStringLiteral("\r");
+            break;
+        }
+    }
     // `sep=;` on the first line
     if (sample.startsWith(QLatin1String("sep=")) && sample.size() >= 5) {
         const qsizetype end = sample.indexOf(QRegularExpression(QStringLiteral("[\r\n]")));
