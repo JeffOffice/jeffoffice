@@ -707,7 +707,7 @@ void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextC
     const double pxPerPt = std::sqrt(std::abs(p->deviceTransform().determinant())) * kFine;
     const double w = handBoldWidth(cf.intProperty(tp::HandBold), em, out, pxPerPt) * kFine;
     if (w <= 0) return;
-    if (out != TextOutput::Picture) {   // (a PDF and paper keep the stroke as a stroke)
+    if (out != TextOutput::Picture || cf.intProperty(tp::HandBold) != 3) {   // (a PDF and paper keep the stroke as a stroke, and so does bold drawn by hand, whose pictures stay as they were)
         QPen pen(cf.foreground(), w);
         pen.setJoinStyle(Qt::MiterJoin);   // the PDF default
         pen.setMiterLimit(10);
@@ -727,7 +727,7 @@ void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextC
         p->restore();
         return;
     }
-    // (In a picture a letter's stroke is made once per face, size, and width, and filled wherever the letter comes again: a page of
+    // (In a picture the Courier stand-in's light stroke is made once per face, size, and width, and filled wherever the letter comes again: a page of
     // typewriter text strokes its few dozen letters, not its thousands. The outlines are kept for the thread, a bounded number.)
     struct Strokes {
         QHash<QString, quint32> faces;
