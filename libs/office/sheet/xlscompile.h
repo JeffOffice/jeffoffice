@@ -19,6 +19,9 @@ namespace jp::office::sheet {
 struct XlsCompileContext {
     QStringList sheetNames;                           // the sheets, in the order they are written
     std::function<int(int first, int last)> xti;      // the place in the list of external sheets of the span of sheets (first to last, from 0), made if it is new
+    // A function of the old form's add-in set (the functions it keeps in a table of names of its own, not in the list of numbered functions): the place in the list of external sheets of the entry
+    // for the add-in functions, and the place of the function's name among the names of the add-in; false if the name is not one the context writes.
+    std::function<bool(const QString &name, int *ixti, int *index)> addIn;
     QHash<QString, int> names;                        // the defined names, by "<sheet place or -1>|<name in lower case>": the place from 1 in the list of names
     int sheet = -1;                                   // the sheet the formula is in (-1 for a name's formula): a bare name is looked up among this sheet's names first
     bool array = false;                               // the formula is an array formula's: its operands are of the array kind
@@ -30,6 +33,8 @@ bool xlsCompileFormula(const QString &text, const XlsCompileContext &context, QB
 
 // The number of the function of that name in the old format (the name in capitals), or -1.
 int xlsFunctionNumber(const QString &name);
+// Whether the name (in capitals) is a function of the old form's add-in set (EDATE, EOMONTH, NETWORKDAYS, and the rest): it is called through the name of the add-in, not by a number.
+bool xlsIsAddInFunction(const QString &name);
 
 constexpr int kXlsMaxRows = 65536;
 constexpr int kXlsMaxCols = 256;

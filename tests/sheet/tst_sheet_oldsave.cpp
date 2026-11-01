@@ -112,7 +112,8 @@ private Q_SLOTS:
                                       QStringLiteral("A1&\"x\"&B1"), QStringLiteral("AVERAGE(A:A)"), QStringLiteral("SUM(1:2)"), QStringLiteral("ROUND(A1,2)"),
                                       QStringLiteral("COUNTIF(A1:A9,\">1\")"), QStringLiteral("PI()"), QStringLiteral("A1%"), QStringLiteral("(A1+B1)*C1"),
                                       QStringLiteral("SUM({1,2;3,4})"), QStringLiteral("IF(A1,,2)"), QStringLiteral("$A$1+B$2+$C3"), QStringLiteral("Sheet2!A1+1"),
-                                      QStringLiteral("'My Sheet'!$B$2*2"), QStringLiteral("TRUE"), QStringLiteral("#N/A"), QStringLiteral("MyName*2"), QStringLiteral("LEN(\"say \"\"hi\"\"\")")};
+                                      QStringLiteral("'My Sheet'!$B$2*2"), QStringLiteral("TRUE"), QStringLiteral("#N/A"), QStringLiteral("MyName*2"), QStringLiteral("LEN(\"say \"\"hi\"\"\")"),
+                                      QStringLiteral("EOMONTH(A1,1)"), QStringLiteral("NETWORKDAYS(A1,A1+10)+WEEKNUM(A1)"), QStringLiteral("YEARFRAC(A1,A1+365,1)")};
         QString rows;
         for (int i = 0; i < formulas.size(); ++i) rows += row(i + 1, num(QStringLiteral("A%1").arg(i + 1), 1) + fnum(QStringLiteral("B%1").arg(i + 1), formulas[i], 7.5));
         const QByteArray x = buildXlsx({worksheet(rows), worksheet(row(1, num(QStringLiteral("A1"), 2))), worksheet(row(2, num(QStringLiteral("B2"), 3)))}, QByteArray(), QString(), QString(),
@@ -240,13 +241,44 @@ private Q_SLOTS:
         }
     }
 
+    void anXlsCopyHoldsThePageSetup()
+    {
+        Copies c;
+        const QByteArray x = simple(row(1, num(QStringLiteral("A1"), 1)),
+                                    QStringLiteral("<printOptions horizontalCentered=\"1\" gridLines=\"1\"/><pageMargins left=\"0.5\" right=\"0.6\" top=\"0.8\" bottom=\"0.9\" header=\"0.2\" footer=\"0.25\"/>"
+                                                   "<pageSetup paperSize=\"9\" scale=\"80\" orientation=\"landscape\" firstPageNumber=\"3\" useFirstPageNumber=\"1\"/>"
+                                                   "<headerFooter differentFirst=\"1\"><oddHeader>&amp;LLeft&amp;CPage &amp;P&amp;RRight</oddHeader><oddFooter>&amp;F</oddFooter><firstHeader>&amp;CFirst</firstHeader></headerFooter>"
+                                                   "<rowBreaks count=\"1\" manualBreakCount=\"1\"><brk id=\"10\" max=\"16383\" man=\"1\"/></rowBreaks>"));
+        QVERIFY2(c.make(x, false), qPrintable(c.why));
+        const PageSetup &a = c.sheet(c.original, 0).page, b = c.sheet(c.xls, 0).page;
+        QCOMPARE(b.paperSize, 9);
+        QCOMPARE(b.scale, 80);
+        QVERIFY(b.orientation == PageOrientation::Landscape);
+        QCOMPARE(b.firstPageNumber, 3);
+        QVERIFY(b.useFirstPageNumber);
+        QVERIFY(b.centerHorizontally && b.gridLines && !b.centerVertically);
+        QCOMPARE(b.margins.left, a.margins.left);
+        QCOMPARE(b.margins.right, a.margins.right);
+        QCOMPARE(b.margins.top, a.margins.top);
+        QCOMPARE(b.margins.bottom, a.margins.bottom);
+        QCOMPARE(b.margins.header, a.margins.header);
+        QCOMPARE(b.margins.footer, a.margins.footer);
+        QCOMPARE(b.headerFooter.oddHeader, QStringLiteral("&LLeft&CPage &P&RRight"));
+        QCOMPARE(b.headerFooter.oddFooter, QStringLiteral("&F"));
+        QCOMPARE(b.headerFooter.firstHeader, QStringLiteral("&CFirst"));
+        QVERIFY(b.headerFooter.differentFirst);
+        QCOMPARE(b.rowBreaks.size(), qsizetype(1));
+        QCOMPARE(b.rowBreaks[0].before, quint32(10));
+        QVERIFY(!c.xlsReport.notKept.join(QLatin1Char('|')).contains(QLatin1String("page setup")));
+    }
+
     void anXlsCopyHoldsSheetsAndNames()
     {
         Copies c;
         const QByteArray x = buildXlsx({worksheet(row(1, num(QStringLiteral("A1"), 1))), worksheet(row(1, str(QStringLiteral("A1"), QStringLiteral("two")))), worksheet(row(1, num(QStringLiteral("A1"), 3)))},
                                        QByteArray(), QStringLiteral("date1904=\"1\""), QString(), QByteArray(), QStringList{QStringLiteral("First"), QStringLiteral("Second sheet"), QStringLiteral("Hidden")},
                                        QStringLiteral("<definedName name=\"Total\">First!$A$1:$A$3</definedName><definedName name=\"Local\" localSheetId=\"1\">'Second sheet'!$A$1</definedName>"
-                                                      "<definedName name=\"_xlnm.Print_Area\" localSheetId=\"0\">First!$A$1:$C$9</definedName>"),
+                                                      "<definedName name=\"_xlnm.Print_Area\" localSheetId=\"0\">First!$A$1:$C$9</definedName><definedName name=\"_xlnm._FilterDatabase\" localSheetId=\"0\" hidden=\"1\">First!$A$1:$C$9</definedName>"),
                                        QByteArray(), QString(), QList<int>{2});
         QVERIFY2(c.make(x), qPrintable(c.why));
         for (const Workbook *wb : {&c.xls, &c.ods}) {
@@ -259,6 +291,10 @@ private Q_SLOTS:
             QVERIFY2(names.contains(QStringLiteral("Total=First!$A$1:$A$3@-1")), qPrintable(QStringList(names.values()).join(QLatin1Char(' '))));
             QVERIFY2(names.contains(QStringLiteral("Local=Second sheet!$A$1@1")), qPrintable(QStringList(names.values()).join(QLatin1Char(' '))));
         }
+        // (the names the form numbers keep their numbers: the print area and the filter's range come back as themselves)
+        QSet<QString> old;
+        for (const DefinedName &d : c.xls.info().definedNames) old.insert(d.name);
+        QVERIFY2(old.contains(QStringLiteral("_xlnm.Print_Area")) && old.contains(QStringLiteral("_xlnm._FilterDatabase")), qPrintable(QStringList(old.values()).join(QLatin1Char(' '))));
         QVERIFY(c.xls.info().dateSystem == jp::calc::DateSystem::Date1904);
         QVERIFY(c.ods.info().dateSystem == jp::calc::DateSystem::Date1904 || c.ods.info().dateSystem == jp::calc::DateSystem::Date1900);
     }
@@ -378,6 +414,27 @@ private Q_SLOTS:
         const Sheet b = c.sheet(c.ods, 0);
         QVERIFY(at(b, QStringLiteral("C1"))->flags & ArrayFormula);
         QCOMPARE(val(c.ods, b, QStringLiteral("C2")), QStringLiteral("n:12"));
+    }
+
+    // The page setup and links are in the .ods in the form the other program reads: the page layout and master page, the breaks before rows, and a link around the text of its cell.
+    void anOdsCopyHoldsThePageSetupAndLinks()
+    {
+        Copies c;
+        const QByteArray x = simple(row(1, str(QStringLiteral("A1"), QStringLiteral("link here")) + num(QStringLiteral("B1"), 2)) + row(12, num(QStringLiteral("A12"), 3)),
+                                    QStringLiteral("<hyperlinks><hyperlink ref=\"A1\" location=\"Sheet1!B1\" display=\"link here\"/></hyperlinks><printOptions gridLines=\"1\"/>"
+                                                   "<pageMargins left=\"0.5\" right=\"0.6\" top=\"0.8\" bottom=\"0.9\" header=\"0.2\" footer=\"0.25\"/><pageSetup paperSize=\"9\" scale=\"80\" orientation=\"landscape\"/>"
+                                                   "<headerFooter><oddHeader>&amp;LLeft&amp;CPage &amp;P&amp;RRight</oddHeader><oddFooter>&amp;A</oddFooter></headerFooter><rowBreaks count=\"1\" manualBreakCount=\"1\"><brk id=\"10\" max=\"16383\" man=\"1\"/></rowBreaks>"));
+        QVERIFY2(c.make(x), qPrintable(c.why));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(c.odsBytes, parts));
+        const QString styles = QString::fromUtf8(parts.value(QStringLiteral("styles.xml"))), content = QString::fromUtf8(parts.value(QStringLiteral("content.xml")));
+        QVERIFY2(styles.contains(QLatin1String("style:print-orientation=\"landscape\"")) && styles.contains(QLatin1String("style:scale-to=\"80%\"")), qPrintable(styles.left(3000)));
+        QVERIFY(styles.contains(QLatin1String("<style:region-left><text:p>Left</text:p></style:region-left>")));
+        QVERIFY(styles.contains(QLatin1String("<text:page-number>")) && styles.contains(QLatin1String("<text:sheet-name/>")));
+        QVERIFY(styles.contains(QLatin1String("style:print=\"charts drawings objects zero-values grid\"")));
+        QVERIFY(content.contains(QLatin1String("fo:break-before=\"page\"")));
+        QVERIFY2(content.contains(QLatin1String("<text:a xlink:href=\"#Sheet1.B1\" xlink:type=\"simple\">link here</text:a>")), qPrintable(content.mid(content.indexOf(QLatin1String("<table:table "))).left(1500)));
+        QVERIFY(c.odsReport.notKept.join(QLatin1Char('|')).indexOf(QLatin1String("page setup")) < 0);
     }
 
     void anOdsCopyReadsBackInManyRows()

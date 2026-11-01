@@ -233,8 +233,13 @@ private:
     QHash<QString, int> m_sstIndex;
     qint64 m_sstRefs = 0;
     // the external sheets
-    QVector<QPair<int, int>> m_xtis;
+    struct Xti {
+        int supbook, first, last;
+    };
+    QVector<Xti> m_xtis;
     QHash<qint64, int> m_xtiIndex;
+    QStringList m_addIns;     // the functions of the add-in set that formulas call, in the order of their names in the file
+    int m_addInXti = -1;
     // the colors
     QVector<quint32> m_palette;
     QHash<quint32, int> m_paletteIndex;
@@ -462,7 +467,7 @@ private:
         auto it = m_xtiIndex.constFind(key);
         if (it != m_xtiIndex.cend()) return it.value();
         if (m_xtis.size() >= 60000) return -1;
-        m_xtis.append({first, last});
+        m_xtis.append({0, first, last});
         m_xtiIndex.insert(key, int(m_xtis.size()) - 1);
         return int(m_xtis.size()) - 1;
     }
@@ -471,8 +476,8 @@ private:
 
     static int builtinNameCode(const QString &name)
     {
-        static const char *const names[] = {"Consolidate_Area", "Auto_Open", "Auto_Close", "Extract", "Database", "Criteria", "Print_Area", "Print_Titles", "Recorder", "Data_Form", "Auto_Activate",
-                                            "Auto_Deactivate", "Sheet_Title", "_FilterDatabase"};
+        static const char *const names[] = {"Consolidate_Area", "Auto_Open", "Auto_Close", "Extract", "Database", "Criteria", "Print_Area", "Print_Titles", "Cell_Contents", "Recorder", "Data_Form",
+                                            "Auto_Activate", "Auto_Deactivate", "Sheet_Title", "_FilterDatabase"};
         if (!name.startsWith(QLatin1String("_xlnm."), Qt::CaseInsensitive)) return -1;
         const QString tail = name.mid(6);
         for (int i = 0; i < int(sizeof(names) / sizeof(names[0])); ++i)
@@ -496,7 +501,7 @@ private:
                 ++dropped;
                 continue;
             }
-            n.hidden = d.hidden || n.builtin == 13;
+            n.hidden = d.hidden || n.builtin == 14;
             n.ref = d.ref;
             if (d.localSheet >= 0) {
                 const auto at = m_placeToWritten.constFind(d.localSheet);
@@ -520,6 +525,22 @@ private:
             if (!m_cx.names.contains(key)) m_cx.names.insert(key, int(i) + 1);
         }
         m_cx.xti = [this](int a, int b) { return xtiFor(a, b); };
+        m_cx.addIn = [this](const QString &name, int *ixti, int *index) {
+            int at = int(m_addIns.indexOf(name));
+            if (at < 0) {
+                if (m_addIns.size() >= 255) return false;
+                m_addIns.append(name);
+                at = int(m_addIns.size()) - 1;
+            }
+            if (m_addInXti < 0) {
+                if (m_xtis.size() >= 60000) return false;
+                m_xtis.append({1, 0xFFFE, 0xFFFE});   // (the second book of the list is the add-in's, and no sheet of it is meant)
+                m_addInXti = int(m_xtis.size()) - 1;
+            }
+            *ixti = m_addInXti;
+            *index = at + 1;
+            return true;
+        };
     }
 
     QByteArray namesRecords()
@@ -601,7 +622,7 @@ private:
             put(&out, 0x0010, W().f64(info.iterate ? info.iterateDelta : 0.001));
             put(&out, 0x005F, W().u16(1));
         }
-        put(&out, 0x002A, W().u16(0));
+        put(&out, 0x002A, W().u16(sheet.page.headings ? 1 : 0));
         put(&out, 0x002B, W().u16(sheet.page.gridLines ? 1 : 0));
         put(&out, 0x0082, W().u16(1));
         const int rowLevel = sheet.format.outlineLevelRow, colLevel = sheet.format.outlineLevelCol;
@@ -613,6 +634,7 @@ private:
             if (sheet.transitionEvaluation) ws |= 0x4000;
             if (sheet.transitionEntry) ws |= 0x8000;
             put(&out, 0x0081, W().u16(ws));
+            writePageSetup(&out, sheet.page);
             put(&out, 0x0055, W().u16(std::max(1, std::min(f.baseColWidth, 255))));
             if (f.defaultColWidth > 0) put(&out, 0x0099, W().u16(int(std::lround(std::min(f.defaultColWidth, 255.0) * 256))));
         }
@@ -810,11 +832,107 @@ private:
             }
             if (mergesCut > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%1 merged ranges the format cannot hold").arg(mergesCut)));
         }
+        // links: one record for each range
+        {
+            qint64 linksCut = 0;
+            int written = 0;
+            for (const LinkSpec &l : sheet.links) {
+                if (!l.range.valid || l.range.row2 >= quint32(kXlsMaxRows) || l.range.col2 >= quint32(kXlsMaxCols) || written >= kMaxCopyHyperlinks || (l.target.isEmpty() && l.location.isEmpty())
+                    || l.target.size() > 2000 || l.location.size() > 2000) {
+                    ++linksCut;
+                    continue;
+                }
+                auto utf16z = [](W *w, const QString &t) {
+                    w->u32(quint32(t.size() + 1));
+                    for (const QChar c : t) w->u16(c.unicode());
+                    w->u16(0);
+                };
+                static const char kLink[16] = {char(0xD0), char(0xC9), char(0xEA), char(0x79), char(0xF9), char(0xBA), char(0xCE), char(0x11), char(0x8C), char(0x82), 0x00, char(0xAA), 0x00, char(0x4B), char(0xA9), 0x0B};
+                static const char kUrl[16] = {char(0xE0), char(0xC9), char(0xEA), char(0x79), char(0xF9), char(0xBA), char(0xCE), char(0x11), char(0x8C), char(0x82), 0x00, char(0xAA), 0x00, char(0x4B), char(0xA9), 0x0B};
+                W h;
+                h.u16(int(l.range.row1)).u16(int(l.range.row2)).u16(int(l.range.col1)).u16(int(l.range.col2)).raw(QByteArray(kLink, 16)).u32(2);
+                const QString display = l.display.left(255);
+                const quint32 flags = (l.outside() ? 0x03 : 0) | (!l.location.isEmpty() ? 0x08 : 0) | (!display.isEmpty() ? 0x14 : 0);
+                h.u32(flags);
+                if (!display.isEmpty()) utf16z(&h, display);
+                if (l.outside()) {
+                    h.raw(QByteArray(kUrl, 16)).u32(quint32((l.target.size() + 1) * 2));
+                    for (const QChar c : l.target) h.u16(c.unicode());
+                    h.u16(0);
+                }
+                if (!l.location.isEmpty()) utf16z(&h, l.location);
+                put(&out, 0x01B8, h);
+                ++written;
+            }
+            if (linksCut > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%1 links the format cannot hold").arg(linksCut)));
+        }
         put(&out, 0x000A, W());
         if (cellsCut > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%1 cells past row 65,536 or column IV (the format's last)").arg(cellsCut)));
         if (textsCut > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%1 texts cut to 32,767 characters").arg(textsCut)));
         if (rowsCut > 0 || colsCut > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%1 row and column sizes past the format's grid").arg(rowsCut + colsCut)));
         return out;
+    }
+
+    // How the sheet prints: the breaks, the header and footer, centering, margins, and the paper (the records that follow WSBOOL).
+    void writePageSetup(QByteArray *out, const PageSetup &p)
+    {
+        auto breaks = [&](quint16 id, const QVector<PageBreak> &list, quint32 limit) {
+            QVector<PageBreak> manual;
+            for (const PageBreak &b : list)
+                if (b.manual && b.before >= 1 && b.before < limit && manual.size() < 1000) manual.append(b);
+            if (manual.isEmpty()) return;
+            W w;
+            w.u16(int(manual.size()));
+            for (const PageBreak &b : manual) w.u16(int(b.before)).u16(int(b.min)).u16(int(b.max ? b.max : (id == 0x001B ? 255 : 65535)));
+            putRecord(out, id, w.bytes());
+        };
+        breaks(0x001B, p.rowBreaks, quint32(kXlsMaxRows));
+        breaks(0x001A, p.colBreaks, quint32(kXlsMaxCols));
+        auto text = [&](quint16 id, const QString &s) {
+            const QString t = s.left(255);
+            W w;
+            if (!t.isEmpty()) w.str8(t, 2);
+            putRecord(out, id, w.bytes());
+        };
+        text(0x0014, p.headerFooter.oddHeader);
+        text(0x0015, p.headerFooter.oddFooter);
+        put(out, 0x0083, W().u16(p.centerHorizontally ? 1 : 0));
+        put(out, 0x0084, W().u16(p.centerVertically ? 1 : 0));
+        put(out, 0x0026, W().f64(std::clamp(p.margins.left, 0.0, 100.0)));
+        put(out, 0x0027, W().f64(std::clamp(p.margins.right, 0.0, 100.0)));
+        put(out, 0x0028, W().f64(std::clamp(p.margins.top, 0.0, 100.0)));
+        put(out, 0x0029, W().f64(std::clamp(p.margins.bottom, 0.0, 100.0)));
+        int grbit = 0;
+        if (p.pageOrder == PageOrder::OverThenDown) grbit |= 0x0001;
+        if (p.orientation == PageOrientation::Portrait) grbit |= 0x0002;
+        if (p.orientation == PageOrientation::Default) grbit |= 0x0040;
+        if (p.blackAndWhite) grbit |= 0x0008;
+        if (p.draft) grbit |= 0x0010;
+        if (p.comments != PrintComments::None) grbit |= 0x0020 | (p.comments == PrintComments::AtEnd ? 0x0200 : 0);
+        if (p.useFirstPageNumber) grbit |= 0x0080;
+        grbit |= (p.errors == PrintErrors::Blank ? 1 : p.errors == PrintErrors::Dash ? 2 : p.errors == PrintErrors::NA ? 3 : 0) << 10;
+        W setup;
+        setup.u16(std::clamp(p.paperSize, 0, 32767)).u16(std::clamp(p.scale, kMinPageScale, kMaxPageScale)).u16(std::clamp(p.firstPageNumber, 0, 32767)).u16(std::clamp(p.fitToWidth, 0, 32767))
+            .u16(std::clamp(p.fitToHeight, 0, 32767)).u16(grbit).u16(600).u16(600).f64(std::clamp(p.margins.header, 0.0, 100.0)).f64(std::clamp(p.margins.footer, 0.0, 100.0)).u16(1);
+        put(out, 0x00A1, setup);
+        const HeaderFooter &h = p.headerFooter;
+        if (h.differentOddEven || h.differentFirst || !h.evenHeader.isEmpty() || !h.evenFooter.isEmpty() || !h.firstHeader.isEmpty() || !h.firstFooter.isEmpty() || !h.scaleWithDoc || !h.alignWithMargins) {
+            W w;
+            w.u16(0x089C).u16(0).raw(QByteArray(8, '\0')).raw(QByteArray(16, '\0'));
+            w.u16((h.differentOddEven ? 1 : 0) | (h.differentFirst ? 2 : 0) | (h.scaleWithDoc ? 4 : 0) | (h.alignWithMargins ? 8 : 0));
+            const QString eh = h.evenHeader.left(255), ef = h.evenFooter.left(255), fh = h.firstHeader.left(255), ff = h.firstFooter.left(255);
+            w.u16(int(eh.size())).u16(int(ef.size())).u16(int(fh.size())).u16(int(ff.size()));
+            for (const QString &t : {eh, ef, fh, ff}) {
+                if (t.isEmpty()) continue;
+                const bool wide = isWide(t);
+                w.u8(wide ? 1 : 0);
+                for (const QChar c : t) {
+                    if (wide) w.u16(c.unicode());
+                    else w.u8(c.unicode());
+                }
+            }
+            put(out, 0x089C, w);
+        }
     }
 
     // One row's cells, in the records of the format.
@@ -1099,9 +1217,13 @@ private:
         QByteArray extern_;
         if (!m_xtis.isEmpty()) {
             putRecord(&extern_, 0x01AE, W().u16(int(m_written.size())).u16(0x0401).bytes());
+            if (!m_addIns.isEmpty()) {
+                putRecord(&extern_, 0x01AE, W().u16(1).u16(0x3A01).bytes());
+                for (const QString &name : std::as_const(m_addIns)) putRecord(&extern_, 0x0023, W().u16(0).u32(0).str8(name, 1).u16(2).u8(0x1C).u8(0x17).bytes());
+            }
             W x;
             x.u16(int(m_xtis.size()));
-            for (const auto &p : std::as_const(m_xtis)) x.u16(0).u16(p.first).u16(p.second);
+            for (const auto &p : std::as_const(m_xtis)) x.u16(p.supbook).u16(p.first).u16(p.last);
             putRecord(&extern_, 0x0017, x.bytes());
         }
         // the strings

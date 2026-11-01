@@ -9,6 +9,7 @@
 #include "calc/numfmt.h"
 #include "io/zip.h"
 #include "sheet/odsformat.h"
+#include "sheet/headerfooter.h"
 #include "sheet/odsformula.h"
 #include "sheet/oldsavecommon.h"
 
@@ -143,7 +144,6 @@ public:
             m_report->notKept = m_features.result();
             if (m_formulasAsValues > 0) m_report->notKept << QCoreApplication::translate("Sheet", "%1 formulas the format cannot hold (they keep the value they came to)").arg(m_formulasAsValues);
             if (m_tablesAsValues > 0) m_report->notKept << QCoreApplication::translate("Sheet", "what-if data tables (their cells keep the numbers they hold)");
-            if (m_printNames) m_report->notKept << QCoreApplication::translate("Sheet", "print titles");
             m_report->formulas = m_formulas;
             m_report->formulasAsValues = m_formulasAsValues;
             m_report->cells = m_cells;
@@ -333,25 +333,25 @@ private:
         return name;
     }
 
-    QString columnStyleFor(double widthPoints)
+    QString columnStyleFor(double widthPoints, bool breakBefore = false)
     {
-        const QString key = QString::number(widthPoints, 'f', 3);
+        const QString key = QString::number(widthPoints, 'f', 3) + (breakBefore ? QLatin1String("b") : QLatin1String(""));
         const auto it = m_columnStyleOf.constFind(key);
         if (it != m_columnStyleOf.cend()) return it.value();
         const QString name = QStringLiteral("co%1").arg(m_columnStyleOf.size() + 1);
-        m_styleXml += QStringLiteral("<style:style style:name=\"%1\" style:family=\"table-column\"><style:table-column-properties fo:break-before=\"auto\" style:column-width=\"%2pt\"/></style:style>").arg(name, key);
+        m_styleXml += QStringLiteral("<style:style style:name=\"%1\" style:family=\"table-column\"><style:table-column-properties fo:break-before=\"%3\" style:column-width=\"%2pt\"/></style:style>").arg(name, QString::number(widthPoints, 'f', 3), breakBefore ? QStringLiteral("page") : QStringLiteral("auto"));
         m_columnStyleOf.insert(key, name);
         return name;
     }
 
-    QString rowStyleFor(double heightPoints, bool custom)
+    QString rowStyleFor(double heightPoints, bool custom, bool breakBefore = false)
     {
-        const QString key = QString::number(heightPoints, 'f', 3) + (custom ? QLatin1String("c") : QLatin1String("o"));
+        const QString key = QString::number(heightPoints, 'f', 3) + (custom ? QLatin1String("c") : QLatin1String("o")) + (breakBefore ? QLatin1String("b") : QLatin1String(""));
         const auto it = m_rowStyleOf.constFind(key);
         if (it != m_rowStyleOf.cend()) return it.value();
         const QString name = QStringLiteral("ro%1").arg(m_rowStyleOf.size() + 1);
-        m_styleXml += QStringLiteral("<style:style style:name=\"%1\" style:family=\"table-row\"><style:table-row-properties style:row-height=\"%2pt\" fo:break-before=\"auto\" style:use-optimal-row-height=\"%3\"/></style:style>")
-                          .arg(name, QString::number(heightPoints, 'f', 3), custom ? QStringLiteral("false") : QStringLiteral("true"));
+        m_styleXml += QStringLiteral("<style:style style:name=\"%1\" style:family=\"table-row\"><style:table-row-properties style:row-height=\"%2pt\" fo:break-before=\"%4\" style:use-optimal-row-height=\"%3\"/></style:style>")
+                          .arg(name, QString::number(heightPoints, 'f', 3), custom ? QStringLiteral("false") : QStringLiteral("true"), breakBefore ? QStringLiteral("page") : QStringLiteral("auto"));
         m_rowStyleOf.insert(key, name);
         return name;
     }
@@ -366,7 +366,7 @@ private:
         x += QStringLiteral("<office:font-face-decls><style:font-face style:name=\"%1\" svg:font-family=\"%1\"/></office:font-face-decls>").arg(esc(fn));
         x += QStringLiteral("<office:styles><style:default-style style:family=\"table-cell\"><style:table-cell-properties style:decimal-places=\"2\"/><style:paragraph-properties style:tab-stop-distance=\"36pt\"/>"
                             "<style:text-properties style:font-name=\"%1\" fo:font-size=\"%2pt\" fo:language=\"en\" fo:country=\"US\"/></style:default-style>").arg(esc(fn)).arg(font.size);
-        x += QStringLiteral("</office:styles><office:automatic-styles/><office:master-styles/></office:document-styles>");
+        x += QStringLiteral("</office:styles><office:automatic-styles>") + m_pageLayouts + QStringLiteral("</office:automatic-styles><office:master-styles>") + m_masterPages + QStringLiteral("</office:master-styles></office:document-styles>");
         return x;
     }
 
@@ -403,6 +403,108 @@ private:
         x += QStringLiteral("</config:config-item-map-entry></config:config-item-map-indexed></config:config-item-set></office:settings></office:document-settings>");
         return x;
     }
+
+    // ---- page styles
+
+    static QString cm(double inches) { return QString::number(std::max(0.0, inches) * 2.54, 'f', 3) + QLatin1String("cm"); }
+
+    // The paper in inches (width, height) for the format's paper numbers that are in common use; letter for any other.
+    static void paperInches(int paper, double w, double h, double *width, double *height)
+    {
+        struct Paper { int id; double w, h; };
+        static const Paper papers[] = {{1, 8.5, 11}, {2, 8.5, 11}, {3, 11, 17}, {5, 8.5, 14}, {7, 7.25, 10.5}, {8, 297 / 25.4, 420 / 25.4}, {9, 210 / 25.4, 297 / 25.4}, {10, 210 / 25.4, 297 / 25.4},
+                                       {11, 148 / 25.4, 210 / 25.4}, {12, 250 / 25.4, 353 / 25.4}, {13, 182 / 25.4, 257 / 25.4}, {14, 8.5, 13}, {18, 8.5, 11}, {66, 420 / 25.4, 594 / 25.4}};
+        *width = 8.5;
+        *height = 11;
+        for (const Paper &p : papers)
+            if (p.id == paper) {
+                *width = p.w;
+                *height = p.h;
+                return;
+            }
+        if (w > 0 && h > 0) {
+            *width = w / 72.0;
+            *height = h / 72.0;
+        }
+    }
+
+    // One region of a header or footer: the paragraphs of a part, with its fields.
+    static QString region(const HfPart &part, const QString &name)
+    {
+        if (part.isEmpty()) return QString();
+        QString x = QStringLiteral("<style:%1>").arg(name);
+        for (const HfLine &line : part.lines) {
+            x += QStringLiteral("<text:p>");
+            for (const HfRun &run : line) {
+                switch (run.field) {
+                case HfField::None: x += esc(run.text); break;
+                case HfField::Page: x += QStringLiteral("<text:page-number>1</text:page-number>"); break;
+                case HfField::Pages: x += QStringLiteral("<text:page-count>1</text:page-count>"); break;
+                case HfField::Date: x += QStringLiteral("<text:date/>"); break;
+                case HfField::Time: x += QStringLiteral("<text:time/>"); break;
+                case HfField::File: x += QStringLiteral("<text:file-name text:display=\"name-and-extension\"/>"); break;
+                case HfField::Path: x += QStringLiteral("<text:file-name text:display=\"path\"/>"); break;
+                case HfField::Sheet: x += QStringLiteral("<text:sheet-name/>"); break;
+                case HfField::Picture: break;
+                }
+            }
+            x += QStringLiteral("</text:p>");
+        }
+        return x + QStringLiteral("</style:%1>").arg(name);
+    }
+
+    static QString headerOrFooter(const QString &code, const QString &tag)
+    {
+        const HfText t = parseHeaderFooter(code);
+        if (t.isEmpty()) return QString();
+        return QStringLiteral("<style:%1>").arg(tag) + region(t.left, QStringLiteral("region-left")) + region(t.center, QStringLiteral("region-center")) + region(t.right, QStringLiteral("region-right"))
+               + QStringLiteral("</style:%1>").arg(tag);
+    }
+
+    // The master page (and its page layout) for how a sheet prints, made once for each distinct setup; its name.
+    QString masterPageFor(const PageSetup &p)
+    {
+        double pw = 8.5, ph = 11;
+        paperInches(p.paperSize, p.paperWidth, p.paperHeight, &pw, &ph);
+        const bool landscape = p.orientation == PageOrientation::Landscape;
+        if (landscape) std::swap(pw, ph);
+        const HeaderFooter &h = p.headerFooter;
+        const QString header = headerOrFooter(h.oddHeader, QStringLiteral("header")), footer = headerOrFooter(h.oddFooter, QStringLiteral("footer"));
+        const QString headerFirst = h.differentFirst ? headerOrFooter(h.firstHeader, QStringLiteral("header-first")) : QString(), footerFirst = h.differentFirst ? headerOrFooter(h.firstFooter, QStringLiteral("footer-first")) : QString();
+        const QString headerEven = h.differentOddEven ? headerOrFooter(h.evenHeader, QStringLiteral("header-left")) : QString(), footerEven = h.differentOddEven ? headerOrFooter(h.evenFooter, QStringLiteral("footer-left")) : QString();
+        const PageMargins &m = p.margins;
+        QString layout = QStringLiteral("<style:page-layout-properties fo:page-width=\"%1\" fo:page-height=\"%2\" style:print-orientation=\"%3\"").arg(cm(pw), cm(ph), landscape ? QStringLiteral("landscape") : QStringLiteral("portrait"));
+        const bool hasHeader = !header.isEmpty() || !headerFirst.isEmpty() || !headerEven.isEmpty(), hasFooter = !footer.isEmpty() || !footerFirst.isEmpty() || !footerEven.isEmpty();
+        layout += QStringLiteral(" fo:margin-top=\"%1\" fo:margin-bottom=\"%2\" fo:margin-left=\"%3\" fo:margin-right=\"%4\"").arg(cm(hasHeader ? m.header : m.top), cm(hasFooter ? m.footer : m.bottom), cm(m.left), cm(m.right));
+        if (p.fitToPage) layout += QStringLiteral(" style:scale-to-X=\"%1\" style:scale-to-Y=\"%2\"").arg(p.fitToWidth).arg(p.fitToHeight);
+        else if (p.scale != 100) layout += QStringLiteral(" style:scale-to=\"%1%\"").arg(p.scale);
+        layout += QStringLiteral(" style:table-centering=\"%1\"").arg(p.centerHorizontally && p.centerVertically ? QStringLiteral("both") : p.centerHorizontally ? QStringLiteral("horizontal") : p.centerVertically ? QStringLiteral("vertical") : QStringLiteral("none"));
+        QString print = QStringLiteral("charts drawings objects zero-values");
+        if (p.headings) print += QStringLiteral(" headers");
+        if (p.gridLines) print += QStringLiteral(" grid");
+        if (p.comments != PrintComments::None) print += QStringLiteral(" annotations");
+        layout += QStringLiteral(" style:print=\"%1\" style:print-page-order=\"%2\"").arg(print, p.pageOrder == PageOrder::OverThenDown ? QStringLiteral("ltr") : QStringLiteral("ttb"));
+        if (p.useFirstPageNumber) layout += QStringLiteral(" style:first-page-number=\"%1\"").arg(p.firstPageNumber);
+        layout += QStringLiteral("/>");
+        // (the header's height is what the top margin has beyond the header's own: the way the other program reads the margins of a sheet)
+        // (a page with no header or footer still names them, empty: the other program gives a page that names none a header of its own height)
+        layout += QStringLiteral("<style:header-style><style:header-footer-properties fo:min-height=\"%1\" fo:margin-left=\"0cm\" fo:margin-right=\"0cm\" fo:margin-bottom=\"0cm\"/></style:header-style>").arg(hasHeader ? cm(m.top - m.header) : QStringLiteral("0cm"));
+        layout += QStringLiteral("<style:footer-style><style:header-footer-properties fo:min-height=\"%1\" fo:margin-left=\"0cm\" fo:margin-right=\"0cm\" fo:margin-top=\"0cm\"/></style:footer-style>").arg(hasFooter ? cm(m.bottom - m.footer) : QStringLiteral("0cm"));
+        QString master = header + (headerEven.isEmpty() && h.differentOddEven ? QStringLiteral("<style:header-left style:display=\"false\"/>") : QString()) + headerEven + headerFirst
+                         + footer + (footerEven.isEmpty() && h.differentOddEven ? QStringLiteral("<style:footer-left style:display=\"false\"/>") : QString()) + footerEven + footerFirst;
+        if (!h.differentOddEven) master = header + headerFirst + footer + footerFirst;
+        const QString key = layout + QLatin1Char('|') + master;
+        const auto it = m_masterOf.constFind(key);
+        if (it != m_masterOf.cend()) return it.value();
+        const int n = m_masterOf.size() + 1;
+        const QString name = n == 1 ? QStringLiteral("Default") : QStringLiteral("Master%1").arg(n);
+        m_pageLayouts += QStringLiteral("<style:page-layout style:name=\"Mpm%1\">%2</style:page-layout>").arg(n).arg(layout);
+        m_masterPages += QStringLiteral("<style:master-page style:name=\"%1\" style:page-layout-name=\"Mpm%2\">%3</style:master-page>").arg(name).arg(n).arg(master);
+        m_masterOf.insert(key, name);
+        return name;
+    }
+    QHash<QString, QString> m_masterOf;
+    QString m_pageLayouts, m_masterPages;
 
     // ---- names
 
@@ -569,6 +671,7 @@ private:
         return global.isEmpty() ? QString() : QStringLiteral("<table:named-expressions>") + global + QStringLiteral("</table:named-expressions>");
     }
     QHash<int, QString> m_localNames;
+    QHash<quint64, QString> m_linkOf;   // the address a cell of the sheet being written links to, by row and column
 
     // ---- the sheets
 
@@ -621,13 +724,31 @@ private:
                 const quint32 rgb = m_book.styles().resolve(sheet.tabColor, 0xFFFFFFFFu);
                 if (rgb != 0xFFFFFFFFu) props += QStringLiteral(" tableooo:tab-color=\"%1\"").arg(rgbText(rgb));
             }
-            m_styleXml += QStringLiteral("<style:style style:name=\"%1\" style:family=\"table\" style:master-page-name=\"\"><style:table-properties%2/></style:style>").arg(tableStyle, props);
+            m_styleXml += QStringLiteral("<style:style style:name=\"%1\" style:family=\"table\" style:master-page-name=\"%3\"><style:table-properties%2/></style:style>").arg(tableStyle, props, masterPageFor(sheet.page));
         }
         QString head = QStringLiteral("<table:table table:name=\"%1\" table:style-name=\"%2\"").arg(esc(w.name), tableStyle);
         if (sheet.isProtected) head += QStringLiteral(" table:protected=\"true\"");
         head += QStringLiteral(">");
         // the used area
         const std::vector<PlacedCell> cells = oldsave::sortedCells(sheet);
+        m_linkOf.clear();
+        {
+            qint64 spread = 0;
+            for (const LinkSpec &l : sheet.links) {
+                if (!l.range.valid || (l.target.isEmpty() && l.location.isEmpty()) || l.range.cellCount() > 10000 || spread + l.range.cellCount() > 200000) continue;
+                spread += l.range.cellCount();
+                QString href = l.target;
+                if (href.isEmpty()) {
+                    // a place in this workbook: "Sheet2!B5" is "#Sheet2.B5"
+                    QString loc = l.location;
+                    const int bang = int(loc.lastIndexOf(QLatin1Char('!')));
+                    if (bang >= 0) loc = loc.left(bang).remove(QLatin1Char('\'')) + QLatin1Char('.') + loc.mid(bang + 1);
+                    href = QLatin1Char('#') + loc;
+                }
+                for (quint32 r = l.range.row1; r <= l.range.row2; ++r)
+                    for (quint32 c = l.range.col1; c <= l.range.col2; ++c) m_linkOf.insert((quint64(r) << 20) | c, href);
+            }
+        }
         quint32 lastCol = 0;
         for (const PlacedCell &pc : cells) lastCol = std::max(lastCol, pc.col);
         // the merged ranges
@@ -650,6 +771,9 @@ private:
         {
             QVector<ColumnSpan> cols = sheet.columns;
             std::stable_sort(cols.begin(), cols.end(), [](const ColumnSpan &a, const ColumnSpan &b) { return a.first < b.first; });
+            QSet<quint32> columnBreaks;
+            for (const PageBreak &b : sheet.page.colBreaks)
+                if (b.manual && b.before < 16384) columnBreaks.insert(b.before);
             const double defaultChars = sheet.format.defaultColWidth > 0 ? sheet.format.defaultColWidth : (sheet.format.baseColWidth > 0 ? sheet.format.baseColWidth + 0.71 : 8.43);
             auto widthPt = [&](double chars) { return chars * m_digit * 72.0 / 96.0; };
             for (const ColumnSpan &c : cols) lastCol = std::max<quint32>(lastCol, std::min<quint32>(c.last, 16383));
@@ -700,8 +824,9 @@ private:
         QString rowsXml;
         QByteArray rowsBytes;
         {
-            // the rows that matter: those with cells, with a size, or with part of a merged range
+            // the rows that matter: those with cells, with a size, with part of a merged range, or at the top of a page
             QVector<quint32> rowList;
+            QSet<quint32> rowBreakSet;
             {
                 QSet<quint32> seen;
                 for (const PlacedCell &pc : cells)
@@ -720,6 +845,14 @@ private:
                             seen.insert(r);
                             rowList.append(r);
                         }
+                for (const PageBreak &b : sheet.page.rowBreaks)
+                    if (b.manual && b.before < 1048576) {
+                        rowBreakSet.insert(b.before);
+                        if (!seen.contains(b.before)) {
+                            seen.insert(b.before);
+                            rowList.append(b.before);
+                        }
+                    }
                 std::sort(rowList.begin(), rowList.end());
             }
             // the cells by row
@@ -817,11 +950,11 @@ private:
                 const auto spec = specs.constFind(row);
                 if (spec != specs.cend()) {
                     const double h = spec->height >= 0 ? spec->height : defaultHeight;
-                    rx += QStringLiteral(" table:style-name=\"%1\"").arg(rowStyleFor(h, spec->customHeight));
+                    rx += QStringLiteral(" table:style-name=\"%1\"").arg(rowStyleFor(h, spec->customHeight, rowBreakSet.contains(row)));
                     if (spec->hidden) rx += QStringLiteral(" table:visibility=\"collapse\"");
                     if (spec->customFormat && !cellStyleFor(spec->style).isEmpty()) rx += QStringLiteral(" table:default-cell-style-name=\"%1\"").arg(cellStyleFor(spec->style));
                 } else {
-                    rx += QStringLiteral(" table:style-name=\"%1\"").arg(rowStyleFor(defaultHeight, false));
+                    rx += QStringLiteral(" table:style-name=\"%1\"").arg(rowStyleFor(defaultHeight, false, rowBreakSet.contains(row)));
                 }
                 rx += QStringLiteral(">");
                 quint32 col = 0;
@@ -989,6 +1122,17 @@ private:
             paragraphs = textParagraphs(text);
             break;
         }
+        }
+        if (!covered && !m_linkOf.isEmpty() && (c.type != CellType::Empty)) {
+            const auto link = m_linkOf.constFind((quint64(pc->row) << 20) | pc->col);
+            if (link != m_linkOf.cend()) {
+                // the text of the cell is the text of the link
+                const QString open = QStringLiteral("<text:a xlink:href=\"%1\" xlink:type=\"simple\">").arg(esc(link.value()));
+                if (paragraphs.startsWith(QLatin1String("<text:p>"))) {
+                    paragraphs.replace(QLatin1String("<text:p>"), QStringLiteral("<text:p>") + open);
+                    paragraphs.replace(QLatin1String("</text:p>"), QStringLiteral("</text:a></text:p>"));
+                }
+            }
         }
         const QString closing = covered ? QStringLiteral("</table:covered-table-cell>") : QStringLiteral("</table:table-cell>");
         if (c.type == CellType::Empty) return x + QStringLiteral("/>");

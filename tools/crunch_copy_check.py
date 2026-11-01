@@ -41,22 +41,29 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     paths = [l.rstrip("\n") for l in open(keys) if l.strip()]
     results = [None] * len(paths)
+    tsv = os.path.join(out_dir, "copy-%s.tsv" % fmt)
+    if tool == "--summarize" and os.path.exists(tsv):
+        # (the lines of an earlier run, summed up again)
+        for i, line in enumerate(open(tsv)):
+            parts = line.rstrip("\n").split("\t")
+            results[i] = (int(parts[1]), parts[2].replace(" | ", "\t"), parts[3] if len(parts) > 3 else "")
+    else:
+        def work(i):
+            results[i] = run_one(tool, paths[i], fmt)
 
-    def work(i):
-        results[i] = run_one(tool, paths[i], fmt)
-
-    with ThreadPoolExecutor(jobs) as ex:
-        list(ex.map(work, range(len(paths))))
+        with ThreadPoolExecutor(jobs) as ex:
+            list(ex.map(work, range(len(paths))))
     counts = collections.Counter()
     sums = collections.Counter()
     lost = collections.Counter()
     firsts = collections.Counter()
     reasons = collections.Counter()
     bad_files = []
-    with open(os.path.join(out_dir, "copy-%s.tsv" % fmt), "w") as f:
+    with open(tsv if tool != "--summarize" else os.devnull, "w") as f:
         for path, (code, output, message) in zip(paths, results):
             f.write("%s\t%d\t%s\t%s\n" % (path, code, output.replace("\t", " | "), message))
             fields = output.split("\t")
+            fields += [""] * (23 - len(fields))   # (a line ends in empty fields that the run's strip took off)
             if code == 124:
                 counts["timed out"] += 1
             elif code == 137:
@@ -65,7 +72,7 @@ def main():
                 counts["crashed"] += 1
             elif code == 1:
                 counts["not opened (refused)"] += 1
-            elif code == 3 or len(fields) < 21:
+            elif code == 3 or not fields[3]:
                 counts["not written or not read back"] += 1
                 firsts[fields[3] if len(fields) > 3 else "?"] += 1
             else:

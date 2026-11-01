@@ -756,13 +756,19 @@ private:
     int parseFunction(int nameEnd)
     {
         const QString name = m_t.mid(m_pos, nameEnd - m_pos).toUpper();
-        const int number = xlsFunctionNumber(name);
+        int number = xlsFunctionNumber(name);
+        bool addIn = false;
+        if (number < 0 && xlsIsAddInFunction(name) && m_cx.addIn) {
+            number = 255;
+            addIn = true;
+        }
         if (number < 0) return failNode(QCoreApplication::translate("Sheet", "The formula uses the function %1, which the old format doesn't have.").arg(name));
         m_pos = nameEnd + 1;
         Node n;
         n.kind = Kind::Func;
         n.text = name;
         n.index = number;
+        n.code = addIn ? 1 : 0;
         skipSpaces();
         if (peek() == QLatin1Char(')')) {
             ++m_pos;
@@ -780,7 +786,7 @@ private:
             }
             if (arg < 0) return -1;
             n.kids.push_back(arg);
-            if (int(n.kids.size()) > kMaxArgs) return failNode(QCoreApplication::translate("Sheet", "The formula calls a function with more than 30 arguments, which the old format can't hold."));
+            if (int(n.kids.size()) > kMaxArgs - (addIn ? 1 : 0)) return failNode(QCoreApplication::translate("Sheet", "The formula calls a function with more than 30 arguments, which the old format can't hold."));
             skipSpaces();
             if (peek() == QLatin1Char(',')) {
                 ++m_pos;
@@ -963,6 +969,15 @@ private:
     {
         const bool arrays = takesArrays(n.text);
         const int valueCls = m_cx.array ? kClsArr : kClsVal;
+        if (n.code == 1) {
+            // a function of the add-in set: the name of it comes first, then the arguments, and the call is function 255 with one more argument
+            int ixti = 0, index = 0;
+            if (!m_cx.addIn(n.text, &ixti, &index)) return fail(QCoreApplication::translate("Sheet", "The formula names more functions than the old format can."));
+            u8(0x39);
+            u16(ixti);
+            u16(index);
+            u16(0);
+        }
         for (int kid : n.kids) {
             const Node &k = m_nodes[size_t(kid)];
             int argCls = arrays ? kClsArr : valueCls;
@@ -976,7 +991,11 @@ private:
         const XlsFunction f = xlsFunction(n.index);
         const int argc = int(n.kids.size());
         const int own = cls == kClsRef ? kClsRef : valueCls;
-        if (f.fixedArgs >= 0 && f.fixedArgs == argc) {
+        if (n.code == 1) {
+            u8(0x02 + own);
+            u8(argc + 1);
+            u16(255);
+        } else if (f.fixedArgs >= 0 && f.fixedArgs == argc) {
             u8(0x01 + own);
             u16(n.index);
         } else {
@@ -989,6 +1008,22 @@ private:
 };
 
 } // namespace
+
+bool xlsIsAddInFunction(const QString &name)
+{
+    static const QSet<QString> set = [] {
+        static const char *const names[] = {"ACCRINT", "ACCRINTM", "AMORDEGRC", "AMORLINC", "BESSELI", "BESSELJ", "BESSELK", "BESSELY", "BIN2DEC", "BIN2HEX", "BIN2OCT", "COMPLEX", "CONVERT",
+            "COUPDAYBS", "COUPDAYS", "COUPDAYSNC", "COUPNCD", "COUPNUM", "COUPPCD", "CUMIPMT", "CUMPRINC", "DEC2BIN", "DEC2HEX", "DEC2OCT", "DELTA", "DISC", "DOLLARDE", "DOLLARFR", "DURATION", "EDATE",
+            "EFFECT", "EOMONTH", "ERF", "ERFC", "FACTDOUBLE", "FVSCHEDULE", "GCD", "GESTEP", "HEX2BIN", "HEX2DEC", "HEX2OCT", "IMABS", "IMAGINARY", "IMARGUMENT", "IMCONJUGATE", "IMCOS", "IMDIV", "IMEXP",
+            "IMLN", "IMLOG10", "IMLOG2", "IMPOWER", "IMPRODUCT", "IMREAL", "IMSIN", "IMSQRT", "IMSUB", "IMSUM", "INTRATE", "ISEVEN", "ISODD", "LCM", "MDURATION", "MROUND", "MULTINOMIAL", "NETWORKDAYS",
+            "NOMINAL", "OCT2BIN", "OCT2DEC", "OCT2HEX", "ODDFPRICE", "ODDFYIELD", "ODDLPRICE", "ODDLYIELD", "PRICE", "PRICEDISC", "PRICEMAT", "QUOTIENT", "RANDBETWEEN", "RECEIVED", "SERIESSUM", "SQRTPI",
+            "TBILLEQ", "TBILLPRICE", "TBILLYIELD", "WEEKNUM", "WORKDAY", "XIRR", "XNPV", "YEARFRAC", "YIELD", "YIELDDISC", "YIELDMAT"};
+        QSet<QString> out;
+        for (const char *n : names) out.insert(QString::fromLatin1(n));
+        return out;
+    }();
+    return set.contains(name);
+}
 
 int xlsFunctionNumber(const QString &name)
 {
