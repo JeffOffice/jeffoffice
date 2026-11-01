@@ -315,6 +315,13 @@ public:
     office::wml::RunProps writtenRunProps(const QTextCharFormat &format, const QString &paragraphStyle) const { return runPropsWritten(format, paragraphStyle, nullptr); }
     // Puts `other` in the place of the style sheet and returns the one that was there (the look of a style as it was, worked out for a restyle); the caches are let go.
     void swapStyleSheet(office::wml::StyleSheet &other);
+    // Lets go of what was worked out for the sheet that was swapped out (a pass that swaps begins and ends with this).
+    void forgetSwappedScratch() { m_scratchHeld.clear(); }
+    // Ends an edit that put styles: false (and the sheet put back as it was) when no step of the history can take what the edit changed (the story keeps no history).
+    bool settleStyleEdit();
+    // Counts for tests of what work costs: whole style sheets copied to look at a built-in style the document lacks, and passes over the text to find the styles in use.
+    qint64 sheetCopiesForTest() const { return m_sheetCopies; }
+    qint64 inUseScansForTest() const { return m_inUseScans; }
     // How many times the style sheet has been changed (a style put, added when first used, or put back by an Undo or a Redo): a list of styles made at one count is good at it.
     quint64 styleSheetRevision() const { return m_styleRev; }
     // The ids of the styles the text uses (a paragraph's, a run's character style, the default paragraph style always), for the story as it is (found again after an edit).
@@ -639,6 +646,9 @@ private:
     QVector<StyleChange> m_pendingStyleChanges;
     QHash<quint64, QVector<StyleChange>> m_styleSteps;
     void applyStyleChanges(quint64 serial, bool undo);
+    void applyChanges(const QVector<StyleChange> &changes, bool undo);
+    mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratchHeld;   // the cache of the sheet swapped out by swapStyleSheet
+    mutable qint64 m_sheetCopies = 0, m_inUseScans = 0;
     mutable int m_inUseRevision = -1;
     mutable const QTextDocument *m_inUseStory = nullptr;
     mutable QSet<QString> m_inUse;

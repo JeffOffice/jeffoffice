@@ -1850,9 +1850,16 @@ bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharF
 }
 
 // A paragraph of a style that updates itself (w:autoRedefine) that has been formatted by hand gives the style what it says, as part of the edit's own step.
+static thread_local int g_autoRedefineOff = 0;
+AutoRedefineOff::AutoRedefineOff() { ++g_autoRedefineOff; }
+AutoRedefineOff::~AutoRedefineOff() { --g_autoRedefineOff; }
+
+// (Only what a person does to the look of one paragraph, and one command at a time: a command that formats several paragraphs, or that is part of another, leaves the styles alone, so that
+// a command never costs more than one restyle.)
 static void followAutoRedefine(WriteDoc &doc, QTextCursor &c)
 {
-    if (c.document() != doc.story() || isLocked(c.document()->findBlock(c.selectionStart()))) return;
+    if (g_autoRedefineOff > 0) return;
+    if (c.document() != doc.story() || doc.story()->findBlock(c.selectionStart()) != doc.story()->findBlock(std::max(c.selectionStart(), c.selectionEnd() - 1)) || isLocked(c.document()->findBlock(c.selectionStart()))) return;
     const QString id = styleOf(c.document()->findBlock(c.selectionStart()).blockFormat());
     const office::wml::Style *s = doc.styleSheet().find(id.isEmpty() ? doc.defaultParagraphStyle() : id);
     if (s && s->autoRedefine && s->type == QLatin1String("paragraph")) updateStyleToSelection(doc, c);
@@ -2064,6 +2071,7 @@ QTextCharFormat restyled(const QTextCharFormat &f, const QTextCharFormat &was, c
 void clearFormatting(WriteDoc &doc, QTextCursor &c)
 {
     const NoteScopeGuard scopeGuard(doc, c);
+    const AutoRedefineOff noAutoUpdate;
     if (!intoBody(c)) return;
     c.beginEditBlock();
     applyParagraphStyle(doc, c, doc.defaultParagraphStyle());
@@ -2359,14 +2367,16 @@ bool moveSelectedText(WriteDoc &doc, QTextCursor &c, int to, bool copy)
     NumberGuard numbers(doc, doc.story());
     QTextCursor edit(doc.story());
     edit.beginEditBlock();
-    int at = to;
+    // (The place follows the cut by being a cursor: what is taken out is not always the length of the selection, when it holds a deleted paragraph, a note's mark, or the like.)
+    QTextCursor drop(doc.story());
+    drop.setPosition(to);
     if (!copy) {
         QTextCursor cut(doc.story());
         cut.setPosition(from);
         cut.setPosition(end, QTextCursor::KeepAnchor);
         removeSelection(doc, cut);
-        if (to > end) at -= end - from;
     }
+    const int at = drop.position();
     QTextCursor dest(doc.story());
     dest.setPosition(at);
     pasteClip(doc, dest, clip);

@@ -88,6 +88,11 @@ void restyleText(WriteDoc &doc, StyleSheet &old, const QSet<QString> &paragraphS
 {
     QHash<QString, QTextBlockFormat> blockWas, blockNow;
     QHash<QString, QTextCharFormat> charWas, charNow;
+    struct Forget {
+        WriteDoc &doc;
+        ~Forget() { doc.forgetSwappedScratch(); }
+    } forget{doc};
+    doc.forgetSwappedScratch();
     const QString normal = doc.defaultParagraphStyle();
     auto blockFormat = [&](const QString &style, bool was) {
         QHash<QString, QTextBlockFormat> &cache = was ? blockWas : blockNow;
@@ -145,6 +150,17 @@ void restyleText(WriteDoc &doc, StyleSheet &old, const QSet<QString> &paragraphS
     }
 }
 
+// Puts a built-in style the document lacks (and the built-in styles it names) in the style sheet, as part of the edit being made.
+void addBuiltinInStep(WriteDoc &doc, const QString &id, int depth = 0)
+{
+    if (id.isEmpty() || depth > 8 || doc.styleSheet().find(id)) return;
+    const Style b = builtinStyle(id);
+    if (b.id.isEmpty() || b.type == QLatin1String("table") || b.type == QLatin1String("numbering")) return;
+    addBuiltinInStep(doc, b.basedOn, depth + 1);
+    addBuiltinInStep(doc, b.next, depth + 1);
+    if (!doc.styleSheet().find(id)) doc.putStyle(b);
+}
+
 QString newStyleId(const WriteDoc &doc, const QString &name)
 {
     QString base;
@@ -196,20 +212,25 @@ bool paragraphKeepsOwn(int key)
     return own.contains(key);
 }
 
-QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter)
+QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString &caretStyle)
 {
     const StyleSheet &sheet = doc.styleSheet();
     const QSet<QString> used = doc.stylesInUse();
     QVector<ListedStyle> out;
     QVector<int> priority;
+    QSet<QString> added;
+    bool firstPass = true;
     auto consider = [&](const Style &s, bool inDocument) {
         if (s.type != QLatin1String("paragraph") && s.type != QLatin1String("character")) return;
+        if (added.contains(s.id)) return;
         const bool inUse = used.contains(s.id);
+        if (firstPass && !inUse && s.id != caretStyle) return;
         // A style is recommended unless it is hidden, or half hidden until it is used; and it is either in the gallery, has a priority, or is used.
         const bool shownByDefault = s.qFormat || s.uiPriority.value_or(99) < 99 || inUse;
         const bool recommended = !s.hidden && (!s.semiHidden || (s.unhideWhenUsed && inUse)) && shownByDefault;
         if (filter == StyleFilter::InUse && !inUse) return;
-        if (filter == StyleFilter::Recommended && !recommended) return;
+        if (filter == StyleFilter::Recommended && !recommended && s.id != caretStyle) return;
+        added.insert(s.id);
         ListedStyle e;
         e.id = s.id;
         e.name = shownName(s);
@@ -221,10 +242,15 @@ QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter)
         out.push_back(e);
         priority.push_back(s.isDefault && !e.character ? -1 : s.uiPriority.value_or(99));
     };
-    for (const Style &s : sheet.styles) {
-        if (out.size() >= kMostStylesListed) break;
-        consider(s, true);
+    // (The styles the text uses and the caret's first, so that the cut at the most listed never takes them; then the rest in the order of the file.)
+    for (bool pass : {true, false}) {
+        firstPass = pass;
+        for (const Style &s : sheet.styles) {
+            if (out.size() >= kMostStylesListed) break;
+            consider(s, true);
+        }
     }
+    firstPass = false;
     // The built-in styles the document does not have yet are offered as well (they are added when first used); they are in use only once they are.
     if (filter != StyleFilter::InUse)
         for (const QString &id : builtinStyleIds()) {
@@ -250,6 +276,14 @@ QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter)
     return sorted;
 }
 
+std::optional<Style> styleOfDocument(const WriteDoc &doc, const QString &id)
+{
+    if (const Style *s = doc.styleSheet().find(id)) return *s;
+    const Style b = builtinStyle(id);
+    if (b.id.isEmpty() || (b.type != QLatin1String("paragraph") && b.type != QLatin1String("character"))) return std::nullopt;
+    return b;
+}
+
 QString styleNameProblem(const WriteDoc &doc, const QString &name, const QString &exceptId)
 {
     const QString trimmed = name.trimmed();
@@ -270,6 +304,11 @@ QString styleBasedOnProblem(const WriteDoc &doc, const QString &id, const QStrin
     if (basedOn.isEmpty()) return QString();
     const StyleSheet &sheet = doc.styleSheet();
     const Style *base = sheet.find(basedOn);
+    Style builtin;
+    if (!base) {
+        builtin = builtinStyle(basedOn);
+        if (!builtin.id.isEmpty()) base = &builtin;   // (a built-in style the document lacks is added with the change)
+    }
     if (!base) return QCoreApplication::translate("jp::write::Styles", "The style it is based on is not in the document.");
     if (base->type != type) return QCoreApplication::translate("jp::write::Styles", "A style can only be based on a style of its own kind.");
     // Walks up from the style it would be based on; a style that comes back to itself (or to the style being changed) is a loop. The walk ends at the first style it has met.
@@ -312,11 +351,9 @@ QString createStyle(WriteDoc &doc, QTextCursor &c, const Style &def, QString *pr
     if (const QString why = styleNameProblem(doc, name); !why.isEmpty()) return fail(why);
     Style s = def;
     s.type = def.type == QLatin1String("character") ? QStringLiteral("character") : QStringLiteral("paragraph");
-    if (!s.basedOn.isEmpty()) {
-        doc.ensureStyle(s.basedOn);
+    if (!s.basedOn.isEmpty())
         if (const QString why = styleBasedOnProblem(doc, QString(), s.basedOn, s.type); !why.isEmpty()) return fail(why);
-    }
-    if (s.type == QLatin1String("character") || (!s.next.isEmpty() && !doc.ensureStyle(s.next))) s.next.clear();
+    if (s.type == QLatin1String("character") || (!s.next.isEmpty() && !styleOfDocument(doc, s.next))) s.next.clear();
     s.id = newStyleId(doc, name);
     s.name = name;
     s.customStyle = true;
@@ -325,6 +362,8 @@ QString createStyle(WriteDoc &doc, QTextCursor &c, const Style &def, QString *pr
     s.raw.clear();
     QTextCursor edit(doc.story());
     edit.beginEditBlock();
+    addBuiltinInStep(doc, s.basedOn);
+    addBuiltinInStep(doc, s.next);
     doc.putStyle(s);
     touchStyles(doc);
     if (apply) {
@@ -332,6 +371,7 @@ QString createStyle(WriteDoc &doc, QTextCursor &c, const Style &def, QString *pr
         else applyParagraphStyle(doc, c, s.id);
     }
     edit.endEditBlock();
+    if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the style was not made."));
     return s.id;
 }
 
@@ -342,8 +382,7 @@ bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const Style &
         if (problem) *problem = why;
         return false;
     };
-    if (!doc.ensureStyle(id)) return fail(QCoreApplication::translate("jp::write::Styles", "The document has no such style."));
-    const Style *found = doc.styleSheet().find(id);
+    const std::optional<Style> found = styleOfDocument(doc, id);
     if (!found) return fail(QCoreApplication::translate("jp::write::Styles", "The document has no such style."));
     const Style old = *found;
     Style s = def;
@@ -363,11 +402,10 @@ bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const Style &
         s.name = name;
     }
     if (s.basedOn != old.basedOn && !s.basedOn.isEmpty()) {
-        doc.ensureStyle(s.basedOn);
         if (const QString why = styleBasedOnProblem(doc, old.id, s.basedOn, old.type); !why.isEmpty()) return fail(why);
     }
     if (s.type == QLatin1String("character")) s.next.clear();
-    else if (s.next != old.next && !s.next.isEmpty() && !doc.ensureStyle(s.next)) s.next = old.next;
+    else if (s.next != old.next && !s.next.isEmpty() && !styleOfDocument(doc, s.next)) s.next = old.next;
     // A definition that comes to the style as it is changes nothing (the file is written as it was).
     if (bytesOf(old) == bytesOf(s)) return true;
     StyleSheet before = doc.styleSheet();
@@ -375,10 +413,13 @@ bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const Style &
     const QSet<QString> characters = old.type == QLatin1String("character") ? descendantsOf(before, old.id, old.type) : QSet<QString>();
     QTextCursor edit(doc.story());
     edit.beginEditBlock();
+    addBuiltinInStep(doc, s.basedOn);
+    addBuiltinInStep(doc, s.next);
     doc.putStyle(s);
     restyleText(doc, before, paragraphs, characters);
     touchStyles(doc);
     edit.endEditBlock();
+    if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the style was not changed."));
     return true;
 }
 
@@ -391,11 +432,12 @@ bool updateStyleToSelection(WriteDoc &doc, QTextCursor &c, QString *problem)
     }
     QString id = styleOfBlock(b.blockFormat());
     if (id.isEmpty()) id = doc.defaultParagraphStyle();
-    if (!doc.ensureStyle(id)) {
+    const std::optional<Style> has = styleOfDocument(doc, id);
+    if (!has) {
         if (problem) *problem = QCoreApplication::translate("jp::write::Styles", "The document has no such style.");
         return false;
     }
-    Style s = *doc.styleSheet().find(id);
+    Style s = *has;
     const ParaProps said = paragraphSaid(doc, b, id);
     s.pPr.overlay(said);
     s.rPr.overlay(runSaid(doc, c, id));
@@ -438,6 +480,7 @@ bool pasteFormat(WriteDoc &doc, QTextCursor &c, const FormatBrush &brush)
 {
     if (!brush.valid) return false;
     const NoteScopeGuard scopeGuard(doc, c);
+    const AutoRedefineOff noAutoUpdate;   // (a paint is not a person's formatting of one paragraph: the styles do not follow it)
     if (!intoBody(c)) return false;
     const bool paragraphs = brush.hasParagraph && (!c.hasSelection() || takesInMark(c));
     QTextCursor range(c);

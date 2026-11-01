@@ -94,16 +94,22 @@ QVector<int> footnotePositions(WriteDoc &doc)
     return out;
 }
 
-int startOfSection(WriteDoc &doc, int index)
+// Where each section begins, in one pass over the paragraphs (a section ends at a paragraph that says so); at most `limit` of them.
+qint64 g_blocksVisited = 0;
+
+QVector<int> sectionStarts(WriteDoc &doc, int limit)
 {
-    if (index <= 0) return 0;
-    int seen = 0;
-    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
-        if (b.blockFormat().boolProperty(flow::fp::SectionBreakAfter) && ++seen == index) return b.next().isValid() ? b.next().position() : -1;
-    return -1;
+    QVector<int> out{0};
+    for (QTextBlock b = doc.story()->begin(); b.isValid() && out.size() < limit; b = b.next()) {
+        ++g_blocksVisited;
+        if (b.blockFormat().boolProperty(flow::fp::SectionBreakAfter) && b.next().isValid()) out.push_back(b.next().position());
+    }
+    return out;
 }
 
 } // namespace
+
+qint64 goToBlocksVisitedForTest() { return g_blocksVisited; }
 
 QVector<GoToItem> goToItems(WriteDoc &doc, GoToKind kind)
 {
@@ -117,7 +123,10 @@ QVector<GoToItem> goToItems(WriteDoc &doc, GoToKind kind)
         return out;
     }
     case GoToKind::Section:
-        for (int i = 0; i < doc.sectionCount() && i < kMostGoToItems; ++i) out.push_back({QString::number(i + 1), std::max(0, startOfSection(doc, i))});
+        {
+            const QVector<int> starts = sectionStarts(doc, std::min(doc.sectionCount(), kMostGoToItems));
+            for (int i = 0; i < starts.size(); ++i) out.push_back({QString::number(i + 1), starts[i]});
+        }
         return out;
     default: return out;
     }
@@ -142,8 +151,8 @@ int goToPosition(WriteDoc &doc, GoToKind kind, const QString &what, int from, QS
     case GoToKind::Section: {
         if (!numberOf(what, doc.sectionAt(from) + 1, &n, problem)) return -1;
         if (n < 1 || n > doc.sectionCount()) return none(QCoreApplication::translate("jp::write::GoTo", "There is no such section."));
-        const int at = startOfSection(doc, n - 1);
-        return at < 0 ? none(QCoreApplication::translate("jp::write::GoTo", "There is no such section.")) : at;
+        const QVector<int> starts = sectionStarts(doc, n);
+        return starts.size() < n ? none(QCoreApplication::translate("jp::write::GoTo", "There is no such section.")) : starts[n - 1];
     }
     case GoToKind::Line: {
         if (!numberOf(what, 0, &n, problem)) return -1;

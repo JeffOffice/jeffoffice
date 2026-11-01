@@ -11,6 +11,7 @@
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSignalBlocker>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <algorithm>
 
@@ -48,6 +49,9 @@ StylesPane::StylesPane(WriteWindow *win, QWidget *parent) : QWidget(parent), m_w
     row->addWidget(m_new);
     row->addWidget(m_modify);
     v->addLayout(row);
+    m_idle.setSingleShot(true);
+    m_idle.setInterval(600);
+    connect(&m_idle, &QTimer::timeout, this, &StylesPane::recheckUse);
     connect(m_filter, &QComboBox::currentIndexChanged, this, [this] { refresh(); });
     connect(m_list, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) { apply(m_list->row(item)); });
     connect(m_new, &QPushButton::clicked, this, [this] { m_win->act(QStringLiteral("style.new"))->trigger(); });
@@ -91,38 +95,71 @@ void StylesPane::refresh()
     if (!doc) {
         m_list->clear();
         m_madeDoc = nullptr;
+        m_markedKey.clear();
         return;
     }
-    // The style the caret is in: its paragraph's, or the character style of the character before it when the paragraph has none of its own listed.
-    const QTextCursor &c = m_win->view()->cursor();
-    QString paragraph = write::paragraphStyleAt(*doc, c);
-    m_caretKey = QStringLiteral("p:") + paragraph;
-    // (Typing changes none of this, unless it brings a style into use and only the styles in use are listed.)
+    // The style the caret is in: its paragraph's.
+    m_caretKey = QStringLiteral("p:") + write::paragraphStyleAt(*doc, m_win->view()->cursor());
+    // The list is made again only when the styles or the choice of what to list changed. Which styles the text uses can change with any edit, and finding out takes a pass over the
+    // text, so while the list is of those in use that is looked at a moment after the last edit (typing costs no pass).
+    if (m_madeDoc != doc || m_madeStyles != doc->styleSheetRevision() || m_madeFilter != int(filter())) {
+        rebuild();
+    } else {
+        if (filter() == write::StyleFilter::InUse && m_usedAtRevision != doc->story()->revision()) m_idle.start();
+        if (m_markedKey != m_caretKey) mark(m_caretKey);
+    }
+}
+
+void StylesPane::recheckUse()
+{
+    write::WriteDoc *doc = m_win->document();
+    if (!doc || m_madeDoc != doc || filter() != write::StyleFilter::InUse) return;
     size_t used = 0;
-    if (filter() == write::StyleFilter::InUse)
-        for (const QString &id : doc->stylesInUse()) used += qHash(id);
-    if (m_madeDoc == doc && m_madeStyles == doc->styleSheetRevision() && m_madeUsed == used && m_madeFilter == int(filter()) && m_madeCaretKey == m_caretKey) return;
-    rebuild();
-    m_madeDoc = doc;
-    m_madeStyles = doc->styleSheetRevision();
-    m_madeUsed = used;
-    m_madeFilter = int(filter());
-    m_madeCaretKey = m_caretKey;
+    for (const QString &id : doc->stylesInUse()) used += qHash(id);
+    m_usedAtRevision = doc->story()->revision();
+    if (used != m_madeUsed) rebuild();
+}
+
+// Marks the style the caret is in (the row in bold, with an arrow before its name), and unmarks the one marked before.
+void StylesPane::mark(const QString &key)
+{
+    auto set = [this](const QString &k, bool on) {
+        const int row = rowOf(k);
+        if (row < 0) return;
+        QListWidgetItem *item = m_list->item(row);
+        QFont f = item->data(Qt::UserRole + 2).value<QFont>();
+        if (on) f.setBold(true);
+        item->setFont(f);
+        const QString name = item->data(Qt::UserRole + 1).toString();
+        item->setText(on ? QStringLiteral("▸ ") + name : name);
+    };
+    if (!m_markedKey.isEmpty()) set(m_markedKey, false);
+    m_markedKey = key;
+    set(key, true);
+    const int row = rowOf(key);
+    if (row >= 0) {
+        const QSignalBlocker blocker(m_list);
+        m_list->setCurrentRow(row);
+    }
 }
 
 void StylesPane::rebuild()
 {
     write::WriteDoc *doc = m_win->document();
+    ++m_rebuilds;
+    m_idle.stop();
     const QSignalBlocker blocker(m_list);
     const QString chosen = keyAt(m_list->currentRow());
     const int scroll = m_list->verticalScrollBar()->value();
     m_list->clear();
-    const QVector<write::ListedStyle> styles = write::listStyles(*doc, filter());
+    m_markedKey.clear();
+    const QVector<write::ListedStyle> styles = write::listStyles(*doc, filter(), m_caretKey.mid(2));
     int shown = 0;
     for (const write::ListedStyle &s : styles) {
         const QString key = (s.character ? QStringLiteral("c:") : QStringLiteral("p:")) + s.id;
         auto *item = new QListWidgetItem(s.name, m_list);
         item->setData(Qt::UserRole, key);
+        item->setData(Qt::UserRole + 1, s.name);
         QString tip = s.character ? QCoreApplication::translate("jp::StylesPane", "Character style") : s.linked ? QCoreApplication::translate("jp::StylesPane", "Linked style") : QCoreApplication::translate("jp::StylesPane", "Paragraph style");
         if (s.inUse) tip += QStringLiteral(", ") + QCoreApplication::translate("jp::StylesPane", "in use");
         // plain: reviewed: the tooltip is our own words (a style's name is never in it)
@@ -134,13 +171,16 @@ void StylesPane::rebuild()
             f.setPointSizeF(std::clamp(cf.fontPointSize() > 0 ? cf.fontPointSize() : 11.0, 9.0, 16.0));
             item->setFont(f);
         }
-        if (key == m_caretKey) {
-            QFont f = item->font();
-            f.setBold(true);
-            item->setFont(f);
-            item->setText(QStringLiteral("▸ ") + item->text());
-        }
+        item->setData(Qt::UserRole + 2, item->font());
     }
+    m_madeDoc = doc;
+    m_madeStyles = doc->styleSheetRevision();
+    m_madeFilter = int(filter());
+    m_madeUsed = 0;
+    if (filter() == write::StyleFilter::InUse)
+        for (const QString &id : doc->stylesInUse()) m_madeUsed += qHash(id);
+    m_usedAtRevision = doc->story()->revision();
+    mark(m_caretKey);
     const int at = rowOf(chosen.isEmpty() ? m_caretKey : chosen);
     if (at >= 0) m_list->setCurrentRow(at);
     m_list->verticalScrollBar()->setValue(scroll);

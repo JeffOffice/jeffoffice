@@ -5,6 +5,7 @@
 
 #include "core/styleops.h"
 
+#include <QTimer>
 #include <QWidget>
 
 class QComboBox;
@@ -34,20 +35,26 @@ public:
     void apply(int row);
     // The style of the row chosen, or else of the caret.
     QString chosenId() const;
+    // How many times the whole list has been made (for tests of what typing and moving the caret cost).
+    int rebuildCountForTest() const { return m_rebuilds; }
 
 private:
     void rebuild();
+    void recheckUse();
+    void mark(const QString &key);
     WriteWindow *m_win;
     QComboBox *m_filter;
     QListWidget *m_list;
     QPushButton *m_new, *m_modify;
-    QString m_caretKey;
-    // What the list was made from (nothing is made again while these are the same).
+    QString m_caretKey, m_markedKey;
+    // What the list was made from (it is made again only when these change; the caret's style is a mark on a row, which moves).
     int m_madeFilter = -1;
     quint64 m_madeStyles = ~quint64(0);
     size_t m_madeUsed = 0;
+    int m_usedAtRevision = -1;
     const void *m_madeDoc = nullptr;
-    QString m_madeCaretKey;
+    int m_rebuilds = 0;
+    QTimer m_idle;
 };
 
 } // namespace jp

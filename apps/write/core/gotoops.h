@@ -26,4 +26,7 @@ QVector<GoToItem> goToItems(WriteDoc &doc, GoToKind kind);
 // `from` is in: +1 is the next); the name of a bookmark (without regard to case); or, for a heading, a part of its text. -1, with `problem` told as a sentence, when there is no such place.
 int goToPosition(WriteDoc &doc, GoToKind kind, const QString &what, int from, QString *problem = nullptr);
 
+// How many paragraphs the looks for sections have visited since the program began (a count for tests of what finding the sections costs).
+qint64 goToBlocksVisitedForTest();
+
 } // namespace jp::write

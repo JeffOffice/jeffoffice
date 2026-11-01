@@ -61,8 +61,10 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
 {
     if (!doc || !cursor) return false;
     const bool modify = !modifyId.isEmpty();
-    if (modify && !doc->ensureStyle(modifyId)) return false;
-    Style start = modify ? *doc->styleSheet().find(modifyId) : styleFromSelection(*doc, *cursor, QString());
+    // (A built-in style the document lacks is looked at, not added: it is added with the change, if one is made.)
+    const std::optional<Style> existing = modify ? styleOfDocument(*doc, modifyId) : std::nullopt;
+    if (modify && !existing) return false;
+    Style start = modify ? *existing : styleFromSelection(*doc, *cursor, QString());
     const bool character = start.type == QLatin1String("character");
     // The look the controls begin with: what the text of the style (or of the selection) comes to.
     QString paragraphStyle = modify ? (character ? doc->defaultParagraphStyle() : modifyId) : paragraphStyleAt(*doc, *cursor);

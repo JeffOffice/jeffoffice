@@ -182,6 +182,14 @@ void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
 // The style the first selected paragraph has (its id).
 QString paragraphStyleAt(const WriteDoc &doc, const QTextCursor &c);
 // The format with what `was` gave it (and it still has) taken for what `now` gives: the text keeps what it says itself, and follows a style that changed.
+// While one of these is alive, a style that updates itself (w:autoRedefine) does not follow the formatting commands (for a command that formats many things at once: paint, clear).
+class AutoRedefineOff {
+public:
+    AutoRedefineOff();
+    ~AutoRedefineOff();
+    AutoRedefineOff(const AutoRedefineOff &) = delete;
+    AutoRedefineOff &operator=(const AutoRedefineOff &) = delete;
+};
 QTextCharFormat restyleCharFormat(const QTextCharFormat &f, const QTextCharFormat &was, const QTextCharFormat &now);
 
 // The paragraphs that the selection touches (the one the cursor is in without one).

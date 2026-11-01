@@ -5,6 +5,7 @@
 #include "core/writedoc.h"
 
 #include <QString>
+#include <optional>
 #include <QTextBlockFormat>
 #include <QTextCharFormat>
 #include <QTextCursor>
@@ -28,7 +29,10 @@ struct ListedStyle {
 
 // The styles the Styles pane shows for a filter: In Use lists those the text uses, All every style the document has (and the built-in ones it lacks), and Recommended those a
 // person is meant to see (not hidden, and either in the gallery, with a low priority, or in use). In Use and All are sorted by name, Recommended by priority.
-QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter);
+// The styles the text uses and the style `caretStyle` (an id) are always among them, and the rest follow in the order of the file up to the most that are listed.
+QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString &caretStyle = QString());
+// The style the document has under `id`, or else the built-in one it lacks (which is not added: it is added with the first change that is made to it, as part of that step).
+std::optional<office::wml::Style> styleOfDocument(const WriteDoc &doc, const QString &id);
 
 // Why a name can't be given to a style (empty, too long, or taken by another style: names are compared without regard to case), as a sentence; empty when it can. `exceptId` is the
 // style being renamed.

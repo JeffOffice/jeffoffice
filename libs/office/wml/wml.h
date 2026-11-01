@@ -304,7 +304,8 @@ struct Style {
     bool autoRedefine = false, hidden = false;   // (w:autoRedefine: the style follows the formatting a person gives its paragraphs)
     std::optional<int> uiPriority;
     QByteArray aliases;               // the w:aliases element, as written (it follows the name)
-    QByteArray late;                  // w:locked, w:personal..., and w:rsid, as written (they follow qFormat)
+    QByteArray late;                  // w:locked, w:personal..., w:rsid, and any child before rPr that is not known here, as written (they follow qFormat)
+    QByteArray attrs;                 // the attributes of w:style besides type, default, customStyle, and styleId (w:rsid..., w14:...), as written, each with a space before it
     ParaProps pPr;
     RunProps rPr;
     QByteArray tail;                  // what follows rPr (tblPr, trPr, tcPr, tblStylePr), as written

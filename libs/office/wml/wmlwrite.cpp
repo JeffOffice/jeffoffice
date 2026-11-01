@@ -728,7 +728,7 @@ QByteArray styleXml(const Style &s)
     out += "<w:style w:type=\"" + escapeXml(s.type, true) + "\"";
     if (s.isDefault) out += " w:default=\"1\"";
     if (s.customStyle) out += " w:customStyle=\"1\"";
-    out += " w:styleId=\"" + escapeXml(s.id, true) + "\">";
+    out += " w:styleId=\"" + escapeXml(s.id, true) + "\"" + s.attrs + ">";
     out += "<w:name w:val=\"" + escapeXml(s.name.isEmpty() ? s.id : s.name, true) + "\"/>";
     out += s.aliases;
     if (!s.basedOn.isEmpty()) out += "<w:basedOn w:val=\"" + escapeXml(s.basedOn, true) + "\"/>";
