@@ -976,6 +976,56 @@ private Q_SLOTS:
         QVERIFY2(bad == 0, qPrintable(firsts.join(QLatin1Char('\n'))));
     }
 
+    // The tokens of formulas as a real program wrote them in real .xls files (the formula's text, and the bytes of the file's own tokens, with the marks for spaces left out): the class of every
+    // reference by what the function asks for (a value for a text function nested in another, a reference for a sum, an array in SUMPRODUCT and the operators inside it), the volatile mark, and the
+    // jumps of a nested IF. A reference in the wrong class is worked out differently by that program: every formula of a sheet that took a text function's argument as a reference gave #VALUE!.
+    void theTokensOfRealFormulasAreWrittenByteForByte()
+    {
+        XlsCompileContext cx;
+        cx.sheetNames = {QStringLiteral("Sheet1")};
+        cx.xti = [](int, int) { return 0; };
+        struct Case {
+            const char *text;
+            const char *bytes;
+        };
+        const Case cases[] = {
+            {"NORMSINV(I3)", "44 02 00 08 c0 41 28 01"},
+            {"CONCATENATE(F166,\" \",F167)", "44 a5 00 05 c0 17 01 00 20 44 a6 00 05 c0 42 03 50 01"},
+            {"CEILING(SUMPRODUCT(B138:B142*C41:C45),100)", "65 89 00 8d 00 01 c0 01 c0 65 28 00 2c 00 02 c0 02 c0 05 42 01 e4 00 1e 64 00 41 20 01"},
+            {"NOW()", "19 01 00 00 41 4a 00"},
+            {"HYPERLINK(CONCATENATE($H$4,F6),G6)", "44 03 00 07 00 44 05 00 05 c0 42 02 50 01 44 05 00 06 c0 42 02 67 01"},
+            {"IF(C9>C27*$A$31,$A$33,IF(C9<C27*$A$32,$A$34,$A$35))",
+             "44 08 00 02 c0 44 1a 00 02 c0 44 1e 00 00 00 05 0d 19 02 09 00 24 20 00 00 00 19 08 32 00 44 08 00 02 c0 44 1a 00 02 c0 44 1f 00 00 00 05 09 19 02 09 00 24 21 00 00 00 19 08 0c 00 "
+             "24 22 00 00 00 19 08 03 00 22 03 01 00 19 08 03 00 42 03 01 00"},
+            {"IF(INDIRECT(B2&\"!\"&CHAR(64+D2)&C2)>0,FALSE,TRUE)",
+             "19 01 00 00 44 01 00 01 c0 17 01 00 21 08 1e 40 00 44 01 00 03 c0 03 41 6f 00 08 44 01 00 02 c0 08 42 01 94 00 1e 00 00 0d 19 02 06 00 1d 00 19 08 09 00 1d 01 19 08 03 00 42 03 01 00"},
+        };
+        for (const Case &c : cases) {
+            QByteArray rgce, extra;
+            QString why;
+            QVERIFY2(xlsCompileFormula(QString::fromLatin1(c.text), cx, &rgce, &extra, &why), c.text);
+            QCOMPARE(QString::fromLatin1(rgce.toHex(' ')), QString::fromLatin1(c.bytes));
+        }
+    }
+
+    // A name or formula for a reference that is gone is the token for it (a reference through the list of external sheets in a name), not an error value: the program the format is named for
+    // gave #VALUE! for a name whose tokens were an error value, and a copy with such a name was refused as damaged.
+    void aReferenceThatIsGoneIsNotAnErrorValueInANameOrAFormula()
+    {
+        XlsCompileContext cx;
+        cx.sheetNames = {QStringLiteral("Sheet1")};
+        cx.xti = [](int, int) { return 3; };
+        QByteArray rgce, extra;
+        QString why;
+        QVERIFY(xlsCompileFormula(QStringLiteral("#REF!"), cx, &rgce, &extra, &why));
+        QCOMPARE(QString::fromLatin1(rgce.toHex(' ')), QStringLiteral("2a 00 00 00 00"));
+        cx.isName = true;
+        QVERIFY(xlsCompileFormula(QStringLiteral("#REF!"), cx, &rgce, &extra, &why));
+        QCOMPARE(QString::fromLatin1(rgce.toHex(' ')), QStringLiteral("3c 03 00 00 00 00 00"));
+        Copies c;
+        QVERIFY2(c.make(simple(row(1, num(QStringLiteral("A1"), 1)), QString(), QString(), QByteArray(), QStringLiteral("<definedName name=\"Gone\">#REF!</definedName>")), false), qPrintable(c.why));
+    }
+
     void theFormulaCompilerRefusesWhatItCannotWrite()
     {
         XlsCompileContext cx;

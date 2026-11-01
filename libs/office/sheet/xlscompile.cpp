@@ -88,7 +88,7 @@ constexpr ParamRow kParams[] = {
     {50, "AAAV"},   // TREND
     {51, "AAV"},   // LOGEST
     {52, "AAAV"},   // GROWTH
-    {56, "VRV"},   // PV
+    {56, "V"},   // PV (the file shows a reference at the root and a value elsewhere: a value)
     {57, "V"},   // FV
     {59, "V"},   // PMT
     {60, "V"},   // RATE
@@ -106,8 +106,8 @@ constexpr ParamRow kParams[] = {
     {78, "RV"},   // OFFSET
     {83, "A"},   // TRANSPOSE
     {100, "VR"},   // CHOOSE
-    {101, "VRRV"},   // HLOOKUP
-    {102, "VRRV"},   // VLOOKUP
+    {101, "VRVV"},   // HLOOKUP
+    {102, "VRVV"},   // VLOOKUP
     {105, "R"},   // ISREF
     {109, "V"},   // LOG
     {113, "V"},   // UPPER
