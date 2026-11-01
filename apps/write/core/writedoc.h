@@ -275,10 +275,9 @@ public:
     // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
     QString tableNotice;
     // What core/tableops.cpp keeps with the document: the tables of the story as they were last looked at, and the keys of the cell records that paragraphs held before a command
-    // replaced them (`retiredFresh` of the last ones are those of the command just run), to be let go when there are many.
+    // replaced them , to be let go when nothing can reach them.
     std::shared_ptr<void> tableViewCache;
     QVector<int> retiredCells;
-    int retiredFresh = 0;
     // The table style of this id for the tables the program makes: the file's own, else a built-in one, which the file written has only while a table has it. A built-in style
     // is the default of its kind only when the file has none under any id.
     bool ensureTableStyle(const QString &id);

@@ -14559,6 +14559,59 @@ private Q_SLOTS:
         QVERIFY2(problem.isEmpty(), qPrintable(problem));
     }
 
+    // The records a delete across cells takes out of the story go with its step: the table commands after it, enough to pass the number of records that are let go from, do not let
+    // them go, and Undo past it gives the document as it was.
+    void undoPastADeleteAcrossCellsFindsItsRecordsAfterManyTableCommands()
+    {
+        QByteArray big;
+        for (int r = 0; r < 2000; ++r) big += rowX(cellX(cellP("g" + QByteArray::number(r))) + cellX(cellP("h")) + cellX(cellP("i")));
+        const QByteArray body = cellP("top") + tableX(rowX(cellX(cellP("s0")) + cellX(cellP("s1"))), 2) + cellP("mid") + tableX(big, 3) + cellP("tail");
+        auto doc = open(makeDocx(body, kStyles));
+        const QByteArray started = documentXml(doc->toDocx());
+        QTextCursor sel = cursorAt(*doc, QStringLiteral("top"));
+        sel.movePosition(QTextCursor::EndOfBlock);
+        sel.setPosition(cursorAt(*doc, QStringLiteral("mid")).position() + 1, QTextCursor::KeepAnchor);
+        removeSelection(*doc, sel);
+        QVERIFY(!plain(*doc).contains(QStringLiteral("s0")));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("g0"));
+        for (int i = 0; i < 12; ++i) setShading(*doc, c, QColor(i * 9, 0, 0));
+        QVERIFY(doc->flow().tables.liveCount() >= 30000);
+        while (doc->canUndo()) doc->undo();
+        QVERIFY(plain(*doc).contains(QStringLiteral("s0")));
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            if (cellKeyOf(b)) QVERIFY2(doc->flow().tables.get(cellKeyOf(b)), qPrintable(b.text()));
+        QCOMPARE(documentXml(doc->toDocx()), started);
+    }
+
+    // A command that would make a table of more than 50,000 cells is refused with a reason.
+    void aCommandThatWouldPassFiftyThousandCellsIsRefused()
+    {
+        auto doc = open(tableDocx(16000, 3));
+        QTextCursor sel = cursorAt(*doc, QStringLiteral("r0c0"));
+        sel.setPosition(cursorAt(*doc, QStringLiteral("r999c2")).position() + 1, QTextCursor::KeepAnchor);
+        const QByteArray was = documentXml(doc->toDocx());
+        doc->tableNotice.clear();
+        insertTableRow(*doc, sel, true);   // (1,000 rows of 3: 51,000 cells)
+        QVERIFY2(doc->tableNotice.contains(QStringLiteral("50,000")), qPrintable(doc->tableNotice));
+        QCOMPARE(documentXml(doc->toDocx()), was);
+    }
+
+    // A split that can't be made says why, whichever it is.
+    void splittingWhereItCanNotBeDoneSaysWhy()
+    {
+        auto doc = open(tableDocx(2, 2));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r0c0"));
+        for (const QPair<int, int> &asked : {QPair<int, int>{64, 1}, QPair<int, int>{1, 501}, QPair<int, int>{1, 1}}) {
+            doc->tableNotice.clear();
+            QVERIFY(!splitCells(*doc, c, asked.first, asked.second));
+            QVERIFY2(!doc->tableNotice.isEmpty(), qPrintable(QString::number(asked.first)));
+        }
+        QTextCursor outside = cursorAt(*doc, QStringLiteral("before"));
+        doc->tableNotice.clear();
+        QVERIFY(!splitCells(*doc, outside, 2, 1));
+        QVERIFY(!doc->tableNotice.isEmpty());
+    }
+
     // A command that does nothing says why when the cell can't be split as asked.
     void splittingACellJoinedDownAsksForRowsAsItIsJoined()
     {

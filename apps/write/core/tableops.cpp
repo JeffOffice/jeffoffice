@@ -743,6 +743,7 @@ void giveCellKey(QTextBlock first, QTextBlock last, int key)
 
 bool removeSelectionAcrossCells(WriteDoc &doc, QTextCursor &c)
 {
+    TableCommand command(doc);   // (the keys it takes out of the story go with the step that the caller's edit makes)
     if (!c.hasSelection() || doc.flow().tables.isEmpty()) return false;
     QTextDocument *d = c.document();
     const int from = c.selectionStart(), to = c.selectionEnd();
@@ -2174,12 +2175,15 @@ bool canSplitCell(WriteDoc &doc, const QTextCursor &c)
 bool splitCells(WriteDoc &doc, QTextCursor &c, int columns, int rows)
 {
     TableCommand command(doc);
-    if (columns < 1 || rows < 1 || columns > 63 || rows > 500 || columns * rows < 2) return false;
+    if (columns < 1 || rows < 1 || columns * rows < 2) return refuse(doc, tableText("A cell is split into at least two cells."));
+    if (columns > 63) return refuse(doc, tableText("A cell can be split into at most 63 columns."));
+    if (rows > 500) return refuse(doc, tableText("A cell can be split into at most 500 rows."));
     const auto v = viewAt(doc, c.selectionStart());
-    if (!v) return false;
+    if (!v) return refuse(doc, tableText("The caret is not in a table."));
     const flow::TableLayout &t = *v->layout;
     const int li = t.cellOfPosition(c.selectionStart());
-    if (li < 0 || t.cell(li).covered) return false;
+    if (li < 0) return refuse(doc, tableText("The caret is not in a cell."));
+    if (t.cell(li).covered) return refuse(doc, tableText("This part of a joined cell can't be split: split the cell it is joined to."));
     const flow::TableLayout::Cell L = t.cell(li);
     const int R = L.rows, n = columns, m = rows;
     if (m > 1 && R > 1 && m != R) return refuse(doc, tableText("A cell that is joined down over %1 rows can be split into 1 row or into %1 rows.").arg(R));   // (as many rows as it joins, or kept joined)
