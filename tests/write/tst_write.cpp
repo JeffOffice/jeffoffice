@@ -270,7 +270,7 @@ bool placeInACell(WriteDoc &doc, QTextCursor &c, const std::function<int(int)> &
     return true;
 }
 
-// The table commands, as the random editing picks them (kinds 0 to 5: add a row, a column, Tab, take a row, a column, the table).
+// The table commands, as the random editing picks them (kinds 0 to 4: add a row, a column, Tab, take a row, a column; kind 5: the table's own commands, and sometimes taking the table).
 void tableCommand(WriteDoc &doc, QTextCursor &c, int kind, const std::function<int(int)> &pick)
 {
     if (!placeInACell(doc, c, pick)) return;
@@ -280,7 +280,54 @@ void tableCommand(WriteDoc &doc, QTextCursor &c, int kind, const std::function<i
     case 2: insertTab(doc, c, pick(2)); break;
     case 3: deleteTableRows(doc, c); break;
     case 4: deleteTableColumns(doc, c); break;
-    default: if (pick(3) == 0) deleteTable(doc, c); break;
+    default: {
+        // (Taking the table away is one in nine; the rest are the commands of the Table tabs, on a stretch of cells.)
+        const int k = pick(9);
+        if (k == 0) {
+            deleteTable(doc, c);
+            break;
+        }
+        QVector<QTextBlock> cells;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+            if (cellKeyOf(b)) cells << b;
+        if (cells.isEmpty()) break;
+        const QTextBlock a = cells[pick(int(cells.size()))], z = cells[pick(int(cells.size()))];
+        c.setPosition(a.position());
+        if (pick(2) == 0) c.setPosition(z.position() + z.length() - 1, QTextCursor::KeepAnchor);
+        switch (k) {
+        case 1: mergeCells(doc, c); break;
+        case 2: splitCells(doc, c, 1 + pick(3), 1 + pick(2)); break;
+        case 3: setShading(doc, c, pick(3) == 0 ? QColor() : QColor(pick(256), pick(256), pick(256))); break;
+        case 4: {
+            flow::TableLine line;
+            if (pick(4)) {
+                line.style = flow::TableLine::Style(1 + pick(5));
+                line.width = 0.5 + pick(4) * 0.5;
+            }
+            setBorders(doc, c, 1 + pick(63), line);
+            break;
+        }
+        case 5: pick(2) ? setColumnWidth(doc, c, 20 + pick(200)) : setRowHeight(doc, c, pick(3) ? 10 + pick(60) : 0, pick(2)); break;
+        case 6: pick(2) ? distributeColumns(doc, c) : distributeRows(doc, c); break;
+        case 7: fitTable(doc, c, TableFit(pick(3))); break;
+        case 8: {
+            const TableProps was = tablePropsAt(doc, c);
+            TableProps now = was;
+            now.align = flow::TableData::Align(pick(3));
+            now.indent = pick(30);
+            now.cantSplit = pick(2);
+            now.header = pick(2);
+            now.valign = flow::CellAlign(pick(3));
+            now.widthKind = TableProps::Width(pick(3));
+            now.width = now.widthKind == TableProps::Width::Percent ? 20 + pick(80) : 100 + pick(300);
+            setTableProps(doc, c, was, now);
+            break;
+        }
+        case 9: setTableStyle(doc, c, office::wml::builtinTableStyleIds().value(pick(14))); break;
+        default: setCellAlignment(doc, c, pick(2) ? Qt::AlignHCenter : Qt::AlignRight, flow::CellAlign(pick(3))); break;
+        }
+        break;
+    }
     }
 }
 

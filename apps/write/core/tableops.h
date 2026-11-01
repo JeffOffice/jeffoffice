@@ -60,6 +60,10 @@ bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table);
 // The width in points of the text area the cursor's paragraph is set in.
 double textWidthAt(WriteDoc &doc, int position);
 
+// The cell, row, column, or whole table the cursor is in selected.
+enum class TableUnit { Cell, Row, Column, Table };
+void selectInTable(WriteDoc &doc, QTextCursor &c, TableUnit unit);
+
 // The cells the selection covers are made one (the text of each in turn; empty cells add no paragraph), or one cell is made columns by rows cells.
 bool canMergeCells(WriteDoc &doc, const QTextCursor &c);
 bool mergeCells(WriteDoc &doc, QTextCursor &c);

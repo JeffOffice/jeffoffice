@@ -77,7 +77,7 @@ Area areaOf(const View &v, const QTextCursor &c)
     const flow::TableLayout &t = *v.layout;
     const QTextDocument *d = c.document();
     int a = c.selectionStart(), b = c.selectionEnd();
-    if (c.hasSelection() && b > a && d->findBlock(b).position() == b) --b;   // (the selection ends where a paragraph begins: it is not in that one)
+    if (c.hasSelection() && b > a && d->findBlock(b).position() == b && d->findBlock(b).length() > 1) --b;   // (the selection ends where a paragraph with something in it begins: it is not in that one; an empty one has no more to select)
     int ca = t.cellOfPosition(a), cb = t.cellOfPosition(b);
     if (ca < 0) ca = cb;
     if (cb < 0) cb = ca;
@@ -2058,6 +2058,35 @@ bool splitCells(WriteDoc &doc, QTextCursor &c, int columns, int rows)
     c.setPosition(L.from);
     c.endEditBlock();
     return true;
+}
+
+
+void selectInTable(WriteDoc &doc, QTextCursor &c, TableUnit unit)
+{
+    const auto v = viewAt(doc, c.selectionStart());
+    if (!v) return;
+    const flow::TableLayout &t = *v->layout;
+    const int li = t.cellOfPosition(c.selectionStart());
+    if (li < 0) return;
+    const flow::TableLayout::Cell here = t.cell(li);
+    int first = li, last = li;
+    if (unit == TableUnit::Row) {
+        const flow::TableLayout::Row &row = t.row(here.row);
+        first = row.cell0;
+        last = row.cell0 + row.cells - 1;
+    } else if (unit == TableUnit::Column) {
+        first = -1;
+        for (int i = 0; i < t.cellCount(); ++i)
+            if (t.cell(i).col <= here.col && t.cell(i).col + t.cell(i).span > here.col) {
+                if (first < 0) first = i;
+                last = i;
+            }
+    } else if (unit == TableUnit::Table) {
+        first = 0;
+        last = t.cellCount() - 1;
+    }
+    c.setPosition(t.cell(first).from);
+    c.setPosition(std::max(t.cell(last).from, t.cell(last).to - 1), QTextCursor::KeepAnchor);
 }
 
 } // namespace jp::write
