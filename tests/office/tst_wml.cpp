@@ -54,6 +54,13 @@ struct Made {
     }
 };
 
+QByteArray stylesXmlOf(const QByteArray &zip)
+{
+    Package p;
+    p.read(zip);
+    return p.part(QStringLiteral("/word/styles.xml"));
+}
+
 QByteArray documentXmlOf(const QByteArray &zip)
 {
     Package p;
@@ -1495,6 +1502,43 @@ private Q_SLOTS:
         // the paragraphs and runs that have the style, where it would be written again as theirs.
         QVERIFY(s.run(QStringLiteral("Heading2"), QString()).extra.isEmpty());
         QVERIFY(s.paragraph(QStringLiteral("Heading2")).extra.isEmpty());
+    }
+
+    // A style keeps what the program has no field for (aliases, hidden, locked, personal, rsid) and autoRedefine; a style written from its fields says them in the schema's order.
+    void aStyleKeepsItsAutoRedefineAliasesAndLateElementsWhenItIsWrittenFromItsFields()
+    {
+        Made m;
+        m.body = R"(<w:p/>)";
+        m.styles = R"(<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>)"
+                   R"(<w:style w:type="paragraph" w:customStyle="1" w:styleId="Note"><w:name w:val="Note"/><w:aliases w:val="Aside,Remark"/><w:basedOn w:val="Normal"/><w:autoRedefine/><w:hidden/><w:uiPriority w:val="5"/><w:qFormat/><w:locked/><w:rsid w:val="00AB12CD"/><w:pPr><w:keepNext/></w:pPr></w:style>)";
+        Document d;
+        QVERIFY(readDocx(m.build(), &d));
+        const Style *note = d.styles.find(QStringLiteral("Note"));
+        QVERIFY(note);
+        QVERIFY(note->autoRedefine);
+        QVERIFY(note->hidden);
+        QVERIFY(note->aliases.contains("Aside,Remark"));
+        QVERIFY(note->late.contains("w:locked"));
+        // Written from its fields (its bytes are not kept), the style still says all of it, in the order of the schema.
+        Document e;
+        QVERIFY(readDocx(m.build(), &e));
+        Style changed = *e.styles.find(QStringLiteral("Note"));
+        changed.raw.clear();
+        changed.pPr.keepNext = false;
+        QVERIFY(e.styles.add(changed));
+        Document again;
+        QVERIFY(readDocx(writeDocx(e), &again));
+        const Style *back = again.styles.find(QStringLiteral("Note"));
+        QVERIFY(back);
+        QVERIFY(back->autoRedefine);
+        QVERIFY(back->hidden);
+        QVERIFY(back->aliases.contains("Aside,Remark"));
+        QVERIFY(back->late.contains("w:locked"));
+        QVERIFY(back->late.contains("00AB12CD"));
+        const QByteArray out = stylesXmlOf(writeDocx(e));
+        const int name = out.indexOf("<w:name "), aliases = out.indexOf("<w:aliases"), based = out.indexOf("<w:basedOn"), redefine = out.indexOf("<w:autoRedefine"), hidden = out.indexOf("<w:hidden"),
+                  priority = out.indexOf("<w:uiPriority"), qformat = out.indexOf("<w:qFormat"), locked = out.indexOf("<w:locked"), rsid = out.indexOf("<w:rsid");
+        QVERIFY(name >= 0 && name < aliases && aliases < based && based < redefine && redefine < hidden && hidden < priority && priority < qformat && qformat < locked && locked < rsid);
     }
 
     // The toggles (bold, italic, capitals, small capitals, strike-through, hidden) of a character style flip those of the paragraph style: Strong over a heading that is bold

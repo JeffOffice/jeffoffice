@@ -301,7 +301,10 @@ struct Style {
     QString id, name, type;           // type: paragraph, character, table, numbering
     QString basedOn, next, link;
     bool isDefault = false, customStyle = false, qFormat = false, semiHidden = false, unhideWhenUsed = false;
+    bool autoRedefine = false, hidden = false;   // (w:autoRedefine: the style follows the formatting a person gives its paragraphs)
     std::optional<int> uiPriority;
+    QByteArray aliases;               // the w:aliases element, as written (it follows the name)
+    QByteArray late;                  // w:locked, w:personal..., and w:rsid, as written (they follow qFormat)
     ParaProps pPr;
     RunProps rPr;
     QByteArray tail;                  // what follows rPr (tblPr, trPr, tcPr, tblStylePr), as written
@@ -646,6 +649,8 @@ Document newDocument();
 
 // The built-in definitions of the styles a new document has and a person may apply (Normal, Heading 1 to 9, Title, Subtitle, List
 // Paragraph...); used to add one a document lacks. The id is the style's name without spaces ("Heading1"). Empty id when unknown.
+// A style as it is written to styles.xml (from its fields, whatever `raw` holds).
+QByteArray styleXml(const Style &style);
 Style builtinStyle(const QString &id);
 QStringList builtinStyleIds();
 // The table styles a person may apply (the gallery's, in its order); builtinStyle gives each, and TableNormal, the style a table has when none is said.

@@ -1042,6 +1042,10 @@ public:
                     else if (name == "semiHidden") s.semiHidden = onOffOf(t, k).value_or(true);
                     else if (name == "unhideWhenUsed") s.unhideWhenUsed = onOffOf(t, k).value_or(true);
                     else if (name == "qFormat") s.qFormat = onOffOf(t, k).value_or(true);
+                    else if (name == "autoRedefine") s.autoRedefine = onOffOf(t, k).value_or(true);
+                    else if (name == "hidden") s.hidden = onOffOf(t, k).value_or(true);
+                    else if (name == "aliases") s.aliases = t.raw(k);
+                    else if (name == "locked" || name == "personal" || name == "personalCompose" || name == "personalReply" || name == "rsid") s.late += t.raw(k);
                     else if (name == "pPr") s.pPr = pPr(k);
                     else if (name == "rPr") { s.rPr = rPr(k); afterRun = true; }
                     else if (afterRun || name == "tblPr" || name == "trPr" || name == "tcPr" || name == "tblStylePr") s.tail += t.raw(k);

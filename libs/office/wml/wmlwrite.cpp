@@ -666,29 +666,7 @@ QByteArray stylesXml(const StyleSheet &sheet)
         out += "</w:docDefaults>";
     }
     out += sheet.latentStyles;
-    for (const Style &s : sheet.styles) {
-        if (!s.raw.isEmpty()) {
-            out += s.raw;
-            continue;
-        }
-        out += "<w:style w:type=\"" + escapeXml(s.type, true) + "\"";
-        if (s.isDefault) out += " w:default=\"1\"";
-        if (s.customStyle) out += " w:customStyle=\"1\"";
-        out += " w:styleId=\"" + escapeXml(s.id, true) + "\">";
-        out += "<w:name w:val=\"" + escapeXml(s.name.isEmpty() ? s.id : s.name, true) + "\"/>";
-        if (!s.basedOn.isEmpty()) out += "<w:basedOn w:val=\"" + escapeXml(s.basedOn, true) + "\"/>";
-        if (!s.next.isEmpty()) out += "<w:next w:val=\"" + escapeXml(s.next, true) + "\"/>";
-        if (!s.link.isEmpty()) out += "<w:link w:val=\"" + escapeXml(s.link, true) + "\"/>";
-        if (s.uiPriority) out += "<w:uiPriority w:val=\"" + QByteArray::number(*s.uiPriority) + "\"/>";
-        if (s.semiHidden) out += "<w:semiHidden/>";
-        if (s.unhideWhenUsed) out += "<w:unhideWhenUsed/>";
-        if (s.qFormat) out += "<w:qFormat/>";
-        const QByteArray p = paraPropsXml(s.pPr), r = runPropsXml(s.rPr);
-        if (!p.isEmpty()) out += "<w:pPr>" + p + "</w:pPr>";
-        if (!r.isEmpty()) out += "<w:rPr>" + r + "</w:rPr>";
-        out += s.tail;
-        out += "</w:style>";
-    }
+    for (const Style &s : sheet.styles) out += s.raw.isEmpty() ? styleXml(s) : s.raw;
     out += "</" + qnameOf(root) + ">";
     return out;
 }
@@ -743,6 +721,33 @@ QByteArray numberingXml(const Numbering &num)
 }
 
 } // namespace
+
+QByteArray styleXml(const Style &s)
+{
+    QByteArray out;
+    out += "<w:style w:type=\"" + escapeXml(s.type, true) + "\"";
+    if (s.isDefault) out += " w:default=\"1\"";
+    if (s.customStyle) out += " w:customStyle=\"1\"";
+    out += " w:styleId=\"" + escapeXml(s.id, true) + "\">";
+    out += "<w:name w:val=\"" + escapeXml(s.name.isEmpty() ? s.id : s.name, true) + "\"/>";
+    out += s.aliases;
+    if (!s.basedOn.isEmpty()) out += "<w:basedOn w:val=\"" + escapeXml(s.basedOn, true) + "\"/>";
+    if (!s.next.isEmpty()) out += "<w:next w:val=\"" + escapeXml(s.next, true) + "\"/>";
+    if (!s.link.isEmpty()) out += "<w:link w:val=\"" + escapeXml(s.link, true) + "\"/>";
+    if (s.autoRedefine) out += "<w:autoRedefine/>";
+    if (s.hidden) out += "<w:hidden/>";
+    if (s.uiPriority) out += "<w:uiPriority w:val=\"" + QByteArray::number(*s.uiPriority) + "\"/>";
+    if (s.semiHidden) out += "<w:semiHidden/>";
+    if (s.unhideWhenUsed) out += "<w:unhideWhenUsed/>";
+    if (s.qFormat) out += "<w:qFormat/>";
+    out += s.late;
+    const QByteArray p = paraPropsXml(s.pPr), r = runPropsXml(s.rPr);
+    if (!p.isEmpty()) out += "<w:pPr>" + p + "</w:pPr>";
+    if (!r.isEmpty()) out += "<w:rPr>" + r + "</w:rPr>";
+    out += s.tail;
+    out += "</w:style>";
+    return out;
+}
 
 QByteArray blocksPartXml(const QVector<Block> &blocks, const QByteArray &rootStart, const QByteArray &rootName)
 {
