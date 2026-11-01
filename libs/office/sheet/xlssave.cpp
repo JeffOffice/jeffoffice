@@ -1085,7 +1085,9 @@ private:
                     break;
                 }
             }
-            putRecord(out, 0x0203, W().u16(row).u16(col).u16(xf).f64(std::isfinite(v) ? v : 0).bytes());
+            // (a number that is not one is the error the other form gives it)
+            if (!std::isfinite(v)) putRecord(out, 0x0205, W().u16(row).u16(col).u16(xf).u8(0x24).u8(1).bytes());
+            else putRecord(out, 0x0203, W().u16(row).u16(col).u16(xf).f64(v).bytes());
             break;
         }
         case CellType::SharedString:

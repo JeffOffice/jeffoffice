@@ -1100,8 +1100,13 @@ private:
         case CellType::Empty: break;
         case CellType::Number:
         case CellType::Date: {
-            const double v = std::isfinite(c.number) ? c.number : 0;
-            const QString lit = QString::number(v, 'g', 17);
+            if (!std::isfinite(c.number)) {
+                // (a number that is not one is the error the other form gives it)
+                x += QStringLiteral(" office:value-type=\"string\" office:string-value=\"\" calcext:value-type=\"error\"");
+                paragraphs = QStringLiteral("<text:p>#NUM!</text:p>");
+                break;
+            }
+            const QString lit = QString::number(c.number, 'g', 17);
             x += QStringLiteral(" office:value-type=\"float\" office:value=\"%1\" calcext:value-type=\"float\"").arg(lit);
             paragraphs = QStringLiteral("<text:p>") + esc(shownText(c, c.style)) + QStringLiteral("</text:p>");
             break;
