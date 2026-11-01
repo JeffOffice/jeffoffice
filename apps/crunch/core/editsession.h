@@ -319,6 +319,9 @@ public:
     // Types text into a cell, as the person typed it: a number, a percent, a date, TRUE, a formula, or text; the cell takes the format the entry asks for if it has none of its own. The
     // change is one step on the undo stack. Not ok, and nothing changed, if the text is a formula that is not one, or is too long, or the cell cannot be changed.
     Outcome type(int sheet, quint32 row, quint32 col, const QString &typed, bool checkRule = true);
+    // The same entry in every cell of the block (Ctrl+Enter): a formula is written for the cell the cursor is on (`activeRow`, `activeCol`) and reads, in each of the others, as a copy of it
+    // would. One step; nothing is changed if a cell cannot be, or the block is larger than kMaxCellsPerEdit.
+    Outcome typeInto(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2, quint32 activeRow, quint32 activeCol, const QString &typed, bool checkRule = true);
     // Clears the contents of the cells in the range (their formats stay): one step. Not ok, and nothing changed, if a cell in it is part of an array, or there are more cells than
     // kMaxCellsPerEdit.
     Outcome clear(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2);

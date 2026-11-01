@@ -3,6 +3,7 @@
 
 #include "app/crunchwindow.h"
 #include "app/formulahelper.h"
+#include "app/settings.h"
 
 #include "app/sheettabs.h"
 #include "core/sheetobjects.h"
@@ -167,6 +168,12 @@ void CrunchWindow::placeEditor()
     m_cellEditor->show();
 }
 
+void CrunchWindow::setEnterMove(EnterMove move)
+{
+    m_enterMove = move;
+    Settings::get().setValue(QStringLiteral("crunch/enterMove"), int(move));
+}
+
 bool CrunchWindow::commitEdit(CellEditor::Way way)
 {
     if (!m_edit.active) return true;
@@ -178,11 +185,18 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
         return true;
     }
     const qint64 before = m_loader.changesMade();
-    crunch::EditSession::Outcome o = m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text);
+    // Ctrl+Enter puts the entry in every selected cell
+    const grid::GridRange block = m_view->selection().range;
+    const bool fill = way == CellEditor::Way::Fill && m_edit.sheet == m_sheet && !m_view->selection().isOneCell();
+    auto enter = [&](bool checkRule) {
+        return fill ? m_session->typeInto(m_edit.sheet, block.row1, block.col1, block.row2, block.col2, m_edit.row, m_edit.col, text, checkRule)
+                    : m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text, checkRule);
+    };
+    crunch::EditSession::Outcome o = enter(true);
     if (!o.ok && o.rule) {
         // the rule for the cell does not allow it: a rule that stops is told, the others ask whether to go on
         if (askAboutRule(o)) {
-            o = m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text, false);
+            o = enter(false);
         } else {
             QLineEdit *w = m_formulaBar->hasFocus() ? static_cast<QLineEdit *>(m_formulaBar) : static_cast<QLineEdit *>(m_cellEditor);
             w->setFocus(Qt::OtherFocusReason);
@@ -218,13 +232,25 @@ void CrunchWindow::finishEdit(CellEditor::Way way)
             m_tabRow = row;
         }
     }
-    const bool backToOrigin = way == Way::Enter && m_tabOriginCol >= 0 && m_tabRow == qint64(row);
+    const bool backToOrigin = way == Way::Enter && m_enterMove == EnterMove::Down && m_tabOriginCol >= 0 && m_tabRow == qint64(row);
     const qint64 origin = m_tabOriginCol;
     m_finishing = true;
     switch (way) {
-    case Way::Stay: break;
-    case Way::Enter: m_view->moveAfterEnter(false); break;
-    case Way::ShiftEnter: m_view->moveAfterEnter(true); break;
+    case Way::Stay:
+    case Way::Fill: break;
+    case Way::Enter:
+    case Way::ShiftEnter: {
+        // (Shift goes the other way)
+        const bool back = way == Way::ShiftEnter;
+        switch (m_enterMove) {
+        case EnterMove::Down: m_view->moveAfterEnter(back); break;
+        case EnterMove::Up: m_view->moveAfterEnter(!back); break;
+        case EnterMove::Right: m_view->moveAfterTab(back); break;
+        case EnterMove::Left: m_view->moveAfterTab(!back); break;
+        case EnterMove::Stay: break;
+        }
+        break;
+    }
     case Way::Tab: m_view->moveAfterTab(false); break;
     case Way::ShiftTab: m_view->moveAfterTab(true); break;
     case Way::Up: m_view->moveAfterArrow(-1, 0); break;

@@ -369,6 +369,10 @@ public:
     // where they begin and the edges of the printed cells dragged), 2 the pages themselves. What the person chose for each sheet is kept with the workbook and saved.
     void setViewKind(int kind);
     int viewKind() const { return m_viewKind; }
+    // Where the selection goes after Enter finishes an entry (Shift+Enter goes the other way); kept in the person's settings.
+    enum class EnterMove { Down, Right, Up, Left, Stay };
+    EnterMove enterMove() const { return m_enterMove; }
+    void setEnterMove(EnterMove move);
     // For tests: a line where a page begins is dragged from a row (column) to another, as the mouse would ask.
     void moveBreakForTest(bool column, qint64 from, qint64 to) { breakLineMoved(column, from, to); }
     // For tests and the window: the view of the pages, and the strip of text being typed in a header or footer.
@@ -483,6 +487,7 @@ private:
     void updateInputMessage();
     QPointer<QWidget> m_inputMessage;
     void showChoices();
+    void insertNow(bool time);
     // what Paste Special asks for: the options (a dialog unless this stands in for it: tests); false gives it up
     std::function<bool(crunch::EditSession::PasteOptions *)> m_pasteOptionsAsker;
     crunch::ClipData m_clip, m_pendingClip;   // the last copy or cut made here that the clipboard still holds, and the one being made
@@ -939,6 +944,7 @@ private:
         QString original;      // what the formula bar showed before (Esc puts it back)
     } m_edit;
     bool m_syncingEditors = false, m_undoing = false, m_finishing = false;
+    EnterMove m_enterMove = EnterMove::Down;
     qint64 m_tabOriginCol = -1, m_tabRow = -1;   // where a run of Tabs began (Enter then goes back to that column)
     // saving
     bool m_saving = false, m_closeAfterSave = false, m_closing = false;

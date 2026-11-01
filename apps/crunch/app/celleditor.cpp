@@ -26,6 +26,8 @@ void CellEditor::keyPressEvent(QKeyEvent *e)
     case Qt::Key_Enter:
         if (alt) {
             insert(QStringLiteral("\n"));
+        } else if (e->modifiers() & Qt::ControlModifier) {
+            Q_EMIT finished(Way::Fill);
         } else {
             Q_EMIT finished(shift ? Way::ShiftEnter : Way::Enter);
         }

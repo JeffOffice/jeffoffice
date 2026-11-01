@@ -1278,7 +1278,7 @@ void GridView::keyPressEvent(QKeyEvent *e)
         m_jump.reset();
         if (e->key() == Qt::Key_Escape) return;
     }
-    if (e->key() == Qt::Key_Down && (e->modifiers() & Qt::AltModifier) && !dropDownRect().isEmpty()) {
+    if (e->key() == Qt::Key_Down && (e->modifiers() & Qt::AltModifier)) {   // (a cell with no list of its own: the window may offer the words of its column)
         Q_EMIT dropDownRequested();
         return;
     }

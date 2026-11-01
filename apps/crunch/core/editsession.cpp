@@ -641,6 +641,59 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
     return out;
 }
 
+EditSession::Outcome EditSession::typeInto(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2, quint32 activeRow, quint32 activeCol, const QString &typed, bool checkRule_)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    row1 = std::max<qint64>(0, row1);
+    col1 = std::max<qint64>(0, col1);
+    row2 = std::min<qint64>(row2, jp::calc::kGridRows - 1);
+    col2 = std::min<qint64>(col2, jp::calc::kGridCols - 1);
+    if (row2 < row1 || col2 < col1) return out;
+    if ((row2 - row1 + 1) * (col2 - col1 + 1) > kMaxCellsPerEdit) {
+        out.ok = false;
+        out.problem = tr("That is more cells than JeffCrunch changes at once (%1). Select fewer cells.").arg(QLocale().toString(kMaxCellsPerEdit));
+        return out;
+    }
+    if (row1 == row2 && col1 == col2) return type(sheet, quint32(row1), quint32(col1), typed, checkRule_);
+    // the entry as the cell with the cursor takes it; a formula of it is moved to each of the others
+    CellChange first;
+    bool none = false;
+    if (!typedChange(sheet, activeRow, activeCol, typed, &first, &none, &out)) return out;
+    Step step;
+    for (qint64 r = row1; r <= row2; ++r) {
+        for (qint64 c = col1; c <= col2; ++c) {
+            if (!canEditCell(sheet, quint32(r), quint32(c), &why)) {
+                out.ok = false;
+                out.problem = why;
+                return out;
+            }
+            int headerColumn = -1;
+            if (m_book->book->tableHeaderAt(sheet, quint32(r), quint32(c), &headerColumn) >= 0) {
+                out.ok = false;
+                out.problem = tr("The first row of a table holds the names of its columns, so the same entry can't be put in every cell there.");
+                return out;
+            }
+            CellChange ch;
+            if (!typedChange(sheet, quint32(r), quint32(c), typed, &ch, &none, &out)) return out;
+            if (ch.after.isFormula) ch.after.formula = jp::office::sheet::shiftFormula(first.after.formula, int(r - qint64(activeRow)), int(c - qint64(activeCol)));
+            if (checkRule_) {
+                const Outcome rule = checkRule(sheet, quint32(r), quint32(c), ch.after.value, ch.after.isFormula, typed.trimmed());
+                if (!rule.ok) return rule;
+            }
+            if (!none || ch.after.isFormula) step.cells.push_back(std::move(ch));
+        }
+    }
+    if (step.cells.empty()) return out;
+    pushStep(std::move(step), tr("Typing in %1").arg(rangeName(jp::office::sheet::CellRange{quint32(row1), quint32(col1), quint32(row2), quint32(col2), true})));
+    return out;
+}
+
 void EditSession::pushStep(Step step, const QString &text, bool alreadyDone)
 {
     m_lastCalculated = false;

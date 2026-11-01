@@ -21,6 +21,9 @@
 #include "core/appinfo.h"
 #include "sheet/cellref.h"
 
+#include <QComboBox>
+#include <QFormLayout>
+#include <QPointer>
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
@@ -393,11 +396,33 @@ void CrunchWindow::createActions()
     mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [this] { undoRedo(false); }, false, false);
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [this] { undoRedo(true); }, false, false);
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
-        // The shared pages (General, Proofing); JeffCrunch has no pages of its own yet.
+        // The shared pages (General, Proofing), then Editing: where the selection goes after Enter.
         Editor stand;
-        optionsDialog(this, &stand, {});
+        auto choice = std::make_shared<QPointer<QComboBox>>();
+        QVector<OptionsPage> pages;
+        pages << OptionsPage{tr("Editing"), [this, choice] {
+            auto *page = new QWidget;
+            auto *layout = new QFormLayout(page);
+            auto *box = new QComboBox(page);
+            box->setObjectName(QStringLiteral("optionEnterMove"));
+            box->setAccessibleName(tr("After pressing Enter, move the selection"));
+            for (const auto &item : {std::pair<QString, EnterMove>{tr("Down"), EnterMove::Down}, {tr("Right"), EnterMove::Right}, {tr("Up"), EnterMove::Up}, {tr("Left"), EnterMove::Left}, {tr("Don't move"), EnterMove::Stay}})
+                box->addItem(item.first, int(item.second));
+            box->setCurrentIndex(box->findData(int(m_enterMove)));
+            layout->addRow(tr("After pressing Enter, move the selection:"), box);
+            *choice = box;
+            return static_cast<QWidget *>(page);
+        }, [this, choice] {
+            if (*choice) setEnterMove(EnterMove((*choice)->currentData().toInt()));
+        }};
+        optionsDialog(this, &stand, pages);
     });
     mk("edit.selectAll", tr("Select All"), "", QKeySequence(), [this] { m_view->selectAll(); });
+    mk("edit.insertDate", tr("Today's Date"), "calendar", QKeySequence(Qt::CTRL | Qt::Key_Semicolon), [this] { insertNow(false); }, false, false);
+    mk("edit.insertTime", tr("The Time Now"), "clock", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Semicolon), [this] { insertNow(true); }, false, false);
+    act("edit.insertTime")->setShortcuts({QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Semicolon), QKeySequence(Qt::CTRL | Qt::Key_Colon)});
+    m_opsActions << QStringLiteral("edit.insertDate") << QStringLiteral("edit.insertTime");
+    m_enterMove = EnterMove(std::clamp(Settings::get().value(QStringLiteral("crunch/enterMove"), 0).toInt(), 0, 4));
     // ---- view
     mk("view.gridlines", tr("Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("view.gridlines")->isChecked()); }, true)->setChecked(true);
     mk("view.headings", tr("Headings"), "table-properties", QKeySequence(), [this] { m_view->setShowHeadings(act("view.headings")->isChecked()); }, true)->setChecked(true);

@@ -10,6 +10,10 @@
 
 #include <QAction>
 #include <QButtonGroup>
+#include <QCollator>
+#include <QDate>
+#include <QSet>
+#include <QTime>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QApplication>
@@ -22,6 +26,8 @@
 #include <QPalette>
 #include <QRadioButton>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace jp {
 
@@ -345,13 +351,33 @@ void CrunchWindow::showChoices()
     const grid::Selection &sel = m_view->selection();
     const quint32 row = quint32(std::max<qint64>(0, sel.activeRow)), col = quint32(std::max<qint64>(0, sel.activeCol));
     const jp::office::sheet::Validation *rule = m_loaded->calc->validationAt(m_sheet, row, col);
-    if (!rule || rule->type != jp::office::sheet::Validation::Type::List) return;
+    const bool ownList = rule && rule->type == jp::office::sheet::Validation::Type::List;
     QStringList choices;
     {
         // (the list is read through the calculation, with the worker held back)
         std::unique_ptr<crunch::WorkbookLoader::Hold> hold = m_loader.hold();
         if (!hold) return;
-        choices = hold->calculation()->listChoices(m_sheet, row, col, *rule);
+        if (ownList) {
+            choices = hold->calculation()->listChoices(m_sheet, row, col, *rule);
+        } else {
+            // no list of its own: the words already in the column, in the run of cells above and below this one (each once)
+            const jp::office::sheet::Calculation *calc = hold->calculation();
+            QSet<QString> seen;
+            for (const int step : {-1, 1}) {
+                qint64 r = qint64(row) + step;
+                for (int looked = 0; looked < 100000 && r >= 0 && r < jp::calc::kGridRows; ++looked, r += step) {
+                    const jp::office::sheet::Calculation::CellContent c = calc->content(m_sheet, quint32(r), col);
+                    if (!c.exists || c.value.isEmpty()) break;
+                    if (c.value.isText() && !seen.contains(c.value.text())) {
+                        seen.insert(c.value.text());
+                        choices << c.value.text();
+                    }
+                }
+            }
+            QCollator collator;
+            collator.setCaseSensitivity(Qt::CaseInsensitive);
+            std::sort(choices.begin(), choices.end(), collator);
+        }
     }
     auto *menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
@@ -368,8 +394,29 @@ void CrunchWindow::showChoices()
         });
     }
     if (choices.isEmpty()) menu->addAction(tr("(nothing to choose from)"))->setEnabled(false);
-    const QRect cell = m_view->dropDownCellRect();
+    QRect cell = m_view->dropDownCellRect();
+    if (cell.isEmpty()) cell = m_view->cellRect(row, col);
     menu->popup(m_view->viewport()->mapToGlobal(QPoint(cell.left(), cell.bottom() + 1)));
+}
+
+// Ctrl+; and Ctrl+Shift+;: today's date, or the time now, in the cell with the cursor, or in the entry being typed.
+void CrunchWindow::insertNow(bool time)
+{
+    if (!m_session || !m_loaded) return;
+    const QLocale locale;
+    const QString text = time ? locale.toString(QTime::currentTime(), QStringLiteral("H:mm")) : locale.toString(QDate::currentDate(), QLocale::ShortFormat);
+    if (m_edit.active) {
+        m_cellEditor->insert(text);
+        return;
+    }
+    if (!editingAllowed()) return;
+    const grid::Selection &sel = m_view->selection();
+    const quint32 row = quint32(std::max<qint64>(0, sel.activeRow)), col = quint32(std::max<qint64>(0, sel.activeCol));
+    const qint64 before = m_loader.changesMade();
+    crunch::EditSession::Outcome o = m_session->type(m_sheet, row, col, text);
+    if (!o.ok && o.rule && askAboutRule(o)) o = m_session->type(m_sheet, row, col, text, false);
+    if (!o.ok && !o.rule) notice(tr("Edit"), o.problem);
+    if (m_loader.changesMade() != before) m_calculating = true;
 }
 
 // ---- the width of columns and the height of rows

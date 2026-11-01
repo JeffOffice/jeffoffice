@@ -23,6 +23,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QLineEdit>
+#include <QMenu>
 #include <QPointer>
 #include <QRegularExpression>
 #include <QSettings>
@@ -168,6 +169,118 @@ private Q_SLOTS:
         QCOMPARE(e.selected(), QStringLiteral("A12"));
         e.enter(QStringLiteral("2"));
         QCOMPARE(e.selected(), QStringLiteral("B11"));
+    }
+
+    // After Enter the selection goes where the option says (down, right, up, left, or nowhere); Shift+Enter goes the other way.
+    void enterGoesWhereTheOptionSays()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        QCOMPARE(w.enterMove(), CrunchWindow::EnterMove::Down);
+        const struct {
+            CrunchWindow::EnterMove move;
+            const char *after, *back;
+        } cases[] = {{CrunchWindow::EnterMove::Right, "F5", "D5"}, {CrunchWindow::EnterMove::Up, "E4", "E6"}, {CrunchWindow::EnterMove::Left, "D5", "F5"}, {CrunchWindow::EnterMove::Stay, "E5", "E5"}};
+        for (const auto &c : cases) {
+            w.setEnterMove(c.move);
+            e.select(QStringLiteral("E5"));
+            e.enter(QStringLiteral("1"));
+            QCOMPARE(e.selected(), QString::fromLatin1(c.after));
+            e.select(QStringLiteral("E5"));
+            e.type(QStringLiteral("2"));
+            e.key(Qt::Key_Return, Qt::ShiftModifier);
+            QCOMPARE(e.selected(), QString::fromLatin1(c.back));
+        }
+        w.setEnterMove(CrunchWindow::EnterMove::Down);
+    }
+
+    // Ctrl+Enter puts what was typed in every selected cell (a formula shifts its relative references, as a copy does) as one step of Undo, and the selection stays.
+    void ctrlEnterFillsTheSelection()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.view()->selectRange(5, 4, 6, 5);   // E6:F7, the cursor in E6
+        e.type(QStringLiteral("7"));
+        const int steps = e.win.w.undoStack()->count();
+        e.key(Qt::Key_Return, Qt::ControlModifier);
+        QVERIFY(!e.win.w.isEditing());
+        for (const char *ref : {"E6", "F6", "E7", "F7"}) QCOMPARE(e.valueAt(QString::fromLatin1(ref)), QStringLiteral("n:7"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(e.view()->rangeName(), QStringLiteral("E6:F7"));
+        pressUndo(e.view());
+        for (const char *ref : {"E6", "F6", "E7", "F7"}) QCOMPARE(e.valueAt(QString::fromLatin1(ref)), QStringLiteral("-"));
+        // a formula: the cell of each is the same distance from the cell it refers to
+        e.view()->selectRange(5, 4, 6, 5);
+        e.type(QStringLiteral("=A1"));
+        e.key(Qt::Key_Return, Qt::ControlModifier);
+        e.select(QStringLiteral("F7"));
+        QCOMPARE(e.win.w.formulaBar()->text(), QStringLiteral("=B2"));
+        e.select(QStringLiteral("E6"));
+        QCOMPARE(e.win.w.formulaBar()->text(), QStringLiteral("=A1"));
+        // one cell selected: Ctrl+Enter is the same as Enter, and stays
+        e.select(QStringLiteral("H1"));
+        e.type(QStringLiteral("3"));
+        e.key(Qt::Key_Return, Qt::ControlModifier);
+        QCOMPARE(e.valueAt(QStringLiteral("H1")), QStringLiteral("n:3"));
+        QCOMPARE(e.selected(), QStringLiteral("H1"));
+    }
+
+    // Ctrl+; puts today's date in the cell and Ctrl+Shift+; the time now, each as a number the cell shows as a date or a time; while an entry is typed they are put in the entry.
+    void todaysDateAndTheTimeByKeys()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.win.w.act(QStringLiteral("edit.insertDate")));
+        QCOMPARE(e.win.w.act(QStringLiteral("edit.insertDate"))->shortcut(), QKeySequence(Qt::CTRL | Qt::Key_Semicolon));
+        QCOMPARE(e.win.w.act(QStringLiteral("edit.insertTime"))->shortcut(), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Semicolon));
+        const qint64 before = QDate(1899, 12, 30).daysTo(QDate::currentDate());
+        e.select(QStringLiteral("F9"));
+        e.win.w.act(QStringLiteral("edit.insertDate"))->trigger();
+        const qint64 after = QDate(1899, 12, 30).daysTo(QDate::currentDate());
+        const QString got = e.valueAt(QStringLiteral("F9"));
+        QVERIFY2(got == QStringLiteral("n:%1").arg(before) || got == QStringLiteral("n:%1").arg(after), qPrintable(got));
+        QVERIFY(e.win.w.undoStack()->count() == 1);
+        QVERIFY(!e.shownAt(QStringLiteral("F9")).isEmpty() && e.shownAt(QStringLiteral("F9")) != QStringLiteral("%1").arg(before));
+        e.select(QStringLiteral("F10"));
+        e.win.w.act(QStringLiteral("edit.insertTime"))->trigger();
+        const QString t = e.valueAt(QStringLiteral("F10"));
+        QVERIFY2(t.startsWith(QStringLiteral("n:0.")) || t == QStringLiteral("n:0"), qPrintable(t));
+        QVERIFY(e.shownAt(QStringLiteral("F10")).contains(QLatin1Char(':')));
+        // while typing: the date goes into the entry, and the cell is not changed until Enter
+        e.select(QStringLiteral("F11"));
+        e.type(QStringLiteral("x"));
+        e.win.w.act(QStringLiteral("edit.insertDate"))->trigger();
+        QVERIFY(e.win.w.cellEditor()->text().size() > 1);
+        QVERIFY(e.win.w.cellEditor()->text().startsWith(QLatin1Char('x')));
+        e.key(Qt::Key_Escape);
+    }
+
+    // Alt+Down on a cell with no list of its own lists the words already in its column (each once, in order), and choosing one types it.
+    void altDownListsTheColumnsValues()
+    {
+        auto word = [](int row, const char *w) { return QStringLiteral("<row r=\"%1\"><c r=\"J%1\" t=\"inlineStr\"><is><t>%2</t></is></c></row>").arg(row).arg(QString::fromLatin1(w)).toUtf8(); };
+        EditWindow e;
+        QVERIFY(e.open(editBook(word(10, "pear") + word(11, "apple") + word(12, "pear") + word(13, "fig"))));
+        e.select(QStringLiteral("J14"));
+        QTest::keyClick(e.view(), Qt::Key_Down, Qt::AltModifier);
+        QMenu *menu = e.win.w.findChild<QMenu *>(QStringLiteral("listMenu"));
+        QVERIFY(menu);
+        QStringList items;
+        for (QAction *a : menu->actions()) items << a->text();
+        QCOMPARE(items, (QStringList{"apple", "fig", "pear"}));
+        menu->actions()[1]->trigger();
+        menu->close();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("J14")), QStringLiteral("s:fig"));
+        // a column with no words: a note says so
+        e.select(QStringLiteral("Z1"));
+        QTest::keyClick(e.view(), Qt::Key_Down, Qt::AltModifier);
+        QMenu *none = e.win.w.findChild<QMenu *>(QStringLiteral("listMenu"));
+        QVERIFY(none);
+        QCOMPARE(none->actions().size(), 1);
+        QVERIFY(!none->actions().first()->isEnabled());
+        none->close();
     }
 
     // Enter after a run of Tabs goes down to the column the run began in; an arrow, a click, or Go To ends the run; Enter with no Tabs goes straight down.
