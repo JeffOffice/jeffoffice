@@ -10,7 +10,8 @@
 namespace jp::write {
 
 // The most tab stops a paragraph keeps, and the farthest a tab stop is put (points from the left edge of the text).
-constexpr int kMostTabStops = 64;
+constexpr int kMostTabStops = 64;       // a paragraph is given no more than this many
+constexpr int kMostTabStopsRead = 4000;  // and a file's paragraph keeps the stops it has, up to this many
 constexpr double kMostTabPosition = 1584;
 
 struct TabStopEntry {
@@ -22,7 +23,7 @@ struct TabStopEntry {
 
 // The tab stops of a paragraph's format, in order of position (the leaders of its format matched to them).
 QVector<TabStopEntry> tabStopsOf(const QTextBlockFormat &format);
-// The same set into a format: kept in order, at most kMostTabStops, each from 0 to kMostTabPosition, two at one place made one (the later wins).
+// The same set into a format: kept in order (all of them: a paragraph that had more than kMostTabStops keeps them; adding is what is refused), each from 0 to kMostTabPosition, two at one place made one (the later wins).
 void setTabStopsOf(QTextBlockFormat &format, QVector<TabStopEntry> stops);
 // Gives every paragraph the selection touches these tab stops.
 void setTabStops(WriteDoc &doc, QTextCursor &c, const QVector<TabStopEntry> &stops);

@@ -1339,9 +1339,85 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
     renumberLists(story);
 }
 
+namespace {
+constexpr int kMostObjectRecords = 100000;   // the forms the program made of pictures that the text and the history hold, all together
+}
+
 bool WriteDoc::makeDrawnFormat(const Inline &atom, QTextCharFormat *format)
 {
-    return drawnObjects(atom, QString(), format);
+    flow::FlowDocument &f = *m_flow;
+    auto touch = [&](int head) {
+        for (int id = head, steps = 0; id > 0 && id <= f.objects.size() && steps < 64; id = f.objects[id - 1].next, ++steps) {
+            m_objectHeld[id] = 0;
+            m_objectPending.push_back(id);
+        }
+    };
+    // The same drawing again is the form made for it before, while that is held.
+    if (const auto found = m_objectsByDrawing.constFind(atom.raw); found != m_objectsByDrawing.constEnd()) {
+        const int head = found.value();
+        if (head > 0 && head <= f.objects.size() && f.objects[head - 1].item && m_objectHeld.contains(head)) {
+            format->setProperty(flow::fp::AnchorId, head);
+            format->setProperty(tp::Field, QStringLiteral("raw:"));
+            touch(head);
+            return true;
+        }
+    }
+    if (m_objectHeld.size() >= kMostObjectRecords) {
+        collectObjectRecords();
+        if (m_objectHeld.size() >= kMostObjectRecords) return false;
+    }
+    if (!drawnObjects(atom, QString(), format)) return false;
+    if (const int head = format->intProperty(flow::fp::AnchorId); head > 0) {
+        touch(head);
+        m_objectsByDrawing.insert(atom.raw, head);
+    }
+    return true;
+}
+
+void WriteDoc::retireDrawnForm(const QTextCharFormat &before)
+{
+    const flow::FlowDocument &f = *m_flow;
+    for (int id = before.intProperty(flow::fp::AnchorId), steps = 0; id > 0 && id <= f.objects.size() && steps < 64; id = f.objects[id - 1].next, ++steps)
+        if (m_objectHeld.contains(id)) {
+            m_objectHeld[id] = 0;
+            m_objectPending.push_back(id);
+        }
+}
+
+void WriteDoc::keepObjectsForTheHistory()
+{
+    if (!m_objectPending.isEmpty() && nextStepSerial() > m_objectsSeen) {
+        m_objectsSeen = nextStepSerial();
+        if (const quint64 last = lastStepSerial()) {
+            for (int id : std::as_const(m_objectPending))
+                if (m_objectHeld.contains(id)) m_objectHeld[id] = last;
+            m_objectPending.clear();
+        }
+    }
+    if (m_objectHeld.size() >= m_collectAt) collectObjectRecords();
+}
+
+void WriteDoc::collectObjectRecords()
+{
+    flow::FlowDocument &f = *m_flow;
+    QSet<int> inText;
+    for (QTextBlock b = story()->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+            for (int id = it.fragment().charFormat().intProperty(flow::fp::AnchorId), steps = 0; id > 0 && id <= f.objects.size() && steps < 64; id = f.objects[id - 1].next, ++steps) inText.insert(id);
+    const QSet<quint64> steps = stepSerials();
+    QVector<int> gone;
+    for (auto it = m_objectHeld.cbegin(); it != m_objectHeld.cend(); ++it)
+        if (it.value() != 0 && !steps.contains(it.value()) && !inText.contains(it.key())) gone << it.key();
+    if (!gone.isEmpty()) {
+        QSet<int> freed(gone.cbegin(), gone.cend());
+        for (int id : gone) {
+            f.objects[id - 1] = flow::FloatingObject();
+            m_freeObjects.push_back(id);
+            m_objectHeld.remove(id);
+        }
+        for (auto it = m_objectsByDrawing.begin(); it != m_objectsByDrawing.end();) it = freed.contains(it.value()) ? m_objectsByDrawing.erase(it) : std::next(it);
+    }
+    m_collectAt = std::max<qsizetype>(2000, 2 * m_objectHeld.size());
 }
 
 bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format, double lineWidth, const QVector<Inline> *content)
@@ -1349,6 +1425,16 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
     const QVector<Shape> shapes = readShapes(atom.raw);
     if (shapes.isEmpty()) return false;
     flow::FlowDocument &f = *m_flow;
+    // A form takes a place that a form let go left, else one at the end.
+    auto placeObject = [&](const flow::FloatingObject &form) {
+        if (!m_freeObjects.isEmpty()) {
+            const int at = m_freeObjects.takeLast();
+            f.objects[at - 1] = form;
+            return at;
+        }
+        f.objects.push_back(form);
+        return int(f.objects.size());
+    };
     // The picture of a shape: its bytes (from the part the run is in), kept once for the document.
     // Lettering on a path is bounded in how many shapes and how many letters (each is outlined letter by letter): what a file asks for past that is left out.
     auto letteringFits = [&](const Shape &s) {
@@ -1415,7 +1501,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             inlinePicture = true;
             continue;
         }
-        if (f.objects.size() >= kMostObjects) break;
+        if (f.objects.size() - m_freeObjects.size() - m_objectHeld.size() >= kMostObjects) break;
         flow::FloatingObject o;
         using Rel = flow::FloatingObject::Rel;
         // (Across, a position measured from the paragraph or the line is from the column; down, one from the column is from the paragraph, and one from a character is from the line.)
@@ -1521,21 +1607,19 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             o.item = item;
         }
         if (!o.item) continue;
-        f.objects.push_back(o);
-        const int id = int(f.objects.size());
+        const int id = placeObject(o);
         if (lastObject > 0) f.objects[lastObject - 1].next = id;
         else firstObject = id;
         lastObject = id;
         // The sides of a picture's border that are lines beside it (a picture set by offsets: one that is aligned is not drawn with them).
         if (s.kind == Shape::Picture && s.hAlign == Shape::NoAlign && s.vAlign == Shape::NoAlign)
             for (const auto &line : borderLines(s)) {
-                if (f.objects.size() >= kMostObjects) break;
+                if (f.objects.size() - m_freeObjects.size() - m_objectHeld.size() >= kMostObjects) break;
                 flow::FloatingObject lo = o;
                 lo.item = line;
                 lo.image = flow::FloatingObject().image;
                 lo.wrap = flow::FloatingObject::Wrap::None;
-                f.objects.push_back(lo);
-                const int lid = int(f.objects.size());
+                const int lid = placeObject(lo);
                 f.objects[lastObject - 1].next = lid;
                 lastObject = lid;
             }

@@ -1452,6 +1452,7 @@ bool insertDrawnAtom(WriteDoc &doc, QTextCursor &c, const office::wml::Inline &a
     }
     edit.insertText(QString(QChar::ObjectReplacementCharacter), f);
     edit.endEditBlock();
+    doc.keepObjectsForTheHistory();
     if (made) *made = f;
     c = edit;
     return true;
@@ -1508,6 +1509,7 @@ bool insertEndnote(WriteDoc &doc, QTextCursor &c)
 
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
 {
+    doc.forgetDrawingIds();   // (what is pasted may hold drawings with ids of their own)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
@@ -1587,6 +1589,7 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &whole)
 
 void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
 {
+    doc.forgetDrawingIds();   // (what is pasted may hold drawings with ids of their own)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
@@ -1655,6 +1658,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         }
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
+            if (f.position() + f.length() <= from || f.position() >= to) continue;   // (only what was pasted: a picture beside it keeps its own relationship)
             // A reference to one of the other document's notes points at nothing here (its text isn't), and an object's place on the page is a place in the
             // other's objects: the first is left out, and the second isn't carried (what the object is as the file has it is kept).
             const QString field = f.charFormat().stringProperty(tp::Field);
@@ -1684,6 +1688,13 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
                     setStored(nf, prop::Atom, packAtom(a));
                     changed = true;
                 }
+                // A picture is drawn from this document's own pictures (the other document's numbers mean nothing here).
+                if (a.tag == QLatin1String("drawing")) {
+                    nf.clearProperty(tp::InlineObject);
+                    nf.clearProperty(flow::fp::AnchorId);
+                    doc.makeDrawnFormat(a, &nf);
+                    changed = true;
+                }
             }
             if (changed) fixes.push_back({f.position(), f.position() + f.length(), nf, false});
         }
@@ -1704,6 +1715,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         removeSelection(doc, t);
     }
     c.endEditBlock();
+    doc.keepObjectsForTheHistory();
 }
 
 void pasteText(WriteDoc &doc, QTextCursor &c, const QString &text)

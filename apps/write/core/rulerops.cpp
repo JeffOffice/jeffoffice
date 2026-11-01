@@ -14,7 +14,7 @@ QVector<TabStopEntry> tabStopsOf(const QTextBlockFormat &format)
     QVector<TabStopEntry> out;
     const QString leaders = format.stringProperty(tp::TabLeaders);
     const QList<QTextOption::Tab> tabs = format.tabPositions();
-    for (int i = 0; i < tabs.size() && out.size() < kMostTabStops; ++i) {
+    for (int i = 0; i < tabs.size() && out.size() < kMostTabStopsRead; ++i) {
         TabStopEntry e;
         e.position = tabs[i].position;
         e.type = tabs[i].type;
@@ -34,7 +34,6 @@ void setTabStopsOf(QTextBlockFormat &format, QVector<TabStopEntry> stops)
         if (!kept.isEmpty() && std::abs(kept.last().position - s.position) < 0.05) kept.last() = s;
         else kept.push_back(s);
     }
-    if (kept.size() > kMostTabStops) kept.resize(kMostTabStops);
     QList<QTextOption::Tab> tabs;
     QString leaders;
     bool anyLeader = false;

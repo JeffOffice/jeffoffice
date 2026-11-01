@@ -30,8 +30,20 @@ enum class PictureResult {
     Ok,
     Unreadable,    // the bytes are no picture the program can read
     TooLarge,      // more bytes, pixels, or a longer side than the limits above
+    External,      // an SVG that refers to anything outside itself
     Refused,       // not where a picture can go (a header, a footer, a note, a kept element), or the document holds the most pictures and objects it can show
 };
+
+// The most bytes of an SVG file, and the most the pictures of a document come to together.
+constexpr qint64 kMostSvgBytes = qint64(4) << 20;
+
+// The bytes of a picture file, read no further than a picture may be: only a regular file is read (a pipe, a device, and a directory are not), and one longer than kMostPictureBytes is
+// TooLarge and read no further. Unreadable for a file that can't be read.
+PictureResult readPictureFile(const QString &path, QByteArray *bytes);
+// A size held to kLeastPictureSize and kMostPictureSize on both sides together, so that its ratio stays what it was.
+void clampKeepingRatio(double *width, double *height);
+// Alt text as it is kept: no character XML refuses, whole pairs of surrogates kept and lone ones dropped, at most kMostAltTextLength characters (a pair is not cut).
+QString cleanAltText(const QString &text);
 
 // What a picture of the text is.
 struct PictureInfo {

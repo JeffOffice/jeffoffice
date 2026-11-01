@@ -8,7 +8,7 @@
 namespace jp::write {
 
 // The shortest side of paper, the longest, and the least width and height of text a page keeps (points).
-constexpr double kLeastPaper = 36, kMostPaper = 2160, kLeastText = 36;
+constexpr double kLeastPaper = 36, kMostPaper = 1584, kLeastText = 36;
 
 // What the dialog shows of a section, in points.
 struct SectionSetup {

@@ -25,6 +25,7 @@ namespace jp::write {
 
 void WriteDoc::removeMedia(const QString &id)
 {
+    m_madeMedia.remove(id);
     QString target;
     for (qsizetype i = 0; i < m_wml.mainRelationships.size(); ++i)
         if (m_wml.mainRelationships[i].id == id && !m_wml.mainRelationships[i].external) {
@@ -503,7 +504,16 @@ QString WriteDoc::addMedia(const QByteArray &bytes, const QString &extension, co
     r.type = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");
     r.target = name;
     m_wml.mainRelationships.push_back(r);
+    m_madeMedia.insert(r.id, name);
     return r.id;
+}
+
+qint64 WriteDoc::mediaBytes() const
+{
+    qint64 total = 0;
+    for (const KeptPart &p : m_wml.parts)
+        if (p.contentType.startsWith(QLatin1String("image/"))) total += p.data.size();
+    return total;
 }
 
 // ---- sections

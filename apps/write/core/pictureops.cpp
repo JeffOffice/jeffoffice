@@ -8,6 +8,8 @@
 
 #include <QBuffer>
 #include <QCoreApplication>
+#include <QFile>
+#include <QFileInfo>
 #include <QImageReader>
 #include <QRegularExpression>
 #include <QTextBlock>
@@ -34,31 +36,98 @@ const QByteArray &declarations()
         "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
         "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" "
         "xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\" xmlns:wpg=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\" "
-        "xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+        "xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\" xmlns:wp14=\"http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing\"";
     return d;
 }
 
-// Text for an attribute: no character XML refuses, escaped, and at most `limit` characters.
-QByteArray attribute(const QString &text, int limit)
+// Text kept in an attribute or as alt text: no character XML refuses, a pair of surrogates whole and a lone one dropped, and at most `limit` UTF-16 units (a pair is not cut).
+QString cleanText(const QString &text, int limit)
 {
     QString clean;
-    clean.reserve(std::min<qsizetype>(text.size(), limit));
-    for (const QChar ch : text) {
-        if (clean.size() >= limit) break;
+    clean.reserve(int(std::min<qsizetype>(text.size(), limit)));
+    for (qsizetype i = 0; i < text.size(); ++i) {
+        const QChar ch = text[i];
         const ushort u = ch.unicode();
-        if (u < 0x20 && u != 0x09) clean += QLatin1Char(' ');
-        else if (u == 0xFFFE || u == 0xFFFF || (u >= 0xD800 && u <= 0xDFFF)) continue;
-        else clean += ch;
+        if (ch.isHighSurrogate()) {
+            if (i + 1 < text.size() && text[i + 1].isLowSurrogate()) {
+                if (clean.size() + 2 > limit) break;
+                clean += ch;
+                clean += text[i + 1];
+                ++i;
+            }
+            continue;
+        }
+        if (ch.isLowSurrogate() || u == 0xFFFE || u == 0xFFFF) continue;
+        if (clean.size() >= limit) break;
+        clean += u < 0x20 && u != 0x09 ? QChar(QLatin1Char(' ')) : ch;
     }
-    return clean.toHtmlEscaped().toUtf8();
+    return clean;
 }
 
-// A drawing of one picture, as its parts: what the program writes again when the picture changes, and the graphic (the picture itself), which it keeps.
+QByteArray attribute(const QString &text, int limit) { return cleanText(text, limit).toHtmlEscaped().toUtf8(); }
+
+// The attributes of a start tag, in order, as written (the values with their quotes); the declarations of prefixes are kept apart.
+using Attributes = QVector<std::pair<QByteArray, QByteArray>>;
+
+Attributes attributesOf(const QByteArray &startTag, Attributes *declarations = nullptr)
+{
+    Attributes out;
+    static const QRegularExpression re(QStringLiteral("\\s([\\w:.-]+)\\s*=\\s*(\"[^\"]*\"|'[^']*')"));
+    const QString text = QString::fromUtf8(startTag);
+    const qsizetype from = text.indexOf(QLatin1Char(' '));
+    if (from < 0) return out;
+    auto it = re.globalMatch(text, from);
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        const QByteArray name = m.captured(1).toUtf8(), value = m.captured(2).toUtf8();
+        if (name == "xmlns" || name.startsWith("xmlns:")) {
+            if (declarations) declarations->push_back({name, value});
+        } else {
+            out.push_back({name, value});
+        }
+    }
+    return out;
+}
+
+void setAttribute(Attributes *attrs, const QByteArray &name, const QByteArray &quoted)
+{
+    for (auto &a : *attrs)
+        if (a.first == name) {
+            a.second = quoted;
+            return;
+        }
+    attrs->push_back({name, quoted});
+}
+
+void removeAttribute(Attributes *attrs, const QByteArray &name)
+{
+    for (qsizetype i = 0; i < attrs->size(); ++i)
+        if ((*attrs)[i].first == name) {
+            attrs->removeAt(i);
+            return;
+        }
+}
+
+QByteArray attributeValue(const Attributes &attrs, const QByteArray &name)
+{
+    for (const auto &a : attrs)
+        if (a.first == name) return a.second.mid(1, a.second.size() - 2);
+    return {};
+}
+
+QByteArray written(const Attributes &attrs)
+{
+    QByteArray out;
+    for (const auto &a : attrs) out += " " + a.first + "=" + a.second;
+    return out;
+}
+
+QByteArray quote(const QByteArray &value) { return "\"" + value + "\""; }
+
+// A drawing of one picture, as its parts: what the program writes again when the picture changes, and everything else of the element, which it keeps as it was.
 struct Model {
     bool floating = false;
     qint64 cx = 0, cy = 0;                    // EMU
-    int id = 1;
-    QByteArray name = "Picture", descr, title;
     PictureWrap wrap = PictureWrap::Inline;
     QByteArray wrapRaw;                       // the wrap element as the file had it (kept while the kind of wrap is)
     PictureWrap wrapRawOf = PictureWrap::Inline;
@@ -66,6 +135,16 @@ struct Model {
     QByteArray posH, posV;                    // positionH and positionV as written
     QByteArray effectExtent, frameProps, graphic;
     qint64 relativeHeight = 251658240;
+    Attributes declarations;                  // the prefixes the drawing declares
+    Attributes itemAttributes;                // the attributes of the inline or anchor the program does not set (wp14:anchorId and the like)
+    Attributes anchorFlags;                   // locked, layoutInCell, allowOverlap, simplePos as written
+    Attributes docPr;                         // the attributes of wp:docPr (id, name, descr, hidden, title...)
+    QByteArray docPrInner;                    // what is inside wp:docPr (a hyperlink on the picture...)
+    QByteArray between;                       // children between the wrap and the graphic that the program does not know
+    struct Kept {
+        QByteArray name, raw;
+    };
+    QVector<Kept> trailing;                   // children after the graphic (the newer format's size relations...)
 };
 
 QByteArray defaultPosH() { return "<wp:positionH relativeFrom=\"column\"><wp:posOffset>0</wp:posOffset></wp:positionH>"; }
@@ -83,26 +162,46 @@ QByteArray wrapElement(PictureWrap wrap)
     }
 }
 
+// Children that only an anchored drawing may have.
+bool anchorOnly(const QByteArray &name) { return name == "sizeRelH" || name == "sizeRelV" || name == "pctPosHOffset" || name == "pctPosVOffset" || name == "pctPosHeight" || name == "pctPosWidth"; }
+
 QByteArray drawingXml(const Model &m)
 {
     auto n = [](qint64 v) { return QByteArray::number(v); };
-    QByteArray x = "<w:drawing xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
-                   "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">";
+    Attributes decl = m.declarations;
+    for (const auto &required : {std::pair<QByteArray, QByteArray>{"xmlns:wp", "\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\""},
+                                 {"xmlns:a", "\"http://schemas.openxmlformats.org/drawingml/2006/main\""},
+                                 {"xmlns:pic", "\"http://schemas.openxmlformats.org/drawingml/2006/picture\""},
+                                 {"xmlns:r", "\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\""}}) {
+        bool has = false;
+        for (const auto &d : decl) has = has || d.first == required.first;
+        if (!has) decl.push_back(required);
+    }
+    QByteArray x = "<w:drawing" + written(decl) + ">";
     const QByteArray extent = "<wp:extent cx=\"" + n(m.cx) + "\" cy=\"" + n(m.cy) + "\"/>";
-    QByteArray docPr = "<wp:docPr id=\"" + n(m.id) + "\" name=\"" + m.name + "\"";
-    if (!m.descr.isEmpty()) docPr += " descr=\"" + m.descr + "\"";
-    if (!m.title.isEmpty()) docPr += " title=\"" + m.title + "\"";
-    docPr += "/>";
+    QByteArray docPr = "<wp:docPr" + written(m.docPr);
+    docPr += m.docPrInner.isEmpty() ? QByteArray("/>") : ">" + m.docPrInner + "</wp:docPr>";
     const QByteArray frame = m.frameProps.isEmpty() ? QByteArray("<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect=\"1\"/></wp:cNvGraphicFramePr>") : m.frameProps;
+    QByteArray trailing;
+    for (const Model::Kept &k : m.trailing)
+        if (m.floating || !anchorOnly(k.name)) trailing += k.raw;
     if (!m.floating) {
-        x += "<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">" + extent + m.effectExtent + docPr + frame + m.graphic + "</wp:inline>";
+        Attributes attrs = m.itemAttributes;
+        QByteArray start = "<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"" + written(attrs) + ">";
+        x += start + extent + m.effectExtent + m.between + docPr + frame + m.graphic + trailing + "</wp:inline>";
     } else {
         const bool behind = m.wrap == PictureWrap::BehindText;
-        x += "<wp:anchor distT=\"" + n(m.distT) + "\" distB=\"" + n(m.distB) + "\" distL=\"" + n(m.distL) + "\" distR=\"" + n(m.distR) + "\" simplePos=\"0\" relativeHeight=\"" +
-             n(m.relativeHeight) + "\" behindDoc=\"" + (behind ? "1" : "0") + "\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\">";
+        Attributes flags = m.anchorFlags;
+        auto flag = [&](const char *name, const char *fallback) {
+            const QByteArray v = attributeValue(flags, name);
+            return v.isEmpty() ? QByteArray(fallback) : v;
+        };
+        x += "<wp:anchor distT=\"" + n(m.distT) + "\" distB=\"" + n(m.distB) + "\" distL=\"" + n(m.distL) + "\" distR=\"" + n(m.distR) + "\" simplePos=\"" + flag("simplePos", "0") + "\" relativeHeight=\"" +
+             n(m.relativeHeight) + "\" behindDoc=\"" + (behind ? "1" : "0") + "\" locked=\"" + flag("locked", "0") + "\" layoutInCell=\"" + flag("layoutInCell", "1") + "\" allowOverlap=\"" +
+             flag("allowOverlap", "1") + "\"" + written(m.itemAttributes) + ">";
         x += "<wp:simplePos x=\"0\" y=\"0\"/>" + (m.posH.isEmpty() ? defaultPosH() : m.posH) + (m.posV.isEmpty() ? defaultPosV() : m.posV) + extent + m.effectExtent;
         x += !m.wrapRaw.isEmpty() && m.wrapRawOf == m.wrap ? m.wrapRaw : wrapElement(m.wrap);
-        x += docPr + frame + m.graphic + "</wp:anchor>";
+        x += m.between + docPr + frame + m.graphic + trailing + "</wp:anchor>";
     }
     x += "</w:drawing>";
     return x;
@@ -138,6 +237,13 @@ bool parseDrawing(const QByteArray &raw, Model *m)
     }
     if (item < 0) return false;
     Model out;
+    // (What the drawing declares itself, the wrapper's own declarations left out.)
+    {
+        Attributes all;
+        const Attributes mine = attributesOf(raw.left(raw.indexOf('>') + 1), &all);
+        Q_UNUSED(mine);
+        out.declarations = all;
+    }
     out.floating = t.localName(item) == "anchor";
     out.distT = emuAttr(t, item, "distT");
     out.distB = emuAttr(t, item, "distB");
@@ -145,23 +251,36 @@ bool parseDrawing(const QByteArray &raw, Model *m)
     out.distR = emuAttr(t, item, "distR");
     if (t.has(item, "relativeHeight")) out.relativeHeight = std::clamp<qint64>(t.attr(item, "relativeHeight").toLongLong(), 0, 4294967295LL);
     const bool behind = t.attr(item, "behindDoc") == QLatin1String("1") || t.attr(item, "behindDoc") == QLatin1String("true");
-    bool wrapNone = false;
+    {
+        Attributes ignored;
+        const Attributes attrs = attributesOf(t.startTag(item), &ignored);
+        static const QSet<QByteArray> set = {"distT", "distB", "distL", "distR", "relativeHeight", "behindDoc"};
+        static const QSet<QByteArray> flags = {"locked", "layoutInCell", "allowOverlap", "simplePos"};
+        for (const auto &a : attrs) {
+            if (set.contains(a.first)) continue;
+            if (flags.contains(a.first)) out.anchorFlags.push_back(a);
+            else out.itemAttributes.push_back(a);
+        }
+    }
+    bool wrapNone = false, sawGraphic = false;
     for (int k = t.firstChild(item); k >= 0; k = t.next(k)) {
         const QByteArray tag = t.localName(k);
         if (tag == "extent") {
             out.cx = emuAttr(t, k, "cx");
             out.cy = emuAttr(t, k, "cy");
+        } else if (tag == "simplePos") {
+            continue;
         } else if (tag == "effectExtent") {
             out.effectExtent = t.raw(k);
         } else if (tag == "docPr") {
-            out.id = int(std::clamp<qint64>(t.attr(k, "id").toLongLong(), 0, 2000000000));
-            out.name = attribute(t.attr(k, "name"), 255);
-            out.descr = attribute(t.attr(k, "descr"), kMostAltTextLength);
-            out.title = attribute(t.attr(k, "title"), kMostAltTextLength);
+            Attributes ignored;
+            out.docPr = attributesOf(t.startTag(k), &ignored);
+            out.docPrInner = t.isEmptyElement(k) ? QByteArray() : t.inner(k);
         } else if (tag == "cNvGraphicFramePr") {
             out.frameProps = t.raw(k);
         } else if (tag == "graphic") {
             out.graphic = t.raw(k);
+            sawGraphic = true;
         } else if (tag == "positionH") {
             out.posH = t.raw(k);
         } else if (tag == "positionV") {
@@ -170,9 +289,14 @@ bool parseDrawing(const QByteArray &raw, Model *m)
             out.wrapRaw = t.raw(k);
             out.wrapRawOf = tag == "wrapSquare" ? PictureWrap::Square : tag == "wrapTopAndBottom" ? PictureWrap::TopAndBottom : tag == "wrapNone" ? PictureWrap::InFrontOfText : PictureWrap::Tight;
             wrapNone = tag == "wrapNone";
+        } else if (sawGraphic) {
+            out.trailing.push_back({tag, t.raw(k)});
+        } else {
+            out.between += t.raw(k);
         }
     }
     if (out.graphic.isEmpty() || !out.graphic.contains("blip") || out.cx <= 0 || out.cy <= 0) return false;
+    if (out.docPr.isEmpty()) out.docPr = {{"id", "\"1\""}, {"name", "\"Picture\""}};
     if (!out.floating) {
         out.wrap = PictureWrap::Inline;
     } else if (wrapNone || out.wrapRaw.isEmpty()) {
@@ -185,20 +309,30 @@ bool parseDrawing(const QByteArray &raw, Model *m)
     return true;
 }
 
+// The highest id a drawing in these bytes has (a wp:docPr's).
+int highestDrawingIdIn(const QByteArray &bytes)
+{
+    int highest = 0;
+    for (qsizetype at = bytes.indexOf("docPr"); at >= 0; at = bytes.indexOf("docPr", at + 5)) {
+        const qsizetype id = bytes.indexOf(" id=\"", at);
+        if (id < 0 || id - at > 400) continue;
+        int value = 0, digits = 0;
+        for (qsizetype i = id + 5; i < bytes.size() && bytes[i] >= '0' && bytes[i] <= '9' && digits < 9; ++i, ++digits) value = value * 10 + (bytes[i] - '0');
+        highest = std::max(highest, value);
+    }
+    return highest;
+}
+
 // The highest id the text's drawings have.
 int highestDrawingId(const QTextDocument *story)
 {
     int highest = 0;
-    static const QRegularExpression idPattern(QStringLiteral("<wp:docPr[^>]*?\\sid=\"([0-9]{1,9})\""));
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextCharFormat cf = it.fragment().charFormat();
             if (!cf.hasProperty(prop::Atom)) continue;
             const QByteArray bytes = storedBytes(cf, prop::Atom);
-            if (!bytes.contains("docPr")) continue;
-            const QString text = QString::fromLatin1(bytes);
-            auto found = idPattern.globalMatch(text);
-            while (found.hasNext()) highest = std::max(highest, found.next().captured(1).toInt());
+            if (bytes.contains("docPr")) highest = std::max(highest, highestDrawingIdIn(bytes));
         }
     return std::min(highest, 2000000000 - 2);
 }
@@ -257,10 +391,44 @@ PictureResult encodeImage(const QImage &image, Prepared *out)
     return PictureResult::Ok;
 }
 
+// Whether bytes are an SVG file (by what they begin with, whatever plugin is there to read them).
+bool looksLikeSvg(const QByteArray &bytes)
+{
+    if (bytes.startsWith("\x1f\x8b")) return false;
+    return bytes.left(4096).toLower().contains("<svg");
+}
+
+// Whether an SVG refers to anything outside itself: a file, an address, a style sheet, or a definition of its own that a reader might load. What it holds of its own (a link to an
+// element of it, or an image carried in it as data) is its own.
+bool svgReachesOutside(const QByteArray &svg)
+{
+    const QString text = QString::fromUtf8(svg);
+    static const QRegularExpression doctype(QStringLiteral("<!\\s*(DOCTYPE|ENTITY)|<\\?xml-stylesheet|@import"), QRegularExpression::CaseInsensitiveOption);
+    if (doctype.match(text).hasMatch()) return true;
+    static const QRegularExpression href(QStringLiteral("(?:^|[\\s:])href\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"), QRegularExpression::CaseInsensitiveOption);
+    for (auto it = href.globalMatch(text); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        const QString value = (m.captured(1).isEmpty() ? m.captured(2) : m.captured(1)).trimmed();
+        if (!value.startsWith(QLatin1Char('#')) && !value.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) return true;
+    }
+    static const QRegularExpression url(QStringLiteral("url\\(\\s*[\"']?\\s*([^)\"']*)"), QRegularExpression::CaseInsensitiveOption);
+    for (auto it = url.globalMatch(text); it.hasNext();) {
+        const QString value = it.next().captured(1).trimmed();
+        if (!value.startsWith(QLatin1Char('#')) && !value.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) return true;
+    }
+    return false;
+}
+
 PictureResult prepare(const QByteArray &input, Prepared *out)
 {
     if (input.isEmpty()) return PictureResult::Unreadable;
     if (qint64(input.size()) > kMostPictureBytes) return PictureResult::TooLarge;
+    if (looksLikeSvg(input)) {
+        if (qint64(input.size()) > kMostSvgBytes) return PictureResult::TooLarge;
+        if (svgReachesOutside(input)) return PictureResult::External;
+    } else if (input.startsWith("\x1f\x8b")) {
+        return PictureResult::Unreadable;   // (a compressed SVG hides what it refers to)
+    }
     QByteArray copy = input;
     QBuffer buffer(&copy);
     buffer.open(QIODevice::ReadOnly);
@@ -308,20 +476,27 @@ PictureResult insertPrepared(WriteDoc &doc, QTextCursor &c, const Prepared &p, c
     const QSizeF size = fitted(doc, c.selectionStart(), p.size);
     bool added = false;
     const QString rid = doc.addMedia(p.bytes, p.extension, p.contentType, &added);
+    // (The pictures of a document come to no more than the total.)
+    if (added && doc.mediaBytes() > doc.mediaLimit) {
+        doc.removeMedia(rid);
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.");
+        return PictureResult::TooLarge;
+    }
     Model m;
     m.floating = wrap != PictureWrap::Inline;
     m.wrap = wrap;
     m.wrapRawOf = wrap;
     m.cx = emuOf(size.width());
     m.cy = emuOf(size.height());
-    m.id = doc.nextDrawingId(doc.story());
-    m.name = attribute(name.isEmpty() ? QStringLiteral("Picture %1").arg(m.id) : name, 255);
-    m.descr = attribute(alt, kMostAltTextLength);
+    const int id = doc.nextDrawingId(doc.story());
+    const QByteArray pictureName = attribute(name.isEmpty() ? QStringLiteral("Picture %1").arg(id) : name, 255);
+    m.docPr = {{"id", quote(QByteArray::number(id))}, {"name", quote(pictureName)}};
+    if (!alt.isEmpty()) m.docPr.push_back({"descr", quote(attribute(alt, kMostAltTextLength))});
     if (m.floating) {
         m.distL = m.distR = 114300;
         if (wrap == PictureWrap::BehindText) m.relativeHeight = 251658240 - 1;
     }
-    m.graphic = pictureGraphic(rid, m.cx, m.cy, m.name, m.id);
+    m.graphic = pictureGraphic(rid, m.cx, m.cy, pictureName, id);
     Inline atom;
     atom.kind = Inline::RunAtom;
     atom.tag = QStringLiteral("drawing");
@@ -360,7 +535,10 @@ bool changePicture(WriteDoc &doc, int position, const std::function<bool(Model &
     QTextCursor edit(story);
     edit.setPosition(position);
     edit.setPosition(position + 1, QTextCursor::KeepAnchor);
+    const QTextCharFormat was = formatAfter(story, position);
     edit.setCharFormat(cf);
+    doc.retireDrawnForm(was);
+    doc.keepObjectsForTheHistory();
     return true;
 }
 
@@ -379,9 +557,18 @@ QByteArray graphicWithSize(const QByteArray &graphic, qint64 cx, qint64 cy)
 
 int WriteDoc::nextDrawingId(const QTextDocument *story)
 {
-    if (m_drawingId == 0) m_drawingId = highestDrawingId(story);   // (found once; a number is not used twice because a step was undone)
+    if (m_drawingId == 0) {
+        // The text's drawings, and every part of the file that might have one (the headers, the footers, the notes).
+        m_drawingId = highestDrawingId(story);
+        for (const KeptPart &part : std::as_const(m_wml.parts))
+            if (part.contentType.contains(QLatin1String("xml"))) m_drawingId = std::max(m_drawingId, std::min(highestDrawingIdIn(part.data), 2000000000 - 2));
+        for (const HeaderPart &hp : std::as_const(m_headerParts))
+            if (hp.story) m_drawingId = std::max(m_drawingId, highestDrawingId(hp.story.get()));
+    }
     return ++m_drawingId;
 }
+
+void WriteDoc::forgetDrawingIds() { m_drawingId = 0; }
 
 bool isPictureAt(const QTextDocument *story, int position)
 {
@@ -488,8 +675,9 @@ bool setPictureAltText(WriteDoc &doc, int position, const QString &alt)
 {
     const QByteArray text = attribute(alt, kMostAltTextLength);
     return changePicture(doc, position, [&](Model &m) {
-        if (m.descr == text) return false;
-        m.descr = text;
+        if (attributeValue(m.docPr, "descr") == text) return false;
+        if (text.isEmpty()) removeAttribute(&m.docPr, "descr");
+        else setAttribute(&m.docPr, "descr", quote(text));
         return true;
     });
 }
@@ -515,5 +703,30 @@ bool movePictureInText(WriteDoc &doc, int position, int to)
     edit.endEditBlock();
     return true;
 }
+
+PictureResult readPictureFile(const QString &path, QByteArray *bytes)
+{
+    // Only a regular file (a link to one too): a pipe would wait for a writer, and a device or a link to one has no end.
+    if (!QFileInfo(path).isFile()) return PictureResult::Unreadable;
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return PictureResult::Unreadable;
+    const QByteArray data = f.read(kMostPictureBytes + 1);
+    if (qint64(data.size()) > kMostPictureBytes) return PictureResult::TooLarge;
+    *bytes = data;
+    return PictureResult::Ok;
+}
+
+void clampKeepingRatio(double *width, double *height)
+{
+    if (!std::isfinite(*width) || *width <= 0) *width = kLeastPictureSize;
+    if (!std::isfinite(*height) || *height <= 0) *height = kLeastPictureSize;
+    const double big = std::max(*width, *height), small = std::min(*width, *height);
+    double k = big > kMostPictureSize ? kMostPictureSize / big : 1;
+    if (small * k < kLeastPictureSize) k = kLeastPictureSize / small;
+    *width = std::clamp(*width * k, kLeastPictureSize, kMostPictureSize);
+    *height = std::clamp(*height * k, kLeastPictureSize, kMostPictureSize);
+}
+
+QString cleanAltText(const QString &text) { return cleanText(text, kMostAltTextLength); }
 
 } // namespace jp::write
