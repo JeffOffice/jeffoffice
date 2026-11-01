@@ -665,9 +665,18 @@ EditSession::Outcome EditSession::typeInto(int sheet, qint64 row1, qint64 col1, 
     CellChange first;
     bool none = false;
     if (!typedChange(sheet, activeRow, activeCol, typed, &first, &none, &out)) return out;
+    // the cells a merged area hides (all but its top left) are left as they are
+    std::set<quint64> hidden;
+    for (const CellRange &m : m_book->calc->mergesOf(sheet)) {
+        if (qint64(m.row1) > row2 || qint64(m.row2) < row1 || qint64(m.col1) > col2 || qint64(m.col2) < col1) continue;
+        for (qint64 r = std::max<qint64>(m.row1, row1); r <= std::min<qint64>(m.row2, row2); ++r)
+            for (qint64 c = std::max<qint64>(m.col1, col1); c <= std::min<qint64>(m.col2, col2); ++c)
+                if (r != qint64(m.row1) || c != qint64(m.col1)) hidden.insert((quint64(r) << 32) | quint64(c));
+    }
     Step step;
     for (qint64 r = row1; r <= row2; ++r) {
         for (qint64 c = col1; c <= col2; ++c) {
+            if (!hidden.empty() && hidden.count((quint64(r) << 32) | quint64(c))) continue;
             if (!canEditCell(sheet, quint32(r), quint32(c), &why)) {
                 out.ok = false;
                 out.problem = why;
@@ -900,7 +909,10 @@ bool EditSession::apply(Step *step, bool forward)
     }
     // (a step of objects, of page setups, or of notes and links alone changes no cell: the worker is not held for it)
     if ((!step->objects.empty() || !step->pages.empty() || !step->sides.empty() || !step->protections.empty()) && step->cells.empty() && step->renames.empty() && step->sizes.empty() && step->merges.empty() && !step->structure) return true;
-    if (step->structure) return applyStructure(step, forward);
+    if (step->structure) {
+        ++m_outlineRevision;   // (rows or columns put in or taken out move the lines)
+        return applyStructure(step, forward);
+    }
     QElapsedTimer waited;
     waited.start();
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
@@ -1092,6 +1104,7 @@ bool EditSession::apply(Step *step, bool forward)
         m_values->apply(byIds);
     }
     for (auto &entry : cells) Q_EMIT cellsChanged(entry.first, entry.second);
+    if (!step->sizes.empty() || !step->filters.empty() || !step->rowSpecs.empty()) ++m_outlineRevision;   // (the lines' sizes, hiding, or outline may be other than they were)
     for (const SizeEdit &e : step->sizes) Q_EMIT sizesChanged(e.sheet);
     for (const int sheet : m_sheetsRestyled) Q_EMIT sizesChanged(sheet);
     m_sheetsRestyled.clear();

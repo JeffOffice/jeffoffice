@@ -309,6 +309,7 @@ void CrunchWindow::afterSheetShown(int sheetIndex, bool inPlace)
 void CrunchWindow::rememberView()
 {
     if (m_sheet >= 0) m_views.insert(m_sheet, m_view->viewState());
+    syncPanes();   // (a sheet that is left keeps the scroll and the cursor it had)
 }
 
 void CrunchWindow::setActiveSheet(int sheetIndex)

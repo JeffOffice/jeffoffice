@@ -8,6 +8,7 @@
 #include "grid/objectlayer.h"
 
 #include <QApplication>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QSignalSpy>
 #include <QTest>
@@ -1274,10 +1275,15 @@ private Q_SLOTS:
         QCOMPARE(b.view->selection().range.row1, qint64(0));   // (the cursor did not move, nor did the cells select anything)
         QCOMPARE(selected.size(), 0);
         QTest::mouseMove(b.view->viewport(), r.center() + QPoint(2, 2));
-        QCOMPARE(b.view->viewport()->cursor().shape(), Qt::SizeAllCursor);
+        QTRY_COMPARE(b.view->viewport()->cursor().shape(), Qt::SizeAllCursor);
         QTest::mouseClick(b.view->viewport(), Qt::RightButton, Qt::NoModifier, r.center());
         QCOMPARE(menu.size(), 1);
-        QTest::mouseDClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, r.center());
+        // (a double click is its four events sent with the kinds a double click has, so that nothing depends on the time between this click and the right click before it)
+        for (const QEvent::Type type : {QEvent::MouseButtonPress, QEvent::MouseButtonRelease, QEvent::MouseButtonDblClick, QEvent::MouseButtonRelease}) {
+            const bool down = type != QEvent::MouseButtonRelease;
+            QMouseEvent event(type, QPointF(r.center()), QPointF(b.view->viewport()->mapToGlobal(r.center())), Qt::LeftButton, down ? Qt::LeftButton : Qt::NoButton, Qt::NoModifier);
+            QVERIFY(QApplication::sendEvent(b.view->viewport(), &event));
+        }
         QCOMPARE(activated.size(), 1);
         // a right click on a cell is the cells'
         QSignalSpy cellMenu(b.view.get(), &GridView::contextMenuRequested);

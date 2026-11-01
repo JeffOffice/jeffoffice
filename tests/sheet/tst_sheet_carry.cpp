@@ -184,6 +184,20 @@ private Q_SLOTS:
         QVERIFY(p.gradient && !p.border && p.axis == CondRule::Axis::Automatic && !p.rightToLeft && p.showValue);
     }
 
+    // A column's outline level is held to 0 to 7 as a row's is: a level below 0 (or no number) is none, and one past the most is the most.
+    void aColumnsOutlineLevelIsHeldToZeroToSeven()
+    {
+        const QByteArray xml = sheetWith(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), QString(),
+                                         QStringLiteral("<cols><col min=\"1\" max=\"1\" width=\"9\" customWidth=\"1\" outlineLevel=\"-1\"/><col min=\"2\" max=\"2\" width=\"9\" customWidth=\"1\" outlineLevel=\"12\"/>"
+                                                        "<col min=\"3\" max=\"3\" width=\"9\" customWidth=\"1\" outlineLevel=\"3\"/></cols>"));
+        Sheet sheet;
+        QVERIFY(readSheetXml(xml, &sheet));
+        QCOMPARE(sheet.columns.size(), 3);
+        QCOMPARE(sheet.columns[0].outline, quint8(0));
+        QCOMPARE(sheet.columns[1].outline, quint8(7));
+        QCOMPARE(sheet.columns[2].outline, quint8(3));
+    }
+
     // A row's outline level and whether its group is collapsed, and the deepest levels the sheet says, are read, and a sheet made from them (a copy) writes them again, in its rows and in
     // the format of its sheet.
     void theOutlineOfRowsIsReadAndWritten()

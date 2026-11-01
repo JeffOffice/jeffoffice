@@ -518,7 +518,7 @@ QByteArray paneFromChange(const QByteArray &head, const SheetView &v, const QByt
     }
     inner += others;
     auto startTag = [&](QByteArray tag) {
-        if (frozen && (v.topRow || v.leftCol)) setAttr(&tag, "topLeftCell", cell(v.topRow, v.leftCol));
+        if (v.topRow || v.leftCol) setAttr(&tag, "topLeftCell", cell(v.topRow, v.leftCol));
         else dropAttr(&tag, "topLeftCell");
         return tag;
     };

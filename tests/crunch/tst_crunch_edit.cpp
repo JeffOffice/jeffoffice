@@ -226,6 +226,20 @@ private Q_SLOTS:
         QCOMPARE(e.selected(), QStringLiteral("H1"));
     }
 
+    // Ctrl+Enter puts the entry in the top left cell of a merged area and leaves the other cells of the area as they are (they are hidden by it).
+    void ctrlEnterKeepsToTheTopLeftCellOfAMergedArea()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"2\"><c r=\"C2\"><v>1</v></c></row>"), QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"B2:C3\"/></mergeCells>"))})));
+        e.view()->selectRange(1, 0, 3, 3);   // A2:D4
+        e.type(QStringLiteral("7"));
+        e.key(Qt::Key_Return, Qt::ControlModifier);
+        for (const char *ref : {"A2", "A3", "A4", "B2", "D2", "D3", "D4", "B4", "C4"}) QCOMPARE(e.valueAt(QString::fromLatin1(ref)), QStringLiteral("n:7"));
+        QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("-"));   // (hidden by the area)
+        QCOMPARE(e.valueAt(QStringLiteral("C3")), QStringLiteral("-"));
+        QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("n:1"));  // (and so is C2, which held something before)
+    }
+
     // Ctrl+; puts today's date in the cell and Ctrl+Shift+; the time now, each as a number the cell shows as a date or a time; while an entry is typed they are put in the entry.
     void todaysDateAndTheTimeByKeys()
     {

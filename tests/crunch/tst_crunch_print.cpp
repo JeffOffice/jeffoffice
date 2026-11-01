@@ -1959,6 +1959,41 @@ private Q_SLOTS:
         QVERIFY(all.indexOf(QStringLiteral("Cell A2: Ann: Check this")) < all.indexOf(QStringLiteral("Cell C5: Second")));
     }
 
+    // Where the view is scrolled to and where the cursor is are taken when the file is saved, not when the panes were frozen: a sheet frozen and then scrolled and moved on is saved so; and a sheet
+    // that is not frozen is saved scrolled as it is.
+    void theScrollAndTheCursorAreTakenAtTheSave()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("C5"));
+        w.act(QStringLiteral("view.freeze"))->trigger();
+        e.select(QStringLiteral("E70"));   // (scrolled down, and the cursor moved)
+        const qint64 top = e.view()->sheet().layout().pane(grid::Pane::Body).firstRow;
+        QVERIFY(top > 10);
+        auto saveAndRead = [&] {
+            QSignalSpy saved(&w, &CrunchWindow::saved);
+            if (!w.save() || !savedOk(saved, 20000)) return QByteArray();
+            Package pk;
+            QString why;
+            if (!pk.readLazyFile(e.path, &why)) return QByteArray();
+            return pk.part(QStringLiteral("xl/worksheets/sheet1.xml"));
+        };
+        QByteArray xml = saveAndRead();
+        QVERIFY(!xml.isEmpty());
+        QVERIFY2(xml.contains(QStringLiteral("<pane xSplit=\"2\" ySplit=\"4\" topLeftCell=\"C%1\"").arg(top + 1).toUtf8()), xml.left(1200).constData());
+        QVERIFY2(xml.contains("pane=\"bottomRight\" activeCell=\"E70\""), xml.left(1200).constData());
+        // unfrozen, the sheet keeps where it is scrolled to
+        w.act(QStringLiteral("view.unfreeze"))->trigger();
+        e.select(QStringLiteral("B90"));
+        const qint64 first = e.view()->firstRowInView();
+        QVERIFY(first > 10);
+        xml = saveAndRead();
+        QVERIFY(!xml.contains("<pane"));
+        QVERIFY2(xml.contains(QStringLiteral("topLeftCell=\"A%1\"").arg(first + 1).toUtf8()), xml.left(1200).constData());
+        QVERIFY(xml.contains("activeCell=\"B90\""));
+    }
+
     // ---- pictures in headers and footers (printing 2)
 
     // A picture in the center of the header is drawn on the printed page, at the size the file gives, hung from the header's distance from the top; the same page without it is white there.

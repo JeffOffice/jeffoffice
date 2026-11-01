@@ -491,12 +491,13 @@ void CrunchWindow::syncPanes()
     v.frozenRows = quint32(std::max<qint64>(0, st.frozenRows - st.skipRows));
     v.frozenCols = quint32(std::max<qint64>(0, st.frozenCols - st.skipCols));
     v.frozen = v.frozenRows || v.frozenCols;
-    if (v.frozen) {
-        v.topRow = quint32(st.skipRows);
-        v.leftCol = quint32(st.skipCols);
-        v.paneRow = quint32(std::max<qint64>(st.frozenRows, 0));
-        v.paneCol = quint32(std::max<qint64>(st.frozenCols, 0));
-    }
+    // where the view is now: the lines in view first (a direction that is not frozen is scrolled as it is), and for a frozen direction where the frozen part begins and where the part that scrolls does
+    const grid::PaneView body = m_view->sheet().layout().pane(grid::Pane::Body);
+    const quint32 firstRow = quint32(std::max<qint64>(0, m_view->firstRowInView())), firstCol = quint32(std::max<qint64>(0, m_view->firstColInView()));
+    v.topRow = v.frozenRows ? quint32(st.skipRows) : firstRow;
+    v.leftCol = v.frozenCols ? quint32(st.skipCols) : firstCol;
+    v.paneRow = v.frozenRows ? quint32(std::max<qint64>(st.frozenRows, body.isEmpty() ? 0 : body.firstRow)) : firstRow;
+    v.paneCol = v.frozenCols ? quint32(std::max<qint64>(st.frozenCols, body.isEmpty() ? 0 : body.firstCol)) : firstCol;
     const grid::Selection &sel = m_view->selection();
     v.activeRow = quint32(std::max<qint64>(0, sel.activeRow));
     v.activeCol = quint32(std::max<qint64>(0, sel.activeCol));

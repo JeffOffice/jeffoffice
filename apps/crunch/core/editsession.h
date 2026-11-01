@@ -629,6 +629,10 @@ public:
     Outcome changeOutline(int sheet, bool columns, const std::vector<OutlineChange> &changes, const QString &text);
     // The outline the rows (or the columns) of a sheet have now.
     Outline outlineOf(int sheet, bool columns) const;
+    // How many outlines have been made so far (counted, for tests), and a number that changes whenever the rows' or columns' sizes, hiding, or outline, or their places, may have (a step
+    // done, undone, or redone): an outline made at one number is the outline until the number changes.
+    qint64 outlinesBuilt() const { return m_outlinesBuilt; }
+    qint64 outlineRevision() const { return m_outlineRevision; }
     Outcome resizeColumns(int sheet, quint32 first, quint32 last, const SizeChange &change, const QString &text);
     Outcome resizeRows(int sheet, quint32 first, quint32 last, const SizeChange &change, const QString &text);
     // Columns each given its width in one step (a fit to the contents of several): the column and the width.
@@ -903,6 +907,8 @@ private:
     ResultMap m_results;      // formulas whose value is not the file's
     ResultMap m_engineAtStart;  // for a formula whose result has changed: the engine's value before its first change since the file was read or saved
     qint64 m_token;
+    mutable qint64 m_outlinesBuilt = 0;
+    qint64 m_outlineRevision = 0;
     std::set<int> m_formatsChanged;  // the sheets whose default sizes a step changed since the file was read or saved
     bool m_sheetsListed = false;                          // a step changed the list of sheets since the file was read or saved
     std::set<int> m_sheetsRestyled;                       // the sheets a step gave the format of very many cells (drawn again whole)

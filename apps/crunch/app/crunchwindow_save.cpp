@@ -58,6 +58,7 @@ bool CrunchWindow::save()
 bool CrunchWindow::snapshotBytesForTest(QByteArray *bytes, QString *why)
 {
     if (!m_session || !m_loaded) return false;
+    syncPanes();
     crunch::EditSession::Snapshot snapshot;
     if (!m_session->takeSnapshot(&snapshot, why)) return false;
     if (m_objects) m_objects->addToSave(&snapshot.changes);
@@ -114,6 +115,7 @@ bool CrunchWindow::startSave(const QString &path)
     if (!m_session || m_saving) return false;
     if (crunch::isCsvName(path)) return exportCsv(path);
     if (!commitEdit()) return false;
+    syncPanes();   // (where the view is scrolled to and where the cursor is, now, are what the file keeps)
     // a workbook read from a file of another form is never written over the file it came from, whatever that file is called, and for as long as the window has the workbook (after the first
     // save the window's file is the .xlsx, and the original is still not its own)
     if (isTheOriginal(path)) {

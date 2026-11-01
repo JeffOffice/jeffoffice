@@ -4,6 +4,8 @@
 // cell, in it with F2 or a double click, or in the formula bar), clears them with Delete, undoes and redoes, and saves the workbook as it was read with only what changed put in.
 
 #include "app/appwindow.h"
+
+#include <tuple>
 #include "app/anchordialogs.h"
 #include "app/celleditor.h"
 #include "app/filterpopup.h"
@@ -494,7 +496,8 @@ private:
     // the outline of the rows and columns (crunchwindow_outline.cpp)
     void createOutlineActions();
     QWidget *buildOutlineGutters(QWidget *parent);
-    void refreshOutline();
+    void refreshOutline(bool force = false);
+    std::tuple<const void *, int, qint64> m_outlineSeen{nullptr, -1, -1};
     void outlineGroupClicked(bool columns, const crunch::Outline::Group &group);
     void outlineLevelClicked(bool columns, int level);
     void groupSelected(bool columns, bool group);

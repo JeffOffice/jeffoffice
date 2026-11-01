@@ -1011,7 +1011,7 @@ bool SheetReader::startColumns(const QXmlStreamReader &r)
     bool styleOk = false;
     const uint style = attribute(r, "style").toUInt(&styleOk);
     c.style = styleOk ? style : 0;
-    c.outline = quint8(std::min(7, attribute(r, "outlineLevel").toInt()));
+    c.outline = quint8(std::clamp(attribute(r, "outlineLevel").toInt(), 0, 7));
     c.collapsed = parseBool(attribute(r, "collapsed").toString());
     c.bestFit = parseBool(attribute(r, "bestFit").toString());
     c.phonetic = parseBool(attribute(r, "phonetic").toString());

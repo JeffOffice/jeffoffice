@@ -53,7 +53,7 @@ bool samePanes(const jp::office::sheet::SheetView &a, const jp::office::sheet::S
 {
     const bool fa = a.frozen && (a.frozenRows || a.frozenCols), fb = b.frozen && (b.frozenRows || b.frozenCols);
     if (fa != fb) return false;
-    if (!fa) return true;
+    if (!fa) return a.topRow == b.topRow && a.leftCol == b.leftCol;   // (not held: where the view is scrolled to)
     return a.frozenRows == b.frozenRows && a.frozenCols == b.frozenCols && a.topRow == b.topRow && a.leftCol == b.leftCol && a.paneRow == b.paneRow && a.paneCol == b.paneCol;
 }
 

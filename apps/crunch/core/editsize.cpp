@@ -221,6 +221,7 @@ EditSession::Outcome EditSession::changeOutline(int sheet, bool columns, const s
 
 Outline EditSession::outlineOf(int sheet, bool columns) const
 {
+    ++m_outlinesBuilt;
     std::vector<OutlineLine> lines;
     const Calculation *calc = m_book->calc.get();
     if (columns) {

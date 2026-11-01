@@ -342,6 +342,119 @@ private Q_SLOTS:
         QCOMPARE(shown(e, QStringLiteral("A1:A2")), QStringLiteral("5|5"));
     }
 
+    // A fill is refused only where a merged area would be left wrong: one that straddles the edge between the cells filled from and those filled, one that is cut by either, and one in the cells
+    // filled that is not the size of the area in the same place of the cells filled from. A merged area wholly inside the cells filled from fills as the values are, with or without a like area
+    // where it goes.
+    void fillGoesPastMergedAreasThatMatch()
+    {
+        using Dir = crunch::EditSession::FillDirection;
+        auto book = [](const QString &merges) {
+            const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>x</t></is></c><c r=\"B1\"><v>1</v></c></row><row r=\"2\"><c r=\"B2\"><v>2</v></c></row>");
+            return buildXlsx({worksheet(rows, merges.isEmpty() ? QString() : QStringLiteral("<mergeCells count=\"%1\">%2</mergeCells>").arg(merges.count(QLatin1String("<mergeCell "))).arg(merges))});
+        };
+        auto cell = [](const char *ref) { return QStringLiteral("<mergeCell ref=\"%1\"/>").arg(QLatin1String(ref)); };
+        {
+            EditWindow e;   // the area in the cells filled from, and a like area where the fill goes
+            QVERIFY(e.open(book(cell("A1:A2") + cell("A3:A4"))));
+            QVERIFY(e.win.w.session()->fill(0, rangeOf(QStringLiteral("A1:B2")), Dir::Down, 2).ok);
+            QCOMPARE(shown(e, QStringLiteral("A3:B4")), QStringLiteral("x|3||4"));   // (the numbers go on as a series)
+        }
+        {
+            EditWindow e;   // the area in the cells filled from only
+            QVERIFY(e.open(book(cell("A1:A2"))));
+            QVERIFY(e.win.w.session()->fill(0, rangeOf(QStringLiteral("A1:B2")), Dir::Down, 2).ok);
+            QCOMPARE(shown(e, QStringLiteral("A3:B4")), QStringLiteral("x|3||4"));   // (the numbers go on as a series)
+        }
+        {
+            EditWindow e;   // an area where it goes that is not the size of the one it is copied from
+            QVERIFY(e.open(book(cell("A1:A2") + cell("A3:B3"))));
+            const auto o = e.win.w.session()->fill(0, rangeOf(QStringLiteral("A1:B2")), Dir::Down, 2);
+            QVERIFY(!o.ok);
+            QVERIFY(o.problem.contains(QLatin1String("merged")));
+            QCOMPARE(e.win.w.undoStack()->count(), 0);
+        }
+        {
+            EditWindow e;   // an area that begins in the cells filled and goes on past them
+            QVERIFY(e.open(book(cell("A3:A4"))));
+            QVERIFY(!e.win.w.session()->fill(0, rangeOf(QStringLiteral("A1:B2")), Dir::Down, 1).ok);
+        }
+        {
+            EditWindow e;   // an area that is cut by the cells filled from
+            QVERIFY(e.open(book(cell("A2:A3"))));
+            QVERIFY(!e.win.w.session()->fill(0, rangeOf(QStringLiteral("A1:B2")), Dir::Down, 1).ok);
+        }
+    }
+
+    // At the edges of the sheet: a fill that is asked to go past the last row (or the first) stops there, and a merged area on the edge is judged by the cells that are filled, with no arithmetic that
+    // wraps.
+    void fillAtTheEdgesOfTheSheetStopsAndJudgesMergedAreas()
+    {
+        using Dir = crunch::EditSession::FillDirection;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row>"
+                                            "<row r=\"1048575\"><c r=\"A1048575\"><v>9</v></c></row>");
+        auto book = [&](const QString &merge) {
+            return buildXlsx({worksheet(rows, merge.isEmpty() ? QString() : QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"%1\"/></mergeCells>").arg(merge))});
+        };
+        {
+            EditWindow e;
+            QVERIFY(e.open(book(QString())));
+            crunch::EditSession *s = e.win.w.session();
+            QVERIFY(s->fill(0, rangeOf(QStringLiteral("A1048575")), Dir::Down, 4000000000u, crunch::EditSession::FillOptions()).ok);   // (one row is left)
+            QCOMPARE(s->calculation()->content(0, 1048575, 0).value.number(), 9.0);
+            QVERIFY(s->fill(0, rangeOf(QStringLiteral("A2")), Dir::Up, 4000000000u).ok);               // (one row is above)
+            QCOMPARE(s->calculation()->content(0, 0, 0).value.number(), 2.0);
+        }
+        {
+            EditWindow e;   // the last row is in an area wider than the cells filled from
+            QVERIFY(e.open(book(QStringLiteral("A1048576:B1048576"))));
+            QVERIFY(!e.win.w.session()->fill(0, rangeOf(QStringLiteral("A1048575")), Dir::Down, 4000000000u).ok);
+        }
+        {
+            EditWindow e;
+            QVERIFY(e.open(book(QStringLiteral("A1:B1"))));
+            QVERIFY(!e.win.w.session()->fill(0, rangeOf(QStringLiteral("A2")), Dir::Up, 4000000000u).ok);
+        }
+    }
+
+    // Across Worksheets keeps to the rules of a fill: it does not write over the header row of a table on a sheet it goes to, and it does not go into a merged area on a sheet unless the sheet it is
+    // copied from has a like area in the same cells.
+    void fillAcrossWorksheetsKeepsToTheRulesOfAFill()
+    {
+        using What = crunch::EditSession::FillWhat;
+        const QString merged = QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A1:B1\"/></mergeCells>");
+        {
+            EditWindow e;   // a table's header row on the sheet it goes to
+            QVERIFY(e.open(bookOfSheets({{"A1=5", "B1=6"}, {"A1=head1", "B1=head2", "A2=1", "B2=2"}})));
+            crunch::EditSession *s = e.win.w.session();
+            QVERIFY(s->makeTable(1, rangeOf(QStringLiteral("A1:B2")), true, QStringLiteral("TableStyleMedium2")).ok);
+            const int steps = e.win.w.undoStack()->count();
+            const auto o = s->fillAcrossSheets(0, rangeOf(QStringLiteral("A1:B1")), {1}, What::All);
+            QVERIFY(!o.ok);
+            QVERIFY2(o.problem.contains(QLatin1String("table")), qPrintable(o.problem));
+            QCOMPARE(e.win.w.undoStack()->count(), steps);
+        }
+        {
+            EditWindow e;   // a merged area on the sheet it goes to that the sheet it comes from does not have
+            QVERIFY(e.open(bookOfSheets({{"A1=5", "B1=6"}, {"C1=1"}}, {{1, merged}})));
+            const int steps = e.win.w.undoStack()->count();
+            const auto o = e.win.w.session()->fillAcrossSheets(0, rangeOf(QStringLiteral("A1:B1")), {1}, What::All);
+            QVERIFY(!o.ok);
+            QVERIFY2(o.problem.contains(QLatin1String("merged")), qPrintable(o.problem));
+            QCOMPARE(e.win.w.undoStack()->count(), steps);
+        }
+        {
+            EditWindow e;   // the same area on both
+            QVERIFY(e.open(bookOfSheets({{"A1=5", "B1=6"}, {"C1=1"}}, {{0, merged}, {1, merged}})));
+            QVERIFY(e.win.w.session()->fillAcrossSheets(0, rangeOf(QStringLiteral("A1:B1")), {1}, What::All).ok);
+            QCOMPARE(e.win.w.session()->calculation()->content(1, 0, 0).value.number(), 5.0);
+        }
+        {
+            EditWindow e;   // an area on the sheet it comes from that the range cuts
+            QVERIFY(e.open(bookOfSheets({{"A1=5", "B1=6"}, {"C1=1"}}, {{0, merged}})));
+            QVERIFY(!e.win.w.session()->fillAcrossSheets(0, rangeOf(QStringLiteral("A1:A1")), {1}, What::All).ok);
+        }
+    }
+
     // A fill can copy just the formats, or just the contents, of the cells it goes from.
     void fillCanCopyJustTheFormatsOrJustTheContents()
     {
@@ -558,6 +671,38 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("view.formulas"))->trigger();
         QVERIFY(!e.view()->sheet().showFormulas());
         QCOMPARE(e.view()->sheet().columnWidth(2), c);
+    }
+
+    // Showing the formulas measures the cells of the columns in view, up to a limit for each, once; an edit does not measure them again, except the column of a formula that was typed. A sheet of 200
+    // columns of 500 formulas is 100,000 cells and fewer than a tenth of that are measured.
+    void showFormulasMeasuresOnlyTheColumnsInView()
+    {
+        QString rows;
+        for (int r = 1; r <= 500; ++r) {
+            rows += QStringLiteral("<row r=\"%1\">").arg(r);
+            for (int c = 0; c < 200; ++c) rows += QStringLiteral("<c r=\"%1%2\"><f>SUM(A1:A2)+%3</f><v>1</v></c>").arg(columnName(quint32(c))).arg(r).arg(r * 7 + c);
+            rows += QStringLiteral("</row>");
+        }
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        e.win.w.resize(1000, 600);
+        const grid::GridSheet &gs = e.view()->sheet();
+        const qint64 before = gs.cellsMeasured();
+        e.win.w.act(QStringLiteral("view.formulas"))->trigger();
+        const qint64 turnedOn = gs.cellsMeasured() - before;
+        QVERIFY2(turnedOn > 0 && turnedOn < 10000, qPrintable(QString::number(turnedOn)));
+        QVERIFY(gs.columnWidth(0) > 64);
+        // an edit somewhere else is not measured again
+        e.select(QStringLiteral("GA2"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        QCOMPARE(gs.cellsMeasured() - before, turnedOn);
+        // a formula typed in a column in view makes that column measured again, and no other
+        e.select(QStringLiteral("B7"));
+        e.enter(QStringLiteral("=SUM(A1:A2)+SUM(A1:A2)+SUM(A1:A2)+SUM(A1:A2)+SUM(A1:A2)+SUM(A1:A2)"));
+        QVERIFY(e.settle());
+        const qint64 after = gs.cellsMeasured() - before - turnedOn;
+        QVERIFY2(after > 0 && after <= 600, qPrintable(QString::number(after)));
     }
 
     // A fill that would change a cell that can't be changed (a locked cell of a protected sheet, a table's header) changes nothing and says why; a fill past the edge of the sheet stops
