@@ -416,10 +416,12 @@ private:
                 Ref r;
                 bool ok1 = false, ok2 = false;
                 const qint64 a = m_t.mid(m_pos, p - m_pos).toLongLong(&ok1), b = m_t.mid(p + 1, q - p - 1).toLongLong(&ok2);
-                if (!ok1 || !ok2 || a < 1 || b < 1 || a > kXlsMaxRows || b > kXlsMaxRows) return failNode(QCoreApplication::translate("Sheet", "The formula has a row past the old format's last one."));
+                // (the end of the new form's grid is the end of this one's: a range that runs to the last row is cut at its last)
+                const qint64 bb = b == 1048576 ? kXlsMaxRows : b;
+                if (!ok1 || !ok2 || a < 1 || bb < 1 || a > kXlsMaxRows || bb > kXlsMaxRows) return failNode(QCoreApplication::translate("Sheet", "The formula has a row past the old format's last one."));
                 r.area = true;
                 r.row1 = quint32(a - 1);
-                r.row2 = quint32(b - 1);
+                r.row2 = quint32(bb - 1);
                 r.col1 = 0;
                 r.col2 = kXlsMaxCols - 1;
                 r.row1Abs = r.row2Abs = false;
@@ -648,11 +650,47 @@ private:
             m_pos = afterBang;
         }
         const int bodyStart = m_pos;
+        // a reference to a sheet that is gone ("Sheet2!#REF!") is the error
+        if (prefixed && peek() == QLatin1Char('#')) return parseError();
         // a function: a name directly followed by "("
         if (!prefixed) {
             int p = m_pos;
             while (p < m_t.size() && isIdentChar(m_t[p])) ++p;
             if (p > m_pos && p < m_t.size() && m_t[p] == QLatin1Char('(')) return parseFunction(p);
+        }
+        // a range of whole rows ("$1:$1048576", "Sheet2!2:5")
+        {
+            int q = bodyStart;
+            const bool abs1 = q < m_t.size() && m_t[q] == QLatin1Char('$');
+            if (abs1) ++q;
+            int d1 = q;
+            while (q < m_t.size() && m_t[q].isDigit()) ++q;
+            if (q > d1 && q < m_t.size() && m_t[q] == QLatin1Char(':')) {
+                int q2 = q + 1;
+                const bool abs2 = q2 < m_t.size() && m_t[q2] == QLatin1Char('$');
+                if (abs2) ++q2;
+                const int d2 = q2;
+                while (q2 < m_t.size() && m_t[q2].isDigit()) ++q2;
+                if (q2 > d2 && (q2 >= m_t.size() || !(isIdentChar(m_t[q2]) || m_t[q2] == QLatin1Char('(')))) {
+                    bool ok1 = false, ok2 = false;
+                    const qint64 a = m_t.mid(d1, q - d1).toLongLong(&ok1), b0 = m_t.mid(d2, q2 - d2).toLongLong(&ok2);
+                    const qint64 b = b0 == 1048576 ? kXlsMaxRows : b0;   // (a range to the last row is cut at the old form's last)
+                    if (!ok1 || !ok2 || a < 1 || b < 1 || a > kXlsMaxRows || b > kXlsMaxRows) return failNode(QCoreApplication::translate("Sheet", "The formula has a row past the old format's last one."));
+                    Ref r;
+                    r.is3d = prefixed;
+                    r.sheet1 = s1;
+                    r.sheet2 = s2;
+                    r.area = true;
+                    r.row1 = quint32(a - 1);
+                    r.row2 = quint32(b - 1);
+                    r.row1Abs = abs1;
+                    r.row2Abs = abs2;
+                    r.col1 = 0;
+                    r.col2 = kXlsMaxCols - 1;
+                    m_pos = q2;
+                    return refNode(r);
+                }
+            }
         }
         // a range of whole columns
         {
@@ -664,6 +702,7 @@ private:
                 quint32 c2 = 0;
                 bool a2 = false;
                 if (colAt(m_t, e1 + 1, &e2, &c2, &a2)) {
+                    if (c2 == 16383) c2 = kXlsMaxCols - 1;   // (a range to the last column is cut at the old form's last)
                     if (c1 >= quint32(kXlsMaxCols) || c2 >= quint32(kXlsMaxCols)) return failNode(QCoreApplication::translate("Sheet", "The formula has a column past the old format's last one."));
                     Ref r;
                     r.is3d = prefixed;
@@ -704,6 +743,8 @@ private:
                     quint32 r2 = 0, c2 = 0;
                     bool ra2 = false, ca2 = false;
                     if (cellAt(m_t, e1 + 1, &e2, &r2, &c2, &ra2, &ca2)) {
+                        if (r2 == 1048575) r2 = kXlsMaxRows - 1;   // (a range to the last row or column is cut at the old form's last)
+                        if (c2 == 16383) c2 = kXlsMaxCols - 1;
                         if (r2 >= quint32(kXlsMaxRows) || c2 >= quint32(kXlsMaxCols)) {
                             return failNode(QCoreApplication::translate("Sheet", "The formula has a cell past the old format's last row or column."));
                         }

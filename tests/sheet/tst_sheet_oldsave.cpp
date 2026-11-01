@@ -130,6 +130,23 @@ private Q_SLOTS:
         QCOMPARE(c.xlsReport.formulas, qint64(formulas.size()));
     }
 
+    // A range that runs to the last row or column of the new form runs to the last of the old; a reference to a sheet that is gone is the error.
+    void aRangeToTheLastRowOrColumnIsCutAtTheOldFormsLast()
+    {
+        Copies c;
+        const QStringList in = {QStringLiteral("SUM(Sheet2!$A:$XFD)"), QStringLiteral("SUM(A1:XFD1048576)"), QStringLiteral("INDEX(Sheet2!$1:$1048576,2,3)"), QStringLiteral("COUNT(B2:B1048576)"),
+                                QStringLiteral("Sheet2!#REF!+1"), QStringLiteral("SUM(Sheet2!#REF!:Sheet2!#REF!)")};
+        const QStringList out = {QStringLiteral("SUM(Sheet2!$A:$IV)"), QStringLiteral("SUM(A:IV)"), QStringLiteral("INDEX(Sheet2!A:IV,2,3)"), QStringLiteral("COUNT(B2:B65536)"),
+                                 QStringLiteral("#REF!+1"), QString()};
+        QString rows;
+        for (int i = 0; i < in.size(); ++i) rows += row(i + 1, num(QStringLiteral("A%1").arg(i + 1), 1) + fnum(QStringLiteral("B%1").arg(i + 1), in[i], 5));
+        const QByteArray x = buildXlsx({worksheet(rows), worksheet(row(1, num(QStringLiteral("A1"), 2)))});
+        QVERIFY2(c.make(x, false), qPrintable(c.why));
+        const Sheet b = c.sheet(c.xls, 0);
+        for (int i = 0; i < in.size() - 1; ++i) QCOMPARE(formula(b, QStringLiteral("B%1").arg(i + 1)), out[i]);
+        QVERIFY(c.xlsReport.formulasAsValues <= 1);
+    }
+
     void aFormulaTheOldFormCannotHoldKeepsItsValue()
     {
         Copies c;
