@@ -291,6 +291,31 @@ private Q_SLOTS:
     void notesSurviveAnEditElsewhere() { keepsWhatItDoesNotEdit(commentBook(), QStringLiteral("D1"), QStringLiteral("5")); }
 
     // The outline of rows and columns (levels, collapsed groups, hidden members, the summary's side) is written back as it was, whether the edit is in a collapsed row or not.
+    // A text with some of its letters formatted (the runs of a shared string) is written back as it was when another cell is typed in, and when a new text is added to the strings.
+    void richTextSurvivesAnEditInAnotherCell()
+    {
+        const QString rich = QStringLiteral("<r><rPr><b/><sz val=\"11\"/></rPr><t>bo</t></r><r><rPr><i/></rPr><t xml:space=\"preserve\">ld </t></r><r><t>word</t></r>");
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"s\"><v>0</v></c><c r=\"B1\" t=\"s\"><v>1</v></c></row>");
+        const QByteArray book = buildXlsx({worksheet(rows)}, sharedStringsXml({rich, QStringLiteral("<t>plain</t>")}));
+        for (const QString &text : {QStringLiteral("5"), QStringLiteral("a new text")}) {
+            EditWindow e;
+            QVERIFY(e.open(book, QStringLiteral("rich.xlsx")));
+            e.select(QStringLiteral("C1"));
+            e.enter(text);
+            QVERIFY(e.settle());
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY2(savedOk(saved), "the save failed");
+            Parts now;
+            QFile f(e.path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            readZip(f.readAll(), now);
+            const QByteArray strings = now.value(QStringLiteral("xl/sharedStrings.xml"));
+            QVERIFY2(strings.contains(rich.toUtf8()), strings.constData());
+            QVERIFY(strings.contains("<t>plain</t>"));
+        }
+    }
+
     void outlinesSurviveAnEditInAndOutOfAGroup()
     {
         keepsWhatItDoesNotEdit(outlineBook(), QStringLiteral("D1"), QStringLiteral("5"));
