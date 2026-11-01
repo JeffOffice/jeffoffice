@@ -211,7 +211,9 @@ private Q_SLOTS:
         pressStandard(&o.win.w, QKeySequence::Save);
         QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(o.asked, QStringList{o.folder.dir.filePath(QStringLiteral("old.xlsx"))});
-        QVERIFY2(o.filters.first().contains(QLatin1String("*.xlsx")) && !o.filters.first().contains(QLatin1String("*.xls)")), qPrintable(o.filters.first()));
+        // (the workbook kind comes first, and the copies in the older form and in OpenDocument are offered after it)
+        QVERIFY2(o.filters.first().section(QLatin1String(";;"), 0, 0).contains(QLatin1String("*.xlsx")) && !o.filters.first().section(QLatin1String(";;"), 0, 0).contains(QLatin1String("*.xls)")), qPrintable(o.filters.first()));
+        QVERIFY2(o.filters.first().contains(QLatin1String("*.xls)")) && o.filters.first().contains(QLatin1String("*.ods)")), qPrintable(o.filters.first()));
         QCOMPARE(saved.first().at(0).toString(), o.folder.dir.filePath(QStringLiteral("copy.xlsx")));
         QCOMPARE(saved.first().at(1).toBool(), true);
         QCOMPARE(o.told.size(), 1);
@@ -287,16 +289,26 @@ private Q_SLOTS:
         o.select(0, 0);
         o.enter(QStringLiteral("11"));
         QVERIFY(o.settle());
+        // (a name that ends in .xls is a copy in the older form, with the edit in it; the workbook is not saved by it and the file it was read from is not written)
         o.answer = o.folder.dir.filePath(QStringLiteral("renamed.xls"));
+        QSignalSpy copied(&o.win.w, &CrunchWindow::copyExported);
+        o.win.w.act("file.saveAs")->trigger();
+        QVERIFY2(copied.count() > 0 || copied.wait(20000), "the copy was not made");
+        QCOMPARE(copied.first().at(0).toString(), o.folder.dir.filePath(QStringLiteral("renamed.xls")));
+        QCOMPARE(copied.first().at(1).toBool(), true);
+        QVERIFY(QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("renamed.xls"))));
+        QVERIFY(!QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("renamed.xlsx"))));
+        QVERIFY(o.originalIsUntouched());
+        QVERIFY(o.win.w.isModified());
+        QCOMPARE(o.asked.size(), 1);
+        QCOMPARE(o.told.size(), 1);
+        // (and a name with the ending of the new form is saved as that)
+        o.answer = o.folder.dir.filePath(QStringLiteral("renamed.xlsx"));
         QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
         o.win.w.act("file.saveAs")->trigger();
         QVERIFY2(savedOk(saved, 20000), "the save failed");
         QCOMPARE(saved.first().at(0).toString(), o.folder.dir.filePath(QStringLiteral("renamed.xlsx")));
         QVERIFY(QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("renamed.xlsx"))));
-        QVERIFY(!QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("renamed.xls"))));
-        QVERIFY(o.originalIsUntouched());
-        QCOMPARE(o.asked.size(), 1);
-        QCOMPARE(o.told.size(), 1);
         // (and the macro-enabled ending, which this workbook's file cannot have, becomes the plain one)
         OldWindow p;
         QVERIFY(p.open(oldBook()));
