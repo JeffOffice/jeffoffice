@@ -264,7 +264,7 @@ int idOfRaw(const QByteArray &raw)
     return ok ? v : -1;
 }
 
-std::atomic<qint64> s_blocksScanned{0};
+std::atomic<qint64> s_blocksScanned{0}, s_replySteps{0};
 
 QVector<Anchor> anchorsOf(const QTextDocument *story, QVector<int> *order = nullptr)
 {
@@ -388,6 +388,7 @@ QSet<int> allCommentIds(WriteDoc &doc)
 }
 
 qint64 commentBlocksScannedForTest() { return s_blocksScanned.load(); }
+qint64 commentReplyStepsForTest() { return s_replySteps.load(); }
 
 QString WriteDoc::mainRelatedPart(const QString &relationshipTypeEnd) const
 {
@@ -452,6 +453,7 @@ QVector<Comment> comments(WriteDoc &doc)
                 break;
             }
             state[at] = 1;
+            ++s_replySteps;
             path.push_back(at);
             const int p = parentOf.value(at, -1);
             if (p < 0) break;

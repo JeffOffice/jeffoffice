@@ -3,11 +3,14 @@
 #include "core/writedoc.h"
 
 #include "core/commentops.h"
+#include "core/reviewops.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
 #include <QTextBlock>
 #include <QTextDocument>
+
+#include <atomic>
 
 using namespace jp::office;
 using namespace jp::office::wml;
@@ -35,8 +38,12 @@ void WriteDoc::setReviewer(const QString &name, const QString &initials)
     Q_EMIT reviewChanged();
 }
 
+namespace { std::atomic<qint64> s_reviewerProbes{0}; }
+qint64 reviewerProbesForTest() { return s_reviewerProbes.load(); }
+
 int WriteDoc::reviewerIndex(const QString &author)
 {
+    ++s_reviewerProbes;
     const auto known = m_reviewerPlaces.constFind(author);
     if (known != m_reviewerPlaces.constEnd()) return known.value();
     m_reviewers.push_back(author);

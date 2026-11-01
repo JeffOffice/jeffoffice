@@ -31,6 +31,8 @@ void rememberCommentsAtOpen(WriteDoc &doc);
 QSet<int> allCommentIds(WriteDoc &doc);
 // For tests of cost: the paragraphs looked through for the marks of comments since the program began.
 qint64 commentBlocksScannedForTest();
+// How many steps along a path of replies the settling of the comments took (a count for the tests of its cost).
+qint64 commentReplyStepsForTest();
 
 // The most comments looked at (a hostile file has more than anyone reads).
 constexpr int kMostComments = 100000;

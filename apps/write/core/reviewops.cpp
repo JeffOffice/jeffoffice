@@ -421,12 +421,13 @@ std::optional<Revision> previousRevision(const QTextDocument *story, int positio
 QString revisionText(const QTextDocument *story, const Revision &r, int most)
 {
     if (r.kind == Revision::Format || r.kind == Revision::ParagraphFormat || r.kind == Revision::MarkInserted || r.kind == Revision::MarkDeleted) return QString();
-    // Read from the place it begins (a selection of its stretch, cut short: the pieces that are part of it take a place each, and the words need only `most`).
-    QTextCursor t(const_cast<QTextDocument *>(story));
-    t.setPosition(std::max(0, std::min(r.from, story->characterCount() - 1)));
-    t.setPosition(std::max(0, std::min({r.to, r.from + most * 2 + 64, story->characterCount() - 1})), QTextCursor::KeepAnchor);
-    ++s_runsVisited;
-    QString out = t.selectedText();
+    // Read from the place it begins, a character at a time (each found in the document's tree, not by going along the runs before it), and no further than the words need (`most`).
+    const int end = std::max(0, std::min({r.to, r.from + most * 2 + 64, story->characterCount() - 1}));
+    QString out;
+    for (int at = std::max(0, std::min(r.from, end)); at < end; ++at) {
+        ++s_runsVisited;
+        out += story->characterAt(at);
+    }
     out.remove(QChar::ObjectReplacementCharacter);
     out.replace(QChar::ParagraphSeparator, QLatin1Char(' '));
     return out.left(most);

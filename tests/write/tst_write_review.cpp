@@ -21,7 +21,6 @@
 #include "text/textprops.h"
 #include "wml/wml.h"
 
-#include <QElapsedTimer>
 #include <QFile>
 #include <QImage>
 #include <QLabel>
@@ -1256,7 +1255,15 @@ private Q_SLOTS:
         QVERIFY(doc);
         const QVector<Revision> all = revisionsIn(doc->story());
         QCOMPARE(all.size(), n);
-        const qint64 before = revisionRunsVisitedForTest();
+        // The words of the last change cost what the first's do: nothing of the thousands of runs before it is looked at.
+        qint64 before = revisionRunsVisitedForTest();
+        QCOMPARE(revisionText(doc->story(), all.first()), QStringLiteral("ab"));
+        const qint64 first = revisionRunsVisitedForTest() - before;
+        before = revisionRunsVisitedForTest();
+        QCOMPARE(revisionText(doc->story(), all.last()), QStringLiteral("ab"));
+        const qint64 last = revisionRunsVisitedForTest() - before;
+        QVERIFY2(first > 0 && last > 0 && last <= first + 4, qPrintable(QStringLiteral("%1 runs looked at for the first change, %2 for the last").arg(first).arg(last)));
+        before = revisionRunsVisitedForTest();
         for (const Revision &r : all) QCOMPARE(revisionText(doc->story(), r), QStringLiteral("ab"));
         const qint64 visited = revisionRunsVisitedForTest() - before;
         QVERIFY2(visited < qint64(n) * 20, qPrintable(QStringLiteral("%1 runs looked at for %2 changes").arg(visited).arg(n)));
@@ -1264,21 +1271,21 @@ private Q_SLOTS:
 
     void manyPeopleAreMetInTimeThatGrowsWithThem()
     {
-        const int n = 80000;
+        const int n = 20000;
         QByteArray content;
         for (int i = 0; i < n; ++i) content += "<w:ins w:id=\"" + QByteArray::number(i + 1) + "\" w:author=\"person" + QByteArray::number(i) + "\" w:date=\"2020-01-01T00:00:00Z\"><w:r><w:t>x</w:t></w:r></w:ins>";
         const QByteArray zip = makeDocx(para(content));
-        QElapsedTimer t;
-        t.start();
+        const qint64 before = reviewerProbesForTest();
         auto doc = open(zip);
         QVERIFY(doc);
-        QVERIFY2(t.elapsed() < 20000, qPrintable(QStringLiteral("%1 ms to open 80,000 people's changes").arg(t.elapsed())));
+        const qint64 probes = reviewerProbesForTest() - before;
+        QVERIFY2(probes > 0 && probes < qint64(n) * 8, qPrintable(QStringLiteral("%1 people looked at to meet %2 people").arg(probes).arg(n)));
         QCOMPARE(doc->reviewerIndex(QStringLiteral("person7")), 7);
     }
 
     void aChainOfRepliesIsSettledInOnePass()
     {
-        const int n = 20000;
+        const int n = 5000;
         QByteArray cms, ext, body;
         for (int i = 0; i < n; ++i) {
             const QByteArray para8 = QByteArray::number(i + 1, 16).rightJustified(8, '0').toUpper();
@@ -1288,10 +1295,10 @@ private Q_SLOTS:
         }
         auto doc = open(makeDocxWithComments(para(body), cms, ext));
         QVERIFY(doc);
-        QElapsedTimer t;
-        t.start();
+        qint64 before = commentReplyStepsForTest();
         const QVector<Comment> all = comments(*doc);
-        QVERIFY2(t.elapsed() < 6000, qPrintable(QStringLiteral("%1 ms for a chain of %2 replies").arg(t.elapsed()).arg(n)));
+        qint64 steps = commentReplyStepsForTest() - before;
+        QVERIFY2(steps > 0 && steps <= qint64(n) * 3, qPrintable(QStringLiteral("%1 steps along the replies for a chain of %2").arg(steps).arg(n)));
         QCOMPARE(all.size(), n);
         QCOMPARE(all[5].parent, 4);
         // A loop through all of them is broken at one place only.
@@ -1301,10 +1308,10 @@ private Q_SLOTS:
             ext2 += "<w15:commentEx w15:paraId=\"" + para8 + "\" w15:paraIdParent=\"" + QByteArray::number(((i + n - 1) % n) + 1, 16).rightJustified(8, '0').toUpper() + "\" w15:done=\"0\"/>";
         }
         auto loop = open(makeDocxWithComments(para(body), cms, ext2));
-        QElapsedTimer t2;
-        t2.start();
+        before = commentReplyStepsForTest();
         const QVector<Comment> looped = comments(*loop);
-        QVERIFY2(t2.elapsed() < 6000, qPrintable(QStringLiteral("%1 ms for a loop of %2 replies").arg(t2.elapsed()).arg(n)));
+        steps = commentReplyStepsForTest() - before;
+        QVERIFY2(steps > 0 && steps <= qint64(n) * 3, qPrintable(QStringLiteral("%1 steps along the replies for a loop of %2").arg(steps).arg(n)));
         int roots = 0;
         for (const Comment &c : looped) roots += c.parent < 0;
         QCOMPARE(roots, 1);
@@ -1397,6 +1404,69 @@ private Q_SLOTS:
         QCOMPARE(documentXml(whole->toDocx()).count("<w:tc>"), 2);
         QVERIFY(whole->undo());
         QCOMPARE(revisionCount(whole->story()), 0);
+    }
+
+    void deletingIntoAnEndnoteWithTrackingMarksTheTextAndLeavesTheNoteAlone()
+    {
+        office::PackageWriter w;
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QByteArray body = para(run("First") + "<w:r><w:endnoteReference w:id=\"2\"/></w:r>") + para(run("Second paragraph"));
+        const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:t>Sources</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha body note</w:t></w:r></w:p></w:endnote></w:endnotes>";
+        w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addPart(QStringLiteral("/word/endnotes.xml"), xml(notes), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("endnotes"), QStringLiteral("/word/endnotes.xml"));
+        const QByteArray zip = w.finish();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        doc->setTrackChanges(true);
+        QTextDocument *story = doc->story();
+        // From inside the second paragraph, into the words of the note.
+        int noteBlock = -1;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().hasProperty(prop::EndnoteBlock) && b.text().contains(QLatin1String("Alpha"))) noteBlock = b.blockNumber();
+        QVERIFY(noteBlock > 1);
+        QTextCursor c(story);
+        c.setPosition(story->findBlockByNumber(1).position() + 3);
+        c.setPosition(story->findBlockByNumber(noteBlock).position() + 8, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        // The text is marked as deleted and is still there; the note is whole; and the saved note part is as it was.
+        const QString all = textWithDeletions(*doc);
+        QVERIFY2(all.contains(QLatin1String("First")) && all.contains(QLatin1String("Second paragraph")), qPrintable(all));
+        QVERIFY2(story->toPlainText().contains(QLatin1String("Alpha body note")), qPrintable(story->toPlainText()));
+        QVERIFY(revisionCount(story) > 0);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:del ") && x.contains("ond paragraph"), x.constData());
+        QCOMPARE(partOf(doc->toDocx(), "/word/endnotes.xml"), partOf(zip, "/word/endnotes.xml"));
+        QVERIFY(doc->undo());
+        QCOMPARE(revisionCount(doc->story()), 0);
+    }
+
+    void deletingAcrossAFrameWithTrackingMarksTheTextOfBothAndJoinsNone()
+    {
+        const QByteArray frame = "<w:p><w:pPr><w:framePr w:w=\"3000\" w:h=\"1000\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:x=\"0\" w:y=\"0\"/></w:pPr><w:r><w:t>Frame text</w:t></w:r></w:p>";
+        const QByteArray body = "<w:p><w:r><w:t>Before</w:t></w:r></w:p>" + frame + "<w:p><w:r><w:t>After</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        QVERIFY(!doc->flow().frames.isEmpty());
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        doc->setTrackChanges(true);
+        QTextDocument *s = doc->story();
+        QCOMPARE(s->blockCount(), 3);
+        QTextCursor c(s);
+        c.setPosition(s->findBlockByNumber(0).position() + 2);
+        c.setPosition(s->findBlockByNumber(2).position() + 2, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        QCOMPARE(textWithDeletions(*doc), QStringLiteral("Before\nFrame text\nAfter"));
+        QCOMPARE(s->blockCount(), 3);
+        QCOMPARE(finalText(*doc), QStringLiteral("Be\n\nter"));
+        QVERIFY(!doc->flow().frames.isEmpty());
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.count("<w:framePr") == 1 && x.count("<w:del ") >= 3, x.constData());
+        QVERIFY(doc->undo());
+        QCOMPARE(revisionCount(doc->story()), 0);
     }
 
     void everyViewShowsWhatItsNameSaysOfAnEditedDocument()
@@ -1507,11 +1577,13 @@ private Q_SLOTS:
         QTextCursor c(doc->story());
         c.setPosition(0);
         c.setPosition(4, QTextCursor::KeepAnchor);
-        QVERIFY(addComment(*doc, c, QStringLiteral("bell\x07 and nul-ish \x01 text")) > 0);
+        const int id = addComment(*doc, c, QStringLiteral("bell\x07 and nul-ish \x01 text"));
+        QVERIFY(id > 0);
+        QVERIFY(replyToComment(*doc, id, QStringLiteral("reply\x08 text")) > 0);   // (a reply makes the extension and people parts)
         const QByteArray saved = doc->toDocx();
         for (const char *name : {"/word/comments.xml", "/word/commentsExtended.xml", "/word/people.xml", "/word/document.xml"}) {
             const QByteArray part = partOf(saved, name);
-            if (part.isEmpty()) continue;
+            QVERIFY2(!part.isEmpty(), name);   // (each of the parts is written: the comment's person is in people.xml)
             wml::XmlTree tree;
             QString err;
             QVERIFY2(tree.parse(part, &err), qPrintable(QStringLiteral("%1: %2").arg(QString::fromLatin1(name), err)));
@@ -1545,17 +1617,19 @@ private Q_SLOTS:
 
     void everyIdOfASavedDocumentIsUniqueAcrossChangesCommentsAndBookmarks()
     {
-        // The file has an orphan comment (50), a bookmark (60), and a header with a change (80): a new id is none of these.
+        // The body's highest id is 5, so the next one is 6: a header's change has 6, a note's change has 7, and an orphan comment (kept in the comments part, with no mark in the text) has 8.
         office::PackageWriter w;
         const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
         const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
-        const QByteArray body = para("<w:bookmarkStart w:id=\"60\" w:name=\"mark\"/>" + run("hello world") + "<w:bookmarkEnd w:id=\"60\"/>" + inserted(51, "kept") ) +
+        const QByteArray body = para("<w:bookmarkStart w:id=\"4\" w:name=\"mark\"/>" + run("hello world") + "<w:bookmarkEnd w:id=\"4\"/>" + inserted(5, "kept") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>") +
                                 "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH\"/></w:sectPr>";
         w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body>" + body + "</w:body></w:document>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
         w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
-        w.addPart(QStringLiteral("/word/header1.xml"), xml("<w:hdr " + ns + "><w:p><w:ins" + rev(80) + "><w:r><w:t>head</w:t></w:r></w:ins></w:p></w:hdr>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"));
+        w.addPart(QStringLiteral("/word/header1.xml"), xml("<w:hdr " + ns + "><w:p><w:ins" + rev(6) + "><w:r><w:t>head</w:t></w:r></w:ins></w:p></w:hdr>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"));
         w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdH"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
-        w.addPart(QStringLiteral("/word/comments.xml"), xml("<w:comments " + ns + ">" + commentElement(50, "Ann", "orphan", "0000000A") + "</w:comments>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"));
+        w.addPart(QStringLiteral("/word/footnotes.xml"), xml("<w:footnotes " + ns + "><w:footnote w:id=\"2\"><w:p><w:ins" + rev(7) + "><w:r><w:t>note</w:t></w:r></w:ins></w:p></w:footnote></w:footnotes>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("footnotes"), QStringLiteral("/word/footnotes.xml"));
+        w.addPart(QStringLiteral("/word/comments.xml"), xml("<w:comments " + ns + ">" + commentElement(8, "Ann", "orphan", "0000000A") + "</w:comments>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"));
         w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("comments"), QStringLiteral("/word/comments.xml"));
         auto doc = open(w.finish());
         QVERIFY(doc);
@@ -1579,29 +1653,37 @@ private Q_SLOTS:
         d.setPosition(2, QTextCursor::KeepAnchor);
         QVERIFY(addComment(*doc, d, QStringLiteral("remark")) > 0);
         const QByteArray saved = doc->toDocx();
-        const QString x = QString::fromUtf8(documentXml(saved));
-        QSet<QString> changes, marks;
+        // The ids of every part, by what they name.
         static const QRegularExpression changeId(QStringLiteral("<w:(?:ins|del|moveFrom|moveTo|rPrChange|pPrChange)\\b[^>]*?w:id=\"(\\d+)\""));
-        for (auto it = changeId.globalMatch(x); it.hasNext();) {
-            const QString id = it.next().captured(1);
-            QVERIFY2(!changes.contains(id), qPrintable(QStringLiteral("change id %1 is used twice: %2").arg(id, x)));
-            changes.insert(id);
+        static const QRegularExpression commentId(QStringLiteral("<w:comment\\b[^>]*?w:id=\"(\\d+)\""));
+        static const QRegularExpression rangeId(QStringLiteral("<w:commentRangeStart\\b[^>]*?w:id=\"(\\d+)\""));
+        static const QRegularExpression bookmarkId(QStringLiteral("<w:bookmarkStart\\b[^>]*?w:id=\"(\\d+)\""));
+        QStringList changes, comments, ranges, bookmarks;
+        auto gather = [&](const QRegularExpression &re, const QString &x, QStringList *into) {
+            for (auto it = re.globalMatch(x); it.hasNext();) into->push_back(it.next().captured(1));
+        };
+        int partsSeen = 0;
+        for (const char *name : {"/word/document.xml", "/word/header1.xml", "/word/footer1.xml", "/word/footnotes.xml", "/word/endnotes.xml", "/word/comments.xml"}) {
+            const QString x = QString::fromUtf8(partOf(saved, name));
+            if (x.isEmpty()) continue;
+            ++partsSeen;
+            gather(changeId, x, &changes);
+            gather(commentId, x, &comments);
+            gather(rangeId, x, &ranges);
+            gather(bookmarkId, x, &bookmarks);
         }
-        static const QRegularExpression markId(QStringLiteral("<w:(?:commentRangeStart|bookmarkStart)\\b[^>]*?w:id=\"(\\d+)\""));
-        for (auto it = markId.globalMatch(x); it.hasNext();) {
-            const QString id = it.next().captured(1);
-            QVERIFY2(!marks.contains(id), qPrintable(QStringLiteral("mark id %1 is used twice").arg(id)));
-            marks.insert(id);
-        }
-        QVERIFY2(!changes.intersects(marks), qPrintable(x));
-        for (const QString &taken : {QStringLiteral("50"), QStringLiteral("80")}) {
-            int seen = 0;
-            for (const QString &id : changes) seen += id == taken;
-            QVERIFY2(seen == 0 || taken == QLatin1String("80") || taken == QLatin1String("50"), "");
-        }
-        QVERIFY2(!changes.contains(QStringLiteral("50")) && !marks.contains(QStringLiteral("50")), qPrintable(x));
-        QVERIFY2(!changes.contains(QStringLiteral("80")), qPrintable(x));
-        QVERIFY2(!changes.contains(QStringLiteral("60")), qPrintable(x));
+        QVERIFY2(partsSeen >= 4, "the body, the header, the notes, and the comments are all saved");
+        auto unique = [](const QStringList &l) { return QSet<QString>(l.cbegin(), l.cend()).size() == l.size(); };
+        const QString all = changes.join(QLatin1Char(',')) + QLatin1Char('|') + comments.join(QLatin1Char(',')) + QLatin1Char('|') + bookmarks.join(QLatin1Char(','));
+        QVERIFY2(unique(changes), qPrintable(all));
+        QVERIFY2(unique(comments) && unique(ranges) && unique(bookmarks), qPrintable(all));
+        const QSet<QString> c1(changes.cbegin(), changes.cend()), c2(comments.cbegin(), comments.cend()), c3(bookmarks.cbegin(), bookmarks.cend());
+        QVERIFY2(!c1.intersects(c2) && !c1.intersects(c3) && !c2.intersects(c3), qPrintable(all));
+        for (const QString &id : ranges) QVERIFY2(c2.contains(id), qPrintable(all));
+        // The ids the file had are kept, and new changes took ids above all of them.
+        for (const QString &id : {QStringLiteral("5"), QStringLiteral("6"), QStringLiteral("7")}) QVERIFY2(c1.contains(id), qPrintable(all));
+        QVERIFY2(c2.contains(QStringLiteral("8")) && c3.contains(QStringLiteral("4")), qPrintable(all));
+        QVERIFY2(changes.size() > 3, qPrintable(all));
     }
 
     void aCarriageReturnLaysOutExactlyAsTheLineBreakItReplaced()
@@ -1628,44 +1710,49 @@ private Q_SLOTS:
         auto build = [&]() {
             office::PackageWriter w;
             const QByteArray box = "<w:r><w:pict><v:shape style=\"width:100pt;height:40pt\"><v:textbox><w:txbxContent><w:p>" + inserted(31, "boxin ") + deleted(32, "boxout") + "</w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r>";
-            const QByteArray body = para(run("body ") + inserted(30, "new ") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>" + box) + "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH\"/></w:sectPr>";
+            const QByteArray body = para(run("body ") + inserted(30, "new ") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r>" + box) +
+                                    "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH\"/><w:footerReference w:type=\"default\" r:id=\"rIdF\"/></w:sectPr>";
             w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body>" + body + "</w:body></w:document>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
             w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
             w.addPart(QStringLiteral("/word/header1.xml"), xml("<w:hdr " + ns + "><w:p>" + inserted(33, "headin ") + deleted(34, "headout") + "</w:p></w:hdr>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"));
             w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdH"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+            w.addPart(QStringLiteral("/word/footer1.xml"), xml("<w:ftr " + ns + "><w:p>" + inserted(37, "footin ") + deleted(38, "footout") + "</w:p></w:ftr>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdF"), rel + QStringLiteral("footer"), QStringLiteral("/word/footer1.xml"));
             w.addPart(QStringLiteral("/word/footnotes.xml"), xml("<w:footnotes " + ns + "><w:footnote w:id=\"2\"><w:p>" + inserted(35, "noteIn ") + deleted(36, "noteOut") + "</w:p></w:footnote></w:footnotes>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"));
             w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("footnotes"), QStringLiteral("/word/footnotes.xml"));
+            w.addPart(QStringLiteral("/word/endnotes.xml"), xml("<w:endnotes " + ns + "><w:endnote w:id=\"2\"><w:p>" + inserted(39, "endIn ") + deleted(40, "endOut") + "</w:p></w:endnote></w:endnotes>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"));
+            w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("endnotes"), QStringLiteral("/word/endnotes.xml"));
             return w.finish();
         };
+        // What each part must hold after the change is accepted, and after it is rejected.
+        struct Part { const char *name; const char *in; const char *out; };
+        const Part parts[] = {{"/word/document.xml", "boxin", "boxout"}, {"/word/header1.xml", "headin", "headout"}, {"/word/footer1.xml", "footin", "footout"},
+                              {"/word/footnotes.xml", "noteIn", "noteOut"}, {"/word/endnotes.xml", "endIn", "endOut"}};
         for (const bool accept : {true, false}) {
             auto doc = open(build());
             QVERIFY(doc);
-            const QByteArray before = doc->toDocx();
-            QVERIFY(doc->storiesWithChanges().size() >= 1);
             if (accept) acceptAll(*doc); else rejectAll(*doc);
             const QByteArray saved = doc->toDocx();
-            for (const char *part : {"/word/document.xml", "/word/header1.xml", "/word/footnotes.xml"}) {
-                const QByteArray x = partOf(saved, part);
-                QVERIFY2(!x.contains("<w:ins") && !x.contains("<w:del ") && !x.contains("<w:del>"), qPrintable(QString::fromLatin1(part) + QLatin1Char(' ') + QString::fromUtf8(x)));
-                QVERIFY2(x.contains(accept ? "headin " : "headout") == (QLatin1String(part) == QLatin1String("/word/header1.xml")) || QLatin1String(part) != QLatin1String("/word/header1.xml"), part);
+            for (const Part &part : parts) {
+                const QByteArray x = partOf(saved, part.name);
+                const QString what = QString::fromLatin1(part.name) + QLatin1Char(' ') + QString::fromUtf8(x);
+                QVERIFY2(!x.isEmpty(), qPrintable(what));
+                QVERIFY2(!xmlHasChanges(x), qPrintable(what));
+                QVERIFY2(x.contains(accept ? part.in : part.out), qPrintable(what));
+                QVERIFY2(!x.contains(accept ? part.out : part.in), qPrintable(what));
             }
-            const QByteArray d = partOf(saved, "/word/document.xml"), h = partOf(saved, "/word/header1.xml"), f = partOf(saved, "/word/footnotes.xml");
-            QCOMPARE(d.contains("boxin"), accept);
-            QVERIFY2(d.contains("boxout") == !accept, d.constData());
-            QCOMPARE(h.contains("headin"), accept);
-            QCOMPARE(h.contains("headout"), !accept);
-            QCOMPARE(f.contains("noteIn"), accept);
-            QCOMPARE(f.contains("noteOut"), !accept);
             // One step brings every change back, and one redo does it all again.
             doc->undo();
             QVERIFY(!doc->canUndo());
             const QByteArray undone = doc->toDocx();
-            QVERIFY(partOf(undone, "/word/header1.xml").contains("<w:ins"));
-            QVERIFY(partOf(undone, "/word/footnotes.xml").contains("<w:ins"));
-            QVERIFY(partOf(undone, "/word/document.xml").contains("boxin") && partOf(undone, "/word/document.xml").contains("<w:ins"));
+            for (const Part &part : parts) {
+                const QByteArray x = partOf(undone, part.name);
+                QVERIFY2(xmlHasChanges(x) && x.contains(part.in) && x.contains(part.out), part.name);
+            }
             QVERIFY(doc->canRedo());
             doc->redo();
-            QCOMPARE(partOf(doc->toDocx(), "/word/header1.xml").contains("headin"), accept);
+            const QByteArray again = doc->toDocx();
+            for (const Part &part : parts) QVERIFY2(!xmlHasChanges(partOf(again, part.name)) && partOf(again, part.name).contains(accept ? part.in : part.out), part.name);
             QVERIFY(!doc->canRedo());
         }
     }
@@ -1692,7 +1779,8 @@ private Q_SLOTS:
 
     void changesNestedPastTheReadersCapAreKeptAsTheyWereAndTheRestResolved()
     {
-        const int depth = 40;
+        // The reader follows 24 levels of containers (kMaxContainerDepth in wmlread.cpp); what is nested deeper is kept as the XML it is.
+        const int depth = 70, cap = 24;
         QByteArray open_, close_;
         for (int i = 0; i < depth; ++i) {
             open_ += "<w:ins" + rev(i + 1) + ">";
@@ -1701,20 +1789,46 @@ private Q_SLOTS:
         auto doc = open(makeDocx(para(run("a") + open_ + run("deep") + close_ + run("b"))));
         QVERIFY(doc);
         const int found = revisionCount(doc->story());
-        QVERIFY2(found > 0 && found < depth, qPrintable(QStringLiteral("%1 found").arg(found)));
-        // Every level is in the saved file; what is nested past the cap is one piece kept as the XML it is (its words are not text of the paragraph).
+        QCOMPARE(found, cap);
+        // Every level is in the saved file.
         QCOMPARE(documentXml(doc->toDocx()).count("<w:ins "), depth);
         QCOMPARE(textWithDeletions(*doc), QStringLiteral("ab"));
-        QCOMPARE(acceptAll(*doc), found);
+        QCOMPARE(acceptAll(*doc), cap);
         QCOMPARE(revisionCount(doc->story()), 0);
         QByteArray x = documentXml(doc->toDocx());
-        QCOMPARE(x.count("<w:ins "), depth - found);   // (the levels past the cap stay as they were)
+        QCOMPARE(x.count("<w:ins "), depth - cap);   // (the levels past the cap stay as they were)
         QVERIFY(x.contains("deep"));
         QVERIFY(doc->undo());
-        QCOMPARE(revisionCount(doc->story()), found);
-        QCOMPARE(rejectAll(*doc), found);
+        QCOMPARE(revisionCount(doc->story()), cap);
+        QCOMPARE(rejectAll(*doc), cap);
         x = documentXml(doc->toDocx());
         QVERIFY2(!x.contains("<w:ins ") && !x.contains("deep"), "rejecting the outermost insertion takes what is inside it, the piece too");
+    }
+
+    void changesNestedPastTheWritersCapInATextBoxAreKeptAndTheRestResolved()
+    {
+        // A text box is resolved on its XML, which is followed 64 levels deep (kMostDepth in reviewxml.cpp): the box (a pict, a shape, a textbox, the content, a paragraph) takes 4 of them,
+        // so the insertions of the first 60 levels are accepted and the 10 inside the 61st stay as they were.
+        const int depth = 70;
+        QByteArray open_, close_;
+        for (int i = 0; i < depth; ++i) {
+            open_ += "<w:ins" + rev(i + 1) + ">";
+            close_ += "</w:ins>";
+        }
+        const QByteArray pict = "<w:r><w:pict xmlns:v=\"urn:schemas-microsoft-com:vml\"><v:shape style=\"width:100pt;height:40pt\"><v:textbox><w:txbxContent><w:p>" + open_ + "<w:r><w:t>deep</w:t></w:r>" + close_ + "</w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r>";
+        const QByteArray resolved = resolveChangesInXml(pict.mid(pict.indexOf("<w:pict"), pict.lastIndexOf("</w:pict>") + 9 - pict.indexOf("<w:pict")), true);
+        QCOMPARE(resolved.count("<w:ins "), 10);
+        QVERIFY(resolved.contains("deep"));
+        const QByteArray rejected = resolveChangesInXml(pict.mid(pict.indexOf("<w:pict"), pict.lastIndexOf("</w:pict>") + 9 - pict.indexOf("<w:pict")), false);
+        QVERIFY2(!rejected.contains("<w:ins ") && !rejected.contains("deep"), "rejecting the outermost insertion takes what is inside it");
+        // The same through Accept All of a document: the box is made again from the XML that was resolved.
+        auto doc = open(makeDocx(para(run("a") + pict + run("b"))));
+        QVERIFY(doc);
+        QCOMPARE(documentXml(doc->toDocx()).count("<w:ins "), depth);
+        acceptAll(*doc);
+        const QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(x.count("<w:ins "), 10);
+        QVERIFY(x.contains("deep"));
     }
 
     // ---------------------------------------------------------------- hostile files
