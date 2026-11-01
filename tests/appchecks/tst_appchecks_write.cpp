@@ -10,11 +10,20 @@
 #include "core/appinfo.h"
 #include "office/package.h"
 #include "core/fonts.h"
+#include "app/tabledialogs.h"
+#include "app/widgets.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
 #include "testrunner.h"
 
+#include <QApplication>
+#include <QCheckBox>
 #include <QClipboard>
+#include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QSpinBox>
+#include <QTimer>
 #include <QCryptographicHash>
 #include <QGuiApplication>
 #include <QFileInfo>
@@ -381,6 +390,84 @@ private Q_SLOTS:
         w->view()->cursor().setPosition(0);
         w->refreshNow();
         QVERIFY(!tabShown("Table Layout") && !w->act(QStringLiteral("table.merge"))->isEnabled());
+    }
+
+    // The table dialogs ask for what they are for, give it back, and remember what they were told to: a dialog is answered from the event loop it runs in, by the names of its fields.
+    static void answer(const std::function<void(QDialog *)> &fill, bool accept = true)
+    {
+        QTimer::singleShot(0, qApp, [fill, accept] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            fill(dlg);
+            if (accept) dlg->accept();
+            else dlg->reject();
+        });
+    }
+
+    void theInsertTableAndSplitCellsDialogsGiveWhatWasAskedFor()
+    {
+        write::NewTable table;
+        answer([](QDialog *d) {
+            d->findChild<QSpinBox *>(QStringLiteral("columns"))->setValue(5);
+            d->findChild<QSpinBox *>(QStringLiteral("rows"))->setValue(4);
+            d->findChild<QAbstractButton *>(QStringLiteral("fitWindow"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("remember"))->setChecked(true);
+        });
+        QVERIFY(write::insertTableDialog(nullptr, &table));
+        QCOMPARE(table.columns, 5);
+        QCOMPARE(table.rows, 4);
+        QVERIFY(table.fit == write::TableFit::Window);
+        // (remembered: the next one begins with them)
+        write::NewTable next;
+        answer([](QDialog *d) {
+            QCOMPARE(d->findChild<QSpinBox *>(QStringLiteral("columns"))->value(), 5);
+            QCOMPARE(d->findChild<QSpinBox *>(QStringLiteral("rows"))->value(), 4);
+            QVERIFY(d->findChild<QAbstractButton *>(QStringLiteral("fitWindow"))->isChecked());
+        }, false);
+        QVERIFY(!write::insertTableDialog(nullptr, &next));
+        int columns = 2, rows = 1;
+        answer([](QDialog *d) {
+            d->findChild<QSpinBox *>(QStringLiteral("columns"))->setValue(3);
+            d->findChild<QSpinBox *>(QStringLiteral("rows"))->setValue(2);
+        });
+        QVERIFY(write::splitCellsDialog(nullptr, &columns, &rows, 50));
+        QCOMPARE(columns, 3);
+        QCOMPARE(rows, 2);
+    }
+
+    void theTablePropertiesAndBordersDialogsChangeTheTableInOneStep()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        tableAtCursor(w.get());
+        write::WriteDoc &doc = *w->document();
+        QTextCursor &c = w->view()->cursor();
+        const QByteArray before = doc.toDocx();
+        answer([](QDialog *d) {
+            d->findChild<QComboBox *>(QStringLiteral("alignment"))->setCurrentIndex(1);
+            d->findChild<QCheckBox *>(QStringLiteral("headerRow"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("cantSplit"))->setChecked(true);
+            d->findChild<QComboBox *>(QStringLiteral("verticalAlignment"))->setCurrentIndex(1);
+        });
+        QVERIFY(write::tablePropertiesDialog(nullptr, &doc, &c));
+        const write::TableProps props = write::tablePropsAt(doc, c);
+        QVERIFY(props.align == flow::TableData::Align::Center && props.header && props.cantSplit && props.valign == flow::CellAlign::Center);
+        // Cancelled, nothing changes.
+        const QByteArray now = doc.toDocx();
+        answer([](QDialog *d) { d->findChild<QCheckBox *>(QStringLiteral("headerRow"))->setChecked(false); }, false);
+        QVERIFY(!write::tablePropertiesDialog(nullptr, &doc, &c));
+        QCOMPARE(doc.toDocx(), now);
+        QVERIFY(now != before);
+        // Borders and shading for the whole table: double lines, and a fill.
+        answer([](QDialog *d) {
+            d->findChild<QComboBox *>(QStringLiteral("lineStyle"))->setCurrentIndex(2);
+            d->findChild<QComboBox *>(QStringLiteral("applyTo"))->setCurrentIndex(1);
+            d->findChild<QCheckBox *>(QStringLiteral("insideH"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("insideV"))->setChecked(true);
+        });
+        QVERIFY(write::bordersShadingDialog(nullptr, &doc, &c));
+        const flow::CellRecord *rec = doc.flow().tables.get(write::cellKeyOf(c.block()));
+        QVERIFY(rec->cell.top && rec->cell.top->style == flow::TableLine::Style::Double && rec->cell.right && rec->cell.right->style == flow::TableLine::Style::Double);
+        QVERIFY(doc.toDocx().size() > 0);
     }
 
     // ---- 3. every command
