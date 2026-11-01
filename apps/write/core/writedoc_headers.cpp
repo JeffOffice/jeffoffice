@@ -697,23 +697,12 @@ void WriteDoc::checkModified()
     Q_EMIT modifiedChanged();
 }
 
-void WriteDoc::dropBodyHistory()
+QSet<quint64> WriteDoc::stepSerials() const
 {
-    const bool dirty = isModified();
-    QTextDocument *body = story();
-    body->setUndoRedoEnabled(false);
-    body->setUndoRedoEnabled(true);
-    auto drop = [&](QVector<Step> *log) { log->erase(std::remove_if(log->begin(), log->end(), [&](const Step &s) { return s.story == body; }), log->end()); };
-    drop(&m_undoLog);
-    drop(&m_redoLog);
-    if (dirty) {
-        m_forcedDirty = true;
-    } else {
-        m_forcedDirty = false;
-        m_cleanSerial = m_undoLog.isEmpty() ? 0 : m_undoLog.last().serial;
-    }
-    checkModified();
-    Q_EMIT historyChanged();
+    QSet<quint64> out;
+    for (const Step &s : m_undoLog) out.insert(s.serial);
+    for (const Step &s : m_redoLog) out.insert(s.serial);
+    return out;
 }
 
 QTextDocument *WriteDoc::undo(QTextCursor *cursor)

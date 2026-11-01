@@ -63,6 +63,8 @@ double textWidthAt(WriteDoc &doc, int position);
 // How many times the tables of a story have been looked at to find the one a place is in, and how many cells the commands that join cells have looked at, since the program
 // began (cost tests: a caret that moves about a table looks once, and a join looks at the cells near it).
 qint64 tableViewsBuiltForTest();
+// How many cell records the story and the history of the document can reach (the records held beyond them are let go by the next table command).
+int tableRecordsReachableForTest(WriteDoc &doc);
 qint64 tableCellsScannedForTest();
 // How many sets of a font's measures fitting columns to their cells has made.
 qint64 tableFontMeasuresMadeForTest();

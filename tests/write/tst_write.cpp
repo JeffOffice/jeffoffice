@@ -14141,29 +14141,41 @@ private Q_SLOTS:
 
     // ---- review fixes of beta wave B
 
-    // Every command of a table changes the records of the table's cells; the ones no paragraph holds and no step of the history can bring back are let go, so that many commands on a long
-    // table keep the records within a bound instead of adding the table's cells again each time.
+    // Every command of a table changes the records of the table's cells; the ones no paragraph holds and no step of the history can bring back are let go, so that many commands on
+    // a long table keep the records within (the cells it has) and (those the history can reach), and a new edit after Undo, which ends the steps Redo would have made, lets go what
+    // they held. The history is never cut for the sake of room.
     void aTablesRecordsAreFreedAsItIsChanged()
     {
         auto doc = open(tableDocx(2000, 3));
         QTextCursor c = cursorAt(*doc, QStringLiteral("r0c0"));
-        int most = 0;
+        const QByteArray started = documentXml(doc->toDocx());
         for (int i = 0; i < 50; ++i) {
             if (i % 3 == 0) setShading(*doc, c, QColor((i * 4) % 256, 0, 0));
             else if (i % 3 == 1) setColumnWidth(*doc, c, 90 + i);
             else setRowHeight(*doc, c, 20 + i, false);
-            most = std::max(most, doc->flow().tables.liveCount());
+            const int reached = tableRecordsReachableForTest(*doc);
+            QVERIFY2(doc->flow().tables.liveCount() <= std::max(reached, 30000 + 6000), qPrintable(QStringLiteral("%1 held, %2 reachable").arg(doc->flow().tables.liveCount()).arg(reached)));
         }
-        QVERIFY2(most < 70000, qPrintable(QString::number(most)));   // (6,000 cells; 51 times that without)
+        // All of it undone: the document is as it was opened, and every step was there to undo.
+        int undone = 0;
+        while (doc->canUndo()) {
+            doc->undo();
+            ++undone;
+        }
+        QCOMPARE(undone, 50);
+        QCOMPARE(documentXml(doc->toDocx()), started);
+        QVERIFY(doc->canRedo());
+        // A new edit ends what Redo would have made, and the records of those steps are let go.
+        const int before = doc->flow().tables.liveCount();
+        setShading(*doc, c, QColor(1, 2, 3));
+        QVERIFY2(doc->flow().tables.liveCount() < before / 4 && doc->flow().tables.liveCount() <= 3 * 6000 + 100, qPrintable(QString::number(doc->flow().tables.liveCount())));
+        QVERIFY(!doc->canRedo());
         QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tr>")), 2000);
         auto back = open(doc->toDocx());
         QVERIFY(back);
         QCOMPARE(back->flow().tables.liveCount(), 6000);
-        // The history is still good for what it holds: the last steps undo to the table as it was.
-        const QString now = tablesSignature(*doc).left(4000);
-        setShading(*doc, c, QColor(1, 2, 3));
-        doc->story()->undo();
-        QCOMPARE(tablesSignature(*doc).left(4000), now);
+        doc->undo();
+        QCOMPARE(documentXml(doc->toDocx()), started);
     }
 
     // A command that would make a table the reader's limits cut (256 columns, 20,000 rows) is refused with a reason, whatever the command.

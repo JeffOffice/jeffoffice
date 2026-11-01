@@ -107,35 +107,52 @@ std::shared_ptr<View> viewAt(WriteDoc &doc, int position)
     return v;
 }
 
-// Every command makes the records of the cells of its table again, so the ones paragraphs held before pile up. When there are many more records than the story's paragraphs
-// hold, those no paragraph holds are let go, but the newest ones (a command's worth, which a page on the screen may yet have in its layout), and the history of the body, which
-// could bring a key back, is let go with them.
+// The keys that something can still reach: those a paragraph of the story holds, those a step of the history can bring back (Undo or Redo), and those of a command that has no
+// step yet; each with the records of the cells it is in.
+QSet<int> reachableKeys(WriteDoc &doc)
+{
+    const flow::TableStore &store = doc.flow().tables;
+    QSet<int> out;
+    auto add = [&](int key) {
+        for (const flow::CellRecord *r = store.get(key); r && !out.contains(r->key); r = store.get(r->parent)) out.insert(r->key);
+    };
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) add(cellKeyOf(b));
+    const QSet<quint64> steps = doc.stepSerials();
+    for (auto it = doc.tableStepKeys.begin(); it != doc.tableStepKeys.end();) {
+        if (!steps.contains(it.key())) {
+            it = doc.tableStepKeys.erase(it);   // (the step left the history: a new edit after Undo, or the history's end)
+            continue;
+        }
+        for (int key : it.value()) add(key);
+        ++it;
+    }
+    for (int key : doc.tablePendingKeys) add(key);
+    return out;
+}
+
+// Every command makes the records of the cells of its table again, so the ones the paragraphs held before pile up. The history keeps what it can bring back; a record that no
+// paragraph and no step holds is let go. (What the person can undo is never let go for the sake of room.)
 void collectRecords(WriteDoc &doc)
 {
     flow::TableStore &store = doc.flow().tables;
     constexpr int kRecordsFree = 30000;
-    if ((store.liveCount() < kRecordsFree && doc.retiredCells.size() < kRecordsFree) || doc.retiredCells.isEmpty()) return;
-    QSet<int> held;
-    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
-        for (const flow::CellRecord *r = store.get(cellKeyOf(b)); r && !held.contains(r->key); r = store.get(r->parent)) held.insert(r->key);
-    const int kept = int(held.size());
-    const bool free = store.liveCount() > 4 * kept + kRecordsFree;
-    if (free) {
-        doc.dropBodyHistory();
-        doc.tableViewCache.reset();
-    }
-    // (A key that a paragraph holds is not in the list: if a command takes it from the paragraph, the command says so.)
+    if (store.liveCount() < kRecordsFree || doc.retiredCells.isEmpty()) return;
+    const QSet<int> reachable = reachableKeys(doc);
     QVector<int> left;
     QSet<int> seen;
-    const qsizetype newest = free ? std::max<qsizetype>(0, doc.retiredCells.size() - kept) : 0;
-    for (qsizetype i = 0; i < doc.retiredCells.size(); ++i) {
-        const int key = doc.retiredCells[i];
-        if (held.contains(key) || seen.contains(key)) continue;
+    bool freed = false;
+    for (int key : std::as_const(doc.retiredCells)) {
+        if (seen.contains(key)) continue;
         seen.insert(key);
-        if (free && i < newest) store.release(key);
-        else left.push_back(key);
+        if (reachable.contains(key)) {
+            left.push_back(key);
+        } else {
+            store.release(key);
+            freed = true;
+        }
     }
     doc.retiredCells = left;
+    if (freed) doc.tableViewCache.reset();
 }
 
 // The keys of the cells of the paragraphs from `from` to `to`, which a command is about to take out of the story: nothing holds them then.
@@ -145,17 +162,41 @@ void retireRange(WriteDoc &doc, int from, int to)
         if (const int key = cellKeyOf(b)) doc.retiredCells.push_back(key);
 }
 
-// What every command of tables begins with: it has no refusal yet, and when it is done the records that are not wanted are let go.
+// The keys a command made and took from paragraphs go with the step it made (or the next step, when it is in an edit block that ends later).
+void keepForTheHistory(WriteDoc &doc, int createdFrom, qsizetype retiredFrom)
+{
+    for (int key = createdFrom + 1; key <= doc.flow().tables.count(); ++key) {
+        doc.tablePendingKeys.push_back(key);
+        doc.retiredCells.push_back(key);
+    }
+    for (qsizetype i = retiredFrom; i < doc.retiredCells.size(); ++i) doc.tablePendingKeys.push_back(doc.retiredCells[i]);
+    if (doc.nextStepSerial() > doc.tableStepsSeen) {
+        doc.tableStepsSeen = doc.nextStepSerial();
+        if (const quint64 last = doc.lastStepSerial()) {
+            doc.tableStepKeys[last] += doc.tablePendingKeys;
+            doc.tablePendingKeys.clear();
+        }
+    }
+}
+
+// What every command of tables begins with: it has no refusal yet, and when it is done the records that nothing can reach are let go.
 struct TableCommand {
     WriteDoc &doc;
+    int createdFrom;
+    qsizetype retiredFrom;
     static inline int depth = 0;   // (one command that runs another is one command: the records go when the outer one is done)
-    explicit TableCommand(WriteDoc &d) : doc(d)
+    explicit TableCommand(WriteDoc &d) : doc(d), createdFrom(d.flow().tables.count()), retiredFrom(d.retiredCells.size())
     {
-        if (depth++ == 0) doc.tableNotice.clear();
+        if (depth++ == 0) {
+            doc.tableNotice.clear();
+            if (doc.tableStepsSeen == 0) doc.tableStepsSeen = doc.nextStepSerial();
+        }
     }
     ~TableCommand()
     {
-        if (--depth == 0) collectRecords(doc);
+        if (--depth != 0) return;
+        keepForTheHistory(doc, createdFrom, retiredFrom);
+        collectRecords(doc);
     }
 };
 
@@ -2314,6 +2355,7 @@ bool splitCells(WriteDoc &doc, QTextCursor &c, int columns, int rows)
 
 
 qint64 tableViewsBuiltForTest() { return g_viewsBuilt; }
+int tableRecordsReachableForTest(WriteDoc &doc) { return int(reachableKeys(doc).size()); }
 qint64 tableCellsScannedForTest() { return g_cellsScanned; }
 qint64 tableFontMeasuresMadeForTest() { return g_fontMeasures; }
 

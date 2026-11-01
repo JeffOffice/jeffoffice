@@ -284,8 +284,15 @@ public:
     bool ensureTableStyle(const QString &id);
     // The styles tables are made from: the file's, with those the tables made have.
     const office::wml::StyleSheet &tableSheet() const;
-    // The history of the body is let go (the steps and what they would bring back), as is told by its changes at the next save.
-    void dropBodyHistory();
+    // The cell records that the steps of the history can bring back, by the serial of the step (those a table command made, and those it took from paragraphs), and those of
+    // commands that have no step yet: a record is let go only when no paragraph and none of these holds it. `tableStepsSeen` is the serial that the next step will have, as it
+    // was when they were last attached.
+    QHash<quint64, QVector<int>> tableStepKeys;
+    QVector<int> tablePendingKeys;
+    quint64 tableStepsSeen = 0;
+    quint64 nextStepSerial() const { return m_nextSerial; }
+    quint64 lastStepSerial() const { return m_undoLog.isEmpty() ? 0 : m_undoLog.last().serial; }
+    QSet<quint64> stepSerials() const;
     // ---- styles
     const office::wml::StyleSheet &styleSheet() const { return m_wml.styles; }
     int compatMode() const { return m_wml.compatMode; }
