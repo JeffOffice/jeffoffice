@@ -6,6 +6,7 @@
 #include <QSet>
 
 #include <cmath>
+#include <array>
 #include <cstring>
 #include <vector>
 
@@ -33,15 +34,197 @@ QHash<QString, int> &functionNumbers()
     return table;
 }
 
-// Functions whose arguments are arrays: an expression inside them is worked out over the whole range, not for the one cell it stands in.
-bool takesArrays(const QString &name)
+// The class each argument of a function is written in: R a reference (the cells themselves, as SUM takes them), V a value (one cell's, or the one a formula beside a range reads by
+// implicit intersection), A an array (worked out over the whole range). The last letter stands for the arguments after it. A function not in the table takes values. The table is what the
+// formulas of 3,000 workbooks written by the program the format is named for show (the class of every reference given directly as an argument), and a token of the other class is
+// worked out differently by it: a reference where a value is asked for gives #VALUE! in the text functions.
+struct ParamRow {
+    quint16 function;
+    const char *classes;
+};
+constexpr ParamRow kParams[] = {
+    {0, "R"},   // COUNT
+    {1, "VR"},   // IF
+    {2, "V"},   // ISNA
+    {3, "V"},   // ISERROR
+    {4, "R"},   // SUM
+    {5, "R"},   // AVERAGE
+    {6, "R"},   // MIN
+    {7, "R"},   // MAX
+    {8, "R"},   // ROW
+    {9, "R"},   // COLUMN
+    {11, "VR"},   // NPV
+    {12, "R"},   // STDEV
+    {14, "V"},   // FIXED
+    {15, "V"},   // SIN
+    {16, "V"},   // COS
+    {20, "V"},   // SQRT
+    {21, "V"},   // EXP
+    {22, "V"},   // LN
+    {23, "V"},   // LOG10
+    {24, "V"},   // ABS
+    {25, "V"},   // INT
+    {26, "V"},   // SIGN
+    {27, "V"},   // ROUND
+    {28, "VR"},   // LOOKUP
+    {29, "RV"},   // INDEX
+    {31, "V"},   // MID
+    {32, "V"},   // LEN
+    {33, "V"},   // VALUE
+    {36, "R"},   // AND
+    {37, "R"},   // OR
+    {38, "V"},   // NOT
+    {39, "V"},   // MOD
+    {40, "RVR"},   // DCOUNT
+    {41, "RVR"},   // DSUM
+    {42, "RVR"},   // DAVERAGE
+    {43, "RVR"},   // DMIN
+    {44, "RVR"},   // DMAX
+    {45, "RVR"},   // DSTDEV
+    {46, "R"},   // VAR
+    {47, "RVR"},   // DVAR
+    {48, "R"},   // TEXT
+    {49, "RRV"},   // LINEST
+    {50, "AAAV"},   // TREND
+    {51, "AAV"},   // LOGEST
+    {52, "AAAV"},   // GROWTH
+    {56, "VRV"},   // PV
+    {57, "V"},   // FV
+    {59, "V"},   // PMT
+    {60, "V"},   // RATE
+    {61, "R"},   // MIRR
+    {62, "RV"},   // IRR
+    {64, "VRV"},   // MATCH
+    {65, "V"},   // DATE
+    {67, "V"},   // DAY
+    {68, "V"},   // MONTH
+    {69, "V"},   // YEAR
+    {70, "V"},   // WEEKDAY
+    {75, "R"},   // AREAS
+    {76, "R"},   // ROWS
+    {77, "R"},   // COLUMNS
+    {78, "RV"},   // OFFSET
+    {83, "A"},   // TRANSPOSE
+    {100, "VR"},   // CHOOSE
+    {101, "VRRV"},   // HLOOKUP
+    {102, "VRRV"},   // VLOOKUP
+    {105, "R"},   // ISREF
+    {109, "V"},   // LOG
+    {113, "V"},   // UPPER
+    {115, "V"},   // LEFT
+    {116, "V"},   // RIGHT
+    {118, "V"},   // TRIM
+    {124, "V"},   // FIND
+    {125, "VR"},   // CELL
+    {126, "V"},   // ISERR
+    {127, "V"},   // ISTEXT
+    {128, "V"},   // ISNUMBER
+    {129, "V"},   // ISBLANK
+    {130, "R"},   // T
+    {131, "R"},   // N
+    {163, "A"},   // MDETERM
+    {164, "A"},   // MINVERSE
+    {165, "A"},   // MMULT
+    {169, "R"},   // COUNTA
+    {183, "R"},   // PRODUCT
+    {189, "RVR"},   // DPRODUCT
+    {193, "R"},   // STDEVP
+    {194, "R"},   // VARP
+    {195, "RVR"},   // DSTDEVP
+    {196, "RVR"},   // DVARP
+    {199, "RVR"},   // DCOUNTA
+    {212, "V"},   // ROUNDUP
+    {216, "VR"},   // RANK
+    {219, "V"},   // ADDRESS
+    {227, "R"},   // MEDIAN
+    {228, "A"},   // SUMPRODUCT
+    {235, "RVR"},   // DGET
+    {252, "R"},   // FREQUENCY
+    {269, "R"},   // AVEDEV
+    {274, "V"},   // CHIDIST
+    {275, "V"},   // CHIINV
+    {277, "V"},   // CONFIDENCE
+    {279, "V"},   // EVEN
+    {285, "V"},   // FLOOR
+    {288, "V"},   // CEILING
+    {293, "V"},   // NORMDIST
+    {294, "V"},   // NORMSDIST
+    {295, "V"},   // NORMINV
+    {296, "V"},   // NORMSINV
+    {301, "V"},   // TDIST
+    {303, "A"},   // SUMXMY2
+    {304, "A"},   // SUMX2MY2
+    {305, "A"},   // SUMX2PY2
+    {306, "A"},   // CHITEST
+    {307, "A"},   // CORREL
+    {308, "A"},   // COVAR
+    {309, "VA"},   // FORECAST
+    {310, "A"},   // FTEST
+    {311, "A"},   // INTERCEPT
+    {312, "A"},   // PEARSON
+    {313, "A"},   // RSQ
+    {314, "A"},   // STEYX
+    {315, "A"},   // SLOPE
+    {316, "AAV"},   // TTEST
+    {317, "AAV"},   // PROB
+    {318, "R"},   // DEVSQ
+    {319, "R"},   // GEOMEAN
+    {320, "R"},   // HARMEAN
+    {321, "R"},   // SUMSQ
+    {322, "R"},   // KURT
+    {323, "R"},   // SKEW
+    {324, "RV"},   // ZTEST
+    {325, "R"},   // LARGE
+    {326, "R"},   // SMALL
+    {327, "R"},   // QUARTILE
+    {328, "RV"},   // PERCENTILE
+    {329, "RV"},   // PERCENTRANK
+    {330, "A"},   // MODE
+    {331, "RV"},   // TRIMMEAN
+    {332, "V"},   // TINV
+    {336, "V"},   // CONCATENATE
+    {337, "V"},   // POWER
+    {342, "V"},   // RADIANS
+    {344, "VR"},   // SUBTOTAL
+    {345, "RVR"},   // SUMIF
+    {346, "RV"},   // COUNTIF
+    {347, "R"},   // COUNTBLANK
+    {358, "VR"},   // GETPIVOTDATA
+    {359, "V"},   // HYPERLINK
+    {360, "R"},   // PHONETIC
+    {361, "R"},   // AVERAGEA
+    {362, "R"},   // MAXA
+    {363, "R"},   // MINA
+    {364, "R"},   // STDEVPA
+    {365, "R"},   // VARPA
+    {366, "R"},   // STDEVA
+    {367, "R"},   // VARA
+};
+
+char paramClass(int function, int place)
 {
-    static const QSet<QString> set = {QStringLiteral("SUMPRODUCT"), QStringLiteral("MMULT"), QStringLiteral("TRANSPOSE"), QStringLiteral("MINVERSE"), QStringLiteral("MDETERM"),
-                                      QStringLiteral("LINEST"), QStringLiteral("LOGEST"), QStringLiteral("TREND"), QStringLiteral("GROWTH"), QStringLiteral("FREQUENCY"),
-                                      QStringLiteral("SUMX2MY2"), QStringLiteral("SUMX2PY2"), QStringLiteral("SUMXMY2"), QStringLiteral("CORREL"), QStringLiteral("COVAR"),
-                                      QStringLiteral("PEARSON"), QStringLiteral("RSQ"), QStringLiteral("SLOPE"), QStringLiteral("INTERCEPT"), QStringLiteral("STEYX"),
-                                      QStringLiteral("FORECAST"), QStringLiteral("LOOKUP"), QStringLiteral("MATCH"), QStringLiteral("INDEX")};
-    return set.contains(name);
+    static const std::array<const char *, 512> table = [] {
+        std::array<const char *, 512> t{};
+        for (const ParamRow &r : kParams) t[r.function] = r.classes;
+        return t;
+    }();
+    const char *c = function >= 0 && function < 512 ? table[size_t(function)] : nullptr;
+    if (!c) return 'V';
+    const size_t n = std::strlen(c);
+    return c[std::min<size_t>(size_t(std::max(place, 0)), n - 1)];
+}
+
+// Functions that may give a reference as their value (so that their call is written in the class asked for, not as a value): the rest give values.
+bool returnsReference(const QString &name)
+{
+    return name == QLatin1String("IF") || name == QLatin1String("CHOOSE") || name == QLatin1String("INDEX") || name == QLatin1String("OFFSET") || name == QLatin1String("INDIRECT");
+}
+
+// Functions that change by themselves: a formula that calls one begins with the mark the format has for that.
+bool isVolatileFunction(const QString &name)
+{
+    return name == QLatin1String("NOW") || name == QLatin1String("TODAY") || name == QLatin1String("RAND") || name == QLatin1String("OFFSET") || name == QLatin1String("INDIRECT")
+           || name == QLatin1String("CELL") || name == QLatin1String("INFO");
 }
 
 struct Err {
@@ -93,6 +276,7 @@ public:
             *why = m_why;
             return false;
         }
+        if (m_volatile && !m_cx.isName) m_out.prepend(QByteArray::fromHex("19010000"));   // (the mark of a formula that changes by itself)
         if (m_out.size() > kXlsMaxFormulaBytes) {
             *why = QCoreApplication::translate("Sheet", "The formula is longer than the old format allows.");
             return false;
@@ -110,6 +294,7 @@ private:
     QString m_why;
     std::vector<Node> m_nodes;
     QByteArray m_out, m_extra;
+    bool m_volatile = false;
 
     bool fail(const QString &why)
     {
@@ -883,7 +1068,7 @@ private:
     {
         if (depth > kMaxDepth * 2) return fail(QCoreApplication::translate("Sheet", "The formula is nested more deeply than the old format allows."));
         const Node &n = m_nodes[size_t(idx)];
-        const int valueCls = m_cx.array ? kClsArr : kClsVal;
+        const int valueCls = valueClassIn(cls);
         switch (n.kind) {
         case Kind::Num: {
             const double v = n.number;
@@ -904,6 +1089,18 @@ private:
             u8(n.code);
             return true;
         case Kind::Error:
+            if (n.code == 0x17) {
+                // (a reference that is gone: the token the format has for it, not the error as a value; in a name it names a sheet)
+                if (m_cx.isName) {
+                    u8(0x3C);
+                    u16(m_cx.xti ? std::max(0, m_cx.xti(0, 0)) : 0);
+                    m_out.append(QByteArray(4, '\0'));
+                } else {
+                    u8(0x2A);
+                    m_out.append(QByteArray(4, '\0'));
+                }
+                return true;
+            }
             u8(0x1C);
             u8(n.code);
             return true;
@@ -943,7 +1140,7 @@ private:
             }
             return true;
         }
-        case Kind::Array: return emitArray(n, cls);
+        case Kind::Array: return emitArray(n, cls == kClsRef ? kClsVal : cls);
         case Kind::Func: return emitFunc(n, cls, depth);
         }
         return false;
@@ -1016,27 +1213,13 @@ private:
         return true;
     }
 
-    // Functions whose arguments are all values: a reference given to one is written as a value (the cell's value, or the one cell of a range the formula's own cell lies beside).
-    static bool takesOnlyValues(const QString &name)
-    {
-        static const QSet<QString> set = [] {
-            static const char *const names[] = {"ABS", "ACOS", "ACOSH", "ASIN", "ASINH", "ATAN", "ATAN2", "ATANH", "CEILING", "FLOOR", "COS", "COSH", "SIN", "SINH", "TAN", "TANH", "DEGREES", "RADIANS",
-                "EXP", "LN", "LOG", "LOG10", "MOD", "POWER", "SIGN", "SQRT", "FACT", "INT", "TRUNC", "ROUND", "ROUNDUP", "ROUNDDOWN", "EVEN", "ODD", "LEN", "LEFT", "RIGHT", "MID", "UPPER", "LOWER",
-                "PROPER", "TRIM", "CLEAN", "CODE", "CHAR", "VALUE", "TEXT", "REPT", "SUBSTITUTE", "REPLACE", "FIND", "SEARCH", "EXACT", "FIXED", "DOLLAR", "NOT", "YEAR", "MONTH", "DAY", "HOUR", "MINUTE",
-                "SECOND", "WEEKDAY", "DATE", "TIME", "DATEVALUE", "TIMEVALUE", "PMT", "FV", "PV", "NPER", "RATE", "IPMT", "PPMT", "ISNUMBER", "ISTEXT", "ISERROR", "ISBLANK", "ISNA", "ISERR", "ISLOGICAL",
-                "ISNONTEXT", "NA"};
-            QSet<QString> out;
-            for (const char *n : names) out.insert(QString::fromLatin1(n));
-            return out;
-        }();
-        return set.contains(name);
-    }
+    // The class a value is written in where the place asks for `cls`: in an array formula, or where an array is asked for, an array.
+    int valueClassIn(int cls) const { return cls == kClsArr || m_cx.array ? kClsArr : kClsVal; }
 
     bool emitFunc(const Node &n, int cls, int depth)
     {
-        const bool arrays = takesArrays(n.text);
-        const int valueCls = m_cx.array ? kClsArr : kClsVal;
-        const bool onlyValues = takesOnlyValues(n.text);
+        const int valueCls = valueClassIn(cls);
+        if (isVolatileFunction(n.text)) m_volatile = true;
         const bool jumps = n.code == 0 && ((n.text == QLatin1String("IF") && n.kids.size() >= 2 && n.kids.size() <= 3) || (n.text == QLatin1String("CHOOSE") && n.kids.size() >= 2 && n.kids.size() <= 30));
         if (n.code == 1) {
             // a function of the add-in set: the name of it comes first, then the arguments, and the call is function 255 with one more argument
@@ -1047,20 +1230,16 @@ private:
             u16(index);
             u16(0);
         }
-        auto argClass = [&](int position, int kid) {
-            const Node &k = m_nodes[size_t(kid)];
-            int argCls = arrays ? kClsArr : valueCls;
-            const bool valueHere = onlyValues || (jumps && position == 0);   // (the condition of IF and the number of CHOOSE are values)
-            if (!arrays && !valueHere && (k.kind == Kind::Ref || k.kind == Kind::Name)) argCls = kClsRef;
-            if (!arrays && !valueHere && k.kind == Kind::Paren) {
-                const Node &inner = m_nodes[size_t(k.kids[0])];
-                if (inner.kind == Kind::Ref || inner.kind == Kind::Name) argCls = kClsRef;
+        auto argClass = [&](int position, int) {
+            switch (paramClass(n.code == 1 ? 255 : n.index, position)) {
+            case 'R': return int(kClsRef);
+            case 'A': return int(kClsArr);
+            default: return valueCls;
             }
-            return argCls;
         };
         const XlsFunction f = xlsFunction(n.index);
         const int argc = int(n.kids.size());
-        const int own = cls == kClsRef ? kClsRef : valueCls;
+        const int own = cls == kClsRef && returnsReference(n.text) ? int(kClsRef) : valueCls;
         auto put16At = [&](qsizetype at, qsizetype v) {
             m_out[at] = char(v & 0xFF);
             m_out[at + 1] = char((v >> 8) & 0xFF);

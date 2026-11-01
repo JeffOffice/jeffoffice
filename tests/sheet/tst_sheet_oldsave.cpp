@@ -4,6 +4,7 @@
 #include "odshelpers.h"
 
 #include "io/cfb.h"
+#include "xlsvalidate.h"
 #include "sheet/oldsave.h"
 #include "sheet/oldsavecommon.h"
 #include "sheet/xlscompile.h"
@@ -66,6 +67,12 @@ struct Copies {
     {
         if (!openXlsx(xlsx, &original, &why)) return false;
         if (!saveXls(original, &xlsBytes, &xlsReport, &why)) return false;
+        // (every copy any test makes is checked for the structure the format wants, apart from what the tests look for in it)
+        const QString broken = xlstest::validateXls(xlsBytes);
+        if (!broken.isEmpty()) {
+            why = QStringLiteral("the .xls copy is malformed: ") + broken;
+            return false;
+        }
         if (!xls.openBinary(xlsBytes, &why)) return false;
         if (!wantOds) return true;
         if (!saveOds(original, &odsBytes, &odsReport, &why)) return false;
@@ -901,6 +908,72 @@ private Q_SLOTS:
         const std::vector<PlacedCell> all = oldsave::sortedCells(sheet, 5000, &left);
         QCOMPARE(qint64(all.size()), qint64(1000));
         QCOMPARE(left, qint64(0));
+    }
+
+    // The panes of a frozen sheet: a PANE of ten bytes, and a selection for each pane the split makes (one for a split of rows or of columns, two; for both, four). The copies of two workbooks
+    // with frozen panes were refused as damaged by the program the format is named for, for a PANE of nine bytes.
+    void aFrozenSheetHasTenBytePaneAndASelectionForEachPane()
+    {
+        const QString rows = row(1, num(QStringLiteral("A1"), 1) + num(QStringLiteral("B1"), 2)) + row(5, num(QStringLiteral("A5"), 3));
+        const QStringList views = {QStringLiteral("<pane ySplit=\"3\" topLeftCell=\"A4\" activePane=\"bottomLeft\" state=\"frozen\"/>"),
+                                   QStringLiteral("<pane xSplit=\"1\" topLeftCell=\"B1\" activePane=\"topRight\" state=\"frozen\"/>"),
+                                   QStringLiteral("<pane xSplit=\"1\" ySplit=\"3\" topLeftCell=\"B4\" activePane=\"bottomRight\" state=\"frozen\"/>")};
+        const int selections[] = {2, 2, 4};
+        for (int i = 0; i < 3; ++i) {
+            Copies c;
+            QVERIFY2(c.make(simple(rows, QString(), QStringLiteral("<sheetViews><sheetView workbookViewId=\"0\">") + views[i] + QStringLiteral("</sheetView></sheetViews>")), false), qPrintable(c.why));
+            int paneLength = 0, selectionCount = 0;
+            for (const RawRecord &r : rawRecords(c.xlsBytes)) {
+                if (r.id == 0x0041) paneLength = int(r.data.size());
+                if (r.id == 0x001D) ++selectionCount;
+            }
+            QCOMPARE(paneLength, 10);
+            QCOMPARE(selectionCount, selections[i]);
+        }
+    }
+
+    // The structure check itself: a PANE of nine bytes, a selection missing, and a name whose tokens are an error value are what it names.
+    void theStructureCheckNamesWhatIsWrong()
+    {
+        Copies c;
+        QVERIFY2(c.make(simple(row(1, num(QStringLiteral("A1"), 1))), false), qPrintable(c.why));
+        QVERIFY(xlstest::validateXls(c.xlsBytes).isEmpty());
+        QString why;
+        QVERIFY(!xlstest::validateTokens(QByteArray::fromHex("1E01001E0200"), -1, -1, &why));   // two values left over
+        QVERIFY(xlstest::validateTokens(QByteArray::fromHex("1E01001E020003"), -1, -1, &why));
+        QVERIFY(!xlstest::validateTokens(QByteArray::fromHex("3B050000000000000000"), 2, -1, &why));   // a reference through an external sheet that is not in the list, and cut off
+    }
+
+    // Over a list of workbooks (the path of a file of names in XLS_VALIDATE_LIST, one to a line; skipped without it, and no file of the list is in the repository): the .xls copy of each is
+    // checked for its structure. The count of failures is the bar: none.
+    void theCopiesOfAListOfWorkbooksAreWellFormed()
+    {
+        const QByteArray list = qgetenv("XLS_VALIDATE_LIST");
+        if (list.isEmpty()) QSKIP("XLS_VALIDATE_LIST names no list");
+        QFile f(QString::fromLocal8Bit(list));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        qint64 checked = 0, bad = 0;
+        QStringList firsts;
+        const int step = std::max(1, qEnvironmentVariableIntValue("XLS_VALIDATE_STEP"));
+        int n = 0;
+        while (!f.atEnd()) {
+            const QString path = QString::fromLocal8Bit(f.readLine()).trimmed();
+            if (path.isEmpty() || (n++ % step) != 0) continue;
+            Workbook wb;
+            QString why;
+            if (!wb.openFile(path, &why)) continue;
+            QByteArray out;
+            CopyReport report;
+            if (!saveXls(wb, &out, &report, &why)) continue;
+            ++checked;
+            const QString broken = xlstest::validateXls(out);
+            if (!broken.isEmpty()) {
+                ++bad;
+                if (firsts.size() < 10) firsts << path + QStringLiteral(": ") + broken;
+            }
+        }
+        qInfo("%lld copies checked, %lld malformed", checked, bad);
+        QVERIFY2(bad == 0, qPrintable(firsts.join(QLatin1Char('\n'))));
     }
 
     void theFormulaCompilerRefusesWhatItCannotWrite()

@@ -270,6 +270,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_xlsprint.cpp
   tests/sheet/tst_sheet_xlssave.cpp
   tests/sheet/tst_sheet_oldsave.cpp
+  tests/sheet/xlsvalidate.cpp
   tests/sheet/tst_sheet_datatable.cpp
   tests/sheet/tst_sheet_xlsformula.cpp
   tests/sheet/tst_sheet_xlshostile.cpp
@@ -605,7 +606,7 @@ endif()
 set_target_properties(writetool PROPERTIES WIN32_EXECUTABLE OFF)
 
 # Developer tool for JeffCrunch's readers and its yardstick: what a workbook holds, and a table of that for a list of workbooks.
-qt_add_executable(jcrunchtool tools/jcrunchtool.cpp tools/jcrunchtool_filter.cpp tools/jcrunchtool_side.cpp tools/jcrunchtool_compare.cpp tools/jcrunchtool_xlsfuzz.cpp tools/jcrunchtool_xlssave.cpp tools/jcrunchtool_copycheck.cpp tools/jcrunchtool_datatable.cpp tools/jcrunchtool_odsfuzz.cpp tools/jcrunchtool_linemap.cpp)
+qt_add_executable(jcrunchtool tools/jcrunchtool.cpp tools/jcrunchtool_filter.cpp tools/jcrunchtool_side.cpp tools/jcrunchtool_compare.cpp tools/jcrunchtool_xlsfuzz.cpp tools/jcrunchtool_xlssave.cpp tools/jcrunchtool_copycheck.cpp tools/jcrunchtool_datatable.cpp tools/jcrunchtool_tokens.cpp tools/jcrunchtool_odsfuzz.cpp tools/jcrunchtool_linemap.cpp)
 target_link_libraries(jcrunchtool PRIVATE jo_office)
 target_compile_definitions(jcrunchtool PRIVATE JCRUNCH_TOOLS_DIR="${CMAKE_SOURCE_DIR}/tools")
 set_target_properties(jcrunchtool PROPERTIES WIN32_EXECUTABLE OFF)

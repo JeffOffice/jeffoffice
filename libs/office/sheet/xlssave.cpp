@@ -841,9 +841,21 @@ private:
                 const int rows = int(std::min<quint32>(v.frozenRows, 65535)), cols = int(std::min<quint32>(v.frozenCols, 255));
                 const int top = int(std::min<quint32>(v.paneRow ? v.paneRow : v.frozenRows, 65535)), left = int(std::min<quint32>(v.paneCol ? v.paneCol : v.frozenCols, 255));
                 const int active = rows > 0 && cols > 0 ? 0 : rows > 0 ? 2 : 1;
-                put(&out, 0x0041, W().u16(cols).u16(rows).u16(top).u16(left).u8(active));
+                put(&out, 0x0041, W().u16(cols).u16(rows).u16(top).u16(left).u16(active));
                 const int ar = int(std::min<quint32>(v.activeRow, 65535)), ac = int(std::min<quint32>(v.activeCol, 255));
-                put(&out, 0x001D, W().u8(active).u16(ar).u16(ac).u16(0).u16(1).u16(ar).u16(ar).u8(ac).u8(ac));
+                // a selection for each pane the split makes (the format wants one for every pane: top left 3, top right 1, bottom left 2, bottom right 0), the active pane's holding the active cell and
+                // each of the others the cell its pane begins at
+                const int topRow0 = int(std::min<quint32>(v.topRow, 65535)), leftCol0 = int(std::min<quint32>(v.leftCol, 255));
+                for (const int pane : {3, 1, 2, 0}) {
+                    const bool right = pane == 1 || pane == 0, below = pane == 2 || pane == 0;
+                    if ((right && cols == 0) || (below && rows == 0)) continue;
+                    int r = ar, c = ac;
+                    if (pane != active) {
+                        r = below ? top : topRow0;
+                        c = right ? left : leftCol0;
+                    }
+                    put(&out, 0x001D, W().u8(pane).u16(r).u16(c).u16(0).u16(1).u16(r).u16(r).u8(c).u8(c));
+                }
             } else {
                 const int ar = int(std::min<quint32>(v.activeRow, 65535)), ac = int(std::min<quint32>(v.activeCol, 255));
                 put(&out, 0x001D, W().u8(3).u16(ar).u16(ac).u16(0).u16(1).u16(ar).u16(ar).u8(ac).u8(ac));
@@ -860,8 +872,8 @@ private:
                 }
                 merges.append(m);
             }
-            for (qsizetype at = 0; at < merges.size(); at += 1027) {
-                const qsizetype n = std::min<qsizetype>(1027, merges.size() - at);
+            for (qsizetype at = 0; at < merges.size(); at += 1026) {   // (a record holds 1,026 ranges at most)
+                const qsizetype n = std::min<qsizetype>(1026, merges.size() - at);
                 W m;
                 m.u16(int(n));
                 for (qsizetype k = 0; k < n; ++k) m.u16(int(merges[at + k].row1)).u16(int(merges[at + k].row2)).u16(int(merges[at + k].col1)).u16(int(merges[at + k].col2));

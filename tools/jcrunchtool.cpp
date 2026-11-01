@@ -739,6 +739,7 @@ int odsFuzzMain(const QStringList &args);   // (jcrunchtool_odsfuzz.cpp)
 int xlsSaveCheckMain(const QStringList &args);   // (jcrunchtool_xlssave.cpp)
 int copyCheckMain(const QStringList &args);      // (jcrunchtool_copycheck.cpp)
 int dataTableCheckMain(const QStringList &args); // (jcrunchtool_datatable.cpp)
+int tokenCheckMain(const QStringList &args);     // (jcrunchtool_tokens.cpp)
 int lineMapBenchMain(const QStringList &args);   // (jcrunchtool_linemap.cpp)
 int filterRoundtripMain(const QStringList &args);   // (jcrunchtool_filter.cpp)
 int sideRoundtripMain(const QStringList &args);   // (jcrunchtool_side.cpp)
@@ -794,6 +795,10 @@ int main(int argc, char **argv)
     if ((args.size() == 1 || args.size() == 2) && args[0] == QLatin1String("linemap-bench")) return jp::crunchtool::lineMapBenchMain(args.mid(1));
     if (args.size() == 2 && args[0] == QLatin1String("xls-save-check")) {
         const int code = jp::crunchtool::xlsSaveCheckMain(args.mid(1));
+        if (code >= 0) return code;
+    }
+    if ((args.size() == 2 || args.size() == 3) && args[0] == QLatin1String("token-check")) {
+        const int code = jp::crunchtool::tokenCheckMain(args.mid(1));
         if (code >= 0) return code;
     }
     if (args.size() == 2 && args[0] == QLatin1String("datatable-check")) {
