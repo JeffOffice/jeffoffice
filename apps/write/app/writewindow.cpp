@@ -185,6 +185,7 @@ void WriteWindow::createActions()
     createEditingActions();
     createHeaderFooterActions();
     createNoteActions();
+    createTableActions();
 }
 
 namespace {
@@ -352,23 +353,8 @@ void WriteWindow::showContextMenu(const QPoint &globalPos)
     menu.addAction(act("fmt.fontDialog"));
     menu.addAction(act("para.dialog"));
     menu.addAction(act("edit.selectAll"));
-    // In a table: its rows and columns.
-    if (m_doc && !m_view->inHeaderFooter() && !m_view->inNote() && write::cellPlace(*m_doc, m_view->cursor()).inTable) {
-        menu.addSeparator();
-        auto table = [&](const QString &text, const std::function<void(write::WriteDoc &, QTextCursor &)> &command) {
-            menu.addAction(text, this, [this, command] {
-                command(*m_doc, m_view->cursor());
-                m_view->refresh();
-            });
-        };
-        table(tr("Insert Row Above"), [](write::WriteDoc &d, QTextCursor &c) { write::insertTableRow(d, c, false); });
-        table(tr("Insert Row Below"), [](write::WriteDoc &d, QTextCursor &c) { write::insertTableRow(d, c, true); });
-        table(tr("Insert Column Left"), [](write::WriteDoc &d, QTextCursor &c) { write::insertTableColumn(d, c, false); });
-        table(tr("Insert Column Right"), [](write::WriteDoc &d, QTextCursor &c) { write::insertTableColumn(d, c, true); });
-        table(tr("Delete Row"), [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableRows(d, c); });
-        table(tr("Delete Column"), [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableColumns(d, c); });
-        table(tr("Delete Table"), [](write::WriteDoc &d, QTextCursor &c) { write::deleteTable(d, c); });
-    }
+    // In a table: its rows and columns, merging, lines, size, and properties.
+    if (cursorInTable()) addTableContextMenu(menu);
     menu.exec(globalPos);
 }
 
@@ -384,7 +370,10 @@ void WriteWindow::refreshUi()
             id.startsWith(QLatin1String("insert.")) || id.startsWith(QLatin1String("style.")))
             a->setEnabled(has);
     }
-    if (!has) return;
+    if (!has) {
+        refreshTableUi();
+        return;
+    }
     QTextCursor &c = m_view->cursor();
     act("edit.undo")->setEnabled(m_doc->canUndo());
     act("edit.redo")->setEnabled(m_doc->canRedo());
@@ -479,6 +468,7 @@ void WriteWindow::refreshUi()
         act("hf.linkPrevious")->setEnabled(editing && e.section > 0);
         act("hf.linkPrevious")->setChecked(editing && m_doc->linkedToPrevious(e.section, e.footer, e.slot));
     }
+    refreshTableUi();
 }
 
 void WriteWindow::updateStatus()

@@ -271,15 +271,37 @@ public:
     QTextDocument *undo(QTextCursor *cursor = nullptr);
     QTextDocument *redo(QTextCursor *cursor = nullptr);
 
+    // ---- tables
+    // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
+    QString tableNotice;
+    // What core/tableops.cpp keeps with the document: the tables of the story as they were last looked at, and the keys of the cell records that paragraphs held before a command
+    // replaced them , to be let go when nothing can reach them.
+    std::shared_ptr<void> tableViewCache;
+    QVector<int> retiredCells;
+    // The table style of this id for the tables the program makes: the file's own, else a built-in one, which the file written has only while a table has it. A built-in style
+    // is the default of its kind only when the file has none under any id.
+    bool ensureTableStyle(const QString &id);
+    // The styles tables are made from: the file's, with those the tables made have.
+    const office::wml::StyleSheet &tableSheet() const;
+    // The cell records that the steps of the history can bring back, by the serial of the step (those a table command made, and those it took from paragraphs), and those of
+    // commands that have no step yet: a record is let go only when no paragraph and none of these holds it. `tableStepsSeen` is the serial that the next step will have, as it
+    // was when they were last attached.
+    QHash<quint64, QVector<int>> tableStepKeys;
+    QVector<int> tablePendingKeys;
+    quint64 tableStepsSeen = 0;
+    quint64 nextStepSerial() const { return m_nextSerial; }
+    quint64 lastStepSerial() const { return m_undoLog.isEmpty() ? 0 : m_undoLog.last().serial; }
+    QSet<quint64> stepSerials() const;
     // ---- styles
     const office::wml::StyleSheet &styleSheet() const { return m_wml.styles; }
+    int compatMode() const { return m_wml.compatMode; }
     QString defaultParagraphStyle() const;
     QVector<StyleEntry> styleEntries() const;
     // The style the document has under `id`, adding a built-in one it lacks; false when there is none by that id.
     bool ensureStyle(const QString &id);
     // The whole of a paragraph style's look: the paragraph's format and its run's, with the document's defaults under them.
-    QTextBlockFormat styleBlockFormat(const QString &paragraphStyle);
-    QTextCharFormat styleCharFormat(const QString &paragraphStyle, const QString &characterStyle = QString());
+    QTextBlockFormat styleBlockFormat(const QString &paragraphStyle, const office::wml::TableLayer *layer = nullptr);
+    QTextCharFormat styleCharFormat(const QString &paragraphStyle, const QString &characterStyle = QString(), const office::wml::TableLayer *layer = nullptr);
     // What the paragraph has from its style and its list (the file's numbering gives a list's indents), for telling what it says itself.
     // `direct` says the paragraph itself states its numbering (so the list's indents come over its style's); `cache`, if given, holds
     // the answers for one pass over a document (the same style, list, and level come up again and again).
@@ -589,6 +611,8 @@ private:
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;
+    QVector<office::wml::Style> m_addedTableStyles;                    // built-in table styles that tables made have (see ensureTableStyle)
+    mutable std::shared_ptr<office::wml::StyleSheet> m_tableSheet;
     bool levelIsOutlined(const office::wml::Level &level, int key) const;
     mutable QHash<int, bool> m_levelOutlines;   // by definition and level (or, for a level a numbering id writes out itself, by the id and level): whether the level's bullets are outlined
     friend class Loader;

@@ -278,6 +278,10 @@ public:
                     if (blk.role == Inline::Open && isRevision(blk.tag)) {
                         noteId(blk.key);
                         revisions.push_back({blk.tag, blk.key, true, b, -1, true});
+                    } else if (blk.tag == QLatin1String("tbl") || blk.tag == QLatin1String("tr") || blk.tag == QLatin1String("tc")) {
+                        // (What the start of a table, a row, or a cell holds as written, which a bookmark between a table's properties and its first row is: it can't be left out, but
+                        // its partner is found.)
+                        scanRaw(blk.raw, b);
                     }
                 } else {
                     bool start = false;

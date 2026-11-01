@@ -697,6 +697,14 @@ void WriteDoc::checkModified()
     Q_EMIT modifiedChanged();
 }
 
+QSet<quint64> WriteDoc::stepSerials() const
+{
+    QSet<quint64> out;
+    for (const Step &s : m_undoLog) out.insert(s.serial);
+    for (const Step &s : m_redoLog) out.insert(s.serial);
+    return out;
+}
+
 QTextDocument *WriteDoc::undo(QTextCursor *cursor)
 {
     discardPendingHeaderFooter();   // (the empty one shown to be typed in is no step)

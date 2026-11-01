@@ -199,6 +199,22 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
     syncSections();
     office::wml::Document out = m_wml;
     exportBody(&out.body);
+    // The built-in table styles that tables made have are part of the file while a table has one (and a style they are based on): a table taken back by Undo takes its style with it.
+    if (!m_addedTableStyles.isEmpty()) {
+        QSet<QString> wanted;
+        for (const office::wml::Block &b : std::as_const(out.body))
+            if (b.isRaw && b.role == office::wml::Inline::Open && b.tag == QLatin1String("tbl") && b.table) wanted.insert(b.table->style);
+        for (bool grew = true; grew;) {
+            grew = false;
+            for (const office::wml::Style &s : std::as_const(m_addedTableStyles))
+                if (wanted.contains(s.id) && !s.basedOn.isEmpty() && !wanted.contains(s.basedOn)) {
+                    wanted.insert(s.basedOn);
+                    grew = true;
+                }
+        }
+        for (const office::wml::Style &s : std::as_const(m_addedTableStyles))
+            if (wanted.contains(s.id) && !out.styles.find(s.id)) out.styles.add(s);
+    }
     out.lastSection = m_last;
     out.lastSectionStated = true;
     writeHeaderParts(&out);

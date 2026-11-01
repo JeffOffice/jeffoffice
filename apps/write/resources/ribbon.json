@@ -213,6 +213,21 @@
       "keytip": "N",
       "groups": [
         {
+          "name": "Tables",
+          "keytip": "ZT",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.table",
+                "text": "Table",
+                "icon": "table"
+              },
+              "keytip": "T",
+              "menu": "@tableGrid"
+            }
+          ]
+        },
+        {
           "name": "Pages",
           "keytip": "ZG",
           "items": [
@@ -514,6 +529,244 @@
             {
               "small": "hf.linkPrevious",
               "keytip": "LP"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Table Design",
+      "keytip": "JD",
+      "context": "Table Tools",
+      "color": "table",
+      "groups": [
+        {
+          "name": "Table Styles",
+          "keytip": "ZY",
+          "items": [
+            {
+              "widget": "tableStyleGallery",
+              "keytip": "TS"
+            }
+          ]
+        },
+        {
+          "name": "Table Style Options",
+          "keytip": "ZO",
+          "items": [
+            {
+              "small": "table.look.header",
+              "keytip": "HR"
+            },
+            {
+              "small": "table.look.total",
+              "keytip": "TR"
+            },
+            {
+              "small": "table.look.bandedRows",
+              "keytip": "BR"
+            },
+            {
+              "small": "table.look.firstColumn",
+              "keytip": "FC"
+            },
+            {
+              "small": "table.look.lastColumn",
+              "keytip": "LC"
+            },
+            {
+              "small": "table.look.bandedColumns",
+              "keytip": "BC"
+            }
+          ]
+        },
+        {
+          "name": "Borders and Shading",
+          "keytip": "ZB",
+          "items": [
+            {
+              "widget": "tableShading",
+              "keytip": "SH"
+            },
+            {
+              "large": {
+                "id": "ribbon.tableBorders",
+                "text": "Borders",
+                "icon": "grid-2x2"
+              },
+              "keytip": "BD",
+              "menu": "@tableBorders"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Table Layout",
+      "keytip": "JL",
+      "context": "Table Tools",
+      "color": "table",
+      "groups": [
+        {
+          "name": "Table",
+          "keytip": "ZT",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.tableSelect",
+                "text": "Select",
+                "icon": "square-dashed-mouse-pointer"
+              },
+              "keytip": "SE",
+              "menu": "@tableSelect"
+            },
+            {
+              "large": "table.properties",
+              "keytip": "PR"
+            }
+          ]
+        },
+        {
+          "name": "Rows & Columns",
+          "keytip": "ZR",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.tableDelete",
+                "text": "Delete",
+                "icon": "grid-2x2-x"
+              },
+              "keytip": "DL",
+              "menu": "@tableDelete"
+            },
+            {
+              "small": "table.insertAbove",
+              "keytip": "IA"
+            },
+            {
+              "small": "table.insertBelow",
+              "keytip": "IB"
+            },
+            {
+              "small": "table.insertLeft",
+              "keytip": "IL"
+            },
+            {
+              "small": "table.insertRight",
+              "keytip": "IR"
+            }
+          ]
+        },
+        {
+          "name": "Merge",
+          "keytip": "ZM",
+          "items": [
+            {
+              "large": "table.merge",
+              "keytip": "MC"
+            },
+            {
+              "large": "table.split",
+              "keytip": "SC"
+            }
+          ]
+        },
+        {
+          "name": "Cell Size",
+          "keytip": "ZZ",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.tableAutoFit",
+                "text": "AutoFit",
+                "icon": "unfold-horizontal"
+              },
+              "keytip": "AF",
+              "menu": "@tableAutoFit"
+            },
+            {
+              "row": [
+                {
+                  "label": "Height:"
+                },
+                {
+                  "widget": "tableRowHeight",
+                  "keytip": "RH"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Width:"
+                },
+                {
+                  "widget": "tableColumnWidth",
+                  "keytip": "CW"
+                }
+              ]
+            },
+            {
+              "small": "table.distributeRows",
+              "keytip": "DR"
+            },
+            {
+              "small": "table.distributeColumns",
+              "keytip": "DC"
+            }
+          ]
+        },
+        {
+          "name": "Alignment",
+          "keytip": "ZA",
+          "items": [
+            {
+              "row": [
+                {
+                  "icon": "table.align.tl",
+                  "keytip": "AQ"
+                },
+                {
+                  "icon": "table.align.tc",
+                  "keytip": "AW"
+                },
+                {
+                  "icon": "table.align.tr",
+                  "keytip": "AE"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "icon": "table.align.ml",
+                  "keytip": "AA"
+                },
+                {
+                  "icon": "table.align.mc",
+                  "keytip": "AS"
+                },
+                {
+                  "icon": "table.align.mr",
+                  "keytip": "AD"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "icon": "table.align.bl",
+                  "keytip": "AZ"
+                },
+                {
+                  "icon": "table.align.bc",
+                  "keytip": "AX"
+                },
+                {
+                  "icon": "table.align.br",
+                  "keytip": "AC"
+                }
+              ]
             }
           ]
         }

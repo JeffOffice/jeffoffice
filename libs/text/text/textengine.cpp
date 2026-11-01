@@ -4502,7 +4502,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     // Re-check wrap for a line taller than estimated.
                     const double inkH = rise > 0 ? textH : std::min(textH, line.height());
-                    double band = estText;   // (the height of the line's text that the objects it goes round were kept out of)
+                    // (The height of the line's text that the objects it goes round were kept out of: for a word processor's line, the height that was checked, which is that of the
+                    // text on the line when it is smaller than its paragraph's first run makes the estimate.)
+                    double band = env.wordLines && lineHeightAtWalls >= 0 ? lineHeightAtWalls : estText;
                     if (inkH > estText * 1.05 && !frames[f].obstacles.isEmpty() && rowIdx == 0) {
                         band = inkH;
                         const double touch = env.wordLines ? 0.001 : 0.0;

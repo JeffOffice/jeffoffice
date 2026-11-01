@@ -13,6 +13,7 @@
 #include <QHash>
 #include <QVector>
 #include <memory>
+#include <optional>
 
 namespace jp::write {
 
@@ -41,6 +42,10 @@ struct CellPart {
     // What its table's style gives the paragraphs in it (the parts of the style that apply to it, as its place in the table makes them).
     std::shared_ptr<const office::wml::TableLayer> layer;
 };
+
+// What a border or a shading that a file states comes to in the flowing document (none: the file says nothing of it).
+std::optional<flow::TableLine> tableLineOf(const office::wml::TableBorder &border);
+std::optional<QColor> tableFillOf(const office::wml::TableMark &mark);
 
 // Makes the records of a table's cells in the document as the blocks of the file's tables come (see wml.h for how a table is blocks).
 class TableBuilder {

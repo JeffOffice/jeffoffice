@@ -3,15 +3,27 @@
 
 #include "app/filescreen.h"
 #include "app/pageview.h"
+#include "app/ribbon.h"
 #include "app/settings.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
 #include "core/appinfo.h"
+#include "office/package.h"
 #include "core/fonts.h"
+#include "app/tabledialogs.h"
+#include "app/widgets.h"
+#include "core/tableops.h"
 #include "core/writedoc.h"
 #include "testrunner.h"
 
+#include <QApplication>
+#include <QCheckBox>
 #include <QClipboard>
+#include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QSpinBox>
+#include <QTimer>
 #include <QCryptographicHash>
 #include <QGuiApplication>
 #include <QFileInfo>
@@ -25,6 +37,17 @@ using namespace appchecks;
 namespace {
 
 WriteWindow *asWrite(AppWindow *w) { return static_cast<WriteWindow *>(w); }
+
+// A table of three rows and three columns at the cursor, with the cursor in its first cell.
+void tableAtCursor(WriteWindow *w)
+{
+    write::NewTable table;
+    table.rows = 3;
+    table.columns = 3;
+    write::insertTable(*w->document(), w->view()->cursor(), table);
+    w->view()->refresh();
+    w->refreshNow();
+}
 
 WriteWindow *launchBlank()
 {
@@ -158,6 +181,25 @@ private Q_SLOTS:
                  w->act(QStringLiteral("insert.header"))->trigger();
              }, false},
             {QStringLiteral("a header being edited"), [](AppWindow *w, bool) { w->act(QStringLiteral("insert.header"))->trigger(); }, false},
+            {QStringLiteral("the cursor in a table"), [](AppWindow *w, bool) { tableAtCursor(asWrite(w)); }, false},
+            {QStringLiteral("the whole table selected"), [](AppWindow *w, bool) {
+                 tableAtCursor(asWrite(w));
+                 write::selectInTable(*asWrite(w)->document(), asWrite(w)->view()->cursor(), write::TableUnit::Table);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a table with a wide column"), [](AppWindow *w, bool) {
+                 tableAtCursor(asWrite(w));
+                 write::setColumnWidth(*asWrite(w)->document(), asWrite(w)->view()->cursor(), 300);
+                 asWrite(w)->view()->refresh();
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("a merged cell"), [](AppWindow *w, bool) {
+                 tableAtCursor(asWrite(w));
+                 write::selectInTable(*asWrite(w)->document(), asWrite(w)->view()->cursor(), write::TableUnit::Row);
+                 write::mergeCells(*asWrite(w)->document(), asWrite(w)->view()->cursor());
+                 asWrite(w)->view()->refresh();
+                 asWrite(w)->refreshNow();
+             }, false},
         };
         m_app.quiet = {
             {QStringLiteral("view.printLayout"), QStringLiteral("the print layout is the only layout JeffWrite has, and the window begins in it")},
@@ -280,6 +322,202 @@ private Q_SLOTS:
     {
         const QStringList fails = checkStandardCommands(m_app);
         QVERIFY2(fails.isEmpty(), qPrintable(fails.join('\n')));
+    }
+
+    // ---- tables (beta wave B)
+    // A table made in the window shows the Table Design and Table Layout tabs and turns its commands on; the commands change the table, undo, and the file saved opens the same.
+    void tableCommandsOfTheWindowChangeTheTableUndoAndSaveAndOpenTheSame()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        typeInto(w->view(), QStringLiteral("Intro"));
+        w->refreshNow();
+        auto tabShown = [&](const char *name) {
+            for (int i = 0; i < w->ribbon()->tabCount(); ++i)
+                if (w->ribbon()->tabName(i) == QLatin1String(name)) return w->ribbon()->tabVisible(i);
+            return false;
+        };
+        auto cells = [&] {
+            int n = 0;
+            for (QTextBlock b = w->document()->story()->begin(); b.isValid(); b = b.next())
+                if (write::inTable(b)) ++n;
+            return n;
+        };
+        QVERIFY(w->act(QStringLiteral("insert.table")));
+        QVERIFY(!tabShown("Table Layout") && !tabShown("Table Design"));
+        QVERIFY(!w->act(QStringLiteral("table.merge"))->isEnabled() && !w->act(QStringLiteral("table.properties"))->isEnabled());
+        tableAtCursor(w.get());
+        QCOMPARE(cells(), 9);
+        QVERIFY(tabShown("Table Layout") && tabShown("Table Design"));
+        for (const char *id : {"table.insertBelow", "table.properties", "table.split", "table.bordersShading", "table.align.mc"}) QVERIFY2(w->act(QString::fromLatin1(id))->isEnabled(), id);
+        w->act(QStringLiteral("table.insertBelow"))->trigger();
+        QCOMPARE(cells(), 12);
+        w->act(QStringLiteral("table.selectTable"))->trigger();
+        w->refreshNow();
+        QVERIFY(w->act(QStringLiteral("table.merge"))->isEnabled());
+        w->act(QStringLiteral("table.merge"))->trigger();
+        QCOMPARE(cells(), 4);   // (the first row's cell, and an empty paragraph in each row under it, which the join goes through)
+        w->act(QStringLiteral("table.border.all"))->trigger();
+        w->act(QStringLiteral("table.align.br"))->trigger();
+        const QString merged = zipDigest(w->document()->toDocx());
+        for (int i = 0; i < 3; ++i) {
+            w->refreshNow();
+            w->act(QStringLiteral("edit.undo"))->trigger();
+        }
+        QCOMPARE(cells(), 12);
+        for (int i = 0; i < 3; ++i) {
+            w->refreshNow();
+            w->act(QStringLiteral("edit.redo"))->trigger();
+        }
+        QCOMPARE(cells(), 4);
+        QCOMPARE(zipDigest(w->document()->toDocx()), merged);
+        // Saved, and opened again: the same.
+        const QString path = tempFile(QStringLiteral("table.docx"));
+        QFile::remove(path);
+        w->setSavePathChooser([&](const QString &, const QString &) { return path; });
+        QVERIFY(w->saveAs());
+        std::unique_ptr<WriteWindow> again(static_cast<WriteWindow *>(m_app.launchWith(path)));
+        QVERIFY(again);
+        QCOMPARE(again->document()->story()->toPlainText(), w->document()->story()->toPlainText());
+        {
+            // (the parts of the two files are the same)
+            office::Package a, b;
+            a.read(again->document()->toDocx());
+            b.read(w->document()->toDocx());
+            QCOMPARE(a.partNames(), b.partNames());
+            for (const QString &name : a.partNames()) QVERIFY2(a.part(name) == b.part(name), qPrintable(name));
+        }
+        // Out of the table, the tabs go.
+        w->view()->cursor().setPosition(0);
+        w->refreshNow();
+        QVERIFY(!tabShown("Table Layout") && !w->act(QStringLiteral("table.merge"))->isEnabled());
+    }
+
+    // The table dialogs ask for what they are for, give it back, and remember what they were told to: a dialog is answered from the event loop it runs in, by the names of its fields.
+    static void answer(const std::function<void(QDialog *)> &fill, bool accept = true)
+    {
+        QTimer::singleShot(0, qApp, [fill, accept] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            fill(dlg);
+            if (accept) dlg->accept();
+            else dlg->reject();
+        });
+    }
+
+    void theInsertTableAndSplitCellsDialogsGiveWhatWasAskedFor()
+    {
+        write::NewTable table;
+        answer([](QDialog *d) {
+            d->findChild<QSpinBox *>(QStringLiteral("columns"))->setValue(5);
+            d->findChild<QSpinBox *>(QStringLiteral("rows"))->setValue(4);
+            d->findChild<QAbstractButton *>(QStringLiteral("fitWindow"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("remember"))->setChecked(true);
+        });
+        QVERIFY(write::insertTableDialog(nullptr, &table));
+        QCOMPARE(table.columns, 5);
+        QCOMPARE(table.rows, 4);
+        QVERIFY(table.fit == write::TableFit::Window);
+        // (remembered: the next one begins with them)
+        write::NewTable next;
+        answer([](QDialog *d) {
+            QCOMPARE(d->findChild<QSpinBox *>(QStringLiteral("columns"))->value(), 5);
+            QCOMPARE(d->findChild<QSpinBox *>(QStringLiteral("rows"))->value(), 4);
+            QVERIFY(d->findChild<QAbstractButton *>(QStringLiteral("fitWindow"))->isChecked());
+        }, false);
+        QVERIFY(!write::insertTableDialog(nullptr, &next));
+        int columns = 2, rows = 1;
+        answer([](QDialog *d) {
+            d->findChild<QSpinBox *>(QStringLiteral("columns"))->setValue(3);
+            d->findChild<QSpinBox *>(QStringLiteral("rows"))->setValue(2);
+        });
+        QVERIFY(write::splitCellsDialog(nullptr, &columns, &rows, 50));
+        QCOMPARE(columns, 3);
+        QCOMPARE(rows, 2);
+    }
+
+    void theTablePropertiesAndBordersDialogsChangeTheTableInOneStep()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        tableAtCursor(w.get());
+        write::WriteDoc &doc = *w->document();
+        QTextCursor &c = w->view()->cursor();
+        const QByteArray before = doc.toDocx();
+        answer([](QDialog *d) {
+            d->findChild<QComboBox *>(QStringLiteral("alignment"))->setCurrentIndex(1);
+            d->findChild<QCheckBox *>(QStringLiteral("headerRow"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("cantSplit"))->setChecked(true);
+            d->findChild<QComboBox *>(QStringLiteral("verticalAlignment"))->setCurrentIndex(1);
+        });
+        QVERIFY(write::tablePropertiesDialog(nullptr, &doc, &c));
+        const write::TableProps props = write::tablePropsAt(doc, c);
+        QVERIFY(props.align == flow::TableData::Align::Center && props.header && props.cantSplit && props.valign == flow::CellAlign::Center);
+        // Cancelled, nothing changes.
+        const QByteArray now = doc.toDocx();
+        answer([](QDialog *d) { d->findChild<QCheckBox *>(QStringLiteral("headerRow"))->setChecked(false); }, false);
+        QVERIFY(!write::tablePropertiesDialog(nullptr, &doc, &c));
+        QCOMPARE(doc.toDocx(), now);
+        QVERIFY(now != before);
+        // Borders and shading for the whole table: double lines, and a fill.
+        answer([](QDialog *d) {
+            d->findChild<QComboBox *>(QStringLiteral("lineStyle"))->setCurrentIndex(2);
+            d->findChild<QComboBox *>(QStringLiteral("applyTo"))->setCurrentIndex(1);
+            d->findChild<QCheckBox *>(QStringLiteral("insideH"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("insideV"))->setChecked(true);
+        });
+        QVERIFY(write::bordersShadingDialog(nullptr, &doc, &c));
+        const flow::CellRecord *rec = doc.flow().tables.get(write::cellKeyOf(c.block()));
+        QVERIFY(rec->cell.top && rec->cell.top->style == flow::TableLine::Style::Double && rec->cell.right && rec->cell.right->style == flow::TableLine::Style::Double);
+        QVERIFY(doc.toDocx().size() > 0);
+    }
+
+    // The height and width fields of the Table Layout tab run a command only when the value was changed: a person who leaves the field as it was makes no step to undo and no change to save.
+    void theSizeFieldsChangeNothingWhenTheValueIsTheSame()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        tableAtCursor(w.get());
+        write::setRowHeight(*w->document(), w->view()->cursor(), 30, false);
+        w->view()->refresh();
+        w->refreshNow();
+        for (int i = 0; i < w->ribbon()->tabCount(); ++i)
+            if (w->ribbon()->tabName(i) == QLatin1String("Table Layout")) w->ribbon()->showTab(w->ribbon()->tabPage(i));
+        w->refreshNow();
+        auto *height = w->findChild<MeasureSpin *>(QStringLiteral("tableRowHeightField"));
+        auto *width = w->findChild<MeasureSpin *>(QStringLiteral("tableColumnWidthField"));
+        QVERIFY(height && width);
+        QVERIFY(qFuzzyCompare(height->value(), 30.0));
+        w->document()->setModified(false);
+        const QByteArray was = w->document()->toDocx();
+        int steps = 0;
+        while (w->document()->canUndo()) {
+            w->document()->undo();
+            ++steps;
+        }
+        for (int i = 0; i < steps; ++i) w->document()->redo();
+        auto inTheTable = [&] {
+            for (QTextBlock b = w->document()->story()->begin(); b.isValid(); b = b.next())
+                if (write::inTable(b)) {
+                    w->view()->cursor().setPosition(b.position());
+                    break;
+                }
+        };
+        inTheTable();
+        Q_EMIT height->editingFinished();
+        Q_EMIT width->editingFinished();
+        QVERIFY(!w->document()->isModified());
+        QCOMPARE(w->document()->toDocx(), was);
+        int after = 0;
+        while (w->document()->canUndo()) {
+            w->document()->undo();
+            ++after;
+        }
+        QCOMPARE(after, steps);
+        for (int i = 0; i < after; ++i) w->document()->redo();
+        inTheTable();
+        // A changed value is a step.
+        height->setValue(44);
+        Q_EMIT height->editingFinished();
+        QVERIFY(w->document()->isModified());
+        QVERIFY(w->document()->toDocx() != was);
     }
 
     // ---- 3. every command

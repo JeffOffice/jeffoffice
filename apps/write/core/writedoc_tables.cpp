@@ -106,6 +106,9 @@ double points(const TableWidth &w) { return w.type == QLatin1String("dxa") || w.
 
 } // namespace
 
+std::optional<flow::TableLine> tableLineOf(const TableBorder &border) { return lineOf(border); }
+std::optional<QColor> tableFillOf(const TableMark &mark) { return fillOf(mark); }
+
 TableBuilder::TableBuilder(flow::FlowDocument *flow, const StyleSheet *sheet, int compatMode, const QVector<Block> &body) : m_flow(flow), m_sheet(sheet), m_compat(compatMode)
 {
     // The rows of each table, counted before the tables come.
