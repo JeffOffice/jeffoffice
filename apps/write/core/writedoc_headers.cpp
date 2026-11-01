@@ -633,7 +633,7 @@ bool WriteDoc::partEdited(const HeaderPart &part) const
 void WriteDoc::stepAdded(QTextDocument *story)
 {
     const quint64 serial = m_nextSerial++;
-    m_undoLog.push_back(Step{story, serial, story->availableUndoSteps()});
+    m_undoLog.push_back(Step{story, serial, story->availableUndoSteps(), m_openGroup});
     // (The steps that can no longer be redone take what they held of the styles with them.)
     for (const Step &gone : std::as_const(m_redoLog)) m_styleSteps.remove(gone.serial);
     m_redoLog.clear();
@@ -716,6 +716,18 @@ QTextDocument *WriteDoc::undo(QTextCursor *cursor)
 {
     discardPendingHeaderFooter();   // (the empty one shown to be typed in is no step)
     if (m_undoLog.isEmpty()) return nullptr;
+    const quint64 group = m_undoLog.last().group;
+    QTextDocument *where = undoOne(cursor);
+    // (The steps that a group made, in several stories, are one: the rest of them go too.)
+    while (group != 0 && !m_undoLog.isEmpty() && m_undoLog.last().group == group) undoOne(nullptr);
+    sealStories();
+    checkModified();
+    Q_EMIT historyChanged();
+    return where;
+}
+
+QTextDocument *WriteDoc::undoOne(QTextCursor *cursor)
+{
     const Step step = m_undoLog.takeLast();
     m_endnoteSeqValid = false;   // (what an undo changes is looked through once more by the next settling)
     QTextCursor at(step.story);
@@ -729,9 +741,6 @@ QTextDocument *WriteDoc::undo(QTextCursor *cursor)
         applyStyleChanges(m_undoLog.last().serial, true);
         m_redoLog.push_back(m_undoLog.takeLast());
     }
-    sealStories();
-    checkModified();
-    Q_EMIT historyChanged();
     return step.story;
 }
 
@@ -739,22 +748,30 @@ QTextDocument *WriteDoc::redo(QTextCursor *cursor)
 {
     discardPendingHeaderFooter();
     if (m_redoLog.isEmpty()) return nullptr;
-    const Step step = m_redoLog.takeLast();
-    m_endnoteSeqValid = false;
-    QTextCursor at(step.story);
-    step.story->redo(&at);
-    if (cursor) *cursor = at;
-    m_undoLog.push_back(step);
-    applyStyleChanges(step.serial, false);
-    const int now = step.story->availableUndoSteps();
-    while (!m_redoLog.isEmpty() && m_redoLog.last().story == step.story && m_redoLog.last().raw <= now) {
-        applyStyleChanges(m_redoLog.last().serial, false);
-        m_undoLog.push_back(m_redoLog.takeLast());
+    const quint64 group = m_redoLog.last().group;
+    const Step first = m_redoLog.takeLast();
+    auto redoStep = [&](const Step &step, QTextCursor *c) {
+        m_endnoteSeqValid = false;
+        QTextCursor at(step.story);
+        step.story->redo(&at);
+        if (c) *c = at;
+        m_undoLog.push_back(step);
+        applyStyleChanges(step.serial, false);
+        const int now = step.story->availableUndoSteps();
+        while (!m_redoLog.isEmpty() && m_redoLog.last().story == step.story && m_redoLog.last().raw <= now) {
+            applyStyleChanges(m_redoLog.last().serial, false);
+            m_undoLog.push_back(m_redoLog.takeLast());
+        }
+    };
+    redoStep(first, cursor);
+    while (group != 0 && !m_redoLog.isEmpty() && m_redoLog.last().group == group) {
+        const Step more = m_redoLog.takeLast();
+        redoStep(more, nullptr);
     }
     sealStories();
     checkModified();
     Q_EMIT historyChanged();
-    return step.story;
+    return first.story;
 }
 
 } // namespace jp::write

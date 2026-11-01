@@ -225,6 +225,7 @@ LayoutEnv Renderer::layoutEnv(const Document &doc)
     env.wordWholePointLines = doc.wordWholePointLines;
     env.wordNoLeading = doc.wordNoLeading;
     env.wordSpaceShrink = doc.wordSpaceShrink;
+    env.revisionView = doc.revisionView;
     env.wordWrapTrailSpaces = doc.wordWrapTrailSpaces;
     env.standIns = doc.wordStandIns;
     env.familyAliases = doc.fontAliases;

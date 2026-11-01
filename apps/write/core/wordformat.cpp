@@ -297,7 +297,7 @@ bool isDeletedAway(const Paragraph &paragraph)
         if (in.kind == Inline::Text) {
             if (!in.text.isEmpty()) return false;
         } else if (in.tag == QLatin1String("drawing") || in.tag == QLatin1String("pict") || in.tag == QLatin1String("object") || in.tag == QLatin1String("footnoteReference") ||
-                   in.tag == QLatin1String("endnoteReference") || in.tag == QLatin1String("sym") || in.tag == QLatin1String("br") || in.tag == QLatin1String("ptab")) {
+                   in.tag == QLatin1String("endnoteReference") || in.tag == QLatin1String("sym") || in.tag == QLatin1String("br") || in.tag == QLatin1String("cr") || in.tag == QLatin1String("ptab")) {
             return false;
         }
     }

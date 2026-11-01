@@ -260,7 +260,7 @@ QString FieldContext::key(bool withClock) const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (wordWholePointLines ? "|u" : "") + (wordNoLeading ? "|z" : "") + (wordWrapTrailSpaces ? "|t" : "") + (wordSpaceShrink > 0 ? QStringLiteral("|p%1").arg(wordSpaceShrink) : QString()) + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (revisionView ? QStringLiteral("|v%1").arg(revisionView) : QString()) + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (wordWholePointLines ? "|u" : "") + (wordNoLeading ? "|z" : "") + (wordWrapTrailSpaces ? "|t" : "") + (wordSpaceShrink > 0 ? QStringLiteral("|p%1").arg(wordSpaceShrink) : QString()) + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (auto it = standIns.cbegin(); it != standIns.cend(); ++it) k += QStringLiteral("|i") + it.key() + QLatin1Char('=') + it.value();
@@ -1358,6 +1358,19 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
         const bool shaded = own.style() == Qt::SolidPattern && own.color().alpha() > 0;
         if (tp::isDarkFill(shaded ? own.color() : behind)) r.setForeground(Qt::white);
     }
+    // Tracked changes marked in their authors' colors: inserted text underlined, deleted and moved-away text struck through.
+    if (env.wordLines && (env.revisionView & tp::kRevisionMark)) {
+        const int kind = f.intProperty(tp::Revision);
+        if (kind > 0) {
+            r.setForeground(tp::revisionColor(f.intProperty(tp::RevisionAuthor)));
+            if (kind == 2 || kind == 3) {
+                r.setFontStrikeOut(true);
+            } else {
+                r.setUnderlineStyle(QTextCharFormat::SingleUnderline);
+                r.setUnderlineColor(tp::revisionColor(f.intProperty(tp::RevisionAuthor)));
+            }
+        }
+    }
     return r;
 }
 
@@ -1676,7 +1689,9 @@ static int sourceBlockNumber(const QTextBlock &b)
 
 bool StoryLayout::joinsNext(const QTextBlock &b, int end)
 {
-    if (!b.charFormat().boolProperty(tp::HiddenText)) return false;
+    // (A mark that a tracked change deleted is a paragraph's end where the deleted text is shown, and one that a change inserted is none where only what was there before is.)
+    if (!b.charFormat().boolProperty(tp::HiddenText) && !b.charFormat().hasProperty(tp::Revision)) return false;
+    if (!tp::hiddenInView(b.charFormat(), b.document()->property(tp::kRevisionViewProperty).toInt())) return false;
     const QTextBlock n = b.next();
     if (!n.isValid() || (end >= 0 && n.position() >= end)) return false;
     // (A run is cut into chunks of kMostJoinedParagraphs by the number of its paragraphs, so that whoever asks, wherever a stretch of the story begins, finds the same runs.)
@@ -3296,7 +3311,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 continue;
             }
             // Hidden text takes no room and shows nothing, though its characters are the story's (so does a paragraph that is set apart from the text).
-            if (env.wordLines && cf.boolProperty(tp::HiddenText)) {
+            if (env.wordLines && tp::hiddenInView(cf, env.revisionView)) {
                 B->map << Seg{rel, int(text.size()), int(B->disp.size()), 0, true};
                 continue;
             }
@@ -3668,7 +3683,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
 
         // (The text after a page break that begins a paragraph is set as the paragraph's first line, indent and all, as a word processor sets it.)
         // (A break that is hidden text, as what a tracked change deleted is, is none.)
-        const bool startsWithBreak = env.wordLines && doc->characterAt(head.position()) == QChar(0x000C) && head.length() > 1 && !head.begin().fragment().charFormat().boolProperty(tp::HiddenText);
+        const bool startsWithBreak = env.wordLines && doc->characterAt(head.position()) == QChar(0x000C) && head.length() > 1 && !tp::hiddenInView(head.begin().fragment().charFormat(), env.revisionView);
         const bool firstAfterBreak = startsWithBreak && (!tail || m_span.indentContinued);
         const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = tail && !firstAfterBreak ? 0.0 : bf.textIndent() * scale;
         // A slide's space given as a share of the line is of the line at the size the text was shrunk to; one given in points is not.
@@ -4659,7 +4674,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         // (The first paragraph of a stretch may have lines that went before it.)
         const int firstBreak = first ? m_span.firstBreakAfter : -1;
         // A paragraph whose text and mark are both hidden is no paragraph: it takes no room.
-        if (!(env.wordLines && B->disp.isEmpty() && (b.charFormat().boolProperty(tp::HiddenText) || apart) && !tail)) placeLines(false, firstBreak);
+        if (!(env.wordLines && B->disp.isEmpty() && (tp::hiddenInView(b.charFormat(), env.revisionView) || apart) && !tail)) placeLines(false, firstBreak);
         // Where each line landed: the first line in another column or box.
         auto splitAt = [&] {
             for (int i = 1; i < B->lines.size(); ++i)

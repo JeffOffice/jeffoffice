@@ -4,6 +4,7 @@
 #include "core/writedoc.h"
 
 #include "core/editops.h"
+#include "core/reviewops.h"
 #include "core/tablemodel.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
@@ -248,6 +249,7 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
     syncSections();
     office::wml::Document out = m_wml;
     exportBody(&out.body);
+    makeChangeIdsUnique(*this, &out.body);
     // The built-in table styles that tables made have are part of the file while a table has one (and a style they are based on): a table taken back by Undo takes its style with it.
     if (!m_addedTableStyles.isEmpty()) {
         QSet<QString> wanted;
@@ -267,6 +269,8 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
     out.lastSection = m_last;
     out.lastSectionStated = true;
     writeHeaderParts(&out);
+    writeReviewSettings(&out);
+    writeCommentParts(&out);
     writeNoteParts(&out);
     writeEndnoteParts(&out);
     dropHeaderStyles(&out);

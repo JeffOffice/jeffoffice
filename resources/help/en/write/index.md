@@ -12,6 +12,8 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 ## Work on your text
 
 - [Check your spelling](spelling)
+- [Track changes, and accept or reject them](track-changes)
+- [Add and answer comments](comments)
 
 ## Write and change text
 

@@ -452,6 +452,126 @@
               "keytip": "T"
             }
           ]
+        },
+        {
+          "name": "Comments",
+          "keytip": "ZM",
+          "items": [
+            {
+              "large": "review.newComment",
+              "keytip": "C"
+            },
+            {
+              "large": {
+                "id": "ribbon.deleteComment",
+                "text": "Delete",
+                "icon": "message-square-x"
+              },
+              "keytip": "D",
+              "menu": [
+                "review.deleteComment",
+                "review.deleteAllComments"
+              ]
+            },
+            {
+              "small": "review.previousComment",
+              "keytip": "V"
+            },
+            {
+              "small": "review.nextComment",
+              "keytip": "N"
+            },
+            {
+              "small": "review.show.comments",
+              "keytip": "SC"
+            }
+          ]
+        },
+        {
+          "name": "Tracking",
+          "keytip": "ZT",
+          "items": [
+            {
+              "large": "review.trackChanges",
+              "keytip": "TC"
+            },
+            {
+              "large": {
+                "id": "ribbon.displayForReview",
+                "text": "Display for Review",
+                "icon": "eye"
+              },
+              "keytip": "TD",
+              "menu": [
+                "review.view.simple",
+                "review.view.all",
+                "review.view.none",
+                "review.view.original"
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.showMarkup",
+                "text": "Show Markup",
+                "icon": "file-diff"
+              },
+              "keytip": "TM",
+              "menu": [
+                "review.show.insdel",
+                "review.show.formatting",
+                "review.show.comments",
+                "-",
+                "review.balloons.inline",
+                "review.balloons.balloons",
+                "review.balloons.comments"
+              ]
+            },
+            {
+              "large": "review.reviewingPane",
+              "keytip": "TP"
+            }
+          ]
+        },
+        {
+          "name": "Changes",
+          "keytip": "ZH",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.accept",
+                "text": "Accept",
+                "icon": "check"
+              },
+              "keytip": "A",
+              "menu": [
+                "review.accept",
+                "review.acceptShown",
+                "review.acceptAll",
+                "review.acceptAllStop"
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.reject",
+                "text": "Reject",
+                "icon": "x"
+              },
+              "keytip": "J",
+              "menu": [
+                "review.reject",
+                "review.rejectShown",
+                "review.rejectAll"
+              ]
+            },
+            {
+              "small": "review.previousChange",
+              "keytip": "PC"
+            },
+            {
+              "small": "review.nextChange",
+              "keytip": "NC"
+            }
+          ]
         }
       ]
     },

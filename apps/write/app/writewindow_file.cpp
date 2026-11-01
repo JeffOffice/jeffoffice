@@ -88,6 +88,8 @@ void WriteWindow::createFileActions()
             m_view->setSpellingEnabled(stand.view.spelling);
             Settings::get().setValue(QStringLiteral("proof/asYouType"), stand.view.spelling);
         }
+        // (The name and initials Options has may be new: they are who makes changes and comments from here on.)
+        if (m_doc) m_doc->setReviewer(Settings::get().userName(), Settings::get().value(QStringLiteral("user/initials")).toString());
     });
 
     static quint64 s_windows = 0;

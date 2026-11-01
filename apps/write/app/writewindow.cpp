@@ -3,6 +3,7 @@
 #include "app/icons.h"
 #include "app/keytips.h"
 #include "app/pageview.h"
+#include "app/reviewpane.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/ruler.h"
@@ -14,6 +15,7 @@
 #include "app/writedialogs.h"
 #include "app/writefilescreen.h"
 #include "core/appinfo.h"
+#include "core/commentops.h"
 #include "core/editops.h"
 #include "core/tableops.h"
 #include "core/wordformat.h"
@@ -89,6 +91,12 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     connect(m_ribbon, &Ribbon::fileClicked, this, [this] { showFileScreen(); });
     connect(m_ribbon, &Ribbon::leaveRequested, this, [this] { m_view->setFocus(Qt::OtherFocusReason); });
 
+    m_reviewStateTimer.setSingleShot(true);
+    m_reviewStateTimer.setInterval(400);
+    connect(&m_reviewStateTimer, &QTimer::timeout, this, [this] {
+        updateReviewState();
+        refreshReviewUi();
+    });
     m_refreshTimer.setSingleShot(true);
     m_refreshTimer.setInterval(30);
     connect(&m_refreshTimer, &QTimer::timeout, this, &WriteWindow::refreshUi);
@@ -171,6 +179,16 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
     m_view->setDocument(m_doc.get());
     m_view->setZoomMode(write::PageView::ZoomMode::Percent);
     m_view->setZoom(1.0);
+    if (m_doc) {
+        // Who makes changes and comments here, and how the document shows them: a document with changes or comments opens showing its markup.
+        m_doc->setReviewer(Settings::get().userName(), Settings::get().value(QStringLiteral("user/initials")).toString());
+        connect(m_doc.get(), &write::WriteDoc::reviewChanged, this, [this] { refreshReviewUi(); });
+        if (m_reviewView == ReviewView::NoMarkup || m_reviewView == ReviewView::Original) {
+            if (write::revisionCount(m_doc->story()) > 0) setReviewView(ReviewView::AllMarkup);
+        }
+        applyReviewView();
+        if (m_review) m_review->refresh();
+    }
     if (m_spellPane && m_spellDock->isVisible()) m_spellPane->start();
     updateTitle();
     refreshUi();
@@ -374,6 +392,7 @@ void WriteWindow::showContextMenu(const QPoint &globalPos)
     if (m_view->selectedPicture() >= 0) addPictureContextMenu(menu);
     // In a table: its rows and columns, merging, lines, size, and properties.
     if (cursorInTable()) addTableContextMenu(menu);
+    addReviewContextMenu(menu);
     menu.exec(globalPos);
 }
 
@@ -382,6 +401,7 @@ void WriteWindow::showContextMenu(const QPoint &globalPos)
 void WriteWindow::refreshUi()
 {
     updateStatus();
+    refreshReviewUi();
     const bool has = m_doc != nullptr;
     if (m_styles && m_stylesDock->isVisible()) m_styles->refresh();
     for (QAction *a : m_actions) {
@@ -511,7 +531,13 @@ void WriteWindow::updateWords()
         m_wordLabel->clear();
         return;
     }
-    QString text = m_doc->story()->toPlainText();
+    // (Text that is hidden is not counted: what a tracked change deleted is hidden in every view.)
+    QString text;
+    for (QTextBlock b = m_doc->story()->begin(); b.isValid(); b = b.next()) {
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+            if (!it.fragment().charFormat().boolProperty(tp::HiddenText)) text += it.fragment().text();
+        text += QLatin1Char('\n');
+    }
     text.remove(QChar::ObjectReplacementCharacter);
     int words = 0;
     bool in = false;

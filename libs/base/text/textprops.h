@@ -108,7 +108,34 @@ enum : int {
     PageSideAlign,                               // int (block): the paragraph is aligned to the side of the page's outside (1) or inside (2) by the page's number: the right and the left, or the left and the right, of a page with an odd and an even number (LayoutEnv::wordLines)
     LinkResult,                                  // bool (char format): a field's result text is a link's address (HYPERLINK): a line does not break after a slash in it (LayoutEnv::wordLines)
     NumberSuffixKind,                            // int (list format): what follows the number or bullet where it is not a tab: 1 a space, 2 nothing (a word processor's w:suff); absent: a tab (LayoutEnv::wordLines)
+    Revision,                                    // int (char format): the run is in a tracked change of the text: 1 inserted, 2 deleted, 3 moved away, 4 moved here; a paragraph's mark (its block's char format) says so of the mark. Only for the look of the lines (LayoutEnv::revisionView); the file keeps the change as its own marks
+    RevisionAuthor,                              // int (char format): who made the change the run is in, a place in the document's list of people (the color it is marked with)
+    RevisionInserted,                            // bool (char format): a run that a change deleted (tp::Revision 2 or 3) was inserted by a change too: it was never in the document as it was (LayoutEnv::revisionView)
+    RevisionFormat,                              // bool (char format): the run's properties were changed by a tracked change (a change bar beside its line)
 };
+
+// How tracked changes are shown in the lines (LayoutEnv::revisionView, and the same number as the story's property kRevisionViewProperty, which the places that have no environment
+// read): flags. A text that has none shows the document as it stands, with what tracked changes deleted left out.
+constexpr int kRevisionShowDeleted = 1;   // text a change deleted or moved away takes its place in the lines
+constexpr int kRevisionMark = 2;          // text a change inserted, deleted, or moved is marked in its author's color (underlined, struck through)
+constexpr int kRevisionHideInserted = 4;  // text a change inserted or moved here is not shown (the document as it was)
+inline constexpr char kRevisionViewProperty[] = "jp.revisionView";
+// The color of the marks of a person's changes (a place in the document's list of people).
+inline QColor revisionColor(int author)
+{
+    static const char *const colors[] = {"#c0392b", "#1f6fb2", "#2e8b57", "#9b3fa0", "#b8860b", "#00838f", "#d35400", "#5d6d7e"};
+    return QColor(QLatin1String(colors[(author < 0 ? 0 : author) % 8]));
+}
+// Whether the run (or paragraph mark) the format is of is left out of the lines when changes are shown as `view` says.
+inline bool hiddenInView(const QTextFormat &f, int view)
+{
+    const int kind = f.intProperty(Revision);
+    if (f.boolProperty(HiddenText)) {
+        if ((kind == 2 || kind == 3) && (view & kRevisionShowDeleted)) return (view & kRevisionHideInserted) && f.boolProperty(RevisionInserted);   // (text inserted and deleted was never there before)
+        return true;
+    }
+    return (view & kRevisionHideInserted) && (kind == 1 || kind == 4);
+}
 
 // The block property that holds the key of the table cell a paragraph is in (libs/flow's fp::Cell, which is this number): the text engine never joins paragraphs of two cells, or
 // a cell's and one outside a table, whatever their marks (LayoutEnv::wordLines).

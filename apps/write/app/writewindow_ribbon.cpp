@@ -214,6 +214,16 @@ void WriteWindow::buildStatusBar()
     m_wordLabel->setObjectName(QStringLiteral("wordCount"));
     m_wordLabel->setMinimumWidth(90);
     sb->addWidget(m_wordLabel);
+    // Track Changes, on or off, which a click turns the other way.
+    m_trackLabel = new QToolButton();
+    m_trackLabel->setObjectName(QStringLiteral("trackStatus"));
+    m_trackLabel->setAutoRaise(true);
+    m_trackLabel->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    m_trackLabel->setText(tr("Track Changes: Off"));
+    m_trackLabel->setToolTip(tr("Track Changes (Ctrl+Shift+E)"));
+    m_trackLabel->setAccessibleName(tr("Track Changes"));
+    connect(m_trackLabel, &QToolButton::clicked, this, [this] { act(QStringLiteral("review.trackChanges"))->trigger(); });
+    sb->addWidget(m_trackLabel);
 
     auto button = [&](const char *id) {
         auto *b = new QToolButton();

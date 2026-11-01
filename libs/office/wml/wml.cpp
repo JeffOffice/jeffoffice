@@ -211,12 +211,13 @@ bool settingsChildren(const QByteArray &xml, QVector<SettingsChild> *out, qsizet
 }
 } // namespace
 
-QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on)
+// The settings with the on-or-off element `name` (an empty element of the settings) on or off, in the place the schema gives it: before the first of the elements `later`.
+static QByteArray settingsWithFlag(const QByteArray &settings, const QByteArray &name, bool on, const QVector<QByteArray> &later)
 {
     static const char kXml[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n";
     if (settings.trimmed().isEmpty()) {
         if (!on) return QByteArray();
-        return QByteArray(kXml) + "<w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><w:evenAndOddHeaders/></w:settings>";
+        return QByteArray(kXml) + "<w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><w:" + name + "/></w:settings>";
     }
     // A part that is one empty element: made one with a start and an end for the setting to be in.
     {
@@ -243,8 +244,8 @@ QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on)
                 const qsizetype space = open.indexOf(' ');
                 const QByteArray qname = open.mid(1, space < 0 ? -1 : space - 1);
                 const qsizetype colon = qname.indexOf(':');
-                const QByteArray name = colon >= 0 ? qname.left(colon + 1) : QByteArray();
-                return settings.left(at) + open + ">" + "<" + name + "evenAndOddHeaders/></" + qname + ">" + settings.mid(close + 1);
+                const QByteArray qualified = colon >= 0 ? qname.left(colon + 1) : QByteArray();
+                return settings.left(at) + open + ">" + "<" + qualified + name + "/></" + qname + ">" + settings.mid(close + 1);
             }
             break;
         }
@@ -253,17 +254,9 @@ QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on)
     qsizetype rootEnd = 0;
     QByteArray prefix;
     if (!settingsChildren(settings, &children, &rootEnd, &prefix)) return settings;
-    const QByteArray element = "<" + prefix + "evenAndOddHeaders/>";
-    // The elements the schema puts after it.
-    static const char *const later[] = {"bookFoldRevPrinting", "bookFoldPrinting", "bookFoldPrintingSheets", "drawingGridHorizontalSpacing", "drawingGridVerticalSpacing", "displayHorizontalDrawingGridEvery",
-                                        "displayVerticalDrawingGridEvery", "doNotUseMarginsForDrawingGridOrigin", "drawingGridHorizontalOrigin", "drawingGridVerticalOrigin", "doNotShadeFormData",
-                                        "noPunctuationKerning", "characterSpacingControl", "printTwoOnOne", "strictFirstAndLastChars", "noLineBreaksAfter", "noLineBreaksBefore", "savePreviewPicture",
-                                        "doNotValidateAgainstSchema", "saveInvalidXml", "ignoreMixedContent", "alwaysShowPlaceholderText", "doNotDemarcateInvalidXml", "saveXmlDataOnly", "useXSLTWhenSaving",
-                                        "saveThroughXslt", "showXMLTags", "alwaysMergeEmptyNamespace", "updateFields", "hdrShapeDefaults", "footnotePr", "endnotePr", "compat", "docVars", "rsids", "mathPr",
-                                        "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures", "forceUpgrade", "captions", "readModeInkLockDown",
-                                        "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+    const QByteArray element = "<" + prefix + name + "/>";
     for (const SettingsChild &c : children) {
-        if (c.name != "evenAndOddHeaders") continue;
+        if (c.name != name) continue;
         if (!on) return settings.left(c.begin) + settings.mid(c.end);
         if (settings.mid(c.begin, c.end - c.begin) == element) return settings;
         return settings.left(c.begin) + element + settings.mid(c.end);
@@ -271,14 +264,58 @@ QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on)
     if (!on) return settings;
     qsizetype at = rootEnd;
     for (const SettingsChild &c : children) {
-        bool after = false;
-        for (const char *name : later) after = after || c.name == name;
-        if (after) {
+        if (later.contains(c.name)) {
             at = c.begin;
             break;
         }
     }
     return settings.left(at) + element + settings.mid(at);
+}
+
+
+QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on)
+{
+    // The elements the schema puts after it.
+    static const QVector<QByteArray> later = {"bookFoldRevPrinting", "bookFoldPrinting", "bookFoldPrintingSheets", "drawingGridHorizontalSpacing", "drawingGridVerticalSpacing", "displayHorizontalDrawingGridEvery",
+                                        "displayVerticalDrawingGridEvery", "doNotUseMarginsForDrawingGridOrigin", "drawingGridHorizontalOrigin", "drawingGridVerticalOrigin", "doNotShadeFormData",
+                                        "noPunctuationKerning", "characterSpacingControl", "printTwoOnOne", "strictFirstAndLastChars", "noLineBreaksAfter", "noLineBreaksBefore", "savePreviewPicture",
+                                        "doNotValidateAgainstSchema", "saveInvalidXml", "ignoreMixedContent", "alwaysShowPlaceholderText", "doNotDemarcateInvalidXml", "saveXmlDataOnly", "useXSLTWhenSaving",
+                                        "saveThroughXslt", "showXMLTags", "alwaysMergeEmptyNamespace", "updateFields", "hdrShapeDefaults", "footnotePr", "endnotePr", "compat", "docVars", "rsids", "mathPr",
+                                        "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures", "forceUpgrade", "captions", "readModeInkLockDown",
+                                        "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+    return settingsWithFlag(settings, "evenAndOddHeaders", on, later);
+}
+
+QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on)
+{
+    // The elements the schema puts after it: the rest of the track settings, the protection, and everything from the default tab stop on.
+    static const QVector<QByteArray> later = {"doNotTrackMoves", "doNotTrackFormatting", "documentProtection", "autoFormatOverride", "styleLockTheme", "styleLockQFSet", "defaultTabStop", "autoHyphenation",
+                                        "consecutiveHyphenLimit", "hyphenationZone", "doNotHyphenateCaps", "showEnvelope", "summaryLength", "clickAndTypeStyle", "defaultTableStyle", "evenAndOddHeaders",
+                                        "bookFoldRevPrinting", "bookFoldPrinting", "bookFoldPrintingSheets", "drawingGridHorizontalSpacing", "drawingGridVerticalSpacing", "displayHorizontalDrawingGridEvery",
+                                        "displayVerticalDrawingGridEvery", "doNotUseMarginsForDrawingGridOrigin", "drawingGridHorizontalOrigin", "drawingGridVerticalOrigin", "doNotShadeFormData",
+                                        "noPunctuationKerning", "characterSpacingControl", "printTwoOnOne", "strictFirstAndLastChars", "noLineBreaksAfter", "noLineBreaksBefore", "savePreviewPicture",
+                                        "doNotValidateAgainstSchema", "saveInvalidXml", "ignoreMixedContent", "alwaysShowPlaceholderText", "doNotDemarcateInvalidXml", "saveXmlDataOnly", "useXSLTWhenSaving",
+                                        "saveThroughXslt", "showXMLTags", "alwaysMergeEmptyNamespace", "updateFields", "hdrShapeDefaults", "footnotePr", "endnotePr", "compat", "docVars", "rsids", "mathPr",
+                                        "attachedSchema", "themeFontLang", "clrSchemeMapping", "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures", "forceUpgrade", "captions", "readModeInkLockDown",
+                                        "smartTagType", "schemaLibrary", "shapeDefaults", "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+    return settingsWithFlag(settings, "trackRevisions", on, later);
+}
+
+bool settingsTrackRevisions(const QByteArray &settings)
+{
+    QVector<SettingsChild> children;
+    qsizetype rootEnd = 0;
+    QByteArray prefix;
+    if (settings.trimmed().isEmpty() || !settingsChildren(settings, &children, &rootEnd, &prefix)) return false;
+    for (const SettingsChild &c : children) {
+        if (c.name != "trackRevisions") continue;
+        const QByteArray whole = settings.mid(c.begin, c.end - c.begin);
+        const qsizetype at = whole.indexOf(":val=\"");
+        if (at < 0 || at > whole.indexOf('>')) return true;
+        const QByteArray v = whole.mid(at + 6, whole.indexOf('"', at + 6) - at - 6);
+        return !(v == "0" || v == "false" || v == "off");
+    }
+    return false;
 }
 
 QByteArray settingsWithNoteSeparators(const QByteArray &settings, bool endnotes)

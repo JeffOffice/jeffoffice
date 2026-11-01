@@ -1,4 +1,5 @@
 #include "core/editops.h"
+#include "core/reviewops.h"
 #include "core/styleops.h"
 
 #include "core/pictureops.h"
@@ -113,6 +114,10 @@ QTextCharFormat typingFormat(const QTextCursor &c)
         if (f.intProperty(prop::TrackedDeleted) == prop::HiddenByDeletion) f.clearProperty(tp::HiddenText);
         f.clearProperty(prop::TrackedDeleted);
     }
+    // (Nor is it text a tracked change changed or inserted: the look of the changes is the structure's, put on by whoever inserts.)
+    f.clearProperty(tp::Revision);
+    f.clearProperty(tp::RevisionAuthor);
+    f.clearProperty(tp::RevisionFormat);
     // (Text typed beside the result of a page reference is not that result: it shows as it is typed.)
     if (f.stringProperty(tp::Field).startsWith(QLatin1String("pageref:"))) f.clearProperty(tp::Field);
     // (Nor is text typed beside the blanks that are a reference's result: its blanks count in the line's height as any typed do.)
@@ -128,12 +133,30 @@ QTextCharFormat typingFormat(const QTextCursor &c)
     return withoutAtom(markFormat(b));
 }
 
+// The format for text typed at the cursor, with the look of the tracked changes the place is inside of (text put between the pieces of an insertion, by a person who does not track, is in it).
+QTextCharFormat typingFormatIn(WriteDoc &doc, const QTextCursor &c)
+{
+    QTextCharFormat f = typingFormat(c);
+    if (c.document() != doc.story()) return f;
+    auto marked = [&](int pos) {
+        if (pos < c.block().position() || pos >= c.block().position() + c.block().length() - 1) return false;
+        const QTextCharFormat cf = charAt(c.document(), pos);
+        return cf.hasProperty(tp::Revision) || (cf.hasProperty(prop::Atom) && storedBytes(cf, prop::Atom).size() > 0);
+    };
+    if (!marked(c.position() - 1) && !marked(c.position())) return f;
+    const RevisionLook look = revisionLookAt(c.block(), c.position());
+    return withRevisionLook(f, false, look.deleted ? 0 : look.kind, doc.reviewerIndex(look.author));
+}
+
 // The place of the visible character before (after) `position` in its paragraph; -1 when the paragraph has none that way.
+// (Text a tracked change deleted is not something a step of the caret or a key deletes: it stays, marked, and the edit acts on what is not deleted.)
+bool isUnseen(const QTextCharFormat &f) { return isZeroWidth(f) || f.hasProperty(prop::TrackedDeleted); }
+
 int visibleBefore(QTextDocument *d, int position)
 {
     const int start = d->findBlock(position).position();
     for (int p = position - 1; p >= start; --p)
-        if (!isZeroWidth(charAt(d, p))) return p;
+        if (!isUnseen(charAt(d, p))) return p;
     return -1;
 }
 
@@ -142,7 +165,7 @@ int visibleAfter(QTextDocument *d, int position)
     const QTextBlock b = d->findBlock(position);
     const int end = b.position() + b.length() - 1;
     for (int p = position; p < end; ++p)
-        if (!isZeroWidth(charAt(d, p))) return p;
+        if (!isUnseen(charAt(d, p))) return p;
     return -1;
 }
 
@@ -609,6 +632,267 @@ struct NumberGuard {
 
 } // namespace
 
+// ---- tracked changes (Track Changes on): the same commands make changes that are recorded
+
+namespace {
+
+int &untrackedDepth()
+{
+    static thread_local int d = 0;
+    return d;
+}
+
+// Whether an edit of the story the cursor is in is recorded as a tracked change.
+bool tracking(const WriteDoc &doc, const QTextCursor &c) { return doc.trackChanges() && untrackedDepth() == 0 && c.document() == doc.story(); }
+
+// The look of text the reviewer inserted.
+QTextCharFormat insertedLook(WriteDoc &doc, const QTextCharFormat &f) { return withRevisionLook(f, false, 1, doc.reviewerIndex(doc.reviewer())); }
+
+// Whether the place is just inside an insertion of the reviewer's.
+bool insideOwnInsertion(WriteDoc &doc, const QTextBlock &b, int position)
+{
+    const QVector<std::pair<QString, QByteArray>> open = openRevisionsAt(b, position);
+    return !open.isEmpty() && open.last().first == QLatin1String("ins") && revisionAuthorOf(open.last().second) == doc.reviewer();
+}
+
+// Whether the character at `position` is a piece that ends (or begins) an insertion of the reviewer's.
+bool ownInsertionEdge(WriteDoc &doc, QTextDocument *d, int position, bool end)
+{
+    const QTextBlock b = d->findBlock(position);
+    if (position < b.position() || position >= b.position() + b.length() - 1) return false;
+    const QTextCharFormat cf = charAt(d, position);
+    if (!cf.hasProperty(prop::Atom)) return false;
+    const Inline a = unpackAtom(storedBytes(cf, prop::Atom));
+    if (a.kind != Inline::ParaAtom || a.tag != QLatin1String("ins") || a.role != (end ? Inline::Close : Inline::Open)) return false;
+    if (end) {
+        // (The author is the start tag's: the insertion this piece closes.)
+        const QVector<std::pair<QString, QByteArray>> open = openRevisionsAt(b, position);
+        return !open.isEmpty() && open.last().first == QLatin1String("ins") && revisionAuthorOf(open.last().second) == doc.reviewer();
+    }
+    return revisionAuthorOf(a.raw) == doc.reviewer();
+}
+
+// Text typed (no paragraph break in it) as an insertion: inside the reviewer's own insertion when the caret is in one (or just after it), else between the pieces of a new one.
+void trackedType(WriteDoc &doc, QTextCursor &c, const QString &text)
+{
+    QTextDocument *d = c.document();
+    settleBesideDeletions(c);
+    // Just after an insertion of the reviewer's, typing goes on in it.
+    if (c.position() > c.block().position() && ownInsertionEdge(doc, d, c.position() - 1, true)) c.setPosition(c.position() - 1);
+    QTextCharFormat f = typingFormat(c);
+    if (insideOwnInsertion(doc, c.block(), c.position())) {
+        c.insertText(text, insertedLook(doc, f));
+        return;
+    }
+    const QByteArray tag = revisionStartTag(doc, QStringLiteral("ins"));
+    const int at = c.position();
+    c.beginEditBlock();
+    c.insertText(QString(QChar::ObjectReplacementCharacter), revisionPiece(tag, QStringLiteral("ins"), true, f));
+    c.insertText(text, insertedLook(doc, f));
+    const int end = c.position();
+    c.insertText(QString(QChar::ObjectReplacementCharacter), revisionPiece(tag, QStringLiteral("ins"), false, f));
+    c.setPosition(end);
+    c.endEditBlock();
+    Q_UNUSED(at);
+}
+
+// Deletes [from, to) of the body as tracked changes: text the reviewer typed as an insertion goes for good, the rest is marked deleted (and stays), and the mark of a paragraph the range
+// covers is marked deleted (or taken away, for one the reviewer inserted). `start` and `end` are put where the range began and ended.
+void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QTextCursor *start, QTextCursor *end)
+{
+    to = std::min(to, editableEnd(d));
+    if (from >= to) return;
+    QTextCursor edit(d);
+    QTextCursor head(d), tail(d);
+    head.setPosition(from);
+    head.setKeepPositionOnInsert(true);
+    tail.setPosition(to);
+    edit.beginEditBlock();
+    const QString me = doc.reviewer();
+    // From the last paragraph to the first, so that the places of the rest stay.
+    for (QTextBlock b = d->findBlock(std::max(0, to - 1)); b.isValid() && b.position() + b.length() > from; b = b.previous()) {
+        if (isLocked(b) || b.blockFormat().hasProperty(prop::EndnoteBlock)) {
+            if (!b.previous().isValid()) break;
+            continue;
+        }
+        const int number = b.blockNumber();
+        const int blockEnd = b.position() + b.length() - 1;
+        const int a = std::max(from, b.position()), z = std::min(to, blockEnd);
+        // (The mark of a paragraph that a cell, a frame, or the endnotes part it from the next is no mark to delete: nothing joins there.)
+        const bool coversMark = from <= blockEnd && to > blockEnd && b.next().isValid() && canJoinBlocks(b, b.next()) && frameKeyOf(b) == frameKeyOf(b.next()) && !b.next().blockFormat().hasProperty(prop::EndnoteBlock);
+        const DeletionPlan plan = a < z ? planDeletion(b, a, z, me) : DeletionPlan();
+        // The runs, last first.
+        struct Run { int from, to; bool remove; };
+        QVector<Run> runs;
+        for (const auto &r : plan.remove) runs.push_back({r.first, r.second, true});
+        for (const auto &r : plan.mark) runs.push_back({r.first, r.second, false});
+        std::sort(runs.begin(), runs.end(), [](const Run &x, const Run &y) { return x.from > y.from; });
+        if (coversMark) {
+            if (paragraphMarkInsertedBy(b, me)) {
+                // (A paragraph the reviewer made is joined for good, after what is in it is dealt with.)
+                for (const Run &r : std::as_const(runs)) {
+                    if (r.remove) removeOwnInsertion(d, r.from, r.to);
+                    else markDeleted(doc, d, r.from, r.to);
+                }
+                removeParagraphMark(doc, d, number);
+                continue;
+            }
+        }
+        for (const Run &r : std::as_const(runs)) {
+            if (r.remove) removeOwnInsertion(d, r.from, r.to);
+            else markDeleted(doc, d, r.from, r.to);
+        }
+        if (coversMark && !markFormat(d->findBlockByNumber(number)).hasProperty(prop::TrackedDeleted)) markParagraphMark(doc, d->findBlockByNumber(number), "del");
+        if (!b.previous().isValid()) break;
+    }
+    edit.endEditBlock();
+    if (start) *start = head;
+    if (end) *end = tail;
+}
+
+// Text put in as a whole (a paste, a copy dropped) with Track Changes on: it is an insertion, and the paragraph marks it brought are inserted marks. `to` is where the text ends, moved on by
+// the pieces that are put round it.
+void trackPastedAsInserted(WriteDoc &doc, QTextDocument *d, int from, int *to)
+{
+    if (*to <= from) return;
+    QTextCursor t(d);
+    const int author = doc.reviewerIndex(doc.reviewer());
+    const int lastNumber = d->findBlock(*to).blockNumber();   // (its mark is the target's: the paste ended in it)
+    for (QTextBlock b = d->findBlock(std::max(0, *to - 1)); b.isValid() && b.position() + b.length() > from; b = b.previous()) {
+        if (isLocked(b)) {
+            if (!b.previous().isValid()) break;
+            continue;
+        }
+        const int blockEnd = b.position() + b.length() - 1;
+        const int a = std::max(from, b.position()), z = std::min(*to, blockEnd);
+        const int number = b.blockNumber();
+        if (a < z) {
+            // The look of what is inserted (what is deleted already stays so), then the two pieces.
+            struct Edit { int from, to; QTextCharFormat format; };
+            QVector<Edit> edits;
+            QTextCharFormat like;
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment f = it.fragment();
+                const int fs = std::max(f.position(), a), fe = std::min(f.position() + int(f.length()), z);
+                if (fs >= fe) continue;
+                if (!like.isValid()) like = f.charFormat();
+                const QTextCharFormat cf = f.charFormat();
+                if (cf.hasProperty(prop::TrackedDeleted) || (cf.hasProperty(prop::Atom) && isInvisibleAtom(cf))) continue;
+                edits.push_back({fs, fe, withRevisionLook(cf, false, 1, author)});
+            }
+            for (const Edit &e : std::as_const(edits)) {
+                t.setPosition(e.from);
+                t.setPosition(e.to, QTextCursor::KeepAnchor);
+                t.setCharFormat(e.format);
+            }
+            const QByteArray tag = revisionStartTag(doc, QStringLiteral("ins"));
+            t.setPosition(z);
+            t.insertText(QString(QChar::ObjectReplacementCharacter), revisionPiece(tag, QStringLiteral("ins"), false, like));
+            t.setPosition(a);
+            t.insertText(QString(QChar::ObjectReplacementCharacter), revisionPiece(tag, QStringLiteral("ins"), true, like));
+            *to += 2;
+        }
+        // A paragraph mark inside the pasted text is one the paste made.
+        if (number < lastNumber) markParagraphMark(doc, d->findBlockByNumber(number), "ins");
+        if (!b.previous().isValid()) break;
+    }
+}
+
+// Past the end of a deletion the caret is at the end of (the deleted text is not something to type in).
+void pastDeletionEnd(QTextCursor &c)
+{
+    QTextDocument *d = c.document();
+    for (int guard = 0; guard < 8; ++guard) {
+        const QTextBlock b = c.block();
+        if (c.position() >= b.position() + b.length() - 1) break;
+        const QTextCharFormat cf = charAt(d, c.position());
+        if (!cf.hasProperty(prop::Atom)) break;
+        const Inline a = unpackAtom(storedBytes(cf, prop::Atom));
+        if (a.kind == Inline::ParaAtom && a.role == Inline::Close && (a.tag == QLatin1String("del") || a.tag == QLatin1String("moveFrom"))) c.setPosition(c.position() + 1);
+        else break;
+    }
+}
+
+// A selection deleted.
+void trackedRemoveSelection(WriteDoc &doc, QTextCursor &c)
+{
+    QTextCursor start(c.document()), end(c.document());
+    trackedDeleteRange(doc, c.document(), c.selectionStart(), c.selectionEnd(), &start, &end);
+    c.setPosition(end.position());
+    pastDeletionEnd(c);
+}
+
+// Backspace and Delete: the character (or word) before or after the caret, or the paragraph mark at the start or end of a paragraph.
+void trackedDeleteOne(WriteDoc &doc, QTextCursor &c, bool back, bool byWord)
+{
+    QTextDocument *d = c.document();
+    if (c.hasSelection()) {
+        trackedRemoveSelection(doc, c);
+        return;
+    }
+    settleBesideDeletions(c);
+    const int here = c.position();
+    int from = here, to = here;
+    if (back) {
+        const int at = visibleBefore(d, here);
+        if (at >= 0) {
+            from = at;
+            if (byWord && !c.atBlockStart()) {
+                QTextCursor w = c;
+                w.movePosition(QTextCursor::PreviousWord, QTextCursor::KeepAnchor);
+                from = w.selectionStart();
+            }
+        } else {
+            // At the start of a paragraph: the mark of the one before it that shows.
+            QTextBlock prev = c.block().previous();
+            while (prev.isValid() && isHiddenDeleted(prev)) prev = prev.previous();
+            if (!prev.isValid() || isLocked(prev) || isLocked(c.block())) return;
+            from = prev.position() + prev.length() - 1;
+        }
+        to = here;
+        if (at < 0) to = from + 1;
+    } else {
+        const int at = visibleAfter(d, here);
+        if (at >= 0) {
+            from = at;
+            to = at + 1;
+            if (byWord && !c.atBlockEnd()) {
+                QTextCursor w = c;
+                w.movePosition(QTextCursor::NextWord, QTextCursor::KeepAnchor);
+                to = w.selectionEnd();
+                from = here;
+            }
+        } else {
+            QTextBlock next = c.block().next();
+            while (next.isValid() && isHiddenDeleted(next)) next = next.next();
+            if (!next.isValid() || isLocked(next) || isLocked(c.block())) return;
+            from = c.block().position() + c.block().length() - 1;
+            to = from + 1;
+        }
+    }
+    if (from >= to) return;
+    QTextCursor start(d), end(d);
+    trackedDeleteRange(doc, d, from, to, &start, &end);
+    if (back) {
+        c.setPosition(start.position());
+    } else {
+        c.setPosition(end.position());
+        pastDeletionEnd(c);
+    }
+}
+
+} // namespace
+
+UntrackedEdit::UntrackedEdit() { ++untrackedDepth(); }
+UntrackedEdit::~UntrackedEdit() { --untrackedDepth(); }
+
+struct EditScope::Impl {
+    Impl(WriteDoc &doc, QTextDocument *story) : numbers(doc, story) {}
+    NumberGuard numbers;
+};
+EditScope::EditScope(WriteDoc &doc, QTextDocument *story) : m_impl(std::make_unique<Impl>(doc, story)) {}
+EditScope::~EditScope() = default;
+
 void insertText(WriteDoc &doc, QTextCursor &c, const QString &typed)
 {
     const NoteScopeGuard scopeGuard(doc, c);
@@ -621,13 +905,38 @@ void insertText(WriteDoc &doc, QTextCursor &c, const QString &typed)
     // (Typing a character changes no number; a selection replaced, or a paragraph made by the text, may.)
     std::optional<NumberGuard> numbers;
     if (c.hasSelection() || text.contains(QLatin1Char('\n')) || text.contains(QLatin1Char('\r')) || text.contains(QChar::ParagraphSeparator)) numbers.emplace(doc, c.document());
+    if (tracking(doc, c)) {
+        // Typed as an insertion; a paragraph break in the text is an Enter.
+        c.beginEditBlock();
+        if (c.hasSelection()) trackedRemoveSelection(doc, c);
+        QString pending;
+        QChar last;
+        for (const QChar ch : text) {
+            const bool isBreak = ch == QLatin1Char('\n') || ch == QLatin1Char('\r') || ch == QChar::ParagraphSeparator;
+            if (isBreak && last == QLatin1Char('\r') && ch == QLatin1Char('\n')) {
+                last = ch;
+                continue;
+            }
+            last = ch;
+            if (!isBreak) {
+                pending += ch;
+                continue;
+            }
+            if (!pending.isEmpty()) trackedType(doc, c, pending);
+            pending.clear();
+            insertParagraph(doc, c);
+        }
+        if (!pending.isEmpty()) trackedType(doc, c, pending);
+        c.endEditBlock();
+        return;
+    }
     settleBesideDeletions(c);
-    QTextCharFormat f = typingFormat(c);
+    QTextCharFormat f = typingFormatIn(doc, c);
     if (c.hasSelection()) {
         c.beginEditBlock();
         removeSelection(doc, c);
         settleBesideDeletions(c);
-        f = typingFormat(c);
+        f = typingFormatIn(doc, c);
         c.insertText(text, f);
         c.endEditBlock();
     } else if (doc.endnoteHasCopies(c.block())) {
@@ -708,7 +1017,9 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
     settleAtEdges(c);
     const bool atEnd = c.atBlockEnd();
     const QString style = styleOf(cur.blockFormat());
-    splitParagraph(c);
+    const QTextBlock firstHalf = splitParagraph(c);
+    // (A paragraph mark made as a tracked change is an inserted mark: the first half ends in it.)
+    if (tracking(doc, c)) markParagraphMark(doc, firstHalf, "ins");
     // At the end of a paragraph, the next one is in the style the style says follows it (a heading is followed by body text); it is a paragraph of
     // that style, with the paragraph mark's own (a section that ends here...) that the end of the paragraph had.
     if (atEnd) {
@@ -743,6 +1054,13 @@ void insertPageBreak(WriteDoc &doc, QTextCursor &c)
     settleBesideDeletions(c);
     // The break is a character of the paragraph (the page ends after the line that has it); what follows it goes on in a paragraph of its own,
     // as the program a person may be used to does it, so that the cursor is at the top of the next page.
+    if (tracking(doc, c)) {
+        // (A break made with Track Changes on is an insertion, and so is the paragraph mark it brings.)
+        trackedType(doc, c, QString(flow::kPageBreak));
+        markParagraphMark(doc, splitParagraph(c), "ins");
+        c.endEditBlock();
+        return;
+    }
     c.insertText(QString(flow::kPageBreak), typingFormat(c));
     splitParagraph(c);
     c.endEditBlock();
@@ -865,6 +1183,11 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
             c.setPosition(to, QTextCursor::KeepAnchor);
         }
     }
+    if (tracking(doc, c)) {
+        // (Deleted as a tracked change, in a table, a frame, or round endnotes too: the text stays, marked, and no paragraph is joined to one that is in another place.)
+        trackedRemoveSelection(doc, c);
+        return;
+    }
     if (removeSelectionAcrossEndnotes(doc, c)) return;   // (the text round the endnotes of a section is cut from them, and never joined)
     if (removeSelectionAcrossFrames(doc, c)) return;   // (a frame's text is cut from the frame, and the text round it from the text: never joined)
     if (removeSelectionAcrossCells(doc, c)) return;   // (cells are emptied, and tables the selection holds go: paragraphs of different cells are never joined)
@@ -982,6 +1305,10 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
     QTextDocument *d = c.document();
     HeldEdit held(d);
     if (isLocked(c.block())) return;
+    if (tracking(doc, c)) {
+        trackedDeleteOne(doc, c, true, byWord);
+        return;
+    }
     settleBesideDeletions(c);
     if (byWord && !c.atBlockStart()) {
         c.movePosition(QTextCursor::PreviousWord, QTextCursor::KeepAnchor);
@@ -1054,6 +1381,10 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
     QTextDocument *d = c.document();
     HeldEdit held(d);
     if (isLocked(c.block())) return;
+    if (tracking(doc, c)) {
+        trackedDeleteOne(doc, c, false, byWord);
+        return;
+    }
     settleBesideDeletions(c);
     if (byWord && !c.atBlockEnd()) {
         c.movePosition(QTextCursor::NextWord, QTextCursor::KeepAnchor);
@@ -1402,6 +1733,11 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     // A header, a footer, or a note takes the words and their look, not a note's reference, a comment, a break of a page, a column, or a section.
     if (doc.isSideStory(d) || targetNote > 0) keepOutOfFurniture(d, from, c.position());
     else if (sameDocument) settlePastedNoteReferences(doc, d, from, c.position());
+    if (tracking(doc, c)) {
+        int end = c.position();
+        trackPastedAsInserted(doc, d, from, &end);
+        c.setPosition(end);
+    }
     *pastedTo = c.position();
     c.endEditBlock();
 }
@@ -1806,7 +2142,7 @@ void moveCursor(QTextCursor &c, QTextCursor::MoveOperation op, bool select, int 
                 continue;
             }
             // The pieces kept as XML that show nothing are passed on the way to the next letter.
-            for (int guard = 0; guard < 1000 && !c.atBlockEnd() && isZeroWidth(charAt(d, c.position())); ++guard) c.movePosition(QTextCursor::NextCharacter, mode);
+            for (int guard = 0; guard < 1000 && !c.atBlockEnd() && isUnseen(charAt(d, c.position())); ++guard) c.movePosition(QTextCursor::NextCharacter, mode);
             c.movePosition(QTextCursor::NextCharacter, mode);
         }
     } else if (op == QTextCursor::PreviousCharacter || op == QTextCursor::Left) {
@@ -1815,7 +2151,7 @@ void moveCursor(QTextCursor &c, QTextCursor::MoveOperation op, bool select, int 
                 c.setPosition(c.selectionStart());
                 continue;
             }
-            for (int guard = 0; guard < 1000 && !c.atBlockStart() && isZeroWidth(charAt(d, c.position() - 1)); ++guard) c.movePosition(QTextCursor::PreviousCharacter, mode);
+            for (int guard = 0; guard < 1000 && !c.atBlockStart() && isUnseen(charAt(d, c.position() - 1)); ++guard) c.movePosition(QTextCursor::PreviousCharacter, mode);
             c.movePosition(QTextCursor::PreviousCharacter, mode);
         }
     } else {
@@ -1887,14 +2223,23 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
     QVector<Edit> edits;
     const int from = c.selectionStart(), to = c.selectionEnd();
     QVector<QPair<QTextBlock, QTextCharFormat>> marks;
+    const bool record = tracking(doc, c);   // (a change of the look of text is recorded as a tracked change: its old look is kept)
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
         if (isLocked(b)) continue;   // (what stands for a piece kept as XML, and the endnotes the pages set, are not the text: the looks of the characters leave them alone)
+        QVector<std::pair<int, int>> own;
+        if (record) own = ownInsertionRanges(b, doc.reviewer());
+        const QString paragraphStyle = b.blockFormat().stringProperty(tp::StyleName).isEmpty() ? doc.defaultParagraphStyle() : b.blockFormat().stringProperty(tp::StyleName);
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
             const int fs = std::max(f.position(), from), fe = std::min(f.position() + f.length(), to);
             if (fs >= fe) continue;
             QTextCharFormat nf = f.charFormat();
             change(nf);
+            if (nf != f.charFormat() && record) {
+                bool mine = false;
+                for (const auto &r : std::as_const(own)) mine = mine || (r.first <= fs && fe <= r.second);
+                if (!mine) nf = withFormatRecord(doc, paragraphStyle, f.charFormat(), nf);
+            }
             if (nf != f.charFormat()) edits.push_back({fs, fe, nf});
         }
         if (from <= b.position() && to > b.position() + b.length() - 1) {
@@ -2106,6 +2451,7 @@ void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(Q
         QTextBlockFormat nf = b.blockFormat();
         const QTextBlockFormat was = nf;
         change(nf);
+        if (nf != was && tracking(doc, c)) nf = withParagraphRecord(doc, was, nf);
         if (nf != was) {
             QTextCursor(b).setBlockFormat(nf);
             changedAny = true;
@@ -2334,6 +2680,7 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
         nf.setTextIndent(bf.textIndent());
         if (bf.hasProperty(tp::BulletChar)) nf.setProperty(tp::BulletChar, bf.property(tp::BulletChar));
     }
+    if (doc.trackChanges() && untrackedDepth() == 0 && b.document() == doc.story()) nf = withParagraphRecord(doc, bf, nf);
     setBlockFormatKeepingList(b, nf);
     if (numId > 0) setBlockList(doc, b, numId, level, nullptr);
 

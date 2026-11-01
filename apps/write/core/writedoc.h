@@ -278,6 +278,55 @@ public:
     QTextDocument *undo(QTextCursor *cursor = nullptr);
     QTextDocument *redo(QTextCursor *cursor = nullptr);
 
+    // The body as the writer takes it from the story (what a save writes, as blocks): for a tool that reads the text a document comes to.
+    QVector<office::wml::Block> bodyBlocks()
+    {
+        QVector<office::wml::Block> out;
+        exportBody(&out);
+        return out;
+    }
+
+    // The name of the part the main part has a relationship of this type to (the type's last words, such as "comments" or "commentsExtended"); empty for none.
+    QString mainRelatedPart(const QString &relationshipTypeEnd) const;
+    // What core/commentops.cpp keeps with the document (the comment parts of the file, read once).
+    std::shared_ptr<void> commentCache;
+
+    // The edits made while one of these lives, in any of the document's stories, are one step of the history: an Undo takes all of them back, and a Redo does all again.
+    class StepGroup {
+    public:
+        explicit StepGroup(WriteDoc &doc) : m_doc(doc)
+        {
+            if (m_doc.m_groupDepth++ == 0) m_doc.m_openGroup = m_doc.m_nextGroup++;
+        }
+        ~StepGroup()
+        {
+            if (--m_doc.m_groupDepth == 0) m_doc.m_openGroup = 0;
+        }
+        StepGroup(const StepGroup &) = delete;
+        StepGroup &operator=(const StepGroup &) = delete;
+
+    private:
+        WriteDoc &m_doc;
+    };
+    // The stories besides the text that hold tracked changes: the headers and footers and the footnotes (each made editable if it was not), in a fixed order. The endnotes' words are in the text.
+    QVector<QTextDocument *> storiesWithChanges();
+
+    // ---- review (core/reviewops.h, core/commentops.h)
+    // Whether edits are tracked as changes (Track Changes: the file's w:trackRevisions). A setting of the document that is written with it, not a step of the history.
+    bool trackChanges() const { return m_trackChanges; }
+    void setTrackChanges(bool on);
+    // The person who makes the changes and comments, and their initials (the user name of the settings: the window gives them).
+    QString reviewer() const { return m_reviewer; }
+    QString reviewerInitials() const { return m_reviewerInitials; }
+    void setReviewer(const QString &name, const QString &initials);
+    // A place in the list of people who made changes (they are added as the file's marks name them): the color of their marks.
+    int reviewerIndex(const QString &author);
+    // An Id for the mark of a new change or comment: above every one the document has.
+    int nextRevisionId();
+    // How tracked changes are shown (tp::kRevisionShowDeleted and the others): the text engine's view of them, kept in the layout environment and the story. Not saved.
+    int revisionView() const { return m_revisionView; }
+    void setRevisionView(int view);
+
     // ---- tables
     // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
     QString tableNotice;
@@ -426,6 +475,8 @@ Q_SIGNALS:
     // The steps that can be undone or done again changed, or whether the document is modified.
     void historyChanged();
     void modifiedChanged();
+    // Track Changes was turned on or off, the person who reviews changed, or the way changes are shown did.
+    void reviewChanged();
 
 private:
     WriteDoc();
@@ -619,8 +670,12 @@ private:
         QTextDocument *story = nullptr;
         quint64 serial = 0;
         int raw = 0;
+        quint64 group = 0;   // the steps made while a StepGroup lived have the same: they are undone and done again together
     };
     QVector<Step> m_undoLog, m_redoLog;
+    quint64 m_openGroup = 0, m_nextGroup = 1;
+    int m_groupDepth = 0;
+    QTextDocument *undoOne(QTextCursor *cursor);
     quint64 m_nextSerial = 1, m_cleanSerial = 0;
     bool m_forcedDirty = false;
     bool m_wasModified = false;
@@ -691,6 +746,14 @@ private:
     int m_boxTableCells = 0;   // the cells of the tables that the text boxes drawn so far hold (a document's boxes have kMostBoxTableCells of them in all: the rest are kept as they were)
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;
+    bool m_trackChanges = false, m_trackAtOpen = false;
+    QString m_reviewer = QStringLiteral("Author"), m_reviewerInitials;
+    QStringList m_reviewers;
+    QHash<QString, int> m_reviewerPlaces;   // (the place of each, to find one without looking through the list)
+    int m_nextRevisionId = 0;   // 0: not looked for yet
+    int m_revisionView = 0;
+    void writeReviewSettings(office::wml::Document *out);
+    void writeCommentParts(office::wml::Document *out);
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;
     QVector<office::wml::Style> m_addedTableStyles;                    // built-in table styles that tables made have (see ensureTableStyle)
     mutable std::shared_ptr<office::wml::StyleSheet> m_tableSheet;
