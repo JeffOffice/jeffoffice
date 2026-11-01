@@ -50,9 +50,9 @@ bool insertTableDialog(QWidget *parent, NewTable *table)
 {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("insertTableDialog"));
-    dlg.setWindowTitle(tr("Insert Table"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Insert Table")));
     auto *v = new QVBoxLayout(&dlg);
-    auto *size = new QGroupBox(tr("Table size"), &dlg);
+    auto *size = new QGroupBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Table size")), &dlg);
     auto *form = new QFormLayout(size);
     auto *columns = new QSpinBox(size), *rows = new QSpinBox(size);
     columns->setObjectName(QStringLiteral("columns"));
@@ -61,19 +61,19 @@ bool insertTableDialog(QWidget *parent, NewTable *table)
     rows->setRange(1, 500);
     columns->setValue(Settings::get().value(QStringLiteral("write/table/columns"), table->columns).toInt());
     rows->setValue(Settings::get().value(QStringLiteral("write/table/rows"), table->rows).toInt());
-    form->addRow(tr("Number of columns:"), columns);
-    form->addRow(tr("Number of rows:"), rows);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Number of columns:")), columns);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Number of rows:")), rows);
     v->addWidget(size);
-    auto *fit = new QGroupBox(tr("AutoFit behavior"), &dlg);
+    auto *fit = new QGroupBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "AutoFit behavior")), &dlg);
     auto *fv = new QVBoxLayout(fit);
-    auto *fixed = new QRadioButton(tr("Fixed column width"), fit), *contents = new QRadioButton(tr("AutoFit to contents"), fit), *window = new QRadioButton(tr("AutoFit to window"), fit);
+    auto *fixed = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fixed column width")), fit), *contents = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "AutoFit to contents")), fit), *window = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "AutoFit to window")), fit);
     fixed->setObjectName(QStringLiteral("fixedWidth"));
     contents->setObjectName(QStringLiteral("fitContents"));
     window->setObjectName(QStringLiteral("fitWindow"));
     auto *width = new MeasureSpin(fit);
     width->setObjectName(QStringLiteral("columnWidth"));
     width->setPoints(0);
-    width->setSpecialValueText(tr("Auto"));
+    width->setSpecialValueText(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Auto")));
     width->setMinimum(0);
     auto *fixedRow = new QHBoxLayout;
     fixedRow->addWidget(fixed);
@@ -84,7 +84,7 @@ bool insertTableDialog(QWidget *parent, NewTable *table)
     const int was = Settings::get().value(QStringLiteral("write/table/fit"), int(table->fit)).toInt();
     (was == int(TableFit::Contents) ? contents : was == int(TableFit::Window) ? window : fixed)->setChecked(true);
     v->addWidget(fit);
-    auto *remember = new QCheckBox(tr("Remember dimensions for new tables"), &dlg);
+    auto *remember = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Remember dimensions for new tables")), &dlg);
     remember->setObjectName(QStringLiteral("remember"));
     v->addWidget(remember);
     okCancel(&dlg, v);
@@ -105,7 +105,7 @@ bool splitCellsDialog(QWidget *parent, int *columns, int *rows, int mostRows)
 {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("splitCellsDialog"));
-    dlg.setWindowTitle(tr("Split Cells"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Split Cells")));
     auto *v = new QVBoxLayout(&dlg);
     auto *form = new QFormLayout;
     v->addLayout(form);
@@ -116,8 +116,8 @@ bool splitCellsDialog(QWidget *parent, int *columns, int *rows, int mostRows)
     r->setRange(1, mostRows);
     c->setValue(*columns);
     r->setValue(*rows);
-    form->addRow(tr("Number of columns:"), c);
-    form->addRow(tr("Number of rows:"), r);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Number of columns:")), c);
+    form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Number of rows:")), r);
     okCancel(&dlg, v);
     if (dlg.exec() != QDialog::Accepted) return false;
     *columns = c->value();
@@ -131,7 +131,7 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     const TableProps was = tablePropsAt(*doc, *cursor);
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("tablePropertiesDialog"));
-    dlg.setWindowTitle(tr("Table Properties"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Table Properties")));
     auto *v = new QVBoxLayout(&dlg);
     auto *tabs = new QTabWidget(&dlg);
     v->addWidget(tabs);
@@ -141,11 +141,11 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     auto *tf = new QFormLayout(tablePage);
     auto *align = new QComboBox(tablePage);
     align->setObjectName(QStringLiteral("alignment"));
-    align->addItem(tr("Left"), int(flow::TableData::Align::Left));
-    align->addItem(tr("Center"), int(flow::TableData::Align::Center));
-    align->addItem(tr("Right"), int(flow::TableData::Align::Right));
+    align->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Left")), int(flow::TableData::Align::Left));
+    align->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Center")), int(flow::TableData::Align::Center));
+    align->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Right")), int(flow::TableData::Align::Right));
     align->setCurrentIndex(int(was.align));
-    tf->addRow(tr("Alignment:"), align);
+    tf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Alignment:")), align);
     // What each length box held when the dialog opened, to write only the ones the person changed (a box holds a length to a precision, and one the file has outside its range is
     // not made to fit it).
     QHash<const QDoubleSpinBox *, double> shown;
@@ -158,12 +158,12 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     auto *indent = new MeasureSpin(tablePage);
     indent->setObjectName(QStringLiteral("indent"));
     set(indent, was.indent, true);
-    tf->addRow(tr("Indent from left:"), indent);
+    tf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Indent from left:")), indent);
     auto *widthKind = new QComboBox(tablePage);
     widthKind->setObjectName(QStringLiteral("widthKind"));
-    widthKind->addItem(tr("Automatic"), int(TableProps::Width::Auto));
-    widthKind->addItem(tr("Points"), int(TableProps::Width::Points));
-    widthKind->addItem(tr("Percent"), int(TableProps::Width::Percent));
+    widthKind->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Automatic")), int(TableProps::Width::Auto));
+    widthKind->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Points")), int(TableProps::Width::Points));
+    widthKind->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Percent")), int(TableProps::Width::Percent));
     widthKind->setCurrentIndex(int(was.widthKind));
     auto *widthPoints = new MeasureSpin(tablePage);
     widthPoints->setObjectName(QStringLiteral("widthPoints"));
@@ -178,7 +178,7 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     widthRow->addWidget(widthKind);
     widthRow->addWidget(widthPoints);
     widthRow->addWidget(widthPercent);
-    tf->addRow(tr("Preferred width:"), widthRow);
+    tf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Preferred width:")), widthRow);
     auto showWidth = [=] {
         const int k = widthKind->currentData().toInt();
         widthPoints->setVisible(k == int(TableProps::Width::Points));
@@ -186,7 +186,7 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     };
     showWidth();
     QObject::connect(widthKind, &QComboBox::currentIndexChanged, &dlg, showWidth);
-    auto *fixedLayout = new QCheckBox(tr("Fixed column widths"), tablePage);
+    auto *fixedLayout = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fixed column widths")), tablePage);
     fixedLayout->setObjectName(QStringLiteral("fixedLayout"));
     fixedLayout->setChecked(was.fixedLayout);
     tf->addRow(QString(), fixedLayout);
@@ -199,15 +199,15 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     set(left, was.margins.left(), true);
     set(bottom, was.margins.bottom(), true);
     set(right, was.margins.right(), true);
-    tf->addRow(tr("Default cell margin, top:"), top);
-    tf->addRow(tr("Default cell margin, left:"), left);
-    tf->addRow(tr("Default cell margin, bottom:"), bottom);
-    tf->addRow(tr("Default cell margin, right:"), right);
+    tf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Default cell margin, top:")), top);
+    tf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Default cell margin, left:")), left);
+    tf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Default cell margin, bottom:")), bottom);
+    tf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Default cell margin, right:")), right);
     auto *spacing = new MeasureSpin(tablePage);
     spacing->setObjectName(QStringLiteral("spacing"));
     set(spacing, was.spacing, false);
-    tf->addRow(tr("Space between cells:"), spacing);
-    tabs->addTab(tablePage, tr("Table"));
+    tf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Space between cells:")), spacing);
+    tabs->addTab(tablePage, tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Table")));
 
     // ---- Row
     auto *rowPage = new QWidget;
@@ -217,22 +217,22 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     set(height, was.rowHeight, false);
     auto *rule = new QComboBox(rowPage);
     rule->setObjectName(QStringLiteral("rowRule"));
-    rule->addItem(tr("At least"), false);
-    rule->addItem(tr("Exactly"), true);
+    rule->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "At least")), false);
+    rule->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Exactly")), true);
     rule->setCurrentIndex(was.rowExact ? 1 : 0);
     auto *heightRow = new QHBoxLayout;
     heightRow->addWidget(height);
     heightRow->addWidget(rule);
-    rf->addRow(tr("Row height (0 for as tall as the cells need):"), heightRow);
-    auto *cantSplit = new QCheckBox(tr("Do not let the row break across pages"), rowPage);
+    rf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Row height (0 for as tall as the cells need):")), heightRow);
+    auto *cantSplit = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Do not let the row break across pages")), rowPage);
     cantSplit->setObjectName(QStringLiteral("cantSplit"));
     cantSplit->setChecked(was.cantSplit);
     rf->addRow(QString(), cantSplit);
-    auto *header = new QCheckBox(tr("Repeat as header row at the top of each page"), rowPage);
+    auto *header = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Repeat as header row at the top of each page")), rowPage);
     header->setObjectName(QStringLiteral("headerRow"));
     header->setChecked(was.header);
     rf->addRow(QString(), header);
-    tabs->addTab(rowPage, tr("Row"));
+    tabs->addTab(rowPage, tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Row")));
 
     // ---- Column
     auto *columnPage = new QWidget;
@@ -240,24 +240,24 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     auto *columnWidth = new MeasureSpin(columnPage);
     columnWidth->setObjectName(QStringLiteral("columnWidth"));
     set(columnWidth, was.columnWidth, false);
-    cf->addRow(tr("Column width:"), columnWidth);
-    tabs->addTab(columnPage, tr("Column"));
+    cf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Column width:")), columnWidth);
+    tabs->addTab(columnPage, tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Column")));
 
     // ---- Cell
     auto *cellPage = new QWidget;
     auto *cl = new QFormLayout(cellPage);
     auto *valign = new QComboBox(cellPage);
     valign->setObjectName(QStringLiteral("verticalAlignment"));
-    valign->addItem(tr("Top"), int(flow::CellAlign::Top));
-    valign->addItem(tr("Center"), int(flow::CellAlign::Center));
-    valign->addItem(tr("Bottom"), int(flow::CellAlign::Bottom));
+    valign->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Top")), int(flow::CellAlign::Top));
+    valign->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Center")), int(flow::CellAlign::Center));
+    valign->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Bottom")), int(flow::CellAlign::Bottom));
     valign->setCurrentIndex(int(was.valign));
-    cl->addRow(tr("Vertical alignment:"), valign);
-    auto *noWrap = new QCheckBox(tr("Do not wrap text"), cellPage);
+    cl->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Vertical alignment:")), valign);
+    auto *noWrap = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Do not wrap text")), cellPage);
     noWrap->setObjectName(QStringLiteral("noWrap"));
     noWrap->setChecked(was.noWrap);
     cl->addRow(QString(), noWrap);
-    tabs->addTab(cellPage, tr("Cell"));
+    tabs->addTab(cellPage, tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Cell")));
 
     // ---- Alt Text
     auto *altPage = new QWidget;
@@ -265,9 +265,9 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     auto *title = new QLineEdit(was.altTitle, altPage), *text = new QLineEdit(was.altText, altPage);
     title->setObjectName(QStringLiteral("altTitle"));
     text->setObjectName(QStringLiteral("altText"));
-    af->addRow(tr("Title:"), title);
-    af->addRow(tr("Description:"), text);
-    tabs->addTab(altPage, tr("Alt Text"));
+    af->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Title:")), title);
+    af->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Description:")), text);
+    tabs->addTab(altPage, tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Alt Text")));
 
     okCancel(&dlg, v);
     if (dlg.exec() != QDialog::Accepted) return false;
@@ -299,7 +299,7 @@ bool bordersShadingDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     if (!doc || !cursor) return false;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("bordersShadingDialog"));
-    dlg.setWindowTitle(tr("Borders and Shading"));
+    dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Borders and Shading")));
     auto *v = new QVBoxLayout(&dlg);
     auto *tabs = new QTabWidget(&dlg);
     v->addWidget(tabs);
@@ -316,7 +316,7 @@ bool bordersShadingDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
                                  {"right", QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Right"), BorderSide::Right},
                                  {"insideH", QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Between rows"), BorderSide::InsideH},
                                  {"insideV", QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Between columns"), BorderSide::InsideV}};
-    auto *sides = new QGroupBox(tr("Lines on"), bordersPage);
+    auto *sides = new QGroupBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Lines on")), bordersPage);
     auto *sv = new QVBoxLayout(sides);
     QVector<QCheckBox *> boxes;
     for (const SideBox &s : sideBoxes) {
@@ -333,44 +333,44 @@ bool bordersShadingDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     bl->addWidget(sides, 0, 0, 2, 1);
     auto *style = new QComboBox(bordersPage);
     style->setObjectName(QStringLiteral("lineStyle"));
-    style->addItem(tr("None"), int(flow::TableLine::Style::None));
-    style->addItem(tr("Single"), int(flow::TableLine::Style::Single));
-    style->addItem(tr("Double"), int(flow::TableLine::Style::Double));
-    style->addItem(tr("Dotted"), int(flow::TableLine::Style::Dotted));
-    style->addItem(tr("Dashed"), int(flow::TableLine::Style::Dashed));
-    style->addItem(tr("Triple"), int(flow::TableLine::Style::Triple));
+    style->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "None")), int(flow::TableLine::Style::None));
+    style->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Single")), int(flow::TableLine::Style::Single));
+    style->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Double")), int(flow::TableLine::Style::Double));
+    style->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Dotted")), int(flow::TableLine::Style::Dotted));
+    style->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Dashed")), int(flow::TableLine::Style::Dashed));
+    style->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Triple")), int(flow::TableLine::Style::Triple));
     style->setCurrentIndex(1);
     auto *widthBox = new QComboBox(bordersPage);
     widthBox->setObjectName(QStringLiteral("lineWidth"));
     for (double w : {0.25, 0.5, 0.75, 1.0, 1.5, 2.25, 3.0, 4.5, 6.0}) widthBox->addItem(QStringLiteral("%1 pt").arg(w), w);
     widthBox->setCurrentIndex(1);
-    auto *color = new ColorButton(QStringLiteral("baseline"), tr("Line color"), true, tr("Automatic"), bordersPage);
+    auto *color = new ColorButton(QStringLiteral("baseline"), tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Line color")), true, tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Automatic")), bordersPage);
     color->setObjectName(QStringLiteral("lineColor"));
     color->setWell(true);
     auto *lf = new QFormLayout;
-    lf->addRow(tr("Style:"), style);
-    lf->addRow(tr("Width:"), widthBox);
-    lf->addRow(tr("Color:"), color);
+    lf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Style:")), style);
+    lf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Width:")), widthBox);
+    lf->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Color:")), color);
     bl->addLayout(lf, 0, 1);
-    tabs->addTab(bordersPage, tr("Borders"));
+    tabs->addTab(bordersPage, tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Borders")));
 
     auto *shadingPage = new QWidget;
     auto *shl = new QFormLayout(shadingPage);
-    auto *fill = new ColorButton(QStringLiteral("paint-bucket"), tr("Fill"), true, tr("No Color"), shadingPage);
+    auto *fill = new ColorButton(QStringLiteral("paint-bucket"), tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fill")), true, tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "No Color")), shadingPage);
     fill->setObjectName(QStringLiteral("fillColor"));
     fill->setWell(true);
-    auto *useFill = new QCheckBox(tr("Change the fill of the cells"), shadingPage);
+    auto *useFill = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Change the fill of the cells")), shadingPage);
     useFill->setObjectName(QStringLiteral("changeFill"));
     shl->addRow(QString(), useFill);
-    shl->addRow(tr("Fill:"), fill);
-    tabs->addTab(shadingPage, tr("Shading"));
+    shl->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fill:")), fill);
+    tabs->addTab(shadingPage, tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Shading")));
 
     auto *applyTo = new QComboBox(&dlg);
     applyTo->setObjectName(QStringLiteral("applyTo"));
-    applyTo->addItem(tr("Selected cells"), 0);
-    applyTo->addItem(tr("Table"), 1);
+    applyTo->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Selected cells")), 0);
+    applyTo->addItem(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Table")), 1);
     auto *applyRow = new QFormLayout;
-    applyRow->addRow(tr("Apply to:"), applyTo);
+    applyRow->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Apply to:")), applyTo);
     v->addLayout(applyRow);
     okCancel(&dlg, v);
     if (dlg.exec() != QDialog::Accepted) return false;

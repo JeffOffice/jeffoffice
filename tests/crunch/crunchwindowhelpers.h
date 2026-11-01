@@ -33,8 +33,9 @@ struct Window {
     {
         QSignalSpy first(&w, &CrunchWindow::firstScreenShown), done(&w, &CrunchWindow::calculationFinished), loaded(&w, &CrunchWindow::loadFinished);
         if (!w.openFile(path)) return false;
-        // (JP_TEST_WAIT_MS: how long each stage may take; a build without optimization is slow on the biggest sheets)
-        const int ms = qEnvironmentVariableIntValue("JP_TEST_WAIT_MS") > 0 ? qEnvironmentVariableIntValue("JP_TEST_WAIT_MS") : 20000;
+        // (JP_TEST_WAIT_MS: how long each stage may take; a build without optimization is slow on the biggest sheets. The wait is for the
+        // stage to end, not a measure of its speed, so it is long: a sheet of half a million rows took over 20 seconds to open on a machine busy with other builds.)
+        const int ms = qEnvironmentVariableIntValue("JP_TEST_WAIT_MS") > 0 ? qEnvironmentVariableIntValue("JP_TEST_WAIT_MS") : 120000;
         return first.wait(ms) && (loaded.count() > 0 || loaded.wait(ms)) && (done.count() > 0 || done.wait(ms));
     }
     // Makes the window's new, empty workbook and waits until it is ready.
