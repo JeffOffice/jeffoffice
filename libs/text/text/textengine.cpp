@@ -411,6 +411,12 @@ QTextCharFormat withEastAsianFaces(const QTextCharFormat &format, const QString 
     return out;
 }
 
+HandBoldWork &handBoldWork()
+{
+    static HandBoldWork work;
+    return work;
+}
+
 namespace {
 // A pixel of the fine layout (an eighth of a point) and a hair more is what the width of a line the room of which it exactly fills is given over its room, for the layout's
 // rounding. It is the same on every machine: it is the layout's own, not the text engine's. (What the engine counts past the advance of a glyph at a line's end is another thing,
@@ -701,20 +707,60 @@ void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextC
     const double pxPerPt = std::sqrt(std::abs(p->deviceTransform().determinant())) * kFine;
     const double w = handBoldWidth(cf.intProperty(tp::HandBold), em, out, pxPerPt) * kFine;
     if (w <= 0) return;
-    QPen pen(cf.foreground(), w);
-    pen.setJoinStyle(Qt::MiterJoin);   // the PDF default
-    pen.setMiterLimit(10);
+    if (out != TextOutput::Picture) {   // (a PDF and paper keep the stroke as a stroke)
+        QPen pen(cf.foreground(), w);
+        pen.setJoinStyle(Qt::MiterJoin);   // the PDF default
+        pen.setMiterLimit(10);
+        p->save();
+        p->setPen(pen);
+        p->setBrush(Qt::NoBrush);
+        for (const QGlyphRun &g : line.glyphRuns(s, e - s)) {
+            const QRawFont raw = g.rawFont();
+            const QList<quint32> glyphs = g.glyphIndexes();
+            const QList<QPointF> where = g.positions();
+            for (int k = 0; k < glyphs.size() && k < where.size(); ++k) {
+                QPainterPath path = raw.pathForGlyph(glyphs[k]);
+                path.translate(where[k]);
+                p->drawPath(path);
+            }
+        }
+        p->restore();
+        return;
+    }
+    // (In a picture a letter's stroke is made once per face, size, and width, and filled wherever the letter comes again: a page of
+    // typewriter text strokes its few dozen letters, not its thousands. The outlines are kept for the thread, a bounded number.)
+    struct Strokes {
+        QHash<QString, quint32> faces;
+        QHash<QPair<quint64, quint32>, QPainterPath> outlines;
+    };
+    thread_local Strokes kept;
+    if (kept.outlines.size() > 20000) kept = Strokes();
+    QPainterPathStroker stroker;
+    stroker.setWidth(w);
+    stroker.setJoinStyle(Qt::MiterJoin);   // the PDF default
+    stroker.setMiterLimit(10);
+    const quint32 width = quint32(std::lround(w * 64));
     p->save();
-    p->setPen(pen);
-    p->setBrush(Qt::NoBrush);
+    p->setPen(Qt::NoPen);
+    p->setBrush(cf.foreground());
     for (const QGlyphRun &g : line.glyphRuns(s, e - s)) {
         const QRawFont raw = g.rawFont();
+        const QString faceKey = raw.familyName() + QLatin1Char('|') + raw.styleName() + QLatin1Char('|') + QString::number(raw.pixelSize(), 'g', 10);
+        auto f = kept.faces.find(faceKey);
+        if (f == kept.faces.end()) f = kept.faces.insert(faceKey, quint32(kept.faces.size()));
         const QList<quint32> glyphs = g.glyphIndexes();
         const QList<QPointF> where = g.positions();
         for (int k = 0; k < glyphs.size() && k < where.size(); ++k) {
-            QPainterPath path = raw.pathForGlyph(glyphs[k]);
-            path.translate(where[k]);
-            p->drawPath(path);
+            const QPair<quint64, quint32> key((quint64(f.value()) << 32) | glyphs[k], width);
+            auto o = kept.outlines.find(key);
+            if (o == kept.outlines.end()) {
+                o = kept.outlines.insert(key, stroker.createStroke(raw.pathForGlyph(glyphs[k])));
+                ++handBoldWork().stroked;
+            }
+            p->save();
+            p->translate(where[k]);
+            p->drawPath(o.value());
+            p->restore();
         }
     }
     p->restore();

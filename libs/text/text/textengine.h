@@ -647,4 +647,11 @@ int effectPicturesBuiltForTest();
 // kept between paints.
 int fittedMarkerOutlinesBuiltForTest();
 
+// The work of the strokes drawn by hand, counted for tests: letter outlines stroked (each face, size, width, and letter
+// is stroked once and then filled wherever it comes again).
+struct HandBoldWork {
+    quint64 stroked = 0;
+};
+HandBoldWork &handBoldWork();
+
 } // namespace jp

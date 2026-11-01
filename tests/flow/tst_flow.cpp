@@ -2872,6 +2872,37 @@ private Q_SLOTS:
         }
     }
 
+    // The light stroke of the Courier New stand-in made a typewritten report of 85 pages take over five minutes to draw (it was 16 seconds before
+    // the stroke): every letter's outline was stroked anew each time it came. Each letter is now stroked once and then filled where it comes again.
+    void theCourierStrokeIsWorkedOutOncePerLetterAndRun()
+    {
+        if (QFontDatabase::hasFamily(QStringLiteral("Courier New"))) QSKIP("Courier New is installed");
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat a, b;
+        a.setFontFamilies({QStringLiteral("Courier New")});
+        a.setFontPointSize(10);
+        b = a;
+        b.setForeground(QColor(40, 40, 40));   // (two formats one after the other, so that every word is a run of its own)
+        const int words = 3000;
+        for (int i = 0; i < words; ++i) c.insertText(QStringLiteral("report%1 ").arg(i % 10), i % 2 ? b : a);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(400, 40000)}, env);
+        const int lines = lay.lineInfo(0).size();
+        QVERIFY2(lines > 300, qPrintable(QStringLiteral("%1 lines").arg(lines)));
+        QImage img(400, 4000, QImage::Format_RGB32);
+        img.fill(Qt::white);
+        handBoldWork() = HandBoldWork();
+        QPainter p(&img);
+        lay.paint(&p, 0, PaintOptions());
+        p.end();
+        const HandBoldWork w = handBoldWork();
+        qInfo() << lines << "lines," << words << "runs:" << w.stroked << "letters stroked";
+        QVERIFY2(w.stroked > 0 && w.stroked <= 40, qPrintable(QStringLiteral("%1 letters stroked").arg(w.stroked)));
+    }
+
     // A word processor's missing face, measured, is drawn in a stand-in whose letters take the original's widths, the difference from the stand-in's going into the
     // spacing after each letter. Where the stand-in's capital I is much narrower than the original's, the letters of a word shared that difference unevenly (the first
     // letter of a run kept all of its own after it), and the gap beside the I was wide enough for a reader of the page's text to take "I llinois", "I ncludes", and
