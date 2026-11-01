@@ -75,11 +75,7 @@ QTextBlockFormat restyledBlock(const QTextBlockFormat &bf, const QTextBlockForma
 // Makes a change to the styles a step of the history of the text, whatever paragraphs it restyles: the first paragraph's count of changes goes up.
 void touchStyles(WriteDoc &doc)
 {
-    const QTextBlock first = doc.story()->begin();
-    if (!first.isValid()) return;
-    QTextBlockFormat bf = first.blockFormat();
-    bf.setProperty(prop::StylesRev, bf.intProperty(prop::StylesRev) + 1);
-    QTextCursor(first).setBlockFormat(bf);
+    doc.markStyleStep();
 }
 
 // Every paragraph and run of the text whose look the old style gave it follows the new one (in the text, not in the headers, footers, and notes, whose stories are made when they are

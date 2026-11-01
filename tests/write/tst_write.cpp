@@ -23137,6 +23137,81 @@ private Q_SLOTS:
         QVERIFY(styleXml(back->toDocx()).contains("w:rsidR=\"00AB12CD\""));
     }
 
+    // ---- follow-ups of wave D
+
+    void applyingABuiltInStyleTheDocumentLacksIsOneStepWithItsStyleAndUndoRestoresTheFile()
+    {
+        const QByteArray plainStyles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>";
+        const QByteArray zip = makeDocx("<w:p><w:r><w:t>Some words</w:t></w:r></w:p><w:p><w:r><w:t>More</w:t></w:r></w:p>", plainStyles);
+        const QByteArray original = styleXml(zip);
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QVERIFY(!doc->styleSheet().find(QStringLiteral("Heading1")) && !doc->styleSheet().find(QStringLiteral("Strong")));
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        const quint64 before = doc->nextStepSerial();
+        applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+        QCOMPARE(doc->nextStepSerial(), before + 1);
+        QVERIFY(doc->styleSheet().find(QStringLiteral("Heading1")));
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->styleSheet().find(QStringLiteral("Heading1")));
+        QVERIFY(!doc->isModified());
+        QCOMPARE(styleXml(doc->toDocx()), original);
+        QVERIFY(doc->redo());
+        QVERIFY(doc->styleSheet().find(QStringLiteral("Heading1")));
+        QCOMPARE(styBlockStyle(*doc, 2), QStringLiteral("Heading1"));
+        QVERIFY(doc->undo());
+        // A character style, and the style that follows a heading when Enter is pressed at its end, are in their steps as well.
+        c.setPosition(0);
+        c.setPosition(4, QTextCursor::KeepAnchor);
+        const quint64 serial = doc->nextStepSerial();
+        applyCharacterStyle(*doc, c, QStringLiteral("Strong"));
+        QCOMPARE(doc->nextStepSerial(), serial + 1);
+        QVERIFY(doc->styleSheet().find(QStringLiteral("Strong")));
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->styleSheet().find(QStringLiteral("Strong")));
+        QCOMPARE(styleXml(doc->toDocx()), original);
+    }
+
+    void insertingAFootnoteIntoADocumentThatLacksTheFootnoteStylesPutsThemInTheStepAndUndoTakesThemOut()
+    {
+        const QByteArray plainStyles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>";
+        const QByteArray zip = makeDocx("<w:p><w:r><w:t>Some words here</w:t></w:r></w:p>", plainStyles);
+        const QByteArray original = styleXml(zip);
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QVERIFY(!doc->styleSheet().find(QStringLiteral("FootnoteText")));
+        QTextCursor c(doc->story());
+        c.setPosition(4);
+        QVERIFY(insertFootnote(*doc, c));
+        QVERIFY(doc->styleSheet().find(QStringLiteral("FootnoteText")) && doc->styleSheet().find(QStringLiteral("FootnoteReference")));
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->styleSheet().find(QStringLiteral("FootnoteText")) && !doc->styleSheet().find(QStringLiteral("FootnoteReference")));
+        QCOMPARE(styleXml(doc->toDocx()), original);
+        QVERIFY(doc->redo());
+        QVERIFY(doc->styleSheet().find(QStringLiteral("FootnoteText")));
+        QVERIFY(styleXml(doc->toDocx()).contains("FootnoteText"));
+    }
+
+    void aSectionBreakOnTheLastParagraphIsOneSectionAtItsFirstParagraph()
+    {
+        QByteArray body = "<w:p><w:r><w:t>One</w:t></w:r></w:p>";
+        body += "<w:p><w:pPr>" + sectionXml(12240, 15840, 1440, 1440, 1440, 1440) + "</w:pPr><w:r><w:t>Two</w:t></w:r></w:p>";
+        body += "<w:p><w:r><w:t>Three</w:t></w:r></w:p>";
+        body += "<w:p><w:pPr>" + sectionXml(12240, 15840, 1440, 1440, 1440, 1440) + "</w:pPr><w:r><w:t>Last</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles, QByteArray(), sectionXml(12240, 15840, 1440, 1440, 1440, 1440)));
+        QVERIFY(doc);
+        const QVector<GoToItem> items = goToItems(*doc, GoToKind::Section);
+        QCOMPARE(items.size(), doc->sectionCount());
+        QVERIFY(items.size() >= 2);
+        QCOMPARE(items[0].position, 0);
+        QCOMPARE(items[1].position, doc->story()->findBlockByNumber(2).position());
+        // (no two sections start at one place)
+        for (int i = 1; i < items.size(); ++i) QVERIFY2(items[i].position > items[i - 1].position, qPrintable(QString::number(i)));
+        // and each is found by its number, at the same place
+        for (int i = 0; i < items.size(); ++i) QCOMPARE(goToPosition(*doc, GoToKind::Section, QString::number(i + 1), 0), items[i].position);
+    }
+
     // ---- wave D in the window: the Styles pane, the style dialogs, the Format Painter, Go To, and dragging text
 
     static std::unique_ptr<WriteWindow> styWindow(const QByteArray &body, const QByteArray &styles = kStyles)

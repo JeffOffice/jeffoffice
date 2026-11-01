@@ -311,6 +311,8 @@ public:
     // Puts a style in the style sheet (one of that id is replaced where it stands, a new one goes last) as part of the edit it is made in: the step of the history that edit becomes
     // keeps what the style was and is, so that Undo and Redo put the style sheet as they put the text. Called inside an edit block of the story (styleops.cpp does).
     void putStyle(const office::wml::Style &style);
+    // Makes the edit being made a step of the story's history even if it changes nothing else (the count on the first paragraph goes up), for a style put with it.
+    void markStyleStep();
     // What a run of this format says beyond the style it has (the difference from the paragraph style's look and its own character style), for a style made from a selection.
     office::wml::RunProps writtenRunProps(const QTextCharFormat &format, const QString &paragraphStyle) const { return runPropsWritten(format, paragraphStyle, nullptr); }
     // Puts `other` in the place of the style sheet and returns the one that was there (the look of a style as it was, worked out for a restyle); the caches are let go.

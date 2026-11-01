@@ -102,7 +102,8 @@ QVector<int> sectionStarts(WriteDoc &doc, int limit)
     QVector<int> out{0};
     for (QTextBlock b = doc.story()->begin(); b.isValid() && out.size() < limit; b = b.next()) {
         ++g_blocksVisited;
-        if (b.blockFormat().boolProperty(flow::fp::SectionBreakAfter) && b.next().isValid()) out.push_back(b.next().position());
+        // (A section whose break is on the last paragraph has no paragraph: it begins where the text ends.)
+        if (b.blockFormat().boolProperty(flow::fp::SectionBreakAfter)) out.push_back(b.next().isValid() ? b.next().position() : b.position() + b.length() - 1);
     }
     return out;
 }

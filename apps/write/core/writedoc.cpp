@@ -872,12 +872,20 @@ bool WriteDoc::ensureStyle(const QString &id)
     if (s.id.isEmpty()) return false;
     // (a table style is the default of its kind only where the file has none)
     if (s.type == QLatin1String("table") && s.isDefault && !m_wml.styles.defaultId(QStringLiteral("table")).isEmpty()) s.isDefault = false;
-    if (!s.basedOn.isEmpty()) ensureStyle(s.basedOn);
-    if (!s.next.isEmpty()) ensureStyle(s.next);
-    m_wml.styles.add(s);
-    m_scratch.clear();
-    ++m_styleRev;
+    if (!s.basedOn.isEmpty() && s.basedOn != id) ensureStyle(s.basedOn);
+    if (!s.next.isEmpty() && s.next != id) ensureStyle(s.next);
+    // (Put as part of the edit being made: its step has the style, so that an Undo takes it away again, and the file is as it was.)
+    putStyle(s);
     return true;
+}
+
+void WriteDoc::markStyleStep()
+{
+    const QTextBlock first = story()->begin();
+    if (!first.isValid()) return;
+    QTextBlockFormat bf = first.blockFormat();
+    bf.setProperty(prop::StylesRev, bf.intProperty(prop::StylesRev) + 1);
+    QTextCursor(first).setBlockFormat(bf);
 }
 
 void WriteDoc::putStyle(const Style &style)

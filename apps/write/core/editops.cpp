@@ -2393,8 +2393,14 @@ void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
-    if (!doc.ensureStyle(styleId)) return;
     c.beginEditBlock();
+    // (A built-in style the document lacks is put in the step of this edit, so that one Undo takes it away with the look it gave.)
+    const quint64 sheet = doc.styleSheetRevision();
+    if (!doc.ensureStyle(styleId)) {
+        c.endEditBlock();
+        return;
+    }
+    if (doc.styleSheetRevision() != sheet) doc.markStyleStep();
     for (const QTextBlock &b : selectedBlocks(c))
         if (!isLocked(b)) applyStyleToBlock(doc, b, styleId);
     // The text typed next in an empty paragraph has the style's look too.
@@ -2406,7 +2412,13 @@ void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
-    if (!doc.ensureStyle(styleId)) return;
+    c.beginEditBlock();
+    const quint64 sheet = doc.styleSheetRevision();
+    if (!doc.ensureStyle(styleId)) {
+        c.endEditBlock();
+        return;
+    }
+    if (doc.styleSheetRevision() != sheet) doc.markStyleStep();
     const QString paraStyle = paragraphStyleAt(doc, c);
     const QTextCharFormat base = doc.styleCharFormat(paraStyle);
     const QTextCharFormat with = doc.styleCharFormat(paraStyle, styleId);
@@ -2416,6 +2428,7 @@ void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
         f = restyled(f, wasBase, with);
         f.setProperty(tp::CharStyle, styleId);
     });
+    c.endEditBlock();
 }
 
 } // namespace jp::write
