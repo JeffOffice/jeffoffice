@@ -179,6 +179,148 @@ private Q_SLOTS:
         QCOMPARE(b.at(QStringLiteral("B2")), QStringLiteral("n:10"));
         QCOMPARE(b.at(QStringLiteral("B5")), QStringLiteral("n:3"));
     }
+
+    // ---- review fixes
+
+    // Working a table out does not write the cells of the sheet (the worker's results are told, as a formula's are, and the sheet's cells are the file's, which the window reads at the same time).
+    void workingATableOutLeavesTheCellsOfTheSheetAsTheFileHadThem()
+    {
+        Book b;
+        QVERIFY(b.open(twoInputs()));
+        QVERIFY(b.calc->recalculate().finished);
+        QCOMPARE(b.at(QStringLiteral("C5")), QStringLiteral("n:4"));   // (what the table comes to, as the engine reads it)
+        quint32 r = 0, c = 0;
+        QVERIFY(parseCellRef(QStringLiteral("C5"), &r, &c));
+        const Cell *cell = b.calc->sheet(0).cells.find(r, c);
+        QVERIFY(cell);
+        QCOMPARE(cell->number, 0.0);   // (what the file stored)
+    }
+
+    // A table is worked out again only when something it read has changed: an edit of a cell nothing in it reads costs none, and one of a cell its formula reads costs the tables that read it.
+    void aTableIsWorkedOutAgainOnlyWhenWhatItReadChanged()
+    {
+        Book b;
+        QVERIFY(b.open(oneInput()));
+        QVERIFY(b.calc->recalculate().finished);
+        const qint64 first = b.calc->dataTablesWorked();
+        QVERIFY(first >= 2);
+        QVERIFY(b.set(QStringLiteral("H20"), 5));   // (read by nothing)
+        QVERIFY(b.calc->recalculate().finished);
+        QCOMPARE(b.calc->dataTablesWorked(), first);
+        QVERIFY(b.set(QStringLiteral("B2"), 5));   // (read by C2, which both tables' formulas come to)
+        QVERIFY(b.calc->recalculate().finished);
+        QVERIFY(b.calc->dataTablesWorked() > first);
+        QCOMPARE(b.at(QStringLiteral("B7")), QStringLiteral("n:15"));
+        const qint64 second = b.calc->dataTablesWorked();
+        QVERIFY(b.set(QStringLiteral("A6"), 10));   // (an edge of the first table only)
+        QVERIFY(b.calc->recalculate().finished);
+        QCOMPARE(b.calc->dataTablesWorked(), second + 1);
+        QCOMPARE(b.at(QStringLiteral("B6")), QStringLiteral("n:50"));
+    }
+
+    // A table that reads the cells of another is worked out after it, whichever of them comes first in the sheet.
+    void aTableThatReadsAnothersCellsIsWorkedOutAfterIt()
+    {
+        for (int layout = 0; layout < 2; ++layout) {
+            // the first table: C2 = A2*B2 as a function of A2 (the values in A5:A7, the table B5:B7); the second table's formula, at E4, is B7 + 1, and its input is D2, the values D5:D6: E5:E6 come to B7 + 1 whatever D2 is,
+            // so what matters is that B7 is worked out when E4 reads it
+            QString rows = row(2, num(QStringLiteral("A2"), 1) + num(QStringLiteral("B2"), 2) + formula(QStringLiteral("C2"), QStringLiteral("A2*B2"), 2) + num(QStringLiteral("D2"), 1));
+            rows += row(4, formula(QStringLiteral("B4"), QStringLiteral("C2"), 2) + formula(QStringLiteral("E4"), QStringLiteral("B7+D2"), 0));
+            const QString first = QStringLiteral("<c r=\"B5\"><f t=\"dataTable\" ref=\"B5:B7\" dt2D=\"0\" dtr=\"0\" r1=\"A2\"/><v>0</v></c>");
+            const QString second = QStringLiteral("<c r=\"E5\"><f t=\"dataTable\" ref=\"E5:E6\" dt2D=\"0\" dtr=\"0\" r1=\"D2\"/><v>0</v></c>");
+            rows += row(5, num(QStringLiteral("A5"), 1) + first + num(QStringLiteral("D5"), 10) + second);
+            rows += row(6, num(QStringLiteral("A6"), 2) + num(QStringLiteral("B6"), 0) + num(QStringLiteral("D6"), 20) + num(QStringLiteral("E6"), 0));
+            rows += row(7, num(QStringLiteral("A7"), 3) + num(QStringLiteral("B7"), 0));
+            if (layout == 1) {
+                // (the same tables with the second one's cells placed first in the file's order: the formulas are the same, the order of the sheet's cells differs)
+                rows = row(1, num(QStringLiteral("Z1"), 0)) + rows;
+            }
+            Book b;
+            QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+            QVERIFY(b.calc->recalculate().finished);
+            QCOMPARE(b.at(QStringLiteral("B7")), QStringLiteral("n:6"));
+            QCOMPARE(b.at(QStringLiteral("E5")), QStringLiteral("n:16"));   // (B7 = 6, D2 = 10)
+            QCOMPARE(b.at(QStringLiteral("E6")), QStringLiteral("n:26"));
+            QCOMPARE(b.calc->dataTablesInCircles(), qint64(0));
+        }
+    }
+
+    // Tables that read each other's cells in a circle are left as the file has them, and counted.
+    void tablesThatReadEachOtherInACircleAreLeftAlone()
+    {
+        QString rows = row(2, num(QStringLiteral("A2"), 1) + formula(QStringLiteral("C2"), QStringLiteral("A2+E5"), 0) + num(QStringLiteral("D2"), 1));
+        rows += row(4, formula(QStringLiteral("B4"), QStringLiteral("C2"), 0) + formula(QStringLiteral("E4"), QStringLiteral("D2+B5"), 0));
+        rows += row(5, num(QStringLiteral("A5"), 1) + QStringLiteral("<c r=\"B5\"><f t=\"dataTable\" ref=\"B5:B6\" dt2D=\"0\" dtr=\"0\" r1=\"A2\"/><v>7</v></c>") + num(QStringLiteral("D5"), 1)
+                          + QStringLiteral("<c r=\"E5\"><f t=\"dataTable\" ref=\"E5:E6\" dt2D=\"0\" dtr=\"0\" r1=\"D2\"/><v>8</v></c>"));
+        rows += row(6, num(QStringLiteral("A6"), 2) + num(QStringLiteral("B6"), 9) + num(QStringLiteral("D6"), 2) + num(QStringLiteral("E6"), 10));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(b.calc->recalculate().finished);
+        QCOMPARE(b.calc->dataTablesInCircles(), qint64(2));
+        QCOMPARE(b.at(QStringLiteral("B5")), QStringLiteral("n:7"));
+        QCOMPARE(b.at(QStringLiteral("B6")), QStringLiteral("n:9"));
+        QCOMPARE(b.at(QStringLiteral("E5")), QStringLiteral("n:8"));
+        QCOMPARE(b.at(QStringLiteral("E6")), QStringLiteral("n:10"));
+    }
+
+    // All the tables together may take only the work a recalculation may: past it the rest are left as the file has them, and counted.
+    void tablesTooCostlyToWorkOutAreLeftAloneAndCounted()
+    {
+        // a table of 200 x 200 cells whose formula sums a thousand cells each time
+        QMap<int, QString> grid;
+        grid[1] += num(QStringLiteral("A1"), 1) + num(QStringLiteral("B1"), 1) + formula(QStringLiteral("C1"), QStringLiteral("SUM(%1%2:%1%3)*A1*B1").arg(columnName(210)).arg(1).arg(1000), 0);
+        grid[3] += formula(QStringLiteral("A3"), QStringLiteral("C1"), 0);
+        for (int c = 1; c <= 200; ++c) grid[3] += num(QStringLiteral("%1%2").arg(columnName(quint32(c))).arg(3), c);
+        for (int r = 4; r <= 203; ++r) {
+            grid[r] += num(QStringLiteral("A%1").arg(r), r);
+            for (int c = 1; c <= 200; ++c)
+                grid[r] += r == 4 && c == 1 ? QStringLiteral("<c r=\"B4\"><f t=\"dataTable\" ref=\"B4:GS203\" dt2D=\"1\" dtr=\"1\" r1=\"A1\" r2=\"B1\"/><v>5</v></c>")
+                                            : num(QStringLiteral("%1%2").arg(columnName(quint32(c))).arg(r), 5);
+        }
+        QString rows;
+        for (int r = 1; r <= 1000; ++r) rows += row(r, grid.value(r) + num(columnName(210) + QString::number(r), 1));
+        Book b;
+        CalcOptions options;
+        options.keepApart = true;
+        options.workOutWhatHasNoResult = true;
+        options.workOutDataTables = true;
+        options.recalcWorkLimit = 300000;
+        QString why;
+        QVERIFY(b.package.readLazy(buildXlsx({worksheet(rows)}), &why) && b.book.open(b.package, &why));
+        b.calc.reset(new Calculation(b.book, options));
+        QVERIFY(b.calc->load());
+        QVERIFY(b.calc->recalculate().finished);
+        QCOMPARE(b.calc->dataTablesTooCostly(), qint64(1));
+        QCOMPARE(b.at(QStringLiteral("C5")), QStringLiteral("n:5"));   // (as the file has it)
+    }
+
+    // A calculation that is stopped in the middle of a table leaves the table as it was (none of its cells is half done), and works it out when it is gone on with.
+    void aStopInTheMiddleOfATableLeavesItAsItWas()
+    {
+        QMap<int, QString> grid;
+        grid[1] += num(QStringLiteral("A1"), 1) + formula(QStringLiteral("C1"), QStringLiteral("SUM(F1:F50)*A1"), 0);
+        grid[3] += formula(QStringLiteral("B3"), QStringLiteral("C1"), 0);
+        for (int r = 4; r <= 43; ++r)
+            grid[r] += num(QStringLiteral("A%1").arg(r), r) + (r == 4 ? QStringLiteral("<c r=\"B4\"><f t=\"dataTable\" ref=\"B4:B43\" dt2D=\"0\" dtr=\"0\" r1=\"A1\"/><v>5</v></c>") : num(QStringLiteral("B%1").arg(r), 5));
+        QString rows;
+        for (int r = 1; r <= 50; ++r) rows += row(r, grid.value(r) + num(QStringLiteral("F%1").arg(r), 1));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        std::atomic<bool> stop{false};
+        int visits = 0;
+        b.calc->setVisitHook([&] {
+            if (++visits == 30) stop = true;   // (after the cells are worked out and the table has begun)
+        });
+        const Calculation::Progress first = b.calc->recalculate(0, &stop);
+        QVERIFY(first.cancelled);
+        QCOMPARE(b.at(QStringLiteral("B4")), QStringLiteral("n:5"));
+        QCOMPARE(b.at(QStringLiteral("B43")), QStringLiteral("n:5"));
+        stop = false;
+        b.calc->setVisitHook(nullptr);
+        QVERIFY(b.calc->recalculate(0, &stop).finished);
+        QCOMPARE(b.at(QStringLiteral("B4")), QStringLiteral("n:200"));
+        QCOMPARE(b.at(QStringLiteral("B43")), QStringLiteral("n:2150"));   // (50 cells of 1, times the edge, 43)
+    }
 };
 
 JP_TEST_CLASS(SheetDataTableTests)

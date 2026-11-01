@@ -129,6 +129,7 @@ void WorkbookLoader::begin(const QString &path, const std::shared_ptr<const jp::
     m_state = std::make_shared<State>();
     m_state->manualAllowed = m_manualAllowed;
     m_state->pace = m_pace;
+    m_state->tablesAutomatic = m_tablesAutomatic;
     m_result = std::make_shared<LoadedBook>();
     m_result->path = path;
     const std::shared_ptr<LoadedBook> result = m_result;
@@ -170,7 +171,8 @@ void WorkbookLoader::setManual(bool manual)
 
 void WorkbookLoader::setTablesAutomatic(bool automatic)
 {
-    m_tablesAutomatic = automatic;
+    m_tablesAutomatic = automatic ? 1 : 0;
+    if (m_state) m_state->tablesAutomatic = m_tablesAutomatic;   // (the worker puts it in the calculation as soon as there is one)
     if (m_result && m_result->calc) m_result->calc->setDataTablesAutomatic(automatic);
 }
 
@@ -512,6 +514,7 @@ void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::of
     send([self] { if (self) Q_EMIT self->firstScreen(); });
     if (!loadWhole(result.get(), cancelled, [&](int sheet, qint64 cells) { send([self, sheet, cells] { if (self) Q_EMIT self->progress(sheet, cells); }); }, &state->cancel, &state->pace)) return;
     // (a workbook that is worked out by hand is shown with the results its file holds, unless the file asks for them to be worked out when it is opened)
+    if (const int word = state->tablesAutomatic.load(); word >= 0 && result->calc) result->calc->setDataTablesAutomatic(word != 0);   // (said while the file was being read)
     state->manual = state->manualAllowed.load() && result->book && result->book->info().calcMode == jp::office::sheet::CalcMode::Manual && !result->book->info().fullCalcOnLoad && !result->book->info().calcUnfinished;
     state->serving = true;
     send([self] { if (self) Q_EMIT self->finished(true, QString()); });

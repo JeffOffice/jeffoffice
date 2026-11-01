@@ -1251,9 +1251,6 @@ qint64 EditSession::changedResults() const
 
 bool EditSession::storedEquals(int sheet, quint32 rowId, quint32 colId, const Value &value) const
 {
-    // (a cell of a data table that was worked out holds the value it came to; the file's is kept apart)
-    Value original;
-    if (m_book->calc->dataTableOriginal(sheet, rowId, colId, &original)) return sameValue(original, value);
     const Sheet &s = m_book->calc->sheet(sheet);
     const Cell *c = s.cells.findById(rowId, colId);
     if (!c) return false;

@@ -193,6 +193,7 @@ private:
         std::atomic<bool> manualAllowed{true};
         std::atomic<int> sheetCalc{-1};       // a sheet whose formulas are to be worked out (by hand)
         std::atomic<bool> urgent{false};      // a change was made: the first values it makes go to the window as soon as they are there
+        std::atomic<int> tablesAutomatic{-1}; // the window's word on whether what-if tables are worked out with the formulas (1 yes, 0 no), or -1: it has said nothing, and the file's setting stands
         void updateHalt() { halt.store(stopCalc.load() || holds.load() > 0 || cancel.load()); }
     };
     static void run(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self);
@@ -206,7 +207,7 @@ private:
     std::shared_ptr<State> m_state;
     int m_pace = 0;
     bool m_manualAllowed = true;
-    bool m_tablesAutomatic = true;
+    int m_tablesAutomatic = -1;           // (the same, kept for the next read)
 };
 
 } // namespace jp::crunch

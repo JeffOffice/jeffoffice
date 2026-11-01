@@ -2,6 +2,7 @@
 // file saved holds the new values; a workbook set to leave tables by hand keeps what the file stored until F9. Every file is built here.
 #include "../sheet/odshelpers.h"
 #include "app/crunchwindow.h"
+#include "core/loader.h"
 #include "grid/gridview.h"
 
 #include <QFile>
@@ -92,6 +93,28 @@ private Q_SLOTS:
         // the file saved holds the new values
         QCOMPARE(o.saved(QStringLiteral("B6")), QStringLiteral("n:10"));
         QCOMPARE(o.saved(QStringLiteral("B7")), QStringLiteral("n:15"));
+    }
+
+    // The setting made before the workbook is read whole (the person changed it while the file was loading) is the one the worker works by: it is not lost for want of a workbook to give it to.
+    void tablesByHandSetWhileTheFileIsLoadingStayByHand()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("tables.xlsx"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(book());
+        f.close();
+        crunch::WorkbookLoader loader;
+        loader.setTablesAutomatic(false);   // (the file says automatic; the person has said by hand)
+        QSignalSpy finished(&loader, &crunch::WorkbookLoader::finished);
+        loader.start(path);
+        QVERIFY(finished.wait(20000));
+        QVERIFY(loader.result() && loader.result()->calc);
+        QVERIFY(!loader.result()->calc->dataTablesAutomatic());
+        // and a setting made after the load is done is the engine's at once
+        loader.setTablesAutomatic(true);
+        QVERIFY(loader.result()->calc->dataTablesAutomatic());
+        loader.cancel();
     }
 
     void tablesByHandWaitForTheKey()
