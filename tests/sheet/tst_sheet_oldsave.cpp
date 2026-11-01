@@ -1089,6 +1089,24 @@ private Q_SLOTS:
         }
     }
 
+    // A cell with no color of its own has none in the copy, in both forms: not the color the reader would make of nothing, which is opaque white (and would draw the text white).
+    void aCellWithNoFontColorHasNoneInTheCopies()
+    {
+        Copies c;
+        QVERIFY2(c.make(simple(row(1, str(QStringLiteral("A1"), QStringLiteral("plain")) + num(QStringLiteral("B1"), 1)))), qPrintable(c.why));
+        const Sheet a = c.sheet(c.original, 0);
+        for (const Workbook *wb : {&c.original, &c.xls, &c.ods}) {
+            const Sheet b = c.sheet(*wb, 0);
+            for (const char *ref : {"A1", "B1"}) {
+                const Cell *cell = at(b, QString::fromLatin1(ref));
+                QVERIFY(cell);
+                const FontSpec &font = wb->styles().font(wb->styles().format(cell->style).font);
+                QVERIFY2(!font.color.isSet() || wb->styles().resolve(font.color, 0) != 0xFFFFFFFFu, qPrintable(QStringLiteral("the font color of %1 is %2").arg(QString::fromLatin1(ref)).arg(wb->styles().resolve(font.color, 0), 0, 16)));
+                QCOMPARE(wb->styles().resolve(font.color, 0), c.original.styles().resolve(c.original.styles().font(c.original.styles().format(at(a, QString::fromLatin1(ref))->style).font).color, 0));
+            }
+        }
+    }
+
     void theFormulaCompilerRefusesWhatItCannotWrite()
     {
         XlsCompileContext cx;
