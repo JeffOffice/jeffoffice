@@ -279,6 +279,12 @@ void CrunchWindow::onCellsChanged(int sheet, const std::vector<jp::grid::ValueSt
 {
     if (m_objects) m_objects->cellsChanged(cells);
     noteRowsChanged(sheet, cells);
+    if (sheet == m_sheet && m_view->sheet().showFormulas() && !cells.empty()) {
+        // (formulas typed while the formulas show widen their columns if they need: only the cells told of are measured)
+        std::vector<std::pair<quint32, quint32>> places;
+        for (size_t i = 0; i < cells.size() && i < 2000; ++i) places.emplace_back(cells[i].row, cells[i].col);
+        m_view->formulaCellsChanged(places);
+    }
     if (sheet == m_sheet && m_view->valuesChanged(sheet, cells)) updateBars();
     if (m_undoing && !cells.empty()) {
         // Undo and Redo show the cell they changed

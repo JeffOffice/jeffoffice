@@ -140,6 +140,7 @@ void GridView::setData(const GridData &data, bool keepView)
     }
     m_sheet.layout().setViewport(viewport()->size());
     m_widened.clear();   // (the sizes are the data's again)
+    if (!keepView) m_formulaFit.clear();
     if (keepView) {
         setViewState(kept);
         widenForFormulas();
@@ -157,34 +158,69 @@ void GridView::setData(const GridData &data, bool keepView)
 
 void GridView::setShowFormulas(bool on)
 {
-    // (the widths the sheet has come back before the formulas go, so that they are measured from them)
+    // (the widths the sheet has come back before the formulas go)
     GridLayout &L = m_sheet.layout();
     for (const Widened &w : m_widened)
         if (L.cols.size(w.column) == w.to) L.cols.setSize(w.column, w.from);
     m_widened.clear();
+    m_formulaFit.clear();
     m_sheet.setShowFormulas(on);
     widenForFormulas();
     m_sheet.invalidateTexts();
     layoutChanged();
 }
 
-// The columns that hold formulas, while the formulas are shown: as wide as the longest needs, to at most 400 (the width a column of the sheet is given is never made smaller).
+void GridView::applyFormulaFit(qint64 column, int wanted)
+{
+    GridLayout &L = m_sheet.layout();
+    const int now = L.cols.size(column);
+    if (now <= 0 || wanted <= now) return;   // (a hidden column stays hidden, and a column that is wide enough is left)
+    L.cols.setSize(column, wanted);
+    m_widened.push_back({column, now, wanted});
+}
+
+// While the formulas show, the columns in view that hold formulas are as wide as the longest needs (to at most 400 pixels): each is measured once for the sheet shown, from at most 2,000 of its
+// cells, and what was measured is used again when the sheet is read again after an edit.
 void GridView::widenForFormulas()
 {
     if (!m_sheet.showFormulas() || !m_sheet.data().sheet) return;
-    std::set<quint32> columns;
-    qint64 seen = 0;
-    m_sheet.data().sheet->cells.forEach([&](quint32, quint32 col, const jp::office::sheet::Cell &cell) {
-        if (cell.hasFormula() && ++seen <= 300000 && columns.size() < 1024) columns.insert(col);
-    });
-    GridLayout &L = m_sheet.layout();
-    for (const quint32 col : columns) {
-        const int now = L.cols.size(col);
-        if (now <= 0) continue;   // (a hidden column stays hidden)
-        const int wanted = int(std::min(400.0, std::ceil(m_sheet.fitPixels(col, 20000))));
-        if (wanted <= now) continue;
-        L.cols.setSize(col, wanted);
-        m_widened.push_back({qint64(col), now, wanted});
+    const GridLayout &L = m_sheet.layout();
+    int seen = 0;
+    for (Pane which : {Pane::Left, Pane::Body}) {
+        const PaneView pv = L.pane(which);
+        for (qint64 col = pv.firstCol; !pv.isEmpty() && col <= pv.lastCol && seen < 64; ++col, ++seen)
+            if (!m_formulaFit.count(col)) m_formulaFit[col] = int(std::min(400.0, std::ceil(m_sheet.fitPixels(quint32(col), 2000, true))));
+    }
+    for (const auto &fit : m_formulaFit) applyFormulaFit(fit.first, fit.second);
+}
+
+void GridView::formulaCellsChanged(const std::vector<std::pair<quint32, quint32>> &cells)
+{
+    if (!m_sheet.showFormulas() || !m_sheet.data().sheet) return;
+    bool changed = false;
+    for (const auto &cell : cells) {
+        const double px = m_sheet.formulaPixels(cell.first, cell.second);
+        if (px <= 0) continue;
+        const int wanted = int(std::min(400.0, std::ceil(px)));
+        int &fit = m_formulaFit[qint64(cell.second)];
+        if (wanted <= fit) continue;
+        fit = wanted;
+        const std::size_t before = m_widened.size();
+        applyFormulaFit(qint64(cell.second), wanted);
+        // (a column widened before is widened further: its entry keeps the width it began with)
+        if (m_widened.size() > before) {
+            for (std::size_t i = 0; i + 1 < m_widened.size(); ++i)
+                if (m_widened[i].column == qint64(cell.second)) {
+                    m_widened[i].to = wanted;
+                    m_widened.pop_back();
+                    break;
+                }
+            changed = true;
+        }
+    }
+    if (changed) {
+        m_sheet.invalidateTexts();
+        layoutChanged();
     }
 }
 

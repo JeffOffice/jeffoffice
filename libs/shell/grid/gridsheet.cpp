@@ -107,7 +107,18 @@ double GridSheet::fitWidth(quint32 col, qint64 limit) const
     return widest > 0 ? widthForPixels(int(std::ceil(widest)), m_looks.maxDigitWidth()) : 0;
 }
 
-double GridSheet::fitPixels(quint32 col, qint64 limit) const
+double GridSheet::formulaPixels(quint32 row, quint32 col) const
+{
+    const Cell *cell = cellAt(row, col);
+    if (!cell || !cell->hasFormula() || !m_data.sheet || m_data.sheet->formulaText(*cell).isEmpty()) return 0;
+    const CellLook &look = lookOf(row, col, cell->style);
+    if (look.wrap) return 0;
+    ++m_measured;
+    const Shown s = showValue(jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(*cell))), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
+    return s.kind != Kind::Empty && s.width > 0 ? neededPixels(s, look, m_looks.maxDigitWidth()) : 0;
+}
+
+double GridSheet::fitPixels(quint32 col, qint64 limit, bool formulasOnly) const
 {
     if (!m_data.sheet) return 0;
     double widest = 0;
@@ -116,8 +127,10 @@ double GridSheet::fitPixels(quint32 col, qint64 limit) const
         if (++seen > limit) return false;
         if (cell.type == jp::office::sheet::CellType::Empty && !cell.hasFormula()) return true;
         if (m_layout.merges.at(cellRow, cellCol) >= 0) return true;   // (a merged cell does not decide)
+        if (formulasOnly && !cell.hasFormula()) return true;
         const CellLook &look = lookOf(cellRow, cellCol, cell.style);
         if (look.wrap) return true;
+        ++m_measured;
         // (with the formulas shown, a formula is the text of it)
         const bool formula = m_showFormulas && cell.hasFormula() && !m_data.sheet->formulaText(cell).isEmpty();
         const Shown s = showValue(formula ? jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(cell))) : valueOf(cellRow, cellCol, cell), look, m_data.dateSystem, 1e9,

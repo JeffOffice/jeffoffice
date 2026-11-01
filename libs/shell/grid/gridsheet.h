@@ -165,7 +165,11 @@ public:
     // not widen a column. For a few thousand cells: the walk stops at `limit` cells.
     double fitWidth(quint32 col, qint64 limit = 200000) const;
     // The same in pixels at 100% (what the column needs to show its widest cell whole; 0 for none): what Show Formulas widens the columns to.
-    double fitPixels(quint32 col, qint64 limit = 200000) const;
+    double fitPixels(quint32 col, qint64 limit = 200000, bool formulasOnly = false) const;
+    // The pixels the text of one formula needs while the formulas show (0 for a cell that has none).
+    double formulaPixels(quint32 row, quint32 col) const;
+    // The cells measured by fitWidth and fitPixels so far (counted, for tests).
+    qint64 cellsMeasured() const { return m_measured; }
     double fitHeight(quint32 row, qint64 limit = 20000) const;
     // The height (in points) that the text of the row needs when its height is the program's to choose: as many lines as each cell shows (a wrapped cell as many as its width needs, a
     // cell of several lines that wraps one for each), each as tall as a line of the cell's font, where a line of the sheet's standard font is the sheet's standard row height. 0 if the
@@ -184,6 +188,7 @@ private:
     mutable std::unordered_map<quint64, Shown> m_texts;
     mutable qint64 m_textsMade = 0;
     bool m_showFormulas = false;
+    mutable qint64 m_measured = 0;
     ErrorDisplay m_errors = ErrorDisplay::Shown;
     jp::calc::NumberSymbols m_symbols;
     bool m_rtl = false;
