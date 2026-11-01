@@ -13,6 +13,10 @@
 
 using namespace jp;
 
+#ifdef Q_OS_UNIX
+#include <unistd.h>
+#endif
+
 namespace {
 
 // A window with a workbook open from a folder of its own, a file dialog that answers what the test says, and what was said to the person.
@@ -149,6 +153,24 @@ private Q_SLOTS:
         QVERIFY(o.told.last().contains(QLatin1String("not written to")));
         QCOMPARE(copied.count(), 0);
         QVERIFY(o.originalIsUntouched());
+    }
+
+    // A second name for the file the workbook came from (a hard link) is the same file: a copy under it would overwrite the open workbook, and is refused.
+    void aHardLinkToTheFileTheWorkbookCameFromIsNotWritten()
+    {
+#ifdef Q_OS_UNIX
+        Win o;
+        QVERIFY(o.open(odsBook(), QStringLiteral("book.ods")));
+        const QString link = o.dir.filePath(QStringLiteral("other-name.ods"));
+        QVERIFY(::link(QFile::encodeName(o.path).constData(), QFile::encodeName(link).constData()) == 0);
+        QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
+        QVERIFY(!o.w.saveAs(link));
+        QVERIFY2(o.told.last().contains(QLatin1String("not written to")), qPrintable(o.told.join(QLatin1Char('|'))));
+        QCOMPARE(copied.count(), 0);
+        QVERIFY(o.originalIsUntouched());
+#else
+        QSKIP("hard links are made on Unix systems here");
+#endif
     }
 
     // What the file cannot hold is said before it is written; Cancel writes nothing, and "save as .xlsx" asks for that name instead.

@@ -385,7 +385,7 @@ private Q_SLOTS:
         for (const DefinedName &d : c.xls.info().definedNames) old.insert(d.name);
         QVERIFY2(old.contains(QStringLiteral("_xlnm.Print_Area")) && old.contains(QStringLiteral("_xlnm._FilterDatabase")), qPrintable(QStringList(old.values()).join(QLatin1Char(' '))));
         QVERIFY(c.xls.info().dateSystem == jp::calc::DateSystem::Date1904);
-        QVERIFY(c.ods.info().dateSystem == jp::calc::DateSystem::Date1904 || c.ods.info().dateSystem == jp::calc::DateSystem::Date1900);
+        QVERIFY(c.ods.info().dateSystem == jp::calc::DateSystem::Date1904);
     }
 
     void aLongTextIsWrittenWholeAcrossContinuedRecords()
@@ -586,16 +586,61 @@ private Q_SLOTS:
         QCOMPARE(code.count(QLatin1Char(';')), 3);
     }
 
-    void anOdsCopyReadsBackInManyRows()
+    // Gaps between the rows and between the cells are written as repeats, not as the empty rows and cells they are, and read back to the same places.
+    void anOdsCopyWritesGapsAsRepeatsAndReadsThemBack()
     {
         Copies c;
         QString rows;
-        for (int i = 1; i <= 300; ++i) rows += row(i, num(QStringLiteral("A%1").arg(i), i) + (i % 50 == 0 ? str(QStringLiteral("C%1").arg(i), QStringLiteral("x")) : QString()));
+        for (int i = 1; i <= 60; ++i) rows += row(i, num(QStringLiteral("A%1").arg(i), i));
+        rows += row(5000, num(QStringLiteral("A5000"), 5000) + num(QStringLiteral("E5000"), 1) + num(QStringLiteral("XFD5000"), 2));
+        rows += row(900000, str(QStringLiteral("C900000"), QStringLiteral("far")));
         QVERIFY2(c.make(simple(rows)), qPrintable(c.why));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(c.odsBytes, parts));
+        const QString content = QString::fromUtf8(parts.value(QStringLiteral("content.xml")));
+        QVERIFY2(content.contains(QLatin1String("table:number-rows-repeated=\"4939\"")), "the gap of rows is not a repeat");
+        QVERIFY2(content.contains(QLatin1String("table:number-columns-repeated=\"16379\"")) || content.contains(QLatin1String("table:number-columns-repeated=\"3\"")), "the gaps of cells are not repeats");
+        QVERIFY(content.size() < 100000);
         const Sheet b = c.sheet(c.ods, 0);
-        QCOMPARE(b.cells.cellCount(), qint64(306));
-        QCOMPARE(val(c.ods, b, QStringLiteral("A300")), QStringLiteral("n:300"));
-        QCOMPARE(val(c.ods, b, QStringLiteral("C250")), QStringLiteral("s:x"));
+        QCOMPARE(b.cells.cellCount(), qint64(60 + 3 + 1));
+        QCOMPARE(val(c.ods, b, QStringLiteral("A60")), QStringLiteral("n:60"));
+        QCOMPARE(val(c.ods, b, QStringLiteral("XFD5000")), QStringLiteral("n:2"));
+        QCOMPARE(val(c.ods, b, QStringLiteral("C900000")), QStringLiteral("s:far"));
+    }
+
+    // The most sheets the old form holds (255) are all written, and none is named as cut.
+    void exactlyTheMostSheetsTheOldFormHoldsAreAllWritten()
+    {
+        Copies c;
+        QVector<QByteArray> sheets;
+        QStringList names;
+        for (int i = 0; i < 255; ++i) {
+            sheets << worksheet(row(1, num(QStringLiteral("A1"), i)));
+            names << QStringLiteral("S%1").arg(i);
+        }
+        QVERIFY2(c.make(buildXlsx(sheets, QByteArray(), QString(), QString(), QByteArray(), names)), qPrintable(c.why));
+        QCOMPARE(c.xls.info().sheets.size(), 255);
+        QCOMPARE(val(c.xls, c.sheet(c.xls, 254), QStringLiteral("A1")), QStringLiteral("n:254"));
+        QVERIFY2(c.xlsReport.trimmed.isEmpty(), qPrintable(c.xlsReport.trimmed.join(QLatin1Char('|'))));
+    }
+
+    // A workbook stream past about 6.8 MB needs the extra table of sector numbers in the container (the DIFAT): the copy of a sheet of some 420,000 numbers has it, and reads back.
+    void aVeryLargeXlsCopyUsesTheContainersExtraSectorTable()
+    {
+        Copies c;
+        QString rows;
+        for (int r = 1; r <= 1700; ++r) {
+            QString cells;
+            for (int col = 0; col < 250; ++col) cells += num(columnName(quint32(col)) + QString::number(r), r * 0.37 + col * 1.0001);
+            rows += row(r, cells);
+        }
+        QVERIFY2(c.make(simple(rows), false), qPrintable(c.why));
+        QVERIFY2(c.xlsBytes.size() > 7200000, qPrintable(QString::number(c.xlsBytes.size())));
+        const quint32 difatSectors = quint8(c.xlsBytes[68]) | (quint8(c.xlsBytes[69]) << 8) | (quint8(c.xlsBytes[70]) << 16) | (quint32(quint8(c.xlsBytes[71])) << 24);
+        QVERIFY2(difatSectors > 0, "the container has no extra sector table");
+        const Sheet a = c.sheet(c.original, 0), b = c.sheet(c.xls, 0);
+        QCOMPARE(b.cells.cellCount(), a.cells.cellCount());
+        for (const char *ref : {"A1", "IA1700", "HZ850", "B1699"}) QCOMPARE(val(c.xls, b, QString::fromLatin1(ref)), val(c.original, a, QString::fromLatin1(ref)));
     }
 
     // ---- what the copy cannot hold
