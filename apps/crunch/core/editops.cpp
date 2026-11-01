@@ -281,6 +281,24 @@ EditSession::Outcome EditSession::fill(int sheet, const CellRange &source, FillD
         return out;
     }
     const Calculation *calc = m_book->calc.get();
+    // (a fill goes neither into nor out of a merged area: it would leave values in cells the area hides)
+    {
+        CellRange block = source;
+        if (vertical) {
+            if (forward) block.row2 = source.row2 + count;
+            else block.row1 = source.row1 - count;
+        } else {
+            if (forward) block.col2 = source.col2 + count;
+            else block.col1 = source.col1 - count;
+        }
+        for (const CellRange &m : calc->mergesOf(sheet)) {
+            if (m.row1 <= block.row2 && m.row2 >= block.row1 && m.col1 <= block.col2 && m.col2 >= block.col1) {
+                out.ok = false;
+                out.problem = tr("A fill can't go into or out of merged cells. Unmerge them first, or fill other cells.");
+                return out;
+            }
+        }
+    }
     const jp::calc::DateSystem system = m_book->book->info().dateSystem;
     const bool hasShared = !m_book->book->sharedStringsPart().isEmpty();
     Step step;
@@ -507,12 +525,200 @@ EditSession::Outcome EditSession::fill(int sheet, const CellRange &source, FillD
                 // (a text taken from the shared strings keeps its place there)
             }
             if (mode == Mode::Cycle && ch.after.value.isText() && ch.after.sharedString < 0 && hasShared) ch.textToShare = true;
+            if (opt.what == FillWhat::FormatsOnly) {
+                // the cell keeps what it holds and takes the format of the cell it goes from
+                if (!ch.before.exists && from.content.style == 0) continue;
+                ch.after = ch.before;
+                ch.after.exists = true;
+                ch.after.style = from.content.style;
+                ch.textToShare = false;
+            } else if (opt.what == FillWhat::ValuesOnly) {
+                // the cell takes the contents and keeps its own format
+                ch.after.style = ch.before.exists ? ch.before.style : implicitStyle(sheet, row, col);
+                if (ch.after.value.isEmpty() && !ch.after.isFormula && (ch.after.style == 0 || !ch.before.exists)) ch.after.exists = false;
+            }
             if (!(sameMeaning(ch.before, ch.after) && ch.before.style == ch.after.style)) step.cells.push_back(std::move(ch));
         }
     stripDone:;
     }
     if (step.empty()) return out;
     pushStep(std::move(step), tr("Fill"));
+    return out;
+}
+
+EditSession::Outcome EditSession::justify(int sheet, const CellRange &range, double width, const std::function<double(const QString &)> &measure, bool extend)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    if (!range.valid) return out;
+    if (range.col1 != range.col2) {
+        out.ok = false;
+        out.problem = tr("Justify works on the cells of one column. Select cells in a single column.");
+        return out;
+    }
+    const Calculation *calc = m_book->calc.get();
+    const quint32 col = range.col1;
+    if (qint64(range.row2) - range.row1 + 1 > kMaxCellsPerEdit) {
+        out.ok = false;
+        out.problem = tr("That is more cells than JeffCrunch changes at once (%1). Select fewer cells.").arg(QLocale().toString(kMaxCellsPerEdit));
+        return out;
+    }
+    QStringList words;
+    for (quint32 r = range.row1; r <= range.row2; ++r) {
+        const Calculation::CellContent c = calc->content(sheet, r, col);
+        if (!c.exists || (c.value.isEmpty() && !c.isFormula)) continue;
+        if (c.isFormula || !c.value.isText()) {
+            out.ok = false;
+            out.problem = tr("Justify works only on text. A cell in the selection holds a number or a formula.");
+            return out;
+        }
+        words += c.value.text().split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+    }
+    if (words.isEmpty()) return out;
+    // the lines: as many words as fit in the width, each line at least one word
+    QStringList lines;
+    QString current;
+    for (const QString &w : std::as_const(words)) {
+        const QString candidate = current.isEmpty() ? w : current + QLatin1Char(' ') + w;
+        if (current.isEmpty() || measure(candidate) <= width) {
+            current = candidate;
+        } else {
+            lines << current;
+            current = w;
+        }
+    }
+    lines << current;
+    const qint64 rows = qint64(range.row2) - range.row1 + 1;
+    if (qint64(lines.size()) > rows && !extend) {
+        out.ok = false;
+        out.confirm = true;
+        out.problem = tr("The text needs %1 cells, and %2 are selected. Text will extend below the selected cells. Do you want to continue?").arg(lines.size()).arg(rows);
+        return out;
+    }
+    const qint64 last = qint64(range.row1) + std::max<qint64>(rows, lines.size()) - 1;
+    if (last >= qint64(jp::calc::kGridRows)) {
+        out.ok = false;
+        out.problem = tr("The text needs more rows than the sheet has.");
+        return out;
+    }
+    const bool hasShared = !m_book->book->sharedStringsPart().isEmpty();
+    Step step;
+    for (qint64 r = range.row1; r <= last; ++r) {
+        if (!canEditCell(sheet, quint32(r), col, &why)) {
+            out.ok = false;
+            out.problem = why;
+            return out;
+        }
+        if (m_book->book->tableHeaderAt(sheet, quint32(r), col, nullptr) >= 0) {
+            out.ok = false;
+            out.problem = tr("The first row of a table holds the names of its columns, so it can't be filled over.");
+            return out;
+        }
+        const QString line = r - range.row1 < lines.size() ? lines[int(r - range.row1)] : QString();
+        CellChange ch;
+        ch.sheet = sheet;
+        ch.row = quint32(r);
+        ch.col = quint16(col);
+        ch.before = calc->content(sheet, quint32(r), col);
+        ch.after = ch.before;
+        ch.after.isFormula = false;
+        ch.after.formula.clear();
+        ch.after.hasStored = false;
+        ch.after.stored = Value();
+        ch.after.sharedString = -1;
+        if (line.isEmpty()) {
+            ch.after.value = Value();
+            if (ch.after.style == 0 || !ch.before.exists) ch.after.exists = false;
+        } else {
+            ch.after.exists = true;
+            ch.after.value = Value::text(line);
+            ch.textToShare = hasShared;
+        }
+        if (!sameMeaning(ch.before, ch.after)) step.cells.push_back(std::move(ch));
+    }
+    if (step.empty()) return out;
+    pushStep(std::move(step), tr("Justify"));
+    return out;
+}
+
+EditSession::Outcome EditSession::fillAcrossSheets(int sheet, const CellRange &range, const std::vector<int> &targets, FillWhat what)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    const Calculation *calc = m_book->calc.get();
+    std::vector<int> sheets;
+    for (const int t : targets)
+        if (t != sheet && std::find(sheets.begin(), sheets.end(), t) == sheets.end()) sheets.push_back(t);
+    if (sheets.empty()) {
+        out.ok = false;
+        out.problem = tr("Choose at least one other sheet to fill.");
+        return out;
+    }
+    if (!range.valid) return out;
+    for (const int t : sheets) {
+        if (t < 0 || t >= calc->sheetCount()) {
+            out.ok = false;
+            out.problem = tr("There is no such sheet.");
+            return out;
+        }
+        if (!canEditSheet(t, &why)) {
+            out.ok = false;
+            out.problem = why;
+            return out;
+        }
+    }
+    if (range.cellCount() * qint64(sheets.size()) > kMaxCellsPerEdit) {
+        out.ok = false;
+        out.problem = tr("That is more cells than JeffCrunch changes at once (%1). Select fewer cells.").arg(QLocale().toString(kMaxCellsPerEdit));
+        return out;
+    }
+    const bool hasShared = !m_book->book->sharedStringsPart().isEmpty();
+    Step step;
+    for (const int t : sheets) {
+        for (quint32 r = range.row1; r <= range.row2; ++r) {
+            for (quint32 c = range.col1; c <= range.col2; ++c) {
+                const Calculation::CellContent from = calc->content(sheet, r, c);
+                CellChange ch;
+                ch.sheet = t;
+                ch.row = r;
+                ch.col = quint16(c);
+                ch.before = calc->content(t, r, c);
+                if (what == FillWhat::FormatsOnly) {
+                    if (!ch.before.exists && from.style == 0) continue;
+                    ch.after = ch.before;
+                    ch.after.exists = true;
+                    ch.after.style = from.style;
+                } else {
+                    ch.after = from;
+                    ch.after.hasStored = false;
+                    ch.after.stored = Value();
+                    if (what == FillWhat::ValuesOnly) {
+                        ch.after.style = ch.before.exists ? ch.before.style : implicitStyle(t, r, c);
+                        if (ch.after.value.isEmpty() && !ch.after.isFormula && (ch.after.style == 0 || !ch.before.exists)) ch.after.exists = false;
+                    }
+                    if (ch.after.value.isText() && ch.after.sharedString < 0 && hasShared) ch.textToShare = true;
+                }
+                if (!canEditCell(t, r, c, &why)) {
+                    out.ok = false;
+                    out.problem = why;
+                    return out;
+                }
+                if (!(sameMeaning(ch.before, ch.after) && ch.before.style == ch.after.style)) step.cells.push_back(std::move(ch));
+            }
+        }
+    }
+    if (step.empty()) return out;
+    pushStep(std::move(step), tr("Fill across sheets"));
     return out;
 }
 

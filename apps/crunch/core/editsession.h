@@ -345,8 +345,12 @@ public:
     enum class FillDirection { Down, Right, Up, Left };
     enum class FillKind { Auto, Copy, Linear, Growth, Date };
     enum class DateUnit { Day, Weekday, Month, Year };
+    // What a fill carries over from the cells it goes from: the contents and the formats (as always), just the formats (the cells keep what they hold), or just the contents (the cells keep
+    // their formats).
+    enum class FillWhat { All, FormatsOnly, ValuesOnly };
     struct FillOptions {
         FillKind kind = FillKind::Auto;
+        FillWhat what = FillWhat::All;
         DateUnit unit = DateUnit::Day;
         bool hasStep = false;
         double step = 1;
@@ -356,6 +360,13 @@ public:
     // Fills `count` cells past `source` in the direction (one step); nothing changed and the problem told if a cell there can't be changed.
     Outcome fill(int sheet, const jp::office::sheet::CellRange &source, FillDirection direction, quint32 count, const FillOptions &options);
     Outcome fill(int sheet, const jp::office::sheet::CellRange &source, FillDirection direction, quint32 count);   // (as the fill handle: Auto)
+    // Fill > Justify: the text of the cells of one column of `range`, put into lines no wider than `width` (as `measure` says a text is wide), in the cells from the first one down, the cells of the
+    // range left over emptied. A text that needs more cells than the range has is not put in (confirm, with a question in `problem`) unless `extend`; it then goes into the cells below.
+    // Not ok, and nothing changed, if the range is of more than one column or a cell holds a number, a formula, or something that is not text.
+    Outcome justify(int sheet, const jp::office::sheet::CellRange &range, double width, const std::function<double(const QString &)> &measure, bool extend = false);
+    // Fill > Across Worksheets: the cells of `range` on `sheet` copied to the same cells of the sheets in `targets` (the places of the sheets), as one step: everything, just the formats, or
+    // just the contents. Not ok, and nothing changed, if there is no sheet to copy to or one cannot be changed.
+    Outcome fillAcrossSheets(int sheet, const jp::office::sheet::CellRange &range, const std::vector<int> &targets, FillWhat what);
 
 
 

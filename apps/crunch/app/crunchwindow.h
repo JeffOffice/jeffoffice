@@ -464,6 +464,30 @@ private:
     QStringList m_opsActions;   // the commands that work when a workbook is open and nothing is being saved
     void autoSum(const QString &function);
     void fillSelection(crunch::EditSession::FillDirection direction);
+public:
+    // The small button that offers how the cells were filled after the fill handle was dragged (visible while the offer stands), and Fill > Across Worksheets for the sheets given.
+    QToolButton *fillOptionsButton() const { return m_fillOptions; }
+    bool fillAcrossSheets(const std::vector<int> &targets, crunch::EditSession::FillWhat what);
+private:
+    // The fill the handle made last, which the button's choices do again another way.
+    struct LastFill {
+        bool valid = false;
+        int sheet = 0, index = 0;   // the sheet, and the place in the undo stack once the fill was made
+        jp::office::sheet::CellRange from;
+        crunch::EditSession::FillDirection direction = crunch::EditSession::FillDirection::Down;
+        quint32 count = 0;
+        crunch::EditSession::FillKind kind = crunch::EditSession::FillKind::Auto;
+        bool dates = false, single = false;
+        jp::grid::GridRange extent;
+    };
+    LastFill m_lastFill;
+    bool m_fillRedoing = false;
+    void offerFillOptions();
+    void hideFillOptions();
+    void refill(const QString &id);
+    void fillStackChanged();
+    void justifySelection();
+    void fillAcrossDialog();
     void fillDragged(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
     void fillSeriesDialog();
     // inserting and deleting rows, columns, and cells (crunchwindow_cells.cpp)
@@ -948,6 +972,7 @@ private:
     } m_edit;
     bool m_syncingEditors = false, m_undoing = false, m_finishing = false;
     EnterMove m_enterMove = EnterMove::Down;
+    QPointer<QToolButton> m_fillOptions;
     qint64 m_tabOriginCol = -1, m_tabRow = -1;   // where a run of Tabs began (Enter then goes back to that column)
     // saving
     bool m_saving = false, m_closeAfterSave = false, m_closing = false;

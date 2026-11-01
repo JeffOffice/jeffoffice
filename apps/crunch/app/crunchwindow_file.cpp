@@ -314,6 +314,7 @@ void CrunchWindow::setActiveSheet(int sheetIndex)
 {
     if (!m_loaded || !m_loaded->book || sheetIndex == m_sheet || sheetIndex < 0 || sheetIndex >= m_loaded->book->info().sheets.size()) return;
     if (!m_haveCalc && sheetIndex != m_loaded->previewSheet) return;   // (the other sheets are not read yet)
+    hideFillOptions();
     if (!commitEdit()) {
         // (the entry could not be finished: the tab goes back to the sheet it is for)
         const int back = m_tabSheets.indexOf(m_sheet);

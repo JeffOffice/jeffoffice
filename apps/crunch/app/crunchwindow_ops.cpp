@@ -2,6 +2,8 @@
 #include "app/crunchwindow.h"
 
 #include "app/crunchinfo.h"
+#include "app/filldialogs.h"
+#include "app/icons.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
@@ -13,7 +15,14 @@
 #include <QFormLayout>
 #include <QLineEdit>
 #include <QRadioButton>
+#include <QMenu>
+#include <QToolButton>
+#include <QUndoStack>
+#include <QFontMetricsF>
 #include <QVBoxLayout>
+
+#include <algorithm>
+#include <cmath>
 
 namespace jp {
 
@@ -34,6 +43,9 @@ void CrunchWindow::createOpsActions()
     mk("fill.up", tr("Up"), "arrow-up-to-line", QKeySequence(), [this] { fillSelection(crunch::EditSession::FillDirection::Up); });
     mk("fill.left", tr("Left"), "arrow-left-to-line", QKeySequence(), [this] { fillSelection(crunch::EditSession::FillDirection::Left); });
     mk("fill.series", tr("Series…"), "", QKeySequence(), [this] { fillSeriesDialog(); });
+    mk("fill.justify", tr("Justify"), "", QKeySequence(), [this] { justifySelection(); });
+    mk("fill.across", tr("Across Worksheets…"), "", QKeySequence(), [this] { fillAcrossDialog(); });
+    m_opsActions << QStringLiteral("fill.justify") << QStringLiteral("fill.across");
     mk("edit.fill", tr("Fill"), "arrow-down-to-line", QKeySequence(), [this] { fillSelection(crunch::EditSession::FillDirection::Down); });
     m_opsActions << QStringLiteral("fill.down") << QStringLiteral("fill.right") << QStringLiteral("fill.up") << QStringLiteral("fill.left") << QStringLiteral("fill.series") << QStringLiteral("edit.fill");
     connect(m_view, &grid::GridView::fillRequested, this, [this](const grid::GridRange &source, const grid::GridRange &extent, bool ctrl) { fillDragged(source, extent, ctrl); });
@@ -160,6 +172,7 @@ void CrunchWindow::fillDragged(const grid::GridRange &source, const grid::GridRa
         options.kind = number ? crunch::EditSession::FillKind::Linear : crunch::EditSession::FillKind::Copy;
     }
     const qint64 before = m_loader.changesMade();
+    const int stepsBefore = m_session->undoStack()->index();
     const crunch::EditSession::Outcome o = m_session->fill(m_sheet, from, direction, quint32(std::min<qint64>(count, 0x7FFFFFFF)), options);
     if (!o.ok) {
         notice(tr("Fill"), o.problem);
@@ -167,6 +180,115 @@ void CrunchWindow::fillDragged(const grid::GridRange &source, const grid::GridRa
     }
     if (m_loader.changesMade() != before) m_calculating = true;
     m_view->selectRange(extent.row1, extent.col1, extent.row2, extent.col2);
+    // the button that offers the fill another way (when the fill changed anything)
+    hideFillOptions();
+    if (m_session->undoStack()->index() > stepsBefore) {
+        m_lastFill = LastFill();
+        m_lastFill.valid = true;
+        m_lastFill.sheet = m_sheet;
+        m_lastFill.index = m_session->undoStack()->index();
+        m_lastFill.from = from;
+        m_lastFill.direction = direction;
+        m_lastFill.count = quint32(std::min<qint64>(count, 0x7FFFFFFF));
+        m_lastFill.kind = options.kind;
+        m_lastFill.extent = extent;
+        m_lastFill.single = source.rows() == 1 && source.cols() == 1;
+        // (dates: the last cell of the block holds a number shown as a date)
+        const quint32 lastRow = from.row2, lastCol = from.col2;
+        const grid::GridSheet &gs = m_view->sheet();
+        const grid::Cell *cell = gs.cellAt(lastRow, lastCol);
+        m_lastFill.dates = cell && m_session->valueAt(m_sheet, lastRow, lastCol).isNumber() && gs.looks().look(gs.styleOf(lastRow, lastCol, cell)).format.kind() == jp::calc::FormatKind::Date;
+        offerFillOptions();
+    }
+}
+
+// The small button at the corner of what the handle filled: how the cells were filled, again another way (the fill is taken back and made again, so it stays one step).
+void CrunchWindow::offerFillOptions()
+{
+    if (!m_lastFill.valid) return;
+    if (!m_fillOptions) {
+        m_fillOptions = new QToolButton(m_view->viewport());
+        m_fillOptions->setObjectName(QStringLiteral("fillOptionsButton"));
+        m_fillOptions->setIcon(icon(QStringLiteral("clipboard-list")));
+        m_fillOptions->setToolTip(tr("Fill Options"));
+        m_fillOptions->setAccessibleName(tr("Fill Options"));
+        m_fillOptions->setPopupMode(QToolButton::InstantPopup);
+        m_fillOptions->setAutoRaise(false);
+        m_fillOptions->setFixedSize(24, 24);
+        m_fillOptions->setMenu(new QMenu(m_fillOptions));
+    }
+    QMenu *menu = m_fillOptions->menu();
+    menu->clear();
+    auto add = [&](const QString &id, const QString &text) {
+        QAction *a = menu->addAction(text);
+        a->setObjectName(id);
+        connect(a, &QAction::triggered, this, [this, id] { refill(id); });
+    };
+    add(QStringLiteral("fillOpt.copy"), tr("Copy Cells"));
+    add(QStringLiteral("fillOpt.series"), tr("Fill Series"));
+    add(QStringLiteral("fillOpt.formatsOnly"), tr("Fill Formatting Only"));
+    add(QStringLiteral("fillOpt.valuesOnly"), tr("Fill Without Formatting"));
+    if (m_lastFill.dates) {
+        menu->addSeparator();
+        add(QStringLiteral("fillOpt.days"), tr("Fill Days"));
+        add(QStringLiteral("fillOpt.weekdays"), tr("Fill Weekdays"));
+        add(QStringLiteral("fillOpt.months"), tr("Fill Months"));
+        add(QStringLiteral("fillOpt.years"), tr("Fill Years"));
+    }
+    connect(m_session->undoStack(), &QUndoStack::indexChanged, this, &CrunchWindow::fillStackChanged, Qt::UniqueConnection);
+    const QRect corner = m_view->cellRect(m_lastFill.extent.row2, m_lastFill.extent.col2);
+    const QRect vp = m_view->viewport()->rect();
+    const QPoint at(std::clamp(corner.right() + 2, 0, std::max(0, vp.width() - m_fillOptions->width())), std::clamp(corner.bottom() + 2, 0, std::max(0, vp.height() - m_fillOptions->height())));
+    m_fillOptions->move(at);
+    m_fillOptions->show();
+    m_fillOptions->raise();
+}
+
+void CrunchWindow::hideFillOptions()
+{
+    m_lastFill.valid = false;
+    if (m_fillOptions) m_fillOptions->hide();
+}
+
+void CrunchWindow::fillStackChanged()
+{
+    if (!m_fillRedoing && m_lastFill.valid && m_session && m_session->undoStack()->index() != m_lastFill.index) hideFillOptions();
+}
+
+void CrunchWindow::refill(const QString &id)
+{
+    using Kind = crunch::EditSession::FillKind;
+    using What = crunch::EditSession::FillWhat;
+    using Unit = crunch::EditSession::DateUnit;
+    if (!m_lastFill.valid || !m_session || m_sheet != m_lastFill.sheet || m_session->undoStack()->index() != m_lastFill.index) {
+        hideFillOptions();
+        return;
+    }
+    crunch::EditSession::FillOptions options;
+    options.kind = m_lastFill.kind;
+    if (id == QLatin1String("fillOpt.copy")) {
+        options.kind = Kind::Copy;
+    } else if (id == QLatin1String("fillOpt.series")) {
+        options.kind = m_lastFill.single && !m_lastFill.dates ? Kind::Linear : Kind::Auto;
+    } else if (id == QLatin1String("fillOpt.formatsOnly")) {
+        options.kind = Kind::Copy;
+        options.what = What::FormatsOnly;
+    } else if (id == QLatin1String("fillOpt.valuesOnly")) {
+        options.what = What::ValuesOnly;
+    } else {
+        options.kind = Kind::Date;
+        options.unit = id == QLatin1String("fillOpt.weekdays") ? Unit::Weekday : id == QLatin1String("fillOpt.months") ? Unit::Month : id == QLatin1String("fillOpt.years") ? Unit::Year : Unit::Day;
+    }
+    m_fillRedoing = true;
+    m_session->undoStack()->undo();
+    const qint64 before = m_loader.changesMade();
+    const crunch::EditSession::Outcome o = m_session->fill(m_sheet, m_lastFill.from, m_lastFill.direction, m_lastFill.count, options);
+    if (!o.ok) notice(tr("Fill"), o.problem);
+    if (m_loader.changesMade() != before) m_calculating = true;
+    m_fillRedoing = false;
+    if (o.ok) m_lastFill.index = m_session->undoStack()->index();
+    else hideFillOptions();
+    m_view->selectRange(m_lastFill.extent.row1, m_lastFill.extent.col1, m_lastFill.extent.row2, m_lastFill.extent.col2);
 }
 
 
@@ -244,6 +366,79 @@ void CrunchWindow::fillSeriesDialog()
         return;
     }
     if (m_loader.changesMade() != before) m_calculating = true;
+}
+
+// Fill > Justify: the text of the selected cells of a column is put into lines as wide as the column, in the cells from the first one down.
+void CrunchWindow::justifySelection()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return;
+    const grid::GridRange r = m_view->selection().range;
+    CellRange range;
+    range.valid = true;
+    range.row1 = quint32(r.row1);
+    range.row2 = quint32(r.row2);
+    range.col1 = quint32(r.col1);
+    range.col2 = quint32(r.col2);
+    // the font of the first cell, as the grid shows it, and the width of the column inside its margins
+    const grid::GridSheet &gs = m_view->sheet();
+    const grid::Cell *cell = gs.cellAt(range.row1, range.col1);
+    const grid::CellLook &look = gs.looks().look(gs.styleOf(range.row1, range.col1, cell));
+    QFont font(look.family.isEmpty() ? m_view->font().family() : look.family);
+    font.setPixelSize(std::max(9, int(std::lround(look.pointSize * 96.0 / 72.0))));
+    font.setBold(look.bold);
+    font.setItalic(look.italic);
+    const QFontMetricsF metrics(font);
+    const double width = std::max(metrics.averageCharWidth(), gs.columnWidth(r.col1) - 6.0);
+    const auto measure = [&metrics](const QString &text) { return metrics.horizontalAdvance(text); };
+    const qint64 before = m_loader.changesMade();
+    crunch::EditSession::Outcome o = m_session->justify(m_sheet, range, width, measure);
+    if (!o.ok && o.confirm) {
+        // (the text reaches below the cells selected)
+        if (askBeforeLosing(tr("Justify"), o.problem, tr("Continue"), QString(), false) != LossAnswer::Continue) return;
+        o = m_session->justify(m_sheet, range, width, measure, true);
+    }
+    if (!o.ok) {
+        notice(tr("Justify"), o.problem);
+        return;
+    }
+    if (m_loader.changesMade() != before) m_calculating = true;
+}
+
+// Fill > Across Worksheets: asks which sheets and what to copy, and copies the selected cells there.
+void CrunchWindow::fillAcrossDialog()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed() || !m_loaded || !m_loaded->book) return;
+    QStringList names;
+    for (const auto &sheet : m_loaded->book->info().sheets) names << sheet.name;
+    if (names.size() < 2) {
+        notice(tr("Fill"), tr("This workbook has only one sheet, so there is no other sheet to fill."));
+        return;
+    }
+    FillAcrossDialog dialog(names, m_sheet, this);
+    if (dialog.exec() != QDialog::Accepted) return;
+    fillAcrossSheets(dialog.sheets(), dialog.what());
+}
+
+bool CrunchWindow::fillAcrossSheets(const std::vector<int> &targets, crunch::EditSession::FillWhat what)
+{
+    if (!m_session || !editingAllowed()) return false;
+    const grid::GridRange r = m_view->selection().range;
+    CellRange range;
+    range.valid = true;
+    range.row1 = quint32(r.row1);
+    range.row2 = quint32(r.row2);
+    range.col1 = quint32(r.col1);
+    range.col2 = quint32(r.col2);
+    const qint64 before = m_loader.changesMade();
+    const crunch::EditSession::Outcome o = m_session->fillAcrossSheets(m_sheet, range, targets, what);
+    if (!o.ok) {
+        notice(tr("Fill"), o.problem);
+        return false;
+    }
+    if (m_loader.changesMade() != before) m_calculating = true;
+    return true;
 }
 
 } // namespace jp
