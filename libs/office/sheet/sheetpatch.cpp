@@ -262,7 +262,7 @@ QByteArray columnsFromRuns(const QByteArray &head, const std::vector<ColumnSpan>
 
 // The head of a sheet with its `sheetFormatPr` made to say the sheet's default sizes: the file's element with those attributes changed (what else it says stays), or one made before the
 // columns (or before the cells) if the file has none.
-QByteArray formatFromChange(const QByteArray &head, const SheetFormat &f, const QByteArray &defaultPrefix)
+QByteArray formatFromChange(const QByteArray &head, const SheetFormat &f, const QByteArray &defaultPrefix, bool outlineLevels)
 {
     Tag t;
     qsizetype pos = 0, found = -1, foundEnd = -1, colsAt = -1;
@@ -283,11 +283,13 @@ QByteArray formatFromChange(const QByteArray &head, const SheetFormat &f, const 
         setFlag(tag, "customHeight", f.customHeight);
         if (f.defaultColWidth > 0) setAttr(tag, "defaultColWidth", numberText(f.defaultColWidth));
         else dropAttr(tag, "defaultColWidth");
-        // (the deepest levels of the outline: the buttons in the margins show that many)
-        if (f.outlineLevelRow > 0) setAttr(tag, "outlineLevelRow", QByteArray::number(f.outlineLevelRow));
-        else dropAttr(tag, "outlineLevelRow");
-        if (f.outlineLevelCol > 0) setAttr(tag, "outlineLevelCol", QByteArray::number(f.outlineLevelCol));
-        else dropAttr(tag, "outlineLevelCol");
+        // (the deepest levels of the outline, when the change says them: the buttons in the margins show that many)
+        if (outlineLevels) {
+            if (f.outlineLevelRow > 0) setAttr(tag, "outlineLevelRow", QByteArray::number(f.outlineLevelRow));
+            else dropAttr(tag, "outlineLevelRow");
+            if (f.outlineLevelCol > 0) setAttr(tag, "outlineLevelCol", QByteArray::number(f.outlineLevelCol));
+            else dropAttr(tag, "outlineLevelCol");
+        }
     };
     if (found >= 0) {
         QByteArray tag = head.mid(found, foundEnd - found);
@@ -1002,6 +1004,7 @@ public:
         m_addTables = &changes.addTableRels;
         m_removeTables = &changes.removeTableRels;
         if (changes.replaceFormat) m_format = &changes.format;
+        m_formatOutline = changes.formatOutline;
         if (changes.replaceTabColor) m_tabColor = &changes.tabColor;
         if (changes.replaceAutoFilter) m_filter = &changes.autoFilter;
         m_showRows = changes.showRows;
@@ -1170,7 +1173,7 @@ private:
         if (m_tabSelected >= 0) before = tabSelectedFromChange(before, m_tabSelected != 0, m_prefix);
         if (m_viewKind >= 0) before = viewKindFromChange(before, m_viewKind, m_viewZoom, m_viewNormalZoom, m_prefix);
         if (m_pane) before = paneFromChange(before, *m_pane, m_prefix);
-        if (m_format) before = formatFromChange(before, *m_format, m_prefix);
+        if (m_format) before = formatFromChange(before, *m_format, m_prefix, m_formatOutline);
         if (m_columns) before = columnsFromRuns(before, *m_columns, m_prefix);
         if (m_page) before = patchFitToPageHead(before, *m_page);
         put(before);
@@ -1595,6 +1598,7 @@ private:
     int m_tabSelected = -1;
     int m_viewKind = -1, m_viewZoom = 0, m_viewNormalZoom = 0;
     const SheetView *m_pane = nullptr;
+    bool m_formatOutline = false;
     bool m_hfSet = false;
     QByteArray m_hfRel;
     QByteArray m_legacyId;

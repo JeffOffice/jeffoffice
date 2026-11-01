@@ -85,6 +85,7 @@ struct SheetChanges {
     // The default sizes (`sheetFormatPr`), when a person changed them: the default height of rows (and whether it is a person's), and the default width of columns (none when 0).
     bool replaceFormat = false;
     SheetFormat format;
+    bool formatOutline = false;   // `format` also says how deep the outline of the rows and of the columns goes (`outlineLevelRow` and `outlineLevelCol`): they are written; else the file's stay
     std::vector<RowProps> rows;         // sorted by row
     // The color of the sheet's tab, when a person changed it (none: the sheet has no color).
     bool replaceTabColor = false;

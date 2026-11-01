@@ -1505,6 +1505,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         sc.replaceFormat = true;
         sc.format = calc->sheetFormatOf(sheet);
         // (how deep the outline of the rows and of the columns goes: the buttons in the margins show that many levels)
+        sc.formatOutline = true;
         sc.format.outlineLevelRow = 0;
         sc.format.outlineLevelCol = 0;
         for (const RowSpec &spec : calc->rowSpecsIn(sheet, 0, kMaxRows - 1)) sc.format.outlineLevelRow = std::max(sc.format.outlineLevelRow, spec.outline);
