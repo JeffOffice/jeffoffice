@@ -23,16 +23,6 @@
 
 namespace jp {
 
-namespace {
-
-// The user name and initials of the settings: who makes changes and comments.
-QString userInitials()
-{
-    return Settings::get().value(QStringLiteral("user/initials")).toString();
-}
-
-} // namespace
-
 void WriteWindow::createReviewActions()
 {
     mk("review.spelling", tr("Spelling & Grammar"), "spell-check", QKeySequence(Qt::Key_F7), [this] { showSpelling(); });
@@ -78,7 +68,7 @@ void WriteWindow::createReviewActions()
         m_view->leaveHeaderFooter();
         m_view->leaveNote();
         const int n = write::acceptAll(*m_doc);
-        statusBar()->showMessage(tr("%n change(s) accepted.", nullptr, n), 5000);
+        statusBar()->showMessage(n == 1 ? tr("1 change accepted.") : tr("%1 changes accepted.").arg(n), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
     });
     mk("review.acceptAllStop", tr("Accept All Changes and Stop Tracking"), "check-check", QKeySequence(), [this] {
@@ -87,7 +77,7 @@ void WriteWindow::createReviewActions()
         m_view->leaveNote();
         const int n = write::acceptAll(*m_doc);
         m_doc->setTrackChanges(false);
-        statusBar()->showMessage(tr("%n change(s) accepted. Track Changes is off.", nullptr, n), 5000);
+        statusBar()->showMessage(n == 1 ? tr("1 change accepted. Track Changes is off.") : tr("%1 changes accepted. Track Changes is off.").arg(n), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
         refreshReviewUi();
     });
@@ -96,7 +86,7 @@ void WriteWindow::createReviewActions()
         m_view->leaveHeaderFooter();
         m_view->leaveNote();
         const int n = write::rejectAll(*m_doc);
-        statusBar()->showMessage(tr("%n change(s) rejected.", nullptr, n), 5000);
+        statusBar()->showMessage(n == 1 ? tr("1 change rejected.") : tr("%1 changes rejected.").arg(n), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
     });
     mk("review.nextChange", tr("Next Change"), "arrow-down", QKeySequence(), [this] { gotoChange(true); });
@@ -113,24 +103,23 @@ void WriteWindow::createReviewActions()
     viewAction("review.view.all", tr("All Markup"), ReviewView::AllMarkup)->setChecked(true);
     viewAction("review.view.none", tr("No Markup"), ReviewView::NoMarkup);
     viewAction("review.view.original", tr("Original"), ReviewView::Original);
-    auto showAction = [this](const char *id, const QString &text, bool *flag, const char *key) {
-        QAction *a = mk(QString::fromLatin1(id), text, "", QKeySequence(), [this, flag, key, id] {
+    // (What Show Markup has on is each window's own, and all of it is on when a window begins.)
+    auto showAction = [this](const char *id, const QString &text, bool *flag) {
+        QAction *a = mk(QString::fromLatin1(id), text, "", QKeySequence(), [this, flag, id] {
             *flag = act(QString::fromLatin1(id))->isChecked();
-            Settings::get().setValue(QString::fromLatin1(key), *flag);
             applyReviewView();
         }, true);
-        *flag = Settings::get().value(QString::fromLatin1(key), true).toBool();
-        a->setChecked(*flag);
+        *flag = true;
+        a->setChecked(true);
         return a;
     };
-    showAction("review.show.insdel", tr("Insertions and Deletions"), &m_showInsertionsAndDeletions, "review/showInsertionsAndDeletions");
-    showAction("review.show.formatting", tr("Formatting"), &m_showFormatting, "review/showFormatting");
-    showAction("review.show.comments", tr("Comments"), &m_showComments, "review/showComments");
+    showAction("review.show.insdel", tr("Insertions and Deletions"), &m_showInsertionsAndDeletions);
+    showAction("review.show.formatting", tr("Formatting"), &m_showFormatting);
+    showAction("review.show.comments", tr("Comments"), &m_showComments);
     m_balloonGroup = new QActionGroup(this);
     auto balloonAction = [this](const char *id, const QString &text, int kind) {
         QAction *a = mk(QString::fromLatin1(id), text, "", QKeySequence(), [this, kind] {
             m_balloons = kind;
-            Settings::get().setValue(QStringLiteral("review/balloons"), kind);
             applyReviewView();
         }, true);
         m_balloonGroup->addAction(a);
@@ -139,8 +128,8 @@ void WriteWindow::createReviewActions()
     balloonAction("review.balloons.inline", tr("Show All Revisions Inline"), 0);
     balloonAction("review.balloons.balloons", tr("Show Revisions in Balloons"), 1);
     balloonAction("review.balloons.comments", tr("Show Only Comments and Formatting in Balloons"), 2);
-    m_balloons = std::clamp(Settings::get().value(QStringLiteral("review/balloons"), 0).toInt(), 0, 2);
-    act(m_balloons == 1 ? "review.balloons.balloons" : m_balloons == 2 ? "review.balloons.comments" : "review.balloons.inline")->setChecked(true);
+    m_balloons = 0;
+    act("review.balloons.inline")->setChecked(true);
     mk("review.reviewingPane", tr("Reviewing Pane"), "panel-right-open", QKeySequence(), [this] { showReviewPane(true); });
 
     // ---- comments
@@ -158,7 +147,7 @@ void WriteWindow::createReviewActions()
     mk("review.deleteAllComments", tr("Delete All Comments in Document"), "message-square-x", QKeySequence(), [this] {
         if (!m_doc) return;
         const int n = write::deleteAllComments(*m_doc);
-        statusBar()->showMessage(tr("%n comment(s) deleted.", nullptr, n), 5000);
+        statusBar()->showMessage(n == 1 ? tr("1 comment deleted.") : tr("%1 comments deleted.").arg(n), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
     });
     mk("review.nextComment", tr("Next Comment"), "arrow-down", QKeySequence(), [this] { gotoComment(true); });
@@ -272,24 +261,42 @@ void WriteWindow::applyReviewView()
     refreshReviewUi();
 }
 
+// Whether the text has changes and comments, for the commands that have nothing to do without them.
+void WriteWindow::updateReviewState()
+{
+    if (!m_doc) {
+        m_hasRevisions = m_hasComments = false;
+        m_reviewStateDoc = nullptr;
+        return;
+    }
+    m_hasRevisions = write::revisionCount(m_doc->story()) > 0;
+    m_hasComments = !write::comments(*m_doc).isEmpty();
+    m_reviewStateRevision = m_doc->story()->revision();
+    m_reviewStateDoc = m_doc.get();
+}
+
 void WriteWindow::refreshReviewUi()
 {
     if (m_updatingReview) return;
     m_updatingReview = true;
     const bool has = m_doc != nullptr;
+    if (has && (m_reviewStateDoc != m_doc.get() || m_reviewStateRevision != m_doc->story()->revision())) {
+        // (A long document is looked through a moment after the last edit, not at each key.)
+        if (m_doc->story()->blockCount() < 2000 || m_reviewStateDoc != m_doc.get()) {
+            updateReviewState();
+        } else if (!m_reviewStateTimer.isActive()) {
+            m_reviewStateTimer.start();
+        }
+    }
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("review.")) && a->objectName() != QLatin1String("review.spelling") && a->objectName() != QLatin1String("review.checkAsType")) a->setEnabled(has);
     if (has) {
         act("review.trackChanges")->setChecked(m_doc->trackChanges());
-        QTextCursor &c = m_view->cursor();
-        const bool any = write::revisionAt(m_doc->story(), c.position()).has_value() || c.hasSelection();
-        act("review.accept")->setEnabled(any || write::nextRevision(m_doc->story(), c.position()).has_value());
-        act("review.reject")->setEnabled(any || write::nextRevision(m_doc->story(), c.position()).has_value());
-        const bool anyComments = !write::comments(*m_doc).isEmpty();
-        act("review.deleteAllComments")->setEnabled(anyComments);
-        act("review.deleteComment")->setEnabled(write::commentAt(*m_doc, c.position()).has_value());
-        act("review.replyComment")->setEnabled(write::commentAt(*m_doc, c.position()).has_value());
-        act("review.resolveComment")->setEnabled(write::commentAt(*m_doc, c.position()).has_value());
+        for (const char *id : {"review.accept", "review.reject", "review.acceptShown", "review.rejectShown", "review.acceptAll", "review.rejectAll", "review.acceptAllStop", "review.nextChange",
+                               "review.previousChange"})
+            act(QString::fromLatin1(id))->setEnabled(m_hasRevisions);
+        for (const char *id : {"review.deleteComment", "review.deleteAllComments", "review.replyComment", "review.resolveComment", "review.nextComment", "review.previousComment"})
+            act(QString::fromLatin1(id))->setEnabled(m_hasComments);
     }
     if (m_trackLabel) {
         m_trackLabel->setVisible(has);
@@ -378,7 +385,7 @@ int WriteWindow::resolveShown(bool accept)
     m_view->leaveHeaderFooter();
     m_view->leaveNote();
     const int n = write::resolveRevisions(*m_doc, m_doc->story(), shownRevisions(), accept);
-    statusBar()->showMessage(accept ? tr("%n change(s) accepted.", nullptr, n) : tr("%n change(s) rejected.", nullptr, n), 5000);
+    statusBar()->showMessage(accept ? (n == 1 ? tr("1 change accepted.") : tr("%1 changes accepted.").arg(n)) : (n == 1 ? tr("1 change rejected.") : tr("%1 changes rejected.").arg(n)), 5000);
     m_view->setFocus(Qt::OtherFocusReason);
     return n;
 }

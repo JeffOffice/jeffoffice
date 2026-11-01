@@ -33,6 +33,7 @@ QString paragraphText(const Block &b)
     QString t;
     for (const Inline &in : b.para.content)
         if (in.kind == Inline::Text) t += in.text;
+        else if (in.kind == Inline::RunAtom && in.tag == QLatin1String("cr")) t += in.display;   // (a carriage return is kept as itself and shown as a line break)
     return t;
 }
 

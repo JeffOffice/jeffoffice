@@ -156,6 +156,7 @@ private:
     void createReviewActions();
     void applyReviewView();
     void refreshReviewUi();
+    void updateReviewState();
     void newComment();
     void gotoChange(bool forward);
     void gotoComment(bool forward);
@@ -211,6 +212,11 @@ private:
     QActionGroup *m_viewGroup = nullptr, *m_balloonGroup = nullptr;
     QToolButton *m_trackLabel = nullptr;
     bool m_updatingReview = false;
+    // Whether the text has changes and comments (looked for again when the text changed: at once in a short document, else a moment after the last edit).
+    bool m_hasRevisions = false, m_hasComments = false;
+    int m_reviewStateRevision = -1;
+    const void *m_reviewStateDoc = nullptr;
+    QTimer m_reviewStateTimer;
     std::unique_ptr<write::WriteDoc> m_doc;
     write::PageView *m_view = nullptr;
     Ribbon *m_ribbon = nullptr;

@@ -1001,7 +1001,11 @@ private Q_SLOTS:
         QString shown = w.document()->story()->toPlainText();
         shown.remove(QChar(0xFFFC));
         QVERIFY2(shown.contains(QLatin1String("keep added and dropped end.")), qPrintable(shown));
-        const QString lines = boxLines(*w.document()).join(QLatin1Char(' '));
+        // The window shows a document that has changes with its markup: the deleted words are in the lines, struck through. With No Markup they are not.
+        QString lines = boxLines(*w.document()).join(QLatin1Char(' '));
+        QVERIFY2(lines.contains(QLatin1String("keep added and dropped end.")), qPrintable(lines));
+        w.act(QStringLiteral("review.view.none"))->trigger();
+        lines = boxLines(*w.document()).join(QLatin1Char(' '));
         QVERIFY2(lines.contains(QLatin1String("keep added and")) && !lines.contains(QLatin1String("dropped")), qPrintable(lines));
         // Written out, each is still a tracked change, with its author and its date.
         const QByteArray x = documentXml(w.document()->toDocx());

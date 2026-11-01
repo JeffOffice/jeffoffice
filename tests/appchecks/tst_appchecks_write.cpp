@@ -229,15 +229,34 @@ private Q_SLOTS:
                  w->act(QStringLiteral("insert.picture"))->trigger();
                  asWrite(w)->refreshNow();
              }, false},
-            {QStringLiteral("a comment at the caret"), [typed](AppWindow *w, bool f) {
+            {QStringLiteral("comments, the caret in the first"), [typed](AppWindow *w, bool f) {
                  typed(w, f);
                  write::WriteDoc *doc = asWrite(w)->document();
+                 // (The later one first, so that the places of the earlier stay.)
                  QTextCursor c(doc->story());
+                 c.setPosition(5);
+                 c.setPosition(9, QTextCursor::KeepAnchor);
+                 write::addComment(*doc, c, QStringLiteral("A later remark"));
                  c.setPosition(0);
-                 c.setPosition(4, QTextCursor::KeepAnchor);
+                 c.setPosition(3, QTextCursor::KeepAnchor);
                  write::addComment(*doc, c, QStringLiteral("A remark"));
                  QTextCursor inside(doc->story());
                  inside.setPosition(2);
+                 asWrite(w)->view()->setCursor(inside);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("comments, the caret in the last"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(5);
+                 c.setPosition(9, QTextCursor::KeepAnchor);
+                 write::addComment(*doc, c, QStringLiteral("A later remark"));
+                 c.setPosition(0);
+                 c.setPosition(3, QTextCursor::KeepAnchor);
+                 write::addComment(*doc, c, QStringLiteral("A remark"));
+                 QTextCursor inside(doc->story());
+                 inside.setPosition(11);   // (in the words of the later comment: the earlier one's three marks come before it)
                  asWrite(w)->view()->setCursor(inside);
                  asWrite(w)->refreshNow();
              }, false},

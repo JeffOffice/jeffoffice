@@ -127,14 +127,6 @@ QStringList lineTexts(WriteDoc &doc)
     return lines;
 }
 
-void resetShowMarkup()
-{
-    Settings::get().setValue(QStringLiteral("review/showInsertionsAndDeletions"), true);
-    Settings::get().setValue(QStringLiteral("review/showFormatting"), true);
-    Settings::get().setValue(QStringLiteral("review/showComments"), true);
-    Settings::get().setValue(QStringLiteral("review/balloons"), 0);
-}
-
 QString comments_text(WriteDoc &doc) { return comments(doc).value(0).text; }
 bool comments_done(WriteDoc &doc, int id) { return commentById(doc, id) && commentById(doc, id)->done; }
 
@@ -202,10 +194,6 @@ private Q_SLOTS:
         setAppInfo(writeAppInfo());
         initCore();
     }
-
-    // The choices of Show Markup are kept in the settings: each test begins and ends with the usual ones.
-    void init() { resetShowMarkup(); }
-    void cleanup() { resetShowMarkup(); }
 
     // ---------------------------------------------------------------- finding changes
     void aDocumentsChangesAreListedWithTheirAuthorsDatesAndWords()

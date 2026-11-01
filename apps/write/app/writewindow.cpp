@@ -91,6 +91,12 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     connect(m_ribbon, &Ribbon::fileClicked, this, [this] { showFileScreen(); });
     connect(m_ribbon, &Ribbon::leaveRequested, this, [this] { m_view->setFocus(Qt::OtherFocusReason); });
 
+    m_reviewStateTimer.setSingleShot(true);
+    m_reviewStateTimer.setInterval(400);
+    connect(&m_reviewStateTimer, &QTimer::timeout, this, [this] {
+        updateReviewState();
+        refreshReviewUi();
+    });
     m_refreshTimer.setSingleShot(true);
     m_refreshTimer.setInterval(30);
     connect(&m_refreshTimer, &QTimer::timeout, this, &WriteWindow::refreshUi);
