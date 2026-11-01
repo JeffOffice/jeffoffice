@@ -365,18 +365,28 @@ bool wantsDrop(const QMimeData *mime)
 
 void PageView::dragEnterEvent(QDragEnterEvent *e)
 {
-    if (m_doc && wantsDrop(e->mimeData())) e->acceptProposedAction();
+    if (m_doc && (wantsDrop(e->mimeData()) || wantsTextDrop(e->mimeData()))) e->acceptProposedAction();
     else e->ignore();
 }
 
 void PageView::dragMoveEvent(QDragMoveEvent *e)
 {
-    if (m_doc && wantsDrop(e->mimeData())) e->acceptProposedAction();
-    else e->ignore();
+    if (!m_doc || !(wantsDrop(e->mimeData()) || wantsTextDrop(e->mimeData()))) {
+        e->ignore();
+        return;
+    }
+    e->acceptProposedAction();
+    // Near the top or the bottom edge of the window the pages scroll, so that the text can be dropped farther along.
+    if (wantsTextDrop(e->mimeData())) {
+        const int y = e->position().toPoint().y(), edge = 28;
+        if (y < edge) verticalScrollBar()->setValue(verticalScrollBar()->value() - verticalScrollBar()->singleStep());
+        else if (y > viewport()->height() - edge) verticalScrollBar()->setValue(verticalScrollBar()->value() + verticalScrollBar()->singleStep());
+    }
 }
 
 void PageView::dropEvent(QDropEvent *e)
 {
+    if (dropText(e)) return;
     if (!m_doc || !wantsDrop(e->mimeData())) {
         e->ignore();
         return;

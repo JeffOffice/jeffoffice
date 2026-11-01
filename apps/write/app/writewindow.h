@@ -2,6 +2,7 @@
 // JeffWrite's main window: the ribbon, the pages, and the status bar, with the File screen over them.
 
 #include "app/appwindow.h"
+#include "core/styleops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
 
@@ -27,6 +28,7 @@ class MeasureSpin;
 class Ribbon;
 struct RibbonParts;
 class SizeCombo;
+class StylesPane;
 class WriteFileScreen;
 class WriteFindPane;
 namespace write {
@@ -110,6 +112,18 @@ public:
     void showHelp(const QString &topic = QString());
     HelpView *helpView() const { return m_help; }
 
+    // The Styles pane on the right (made when first asked for, so null before).
+    void showStylesPane();
+    StylesPane *stylesPane() const { return m_styles; }
+
+    // The Format Painter: picked up (Once, or Locked by a double click on its button) it holds the look of the selection, and paints it on each selection made with the mouse until it
+    // paints once, or until Esc. Turning it on copies the look of the selection as it is then.
+    enum class PainterMode { Off, Once, Locked };
+    PainterMode painterMode() const { return m_painter; }
+    void setPainterMode(PainterMode mode);
+    // Paints the selection with the look held (what the end of a selection by the mouse does while the painter is on).
+    void paintFormatNow();
+
     // The Find and Replace pane on the right (made when first asked for, so null before); `replace` puts the cursor in Replace with.
     void showFindPane(bool replace = false);
     WriteFindPane *findPane() const { return m_find; }
@@ -133,6 +147,8 @@ private:
     void createNoteActions();
     void createTableActions();
     void createPictureActions();
+    void createStyleActions();
+    void showStyleDialog(bool create);
     void pictureRibbonParts(RibbonParts &parts);
     void insertPictureFromFile();
     void insertPictureFromClipboard();
@@ -185,6 +201,11 @@ private:
     QList<ColorButton *> m_colorButtons;
     QList<MeasureSpin *> m_indentFields;
     QWidget *m_styleGallery = nullptr;
+    StylesPane *m_styles = nullptr;
+    QDockWidget *m_stylesDock = nullptr;
+    PainterMode m_painter = PainterMode::Off;
+    qint64 m_painterPicked = 0;   // when the painter was picked up (milliseconds since the epoch)
+    write::FormatBrush m_brush;
     QList<MeasureSpin *> m_pictureFields;   // the height and width of the Picture Format tab
     write::Ruler *m_ruler = nullptr;
     QList<MeasureSpin *> m_tableFields;     // the row height and column width of the Table Layout tab

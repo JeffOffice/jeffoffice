@@ -8,10 +8,12 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QContextMenuEvent>
+#include <QDrag>
 #include <QDateTime>
 #include <QInputMethodEvent>
 #include <QKeyEvent>
 #include <QMimeData>
+#include <QPointer>
 #include <QScrollBar>
 #include <QTextBlock>
 #include <QTextDocument>
@@ -347,6 +349,13 @@ void PageView::mousePressEvent(QMouseEvent *e)
     m_clicks = again ? (m_clicks % 3) + 1 : e->type() == QEvent::MouseButtonDblClick ? 2 : 1;
     m_lastClickTime = now;
     m_lastPos = e->position().toPoint();
+    // A press inside the selection may begin a drag of its text: the selection stays until the pointer has moved (or the button is let go, which puts the caret there).
+    if (m_clicks == 1 && m_textDragAllowed && !(e->modifiers() & Qt::ShiftModifier) && m_cursor.hasSelection() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story() &&
+        at >= m_cursor.selectionStart() && at < m_cursor.selectionEnd() && !isLocked(m_cursor.block())) {
+        m_textDrag.pending = true;
+        m_textDrag.start = e->position().toPoint();
+        return;
+    }
     if (m_clicks == 3) {
         m_cursor.setPosition(at);
         m_cursor.movePosition(QTextCursor::StartOfBlock);
@@ -368,6 +377,11 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
 {
     if (m_pictureDrag.active) {
         updatePictureDrag(e->position().toPoint());
+        return;
+    }
+    if (m_textDrag.pending) {
+        if (!(e->buttons() & Qt::LeftButton)) m_textDrag.pending = false;
+        else if ((e->position().toPoint() - m_textDrag.start).manhattanLength() >= QApplication::startDragDistance()) startTextDrag();
         return;
     }
     if (m_doc && !m_dragging && !(e->buttons() & Qt::LeftButton)) {
@@ -406,8 +420,20 @@ void PageView::mouseReleaseEvent(QMouseEvent *e)
         endPictureDrag(e->position().toPoint());
         return;
     }
+    if (m_textDrag.pending) {
+        // A click inside the selection, without a pull, puts the caret there.
+        m_textDrag.pending = false;
+        const int at = positionAt(hitAt(e->position().toPoint()));
+        if (at >= 0) {
+            m_cursor.setPosition(at);
+            caretMoved();
+        }
+        if (e->button() == Qt::LeftButton) Q_EMIT selectionMade();
+        return;
+    }
     m_dragging = false;
     m_autoscroll.stop();
+    if (e->button() == Qt::LeftButton) Q_EMIT selectionMade();
 }
 
 void PageView::mouseDoubleClickEvent(QMouseEvent *e)
@@ -469,5 +495,86 @@ void PageView::wheelEvent(QWheelEvent *e)
 }
 
 void PageView::startAutoscroll() { m_autoscroll.start(); }
+
+// ---- dragging text
+
+namespace {
+constexpr char kTextDragMime[] = "application/x-jeffwrite-text";
+}
+
+QMimeData *PageView::prepareTextDrag()
+{
+    if (!m_doc || !m_cursor.hasSelection() || m_hf.active || m_note.active || m_cursor.document() != m_doc->story()) return nullptr;
+    m_textDrag.selection = m_cursor;
+    m_textDrag.active = true;
+    m_textDrag.done = false;
+    auto *mime = new QMimeData;
+    mime->setText(plainTextOf(selectionFragment(m_cursor)));
+    mime->setData(QString::fromLatin1(kTextDragMime), QByteArray::number(qulonglong(m_doc->id())));
+    return mime;
+}
+
+void PageView::startTextDrag()
+{
+    QPointer<PageView> self(this);
+    m_textDrag.pending = false;
+    std::unique_ptr<QMimeData> mime(prepareTextDrag());
+    if (!mime) return;
+    m_dragging = false;
+    m_autoscroll.stop();
+    auto *drag = new QDrag(viewport());
+    drag->setMimeData(mime.release());
+    const Qt::DropAction result = drag->exec(Qt::CopyAction | Qt::MoveAction, Qt::MoveAction);
+    if (!self) return;
+    // A target outside this view took the text as a move: it leaves here.
+    if (result == Qt::MoveAction && !m_textDrag.done && m_doc && m_textDrag.selection.hasSelection() && m_textDrag.selection.document() == m_doc->story()) {
+        QTextCursor cut = m_textDrag.selection;
+        removeSelection(*m_doc, cut);
+        m_cursor = cut;
+        caretMoved();
+    }
+    m_textDrag = TextDrag();
+}
+
+bool PageView::wantsTextDrop(const QMimeData *mime) const
+{
+    return m_doc && !m_hf.active && !m_note.active && mime && (mime->hasFormat(QString::fromLatin1(kTextDragMime)) || (mime->hasText() && !mime->hasUrls()));
+}
+
+bool PageView::dropText(QDropEvent *e)
+{
+    const QMimeData *mime = e->mimeData();
+    if (!wantsTextDrop(mime)) return false;
+    const int at = positionAt(hitAt(e->position().toPoint()));
+    if (at < 0) {
+        e->ignore();
+        return true;
+    }
+    if (mime->hasFormat(QString::fromLatin1(kTextDragMime)) && m_textDrag.active && m_textDrag.selection.hasSelection()) {
+        Qt::KeyboardModifiers copyKeys = Qt::ControlModifier;
+#ifdef Q_OS_MACOS
+        copyKeys |= Qt::AltModifier;
+#endif
+        const bool copy = (e->modifiers() & copyKeys) || e->possibleActions() == Qt::CopyAction;
+        QTextCursor moved = m_textDrag.selection;
+        if (moveSelectedText(*m_doc, moved, at, copy)) {
+            m_cursor = moved;
+            caretMoved();
+            m_textDrag.done = true;
+            e->setDropAction(copy ? Qt::CopyAction : Qt::MoveAction);
+            e->accept();
+        } else {
+            e->ignore();
+        }
+        return true;
+    }
+    QTextCursor c = m_cursor;
+    c.setPosition(at);
+    pasteText(*m_doc, c, mime->text());
+    m_cursor = c;
+    caretMoved();
+    e->acceptProposedAction();
+    return true;
+}
 
 } // namespace jp::write

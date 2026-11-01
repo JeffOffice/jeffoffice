@@ -22,6 +22,7 @@
 #include <QTextCharFormat>
 #include <QTextListFormat>
 #include <functional>
+#include <optional>
 #include <memory>
 
 namespace jp::write {
@@ -307,6 +308,28 @@ public:
     QVector<StyleEntry> styleEntries() const;
     // The style the document has under `id`, adding a built-in one it lacks; false when there is none by that id.
     bool ensureStyle(const QString &id);
+    // Puts a style in the style sheet (one of that id is replaced where it stands, a new one goes last) as part of the edit it is made in: the step of the history that edit becomes
+    // keeps what the style was and is, so that Undo and Redo put the style sheet as they put the text. Called inside an edit block of the story (styleops.cpp does).
+    void putStyle(const office::wml::Style &style);
+    // Makes the edit being made a step of the story's history even if it changes nothing else (the count on the first paragraph goes up), for a style put with it.
+    void markStyleStep();
+    // What a run of this format says beyond the style it has (the difference from the paragraph style's look and its own character style), for a style made from a selection.
+    office::wml::RunProps writtenRunProps(const QTextCharFormat &format, const QString &paragraphStyle) const { return runPropsWritten(format, paragraphStyle, nullptr); }
+    // Puts `other` in the place of the style sheet and returns the one that was there (the look of a style as it was, worked out for a restyle); the caches are let go.
+    void swapStyleSheet(office::wml::StyleSheet &other);
+    // Lets go of what was worked out for the sheet that was swapped out (a pass that swaps begins and ends with this).
+    void forgetSwappedScratch() { m_scratchHeld.clear(); }
+    // Ends an edit that put styles: false (and the sheet put back as it was) when no step of the history can take what the edit changed (the story keeps no history).
+    bool settleStyleEdit();
+    // Counts for tests of what work costs: whole style sheets copied to look at a built-in style the document lacks, and passes over the text to find the styles in use.
+    qint64 sheetCopiesForTest() const { return m_sheetCopies; }
+    qint64 inUseScansForTest() const { return m_inUseScans; }
+    // How many times the style sheet has been changed (a style put, added when first used, or put back by an Undo or a Redo): a list of styles made at one count is good at it.
+    quint64 styleSheetRevision() const { return m_styleRev; }
+    // The ids of the styles the text uses (a paragraph's, a run's character style, the default paragraph style always), for the story as it is (found again after an edit).
+    const QSet<QString> &stylesInUse() const;
+    // How many steps of the history hold a change to the styles (a hostile document's undo must not hold more than its steps).
+    int styleStepsHeldForTest() const { return int(m_styleSteps.size()); }
     // The whole of a paragraph style's look: the paragraph's format and its run's, with the document's defaults under them.
     QTextBlockFormat styleBlockFormat(const QString &paragraphStyle, const office::wml::TableLayer *layer = nullptr);
     QTextCharFormat styleCharFormat(const QString &paragraphStyle, const QString &characterStyle = QString(), const office::wml::TableLayer *layer = nullptr);
@@ -615,6 +638,22 @@ private:
     void dropHeaderStyles(office::wml::Document *out) const;
     // The styles that making a header or footer added to the document (Header and Footer, and what they are based on): they are written only for a header or footer that is kept.
     QSet<QString> m_headerStyles;
+    // Changes to the style sheet by the edit now being made, and by each step of the history that made one (by its serial): freed with the step, when nothing can reach it.
+    struct StyleChange {
+        QString id;
+        std::optional<office::wml::Style> before, after;   // none: there was no such style, or there is none now
+        bool modifiedBefore = false, modifiedAfter = true; // whether the sheet counted as changed (it is written anew when it is)
+    };
+    quint64 m_styleRev = 0;
+    QVector<StyleChange> m_pendingStyleChanges;
+    QHash<quint64, QVector<StyleChange>> m_styleSteps;
+    void applyStyleChanges(quint64 serial, bool undo);
+    void applyChanges(const QVector<StyleChange> &changes, bool undo);
+    mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratchHeld;   // the cache of the sheet swapped out by swapStyleSheet
+    mutable qint64 m_sheetCopies = 0, m_inUseScans = 0;
+    mutable int m_inUseRevision = -1;
+    mutable const QTextDocument *m_inUseStory = nullptr;
+    mutable QSet<QString> m_inUse;
     qsizetype m_stylesCountAtOpen = 0;
     bool m_stylesModifiedAtOpen = false;
     bool partEdited(const HeaderPart &part) const;

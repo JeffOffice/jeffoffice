@@ -1031,6 +1031,19 @@ public:
                 s.isDefault = onOffString(t.attr(c, "default"));
                 s.customStyle = onOffString(t.attr(c, "customStyle"));
                 s.raw = t.raw(c);
+                {
+                    // The other attributes of the element, kept as written.
+                    static const QRegularExpression attribute(QStringLiteral("\\s([\\w.-]+:)?([\\w.-]+)\\s*=\\s*(\"[^\"]*\"|'[^']*')"));
+                    const QString tag = QString::fromUtf8(t.startTag(c).left(4000));
+                    for (auto m = attribute.globalMatch(tag); m.hasNext();) {
+                        const auto a = m.next();
+                        const QString local = a.captured(2);
+                        if (local == QLatin1String("xmlns") || a.captured(1) == QLatin1String("xmlns:")) continue;
+                        if (a.captured(1).isEmpty() ? true : a.captured(1) == QLatin1String("w:"))
+                            if (local == QLatin1String("type") || local == QLatin1String("default") || local == QLatin1String("customStyle") || local == QLatin1String("styleId")) continue;
+                        s.attrs += a.captured(0).toUtf8();
+                    }
+                }
                 bool afterRun = false;
                 for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
                     const QByteArray name = t.localName(k);
@@ -1042,9 +1055,14 @@ public:
                     else if (name == "semiHidden") s.semiHidden = onOffOf(t, k).value_or(true);
                     else if (name == "unhideWhenUsed") s.unhideWhenUsed = onOffOf(t, k).value_or(true);
                     else if (name == "qFormat") s.qFormat = onOffOf(t, k).value_or(true);
+                    else if (name == "autoRedefine") s.autoRedefine = onOffOf(t, k).value_or(true);
+                    else if (name == "hidden") s.hidden = onOffOf(t, k).value_or(true);
+                    else if (name == "aliases") s.aliases = t.raw(k);
+                    else if (name == "locked" || name == "personal" || name == "personalCompose" || name == "personalReply" || name == "rsid") s.late += t.raw(k);
                     else if (name == "pPr") s.pPr = pPr(k);
                     else if (name == "rPr") { s.rPr = rPr(k); afterRun = true; }
                     else if (afterRun || name == "tblPr" || name == "trPr" || name == "tcPr" || name == "tblStylePr") s.tail += t.raw(k);
+                    else s.late += t.raw(k);   // (a child this program does not know, before the properties: kept)
                 }
                 sheet->styles.push_back(s);
             }

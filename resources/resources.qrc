@@ -1793,6 +1793,8 @@
     <file alias="en/write/find-replace.md">help/en/write/find-replace.md</file>
     <file alias="en/write/font.md">help/en/write/font.md</file>
     <file alias="en/write/footnotes-endnotes.md">help/en/write/footnotes-endnotes.md</file>
+    <file alias="en/write/format-painter.md">help/en/write/format-painter.md</file>
+    <file alias="en/write/go-to-and-move-text.md">help/en/write/go-to-and-move-text.md</file>
     <file alias="en/write/headers-footers.md">help/en/write/headers-footers.md</file>
     <file alias="en/write/index.md">help/en/write/index.md</file>
     <file alias="en/write/keyboard.md">help/en/write/keyboard.md</file>
@@ -1802,8 +1804,9 @@
     <file alias="en/write/print.md">help/en/write/print.md</file>
     <file alias="en/write/ruler.md">help/en/write/ruler.md</file>
     <file alias="en/write/spelling.md">help/en/write/spelling.md</file>
-    <file alias="en/write/tables.md">help/en/write/tables.md</file>
     <file alias="en/write/start.md">help/en/write/start.md</file>
+    <file alias="en/write/styles.md">help/en/write/styles.md</file>
+    <file alias="en/write/tables.md">help/en/write/tables.md</file>
     <file alias="es/accessibility.md">help/es/accessibility.md</file>
     <file alias="es/arrange.md">help/es/arrange.md</file>
     <file alias="es/change-template.md">help/es/change-template.md</file>

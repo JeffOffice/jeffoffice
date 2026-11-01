@@ -872,11 +872,95 @@ bool WriteDoc::ensureStyle(const QString &id)
     if (s.id.isEmpty()) return false;
     // (a table style is the default of its kind only where the file has none)
     if (s.type == QLatin1String("table") && s.isDefault && !m_wml.styles.defaultId(QStringLiteral("table")).isEmpty()) s.isDefault = false;
-    if (!s.basedOn.isEmpty()) ensureStyle(s.basedOn);
-    if (!s.next.isEmpty()) ensureStyle(s.next);
-    m_wml.styles.add(s);
-    m_scratch.clear();
+    if (!s.basedOn.isEmpty() && s.basedOn != id) ensureStyle(s.basedOn);
+    if (!s.next.isEmpty() && s.next != id) ensureStyle(s.next);
+    // (Put as part of the edit being made: its step has the style, so that an Undo takes it away again, and the file is as it was.)
+    putStyle(s);
     return true;
+}
+
+void WriteDoc::markStyleStep()
+{
+    const QTextBlock first = story()->begin();
+    if (!first.isValid()) return;
+    QTextBlockFormat bf = first.blockFormat();
+    bf.setProperty(prop::StylesRev, bf.intProperty(prop::StylesRev) + 1);
+    QTextCursor(first).setBlockFormat(bf);
+}
+
+void WriteDoc::putStyle(const Style &style)
+{
+    if (style.id.isEmpty()) return;
+    StyleChange change;
+    change.id = style.id;
+    if (const Style *old = m_wml.styles.find(style.id)) change.before = *old;
+    change.modifiedBefore = m_wml.styles.modified;
+    change.after = style;
+    change.after->raw.clear();   // (the step keeps the bytes of what the style was, not of what it is)
+    m_wml.styles.add(style);
+    m_scratch.clear();
+    ++m_styleRev;
+    m_pendingStyleChanges.push_back(change);
+}
+
+void WriteDoc::swapStyleSheet(StyleSheet &other)
+{
+    std::swap(m_wml.styles, other);
+    std::swap(m_scratch, m_scratchHeld);   // (what was worked out for each sheet stays with it, so a built-in style is looked at once for each)
+}
+
+// Puts the style sheet as it was before the step (undo) or after it (redo).
+void WriteDoc::applyStyleChanges(quint64 serial, bool undo)
+{
+    const auto found = m_styleSteps.constFind(serial);
+    if (found == m_styleSteps.constEnd()) return;
+    applyChanges(found.value(), undo);
+}
+
+void WriteDoc::applyChanges(const QVector<StyleChange> &changes, bool undo)
+{
+    for (int i = 0; i < changes.size(); ++i) {
+        const StyleChange &change = changes[undo ? changes.size() - 1 - i : i];
+        const std::optional<Style> &want = undo ? change.before : change.after;
+        if (want) m_wml.styles.add(*want);
+        else m_wml.styles.remove(change.id);
+        m_wml.styles.modified = undo ? change.modifiedBefore : change.modifiedAfter;
+    }
+    m_wml.styles.changed();
+    m_scratch.clear();
+    ++m_styleRev;
+}
+
+bool WriteDoc::settleStyleEdit()
+{
+    // (With a history the change waits for the step of the edit it is part of, which may not be done yet: an edit inside another is a step when the outer one ends.)
+    if (m_pendingStyleChanges.isEmpty() || story()->isUndoRedoEnabled()) return true;
+    const QVector<StyleChange> left = m_pendingStyleChanges;
+    m_pendingStyleChanges.clear();
+    applyChanges(left, true);
+    return false;
+}
+
+const QSet<QString> &WriteDoc::stylesInUse() const
+{
+    const QTextDocument *text = story();
+    if (m_inUseStory == text && m_inUseRevision == text->revision()) return m_inUse;
+    m_inUseStory = text;
+    m_inUseRevision = text->revision();
+    ++m_inUseScans;
+    m_inUse.clear();
+    const QString normal = defaultParagraphStyle();
+    m_inUse.insert(normal);
+    for (QTextBlock b = text->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat bf = b.blockFormat();
+        const QString own = bf.hasProperty(prop::EndnoteBlock) ? bf.stringProperty(prop::EndnoteStyle) : bf.stringProperty(tp::StyleName);
+        if (!own.isEmpty()) m_inUse.insert(own);
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QString character = it.fragment().charFormat().stringProperty(tp::CharStyle);
+            if (!character.isEmpty()) m_inUse.insert(character);
+        }
+    }
+    return m_inUse;
 }
 
 const StyleSheet &WriteDoc::sheetFor(const QString &id) const
@@ -884,6 +968,7 @@ const StyleSheet &WriteDoc::sheetFor(const QString &id) const
     if (id.isEmpty() || m_wml.styles.find(id) || builtinStyle(id).id.isEmpty()) return m_wml.styles;
     auto it = m_scratch.constFind(id);
     if (it != m_scratch.constEnd()) return **it;
+    ++m_sheetCopies;
     auto sheet = std::make_shared<StyleSheet>(m_wml.styles);
     std::function<void(const QString &)> add = [&](const QString &sid) {
         if (sid.isEmpty() || sheet->find(sid)) return;

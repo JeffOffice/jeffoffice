@@ -1,0 +1,74 @@
+#pragma once
+// Styles as a person works with them: the list the Styles pane shows, Create Style, Modify Style, and Update Style to Match Selection. Each change to the style sheet is one step of the
+// history with the text it restyles (writedoc.h, putStyle), and a hostile document is held to bounds: names, how many styles the program makes, and chains that name themselves.
+
+#include "core/writedoc.h"
+
+#include <QString>
+#include <optional>
+#include <QTextBlockFormat>
+#include <QTextCharFormat>
+#include <QTextCursor>
+
+namespace jp::write {
+
+constexpr int kMostStyleNameLength = 255;   // longer names are refused when made, and cut off where they are listed
+constexpr int kMostStylesMade = 20000;      // Create Style adds no style to a document that has this many
+constexpr int kMostStylesListed = 5000;     // the Styles pane lists no more than this many
+
+enum class StyleFilter { InUse, All, Recommended };
+
+struct ListedStyle {
+    QString id, name;
+    bool character = false;
+    bool linked = false;        // a paragraph style with a character style of its own look (w:link)
+    bool inUse = false;         // the text uses it (the default paragraph style always)
+    bool recommended = false;
+    bool inDocument = true;     // false: a built-in style the document does not have yet (it is added when used)
+};
+
+// The styles the Styles pane shows for a filter: In Use lists those the text uses, All every style the document has (and the built-in ones it lacks), and Recommended those a
+// person is meant to see (not hidden, and either in the gallery, with a low priority, or in use). In Use and All are sorted by name, Recommended by priority.
+// The styles the text uses and the style `caretStyle` (an id) are always among them, and the rest follow in the order of the file up to the most that are listed.
+QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString &caretStyle = QString());
+// The style the document has under `id`, or else the built-in one it lacks (which is not added: it is added with the first change that is made to it, as part of that step).
+std::optional<office::wml::Style> styleOfDocument(const WriteDoc &doc, const QString &id);
+
+// Why a name can't be given to a style (empty, too long, or taken by another style: names are compared without regard to case), as a sentence; empty when it can. `exceptId` is the
+// style being renamed.
+QString styleNameProblem(const WriteDoc &doc, const QString &name, const QString &exceptId = QString());
+// Why a style can't be based on another (it doesn't exist, it is of the other kind, or it is, or is based on, the style itself); empty when it can.
+QString styleBasedOnProblem(const WriteDoc &doc, const QString &id, const QString &basedOn, const QString &type);
+
+// The style a selection looks like, ready for Create Style: a paragraph style (or, with `character`, a character style) based on the style of the cursor's paragraph that says only what
+// the paragraph and the characters say themselves.
+office::wml::Style styleFromSelection(WriteDoc &doc, const QTextCursor &c, const QString &name, bool character = false);
+
+// Creates the style `def` describes (its id is made from its name; its type is paragraph or character) as one step of the history, and with `apply` gives it to what the cursor selects.
+// Returns the id; empty, with `problem` told, when it can't be made.
+QString createStyle(WriteDoc &doc, QTextCursor &c, const office::wml::Style &def, QString *problem = nullptr, bool apply = false);
+// Gives the style `id` the definition `def` (name, based on, next, the paragraph and font properties, whether it is in the gallery, whether it updates itself) as one step of the history
+// with the restyling of the text: a paragraph or run whose look is what the old style gave it follows the new one, and what the text says itself stays. A definition that comes to the
+// style as it is changes nothing (no step; the file is written as it was). False, with `problem` told, when it can't be done.
+bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const office::wml::Style &def, QString *problem = nullptr);
+// Update <style> to Match Selection: the style the cursor's paragraph has says what the selection says besides it.
+bool updateStyleToSelection(WriteDoc &doc, QTextCursor &c, QString *problem = nullptr);
+
+// ---- Format Painter
+// The look of what is selected (or, with nothing selected, of the paragraph and the character at the caret): the characters' look, and the paragraph's when it is a paragraph that is
+// copied (the selection takes in a paragraph mark, or there is no selection).
+struct FormatBrush {
+    bool valid = false;
+    QTextCharFormat chars;
+    bool hasParagraph = false;
+    QTextBlockFormat paragraph;
+};
+FormatBrush copyFormat(WriteDoc &doc, const QTextCursor &c);
+// Gives the selection the look the brush holds, as one step of the history: the characters' (a collapsed cursor takes the word it is in), and the paragraphs' look and style as well when
+// the brush has a paragraph and the selection takes in a paragraph mark (or is collapsed). What the text says about its place in the file (a list, a section, a frame) stays. False
+// when nothing was changed.
+bool pasteFormat(WriteDoc &doc, QTextCursor &c, const FormatBrush &brush);
+// Whether a property of a paragraph's format is the paragraph's own (a list, a section break, the XML kept beside it), which a style or a painted look does not change.
+bool paragraphKeepsOwn(int key);
+
+} // namespace jp::write

@@ -8,6 +8,7 @@
 #include "app/ruler.h"
 #include "app/settings.h"
 #include "app/spellpane.h"
+#include "app/stylespane.h"
 #include "app/telemetry.h"
 #include "app/widgets.h"
 #include "app/writedialogs.h"
@@ -32,6 +33,7 @@
 #include <QSlider>
 #include <QLocale>
 #include <QStatusBar>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <QTextBlock>
 #include <QTextDocument>
@@ -95,6 +97,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     connect(m_view, &write::PageView::contentChanged, this, queue);
     connect(m_view, &write::PageView::pagesChanged, this, queue);
     connect(m_view, &write::PageView::contextMenuWanted, this, &WriteWindow::showContextMenu);
+    connect(m_view, &write::PageView::selectionMade, this, &WriteWindow::paintFormatNow);
     connect(m_view, &write::PageView::headerFooterModeChanged, this, &WriteWindow::headerFooterModeChanged);
     connect(m_view, &write::PageView::noteModeChanged, this, queue);
     connect(m_view, &write::PageView::zoomChanged, this, [this](double z) {
@@ -197,6 +200,7 @@ void WriteWindow::createActions()
     createNoteActions();
     createTableActions();
     createPictureActions();
+    createStyleActions();
 }
 
 namespace {
@@ -379,10 +383,12 @@ void WriteWindow::refreshUi()
 {
     updateStatus();
     const bool has = m_doc != nullptr;
+    if (m_styles && m_stylesDock->isVisible()) m_styles->refresh();
     for (QAction *a : m_actions) {
         const QString id = a->objectName();
         if (id.startsWith(QLatin1String("fmt.")) || id.startsWith(QLatin1String("para.")) || id.startsWith(QLatin1String("ls.")) || id.startsWith(QLatin1String("layout.")) ||
-            id.startsWith(QLatin1String("insert.")) || id.startsWith(QLatin1String("style.")))
+            id.startsWith(QLatin1String("insert.")) || id.startsWith(QLatin1String("style.")) || id == QLatin1String("edit.formatPainter") || id == QLatin1String("edit.copyFormat") ||
+            id == QLatin1String("edit.pasteFormat") || id == QLatin1String("edit.goTo"))
             a->setEnabled(has);
     }
     if (!has) {
@@ -546,6 +552,21 @@ void WriteWindow::resizeEvent(QResizeEvent *e)
 
 bool WriteWindow::eventFilter(QObject *o, QEvent *e)
 {
+    // A double click on the Format Painter's button keeps it on; Esc turns it off.
+    if (e->type() == QEvent::MouseButtonDblClick) {
+        auto *button = qobject_cast<QToolButton *>(o);
+        if (button && button->defaultAction() && button->defaultAction() == act(QStringLiteral("edit.formatPainter")) && button->window() == this) {
+            setPainterMode(PainterMode::Locked);
+            return true;
+        }
+    }
+    if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(e)->key() == Qt::Key_Escape && m_painter != PainterMode::Off) {
+        auto *w = qobject_cast<QWidget *>(o);
+        if (w && w->window() == this) {
+            setPainterMode(PainterMode::Off);
+            return true;
+        }
+    }
     // Escape closes the File screen from anywhere in the window.
     if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(e)->key() == Qt::Key_Escape && m_fileScreen->isVisible()) {
         auto *w = qobject_cast<QWidget *>(o);

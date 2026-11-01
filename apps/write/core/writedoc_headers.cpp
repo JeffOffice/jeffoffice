@@ -634,7 +634,13 @@ void WriteDoc::stepAdded(QTextDocument *story)
 {
     const quint64 serial = m_nextSerial++;
     m_undoLog.push_back(Step{story, serial, story->availableUndoSteps()});
+    // (The steps that can no longer be redone take what they held of the styles with them.)
+    for (const Step &gone : std::as_const(m_redoLog)) m_styleSteps.remove(gone.serial);
     m_redoLog.clear();
+    if (!m_pendingStyleChanges.isEmpty()) {
+        m_styleSteps.insert(serial, m_pendingStyleChanges);
+        m_pendingStyleChanges.clear();
+    }
     // (The notes made by this edit are known by its step.)
     for (const auto &made : std::as_const(m_noteStepPending)) (made.first ? m_createdEndnoteStep : m_createdFootnoteStep)[made.second] = serial;
     m_noteStepPending.clear();
@@ -716,9 +722,13 @@ QTextDocument *WriteDoc::undo(QTextCursor *cursor)
     step.story->undo(&at);
     if (cursor) *cursor = at;
     m_redoLog.push_back(step);
+    applyStyleChanges(step.serial, true);
     // (An edit that joined the block of the step before it was told of twice: the entry of the step it was a part of is taken back with it.)
     const int left = step.story->availableUndoSteps();
-    while (!m_undoLog.isEmpty() && m_undoLog.last().story == step.story && m_undoLog.last().raw > left) m_redoLog.push_back(m_undoLog.takeLast());
+    while (!m_undoLog.isEmpty() && m_undoLog.last().story == step.story && m_undoLog.last().raw > left) {
+        applyStyleChanges(m_undoLog.last().serial, true);
+        m_redoLog.push_back(m_undoLog.takeLast());
+    }
     sealStories();
     checkModified();
     Q_EMIT historyChanged();
@@ -735,8 +745,12 @@ QTextDocument *WriteDoc::redo(QTextCursor *cursor)
     step.story->redo(&at);
     if (cursor) *cursor = at;
     m_undoLog.push_back(step);
+    applyStyleChanges(step.serial, false);
     const int now = step.story->availableUndoSteps();
-    while (!m_redoLog.isEmpty() && m_redoLog.last().story == step.story && m_redoLog.last().raw <= now) m_undoLog.push_back(m_redoLog.takeLast());
+    while (!m_redoLog.isEmpty() && m_redoLog.last().story == step.story && m_redoLog.last().raw <= now) {
+        applyStyleChanges(m_redoLog.last().serial, false);
+        m_undoLog.push_back(m_redoLog.takeLast());
+    }
     sealStories();
     checkModified();
     Q_EMIT historyChanged();

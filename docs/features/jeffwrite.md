@@ -2,7 +2,7 @@
 
 JeffWrite is the word processor of JeffOffice. JeffOffice is an independent project: JeffWrite aims to work with Word files and the people who use them (compatibility and interoperability), and then to do more, and do it better. It saves `.docx`, and opens the older `.doc` too; `.rtf` and `.odt` are planned. Its first public version, 0.9.0 (a Preview, released October 19, 2026), is a window with the ribbon, the page view, editing, `.docx` and `.doc` files, tables, headers and footers, notes, and pictures and text boxes as files have them, spelling, and printing; each box says what that version does of an item (`[x]` all of it, `[~]` part, with the note saying what is missing, and `[ ]` none). This list is the whole job, a checklist of features: everything people rely on so their documents open, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
 
-Last reviewed October 31, 2026.
+Last reviewed November 1, 2026.
 
 Legend: `[x]` works in JeffWrite 0.9.0 · `[~]` partly works in 0.9.0 (the note says what is missing) · `[ ]` not in 0.9.0 (a *(shared: ...)* note names the part of the suite it builds on) · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
@@ -123,7 +123,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 
 ### Clipboard
 - [~] **first release** Cut, Copy, and Paste with the paste choices: keep source formatting, merge formatting, keep text only, and picture; Paste Special for formatted text (RTF and HTML), unformatted text, and pictures *(shared: JeffPub's clipboard)* *(0.9.0: Cut, Copy, Paste, and Select All, which keep the formats of the text; no paste choices, Paste Special, or pictures)*
-- [ ] **first release** Format Painter: one use, or locked with a double-click; copies the paragraph's formatting when its mark is selected *(shared: JeffPub's Format Painter)*
+- [x] **first release** Format Painter: one use, or locked with a double-click; copies the paragraph's formatting when its mark is selected *(shared: JeffPub's Format Painter)* *(beta wave D: Home > Clipboard; a click paints once, a double click stays on until Esc, the look of the characters (and, when a paragraph mark is selected or nothing is, the paragraph's alignment, indents, spacing, and style) goes to each selection made with the mouse (a click paints the word), each paint is one step; Ctrl+Shift+C and Ctrl+Shift+V copy and paste a look by key)*
 - [ ] **1.0** Paste choices for lists and tables: continue, restart, or merge a list; paste spreadsheet cells as a table in the destination's style, in the source's, as a nested table, as new rows, or as a picture; Set Default Paste
 - [ ] **1.0** Smart cut and paste (spaces and punctuation fixed around moved words) and the Paste Options button that appears after pasting
 - [ ] **later** Clipboard task pane holding the last 24 items
@@ -162,8 +162,8 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 
 ### Styles
 - [~] **first release** Style gallery with live preview (Normal, No Spacing, Heading 1 to 9, Title, Subtitle, Emphasis, Strong, Quote, Intense Quote, References, Book Title, List Paragraph), applied by click, by typing the name, or by key *(shared: JeffPub's styles)*
-- [ ] **first release** Styles pane: list with previews, which styles to show, and sorting
-- [ ] **first release** Create a style from a selection and Modify Style: name, type (paragraph, character, linked, table, list), based on, style for the following paragraph, formatting, add to the gallery, update automatically, and this document or new documents *(a typical `.docx` of our defines 16 styles and one in ten more than 33; a typical government file 30)*
+- [~] **first release** Styles pane: list with previews, which styles to show, and sorting *(beta wave D: Ctrl+Alt+Shift+S or the Styles group's corner; each style listed in its own font, the style at the caret marked, In Use, All Styles, and Recommended, a click gives a style to the selection, at most 5,000 listed; sorted by name, or by priority for Recommended, with no choice of sorting)*
+- [~] **first release** Create a style from a selection and Modify Style: name, type (paragraph, character, linked, table, list), based on, style for the following paragraph, formatting, add to the gallery, update automatically, and this document or new documents *(a typical `.docx` of our defines 16 styles and one in ten more than 33; a typical government file 30)* *(beta wave D: paragraph and character styles; name, based on, next style, font, paragraph look, in the gallery, and update automatically in one dialog; the paragraphs and runs that have the style follow it and keep what they say themselves, in one step; a name over 255 letters, a taken name, and a base that would make a loop are refused; OK with nothing changed leaves styles.xml byte for byte; not yet: linked, table, and list styles, new documents, and the paragraphs of headers, footers, and notes follow only when next opened)*
 - [~] **first release** Update a style to match the selection, Select Text with Similar Formatting, and Clear Formatting
 - [ ] **1.0** Manage Styles: edit, recommend, restrict, set defaults, and import or export styles with the Organizer
 - [ ] **1.0** Style Inspector and Reveal Formatting (Shift+F1)
@@ -172,7 +172,7 @@ What JeffWrite offers that the original doesn't, then the plans that go past Wor
 ### Editing
 - [~] **first release** Find with the Navigation pane's results (by heading, by page, as text), the match count, and every match highlighted *(shared: JeffPub's Find; Ctrl+F opens the Find and Replace pane, and Find Next selects each match in the text and tables, with match case and whole words, scrolls the pages to it, and goes round; no Navigation pane, count, or highlighting yet; hidden text is skipped, and a bookmark or field code inside words does not part them)*
 - [~] **first release** Replace and Replace All, with match case, whole words, and direction, across the body, notes, headers and footers, and text boxes *(shared: JeffPub's Replace; Ctrl+H, Replace, and Replace All in the body and tables, Replace All as one step that says how many; the new words look like the first of the old; no direction, and headers, footers, and notes are not searched: opening the pane while a header is edited closes the header first)*
-- [ ] **first release** Go To: page, section, line, bookmark, comment, footnote, endnote, field, table, graphic, equation, and heading
+- [~] **first release** Go To: page, section, line, bookmark, comment, footnote, endnote, field, table, graphic, equation, and heading *(beta wave D: Ctrl+G; page, section, line, bookmark, footnote, and heading by number or name, with + and - for one from the caret; not yet: comment, endnote, field, table, graphic, and equation)*
 - [ ] **1.0** Advanced Find and Replace: wildcards with groups, sounds like, all forms of a word, ignore punctuation and spaces, find by format (font, paragraph, tabs, language, frame, style, highlight), Special (paragraph mark, tab, any digit, section break, field, footnote mark, and the rest), and replace with the clipboard or the found text
 - [ ] **1.0** Select All, Select Objects, and the Selection Pane (objects by name, shown or hidden, in order)
 
@@ -457,7 +457,7 @@ What a right-click offers depends on what is under the pointer. The commands are
 ### Editing basics
 - [~] **first release** Typing and selecting: move by character, word, sentence, line, paragraph, and page; extend with Shift, F8, or the mouse; select a column with Alt+drag; select several places with Ctrl; double- and triple-click; Click and Type *(shared: the text editing in libs/page/app)*
 - [~] **first release** Undo and Redo with a history list, and Repeat (F4 or Ctrl+Y) *(0.9.0: Undo and Redo, with typing and each command one step; no history list or Repeat)*
-- [ ] **first release** Drag-and-drop to move or copy text, with automatic scrolling
+- [x] **first release** Drag-and-drop to move or copy text, with automatic scrolling *(beta wave D: a pull on the selected text moves it, with Ctrl (Option on a Mac) it copies it, in one step; text from another program is put where it is dropped; the window scrolls near its top and bottom edge)*
 - [ ] **first release** AutoCorrect and AutoFormat as you type: smart quotes, lists started by typing "1." or "*", borders from a row of dashes, ordinals, fractions, dashes, web addresses turned into links, and *bold* and _underline_ marks turned into formatting *(shared: JeffPub's AutoCorrect)*
 - [ ] **1.0** Spike (collect several cuts and paste them together), Overtype, and the Insert key
 - [~] **first release** Word's keyboard shortcuts (Ctrl+B, Ctrl+Alt+1, F5, F7, Alt+F9, Shift+F3, and the others), with no two commands on one key, and all of them reassignable in Options *(shared: JeffPub's shortcut table)*

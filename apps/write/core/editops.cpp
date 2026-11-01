@@ -1,4 +1,5 @@
 #include "core/editops.h"
+#include "core/styleops.h"
 
 #include "core/pictureops.h"
 #include "core/tableops.h"
@@ -1848,6 +1849,22 @@ bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharF
     return true;
 }
 
+// A paragraph of a style that updates itself (w:autoRedefine) that has been formatted by hand gives the style what it says, as part of the edit's own step.
+static thread_local int g_autoRedefineOff = 0;
+AutoRedefineOff::AutoRedefineOff() { ++g_autoRedefineOff; }
+AutoRedefineOff::~AutoRedefineOff() { --g_autoRedefineOff; }
+
+// (Only what a person does to the look of one paragraph, and one command at a time: a command that formats several paragraphs, or that is part of another, leaves the styles alone, so that
+// a command never costs more than one restyle.)
+static void followAutoRedefine(WriteDoc &doc, QTextCursor &c)
+{
+    if (g_autoRedefineOff > 0) return;
+    if (c.document() != doc.story() || doc.story()->findBlock(c.selectionStart()) != doc.story()->findBlock(std::max(c.selectionStart(), c.selectionEnd() - 1)) || isLocked(c.document()->findBlock(c.selectionStart()))) return;
+    const QString id = styleOf(c.document()->findBlock(c.selectionStart()).blockFormat());
+    const office::wml::Style *s = doc.styleSheet().find(id.isEmpty() ? doc.defaultParagraphStyle() : id);
+    if (s && s->autoRedefine && s->type == QLatin1String("paragraph")) updateStyleToSelection(doc, c);
+}
+
 void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextCharFormat &)> &change)
 {
     const NoteScopeGuard scopeGuard(doc, c);
@@ -1894,6 +1911,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
         t.setCharFormat(e.format);
     }
     for (const auto &m : std::as_const(marks)) setMarkFormat(m.first, m.second);
+    if (!edits.isEmpty()) followAutoRedefine(doc, c);
     c.endEditBlock();
 }
 
@@ -2053,6 +2071,7 @@ QTextCharFormat restyled(const QTextCharFormat &f, const QTextCharFormat &was, c
 void clearFormatting(WriteDoc &doc, QTextCursor &c)
 {
     const NoteScopeGuard scopeGuard(doc, c);
+    const AutoRedefineOff noAutoUpdate;
     if (!intoBody(c)) return;
     c.beginEditBlock();
     applyParagraphStyle(doc, c, doc.defaultParagraphStyle());
@@ -2080,14 +2099,19 @@ void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(Q
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     Q_UNUSED(doc);
+    bool changedAny = false;
     c.beginEditBlock();
     for (const QTextBlock &b : selectedBlocks(c)) {
         if (isLocked(b)) continue;
         QTextBlockFormat nf = b.blockFormat();
         const QTextBlockFormat was = nf;
         change(nf);
-        if (nf != was) QTextCursor(b).setBlockFormat(nf);
+        if (nf != was) {
+            QTextCursor(b).setBlockFormat(nf);
+            changedAny = true;
+        }
     }
+    if (changedAny) followAutoRedefine(doc, c);
     c.endEditBlock();
 }
 
@@ -2330,13 +2354,53 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
     setMarkFormat(b, restyled(markFormat(b), oldBase, newBase));
 }
 
+bool moveSelectedText(WriteDoc &doc, QTextCursor &c, int to, bool copy)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!c.hasSelection() || c.document() != doc.story() || !intoBody(c)) return false;
+    const int from = c.selectionStart(), end = c.selectionEnd();
+    if (to >= from && to <= end) return false;
+    if (to < 0 || to > editableEnd(doc.story())) return false;
+    if (isLocked(doc.story()->findBlock(to)) || isLocked(doc.story()->findBlock(from)) || isLocked(doc.story()->findBlock(end))) return false;
+    const Clip clip = copySelection(doc, c);
+    if (clip.isEmpty()) return false;
+    NumberGuard numbers(doc, doc.story());
+    QTextCursor edit(doc.story());
+    edit.beginEditBlock();
+    // (The place follows the cut by being a cursor: what is taken out is not always the length of the selection, when it holds a deleted paragraph, a note's mark, or the like.)
+    QTextCursor drop(doc.story());
+    drop.setPosition(to);
+    if (!copy) {
+        QTextCursor cut(doc.story());
+        cut.setPosition(from);
+        cut.setPosition(end, QTextCursor::KeepAnchor);
+        removeSelection(doc, cut);
+    }
+    const int at = drop.position();
+    QTextCursor dest(doc.story());
+    dest.setPosition(at);
+    pasteClip(doc, dest, clip);
+    edit.endEditBlock();
+    c.setPosition(std::min(at, dest.position()));
+    c.setPosition(dest.position(), QTextCursor::KeepAnchor);
+    return true;
+}
+
+QTextCharFormat restyleCharFormat(const QTextCharFormat &f, const QTextCharFormat &was, const QTextCharFormat &now) { return restyled(f, was, now); }
+
 void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
-    if (!doc.ensureStyle(styleId)) return;
     c.beginEditBlock();
+    // (A built-in style the document lacks is put in the step of this edit, so that one Undo takes it away with the look it gave.)
+    const quint64 sheet = doc.styleSheetRevision();
+    if (!doc.ensureStyle(styleId)) {
+        c.endEditBlock();
+        return;
+    }
+    if (doc.styleSheetRevision() != sheet) doc.markStyleStep();
     for (const QTextBlock &b : selectedBlocks(c))
         if (!isLocked(b)) applyStyleToBlock(doc, b, styleId);
     // The text typed next in an empty paragraph has the style's look too.
@@ -2348,7 +2412,13 @@ void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
-    if (!doc.ensureStyle(styleId)) return;
+    c.beginEditBlock();
+    const quint64 sheet = doc.styleSheetRevision();
+    if (!doc.ensureStyle(styleId)) {
+        c.endEditBlock();
+        return;
+    }
+    if (doc.styleSheetRevision() != sheet) doc.markStyleStep();
     const QString paraStyle = paragraphStyleAt(doc, c);
     const QTextCharFormat base = doc.styleCharFormat(paraStyle);
     const QTextCharFormat with = doc.styleCharFormat(paraStyle, styleId);
@@ -2358,6 +2428,7 @@ void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
         f = restyled(f, wasBase, with);
         f.setProperty(tp::CharStyle, styleId);
     });
+    c.endEditBlock();
 }
 
 } // namespace jp::write
