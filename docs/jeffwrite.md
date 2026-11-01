@@ -243,6 +243,48 @@ window (`WriteWindow::setPainterMode`) paints it when the view says a selection 
 as it), a line is counted from the top of the document, and the lists it offers are held to 5,000. Dragging text (`moveSelectedText`, and `PageView::prepareTextDrag` and `dropText`) copies the
 selection as a clip, cuts it, and pastes it at the drop (the place is moved back by what was cut) in one edit block.
 
+## Review: tracked changes, comments, and Display for Review (beta wave E, November 1, 2026)
+
+**How a change is kept.** The story keeps a tracked change as the file does, so that a step of the history and a save need nothing else. An insertion or a deletion (`w:ins`, `w:del`, `w:moveFrom`,
+`w:moveTo`) is a pair of invisible pieces kept as XML round the text it holds, as a hyperlink's are; the words a deletion holds (`w:delText`) are text of the paragraph between the pieces
+(the reader turns them into text, and the writer puts `w:delText` back wherever the text is inside a deletion), hidden from the lines (`tp::HiddenText`, with `prop::TrackedDeleted` saying why). A change of a
+run's properties (`w:rPrChange`) is in the run's kept properties, one of a paragraph (`w:pPrChange`) in the paragraph's, and a paragraph mark that was inserted or deleted says so in the mark's
+kept properties. What the lines mark (`tp::Revision`, `tp::RevisionAuthor`, `tp::RevisionFormat`) is a look put on the text from those pieces (`refreshRevisionLook`), never read back. The records of changes
+to tables, rows, cells, sections, and numbering are kept in the XML they are in and are not made or resolved.
+
+**`core/reviewops.*`** finds changes (`revisionsIn`, `revisionAt`, `nextRevision`, `previousRevision`, at most 2,000,000, and a pane lists 2,000), and accepts or rejects them (`resolveRevisions`) in one edit block:
+the blocks from the last to the first, in each the changes from the last to the first with the end of each moved by what the changes inside it did (so that 100,000 changes cost one pass), the paragraph
+mark last (a mark that is taken away joins the paragraph to the next, which keeps its own look; a paragraph with nothing left goes). Rejecting a change of properties gives the old properties back
+by putting the difference between what the run says now and what its record says on the format (`restoredFormat`), so that what is not a run's property (a piece kept as XML, a field) stays. Accept and
+Reject at the caret take the innermost change there (or every change in the selection) and go on to the next. The text engine and the page paint the views (`LayoutEnv::revisionView`, set by
+`WriteDoc::setRevisionView`, and the story's `tp::kRevisionViewProperty` for the places that have no environment): deleted text takes its place (and a paragraph whose mark was deleted stays a paragraph of
+its own), is struck through, and inserted text is underlined, in the color of each person; Original leaves out what was inserted. A view is never an edit: it changes no format of the story, so it
+is no step of the history and no change of the file.
+
+**Making changes** (`editops.cpp`, "tracked changes"): with `WriteDoc::trackChanges` (the file's `w:trackRevisions`, written when it differs from what the file had) on, `insertText`, `insertParagraph`,
+`removeSelection`, `deleteBack`, `deleteForward`, `changeCharFormat`, `changeBlockFormat`, and `applyParagraphStyle` record what they do, each in the edit block that was the edit, as one step. Typing goes
+inside the reviewer's own insertion when the caret is in one or just after one, else between a new pair of pieces; deleting what the reviewer typed removes it (and a pair left empty), and anything
+else is marked deleted (joined to a deletion of the reviewer's beside it) and stays; a selection typed over is a deletion and an insertion; the mark of a paragraph the reviewer made (Enter) is taken away for good by Backspace. The author is the user name of the settings (the window gives it to the document with
+`setReviewer`), the Id is above every one the document has (`nextRevisionId`), and the time is now. `UntrackedEdit` makes the commands record nothing while Accept and Reject use them. Not tracked yet: table commands, lists, sections, and
+what is pasted or dragged; paragraph marks inside a table's cells.
+
+**Comments** (`core/commentops.*`): the file's parts (comments, their extensions for replies and resolved, the durable Ids, and the people) are read once (`CommentSource`) and the text has three marks of each comment (the two ends of its range,
+and the reference). A comment made or changed here keeps what it says in the reference mark (`Inline::look`), so that a step of the history takes it with it and Undo needs nothing else; the parts are written
+again at a save only when a comment was made, changed, or taken out (`writeCommentParts`): the file's own comments stay the bytes they were, new ones are generated, the extension part gets one entry for each comment (the
+paragraph id of its last paragraph, its parent's, and whether it is done), the Ids part keeps its entries and gets one for each new comment, and the people part gets the new authors. A reply is a comment with its own
+range marks next to its parent's. A reply to a comment that is not there, or a loop of replies, is a comment of its own; a comment with no range is at its reference. Everything is held to 100,000 comments.
+
+**The window**: Review has Track Changes (Ctrl+Shift+E), Accept and Reject with their menus, Previous and Next, Display for Review, Show Markup, the Reviewing pane (`ReviewPane`: comments in threads and
+changes, with their buttons), and the comment commands (New Comment is Ctrl+Alt+M); the status bar says whether tracking is on. `PageView::setReviewMarks` has the page view paint a bar in the margin
+by each line a change touches, and a balloon for each comment (and each deletion, in balloons), over the pages from the page's own line positions; they are in a picture of a page too, never in print or PDF. A document with changes opens with All Markup. The settings
+(`review/*`) keep what Show Markup has on.
+
+**Checking it**: `writetool review-text FILE accept|reject|none` writes the body's text as the original program reports it (a paragraph ends in `\r`, a cell and a row in `\r\a`, hidden text and the code of a field are left out, text in
+capitals is in capitals, a symbol is `(`, a picture in the line is `\x01`, a note's reference `\x02`), and `tools/review_compare.py WRITETOOL REFDIR` compares it with reference texts, after taking out only `\a` and the field marks
+(`\x13`, `\x14`, `\x15`) of both and making every line ending `\r`. On the 27 documents with tracked changes of the dev set and practice set 2 it matches Accept All and Reject All on all 54 texts. `writetool review-list` lists the changes
+of a file and `review-save` saves the file with all accepted or rejected. The tests are `writereviewtests` (one class, `tests/write/tst_write_review.cpp`): the hostile cases are 20,000 changes in a paragraph (Undo of Accept All gives the
+exact file), nested changes as deep as the reader goes, comments with no range, and a loop of replies (at 100,000 changes, paragraphs with deleted marks, 100,000 comments with loops, and a reply chain 50,000 deep, Accept All and Reject All take 2 to 8 seconds).
+
 ## Checking it
 
 - Reference pages of documents, and every file JeffWrite saves opened and re-saved without a repair

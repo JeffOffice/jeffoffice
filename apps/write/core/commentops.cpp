@@ -64,6 +64,9 @@ struct CommentSource {
     QByteArray peopleBytes;
     QStringList people;
     QString commentsName, extensionName, idsName, peopleName;
+    // The comments the text has, for the text as it was last looked at (the story's revision).
+    int madeAtRevision = -1;
+    QVector<Comment> made;
 };
 
 QByteArray startTagOfRoot(const QByteArray &xml, QByteArray *closing = nullptr)
@@ -365,6 +368,7 @@ QString WriteDoc::mainRelatedPart(const QString &relationshipTypeEnd) const
 QVector<Comment> comments(WriteDoc &doc)
 {
     CommentSource &src = sourceOf(doc);
+    if (src.madeAtRevision == doc.story()->revision()) return src.made;
     QVector<Comment> out;
     QVector<int> order;
     const QVector<Anchor> anchors = anchorsOf(doc.story(), &order);
@@ -419,6 +423,8 @@ QVector<Comment> comments(WriteDoc &doc)
             parentOf[c.id] = -1;
         }
     }
+    src.made = out;
+    src.madeAtRevision = doc.story()->revision();
     return out;
 }
 

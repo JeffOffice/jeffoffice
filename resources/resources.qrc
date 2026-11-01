@@ -1793,6 +1793,7 @@
     <file alias="en/text-boxes.md">help/en/text-boxes.md</file>
     <file alias="en/window.md">help/en/window.md</file>
     <file alias="en/wrap.md">help/en/wrap.md</file>
+    <file alias="en/write/comments.md">help/en/write/comments.md</file>
     <file alias="en/write/context.json">help/en/write/context.json</file>
     <file alias="en/write/find-replace.md">help/en/write/find-replace.md</file>
     <file alias="en/write/font.md">help/en/write/font.md</file>
@@ -1811,6 +1812,7 @@
     <file alias="en/write/start.md">help/en/write/start.md</file>
     <file alias="en/write/styles.md">help/en/write/styles.md</file>
     <file alias="en/write/tables.md">help/en/write/tables.md</file>
+    <file alias="en/write/track-changes.md">help/en/write/track-changes.md</file>
     <file alias="es/accessibility.md">help/es/accessibility.md</file>
     <file alias="es/arrange.md">help/es/arrange.md</file>
     <file alias="es/change-template.md">help/es/change-template.md</file>

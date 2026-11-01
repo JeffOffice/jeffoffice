@@ -7,7 +7,7 @@
   "tab:Table Layout": "tables",
   "tab:References": "footnotes-endnotes",
   "tab:Layout": "page-setup",
-  "tab:Review": "spelling",
+  "tab:Review": "track-changes",
   "tab:View": "start",
   "pane:help": "index",
   "file:new": "open-save",
