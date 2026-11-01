@@ -1,11 +1,13 @@
 #include "core/editops.h"
 
+#include "core/pictureops.h"
 #include "core/tableops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
 #include <QClipboard>
+#include <QCoreApplication>
 #include <QGuiApplication>
 #include <QPointer>
 #include <QRegularExpression>
@@ -91,7 +93,8 @@ void setBlockFormatInList(QTextBlock block, QTextBlockFormat nf, QTextList *list
     if (list) list->add(block);
 }
 
-bool isZeroWidth(const QTextCharFormat &f) { return isAtom(f) && f.stringProperty(tp::Field) == QLatin1String("raw:"); }
+// (A picture in the line is something to see, a step of the caret as a letter is; one set at a place on the page shows nothing in the text.)
+bool isZeroWidth(const QTextCharFormat &f) { return isAtom(f) && f.stringProperty(tp::Field) == QLatin1String("raw:") && !f.hasProperty(tp::InlineObject); }
 
 // The format of the character at `position` (the one that comes after it).
 QTextCharFormat charAt(QTextDocument *doc, int position)
@@ -1430,6 +1433,34 @@ void insertPageNumber(WriteDoc &doc, QTextCursor &c)
     c = edit;
 }
 
+bool insertDrawnAtom(WriteDoc &doc, QTextCursor &c, const office::wml::Inline &atom, QTextCharFormat *made)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (c.document() != doc.story()) return false;   // (a header, a footer, or a note keeps its pictures as pieces it does not edit)
+    if (!intoBody(c)) return false;
+    if (isLocked(c.block()) && !c.hasSelection()) return false;
+    std::optional<NumberGuard> numbers;
+    if (c.hasSelection()) numbers.emplace(doc, c.document());
+    QTextCursor edit = c;
+    edit.beginEditBlock();
+    if (edit.hasSelection()) removeSelection(doc, edit);
+    settleBesideDeletions(edit);
+    QTextCharFormat f = typingFormat(edit);
+    f.clearProperty(flow::fp::AnchorId);
+    f.clearProperty(tp::InlineObject);
+    setStored(f, prop::Atom, packAtom(atom));
+    if (!doc.makeDrawnFormat(atom, &f)) {
+        edit.endEditBlock();
+        return false;
+    }
+    edit.insertText(QString(QChar::ObjectReplacementCharacter), f);
+    edit.endEditBlock();
+    doc.keepObjectsForTheHistory();
+    if (made) *made = f;
+    c = edit;
+    return true;
+}
+
 QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c)
 {
     if (c.document() != doc.story()) return nullptr;   // (a header, a footer, or a note takes none)
@@ -1481,6 +1512,7 @@ bool insertEndnote(WriteDoc &doc, QTextCursor &c)
 
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
 {
+    doc.forgetDrawingIds();   // (what is pasted may hold drawings with ids of their own)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
@@ -1560,6 +1592,7 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &whole)
 
 void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
 {
+    doc.forgetDrawingIds();   // (what is pasted may hold drawings with ids of their own)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
@@ -1573,7 +1606,38 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
     int from = 0, to = 0;
     pasteInto(doc, c, clip.fragment, &from, &to, same);
     if (same) {
+        // The drawn forms the pasted pictures had are the ones the document may have let go since the copy: they are made again from the drawings (the same form, while it is held).
+        struct Redo { int from, to; QTextCharFormat format; };
+        QVector<Redo> redo;
+        QTextDocument *dd = c.document();
+        for (QTextBlock b = dd->findBlock(from); b.isValid() && b.position() <= to; b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment f = it.fragment();
+                if (f.position() + f.length() <= from || f.position() >= to || !f.charFormat().hasProperty(prop::Atom)) continue;
+                const Inline a = unpackAtom(storedBytes(f.charFormat(), prop::Atom));
+                if (a.tag != QLatin1String("drawing")) continue;
+                // (One character at a time: characters alike are one fragment, and each picture is to have a number of its own.)
+                const QString text = f.text();
+                for (int k = 0; k < text.size(); ++k) {
+                    const int at = f.position() + k;
+                    if (text[k] != QChar::ObjectReplacementCharacter || at < from || at >= to) continue;
+                    Inline copy = a;
+                    copy.raw = withDrawingId(a.raw, doc.nextDrawingId(doc.story()));
+                    QTextCharFormat nf = f.charFormat();
+                    setStored(nf, prop::Atom, packAtom(copy));
+                    nf.clearProperty(tp::InlineObject);
+                    nf.clearProperty(flow::fp::AnchorId);
+                    if (doc.makeDrawnFormat(copy, &nf)) redo.push_back({at, at + 1, nf});
+                }
+            }
+        for (int i = int(redo.size()) - 1; i >= 0; --i) {
+            QTextCursor t(dd);
+            t.setPosition(redo[i].from);
+            t.setPosition(redo[i].to, QTextCursor::KeepAnchor);
+            t.setCharFormat(redo[i].format);
+        }
         c.endEditBlock();
+        doc.keepObjectsForTheHistory();
         return;
     }
     // From another document: what the pasted pieces refer to by relationship Id is made over in this one's, or the pieces are left out.
@@ -1590,9 +1654,22 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
                 for (const Clip::Link &l : clip.links)
                     if (l.id == r.id) link = &l;
                 if (!link) { *ok = false; return raw; }
-                if (link->external) id = doc.addExternalLink(link->type, link->target);
-                else if (link->type.endsWith(QLatin1String("/image")) && !link->data.isEmpty()) id = doc.addMedia(link->data, link->target.section(QLatin1Char('.'), -1).toLower(), link->contentType);
-                else { *ok = false; return raw; }
+                if (link->external) {
+                    id = doc.addExternalLink(link->type, link->target);
+                } else if (link->type.endsWith(QLatin1String("/image")) && !link->data.isEmpty()) {
+                    bool added = false;
+                    id = doc.addMedia(link->data, link->target.section(QLatin1Char('.'), -1).toLower(), link->contentType, &added);
+                    // (The pictures of a document come to no more than the total, a paste too.)
+                    if (added && doc.mediaBytes() > doc.mediaLimit) {
+                        doc.removeMedia(id);
+                        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.");
+                        *ok = false;
+                        return raw;
+                    }
+                } else {
+                    *ok = false;
+                    return raw;
+                }
                 mapped.insert(r.id, id);
             }
             out += raw.mid(last, r.at - last) + id.toUtf8();
@@ -1628,6 +1705,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         }
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
+            if (f.position() + f.length() <= from || f.position() >= to) continue;   // (only what was pasted: a picture beside it keeps its own relationship)
             // A reference to one of the other document's notes points at nothing here (its text isn't), and an object's place on the page is a place in the
             // other's objects: the first is left out, and the second isn't carried (what the object is as the file has it is kept).
             const QString field = f.charFormat().stringProperty(tp::Field);
@@ -1657,6 +1735,23 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
                     setStored(nf, prop::Atom, packAtom(a));
                     changed = true;
                 }
+                // A picture is drawn from this document's own pictures (the other document's numbers mean nothing here), and each has a drawing number of its own.
+                if (a.tag == QLatin1String("drawing")) {
+                    const QString text = f.text();
+                    for (int k = 0; k < text.size(); ++k) {
+                        const int at = f.position() + k;
+                        if (text[k] != QChar::ObjectReplacementCharacter || at < from || at >= to) continue;
+                        Inline copy = a;
+                        copy.raw = withDrawingId(a.raw, doc.nextDrawingId(doc.story()));
+                        QTextCharFormat df = nf;
+                        setStored(df, prop::Atom, packAtom(copy));
+                        df.clearProperty(tp::InlineObject);
+                        df.clearProperty(flow::fp::AnchorId);
+                        doc.makeDrawnFormat(copy, &df);
+                        fixes.push_back({at, at + 1, df, false});
+                    }
+                    continue;
+                }
             }
             if (changed) fixes.push_back({f.position(), f.position() + f.length(), nf, false});
         }
@@ -1677,6 +1772,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         removeSelection(doc, t);
     }
     c.endEditBlock();
+    doc.keepObjectsForTheHistory();
 }
 
 void pasteText(WriteDoc &doc, QTextCursor &c, const QString &text)

@@ -12,6 +12,7 @@
 #include <QSet>
 #include <limits>
 #include <QTextBlock>
+#include <cctype>
 #include <algorithm>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -194,6 +195,54 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock firs
     if (lastClosesTable) out.add(Block());
 }
 
+// The pictures' parts the program added that nothing in the file names any more (a picture taken back by Undo, or deleted) are not written: the document keeps them for the steps of
+// the history that can bring a picture back, and only the file leaves them out.
+void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
+{
+    if (m_madeMedia.isEmpty()) return;
+    QSet<QString> named;
+    auto collect = [&named](const QByteArray &bytes) {
+        for (qsizetype at = bytes.indexOf("rId"); at >= 0; at = bytes.indexOf("rId", at + 3)) {
+            qsizetype end = at + 3;
+            while (end < bytes.size() && (std::isalnum(uchar(bytes[end])) || bytes[end] == '_')) ++end;
+            named.insert(QString::fromLatin1(bytes.mid(at, end - at)));
+        }
+    };
+    for (QTextBlock b = story()->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat bf = b.blockFormat();
+        for (const int key : {int(prop::RawBefore), int(prop::RawBlock), int(prop::RawAfter)})
+            if (bf.hasProperty(key)) collect(storedBytes(bf, key));
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (cf.hasProperty(prop::Atom)) collect(storedBytes(cf, prop::Atom));
+        }
+    }
+    for (const office::wml::KeptPart &part : std::as_const(out->parts))
+        if (part.contentType.contains(QLatin1String("xml"))) collect(part.data);
+    for (auto it = m_madeMedia.cbegin(); it != m_madeMedia.cend(); ++it) {
+        if (named.contains(it.key())) continue;
+        const QString target = it.value();
+        for (qsizetype i = 0; i < out->mainRelationships.size(); ++i)
+            if (out->mainRelationships[i].id == it.key()) {
+                out->mainRelationships.removeAt(i);
+                break;
+            }
+        auto targets = [&target](const QVector<office::Relationship> &rels) {
+            for (const office::Relationship &r : rels)
+                if (!r.external && r.target.compare(target, Qt::CaseInsensitive) == 0) return true;
+            return false;
+        };
+        bool held = targets(out->mainRelationships) || targets(out->packageRelationships);
+        for (auto r = out->partRelationships.cbegin(); !held && r != out->partRelationships.cend(); ++r) held = targets(r.value());
+        if (held) continue;
+        for (qsizetype i = 0; i < out->parts.size(); ++i)
+            if (out->parts[i].name.compare(target, Qt::CaseInsensitive) == 0) {
+                out->parts.removeAt(i);
+                break;
+            }
+    }
+}
+
 QByteArray WriteDoc::toDocx(QString *error, bool template_)
 {
     syncSections();
@@ -253,6 +302,7 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
     dropMacroLinks(&out.mainRelationships);
     dropMacroLinks(&out.packageRelationships);
     for (auto it = out.partRelationships.begin(); it != out.partRelationships.end(); ++it) dropMacroLinks(&it.value());
+    pruneUnusedMedia(&out);
     out.mainContentType = template_ ? QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml")
                                     : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml");
     return writeDocx(out, error);

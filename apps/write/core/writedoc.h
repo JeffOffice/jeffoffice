@@ -21,6 +21,7 @@
 #include <QTextBlockFormat>
 #include <QTextCharFormat>
 #include <QTextListFormat>
+#include <functional>
 #include <memory>
 
 namespace jp::write {
@@ -34,6 +35,8 @@ struct StyleEntry {
 };
 
 class WriteDoc;
+// The most the pictures of a document come to together.
+constexpr qint64 kMostMediaBytes = qint64(512) << 20;
 
 // What the notes of a document are to its pages (flow::FlowDocument::fields): the stories of its footnotes, made when they are asked for, and the
 // height of the paragraph the pages set between the text and the notes.
@@ -174,6 +177,9 @@ public:
     // The paragraph ends the section: the break paragraphs and `flow().sections` are made again from the story. Called after edits that
     // add or remove paragraphs (the document does it itself when the story reports one).
     void syncSections();
+    // Changes the properties of sections `from` to `to` (inclusive) in one pass over the story and one step of the history: `change` is given each section's properties and says
+    // whether it changed them. Returns how many it changed.
+    int changeSections(int from, int to, const std::function<bool(office::wml::SectionProps &)> &change);
     // Makes the paragraph at `block` the last of a new section that is like the one it is in (a break); false if it ends one already. The section the break makes
     // begins as `type` says ("nextPage", "continuous", "oddPage", or "evenPage"); the section before it begins as it did.
     bool insertSectionBreak(const QTextBlock &block, const QString &type = QStringLiteral("nextPage"));
@@ -274,6 +280,8 @@ public:
     // ---- tables
     // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
     QString tableNotice;
+    // The same for the picture commands (core/pictureops.h): why the last one that did nothing did nothing, when the person needs telling.
+    QString pictureNotice;
     // What core/tableops.cpp keeps with the document: the tables of the story as they were last looked at, and the keys of the cell records that paragraphs held before a command
     // replaced them , to be let go when nothing can reach them.
     std::shared_ptr<void> tableViewCache;
@@ -343,7 +351,32 @@ public:
     // The Id of a relationship of the main part to an address outside the file, made if the document has none like it.
     QString addExternalLink(const QString &type, const QString &target);
     // The Id of an image relationship to a new part with these bytes (named image1.png and on, in word/media).
-    QString addMedia(const QByteArray &bytes, const QString &extension, const QString &contentType);
+    // (A picture the document already holds, byte for byte, is that one: `added`, if given, says whether a part and a relationship were made.)
+    QString addMedia(const QByteArray &bytes, const QString &extension, const QString &contentType, bool *added = nullptr);
+    // Takes back a relationship of the main part that addMedia made, and its part if no other relationship names it (for a picture that could not be put in the text).
+    void removeMedia(const QString &id);
+
+    // The most the pictures of a document come to, together, and the limit this document is held to (a test sets a smaller one); how much they come to now.
+    qint64 mediaLimit = kMostMediaBytes;
+    qint64 mediaBytes() const;
+    // How many places the drawn forms of the objects have (a test of what editing pictures leaves), how many hold a form, and a look for the forms nothing can reach now.
+    int objectSlotsForTest() const { return int(m_flow->objects.size()); }
+    int liveObjectRecordsForTest() const { return int(m_flow->objects.size() - m_freeObjects.size()); }
+    void collectObjectRecordsForTest() { collectObjectRecords(); }
+    // The drawn forms the program made of pictures are let go when nothing can reach them: no character of the text, and no step of the history (Undo or Redo). A form made again
+    // for the same drawing is the one made before. These keep the books: `retireDrawnForm` for the form a character had before a change, and `keepObjectsForTheHistory` once the
+    // change is a step.
+    void retireDrawnForm(const QTextCharFormat &before);
+    void keepObjectsForTheHistory();
+    void collectObjectRecords();
+    // The pages' form of a drawn object of the main text (a picture: its atom is the run's child kept as XML) is put in `format`: an inline object of the character, or the
+    // anchor of an object set at a place on the page. False when it makes none (nothing drawn, the picture is not in the file, or the document holds the most pictures and objects it
+    // can show: they are kept for as long as a step of the history can bring a character that has one back, so none is let go).
+    // An id for a new drawing (its docPr): above any the text had when this was first asked, and one more each time.
+    int nextDrawingId(const QTextDocument *story);
+    // After text that may hold drawings of other ids was put in (a paste): the highest is looked for again.
+    void forgetDrawingIds();
+    bool makeDrawnFormat(const office::wml::Inline &atom, QTextCharFormat *format);
 
     // ---- the file
     QString filePath;
@@ -407,12 +440,21 @@ private:
     // What writing gives a run of this format, in a paragraph of this style (and table layer): the properties it has beyond its style's.
     office::wml::RunProps runPropsWritten(const QTextCharFormat &format, const QString &styleId, const office::wml::TableLayer *layer) const;
     void settleTables();
+    void pruneUnusedMedia(office::wml::Document *out) const;
     void setUpEnvironment();
     void storyChanged(int position, int removed, int added);
     // The style sheet to read a style's look from: the document's, or for a built-in style it lacks, a copy with that style added.
     const office::wml::StyleSheet &sheetFor(const QString &styleId) const;
     office::wml::SectionProps lastSectionProps() const;
 
+    int m_drawingId = 0;
+    QVector<int> m_freeObjects;                    // places of FlowDocument::objects that hold no form now (a new form takes one)
+    QHash<QByteArray, int> m_objectsByDrawing;     // the first form made for a drawing's bytes, while it is held
+    QHash<int, quint64> m_objectHeld;              // the forms the program made of pictures, each with the step that last made, changed, or took it from a character (0: not yet a step)
+    QVector<int> m_objectPending;                  // the forms a command touched that have no step yet
+    quint64 m_objectsSeen = 0;                     // the serial the next step had when the pending ones were last attached
+    qsizetype m_collectAt = 2000;
+    QHash<QString, QString> m_madeMedia;           // the pictures' parts the program added: the Id of the relationship, and the part
     quint64 m_id = 0;
     bool m_hadMacros = false, m_leftOut = false;
     std::unique_ptr<flow::FlowDocument> m_flow;

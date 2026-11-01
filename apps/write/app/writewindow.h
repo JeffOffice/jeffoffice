@@ -31,6 +31,7 @@ class WriteFileScreen;
 class WriteFindPane;
 namespace write {
 class PageView;
+class Ruler;
 class SpellPane;
 }
 namespace recovery {
@@ -79,6 +80,9 @@ public:
     bool saveAs();
     // Writes the file; the document is saved and takes the file's name. On failure says why and leaves it unsaved.
     bool saveTo(const QString &path);
+    // What Insert > Picture asks for a file with: the file dialog, unless this stands in for it (tests): the path chosen, empty for none.
+    void setPictureChooser(const std::function<QString()> &chooser) { m_pictureChooser = chooser; }
+    write::Ruler *ruler() const { return m_ruler; }
     // What Save As asks for a name with: the file dialog, unless this stands in for it (tests): the name to suggest and the filter to
     // start on in, the path chosen out (empty for none).
     void setSavePathChooser(const std::function<QString(const QString &suggested, const QString &filter)> &chooser) { m_pathChooser = chooser; }
@@ -128,6 +132,13 @@ private:
     void createHeaderFooterActions();
     void createNoteActions();
     void createTableActions();
+    void createPictureActions();
+    void pictureRibbonParts(RibbonParts &parts);
+    void insertPictureFromFile();
+    void insertPictureFromClipboard();
+    void showPageSetupDialog();
+    void refreshPictureUi();
+    void addPictureContextMenu(QMenu &menu);
     void tableRibbonParts(RibbonParts &parts);
     void tableCommand(const std::function<void(write::WriteDoc &, QTextCursor &)> &fn);
     void insertTableNow(const write::NewTable &table);
@@ -174,6 +185,8 @@ private:
     QList<ColorButton *> m_colorButtons;
     QList<MeasureSpin *> m_indentFields;
     QWidget *m_styleGallery = nullptr;
+    QList<MeasureSpin *> m_pictureFields;   // the height and width of the Picture Format tab
+    write::Ruler *m_ruler = nullptr;
     QList<MeasureSpin *> m_tableFields;     // the row height and column width of the Table Layout tab
     QWidget *m_tableStyleGallery = nullptr;
     QHash<QString, QAction *> m_actions;
@@ -185,6 +198,7 @@ private:
     quint64 m_serial = 0;
     bool m_updatingFields = false;
     std::function<QString(const QString &, const QString &)> m_pathChooser;
+    std::function<QString()> m_pictureChooser;
     std::function<void(const QString &, const QString &)> m_notifier;
     std::function<void(QPrinter &)> m_printerPreparer;
     bool m_macrosNoted = false;     // (the person was told that the macros are not saved)

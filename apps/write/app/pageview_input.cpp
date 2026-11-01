@@ -33,17 +33,31 @@ QString s_copiedText;
 void PageView::undo()
 {
     if (!m_doc) return;
+    m_pictureDrag = PictureDrag();   // (a drag of a picture is over: what it would have done is not done)
+    viewport()->update();
     if (m_hf.active && m_doc->isPendingHeaderFooter(m_hf.story)) leaveHeaderFooter();   // (an empty one shown to be typed in has no step to take back)
     QTextCursor at;
-    if (QTextDocument *story = m_doc->undo(&at)) followHistory(story, at);
+    const int picture = selectedPicture();
+    if (QTextDocument *story = m_doc->undo(&at)) {
+        followHistory(story, at);
+        // (A picture that was selected stays selected through a step that changed it.)
+        if (picture >= 0 && selectedPicture() < 0 && m_cursor.position() >= picture && m_cursor.position() <= picture + 1) selectPicture(picture);
+    }
 }
 
 void PageView::redo()
 {
     if (!m_doc) return;
+    m_pictureDrag = PictureDrag();   // (a drag of a picture is over: what it would have done is not done)
+    viewport()->update();
     if (m_hf.active && m_doc->isPendingHeaderFooter(m_hf.story)) leaveHeaderFooter();
     QTextCursor at;
-    if (QTextDocument *story = m_doc->redo(&at)) followHistory(story, at);
+    const int picture = selectedPicture();
+    if (QTextDocument *story = m_doc->redo(&at)) {
+        followHistory(story, at);
+        // (A picture that was selected stays selected through a step that changed it.)
+        if (picture >= 0 && selectedPicture() < 0 && m_cursor.position() >= picture && m_cursor.position() <= picture + 1) selectPicture(picture);
+    }
 }
 
 void PageView::copy()
@@ -85,7 +99,13 @@ void PageView::paste()
     if (!mime) return;
     if (mime->hasFormat(QStringLiteral("application/x-jeffwrite-fragment")) && QString::fromUtf8(mime->data(QStringLiteral("application/x-jeffwrite-fragment"))) == s_copiedText && !s_copied.isEmpty())
         pasteClip(*m_doc, m_cursor, s_copied);
-    else if (mime->hasText())
+    else if (mime->hasImage() && !mime->hasText() && !mime->hasHtml()) {
+        // A picture on the clipboard (a screenshot, say) goes in as a picture.
+        const QVariant data = mime->imageData();
+        if (!data.canConvert<QImage>()) return;
+        insertPictureImage(data.value<QImage>());
+        return;
+    } else if (mime->hasText())
         pasteText(*m_doc, m_cursor, mime->text());
     else if (mime->hasHtml())
         pasteFragment(*m_doc, m_cursor, QTextDocumentFragment::fromHtml(mime->html()));
@@ -283,6 +303,10 @@ void PageView::mousePressEvent(QMouseEvent *e)
     if (!m_doc) return;
     setFocus(Qt::MouseFocusReason);
     m_movedFrom = -1;   // (a click has no way it went)
+    if (e->button() == Qt::LeftButton && e->type() != QEvent::MouseButtonDblClick && beginPictureDrag(e)) {
+        e->accept();
+        return;
+    }
     const Hit hit = hitAt(e->position().toPoint());
     if (m_hf.active) {
         // A click in the text does nothing while a header or footer is edited (a double click leaves); one in a header's or a footer's area goes to it.
@@ -303,6 +327,12 @@ void PageView::mousePressEvent(QMouseEvent *e)
     // A click in the second or a later copy of an endnote (which the pages show, and no more) is a click at the same place of its first copy, the note's own.
     if (!m_note.active && !m_hf.active && m_cursor.document() == m_doc->story()) at = placeInFirstCopy(at);
     if (e->button() == Qt::RightButton) {
+        // A right click on a picture selects it, and the menu is for it.
+        if (const int picture = pictureAtPoint(e->position().toPoint()); picture >= 0 && picture != selectedPicture()) {
+            selectPicture(picture);
+            m_contextAt = picture;
+            return;
+        }
         if (!m_cursor.hasSelection() || at < m_cursor.selectionStart() || at > m_cursor.selectionEnd()) {
             m_cursor.setPosition(at);
             caretMoved();
@@ -336,6 +366,22 @@ void PageView::mousePressEvent(QMouseEvent *e)
 
 void PageView::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_pictureDrag.active) {
+        updatePictureDrag(e->position().toPoint());
+        return;
+    }
+    if (m_doc && !m_dragging && !(e->buttons() & Qt::LeftButton)) {
+        // The pointer says what a press on the selected picture would do.
+        const PictureHandle h = pictureHandleAt(e->position().toPoint());
+        const int shape = h == PictureHandle::None ? int(Qt::IBeamCursor) : h == PictureHandle::Body ? int(Qt::SizeAllCursor)
+                          : (h == PictureHandle::TopLeft || h == PictureHandle::BottomRight) ? int(Qt::SizeFDiagCursor)
+                          : (h == PictureHandle::TopRight || h == PictureHandle::BottomLeft) ? int(Qt::SizeBDiagCursor)
+                          : (h == PictureHandle::Top || h == PictureHandle::Bottom) ? int(Qt::SizeVerCursor) : int(Qt::SizeHorCursor);
+        if (shape != m_hoverCursorShape) {
+            m_hoverCursorShape = shape;
+            viewport()->setCursor(Qt::CursorShape(shape));
+        }
+    }
     if (!m_doc || !m_dragging || !(e->buttons() & Qt::LeftButton)) return;
     const int at = positionAt(hitAt(e->position().toPoint()));
     if (at < 0) return;
@@ -356,7 +402,10 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
 
 void PageView::mouseReleaseEvent(QMouseEvent *e)
 {
-    Q_UNUSED(e);
+    if (m_pictureDrag.active) {
+        endPictureDrag(e->position().toPoint());
+        return;
+    }
     m_dragging = false;
     m_autoscroll.stop();
 }

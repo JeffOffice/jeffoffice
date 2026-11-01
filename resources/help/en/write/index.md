@@ -19,6 +19,9 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Add headers, footers, and page numbers](headers-footers)
 - [Make and change tables](tables)
 - [Add footnotes and endnotes](footnotes-endnotes)
+- [Add and change pictures](pictures)
+- [Set up the page](page-setup)
+- [Use the ruler](ruler)
 - [Find and replace words](find-replace)
 
 ## Work faster

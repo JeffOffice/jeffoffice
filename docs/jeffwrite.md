@@ -199,6 +199,28 @@ the parts by hand and takes its look from the table style (Table Grid, added to 
 Kept pieces between rows and cells go through `remake` in their places. Not yet: Split Table, deleting a single cell, a column's width in percent, text direction, text wrapping around a table,
 Modify Table Style and New Table Style, the border painter, and drawing a table.
 
+
+## Pictures, page setup, and the ruler (beta wave C, November 1, 2026)
+
+A picture is a character of the story that holds the `w:drawing` of its run as XML (`core/pictureops.cpp`). Every command writes that element again from a small model of it (`Model`: the
+extent, the wrap, the place, the alt text, and the graphic kept as it was, with the picture's size patched in) and gives the character the form the pages show (`WriteDoc::makeDrawnFormat`,
+which is what reading a file does), in one change of the character's format, so each is one step of the history and the file saved says what the pages show. Only a drawing that is one plain
+picture (`wp:inline` or `wp:anchor` holding a picture) can be changed (`PictureInfo::editable`); any other picture is selected and kept. Insert Picture reads the bytes with `QImageReader`
+before decoding (a side past 30,000 pixels, more than 40 million pixels, or more than 48 MB is refused), keeps PNG, JPEG, GIF, BMP, and TIFF as they are and any other form it reads as PNG,
+and reuses a part that holds the same bytes (`WriteDoc::addMedia`). The forms the pages draw from (`FlowDocument::objects` and `images`) only grow, because a step of the history may bring
+a character that names one back; at the most the document can show (2,000 pictures, 20,000 objects) the command is refused and says so (`WriteDoc::pictureNotice`), and nothing is let go.
+A drag with the mouse (`PageView`: the handles, `pageview_pictures.cpp`) changes the size and the place on release: a picture set at a place is put on the page (`positionH` and `positionV`
+from the page), and one in line goes to the place in the text where it is dropped. A picture on the clipboard (or a picture file dropped on a page) is inserted the same way.
+
+Page Setup (`core/pagesetup.cpp`) applies what the dialog changed (and only that) to the section or to every section in one pass over the story (`WriteDoc::changeSections`, which makes the
+sections again once) and one step of the history; the values are held to what a page can hold (`normalized`: paper from 0.5 to 30 inches, margins that leave half an inch of text).
+Not yet: vertical alignment of the page, line numbers, borders, mirrored margins and several pages to a sheet, a gutter at the top, and "from this point on".
+
+The ruler (`app/ruler.cpp`) is above the pages and reads the paragraph at the start of the selection and the section the caret is in. Its markers are dragged with the mouse and each
+drag is one change on release: the indents are changed by the amount dragged in every paragraph the selection touches, the margins through Page Setup's code, and the tab stops
+(`core/rulerops.cpp`: at most 64 for a paragraph, at most 22 inches in, each with its leader) through the paragraph's format. Not yet: the vertical ruler, the column of the caret in a section of
+several columns (the ruler shows the whole text area), mirrored pages, the default tab stops, and a double click on the ruler for the Tabs dialog.
+
 ## Checking it
 
 - Reference pages of documents, and every file JeffWrite saves opened and re-saved without a repair

@@ -23,6 +23,26 @@ using namespace jp::office::wml;
 
 namespace jp::write {
 
+void WriteDoc::removeMedia(const QString &id)
+{
+    m_madeMedia.remove(id);
+    QString target;
+    for (qsizetype i = 0; i < m_wml.mainRelationships.size(); ++i)
+        if (m_wml.mainRelationships[i].id == id && !m_wml.mainRelationships[i].external) {
+            target = m_wml.mainRelationships[i].target;
+            m_wml.mainRelationships.removeAt(i);
+            break;
+        }
+    if (target.isEmpty()) return;
+    for (const Relationship &r : m_wml.mainRelationships)
+        if (!r.external && r.target.compare(target, Qt::CaseInsensitive) == 0) return;
+    for (qsizetype i = 0; i < m_wml.parts.size(); ++i)
+        if (m_wml.parts[i].name.compare(target, Qt::CaseInsensitive) == 0) {
+            m_wml.parts.removeAt(i);
+            return;
+        }
+}
+
 // ---- sections
 
 QByteArray packSection(const SectionProps &s)
@@ -457,8 +477,15 @@ QString WriteDoc::addExternalLink(const QString &type, const QString &target)
     return r.id;
 }
 
-QString WriteDoc::addMedia(const QByteArray &bytes, const QString &extension, const QString &contentType)
+QString WriteDoc::addMedia(const QByteArray &bytes, const QString &extension, const QString &contentType, bool *added)
 {
+    if (added) *added = false;
+    for (const KeptPart &p : m_wml.parts) {
+        if (p.data.size() != bytes.size() || p.data != bytes) continue;
+        for (const Relationship &r : m_wml.mainRelationships)
+            if (!r.external && r.type.endsWith(QLatin1String("/image")) && p.name.compare(r.target, Qt::CaseInsensitive) == 0) return r.id;
+    }
+    if (added) *added = true;
     QSet<QString> taken;
     for (const KeptPart &p : m_wml.parts) taken.insert(p.name.toLower());
     taken.insert(m_wml.mainName.toLower());
@@ -477,7 +504,16 @@ QString WriteDoc::addMedia(const QByteArray &bytes, const QString &extension, co
     r.type = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");
     r.target = name;
     m_wml.mainRelationships.push_back(r);
+    m_madeMedia.insert(r.id, name);
     return r.id;
+}
+
+qint64 WriteDoc::mediaBytes() const
+{
+    qint64 total = 0;
+    for (const KeptPart &p : m_wml.parts)
+        if (p.contentType.startsWith(QLatin1String("image/"))) total += p.data.size();
+    return total;
 }
 
 // ---- sections
@@ -688,6 +724,45 @@ void WriteDoc::setSectionProps(int index, const SectionProps &props)
         break;
     }
     syncSections();
+}
+
+int WriteDoc::changeSections(int from, int to, const std::function<bool(SectionProps &)> &change)
+{
+    const int count = int(m_sections.size());
+    from = std::clamp(from, 0, count - 1);
+    to = std::clamp(to, from, count - 1);
+    int changed = 0;
+    QTextCursor edit(story());
+    edit.beginEditBlock();
+    m_syncing = true;   // (the story reports each paragraph that changes: the sections are made again once, at the end)
+    int n = 0;
+    for (QTextBlock b = story()->begin(); b.isValid() && n <= to; b = b.next()) {
+        if (!b.blockFormat().boolProperty(flow::fp::SectionBreakAfter)) continue;
+        const int index = n++;
+        if (index < from) continue;
+        SectionProps props = index < count ? m_sections[size_t(index)] : SectionProps();
+        if (!change(props)) continue;
+        QTextCursor at(b);
+        QTextBlockFormat bf = b.blockFormat();
+        setStored(bf, prop::SectionData, packSection(props));
+        at.setBlockFormat(bf);
+        ++changed;
+    }
+    if (to == count - 1) {
+        SectionProps props = m_last;
+        if (change(props)) {
+            QTextCursor at(story()->begin());
+            QTextBlockFormat bf = story()->begin().blockFormat();
+            setStored(bf, prop::LastSection, packSection(props));
+            at.setBlockFormat(bf);
+            m_last = props;
+            ++changed;
+        }
+    }
+    edit.endEditBlock();
+    m_syncing = false;
+    if (changed) syncSections();
+    return changed;
 }
 
 int WriteDoc::sectionAt(int position) const

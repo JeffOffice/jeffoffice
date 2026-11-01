@@ -442,7 +442,8 @@ void WriteDoc::renewIds(QTextDocument *copy)
             const QString kind = bookmark ? QStringLiteral("b") : element.startsWith(QLatin1String("comment")) ? QStringLiteral("c") : element == QLatin1String("docPr") ? QStringLiteral("d") : QStringLiteral("r");
             QString replaced = m.captured(2);
             if (const auto id = idAttribute().match(replaced); id.hasMatch()) {
-                const QString key = kind + id.captured(2);
+                // (A drawing's number is its own, whatever the others of the story say: two with one number are given two.)
+                const QString key = kind == QLatin1String("d") ? kind + QString::number(next) : kind + id.captured(2);
                 if (!ids.contains(key)) ids.insert(key, QString::number(next++));
                 replaced.replace(id.capturedStart(2), id.capturedLength(2), ids.value(key));
             }

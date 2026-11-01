@@ -29,10 +29,10 @@ The first page appears at once, even in a very long document. JeffWrite works ou
 The **ribbon** is the band of buttons across the top. Each tab holds groups of buttons.
 
 - **Home** has Clipboard (cut, copy, and paste), Font, Paragraph, Styles, and Editing, which is Find and Replace.
-- **Insert** has Page Break, Header, and Footer. While a header or footer is open for editing, the **Header & Footer** tab appears.
-- **Layout** has Margins, Orientation, Size, Columns, and Breaks, and boxes for a paragraph's indents and spacing.
+- **Insert** has Table, Pictures, Page Break, Header, and Footer. A picture you click gets the **Picture Format** tab. While a header or footer is open for editing, the **Header & Footer** tab appears.
+- **Layout** has Margins, Orientation, Size, Columns, and Breaks (and the **Page Setup** window, from the corner of the group), and boxes for a paragraph's indents and spacing.
 - **Review** has Spelling & Grammar and Check Spelling as You Type.
-- **View** has Print Layout, the **¶** button, and the zoom choices.
+- **View** has Print Layout, the **¶** button, the **Ruler**, and the zoom choices.
 
 Click **File** at the top left for New, Open, Save, Print, and Export.
 
@@ -48,7 +48,9 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 - Paragraph alignment, indents, spacing, and line spacing. The **Paragraph** box (the small arrow at the corner of the Paragraph group) has them all.
 - Bulleted and numbered lists, with levels.
 - Styles. The gallery has Normal, headings, Title, and more.
-- Pages: paper size, orientation, margins, columns (one, two, or three), page breaks, and section breaks that start a new page.
+- Pages: paper size, orientation, margins, columns (one, two, or three), page breaks, and section breaks that start a new page. **Layout > Page Setup** sets the margins, paper, and layout of a section or of the whole document (see [Set up the page](page-setup)).
+- Pictures: **Insert > Pictures** puts in a picture from a file or the clipboard; you can size it with its handles, move it, wrap the text round it, and give it alt text (see [Add and change pictures](pictures)).
+- The ruler: drag the indents, tab stops, and margins (see [Use the ruler](ruler)).
 - Tables: **Insert > Table** makes one, and the **Table Design** and **Table Layout** tabs add and take away rows and columns, merge and split cells, put lines and shading on cells, pick a table style, set the size of rows and columns, and set where the words sit in a cell. In a table, **Tab** goes to the next cell, and **Tab** in the last cell adds a row. See [Make and change tables](tables).
 - Headers and footers: double-click in the top or bottom margin of a page, or use **Insert > Header** and **Insert > Footer**, then type, add a page number, and choose a different first page, different odd and even pages, or a link to the section before. See [Headers and footers](headers-footers).
 - Footnotes and endnotes: click in a note to edit it where it stands, and use **References > Insert Footnote** (Ctrl+Alt+F) and **Insert Endnote** (Ctrl+Alt+D) to add one. See [Footnotes and endnotes](footnotes-endnotes).
@@ -63,12 +65,12 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 
 - The pictures, shapes, and tables in a header, a footer, or a note are kept, but not edited yet.
 - Tables can't be drawn with a pen yet, turned into text, or given a formula, and a table can't be put in a cell of another table.
-- Pictures, shapes, and text boxes can't be inserted or changed. JeffWrite keeps them.
+- Shapes and text boxes can't be inserted or changed, and pictures can't be cropped or linked to their files. JeffWrite keeps them.
 - Only the page number field can be inserted, in a header or footer. A **field** is text that the file fills in, such as a date or a table of contents. Page numbers in headers and footers, and references to the page of a bookmark, are worked out. Other fields show the words the file had, and they do not update.
 - Comments and tracked changes are kept, but not shown. A **comment** is a note in the margin. A **tracked change** is an edit that a reviewer marked. Text that a tracked change added shows as plain text, and text it deleted stays hidden. You can't add, accept, or reject them.
 - An equation shows as one line of text, in order, not laid out as it would print.
 - You can't open .rtf or .odt files yet. You can't save .doc, .rtf, or .odt files. A .doc file is saved as a new .docx file.
-- There is no ruler, and you can't set tab stops. The tab stops a file has are used.
+- The ruler is across the top only, and tab stops are set on it (there is no Tabs window yet).
 - A section break you insert starts a new page. The sections that continue on the same page, and those that start on an odd or an even page, are laid out when a file has them, but you can't insert them.
 - Paste keeps the look of the text you copied. There are no paste choices, and no Paste Special.
 - Find and Replace do not look in headers, footers, or notes.

@@ -5,6 +5,7 @@
 // worked out. The view also takes the keyboard and the mouse: the caret is drawn on the page that holds it, and what is typed goes to
 // the story through the commands of core/editops.h.
 
+#include "core/pictureops.h"
 #include "core/writedoc.h"
 
 #include <QAbstractScrollArea>
@@ -14,6 +15,10 @@
 #include <memory>
 
 class QMenu;
+class QMouseEvent;
+class QDragEnterEvent;
+class QDragMoveEvent;
+class QDropEvent;
 class QTextDocument;
 
 namespace jp {
@@ -134,6 +139,28 @@ public:
     // The section the caret is in (the text's, or that of the page whose header, footer, or note is being edited).
     int cursorSection();
 
+    // ---- pictures
+    // A picture is selected when the selection is the one character that is a picture; handles at its corners and sides then change its size, and a drag on it moves it (a
+    // picture in line goes to another place in the text, one set at a place on the page to another place there). Each is one step.
+    enum class PictureHandle { None, TopLeft, Top, TopRight, Right, BottomRight, Bottom, BottomLeft, Left, Body };
+    // The place in the text of the selected picture, -1 for none.
+    int selectedPicture() const;
+    void selectPicture(int position);
+    // The picture's rectangle in the window; false where it is not on a page that is drawn.
+    bool pictureRect(int position, QRectF *rect);
+    // The handle (or the picture itself) at a point of the window; and the point a handle is at.
+    PictureHandle pictureHandleAt(const QPoint &viewportPos);
+    bool pictureHandlePoint(PictureHandle handle, QPointF *point);
+    // How many times the rectangle of a picture has been worked out since the program began (a cost test).
+    static qint64 pictureRectsComputedForTest();
+    // The place in the text of the picture at a point of the window, -1 for none.
+    int pictureAtPoint(const QPoint &viewportPos);
+    // A picture from the bytes of a file, or an image (the clipboard's), at the caret in place of a selection; the picture is then the selection. The reason is told (notice) when it fails.
+    bool insertPictureBytes(const QByteArray &bytes, const QString &name, PictureWrap wrap = PictureWrap::Inline);
+    bool insertPictureImage(const QImage &image, PictureWrap wrap = PictureWrap::Inline);
+    // The picture's size, wrap, and alt text, with the notice told when the change cannot be made.
+    bool changeSelectedPicture(const std::function<bool(WriteDoc &, int)> &change);
+
     // Lays out every page now (for the count).
     void paginateAll();
     // The pages the window is set to show, laid out and drawn once more.
@@ -147,6 +174,7 @@ Q_SIGNALS:
     void contextMenuWanted(const QPoint &globalPos);
     void headerFooterModeChanged();         // a header or footer is edited now, or none is any more
     void noteModeChanged();                 // a footnote is edited now, or none is any more
+    void notice(const QString &text);       // a sentence for the person about what a command could not do
 
 protected:
     void paintEvent(QPaintEvent *e) override;
@@ -158,6 +186,9 @@ protected:
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
     void mouseDoubleClickEvent(QMouseEvent *e) override;
+    void dragEnterEvent(QDragEnterEvent *e) override;
+    void dragMoveEvent(QDragMoveEvent *e) override;
+    void dropEvent(QDropEvent *e) override;
     void contextMenuEvent(QContextMenuEvent *e) override;
     void focusInEvent(QFocusEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;
@@ -247,6 +278,46 @@ private:
     double scale() const { return m_zoom * 96.0 / 72.0; }
     QRectF contentRect(int page) const { return m_rects.value(page); }
     void startAutoscroll();
+
+    // A drag on the selected picture: which handle, and where the picture was and is (in the window), until the button is released.
+    struct PictureDrag {
+        bool active = false, moved = false;
+        PictureHandle handle = PictureHandle::None;
+        int position = -1;
+        QPointF from;
+        QRectF start, now;
+        QPoint scrollAtStart;
+        bool floating = false;
+        PictureInfo info;
+    };
+    bool beginPictureDrag(QMouseEvent *e);
+    void updatePictureDrag(const QPoint &pos);
+    void endPictureDrag(const QPoint &pos);
+    bool inlinePictureRect(int position, const PictureInfo &info, QRectF *rect);
+    // A picture set at a place on the page: its rectangle on the page (points) and the page, from the items the page was made with; and the position of the picture a point of a page
+    // is in (the front-most), -1 for none.
+    bool floatingPictureRect(int position, QRectF *onPage, int *page);
+    int floatingPictureAt(const Hit &hit);
+    PictureDrag m_pictureDrag;
+    int m_hoverCursorShape = -1;
+    bool pictureRectUncached(int position, QRectF *rect);
+    struct RectKey {
+        const void *doc = nullptr;   // the document (another one made as this one is is not it)
+        int position = -1, revision = 0, hscroll = 0, vscroll = 0;
+        double zoom = 0;
+        quint64 layout = 0;
+        int pages = 0;
+        bool operator==(const RectKey &o) const { return doc == o.doc && position == o.position && revision == o.revision && hscroll == o.hscroll && vscroll == o.vscroll && zoom == o.zoom && layout == o.layout && pages == o.pages; }
+    };
+    struct RectCache {
+        bool valid = false;
+        RectKey key;
+        QRectF rect;
+    };
+    RectCache m_rectCache;
+    quint64 m_layoutSerial = 0;   // counted up each time the pages are made again
+    void paintPictureHandles(QPainter &p);
+    int m_pictureDragPage = -1;
 
     WriteDoc *m_doc = nullptr;
     QTextCursor m_cursor;
