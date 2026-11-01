@@ -3,6 +3,8 @@
 
 #include "wml/wml.h"
 
+#include <QRegularExpression>
+
 #include "wml/xmltree.h"
 
 #include <QCoreApplication>
@@ -149,13 +151,20 @@ const TableAccent kTableAccents[] = {{"Accent1", "Accent 1", "4472C4", "D9E2F3",
 QStringList builtinTableStyleIds()
 {
     QStringList ids{QStringLiteral("TableGrid"), QStringLiteral("PlainTable1"), QStringLiteral("PlainTable2"), QStringLiteral("GridTable1Light")};
-    for (const TableAccent &a : kTableAccents) ids << QStringLiteral("GridTable4") + QLatin1String(a.id);
-    for (int i = 0; i < 3; ++i) ids << QStringLiteral("ListTable3") + QLatin1String(kTableAccents[i].id);
+    for (const TableAccent &a : kTableAccents) ids << QStringLiteral("GridTable4-") + QLatin1String(a.id);
+    for (int i = 0; i < 3; ++i) ids << QStringLiteral("ListTable3-") + QLatin1String(kTableAccents[i].id);
     return ids;
 }
 
 Style builtinTableStyle(const QString &id)
 {
+    // (The ids a build wrote without the hyphen are still known, each as the style it was.)
+    static const QRegularExpression unhyphened(QStringLiteral("^(GridTable4|ListTable3)(Accent[1-6])$"));
+    if (const QRegularExpressionMatch m = unhyphened.match(id); m.hasMatch()) {
+        Style s = builtinTableStyle(m.captured(1) + QLatin1Char('-') + m.captured(2));
+        if (!s.id.isEmpty()) s.id = id;
+        return s;
+    }
     if (id == QLatin1String("TableNormal")) {
         Style s;
         s.id = id;
@@ -191,7 +200,7 @@ Style builtinTableStyle(const QString &id)
                               stylePart("firstCol", true, nullptr, QByteArray(), nullptr) + stylePart("lastCol", true, nullptr, QByteArray(), nullptr));
     }
     for (const TableAccent &a : kTableAccents) {
-        if (id == QLatin1String("GridTable4") + QLatin1String(a.id)) {
+        if (id == QLatin1String("GridTable4-") + QLatin1String(a.id)) {
             const QByteArray line = sideXml("top", 4, a.color) + sideXml("left", 4, a.color) + sideXml("bottom", 4, a.color) + sideXml("right", 4, a.color);
             return tableStyle(id, QStringLiteral("Grid Table 4 - ") + QLatin1String(a.name), 49,
                               "<w:tblPr><w:tblStyleRowBandSize w:val=\"1\"/><w:tblStyleColBandSize w:val=\"1\"/>" + bordersXml("tblBorders", a.line, 4, true) + "</w:tblPr>" +
@@ -199,14 +208,12 @@ Style builtinTableStyle(const QString &id)
                                   stylePart("firstCol", true, nullptr, QByteArray(), nullptr) + stylePart("lastCol", true, nullptr, QByteArray(), nullptr) +
                                   stylePart("band1Vert", false, nullptr, QByteArray(), a.tint) + stylePart("band1Horz", false, nullptr, QByteArray(), a.tint));
         }
-        if (id == QLatin1String("ListTable3") + QLatin1String(a.id)) {
-            const QByteArray line = sideXml("top", 4, a.color) + sideXml("left", 4, a.color) + sideXml("bottom", 4, a.color) + sideXml("right", 4, a.color);
+        if (id == QLatin1String("ListTable3-") + QLatin1String(a.id)) {
             return tableStyle(id, QStringLiteral("List Table 3 - ") + QLatin1String(a.name), 48,
                               "<w:tblPr><w:tblStyleRowBandSize w:val=\"1\"/><w:tblStyleColBandSize w:val=\"1\"/>" + bordersXml("tblBorders", a.color, 4, false) + "</w:tblPr>" +
                                   stylePart("firstRow", true, "FFFFFF", QByteArray(), a.color) + stylePart("lastRow", true, nullptr, sideXml("top", 4, a.color, "double"), nullptr) +
                                   stylePart("firstCol", true, nullptr, QByteArray(), nullptr) + stylePart("lastCol", true, nullptr, QByteArray(), nullptr) +
                                   stylePart("band1Horz", false, nullptr, sideXml("top", 4, a.color) + sideXml("bottom", 4, a.color), nullptr));
-            Q_UNUSED(line);
         }
     }
     return Style();
