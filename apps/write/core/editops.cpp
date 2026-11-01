@@ -749,6 +749,54 @@ void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QText
     if (end) *end = tail;
 }
 
+// Text put in as a whole (a paste, a copy dropped) with Track Changes on: it is an insertion, and the paragraph marks it brought are inserted marks. `to` is where the text ends, moved on by
+// the pieces that are put round it.
+void trackPastedAsInserted(WriteDoc &doc, QTextDocument *d, int from, int *to)
+{
+    if (*to <= from) return;
+    QTextCursor t(d);
+    const int author = doc.reviewerIndex(doc.reviewer());
+    const int lastNumber = d->findBlock(*to).blockNumber();   // (its mark is the target's: the paste ended in it)
+    for (QTextBlock b = d->findBlock(std::max(0, *to - 1)); b.isValid() && b.position() + b.length() > from; b = b.previous()) {
+        if (isLocked(b)) {
+            if (!b.previous().isValid()) break;
+            continue;
+        }
+        const int blockEnd = b.position() + b.length() - 1;
+        const int a = std::max(from, b.position()), z = std::min(*to, blockEnd);
+        const int number = b.blockNumber();
+        if (a < z) {
+            // The look of what is inserted (what is deleted already stays so), then the two pieces.
+            struct Edit { int from, to; QTextCharFormat format; };
+            QVector<Edit> edits;
+            QTextCharFormat like;
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment f = it.fragment();
+                const int fs = std::max(f.position(), a), fe = std::min(f.position() + int(f.length()), z);
+                if (fs >= fe) continue;
+                if (!like.isValid()) like = f.charFormat();
+                const QTextCharFormat cf = f.charFormat();
+                if (cf.hasProperty(prop::TrackedDeleted) || (cf.hasProperty(prop::Atom) && isInvisibleAtom(cf))) continue;
+                edits.push_back({fs, fe, withRevisionLook(cf, false, 1, author)});
+            }
+            for (const Edit &e : std::as_const(edits)) {
+                t.setPosition(e.from);
+                t.setPosition(e.to, QTextCursor::KeepAnchor);
+                t.setCharFormat(e.format);
+            }
+            const QByteArray tag = revisionStartTag(doc, QStringLiteral("ins"));
+            t.setPosition(z);
+            t.insertText(QString(QChar::ObjectReplacementCharacter), revisionPiece(tag, QStringLiteral("ins"), false, like));
+            t.setPosition(a);
+            t.insertText(QString(QChar::ObjectReplacementCharacter), revisionPiece(tag, QStringLiteral("ins"), true, like));
+            *to += 2;
+        }
+        // A paragraph mark inside the pasted text is one the paste made.
+        if (number < lastNumber) markParagraphMark(doc, d->findBlockByNumber(number), "ins");
+        if (!b.previous().isValid()) break;
+    }
+}
+
 // Past the end of a deletion the caret is at the end of (the deleted text is not something to type in).
 void pastDeletionEnd(QTextCursor &c)
 {
@@ -1005,6 +1053,13 @@ void insertPageBreak(WriteDoc &doc, QTextCursor &c)
     settleBesideDeletions(c);
     // The break is a character of the paragraph (the page ends after the line that has it); what follows it goes on in a paragraph of its own,
     // as the program a person may be used to does it, so that the cursor is at the top of the next page.
+    if (tracking(doc, c)) {
+        // (A break made with Track Changes on is an insertion, and so is the paragraph mark it brings.)
+        trackedType(doc, c, QString(flow::kPageBreak));
+        markParagraphMark(doc, splitParagraph(c), "ins");
+        c.endEditBlock();
+        return;
+    }
     c.insertText(QString(flow::kPageBreak), typingFormat(c));
     splitParagraph(c);
     c.endEditBlock();
@@ -1677,6 +1732,11 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     // A header, a footer, or a note takes the words and their look, not a note's reference, a comment, a break of a page, a column, or a section.
     if (doc.isSideStory(d) || targetNote > 0) keepOutOfFurniture(d, from, c.position());
     else if (sameDocument) settlePastedNoteReferences(doc, d, from, c.position());
+    if (tracking(doc, c)) {
+        int end = c.position();
+        trackPastedAsInserted(doc, d, from, &end);
+        c.setPosition(end);
+    }
     *pastedTo = c.position();
     c.endEditBlock();
 }

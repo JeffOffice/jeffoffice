@@ -16,27 +16,26 @@
 #include <QTextDocument>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include "app/plaintext.h"
 #include <algorithm>
 
 namespace jp {
 
 namespace {
 
-QString say(const char *text) { return QCoreApplication::translate("jp::ReviewPane", text); }
-
 constexpr int kMostListed = 2000;   // (the changes and comments the lists make rows for; a document with more has the rest reached by Next and Previous)
 
 QString kindName(const write::Revision &r)
 {
     switch (r.kind) {
-    case write::Revision::Insertion: return say("Inserted");
-    case write::Revision::Deletion: return say("Deleted");
-    case write::Revision::MovedFrom: return say("Moved from");
-    case write::Revision::MovedTo: return say("Moved to");
-    case write::Revision::Format: return say("Formatted");
-    case write::Revision::ParagraphFormat: return say("Formatted paragraph");
-    case write::Revision::MarkInserted: return say("Inserted paragraph");
-    case write::Revision::MarkDeleted: return say("Deleted paragraph");
+    case write::Revision::Insertion: return QCoreApplication::translate("jp::ReviewPane", "Inserted");
+    case write::Revision::Deletion: return QCoreApplication::translate("jp::ReviewPane", "Deleted");
+    case write::Revision::MovedFrom: return QCoreApplication::translate("jp::ReviewPane", "Moved from");
+    case write::Revision::MovedTo: return QCoreApplication::translate("jp::ReviewPane", "Moved to");
+    case write::Revision::Format: return QCoreApplication::translate("jp::ReviewPane", "Formatted");
+    case write::Revision::ParagraphFormat: return QCoreApplication::translate("jp::ReviewPane", "Formatted paragraph");
+    case write::Revision::MarkInserted: return QCoreApplication::translate("jp::ReviewPane", "Inserted paragraph");
+    case write::Revision::MarkDeleted: return QCoreApplication::translate("jp::ReviewPane", "Deleted paragraph");
     }
     return QString();
 }
@@ -63,36 +62,36 @@ ReviewPane::ReviewPane(WriteWindow *win, QWidget *parent) : QWidget(parent), m_w
     m_comments->setRootIsDecorated(true);
     m_comments->setWordWrap(true);
     m_comments->setUniformRowHeights(false);
-    m_comments->setAccessibleName(say("Comments"));
+    m_comments->setAccessibleName(tr("Comments"));
     cv->addWidget(m_comments, 1);
     m_reply = new QLineEdit(cp);
     m_reply->setObjectName(QStringLiteral("replyField"));
-    m_reply->setPlaceholderText(say("Reply"));
-    m_reply->setAccessibleName(say("Reply"));
+    m_reply->setPlaceholderText(tr("Reply"));
+    m_reply->setAccessibleName(tr("Reply"));
     cv->addWidget(m_reply);
     auto *r1 = new QHBoxLayout;
-    m_post = new QPushButton(say("Post Reply"), cp);
+    m_post = new QPushButton(tr("Post Reply"), cp);
     m_post->setObjectName(QStringLiteral("postReplyButton"));
-    m_resolve = new QPushButton(say("Resolve"), cp);
+    m_resolve = new QPushButton(tr("Resolve"), cp);
     m_resolve->setObjectName(QStringLiteral("resolveButton"));
-    m_delete = new QPushButton(say("Delete"), cp);
+    m_delete = new QPushButton(tr("Delete"), cp);
     m_delete->setObjectName(QStringLiteral("deleteCommentButton"));
     r1->addWidget(m_post);
     r1->addWidget(m_resolve);
     r1->addWidget(m_delete);
     cv->addLayout(r1);
     auto *r2 = new QHBoxLayout;
-    m_new = new QPushButton(say("New Comment"), cp);
+    m_new = new QPushButton(tr("New Comment"), cp);
     m_new->setObjectName(QStringLiteral("newCommentButton"));
-    m_prevComment = new QPushButton(say("Previous"), cp);
+    m_prevComment = new QPushButton(tr("Previous"), cp);
     m_prevComment->setObjectName(QStringLiteral("previousCommentButton"));
-    m_nextComment = new QPushButton(say("Next"), cp);
+    m_nextComment = new QPushButton(tr("Next"), cp);
     m_nextComment->setObjectName(QStringLiteral("nextCommentButton"));
     r2->addWidget(m_new);
     r2->addWidget(m_prevComment);
     r2->addWidget(m_nextComment);
     cv->addLayout(r2);
-    m_tabs->addTab(cp, say("Comments"));
+    m_tabs->addTab(cp, tr("Comments"));
 
     // Changes.
     auto *hp = new QWidget(m_tabs);
@@ -100,23 +99,23 @@ ReviewPane::ReviewPane(WriteWindow *win, QWidget *parent) : QWidget(parent), m_w
     hv->setContentsMargins(4, 4, 4, 4);
     m_person = new QComboBox(hp);
     m_person->setObjectName(QStringLiteral("personBox"));
-    m_person->setAccessibleName(say("Reviewer"));
+    m_person->setAccessibleName(tr("Reviewer"));
     hv->addWidget(m_person);
     m_changes = new QTreeWidget(hp);
     m_changes->setObjectName(QStringLiteral("changeList"));
     m_changes->setColumnCount(3);
-    m_changes->setHeaderLabels({say("Change"), say("Reviewer"), say("Date")});
+    m_changes->setHeaderLabels({tr("Change"), tr("Reviewer"), tr("Date")});
     m_changes->setRootIsDecorated(false);
-    m_changes->setAccessibleName(say("Changes"));
+    m_changes->setAccessibleName(tr("Changes"));
     hv->addWidget(m_changes, 1);
     auto *h1 = new QHBoxLayout;
-    m_accept = new QPushButton(say("Accept"), hp);
+    m_accept = new QPushButton(tr("Accept"), hp);
     m_accept->setObjectName(QStringLiteral("acceptButton"));
-    m_reject = new QPushButton(say("Reject"), hp);
+    m_reject = new QPushButton(tr("Reject"), hp);
     m_reject->setObjectName(QStringLiteral("rejectButton"));
-    m_prevChange = new QPushButton(say("Previous"), hp);
+    m_prevChange = new QPushButton(tr("Previous"), hp);
     m_prevChange->setObjectName(QStringLiteral("previousChangeButton"));
-    m_nextChange = new QPushButton(say("Next"), hp);
+    m_nextChange = new QPushButton(tr("Next"), hp);
     m_nextChange->setObjectName(QStringLiteral("nextChangeButton"));
     h1->addWidget(m_accept);
     h1->addWidget(m_reject);
@@ -124,14 +123,14 @@ ReviewPane::ReviewPane(WriteWindow *win, QWidget *parent) : QWidget(parent), m_w
     h1->addWidget(m_nextChange);
     hv->addLayout(h1);
     auto *h2 = new QHBoxLayout;
-    m_acceptAll = new QPushButton(say("Accept All"), hp);
+    m_acceptAll = new QPushButton(tr("Accept All"), hp);
     m_acceptAll->setObjectName(QStringLiteral("acceptAllButton"));
-    m_rejectAll = new QPushButton(say("Reject All"), hp);
+    m_rejectAll = new QPushButton(tr("Reject All"), hp);
     m_rejectAll->setObjectName(QStringLiteral("rejectAllButton"));
     h2->addWidget(m_acceptAll);
     h2->addWidget(m_rejectAll);
     hv->addLayout(h2);
-    m_tabs->addTab(hp, say("Changes"));
+    m_tabs->addTab(hp, tr("Changes"));
 
     m_idle.setSingleShot(true);
     m_idle.setInterval(150);
@@ -205,7 +204,7 @@ void ReviewPane::rebuild()
         const QSignalBlocker block(m_person);
         const QString was = m_person->currentData().toString();
         m_person->clear();
-        m_person->addItem(say("All Reviewers"), QString());
+        m_person->addItem(tr("All Reviewers"), QString());
         for (const QString &p : write::revisionAuthors(doc->story())) m_person->addItem(p, p);
         const int at = m_person->findData(was);
         m_person->setCurrentIndex(std::max(0, at));
@@ -236,13 +235,13 @@ void ReviewPane::rebuild()
         auto *item = parent ? new QTreeWidgetItem(parent) : new QTreeWidgetItem(m_comments);
         QString head = c.author;
         if (c.date.isValid()) head += QStringLiteral("  ") + dateText(c.date);
-        if (c.done) head += QStringLiteral("  (") + say("Resolved") + QLatin1Char(')');
+        if (c.done) head += QStringLiteral("  (") + tr("Resolved") + QLatin1Char(')');
         item->setText(0, head + QLatin1Char('\n') + c.text);
         item->setData(0, Qt::UserRole, c.id);
         item->setData(0, Qt::UserRole + 1, c.from);
         item->setData(0, Qt::UserRole + 2, c.to);
         item->setData(0, Qt::UserRole + 3, c.done);
-        item->setToolTip(0, c.text);
+        item->setToolTip(0, jp::plainToolTip(c.text));
         if (c.done) {
             QFont f = item->font(0);
             f.setItalic(true);
@@ -282,7 +281,7 @@ void ReviewPane::updateButtons()
     m_reply->setEnabled(doc && one);
     m_resolve->setEnabled(doc && one);
     m_delete->setEnabled(doc && one);
-    m_resolve->setText(one && sel.first()->data(0, Qt::UserRole + 3).toBool() ? say("Reopen") : say("Resolve"));
+    m_resolve->setText(one && sel.first()->data(0, Qt::UserRole + 3).toBool() ? tr("Reopen") : tr("Resolve"));
     const bool change = !m_changes->selectedItems().isEmpty();
     m_accept->setEnabled(doc && change);
     m_reject->setEnabled(doc && change);
@@ -366,7 +365,7 @@ void ReviewPane::editChosen()
     const std::optional<write::Comment> c = write::commentById(*doc, id);
     if (!c) return;
     bool ok = false;
-    const QString text = QInputDialog::getMultiLineText(this, say("Edit Comment"), say("Comment:"), c->text, &ok);
+    const QString text = QInputDialog::getMultiLineText(this, tr("Edit Comment"), tr("Comment:"), c->text, &ok);
     if (!ok || text == c->text) return;
     write::setCommentText(*doc, id, text);
     refresh();

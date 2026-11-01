@@ -682,6 +682,41 @@ private Q_SLOTS:
         QVERIFY2(!documentXml(fresh->toDocx()).contains("rPrChange"), documentXml(fresh->toDocx()).constData());
     }
 
+    void textPastedWithTrackingIsAnInsertionAndMovedTextIsADeletionAndAnInsertion()
+    {
+        auto doc = open(makeDocx(para(run("alpha beta gamma")) + para(run("second"))));
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        doc->setTrackChanges(true);
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        pasteText(*doc, c, QStringLiteral("one\ntwo"));
+        QCOMPARE(finalText(*doc), QStringLiteral("one\ntwoalpha beta gamma\nsecond"));
+        QVector<Revision> all = revisionsIn(doc->story());
+        int inserted = 0, marks = 0;
+        for (const Revision &r : all) {
+            inserted += r.kind == Revision::Insertion;
+            marks += r.kind == Revision::MarkInserted;
+        }
+        QVERIFY2(inserted >= 1 && marks == 1, qPrintable(QStringLiteral("%1 insertions, %2 marks").arg(inserted).arg(marks)));
+        // Rejecting everything gives the document back.
+        QCOMPARE(rejectAll(*doc), int(all.size()));
+        QCOMPARE(textWithDeletions(*doc), QStringLiteral("alpha beta gamma\nsecond"));
+        // Moving words by drag and drop: the old place is a deletion, and the new one an insertion.
+        auto fresh = open(makeDocx(para(run("alpha beta gamma"))));
+        fresh->setReviewer(QStringLiteral("Zed"), QString());
+        fresh->setTrackChanges(true);
+        QTextCursor s(fresh->story());
+        s.setPosition(0);
+        s.setPosition(6, QTextCursor::KeepAnchor);
+        QVERIFY(moveSelectedText(*fresh, s, 16, false));
+        QCOMPARE(finalText(*fresh), QStringLiteral("beta gammaalpha "));
+        const QVector<Revision> moved = revisionsIn(fresh->story());
+        QCOMPARE(moved.size(), 2);
+        QCOMPARE(rejectAll(*fresh), 2);
+        QCOMPARE(textWithDeletions(*fresh), QStringLiteral("alpha beta gamma"));
+    }
+
     void turningTrackingOffAndOnIsASettingOfTheDocument()
     {
         auto doc = open(makeDocx(para(run("x")), "<w:trackRevisions/>"));
