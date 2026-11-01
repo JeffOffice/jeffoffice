@@ -745,6 +745,38 @@ private Q_SLOTS:
                  QStringLiteral("44 00 00 00 c0 19 04 02 00 06 00 0e 00 16 00 17 01 00 61 19 08 0b 00 17 01 00 62 19 08 03 00 42 03 64 00"));
     }
 
+    // A save can be stopped in the middle of a sheet, not only between rows: a sheet of one very wide row, and one of a few hundred rows, are stopped after a few thousand cells.
+    void aSaveIsStoppedInTheMiddleOfASheet()
+    {
+        auto colName = [](int i) {
+            QString s;
+            for (int n = i + 1; n > 0; n = (n - 1) / 26) s.prepend(QChar('A' + (n - 1) % 26));
+            return s;
+        };
+        QString wide, tall;
+        for (int c = 0; c < 20000; ++c) wide += num(colName(c) + QStringLiteral("1"), c);
+        for (int r = 1; r <= 300; ++r) {
+            QString cells;
+            for (int c = 0; c < 256; ++c) cells += num(colName(c) + QString::number(r), r + c);
+            tall += row(r, cells);
+        }
+        Workbook wb;
+        QString why;
+        QVERIFY2(openXlsx(simple(row(1, wide)), &wb, &why), qPrintable(why));
+        Workbook wb2;
+        QVERIFY2(openXlsx(simple(tall), &wb2, &why), qPrintable(why));
+        // (stop at the sixth look: before, the looks were at the start, at each sheet, and at the first row, and so never got there)
+        for (int which = 0; which < 2; ++which) {
+            int looks = 0;
+            QByteArray out;
+            CopyReport report;
+            const auto stop = [&] { return ++looks >= 6; };
+            const bool ok = which == 0 ? saveOds(wb, &out, &report, &why, stop) : saveXls(wb2, &out, &report, &why, stop);
+            QVERIFY2(!ok, which == 0 ? "the .ods save was not stopped" : "the .xls save was not stopped");
+            QVERIFY(looks >= 6);
+        }
+    }
+
     void theFormulaCompilerRefusesWhatItCannotWrite()
     {
         XlsCompileContext cx;

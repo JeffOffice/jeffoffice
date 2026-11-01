@@ -159,6 +159,18 @@ private:
     const Workbook &m_book;
     CopyReport *m_report;
     std::function<bool()> m_cancelled;
+    int m_sinceLook = 0;
+    bool m_stopped = false;
+    // Whether the save is to stop: the caller is asked once in a few thousand cells, not only between rows.
+    bool stopNow()
+    {
+        if (!m_cancelled) return false;
+        if (m_stopped) return true;
+        if (++m_sinceLook < 2048) return false;
+        m_sinceLook = 0;
+        m_stopped = m_cancelled();
+        return m_stopped;
+    }
     oldsave::Features m_features;
     std::vector<oldsave::Written> m_written;
     QHash<int, int> m_placeToWritten;
@@ -927,6 +939,10 @@ private:
                 const auto sp = spanOfRow.constFind(row);
                 if (sp != spanOfRow.cend())
                     for (size_t k = sp->first; k < sp->second; ++k) {
+                        if (stopNow()) {
+                            *error = QCoreApplication::translate("Sheet", "The save was stopped.");
+                            return false;
+                        }
                         const PlacedCell &pc = cells[k];
                         if (pc.col > 16383 || isCovered(pc.col)) continue;
                         if (m_cells >= kMaxCopyCells) {
