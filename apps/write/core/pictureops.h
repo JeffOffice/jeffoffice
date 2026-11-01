@@ -42,6 +42,8 @@ constexpr qint64 kMostSvgBytes = qint64(4) << 20;
 PictureResult readPictureFile(const QString &path, QByteArray *bytes);
 // A size held to kLeastPictureSize and kMostPictureSize on both sides together, so that its ratio stays what it was.
 void clampKeepingRatio(double *width, double *height);
+// The drawing with the id of its wp:docPr changed.
+QByteArray withDrawingId(const QByteArray &raw, int id);
 // Alt text as it is kept: no character XML refuses, whole pairs of surrogates kept and lone ones dropped, at most kMostAltTextLength characters (a pair is not cut).
 QString cleanAltText(const QString &text);
 

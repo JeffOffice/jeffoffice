@@ -1129,6 +1129,25 @@ private Q_SLOTS:
     }
 #endif
 
+    // The handle rectangle of another document is not the cached one, though the text, the picture, and the place are the same.
+    void theHandleRectangleIsWorkedOutAgainForAnotherDocument()
+    {
+        std::unique_ptr<WriteWindow> w(windowWithAFloatingPicture(pngFile(160, 80)));
+        const int at = w->view()->selectedPicture();
+        QVERIFY(at >= 0);
+        QRectF r;
+        QVERIFY(w->view()->pictureRect(at, &r));
+        const qint64 before = write::PageView::pictureRectsComputedForTest();
+        QVERIFY(w->view()->pictureRect(at, &r));
+        QCOMPARE(write::PageView::pictureRectsComputedForTest(), before);   // (the same document: the cached one)
+        w->setDocument(write::WriteDoc::fromDocx(w->document()->toDocx()), QString());
+        w->view()->selectPicture(at);
+        settle(w.get());
+        QRectF again;
+        QVERIFY(w->view()->pictureRect(at, &again));
+        QVERIFY(write::PageView::pictureRectsComputedForTest() > before);
+    }
+
     // ---- 3. every command
     void everyCommandOnABlankDocument()
     {

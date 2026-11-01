@@ -1,11 +1,13 @@
 #include "core/editops.h"
 
+#include "core/pictureops.h"
 #include "core/tableops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
 #include <QClipboard>
+#include <QCoreApplication>
 #include <QGuiApplication>
 #include <QPointer>
 #include <QRegularExpression>
@@ -91,7 +93,8 @@ void setBlockFormatInList(QTextBlock block, QTextBlockFormat nf, QTextList *list
     if (list) list->add(block);
 }
 
-bool isZeroWidth(const QTextCharFormat &f) { return isAtom(f) && f.stringProperty(tp::Field) == QLatin1String("raw:"); }
+// (A picture in the line is something to see, a step of the caret as a letter is; one set at a place on the page shows nothing in the text.)
+bool isZeroWidth(const QTextCharFormat &f) { return isAtom(f) && f.stringProperty(tp::Field) == QLatin1String("raw:") && !f.hasProperty(tp::InlineObject); }
 
 // The format of the character at `position` (the one that comes after it).
 QTextCharFormat charAt(QTextDocument *doc, int position)
@@ -1613,10 +1616,19 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
                 if (f.position() + f.length() <= from || f.position() >= to || !f.charFormat().hasProperty(prop::Atom)) continue;
                 const Inline a = unpackAtom(storedBytes(f.charFormat(), prop::Atom));
                 if (a.tag != QLatin1String("drawing")) continue;
-                QTextCharFormat nf = f.charFormat();
-                nf.clearProperty(tp::InlineObject);
-                nf.clearProperty(flow::fp::AnchorId);
-                if (doc.makeDrawnFormat(a, &nf)) redo.push_back({f.position(), f.position() + f.length(), nf});
+                // (One character at a time: characters alike are one fragment, and each picture is to have a number of its own.)
+                const QString text = f.text();
+                for (int k = 0; k < text.size(); ++k) {
+                    const int at = f.position() + k;
+                    if (text[k] != QChar::ObjectReplacementCharacter || at < from || at >= to) continue;
+                    Inline copy = a;
+                    copy.raw = withDrawingId(a.raw, doc.nextDrawingId(doc.story()));
+                    QTextCharFormat nf = f.charFormat();
+                    setStored(nf, prop::Atom, packAtom(copy));
+                    nf.clearProperty(tp::InlineObject);
+                    nf.clearProperty(flow::fp::AnchorId);
+                    if (doc.makeDrawnFormat(copy, &nf)) redo.push_back({at, at + 1, nf});
+                }
             }
         for (int i = int(redo.size()) - 1; i >= 0; --i) {
             QTextCursor t(dd);
@@ -1642,9 +1654,22 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
                 for (const Clip::Link &l : clip.links)
                     if (l.id == r.id) link = &l;
                 if (!link) { *ok = false; return raw; }
-                if (link->external) id = doc.addExternalLink(link->type, link->target);
-                else if (link->type.endsWith(QLatin1String("/image")) && !link->data.isEmpty()) id = doc.addMedia(link->data, link->target.section(QLatin1Char('.'), -1).toLower(), link->contentType);
-                else { *ok = false; return raw; }
+                if (link->external) {
+                    id = doc.addExternalLink(link->type, link->target);
+                } else if (link->type.endsWith(QLatin1String("/image")) && !link->data.isEmpty()) {
+                    bool added = false;
+                    id = doc.addMedia(link->data, link->target.section(QLatin1Char('.'), -1).toLower(), link->contentType, &added);
+                    // (The pictures of a document come to no more than the total, a paste too.)
+                    if (added && doc.mediaBytes() > doc.mediaLimit) {
+                        doc.removeMedia(id);
+                        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.");
+                        *ok = false;
+                        return raw;
+                    }
+                } else {
+                    *ok = false;
+                    return raw;
+                }
                 mapped.insert(r.id, id);
             }
             out += raw.mid(last, r.at - last) + id.toUtf8();
@@ -1710,12 +1735,22 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
                     setStored(nf, prop::Atom, packAtom(a));
                     changed = true;
                 }
-                // A picture is drawn from this document's own pictures (the other document's numbers mean nothing here).
+                // A picture is drawn from this document's own pictures (the other document's numbers mean nothing here), and each has a drawing number of its own.
                 if (a.tag == QLatin1String("drawing")) {
-                    nf.clearProperty(tp::InlineObject);
-                    nf.clearProperty(flow::fp::AnchorId);
-                    doc.makeDrawnFormat(a, &nf);
-                    changed = true;
+                    const QString text = f.text();
+                    for (int k = 0; k < text.size(); ++k) {
+                        const int at = f.position() + k;
+                        if (text[k] != QChar::ObjectReplacementCharacter || at < from || at >= to) continue;
+                        Inline copy = a;
+                        copy.raw = withDrawingId(a.raw, doc.nextDrawingId(doc.story()));
+                        QTextCharFormat df = nf;
+                        setStored(df, prop::Atom, packAtom(copy));
+                        df.clearProperty(tp::InlineObject);
+                        df.clearProperty(flow::fp::AnchorId);
+                        doc.makeDrawnFormat(copy, &df);
+                        fixes.push_back({at, at + 1, df, false});
+                    }
+                    continue;
                 }
             }
             if (changed) fixes.push_back({f.position(), f.position() + f.length(), nf, false});

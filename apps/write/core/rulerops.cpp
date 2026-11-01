@@ -14,7 +14,7 @@ QVector<TabStopEntry> tabStopsOf(const QTextBlockFormat &format)
     QVector<TabStopEntry> out;
     const QString leaders = format.stringProperty(tp::TabLeaders);
     const QList<QTextOption::Tab> tabs = format.tabPositions();
-    for (int i = 0; i < tabs.size() && out.size() < kMostTabStopsRead; ++i) {
+    for (int i = 0; i < tabs.size(); ++i) {
         TabStopEntry e;
         e.position = tabs[i].position;
         e.type = tabs[i].type;

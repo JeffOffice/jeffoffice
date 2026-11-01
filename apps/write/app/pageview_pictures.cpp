@@ -78,7 +78,7 @@ bool PageView::pictureRect(int position, QRectF *rect)
 {
     if (!m_doc || m_hf.active || m_note.active) return false;
     // The rectangle is worked out again when the picture, the text, the layout, the scroll, or the zoom changed (the pointer asks for it at every move).
-    const RectKey key{position, m_doc->story()->revision(), horizontalScrollBar()->value(), verticalScrollBar()->value(), m_zoom, m_layoutSerial, m_knownPages};
+    const RectKey key{m_doc, position, m_doc->story()->revision(), horizontalScrollBar()->value(), verticalScrollBar()->value(), m_zoom, m_layoutSerial, m_knownPages};
     if (m_rectCache.valid && m_rectCache.key == key) {
         *rect = m_rectCache.rect;
         return true;

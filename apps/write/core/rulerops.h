@@ -11,7 +11,7 @@ namespace jp::write {
 
 // The most tab stops a paragraph keeps, and the farthest a tab stop is put (points from the left edge of the text).
 constexpr int kMostTabStops = 64;       // a paragraph is given no more than this many
-constexpr int kMostTabStopsRead = 4000;  // and a file's paragraph keeps the stops it has, up to this many
+constexpr int kMostTabStopsShown = 4000; // the ruler draws no more than this many (a paragraph keeps all it has)
 constexpr double kMostTabPosition = 1584;
 
 struct TabStopEntry {

@@ -302,11 +302,12 @@ private:
     int m_hoverCursorShape = -1;
     bool pictureRectUncached(int position, QRectF *rect);
     struct RectKey {
+        const void *doc = nullptr;   // the document (another one made as this one is is not it)
         int position = -1, revision = 0, hscroll = 0, vscroll = 0;
         double zoom = 0;
         quint64 layout = 0;
         int pages = 0;
-        bool operator==(const RectKey &o) const { return position == o.position && revision == o.revision && hscroll == o.hscroll && vscroll == o.vscroll && zoom == o.zoom && layout == o.layout && pages == o.pages; }
+        bool operator==(const RectKey &o) const { return doc == o.doc && position == o.position && revision == o.revision && hscroll == o.hscroll && vscroll == o.vscroll && zoom == o.zoom && layout == o.layout && pages == o.pages; }
     };
     struct RectCache {
         bool valid = false;

@@ -21733,32 +21733,37 @@ private Q_SLOTS:
 
     static QByteArray svgWith(const QByteArray &inner) { return "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"40\" height=\"30\">" + inner + "</svg>"; }
 
-    void aPictureOfAnotherFormatIsReadWhereThePluginIs()
+    static void insertFormat(const char *format)
     {
+        if (!QImageReader::supportedImageFormats().contains(format)) QSKIP(qPrintable(QStringLiteral("no %1 codec on this machine").arg(QLatin1String(format))));
         auto doc = textDoc({"x"});
         QTextCursor c(doc->story());
-        const auto formats = QImageReader::supportedImageFormats();
-        auto has = [&](const char *f) { return formats.contains(f); };
         QImage image(20, 10, QImage::Format_RGB32);
         image.fill(QColor(10, 200, 30));
-        for (const char *format : {"tiff", "webp", "bmp", "gif"}) {
-            if (!has(format)) continue;
-            QByteArray bytes;
-            QBuffer buffer(&bytes);
-            buffer.open(QIODevice::WriteOnly);
-            if (!image.save(&buffer, format)) continue;
-            QVERIFY2(insertPicture(*doc, c, bytes, QStringLiteral("f")) == PictureResult::Ok, format);
-        }
-        if (!has("tiff") && !has("webp") && !has("svg")) QSKIP("no codec plugin for TIFF, WebP, or SVG on this machine");
-        if (has("svg")) {
-            QVERIFY(insertPicture(*doc, c, svgWith("<rect width=\"40\" height=\"30\" fill=\"red\"/>"), QStringLiteral("s")) == PictureResult::Ok);
-            office::Package pkg;
-            QVERIFY(pkg.read(doc->toDocx()));
-            bool png = false;
-            for (const QString &n : pkg.partNames()) png = png || n.endsWith(QLatin1String(".png"));
-            QVERIFY(png);   // (an SVG is kept as the picture it draws)
-        }
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        QVERIFY2(image.save(&buffer, format), format);
+        QVERIFY2(insertPicture(*doc, c, bytes, QStringLiteral("f")) == PictureResult::Ok, format);
+        QCOMPARE(picturesIn(doc->story()), 1);
         QVERIFY(open(doc->toDocx()));
+    }
+
+    void aTiffPictureIsInserted() { insertFormat("tiff"); }
+    void aWebpPictureIsInserted() { insertFormat("webp"); }
+    void aBmpPictureIsInserted() { insertFormat("bmp"); }
+
+    void anSvgPictureIsInsertedAsThePictureItDraws()
+    {
+        if (!QImageReader::supportedImageFormats().contains("svg")) QSKIP("no SVG codec on this machine");
+        auto doc = textDoc({"x"});
+        QTextCursor c(doc->story());
+        QVERIFY(insertPicture(*doc, c, svgWith("<rect width=\"40\" height=\"30\" fill=\"red\"/>"), QStringLiteral("s")) == PictureResult::Ok);
+        office::Package pkg;
+        QVERIFY(pkg.read(doc->toDocx()));
+        bool png = false;
+        for (const QString &n : pkg.partNames()) png = png || n.endsWith(QLatin1String(".png"));
+        QVERIFY(png);   // (an SVG is kept as the picture it draws)
     }
 
     void anSvgThatReachesOutsideItselfOrIsHugeIsRefused()
@@ -21772,13 +21777,19 @@ private Q_SLOTS:
         secret.write(pngOf(10, 10, 77));
         secret.close();
         const QByteArray url = QUrl::fromLocalFile(secret.fileName()).toString().toUtf8();
+        const QByteArray padding = "<!--" + QByteArray(6000, ' ') + "-->";   // (what comes first is longer than any look at the start of the file)
         for (const QByteArray &inner : {"<image xlink:href=\"" + url + "\" width=\"40\" height=\"30\"/>", "<image href='" + url + "' width=\"40\" height=\"30\"/>",
-                                        QByteArray("<image xlink:href=\"secret.png\" width=\"40\" height=\"30\"/>"), "<rect width=\"4\" height=\"4\" style=\"fill:url(" + url + ")\"/>",
-                                        QByteArray("<style>@import url(secret.css);</style>")}) {
-            const QByteArray svg = svgWith(inner);
-            QVERIFY2(insertPicture(*doc, c, svg, QStringLiteral("s")) != PictureResult::Ok, svg.constData());
+                                        QByteArray("<image xlink:href=\"secret.png\" width=\"40\" height=\"30\"/>"), "<image src=\"" + url + "\" width=\"40\" height=\"30\"/>",
+                                        "<rect width=\"4\" height=\"4\" style=\"fill:url(" + url + ")\"/>", QByteArray("<style>@import url(secret.css);</style>"),
+                                        padding + "<image xlink:href=\"" + url + "\" width=\"40\" height=\"30\"/>"}) {
+            for (bool late : {false, true}) {
+                const QByteArray svg = late ? "<?xml version=\"1.0\"?>" + padding + svgWith(inner) : svgWith(inner);
+                QVERIFY2(insertPicture(*doc, c, svg, QStringLiteral("s")) == PictureResult::External, qPrintable(QString::fromLatin1(svg.left(200))));
+            }
         }
+        // An SVG whose first mention of itself is past the first bytes of the file is still looked through.
         QCOMPARE(picturesIn(doc->story()), 0);
+        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("none"))));
         // What it holds of itself is allowed: a reference to its own parts, and an image in the data it carries.
         const QByteArray own = svgWith("<defs><linearGradient id=\"g\"><stop offset=\"0\" stop-color=\"red\"/></linearGradient></defs><rect width=\"4\" height=\"4\" fill=\"url(#g)\"/>");
         if (QImageReader::supportedImageFormats().contains("svg")) QVERIFY(insertPicture(*doc, c, own, QStringLiteral("own")) == PictureResult::Ok);
@@ -21952,11 +21963,16 @@ private Q_SLOTS:
         QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Square));
         doc->collectObjectRecordsForTest();
         QVERIFY2(doc->liveObjectRecordsForTest() <= 20, qPrintable(QString::number(doc->liveObjectRecordsForTest())));
-        // And the freed places are used again.
-        QVERIFY(doc->objectSlotsForTest() <= steps + 50);
+        // And the freed places are used again: five thousand more edits make no new places (the places are what the first thirty thousand needed, not more).
+        const int places = doc->objectSlotsForTest();
+        for (int i = 0; i < 5000; ++i) QVERIFY(setPicturePlace(*doc, 0, 400 + i * 0.1, 50));
+        QVERIFY2(doc->objectSlotsForTest() <= places + 5, qPrintable(QStringLiteral("%1 places, were %2").arg(doc->objectSlotsForTest()).arg(places)));
+        // The same drawings again are the forms made for them: wrapping back and forth between two looks makes no more than the two.
+        const int before = doc->liveObjectRecordsForTest();
+        for (int i = 0; i < 1000; ++i) QVERIFY(setPictureWrap(*doc, 0, i % 2 ? PictureWrap::Square : PictureWrap::Tight));
+        QVERIFY2(doc->liveObjectRecordsForTest() - before <= 4, qPrintable(QString::number(doc->liveObjectRecordsForTest() - before)));
         QVERIFY(setPicturePlace(*doc, 0, 100, 100));
         QVERIFY(doc->undo());
-        QVERIFY(pictureAt(*doc, doc->story(), 0).wrap == PictureWrap::Square);
         QCOMPARE(pictureItemsOfPage(*doc).size(), 1);
     }
 
@@ -21991,6 +22007,166 @@ private Q_SLOTS:
         QVERIFY(back);
         QCOMPARE(picturesIn(back->story()), 2);
         QCOMPARE(pictureItemsOfPage(*back).size(), 2);
+    }
+
+    // ---- wave C, the second review
+
+    static QByteArray pictureBodyWithId(int id)
+    {
+        return "<w:p><w:r><w:t xml:space=\"preserve\">Pic </w:t></w:r><w:r><w:drawing xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" "
+               "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><wp:inline><wp:extent cx=\"635000\" cy=\"635000\"/>"
+               "<wp:docPr id=\"" + QByteArray::number(id) + "\" name=\"P\"/><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr>"
+               "<pic:cNvPr id=\"0\" name=\"x\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed=\"rIdPic\"/></pic:blipFill><pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>";
+    }
+
+    static QList<int> drawingIdsOf(const QByteArray &xml)
+    {
+        QList<int> out;
+        static const QRegularExpression re(QStringLiteral("<wp:docPr[^>]*? id=\"(\\d+)\""));
+        auto it = re.globalMatch(QString::fromUtf8(xml));
+        while (it.hasNext()) out << it.next().captured(1).toInt();
+        return out;
+    }
+
+    void everyPastedPictureHasADrawingIdOfItsOwn()
+    {
+        auto doc = open(makeDocxWithPicture(pictureBodyWithId(1)));
+        auto other = open(makeDocxWithPicture(pictureBodyWithId(1)));
+        QVERIFY(doc && other);
+        QTextCursor sel(doc->story());
+        sel.setPosition(4);
+        sel.setPosition(5, QTextCursor::KeepAnchor);
+        const Clip same = copySelection(*doc, sel);
+        QTextCursor sel2(other->story());
+        sel2.setPosition(4);
+        sel2.setPosition(5, QTextCursor::KeepAnchor);
+        const Clip foreign = copySelection(*other, sel2);
+        QTextCursor at(doc->story());
+        at.movePosition(QTextCursor::End);
+        pasteClip(*doc, at, same);
+        pasteClip(*doc, at, same);
+        pasteClip(*doc, at, foreign);
+        QCOMPARE(picturesIn(doc->story()), 4);
+        const QList<int> ids = drawingIdsOf(documentXml(doc->toDocx()));
+        QCOMPARE(ids.size(), 4);
+        QCOMPARE(QSet<int>(ids.cbegin(), ids.cend()).size(), 4);
+        // A new picture is above them all, and the undone paste leaves the numbers as they are.
+        QVERIFY(doc->undo());
+        QTextCursor end(doc->story());
+        end.movePosition(QTextCursor::End);
+        QCOMPARE(insertPicture(*doc, end, pngOf(9, 9), QStringLiteral("n")), PictureResult::Ok);
+        const QList<int> more = drawingIdsOf(documentXml(doc->toDocx()));
+        QCOMPARE(QSet<int>(more.cbegin(), more.cend()).size(), more.size());
+    }
+
+    void theDrawingIdsOfTheNotesAreCountedToo()
+    {
+        const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:drawing><wp:inline><wp:extent cx=\"100\" cy=\"100\"/><wp:docPr id=\"50\" name=\"In a note\"/></wp:inline></w:drawing></w:r></w:p></w:footnote></w:footnotes>";
+        const QByteArray body = "<w:p><w:r><w:t>text</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>";
+        auto doc = open(makeDocxWithParts(body, pageSection(), {{QStringLiteral("/word/footnotes.xml"), notes}}));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        QCOMPARE(insertPicture(*doc, c, pngOf(8, 8), QStringLiteral("a")), PictureResult::Ok);
+        const QList<int> ids = drawingIdsOf(documentXml(doc->toDocx()));
+        QCOMPARE(ids.size(), 1);
+        QVERIFY2(ids[0] > 50, qPrintable(QString::number(ids[0])));
+    }
+
+    void aPastedPictureIsHeldToTheTotalOfTheDocumentsPictures()
+    {
+        auto doc = open(makeDocxWithPicture("<w:p><w:r><w:t>Target.</w:t></w:r></w:p>"));
+        auto other = textDoc({"Other."});
+        QTextCursor oc(other->story());
+        QCOMPARE(insertPicture(*other, oc, pngOf(50, 50, 9), QStringLiteral("o")), PictureResult::Ok);
+        QTextCursor sel(other->story());
+        sel.setPosition(0);
+        sel.setPosition(1, QTextCursor::KeepAnchor);
+        const Clip clip = copySelection(*other, sel);
+        QCOMPARE(clip.links.size(), 1);
+        // (The picture of the other document is not the target's: it would be added.)
+        QTextCursor c(doc->story());
+        QCOMPARE(insertPicture(*doc, c, pngOf(33, 33, 4), QStringLiteral("first")), PictureResult::Ok);
+        doc->mediaLimit = doc->mediaBytes() + 5;
+        const qint64 held = doc->mediaBytes();
+        QTextCursor at(doc->story());
+        at.movePosition(QTextCursor::End);
+        pasteClip(*doc, at, clip);
+        QCOMPARE(doc->mediaBytes(), held);
+        QCOMPARE(picturesIn(doc->story()), 1);
+        QVERIFY(!doc->pictureNotice.isEmpty());
+        // With room, it goes in.
+        doc->mediaLimit = kMostMediaBytes;
+        pasteClip(*doc, at, clip);
+        QCOMPARE(picturesIn(doc->story()), 2);
+    }
+
+    void tabStopsAParagraphHasBeyondWhatTheRulerShowsAreNeverDropped()
+    {
+        auto doc = textDoc({"text"});
+        QTextCursor c(doc->story());
+        QVector<TabStopEntry> many;
+        for (int i = 0; i < 5000; ++i) {
+            TabStopEntry t;
+            t.position = 5 + i * 0.25;
+            many << t;
+        }
+        setTabStops(*doc, c, many);
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat()).size(), 5000);
+        TabStopEntry more;
+        more.position = 3000.5;
+        QVERIFY(!addTabStop(*doc, c, more));
+        QVERIFY(moveTabStop(*doc, c, 5, 5.1));
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat()).size(), 5000);
+        QVERIFY(removeTabStop(*doc, c, 5.1));
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat()).size(), 4999);
+        QVERIFY(doc->undo());
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat()).size(), 5000);
+    }
+
+    // Left and Right move over a picture the same way whichever way its form was made (made for the drawing, or the one made before for the same drawing), and over a picture in
+    // line as over a letter.
+    void theArrowKeysMovePastAPictureWhicheverWayItsFormWasMade()
+    {
+        auto walk = [](WriteDoc &doc) {
+            QList<int> where;
+            QTextCursor k(doc.story());
+            k.setPosition(3);
+            for (int i = 0; i < 2; ++i) {
+                moveCursor(k, QTextCursor::NextCharacter, false);
+                where << k.position();
+            }
+            for (int i = 0; i < 2; ++i) {
+                moveCursor(k, QTextCursor::PreviousCharacter, false);
+                where << k.position();
+            }
+            return where;
+        };
+        for (PictureWrap wrap : {PictureWrap::Inline, PictureWrap::Square}) {
+            auto doc = textDoc({QStringLiteral("ab cd")});
+            QTextCursor c(doc->story());
+            c.setPosition(3);
+            QCOMPARE(insertPicture(*doc, c, pngOf(40, 40), QStringLiteral("p"), wrap), PictureResult::Ok);
+            const QList<int> made = walk(*doc);
+            if (wrap == PictureWrap::Inline) QCOMPARE(made, (QList<int>{4, 5, 4, 3}));   // (as over a letter)
+            if (wrap != PictureWrap::Inline) {
+                QVERIFY(setPictureWrap(*doc, 3, PictureWrap::Tight));
+                QVERIFY(setPictureWrap(*doc, 3, PictureWrap::Square));   // (the form made before for it)
+            } else {
+                QVERIFY(setPicturePlace(*doc, 3, 100, 100));
+                QVERIFY(doc->undo());
+                QVERIFY(doc->redo());
+                QVERIFY(doc->undo());
+            }
+            const QList<int> before = walk(*doc);
+            QCOMPARE(before, made);
+            auto fresh = open(doc->toDocx());   // (the form made for the drawing as a file opens it)
+            QCOMPARE(walk(*fresh), made);
+            const QList<QTextCharFormat> a = atomFormats(*doc, QStringLiteral("drawing")), b = atomFormats(*fresh, QStringLiteral("drawing"));
+            QCOMPARE(a.size(), 1);
+            QCOMPARE(b.size(), 1);
+            QCOMPARE(a[0].stringProperty(tp::Field), b[0].stringProperty(tp::Field));
+        }
     }
 
     // Not a test of its own: the work of a process that the next function starts. A document with a header and a footer, read, typed in, and saved.

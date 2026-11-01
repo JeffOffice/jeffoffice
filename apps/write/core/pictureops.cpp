@@ -398,7 +398,7 @@ PictureResult encodeImage(const QImage &image, Prepared *out)
 bool looksLikeSvg(const QByteArray &bytes)
 {
     if (bytes.startsWith("\x1f\x8b")) return false;
-    return bytes.left(4096).toLower().contains("<svg");
+    return bytes.contains("<svg") || bytes.contains("<SVG");
 }
 
 // Whether an SVG refers to anything outside itself: a file, an address, a style sheet, or a definition of its own that a reader might load. What it holds of its own (a link to an
@@ -408,7 +408,7 @@ bool svgReachesOutside(const QByteArray &svg)
     const QString text = QString::fromUtf8(svg);
     static const QRegularExpression doctype(QStringLiteral("<!\\s*(DOCTYPE|ENTITY)|<\\?xml-stylesheet|@import"), QRegularExpression::CaseInsensitiveOption);
     if (doctype.match(text).hasMatch()) return true;
-    static const QRegularExpression href(QStringLiteral("(?:^|[\\s:])href\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"), QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression href(QStringLiteral("(?:^|[\\s:])(?:href|src)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"), QRegularExpression::CaseInsensitiveOption);
     for (auto it = href.globalMatch(text); it.hasNext();) {
         const QRegularExpressionMatch m = it.next();
         const QString value = (m.captured(1).isEmpty() ? m.captured(2) : m.captured(1)).trimmed();
@@ -437,6 +437,8 @@ PictureResult prepare(const QByteArray &input, Prepared *out)
     buffer.open(QIODevice::ReadOnly);
     QImageReader reader(&buffer);
     const QByteArray format = reader.format().toLower();
+    // (A file the reader takes for an SVG is looked through whatever it begins with.)
+    if ((format == "svg" || format == "svgz") && !looksLikeSvg(input)) return PictureResult::External;
     const QSize size = reader.size();
     if (format.isEmpty() || !size.isValid() || size.isEmpty()) return PictureResult::Unreadable;
     if (qint64(size.width()) * size.height() > kMostPicturePixels || size.width() > kMostPictureSide || size.height() > kMostPictureSide) return PictureResult::TooLarge;
@@ -567,6 +569,15 @@ int WriteDoc::nextDrawingId(const QTextDocument *story)
             if (part.contentType.contains(QLatin1String("xml"))) m_drawingId = std::max(m_drawingId, std::min(highestDrawingIdIn(part.data), 2000000000 - 2));
         for (const HeaderPart &hp : std::as_const(m_headerParts))
             if (hp.story) m_drawingId = std::max(m_drawingId, highestDrawingId(hp.story.get()));
+        auto inBlocks = [&](const QHash<QString, QVector<Block>> &notes) {
+            for (const QVector<Block> &blocks : notes)
+                for (const Block &b : blocks) {
+                    m_drawingId = std::max(m_drawingId, std::min(highestDrawingIdIn(b.raw), 2000000000 - 2));
+                    for (const Inline &in : b.para.content) m_drawingId = std::max(m_drawingId, std::min(highestDrawingIdIn(in.raw), 2000000000 - 2));
+                }
+        };
+        inBlocks(m_noteBlocks);
+        inBlocks(m_endnoteBlocks);
     }
     return ++m_drawingId;
 }
@@ -730,6 +741,17 @@ void clampKeepingRatio(double *width, double *height)
     if (small * k < kLeastPictureSize) k = kLeastPictureSize / small;
     *width = std::clamp(*width * k, kLeastPictureSize, kMostPictureSize);
     *height = std::clamp(*height * k, kLeastPictureSize, kMostPictureSize);
+}
+
+QByteArray withDrawingId(const QByteArray &raw, int id)
+{
+    const qsizetype at = raw.indexOf("docPr");
+    if (at < 0) return raw;
+    const qsizetype key = raw.indexOf(" id=\"", at);
+    if (key < 0 || key - at > 400) return raw;
+    const qsizetype end = raw.indexOf('"', key + 5);
+    if (end < 0) return raw;
+    return raw.left(key + 5) + QByteArray::number(id) + raw.mid(end);
 }
 
 QString cleanAltText(const QString &text) { return cleanText(text, kMostAltTextLength); }

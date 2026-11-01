@@ -87,6 +87,7 @@ Ruler::State Ruler::read() const
     s.right = bf.rightMargin();
     s.first = bf.textIndent();
     s.tabs = tabStopsOf(bf);
+    if (s.tabs.size() > kMostTabStopsShown) s.tabs.resize(kMostTabStopsShown);   // (drawn, not changed: the stops are the paragraph's)
     return s;
 }
 
