@@ -1,6 +1,7 @@
 #include "sheet/xlscodepage.h"
 
 #include <QStringDecoder>
+#include <QStringEncoder>
 
 #include <climits>
 #if defined(Q_OS_WIN)
@@ -742,7 +743,32 @@ bool xlsTextToBytes(int codepage, const QString &text, QByteArray *out, qsizetyp
     const Page *table = nullptr;
     for (const Page &page : kPages)
         if (page.id == codepage) table = &page;
-    if (!table) return false;
+    if (!table) {
+        // a double-byte page is the system's: Qt's converter writes it (ICU or iconv, whatever Qt was built with), a character at a time so that one the page lacks is a question mark
+        const char *name = isDoubleByte(codepage) ? qtNameOf(codepage) : nullptr;
+        if (!name) return false;
+        QStringEncoder encoder(name);
+        if (!encoder.isValid()) return false;
+        out->clear();
+        if (replaced) *replaced = 0;
+        for (qsizetype i = 0; i < text.size();) {
+            const qsizetype n = text.at(i).isHighSurrogate() && i + 1 < text.size() && text.at(i + 1).isLowSurrogate() ? 2 : 1;
+            if (n == 1 && text.at(i).unicode() < 0x80) {
+                out->append(char(text.at(i).unicode()));
+            } else {
+                encoder.resetState();
+                const QByteArray bytes = encoder(QStringView(text).mid(i, n));
+                if (encoder.hasError() || bytes.isEmpty()) {
+                    out->append('?');
+                    if (replaced) ++*replaced;
+                } else {
+                    out->append(bytes);
+                }
+            }
+            i += n;
+        }
+        return true;
+    }
     out->clear();
     out->reserve(text.size());
     if (replaced) *replaced = 0;

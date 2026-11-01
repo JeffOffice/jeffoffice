@@ -288,12 +288,74 @@ private Q_SLOTS:
         }
     }
 
+    // Save As of a file of values asks how to write it, whether or not it was edited: the question's answer decides. The file's own bytes are copied only when the answer is the file's own form;
+    // another separator or encoding is written as asked.
+    void saveAsOfAnUneditedCsvAlwaysAsksHowToWriteIt()
+    {
+        LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
+        const QByteArray bytes = "a;b\n1;2\n";
+        struct Result {
+            bool asked = false;
+            QByteArray written;
+            bool exists = false;
+        };
+        auto run = [&](const std::function<void(CsvSaveDialog *)> &act) {
+            Result r;
+            Win o;
+            if (!o.open(bytes, QStringLiteral("v.csv"))) return r;
+            o.w.setLossAsker(nullptr);   // (the question itself)
+            QTimer finder;
+            finder.setInterval(10);
+            QObject::connect(&finder, &QTimer::timeout, &finder, [&] {
+                auto *dialog = qobject_cast<CsvSaveDialog *>(QApplication::activeModalWidget());
+                if (!dialog || r.asked) return;
+                r.asked = true;
+                act(dialog);
+            });
+            finder.start();
+            QSignalSpy exported(&o.w, &CrunchWindow::csvExported);
+            const bool started = o.w.saveAs(o.folder.dir.filePath(QStringLiteral("copy.csv")));
+            if (started && exported.count() == 0) exported.wait(20000);
+            r.exists = QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("copy.csv")));
+            r.written = o.folder.read(QStringLiteral("copy.csv"));
+            return r;
+        };
+        const Result same = run([](CsvSaveDialog *d) { d->findChild<QPushButton *>(QStringLiteral("csvSaveValues"))->click(); });
+        QVERIFY(same.asked);
+        QCOMPARE(same.written, bytes);
+        const Result tab = run([](CsvSaveDialog *d) {
+            auto *sep = d->findChild<QComboBox *>(QStringLiteral("csvSeparator"));
+            sep->setCurrentIndex(sep->findText(QStringLiteral("Tab")));
+            d->findChild<QPushButton *>(QStringLiteral("csvSaveValues"))->click();
+        });
+        QVERIFY(tab.asked);
+        QCOMPARE(tab.written, QByteArray("a\tb\n1\t2\n"));
+        const Result utf16 = run([](CsvSaveDialog *d) {
+            auto *enc = d->findChild<QComboBox *>(QStringLiteral("csvEncoding"));
+            enc->setCurrentIndex(enc->findText(QStringLiteral("Unicode (UTF-16, little end first)")));
+            d->findChild<QPushButton *>(QStringLiteral("csvSaveValues"))->click();
+        });
+        QVERIFY(utf16.asked);
+        QVERIFY(utf16.written.startsWith("\xFF\xFE"));
+        const Result cancelled = run([](CsvSaveDialog *d) { d->reject(); });
+        QVERIFY(cancelled.asked);
+        QVERIFY(!cancelled.exists);
+    }
+
     // Once a cell is changed the file is written in the form it came in: its separator, its line ends, its encoding with or without the mark; a file of another ending is written the usual way.
     void anEditedCsvIsWrittenInTheFormItCameIn()
     {
         LocaleScope locale(QLocale(QLocale::English, QLocale::UnitedStates));
         const QByteArray utf16 = QByteArray("\xFF\xFE") + QByteArray("a\0,\0b\0\r\0\n\0001\0,\0" "2\0\r\0\n\0", 20);
         const QByteArray utf16Out = QByteArray("\xFF\xFE") + QByteArray("5\0,\0b\0\r\0\n\0001\0,\0" "2\0\r\0\n\0", 20);
+        auto wide = [](const char *text) {
+            QByteArray out("\xFE\xFF");
+            for (const char *c = text; *c; ++c) {
+                out += '\0';
+                out += *c;
+            }
+            return out;
+        };
         const struct {
             const char *name, *copy;
             QByteArray bytes, expected;
@@ -304,7 +366,8 @@ private Q_SLOTS:
                      {"e.csv", "copy.csv", utf16, utf16Out},
                      {"f.csv", "copy.csv", "a|b\n1|2\n", "5|b\n1|2\n"},
                      {"g.csv", "copy.csv", "a,b\n\" x\",2\n", "5,b\n\" x\",2\n"},
-                     {"h.tsv", "copy.csv", "a\tb\n1\t2\n", "\xEF\xBB\xBF" "5,b\r\n1,2\r\n"}};
+                     {"h.tsv", "copy.csv", "a\tb\n1\t2\n", "\xEF\xBB\xBF" "5,b\r\n1,2\r\n"},
+                     {"j.csv", "copy.csv", wide("a,b\r\n1,2\r\n"), wide("5,b\r\n1,2\r\n")}};   // (UTF-16, big end first, stays so)
         for (const auto &f : files) {
             Win o;
             QVERIFY2(o.open(f.bytes, QString::fromLatin1(f.name)), f.name);
@@ -582,7 +645,8 @@ private Q_SLOTS:
             QSignalSpy saved(&o.w, &CrunchWindow::saved);
             QVERIFY(o.w.saveAs(o.folder.dir.filePath(QStringLiteral("later.xlsx"))));
             QVERIFY(savedOk(saved));
-            QTest::qWait(50);
+            QVERIFY(QTest::qWaitFor([&] { return !o.w.isSaving(); }, 5000));   // (a close, if one was to be, was made when the file was done)
+            QCoreApplication::processEvents();
             QVERIFY(o.w.isVisible());
         }
         {
@@ -597,7 +661,8 @@ private Q_SLOTS:
             QSignalSpy exported(&o.w, &CrunchWindow::csvExported);
             QVERIFY(o.w.saveAs(o.folder.dir.filePath(QStringLiteral("again.csv"))));
             QVERIFY(exported.wait(20000));
-            QTest::qWait(50);
+            QVERIFY(QTest::qWaitFor([&] { return !o.w.isSaving(); }, 5000));   // (a close, if one was to be, was made when the file was done)
+            QCoreApplication::processEvents();
             QVERIFY(o.w.isVisible());
         }
     }
@@ -791,7 +856,8 @@ private Q_SLOTS:
             QVERIFY(o.w.saveAs(o.folder.dir.filePath(QStringLiteral("good.csv"))));
             QVERIFY(again.wait(20000));
             QCOMPARE(again.first().at(1).toBool(), true);
-            QTest::qWait(100);
+            QVERIFY(QTest::qWaitFor([&] { return !o.w.isSaving(); }, 5000));
+            QCoreApplication::processEvents();
             QVERIFY(o.w.isVisible());
             QCOMPARE(asked, 1);
         }

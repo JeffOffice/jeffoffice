@@ -2,7 +2,7 @@
 // A sheet's values written as a file of delimited values (.csv, .tsv, .txt). By default: UTF-8 with the byte order mark (so that the program people read such files with takes accented
 // letters right), each row ended by a carriage return and a line feed, each cell as it is shown (a number in its format, a date as a date, a formula as what it came to), a text in quotes
 // when it holds the separator, a quote (written twice), a line break, or a space at either end. The person may choose the separator, the encoding (UTF-8 with or without the mark, UTF-16, or
-// a single-byte code page), the line ends, and whether the cells are written as shown or as stored (every digit of a number, a date as ISO text). The rows are the sheet's, up to the last
+// a code page, single- or double-byte, if the machine can write it), the line ends, and whether the cells are written as shown or as stored (every digit of a number, a date as ISO text). The rows are the sheet's, up to the last
 // row and column that hold something, hidden ones too. It is written in slices of a few milliseconds, to a file of its own that takes the name when it is whole, so that a file that is there
 // is never half written over.
 
@@ -17,7 +17,7 @@ namespace jp::crunch {
 
 // How a sheet is written as a file of values.
 struct CsvWrite {
-    enum class Encoding { Utf8Mark, Utf8, Utf16Le, CodePage } encoding = Encoding::Utf8Mark;
+    enum class Encoding { Utf8Mark, Utf8, Utf16Le, CodePage, Utf16Be } encoding = Encoding::Utf8Mark;
     int codePage = 1252;                       // for CodePage: a single-byte page
     QChar separator = QLatin1Char(',');
     QString lineEnd = QStringLiteral("\r\n");   // "\r\n", "\n", or "\r"

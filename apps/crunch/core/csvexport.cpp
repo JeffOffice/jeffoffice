@@ -47,6 +47,7 @@ bool CsvExport::begin(const QString &path, QString *error)
     }
     if (m_how.encoding == CsvWrite::Encoding::Utf8Mark) m_buffer = QByteArray("\xEF\xBB\xBF", 3);
     else if (m_how.encoding == CsvWrite::Encoding::Utf16Le) m_buffer = QByteArray("\xFF\xFE", 2);
+    else if (m_how.encoding == CsvWrite::Encoding::Utf16Be) m_buffer = QByteArray("\xFE\xFF", 2);
     m_begun = true;
     return true;
 }
@@ -55,6 +56,14 @@ bool CsvExport::begin(const QString &path, QString *error)
 QByteArray CsvExport::encoded(const QString &text)
 {
     switch (m_how.encoding) {
+    case CsvWrite::Encoding::Utf16Be: {
+        QByteArray out(text.size() * 2, '\0');
+        for (qsizetype i = 0; i < text.size(); ++i) {
+            out[2 * i] = char(text[i].unicode() >> 8);
+            out[2 * i + 1] = char(text[i].unicode() & 0xFF);
+        }
+        return out;
+    }
     case CsvWrite::Encoding::Utf16Le: {
         QByteArray out(text.size() * 2, '\0');
         for (qsizetype i = 0; i < text.size(); ++i) {

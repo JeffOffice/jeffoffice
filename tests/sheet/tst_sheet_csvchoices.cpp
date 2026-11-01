@@ -156,7 +156,21 @@ private Q_SLOTS:
         QVERIFY(xlsTextToBytes(1252, QString::fromUtf8("a\xE2\x82\xAC\xCE\xB1z"), &out, &lost));   // the euro sign is in 1252; alpha is not
         QCOMPARE(out, QByteArray("a\x80?z"));
         QCOMPARE(lost, qsizetype(1));
-        QVERIFY(!xlsTextToBytes(932, QStringLiteral("a"), &out, &lost));   // (a double-byte page is the system's)
+        QVERIFY(!xlsTextToBytes(1361, QStringLiteral("a"), &out, &lost) || !out.isEmpty());   // (a double-byte page is the system's: written when it has the converter)
+    }
+
+    // A double-byte page (Japanese here) can be written when the system has it: the characters go to the bytes of the page, and a letter the page lacks is a question mark.
+    void aDoubleBytePageIsWrittenWhenTheSystemHasIt()
+    {
+        if (!xlsCanConvert(932, CodePageBackend::Qt)) QSKIP("this machine has no converter for the Japanese page");
+        QByteArray out;
+        qsizetype lost = 0;
+        QVERIFY(xlsTextToBytes(932, QString::fromUtf8("\xE6\x97\xA5\xE6\x9C\xAC a"), &out, &lost));
+        QCOMPARE(out, QByteArray("\x93\xFA\x96\x7B a"));
+        QCOMPARE(lost, qsizetype(0));
+        QVERIFY(xlsTextToBytes(932, QString::fromUtf8("\xCE\xB1\xF0\x9F\x98\x80"), &out, &lost));   // (a Greek letter is in the page; the face is not)
+        QVERIFY(out.endsWith("?"));
+        QCOMPARE(lost, qsizetype(1));
     }
 
     // How a file's lines end is told from its first line, and kept in the form.

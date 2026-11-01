@@ -54,7 +54,8 @@ crunch::CsvWrite CrunchWindow::csvWriteFor(const QString &path) const
         how.separator = form.delimiter;
         how.lineEnd = form.lineEnd;
         how.encoding = form.encoding == CsvEncoding::Utf8 ? crunch::CsvWrite::Encoding::Utf8
-                       : form.encoding == CsvEncoding::Utf16Le || form.encoding == CsvEncoding::Utf16Be ? crunch::CsvWrite::Encoding::Utf16Le
+                       : form.encoding == CsvEncoding::Utf16Le ? crunch::CsvWrite::Encoding::Utf16Le
+                       : form.encoding == CsvEncoding::Utf16Be ? crunch::CsvWrite::Encoding::Utf16Be
                        : form.encoding == CsvEncoding::Legacy && crunch::csvCanWriteCodePage(form.codePage) ? crunch::CsvWrite::Encoding::CodePage
                                                                                                           : crunch::CsvWrite::Encoding::Utf8Mark;
         how.codePage = form.codePage;
@@ -107,14 +108,6 @@ bool CrunchWindow::exportCsv(const QString &path, const crunch::CsvWrite *forced
             }
         }
     };
-    // A workbook read from a file of values and not changed is written as the file's own bytes when the choices are the file's: nothing is lost, so nothing is asked.
-    const auto *csv = m_loaded->book->foreignBook() ? dynamic_cast<const jp::office::sheet::CsvBook *>(m_loaded->book->foreignBook()) : nullptr;
-    if (csv && how.sameAsFile && !m_session->isModified() && m_sheet == 0) {
-        QSaveFile file(path);
-        const bool ok = file.open(QIODevice::WriteOnly) && file.write(csv->bytes()) == csv->bytes().size() && file.commit();
-        finish(ok, file.errorString(), 0);
-        return ok;
-    }
     // (a sheet that was read only in part is written in part: the person is told)
     const bool partial = m_loaded->calc && m_loaded->calc->notWhole().contains(sheetName);
     // (the person is told what the file will not have, naming what this workbook has of it, and may choose how it is written, or save the workbook as .xlsx instead)
@@ -139,6 +132,14 @@ bool CrunchWindow::exportCsv(const QString &path, const crunch::CsvWrite *forced
             m_closeAfterSave = false;
         }
         return false;
+    }
+    // A workbook read from a file of values and not changed, saved with the choices that are the file's own, is written as the file's own bytes; any other choice is written as asked.
+    const auto *csv = m_loaded->book->foreignBook() ? dynamic_cast<const jp::office::sheet::CsvBook *>(m_loaded->book->foreignBook()) : nullptr;
+    if (csv && how.sameAsFile && !m_session->isModified() && m_sheet == 0) {
+        QSaveFile file(path);
+        const bool ok = file.open(QIODevice::WriteOnly) && file.write(csv->bytes()) == csv->bytes().size() && file.commit();
+        finish(ok, file.errorString(), 0);
+        return ok;
     }
     // the sheet in view, in a model of its own
     auto model = std::make_shared<grid::GridSheet>();

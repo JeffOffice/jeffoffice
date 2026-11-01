@@ -25,7 +25,9 @@ const Code kPages[] = {{1252, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Western Eu
                        {1251, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Cyrillic (1251)")},        {1253, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Greek (1253)")},
                        {1254, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Turkish (1254)")},         {28591, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Western European (ISO 8859-1)")},
                        {28592, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Central European (ISO 8859-2)")}, {28605, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Western European (ISO 8859-15)")},
-                       {10000, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Mac Roman")}};
+                       {10000, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Mac Roman")},
+                       {932, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Japanese (932)")}, {936, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Chinese, simplified (936)")},
+                       {949, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Korean (949)")}, {950, QT_TRANSLATE_NOOP("jp::CsvSaveDialog", "Chinese, traditional (950)")}};
 
 } // namespace
 
@@ -66,6 +68,7 @@ CsvSaveDialog::CsvSaveDialog(const QString &explanation, const crunch::CsvWrite 
     m_encoding->addItem(tr("Unicode (UTF-8 with a mark)"), -1);
     m_encoding->addItem(tr("Unicode (UTF-8)"), -2);
     m_encoding->addItem(tr("Unicode (UTF-16, little end first)"), -3);
+    m_encoding->addItem(tr("Unicode (UTF-16, big end first)"), -4);
     for (const Code &c : kPages) m_encoding->addItem(QCoreApplication::translate("jp::CsvSaveDialog", c.label), c.codePage);
     form->addRow(tr("Text encoding:"), m_encoding);
     m_lineEnd = new QComboBox(this);
@@ -91,7 +94,7 @@ CsvSaveDialog::CsvSaveDialog(const QString &explanation, const crunch::CsvWrite 
         m_other->setText(QString(start.separator));
     }
     using Enc = crunch::CsvWrite::Encoding;
-    m_encoding->setCurrentIndex(m_encoding->findData(start.encoding == Enc::Utf8Mark ? -1 : start.encoding == Enc::Utf8 ? -2 : start.encoding == Enc::Utf16Le ? -3 : start.codePage));
+    m_encoding->setCurrentIndex(m_encoding->findData(start.encoding == Enc::Utf8Mark ? -1 : start.encoding == Enc::Utf8 ? -2 : start.encoding == Enc::Utf16Le ? -3 : start.encoding == Enc::Utf16Be ? -4 : start.codePage));
     if (m_encoding->currentIndex() < 0) m_encoding->setCurrentIndex(0);
     m_lineEnd->setCurrentIndex(std::max(0, m_lineEnd->findData(start.lineEnd)));
     m_values->setCurrentIndex(start.asStored ? 1 : 0);
@@ -120,7 +123,7 @@ crunch::CsvWrite CsvSaveDialog::options() const
     else if (!m_other->text().isEmpty()) out.separator = m_other->text().front();
     const int code = m_encoding->currentData().toInt();
     using Enc = crunch::CsvWrite::Encoding;
-    out.encoding = code == -1 ? Enc::Utf8Mark : code == -2 ? Enc::Utf8 : code == -3 ? Enc::Utf16Le : Enc::CodePage;
+    out.encoding = code == -1 ? Enc::Utf8Mark : code == -2 ? Enc::Utf8 : code == -3 ? Enc::Utf16Le : code == -4 ? Enc::Utf16Be : Enc::CodePage;
     if (code > 0) out.codePage = code;
     out.lineEnd = m_lineEnd->currentData().toString();
     out.asStored = m_values->currentData().toBool();
