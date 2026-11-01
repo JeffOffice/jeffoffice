@@ -95,6 +95,41 @@ int WriteDoc::nextRevisionId()
     return m_nextRevisionId++;
 }
 
+QVector<QTextDocument *> WriteDoc::storiesWithChanges()
+{
+    auto marked = [](const QByteArray &x) {
+        static const char *const names[] = {"<w:ins", "<w:del", "<w:moveFrom", "<w:moveTo", "rPrChange", "pPrChange"};
+        for (const char *n : names)
+            if (x.contains(n)) return true;
+        return false;
+    };
+    QVector<QTextDocument *> out;
+    QStringList names = m_headerParts.keys();
+    names.sort();
+    for (const QString &name : std::as_const(names)) {
+        HeaderPart &part = m_headerParts[name];
+        if (part.unreadable || part.missing || part.created) {
+            if (!(part.created && part.editForm && part.story)) continue;
+        }
+        if (!part.editForm && !marked(partData(part.name))) continue;
+        if (!makeEditable(part) || !part.story) continue;
+        out.push_back(part.story.get());
+    }
+    QStringList notes = m_noteBlocks.keys();
+    notes.sort();
+    for (const QString &key : std::as_const(notes)) {
+        bool has = false;
+        for (const Block &b : m_noteBlocks.value(key))
+            if (!b.isRaw && marked(office::wml::blockXml(b))) {
+                has = true;
+                break;
+            }
+        if (!has) continue;
+        if (QTextDocument *n = editableFootnote(key.mid(2).toInt())) out.push_back(n);
+    }
+    return out;
+}
+
 void WriteDoc::setRevisionView(int view)
 {
     if (view == m_revisionView) return;

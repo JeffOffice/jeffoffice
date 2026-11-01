@@ -101,6 +101,9 @@ QTextCharFormat withFormatRecord(WriteDoc &doc, const QString &paragraphStyle, c
 // The same for a paragraph's properties.
 QTextBlockFormat withParagraphRecord(WriteDoc &doc, const QTextBlockFormat &old, QTextBlockFormat now);
 
+// The same for a piece of XML that is kept as written (the content of a text box): its changes accepted or rejected, the XML given back (as it was when it has none or can't be read).
+QByteArray resolveChangesInXml(const QByteArray &xml, bool accept);
+bool xmlHasChanges(const QByteArray &xml);
 // The Ids of the marks of changes in blocks about to be written: every Id is used once, and none is the Id of a comment or a bookmark (the first mark that has an Id keeps it; the others, which
 // splitting a paragraph and pasting copies make, get new ones).
 void makeChangeIdsUnique(WriteDoc &doc, QVector<office::wml::Block> *blocks);

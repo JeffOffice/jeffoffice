@@ -22,6 +22,7 @@ namespace jp::write {
 namespace {
 
 std::atomic<qint64> s_blocksScanned{0}, s_runsVisited{0};
+thread_local bool t_withEndnotes = false;   // (the words of the endnotes the pages set, which the changes in them are looked for in, while Accept All and Reject All go through them)
 
 bool isRevisionTag(const QString &tag)
 {
@@ -348,7 +349,7 @@ QVector<Revision> revisionsIn(const QTextDocument *story, int from, int to, int 
     QVector<Revision> out;
     QTextBlock b = story->findBlock(std::max(0, from));
     for (; b.isValid() && (to < 0 || b.position() <= to) && out.size() < most; b = b.next()) {
-        if (b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+        if (b.blockFormat().hasProperty(prop::EndnoteBlock) && !(t_withEndnotes && b.blockFormat().intProperty(prop::EndnoteNote) > 0)) continue;
         QVector<Revision> inBlock;
         addRevisionsOf(b, &inBlock);
         for (const Revision &r : std::as_const(inBlock)) {
@@ -866,8 +867,85 @@ int resolveRevisionsIn(WriteDoc &doc, QTextDocument *story, int from, int to, bo
     return resolveRevisions(doc, story, revisionsIn(story, from, to), accept);
 }
 
-int acceptAll(WriteDoc &doc) { return resolveRevisionsIn(doc, doc.story(), 0, -1, true); }
-int rejectAll(WriteDoc &doc) { return resolveRevisionsIn(doc, doc.story(), 0, -1, false); }
+namespace {
+
+// The text boxes of a story: the changes in the XML that the pieces of a text box keep are accepted or rejected, and the box is made again from it. Returns how many boxes were changed.
+int resolveTextBoxes(WriteDoc &doc, QTextDocument *story, bool accept)
+{
+    struct Box { int pos; Inline atom; QTextCharFormat format; };
+    QVector<Box> boxes;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        if (b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const Inline a = unpackAtom(storedBytes(cf, prop::Atom));
+            if (a.kind != Inline::RunAtom || !a.raw.contains("txbxContent") || !xmlHasChanges(a.raw)) continue;
+            boxes.push_back({it.fragment().position(), a, cf});
+        }
+    }
+    int done = 0;
+    QTextCursor t(story);
+    for (const Box &box : std::as_const(boxes)) {
+        Inline made = box.atom;
+        made.raw = resolveChangesInXml(box.atom.raw, accept);
+        if (made.raw == box.atom.raw) continue;
+        QTextCharFormat f = box.format;
+        f.clearProperty(flow::fp::AnchorId);
+        f.clearProperty(tp::InlineObject);
+        setStored(f, prop::Atom, packAtom(made));
+        if (!doc.makeDrawnFormat(made, &f)) continue;
+        t.setPosition(box.pos);
+        t.setPosition(box.pos + 1, QTextCursor::KeepAnchor);
+        t.setCharFormat(f);
+        ++done;
+    }
+    if (done) doc.keepObjectsForTheHistory();
+    return done;
+}
+
+// The words of the endnotes (each note that is edited in place): the changes in them, one note at a time.
+int resolveEndnotes(WriteDoc &doc, bool accept)
+{
+    QTextDocument *story = doc.story();
+    QMap<int, std::pair<int, int>> notes;   // by the note's serial: where its words begin and end
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat bf = b.blockFormat();
+        if (!bf.hasProperty(prop::EndnoteBlock) || bf.intProperty(prop::EndnoteNote) <= 0) continue;
+        const int serial = bf.intProperty(prop::EndnoteNote);
+        const int end = b.position() + b.length() - 1;
+        if (!notes.contains(serial)) notes.insert(serial, {b.position(), end});
+        else notes[serial].second = end;
+    }
+    int done = 0;
+    struct Scope { bool was; Scope() : was(t_withEndnotes) { t_withEndnotes = true; } ~Scope() { t_withEndnotes = was; } } scope;
+    for (auto it = notes.cbegin(); it != notes.cend(); ++it) {
+        QTextCursor c(story);
+        c.setPosition(it->first);
+        const NoteScopeGuard guard(doc, c);
+        done += resolveRevisionsIn(doc, story, it->first, it->second, accept);
+    }
+    return done;
+}
+
+// Every change of the document, as a person expects: the text, the text boxes, the endnotes, and the headers, footers, and footnotes. One step of the history.
+int resolveEverywhere(WriteDoc &doc, bool accept)
+{
+    WriteDoc::StepGroup group(doc);
+    int n = resolveRevisionsIn(doc, doc.story(), 0, -1, accept);
+    n += resolveTextBoxes(doc, doc.story(), accept);
+    n += resolveEndnotes(doc, accept);
+    for (QTextDocument *s : doc.storiesWithChanges()) {
+        n += resolveRevisionsIn(doc, s, 0, -1, accept);
+        n += resolveTextBoxes(doc, s, accept);
+    }
+    return n;
+}
+
+} // namespace
+
+int acceptAll(WriteDoc &doc) { return resolveEverywhere(doc, true); }
+int rejectAll(WriteDoc &doc) { return resolveEverywhere(doc, false); }
 
 int resolveAtCursor(WriteDoc &doc, QTextCursor &c, bool accept)
 {

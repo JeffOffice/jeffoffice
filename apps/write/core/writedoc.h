@@ -291,6 +291,26 @@ public:
     // What core/commentops.cpp keeps with the document (the comment parts of the file, read once).
     std::shared_ptr<void> commentCache;
 
+    // The edits made while one of these lives, in any of the document's stories, are one step of the history: an Undo takes all of them back, and a Redo does all again.
+    class StepGroup {
+    public:
+        explicit StepGroup(WriteDoc &doc) : m_doc(doc)
+        {
+            if (m_doc.m_groupDepth++ == 0) m_doc.m_openGroup = m_doc.m_nextGroup++;
+        }
+        ~StepGroup()
+        {
+            if (--m_doc.m_groupDepth == 0) m_doc.m_openGroup = 0;
+        }
+        StepGroup(const StepGroup &) = delete;
+        StepGroup &operator=(const StepGroup &) = delete;
+
+    private:
+        WriteDoc &m_doc;
+    };
+    // The stories besides the text that hold tracked changes: the headers and footers and the footnotes (each made editable if it was not), in a fixed order. The endnotes' words are in the text.
+    QVector<QTextDocument *> storiesWithChanges();
+
     // ---- review (core/reviewops.h, core/commentops.h)
     // Whether edits are tracked as changes (Track Changes: the file's w:trackRevisions). A setting of the document that is written with it, not a step of the history.
     bool trackChanges() const { return m_trackChanges; }
@@ -650,8 +670,12 @@ private:
         QTextDocument *story = nullptr;
         quint64 serial = 0;
         int raw = 0;
+        quint64 group = 0;   // the steps made while a StepGroup lived have the same: they are undone and done again together
     };
     QVector<Step> m_undoLog, m_redoLog;
+    quint64 m_openGroup = 0, m_nextGroup = 1;
+    int m_groupDepth = 0;
+    QTextDocument *undoOne(QTextCursor *cursor);
     quint64 m_nextSerial = 1, m_cleanSerial = 0;
     bool m_forcedDirty = false;
     bool m_wasModified = false;

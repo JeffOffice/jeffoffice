@@ -1621,6 +1621,55 @@ private Q_SLOTS:
         QVERIFY(cr[0].contains(QLatin1Char('|')));
     }
 
+    void acceptAllAndRejectAllCoverHeadersNotesAndTextBoxesInOneStep()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:v=\"urn:schemas-microsoft-com:vml\"";
+        auto build = [&]() {
+            office::PackageWriter w;
+            const QByteArray box = "<w:r><w:pict><v:shape style=\"width:100pt;height:40pt\"><v:textbox><w:txbxContent><w:p>" + inserted(31, "boxin ") + deleted(32, "boxout") + "</w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r>";
+            const QByteArray body = para(run("body ") + inserted(30, "new ") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>" + box) + "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH\"/></w:sectPr>";
+            w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body>" + body + "</w:body></w:document>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+            w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+            w.addPart(QStringLiteral("/word/header1.xml"), xml("<w:hdr " + ns + "><w:p>" + inserted(33, "headin ") + deleted(34, "headout") + "</w:p></w:hdr>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdH"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+            w.addPart(QStringLiteral("/word/footnotes.xml"), xml("<w:footnotes " + ns + "><w:footnote w:id=\"2\"><w:p>" + inserted(35, "noteIn ") + deleted(36, "noteOut") + "</w:p></w:footnote></w:footnotes>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"));
+            w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("footnotes"), QStringLiteral("/word/footnotes.xml"));
+            return w.finish();
+        };
+        for (const bool accept : {true, false}) {
+            auto doc = open(build());
+            QVERIFY(doc);
+            const QByteArray before = doc->toDocx();
+            QVERIFY(doc->storiesWithChanges().size() >= 1);
+            if (accept) acceptAll(*doc); else rejectAll(*doc);
+            const QByteArray saved = doc->toDocx();
+            for (const char *part : {"/word/document.xml", "/word/header1.xml", "/word/footnotes.xml"}) {
+                const QByteArray x = partOf(saved, part);
+                QVERIFY2(!x.contains("<w:ins") && !x.contains("<w:del ") && !x.contains("<w:del>"), qPrintable(QString::fromLatin1(part) + QLatin1Char(' ') + QString::fromUtf8(x)));
+                QVERIFY2(x.contains(accept ? "headin " : "headout") == (QLatin1String(part) == QLatin1String("/word/header1.xml")) || QLatin1String(part) != QLatin1String("/word/header1.xml"), part);
+            }
+            const QByteArray d = partOf(saved, "/word/document.xml"), h = partOf(saved, "/word/header1.xml"), f = partOf(saved, "/word/footnotes.xml");
+            QCOMPARE(d.contains("boxin"), accept);
+            QVERIFY2(d.contains("boxout") == !accept, d.constData());
+            QCOMPARE(h.contains("headin"), accept);
+            QCOMPARE(h.contains("headout"), !accept);
+            QCOMPARE(f.contains("noteIn"), accept);
+            QCOMPARE(f.contains("noteOut"), !accept);
+            // One step brings every change back, and one redo does it all again.
+            doc->undo();
+            QVERIFY(!doc->canUndo());
+            const QByteArray undone = doc->toDocx();
+            QVERIFY(partOf(undone, "/word/header1.xml").contains("<w:ins"));
+            QVERIFY(partOf(undone, "/word/footnotes.xml").contains("<w:ins"));
+            QVERIFY(partOf(undone, "/word/document.xml").contains("boxin") && partOf(undone, "/word/document.xml").contains("<w:ins"));
+            QVERIFY(doc->canRedo());
+            doc->redo();
+            QCOMPARE(partOf(doc->toDocx(), "/word/header1.xml").contains("headin"), accept);
+            QVERIFY(!doc->canRedo());
+        }
+    }
+
     void oneHalfOfAMoveResolvesItsPairToo()
     {
         const QByteArray from = "<w:moveFromRangeStart w:id=\"1\" w:name=\"move9\"/><w:moveFrom" + rev(2) + "><w:r><w:delText>moved</w:delText></w:r></w:moveFrom><w:moveFromRangeEnd w:id=\"1\"/>";
