@@ -4908,7 +4908,7 @@ Artigo da contracapa	4</translation>
         <location filename="../apps/crunch/core/editsession.cpp" line="+697"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+246"/>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="+216"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+226"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="+404"/>
         <location line="+89"/>
         <source>The workbook is busy. Try again in a moment.</source>
@@ -5548,12 +5548,12 @@ Artigo da contracapa	4</translation>
         <translation type="unfinished">A ajustar linhas ao conteúdo</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editstruct.cpp" line="-24"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="-35"/>
         <source>That would move or change a pivot table, which JeffCrunch can&apos;t do yet. Change cells that are not part of it.</source>
         <translation type="unfinished">Isso moveria ou alteraria uma tabela dinâmica, o que o JeffCrunch ainda não consegue fazer. Altere células que não façam parte dela.</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+44"/>
         <source>This can&apos;t be undone, and neither can what you did before it. Do you want to go on?</source>
         <translation type="unfinished">Esta ação não pode ser anulada, nem as ações anteriores. Pretende continuar?</translation>
     </message>
@@ -11632,7 +11632,7 @@ Abra-o no seu programa de correio eletrónico, adicione os destinatários e envi
 <context>
     <name>Sheet</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+51"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+52"/>
         <source>Part of the file has more settings on one item than any real file has, so it can&apos;t be read.</source>
         <translation type="unfinished">Uma parte do ficheiro tem mais definições num item do que qualquer ficheiro real, pelo que não pode ser lida.</translation>
     </message>
@@ -11891,14 +11891,91 @@ Abra-o no seu programa de correio eletrónico, adicione os destinatários e envi
         <translation type="unfinished">Este ficheiro é uma folha de cálculo escrita como texto simples e guardada com um nome .xls. Este programa ainda não consegue abrir esse tipo de ficheiro.</translation>
     </message>
     <message>
-        <location line="+27"/>
-        <location line="+34"/>
+        <location line="+10"/>
+        <source>The file is empty.</source>
+        <translation type="unfinished">O ficheiro está vazio.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This file is a PDF document, not a workbook.</source>
+        <translation type="unfinished">Este ficheiro é um documento PDF, não um livro.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This file is a picture, not a workbook.</source>
+        <translation type="unfinished">Este ficheiro é uma imagem, não um livro.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This file is a text document (.rtf), not a workbook.</source>
+        <translation type="unfinished">Este ficheiro é um documento de texto (.rtf), não um livro.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This file is not a workbook: it does not start like any kind of file this program opens (.xlsx, .xlsm, .xls, .ods, .csv). It may be damaged, or have the wrong name.</source>
+        <translation type="unfinished">Este ficheiro não é um livro: não começa como nenhum tipo de ficheiro que este programa abre (.xlsx, .xlsm, .xls, .ods, .csv). Pode estar danificado ou ter o nome errado.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>The file is damaged: it starts like a zip package (.xlsx or .xlsm), but its contents can&apos;t be read. It may have been cut short when it was downloaded or copied. If you have the original, copy it again.</source>
+        <translation type="unfinished">O ficheiro está danificado: começa como um pacote zip (.xlsx ou .xlsm), mas não é possível ler o seu conteúdo. Pode ter ficado incompleto ao ser transferido ou copiado. Se tiver o original, copie-o novamente.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The file is a zip package in a format this program can&apos;t read yet (the zip64 form, for files over 4 GB or with more than 65,535 parts).</source>
+        <translation type="unfinished">O ficheiro é um pacote zip num formato que este programa ainda não consegue ler (o formato zip64, para ficheiros com mais de 4 GB ou com mais de 65 535 partes).</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The file is a zip package with a part packed in a way this program can&apos;t read yet.</source>
+        <translation type="unfinished">O ficheiro é um pacote zip com uma parte comprimida de uma forma que este programa ainda não consegue ler.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The file is damaged: the list of parts in this zip package is broken, or a part is not all there.</source>
+        <translation type="unfinished">O ficheiro está danificado: a lista de partes deste pacote zip está corrompida ou uma das partes está incompleta.</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <location line="+7"/>
+        <source>This file is a text document with macros (.docm), not a workbook.</source>
+        <translation type="unfinished">Este ficheiro é um documento de texto com macros (.docm), não um livro.</translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <source>This file is a text document (.docx), not a workbook.</source>
+        <translation type="unfinished">Este ficheiro é um documento de texto (.docx), não um livro.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+4"/>
+        <source>This file is a presentation with macros (.pptm), not a workbook.</source>
+        <translation type="unfinished">Este ficheiro é uma apresentação com macros (.pptm), não um livro.</translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <source>This file is a presentation (.pptx), not a workbook.</source>
+        <translation type="unfinished">Este ficheiro é uma apresentação (.pptx), não um livro.</translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <location line="+46"/>
         <source>The file is damaged: %1</source>
         <translation type="unfinished">O ficheiro está danificado: %1</translation>
     </message>
     <message>
-        <location line="-28"/>
-        <location line="+28"/>
+        <location line="-37"/>
+        <location line="+37"/>
+        <source>The file is damaged: the workbook in it can&apos;t be read.</source>
+        <translation type="unfinished">O ficheiro está danificado: não é possível ler o livro que contém.</translation>
+    </message>
+    <message>
+        <location line="-36"/>
+        <location line="+32"/>
+        <source>This file is a compound file, but it has no workbook in it.</source>
+        <translation type="unfinished">Este ficheiro é um ficheiro composto, mas não contém nenhum livro.</translation>
+    </message>
+    <message>
         <location filename="../libs/office/sheet/xls.cpp" line="-1003"/>
         <location line="+2"/>
         <location line="+5"/>
@@ -11907,7 +11984,7 @@ Abra-o no seu programa de correio eletrónico, adicione os destinatários e envi
         <translation type="unfinished">O ficheiro não contém nenhum livro.</translation>
     </message>
     <message>
-        <location line="+693"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+710"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+1647"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Essa folha não existe.</translation>
@@ -11936,12 +12013,13 @@ Abra-o no seu programa de correio eletrónico, adicione os destinatários e envi
         <translation type="unfinished">Uma folha está aninhada a uma profundidade maior do que a de qualquer ficheiro real.</translation>
     </message>
     <message>
-        <location line="-575"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-857"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-575"/>
         <source>The workbook is encrypted, and this program can&apos;t open an encrypted workbook yet.</source>
         <translation type="unfinished">O livro está encriptado e este programa ainda não consegue abrir livros encriptados.</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+26"/>
         <source>The workbook has more fonts than any real file has.</source>
         <translation type="unfinished">O livro tem mais tipos de letra do que qualquer ficheiro real.</translation>
     </message>
@@ -14237,7 +14315,7 @@ Paginação eletrónica</translation>
         <translation type="unfinished">(Continuação da página %1)</translation>
     </message>
     <message>
-        <location line="+5950"/>
+        <location line="+6028"/>
         <source>Notes</source>
         <translation type="unfinished">Notas</translation>
     </message>
@@ -16652,7 +16730,7 @@ Origem: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+97"/>
         <location line="+103"/>
         <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+82"/>
+        <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+115"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+87"/>
         <location line="+105"/>
         <location line="+22"/>
@@ -16665,7 +16743,7 @@ Origem: %3</translation>
         <location line="+116"/>
         <location line="+10"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+729"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+215"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+229"/>
         <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+251"/>
         <location line="+22"/>
         <source>Ready</source>
@@ -16729,17 +16807,18 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-57"/>
+        <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-70"/>
         <location line="+6"/>
-        <location line="+13"/>
-        <location line="+8"/>
+        <location line="+14"/>
+        <location line="+20"/>
         <location line="+29"/>
         <location filename="../apps/crunch/app/crunchwindow_oldformat.cpp" line="+35"/>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-139"/>
-        <location line="+35"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-152"/>
+        <location line="+5"/>
+        <location line="+38"/>
         <location line="+48"/>
-        <location line="+37"/>
+        <location line="+42"/>
         <location line="+18"/>
         <location line="+30"/>
         <source>Save</source>
@@ -16751,18 +16830,12 @@ Origem: %3</translation>
         <translation type="unfinished">Guardar Como…</translation>
     </message>
     <message>
-        <location line="+10"/>
-        <source>Macro-enabled workbooks (*.xlsm)</source>
-        <translation type="unfinished">Livros com macros (*.xlsm)</translation>
-    </message>
-    <message>
-        <location line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_oldformat.cpp" line="-7"/>
         <source>Workbooks (*.xlsx)</source>
         <translation type="unfinished">Livros (*.xlsx)</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+11"/>
         <location filename="../apps/crunch/app/crunchwindow_oldformat.cpp" line="+1"/>
         <source>Save Workbook As</source>
         <translation type="unfinished">Guardar Livro Como</translation>
@@ -19162,22 +19235,22 @@ O ficheiro não existe.</translation>
         <translation type="unfinished">A calcular… %1%</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-168"/>
-        <source>This workbook has macros in it, so it is saved as a .xlsm file. Give the file a name that ends in .xlsm.</source>
-        <translation type="unfinished">Este livro contém macros, pelo que é guardado como ficheiro .xlsm. Dê ao ficheiro um nome que termine em .xlsm.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>%1 saves workbooks as .xlsx files. Give the file a name that ends in .xlsx.</source>
-        <translation type="unfinished">O %1 guarda livros como ficheiros .xlsx. Dê ao ficheiro um nome que termine em .xlsx.</translation>
-    </message>
-    <message>
-        <location line="+40"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-132"/>
         <source>Nothing to save: %1 is as it was.</source>
         <translation type="unfinished">Nada para guardar: %1 não foi alterado.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-56"/>
+        <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-86"/>
+        <source>Save Values Only</source>
+        <translation type="unfinished">Guardar Apenas Valores</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Save as .xlsx…</source>
+        <translation type="unfinished">Guardar como .xlsx…</translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>The workbook is still being read. Save it when the status bar says Ready.</source>
         <translation type="unfinished">O livro ainda está a ser lido. Guarde-o quando a barra de estado indicar Pronto.</translation>
     </message>
@@ -19188,12 +19261,27 @@ O ficheiro não existe.</translation>
         <translation type="unfinished">A guardar quando o cálculo terminar…</translation>
     </message>
     <message>
+        <location line="+13"/>
+        <source>Not saved as .csv.</source>
+        <translation type="unfinished">Não guardado como .csv.</translation>
+    </message>
+    <message>
         <location line="+42"/>
         <source>Saved the values of %1 in %2</source>
         <translation type="unfinished">Os valores de %1 foram guardados em %2</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+11"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-51"/>
+        <source>A .%1 file can&apos;t hold macros. The macros of this workbook will not be in the copy you are saving. The workbook open here keeps them.</source>
+        <translation type="unfinished">Um ficheiro .%1 não pode conter macros. As macros deste livro não estarão na cópia que está a guardar. O livro aberto aqui mantém-nas.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Save Without Macros</source>
+        <translation type="unfinished">Guardar Sem Macros</translation>
+    </message>
+    <message>
+        <location line="+61"/>
         <source>Another program changed &quot;%1&quot; after you opened it. If you save here, what it changed is lost.</source>
         <translation type="unfinished">Outro programa alterou &quot;%1&quot; depois de o abrir. Se guardar aqui, as alterações feitas por esse programa serão perdidas.</translation>
     </message>
@@ -19213,7 +19301,7 @@ O ficheiro não existe.</translation>
         <translation type="unfinished">Substituir</translation>
     </message>
     <message>
-        <location line="+71"/>
+        <location line="+76"/>
         <source>Saved %1. Rows, columns, and cells deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
         <translation type="unfinished">%1 guardado. As linhas, colunas e células eliminadas antes desta gravação já não podem ser anuladas, nem o que fez antes disso.</translation>
     </message>
@@ -19223,15 +19311,16 @@ O ficheiro não existe.</translation>
         <translation type="unfinished">O livro ainda está a ser aberto. Poderá ser impresso quando estiver aberto.</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-81"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+17"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+63"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-70"/>
-        <location line="+106"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-75"/>
+        <location line="+111"/>
         <source>Cancel</source>
         <translation type="unfinished">Cancelar</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+25"/>
         <location line="+59"/>
         <source>Those page numbers are not pages of this job. The job has %1 pages.</source>
         <translation type="unfinished">Esses números de página não correspondem a páginas deste trabalho. O trabalho tem %1 páginas.</translation>
@@ -19325,13 +19414,13 @@ O ficheiro não existe.</translation>
         <translation type="unfinished">%1 enviado para a impressora</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-95"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-100"/>
         <source>Not saved: %1 was changed by another program.</source>
         <translation type="unfinished">Não guardado: %1 foi alterado por outro programa.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-21"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+15"/>
+        <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+60"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+20"/>
         <source>Saving %1…</source>
         <translation type="unfinished">A guardar %1…</translation>
     </message>
@@ -36361,12 +36450,12 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+236"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+235"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">O livro não tem folhas.</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+40"/>
         <source>Some of the workbook could not be read whole: %1.</source>
         <translation type="unfinished">Não foi possível ler parte do livro na totalidade: %1.</translation>
     </message>
@@ -36402,12 +36491,67 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::crunch::OtherFormats</name>
     <message>
-        <location filename="../apps/crunch/app/otherformats.cpp" line="+17"/>
-        <source>Workbooks (*.xlsx *.xlsm *.xls *.ods *.fods *.csv *.tsv *.txt)</source>
-        <translation type="unfinished">Livros (*.xlsx *.xlsm *.xls *.ods *.fods *.csv *.tsv *.txt)</translation>
+        <location filename="../apps/crunch/app/otherformats.cpp" line="+18"/>
+        <source>Workbooks (*.xlsx *.xlsm *.xltx *.xltm *.xlam *.xls *.ods *.fods *.csv *.tsv *.txt)</source>
+        <translation type="unfinished">Livros (*.xlsx *.xlsm *.xltx *.xltm *.xlam *.xls *.ods *.fods *.csv *.tsv *.txt)</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Macro-enabled templates (*.xltm)</source>
+        <translation type="unfinished">Modelos com macros (*.xltm)</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+3"/>
+        <location line="+4"/>
+        <source>Macro-enabled workbooks (*.xlsm)</source>
+        <translation type="unfinished">Livros com macros (*.xlsm)</translation>
+    </message>
+    <message>
+        <location line="-6"/>
+        <location line="+4"/>
+        <location line="+2"/>
+        <location line="+1"/>
+        <source>Workbooks (*.xlsx)</source>
+        <translation type="unfinished">Livros (*.xlsx)</translation>
+    </message>
+    <message>
+        <location line="-5"/>
+        <source>Macro-enabled add-ins (*.xlam)</source>
+        <translation type="unfinished">Suplementos com macros (*.xlam)</translation>
     </message>
     <message>
         <location line="+2"/>
+        <source>Templates (*.xltx)</source>
+        <translation type="unfinished">Modelos (*.xltx)</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>This workbook has macros in it. It can be saved as %1. Give the file a name that ends in one of them.</source>
+        <translation type="unfinished">Este livro contém macros. Pode ser guardado como %1. Dê ao ficheiro um nome que termine numa destas extensões.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This workbook is a template. It can be saved as %1. Give the file a name that ends in one of them.</source>
+        <translation type="unfinished">Este livro é um modelo. Pode ser guardado como %1. Dê ao ficheiro um nome que termine numa destas extensões.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This workbook is a template with macros in it. It can be saved as %1. Give the file a name that ends in one of them.</source>
+        <translation type="unfinished">Este livro é um modelo com macros. Pode ser guardado como %1. Dê ao ficheiro um nome que termine numa destas extensões.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This workbook is an add-in with macros in it. It can be saved as %1. Give the file a name that ends in one of them.</source>
+        <translation type="unfinished">Este livro é um suplemento com macros. Pode ser guardado como %1. Dê ao ficheiro um nome que termine numa destas extensões.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 saves workbooks as .xlsx files. Give the file a name that ends in .xlsx.</source>
+        <translation type="unfinished">O %1 guarda livros como ficheiros .xlsx. Dê ao ficheiro um nome que termine em .xlsx.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Text files of values (*.csv)</source>
         <translation type="unfinished">Ficheiros de texto de valores (*.csv)</translation>
     </message>
@@ -36440,6 +36584,86 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+5"/>
         <source>This sheet was read only in part, so the file has only the part that was read.</source>
         <translation type="unfinished">Esta folha foi lida apenas em parte, pelo que o ficheiro contém apenas a parte que foi lida.</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>1 other sheet</source>
+        <translation type="unfinished">1 outra folha</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 other sheets</source>
+        <translation type="unfinished">%1 outras folhas</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>1 hidden sheet</source>
+        <translation type="unfinished">1 folha oculta</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 hidden sheets</source>
+        <translation type="unfinished">%1 folhas ocultas</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>formulas (the file has their results)</source>
+        <translation type="unfinished">fórmulas (o ficheiro tem os respetivos resultados)</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>pictures and charts</source>
+        <translation type="unfinished">imagens e gráficos</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>notes</source>
+        <translation type="unfinished">notas</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>PivotTables</source>
+        <translation type="unfinished">Tabelas Dinâmicas</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>connections to outside data</source>
+        <translation type="unfinished">ligações a dados externos</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>form controls</source>
+        <translation type="unfinished">controlos de formulário</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>embedded objects</source>
+        <translation type="unfinished">objetos incorporados</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>slicers</source>
+        <translation type="unfinished">segmentações de dados</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>links to other workbooks</source>
+        <translation type="unfinished">ligações a outros livros</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>macros</source>
+        <translation type="unfinished">macros</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>number formats, fonts, colors, and column widths</source>
+        <translation type="unfinished">formatos de número, tipos de letra, cores e larguras de coluna</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>In this workbook, that leaves out: %1.</source>
+        <translation type="unfinished">Neste livro, isso deixa de fora: %1.</translation>
     </message>
 </context>
 <context>
@@ -36773,7 +36997,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+15"/>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-806"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-27"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="+5"/>
         <source>The file is larger than this program can open.</source>
         <translation type="unfinished">O ficheiro é maior do que este programa consegue abrir.</translation>
@@ -36887,6 +37111,12 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+4"/>
         <source>There is nothing to insert or delete.</source>
         <translation type="unfinished">Não há nada para inserir ou eliminar.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+1"/>
+        <source>That is more rows or columns than a sheet has.</source>
+        <translation type="unfinished">São mais linhas ou colunas do que as que uma folha tem.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -37383,7 +37613,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location filename="../libs/office/sheet/xlsxbase.cpp" line="+682"/>
         <location line="+9"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+1503"/>
-        <location line="+750"/>
+        <location line="+822"/>
         <location line="+49"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">A gravação foi interrompida.</translation>
@@ -37417,7 +37647,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Não foi possível guardar a folha.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-2201"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-2273"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">A parte de cadeias partilhadas não está no formato que este programa altera.</translation>
@@ -37430,24 +37660,24 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="+242"/>
         <location line="+120"/>
-        <location line="+1531"/>
+        <location line="+1603"/>
         <location line="+5"/>
         <source>The workbook part is not in the form this program changes.</source>
         <translation type="unfinished">A parte do livro não está no formato que este programa altera.</translation>
     </message>
     <message>
-        <location line="-1095"/>
+        <location line="-1167"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">O livro não foi aberto a partir de um ficheiro que este programa possa substituir.</translation>
     </message>
     <message>
         <location line="+312"/>
-        <location line="+844"/>
+        <location line="+916"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">O ficheiro a partir do qual este livro foi aberto está danificado.</translation>
     </message>
     <message>
-        <location line="-1146"/>
+        <location line="-1218"/>
         <location line="+147"/>
         <location line="+134"/>
         <location line="+41"/>
@@ -37478,12 +37708,12 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="-544"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+762"/>
+        <location line="+834"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Não foi possível ler uma folha do ficheiro para a guardar.</translation>
     </message>
     <message>
-        <location line="-1134"/>
+        <location line="-1206"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Foram colocados objetos numa folha onde este programa não os pode colocar.</translation>
     </message>
@@ -37541,6 +37771,21 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+43"/>
         <source>A chart that changed has no part in the file.</source>
         <translation type="unfinished">Um gráfico alterado não tem nenhuma parte no ficheiro.</translation>
+    </message>
+    <message>
+        <location line="+41"/>
+        <source>This kind of workbook file can&apos;t be written.</source>
+        <translation type="unfinished">Não é possível escrever este tipo de ficheiro de livro.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>The file&apos;s list of types is not in the file.</source>
+        <translation type="unfinished">A lista de tipos do ficheiro não está no ficheiro.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>The workbook part has no type in the file.</source>
+        <translation type="unfinished">A parte do livro não tem tipo no ficheiro.</translation>
     </message>
     <message>
         <location line="+85"/>
@@ -37724,7 +37969,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">[Tabela: %1 linhas por %2 colunas]</translation>
     </message>
     <message>
-        <location line="+468"/>
+        <location line="+469"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">O ficheiro não contém nenhum documento.</translation>
     </message>
