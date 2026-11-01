@@ -27,6 +27,7 @@ namespace {
 
 using oldsave::Written;
 
+constexpr int kFormulaHead = 22;   // the bytes of a formula record before its tokens
 constexpr int kMaxRecord = 8224;   // the bytes a record may hold; more go in CONTINUE records where the format allows
 
 class W {
@@ -81,12 +82,21 @@ private:
     QByteArray m_b;
 };
 
+// A record; what does not fit one goes on in CONTINUE records, never cut. (The writers keep to the size where the format has no CONTINUE for the record: a formula, a name,
+// an array that would not fit is not written as one.)
 void putRecord(QByteArray *out, quint16 id, const QByteArray &data)
 {
-    W h;
-    h.u16(id).u16(int(std::min<qsizetype>(data.size(), kMaxRecord)));
-    out->append(h.bytes());
-    out->append(data.constData(), std::min<qsizetype>(data.size(), kMaxRecord));
+    qsizetype at = 0;
+    quint16 rid = id;
+    do {
+        const qsizetype n = std::min<qsizetype>(data.size() - at, kMaxRecord);
+        W h;
+        h.u16(rid).u16(int(n));
+        out->append(h.bytes());
+        out->append(data.constData() + at, n);
+        at += n;
+        rid = 0x003C;
+    } while (at < data.size());
 }
 
 bool isWide(const QString &s)
@@ -168,7 +178,7 @@ public:
 
     bool run(QByteArray *out, QString *error)
     {
-        m_written = oldsave::sheetsToWrite(m_book, kMaxXlsSheets, m_report);
+        m_written = oldsave::sheetsToWrite(m_book, kMaxXlsSheets, 31, m_report);
         for (size_t i = 0; i < m_written.size(); ++i) {
             m_placeToWritten.insert(m_written[i].place, int(i));
             m_cx.sheetNames << m_written[i].formulaName;
@@ -476,7 +486,7 @@ private:
 
     static int builtinNameCode(const QString &name)
     {
-        static const char *const names[] = {"Consolidate_Area", "Auto_Open", "Auto_Close", "Extract", "Database", "Criteria", "Print_Area", "Print_Titles", "Cell_Contents", "Recorder", "Data_Form",
+        static const char *const names[] = {"Consolidate_Area", "Auto_Open", "Auto_Close", "Extract", "Database", "Criteria", "Print_Area", "Print_Titles", "Recorder", "Data_Form",
                                             "Auto_Activate", "Auto_Deactivate", "Sheet_Title", "_FilterDatabase"};
         if (!name.startsWith(QLatin1String("_xlnm."), Qt::CaseInsensitive)) return -1;
         const QString tail = name.mid(6);
@@ -501,7 +511,7 @@ private:
                 ++dropped;
                 continue;
             }
-            n.hidden = d.hidden || n.builtin == 14;
+            n.hidden = d.hidden || n.builtin == 13;
             n.ref = d.ref;
             if (d.localSheet >= 0) {
                 const auto at = m_placeToWritten.constFind(d.localSheet);
@@ -553,7 +563,10 @@ private:
             cx.sheet = n.scope;
             QByteArray rgce, extra;
             QString why;
-            if (!xlsCompileFormula(n.ref, cx, &rgce, &extra, &why)) {
+            const qsizetype head = 15 + (isWide(n.name) ? 2 : 1) * n.name.size();
+            const bool fits = xlsCompileFormula(n.ref, cx, &rgce, &extra, &why);
+            if (fits && head + rgce.size() + extra.size() > kMaxRecord) why = QCoreApplication::translate("Sheet", "The formula is longer than the old format allows.");
+            if (!fits || head + rgce.size() + extra.size() > kMaxRecord) {
                 // (a name the format cannot hold the formula of stands for #REF!)
                 rgce = QByteArray::fromHex("1C17");
                 extra.clear();
@@ -1015,7 +1028,13 @@ private:
                 cx.sheet = m_currentSheet;
                 QString why;
                 const QString f = sheet.formulaText(c);
-                if (f.isEmpty() || !xlsCompileFormula(f, cx, &rgce, &extra, &why)) {
+                const bool compiled = !f.isEmpty() && xlsCompileFormula(f, cx, &rgce, &extra, &why);
+                if (compiled && kFormulaHead + rgce.size() + extra.size() > kMaxRecord) {
+                    why = QCoreApplication::translate("Sheet", "The formula is longer than the old format allows.");
+                    rgce.clear();
+                    extra.clear();
+                }
+                if (!compiled || rgce.isEmpty()) {
                     asValue = true;
                     ++m_reasons[f.isEmpty() ? QStringLiteral("no text") : why];
                 }
@@ -1044,6 +1063,7 @@ private:
             QByteArray rgce, extra;
             QString why;
             if (!xlsCompileFormula(text, cx, &rgce, &extra, &why)) return QByteArray();
+            if (14 + rgce.size() + extra.size() > kMaxRecord) return QByteArray();
             W a;
             a.u16(int(range.row1)).u16(int(range.row2)).u8(int(range.col1)).u8(int(range.col2)).u16(0).u32(0).u16(int(rgce.size())).raw(rgce).raw(extra);
             putRecord(&rec, 0x0221, a.bytes());

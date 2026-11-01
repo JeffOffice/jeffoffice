@@ -21,7 +21,7 @@ struct Written {
 // The sheets of the workbook that are written, in the order of the tabs: worksheets only (a chart sheet, a dialog sheet, and a macro sheet are not cells), at most `limit`, with the
 // names made valid (at most 31 characters, none of []:*?/\, none twice in capitals or small letters). What is left out or changed is told in `report`. A workbook with no sheet to
 // write gets one empty sheet.
-std::vector<Written> sheetsToWrite(const Workbook &book, int limit, CopyReport *report);
+std::vector<Written> sheetsToWrite(const Workbook &book, int limit, int maxName, CopyReport *report);
 
 // The cells of a sheet in the order of rows, then columns.
 std::vector<PlacedCell> sortedCells(const Sheet &sheet);

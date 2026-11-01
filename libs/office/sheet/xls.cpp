@@ -333,7 +333,7 @@ struct RawName {
 };
 
 const char *const kBuiltinNames[] = {"Consolidate_Area", "Auto_Open", "Auto_Close", "Extract", "Database", "Criteria", "Print_Area", "Print_Titles",
-                                     "Cell_Contents", "Recorder", "Data_Form", "Auto_Activate", "Auto_Deactivate", "Sheet_Title", "_FilterDatabase"};
+                                     "Recorder", "Data_Form", "Auto_Activate", "Auto_Deactivate", "Sheet_Title", "_FilterDatabase"};
 
 } // namespace
 
@@ -498,6 +498,7 @@ private:
     int m_codepage = 1252;
     bool m_date1904 = false;
     bool m_uncalced = false;
+    bool m_sheetCalcSeen = false, m_sheetIterSeen = false;
     CalcMode m_calcMode = CalcMode::Auto;
     bool m_iterate = false;
     bool m_haveWindow = false;
@@ -997,6 +998,21 @@ private:
                 case kNote: m_comments = true; break;
                 case kSxView: m_pivots = true; break;
                 case kUncalced: if (depth == 0) m_uncalced = true; break;   // (a sheet's own record, near its start)
+                case kCalcMode:
+                case kIteration:
+                    // (the settings of a workbook lie in its sheets' own records; the first sheet that has them gives them)
+                    if (depth == 0 && r.len >= 2) {
+                        Bytes b(m_d, r.pos, r.pos + r.len);
+                        const quint16 v = b.u16();
+                        if (r.id == kCalcMode && !m_sheetCalcSeen) {
+                            m_sheetCalcSeen = true;
+                            m_calcMode = v == 0 ? CalcMode::Manual : v == 0xFFFF ? CalcMode::AutoNoTable : CalcMode::Auto;
+                        } else if (r.id == kIteration && !m_sheetIterSeen) {
+                            m_sheetIterSeen = true;
+                            m_iterate = v == 1;
+                        }
+                    }
+                    break;
                 default: break;
                 }
             }

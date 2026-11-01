@@ -22,7 +22,7 @@ QString validName(QString name, int maxChars)
 
 } // namespace
 
-std::vector<Written> sheetsToWrite(const Workbook &book, int limit, CopyReport *report)
+std::vector<Written> sheetsToWrite(const Workbook &book, int limit, int maxName, CopyReport *report)
 {
     std::vector<Written> out;
     QSet<QString> used;
@@ -43,13 +43,13 @@ std::vector<Written> sheetsToWrite(const Workbook &book, int limit, CopyReport *
         Written w;
         w.place = place;
         w.formulaName = e.name;
-        w.name = validName(e.name, 31);
+        w.name = validName(e.name, maxName);
         if (w.name != e.name) ++renamed;
         QString key = w.name.toLower();
         int n = 1;
         while (used.contains(key)) {
             const QString suffix = QStringLiteral(" (%1)").arg(++n);
-            w.name = validName(e.name, 31 - int(suffix.size())) + suffix;
+            w.name = validName(e.name, maxName - int(suffix.size())) + suffix;
             key = w.name.toLower();
         }
         used.insert(key);
@@ -63,7 +63,7 @@ std::vector<Written> sheetsToWrite(const Workbook &book, int limit, CopyReport *
     }
     if (report) {
         if (skippedKinds > 0) report->notKept << QCoreApplication::translate("Sheet", "sheets that are charts, dialogs, or macros (%1)").arg(skippedKinds);
-        if (cut > 0) report->trimmed << QCoreApplication::translate("Sheet", "%1 sheets past the %2nd or later that the format holds").arg(cut).arg(limit);
+        if (cut > 0) report->trimmed << QCoreApplication::translate("Sheet", "%1 sheets past the first %2 that the format holds").arg(cut).arg(limit);
         if (renamed > 0) report->trimmed << QCoreApplication::translate("Sheet", "%1 sheet names changed to names the format allows").arg(renamed);
     }
     return out;
@@ -113,16 +113,16 @@ Features::Features(const Workbook &book, CopyKind kind) : m_book(book), m_kind(k
 void Features::note(const Sheet &sheet)
 {
     auto add = [&](const char *what) { m_found.insert(QCoreApplication::translate("Sheet", what)); };
-    if (!sheet.validations.isEmpty()) add("data validation");
-    if (!sheet.conditionalFormats.isEmpty()) add("conditional formatting");
-    if (sheet.autoFilter.valid()) add("filters");
-    if (sheet.isProtected) add("sheet protection");
-    if (sheet.tabColor.isSet() && m_kind == CopyKind::Xls) add("tab colors");
+    if (!sheet.validations.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "data validation"));
+    if (!sheet.conditionalFormats.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "conditional formatting"));
+    if (sheet.autoFilter.valid()) add(QT_TRANSLATE_NOOP("Sheet", "filters"));
+    if (sheet.isProtected) add(QT_TRANSLATE_NOOP("Sheet", "sheet protection"));
+    if (sheet.tabColor.isSet() && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "tab colors"));
     // (the old form writes the page setup; OpenDocument's page styles are written as far as margins, orientation, scale, and the texts of headers and footers)
-    if (!sheet.page.headerFooter.pictures.isEmpty()) add("pictures in headers and footers");
-    if (m_kind == CopyKind::Ods && (sheet.page.titles.hasRows || sheet.page.titles.hasCols || !sheet.page.colBreaks.isEmpty())) add("print titles and page breaks between columns");
+    if (!sheet.page.headerFooter.pictures.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "pictures in headers and footers"));
+    if (m_kind == CopyKind::Ods && (sheet.page.titles.hasRows || sheet.page.titles.hasCols || !sheet.page.colBreaks.isEmpty())) add(QT_TRANSLATE_NOOP("Sheet", "print titles and page breaks between columns"));
     for (const QString &s : sheet.notKept) m_found.insert(s);
-    if (!sheet.richTexts.isEmpty()) add("formatting inside a text");
+    if (!sheet.richTexts.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "formatting inside a text"));
 }
 
 QStringList Features::result() const
@@ -144,19 +144,19 @@ QStringList Features::result() const
             else if (l.contains(QLatin1String("slicer")) || l.contains(QLatin1String("timeline"))) slicers = true;
             else if (l.contains(QLatin1String("ctrlprop"))) controls = true;
         }
-        if (charts) add("charts");
-        if (drawings || media) add("pictures and other drawing objects");
-        if (pivots) add("pivot tables");
-        if (notes && m_kind == CopyKind::Xls) add("notes");
-        if (macros) add("macros");
-        if (links) add("links to other workbooks (their formulas keep the values they had)");
-        if (slicers) add("slicers and timelines");
-        if (controls) add("form controls");
-        if (!m_book.tables().isEmpty()) add("tables");
+        if (charts) add(QT_TRANSLATE_NOOP("Sheet", "charts"));
+        if (drawings || media) add(QT_TRANSLATE_NOOP("Sheet", "pictures and other drawing objects"));
+        if (pivots) add(QT_TRANSLATE_NOOP("Sheet", "pivot tables"));
+        if (notes && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "notes"));
+        if (macros) add(QT_TRANSLATE_NOOP("Sheet", "macros"));
+        if (links) add(QT_TRANSLATE_NOOP("Sheet", "links to other workbooks (their formulas keep the values they had)"));
+        if (slicers) add(QT_TRANSLATE_NOOP("Sheet", "slicers and timelines"));
+        if (controls) add(QT_TRANSLATE_NOOP("Sheet", "form controls"));
+        if (!m_book.tables().isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "tables"));
     } else {
         for (const QString &s : m_book.skippedFeatures()) found.insert(s);
     }
-    if (m_book.info().protection.lockStructure) add("workbook protection");
+    if (m_book.info().protection.lockStructure) add(QT_TRANSLATE_NOOP("Sheet", "workbook protection"));
     QStringList out(found.cbegin(), found.cend());
     std::sort(out.begin(), out.end());
     return out;

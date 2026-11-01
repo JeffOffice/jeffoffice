@@ -99,7 +99,7 @@ public:
 
     bool run(QByteArray *out, QString *error)
     {
-        m_written = oldsave::sheetsToWrite(m_book, kMaxSheets, m_report);
+        m_written = oldsave::sheetsToWrite(m_book, kMaxSheets, 255, m_report);
         for (size_t i = 0; i < m_written.size(); ++i) {
             m_placeToWritten.insert(m_written[i].place, int(i));
             m_sheetNames << m_written[i].name;

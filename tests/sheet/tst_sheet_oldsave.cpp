@@ -82,6 +82,45 @@ QByteArray simple(const QString &rows, const QString &after = QString(), const Q
     return buildXlsx({worksheet(rows, after, head)}, QByteArray(), QString(), QString(), styles, QStringList(), names);
 }
 
+// The records of a copy's Workbook stream as they lie in the file: the id and the bytes of each (a CONTINUE record is a record of its own here).
+struct RawRecord {
+    quint16 id;
+    QByteArray data;
+};
+
+QList<RawRecord> rawRecords(const QByteArray &xls, bool *wellFormed = nullptr)
+{
+    QList<RawRecord> out;
+    jp::cfb::File f;
+    QString why;
+    if (!jp::cfb::read(xls, &f, &why)) {
+        if (wellFormed) *wellFormed = false;
+        return out;
+    }
+    const QByteArray d = f.stream(QStringLiteral("Workbook"));
+    qsizetype at = 0;
+    bool ok = true;
+    while (at + 4 <= d.size()) {
+        const quint16 id = quint8(d[at]) | (quint8(d[at + 1]) << 8), len = quint8(d[at + 2]) | (quint8(d[at + 3]) << 8);
+        if (len > 8224 || at + 4 + len > d.size()) {
+            ok = false;
+            break;
+        }
+        out.append({id, d.mid(at + 4, len)});
+        at += 4 + len;
+    }
+    if (at != d.size()) ok = false;
+    if (wellFormed) *wellFormed = ok;
+    return out;
+}
+
+QString manyOnes(int n)
+{
+    QStringList parts;
+    for (int i = 0; i < n; ++i) parts << QStringLiteral("1");
+    return QStringLiteral("{") + parts.join(QLatin1Char(',')) + QStringLiteral("}");
+}
+
 } // namespace
 
 class SheetOldSaveTests : public QObject {
@@ -548,6 +587,91 @@ private Q_SLOTS:
         QVERIFY2(c.make(simple(QString())), qPrintable(c.why));
         QCOMPARE(c.xls.info().sheets.size(), 1);
         QCOMPARE(c.ods.info().sheets.size(), 1);
+    }
+
+    // ---- review fixes
+
+    // A record is at most 8,224 bytes: a formula whose tokens do not fit is written as its value and named, never cut short.
+    void aFormulaTooLongForARecordIsWrittenAsItsValueNotCut()
+    {
+        Copies c;
+        const QByteArray x = simple(row(1, num(QStringLiteral("A1"), 2) + fnum(QStringLiteral("B1"), QStringLiteral("SUMPRODUCT(") + manyOnes(1000) + QLatin1Char(')'), 1000)
+                                              + fnum(QStringLiteral("C1"), QStringLiteral("SUMPRODUCT(") + manyOnes(100) + QLatin1Char(')'), 100) + fnum(QStringLiteral("D1"), QStringLiteral("A1*3"), 6)));
+        QVERIFY2(c.make(x, false), qPrintable(c.why));
+        bool ok = false;
+        rawRecords(c.xlsBytes, &ok);
+        QVERIFY2(ok, "a record is longer than the format allows or the stream does not end where a record ends");
+        const Sheet b = c.sheet(c.xls, 0);
+        QCOMPARE(val(c.xls, b, QStringLiteral("B1")), QStringLiteral("n:1000"));
+        QVERIFY(!b.cells.find(0, 1)->hasFormula());
+        QVERIFY(b.cells.find(0, 2)->hasFormula());
+        QVERIFY(b.cells.find(0, 3)->hasFormula());
+        QCOMPARE(c.xlsReport.formulasAsValues, qint64(1));
+        QVERIFY2(c.xlsReport.notKept.join(QLatin1Char(' ')).contains(QLatin1String("formula")), qPrintable(c.xlsReport.notKept.join(QLatin1Char('|'))));
+    }
+
+    // A name of 255 characters whose formula does not fit stands for #REF!, and is named in the report.
+    void aNameWhoseRecordWouldBeTooLongStandsForRefAndIsNamed()
+    {
+        Copies c;
+        const QString longName = QString(254, QChar(0x0151)) + QLatin1Char('x');   // 255 characters, all but one of them wide
+        const QString names = QStringLiteral("<definedName name=\"%1\">SUMPRODUCT(%2)</definedName><definedName name=\"Fine\">Sheet1!$A$1</definedName>").arg(longName, manyOnes(870));
+        QVERIFY2(c.make(simple(row(1, num(QStringLiteral("A1"), 1)), QString(), QString(), QByteArray(), names), false), qPrintable(c.why));
+        bool ok = false;
+        rawRecords(c.xlsBytes, &ok);
+        QVERIFY2(ok, "a record is longer than the format allows");
+        QString refOfLong, refOfFine;
+        for (const DefinedName &d : c.xls.info().definedNames) {
+            if (d.name == longName) refOfLong = d.ref;
+            if (d.name == QLatin1String("Fine")) refOfFine = d.ref;
+        }
+        QCOMPARE(refOfLong, QStringLiteral("#REF!"));
+        QCOMPARE(refOfFine, QStringLiteral("Sheet1!$A$1"));
+        QVERIFY2(c.xlsReport.trimmed.join(QLatin1Char(' ')).contains(QLatin1String("name")), qPrintable(c.xlsReport.trimmed.join(QLatin1Char('|'))));
+    }
+
+    // The numbers the format gives built-in names, tested against the bytes: 6 the print area, 7 the print titles, 8 the macro recorder, 0x0C the sheet title, 0x0D the filter's range.
+    void theBuiltInNamesCarryTheNumbersTheFormatGivesThem()
+    {
+        Copies c;
+        const QByteArray x = simple(row(1, num(QStringLiteral("A1"), 1)), QString(), QString(), QByteArray(),
+                                    QStringLiteral("<definedName name=\"_xlnm.Print_Area\" localSheetId=\"0\">Sheet1!$A$1:$C$9</definedName>"
+                                                   "<definedName name=\"_xlnm.Print_Titles\" localSheetId=\"0\">Sheet1!$1:$2</definedName>"
+                                                   "<definedName name=\"_xlnm.Recorder\" localSheetId=\"0\">Sheet1!$A$1</definedName>"
+                                                   "<definedName name=\"_xlnm.Sheet_Title\" localSheetId=\"0\">Sheet1!$A$1</definedName>"
+                                                   "<definedName name=\"_xlnm._FilterDatabase\" localSheetId=\"0\" hidden=\"1\">Sheet1!$A$1:$C$9</definedName>"));
+        QVERIFY2(c.make(x, false), qPrintable(c.why));
+        QList<int> codes;
+        for (const RawRecord &r : rawRecords(c.xlsBytes))
+            if (r.id == 0x0018 && (quint8(r.data[0]) & 0x20)) codes << quint8(r.data[15]);   // (the name's one character, after the 14 bytes of the head and the wide flag)
+        std::sort(codes.begin(), codes.end());
+        QCOMPARE(codes, (QList<int>{6, 7, 8, 0x0C, 0x0D}));
+        QSet<QString> back;
+        for (const DefinedName &d : c.xls.info().definedNames) back.insert(d.name);
+        QVERIFY2(back.contains(QStringLiteral("_xlnm.Recorder")) && back.contains(QStringLiteral("_xlnm.Sheet_Title")) && back.contains(QStringLiteral("_xlnm._FilterDatabase")),
+                 qPrintable(QStringList(back.values()).join(QLatin1Char(' '))));
+    }
+
+    // The words of the report: no "2nd", which reads wrong in other languages and for 255, and a sheet name the format does not cut for OpenDocument.
+    void theReportOfCutSheetsHasNoOrdinalAndOdsKeepsLongSheetNames()
+    {
+        Copies c;
+        QVector<QByteArray> sheets;
+        QStringList names;
+        for (int i = 0; i < 260; ++i) {
+            sheets << worksheet(row(1, num(QStringLiteral("A1"), i)));
+            names << QStringLiteral("S%1").arg(i);
+        }
+        names[0] = QStringLiteral("A sheet whose name is longer than thirty-one characters");
+        QVERIFY2(c.make(buildXlsx(sheets, QByteArray(), QString(), QString(), QByteArray(), names)), qPrintable(c.why));
+        const QString said = c.xlsReport.trimmed.join(QLatin1Char('|'));
+        QVERIFY2(!said.contains(QLatin1String("nd or later")) && !said.contains(QLatin1String("2nd")), qPrintable(said));
+        QVERIFY2(said.contains(QLatin1String("255")), qPrintable(said));
+        QCOMPARE(c.xls.info().sheets[0].name, names[0].left(31));
+        // (the copy holds the name whole; this program's reader shortens it to what the .xlsx form allows when it reads the file)
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(c.odsBytes, parts));
+        QVERIFY(QString::fromUtf8(parts.value(QStringLiteral("content.xml"))).contains(QLatin1String("table:name=\"") + names[0] + QLatin1String("\"")));
     }
 
     void theFormulaCompilerRefusesWhatItCannotWrite()
