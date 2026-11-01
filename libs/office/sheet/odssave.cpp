@@ -698,10 +698,6 @@ private:
         return true;
     }
 
-    struct Span {
-        quint32 cols = 1, rows = 1;
-    };
-
     bool writeSheet(int index, QByteArray *xml, QString *error)
     {
         const oldsave::Written &w = m_written[size_t(index)];

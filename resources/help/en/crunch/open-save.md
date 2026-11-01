@@ -1,5 +1,5 @@
 # Open and save workbooks
-<!-- keywords: new, blank, book1, untitled, open, save, save as, file, workbook, xlsx, xlsm, xls, ods, csv, tsv, text file, delimited, import, export, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain, template, xltx, xltm, cannot open, damaged, encrypted, password -->
+<!-- keywords: copy, older format, opendocument, compatibility, new, blank, book1, untitled, open, save, save as, file, workbook, xlsx, xlsm, xls, ods, csv, tsv, text file, delimited, import, export, recent, pinned, drag, drop, loading, large, big, macros, unsaved, changes, close, copy, calculation chain, template, xltx, xltm, cannot open, damaged, encrypted, password -->
 
 When JeffCrunch starts with no file to open, the window holds a new, empty workbook with one sheet, named Book1. Each new workbook takes the next number (Book2, Book3, and so on), and a number is not used again after its window is closed. To start another one, press **{key:New}**, or click **File**, then **New**, and choose **Blank Workbook**; it opens in a window of its own. A new workbook that you have not changed gives way when you open a file in its window; one you have changed stays, and the file opens in another window. **Save** on a new workbook asks for a name, as **Save As** does, and saves it as a .xlsx file. Closing a new workbook you have not changed asks nothing.
 
@@ -9,7 +9,7 @@ JeffCrunch opens **.xlsx** workbooks and **.xlsm** workbooks (those that hold ma
 
 ## Other kinds of files
 
-JeffCrunch also opens older **.xls** workbooks, OpenDocument spreadsheets (**.ods** and the flat **.fods**), and text files of values (**.csv**, **.tsv**, and **.txt**). A workbook opened from one of them is saved as a new **.xlsx** file: when you press **{key:Save}**, JeffCrunch tells you so and asks for a name, and the file you opened is never changed.
+JeffCrunch also opens older **.xls** workbooks, OpenDocument spreadsheets (**.ods** and the flat **.fods**), and text files of values (**.csv**, **.tsv**, and **.txt**). A workbook opened from one of them is saved as a new **.xlsx** file (or as an **.xls** or **.ods** copy: see below): when you press **{key:Save}**, JeffCrunch tells you so and asks for a name, and the file you opened is never changed.
 
 An OpenDocument spreadsheet is read with its sheets, values, formulas (with the results the file kept), number formats, fonts, fills, borders, merged cells, column widths and row heights, hidden rows and columns, frozen panes, and names. Charts, pictures and other drawings, comments, pivot tables, macros, conditional formats, and data validation are not read yet; a message at the top tells you which of them the file has, and a copy saved from here will not have them. A spreadsheet that is protected with a password is not opened: open it in the program that made it and save a copy without the password.
 
@@ -28,6 +28,21 @@ Text goes in quotes when it holds the separator, a quote, a line break, or a spa
 
 A workbook that came from a text file is written back in the form the file had: the same separator, line ends, and encoding. If you saved it as a copy without changing a cell, the copy is the same file, byte for byte, and nothing is asked.
 
+## Saving a copy as .xls or .ods
+
+To make a copy that older programs, or programs that read OpenDocument, can open, click **File**, then **Save As**, and choose the **.xls** or **.ods** kind of file. The copy is made from your workbook as it is now, with the changes you have not saved yet, and holds:
+
+- the values, with their texts, numbers, truth values, and errors;
+- the formulas, with the results they have now (an array formula stays an array formula);
+- the number formats, fonts, fills, borders, alignment, and whether a cell is locked;
+- merged cells, column widths and row heights, hidden rows and columns, row and column outlines, and frozen panes;
+- the sheets, in their order, with their names and which are hidden, and the names you defined (and the print areas);
+- the links, and how each sheet prints (the paper, margins, orientation, scale, headers and footers, and page breaks).
+
+An **.xls** file also holds data tables, and keeps the workbook's calculation settings. A copy cannot hold everything. Before JeffCrunch writes the file, it says what your workbook has that the file will not: charts, pictures and other drawings, notes, pivot tables, tables, conditional formats, data validation, filters, sheet protection, form controls, macros, and links to other workbooks (the formulas that use them keep the values they had). A formula that the older form cannot say (a function it does not have, or a cell past column IV or row 65,536) is written as the value it came to, and the message counts them. The older form also stops at 65,536 rows, 256 columns, 255 sheets, and 32,767 characters in a cell, and at about 4,000 cell formats and 56 colors: what does not fit is cut, and the message says how much. You can then choose to **Save Copy**, to **Save as .xlsx** and keep everything, or to **Cancel**.
+
+Your workbook is not changed by the copy, and it is not marked as saved. The file you opened is never written: give the copy another name. A copy of an **.xls** or **.ods** file that you opened can be saved as the other kind.
+
 ## Large workbooks
 
 JeffCrunch reads a workbook in the background. The first rows of the sheet that was open when the workbook was saved appear almost at once, even when the workbook is very large. The status bar at the bottom left tells you what it is doing: **Opening**, **Reading** a sheet with the count of cells read so far, **Calculating** with a percent, and then **Ready**.
@@ -44,7 +59,7 @@ The **Open** page of the File screen lists the workbooks you opened lately. Righ
 
 ## Saving
 
-Press **{key:Save}**, or click **File** and then **Save**, to save your changes into the workbook you opened. To keep the original and make a new file, click **File** and then **Save As**, and choose a name. A workbook with macros is saved as a **.xlsm** file, a template as a **.xltx** or **.xltm** file, and any other as a **.xlsx** file. A name that ends in another kind is not accepted, and the message says which ending to use.
+Press **{key:Save}**, or click **File** and then **Save**, to save your changes into the workbook you opened. To keep the original and make a new file, click **File** and then **Save As**, and choose a name. A workbook with macros is saved as a **.xlsm** file, a template as a **.xltx** or **.xltm** file, and any other as a **.xlsx** file. A name that ends in another kind of workbook is not accepted, and the message says which ending to use; the names ending in **.xls**, **.ods**, **.csv**, **.tsv**, and **.txt** make copies, as described above.
 
 JeffCrunch saves only what you changed. Everything else in the file, such as the other sheets, the charts, the pictures, the macros, and the settings that JeffCrunch does not show, is copied as it was, byte for byte. In a sheet you changed, only the cells you changed are written again, along with the formulas that depend on them, which get their new values. If you changed no cell, the file is left alone.
 

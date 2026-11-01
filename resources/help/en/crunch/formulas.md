@@ -23,13 +23,17 @@ To change a formula, select its cell, press **F2**, edit it, and press **Enter**
 
 Type **=** and the first letters of a function, and a short list shows the functions and [names](names) that begin that way, with a sentence about each. Press **Tab** to take the one that is marked. Use the **Down** and **Up** arrows to mark another, and then **Tab** or **Enter**. **Esc** closes the list. Once you are inside the brackets of a function, its arguments show under the cell, with the one you are typing in bold. The list and the arguments are the same ones **Pick a Function** shows. Arguments are separated by commas, or by semicolons where your language writes a comma for the decimal mark.
 
+## Data tables
+
+A data table (what-if table) shows what a formula comes to for many values of one or two cells. Open a workbook that has one, and JeffCrunch works its cells out: for a table with two inputs, the formula is in the cell at the table's top left corner, the values to try across go into the row input cell, and those down go into the column input cell. For a table of one input, the values go down the column at its left (and the formulas are in the row above it) or across the row above it (and the formulas are in the column at its left). Each cell of the table is the result of the formula, and of every formula that depends on the input cell, with the input set to that value; nothing else in the workbook is touched. In **Automatic** mode the tables are worked out with the formulas, and the formulas that read a table's cells follow. Making a new data table is not offered yet. A table that cannot be worked out (a formula that depends on the input uses a function JeffCrunch does not have, or changes by itself, such as RAND or NOW) keeps the values its file holds.
+
 ## Calculating by hand
 
 Click **Calculation Mode** on the **Formulas** tab to choose how the workbook works its formulas out:
 
 - **Automatic** works them out as you change cells.
-- **Automatic, Tables by Hand** does the same, and is kept in the file for programs that treat data tables apart.
-- **Manual** works nothing out until you ask. The status bar says **Out of date** after a change. Press **F9** (**Recalculate All**) to work everything out, or **Shift+F9** (**Recalculate This Sheet**) to work out the formulas of the sheet you are on, and whatever else was waiting. A workbook that is set to Manual opens with the results its file holds.
+- **Automatic, Tables by Hand** does the same, but leaves the cells of data tables as they are until you press **F9**.
+- **Manual** works nothing out, data tables included, until you ask. The status bar says **Out of date** after a change. Press **F9** (**Recalculate All**) to work everything out, or **Shift+F9** (**Recalculate This Sheet**) to work out the formulas of the sheet you are on, and whatever else was waiting. A workbook that is set to Manual opens with the results its file holds.
 
 The choice is saved with the workbook, and it is one step you can undo.
 

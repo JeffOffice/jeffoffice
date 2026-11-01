@@ -1194,7 +1194,6 @@ private:
         put(&g, 0x01B7, W().u16(0));
         put(&g, 0x00DA, W().u16(0));
         for (const QByteArray &f : std::as_const(m_fontRecords)) putRecord(&g, 0x0031, f);
-        // (the records of the fonts are the same as the fonts at place 4 and above being one higher: the fifth is never in a file, and the four before it are as written)
         for (const auto &f : std::as_const(m_formatRecords)) {
             W w;
             w.u16(f.first).str8(f.second, 2);
