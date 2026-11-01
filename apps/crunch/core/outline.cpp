@@ -76,14 +76,20 @@ std::vector<OutlineChange> Outline::expand(const Group &g) const
 {
     std::vector<OutlineChange> out;
     if (g.summary >= 0 && collapsedOf(quint32(g.summary))) out.push_back({quint32(g.summary), -1, -1, 0});
-    // the groups inside this one that are collapsed keep their lines hidden
-    const std::vector<Group> inner = groups(g.first, g.last);
-    for (quint32 i = g.first; i <= g.last; ++i) {
-        bool hide = false;
-        for (const Group &h : inner)
-            if (h.level > g.level && i >= h.first && i <= h.last && h.collapsed) hide = true;
-        if (hiddenOf(i) != hide) out.push_back({i, -1, hide ? 1 : 0, -1});
-        if (i == 0xFFFFFFFFu) break;
+    // the lines of the groups inside this one that are collapsed stay hidden: those groups, as intervals in order of place, joined where they touch, and one pass over the lines of this group
+    std::vector<std::pair<quint32, quint32>> held;
+    for (const Group &h : groups(g.first, g.last)) {
+        ++m_steps;
+        if (h.level > g.level && h.collapsed) held.emplace_back(h.first, h.last);
+    }
+    std::sort(held.begin(), held.end());
+    size_t at = 0;
+    auto line = std::lower_bound(m_lines.begin(), m_lines.end(), g.first, [](const OutlineLine &l, quint32 i) { return l.index < i; });
+    for (; line != m_lines.end() && line->index <= g.last; ++line) {
+        ++m_steps;
+        while (at < held.size() && held[at].second < line->index) ++at;
+        const bool hide = at < held.size() && held[at].first <= line->index;
+        if (line->hidden != hide) out.push_back({line->index, -1, hide ? 1 : 0, -1});
     }
     return out;
 }
@@ -99,6 +105,7 @@ std::vector<OutlineChange> Outline::showButton(int button) const
     };
     // a line is shown when its level is less than the button; a group of the button's level or deeper is collapsed, the rest are not
     for (const OutlineLine &l : m_lines) {
+        if (l.level == 0) continue;   // (a line in no group that is hidden was hidden by hand: the buttons leave it)
         const bool hide = l.level >= button;
         if (l.hidden != hide) at(l.index).hidden = hide ? 1 : 0;
     }

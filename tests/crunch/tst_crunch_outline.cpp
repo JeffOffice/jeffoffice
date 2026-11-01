@@ -144,6 +144,41 @@ private Q_SLOTS:
         QCOMPARE(find(5).collapsed, 0);
     }
 
+    // Expanding a group looks at each line a few times, not once for each group inside it: a group of 20,000 lines with every other line a group of its own, collapsed, takes about 20,000 looks.
+    void expandingIsLinearInTheLines()
+    {
+        std::vector<OutlineLine> lines;
+        const quint32 n = 20000;
+        for (quint32 i = 0; i < n; ++i) {
+            const bool inner = i % 2 == 1;
+            lines.push_back({i + 1, quint8(inner ? 2 : 1), inner, false});
+        }
+        lines.push_back({n + 1, 0, false, true});   // (the summary of the whole, marked collapsed)
+        for (OutlineLine &l : lines)
+            if (l.level == 2) l.hidden = true;
+        // the inner groups' summaries are the lines of level 1 after them, marked collapsed
+        for (OutlineLine &l : lines)
+            if (l.level == 1 && l.index > 1 && l.index <= n) l.collapsed = true;
+        const Outline o(lines, 2000000, true);
+        const auto all = o.groups(0, 0xFFFFFFFFu);
+        QCOMPARE(all.front().level, 1);
+        const auto changes = o.expand(all.front());
+        QVERIFY2(o.stepsTaken() < qint64(n) * 20, qPrintable(QString::number(o.stepsTaken())));
+        // the lines of the collapsed inner groups stay hidden, and the group's own summary is shown again
+        QVERIFY(std::any_of(changes.begin(), changes.end(), [&](const OutlineChange &c) { return c.index == n + 1 && c.collapsed == 0; }));
+        QVERIFY(std::none_of(changes.begin(), changes.end(), [](const OutlineChange &c) { return c.hidden == 0 && c.index % 2 == 0; }));
+    }
+
+    // A line that is hidden and in no group is hidden by hand: the level buttons leave it as it is.
+    void theLevelButtonsLeaveLinesHiddenByHandAlone()
+    {
+        const Outline o({{1, 1, false, false}, {3, 1, true, false}, {4, 0, false, true}, {10, 0, true, false}}, 100, true);
+        for (int button = 1; button <= 3; ++button)
+            for (const OutlineChange &c : o.showButton(button)) QVERIFY2(c.index != 10, "a line in no group, hidden by hand, was changed");
+        const auto three = o.showButton(3);
+        QVERIFY(std::any_of(three.begin(), three.end(), [](const OutlineChange &c) { return c.index == 3 && c.hidden == 0; }));
+    }
+
     void aLevelButtonShowsTheLinesOfLessThanThatLevel()
     {
         const Outline o(nested(), 100, true);
@@ -323,6 +358,40 @@ private Q_SLOTS:
         // Undo takes the margin away
         for (int i = 0; i < steps; ++i) e.win.w.undoStack()->undo();
         QTRY_VERIFY(e.win.w.columnGutter()->isHidden());
+    }
+
+    // Drawing the margin looks at the lines in view of each part of the grid, not at every line between the frozen part and the part that scrolls: with row 1 frozen and a group of 99,999 lines, a view
+    // 50,000 lines down is drawn from a few hundred looks, the groups are worked out once for the outline and not for each paint or click, and a change that is not to the lines (a merge) does not
+    // make the outline again.
+    void theMarginIsDrawnFromTheLinesInView()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.win.w.resize(1000, 600);
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->changeOutline(0, false, s->outlineOf(0, false).group(1, 99999), QStringLiteral("Group")).ok);
+        OutlineGutter *rows = e.win.w.rowGutter();
+        QTRY_VERIFY(rows->isVisible());
+        e.win.w.act(QStringLiteral("view.freezeRow"))->trigger();
+        e.view()->selectCell(50000, 0);
+        QCoreApplication::processEvents();
+        const qint64 built = rows->groupsBuilt();
+        rows->resetWork();
+        QImage image(rows->size(), QImage::Format_ARGB32);
+        for (int i = 0; i < 3; ++i) rows->render(&image);
+        QVERIFY2(rows->workDone() < 1500, qPrintable(QString::number(rows->workDone())));
+        QCOMPARE(rows->groupsBuilt(), built);     // (three paints, no groups made again)
+        rows->resetWork();
+        for (int y = 0; y < 200; y += 20) rows->hitAt(QPoint(5, y));
+        QVERIFY2(rows->workDone() < 1500, qPrintable(QString::number(rows->workDone())));
+        QCOMPARE(rows->groupsBuilt(), built);
+        // a merge changes how the sheet is laid out and not its lines: the outline is the one it was
+        const qint64 outlines = s->outlinesBuilt();
+        QVERIFY(s->mergeCells(0, rangeOf(QStringLiteral("F20:G21")), crunch::EditSession::MergeKind::Merge).ok);
+        QCOMPARE(s->outlinesBuilt(), outlines);
+        // and one that is to them makes it again, once for the rows and once for the columns
+        QVERIFY(s->changeOutline(0, false, s->outlineOf(0, false).group(5, 6), QStringLiteral("Group")).ok);
+        QCOMPARE(s->outlinesBuilt(), outlines + 1 + 2);
     }
 
     // A sheet whose summaries are above the rows (and to the left of the columns) has the buttons on the line before a group.

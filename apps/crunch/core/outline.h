@@ -42,6 +42,8 @@ public:
     bool collapsedOf(quint32 index) const;
     // The deepest level any line has (0 for none).
     int deepest() const { return m_deepest; }
+    // The lines looked at by the calls so far, counted (for tests: expand and show-a-level are linear in the lines of the outline).
+    qint64 stepsTaken() const { return m_steps; }
     // Every group that has a line in [from, to], outer ones first, then by place.
     std::vector<Group> groups(quint32 from, quint32 to) const;
 
@@ -61,6 +63,7 @@ private:
     quint32 m_count;
     bool m_after;
     int m_deepest = 0;
+    mutable qint64 m_steps = 0;
 };
 
 } // namespace jp::crunch

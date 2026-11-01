@@ -22,7 +22,7 @@ void CrunchWindow::createOutlineActions()
     mk("outline.ungroupRows", tr("Ungroup Rows"), "list-x", QKeySequence(), [this] { groupSelected(false, false); }, false, false);
     mk("outline.groupColumns", tr("Group Columns"), "list-tree", QKeySequence(), [this] { groupSelected(true, true); }, false, false);
     mk("outline.ungroupColumns", tr("Ungroup Columns"), "list-x", QKeySequence(), [this] { groupSelected(true, false); }, false, false);
-    mk("view.outline", tr("Outline Symbols"), "list-tree", QKeySequence(), [this] { refreshOutline(); }, true)->setChecked(true);
+    mk("view.outline", tr("Outline Symbols"), "list-tree", QKeySequence(), [this] { refreshOutline(true); }, true)->setChecked(true);
     for (const char *id : {"outline.groupRows", "outline.ungroupRows", "outline.groupColumns", "outline.ungroupColumns"}) m_opsActions << QString::fromLatin1(id);
 }
 
@@ -64,15 +64,20 @@ QWidget *CrunchWindow::buildOutlineGutters(QWidget *parent)
 }
 
 // The outline of the sheet in view, worked out again (after the sheet is shown, or a step changed its rows or columns).
-void CrunchWindow::refreshOutline()
+void CrunchWindow::refreshOutline(bool force)
 {
     if (!m_rowGutter || !m_columnGutter) return;
     const bool show = m_session && m_loaded && m_haveCalc && m_sheet >= 0 && act("view.outline")->isChecked() && !(m_pageView && m_pageView->isVisible());
     if (!show) {
+        m_outlineSeen = std::make_tuple(nullptr, -1, qint64(-1));
         m_rowGutter->setOutline(nullptr);
         m_columnGutter->setOutline(nullptr);
         return;
     }
+    // (the outline is made again only for another sheet or workbook, or after a step that may have changed the lines; a merge, a format, or a width is not that)
+    const std::tuple<const void *, int, qint64> now{m_session.get(), m_sheet, m_session->outlineRevision()};
+    if (!force && now == m_outlineSeen) return;
+    m_outlineSeen = now;
     m_rowGutter->setOutline(std::make_shared<const crunch::Outline>(m_session->outlineOf(m_sheet, false)));
     m_columnGutter->setOutline(std::make_shared<const crunch::Outline>(m_session->outlineOf(m_sheet, true)));
 }
