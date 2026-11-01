@@ -202,6 +202,7 @@ public:
             *error = QCoreApplication::translate("Sheet", "The workbook is larger than the old format can hold.");
             return false;
         }
+        if (stream.size() < 4096) stream.append(QByteArray(4096 - stream.size(), '\0'));   // (a stream of the smallest size lies in whole sectors, not in the container's small-stream area)
         jp::cfb::File file;
         jp::cfb::Entry root;
         root.type = jp::cfb::Entry::Root;

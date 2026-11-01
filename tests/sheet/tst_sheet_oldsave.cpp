@@ -777,6 +777,18 @@ private Q_SLOTS:
         }
     }
 
+    // A small workbook's stream is padded to 4,096 bytes, so that it lies in whole sectors of the container and not in its small-stream area, where some programs do not look.
+    void aSmallWorkbookStreamIsPaddedToTheSmallestRegularSize()
+    {
+        Copies c;
+        QVERIFY2(c.make(simple(row(1, num(QStringLiteral("A1"), 1))), false), qPrintable(c.why));
+        jp::cfb::File f;
+        QString why;
+        QVERIFY2(jp::cfb::read(c.xlsBytes, &f, &why), qPrintable(why));
+        QVERIFY2(f.stream(QStringLiteral("Workbook")).size() >= 4096, qPrintable(QString::number(f.stream(QStringLiteral("Workbook")).size())));
+        QCOMPARE(val(c.xls, c.sheet(c.xls, 0), QStringLiteral("A1")), QStringLiteral("n:1"));
+    }
+
     void theFormulaCompilerRefusesWhatItCannotWrite()
     {
         XlsCompileContext cx;
