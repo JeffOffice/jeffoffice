@@ -1406,13 +1406,17 @@ private Q_SLOTS:
         QCOMPARE(revisionCount(whole->story()), 0);
     }
 
-    void deletingIntoAnEndnoteWithTrackingMarksTheTextAndLeavesTheNoteAlone()
+    void deletingAcrossEndnotesWithTrackingMarksTheTextOnBothSidesAndLeavesTheNotes()
     {
+        // Two sections that each set their endnotes at their end: the story is First, Second, the notes of the first section, Third, and the notes of the second.
         office::PackageWriter w;
         const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
-        const QByteArray body = para(run("First") + "<w:r><w:endnoteReference w:id=\"2\"/></w:r>") + para(run("Second paragraph"));
+        const QByteArray sect = "<w:sectPr><w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray body = para(run("First body") + "<w:r><w:endnoteReference w:id=\"2\"/></w:r>") + para(run("Second body"), sect) +
+                                para(run("Third body") + "<w:r><w:endnoteReference w:id=\"3\"/></w:r>") + sect;
         const QByteArray notes = "<w:endnotes " + QByteArray(kNs) + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:t>Sources</w:t></w:r></w:p></w:endnote>"
-                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha body note</w:t></w:r></w:p></w:endnote></w:endnotes>";
+                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Alpha body note</w:t></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"3\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Beta body note</w:t></w:r></w:p></w:endnote></w:endnotes>";
         w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
         w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
         w.addPart(QStringLiteral("/word/endnotes.xml"), xml(notes), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"));
@@ -1423,22 +1427,24 @@ private Q_SLOTS:
         doc->setReviewer(QStringLiteral("Zed"), QString());
         doc->setTrackChanges(true);
         QTextDocument *story = doc->story();
-        // From inside the second paragraph, into the words of the note.
-        int noteBlock = -1;
-        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
-            if (b.blockFormat().hasProperty(prop::EndnoteBlock) && b.text().contains(QLatin1String("Alpha"))) noteBlock = b.blockNumber();
-        QVERIFY(noteBlock > 1);
+        int notesSeen = 0, third = -1;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+            notesSeen += b.blockFormat().hasProperty(prop::EndnoteBlock);
+            if (b.text().startsWith(QLatin1String("Third"))) third = b.blockNumber();
+        }
+        QVERIFY2(notesSeen >= 3 && third > 2, "the notes of the first section are set between its text and the next section's");
+        const int blocks = story->blockCount();
         QTextCursor c(story);
-        c.setPosition(story->findBlockByNumber(1).position() + 3);
-        c.setPosition(story->findBlockByNumber(noteBlock).position() + 8, QTextCursor::KeepAnchor);
+        c.setPosition(story->findBlockByNumber(1).position() + 3);   // (after the first note's reference, so that the note stays)
+        c.setPosition(story->findBlockByNumber(third).position() + 2, QTextCursor::KeepAnchor);
         removeSelection(*doc, c);
-        // The text is marked as deleted and is still there; the note is whole; and the saved note part is as it was.
+        // The text on both sides is marked as deleted and is still there, no paragraph is joined to another, and the notes are as they were.
         const QString all = textWithDeletions(*doc);
-        QVERIFY2(all.contains(QLatin1String("First")) && all.contains(QLatin1String("Second paragraph")), qPrintable(all));
-        QVERIFY2(story->toPlainText().contains(QLatin1String("Alpha body note")), qPrintable(story->toPlainText()));
-        QVERIFY(revisionCount(story) > 0);
+        for (const char *text : {"First body", "Second body", "Third body", "Alpha body note"}) QVERIFY2(all.contains(QLatin1String(text)), qPrintable(all));
+        QCOMPARE(story->blockCount(), blocks);
         const QByteArray x = documentXml(doc->toDocx());
-        QVERIFY2(x.contains("<w:del ") && x.contains("ond paragraph"), x.constData());
+        QVERIFY2(x.contains("<w:del ") && x.contains("ond body") && x.contains("Sec"), x.constData());
+        QCOMPARE(x.count("<w:p>") + x.count("<w:p "), 3);
         QCOMPARE(partOf(doc->toDocx(), "/word/endnotes.xml"), partOf(zip, "/word/endnotes.xml"));
         QVERIFY(doc->undo());
         QCOMPARE(revisionCount(doc->story()), 0);
@@ -1580,6 +1586,10 @@ private Q_SLOTS:
         const int id = addComment(*doc, c, QStringLiteral("bell\x07 and nul-ish \x01 text"));
         QVERIFY(id > 0);
         QVERIFY(replyToComment(*doc, id, QStringLiteral("reply\x08 text")) > 0);   // (a reply makes the extension and people parts)
+        doc->setTrackChanges(true);
+        QTextCursor t(doc->story());
+        t.setPosition(doc->story()->characterCount() - 1);
+        insertText(*doc, t, QStringLiteral("typed"));   // (a change made under the same name)
         const QByteArray saved = doc->toDocx();
         for (const char *name : {"/word/comments.xml", "/word/commentsExtended.xml", "/word/people.xml", "/word/document.xml"}) {
             const QByteArray part = partOf(saved, name);
@@ -1635,6 +1645,8 @@ private Q_SLOTS:
         QVERIFY(doc);
         doc->setReviewer(QStringLiteral("Zed"), QString());
         doc->setTrackChanges(true);
+        // The first new id is above every id of every part (the body's highest is 5; the header's, the note's, and the comment's are 6, 7, and 8).
+        QVERIFY2(doc->nextRevisionId() > 8, "a new id must not be one the header, the notes, or the comments have");
         QTextCursor c(doc->story());
         c.setPosition(3);
         for (const QChar ch : QStringLiteral("abc")) insertText(*doc, c, QString(ch));
