@@ -706,6 +706,45 @@ private Q_SLOTS:
         QVERIFY(QString::fromUtf8(parts.value(QStringLiteral("content.xml"))).contains(QLatin1String("table:name=\"") + names[0] + QLatin1String("\"")));
     }
 
+    // A long chain of the same operator is as wide as it is long, not as deep: 600 terms are written as a formula, and the result reads back as the same text.
+    void aLongChainOfTermsKeepsItsFormula()
+    {
+        Copies c;
+        QStringList terms, products;
+        for (int i = 0; i < 600; ++i) terms << QStringLiteral("A1");
+        for (int i = 0; i < 300; ++i) products << QStringLiteral("A1*2");
+        const QString sum = terms.join(QLatin1Char('+')), mixed = products.join(QLatin1Char('-')), joined = QStringLiteral("\"a\"&") + QStringList(300, QStringLiteral("\"b\"")).join(QLatin1Char('&'));
+        QVERIFY2(c.make(simple(row(1, num(QStringLiteral("A1"), 1) + fnum(QStringLiteral("B1"), sum, 600) + fnum(QStringLiteral("C1"), mixed, -300) + fstr(QStringLiteral("D1"), joined, QStringLiteral("a") + QString(300, QLatin1Char('b'))))), false), qPrintable(c.why));
+        const Sheet a = c.sheet(c.original, 0), b = c.sheet(c.xls, 0);
+        for (const char *ref : {"B1", "C1", "D1"}) {
+            QVERIFY2(b.cells.find(0, ref[0] - 'A')->hasFormula(), ref);
+            QCOMPARE(formula(b, QString::fromLatin1(ref)), formula(a, QString::fromLatin1(ref)));
+        }
+        QCOMPARE(c.xlsReport.formulasAsValues, qint64(0));
+    }
+
+    // The tokens of IF and CHOOSE as the format has them (the jump records after the condition and after each choice), and the class of a reference by what the function asks for:
+    // a value for ABS, a reference for SUM, the condition of IF a value and its choices references. Bytes checked against the formulas of real files.
+    void theTokensOfIfChooseAndTheClassesOfReferencesAreTheFormats()
+    {
+        XlsCompileContext cx;
+        cx.sheetNames = {QStringLiteral("Sheet1")};
+        cx.xti = [](int, int) { return 0; };
+        auto hex = [&](const QString &f) {
+            QByteArray rgce, extra;
+            QString why;
+            if (!xlsCompileFormula(f, cx, &rgce, &extra, &why)) return QStringLiteral("refused: ") + why;
+            return QString::fromLatin1(rgce.toHex(' '));
+        };
+        QCOMPARE(hex(QStringLiteral("ABS(A1)")), QStringLiteral("44 00 00 00 c0 41 18 00"));
+        QCOMPARE(hex(QStringLiteral("SUM(A1)")), QStringLiteral("24 00 00 00 c0 42 01 04 00"));
+        QCOMPARE(hex(QStringLiteral("IF(A1>1,\"yes\",\"no\")")), QStringLiteral("44 00 00 00 c0 1e 01 00 0d 19 02 0a 00 17 03 00 79 65 73 19 08 0c 00 17 02 00 6e 6f 19 08 03 00 42 03 01 00"));
+        QCOMPARE(hex(QStringLiteral("IF(A1,B1,C1)")), QStringLiteral("44 00 00 00 c0 19 02 09 00 24 00 00 01 c0 19 08 0c 00 24 00 00 02 c0 19 08 03 00 42 03 01 00"));
+        QCOMPARE(hex(QStringLiteral("IF(A1,B1)")), QStringLiteral("44 00 00 00 c0 19 02 09 00 24 00 00 01 c0 19 08 03 00 42 02 01 00"));
+        QCOMPARE(hex(QStringLiteral("CHOOSE(A1,\"a\",\"b\")")),
+                 QStringLiteral("44 00 00 00 c0 19 04 02 00 06 00 0e 00 16 00 17 01 00 61 19 08 0b 00 17 01 00 62 19 08 03 00 42 03 64 00"));
+    }
+
     void theFormulaCompilerRefusesWhatItCannotWrite()
     {
         XlsCompileContext cx;

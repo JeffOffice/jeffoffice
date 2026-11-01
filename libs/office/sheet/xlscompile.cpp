@@ -927,10 +927,20 @@ private:
             u8(n.kind == Kind::Neg ? 0x13 : n.kind == Kind::Plus ? 0x12 : 0x14);
             return true;
         case Kind::Binary: {
-            const int operand = n.code >= 0x0F ? kClsRef : valueCls;
-            if (!emit(n.kids[0], operand, depth + 1)) return false;
-            if (!emit(n.kids[1], operand, depth + 1)) return false;
-            u8(n.code);
+            // (a chain of operators, 1+2+3+..., leans to the left: it is walked down in a loop, so its length does not count as depth)
+            std::vector<int> spine;
+            int cur = idx;
+            while (m_nodes[size_t(cur)].kind == Kind::Binary) {
+                spine.push_back(cur);
+                cur = m_nodes[size_t(cur)].kids[0];
+            }
+            auto operandOf = [&](int node) { return m_nodes[size_t(node)].code >= 0x0F ? kClsRef : valueCls; };
+            if (!emit(cur, operandOf(spine.back()), depth + 1)) return false;
+            for (size_t k = spine.size(); k-- > 0;) {
+                const Node &b = m_nodes[size_t(spine[k])];
+                if (!emit(b.kids[1], operandOf(spine[k]), depth + 1)) return false;
+                u8(b.code);
+            }
             return true;
         }
         case Kind::Array: return emitArray(n, cls);
@@ -1006,10 +1016,28 @@ private:
         return true;
     }
 
+    // Functions whose arguments are all values: a reference given to one is written as a value (the cell's value, or the one cell of a range the formula's own cell lies beside).
+    static bool takesOnlyValues(const QString &name)
+    {
+        static const QSet<QString> set = [] {
+            static const char *const names[] = {"ABS", "ACOS", "ACOSH", "ASIN", "ASINH", "ATAN", "ATAN2", "ATANH", "CEILING", "FLOOR", "COS", "COSH", "SIN", "SINH", "TAN", "TANH", "DEGREES", "RADIANS",
+                "EXP", "LN", "LOG", "LOG10", "MOD", "POWER", "SIGN", "SQRT", "FACT", "INT", "TRUNC", "ROUND", "ROUNDUP", "ROUNDDOWN", "EVEN", "ODD", "LEN", "LEFT", "RIGHT", "MID", "UPPER", "LOWER",
+                "PROPER", "TRIM", "CLEAN", "CODE", "CHAR", "VALUE", "TEXT", "REPT", "SUBSTITUTE", "REPLACE", "FIND", "SEARCH", "EXACT", "FIXED", "DOLLAR", "NOT", "YEAR", "MONTH", "DAY", "HOUR", "MINUTE",
+                "SECOND", "WEEKDAY", "DATE", "TIME", "DATEVALUE", "TIMEVALUE", "PMT", "FV", "PV", "NPER", "RATE", "IPMT", "PPMT", "ISNUMBER", "ISTEXT", "ISERROR", "ISBLANK", "ISNA", "ISERR", "ISLOGICAL",
+                "ISNONTEXT", "NA"};
+            QSet<QString> out;
+            for (const char *n : names) out.insert(QString::fromLatin1(n));
+            return out;
+        }();
+        return set.contains(name);
+    }
+
     bool emitFunc(const Node &n, int cls, int depth)
     {
         const bool arrays = takesArrays(n.text);
         const int valueCls = m_cx.array ? kClsArr : kClsVal;
+        const bool onlyValues = takesOnlyValues(n.text);
+        const bool jumps = n.code == 0 && ((n.text == QLatin1String("IF") && n.kids.size() >= 2 && n.kids.size() <= 3) || (n.text == QLatin1String("CHOOSE") && n.kids.size() >= 2 && n.kids.size() <= 30));
         if (n.code == 1) {
             // a function of the add-in set: the name of it comes first, then the arguments, and the call is function 255 with one more argument
             int ixti = 0, index = 0;
@@ -1019,19 +1047,71 @@ private:
             u16(index);
             u16(0);
         }
-        for (int kid : n.kids) {
+        auto argClass = [&](int position, int kid) {
             const Node &k = m_nodes[size_t(kid)];
             int argCls = arrays ? kClsArr : valueCls;
-            if (!arrays && (k.kind == Kind::Ref || k.kind == Kind::Name)) argCls = kClsRef;
-            if (!arrays && k.kind == Kind::Paren) {
+            const bool valueHere = onlyValues || (jumps && position == 0);   // (the condition of IF and the number of CHOOSE are values)
+            if (!arrays && !valueHere && (k.kind == Kind::Ref || k.kind == Kind::Name)) argCls = kClsRef;
+            if (!arrays && !valueHere && k.kind == Kind::Paren) {
                 const Node &inner = m_nodes[size_t(k.kids[0])];
                 if (inner.kind == Kind::Ref || inner.kind == Kind::Name) argCls = kClsRef;
             }
-            if (!emit(kid, argCls, depth + 1)) return false;
-        }
+            return argCls;
+        };
         const XlsFunction f = xlsFunction(n.index);
         const int argc = int(n.kids.size());
         const int own = cls == kClsRef ? kClsRef : valueCls;
+        auto put16At = [&](qsizetype at, qsizetype v) {
+            m_out[at] = char(v & 0xFF);
+            m_out[at + 1] = char((v >> 8) & 0xFF);
+        };
+        if (jumps) {
+            // the first argument, then a jump record, and each of the others followed by a record that jumps to the end: only the argument chosen is worked out
+            if (!emit(n.kids[0], argClass(0, n.kids[0]), depth + 1)) return false;
+            const bool isIf = n.text == QLatin1String("IF");
+            qsizetype tableAt = 0, ifAt = 0;
+            QVector<qsizetype> offsetAt, skipAt, starts;
+            if (isIf) {
+                u8(0x19);
+                u8(0x02);
+                ifAt = m_out.size();
+                u16(0);
+            } else {
+                u8(0x19);
+                u8(0x04);
+                u16(argc - 1);
+                tableAt = m_out.size();
+                for (int i = 0; i <= argc - 1; ++i) {
+                    offsetAt.append(m_out.size());
+                    u16(0);
+                }
+            }
+            for (int i = 1; i < argc; ++i) {
+                starts.append(m_out.size());
+                if (!emit(n.kids[size_t(i)], argClass(i, n.kids[size_t(i)]), depth + 1)) return false;
+                // (the last choice of an IF with a false part has its jump after it too; an IF with no false part jumps over nothing, and gets the jump too)
+                u8(0x19);
+                u8(0x08);
+                skipAt.append(m_out.size());
+                u16(0);
+            }
+            const qsizetype funcAt = m_out.size();
+            const int funcLen = 4;
+            for (qsizetype i = 0; i < skipAt.size(); ++i) put16At(skipAt[i], funcAt - (skipAt[i] + 2) + funcLen - 1);
+            if (isIf) {
+                put16At(ifAt, (skipAt[0] + 2) - (ifAt + 2));   // (the length of the true part and its own jump)
+            } else {
+                for (qsizetype i = 0; i < starts.size(); ++i) put16At(offsetAt[i], starts[i] - tableAt);
+                put16At(offsetAt.back(), funcAt - tableAt);
+            }
+            u8(0x02 + own);
+            u8(argc);
+            u16(n.index);
+            return true;
+        }
+        for (int i = 0; i < argc; ++i) {
+            if (!emit(n.kids[size_t(i)], argClass(i, n.kids[size_t(i)]), depth + 1)) return false;
+        }
         if (n.code == 1) {
             u8(0x02 + own);
             u8(argc + 1);
