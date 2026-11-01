@@ -245,6 +245,9 @@ public:
     // Writes the values of the sheet in view as a .csv file (see crunchwindow_csv.cpp); `csvExported` says when it is over. A path ending in .csv given to save() or saveAs() comes here.
     // `how` gives the choices (for tests and tools); without it they are those the ending of the name and the file the workbook came from say, and the person may change them in the question.
     bool exportCsv(const QString &path, const crunch::CsvWrite *how = nullptr);
+    // Writes the workbook as a copy in the older binary form (.xls) or as an OpenDocument spreadsheet (.ods) (see crunchwindow_copy.cpp): the person is told what the file cannot hold, and the
+    // workbook open here is not changed or marked saved. `copyExported` says when it is over. A path ending in .xls or .ods given to save() or saveAs() comes here.
+    bool exportCopy(const QString &path);
     bool isModified() const { return m_session && m_session->isModified(); }
     bool isSaving() const { return m_saving; }
     // What the person is asked when the window is closed with changes that are not saved: Save, Don't Save, or Cancel (a message box, unless this stands in for it: tests).
@@ -422,6 +425,8 @@ Q_SIGNALS:
     void saved(const QString &path, bool ok);
     // The values of the sheet in view were written in a .csv file, or could not be.
     void csvExported(const QString &path, bool ok);
+    // A copy of the workbook was written as an .xls or .ods file, or could not be.
+    void copyExported(const QString &path, bool ok);
     // The first rows are on the screen.
     void firstScreenShown();
     // The workbook is read whole (or could not be opened).
@@ -997,6 +1002,7 @@ private:
     QPointer<QThread> m_saveThread;
     QString m_saveAfterCalculation;
     QPointer<QObject> m_csvRun;   // a .csv being written
+    void onCopyMade(bool ok, const QString &message, const QString &path, const QByteArray &bytes, const QStringList &notKept, const QStringList &trimmed);
     std::function<Answer(const QString &, const QString &)> m_asker;
     std::function<ChangedAnswer(const QString &)> m_changedAsker;
     std::function<LossAnswer(const QString &, const QString &)> m_lossAsker;

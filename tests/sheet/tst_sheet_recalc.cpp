@@ -210,11 +210,11 @@ private Q_SLOTS:
         QVERIFY(run.report.patterns.contains(QStringLiteral("number -> number: ")));
     }
 
-    // A rate found by trying numbers (IRR, XIRR) is worked out by the engine, but the file's digits are those of one program's iteration: it is kept apart with the file's
+    // A rate found by trying numbers (XIRR) is worked out by the engine, but the file's digits are those of one program's iteration: it is kept apart with the file's
     // value, and what reads it is told apart.
     void aRateFoundByIterationIsKeptApart()
     {
-        const QString rows = row(1, plain("A1", "-100") + plain("B1", "110") + cell("C1", "IRR(A1:B1)", "0.10000000012") + cell("D1", "C1+1", "1.10000000012")
+        const QString rows = row(1, plain("A1", "-100") + plain("B1", "110") + cell("C1", "XIRR(A1:B1,F1:G1)", "0.10000000012") + cell("D1", "C1+1", "1.10000000012")
                                      + cell("E1", "XNPV(0.1,A1:B1,F1:G1)", "-0.000000001") + plain("F1", "40000") + plain("G1", "40365"));
         FullRun run;
         FullOptions options;
@@ -255,7 +255,7 @@ private Q_SLOTS:
     // A rate found by trying numbers is worked out by the engine but kept apart here too: the file's digits are those of one program's iteration.
     void aRateFoundByIterationIsKeptApartInTheCheckOfEachOnItsOwn()
     {
-        const QString rows = row(1, plain("A1", "-100") + plain("B1", "110") + cell("C1", "IRR(A1:B1)", "0.10000000012") + cell("D1", "A1+B1", "10"));
+        const QString rows = row(1, plain("A1", "-100") + plain("B1", "110") + cell("C1", "XIRR(A1:B1,F1:G1)", "0.10000000012") + cell("D1", "A1+B1", "10") + plain("F1", "40000") + plain("G1", "40365"));
         Run run;
         RecalcOptions options;
         options.keepMatches = 10;
@@ -264,6 +264,18 @@ private Q_SLOTS:
         QCOMPARE(run.report.byClass.value('R'), qint64(1));
         QCOMPARE(run.report.byClass.value('M'), qint64(1));
         QCOMPARE(run.report.checked(), qint64(1));
+    }
+
+    // IRR is worked out as the original works it out (Newton's method from the guess, twenty steps), and checked against the file's result like any formula.
+    void anIrrIsWorkedOutAndCheckedLikeAnyFormula()
+    {
+        const QString rows = row(1, plain("A1", "-100") + plain("B1", "110") + cell("C1", "IRR(A1:B1)", "0.1") + cell("D1", "IRR(A1:B1,-0.9999)", "0.1"));
+        Run run;
+        RecalcOptions options;
+        options.keepMatches = 10;
+        QVERIFY(runWorkbook(buildXlsx({worksheet(rows)}), &run, options));
+        QCOMPARE(run.report.byClass.value('R'), qint64(0));
+        QCOMPARE(run.report.checked(), qint64(2));
     }
 
     void stateOfTheWorkbookIsTold()

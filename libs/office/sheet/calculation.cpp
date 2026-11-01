@@ -467,6 +467,7 @@ quint32 Calculation::addNodeById(int sheet, quint32 rowId, quint32 colId, const 
 
 void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
 {
+    ++m_structGen;
     Node &n = m_nodes[id];
     const Sheet &s = m_sheets[size_t(n.sheet)];
     const bool array = cell.flags & ArrayFormula;
@@ -476,6 +477,10 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
     bool always = false, told = false;
     if (cell.flags & DataTable) {
         kept = 'D';
+        if (m_options.workOutDataTables) {
+            m_tableNodes.insert(id);
+            m_tablesStale = true;
+        }
     } else if (f.text < 0 || f.text >= s.formulaTexts.size() || s.formulaTexts[f.text].trimmed().isEmpty()) {
         kept = 'N';
     } else {
@@ -1097,18 +1102,12 @@ bool Calculation::load()
                 m_cols[size_t(n.sheet)] = std::max(m_cols[size_t(n.sheet)], col + 1);
             }
     }
-    // a data table's cells are the file's, marked
+    // a data table's cells are the file's, marked (or, when the table is worked out, they are an array's)
     for (int si = 0; si < sheets; ++si) {
-        Sheet &s = m_sheets[size_t(si)];
         const SheetState &st = m_state[size_t(si)];
         for (size_t fi = 0; fi < st.nodeOf.size(); ++fi) {
             if (st.nodeOf[fi] == kNone || m_nodes[st.nodeOf[fi]].kept != 'D') continue;
-            const qint32 range = s.formulas[qint32(fi)].range;
-            if (range < 0 || range >= s.ranges.size() || !s.ranges[range].valid || s.ranges[range].cellCount() > kMaxArrayCellsMarked) continue;
-            const CellRange r = s.ranges[range];
-            for (quint32 row = r.row1; row <= r.row2; ++row)
-                for (quint32 col = r.col1; col <= r.col2; ++col)
-                    if (Cell *c = s.cells.findMutable(row, col)) c->flags |= Tainted;
+            markTableMembers(st.nodeOf[fi]);
         }
     }
     return whole;
@@ -1153,12 +1152,7 @@ void Calculation::registerSheet(int si)
     m_cols[size_t(si)] = cols;
     for (size_t fi = 0; fi < st.nodeOf.size(); ++fi) {
         if (st.nodeOf[fi] == kNone || m_nodes[st.nodeOf[fi]].kept != 'D') continue;
-        const qint32 range = s.formulas[qint32(fi)].range;
-        if (range < 0 || range >= s.ranges.size() || !s.ranges[range].valid || s.ranges[range].cellCount() > kMaxArrayCellsMarked) continue;
-        const CellRange r = s.ranges[range];
-        for (quint32 row = r.row1; row <= r.row2; ++row)
-            for (quint32 col = r.col1; col <= r.col2; ++col)
-                if (Cell *c = s.cells.findMutable(row, col)) c->flags |= Tainted;
+        markTableMembers(st.nodeOf[fi]);
     }
 }
 
@@ -1517,6 +1511,7 @@ void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
 
 void Calculation::beginRecalculation()
 {
+    if (!m_tableNodes.empty()) m_tablesStale = true;
     m_staleReads.clear();
     m_staleCorrections = 0;
     m_running = true;
@@ -2088,6 +2083,10 @@ void Calculation::hiddenRowsAndSubtotals(int sheet)
 
 void Calculation::invalidateAll()
 {
+    if (!m_tableNodes.empty()) {
+        m_tablesStale = true;
+        m_tablesForce = true;
+    }
     abandon();
     releaseDeferred(true);
     // (every formula is marked to be worked out, a chunk at a time by the next recalculation: asking costs nothing, and the count says how many are to be done)
@@ -2722,7 +2721,11 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
                     break;
                 }
             }
-            if (root == kNone) break;
+            if (root == kNone) {
+                // (the formulas are all worked out: the cells of the data tables are, from the values they now read, and what reads them is worked out after them)
+                if (m_tablesStale && !m_tableNodes.empty() && (m_tablesAuto.load() || m_tablesForce) && !m_onlyFresh && m_onlySheet < 0 && dataTablePass()) continue;
+                break;
+            }
             m_nodes[root].state = Queued;
             m_stack.push_back({root, kNone});
         }
@@ -2926,6 +2929,7 @@ void Calculation::dropNode(quint32 id)
     SheetState &st = m_state[size_t(n.sheet)];
     if (size_t(n.formula) < st.nodeOf.size()) st.nodeOf[size_t(n.formula)] = kNone;
     n.flags = quint16(Dead | (n.flags & AlwaysListed));
+    ++m_structGen;
     n.state = Done;
     n.kind = KindEmpty;
     n.text = -1;

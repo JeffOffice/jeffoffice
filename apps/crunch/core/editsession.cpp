@@ -1275,7 +1275,7 @@ void EditSession::noteResults(const std::vector<ValueStore::Item> &items)
         if (m_touched.count(key)) continue;
         const Sheet &s = m_book->calc->sheet(it.sheet);
         const Cell *c = s.cells.findById(it.row, it.col);
-        if (!c || !(c->hasFormula() || (c->flags & ArrayMember))) continue;
+        if (!c || !(c->hasFormula() || (c->flags & (ArrayMember | Tainted)))) continue;   // (a cell of a data table is a plain cell, marked: the table's values are results too)
         // What the engine had for the cell before this (the store is told after): a result that is the same is not a change, and the file's own value stays (the engine's differences from the
         // program that wrote the file are not made into changes by a formula being worked out again). A result that comes back to the value the engine had before the first change is the file's again.
         Value before;

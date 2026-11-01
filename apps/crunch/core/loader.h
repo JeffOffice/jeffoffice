@@ -118,6 +118,8 @@ public:
     // Whether the workbook is worked out by hand: the worker does nothing at an edit, and works out only what recalculate and recalculateSheet ask for. The last batch of each change says
     // that formulas are waiting (CalcBatch::due). Going back to automatic works out what waits.
     void setManual(bool manual);
+    // Whether the what-if (data) tables are worked out with the formulas (true), or only when the whole workbook is (false: a workbook set to leave tables by hand, or by hand altogether).
+    void setTablesAutomatic(bool automatic);
     // Before start(): whether a workbook that its file sets to be worked out by hand is (true, the default); the tools that compare every formula with the file's result say false.
     void setManualAllowed(bool allowed) { m_manualAllowed = allowed; }
 
@@ -191,6 +193,7 @@ private:
         std::atomic<bool> manualAllowed{true};
         std::atomic<int> sheetCalc{-1};       // a sheet whose formulas are to be worked out (by hand)
         std::atomic<bool> urgent{false};      // a change was made: the first values it makes go to the window as soon as they are there
+        std::atomic<int> tablesAutomatic{-1}; // the window's word on whether what-if tables are worked out with the formulas (1 yes, 0 no), or -1: it has said nothing, and the file's setting stands
         void updateHalt() { halt.store(stopCalc.load() || holds.load() > 0 || cancel.load()); }
     };
     static void run(const QString &path, const std::shared_ptr<const jp::office::sheet::CsvImport> &csv, const QByteArray &blank, std::shared_ptr<LoadedBook> result, std::shared_ptr<State> state, QPointer<WorkbookLoader> self);
@@ -204,6 +207,7 @@ private:
     std::shared_ptr<State> m_state;
     int m_pace = 0;
     bool m_manualAllowed = true;
+    int m_tablesAutomatic = -1;           // (the same, kept for the next read)
 };
 
 } // namespace jp::crunch

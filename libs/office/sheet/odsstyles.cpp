@@ -200,6 +200,25 @@ QString StyleStore::dataStyleCodeDepth(const QString &name, int depth) const
     for (const DataPart &p : ds.parts) {
         switch (p.kind) {
         case DataPart::Number: {
+            if (!p.embedded.isEmpty()) {
+                // text among the digits: the places left of the farthest text and the digits to its right, each text put in at its place counted from the decimal point
+                int farthest = 0;
+                for (const DataPart::Embedded &e : p.embedded) farthest = std::max(farthest, e.position);
+                const int places = std::min(std::max(p.minInteger, farthest + 1), 40);
+                QString digits = QString(std::max(0, places - std::max(0, p.minInteger)), QLatin1Char('#')) + zeros(std::max(0, p.minInteger));
+                digits.truncate(places);
+                QVector<DataPart::Embedded> sorted = p.embedded;
+                std::sort(sorted.begin(), sorted.end(), [](const DataPart::Embedded &a, const DataPart::Embedded &b) { return a.position < b.position; });   // (from the right, so the places to the left stay where they are)
+                const int count = int(digits.size());
+                for (const DataPart::Embedded &e : std::as_const(sorted)) digits.insert(std::max(0, count - e.position), literal(e.text));
+                const int decimals = p.hasDecimals ? p.decimals : 0;
+                if (decimals > 0) {
+                    const int min = p.minDecimals >= 0 ? std::min(p.minDecimals, decimals) : decimals;
+                    digits += QLatin1Char('.') + zeros(min) + QString(std::max(0, std::min(decimals, 40) - min), QLatin1Char('#'));
+                }
+                body += digits;
+                break;
+            }
             if (!p.hasDecimals && !p.grouping && p.maxBlank == 0 && p.minInteger <= 1 && p.displayFactor == 1) {
                 body += QStringLiteral("General");   // (the digits that are needed, which is what a cell with no format of its own shows)
                 break;

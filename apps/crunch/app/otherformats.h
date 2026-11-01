@@ -15,6 +15,16 @@ namespace jp::crunch {
 // Whether the file's name ends in .csv (any case): the name of the one other kind of file the program writes.
 bool isCsvName(const QString &path);
 
+// Whether the file's name ends in .xls or .ods (any case): the two other kinds of workbook the program writes, as copies (see crunchwindow_copy.cpp). `copyKindOf` is "xls" or "ods".
+bool isCopyName(const QString &path);
+QString copyKindOf(const QString &path);
+QString xlsFilter();
+QString odsFilter();
+// The two kinds of file for the Save As dialog, one after the other (";;" between).
+QString copyFilters();
+// What the person is told before a copy is written in `ending` ("xls" or "ods"): what the workbook has that the file cannot hold, and what was cut to fit. Empty if there is nothing to say.
+QString copyWarning(const QString &ending, const QStringList &notKept, const QStringList &trimmed);
+
 // The filter of the Open dialog (the kinds of workbook the program opens, together), and of the Save As dialog for .csv.
 QString openFilter();
 QString csvFilter();

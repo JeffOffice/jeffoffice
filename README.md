@@ -7,7 +7,7 @@ JeffOffice is a free, open-source office suite for **Windows, macOS, and Linux**
 - **JeffPub**, for desktop publishing: flyers, newsletters, brochures, business cards, certificates, and other print pieces. It opens and saves Microsoft Publisher files.
 - **JeffDeck**, for presentations: it makes slides, plays slide shows, and opens PowerPoint files (`.pptx` and the older `.ppt`) and OpenDocument presentations (`.odp`), and saves `.pptx` and `.odp`.
 - **JeffWrite** (a preview), for documents: it opens Word files (`.docx` and the older `.doc`) and saves `.docx`, with tables, headers and footers, footnotes and endnotes, pictures (insert, size, move, and wrap them) and text boxes, page setup, a ruler, styles (a Styles pane, and making and changing styles), a Format Painter, Go To, drag-and-drop of text, spelling, printing, and PDF export.
-- **JeffCrunch** (a preview), for spreadsheets: it opens workbooks (`.xlsx` and `.xlsm`, the older `.xls`, OpenDocument `.ods`, and text files of values such as `.csv`) and saves `.xlsx`, with formulas, formatting, sorting and filtering, charts, and printing.
+- **JeffCrunch** (a preview), for spreadsheets: it opens workbooks (`.xlsx` and `.xlsm`, the older `.xls`, OpenDocument `.ods`, and text files of values such as `.csv`) and saves `.xlsx` (and `.xls` and `.ods` copies), with formulas, formatting, sorting and filtering, charts, and printing.
 
 More apps are on the way: JeffMail for email and calendars, and JeffBase for databases. Each will come in an update once it's ready.
 
@@ -91,11 +91,11 @@ JeffCrunch makes and edits spreadsheets. It's a **preview**: it opens most workb
 - **Charts, pictures, and shapes**, made and changed in the sheet, and **notes and links**.
 - **Protection** of a sheet or the workbook, with or without a password.
 - **Print and export** to paper or PDF, with page setup, page breaks, headers and footers, and a preview.
-- **Workbook files.** Opens `.xlsx`, `.xlsm`, the older `.xls`, OpenDocument `.ods` and `.fods`, and text files of values (`.csv`, `.tsv`, and `.txt`, asking how their columns are read); saves `.xlsx`. A workbook opened from anything but `.xlsx` or `.xlsm` is saved as a new `.xlsx` file, and a workbook's macros are kept and never run. What JeffCrunch doesn't show or edit yet is kept and saved back as the file had it.
+- **Workbook files.** Opens `.xlsx`, `.xlsm`, the older `.xls`, OpenDocument `.ods` and `.fods`, and text files of values (`.csv`, `.tsv`, and `.txt`, asking how their columns are read); saves `.xlsx`, and `.xls` and `.ods` copies (saying first what the file can't hold). A workbook opened from anything but `.xlsx` or `.xlsm` is saved as a new `.xlsx` file by default, and a workbook's macros are kept and never run. What JeffCrunch doesn't show or edit yet is kept and saved back as the file had it.
 
 ### Not yet in the preview
 
-Making and changing conditional format rules and data validation rules (the ones a workbook has are shown and kept); making pivot tables (they're shown and kept); saving `.xls` and `.ods` files; and a few functions that JeffCrunch does not have yet. Help covers what JeffCrunch does today, and [docs/jeffcrunch.md](docs/jeffcrunch.md) says where it stands.
+Making and changing conditional format rules and data validation rules (the ones a workbook has are shown and kept); making pivot tables (they're shown and kept); making what-if data tables (the ones a workbook has are worked out); and a few functions that JeffCrunch does not have yet. Help covers what JeffCrunch does today, and [docs/jeffcrunch.md](docs/jeffcrunch.md) says where it stands.
 
 ## Privacy
 

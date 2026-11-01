@@ -6,6 +6,8 @@
 
 #include "io/cfb.h"
 #include "sheet/calculation.h"
+#include "io/zip.h"
+#include "sheet/oldsave.h"
 #include "sheet/xlsxbase.h"
 #include "sheet/xlscodepage.h"
 
@@ -74,6 +76,73 @@ private Q_SLOTS:
         QVERIFY(cw.info().calcMode == CalcMode::Manual);
         QVERIFY(cw.info().iterate);
         QCOMPARE(cw.info().activeTab, 1);
+    }
+
+    // The built-in name numbers are the format's: 8 is the macro recorder, 0x0C the sheet title, and 0x0D the filter's range.
+    void theBuiltInNamesAreNumberedAsTheFormatNumbersThem()
+    {
+        Book b;
+        QByteArray after = supbookInternal(1) + externSheet({{0, 0, 0}});
+        for (int code : {6, 7, 8, 0x0A, 0x0B, 0x0C, 0x0D}) after += name(QString(), tArea3d(0, 0, 0, 1, 0, false, false), 1, code);
+        b.after(after);
+        b.sheet(QStringLiteral("Sheet1"), QByteArray());
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        QStringList got;
+        for (const DefinedName &d : wb.info().definedNames) got << d.name;
+        QCOMPARE(got, (QStringList{QStringLiteral("_xlnm.Print_Area"), QStringLiteral("_xlnm.Print_Titles"), QStringLiteral("_xlnm.Recorder"), QStringLiteral("_xlnm.Auto_Activate"),
+                                   QStringLiteral("_xlnm.Auto_Deactivate"), QStringLiteral("_xlnm.Sheet_Title"), QStringLiteral("_xlnm._FilterDatabase")}));
+    }
+
+    // A sheet carries its own calculation mode and iteration setting; the reader takes them from there when the globals have none.
+    void theCalculationModeOfASheetIsRead()
+    {
+        for (int mode : {0, 1, 0xFFFF}) {
+            Book b;
+            b.sheet(QStringLiteral("A"), rec(0x000D, W().u16(mode)) + rec(0x0011, W().u16(1)) + number(0, 0, 1));
+            Workbook wb;
+            QString why;
+            QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+            QVERIFY(wb.info().calcMode == (mode == 0 ? CalcMode::Manual : mode == 1 ? CalcMode::Auto : CalcMode::AutoNoTable));
+            QVERIFY(wb.info().iterate);
+        }
+        Book none;
+        none.sheet(QStringLiteral("A"), number(0, 0, 1));
+        Workbook w;
+        QString why;
+        QVERIFY2(openBook(none, &w, &why), qPrintable(why));
+        QVERIFY(w.info().calcMode == CalcMode::Auto);
+        QVERIFY(!w.info().iterate);
+    }
+
+    // A copy that leaves a chart sheet out still opens on the sheet that was active: the active and first tabs are numbered among the sheets written, not among all.
+    void theActiveTabOfACopyCountsOnlyTheSheetsWritten()
+    {
+        Book b;
+        b.globals(rec(0x003D, W().u16(0).u16(0).u16(0).u16(0).u16(0).u16(2).u16(2).u16(1).u16(600)));
+        b.sheet(QStringLiteral("Chart"), QByteArray(), 0, 2);
+        b.sheet(QStringLiteral("A"), number(0, 0, 1));
+        b.sheet(QStringLiteral("B"), number(0, 0, 2));
+        b.sheet(QStringLiteral("C"), number(0, 0, 3));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        QCOMPARE(wb.info().activeTab, 2);
+        QByteArray out;
+        CopyReport report;
+        QVERIFY2(saveXls(wb, &out, &report, &why), qPrintable(why));
+        Workbook copy;
+        QVERIFY2(copy.openBinary(out, &why), qPrintable(why));
+        QCOMPARE(copy.info().sheets.size(), 3);
+        QCOMPARE(copy.info().sheets[copy.info().activeTab].name, QStringLiteral("B"));
+        QCOMPARE(copy.info().sheets[copy.info().firstSheet].name, QStringLiteral("B"));
+        // (and the document of the other form opens on it too)
+        QByteArray ods;
+        QVERIFY2(saveOds(wb, &ods, &report, &why), qPrintable(why));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(ods, parts));
+        QVERIFY2(parts.value(QStringLiteral("settings.xml")).contains("config:name=\"ActiveTable\" config:type=\"string\">B<"), parts.value(QStringLiteral("settings.xml")).right(600).constData());
     }
 
     // The UNCALCED record says the workbook was saved before its calculation finished, in every form that has it.

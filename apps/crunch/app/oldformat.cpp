@@ -32,7 +32,7 @@ QString withWorkbookEnding(const QString &chosen)
 
 QString saveAsExplanation(const QString &fileName, const QStringList &notRead)
 {
-    QString text = QCoreApplication::translate("jp::crunch::OldFormat", "\"%1\" is in an older file format (.xls), and this program saves workbooks only as .xlsx. It will ask you for a new name to save a copy under. "
+    QString text = QCoreApplication::translate("jp::crunch::OldFormat", "\"%1\" is in an older file format (.xls), and this program saves workbooks as .xlsx (or, if you choose that kind of file, as an .xls or .ods copy). It will ask you for a new name to save a copy under. "
                       "The original file will not be changed.").arg(fileName);
     if (!notRead.isEmpty()) text += QLatin1Char(' ') + QCoreApplication::translate("jp::crunch::OldFormat", "These parts of the file will not be in the copy: %1.").arg(notRead.join(QStringLiteral(", ")));
     return text;

@@ -372,7 +372,7 @@ private Q_SLOTS:
     // A template without macros is saved as a template, and one with an add-in's type as an add-in.
     void templatesAndAddInsKeepTheirEnding()
     {
-        for (const auto &[type, ending, other] : {std::tuple<QString, QString, QString>{QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml"), QStringLiteral("xltx"), QStringLiteral("xls")},
+        for (const auto &[type, ending, other] : {std::tuple<QString, QString, QString>{QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml"), QStringLiteral("xltx"), QStringLiteral("xlsb")},
                                                   {QStringLiteral("application/vnd.ms-excel.addin.macroEnabled.main+xml"), QStringLiteral("xlam"), QStringLiteral("xlsb")}}) {
             const QByteArray book = repack(editBook(), [&](Parts &p) { p[QStringLiteral("[Content_Types].xml")].replace("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml", type.toUtf8()); });
             EditWindow e;
