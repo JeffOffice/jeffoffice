@@ -117,6 +117,28 @@ private Q_SLOTS:
         loader.cancel();
     }
 
+    // The setting made while the file is being read (after start(), with the read slowed so that it is still going): the worker works by it when it has the workbook.
+    void tablesByHandSetDuringTheLoadStayByHand()
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("tables.xlsx"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(book());
+        f.close();
+        crunch::WorkbookLoader loader;
+        loader.setPace(3000);   // (microseconds at each step of the read: the load takes long enough for the window to say its word in the middle of it)
+        QSignalSpy first(&loader, &crunch::WorkbookLoader::firstScreen), finished(&loader, &crunch::WorkbookLoader::finished);
+        loader.start(path);
+        QVERIFY(first.wait(20000));
+        QVERIFY(finished.isEmpty());
+        loader.setTablesAutomatic(false);
+        QVERIFY(finished.wait(20000));
+        QVERIFY(loader.result() && loader.result()->calc);
+        QVERIFY(!loader.result()->calc->dataTablesAutomatic());
+        loader.cancel();
+    }
+
     void tablesByHandWaitForTheKey()
     {
         Win o;

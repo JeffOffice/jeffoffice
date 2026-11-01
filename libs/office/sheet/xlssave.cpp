@@ -10,6 +10,7 @@
 #include "io/cfb.h"
 #include "sheet/oldsavecommon.h"
 #include "sheet/xlscompile.h"
+#include "sheet/xlsrecord.h"
 
 #include <QCoreApplication>
 #include <QHash>
@@ -82,22 +83,7 @@ private:
     QByteArray m_b;
 };
 
-// A record; what does not fit one goes on in CONTINUE records, never cut. (The writers keep to the size where the format has no CONTINUE for the record: a formula, a name,
-// an array that would not fit is not written as one.)
-void putRecord(QByteArray *out, quint16 id, const QByteArray &data)
-{
-    qsizetype at = 0;
-    quint16 rid = id;
-    do {
-        const qsizetype n = std::min<qsizetype>(data.size() - at, kMaxRecord);
-        W h;
-        h.u16(rid).u16(int(n));
-        out->append(h.bytes());
-        out->append(data.constData() + at, n);
-        at += n;
-        rid = 0x003C;
-    } while (at < data.size());
-}
+void putRecord(QByteArray *out, quint16 id, const QByteArray &data) { xlsPutRecord(out, id, data); }
 
 bool isWide(const QString &s)
 {

@@ -91,6 +91,8 @@ private Q_SLOTS:
             {"ROUND(XIRR({-100,50,60},{40000,40365,40730},-0.99999999),6)", "n:0.063941"},
             {"IRR({-2698,0,553,443})", "e:#NUM!"},                        // a rate there is (-0.329335), but not within twenty steps from 0.1: the original gives #NUM!
             {"ROUND(IRR({-2698,0,553,443},-0.3),6)", "n:-0.329335"},      // and from a guess near it
+            {"IRR({-100,#REF!,110})", "e:#VALUE!"},                        // an error among the flows is #VALUE!, whichever error it is
+            {"IRR({-100,#N/A,110})", "e:#VALUE!"},
             {"IRR({1,-2,3})", "e:#NUM!"},                                  // a rate where there is none
             {"IRR({1,2,3},-0.5)", "e:#NUM!"},
         };

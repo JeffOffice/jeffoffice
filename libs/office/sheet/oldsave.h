@@ -51,5 +51,7 @@ bool saveOds(const Workbook &book, QByteArray *out, CopyReport *report, QString 
 
 // For tests of cost: the intervals the .ods writer has looked at in all to find which cells of a row a merged range covers (one per cell if it is a lookup, many more if a scan).
 qint64 odsCoveredWorkForTest();
+// ... and how many times a column was asked about (a lookup costs about the base-2 logarithm of the stretches, not their number).
+qint64 odsCoveredLookupsForTest();
 
 } // namespace jp::office::sheet

@@ -8,6 +8,7 @@
 #include "sheet/oldsave.h"
 #include "sheet/oldsavecommon.h"
 #include "sheet/xlscompile.h"
+#include "sheet/xlsrecord.h"
 
 #include <QRegularExpression>
 #include <QSet>
@@ -648,7 +649,8 @@ private Q_SLOTS:
         }
         QVERIFY2(c.make(simple(rows), false), qPrintable(c.why));
         QVERIFY2(c.xlsBytes.size() > 7200000, qPrintable(QString::number(c.xlsBytes.size())));
-        const quint32 difatSectors = quint8(c.xlsBytes[68]) | (quint8(c.xlsBytes[69]) << 8) | (quint8(c.xlsBytes[70]) << 16) | (quint32(quint8(c.xlsBytes[71])) << 24);
+        // (the header of the container: the first sector of the extra table at 68, and how many sectors it has at 72)
+        const quint32 difatSectors = quint8(c.xlsBytes[72]) | (quint8(c.xlsBytes[73]) << 8) | (quint8(c.xlsBytes[74]) << 16) | (quint32(quint8(c.xlsBytes[75])) << 24);
         QVERIFY2(difatSectors > 0, "the container has no extra sector table");
         const Sheet a = c.sheet(c.original, 0), b = c.sheet(c.xls, 0);
         QCOMPARE(b.cells.cellCount(), a.cells.cellCount());
@@ -857,10 +859,12 @@ private Q_SLOTS:
             r2 += num(a + QStringLiteral("2"), i) + num(b + QStringLiteral("2"), -i);
             merges += QStringLiteral("<mergeCell ref=\"%1:%2\"/>").arg(a + QStringLiteral("1"), b + QStringLiteral("2"));
         }
-        const qint64 before = odsCoveredWorkForTest();
+        const qint64 before = odsCoveredWorkForTest(), lookupsBefore = odsCoveredLookupsForTest();
         QVERIFY2(c.make(simple(row(1, r1) + row(2, r2), QStringLiteral("<mergeCells count=\"2000\">") + merges + QStringLiteral("</mergeCells>"))), qPrintable(c.why));
         const qint64 work = odsCoveredWorkForTest() - before;
-        QVERIFY2(work < 400000, qPrintable(QString::number(work)));
+        const qint64 lookups = odsCoveredLookupsForTest() - lookupsBefore;
+        QVERIFY2(lookups >= 8000, qPrintable(QString::number(lookups)));   // (each of the 8,000 cells was asked about)
+        QVERIFY2(work <= lookups * 12, qPrintable(QStringLiteral("%1 looks for %2 questions").arg(work).arg(lookups)));   // (2,000 stretches are halved to one in 11 looks; a scan would be a thousand)
         const Sheet b = c.sheet(c.ods, 0);
         QCOMPARE(b.merges.size(), 2000);
         QCOMPARE(val(c.ods, b, QStringLiteral("A1")), QStringLiteral("n:0"));
@@ -1024,6 +1028,65 @@ private Q_SLOTS:
         QCOMPARE(QString::fromLatin1(rgce.toHex(' ')), QStringLiteral("3c 03 00 00 00 00 00"));
         Copies c;
         QVERIFY2(c.make(simple(row(1, num(QStringLiteral("A1"), 1)), QString(), QString(), QByteArray(), QStringLiteral("<definedName name=\"Gone\">#REF!</definedName>")), false), qPrintable(c.why));
+    }
+
+    // Sheets whose names are the same in their first 31 characters (all the old form keeps): the names written are different (a number in brackets ends the later ones, as the shortened names
+    // go), the order is kept, and a formula that names each sheet reads the sheet it named.
+    void sheetsWithTheSameFirstCharactersKeepDistinctNamesAndTheirFormulas()
+    {
+        const QString stem = QString(31, QLatin1Char('s'));
+        const QStringList names = {stem + QStringLiteral("A"), stem + QStringLiteral("B"), stem + QStringLiteral("C"), QStringLiteral("Other"), stem.toUpper() + QStringLiteral("D")};
+        QVector<QByteArray> sheets;
+        for (int i = 0; i < names.size(); ++i) {
+            QString rows = row(1, num(QStringLiteral("A1"), 100 + i));
+            if (i == 3) rows = row(1, fnum(QStringLiteral("A1"), QStringLiteral("'%1'!A1+'%2'!A1*10+'%3'!A1*100").arg(names[0], names[1], names[2]), 100 + 10 * 101 + 100 * 102) + fnum(QStringLiteral("B1"), QStringLiteral("'%1'!A1").arg(names[4]), 104));
+            sheets << worksheet(rows);
+        }
+        Copies c;
+        QVERIFY2(c.make(buildXlsx(sheets, QByteArray(), QString(), QString(), QByteArray(), names)), qPrintable(c.why));
+        QStringList written;
+        QSet<QString> lower;
+        for (const SheetEntry &e : c.xls.info().sheets) {
+            written << e.name;
+            QVERIFY2(!lower.contains(e.name.toLower()), qPrintable(written.join(QLatin1Char('|'))));
+            lower.insert(e.name.toLower());
+            QVERIFY(e.name.size() <= 31);
+        }
+        QCOMPARE(written.size(), 5);
+        QCOMPARE(written[3], QStringLiteral("Other"));
+        const Sheet other = c.sheet(c.xls, 3);
+        QCOMPARE(val(c.xls, other, QStringLiteral("A1")), val(c.original, c.sheet(c.original, 3), QStringLiteral("A1")));
+        QCOMPARE(val(c.xls, other, QStringLiteral("B1")), QStringLiteral("n:104"));
+        // the formulas name the sheets as written, and each reads its own
+        const QString f = formula(other, QStringLiteral("A1"));
+        QVERIFY2(f.contains(written[0]) && f.contains(written[1]) && f.contains(written[2]), qPrintable(f + QStringLiteral(" / ") + written.join(QLatin1Char('|'))));
+        QCOMPARE(formula(other, QStringLiteral("B1")).contains(written[4]), true);
+        // and the .ods copy keeps the names whole
+        QCOMPARE(c.ods.info().sheets.size(), 5);
+    }
+
+    // The general rule for a record of more than 8,224 bytes: it goes on in CONTINUE records, in pieces of 8,224 at most, and the bytes put together are the bytes given.
+    void aRecordOfMoreThanTheMostIsContinuedNotCut()
+    {
+        for (const int size : {0, 1, 8224, 8225, 16448, 16449, 20000, 50000}) {
+            QByteArray data(size, 0);
+            for (int i = 0; i < size; ++i) data[i] = char(i * 7 + i / 251);
+            QByteArray out;
+            xlsPutRecord(&out, 0x0018, data);
+            QByteArray joined;
+            int records = 0, at = 0;
+            while (at < out.size()) {
+                const int id = quint8(out[at]) | (quint8(out[at + 1]) << 8), len = quint8(out[at + 2]) | (quint8(out[at + 3]) << 8);
+                QCOMPARE(id, records == 0 ? 0x0018 : 0x003C);
+                QVERIFY(len <= 8224);
+                if (records > 0) QVERIFY(len > 0);
+                joined += out.mid(at + 4, len);
+                at += 4 + len;
+                ++records;
+            }
+            QCOMPARE(joined, data);
+            QCOMPARE(records, std::max(1, (size + 8223) / 8224));
+        }
     }
 
     void theFormulaCompilerRefusesWhatItCannotWrite()

@@ -26,7 +26,38 @@ namespace jp::office::sheet {
 
 namespace {
 
-std::atomic<qint64> g_coveredWork{0};
+std::atomic<qint64> g_coveredWork{0}, g_coveredLookups{0};
+
+// The columns of a row that merged ranges cover, as separate stretches in order: a column is found by halving, never by going through the stretches. Every look at a stretch and every
+// question is counted (for a test of cost), here and nowhere else, so that no search can be written beside this one and go uncounted.
+class CoveredRuns {
+public:
+    void set(std::vector<std::pair<quint32, quint32>> stretches)
+    {
+        std::sort(stretches.begin(), stretches.end());
+        m_runs.clear();
+        for (const auto &c : stretches) {
+            if (!m_runs.empty() && c.first <= m_runs.back().second + 1) m_runs.back().second = std::max(m_runs.back().second, c.second);
+            else m_runs.push_back(c);
+        }
+    }
+    const std::vector<std::pair<quint32, quint32>> &runs() const { return m_runs; }
+    bool contains(quint32 col) const
+    {
+        ++g_coveredLookups;
+        size_t lo = 0, hi = m_runs.size();   // the first stretch that ends at or after the column
+        while (lo < hi) {
+            ++g_coveredWork;
+            const size_t mid = (lo + hi) / 2;
+            if (m_runs[mid].second < col) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo < m_runs.size() && m_runs[lo].first <= col;
+    }
+
+private:
+    std::vector<std::pair<quint32, quint32>> m_runs;
+};
 
 // The XML of the document body as it is made: kept deflated (lightly) in pieces of about a megabyte, so that a very large sheet does not hold its whole XML in memory (the document's
 // head is not known until the sheets are done, and must come first), and written out to the file in the same pieces.
@@ -993,26 +1024,10 @@ private:
                         covered.push_back({m.col1, m.col2});
                     }
                 }
-                std::sort(covered.begin(), covered.end());
-                // (the columns covered, as separate stretches in order: a column is found by halving, not by going through all of them)
-                {
-                    std::vector<std::pair<quint32, quint32>> stretches;
-                    for (const auto &c : covered) {
-                        if (!stretches.empty() && c.first <= stretches.back().second + 1) stretches.back().second = std::max(stretches.back().second, c.second);
-                        else stretches.push_back(c);
-                    }
-                    covered.swap(stretches);
-                }
-                auto isCovered = [&](quint32 col) {
-                    size_t lo = 0, hi = covered.size();   // the first stretch that ends at or after the column
-                    while (lo < hi) {
-                        ++g_coveredWork;
-                        const size_t mid = (lo + hi) / 2;
-                        if (covered[mid].second < col) lo = mid + 1;
-                        else hi = mid;
-                    }
-                    return lo < covered.size() && covered[lo].first <= col;
-                };
+                CoveredRuns coveredRuns;
+                coveredRuns.set(covered);
+                covered = coveredRuns.runs();
+                auto isCovered = [&](quint32 col) { return coveredRuns.contains(col); };
                 const auto sp = spanOfRow.constFind(row);
                 if (sp != spanOfRow.cend())
                     for (size_t k = sp->first; k < sp->second; ++k) {
@@ -1249,6 +1264,7 @@ public:
 } // namespace
 
 qint64 odsCoveredWorkForTest() { return g_coveredWork.load(); }
+qint64 odsCoveredLookupsForTest() { return g_coveredLookups.load(); }
 
 bool saveOds(const Workbook &book, QByteArray *out, CopyReport *report, QString *error, const std::function<bool()> &cancelled)
 {

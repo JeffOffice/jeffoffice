@@ -4,8 +4,9 @@
 //
 // A table is worked out after the formulas, from the values they have then: the formula (and the formulas that read the input, directly or through others) is worked out again with the
 // input read as the edge's value, in a source of cells of its own that changes only what it is asked to, so that nothing of the workbook is touched while it is done. What the table comes to
-// is the value of its first cell, as an array's is (the cells of the table read it, as those of an array do), and is told to the window as a formula's results are; the cells of the sheet
-// are the file's and are not written. The formulas that read the table are worked out after it.
+// is the value of its first cell, as an array's is (the cells of the table read it, as those of an array do), and is told to the window as a formula's results are. The worker never writes a
+// cell of the sheet: the one place the cells of a table are written is markTableMembers, which marks them as an array's members (as load does for an array's), when the formulas are
+// registered, before the worker serves anyone (on the loading thread, or with the worker held back for an edit that adds a sheet). The values they hold are still the file's.
 //
 // A table is worked out again only when something it read has changed: what it read is kept (each cell or area, and a hash of what was there), and looked at again when the formulas have been
 // worked out. Tables that read each other's cells are worked out in the order they depend on each other (one that depends on a circle of them is left as the file has it), and all of
@@ -298,7 +299,8 @@ bool areasMeet(const CellArea &a, const CellRange &r, int sheet)
 } // namespace
 
 // The cells of a table that is worked out read its value, as those of an array do (the first cell holds the array; what the file stored is its value until the table is worked out). A table too large
-// to work out has its cells marked as the file's.
+// to work out has its cells marked as the file's. This writes the flags of the cells (and adds the cells a table has none for), once, as the formulas are registered: never while a worker is
+// working formulas out, so no cell is written and read at once; the values in the cells are not changed.
 void Calculation::markTableMembers(quint32 id)
 {
     Node &n = m_nodes[id];
