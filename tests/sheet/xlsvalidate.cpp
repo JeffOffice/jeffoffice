@@ -384,7 +384,7 @@ QString validateXls(const QByteArray &file)
         const int tokens = 15 + cch * (wide ? 2 : 1);
         if (tokens + cce > r.data.size()) return at(r, QStringLiteral("a name's tokens run past the record"));
         QString problem;
-        if (cce > 0 && quint8(r.data[tokens]) == 0x1C) return at(r, QStringLiteral("a name's tokens are an error value (a name for a reference that is gone has the token for that)"));
+        if (cce >= 2 && quint8(r.data[tokens]) == 0x1C && quint8(r.data[tokens + 1]) == 0x17) return at(r, QStringLiteral("a name's tokens are the error #REF! (a name for a reference that is gone has the token for that)"));
         if (!validateTokens(r.data.mid(tokens, cce), externalSheets, names, &problem)) return at(r, QStringLiteral("a name: ") + problem);
     }
     return QString();
