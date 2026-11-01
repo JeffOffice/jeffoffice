@@ -247,6 +247,37 @@ private Q_SLOTS:
         QCOMPARE(all, QStringLiteral("Beforeinside  twice kept After"));
     }
 
+    // The words a tracked deletion holds (w:delText) are the paragraph's text, between the marks of the deletion; saved, they are w:delText inside it and w:t outside it, so a
+    // deletion that a person makes in the program (text turned into text between the two marks) is a valid one.
+    void deletedWordsAreTextBetweenTheMarksOfTheDeletionAndWrittenAsDelText()
+    {
+        Made m;
+        m.body = R"(<w:p><w:r><w:t xml:space="preserve">keep </w:t></w:r><w:del w:id="3" w:author="Ann" w:date="2020-01-01T00:00:00Z"><w:r><w:delText xml:space="preserve">gone </w:delText></w:r></w:del><w:r><w:t>stay</w:t></w:r></w:p>)";
+        Document d;
+        QString err;
+        QVERIFY2(readDocx(m.build(), &d, &err), qPrintable(err));
+        const QVector<Inline> &c = d.body[0].para.content;
+        QCOMPARE(c.size(), 5);
+        QCOMPARE(c[0].text, QStringLiteral("keep "));
+        QCOMPARE(c[1].tag, QStringLiteral("del"));
+        QCOMPARE(c[1].role, Inline::Open);
+        QCOMPARE(c[2].kind, Inline::Text);
+        QCOMPARE(c[2].text, QStringLiteral("gone "));
+        QCOMPARE(c[3].role, Inline::Close);
+        const QByteArray out = documentXmlOf(writeDocx(d));
+        QVERIFY2(out.contains("<w:del w:id=\"3\" w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"><w:r><w:delText xml:space=\"preserve\">gone </w:delText></w:r></w:del>"), out.constData());
+        QCOMPARE(count(out, "<w:delText"), 1);
+        QVERIFY(out.contains("<w:t xml:space=\"preserve\">keep </w:t>"));
+        // (Moved-away text is deleted text too, and a deletion inside an insertion.)
+        Made n;
+        n.body = R"(<w:p><w:moveFrom w:id="4" w:author="Ann" w:date="2020-01-01T00:00:00Z"><w:r><w:delText>moved</w:delText></w:r></w:moveFrom><w:ins w:id="5" w:author="Bob" w:date="2020-01-01T00:00:00Z"><w:del w:id="6" w:author="Ann" w:date="2020-01-01T00:00:00Z"><w:r><w:delText>both</w:delText></w:r></w:del></w:ins></w:p>)";
+        Document e;
+        QVERIFY2(readDocx(n.build(), &e, &err), qPrintable(err));
+        const QByteArray out2 = documentXmlOf(writeDocx(e));
+        QCOMPARE(count(out2, "<w:delText"), 2);
+        QCOMPARE(count(out2, "<w:t"), 0);
+    }
+
     // Ruby text is shown with its base text where the pages cannot set it above: the base, and the ruby after it in brackets (an atom that is kept as it is written).
     void rubyShowsItsBaseTextAndItsRuby()
     {

@@ -485,6 +485,9 @@ inline const QLatin1String kFieldGroupTag("jwfield");
 void setHeaderReference(SectionProps *section, bool footer, int slot, const QString &relationshipId);
 // The settings part with the use of different headers on odd and even pages (w:evenAndOddHeaders) on or off, in the place the schema gives it. An empty part gives a minimal one.
 QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on);
+// Whether the settings turn Track Changes on (w:trackRevisions, not turned off by a value), and the settings with it on or off, in the place the schema gives it. An empty part gives a minimal one.
+bool settingsTrackRevisions(const QByteArray &settings);
+QByteArray settingsWithTrackRevisions(const QByteArray &settings, bool on);
 
 // A drawn object of a run: a picture, a rule, a box, or a text box, read from the VML of a w:pict (or an object) or the DrawingML of a w:drawing. Sizes are
 // points. An object is `floating` where its style says it is set at a place (anchored to a paragraph, the margin, or the page), else it is in the line.
@@ -679,6 +682,11 @@ TableMark readTableMark(TableMark::Kind kind, const QByteArray &bytes);
 // What the properties of a table, a row, or a cell say when those of `src` are put over those of `dst`: its borders, margins, shading, and the other properties
 // a style gives (not the ones a table or cell says only of itself: its width, its span, and its merge).
 void overlayTableMark(TableMark *dst, const TableMark &src);
+
+// The properties a w:rPr or w:pPr element says (as the reader reads them in a run or a paragraph), from the element's bytes; empty properties for anything else. (For the record of a tracked
+// change of properties, which keeps the old ones as an element of its own.)
+RunProps readRunPropsXml(const QByteArray &xml);
+ParaProps readParaPropsXml(const QByteArray &xml);
 
 // The place the schema gives each child of pPr, rPr, and sectPr (children are written in this order; unknown ones sort last).
 int paraChildRank(const QByteArray &name);

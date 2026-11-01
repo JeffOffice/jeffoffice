@@ -385,7 +385,8 @@ public:
                 out->push_back(a);
             } else if (name == "rPr" || name == "lastRenderedPageBreak") {
                 continue;
-            } else if (name == "t") {
+            } else if (name == "t" || name == "delText") {
+                // (The words of a tracked deletion are text between the marks of the deletion; writing puts them back as w:delText.)
                 // (Text that is not marked to keep its blanks has none at its ends: the one before a space and the one after one are dropped.)
                 text += textOf(c);
             } else if (name == "tab") {
@@ -1325,6 +1326,29 @@ TableMark readTableMark(TableMark::Kind kind, const QByteArray &bytes)
         if (mark.gridEnd < 0) mark.gridBegin = -1;
     }
     return mark;
+}
+
+namespace {
+const QByteArray kPropDeclarations =
+    " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+}
+
+RunProps readRunPropsXml(const QByteArray &xml)
+{
+    XmlTree t;
+    if (!t.parse("<w:keep" + kPropDeclarations + ">" + xml + "</w:keep>", nullptr)) return RunProps();
+    const int element = t.firstChild(t.root());
+    if (element < 0 || !t.is(element, "rPr")) return RunProps();
+    return Reader(t).rPr(element);
+}
+
+ParaProps readParaPropsXml(const QByteArray &xml)
+{
+    XmlTree t;
+    if (!t.parse("<w:keep" + kPropDeclarations + ">" + xml + "</w:keep>", nullptr)) return ParaProps();
+    const int element = t.firstChild(t.root());
+    if (element < 0 || !t.is(element, "pPr")) return ParaProps();
+    return Reader(t).pPr(element);
 }
 
 bool readNotes(const QByteArray &xml, QVector<NotePart> *notes, int *highestId)

@@ -471,7 +471,7 @@ QString xmlSafe(const QString &s)
     return out;
 }
 
-void writeRunText(QByteArray &out, const RunProps &props, const QString &text)
+void writeRunText(QByteArray &out, const RunProps &props, const QString &text, bool deleted = false)
 {
     const QByteArray rpr = runPropsXml(props);
     out += "<w:r>";
@@ -479,7 +479,7 @@ void writeRunText(QByteArray &out, const RunProps &props, const QString &text)
     QString seg;
     auto flush = [&] {
         if (seg.isEmpty()) return;
-        out += "<w:t xml:space=\"preserve\">" + escapeXml(xmlSafe(seg)) + "</w:t>";
+        out += deleted ? "<w:delText xml:space=\"preserve\">" + escapeXml(xmlSafe(seg)) + "</w:delText>" : "<w:t xml:space=\"preserve\">" + escapeXml(xmlSafe(seg)) + "</w:t>";
         seg.clear();
     };
     for (const QChar c : text) {
@@ -542,15 +542,24 @@ void writeInlines(QByteArray &out, const QVector<Inline> &content, qsizetype fro
     // Runs of text with the same properties are one run (those that pieces kept as XML, left out above, had kept apart, too).
     QString pending;
     const RunProps *pendingProps = nullptr;
+    // Whether the words are in a tracked deletion (w:del, or text moved away), which has them as w:delText.
+    int deletedDepth = 0;
+    auto deletes = [](const Inline &x) { return x.kind == Inline::ParaAtom && (x.tag == QLatin1String("del") || x.tag == QLatin1String("moveFrom")); };
+    for (qsizetype i = 0; i < from && i < content.size(); ++i)
+        if (deletes(content[i]) && !(whole && !whole->inlineKept(int(b), int(i)))) deletedDepth = std::max(0, deletedDepth + (content[i].role == Inline::Open ? 1 : content[i].role == Inline::Close ? -1 : 0));
     auto flush = [&] {
         if (!pendingProps) return;
-        writeRunText(out, *pendingProps, pending);
+        writeRunText(out, *pendingProps, pending, deletedDepth > 0);
         pendingProps = nullptr;
         pending.clear();
     };
     for (qsizetype i = from; i < to && i < content.size(); ++i) {
         if (whole && !whole->inlineKept(int(b), int(i))) continue;
         const Inline &a = content[i];
+        if (deletes(a) && a.role != Inline::Single) {
+            flush();
+            deletedDepth = std::max(0, deletedDepth + (a.role == Inline::Open ? 1 : -1));
+        }
         if (a.kind == Inline::Text) {
             if (pendingProps && *pendingProps == a.props) {
                 pending += a.text;
