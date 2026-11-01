@@ -676,6 +676,7 @@ private:
     void widenForCells(int sheet, const jp::office::sheet::CellRange &cells);
     QString htmlOfClip(const crunch::ClipData &clip) const;
     void freezeAtSelection();
+    void syncPanes();
     // the sheets (crunchwindow_sheets.cpp): the tabs, and the commands that add, copy, rename, delete, move, hide, and color them
     void createSheetActions();
     void onSheetsChanged();
@@ -770,6 +771,8 @@ private:
     void dropLayoutJob();
     void syncPageViewSelection();
     void zoneClicked(int page, bool header, int zone);
+    void openHeaderToType();
+    bool m_headerWanted = false;
     void endZoneEdit(bool keep);
     void insertHeaderCode(const QString &code);
     void insertHeaderPicture();

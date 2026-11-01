@@ -186,6 +186,13 @@
           "items": [
             {"large": "insert.link", "keytip": "K"}
           ]
+        },
+        {
+          "name": "Text",
+          "keytip": "ZX",
+          "items": [
+            {"large": "insert.headerFooter", "keytip": "H"}
+          ]
         }
       ]
     },
