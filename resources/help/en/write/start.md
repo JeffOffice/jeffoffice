@@ -47,7 +47,9 @@ This version of JeffWrite is a **Preview**. It is ready to try on real work, but
 - Find and Replace (Ctrl+F and Ctrl+H) in the text of the document, including the text in tables. See [Find and replace words](find-replace).
 - Paragraph alignment, indents, spacing, and line spacing. The **Paragraph** box (the small arrow at the corner of the Paragraph group) has them all.
 - Bulleted and numbered lists, with levels.
-- Styles. The gallery has Normal, headings, Title, and more.
+- Styles. The gallery has Normal, headings, Title, and more. The **Styles** pane (Ctrl+Alt+Shift+S) lists them all, and you can make a style from your text and change any style (see [Use styles](styles)).
+- The Format Painter, which copies the look of some text onto other text (see [Copy a look with the Format Painter](format-painter)).
+- Go To (Ctrl+G) a page, section, line, bookmark, footnote, or heading, and dragging selected text to move it, or Ctrl-dragging it to copy it (see [Go to a place and move text](go-to-and-move-text)).
 - Pages: paper size, orientation, margins, columns (one, two, or three), page breaks, and section breaks that start a new page. **Layout > Page Setup** sets the margins, paper, and layout of a section or of the whole document (see [Set up the page](page-setup)).
 - Pictures: **Insert > Pictures** puts in a picture from a file or the clipboard; you can size it with its handles, move it, wrap the text round it, and give it alt text (see [Add and change pictures](pictures)).
 - The ruler: drag the indents, tab stops, and margins (see [Use the ruler](ruler)).

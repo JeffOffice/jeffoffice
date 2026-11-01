@@ -221,6 +221,28 @@ drag is one change on release: the indents are changed by the amount dragged in 
 (`core/rulerops.cpp`: at most 64 for a paragraph, at most 22 inches in, each with its leader) through the paragraph's format. Not yet: the vertical ruler, the column of the caret in a section of
 several columns (the ruler shows the whole text area), mirrored pages, the default tab stops, and a double click on the ruler for the Tabs dialog.
 
+## Styles, Format Painter, Go To, and dragging text (beta wave D, November 1, 2026)
+
+A change to the styles is a change to the style sheet and to the text that has the styles, and is one step of the one history. `core/styleops.cpp` makes the change inside one edit block of the
+story: `WriteDoc::putStyle` puts the style in the sheet and keeps what it was and is (`StyleChange`) for the step the edit becomes (`stepAdded` takes it, by the step's serial, into
+`m_styleSteps`); a count on the first paragraph (`prop::StylesRev`) is raised so that the edit is a step of the story's undo stack whatever paragraphs it touches; `WriteDoc::undo` and `redo` put the
+sheet as it was or is for each step they move (`applyStyleChanges`, which also gives the sheet's "changed" mark back, so that a change and its undo write `styles.xml` as the bytes it was read as). What
+a step holds of the styles is the one style it changed, never a copy of the sheet, and it is let go with the step (a new edit ends what could be redone, and with it the changes those steps held).
+Modify Style restyles the text in one pass (`restyleText`): each paragraph of the style, or of one based on it (`descendantsOf`, every style looked at once), takes the properties of the new look in
+place of those of the old, for the properties it still has as the old look gave them, and so does each run of the style or of a character style based on it; what the paragraph or run says itself stays. The
+old look is worked out with the old sheet put back for the moment (`swapStyleSheet`), once for each style met. A definition that comes to the style as it is (compared as the bytes `styleXml` writes)
+changes nothing. A style written from its fields keeps `w:aliases`, `w:autoRedefine`, `w:hidden`, and the elements after `w:qFormat` (`Style::aliases`, `autoRedefine`, `hidden`, `late`).
+The bounds: a name is 255 characters at most (listed names are cut to that), Create Style adds no style to a document of 20,000, the Styles pane lists 5,000 at most, a basis that would make a loop is
+refused (a loop a file has is followed no further than the resolvers' 32 steps, and the style being changed is looked at once), and a following style is followed once. A style that updates itself
+(`w:autoRedefine`) takes what a paragraph of it was given by hand (`changeBlockFormat`, and `changeCharFormat` on a selection) as part of that command's step (`followAutoRedefine`). Not yet:
+linked, table, and list styles, the paragraphs of headers, footers, and notes follow a changed style only when they are made again, and a style whose numbering changed leaves the lists as they are.
+
+The Format Painter (`copyFormat`, `pasteFormat`) holds the look of the first character of the selection and, when the selection takes in a paragraph mark or is a caret, the paragraph's format; the
+window (`WriteWindow::setPainterMode`) paints it when the view says a selection was made with the mouse (`PageView::selectionMade`), once or until Esc. What belongs to a paragraph in the file
+(`paragraphKeepsOwn`: its list, section, frame, and the XML kept beside it) is never painted. Go To (`core/gotoops.cpp`) finds a place and changes nothing: a page is the paginator's page (laid out as far
+as it), a line is counted from the top of the document, and the lists it offers are held to 5,000. Dragging text (`moveSelectedText`, and `PageView::prepareTextDrag` and `dropText`) copies the
+selection as a clip, cuts it, and pastes it at the drop (the place is moved back by what was cut) in one edit block.
+
 ## Checking it
 
 - Reference pages of documents, and every file JeffWrite saves opened and re-saved without a repair

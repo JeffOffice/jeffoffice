@@ -16,6 +16,8 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 ## Write and change text
 
 - [Change how text looks](font)
+- [Use styles](styles)
+- [Copy a look with the Format Painter](format-painter)
 - [Add headers, footers, and page numbers](headers-footers)
 - [Make and change tables](tables)
 - [Add footnotes and endnotes](footnotes-endnotes)
@@ -23,6 +25,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Set up the page](page-setup)
 - [Use the ruler](ruler)
 - [Find and replace words](find-replace)
+- [Go to a place and move text](go-to-and-move-text)
 
 ## Work faster
 
