@@ -19,6 +19,28 @@ bool isCsvName(const QString &path)
     return ending.compare(QLatin1String("csv"), Qt::CaseInsensitive) == 0 || ending.compare(QLatin1String("tsv"), Qt::CaseInsensitive) == 0 || ending.compare(QLatin1String("txt"), Qt::CaseInsensitive) == 0;
 }
 
+bool isCopyName(const QString &path)
+{
+    const QString ending = QFileInfo(path).suffix();
+    return ending.compare(QLatin1String("xls"), Qt::CaseInsensitive) == 0 || ending.compare(QLatin1String("ods"), Qt::CaseInsensitive) == 0;
+}
+
+QString copyKindOf(const QString &path) { return QFileInfo(path).suffix().toLower(); }
+
+QString xlsFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Older workbooks (*.xls)"); }
+QString odsFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "OpenDocument spreadsheets (*.ods)"); }
+QString copyFilters() { return xlsFilter() + QStringLiteral(";;") + odsFilter(); }
+
+QString copyWarning(const QString &ending, const QStringList &notKept, const QStringList &trimmed)
+{
+    if (notKept.isEmpty() && trimmed.isEmpty()) return QString();
+    QString text = QCoreApplication::translate("jp::crunch::OtherFormats", "A .%1 file can't hold everything in this workbook.").arg(ending);
+    if (!notKept.isEmpty()) text += QLatin1Char(' ') + QCoreApplication::translate("jp::crunch::OtherFormats", "These will not be in the copy: %1.").arg(notKept.join(QStringLiteral(", ")));
+    if (!trimmed.isEmpty()) text += QLatin1Char(' ') + QCoreApplication::translate("jp::crunch::OtherFormats", "These are cut or changed to fit: %1.").arg(trimmed.join(QStringLiteral(", ")));
+    text += QLatin1Char(' ') + QCoreApplication::translate("jp::crunch::OtherFormats", "The workbook open here keeps all of it. You can also save it as .xlsx.");
+    return text;
+}
+
 QString openFilter() { return QCoreApplication::translate("jp::crunch::OtherFormats", "Workbooks (*.xlsx *.xlsm *.xltx *.xltm *.xlam *.xls *.ods *.fods *.csv *.tsv *.txt)"); }
 
 QString workbookKindOfType(const QString &mainContentType)
@@ -109,7 +131,7 @@ QString saveAsExplanation(const QString &fileName, const QString &kind, const QS
     if (k == QLatin1String(".xls") || k.isEmpty()) return saveAsExplanation(fileName, notRead);
     QString text;
     if (k == QLatin1String(".ods") || k == QLatin1String(".fods")) {
-        text = QCoreApplication::translate("jp::crunch::OtherFormats", "\"%1\" is an OpenDocument spreadsheet (%2), and this program saves workbooks only as .xlsx. It will ask you for a new name to save a copy under. "
+        text = QCoreApplication::translate("jp::crunch::OtherFormats", "\"%1\" is an OpenDocument spreadsheet (%2), and this program saves workbooks as .xlsx (or, if you choose that kind of file, as an .xls or .ods copy). It will ask you for a new name to save a copy under. "
                   "The original file will not be changed.")
                    .arg(fileName, k);
     } else {
@@ -220,8 +242,9 @@ bool sameFile(const QString &a, const QString &b)
 
 QString withPickedEnding(const QString &chosen, const QString &pickedFilter)
 {
-    if (chosen.isEmpty() || (pickedFilter != csvFilter() && pickedFilter != tabFilter())) return chosen;
-    return QFileInfo(chosen).suffix().isEmpty() ? chosen + (pickedFilter == csvFilter() ? QLatin1String(".csv") : QLatin1String(".tsv")) : chosen;
+    if (chosen.isEmpty() || (pickedFilter != csvFilter() && pickedFilter != tabFilter() && pickedFilter != xlsFilter() && pickedFilter != odsFilter())) return chosen;
+    const QLatin1String ending = pickedFilter == csvFilter() ? QLatin1String(".csv") : pickedFilter == tabFilter() ? QLatin1String(".tsv") : pickedFilter == xlsFilter() ? QLatin1String(".xls") : QLatin1String(".ods");
+    return QFileInfo(chosen).suffix().isEmpty() ? chosen + ending : chosen;
 }
 
 } // namespace jp::crunch

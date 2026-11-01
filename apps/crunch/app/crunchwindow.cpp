@@ -388,7 +388,7 @@ void CrunchWindow::createActions()
         }
         const QString kind = saveKind();
         const QString start = m_path.isEmpty() ? displayName() + QLatin1Char('.') + kind : m_path;
-        const QString filter = crunch::workbookKindFilter(kind) + QStringLiteral(";;") + crunch::csvFilter() + QStringLiteral(";;") + crunch::tabFilter();
+        const QString filter = crunch::workbookKindFilter(kind) + QStringLiteral(";;") + crunch::copyFilters() + QStringLiteral(";;") + crunch::csvFilter() + QStringLiteral(";;") + crunch::tabFilter();
         const QString p = askForSavePath(tr("Save Workbook As"), start, filter);
         if (!p.isEmpty()) saveAs(p);
     }, false, false);

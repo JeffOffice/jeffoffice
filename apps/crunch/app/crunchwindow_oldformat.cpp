@@ -34,12 +34,13 @@ QString CrunchWindow::pathToSave()
     // (the person is told first, in plain words, and then asked for the name: the file dialog starts with the old name and the ending .xlsx)
     notice(tr("Save"), crunch::saveAsExplanation(QFileInfo(m_path).fileName(), m_loaded->book->convertedKind(), m_loaded->book->skippedFeatures(), m_loaded->book->changedFeatures()), false);
     const QString start = crunch::suggestedSaveName(m_path);
-    const QString filter = tr("Workbooks (*.xlsx)") + QStringLiteral(";;") + crunch::csvFilter() + QStringLiteral(";;") + crunch::tabFilter();
+    const QString filter = tr("Workbooks (*.xlsx)") + QStringLiteral(";;") + crunch::copyFilters() + QStringLiteral(";;") + crunch::csvFilter() + QStringLiteral(";;") + crunch::tabFilter();
     const QString chosen = askForSavePath(tr("Save Workbook As"), start, filter);
     if (chosen.isEmpty()) return QString();
     // (whatever was answered, it ends as a workbook of the new form does, and it is not the file the workbook was read from)
     // (a name ending in .csv is the values of the sheet in view, written as a .csv: see exportCsv)
-    const QString path = crunch::isCsvName(chosen) ? chosen : crunch::withWorkbookEnding(chosen);
+    // (a name ending in .xls or .ods is a copy in that form: see exportCopy)
+    const QString path = crunch::isCsvName(chosen) || crunch::isCopyName(chosen) ? chosen : crunch::withWorkbookEnding(chosen);
     if (isTheOriginal(path) || isTheOriginal(chosen)) {
         notice(tr("Save"), crunch::originalNotWrittenNotice(QFileInfo(m_originalPath).fileName()));
         return QString();
