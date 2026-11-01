@@ -2,7 +2,7 @@
 
 JeffWrite is the word processor of JeffOffice. JeffOffice is an independent project: JeffWrite aims to work with Word files and the people who use them (compatibility and interoperability), and then to do more, and do it better. It saves `.docx`, and opens the older `.doc` too; `.rtf` and `.odt` are planned. Its first public version, 0.9.0 (a Preview, released October 19, 2026), is a window with the ribbon, the page view, editing, `.docx` and `.doc` files, tables, headers and footers, notes, and pictures and text boxes as files have them, spelling, and printing; each box says what that version does of an item (`[x]` all of it, `[~]` part, with the note saying what is missing, and `[ ]` none). This list is the whole job, a checklist of features: everything people rely on so their documents open, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so the work can be planned and tracked.
 
-Last reviewed October 22, 2026.
+Last reviewed October 31, 2026.
 
 Legend: `[x]` works in JeffWrite 0.9.0 · `[~]` partly works in 0.9.0 (the note says what is missing) · `[ ]` not in 0.9.0 (a *(shared: ...)* note names the part of the suite it builds on) · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
@@ -188,7 +188,7 @@ Header, Footer, and Page Number are listed under Header & Footer tools, and Comm
 - [ ] **1.0** Cover Page gallery of built-in designs, Remove Current Cover Page, and saving your own
 
 ### Tables
-- [ ] **first release** Insert Table from the grid or the dialog (columns, rows, fixed or auto width, remember the size), and Draw Table; everything else is under Table tools *(tables: ours 20%, public 42%)* *(shared: JeffPub's tables)*
+- [x] **first release** Insert Table from the grid or the dialog (columns, rows, fixed or auto width, remember the size); everything else is under Table tools; drawing a table is its own line below *(tables: ours 20%, public 42%)* *(shared: JeffPub's tables)* *(beta wave B: Insert > Table has the grid to point at and Insert Table…, a table of Table Grid style at the cursor, one step to undo, written so that the file opens the same)*
 - [ ] **1.0** Convert Text to Table and Table to Text (by paragraphs, commas, tabs, or another character)
 - [ ] **1.0** Quick Tables gallery (calendars, matrices, tabular lists, with subheadings) and saving your own
 - [ ] **later** Excel Spreadsheet: an embedded worksheet, edited in place by JeffCrunch once it exists *(shared with JeffCrunch)*
@@ -387,14 +387,14 @@ The tabs that appear only while something is selected or being edited: a table, 
 
 ### Table Design and Layout tabs
 
-- [ ] **first release** Table styles gallery (grid, list, and plain styles), the style options (header row, total row, banded rows, first and last column, banded columns), Modify Table Style, New Table Style, and Clear *(table styles: ours 12% (.docx 23%, .doc and .rtf 0%), public 0%; shared: JeffPub's Table Formats gallery)*
-- [ ] **first release** Shading and borders: every border style, width, and color on any side or inside, the border painter, the Borders and Shading dialog, and View Gridlines *(shading: ours 6%, public 17%)*
-- [~] **first release** Select a cell, row, column, or table; insert rows above or below and columns left or right; delete cells, rows, columns, or the table; the Tab key at the last cell adds a row *(0.9.0: the Tab key at the last cell adds a row, and the editing functions add and take away rows and columns and keep merged cells whole; no commands or menus offer them yet)*
-- [ ] **first release** Merge Cells and Split Cells (across and down), and Split Table *(merged across: ours 4%, public 20%; merged down: ours 1%, public 8%; shared: JeffPub's merged cells)*
+- [~] **first release** Table styles gallery (grid, list, and plain styles), the style options (header row, total row, banded rows, first and last column, banded columns), Modify Table Style, New Table Style, and Clear *(table styles: ours 12% (.docx 23%, .doc and .rtf 0%), public 0%; shared: JeffPub's Table Formats gallery)* *(beta wave B: the gallery shows 14 built-in styles and the file's own, the six options and Clear work and are written; Modify Table Style and New Table Style are not there yet)*
+- [~] **first release** Shading and borders: every border style, width, and color on any side or inside, the border painter, the Borders and Shading dialog, and View Gridlines *(shading: ours 6%, public 17%)* *(beta wave B: shading and the borders menu on the Table Design tab, and the Borders and Shading dialog with the style, width, color, sides, and fill, for the cells or the table; the border painter and View Gridlines are not there yet)*
+- [~] **first release** Select a cell, row, column, or table; insert rows above or below and columns left or right; delete cells, rows, columns, or the table; the Tab key at the last cell adds a row *(beta wave B: the Table Layout tab and the right-click menu select the cell, row, column, or table, insert, and delete rows, columns, and the table, all one step to undo; deleting a single cell and shifting the cells is not there yet)*
+- [~] **first release** Merge Cells and Split Cells (across and down), and Split Table *(merged across: ours 4%, public 20%; merged down: ours 1%, public 8%; shared: JeffPub's merged cells)* *(beta wave B: Merge Cells over a block of cells, with the words of each kept, and Split Cells into columns and rows, both written so that the file opens the same; Split Table is not there yet)*
 - [~] **first release** Nested tables, a table inside a cell *(nested: ours 2%, public 2%)* *(0.9.0: nested tables are laid out down to a limit, and past it the text of the tables stays as plain paragraphs)*
-- [ ] **first release** Cell size: row height (at least or exactly), column width (points or percent), AutoFit to contents, to the window, or fixed, and Distribute Rows and Columns *(shared: JeffPub)*
-- [ ] **first release** Table Properties: alignment, indent, text wrapping around the table, preferred width, default cell margins, space between cells, "allow row to break across pages," **Repeat as header row at the top of each page**, vertical alignment, no wrap, fit text, and alt text *(repeating header rows: ours 1%, public 7%)*
-- [ ] **first release** Cell alignment in nine positions, and text direction in a cell
+- [~] **first release** Cell size: row height (at least or exactly), column width (points or percent), AutoFit to contents, to the window, or fixed, and Distribute Rows and Columns *(shared: JeffPub)* *(beta wave B: row height at least or exactly, column width in points, AutoFit to contents, to the window, or fixed, and Distribute Rows and Columns; a column's width in percent is not there yet, only the table's)*
+- [~] **first release** Table Properties: alignment, indent, text wrapping around the table, preferred width, default cell margins, space between cells, "allow row to break across pages," **Repeat as header row at the top of each page**, vertical alignment, no wrap, fit text, and alt text *(repeating header rows: ours 1%, public 7%)* *(beta wave B: the Table Properties dialog has all of them but text wrapping around the table and fit text)*
+- [~] **first release** Cell alignment in nine positions, and text direction in a cell *(beta wave B: the nine positions are there; text direction is not)*
 - [ ] **1.0** Draw Table and Eraser, with the pen style, weight, and color
 - [ ] **1.0** Formula in a cell (=SUM(ABOVE), =AVERAGE(LEFT), and the functions, with number formats), updated with F9 *(shared: a calculation engine with JeffCrunch)*
 - [ ] **1.0** Table handles: a move handle at the corner, a resize handle, and dragging borders
@@ -447,7 +447,7 @@ What a right-click offers depends on what is under the pointer. The commands are
 
 - [~] **first release** On text: Cut, Copy, and Paste Options (keep the source formatting, merge formatting, or keep text only), Font, Paragraph, Bullets and Numbering, Hyperlink, and New Comment *(Cut, Copy, Paste, Font, Paragraph, and Select All; the paste choices, lists, link, and comment are not there yet)*
 - [~] **first release** On a word the spelling check flags: suggestions, Ignore All, Add to Dictionary, and the AutoCorrect options *(done: suggestions, Ignore All, and Add to Dictionary; missing: the AutoCorrect options)* **(needed for the Preview)**
-- [ ] **first release** In a table: Insert and Delete for rows, columns, and cells, Select, Merge Cells, Split Cells, Borders and Shading, AutoFit, and Table Properties
+- [x] **first release** In a table: Insert and Delete for rows, columns, and the table, Select, Merge Cells, Split Cells, Borders and Shading, AutoFit, Distribute, Cell Alignment, and Table Properties *(beta wave B: the right-click menu in a cell)*
 - [ ] **1.0** On a picture, shape, or text box: Cut, Copy, Paste, Wrap Text, Bring to Front and Send to Back, Group, Edit Alt Text, Size and Position, and Format
 - [ ] **1.0** On a field, a link, a footnote, or a tracked change: Update Field, Edit Field, and Toggle Field Codes; Open, Edit, and Remove Hyperlink; Go to a note; and Accept or Reject a change
 - [ ] **1.0** On a comment: Reply, Resolve, and Delete

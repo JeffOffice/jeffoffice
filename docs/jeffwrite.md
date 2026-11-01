@@ -187,6 +187,18 @@ and its type; a note is cited while the text, a header or footer, a text box or 
 no step of the history can bring back is let go with its slot (`reclaimDeadNotes`: its history step is in neither log), and at the most both commands are off with the reason in the status bar; and settling the endnotes
 follows the references as the story changes (`followEndnoteReferences`), so an edit that touches none of them costs nothing more than it does without an endnotes part.
 
+## Editing tables (beta wave B, October 31, 2026)
+
+A table is changed by changing the bytes of its parts and making the records of its cells again from them (`core/tableops.cpp`, "Making and changing tables"). The start of the table (its
+`w:tblPr` and grid), of each row (`w:trPr`), and of each cell (`w:tcPr`) are kept as the file's bytes in `TablePart`, `RowPart`, and `CellPart` (`core/tablemodel.h`); a command patches the
+properties it sets (`patchPr` puts an element among the others in the schema's order, and merges the sides of a border group), and `remake` feeds the parts to the same `TableBuilder` that reads a
+file, with the marks read from the bytes by `readTableMark` (libs/office/wml). So the records, the table style's parts, and the paragraphs' look come out as they will when the saved file is opened,
+and the tests compare a table with the same file opened again (`tablesSignature`). The paragraphs of the cells are then given the keys of the new records in the same step (`giveKeys`), so one undo
+takes a command back. Merge Cells and Split Cells also move paragraphs; they work from the last place of the story up, so the places of the layout they started from stay good. Insert Table makes
+the parts by hand and takes its look from the table style (Table Grid, added to the document when it lacks it: `builtinTableStyleIds` in libs/office/wml/wmlnew.cpp has the gallery's styles).
+Kept pieces between rows and cells go through `remake` in their places. Not yet: Split Table, deleting a single cell, a column's width in percent, text direction, text wrapping around a table,
+Modify Table Style and New Table Style, the border painter, and drawing a table.
+
 ## Checking it
 
 - Reference pages of documents, and every file JeffWrite saves opened and re-saved without a repair
