@@ -245,7 +245,7 @@ Value fnVdb(Call &c)
     return numberResult(variableBalance(cost, salvage, life, start, end, factor, noSwitch));
 }
 
-// ---- cash flows: IRR and XIRR are found by Newton's method from a guess; XNPV is a sum
+// ---- cash flows: IRR is found as the original finds it (Newton's method from the guess, twenty steps); XIRR by Newton's method from a guess and, failing that, by halving; XNPV is a sum
 
 namespace {
 
@@ -333,6 +333,37 @@ bool solveRate(Call &c, const std::vector<double> &v, const std::vector<double> 
     return true;
 }
 
+// The rate where the value of the flows is nothing as IRR finds it: Newton's method from the guess, twenty steps at most, and done when a step moves the rate by no more than 0.0000001
+// (a hundred-thousandth of a percent). The rate it comes to is the one the last step gives, near the root and not on it, as the original's is; a rate that is not found in twenty
+// steps (or that the steps take to -1 or below) is not found: the original gives #NUM! for it, and a flow that has a rate the steps would come to later has none here either.
+bool newtonRate(Call &c, const std::vector<double> &v, const std::vector<double> &t, double guess, double *out)
+{
+    const qint64 n = qint64(v.size());
+    double rate = guess;
+    for (int step = 0; step < 20; ++step) {
+        if (!c.machine().charge(n)) return false;
+        const RateTerms x = termsAt(v, t, rate);
+        if (!std::isfinite(x.value) || !std::isfinite(x.slope) || x.slope == 0) return false;
+        const double next = rate - x.value / x.slope;
+        if (!std::isfinite(next) || next <= -1) return false;
+        const bool done = std::fabs(next - rate) <= 1e-7;
+        rate = next;
+        if (done) {
+            // (a step that is small because the slope is huge, near -1, is not a root: the value there is not nothing next to the flows)
+            const RateTerms at = termsAt(v, t, rate);
+            if (!std::isfinite(at.value) || std::fabs(at.value) > 1e-4 * at.scale) return false;
+            // (and one step more: the original's rate is nearer the root than the step that found it was close)
+            if (std::isfinite(at.slope) && at.slope != 0) {
+                const double more = rate - at.value / at.slope;
+                if (std::isfinite(more) && more > -1) rate = more;
+            }
+            *out = rate;
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 Value fnIrr(Call &c)
@@ -344,7 +375,7 @@ Value fnIrr(Call &c)
     bool bad = false;
     const bool done = c.each(0, [&](const Value &x, bool typed) {
         if (x.isError()) {
-            error = x;
+            error = Value::error(ErrorKind::Value);   // (an error among the flows is #VALUE!, whichever error it is: so the original's files have it)
             bad = true;
             return false;
         }
@@ -371,7 +402,7 @@ Value fnIrr(Call &c)
     std::vector<double> times(v.size());
     for (size_t i = 0; i < v.size(); ++i) times[i] = double(i);
     double rate;
-    if (!solveRate(c, v, times, guess, &rate)) return c.machine().stopped() ? c.error(ErrorKind::Value) : c.error(ErrorKind::Num);
+    if (!newtonRate(c, v, times, guess, &rate)) return c.machine().stopped() ? c.error(ErrorKind::Value) : c.error(ErrorKind::Num);
     return rate > -1 ? numberResult(rate) : c.error(ErrorKind::Num);
 }
 
@@ -485,7 +516,7 @@ void registerFinanceFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"NOMINAL", 2, 2, "vv", 0, fnNominal});
     r.push_back({"DDB", 4, 5, "vvvvv", 0, fnDdb});
     r.push_back({"VDB", 5, 7, "vvvvvvv", 0, fnVdb});
-    r.push_back({"IRR", 1, 2, "rv", kFnIterative, fnIrr});
+    r.push_back({"IRR", 1, 2, "rv", 0, fnIrr});   // (worked out as the original works it out: not kept apart)
     r.push_back({"XNPV", 3, 3, "vrr", 0, fnXnpv});
     r.push_back({"XIRR", 2, 3, "rrv", kFnIterative, fnXirr});
 }

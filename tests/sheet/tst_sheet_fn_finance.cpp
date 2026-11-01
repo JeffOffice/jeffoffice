@@ -79,17 +79,18 @@ private Q_SLOTS:
     void aRateIsFoundWhereTheValueIsNothingFromAGuessNearMinusOne()
     {
         const E cases[] = {
-            {"ROUND(IRR({-100,110},-0.999999999),6)", "n:0.1"},
-            {"ROUND(IRR({-100,110},-0.9999999),6)", "n:0.1"},
-            {"ROUND(IRR({-100,50,60},-0.99999999),6)", "n:0.063941"},
-            {"ROUND(IRR({-100,50,60},-0.999),6)", "n:0.063941"},
+            {"ROUND(IRR({-100,110},-0.999999999),6)", "e:#NUM!"},   // IRR steps from the guess twenty times, as the original does: from here it does not get out
+            {"ROUND(IRR({-100,110},-0.9999999),6)", "e:#NUM!"},
+            {"ROUND(IRR({-100,50,60},-0.99999999),6)", "e:#NUM!"},
+            {"ROUND(IRR({-100,50,60},-0.999),6)", "e:#NUM!"},
             {"ROUND(IRR({-100,50,60},-0.99),6)", "n:0.063941"},
             {"ROUND(IRR({-100,50,60},0.5),6)", "n:0.063941"},
-            {"ROUND(IRR({-100,50,60},100),6)", "n:0.063941"},
+            {"ROUND(IRR({-100,50,60},100),6)", "e:#NUM!"},
             {"ROUND(XIRR({-100,110},{40000,40365},-0.999999999),6)", "n:0.1"},
             {"ROUND(XIRR({-100,110},{40000,40365},-0.9999),6)", "n:0.1"},
             {"ROUND(XIRR({-100,50,60},{40000,40365,40730},-0.99999999),6)", "n:0.063941"},
-            {"ROUND(-100+110/(1+IRR({-100,110},-0.999999999)),9)", "n:0"},   // the value at the rate it gives is nothing
+            {"IRR({-2698,0,553,443})", "e:#NUM!"},                        // a rate there is (-0.329335), but not within twenty steps from 0.1: the original gives #NUM!
+            {"ROUND(IRR({-2698,0,553,443},-0.3),6)", "n:-0.329335"},      // and from a guess near it
             {"IRR({1,-2,3})", "e:#NUM!"},                                  // a rate where there is none
             {"IRR({1,2,3},-0.5)", "e:#NUM!"},
         };

@@ -263,6 +263,26 @@ private Q_SLOTS:
         QCOMPARE(b.at(QStringLiteral("E6")), QStringLiteral("n:10"));
     }
 
+    // A table of IRR: the rate comes to what the flows come to with the input set, as a table of NPV does (the flows are formulas that read the input).
+    void aTableOfIrrFollowsTheInput()
+    {
+        QMap<int, QString> grid;
+        grid[1] += num(QStringLiteral("A1"), 1000);
+        grid[2] += formula(QStringLiteral("B2"), QStringLiteral("-A1"), -1000) + num(QStringLiteral("C2"), 400) + num(QStringLiteral("D2"), 400) + num(QStringLiteral("E2"), 400);
+        grid[4] += formula(QStringLiteral("B4"), QStringLiteral("IRR(B2:E2)"), 0.097) + formula(QStringLiteral("C4"), QStringLiteral("NPV(0.1,C2:E2)+B2"), 0);
+        grid[5] += num(QStringLiteral("A5"), 1100) + QStringLiteral("<c r=\"B5\"><f t=\"dataTable\" ref=\"B5:C6\" dt2D=\"0\" dtr=\"0\" r1=\"A1\"/><v>9</v></c>") + num(QStringLiteral("C5"), 9);
+        grid[6] += num(QStringLiteral("A6"), 900) + num(QStringLiteral("B6"), 9) + num(QStringLiteral("C6"), 9);
+        QString rows;
+        for (int r = 1; r <= 6; ++r) rows += row(r, grid.value(r));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(b.calc->recalculate().finished);
+        const QString irr1100 = b.at(QStringLiteral("B5")), irr900 = b.at(QStringLiteral("B6"));
+        QVERIFY2(irr1100 != irr900, qPrintable(irr1100 + " " + irr900));
+        // (-1100, 400 x 3: the rate is under 6%, and for -900 it is over 15%)
+        QVERIFY(irr1100.mid(2).toDouble() < 0.06 && irr900.mid(2).toDouble() > 0.15);
+    }
+
     // All the tables together may take only the work a recalculation may: past it the rest are left as the file has them, and counted.
     void tablesTooCostlyToWorkOutAreLeftAloneAndCounted()
     {
