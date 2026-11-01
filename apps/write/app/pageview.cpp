@@ -1532,11 +1532,7 @@ bool PageView::noteLineAtEdge(int dir)
 bool PageView::floatingPictureRect(int position, QRectF *onPage, int *pageOut)
 {
     if (!m_doc || m_hf.active || m_note.active) return false;
-    const QTextCharFormat cf = [&] {
-        QTextCursor c(m_doc->story());
-        c.setPosition(position + 1);
-        return c.charFormat();
-    }();
+    const QTextCharFormat cf = charFormatAt(m_doc->story(), position);
     const int id = cf.intProperty(flow::fp::AnchorId);
     if (id <= 0) return false;
     flow::Paginator &pg = m_doc->pager();

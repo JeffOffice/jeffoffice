@@ -21960,6 +21960,39 @@ private Q_SLOTS:
         QCOMPARE(pictureItemsOfPage(*doc).size(), 1);
     }
 
+    // A copy of a picture does not lean on the drawn forms the document may let go: they are made again for what is pasted.
+    void aCopiedFloatingPictureIsPastedIntactAfterTheFormsItHadAreFreed()
+    {
+        auto doc = textDoc({longText(), QStringLiteral("second paragraph")});
+        QTextCursor c(doc->story());
+        QCOMPARE(insertPicture(*doc, c, pngOf(40, 40)), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 100, 100));
+        QTextCursor sel(doc->story());
+        sel.setPosition(0);
+        sel.setPosition(1, QTextCursor::KeepAnchor);
+        const Clip clip = copySelection(*doc, sel);
+        // The step that made the picture's form is taken back and put out of reach by a new edit; the places it held are used by others.
+        QVERIFY(doc->undo());
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Square));
+        for (int i = 0; i < 20; ++i) QVERIFY(setPicturePlace(*doc, 0, 200 + i, 300));
+        doc->collectObjectRecordsForTest();
+        QTextCursor at(doc->story());
+        at.setPosition(doc->story()->findBlockByNumber(1).position());
+        pasteClip(*doc, at, clip);
+        QCOMPARE(picturesIn(doc->story()), 2);
+        const int pasted = doc->story()->findBlockByNumber(1).position();
+        QVERIFY(isPictureAt(doc->story(), pasted));
+        const PictureInfo info = pictureAt(*doc, doc->story(), pasted);
+        QVERIFY(info.valid && info.floating);
+        QCOMPARE(info.left, 100.0);
+        QCOMPARE(info.top, 100.0);
+        QCOMPARE(pictureItemsOfPage(*doc).size(), 2);
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(picturesIn(back->story()), 2);
+        QCOMPARE(pictureItemsOfPage(*back).size(), 2);
+    }
+
     // Not a test of its own: the work of a process that the next function starts. A document with a header and a footer, read, typed in, and saved.
     void savesTheDocumentWithHeaderAndFooter()
     {

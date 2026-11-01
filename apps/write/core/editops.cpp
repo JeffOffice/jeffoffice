@@ -1603,7 +1603,29 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
     int from = 0, to = 0;
     pasteInto(doc, c, clip.fragment, &from, &to, same);
     if (same) {
+        // The drawn forms the pasted pictures had are the ones the document may have let go since the copy: they are made again from the drawings (the same form, while it is held).
+        struct Redo { int from, to; QTextCharFormat format; };
+        QVector<Redo> redo;
+        QTextDocument *dd = c.document();
+        for (QTextBlock b = dd->findBlock(from); b.isValid() && b.position() <= to; b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment f = it.fragment();
+                if (f.position() + f.length() <= from || f.position() >= to || !f.charFormat().hasProperty(prop::Atom)) continue;
+                const Inline a = unpackAtom(storedBytes(f.charFormat(), prop::Atom));
+                if (a.tag != QLatin1String("drawing")) continue;
+                QTextCharFormat nf = f.charFormat();
+                nf.clearProperty(tp::InlineObject);
+                nf.clearProperty(flow::fp::AnchorId);
+                if (doc.makeDrawnFormat(a, &nf)) redo.push_back({f.position(), f.position() + f.length(), nf});
+            }
+        for (int i = int(redo.size()) - 1; i >= 0; --i) {
+            QTextCursor t(dd);
+            t.setPosition(redo[i].from);
+            t.setPosition(redo[i].to, QTextCursor::KeepAnchor);
+            t.setCharFormat(redo[i].format);
+        }
         c.endEditBlock();
+        doc.keepObjectsForTheHistory();
         return;
     }
     // From another document: what the pasted pieces refer to by relationship Id is made over in this one's, or the pieces are left out.

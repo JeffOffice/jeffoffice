@@ -61,9 +61,7 @@ bool PageView::inlinePictureRect(int position, const PictureInfo &info, QRectF *
     int page = 0;
     QLineF line;
     if (!caretLine(position, &page, &line) || page < 0 || page >= m_rects.size()) return false;
-    QTextCursor c(m_doc->story());
-    c.setPosition(position + 1);
-    const double descent = QFontMetricsF(c.charFormat().font()).descent();
+    const double descent = QFontMetricsF(charFormatAt(m_doc->story(), position).font()).descent();
     const double s = scale();
     const QRectF pr = m_rects[page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
     *rect = QRectF(pr.left() + line.x1() * s, pr.top() + (line.y2() - descent - info.height) * s, info.width * s, info.height * s);

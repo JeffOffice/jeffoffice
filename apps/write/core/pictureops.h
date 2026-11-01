@@ -59,6 +59,8 @@ struct PictureInfo {
 
 // The picture at a place of the story (the character just after `position`); `valid` is false for any other character.
 PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int position);
+// The character format of the character just after `position`.
+QTextCharFormat charFormatAt(const QTextDocument *story, int position);
 // Whether the character just after `position` is a picture (a quick test for the pages).
 bool isPictureAt(const QTextDocument *story, int position);
 

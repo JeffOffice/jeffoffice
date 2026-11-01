@@ -14,6 +14,7 @@
 #include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextDocument>
+#include <QTextFragment>
 #include <algorithm>
 #include <cmath>
 
@@ -337,12 +338,14 @@ int highestDrawingId(const QTextDocument *story)
     return std::min(highest, 2000000000 - 2);
 }
 
-// The character format at the place after `position`.
+// The character format of the character just after `position` (its own fragment's: a cursor at the start of a paragraph would give the paragraph's first character's).
 QTextCharFormat formatAfter(const QTextDocument *story, int position)
 {
-    QTextCursor c(const_cast<QTextDocument *>(story));
-    c.setPosition(position + 1);
-    return c.charFormat();
+    for (QTextBlock::iterator it = story->findBlock(position).begin(); !it.atEnd(); ++it) {
+        const QTextFragment f = it.fragment();
+        if (position >= f.position() && position < f.position() + f.length()) return f.charFormat();
+    }
+    return QTextCharFormat();
 }
 
 bool isPictureShape(const QVector<Shape> &shapes) { return !shapes.isEmpty() && shapes.first().kind == Shape::Picture; }
@@ -569,6 +572,8 @@ int WriteDoc::nextDrawingId(const QTextDocument *story)
 }
 
 void WriteDoc::forgetDrawingIds() { m_drawingId = 0; }
+
+QTextCharFormat charFormatAt(const QTextDocument *story, int position) { return formatAfter(story, position); }
 
 bool isPictureAt(const QTextDocument *story, int position)
 {
