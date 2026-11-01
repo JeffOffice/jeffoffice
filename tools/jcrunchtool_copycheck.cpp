@@ -70,7 +70,8 @@ int errorKey(int e, bool old)
 QString shownCode(QString code)
 {
     // a currency mark in brackets ("[$$-409]") shows as the mark
-    code.replace(QRegularExpression(QStringLiteral("\\[\\$([^\\]-]*)(?:-[^\\]]*)?\\]")), QStringLiteral("\\1"));
+    static const QRegularExpression currency(QStringLiteral("\\[\\$([^\\]-]*)(?:-[^\\]]*)?\\]"));
+    code.replace(currency, QStringLiteral("\\1"));
     QString out;
     for (int i = 0; i < code.size(); ++i) {
         const QChar c = code[i];
@@ -215,13 +216,26 @@ int copyCheckMain(const QStringList &args)
     const quint32 maxRow = old ? quint32(65536) : format == QLatin1String("ods") ? quint32(1048576) : quint32(1048576);
     const quint32 maxCol = old ? quint32(256) : quint32(16384);
     qint64 sheets = 0, compared = 0, valueDiffs = 0, formulas = 0, formulasBack = 0, formulasSame = 0, fmt = 0, fmtNum = 0, fmtLook = 0, lost = 0, mergesA = 0, mergesB = 0;
-    if (written.size() != backPlaces.size() && !(written.size() == 1 && written[0].place < 0 && backPlaces.size() == 1)) diff(QStringLiteral("sheet count %1 vs %2").arg(written.size()).arg(backPlaces.size()));
-    for (size_t i = 0; i < written.size() && i < backPlaces.size(); ++i) {
-        if (written[i].place < 0) continue;
+    // (the sheets of the copy that are the workbook's: by place in the order, or, for a copy that is the same kind of file, by name, since a save keeps chart sheets and the like in the order too)
+    std::vector<int> pairedBack(written.size(), -1);
+    for (size_t i = 0; i < written.size(); ++i) {
+        if (format == QLatin1String("xlsx")) {
+            for (int place : backPlaces)
+                if (back.info().sheets[place].name.compare(written[i].name, Qt::CaseInsensitive) == 0) pairedBack[i] = place;
+        } else if (i < backPlaces.size()) {
+            pairedBack[i] = backPlaces[i];
+        }
+    }
+    if (format != QLatin1String("xlsx") && written.size() != backPlaces.size() && !(written.size() == 1 && written[0].place < 0 && backPlaces.size() == 1)) diff(QStringLiteral("sheet count %1 vs %2").arg(written.size()).arg(backPlaces.size()));
+    for (size_t i = 0; i < written.size(); ++i)
+        if (pairedBack[i] < 0 && written[i].place >= 0) diff(QStringLiteral("sheet %1 is not in the copy").arg(written[i].name));
+    QHash<quint64, quint8> styleSame;
+    for (size_t i = 0; i < written.size(); ++i) {
+        if (written[i].place < 0 || pairedBack[i] < 0) continue;
         ++sheets;
         Sheet a, b;
         book.readSheet(written[i].place, &a);
-        back.readSheet(backPlaces[i], &b);
+        back.readSheet(pairedBack[i], &b);
         // the cells covered by a merged range other than its first are not kept by the formats
         QVector<CellRange> merges;
         for (const CellRange &m : a.merges)
@@ -229,7 +243,23 @@ int copyCheckMain(const QStringList &args)
         mergesA += merges.size();
         for (const CellRange &m : b.merges)
             if (m.valid && m.cellCount() >= 2) ++mergesB;
+        // the cells a merged range covers, other than its first (a set, when they are not too many; else each merge is looked at)
+        QSet<quint64> coveredCells;
+        bool coveredByList = false;
+        {
+            qint64 total = 0;
+            for (const CellRange &m : merges) total += m.cellCount();
+            if (total <= 8000000) {
+                for (const CellRange &m : merges)
+                    for (quint32 rr = m.row1; rr <= m.row2; ++rr)
+                        for (quint32 cc = m.col1; cc <= m.col2; ++cc)
+                            if (!(rr == m.row1 && cc == m.col1)) coveredCells.insert((quint64(rr) << 20) | cc);
+            } else {
+                coveredByList = true;
+            }
+        }
         auto coveredByMerge = [&](quint32 row, quint32 col) {
+            if (!coveredByList) return coveredCells.contains((quint64(row) << 20) | col);
             for (const CellRange &m : merges)
                 if (m.contains(row, col) && !(m.row1 == row && m.col1 == col)) return true;
             return false;
@@ -299,9 +329,17 @@ int copyCheckMain(const QStringList &args)
                 // the formats
                 if (e) {
                     ++fmt;
-                    if (shownCode(book.styles().formatCode(c.style, QLocale::c())) == shownCode(back.styles().formatCode(e->style, QLocale::c()))) ++fmtNum;
+                    // (a pair of cell formats is compared once)
+                    const quint64 pair = (quint64(c.style) << 32) | e->style;
+                    auto known = styleSame.constFind(pair);
+                    if (known == styleSame.cend()) {
+                        const bool numSame = shownCode(book.styles().formatCode(c.style, QLocale::c())) == shownCode(back.styles().formatCode(e->style, QLocale::c()));
+                        const bool lookSame = lookKey(book.styles(), c.style) == lookKey(back.styles(), e->style);
+                        known = styleSame.insert(pair, quint8((numSame ? 1 : 0) | (lookSame ? 2 : 0)));
+                    }
+                    if (*known & 1) ++fmtNum;
                     else diff(QStringLiteral("number format at %1!%2 (%3 vs %4)").arg(written[i].name, cellName(row, col), book.styles().formatCode(c.style, QLocale::c()), back.styles().formatCode(e->style, QLocale::c())));
-                    if (lookKey(book.styles(), c.style) == lookKey(back.styles(), e->style)) ++fmtLook;
+                    if (*known & 2) ++fmtLook;
                     else diff(QStringLiteral("look at %1!%2 (%3 vs %4)").arg(written[i].name, cellName(row, col), lookKey(book.styles(), c.style), lookKey(back.styles(), e->style)));
                 }
             }
