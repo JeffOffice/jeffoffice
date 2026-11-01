@@ -186,15 +186,16 @@ private Q_SLOTS:
             QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/>"
                            "<xf numFmtId=\"164\" fontId=\"1\" fillId=\"2\" borderId=\"1\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\"><alignment horizontal=\"center\" vertical=\"top\" wrapText=\"1\" indent=\"1\"/></xf>"
                            "<xf numFmtId=\"165\" fontId=\"0\" fillId=\"0\" borderId=\"0\" applyNumberFormat=\"1\"/><xf numFmtId=\"14\" fontId=\"0\" fillId=\"0\" borderId=\"0\" applyNumberFormat=\"1\"/>"
-                           "<xf numFmtId=\"9\" fontId=\"0\" fillId=\"0\" borderId=\"0\" applyNumberFormat=\"1\"><protection locked=\"0\"/></xf>"));
+                           "<xf numFmtId=\"9\" fontId=\"0\" fillId=\"0\" borderId=\"0\" applyNumberFormat=\"1\"><protection locked=\"0\"/></xf>"
+                           "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"><protection locked=\"1\" hidden=\"1\"/></xf>"));
         const QByteArray x = simple(row(1, num(QStringLiteral("A1"), 1.23456, 1) + num(QStringLiteral("B1"), 5, 2) + num(QStringLiteral("C1"), 45000, 3) + num(QStringLiteral("D1"), 0.25, 4)
-                                              + num(QStringLiteral("E1"), 9, 0)),
+                                              + num(QStringLiteral("E1"), 9, 0) + num(QStringLiteral("F1"), 3, 5)),
                                     QString(), QString(), styles);
         QVERIFY2(c.make(x), qPrintable(c.why));
         const Sheet a = c.sheet(c.original, 0);
         for (const Workbook *wb : {&c.xls, &c.ods}) {
             const Sheet b = c.sheet(*wb, 0);
-            for (const char *r : {"A1", "B1", "C1", "D1", "E1"}) {
+            for (const char *r : {"A1", "B1", "C1", "D1", "E1", "F1"}) {
                 const QString ref = QString::fromLatin1(r);
                 const CellFormat &fa = c.original.styles().format(at(a, ref)->style), &fb = wb->styles().format(at(b, ref)->style);
                 QCOMPARE(wb->styles().formatCode(at(b, ref)->style, QLocale::c()), c.original.styles().formatCode(at(a, ref)->style, QLocale::c()));

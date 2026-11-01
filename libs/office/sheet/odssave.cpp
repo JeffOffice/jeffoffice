@@ -295,7 +295,7 @@ private:
         if (f.rotation == 255) cell += QStringLiteral(" style:direction=\"ttb\"");
         else if (f.rotation > 0 && f.rotation <= 90) cell += QStringLiteral(" style:rotation-angle=\"%1\" style:rotation-align=\"none\"").arg(f.rotation);
         else if (f.rotation > 90 && f.rotation <= 180) cell += QStringLiteral(" style:rotation-angle=\"%1\" style:rotation-align=\"none\"").arg(450 - f.rotation);
-        cell += QStringLiteral(" style:cell-protect=\"%1\"").arg(f.locked ? (f.formulaHidden ? QStringLiteral("formula-hidden") : QStringLiteral("protected")) : (f.formulaHidden ? QStringLiteral("formula-hidden") : QStringLiteral("none")));
+        cell += QStringLiteral(" style:cell-protect=\"%1\"").arg(f.locked ? (f.formulaHidden ? QStringLiteral("protected formula-hidden") : QStringLiteral("protected")) : (f.formulaHidden ? QStringLiteral("formula-hidden") : QStringLiteral("none")));
         cell += f.horizontal == HAlign::General ? QStringLiteral(" style:text-align-source=\"value-type\" style:repeat-content=\"false\"") : QStringLiteral(" style:text-align-source=\"fix\" style:repeat-content=\"false\"");
         x += QStringLiteral("<style:table-cell-properties%1/>").arg(cell);
         // the paragraph

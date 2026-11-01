@@ -115,7 +115,7 @@ QString lookKey(const Styles &st, quint32 xf)
     const FillSpec &fill = st.fill(f.fill);
     const BorderSpec &b = st.border(f.border);
     auto rgb = [&](const ColorSpec &c) { return st.resolve(c, 0xFFFFFFFFu); };
-    // (the automatic color of a border is black)
+    // (the automatic color of a border, and of text, is black)
     auto side = [&](const BorderSide &s) { return s.style == BorderStyle::None ? QStringLiteral("-") : QString::number(int(s.style)) + QLatin1Char('/') + QString::number(st.resolve(s.color, 0), 16); };
     // (a border style the other format has no name for comes back as the nearest; the key keeps the heavy/light and dashed/solid)
     // (the alignments a format has no name for come back as the nearest it has: centered across, filled, distributed, and justified at the top)
@@ -125,7 +125,7 @@ QString lookKey(const Styles &st, quint32 xf)
     const bool noFill = fill.pattern == PatternKind::None || rgb(fill.fg) == 0xFFFFFFFFu;
     return QStringLiteral("%1|%2|%3%4%5%6|%7|%8|%9|%10|%11|%12|%13|%14|%15|%16|%17")
         .arg(st.fontNameOf(font).section(QLatin1Char(','), 0, 0).toLower()).arg(font.size).arg(int(font.bold)).arg(int(font.italic)).arg(int(font.strike)).arg(int(font.underline != Underline::None))
-        .arg(rgb(font.color), 0, 16).arg(int(font.vertAlign)).arg(noFill ? QStringLiteral("-") : QString::number(rgb(fill.fg), 16)).arg(side(b.left)).arg(side(b.right)).arg(side(b.top))
+        .arg(st.resolve(font.color, 0), 0, 16).arg(int(font.vertAlign)).arg(noFill ? QStringLiteral("-") : QString::number(rgb(fill.fg), 16)).arg(side(b.left)).arg(side(b.right)).arg(side(b.top))
         .arg(side(b.bottom)).arg(horizontal).arg(vertical).arg(int(f.wrap)).arg(int(f.locked));
 }
 
