@@ -49,4 +49,7 @@ QStringList featuresNotInCopy(const Workbook &book, CopyKind kind);
 bool saveXls(const Workbook &book, QByteArray *out, CopyReport *report, QString *error, const std::function<bool()> &cancelled = nullptr);
 bool saveOds(const Workbook &book, QByteArray *out, CopyReport *report, QString *error, const std::function<bool()> &cancelled = nullptr);
 
+// For tests of cost: the intervals the .ods writer has looked at in all to find which cells of a row a merged range covers (one per cell if it is a lookup, many more if a scan).
+qint64 odsCoveredWorkForTest();
+
 } // namespace jp::office::sheet

@@ -834,6 +834,44 @@ private Q_SLOTS:
         QCOMPARE(val(c.xls, c.sheet(c.xls, 0), QStringLiteral("A1")), QStringLiteral("n:1"));
     }
 
+    // Finding the cells a merged range covers is a lookup, not a scan of all the ranges for each cell: 2,000 merged ranges side by side cost a few steps for each of 8,000 cells.
+    void theCellsAMergedRangeCoversAreFoundByLookup()
+    {
+        Copies c;
+        QString r1, r2, merges;
+        for (int i = 0; i < 2000; ++i) {
+            const QString a = columnName(quint32(2 * i)), b = columnName(quint32(2 * i + 1));
+            r1 += num(a + QStringLiteral("1"), i) + num(b + QStringLiteral("1"), -i);
+            r2 += num(a + QStringLiteral("2"), i) + num(b + QStringLiteral("2"), -i);
+            merges += QStringLiteral("<mergeCell ref=\"%1:%2\"/>").arg(a + QStringLiteral("1"), b + QStringLiteral("2"));
+        }
+        const qint64 before = odsCoveredWorkForTest();
+        QVERIFY2(c.make(simple(row(1, r1) + row(2, r2), QStringLiteral("<mergeCells count=\"2000\">") + merges + QStringLiteral("</mergeCells>"))), qPrintable(c.why));
+        const qint64 work = odsCoveredWorkForTest() - before;
+        QVERIFY2(work < 400000, qPrintable(QString::number(work)));
+        const Sheet b = c.sheet(c.ods, 0);
+        QCOMPARE(b.merges.size(), 2000);
+        QCOMPARE(val(c.ods, b, QStringLiteral("A1")), QStringLiteral("n:0"));
+        QCOMPARE(val(c.ods, b, columnName(3998) + QStringLiteral("1")), QStringLiteral("n:1999"));   // (the first cell of the last range)
+    }
+
+    // The arrays an .ods copy writes are bounded in all as the .xls copy's are (2,000,000 cells), and one too large, or past the total, is written as its values and named.
+    void arraysPastTheTotalAreWrittenAsValuesInAnOdsCopy()
+    {
+        Copies c;
+        auto array = [](const QString &ref, const QString &first, double v) {
+            return QStringLiteral("<c r=\"%1\"><f t=\"array\" ref=\"%2\">1+1</f><v>%3</v></c>").arg(first, ref).arg(v);
+        };
+        const QByteArray x = simple(row(1, array(QStringLiteral("A1:A1500000"), QStringLiteral("A1"), 2) + array(QStringLiteral("B1:B900000"), QStringLiteral("B1"), 2) + array(QStringLiteral("C1:C900000"), QStringLiteral("C1"), 2)
+                                              + array(QStringLiteral("D1:D900000"), QStringLiteral("D1"), 2) + num(QStringLiteral("E1"), 1)));
+        QVERIFY2(c.make(x), qPrintable(c.why));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(c.odsBytes, parts));
+        const QString content = QString::fromUtf8(parts.value(QStringLiteral("content.xml")));
+        QCOMPARE(content.count(QLatin1String("table:number-matrix-rows-spanned")), 2);   // (B and C, which fit; A is past the size one may have, and D past the total)
+        QCOMPARE(c.odsReport.formulasAsValues, qint64(2));
+    }
+
     void theFormulaCompilerRefusesWhatItCannotWrite()
     {
         XlsCompileContext cx;

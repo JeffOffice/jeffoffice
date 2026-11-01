@@ -18,12 +18,15 @@
 #include <QSet>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <map>
 
 namespace jp::office::sheet {
 
 namespace {
+
+std::atomic<qint64> g_coveredWork{0};
 
 constexpr qint64 kMaxContentBytes = qint64(700) << 20;
 
@@ -159,6 +162,7 @@ private:
     const Workbook &m_book;
     CopyReport *m_report;
     std::function<bool()> m_cancelled;
+    QSet<quint64> m_arraysAsValues;   // (the first cells of the arrays of this sheet that are written as values)
     int m_sinceLook = 0;
     bool m_stopped = false;
     // Whether the save is to stop: the caller is asked once in a few thousand cells, not only between rows.
@@ -828,10 +832,21 @@ private:
             CellRange range;
         };
         std::vector<Region> regions;
+        qint64 regionCells = 0;
+        m_arraysAsValues.clear();
         for (const PlacedCell &pc : cells) {
             if (!(pc.cell.flags & (ArrayFormula | DataTable))) continue;
             const CellRange r = sheet.formulaRange(pc.cell);
-            if (!r.valid || r.row1 != pc.row || r.col1 != pc.col || r.cellCount() > 1000000) continue;
+            // (one array may have a million cells, and all of a sheet's together two million, as in the .xls copy; past that, or with no range of its own, it is written as the values it has)
+            if (!r.valid || r.row1 != pc.row || r.col1 != pc.col || r.cellCount() > 1000000 || regionCells + r.cellCount() > 2000000) {
+                if (pc.cell.flags & ArrayFormula) {
+                    m_arraysAsValues.insert((quint64(pc.row) << 16) | pc.col);
+                    ++m_formulasAsValues;
+                    ++m_reasons[QCoreApplication::translate("Sheet", "an array formula with more cells than a copy writes")];
+                }
+                continue;
+            }
+            regionCells += r.cellCount();
             regions.push_back({r});
             if (pc.cell.flags & DataTable) {
                 ++m_tablesAsValues;
@@ -931,10 +946,24 @@ private:
                     }
                 }
                 std::sort(covered.begin(), covered.end());
+                // (the columns covered, as separate stretches in order: a column is found by halving, not by going through all of them)
+                {
+                    std::vector<std::pair<quint32, quint32>> stretches;
+                    for (const auto &c : covered) {
+                        if (!stretches.empty() && c.first <= stretches.back().second + 1) stretches.back().second = std::max(stretches.back().second, c.second);
+                        else stretches.push_back(c);
+                    }
+                    covered.swap(stretches);
+                }
                 auto isCovered = [&](quint32 col) {
-                    for (const auto &c : covered)
-                        if (col >= c.first && col <= c.second) return true;
-                    return false;
+                    size_t lo = 0, hi = covered.size();   // the first stretch that ends at or after the column
+                    while (lo < hi) {
+                        ++g_coveredWork;
+                        const size_t mid = (lo + hi) / 2;
+                        if (covered[mid].second < col) lo = mid + 1;
+                        else hi = mid;
+                    }
+                    return lo < covered.size() && covered[lo].first <= col;
                 };
                 const auto sp = spanOfRow.constFind(row);
                 if (sp != spanOfRow.cend())
@@ -1100,6 +1129,8 @@ private:
         // the formula
         if (covered) {
             // (a cell of an array's matrix has the value, and the formula is the first cell's)
+        } else if ((c.flags & ArrayFormula) && m_arraysAsValues.contains((quint64(pc->row) << 16) | pc->col)) {
+            // (an array too large for the copy: its value only; counted when it was found)
         } else if (c.hasFormula() && !(c.flags & DataTable)) {
             QString f;
             const QString text = sheet.formulaText(c);
@@ -1177,6 +1208,8 @@ public:
 };
 
 } // namespace
+
+qint64 odsCoveredWorkForTest() { return g_coveredWork.load(); }
 
 bool saveOds(const Workbook &book, QByteArray *out, CopyReport *report, QString *error, const std::function<bool()> &cancelled)
 {
