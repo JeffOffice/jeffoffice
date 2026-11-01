@@ -281,22 +281,68 @@ EditSession::Outcome EditSession::fill(int sheet, const CellRange &source, FillD
         return out;
     }
     const Calculation *calc = m_book->calc.get();
-    // (a fill goes neither into nor out of a merged area: it would leave values in cells the area hides)
+    // A merged area is judged by the cells filled from (S) and the cells filled (D): one that has cells in both, or that is cut by either, is refused; one in S is copied as its values are; one in D must
+    // be the size of the area in the place of S it is copied from. (The arithmetic is done in signed numbers: nothing wraps at the edge of the sheet.)
     {
-        CellRange block = source;
+        const qint64 sr1 = source.row1, sr2 = source.row2, sc1 = source.col1, sc2 = source.col2;
+        qint64 dr1 = sr1, dr2 = sr2, dc1 = sc1, dc2 = sc2;
         if (vertical) {
-            if (forward) block.row2 = source.row2 + count;
-            else block.row1 = source.row1 - count;
-        } else {
-            if (forward) block.col2 = source.col2 + count;
-            else block.col1 = source.col1 - count;
-        }
-        for (const CellRange &m : calc->mergesOf(sheet)) {
-            if (m.row1 <= block.row2 && m.row2 >= block.row1 && m.col1 <= block.col2 && m.col2 >= block.col1) {
-                out.ok = false;
-                out.problem = tr("A fill can't go into or out of merged cells. Unmerge them first, or fill other cells.");
-                return out;
+            if (forward) {
+                dr1 = sr2 + 1;
+                dr2 = sr2 + qint64(count);
+            } else {
+                dr1 = sr1 - qint64(count);
+                dr2 = sr1 - 1;
             }
+        } else {
+            if (forward) {
+                dc1 = sc2 + 1;
+                dc2 = sc2 + qint64(count);
+            } else {
+                dc1 = sc1 - qint64(count);
+                dc2 = sc1 - 1;
+            }
+        }
+        // the place in S that a cell of D is copied from
+        auto copiedFrom = [&](qint64 r, qint64 c, qint64 *fr, qint64 *fc) {
+            *fr = r;
+            *fc = c;
+            if (vertical) {
+                const qint64 k = forward ? r - sr2 : sr1 - r;   // 1 for the cell next to S
+                *fr = forward ? sr1 + (k - 1) % qint64(n) : sr2 - (k - 1) % qint64(n);
+            } else {
+                const qint64 k = forward ? c - sc2 : sc1 - c;
+                *fc = forward ? sc1 + (k - 1) % qint64(n) : sc2 - (k - 1) % qint64(n);
+            }
+        };
+        const QVector<CellRange> merges = calc->mergesOf(sheet);
+        auto refuse = [&] {
+            out.ok = false;
+            out.problem = tr("A fill can't go into or out of merged cells that do not match: a merged area has to be wholly in the cells filled from, or in the cells filled and the size of the area in the same place of the cells filled from. Unmerge them first, or fill other cells.");
+            return out;
+        };
+        for (const CellRange &m : merges) {
+            const qint64 mr1 = m.row1, mr2 = m.row2, mc1 = m.col1, mc2 = m.col2;
+            const bool inS = mr1 <= sr2 && mr2 >= sr1 && mc1 <= sc2 && mc2 >= sc1;
+            const bool inD = mr1 <= dr2 && mr2 >= dr1 && mc1 <= dc2 && mc2 >= dc1;
+            if (!inS && !inD) continue;
+            if (inS && inD) return refuse();
+            if (inS) {
+                if (mr1 < sr1 || mr2 > sr2 || mc1 < sc1 || mc2 > sc2) return refuse();
+                continue;
+            }
+            if (mr1 < dr1 || mr2 > dr2 || mc1 < dc1 || mc2 > dc2) return refuse();
+            qint64 ar, ac, br, bc;
+            copiedFrom(mr1, mc1, &ar, &ac);
+            copiedFrom(mr2, mc2, &br, &bc);
+            const qint64 fr1 = std::min(ar, br), fr2 = std::max(ar, br), fc1 = std::min(ac, bc), fc2 = std::max(ac, bc);
+            bool matches = fr2 - fr1 == mr2 - mr1 && fc2 - fc1 == mc2 - mc1;
+            if (matches) {
+                matches = false;
+                for (const CellRange &o : merges)
+                    if (qint64(o.row1) == fr1 && qint64(o.row2) == fr2 && qint64(o.col1) == fc1 && qint64(o.col2) == fc2) matches = true;
+            }
+            if (!matches) return refuse();
         }
     }
     const jp::calc::DateSystem system = m_book->book->info().dateSystem;
@@ -682,11 +728,36 @@ EditSession::Outcome EditSession::fillAcrossSheets(int sheet, const CellRange &r
         out.problem = tr("That is more cells than JeffCrunch changes at once (%1). Select fewer cells.").arg(QLocale().toString(kMaxCellsPerEdit));
         return out;
     }
+    // merged areas, as a fill has them: those of the sheet copied from must be wholly in the cells, and a sheet copied to may have in them only areas like those
+    std::vector<CellRange> like;
+    auto meets = [&](const CellRange &m) { return m.row1 <= range.row2 && m.row2 >= range.row1 && m.col1 <= range.col2 && m.col2 >= range.col1; };
+    auto within = [&](const CellRange &m) { return m.row1 >= range.row1 && m.row2 <= range.row2 && m.col1 >= range.col1 && m.col2 <= range.col2; };
+    auto refuseMerges = [&] {
+        out.ok = false;
+        out.problem = tr("A fill can't go into or out of merged cells that do not match: a merged area has to be wholly in the cells copied, and on the sheets copied to there may be only areas like it. Unmerge them first, or fill other cells.");
+        return out;
+    };
+    for (const CellRange &m : calc->mergesOf(sheet)) {
+        if (!meets(m)) continue;
+        if (!within(m)) return refuseMerges();
+        like.push_back(m);
+    }
+    for (const int t : sheets)
+        for (const CellRange &m : calc->mergesOf(t)) {
+            if (!meets(m)) continue;
+            if (!within(m) || std::find(like.begin(), like.end(), m) == like.end()) return refuseMerges();
+        }
     const bool hasShared = !m_book->book->sharedStringsPart().isEmpty();
     Step step;
     for (const int t : sheets) {
         for (quint32 r = range.row1; r <= range.row2; ++r) {
             for (quint32 c = range.col1; c <= range.col2; ++c) {
+                int headerColumn = -1;
+                if (m_book->book->tableHeaderAt(t, r, c, &headerColumn) >= 0) {
+                    out.ok = false;
+                    out.problem = tr("The first row of a table holds the names of its columns, so it can't be filled over. Choose cells that do not reach it.");
+                    return out;
+                }
                 const Calculation::CellContent from = calc->content(sheet, r, c);
                 CellChange ch;
                 ch.sheet = t;
