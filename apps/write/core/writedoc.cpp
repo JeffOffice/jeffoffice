@@ -1,5 +1,7 @@
 #include "core/writedoc.h"
 
+#include "core/commentops.h"
+
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "doc/doc.h"
@@ -346,6 +348,7 @@ void WriteDoc::build(office::wml::Document &&doc)
     m_blockCount = s->blockCount();
     connect(s, &QTextDocument::contentsChange, this, &WriteDoc::storyChanged);
     watchHistory(s);
+    rememberCommentsAtOpen(*this);
 }
 
 void WriteDoc::setUpEnvironment()
@@ -380,7 +383,9 @@ void WriteDoc::setUpEnvironment()
     f.env.wordNoHang = true;
     if (!m_wml.settingsName.isEmpty()) {
         // (One reading of the part for all of them.)
-        const office::wml::CompatOptions compat = office::wml::readCompatOptions(partData(m_wml.settingsName));
+        const QByteArray settingsBytes = partData(m_wml.settingsName);
+        m_trackChanges = m_trackAtOpen = office::wml::settingsTrackRevisions(settingsBytes);
+        const office::wml::CompatOptions compat = office::wml::readCompatOptions(settingsBytes);
         // Words are hyphenated where the file asks (w:autoHyphenation), but for the zone that it sets.
         f.hyphenate = compat.autoHyphenation;
         f.hyphenZone = compat.hyphenationZone / 20.0;

@@ -997,11 +997,12 @@ private Q_SLOTS:
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
         QVERIFY(w.openFile(path));
-        // The inserted words are in the text, and the deleted ones are not shown in it (the marks of the changes are objects in it, not text).
+        // The inserted words are in the text, and the deleted ones too (hidden: the lines leave them out; the marks of the changes are objects in it, not text).
         QString shown = w.document()->story()->toPlainText();
         shown.remove(QChar(0xFFFC));
-        QVERIFY2(shown.contains(QLatin1String("keep added and")), qPrintable(shown));
-        QVERIFY2(!shown.contains(QLatin1String("dropped")), qPrintable(shown));
+        QVERIFY2(shown.contains(QLatin1String("keep added and dropped end.")), qPrintable(shown));
+        const QString lines = boxLines(*w.document()).join(QLatin1Char(' '));
+        QVERIFY2(lines.contains(QLatin1String("keep added and")) && !lines.contains(QLatin1String("dropped")), qPrintable(lines));
         // Written out, each is still a tracked change, with its author and its date.
         const QByteArray x = documentXml(w.document()->toDocx());
         const qsizetype ins = x.indexOf("<w:ins ");
@@ -8668,13 +8669,13 @@ private Q_SLOTS:
                                     "<w:p><w:r><w:t>tail</w:t></w:r></w:p>";
         QByteArray x = savedAfterTyping(vanished, QByteArray());
         QVERIFY2(x.count("<w:vanish/>") == 2, x.constData());
-        QVERIFY2(x.contains("<w:delText>gone</w:delText>") && x.contains("<w:delText>mark</w:delText>"), x.constData());
+        QVERIFY2(x.contains("gone</w:delText>") && x.contains("mark</w:delText>"), x.constData());
         // A deleted run in a style that hides text, which says nothing of it: nothing is added.
         const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
                                   "<w:style w:type=\"paragraph\" w:styleId=\"Hid\"><w:name w:val=\"Hid\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:vanish/></w:rPr></w:style>";
         const QByteArray inHidden = "<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val=\"Hid\"/></w:pPr><w:del" + rev + "><w:r><w:delText>gone</w:delText></w:r></w:del></w:p>";
         x = savedAfterTyping(inHidden, styles);
-        QVERIFY2(!x.contains("vanish w:val") && x.count("vanish") == 0 && x.contains("<w:delText>gone</w:delText>"), x.constData());
+        QVERIFY2(!x.contains("vanish w:val") && x.count("vanish") == 0 && x.contains("gone</w:delText>"), x.constData());
         // One that says it is not hidden stays so.
         const QByteArray shown = "<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val=\"Hid\"/></w:pPr><w:del" + rev + "><w:r><w:rPr><w:vanish w:val=\"0\"/></w:rPr><w:delText>gone</w:delText></w:r></w:del></w:p>";
         x = savedAfterTyping(shown, styles);
@@ -8702,8 +8703,8 @@ private Q_SLOTS:
     {
         const QByteArray rev = " w:id=\"7\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"";
         const QByteArray body = "<w:p><w:r><w:t>one</w:t></w:r><w:del" + rev + "><w:r><w:delText>gone</w:delText></w:r></w:del><w:r><w:t>tail</w:t></w:r></w:p>";
-        // (In the story: "one" 0 to 2, the deletion's start 3, its text 4, its end 5, "tail" from 6.)
-        for (int at = 3; at <= 6; ++at) {
+        // (In the story: "one" 0 to 2, the deletion's start 3, its text 4 to 7, its end 8, "tail" from 9.)
+        for (int at = 3; at <= 9; ++at) {
             auto doc = open(makeDocx(body));
             QVERIFY(doc);
             QTextCursor c(doc->story());
@@ -8714,7 +8715,7 @@ private Q_SLOTS:
             QVERIFY2(open >= 0 && close > open && typed >= 0, x.constData());
             QVERIFY2(typed < open || typed > close, qPrintable(QStringLiteral("typed at %1 is inside the deletion: %2").arg(at).arg(QString::fromUtf8(x))));
             QVERIFY2((at <= 4) == (typed < open), qPrintable(QStringLiteral("typed at %1 is on the wrong side: %2").arg(at).arg(QString::fromUtf8(x))));
-            QVERIFY(x.contains("<w:delText>gone</w:delText>"));
+            QVERIFY(x.contains("gone</w:delText>"));
         }
     }
 
@@ -8728,7 +8729,7 @@ private Q_SLOTS:
         // The paragraphs of the saved file that have text, and whether the deleted one is still there.
         auto check = [&](WriteDoc &doc, const QString &what) {
             const QByteArray x = documentXml(doc.toDocx());
-            QVERIFY2(x.contains("<w:delText>gone</w:delText>") && x.contains("w:id=\"9\""), qPrintable(what + QLatin1String(": the deletion is gone: ") + QString::fromUtf8(x)));
+            QVERIFY2(x.contains("gone</w:delText>") && x.contains("w:id=\"9\""), qPrintable(what + QLatin1String(": the deletion is gone: ") + QString::fromUtf8(x)));
             QVector<QByteArray> withText;
             for (int from = x.indexOf("<w:p>"); from >= 0; from = x.indexOf("<w:p>", from + 1)) {
                 const QByteArray para = x.mid(from, x.indexOf("</w:p>", from) - from);
@@ -8786,12 +8787,12 @@ private Q_SLOTS:
         run("from the deleted paragraph", [](QTextDocument *d, QTextCursor &c) {
             c.setPosition(d->findBlockByNumber(1).position());
             c.setPosition(d->findBlockByNumber(2).position() + 1, QTextCursor::KeepAnchor);
-        }, QStringLiteral("one||wo|"));
+        }, QStringLiteral("one|gone|wo|"));
         // From inside the paragraph before to the start of the deleted one: only the letters go.
         run("to the deleted paragraph", [](QTextDocument *d, QTextCursor &c) {
             c.setPosition(d->findBlockByNumber(0).position() + 1);
             c.setPosition(d->findBlockByNumber(1).position(), QTextCursor::KeepAnchor);
-        }, QStringLiteral("o||two|"));
+        }, QStringLiteral("o|gone|two|"));
     }
 
     // A run that asks for ligatures (w14:ligatures) has them in the layout, by the value it states; the file keeps the element as it was.
@@ -8859,7 +8860,7 @@ private Q_SLOTS:
         QCOMPARE(after.size(), 3);
         for (int i = 0; i < 3; ++i) QVERIFY(std::abs(after[i].rect.top() - before[i].rect.top()) < 0.01);
         const QByteArray x = documentXml(doc->toDocx());
-        QVERIFY2(x.contains("<w:del") && x.contains("<w:delText>x</w:delText>") && x.contains("<w:br/>") && !x.contains("vanish"), x.constData());
+        QVERIFY2(x.contains("<w:del") && x.contains("x</w:delText>") && x.contains("<w:br/>") && !x.contains("vanish"), x.constData());
     }
 
     // An endnote that a tracked change deleted is no endnote in the numbering: the one after it shows the number the first would.

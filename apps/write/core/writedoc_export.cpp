@@ -267,6 +267,8 @@ QByteArray WriteDoc::toDocx(QString *error, bool template_)
     out.lastSection = m_last;
     out.lastSectionStated = true;
     writeHeaderParts(&out);
+    writeReviewSettings(&out);
+    writeCommentParts(&out);
     writeNoteParts(&out);
     writeEndnoteParts(&out);
     dropHeaderStyles(&out);

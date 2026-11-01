@@ -292,6 +292,23 @@ QTextCharFormat asDeleted(QTextCharFormat format)
     return format;
 }
 
+// A format with the look of the tracked change it is in (tp::Revision: 1 inserted, 2 deleted, 3 moved away, 4 moved here; `author` is a place in the document's list of people), for the lines
+// to mark. Text the file itself hides (w:vanish) is no text of the lines when the deletion is shown, and keeps no mark.
+QTextCharFormat inRevision(QTextCharFormat f, int kind, int author)
+{
+    if (kind <= 0) return f;
+    if ((kind == 2 || kind == 3) && f.intProperty(prop::TrackedDeleted) == prop::HiddenAlready) return f;
+    f.setProperty(tp::Revision, kind);
+    f.setProperty(tp::RevisionAuthor, author);
+    return f;
+}
+
+// The kind of tracked change a revision container's name is (see inRevision), 0 for any other element.
+int revisionKindOf(const QString &tag)
+{
+    return tag == QLatin1String("ins") ? 1 : tag == QLatin1String("del") ? 2 : tag == QLatin1String("moveFrom") ? 3 : tag == QLatin1String("moveTo") ? 4 : 0;
+}
+
 // A paragraph of a header or footer in the form it is edited in: each field that begins and ends in it is one atom (kFieldGroupTag) of the runs that make it, written back as they
 // were, which the story shows as one character with the result the field has (its live code where the pages answer it). A field whose pieces stand among tags that begin or end
 // outside it, or one the paragraph ends inside, is left as the atoms it is.
@@ -919,7 +936,15 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             mark.size = sheet.defaultRun.size.value_or(20);
         QTextCharFormat markFormat = charFormatOf(mark, thm, direct.markRun ? &*direct.markRun : nullptr);
         // A paragraph whose mark a tracked change deleted is joined to the next as the text stands (and ends no section).
-        if (!direct.section && markIsDeleted(direct)) markFormat = asDeleted(markFormat);
+        if (!direct.section && markIsDeleted(direct)) {
+            markFormat = asDeleted(markFormat);
+            if (!header) {
+                QString who;
+                for (const RawChild &ch : direct.markRun->extra)
+                    if (ch.xml.startsWith("<w:del") || ch.xml.startsWith("<w:moveFrom")) who = attributeOfTag(ch.xml, QStringLiteral("author"));
+                markFormat = inRevision(markFormat, 2, reviewerIndex(who));
+            }
+        }
 
         // A list: the items of a numbering id are in Qt lists of their own, by level (a shallower level's item ends the deeper levels' lists). The numbers they show are Qt's own
         // count, or, where that is not the file's, a marker of their own that renumberLists gives them when the story is filled.
@@ -1179,10 +1204,22 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             }
         }
         int deletedDepth = 0;   // (inside the content a tracked change deleted)
+        QVector<std::pair<int, int>> inChanges;   // (the tracked changes the content is inside, outermost first: their kinds, and who made them)
+        int changeKind = 0, changeAuthor = 0;     // (and the one that marks it: a deletion over an insertion)
         double advanceTop = -1;   // (a field that sets the text after it at a place from the page's top, ADVANCE with \\y: the paragraph is no higher than that)
         for (int inAt = 0; inAt < p.content.size(); ++inAt) {
             const Inline &in = p.content[inAt];
             if (in.kind == Inline::ParaAtom && isDeletedRevision(in.tag)) deletedDepth = std::max(0, deletedDepth + (in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0));
+            if (in.kind == Inline::ParaAtom && !header && revisionKindOf(in.tag) > 0 && in.role != Inline::Single) {
+                if (in.role == Inline::Open && inChanges.size() < 64) inChanges.push_back({revisionKindOf(in.tag), reviewerIndex(attributeOfTag(in.raw, QStringLiteral("author")))});
+                else if (in.role == Inline::Close && !inChanges.isEmpty()) inChanges.pop_back();
+                changeKind = changeAuthor = 0;
+                for (const auto &ch : std::as_const(inChanges)) {
+                    if ((changeKind == 2 || changeKind == 3) && ch.first != 2 && ch.first != 3) continue;   // (a deletion marks what is inside it, over an insertion)
+                    changeKind = ch.first;
+                    changeAuthor = ch.second;
+                }
+            }
             const bool deleted = deletedDepth > 0 && !(in.kind == Inline::ParaAtom && in.role != Inline::Single && isDeletedRevision(in.tag));
             if (in.kind == Inline::Text) {
                 if (refRest[inAt]) continue;   // (its text is in the first piece of the result)
@@ -1195,6 +1232,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 if (!in.text.isEmpty()) {
                     QTextCharFormat shown = deleted ? asDeleted(formatOf(styleId, in.props)) : formatOf(styleId, in.props);
                     if (blankResult.contains(inAt)) shown.setProperty(tp::BlankFieldResult, true);
+                    if (!header) {
+                        shown = inRevision(shown, changeKind, changeAuthor);
+                        for (const RawChild &ch : in.props.extra)
+                            if (ch.xml.startsWith("<w:rPrChange")) shown.setProperty(tp::RevisionFormat, true);
+                    }
                     c.insertText(in.text, shown);
                 }
                 continue;
@@ -1205,6 +1247,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 if (const std::optional<double> asked = advanceTopOf(in)) advanceTop = *asked;
             QTextCharFormat af = formatOf(styleId, in.props);
             if (deleted) af = asDeleted(af);
+            if (!header && !(in.kind == Inline::ParaAtom && revisionKindOf(in.tag) > 0)) af = inRevision(af, changeKind, changeAuthor);
             Inline packed = in;
             if (in.kind == Inline::ParaAtom && in.tag == kFieldGroupTag) packed.look = runPropsXml(runPropsWritten(af, styleId, layer));   // (what writing the story gives it, to tell it formatted)
             setStored(af, prop::Atom, packAtom(packed));

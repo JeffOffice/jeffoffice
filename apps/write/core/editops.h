@@ -65,6 +65,28 @@ private:
     int m_before = 0;
     bool m_outermost = false;
 };
+// For commands that edit the story on their own (core/reviewops.cpp): what an edit does around its changes, done once the outermost of them ends, as part of the step it made (the lists numbered
+// again, the notes settled). Make it before the command's own edit block.
+class EditScope {
+public:
+    EditScope(WriteDoc &doc, QTextDocument *story);
+    ~EditScope();
+    EditScope(const EditScope &) = delete;
+    EditScope &operator=(const EditScope &) = delete;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> m_impl;
+};
+// While one is alive, the editing commands do not record their changes as tracked changes, whatever the document's setting is (for the commands that accept, reject, or undo changes
+// with them).
+class UntrackedEdit {
+public:
+    UntrackedEdit();
+    ~UntrackedEdit();
+    UntrackedEdit(const UntrackedEdit &) = delete;
+    UntrackedEdit &operator=(const UntrackedEdit &) = delete;
+};
 // The place before which the cursor is held when it is in a note: where the note's words begin (after its number), 0 where the cursor is in no note (footnotes and endnotes).
 int noteStartOf(const QTextCursor &c);
 // Insert > Endnote (Ctrl+Alt+D): a reference to a new endnote where the cursor is (the end of a selection), and the note, set with the others after the text or at the end of the

@@ -4,6 +4,9 @@
 //   writetool info <file.txt> [options]                          the pages and where each starts
 //   writetool docpkg <file.doc> <out.docx>                       the package an old binary document is turned into (to look at what the reader made of it)
 //   writetool docsave <file.docx> <out.docx>                     the document read and saved again (to compare two saves)
+//   writetool review-text <file.docx> accept|reject|none         the text of the body (UTF-8, a paragraph ends in \r) after Accept All or Reject All of its tracked changes, or as it stands
+//   writetool review-save <file.docx> accept|reject <out.docx>   the document with all its changes accepted or rejected, saved
+//   writetool review-list <file.docx>                            the tracked changes: kind, author, date, and words
 //   writetool bench [paragraphs=26443] [options]                 a made-up long story: the time to its first page, to all of its pages, and to repaginate after a typed character,
 //                                                                against the targets (all of 26,443 paragraphs in 5 s, the first page in 0.3 s, a typed character in 50 ms); exits 1 if one is missed.
 //                                                                With JeffWrite built, it also times spelling as you type: a page's paragraphs, the same again, and after a typed character
@@ -17,6 +20,7 @@
 #include "render/renderer.h"
 #include "text/textprops.h"
 #ifdef JW_DOCX
+#include "core/reviewops.h"
 #include "core/spellcheck.h"
 #include "core/writedoc.h"
 #include "doc/doc.h"
@@ -384,6 +388,92 @@ int bench(int paragraphs, const Options &o, QTextStream &out)
     return again.isNull() || !met ? 1 : 0;
 }
 
+#ifdef JW_DOCX
+// The text of the body as the original program reports a range's text (for comparing what Accept All and Reject All leave): a paragraph ends in \r (a cell's, in \r\a, and a row's
+// own end mark in \r\a), a line break is \v, a non-breaking hyphen \x1e, an optional hyphen \x1f, a picture in the line \x01, a note's reference \x02, a symbol "("; the code of a field is left out.
+QString bodyText(const jp::write::WriteDoc &doc, const QVector<jp::office::wml::Block> &blocks)
+{
+    using namespace jp::office::wml;
+    const QString defaultStyle = doc.defaultParagraphStyle();
+    QString out;
+    int deleted = 0;
+    for (const Block &b : blocks) {
+        if (b.isRaw) {
+            if (b.role == Inline::Close && b.tag == QLatin1String("tc")) out += QChar(7);
+            else if (b.role == Inline::Close && b.tag == QLatin1String("tr")) out += QStringLiteral("\r\a");
+            continue;
+        }
+        deleted = 0;
+        for (const Inline &in : b.para.content) {
+            if (in.kind == Inline::ParaAtom) {
+                if (in.tag == QLatin1String("del") || in.tag == QLatin1String("moveFrom")) deleted = std::max(0, deleted + (in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0));
+                else if (!deleted && !in.display.isEmpty() && (in.tag == QLatin1String("oMath") || in.tag == QLatin1String("oMathPara"))) out += in.display;
+                continue;
+            }
+            if (deleted) continue;
+            // (Hidden text is not reported; text in capitals is, in capitals.)
+            RunProps shown = doc.styleSheet().run(b.para.props.style.isEmpty() ? defaultStyle : b.para.props.style, in.props.style);
+            shown.overlay(in.props);
+            if (shown.vanish.value_or(false)) continue;
+            if (in.kind == Inline::Text) {
+                QString t = in.text;
+                if (shown.caps.value_or(false)) t = t.toUpper();
+                t.replace(QChar(0x2028), QChar(0x0b)).replace(QChar(0x2011), QChar(0x1e)).replace(QChar(0x00AD), QChar(0x1f));
+                out += t;
+                continue;
+            }
+            if (in.tag == QLatin1String("drawing") || in.tag == QLatin1String("pict") || in.tag == QLatin1String("object")) {
+                if (!in.raw.contains("<wp:anchor") && !in.raw.contains("position:absolute")) out += QChar(1);
+            } else if (in.tag == QLatin1String("footnoteReference") || in.tag == QLatin1String("endnoteReference")) {
+                out += QChar(2);
+            } else if (in.tag == QLatin1String("br")) {
+                out += QChar(0x0b);
+            } else if (in.tag == QLatin1String("ptab")) {
+                out += QChar(9);
+            } else if (in.tag == QLatin1String("sym")) {
+                out += QLatin1Char('(');   // (a symbol is a left parenthesis in the text, whatever its code)
+            } else if (in.tag == QLatin1String("t") && !in.display.isEmpty()) {
+                out += in.display;
+            }
+        }
+        out += b.para.props.section ? QChar(0x0c) : QChar('\r');
+    }
+    return out;
+}
+
+int reviewCommand(const QStringList &args, QTextStream &out)
+{
+    using namespace jp::write;
+    QFile f(args[2]);
+    if (!f.open(QIODevice::ReadOnly)) { out << "cannot read: " << f.errorString() << "\n"; return 1; }
+    QString why;
+    QStringList notes;
+    std::unique_ptr<WriteDoc> d = WriteDoc::fromDocx(f.readAll(), &why, &notes);
+    if (!d) { out << "cannot open: " << why << "\n"; return 1; }
+    const QString cmd = args[1];
+    if (cmd == QLatin1String("review-list")) {
+        for (const Revision &r : revisionsIn(d->story()))
+            out << int(r.kind) << "\t" << r.author << "\t" << r.date.toString(Qt::ISODate) << "\t" << r.from << "\t" << r.to << "\t" << revisionText(d->story(), r, 60) << "\n";
+        return 0;
+    }
+    const QString mode = args.value(3);
+    if (mode == QLatin1String("accept")) acceptAll(*d);
+    else if (mode == QLatin1String("reject")) rejectAll(*d);
+    else if (cmd == QLatin1String("review-save")) { out << "accept or reject\n"; return 2; }
+    if (cmd == QLatin1String("review-save")) {
+        const QByteArray zip = d->toDocx(&why);
+        QFile w(args.value(4));
+        if (zip.isEmpty() || !w.open(QIODevice::WriteOnly) || w.write(zip) != zip.size()) { out << "cannot save: " << why << "\n"; return 1; }
+        out << "wrote\t" << zip.size() << " bytes\n";
+        return 0;
+    }
+    out.flush();
+    const QByteArray text = bodyText(*d, d->bodyBlocks()).toUtf8();
+    fwrite(text.constData(), 1, size_t(text.size()), stdout);
+    return 0;
+}
+#endif
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -418,6 +508,7 @@ int main(int argc, char **argv)
     }
 #endif
 #ifdef JW_DOCX
+    if ((cmd == "review-text" || cmd == "review-save" || cmd == "review-list") && args.size() >= 3) return reviewCommand(args, out);
     if (cmd == "docsave" && args.size() >= 4) {
         QFile f(args[2]);
         if (!f.open(QIODevice::ReadOnly)) { out << "cannot read: " << f.errorString() << "\n"; return 1; }
