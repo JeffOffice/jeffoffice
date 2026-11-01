@@ -38,4 +38,4 @@ A sheet made for a language such as Arabic or Hebrew reads from right to left, a
 
 ## Show formulas
 
-On the **Formulas** tab, **Show Formulas** (Ctrl+`; on a Mac, the Control key, not the Command key) shows the formula in every cell that has one, in place of its value.
+On the **Formulas** tab, **Show Formulas** (Ctrl+`; on a Mac, the Control key, not the Command key) shows the formula in every cell that has one, in place of its value. The columns that hold formulas are made wider, up to a limit, so that the formulas show whole, and go back to their widths when you turn it off; the widths in your file are not changed.

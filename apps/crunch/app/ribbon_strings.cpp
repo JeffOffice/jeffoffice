@@ -58,6 +58,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Table Choices"),
     QT_TRANSLATE_NOOP("Ribbon", "Table Looks"),
     QT_TRANSLATE_NOOP("Ribbon", "Tables"),
+    QT_TRANSLATE_NOOP("Ribbon", "Text"),
     QT_TRANSLATE_NOOP("Ribbon", "Type"),
     QT_TRANSLATE_NOOP("Ribbon", "Unhide Sheet"),
     QT_TRANSLATE_NOOP("Ribbon", "View"),

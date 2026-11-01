@@ -103,6 +103,12 @@ double GridSheet::fitWidthOfCell(quint32 row, quint32 col) const
 
 double GridSheet::fitWidth(quint32 col, qint64 limit) const
 {
+    const double widest = fitPixels(col, limit);
+    return widest > 0 ? widthForPixels(int(std::ceil(widest)), m_looks.maxDigitWidth()) : 0;
+}
+
+double GridSheet::fitPixels(quint32 col, qint64 limit) const
+{
     if (!m_data.sheet) return 0;
     double widest = 0;
     qint64 seen = 0;
@@ -112,11 +118,14 @@ double GridSheet::fitWidth(quint32 col, qint64 limit) const
         if (m_layout.merges.at(cellRow, cellCol) >= 0) return true;   // (a merged cell does not decide)
         const CellLook &look = lookOf(cellRow, cellCol, cell.style);
         if (look.wrap) return true;
-        const Shown s = showValue(valueOf(cellRow, cellCol, cell), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
+        // (with the formulas shown, a formula is the text of it)
+        const bool formula = m_showFormulas && cell.hasFormula() && !m_data.sheet->formulaText(cell).isEmpty();
+        const Shown s = showValue(formula ? jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(cell))) : valueOf(cellRow, cellCol, cell), look, m_data.dateSystem, 1e9,
+                                  m_looks.maxDigitWidth(), *m_meter, &m_symbols);
         if (s.kind != Kind::Empty && s.width > 0) widest = std::max(widest, neededPixels(s, look, m_looks.maxDigitWidth()));
         return true;
     });
-    return widest > 0 ? widthForPixels(int(std::ceil(widest)), m_looks.maxDigitWidth()) : 0;
+    return widest;
 }
 
 double GridSheet::fitHeight(quint32 row, qint64 limit) const

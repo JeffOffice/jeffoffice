@@ -13,6 +13,7 @@
 #include <QWheelEvent>
 
 #include <algorithm>
+#include <set>
 #include <climits>
 #include <cmath>
 
@@ -138,17 +139,53 @@ void GridView::setData(const GridData &data, bool keepView)
         m_headings = data.sheet->view.showHeadings;
     }
     m_sheet.layout().setViewport(viewport()->size());
+    m_widened.clear();   // (the sizes are the data's again)
     if (keepView) {
         setViewState(kept);
+        widenForFormulas();
         return;
     }
     Navigator nav(&m_sheet.layout(), m_nav.get());
     const jp::office::sheet::SheetView v = data.sheet ? data.sheet->view : jp::office::sheet::SheetView();
     m_selection = nav.click(qint64(v.activeRow), qint64(v.activeCol));
+    widenForFormulas();
     layoutChanged();
     Q_EMIT zoomChanged(zoom());
     Q_EMIT selectionChanged();
     startStats();
+}
+
+void GridView::setShowFormulas(bool on)
+{
+    // (the widths the sheet has come back before the formulas go, so that they are measured from them)
+    GridLayout &L = m_sheet.layout();
+    for (const Widened &w : m_widened)
+        if (L.cols.size(w.column) == w.to) L.cols.setSize(w.column, w.from);
+    m_widened.clear();
+    m_sheet.setShowFormulas(on);
+    widenForFormulas();
+    m_sheet.invalidateTexts();
+    layoutChanged();
+}
+
+// The columns that hold formulas, while the formulas are shown: as wide as the longest needs, to at most 400 (the width a column of the sheet is given is never made smaller).
+void GridView::widenForFormulas()
+{
+    if (!m_sheet.showFormulas() || !m_sheet.data().sheet) return;
+    std::set<quint32> columns;
+    qint64 seen = 0;
+    m_sheet.data().sheet->cells.forEach([&](quint32, quint32 col, const jp::office::sheet::Cell &cell) {
+        if (cell.hasFormula() && ++seen <= 300000 && columns.size() < 1024) columns.insert(col);
+    });
+    GridLayout &L = m_sheet.layout();
+    for (const quint32 col : columns) {
+        const int now = L.cols.size(col);
+        if (now <= 0) continue;   // (a hidden column stays hidden)
+        const int wanted = int(std::min(400.0, std::ceil(m_sheet.fitPixels(col, 20000))));
+        if (wanted <= now) continue;
+        L.cols.setSize(col, wanted);
+        m_widened.push_back({qint64(col), now, wanted});
+    }
 }
 
 void GridView::layoutChanged()

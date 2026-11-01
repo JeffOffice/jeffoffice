@@ -164,6 +164,8 @@ public:
     // are not merged, and the tallest line or lines of the cells in the row. Zero when the column (row) holds nothing, the column's (row's) own size then standing. Texts that wrap do
     // not widen a column. For a few thousand cells: the walk stops at `limit` cells.
     double fitWidth(quint32 col, qint64 limit = 200000) const;
+    // The same in pixels at 100% (what the column needs to show its widest cell whole; 0 for none): what Show Formulas widens the columns to.
+    double fitPixels(quint32 col, qint64 limit = 200000) const;
     double fitHeight(quint32 row, qint64 limit = 20000) const;
     // The height (in points) that the text of the row needs when its height is the program's to choose: as many lines as each cell shows (a wrapped cell as many as its width needs, a
     // cell of several lines that wraps one for each), each as tall as a line of the cell's font, where a line of the sheet's standard font is the sheet's standard row height. 0 if the

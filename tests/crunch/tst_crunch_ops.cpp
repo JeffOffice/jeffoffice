@@ -541,6 +541,25 @@ private Q_SLOTS:
         }
     }
 
+    // Show Formulas widens the columns that hold formulas so the formulas show whole, and puts the widths back when it is turned off; it is a change of the view, not of the workbook.
+    void showFormulasWidensTheColumnsThatNeedIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "C1==SUM(A1:A2)+SUM(A1:A2)*100+A1/A2+SUM(A1:A2)*3", "D1=7", "E1==A1"})));
+        const double c = e.view()->sheet().columnWidth(2), d = e.view()->sheet().columnWidth(3), colE = e.view()->sheet().columnWidth(4);
+        e.win.w.act(QStringLiteral("view.formulas"))->trigger();
+        QVERIFY(e.view()->sheet().showFormulas());
+        QVERIFY2(e.view()->sheet().columnWidth(2) > c + 40, qPrintable(QString::number(e.view()->sheet().columnWidth(2))));
+        QCOMPARE(e.view()->sheet().columnWidth(3), d);                   // (no formula in it)
+        QCOMPARE(e.view()->sheet().columnWidth(4), colE);                // (a short one fits already)
+        QCOMPARE(e.view()->sheet().shown(0, 2, *e.view()->sheet().cellAt(0, 2)).text, QStringLiteral("=SUM(A1:A2)+SUM(A1:A2)*100+A1/A2+SUM(A1:A2)*3"));
+        QVERIFY(!e.win.w.isModified());
+        QCOMPARE(e.win.w.undoStack()->count(), 0);
+        e.win.w.act(QStringLiteral("view.formulas"))->trigger();
+        QVERIFY(!e.view()->sheet().showFormulas());
+        QCOMPARE(e.view()->sheet().columnWidth(2), c);
+    }
+
     // A fill that would change a cell that can't be changed (a locked cell of a protected sheet, a table's header) changes nothing and says why; a fill past the edge of the sheet stops
     // at it.
     void fillRefusesWhatCannotBeChanged()

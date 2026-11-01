@@ -429,7 +429,7 @@ void CrunchWindow::createActions()
     mk("view.formulaBar", tr("Formula Bar"), "text-cursor-input", QKeySequence(), [this] { m_formulaRow->setVisible(act("view.formulaBar")->isChecked()); }, true)->setChecked(true);
     mk("view.pageBreaks", tr("Page Lines"), "separator-horizontal", QKeySequence(), [this] { updatePageBreaks(); }, true)->setChecked(true);
     mk("view.formulas", tr("Show Formulas"), "square-function", crunch::showFormulasKey(), [this] {
-        m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
+        m_view->setShowFormulas(act("view.formulas")->isChecked());
         m_view->invalidateValues();
     }, true);
     mk("zoom.in", tr("Zoom In"), "zoom-in", QKeySequence(), [this] { setViewZoom(std::round(viewZoom() * 10 + 1) / 10); });

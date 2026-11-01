@@ -71,6 +71,9 @@ public:
     void setShowGridlines(bool on);
     bool showHeadings() const { return m_headings; }
     void setShowHeadings(bool on);
+    // Shows the formulas of the cells in place of their results (or the results again). The columns with formulas are widened to show them whole, up to a limit, while they are shown; the
+    // widths the sheet has are put back when they are not (a view change, not saved).
+    void setShowFormulas(bool on);
     // The first rows and columns held in place, now (a view change, not saved).
     void setFrozen(qint64 rows, qint64 cols);
     // Freezes as people expect: the rows from the first one in view down to (but not including) `row` stay in place, and the columns from the first in view to `col`; rows and columns
@@ -296,7 +299,13 @@ protected:
 
 private:
     class Nav;
+    struct Widened {
+        qint64 column;
+        int from, to;
+    };
+    std::vector<Widened> m_widened;   // the columns widened for the formulas shown: the width they had and the one they were given
     void applySheetView();
+    void widenForFormulas();
     void layoutChanged();
     void updateScrollBars();
     void scrollTo(qint64 x, qint64 y);
