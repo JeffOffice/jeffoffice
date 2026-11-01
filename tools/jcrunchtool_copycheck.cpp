@@ -22,6 +22,7 @@
 #include <QTemporaryDir>
 #include <QTextStream>
 
+#include <algorithm>
 #include <cmath>
 
 using namespace jp::office;
@@ -95,8 +96,15 @@ QString shownFormula(const QString &f)
         if (c == QLatin1Char('"')) quote = !quote;
         if (quote || c != QLatin1Char(' ')) out += quote ? c : c.toUpper();
     }
-    out.replace(QLatin1String("TRUE()"), QLatin1String("TRUE")).replace(QLatin1String("FALSE()"), QLatin1String("FALSE"));
-    return out;
+    out.replace(QLatin1String("TRUE()"), QLatin1String("TRUE")).replace(QLatin1String("FALSE()"), QLatin1String("FALSE")).replace(QLatin1String("_XLFN."), QString());
+    // (a sheet's name is quoted or not as the form likes)
+    QString bare;
+    bool inText = false;
+    for (const QChar c : out) {
+        if (c == QLatin1Char('"')) inText = !inText;
+        if (inText || c != QLatin1Char('\'')) bare += c;
+    }
+    return bare;
 }
 
 QString lookKey(const Styles &st, quint32 xf)
@@ -112,9 +120,11 @@ QString lookKey(const Styles &st, quint32 xf)
     // (the alignments a format has no name for come back as the nearest it has: centered across, filled, distributed, and justified at the top)
     const int horizontal = f.horizontal == HAlign::CenterContinuous ? int(HAlign::Center) : f.horizontal == HAlign::Fill ? int(HAlign::Left) : f.horizontal == HAlign::Distributed ? int(HAlign::Justify) : int(f.horizontal);
     const int vertical = f.vertical == VAlign::Justify || f.vertical == VAlign::Distributed ? int(VAlign::Top) : int(f.vertical);
+    // (a fill whose color is the automatic one is no fill)
+    const bool noFill = fill.pattern == PatternKind::None || rgb(fill.fg) == 0xFFFFFFFFu;
     return QStringLiteral("%1|%2|%3%4%5%6|%7|%8|%9|%10|%11|%12|%13|%14|%15|%16|%17")
         .arg(st.fontNameOf(font).section(QLatin1Char(','), 0, 0).toLower()).arg(font.size).arg(int(font.bold)).arg(int(font.italic)).arg(int(font.strike)).arg(int(font.underline != Underline::None))
-        .arg(rgb(font.color), 0, 16).arg(int(font.vertAlign)).arg(fill.pattern == PatternKind::None ? QStringLiteral("-") : QString::number(rgb(fill.fg), 16)).arg(side(b.left)).arg(side(b.right)).arg(side(b.top))
+        .arg(rgb(font.color), 0, 16).arg(int(font.vertAlign)).arg(noFill ? QStringLiteral("-") : QString::number(rgb(fill.fg), 16)).arg(side(b.left)).arg(side(b.right)).arg(side(b.top))
         .arg(side(b.bottom)).arg(horizontal).arg(vertical).arg(int(f.wrap)).arg(int(f.locked));
 }
 
@@ -199,6 +209,7 @@ int copyCheckMain(const QStringList &args)
     QString firstDiff;
     auto diff = [&](const QString &what) {
         if (firstDiff.isEmpty()) firstDiff = what;
+        firstDiff.replace(QLatin1Char('\n'), QLatin1Char(' ')).replace(QLatin1Char('\r'), QLatin1Char(' ')).replace(QLatin1Char('\t'), QLatin1Char(' '));   // (one line, whatever the text of a cell holds)
     };
     const bool old = format == QLatin1String("xls");
     const quint32 maxRow = old ? quint32(65536) : format == QLatin1String("ods") ? quint32(1048576) : quint32(1048576);
@@ -245,7 +256,11 @@ int copyCheckMain(const QStringList &args)
             const Cell *e = b.cells.find(row, col);
             const Class cb = e ? classOf(*e) : Class::None;
             // (an empty text is no value in a document of OpenDocument's kind)
-            const bool emptyText = ca == Class::Text && format == QLatin1String("ods") && a.text(c, book.sharedStrings()).isEmpty();
+            bool emptyText = false;
+            if (ca == Class::Text && format == QLatin1String("ods")) {
+                const QString t = a.text(c, book.sharedStrings());
+                emptyText = std::all_of(t.cbegin(), t.cend(), [](QChar ch) { return ch.unicode() < 0x20 && ch != QLatin1Char('\t') && ch != QLatin1Char('\n') && ch != QLatin1Char('\r'); });
+            }
             if (ca != Class::None && !emptyText) {
                 ++compared;
                 bool same = false;
@@ -255,7 +270,13 @@ int copyCheckMain(const QStringList &args)
                     case Class::Text: {
                         QString x = a.text(c, book.sharedStrings());
                         if (x.size() > kMaxCopyTextChars) x = x.left(kMaxCopyTextChars);
-                        if (format == QLatin1String("ods")) x.replace(QLatin1String("\r\n"), QLatin1String("\n")).replace(QLatin1Char('\r'), QLatin1Char('\n'));   // (a line break is one character there)
+                        if (format == QLatin1String("ods")) {
+                            x.replace(QLatin1String("\r\n"), QLatin1String("\n")).replace(QLatin1Char('\r'), QLatin1Char('\n'));   // (a line break is one character there)
+                            QString kept;
+                            for (const QChar ch : x)
+                                if (ch.unicode() >= 0x20 || ch == QLatin1Char('\t') || ch == QLatin1Char('\n')) kept += ch;   // (a document holds no other control character)
+                            x = kept;
+                        }
                         same = x == b.text(*e, back.sharedStrings());
                         break;
                     }

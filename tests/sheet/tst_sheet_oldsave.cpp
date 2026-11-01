@@ -383,6 +383,36 @@ private Q_SLOTS:
         QVERIFY(c.sheet(c.ods, 0).cells.cellCount() == 300);
     }
 
+    void moreFontsAndCellFormatsThanTheOldFormHoldsAreCutAndNamed()
+    {
+        Copies c;
+        QString fonts = QStringLiteral("<font><sz val=\"11\"/><name val=\"Calibri\"/></font>");
+        for (int i = 0; i < 700; ++i) fonts += QStringLiteral("<font><sz val=\"%1\"/><name val=\"Font %2\"/></font>").arg(8 + i % 40 + 0.25 * (i / 40)).arg(i);
+        QString xfs = QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/>");
+        for (int i = 0; i < 700; ++i)
+            for (int indent = 0; indent < 15; ++indent) xfs += QStringLiteral("<xf numFmtId=\"0\" fontId=\"%1\" fillId=\"0\" borderId=\"0\" applyFont=\"1\" applyAlignment=\"1\"><alignment horizontal=\"left\" indent=\"%2\"/></xf>").arg(i + 1).arg(indent + 1);
+        const QByteArray styles = stylesWith(QString(), fonts, QStringLiteral("<fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill>"),
+                                             QStringLiteral("<border><left/><right/><top/><bottom/><diagonal/></border>"), xfs);
+        QString rows;
+        for (int r = 0; r < 70; ++r) {
+            QString cells;
+            for (int k = 0; k < 200; ++k) {
+                const int n = r * 200 + k;   // (700 fonts, each with 15 indents, one after another)
+                cells += num(QStringLiteral("%1%2").arg(columnName(quint32(k))).arg(r + 1), k, 1 + (n * 11) % 10500);
+            }
+            rows += row(r + 1, cells);
+        }
+        QVERIFY2(c.make(simple(rows, QString(), QString(), styles), false), qPrintable(c.why));
+        const Sheet b = c.sheet(c.xls, 0);
+        QCOMPARE(b.cells.cellCount(), qint64(14000));
+        QVERIFY2(c.xls.styles().formats.size() <= kMaxXlsFormats + 1, qPrintable(QString::number(c.xls.styles().formats.size())));
+        QVERIFY2(c.xls.styles().fonts.size() <= kMaxXlsFonts + 2, qPrintable(QString::number(c.xls.styles().fonts.size())));
+        const QString said = c.xlsReport.trimmed.join(QLatin1Char('|'));
+        QVERIFY2(said.contains(QLatin1String("cell formats past")) && said.contains(QLatin1String("fonts past")), qPrintable(said));
+        // (the cells keep their values whatever look they were cut to)
+        QCOMPARE(val(c.xls, b, QStringLiteral("GR70")), QStringLiteral("n:199"));
+    }
+
     // ---- .ods
 
     void anOdsCopyHoldsValuesAndFormulas()
@@ -435,6 +465,36 @@ private Q_SLOTS:
         QVERIFY(content.contains(QLatin1String("fo:break-before=\"page\"")));
         QVERIFY2(content.contains(QLatin1String("<text:a xlink:href=\"#Sheet1.B1\" xlink:type=\"simple\">link here</text:a>")), qPrintable(content.mid(content.indexOf(QLatin1String("<table:table "))).left(1500)));
         QVERIFY(c.odsReport.notKept.join(QLatin1Char('|')).indexOf(QLatin1String("page setup")) < 0);
+    }
+
+    // A cell with no look of its own in a column that has one is plain, not the column's: the document says so for it.
+    void aPlainCellInAStyledColumnStaysPlainInAnOdsCopy()
+    {
+        Copies c;
+        const QByteArray styles = stylesWith(QStringLiteral("<numFmt numFmtId=\"164\" formatCode=\"0.000\"/>"), QStringLiteral("<font><sz val=\"11\"/><name val=\"Calibri\"/></font>"),
+                                             QStringLiteral("<fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill>"),
+                                             QStringLiteral("<border><left/><right/><top/><bottom/><diagonal/></border>"),
+                                             QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\" applyNumberFormat=\"1\"/>"));
+        const QByteArray x = simple(row(1, num(QStringLiteral("A1"), 5, 0) + num(QStringLiteral("B1"), 6, 1)) + row(2, num(QStringLiteral("A2"), 7, 1)), QString(),
+                                    QStringLiteral("<cols><col min=\"1\" max=\"1\" width=\"12\" style=\"1\" customWidth=\"1\"/></cols>"), styles);
+        QVERIFY2(c.make(x), qPrintable(c.why));
+        const Sheet b = c.sheet(c.ods, 0);
+        QCOMPARE(c.ods.styles().formatCode(at(b, QStringLiteral("A1"))->style, QLocale::c()), QStringLiteral("General"));
+        QCOMPARE(c.ods.styles().formatCode(at(b, QStringLiteral("A2"))->style, QLocale::c()), QStringLiteral("0.000"));
+    }
+
+    // A format of four sections keeps its fourth (the section for texts) even when it is empty.
+    void aFormatWithAnEmptyTextSectionComesBackWithIt()
+    {
+        Copies c;
+        const QByteArray styles = stylesWith(QStringLiteral("<numFmt numFmtId=\"164\" formatCode=\"0_);[Red]\\(0\\);;\"/>"), QStringLiteral("<font><sz val=\"11\"/><name val=\"Calibri\"/></font>"),
+                                             QStringLiteral("<fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill>"),
+                                             QStringLiteral("<border><left/><right/><top/><bottom/><diagonal/></border>"),
+                                             QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\" applyNumberFormat=\"1\"/>"));
+        QVERIFY2(c.make(simple(row(1, num(QStringLiteral("A1"), 5, 1)), QString(), QString(), styles)), qPrintable(c.why));
+        const Sheet b = c.sheet(c.ods, 0);
+        const QString code = c.ods.styles().formatCode(at(b, QStringLiteral("A1"))->style, QLocale::c());
+        QCOMPARE(code.count(QLatin1Char(';')), 3);
     }
 
     void anOdsCopyReadsBackInManyRows()

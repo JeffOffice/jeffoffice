@@ -44,9 +44,15 @@ def main():
     tsv = os.path.join(out_dir, "copy-%s.tsv" % fmt)
     if tool == "--summarize" and os.path.exists(tsv):
         # (the lines of an earlier run, summed up again)
-        for i, line in enumerate(open(tsv)):
-            parts = line.rstrip("\n").split("\t")
+        lines = [l for l in open(tsv).read().split("\n") if l.strip()]
+        for i, line in enumerate(lines[: len(paths)]):
+            parts = line.split("\t")
+            if len(parts) < 3:
+                results[i] = (1, "", "")
+                continue
             results[i] = (int(parts[1]), parts[2].replace(" | ", "\t"), parts[3] if len(parts) > 3 else "")
+        for i in range(len(lines), len(paths)):
+            results[i] = (1, "", "")
     else:
         def work(i):
             results[i] = run_one(tool, paths[i], fmt)

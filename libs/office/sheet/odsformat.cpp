@@ -344,9 +344,9 @@ private:
     }
 };
 
-QString element(const Section &s, const QString &name, bool main, const QString &maps)
+QString element(const Section &s, const QString &name, bool main, const QString &maps, bool forceText = false)
 {
-    QString kind = s.text && !s.percent ? QStringLiteral("text-style") : s.percent ? QStringLiteral("percentage-style") : (s.date || s.time) ? (s.date ? QStringLiteral("date-style") : QStringLiteral("time-style")) : QStringLiteral("number-style");
+    QString kind = (s.text || forceText) && !s.percent ? QStringLiteral("text-style") : s.percent ? QStringLiteral("percentage-style") : (s.date || s.time) ? (s.date ? QStringLiteral("date-style") : QStringLiteral("time-style")) : QStringLiteral("number-style");
     QString x = QStringLiteral("<number:%1 style:name=\"%2\" style:family=\"data-style\"").arg(kind, name);
     if (s.elapsed) x += QStringLiteral(" number:truncate-on-overflow=\"false\"");
     x += QStringLiteral(">");
@@ -439,7 +439,8 @@ bool odfDataStyles(const QString &code, const QString &baseName, OdfDataStyles *
         addMap(QStringLiteral("value()<0"), 1);
         if (textLast) addMap(QStringLiteral("value()=0"), 2);
     }
-    xml += element(sections[main], baseName, true, maps);
+    // (the fourth section is the text's: a style for texts even when it is empty, so that it comes back as a section)
+    xml += element(sections[main], baseName, true, maps, textLast);
     out->xml = xml;
     out->mainName = baseName;
     return true;

@@ -365,7 +365,7 @@ private:
         QString x = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document-styles") + QLatin1String(kNamespaces) + QStringLiteral(" office:version=\"1.2\">");
         x += QStringLiteral("<office:font-face-decls><style:font-face style:name=\"%1\" svg:font-family=\"%1\"/></office:font-face-decls>").arg(esc(fn));
         x += QStringLiteral("<office:styles><style:default-style style:family=\"table-cell\"><style:table-cell-properties style:decimal-places=\"2\"/><style:paragraph-properties style:tab-stop-distance=\"36pt\"/>"
-                            "<style:text-properties style:font-name=\"%1\" fo:font-size=\"%2pt\" fo:language=\"en\" fo:country=\"US\"/></style:default-style>").arg(esc(fn)).arg(font.size);
+                            "<style:text-properties style:font-name=\"%1\" fo:font-size=\"%2pt\" fo:language=\"en\" fo:country=\"US\"/></style:default-style><style:style style:name=\"Default\" style:family=\"table-cell\"/>").arg(esc(fn)).arg(font.size);
         x += QStringLiteral("</office:styles><office:automatic-styles>") + m_pageLayouts + QStringLiteral("</office:automatic-styles><office:master-styles>") + m_masterPages + QStringLiteral("</office:master-styles></office:document-styles>");
         return x;
     }
@@ -671,6 +671,7 @@ private:
         return global.isEmpty() ? QString() : QStringLiteral("<table:named-expressions>") + global + QStringLiteral("</table:named-expressions>");
     }
     QHash<int, QString> m_localNames;
+    bool m_explicitDefault = false;     // the sheet being written gives some columns or rows a look of their own
     QHash<quint64, QString> m_linkOf;   // the address a cell of the sheet being written links to, by row and column
 
     // ---- the sheets
@@ -801,6 +802,11 @@ private:
         }
         QMap<quint32, RowSpec> specs;
         for (const RowSpec &s : sheet.placedRowSpecs()) specs.insert(s.row, s);
+        m_explicitDefault = false;
+        for (const ColumnSpan &c : sheet.columns)
+            if (c.style && !cellStyleFor(c.style).isEmpty()) m_explicitDefault = true;
+        for (const RowSpec &r : specs)
+            if (r.customFormat && !cellStyleFor(r.style).isEmpty()) m_explicitDefault = true;
         // the cells of a row, with the merged ranges in it
         std::map<quint64, int> regionOf;
         struct Region {
@@ -1067,7 +1073,9 @@ private:
         const Cell &c = pc->cell;
         ++m_cells;
         const QString styleName = cellStyleFor(c.style);
+        // (a cell with no style of its own takes the look of its column or row: one that is to be plain says so, where the sheet gives columns or rows a look)
         if (!styleName.isEmpty()) x += QStringLiteral(" table:style-name=\"%1\"").arg(styleName);
+        else if (m_explicitDefault) x += QStringLiteral(" table:style-name=\"Default\"");
         if (rowSpan > 1) x += QStringLiteral(" table:number-rows-spanned=\"%1\"").arg(rowSpan);
         if (colSpan > 1) x += QStringLiteral(" table:number-columns-spanned=\"%1\"").arg(colSpan);
         // the formula
