@@ -1,11 +1,11 @@
 # Guida di JeffWrite
-<!-- keywords: sommario, guida, aiuto, argomenti, inizio, introduzione -->
+<!-- keywords: sommario, guida, aiuto, argomenti, indice, inizio, introduzione -->
 
-Digitare nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premere **F1** in qualsiasi momento per ottenere informazioni su ciò che si sta facendo: la scheda della barra multifunzione o la pagina del menu File in cui ci si trova.
+Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere informazioni su ciò che stai facendo: la scheda della barra multifunzione o la pagina del menu File in cui ti trovi.
 
-## Introduzione
+## Per iniziare
 
-- [Benvenuti in JeffWrite](start)
+- [Benvenuto in JeffWrite](start)
 - [Aprire, salvare, stampare ed esportare](open-save)
 - [Stampare](print)
 
@@ -17,7 +17,11 @@ Digitare nella casella di ricerca qui sopra per trovare un argomento o un comand
 
 - [Modificare l'aspetto del testo](font)
 - [Aggiungere intestazioni, piè di pagina e numeri di pagina](headers-footers)
+- [Creare e modificare tabelle](tables)
 - [Aggiungere note a piè di pagina e note di chiusura](footnotes-endnotes)
+- [Aggiungere e modificare immagini](pictures)
+- [Impostare la pagina](page-setup)
+- [Usare il righello](ruler)
 - [Trovare e sostituire parole](find-replace)
 
 ## Lavorare più velocemente

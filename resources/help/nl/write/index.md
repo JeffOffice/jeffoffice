@@ -1,7 +1,7 @@
 # JeffWrite Help
 <!-- keywords: inhoud, inhoudsopgave, help, hulp, onderwerpen, helponderwerpen, starten, beginnen -->
 
-Typ in het zoekvak hierboven om een onderwerp te vinden, of een opdracht om uit te voeren. Druk op elk moment op **F1** voor hulp bij wat u aan het doen bent: het tabblad van het lint waarop u bent, of de pagina van het scherm Bestand waarop u bent.
+Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit te voeren. Druk op elk moment op **F1** voor hulp bij waar u mee bezig bent: het tabblad van het lint waarop u zich bevindt, of de pagina van het scherm Bestand waarop u zich bevindt.
 
 ## Aan de slag
 
@@ -9,7 +9,7 @@ Typ in het zoekvak hierboven om een onderwerp te vinden, of een opdracht om uit 
 - [Openen, opslaan, afdrukken en exporteren](open-save)
 - [Afdrukken](print)
 
-## Aan uw tekst werken
+## Werken aan uw tekst
 
 - [Uw spelling controleren](spelling)
 
@@ -17,7 +17,11 @@ Typ in het zoekvak hierboven om een onderwerp te vinden, of een opdracht om uit 
 
 - [Het uiterlijk van tekst wijzigen](font)
 - [Kopteksten, voetteksten en paginanummers toevoegen](headers-footers)
+- [Tabellen maken en wijzigen](tables)
 - [Voetnoten en eindnoten toevoegen](footnotes-endnotes)
+- [Afbeeldingen toevoegen en wijzigen](pictures)
+- [De pagina instellen](page-setup)
+- [De liniaal gebruiken](ruler)
 - [Woorden zoeken en vervangen](find-replace)
 
 ## Sneller werken

@@ -1673,9 +1673,13 @@
     <file alias="de/write/index.md">help/de/write/index.md</file>
     <file alias="de/write/keyboard.md">help/de/write/keyboard.md</file>
     <file alias="de/write/open-save.md">help/de/write/open-save.md</file>
+    <file alias="de/write/page-setup.md">help/de/write/page-setup.md</file>
+    <file alias="de/write/pictures.md">help/de/write/pictures.md</file>
     <file alias="de/write/print.md">help/de/write/print.md</file>
+    <file alias="de/write/ruler.md">help/de/write/ruler.md</file>
     <file alias="de/write/spelling.md">help/de/write/spelling.md</file>
     <file alias="de/write/start.md">help/de/write/start.md</file>
+    <file alias="de/write/tables.md">help/de/write/tables.md</file>
     <file alias="en/accessibility.md">help/en/accessibility.md</file>
     <file alias="en/arrange.md">help/en/arrange.md</file>
     <file alias="en/change-template.md">help/en/change-template.md</file>
@@ -1802,8 +1806,8 @@
     <file alias="en/write/print.md">help/en/write/print.md</file>
     <file alias="en/write/ruler.md">help/en/write/ruler.md</file>
     <file alias="en/write/spelling.md">help/en/write/spelling.md</file>
-    <file alias="en/write/tables.md">help/en/write/tables.md</file>
     <file alias="en/write/start.md">help/en/write/start.md</file>
+    <file alias="en/write/tables.md">help/en/write/tables.md</file>
     <file alias="es/accessibility.md">help/es/accessibility.md</file>
     <file alias="es/arrange.md">help/es/arrange.md</file>
     <file alias="es/change-template.md">help/es/change-template.md</file>
@@ -1922,9 +1926,13 @@
     <file alias="es/write/index.md">help/es/write/index.md</file>
     <file alias="es/write/keyboard.md">help/es/write/keyboard.md</file>
     <file alias="es/write/open-save.md">help/es/write/open-save.md</file>
+    <file alias="es/write/page-setup.md">help/es/write/page-setup.md</file>
+    <file alias="es/write/pictures.md">help/es/write/pictures.md</file>
     <file alias="es/write/print.md">help/es/write/print.md</file>
+    <file alias="es/write/ruler.md">help/es/write/ruler.md</file>
     <file alias="es/write/spelling.md">help/es/write/spelling.md</file>
     <file alias="es/write/start.md">help/es/write/start.md</file>
+    <file alias="es/write/tables.md">help/es/write/tables.md</file>
     <file alias="fr/accessibility.md">help/fr/accessibility.md</file>
     <file alias="fr/arrange.md">help/fr/arrange.md</file>
     <file alias="fr/change-template.md">help/fr/change-template.md</file>
@@ -2043,9 +2051,13 @@
     <file alias="fr/write/index.md">help/fr/write/index.md</file>
     <file alias="fr/write/keyboard.md">help/fr/write/keyboard.md</file>
     <file alias="fr/write/open-save.md">help/fr/write/open-save.md</file>
+    <file alias="fr/write/page-setup.md">help/fr/write/page-setup.md</file>
+    <file alias="fr/write/pictures.md">help/fr/write/pictures.md</file>
     <file alias="fr/write/print.md">help/fr/write/print.md</file>
+    <file alias="fr/write/ruler.md">help/fr/write/ruler.md</file>
     <file alias="fr/write/spelling.md">help/fr/write/spelling.md</file>
     <file alias="fr/write/start.md">help/fr/write/start.md</file>
+    <file alias="fr/write/tables.md">help/fr/write/tables.md</file>
     <file alias="it/accessibility.md">help/it/accessibility.md</file>
     <file alias="it/arrange.md">help/it/arrange.md</file>
     <file alias="it/change-template.md">help/it/change-template.md</file>
@@ -2164,9 +2176,13 @@
     <file alias="it/write/index.md">help/it/write/index.md</file>
     <file alias="it/write/keyboard.md">help/it/write/keyboard.md</file>
     <file alias="it/write/open-save.md">help/it/write/open-save.md</file>
+    <file alias="it/write/page-setup.md">help/it/write/page-setup.md</file>
+    <file alias="it/write/pictures.md">help/it/write/pictures.md</file>
     <file alias="it/write/print.md">help/it/write/print.md</file>
+    <file alias="it/write/ruler.md">help/it/write/ruler.md</file>
     <file alias="it/write/spelling.md">help/it/write/spelling.md</file>
     <file alias="it/write/start.md">help/it/write/start.md</file>
+    <file alias="it/write/tables.md">help/it/write/tables.md</file>
     <file alias="nl/accessibility.md">help/nl/accessibility.md</file>
     <file alias="nl/arrange.md">help/nl/arrange.md</file>
     <file alias="nl/change-template.md">help/nl/change-template.md</file>
@@ -2285,9 +2301,13 @@
     <file alias="nl/write/index.md">help/nl/write/index.md</file>
     <file alias="nl/write/keyboard.md">help/nl/write/keyboard.md</file>
     <file alias="nl/write/open-save.md">help/nl/write/open-save.md</file>
+    <file alias="nl/write/page-setup.md">help/nl/write/page-setup.md</file>
+    <file alias="nl/write/pictures.md">help/nl/write/pictures.md</file>
     <file alias="nl/write/print.md">help/nl/write/print.md</file>
+    <file alias="nl/write/ruler.md">help/nl/write/ruler.md</file>
     <file alias="nl/write/spelling.md">help/nl/write/spelling.md</file>
     <file alias="nl/write/start.md">help/nl/write/start.md</file>
+    <file alias="nl/write/tables.md">help/nl/write/tables.md</file>
     <file alias="pt_BR/accessibility.md">help/pt_BR/accessibility.md</file>
     <file alias="pt_BR/arrange.md">help/pt_BR/arrange.md</file>
     <file alias="pt_BR/change-template.md">help/pt_BR/change-template.md</file>
@@ -2406,9 +2426,13 @@
     <file alias="pt_BR/write/index.md">help/pt_BR/write/index.md</file>
     <file alias="pt_BR/write/keyboard.md">help/pt_BR/write/keyboard.md</file>
     <file alias="pt_BR/write/open-save.md">help/pt_BR/write/open-save.md</file>
+    <file alias="pt_BR/write/page-setup.md">help/pt_BR/write/page-setup.md</file>
+    <file alias="pt_BR/write/pictures.md">help/pt_BR/write/pictures.md</file>
     <file alias="pt_BR/write/print.md">help/pt_BR/write/print.md</file>
+    <file alias="pt_BR/write/ruler.md">help/pt_BR/write/ruler.md</file>
     <file alias="pt_BR/write/spelling.md">help/pt_BR/write/spelling.md</file>
     <file alias="pt_BR/write/start.md">help/pt_BR/write/start.md</file>
+    <file alias="pt_BR/write/tables.md">help/pt_BR/write/tables.md</file>
     <file alias="pt_PT/accessibility.md">help/pt_PT/accessibility.md</file>
     <file alias="pt_PT/arrange.md">help/pt_PT/arrange.md</file>
     <file alias="pt_PT/change-template.md">help/pt_PT/change-template.md</file>
@@ -2527,8 +2551,12 @@
     <file alias="pt_PT/write/index.md">help/pt_PT/write/index.md</file>
     <file alias="pt_PT/write/keyboard.md">help/pt_PT/write/keyboard.md</file>
     <file alias="pt_PT/write/open-save.md">help/pt_PT/write/open-save.md</file>
+    <file alias="pt_PT/write/page-setup.md">help/pt_PT/write/page-setup.md</file>
+    <file alias="pt_PT/write/pictures.md">help/pt_PT/write/pictures.md</file>
     <file alias="pt_PT/write/print.md">help/pt_PT/write/print.md</file>
+    <file alias="pt_PT/write/ruler.md">help/pt_PT/write/ruler.md</file>
     <file alias="pt_PT/write/spelling.md">help/pt_PT/write/spelling.md</file>
     <file alias="pt_PT/write/start.md">help/pt_PT/write/start.md</file>
+    <file alias="pt_PT/write/tables.md">help/pt_PT/write/tables.md</file>
   </qresource>
 </RCC>

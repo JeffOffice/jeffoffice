@@ -17,7 +17,11 @@ Escriba en el cuadro de búsqueda de arriba para buscar un tema o un comando que
 
 - [Cambiar el aspecto del texto](font)
 - [Agregar encabezados, pies de página y números de página](headers-footers)
+- [Crear y modificar tablas](tables)
 - [Agregar notas al pie y notas al final](footnotes-endnotes)
+- [Agregar y modificar imágenes](pictures)
+- [Configurar la página](page-setup)
+- [Usar la regla](ruler)
 - [Buscar y reemplazar palabras](find-replace)
 
 ## Trabajar más rápido
