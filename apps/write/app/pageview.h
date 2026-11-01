@@ -351,16 +351,19 @@ private:
     void paintPictureHandles(QPainter &p);
     void paintReviewMarks(QPainter &p, Rendered &r);
     ReviewMarks m_reviewMarks;
-    // What the marks are made from, for the text as it was last looked at (the revision of the story): the stretches the changes cover, the comments, and the deletions.
+    // What the marks of a page are made from, for the text as it was last looked at (the revision of the story): found for the stretch of the story a page shows, never for all of it.
     struct ReviewCache {
+        struct Mark { int at; QString initials, text; QColor color; bool done; };
+        struct PageMarks {
+            int lo = 0, hi = 0;
+            QVector<std::pair<int, int>> spans, formatSpans;
+            QVector<Mark> comments, deletions;
+        };
         int revision = -1;
         const void *doc = nullptr;
-        QVector<std::pair<int, int>> spans, formatSpans;
-        struct Mark { int at; QString initials, text; QColor color; bool done; };
-        QVector<Mark> comments;
-        QVector<Mark> deletions;
+        QHash<int, PageMarks> pages;   // by where the page's text begins in the story
     } m_reviewCache;
-    void fillReviewCache();
+    const ReviewCache::PageMarks &reviewMarksOf(int storyFrom, int lo, int hi);
     int m_pictureDragPage = -1;
 
     WriteDoc *m_doc = nullptr;

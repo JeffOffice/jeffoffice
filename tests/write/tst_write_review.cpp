@@ -430,11 +430,12 @@ private Q_SLOTS:
         QVERIFY(doc);
         doc->setReviewer(QStringLiteral("Zed \"Z\" <&>"), QStringLiteral("Z"));
         doc->setTrackChanges(true);
+        const qint64 before = QDateTime::currentSecsSinceEpoch();
         QTextCursor c(doc->story());
         c.setPosition(5);
         for (const QChar ch : QStringLiteral("abc")) insertText(*doc, c, QString(ch));
         QCOMPARE(finalText(*doc), QStringLiteral("helloabc"));
-        const QDateTime before = QDateTime::currentDateTimeUtc().addSecs(-5);
+        const qint64 after = QDateTime::currentSecsSinceEpoch();
         const QByteArray x = documentXml(doc->toDocx());
         QCOMPARE(x.count("<w:ins "), 1);
         QCOMPARE(x.count("</w:ins>"), 1);
@@ -442,8 +443,9 @@ private Q_SLOTS:
         const QRegularExpressionMatch m = tag.match(QString::fromUtf8(x));
         QVERIFY2(m.hasMatch(), x.constData());
         QCOMPARE(m.captured(2), QStringLiteral("Zed &quot;Z&quot; &lt;&amp;&gt;"));
-        const QDateTime when = QDateTime::fromString(m.captured(3), Qt::ISODate);
-        QVERIFY2(qAbs(when.toSecsSinceEpoch() - QDateTime::currentSecsSinceEpoch()) < 600 && when.toSecsSinceEpoch() >= before.toSecsSinceEpoch() - 3600, qPrintable(m.captured(3)));
+        QDateTime when = QDateTime::fromString(m.captured(3), Qt::ISODate);
+        when.setTimeSpec(Qt::UTC);
+        QVERIFY2(when.toSecsSinceEpoch() >= before && when.toSecsSinceEpoch() <= after, qPrintable(m.captured(3)));
         QVERIFY2(x.contains("</w:ins>") && x.indexOf("abc") > x.indexOf("<w:ins ") && x.indexOf("abc") < x.indexOf("</w:ins>"), x.constData());
         // The document says it tracks, and the one who opens it again finds the change with its author.
         QVERIFY2(settingsXml(doc->toDocx()).contains("<w:trackRevisions/>"), settingsXml(doc->toDocx()).constData());
@@ -1210,6 +1212,140 @@ private Q_SLOTS:
             }
         QVERIFY(red > 4);
         QVERIFY(!w.document()->isModified());
+    }
+
+    // ---------------------------------------------------------------- review fixes: cost
+    void changesOfRunPropertiesAreResolvedInOnePassOverTheRuns()
+    {
+        const int n = 20000;
+        QByteArray content;
+        for (int i = 0; i < n; ++i)
+            content += "<w:r><w:rPr><w:b/><w:rPrChange" + rev(i + 1) + "><w:rPr/></w:rPrChange></w:rPr><w:t>x</w:t></w:r><w:r><w:t>y</w:t></w:r>";
+        for (const bool accept : {true, false}) {
+            auto doc = open(makeDocx(para(content)));
+            QVERIFY(doc);
+            QCOMPARE(revisionCount(doc->story()), n);
+            const qint64 before = revisionRunsVisitedForTest();
+            QCOMPARE(accept ? acceptAll(*doc) : rejectAll(*doc), n);
+            const qint64 visited = revisionRunsVisitedForTest() - before;
+            QVERIFY2(visited < qint64(n) * 2 * 8, qPrintable(QStringLiteral("%1 runs looked at for %2 changes").arg(visited).arg(n)));
+            QCOMPARE(revisionCount(doc->story()), 0);
+            QVERIFY(doc->undo());
+            QCOMPARE(revisionCount(doc->story()), n);
+        }
+    }
+
+    void theWordsOfEachChangeAreFoundWithoutLookingAtTheRunsBeforeIt()
+    {
+        const int n = 5000;
+        QByteArray content;
+        for (int i = 0; i < n; ++i) content += inserted(i + 1, "ab") + run("-");
+        auto doc = open(makeDocx(para(content)));
+        QVERIFY(doc);
+        const QVector<Revision> all = revisionsIn(doc->story());
+        QCOMPARE(all.size(), n);
+        const qint64 before = revisionRunsVisitedForTest();
+        for (const Revision &r : all) QCOMPARE(revisionText(doc->story(), r), QStringLiteral("ab"));
+        const qint64 visited = revisionRunsVisitedForTest() - before;
+        QVERIFY2(visited < qint64(n) * 20, qPrintable(QStringLiteral("%1 runs looked at for %2 changes").arg(visited).arg(n)));
+    }
+
+    void manyPeopleAreMetInTimeThatGrowsWithThem()
+    {
+        const int n = 80000;
+        QByteArray content;
+        for (int i = 0; i < n; ++i) content += "<w:ins w:id=\"" + QByteArray::number(i + 1) + "\" w:author=\"person" + QByteArray::number(i) + "\" w:date=\"2020-01-01T00:00:00Z\"><w:r><w:t>x</w:t></w:r></w:ins>";
+        const QByteArray zip = makeDocx(para(content));
+        QElapsedTimer t;
+        t.start();
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QVERIFY2(t.elapsed() < 20000, qPrintable(QStringLiteral("%1 ms to open 80,000 people's changes").arg(t.elapsed())));
+        QCOMPARE(doc->reviewerIndex(QStringLiteral("person7")), 7);
+    }
+
+    void aChainOfRepliesIsSettledInOnePass()
+    {
+        const int n = 20000;
+        QByteArray cms, ext, body;
+        for (int i = 0; i < n; ++i) {
+            const QByteArray para8 = QByteArray::number(i + 1, 16).rightJustified(8, '0').toUpper();
+            cms += commentElement(i, "Ann", "c", para8);
+            ext += "<w15:commentEx w15:paraId=\"" + para8 + "\" " + (i ? "w15:paraIdParent=\"" + QByteArray::number(i, 16).rightJustified(8, '0').toUpper() + "\" " : QByteArray()) + "w15:done=\"0\"/>";
+            body += commented(i, "x");
+        }
+        auto doc = open(makeDocxWithComments(para(body), cms, ext));
+        QVERIFY(doc);
+        QElapsedTimer t;
+        t.start();
+        const QVector<Comment> all = comments(*doc);
+        QVERIFY2(t.elapsed() < 6000, qPrintable(QStringLiteral("%1 ms for a chain of %2 replies").arg(t.elapsed()).arg(n)));
+        QCOMPARE(all.size(), n);
+        QCOMPARE(all[5].parent, 4);
+        // A loop through all of them is broken at one place only.
+        QByteArray ext2;
+        for (int i = 0; i < n; ++i) {
+            const QByteArray para8 = QByteArray::number(i + 1, 16).rightJustified(8, '0').toUpper();
+            ext2 += "<w15:commentEx w15:paraId=\"" + para8 + "\" w15:paraIdParent=\"" + QByteArray::number(((i + n - 1) % n) + 1, 16).rightJustified(8, '0').toUpper() + "\" w15:done=\"0\"/>";
+        }
+        auto loop = open(makeDocxWithComments(para(body), cms, ext2));
+        QElapsedTimer t2;
+        t2.start();
+        const QVector<Comment> looped = comments(*loop);
+        QVERIFY2(t2.elapsed() < 6000, qPrintable(QStringLiteral("%1 ms for a loop of %2 replies").arg(t2.elapsed()).arg(n)));
+        int roots = 0;
+        for (const Comment &c : looped) roots += c.parent < 0;
+        QCOMPARE(roots, 1);
+    }
+
+    void deletingAllCommentsIsOnePassAndOneStep()
+    {
+        const int n = 3000;
+        QByteArray cms, body;
+        for (int i = 0; i < n; ++i) {
+            cms += commentElement(i + 1, "Ann", "text", QByteArray::number(i + 1, 16).rightJustified(8, '0').toUpper().constData());
+            body += para(commented(i + 1, "word"));
+        }
+        auto doc = open(makeDocxWithComments(body, cms));
+        QVERIFY(doc);
+        QCOMPARE(int(comments(*doc).size()), n);
+        const QByteArray saved = documentXml(doc->toDocx());
+        const qint64 before = commentBlocksScannedForTest();
+        QCOMPARE(deleteAllComments(*doc), n);
+        const qint64 scanned = commentBlocksScannedForTest() - before;
+        QVERIFY2(scanned < qint64(n) * 6, qPrintable(QStringLiteral("%1 paragraphs looked through for %2 comments").arg(scanned).arg(n)));
+        QVERIFY(comments(*doc).isEmpty());
+        QVERIFY(doc->undo());
+        QVERIFY2(!doc->canUndo(), "Delete All was more than one step");
+        QCOMPARE(int(comments(*doc).size()), n);
+        QCOMPARE(documentXml(doc->toDocx()), saved);
+        QVERIFY(doc->redo());
+        QVERIFY(comments(*doc).isEmpty());
+    }
+
+    void typingInABigDocumentWithChangesCostsNothingMoreForEachKey()
+    {
+        QByteArray body;
+        const int n = 30000;
+        for (int i = 0; i < n; ++i) body += para(run("a ") + inserted(i + 1, "b"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        auto made = open(makeDocx(body));
+        QVERIFY(made);
+        w.setDocument(std::move(made), QString());
+        const qint64 first = revisionBlocksScannedForTest();
+        w.show();
+        QTest::qWait(200);
+        w.view()->viewport()->repaint();
+        QVERIFY2(revisionBlocksScannedForTest() > first, "the pages were not painted with their marks");
+        const qint64 blocks = revisionBlocksScannedForTest(), commentBlocks = commentBlocksScannedForTest();
+        for (int i = 0; i < 10; ++i) {
+            w.view()->insertText(QStringLiteral("k"));
+            w.view()->viewport()->repaint();
+        }
+        QVERIFY2(revisionBlocksScannedForTest() - blocks < 10 * 300, qPrintable(QStringLiteral("%1 paragraphs looked through for changes").arg(revisionBlocksScannedForTest() - blocks)));
+        QVERIFY2(commentBlocksScannedForTest() - commentBlocks < 10 * 300, qPrintable(QStringLiteral("%1 paragraphs looked through for comments").arg(commentBlocksScannedForTest() - commentBlocks)));
     }
 
     // ---------------------------------------------------------------- hostile files

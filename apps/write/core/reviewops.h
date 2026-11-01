@@ -101,6 +101,10 @@ QTextCharFormat withFormatRecord(WriteDoc &doc, const QString &paragraphStyle, c
 // The same for a paragraph's properties.
 QTextBlockFormat withParagraphRecord(WriteDoc &doc, const QTextBlockFormat &old, QTextBlockFormat now);
 
+// For tests of cost: the paragraphs looked through for changes, and the runs looked at to give the words of a change or to resolve a change of properties, since the program began.
+qint64 revisionBlocksScannedForTest();
+qint64 revisionRunsVisitedForTest();
+
 // Makes the look of the changes in the paragraph follow the marks it has (after the pieces that mark them were taken out or put in).
 void refreshRevisionLook(WriteDoc &doc, QTextBlock block);
 

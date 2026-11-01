@@ -36,11 +36,11 @@ void WriteDoc::setReviewer(const QString &name, const QString &initials)
 
 int WriteDoc::reviewerIndex(const QString &author)
 {
-    int at = int(m_reviewers.indexOf(author));
-    if (at < 0) {
-        m_reviewers.push_back(author);
-        at = int(m_reviewers.size()) - 1;
-    }
+    const auto known = m_reviewerPlaces.constFind(author);
+    if (known != m_reviewerPlaces.constEnd()) return known.value();
+    m_reviewers.push_back(author);
+    const int at = int(m_reviewers.size()) - 1;
+    m_reviewerPlaces.insert(author, at);
     return at;
 }
 

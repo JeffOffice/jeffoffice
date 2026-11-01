@@ -725,6 +725,7 @@ private:
     bool m_trackChanges = false, m_trackAtOpen = false;
     QString m_reviewer = QStringLiteral("Author"), m_reviewerInitials;
     QStringList m_reviewers;
+    QHash<QString, int> m_reviewerPlaces;   // (the place of each, to find one without looking through the list)
     int m_nextRevisionId = 0;   // 0: not looked for yet
     int m_revisionView = 0;
     void writeReviewSettings(office::wml::Document *out);

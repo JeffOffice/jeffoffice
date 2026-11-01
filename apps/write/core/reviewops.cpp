@@ -12,12 +12,15 @@
 #include <QMap>
 #include <QTextDocument>
 #include <algorithm>
+#include <atomic>
 
 using namespace jp::office::wml;
 
 namespace jp::write {
 
 namespace {
+
+std::atomic<qint64> s_blocksScanned{0}, s_runsVisited{0};
 
 bool isRevisionTag(const QString &tag)
 {
@@ -161,6 +164,7 @@ const RawChild *recordOf(const QVector<RawChild> &extra, const char *name)
 
 void addRevisionsOf(const QTextBlock &b, QVector<Revision> *out)
 {
+    ++s_blocksScanned;
     const int blockNo = b.blockNumber();
     const QVector<Piece> pieces = piecesOf(b);
     for (const Pair &p : pairsOf(pieces)) {
@@ -412,18 +416,19 @@ std::optional<Revision> previousRevision(const QTextDocument *story, int positio
 QString revisionText(const QTextDocument *story, const Revision &r, int most)
 {
     if (r.kind == Revision::Format || r.kind == Revision::ParagraphFormat || r.kind == Revision::MarkInserted || r.kind == Revision::MarkDeleted) return QString();
-    QString out;
-    const QTextBlock b = story->findBlock(r.from);
-    for (QTextBlock::iterator it = b.begin(); !it.atEnd() && out.size() < most; ++it) {
-        const QTextFragment f = it.fragment();
-        const int a = std::max(f.position(), r.from), z = std::min(f.position() + int(f.length()), r.to);
-        if (a >= z) continue;
-        QString t = f.text().mid(a - f.position(), z - a);
-        t.remove(QChar::ObjectReplacementCharacter);
-        out += t;
-    }
+    // Read from the place it begins (a selection of its stretch, cut short: the pieces that are part of it take a place each, and the words need only `most`).
+    QTextCursor t(const_cast<QTextDocument *>(story));
+    t.setPosition(std::max(0, std::min(r.from, story->characterCount() - 1)));
+    t.setPosition(std::max(0, std::min({r.to, r.from + most * 2 + 64, story->characterCount() - 1})), QTextCursor::KeepAnchor);
+    ++s_runsVisited;
+    QString out = t.selectedText();
+    out.remove(QChar::ObjectReplacementCharacter);
+    out.replace(QChar::ParagraphSeparator, QLatin1Char(' '));
     return out.left(most);
 }
+
+qint64 revisionBlocksScannedForTest() { return s_blocksScanned.load(); }
+qint64 revisionRunsVisitedForTest() { return s_runsVisited.load(); }
 
 QStringList revisionAuthors(const QTextDocument *story)
 {
@@ -575,16 +580,21 @@ QString styleIdOf(const WriteDoc &doc, const QTextBlock &b)
     return id.isEmpty() ? doc.defaultParagraphStyle() : id;
 }
 
-// Accepts or rejects the change of properties in the runs [from, to) of a paragraph.
-void resolveFormatChange(WriteDoc &doc, QTextDocument *d, int from, int to, bool accept)
+// Accepts or rejects the changes of properties in the runs of a paragraph that the stretches `ranges` (sorted, places of the story) cover: one pass over the paragraph's runs.
+void resolveFormatChanges(WriteDoc &doc, QTextDocument *d, int blockNumber, const QVector<std::pair<int, int>> &ranges, bool accept)
 {
     struct Edit { int from, to; QTextCharFormat format; };
     QVector<Edit> edits;
-    const QTextBlock b = d->findBlock(from);
+    const QTextBlock b = d->findBlockByNumber(blockNumber);
     const QString style = styleIdOf(doc, b);
+    int at = 0;   // the first stretch that has not ended before the run
     for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+        ++s_runsVisited;
         const QTextFragment f = it.fragment();
-        if (f.position() + int(f.length()) <= from || f.position() >= to) continue;
+        const int fs = f.position(), fe = fs + int(f.length());
+        while (at < ranges.size() && ranges[at].second <= fs) ++at;
+        if (at >= ranges.size()) break;
+        if (ranges[at].first >= fe) continue;
         QTextCharFormat cf = f.charFormat();
         QVector<RawChild> extra = extraOf(cf, prop::RawRPr);
         const RawChild *rec = recordOf(extra, "rPrChange");
@@ -598,7 +608,7 @@ void resolveFormatChange(WriteDoc &doc, QTextDocument *d, int from, int to, bool
             const QVector<RawChild> kept = old.extra;
             nf = restoredFormat(doc, style, cf, old, kept);
         }
-        edits.push_back({f.position(), f.position() + int(f.length()), nf});
+        edits.push_back({fs, fe, nf});
     }
     QTextCursor t(d);
     for (const Edit &e : std::as_const(edits)) {
@@ -722,6 +732,17 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
         QVector<Revision> inBlock = bi.value();
         // Inner changes before outer ones, later before earlier, so that the places of the rest stay: a change's end is moved by what the changes inside it did.
         std::stable_sort(inBlock.begin(), inBlock.end(), [](const Revision &a, const Revision &b) { return a.from != b.from ? a.from > b.from : a.to < b.to; });
+        // The changes of properties first, all in one pass (they change no length, so the places of the rest stay).
+        {
+            QVector<std::pair<int, int>> formats;
+            for (const Revision &r : std::as_const(inBlock))
+                if (r.kind == Revision::Format) formats.push_back({r.from, r.to});
+            if (!formats.isEmpty()) {
+                std::sort(formats.begin(), formats.end());
+                resolveFormatChanges(doc, story, blockNumber, formats, accept);
+                done += int(formats.size());
+            }
+        }
         struct Did { int from, delta; };
         QVector<Did> did;
         bool markDeleted = false, markInserted = false, structural = false;
@@ -758,9 +779,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
                 break;
             }
             case Revision::Format:
-                resolveFormatChange(doc, story, r.from, to, accept);
-                ++done;
-                break;
+                break;   // (done above)
             case Revision::ParagraphFormat:
                 resolveParagraphChange(doc, story->findBlockByNumber(blockNumber), accept);
                 ++done;

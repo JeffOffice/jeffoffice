@@ -17,6 +17,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <algorithm>
+#include <atomic>
 
 using namespace jp::office;
 using namespace jp::office::wml;
@@ -59,6 +60,7 @@ struct CommentSource {
     QHash<QString, bool> doneOfParaId;
     QHash<QString, QByteArray> extensionOfParaId;   // the commentEx elements as written
     QHash<QString, QByteArray> idsOfParaId;          // the commentId elements as written
+    QHash<QString, int> idOfParaId;                  // a comment's last paragraph's id -> its Id
     QVector<int> order;
     QByteArray commentsRoot, extensionRoot, idsRoot, peopleRoot;   // the roots' start tags as written
     QByteArray peopleBytes;
@@ -194,6 +196,8 @@ void readSource(WriteDoc &doc, CommentSource *src)
             }
         }
     }
+    for (auto it = src->byId.cbegin(); it != src->byId.cend(); ++it)
+        if (!it->paraId.isEmpty()) src->idOfParaId.insert(it->paraId, it.key());
     const QByteArray ext = src->extensionName.isEmpty() ? QByteArray() : doc.partData(src->extensionName);
     src->extensionRoot = startTagOfRoot(ext);
     if (!ext.isEmpty()) {
@@ -247,12 +251,15 @@ int idOfRaw(const QByteArray &raw)
     return ok ? v : -1;
 }
 
+std::atomic<qint64> s_blocksScanned{0};
+
 QVector<Anchor> anchorsOf(const QTextDocument *story, QVector<int> *order = nullptr)
 {
     QMap<int, Anchor> byId;
     QVector<int> seen;
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
         if (b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+        ++s_blocksScanned;
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
             const QTextCharFormat cf = f.charFormat();
@@ -358,6 +365,8 @@ void rememberCommentsAtOpen(WriteDoc &doc)
     src.opened = true;
 }
 
+qint64 commentBlocksScannedForTest() { return s_blocksScanned.load(); }
+
 QString WriteDoc::mainRelatedPart(const QString &relationshipTypeEnd) const
 {
     for (const Relationship &r : m_wml.mainRelationships)
@@ -398,33 +407,75 @@ QVector<Comment> comments(WriteDoc &doc)
         c.id = a.id;
         out.push_back(c);
     }
-    // A reply to a comment that is not in the text, or one that makes a loop of replies, is a comment of its own.
+    // A reply to a comment that is not in the text, or one that makes a loop of replies, is a comment of its own. Each comment is settled once: a path of replies is followed up
+    // until it reaches a comment that has no parent, one settled already, or one on the path itself (a loop: that one is made a comment of its own).
     QHash<int, int> parentOf;
     for (const Comment &c : std::as_const(out)) parentOf.insert(c.id, c.parent);
-    for (Comment &c : out) {
-        if (c.parent < 0) continue;
-        if (!parentOf.contains(c.parent) || c.parent == c.id) {
-            c.parent = -1;
-            parentOf[c.id] = -1;
-            continue;
-        }
-        QSet<int> seen;
-        int at = c.id;
-        bool loop = false;
-        for (int steps = 0; steps < 100000; ++steps) {
-            if (seen.contains(at)) { loop = true; break; }
-            seen.insert(at);
+    QHash<int, Comment *> byIdOut;
+    for (Comment &c : out) byIdOut.insert(c.id, &c);
+    QHash<int, char> state;   // 1: on the path being followed, 2: settled
+    QVector<int> path;
+    auto cut = [&](int id) {
+        parentOf[id] = -1;
+        byIdOut.value(id)->parent = -1;
+    };
+    for (const Comment &start : std::as_const(out)) {
+        if (state.value(start.id) == 2) continue;
+        path.clear();
+        int at = start.id;
+        for (;;) {
+            if (state.value(at) == 2) break;
+            if (state.value(at) == 1) {
+                cut(at);   // (a loop)
+                break;
+            }
+            state[at] = 1;
+            path.push_back(at);
             const int p = parentOf.value(at, -1);
-            if (p < 0 || !parentOf.contains(p)) break;
+            if (p < 0) break;
+            if (p == at || !parentOf.contains(p)) {
+                cut(at);
+                break;
+            }
             at = p;
         }
-        if (loop) {
-            c.parent = -1;
-            parentOf[c.id] = -1;
-        }
+        for (const int id : std::as_const(path)) state[id] = 2;
     }
     src.made = out;
     src.madeAtRevision = doc.story()->revision();
+    return out;
+}
+
+QVector<Comment> commentsIn(WriteDoc &doc, int from, int to)
+{
+    CommentSource &src = sourceOf(doc);
+    QVector<Comment> out;
+    QTextDocument *story = doc.story();
+    for (QTextBlock b = story->findBlock(std::max(0, from)); b.isValid() && b.position() <= to && out.size() < 2000; b = b.next()) {
+        if (b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+        ++s_blocksScanned;
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QTextCharFormat cf = f.charFormat();
+            if (!cf.hasProperty(prop::Atom) || f.position() + int(f.length()) < from || f.position() > to) continue;
+            const Inline a = unpackAtom(storedBytes(cf, prop::Atom));
+            if (a.kind != Inline::RunAtom || a.tag != QLatin1String("commentReference")) continue;
+            Comment c;
+            c.id = idOfRaw(a.raw);
+            c.reference = c.from = c.to = f.position();
+            if (!unpackComment(a.look, &c)) {
+                const auto found = src.byId.constFind(c.id);
+                if (found == src.byId.constEnd()) continue;
+                c.author = found->author;
+                c.initials = found->initials;
+                c.text = found->text;
+                const QString parentPara = src.parentOfParaId.value(found->paraId);
+                c.parent = parentPara.isEmpty() ? -1 : src.idOfParaId.value(parentPara, -1);
+                c.done = src.doneOfParaId.value(found->paraId, false);
+            }
+            if (c.parent < 0) out.push_back(c);
+        }
+    }
     return out;
 }
 
@@ -623,21 +674,17 @@ void putComment(QTextDocument *d, const Comment &c, int reference)
 QVector<Comment> threadOf(const QVector<Comment> &all, int id)
 {
     QVector<Comment> out;
-    QSet<int> in;
-    for (const Comment &c : all)
-        if (c.id == id) {
-            out.push_back(c);
-            in.insert(id);
-        }
-    for (int round = 0; round < 1000; ++round) {
-        bool grew = false;
-        for (const Comment &c : all)
-            if (!in.contains(c.id) && in.contains(c.parent)) {
-                out.push_back(c);
-                in.insert(c.id);
-                grew = true;
-            }
-        if (!grew) break;
+    QHash<int, QVector<int>> children;   // (places in `all`, by parent)
+    int root = -1;
+    for (int i = 0; i < all.size(); ++i) {
+        if (all[i].id == id) root = i;
+        if (all[i].parent >= 0) children[all[i].parent].push_back(i);
+    }
+    if (root < 0) return out;
+    QVector<int> queue{root};
+    for (int at = 0; at < queue.size(); ++at) {
+        out.push_back(all[queue[at]]);
+        for (const int child : children.value(all[queue[at]].id)) queue.push_back(child);
     }
     return out;
 }
@@ -678,15 +725,11 @@ bool setCommentText(WriteDoc &doc, int id, const QString &text)
     return true;
 }
 
-int deleteComment(WriteDoc &doc, int id)
+// Takes the marks of the comments `ids` out of the text, in one pass over it and one edit block.
+static void removeMarksOf(WriteDoc &doc, const QSet<int> &ids)
 {
-    const QVector<Comment> all = comments(doc);
-    const QVector<Comment> thread = threadOf(all, id);
-    if (thread.isEmpty()) return 0;
-    QSet<int> ids;
-    for (const Comment &c : thread) ids.insert(c.id);
     QTextDocument *d = doc.story();
-    // The places of the marks of the thread, from the last to the first.
+    // The places of the marks, in order.
     QVector<int> places;
     for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
         if (b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
@@ -703,37 +746,40 @@ int deleteComment(WriteDoc &doc, int id)
             for (int k = 0; k < int(f.length()); ++k) places.push_back(f.position() + k);
         }
     }
-    std::sort(places.begin(), places.end());
     const UntrackedEdit untracked;
     EditScope scope(doc, d);
     QTextCursor t(d);
     t.beginEditBlock();
-    for (int i = int(places.size()) - 1; i >= 0; --i) {
-        t.setPosition(places[i]);
+    // From the last to the first, so that the places hold; marks side by side go together.
+    for (int i = int(places.size()) - 1; i >= 0;) {
+        int first = i;
+        while (first > 0 && places[first - 1] == places[first] - 1) --first;
+        t.setPosition(places[first]);
         t.setPosition(places[i] + 1, QTextCursor::KeepAnchor);
         t.removeSelectedText();
+        i = first - 1;
     }
     t.endEditBlock();
+}
+
+int deleteComment(WriteDoc &doc, int id)
+{
+    const QVector<Comment> thread = threadOf(comments(doc), id);
+    if (thread.isEmpty()) return 0;
+    QSet<int> ids;
+    for (const Comment &c : thread) ids.insert(c.id);
+    removeMarksOf(doc, ids);
     return int(thread.size());
 }
 
 int deleteAllComments(WriteDoc &doc)
 {
-    int n = 0;
-    for (;;) {
-        const QVector<Comment> all = comments(doc);
-        const Comment *root = nullptr;
-        for (const Comment &c : all)
-            if (c.parent < 0) {
-                root = &c;
-                break;
-            }
-        if (!root) break;
-        const int done = deleteComment(doc, root->id);
-        if (done <= 0) break;
-        n += done;
-    }
-    return n;
+    const QVector<Comment> all = comments(doc);
+    if (all.isEmpty()) return 0;
+    QSet<int> ids;
+    for (const Comment &c : all) ids.insert(c.id);
+    removeMarksOf(doc, ids);
+    return int(all.size());
 }
 
 // ---- writing the parts

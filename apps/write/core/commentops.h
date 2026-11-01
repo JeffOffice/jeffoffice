@@ -27,6 +27,9 @@ struct Comment {
 // Notes which comments the text refers to as the document is opened (a comment taken out afterwards is taken out of the file's parts when it is saved).
 void rememberCommentsAtOpen(WriteDoc &doc);
 
+// For tests of cost: the paragraphs looked through for the marks of comments since the program began.
+qint64 commentBlocksScannedForTest();
+
 // The most comments looked at (a hostile file has more than anyone reads).
 constexpr int kMostComments = 100000;
 
@@ -34,6 +37,8 @@ constexpr int kMostComments = 100000;
 // a comment of its own.
 QVector<Comment> comments(WriteDoc &doc);
 std::optional<Comment> commentById(WriteDoc &doc, int id);
+// The comments (not their replies) whose references are in [from, to] of the text, with the places of their references only: what a page shows of them, found by looking through that stretch alone.
+QVector<Comment> commentsIn(WriteDoc &doc, int from, int to);
 // The comment whose range holds the place (the innermost), or whose reference is there.
 std::optional<Comment> commentAt(WriteDoc &doc, int position);
 // The next comment after the place (the first whose range begins after it), the previous before it; none where there is none (they do not wrap round).
