@@ -23244,6 +23244,49 @@ private Q_SLOTS:
         QCOMPARE(doc.nextStepSerial(), next + 2);
     }
 
+    void aClickInsideTheSelectionPutsTheCaretThereAndWithTheDragOffAPressStartsANewSelection()
+    {
+        auto w = styWindow("<w:p><w:r><w:t>One two three four five</w:t></w:r></w:p>");
+        PageView *view = w->view();
+        const QPoint inside = styPointOf(view, 6), from = styPointOf(view, 8), to = styPointOf(view, 14);
+        selectRange(*w, 0, 13);
+        QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, inside);
+        QVERIFY(!view->cursor().hasSelection());
+        QVERIFY(std::abs(view->cursor().position() - 6) <= 1);
+        // The press that begins a drag of the text is held until the pointer moves; with the drag off (as the Format Painter has it) the press begins a new selection.
+        view->setTextDragAllowed(false);
+        selectRange(*w, 0, 13);
+        QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(view->viewport(), to);
+        QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, to);
+        QVERIFY(view->cursor().hasSelection());
+        QVERIFY(view->cursor().selectionStart() >= 7 && view->cursor().selectionEnd() <= 15);
+        QVERIFY(!w->document()->canUndo());   // (nothing was moved)
+    }
+
+    void theStylesPaneOfADocumentWithTenThousandStylesListsAtMostWhatItHolds()
+    {
+        QByteArray styles;
+        styManyStyles(10000, &styles);
+        auto w = styWindow("<w:p><w:pPr><w:pStyle w:val=\"S7\"/></w:pPr><w:r><w:t>Text</w:t></w:r></w:p>", styles);
+        w->act(QStringLiteral("style.pane"))->trigger();
+        StylesPane *pane = w->stylesPane();
+        QVERIFY(pane);
+        pane->setFilter(write::StyleFilter::All);
+        QVERIFY(pane->list()->count() > 0 && pane->list()->count() <= write::kMostStylesListed);
+        pane->setFilter(write::StyleFilter::InUse);
+        QCOMPARE(pane->list()->count(), 2);   // (Normal and the style of the paragraph)
+        QCOMPARE(pane->currentKey(), QStringLiteral("p:S7"));
+        // Typing refreshes nothing of the list while the styles and the style at the caret are the same.
+        const QString first = pane->keyAt(0);
+        QTextCursor c(w->document()->story());
+        c.setPosition(4);
+        insertText(*w->document(), c, QStringLiteral("more "));
+        w->refreshNow();
+        QCOMPARE(pane->keyAt(0), first);
+        QCOMPARE(pane->list()->count(), 2);
+    }
+
     // Not a test of its own: the work of a process that the next function starts. A document with a header and a footer, read, typed in, and saved.
     void savesTheDocumentWithHeaderAndFooter()
     {
