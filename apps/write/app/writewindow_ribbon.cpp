@@ -84,6 +84,7 @@ void WriteWindow::buildRibbon()
     parts.action = [this](const QString &id) { return m_actions.value(id); };
     ribbonParts(parts);
     parts.colors[QStringLiteral("headerFooter")] = QColor(0x2E, 0x8B, 0x57);
+    parts.colors[QStringLiteral("table")] = QColor(0x9B, 0x59, 0xB6);
     QFile f(QStringLiteral(":/write/ribbon.json"));
     QByteArray json;
     if (f.open(QIODevice::ReadOnly)) json = f.readAll();
@@ -94,6 +95,7 @@ void WriteWindow::buildRibbon()
 
 void WriteWindow::ribbonParts(RibbonParts &parts)
 {
+    tableRibbonParts(parts);
     parts.widgets[QStringLiteral("fontCombo")] = [this]() -> QWidget * {
         auto *font = new FontCombo();
         connect(font, &FontCombo::familyChosen, this, [this](const QString &f) {

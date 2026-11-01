@@ -2,6 +2,7 @@
 // JeffWrite's main window: the ribbon, the pages, and the status bar, with the File screen over them.
 
 #include "app/appwindow.h"
+#include "core/tableops.h"
 #include "core/writedoc.h"
 
 #include <QHash>
@@ -12,6 +13,7 @@
 
 class QDockWidget;
 class QLabel;
+class QMenu;
 class QPrinter;
 class QSlider;
 
@@ -125,6 +127,13 @@ private:
     void createEditingActions();
     void createHeaderFooterActions();
     void createNoteActions();
+    void createTableActions();
+    void tableRibbonParts(RibbonParts &parts);
+    void tableCommand(const std::function<void(write::WriteDoc &, QTextCursor &)> &fn);
+    void insertTableNow(const write::NewTable &table);
+    void refreshTableUi();
+    bool cursorInTable() const;
+    void addTableContextMenu(QMenu &menu);
     void headerFooterModeChanged();
     void buildRibbon();
     void ribbonParts(RibbonParts &parts);
@@ -165,6 +174,8 @@ private:
     QList<ColorButton *> m_colorButtons;
     QList<MeasureSpin *> m_indentFields;
     QWidget *m_styleGallery = nullptr;
+    QList<MeasureSpin *> m_tableFields;     // the row height and column width of the Table Layout tab
+    QWidget *m_tableStyleGallery = nullptr;
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;
     QString m_path;
