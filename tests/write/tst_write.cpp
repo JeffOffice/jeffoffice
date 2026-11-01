@@ -7,6 +7,7 @@
 #include "app/pageview.h"
 #include "app/pageoutput.h"
 #include "app/spellpane.h"
+#include "app/stylespane.h"
 #include "app/filescreen.h"
 #include "app/findreplace.h"
 #include "app/help.h"
@@ -22900,6 +22901,347 @@ private Q_SLOTS:
         auto back = open(doc->toDocx());
         QVERIFY(back);
         QCOMPARE(plain(*back), plain(*doc));
+    }
+
+    // ---- wave D in the window: the Styles pane, the style dialogs, the Format Painter, Go To, and dragging text
+
+    static std::unique_ptr<WriteWindow> styWindow(const QByteArray &body, const QByteArray &styles = kStyles)
+    {
+        auto w = std::make_unique<WriteWindow>();
+        w->resize(1000, 700);
+        w->setDocument(open(makeDocx(body, styles)), QString());
+        w->show();
+        w->refreshNow();
+        return w;
+    }
+    static QPoint styPointOf(PageView *view, int position)
+    {
+        QTextCursor c(view->document()->story());
+        c.setPosition(position);
+        view->showCursor(c);
+        QRect r;
+        if (!view->caretRect(&r)) return QPoint();
+        return QPoint(r.center().x() + 1, r.center().y());
+    }
+
+    void theStylesPaneShowsTheStylesFiltersThemAndAppliesOneWithAClick()
+    {
+        const QByteArray styles = kStyles + styCustomStyle(QStringLiteral("Stealth"), QStringLiteral("Stealth note"), "<w:basedOn w:val=\"Normal\"/><w:semiHidden/>");
+        auto w = styWindow("<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Heading words</w:t></w:r></w:p><w:p><w:r><w:t>Body words</w:t></w:r></w:p>", styles);
+        QVERIFY(!w->stylesPane());
+        QAction *command = w->act(QStringLiteral("style.pane"));
+        QVERIFY(command);
+        QCOMPARE(command->shortcut(), QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_S));
+        command->trigger();
+        StylesPane *pane = w->stylesPane();
+        QVERIFY(pane);
+        QVERIFY(pane->isVisible());
+        // The caret is in the heading: its style is the one marked, and the list can be of the styles in use, all, or those recommended.
+        QCOMPARE(pane->currentKey(), QStringLiteral("p:Heading1"));
+        pane->setFilter(write::StyleFilter::InUse);
+        QVERIFY(pane->rowOf(QStringLiteral("p:Heading1")) >= 0 && pane->rowOf(QStringLiteral("p:Normal")) >= 0);
+        QCOMPARE(pane->rowOf(QStringLiteral("p:Stealth")), -1);
+        QCOMPARE(pane->list()->count(), 2);
+        QVERIFY(pane->list()->item(pane->rowOf(QStringLiteral("p:Heading1")))->font().bold());
+        QVERIFY(!pane->list()->item(pane->rowOf(QStringLiteral("p:Normal")))->font().bold());
+        pane->setFilter(write::StyleFilter::All);
+        QVERIFY(pane->rowOf(QStringLiteral("p:Stealth")) >= 0 && pane->rowOf(QStringLiteral("c:Strong")) >= 0 && pane->rowOf(QStringLiteral("p:Title")) >= 0);
+        pane->setFilter(write::StyleFilter::Recommended);
+        QCOMPARE(pane->rowOf(QStringLiteral("p:Stealth")), -1);
+        QVERIFY(pane->rowOf(QStringLiteral("p:Title")) >= 0);
+        // A click on a style gives it to the selected paragraph, as one step.
+        QTextCursor c(w->document()->story());
+        c.setPosition(17);
+        w->view()->setCursor(c);
+        w->refreshNow();
+        QCOMPARE(pane->currentKey(), QStringLiteral("p:Normal"));
+        const int row = pane->rowOf(QStringLiteral("p:Heading1"));
+        QVERIFY(row >= 0);
+        const quint64 serial = w->document()->nextStepSerial();
+        QTest::mouseClick(pane->list()->viewport(), Qt::LeftButton, Qt::NoModifier, pane->list()->visualItemRect(pane->list()->item(row)).center());
+        QCOMPARE(styBlockStyle(*w->document(), 17), QStringLiteral("Heading1"));
+        QCOMPARE(w->document()->nextStepSerial(), serial + 1);
+        QCOMPARE(pane->currentKey(), QStringLiteral("p:Heading1"));
+        QTRY_VERIFY(w->act(QStringLiteral("edit.undo"))->isEnabled());
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(styBlockStyle(*w->document(), 17), QStringLiteral("Normal"));
+        // A character style goes to the characters selected.
+        c.setPosition(17);
+        c.setPosition(21, QTextCursor::KeepAnchor);
+        w->view()->setCursor(c);
+        pane->setFilter(write::StyleFilter::All);
+        pane->apply(pane->rowOf(QStringLiteral("c:Strong")));
+        QCOMPARE(styCharAt(*w->document(), 18).stringProperty(tp::CharStyle), QStringLiteral("Strong"));
+        QVERIFY(styIds(listStyles(*w->document(), StyleFilter::InUse)).contains(QStringLiteral("Strong")));
+        // The pane follows the document: a style made shows in it.
+        QTextCursor sel(w->document()->story());
+        sel.setPosition(0);
+        sel.setPosition(5, QTextCursor::KeepAnchor);
+        QVERIFY(!createStyle(*w->document(), sel, [] { wml::Style s; s.name = QStringLiteral("Zebra"); return s; }()).isEmpty());
+        w->refreshNow();
+        QVERIFY(pane->rowOf(QStringLiteral("p:Zebra")) >= 0);
+        QVERIFY(w->document()->undo());
+        w->refreshNow();
+        QCOMPARE(pane->rowOf(QStringLiteral("p:Zebra")), -1);
+    }
+
+    void theCreateStyleDialogMakesTheStyleOfTheSelectionAndOneUndoTakesItBack()
+    {
+        auto w = styWindow("<w:p><w:r><w:t>Alpha beta</w:t></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r></w:p>");
+        selectRange(*w, 0, 5);
+        const quint64 serial = w->document()->nextStepSerial();
+        withDialog([&] { w->act(QStringLiteral("style.new"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *d) {
+            QCOMPARE(d->windowTitle(), QStringLiteral("Create New Style from Formatting"));
+            auto *name = d->findChild<QLineEdit *>(QStringLiteral("styleName"));
+            QVERIFY(name && name->isEnabled());
+            name->setText(QStringLiteral("Callout"));
+            auto *size = d->findChild<QComboBox *>(QStringLiteral("styleSize"));
+            QVERIFY(size);
+            size->setEditText(QStringLiteral("20"));
+            d->findChild<QCheckBox *>(QStringLiteral("styleBold"))->setChecked(true);
+            auto *align = d->findChild<QComboBox *>(QStringLiteral("styleAlign"));
+            align->setCurrentIndex(align->findData(QStringLiteral("center")));
+            QVERIFY(d->findChild<QComboBox *>(QStringLiteral("styleBasedOn"))->currentData().toString() == QLatin1String("Normal"));
+        });
+        WriteDoc &doc = *w->document();
+        QCOMPARE(doc.nextStepSerial(), serial + 1);
+        const wml::Style made = styStyle(doc, QStringLiteral("Callout"));
+        QCOMPARE(made.name, QStringLiteral("Callout"));
+        QCOMPARE(made.rPr.size, std::optional<int>(40));
+        QCOMPARE(made.rPr.bold, std::optional<bool>(true));
+        QCOMPARE(made.pPr.jc, QStringLiteral("center"));
+        QVERIFY(made.customStyle);
+        QCOMPARE(styBlockStyle(doc, 2), QStringLiteral("Callout"));
+        QCOMPARE(styCharAt(doc, 2).fontPointSize(), 20.0);
+        QCOMPARE(styBlockStyle(doc, 11), QStringLiteral("Normal"));
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(!doc.styleSheet().find(QStringLiteral("Callout")));
+        QCOMPARE(styBlockStyle(doc, 2), QStringLiteral("Normal"));
+        w->refreshNow();
+        w->act(QStringLiteral("edit.redo"))->trigger();
+        QVERIFY(doc.styleSheet().find(QStringLiteral("Callout")));
+        // The style is in the file.
+        auto back = open(doc.toDocx());
+        QVERIFY(back);
+        QCOMPARE(styStyle(*back, QStringLiteral("Callout")).rPr.size, std::optional<int>(40));
+        QCOMPARE(styBlockStyle(*back, 2), QStringLiteral("Callout"));
+        // A name another style has keeps the dialog open and says why; Cancel leaves everything as it was.
+        const quint64 now = doc.nextStepSerial();
+        withDialog([&] { w->act(QStringLiteral("style.new"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("styleName"))->setText(QStringLiteral("heading 1"));
+            d->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+            QVERIFY(d->isVisible());
+            QVERIFY(!d->findChild<QLabel *>(QStringLiteral("styleProblem"))->text().isEmpty());
+        }, false);
+        QCOMPARE(doc.nextStepSerial(), now);
+    }
+
+    void theModifyStyleDialogChangesTheStyleAndWithNoChangeLeavesTheFileAsItWas()
+    {
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Heading words</w:t></w:r></w:p><w:p><w:r><w:t>Body words</w:t></w:r></w:p>";
+        const QByteArray zip = makeDocx(body, kStyles);
+        auto w = std::make_unique<WriteWindow>();
+        w->resize(1000, 700);
+        w->setDocument(open(zip), QString());
+        w->show();
+        w->refreshNow();
+        const QByteArray original = styleXml(zip);
+        // OK with nothing changed: no step, the file not marked as changed, styles.xml the same bytes.
+        withDialog([&] { w->act(QStringLiteral("style.modify"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *d) {
+            QCOMPARE(d->windowTitle(), QStringLiteral("Modify Style"));
+            QVERIFY(!d->findChild<QLineEdit *>(QStringLiteral("styleName"))->isEnabled());   // (a built-in style keeps its name)
+            QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("styleName"))->text(), QStringLiteral("heading 1"));
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("styleSize"))->currentText(), QStringLiteral("17"));
+            QVERIFY(d->findChild<QCheckBox *>(QStringLiteral("styleBold"))->isChecked());
+        });
+        QVERIFY(!w->document()->canUndo());
+        QVERIFY(!w->isModified());
+        QCOMPARE(styleXml(w->document()->toDocx()), original);
+        // A change: the style, the text that has it, and one step.
+        const quint64 serial = w->document()->nextStepSerial();
+        withDialog([&] { w->act(QStringLiteral("style.modify"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *d) {
+            d->findChild<QComboBox *>(QStringLiteral("styleSize"))->setEditText(QStringLiteral("30"));
+            d->findChild<QCheckBox *>(QStringLiteral("styleItalic"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("styleAutomatic"))->setChecked(true);
+        });
+        WriteDoc &doc = *w->document();
+        QCOMPARE(doc.nextStepSerial(), serial + 1);
+        QCOMPARE(styStyle(doc, QStringLiteral("Heading1")).rPr.size, std::optional<int>(60));
+        QVERIFY(styStyle(doc, QStringLiteral("Heading1")).autoRedefine);
+        QCOMPARE(styCharAt(doc, 3).fontPointSize(), 30.0);
+        QVERIFY(styCharAt(doc, 3).fontItalic());
+        QVERIFY(w->isModified());
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(styleXml(doc.toDocx()), original);
+        QVERIFY(!w->isModified());
+        // The command for the style of the Styles pane's chosen row, and Update to Match Selection (the caret in the body, a size given by hand).
+        QTextCursor c(doc.story());
+        c.setPosition(18);
+        c.setPosition(22, QTextCursor::KeepAnchor);
+        w->view()->setCursor(c);
+        setFontSize(doc, w->view()->cursor(), 14);
+        w->refreshNow();
+        const quint64 before = doc.nextStepSerial();
+        w->act(QStringLiteral("style.update"))->trigger();
+        QCOMPARE(doc.nextStepSerial(), before + 1);
+        QCOMPARE(styStyle(doc, QStringLiteral("Normal")).rPr.size, std::optional<int>(28));
+    }
+
+    void theFormatPainterPaintsOnceOrStaysOnUntilEscapeAndEachPaintIsOneStep()
+    {
+        auto w = styWindow("<w:p><w:r><w:t>Alpha beta gamma delta epsilon</w:t></w:r></w:p>");
+        PageView *view = w->view();
+        QAction *painter = w->act(QStringLiteral("edit.formatPainter"));
+        QVERIFY(painter);
+        QCOMPARE(w->painterMode(), WriteWindow::PainterMode::Off);
+        selectRange(*w, 0, 5);
+        toggleBold(*w->document(), view->cursor());
+        selectRange(*w, 0, 5);
+        w->refreshNow();
+        // One use: the next selection made with the mouse is painted, then the painter is off.
+        painter->trigger();
+        QCOMPARE(w->painterMode(), WriteWindow::PainterMode::Once);
+        QVERIFY(painter->isChecked());
+        const QPoint from = styPointOf(view, 11), to = styPointOf(view, 16);
+        const quint64 serial = w->document()->nextStepSerial();
+        QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(view->viewport(), to);
+        QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, to);
+        QCOMPARE(view->cursor().selectedText(), QStringLiteral("gamma"));
+        QCOMPARE(w->document()->nextStepSerial(), serial + 1);
+        QVERIFY(styCharAt(*w->document(), 12).fontWeight() >= QFont::DemiBold);
+        QVERIFY(styCharAt(*w->document(), 7).fontWeight() < QFont::DemiBold);
+        QCOMPARE(w->painterMode(), WriteWindow::PainterMode::Off);
+        QVERIFY(!painter->isChecked());
+        // Not painting again: the next selection changes nothing.
+        const QPoint d1 = styPointOf(view, 17), d2 = styPointOf(view, 22);
+        QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, d1);
+        QTest::mouseMove(view->viewport(), d2);
+        QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, d2);
+        QCOMPARE(w->document()->nextStepSerial(), serial + 1);
+        // A double click on the button keeps it on: every selection is painted, each as a step, until Esc.
+        selectRange(*w, 0, 5);
+        auto *button = [&]() -> QToolButton * {
+            for (QToolButton *b : w->ribbon()->findChildren<QToolButton *>())
+                if (b->defaultAction() == painter) return b;
+            return nullptr;
+        }();
+        QVERIFY(button);
+        QTest::mouseDClick(button, Qt::LeftButton);
+        QCOMPARE(w->painterMode(), WriteWindow::PainterMode::Locked);
+        QVERIFY(painter->isChecked());
+        const quint64 locked = w->document()->nextStepSerial();
+        for (const std::pair<int, int> &range : {std::pair<int, int>(6, 10), std::pair<int, int>(23, 30)}) {
+            const QPoint a = styPointOf(view, range.first), b = styPointOf(view, range.second);
+            QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, a);
+            QTest::mouseMove(view->viewport(), b);
+            QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, b);
+            QCOMPARE(w->painterMode(), WriteWindow::PainterMode::Locked);
+        }
+        QCOMPARE(w->document()->nextStepSerial(), locked + 2);
+        QVERIFY(styCharAt(*w->document(), 7).fontWeight() >= QFont::DemiBold);
+        QVERIFY(styCharAt(*w->document(), 25).fontWeight() >= QFont::DemiBold);
+        QTest::keyClick(view, Qt::Key_Escape);
+        QCOMPARE(w->painterMode(), WriteWindow::PainterMode::Off);
+        QVERIFY(!painter->isChecked());
+        // Each paint is one Undo.
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(styCharAt(*w->document(), 25).fontWeight() < QFont::DemiBold);
+        QVERIFY(styCharAt(*w->document(), 7).fontWeight() >= QFont::DemiBold);
+        // The keys: Copy Format and Paste Format.
+        QCOMPARE(w->act(QStringLiteral("edit.copyFormat"))->shortcut(), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
+        QCOMPARE(w->act(QStringLiteral("edit.pasteFormat"))->shortcut(), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_V));
+        selectRange(*w, 0, 5);
+        w->act(QStringLiteral("edit.copyFormat"))->trigger();
+        selectRange(*w, 31, 38);
+        w->act(QStringLiteral("edit.pasteFormat"))->trigger();
+        QVERIFY(styCharAt(*w->document(), 33).fontWeight() >= QFont::DemiBold);
+    }
+
+    void goToOpensWithCtrlGAndPutsTheCaretAtThePlaceNamed()
+    {
+        QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>First heading</w:t></w:r></w:p>";
+        for (int i = 0; i < 6; ++i) body += "<w:p><w:r><w:t>Some text of paragraph " + QByteArray::number(i) + ".</w:t></w:r></w:p>";
+        body += "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:bookmarkStart w:id=\"1\" w:name=\"Target\"/><w:r><w:t>Second heading</w:t></w:r><w:bookmarkEnd w:id=\"1\"/></w:p><w:p><w:r><w:t>Last.</w:t></w:r></w:p>";
+        auto w = styWindow(body);
+        QAction *goTo = w->act(QStringLiteral("edit.goTo"));
+        QVERIFY(goTo);
+        QCOMPARE(goTo->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::Key_G).toString(QKeySequence::NativeText));
+        const int second = w->document()->story()->findBlock(w->document()->story()->toPlainText().indexOf(QStringLiteral("Second heading"))).position();
+        withDialog([&] { goTo->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            auto *kinds = d->findChild<QListWidget *>(QStringLiteral("goToKinds"));
+            QCOMPARE(kinds->count(), 6);
+            kinds->setCurrentRow(5);   // Heading
+            auto *choices = d->findChild<QListWidget *>(QStringLiteral("goToChoices"));
+            QCOMPARE(choices->count(), 2);
+            choices->setCurrentRow(1);
+            QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("goToWhat"))->text(), QStringLiteral("Second heading"));
+        });
+        QCOMPARE(w->view()->cursor().position(), second);
+        // A bookmark by name, and a place that is not there keeps the dialog open and says so.
+        selectRange(*w, 0, 0);
+        withDialog([&] { goTo->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            d->findChild<QListWidget *>(QStringLiteral("goToKinds"))->setCurrentRow(3);   // Bookmark
+            d->findChild<QLineEdit *>(QStringLiteral("goToWhat"))->setText(QStringLiteral("target"));
+        });
+        QCOMPARE(w->view()->cursor().position(), second);
+        selectRange(*w, 3, 3);
+        withDialog([&] { goTo->trigger(); }, QStringLiteral("goToDialog"), [](QDialog *d) {
+            d->findChild<QListWidget *>(QStringLiteral("goToKinds"))->setCurrentRow(0);   // Page
+            d->findChild<QLineEdit *>(QStringLiteral("goToWhat"))->setText(QStringLiteral("40"));
+            d->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+            QVERIFY(d->isVisible());
+            QVERIFY(!d->findChild<QLabel *>(QStringLiteral("goToProblem"))->text().isEmpty());
+        }, false);
+        QCOMPARE(w->view()->cursor().position(), 3);
+        QVERIFY(!w->document()->canUndo());   // (going to a place changes nothing)
+    }
+
+    void dragAndDropMovesSelectedTextOrCopiesItWithCtrlInOneStep()
+    {
+        auto w = styWindow("<w:p><w:r><w:t>One two three four five</w:t></w:r></w:p>");
+        PageView *view = w->view();
+        WriteDoc &doc = *w->document();
+        auto drop = [&](QMimeData *mime, int position, Qt::KeyboardModifiers modifiers) {
+            const QPoint at = styPointOf(view, position);
+            // (A drop goes to the widget that accepted the drag when it came in.)
+            QDragEnterEvent enter(at, Qt::CopyAction | Qt::MoveAction, mime, Qt::LeftButton, modifiers);
+            QApplication::sendEvent(view->viewport(), &enter);
+            if (!enter.isAccepted()) return false;
+            QDropEvent e(QPointF(at), Qt::CopyAction | Qt::MoveAction, mime, Qt::LeftButton, modifiers);
+            QApplication::sendEvent(view->viewport(), &e);
+            return e.isAccepted();
+        };
+        selectRange(*w, 4, 8);
+        std::unique_ptr<QMimeData> mime(view->prepareTextDrag());
+        QVERIFY(mime);
+        QCOMPARE(mime->text(), QStringLiteral("two "));
+        const quint64 serial = doc.nextStepSerial();
+        QVERIFY(drop(mime.get(), 19, Qt::NoModifier));
+        QCOMPARE(plain(doc), QStringLiteral("One three four two five"));
+        QCOMPARE(view->cursor().selectedText(), QStringLiteral("two "));
+        QCOMPARE(doc.nextStepSerial(), serial + 1);
+        w->refreshNow();
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(plain(doc), QStringLiteral("One two three four five"));
+        w->refreshNow();
+        w->act(QStringLiteral("edit.redo"))->trigger();
+        QCOMPARE(plain(doc), QStringLiteral("One three four two five"));
+        // With the Ctrl key it is copied; dropped on the selection itself it does nothing.
+        selectRange(*w, 15, 19);
+        mime.reset(view->prepareTextDrag());
+        const quint64 next = doc.nextStepSerial();
+        drop(mime.get(), 17, Qt::NoModifier);
+        QCOMPARE(doc.nextStepSerial(), next);
+        QVERIFY(drop(mime.get(), 0, Qt::ControlModifier));
+        QCOMPARE(plain(doc), QStringLiteral("two One three four two five"));
+        QCOMPARE(doc.nextStepSerial(), next + 1);
+        // Text from outside the document is put where it is dropped.
+        QMimeData outside;
+        outside.setText(QStringLiteral("NEW "));
+        QVERIFY(drop(&outside, 4, Qt::NoModifier));
+        QCOMPARE(plain(doc), QStringLiteral("two NEW One three four two five"));
+        QCOMPARE(doc.nextStepSerial(), next + 2);
     }
 
     // Not a test of its own: the work of a process that the next function starts. A document with a header and a footer, read, typed in, and saved.

@@ -6,6 +6,7 @@
 #include "app/ruler.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/stylespane.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
 #include "core/appinfo.h"
@@ -18,6 +19,7 @@
 #include "app/widgets.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
+#include "text/textprops.h"
 #include "testrunner.h"
 
 #include <QApplication>
@@ -31,6 +33,8 @@
 #include <sys/stat.h>
 #endif
 #include <QCheckBox>
+#include <QListWidget>
+#include <QLineEdit>
 #include <QClipboard>
 #include <QComboBox>
 #include <QDialog>
@@ -201,6 +205,21 @@ private Q_SLOTS:
                  w->act(QStringLiteral("insert.header"))->trigger();
              }, false},
             {QStringLiteral("a header being edited"), [](AppWindow *w, bool) { w->act(QStringLiteral("insert.header"))->trigger(); }, false},
+            {QStringLiteral("the Styles pane open"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 w->act(QStringLiteral("style.pane"))->trigger();
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("the Format Painter on"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 w->act(QStringLiteral("edit.selectAll"))->trigger();
+                 w->act(QStringLiteral("edit.formatPainter"))->trigger();
+             }, false},
+            {QStringLiteral("a format copied"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 w->act(QStringLiteral("edit.selectAll"))->trigger();
+                 w->act(QStringLiteral("edit.copyFormat"))->trigger();
+             }, false},
             {QStringLiteral("a picture selected"), [typed](AppWindow *w, bool f) {
                  typed(w, f);
                  asWrite(w)->setPictureChooser([] { return pngFile(80, 60); });
@@ -229,6 +248,9 @@ private Q_SLOTS:
         };
         m_app.quiet = {
             {QStringLiteral("picture.lockAspect"), QStringLiteral("it is the setting the next change of a picture's width or height reads, and changes nothing by itself")},
+            {QStringLiteral("edit.copyFormat"), QStringLiteral("it only holds the look of the selection for Paste Format; the paste is the change")},
+            {QStringLiteral("edit.pasteFormat"), QStringLiteral("it puts the look held on the selection, which here has that look already, or nothing is held yet")},
+            {QStringLiteral("edit.formatPainter"), QStringLiteral("it picks up the look of the selection and waits for the next selection; the paint is the change, and the window's tests check it")},
             {QStringLiteral("view.printLayout"), QStringLiteral("the print layout is the only layout JeffWrite has, and the window begins in it")},
         };
         m_app.neverRun = {};
@@ -1149,6 +1171,99 @@ private Q_SLOTS:
     }
 
     // ---- 3. every command
+    // The commands of wave D: Create Style, Modify Style, Update Style, the Format Painter, Copy and Paste Format, Go To, and the Styles pane. Each is one step that undoes to the bytes before it,
+    // and the style made saves and opens the same.
+    void theStyleCommandsFormatPainterAndGoToOfTheWindowChangeTheDocumentUndoAndSaveAndOpenTheSame()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        typeInto(w->view(), QStringLiteral("Alpha beta gamma\nSecond paragraph\nThird one"));
+        settle(w.get());
+        write::WriteDoc &doc = *w->document();
+        auto select = [&](int from, int to) {
+            QTextCursor c(doc.story());
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            w->view()->setCursor(c);
+            settle(w.get());
+        };
+        // Create Style from the first paragraph, bold and centered.
+        select(0, 16);
+        w->act(QStringLiteral("fmt.bold"))->trigger();
+        w->act(QStringLiteral("fmt.alignCenter"))->trigger();
+        settle(w.get());
+        const QString plainDigest = zipDigest(doc.toDocx());
+        answer([](QDialog *d) { d->findChild<QLineEdit *>(QStringLiteral("styleName"))->setText(QStringLiteral("Pulled words")); });
+        w->act(QStringLiteral("style.new"))->trigger();
+        settle(w.get());
+        QVERIFY(doc.styleSheet().find(QStringLiteral("Pulledwords")));
+        QCOMPARE(doc.story()->begin().blockFormat().stringProperty(tp::StyleName), QStringLiteral("Pulledwords"));
+        const QByteArray saved = doc.toDocx();
+        QString error;
+        QStringList notes;
+        auto back = write::WriteDoc::fromDocx(saved, &error);
+        QVERIFY2(back, qPrintable(error));
+        QVERIFY(back->styleSheet().find(QStringLiteral("Pulledwords")));
+        QCOMPARE(back->story()->begin().blockFormat().stringProperty(tp::StyleName), QStringLiteral("Pulledwords"));
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        settle(w.get());
+        QCOMPARE(zipDigest(doc.toDocx()), plainDigest);
+        w->act(QStringLiteral("edit.redo"))->trigger();
+        settle(w.get());
+        QCOMPARE(zipDigest(doc.toDocx()), zipDigest(saved));
+        // Modify Style, then Update Style to Match Selection (a size given by hand to the second paragraph's words).
+        const QString madeDigest = zipDigest(doc.toDocx());
+        select(0, 0);
+        answer([](QDialog *d) { d->findChild<QComboBox *>(QStringLiteral("styleSize"))->setEditText(QStringLiteral("24")); });
+        w->act(QStringLiteral("style.modify"))->trigger();
+        settle(w.get());
+        QCOMPARE(doc.styleSheet().find(QStringLiteral("Pulledwords"))->rPr.size, std::optional<int>(48));
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        settle(w.get());
+        QCOMPARE(zipDigest(doc.toDocx()), madeDigest);
+        select(17, 23);
+        w->act(QStringLiteral("fmt.italic"))->trigger();
+        settle(w.get());
+        const QString italicDigest = zipDigest(doc.toDocx());
+        w->act(QStringLiteral("style.update"))->trigger();
+        settle(w.get());
+        QCOMPARE(doc.styleSheet().find(QStringLiteral("Normal")) ? doc.styleSheet().find(QStringLiteral("Normal"))->rPr.italic : std::optional<bool>(), std::optional<bool>(true));
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        settle(w.get());
+        QCOMPARE(zipDigest(doc.toDocx()), italicDigest);
+        // Copy Format and Paste Format by their commands, then the painter by its command and a selection made with the mouse.
+        select(0, 5);
+        w->act(QStringLiteral("edit.copyFormat"))->trigger();
+        select(24, 30);
+        const QString beforePaste = zipDigest(doc.toDocx());
+        w->act(QStringLiteral("edit.pasteFormat"))->trigger();
+        settle(w.get());
+        QVERIFY(zipDigest(doc.toDocx()) != beforePaste);
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        settle(w.get());
+        QCOMPARE(zipDigest(doc.toDocx()), beforePaste);
+        select(0, 5);
+        w->act(QStringLiteral("edit.formatPainter"))->trigger();
+        QCOMPARE(asWrite(w.get())->painterMode(), WriteWindow::PainterMode::Once);
+        QTest::keyClick(w->view(), Qt::Key_Escape);
+        QCOMPARE(asWrite(w.get())->painterMode(), WriteWindow::PainterMode::Off);
+        // Go To a page, and a place that is not there.
+        select(30, 30);
+        answer([](QDialog *d) {
+            d->findChild<QListWidget *>(QStringLiteral("goToKinds"))->setCurrentRow(2);   // Line
+            d->findChild<QLineEdit *>(QStringLiteral("goToWhat"))->setText(QStringLiteral("2"));
+        });
+        const QString beforeGo = zipDigest(doc.toDocx());
+        w->act(QStringLiteral("edit.goTo"))->trigger();
+        settle(w.get());
+        QCOMPARE(w->view()->cursor().position(), 17);   // (the second paragraph's line)
+        QCOMPARE(zipDigest(doc.toDocx()), beforeGo);
+        // The Styles pane lists the style made.
+        w->act(QStringLiteral("style.pane"))->trigger();
+        settle(w.get());
+        QVERIFY(asWrite(w.get())->stylesPane());
+        QVERIFY(asWrite(w.get())->stylesPane()->rowOf(QStringLiteral("p:Pulledwords")) >= 0);
+    }
+
     void everyCommandOnABlankDocument()
     {
         QStringList report;

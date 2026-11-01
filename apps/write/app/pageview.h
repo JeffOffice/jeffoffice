@@ -15,6 +15,7 @@
 #include <memory>
 
 class QMenu;
+class QMimeData;
 class QMouseEvent;
 class QDragEnterEvent;
 class QDragMoveEvent;
@@ -161,6 +162,14 @@ public:
     // The picture's size, wrap, and alt text, with the notice told when the change cannot be made.
     bool changeSelectedPicture(const std::function<bool(WriteDoc &, int)> &change);
 
+    // ---- dragging text
+    // The selected text as a drag carries it: its words, and a mark that it is this view's own; a drop of it on the view moves it (copies it, with the Ctrl key) as one step of the
+    // history, and the text is selected where it went. Null where nothing is selected or the selection is in a header, footer, or note. The caller owns what it returns. (A press inside
+    // the selection and a pull makes such a drag; test code drops what this returns.)
+    QMimeData *prepareTextDrag();
+    // Whether a press inside the selection begins a drag of it (the Format Painter turns it off: a press there is the start of a new selection).
+    void setTextDragAllowed(bool allowed) { m_textDragAllowed = allowed; }
+
     // Lays out every page now (for the count).
     void paginateAll();
     // The pages the window is set to show, laid out and drawn once more.
@@ -171,6 +180,7 @@ Q_SIGNALS:
     void pagesChanged();                    // how many pages there are, or whether all are known
     void caretChanged();                    // the caret moved or the selection changed
     void contentChanged();                  // the text was edited
+    void selectionMade();                   // a click or a drag with the mouse ended: the selection (or the caret) is where it was left
     void contextMenuWanted(const QPoint &globalPos);
     void headerFooterModeChanged();         // a header or footer is edited now, or none is any more
     void noteModeChanged();                 // a footnote is edited now, or none is any more
@@ -298,6 +308,19 @@ private:
     // is in (the front-most), -1 for none.
     bool floatingPictureRect(int position, QRectF *onPage, int *page);
     int floatingPictureAt(const Hit &hit);
+    // A drag of the selected text: begun by a press inside the selection (`pending`, until the pointer has moved far enough), carried while the drag runs (`active`), and `done` once a
+    // drop on this view has moved or copied the text.
+    struct TextDrag {
+        bool pending = false, active = false, done = false;
+        QPoint start;
+        QTextCursor selection;
+    };
+    void startTextDrag();
+    // A drop of text on the view: this view's own selection moved or copied, or text from elsewhere put where it is dropped. False where the drop is not of text.
+    bool dropText(QDropEvent *e);
+    bool wantsTextDrop(const QMimeData *mime) const;
+    TextDrag m_textDrag;
+    bool m_textDragAllowed = true;
     PictureDrag m_pictureDrag;
     int m_hoverCursorShape = -1;
     bool pictureRectUncached(int position, QRectF *rect);

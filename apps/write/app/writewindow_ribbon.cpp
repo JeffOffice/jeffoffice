@@ -90,8 +90,13 @@ void WriteWindow::buildRibbon()
     if (f.open(QIODevice::ReadOnly)) json = f.readAll();
     parts.launchers[QStringLiteral("font")] = [this] { act("fmt.fontDialog")->trigger(); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
+    parts.launchers[QStringLiteral("styles")] = [this] { act("style.pane")->trigger(); };
     parts.launchers[QStringLiteral("pageSetup")] = [this] { act("layout.pageSetup")->trigger(); };
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
+    // The Format Painter's button is double-clicked to keep it on, and Esc in the text turns it off (see eventFilter).
+    for (QToolButton *b : m_ribbon->findChildren<QToolButton *>())
+        if (b->defaultAction() && b->defaultAction() == act(QStringLiteral("edit.formatPainter"))) b->installEventFilter(this);
+    m_view->installEventFilter(this);
 }
 
 void WriteWindow::ribbonParts(RibbonParts &parts)

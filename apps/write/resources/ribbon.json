@@ -34,6 +34,10 @@
             {
               "small": "edit.copy",
               "keytip": "C"
+            },
+            {
+              "small": "edit.formatPainter",
+              "keytip": "FP"
             }
           ]
         },
@@ -190,7 +194,10 @@
               "widget": "styleGallery",
               "keytip": "L"
             }
-          ]
+          ],
+          "launcher": "styles",
+          "launcherTip": "Styles",
+          "launcherKeytip": "SY"
         },
         {
           "name": "Editing",
@@ -203,6 +210,10 @@
             {
               "small": "edit.replace",
               "keytip": "RP"
+            },
+            {
+              "small": "edit.goTo",
+              "keytip": "GT"
             }
           ]
         }
