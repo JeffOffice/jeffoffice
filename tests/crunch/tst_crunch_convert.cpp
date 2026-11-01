@@ -299,10 +299,10 @@ private Q_SLOTS:
             QByteArray written;
             bool exists = false;
         };
-        auto run = [&](const std::function<void(CsvSaveDialog *)> &act) {
+        auto run = [&](const std::function<void(CsvSaveDialog *)> &act, const QByteArray &input = QByteArray("a;b\n1;2\n")) {
             Result r;
             Win o;
-            if (!o.open(bytes, QStringLiteral("v.csv"))) return r;
+            if (!o.open(input, QStringLiteral("v.csv"))) return r;
             o.w.setLossAsker(nullptr);   // (the question itself)
             QTimer finder;
             finder.setInterval(10);
@@ -337,6 +337,18 @@ private Q_SLOTS:
         });
         QVERIFY(utf16.asked);
         QVERIFY(utf16.written.startsWith("\xFF\xFE"));
+        // a UTF-16 file, big end first, not edited: the same answer gives its bytes, and another answer is written as asked
+        const QByteArray be("\xFE\xFF\0a\0,\0b\0\n\0001\0,\0" "2\0\n", 20);
+        const Result bigEnd = run([](CsvSaveDialog *d) { d->findChild<QPushButton *>(QStringLiteral("csvSaveValues"))->click(); }, be);
+        QVERIFY(bigEnd.asked);
+        QCOMPARE(bigEnd.written, be);
+        const Result bigToTab = run([](CsvSaveDialog *d) {
+            auto *sep = d->findChild<QComboBox *>(QStringLiteral("csvSeparator"));
+            sep->setCurrentIndex(sep->findText(QStringLiteral("Tab")));
+            d->findChild<QPushButton *>(QStringLiteral("csvSaveValues"))->click();
+        }, be);
+        QVERIFY(bigToTab.written.startsWith("\xFE\xFF"));
+        QVERIFY(bigToTab.written.contains(QByteArray("\0\t", 2)));
         const Result cancelled = run([](CsvSaveDialog *d) { d->reject(); });
         QVERIFY(cancelled.asked);
         QVERIFY(!cancelled.exists);

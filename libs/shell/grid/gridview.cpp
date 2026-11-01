@@ -179,7 +179,7 @@ void GridView::applyFormulaFit(qint64 column, int wanted)
     m_widened.push_back({column, now, wanted});
 }
 
-// While the formulas show, the columns in view that hold formulas are as wide as the longest needs (to at most 400 pixels): each is measured once for the sheet shown, from at most 2,000 of its
+// While the formulas show, the columns in view that hold formulas are as wide as the longest needs (to at most 400 pixels): every column in view is measured once for the sheet shown (the work is bounded by the columns in view), from at most 2,000 of its
 // cells, and what was measured is used again when the sheet is read again after an edit.
 void GridView::widenForFormulas()
 {
@@ -188,7 +188,7 @@ void GridView::widenForFormulas()
     int seen = 0;
     for (Pane which : {Pane::Left, Pane::Body}) {
         const PaneView pv = L.pane(which);
-        for (qint64 col = pv.firstCol; !pv.isEmpty() && col <= pv.lastCol && seen < 64; ++col, ++seen)
+        for (qint64 col = pv.firstCol; !pv.isEmpty() && col <= pv.lastCol; ++col, ++seen)
             if (!m_formulaFit.count(col)) m_formulaFit[col] = int(std::min(400.0, std::ceil(m_sheet.fitPixels(quint32(col), 2000, true))));
     }
     for (const auto &fit : m_formulaFit) applyFormulaFit(fit.first, fit.second);

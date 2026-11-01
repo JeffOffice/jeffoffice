@@ -733,6 +733,30 @@ private Q_SLOTS:
         QCOMPARE(gs.cellsMeasured(), mid);
     }
 
+    // Zoomed out so that 100 columns or more are in view, every one of them is widened when the formulas are shown (each from its own cells, at most 2,000), and nothing is measured past the columns in view.
+    void showFormulasWidensEveryColumnInView()
+    {
+        QString rows;
+        for (int r = 1; r <= 20; ++r) {
+            rows += QStringLiteral("<row r=\"%1\">").arg(r);
+            for (int c = 0; c < 300; ++c) rows += QStringLiteral("<c r=\"%1%2\"><f>SUM(A1:A2)+SUM(A1:A2)+%3</f><v>1</v></c>").arg(columnName(quint32(c))).arg(r).arg(r * 7 + c);
+            rows += QStringLiteral("</row>");
+        }
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        e.win.w.resize(1000, 600);
+        e.view()->setZoom(0.1);
+        const grid::GridSheet &gs = e.view()->sheet();
+        const grid::PaneView body = gs.layout().pane(grid::Pane::Body);
+        const qint64 shown = body.lastCol - body.firstCol + 1;
+        QVERIFY2(shown >= 100, qPrintable(QString::number(shown)));
+        const qint64 before = gs.cellsMeasured();
+        e.win.w.act(QStringLiteral("view.formulas"))->trigger();
+        for (qint64 c = body.firstCol; c <= body.lastCol; ++c) QVERIFY2(gs.columnWidth(c) > 64, qPrintable(QString::number(c)));
+        const qint64 measured = gs.cellsMeasured() - before;
+        QVERIFY2(measured <= shown * 20 + 20 * 20, qPrintable(QString::number(measured)));   // (the columns in view, 20 cells each; one more turn of the layout may add a column)
+    }
+
     // A fill that would change a cell that can't be changed (a locked cell of a protected sheet, a table's header) changes nothing and says why; a fill past the edge of the sheet stops
     // at it.
     void fillRefusesWhatCannotBeChanged()
