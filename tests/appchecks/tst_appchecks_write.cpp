@@ -25,7 +25,11 @@
 #include <QImage>
 #include <QPlainTextEdit>
 #include <QRadioButton>
+#include <QScrollBar>
 #include <QTest>
+#ifdef Q_OS_UNIX
+#include <sys/stat.h>
+#endif
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
@@ -1003,6 +1007,127 @@ private Q_SLOTS:
         w->act(QStringLiteral("view.ruler"))->trigger();
         QVERIFY(ruler->isVisible());
     }
+
+    // ---- wave C review
+
+    // A window with a floating picture of 120 by 60 points selected, among text that fills more than a page.
+    static WriteWindow *windowWithAFloatingPicture(const QString &file)
+    {
+        auto *w = launchBlank();
+        typeInto(w->view(), QString(QStringLiteral("Some words that a picture will sit among, enough of them to fill several lines of the page. ")).repeated(40));
+        w->setPictureChooser([file] { return file; });
+        w->view()->cursor().setPosition(20);
+        w->act(QStringLiteral("insert.picture"))->trigger();
+        settle(w);
+        w->act(QStringLiteral("picture.wrap.square"))->trigger();
+        settle(w);
+        return w;
+    }
+
+    void aSizeThatKeepsItsRatioIsHeldToTheLimitsAsAWholeInTheWindow()
+    {
+        std::unique_ptr<WriteWindow> w(windowWithAFloatingPicture(pngFile(160, 80)));
+        const int at = w->view()->selectedPicture();
+        QVERIFY(at >= 0);
+        auto info = [&] { return write::pictureAt(*w->document(), w->document()->story(), at); };
+        QCOMPARE(info().width, 120.0);
+        QCOMPARE(info().height, 60.0);
+        auto *width = w->findChild<MeasureSpin *>(QStringLiteral("pictureWidthField"));
+        QVERIFY(width);
+        width->setValue(width->maximum());
+        Q_EMIT width->editingFinished();
+        QCOMPARE(info().width, write::kMostPictureSize);
+        QCOMPARE(info().height, write::kMostPictureSize / 2);
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        settle(w.get());
+        // A corner dragged a great way out stops at the same ceiling, in the same proportions.
+        QPointF corner;
+        QVERIFY(w->view()->pictureHandlePoint(write::PageView::PictureHandle::BottomRight, &corner));
+        drag(w->view()->viewport(), corner.toPoint(), corner.toPoint() + QPoint(100000, 100000));
+        settle(w.get());
+        QCOMPARE(info().width, write::kMostPictureSize);
+        QCOMPARE(info().height, write::kMostPictureSize / 2);
+    }
+
+    // A drag keeps the scroll it began at: a wheel turned during it does not move the result; an Undo during it ends it with nothing done.
+    void aPictureDragIsNotMovedByAScrollAndEndsWithAnUndo()
+    {
+        std::unique_ptr<WriteWindow> w(windowWithAFloatingPicture(pngFile(160, 80)));
+        const int at = w->view()->selectedPicture();
+        QVERIFY(at >= 0);
+        auto info = [&] { return write::pictureAt(*w->document(), w->document()->story(), at); };
+        QWidget *viewport = w->view()->viewport();
+        const double scale = w->view()->zoom() * 96.0 / 72.0;
+        QRectF pic;
+        QVERIFY(w->view()->pictureRect(at, &pic));
+        drag(viewport, pic.center().toPoint(), pic.center().toPoint() + QPoint(80, 60));   // (a place of its own on the page)
+        settle(w.get());
+        const double left = info().left, top = info().top;
+        QVERIFY(info().placeIsOffset);
+        QVERIFY(w->view()->pictureRect(at, &pic));
+        const QPoint from = pic.center().toPoint();
+        QTest::mousePress(viewport, Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(viewport, from + QPoint(30, 20));
+        QScrollBar *bar = w->view()->verticalScrollBar();
+        QVERIFY(bar->maximum() > 100);
+        bar->setValue(bar->value() + 100);
+        QTest::mouseMove(viewport, from + QPoint(50, 40));
+        QTest::mouseRelease(viewport, Qt::LeftButton, Qt::NoModifier, from + QPoint(50, 40));
+        settle(w.get());
+        QVERIFY2(std::abs(info().left - (left + 50 / scale)) < 1 && std::abs(info().top - (top + 40 / scale)) < 1,
+                 qPrintable(QStringLiteral("%1,%2 from %3,%4 by %5,%6").arg(info().left).arg(info().top).arg(left).arg(top).arg(50 / scale).arg(40 / scale)));
+        // Undo in the middle of a drag: the drag is over, and what it would have done is not done.
+        QVERIFY(w->view()->pictureRect(at, &pic));
+        const QPoint start = pic.center().toPoint();
+        QTest::mousePress(viewport, Qt::LeftButton, Qt::NoModifier, start);
+        QTest::mouseMove(viewport, start + QPoint(40, 40));
+        w->refreshNow();
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        const QString afterUndo = zipDigest(w->document()->toDocx());
+        QTest::mouseMove(viewport, start + QPoint(70, 70));
+        QTest::mouseRelease(viewport, Qt::LeftButton, Qt::NoModifier, start + QPoint(70, 70));
+        settle(w.get());
+        QCOMPARE(zipDigest(w->document()->toDocx()), afterUndo);
+    }
+
+    // The pointer moving over a picture that is selected does not work out where its handles are every time.
+    void thePointerOverASelectedPictureDoesNotMeasureItEachTime()
+    {
+        std::unique_ptr<WriteWindow> w(windowWithAFloatingPicture(pngFile(160, 80)));
+        QVERIFY(w->view()->selectedPicture() >= 0);
+        QRectF pic;
+        QVERIFY(w->view()->pictureRect(w->view()->selectedPicture(), &pic));
+        QWidget *viewport = w->view()->viewport();
+        QTest::mouseMove(viewport, pic.center().toPoint());   // (the first look)
+        const qint64 before = write::PageView::pictureRectsComputedForTest();
+        for (int i = 0; i < 200; ++i) QTest::mouseMove(viewport, QPoint(int(pic.left()) - 20 + i, int(pic.top()) + i / 2));
+        QVERIFY2(write::PageView::pictureRectsComputedForTest() - before <= 4, qPrintable(QString::number(write::PageView::pictureRectsComputedForTest() - before)));
+        // A change of the picture is seen: the handle is where the picture is now.
+        const QPointF was = pic.bottomRight();
+        QPointF corner;
+        QVERIFY(w->view()->pictureHandlePoint(write::PageView::PictureHandle::BottomRight, &corner));
+        QCOMPARE(corner, was);
+        w->view()->changeSelectedPicture([](write::WriteDoc &d, int position) { return write::setPictureSize(d, position, 60, 30); });
+        settle(w.get());
+        QVERIFY(w->view()->pictureHandlePoint(write::PageView::PictureHandle::BottomRight, &corner));
+        QVERIFY(std::abs(corner.x() - (pic.left() + 60 * w->view()->zoom() * 96 / 72)) < 2);
+    }
+
+#ifdef Q_OS_UNIX
+    // A name that is a pipe or a file that never ends is not read: the command says so and returns.
+    void aPictureNameThatIsAPipeIsRefusedWithoutWaiting()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        typeInto(w->view(), QStringLiteral("text"));
+        const QString fifo = tempFile(QStringLiteral("pipe.png"));
+        QFile::remove(fifo);
+        QVERIFY(::mkfifo(QFile::encodeName(fifo).constData(), 0600) == 0);
+        w->setPictureChooser([fifo] { return fifo; });
+        w->act(QStringLiteral("insert.picture"))->trigger();
+        QCOMPARE(w->document()->story()->toPlainText(), QStringLiteral("text"));
+        QVERIFY(!w->statusBar()->currentMessage().isEmpty());
+    }
+#endif
 
     // ---- 3. every command
     void everyCommandOnABlankDocument()

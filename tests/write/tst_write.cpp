@@ -45,11 +45,16 @@
 
 #include <QAccessible>
 #include <QBuffer>
+#include <QImageReader>
+#include <QUrl>
 #include <QImage>
 #include <QPainter>
 #include <QApplication>
 #include <QXmlStreamReader>
 #include <climits>
+#ifdef Q_OS_UNIX
+#include <sys/stat.h>
+#endif
 #include <QMenu>
 #include <QCheckBox>
 #include <QComboBox>
@@ -21537,6 +21542,422 @@ private Q_SLOTS:
         for (const TabStopEntry &s : stops) QVERIFY(s.position >= 0 && s.position <= kMostTabPosition);
         QVERIFY(open(other->toDocx()));
         QVERIFY(open(doc->toDocx()));
+    }
+
+    // ---- wave C review
+
+    // A picture dressed up as a hostile one: a drawing with a hyperlink on it, hidden, and children and attributes of the newer drawing format that the program does not know.
+    static QByteArray decoratedPictureBody(bool anchored, bool withLink = true)
+    {
+        const QByteArray ns = "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                              "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:wp14=\"http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing\"";
+        const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"x\"/><pic:cNvPicPr/></pic:nvPicPr>"
+                                   "<pic:blipFill><a:blip r:embed=\"rIdPic\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"635000\"/></a:xfrm>"
+                                   "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>";
+        const QByteArray docPr = "<wp:docPr id=\"7\" name=\"Picture 7\" descr=\"old\" hidden=\"1\" title=\"T\">" + QByteArray(withLink ? "<a:hlinkClick r:id=\"rIdLnk\"/>" : "") + "</wp:docPr>";
+        QByteArray d = "<w:r><w:drawing " + ns + ">";
+        if (anchored)
+            d += "<wp:anchor distT=\"0\" distB=\"0\" distL=\"114300\" distR=\"114300\" simplePos=\"0\" relativeHeight=\"5\" behindDoc=\"0\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\" wp14:anchorId=\"1234ABCD\">"
+                 "<wp:simplePos x=\"0\" y=\"0\"/><wp:positionH relativeFrom=\"column\"><wp:posOffset>0</wp:posOffset></wp:positionH><wp:positionV relativeFrom=\"paragraph\"><wp:posOffset>0</wp:posOffset></wp:positionV>"
+                 "<wp:extent cx=\"1270000\" cy=\"635000\"/><wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/><wp:wrapSquare wrapText=\"bothSides\"/>" + docPr +
+                 "<wp:cNvGraphicFramePr/>" + graphic + "<wp14:sizeRelH relativeFrom=\"margin\"><wp14:pctWidth>0</wp14:pctWidth></wp14:sizeRelH><wp14:sizeRelV relativeFrom=\"margin\"><wp14:pctHeight>0</wp14:pctHeight></wp14:sizeRelV></wp:anchor>";
+        else
+            d += "<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"1270000\" cy=\"635000\"/>" + docPr + "<wp:cNvGraphicFramePr/>" + graphic + "</wp:inline>";
+        d += "</w:drawing></w:r>";
+        return "<w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r>" + d + "<w:r><w:t xml:space=\"preserve\"> after</w:t></w:r></w:p>";
+    }
+
+    void editingAPictureKeepsWhatTheEditDoesNotChange()
+    {
+        for (bool anchored : {true, false}) {
+            auto doc = open(makeDocxWithPicture(decoratedPictureBody(anchored)));
+            QVERIFY(doc);
+            const int at = 7;
+            QVERIFY(pictureAt(*doc, doc->story(), at).valid);
+            QVERIFY(setPictureAltText(*doc, at, QStringLiteral("new words")));
+            QVERIFY(setPictureSize(*doc, at, 50, 40));
+            QVERIFY(setPictureWrap(*doc, at, PictureWrap::Tight));
+            QVERIFY(setPictureWrap(*doc, at, PictureWrap::TopAndBottom));
+            const QByteArray floating = documentXml(doc->toDocx());
+            wml::XmlTree tree;
+            QVERIFY(tree.parse(floating));
+            for (const char *kept : {"<a:hlinkClick", "r:id=\"rIdLnk\"", "hidden=\"1\"", "title=\"T\"", "descr=\"new words\"", "wp14:sizeRelH", "wp14:sizeRelV", "wp14:anchorId=\"1234ABCD\"", "<wp:effectExtent"})
+                if (anchored || !QByteArray(kept).contains("wp14") ) {
+                    if (!anchored && QByteArray(kept) == "<wp:effectExtent") continue;
+                    QVERIFY2(floating.contains(kept), kept);
+                }
+            QVERIFY(!floating.contains("descr=\"old\""));
+            QVERIFY(floating.contains("wrapTopAndBottom"));
+            QVERIFY(floating.contains("cx=\"635000\"") && floating.contains("cy=\"508000\""));   // 50 by 40 points
+            QCOMPARE(pictureAt(*doc, doc->story(), at).width, 50.0);
+            // In line again, the children only a floating drawing may have are left out (the others stay).
+            QVERIFY(setPictureWrap(*doc, at, PictureWrap::Inline));
+            const QByteArray inLine = documentXml(doc->toDocx());
+            QVERIFY(tree.parse(inLine));
+            QVERIFY(inLine.contains("<wp:inline"));
+            QVERIFY(inLine.contains("<a:hlinkClick") && inLine.contains("hidden=\"1\"") && inLine.contains("descr=\"new words\""));
+            QVERIFY(!inLine.contains("sizeRelH") && !inLine.contains("<wp:anchor"));
+            auto back = open(doc->toDocx());
+            QVERIFY(back);
+            QCOMPARE(pictureAt(*back, back->story(), at).alt, QStringLiteral("new words"));
+        }
+    }
+
+    // The ids of drawings: above the ids of every drawing the file has, in the headers and other parts too, and above those pasted.
+    void drawingIdsDoNotCollideWithThoseOfHeadersOrPastes()
+    {
+        const QByteArray header = "<w:hdr " + QByteArray(kNs) + " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"><w:p><w:r><w:drawing><wp:inline><wp:extent cx=\"100\" cy=\"100\"/>"
+                                  "<wp:docPr id=\"1\" name=\"Header picture\"/></wp:inline></w:drawing></w:r></w:p></w:hdr>";
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(paragraphs(1), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        QCOMPARE(insertPicture(*doc, c, pngOf(8, 8), QStringLiteral("a")), PictureResult::Ok);
+        auto idsOf = [](const QByteArray &xml) {
+            QList<int> out;
+            static const QRegularExpression re(QStringLiteral("<wp:docPr[^>]*? id=\"(\\d+)\""));
+            auto it = re.globalMatch(QString::fromUtf8(xml));
+            while (it.hasNext()) out << it.next().captured(1).toInt();
+            return out;
+        };
+        const int first = idsOf(documentXml(doc->toDocx())).value(0);
+        QVERIFY2(first > 1, qPrintable(QString::number(first)));
+        // A picture pasted from another document, with an id of its own.
+        auto other = open(makeDocxWithPicture(decoratedPictureBody(false, false)));   // (its drawing has the id 7)
+        QTextCursor oc(other->story());
+        oc.setPosition(7);
+        oc.setPosition(8, QTextCursor::KeepAnchor);
+        const Clip clip = copySelection(*other, oc);
+        QTextCursor at(doc->story());
+        at.setPosition(0);
+        pasteClip(*doc, at, clip);
+        QCOMPARE(picturesIn(doc->story()), 2);
+        QTextCursor end(doc->story());
+        end.movePosition(QTextCursor::End);
+        QCOMPARE(insertPicture(*doc, end, pngOf(9, 9), QStringLiteral("b")), PictureResult::Ok);
+        QList<int> all = idsOf(documentXml(doc->toDocx()));
+        QCOMPARE(all.size(), 3);
+        QSet<int> unique(all.cbegin(), all.cend());
+        QCOMPARE(unique.size(), 3);
+        QVERIFY(!unique.contains(1));
+    }
+
+    void altTextAndNamesKeepTheirSurrogatePairsAndDropLoneOnes()
+    {
+        auto doc = textDoc({"x"});
+        QTextCursor c(doc->story());
+        const QString emoji = QString::fromUtf8("\xF0\x9F\x98\x80");   // U+1F600
+        QCOMPARE(insertPicture(*doc, c, pngOf(8, 8), QStringLiteral("name ") + emoji + QStringLiteral(".png")), PictureResult::Ok);
+        QString alt = QStringLiteral("a") + emoji + QStringLiteral("b") + QString(QChar(0xD800)) + QStringLiteral("c") + QString(QChar(0xDC00)) + QStringLiteral("d");
+        QVERIFY(setPictureAltText(*doc, 0, alt));
+        QCOMPARE(pictureAt(*doc, doc->story(), 0).alt, QStringLiteral("a") + emoji + QStringLiteral("bcd"));
+        // A text that ends in the middle of a pair at the limit is cut before the pair.
+        QVERIFY(setPictureAltText(*doc, 0, QString(kMostAltTextLength - 1, QLatin1Char('x')) + emoji + emoji));
+        const QString cut = pictureAt(*doc, doc->story(), 0).alt;
+        QCOMPARE(cut.size(), kMostAltTextLength - 1);
+        QCOMPARE(cleanAltText(QString(kMostAltTextLength - 1, QLatin1Char('x')) + emoji).size(), kMostAltTextLength - 1);
+        QCOMPARE(cleanAltText(QString(kMostAltTextLength - 2, QLatin1Char('x')) + emoji), QString(kMostAltTextLength - 2, QLatin1Char('x')) + emoji);
+        const QByteArray saved = doc->toDocx();
+        wml::XmlTree tree;
+        QVERIFY(tree.parse(documentXml(saved)));
+        QVERIFY(documentXml(saved).contains(("name " + emoji + ".png").toUtf8()));
+        auto back = open(saved);
+        QCOMPARE(pictureAt(*back, back->story(), 0).alt, cut);
+    }
+
+    // An undone or deleted insert leaves nothing of the picture in the file saved, and brings it back with the Redo or Undo that needs it.
+    void anUndoneOrDeletedPictureIsNotInTheSavedFile()
+    {
+        auto mediaIn = [](const QByteArray &saved) {
+            office::Package pkg;
+            pkg.read(saved);
+            int n = 0;
+            for (const QString &name : pkg.partNames()) n += name.contains(QLatin1String("/media/"));
+            int rels = 0;
+            for (const office::Relationship &r : pkg.relationships(QStringLiteral("/word/document.xml"))) rels += r.type.endsWith(QLatin1String("/image"));
+            return QPair<int, int>(n, rels);
+        };
+        auto doc = textDoc({"Some text"});
+        QTextCursor c(doc->story());
+        c.setPosition(4);
+        QCOMPARE(insertPicture(*doc, c, pngOf(30, 30, 5), QStringLiteral("secret")), PictureResult::Ok);
+        QCOMPARE(mediaIn(doc->toDocx()), (QPair<int, int>(1, 1)));
+        QVERIFY(doc->undo());
+        QCOMPARE(mediaIn(doc->toDocx()), (QPair<int, int>(0, 0)));
+        QVERIFY(doc->redo());
+        QCOMPARE(mediaIn(doc->toDocx()), (QPair<int, int>(1, 1)));
+        // Deleted: the same.
+        QTextCursor d(doc->story());
+        d.setPosition(4);
+        d.setPosition(5, QTextCursor::KeepAnchor);
+        removeSelection(*doc, d);
+        QVERIFY(!isPictureAt(doc->story(), 4));
+        QCOMPARE(mediaIn(doc->toDocx()), (QPair<int, int>(0, 0)));
+        QVERIFY(doc->undo());
+        QVERIFY(isPictureAt(doc->story(), 4));
+        QCOMPARE(mediaIn(doc->toDocx()), (QPair<int, int>(1, 1)));
+        // A picture a file had stays whether or not anything shows it.
+        auto file = open(makeDocxWithPicture("<w:p><w:r><w:t>no picture shown</w:t></w:r></w:p>"));
+        QCOMPARE(mediaIn(file->toDocx()).first, 1);
+    }
+
+    // The bytes of a picture are held once, and a document holds no more than its total.
+    void aPictureIsHeldOnceAndTheDocumentsPicturesHaveATotal()
+    {
+        auto doc = textDoc({"x"});
+        QTextCursor c(doc->story());
+        const QByteArray png = pngOf(64, 64, 9);
+        QCOMPARE(insertPicture(*doc, c, png, QStringLiteral("p")), PictureResult::Ok);
+        QVERIFY(!doc->flow().images.isEmpty());
+        QString name;
+        office::Package pkg;
+        QVERIFY(pkg.read(doc->toDocx()));
+        for (const QString &n : pkg.partNames())
+            if (n.contains(QLatin1String("/media/"))) name = n;
+        QVERIFY(!name.isEmpty());
+        QVERIFY2(doc->partData(name).constData() == doc->flow().images.last().bytes.constData(), "the part and the drawn picture are two copies");
+        QVERIFY(doc->mediaBytes() >= png.size());
+        // The total.
+        doc->mediaLimit = doc->mediaBytes() + png.size() * 2 + 10;
+        int made = 0;
+        PictureResult last = PictureResult::Ok;
+        for (int i = 0; i < 10 && last == PictureResult::Ok; ++i) {
+            last = insertPicture(*doc, c, pngOf(64, 64, 100 + i), QStringLiteral("q"));
+            made += last == PictureResult::Ok;
+        }
+        QVERIFY(last == PictureResult::TooLarge);
+        QVERIFY(made >= 1 && made <= 3);
+        QVERIFY(!doc->pictureNotice.isEmpty());
+        QVERIFY(doc->mediaBytes() <= doc->mediaLimit);
+    }
+
+    static QByteArray svgWith(const QByteArray &inner) { return "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"40\" height=\"30\">" + inner + "</svg>"; }
+
+    void aPictureOfAnotherFormatIsReadWhereThePluginIs()
+    {
+        auto doc = textDoc({"x"});
+        QTextCursor c(doc->story());
+        const auto formats = QImageReader::supportedImageFormats();
+        auto has = [&](const char *f) { return formats.contains(f); };
+        QImage image(20, 10, QImage::Format_RGB32);
+        image.fill(QColor(10, 200, 30));
+        for (const char *format : {"tiff", "webp", "bmp", "gif"}) {
+            if (!has(format)) continue;
+            QByteArray bytes;
+            QBuffer buffer(&bytes);
+            buffer.open(QIODevice::WriteOnly);
+            if (!image.save(&buffer, format)) continue;
+            QVERIFY2(insertPicture(*doc, c, bytes, QStringLiteral("f")) == PictureResult::Ok, format);
+        }
+        if (!has("tiff") && !has("webp") && !has("svg")) QSKIP("no codec plugin for TIFF, WebP, or SVG on this machine");
+        if (has("svg")) {
+            QVERIFY(insertPicture(*doc, c, svgWith("<rect width=\"40\" height=\"30\" fill=\"red\"/>"), QStringLiteral("s")) == PictureResult::Ok);
+            office::Package pkg;
+            QVERIFY(pkg.read(doc->toDocx()));
+            bool png = false;
+            for (const QString &n : pkg.partNames()) png = png || n.endsWith(QLatin1String(".png"));
+            QVERIFY(png);   // (an SVG is kept as the picture it draws)
+        }
+        QVERIFY(open(doc->toDocx()));
+    }
+
+    void anSvgThatReachesOutsideItselfOrIsHugeIsRefused()
+    {
+        auto doc = textDoc({"x"});
+        QTextCursor c(doc->story());
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile secret(dir.filePath(QStringLiteral("secret.png")));
+        QVERIFY(secret.open(QIODevice::WriteOnly));
+        secret.write(pngOf(10, 10, 77));
+        secret.close();
+        const QByteArray url = QUrl::fromLocalFile(secret.fileName()).toString().toUtf8();
+        for (const QByteArray &inner : {"<image xlink:href=\"" + url + "\" width=\"40\" height=\"30\"/>", "<image href='" + url + "' width=\"40\" height=\"30\"/>",
+                                        QByteArray("<image xlink:href=\"secret.png\" width=\"40\" height=\"30\"/>"), "<rect width=\"4\" height=\"4\" style=\"fill:url(" + url + ")\"/>",
+                                        QByteArray("<style>@import url(secret.css);</style>")}) {
+            const QByteArray svg = svgWith(inner);
+            QVERIFY2(insertPicture(*doc, c, svg, QStringLiteral("s")) != PictureResult::Ok, svg.constData());
+        }
+        QCOMPARE(picturesIn(doc->story()), 0);
+        // What it holds of itself is allowed: a reference to its own parts, and an image in the data it carries.
+        const QByteArray own = svgWith("<defs><linearGradient id=\"g\"><stop offset=\"0\" stop-color=\"red\"/></linearGradient></defs><rect width=\"4\" height=\"4\" fill=\"url(#g)\"/>");
+        if (QImageReader::supportedImageFormats().contains("svg")) QVERIFY(insertPicture(*doc, c, own, QStringLiteral("own")) == PictureResult::Ok);
+        // Too large an SVG file.
+        QVERIFY(insertPicture(*doc, c, svgWith(QByteArray(6 << 20, ' ')), QStringLiteral("big")) == PictureResult::TooLarge);
+    }
+
+    void aPictureFileThatIsNotAFileOrTooLongIsNotReadToTheEnd()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QByteArray bytes;
+        const QString good = dir.filePath(QStringLiteral("good.png"));
+        QFile f(good);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(pngOf(8, 8));
+        f.close();
+        QVERIFY(readPictureFile(good, &bytes) == PictureResult::Ok);
+        QVERIFY(!bytes.isEmpty());
+        bytes.clear();
+        QVERIFY(readPictureFile(dir.filePath(QStringLiteral("missing.png")), &bytes) != PictureResult::Ok);
+        QVERIFY(readPictureFile(dir.path(), &bytes) != PictureResult::Ok);
+        QVERIFY(bytes.isEmpty());
+        // A file longer than a picture may be is refused after reading no more than the limit and a byte.
+        const QString big = dir.filePath(QStringLiteral("big.png"));
+        QFile b(big);
+        QVERIFY(b.open(QIODevice::WriteOnly));
+        QVERIFY(b.resize(kMostPictureBytes + 10));
+        b.close();
+        QVERIFY(readPictureFile(big, &bytes) == PictureResult::TooLarge);
+        QVERIFY(bytes.isEmpty());
+#ifdef Q_OS_UNIX
+        const QString fifo = dir.filePath(QStringLiteral("pipe.png"));
+        QVERIFY(::mkfifo(QFile::encodeName(fifo).constData(), 0600) == 0);
+        QVERIFY(readPictureFile(fifo, &bytes) != PictureResult::Ok);   // (not opened: it would wait for a writer)
+        const QString zero = dir.filePath(QStringLiteral("zero.png"));
+        if (QFileInfo::exists(QStringLiteral("/dev/zero")) && QFile::link(QStringLiteral("/dev/zero"), zero)) {
+            QVERIFY(readPictureFile(zero, &bytes) != PictureResult::Ok);
+            QVERIFY(bytes.isEmpty());
+        }
+#else
+        QSKIP("no named pipes on this system");
+#endif
+    }
+
+    void thePaperIsNoLargerThanTwentyTwoInches()
+    {
+        QCOMPARE(kMostPaper, 1584.0);
+        SectionSetup s;
+        s.paperWidth = 1e9;
+        s.paperHeight = 5000;
+        const SectionSetup fixed = normalized(s);
+        QCOMPARE(fixed.paperWidth, 1584.0);
+        QCOMPARE(fixed.paperHeight, 1584.0);
+    }
+
+    void aSizeThatKeepsItsRatioIsHeldToTheLimitsAsAWhole()
+    {
+        double w = 1e9, h = 5e8;
+        clampKeepingRatio(&w, &h);
+        QCOMPARE(w, kMostPictureSize);
+        QCOMPARE(h, kMostPictureSize / 2);
+        w = 3000;
+        h = 1500;
+        clampKeepingRatio(&w, &h);
+        QCOMPARE(w, kMostPictureSize);
+        QCOMPARE(h, kMostPictureSize / 2);
+        w = 0.01;
+        h = 0.02;
+        clampKeepingRatio(&w, &h);
+        QVERIFY(w >= kLeastPictureSize - 1e-9 && h >= kLeastPictureSize - 1e-9);
+        QVERIFY(std::abs(h / w - 2.0) < 1e-6);
+        w = 100;
+        h = 50;
+        clampKeepingRatio(&w, &h);
+        QCOMPARE(w, 100.0);
+        QCOMPARE(h, 50.0);
+    }
+
+    void tabStopsAFileHasPastTheLimitAreKept()
+    {
+        QByteArray tabs = "<w:tabs>";
+        for (int i = 0; i < 100; ++i) tabs += "<w:tab w:val=\"left\" w:pos=\"" + QByteArray::number(100 + i * 100) + "\"/>";
+        tabs += "</w:tabs>";
+        auto doc = open(makeDocx("<w:p><w:pPr>" + tabs + "</w:pPr><w:r><w:t>text</w:t></w:r></w:p>", kStyles));
+        QVERIFY(doc);
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat()).size(), 100);
+        QTextCursor c(doc->story());
+        QVERIFY(moveTabStop(*doc, c, 5, 5.5));
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat()).size(), 100);
+        TabStopEntry more;
+        more.position = 700.5;
+        QVERIFY(!addTabStop(*doc, c, more));   // (no more are added past the limit)
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat()).size(), 100);
+        QVERIFY(removeTabStop(*doc, c, 105));
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat()).size(), 99);
+        QCOMPARE(documentXml(doc->toDocx()).count("<w:tab "), 99);
+    }
+
+    // The children of a section are written in the order the schema gives, whatever the dialog changed.
+    void aSectionChangedByPageSetupIsWrittenInSchemaOrder()
+    {
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" "
+                                "w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/><w:pgBorders w:offsetFrom=\"page\"><w:top w:val=\"single\" w:sz=\"4\" w:space=\"24\" w:color=\"auto\"/></w:pgBorders>"
+                                "<w:lnNumType w:countBy=\"1\"/><w:cols w:space=\"720\"/><w:vAlign w:val=\"center\"/><w:docGrid w:linePitch=\"360\"/></w:sectPr>";
+        const QByteArray header = headerPart("hdr", {"<w:r><w:t>h</w:t></w:r>"});
+        auto doc = open(makeDocxWithParts(paragraphs(2), sect, {{QStringLiteral("/word/header1.xml"), header}}));
+        QVERIFY(doc);
+        const SectionSetup before = pageSetupOf(doc->sectionProps(0), false);
+        SectionSetup after = before;
+        after.landscape = true;
+        after.left = 30;
+        after.gutter = 12;
+        after.header = 20;
+        after.start = QStringLiteral("continuous");
+        after.differentFirstPage = true;
+        QVERIFY(applyPageSetup(*doc, 0, PageSetupScope::ThisSection, before, after) >= 1);
+        const QByteArray xml = documentXml(doc->toDocx());
+        wml::XmlTree tree;
+        QVERIFY(tree.parse(xml));
+        const int at = xml.lastIndexOf("<w:sectPr");
+        QVERIFY(at >= 0);
+        const QByteArray body = xml.mid(at, xml.indexOf("</w:sectPr>", at) - at);
+        static const QStringList order = {"headerReference", "footerReference", "footnotePr", "endnotePr", "type", "pgSz", "pgMar", "paperSrc", "pgBorders", "lnNumType", "pgNumType", "cols", "formProt", "vAlign",
+                                          "noEndnote", "titlePg", "textDirection", "bidi", "rtlGutter", "docGrid", "printerSettings"};
+        int last = -1, seen = 0;
+        static const QRegularExpression child(QStringLiteral("<w:(\\w+)"));
+        auto it = child.globalMatch(QString::fromUtf8(body));
+        int depth = 0;
+        QStringList names;
+        while (it.hasNext()) names << it.next().captured(1);
+        for (const QString &name : names) {
+            const int rank = int(order.indexOf(name));
+            if (rank < 0) continue;   // (the children of a child: a border's side)
+            ++seen;
+            QVERIFY2(rank >= last, qPrintable(QStringLiteral("%1 after %2: %3").arg(name, order.value(last), names.join(QLatin1Char(' ')))));
+            last = rank;
+        }
+        Q_UNUSED(depth);
+        QVERIFY(seen >= 8);
+        QVERIFY(names.contains(QStringLiteral("type")) && names.contains(QStringLiteral("titlePg")) && names.contains(QStringLiteral("pgBorders")) && names.contains(QStringLiteral("vAlign")));
+    }
+
+    // Thirty thousand moves and wraps of one picture: none is refused, the records of the picture's drawn form are what the text holds and the history can bring back, and Undo
+    // goes all the way back to the file as it was.
+    void thirtyThousandEditsOfOnePictureAreNeverRefusedAndItsRecordsAreBounded()
+    {
+        auto doc = textDoc({longText()});
+        const QByteArray original = documentXml(doc->toDocx());
+        QTextCursor c(doc->story());
+        QCOMPARE(insertPicture(*doc, c, pngOf(40, 40)), PictureResult::Ok);
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Square));
+        const PictureWrap wraps[] = {PictureWrap::Tight, PictureWrap::TopAndBottom, PictureWrap::BehindText, PictureWrap::InFrontOfText, PictureWrap::Square};
+        int steps = 2, wrap = 0, refused = 0;
+        for (int i = 0; i < 30000; ++i) {
+            const bool ok = i % 5 == 4 ? setPictureWrap(*doc, 0, wraps[wrap++ % 5]) : setPicturePlace(*doc, 0, 10 + i * 0.1, 20 + (i % 100) * 0.5);
+            if (ok) ++steps;
+            else ++refused;
+        }
+        QCOMPARE(refused, 0);
+        QVERIFY2(doc->pictureNotice.isEmpty(), qPrintable(doc->pictureNotice));
+        // What the document holds of the drawn forms: no more than the steps (the text holds one).
+        QVERIFY2(doc->objectSlotsForTest() <= steps + 50, qPrintable(QString::number(doc->objectSlotsForTest())));
+        int undone = 0;
+        while (doc->canUndo()) undone += doc->undo() ? 1 : 0;
+        QCOMPARE(undone, steps);
+        QCOMPARE(documentXml(doc->toDocx()), original);
+        // A new edit puts the steps that were undone out of reach, and the forms they held are let go.
+        QTextCursor start(doc->story());
+        QCOMPARE(insertPicture(*doc, start, pngOf(40, 40, 3)), PictureResult::Ok);
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Square));
+        doc->collectObjectRecordsForTest();
+        QVERIFY2(doc->liveObjectRecordsForTest() <= 20, qPrintable(QString::number(doc->liveObjectRecordsForTest())));
+        // And the freed places are used again.
+        QVERIFY(doc->objectSlotsForTest() <= steps + 50);
+        QVERIFY(setPicturePlace(*doc, 0, 100, 100));
+        QVERIFY(doc->undo());
+        QVERIFY(pictureAt(*doc, doc->story(), 0).wrap == PictureWrap::Square);
+        QCOMPARE(pictureItemsOfPage(*doc).size(), 1);
     }
 
     // Not a test of its own: the work of a process that the next function starts. A document with a header and a footer, read, typed in, and saved.
