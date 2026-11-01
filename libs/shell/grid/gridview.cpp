@@ -282,6 +282,16 @@ void GridView::scrollTo(qint64 x, qint64 y)
     const qint64 ox = L.scrollX(), oy = L.scrollY();
     L.setScroll(x, y);
     if (L.scrollX() == ox && L.scrollY() == oy) return;
+    // while the formulas show, a column is widened the first time it is in view (measured once, from at most 2,000 of its cells); the columns then stand elsewhere, so the view is drawn anew
+    if (m_sheet.showFormulas()) {
+        const std::size_t measured = m_formulaFit.size();
+        widenForFormulas();
+        if (m_formulaFit.size() != measured) {
+            m_sheet.invalidateTexts();
+            layoutChanged();
+            return;
+        }
+    }
     const int digits = m_headerDigits;
     updateHeaderWidth();
     updateScrollBars();

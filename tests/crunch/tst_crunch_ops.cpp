@@ -693,7 +693,7 @@ private Q_SLOTS:
         QVERIFY2(turnedOn > 0 && turnedOn < 10000, qPrintable(QString::number(turnedOn)));
         QVERIFY(gs.columnWidth(0) > 64);
         // an edit somewhere else is not measured again
-        e.select(QStringLiteral("GA2"));
+        e.select(QStringLiteral("C2"));
         e.enter(QStringLiteral("5"));
         QVERIFY(e.settle());
         QCOMPARE(gs.cellsMeasured() - before, turnedOn);
@@ -703,6 +703,34 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         const qint64 after = gs.cellsMeasured() - before - turnedOn;
         QVERIFY2(after > 0 && after <= 600, qPrintable(QString::number(after)));
+    }
+
+    // While the formulas show, a column that scrolls into view for the first time is widened then, from at most 2,000 of its cells; the columns in view when they were turned on are not measured again.
+    void showFormulasWidensColumnsWhenTheyFirstScrollIntoView()
+    {
+        QString rows;
+        for (int r = 1; r <= 50; ++r) {
+            rows += QStringLiteral("<row r=\"%1\">").arg(r);
+            for (int c = 0; c < 200; ++c) rows += QStringLiteral("<c r=\"%1%2\"><f>SUM(A1:A2)+SUM(A1:A2)+%3</f><v>1</v></c>").arg(columnName(quint32(c))).arg(r).arg(r * 7 + c);
+            rows += QStringLiteral("</row>");
+        }
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        e.win.w.resize(1000, 600);
+        const grid::GridSheet &gs = e.view()->sheet();
+        e.win.w.act(QStringLiteral("view.formulas"))->trigger();
+        const double near = gs.columnWidth(1), far = gs.columnWidth(150);
+        QVERIFY(near > 64);
+        QCOMPARE(far, 64.0);                                // (never shown: not measured, not widened)
+        const qint64 before = gs.cellsMeasured();
+        e.select(QStringLiteral("EW1"));                    // (column 152: scrolled to, with column 150 beside it)
+        QVERIFY2(gs.columnWidth(150) > 64, qPrintable(QString::number(gs.columnWidth(150))));
+        const qint64 measured = gs.cellsMeasured() - before;
+        QVERIFY2(measured > 0 && measured <= 64 * 50, qPrintable(QString::number(measured)));
+        // and back: nothing is measured again
+        const qint64 mid = gs.cellsMeasured();
+        e.select(QStringLiteral("A1"));
+        QCOMPARE(gs.cellsMeasured(), mid);
     }
 
     // A fill that would change a cell that can't be changed (a locked cell of a protected sheet, a table's header) changes nothing and says why; a fill past the edge of the sheet stops
