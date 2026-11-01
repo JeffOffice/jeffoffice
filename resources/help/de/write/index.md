@@ -1,7 +1,7 @@
 # JeffWrite-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Hilfethemen, Übersicht, Start, Erste Schritte -->
+<!-- keywords: Inhalt, Hilfe, Themen, Hilfethemen, Start, Erste Schritte, Übersicht -->
 
-Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands, auf der Sie sich befinden, oder zur Seite im Menü „Datei“, die Sie gerade geöffnet haben.
+Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur aktuellen Registerkarte des Menübands oder zur aktuellen Seite im Menü „Datei“.
 
 ## Erste Schritte
 
@@ -9,7 +9,7 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 - [Öffnen, Speichern, Drucken und Exportieren](open-save)
 - [Drucken](print)
 
-## Text bearbeiten
+## Text überarbeiten
 
 - [Rechtschreibung prüfen](spelling)
 
@@ -17,7 +17,11 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 
 - [Aussehen von Text ändern](font)
 - [Kopfzeilen, Fußzeilen und Seitenzahlen hinzufügen](headers-footers)
+- [Tabellen erstellen und ändern](tables)
 - [Fußnoten und Endnoten hinzufügen](footnotes-endnotes)
+- [Bilder hinzufügen und ändern](pictures)
+- [Seite einrichten](page-setup)
+- [Lineal verwenden](ruler)
 - [Wörter suchen und ersetzen](find-replace)
 
 ## Schneller arbeiten

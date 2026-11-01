@@ -1,7 +1,7 @@
 # Aide de JeffWrite
-<!-- keywords: sommaire, table des matières, aide, rubriques, démarrer, débuter, accueil -->
+<!-- keywords: sommaire, aide, rubriques, démarrer, table des matières, accueil -->
 
-Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban sur lequel vous vous trouvez, ou la page de l'écran Fichier que vous consultez.
+Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban ou la page de l'écran Fichier sur lequel vous vous trouvez.
 
 ## Prise en main
 
@@ -13,11 +13,15 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 
 - [Vérifier l'orthographe](spelling)
 
-## Rédiger et modifier le texte
+## Écrire et modifier du texte
 
 - [Modifier l'apparence du texte](font)
 - [Ajouter des en-têtes, des pieds de page et des numéros de page](headers-footers)
+- [Créer et modifier des tableaux](tables)
 - [Ajouter des notes de bas de page et des notes de fin](footnotes-endnotes)
+- [Ajouter et modifier des images](pictures)
+- [Mettre en page](page-setup)
+- [Utiliser la règle](ruler)
 - [Rechercher et remplacer des mots](find-replace)
 
 ## Travailler plus vite
