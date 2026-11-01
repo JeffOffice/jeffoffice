@@ -5,12 +5,15 @@
 #include "app/pageview.h"
 #include "app/settings.h"
 #include "app/reviewpane.h"
+#include "app/writefindpane.h"
 #include "app/writewindow.h"
+#include "wml/xmltree.h"
 #include "core/appinfo.h"
 #include "core/commentops.h"
 #include "core/editops.h"
 #include "core/fonts.h"
 #include "core/reviewops.h"
+#include "core/spellcheck.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "office/package.h"
@@ -21,6 +24,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QImage>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QToolButton>
@@ -125,6 +129,14 @@ QStringList lineTexts(WriteDoc &doc)
     QStringList lines;
     for (const auto &l : layout.lineInfo(0)) lines << QString(l.text).remove(QChar(0x2060)).trimmed();
     return lines;
+}
+
+QStringList flaggedWords(SpellCheck &sc, WriteDoc &doc)
+{
+    const QString text = doc.story()->toPlainText();
+    QStringList out;
+    for (const auto &r : sc.misspelledIn(0, doc.story()->characterCount())) out << text.mid(r.first, r.second - r.first);
+    return out;
 }
 
 QString comments_text(WriteDoc &doc) { return comments(doc).value(0).text; }
@@ -1348,6 +1360,314 @@ private Q_SLOTS:
         QVERIFY2(commentBlocksScannedForTest() - commentBlocks < 10 * 300, qPrintable(QStringLiteral("%1 paragraphs looked through for comments").arg(commentBlocksScannedForTest() - commentBlocks)));
     }
 
+    // ---------------------------------------------------------------- review fixes: behavior
+    void deletingAcrossTheCellsOfATableWithTrackingMarksTheTextAndKeepsIt()
+    {
+        const QByteArray body = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr>"
+                                "<w:tc><w:p><w:r><w:t>aaa</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>bbb</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        doc->setTrackChanges(true);
+        QTextDocument *s = doc->story();
+        QCOMPARE(s->blockCount(), 3);
+        QTextCursor c(s);
+        c.setPosition(s->findBlockByNumber(0).position() + 1);
+        c.setPosition(s->findBlockByNumber(1).position() + 2, QTextCursor::KeepAnchor);
+        removeSelection(*doc, c);
+        QCOMPARE(textWithDeletions(*doc), QStringLiteral("aaa\nbbb\nafter"));
+        QCOMPARE(finalText(*doc), QStringLiteral("a\nb\nafter"));
+        QCOMPARE(s->blockCount(), 3);
+        const QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(x.count("<w:del "), 2);
+        QCOMPARE(x.count("<w:tc>"), 2);
+        QCOMPARE(acceptAll(*doc), 2);
+        QCOMPARE(textWithDeletions(*doc), QStringLiteral("a\nb\nafter"));
+        // A selection that holds the whole table: its words are marked, and the table stays.
+        auto whole = open(makeDocx("<w:p><w:r><w:t>before</w:t></w:r></w:p>" + body));
+        QVERIFY(whole);
+        whole->setReviewer(QStringLiteral("Zed"), QString());
+        whole->setTrackChanges(true);
+        QTextCursor d(whole->story());
+        d.setPosition(0);
+        d.setPosition(whole->story()->characterCount() - 1, QTextCursor::KeepAnchor);
+        removeSelection(*whole, d);
+        QCOMPARE(textWithDeletions(*whole), QStringLiteral("before\naaa\nbbb\nafter"));
+        QCOMPARE(finalText(*whole), QStringLiteral("\n\n\n"));
+        QCOMPARE(documentXml(whole->toDocx()).count("<w:tc>"), 2);
+        QVERIFY(whole->undo());
+        QCOMPARE(revisionCount(whole->story()), 0);
+    }
+
+    void everyViewShowsWhatItsNameSaysOfAnEditedDocument()
+    {
+        const QByteArray nested = "<w:ins" + rev(5, "Ann") + "><w:del" + rev(6, "Bob") + "><w:r><w:delText xml:space=\"preserve\">four </w:delText></w:r></w:del></w:ins>";
+        auto doc = open(makeDocx(para(run("AAABBB")) + para(run("one ") + inserted(1, "two ", "Ann") + deleted(2, "three ", "Bob") + nested + run("five")) +
+                                 para(deleted(7, "whole"), "<w:rPr><w:del" + rev(8, "Bob") + "/></w:rPr>") + para(run("end"))));
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        doc->setTrackChanges(true);
+        QTextCursor c(doc->story());
+        c.setPosition(3);
+        insertParagraph(*doc, c);   // (an inserted mark, in the first paragraph)
+        c.setPosition(doc->story()->findBlockByNumber(2).position());
+        insertText(*doc, c, QStringLiteral("typed "));
+        doc->setTrackChanges(false);
+        const QByteArray saved = doc->toDocx();
+        auto accepted = open(saved), rejected = open(saved);
+        acceptAll(*accepted);
+        rejectAll(*rejected);
+        const QString acceptedText = textWithDeletions(*accepted), rejectedText = textWithDeletions(*rejected);
+        QCOMPARE(acceptedText, QStringLiteral("AAA\nBBB\ntyped one two five\nend"));
+        QCOMPARE(rejectedText, QStringLiteral("AAABBB\none three five\nwhole\nend"));
+        auto shown = [&](int view) {
+            doc->setRevisionView(view);
+            return lineTexts(*doc).join(QLatin1Char('\n'));
+        };
+        QCOMPARE(shown(0), acceptedText);   // (No Markup, and Simple Markup, which differs by the bars only)
+        QCOMPARE(shown(tp::kRevisionShowDeleted | tp::kRevisionHideInserted), rejectedText);   // (Original)
+        QCOMPARE(shown(tp::kRevisionShowDeleted | tp::kRevisionMark), QStringLiteral("AAA\nBBB\ntyped one two three four five\nwhole\nend"));   // (All Markup)
+    }
+
+    void wordsThatAreDeletedAreNotCountedNorSpelledNorFound()
+    {
+        const QByteArray body = para(run("one ") + deleted(1, "badwrdz gone ") + run("two teh"));
+        // The count of words, in every view.
+        auto countShown = [&](const QByteArray &b, int view) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.setDocument(open(makeDocx(b)), QString());
+            w.document()->setRevisionView(view);
+            w.show();
+            QLabel *label = w.findChild<QLabel *>(QStringLiteral("wordCount"));
+            QTest::qWait(700);
+            return label->text();
+        };
+        const QString plain = countShown(para(run("one two teh")), 0);
+        QVERIFY(!plain.isEmpty());
+        for (const int view : {0, tp::kRevisionShowDeleted | tp::kRevisionMark, tp::kRevisionShowDeleted | tp::kRevisionHideInserted})
+            QCOMPARE(countShown(body, view), plain);
+        // Spelling: the words that are deleted are not flagged (and the one that is not is).
+        auto doc = open(makeDocx(body));
+        SpellCheck sc(doc->story());
+        QCOMPARE(flaggedWords(sc, *doc), QStringList{QStringLiteral("teh")});
+        // Find: the deleted words are not found, and the words round them are one stretch.
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.setDocument(open(makeDocx(body)), QString());
+        w.show();
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("gone"));
+        QVERIFY(!pane->findNext());
+        pane->findBox()->setText(QStringLiteral("one two"));
+        QVERIFY(pane->findNext());
+    }
+
+    void thePaneResolvesTheChangeOfTheRowAndNoOther()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        // A paragraph mark that was inserted is followed by a paragraph with an insertion: the mark's row is the mark.
+        w.setDocument(open(makeDocx(para(inserted(1, "AAA"), "<w:rPr><w:ins" + rev(2) + "/></w:rPr>") + para(inserted(3, "BBB")))), QString());
+        w.act(QStringLiteral("review.reviewingPane"))->trigger();
+        ReviewPane *pane = w.reviewPane();
+        QVERIFY(pane);
+        auto rowOf = [&](Revision::Kind kind) -> QTreeWidgetItem * {
+            for (int i = 0; i < pane->changeList()->topLevelItemCount(); ++i)
+                if (pane->changeList()->topLevelItem(i)->data(0, Qt::UserRole + 2).toInt() == int(kind)) return pane->changeList()->topLevelItem(i);
+            return nullptr;
+        };
+        pane->showPage(ReviewPane::Changes);
+        QTreeWidgetItem *mark = rowOf(Revision::MarkInserted);
+        QVERIFY(mark);
+        mark->setSelected(true);
+        pane->findChild<QPushButton *>(QStringLiteral("acceptButton"))->click();
+        const QVector<Revision> left = revisionsIn(w.document()->story());
+        QCOMPARE(left.size(), 2);
+        for (const Revision &r : left) QCOMPARE(r.kind, Revision::Insertion);
+        // An insertion that holds a deletion from its first place: its row is the insertion.
+        w.setDocument(open(makeDocx(para("<w:ins" + rev(1, "Ann") + "><w:del" + rev(2, "Bob") + "><w:r><w:delText>y</w:delText></w:r></w:del>" + run("x") + "</w:ins>"))), QString());
+        pane->refresh();
+        QTreeWidgetItem *outer = rowOf(Revision::Insertion);
+        QVERIFY(outer);
+        outer->setSelected(true);
+        pane->findChild<QPushButton *>(QStringLiteral("acceptButton"))->click();
+        const QVector<Revision> inner = revisionsIn(w.document()->story());
+        QCOMPARE(inner.size(), 1);
+        QCOMPARE(inner[0].kind, Revision::Deletion);
+    }
+
+    void textThatIsFreeOfControlCharactersGoesIntoTheCommentParts()
+    {
+        auto doc = open(makeDocx(para(run("some words here"))));
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed\x02 Y"), QStringLiteral("Z\x03"));
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.setPosition(4, QTextCursor::KeepAnchor);
+        QVERIFY(addComment(*doc, c, QStringLiteral("bell\x07 and nul-ish \x01 text")) > 0);
+        const QByteArray saved = doc->toDocx();
+        for (const char *name : {"/word/comments.xml", "/word/commentsExtended.xml", "/word/people.xml", "/word/document.xml"}) {
+            const QByteArray part = partOf(saved, name);
+            if (part.isEmpty()) continue;
+            wml::XmlTree tree;
+            QString err;
+            QVERIFY2(tree.parse(part, &err), qPrintable(QStringLiteral("%1: %2").arg(QString::fromLatin1(name), err)));
+        }
+        QVERIFY(partOf(saved, "/word/comments.xml").contains("bell and nul-ish  text"));
+    }
+
+    void aFieldThatIsDeletedWithTrackingHasItsCodeAsDeletedCode()
+    {
+        const QByteArray field = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                                 "<w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        auto doc = open(makeDocx(para(run("a ") + field + run(" b"))));
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        doc->setTrackChanges(true);
+        QTextCursor c(doc->story());
+        c.select(QTextCursor::Document);
+        removeSelection(*doc, c);
+        const QByteArray x = documentXml(doc->toDocx());
+        QRegularExpression del(QStringLiteral("<w:del [^>]*>(.*?)</w:del>"), QRegularExpression::DotMatchesEverythingOption);
+        QString all;
+        for (auto it = del.globalMatch(QString::fromUtf8(x)); it.hasNext();) all += it.next().captured(1);
+        QVERIFY2(all.contains(QLatin1String("<w:delInstrText")) && !all.contains(QLatin1String("<w:instrText")), x.constData());
+        QVERIFY2(!QString::fromUtf8(x).remove(del).contains(QLatin1String("delInstrText")), x.constData());
+        // Rejected, the code is code again, outside any deletion.
+        auto again = open(doc->toDocx());
+        rejectAll(*again);
+        const QByteArray y = documentXml(again->toDocx());
+        QVERIFY2(y.contains("<w:instrText") && !y.contains("delInstrText") && !y.contains("<w:del"), y.constData());
+    }
+
+    void everyIdOfASavedDocumentIsUniqueAcrossChangesCommentsAndBookmarks()
+    {
+        // The file has an orphan comment (50), a bookmark (60), and a header with a change (80): a new id is none of these.
+        office::PackageWriter w;
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+        const QByteArray body = para("<w:bookmarkStart w:id=\"60\" w:name=\"mark\"/>" + run("hello world") + "<w:bookmarkEnd w:id=\"60\"/>" + inserted(51, "kept") ) +
+                                "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH\"/></w:sectPr>";
+        w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body>" + body + "</w:body></w:document>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addPart(QStringLiteral("/word/header1.xml"), xml("<w:hdr " + ns + "><w:p><w:ins" + rev(80) + "><w:r><w:t>head</w:t></w:r></w:ins></w:p></w:hdr>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdH"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+        w.addPart(QStringLiteral("/word/comments.xml"), xml("<w:comments " + ns + ">" + commentElement(50, "Ann", "orphan", "0000000A") + "</w:comments>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("comments"), QStringLiteral("/word/comments.xml"));
+        auto doc = open(w.finish());
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        doc->setTrackChanges(true);
+        QTextCursor c(doc->story());
+        c.setPosition(3);
+        for (const QChar ch : QStringLiteral("abc")) insertText(*doc, c, QString(ch));
+        // Bold on a stretch, then a paragraph split inside it and inside the insertion, and the bold text copied and pasted twice.
+        c.setPosition(0);
+        c.setPosition(4, QTextCursor::KeepAnchor);
+        toggleBold(*doc, c);
+        const Clip clip = copySelection(*doc, c);
+        c.setPosition(2);
+        insertParagraph(*doc, c);
+        c.movePosition(QTextCursor::End);
+        pasteClip(*doc, c, clip);
+        pasteClip(*doc, c, clip);
+        QTextCursor d(doc->story());
+        d.setPosition(1);
+        d.setPosition(2, QTextCursor::KeepAnchor);
+        QVERIFY(addComment(*doc, d, QStringLiteral("remark")) > 0);
+        const QByteArray saved = doc->toDocx();
+        const QString x = QString::fromUtf8(documentXml(saved));
+        QSet<QString> changes, marks;
+        static const QRegularExpression changeId(QStringLiteral("<w:(?:ins|del|moveFrom|moveTo|rPrChange|pPrChange)\\b[^>]*?w:id=\"(\\d+)\""));
+        for (auto it = changeId.globalMatch(x); it.hasNext();) {
+            const QString id = it.next().captured(1);
+            QVERIFY2(!changes.contains(id), qPrintable(QStringLiteral("change id %1 is used twice: %2").arg(id, x)));
+            changes.insert(id);
+        }
+        static const QRegularExpression markId(QStringLiteral("<w:(?:commentRangeStart|bookmarkStart)\\b[^>]*?w:id=\"(\\d+)\""));
+        for (auto it = markId.globalMatch(x); it.hasNext();) {
+            const QString id = it.next().captured(1);
+            QVERIFY2(!marks.contains(id), qPrintable(QStringLiteral("mark id %1 is used twice").arg(id)));
+            marks.insert(id);
+        }
+        QVERIFY2(!changes.intersects(marks), qPrintable(x));
+        for (const QString &taken : {QStringLiteral("50"), QStringLiteral("80")}) {
+            int seen = 0;
+            for (const QString &id : changes) seen += id == taken;
+            QVERIFY2(seen == 0 || taken == QLatin1String("80") || taken == QLatin1String("50"), "");
+        }
+        QVERIFY2(!changes.contains(QStringLiteral("50")) && !marks.contains(QStringLiteral("50")), qPrintable(x));
+        QVERIFY2(!changes.contains(QStringLiteral("80")), qPrintable(x));
+        QVERIFY2(!changes.contains(QStringLiteral("60")), qPrintable(x));
+    }
+
+    void aCarriageReturnLaysOutExactlyAsTheLineBreakItReplaced()
+    {
+        auto layout = [&](const char *mark, QStringList *out) {
+            auto doc = open(makeDocx(para("<w:r><w:rPr><w:sz w:val=\"28\"/></w:rPr><w:t>one two</w:t></w:r><w:r><w:rPr><w:b/><w:sz w:val=\"36\"/></w:rPr>" + QByteArray(mark) + "</w:r><w:r><w:t>three four</w:t></w:r>") +
+                                     para(run("next"))));
+            if (!doc) return false;
+            *out << lineTexts(*doc).join(QLatin1Char('|'));
+            for (const auto &l : doc->pager().lines(0)) *out << QStringLiteral("%1,%2,%3,%4,%5,%6").arg(l.pos).arg(l.end).arg(l.rect.left()).arg(l.rect.top()).arg(l.rect.width()).arg(l.rect.height());
+            return true;
+        };
+        QStringList cr, br;
+        QVERIFY(layout("<w:cr/>", &cr) && layout("<w:br/>", &br));
+        QCOMPARE(cr, br);
+        QVERIFY(cr.size() >= 4);
+        QVERIFY(cr[0].contains(QLatin1Char('|')));
+    }
+
+    void oneHalfOfAMoveResolvesItsPairToo()
+    {
+        const QByteArray from = "<w:moveFromRangeStart w:id=\"1\" w:name=\"move9\"/><w:moveFrom" + rev(2) + "><w:r><w:delText>moved</w:delText></w:r></w:moveFrom><w:moveFromRangeEnd w:id=\"1\"/>";
+        const QByteArray to = "<w:moveToRangeStart w:id=\"3\" w:name=\"move9\"/><w:moveTo" + rev(4) + "><w:r><w:t>moved</w:t></w:r></w:moveTo><w:moveToRangeEnd w:id=\"3\"/>";
+        const QByteArray body = para(run("keep ") + from) + para(to + run(" tail"));
+        for (const bool accept : {true, false}) {
+            for (const bool fromHalf : {true, false}) {
+                auto doc = open(makeDocx(body));
+                QVERIFY(doc);
+                QVector<Revision> which;
+                for (const Revision &r : revisionsIn(doc->story()))
+                    if (r.kind == (fromHalf ? Revision::MovedFrom : Revision::MovedTo)) which << r;
+                QCOMPARE(which.size(), 1);
+                QCOMPARE(resolveRevisions(*doc, doc->story(), which, accept), 2);
+                QCOMPARE(revisionCount(doc->story()), 0);
+                QCOMPARE(textWithDeletions(*doc), accept ? QStringLiteral("keep \nmoved tail") : QStringLiteral("keep moved\n tail"));
+            }
+        }
+    }
+
+    void changesNestedPastTheReadersCapAreKeptAsTheyWereAndTheRestResolved()
+    {
+        const int depth = 40;
+        QByteArray open_, close_;
+        for (int i = 0; i < depth; ++i) {
+            open_ += "<w:ins" + rev(i + 1) + ">";
+            close_ += "</w:ins>";
+        }
+        auto doc = open(makeDocx(para(run("a") + open_ + run("deep") + close_ + run("b"))));
+        QVERIFY(doc);
+        const int found = revisionCount(doc->story());
+        QVERIFY2(found > 0 && found < depth, qPrintable(QStringLiteral("%1 found").arg(found)));
+        // Every level is in the saved file; what is nested past the cap is one piece kept as the XML it is (its words are not text of the paragraph).
+        QCOMPARE(documentXml(doc->toDocx()).count("<w:ins "), depth);
+        QCOMPARE(textWithDeletions(*doc), QStringLiteral("ab"));
+        QCOMPARE(acceptAll(*doc), found);
+        QCOMPARE(revisionCount(doc->story()), 0);
+        QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(x.count("<w:ins "), depth - found);   // (the levels past the cap stay as they were)
+        QVERIFY(x.contains("deep"));
+        QVERIFY(doc->undo());
+        QCOMPARE(revisionCount(doc->story()), found);
+        QCOMPARE(rejectAll(*doc), found);
+        x = documentXml(doc->toDocx());
+        QVERIFY2(!x.contains("<w:ins ") && !x.contains("deep"), "rejecting the outermost insertion takes what is inside it, the piece too");
+    }
+
     // ---------------------------------------------------------------- hostile files
     void manyChangesInOneParagraphAreResolvedWithoutTrouble()
     {
@@ -1363,22 +1683,6 @@ private Q_SLOTS:
         QCOMPARE(revisionCount(doc->story()), n);
         QCOMPARE(acceptAll(*doc), n);
         QCOMPARE(textWithDeletions(*doc).size(), n / 2);
-    }
-
-    void changesNestedAsDeeplyAsTheReaderTakesAreResolved()
-    {
-        QByteArray open_, close_;
-        for (int i = 0; i < 200; ++i) {
-            open_ += "<w:ins" + rev(i + 1) + ">";
-            close_ += "</w:ins>";
-        }
-        auto doc = open(makeDocx(para(run("a") + open_ + run("deep") + close_ + run("b"))));
-        QVERIFY(doc);
-        const int found = revisionCount(doc->story());
-        QVERIFY(found > 0);
-        QCOMPARE(rejectAll(*doc), found);
-        QVERIFY(finalText(*doc).startsWith(QLatin1Char('a')));
-        QCOMPARE(revisionCount(doc->story()), 0);
     }
 
     void changesWithNoPartnerOrNoTextAreHandled()

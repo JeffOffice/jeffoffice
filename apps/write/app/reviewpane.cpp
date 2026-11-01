@@ -376,11 +376,14 @@ void ReviewPane::resolveChange(bool accept)
     write::WriteDoc *doc = m_win->document();
     const QList<QTreeWidgetItem *> sel = m_changes->selectedItems();
     if (!doc || sel.isEmpty()) return;
-    const int at = sel.first()->data(0, Qt::UserRole).toInt();
-    QTextCursor c(doc->story());
-    c.setPosition(std::min(at + 1, doc->story()->characterCount() - 1));
-    if (const std::optional<write::Revision> r = write::revisionAt(doc->story(), c.position()))
-        write::resolveRevisions(*doc, doc->story(), {*r}, accept);
+    // The change of the row, by what it is: its kind, its Id, and where it begins (never by a place that is near it).
+    const int from = sel.first()->data(0, Qt::UserRole).toInt(), kind = sel.first()->data(0, Qt::UserRole + 2).toInt();
+    const QString id = sel.first()->data(0, Qt::UserRole + 3).toString();
+    for (const write::Revision &r : write::revisionsIn(doc->story(), from, from))
+        if (r.from == from && int(r.kind) == kind && r.id == id) {
+            write::resolveRevisions(*doc, doc->story(), {r}, accept);
+            break;
+        }
     refresh();
 }
 

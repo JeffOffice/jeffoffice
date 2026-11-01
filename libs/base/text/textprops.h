@@ -110,6 +110,7 @@ enum : int {
     NumberSuffixKind,                            // int (list format): what follows the number or bullet where it is not a tab: 1 a space, 2 nothing (a word processor's w:suff); absent: a tab (LayoutEnv::wordLines)
     Revision,                                    // int (char format): the run is in a tracked change of the text: 1 inserted, 2 deleted, 3 moved away, 4 moved here; a paragraph's mark (its block's char format) says so of the mark. Only for the look of the lines (LayoutEnv::revisionView); the file keeps the change as its own marks
     RevisionAuthor,                              // int (char format): who made the change the run is in, a place in the document's list of people (the color it is marked with)
+    RevisionInserted,                            // bool (char format): a run that a change deleted (tp::Revision 2 or 3) was inserted by a change too: it was never in the document as it was (LayoutEnv::revisionView)
     RevisionFormat,                              // bool (char format): the run's properties were changed by a tracked change (a change bar beside its line)
 };
 
@@ -129,7 +130,10 @@ inline QColor revisionColor(int author)
 inline bool hiddenInView(const QTextFormat &f, int view)
 {
     const int kind = f.intProperty(Revision);
-    if (f.boolProperty(HiddenText)) return !((kind == 2 || kind == 3) && (view & kRevisionShowDeleted));
+    if (f.boolProperty(HiddenText)) {
+        if ((kind == 2 || kind == 3) && (view & kRevisionShowDeleted)) return (view & kRevisionHideInserted) && f.boolProperty(RevisionInserted);   // (text inserted and deleted was never there before)
+        return true;
+    }
     return (view & kRevisionHideInserted) && (kind == 1 || kind == 4);
 }
 

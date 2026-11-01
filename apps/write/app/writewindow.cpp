@@ -531,7 +531,13 @@ void WriteWindow::updateWords()
         m_wordLabel->clear();
         return;
     }
-    QString text = m_doc->story()->toPlainText();
+    // (Text that is hidden is not counted: what a tracked change deleted is hidden in every view.)
+    QString text;
+    for (QTextBlock b = m_doc->story()->begin(); b.isValid(); b = b.next()) {
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+            if (!it.fragment().charFormat().boolProperty(tp::HiddenText)) text += it.fragment().text();
+        text += QLatin1Char('\n');
+    }
     text.remove(QChar::ObjectReplacementCharacter);
     int words = 0;
     bool in = false;

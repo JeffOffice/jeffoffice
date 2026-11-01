@@ -294,12 +294,13 @@ QTextCharFormat asDeleted(QTextCharFormat format)
 
 // A format with the look of the tracked change it is in (tp::Revision: 1 inserted, 2 deleted, 3 moved away, 4 moved here; `author` is a place in the document's list of people), for the lines
 // to mark. Text the file itself hides (w:vanish) is no text of the lines when the deletion is shown, and keeps no mark.
-QTextCharFormat inRevision(QTextCharFormat f, int kind, int author)
+QTextCharFormat inRevision(QTextCharFormat f, int kind, int author, bool alsoInserted = false)
 {
     if (kind <= 0) return f;
     if ((kind == 2 || kind == 3) && f.intProperty(prop::TrackedDeleted) == prop::HiddenAlready) return f;
     f.setProperty(tp::Revision, kind);
     f.setProperty(tp::RevisionAuthor, author);
+    if (alsoInserted && (kind == 2 || kind == 3)) f.setProperty(tp::RevisionInserted, true);
     return f;
 }
 
@@ -944,6 +945,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                     if (ch.xml.startsWith("<w:del") || ch.xml.startsWith("<w:moveFrom")) who = attributeOfTag(ch.xml, QStringLiteral("author"));
                 markFormat = inRevision(markFormat, 2, reviewerIndex(who));
             }
+        } else if (!header && !direct.section && direct.markRun) {
+            // (A mark that a change inserted shows only where what the change made is shown.)
+            for (const RawChild &ch : direct.markRun->extra)
+                if (ch.xml.startsWith("<w:ins") || ch.xml.startsWith("<w:moveTo")) markFormat = inRevision(markFormat, ch.xml.startsWith("<w:ins") ? 1 : 4, reviewerIndex(attributeOfTag(ch.xml, QStringLiteral("author"))));
         }
 
         // A list: the items of a numbering id are in Qt lists of their own, by level (a shallower level's item ends the deeper levels' lists). The numbers they show are Qt's own
@@ -1206,6 +1211,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         int deletedDepth = 0;   // (inside the content a tracked change deleted)
         QVector<std::pair<int, int>> inChanges;   // (the tracked changes the content is inside, outermost first: their kinds, and who made them)
         int changeKind = 0, changeAuthor = 0;     // (and the one that marks it: a deletion over an insertion)
+        bool changeInserted = false;              // (a deletion that is inside an insertion too)
         double advanceTop = -1;   // (a field that sets the text after it at a place from the page's top, ADVANCE with \\y: the paragraph is no higher than that)
         for (int inAt = 0; inAt < p.content.size(); ++inAt) {
             const Inline &in = p.content[inAt];
@@ -1214,7 +1220,9 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 if (in.role == Inline::Open && inChanges.size() < 64) inChanges.push_back({revisionKindOf(in.tag), reviewerIndex(attributeOfTag(in.raw, QStringLiteral("author")))});
                 else if (in.role == Inline::Close && !inChanges.isEmpty()) inChanges.pop_back();
                 changeKind = changeAuthor = 0;
+                changeInserted = false;
                 for (const auto &ch : std::as_const(inChanges)) {
+                    changeInserted = changeInserted || ch.first == 1 || ch.first == 4;
                     if ((changeKind == 2 || changeKind == 3) && ch.first != 2 && ch.first != 3) continue;   // (a deletion marks what is inside it, over an insertion)
                     changeKind = ch.first;
                     changeAuthor = ch.second;
@@ -1233,7 +1241,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                     QTextCharFormat shown = deleted ? asDeleted(formatOf(styleId, in.props)) : formatOf(styleId, in.props);
                     if (blankResult.contains(inAt)) shown.setProperty(tp::BlankFieldResult, true);
                     if (!header) {
-                        shown = inRevision(shown, changeKind, changeAuthor);
+                        shown = inRevision(shown, changeKind, changeAuthor, changeInserted);
                         for (const RawChild &ch : in.props.extra)
                             if (ch.xml.startsWith("<w:rPrChange")) shown.setProperty(tp::RevisionFormat, true);
                     }
@@ -1247,7 +1255,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 if (const std::optional<double> asked = advanceTopOf(in)) advanceTop = *asked;
             QTextCharFormat af = formatOf(styleId, in.props);
             if (deleted) af = asDeleted(af);
-            if (!header && !(in.kind == Inline::ParaAtom && revisionKindOf(in.tag) > 0)) af = inRevision(af, changeKind, changeAuthor);
+            if (!header && !(in.kind == Inline::ParaAtom && revisionKindOf(in.tag) > 0)) af = inRevision(af, changeKind, changeAuthor, changeInserted);
             Inline packed = in;
             if (in.kind == Inline::ParaAtom && in.tag == kFieldGroupTag) packed.look = runPropsXml(runPropsWritten(af, styleId, layer));   // (what writing the story gives it, to tell it formatted)
             setStored(af, prop::Atom, packAtom(packed));

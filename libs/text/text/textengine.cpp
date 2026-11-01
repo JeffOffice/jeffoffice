@@ -1689,9 +1689,9 @@ static int sourceBlockNumber(const QTextBlock &b)
 
 bool StoryLayout::joinsNext(const QTextBlock &b, int end)
 {
-    if (!b.charFormat().boolProperty(tp::HiddenText)) return false;
-    // (A mark that a tracked change deleted is a paragraph's end where the deleted text is shown.)
-    if (tp::hiddenInView(b.charFormat(), b.document()->property(tp::kRevisionViewProperty).toInt()) == false) return false;
+    // (A mark that a tracked change deleted is a paragraph's end where the deleted text is shown, and one that a change inserted is none where only what was there before is.)
+    if (!b.charFormat().boolProperty(tp::HiddenText) && !b.charFormat().hasProperty(tp::Revision)) return false;
+    if (!tp::hiddenInView(b.charFormat(), b.document()->property(tp::kRevisionViewProperty).toInt())) return false;
     const QTextBlock n = b.next();
     if (!n.isValid() || (end >= 0 && n.position() >= end)) return false;
     // (A run is cut into chunks of kMostJoinedParagraphs by the number of its paragraphs, so that whoever asks, wherever a stretch of the story begins, finds the same runs.)

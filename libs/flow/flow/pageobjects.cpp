@@ -550,7 +550,7 @@ QVector<Paginator::Anchor> Paginator::storyFrameAnchors(const QTextDocument *sto
 // Whether a paragraph has no lines: its mark and all of its text are hidden.
 static bool hasNoLines(const QTextBlock &b)
 {
-    if (!b.charFormat().boolProperty(tp::HiddenText)) return false;
+    if (!b.charFormat().boolProperty(tp::HiddenText) && !b.charFormat().hasProperty(tp::Revision)) return false;
     const int view = b.document()->property(tp::kRevisionViewProperty).toInt();
     if (!tp::hiddenInView(b.charFormat(), view)) return false;
     for (auto it = b.begin(); !it.atEnd(); ++it)

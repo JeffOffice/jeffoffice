@@ -575,7 +575,15 @@ void writeInlines(QByteArray &out, const QVector<Inline> &content, qsizetype fro
             const QByteArray rpr = runPropsXml(a.props);
             out += "<w:r>";
             if (!rpr.isEmpty()) out += "<w:rPr>" + rpr + "</w:rPr>";
-            out += a.raw + "</w:r>";
+            // (The code of a field is w:delInstrText inside a deletion and w:instrText outside one, whichever the file had.)
+            if (a.tag == QLatin1String("instrText") || a.tag == QLatin1String("delInstrText")) {
+                QByteArray raw = a.raw;
+                if (deletedDepth > 0) raw.replace("<w:instrText", "<w:delInstrText").replace("</w:instrText>", "</w:delInstrText>");
+                else raw.replace("<w:delInstrText", "<w:instrText").replace("</w:delInstrText>", "</w:instrText>");
+                out += raw + "</w:r>";
+            } else {
+                out += a.raw + "</w:r>";
+            }
         } else if (a.tag == kFieldGroupTag) {
             out += fieldGroupXml(a.raw, a.props, a.look);
         } else {

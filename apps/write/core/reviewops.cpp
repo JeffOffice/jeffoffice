@@ -2,6 +2,7 @@
 
 #include "core/reviewops.h"
 
+#include "core/commentops.h"
 #include "core/editops.h"
 #include "core/tableops.h"
 #include "core/wordformat.h"
@@ -264,16 +265,19 @@ QTextCharFormat notDeletedFormat(QTextCharFormat format)
 
 } // namespace
 
-QTextCharFormat withRevisionLook(QTextCharFormat f, bool deleted, int kind, int author)
+QTextCharFormat withRevisionLook(QTextCharFormat f, bool deleted, int kind, int author, bool alsoInserted)
 {
     if (deleted && !f.hasProperty(prop::TrackedDeleted)) f = asDeletedFormat(f);
     else if (!deleted && f.hasProperty(prop::TrackedDeleted)) f = notDeletedFormat(f);
     if (kind > 0 && !((kind == 2 || kind == 3) && f.intProperty(prop::TrackedDeleted) == prop::HiddenAlready)) {
         f.setProperty(tp::Revision, kind);
         f.setProperty(tp::RevisionAuthor, author);
+        if (alsoInserted && (kind == 2 || kind == 3)) f.setProperty(tp::RevisionInserted, true);
+        else f.clearProperty(tp::RevisionInserted);
     } else {
         f.clearProperty(tp::Revision);
         f.clearProperty(tp::RevisionAuthor);
+        f.clearProperty(tp::RevisionInserted);
     }
     return f;
 }
@@ -473,13 +477,15 @@ void refreshRevisionLook(WriteDoc &doc, QTextBlock block)
         }
         // The kind that marks the place: a deletion over an insertion.
         int kind = 0, author = 0;
+        bool inserted = false;
         for (const Open &o : std::as_const(stack)) {
             const int k = o.tag == QLatin1String("ins") ? 1 : o.tag == QLatin1String("del") ? 2 : o.tag == QLatin1String("moveFrom") ? 3 : 4;
+            inserted = inserted || k == 1 || k == 4;
             if ((kind == 2 || kind == 3) && k != 2 && k != 3) continue;
             kind = k;
             author = o.author;
         }
-        QTextCharFormat nf = withRevisionLook(cf, deleting > 0, kind, author);
+        QTextCharFormat nf = withRevisionLook(cf, deleting > 0, kind, author, inserted);
         // A change of the run's properties.
         bool changed = false;
         if (cf.hasProperty(prop::RawRPr)) changed = recordOf(extraOf(cf, prop::RawRPr), "rPrChange") != nullptr;
@@ -716,9 +722,63 @@ void removeMark(WriteDoc &doc, QTextDocument *d, int blockNumber)
 
 } // namespace
 
-int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &which, bool accept)
+
+// A move has two halves, the text taken from a place and the same text put in another, joined by the name of the move that the marks of their ranges give. Where one half is among the changes
+// to resolve, the other half is too.
+QVector<Revision> withMovePairs(const QTextDocument *story, const QVector<Revision> &which)
 {
-    if (which.isEmpty()) return 0;
+    bool any = false;
+    for (const Revision &r : which) any = any || r.kind == Revision::MovedFrom || r.kind == Revision::MovedTo;
+    if (!any) return which;
+    // The places of the marks of the ranges of moves, by name.
+    struct Start { int pos; QString name; };
+    QVector<Start> fromStarts, toStarts;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        if (b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const Inline a = unpackAtom(storedBytes(cf, prop::Atom));
+            if (a.kind != Inline::ParaAtom || a.role != Inline::Single) continue;
+            if (a.tag == QLatin1String("moveFromRangeStart")) fromStarts.push_back({it.fragment().position(), attributeOf(a.raw, "name")});
+            else if (a.tag == QLatin1String("moveToRangeStart")) toStarts.push_back({it.fragment().position(), attributeOf(a.raw, "name")});
+        }
+    }
+    // (In the order of the story, so the one before a place is found by search.)
+    auto nameBefore = [](const QVector<Start> &starts, int pos) {
+        auto it = std::lower_bound(starts.begin(), starts.end(), pos, [](const Start &s, int v) { return s.pos < v; });
+        return it == starts.begin() ? QString() : (it - 1)->name;
+    };
+    QHash<QString, int> fromByName, toByName;
+    for (const Start &s : fromStarts) fromByName[s.name] = s.pos;
+    for (const Start &s : toStarts) toByName[s.name] = s.pos;
+    QVector<Revision> out = which;
+    QSet<qint64> have;
+    for (const Revision &r : which) have.insert(qint64(r.kind) << 40 | r.from);
+    for (const Revision &r : which) {
+        if (r.kind != Revision::MovedFrom && r.kind != Revision::MovedTo) continue;
+        const bool isFrom = r.kind == Revision::MovedFrom;
+        const QString name = nameBefore(isFrom ? fromStarts : toStarts, r.from);
+        if (name.isEmpty()) continue;
+        const int otherPos = (isFrom ? toByName : fromByName).value(name, -1);
+        if (otherPos < 0) continue;
+        // The first move of the other kind that begins after that mark.
+        const Revision::Kind want = isFrom ? Revision::MovedTo : Revision::MovedFrom;
+        std::optional<Revision> pair;
+        const QTextBlock ob = story->findBlock(otherPos);
+        for (const Revision &o : revisionsIn(story, otherPos, ob.position() + ob.length()))
+            if (o.kind == want && o.from > otherPos && (!pair || o.from < pair->from)) pair = o;
+        if (!pair || have.contains(qint64(pair->kind) << 40 | pair->from)) continue;
+        have.insert(qint64(pair->kind) << 40 | pair->from);
+        out.push_back(*pair);
+    }
+    return out;
+}
+
+int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &whichGiven, bool accept)
+{
+    if (whichGiven.isEmpty()) return 0;
+    const QVector<Revision> which = withMovePairs(story, whichGiven);
     QMap<int, QVector<Revision>> byBlock;
     for (const Revision &r : which) byBlock[r.block].push_back(r);
     EditScope scope(doc, story);
@@ -830,6 +890,108 @@ int resolveAtCursor(WriteDoc &doc, QTextCursor &c, bool accept)
 }
 
 
+
+namespace {
+
+// The value of the first w:id in a start tag kept as written, or -1; and the bytes with it set to `id`.
+int idInTag(const QByteArray &xml)
+{
+    const qsizetype end = xml.indexOf('>');
+    const qsizetype at = xml.indexOf(":id=\"");
+    if (at < 0 || (end >= 0 && at > end)) return -1;
+    const qsizetype to = xml.indexOf('"', at + 5);
+    bool ok = false;
+    const int v = xml.mid(at + 5, to - at - 5).toInt(&ok);
+    return ok ? v : -1;
+}
+
+void setIdInTag(QByteArray *xml, int id)
+{
+    const qsizetype at = xml->indexOf(":id=\"");
+    const qsizetype to = xml->indexOf('"', at + 5);
+    if (at < 0 || to < 0) return;
+    xml->replace(at + 5, to - at - 5, QByteArray::number(id));
+}
+
+bool isChangeMark(const QByteArray &xml)
+{
+    const QByteArray name = elementName(xml);
+    return name == "ins" || name == "del" || name == "moveFrom" || name == "moveTo" || name == "rPrChange" || name == "pPrChange" || name == "sectPrChange" || name == "tblPrChange" ||
+           name == "trPrChange" || name == "tcPrChange" || name == "numberingChange";
+}
+
+} // namespace
+
+void makeChangeIdsUnique(WriteDoc &doc, QVector<Block> *blocks)
+{
+    QSet<int> reserved = allCommentIds(doc);
+    int most = 0;
+    for (const int id : std::as_const(reserved)) most = std::max(most, id);
+    // The Ids of comments' marks and bookmarks in the text, and the most there is.
+    auto noteReserved = [&](const Inline &a) {
+        if (a.kind == Inline::ParaAtom && a.role == Inline::Single && (a.tag.startsWith(QLatin1String("bookmark")) || a.tag.startsWith(QLatin1String("commentRange")) || a.tag.startsWith(QLatin1String("perm")))) {
+            const int id = a.key.isEmpty() ? idInTag(a.raw) : a.key.toInt();
+            if (id >= 0) {
+                reserved.insert(id);
+                most = std::max(most, id);
+            }
+        } else if (a.kind == Inline::RunAtom && a.tag == QLatin1String("commentReference")) {
+            const int id = idInTag(a.raw);
+            if (id >= 0) {
+                reserved.insert(id);
+                most = std::max(most, id);
+            }
+        }
+    };
+    for (const Block &b : std::as_const(*blocks))
+        if (!b.isRaw)
+            for (const Inline &a : b.para.content) noteReserved(a);
+    // The marks of changes, in order; each Id is used once.
+    QSet<int> used;
+    int next = most + 1;
+    auto settle = [&](QByteArray *xml, QString *key) {
+        const int id = idInTag(*xml);
+        if (id < 0) return;
+        most = std::max(most, id);
+        if (!used.contains(id) && !reserved.contains(id)) {
+            used.insert(id);
+            return;
+        }
+        while (used.contains(next) || reserved.contains(next)) ++next;
+        setIdInTag(xml, next);
+        if (key) *key = QString::number(next);
+        used.insert(next++);
+    };
+    // (A first pass finds the most, so that no new Id is one that a later mark has.)
+    for (const Block &b : std::as_const(*blocks)) {
+        if (b.isRaw) continue;
+        for (const Inline &a : b.para.content) {
+            if (a.kind == Inline::ParaAtom && a.role == Inline::Open && isRevisionTag(a.tag)) most = std::max(most, idInTag(a.raw));
+            for (const RawChild &c : a.props.extra)
+                if (isChangeMark(c.xml)) most = std::max(most, idInTag(c.xml));
+        }
+        if (b.para.props.markRun)
+            for (const RawChild &c : b.para.props.markRun->extra)
+                if (isChangeMark(c.xml)) most = std::max(most, idInTag(c.xml));
+        for (const RawChild &c : b.para.props.extra)
+            if (isChangeMark(c.xml)) most = std::max(most, idInTag(c.xml));
+    }
+    next = most + 1;
+    for (Block &b : *blocks) {
+        if (b.isRaw) continue;
+        if (b.para.props.markRun)
+            for (RawChild &c : b.para.props.markRun->extra)
+                if (isChangeMark(c.xml)) settle(&c.xml, nullptr);
+        for (RawChild &c : b.para.props.extra)
+            if (isChangeMark(c.xml)) settle(&c.xml, nullptr);
+        for (Inline &a : b.para.content) {
+            if (a.kind == Inline::ParaAtom && a.role == Inline::Open && isRevisionTag(a.tag)) settle(&a.raw, &a.key);
+            for (RawChild &c : a.props.extra)
+                if (isChangeMark(c.xml)) settle(&c.xml, nullptr);
+        }
+    }
+}
+
 // ---- making changes
 
 namespace {
@@ -928,6 +1090,9 @@ void markDeleted(WriteDoc &doc, QTextDocument *story, int from, int to)
     if (to <= from) return;
     const QTextBlock b = story->findBlock(from);
     const int author = doc.reviewerIndex(doc.reviewer());
+    // (Text inside someone's insertion was inserted too.)
+    bool insideInsertion = false;
+    for (const auto &o : openRevisionsAt(b, from)) insideInsertion = insideInsertion || o.first == QLatin1String("ins") || o.first == QLatin1String("moveTo");
     // A piece that begins (or ends) a deletion of the reviewer's at a place of this paragraph: its start tag (kept as the piece has it) and its Id.
     auto pieceAt = [&](int pos, bool wantOpen, QByteArray *raw, QString *id) {
         if (pos < b.position() || pos >= b.position() + b.length() - 1) return false;
@@ -968,7 +1133,7 @@ void markDeleted(WriteDoc &doc, QTextDocument *story, int from, int to)
         const QTextFragment f = it.fragment();
         const int fs = std::max(f.position(), from), fe = std::min(f.position() + int(f.length()), to);
         if (fs >= fe) continue;
-        edits.push_back({fs, fe, withRevisionLook(f.charFormat(), true, 2, author)});
+        edits.push_back({fs, fe, withRevisionLook(f.charFormat(), true, 2, author, insideInsertion)});
     }
     for (const Edit &ed : std::as_const(edits)) {
         t.setPosition(ed.from);
@@ -1016,6 +1181,7 @@ void markParagraphMark(WriteDoc &doc, QTextBlock block, const char *tag)
     extra.push_back({runChildRankOf(tag), element});
     setStored(m, prop::RawRPr, packRaw(extra));
     if (qstrcmp(tag, "del") == 0 || qstrcmp(tag, "moveFrom") == 0) m = withRevisionLook(m, true, 2, doc.reviewerIndex(doc.reviewer()));
+    else m = withRevisionLook(m, false, qstrcmp(tag, "ins") == 0 ? 1 : 4, doc.reviewerIndex(doc.reviewer()));
     setMarkFormat(block, m);
 }
 

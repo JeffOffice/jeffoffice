@@ -55,7 +55,7 @@ int resolveAtCursor(WriteDoc &doc, QTextCursor &c, bool accept);
 
 // ---- the marks that make a change
 // A format with the look of the tracked change it is in; the marks of a deletion hide the text as hidden text is.
-QTextCharFormat withRevisionLook(QTextCharFormat format, bool deleted, int kind, int author);
+QTextCharFormat withRevisionLook(QTextCharFormat format, bool deleted, int kind, int author, bool alsoInserted = false);
 // The start tag of a w:ins, w:del, w:moveFrom, or w:moveTo, with an Id of its own, the person, and the time now.
 QByteArray revisionStartTag(WriteDoc &doc, const QString &tag);
 // A piece for the story that begins or ends a change (the format is the invisible piece kept as XML, in the look of `like`).
@@ -101,6 +101,9 @@ QTextCharFormat withFormatRecord(WriteDoc &doc, const QString &paragraphStyle, c
 // The same for a paragraph's properties.
 QTextBlockFormat withParagraphRecord(WriteDoc &doc, const QTextBlockFormat &old, QTextBlockFormat now);
 
+// The Ids of the marks of changes in blocks about to be written: every Id is used once, and none is the Id of a comment or a bookmark (the first mark that has an Id keeps it; the others, which
+// splitting a paragraph and pasting copies make, get new ones).
+void makeChangeIdsUnique(WriteDoc &doc, QVector<office::wml::Block> *blocks);
 // For tests of cost: the paragraphs looked through for changes, and the runs looked at to give the words of a change or to resolve a change of properties, since the program began.
 qint64 revisionBlocksScannedForTest();
 qint64 revisionRunsVisitedForTest();

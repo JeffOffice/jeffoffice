@@ -718,7 +718,8 @@ void trackedDeleteRange(WriteDoc &doc, QTextDocument *d, int from, int to, QText
         const int number = b.blockNumber();
         const int blockEnd = b.position() + b.length() - 1;
         const int a = std::max(from, b.position()), z = std::min(to, blockEnd);
-        const bool coversMark = from <= blockEnd && to > blockEnd && b.next().isValid();
+        // (The mark of a paragraph that a cell, a frame, or the endnotes part it from the next is no mark to delete: nothing joins there.)
+        const bool coversMark = from <= blockEnd && to > blockEnd && b.next().isValid() && canJoinBlocks(b, b.next()) && frameKeyOf(b) == frameKeyOf(b.next()) && !b.next().blockFormat().hasProperty(prop::EndnoteBlock);
         const DeletionPlan plan = a < z ? planDeletion(b, a, z, me) : DeletionPlan();
         // The runs, last first.
         struct Run { int from, to; bool remove; };
@@ -1182,14 +1183,14 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
             c.setPosition(to, QTextCursor::KeepAnchor);
         }
     }
-    if (removeSelectionAcrossEndnotes(doc, c)) return;   // (the text round the endnotes of a section is cut from them, and never joined)
-    if (removeSelectionAcrossFrames(doc, c)) return;   // (a frame's text is cut from the frame, and the text round it from the text: never joined)
-    if (removeSelectionAcrossCells(doc, c)) return;   // (cells are emptied, and tables the selection holds go: paragraphs of different cells are never joined)
     if (tracking(doc, c)) {
-        // (Deleted as a tracked change: the text stays, marked, and what the reviewer typed goes.)
+        // (Deleted as a tracked change, in a table, a frame, or round endnotes too: the text stays, marked, and no paragraph is joined to one that is in another place.)
         trackedRemoveSelection(doc, c);
         return;
     }
+    if (removeSelectionAcrossEndnotes(doc, c)) return;   // (the text round the endnotes of a section is cut from them, and never joined)
+    if (removeSelectionAcrossFrames(doc, c)) return;   // (a frame's text is cut from the frame, and the text round it from the text: never joined)
+    if (removeSelectionAcrossCells(doc, c)) return;   // (cells are emptied, and tables the selection holds go: paragraphs of different cells are never joined)
     QTextDocument *d = c.document();
     c.beginEditBlock();
     const int from = c.selectionStart(), to = c.selectionEnd();

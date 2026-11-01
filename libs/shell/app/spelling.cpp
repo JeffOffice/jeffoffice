@@ -178,7 +178,14 @@ QVector<QPair<int, int>> misspellingsIn(const QTextBlock &b, const QString &fall
 QVector<QPair<int, int>> misspellingsIn(const QTextBlock &b, const QString &fallback, int from, int maxWords, int *stopped, int *words)
 {
     QVector<QPair<int, int>> out;
-    const QString text = b.isValid() ? b.text() : QString();
+    QString text = b.isValid() ? b.text() : QString();
+    // Text that is hidden (what a tracked change deleted, for one) is not checked: it is blanks, so that the places hold.
+    if (b.isValid())
+        for (auto it = b.begin(); !it.atEnd(); ++it)
+            if (it.fragment().charFormat().boolProperty(tp::HiddenText)) {
+                const int at = it.fragment().position() - b.position();
+                for (int k = 0; k < int(it.fragment().length()) && at + k < text.size(); ++k) text[at + k] = QLatin1Char(' ');
+            }
     if (stopped) *stopped = int(text.size());
     if (words) *words = 0;
     if (dict::root().isEmpty() || !b.isValid() || text.size() < 2 || from >= text.size()) return out;

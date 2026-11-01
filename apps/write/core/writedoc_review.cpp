@@ -2,6 +2,7 @@
 
 #include "core/writedoc.h"
 
+#include "core/commentops.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
@@ -58,23 +59,37 @@ int WriteDoc::nextRevisionId()
                 if (ok && v > most && v < 2000000000) most = v;
             }
         };
-        for (QTextBlock b = story()->begin(); b.isValid(); b = b.next()) {
-            const QTextBlockFormat bf = b.blockFormat();
-            if (bf.hasProperty(prop::RawPPr)) note(storedBytes(bf, prop::RawPPr));
-            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
-                const QTextCharFormat cf = it.fragment().charFormat();
-                if (cf.hasProperty(prop::RawRPr)) note(storedBytes(cf, prop::RawRPr));
-                if (cf.hasProperty(prop::Atom)) {
-                    const Inline a = unpackAtom(storedBytes(cf, prop::Atom));
-                    if (a.kind == Inline::ParaAtom) {
-                        bool ok = false;
-                        const qint64 v = a.key.toLongLong(&ok);
-                        if (ok && v > most && v < 2000000000) most = v;
+        auto lookThrough = [&](QTextDocument *d) {
+            for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+                const QTextBlockFormat bf = b.blockFormat();
+                if (bf.hasProperty(prop::RawPPr)) note(storedBytes(bf, prop::RawPPr));
+                if (b.charFormat().hasProperty(prop::RawRPr)) note(storedBytes(b.charFormat(), prop::RawRPr));
+                for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                    const QTextCharFormat cf = it.fragment().charFormat();
+                    if (cf.hasProperty(prop::RawRPr)) note(storedBytes(cf, prop::RawRPr));
+                    if (cf.hasProperty(prop::Atom)) {
+                        const Inline a = unpackAtom(storedBytes(cf, prop::Atom));
+                        if (a.kind == Inline::ParaAtom) {
+                            bool ok = false;
+                            const qint64 v = a.key.toLongLong(&ok);
+                            if (ok && v > most && v < 2000000000) most = v;
+                        }
                         note(a.raw);
                     }
                 }
             }
+        };
+        lookThrough(story());
+        // Every other story the program has made of a part, the parts as they were read (headers, footers, notes, comments), and every comment.
+        for (const HeaderPart &part : std::as_const(m_headerParts))
+            if (part.story && part.editForm) lookThrough(part.story.get());
+        for (const KeptPart &part : std::as_const(m_wml.parts)) {
+            const QString n = part.name.toLower();
+            if (n.contains(QLatin1String("header")) || n.contains(QLatin1String("footer")) || n.contains(QLatin1String("footnotes")) || n.contains(QLatin1String("endnotes")) || n.contains(QLatin1String("comments")))
+                note(part.data);
         }
+        for (const int id : allCommentIds(*this))
+            if (id > most && id < 2000000000) most = id;
         m_nextRevisionId = int(most) + 1;
     }
     return m_nextRevisionId++;

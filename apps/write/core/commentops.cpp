@@ -71,6 +71,19 @@ struct CommentSource {
     QVector<Comment> made;
 };
 
+// Text made fit for XML: the characters it has no place for are left out.
+QString xmlSafe(const QString &in)
+{
+    QString out;
+    out.reserve(in.size());
+    for (const QChar c : in) {
+        const ushort u = c.unicode();
+        if ((u < 0x20 && u != 9 && u != 10 && u != 13) || u == 0xFFFE || u == 0xFFFF) continue;
+        out += c;
+    }
+    return out;
+}
+
 QByteArray startTagOfRoot(const QByteArray &xml, QByteArray *closing = nullptr)
 {
     qsizetype at = 0;
@@ -365,6 +378,15 @@ void rememberCommentsAtOpen(WriteDoc &doc)
     src.opened = true;
 }
 
+QSet<int> allCommentIds(WriteDoc &doc)
+{
+    CommentSource &src = sourceOf(doc);
+    QSet<int> out;
+    for (auto it = src.byId.cbegin(); it != src.byId.cend(); ++it) out.insert(it.key());
+    for (const Anchor &a : anchorsOf(doc.story())) out.insert(a.id);
+    return out;
+}
+
 qint64 commentBlocksScannedForTest() { return s_blocksScanned.load(); }
 
 QString WriteDoc::mainRelatedPart(const QString &relationshipTypeEnd) const
@@ -579,15 +601,15 @@ Comment newComment(WriteDoc &doc, const QString &text, int parent)
 {
     Comment c;
     c.id = doc.nextRevisionId();
-    c.author = doc.reviewer();
-    c.initials = doc.reviewerInitials();
+    c.author = xmlSafe(doc.reviewer());
+    c.initials = xmlSafe(doc.reviewerInitials());
     if (c.initials.isEmpty()) {
         const QStringList words = c.author.split(QLatin1Char(' '), Qt::SkipEmptyParts);
         for (const QString &w : words) c.initials += w.at(0).toUpper();
         c.initials = c.initials.left(4);
     }
     c.date = QDateTime::fromSecsSinceEpoch(QDateTime::currentSecsSinceEpoch(), Qt::UTC);
-    c.text = text;
+    c.text = xmlSafe(text);
     c.parent = parent;
     c.changed = true;
     c.paraId = newParaId(paraIdsIn(doc), c.id);
@@ -788,10 +810,10 @@ namespace {
 
 QByteArray commentXml(const Comment &c, bool commentStyles)
 {
-    QByteArray out = "<w:comment w:id=\"" + QByteArray::number(c.id) + "\" w:author=\"" + escapeXml(c.author, true) + "\"";
+    QByteArray out = "<w:comment w:id=\"" + QByteArray::number(c.id) + "\" w:author=\"" + escapeXml(xmlSafe(c.author), true) + "\"";
     if (c.date.isValid()) out += " w:date=\"" + c.date.toUTC().toString(QStringLiteral("yyyy-MM-ddTHH:mm:ssZ")).toLatin1() + "\"";
-    out += " w:initials=\"" + escapeXml(c.initials, true) + "\">";
-    const QStringList paragraphs = c.text.split(QLatin1Char('\n'));
+    out += " w:initials=\"" + escapeXml(xmlSafe(c.initials), true) + "\">";
+    const QStringList paragraphs = xmlSafe(c.text).split(QLatin1Char('\n'));
     for (int i = 0; i < paragraphs.size(); ++i) {
         const bool last = i + 1 == paragraphs.size();
         out += "<w:p";
@@ -983,7 +1005,7 @@ void WriteDoc::writeCommentParts(office::wml::Document *out)
             if (!w.known || w.author.isEmpty() || authors.contains(w.author)) continue;
             authors << w.author;
             added = true;
-            extra += "<w15:person w15:author=\"" + escapeXml(w.author, true) + "\"><w15:presenceInfo w15:providerId=\"None\" w15:userId=\"" + escapeXml(w.author, true) + "\"/></w15:person>";
+            extra += "<w15:person w15:author=\"" + escapeXml(xmlSafe(w.author), true) + "\"><w15:presenceInfo w15:providerId=\"None\" w15:userId=\"" + escapeXml(xmlSafe(w.author), true) + "\"/></w15:person>";
         }
         if (added || src.peopleName.isEmpty()) {
             QByteArray proot = src.peopleRoot;

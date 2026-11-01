@@ -27,6 +27,8 @@ struct Comment {
 // Notes which comments the text refers to as the document is opened (a comment taken out afterwards is taken out of the file's parts when it is saved).
 void rememberCommentsAtOpen(WriteDoc &doc);
 
+// The Ids of every comment the document has: those of the file's comments part (referred to or not) and of the marks in the text.
+QSet<int> allCommentIds(WriteDoc &doc);
 // For tests of cost: the paragraphs looked through for the marks of comments since the program began.
 qint64 commentBlocksScannedForTest();
 

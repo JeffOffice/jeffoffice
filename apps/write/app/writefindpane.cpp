@@ -47,7 +47,7 @@ public:
         for (QTextBlock b = m_story->begin(); b.isValid(); b = b.next()) {
             if (note(b)) continue;
             for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
-                if (!write::isInvisibleAtom(it.fragment().charFormat())) extend(it.fragment().position(), it.fragment().text());
+                if (!write::isInvisibleAtom(it.fragment().charFormat()) && !it.fragment().charFormat().hasProperty(write::prop::TrackedDeleted)) extend(it.fragment().position(), it.fragment().text());   // (what a change deleted is no part of the words)
             QTextBlock after = b.next();
             while (after.isValid() && note(after)) after = after.next();
             if (after.isValid()) extend(b.position() + b.length() - 1, QStringLiteral("\n"));
@@ -194,7 +194,7 @@ FindWords WriteFindPane::words()
         QTextCursor shown(story);
         shown.setPosition(text->toStory(match.selectionStart()));
         shown.setPosition(text->toStoryEnd(match.selectionEnd()), QTextCursor::KeepAnchor);
-        return !write::allSelected(shown, [](const QTextCharFormat &f) { return !f.boolProperty(tp::HiddenText); });
+        return !write::allSelected(shown, [](const QTextCharFormat &f) { return !f.boolProperty(tp::HiddenText) || f.hasProperty(write::prop::TrackedDeleted); });   // (what a change deleted is no part of the words, and a match may go round it)
     };
     // The new words take the place of the first of the characters of the match, and the look of the first of them; the characters of it between pieces kept as XML
     // are taken away, and the pieces stay. (The matches come from the last to the first, so that no swap moves another.)
