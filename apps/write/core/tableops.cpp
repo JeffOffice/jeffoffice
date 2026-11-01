@@ -19,6 +19,12 @@ using namespace jp::office::wml;
 
 namespace jp::write {
 
+namespace {
+// The records of the cells of the table the cursor is in made again from its parts, so that what its style gives each cell by its place (the header row, the banded rows and
+// columns) is as it is for the rows and columns the table has now.
+void restyleTable(WriteDoc &doc, QTextCursor &c);
+}
+
 int cellKeyOf(const QTextBlock &block) { return block.isValid() ? block.blockFormat().intProperty(flow::fp::Cell) : 0; }
 
 bool canJoinBlocks(const QTextBlock &first, const QTextBlock &second) { return cellKeyOf(first) == cellKeyOf(second); }
@@ -669,6 +675,7 @@ void insertTableRow(WriteDoc &doc, QTextCursor &c, bool below)
     c.beginEditBlock();
     const int count = area.r1 - area.r0 + 1;
     for (int n = 0; n < count; ++n) addRow(doc, *v, below ? area.r1 : area.r0, below);
+    restyleTable(doc, c);
     c.endEditBlock();
 }
 
@@ -772,6 +779,7 @@ void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
     (void)at;
     Rekey rekey(doc, &t.data(), table, stop, changed);
     applyRekey(doc, &t.data(), &rekey);
+    restyleTable(doc, c);
     c.endEditBlock();
 }
 
@@ -879,6 +887,7 @@ void deleteTableRows(WriteDoc &doc, QTextCursor &c)
         applyRekey(doc, &t.data(), &rekey);
     }
     c.setPosition(std::clamp(at, 0, std::max(0, d->characterCount() - 1)));
+    restyleTable(doc, c);
     c.endEditBlock();
 }
 
@@ -966,6 +975,7 @@ void deleteTableColumns(WriteDoc &doc, QTextCursor &c)
         applyRekey(doc, &t.data(), &rekey);
     }
     c.setPosition(std::clamp(at, 0, std::max(0, d->characterCount() - 1)));
+    restyleTable(doc, c);
     c.endEditBlock();
 }
 
@@ -985,6 +995,7 @@ bool tabThroughCells(WriteDoc &doc, QTextCursor &c, bool back)
         const int rows = t.rowCount();
         c.beginEditBlock();
         addRow(doc, *v, rows - 1, true);
+    restyleTable(doc, c);
         c.endEditBlock();
         if (auto fresh = viewAt(doc, c.position())) {
             const flow::TableLayout &u = *fresh->layout;
@@ -1297,6 +1308,11 @@ bool editTable(WriteDoc &doc, QTextCursor &c, const std::function<bool(XTable &,
     giveNewKeys(doc, *v, x, keys);
     c.endEditBlock();
     return true;
+}
+
+void restyleTable(WriteDoc &doc, QTextCursor &c)
+{
+    editTable(doc, c, [](XTable &, const View &, const Area &) { return true; });
 }
 
 bool hits(const flow::TableLayout::Cell &cell, const Area &a)
@@ -1746,6 +1762,24 @@ Area closedArea(const View &v, Area a)
     return a;
 }
 
+// Whether the cells of each row of the area fill its columns from the first to the last with no gap (a row that starts later or ends sooner, because the file leaves
+// grid columns empty there, can't be joined with the rows beside it).
+bool areaIsFilled(const View &v, const Area &a)
+{
+    const flow::TableLayout &t = *v.layout;
+    for (int r = a.r0; r <= a.r1; ++r) {
+        int next = a.c0;
+        for (int i = t.row(r).cell0; i < t.row(r).cell0 + t.row(r).cells; ++i) {
+            const flow::TableLayout::Cell &lc = t.cell(i);
+            if (lc.col + lc.span <= a.c0 || lc.col > a.c1) continue;
+            if (lc.col != next) return false;
+            next = lc.col + lc.span;
+        }
+        if (next != a.c1 + 1) return false;
+    }
+    return true;
+}
+
 bool cellIsEmpty(const QTextDocument *d, int from, int to)
 {
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next())
@@ -1772,7 +1806,7 @@ bool canMergeCells(WriteDoc &doc, const QTextCursor &c)
     int real = 0;
     for (int i = 0; i < v->layout->cellCount(); ++i)
         if (hits(v->layout->cell(i), a) && !v->layout->cell(i).covered) ++real;
-    return real > 1;
+    return real > 1 && areaIsFilled(*v, a);
 }
 
 bool mergeCells(WriteDoc &doc, QTextCursor &c)
@@ -1791,7 +1825,7 @@ bool mergeCells(WriteDoc &doc, QTextCursor &c)
         if (!lc.covered) ++real;
         inRow[lc.row - a.r0].push_back(i);
     }
-    if (real < 2) return false;
+    if (real < 2 || !areaIsFilled(*v, a)) return false;
     const int topLeft = inRow[0].first();
     // What the other cells hold, to be put after what the first has: the cells with something in them, in reading order.
     QVector<QTextDocumentFragment> carry;

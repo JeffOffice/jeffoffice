@@ -280,54 +280,51 @@ void tableCommand(WriteDoc &doc, QTextCursor &c, int kind, const std::function<i
     case 2: insertTab(doc, c, pick(2)); break;
     case 3: deleteTableRows(doc, c); break;
     case 4: deleteTableColumns(doc, c); break;
-    default: {
-        // (Taking the table away is one in nine; the rest are the commands of the Table tabs, on a stretch of cells.)
-        const int k = pick(9);
-        if (k == 0) {
-            deleteTable(doc, c);
-            break;
+    default: if (pick(3) == 0) deleteTable(doc, c); break;
+    }
+}
+
+// The commands of the Table tabs, on a stretch of cells picked at random (kinds 1 to 10: merge, split, shade, border, size, distribute, fit, properties, style, alignment).
+void tableTabCommand(WriteDoc &doc, QTextCursor &c, int k, const std::function<int(int)> &pick)
+{
+    QVector<QTextBlock> cells;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        if (cellKeyOf(b)) cells << b;
+    if (cells.isEmpty()) return;
+    const QTextBlock a = cells[pick(int(cells.size()))], z = cells[pick(int(cells.size()))];
+    c.setPosition(a.position());
+    if (pick(2) == 0) c.setPosition(z.position() + z.length() - 1, QTextCursor::KeepAnchor);
+    switch (k) {
+    case 1: mergeCells(doc, c); break;
+    case 2: splitCells(doc, c, 1 + pick(3), 1 + pick(2)); break;
+    case 3: setShading(doc, c, pick(3) == 0 ? QColor() : QColor(pick(256), pick(256), pick(256))); break;
+    case 4: {
+        flow::TableLine line;
+        if (pick(4)) {
+            line.style = flow::TableLine::Style(1 + pick(5));
+            line.width = 0.5 + pick(4) * 0.5;
         }
-        QVector<QTextBlock> cells;
-        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
-            if (cellKeyOf(b)) cells << b;
-        if (cells.isEmpty()) break;
-        const QTextBlock a = cells[pick(int(cells.size()))], z = cells[pick(int(cells.size()))];
-        c.setPosition(a.position());
-        if (pick(2) == 0) c.setPosition(z.position() + z.length() - 1, QTextCursor::KeepAnchor);
-        switch (k) {
-        case 1: mergeCells(doc, c); break;
-        case 2: splitCells(doc, c, 1 + pick(3), 1 + pick(2)); break;
-        case 3: setShading(doc, c, pick(3) == 0 ? QColor() : QColor(pick(256), pick(256), pick(256))); break;
-        case 4: {
-            flow::TableLine line;
-            if (pick(4)) {
-                line.style = flow::TableLine::Style(1 + pick(5));
-                line.width = 0.5 + pick(4) * 0.5;
-            }
-            setBorders(doc, c, 1 + pick(63), line);
-            break;
-        }
-        case 5: pick(2) ? setColumnWidth(doc, c, 20 + pick(200)) : setRowHeight(doc, c, pick(3) ? 10 + pick(60) : 0, pick(2)); break;
-        case 6: pick(2) ? distributeColumns(doc, c) : distributeRows(doc, c); break;
-        case 7: fitTable(doc, c, TableFit(pick(3))); break;
-        case 8: {
-            const TableProps was = tablePropsAt(doc, c);
-            TableProps now = was;
-            now.align = flow::TableData::Align(pick(3));
-            now.indent = pick(30);
-            now.cantSplit = pick(2);
-            now.header = pick(2);
-            now.valign = flow::CellAlign(pick(3));
-            now.widthKind = TableProps::Width(pick(3));
-            now.width = now.widthKind == TableProps::Width::Percent ? 20 + pick(80) : 100 + pick(300);
-            setTableProps(doc, c, was, now);
-            break;
-        }
-        case 9: setTableStyle(doc, c, office::wml::builtinTableStyleIds().value(pick(14))); break;
-        default: setCellAlignment(doc, c, pick(2) ? Qt::AlignHCenter : Qt::AlignRight, flow::CellAlign(pick(3))); break;
-        }
+        setBorders(doc, c, 1 + pick(63), line);
         break;
     }
+    case 5: pick(2) ? setColumnWidth(doc, c, 20 + pick(200)) : setRowHeight(doc, c, pick(3) ? 10 + pick(60) : 0, pick(2)); break;
+    case 6: pick(2) ? distributeColumns(doc, c) : distributeRows(doc, c); break;
+    case 7: fitTable(doc, c, TableFit(pick(3))); break;
+    case 8: {
+        const TableProps was = tablePropsAt(doc, c);
+        TableProps now = was;
+        now.align = flow::TableData::Align(pick(3));
+        now.indent = pick(30);
+        now.cantSplit = pick(2);
+        now.header = pick(2);
+        now.valign = flow::CellAlign(pick(3));
+        now.widthKind = TableProps::Width(pick(3));
+        now.width = now.widthKind == TableProps::Width::Percent ? 20 + pick(80) : 100 + pick(300);
+        setTableProps(doc, c, was, now);
+        break;
+    }
+    case 9: setTableStyle(doc, c, office::wml::builtinTableStyleIds().value(pick(14))); break;
+    default: setCellAlignment(doc, c, pick(2) ? Qt::AlignHCenter : Qt::AlignRight, flow::CellAlign(pick(3))); break;
     }
 }
 
@@ -14113,6 +14110,34 @@ private Q_SLOTS:
         }
     }
 
+    // Rows and columns added to or taken from a table with a style that bands its rows, or dresses its first and last ones, are dressed as the table is when it is opened again: what
+    // the style gives a cell goes by the cell's place, which the new row or column changes for those after it.
+    void rowsAndColumnsAddedToAStyledTableAreDressedAsTheFileOpensThem()
+    {
+        auto doc = open(tableDocx(5, 3));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r1c1"));
+        setTableStyle(*doc, c, QStringLiteral("GridTable4Accent1"));
+        setTableLook(*doc, c, 0x40 | 0x100 | 0x400, true);   // (a total row, a last column, and no banded columns)
+        checkTablesReopenTheSame(*doc);
+        insertTableRow(*doc, c, true);
+        checkTablesReopenTheSame(*doc);
+        insertTableRow(*doc, c, false);
+        checkTablesReopenTheSame(*doc);
+        insertTableColumn(*doc, c, true);
+        checkTablesReopenTheSame(*doc);
+        deleteTableRows(*doc, c);
+        checkTablesReopenTheSame(*doc);
+        deleteTableColumns(*doc, c);
+        checkTablesReopenTheSame(*doc);
+        c = cursorAt(*doc, QStringLiteral("r3c0"));
+        c.movePosition(QTextCursor::EndOfBlock);
+        tabThroughCells(*doc, c, false);
+        checkTablesReopenTheSame(*doc);
+        const QString full = tablesSignature(*doc);
+        while (doc->story()->isUndoAvailable()) doc->story()->undo();
+        QVERIFY(tablesSignature(*doc) != full);
+    }
+
     // A table in a table's cell is changed with the table it is in: its cells keep their place in the cell, and the cell's other paragraphs.
     void changesKeepATableInACellAndWhatIsAroundIt()
     {
@@ -15456,6 +15481,51 @@ private Q_SLOTS:
         // (And the words of the notes the text cites: a note nothing cites is not the document's.)
         for (const int id : doc.citedFootnotes()) out += QStringLiteral("{note %1: %2}").arg(id).arg(doc.editableFootnote(id)->toPlainText());
         return out;
+    }
+
+    // The commands of the Table tabs, at random on a table with merged cells and notes: each is one step that undoes and redoes to the same table, the file saved after it
+    // opens the same, and the pages lay out as a new paginator lays them out. (JW_FUZZ_SEEDS=n for a longer run.)
+    void randomTableTabCommandsKeepTablesWholeAndOpenTheSame()
+    {
+        const int seeds = qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_SEEDS") : 10;
+        const int steps = qEnvironmentVariableIntValue("JW_FUZZ_STEPS") > 0 ? qEnvironmentVariableIntValue("JW_FUZZ_STEPS") : 40;
+        for (unsigned seed = 1; seed <= unsigned(seeds); ++seed) {
+            auto doc = open(richTableDocx());
+            QVERIFY(doc);
+            std::mt19937 rng(seed + 5000u);
+            auto pick = [&](int n) { return int(rng() % unsigned(std::max(1, n))); };
+            QTextCursor c(doc->story());
+            QStringList log;
+            for (int step = 0; step < steps; ++step) {
+                const int kind = 1 + pick(10);
+                const QString before = tablesSignature(*doc);
+                log << QString::number(kind);
+                if (pick(8) == 0) {
+                    // (and the older commands among them)
+                    tableCommand(*doc, c, pick(5), pick);
+                } else {
+                    tableTabCommand(*doc, c, kind, pick);
+                }
+                const QString why = QStringLiteral("seed %1 step %2 (%3)").arg(seed).arg(step).arg(log.join(QLatin1Char(',')));
+                const QString lay = layoutDiffersFromFresh(*doc);
+                QVERIFY2(lay.isEmpty(), qPrintable(why + QLatin1Char(' ') + lay));
+                const QString after = tablesSignature(*doc);
+                if (step % 3 == 0) {
+                    const QByteArray zip = doc->toDocx();
+                    QVERIFY2(rt::strictProblems(zip).isEmpty(), qPrintable(why + QLatin1Char(' ') + rt::strictProblems(zip).join(QLatin1Char('\n'))));
+                    auto back = open(zip);
+                    QVERIFY2(back, qPrintable(why));
+                    QVERIFY2(tablesSignature(*back) == after, qPrintable(why + QStringLiteral(": the file opens differently")));
+                }
+                // One undo takes a step back to the table as it was, and a redo makes it again (when the command changed something).
+                if (after != before && step % 4 == 1) {
+                    doc->story()->undo();
+                    QVERIFY2(tablesSignature(*doc) == before, qPrintable(why + QStringLiteral(": undo does not give back the table")));
+                    doc->story()->redo();
+                    QVERIFY2(tablesSignature(*doc) == after, qPrintable(why + QStringLiteral(": redo does not make the table again")));
+                }
+            }
+        }
     }
 
     // Hundreds of random commands on a document of tables (every one that works on a table, the ones that delete across cells, paste, and type in cells that are joined or in
