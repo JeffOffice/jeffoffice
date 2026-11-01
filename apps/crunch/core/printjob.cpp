@@ -3,9 +3,11 @@
 #include "grid/hfpicturecache.h"
 
 #include "core/sheetobjects.h"
+#include "sheet/cellref.h"
 
 #include <QCoreApplication>
 #include <QFile>
+#include <QFontMetricsF>
 #include <QFileInfo>
 #include <QPageLayout>
 #include <QPageSize>
@@ -76,6 +78,21 @@ PageSetup BookPrintSource::page(int sheet) const
 
 std::vector<jp::grid::LayerObject> BookPrintSource::objects(int sheet) { return m_objects ? m_objects->printObjects(sheet) : std::vector<jp::grid::LayerObject>(); }
 
+std::vector<PrintNote> BookPrintSource::notes(int sheet) const
+{
+    std::vector<PrintNote> out;
+    if (!m_anchors) return out;
+    for (const auto &kv : m_anchors->notes(sheet)) {
+        PrintNote n;
+        n.row = quint32(kv.first >> 32);
+        n.col = quint32(kv.first & 0xFFFFFFFFu);
+        n.author = kv.second.author;
+        n.text = kv.second.text;
+        out.push_back(std::move(n));
+    }
+    return out;
+}
+
 QString BookPrintSource::baseFontFamily() const { return m_book->book->styles().font(0).name; }
 
 double BookPrintSource::baseFontPoints() const { return m_book->book->styles().font(0).size; }
@@ -119,6 +136,47 @@ void applyChoices(PageSetup *s, const PrintJobOptions &o)
 } // namespace
 
 // What a build in slices holds between the slices: the sheets to cut, the one being cut, and the pieces of its cut.
+namespace {
+
+// The pages of notes of a sheet: every note as "Cell A1: author: words" (its lines kept), a blank line between them, broken into lines as wide as the page's room in the font the sheet's text is
+// in, and into pages by the room it has down. (The text is laid out in eighths of a point, as the headers are.)
+std::vector<QStringList> notePagesOf(const std::vector<PrintNote> &notes, const jp::grid::PaperBox &paper, const QString &family, double points, qint64 *room)
+{
+    const double U = 8;
+    QFont font(family);
+    font.setPixelSize(std::max(1, int(std::lround(std::min(points > 0 ? points : 11.0, 409.0) * U))));
+    const QFontMetricsF fm(font);
+    const double width = std::max(1.0, (paper.width - paper.left - paper.right) * U), height = std::max(1.0, (paper.height - paper.top - paper.bottom) * U);
+    const int perPage = std::max(1, int(std::floor(height / std::max(1.0, fm.lineSpacing()))));
+    QStringList lines;
+    for (const PrintNote &n : notes) {
+        if (!lines.isEmpty()) lines << QString();
+        QString text = QCoreApplication::translate("jp::crunch::PrintJob", "Cell %1: ").arg(jp::office::sheet::cellName(n.row, n.col));
+        if (!n.author.isEmpty()) text += n.author + QLatin1String(": ");
+        text += n.text;
+        for (const QString &paragraph : text.split(QLatin1Char('\n'))) {
+            QString line;
+            for (const QString &word : paragraph.split(QLatin1Char(' '))) {
+                const QString candidate = line.isEmpty() ? word : line + QLatin1Char(' ') + word;
+                if (line.isEmpty() || fm.horizontalAdvance(candidate) <= width) {
+                    line = candidate;
+                } else {
+                    lines << line;
+                    line = word;
+                }
+            }
+            lines << line;
+            if (qint64(lines.size()) > *room * perPage) break;   // (more than the job has room for: the rest is not laid out)
+        }
+        if (qint64(lines.size()) > *room * perPage) break;
+    }
+    std::vector<QStringList> pages;
+    for (qsizetype at = 0; at < lines.size() && qint64(pages.size()) < *room; at += perPage) pages.push_back(lines.mid(at, perPage));
+    return pages;
+}
+
+} // namespace
+
 struct PrintJob::Build {
     enum class Stage { Sheet, Rows, Pages, Finish };
     QVector<int> sheets;
@@ -283,6 +341,24 @@ PrintJob::BuildState PrintJob::buildStep(jp::grid::Work &work, QString *why)
             }
             b.next = info.firstNumber + int(info.print.pages.size());
             b.room -= qint64(info.print.pages.size());
+            // the notes of a sheet whose comments print at the end have pages after the sheet's own
+            if (info.setup.comments == jp::office::sheet::PrintComments::AtEnd && !info.chart && b.room > 0) {
+                const std::vector<PrintNote> notes = m_source->notes(sheet);
+                if (!notes.empty()) {
+                    qint64 room = b.room;
+                    info.notePages = notePagesOf(notes, info.print.paper, m_source->baseFontFamily(), m_source->baseFontPoints(), &room);
+                    for (size_t i = 0; i < info.notePages.size(); ++i) {
+                        Page p;
+                        p.info = int(m_sheets.size());
+                        p.index = int(info.print.pages.size() + i);
+                        p.number = b.next + int(i);
+                        p.note = int(i);
+                        m_pages.push_back(p);
+                    }
+                    b.next += int(info.notePages.size());
+                    b.room -= qint64(info.notePages.size());
+                }
+            }
             m_sheets.push_back(std::move(info));
             if (b.room <= 0) {
                 if (b.at < b.sheets.size()) m_messages << QCoreApplication::translate("jp::crunch::PrintJob", "The job is cut short at %1 pages.").arg(m_options.maxPages);
@@ -343,6 +419,12 @@ int PrintJob::pagesOfSheet(int sheet) const
 {
     const SheetInfo *i = infoOfSheet(sheet);
     return i ? int(i->print.pages.size()) : 0;
+}
+
+QStringList PrintJob::noteLines(int page) const
+{
+    if (page < 0 || page >= pageCount() || m_pages[size_t(page)].note < 0) return QStringList();
+    return m_sheets[size_t(m_pages[size_t(page)].info)].notePages[size_t(m_pages[size_t(page)].note)];
 }
 
 int PrintJob::firstPageOf(int sheet) const
@@ -410,6 +492,27 @@ bool PrintJob::paint(QPainter *painter, int page)
     if (!labels.path.isEmpty() && !labels.path.endsWith(QLatin1Char('/'))) labels.path += QLatin1Char('/');
     labels.sheet = m_source->sheetName(info.sheet);
     labels.locale = QLocale();
+    if (pg.note >= 0) {
+        // a page of notes: their lines in the page's room, and the header and footer
+        const double U = 8;
+        const jp::grid::PaperBox &paper = info.print.paper;
+        QFont font(m_source->baseFontFamily());
+        const double points = m_source->baseFontPoints();
+        font.setPixelSize(std::max(1, int(std::lround(std::min(points > 0 ? points : 11.0, 409.0) * U))));
+        const QFontMetricsF fm(font);
+        painter->save();
+        painter->scale(1.0 / U, 1.0 / U);
+        painter->setFont(font);
+        painter->setPen(Qt::black);
+        double y = paper.top * U + fm.ascent();
+        for (const QString &line : info.notePages[size_t(pg.note)]) {
+            painter->drawText(QPointF(paper.left * U, y), line);
+            y += fm.lineSpacing();
+        }
+        painter->restore();
+        c.painter->paintHeaderFooter(painter, paper, info.setup, labels, false, 1.0);
+        return true;
+    }
     const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
     if (info.chart) {
         const jp::grid::PageMetrics m = jp::grid::pageMetrics(info.print, cut, info.setup, info.geometry->layout.rows, info.cols);
@@ -471,7 +574,7 @@ bool PrintJob::cellRect(int page, qint64 row, qint64 col, QRectF *rect)
     if (page < 0 || page >= pageCount()) return false;
     const Page &pg = m_pages[size_t(page)];
     const SheetInfo &info = m_sheets[size_t(pg.info)];
-    if (info.chart) return false;
+    if (info.chart || pg.note >= 0) return false;
     const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
     const bool rowIn = (row >= cut.row1 && row <= cut.row2) || (cut.titleRow1 >= 0 && row >= cut.titleRow1 && row <= cut.titleRow2);
     const bool colIn = (col >= cut.col1 && col <= cut.col2) || (cut.titleCol1 >= 0 && col >= cut.titleCol1 && col <= cut.titleCol2);
@@ -484,7 +587,7 @@ bool PrintJob::cellAt(int page, const QPointF &point, qint64 *row, qint64 *col)
     if (page < 0 || page >= pageCount()) return false;
     const Page &pg = m_pages[size_t(page)];
     const SheetInfo &info = m_sheets[size_t(pg.info)];
-    if (info.chart) return false;
+    if (info.chart || pg.note >= 0) return false;
     return contextFor(pg.info).painter->cellAt(info.print, info.print.pages[size_t(pg.index)], info.setup, point, row, col);
 }
 
@@ -493,7 +596,7 @@ bool PrintJob::rangeRect(int page, qint64 row1, qint64 col1, qint64 row2, qint64
     if (page < 0 || page >= pageCount()) return false;
     const Page &pg = m_pages[size_t(page)];
     const SheetInfo &info = m_sheets[size_t(pg.info)];
-    if (info.chart) return false;
+    if (info.chart || pg.note >= 0) return false;
     const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
     // (the part of the range among the page's own rows and columns)
     const qint64 r1 = std::max(row1, cut.row1), r2 = std::min(row2, cut.row2), c1 = std::max(col1, cut.col1), c2 = std::min(col2, cut.col2);
@@ -515,7 +618,7 @@ int PrintJob::pageOfCell(int sheet, qint64 row, qint64 col) const
 {
     for (size_t i = 0; i < m_pages.size(); ++i) {
         const SheetInfo &info = m_sheets[size_t(m_pages[i].info)];
-        if (info.sheet != sheet) continue;
+        if (info.sheet != sheet || m_pages[i].note >= 0) continue;
         const jp::grid::PageCut &cut = info.print.pages[size_t(m_pages[i].index)];
         if (row >= cut.row1 && row <= cut.row2 && col >= cut.col1 && col <= cut.col2) return int(i);
     }

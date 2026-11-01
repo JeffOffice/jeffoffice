@@ -1902,6 +1902,63 @@ private Q_SLOTS:
         QVERIFY(!pk2.part(QStringLiteral("xl/worksheets/sheet1.xml")).contains("<pane"));
     }
 
+    // With the sheet's comments set to print at the end, the notes are printed after the sheet's last page, on pages of their own that carry the next numbers: each note by the cell it is on, its
+    // author, and its words; a note's lines are kept; with the setting off, or on "as displayed", no page is added.
+    void notesPrintAtTheEndOfTheSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(60, {})));
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        QVERIFY(s->setNote(0, 1, 0, QStringLiteral("Check this"), QStringLiteral("Ann"), false, QStringLiteral("Add Note")).ok);
+        QVERIFY(s->setNote(0, 4, 2, QStringLiteral("Second\nnote"), QString(), false, QStringLiteral("Add Note")).ok);
+        QString why;
+        auto make = [&](jp::office::sheet::PrintComments how) {
+            jp::office::sheet::PageSetup p = s->pages().sheet(0);
+            p.comments = how;
+            if (!s->setPageSetup(0, p, QStringLiteral("Comments")).ok) return std::unique_ptr<crunch::PrintJob>();
+            return w.makePrintJob(crunch::PrintJobOptions(), &why);
+        };
+        const std::unique_ptr<crunch::PrintJob> none = make(jp::office::sheet::PrintComments::None);
+        QVERIFY2(none, qPrintable(why));
+        const int pages = none->pageCount();
+        QCOMPARE(none->noteLines(pages - 1), QStringList());
+        QCOMPARE(make(jp::office::sheet::PrintComments::AsDisplayed)->pageCount(), pages);
+        const std::unique_ptr<crunch::PrintJob> job = make(jp::office::sheet::PrintComments::AtEnd);
+        QVERIFY2(job, qPrintable(why));
+        QCOMPARE(job->pageCount(), pages + 1);
+        QCOMPARE(job->noteLines(pages - 1), QStringList());
+        QCOMPARE(job->noteLines(pages), (QStringList{"Cell A2: Ann: Check this", "", "Cell C5: Second", "note"}));
+        QCOMPARE(job->sheetOf(pages), 0);
+        QCOMPARE(job->numberOf(pages), job->numberOf(pages - 1) + 1);
+        QCOMPARE(job->pageSize(pages), job->pageSize(0));
+        QRectF r;
+        QVERIFY(!job->cellRect(pages, 1, 0, &r));
+        QCOMPARE(job->pageOfCell(0, 1, 0), 0);
+        // the page is drawn: text on it, within the margins
+        const QImage image = job->preview(pages, 612);
+        QVERIFY(!image.isNull());
+        int dark = 0, outside = 0;
+        const double k = image.width() / job->pageSize(pages).width();
+        const jp::grid::PaperBox box = job->paperOf(pages);
+        for (int y = 0; y < image.height(); ++y)
+            for (int x = 0; x < image.width(); ++x)
+                if (qGray(image.pixel(x, y)) < 128) {
+                    ++dark;
+                    if (x < int(box.left * k) - 2 || y < int(box.top * k * 0.5)) ++outside;
+                }
+        QVERIFY2(dark > 40, qPrintable(QString::number(dark)));
+        QCOMPARE(outside, 0);
+        // many notes need more than one page, and every one is printed once, in the order of the cells
+        for (quint32 i = 0; i < 200; ++i) QVERIFY(s->setNote(0, 10 + i % 40, 4 + i / 40, QStringLiteral("note %1").arg(i), QStringLiteral("Bo"), false, QStringLiteral("Add Note")).ok);
+        const std::unique_ptr<crunch::PrintJob> many = make(jp::office::sheet::PrintComments::AtEnd);
+        QVERIFY(many->pageCount() > pages + 2);
+        QStringList all;
+        for (int p = pages; p < many->pageCount(); ++p) all += many->noteLines(p);
+        QCOMPARE(all.filter(QLatin1String("Bo: note")).size(), 200);
+        QVERIFY(all.indexOf(QStringLiteral("Cell A2: Ann: Check this")) < all.indexOf(QStringLiteral("Cell C5: Second")));
+    }
+
     // ---- pictures in headers and footers (printing 2)
 
     // A picture in the center of the header is drawn on the printed page, at the size the file gives, hung from the header's distance from the top; the same page without it is white there.
