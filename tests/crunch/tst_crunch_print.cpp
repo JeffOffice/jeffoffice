@@ -2494,8 +2494,10 @@ private Q_SLOTS:
         QTRY_VERIFY(w.zoneEditor());
         QCOMPARE(w.zoneEditor()->toPlainText(), QStringLiteral("Budget &P"));
         QTest::keyClick(w.zoneEditor(), Qt::Key_Escape);
-        // the file
+        // the file (a save is written in the background: wait for it to be done before reading the file)
+        QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
         EditWindow again;
         QVERIFY(again.win.open(e.copyOfFile()));
         QCOMPARE(again.win.w.session()->pages().sheet(0).headerFooter.oddHeader, QStringLiteral("&CBudget &P"));

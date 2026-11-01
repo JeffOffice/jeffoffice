@@ -54,6 +54,8 @@ struct EditWindow {
     // A copy of the file as it is now, under another name (a file that is open in a window is not opened in a second: the copy is).
     QString copyOfFile()
     {
+        // (a save is written in the background: the copy waits for one that is still being written, so that it is of the saved file)
+        for (int waited = 0; win.w.isSaving() && waited < 30000; waited += 10) QTest::qWait(10);
         QFile f(path);
         if (!f.open(QIODevice::ReadOnly)) return QString();
         return folder.write(QStringLiteral("copy%1.xlsx").arg(++m_copies), f.readAll());

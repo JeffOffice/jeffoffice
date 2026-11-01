@@ -215,12 +215,15 @@ void WriteWindow::tableRibbonParts(RibbonParts &parts)
         });
         return m;
     };
-    auto menuOf = [this](std::initializer_list<const char *> ids) {
+    // (the ids are copied out of the list: an initializer_list's items live only as long as the call that made it, and the menu is built later)
+    auto menuOf = [this](std::initializer_list<const char *> list) {
+        QStringList ids;
+        for (const char *id : list) ids << QString::fromLatin1(id);
         return [this, ids](QWidget *owner) {
             auto *m = new QMenu(owner);
-            for (const char *id : ids) {
-                if (QLatin1String(id) == QLatin1String("-")) m->addSeparator();
-                else m->addAction(act(QString::fromLatin1(id)));
+            for (const QString &id : ids) {
+                if (id == QLatin1String("-")) m->addSeparator();
+                else m->addAction(act(id));
             }
             return m;
         };
