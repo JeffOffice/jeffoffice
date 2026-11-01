@@ -802,7 +802,7 @@ private Q_SLOTS:
         QCOMPARE(w.ribbonErrors(), QString());
         QStringList tabs;
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
-        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Layout", "References", "Review", "View", "Header & Footer"}));   // (the last is there while a header or footer is edited)
+        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Layout", "References", "Review", "View", "Header & Footer", "Table Design", "Table Layout"}));   // (the last three are there while a header or footer is edited, and the caret is in a table)
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffWrite")));
         QVERIFY(w.windowTitle().startsWith(QLatin1String("Document")));
@@ -13764,14 +13764,14 @@ private Q_SLOTS:
         QCOMPARE(int(doc->story()->blockCount()), 2 + 12);
         const QString signature = tablesSignature(*doc);
         QVERIFY2(signature.count(QStringLiteral(" ROW ")) == 3 && signature.count(QStringLiteral("  CELL ")) == 12, qPrintable(signature));
-        // The grid shares the text area (Letter, one-inch margins: 468 points), and the table style's lines are the table's.
+        // The grid shares the text area (the paper's width less its margins), and the table style's lines are the table's.
         const QTextBlock firstCell = doc->story()->findBlock(c.position());
         QCOMPARE(cellKeyOf(firstCell) != 0, true);
         const flow::CellRecord *rec = doc->flow().tables.get(cellKeyOf(firstCell));
         QCOMPARE(rec->table->columns.size(), 4);
         double sum = 0;
         for (double w : rec->table->columns) sum += w;
-        QVERIFY2(std::abs(sum - 468) < 0.6, qPrintable(QString::number(sum)));
+        QVERIFY2(std::abs(sum - textWidthAt(*doc, 0)) < 0.6, qPrintable(QString::number(sum)));
         QVERIFY(rec->table->top.visible() && rec->table->insideV.visible());
         QCOMPARE(firstCell.blockFormat().bottomMargin(), 0.0);   // (Table Grid has no space after)
         // The cursor is in the first cell; the paragraph after the table is the one the cursor was in.
@@ -14024,7 +14024,7 @@ private Q_SLOTS:
         QVERIFY(x.contains("<w:tblW w:w=\"5000\" w:type=\"pct\"/>") && x.contains("<w:tblLayout w:type=\"autofit\"/>"));
         double sum = 0;
         for (double w : doc->flow().tables.get(cellKeyOf(c.block()))->table->columns) sum += w;
-        QVERIFY2(sum > 440 && sum <= 468, qPrintable(QString::number(sum)));
+        QVERIFY2(std::abs(sum - (textWidthAt(*doc, 0) - 10.8)) < 0.6, qPrintable(QString::number(sum)));   // (the text area less the cells' side margins)
         checkTablesReopenTheSame(*doc);
         fitTable(*doc, c, TableFit::Contents);
         QVERIFY(documentXml(doc->toDocx()).contains("<w:tblW w:w=\"0\" w:type=\"auto\"/>"));
