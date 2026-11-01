@@ -60,6 +60,13 @@ bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table);
 // The width in points of the text area the cursor's paragraph is set in.
 double textWidthAt(WriteDoc &doc, int position);
 
+// How many times the tables of a story have been looked at to find the one a place is in, and how many cells the commands that join cells have looked at, since the program
+// began (cost tests: a caret that moves about a table looks once, and a join looks at the cells near it).
+qint64 tableViewsBuiltForTest();
+qint64 tableCellsScannedForTest();
+// How many sets of a font's measures fitting columns to their cells has made.
+qint64 tableFontMeasuresMadeForTest();
+
 // The cell, row, column, or whole table the cursor is in selected.
 enum class TableUnit { Cell, Row, Column, Table };
 void selectInTable(WriteDoc &doc, QTextCursor &c, TableUnit unit);

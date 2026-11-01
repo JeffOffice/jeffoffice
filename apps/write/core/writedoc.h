@@ -271,6 +271,21 @@ public:
     QTextDocument *undo(QTextCursor *cursor = nullptr);
     QTextDocument *redo(QTextCursor *cursor = nullptr);
 
+    // ---- tables
+    // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
+    QString tableNotice;
+    // What core/tableops.cpp keeps with the document: the tables of the story as they were last looked at, and the keys of the cell records that paragraphs held before a command
+    // replaced them (`retiredFresh` of the last ones are those of the command just run), to be let go when there are many.
+    std::shared_ptr<void> tableViewCache;
+    QVector<int> retiredCells;
+    int retiredFresh = 0;
+    // The table style of this id for the tables the program makes: the file's own, else a built-in one, which the file written has only while a table has it. A built-in style
+    // is the default of its kind only when the file has none under any id.
+    bool ensureTableStyle(const QString &id);
+    // The styles tables are made from: the file's, with those the tables made have.
+    const office::wml::StyleSheet &tableSheet() const;
+    // The history of the body is let go (the steps and what they would bring back), as is told by its changes at the next save.
+    void dropBodyHistory();
     // ---- styles
     const office::wml::StyleSheet &styleSheet() const { return m_wml.styles; }
     int compatMode() const { return m_wml.compatMode; }
@@ -590,6 +605,8 @@ private:
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;
     mutable QHash<QString, std::shared_ptr<office::wml::StyleSheet>> m_scratch;
+    QVector<office::wml::Style> m_addedTableStyles;                    // built-in table styles that tables made have (see ensureTableStyle)
+    mutable std::shared_ptr<office::wml::StyleSheet> m_tableSheet;
     bool levelIsOutlined(const office::wml::Level &level, int key) const;
     mutable QHash<int, bool> m_levelOutlines;   // by definition and level (or, for a level a numbering id writes out itself, by the id and level): whether the level's bullets are outlined
     friend class Loader;

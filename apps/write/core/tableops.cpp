@@ -7,6 +7,7 @@
 #include "text/textprops.h"
 #include "wml/xmltree.h"
 
+#include <QCoreApplication>
 #include <QHash>
 #include <QSet>
 #include <QTextDocument>
@@ -33,10 +34,23 @@ namespace {
 
 // ---- the table the cursor is in, as the commands see it
 
+// What the story's tables come to at one moment, kept for as long as the story is as it was (the caret moving about a table, a command that asks twice): every paragraph's
+// place is looked at once to make the index, which a long story makes dear.
+struct ViewCache {
+    const QTextDocument *story = nullptr;
+    int revision = -1, characters = -1, records = -1;
+    std::shared_ptr<flow::TableIndex> index;
+    std::shared_ptr<void> last;     // the View made last, for the table it is of
+};
+
+qint64 g_viewsBuilt = 0, g_cellsScanned = 0, g_fontMeasures = 0;
+
 struct View {
-    flow::TableIndex index;
+    std::shared_ptr<flow::TableIndex> own;
+    flow::TableIndex &index;
     std::shared_ptr<flow::TableLayout> layout;
     int first = 0, last = 0, depth = 0;       // the table's paragraphs in the index, and how many cells deep it is
+    explicit View(std::shared_ptr<flow::TableIndex> i) : own(std::move(i)), index(*own) {}
 };
 
 std::shared_ptr<View> viewAt(WriteDoc &doc, int position)
@@ -45,8 +59,25 @@ std::shared_ptr<View> viewAt(WriteDoc &doc, int position)
     const QTextBlock b = story->findBlock(std::clamp(position, 0, std::max(0, story->characterCount() - 1)));
     const int key = cellKeyOf(b);
     if (!key) return nullptr;
-    auto v = std::make_shared<View>();
-    v->index.rebuild(story, doc.flow().tables);
+    auto &cache = *std::static_pointer_cast<ViewCache>(doc.tableViewCache ? doc.tableViewCache : (doc.tableViewCache = std::make_shared<ViewCache>()));
+    if (cache.story != story || cache.revision != story->revision() || cache.characters != story->characterCount() || cache.records != doc.flow().tables.count()) {
+        cache = ViewCache();
+        cache.story = story;
+        cache.revision = story->revision();
+        cache.characters = story->characterCount();
+        cache.records = doc.flow().tables.count();
+        cache.index = std::make_shared<flow::TableIndex>();
+        cache.index->rebuild(story, doc.flow().tables);
+    }
+    // (the table made last, when the place is in it)
+    if (auto last = std::static_pointer_cast<View>(cache.last)) {
+        const std::vector<flow::BlockRef> &refs = last->index.refs();
+        if (b.position() >= refs[size_t(last->first)].pos && b.position() < refs[size_t(last->last - 1)].end) {
+            const QVector<const flow::CellRecord *> &chain = last->index.chain(key);
+            if (int(chain.size()) - 1 == last->depth) return last;
+        }
+    }
+    auto v = std::make_shared<View>(cache.index);
     const QVector<const flow::CellRecord *> &chain = v->index.chain(key);
     if (chain.isEmpty()) return nullptr;
     v->depth = int(chain.size()) - 1;
@@ -70,7 +101,80 @@ std::shared_ptr<View> viewAt(WriteDoc &doc, int position)
     v->layout = flow::TableLayout::make(ctx, i0, i1, v->depth);
     v->first = i0;
     v->last = i1;
-    return v->layout ? v : nullptr;
+    ++g_viewsBuilt;
+    if (!v->layout) return nullptr;
+    cache.last = v;
+    return v;
+}
+
+// Every command makes the records of the cells of its table again, so the ones paragraphs held before pile up. When there are many more records than the story's paragraphs
+// hold, those no paragraph holds are let go, but the newest ones (a command's worth, which a page on the screen may yet have in its layout), and the history of the body, which
+// could bring a key back, is let go with them.
+void collectRecords(WriteDoc &doc)
+{
+    flow::TableStore &store = doc.flow().tables;
+    constexpr int kRecordsFree = 30000;
+    if ((store.liveCount() < kRecordsFree && doc.retiredCells.size() < kRecordsFree) || doc.retiredCells.isEmpty()) return;
+    QSet<int> held;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        for (const flow::CellRecord *r = store.get(cellKeyOf(b)); r && !held.contains(r->key); r = store.get(r->parent)) held.insert(r->key);
+    const int kept = int(held.size());
+    const bool free = store.liveCount() > 4 * kept + kRecordsFree;
+    if (free) {
+        doc.dropBodyHistory();
+        doc.tableViewCache.reset();
+    }
+    // (A key that a paragraph holds is not in the list: if a command takes it from the paragraph, the command says so.)
+    QVector<int> left;
+    QSet<int> seen;
+    const qsizetype newest = free ? std::max<qsizetype>(0, doc.retiredCells.size() - kept) : 0;
+    for (qsizetype i = 0; i < doc.retiredCells.size(); ++i) {
+        const int key = doc.retiredCells[i];
+        if (held.contains(key) || seen.contains(key)) continue;
+        seen.insert(key);
+        if (free && i < newest) store.release(key);
+        else left.push_back(key);
+    }
+    doc.retiredCells = left;
+}
+
+// The keys of the cells of the paragraphs from `from` to `to`, which a command is about to take out of the story: nothing holds them then.
+void retireRange(WriteDoc &doc, int from, int to)
+{
+    for (QTextBlock b = doc.story()->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+        if (const int key = cellKeyOf(b)) doc.retiredCells.push_back(key);
+}
+
+// What every command of tables begins with: it has no refusal yet, and when it is done the records that are not wanted are let go.
+struct TableCommand {
+    WriteDoc &doc;
+    static inline int depth = 0;   // (one command that runs another is one command: the records go when the outer one is done)
+    explicit TableCommand(WriteDoc &d) : doc(d)
+    {
+        if (depth++ == 0) doc.tableNotice.clear();
+    }
+    ~TableCommand()
+    {
+        if (--depth == 0) collectRecords(doc);
+    }
+};
+
+bool refuse(WriteDoc &doc, const QString &why)
+{
+    doc.tableNotice = why;
+    return false;
+}
+
+QString tableText(const char *text) { return QCoreApplication::translate("jp::write::Tables", text); }
+
+// Whether a table of so many rows, grid columns, and cells is past what the file's reader takes (it keeps a bigger one whole, as a stand-in, when the file is opened): a command
+// that would make one says so and does nothing.
+bool pastTheLimits(WriteDoc &doc, int rows, int columns, qint64 cells)
+{
+    if (rows > office::wml::kMaxTableRows) return !refuse(doc, tableText("A table can have at most 20,000 rows."));
+    if (columns > office::wml::kMaxTableColumns) return !refuse(doc, tableText("A table can have at most 256 columns."));
+    if (cells > office::wml::kMaxTableCellsEach) return !refuse(doc, tableText("A table can have at most 50,000 cells."));
+    return false;
 }
 
 // The rows and columns of the cells a selection is in (grid columns, so a cell that spans columns has all of them).
@@ -620,6 +724,7 @@ bool removeSelectionAcrossCells(WriteDoc &doc, QTextCursor &c)
         QVector<std::pair<int, int>> whole;
         for (const flow::TableIndex::Span &s : index.spans())
             if (from <= s.from && to >= s.to - 1) whole.push_back({s.from, s.to});
+        for (const auto &w : whole) retireRange(doc, w.first, w.second);
         for (int i = int(whole.size()) - 1; i >= 0; --i) removeParagraphs(d, d->findBlock(whole[i].first), d->findBlock(whole[i].second - 1));
         if (!whole.isEmpty()) keepAParagraphAfter(doc);
     }
@@ -669,11 +774,13 @@ bool removeSelectionAcrossCells(WriteDoc &doc, QTextCursor &c)
 
 void insertTableRow(WriteDoc &doc, QTextCursor &c, bool below)
 {
+    TableCommand command(doc);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
     const Area area = areaOf(*v, c);
-    c.beginEditBlock();
     const int count = area.r1 - area.r0 + 1;
+    if (pastTheLimits(doc, v->layout->rowCount() + count, columnCountOf(*v->layout), v->layout->cellCount() + qint64(count) * v->layout->row(below ? area.r1 : area.r0).cells)) return;
+    c.beginEditBlock();
     for (int n = 0; n < count; ++n) addRow(doc, *v, below ? area.r1 : area.r0, below);
     restyleTable(doc, c);
     c.endEditBlock();
@@ -681,6 +788,7 @@ void insertTableRow(WriteDoc &doc, QTextCursor &c, bool below)
 
 void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
 {
+    TableCommand command(doc);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
     flow::TableLayout &t = *v->layout;
@@ -693,6 +801,7 @@ void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
     const double width = columns.value(std::min(refColumn, int(columns.size()) - 1), 72.0);
     QVector<double> wider = columns;
     wider.insert(std::min(gc, int(wider.size())), width);
+    if (pastTheLimits(doc, t.rowCount(), int(wider.size()), t.cellCount() + qint64(t.rowCount()))) return;
     std::shared_ptr<flow::TableData> table = tableWithColumns(t.data(), wider, columns);
     c.beginEditBlock();
     // A cell in each row: before the cell that begins at the new column, or after the last; a cell the new column is inside of is made one wider.
@@ -785,11 +894,13 @@ void insertTableColumn(WriteDoc &doc, QTextCursor &c, bool right)
 
 void deleteTable(WriteDoc &doc, QTextCursor &c)
 {
+    TableCommand command(doc);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
     QTextDocument *d = doc.story();
     const int stop = parentOf(*v);
     const int at = v->index.refs()[size_t(v->first)].pos;
+    retireRange(doc, at, v->index.refs()[size_t(v->last - 1)].end);
     c.beginEditBlock();
     removeParagraphs(d, firstBlockOf(*v, d), lastBlockOf(*v, d));
     if (stop) keepCellParagraph(doc, stop, std::min(at, d->characterCount() - 1));
@@ -800,6 +911,7 @@ void deleteTable(WriteDoc &doc, QTextCursor &c)
 
 void deleteTableRows(WriteDoc &doc, QTextCursor &c)
 {
+    TableCommand command(doc);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
     flow::TableLayout &t = *v->layout;
@@ -810,6 +922,7 @@ void deleteTableRows(WriteDoc &doc, QTextCursor &c)
     }
     QTextDocument *d = doc.story();
     flow::TableStore &store = doc.flow().tables;
+    retireRange(doc, v->index.refs()[size_t(v->first)].pos, v->index.refs()[size_t(v->last - 1)].end);
     c.beginEditBlock();
     // A cell joined down that begins in a row that goes, and goes on below: the next row's cell is what it was (the first of the cells joined, or on its own now).
     const int after = area.r1 + 1;
@@ -893,6 +1006,7 @@ void deleteTableRows(WriteDoc &doc, QTextCursor &c)
 
 void deleteTableColumns(WriteDoc &doc, QTextCursor &c)
 {
+    TableCommand command(doc);
     auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
     flow::TableLayout &t = *v->layout;
@@ -907,6 +1021,7 @@ void deleteTableColumns(WriteDoc &doc, QTextCursor &c)
     QVector<double> narrower = columns;
     narrower.remove(area.c0, std::min(gone, int(narrower.size()) - area.c0));
     std::shared_ptr<flow::TableData> table = tableWithColumns(t.data(), narrower, columns);
+    retireRange(doc, v->index.refs()[size_t(v->first)].pos, v->index.refs()[size_t(v->last - 1)].end);
     c.beginEditBlock();
     // A cell that is wholly in the columns goes, one that is partly in them has fewer; a row that has no cell left goes.
     struct Cut {
@@ -981,6 +1096,7 @@ void deleteTableColumns(WriteDoc &doc, QTextCursor &c)
 
 bool tabThroughCells(WriteDoc &doc, QTextCursor &c, bool back)
 {
+    TableCommand command(doc);
     auto v = viewAt(doc, c.position());
     if (!v) return false;
     const flow::TableLayout &t = *v->layout;
@@ -993,9 +1109,10 @@ bool tabThroughCells(WriteDoc &doc, QTextCursor &c, bool back)
     if (j >= t.cellCount()) {
         // After the last cell: one row after the table's last (whatever cells are joined down in it), and the cursor in its first cell.
         const int rows = t.rowCount();
+        if (pastTheLimits(doc, rows + 1, columnCountOf(t), t.cellCount() + qint64(t.row(rows - 1).cells))) return true;
         c.beginEditBlock();
         addRow(doc, *v, rows - 1, true);
-    restyleTable(doc, c);
+        restyleTable(doc, c);
         c.endEditBlock();
         if (auto fresh = viewAt(doc, c.position())) {
             const flow::TableLayout &u = *fresh->layout;
@@ -1206,7 +1323,7 @@ QVector<QVector<int>> remake(WriteDoc &doc, const XTable &x)
     QVector<Block> body;
     body.push_back(structureOf("tbl", Inline::Open, QByteArray()));
     for (int i = 0; i < x.rows.size(); ++i) body.push_back(structureOf("tr", Inline::Open, QByteArray()));
-    TableBuilder builder(&doc.flow(), &doc.styleSheet(), doc.compatMode(), body);
+    TableBuilder builder(&doc.flow(), &doc.tableSheet(), doc.compatMode(), body);
     QVector<Block> pending;
     if (x.part) pending = x.part->before;
     builder.take(structureOf("tbl", Inline::Open, x.open, TableMark::Table), &pending);
@@ -1239,6 +1356,7 @@ QVector<QVector<int>> remake(WriteDoc &doc, const XTable &x)
             for (int &k : row) {
                 flow::CellRecord rec = *store.get(k);
                 rec.parent = x.parent;
+                doc.retiredCells.push_back(k);   // (the one the builder made is not used)
                 k = store.add(rec);
             }
     }
@@ -1248,7 +1366,7 @@ QVector<QVector<int>> remake(WriteDoc &doc, const XTable &x)
 // The keys for the paragraphs of cells that have new records: the cell, and the cells of the tables in it, which have the new key for their parent.
 class Remap {
 public:
-    Remap(flow::TableStore *store, QHash<int, int> map) : m_store(store), m_map(std::move(map)) {}
+    Remap(flow::TableStore *store, QHash<int, int> map, QVector<int> *retired = nullptr) : m_store(store), m_map(std::move(map)), m_retired(retired) {}
     int keyFor(int key)
     {
         if (!key) return 0;
@@ -1262,23 +1380,26 @@ public:
         copy.parent = parent;
         const int made = m_store->add(copy);
         m_map.insert(key, made);
+        if (m_retired) m_retired->push_back(key);
         return made;
     }
 
 private:
     flow::TableStore *m_store;
     QHash<int, int> m_map;
+    QVector<int> *m_retired;
 };
 
 void giveKeys(WriteDoc &doc, int from, int to, const QHash<int, int> &map)
 {
     QTextDocument *d = doc.story();
-    Remap remap(&doc.flow().tables, map);
+    Remap remap(&doc.flow().tables, map, &doc.retiredCells);
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
         const int key = cellKeyOf(b);
         if (!key) continue;
         const int now = remap.keyFor(key);
         if (now == key) continue;
+        doc.retiredCells.push_back(key);
         QTextBlockFormat bf = b.blockFormat();
         bf.setProperty(flow::fp::Cell, now);
         QTextCursor(b).setBlockFormat(bf);
@@ -1315,6 +1436,7 @@ void restyleTable(WriteDoc &doc, QTextCursor &c)
     editTable(doc, c, [](XTable &, const View &, const Area &) { return true; });
 }
 
+
 bool hits(const flow::TableLayout::Cell &cell, const Area &a)
 {
     return cell.row <= a.r1 && cell.row + cell.rows - 1 >= a.r0 && cell.col <= a.c1 && cell.col + cell.span - 1 >= a.c0;
@@ -1329,6 +1451,12 @@ void forCells(XTable &x, const View &v, const Area &a, const std::function<void(
         }
 }
 
+// A row with the gaps it leaves at its ends as given (grid columns), and the widths it says of them as the grid `columns` has them.
+void setRowGaps(XRow &row, int before, int after, const QVector<double> &columns)
+{
+    row.open = rowOpenWithGaps(row.open, before, twipsOf(columns, 0, before), after, twipsOf(columns, int(columns.size()) - after, after));
+}
+
 // The grid replaced, the cells' widths and the table's (when it is in points) following it.
 void setColumns(XTable &x, const View &v, const QVector<double> &columns)
 {
@@ -1339,24 +1467,34 @@ void setColumns(XTable &x, const View &v, const QVector<double> &columns)
     if (mark.width.stated() && mark.width.type == QLatin1String("dxa") && mark.width.w > 0)
         patches.push_back({"tblW", "<w:tblW w:w=\"" + QByteArray::number(std::max(1, mark.width.w + twipsOf(columns, 0, int(columns.size())) - twipsOf(was, 0, int(was.size())))) + "\" w:type=\"dxa\"/>"});
     x.open = patchPr(x.open, kTbl, patches, gridXml(columns));
-    for (XRow &r : x.rows)
+    for (int ri = 0; ri < x.rows.size(); ++ri) {
+        XRow &r = x.rows[ri];
+        const flow::RowData *data = v.layout->row(ri).data;
+        if (data->before > 0 || data->after > 0) setRowGaps(r, data->before, data->after, columns);   // (and the widths of the gaps the row says)
         for (XCell &c : r.cells) {
             const flow::TableLayout::Cell &lc = v.layout->cell(c.li);
             const TableMark cm = readTableMark(TableMark::Cell, c.open);
             if (cm.cellWidth.type == QLatin1String("pct")) continue;
             c.open = patchPr(c.open, kCell, {{"tcW", "<w:tcW w:w=\"" + QByteArray::number(twipsOf(columns, lc.col, lc.span)) + "\" w:type=\"dxa\"/>"}});
         }
+    }
 }
 
 // The words of the cell's paragraphs and how wide they are on one line, for fitting a column to its cells.
-double naturalWidth(const QTextDocument *d, int from, int to)
+double naturalWidth(const QTextDocument *d, int from, int to, QHash<QString, QFontMetricsF> *metrics)
 {
     double most = 0;
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
         double w = 0;
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
-            w += QFontMetricsF(f.charFormat().font()).horizontalAdvance(f.text());
+            const QFont font = f.charFormat().font();
+            auto at = metrics->find(font.key());
+            if (at == metrics->end()) {
+                at = metrics->insert(font.key(), QFontMetricsF(font));
+                ++g_fontMeasures;
+            }
+            w += at->horizontalAdvance(f.text());
         }
         w += b.blockFormat().leftMargin() + b.blockFormat().rightMargin() + std::max(0.0, b.blockFormat().textIndent());
         most = std::max(most, w);
@@ -1370,6 +1508,7 @@ double naturalWidth(const QTextDocument *d, int from, int to)
 
 void setShading(WriteDoc &doc, QTextCursor &c, const QColor &fill)
 {
+    TableCommand command(doc);
     editTable(doc, c, [&](XTable &x, const View &v, const Area &a) {
         forCells(x, v, a, [&](XCell &cell, const flow::TableLayout::Cell &) { cell.open = patchPr(cell.open, kCell, {{"shd", shdXml(fill)}}); });
         return true;
@@ -1378,6 +1517,7 @@ void setShading(WriteDoc &doc, QTextCursor &c, const QColor &fill)
 
 void setBorders(WriteDoc &doc, QTextCursor &c, int sides, const flow::TableLine &line)
 {
+    TableCommand command(doc);
     editTable(doc, c, [&](XTable &x, const View &v, const Area &a) {
         const flow::TableLayout &t = *v.layout;
         auto edge = [&](const char *side, bool on) { return on ? borderXml(side, line) : QByteArray(); };
@@ -1407,6 +1547,7 @@ void setBorders(WriteDoc &doc, QTextCursor &c, int sides, const flow::TableLine 
 
 void setCellAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment across, flow::CellAlign down)
 {
+    TableCommand command(doc);
     const auto v = viewAt(doc, c.selectionStart());
     if (!v) return;
     const Area area = areaOf(*v, c);
@@ -1432,6 +1573,7 @@ void setCellAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment across, flow:
 
 void setColumnWidth(WriteDoc &doc, QTextCursor &c, double points)
 {
+    TableCommand command(doc);
     editTable(doc, c, [&](XTable &x, const View &v, const Area &a) {
         QVector<double> columns = x.columns;
         for (int col = a.c0; col <= a.c1 && col < columns.size(); ++col) columns[col] = std::max(1.0, points);
@@ -1442,6 +1584,7 @@ void setColumnWidth(WriteDoc &doc, QTextCursor &c, double points)
 
 void setRowHeight(WriteDoc &doc, QTextCursor &c, double points, bool exact)
 {
+    TableCommand command(doc);
     editTable(doc, c, [&](XTable &x, const View &, const Area &a) {
         const QByteArray height = points > 0 ? "<w:trHeight w:val=\"" + twipsText(points) + "\" w:hRule=\"" + (exact ? "exact" : "atLeast") + "\"/>" : QByteArray();
         for (int r = a.r0; r <= a.r1 && r < x.rows.size(); ++r) x.rows[r].open = patchPr(x.rows[r].open, kRow, {{"trHeight", height}});
@@ -1451,6 +1594,7 @@ void setRowHeight(WriteDoc &doc, QTextCursor &c, double points, bool exact)
 
 void distributeColumns(WriteDoc &doc, QTextCursor &c)
 {
+    TableCommand command(doc);
     editTable(doc, c, [&](XTable &x, const View &v, const Area &a) {
         QVector<double> columns = x.columns;
         int c0 = a.c0, c1 = std::min<int>(a.c1, int(columns.size()) - 1);
@@ -1468,6 +1612,7 @@ void distributeColumns(WriteDoc &doc, QTextCursor &c)
 
 void distributeRows(WriteDoc &doc, QTextCursor &c)
 {
+    TableCommand command(doc);
     editTable(doc, c, [&](XTable &x, const View &v, const Area &a) {
         int r0 = a.r0, r1 = std::min<int>(a.r1, int(x.rows.size()) - 1);
         if (r0 >= r1) {
@@ -1493,6 +1638,7 @@ double textWidthAt(WriteDoc &doc, int position)
 
 void fitTable(WriteDoc &doc, QTextCursor &c, TableFit fit)
 {
+    TableCommand command(doc);
     const double room = textWidthAt(doc, c.selectionStart());
     editTable(doc, c, [&](XTable &x, const View &v, const Area &) {
         const flow::TableLayout &t = *v.layout;
@@ -1512,11 +1658,12 @@ void fitTable(WriteDoc &doc, QTextCursor &c, TableFit fit)
             patches = {{"tblW", "<w:tblW w:w=\"5000\" w:type=\"pct\"/>"}, {"tblLayout", "<w:tblLayout w:type=\"autofit\"/>"}};
         } else {
             // To the contents: each column as wide as the widest text in a cell that is in it alone, and the whole no wider than the text area.
+            QHash<QString, QFontMetricsF> metrics;   // (one for each font that is in the cells: a cell has few, and a table has many cells)
             QVector<double> wanted(columns.size(), 18.0);
             for (int i = 0; i < t.cellCount(); ++i) {
                 const flow::TableLayout::Cell &lc = t.cell(i);
                 if (lc.span != 1 || lc.col >= wanted.size()) continue;
-                const double w = naturalWidth(doc.story(), lc.from, lc.to) + lc.margins.left() + lc.margins.right() + 1;
+                const double w = naturalWidth(doc.story(), lc.from, lc.to, &metrics) + lc.margins.left() + lc.margins.right() + 1;
                 wanted[lc.col] = std::max(wanted[lc.col], w);
             }
             double sum = 0;
@@ -1610,7 +1757,8 @@ TableProps tablePropsAt(WriteDoc &doc, const QTextCursor &c)
 
 void setTableProps(WriteDoc &doc, QTextCursor &c, const TableProps &was, const TableProps &now)
 {
-    if (!now.style.isEmpty() && now.style != was.style) doc.ensureStyle(now.style);
+    TableCommand command(doc);
+    if (!now.style.isEmpty() && now.style != was.style) doc.ensureTableStyle(now.style);
     editTable(doc, c, [&](XTable &x, const View &v, const Area &a) {
         QVector<Patch> table;
         if (now.align != was.align)
@@ -1655,7 +1803,8 @@ void setTableProps(WriteDoc &doc, QTextCursor &c, const TableProps &was, const T
 
 void setTableStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
-    if (!styleId.isEmpty()) doc.ensureStyle(styleId);
+    TableCommand command(doc);
+    if (!styleId.isEmpty()) doc.ensureTableStyle(styleId);
     editTable(doc, c, [&](XTable &x, const View &, const Area &) {
         x.open = patchPr(x.open, kTbl, {{"tblStyle", styleId.isEmpty() ? QByteArray() : "<w:tblStyle w:val=\"" + escapeXml(styleId, true) + "\"/>"}});
         return true;
@@ -1664,6 +1813,7 @@ void setTableStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 
 void setTableLook(WriteDoc &doc, QTextCursor &c, int mask, bool on)
 {
+    TableCommand command(doc);
     editTable(doc, c, [&](XTable &x, const View &, const Area &) {
         int look = readTableMark(TableMark::Table, x.open).look;
         look = on ? (look | mask) : (look & ~mask);
@@ -1676,6 +1826,7 @@ void setTableLook(WriteDoc &doc, QTextCursor &c, int mask, bool on)
 
 bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table)
 {
+    TableCommand command(doc);
     if (table.rows < 1 || table.columns < 1 || table.rows > 500 || table.columns > 63) return false;
     QTextDocument *d = doc.story();
     if (c.document() != d || cellKeyOf(d->findBlock(c.selectionStart()))) return false;
@@ -1683,7 +1834,7 @@ bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table)
     c.setPosition(c.selectionStart());
     if (c.position() > c.block().position()) insertParagraph(doc, c);
     const QTextBlock after = c.block();
-    if (!table.style.isEmpty()) doc.ensureStyle(table.style);
+    if (!table.style.isEmpty()) doc.ensureTableStyle(table.style);
     const double room = textWidthAt(doc, after.position());
     const double each = table.columnWidth > 0 ? table.columnWidth : room / table.columns;
     QVector<double> columns(table.columns, each);
@@ -1744,20 +1895,31 @@ bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table)
 namespace {
 
 // The area made to hold whole the cells it touches (a cell that is part in and part out is wholly in).
+// The cells of the rows an area can touch (those that begin in it, and those that begin above and go down into it), each looked at once.
+void forCellsNear(const View &v, const Area &a, const std::function<void(int, const flow::TableLayout::Cell &)> &fn)
+{
+    const flow::TableLayout &t = *v.layout;
+    const int back = t.mostRowsJoined();
+    for (int r = std::max(0, a.r0 - back + 1); r <= std::min(a.r1, t.rowCount() - 1); ++r)
+        for (int i = t.row(r).cell0; i < t.row(r).cell0 + t.row(r).cells; ++i) {
+            ++g_cellsScanned;
+            fn(i, t.cell(i));
+        }
+}
+
 Area closedArea(const View &v, Area a)
 {
     bool grew = true;
     while (grew) {
         grew = false;
-        for (int i = 0; i < v.layout->cellCount(); ++i) {
-            const flow::TableLayout::Cell &lc = v.layout->cell(i);
-            if (!hits(lc, a)) continue;
+        forCellsNear(v, a, [&](int, const flow::TableLayout::Cell &lc) {
+            if (!hits(lc, a)) return;
             const Area b{std::min(a.r0, lc.row), std::max(a.r1, lc.row + lc.rows - 1), std::min(a.c0, lc.col), std::max(a.c1, lc.col + lc.span - 1)};
             if (b.r0 != a.r0 || b.r1 != a.r1 || b.c0 != a.c0 || b.c1 != a.c1) {
                 a = b;
                 grew = true;
             }
-        }
+        });
     }
     return a;
 }
@@ -1780,10 +1942,10 @@ bool areaIsFilled(const View &v, const Area &a)
     return true;
 }
 
-bool cellIsEmpty(const QTextDocument *d, int from, int to)
+bool cellIsEmpty(const QTextDocument *d, int from, int to, int ownKey)
 {
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next())
-        if (b.length() > 1) return false;
+        if (b.length() > 1 || cellKeyOf(b) != ownKey) return false;   // (a table in the cell is something in it, whatever its cells hold)
     return true;
 }
 
@@ -1804,13 +1966,15 @@ bool canMergeCells(WriteDoc &doc, const QTextCursor &c)
     if (!v) return false;
     const Area a = closedArea(*v, areaOf(*v, c));
     int real = 0;
-    for (int i = 0; i < v->layout->cellCount(); ++i)
-        if (hits(v->layout->cell(i), a) && !v->layout->cell(i).covered) ++real;
+    forCellsNear(*v, a, [&](int, const flow::TableLayout::Cell &lc) {
+        if (hits(lc, a) && !lc.covered) ++real;
+    });
     return real > 1 && areaIsFilled(*v, a);
 }
 
 bool mergeCells(WriteDoc &doc, QTextCursor &c)
 {
+    TableCommand command(doc);
     const auto v = viewAt(doc, c.selectionStart());
     if (!v) return false;
     const Area a = closedArea(*v, areaOf(*v, c));
@@ -1819,25 +1983,33 @@ bool mergeCells(WriteDoc &doc, QTextCursor &c)
     // The cells in the area, row by row (a cell joined down is in the row it begins in, and the rows under it have its continuations).
     QVector<QVector<int>> inRow(a.r1 - a.r0 + 1);
     int real = 0;
-    for (int i = 0; i < t.cellCount(); ++i) {
-        const flow::TableLayout::Cell &lc = t.cell(i);
-        if (!hits(lc, a)) continue;
+    forCellsNear(*v, a, [&](int i, const flow::TableLayout::Cell &lc) {
+        if (!hits(lc, a)) return;
         if (!lc.covered) ++real;
         inRow[lc.row - a.r0].push_back(i);
-    }
+    });
     if (real < 2 || !areaIsFilled(*v, a)) return false;
+    retireRange(doc, t.cell(inRow[0].first()).from, t.cell(inRow.last().last()).to);
     const int topLeft = inRow[0].first();
     // What the other cells hold, to be put after what the first has: the cells with something in them, in reading order.
     QVector<QTextDocumentFragment> carry;
+    QVector<int> carriedKeys;   // (the cells they are from)
+    QVector<std::pair<QTextBlockFormat, QTextCharFormat>> carryFormats;   // (the formats of their first paragraphs, which a fragment does not give back)
+    bool carryStartsPlain = false;
     for (const QVector<int> &mine : std::as_const(inRow))
         for (int li : mine) {
             const flow::TableLayout::Cell &lc = t.cell(li);
-            if (li == topLeft || lc.covered || cellIsEmpty(d, lc.from, lc.to)) continue;
+            if (li == topLeft || lc.covered || cellIsEmpty(d, lc.from, lc.to, lc.rec->key)) continue;
             QTextCursor sel(d);
             sel.setPosition(lc.from);
             sel.setPosition(lc.to - 1, QTextCursor::KeepAnchor);
+            if (carry.isEmpty()) carryStartsPlain = cellKeyOf(d->findBlock(lc.from)) == lc.rec->key;
+            carryFormats.push_back({d->findBlock(lc.from).blockFormat(), d->findBlock(lc.from).charFormat()});
             carry.push_back(sel.selection());
+            carriedKeys.push_back(lc.rec->key);
         }
+    // (a first cell with nothing in it takes the first thing carried in its one paragraph, when that begins with a paragraph of its cell)
+    const bool firstCarriedIsPlain = !carry.isEmpty() && carryStartsPlain;
     // The parts: one cell for the area in each of its rows.
     XTable x = modelOf(*v);
     QVector<int> at(inRow.size(), -1);
@@ -1847,6 +2019,17 @@ bool mergeCells(WriteDoc &doc, QTextCursor &c)
         for (int i = 0; i < row.cells.size(); ++i)
             if (row.cells[i].li == mine.first()) at[r - a.r0] = i;
         XCell cell = row.cells[at[r - a.r0]];
+        // What the cells that are joined had between them (a bookmark, a content control) is kept with the cell they are joined into.
+        {
+            auto part = std::make_shared<CellPart>(cell.part ? *cell.part : CellPart());
+            for (int k = 1; k < mine.size(); ++k) {
+                const XCell &other = row.cells[at[r - a.r0] + k];
+                if (!other.part) continue;
+                part->before += other.part->before;
+                part->tail += other.part->tail;
+            }
+            cell.part = part;
+        }
         cell.open = cellWith(cell.open, x.columns, a.c0, a.c1 - a.c0 + 1, r == a.r0 ? (a.r1 > a.r0 ? QStringLiteral("restart") : QString()) : QStringLiteral("continue"));
         cell.tag = 1;
         row.cells.erase(row.cells.begin() + at[r - a.r0], row.cells.begin() + at[r - a.r0] + mine.size());
@@ -1878,6 +2061,12 @@ bool mergeCells(WriteDoc &doc, QTextCursor &c)
             wipe.removeSelectedText();
         }
         first = d->findBlock(from);
+        {
+            // (the paragraph that is left is the cell's own, though the cell began with a table: that table is carried or taken out with the rest)
+            QTextBlockFormat own = first.blockFormat();
+            own.setProperty(flow::fp::Cell, t.cell(mine.first()).rec->key);
+            QTextCursor(first).setBlockFormat(own);
+        }
         if (lastOfRow != first) removeParagraphs(d, first.next(), lastOfRow);
     }
     {
@@ -1889,7 +2078,7 @@ bool mergeCells(WriteDoc &doc, QTextCursor &c)
             const QTextBlock last = d->findBlock(firstCell.to - 1);
             const QTextBlockFormat bf = last.blockFormat();
             const QTextCharFormat cf = last.charFormat();
-            const bool onlyEmpty = cellIsEmpty(d, firstCell.from, firstCell.to);
+            const bool onlyEmpty = cellIsEmpty(d, firstCell.from, firstCell.to, firstCell.rec->key) && firstCarriedIsPlain;
             QTextCursor put(d);
             int from;
             if (onlyEmpty) {
@@ -1903,11 +2092,26 @@ bool mergeCells(WriteDoc &doc, QTextCursor &c)
             }
             for (int i = 0; i < carry.size(); ++i) {
                 if (i > 0) put.insertBlock(bf, cf);
+                // (A fragment put into a paragraph that is there takes that paragraph's format for its first: it is given its own back, which is that of a cell of a table when the
+                // cell began with one.)
+                const int at = put.position();
                 put.insertFragment(carry[i]);
+                if (i > 0 || !onlyEmpty) {
+                    QTextCursor first(d->findBlock(at));
+                    first.setBlockFormat(carryFormats[i].first);
+                    first.setBlockCharFormat(carryFormats[i].second);
+                }
             }
+            // The paragraphs of the cells they were in are the merged cell's; the cells of tables in them are the cells of those tables, which are in the merged cell now.
+            QHash<int, int> intoTop;
+            for (int key : std::as_const(carriedKeys)) intoTop.insert(key, topKey);
+            Remap nested(&doc.flow().tables, intoTop, &doc.retiredCells);
             for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= put.position(); b = b.next()) {
+                const int key = cellKeyOf(b);
+                const int now = nested.keyFor(key);
+                if (now == key) continue;
                 QTextBlockFormat f = b.blockFormat();
-                f.setProperty(flow::fp::Cell, topKey);
+                f.setProperty(flow::fp::Cell, now);
                 QTextCursor(b).setBlockFormat(f);
             }
         }
@@ -1928,6 +2132,7 @@ bool canSplitCell(WriteDoc &doc, const QTextCursor &c)
 
 bool splitCells(WriteDoc &doc, QTextCursor &c, int columns, int rows)
 {
+    TableCommand command(doc);
     if (columns < 1 || rows < 1 || columns > 63 || rows > 500 || columns * rows < 2) return false;
     const auto v = viewAt(doc, c.selectionStart());
     if (!v) return false;
@@ -1936,7 +2141,13 @@ bool splitCells(WriteDoc &doc, QTextCursor &c, int columns, int rows)
     if (li < 0 || t.cell(li).covered) return false;
     const flow::TableLayout::Cell L = t.cell(li);
     const int R = L.rows, n = columns, m = rows;
-    if (m > 1 && R > 1 && m != R) return false;      // (a cell joined down is split into as many rows as it joins, or kept joined)
+    if (m > 1 && R > 1 && m != R) return refuse(doc, tableText("A cell that is joined down over %1 rows can be split into 1 row or into %1 rows.").arg(R));   // (as many rows as it joins, or kept joined)
+    {
+        const int moreColumns = std::max(0, n - L.span), moreRows = m > 1 && R == 1 ? m - 1 : 0;
+        if (pastTheLimits(doc, t.rowCount() + moreRows, columnCountOf(t) + moreColumns,
+                          qint64(t.cellCount()) + qint64(R) * (n - 1) + qint64(moreRows) * (t.row(L.row).cells + n - 1)))
+            return false;
+    }
     QTextDocument *d = doc.story();
     XTable x = modelOf(*v);
     // The grid: a cell split into more columns than it takes gets columns more, made from the widest it takes.
@@ -1973,6 +2184,13 @@ bool splitCells(WriteDoc &doc, QTextCursor &c, int columns, int rows)
             cell.like = lc.from;
         }
     if (extra > 0) {
+        // The rows that leave grid columns empty at their ends have more of them when the new columns are there, and say how wide the gap is.
+        const int was = int(x.columns.size());
+        for (int ri = 0; ri < x.rows.size(); ++ri) {
+            const flow::RowData *data = t.row(ri).data;
+            if (data->before <= 0 && data->after <= 0) continue;
+            setRowGaps(x.rows[ri], data->before + (widest < data->before ? extra : 0), data->after + (widest >= was - data->after ? extra : 0), grid);
+        }
         x.open = patchPr(x.open, kTbl, {}, gridXml(grid));
         x.columns = grid;
     }
@@ -2094,6 +2312,10 @@ bool splitCells(WriteDoc &doc, QTextCursor &c, int columns, int rows)
     return true;
 }
 
+
+qint64 tableViewsBuiltForTest() { return g_viewsBuilt; }
+qint64 tableCellsScannedForTest() { return g_cellsScanned; }
+qint64 tableFontMeasuresMadeForTest() { return g_fontMeasures; }
 
 void selectInTable(WriteDoc &doc, QTextCursor &c, TableUnit unit)
 {

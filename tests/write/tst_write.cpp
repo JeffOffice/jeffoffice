@@ -22,6 +22,7 @@
 #include "core/editops.h"
 #include "core/printing.h"
 #include "core/spellcheck.h"
+#include "app/tabledialogs.h"
 #include "core/tableops.h"
 #include "core/wordformat.h"
 #include "core/writedoc.h"
@@ -14082,9 +14083,9 @@ private Q_SLOTS:
     {
         auto doc = open(tableDocx(3, 2));
         QTextCursor c = cursorAt(*doc, QStringLiteral("r0c0"));
-        setTableStyle(*doc, c, QStringLiteral("GridTable4Accent1"));
-        QVERIFY(styleXml(doc->toDocx()).contains("w:styleId=\"GridTable4Accent1\""));
-        QVERIFY(documentXml(doc->toDocx()).contains("<w:tblStyle w:val=\"GridTable4Accent1\"/>"));
+        setTableStyle(*doc, c, QStringLiteral("GridTable4-Accent1"));
+        QVERIFY(styleXml(doc->toDocx()).contains("w:styleId=\"GridTable4-Accent1\""));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:tblStyle w:val=\"GridTable4-Accent1\"/>"));
         auto fillOfCell = [&](const QString &text) {
             const flow::CellRecord *r = doc->flow().tables.get(cellKeyOf(cursorAt(*doc, text).block()));
             return r->cell.fill ? r->cell.fill->name() : QString();
@@ -14116,7 +14117,7 @@ private Q_SLOTS:
     {
         auto doc = open(tableDocx(5, 3));
         QTextCursor c = cursorAt(*doc, QStringLiteral("r1c1"));
-        setTableStyle(*doc, c, QStringLiteral("GridTable4Accent1"));
+        setTableStyle(*doc, c, QStringLiteral("GridTable4-Accent1"));
         setTableLook(*doc, c, 0x40 | 0x100 | 0x400, true);   // (a total row, a last column, and no banded columns)
         checkTablesReopenTheSame(*doc);
         insertTableRow(*doc, c, true);
@@ -14136,6 +14137,434 @@ private Q_SLOTS:
         const QString full = tablesSignature(*doc);
         while (doc->story()->isUndoAvailable()) doc->story()->undo();
         QVERIFY(tablesSignature(*doc) != full);
+    }
+
+    // ---- review fixes of beta wave B
+
+    // Every command of a table changes the records of the table's cells; the ones no paragraph holds and no step of the history can bring back are let go, so that many commands on a long
+    // table keep the records within a bound instead of adding the table's cells again each time.
+    void aTablesRecordsAreFreedAsItIsChanged()
+    {
+        auto doc = open(tableDocx(2000, 3));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r0c0"));
+        int most = 0;
+        for (int i = 0; i < 50; ++i) {
+            if (i % 3 == 0) setShading(*doc, c, QColor((i * 4) % 256, 0, 0));
+            else if (i % 3 == 1) setColumnWidth(*doc, c, 90 + i);
+            else setRowHeight(*doc, c, 20 + i, false);
+            most = std::max(most, doc->flow().tables.liveCount());
+        }
+        QVERIFY2(most < 70000, qPrintable(QString::number(most)));   // (6,000 cells; 51 times that without)
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tr>")), 2000);
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(back->flow().tables.liveCount(), 6000);
+        // The history is still good for what it holds: the last steps undo to the table as it was.
+        const QString now = tablesSignature(*doc).left(4000);
+        setShading(*doc, c, QColor(1, 2, 3));
+        doc->story()->undo();
+        QCOMPARE(tablesSignature(*doc).left(4000), now);
+    }
+
+    // A command that would make a table the reader's limits cut (256 columns, 20,000 rows) is refused with a reason, whatever the command.
+    void commandsThatWouldPassTheReadersLimitsAreRefused()
+    {
+        auto wide = open(tableDocx(2, 256));
+        QTextCursor c = cursorAt(*wide, QStringLiteral("r0c0"));
+        const QByteArray was = wide->toDocx();
+        wide->tableNotice.clear();
+        insertTableColumn(*wide, c, true);
+        QVERIFY(!wide->tableNotice.isEmpty());
+        QCOMPARE(documentXml(wide->toDocx()), documentXml(was));
+        wide->tableNotice.clear();
+        QVERIFY(!splitCells(*wide, c, 2, 1));   // (a cell of one column into two: 257)
+        QVERIFY(!wide->tableNotice.isEmpty());
+        QCOMPARE(documentXml(wide->toDocx()), documentXml(was));
+        // One column short of the limit: a column and a split are fine, up to it.
+        auto nearly = open(tableDocx(2, 255));
+        QTextCursor n = cursorAt(*nearly, QStringLiteral("r0c0"));
+        nearly->tableNotice.clear();
+        QVERIFY(splitCells(*nearly, n, 2, 1));
+        QVERIFY(nearly->tableNotice.isEmpty());
+        checkTablesReopenTheSame(*nearly);
+        // Rows.
+        auto tall = open(tableDocx(20000, 1));
+        QTextCursor t = cursorAt(*tall, QStringLiteral("r19999c0"));
+        const QString plainWas = plain(*tall);
+        tall->tableNotice.clear();
+        insertTableRow(*tall, t, true);
+        QVERIFY(!tall->tableNotice.isEmpty());
+        tall->tableNotice.clear();
+        QVERIFY(tabThroughCells(*tall, t, false));
+        QVERIFY(!tall->tableNotice.isEmpty());
+        tall->tableNotice.clear();
+        QVERIFY(!splitCells(*tall, t, 1, 2));
+        QVERIFY(!tall->tableNotice.isEmpty());
+        QCOMPARE(plain(*tall), plainWas);
+        QCOMPARE(int(documentXml(tall->toDocx()).count("<w:tr>")), 20000);
+    }
+
+    // A cell split into more columns than it takes leaves the gaps of the rows that begin or end later as they are: the gap grows when the new columns are in it, and the width of
+    // the gap with it. Setting a column's width does the same.
+    void splittingAndSizingKeepTheGapsOfTheOtherRowsRight()
+    {
+        // Four columns of 2000: row A has a cell on columns 0, 1 to 2, and 3; row B has its one cell in the last column, three columns empty before it, and row C has one cell
+        // with three empty after it.
+        const QByteArray body = cellP("top") +
+                                tableX(rowX(cellX(cellP("A0")) + cellX(cellP("A12"), "<w:gridSpan w:val=\"2\"/>", 4000) + cellX(cellP("A3"))) +
+                                           rowX(cellX(cellP("B3")), "<w:gridBefore w:val=\"3\"/><w:wBefore w:w=\"6000\" w:type=\"dxa\"/>") +
+                                           rowX(cellX(cellP("C0")), "<w:gridAfter w:val=\"3\"/><w:wAfter w:w=\"6000\" w:type=\"dxa\"/>"),
+                                       4, 2000) +
+                                cellP("tail");
+        auto doc = open(makeDocx(body, kStyles));
+        QTextCursor in = cursorAt(*doc, QStringLiteral("A12"));
+        QVERIFY(splitCells(*doc, in, 3, 1));
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("<w:gridBefore w:val=\"4\"/>"), x.constData());
+        // (the grid is 2000, 1000, 1000, 2000, 2000 now: the four columns before B's cell are 6000 wide, the four after C's are the last four, also 6000)
+        QVERIFY2(x.contains("<w:wBefore w:w=\"6000\"") && x.contains("<w:gridAfter w:val=\"4\"/>") && x.contains("<w:wAfter w:w=\"6000\""), x.constData());
+        checkTablesReopenTheSame(*doc);
+        // A column wider moves the width of the gap that has it, and not that of the gap that has not.
+        QTextCursor sized = cursorAt(*doc, QStringLiteral("A0"));
+        setColumnWidth(*doc, sized, 150);
+        const QByteArray y = documentXml(doc->toDocx());
+        QVERIFY2(y.contains("<w:wBefore w:w=\"7000\"") && y.contains("<w:wAfter w:w=\"6000\""), y.constData());
+        checkTablesReopenTheSame(*doc);
+        // The after gap: the cell split is the last row's, and the gap is at the end of row C.
+        auto after = open(makeDocx(body, kStyles));
+        QTextCursor cc = cursorAt(*after, QStringLiteral("A3"));
+        QVERIFY(splitCells(*after, cc, 2, 1));
+        checkTablesReopenTheSame(*after);
+        const QByteArray z = documentXml(after->toDocx());
+        QVERIFY2(z.contains("<w:gridBefore w:val=\"3\"/>") && z.contains("<w:gridAfter w:val=\"4\"/>"), z.constData());   // (the new column is in the end gap, not the first)
+    }
+
+    // A table style that is added to a document is the document's default only when the document has none under any id, so a file never has two.
+    void aBuiltInTableStyleIsNotAddedAsASecondDefault()
+    {
+        const QByteArray styles = kStyles + "<w:style w:type=\"table\" w:default=\"1\" w:styleId=\"NormalTable\"><w:name w:val=\"Normal Table\"/><w:tblPr><w:tblInd w:w=\"0\" w:type=\"dxa\"/></w:tblPr></w:style>";
+        auto doc = open(makeDocx(cellP("x") + tableX(rowX(cellX(cellP("a")) + cellX(cellP("b"))), 2) + cellP("y"), styles));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("a"));
+        setTableStyle(*doc, c, QStringLiteral("GridTable4-Accent1"));
+        const QByteArray s = styleXml(doc->toDocx());
+        QCOMPARE(int(s.count("w:type=\"table\" w:default=\"1\"")) + int(s.count("w:default=\"1\" w:styleId=\"TableNormal\"")), 1);
+        QVERIFY(s.contains("w:styleId=\"GridTable4-Accent1\""));
+        QVERIFY(s.contains("w:styleId=\"NormalTable\""));
+        // In a document with none, the first one added has it, and a second built-in table style does not add another.
+        auto plainDoc = open(tableDocx(2, 2));
+        QTextCursor p = cursorAt(*plainDoc, QStringLiteral("r0c0"));
+        setTableStyle(*plainDoc, p, QStringLiteral("TableGrid"));
+        setTableStyle(*plainDoc, p, QStringLiteral("PlainTable1"));
+        const QByteArray t = styleXml(plainDoc->toDocx());
+        QCOMPARE(int(t.count("w:default=\"1\"")) - int(t.count("w:type=\"paragraph\" w:default=\"1\"")), 1);
+    }
+
+    // A command that adds a style to the document is one step: Undo gives back the document as it was, the styles part included, and Redo makes it again.
+    void undoOfATableStyleTakesTheAddedStyleBackToo()
+    {
+        auto doc = open(tableDocx(2, 2));
+        const QByteArray stylesWas = styleXml(doc->toDocx()), bodyWas = documentXml(doc->toDocx());
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r0c0"));
+        setTableStyle(*doc, c, QStringLiteral("GridTable4-Accent2"));
+        const QByteArray stylesNow = styleXml(doc->toDocx());
+        QVERIFY(stylesNow.contains("GridTable4-Accent2"));
+        doc->story()->undo();
+        QCOMPARE(styleXml(doc->toDocx()), stylesWas);
+        QCOMPARE(documentXml(doc->toDocx()), bodyWas);
+        doc->story()->redo();
+        QCOMPARE(styleXml(doc->toDocx()), stylesNow);
+        // The same for a table made, and for Table Properties that name a style.
+        auto blank = WriteDoc::blank();
+        QTextCursor b(blank->story());
+        const QByteArray blankWas = styleXml(blank->toDocx());
+        NewTable t;
+        QVERIFY(insertTable(*blank, b, t));
+        QVERIFY(styleXml(blank->toDocx()).contains("w:styleId=\"TableGrid\""));
+        blank->story()->undo();
+        QCOMPARE(styleXml(blank->toDocx()), blankWas);
+        blank->story()->redo();
+        QVERIFY(styleXml(blank->toDocx()).contains("w:styleId=\"TableGrid\""));
+        b.setPosition(0);
+        const TableProps was = tablePropsAt(*blank, b);
+        TableProps now = was;
+        now.style = QStringLiteral("PlainTable2");
+        setTableProps(*blank, b, was, now);
+        QVERIFY(styleXml(blank->toDocx()).contains("w:styleId=\"PlainTable2\""));
+        blank->story()->undo();
+        QVERIFY(!styleXml(blank->toDocx()).contains("PlainTable2"));
+    }
+
+    // The ids of the built-in table styles are the conventional ones, so a file's own style of the id is the gallery's, and a style a build wrote with the id without its hyphen is
+    // still read.
+    void builtInTableStylesHaveTheConventionalIds()
+    {
+        const QStringList ids = office::wml::builtinTableStyleIds();
+        QVERIFY(ids.contains(QStringLiteral("GridTable4-Accent1")) && ids.contains(QStringLiteral("ListTable3-Accent3")));
+        for (const QString &id : ids) QVERIFY2(office::wml::builtinStyle(id).id == id, qPrintable(id));
+        const office::wml::Style old = office::wml::builtinStyle(QStringLiteral("GridTable4Accent1"));
+        QCOMPARE(old.id, QStringLiteral("GridTable4Accent1"));
+        QCOMPARE(old.tail, office::wml::builtinStyle(QStringLiteral("GridTable4-Accent1")).tail);
+        // A file that has the style is not given another.
+        auto doc = open(tableDocx(2, 2));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r0c0"));
+        setTableStyle(*doc, c, QStringLiteral("GridTable4-Accent1"));
+        auto again = open(doc->toDocx());
+        const int before = int(again->styleSheet().styles.size());
+        QTextCursor d = cursorAt(*again, QStringLiteral("r0c0"));
+        setTableStyle(*again, d, QStringLiteral("GridTable4-Accent1"));
+        QCOMPARE(int(again->styleSheet().styles.size()), before);
+    }
+
+    // Table Properties writes what the person changed and nothing else: a table indent that is negative, or past what the box held, stays as the file has it when OK is pressed.
+    void tablePropertiesKeepWhatThePersonDidNotChange()
+    {
+        for (const int twips : {-200, 40000}) {
+            const QByteArray body = cellP("x") +
+                                    tableX(rowX(cellX(cellP("a")) + cellX(cellP("b"))), 2, 2400, "<w:tblW w:w=\"0\" w:type=\"auto\"/><w:tblInd w:w=\"" + QByteArray::number(twips) + "\" w:type=\"dxa\"/>") + cellP("y");
+            auto doc = open(makeDocx(body, kStyles));
+            QTextCursor c = cursorAt(*doc, QStringLiteral("a"));
+            // OK with nothing changed: the file is as it was.
+            answerDialog([](QDialog *) {});
+            QVERIFY(tablePropertiesDialog(nullptr, doc.get(), &c));
+            QVERIFY2(documentXml(doc->toDocx()).contains("<w:tblInd w:w=\"" + QByteArray::number(twips) + "\""), qPrintable(QString::number(twips)));
+            // One thing changed: the rest of it as it was.
+            answerDialog([](QDialog *d) { d->findChild<QCheckBox *>(QStringLiteral("headerRow"))->setChecked(true); });
+            QVERIFY(tablePropertiesDialog(nullptr, doc.get(), &c));
+            const QByteArray x = documentXml(doc->toDocx());
+            QVERIFY(x.contains("<w:tblHeader/>"));
+            QVERIFY2(x.contains("<w:tblInd w:w=\"" + QByteArray::number(twips) + "\""), qPrintable(QString::number(twips)));
+            checkTablesReopenTheSame(*doc);
+        }
+    }
+
+    static void answerDialog(const std::function<void(QDialog *)> &fill)
+    {
+        QTimer::singleShot(0, qApp, [fill] {
+            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dlg) return;
+            fill(dlg);
+            dlg->accept();
+        });
+    }
+
+    // A table in a cell of cells that are merged stays a table: the cell it was in is the merged cell, and its own cells are its. A cell that holds only a table whose cells are
+    // empty is not an empty cell.
+    void mergingKeepsATableInACellIntact()
+    {
+        const QByteArray inner = tableX(rowX(cellX(cellP("n0")) + cellX(cellP("n1"))), 2);
+        const QByteArray innerEmpty = tableX(rowX(cellX("<w:p/>") + cellX("<w:p/>")), 2);
+        {
+            auto doc = open(makeDocx(cellP("top") + tableX(rowX(cellX(cellP("A")) + cellX(cellP("B0") + inner + cellP("B1"))), 2) + cellP("tail"), kStyles));
+            QTextCursor c(doc->story());
+            selectCells(*doc, c, QStringLiteral("A"), QStringLiteral("B1"));
+            QVERIFY(mergeCells(*doc, c));
+            const QByteArray x = documentXml(doc->toDocx());
+            QCOMPARE(int(x.count("<w:tbl>")), 2);   // (the nested table is there as a table)
+            QVERIFY(x.contains("n0") && x.contains("n1"));
+            checkTablesReopenTheSame(*doc);
+            const flow::CellRecord *inside = doc->flow().tables.get(cellKeyOf(cursorAt(*doc, QStringLiteral("n1")).block()));
+            QVERIFY(inside && inside->parent != 0);
+            const flow::CellRecord *parent = doc->flow().tables.get(inside->parent);
+            QVERIFY(parent && parent->parent == 0);
+            QCOMPARE(parent->cell.span, 2);
+        }
+        {
+            auto doc = open(makeDocx(cellP("top") + tableX(rowX(cellX(cellP("A")) + cellX(innerEmpty + "<w:p/>")), 2) + cellP("tail"), kStyles));
+            QTextBlock lastCell = doc->story()->lastBlock().previous();   // (the empty paragraph that ends the second cell)
+            QTextCursor c(doc->story());
+            c.setPosition(cursorAt(*doc, QStringLiteral("A")).position());
+            c.setPosition(lastCell.position(), QTextCursor::KeepAnchor);
+            QVERIFY(mergeCells(*doc, c));
+            QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tbl>")), 2);
+            int nested = 0;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+                if (const flow::CellRecord *r = doc->flow().tables.get(cellKeyOf(b)); r && r->parent) ++nested;
+            QCOMPARE(nested, 2);
+            checkTablesReopenTheSame(*doc);
+        }
+    }
+
+    // A merge puts the kept pieces of the cells it joins (a bookmark between cells) in the cell it makes.
+    void mergingKeepsThePiecesKeptBetweenCells()
+    {
+        const QByteArray body = cellP("top") +
+                                tableX(rowX(cellX(cellP("A")) + "<w:bookmarkStart w:id=\"7\" w:name=\"between\"/>" + cellX(cellP("B")) + "<w:bookmarkEnd w:id=\"7\"/>" + cellX(cellP("C"))), 3) +
+                                cellP("tail");
+        auto doc = open(makeDocx(body, kStyles));
+        QCOMPARE(int(documentXml(doc->toDocx()).count("w:name=\"between\"")), 1);
+        QTextCursor c(doc->story());
+        selectCells(*doc, c, QStringLiteral("A"), QStringLiteral("B"));
+        QVERIFY(mergeCells(*doc, c));
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(x.contains("w:name=\"between\"") && x.contains("<w:bookmarkEnd w:id=\"7\"/>"), x.constData());
+        checkTablesReopenTheSame(*doc);
+    }
+
+    // A bookmark kept between the rows or the cells of a table stays when the table is changed by any command, the older ones too.
+    void aBookmarkBetweenRowsStaysWhenATableIsChanged()
+    {
+        const QByteArray body = cellP("top") +
+                                tableX("<w:bookmarkStart w:id=\"7\" w:name=\"keep\"/>" + rowX(cellX(cellP("A0")) + cellX(cellP("A1"))) + "<w:bookmarkEnd w:id=\"7\"/>" +
+                                           rowX(cellX(cellP("B0")) + cellX(cellP("B1"))),
+                                       2) +
+                                cellP("tail");
+        for (int command = 0; command < 3; ++command) {
+            auto doc = open(makeDocx(body, kStyles));
+            QTextCursor c = cursorAt(*doc, QStringLiteral("B0"));
+            if (command == 0) insertTableRow(*doc, c, true);
+            else if (command == 1) setShading(*doc, c, QColor(0, 255, 0));
+            else deleteTableColumns(*doc, c);
+            const QByteArray x = documentXml(doc->toDocx());
+            QVERIFY2(x.contains("<w:bookmarkStart w:id=\"7\" w:name=\"keep\"/>") && x.contains("<w:bookmarkEnd w:id=\"7\"/>"), qPrintable(QString::number(command)));
+            checkTablesReopenTheSame(*doc);
+        }
+    }
+
+    // The commands of the Table tabs on tables made to be hard on them: one of 20,000 rows, one of 70 columns, and one whose merges and spans make no sense. Each runs in bounded time
+    // and leaves the document whole and the records bounded.
+    void everyTableCommandRunsOnHostileTables()
+    {
+        QByteArray odd;
+        odd += rowX(cellX(cellP("h0"), "<w:gridSpan w:val=\"9\"/><w:vMerge/>") + cellX(cellP("h1")));
+        odd += rowX(cellX(cellP("h2"), "<w:vMerge w:val=\"restart\"/>") + cellX(cellP("h3"), "<w:gridSpan w:val=\"0\"/>") + cellX(cellP("h4"), "<w:gridSpan w:val=\"7\"/>"));
+        odd += rowX(cellX(cellP("h5"), "<w:vMerge/>") + cellX(cellP("h6"), "<w:vMerge/>") + cellX(cellP("h7"), "<w:vMerge/>") + cellX(cellP("h8"), "<w:vMerge/>"));
+        odd += rowX(cellX(cellP("h9"), "<w:vMerge w:val=\"restart\"/><w:gridSpan w:val=\"2\"/>") + cellX(cellP("ha"), "<w:vMerge/><w:gridSpan w:val=\"3\"/>"));
+        odd += rowX(cellX(cellP("hb"), "<w:vMerge/>"), "<w:gridBefore w:val=\"5\"/><w:gridAfter w:val=\"9\"/>");
+        struct Doc {
+            const char *name;
+            QByteArray zip;
+            int bound;
+        };
+        const Doc docs[] = {{"tall", tableDocx(20000, 1), 60}, {"wide", tableDocx(3, 70), 20}, {"odd", makeDocx(cellP("top") + tableX(odd, 3) + cellP("tail"), kStyles), 20}};
+        for (const Doc &d : docs) {
+            for (int command = 0; command < 24; ++command) {
+                auto doc = open(d.zip);
+                QVERIFY(doc);
+                QTextCursor c = cursorAt(*doc, QStringLiteral("top"));
+                // (a place in the table: its first cell, and a block of cells for the ones that take a selection)
+                QTextBlock first = doc->story()->begin();
+                while (first.isValid() && !cellKeyOf(first)) first = first.next();
+                QVERIFY(first.isValid());
+                c.setPosition(first.position());
+                QTextBlock last = doc->story()->lastBlock();
+                while (last.isValid() && !cellKeyOf(last)) last = last.previous();
+                if (command % 2) c.setPosition(last.position(), QTextCursor::KeepAnchor);
+                QElapsedTimer clock;
+                clock.start();
+                switch (command / 2) {
+                case 0: insertTableRow(*doc, c, true); break;
+                case 1: insertTableColumn(*doc, c, false); break;
+                case 2: deleteTableRows(*doc, c); break;
+                case 3: deleteTableColumns(*doc, c); break;
+                case 4: mergeCells(*doc, c); break;
+                case 5: splitCells(*doc, c, 2, 2); break;
+                case 6: setShading(*doc, c, QColor(9, 9, 9)); setBorders(*doc, c, BorderSide::All, flow::TableLine{flow::TableLine::Style::Single, 1, QColor()}); break;
+                case 7: setCellAlignment(*doc, c, Qt::AlignHCenter, flow::CellAlign::Bottom); setColumnWidth(*doc, c, 33); setRowHeight(*doc, c, 25, true); break;
+                case 8: distributeColumns(*doc, c); distributeRows(*doc, c); break;
+                case 9: fitTable(*doc, c, TableFit::Contents); fitTable(*doc, c, TableFit::Window); fitTable(*doc, c, TableFit::Fixed); break;
+                case 10: {
+                    const TableProps was = tablePropsAt(*doc, c);
+                    TableProps now = was;
+                    now.header = true;
+                    now.indent = -5;
+                    now.style = QStringLiteral("GridTable4-Accent1");
+                    setTableProps(*doc, c, was, now);
+                    setTableLook(*doc, c, 0x20, false);
+                    break;
+                }
+                default: selectInTable(*doc, c, TableUnit::Column); tabThroughCells(*doc, c, false); deleteTable(*doc, c); break;
+                }
+                const double seconds = clock.elapsed() / 1000.0;
+                const QString why = QStringLiteral("%1 command %2 took %3 s").arg(QLatin1String(d.name)).arg(command).arg(seconds);
+                QVERIFY2(seconds < d.bound, qPrintable(why));
+                QVERIFY2(doc->flow().tables.liveCount() < 200000, qPrintable(why));
+                const QByteArray zip = doc->toDocx();
+                QVERIFY2(!zip.isEmpty(), qPrintable(why));
+                auto back = open(zip);
+                QVERIFY2(back, qPrintable(why));
+                QVERIFY2(back->story()->toPlainText().size() > 0, qPrintable(why));
+            }
+        }
+    }
+
+    // What the commands and the controls cost on a long table is counted, not timed: the caret moving about a table looks at the story's tables once, a join of two cells looks at the
+    // cells next to them and not at all of them, and fitting columns to their cells makes a font's measures once.
+    void theCaretMovingAboutALongTableLooksAtItsTablesOnce()
+    {
+        auto doc = open(tableDocx(4000, 3));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r2000c1"));
+        const qint64 built = tableViewsBuiltForTest();
+        for (int i = 0; i < 100; ++i) {
+            c.setPosition(cursorAt(*doc, QStringLiteral("r%1c%2").arg(1000 + i * 7).arg(i % 3)).position());
+            QVERIFY(tablePropsAt(*doc, c).columnWidth > 0);
+            QVERIFY(cellPlace(*doc, c).inTable);
+        }
+        QVERIFY2(tableViewsBuiltForTest() - built <= 4, qPrintable(QString::number(tableViewsBuiltForTest() - built)));
+    }
+
+    void aJoinOfTwoCellsLooksAtTheCellsNextToThem()
+    {
+        auto doc = open(tableDocx(4000, 3));
+        QTextCursor sel = cursorAt(*doc, QStringLiteral("r2000c0"));
+        sel.setPosition(cursorAt(*doc, QStringLiteral("r2001c1")).position() + 2, QTextCursor::KeepAnchor);
+        const qint64 scanned = tableCellsScannedForTest();
+        for (int i = 0; i < 20; ++i) QVERIFY(canMergeCells(*doc, sel));
+        QVERIFY2(tableCellsScannedForTest() - scanned < 20 * 30, qPrintable(QString::number(tableCellsScannedForTest() - scanned)));
+    }
+
+    void fittingColumnsToTheirCellsMeasuresAFontOnce()
+    {
+        auto doc = open(tableDocx(4000, 3));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r2000c1"));
+        const qint64 measured = tableFontMeasuresMadeForTest();
+        fitTable(*doc, c, TableFit::Contents);
+        QVERIFY2(tableFontMeasuresMadeForTest() - measured <= 3, qPrintable(QString::number(tableFontMeasuresMadeForTest() - measured)));
+    }
+
+    // The text goes round a frame and a square-wrapped box on a small page: the band a line was kept clear of objects by is the height that was checked for it (that of the text on it,
+    // which is smaller than the estimate from its paragraph's first run when the line is in smaller type), not the estimate (found by the random editing of tables, seed 19 of it).
+    void aLineInSmallerTypeIsKeptClearOfAFrameByTheHeightThatWasChecked()
+    {
+        const QByteArray tail = "<w:pPr><w:pStyle w:val=\"Heading2\"/></w:pPr>";
+        const QByteArray styles = kStyles + "<w:style w:type=\"paragraph\" w:styleId=\"Heading2\"><w:name w:val=\"heading 2\"/><w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/><w:qFormat/>"
+                                            "<w:pPr><w:spacing w:before=\"120\" w:after=\"60\"/></w:pPr><w:rPr><w:rFonts w:ascii=\"Arimo\" w:hAnsi=\"Arimo\"/><w:b/><w:sz w:val=\"26\"/></w:rPr></w:style>";
+        const QByteArray body =
+            "<w:p>" + tail + "<w:r><w:t>2 tail</w:t></w:r></w:p><w:p>" + tail + "</w:p>"
+            "<w:p><w:r><w:rPr><w:rFonts w:ascii=\"Arimo\" w:hAnsi=\"Arimo\"/><w:b/><w:sz w:val=\"26\"/></w:rPr><w:t xml:space=\"preserve\">bword </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\"> that a line goes round the box</w:t></w:r><w:r><w:pict xmlns:v=\"urn:schemas-microsoft-com:vml\" "
+            "xmlns:w10=\"urn:schemas-microsoft-com:office:word\"><v:rect id=\"wall3414\" style=\"position:absolute;margin-left:110pt;margin-top:4pt;width:50pt;height:40pt\" fillcolor=\"red\" stroked=\"f\">"
+            "<w10:wrap type=\"square\"/></v:rect></w:pict></w:r></w:p>"
+            "<w:p><w:pPr><w:framePr w:w=\"1800\" w:hSpace=\"120\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:xAlign=\"right\" w:y=\"60\"/></w:pPr><w:r><w:t>FRAME one of wo paragraphword s</w:t></w:r></w:p>"
+            "<w:p><w:pPr><w:framePr w:w=\"1800\" w:hSpace=\"120\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:xAlign=\"right\" w:y=\"60\"/></w:pPr>"
+            "<w:r><w:t>and the second of them, whichis longer than a line of the frame</w:t></w:r></w:p>"
+            "<w:p><w:r><w:t>ough words that more than a line or two are beside the box that is set from the page</w:t></w:r><w:r><w:pict xmlns:v=\"urn:schemas-microsoft-com:vml\" "
+            "xmlns:w10=\"urn:schemas-microsoft-com:office:word\"><v:rect id=\"wall4710\" style=\"position:absolute;margin-left:150pt;margin-top:60pt;width:40pt;height:50pt;mso-position-horizontal-relative:page;"
+            "mso-position-vertical-relative:page\" fillcolor=\"red\" stroked=\"f\"><w10:wrap type=\"square\"/></v:rect></w:pict></w:r></w:p>";
+        auto doc = open(makeDocx(body, styles, QByteArray(),
+                                 "<w:sectPr><w:pgSz w:w=\"5200\" w:h=\"4400\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>"));
+        QVERIFY(doc);
+        for (int k = 0; k < doc->pager().pageCount(); ++k) doc->pager().materialize(k);
+        const QString problem = audit::wallProblems(doc->pager(), doc->story());
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
+    }
+
+    // A command that does nothing says why when the cell can't be split as asked.
+    void splittingACellJoinedDownAsksForRowsAsItIsJoined()
+    {
+        auto doc = open(makeDocx(cellP("top") +
+                                     tableX(rowX(cellX(cellP("t"), "<w:vMerge w:val=\"restart\"/>") + cellX(cellP("a"))) + rowX(cellX(cellP(""), "<w:vMerge/>") + cellX(cellP("b"))) +
+                                                rowX(cellX(cellP(""), "<w:vMerge/>") + cellX(cellP("c"))),
+                                            2) +
+                                     cellP("tail"),
+                                 kStyles));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("t"));
+        doc->tableNotice.clear();
+        const QByteArray was = documentXml(doc->toDocx());
+        QVERIFY(!splitCells(*doc, c, 1, 2));
+        QVERIFY(!doc->tableNotice.isEmpty());
+        QCOMPARE(documentXml(doc->toDocx()), was);
+        doc->tableNotice.clear();
+        QVERIFY(splitCells(*doc, c, 1, 3));
+        QVERIFY(doc->tableNotice.isEmpty());
     }
 
     // A table in a table's cell is changed with the table it is in: its cells keep their place in the cell, and the cell's other paragraphs.
@@ -15496,6 +15925,7 @@ private Q_SLOTS:
             auto pick = [&](int n) { return int(rng() % unsigned(std::max(1, n))); };
             QTextCursor c(doc->story());
             QStringList log;
+            const QByteArray started = documentXml(doc->toDocx());
             for (int step = 0; step < steps; ++step) {
                 const int kind = 1 + pick(10);
                 const QString before = tablesSignature(*doc);
@@ -15525,6 +15955,9 @@ private Q_SLOTS:
                     QVERIFY2(tablesSignature(*doc) == after, qPrintable(why + QStringLiteral(": redo does not make the table again")));
                 }
             }
+            // All of it undone, the file written is the one that was opened.
+            while (doc->story()->isUndoAvailable()) doc->story()->undo();
+            QVERIFY2(documentXml(doc->toDocx()) == started, qPrintable(QStringLiteral("seed %1: all undone, the document is not as it was opened").arg(seed)));
         }
     }
 

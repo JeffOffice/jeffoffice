@@ -470,6 +470,56 @@ private Q_SLOTS:
         QVERIFY(doc.toDocx().size() > 0);
     }
 
+    // The height and width fields of the Table Layout tab run a command only when the value was changed: a person who leaves the field as it was makes no step to undo and no change to save.
+    void theSizeFieldsChangeNothingWhenTheValueIsTheSame()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        tableAtCursor(w.get());
+        write::setRowHeight(*w->document(), w->view()->cursor(), 30, false);
+        w->view()->refresh();
+        w->refreshNow();
+        for (int i = 0; i < w->ribbon()->tabCount(); ++i)
+            if (w->ribbon()->tabName(i) == QLatin1String("Table Layout")) w->ribbon()->showTab(w->ribbon()->tabPage(i));
+        w->refreshNow();
+        auto *height = w->findChild<MeasureSpin *>(QStringLiteral("tableRowHeightField"));
+        auto *width = w->findChild<MeasureSpin *>(QStringLiteral("tableColumnWidthField"));
+        QVERIFY(height && width);
+        QVERIFY(qFuzzyCompare(height->value(), 30.0));
+        w->document()->setModified(false);
+        const QByteArray was = w->document()->toDocx();
+        int steps = 0;
+        while (w->document()->canUndo()) {
+            w->document()->undo();
+            ++steps;
+        }
+        for (int i = 0; i < steps; ++i) w->document()->redo();
+        auto inTheTable = [&] {
+            for (QTextBlock b = w->document()->story()->begin(); b.isValid(); b = b.next())
+                if (write::inTable(b)) {
+                    w->view()->cursor().setPosition(b.position());
+                    break;
+                }
+        };
+        inTheTable();
+        Q_EMIT height->editingFinished();
+        Q_EMIT width->editingFinished();
+        QVERIFY(!w->document()->isModified());
+        QCOMPARE(w->document()->toDocx(), was);
+        int after = 0;
+        while (w->document()->canUndo()) {
+            w->document()->undo();
+            ++after;
+        }
+        QCOMPARE(after, steps);
+        for (int i = 0; i < after; ++i) w->document()->redo();
+        inTheTable();
+        // A changed value is a step.
+        height->setValue(44);
+        Q_EMIT height->editingFinished();
+        QVERIFY(w->document()->isModified());
+        QVERIFY(w->document()->toDocx() != was);
+    }
+
     // ---- 3. every command
     void everyCommandOnABlankDocument()
     {

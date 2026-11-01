@@ -13,6 +13,7 @@
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QHash>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -27,6 +28,12 @@ namespace jp::write {
 namespace {
 
 QString tr(const char *text) { return QCoreApplication::translate("jp::write::TableDialogs", text); }
+
+// A length field as the file can hold the length: from -50,000 to 50,000 points (a table's indent can be negative), or from 0 for one that is not.
+void lengthRange(MeasureSpin *spin, bool negative)
+{
+    spin->setRange(negative ? -50000 : 0, 50000);
+}
 
 QDialogButtonBox *okCancel(QDialog *dlg, QVBoxLayout *v)
 {
@@ -139,9 +146,18 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     align->addItem(tr("Right"), int(flow::TableData::Align::Right));
     align->setCurrentIndex(int(was.align));
     tf->addRow(tr("Alignment:"), align);
+    // What each length box held when the dialog opened, to write only the ones the person changed (a box holds a length to a precision, and one the file has outside its range is
+    // not made to fit it).
+    QHash<const QDoubleSpinBox *, double> shown;
+    auto set = [&](MeasureSpin *spin, double points, bool negative) {
+        lengthRange(spin, negative);
+        spin->setPoints(points);
+        shown.insert(spin, spin->value());
+    };
+    auto took = [&](const QDoubleSpinBox *spin, double was) { return spin->value() == shown.value(spin) ? was : spin->value(); };
     auto *indent = new MeasureSpin(tablePage);
     indent->setObjectName(QStringLiteral("indent"));
-    indent->setPoints(was.indent);
+    set(indent, was.indent, true);
     tf->addRow(tr("Indent from left:"), indent);
     auto *widthKind = new QComboBox(tablePage);
     widthKind->setObjectName(QStringLiteral("widthKind"));
@@ -151,12 +167,13 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     widthKind->setCurrentIndex(int(was.widthKind));
     auto *widthPoints = new MeasureSpin(tablePage);
     widthPoints->setObjectName(QStringLiteral("widthPoints"));
-    widthPoints->setPoints(was.widthKind == TableProps::Width::Points ? was.width : 468);
+    set(widthPoints, was.widthKind == TableProps::Width::Points ? was.width : 468, false);
     auto *widthPercent = new QDoubleSpinBox(tablePage);
     widthPercent->setObjectName(QStringLiteral("widthPercent"));
-    widthPercent->setRange(1, 600);
+    widthPercent->setRange(0, 20000);
     widthPercent->setSuffix(QStringLiteral("%"));
     widthPercent->setValue(was.widthKind == TableProps::Width::Percent ? was.width : 100);
+    shown.insert(widthPercent, widthPercent->value());
     auto *widthRow = new QHBoxLayout;
     widthRow->addWidget(widthKind);
     widthRow->addWidget(widthPoints);
@@ -178,17 +195,17 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     left->setObjectName(QStringLiteral("marginLeft"));
     bottom->setObjectName(QStringLiteral("marginBottom"));
     right->setObjectName(QStringLiteral("marginRight"));
-    top->setPoints(was.margins.top());
-    left->setPoints(was.margins.left());
-    bottom->setPoints(was.margins.bottom());
-    right->setPoints(was.margins.right());
+    set(top, was.margins.top(), true);
+    set(left, was.margins.left(), true);
+    set(bottom, was.margins.bottom(), true);
+    set(right, was.margins.right(), true);
     tf->addRow(tr("Default cell margin, top:"), top);
     tf->addRow(tr("Default cell margin, left:"), left);
     tf->addRow(tr("Default cell margin, bottom:"), bottom);
     tf->addRow(tr("Default cell margin, right:"), right);
     auto *spacing = new MeasureSpin(tablePage);
     spacing->setObjectName(QStringLiteral("spacing"));
-    spacing->setPoints(was.spacing);
+    set(spacing, was.spacing, false);
     tf->addRow(tr("Space between cells:"), spacing);
     tabs->addTab(tablePage, tr("Table"));
 
@@ -197,7 +214,7 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     auto *rf = new QFormLayout(rowPage);
     auto *height = new MeasureSpin(rowPage);
     height->setObjectName(QStringLiteral("rowHeight"));
-    height->setPoints(was.rowHeight);
+    set(height, was.rowHeight, false);
     auto *rule = new QComboBox(rowPage);
     rule->setObjectName(QStringLiteral("rowRule"));
     rule->addItem(tr("At least"), false);
@@ -222,7 +239,7 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     auto *cf = new QFormLayout(columnPage);
     auto *columnWidth = new MeasureSpin(columnPage);
     columnWidth->setObjectName(QStringLiteral("columnWidth"));
-    columnWidth->setPoints(was.columnWidth);
+    set(columnWidth, was.columnWidth, false);
     cf->addRow(tr("Column width:"), columnWidth);
     tabs->addTab(columnPage, tr("Column"));
 
@@ -256,17 +273,18 @@ bool tablePropertiesDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     if (dlg.exec() != QDialog::Accepted) return false;
     TableProps now = was;
     now.align = flow::TableData::Align(align->currentData().toInt());
-    now.indent = indent->value();
+    now.indent = took(indent, was.indent);
     now.widthKind = TableProps::Width(widthKind->currentData().toInt());
-    now.width = now.widthKind == TableProps::Width::Points ? widthPoints->value() : now.widthKind == TableProps::Width::Percent ? widthPercent->value() : 0;
+    now.width = now.widthKind == TableProps::Width::Points ? took(widthPoints, was.widthKind == now.widthKind ? was.width : widthPoints->value())
+                : now.widthKind == TableProps::Width::Percent ? took(widthPercent, was.widthKind == now.widthKind ? was.width : widthPercent->value()) : 0;
     now.fixedLayout = fixedLayout->isChecked();
-    now.margins = QMarginsF(left->value(), top->value(), right->value(), bottom->value());
-    now.spacing = spacing->value();
-    now.rowHeight = height->value();
+    now.margins = QMarginsF(took(left, was.margins.left()), took(top, was.margins.top()), took(right, was.margins.right()), took(bottom, was.margins.bottom()));
+    now.spacing = took(spacing, was.spacing);
+    now.rowHeight = took(height, was.rowHeight);
     now.rowExact = rule->currentData().toBool();
     now.cantSplit = cantSplit->isChecked();
     now.header = header->isChecked();
-    now.columnWidth = columnWidth->value();
+    now.columnWidth = took(columnWidth, was.columnWidth);
     now.valign = flow::CellAlign(valign->currentData().toInt());
     now.noWrap = noWrap->isChecked();
     now.altTitle = title->text();

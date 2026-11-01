@@ -71,7 +71,9 @@ QIcon tableStyleIcon(const QString &id, const office::wml::Style &style, const Q
 void WriteWindow::tableCommand(const std::function<void(write::WriteDoc &, QTextCursor &)> &fn)
 {
     if (!m_doc) return;
+    m_doc->tableNotice.clear();
     fn(*m_doc, m_view->cursor());
+    if (!m_doc->tableNotice.isEmpty()) statusBar()->showMessage(m_doc->tableNotice, 8000);   // (what a command that did nothing says of why)
     m_view->refresh();
     m_view->setFocus(Qt::OtherFocusReason);
 }
@@ -79,8 +81,9 @@ void WriteWindow::tableCommand(const std::function<void(write::WriteDoc &, QText
 void WriteWindow::insertTableNow(const write::NewTable &table)
 {
     if (!m_doc) return;
+    m_doc->tableNotice.clear();
     if (!write::insertTable(*m_doc, m_view->cursor(), table)) {
-        statusBar()->showMessage(tr("A table can't be put in a table cell here."), 5000);
+        statusBar()->showMessage(m_doc->tableNotice.isEmpty() ? tr("A table can't be put in a table cell here.") : m_doc->tableNotice, 5000);
         return;
     }
     m_view->refresh();
@@ -249,8 +252,10 @@ void WriteWindow::tableRibbonParts(RibbonParts &parts)
             connect(spin, &QDoubleSpinBox::editingFinished, this, [this, spin, which] {
                 if (m_updatingFields || !m_doc || !write::cellPlace(*m_doc, m_view->cursor()).inTable) return;
                 const double v = spin->value();
+                const write::TableProps now = write::tablePropsAt(*m_doc, m_view->cursor());
+                if (std::abs(v - (which == 0 ? now.rowHeight : now.columnWidth)) < 0.005) return;   // (the same value is no command: no step to undo, nothing to save)
                 if (which == 0) {
-                    const bool exact = write::tablePropsAt(*m_doc, m_view->cursor()).rowExact;
+                    const bool exact = now.rowExact;
                     tableCommand([=](write::WriteDoc &d, QTextCursor &c) { write::setRowHeight(d, c, v, exact); });
                 } else {
                     tableCommand([=](write::WriteDoc &d, QTextCursor &c) { write::setColumnWidth(d, c, v); });

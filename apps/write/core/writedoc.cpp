@@ -760,12 +760,43 @@ QVector<StyleEntry> WriteDoc::styleEntries() const
     return out;
 }
 
+bool WriteDoc::ensureTableStyle(const QString &id)
+{
+    if (id.isEmpty()) return false;
+    if (m_wml.styles.find(id)) return true;
+    for (const Style &s : std::as_const(m_addedTableStyles))
+        if (s.id == id) return true;
+    Style s = builtinStyle(id);
+    if (s.id.isEmpty() || s.type != QLatin1String("table")) return false;
+    if (!s.basedOn.isEmpty()) ensureTableStyle(s.basedOn);
+    if (s.isDefault) {
+        bool taken = !m_wml.styles.defaultId(QStringLiteral("table")).isEmpty();
+        for (const Style &a : std::as_const(m_addedTableStyles)) taken = taken || a.isDefault;
+        if (taken) s.isDefault = false;
+    }
+    m_addedTableStyles.push_back(s);
+    m_tableSheet.reset();
+    return true;
+}
+
+const StyleSheet &WriteDoc::tableSheet() const
+{
+    if (m_addedTableStyles.isEmpty()) return m_wml.styles;
+    if (!m_tableSheet) {
+        m_tableSheet = std::make_shared<StyleSheet>(m_wml.styles);
+        for (const Style &s : m_addedTableStyles) m_tableSheet->add(s);
+    }
+    return *m_tableSheet;
+}
+
 bool WriteDoc::ensureStyle(const QString &id)
 {
     if (id.isEmpty()) return false;
     if (m_wml.styles.find(id)) return true;
-    const Style s = builtinStyle(id);
+    Style s = builtinStyle(id);
     if (s.id.isEmpty()) return false;
+    // (a table style is the default of its kind only where the file has none)
+    if (s.type == QLatin1String("table") && s.isDefault && !m_wml.styles.defaultId(QStringLiteral("table")).isEmpty()) s.isDefault = false;
     if (!s.basedOn.isEmpty()) ensureStyle(s.basedOn);
     if (!s.next.isEmpty()) ensureStyle(s.next);
     m_wml.styles.add(s);
