@@ -269,6 +269,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_xls.cpp
   tests/sheet/tst_sheet_xlsprint.cpp
   tests/sheet/tst_sheet_xlssave.cpp
+  tests/sheet/tst_sheet_oldsave.cpp
   tests/sheet/tst_sheet_xlsformula.cpp
   tests/sheet/tst_sheet_xlshostile.cpp
   tests/sheet/tst_sheet_notes.cpp
