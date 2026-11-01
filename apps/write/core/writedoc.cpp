@@ -479,10 +479,10 @@ QString WriteDoc::addExternalLink(const QString &type, const QString &target)
 QString WriteDoc::addMedia(const QByteArray &bytes, const QString &extension, const QString &contentType, bool *added)
 {
     if (added) *added = false;
-    for (const Relationship &r : m_wml.mainRelationships) {
-        if (r.external || !r.type.endsWith(QLatin1String("/image"))) continue;
-        for (const KeptPart &p : m_wml.parts)
-            if (p.name.compare(r.target, Qt::CaseInsensitive) == 0 && p.data == bytes) return r.id;
+    for (const KeptPart &p : m_wml.parts) {
+        if (p.data.size() != bytes.size() || p.data != bytes) continue;
+        for (const Relationship &r : m_wml.mainRelationships)
+            if (!r.external && r.type.endsWith(QLatin1String("/image")) && p.name.compare(r.target, Qt::CaseInsensitive) == 0) return r.id;
     }
     if (added) *added = true;
     QSet<QString> taken;

@@ -794,8 +794,8 @@ private Q_SLOTS:
         answer([](QDialog *d) {
             QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("applyTo"))->currentIndex(), 0);
             d->findChild<QRadioButton *>(QStringLiteral("landscape"))->setChecked(true);   // (the page turns, and its margins with it)
-            QCOMPARE(d->findChild<MeasureSpin *>(QStringLiteral("paperWidth"))->value(), 792.0);
-            QCOMPARE(d->findChild<MeasureSpin *>(QStringLiteral("paperHeight"))->value(), 612.0);
+            // (the page of the region's paper, turned)
+            QVERIFY(d->findChild<MeasureSpin *>(QStringLiteral("paperWidth"))->value() > d->findChild<MeasureSpin *>(QStringLiteral("paperHeight"))->value());
             d->findChild<MeasureSpin *>(QStringLiteral("left"))->setValue(36);
             d->findChild<MeasureSpin *>(QStringLiteral("top"))->setValue(54);
         });
@@ -841,6 +841,7 @@ private Q_SLOTS:
     // The ruler shows the margins, the indents of the paragraph the caret is in, and its tab stops; each marker is dragged, a click adds a tab stop, and each change is one step.
     void theRulerDragsIndentsMarginsAndTabsInOneStepEach()
     {
+        Settings::get().setUnit(Unit::Inch);   // (the markers snap to the marks of the unit the person measures in)
         std::unique_ptr<WriteWindow> w(launchBlank());
         typeInto(w->view(), QStringLiteral("An indented paragraph of text for the ruler to show and change."));
         settle(w.get());
@@ -848,8 +849,10 @@ private Q_SLOTS:
         QVERIFY(ruler);
         QVERIFY(ruler->isVisible());
         QTRY_VERIFY(ruler->shows());
-        QCOMPARE(ruler->textLeft(), 72.0);
-        QCOMPARE(ruler->textWidth(), 468.0);
+        const flow::Section page = w->document()->flow().section(0);
+        QCOMPARE(ruler->textLeft(), page.margins.left());
+        const double textWidth = page.pageSize().width() - page.margins.left() - page.margins.right();
+        QCOMPARE(ruler->textWidth(), textWidth);
         const double scale = w->view()->zoom() * 96.0 / 72.0;
         auto format = [&] { return w->document()->story()->begin().blockFormat(); };
         auto marker = [&](write::Ruler::Marker m, int index = 0) {
@@ -904,7 +907,7 @@ private Q_SLOTS:
             drag(ruler, p, p - QPoint(int(std::lround(54 * scale)), 0));
             settle(w.get());
             ruler->sync();
-            QCOMPARE(format().rightMargin(), 54.0);
+            QVERIFY2(std::abs(format().rightMargin() - 54.0) <= 2.3, qPrintable(QString::number(format().rightMargin())));   // (the marker snaps to the marks, counted from the left margin)
         }
         // Markers dragged far off the ruler are held to the text.
         {
@@ -913,12 +916,12 @@ private Q_SLOTS:
             drag(ruler, p, QPoint(-5000, p.y()));
             settle(w.get());
             ruler->sync();
-            QVERIFY(format().rightMargin() <= 468.0 && format().rightMargin() >= 0);
+            QVERIFY(format().rightMargin() <= textWidth && format().rightMargin() >= 0);
             const QPoint f = marker(write::Ruler::Marker::FirstLine);
             drag(ruler, f, QPoint(50000, f.y()));
             settle(w.get());
             ruler->sync();
-            QVERIFY(format().leftMargin() + format().textIndent() <= 468.0 + 0.01);
+            QVERIFY(format().leftMargin() + format().textIndent() <= textWidth + 0.01);
         }
         // The margins: dragging the left margin in by 36 points.
         {
@@ -937,7 +940,7 @@ private Q_SLOTS:
             const QPoint r = marker(write::Ruler::Marker::RightMargin);
             drag(ruler, r, r - QPoint(int(std::lround(36 * scale)), 0));
             settle(w.get());
-            QCOMPARE(w->document()->flow().section(0).margins.right(), 108.0);
+            QVERIFY(std::abs(w->document()->flow().section(0).margins.right() - 108.0) <= 2.3);
             undoOnce();
             QCOMPARE(w->document()->flow().section(0).margins.right(), 72.0);
         }

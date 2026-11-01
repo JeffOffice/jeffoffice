@@ -807,7 +807,7 @@ private Q_SLOTS:
         QCOMPARE(w.ribbonErrors(), QString());
         QStringList tabs;
         for (int i = 0; i < w.ribbon()->tabCount(); ++i) tabs << w.ribbon()->tabName(i);
-        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Layout", "References", "Review", "View", "Header & Footer", "Table Design", "Table Layout"}));   // (the last three are there while a header or footer is edited, and the caret is in a table)
+        QCOMPARE(tabs, (QStringList{"Home", "Insert", "Layout", "References", "Review", "View", "Header & Footer", "Table Design", "Table Layout", "Picture Format"}));   // (the last four are there while a header or footer is edited, and the caret is in a table)
         QCOMPARE(w.ribbon()->fileKeytip(), QStringLiteral("F"));
         QVERIFY(w.windowTitle().contains(QLatin1String("JeffWrite")));
         QVERIFY(w.windowTitle().startsWith(QLatin1String("Document")));
@@ -1686,7 +1686,7 @@ private Q_SLOTS:
         const QString start = jp::help::topic(QStringLiteral("start")).markdown;
         for (const char *stale : {"Tables are not shown", "Pictures, shapes, and text boxes are not shown", "show their numbers, but not their text", "open or save .doc", "start a new page instead", "**[picture]**"})
             QVERIFY2(!start.contains(QLatin1String(stale)), stale);
-        for (const char *now : {".doc, and .dot", "tables, headers and footers, footnotes and endnotes, pictures", "continue on the same page", "Tab", "no ruler"})
+        for (const char *now : {".doc, and .dot", "tables, headers and footers, footnotes and endnotes, pictures", "continue on the same page", "Tab", "The ruler is across the top only"})
             QVERIFY2(start.contains(QLatin1String(now)), now);
         QVERIFY(jp::help::topic(QStringLiteral("open-save")).markdown.contains(QLatin1String("**.doc**")));
         const QString spelling = jp::help::topic(QStringLiteral("spelling")).markdown;

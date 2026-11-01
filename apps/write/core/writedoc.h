@@ -357,6 +357,8 @@ public:
     // The pages' form of a drawn object of the main text (a picture: its atom is the run's child kept as XML) is put in `format`: an inline object of the character, or the
     // anchor of an object set at a place on the page. False when it makes none (nothing drawn, the picture is not in the file, or the document holds the most pictures and objects it
     // can show: they are kept for as long as a step of the history can bring a character that has one back, so none is let go).
+    // An id for a new drawing (its docPr): above any the text had when this was first asked, and one more each time.
+    int nextDrawingId(const QTextDocument *story);
     bool makeDrawnFormat(const office::wml::Inline &atom, QTextCharFormat *format);
 
     // ---- the file
@@ -427,6 +429,7 @@ private:
     const office::wml::StyleSheet &sheetFor(const QString &styleId) const;
     office::wml::SectionProps lastSectionProps() const;
 
+    int m_drawingId = 0;
     quint64 m_id = 0;
     bool m_hadMacros = false, m_leftOut = false;
     std::unique_ptr<flow::FlowDocument> m_flow;

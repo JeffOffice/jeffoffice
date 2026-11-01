@@ -185,8 +185,8 @@ bool parseDrawing(const QByteArray &raw, Model *m)
     return true;
 }
 
-// The first id a new drawing may have: above any the text's drawings have.
-int nextDrawingId(const QTextDocument *story)
+// The highest id the text's drawings have.
+int highestDrawingId(const QTextDocument *story)
 {
     int highest = 0;
     static const QRegularExpression idPattern(QStringLiteral("<wp:docPr[^>]*?\\sid=\"([0-9]{1,9})\""));
@@ -200,7 +200,7 @@ int nextDrawingId(const QTextDocument *story)
             auto found = idPattern.globalMatch(text);
             while (found.hasNext()) highest = std::max(highest, found.next().captured(1).toInt());
         }
-    return std::min(highest, 2000000000 - 2) + 1;
+    return std::min(highest, 2000000000 - 2);
 }
 
 // The character format at the place after `position`.
@@ -314,7 +314,7 @@ PictureResult insertPrepared(WriteDoc &doc, QTextCursor &c, const Prepared &p, c
     m.wrapRawOf = wrap;
     m.cx = emuOf(size.width());
     m.cy = emuOf(size.height());
-    m.id = nextDrawingId(doc.story());
+    m.id = doc.nextDrawingId(doc.story());
     m.name = attribute(name.isEmpty() ? QStringLiteral("Picture %1").arg(m.id) : name, 255);
     m.descr = attribute(alt, kMostAltTextLength);
     if (m.floating) {
@@ -376,6 +376,12 @@ QByteArray graphicWithSize(const QByteArray &graphic, qint64 cx, qint64 cy)
 }
 
 } // namespace
+
+int WriteDoc::nextDrawingId(const QTextDocument *story)
+{
+    if (m_drawingId == 0) m_drawingId = highestDrawingId(story);   // (found once; a number is not used twice because a step was undone)
+    return ++m_drawingId;
+}
 
 bool isPictureAt(const QTextDocument *story, int position)
 {
