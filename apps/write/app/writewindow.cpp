@@ -5,6 +5,7 @@
 #include "app/pageview.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
+#include "app/ruler.h"
 #include "app/settings.h"
 #include "app/spellpane.h"
 #include "app/telemetry.h"
@@ -31,6 +32,7 @@
 #include <QSlider>
 #include <QLocale>
 #include <QStatusBar>
+#include <QVBoxLayout>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <cmath>
@@ -63,7 +65,15 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     m_view->setAccessibleDescription(tr("The pages of the document. Type to write; the arrow keys move the caret."));
     m_ribbon = new Ribbon(this);
     setMenuWidget(m_ribbon);
-    setCentralWidget(m_view);
+    // The ruler is above the pages.
+    auto *central = new QWidget(this);
+    auto *column = new QVBoxLayout(central);
+    column->setContentsMargins(0, 0, 0, 0);
+    column->setSpacing(0);
+    m_ruler = new write::Ruler(m_view, central);
+    column->addWidget(m_ruler);
+    column->addWidget(m_view, 1);
+    setCentralWidget(central);
 
     createActions();
     buildRibbon();
@@ -186,6 +196,7 @@ void WriteWindow::createActions()
     createHeaderFooterActions();
     createNoteActions();
     createTableActions();
+    createPictureActions();
 }
 
 namespace {
@@ -290,6 +301,7 @@ void WriteWindow::createLayoutActions()
     };
     mk("layout.portrait", tr("Portrait"), "", QKeySequence(), [orient] { orient(false); }, true);
     mk("layout.landscape", tr("Landscape"), "", QKeySequence(), [orient] { orient(true); }, true);
+    mk("layout.pageSetup", tr("Page Setup…"), "settings-2", QKeySequence(), [this] { showPageSetupDialog(); });
     for (int n = 1; n <= 3; ++n)
         mk(QStringLiteral("layout.columns.%1").arg(n), n == 1 ? tr("One") : n == 2 ? tr("Two") : tr("Three"), n == 1 ? "square" : n == 2 ? "columns-2" : "columns-3", QKeySequence(), [this, n] {
             changeSection([n](flow::Section &s) {
@@ -312,6 +324,7 @@ void WriteWindow::createViewActions()
     write::PageView *v = m_view;
     mk("view.printLayout", tr("Print Layout"), "file-text", QKeySequence(), [] {}, true)->setChecked(true);
     mk("view.marks", tr("Show/Hide ¶"), "pilcrow", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_8), [this] { m_view->setShowMarks(act("view.marks")->isChecked()); }, true);
+    mk("view.ruler", tr("Ruler"), "ruler", QKeySequence(), [this] { m_ruler->setVisible(act("view.ruler")->isChecked()); }, true)->setChecked(true);
     mk("zoom.in", tr("Zoom In"), "zoom-in", QKeySequence(), [v] { v->setZoom(std::round(v->zoom() * 10 + 1) / 10); });
     mk("zoom.out", tr("Zoom Out"), "zoom-out", QKeySequence(), [v] { v->setZoom(std::round(v->zoom() * 10 - 1) / 10); });
     for (int pct : {200, 150, 100, 75, 50, 25, 10}) {
@@ -353,6 +366,8 @@ void WriteWindow::showContextMenu(const QPoint &globalPos)
     menu.addAction(act("fmt.fontDialog"));
     menu.addAction(act("para.dialog"));
     menu.addAction(act("edit.selectAll"));
+    // On a picture: how the text goes round it, and its alt text.
+    if (m_view->selectedPicture() >= 0) addPictureContextMenu(menu);
     // In a table: its rows and columns, merging, lines, size, and properties.
     if (cursorInTable()) addTableContextMenu(menu);
     menu.exec(globalPos);
@@ -372,6 +387,7 @@ void WriteWindow::refreshUi()
     }
     if (!has) {
         refreshTableUi();
+        refreshPictureUi();
         return;
     }
     QTextCursor &c = m_view->cursor();
@@ -469,6 +485,7 @@ void WriteWindow::refreshUi()
         act("hf.linkPrevious")->setChecked(editing && m_doc->linkedToPrevious(e.section, e.footer, e.slot));
     }
     refreshTableUi();
+    refreshPictureUi();
 }
 
 void WriteWindow::updateStatus()

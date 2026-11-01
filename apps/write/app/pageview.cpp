@@ -16,6 +16,7 @@
 #include <QSet>
 #include <QTimer>
 #include <QTextBlock>
+#include <QTextFragment>
 #include <QTextDocument>
 #include <algorithm>
 #include <cmath>
@@ -74,7 +75,9 @@ PageView::PageView(QWidget *parent) : QAbstractScrollArea(parent)
     setFocusPolicy(Qt::StrongFocus);
     setAttribute(Qt::WA_InputMethodEnabled);
     viewport()->setCursor(Qt::IBeamCursor);
-    viewport()->setMouseTracking(false);
+    viewport()->setMouseTracking(true);
+    setAcceptDrops(true);
+    viewport()->setAcceptDrops(true);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     verticalScrollBar()->setSingleStep(48);
@@ -593,6 +596,7 @@ void PageView::paintEvent(QPaintEvent *e)
         p.setBrush(Qt::NoBrush);
         p.drawRect(dev.adjusted(0.5, 0.5, -0.5, -0.5));
     }
+    paintPictureHandles(p);
     // The caret.
     if (m_caretOn && (hasFocus() || m_caretWithoutFocus) && !m_cursor.hasSelection()) {
         QRect r;
@@ -1521,6 +1525,69 @@ bool PageView::noteLineAtEdge(int dir)
     const QVector<NotePart> parts = partsOfEditedNote(m_note.page);
     const int at = partIndexAt(parts, m_cursor.position());
     return dir < 0 ? at <= 0 : at + 1 >= parts.size();
+}
+
+bool PageView::floatingPictureRect(int position, QRectF *onPage, int *pageOut)
+{
+    if (!m_doc || m_hf.active || m_note.active) return false;
+    const QTextCharFormat cf = [&] {
+        QTextCursor c(m_doc->story());
+        c.setPosition(position + 1);
+        return c.charFormat();
+    }();
+    const int id = cf.intProperty(flow::fp::AnchorId);
+    if (id <= 0) return false;
+    flow::Paginator &pg = m_doc->pager();
+    const int page = pg.pageOfPosition(std::clamp(position, 0, std::max(0, m_doc->story()->characterCount() - 1)));
+    for (int candidate : {page, page - 1, page + 1}) {
+        if (candidate < 0) continue;
+        const auto r = rendered(candidate);
+        if (!r || !r->page) continue;
+        const QString prefix = QStringLiteral("flow-object-%1-%2-").arg(r->page->doc->pages[0]->id).arg(id);
+        for (const auto &it : r->page->doc->pages[0]->items)
+            if (it->id.startsWith(prefix) && it->type() == ItemType::Picture) {
+                *onPage = it->rect;
+                *pageOut = candidate;
+                return true;
+            }
+    }
+    return false;
+}
+
+int PageView::floatingPictureAt(const Hit &hit)
+{
+    if (!m_doc || hit.page < 0 || m_hf.active || m_note.active) return -1;
+    const auto r = rendered(hit.page);
+    if (!r || !r->page) return -1;
+    QVector<int> ids;
+    const auto &items = r->page->doc->pages[0]->items;
+    for (auto it = items.crbegin(); it != items.crend(); ++it) {
+        const auto &item = *it;
+        if (item->type() != ItemType::Picture || !item->id.startsWith(QLatin1String("flow-object-")) || !item->rect.contains(hit.point)) continue;
+        const QStringList parts = item->id.split(QLatin1Char('-'));
+        if (parts.size() >= 3) ids << parts[parts.size() - 2].toInt();
+    }
+    if (ids.isEmpty()) return -1;
+    // The anchor of the object: a character of the text of the page (or the pages round it) that names it.
+    flow::Paginator &pg = m_doc->pager();
+    const int from = pg.pagesKnown() > hit.page ? pg.page(std::max(0, hit.page - 1)).start.pos : 0;
+    const int to = pg.pagesKnown() > hit.page + 1 ? pg.page(hit.page + 1).start.pos + 1 : m_doc->story()->characterCount();
+    const QTextDocument *story = m_doc->story();
+    for (int id : ids)
+        for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() <= to; b = b.next())
+            for (QTextBlock::iterator fi = b.begin(); !fi.atEnd(); ++fi) {
+                const QTextFragment fr = fi.fragment();
+                int object = fr.charFormat().intProperty(flow::fp::AnchorId);
+                for (int step = 0; object > 0 && object <= m_doc->flow().objects.size() && step < 4; ++step) {
+                    if (object == id) {
+                        const QString text = fr.text();
+                        for (int k = 0; k < text.size(); ++k)
+                            if (text[k] == QChar::ObjectReplacementCharacter) return fr.position() + k;
+                    }
+                    object = m_doc->flow().objects[object - 1].next;
+                }
+            }
+    return -1;
 }
 
 int PageView::cursorSection()

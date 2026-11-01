@@ -228,6 +228,24 @@
           ]
         },
         {
+          "name": "Illustrations",
+          "keytip": "ZP",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.pictures",
+                "text": "Pictures",
+                "icon": "image"
+              },
+              "keytip": "P",
+              "menu": [
+                "insert.picture",
+                "insert.pictureClipboard"
+              ]
+            }
+          ]
+        },
+        {
           "name": "Pages",
           "keytip": "ZG",
           "items": [
@@ -260,6 +278,9 @@
         {
           "name": "Page Setup",
           "keytip": "SP",
+          "launcher": "pageSetup",
+          "launcherTip": "Page Setup",
+          "launcherKeytip": "PS",
           "items": [
             {
               "large": {
@@ -272,7 +293,9 @@
                 "layout.margins.normal",
                 "layout.margins.narrow",
                 "layout.margins.moderate",
-                "layout.margins.wide"
+                "layout.margins.wide",
+                "-",
+                "layout.pageSetup"
               ]
             },
             {
@@ -442,6 +465,10 @@
             {
               "large": "view.marks",
               "keytip": "SM"
+            },
+            {
+              "large": "view.ruler",
+              "keytip": "SR"
             }
           ]
         },
@@ -767,6 +794,65 @@
                   "keytip": "AC"
                 }
               ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Picture Format",
+      "keytip": "JP",
+      "context": "Picture Tools",
+      "color": "picture",
+      "groups": [
+        {
+          "name": "Arrange",
+          "keytip": "ZA",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.wrapText",
+                "text": "Wrap Text",
+                "icon": "wrap-text"
+              },
+              "keytip": "WT",
+              "menu": "@pictureWrap"
+            },
+            {
+              "large": "picture.altText",
+              "keytip": "AT"
+            }
+          ]
+        },
+        {
+          "name": "Size",
+          "keytip": "ZS",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Height:"
+                },
+                {
+                  "widget": "pictureHeight",
+                  "keytip": "PH"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Width:"
+                },
+                {
+                  "widget": "pictureWidth",
+                  "keytip": "PW"
+                }
+              ]
+            },
+            {
+              "small": "picture.lockAspect",
+              "keytip": "LA"
             }
           ]
         }

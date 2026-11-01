@@ -5,6 +5,7 @@
 
 [[maybe_unused]] static const char *const kRibbonStrings[] = {
     QT_TRANSLATE_NOOP("Ribbon", "Alignment"),
+    QT_TRANSLATE_NOOP("Ribbon", "Arrange"),
     QT_TRANSLATE_NOOP("Ribbon", "AutoFit"),
     QT_TRANSLATE_NOOP("Ribbon", "Borders"),
     QT_TRANSLATE_NOOP("Ribbon", "Borders and Shading"),
@@ -20,6 +21,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Header & Footer"),
     QT_TRANSLATE_NOOP("Ribbon", "Height:"),
     QT_TRANSLATE_NOOP("Ribbon", "Home"),
+    QT_TRANSLATE_NOOP("Ribbon", "Illustrations"),
     QT_TRANSLATE_NOOP("Ribbon", "Indent Left:"),
     QT_TRANSLATE_NOOP("Ribbon", "Indent Right:"),
     QT_TRANSLATE_NOOP("Ribbon", "Insert"),
@@ -32,6 +34,9 @@
     QT_TRANSLATE_NOOP("Ribbon", "Page Setup"),
     QT_TRANSLATE_NOOP("Ribbon", "Pages"),
     QT_TRANSLATE_NOOP("Ribbon", "Paragraph"),
+    QT_TRANSLATE_NOOP("Ribbon", "Picture Format"),
+    QT_TRANSLATE_NOOP("Ribbon", "Picture Tools"),
+    QT_TRANSLATE_NOOP("Ribbon", "Pictures"),
     QT_TRANSLATE_NOOP("Ribbon", "Proofing"),
     QT_TRANSLATE_NOOP("Ribbon", "References"),
     QT_TRANSLATE_NOOP("Ribbon", "Review"),
@@ -53,5 +58,6 @@
     QT_TRANSLATE_NOOP("Ribbon", "View"),
     QT_TRANSLATE_NOOP("Ribbon", "Views"),
     QT_TRANSLATE_NOOP("Ribbon", "Width:"),
+    QT_TRANSLATE_NOOP("Ribbon", "Wrap Text"),
     QT_TRANSLATE_NOOP("Ribbon", "Zoom"),
 };
