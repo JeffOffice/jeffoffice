@@ -275,6 +275,9 @@ private:
         int scope = -1;   // written place of the sheet, -1 for the workbook
         QString ref;
         bool hidden = false;
+        QByteArray rgce, extra;   // the tokens of the definition
+        bool broken = false;      // the form cannot hold the definition: it stands for a reference that is gone, and a formula that uses it is written as its value
+        QString why;
     };
     std::vector<NameRec> m_names;
 
@@ -556,6 +559,50 @@ private:
             *index = at + 1;
             return true;
         };
+        compileNames();
+    }
+
+    // The tokens of every name's definition, before any formula is written: a name the form cannot hold (a cell of another workbook, a definition too long for a record) is marked, and so is a
+    // name defined through one (the marks are gone over until none is new).
+    void compileNames()
+    {
+        for (int pass = 0; pass < 8; ++pass) {
+            bool news = false;
+            for (size_t i = 0; i < m_names.size(); ++i) {
+                NameRec &n = m_names[i];
+                if (n.broken) continue;
+                XlsCompileContext cx = m_cx;
+                cx.isName = true;
+                cx.sheet = n.scope;
+                QByteArray rgce, extra;
+                QString why;
+                const qsizetype head = 15 + (isWide(n.name) ? 2 : 1) * n.name.size();
+                bool fits = xlsCompileFormula(n.ref, cx, &rgce, &extra, &why);
+                if (fits && head + rgce.size() + extra.size() > kMaxRecord) {
+                    fits = false;
+                    why = QCoreApplication::translate("Sheet", "The formula is longer than the old format allows.");
+                }
+                if (fits) {
+                    n.rgce = rgce;
+                    n.extra = extra;
+                    continue;
+                }
+                n.broken = true;
+                n.why = why;
+                m_cx.brokenNames.insert(int(i) + 1);
+                news = true;
+            }
+            if (!news) break;
+        }
+        for (NameRec &n : m_names) {
+            if (!n.broken) continue;
+            // (a name the format cannot hold the definition of stands for a reference that is gone, as a real file has it: the token for it through the list of external sheets)
+            W r;
+            r.u8(0x3C).u16(std::max(0, xtiFor(0, 0))).u16(0).u16(0);
+            n.rgce = r.bytes();
+            n.extra.clear();
+            trim(QCoreApplication::translate("Sheet", "the name %1 (%2)").arg(n.name, n.why));
+        }
     }
 
     QByteArray namesRecords()
@@ -563,20 +610,7 @@ private:
         QByteArray out;
         for (size_t i = 0; i < m_names.size(); ++i) {
             const NameRec &n = m_names[i];
-            XlsCompileContext cx = m_cx;
-            cx.isName = true;
-            cx.sheet = n.scope;
-            QByteArray rgce, extra;
-            QString why;
-            const qsizetype head = 15 + (isWide(n.name) ? 2 : 1) * n.name.size();
-            const bool fits = xlsCompileFormula(n.ref, cx, &rgce, &extra, &why);
-            if (fits && head + rgce.size() + extra.size() > kMaxRecord) why = QCoreApplication::translate("Sheet", "The formula is longer than the old format allows.");
-            if (!fits || head + rgce.size() + extra.size() > kMaxRecord) {
-                // (a name the format cannot hold the formula of stands for #REF!)
-                rgce = QByteArray::fromHex("1C17");
-                extra.clear();
-                trim(QCoreApplication::translate("Sheet", "the name %1 (%2)").arg(n.name, why));
-            }
+            const QByteArray &rgce = n.rgce, &extra = n.extra;
             W w;
             w.u16((n.builtin >= 0 ? 0x20 : 0) | (n.hidden ? 1 : 0)).u8(0);
             const QString text = n.builtin >= 0 ? QString(QChar(n.builtin)) : n.name;

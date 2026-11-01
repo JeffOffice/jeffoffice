@@ -122,6 +122,7 @@ bool checkStringTable(const QList<QByteArray> &chunks, int *unique, QString *why
 bool validateTokens(const QByteArray &rg, int externalSheets, int names, QString *why)
 {
     int i = 0, stack = 0;
+    QVector<int> classes;   // the class of the reference each operand on the stack is (0 for any other operand)
     bool memory = false;
     const int n = int(rg.size());
     auto b = [&](int k) { return k < n ? quint8(rg[k]) : 0; };
@@ -174,6 +175,15 @@ bool validateTokens(const QByteArray &rg, int externalSheets, int names, QString
         }
         if (i + len > n) { *why = QStringLiteral("a token (%1) runs past the end of the formula").arg(p, 2, 16, QLatin1Char('0')); return false; }
         if (!memory && stack < pop) { *why = QStringLiteral("an operator (%1) has too few operands").arg(p, 2, 16, QLatin1Char('0')); return false; }
+        // a call of an add-in function (the call with function 255) is given its references as references: of the value class, the program the format is named for works a range out as #VALUE!
+        if (base == 0x22 && u16(rg, i + 2) == 255 && !memory) {
+            for (int k = 0; k < pop - 1 && k < classes.size(); ++k) {
+                const int c = classes[classes.size() - 1 - k];
+                if (c == 0x40 || c == 0x60) { *why = QStringLiteral("an add-in function is given a reference of the value class (%1)").arg(c, 2, 16); return false; }
+            }
+        }
+        for (int k = 0; k < pop && !classes.isEmpty(); ++k) classes.removeLast();
+        for (int k = 0; k < push; ++k) classes.append((base == 0x23 || base == 0x24 || base == 0x25 || base == 0x2C || base == 0x2D || base == 0x3A || base == 0x3B) && p >= 0x20 ? (p & 0x60) : 0);
         stack = stack - pop + push;
         i += len;
     }
@@ -374,6 +384,7 @@ QString validateXls(const QByteArray &file)
         const int tokens = 15 + cch * (wide ? 2 : 1);
         if (tokens + cce > r.data.size()) return at(r, QStringLiteral("a name's tokens run past the record"));
         QString problem;
+        if (cce > 0 && quint8(r.data[tokens]) == 0x1C) return at(r, QStringLiteral("a name's tokens are an error value (a name for a reference that is gone has the token for that)"));
         if (!validateTokens(r.data.mid(tokens, cce), externalSheets, names, &problem)) return at(r, QStringLiteral("a name: ") + problem);
     }
     return QString();

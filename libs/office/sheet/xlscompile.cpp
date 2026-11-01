@@ -971,6 +971,7 @@ private:
             if (!found) found = m_cx.names.value(QStringLiteral("-1|") + key, 0);
         }
         if (!found) return failNode(QCoreApplication::translate("Sheet", "The formula uses a name the old format doesn't have."));
+        if (m_cx.brokenNames.contains(found)) return failNode(QCoreApplication::translate("Sheet", "The formula uses a name the old format can't hold the definition of."));
         m_pos = p;
         Node n;
         n.kind = Kind::Name;
@@ -1231,7 +1232,7 @@ private:
             u16(0);
         }
         auto argClass = [&](int position, int) {
-            switch (paramClass(n.code == 1 ? 255 : n.index, position)) {
+            switch (n.code == 1 ? 'R' : paramClass(n.index, position)) {   // (the arguments of an add-in function are references, as the real files write them)
             case 'R': return int(kClsRef);
             case 'A': return int(kClsArr);
             default: return valueCls;

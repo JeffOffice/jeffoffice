@@ -944,6 +944,8 @@ private Q_SLOTS:
         QVERIFY(xlstest::validateXls(c.xlsBytes).isEmpty());
         QString why;
         QVERIFY(!xlstest::validateTokens(QByteArray::fromHex("1E01001E0200"), -1, -1, &why));   // two values left over
+        QVERIFY(!xlstest::validateTokens(QByteArray::fromHex("39000001000000450000020000c000c04202ff00"), -1, -1, &why));   // an add-in call given a range of the value class
+        QVERIFY(xlstest::validateTokens(QByteArray::fromHex("39000001000000250000020000c000c04202ff00"), -1, -1, &why));
         QVERIFY(xlstest::validateTokens(QByteArray::fromHex("1E01001E020003"), -1, -1, &why));
         QVERIFY(!xlstest::validateTokens(QByteArray::fromHex("3B050000000000000000"), 2, -1, &why));   // a reference through an external sheet that is not in the list, and cut off
     }
@@ -1105,6 +1107,45 @@ private Q_SLOTS:
                 QCOMPARE(wb->styles().resolve(font.color, 0), c.original.styles().resolve(c.original.styles().font(c.original.styles().format(at(a, QString::fromLatin1(ref))->style).font).color, 0));
             }
         }
+    }
+
+    // The arguments of a function of the add-in set (XNPV, EDATE, and the rest) are written as references, as the real files write them (0x25 for a range, 0x24 for a cell): written as values, a
+    // range gave #VALUE! in the program the format is named for, and every cell that depended on one, a data table's among them.
+    void theArgumentsOfAnAddInFunctionAreReferences()
+    {
+        XlsCompileContext cx;
+        cx.sheetNames = {QStringLiteral("Sheet1")};
+        cx.xti = [](int, int) { return 0; };
+        cx.addIn = [](const QString &, int *ixti, int *index) {
+            *ixti = 0;
+            *index = 1;
+            return true;
+        };
+        QByteArray rgce, extra;
+        QString why;
+        QVERIFY(xlsCompileFormula(QStringLiteral("XNPV(0.1,A1:A3,B1:B3)"), cx, &rgce, &extra, &why));
+        QCOMPARE(QString::fromLatin1(rgce.toHex(' ')), QStringLiteral("39 00 00 01 00 00 00 1f 9a 99 99 99 99 99 b9 3f 25 00 00 02 00 00 c0 00 c0 25 00 00 02 00 01 c0 01 c0 42 04 ff 00"));
+        QVERIFY(xlsCompileFormula(QStringLiteral("EDATE(C3,2)"), cx, &rgce, &extra, &why));
+        QCOMPARE(QString::fromLatin1(rgce.toHex(' ')), QStringLiteral("39 00 00 01 00 00 00 24 02 00 02 c0 1e 02 00 42 03 ff 00"));
+    }
+
+    // A formula that uses a name whose definition the old form cannot hold (a cell of another workbook, an error, a definition too long for a record) is written as its value: written as a
+    // formula it would be worked out again by the program that opens the copy, to the error the name stands for (every cell that depends on it, a data table's among them, went wrong).
+    void aFormulaThatUsesANameTheFormCannotHoldKeepsItsValue()
+    {
+        Copies c;
+        const QString names = QStringLiteral("<definedName name=\"Outside\">[1]Other!$A$1</definedName><definedName name=\"Inside\">Sheet1!$A$1</definedName><definedName name=\"ViaOutside\">Outside*2</definedName>");
+        const QByteArray x = simple(row(1, num(QStringLiteral("A1"), 5) + fnum(QStringLiteral("B1"), QStringLiteral("Outside*2"), 10) + fnum(QStringLiteral("C1"), QStringLiteral("Inside*2"), 10)
+                                              + fnum(QStringLiteral("D1"), QStringLiteral("ViaOutside+1"), 11) + fnum(QStringLiteral("E1"), QStringLiteral("B1+C1"), 20)),
+                                    QString(), QString(), QByteArray(), names);
+        QVERIFY2(c.make(x, false), qPrintable(c.why));
+        const Sheet b = c.sheet(c.xls, 0);
+        QVERIFY(!b.cells.find(0, 1)->hasFormula());   // Outside*2
+        QVERIFY(b.cells.find(0, 2)->hasFormula());    // Inside*2
+        QVERIFY(!b.cells.find(0, 3)->hasFormula());   // ViaOutside+1
+        QVERIFY(b.cells.find(0, 4)->hasFormula());    // B1+C1
+        QCOMPARE(val(c.xls, b, QStringLiteral("B1")), QStringLiteral("n:10"));
+        QCOMPARE(val(c.xls, b, QStringLiteral("D1")), QStringLiteral("n:11"));
     }
 
     void theFormulaCompilerRefusesWhatItCannotWrite()

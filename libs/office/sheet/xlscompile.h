@@ -9,6 +9,7 @@
 #include <QByteArray>
 #include <QHash>
 #include <QString>
+#include <QSet>
 #include <QStringList>
 
 #include <functional>
@@ -23,6 +24,7 @@ struct XlsCompileContext {
     // for the add-in functions, and the place of the function's name among the names of the add-in; false if the name is not one the context writes.
     std::function<bool(const QString &name, int *ixti, int *index)> addIn;
     QHash<QString, int> names;                        // the defined names, by "<sheet place or -1>|<name in lower case>": the place from 1 in the list of names
+    QSet<int> brokenNames;                            // the names (by place from 1) whose definition the form cannot hold: a formula that uses one is refused
     int sheet = -1;                                   // the sheet the formula is in (-1 for a name's formula): a bare name is looked up among this sheet's names first
     bool array = false;                               // the formula is an array formula's: its operands are of the array kind
     bool isName = false;                              // the formula is a defined name's: its operands are references
