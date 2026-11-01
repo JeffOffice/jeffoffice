@@ -287,7 +287,7 @@ void CrunchWindow::buildCentral()
     m_view = new grid::GridView(central);
     m_view->setAccessibleName(tr("Sheet"));
     m_view->setAccessibleDescription(tr("The cells of the sheet. The arrow keys move the selection; Ctrl and an arrow go to the edge of the data."));
-    v->addWidget(m_view, 1);
+    v->addWidget(buildOutlineGutters(central), 1);
     buildPageLayoutView(central, v);
     m_cellEditor = new CellEditor(m_view->viewport());
     m_cellEditor->hide();
@@ -467,6 +467,7 @@ void CrunchWindow::createActions()
     createPageActions();
     createViewActions();
     createPageLayoutActions();
+    createOutlineActions();
     createChartActions();
     createTableActions();
     createNoteActions();

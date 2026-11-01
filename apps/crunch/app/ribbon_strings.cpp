@@ -36,6 +36,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Name"),
     QT_TRANSLATE_NOOP("Ribbon", "Names"),
     QT_TRANSLATE_NOOP("Ribbon", "Notes"),
+    QT_TRANSLATE_NOOP("Ribbon", "Outline"),
     QT_TRANSLATE_NOOP("Ribbon", "Number"),
     QT_TRANSLATE_NOOP("Ribbon", "Object"),
     QT_TRANSLATE_NOOP("Ribbon", "Organize Sheets"),

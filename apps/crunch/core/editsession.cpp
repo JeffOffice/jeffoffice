@@ -1189,9 +1189,15 @@ void EditSession::applySizes(Step *step, bool forward, Calculation *calc)
         if (e.columns) {
             calc->setColumnRuns(e.sheet, e.first, e.last, forward ? e.columnsAfter : e.columnsBefore);
             for (quint32 c = e.first; c <= e.last; ++c) markColumnResized(e.sheet, c);
+            for (const auto *list : {&e.columnsBefore, &e.columnsAfter})
+                for (const ColumnSpan &c : *list)
+                    if (c.outline != 0 || c.collapsed) m_formatsChanged.insert(e.sheet);   // (the file says how deep the outline goes: see the save)
         } else {
             calc->setRowSpecs(e.sheet, e.first, e.last, forward ? e.rowsAfter : e.rowsBefore);
             for (quint32 r = e.first; r <= e.last; ++r) markRowResized(e.sheet, r);
+            for (const auto *list : {&e.rowsBefore, &e.rowsAfter})
+                for (const RowSpec &r : *list)
+                    if (r.outline != 0 || r.collapsed) m_formatsChanged.insert(e.sheet);
         }
     }
 }
@@ -1498,6 +1504,11 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
         SheetChanges &sc = changes.sheets[sheet];
         sc.replaceFormat = true;
         sc.format = calc->sheetFormatOf(sheet);
+        // (how deep the outline of the rows and of the columns goes: the buttons in the margins show that many levels)
+        sc.format.outlineLevelRow = 0;
+        sc.format.outlineLevelCol = 0;
+        for (const RowSpec &spec : calc->rowSpecsIn(sheet, 0, kMaxRows - 1)) sc.format.outlineLevelRow = std::max(sc.format.outlineLevelRow, spec.outline);
+        for (const ColumnSpan &c : calc->columnRuns(sheet, 0, kMaxColumns - 1)) sc.format.outlineLevelCol = std::max(sc.format.outlineLevelCol, c.outline);
     }
     for (const int sheet : m_mergesChanged) {
         if (!written(sheet)) continue;
@@ -1578,7 +1589,10 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why)
             p.customHeight = specs.front().customHeight;
             p.customFormat = specs.front().customFormat;
             p.style = specs.front().style;
+            p.outline = specs.front().outline;
+            p.collapsed = specs.front().collapsed;
         }
+        p.outlineKnown = true;
         changes.sheets[sheet].rows.push_back(p);
     }
     qint64 liveResults = 0;   // (the results of cells in rows or columns that are deleted are not the file's to keep)

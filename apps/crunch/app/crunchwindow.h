@@ -54,6 +54,9 @@ class QPlainTextEdit;
 class QSlider;
 class QVBoxLayout;
 class QToolButton;
+namespace jp {
+class OutlineGutter;
+}
 class QUrl;
 
 namespace jp {
@@ -488,6 +491,18 @@ private:
     void fillStackChanged();
     void justifySelection();
     void fillAcrossDialog();
+    // the outline of the rows and columns (crunchwindow_outline.cpp)
+    void createOutlineActions();
+    QWidget *buildOutlineGutters(QWidget *parent);
+    void refreshOutline();
+    void outlineGroupClicked(bool columns, const crunch::Outline::Group &group);
+    void outlineLevelClicked(bool columns, int level);
+    void groupSelected(bool columns, bool group);
+    OutlineGutter *m_rowGutter = nullptr, *m_columnGutter = nullptr;
+public:
+    OutlineGutter *rowGutter() const { return m_rowGutter; }
+    OutlineGutter *columnGutter() const { return m_columnGutter; }
+private:
     void fillDragged(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
     void fillSeriesDialog();
     // inserting and deleting rows, columns, and cells (crunchwindow_cells.cpp)

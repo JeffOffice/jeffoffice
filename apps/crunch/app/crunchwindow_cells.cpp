@@ -431,6 +431,7 @@ void CrunchWindow::selectedLines(bool column, quint32 *first, quint32 *last) con
 void CrunchWindow::onSizesChanged(int sheet)
 {
     if (!m_loaded) return;
+    if (sheet == m_sheet) refreshOutline();
     if (sheet >= 0 && size_t(sheet) < m_loaded->geometry.size()) m_loaded->geometry[size_t(sheet)].reset();
     noteWidthsChanged(sheet);
     if (sheet == m_sheet) {

@@ -1,5 +1,5 @@
 # Change the view
-<!-- keywords: view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, gridlines, headings, formula bar, show formulas, sheet tabs, hidden sheets, headers -->
+<!-- keywords: outline, group, ungroup, collapse, expand, detail, level, view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, gridlines, headings, formula bar, show formulas, sheet tabs, hidden sheets, headers -->
 
 The **View** tab changes how the sheet looks on your screen. It never changes the workbook.
 
@@ -35,6 +35,12 @@ The tabs at the bottom are the sheets of the workbook. Click a tab to show that 
 ## Sheets that read from right to left
 
 A sheet made for a language such as Arabic or Hebrew reads from right to left, and JeffCrunch shows it that way: column A is at the right edge, the row numbers are at the right, and the horizontal scroll bar runs the other way. The arrow keys follow the sheet, so the Left arrow goes to the next column. Text in a cell starts from the side its language reads from. The workbook says which way a sheet reads; JeffCrunch has no command to change that yet.
+
+## Group rows and columns (outline)
+
+On the **Data** tab, **Group Rows** gives the selected rows a level more, and **Ungroup Rows** a level less; **Group Columns** and **Ungroup Columns** do the same for columns. Rows can be grouped inside groups, down to seven levels. Beside the rows (and above the columns) the sheet shows a bracket for each group and, on the line that sums the group up (the line below the rows, or to the right of the columns, unless your file puts them above or to the left), a button: **minus** hides the group's lines, and **plus** shows them again. The numbered buttons at the corner show the outline down to a level: **1** shows only the lines that are in no group, **2** the lines of the first level too, and so on. A group inside a hidden group stays hidden when the outer group is shown, until its own button is clicked. Each of these is one step of Undo, and the hidden lines and the groups are saved with the workbook. Ungrouping a hidden group shows its lines.
+
+**View > Outline Symbols** turns the brackets and buttons off and on.
 
 ## Show formulas
 

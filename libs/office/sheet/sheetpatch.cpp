@@ -283,6 +283,11 @@ QByteArray formatFromChange(const QByteArray &head, const SheetFormat &f, const 
         setFlag(tag, "customHeight", f.customHeight);
         if (f.defaultColWidth > 0) setAttr(tag, "defaultColWidth", numberText(f.defaultColWidth));
         else dropAttr(tag, "defaultColWidth");
+        // (the deepest levels of the outline: the buttons in the margins show that many)
+        if (f.outlineLevelRow > 0) setAttr(tag, "outlineLevelRow", QByteArray::number(f.outlineLevelRow));
+        else dropAttr(tag, "outlineLevelRow");
+        if (f.outlineLevelCol > 0) setAttr(tag, "outlineLevelCol", QByteArray::number(f.outlineLevelCol));
+        else dropAttr(tag, "outlineLevelCol");
     };
     if (found >= 0) {
         QByteArray tag = head.mid(found, foundEnd - found);

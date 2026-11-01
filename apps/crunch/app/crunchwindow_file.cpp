@@ -289,12 +289,13 @@ void CrunchWindow::afterSheetShown(int sheetIndex, bool inPlace)
 {
     const jp::office::sheet::Sheet *shown = m_view->sheet().data().sheet;
     if (!inPlace) {
-        m_view->sheet().setShowFormulas(act("view.formulas")->isChecked());
+        m_view->setShowFormulas(act("view.formulas")->isChecked());
         // (the colors the buttons of the ribbon offer are the workbook's theme)
         if (m_fillButton) m_fillButton->setScheme(workbookColors());
         if (m_fontColorButton) m_fontColorButton->setScheme(workbookColors());
     }
     prepareObjects(sheetIndex);
+    refreshOutline();
     act("view.gridlines")->setChecked(m_view->showGridlines());
     act("view.headings")->setChecked(m_view->showHeadings());
     updateFilterButtons();

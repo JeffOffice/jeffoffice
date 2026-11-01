@@ -224,6 +224,7 @@ void CrunchWindow::showPageLayout(bool on)
     m_cellEditor->setParent(on ? m_pageView->viewport() : m_view->viewport());
     m_cellEditor->hide();
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Header and Footer"), false);
+    refreshOutline();   // (the margins of the outline are the grid's, not the pages')
     if (on) {
         syncPageViewSelection();
         m_pageView->setFocus(Qt::OtherFocusReason);

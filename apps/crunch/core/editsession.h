@@ -28,6 +28,8 @@
 #include <QUndoStack>
 
 #include <atomic>
+#include "core/outline.h"
+
 #include <functional>
 #include <map>
 #include <mutex>
@@ -623,6 +625,10 @@ public:
         bool setHidden = false;
         bool hidden = false;
     };
+    // The outline of the rows or columns changed (see outline.h): the levels, which lines are hidden, and which summary lines say their group is collapsed; one step.
+    Outcome changeOutline(int sheet, bool columns, const std::vector<OutlineChange> &changes, const QString &text);
+    // The outline the rows (or the columns) of a sheet have now.
+    Outline outlineOf(int sheet, bool columns) const;
     Outcome resizeColumns(int sheet, quint32 first, quint32 last, const SizeChange &change, const QString &text);
     Outcome resizeRows(int sheet, quint32 first, quint32 last, const SizeChange &change, const QString &text);
     // Columns each given its width in one step (a fit to the contents of several): the column and the width.

@@ -1648,6 +1648,10 @@ bool SheetReader::read(QIODevice *in)
                 ok = startColumns(r);
             } else if (depth == 3 && inSheetPr && isElement(r, "tabColor")) {
                 m_sheet.tabColor = colorOf(r);
+            } else if (depth == 3 && inSheetPr && isElement(r, "outlinePr")) {
+                const QString below = attribute(r, "summaryBelow").toString().trimmed(), right = attribute(r, "summaryRight").toString().trimmed();
+                m_sheet.format.summaryBelow = below.isEmpty() || parseBool(below);
+                m_sheet.format.summaryRight = right.isEmpty() || parseBool(right);
             } else if (depth == 3 && inSheetPr && isElement(r, "pageSetUpPr")) {
                 readFitToPageAttributes(r.attributes(), &m_sheet.page);
             } else if (depth == 3 && inHeaderFooter) {
