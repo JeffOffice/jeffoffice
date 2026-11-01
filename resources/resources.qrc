@@ -1797,7 +1797,10 @@
     <file alias="en/write/index.md">help/en/write/index.md</file>
     <file alias="en/write/keyboard.md">help/en/write/keyboard.md</file>
     <file alias="en/write/open-save.md">help/en/write/open-save.md</file>
+    <file alias="en/write/page-setup.md">help/en/write/page-setup.md</file>
+    <file alias="en/write/pictures.md">help/en/write/pictures.md</file>
     <file alias="en/write/print.md">help/en/write/print.md</file>
+    <file alias="en/write/ruler.md">help/en/write/ruler.md</file>
     <file alias="en/write/spelling.md">help/en/write/spelling.md</file>
     <file alias="en/write/tables.md">help/en/write/tables.md</file>
     <file alias="en/write/start.md">help/en/write/start.md</file>

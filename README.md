@@ -6,7 +6,7 @@ JeffOffice is a free, open-source office suite for **Windows, macOS, and Linux**
 
 - **JeffPub**, for desktop publishing: flyers, newsletters, brochures, business cards, certificates, and other print pieces. It opens and saves Microsoft Publisher files.
 - **JeffDeck**, for presentations: it makes slides, plays slide shows, and opens PowerPoint files (`.pptx` and the older `.ppt`) and OpenDocument presentations (`.odp`), and saves `.pptx` and `.odp`.
-- **JeffWrite** (a preview), for documents: it opens Word files (`.docx` and the older `.doc`) and saves `.docx`, with tables, headers and footers, footnotes and endnotes, pictures and text boxes, spelling, printing, and PDF export.
+- **JeffWrite** (a preview), for documents: it opens Word files (`.docx` and the older `.doc`) and saves `.docx`, with tables, headers and footers, footnotes and endnotes, pictures (insert, size, move, and wrap them) and text boxes, page setup, a ruler, spelling, printing, and PDF export.
 - **JeffCrunch** (a preview), for spreadsheets: it opens workbooks (`.xlsx` and `.xlsm`, the older `.xls`, OpenDocument `.ods`, and text files of values such as `.csv`) and saves `.xlsx`, with formulas, formatting, sorting and filtering, charts, and printing.
 
 More apps are on the way: JeffMail for email and calendars, and JeffBase for databases. Each will come in an update once it's ready.
@@ -76,7 +76,7 @@ JeffWrite writes and edits documents. It's a **preview**: it opens most document
 
 ### Not yet in the preview
 
-Pages drawn a little differently from the word processor's in places (most often where a line or a page breaks); editing the text of headers, footers, and notes; equations laid out as they are printed (they're shown as a line and kept); `.rtf` and `.odt` files; and the ruler. Help covers what JeffWrite does today, and [docs/jeffwrite.md](docs/jeffwrite.md) says where it stands.
+Pages drawn a little differently from the word processor's in places (most often where a line or a page breaks); editing the text of headers, footers, and notes; equations laid out as they are printed (they're shown as a line and kept); `.rtf` and `.odt` files; and the vertical ruler. Help covers what JeffWrite does today, and [docs/jeffwrite.md](docs/jeffwrite.md) says where it stands.
 
 ## JeffCrunch
 
