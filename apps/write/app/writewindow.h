@@ -2,6 +2,7 @@
 // JeffWrite's main window: the ribbon, the pages, and the status bar, with the File screen over them.
 
 #include "app/appwindow.h"
+#include "core/reviewops.h"
 #include "core/styleops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
@@ -12,11 +13,13 @@
 #include <functional>
 #include <memory>
 
+class QActionGroup;
 class QDockWidget;
 class QLabel;
 class QMenu;
 class QPrinter;
 class QSlider;
+class QToolButton;
 
 namespace jp {
 
@@ -31,6 +34,7 @@ class SizeCombo;
 class StylesPane;
 class WriteFileScreen;
 class WriteFindPane;
+class ReviewPane;
 namespace write {
 class PageView;
 class Ruler;
@@ -116,6 +120,14 @@ public:
     void showStylesPane();
     StylesPane *stylesPane() const { return m_styles; }
 
+    // The Reviewing pane on the right (made when first asked for, so null before): Review > Reviewing Pane, with the page ("comments" or "changes") it is to show.
+    void showReviewPane(bool changes = false);
+    ReviewPane *reviewPane() const { return m_review; }
+    // Display for Review: how the document shows its tracked changes and comments. Not saved with the document.
+    enum class ReviewView { SimpleMarkup, AllMarkup, NoMarkup, Original };
+    ReviewView reviewView() const { return m_reviewView; }
+    void setReviewView(ReviewView view);
+
     // The Format Painter: picked up (Once, or Locked by a double click on its button) it holds the look of the selection, and paints it on each selection made with the mouse until it
     // paints once, or until Esc. Turning it on copies the look of the selection as it is then.
     enum class PainterMode { Off, Once, Locked };
@@ -142,6 +154,14 @@ private:
     void createFileActions();
     void createHelpActions();
     void createReviewActions();
+    void applyReviewView();
+    void refreshReviewUi();
+    void newComment();
+    void gotoChange(bool forward);
+    void gotoComment(bool forward);
+    int resolveShown(bool accept);
+    QVector<write::Revision> shownRevisions() const;
+    void addReviewContextMenu(QMenu &menu);
     void createEditingActions();
     void createHeaderFooterActions();
     void createNoteActions();
@@ -183,6 +203,14 @@ private:
     void updateStatus();
     void updateWords();
 
+    ReviewPane *m_review = nullptr;
+    QDockWidget *m_reviewDock = nullptr;
+    ReviewView m_reviewView = ReviewView::AllMarkup;
+    bool m_showInsertionsAndDeletions = true, m_showFormatting = true, m_showComments = true;
+    int m_balloons = 0;   // 0 revisions inline, 1 in balloons, 2 only comments and formatting in balloons
+    QActionGroup *m_viewGroup = nullptr, *m_balloonGroup = nullptr;
+    QToolButton *m_trackLabel = nullptr;
+    bool m_updatingReview = false;
     std::unique_ptr<write::WriteDoc> m_doc;
     write::PageView *m_view = nullptr;
     Ribbon *m_ribbon = nullptr;

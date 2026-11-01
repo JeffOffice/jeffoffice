@@ -48,6 +48,15 @@ public:
     // scrolls to put it in the middle when it was out of the window.
     void showCursor(const QTextCursor &c);
 
+    // ---- marks over the pages for review: a bar in the margin beside each line a tracked change touches, a marker in the margin for each comment, and (with `deletions`) a balloon
+    // for each deletion in place of its text. Nothing here is the document's.
+    struct ReviewMarks {
+        bool changeBars = false, comments = false, deletions = false;
+        bool operator==(const ReviewMarks &o) const { return changeBars == o.changeBars && comments == o.comments && deletions == o.deletions; }
+    };
+    void setReviewMarks(const ReviewMarks &marks);
+    ReviewMarks reviewMarks() const { return m_reviewMarks; }
+
     // ---- zoom: 1 is 100%, from 0.1 to 5
     static constexpr double kLeastZoom = 0.1, kMostZoom = 5.0;
     double zoom() const { return m_zoom; }
@@ -340,6 +349,18 @@ private:
     RectCache m_rectCache;
     quint64 m_layoutSerial = 0;   // counted up each time the pages are made again
     void paintPictureHandles(QPainter &p);
+    void paintReviewMarks(QPainter &p, Rendered &r);
+    ReviewMarks m_reviewMarks;
+    // What the marks are made from, for the text as it was last looked at (the revision of the story): the stretches the changes cover, the comments, and the deletions.
+    struct ReviewCache {
+        int revision = -1;
+        const void *doc = nullptr;
+        QVector<std::pair<int, int>> spans;
+        struct Mark { int at; QString initials, text; QColor color; bool done; };
+        QVector<Mark> comments;
+        QVector<Mark> deletions;
+    } m_reviewCache;
+    void fillReviewCache();
     int m_pictureDragPage = -1;
 
     WriteDoc *m_doc = nullptr;

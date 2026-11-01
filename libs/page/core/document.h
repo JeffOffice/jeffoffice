@@ -348,6 +348,7 @@ public:
     bool wordWholePointLines = false;   // (LayoutEnv::wordWholePointLines)
     bool wordNoLeading = false;   // (LayoutEnv::wordNoLeading)
     double wordSpaceShrink = 0;   // (LayoutEnv::wordSpaceShrink)
+    int revisionView = 0;   // (LayoutEnv::revisionView)
     bool wordWrapTrailSpaces = false;   // (LayoutEnv::wordWrapTrailSpaces)
     QHash<QString, QString> wordStandIns;   // (LayoutEnv::standIns)
     // A picture's brightness, contrast, black and white, and transparent color change its colors as the presentation program changes a

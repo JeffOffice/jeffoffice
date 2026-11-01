@@ -2,6 +2,10 @@
 // Each document is built here from a few lines of XML.
 
 #include "app/writeinfo.h"
+#include "app/pageview.h"
+#include "app/settings.h"
+#include "app/reviewpane.h"
+#include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/commentops.h"
 #include "core/editops.h"
@@ -10,10 +14,19 @@
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "office/package.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 #include "wml/wml.h"
 
 #include <QElapsedTimer>
+#include <QFile>
+#include <QImage>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QToolButton>
+#include <QTemporaryDir>
+#include <QTreeWidget>
+#include <QDockWidget>
 #include <QRegularExpression>
 #include <QTest>
 #include <QTextBlock>
@@ -100,6 +113,28 @@ QString finalText(const WriteDoc &doc)
 }
 
 // The same with the changes' deletions in their places.
+// What the lines of the text say, each line's words, as the engine lays the story out with the way changes are shown now.
+QStringList lineTexts(WriteDoc &doc)
+{
+    FrameSpec fs;
+    fs.size = QSizeF(468, 600);
+    fs.insets = QMarginsF(0, 0, 0, 0);
+    fs.hyphenate = false;
+    StoryLayout layout;
+    layout.build(doc.story(), {fs}, doc.flow().env);
+    QStringList lines;
+    for (const auto &l : layout.lineInfo(0)) lines << QString(l.text).remove(QChar(0x2060)).trimmed();
+    return lines;
+}
+
+void resetShowMarkup()
+{
+    Settings::get().setValue(QStringLiteral("review/showInsertionsAndDeletions"), true);
+    Settings::get().setValue(QStringLiteral("review/showFormatting"), true);
+    Settings::get().setValue(QStringLiteral("review/showComments"), true);
+    Settings::get().setValue(QStringLiteral("review/balloons"), 0);
+}
+
 QString comments_text(WriteDoc &doc) { return comments(doc).value(0).text; }
 bool comments_done(WriteDoc &doc, int id) { return commentById(doc, id) && commentById(doc, id)->done; }
 
@@ -167,6 +202,10 @@ private Q_SLOTS:
         setAppInfo(writeAppInfo());
         initCore();
     }
+
+    // The choices of Show Markup are kept in the settings: each test begins and ends with the usual ones.
+    void init() { resetShowMarkup(); }
+    void cleanup() { resetShowMarkup(); }
 
     // ---------------------------------------------------------------- finding changes
     void aDocumentsChangesAreListedWithTheirAuthorsDatesAndWords()
@@ -699,6 +738,102 @@ private Q_SLOTS:
         QCOMPARE(documentXml(again->toDocx()), x);
     }
 
+    // ---------------------------------------------------------------- Display for Review
+    void changesAreShownAsTheViewSaysAndTheViewNeverChangesTheFile()
+    {
+        auto doc = open(makeDocx(para(run("one ") + inserted(1, "two ") + deleted(2, "three ", "Bob") + run("four"))));
+        QVERIFY(doc);
+        const QByteArray saved = doc->toDocx();
+        // The document as it stands (No Markup, Simple Markup): the deleted words take no room.
+        QCOMPARE(doc->revisionView(), 0);
+        QCOMPARE(lineTexts(*doc), QStringList{QStringLiteral("one two four")});
+        // All Markup: the deletion takes its place.
+        doc->setRevisionView(tp::kRevisionShowDeleted | tp::kRevisionMark);
+        QCOMPARE(lineTexts(*doc), QStringList{QStringLiteral("one two three four")});
+        // Original: the insertion is left out and the deletion is there, unmarked.
+        doc->setRevisionView(tp::kRevisionShowDeleted | tp::kRevisionHideInserted);
+        QCOMPARE(lineTexts(*doc), QStringList{QStringLiteral("one three four")});
+        // Back: nothing of the document changed, not the file, not the history.
+        doc->setRevisionView(0);
+        QCOMPARE(documentXml(doc->toDocx()), documentXml(saved));
+        QVERIFY(!doc->canUndo());
+        QCOMPARE(lineTexts(*doc), QStringList{QStringLiteral("one two four")});
+        QCOMPARE(revisionCount(doc->story()), 2);
+    }
+
+    void markedChangesAreDrawnInTheirAuthorsColorsUnderlinedOrStruckThrough()
+    {
+        auto doc = open(makeDocx(para(run("one ") + inserted(1, "two ") + deleted(2, "three ", "Bob"))));
+        QVERIFY(doc);
+        doc->setRevisionView(tp::kRevisionShowDeleted | tp::kRevisionMark);
+        QTextBlock b = doc->story()->begin();
+        QTextCharFormat plain, ins, del;
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (cf.hasProperty(prop::Atom)) continue;
+            const QString t = it.fragment().text();
+            if (t == QLatin1String("one ")) plain = cf;
+            else if (t == QLatin1String("two ")) ins = cf;
+            else if (t == QLatin1String("three ")) del = cf;
+        }
+        const LayoutEnv &env = doc->flow().env;
+        const QTextCharFormat p = resolveCharFormat(plain, env), i = resolveCharFormat(ins, env), d = resolveCharFormat(del, env);
+        QVERIFY(!p.fontStrikeOut() && p.underlineStyle() == QTextCharFormat::NoUnderline);
+        QVERIFY(i.underlineStyle() != QTextCharFormat::NoUnderline && !i.fontStrikeOut());
+        QVERIFY(d.fontStrikeOut());
+        // (Each person has a color of their own, the same one every time.)
+        QVERIFY(i.foreground().color() != d.foreground().color());
+        QCOMPARE(i.foreground().color(), tp::revisionColor(doc->reviewerIndex(QStringLiteral("Ann"))));
+        QCOMPARE(d.foreground().color(), tp::revisionColor(doc->reviewerIndex(QStringLiteral("Bob"))));
+        // Not marked: as the text is.
+        doc->setRevisionView(tp::kRevisionShowDeleted);
+        const QTextCharFormat unmarked = resolveCharFormat(del, doc->flow().env);
+        QVERIFY(!unmarked.fontStrikeOut());
+    }
+
+    void aParagraphWhollyDeletedIsAParagraphOfItsOwnWhereDeletionsAreShown()
+    {
+        const QByteArray body = para(run("keep")) + para(deleted(1, "gone"), "<w:rPr><w:del" + rev(2) + "/></w:rPr>") + para(run("tail"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        QCOMPARE(lineTexts(*doc), (QStringList{QStringLiteral("keep"), QStringLiteral("tail")}));
+        doc->setRevisionView(tp::kRevisionShowDeleted | tp::kRevisionMark);
+        QCOMPARE(lineTexts(*doc), (QStringList{QStringLiteral("keep"), QStringLiteral("gone"), QStringLiteral("tail")}));
+        QCOMPARE(doc->pager().lines(0).size(), 3);
+        doc->setRevisionView(0);
+        QCOMPARE(doc->pager().lines(0).size(), 2);
+    }
+
+    void textTypedByTheReviewerShowsInThatColorAndTextTypedBesideChangesDoesNotInheritThem()
+    {
+        auto doc = open(makeDocx(para(run("a ") + inserted(1, "theirs", "Bob") + run(" z"))));
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed"), QString());
+        doc->setRevisionView(tp::kRevisionShowDeleted | tp::kRevisionMark);
+        // Typed inside someone's insertion with tracking off: part of it, in its color.
+        QTextCursor c(doc->story());
+        c.setPosition(5);
+        insertText(*doc, c, QStringLiteral("X"));
+        QTextCursor look(doc->story());
+        look.setPosition(6);
+        QCOMPARE(look.charFormat().intProperty(tp::Revision), 1);
+        QCOMPARE(look.charFormat().intProperty(tp::RevisionAuthor), doc->reviewerIndex(QStringLiteral("Bob")));
+        // Typed after it: no mark.
+        c.setPosition(doc->story()->characterCount() - 1);
+        insertText(*doc, c, QStringLiteral("Y"));
+        QTextCursor end(doc->story());
+        end.setPosition(doc->story()->characterCount() - 1);
+        QCOMPARE(end.charFormat().intProperty(tp::Revision), 0);
+        // Typed with tracking on: in the reviewer's color.
+        doc->setTrackChanges(true);
+        c.setPosition(1);
+        insertText(*doc, c, QStringLiteral("Q"));
+        QTextCursor mine(doc->story());
+        mine.setPosition(c.position());
+        QCOMPARE(mine.charFormat().intProperty(tp::Revision), 1);
+        QCOMPARE(mine.charFormat().intProperty(tp::RevisionAuthor), doc->reviewerIndex(QStringLiteral("Zed")));
+    }
+
     // ---------------------------------------------------------------- comments
     void aFilesCommentsAreListedWithTheirRepliesAndResolvedState()
     {
@@ -851,6 +986,207 @@ private Q_SLOTS:
         // Saving keeps all three, and deleting them works.
         QCOMPARE(partOf(doc->toDocx(), "/word/comments.xml").count("<w:comment "), 3);
         QCOMPARE(deleteAllComments(*doc), 3);
+    }
+
+    // ---------------------------------------------------------------- the window
+    void theReviewTabHasItsCommandsAndItsShortcutsAndBuildsCleanly()
+    {
+        WriteWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        for (const char *id : {"review.trackChanges", "review.accept", "review.reject", "review.acceptAll", "review.rejectAll", "review.acceptShown", "review.rejectShown", "review.acceptAllStop",
+                               "review.nextChange", "review.previousChange", "review.view.simple", "review.view.all", "review.view.none", "review.view.original", "review.show.insdel",
+                               "review.show.formatting", "review.show.comments", "review.balloons.inline", "review.balloons.balloons", "review.balloons.comments", "review.reviewingPane",
+                               "review.newComment", "review.deleteComment", "review.deleteAllComments", "review.nextComment", "review.previousComment", "review.replyComment", "review.resolveComment"})
+            QVERIFY2(w.act(QString::fromLatin1(id)), id);
+        QCOMPARE(w.act(QStringLiteral("review.trackChanges"))->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E).toString(QKeySequence::NativeText));
+        QCOMPARE(w.act(QStringLiteral("review.newComment"))->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_M).toString(QKeySequence::NativeText));
+        QVERIFY(w.act(QStringLiteral("review.trackChanges"))->isCheckable());
+        QVERIFY(w.act(QStringLiteral("review.view.all"))->isChecked());
+    }
+
+    void trackChangesTurnsOnAndOffAndTypingInTheWindowIsRecorded()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        write::WriteDoc *doc = w.document();
+        QVERIFY(doc);
+        QVERIFY(!doc->trackChanges());
+        w.act(QStringLiteral("review.trackChanges"))->trigger();
+        QVERIFY(doc->trackChanges());
+        QVERIFY(w.act(QStringLiteral("review.trackChanges"))->isChecked());
+        w.view()->insertText(QStringLiteral("hello"));
+        QCOMPARE(revisionCount(doc->story()), 1);
+        QCOMPARE(revisionsIn(doc->story()).value(0).author, Settings::get().userName());
+        QTRY_COMPARE(w.findChild<QToolButton *>(QStringLiteral("trackStatus"))->text(), QStringLiteral("Track Changes: On"));
+        w.act(QStringLiteral("review.trackChanges"))->trigger();
+        QVERIFY(!doc->trackChanges());
+        w.view()->insertText(QStringLiteral("!"));
+        QCOMPARE(revisionCount(doc->story()), 1);
+        QTRY_COMPARE(w.findChild<QToolButton *>(QStringLiteral("trackStatus"))->text(), QStringLiteral("Track Changes: Off"));
+        // Accept All through the command: one step.
+        w.act(QStringLiteral("review.acceptAll"))->trigger();
+        QCOMPARE(revisionCount(doc->story()), 0);
+        QVERIFY(w.act(QStringLiteral("review.accept")) != nullptr);
+    }
+
+    void aDocumentWithChangesOpensShowingTheirMarkupAndTheViewsChangeOnlyWhatIsShown()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("changes.docx"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        const QByteArray original = makeDocx(para(run("one ") + inserted(1, "two ") + deleted(2, "three ", "Bob") + run("four")));
+        f.write(original);
+        f.close();
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        QVERIFY(w.openFile(path));
+        write::WriteDoc *doc = w.document();
+        QVERIFY(doc);
+        QCOMPARE(w.reviewView(), WriteWindow::ReviewView::AllMarkup);
+        QCOMPARE(doc->revisionView(), tp::kRevisionShowDeleted | tp::kRevisionMark);
+        QCOMPARE(lineTexts(*doc), QStringList{QStringLiteral("one two three four")});
+        const QByteArray saved = documentXml(doc->toDocx());
+        w.act(QStringLiteral("review.view.none"))->trigger();
+        QCOMPARE(doc->revisionView(), 0);
+        QCOMPARE(lineTexts(*doc), QStringList{QStringLiteral("one two four")});
+        QVERIFY(!w.view()->reviewMarks().changeBars);
+        w.act(QStringLiteral("review.view.simple"))->trigger();
+        QCOMPARE(doc->revisionView(), 0);
+        QVERIFY(w.view()->reviewMarks().changeBars);
+        w.act(QStringLiteral("review.view.original"))->trigger();
+        QCOMPARE(lineTexts(*doc), QStringList{QStringLiteral("one three four")});
+        w.act(QStringLiteral("review.view.all"))->trigger();
+        QCOMPARE(lineTexts(*doc), QStringList{QStringLiteral("one two three four")});
+        // Insertions and deletions off: the document as it stands, whatever else is on.
+        w.act(QStringLiteral("review.show.insdel"))->trigger();
+        QCOMPARE(doc->revisionView(), 0);
+        w.act(QStringLiteral("review.show.insdel"))->trigger();
+        // Revisions in balloons: the deletion leaves the line and is in the margin.
+        w.act(QStringLiteral("review.balloons.balloons"))->trigger();
+        QCOMPARE(lineTexts(*doc), QStringList{QStringLiteral("one two four")});
+        QVERIFY(w.view()->reviewMarks().deletions);
+        w.act(QStringLiteral("review.balloons.inline"))->trigger();
+        QCOMPARE(lineTexts(*doc), QStringList{QStringLiteral("one two three four")});
+        // None of it was an edit: the file and the history are as they were.
+        QCOMPARE(documentXml(doc->toDocx()), saved);
+        QVERIFY(!doc->canUndo());
+        QVERIFY(!doc->isModified());
+    }
+
+    void acceptAndRejectByCommandKeepToOneStepAndMoveOn()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        auto made = open(makeDocx(para(run("a ") + inserted(1, "b ") + run("c ") + deleted(2, "d ") + run("e"))));
+        w.setDocument(std::move(made), QString());
+        write::WriteDoc *doc = w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        w.view()->setCursor(c);
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QVERIFY(w.view()->cursor().hasSelection());
+        QCOMPARE(revisionAt(doc->story(), w.view()->cursor().position())->kind, Revision::Insertion);
+        w.act(QStringLiteral("review.accept"))->trigger();   // accepted, and on to the next
+        QCOMPARE(revisionCount(doc->story()), 1);
+        QCOMPARE(revisionAt(doc->story(), w.view()->cursor().position())->kind, Revision::Deletion);
+        w.act(QStringLiteral("review.reject"))->trigger();
+        QCOMPARE(revisionCount(doc->story()), 0);
+        QCOMPARE(finalText(*doc), QStringLiteral("a b c d e"));
+        QVERIFY(doc->undo());
+        QVERIFY(doc->undo());
+        QCOMPARE(revisionCount(doc->story()), 2);
+        // "All shown" is those Show Markup has on.
+        w.act(QStringLiteral("review.show.insdel"))->trigger();   // off
+        QCOMPARE(w.act(QStringLiteral("review.acceptShown"))->isEnabled(), true);
+        w.act(QStringLiteral("review.acceptShown"))->trigger();
+        QCOMPARE(revisionCount(doc->story()), 2);   // (none shown)
+        w.act(QStringLiteral("review.show.insdel"))->trigger();
+        w.act(QStringLiteral("review.rejectShown"))->trigger();
+        QCOMPARE(revisionCount(doc->story()), 0);
+        // Accept All and Stop Tracking.
+        QVERIFY(doc->undo());
+        doc->setTrackChanges(true);
+        w.act(QStringLiteral("review.acceptAllStop"))->trigger();
+        QCOMPARE(revisionCount(doc->story()), 0);
+        QVERIFY(!doc->trackChanges());
+    }
+
+    void theReviewingPaneListsChangesAndCommentsAndItsButtonsWork()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        const QByteArray cm = commentElement(1, "Ann", "A question", "0000000A");
+        auto made = open(makeDocxWithComments(para(run("see ") + commented(1, "this") + inserted(5, " more", "Bob") + deleted(6, " gone", "Bob")), cm,
+                                              "<w15:commentEx w15:paraId=\"0000000A\" w15:done=\"0\"/>"));
+        w.setDocument(std::move(made), QString());
+        write::WriteDoc *doc = w.document();
+        w.act(QStringLiteral("review.reviewingPane"))->trigger();
+        ReviewPane *pane = w.reviewPane();
+        QVERIFY(pane);
+        QCOMPARE(pane->commentList()->topLevelItemCount(), 1);
+        QVERIFY(pane->commentList()->topLevelItem(0)->text(0).contains(QStringLiteral("A question")));
+        QVERIFY(pane->commentList()->topLevelItem(0)->text(0).contains(QStringLiteral("Ann")));
+        QCOMPARE(pane->changeList()->topLevelItemCount(), 2);
+        QVERIFY(pane->changeList()->topLevelItem(0)->text(0).contains(QStringLiteral("more")));
+        QCOMPARE(pane->changeList()->topLevelItem(1)->text(1), QStringLiteral("Bob"));
+        // Choosing a comment shows its words selected.
+        pane->commentList()->topLevelItem(0)->setSelected(true);
+        QCOMPARE(w.view()->cursor().selectedText().remove(QChar::ObjectReplacementCharacter), QStringLiteral("this"));
+        // A reply from the pane.
+        pane->replyField()->setText(QStringLiteral("An answer"));
+        QVERIFY(pane->postReply());
+        QCOMPARE(pane->commentList()->topLevelItem(0)->childCount(), 1);
+        QVERIFY(pane->commentList()->topLevelItem(0)->child(0)->text(0).contains(QStringLiteral("An answer")));
+        // Resolve, and it shows so; delete takes the thread.
+        pane->commentList()->topLevelItem(0)->setSelected(true);
+        auto *resolve = pane->findChild<QPushButton *>(QStringLiteral("resolveButton"));
+        QVERIFY(resolve);
+        QCOMPARE(resolve->text(), QStringLiteral("Resolve"));
+        resolve->click();
+        QVERIFY(write::commentById(*doc, 1)->done);
+        QCOMPARE(pane->findChild<QPushButton *>(QStringLiteral("resolveButton"))->text(), QStringLiteral("Reopen"));
+        // Accept a change from the list.
+        pane->showPage(ReviewPane::Changes);
+        pane->changeList()->topLevelItem(0)->setSelected(true);
+        pane->findChild<QPushButton *>(QStringLiteral("acceptButton"))->click();
+        QCOMPARE(revisionCount(doc->story()), 1);
+        pane->commentList()->topLevelItem(0)->setSelected(true);
+        pane->findChild<QPushButton *>(QStringLiteral("deleteCommentButton"))->click();
+        QCOMPARE(pane->commentList()->topLevelItemCount(), 0);
+        QVERIFY(write::comments(*doc).isEmpty());
+    }
+
+    void changeBarsAndCommentBalloonsAreDrawnOverThePagesAndNeverAreTheDocument()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        const QByteArray cm = commentElement(1, "Ann", "A comment in the margin", "0000000A");
+        auto made = open(makeDocxWithComments(para(run("one ") + inserted(5, "two") + run(" ") + commented(1, "three")), cm));
+        w.setDocument(std::move(made), QString());
+        w.act(QStringLiteral("review.view.none"))->trigger();
+        w.view()->viewport()->repaint();
+        const QImage plain = w.view()->viewport()->grab().toImage();
+        w.act(QStringLiteral("review.view.simple"))->trigger();
+        w.view()->viewport()->repaint();
+        const QImage marked = w.view()->viewport()->grab().toImage();
+        QVERIFY(plain != marked);
+        // The bar is red, in the left margin of the page; the balloon is at the right.
+        int red = 0;
+        for (int y = 0; y < marked.height(); ++y)
+            for (int x = 0; x < marked.width(); ++x) {
+                const QColor c = marked.pixelColor(x, y);
+                if (c.red() > 170 && c.green() < 90 && c.blue() < 90 && plain.pixelColor(x, y) != c) ++red;
+            }
+        QVERIFY(red > 4);
+        QVERIFY(!w.document()->isModified());
     }
 
     // ---------------------------------------------------------------- hostile files

@@ -1649,6 +1649,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         if (b == lastBlock) break;
     }
     if (m_doc->env.wordLines) sd->setProperty(StoryLayout::kBlockNumbersProperty, QVariant::fromValue(sourceNumbers));
+    if (m_doc->env.revisionView) sd->setProperty(tp::kRevisionViewProperty, m_doc->env.revisionView);
     return sd;
 }
 
@@ -1977,6 +1978,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     d->wordWholePointLines = m_doc->env.wordWholePointLines;
     d->wordNoLeading = m_doc->env.wordNoLeading;
     d->wordSpaceShrink = m_doc->env.wordSpaceShrink;
+    d->revisionView = m_doc->env.revisionView;
     d->wordWrapTrailSpaces = m_doc->env.wordWrapTrailSpaces;
     d->wordStandIns = m_doc->env.standIns;
     const Furniture furniture = furnitureOf(index, st, out->number);

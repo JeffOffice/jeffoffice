@@ -2,10 +2,13 @@
 
 #include "app/icons.h"
 #include "app/pagepaint.h"
+#include "core/commentops.h"
 #include "core/editops.h"
+#include "core/reviewops.h"
 #include "core/writeprops.h"
 #include "core/spellcheck.h"
 #include "render/renderer.h"
+#include "text/textprops.h"
 
 #include <QApplication>
 #include <QImage>
@@ -592,6 +595,7 @@ void PageView::paintEvent(QPaintEvent *e)
                 }
             }
             paintPage(&p, *page->page, &page->layouts, d);
+            if (m_reviewMarks.changeBars || m_reviewMarks.comments || m_reviewMarks.deletions) paintReviewMarks(p, *page);
             p.restore();
         }
         p.setPen(QPen(QColor(0, 0, 0, dark ? 90 : 50), 1));
@@ -611,6 +615,97 @@ void PageView::paintEvent(QPaintEvent *e)
         relayout();
         viewport()->update();
     });
+}
+
+// ---- marks for review
+
+void PageView::setReviewMarks(const ReviewMarks &marks)
+{
+    if (marks == m_reviewMarks) return;
+    m_reviewMarks = marks;
+    m_reviewCache.revision = -1;
+    viewport()->update();
+}
+
+void PageView::fillReviewCache()
+{
+    if (!m_doc) return;
+    const int revision = m_doc->story()->revision();
+    if (m_reviewCache.revision == revision && m_reviewCache.doc == m_doc) return;
+    m_reviewCache = ReviewCache();
+    m_reviewCache.revision = revision;
+    m_reviewCache.doc = m_doc;
+    // The stretches of the text the changes cover (joined where they meet).
+    QVector<std::pair<int, int>> spans;
+    for (const Revision &r : revisionsIn(m_doc->story(), 0, -1, 20000)) {
+        spans.push_back({r.from, std::max(r.to, r.from + 1)});
+        if (m_reviewMarks.deletions && (r.kind == Revision::Deletion || r.kind == Revision::MovedFrom)) {
+            QString words = revisionText(m_doc->story(), r, 60);
+            if (!words.isEmpty()) m_reviewCache.deletions.push_back({r.from, QString(), words, tp::revisionColor(m_doc->reviewerIndex(r.author)), false});
+        }
+    }
+    std::sort(spans.begin(), spans.end());
+    for (const auto &sp : std::as_const(spans)) {
+        if (!m_reviewCache.spans.isEmpty() && sp.first <= m_reviewCache.spans.last().second) m_reviewCache.spans.last().second = std::max(m_reviewCache.spans.last().second, sp.second);
+        else m_reviewCache.spans.push_back(sp);
+    }
+    if (m_reviewMarks.comments) {
+        for (const Comment &c : comments(*m_doc)) {
+            if (c.parent >= 0 || c.reference < 0) continue;
+            QString initials = c.initials.isEmpty() ? c.author.left(2) : c.initials;
+            m_reviewCache.comments.push_back({c.reference, initials, c.text, tp::revisionColor(m_doc->reviewerIndex(c.author)), c.done});
+        }
+    }
+}
+
+// Beside the lines of a page: a bar in the margin by each line a change touches, a balloon for each comment (and each deletion, where deletions are shown in balloons) at the right.
+void PageView::paintReviewMarks(QPainter &p, Rendered &r)
+{
+    if (!m_doc || !r.page || r.boxes.isEmpty() || m_hf.active) return;
+    fillReviewCache();
+    const LayoutCache::FrameLayout fl = r.layouts.textFrame(*r.page->doc, *r.boxes.first(), r.page->number, RenderOptions());
+    if (!fl.layout) return;
+    const double pageWidth = r.page->size.width();
+    p.save();
+    p.setRenderHint(QPainter::Antialiasing, true);
+    double lastBottom = -1e9;
+    for (int f = 0; f < r.boxes.size(); ++f) {
+        const TextItem *box = r.boxes[f];
+        const double marginRight = pageWidth - box->rect.right();
+        for (const auto &line : fl.layout->lineInfo(f)) {
+            const int a = line.docPos + r.page->storyFrom, b = std::max(line.docEnd, line.docPos + 1) + r.page->storyFrom;
+            const double top = box->rect.top() + line.rect.top(), height = std::max(1.0, line.rect.height());
+            if (m_reviewMarks.changeBars) {
+                // The first span that ends after the line begins.
+                auto it = std::lower_bound(m_reviewCache.spans.begin(), m_reviewCache.spans.end(), a, [](const std::pair<int, int> &sp, int v) { return sp.second <= v; });
+                if (it != m_reviewCache.spans.end() && it->first < b) p.fillRect(QRectF(box->rect.left() - 7, top, 1.6, height), QColor(0xC0, 0x39, 0x2B));
+            }
+            if (marginRight >= 30) {
+                auto balloon = [&](const ReviewCache::Mark &m, bool deletion) {
+                    if (m.at < a || m.at >= b) return;
+                    const double w = std::min(marginRight - 8, 120.0);
+                    QFont font = p.font();
+                    font.setPointSizeF(6.5);
+                    p.setFont(font);
+                    const QString shown = deletion ? QCoreApplication::translate("jp::write::PageView", "Deleted: %1").arg(m.text) : m.initials + QStringLiteral(": ") + m.text;
+                    const QRectF want(box->rect.right() + 6, std::max(top, lastBottom + 2), w, 0);
+                    const QRectF text = p.boundingRect(want.adjusted(3, 2, -3, 0).translated(0, 0).adjusted(0, 0, 0, 80), Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop, shown.left(120));
+                    const QRectF box2(want.left(), want.top(), w, std::min(78.0, text.height() + 5));
+                    QColor fill = m.color;
+                    fill.setAlpha(m.done ? 28 : 55);
+                    p.setPen(QPen(m.color, 0.7));
+                    p.setBrush(fill);
+                    p.drawRoundedRect(box2, 3, 3);
+                    p.setPen(m.done ? QColor(0x70, 0x70, 0x70) : QColor(0x20, 0x20, 0x20));
+                    p.drawText(box2.adjusted(3, 2, -3, -1), Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop, shown.left(120));
+                    lastBottom = box2.bottom();
+                };
+                for (const auto &c : std::as_const(m_reviewCache.comments)) balloon(c, false);
+                for (const auto &d : std::as_const(m_reviewCache.deletions)) balloon(d, true);
+            }
+        }
+    }
+    p.restore();
 }
 
 void PageView::resizeEvent(QResizeEvent *e)
