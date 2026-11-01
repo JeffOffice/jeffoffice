@@ -268,7 +268,7 @@ private Q_SLOTS:
                                                    "<headerFooter differentFirst=\"1\"><oddHeader>&amp;LLeft&amp;CPage &amp;P&amp;RRight</oddHeader><oddFooter>&amp;F</oddFooter><firstHeader>&amp;CFirst</firstHeader></headerFooter>"
                                                    "<rowBreaks count=\"1\" manualBreakCount=\"1\"><brk id=\"10\" max=\"16383\" man=\"1\"/></rowBreaks>"));
         QVERIFY2(c.make(x, false), qPrintable(c.why));
-        const PageSetup &a = c.sheet(c.original, 0).page, b = c.sheet(c.xls, 0).page;
+        const PageSetup a = c.sheet(c.original, 0).page, b = c.sheet(c.xls, 0).page;
         QCOMPARE(b.paperSize, 9);
         QCOMPARE(b.scale, 80);
         QVERIFY(b.orientation == PageOrientation::Landscape);
