@@ -21,6 +21,7 @@
 #include <QTextBlockFormat>
 #include <QTextCharFormat>
 #include <QTextListFormat>
+#include <functional>
 #include <memory>
 
 namespace jp::write {
@@ -174,6 +175,9 @@ public:
     // The paragraph ends the section: the break paragraphs and `flow().sections` are made again from the story. Called after edits that
     // add or remove paragraphs (the document does it itself when the story reports one).
     void syncSections();
+    // Changes the properties of sections `from` to `to` (inclusive) in one pass over the story and one step of the history: `change` is given each section's properties and says
+    // whether it changed them. Returns how many it changed.
+    int changeSections(int from, int to, const std::function<bool(office::wml::SectionProps &)> &change);
     // Makes the paragraph at `block` the last of a new section that is like the one it is in (a break); false if it ends one already. The section the break makes
     // begins as `type` says ("nextPage", "continuous", "oddPage", or "evenPage"); the section before it begins as it did.
     bool insertSectionBreak(const QTextBlock &block, const QString &type = QStringLiteral("nextPage"));
@@ -274,6 +278,8 @@ public:
     // ---- tables
     // What the last table command that did nothing said of why (empty when it did what it was asked): a limit of the file, or a shape it can't take.
     QString tableNotice;
+    // The same for the picture commands (core/pictureops.h): why the last one that did nothing did nothing, when the person needs telling.
+    QString pictureNotice;
     // What core/tableops.cpp keeps with the document: the tables of the story as they were last looked at, and the keys of the cell records that paragraphs held before a command
     // replaced them , to be let go when nothing can reach them.
     std::shared_ptr<void> tableViewCache;
@@ -343,7 +349,15 @@ public:
     // The Id of a relationship of the main part to an address outside the file, made if the document has none like it.
     QString addExternalLink(const QString &type, const QString &target);
     // The Id of an image relationship to a new part with these bytes (named image1.png and on, in word/media).
-    QString addMedia(const QByteArray &bytes, const QString &extension, const QString &contentType);
+    // (A picture the document already holds, byte for byte, is that one: `added`, if given, says whether a part and a relationship were made.)
+    QString addMedia(const QByteArray &bytes, const QString &extension, const QString &contentType, bool *added = nullptr);
+    // Takes back a relationship of the main part that addMedia made, and its part if no other relationship names it (for a picture that could not be put in the text).
+    void removeMedia(const QString &id);
+
+    // The pages' form of a drawn object of the main text (a picture: its atom is the run's child kept as XML) is put in `format`: an inline object of the character, or the
+    // anchor of an object set at a place on the page. False when it makes none (nothing drawn, the picture is not in the file, or the document holds the most pictures and objects it
+    // can show: they are kept for as long as a step of the history can bring a character that has one back, so none is let go).
+    bool makeDrawnFormat(const office::wml::Inline &atom, QTextCharFormat *format);
 
     // ---- the file
     QString filePath;

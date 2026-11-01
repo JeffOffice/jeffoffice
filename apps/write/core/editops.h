@@ -89,6 +89,11 @@ void insertTab(WriteDoc &doc, QTextCursor &c, bool back);
 // not in it, a delete takes all of it, and the characters of the text it is put in are its look.
 void insertPageNumber(WriteDoc &doc, QTextCursor &c);
 
+// Puts a drawn object (a picture: the element of a run that is kept as XML) where the cursor is, in place of a selection, as one step that undoes. `made`, if given, gets the
+// character format the object was given. False (nothing done) where it can't go: in a header, footer, or note, in a paragraph that stands for a kept element, or when the
+// document holds the most objects or pictures it can show.
+bool insertDrawnAtom(WriteDoc &doc, QTextCursor &c, const office::wml::Inline &atom, QTextCharFormat *made = nullptr);
+
 // ---- notes
 // Insert > Footnote (Ctrl+Alt+F): a reference to a new footnote where the cursor is (the end of a selection; nothing is replaced), and the note, which begins with its number and a
 // blank, as one step of the history with the reference. Every later note's number follows from its place among the references. `c` is put in the new note's story, after its number

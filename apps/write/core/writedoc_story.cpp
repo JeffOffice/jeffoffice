@@ -1339,6 +1339,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
     renumberLists(story);
 }
 
+bool WriteDoc::makeDrawnFormat(const Inline &atom, QTextCharFormat *format)
+{
+    return drawnObjects(atom, QString(), format);
+}
+
 bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format, double lineWidth, const QVector<Inline> *content)
 {
     const QVector<Shape> shapes = readShapes(atom.raw);

@@ -1430,6 +1430,33 @@ void insertPageNumber(WriteDoc &doc, QTextCursor &c)
     c = edit;
 }
 
+bool insertDrawnAtom(WriteDoc &doc, QTextCursor &c, const office::wml::Inline &atom, QTextCharFormat *made)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (c.document() != doc.story()) return false;   // (a header, a footer, or a note keeps its pictures as pieces it does not edit)
+    if (!intoBody(c)) return false;
+    if (isLocked(c.block()) && !c.hasSelection()) return false;
+    std::optional<NumberGuard> numbers;
+    if (c.hasSelection()) numbers.emplace(doc, c.document());
+    QTextCursor edit = c;
+    edit.beginEditBlock();
+    if (edit.hasSelection()) removeSelection(doc, edit);
+    settleBesideDeletions(edit);
+    QTextCharFormat f = typingFormat(edit);
+    f.clearProperty(flow::fp::AnchorId);
+    f.clearProperty(tp::InlineObject);
+    setStored(f, prop::Atom, packAtom(atom));
+    if (!doc.makeDrawnFormat(atom, &f)) {
+        edit.endEditBlock();
+        return false;
+    }
+    edit.insertText(QString(QChar::ObjectReplacementCharacter), f);
+    edit.endEditBlock();
+    if (made) *made = f;
+    c = edit;
+    return true;
+}
+
 QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c)
 {
     if (c.document() != doc.story()) return nullptr;   // (a header, a footer, or a note takes none)
