@@ -3,6 +3,7 @@
 
 #include "app/filescreen.h"
 #include "app/pageview.h"
+#include "app/ruler.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
 #include "app/writeinfo.h"
@@ -10,6 +11,9 @@
 #include "core/appinfo.h"
 #include "office/package.h"
 #include "core/fonts.h"
+#include "core/pagesetup.h"
+#include "core/pictureops.h"
+#include "core/rulerops.h"
 #include "app/tabledialogs.h"
 #include "app/widgets.h"
 #include "core/tableops.h"
@@ -17,6 +21,11 @@
 #include "testrunner.h"
 
 #include <QApplication>
+#include <QBuffer>
+#include <QImage>
+#include <QPlainTextEdit>
+#include <QRadioButton>
+#include <QTest>
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
@@ -138,6 +147,13 @@ private Q_SLOTS:
             // Save has something to save once something was changed.
             if (id == QLatin1String("file.save") && fromFile) m_app.type(w);
             if (id == QLatin1String("edit.paste")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
+            // Insert Picture asks for a file, and From Clipboard needs a picture there.
+            if (id == QLatin1String("insert.picture")) asWrite(w)->setPictureChooser([] { return pngFile(40, 30); });
+            if (id == QLatin1String("insert.pictureClipboard")) {
+                QImage image(40, 30, QImage::Format_ARGB32);
+                image.fill(QColor(10, 160, 60));
+                QGuiApplication::clipboard()->setImage(image);
+            }
             // A format is for the words a person has selected.
             if (fromFile && (id.startsWith(QLatin1String("fmt.")) || id.startsWith(QLatin1String("para.")) || id.startsWith(QLatin1String("ls.")) || id.startsWith(QLatin1String("style."))))
                 w->act(QStringLiteral("edit.selectAll"))->trigger();
@@ -181,6 +197,12 @@ private Q_SLOTS:
                  w->act(QStringLiteral("insert.header"))->trigger();
              }, false},
             {QStringLiteral("a header being edited"), [](AppWindow *w, bool) { w->act(QStringLiteral("insert.header"))->trigger(); }, false},
+            {QStringLiteral("a picture selected"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 asWrite(w)->setPictureChooser([] { return pngFile(80, 60); });
+                 w->act(QStringLiteral("insert.picture"))->trigger();
+                 asWrite(w)->refreshNow();
+             }, false},
             {QStringLiteral("the cursor in a table"), [](AppWindow *w, bool) { tableAtCursor(asWrite(w)); }, false},
             {QStringLiteral("the whole table selected"), [](AppWindow *w, bool) {
                  tableAtCursor(asWrite(w));
@@ -202,6 +224,7 @@ private Q_SLOTS:
              }, false},
         };
         m_app.quiet = {
+            {QStringLiteral("picture.lockAspect"), QStringLiteral("it is the setting the next change of a picture's width or height reads, and changes nothing by itself")},
             {QStringLiteral("view.printLayout"), QStringLiteral("the print layout is the only layout JeffWrite has, and the window begins in it")},
         };
         m_app.neverRun = {};
@@ -518,6 +541,464 @@ private Q_SLOTS:
         Q_EMIT height->editingFinished();
         QVERIFY(w->document()->isModified());
         QVERIFY(w->document()->toDocx() != was);
+    }
+
+    // ---- pictures, page setup, and the ruler (beta wave C)
+
+    static QByteArray pngOf(int width, int height)
+    {
+        QImage image(width, height, QImage::Format_RGB32);
+        image.fill(QColor(30, 120, 200));
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        return bytes;
+    }
+
+    static QString pngFile(int width, int height)
+    {
+        const QString path = tempFile(QStringLiteral("pic%1x%2.png").arg(width).arg(height));
+        QFile f(path);
+        if (f.open(QIODevice::WriteOnly)) f.write(pngOf(width, height));
+        return path;
+    }
+
+    static bool tabShown(WriteWindow *w, const char *name)
+    {
+        for (int i = 0; i < w->ribbon()->tabCount(); ++i)
+            if (w->ribbon()->tabName(i) == QLatin1String(name)) return w->ribbon()->tabVisible(i);
+        return false;
+    }
+
+    static void settle(WriteWindow *w)
+    {
+        w->view()->paginateAll();
+        w->view()->refresh();
+        w->refreshNow();
+    }
+
+    static void drag(QWidget *target, QPoint from, QPoint to, int steps = 3)
+    {
+        QTest::mousePress(target, Qt::LeftButton, Qt::NoModifier, from);
+        for (int i = 1; i <= steps; ++i) QTest::mouseMove(target, from + (to - from) * i / steps);
+        QTest::mouseRelease(target, Qt::LeftButton, Qt::NoModifier, to);
+    }
+
+    // The Insert Picture command puts the file's picture in the text and selects it; the Picture Format tab, its Wrap Text choices, its size fields, and its handles change it in one step each;
+    // and the file saved opens the same.
+    void aPictureInsertedInTheWindowIsSelectedWrappedSizedAndMovedInOneStepEach()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        typeInto(w->view(), QString(QStringLiteral("Some words that a picture will sit among, enough of them to fill several lines of the page. ")).repeated(8));
+        for (const char *id : {"insert.picture", "insert.pictureClipboard", "picture.altText", "picture.wrap.square", "picture.lockAspect", "view.ruler", "layout.pageSetup"}) QVERIFY2(w->act(QString::fromLatin1(id)), id);
+        settle(w.get());
+        QVERIFY(!tabShown(w.get(), "Picture Format"));
+        QVERIFY(!w->act(QStringLiteral("picture.altText"))->isEnabled());
+        const QString file = pngFile(160, 160);
+        w->setPictureChooser([file] { return file; });
+        w->view()->cursor().setPosition(20);
+        w->act(QStringLiteral("insert.picture"))->trigger();
+        settle(w.get());
+        const int at = w->view()->selectedPicture();
+        QCOMPARE(at, 20);
+        QVERIFY(tabShown(w.get(), "Picture Format"));
+        QVERIFY(w->act(QStringLiteral("picture.wrap.inline"))->isChecked());
+        QVERIFY(w->act(QStringLiteral("picture.altText"))->isEnabled());
+        auto *height = w->findChild<MeasureSpin *>(QStringLiteral("pictureHeightField"));
+        auto *width = w->findChild<MeasureSpin *>(QStringLiteral("pictureWidthField"));
+        QVERIFY(height && width);
+        QVERIFY(qFuzzyCompare(width->value(), 120.0) && qFuzzyCompare(height->value(), 120.0));
+        const write::WriteDoc &doc = *w->document();
+        auto info = [&] { return write::pictureAt(doc, doc.story(), at); };
+        // Wrap Text: the picture is set at a place, with the text going round it; one Undo takes it back in line.
+        const QString inLine = zipDigest(w->document()->toDocx());
+        w->act(QStringLiteral("picture.wrap.square"))->trigger();
+        settle(w.get());
+        QVERIFY(info().floating && info().wrap == write::PictureWrap::Square);
+        QVERIFY(w->act(QStringLiteral("picture.wrap.square"))->isChecked());
+        QVERIFY(w->view()->selectedPicture() == at);
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        settle(w.get());
+        QCOMPARE(zipDigest(w->document()->toDocx()), inLine);
+        QVERIFY(w->act(QStringLiteral("picture.wrap.inline"))->isChecked());
+        w->act(QStringLiteral("edit.redo"))->trigger();
+        settle(w.get());
+        // The size fields keep the picture's proportions (Lock Aspect Ratio is on).
+        width->setValue(60);
+        Q_EMIT width->editingFinished();
+        QCOMPARE(info().width, 60.0);
+        QCOMPARE(info().height, 60.0);
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        settle(w.get());
+        QCOMPARE(info().width, 120.0);
+        w->act(QStringLiteral("picture.lockAspect"))->trigger();
+        height->setValue(30);
+        Q_EMIT height->editingFinished();
+        QCOMPARE(info().width, 120.0);
+        QCOMPARE(info().height, 30.0);
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        w->act(QStringLiteral("picture.lockAspect"))->trigger();
+        settle(w.get());
+        // The handles: dragging the bottom right corner makes it larger in the same proportions, in one step.
+        const QString beforeDrag = zipDigest(w->document()->toDocx());
+        QPointF corner;
+        QVERIFY(w->view()->pictureHandlePoint(write::PageView::PictureHandle::BottomRight, &corner));
+        QWidget *viewport = w->view()->viewport();
+        QCOMPARE(w->view()->pictureHandleAt(corner.toPoint()), write::PageView::PictureHandle::BottomRight);
+        const double scale = w->view()->zoom() * 96.0 / 72.0;
+        drag(viewport, corner.toPoint(), corner.toPoint() + QPoint(int(60 * scale), int(10 * scale)));
+        settle(w.get());
+        QVERIFY2(std::abs(info().width - 180) < 1.5 && std::abs(info().width - info().height) < 0.5, qPrintable(QString::number(info().width)));
+        QVERIFY(w->view()->selectedPicture() == at);
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        settle(w.get());
+        QCOMPARE(zipDigest(w->document()->toDocx()), beforeDrag);
+        w->act(QStringLiteral("edit.redo"))->trigger();
+        settle(w.get());
+        // A side handle changes one side only.
+        QPointF side;
+        QVERIFY(w->view()->pictureHandlePoint(write::PageView::PictureHandle::Right, &side));
+        drag(viewport, side.toPoint(), side.toPoint() - QPoint(int(90 * scale), 0));
+        settle(w.get());
+        QVERIFY2(std::abs(info().width - 90) < 1.5 && std::abs(info().height - 180) < 1.5, qPrintable(QString::number(info().width)));
+        // Alt text: a dialog, one step.
+        answer([](QDialog *d) { d->findChild<QPlainTextEdit *>(QStringLiteral("altText"))->setPlainText(QStringLiteral("A blue square")); });
+        w->act(QStringLiteral("picture.altText"))->trigger();
+        QCOMPARE(info().alt, QStringLiteral("A blue square"));
+        // Moved: a picture in the line goes to the place in the text it is dropped at, in one step.
+        w->act(QStringLiteral("picture.wrap.inline"))->trigger();
+        settle(w.get());
+        QVERIFY(!info().floating);
+        const QString beforeMove = zipDigest(w->document()->toDocx());
+        QRectF pic;
+        QVERIFY(w->view()->pictureRect(at, &pic));
+        w->view()->cursor().setPosition(60);
+        QRect caret;
+        QVERIFY(w->view()->caretRect(&caret));
+        w->view()->selectPicture(at);
+        QVERIFY(w->view()->pictureRect(at, &pic));
+        drag(viewport, pic.center().toPoint(), QPoint(caret.x(), caret.center().y()), 4);
+        settle(w.get());
+        const int now = w->view()->selectedPicture();
+        QVERIFY2(now > at, qPrintable(QString::number(now)));
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        settle(w.get());
+        QCOMPARE(zipDigest(w->document()->toDocx()), beforeMove);
+        // A picture set at a place moves to the place it is dropped at.
+        w->view()->selectPicture(at);
+        settle(w.get());
+        w->act(QStringLiteral("picture.wrap.square"))->trigger();
+        settle(w.get());
+        QVERIFY(w->view()->pictureRect(at, &pic));
+        const QRectF startRect = pic;
+        const QString beforePlace = zipDigest(w->document()->toDocx());
+        drag(viewport, pic.center().toPoint(), pic.center().toPoint() + QPoint(int(100 * scale), int(80 * scale)));
+        settle(w.get());
+        QRectF moved;
+        QVERIFY(w->view()->pictureRect(at, &moved));
+        QVERIFY2(std::abs(moved.left() - startRect.left() - 100 * scale) < 3 && std::abs(moved.top() - startRect.top() - 80 * scale) < 3,
+                 qPrintable(QStringLiteral("%1,%2 from %3,%4").arg(moved.left()).arg(moved.top()).arg(startRect.left()).arg(startRect.top())));
+        QVERIFY(info().placeIsOffset);
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        settle(w.get());
+        QCOMPARE(zipDigest(w->document()->toDocx()), beforePlace);
+        w->act(QStringLiteral("edit.redo"))->trigger();
+        settle(w.get());
+        // A click on the picture selects it, and a click in the text takes the selection away; the tab goes with it.
+        w->view()->cursor().setPosition(3);
+        settle(w.get());
+        QVERIFY(w->view()->selectedPicture() < 0);
+        QVERIFY(!tabShown(w.get(), "Picture Format"));
+        QVERIFY(w->view()->pictureRect(at, &pic));
+        QTest::mouseClick(viewport, Qt::LeftButton, Qt::NoModifier, pic.center().toPoint());
+        settle(w.get());
+        QCOMPARE(w->view()->selectedPicture(), at);
+        QVERIFY(tabShown(w.get(), "Picture Format"));
+        // Saved, and opened again: the picture, its wrap, size, place, and alt text.
+        const QString path = tempFile(QStringLiteral("picture-window.docx"));
+        QFile::remove(path);
+        w->setSavePathChooser([&](const QString &, const QString &) { return path; });
+        QVERIFY(w->saveAs());
+        std::unique_ptr<WriteWindow> again(static_cast<WriteWindow *>(m_app.launchWith(path)));
+        QVERIFY(again);
+        const write::PictureInfo kept = write::pictureAt(*again->document(), again->document()->story(), at);
+        QVERIFY(kept.valid && kept.floating);
+        QCOMPARE(kept.alt, QStringLiteral("A blue square"));
+        QCOMPARE(kept.width, info().width);
+        QCOMPARE(kept.left, info().left);
+        QCOMPARE(again->document()->story()->toPlainText(), w->document()->story()->toPlainText());
+    }
+
+    // A picture on the clipboard is pasted as a picture, and survives save and reopen; Insert > Pictures > From Clipboard does the same; with no picture there it says so.
+    void aPictureFromTheClipboardSurvivesSaveAndReopen()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        typeInto(w->view(), QStringLiteral("Before the picture: "));
+        QImage image(64, 32, QImage::Format_ARGB32);
+        image.fill(QColor(220, 40, 40));
+        QGuiApplication::clipboard()->setImage(image);
+        w->act(QStringLiteral("edit.paste"))->trigger();
+        settle(w.get());
+        const int at = 20;
+        QCOMPARE(w->view()->selectedPicture(), at);
+        QCOMPARE(write::pictureAt(*w->document(), w->document()->story(), at).width, 48.0);
+        // One Undo takes it away.
+        settle(w.get());
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(w->view()->selectedPicture() < 0);
+        QCOMPARE(w->document()->story()->toPlainText(), QStringLiteral("Before the picture: "));
+        settle(w.get());
+        w->act(QStringLiteral("edit.redo"))->trigger();
+        settle(w.get());
+        // The menu's command.
+        w->view()->cursor().setPosition(0);
+        w->act(QStringLiteral("insert.pictureClipboard"))->trigger();
+        QCOMPARE(w->view()->selectedPicture(), 0);
+        // Saved, opened again: the pictures are there and are the pixels that were on the clipboard.
+        const QString path = tempFile(QStringLiteral("clipboard-picture.docx"));
+        QFile::remove(path);
+        w->setSavePathChooser([&](const QString &, const QString &) { return path; });
+        QVERIFY(w->saveAs());
+        std::unique_ptr<WriteWindow> again(static_cast<WriteWindow *>(m_app.launchWith(path)));
+        QVERIFY(again);
+        QVERIFY(write::isPictureAt(again->document()->story(), 0));
+        QVERIFY(write::isPictureAt(again->document()->story(), 21));
+        office::Package pkg;
+        QVERIFY(pkg.read(again->document()->toDocx()));
+        QImage kept;
+        QVERIFY(kept.loadFromData(pkg.part(QStringLiteral("/word/media/image1.png"))));
+        QCOMPARE(kept.size(), image.size());
+        QCOMPARE(kept.pixelColor(10, 10), QColor(220, 40, 40));
+        // No picture on the clipboard: it says so, and nothing changes.
+        QGuiApplication::clipboard()->setText(QStringLiteral("only words"));
+        const QString digest = zipDigest(again->document()->toDocx());
+        again->act(QStringLiteral("insert.pictureClipboard"))->trigger();
+        QCOMPARE(zipDigest(again->document()->toDocx()), digest);
+        QVERIFY(again->statusBar()->currentMessage().contains(QStringLiteral("no picture")));
+    }
+
+    // The Page Setup dialog: the margins, orientation, paper, and layout of the section or of every section, in one step.
+    void thePageSetupDialogChangesTheSectionOrTheWholeDocumentInOneStep()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        typeInto(w->view(), QStringLiteral("First section"));
+        w->act(QStringLiteral("layout.sectionBreak"))->trigger();
+        typeInto(w->view(), QStringLiteral("Second section"));
+        settle(w.get());
+        write::WriteDoc &doc = *w->document();
+        QCOMPARE(doc.sectionCount(), 2);
+        const QString original = zipDigest(doc.toDocx());
+        QVERIFY(w->view()->cursorSection() == 1);
+        // The second section only.
+        answer([](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("applyTo"))->currentIndex(), 0);
+            d->findChild<QRadioButton *>(QStringLiteral("landscape"))->setChecked(true);   // (the page turns, and its margins with it)
+            QCOMPARE(d->findChild<MeasureSpin *>(QStringLiteral("paperWidth"))->value(), 792.0);
+            QCOMPARE(d->findChild<MeasureSpin *>(QStringLiteral("paperHeight"))->value(), 612.0);
+            d->findChild<MeasureSpin *>(QStringLiteral("left"))->setValue(36);
+            d->findChild<MeasureSpin *>(QStringLiteral("top"))->setValue(54);
+        });
+        w->act(QStringLiteral("layout.pageSetup"))->trigger();
+        settle(w.get());
+        const flow::Section second = doc.flow().section(1);
+        QVERIFY(second.orientation == flow::Section::Orientation::Landscape);
+        QVERIFY(doc.flow().section(0).orientation == flow::Section::Orientation::Portrait);
+        QCOMPARE(second.margins.left(), 36.0);
+        QCOMPARE(second.margins.top(), 54.0);
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        settle(w.get());
+        QCOMPARE(zipDigest(doc.toDocx()), original);
+        // The whole document: A4, a different first page and odd and even pages, a continuous start.
+        answer([](QDialog *d) {
+            d->findChild<QComboBox *>(QStringLiteral("applyTo"))->setCurrentIndex(1);
+            auto *size = d->findChild<QComboBox *>(QStringLiteral("paperSize"));
+            size->setCurrentIndex(4);
+            Q_EMIT size->activated(4);
+            d->findChild<MeasureSpin *>(QStringLiteral("right"))->setValue(90);
+            d->findChild<QComboBox *>(QStringLiteral("sectionStart"))->setCurrentIndex(1);
+            d->findChild<QCheckBox *>(QStringLiteral("differentFirstPage"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("differentOddEven"))->setChecked(true);
+        });
+        w->act(QStringLiteral("layout.pageSetup"))->trigger();
+        settle(w.get());
+        for (int i = 0; i < 2; ++i) {
+            const write::SectionSetup s = write::pageSetupOf(doc.sectionProps(i), doc.differentOddEven());
+            QVERIFY(std::abs(s.paperWidth - 595.3) < 0.1 && std::abs(s.paperHeight - 841.9) < 0.1);
+            QCOMPARE(s.right, 90.0);
+            QVERIFY(s.start == QLatin1String("continuous") && s.differentFirstPage && s.differentOddEven);
+        }
+        w->act(QStringLiteral("edit.undo"))->trigger();
+        settle(w.get());
+        QCOMPARE(zipDigest(doc.toDocx()), original);
+        QVERIFY(!doc.differentOddEven());
+        // Cancelled: nothing changes.
+        answer([](QDialog *d) { d->findChild<MeasureSpin *>(QStringLiteral("left"))->setValue(200); }, false);
+        w->act(QStringLiteral("layout.pageSetup"))->trigger();
+        QCOMPARE(zipDigest(doc.toDocx()), original);
+    }
+
+    // The ruler shows the margins, the indents of the paragraph the caret is in, and its tab stops; each marker is dragged, a click adds a tab stop, and each change is one step.
+    void theRulerDragsIndentsMarginsAndTabsInOneStepEach()
+    {
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        typeInto(w->view(), QStringLiteral("An indented paragraph of text for the ruler to show and change."));
+        settle(w.get());
+        write::Ruler *ruler = w->ruler();
+        QVERIFY(ruler);
+        QVERIFY(ruler->isVisible());
+        QTRY_VERIFY(ruler->shows());
+        QCOMPARE(ruler->textLeft(), 72.0);
+        QCOMPARE(ruler->textWidth(), 468.0);
+        const double scale = w->view()->zoom() * 96.0 / 72.0;
+        auto format = [&] { return w->document()->story()->begin().blockFormat(); };
+        auto marker = [&](write::Ruler::Marker m, int index = 0) {
+            QPointF p;
+            [&] { QVERIFY(ruler->markerPoint(m, index, &p)); }();
+            return p.toPoint();
+        };
+        auto undoOnce = [&] {
+            w->act(QStringLiteral("edit.undo"))->trigger();
+            settle(w.get());
+            ruler->sync();
+        };
+        const QString original = zipDigest(w->document()->toDocx());
+        // The first line's marker: 36 points in.
+        {
+            const QPoint p = marker(write::Ruler::Marker::FirstLine);
+            drag(ruler, p, p + QPoint(int(std::lround(36 * scale)), 0));
+            settle(w.get());
+            ruler->sync();
+            QCOMPARE(format().textIndent(), 36.0);
+            QCOMPARE(format().leftMargin(), 0.0);
+            QVERIFY(zipDigest(w->document()->toDocx()) != original);
+            undoOnce();
+            QCOMPARE(zipDigest(w->document()->toDocx()), original);
+            w->act(QStringLiteral("edit.redo"))->trigger();
+            settle(w.get());
+        }
+        // The hanging indent moves the left indent and leaves the first line where it is.
+        {
+            ruler->sync();
+            const QPoint p = marker(write::Ruler::Marker::Hanging);
+            drag(ruler, p, p + QPoint(int(std::lround(72 * scale)), 0));
+            settle(w.get());
+            ruler->sync();
+            QCOMPARE(format().leftMargin(), 72.0);
+            QCOMPARE(format().textIndent(), 36.0 - 72.0);
+        }
+        // The left indent's box moves both.
+        {
+            ruler->sync();
+            const QPoint p = marker(write::Ruler::Marker::LeftIndent);
+            drag(ruler, p, p - QPoint(int(std::lround(36 * scale)), 0));
+            settle(w.get());
+            ruler->sync();
+            QCOMPARE(format().leftMargin(), 36.0);
+            QCOMPARE(format().textIndent(), -36.0);
+        }
+        // The right indent.
+        {
+            ruler->sync();
+            const QPoint p = marker(write::Ruler::Marker::RightIndent);
+            drag(ruler, p, p - QPoint(int(std::lround(54 * scale)), 0));
+            settle(w.get());
+            ruler->sync();
+            QCOMPARE(format().rightMargin(), 54.0);
+        }
+        // Markers dragged far off the ruler are held to the text.
+        {
+            ruler->sync();
+            const QPoint p = marker(write::Ruler::Marker::RightIndent);
+            drag(ruler, p, QPoint(-5000, p.y()));
+            settle(w.get());
+            ruler->sync();
+            QVERIFY(format().rightMargin() <= 468.0 && format().rightMargin() >= 0);
+            const QPoint f = marker(write::Ruler::Marker::FirstLine);
+            drag(ruler, f, QPoint(50000, f.y()));
+            settle(w.get());
+            ruler->sync();
+            QVERIFY(format().leftMargin() + format().textIndent() <= 468.0 + 0.01);
+        }
+        // The margins: dragging the left margin in by 36 points.
+        {
+            ruler->sync();
+            const QString before = zipDigest(w->document()->toDocx());
+            const QPoint p = marker(write::Ruler::Marker::LeftMargin);
+            drag(ruler, p, p + QPoint(int(std::lround(36 * scale)), 0));
+            settle(w.get());
+            ruler->sync();
+            QCOMPARE(w->document()->flow().section(0).margins.left(), 108.0);
+            QCOMPARE(ruler->textLeft(), 108.0);
+            undoOnce();
+            QCOMPARE(w->document()->flow().section(0).margins.left(), 72.0);
+            QCOMPARE(zipDigest(w->document()->toDocx()), before);
+            ruler->sync();
+            const QPoint r = marker(write::Ruler::Marker::RightMargin);
+            drag(ruler, r, r - QPoint(int(std::lround(36 * scale)), 0));
+            settle(w.get());
+            QCOMPARE(w->document()->flow().section(0).margins.right(), 108.0);
+            undoOnce();
+            QCOMPARE(w->document()->flow().section(0).margins.right(), 72.0);
+        }
+        // Tab stops: a click adds one of the kind in the box at the ruler's left end; a drag moves it; a drag off the ruler takes it away.
+        {
+            w->document()->undo();   // (the indents above)
+            while (w->document()->canUndo() && !format().tabPositions().isEmpty()) w->document()->undo();
+            settle(w.get());
+            ruler->sync();
+            const QPoint zero = marker(write::Ruler::Marker::LeftMargin);
+            QVERIFY(format().tabPositions().isEmpty());
+            const QString before = zipDigest(w->document()->toDocx());
+            QTest::mouseClick(ruler, Qt::LeftButton, Qt::NoModifier, QPoint(zero.x() + int(std::lround(144 * scale)), 13));
+            settle(w.get());
+            ruler->sync();
+            QCOMPARE(ruler->tabStops().size(), 1);
+            QCOMPARE(ruler->tabStops()[0].position, 144.0);
+            QVERIFY(ruler->tabStops()[0].type == QTextOption::LeftTab);
+            undoOnce();
+            QCOMPARE(zipDigest(w->document()->toDocx()), before);
+            w->act(QStringLiteral("edit.redo"))->trigger();
+            settle(w.get());
+            ruler->sync();
+            // The kind is changed by a click on the box.
+            QCOMPARE(int(ruler->tabKind()), int(QTextOption::LeftTab));
+            QPointF box;
+            QVERIFY(ruler->markerPoint(write::Ruler::Marker::TabKind, 0, &box));
+            QTest::mouseClick(ruler, Qt::LeftButton, Qt::NoModifier, box.toPoint());
+            QVERIFY(ruler->tabKind() == QTextOption::CenterTab);
+            QTest::mouseClick(ruler, Qt::LeftButton, Qt::NoModifier, QPoint(zero.x() + int(std::lround(288 * scale)), 13));
+            settle(w.get());
+            ruler->sync();
+            QCOMPARE(ruler->tabStops().size(), 2);
+            QVERIFY(ruler->tabStops()[1].type == QTextOption::CenterTab);
+            // Moved.
+            const QPoint t = marker(write::Ruler::Marker::TabStop, 0);
+            drag(ruler, t, t + QPoint(int(std::lround(36 * scale)), 0));
+            settle(w.get());
+            ruler->sync();
+            QCOMPARE(ruler->tabStops()[0].position, 180.0);
+            // Taken away.
+            const QPoint u = marker(write::Ruler::Marker::TabStop, 1);
+            drag(ruler, u, QPoint(u.x(), 200));
+            settle(w.get());
+            ruler->sync();
+            QCOMPARE(ruler->tabStops().size(), 1);
+        }
+        // Saved, and opened again: the tab stop and the indents.
+        const QString path = tempFile(QStringLiteral("ruler.docx"));
+        QFile::remove(path);
+        w->setSavePathChooser([&](const QString &, const QString &) { return path; });
+        QVERIFY(w->saveAs());
+        std::unique_ptr<WriteWindow> again(static_cast<WriteWindow *>(m_app.launchWith(path)));
+        QVERIFY(again);
+        QCOMPARE(write::tabStopsOf(again->document()->story()->begin().blockFormat()), write::tabStopsOf(format()));
+        QCOMPARE(again->document()->story()->begin().blockFormat().rightMargin(), format().rightMargin());
+        // The ruler goes and comes with View > Ruler.
+        w->act(QStringLiteral("view.ruler"))->trigger();
+        QVERIFY(!ruler->isVisible());
+        w->act(QStringLiteral("view.ruler"))->trigger();
+        QVERIFY(ruler->isVisible());
     }
 
     // ---- 3. every command

@@ -20,7 +20,10 @@
 #include "core/appinfo.h"
 #include "core/drawnitems.h"
 #include "core/editops.h"
+#include "core/pagesetup.h"
+#include "core/pictureops.h"
 #include "core/printing.h"
+#include "core/rulerops.h"
 #include "core/spellcheck.h"
 #include "app/tabledialogs.h"
 #include "core/tableops.h"
@@ -86,6 +89,7 @@
 #include <QScrollBar>
 #include <QToolButton>
 #include <functional>
+#include <limits>
 #include <random>
 #include <set>
 
@@ -20903,6 +20907,636 @@ private Q_SLOTS:
         QVERIFY(doc->story()->toPlainText().contains(QLatin1String(" alone" "abc")));
         QVERIFY(doc->undo());
         QVERIFY2(!doc->story()->toPlainText().contains(QLatin1String("alonea")), qPrintable(doc->story()->toPlainText()));
+    }
+
+    // ---- pictures, page setup, and the ruler (beta wave C)
+
+    static QByteArray pngOf(int width, int height, int shade = 0)
+    {
+        QImage image(width, height, QImage::Format_RGB32);
+        image.fill(QColor(shade & 255, (shade >> 8) & 255, 90));
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        return bytes;
+    }
+
+    static int picturesIn(const QTextDocument *story)
+    {
+        int n = 0;
+        for (int i = 0; i < story->characterCount() - 1; ++i) n += isPictureAt(story, i);
+        return n;
+    }
+
+    // The first line of the first page's text, as the page lays it out round the objects it holds.
+    static QRectF firstLineRect(WriteDoc &doc)
+    {
+        const auto page = doc.pager().materialize(0);
+        if (!page || page->boxes.isEmpty()) return {};
+        const auto *item = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[0]));
+        if (!item) return {};
+        LayoutCache cache;
+        const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *item, page->number, RenderOptions());
+        if (!fl.layout) return {};
+        const auto lines = fl.layout->lineInfo(0);
+        return lines.isEmpty() ? QRectF() : lines.first().rect;
+    }
+
+    // The objects set at places on the first page: the rectangle of each picture.
+    static QVector<QRectF> pictureItemsOfPage(WriteDoc &doc)
+    {
+        QVector<QRectF> out;
+        const auto page = doc.pager().materialize(0);
+        if (!page) return out;
+        for (const auto &it : page->doc->pages[0]->items)
+            if (it->type() == ItemType::Picture && it->id.startsWith(QLatin1String("flow-object-"))) out << it->rect;
+        return out;
+    }
+
+    static QString longText() { return QString(QStringLiteral("The court held that the provision applies to every appeal and every judgment. ")).repeated(40); }
+
+    void aPictureInsertedFromAFileIsOneStepAndSavesAndOpensTheSame()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        const QByteArray png = pngOf(96, 48);
+        QCOMPARE(insertPicture(*doc, c, png, QStringLiteral("photo")), PictureResult::Ok);
+        QVERIFY(isPictureAt(doc->story(), 7));
+        QCOMPARE(c.position(), 8);
+        const PictureInfo info = pictureAt(*doc, doc->story(), 7);
+        QVERIFY(info.valid && info.editable && !info.floating);
+        QVERIFY(info.wrap == PictureWrap::Inline);
+        QCOMPARE(info.width, 72.0);   // 96 pixels at 96 to the inch
+        QCOMPARE(info.height, 36.0);
+        QVERIFY(doc->isModified());
+        // One Undo takes the picture away, one Redo puts it back.
+        QVERIFY(doc->undo());
+        QVERIFY(!isPictureAt(doc->story(), 7));
+        QCOMPARE(plain(*doc), QStringLiteral("Before after"));
+        QVERIFY(!doc->canUndo());
+        QVERIFY(doc->redo());
+        QVERIFY(isPictureAt(doc->story(), 7));
+        const ItemPtr shown = inlineObjectOf(*doc);
+        QVERIFY(shown);
+        QVERIFY(shown->type() == ItemType::Picture);
+        QCOMPARE(shown->rect.width(), 72.0);
+        // Saved: the picture's file is a part of its own, the element well formed.
+        const QByteArray saved = doc->toDocx();
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        QCOMPARE(pkg.part(QStringLiteral("/word/media/image1.png")), png);
+        QCOMPARE(pkg.contentType(QStringLiteral("/word/media/image1.png")), QStringLiteral("image/png"));
+        const QByteArray docXml = documentXml(saved);
+        wml::XmlTree tree;
+        QVERIFY(tree.parse(docXml));
+        QVERIFY(docXml.contains("<wp:inline"));
+        QVERIFY(docXml.contains("cx=\"914400\""));
+        // And opened again, it is the same.
+        auto back = open(saved);
+        QVERIFY(back);
+        QVERIFY(isPictureAt(back->story(), 7));
+        const PictureInfo again = pictureAt(*back, back->story(), 7);
+        QCOMPARE(again.width, 72.0);
+        QCOMPARE(again.height, 36.0);
+        QCOMPARE(plain(*back), plain(*doc));
+        // The same picture put in again is the same part of the file.
+        QTextCursor d(doc->story());
+        d.setPosition(0);
+        QCOMPARE(insertPicture(*doc, d, png, QStringLiteral("again")), PictureResult::Ok);
+        office::Package twice;
+        QVERIFY(twice.read(doc->toDocx()));
+        QVERIFY(twice.part(QStringLiteral("/word/media/image2.png")).isEmpty());
+        QCOMPARE(picturesIn(doc->story()), 2);
+    }
+
+    void aPictureLargerThanTheColumnIsMadeToFitIt()
+    {
+        auto doc = textDoc({"x"});
+        QTextCursor c(doc->story());
+        QCOMPARE(insertPicture(*doc, c, pngOf(3000, 1500)), PictureResult::Ok);   // 2250 by 1125 points as it asks
+        const PictureInfo info = pictureAt(*doc, doc->story(), 0);
+        const double column = doc->flow().section(0).columnWidth();
+        QVERIFY2(info.width <= column + 0.01 && info.width > column - 1, qPrintable(QString::number(info.width)));
+        QVERIFY(std::abs(info.width / info.height - 2.0) < 0.01);
+    }
+
+    void aPictureFromAnImageIsKeptAsPngAndSavesAndOpensTheSame()
+    {
+        QImage image(30, 20, QImage::Format_ARGB32);
+        image.fill(QColor(200, 30, 30, 255));
+        image.setPixelColor(3, 4, QColor(0, 0, 0, 0));
+        auto doc = WriteDoc::blank();
+        QTextCursor c(doc->story());
+        typeText(*doc, c, QStringLiteral("Paste here: "));
+        QCOMPARE(insertPictureImage(*doc, c, image), PictureResult::Ok);
+        const int at = 12;
+        QVERIFY(isPictureAt(doc->story(), at));
+        QCOMPARE(pictureAt(*doc, doc->story(), at).width, 22.5);
+        const QByteArray saved = doc->toDocx();
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        QImage kept;
+        QVERIFY(kept.loadFromData(pkg.part(QStringLiteral("/word/media/image1.png"))));
+        QCOMPARE(kept.size(), image.size());
+        QCOMPARE(kept.pixelColor(3, 4).alpha(), 0);
+        QCOMPARE(kept.pixelColor(5, 5), QColor(200, 30, 30));
+        auto back = open(saved);
+        QVERIFY(back);
+        QVERIFY(isPictureAt(back->story(), at));
+        QCOMPARE(plain(*back), plain(*doc));
+        QVERIFY(doc->undo());
+        QVERIFY(!isPictureAt(doc->story(), at));
+    }
+
+    void eachWrapOfAPictureShowsOnThePageIsOneStepAndSavesAndOpensTheSame()
+    {
+        struct Case {
+            PictureWrap wrap;
+            const char *token;
+        };
+        const Case cases[] = {{PictureWrap::Square, "wrapSquare"}, {PictureWrap::Tight, "wrapTight"}, {PictureWrap::TopAndBottom, "wrapTopAndBottom"},
+                              {PictureWrap::BehindText, "behindDoc=\"1\""}, {PictureWrap::InFrontOfText, "wrapNone"}};
+        for (const Case &k : cases) {
+            auto doc = textDoc({longText()});
+            QTextCursor c(doc->story());
+            QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);   // 120 points square, in line with the text
+            QVERIFY(pictureItemsOfPage(*doc).isEmpty());
+            QVERIFY2(firstLineRect(*doc).height() >= 119, qPrintable(QString::number(firstLineRect(*doc).height())));
+            QVERIFY(setPictureWrap(*doc, 0, k.wrap));
+            const PictureInfo info = pictureAt(*doc, doc->story(), 0);
+            QVERIFY(info.floating && info.wrap == k.wrap);
+            QVERIFY(!setPictureWrap(*doc, 0, k.wrap));   // (the wrap it has is no step)
+            // On the page: a picture set at a place, and the text going round it as the wrap says.
+            QCOMPARE(pictureItemsOfPage(*doc).size(), 1);
+            const QRectF line = firstLineRect(*doc);
+            if (k.wrap == PictureWrap::Square || k.wrap == PictureWrap::Tight) QVERIFY2(line.left() >= 118, qPrintable(QString::number(line.left())));
+            else if (k.wrap == PictureWrap::TopAndBottom) QVERIFY2(line.top() >= 118, qPrintable(QString::number(line.top())));
+            else QVERIFY2(line.left() < 2 && line.height() < 40, qPrintable(QString::number(line.left())));
+            // One Undo, and the picture is in line again; one more takes the picture away.
+            QVERIFY(doc->undo());
+            QVERIFY(pictureAt(*doc, doc->story(), 0).wrap == PictureWrap::Inline);
+            QVERIFY(pictureItemsOfPage(*doc).isEmpty());
+            QVERIFY(doc->redo());
+            QVERIFY(pictureAt(*doc, doc->story(), 0).wrap == k.wrap);
+            // Saved, and opened again.
+            const QByteArray saved = doc->toDocx();
+            const QByteArray docXml = documentXml(saved);
+            wml::XmlTree tree;
+            QVERIFY(tree.parse(docXml));
+            QVERIFY2(docXml.contains(k.token), k.token);
+            auto back = open(saved);
+            QVERIFY(back);
+            const PictureInfo again = pictureAt(*back, back->story(), 0);
+            QVERIFY2(again.floating && again.wrap == k.wrap, k.token);
+            QCOMPARE(pictureItemsOfPage(*back).size(), 1);
+            // Back in line.
+            QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Inline));
+            QVERIFY(!pictureAt(*doc, doc->story(), 0).floating);
+            QVERIFY(documentXml(doc->toDocx()).contains("<wp:inline"));
+        }
+    }
+
+    void aPictureIsSizedPlacedAndDescribedInOneStepEach()
+    {
+        auto doc = textDoc({longText()});
+        QTextCursor c(doc->story());
+        QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);
+        // Size.
+        QVERIFY(setPictureSize(*doc, 0, 50, 25));
+        PictureInfo info = pictureAt(*doc, doc->story(), 0);
+        QCOMPARE(info.width, 50.0);
+        QCOMPARE(info.height, 25.0);
+        QVERIFY(!setPictureSize(*doc, 0, 50, 25));
+        QVERIFY(doc->undo());
+        QCOMPARE(pictureAt(*doc, doc->story(), 0).width, 120.0);
+        QVERIFY(doc->redo());
+        QCOMPARE(inlineObjectOf(*doc)->rect.width(), 50.0);
+        // A place on the page (a picture in line becomes one set at a place, the text going round it).
+        QVERIFY(setPicturePlace(*doc, 0, 200, 300));
+        info = pictureAt(*doc, doc->story(), 0);
+        QVERIFY(info.floating && info.wrap == PictureWrap::Square);
+        QVERIFY(info.placeIsOffset);
+        QCOMPARE(info.left, 200.0);
+        QCOMPARE(info.top, 300.0);
+        QCOMPARE(info.width, 50.0);
+        {
+            const QVector<QRectF> items = pictureItemsOfPage(*doc);
+            QCOMPARE(items.size(), 1);
+            QVERIFY(std::abs(items[0].left() - 200) < 0.5 && std::abs(items[0].top() - 300) < 0.5);
+            QCOMPARE(items[0].size(), QSizeF(50, 25));
+        }
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(doc->undo());
+        QCOMPARE(pictureAt(*doc, doc->story(), 0).left, 200.0);
+        QVERIFY(doc->redo());
+        // Size and place together are one step.
+        QVERIFY(setPictureBox(*doc, 0, 80, 40, QPointF(90, 120)));
+        QVERIFY(doc->undo());
+        info = pictureAt(*doc, doc->story(), 0);
+        QCOMPARE(info.width, 50.0);
+        QCOMPARE(info.left, 100.0);
+        QVERIFY(doc->redo());
+        // Alt text.
+        QVERIFY(setPictureAltText(*doc, 0, QStringLiteral("A red square with <angle brackets> & \"quotes\"")));
+        QVERIFY(!setPictureAltText(*doc, 0, QStringLiteral("A red square with <angle brackets> & \"quotes\"")));
+        QVERIFY(doc->undo());
+        QVERIFY(pictureAt(*doc, doc->story(), 0).alt.isEmpty());
+        QVERIFY(doc->redo());
+        const QByteArray saved = doc->toDocx();
+        wml::XmlTree tree;
+        QVERIFY(tree.parse(documentXml(saved)));
+        auto back = open(saved);
+        QVERIFY(back);
+        info = pictureAt(*back, back->story(), 0);
+        QCOMPARE(info.alt, QStringLiteral("A red square with <angle brackets> & \"quotes\""));
+        QCOMPARE(info.width, 80.0);
+        QCOMPARE(info.height, 40.0);
+        QCOMPARE(info.left, 90.0);
+        QCOMPARE(info.top, 120.0);
+        // What the alt text may not hold is left out, and it is as long as it may be.
+        QVERIFY(setPictureAltText(*doc, 0, QString(QChar(1)) + QStringLiteral("ok") + QString(100000, QLatin1Char('x'))));
+        const QString kept = pictureAt(*doc, doc->story(), 0).alt;
+        QCOMPARE(kept.size(), kMostAltTextLength);
+        QVERIFY(kept.startsWith(QStringLiteral(" ok")));
+        wml::XmlTree again;
+        QVERIFY(again.parse(documentXml(doc->toDocx())));
+    }
+
+    void aPictureInTheTextMovesToAnotherPlaceInOneStep()
+    {
+        auto doc = textDoc({"ab cd ef"});
+        QTextCursor c(doc->story());
+        c.setPosition(1);
+        QCOMPARE(insertPicture(*doc, c, pngOf(40, 40)), PictureResult::Ok);
+        QVERIFY(isPictureAt(doc->story(), 1));
+        QVERIFY(!movePictureInText(*doc, 1, 1));
+        QVERIFY(!movePictureInText(*doc, 1, 2));
+        QVERIFY(movePictureInText(*doc, 1, 7));
+        QVERIFY(isPictureAt(doc->story(), 6));
+        QCOMPARE(plain(*doc).remove(QChar::ObjectReplacementCharacter), QStringLiteral("ab cd ef"));
+        QVERIFY(doc->undo());
+        QVERIFY(isPictureAt(doc->story(), 1));
+        QVERIFY(doc->redo());
+        QVERIFY(isPictureAt(doc->story(), 6));
+        QVERIFY(open(doc->toDocx()));
+        QCOMPARE(picturesIn(doc->story()), 1);
+    }
+
+    static quint32 crc32Of(const QByteArray &bytes)
+    {
+        quint32 crc = 0xFFFFFFFFu;
+        for (const char ch : bytes) {
+            crc ^= quint8(ch);
+            for (int k = 0; k < 8; ++k) crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
+        }
+        return ~crc;
+    }
+
+    void aPictureThatCannotBeReadOrIsTooLargeChangesNothing()
+    {
+        auto doc = textDoc({"Some text"});
+        const QByteArray before = doc->toDocx();
+        QTextCursor c(doc->story());
+        c.setPosition(4);
+        QVERIFY(insertPicture(*doc, c, QByteArray("not a picture at all"), QStringLiteral("x")) == PictureResult::Unreadable);
+        QVERIFY(insertPicture(*doc, c, QByteArray(), QStringLiteral("x")) == PictureResult::Unreadable);
+        QVERIFY(insertPictureImage(*doc, c, QImage()) == PictureResult::Unreadable);
+        // A picture whose header says it is 30001 pixels across.
+        QByteArray wide = pngOf(2, 2);
+        QVERIFY(wide.size() > 33);
+        wide[16] = 0;
+        wide[17] = 0;
+        wide[18] = char(30001 >> 8);
+        wide[19] = char(30001 & 255);
+        const quint32 crc = crc32Of(wide.mid(12, 17));
+        wide[29] = char(crc >> 24);
+        wide[30] = char(crc >> 16);
+        wide[31] = char(crc >> 8);
+        wide[32] = char(crc);
+        QVERIFY(insertPicture(*doc, c, wide, QStringLiteral("x")) == PictureResult::TooLarge);
+        // More bytes than a picture may be.
+        QVERIFY(insertPicture(*doc, c, QByteArray(int(kMostPictureBytes) + 1, 'x'), QStringLiteral("x")) == PictureResult::TooLarge);
+        // Not into a story that is not the text's.
+        QTextDocument other;
+        QTextCursor oc(&other);
+        QVERIFY(insertPicture(*doc, oc, pngOf(4, 4), QStringLiteral("x")) == PictureResult::Refused);
+        QVERIFY(!doc->pictureNotice.isEmpty());
+        QCOMPARE(plain(*doc), QStringLiteral("Some text"));
+        QVERIFY(!doc->canUndo());
+        QVERIFY(!doc->isModified());
+        QCOMPARE(documentXml(doc->toDocx()), documentXml(before));
+        office::Package pkg;
+        QVERIFY(pkg.read(doc->toDocx()));
+        for (const QString &name : pkg.partNames()) QVERIFY2(!name.contains(QLatin1String("/media/")), qPrintable(name));
+        // Numbers that are no numbers, and sizes that are too much or too little.
+        QCOMPARE(insertPicture(*doc, c, pngOf(8, 8)), PictureResult::Ok);
+        QVERIFY(!setPictureSize(*doc, 4, std::nan(""), 10));
+        QVERIFY(!setPicturePlace(*doc, 4, std::numeric_limits<double>::infinity(), 0));
+        QVERIFY(!setPictureSize(*doc, 3, 10, 10));   // (no picture there)
+        QVERIFY(!setPictureAltText(*doc, 99999, QStringLiteral("x")));
+        QVERIFY(setPictureSize(*doc, 4, 1e12, 1e-9));
+        PictureInfo info = pictureAt(*doc, doc->story(), 4);
+        QCOMPARE(info.width, kMostPictureSize);
+        QCOMPARE(info.height, kLeastPictureSize);
+        QVERIFY(setPicturePlace(*doc, 4, -1e12, 1e12));
+        info = pictureAt(*doc, doc->story(), 4);
+        QCOMPARE(info.left, -kMostPictureOffset);
+        QCOMPARE(info.top, kMostPictureOffset);
+        QVERIFY(open(doc->toDocx()));
+    }
+
+    void aDocumentThatHoldsAsManyPicturesAsItCanShowRefusesMoreAndKeepsItsUndo()
+    {
+        auto doc = textDoc({"x"});
+        QTextCursor c(doc->story());
+        int made = 0;
+        PictureResult last = PictureResult::Ok;
+        for (int i = 0; i < 2100 && last == PictureResult::Ok; ++i) {
+            last = insertPicture(*doc, c, pngOf(1, 1, i + 1), QStringLiteral("p"));
+            if (last == PictureResult::Ok) ++made;
+        }
+        QVERIFY(last == PictureResult::Refused);
+        QVERIFY(made >= 1000 && made <= 2100);
+        QVERIFY(!doc->pictureNotice.isEmpty());
+        QCOMPARE(picturesIn(doc->story()), made);
+        // The refused one left no part behind: as many parts as pictures.
+        {
+            office::Package pkg;
+            QVERIFY(pkg.read(doc->toDocx()));
+            int media = 0;
+            for (const QString &name : pkg.partNames()) media += name.contains(QLatin1String("/media/"));
+            QCOMPARE(media, made);
+        }
+        // Nothing of the history was let go: every picture can be taken back, and one brought again.
+        int undone = 0;
+        while (doc->canUndo() && undone < made + 5) undone += doc->undo() ? 1 : 0;
+        QCOMPARE(undone, made);
+        QCOMPARE(picturesIn(doc->story()), 0);
+        QVERIFY(doc->redo());
+        QCOMPARE(picturesIn(doc->story()), 1);
+    }
+
+    // ---- page setup
+
+    static QByteArray sectionXml(int w, int h, int top, int right, int bottom, int left, const char *orient = "", const char *type = "")
+    {
+        return QByteArray("<w:sectPr>") + (*type ? QByteArray("<w:type w:val=\"") + type + "\"/>" : QByteArray()) + "<w:pgSz w:w=\"" + QByteArray::number(w) + "\" w:h=\"" + QByteArray::number(h) +
+               "\"" + (*orient ? QByteArray(" w:orient=\"") + orient + "\"" : QByteArray()) + "/><w:pgMar w:top=\"" + QByteArray::number(top) + "\" w:right=\"" + QByteArray::number(right) +
+               "\" w:bottom=\"" + QByteArray::number(bottom) + "\" w:left=\"" + QByteArray::number(left) + "\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    }
+
+    // Three sections: Letter, then landscape Letter, then Letter again.
+    static std::unique_ptr<WriteDoc> threeSections()
+    {
+        QByteArray body;
+        body += "<w:p><w:pPr>" + sectionXml(12240, 15840, 1440, 1440, 1440, 1440) + "</w:pPr><w:r><w:t>One</w:t></w:r></w:p>";
+        body += "<w:p><w:pPr>" + sectionXml(15840, 12240, 1440, 1440, 1440, 1440, "landscape") + "</w:pPr><w:r><w:t>Two</w:t></w:r></w:p>";
+        body += "<w:p><w:r><w:t>Three</w:t></w:r></w:p>";
+        return open(makeDocx(body, kStyles, QByteArray(), sectionXml(12240, 15840, 1440, 1440, 1440, 1440)));
+    }
+
+    static QVector<SectionSetup> setupsOf(const WriteDoc &doc)
+    {
+        QVector<SectionSetup> out;
+        for (int i = 0; i < doc.sectionCount(); ++i) out << pageSetupOf(doc.sectionProps(i), doc.differentOddEven());
+        return out;
+    }
+
+    void pageSetupChangesTheSectionOrTheWholeDocumentInOneStepAndSavesTheSame()
+    {
+        auto doc = threeSections();
+        QVERIFY(doc);
+        QCOMPARE(doc->sectionCount(), 3);
+        const QVector<SectionSetup> first = setupsOf(*doc);
+        QVERIFY(first[1].landscape && !first[0].landscape);
+        // This section's margins, and no other's.
+        SectionSetup before = first[1], after = before;
+        after.left = 36;
+        after.top = 54;
+        after.gutter = 18;
+        QCOMPARE(applyPageSetup(*doc, 1, PageSetupScope::ThisSection, before, after), 1);
+        QVector<SectionSetup> now = setupsOf(*doc);
+        QCOMPARE(now[0], first[0]);
+        QCOMPARE(now[2], first[2]);
+        QCOMPARE(now[1].left, 36.0);
+        QCOMPARE(now[1].top, 54.0);
+        QCOMPARE(now[1].gutter, 18.0);
+        QVERIFY(now[1].landscape);   // (the orientation was not asked to change)
+        QCOMPARE(doc->flow().section(1).margins.left(), 54.0);   // (the gutter is added to the left margin)
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->canUndo());   // (one step)
+        QCOMPARE(setupsOf(*doc), first);
+        QVERIFY(doc->redo());
+        QCOMPARE(setupsOf(*doc)[1].left, 36.0);
+        QVERIFY(doc->undo());
+        // The whole document: the paper and the layout too, each section keeping what was not changed.
+        before = first[0];
+        after = before;
+        after.paperWidth = 595.3;
+        after.paperHeight = 841.9;
+        after.right = 90;
+        after.start = QStringLiteral("continuous");
+        after.differentFirstPage = true;
+        after.differentOddEven = true;
+        after.header = 20;
+        after.footer = 30;
+        QVERIFY(applyPageSetup(*doc, 0, PageSetupScope::WholeDocument, before, after) >= 3);
+        now = setupsOf(*doc);
+        for (int i = 0; i < 3; ++i) {
+            QVERIFY2(std::abs(now[i].paperWidth - 595.3) < 0.1 && std::abs(now[i].paperHeight - 841.9) < 0.1, qPrintable(QString::number(i)));
+            QCOMPARE(now[i].right, 90.0);
+            QVERIFY(now[i].start == QLatin1String("continuous"));
+            QVERIFY(now[i].differentFirstPage && now[i].differentOddEven);
+            QCOMPARE(now[i].header, 20.0);
+            QCOMPARE(now[i].footer, 30.0);
+        }
+        QVERIFY(doc->differentOddEven());
+        QCOMPARE(now[1].landscape, first[1].landscape);   // (and the section that was turned stays turned)
+        QCOMPARE(now[0].left, first[0].left);
+        const QVector<SectionSetup> changed = now;
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->canUndo());
+        QCOMPARE(setupsOf(*doc), first);
+        QVERIFY(!doc->differentOddEven());
+        QVERIFY(doc->redo());
+        QCOMPARE(setupsOf(*doc), changed);
+        // Saved, and opened again.
+        const QByteArray saved = doc->toDocx();
+        wml::XmlTree tree;
+        QVERIFY(tree.parse(documentXml(saved)));
+        auto back = open(saved);
+        QVERIFY(back);
+        QCOMPARE(back->sectionCount(), 3);
+        QCOMPARE(setupsOf(*back), changed);
+        // The pages follow: a page of the new paper.
+        QVERIFY(std::abs(doc->flow().section(0).pageSize().width() - 595.3) < 0.1);
+        QVERIFY(doc->pager().materialize(0));
+    }
+
+    void pageSetupTurnsAPageAndKeepsItsMarginsOnIt()
+    {
+        auto doc = threeSections();
+        const SectionSetup before = pageSetupOf(doc->sectionProps(0), false);
+        SectionSetup after = before;
+        after.landscape = true;
+        after.left = before.top;   // (as the dialog turns the margins with the page)
+        after.top = before.right;
+        QVERIFY(applyPageSetup(*doc, 0, PageSetupScope::ThisSection, before, after) >= 1);
+        const flow::Section s = doc->flow().section(0);
+        QVERIFY(s.orientation == flow::Section::Orientation::Landscape);
+        QCOMPARE(s.pageSize(), QSizeF(792, 612));
+        QCOMPARE(s.paper, QSizeF(612, 792));
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QVERIFY(back->flow().section(0).orientation == flow::Section::Orientation::Landscape);
+        QVERIFY(documentXml(doc->toDocx()).contains("w:orient=\"landscape\""));
+    }
+
+    void pageSetupIsHeldToWhatAPageCanHold()
+    {
+        SectionSetup bad;
+        bad.paperWidth = 1e12;
+        bad.paperHeight = std::nan("");
+        bad.top = -50;
+        bad.bottom = 1e12;
+        bad.left = 1e12;
+        bad.right = std::numeric_limits<double>::infinity();
+        bad.gutter = 1e9;
+        bad.header = 1e9;
+        bad.footer = -1e9;
+        bad.start = QStringLiteral("nonsense");
+        const SectionSetup fixed = normalized(bad);
+        QCOMPARE(fixed.paperWidth, kMostPaper);
+        QCOMPARE(fixed.paperHeight, 792.0);
+        QVERIFY(fixed.top >= 0 && fixed.bottom >= 0 && fixed.left >= 0 && fixed.right >= 0 && fixed.gutter >= 0);
+        QVERIFY(fixed.left + fixed.right + fixed.gutter <= fixed.paperWidth - kLeastText + 0.01);
+        QVERIFY(fixed.top + fixed.bottom <= fixed.paperHeight - kLeastText + 0.01);
+        QVERIFY(fixed.header <= fixed.paperHeight / 2 && fixed.footer >= 0);
+        QVERIFY(fixed.start == QLatin1String("nextPage"));
+        // Applied to a document, the text keeps room and the pages are made.
+        auto doc = threeSections();
+        const SectionSetup before = pageSetupOf(doc->sectionProps(0), false);
+        QVERIFY(applyPageSetup(*doc, 0, PageSetupScope::WholeDocument, before, bad) >= 1);
+        for (int i = 0; i < doc->sectionCount(); ++i) {
+            const flow::Section s = doc->flow().section(i);
+            QVERIFY(s.columnWidth() >= 1);
+            QVERIFY(s.pageSize().width() - s.margins.left() - s.margins.right() >= kLeastText - 0.5);
+            QVERIFY(s.pageSize().height() - s.margins.top() - s.margins.bottom() >= kLeastText - 0.5);
+        }
+        QVERIFY(doc->pager().materialize(0));
+        QVERIFY(open(doc->toDocx()));
+    }
+
+    void pageSetupOfTenThousandSectionsMakesEachOnceAndIsOneStep()
+    {
+        QByteArray body;
+        for (int i = 0; i < 10000; ++i) body += "<w:p><w:pPr>" + sectionXml(12240, 15840, 1440, 1440, 1440, 1440, "", "continuous") + "</w:pPr><w:r><w:t>s</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles, QByteArray(), sectionXml(12240, 15840, 1440, 1440, 1440, 1440)));
+        QVERIFY(doc);
+        QCOMPARE(doc->sectionCount(), 10001);
+        const SectionSetup before = pageSetupOf(doc->sectionProps(0), false);
+        SectionSetup after = before;
+        after.left = 36;
+        after.bottom = 54;
+        const qint64 made = doc->sectionsMadeForTest();
+        QVERIFY(applyPageSetup(*doc, 0, PageSetupScope::WholeDocument, before, after) >= 10001);
+        // Each section was made again once (not once for each that changed, which is the square of their number).
+        QVERIFY2(doc->sectionsMadeForTest() - made <= 10001 + 5, qPrintable(QString::number(doc->sectionsMadeForTest() - made)));
+        QCOMPARE(pageSetupOf(doc->sectionProps(5000), false).left, 36.0);
+        QCOMPARE(pageSetupOf(doc->sectionProps(10000), false).bottom, 54.0);
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->canUndo());
+        QCOMPARE(pageSetupOf(doc->sectionProps(5000), false).left, 72.0);
+        QCOMPARE(pageSetupOf(doc->sectionProps(10000), false).bottom, 72.0);
+    }
+
+    // ---- the ruler's tab stops
+
+    void tabStopsAreAddedMovedAndRemovedInOneStepAndSaveTheSame()
+    {
+        auto doc = textDoc({"One two", "Three four"});
+        QTextCursor c(doc->story());
+        c.setPosition(3);
+        TabStopEntry left;
+        left.position = 72;
+        QVERIFY(addTabStop(*doc, c, left));
+        QVERIFY(!addTabStop(*doc, c, left));   // (the same stop again is no step)
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat()).size(), 1);
+        QVERIFY(doc->undo());
+        QVERIFY(tabStopsOf(doc->story()->begin().blockFormat()).isEmpty());
+        QVERIFY(!doc->canUndo());
+        QVERIFY(doc->redo());
+        TabStopEntry right;
+        right.position = 200;
+        right.type = QTextOption::RightTab;
+        right.leader = QLatin1Char('.');
+        QVERIFY(addTabStop(*doc, c, right));
+        QVERIFY(moveTabStop(*doc, c, 72, 100));
+        QVector<TabStopEntry> stops = tabStopsOf(doc->story()->begin().blockFormat());
+        QCOMPARE(stops.size(), 2);
+        QCOMPARE(stops[0].position, 100.0);
+        QVERIFY(stops[0].type == QTextOption::LeftTab);
+        QCOMPARE(stops[1].position, 200.0);
+        QVERIFY(stops[1].type == QTextOption::RightTab && stops[1].leader == QLatin1Char('.'));   // (the leader stays with its stop)
+        QVERIFY(doc->undo());
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat())[0].position, 72.0);
+        QVERIFY(doc->redo());
+        // The other paragraph has none; a selection over both gives both a stop.
+        QVERIFY(tabStopsOf(doc->story()->begin().next().blockFormat()).isEmpty());
+        c.setPosition(0);
+        c.setPosition(doc->story()->characterCount() - 1, QTextCursor::KeepAnchor);
+        TabStopEntry middle;
+        middle.position = 150;
+        middle.type = QTextOption::CenterTab;
+        QVERIFY(addTabStop(*doc, c, middle));
+        QCOMPARE(tabStopsOf(doc->story()->begin().next().blockFormat()).size(), 1);
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat()).size(), 3);
+        QVERIFY(doc->undo());
+        QVERIFY(tabStopsOf(doc->story()->begin().next().blockFormat()).isEmpty());
+        QVERIFY(doc->redo());
+        QVERIFY(removeTabStop(*doc, c, 200));
+        QVERIFY(!removeTabStop(*doc, c, 200));
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat()).size(), 2);
+        // Saved, and opened again.
+        const QByteArray saved = doc->toDocx();
+        const QByteArray docXml = documentXml(saved);
+        QVERIFY2(docXml.contains("w:pos=\"2000\""), docXml.constData());
+        QVERIFY(docXml.contains("w:val=\"center\""));
+        auto back = open(saved);
+        QVERIFY(back);
+        QCOMPARE(tabStopsOf(back->story()->begin().blockFormat()), tabStopsOf(doc->story()->begin().blockFormat()));
+        QCOMPARE(tabStopsOf(back->story()->begin().next().blockFormat()), tabStopsOf(doc->story()->begin().next().blockFormat()));
+    }
+
+    void tabStopsAreHeldToWhatAParagraphKeeps()
+    {
+        auto doc = textDoc({"One"});
+        QTextCursor c(doc->story());
+        for (int i = 0; i < 100; ++i) {
+            TabStopEntry t;
+            t.position = 10 + i * 7;
+            addTabStop(*doc, c, t);
+        }
+        QCOMPARE(tabStopsOf(doc->story()->begin().blockFormat()).size(), kMostTabStops);
+        auto other = textDoc({"One"});
+        QTextCursor d(other->story());
+        TabStopEntry far;
+        far.position = 1e12;
+        QVERIFY(addTabStop(*other, d, far));
+        TabStopEntry weird;
+        weird.position = std::nan("");
+        QVERIFY(addTabStop(*other, d, weird));
+        TabStopEntry negative;
+        negative.position = -40;
+        negative.type = QTextOption::CenterTab;
+        QVERIFY(addTabStop(*other, d, negative));
+        const QVector<TabStopEntry> stops = tabStopsOf(other->story()->begin().blockFormat());
+        QVERIFY(!stops.isEmpty());
+        for (const TabStopEntry &s : stops) QVERIFY(s.position >= 0 && s.position <= kMostTabPosition);
+        QVERIFY(open(other->toDocx()));
+        QVERIFY(open(doc->toDocx()));
     }
 
     // Not a test of its own: the work of a process that the next function starts. A document with a header and a footer, read, typed in, and saved.
