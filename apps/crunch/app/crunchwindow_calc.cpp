@@ -115,6 +115,7 @@ void CrunchWindow::sendCalcSettings()
     const crunch::CalcSettings s = m_session->calcSettings();
     const bool manual = s.mode == CalcMode::Manual;
     m_loader.setManual(manual);
+    m_loader.setTablesAutomatic(s.mode == CalcMode::Auto);   // (data tables are worked out with the formulas only in a workbook worked out by itself, tables included)
     // (back to automatic: what waited for the key, being worked out by the next change, is worked out now)
     if (m_manualNow && !manual && m_loader.recalculate()) m_calculating = true;
     m_manualNow = manual;

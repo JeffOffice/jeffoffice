@@ -476,6 +476,10 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
     bool always = false, told = false;
     if (cell.flags & DataTable) {
         kept = 'D';
+        if (m_options.workOutDataTables) {
+            m_tableNodes.insert(id);
+            m_tablesStale = true;
+        }
     } else if (f.text < 0 || f.text >= s.formulaTexts.size() || s.formulaTexts[f.text].trimmed().isEmpty()) {
         kept = 'N';
     } else {
@@ -1517,6 +1521,7 @@ void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
 
 void Calculation::beginRecalculation()
 {
+    if (!m_tableNodes.empty()) m_tablesStale = true;
     m_staleReads.clear();
     m_staleCorrections = 0;
     m_running = true;
@@ -2088,6 +2093,10 @@ void Calculation::hiddenRowsAndSubtotals(int sheet)
 
 void Calculation::invalidateAll()
 {
+    if (!m_tableNodes.empty()) {
+        m_tablesStale = true;
+        m_tablesForce = true;
+    }
     abandon();
     releaseDeferred(true);
     // (every formula is marked to be worked out, a chunk at a time by the next recalculation: asking costs nothing, and the count says how many are to be done)
@@ -2722,7 +2731,11 @@ Calculation::Progress Calculation::recalculateSlice(qint64 budget, const std::at
                     break;
                 }
             }
-            if (root == kNone) break;
+            if (root == kNone) {
+                // (the formulas are all worked out: the cells of the data tables are, from the values they now read, and what reads them is worked out after them)
+                if (m_tablesStale && !m_tableNodes.empty() && (m_tablesAuto.load() || m_tablesForce) && !m_onlyFresh && m_onlySheet < 0 && dataTablePass()) continue;
+                break;
+            }
             m_nodes[root].state = Queued;
             m_stack.push_back({root, kNone});
         }

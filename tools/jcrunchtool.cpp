@@ -17,6 +17,7 @@
 //                                                tools/crunch_xls_savecheck.py runs it over a list)
 //   jcrunchtool copy-check <file> <xls|ods|xlsx>   the workbook written as a copy in that format, read back, and compared with itself (see jcrunchtool_copycheck.cpp;
 //                                                tools/crunch_copy_check.py runs it over a list)
+//   jcrunchtool datatable-check <file>   the what-if tables of a workbook worked out, and compared with what the file stored (see jcrunchtool_datatable.cpp)
 //   jcrunchtool linemap-bench [lines=1000000]   the time of each operation of the row/column id map (libs/base/calc/linemap.h) at 1, 1,000, and 20,000 runs (see jcrunchtool_linemap.cpp)
 //   jcrunchtool dump <file.xlsx|file.xls> [sheet=1] [max=100]   the first cells of a sheet (counting from 1), one to a line: address, type, value, and formula
 //   jcrunchtool scan <keys.txt> <out-dir> [jobs]   runs `info` on each workbook listed (one path to a line), each in a child process that has 120 seconds and 4 GB,
@@ -737,6 +738,7 @@ int xlsFuzzMain(const QStringList &args);   // (jcrunchtool_xlsfuzz.cpp)
 int odsFuzzMain(const QStringList &args);   // (jcrunchtool_odsfuzz.cpp)
 int xlsSaveCheckMain(const QStringList &args);   // (jcrunchtool_xlssave.cpp)
 int copyCheckMain(const QStringList &args);      // (jcrunchtool_copycheck.cpp)
+int dataTableCheckMain(const QStringList &args); // (jcrunchtool_datatable.cpp)
 int lineMapBenchMain(const QStringList &args);   // (jcrunchtool_linemap.cpp)
 int filterRoundtripMain(const QStringList &args);   // (jcrunchtool_filter.cpp)
 int sideRoundtripMain(const QStringList &args);   // (jcrunchtool_side.cpp)
@@ -792,6 +794,10 @@ int main(int argc, char **argv)
     if ((args.size() == 1 || args.size() == 2) && args[0] == QLatin1String("linemap-bench")) return jp::crunchtool::lineMapBenchMain(args.mid(1));
     if (args.size() == 2 && args[0] == QLatin1String("xls-save-check")) {
         const int code = jp::crunchtool::xlsSaveCheckMain(args.mid(1));
+        if (code >= 0) return code;
+    }
+    if (args.size() == 2 && args[0] == QLatin1String("datatable-check")) {
+        const int code = jp::crunchtool::dataTableCheckMain(args.mid(1));
         if (code >= 0) return code;
     }
     if (args.size() == 3 && args[0] == QLatin1String("copy-check")) {

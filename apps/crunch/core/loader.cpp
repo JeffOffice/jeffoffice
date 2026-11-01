@@ -168,6 +168,12 @@ void WorkbookLoader::setManual(bool manual)
     m_state->wake.notify_all();
 }
 
+void WorkbookLoader::setTablesAutomatic(bool automatic)
+{
+    m_tablesAutomatic = automatic;
+    if (m_result && m_result->calc) m_result->calc->setDataTablesAutomatic(automatic);
+}
+
 qint64 WorkbookLoader::changesMade() const { return m_state ? m_state->changes.load() : 0; }
 
 qint64 WorkbookLoader::holdsTaken() const { return m_state ? m_state->holdsMade.load() : 0; }
@@ -254,7 +260,9 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     options.workOutWhatHasNoResult = true;     // and a formula the file stored no result for is worked out (a program that wrote the file may not have)
     options.goRoundCircles = true;             // and a circle is gone round when the workbook is set to
     options.workOutTables = true;              // and the columns of tables are worked out (a formula that names them is no longer kept as the file has it)
+    options.workOutDataTables = true;          // and so are the cells of what-if tables (the yardstick of the tools leaves them as the file has them)
     auto calc = std::make_unique<Calculation>(*out->book, options);
+    calc->setDataTablesAutomatic(out->book->info().calcMode == jp::office::sheet::CalcMode::Auto);   // (a workbook set to leave tables by hand has them as the file stored them until asked)
     calc->setCancel(cancelFlag);
     QElapsedTimer sinceTold;
     sinceTold.start();

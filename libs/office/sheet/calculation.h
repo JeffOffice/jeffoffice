@@ -22,10 +22,12 @@
 
 #include <atomic>
 #include <deque>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
 #include <set>
+#include <tuple>
 #include <unordered_set>
 #include <vector>
 
@@ -44,6 +46,7 @@ constexpr qint64 kMaxHeldBytes = qint64(512) << 20;
 
 struct CalcOptions {
     bool keepApart = false;           // formulas the engine cannot work out keep the stored result (and mark what reads them): see the class
+    bool workOutDataTables = false;   // the cells of a what-if (data) table are worked out from its formula and the values at its edges (else they keep what the file stored): see workOutDataTablesNow
     bool workOutTables = false;       // with keepApart: a formula that names the columns of a table is worked out (the yardstick keeps it apart, as it keeps what it cannot work out)
     bool goRoundCircles = false;      // a workbook that asks for iterative calculation (or is told to: setIteration) has its circles worked out by going round them, as a window does; else (as the yardstick does)
                                       // they are given 0, or, with keepApart, kept apart as the file has them
@@ -136,6 +139,15 @@ public:
     void hiddenRowsAndSubtotals(int sheet);
     // Marks every formula to be worked out again (the next recalculation is a whole one).
     void invalidateAll();
+    // What-if (data) tables, with CalcOptions::workOutDataTables: a table's cells are the value its formula comes to when the cell it names as its input holds the value at the edge of the table
+    // (the row above for a row input, the column at the left for a column input; two inputs make a table of both). Each recalculation ends by working them out, unless the workbook is set to leave
+    // them by hand (setDataTablesAutomatic false): then they are worked out when the whole workbook is (invalidateAll), or by workOutDataTablesNow.
+    void setDataTablesAutomatic(bool on) { m_tablesAuto.store(on); }
+    qint64 dataTableCount() const { return qint64(m_tableNodes.size()); }
+    // Works out the data tables now, and what reads their cells; how many of their cells changed their value.
+    qint64 workOutDataTablesNow();
+    // The value the file stored for a cell of a data table that has been worked out (by the ids of its row and column), for what compares a cell with the file's.
+    bool dataTableOriginal(int sheet, quint32 rowId, quint32 colId, jp::calc::Value *out) const;
     // The same for the formulas of one sheet, and only those: what they read that is out of date is worked out as they need it, and what is waiting on other sheets (formulas never worked out,
     // and what reads cells that were changed) stays waiting, until the next recalculation, which is a whole one.
     void invalidateSheet(int sheet);
@@ -970,6 +982,15 @@ private:
     std::vector<qint32> m_freeTexts;
     QHash<quint32, jp::calc::Value> m_arrays;
     std::unordered_set<quint32> m_subtotalNodes;     // the formulas that call SUBTOTAL (a place may be stale)
+    std::unordered_set<quint32> m_tableNodes;        // the first cells of the data tables, when they are worked out (a place may be stale: a pass looks at each)
+    bool m_tablesStale = false, m_tablesForce = false;
+    std::atomic<bool> m_tablesAuto{true};
+    qint64 m_tableCellsChanged = 0;
+    std::map<std::tuple<int, quint32, quint32>, jp::calc::Value> m_tableOriginal;   // what the file stored in the cells of a table, once worked out
+    class WhatIf;
+    quint32 nodeOfCell(int sheet, quint32 row, quint32 col) const;   // the formula node of a cell (kNone for a cell with no formula)
+    bool dataTablePass();
+    qint64 workOutTable(quint32 id, std::vector<jp::calc::CellArea> *changed);
     std::unordered_set<quint32> m_structuredNodes;   // the formulas that name a table's columns (a place may be stale: tablesChanged looks at each)
     jp::calc::NameTraitsCache m_nameTraits;   // what each defined name calls (by its scope and name)
     std::unordered_map<quint32, std::pair<qint32, qint32>> m_threeDSpan;   // the sheets a 3-D formula's blocks span, first to last
