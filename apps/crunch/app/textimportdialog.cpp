@@ -23,7 +23,7 @@ using namespace jp::office::sheet;
 
 namespace {
 
-enum EncodingChoice { Detect, Utf8, Utf8Mark, Utf16Le, Utf16Be, Win1252, Win1250, Win1251, Win1253, Win1254, Shift932, Gb936, Euc949, Big950 };
+enum EncodingChoice { Detect, Utf8, Utf8Mark, Utf16Le, Utf16Be, Win1252, Win1250, Win1251, Win1253, Win1254, Iso1, Iso2, Iso5, Iso7, Iso9, Iso15, MacRoman, Shift932, Gb936, Euc949, Big950 };
 
 struct Code {
     EncodingChoice id;
@@ -42,6 +42,13 @@ const Code kCodes[] = {
     {Win1251, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Cyrillic (1251)"), CsvEncoding::Legacy, 1251},
     {Win1253, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Greek (1253)"), CsvEncoding::Legacy, 1253},
     {Win1254, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Turkish (1254)"), CsvEncoding::Legacy, 1254},
+    {Iso1, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Western European (ISO 8859-1)"), CsvEncoding::Legacy, 28591},
+    {Iso2, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Central European (ISO 8859-2)"), CsvEncoding::Legacy, 28592},
+    {Iso5, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Cyrillic (ISO 8859-5)"), CsvEncoding::Legacy, 28595},
+    {Iso7, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Greek (ISO 8859-7)"), CsvEncoding::Legacy, 28597},
+    {Iso9, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Turkish (ISO 8859-9)"), CsvEncoding::Legacy, 28599},
+    {Iso15, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Western European (ISO 8859-15)"), CsvEncoding::Legacy, 28605},
+    {MacRoman, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Mac Roman"), CsvEncoding::Legacy, 10000},
     {Shift932, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Japanese (932)"), CsvEncoding::Legacy, 932},
     {Gb936, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Chinese, simplified (936)"), CsvEncoding::Legacy, 936},
     {Euc949, QT_TRANSLATE_NOOP("jp::TextImportDialog", "Korean (949)"), CsvEncoding::Legacy, 949},

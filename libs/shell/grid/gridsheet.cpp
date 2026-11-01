@@ -2,6 +2,9 @@
 
 #include "sheet/cellref.h"
 
+#include <QLocale>
+#include <QTime>
+
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -594,6 +597,35 @@ QString GridSheet::textOf(quint32 row, quint32 col, const Cell &cell) const
     case Value::Kind::Number: {
         const jp::calc::Formatted f = look.format.format(v.number(), m_data.dateSystem, 0, &m_symbols);
         return f.failed ? jp::calc::numberToText(v.number()) : f.text;
+    }
+    case Value::Kind::Bool: return v.boolean() ? QStringLiteral("TRUE") : QStringLiteral("FALSE");
+    case Value::Kind::Error: return jp::calc::errorKindText(v.errorKind());
+    default: return QString();
+    }
+}
+
+QString GridSheet::storedTextOf(quint32 row, quint32 col, const Cell &cell) const
+{
+    using jp::calc::Value;
+    const Value v = valueOf(row, col, cell);
+    switch (v.kind()) {
+    case Value::Kind::Text: return v.text();
+    case Value::Kind::Number: {
+        const double n = v.number();
+        if (lookOf(row, col, cell.style).format.kind() == jp::calc::FormatKind::Date && std::isfinite(n) && n >= 0) {
+            const double whole = std::floor(n);
+            double fraction = n - whole;
+            int y = 0, m = 0, d = 0;
+            const bool isDate = n >= 1 && jp::calc::serialToDate(whole, m_data.dateSystem, &y, &m, &d);
+            if (isDate || n < 1) {
+                const qint64 seconds = qint64(std::llround(fraction * 86400.0));
+                const QTime time = QTime::fromMSecsSinceStartOfDay(int(std::min<qint64>(seconds, 86399) * 1000));
+                if (!isDate) return time.toString(QStringLiteral("HH:mm:ss"));
+                const QString day = QStringLiteral("%1-%2-%3").arg(y, 4, 10, QLatin1Char('0')).arg(m, 2, 10, QLatin1Char('0')).arg(d, 2, 10, QLatin1Char('0'));
+                return seconds == 0 ? day : day + QLatin1Char('T') + time.toString(QStringLiteral("HH:mm:ss"));
+            }
+        }
+        return QString::number(n, 'g', QLocale::FloatingPointShortest);
     }
     case Value::Kind::Bool: return v.boolean() ? QStringLiteral("TRUE") : QStringLiteral("FALSE");
     case Value::Kind::Error: return jp::calc::errorKindText(v.errorKind());

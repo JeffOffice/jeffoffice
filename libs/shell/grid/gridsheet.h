@@ -104,6 +104,9 @@ public:
     Shown shown(quint32 row, quint32 col, const Cell &cell) const;
     // The text of a cell for a copy: what it holds as its format shows it, not cut to its cell (a number is never "#", a text keeps its line breaks and all its letters).
     QString textOf(quint32 row, quint32 col, const Cell &cell) const;
+    // The text of a cell for a file of values, as it is stored: a number with all the digits it needs (the shortest that reads back the same), a date or time as ISO text (2026-03-04,
+    // 14:05:00, or both with a T between), a truth as TRUE or FALSE, an error as its name, and a text as it is. A formula is its result.
+    QString storedTextOf(quint32 row, quint32 col, const Cell &cell) const;
     // Forgets the texts (values or formats changed), or the text of one cell.
     void invalidateTexts() const;
     // How a cell that holds an error is shown (a printed page can show it as it is, blank, as "--", or as #N/A).

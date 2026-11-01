@@ -245,6 +245,8 @@ public:
     // OpenDocument spreadsheet (.ods, .fods), or a file of delimited values (.csv). convertedKind() says which (".xls", ".ods", ".csv"); empty for any other.
     bool isConverted() const { return m_xls || m_foreign; }
     QString convertedKind() const;
+    // The reader of a file that is neither of the XML form nor the older binary form (an OpenDocument spreadsheet, a file of delimited values), or null.
+    const ForeignBook *foreignBook() const { return m_foreign.get(); }
     QStringList skippedFeatures() const;
     QStringList changedFeatures() const;
     const WorkbookInfo &info() const { return m_info; }

@@ -18,6 +18,7 @@ bool isCsvName(const QString &path);
 // The filter of the Open dialog (the kinds of workbook the program opens, together), and of the Save As dialog for .csv.
 QString openFilter();
 QString csvFilter();
+QString tabFilter();
 
 // The kind of workbook file a main part's content type makes: "xlsx" (a workbook), "xlsm" (with macros), "xltx" (a template), "xltm" (a template with macros), or "xlam" (an add-in).
 // A workbook is saved as the kind it came from, because the kind is in the file.

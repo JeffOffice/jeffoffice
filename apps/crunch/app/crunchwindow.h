@@ -10,6 +10,7 @@
 #include "app/finddialog.h"
 #include "app/slicetuner.h"
 #include "app/sortdialog.h"
+#include "core/csvexport.h"
 #include "app/formatdialog.h"
 #include "app/widgets.h"
 #include "core/color.h"
@@ -237,7 +238,8 @@ public:
     bool snapshotBytesForTest(QByteArray *bytes, QString *why);
     bool saveAs(const QString &path);
     // Writes the values of the sheet in view as a .csv file (see crunchwindow_csv.cpp); `csvExported` says when it is over. A path ending in .csv given to save() or saveAs() comes here.
-    bool exportCsv(const QString &path);
+    // `how` gives the choices (for tests and tools); without it they are those the ending of the name and the file the workbook came from say, and the person may change them in the question.
+    bool exportCsv(const QString &path, const crunch::CsvWrite *how = nullptr);
     bool isModified() const { return m_session && m_session->isModified(); }
     bool isSaving() const { return m_saving; }
     // What the person is asked when the window is closed with changes that are not saved: Save, Don't Save, or Cancel (a message box, unless this stands in for it: tests).
@@ -488,6 +490,7 @@ private:
     QPointer<QWidget> m_inputMessage;
     void showChoices();
     void insertNow(bool time);
+    crunch::CsvWrite csvWriteFor(const QString &path) const;
     // what Paste Special asks for: the options (a dialog unless this stands in for it: tests); false gives it up
     std::function<bool(crunch::EditSession::PasteOptions *)> m_pasteOptionsAsker;
     crunch::ClipData m_clip, m_pendingClip;   // the last copy or cut made here that the clipboard still holds, and the one being made
