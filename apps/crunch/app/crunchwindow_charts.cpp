@@ -54,6 +54,7 @@ const KindAction kKindActions[] = {
     {"chart.area.stacked", QT_TR_NOOP("Stacked area"), "chart-area", ChartKind::AreaStacked},
     {"chart.scatter.points", QT_TR_NOOP("Scatter, points"), "chart-scatter", ChartKind::Scatter},
     {"chart.scatter.joined", QT_TR_NOOP("Scatter, joined points"), "chart-scatter", ChartKind::ScatterLines},
+    {"chart.scatter.smooth", QT_TR_NOOP("Scatter, smooth lines"), "chart-scatter", ChartKind::ScatterSmooth},
 };
 
 struct GroupAction {

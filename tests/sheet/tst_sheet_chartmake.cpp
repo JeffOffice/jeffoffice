@@ -219,7 +219,7 @@ private Q_SLOTS:
         const Cells f = regional();
         const ChartKind kinds[] = {ChartKind::Column, ChartKind::ColumnStacked, ChartKind::ColumnPercent, ChartKind::Bar, ChartKind::BarStacked, ChartKind::BarPercent, ChartKind::Line,
                                    ChartKind::LineMarkers, ChartKind::LineStacked, ChartKind::Pie, ChartKind::Doughnut, ChartKind::Area, ChartKind::AreaStacked, ChartKind::Scatter,
-                                   ChartKind::ScatterLines, ChartKind::Combo};
+                                   ChartKind::ScatterLines, ChartKind::ScatterSmooth, ChartKind::Combo};
         for (const ChartKind kind : kinds) {
             const ChartPlan plan = planChart(f, 0, QStringLiteral("Sheet1"), range(QStringLiteral("A1:C4")), kind);
             QVERIFY(!plan.series.isEmpty());

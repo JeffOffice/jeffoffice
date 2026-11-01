@@ -294,7 +294,7 @@ private Q_SLOTS:
             ChartKind kind;
         };
         const Case cases[] = {{"chart.column.stacked", ChartKind::ColumnStacked}, {"chart.bar.clustered", ChartKind::Bar}, {"chart.line.markers", ChartKind::LineMarkers},
-                              {"chart.pie.doughnut", ChartKind::Doughnut}, {"chart.area.stacked", ChartKind::AreaStacked}, {"chart.scatter.joined", ChartKind::ScatterLines},
+                              {"chart.pie.doughnut", ChartKind::Doughnut}, {"chart.area.stacked", ChartKind::AreaStacked}, {"chart.scatter.joined", ChartKind::ScatterLines}, {"chart.scatter.smooth", ChartKind::ScatterSmooth},
                               {"chart.combo", ChartKind::Combo}, {"chart.column", ChartKind::Column}};
         for (const Case &c : cases) {
             EditWindow e;

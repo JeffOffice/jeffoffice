@@ -180,6 +180,19 @@ private Q_SLOTS:
                 w->view()->selectCell(5, 5);
             }),
             in(QStringLiteral("a cell below and right of the first"), [](CrunchWindow *w) { w->view()->selectCell(3, 2); }),
+            in(QStringLiteral("a long text in a cell"), [](CrunchWindow *w) {
+                enter(w, 6, 6, QStringLiteral("alpha beta gamma delta epsilon zeta eta theta iota kappa lambda"));
+                waitFor([&] { return quiet(w); });
+                w->view()->selectCell(6, 6);
+            }),
+            in(QStringLiteral("rows and columns in a group"), [](CrunchWindow *w) {
+                w->view()->selectRows(0, 1);
+                w->act(QStringLiteral("outline.groupRows"))->trigger();
+                w->view()->selectColumns(0, 1);
+                w->act(QStringLiteral("outline.groupColumns"))->trigger();
+                waitFor([&] { return quiet(w); });
+                w->view()->selectRange(0, 0, 1, 1);
+            }),
             in(QStringLiteral("a change to undo"), [](CrunchWindow *w) { enter(w, 4, 4, QStringLiteral("9")); }),
             in(QStringLiteral("a change undone"), [](CrunchWindow *w) {
                 enter(w, 4, 4, QStringLiteral("9"));

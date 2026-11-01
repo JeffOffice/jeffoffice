@@ -109,7 +109,7 @@ ChartPlan planChartFrom(const QString &sheetName, const CellRange &block, bool h
     ChartPlan plan;
     plan.seriesInRows = inRows;
     if (!block.valid) return plan;
-    const bool scatter = kind == ChartKind::Scatter || kind == ChartKind::ScatterLines;
+    const bool scatter = kind == ChartKind::Scatter || kind == ChartKind::ScatterLines || kind == ChartKind::ScatterSmooth;
     const quint32 r1 = block.row1 + (headerRow ? 1 : 0), c1 = block.col1 + (headerColumn ? 1 : 0);
     if (r1 > block.row2 || c1 > block.col2) return plan;
     plan.headerRow = headerRow;
@@ -193,7 +193,7 @@ ChartPlan planChart(const ChartCells &cells, int sheet, const QString &sheetName
     const CellRange r = chartBlockOf(cells, sheet, selection, &truncated);
     if (!r.valid) return none;
     const quint32 n = r.row2 - r.row1 + 1, m = r.col2 - r.col1 + 1;
-    const bool scatter = kind == ChartKind::Scatter || kind == ChartKind::ScatterLines;
+    const bool scatter = kind == ChartKind::Scatter || kind == ChartKind::ScatterLines || kind == ChartKind::ScatterSmooth;
 
     // what the first row and column look like (only the cells that decide are looked at)
     auto kindOfCell = [&](quint32 row, quint32 col) { return kindAt(cells, sheet, row, col); };
@@ -280,13 +280,14 @@ ChartPlot plotOf(ChartKind kind)
     case ChartKind::Doughnut: p.type = ChartType::Doughnut; p.grouping = ChartGrouping::Standard; p.varyColors = true; break;
     case ChartKind::Scatter: p.type = ChartType::Scatter; p.grouping = ChartGrouping::Standard; p.lines = false; break;
     case ChartKind::ScatterLines: p.type = ChartType::Scatter; p.grouping = ChartGrouping::Standard; p.lines = true; break;
+    case ChartKind::ScatterSmooth: p.type = ChartType::Scatter; p.grouping = ChartGrouping::Standard; p.lines = true; p.smooth = true; break;
     }
     return p;
 }
 
 bool samePlot(const ChartPlot &a, const ChartPlot &b)
 {
-    return a.type == b.type && a.grouping == b.grouping && a.horizontal == b.horizontal && a.markers == b.markers && a.lines == b.lines;
+    return a.type == b.type && a.grouping == b.grouping && a.horizontal == b.horizontal && a.markers == b.markers && a.lines == b.lines && a.smooth == b.smooth;
 }
 
 int rankOf(ChartType t)
@@ -350,6 +351,7 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
             s.color = c.palette.isEmpty() ? QColor(0x44, 0x72, 0xC4) : c.palette.value(i % c.palette.size());
             s.colorFromFile = true;
         }
+        if (p.type == ChartType::Scatter) s.smooth = p.lines && p.smooth;
         if (p.type == ChartType::Line && !p.markers) s.marker.symbol = ChartMarker::None;
         else if (s.marker.symbol == ChartMarker::None) s.marker.symbol = ChartMarker::Auto;
         groups[at].plot.series << s;
@@ -493,7 +495,12 @@ ChartKind kindOfPlot(const ChartPlot &p)
     case ChartType::Area: return stacked || percent ? ChartKind::AreaStacked : ChartKind::Area;
     case ChartType::Pie: return ChartKind::Pie;
     case ChartType::Doughnut: return ChartKind::Doughnut;
-    case ChartType::Scatter: return p.lines ? ChartKind::ScatterLines : ChartKind::Scatter;
+    case ChartType::Scatter: {
+        if (!p.lines) return ChartKind::Scatter;
+        bool smooth = p.smooth || !p.series.isEmpty();
+        for (const ChartSeries &s : p.series) smooth = smooth && s.smooth;
+        return smooth ? ChartKind::ScatterSmooth : ChartKind::ScatterLines;
+    }
     }
     return ChartKind::Column;
 }

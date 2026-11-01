@@ -148,6 +148,7 @@ struct ChartPlot {
     int firstSliceAngle = 0;        // pie: degrees clockwise from twelve o'clock
     int holeSize = 50;              // doughnut: percent of the diameter
     bool lines = true;              // scatter: the points are joined (else markers only)
+    bool smooth = false;            // scatter: made with smooth lines (each series says so in the file: the kind of a plot read from a file is told from its series)
     qint64 axisIds[2] = {0, 0};     // the category (or horizontal) and the value axes it is drawn against
     QVector<ChartSeries> series;
 };

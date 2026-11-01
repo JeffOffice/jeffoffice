@@ -175,7 +175,7 @@
             {"column": true},
             {"small": "chart.bar", "keytip": "CB", "split": true, "menu": ["chart.bar.clustered", "chart.bar.stacked", "chart.bar.percent"]},
             {"small": "chart.area", "keytip": "CA", "split": true, "menu": ["chart.area.plain", "chart.area.stacked"]},
-            {"small": "chart.scatter", "keytip": "CS", "split": true, "menu": ["chart.scatter.points", "chart.scatter.joined"]},
+            {"small": "chart.scatter", "keytip": "CS", "split": true, "menu": ["chart.scatter.points", "chart.scatter.joined", "chart.scatter.smooth"]},
             {"column": true},
             {"small": "chart.combo", "keytip": "CO"}
           ]

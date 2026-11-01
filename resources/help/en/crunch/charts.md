@@ -6,7 +6,7 @@ A chart is a picture of numbers that stays tied to them: change a number and the
 ## Make a chart
 
 1. Select the numbers you want to chart. If the first row has names and the first column has labels, select those too. JeffCrunch looks at the first row and column and uses them as the names and the labels when they are words (or dates, for the labels).
-2. On the **Insert** tab, in **Charts**, pick a kind: **Column**, **Bar**, **Line**, **Pie**, **Area**, **Scatter**, or **Combo**. The small arrow beside a kind has its variations, such as stacked columns or a line with markers.
+2. On the **Insert** tab, in **Charts**, pick a kind: **Column**, **Bar**, **Line**, **Pie**, **Area**, **Scatter**, or **Combo**. The small arrow beside a kind has its variations, such as stacked columns, a line with markers, or a scatter chart of points, of joined points, or of smooth lines.
 3. For a look at every kind first, choose **More Charts**. The list on the left shows each kind drawn from your cells. **Swap rows and columns** turns the series the other way.
 
 If you select only one cell, JeffCrunch charts the block of cells around it that has something in it.
