@@ -95,14 +95,26 @@ public:
     {
         record.key = int(m_cells.size()) + 1;
         m_cells.push_back(std::make_shared<const CellRecord>(std::move(record)));
+        ++m_live;
         return int(m_cells.size());
     }
+    // A key with no record (never made, or let go): null.
     const CellRecord *get(int key) const { return key >= 1 && size_t(key) <= m_cells.size() ? m_cells[size_t(key) - 1].get() : nullptr; }
     bool isEmpty() const { return m_cells.empty(); }
     int count() const { return int(m_cells.size()); }
+    // How many records are held (those let go are not): a key is never used again, so a cache that is keyed by one never meets another cell.
+    int liveCount() const { return m_live; }
+    // Lets a record go (its key is left unused): for one that no paragraph, and no step of the history, has.
+    void release(int key)
+    {
+        if (key < 1 || size_t(key) > m_cells.size() || !m_cells[size_t(key) - 1]) return;
+        m_cells[size_t(key) - 1].reset();
+        --m_live;
+    }
 
 private:
     std::vector<std::shared_ptr<const CellRecord>> m_cells;   // (shared: a copy of the store, for the private copy of a story that a header's tables are laid out in, holds the same records)
+    int m_live = 0;
 };
 
 } // namespace jp::flow
