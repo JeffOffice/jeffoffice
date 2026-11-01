@@ -24,6 +24,8 @@ In the **Show** group, turn the **Gridlines** (the pale lines between cells), th
 - **Freeze First Column** freezes the first column you can see.
 - **Unfreeze Panes** puts them back, and the sheet stays where it is.
 
+The frozen rows and columns are saved with the workbook, so they are held again when it is opened.
+
 A workbook that was saved with frozen panes opens with them.
 
 ## Sheets

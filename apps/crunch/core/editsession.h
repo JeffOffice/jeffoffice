@@ -684,6 +684,7 @@ public:
     Outcome setPageSetup(int sheet, const jp::office::sheet::PageSetup &setup, const QString &text);
     // How a sheet is shown (0 the cells, 1 the page breaks, 2 the pages) and at what zoom in percent: kept for saving, not a step of Undo.
     void setSheetView(int sheet, int kind, int zoom) { m_pages.setView(sheet, kind, zoom); }
+    void setSheetPane(int sheet, const jp::office::sheet::SheetView &pane) { m_pages.setPane(sheet, pane); }
     bool viewsChanged() const { return m_pages.viewsChanged(); }
 
     // The edits that insert or delete rows, columns, or cells since the file was read or saved that are done (not undone), in order: what the objects over the cells are moved by.

@@ -414,9 +414,9 @@ void CrunchWindow::createActions()
     }
     act("zoom.100")->setText(tr("100%"));
     mk("view.freeze", tr("Freeze Panes"), "snowflake", QKeySequence(), [this] { freezeAtSelection(); });
-    mk("view.freezeRow", tr("Freeze Top Row"), "panel-top", QKeySequence(), [this] { m_view->freezeTopRow(); });
-    mk("view.freezeCol", tr("Freeze First Column"), "panel-left", QKeySequence(), [this] { m_view->freezeFirstColumn(); });
-    mk("view.unfreeze", tr("Unfreeze Panes"), "panels-top-left", QKeySequence(), [this] { m_view->unfreeze(); });
+    mk("view.freezeRow", tr("Freeze Top Row"), "panel-top", QKeySequence(), [this] { m_view->freezeTopRow(); syncPanes(); });
+    mk("view.freezeCol", tr("Freeze First Column"), "panel-left", QKeySequence(), [this] { m_view->freezeFirstColumn(); syncPanes(); });
+    mk("view.unfreeze", tr("Unfreeze Panes"), "panels-top-left", QKeySequence(), [this] { m_view->unfreeze(); syncPanes(); });
     // ---- formulas
     mk("formulas.calculate", tr("Recalculate All"), "calculator", QKeySequence(Qt::Key_F9), [this] {
         // (the calculation is the worker's: it is asked to work everything out again, and does)
@@ -453,6 +453,28 @@ void CrunchWindow::freezeAtSelection()
     // the rows above the cell with the cursor that are in view, and the columns to its left that are (what was scrolled out of sight stays out of sight)
     const grid::Selection &s = m_view->selection();
     m_view->freezeAt(s.activeRow, s.activeCol);
+    syncPanes();
+}
+
+// The panes the grid holds now are the sheet's for the file (not a step of Undo: it is how the window looks), with the cell the cursor is on.
+void CrunchWindow::syncPanes()
+{
+    if (!m_session || m_sheet < 0) return;
+    const grid::GridView::ViewState st = m_view->viewState();
+    jp::office::sheet::SheetView v;
+    v.frozenRows = quint32(std::max<qint64>(0, st.frozenRows - st.skipRows));
+    v.frozenCols = quint32(std::max<qint64>(0, st.frozenCols - st.skipCols));
+    v.frozen = v.frozenRows || v.frozenCols;
+    if (v.frozen) {
+        v.topRow = quint32(st.skipRows);
+        v.leftCol = quint32(st.skipCols);
+        v.paneRow = quint32(std::max<qint64>(st.frozenRows, 0));
+        v.paneCol = quint32(std::max<qint64>(st.frozenCols, 0));
+    }
+    const grid::Selection &sel = m_view->selection();
+    v.activeRow = quint32(std::max<qint64>(0, sel.activeRow));
+    v.activeCol = quint32(std::max<qint64>(0, sel.activeCol));
+    m_session->setSheetPane(m_sheet, v);
 }
 
 void CrunchWindow::notice(const QString &title, const QString &text, bool warning)

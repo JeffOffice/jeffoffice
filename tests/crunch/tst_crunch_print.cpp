@@ -1853,6 +1853,55 @@ private Q_SLOTS:
         QVERIFY(again.win.w.statusText().contains(QLatin1String("Nothing to save")));
     }
 
+    // Frozen panes made in the window are saved (the `pane` of the sheet's view, with the cursor's cell), come back when the file is opened, and Unfreeze takes them out again.
+    void frozenPanesAreSavedAndComeBack()
+    {
+        QByteArray bytes;
+        {
+            EditWindow e;
+            QVERIFY(e.open(rowsWithFormulas(100, {})));
+            CrunchWindow &w = e.win.w;
+            e.select(QStringLiteral("C5"));
+            w.act(QStringLiteral("view.freeze"))->trigger();
+            QSignalSpy saved(&w, &CrunchWindow::saved);
+            QVERIFY(w.save());
+            QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+            Package pk;
+            QString why;
+            QVERIFY(pk.readLazyFile(e.path, &why));
+            const QByteArray xml = pk.part(QStringLiteral("xl/worksheets/sheet1.xml"));
+            QVERIFY2(xml.contains("<pane xSplit=\"2\" ySplit=\"4\" topLeftCell=\"C5\" activePane=\"bottomRight\" state=\"frozen\"/>"), xml.left(900).constData());
+            QVERIFY(xml.contains("activeCell=\"C5\""));
+            QFile f(e.path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            bytes = f.readAll();
+        }
+        EditWindow again;
+        QVERIFY(again.open(bytes));
+        QCOMPARE(again.view()->viewState().frozenRows, qint64(4));
+        QCOMPARE(again.view()->viewState().frozenCols, qint64(2));
+        QCOMPARE(again.selected(), QStringLiteral("C5"));
+        // the top row alone, then nothing
+        again.win.w.act(QStringLiteral("view.unfreeze"))->trigger();
+        again.win.w.act(QStringLiteral("view.freezeRow"))->trigger();
+        QSignalSpy saved(&again.win.w, &CrunchWindow::saved);
+        QVERIFY(again.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(again.win.told.join(QLatin1Char('|'))));
+        Package pk;
+        QString why;
+        QVERIFY(pk.readLazyFile(again.path, &why));
+        const QByteArray xml = pk.part(QStringLiteral("xl/worksheets/sheet1.xml"));
+        QVERIFY2(xml.contains("<pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/>"), xml.left(900).constData());
+        QVERIFY(!xml.contains("xSplit"));
+        again.win.w.act(QStringLiteral("view.unfreeze"))->trigger();
+        QSignalSpy last(&again.win.w, &CrunchWindow::saved);
+        QVERIFY(again.win.w.save());
+        QVERIFY2(savedOk(last, 20000), qPrintable(again.win.told.join(QLatin1Char('|'))));
+        Package pk2;
+        QVERIFY(pk2.readLazyFile(again.path, &why));
+        QVERIFY(!pk2.part(QStringLiteral("xl/worksheets/sheet1.xml")).contains("<pane"));
+    }
+
     // ---- pictures in headers and footers (printing 2)
 
     // A picture in the center of the header is drawn on the printed page, at the size the file gives, hung from the header's distance from the top; the same page without it is white there.
@@ -2329,6 +2378,35 @@ private Q_SLOTS:
         QTest::keyClicks(w.zoneEditor(), "Middle");
         QTest::keyClick(w.zoneEditor(), Qt::Key_Return, Qt::ControlModifier);
         QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QStringLiteral("&LLeft words&CMiddle&RRight words"));
+    }
+
+    // Insert > Header & Footer shows the pages and opens the middle of the first page's header to type in; what is typed is drawn on the preview's page and is still there when the file is saved and opened again.
+    void insertHeaderFooterOpensTheHeader()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.act(QStringLiteral("insert.headerFooter")));
+        QCOMPARE(w.viewKind(), 0);
+        w.act(QStringLiteral("insert.headerFooter"))->trigger();
+        QCOMPARE(w.viewKind(), 2);
+        QTRY_VERIFY(w.zoneEditor());
+        QVERIFY(w.zoneEditor()->isVisible());
+        QTest::keyClicks(w.zoneEditor(), "Budget ");
+        w.act(QStringLiteral("hf.pageNumber"))->trigger();
+        QTest::keyClick(w.zoneEditor(), Qt::Key_Return, Qt::ControlModifier);
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddHeader, QStringLiteral("&CBudget &P"));
+        // (again, with the pages already shown)
+        QTRY_VERIFY(w.pageLayoutReady());
+        w.act(QStringLiteral("insert.headerFooter"))->trigger();
+        QTRY_VERIFY(w.zoneEditor());
+        QCOMPARE(w.zoneEditor()->toPlainText(), QStringLiteral("Budget &P"));
+        QTest::keyClick(w.zoneEditor(), Qt::Key_Escape);
+        // the file
+        QVERIFY(w.save());
+        EditWindow again;
+        QVERIFY(again.win.open(e.copyOfFile()));
+        QCOMPARE(again.win.w.session()->pages().sheet(0).headerFooter.oddHeader, QStringLiteral("&CBudget &P"));
     }
 
     // The first page has a header of its own once Different First Page is chosen on the tab, and a click on the first page's header types that one.

@@ -24,12 +24,15 @@ void PageSettings::open(const jp::office::sheet::Calculation &calc)
     m_kinds.clear();
     m_zooms.clear();
     m_normals.clear();
+    m_panes.clear();
     for (int i = 0; i < calc.sheetCount(); ++i) {
         m_sheets.push_back(calc.sheet(i).page);
         m_kinds.push_back(int(calc.sheet(i).view.kind));
         m_zooms.push_back(calc.sheet(i).view.zoom);
         m_normals.push_back(calc.sheet(i).view.normalZoom);
+        m_panes.push_back(calc.sheet(i).view);
     }
+    m_filePanes = m_panes;
     m_fileKinds = m_kinds;
     m_fileZooms = m_zooms;
     m_fileNormals = m_normals;
@@ -41,6 +44,38 @@ void PageSettings::setView(int index, int kind, int zoom)
     m_kinds[size_t(index)] = std::clamp(kind, 0, 2);
     m_zooms[size_t(index)] = std::clamp(zoom, 10, 400);
     if (m_kinds[size_t(index)] == 0) m_normals[size_t(index)] = m_zooms[size_t(index)];
+}
+
+namespace {
+
+// The parts of a sheet's view that say how its panes are held.
+bool samePanes(const jp::office::sheet::SheetView &a, const jp::office::sheet::SheetView &b)
+{
+    const bool fa = a.frozen && (a.frozenRows || a.frozenCols), fb = b.frozen && (b.frozenRows || b.frozenCols);
+    if (fa != fb) return false;
+    if (!fa) return true;
+    return a.frozenRows == b.frozenRows && a.frozenCols == b.frozenCols && a.topRow == b.topRow && a.leftCol == b.leftCol && a.paneRow == b.paneRow && a.paneCol == b.paneCol;
+}
+
+} // namespace
+
+const jp::office::sheet::SheetView &PageSettings::pane(int index) const
+{
+    static const jp::office::sheet::SheetView none;
+    return index >= 0 && index < int(m_panes.size()) ? m_panes[size_t(index)] : none;
+}
+
+void PageSettings::setPane(int index, const jp::office::sheet::SheetView &pane)
+{
+    if (index < 0 || index >= int(m_panes.size())) return;
+    m_panes[size_t(index)] = pane;
+}
+
+bool PageSettings::panesChanged() const
+{
+    for (size_t i = 0; i < m_panes.size() && i < m_filePanes.size(); ++i)
+        if (!samePanes(m_panes[i], m_filePanes[i])) return true;
+    return false;
 }
 
 const PageSetup &PageSettings::sheet(int index) const
@@ -101,6 +136,8 @@ void PageSettings::addSheet(const PageSetup &setup, bool touched)
     m_kinds.push_back(0);
     m_zooms.push_back(100);
     m_normals.push_back(100);
+    m_panes.emplace_back();
+    m_filePanes.emplace_back();
     m_fileKinds.push_back(0);
     m_fileZooms.push_back(100);
     m_fileNormals.push_back(100);
@@ -116,6 +153,8 @@ void PageSettings::removeLastSheet()
         m_kinds.pop_back();
         m_zooms.pop_back();
         m_normals.pop_back();
+        m_panes.pop_back();
+        m_filePanes.pop_back();
         m_fileKinds.pop_back();
         m_fileZooms.pop_back();
         m_fileNormals.pop_back();
@@ -132,6 +171,12 @@ void PageSettings::addToSave(jp::office::sheet::SaveChanges *changes, const QStr
         sc.viewKind = m_kinds[s];
         sc.viewZoom = m_zooms[s];
         sc.viewNormalZoom = m_normals[s];
+    }
+    for (size_t s = 0; s < m_panes.size() && s < m_filePanes.size(); ++s) {
+        if (samePanes(m_panes[s], m_filePanes[s]) || int(s) >= sheetNames.size() || sheetNames[int(s)].isEmpty()) continue;
+        jp::office::sheet::SheetChanges &sc = changes->sheets[int(s)];
+        sc.setPane = true;
+        sc.pane = m_panes[s];
     }
     for (const int s : m_touched) {
         if (s < 0 || s >= int(m_sheets.size()) || s >= sheetNames.size() || sheetNames[s].isEmpty()) continue;   // (a deleted sheet has no name, and none of its names are written)
@@ -158,6 +203,7 @@ void PageSettings::saved()
     m_fileKinds = m_kinds;
     m_fileZooms = m_zooms;
     m_fileNormals = m_normals;
+    m_filePanes = m_panes;
     m_touched.clear();   // (what the steps kept stays: an Undo after a save puts the setups back, and they are written again)
 }
 
