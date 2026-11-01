@@ -176,6 +176,13 @@ QByteArray documentXml(const QByteArray &zip)
     return p.part(QStringLiteral("/word/document.xml"));
 }
 
+QByteArray styleXml(const QByteArray &zip)
+{
+    office::Package p;
+    p.read(zip);
+    return p.part(QStringLiteral("/word/styles.xml"));
+}
+
 std::unique_ptr<WriteDoc> open(const QByteArray &zip)
 {
     QString err;
@@ -13607,6 +13614,485 @@ private Q_SLOTS:
         QCOMPARE(place.row, 2);
         QCOMPARE(place.column, 0);
         checkWhole(*doc);
+    }
+
+    // ---- making and changing tables (beta wave B)
+
+    // The tables of a document, cell by cell, as text: the grid, the table's own settings, each row's, and each cell's span, merge, lines, fill, and alignment, and the words of its
+    // paragraphs. A table that is saved and opened comes to the same text.
+    static QString tablesSignature(WriteDoc &doc)
+    {
+        auto line = [](const std::optional<flow::TableLine> &l) {
+            return l ? QStringLiteral("%1/%2/%3").arg(int(l->style)).arg(l->width).arg(l->color.isValid() ? l->color.name() : QStringLiteral("auto")) : QStringLiteral("-");
+        };
+        auto edge = [](const flow::TableLine &l) { return QStringLiteral("%1/%2/%3").arg(int(l.style)).arg(l.width).arg(l.color.isValid() ? l.color.name() : QStringLiteral("auto")); };
+        QString out;
+        const flow::TableStore &store = doc.flow().tables;
+        const flow::TableData *table = nullptr;
+        const flow::RowData *row = nullptr;
+        int lastKey = -1;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+            const int key = cellKeyOf(b);
+            if (!key) {
+                out += QStringLiteral("P:") + b.text() + QLatin1Char('\n');
+                table = nullptr;
+                row = nullptr;
+                lastKey = -1;
+                continue;
+            }
+            const flow::CellRecord *r = store.get(key);
+            if (r->table.get() != table) {
+                table = r->table.get();
+                QStringList cols;
+                for (double w : table->columns) cols << QString::number(w, 'f', 1);
+                out += QStringLiteral("TABLE cols=%1 align=%2 indent=%3 margins=%4,%5,%6,%7 spacing=%8 borders=%9 %10 %11 %12 %13 %14 fill=%15\n")
+                           .arg(cols.join(QLatin1Char(',')))
+                           .arg(int(table->align))
+                           .arg(table->indent)
+                           .arg(table->margins.left())
+                           .arg(table->margins.top())
+                           .arg(table->margins.right())
+                           .arg(table->margins.bottom())
+                           .arg(table->spacing)
+                           .arg(edge(table->top), edge(table->left), edge(table->bottom), edge(table->right), edge(table->insideH), edge(table->insideV))
+                           .arg(table->fill ? table->fill->name() : QStringLiteral("-"));
+                row = nullptr;
+            }
+            if (r->row.get() != row) {
+                row = r->row.get();
+                out += QStringLiteral(" ROW height=%1 exact=%2 cantSplit=%3 header=%4\n").arg(row->height).arg(row->exact).arg(row->cantSplit).arg(row->header);
+                lastKey = -1;
+            }
+            if (key != lastKey) {
+                const flow::CellData &c = r->cell;
+                out += QStringLiteral("  CELL span=%1 vmerge=%2 lines=%3 %4 %5 %6 fill=%7 valign=%8 nowrap=%9 margins=%10\n")
+                           .arg(c.span)
+                           .arg(int(c.vmerge))
+                           .arg(line(c.top), line(c.left), line(c.bottom), line(c.right))
+                           .arg(c.fill ? (c.fill->alpha() ? c.fill->name() : QStringLiteral("none")) : QStringLiteral("-"))
+                           .arg(int(c.valign))
+                           .arg(c.noWrap)
+                           .arg(c.margins ? QStringLiteral("%1,%2,%3,%4").arg(c.margins->left()).arg(c.margins->top()).arg(c.margins->right()).arg(c.margins->bottom()) : QStringLiteral("-"));
+                lastKey = key;
+            }
+            out += QStringLiteral("    ") + b.text() + QStringLiteral(" align=%1 after=%2\n").arg(int(b.blockFormat().alignment())).arg(b.blockFormat().bottomMargin());
+        }
+        return out;
+    }
+
+    // The document saved and opened again has the same tables, and the file passes the strict checks.
+    static void checkTablesReopenTheSame(WriteDoc &doc)
+    {
+        const QByteArray zip = doc.toDocx();
+        QVERIFY2(!zip.isEmpty(), "the document saves");
+        QVERIFY2(rt::strictProblems(zip).isEmpty(), qPrintable(rt::strictProblems(zip).join(QLatin1Char('\n'))));
+        auto back = open(zip);
+        QVERIFY(back);
+        QCOMPARE(tablesSignature(*back), tablesSignature(doc));
+        // (and it is written the same the second time)
+        QCOMPARE(documentXml(back->toDocx()), documentXml(zip));
+    }
+
+    static int selectCells(WriteDoc &doc, QTextCursor &c, const QString &from, const QString &to)
+    {
+        QTextCursor a = cursorAt(doc, from), b = cursorAt(doc, to);
+        c = QTextCursor(doc.story());
+        c.setPosition(a.position());
+        c.setPosition(b.position() + b.block().length() - 1, QTextCursor::KeepAnchor);
+        return c.position();
+    }
+
+    // Insert Table makes a table of the size asked at the cursor, in the table style, in cells as wide as the text area shares, and each cell has a paragraph in the style
+    // that table style gives: the file has it, and opens the same. Undo takes it away.
+    void insertTableMakesATableThatSavesAndOpensTheSame()
+    {
+        auto doc = WriteDoc::blank();
+        QTextCursor c(doc->story());
+        typeText(*doc, c, QStringLiteral("before"));
+        insertParagraph(*doc, c);
+        typeText(*doc, c, QStringLiteral("after"));
+        c.setPosition(doc->story()->findBlock(0).next().position());
+        const QString was = plain(*doc);
+        NewTable t;
+        t.rows = 3;
+        t.columns = 4;
+        QVERIFY(insertTable(*doc, c, t));
+        QCOMPARE(int(doc->story()->blockCount()), 2 + 12);
+        const QString signature = tablesSignature(*doc);
+        QVERIFY2(signature.count(QStringLiteral(" ROW ")) == 3 && signature.count(QStringLiteral("  CELL ")) == 12, qPrintable(signature));
+        // The grid shares the text area (Letter, one-inch margins: 468 points), and the table style's lines are the table's.
+        const QTextBlock firstCell = doc->story()->findBlock(c.position());
+        QCOMPARE(cellKeyOf(firstCell) != 0, true);
+        const flow::CellRecord *rec = doc->flow().tables.get(cellKeyOf(firstCell));
+        QCOMPARE(rec->table->columns.size(), 4);
+        double sum = 0;
+        for (double w : rec->table->columns) sum += w;
+        QVERIFY2(std::abs(sum - 468) < 0.6, qPrintable(QString::number(sum)));
+        QVERIFY(rec->table->top.visible() && rec->table->insideV.visible());
+        QCOMPARE(firstCell.blockFormat().bottomMargin(), 0.0);   // (Table Grid has no space after)
+        // The cursor is in the first cell; the paragraph after the table is the one the cursor was in.
+        QCOMPARE(c.position(), firstCell.position());
+        QCOMPARE(doc->story()->lastBlock().text(), QStringLiteral("after"));
+        checkTablesReopenTheSame(*doc);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY(x.contains("<w:tblStyle w:val=\"TableGrid\"/>"));
+        QCOMPARE(int(x.count("<w:tr>")), 3);
+        QCOMPARE(int(x.count("<w:tc>")), 12);
+        QVERIFY(styleXml(doc->toDocx()).contains("w:styleId=\"TableGrid\""));
+        // One step takes it away, and one puts it back.
+        doc->story()->undo();
+        QCOMPARE(plain(*doc), was);
+        QVERIFY(tablesSignature(*doc).count(QStringLiteral("CELL")) == 0);
+        doc->story()->redo();
+        QCOMPARE(int(doc->story()->blockCount()), 2 + 12);
+        QCOMPARE(tablesSignature(*doc), signature);
+        // Typing goes into the cell, and Tab goes on to the next.
+        c.setPosition(firstCell.position());
+        typeText(*doc, c, QStringLiteral("one"));
+        QVERIFY(tabThroughCells(*doc, c, false));
+        typeText(*doc, c, QStringLiteral("two"));
+        QVERIFY(plain(*doc).contains(QStringLiteral("one\ntwo")));
+        checkTablesReopenTheSame(*doc);
+    }
+
+    // Insert Table in the middle of a paragraph cuts it in two with the table between; where the cursor is at the start of the document, the table is the first thing in it; a
+    // table is not made in a table; and the fit options are written (the window is the whole width as a percent, the contents' are automatic).
+    void insertTableCutsAParagraphAtTheCursorAndKeepsTheFitItWasGiven()
+    {
+        auto doc = WriteDoc::blank();
+        QTextCursor c(doc->story());
+        typeText(*doc, c, QStringLiteral("abcdef"));
+        c.setPosition(3);
+        NewTable t;
+        t.rows = 1;
+        t.columns = 2;
+        t.fit = TableFit::Window;
+        QVERIFY(insertTable(*doc, c, t));
+        QCOMPARE(plain(*doc), QStringLiteral("abc\n\n\ndef"));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:tblW w:w=\"5000\" w:type=\"pct\"/>"));
+        QVERIFY(!insertTable(*doc, c, t));   // (the cursor is in a cell)
+        checkTablesReopenTheSame(*doc);
+        // At the very start.
+        auto first = WriteDoc::blank();
+        QTextCursor f(first->story());
+        typeText(*first, f, QStringLiteral("text"));
+        f.setPosition(0);
+        t.fit = TableFit::Contents;
+        QVERIFY(insertTable(*first, f, t));
+        QCOMPARE(cellKeyOf(first->story()->begin()) != 0, true);
+        QCOMPARE(first->story()->lastBlock().text(), QStringLiteral("text"));
+        QVERIFY(documentXml(first->toDocx()).contains("<w:tblW w:w=\"0\" w:type=\"auto\"/>"));
+        checkTablesReopenTheSame(*first);
+        QVERIFY(!insertTable(*first, f, NewTable{0, 3}));
+    }
+
+    // Merge Cells across joins the cells of a row into one with the span of them, with the words of each in turn; empty cells add no paragraph; Split Cells makes cells of
+    // it again; each is one step to undo, and the file opens the same.
+    void mergeCellsAcrossAndSplitThemAgain()
+    {
+        auto doc = open(tableDocx(3, 3));
+        QTextCursor c(doc->story());
+        selectCells(*doc, c, QStringLiteral("r0c0"), QStringLiteral("r0c1"));
+        const QString before = tablesSignature(*doc);
+        QVERIFY(canMergeCells(*doc, c));
+        QVERIFY(mergeCells(*doc, c));
+        QString now = tablesSignature(*doc);
+        QVERIFY2(now.contains(QStringLiteral("CELL span=2 vmerge=0")), qPrintable(now));
+        QCOMPARE(plain(*doc), QStringLiteral("before\nr0c0\nr0c1\nr0c2\nr1c0\nr1c1\nr1c2\nr2c0\nr2c1\nr2c2\nafter"));
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY(x.contains("<w:gridSpan w:val=\"2\"/>"));
+        QCOMPARE(int(x.count("<w:tc>")), 8);
+        checkTablesReopenTheSame(*doc);
+        // The merged cell is split into two again (the words stay in the first), and a third row's cell into three.
+        QTextCursor in = cursorAt(*doc, QStringLiteral("r0c0"));
+        QVERIFY(canSplitCell(*doc, in));
+        QVERIFY(splitCells(*doc, in, 2, 1));
+        now = tablesSignature(*doc);
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tc>")), 9);
+        QVERIFY(!now.contains(QStringLiteral("span=2")));
+        checkTablesReopenTheSame(*doc);
+        // Undo each step.
+        doc->story()->undo();
+        QVERIFY(tablesSignature(*doc).contains(QStringLiteral("span=2")));
+        doc->story()->undo();
+        QCOMPARE(tablesSignature(*doc), before);
+        doc->story()->redo();
+        QVERIFY(tablesSignature(*doc).contains(QStringLiteral("span=2")));
+        // Empty cells add nothing.
+        auto empties = open(makeDocx(cellP("x") + tableX(rowX(cellX("<w:p/>") + cellX("<w:p/>") + cellX(cellP("end"))), 3) + cellP("y"), kStyles));
+        QTextCursor e = cursorAt(*empties, QStringLiteral("end"));
+        const QTextBlock endBlock = e.block();
+        e.setPosition(endBlock.previous().previous().position());
+        e.setPosition(endBlock.position() + endBlock.length() - 1, QTextCursor::KeepAnchor);
+        QVERIFY(mergeCells(*empties, e));
+        QCOMPARE(plain(*empties), QStringLiteral("x\nend\ny"));
+        checkTablesReopenTheSame(*empties);
+    }
+
+    // Merge Cells over rows and columns joins a block of cells: the first row's cell begins the join and the rows under have a cell that continues it; what the cells held goes in
+    // the first cell, and splitting it into as many rows as it joins makes cells of them again.
+    void mergeCellsOverRowsAndColumnsAndSplitThem()
+    {
+        auto doc = open(tableDocx(3, 3));
+        QTextCursor c(doc->story());
+        selectCells(*doc, c, QStringLiteral("r0c1"), QStringLiteral("r1c2"));
+        const QString before = tablesSignature(*doc);
+        QVERIFY(mergeCells(*doc, c));
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY(x.contains("<w:vMerge w:val=\"restart\"/>") && x.contains("<w:vMerge/>"));
+        QCOMPARE(plain(*doc), QStringLiteral("before\nr0c0\nr0c1\nr0c2\nr1c1\nr1c2\nr1c0\n\nr2c0\nr2c1\nr2c2\nafter"));
+        checkTablesReopenTheSame(*doc);
+        QTextCursor in = cursorAt(*doc, QStringLiteral("r0c1"));
+        QVERIFY(splitCells(*doc, in, 2, 2));
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tc>")), 9);
+        QVERIFY(!documentXml(doc->toDocx()).contains("vMerge"));
+        QCOMPARE(plain(*doc), QStringLiteral("before\nr0c0\nr0c1\nr0c2\nr1c1\nr1c2\n\nr1c0\n\n\nr2c0\nr2c1\nr2c2\nafter"));
+        checkTablesReopenTheSame(*doc);
+        doc->story()->undo();
+        doc->story()->undo();
+        QCOMPARE(tablesSignature(*doc), before);
+    }
+
+    // A cell split into more columns than it takes makes columns of the grid: the cells of the other rows that cross them are wider, and the whole is as wide as it was. A cell
+    // split into rows adds rows, in which the cells beside it go on.
+    void splitCellsMakeColumnsAndRows()
+    {
+        auto doc = open(tableDocx(2, 2));
+        QTextCursor in = cursorAt(*doc, QStringLiteral("r0c0"));
+        QVERIFY(splitCells(*doc, in, 3, 1));
+        QString now = tablesSignature(*doc);
+        {
+            const QVector<double> columns = doc->flow().tables.get(cellKeyOf(cursorAt(*doc, QStringLiteral("r1c1")).block()))->table->columns;
+            QCOMPARE(columns.size(), 4);
+            QVERIFY(std::abs(columns[0] + columns[1] + columns[2] - 100) < 0.01 && std::abs(columns[0] - 33.3) < 0.1);
+            QCOMPARE(columns[3], 100.0);
+        }
+        QVERIFY2(now.contains(QStringLiteral("CELL span=3")), qPrintable(now));
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tc>")), 6);
+        checkTablesReopenTheSame(*doc);
+        doc->story()->undo();
+        auto rows = open(tableDocx(2, 2));
+        in = cursorAt(*rows, QStringLiteral("r0c0"));
+        QVERIFY(splitCells(*rows, in, 1, 2));
+        now = tablesSignature(*rows);
+        QCOMPARE(int(now.count(QStringLiteral(" ROW "))), 3);
+        QCOMPARE(plain(*rows), QStringLiteral("before\nr0c0\nr0c1\n\n\nr1c0\nr1c1\nafter"));
+        const QByteArray x = documentXml(rows->toDocx());
+        QCOMPARE(int(x.count("<w:vMerge w:val=\"restart\"/>")), 1);
+        QCOMPARE(int(x.count("<w:vMerge/>")), 1);
+        checkTablesReopenTheSame(*rows);
+        // The row added is a row of the table: the cursor is in the new cell, and typing goes there.
+        QTextCursor lower(rows->story());
+        lower.setPosition(rows->story()->findBlock(cursorAt(*rows, QStringLiteral("r0c1")).position()).next().position());
+        typeText(*rows, lower, QStringLiteral("below"));
+        checkTablesReopenTheSame(*rows);
+        QVERIFY(!splitCells(*rows, in, 1, 1));
+    }
+
+    // Shading and borders are set on the cells selected (and the lines also on the sides of the cells beside them that touch), written to the file, and undone as one step.
+    void shadingAndBordersOfTheSelectedCellsAreWrittenAndUndone()
+    {
+        auto doc = open(tableDocx(2, 2));
+        QTextCursor c(doc->story());
+        const QString before = tablesSignature(*doc);
+        selectCells(*doc, c, QStringLiteral("r0c0"), QStringLiteral("r0c1"));
+        setShading(*doc, c, QColor(0xFF, 0xFF, 0x00));
+        QString now = tablesSignature(*doc);
+        QCOMPARE(int(now.count(QStringLiteral("fill=#ffff00"))), 2);
+        QVERIFY(documentXml(doc->toDocx()).contains("w:fill=\"FFFF00\""));
+        checkTablesReopenTheSame(*doc);
+        setShading(*doc, c, QColor());
+        QCOMPARE(int(tablesSignature(*doc).count(QStringLiteral("fill=none"))), 2);
+        checkTablesReopenTheSame(*doc);
+        // A red double line round the second row.
+        selectCells(*doc, c, QStringLiteral("r1c0"), QStringLiteral("r1c1"));
+        flow::TableLine red;
+        red.style = flow::TableLine::Style::Double;
+        red.width = 1.5;
+        red.color = QColor(0xFF, 0, 0);
+        setBorders(*doc, c, BorderSide::Outside, red);
+        const flow::CellRecord *a = doc->flow().tables.get(cellKeyOf(cursorAt(*doc, QStringLiteral("r1c0")).block()));
+        QVERIFY(a->cell.top && a->cell.top->style == flow::TableLine::Style::Double && a->cell.top->color == QColor(0xFF, 0, 0));
+        QVERIFY(a->cell.left && a->cell.left->style == flow::TableLine::Style::Double);
+        QVERIFY(!a->cell.right || a->cell.right->style != flow::TableLine::Style::Double);   // (between the two cells: not an outside line)
+        const flow::CellRecord *above = doc->flow().tables.get(cellKeyOf(cursorAt(*doc, QStringLiteral("r0c0")).block()));
+        QVERIFY(above->cell.bottom && above->cell.bottom->style == flow::TableLine::Style::Double);   // (the cell above has the same line on its foot)
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:top w:val=\"double\" w:sz=\"12\" w:space=\"0\" w:color=\"FF0000\"/>"));
+        checkTablesReopenTheSame(*doc);
+        // No lines at all between the cells of the table.
+        selectCells(*doc, c, QStringLiteral("r0c0"), QStringLiteral("r1c1"));
+        setBorders(*doc, c, BorderSide::All, flow::TableLine());
+        const flow::CellRecord *none = doc->flow().tables.get(cellKeyOf(cursorAt(*doc, QStringLiteral("r1c1")).block()));
+        QVERIFY(none->cell.top && !none->cell.top->visible() && none->cell.right && !none->cell.right->visible());
+        checkTablesReopenTheSame(*doc);
+        while (doc->story()->isUndoAvailable()) doc->story()->undo();
+        QCOMPARE(tablesSignature(*doc), before);
+    }
+
+    // The nine places of text in a cell: across is the paragraphs' alignment, down is the cell's.
+    void cellAlignmentIsAcrossInTheParagraphsAndDownInTheCell()
+    {
+        auto doc = open(tableDocx(2, 2));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r1c1"));
+        setCellAlignment(*doc, c, Qt::AlignHCenter, flow::CellAlign::Bottom);
+        const QTextBlock b = cursorAt(*doc, QStringLiteral("r1c1")).block();
+        QCOMPARE(b.blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+        QCOMPARE(doc->flow().tables.get(cellKeyOf(b))->cell.valign, flow::CellAlign::Bottom);
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY(x.contains("<w:vAlign w:val=\"bottom\"/>") && x.contains("<w:jc w:val=\"center\"/>"));
+        checkTablesReopenTheSame(*doc);
+        QCOMPARE(doc->flow().tables.get(cellKeyOf(cursorAt(*doc, QStringLiteral("r0c0")).block()))->cell.valign, flow::CellAlign::Top);
+        doc->story()->undo();
+        doc->story()->undo();
+        QCOMPARE(doc->flow().tables.get(cellKeyOf(cursorAt(*doc, QStringLiteral("r1c1")).block()))->cell.valign, flow::CellAlign::Top);
+    }
+
+    // Column width, row height, equal columns and rows, and the fit of the table: the grid and the cells' widths are written together.
+    void cellSizeAndAutoFitAreWrittenWithTheGrid()
+    {
+        auto doc = open(tableDocx(2, 3));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r0c0"));
+        setColumnWidth(*doc, c, 150);
+        QString now = tablesSignature(*doc);
+        QVERIFY2(now.contains(QStringLiteral("cols=150.0,100.0,100.0")), qPrintable(now));
+        QByteArray x = documentXml(doc->toDocx());
+        QVERIFY(x.contains("<w:gridCol w:w=\"3000\"/>"));
+        QVERIFY(x.contains("<w:tcW w:w=\"3000\" w:type=\"dxa\"/>"));
+        checkTablesReopenTheSame(*doc);
+        distributeColumns(*doc, c);
+        QVERIFY2(tablesSignature(*doc).contains(QStringLiteral("cols=116.7,116.7,116.7")), qPrintable(tablesSignature(*doc)));
+        checkTablesReopenTheSame(*doc);
+        c = cursorAt(*doc, QStringLiteral("r1c1"));
+        setRowHeight(*doc, c, 40, true);
+        now = tablesSignature(*doc);
+        QVERIFY2(now.contains(QStringLiteral("ROW height=40 exact=1")), qPrintable(now));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:trHeight w:val=\"800\" w:hRule=\"exact\"/>"));
+        checkTablesReopenTheSame(*doc);
+        setRowHeight(*doc, c, 0, false);
+        QVERIFY(!documentXml(doc->toDocx()).contains("trHeight"));
+        QTextCursor all(doc->story());
+        selectCells(*doc, all, QStringLiteral("r0c0"), QStringLiteral("r1c2"));
+        distributeRows(*doc, all);
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:trHeight")), 2);
+        checkTablesReopenTheSame(*doc);
+        fitTable(*doc, c, TableFit::Window);
+        x = documentXml(doc->toDocx());
+        QVERIFY(x.contains("<w:tblW w:w=\"5000\" w:type=\"pct\"/>") && x.contains("<w:tblLayout w:type=\"autofit\"/>"));
+        double sum = 0;
+        for (double w : doc->flow().tables.get(cellKeyOf(c.block()))->table->columns) sum += w;
+        QVERIFY2(sum > 440 && sum <= 468, qPrintable(QString::number(sum)));
+        checkTablesReopenTheSame(*doc);
+        fitTable(*doc, c, TableFit::Contents);
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:tblW w:w=\"0\" w:type=\"auto\"/>"));
+        QVERIFY(doc->flow().tables.get(cellKeyOf(c.block()))->table->columns[0] < 100);   // ("r0c0" is narrower than 100 points)
+        checkTablesReopenTheSame(*doc);
+        fitTable(*doc, c, TableFit::Fixed);
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:tblLayout w:type=\"fixed\"/>"));
+        checkTablesReopenTheSame(*doc);
+    }
+
+    // Table Properties: the table's alignment, indent, width, margins, and spacing, the row's height, whether it splits across pages and repeats at the top, and the cell's place
+    // for its text are read from the table and set on it, and the file has them.
+    void tablePropertiesAreReadSetAndWritten()
+    {
+        auto doc = open(tableDocx(3, 2));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r1c1"));
+        const TableProps was = tablePropsAt(*doc, c);
+        QCOMPARE(was.widthKind, TableProps::Width::Auto);
+        QVERIFY(!was.header && !was.cantSplit);
+        TableProps now = was;
+        now.align = flow::TableData::Align::Center;
+        now.indent = 10;
+        now.widthKind = TableProps::Width::Percent;
+        now.width = 80;
+        now.margins = QMarginsF(7, 1, 7, 2);
+        now.spacing = 2;
+        now.rowHeight = 30;
+        now.rowExact = false;
+        now.cantSplit = true;
+        now.header = true;
+        now.valign = flow::CellAlign::Center;
+        now.altTitle = QStringLiteral("Totals");
+        now.altText = QStringLiteral("The totals & the rest");
+        setTableProps(*doc, c, was, now);
+        const TableProps again = tablePropsAt(*doc, c);
+        QVERIFY(again == now);
+        const QByteArray x = documentXml(doc->toDocx());
+        for (const char *want : {"<w:jc w:val=\"center\"/>", "<w:tblInd w:w=\"200\" w:type=\"dxa\"/>", "<w:tblW w:w=\"4000\" w:type=\"pct\"/>", "<w:cantSplit/>", "<w:tblHeader/>",
+                                 "<w:trHeight w:val=\"600\" w:hRule=\"atLeast\"/>", "<w:tblCellSpacing w:w=\"40\" w:type=\"dxa\"/>", "<w:tblCaption w:val=\"Totals\"/>",
+                                 "<w:tblDescription w:val=\"The totals &amp; the rest\"/>", "<w:vAlign w:val=\"center\"/>"})
+            QVERIFY2(x.contains(want), want);
+        checkTablesReopenTheSame(*doc);
+        auto back = open(doc->toDocx());
+        QTextCursor in = cursorAt(*back, QStringLiteral("r1c1"));
+        QVERIFY(tablePropsAt(*back, in) == now);
+        // The row is a header row: it is laid out to repeat.
+        const flow::CellRecord *rec = doc->flow().tables.get(cellKeyOf(c.block()));
+        QVERIFY(rec->row->cantSplit);
+        while (doc->story()->isUndoAvailable()) doc->story()->undo();
+        QVERIFY(tablePropsAt(*doc, c) == was);
+    }
+
+    // The table style (a built-in one is added to the document), its options, and Clear: the cells take the look the style gives them, and the file says the style and the options.
+    void aTableStyleAndItsOptionsGiveTheCellsTheirLook()
+    {
+        auto doc = open(tableDocx(3, 2));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("r0c0"));
+        setTableStyle(*doc, c, QStringLiteral("GridTable4Accent1"));
+        QVERIFY(styleXml(doc->toDocx()).contains("w:styleId=\"GridTable4Accent1\""));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:tblStyle w:val=\"GridTable4Accent1\"/>"));
+        auto fillOfCell = [&](const QString &text) {
+            const flow::CellRecord *r = doc->flow().tables.get(cellKeyOf(cursorAt(*doc, text).block()));
+            return r->cell.fill ? r->cell.fill->name() : QString();
+        };
+        QCOMPARE(fillOfCell(QStringLiteral("r0c0")), QStringLiteral("#4472c4"));     // (the header row)
+        QCOMPARE(fillOfCell(QStringLiteral("r1c0")), QStringLiteral("#d9e2f3"));     // (the first banded row)
+        QCOMPARE(fillOfCell(QStringLiteral("r2c0")), QString());                      // (the second is plain)
+        const office::wml::TableLayer *layer = doc->tableLayerOf(cellKeyOf(cursorAt(*doc, QStringLiteral("r0c0")).block()));
+        QVERIFY(layer && layer->r.bold.value_or(false));
+        checkTablesReopenTheSame(*doc);
+        setTableLook(*doc, c, 0x20, false);   // no header row
+        QCOMPARE(fillOfCell(QStringLiteral("r0c0")), QStringLiteral("#d9e2f3"));
+        QVERIFY(tablePropsAt(*doc, c).look == (0x04A0 & ~0x20));
+        checkTablesReopenTheSame(*doc);
+        setTableLook(*doc, c, 0x20, true);
+        setTableStyle(*doc, c, QStringLiteral("TableNormal"));
+        QCOMPARE(fillOfCell(QStringLiteral("r0c0")), QString());
+        checkTablesReopenTheSame(*doc);
+        // Every built-in style gives a table that opens the same.
+        for (const QString &id : office::wml::builtinTableStyleIds()) {
+            setTableStyle(*doc, c, id);
+            checkTablesReopenTheSame(*doc);
+        }
+    }
+
+    // A table in a table's cell is changed with the table it is in: its cells keep their place in the cell, and the cell's other paragraphs.
+    void changesKeepATableInACellAndWhatIsAroundIt()
+    {
+        const QByteArray inner = tableX(rowX(cellX(cellP("n0")) + cellX(cellP("n1"))), 2);
+        const QByteArray body = cellP("top") +
+                                tableX(rowX(cellX(cellP("A0") + inner + cellP("A0b")) + cellX(cellP("A1"))) + rowX(cellX(cellP("B0")) + cellX(cellP("B1"))),
+                                       2) +
+                                cellP("tail");
+        auto doc = open(makeDocx(body, kStyles));
+        QTextCursor c = cursorAt(*doc, QStringLiteral("B0"));
+        setShading(*doc, c, QColor(0, 0xFF, 0));
+        setColumnWidth(*doc, c, 90);
+        QByteArray x = documentXml(doc->toDocx());
+        QCOMPARE(int(x.count("<w:tbl>")), 2);
+        checkTablesReopenTheSame(*doc);
+        // The cell with the table in it keeps it; a change inside the table in the cell works.
+        QTextCursor in = cursorAt(*doc, QStringLiteral("n1"));
+        setShading(*doc, in, QColor(0, 0, 0xFF));
+        checkTablesReopenTheSame(*doc);
+        QTextCursor outer = cursorAt(*doc, QStringLiteral("A1"));
+        QVERIFY(mergeCells(*doc, outer) == false);   // (one cell)
+        QTextCursor row;
+        selectCells(*doc, row, QStringLiteral("B0"), QStringLiteral("B1"));
+        QVERIFY(mergeCells(*doc, row));
+        QCOMPARE(int(documentXml(doc->toDocx()).count("<w:tbl>")), 2);
+        checkTablesReopenTheSame(*doc);
+        QVERIFY(plain(*doc).contains(QStringLiteral("n0\nn1\nA0b")));
     }
 
     // A selection across cells empties them without joining what is in different cells, and one that holds a whole table takes it out.

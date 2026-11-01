@@ -273,13 +273,14 @@ public:
 
     // ---- styles
     const office::wml::StyleSheet &styleSheet() const { return m_wml.styles; }
+    int compatMode() const { return m_wml.compatMode; }
     QString defaultParagraphStyle() const;
     QVector<StyleEntry> styleEntries() const;
     // The style the document has under `id`, adding a built-in one it lacks; false when there is none by that id.
     bool ensureStyle(const QString &id);
     // The whole of a paragraph style's look: the paragraph's format and its run's, with the document's defaults under them.
-    QTextBlockFormat styleBlockFormat(const QString &paragraphStyle);
-    QTextCharFormat styleCharFormat(const QString &paragraphStyle, const QString &characterStyle = QString());
+    QTextBlockFormat styleBlockFormat(const QString &paragraphStyle, const office::wml::TableLayer *layer = nullptr);
+    QTextCharFormat styleCharFormat(const QString &paragraphStyle, const QString &characterStyle = QString(), const office::wml::TableLayer *layer = nullptr);
     // What the paragraph has from its style and its list (the file's numbering gives a list's indents), for telling what it says itself.
     // `direct` says the paragraph itself states its numbering (so the list's indents come over its style's); `cache`, if given, holds
     // the answers for one pass over a document (the same style, list, and level come up again and again).

@@ -825,13 +825,13 @@ ParaProps WriteDoc::baselineParagraph(const QString &paragraphStyle, int numId, 
     return p;
 }
 
-QTextBlockFormat WriteDoc::styleBlockFormat(const QString &paragraphStyle)
+QTextBlockFormat WriteDoc::styleBlockFormat(const QString &paragraphStyle, const TableLayer *layer)
 {
     const QString style = paragraphStyle.isEmpty() ? defaultParagraphStyle() : paragraphStyle;
     const StyleSheet &sheet = sheetFor(style);
-    ParaProps p = sheet.paragraph(style);
+    ParaProps p = sheet.paragraph(style, layer);
     const int numId = p.numId.value_or(0), level = p.ilvl.value_or(0);
-    if (numId > 0) p = sheet.paragraphWithNumbering(style, levelParagraph(numId, level));
+    if (numId > 0) p = sheet.paragraphWithNumbering(style, levelParagraph(numId, level), layer);
     p.style = style;
     // (A style whose paragraphs are in a list: the list itself is made when the style is applied.)
     return paragraphFormatOf(p);
@@ -849,11 +849,11 @@ QTextBlockFormat WriteDoc::paragraphFormatOf(const ParaProps &p) const
     return bf;
 }
 
-QTextCharFormat WriteDoc::styleCharFormat(const QString &paragraphStyle, const QString &characterStyle)
+QTextCharFormat WriteDoc::styleCharFormat(const QString &paragraphStyle, const QString &characterStyle, const TableLayer *layer)
 {
     const QString style = paragraphStyle.isEmpty() ? defaultParagraphStyle() : paragraphStyle;
     const StyleSheet &sheet = sheetFor(style);
-    QTextCharFormat f = charFormatOf((characterStyle.isEmpty() ? sheet : sheetFor(characterStyle)).run(style, characterStyle), theme());
+    QTextCharFormat f = charFormatOf((characterStyle.isEmpty() ? sheet : sheetFor(characterStyle)).run(style, characterStyle, layer), theme());
     if (const QString language = styleLanguage(style, characterStyle); !language.isEmpty() && language != proofingLanguage()) f.setProperty(tp::Language, language);
     return f;
 }
