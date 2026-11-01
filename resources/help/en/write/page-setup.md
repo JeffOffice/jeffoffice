@@ -11,7 +11,7 @@ Type the space between the paper's edge and the text for the **Top**, **Bottom**
 
 ## Paper
 
-Pick a **paper size** (Letter, Legal, Executive, A3, A4, A5, or B5), or type a **width** and **height** of your own. Paper can be from 0.5 inch to 30 inches on a side (36 to 2,160 points). If you type a width that is more than the height, the page is landscape.
+Pick a **paper size** (Letter, Legal, Executive, A3, A4, A5, or B5), or type a **width** and **height** of your own. Paper can be from 0.5 inch to 22 inches on a side (36 to 1,584 points). If you type a width that is more than the height, the page is landscape.
 
 ## Layout
 

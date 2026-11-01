@@ -94,6 +94,7 @@ void WriteWindow::pictureRibbonParts(RibbonParts &parts)
                     w = v;
                     if (act("picture.lockAspect")->isChecked()) h = now.height * v / now.width;
                 }
+                if (act("picture.lockAspect")->isChecked()) write::clampKeepingRatio(&w, &h);   // (the limits hold the size as a whole: its proportions stay)
                 if (std::abs(w - now.width) < 0.005 && std::abs(h - now.height) < 0.005) return;   // (the same size is no command: no step to undo)
                 m_view->changeSelectedPicture([w, h](write::WriteDoc &d, int position) { return write::setPictureSize(d, position, w, h); });
             });
@@ -117,16 +118,17 @@ void WriteWindow::insertPictureFromFile()
         path = paths.first();
     }
     if (path.isEmpty()) return;
-    QFile f(path);
-    if (f.size() > write::kMostPictureBytes) {
+    QByteArray bytes;
+    const write::PictureResult read = write::readPictureFile(path, &bytes);
+    if (read == write::PictureResult::TooLarge) {
         statusBar()->showMessage(tr("That picture is too large to put in a document."), 8000);
         return;
     }
-    if (!f.open(QIODevice::ReadOnly)) {
-        statusBar()->showMessage(tr("%1 can't be opened.").arg(QFileInfo(path).fileName()), 8000);
+    if (read != write::PictureResult::Ok) {
+        statusBar()->showMessage(tr("%1 can't be opened as a picture.").arg(QFileInfo(path).fileName()), 8000);
         return;
     }
-    m_view->insertPictureBytes(f.readAll(), QFileInfo(path).completeBaseName());
+    m_view->insertPictureBytes(bytes, QFileInfo(path).completeBaseName());
     m_view->setFocus(Qt::OtherFocusReason);
 }
 

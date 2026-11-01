@@ -151,6 +151,8 @@ public:
     // The handle (or the picture itself) at a point of the window; and the point a handle is at.
     PictureHandle pictureHandleAt(const QPoint &viewportPos);
     bool pictureHandlePoint(PictureHandle handle, QPointF *point);
+    // How many times the rectangle of a picture has been worked out since the program began (a cost test).
+    static qint64 pictureRectsComputedForTest();
     // The place in the text of the picture at a point of the window, -1 for none.
     int pictureAtPoint(const QPoint &viewportPos);
     // A picture from the bytes of a file, or an image (the clipboard's), at the caret in place of a selection; the picture is then the selection. The reason is told (notice) when it fails.
@@ -284,6 +286,7 @@ private:
         int position = -1;
         QPointF from;
         QRectF start, now;
+        QPoint scrollAtStart;
         bool floating = false;
         PictureInfo info;
     };
@@ -297,6 +300,21 @@ private:
     int floatingPictureAt(const Hit &hit);
     PictureDrag m_pictureDrag;
     int m_hoverCursorShape = -1;
+    bool pictureRectUncached(int position, QRectF *rect);
+    struct RectKey {
+        int position = -1, revision = 0, hscroll = 0, vscroll = 0;
+        double zoom = 0;
+        quint64 layout = 0;
+        int pages = 0;
+        bool operator==(const RectKey &o) const { return position == o.position && revision == o.revision && hscroll == o.hscroll && vscroll == o.vscroll && zoom == o.zoom && layout == o.layout && pages == o.pages; }
+    };
+    struct RectCache {
+        bool valid = false;
+        RectKey key;
+        QRectF rect;
+    };
+    RectCache m_rectCache;
+    quint64 m_layoutSerial = 0;   // counted up each time the pages are made again
     void paintPictureHandles(QPainter &p);
     int m_pictureDragPage = -1;
 

@@ -299,6 +299,7 @@ int PageView::shownTotal(int index) const
 
 void PageView::dropRendered(int fromPage)
 {
+    ++m_layoutSerial;
     for (auto it = m_rendered.begin(); it != m_rendered.end();) {
         if (it.key() >= fromPage) {
             m_recent.removeOne(it.key());
@@ -312,6 +313,7 @@ void PageView::dropRendered(int fromPage)
 void PageView::relayout()
 {
     if (m_relayouting) return;
+    ++m_layoutSerial;
     m_relayouting = true;
     if (!m_doc) {
         m_rects.clear();

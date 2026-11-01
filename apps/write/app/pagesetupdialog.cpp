@@ -228,7 +228,7 @@ bool altTextDialog(QWidget *parent, QString *alt)
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     if (dlg.exec() != QDialog::Accepted) return false;
     // (One line: a line break in an attribute is a blank.)
-    *alt = edit->toPlainText().simplified().left(kMostAltTextLength);
+    *alt = cleanAltText(edit->toPlainText().simplified());
     return true;
 }
 

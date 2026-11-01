@@ -70,9 +70,30 @@ bool PageView::inlinePictureRect(int position, const PictureInfo &info, QRectF *
     return true;
 }
 
+namespace {
+qint64 g_pictureRects = 0;
+}
+
+qint64 PageView::pictureRectsComputedForTest() { return g_pictureRects; }
+
 bool PageView::pictureRect(int position, QRectF *rect)
 {
     if (!m_doc || m_hf.active || m_note.active) return false;
+    // The rectangle is worked out again when the picture, the text, the layout, the scroll, or the zoom changed (the pointer asks for it at every move).
+    const RectKey key{position, m_doc->story()->revision(), horizontalScrollBar()->value(), verticalScrollBar()->value(), m_zoom, m_layoutSerial, m_knownPages};
+    if (m_rectCache.valid && m_rectCache.key == key) {
+        *rect = m_rectCache.rect;
+        return true;
+    }
+    ++g_pictureRects;
+    m_rectCache.valid = false;
+    if (!pictureRectUncached(position, rect)) return false;
+    m_rectCache = {true, key, *rect};
+    return true;
+}
+
+bool PageView::pictureRectUncached(int position, QRectF *rect)
+{
     const PictureInfo info = pictureAt(*m_doc, m_doc->story(), position);
     if (!info.valid) return false;
     if (!info.floating) return inlinePictureRect(position, info, rect);
@@ -157,6 +178,7 @@ bool PageView::beginPictureDrag(QMouseEvent *e)
     m_pictureDrag.handle = handle;
     m_pictureDrag.position = target;
     m_pictureDrag.from = pos;
+    m_pictureDrag.scrollAtStart = QPoint(horizontalScrollBar()->value(), verticalScrollBar()->value());
     m_pictureDrag.start = m_pictureDrag.now = r;
     m_pictureDrag.floating = info.floating;
     m_pictureDrag.info = info;
@@ -190,14 +212,15 @@ void PageView::updatePictureDrag(const QPoint &pos)
             const double ky = (d.start.height() + (bottom ? delta.y() : -delta.y())) / d.start.height();
             double k = std::abs(kx - 1) > std::abs(ky - 1) ? kx : ky;
             k = std::max(k, std::max(least / d.start.width(), least / d.start.height()));
+            k = std::min(k, kMostPictureSize * s / std::max(d.start.width(), d.start.height()));   // (and no larger than a picture may be)
             const QSizeF size(d.start.width() * k, d.start.height() * k);
             const QPointF fixed(left ? d.start.right() : d.start.left(), top ? d.start.bottom() : d.start.top());
             r = QRectF(QPointF(left ? fixed.x() - size.width() : fixed.x(), top ? fixed.y() - size.height() : fixed.y()), size);
         } else {
-            if (left) r.setLeft(std::min(d.start.left() + delta.x(), d.start.right() - least));
-            if (right) r.setRight(std::max(d.start.right() + delta.x(), d.start.left() + least));
-            if (top) r.setTop(std::min(d.start.top() + delta.y(), d.start.bottom() - least));
-            if (bottom) r.setBottom(std::max(d.start.bottom() + delta.y(), d.start.top() + least));
+            if (left) r.setLeft(std::max(std::min(d.start.left() + delta.x(), d.start.right() - least), d.start.right() - kMostPictureSize * s));
+            if (right) r.setRight(std::min(std::max(d.start.right() + delta.x(), d.start.left() + least), d.start.left() + kMostPictureSize * s));
+            if (top) r.setTop(std::max(std::min(d.start.top() + delta.y(), d.start.bottom() - least), d.start.bottom() - kMostPictureSize * s));
+            if (bottom) r.setBottom(std::min(std::max(d.start.bottom() + delta.y(), d.start.top() + least), d.start.top() + kMostPictureSize * s));
         }
     }
     d.now = r;
@@ -219,7 +242,7 @@ void PageView::endPictureDrag(const QPoint &pos)
     if (d.handle == PictureHandle::Body) {
         if (d.floating) {
             if (m_pictureDragPage >= 0 && m_pictureDragPage < m_rects.size()) {
-                const QRectF pr = m_rects[m_pictureDragPage].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
+                const QRectF pr = m_rects[m_pictureDragPage].translated(-d.scrollAtStart.x(), -d.scrollAtStart.y());
                 changed = setPicturePlace(*m_doc, d.position, (d.now.left() - pr.left()) / s, (d.now.top() - pr.top()) / s);
             }
         } else {
@@ -234,7 +257,7 @@ void PageView::endPictureDrag(const QPoint &pos)
         const bool movesLeft = d.handle == PictureHandle::Left || d.handle == PictureHandle::TopLeft || d.handle == PictureHandle::BottomLeft;
         const bool movesTop = d.handle == PictureHandle::Top || d.handle == PictureHandle::TopLeft || d.handle == PictureHandle::TopRight;
         if (d.floating && (movesLeft || movesTop) && m_pictureDragPage >= 0 && m_pictureDragPage < m_rects.size()) {
-            const QRectF pr = m_rects[m_pictureDragPage].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
+            const QRectF pr = m_rects[m_pictureDragPage].translated(-d.scrollAtStart.x(), -d.scrollAtStart.y());
             place = QPointF((d.now.left() - pr.left()) / s, (d.now.top() - pr.top()) / s);
         }
         changed = setPictureBox(*m_doc, d.position, d.now.width() / s, d.now.height() / s, place);
@@ -290,7 +313,8 @@ bool PageView::insertPictureBytes(const QByteArray &bytes, const QString &name, 
         return true;
     }
     Q_EMIT notice(result == PictureResult::Unreadable ? QCoreApplication::translate("jp::write::Pictures", "That is not a picture JeffWrite can read.")
-                  : result == PictureResult::TooLarge ? QCoreApplication::translate("jp::write::Pictures", "That picture is too large to put in a document.")
+                  : result == PictureResult::External ? QCoreApplication::translate("jp::write::Pictures", "That SVG picture refers to files outside itself, so JeffWrite does not put it in a document.")
+                  : result == PictureResult::TooLarge ? (m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "That picture is too large to put in a document.") : m_doc->pictureNotice)
                                                       : m_doc->pictureNotice);
     return false;
 }
@@ -308,7 +332,7 @@ bool PageView::insertPictureImage(const QImage &image, PictureWrap wrap)
         return true;
     }
     Q_EMIT notice(result == PictureResult::Unreadable ? QCoreApplication::translate("jp::write::Pictures", "There is no picture on the clipboard that JeffWrite can read.")
-                  : result == PictureResult::TooLarge ? QCoreApplication::translate("jp::write::Pictures", "That picture is too large to put in a document.")
+                  : result == PictureResult::TooLarge ? (m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "That picture is too large to put in a document.") : m_doc->pictureNotice)
                                                       : m_doc->pictureNotice);
     return false;
 }
@@ -368,12 +392,14 @@ void PageView::dropEvent(QDropEvent *e)
     int inserted = 0;
     for (const QUrl &u : e->mimeData()->urls()) {
         if (!u.isLocalFile() || imageFileEnding(QFileInfo(u.toLocalFile()).suffix()).isEmpty() || inserted >= 20) continue;
-        QFile f(u.toLocalFile());
-        if (f.size() > kMostPictureBytes || !f.open(QIODevice::ReadOnly)) {
-            Q_EMIT notice(QCoreApplication::translate("jp::write::Pictures", "That picture is too large to put in a document."));
+        QByteArray bytes;
+        const PictureResult read = readPictureFile(u.toLocalFile(), &bytes);
+        if (read != PictureResult::Ok) {
+            Q_EMIT notice(read == PictureResult::TooLarge ? QCoreApplication::translate("jp::write::Pictures", "That picture is too large to put in a document.")
+                                                          : QCoreApplication::translate("jp::write::Pictures", "%1 can't be opened as a picture.").arg(QFileInfo(u.toLocalFile()).fileName()));
             continue;
         }
-        any = insertPictureBytes(f.readAll(), QFileInfo(f).completeBaseName()) || any;
+        any = insertPictureBytes(bytes, QFileInfo(u.toLocalFile()).completeBaseName()) || any;
         m_cursor.setPosition(m_cursor.selectionEnd());   // (the next one goes after this one)
         ++inserted;
     }

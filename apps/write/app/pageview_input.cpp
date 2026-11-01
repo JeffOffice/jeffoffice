@@ -33,6 +33,8 @@ QString s_copiedText;
 void PageView::undo()
 {
     if (!m_doc) return;
+    m_pictureDrag = PictureDrag();   // (a drag of a picture is over: what it would have done is not done)
+    viewport()->update();
     if (m_hf.active && m_doc->isPendingHeaderFooter(m_hf.story)) leaveHeaderFooter();   // (an empty one shown to be typed in has no step to take back)
     QTextCursor at;
     const int picture = selectedPicture();
@@ -46,6 +48,8 @@ void PageView::undo()
 void PageView::redo()
 {
     if (!m_doc) return;
+    m_pictureDrag = PictureDrag();   // (a drag of a picture is over: what it would have done is not done)
+    viewport()->update();
     if (m_hf.active && m_doc->isPendingHeaderFooter(m_hf.story)) leaveHeaderFooter();
     QTextCursor at;
     const int picture = selectedPicture();
