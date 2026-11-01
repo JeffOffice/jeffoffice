@@ -648,6 +648,8 @@ Document newDocument();
 // Paragraph...); used to add one a document lacks. The id is the style's name without spaces ("Heading1"). Empty id when unknown.
 Style builtinStyle(const QString &id);
 QStringList builtinStyleIds();
+// The table styles a person may apply (the gallery's, in its order); builtinStyle gives each, and TableNormal, the style a table has when none is said.
+QStringList builtinTableStyleIds();
 
 // A fingerprint of blocks [from, to) of a body as they are written (every piece kept, as nothing says otherwise), for telling a table that has not changed.
 QByteArray blocksFingerprint(const QVector<Block> &body, qsizetype from, qsizetype to);
@@ -665,6 +667,9 @@ private:
 
 // What one table style says of itself (not the styles it is based on).
 TableStyleDef readTableStyle(const Style &style);
+// What the start of a table (its tag, tblPr, and tblGrid), of a row (its tag and trPr), or of a cell (its tag and tcPr) says, read from those bytes as a file's would be
+// (for a table that is made or changed by the program: the same marks come back when it is saved and opened).
+TableMark readTableMark(TableMark::Kind kind, const QByteArray &bytes);
 // What the properties of a table, a row, or a cell say when those of `src` are put over those of `dst`: its borders, margins, shading, and the other properties
 // a style gives (not the ones a table or cell says only of itself: its width, its span, and its merge).
 void overlayTableMark(TableMark *dst, const TableMark &src);

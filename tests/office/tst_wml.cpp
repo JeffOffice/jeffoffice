@@ -522,6 +522,37 @@ private Q_SLOTS:
         QCOMPARE(blocksFingerprint(again, 0, again.size()), blocksFingerprint(blocks, 0, blocks.size()));
     }
 
+    // The start of a table, a row, or a cell that the program makes is read as a file's would be: the grid and where it is in the bytes, the width, the borders, the
+    // shading, the merge, and the row's height.
+    void theStartOfATableRowOrCellIsReadAsAFilesWouldBe()
+    {
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblStyle w:val=\"TableGrid\"/><w:tblW w:w=\"4000\" w:type=\"dxa\"/><w:jc w:val=\"center\"/><w:tblLayout w:type=\"fixed\"/></w:tblPr>"
+                                 "<w:tblGrid><w:gridCol w:w=\"1500\"/><w:gridCol w:w=\"2500\"/></w:tblGrid>";
+        const TableMark t = readTableMark(TableMark::Table, table);
+        QCOMPARE(t.kind, TableMark::Table);
+        QCOMPARE(t.style, QStringLiteral("TableGrid"));
+        QCOMPARE(t.width.w, 4000);
+        QCOMPARE(t.jc, QStringLiteral("center"));
+        QCOMPARE(t.layout, QStringLiteral("fixed"));
+        QCOMPARE(t.grid, (QVector<int>{1500, 2500}));
+        QCOMPARE(table.mid(t.gridBegin, t.gridEnd - t.gridBegin), QByteArray("<w:tblGrid><w:gridCol w:w=\"1500\"/><w:gridCol w:w=\"2500\"/></w:tblGrid>"));
+        const TableMark r = readTableMark(TableMark::Row, "<w:tr><w:trPr><w:cantSplit/><w:trHeight w:val=\"600\" w:hRule=\"exact\"/><w:tblHeader/></w:trPr>");
+        QCOMPARE(r.kind, TableMark::Row);
+        QVERIFY(r.cantSplit && r.header);
+        QCOMPARE(r.height, 600);
+        QCOMPARE(r.heightRule, QStringLiteral("exact"));
+        const TableMark c = readTableMark(TableMark::Cell, "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/><w:gridSpan w:val=\"2\"/><w:vMerge w:val=\"restart\"/>"
+                                                           "<w:tcBorders><w:top w:val=\"double\" w:sz=\"6\" w:space=\"0\" w:color=\"FF0000\"/></w:tcBorders>"
+                                                           "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"FFFF00\"/><w:vAlign w:val=\"center\"/></w:tcPr>");
+        QCOMPARE(c.kind, TableMark::Cell);
+        QCOMPARE(c.span, 2);
+        QCOMPARE(c.vMerge, QStringLiteral("restart"));
+        QCOMPARE(c.top.val, QStringLiteral("double"));
+        QCOMPARE(c.top.color, QStringLiteral("FF0000"));
+        QCOMPARE(c.shdFill, QStringLiteral("FFFF00"));
+        QCOMPARE(c.vAlign, QStringLiteral("center"));
+    }
+
     // A part with no root of its own gets the usual one, and the prefixes its pieces use are declared on it.
     void aNewHeaderPartHasTheUsualRoot()
     {

@@ -1282,6 +1282,33 @@ TableStyleDef readTableStyle(const Style &style)
     return def;
 }
 
+TableMark readTableMark(TableMark::Kind kind, const QByteArray &bytes)
+{
+    TableMark mark;
+    mark.kind = kind;
+    static const QByteArray declarations =
+        " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+    const char *closing = kind == TableMark::Table ? "</w:tbl>" : kind == TableMark::Row ? "</w:tr>" : "</w:tc>";
+    XmlTree t;
+    if (!t.parse("<w:keep" + declarations + ">" + bytes + closing + "</w:keep>", nullptr)) return mark;
+    const int element = t.firstChild(t.root());
+    if (element < 0) return mark;
+    Reader r(t);
+    for (int c = t.firstChild(element); c >= 0; c = t.next(c)) {
+        if (kind == TableMark::Table && t.is(c, "tblPr")) r.tblPr(c, &mark);
+        else if (kind == TableMark::Table && t.is(c, "tblGrid")) r.tblGrid(c, &mark);
+        else if (kind == TableMark::Row && t.is(c, "trPr")) r.trPr(c, &mark);
+        else if (kind == TableMark::Cell && t.is(c, "tcPr")) r.tcPr(c, &mark);
+    }
+    if (kind == TableMark::Table) {
+        mark.gridBegin = bytes.indexOf("<w:tblGrid");
+        const qsizetype end = bytes.indexOf("</w:tblGrid>");
+        mark.gridEnd = mark.gridBegin >= 0 && end >= 0 ? end + 12 : -1;
+        if (mark.gridEnd < 0) mark.gridBegin = -1;
+    }
+    return mark;
+}
+
 bool readNotes(const QByteArray &xml, QVector<NotePart> *notes, int *highestId)
 {
     XmlTree tree;
