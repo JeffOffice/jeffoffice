@@ -276,8 +276,8 @@ range marks next to its parent's. A reply to a comment that is not there, or a l
 
 **The window**: Review has Track Changes (Ctrl+Shift+E), Accept and Reject with their menus, Previous and Next, Display for Review, Show Markup, the Reviewing pane (`ReviewPane`: comments in threads and
 changes, with their buttons), and the comment commands (New Comment is Ctrl+Alt+M); the status bar says whether tracking is on. `PageView::setReviewMarks` has the page view paint a bar in the margin
-by each line a change touches, and a balloon for each comment (and each deletion, in balloons), over the pages from the page's own line positions; they are in a picture of a page too, never in print or PDF. A document with changes opens with All Markup. The settings
-(`review/*`) keep what Show Markup has on.
+by each line a change touches, and a balloon for each comment (and each deletion, in balloons), over the pages from the page's own line positions; they are in a picture of a page too, never in print or PDF. A document with changes opens with All Markup. What Show Markup has on is each window's own (all of it on when a window begins); a long
+document is looked through for changes and comments a moment after the last edit, not at each key.
 
 **Checking it**: `writetool review-text FILE accept|reject|none` writes the body's text as the original program reports it (a paragraph ends in `\r`, a cell and a row in `\r\a`, hidden text and the code of a field are left out, text in
 capitals is in capitals, a symbol is `(`, a picture in the line is `\x01`, a note's reference `\x02`), and `tools/review_compare.py WRITETOOL REFDIR` compares it with reference texts, after taking out only `\a` and the field marks
