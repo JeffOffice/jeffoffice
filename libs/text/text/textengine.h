@@ -163,6 +163,9 @@ struct LayoutEnv {
     double fontScale = 1.0;
     double defaultTab = 36;         // points between the tab stops of a paragraph without its own
     bool showFieldShading = false;
+    // How tracked changes are shown (tp::kRevisionShowDeleted and the other flags): none, the document as it stands. Text a change deleted is left out of the lines then, as hidden
+    // text is (LayoutEnv::wordLines).
+    int revisionView = 0;
     // The text is set without ligatures (a slide's, as the presentation program sets it: a PDF's text then names each letter the page draws, where a
     // ligature's glyph stands for several letters that a reader that copies the text can't name, and the lines break as the screen's do). A word processor's
     // text (wordLines) has none either: it sets each letter, as its files ask for no ligatures.
