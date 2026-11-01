@@ -103,6 +103,10 @@ QList<RawRecord> rawRecords(const QByteArray &xls, bool *wellFormed = nullptr)
     bool ok = true;
     while (at + 4 <= d.size()) {
         const quint16 id = quint8(d[at]) | (quint8(d[at + 1]) << 8), len = quint8(d[at + 2]) | (quint8(d[at + 3]) << 8);
+        if (id == 0 && len == 0 && d.mid(at).count('\0') == d.size() - at) {   // (the zeros that fill the stream out to its smallest size)
+            at = d.size();
+            break;
+        }
         if (len > 8224 || at + 4 + len > d.size()) {
             ok = false;
             break;
