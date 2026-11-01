@@ -13,7 +13,10 @@
 #include "office/package.h"
 #include "core/fonts.h"
 #include "core/pagesetup.h"
+#include "core/commentops.h"
+#include "core/editops.h"
 #include "core/pictureops.h"
+#include "core/reviewops.h"
 #include "core/rulerops.h"
 #include "app/tabledialogs.h"
 #include "app/widgets.h"
@@ -226,6 +229,38 @@ private Q_SLOTS:
                  w->act(QStringLiteral("insert.picture"))->trigger();
                  asWrite(w)->refreshNow();
              }, false},
+            {QStringLiteral("a comment at the caret"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 c.setPosition(4, QTextCursor::KeepAnchor);
+                 write::addComment(*doc, c, QStringLiteral("A remark"));
+                 QTextCursor inside(doc->story());
+                 inside.setPosition(2);
+                 asWrite(w)->view()->setCursor(inside);
+                 asWrite(w)->refreshNow();
+             }, false},
+            {QStringLiteral("changes tracked in the text"), [typed](AppWindow *w, bool f) {
+                 typed(w, f);
+                 write::WriteDoc *doc = asWrite(w)->document();
+                 doc->setReviewer(QStringLiteral("Checker"), QStringLiteral("C"));
+                 doc->setTrackChanges(true);
+                 QTextCursor c(doc->story());
+                 c.setPosition(0);
+                 c.setPosition(3, QTextCursor::KeepAnchor);
+                 write::toggleBold(*doc, c);
+                 c.setPosition(5);
+                 c.setPosition(7, QTextCursor::KeepAnchor);
+                 write::removeSelection(*doc, c);
+                 c.setPosition(doc->story()->characterCount() - 1);
+                 write::insertText(*doc, c, QStringLiteral("added"));
+                 doc->setTrackChanges(false);
+                 QTextCursor at(doc->story());
+                 at.setPosition(1);
+                 asWrite(w)->view()->setCursor(at);
+                 asWrite(w)->refreshNow();
+             }, false},
             {QStringLiteral("the cursor in a table"), [](AppWindow *w, bool) { tableAtCursor(asWrite(w)); }, false},
             {QStringLiteral("the whole table selected"), [](AppWindow *w, bool) {
                  tableAtCursor(asWrite(w));
@@ -252,6 +287,8 @@ private Q_SLOTS:
             {QStringLiteral("edit.pasteFormat"), QStringLiteral("it puts the look held on the selection, which here has that look already, or nothing is held yet")},
             {QStringLiteral("edit.formatPainter"), QStringLiteral("it picks up the look of the selection and waits for the next selection; the paint is the change, and the window's tests check it")},
             {QStringLiteral("view.printLayout"), QStringLiteral("the print layout is the only layout JeffWrite has, and the window begins in it")},
+            {QStringLiteral("review.show.comments"), QStringLiteral("it chooses whether the balloons for comments are painted in the pages' margin, which no control shows; the window's tests check the painting")},
+            {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };
         m_app.neverRun = {};
     }

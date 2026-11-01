@@ -278,6 +278,25 @@ private Q_SLOTS:
         QCOMPARE(count(out2, "<w:t"), 0);
     }
 
+    // A carriage return (w:cr) is shown as a line break and kept as the element it is, so that it saves as it was (and the program can tell it from a line break, which the original
+    // program's text counts as the end of a paragraph).
+    void aCarriageReturnIsKeptAsItsElementAndShownAsALineBreak()
+    {
+        Made m;
+        m.body = R"(<w:p><w:r><w:t>one</w:t></w:r><w:r><w:cr/></w:r><w:r><w:t>two</w:t><w:br/><w:t>three</w:t></w:r></w:p>)";
+        Document d;
+        QString err;
+        QVERIFY2(readDocx(m.build(), &d, &err), qPrintable(err));
+        const QVector<Inline> &c = d.body[0].para.content;
+        QCOMPARE(c.size(), 3);
+        QCOMPARE(c[1].kind, Inline::RunAtom);
+        QCOMPARE(c[1].tag, QStringLiteral("cr"));
+        QCOMPARE(c[1].display, QString(QChar(QChar::LineSeparator)));
+        QCOMPARE(c[2].text, QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three"));
+        const QByteArray out = documentXmlOf(writeDocx(d));
+        QVERIFY2(out.contains("<w:r><w:cr/></w:r>") && out.contains("<w:br/>"), out.constData());
+    }
+
     // Ruby text is shown with its base text where the pages cannot set it above: the base, and the ruby after it in brackets (an atom that is kept as it is written).
     void rubyShowsItsBaseTextAndItsRuby()
     {

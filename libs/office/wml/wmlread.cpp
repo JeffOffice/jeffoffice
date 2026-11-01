@@ -392,7 +392,12 @@ public:
             } else if (name == "tab") {
                 text += QLatin1Char('\t');
             } else if (name == "cr") {
-                text += QChar(QChar::LineSeparator);
+                // A carriage return is shown as a line break; it is kept as the element it is (the original program's text has it as the end of a paragraph, not a line break).
+                flush();
+                Inline a = atom(c, Inline::RunAtom);
+                a.props = props;
+                a.display = QString(QChar(QChar::LineSeparator));
+                out->push_back(a);
             } else if (name == "noBreakHyphen") {
                 text += QChar(0x2011);
             } else if (name == "softHyphen") {

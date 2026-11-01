@@ -250,12 +250,14 @@ void WriteWindow::applyReviewView()
     switch (m_reviewView) {
     case ReviewView::AllMarkup:
         if (m_showInsertionsAndDeletions) flags = m_balloons == 1 ? tp::kRevisionMark : (tp::kRevisionShowDeleted | tp::kRevisionMark);
-        marks.changeBars = m_showInsertionsAndDeletions || m_showFormatting;
+        marks.changeBars = m_showInsertionsAndDeletions;
+        marks.formatBars = m_showFormatting;
         marks.deletions = m_showInsertionsAndDeletions && m_balloons == 1;
         marks.comments = m_showComments;
         break;
     case ReviewView::SimpleMarkup:
-        marks.changeBars = true;
+        marks.changeBars = m_showInsertionsAndDeletions;
+        marks.formatBars = m_showFormatting;
         marks.comments = m_showComments;
         break;
     case ReviewView::NoMarkup:
@@ -283,6 +285,8 @@ void WriteWindow::refreshReviewUi()
         const bool any = write::revisionAt(m_doc->story(), c.position()).has_value() || c.hasSelection();
         act("review.accept")->setEnabled(any || write::nextRevision(m_doc->story(), c.position()).has_value());
         act("review.reject")->setEnabled(any || write::nextRevision(m_doc->story(), c.position()).has_value());
+        const bool anyComments = !write::comments(*m_doc).isEmpty();
+        act("review.deleteAllComments")->setEnabled(anyComments);
         act("review.deleteComment")->setEnabled(write::commentAt(*m_doc, c.position()).has_value());
         act("review.replyComment")->setEnabled(write::commentAt(*m_doc, c.position()).has_value());
         act("review.resolveComment")->setEnabled(write::commentAt(*m_doc, c.position()).has_value());

@@ -397,6 +397,13 @@ QString bodyText(const jp::write::WriteDoc &doc, const QVector<jp::office::wml::
     const QString defaultStyle = doc.defaultParagraphStyle();
     QString out;
     int deleted = 0;
+    // The fields the text is in: whether each is in its code (what is there is not reported, nor are the paragraph ends in it).
+    QVector<bool> inCode;
+    auto codeShown = [&inCode] {
+        for (const bool c : inCode)
+            if (c) return true;
+        return false;
+    };
     for (const Block &b : blocks) {
         if (b.isRaw) {
             if (b.role == Inline::Close && b.tag == QLatin1String("tc")) out += QChar(7);
@@ -411,6 +418,13 @@ QString bodyText(const jp::write::WriteDoc &doc, const QVector<jp::office::wml::
                 continue;
             }
             if (deleted) continue;
+            if (in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) {
+                if (in.key == QLatin1String("begin") && inCode.size() < 64) inCode.push_back(true);
+                else if (in.key == QLatin1String("separate") && !inCode.isEmpty()) inCode.last() = false;
+                else if (in.key == QLatin1String("end") && !inCode.isEmpty()) inCode.pop_back();
+                continue;
+            }
+            if (codeShown()) continue;
             // (Hidden text is not reported; text in capitals is, in capitals.)
             RunProps shown = doc.styleSheet().run(b.para.props.style.isEmpty() ? defaultStyle : b.para.props.style, in.props.style);
             shown.overlay(in.props);
@@ -428,6 +442,8 @@ QString bodyText(const jp::write::WriteDoc &doc, const QVector<jp::office::wml::
                 out += QChar(2);
             } else if (in.tag == QLatin1String("br")) {
                 out += QChar(0x0b);
+            } else if (in.tag == QLatin1String("cr")) {
+                out += QLatin1Char('\r');
             } else if (in.tag == QLatin1String("ptab")) {
                 out += QChar(9);
             } else if (in.tag == QLatin1String("sym")) {
@@ -436,7 +452,7 @@ QString bodyText(const jp::write::WriteDoc &doc, const QVector<jp::office::wml::
                 out += in.display;
             }
         }
-        out += b.para.props.section ? QChar(0x0c) : QChar('\r');
+        if (!codeShown()) out += b.para.props.section ? QChar(0x0c) : QChar('\r');
     }
     return out;
 }

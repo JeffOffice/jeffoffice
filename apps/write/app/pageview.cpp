@@ -595,7 +595,7 @@ void PageView::paintEvent(QPaintEvent *e)
                 }
             }
             paintPage(&p, *page->page, &page->layouts, d);
-            if (m_reviewMarks.changeBars || m_reviewMarks.comments || m_reviewMarks.deletions) paintReviewMarks(p, *page);
+            if (m_reviewMarks.changeBars || m_reviewMarks.formatBars || m_reviewMarks.comments || m_reviewMarks.deletions) paintReviewMarks(p, *page);
             p.restore();
         }
         p.setPen(QPen(QColor(0, 0, 0, dark ? 90 : 50), 1));
@@ -636,19 +636,24 @@ void PageView::fillReviewCache()
     m_reviewCache.revision = revision;
     m_reviewCache.doc = m_doc;
     // The stretches of the text the changes cover (joined where they meet).
-    QVector<std::pair<int, int>> spans;
+    QVector<std::pair<int, int>> spans, formats;
     for (const Revision &r : revisionsIn(m_doc->story(), 0, -1, 20000)) {
-        spans.push_back({r.from, std::max(r.to, r.from + 1)});
+        const bool formatting = r.kind == Revision::Format || r.kind == Revision::ParagraphFormat;
+        (formatting ? formats : spans).push_back({r.from, std::max(r.to, r.from + 1)});
         if (m_reviewMarks.deletions && (r.kind == Revision::Deletion || r.kind == Revision::MovedFrom)) {
             QString words = revisionText(m_doc->story(), r, 60);
             if (!words.isEmpty()) m_reviewCache.deletions.push_back({r.from, QString(), words, tp::revisionColor(m_doc->reviewerIndex(r.author)), false});
         }
     }
-    std::sort(spans.begin(), spans.end());
-    for (const auto &sp : std::as_const(spans)) {
-        if (!m_reviewCache.spans.isEmpty() && sp.first <= m_reviewCache.spans.last().second) m_reviewCache.spans.last().second = std::max(m_reviewCache.spans.last().second, sp.second);
-        else m_reviewCache.spans.push_back(sp);
-    }
+    auto joined = [](QVector<std::pair<int, int>> in, QVector<std::pair<int, int>> *out) {
+        std::sort(in.begin(), in.end());
+        for (const auto &sp : std::as_const(in)) {
+            if (!out->isEmpty() && sp.first <= out->last().second) out->last().second = std::max(out->last().second, sp.second);
+            else out->push_back(sp);
+        }
+    };
+    joined(spans, &m_reviewCache.spans);
+    joined(formats, &m_reviewCache.formatSpans);
     if (m_reviewMarks.comments) {
         for (const Comment &c : comments(*m_doc)) {
             if (c.parent >= 0 || c.reference < 0) continue;
@@ -675,11 +680,13 @@ void PageView::paintReviewMarks(QPainter &p, Rendered &r)
         for (const auto &line : fl.layout->lineInfo(f)) {
             const int a = line.docPos + r.page->storyFrom, b = std::max(line.docEnd, line.docPos + 1) + r.page->storyFrom;
             const double top = box->rect.top() + line.rect.top(), height = std::max(1.0, line.rect.height());
-            if (m_reviewMarks.changeBars) {
-                // The first span that ends after the line begins.
-                auto it = std::lower_bound(m_reviewCache.spans.begin(), m_reviewCache.spans.end(), a, [](const std::pair<int, int> &sp, int v) { return sp.second <= v; });
-                if (it != m_reviewCache.spans.end() && it->first < b) p.fillRect(QRectF(box->rect.left() - 7, top, 1.6, height), QColor(0xC0, 0x39, 0x2B));
-            }
+            // The first span that ends after the line begins.
+            auto bar = [&](const QVector<std::pair<int, int>> &spans) {
+                auto it = std::lower_bound(spans.begin(), spans.end(), a, [](const std::pair<int, int> &sp, int v) { return sp.second <= v; });
+                if (it != spans.end() && it->first < b) p.fillRect(QRectF(box->rect.left() - 7, top, 1.6, height), QColor(0xC0, 0x39, 0x2B));
+            };
+            if (m_reviewMarks.changeBars) bar(m_reviewCache.spans);
+            if (m_reviewMarks.formatBars) bar(m_reviewCache.formatSpans);
             if (marginRight >= 30) {
                 auto balloon = [&](const ReviewCache::Mark &m, bool deletion) {
                     if (m.at < a || m.at >= b) return;
@@ -732,6 +739,8 @@ QImage PageView::pageImage(int index, int width)
     d.pageCount = std::max(1, m_knownPages);
     d.output = true;
     paintPage(&p, *page->page, &page->layouts, d);
+    // (A picture of the page is the page as the window shows it: the marks for review are on it.)
+    if (m_reviewMarks.changeBars || m_reviewMarks.formatBars || m_reviewMarks.comments || m_reviewMarks.deletions) paintReviewMarks(p, *page);
     return img;
 }
 
