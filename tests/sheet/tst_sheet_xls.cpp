@@ -6,6 +6,7 @@
 
 #include "io/cfb.h"
 #include "sheet/calculation.h"
+#include "sheet/oldsave.h"
 #include "sheet/xlsxbase.h"
 #include "sheet/xlscodepage.h"
 
@@ -112,6 +113,29 @@ private Q_SLOTS:
         QVERIFY2(openBook(none, &w, &why), qPrintable(why));
         QVERIFY(w.info().calcMode == CalcMode::Auto);
         QVERIFY(!w.info().iterate);
+    }
+
+    // A copy that leaves a chart sheet out still opens on the sheet that was active: the active and first tabs are numbered among the sheets written, not among all.
+    void theActiveTabOfACopyCountsOnlyTheSheetsWritten()
+    {
+        Book b;
+        b.globals(rec(0x003D, W().u16(0).u16(0).u16(0).u16(0).u16(0).u16(2).u16(2).u16(1).u16(600)));
+        b.sheet(QStringLiteral("Chart"), QByteArray(), 0, 2);
+        b.sheet(QStringLiteral("A"), number(0, 0, 1));
+        b.sheet(QStringLiteral("B"), number(0, 0, 2));
+        b.sheet(QStringLiteral("C"), number(0, 0, 3));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        QCOMPARE(wb.info().activeTab, 2);
+        QByteArray out;
+        CopyReport report;
+        QVERIFY2(saveXls(wb, &out, &report, &why), qPrintable(why));
+        Workbook copy;
+        QVERIFY2(copy.openBinary(out, &why), qPrintable(why));
+        QCOMPARE(copy.info().sheets.size(), 3);
+        QCOMPARE(copy.info().sheets[copy.info().activeTab].name, QStringLiteral("B"));
+        QCOMPARE(copy.info().sheets[copy.info().firstSheet].name, QStringLiteral("B"));
     }
 
     // The UNCALCED record says the workbook was saved before its calculation finished, in every form that has it.

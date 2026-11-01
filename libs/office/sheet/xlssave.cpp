@@ -807,8 +807,8 @@ private:
             if (v.frozen) g |= 0x08 | 0x100;
             if (v.showZeros) g |= 0x10;
             if (v.rightToLeft) g |= 0x40;
-            if (index == std::min<int>(info.activeTab, int(m_written.size()) - 1) || v.tabSelected) g |= 0x200;
-            if (index == std::min<int>(info.activeTab, int(m_written.size()) - 1)) g |= 0x400;
+            if (index == writtenIndex(info.activeTab) || v.tabSelected) g |= 0x200;
+            if (index == writtenIndex(info.activeTab)) g |= 0x400;
             if (v.kind == SheetView::Kind::PageBreaks) g |= 0x800;
             const int zoom = std::max(10, std::min(v.normalZoom > 0 ? v.normalZoom : v.zoom, 400));
             put(&out, 0x023E, W().u16(g).u16(int(std::min<quint32>(v.topRow, 65535))).u16(int(std::min<quint32>(v.leftCol, 255))).u32(0x40).u16(0).u16(zoom == 100 ? 0 : zoom).u32(0));
@@ -1172,6 +1172,14 @@ private:
 
     // ---- the records every sheet needs
 
+    // The number, among the sheets written, of the sheet that has this number among all the book's (a sheet left out gives the next one written, or the last).
+    int writtenIndex(int place) const
+    {
+        for (size_t i = 0; i < m_written.size(); ++i)
+            if (m_written[i].place >= place) return int(i);
+        return std::max(0, int(m_written.size()) - 1);
+    }
+
     QByteArray buildGlobals(const QByteArray &names, const QVector<QByteArray> &sheets)
     {
         QByteArray g;
@@ -1209,8 +1217,8 @@ private:
         put(&g, 0x01BC, W().u16(0));
         put(&g, 0x0040, W().u16(0));
         put(&g, 0x008D, W().u16(0));
-        const int active = std::min<int>(m_book.info().activeTab, int(sheets.size()) - 1);
-        put(&g, 0x003D, W().u16(0x01E0).u16(0x010E).u16(0x2B2F).u16(0x1799).u16(0x0038).u16(std::max(0, active)).u16(std::min<int>(std::max(0, m_book.info().firstSheet), int(sheets.size()) - 1)).u16(1).u16(0x0258));
+        const int active = writtenIndex(m_book.info().activeTab), first = writtenIndex(m_book.info().firstSheet);
+        put(&g, 0x003D, W().u16(0x01E0).u16(0x010E).u16(0x2B2F).u16(0x1799).u16(0x0038).u16(active).u16(first).u16(1).u16(0x0258));
         put(&g, 0x0022, W().u16(m_book.info().dateSystem == jp::calc::DateSystem::Date1904 ? 1 : 0));
         put(&g, 0x000E, W().u16(1));
         put(&g, 0x01B7, W().u16(0));
