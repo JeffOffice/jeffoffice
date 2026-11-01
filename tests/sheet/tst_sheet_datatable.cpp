@@ -150,6 +150,22 @@ private Q_SLOTS:
         QCOMPARE(b.at(QStringLiteral("C5")), QStringLiteral("n:0"));
     }
 
+    // A table that comes to texts is left as the file has it.
+    void aTableOfTextsIsLeftAlone()
+    {
+        QString rows = row(2, num(QStringLiteral("A2"), 1) + formula(QStringLiteral("C2"), QStringLiteral("IF(A2>1,\"big\",\"small\")"), 0));
+        rows += row(4, formula(QStringLiteral("B4"), QStringLiteral("C2"), 0));
+        rows += row(5, num(QStringLiteral("A5"), 1) + QStringLiteral("<c r=\"B5\"><f t=\"dataTable\" ref=\"B5:B7\" dt2D=\"0\" dtr=\"0\" r1=\"A2\"/><v>7</v></c>"));
+        rows += row(6, num(QStringLiteral("A6"), 2) + num(QStringLiteral("B6"), 8));
+        rows += row(7, num(QStringLiteral("A7"), 3) + num(QStringLiteral("B7"), 9));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(b.calc->recalculate().finished);
+        QCOMPARE(b.at(QStringLiteral("B5")), QStringLiteral("n:7"));
+        QCOMPARE(b.at(QStringLiteral("B6")), QStringLiteral("n:8"));
+        QCOMPARE(b.at(QStringLiteral("B7")), QStringLiteral("n:9"));
+    }
+
     // A table that names no cell, or a cell that is not one, or has no room for its edges, is left as the file has it, and a table too large to work out is too.
     void aTableThatCannotBeWorkedOutIsLeftAlone()
     {

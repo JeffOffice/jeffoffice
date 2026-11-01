@@ -294,8 +294,10 @@ qint64 Calculation::workOutTable(quint32 id, std::vector<CellArea> *changed)
         return neededFor.emplace(formulaNode, std::move(mine)).first->second;
     };
     WhatIf source(*this, closure);
-    qint64 changedCells = 0;
     // the formula of a cell of the table: at the corner for two inputs, above its column for a column input, at the left of its row for a row input
+    const quint32 rows = range.row2 - range.row1 + 1, cols = range.col2 - range.col1 + 1;
+    std::vector<Value> results;
+    results.reserve(size_t(rows) * cols);
     for (quint32 row = range.row1; row <= range.row2; ++row) {
         for (quint32 col = range.col1; col <= range.col2; ++col) {
             std::vector<Input> inputs;
@@ -316,6 +318,16 @@ qint64 Calculation::workOutTable(quint32 id, std::vector<CellArea> *changed)
                 v = source.valueOf(formulaNode);
             }
             if (v.isArray()) v = v.at(0, 0);
+            // (a table that comes to a text is left as the file has it: the texts of a sheet are read by the window as the formulas are worked out, and are not added to from here)
+            if (v.isText()) return 0;
+            results.push_back(v);
+        }
+    }
+    qint64 changedCells = 0;
+    size_t at = 0;
+    for (quint32 row = range.row1; row <= range.row2; ++row) {
+        for (quint32 col = range.col1; col <= range.col2; ++col, ++at) {
+            const Value &v = results[at];
             // the cell: the node of the first cell, or a plain cell of the sheet
             const bool isFirst = row == range.row1 && col == range.col1;
             const Value was = isFirst ? nodeValue(n, id) : cell(sheet, row, col);
@@ -329,11 +341,6 @@ qint64 Calculation::workOutTable(quint32 id, std::vector<CellArea> *changed)
                 case Value::Kind::Number: c->type = CellType::Number; c->number = v.number(); break;
                 case Value::Kind::Bool: c->type = CellType::Bool; c->number = v.boolean() ? 1 : 0; break;
                 case Value::Kind::Error: c->type = CellType::Error; c->number = double(int(v.errorKind())); break;
-                case Value::Kind::Text:
-                    s.texts.append(v.text());
-                    c->type = CellType::InlineString;
-                    c->number = double(s.texts.size() - 1);
-                    break;
                 default: c->type = CellType::Empty; c->number = 0; break;
                 }
                 if (m_sink) {
