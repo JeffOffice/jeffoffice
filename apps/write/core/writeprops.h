@@ -54,6 +54,8 @@ enum : int {
                                               // set); positive for a copy whose words are edited in place, negative for a note cited again (the first copy is the note's: the rest are shown and not edited).
                                               // None: the paragraphs of the separator
     EndnoteStyle,                             // QString: the paragraph's style, which the pages' copy of an endnote does not carry (it takes no part in what the document's paragraphs are, by their styles)
+    StylesRev,                                // int, on the FIRST paragraph: how many changes to the style sheet were made; it has no meaning of its own, it makes a change to the styles a step of the
+                                              // text's history (writedoc.h, putStyle), whatever paragraphs it changes
 };
 }
 

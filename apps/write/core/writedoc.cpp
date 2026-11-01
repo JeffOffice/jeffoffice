@@ -876,7 +876,67 @@ bool WriteDoc::ensureStyle(const QString &id)
     if (!s.next.isEmpty()) ensureStyle(s.next);
     m_wml.styles.add(s);
     m_scratch.clear();
+    ++m_styleRev;
     return true;
+}
+
+void WriteDoc::putStyle(const Style &style)
+{
+    if (style.id.isEmpty()) return;
+    StyleChange change;
+    change.id = style.id;
+    if (const Style *old = m_wml.styles.find(style.id)) change.before = *old;
+    change.modifiedBefore = m_wml.styles.modified;
+    change.after = style;
+    m_wml.styles.add(style);
+    m_scratch.clear();
+    ++m_styleRev;
+    m_pendingStyleChanges.push_back(change);
+}
+
+void WriteDoc::swapStyleSheet(StyleSheet &other)
+{
+    std::swap(m_wml.styles, other);
+    m_scratch.clear();
+}
+
+// Puts the style sheet as it was before the step (undo) or after it (redo).
+void WriteDoc::applyStyleChanges(quint64 serial, bool undo)
+{
+    const auto found = m_styleSteps.constFind(serial);
+    if (found == m_styleSteps.constEnd()) return;
+    const QVector<StyleChange> changes = found.value();
+    for (int i = 0; i < changes.size(); ++i) {
+        const StyleChange &change = changes[undo ? changes.size() - 1 - i : i];
+        const std::optional<Style> &want = undo ? change.before : change.after;
+        if (want) m_wml.styles.add(*want);
+        else m_wml.styles.remove(change.id);
+        m_wml.styles.modified = undo ? change.modifiedBefore : change.modifiedAfter;
+    }
+    m_wml.styles.changed();
+    m_scratch.clear();
+    ++m_styleRev;
+}
+
+const QSet<QString> &WriteDoc::stylesInUse() const
+{
+    const QTextDocument *text = story();
+    if (m_inUseStory == text && m_inUseRevision == text->revision()) return m_inUse;
+    m_inUseStory = text;
+    m_inUseRevision = text->revision();
+    m_inUse.clear();
+    const QString normal = defaultParagraphStyle();
+    m_inUse.insert(normal);
+    for (QTextBlock b = text->begin(); b.isValid(); b = b.next()) {
+        const QTextBlockFormat bf = b.blockFormat();
+        const QString own = bf.hasProperty(prop::EndnoteBlock) ? bf.stringProperty(prop::EndnoteStyle) : bf.stringProperty(tp::StyleName);
+        if (!own.isEmpty()) m_inUse.insert(own);
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QString character = it.fragment().charFormat().stringProperty(tp::CharStyle);
+            if (!character.isEmpty()) m_inUse.insert(character);
+        }
+    }
+    return m_inUse;
 }
 
 const StyleSheet &WriteDoc::sheetFor(const QString &id) const

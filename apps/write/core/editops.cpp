@@ -1,4 +1,5 @@
 #include "core/editops.h"
+#include "core/styleops.h"
 
 #include "core/pictureops.h"
 #include "core/tableops.h"
@@ -1848,6 +1849,15 @@ bool allSelected(const QTextCursor &c, const std::function<bool(const QTextCharF
     return true;
 }
 
+// A paragraph of a style that updates itself (w:autoRedefine) that has been formatted by hand gives the style what it says, as part of the edit's own step.
+static void followAutoRedefine(WriteDoc &doc, QTextCursor &c)
+{
+    if (c.document() != doc.story() || isLocked(c.document()->findBlock(c.selectionStart()))) return;
+    const QString id = styleOf(c.document()->findBlock(c.selectionStart()).blockFormat());
+    const office::wml::Style *s = doc.styleSheet().find(id.isEmpty() ? doc.defaultParagraphStyle() : id);
+    if (s && s->autoRedefine && s->type == QLatin1String("paragraph")) updateStyleToSelection(doc, c);
+}
+
 void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextCharFormat &)> &change)
 {
     const NoteScopeGuard scopeGuard(doc, c);
@@ -1894,6 +1904,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
         t.setCharFormat(e.format);
     }
     for (const auto &m : std::as_const(marks)) setMarkFormat(m.first, m.second);
+    if (!edits.isEmpty()) followAutoRedefine(doc, c);
     c.endEditBlock();
 }
 
@@ -2080,14 +2091,19 @@ void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(Q
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     Q_UNUSED(doc);
+    bool changedAny = false;
     c.beginEditBlock();
     for (const QTextBlock &b : selectedBlocks(c)) {
         if (isLocked(b)) continue;
         QTextBlockFormat nf = b.blockFormat();
         const QTextBlockFormat was = nf;
         change(nf);
-        if (nf != was) QTextCursor(b).setBlockFormat(nf);
+        if (nf != was) {
+            QTextCursor(b).setBlockFormat(nf);
+            changedAny = true;
+        }
     }
+    if (changedAny) followAutoRedefine(doc, c);
     c.endEditBlock();
 }
 
@@ -2329,6 +2345,38 @@ static void applyStyleToBlock(WriteDoc &doc, QTextBlock b, const QString &styleI
     }
     setMarkFormat(b, restyled(markFormat(b), oldBase, newBase));
 }
+
+bool moveSelectedText(WriteDoc &doc, QTextCursor &c, int to, bool copy)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!c.hasSelection() || c.document() != doc.story() || !intoBody(c)) return false;
+    const int from = c.selectionStart(), end = c.selectionEnd();
+    if (to >= from && to <= end) return false;
+    if (to < 0 || to > editableEnd(doc.story())) return false;
+    if (isLocked(doc.story()->findBlock(to)) || isLocked(doc.story()->findBlock(from)) || isLocked(doc.story()->findBlock(end))) return false;
+    const Clip clip = copySelection(doc, c);
+    if (clip.isEmpty()) return false;
+    NumberGuard numbers(doc, doc.story());
+    QTextCursor edit(doc.story());
+    edit.beginEditBlock();
+    int at = to;
+    if (!copy) {
+        QTextCursor cut(doc.story());
+        cut.setPosition(from);
+        cut.setPosition(end, QTextCursor::KeepAnchor);
+        removeSelection(doc, cut);
+        if (to > end) at -= end - from;
+    }
+    QTextCursor dest(doc.story());
+    dest.setPosition(at);
+    pasteClip(doc, dest, clip);
+    edit.endEditBlock();
+    c.setPosition(std::min(at, dest.position()));
+    c.setPosition(dest.position(), QTextCursor::KeepAnchor);
+    return true;
+}
+
+QTextCharFormat restyleCharFormat(const QTextCharFormat &f, const QTextCharFormat &was, const QTextCharFormat &now) { return restyled(f, was, now); }
 
 void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {

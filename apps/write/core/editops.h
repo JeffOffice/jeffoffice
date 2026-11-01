@@ -133,6 +133,12 @@ struct Clip {
 Clip copySelection(const WriteDoc &doc, const QTextCursor &c);
 void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip);
 
+// ---- moving text
+// Drag and drop of the selected text within the document: the text selected in `c` is moved to the place `to` (or, with `copy`, copied there) as one step of the history, and is
+// the selection afterwards. False, with nothing done, when there is no selection, `to` is in the selection itself, or the place is one that takes no text (a paragraph kept as XML, the
+// endnotes the pages set, a header or a note).
+bool moveSelectedText(WriteDoc &doc, QTextCursor &c, int to, bool copy);
+
 // ---- moving
 // A move of the cursor that does not stop beside the invisible pieces of the file (a step is a letter and the bookmarks it carries).
 void moveCursor(QTextCursor &c, QTextCursor::MoveOperation op, bool select, int n = 1);
@@ -175,6 +181,8 @@ void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
 void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
 // The style the first selected paragraph has (its id).
 QString paragraphStyleAt(const WriteDoc &doc, const QTextCursor &c);
+// The format with what `was` gave it (and it still has) taken for what `now` gives: the text keeps what it says itself, and follows a style that changed.
+QTextCharFormat restyleCharFormat(const QTextCharFormat &f, const QTextCharFormat &was, const QTextCharFormat &now);
 
 // The paragraphs that the selection touches (the one the cursor is in without one).
 QVector<QTextBlock> selectedBlocks(const QTextCursor &c);

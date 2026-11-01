@@ -25,6 +25,8 @@
 #include "core/printing.h"
 #include "core/rulerops.h"
 #include "core/spellcheck.h"
+#include "core/styleops.h"
+#include "core/gotoops.h"
 #include "app/tabledialogs.h"
 #include "core/tableops.h"
 #include "core/wordformat.h"
@@ -22167,6 +22169,737 @@ private Q_SLOTS:
             QCOMPARE(b.size(), 1);
             QCOMPARE(a[0].stringProperty(tp::Field), b[0].stringProperty(tp::Field));
         }
+    }
+
+    // ---- wave D: styles, Format Painter, Go To, and dragging text (core/styleops.h, core/gotoops.h, moveSelectedText)
+
+    static QTextCharFormat styCharAt(WriteDoc &doc, int position)
+    {
+        QTextCursor t(doc.story());
+        t.setPosition(position + 1);
+        return t.charFormat();
+    }
+    static QString styBlockStyle(WriteDoc &doc, int position) { return doc.story()->findBlock(position).blockFormat().stringProperty(tp::StyleName); }
+    static wml::Style styStyle(WriteDoc &doc, const QString &id)
+    {
+        const wml::Style *s = doc.styleSheet().find(id);
+        return s ? *s : wml::Style();
+    }
+    static QByteArray styCustomStyle(const QString &id, const QString &name, const QByteArray &inside, const QByteArray &type = "paragraph")
+    {
+        return "<w:style w:type=\"" + type + "\" w:customStyle=\"1\" w:styleId=\"" + id.toUtf8() + "\"><w:name w:val=\"" + name.toUtf8() + "\"/>" + inside + "</w:style>";
+    }
+    static QStringList styIds(const QVector<ListedStyle> &list)
+    {
+        QStringList out;
+        for (const ListedStyle &s : list) out << s.id;
+        return out;
+    }
+
+    void theStylesPaneListsTheStylesAndFiltersThemByUseAndByRecommendation()
+    {
+        const QByteArray styles = kStyles + styCustomStyle(QStringLiteral("Pull"), QStringLiteral("Pull quote"), "<w:basedOn w:val=\"Normal\"/><w:uiPriority w:val=\"20\"/><w:qFormat/>") +
+                                  styCustomStyle(QStringLiteral("Stealth"), QStringLiteral("Stealth note"), "<w:basedOn w:val=\"Normal\"/><w:semiHidden/>") +
+                                  styCustomStyle(QStringLiteral("Quiet"), QStringLiteral("quiet"), "<w:semiHidden/><w:unhideWhenUsed/><w:uiPriority w:val=\"30\"/>", "character");
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Title</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:t xml:space=\"preserve\">Plain </w:t></w:r><w:r><w:rPr><w:rStyle w:val=\"Strong\"/></w:rPr><w:t>strong</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, styles));
+        QVERIFY(doc);
+        const QVector<ListedStyle> inUse = listStyles(*doc, StyleFilter::InUse);
+        const QStringList inUseIds = styIds(inUse);
+        QCOMPARE(QSet<QString>(inUseIds.begin(), inUseIds.end()), (QSet<QString>{QStringLiteral("Normal"), QStringLiteral("Heading1"), QStringLiteral("Strong")}));
+        for (const ListedStyle &s : inUse) QVERIFY(s.inUse && s.inDocument);
+        // (sorted by name, without regard to case)
+        for (int i = 1; i < inUse.size(); ++i) QVERIFY(QString::compare(inUse[i - 1].name, inUse[i].name, Qt::CaseInsensitive) <= 0);
+        const QVector<ListedStyle> all = listStyles(*doc, StyleFilter::All);
+        const QStringList allIds = styIds(all);
+        for (const char *id : {"Normal", "Heading1", "Strong", "Pull", "Stealth", "Quiet", "Title"}) QVERIFY2(allIds.contains(QLatin1String(id)), id);
+        for (const ListedStyle &s : all) {
+            if (s.id == QLatin1String("Title")) QVERIFY(!s.inDocument);   // (a built-in style the document lacks: added when it is used)
+            if (s.id == QLatin1String("Quiet")) QVERIFY(s.character && s.name == QLatin1String("Quiet"));
+            if (s.id == QLatin1String("Heading1")) QCOMPARE(s.name, QStringLiteral("Heading 1"));
+        }
+        const QStringList recommended = styIds(listStyles(*doc, StyleFilter::Recommended));
+        for (const char *id : {"Normal", "Heading1", "Strong", "Pull", "Title"}) QVERIFY2(recommended.contains(QLatin1String(id)), id);
+        QVERIFY(!recommended.contains(QStringLiteral("Stealth")));
+        QVERIFY(!recommended.contains(QStringLiteral("Quiet")));
+        // (by priority: the default style first, then Heading 1 (9) before the Pull quote (20))
+        QCOMPARE(recommended.first(), QStringLiteral("Normal"));
+        QVERIFY(recommended.indexOf(QStringLiteral("Heading1")) < recommended.indexOf(QStringLiteral("Pull")));
+        // A style half hidden until it is used is shown, and is in use, once it is.
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.setPosition(3, QTextCursor::KeepAnchor);
+        applyCharacterStyle(*doc, c, QStringLiteral("Quiet"));
+        QVERIFY(styIds(listStyles(*doc, StyleFilter::InUse)).contains(QStringLiteral("Quiet")));
+        QVERIFY(styIds(listStyles(*doc, StyleFilter::Recommended)).contains(QStringLiteral("Quiet")));
+        QVERIFY(doc->undo());
+        QVERIFY(!styIds(listStyles(*doc, StyleFilter::InUse)).contains(QStringLiteral("Quiet")));
+    }
+
+    void aStyleMadeFromTheSelectionIsOneStepAndSavesAndOpensTheSame()
+    {
+        auto doc = textDoc({QStringLiteral("First paragraph"), QStringLiteral("Second")});
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        toggleBold(*doc, c);
+        setAlignment(*doc, c, Qt::AlignHCenter);
+        const wml::Style def = styleFromSelection(*doc, c, QStringLiteral("Pull quote"));
+        QCOMPARE(def.basedOn, QStringLiteral("Normal"));
+        QCOMPARE(def.rPr.bold, std::optional<bool>(true));
+        QCOMPARE(def.pPr.jc, QStringLiteral("center"));
+        QVERIFY(def.customStyle && def.qFormat);
+        const quint64 before = doc->nextStepSerial();
+        const QString styleBefore = styBlockStyle(*doc, 0);
+        QString problem;
+        const QString id = createStyle(*doc, c, def, &problem, true);
+        QVERIFY2(!id.isEmpty(), qPrintable(problem));
+        QCOMPARE(id, QStringLiteral("Pullquote"));
+        QCOMPARE(doc->nextStepSerial(), before + 1);   // (one step: the style and its being given to the paragraph)
+        QCOMPARE(styBlockStyle(*doc, 0), id);
+        QVERIFY(doc->styleSheet().find(id));
+        // One Undo takes the style away and leaves the paragraph as it was (bold and centered by hand).
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->styleSheet().find(id));
+        QCOMPARE(styBlockStyle(*doc, 0), styleBefore);
+        QCOMPARE(doc->story()->begin().blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+        QVERIFY(styCharAt(*doc, 2).fontWeight() >= QFont::DemiBold);
+        QVERIFY(doc->redo());
+        QVERIFY(doc->styleSheet().find(id));
+        QCOMPARE(styBlockStyle(*doc, 0), id);
+        // Saved, the paragraph says the style and nothing of its own; opened again, it is the same.
+        const QByteArray saved = doc->toDocx();
+        const QByteArray body = documentXml(saved);
+        QVERIFY(body.contains("<w:pStyle w:val=\"Pullquote\"/>"));
+        QVERIFY(!body.contains("<w:jc "));
+        QVERIFY(!body.contains("<w:b/>"));
+        auto back = open(saved);
+        QVERIFY(back);
+        const wml::Style made = styStyle(*back, id);
+        QCOMPARE(made.name, QStringLiteral("Pull quote"));
+        QCOMPARE(made.basedOn, QStringLiteral("Normal"));
+        QVERIFY(made.customStyle && made.qFormat);
+        QCOMPARE(made.pPr.jc, QStringLiteral("center"));
+        QCOMPARE(made.rPr.bold, std::optional<bool>(true));
+        QCOMPARE(styBlockStyle(*back, 0), id);
+        QCOMPARE(back->story()->begin().blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+        QVERIFY(styCharAt(*back, 2).fontWeight() >= QFont::DemiBold);
+        QCOMPARE(plain(*back), plain(*doc));
+        // A character style from a selection is based on nothing and is given to the characters.
+        QTextCursor word(doc->story());
+        word.setPosition(18);
+        word.setPosition(22, QTextCursor::KeepAnchor);
+        toggleItalic(*doc, word);
+        const wml::Style chr = styleFromSelection(*doc, word, QStringLiteral("Slanted"), true);
+        QCOMPARE(chr.type, QStringLiteral("character"));
+        QVERIFY(chr.basedOn.isEmpty());
+        QCOMPARE(chr.rPr.italic, std::optional<bool>(true));
+        const QString cid = createStyle(*doc, word, chr, &problem, true);
+        QVERIFY2(!cid.isEmpty(), qPrintable(problem));
+        QCOMPARE(styCharAt(*doc, 19).stringProperty(tp::CharStyle), cid);
+    }
+
+    void modifyingAStyleRestylesTheTextKeepsWhatTheTextSaysAndIsOneStep()
+    {
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Heading one</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Heading two</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:t>Body</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(12);
+        c.setPosition(23, QTextCursor::KeepAnchor);
+        setTextColor(*doc, c, QColor(255, 0, 0));
+        const double normalSize = styCharAt(*doc, 25).fontPointSize();
+        wml::Style h1 = styStyle(*doc, QStringLiteral("Heading1"));
+        h1.rPr.size = 48;
+        h1.rPr.italic = true;
+        h1.pPr.jc = QStringLiteral("center");
+        const quint64 before = doc->nextStepSerial();
+        QString problem;
+        QVERIFY2(modifyStyle(*doc, c, QStringLiteral("Heading1"), h1, &problem), qPrintable(problem));
+        QCOMPARE(doc->nextStepSerial(), before + 1);
+        auto center = [&](int at) { return doc->story()->findBlock(at).blockFormat().alignment() & Qt::AlignHorizontal_Mask; };
+        QCOMPARE(styCharAt(*doc, 3).fontPointSize(), 24.0);
+        QVERIFY(styCharAt(*doc, 3).fontItalic());
+        QCOMPARE(center(3), Qt::AlignHCenter);
+        // What the text says itself stays: the second heading's red; it follows the style in the rest.
+        QCOMPARE(styCharAt(*doc, 14).fontPointSize(), 24.0);
+        QVERIFY(styCharAt(*doc, 14).fontItalic());
+        QCOMPARE(styCharAt(*doc, 14).foreground().color(), QColor(255, 0, 0));
+        QVERIFY(styCharAt(*doc, 3).foreground().color() != QColor(255, 0, 0));
+        // The body is not changed.
+        QCOMPARE(styCharAt(*doc, 25).fontPointSize(), normalSize);
+        QVERIFY(!styCharAt(*doc, 25).fontItalic());
+        QVERIFY(center(25) != Qt::AlignHCenter);
+        // One Undo is the style as it was, and the text with it; one Redo again.
+        QVERIFY(doc->undo());
+        QCOMPARE(styStyle(*doc, QStringLiteral("Heading1")).rPr.size, std::optional<int>(34));
+        QCOMPARE(styCharAt(*doc, 3).fontPointSize(), 17.0);
+        QVERIFY(!styCharAt(*doc, 3).fontItalic());
+        QVERIFY(center(3) != Qt::AlignHCenter);
+        QCOMPARE(styCharAt(*doc, 14).foreground().color(), QColor(255, 0, 0));
+        QVERIFY(doc->redo());
+        QCOMPARE(styStyle(*doc, QStringLiteral("Heading1")).rPr.size, std::optional<int>(48));
+        QCOMPARE(styCharAt(*doc, 3).fontPointSize(), 24.0);
+        // Saved: the style says the new look, the paragraphs say only what they said themselves; opened again, the text looks the same.
+        const QByteArray saved = doc->toDocx();
+        const QByteArray styleXmlOut = styleXml(saved), bodyOut = documentXml(saved);
+        QVERIFY(styleXmlOut.contains("<w:sz w:val=\"48\"/>"));
+        QVERIFY(!bodyOut.contains("<w:sz w:val=\"48\"/>"));
+        QVERIFY(bodyOut.contains("FF0000"));
+        auto back = open(saved);
+        QVERIFY(back);
+        QCOMPARE(styCharAt(*back, 3).fontPointSize(), 24.0);
+        QVERIFY(styCharAt(*back, 3).fontItalic());
+        QCOMPARE(styCharAt(*back, 14).foreground().color(), QColor(255, 0, 0));
+        QCOMPARE(back->story()->findBlock(3).blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+        // A character style restyles the runs that have it, in any paragraph.
+        auto chars = open(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">a </w:t></w:r><w:r><w:rPr><w:rStyle w:val=\"Strong\"/></w:rPr><w:t>b</w:t></w:r></w:p>", kStyles));
+        QVERIFY(chars);
+        wml::Style strong = styStyle(*chars, QStringLiteral("Strong"));
+        strong.rPr.italic = true;
+        QTextCursor sc(chars->story());
+        QVERIFY(modifyStyle(*chars, sc, QStringLiteral("Strong"), strong));
+        QVERIFY(styCharAt(*chars, 2).fontItalic());
+        QVERIFY(!styCharAt(*chars, 0).fontItalic());
+        QVERIFY(chars->undo());
+        QVERIFY(!styCharAt(*chars, 2).fontItalic());
+    }
+
+    void modifyingAStyleWithNoChangeLeavesTheFileByteForByteAndUndoReturnsToIt()
+    {
+        const QByteArray styles = kStyles + styCustomStyle(QStringLiteral("Odd"), QStringLiteral("Odd"),
+                                                           "<w:aliases w:val=\"Strange\"/><w:basedOn w:val=\"Normal\"/><w:autoRedefine/><w:locked/><w:rsid w:val=\"00112233\"/><w:pPr><w:keepNext/></w:pPr><w:rPr><w:i/></w:rPr>");
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Odd\"/></w:pPr><w:r><w:t>Text</w:t></w:r></w:p>";
+        const QByteArray zip = makeDocx(body, styles);
+        const QByteArray original = styleXml(zip);
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        for (const QString &id : {QStringLiteral("Odd"), QStringLiteral("Heading1"), QStringLiteral("Normal"), QStringLiteral("Strong")}) {
+            QVERIFY(modifyStyle(*doc, c, id, styStyle(*doc, id)));
+            QVERIFY(!doc->canUndo());
+            QVERIFY(!doc->isModified());
+        }
+        QCOMPARE(styleXml(doc->toDocx()), original);
+        // A change and its undo come back to the same bytes; the change says what the style kept.
+        wml::Style odd = styStyle(*doc, QStringLiteral("Odd"));
+        odd.rPr.bold = true;
+        QVERIFY(modifyStyle(*doc, c, QStringLiteral("Odd"), odd));
+        QVERIFY(doc->isModified());
+        const QByteArray changed = styleXml(doc->toDocx());
+        QVERIFY(changed != original);
+        for (const char *kept : {"<w:aliases w:val=\"Strange\"/>", "<w:autoRedefine/>", "<w:locked/>", "00112233", "<w:keepNext/>"}) QVERIFY2(changed.contains(kept), kept);
+        QVERIFY(doc->undo());
+        QCOMPARE(styleXml(doc->toDocx()), original);
+        QVERIFY(!doc->isModified());
+        QVERIFY(doc->redo());
+        QCOMPARE(styleXml(doc->toDocx()), changed);
+    }
+
+    void aStylesNameBasisAndNextAreCheckedAndSavedTheSame()
+    {
+        const QByteArray styles = kStyles + styCustomStyle(QStringLiteral("Pull"), QStringLiteral("Pull quote"), "<w:basedOn w:val=\"Normal\"/><w:qFormat/>") +
+                                  styCustomStyle(QStringLiteral("Mark"), QStringLiteral("Mark"), "", "character");
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r></w:p>", styles));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        wml::Style pull = styStyle(*doc, QStringLiteral("Pull"));
+        pull.name = QStringLiteral("Callout");
+        pull.basedOn = QStringLiteral("Heading1");
+        pull.next = QStringLiteral("Pull");
+        QString problem;
+        QVERIFY2(modifyStyle(*doc, c, QStringLiteral("Pull"), pull, &problem), qPrintable(problem));
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        const wml::Style saved = styStyle(*back, QStringLiteral("Pull"));
+        QCOMPARE(saved.name, QStringLiteral("Callout"));
+        QCOMPARE(saved.basedOn, QStringLiteral("Heading1"));
+        QCOMPARE(saved.next, QStringLiteral("Pull"));
+        // What is refused changes nothing and says why.
+        const quint64 serial = doc->nextStepSerial();
+        auto refused = [&](const wml::Style &def, const QString &id = QStringLiteral("Pull")) {
+            QString why;
+            const bool done = modifyStyle(*doc, c, id, def, &why);
+            return !done && !why.isEmpty() && doc->nextStepSerial() == serial;
+        };
+        wml::Style s = styStyle(*doc, QStringLiteral("Pull"));
+        s.name = QStringLiteral("heading 1");
+        QVERIFY(refused(s));
+        s.name = QStringLiteral("  ");
+        QVERIFY(refused(s));
+        s.name = QString(kMostStyleNameLength + 1, QLatin1Char('n'));
+        QVERIFY(refused(s));
+        s = styStyle(*doc, QStringLiteral("Pull"));
+        s.basedOn = QStringLiteral("Pull");
+        QVERIFY(refused(s));
+        s.basedOn = QStringLiteral("Nowhere");
+        QVERIFY(refused(s));
+        s.basedOn = QStringLiteral("Mark");   // (a character style)
+        QVERIFY(refused(s));
+        wml::Style loop = styStyle(*doc, QStringLiteral("Heading1"));
+        loop.basedOn = QStringLiteral("Pull");   // (Pull is based on Heading1: a loop)
+        QVERIFY(refused(loop, QStringLiteral("Heading1")));
+        // A name that differs only in case from the style's own is its own.
+        s = styStyle(*doc, QStringLiteral("Pull"));
+        s.name = QStringLiteral("CALLOUT");
+        QVERIFY(modifyStyle(*doc, c, QStringLiteral("Pull"), s));
+        QCOMPARE(styStyle(*doc, QStringLiteral("Pull")).name, QStringLiteral("CALLOUT"));
+        // A built-in style keeps its name.
+        wml::Style h1 = styStyle(*doc, QStringLiteral("Heading1"));
+        h1.name = QStringLiteral("Mine");
+        h1.rPr.italic = true;
+        QVERIFY(modifyStyle(*doc, c, QStringLiteral("Heading1"), h1));
+        QCOMPARE(styStyle(*doc, QStringLiteral("Heading1")).name, QStringLiteral("heading 1"));
+        // Making a style with a taken name, or one of the built-in names, is refused as well.
+        wml::Style fresh;
+        fresh.name = QStringLiteral("callout");
+        QVERIFY(createStyle(*doc, c, fresh, &problem).isEmpty());
+        QVERIFY(!problem.isEmpty());
+        fresh.name = QStringLiteral("Subtitle");
+        QVERIFY(createStyle(*doc, c, fresh, &problem).isEmpty());
+        fresh.name = QStringLiteral("Brand new");
+        fresh.basedOn = QStringLiteral("Pull");
+        fresh.next = QStringLiteral("Nowhere");
+        const QString id = createStyle(*doc, c, fresh, &problem);
+        QCOMPARE(id, QStringLiteral("Brandnew"));
+        QVERIFY(styStyle(*doc, id).next.isEmpty());   // (a following style the document lacks is none)
+        QCOMPARE(createStyle(*doc, c, [&] { wml::Style t = fresh; t.name = QStringLiteral("Brand-new"); return t; }(), &problem), QStringLiteral("Brandnew2"));
+    }
+
+    static QByteArray styManyStyles(int n, QByteArray *chain)
+    {
+        QByteArray styles = kStyles;
+        for (int i = 0; i < n; ++i)
+            styles += styCustomStyle(QStringLiteral("S%1").arg(i), QStringLiteral("Style %1").arg(i),
+                                     "<w:basedOn w:val=\"" + (i == 0 ? QByteArray("Normal") : QByteArray("S") + QByteArray::number(i - 1)) + "\"/>" + (i == 0 ? QByteArray("<w:rPr><w:sz w:val=\"20\"/></w:rPr>") : QByteArray()));
+        if (chain) *chain = styles;
+        return styles;
+    }
+
+    void aDocumentOfTenThousandStylesIsListedChangedAndUndoneWithinBounds()
+    {
+        QByteArray styles;
+        styManyStyles(10000, &styles);
+        // A name of a hundred thousand characters is in the file (and in the list, cut off).
+        styles += styCustomStyle(QStringLiteral("Long"), QString(100000, QLatin1Char('L')), "<w:basedOn w:val=\"Normal\"/>");
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"S5\"/></w:pPr><w:r><w:t>Near the root</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:pStyle w:val=\"S9999\"/></w:pPr><w:r><w:t>Far from the root</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:pStyle w:val=\"Long\"/></w:pPr><w:r><w:t>Long name</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, styles));
+        QVERIFY(doc);
+        const QVector<ListedStyle> all = listStyles(*doc, StyleFilter::All);
+        QVERIFY(all.size() > 0 && all.size() <= kMostStylesListed);
+        for (const ListedStyle &s : all) QVERIFY(s.name.size() <= kMostStyleNameLength);
+        const QStringList inUse = styIds(listStyles(*doc, StyleFilter::InUse));
+        QVERIFY(inUse.contains(QStringLiteral("S5")) && inUse.contains(QStringLiteral("S9999")) && inUse.contains(QStringLiteral("Long")));
+        QVERIFY(listStyles(*doc, StyleFilter::Recommended).size() <= kMostStylesListed);
+        // The root of a chain of ten thousand: the paragraphs that can see it follow it, and one Undo is the chain as it was.
+        QTextCursor c(doc->story());
+        wml::Style root = styStyle(*doc, QStringLiteral("S0"));
+        root.rPr.size = 30;
+        const double was = styCharAt(*doc, 2).fontPointSize();
+        QCOMPARE(was, 10.0);
+        const quint64 before = doc->nextStepSerial();
+        QString problem;
+        QVERIFY2(modifyStyle(*doc, c, QStringLiteral("S0"), root, &problem), qPrintable(problem));
+        QCOMPARE(doc->nextStepSerial(), before + 1);
+        QCOMPARE(styCharAt(*doc, 2).fontPointSize(), 15.0);
+        QVERIFY(doc->undo());
+        QCOMPARE(styCharAt(*doc, 2).fontPointSize(), 10.0);
+        QVERIFY(doc->redo());
+        QCOMPARE(styCharAt(*doc, 2).fontPointSize(), 15.0);
+        // Names: 255 characters are a name, 256 are not, whether made or given; the long name of the file can be kept and changed.
+        wml::Style fresh;
+        fresh.name = QString(kMostStyleNameLength + 1, QLatin1Char('x'));
+        QVERIFY(createStyle(*doc, c, fresh, &problem).isEmpty());
+        QVERIFY(!problem.isEmpty());
+        fresh.name = QString(kMostStyleNameLength, QLatin1Char('x'));
+        const QString made = createStyle(*doc, c, fresh, &problem);
+        QVERIFY2(!made.isEmpty(), qPrintable(problem));
+        QVERIFY(made.size() <= 40);
+        wml::Style longOne = styStyle(*doc, QStringLiteral("Long"));
+        longOne.rPr.bold = true;
+        QVERIFY(modifyStyle(*doc, c, QStringLiteral("Long"), longOne, &problem));
+        longOne.name = QString(kMostStyleNameLength + 1, QLatin1Char('y'));
+        QVERIFY(!modifyStyle(*doc, c, QStringLiteral("Long"), longOne, &problem));
+        // A document that has as many styles as can be made takes no more.
+        QByteArray many;
+        styManyStyles(kMostStylesMade, &many);
+        auto full = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r></w:p>", many));
+        QVERIFY(full);
+        QTextCursor fc(full->story());
+        wml::Style one;
+        one.name = QStringLiteral("One too many");
+        QVERIFY(createStyle(*full, fc, one, &problem).isEmpty());
+        QVERIFY(!problem.isEmpty());
+        QVERIFY(listStyles(*full, StyleFilter::All).size() <= kMostStylesListed);
+    }
+
+    void styleChainsThatNameThemselvesAreFollowedNoFurtherThanOnce()
+    {
+        const QByteArray styles = kStyles + styCustomStyle(QStringLiteral("A"), QStringLiteral("A"), "<w:basedOn w:val=\"B\"/><w:next w:val=\"B\"/><w:rPr><w:b/></w:rPr>") +
+                                  styCustomStyle(QStringLiteral("B"), QStringLiteral("B"), "<w:basedOn w:val=\"A\"/><w:next w:val=\"A\"/>") +
+                                  styCustomStyle(QStringLiteral("C"), QStringLiteral("C"), "<w:basedOn w:val=\"Normal\"/>");
+        auto doc = open(makeDocx("<w:p><w:pPr><w:pStyle w:val=\"A\"/></w:pPr><w:r><w:t>Looped</w:t></w:r></w:p>", styles));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        QString problem;
+        // A change to a style in a loop of the file is made, and ends.
+        wml::Style a = styStyle(*doc, QStringLiteral("A"));
+        a.rPr.italic = true;
+        QVERIFY2(modifyStyle(*doc, c, QStringLiteral("A"), a, &problem), qPrintable(problem));
+        QVERIFY(styCharAt(*doc, 2).fontItalic());
+        QVERIFY(doc->undo());
+        QVERIFY(!styCharAt(*doc, 2).fontItalic());
+        // A change that would make a loop is refused; one that keeps the loop of the file as it is, is not.
+        wml::Style cc = styStyle(*doc, QStringLiteral("C"));
+        wml::Style aa = styStyle(*doc, QStringLiteral("A"));
+        cc.basedOn = QStringLiteral("B");
+        QVERIFY(modifyStyle(*doc, c, QStringLiteral("C"), cc));   // (C on B on A on B: C is not in the loop)
+        aa.basedOn = QStringLiteral("C");
+        QVERIFY(!modifyStyle(*doc, c, QStringLiteral("A"), aa, &problem));   // (A on C on B on A)
+        QVERIFY(!problem.isEmpty());
+        // A following style that names itself, or the style before it, is only followed once (Enter at the end of a paragraph).
+        c.setPosition(6);
+        insertParagraph(*doc, c);
+        QCOMPARE(styBlockStyle(*doc, c.position()), QStringLiteral("B"));
+        insertParagraph(*doc, c);
+        QCOMPARE(styBlockStyle(*doc, c.position()), QStringLiteral("A"));
+        // The list of styles, and giving a style of a loop to a paragraph, end.
+        QVERIFY(!listStyles(*doc, StyleFilter::All).isEmpty());
+        applyParagraphStyle(*doc, c, QStringLiteral("B"));
+        QCOMPARE(styBlockStyle(*doc, c.position()), QStringLiteral("B"));
+    }
+
+    void whatTheStepsOfTheHistoryHoldOfTheStylesIsFreedWithTheSteps()
+    {
+        auto doc = textDoc({QStringLiteral("Text")});
+        QTextCursor c(doc->story());
+        QCOMPARE(doc->styleStepsHeldForTest(), 0);
+        for (const char *name : {"One", "Two", "Three"}) {
+            wml::Style s;
+            s.name = QString::fromLatin1(name);
+            QVERIFY(!createStyle(*doc, c, s).isEmpty());
+        }
+        QCOMPARE(doc->styleStepsHeldForTest(), 3);
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->styleStepsHeldForTest(), 3);   // (the undone step can be redone)
+        QVERIFY(!doc->styleSheet().find(QStringLiteral("Three")));
+        QVERIFY(doc->redo());
+        QVERIFY(doc->styleSheet().find(QStringLiteral("Three")));
+        QVERIFY(doc->undo());
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->styleSheet().find(QStringLiteral("Two")));
+        // A new edit ends what could be redone, and what the two undone steps held with it; the first style is still held for its Undo.
+        c.setPosition(4);
+        insertText(*doc, c, QStringLiteral("!"));
+        QCOMPARE(doc->styleStepsHeldForTest(), 1);
+        QVERIFY(doc->styleSheet().find(QStringLiteral("One")));
+        QVERIFY(doc->undo());   // (the text)
+        QVERIFY(doc->undo());   // (One)
+        QVERIFY(!doc->styleSheet().find(QStringLiteral("One")));
+        QVERIFY(!doc->canUndo());
+        QVERIFY(!doc->isModified());
+    }
+
+    void aStyleThatUpdatesItselfFollowsTheFormattingOfItsParagraphsInTheSameStep()
+    {
+        const QByteArray styles = kStyles + styCustomStyle(QStringLiteral("Auto"), QStringLiteral("Auto"), "<w:basedOn w:val=\"Normal\"/><w:autoRedefine/>");
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Auto\"/></w:pPr><w:r><w:t>First</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val=\"Auto\"/></w:pPr><w:r><w:t>Second</w:t></w:r></w:p><w:p><w:r><w:t>Other</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, styles));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        const quint64 before = doc->nextStepSerial();
+        setAlignment(*doc, c, Qt::AlignHCenter);
+        QCOMPARE(doc->nextStepSerial(), before + 1);
+        QCOMPARE(styStyle(*doc, QStringLiteral("Auto")).pPr.jc, QStringLiteral("center"));
+        // The other paragraph of the style follows it, and a paragraph of another style does not.
+        QCOMPARE(doc->story()->findBlock(8).blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+        QVERIFY((doc->story()->findBlock(16).blockFormat().alignment() & Qt::AlignHorizontal_Mask) != Qt::AlignHCenter);
+        QVERIFY(doc->undo());
+        QVERIFY(styStyle(*doc, QStringLiteral("Auto")).pPr.jc.isEmpty());
+        QVERIFY((doc->story()->findBlock(8).blockFormat().alignment() & Qt::AlignHorizontal_Mask) != Qt::AlignHCenter);
+        QVERIFY((doc->story()->findBlock(2).blockFormat().alignment() & Qt::AlignHorizontal_Mask) != Qt::AlignHCenter);
+        QVERIFY(!doc->canUndo());
+        // Characters too.
+        QVERIFY(doc->redo());
+        c.setPosition(0);
+        c.setPosition(5, QTextCursor::KeepAnchor);
+        toggleBold(*doc, c);
+        QCOMPARE(styStyle(*doc, QStringLiteral("Auto")).rPr.bold, std::optional<bool>(true));
+        QVERIFY(styCharAt(*doc, 8).fontWeight() >= QFont::DemiBold);
+        // A style that does not update itself is left alone.
+        c.setPosition(16);
+        setAlignment(*doc, c, Qt::AlignRight);
+        QVERIFY(styStyle(*doc, QStringLiteral("Normal")).pPr.jc.isEmpty());
+    }
+
+    void updatingAStyleToMatchTheSelectionIsOneStep()
+    {
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Heading one</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Heading two</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.setPosition(7, QTextCursor::KeepAnchor);
+        setTextColor(*doc, c, QColor(0, 128, 0));
+        setFontSize(*doc, c, 30);
+        setAlignment(*doc, c, Qt::AlignRight);
+        const quint64 before = doc->nextStepSerial();
+        QString problem;
+        QVERIFY2(updateStyleToSelection(*doc, c, &problem), qPrintable(problem));
+        QCOMPARE(doc->nextStepSerial(), before + 1);
+        const wml::Style h1 = styStyle(*doc, QStringLiteral("Heading1"));
+        QCOMPARE(h1.rPr.size, std::optional<int>(60));
+        QVERIFY(h1.rPr.color && h1.rPr.color->val.toUpper() == QLatin1String("008000"));
+        QCOMPARE(h1.pPr.jc, QStringLiteral("right"));
+        QVERIFY(h1.rPr.bold == std::optional<bool>(true));   // (what the style said before stays)
+        QCOMPARE(styCharAt(*doc, 14).fontPointSize(), 30.0);   // (the other heading follows)
+        QCOMPARE(doc->story()->findBlock(14).blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignRight);
+        QVERIFY(doc->undo());
+        QCOMPARE(styStyle(*doc, QStringLiteral("Heading1")).rPr.size, std::optional<int>(34));
+        QCOMPARE(styCharAt(*doc, 14).fontPointSize(), 17.0);
+    }
+
+    void theFormatPainterCopiesCharactersAndParagraphsAndPastesInOneStep()
+    {
+        auto doc = textDoc({QStringLiteral("Alpha beta gamma"), QStringLiteral("Second paragraph"), QStringLiteral("Third paragraph")});
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.setPosition(5, QTextCursor::KeepAnchor);
+        toggleBold(*doc, c);
+        setTextColor(*doc, c, QColor(255, 0, 0));
+        setFontSize(*doc, c, 20);
+        const FormatBrush brush = copyFormat(*doc, c);
+        QVERIFY(brush.valid);
+        QVERIFY(!brush.hasParagraph);   // (words, not a paragraph mark)
+        QTextCursor d(doc->story());
+        d.setPosition(11);
+        d.setPosition(16, QTextCursor::KeepAnchor);
+        const quint64 before = doc->nextStepSerial();
+        QVERIFY(pasteFormat(*doc, d, brush));
+        QCOMPARE(doc->nextStepSerial(), before + 1);
+        QVERIFY(styCharAt(*doc, 12).fontWeight() >= QFont::DemiBold);
+        QCOMPARE(styCharAt(*doc, 12).fontPointSize(), 20.0);
+        QCOMPARE(styCharAt(*doc, 12).foreground().color(), QColor(255, 0, 0));
+        QVERIFY(styCharAt(*doc, 7).fontWeight() < QFont::DemiBold);   // ("beta" is as it was)
+        QVERIFY(doc->undo());
+        QVERIFY(styCharAt(*doc, 12).fontWeight() < QFont::DemiBold);
+        QVERIFY(doc->redo());
+        // Saved, and opened again, it is the same.
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QVERIFY(styCharAt(*back, 12).fontWeight() >= QFont::DemiBold);
+        QCOMPARE(styCharAt(*back, 12).fontPointSize(), 20.0);
+        QCOMPARE(styCharAt(*back, 12).foreground().color(), QColor(255, 0, 0));
+        // The words brush on a collapsed caret takes the word the caret is in.
+        QTextCursor caret(doc->story());
+        caret.setPosition(8);
+        QVERIFY(pasteFormat(*doc, caret, brush));
+        QVERIFY(styCharAt(*doc, 7).fontWeight() >= QFont::DemiBold);
+        QVERIFY(styCharAt(*doc, 11).fontWeight() >= QFont::DemiBold);   // (the word "beta" is 6 to 10; the space is not part of it, "gamma" was painted already)
+        QVERIFY(doc->undo());
+        // A paragraph: selected with its mark, its alignment, indent, and spacing come too, and the paragraphs painted are only those selected.
+        QTextCursor p1(doc->story());
+        p1.setPosition(0);
+        p1.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        setAlignment(*doc, p1, Qt::AlignHCenter);
+        changeIndent(*doc, p1, 36);
+        QTextCursor src(doc->story());
+        src.setPosition(0);
+        src.setPosition(doc->story()->findBlock(0).length(), QTextCursor::KeepAnchor);   // (the mark is in the selection)
+        const FormatBrush para = copyFormat(*doc, src);
+        QVERIFY(para.valid && para.hasParagraph);
+        QTextCursor dest(doc->story());
+        const int second = doc->story()->findBlock(20).position(), third = doc->story()->findBlock(second + 20).position();
+        dest.setPosition(second);
+        dest.setPosition(third, QTextCursor::KeepAnchor);
+        const quint64 serial = doc->nextStepSerial();
+        QVERIFY(pasteFormat(*doc, dest, para));
+        QCOMPARE(doc->nextStepSerial(), serial + 1);
+        const QTextBlockFormat secondFormat = doc->story()->findBlock(second).blockFormat(), thirdFormat = doc->story()->findBlock(third).blockFormat();
+        QCOMPARE(secondFormat.alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+        QCOMPARE(secondFormat.leftMargin(), 36.0);
+        QVERIFY((thirdFormat.alignment() & Qt::AlignHorizontal_Mask) != Qt::AlignHCenter);
+        QCOMPARE(thirdFormat.leftMargin(), 0.0);
+        // The same brush on words only changes the characters.
+        QTextCursor words(doc->story());
+        words.setPosition(third);
+        words.setPosition(third + 5, QTextCursor::KeepAnchor);
+        QVERIFY(pasteFormat(*doc, words, para));
+        QVERIFY((doc->story()->findBlock(third).blockFormat().alignment() & Qt::AlignHorizontal_Mask) != Qt::AlignHCenter);
+        // A brush with nothing in it pastes nothing.
+        FormatBrush none;
+        QVERIFY(!pasteFormat(*doc, words, none));
+        QVERIFY(doc->undo());
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->story()->findBlock(second).blockFormat().leftMargin(), 0.0);
+        auto saved = open(doc->toDocx());
+        QVERIFY(saved);
+        QCOMPARE(saved->story()->findBlock(0).blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+    }
+
+    void goToFindsPagesSectionsLinesBookmarksFootnotesAndHeadings()
+    {
+        QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:bookmarkStart w:id=\"1\" w:name=\"Alpha\"/><w:r><w:t>Intro</w:t></w:r><w:bookmarkEnd w:id=\"1\"/></w:p>";
+        body += "<w:p><w:bookmarkStart w:id=\"3\" w:name=\"_Hidden\"/><w:r><w:t>Hidden bookmark</w:t></w:r><w:bookmarkEnd w:id=\"3\"/></w:p>";
+        for (int i = 0; i < 70; ++i) body += "<w:p><w:r><w:t>Paragraph number " + QByteArray::number(i) + " fills the page with some words in it so that there are several pages of text here.</w:t></w:r></w:p>";
+        body += "<w:p><w:bookmarkStart w:id=\"2\" w:name=\"Middle\"/><w:r><w:t>Middle</w:t></w:r><w:bookmarkEnd w:id=\"2\"/></w:p>";
+        body += "<w:p><w:pPr>" + sectionXml(12240, 15840, 1440, 1440, 1440, 1440) + "</w:pPr><w:r><w:t>End of one</w:t></w:r></w:p>";
+        body += "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Second part</w:t></w:r></w:p><w:p><w:r><w:t>Closing words.</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles, QByteArray(), sectionXml(12240, 15840, 1440, 1440, 1440, 1440)));
+        QVERIFY(doc);
+        const quint64 serial = doc->nextStepSerial();
+        QString problem;
+        // Bookmarks, without the hidden ones, by name without regard to case.
+        QStringList names;
+        for (const GoToItem &i : goToItems(*doc, GoToKind::Bookmark)) names << i.label;
+        QCOMPARE(names, (QStringList{QStringLiteral("Alpha"), QStringLiteral("Middle")}));
+        QCOMPARE(goToPosition(*doc, GoToKind::Bookmark, QStringLiteral("alpha"), 0), 0);
+        const int middle = goToPosition(*doc, GoToKind::Bookmark, QStringLiteral("MIDDLE"), 0);
+        QVERIFY(middle > 0);
+        QVERIFY(doc->story()->findBlock(middle).text().contains(QStringLiteral("Middle")));
+        QCOMPARE(goToPosition(*doc, GoToKind::Bookmark, QStringLiteral("_Hidden"), 0, &problem), -1);
+        QVERIFY(!problem.isEmpty());
+        // Headings, by number, relative to the caret, and by a part of their text.
+        QCOMPARE(goToItems(*doc, GoToKind::Heading).size(), 2);
+        const int second = goToPosition(*doc, GoToKind::Heading, QStringLiteral("2"), 0);
+        QCOMPARE(doc->story()->findBlock(second).text(), QStringLiteral("Second part"));
+        QCOMPARE(goToPosition(*doc, GoToKind::Heading, QStringLiteral("second"), 0), second);
+        QCOMPARE(goToPosition(*doc, GoToKind::Heading, QStringLiteral("+1"), 0), second);
+        QCOMPARE(goToPosition(*doc, GoToKind::Heading, QStringLiteral("-1"), second + 3), 0);
+        QCOMPARE(goToPosition(*doc, GoToKind::Heading, QStringLiteral("3"), 0, &problem), -1);
+        QCOMPARE(goToPosition(*doc, GoToKind::Heading, QStringLiteral("nothing like it"), 0), -1);
+        // Sections.
+        QCOMPARE(goToPosition(*doc, GoToKind::Section, QStringLiteral("1"), 40), 0);
+        const int section2 = goToPosition(*doc, GoToKind::Section, QStringLiteral("2"), 0);
+        QCOMPARE(section2, second);
+        QCOMPARE(goToPosition(*doc, GoToKind::Section, QStringLiteral("-1"), second + 1), 0);
+        QCOMPARE(goToPosition(*doc, GoToKind::Section, QStringLiteral("3"), 0), -1);
+        QCOMPARE(goToItems(*doc, GoToKind::Section).size(), 2);
+        // Pages: the first position of each; relative; and none past the last.
+        flow::Paginator &pager = doc->pager();
+        const int pages = pager.pageCount();
+        QVERIFY(pages >= 3);
+        QCOMPARE(goToPosition(*doc, GoToKind::Page, QStringLiteral("1"), 500), 0);
+        QCOMPARE(goToPosition(*doc, GoToKind::Page, QStringLiteral("2"), 0), pager.page(1).start.pos);
+        QVERIFY(pager.page(1).start.pos > 0);
+        QCOMPARE(goToPosition(*doc, GoToKind::Page, QStringLiteral("+1"), 0), pager.page(1).start.pos);
+        QCOMPARE(goToPosition(*doc, GoToKind::Page, QStringLiteral("-1"), pager.page(2).start.pos), pager.page(1).start.pos);
+        QCOMPARE(goToPosition(*doc, GoToKind::Page, QString::number(pages), 0), pager.page(pages - 1).start.pos);
+        for (const char *bad : {"0", "-9", "99999", "abc", "", "99999999999999999999", "+2147483647"}) {
+            problem.clear();
+            QCOMPARE(goToPosition(*doc, GoToKind::Page, QString::fromLatin1(bad), 0, &problem), -1);
+            QVERIFY2(!problem.isEmpty(), bad);
+        }
+        // Lines: counted from the top of the document.
+        QCOMPARE(goToPosition(*doc, GoToKind::Line, QStringLiteral("1"), 0), 0);
+        const QVector<StoryLayout::LineBrief> first = pager.lines(0);
+        QVERIFY(first.size() > 3);
+        QCOMPARE(goToPosition(*doc, GoToKind::Line, QStringLiteral("3"), 0), first[2].pos);
+        QCOMPARE(goToPosition(*doc, GoToKind::Line, QString::number(first.size() + 1), 0), pager.lines(1)[0].pos);
+        QCOMPARE(goToPosition(*doc, GoToKind::Line, QStringLiteral("9999999"), 0), -1);
+        QCOMPARE(doc->nextStepSerial(), serial);   // (nothing above changed the document)
+        // Footnotes: by number in the order of the text, whichever order they were made in.
+        QTextCursor c(doc->story());
+        c.setPosition(300);
+        QVERIFY(insertFootnote(*doc, c));
+        QTextCursor c2(doc->story());
+        c2.setPosition(100);
+        QVERIFY(insertFootnote(*doc, c2));
+        QVector<int> refs;
+        for (int id : doc->citedFootnotes()) refs += doc->footnoteReferences(id);
+        std::sort(refs.begin(), refs.end());
+        QCOMPARE(refs.size(), 2);
+        QCOMPARE(goToPosition(*doc, GoToKind::Footnote, QStringLiteral("1"), 0), refs[0]);
+        QCOMPARE(goToPosition(*doc, GoToKind::Footnote, QStringLiteral("2"), 0), refs[1]);
+        QCOMPARE(goToPosition(*doc, GoToKind::Footnote, QStringLiteral("+1"), refs[0] + 1), refs[1]);
+        QCOMPARE(goToPosition(*doc, GoToKind::Footnote, QStringLiteral("3"), 0), -1);
+        QCOMPARE(goToItems(*doc, GoToKind::Footnote).size(), 2);
+    }
+
+    void goToIsHeldToWhatAHostileDocumentCanHold()
+    {
+        QByteArray body;
+        for (int i = 0; i < 6000; ++i)
+            body += "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:bookmarkStart w:id=\"" + QByteArray::number(i + 1) + "\" w:name=\"b" + QByteArray::number(i) + "\"/><w:r><w:t>H" + QByteArray::number(i) +
+                    "</w:t></w:r><w:bookmarkEnd w:id=\"" + QByteArray::number(i + 1) + "\"/></w:p>";
+        body += "<w:p><w:bookmarkStart w:id=\"90000\" w:name=\"" + QByteArray(5000, 'z') + "\"/><w:r><w:t>Long bookmark name</w:t></w:r><w:bookmarkEnd w:id=\"90000\"/></w:p>";
+        auto doc = open(makeDocx(body, kStyles));
+        QVERIFY(doc);
+        QCOMPARE(goToItems(*doc, GoToKind::Heading).size(), kMostGoToItems);
+        QCOMPARE(goToItems(*doc, GoToKind::Bookmark).size(), kMostGoToItems);
+        for (const GoToItem &i : goToItems(*doc, GoToKind::Heading)) QVERIFY(i.label.size() <= 120);
+        QVERIFY(goToPosition(*doc, GoToKind::Bookmark, QStringLiteral("b5999"), 0) > 0);   // (a bookmark can be gone to though it is not listed)
+        QCOMPARE(goToPosition(*doc, GoToKind::Heading, QStringLiteral("5000"), 0) > 0, true);
+        QCOMPARE(goToPosition(*doc, GoToKind::Heading, QStringLiteral("5001"), 0), -1);
+        QCOMPARE(goToPosition(*doc, GoToKind::Footnote, QStringLiteral("1"), 0), -1);
+        for (GoToKind kind : {GoToKind::Page, GoToKind::Section, GoToKind::Line, GoToKind::Footnote, GoToKind::Heading})
+            for (const char *bad : {"2147483648", "-2147483649", "+99999999999", "10000001", "0x10", "1e9"}) QCOMPARE(goToPosition(*doc, kind, QString::fromLatin1(bad), 0), -1);
+    }
+
+    void draggingSelectedTextMovesOrCopiesItInOneStep()
+    {
+        auto doc = textDoc({QStringLiteral("One two three four five"), QStringLiteral("Next")});
+        QTextCursor c(doc->story());
+        c.setPosition(4);
+        c.setPosition(8, QTextCursor::KeepAnchor);
+        toggleBold(*doc, c);
+        c.setPosition(4);
+        c.setPosition(8, QTextCursor::KeepAnchor);
+        const quint64 before = doc->nextStepSerial();
+        QVERIFY(moveSelectedText(*doc, c, 19, false));
+        QCOMPARE(doc->nextStepSerial(), before + 1);
+        QCOMPARE(plain(*doc), QStringLiteral("One three four two five\nNext"));
+        QCOMPARE(c.selectedText(), QStringLiteral("two "));
+        QCOMPARE(c.selectionStart(), 15);
+        QVERIFY(styCharAt(*doc, 16).fontWeight() >= QFont::DemiBold);   // (it is bold where it went)
+        QVERIFY(styCharAt(*doc, 5).fontWeight() < QFont::DemiBold);
+        QVERIFY(doc->undo());
+        QCOMPARE(plain(*doc), QStringLiteral("One two three four five\nNext"));
+        QVERIFY(styCharAt(*doc, 5).fontWeight() >= QFont::DemiBold);
+        QVERIFY(doc->redo());
+        QCOMPARE(plain(*doc), QStringLiteral("One three four two five\nNext"));
+        // Dropped on itself it does nothing; dropped before it (with the Ctrl key: copied), it goes there and the original stays.
+        c.setPosition(15);
+        c.setPosition(19, QTextCursor::KeepAnchor);
+        const quint64 serial = doc->nextStepSerial();
+        QVERIFY(!moveSelectedText(*doc, c, 17, false));
+        QVERIFY(!moveSelectedText(*doc, c, 15, false));
+        QVERIFY(!moveSelectedText(*doc, c, 19, true));
+        QCOMPARE(doc->nextStepSerial(), serial);
+        QVERIFY(moveSelectedText(*doc, c, 0, true));
+        QCOMPARE(doc->nextStepSerial(), serial + 1);
+        QCOMPARE(plain(*doc), QStringLiteral("two One three four two five\nNext"));
+        QCOMPARE(c.selectedText(), QStringLiteral("two "));
+        QVERIFY(styCharAt(*doc, 1).fontWeight() >= QFont::DemiBold);
+        QVERIFY(styCharAt(*doc, 20).fontWeight() >= QFont::DemiBold);
+        // Into another paragraph, and a selection of two paragraphs.
+        QTextCursor two(doc->story());
+        two.setPosition(0);
+        two.setPosition(28, QTextCursor::KeepAnchor);
+        QVERIFY(moveSelectedText(*doc, two, doc->story()->characterCount() - 1, false));
+        QCOMPARE(plain(*doc), QStringLiteral("Nexttwo One three four two five\n"));
+        QVERIFY(doc->undo());
+        QVERIFY(doc->undo());
+        QCOMPARE(plain(*doc), QStringLiteral("One three four two five\nNext"));
+        // Nowhere to put it: no selection, a place past the text, and a place before it.
+        QTextCursor none(doc->story());
+        none.setPosition(2);
+        QVERIFY(!moveSelectedText(*doc, none, 5, false));
+        two.setPosition(0);
+        two.setPosition(3, QTextCursor::KeepAnchor);
+        QVERIFY(!moveSelectedText(*doc, two, 9999, false));
+        QVERIFY(!moveSelectedText(*doc, two, -3, false));
+        // Saved, and opened again, it is the same.
+        QVERIFY(moveSelectedText(*doc, two, 10, false));
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(plain(*back), plain(*doc));
     }
 
     // Not a test of its own: the work of a process that the next function starts. A document with a header and a footer, read, typed in, and saved.
