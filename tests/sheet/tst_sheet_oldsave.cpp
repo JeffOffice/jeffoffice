@@ -7,6 +7,7 @@
 #include "sheet/oldsave.h"
 #include "sheet/xlscompile.h"
 
+#include <QRegularExpression>
 #include <QSet>
 
 namespace {
@@ -257,6 +258,37 @@ private Q_SLOTS:
                 if (ia.bottom.style != BorderStyle::None) QCOMPARE(wb->styles().resolve(ib.bottom.color, 0), c.original.styles().resolve(ia.bottom.color, 0));
             }
         }
+    }
+
+    // A format with a literal among its digits (a ZIP+4 code, a telephone number) keeps the literal in an .ods copy: the text is embedded in the number, at a position.
+    void aFormatWithTextAmongItsDigitsKeepsTheText()
+    {
+        Copies c;
+        const QStringList codes = {QStringLiteral("00000\\-0000"), QStringLiteral("#####\\-####"), QStringLiteral("(000) 000\\-0000"), QStringLiteral("000\\-00\\-0000")};
+        QString fmts, xfs = QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/>"), cells;
+        for (int i = 0; i < codes.size(); ++i) {
+            fmts += QStringLiteral("<numFmt numFmtId=\"%1\" formatCode=\"%2\"/>").arg(164 + i).arg(QString(codes[i]).replace(QLatin1Char('"'), QLatin1String("&quot;")));
+            xfs += QStringLiteral("<xf numFmtId=\"%1\" fontId=\"0\" fillId=\"0\" borderId=\"0\" applyNumberFormat=\"1\"/>").arg(164 + i);
+            cells += num(QStringLiteral("A%1").arg(i + 1), 123456789, i + 1);
+        }
+        const QByteArray styles = stylesWith(fmts, QStringLiteral("<font><sz val=\"11\"/><name val=\"Calibri\"/></font>"), QStringLiteral("<fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill>"),
+                                             QStringLiteral("<border><left/><right/><top/><bottom/><diagonal/></border>"), xfs);
+        QString rows;
+        for (int i = 0; i < codes.size(); ++i) rows += row(i + 1, num(QStringLiteral("A%1").arg(i + 1), 123456789, i + 1));
+        QVERIFY2(c.make(simple(rows, QString(), QString(), styles)), qPrintable(c.why));
+        const Sheet a = c.sheet(c.original, 0), b = c.sheet(c.ods, 0);
+        for (int i = 0; i < codes.size(); ++i) {
+            const QString ref = QStringLiteral("A%1").arg(i + 1);
+            QString want = c.original.styles().formatCode(at(a, ref)->style, QLocale::c()), got = c.ods.styles().formatCode(at(b, ref)->style, QLocale::c());
+            // (a run of # before the text stands for one place: the places left of the farthest text are not counted in the file)
+            got.remove(QLatin1Char(0x5C)).remove(QLatin1Char(0x22));
+            want.remove(QLatin1Char(0x5C)).remove(QLatin1Char(0x22));
+            QCOMPARE(got.replace(QRegularExpression(QStringLiteral("#+")), QStringLiteral("#")), want.replace(QRegularExpression(QStringLiteral("#+")), QStringLiteral("#")));
+        }
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(c.odsBytes, parts));
+        QVERIFY2(QString::fromUtf8(parts.value(QStringLiteral("content.xml"))).contains(QLatin1String("<number:embedded-text number:position=\"4\">-</number:embedded-text>")),
+                 qPrintable(QString::fromUtf8(parts.value(QStringLiteral("content.xml"))).left(3000)));
     }
 
     void anXlsCopyHoldsTheShapeOfTheSheet()

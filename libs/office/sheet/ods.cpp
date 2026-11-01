@@ -443,6 +443,8 @@ private:
                 m_pendingText = false;
                 m_capture = false;
             } else if (m_pendingEmbedded && name == QLatin1String("embedded-text")) {
+                if (!m_data.parts.isEmpty() && m_data.parts.last().kind == ods::DataPart::Number && m_data.parts.last().embedded.size() < 16 && m_embeddedAt >= 0 && m_embeddedAt <= 40)
+                    m_data.parts.last().embedded.append({m_embeddedAt, m_text});
                 m_pendingEmbedded = false;
                 m_capture = false;
             } else if (m_inData && name.endsWith(QLatin1String("-style"))) {

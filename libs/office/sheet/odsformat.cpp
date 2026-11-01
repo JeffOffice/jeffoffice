@@ -168,6 +168,57 @@ public:
                         continue;
                     }
                 }
+                // text among the digits ("00000-0000", "(000) 000-0000"): one number with the text embedded in it, at the place of the digits it stands before
+                if (!picture.contains(QLatin1Char('.'))) {
+                    QStringList pictures{picture}, texts;
+                    int k = j;
+                    while (texts.size() < 8) {
+                        QString lit;
+                        int q = k;
+                        while (q < n) {
+                            const QChar ch = m_s[q];
+                            if (ch == QLatin1Char('\\') && q + 1 < n) {
+                                lit += m_s[q + 1];
+                                q += 2;
+                            } else if (ch == QLatin1Char('"')) {
+                                const int end = int(m_s.indexOf(QLatin1Char('"'), q + 1));
+                                if (end < 0) break;
+                                lit += m_s.mid(q + 1, end - q - 1);
+                                q = end + 1;
+                            } else if (QStringLiteral("-+() $:&'~^!{}<>=").contains(ch)) {
+                                lit += ch;
+                                ++q;
+                            } else {
+                                break;
+                            }
+                        }
+                        if (lit.isEmpty() || q >= n || !(m_s[q] == QLatin1Char('0') || m_s[q] == QLatin1Char('#') || m_s[q] == QLatin1Char('?'))) break;
+                        int j2 = q;
+                        while (j2 < n && (m_s[j2] == QLatin1Char('0') || m_s[j2] == QLatin1Char('#') || m_s[j2] == QLatin1Char('?') || m_s[j2] == QLatin1Char(',') || m_s[j2] == QLatin1Char('.'))) ++j2;
+                        if (j2 < n && (m_s[j2] == QLatin1Char('/') || m_s[j2] == QLatin1Char('E') || m_s[j2] == QLatin1Char('e'))) break;
+                        texts << lit;
+                        pictures << m_s.mid(q, j2 - q);
+                        k = j2;
+                        if (pictures.last().contains(QLatin1Char('.'))) break;
+                    }
+                    if (!texts.isEmpty()) {
+                        auto digitsOf = [](const QString &pic) {
+                            const QString whole = pic.left(pic.indexOf(QLatin1Char('.')) < 0 ? pic.size() : int(pic.indexOf(QLatin1Char('.'))));
+                            return int(whole.size() - whole.count(QLatin1Char(',')));
+                        };
+                        QString embedded;
+                        int after = 0;
+                        for (int t = int(texts.size()) - 1; t >= 0; --t) {
+                            after += digitsOf(pictures[t + 1]);
+                            embedded.prepend(QStringLiteral("<number:embedded-text number:position=\"%1\">%2</number:embedded-text>").arg(after).arg(esc(texts[t])));
+                        }
+                        QString number = numberPicture(pictures.join(QString()));
+                        number.chop(2);   // ("/>")
+                        m_parts.append(number + QLatin1Char('>') + embedded + QStringLiteral("</number:number>"));
+                        i = k;
+                        continue;
+                    }
+                }
                 m_parts.append(numberPicture(picture));
                 i = j;
             } else if (c == QLatin1Char('%')) {
