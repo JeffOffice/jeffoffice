@@ -224,6 +224,159 @@ const FunctionDoc kDocs[] = {
     {"XIRR", Cat::Financial, "values, dates, [guess]", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Gives the rate of return of amounts that come on dates you choose.")},
 };
 
+// What each argument is, by its name (a few are told by function and name, "LARGE:k"): one plain sentence, marked for translation.
+struct ArgumentHelp {
+    const char *name;
+    const char *help;
+};
+const ArgumentHelp kArgumentHelp[] = {
+    {"CELL:reference", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The cell to tell about (the cell with the cursor if left out).")},
+    {"FORECAST:x", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The x value to predict a y value for.")},
+    {"LARGE:k", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which place to give, counting from the largest: 1 is the largest.")},
+    {"LOG:base", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The base of the logarithm (10 if left out).")},
+    {"PERCENTILE:k", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The share of the values, from 0 to 1, to give the value at.")},
+    {"SMALL:k", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which place to give, counting from the smallest: 1 is the smallest.")},
+    {"...", QT_TRANSLATE_NOOP("jp::crunch::Functions", "As many more as you need.")},
+    {"a1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "True or left out to read the address as a column letter and row number; false to read it as row and column numbers.")},
+    {"abs_num", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How much of the address is fixed: 1 all of it, 2 the row only, 3 the column only, 4 none of it.")},
+    {"angle", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The angle, in radians.")},
+    {"area_num", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which block to use when the first argument names several (1 for the first).")},
+    {"array", QT_TRANSLATE_NOOP("jp::crunch::Functions", "A block of cells, or a list of values written in braces.")},
+    {"array1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The first block of cells or list of values.")},
+    {"array2", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The second block of cells or list of values, the same size as the first.")},
+    {"average_range", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The cells to average (the cells to look in if left out).")},
+    {"base", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The base of the logarithm (10 if left out).")},
+    {"basis", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How the days of a year are counted: 0 or left out for 30/360, 1 actual days, 2 actual days in a 360-day year, 3 actual days in a 365-day year, 4 European 30/360.")},
+    {"bottom", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The smallest value the result may have.")},
+    {"col_index_num", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number of the column of the table to give a value from, counting the first column as 1.")},
+    {"cols", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many columns to move: positive to the right, negative to the left.")},
+    {"column_num", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number of the column in the block, counting the first column as 1.")},
+    {"condition", QT_TRANSLATE_NOOP("jp::crunch::Functions", "A value or test that is true or false.")},
+    {"condition1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The first test, that is true or false.")},
+    {"cost", QT_TRANSLATE_NOOP("jp::crunch::Functions", "What the asset cost when it was bought.")},
+    {"criteria", QT_TRANSLATE_NOOP("jp::crunch::Functions", "What to look for: a number, a text, or a test such as \">5\".")},
+    {"criteria1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "What to look for in the first block of cells: a number, a text, or a test such as \">5\".")},
+    {"criteria_range1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The first block of cells to test.")},
+    {"cumulative", QT_TRANSLATE_NOOP("jp::crunch::Functions", "True to give the running total up to this point; false to give the value at this point alone.")},
+    {"database", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The block of cells that holds the list, with its column names in the first row.")},
+    {"date", QT_TRANSLATE_NOOP("jp::crunch::Functions", "A date, or a cell that holds one.")},
+    {"date_text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "A date written as text, such as \"3/15/2027\".")},
+    {"dates", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The dates of the amounts, in the same order as the amounts.")},
+    {"day", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The day of the month, from 1 to 31.")},
+    {"days", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number of days to add (negative to go back).")},
+    {"decimals", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many digits to keep after the decimal point.")},
+    {"delimiter", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The text to put between the pieces.")},
+    {"denominator", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number to divide by.")},
+    {"divisor", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number to divide by.")},
+    {"effect_rate", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The yearly rate.")},
+    {"end_date", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The date the period ends.")},
+    {"end_period", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The period the stretch ends at.")},
+    {"error_value", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The error to look up, or a cell that holds it.")},
+    {"expression", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The value to compare with the values that follow.")},
+    {"factor", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How fast the balance declines (2 if left out, which is double declining).")},
+    {"field", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The column to use: its name in quotes, or its number counting the first column as 1.")},
+    {"find_text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The text to look for.")},
+    {"format_text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number format to show the value in, such as \"0.00\" or \"mm/dd/yyyy\".")},
+    {"friendly_name", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The text to show in the cell (the link itself if left out).")},
+    {"function_num", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which calculation to do: 1 average, 2 count, 3 count nonblanks, 4 maximum, 5 minimum, 6 product, 7 and 8 standard deviation, 9 sum, 10 and 11 variance.")},
+    {"fv", QT_TRANSLATE_NOOP("jp::crunch::Functions", "What is left after the last payment (0 if left out).")},
+    {"guess", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Your guess at the result, to start the search from (0.1 if left out).")},
+    {"height", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many rows tall the result is.")},
+    {"holidays", QT_TRANSLATE_NOOP("jp::crunch::Functions", "A block of cells with dates that are not working days.")},
+    {"hour", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The hour, from 0 to 23.")},
+    {"ignore_empty", QT_TRANSLATE_NOOP("jp::crunch::Functions", "True to leave out empty pieces; false to keep them.")},
+    {"index", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which value to give, counting the first as 1.")},
+    {"info_type", QT_TRANSLATE_NOOP("jp::crunch::Functions", "What to tell about the cell, as text such as \"address\", \"row\", \"col\", or \"format\".")},
+    {"instance_num", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which match to replace (all of them if left out).")},
+    {"k", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The place in the order, counting from 1.")},
+    {"known_x's", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The block of cells that holds the x values you already have.")},
+    {"known_y's", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The block of cells that holds the y values you already have.")},
+    {"life", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many periods the asset lasts.")},
+    {"link_location", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Where the link goes: a web address, a file, or a place in this workbook.")},
+    {"logical", QT_TRANSLATE_NOOP("jp::crunch::Functions", "A value or test that is true or false.")},
+    {"logical1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The first value or test, that is true or false.")},
+    {"lookup_array", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The block of cells, one row or one column, to look in.")},
+    {"lookup_value", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The value to look for.")},
+    {"lookup_vector", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The one row or one column of cells to look in.")},
+    {"match_type", QT_TRANSLATE_NOOP("jp::crunch::Functions", "1 or left out finds the largest value not above it (the list must be sorted up); 0 finds an exact match; -1 finds the smallest value not below it (the list must be sorted down).")},
+    {"max_range", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The cells to take the largest value from.")},
+    {"mean", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The average of the distribution.")},
+    {"method", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How months are counted: false or left out for the US way, true for the European way.")},
+    {"min_range", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The cells to take the smallest value from.")},
+    {"minute", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The minute, from 0 to 59.")},
+    {"mode", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How negative numbers are rounded: 0 or left out is the usual way, and any other number reverses it.")},
+    {"month", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The month, from 1 to 12.")},
+    {"months", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many months to add (negative to go back).")},
+    {"multiple", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number whose multiples to round to.")},
+    {"new_text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The text to put in.")},
+    {"no_commas", QT_TRANSLATE_NOOP("jp::crunch::Functions", "True to leave out the commas that group thousands.")},
+    {"no_switch", QT_TRANSLATE_NOOP("jp::crunch::Functions", "True to keep using the declining balance method after straight-line would give more.")},
+    {"nominal_rate", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The stated yearly rate.")},
+    {"nper", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many payments there are in all.")},
+    {"npery", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many periods there are in a year.")},
+    {"num_chars", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many characters to take (1 if left out).")},
+    {"num_digits", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many digits to round to: positive for the right of the decimal point, 0 for a whole number, negative for the left.")},
+    {"number", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number to work on.")},
+    {"number1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The first number, or block of cells.")},
+    {"number_chosen", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many items to pick in each group.")},
+    {"number_times", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many items there are in all.")},
+    {"numerator", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number to be divided.")},
+    {"old_text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The text to change.")},
+    {"order", QT_TRANSLATE_NOOP("jp::crunch::Functions", "0 or left out puts the largest first; any other number puts the smallest first.")},
+    {"per", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which payment to work on, counting the first as 1.")},
+    {"period", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which period to work on, counting the first as 1.")},
+    {"pmt", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The payment made each period.")},
+    {"power", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The power to raise the number to.")},
+    {"probability", QT_TRANSLATE_NOOP("jp::crunch::Functions", "A probability, from 0 to 1.")},
+    {"pv", QT_TRANSLATE_NOOP("jp::crunch::Functions", "What the amounts are worth now (the whole loan or investment).")},
+    {"quart", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which quartile: 0 smallest, 1 first quarter, 2 median, 3 third quarter, 4 largest.")},
+    {"range", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The block of cells to test.")},
+    {"range_lookup", QT_TRANSLATE_NOOP("jp::crunch::Functions", "False finds an exact match; true or left out finds the closest value below it (the first column must be sorted up).")},
+    {"rate", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The interest rate for each period.")},
+    {"ref", QT_TRANSLATE_NOOP("jp::crunch::Functions", "A cell or block of cells.")},
+    {"ref1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The first cell or block of cells.")},
+    {"ref_text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "An address written as text, such as \"B5\".")},
+    {"reference", QT_TRANSLATE_NOOP("jp::crunch::Functions", "A cell or block of cells.")},
+    {"result1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The result to give when the value before it matches.")},
+    {"result_vector", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The one row or one column of cells to give the result from.")},
+    {"return_type", QT_TRANSLATE_NOOP("jp::crunch::Functions", "Which day the week starts on: 1 or left out for Sunday, 2 for Monday.")},
+    {"row_index_num", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number of the row of the table to give a value from, counting the first row as 1.")},
+    {"row_num", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number of the row in the block, counting the first row as 1.")},
+    {"rows", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many rows to move: positive down, negative up.")},
+    {"salvage", QT_TRANSLATE_NOOP("jp::crunch::Functions", "What the asset is worth at the end.")},
+    {"second", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The second, from 0 to 59.")},
+    {"serial_number", QT_TRANSLATE_NOOP("jp::crunch::Functions", "A date or time, or a cell that holds one.")},
+    {"sheet_text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The name of the sheet to put in front of the address.")},
+    {"significance", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The number whose multiples to round to.")},
+    {"standard_dev", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The standard deviation of the distribution.")},
+    {"start_date", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The date the period starts.")},
+    {"start_num", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The place in the text to start at, counting the first character as 1.")},
+    {"start_period", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The period the stretch starts at.")},
+    {"sum_range", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The cells to add up (the cells that are tested if left out).")},
+    {"table_array", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The block of cells to look in; the value looked for must be in its first column.")},
+    {"text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The text to work on, or a cell that holds it.")},
+    {"text1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The first text, or block of cells with text.")},
+    {"text2", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The second text.")},
+    {"time_text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "A time written as text, such as \"2:30 PM\".")},
+    {"top", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The largest value the result may have.")},
+    {"type", QT_TRANSLATE_NOOP("jp::crunch::Functions", "When payments are made: 0 or left out at the end of each period, 1 at the start.")},
+    {"unit", QT_TRANSLATE_NOOP("jp::crunch::Functions", "What to count in: \"Y\" years, \"M\" months, \"D\" days, \"MD\" days ignoring months and years, \"YM\" months ignoring years, \"YD\" days ignoring years.")},
+    {"value", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The value to work on, or a cell that holds it.")},
+    {"value1", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The first value, or block of cells.")},
+    {"value_if_error", QT_TRANSLATE_NOOP("jp::crunch::Functions", "What to give if the value is an error.")},
+    {"value_if_false", QT_TRANSLATE_NOOP("jp::crunch::Functions", "What to give if the condition is false (FALSE if left out).")},
+    {"value_if_na", QT_TRANSLATE_NOOP("jp::crunch::Functions", "What to give if the value is the not-available error.")},
+    {"value_if_true", QT_TRANSLATE_NOOP("jp::crunch::Functions", "What to give if the condition is true.")},
+    {"values", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The block of cells that holds the amounts.")},
+    {"width", QT_TRANSLATE_NOOP("jp::crunch::Functions", "How many columns wide the result is.")},
+    {"within_text", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The text to look in.")},
+    {"x", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The x value to work with.")},
+    {"x_num", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The x value.")},
+    {"y_num", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The y value.")},
+    {"year", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The year, such as 2027.")},
+    {"z", QT_TRANSLATE_NOOP("jp::crunch::Functions", "The z value.")},
+};
+
 } // namespace
 
 const FunctionDoc *functionDocs(int *count)
@@ -268,6 +421,41 @@ QStringList argumentsOf(const FunctionDoc &doc)
 QString signatureOf(const FunctionDoc &doc)
 {
     return QLatin1String(doc.name) + QLatin1Char('(') + argumentsOf(doc).join(QStringLiteral(", ")) + QLatin1Char(')');
+}
+
+QString argumentHelpOf(const QString &function, const QString &argument)
+{
+    const QByteArray key = argument.toLatin1();
+    const QByteArray special = function.toUpper().toLatin1() + ':' + key;
+    for (const ArgumentHelp &h : kArgumentHelp)
+        if (special == h.name) return QCoreApplication::translate("jp::crunch::Functions", h.help);
+    for (const ArgumentHelp &h : kArgumentHelp)
+        if (key == h.name) return QCoreApplication::translate("jp::crunch::Functions", h.help);
+    return QString();
+}
+
+ArgumentPlan argumentPlanOf(const FunctionDoc &doc)
+{
+    ArgumentPlan plan;
+    QStringList names = argumentsOf(doc);
+    if (!names.isEmpty() && names.last() == QLatin1String("...")) {
+        names.removeLast();
+        // the run of names that end in 1 at the end is what repeats (SWITCH: value1 and result1)
+        while (!names.isEmpty() && names.last().endsWith(QLatin1Char('1'))) plan.repeating.prepend(names.takeLast());
+        if (plan.repeating.isEmpty() && !names.isEmpty()) plan.repeating << names.takeLast();
+    }
+    for (const QString &n : names) {
+        const bool optional = n.startsWith(QLatin1Char('['));
+        plan.fixed << (optional ? n.mid(1, n.size() - 2) : n);
+        plan.fixedOptional << optional;
+    }
+    return plan;
+}
+
+QString repeatedName(const QString &name, int instance)
+{
+    if (instance <= 0 || !name.endsWith(QLatin1Char('1'))) return name;
+    return name.left(name.size() - 1) + QString::number(instance + 1);
 }
 
 } // namespace jp::crunch

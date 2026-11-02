@@ -7,7 +7,7 @@ Tapez dans la zone de recherche un nom ou ce que vous voulez faire (« arrondir 
 
 Sélectionnez une fonction pour voir sa syntaxe, ce qu'elle fait et ses arguments. Un argument entre crochets est facultatif, et « autres du même type » signifie que vous pouvez en indiquer autant que nécessaire. Cliquez sur **OK** (ou double-cliquez sur la fonction).
 
-La cellule passe en mode modification avec la formule commencée : **=SOMME()**, le curseur placé entre les parenthèses, prêt pour les arguments. Si vous êtes déjà en train de taper une formule, la fonction est insérée à l'emplacement du curseur. Seules les fonctions que JeffCrunch sait calculer sont proposées.
+Après **OK**, la boîte de dialogue **Arguments de la fonction** s'ouvre : vous y remplissez les arguments et voyez le résultat pendant que vous tapez. **OK** y écrit la formule dans la cellule, par exemple **=SUM(A1:A3)**. Si vous êtes déjà en train de taper une formule, la fonction est insérée à l'emplacement du curseur. Seules les fonctions que JeffCrunch sait calculer sont proposées.
 
 ## Messages sur les cellules
 

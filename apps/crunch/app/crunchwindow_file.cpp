@@ -1,6 +1,7 @@
 // Opening a workbook in JeffCrunch's window: the first rows at once, the sheets, and the calculation done in slices.
 
 #include "app/crunchwindow.h"
+#include "app/functionargumentsdialog.h"
 
 #include "sheet/csv.h"
 
@@ -59,6 +60,7 @@ void CrunchWindow::dropWorkbook()
     m_path.clear();
     m_originalPath.clear();
     m_blank = false;
+    if (m_argsDialog) m_argsDialog->reject();   // (its call has nowhere to go once the workbook is gone)
     m_session.reset();
     m_loaded.reset();
     m_haveFirstScreen = m_haveCalc = false;

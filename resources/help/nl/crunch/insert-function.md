@@ -7,7 +7,7 @@ Typ in het zoekvak een naam of wat u wilt doen ('naar beneden afronden', 'tekst 
 
 Kies een functie om te zien hoe u die schrijft, wat die doet en welke argumenten die heeft. Een argument tussen haakjes is optioneel. 'Meer van hetzelfde' betekent dat u er zoveel kunt opgeven als u nodig hebt. Klik op **OK** (of dubbelklik op de functie).
 
-De cel gaat in de bewerkingsmodus met de formule al begonnen: **=SUM()**, met de cursor tussen de haakjes, klaar voor de argumenten. Als u al een formule aan het typen bent, wordt de functie op de positie van de cursor ingevoegd. Alleen de functies die JeffCrunch kan berekenen, staan in de lijst.
+Na **OK** opent het dialoogvenster **Functieargumenten**, waarin u de argumenten invult en het resultaat ziet terwijl u typt. **OK** daar schrijft de formule in de cel, bijvoorbeeld **=SUM(A1:A3)**. Als u al een formule aan het typen bent, wordt de functie op de positie van de cursor ingevoegd. Alleen de functies die JeffCrunch kan berekenen, staan in de lijst.
 
 ## Berichten bij cellen
 

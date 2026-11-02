@@ -32,6 +32,7 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befe
 - [Sortieren und Filtern](sort-filter)
 - [Tabellen](tables)
 - [Eine Funktion einfügen](insert-function)
+- [Eine Funktion mit dem Dialog „Funktionsargumente“ eingeben](function-arguments)
 - [Diagramme, Bilder und Formen](charts)
 - [Notizen und Links](notes-links)
 - [Ein Blatt oder die Arbeitsmappe schützen](protect)

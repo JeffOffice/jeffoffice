@@ -1569,6 +1569,7 @@
     <file alias="de/crunch/find-replace.md">help/de/crunch/find-replace.md</file>
     <file alias="de/crunch/format-cells.md">help/de/crunch/format-cells.md</file>
     <file alias="de/crunch/formulas.md">help/de/crunch/formulas.md</file>
+    <file alias="de/crunch/function-arguments.md">help/de/crunch/function-arguments.md</file>
     <file alias="de/crunch/index.md">help/de/crunch/index.md</file>
     <file alias="de/crunch/insert-delete.md">help/de/crunch/insert-delete.md</file>
     <file alias="de/crunch/insert-function.md">help/de/crunch/insert-function.md</file>
@@ -1704,6 +1705,7 @@
     <file alias="en/crunch/find-replace.md">help/en/crunch/find-replace.md</file>
     <file alias="en/crunch/format-cells.md">help/en/crunch/format-cells.md</file>
     <file alias="en/crunch/formulas.md">help/en/crunch/formulas.md</file>
+    <file alias="en/crunch/function-arguments.md">help/en/crunch/function-arguments.md</file>
     <file alias="en/crunch/index.md">help/en/crunch/index.md</file>
     <file alias="en/crunch/insert-delete.md">help/en/crunch/insert-delete.md</file>
     <file alias="en/crunch/insert-function.md">help/en/crunch/insert-function.md</file>

@@ -7,7 +7,7 @@ Escriba en el cuadro de búsqueda un nombre o lo que quiere hacer ("redondear ha
 
 Elija una función para ver cómo se escribe, qué hace y cuáles son sus argumentos. Un argumento entre corchetes es opcional, y "más del mismo tipo" significa que puede indicar tantos como necesite. Presione **Aceptar** (o haga doble clic en la función).
 
-La celda pasa al modo de edición con la fórmula iniciada: **=SUMA()**, con el cursor entre los paréntesis, listo para los argumentos. Si ya está escribiendo una fórmula, la función se inserta en la posición del cursor. Solo se muestran las funciones que JeffCrunch puede calcular.
+Tras **Aceptar** se abre el cuadro de diálogo **Argumentos de función**, donde rellena los argumentos y ve el resultado mientras escribe. **Aceptar** allí escribe la fórmula en la celda, por ejemplo **=SUM(A1:A3)**. Si ya está escribiendo una fórmula, la función se inserta en la posición del cursor. Solo se muestran las funciones que JeffCrunch puede calcular.
 
 ## Mensajes en las celdas
 

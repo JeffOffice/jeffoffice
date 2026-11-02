@@ -1,4 +1,5 @@
 #include "app/crunchwindow.h"
+#include "app/functionargumentsdialog.h"
 #include "app/plaintext.h"
 
 #include "core/printjob.h"
@@ -269,12 +270,20 @@ void CrunchWindow::buildCentral()
     m_nameBox->setFixedWidth(110);
     m_nameBox->setAccessibleName(tr("Name box"));
     m_nameBox->setAccessibleDescription(tr("The address of the selected cell. Type an address, such as C5 or A1:D10, and press Enter to go there."));
-    auto *fx = new QLabel(QStringLiteral("fx"), m_formulaRow);
+    auto *fx = new QToolButton(m_formulaRow);
     fx->setObjectName(QStringLiteral("formulaLabel"));
+    fx->setText(QStringLiteral("fx"));
+    fx->setAutoRaise(true);
+    fx->setFocusPolicy(Qt::NoFocus);   // (the cursor stays in the formula being typed)
+    fx->setToolTip(jp::plainToolTip(tr("Insert Function")));
+    fx->setAccessibleName(tr("Insert Function"));
     QFont fxFont = fx->font();
     fxFont.setItalic(true);
     fxFont.setWeight(QFont::DemiBold);
     fx->setFont(fxFont);
+    connect(fx, &QToolButton::clicked, this, [this] {
+        if (QAction *a = act(QStringLiteral("formulas.insertFunction"))) a->trigger();
+    });
     m_formulaBar = new QLineEdit(m_formulaRow);
     m_formulaBar->setObjectName(QStringLiteral("formulaBar"));
     m_formulaBar->setMaxLength(1 << 20);
@@ -740,6 +749,12 @@ void CrunchWindow::keyPressEvent(QKeyEvent *e)
 
 void CrunchWindow::closeEvent(QCloseEvent *e)
 {
+    // (the Function Arguments dialog is given up first, and the window stays: it is closed again from the place it is in)
+    if (m_argsDialog) {
+        m_argsDialog->reject();
+        e->ignore();
+        return;
+    }
     // an entry that is being made is finished (or the window stays, with the reason shown), and changes that are not saved are asked about
     if (!commitEdit() || !askAboutChanges()) {
         e->ignore();

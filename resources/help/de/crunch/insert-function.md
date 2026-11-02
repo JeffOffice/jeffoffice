@@ -7,7 +7,7 @@ Geben Sie in das Suchfeld einen Namen ein oder das, was Sie tun möchten („abr
 
 Wählen Sie eine Funktion aus, um zu sehen, wie sie geschrieben wird, was sie tut und welche Argumente sie hat. Ein Argument in Klammern ist optional, und „weitere gleichartige“ bedeutet, dass Sie beliebig viele davon angeben können. Klicken Sie auf **OK** (oder doppelklicken Sie auf die Funktion).
 
-Die Zelle wechselt in den Bearbeitungsmodus, und die Formel ist bereits begonnen: **=SUMME()**, mit dem Cursor zwischen den Klammern, bereit für die Argumente. Wenn Sie bereits eine Formel eingeben, wird die Funktion an der Cursorposition eingefügt. Es werden nur die Funktionen aufgeführt, die JeffCrunch berechnen kann.
+Nach **OK** öffnet sich für die Funktion der Dialog **Funktionsargumente**, in dem Sie die Argumente ausfüllen und das Ergebnis schon beim Tippen sehen (siehe [Eine Funktion mit dem Dialog „Funktionsargumente“ eingeben](function-arguments)). **OK** schreibt dort die Formel in die Zelle, zum Beispiel **=SUM(A1:A3)**. Wenn Sie bereits eine Formel eingeben, wird die Funktion an der Cursorposition eingefügt. Es werden nur die Funktionen aufgeführt, die JeffCrunch berechnen kann.
 
 ## Meldungen zu Zellen
 
