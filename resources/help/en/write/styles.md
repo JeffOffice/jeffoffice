@@ -62,5 +62,5 @@ Format a paragraph the way you want. Then click **Update Style to Match Selectio
 ## Related
 
 - [Change how text looks](font)
-- [Copy a look with the Format Painter](format-painter)
+- [Copy a look with Copy Formatting](format-painter)
 - [Use JeffWrite with the keyboard](keyboard)

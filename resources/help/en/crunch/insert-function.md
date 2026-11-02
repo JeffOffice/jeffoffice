@@ -1,7 +1,7 @@
 # Pick a function
-<!-- keywords: function, pick a function, fx, formula, argument, category, search, all functions, AutoSum, Shift+F3 -->
+<!-- keywords: function, pick a function, fx, formula, argument, category, search, all functions, Sum, Shift+F3 -->
 
-Choose **Pick a Function** on the Formulas tab (**Shift+F3**), or **All Functions** in the **AutoSum** menu.
+Choose **Pick a Function** on the Formulas tab (**Shift+F3**), or **All Functions** in the **Sum** menu.
 
 Type in the search box a name or what you want to do ("round down", "join text") and the list shows the functions that fit, names that begin with your words first. **Kind** limits the list to financial, date and time, math and trig, statistical, lookup and reference, text, logical, information, or database functions.
 

@@ -19,7 +19,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Change how text looks](font)
 - [Use styles](styles)
-- [Copy a look with the Format Painter](format-painter)
+- [Copy a look with Copy Formatting](format-painter)
 - [Add headers, footers, and page numbers](headers-footers)
 - [Make and change tables](tables)
 - [Add footnotes and endnotes](footnotes-endnotes)

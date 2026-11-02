@@ -5,7 +5,7 @@ JeffPub saves your work in .jpub files. It also opens and saves .pub files. See 
 
 ## Save
 
-Press Ctrl+S, click the **Save** button in the Quick Access Toolbar, or click **File > Save**. The first time, JeffPub asks for a name and a place. After that, Save replaces the file with your latest work.
+Press Ctrl+S, click the **Save** button in the quick toolbar, or click **File > Save**. The first time, JeffPub asks for a name and a place. After that, Save replaces the file with your latest work.
 
 A star (*) after the name in the title bar means you have changes you have not saved. Save often. If JeffPub stops by surprise, see [Get back unsaved work](recover).
 

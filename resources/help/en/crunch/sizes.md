@@ -1,5 +1,5 @@
 # Change the width of columns and the height of rows
-<!-- keywords: default width, default row height, standard width, standard height, width, height, column, row, size, wider, taller, narrower, shorter, fit, autofit, hide, unhide, drag, border, double click, characters, points, Ctrl+0, Ctrl+9, pixels, number too wide, hashes -->
+<!-- keywords: default width, default row height, standard width, standard height, width, height, column, row, size, wider, taller, narrower, shorter, fit, fit, hide, unhide, drag, border, double click, characters, points, Ctrl+0, Ctrl+9, pixels, number too wide, hashes -->
 
 A **column's width** is counted in characters: how many digits fit across it. A **row's height** is counted in points, a unit used for type (72 points make an inch). The usual column holds about 8 digits, and the usual row is 15 points high.
 
@@ -11,7 +11,7 @@ If whole columns (or rows) are selected and you drag the border of one of them, 
 
 ## Fit what is inside
 
-**Double-click** the border to make the column just wide enough for the longest thing in it, or the row just tall enough for its tallest line. This also works from **Home > Format > AutoFit Column Width** and **AutoFit Row Height**, for all the selected columns or rows at once. A column or row with nothing in it keeps its size.
+**Double-click** the border to make the column just wide enough for the longest thing in it, or the row just tall enough for its tallest line. This also works from **Home > Format > Fit Column Width** and **Fit Row Height**, for all the selected columns or rows at once. A column or row with nothing in it keeps its size.
 
 ## Type a size
 

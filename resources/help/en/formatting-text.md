@@ -1,5 +1,5 @@
 # Format text
-<!-- keywords: font, font size, bold, italic, underline, font color, text color, character spacing, kerning, align text, line spacing, indent, drop cap, format painter, copy formatting, paste formatting, change case -->
+<!-- keywords: font, font size, bold, italic, underline, font color, text color, character spacing, kerning, align text, line spacing, indent, drop cap, copy formatting, copy formatting, paste formatting, change case -->
 
 You format text on the **Home** tab. The **Font** group changes letters. The **Paragraph** group changes whole paragraphs.
 
@@ -38,10 +38,10 @@ Click **Font Color** and pick a scheme, standard, or recent color. **More Colors
 
 On the **Text Box** tab, **Effects** adds shadow, outline, emboss, engrave, glow, and gradient fills to letters. A drop cap is a large first letter: click in the paragraph and choose **Text Box > Typography > Drop Cap**. Pick 2 to 5 lines, or **Custom Drop Cap…**. The rest of **Typography**, such as ligatures and stylistic sets, depends on what the font offers.
 
-## Copy formatting with Format Painter
+## Copy formatting with the button
 
 1. Click in text that looks the way you want.
-2. Click **Home > Clipboard > Format Painter**.
+2. Click **Home > Clipboard > Copy Formatting**.
 3. Click the text box you want to change.
 
 The whole box takes on the look of the first text, plus its fill and outline. Hold Shift as you click the button to keep painting. Press Esc to stop.

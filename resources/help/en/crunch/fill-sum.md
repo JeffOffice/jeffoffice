@@ -1,5 +1,5 @@
 # Fill cells and add them up
-<!-- keywords: fill, series, drag, handle, AutoFill, Ctrl+D, Ctrl+R, down, right, up, left, number, date, weekday, month, year, step, stop, copy, AutoSum, sum, average, count, max, min, Alt+equals, total -->
+<!-- keywords: fill, series, drag, handle, AutoFill, Ctrl+D, Ctrl+R, down, right, up, left, number, date, weekday, month, year, step, stop, copy, Sum, sum, average, count, max, min, Alt+equals, total -->
 
 ## Fill
 
@@ -24,8 +24,8 @@ A fill does not go into or out of merged cells, because it would leave values in
 
 **Fill > Across Worksheets** copies the selected cells to the same cells of the sheets you check in a list: everything, just the contents, or just the formats. It is one step of Undo.
 
-## AutoSum
+## Sum
 
-**Home > AutoSum** (**Alt and the equals sign**) puts a total in the cell you select. It looks at the numbers above the cell; if there are none, at the numbers to its left. The formula is put in the cell for you to check, and **Enter** keeps it. The arrow next to AutoSum gives the other totals: **Average**, **How Many Numbers**, **Max**, and **Min**.
+**Home > Sum** (**Alt and the equals sign**) puts a total in the cell you select. It looks at the numbers above the cell; if there are none, at the numbers to its left. The formula is put in the cell for you to check, and **Enter** keeps it. The arrow next to Sum gives the other totals: **Average**, **How Many Numbers**, **Max**, and **Min**.
 
 Select a block first, and each column of the block gets its own formula in the empty cells under it (or, for a single row, to its right).

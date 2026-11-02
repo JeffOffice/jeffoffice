@@ -1,5 +1,5 @@
 # Add and format text boxes
-<!-- keywords: textbox, text frame, type text, add text, write text, text fit, autofit, best fit, shrink text, vertical text, columns, margins, overflow, text overflow, frame -->
+<!-- keywords: textbox, text frame, type text, add text, write text, text fit, fit, best fit, shrink text, vertical text, columns, margins, overflow, text overflow, frame -->
 
 A text box is a rectangle on the page that holds text.
 
@@ -33,7 +33,7 @@ For exact numbers, right-click the box, choose **Format Object…**, and open th
 
 Choose **Text Box > Text > Text Fit**, or right-click the box and choose **Text Fit**.
 
-- **Do Not Autofit:** changes nothing. New boxes start here.
+- **Do Not Fit:** changes nothing. New boxes start here.
 - **Best Fit:** draws the text larger or smaller to fill the box.
 - **Shrink Text On Overflow:** draws the text smaller only when it does not fit.
 - **Grow Text Box to Fit:** changes the height of the box to match the text.

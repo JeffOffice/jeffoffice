@@ -1,19 +1,19 @@
-# Copy a look with the Format Painter
-<!-- keywords: format painter, copy format, paste format, copy formatting, brush, paint, same look, ctrl+shift+c, ctrl+shift+v, double-click -->
+# Copy a look with Copy Formatting
+<!-- keywords: copy formatting, copy format, paste format, copy formatting, brush, paint, same look, ctrl+shift+c, ctrl+shift+v, double-click -->
 
-The **Format Painter** copies the look of some text and puts it on other text. Use it when you want a word or a paragraph to look just like another one.
+**Copy Formatting** copies the look of some text and puts it on other text. Use it when you want a word or a paragraph to look just like another one.
 
 ## Copy a look to one place
 
 1. Select the words that have the look you want. Or click in the paragraph.
-2. Click **Format Painter** on the **Home** tab. The button stays pressed, and the status bar reminds you what to do.
-3. Select the words you want to change, with the mouse. When you let go of the mouse button, they take the look, and the Format Painter turns off.
+2. Click **Copy Formatting** on the **Home** tab. The button stays pressed, and the status bar reminds you what to do.
+3. Select the words you want to change, with the mouse. When you let go of the mouse button, they take the look, and Copy Formatting turns off.
 
 If you click in a word without selecting, the word takes the look.
 
 ## Copy a look to many places
 
-Double-click **Format Painter**. It stays on. Every time you select text with the mouse, that text takes the look. Press **Esc**, or click the button again, to stop.
+Double-click **Copy Formatting**. It stays on. Every time you select text with the mouse, that text takes the look. Press **Esc**, or click the button again, to stop.
 
 ## What is copied
 
@@ -23,7 +23,7 @@ Double-click **Format Painter**. It stays on. Every time you select text with th
 
 The list a paragraph is in, and where it sits in the document, are not changed.
 
-Each time the Format Painter paints, it is one step. **Undo** (Ctrl+Z) takes it back.
+Each time Copy Formatting paints, it is one step. **Undo** (Ctrl+Z) takes it back.
 
 ## Use the keyboard
 

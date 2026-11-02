@@ -1,5 +1,5 @@
 # Find your way around the window
-<!-- keywords: ribbon, tabs, toolbar, interface, screen layout, slides pane, thumbnails, notes, status bar, zoom, quick access toolbar, collapse ribbon, minimize ribbon, parts of the window, normal view, title bar, panes -->
+<!-- keywords: ribbon, tabs, toolbar, interface, screen layout, slides pane, thumbnails, notes, status bar, zoom, quick toolbar, collapse ribbon, minimize ribbon, parts of the window, normal view, title bar, panes -->
 
 The JeffDeck window has five main parts: the ribbon across the top, the slides pane on the left, the slide in the middle with its notes below it, panes that open on the right, and the status bar along the bottom. The title bar shows the name of your presentation, with a star (*) when it has changes you have not saved.
 
@@ -9,11 +9,11 @@ The ribbon is the strip of buttons at the top. Its buttons are sorted into **tab
 
 To make more room for the slide, collapse the ribbon. Click the arrow at the far right of the tab row, or double-click a tab. Only the tab names stay. Click a tab to show the buttons again. The **?** button next to the arrow opens Help.
 
-## The File button and the Quick Access Toolbar
+## The File button and the Quick Toolbar
 
 The **File** button is left of the tabs. It opens the File screen, where you start, open, save, print, and export. Press Esc or click **Back to presentation** to return. See [The File screen](file-screen).
 
-The Quick Access Toolbar is the row of three small buttons above the **File** button. It holds **Undo**, **Redo**, and **From Beginning**, which plays the slide show from the first slide.
+The quick toolbar is the row of three small buttons above the **File** button. It holds **Undo**, **Redo**, and **From Beginning**, which plays the slide show from the first slide.
 
 ## The slides pane
 

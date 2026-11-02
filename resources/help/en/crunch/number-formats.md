@@ -9,7 +9,7 @@ JeffCrunch uses the marks of the language your computer is set to. In English (U
 
 This goes everywhere a number is shown or typed:
 
-- A cell, the copy of a cell, and the width that **AutoFit** gives a column follow the marks of your language.
+- A cell, the copy of a cell, and the width that **Fit Column Width** gives a column follow the marks of your language.
 - The **formula bar** and a cell you edit with **F2** give a number the way you type it. If your language writes a decimal with a comma, type **2,5**, not 2.5.
 - In a language that writes decimals with a comma, a formula has **semicolons** between its arguments: **=SUM(A1;A2)**. The names of the functions stay in English.
 - Dates and times follow the code of the format: a format that says "month, day, year" shows them in that order, and a format meant for your language (the ready-made ones in the list) uses the order and the names of your language.

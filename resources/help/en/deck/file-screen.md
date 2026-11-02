@@ -8,7 +8,7 @@ On the left is a list. Some entries open a page, and some do their job at once.
 ## Start
 
 - **New** shows a **Blank Presentation** to click. See [Open and save presentations](open-save).
-- **Open** has **Browse** to pick a file, **Recover Unsaved Work** to bring back copies that AutoRecover kept, and lists of **Pinned** and **Recent Presentations**. See [Open and save presentations](open-save) and [Get back unsaved work](recover).
+- **Open** has **Browse** to pick a file, **Recover Unsaved Work** to bring back copies that automatic recovery kept, and lists of **Pinned** and **Recent Presentations**. See [Open and save presentations](open-save) and [Get back unsaved work](recover).
 
 ## This presentation
 

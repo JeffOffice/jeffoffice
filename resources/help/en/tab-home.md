@@ -3,7 +3,7 @@
 
 The **Home** tab is always on the ribbon. It holds the tools you use most while you write and lay out a page.
 
-- **Clipboard** has **Paste**, **Cut**, **Copy**, and **Format Painter**, which copies how text looks onto another box. See [Format text](formatting-text).
+- **Clipboard** has **Paste**, **Cut**, **Copy**, and **Copy Formatting**, which copies how text looks onto another box. See [Format text](formatting-text).
 - **Font** changes the font, size, color, and style of letters. See [Format text](formatting-text).
 - **Paragraph** has bullets, numbering, indents, alignment, and spacing for whole paragraphs. See [Bullets, numbering, and tabs](lists-tabs).
 - **Styles** is a gallery of named looks you can apply with one click, and a way to make your own. See [Use styles](styles).

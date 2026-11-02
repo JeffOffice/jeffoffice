@@ -30,7 +30,7 @@ The file you work on is called a **presentation**. It is a set of **slides**. Je
 - The Format Shape pane, for fills, lines, effects, sizes, text options, and alt text.
 - Outline view, the Slide Sorter, and Slide Master view.
 - Printing, PDF files, and slide pictures.
-- AutoRecover, which keeps a spare copy of unsaved work.
+- Automatic recovery, which keeps a spare copy of unsaved work.
 
 **What does not work yet**
 
